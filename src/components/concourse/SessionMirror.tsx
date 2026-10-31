@@ -30,7 +30,7 @@ import { GLYPH, truncateToWidth } from '../mercury-ui/glyphs.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
-import { pageStepRows } from '../mercury-ui/composerFloor.js'
+import { pageStepRows, WHEEL_ROWS_PER_NOTCH } from '../mercury-ui/composerFloor.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import {
@@ -209,7 +209,7 @@ export function SessionMirror({
         event.stopImmediatePropagation()
         wheelAccel.current ??= initWheelAccel(isXtermJs(), readScrollSpeedBase())
         const dir = key.wheelDown ? 1 : -1
-        const step = event.wheelStep ? 1 : computeWheelStep(wheelAccel.current, dir, performance.now())
+        const step = event.wheelStep ? WHEEL_ROWS_PER_NOTCH : computeWheelStep(wheelAccel.current, dir, performance.now())
         if (step > 0) scrollRows(dir * step)
         return
       }

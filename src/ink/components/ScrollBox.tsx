@@ -9,6 +9,7 @@ import React, {
   useReducer,
   useRef,
 } from 'react'
+import { WHEEL_ROWS_PER_NOTCH } from '../../components/mercury-ui/composerFloor.js'
 import { markDirty, scheduleRenderFrom, type DOMElement } from '../dom.js'
 import { markCommitStart } from '../reconciler.js'
 import type { Styles } from '../styles.js'
@@ -181,7 +182,7 @@ const ScrollBox = forwardRef<ScrollBoxHandle, ScrollBoxProps>(function ScrollBox
       if (!node || !elevatedSurfaceOwnsNode(node)) return
       if (handle.getViewportHeight() <= 0 || handle.getScrollHeight() <= handle.getViewportHeight()) return
       event.stopImmediatePropagation()
-      handle.scrollBy(event.key.wheelUp ? -1 : 1)
+      handle.scrollBy(event.key.wheelUp ? -WHEEL_ROWS_PER_NOTCH : WHEEL_ROWS_PER_NOTCH)
     }
     internal_eventEmitter.on('wheel', wheel)
     return () => { internal_eventEmitter.removeListener('wheel', wheel) }

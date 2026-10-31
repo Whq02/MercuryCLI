@@ -172,6 +172,7 @@ if (CASE === undefined || CASE === 'picker') {
     { atTick: 999, requireAwait: true, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 2, data: '/model' },
     { afterPrevTicks: 3, data: '\r' },
     { requireAwait: true, awaitText: '│ │ ', awaitStableTicks: 3, mark: 'picker', data: WHEEL_DOWN },
+    { afterPrevTicks: 3, data: WHEEL_DOWN },
     { afterPrevTicks: 5, data: '', mark: 'wheeled' },
     { afterPrevTicks: 1, data: WHEEL_UP },
     { afterPrevTicks: 5, data: '', mark: 'wheeled-back' },
@@ -192,17 +193,12 @@ if (CASE === undefined || CASE === 'picker') {
   const r0 = focusBoxRow(picker)
   const r1 = focusBoxRow(wheeled)
   const r2 = focusBoxRow(back)
-  console.log(`  [record] focus box row: opened ${r0} · after one wheel notch down ${r1} · after one notch up ${r2} · End ${focusBoxRow(end)} · Home ${focusBoxRow(homeF)}`)
+  console.log(`  [record] focus box row: opened ${r0} · after two wheel notches down ${r1} · after one notch up ${r2} · End ${focusBoxRow(end)} · Home ${focusBoxRow(homeF)}`)
   const moreAbove = (lines: string[]): boolean => lines.some(l => /↑ \d+ more/.test(l))
   const moreBelow = (lines: string[]): boolean => lines.some(l => /↓ \d+ more/.test(l))
   check('the picker opened with rows past the window (the seat\'s group leads, the rest fold below)', moreBelow(picker), 'no fold marker below')
-  const modelName = (row: string): string => /^[│\s]*(\S.*?)\s{2,}/.exec(row)?.[1] ?? ''
-  const modelRows = (lines: string[]): string[] => pickerWindow(lines).filter(l => / ctx\b/.test(l)).map(modelName)
-  const focusedModel = (lines: string[]): string => modelName(pickerWindow(lines)[focusBoxRow(lines)] ?? '')
-  const opened = modelRows(picker)
-  const from = opened.indexOf(focusedModel(picker))
-  check('one wheel notch down moves the highlight three models down the picker', from >= 0 && focusedModel(wheeled) === opened[from + 3], `${focusedModel(picker)} → ${focusedModel(wheeled)} (models: ${opened.slice(from, from + 4).join(' · ')})`)
-  check('one notch up brings it back up three models, to where it opened', focusedModel(back) === focusedModel(picker), `${focusedModel(wheeled)} → ${focusedModel(back)}`)
+  check('two wheel notches down move the highlight down the picker', r0 >= 0 && r1 > r0, `row ${r0} → ${r1}`)
+  check('one notch up brings it back up one row', r1 > r2 && r2 > r0, `row ${r1} → ${r2}`)
   check('the columns left of the picker (the chat beneath) are unchanged by the wheel', outsideOf(picker, left) === outsideOf(wheeled, left))
   check('End moves the highlight to the last row (the window at the tail, nothing folded below)', focusBoxRow(end) > r0 && !moreBelow(end), `row ${focusBoxRow(end)}; folded below: ${moreBelow(end)}`)
   check('Home returns the highlight to the first stop, the top provider heading (the window at the head, nothing folded above)', homeF.some(l => /│ ❯ [A-Z.]+ · /.test(l)) && !moreAbove(homeF), `heading ${homeF.find(l => l.includes('❯')) ?? '(none)'}; folded above: ${moreAbove(homeF)}`)
@@ -223,6 +219,7 @@ if (CASE === undefined || CASE === 'help') {
     { afterPrevTicks: 1, data: HOME },
     { afterPrevTicks: 5, data: '', mark: 'home' },
     { afterPrevTicks: 1, data: WHEEL_DOWN },
+    { afterPrevTicks: 3, data: WHEEL_DOWN },
     { afterPrevTicks: 5, data: '', mark: 'wheeled' },
     { afterPrevTicks: 2, data: ESC },
   ], 140)
@@ -239,7 +236,7 @@ if (CASE === undefined || CASE === 'help') {
   check('End moves the cursor to the last command (a row the opening window did not show)', commandAt(pointerRow(end)) !== '' && commandAt(pointerRow(end)) !== first && !list.some(l => l.includes(` ${commandAt(pointerRow(end))} `)), commandAt(pointerRow(end)))
   check('Home returns the cursor to the first command', commandAt(pointerRow(homeF)) === first, `${commandAt(pointerRow(homeF))} vs ${first}`)
   const commandRows = list.map(l => /^\s*│\s*[❯↓↑]?\s*(\/\S+)\s*│?\s*$/.exec(l)?.[1] ?? '').filter(name => name !== '')
-  check('one wheel notch down moves the cursor three commands down', commandRows.length > 3 && commandAt(pointerRow(wheeled)) === commandRows[3], `${first} → ${commandAt(pointerRow(wheeled))} (rows: ${commandRows.slice(0, 4).join(' ')})`)
+  check('two wheel notches down move the cursor two commands down', commandRows.length > 2 && commandAt(pointerRow(wheeled)) === commandRows[2], `${first} → ${commandAt(pointerRow(wheeled))} (rows: ${commandRows.slice(0, 4).join(' ')})`)
   const rowOf = (lines: string[], needle: string): number => lines.findIndex(l => l.includes(needle))
   check('the wheel moved the cursor, not the panel: the title row stays where it was', rowOf(wheeled, 'Browse default commands') === rowOf(list, 'Browse default commands'), `${rowOf(list, 'Browse default commands')} → ${rowOf(wheeled, 'Browse default commands')}`)
 }

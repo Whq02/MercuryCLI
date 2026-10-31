@@ -150,7 +150,7 @@ export function coalesceWheelRun(atoms: readonly ParsedInput[], start: number, p
     end++
   }
   const atom = net > 0 ? down : net < 0 ? up : null
-  const steps = atom === null ? 0 : Math.min(WHEEL_ROWS_PER_NOTCH * Math.abs(net), Math.max(WHEEL_ROWS_PER_NOTCH, pageRows))
+  const steps = atom === null ? 0 : Math.min(Math.abs(net), Math.max(1, Math.floor(pageRows / WHEEL_ROWS_PER_NOTCH)))
   return { end, atom, steps }
 }
 

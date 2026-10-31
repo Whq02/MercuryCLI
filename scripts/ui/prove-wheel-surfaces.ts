@@ -85,15 +85,15 @@ async function equivalent(name: string, body: () => React.ReactNode, setup: stri
   let m = await open(body())
   if (setup) { m.push(setup); await settle(100) }
   const before = shot(m)
-  m.push(arrow.repeat(3 * notches))
+  m.push(arrow.repeat(notches))
   await settle(100)
   const expected = shot(m)
-  check(`${name}: three arrows per notch move the surface`, before !== expected)
+  check(`${name}: one arrow per notch moves the surface`, before !== expected)
   m = await open(body())
   if (setup) { m.push(setup); await settle(100) }
   m.push(wheel.repeat(notches))
   await settle(100)
-  check(`${name}: SGR wheel matches ${3 * notches} arrow presses`, shot(m) === expected, m.screen())
+  check(`${name}: SGR wheel matches ${notches} arrow press${notches === 1 ? '' : 'es'} — a notch moves a selection one row`, shot(m) === expected, m.screen())
   return m
 }
 
@@ -135,14 +135,14 @@ try {
   }
   let m = await config()
   const configBefore = shot(m)
-  m.push(DOWN.repeat(3))
+  m.push(DOWN)
   await settle(100)
   const configExpected = shot(m)
-  check('/config: three arrows move the selected row', configBefore !== configExpected)
+  check('/config: one arrow moves the selected row', configBefore !== configExpected)
   m = await config()
   m.push(WHEEL_DOWN)
   await settle(100)
-  check('/config: the wheel selects the same row as three arrows', shot(m) === configExpected, m.screen())
+  check('/config: the wheel selects the same row as one arrow', shot(m) === configExpected, m.screen())
   popup.closeSettingsPopup()
 
   const scroll = React.createRef<ScrollBoxHandle>()

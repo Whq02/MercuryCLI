@@ -145,15 +145,15 @@ try {
   if (typeof coalesceWheelRun !== 'function') check('the App coalesces a chunk of wheel reports into one gesture', false, 'coalesceWheelRun is not exported by src/ink/components/App.tsx')
   else {
     const one = coalesceWheelRun([wheel('wheelup')], 0, PAGE)
-    check('one notch is three steps', one.steps === 3 && one.end === 1 && one.atom?.name === 'wheelup')
+    check('one notch is one step (a selection moves one row; a scrolling body takes three rows per step)', one.steps === 1 && one.end === 1 && one.atom?.name === 'wheelup')
     const forty = coalesceWheelRun(Array.from({ length: 40 }, () => wheel('wheeldown')), 0, PAGE)
-    check(`forty notches in one chunk are capped at a page (${PAGE} rows)`, forty.steps === PAGE && forty.end === 40, String(forty.steps))
+    check(`forty notches in one chunk are capped at a page of body rows (${Math.floor(PAGE / 3)} notches)`, forty.steps === Math.floor(PAGE / 3) && forty.end === 40, String(forty.steps))
     const cancelled = coalesceWheelRun(Array.from({ length: 20 }, (_, i) => wheel(i % 2 ? 'wheelup' : 'wheeldown')), 0, PAGE)
     check('a reversal inside one chunk nets to no movement', cancelled.steps === 0 && cancelled.atom === null && cancelled.end === 20)
     const netted = coalesceWheelRun([...Array.from({ length: 5 }, () => wheel('wheelup')), ...Array.from({ length: 2 }, () => wheel('wheeldown'))], 0, PAGE)
-    check('five up and two down net to three notches up', netted.steps === 9 && netted.atom?.name === 'wheelup')
+    check('five up and two down net to three notches up', netted.steps === 3 && netted.atom?.name === 'wheelup')
     const stopped = coalesceWheelRun([wheel('wheelup'), key('escape'), wheel('wheelup')], 0, PAGE)
-    check('a key between two notches ends the gesture', stopped.steps === 3 && stopped.end === 1)
+    check('a key between two notches ends the gesture', stopped.steps === 1 && stopped.end === 1)
     const parsed = parseMultipleKeypresses(INITIAL_STATE, MOTION + DRAG + '\x1b[<64;10;5M' + '\x1b[<68;10;5M')[0]
     check('motion and drag reports are mouse atoms, not wheel; shift+wheel is still wheel', parsed.length === 4 && parsed[0]!.kind === 'mouse' && parsed[1]!.kind === 'mouse' && parsed[2]!.kind === 'key' && parsed[2]!.name === 'wheelup' && parsed[3]!.kind === 'key' && parsed[3]!.name === 'wheelup', JSON.stringify(parsed.map(a => a.kind === 'key' ? a.name : a.kind)))
   }
@@ -175,18 +175,18 @@ try {
     check('the panel opens on the newest prompt', selectedPrompt(m) === 'PROMPT_69' && listRows(m).length === 33, m.screen())
     await push(m, WHEEL_UP.repeat(11), 250)
     const rows = listRows(m)
-    check('eleven notches up select prompt 36 (three rows a notch)', selectedPrompt(m) === 'PROMPT_36', selectedPrompt(m))
+    check('eleven notches up select prompt 58 (one row a notch)', selectedPrompt(m) === 'PROMPT_58', selectedPrompt(m))
     check('every list row the viewport owns paints a prompt (the window follows the viewport, not the selection)', rows.length === 33 && rows.every(line => /PROMPT_\d\d/.test(line)), rows.filter(line => !/PROMPT_\d\d/.test(line)).join('\n') || m.screen())
     for (let n = 0; n < 6; n++) {
       await push(m, WHEEL_UP, 60)
       const live = listRows(m)
       check(`after notch ${n + 12} the list still paints every row`, live.length === 33 && live.every(line => /PROMPT_\d\d/.test(line)), m.screen())
     }
-    check('seventeen notches up select prompt 18', selectedPrompt(m) === 'PROMPT_18', selectedPrompt(m))
+    check('seventeen notches up select prompt 52', selectedPrompt(m) === 'PROMPT_52', selectedPrompt(m))
 
     m = await openPanel()
     await push(m, WHEEL_UP.repeat(40), 300)
-    check(`a forty-notch burst in one chunk moves one page (${PAGE} rows), not 120`, selectedPrompt(m) === `PROMPT_${String(69 - PAGE).padStart(2, '0')}`, selectedPrompt(m))
+    check(`a forty-notch burst in one chunk moves the selection a page of body rows (${Math.floor(PAGE / 3)} rows), not 40`, selectedPrompt(m) === `PROMPT_${String(69 - Math.floor(PAGE / 3)).padStart(2, '0')}`, selectedPrompt(m))
     check('the frame still paints the whole list after the burst', listRows(m).length === 33 && listRows(m).every(line => /PROMPT_\d\d/.test(line)) && /esc close/.test(m.screen()), m.screen())
     const frameAt = process.argv.indexOf('--frames')
     if (frameAt >= 0 && process.argv[frameAt + 1]) {
@@ -205,14 +205,14 @@ try {
       await gridToPng(file, png)
       console.log(`frame: ${png}`)
     }
-    await push(m, WHEEL_UP.repeat(40), 300)
-    check('a second burst reaches the top and clamps there', selectedPrompt(m) === 'PROMPT_00' && listRows(m).length === 33 && listRows(m).every(line => /PROMPT_\d\d/.test(line)), m.screen())
+    for (let burst = 0; burst < 5; burst++) await push(m, WHEEL_UP.repeat(40), 300)
+    check('five more bursts reach the top and clamp there', selectedPrompt(m) === 'PROMPT_00' && listRows(m).length === 33 && listRows(m).every(line => /PROMPT_\d\d/.test(line)), m.screen())
 
     m = await openPanel()
     await push(m, (WHEEL_DOWN + WHEEL_UP).repeat(20), 250)
     check('twenty reversals in one chunk leave the selection where it was', selectedPrompt(m) === 'PROMPT_69', selectedPrompt(m))
     await push(m, WHEEL_UP.repeat(5) + WHEEL_DOWN.repeat(2), 250)
-    check('five up and two down in one chunk move nine rows up', selectedPrompt(m) === 'PROMPT_60', selectedPrompt(m))
+    check('five up and two down in one chunk move three rows up', selectedPrompt(m) === 'PROMPT_66', selectedPrompt(m))
 
     m = await openPanel()
     await push(m, WHEEL_DOWN, 200)
@@ -234,7 +234,7 @@ try {
     check('the down arrow still opens the Crew chat, as before, on its newest entry', /BOARD_POST_39/.test(m.screen()) && /CREW_TRAFFIC_5/.test(m.lines().find(line => /›/.test(line)) ?? ''), m.screen())
     const crewHeader = m.lines().findIndex(line => /General/.test(line))
     await push(m, WHEEL_UP.repeat(4), 300)
-    check('four notches in the Crew chat move its selection twelve entries (46 entries: 40 posts and 6 traffic rows; the newest traffic row to post 33) and nothing else: the header row stays put and the panel paints', m.lines().findIndex(line => /General/.test(line)) === crewHeader && /BOARD_POST_33/.test(m.lines().find(line => /›/.test(line)) ?? '') && /BOARD_POST_/.test(m.screen()), `header ${crewHeader} -> ${m.lines().findIndex(line => /General/.test(line))}; selected: ${m.lines().find(line => /›/.test(line))}\n${m.screen()}`)
+    check('four notches in the Crew chat move its selection four entries (46 entries: 40 posts and 6 traffic rows; the newest traffic row to the second-oldest traffic row) and nothing else: the header row stays put and the panel paints', m.lines().findIndex(line => /General/.test(line)) === crewHeader && /CREW_TRAFFIC_1\b/.test(m.lines().find(line => /›/.test(line)) ?? '') && /BOARD_POST_/.test(m.screen()), `header ${crewHeader} -> ${m.lines().findIndex(line => /General/.test(line))}; selected: ${m.lines().find(line => /›/.test(line))}\n${m.screen()}`)
     boardOn = false
 
     m = await openPanel()
@@ -271,9 +271,9 @@ try {
     await settle(400)
     check('the workbench opened over the transcript on the newest prompt', selectedPrompt(m) === 'PROMPT_69', m.screen())
     await push(m, WHEEL_UP.repeat(40), 800)
-    check(`the burst moves the workbench selection one page (${PAGE} rows) and the list stays painted`, selectedPrompt(m) === `PROMPT_${String(69 - PAGE).padStart(2, '0')}` && listRows(m).length === 33 && listRows(m).every(line => /PROMPT_\d\d/.test(line)), m.screen())
+    check(`the burst moves the workbench selection a page of body rows (${Math.floor(PAGE / 3)} rows) and the list stays painted`, selectedPrompt(m) === `PROMPT_${String(69 - Math.floor(PAGE / 3)).padStart(2, '0')}` && listRows(m).length === 33 && listRows(m).every(line => /PROMPT_\d\d/.test(line)), m.screen())
     await push(m, (WHEEL_DOWN + WHEEL_UP).repeat(10), 400)
-    check('reversals leave the workbench selection and paint alone', selectedPrompt(m) === `PROMPT_${String(69 - PAGE).padStart(2, '0')}` && listRows(m).length === 33, m.screen())
+    check('reversals leave the workbench selection and paint alone', selectedPrompt(m) === `PROMPT_${String(69 - Math.floor(PAGE / 3)).padStart(2, '0')}` && listRows(m).length === 33, m.screen())
     await push(m, WHEEL_DOWN.repeat(40), 800)
     await push(m, WHEEL_DOWN.repeat(5), 400)
     check('a burst past the newest prompt stays on the workbench prompts list', selectedPrompt(m) === 'PROMPT_69' && /PROMPTS \(70\)/.test(m.screen()), m.screen())

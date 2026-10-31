@@ -288,7 +288,7 @@ export function CoordinatorPane({
           : focused
       if (!inside) return
       event.stopImmediatePropagation()
-      scrollRows((key.wheelDown ? 1 : -1) * (event.wheelStep ? 1 : WHEEL_STEP_ROWS))
+      scrollRows((key.wheelDown ? 1 : -1) * WHEEL_STEP_ROWS)
       return
     }
     if (gitOffer !== undefined) return

@@ -51,8 +51,8 @@ for (const [cols, rows] of SIZES) {
     { requireAwait: true, awaitText: row(5), data: '\u001b[A' },
     { requireAwait: true, awaitText: row(4), data: '', mark: 'up-2' },
     { requireAwait: true, awaitText: row(4), data: '\u001b[<64;10;10M' },
-    { requireAwait: true, awaitText: row(1), awaitSettleTicks: 2, data: '', mark: 'wheel' },
-    { requireAwait: true, awaitText: row(1), data: '\u001b' },
+    { requireAwait: true, awaitText: row(3), awaitSettleTicks: 2, data: '', mark: 'wheel' },
+    { requireAwait: true, awaitText: row(3), data: '\u001b' },
     { requireAwait: true, awaitText: 'Type a prompt', data: '', mark: 'closed' },
   ]
   writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST, '--chat', '--sovereign'], cwd: ROOT, cols, rows, sends, resizes: [], total: 400, readyText: 'Type a prompt', readySettleTicks: 2, out }))
@@ -82,7 +82,7 @@ for (const [cols, rows] of SIZES) {
     const up = at('up-2')
     check(`${tag}: ↑ ×2 walks back two rows and the cursor stays painted`, cursorRow(up) >= 0 && (up[cursorRow(up)] ?? '').includes(rowText(4)), `cursor row ${cursorRow(up)} · monitor rows ${monitorRows(up).join(',')}`)
     const wheel = at('wheel')
-    check(`${tag}: one wheel notch up moves the selection three monitors up, as three ↑ presses do`, cursorRow(wheel) >= 0 && (wheel[cursorRow(wheel)] ?? '').includes(rowText(1)), `cursor row ${cursorRow(wheel)} (before the wheel ${cursorRow(up)})`)
+    check(`${tag}: one wheel notch up moves the selection one monitor up, as one ↑ press does`, cursorRow(wheel) >= 0 && (wheel[cursorRow(wheel)] ?? '').includes(rowText(3)), `cursor row ${cursorRow(wheel)} (before the wheel ${cursorRow(up)})`)
     const closed = at('closed')
     check(`${tag}: esc closes the screen and the composer is back`, closed.some(row => row.includes('Type a prompt')) && !closed.some(row => row.includes('Session statistics')), closed.slice(-4).join(' | '))
   } finally {

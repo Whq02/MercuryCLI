@@ -12,6 +12,7 @@ export function composerBorderStyle(rows: number): 'round' | undefined {
 }
 
 export const WHEEL_STEP_ROWS = 3
+export const WHEEL_ROWS_PER_NOTCH = WHEEL_STEP_ROWS
 
 export function pageStepRows(viewportRows: number): number {
   return Math.max(4, viewportRows - 1)

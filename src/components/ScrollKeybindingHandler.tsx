@@ -1,5 +1,6 @@
 
 import React, { useCallback, useEffect, useRef } from 'react'
+import { WHEEL_ROWS_PER_NOTCH } from './mercury-ui/composerFloor.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { settingsPopupRequest } from '../utils/cockpit/settingsPopup.js'
 import { isCrewViewOpen } from '../utils/cockpit/crewView.js'
@@ -457,7 +458,7 @@ export function ScrollKeybindingHandler({
         }
       }
       const dir: 1 | -1 = wheelDown ? 1 : -1
-      const rows = event.wheelStep ? 1 : computeWheelStep(wheelState.current, dir, Date.now())
+      const rows = event.wheelStep ? WHEEL_ROWS_PER_NOTCH : computeWheelStep(wheelState.current, dir, Date.now())
       if (event.wheelStep) event.stopImmediatePropagation()
       if (rows === 0) return
       const effective = handle.getScrollTop() + handle.getPendingDelta()
