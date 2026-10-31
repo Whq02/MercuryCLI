@@ -8,7 +8,7 @@ import { chatKindColor, chatNameColor, chatRows } from '../../src/services/crewB
 import { resolveMercuryTokens } from '../../src/utils/mercuryTokens.ts'
 import { TERRA } from '../../src/components/mercuryPalette.ts'
 import { gridToPng } from '../ui/gridToPng.ts'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { readSessionWorkers } from '../../src/daemon/concourseWorkers.ts'
 
 assert(process.env.MERCURY_CONFIG_DIR, 'run with a scratch MERCURY_CONFIG_DIR')
@@ -67,8 +67,10 @@ const settings = join(CONFIG_HOME, 'settings.json')
 writeFileSync(settings, JSON.stringify({ swarm: { enabled: true } }))
 const then = (awaitText: string, data: string) => ({ atTick: 999, awaitText, minTick: 5, awaitSettleTicks: 2, data })
 const frames: [number, number, string][] = [[120, 44, 'timeline'], [80, 24, 'timeline'], ...(!fixture ? [[120, 44, 'team'], [80, 24, 'thread'], [120, 44, 'tail'], ...(arg('--leg') === 'history' ? [[120, 44, 'history']] : [])] as [number, number, string][] : [])]
+const driver = resolveCaptureDriver()
+if (driver.kind !== 'posix-pty') console.log(`SKIP the picture frames: they need the POSIX pty capture driver (scripts/ui/vshot.py); this host has ${driver.kind === 'unavailable' ? `none (${driver.reason}; ${driver.remedy})` : driver.kind}`)
 try {
-  for (const [cols, rows, leg] of frames.filter(frame => !arg('--leg') || frame[2] === arg('--leg'))) {
+  for (const [cols, rows, leg] of driver.kind === 'posix-pty' ? frames.filter(frame => !arg('--leg') || frame[2] === arg('--leg')) : []) {
     const config = scenario('resume-2turn', cols, rows)
     appendFileSync(join(projects, `${SID}.jsonl`), encodeFixtureTranscript([{ type: 'swarm-switch', sessionId: SID, on: true }], SID))
     const tag = `crew-chat-${cols}x${rows}${leg === 'timeline' ? '' : `-${leg}`}`
@@ -96,7 +98,7 @@ try {
     }) : undefined
     let stderr = ''
     const status = await new Promise<number | null>((resolve, reject) => {
-      const child = spawn('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), configPath], { env: { ...process.env, VSHOT_TEE: tee }, timeout: vshotBudgetMs(120000), stdio: ['ignore', 'ignore', 'pipe'] })
+      const child = spawn(driver.kind === 'posix-pty' ? driver.python : 'python3', [join(import.meta.dir, '../ui/vshot.py'), configPath], { env: { ...process.env, VSHOT_TEE: tee }, timeout: vshotBudgetMs(120000), stdio: ['ignore', 'ignore', 'pipe'] })
       child.stderr.on('data', chunk => { stderr += chunk.toString() })
       child.on('error', reject)
       child.on('exit', resolve)

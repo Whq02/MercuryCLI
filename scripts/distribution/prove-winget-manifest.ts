@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { PYTHON3 } from '../lib/python3.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const SCRIPT = join(ROOT, 'scripts', 'release', 'winget-manifest.mjs')
@@ -126,8 +127,8 @@ section('§5 the zip layout: --zip reads the archive\'s entries; the nested exec
 {
   const zipOf = (name: string, entries: string[]): string => {
     const path = join(scratch, name)
-    const made = spawnSync('python3', ['-c', 'import sys, zipfile\nwith zipfile.ZipFile(sys.argv[1], "w") as z:\n  [z.writestr(e, "x") for e in sys.argv[2:]]', path, ...entries], { encoding: 'utf8' })
-    if (made.status !== 0) throw new Error(`python3 zipfile: ${made.stderr}`)
+    const made = spawnSync(PYTHON3, ['-c', 'import sys, zipfile\nwith zipfile.ZipFile(sys.argv[1], "w") as z:\n  [z.writestr(e, "x") for e in sys.argv[2:]]', path, ...entries], { encoding: 'utf8' })
+    if (made.status !== 0) throw new Error(`${PYTHON3} zipfile: ${made.error?.message ?? made.stderr}`)
     return path
   }
   const common = ['mercury/mercury.mjs', 'mercury/manifest.json', 'mercury/vendor/node/node.exe', 'mercury/mercury.cmd', 'mercury/mercury.ps1']

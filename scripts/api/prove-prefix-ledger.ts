@@ -4,7 +4,8 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
+import { arenaPath } from '../lib/platformPath.ts'
 import { runTurns } from '../lib/rows.ts'
 
 process.env.NODE_ENV = 'test'
@@ -569,7 +570,7 @@ if (!existsSync(DIST)) {
         cwd,
         env: {
           HOME: home,
-          PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
+          PATH: arenaPath(nodeBin!),
           TERM: 'dumb',
           MERCURY_CONFIG_DIR: join(home, '.mercury'),
           MERCURY_CREDENTIAL_STORE: 'file',

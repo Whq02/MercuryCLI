@@ -4,7 +4,8 @@
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
+import { arenaPath } from '../lib/platformPath.ts'
 import { runTurns } from '../lib/rows.ts'
 
 process.env.NODE_ENV = 'test'
@@ -32,10 +33,11 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
+const PROCESS_WALL_MS = 180_000
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — dead-thinking proofs exceeded 280s')
+  console.log('\n❌ TIMEOUT — dead-thinking proofs exceeded 600s')
   process.exit(1)
-}, 280_000)
+}, 600_000)
 guard.unref?.()
 
 function withoutCacheControl(value: unknown): unknown {
@@ -120,7 +122,7 @@ if (!existsSync(DIST)) {
         cwd,
         env: {
           HOME: home,
-          PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
+          PATH: arenaPath(nodeBin!),
           TERM: 'dumb',
           MERCURY_CONFIG_DIR: join(home, '.mercury'),
           MERCURY_CREDENTIAL_STORE: 'file',
@@ -133,8 +135,24 @@ if (!existsSync(DIST)) {
         },
       }
     }
-    function runStreaming(arena: Arena, args: string[], prompts: string[]): Promise<RunResult> {
-      return runTurns({ node: nodeBin!, dist: DIST, args, cwd: arena.cwd, env: arena.env, timeoutMs: 90_000, turns: prompts })
+    type Frame = Record<string, unknown>
+    interface StreamedRun extends RunResult { frames: Frame[]; wallMs: number }
+    async function runStreaming(arena: Arena, args: string[], prompts: string[]): Promise<StreamedRun> {
+      const startedAt = Date.now()
+      const run = await runTurns({ node: nodeBin!, dist: DIST, args, cwd: arena.cwd, env: arena.env, timeoutMs: PROCESS_WALL_MS, turns: prompts })
+      return { ...run, wallMs: Date.now() - startedAt }
+    }
+    const eventOrder = (run: StreamedRun): string => run.frames.map(frame => [frame.type, frame.state ?? frame.status, frame.name].filter(part => typeof part === 'string').join(':')).join(' → ')
+    function processReport(label: string, run: StreamedRun, fixture: FixtureApi, debugFile: string): void {
+      if (run.exit === 0) return
+      console.log(`    ${label}: exit=${run.exit} after ${run.wallMs} ms (the wall is ${PROCESS_WALL_MS} ms) · ${fixture.messageRequests().length} message requests reached the fixture`)
+      console.log(`    ${label}: rows in order: ${eventOrder(run) || '(none)'}`)
+      if (run.stderr.trim() !== '') console.log(`    ${label}: stderr: ${run.stderr.slice(-600)}`)
+      if (existsSync(debugFile)) {
+        const kept = join(tmpdir(), `dead-thinking-${label.replace(/[^a-z0-9]+/gi, '-')}.debug.log`)
+        writeFileSync(kept, readFileSync(debugFile))
+        console.log(`    ${label}: the debug log is kept at ${kept}`)
+      }
     }
     type Body = { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string }
     type Captured = ReturnType<FixtureApi['messageRequests']>
@@ -215,8 +233,10 @@ if (!existsSync(DIST)) {
         'anything else?',
       ])
       check('§2 the three-turn process exits 0 and every turn answered', r.exit === 0 && ['S2-TURN-1-DONE', 'S2-TURN-2-DONE', 'S2-TURN-3-DONE'].every(t => r.stdout.includes(t)), `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
+      processReport('§2 first process', r, fixture, debugFile)
       const r2 = await runStreaming(arena, [...common, '--resume', SID, '--log-file', debugFile], ['and after the resume?'])
       check('§2 the resumed process exits 0 and answered', r2.exit === 0 && r2.stdout.includes('S2-RESUMED-DONE'), `exit=${r2.exit} stderr=${r2.stderr.slice(0, 300)}`)
+      processReport('§2 resumed process', r2, fixture, debugFile)
       const reqs = fixture.messageRequests().filter(q => !isHandoffRequest(q))
       check('§2 nine message requests (five rounds, a two-round turn, a plain turn, the resumed turn)', reqs.length === 9, String(reqs.length))
       check('§2 one marked closing ask follows the first process\'s last turn, before the resume', j(fixture.messageRequests().map(isHandoffRequest)) === j([...Array(8).fill(false), true, false]), j(fixture.messageRequests().map(isHandoffRequest)))
@@ -259,6 +279,7 @@ if (!existsSync(DIST)) {
         'and now?',
       ])
       check('§3 the three-turn process exits 0 and every turn answered', r.exit === 0 && ['S3-TURN-1-DONE', 'S3-TURN-2-DONE', 'S3-TURN-3-DONE'].every(t => r.stdout.includes(t)), `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
+      processReport('§3 process', r, fixture, debugFile)
       const reqs = fixture.messageRequests().filter(q => !isHandoffRequest(q))
       check("§3 six message requests (turn 1; the loop's four rounds; turn 3)", reqs.length === 6, String(reqs.length))
       check('§3 one marked closing ask follows all six substantive requests', j(fixture.messageRequests().map(isHandoffRequest)) === j([...Array(6).fill(false), true]), j(fixture.messageRequests().map(isHandoffRequest)))

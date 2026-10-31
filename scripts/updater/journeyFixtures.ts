@@ -29,6 +29,18 @@ const NODE_POLICY = parseEnginesNode(
 
 export const hostAllowlist = (): string[] => topAllowlist(HOST_TARGET, FLOOR)
 
+function standInWindowsLauncher(): Buffer {
+  const pe = Buffer.alloc(512)
+  pe.write('MZ')
+  pe.writeUInt32LE(0x80, 0x3c)
+  pe.writeUInt32LE(0x4550, 0x80)
+  pe.writeUInt16LE(0x8664, 0x84)
+  pe.writeUInt16LE(2, 0x96)
+  pe.writeUInt16LE(0x20b, 0x98)
+  pe.writeUInt16LE(3, 0xdc)
+  return pe
+}
+
 export function hostAssetName(version: string): string {
   const name = assetNameFor(version, process.platform, process.arch)
   if (!name) throw new Error(`host platform ${process.platform}/${process.arch} has no channel asset — run this prover on linux-x64/macos-arm64/windows-x64`)
@@ -61,6 +73,7 @@ ${opts.postSwitchFail ? `const dir = decodeURIComponent(new URL('.', import.meta
   writeFileSync(join(dir, 'splash.mjs'), `// fixture splash ${version}\n`)
   writeFileSync(join(dir, 'splash-core.mjs'), `// fixture splash core ${version}\n`)
   if (IS_WIN) {
+    writeFileSync(join(dir, 'mercury.exe'), standInWindowsLauncher())
     writeFileSync(join(dir, 'mercury.cmd'), cmdLauncher(NODE_POLICY))
     writeFileSync(join(dir, 'mercury.ps1'), ps1Launcher(NODE_POLICY))
     writeFileSync(join(dir, 'install.ps1'), `# fixture installer stub\n`)

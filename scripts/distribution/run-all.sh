@@ -9,7 +9,7 @@
 # gate-watch: .github/workflows/private-release.yml README.md build.ts docs/COMPATIBILITY.md docs/README.md
 # gate-watch: scripts/release/package.mjs scripts/release/verifyArchive.mjs src/constants/legalNotice.ts
 # gate-watch: src/utils/crashReport.ts
-# gate-watch: scripts/release/winget-manifest.mjs
+# gate-watch: scripts/release/winget-manifest.mjs scripts/lib/python3.ts
 # gate-watch: Dockerfile .dockerignore bunfig.toml src/services/privateChannel/vendoredRuntime.ts src/services/providers/credentialEnvSpellings.ts scripts/lib/fixtureApi.ts
 # gate-watch: README.md scripts/release/readmeAuthor.mjs
 set -u
