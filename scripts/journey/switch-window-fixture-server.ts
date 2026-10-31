@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { createHash } from 'node:crypto'
 import { appendFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 
@@ -27,9 +28,11 @@ function record(entry: Record<string, unknown>): void {
 }
 
 function bigReplyText(): string {
-  const sentence = 'The note walks the module boundaries, the ports, the records and the checks that keep them honest. '
   let out = ''
-  while (out.length < REPLY_CHARS - BIG_REPLY_TAIL.length - 1) out += sentence
+  for (let n = 0; out.length < REPLY_CHARS - BIG_REPLY_TAIL.length - 1; n++) {
+    const reference = createHash('sha256').update(`switch-window-section-${n}`).digest('hex')
+    out += `Section ${n} records a module boundary: ${reference}. Check the indexed observations before changing it.\n`
+  }
   return `${out}\n${BIG_REPLY_TAIL}`
 }
 
