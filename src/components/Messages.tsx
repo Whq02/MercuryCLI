@@ -679,6 +679,10 @@ function MessagesInner({
       if (cached !== undefined) return cached
       const lowered = renderableSearchText(
         message as Parameters<typeof renderableSearchText>[0],
+        id => {
+          const name = lookupsRef.current.toolUseByToolUseID.get(id)?.name
+          return name === undefined ? undefined : findToolByName(tools, name)
+        },
       ).toLowerCase()
       searchTextCache.current.set(message, lowered)
       return lowered

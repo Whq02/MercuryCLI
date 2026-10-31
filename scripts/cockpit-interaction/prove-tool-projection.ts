@@ -54,6 +54,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     facetsSatisfy,
     NON_INDEXING_TOOLS,
     parseSearchQuery,
+    renderableSearchText,
     toolInputFiles,
   } = await import('../../src/utils/transcriptSearch.ts')
 
@@ -310,6 +311,29 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
 
   t.section('§4 — the wiring: one projection, one source of "failed"')
   {
+    const { DocumentTool } = await import('../../src/tools/DocumentTool/DocumentTool.ts')
+    const documentResult = { op: 'inspect', road: 'pdf', files: [{ path: '/reports/quarterly-summary.pdf', bytes: 1024, sha256: 'ab' }], detail: 'twelve pages, two tables' }
+    const resultRow = (id: string) => ({ type: 'user', uuid: `u-${id}`, timestamp: new Date(0).toISOString(), message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content: 'ok' }] }, toolUseResult: documentResult }) as unknown as Parameters<typeof renderableSearchText>[0]
+    const through = renderableSearchText(resultRow('doc-1'), id => (id === 'doc-1' ? DocumentTool : undefined))
+    t.check(
+      'a Document result row is searchable by its file path and its detail through the tool\'s own extractor',
+      through.includes('quarterly-summary.pdf') && through.includes('twelve pages'),
+      JSON.stringify(through),
+    )
+    const fallbackOnly = renderableSearchText(resultRow('doc-2'))
+    t.check(
+      'the duck-type fallback alone reads none of Document\'s fields — the extractor is the road, not decoration',
+      !fallbackOnly.includes('quarterly-summary.pdf') && !fallbackOnly.includes('twelve pages'),
+      JSON.stringify(fallbackOnly),
+    )
+    const quiet = renderableSearchText(resultRow('doc-3'), () => ({ name: 'Monitor', extractSearchText: () => 'never indexed' }))
+    t.check('a non-indexing tool contributes no search text even with an extractor', quiet === '', JSON.stringify(quiet))
+    const messagesSource = readFileSync('src/components/Messages.tsx', 'utf8')
+    t.check(
+      'Messages hands the search the tool behind each result (the tool-use lookup, then the live tool list)',
+      messagesSource.includes('lookupsRef.current.toolUseByToolUseID.get(id)?.name') && /renderableSearchText\([\s\S]{0,400}findToolByName\(tools, name\)/.test(messagesSource),
+      'wired',
+    )
     const list = readFileSync('src/components/VirtualMessageList.tsx', 'utf8')
     t.check('the search path parses operators', /const query = parseSearchQuery\(/.test(list), 'parsed')
     t.check('and filters rows through the facets', list.includes('facetsSatisfy('), 'filtered')

@@ -1,6 +1,9 @@
 import type { RenderableMessage } from '../types/message.js'
 import { isTurnCutText } from './messages.js'
 
+type SearchTextTool = { name: string; extractSearchText?: (output: never) => string }
+type ResolveSearchTool = (toolUseId: string) => SearchTextTool | undefined
+
 
 
 const searchTextCache = new WeakMap<object, string>()
@@ -73,7 +76,19 @@ type BlockLike = {
   input?: unknown
 }
 
-function computeSearchText(message: RenderableMessage): string {
+function ownSearchText(tool: SearchTextTool | undefined, result: unknown): string | undefined {
+  if (tool === undefined) return undefined
+  if (NON_INDEXING_TOOLS.has(tool.name)) return ''
+  if (typeof tool.extractSearchText !== 'function') return undefined
+  try {
+    const text = tool.extractSearchText(result as never)
+    return typeof text === 'string' ? text : ''
+  } catch {
+    return undefined
+  }
+}
+
+function computeSearchText(message: RenderableMessage, resolveTool?: ResolveSearchTool): string {
   if (message.type === 'user') {
     const content = message.message.content
     if (typeof content === 'string') {
@@ -86,7 +101,9 @@ function computeSearchText(message: RenderableMessage): string {
       if (block.type === 'text' && typeof block.text === 'string') {
         if (!isInterruptionSentinel(block.text)) parts.push(block.text)
       } else if (block.type === 'tool_result') {
-        parts.push(toolResultSearchText(toolUseResult))
+        const id = (block as { tool_use_id?: unknown }).tool_use_id
+        const own = typeof id === 'string' ? ownSearchText(resolveTool?.(id), toolUseResult) : undefined
+        parts.push(own ?? toolResultSearchText(toolUseResult))
       }
     }
     return parts.join('\n')
@@ -134,10 +151,10 @@ function computeSearchText(message: RenderableMessage): string {
   return ''
 }
 
-export function renderableSearchText(msg: RenderableMessage): string {
+export function renderableSearchText(msg: RenderableMessage, resolveTool?: ResolveSearchTool): string {
   const cached = searchTextCache.get(msg as object)
   if (cached !== undefined) return cached
-  const text = stripSystemReminders(computeSearchText(msg)).toLowerCase()
+  const text = stripSystemReminders(computeSearchText(msg, resolveTool)).toLowerCase()
   searchTextCache.set(msg as object, text)
   return text
 }
