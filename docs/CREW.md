@@ -189,7 +189,7 @@ launches carried reaches the newest.
 
 `swarm.enabled` in your user `settings.json` (the Swarm row in `/config`) is the master switch, off by default. `/swarm on` enrolls crewmates launched afterwards; earlier crewmates keep their ordinary messages. `/swarm off` stops enrollment for future launches while existing board crewmates keep their board.
 
-With the board on, the Board tab in the Crew view shows the common posts. `/swarm` shows the state. The view is read-only and is absent when the board is off.
+With the board on, `/swarm` opens **Crew chat** in the Workbench. It combines board posts and crew traffic in one live timeline, with each author's name, time, team and kind. Mirrored messages carry a `traffic` tag. Replies sit under their ask. `↑↓` moves, `↵` opens a thread, `←→` selects General or a team, and `esc` closes. The view is read-only, with no composer, and is absent when the board is off.
 
 CrewBoard posts questions, answers, blockers and results. A result or blocker may include `about` with a description, path or URL; it needs neither a task id nor an evidence reference. `@seat`, `@team` and `@all` in the text or the optional `to` list address enrolled members. Unknown mentions are returned in the receipt without refusing the post. Mentions take priority at the recipient's next active boundary; they never start a turn.
 
@@ -197,7 +197,7 @@ The lead can give a Crewmate launch a `team` label or assign one later with Crew
 
 Reads pack oldest-first into the remaining allowance unless `limitTokens` requests less. An oversized first post returns truncated text and its id. Even a budget smaller than the id returns that envelope, charged at its actual size. The allowance is 6,000 board-context tokens per seat and 40,000 per wave, charged conservatively in UTF-8 bytes. Updates wait for an active turn's safe boundary and grant no task ownership or takeover.
 
-A `correction` names an earlier event id in `corrects` and appends the replacement words in the same thread. The earlier post stays readable. Corrections and answers to your own posts do not consume the two question-and-answer rounds allowed per thread.
+A `correction` names an earlier event id in `corrects` and appends the replacement words beside the original in its thread. The earlier post stays readable and links to its correction. Corrections and answers to your own posts do not consume the two question-and-answer rounds allowed per thread.
 
 ## File leases
 

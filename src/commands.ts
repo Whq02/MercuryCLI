@@ -226,7 +226,7 @@ export function commandSeat(command: Command): CommandSeat {
 }
 
 export function sessionSeatCommandTable(commands: readonly Command[]): Command[] {
-  return commands.filter(command => commandSeat(command) === 'session')
+  return commands.filter(command => commandSeat(command) === 'session' || (command.type === 'local-jsx' && (command.headlessVerbs?.length ?? 0) > 0))
 }
 
 export function builtinCommands(): readonly Command[] {

@@ -1,11 +1,11 @@
 import type { Command } from '../../commands.js'
 
 const swarm = {
-  type: 'local',
+  type: 'local-jsx',
   name: 'swarm',
-  description: 'Live crew board for this session — on, off, or current state',
+  description: 'Crew chat — open the live timeline, or turn the board on or off',
   argumentHint: '[on|off]',
-  supportsNonInteractive: true,
+  headlessVerbs: ['', 'on', 'off'],
   load: () => import('./swarm.js'),
 } satisfies Command
 

@@ -26,7 +26,7 @@ console.log('§1 FC-131 — the packed line gates by level like the rail')
   )
   check(
     'the detail tail composes select · caller detail hints · back',
-    panes.includes("['↑↓ select', resizeActive ? '+/- size' : undefined, detailFooterHints, '←/esc back']"),
+    panes.includes("['↑↓ select · pgup/pgdn page', resizeActive ? '+/- size' : undefined, detailFooterHints, '←/esc back']"),
   )
   check(
     'detailFooterHints is a declared prop the panes take and thread to the detail tail',

@@ -3,6 +3,7 @@ import type { Tool, ToolDef } from '../../Tool.js'
 import type { BoardHost, BoardModule, BoardPost, BoardRead, BoardStore } from './contracts.js'
 import { open } from './store.js'
 import { existsSync } from 'node:fs'
+import { chatRows } from './chat.js'
 export { open }
 
 export const tail: BoardModule['tail'] = record => {
@@ -82,36 +83,63 @@ export function tool(host: BoardHost, store: () => BoardStore | null): Tool {
 
 export const view: BoardModule['view'] = host => {
   const { React, Text, Box, width, height } = host
-  const [selected, setSelected] = React.useState(0)
-  const [detail, setDetail] = React.useState(false)
+  const [live, setLive] = React.useState(host.snapshot)
+  const [selected, setSelected] = React.useState<string | undefined>()
   const [earlier, setEarlier] = React.useState<number[]>([])
-  const [thread, setThread] = React.useState<string | undefined>()
   const before = earlier.at(-1)
-  const snapshot = React.useMemo(() => host.snapshot.record && (before !== undefined || thread !== undefined) ? page(host.snapshot.record, before, thread) : host.snapshot, [before, thread, host.snapshot])
-  const entries = snapshot.events
-  const index = Math.max(0, Math.min(selected, entries.length - 1))
-  host.useInput((input, key) => {
-    if (key.escape) { if (detail) setDetail(false); else if (thread !== undefined) { setThread(undefined); setEarlier([]) } else host.onBack(); return }
-    if (key.pageUp && snapshot.omitted > 0 && entries[0]) { setEarlier(history => [...history, entries[0]!.seq]); setSelected(0); return }
-    if (key.pageDown) { setEarlier(history => history.slice(0, -1)); setSelected(0); return }
-    if (input === 't' && detail && entries[index]) { setThread(entries[index]!.threadId); setEarlier([]); setSelected(0); setDetail(false); return }
-    if (key.upArrow) setSelected(Math.max(0, index - 1))
-    if (key.downArrow) setSelected(Math.min(entries.length - 1, index + 1))
-    if (key.return) setDetail(true)
+  const [thread, setThread] = React.useState<string | undefined>()
+  const [team, setTeam] = React.useState<string | undefined>()
+  const [scroll, setScroll] = React.useState(0)
+  const record = host.snapshot.record
+  React.useEffect(() => {
+    setLive(host.snapshot)
+    if (!record) return
+    const reader = tail(record)
+    const refresh = () => setLive(reader.view())
+    const stop = reader.subscribe(refresh)
+    refresh()
+    return () => { stop(); reader.close() }
+  }, [record?.path, record?.sessionId, host.snapshot.on])
+  const snapshot = React.useMemo(() => record && (before !== undefined || thread !== undefined || team !== undefined) ? page(record, before, thread, thread ? undefined : team) : live, [live, before, thread, team, record?.path, record?.sessionId])
+  const entries = chatRows(snapshot, host.traffic, thread ? undefined : team, thread)
+  const index = selected === undefined ? entries.length - 1 : Math.max(0, entries.findIndex(row => row.id === selected))
+  const channels = [undefined, ...(live.teams ?? [])]
+  host.useInput((_input, key) => {
+    if (key.escape) { if (thread !== undefined) { setThread(undefined); setEarlier([]); setScroll(0) } else host.onBack(); return }
+    if (key.leftArrow || key.rightArrow) {
+      const next = (channels.indexOf(team) + (key.leftArrow ? -1 : 1) + channels.length) % channels.length
+      setTeam(channels[next]); setThread(undefined); setEarlier([]); setSelected(undefined); setScroll(0); return
+    }
+    if (key.return && entries[index]) { setThread(entries[index]!.thread); setEarlier([]); setScroll(0); return }
+    if (thread !== undefined) {
+      const end = Math.max(0, detailLines.length - room)
+      const offset = Math.min(scroll, end)
+      if (key.upArrow && offset === 0 && snapshot.omitted && snapshot.events[0]) { setEarlier(history => [...history, snapshot.events[0]!.seq]); setScroll(Number.MAX_SAFE_INTEGER); return }
+      if (key.downArrow && offset === end && before !== undefined) { setEarlier(history => history.slice(0, -1)); setScroll(0); return }
+      if (key.upArrow) setScroll(Math.max(0, offset - 1))
+      if (key.downArrow) setScroll(Math.min(end, offset + 1))
+      return
+    }
+    if (key.upArrow && index === 0 && snapshot.omitted && snapshot.events[0]) { setEarlier(history => [...history, snapshot.events[0]!.seq]); setSelected(undefined); return }
+    if (key.downArrow && index === entries.length - 1 && before !== undefined) { setEarlier(history => history.slice(0, -1)); setSelected(undefined); return }
+    if (key.upArrow) setSelected(entries[Math.max(0, index - 1)]?.id)
+    if (key.downArrow) setSelected(index + 1 >= entries.length - 1 ? undefined : entries[index + 1]?.id)
   })
-  const event = entries[index]
-  const line = (text: string, key: string) => React.createElement(Text, { key, wrap: 'truncate-end' }, text.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' '))
-  const start = Math.max(0, index - Math.max(1, height - 5) + 1)
-  const rows = detail && event ? [
-    line(`${event.author.agentId} · ${event.createdAt} · ${event.taskId ?? event.threadId}`, 'who'),
-    React.createElement(Text, { key: 'text', wrap: 'wrap' }, event.text.replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '')),
-    ...event.refs.map((ref, i) => line(`${ref.uri} · ${ref.digest}`, `ref-${i}`)),
-    line(`Board reads ${snapshot.admitted.toLocaleString()} / 40,000 tokens · 0 extra turns`, 'cost'),
-    line('t thread · esc back', 'back'),
-  ] : [
-    ...entries.slice(start, start + Math.max(1, height - 3)).map((e, i) => line(`${start + i === index ? '›' : ' '} ${e.createdAt.slice(11, 19)} · ${e.authorName ?? e.author.agentId} · ${e.taskId ?? e.threadId} · ${e.text}`, e.eventId)),
-    ...(entries.length === 0 ? [line('No posts yet', 'empty')] : []),
-    line(`↑↓ move · ↵ open${snapshot.omitted > 0 ? ' · pgup earlier' : ''}${earlier.length ? ' · pgdn later' : ''} · tab Crew · esc ${thread === undefined ? 'close' : 'back'}`, 'keys'),
-  ]
-  return React.createElement(Box, { flexDirection: 'column', width, height }, ...rows)
+  const clean = (text: string): string => text.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ')
+  const highlight = (text: string) => clean(text).split(/(@[\p{L}\p{N}_][\p{L}\p{N}_.-]*)/u).map((part, i) => React.createElement(Text, { key: i, ...(part.startsWith('@') ? { color: 'cyan', bold: true } : {}) }, part))
+  const line = (text: string, key: string) => React.createElement(Text, { key, wrap: 'truncate-end' }, text)
+  const row = (entry: typeof entries[number], on: boolean) => React.createElement(Text, { key: entry.id, wrap: 'truncate-end' }, `${on ? '›' : ' '} ${entry.reply ? '  ' : ''}${entry.at.slice(11, 19)} · `, React.createElement(Text, { bold: true, color: 'cyan' }, clean(entry.name)), entry.team ? ` · [${clean(entry.team)}]` : '', entry.traffic ? ' · [traffic]' : '', ` · ${entry.kind} · `, ...highlight(entry.text))
+  const room = Math.max(1, height - 2)
+  const start = Math.max(0, index - room + 1)
+  const detailLines = entries.flatMap(entry => {
+    const heading = `${entry.reply ? '  ' : ''}${entry.at.slice(11, 19)} · ${clean(entry.name)}${entry.team ? ` · [${clean(entry.team)}]` : ''}${entry.traffic ? ' · [traffic]' : ''} · ${entry.kind}`
+    const indent = entry.reply ? '    ' : '  '
+    const event = snapshot.events.find(event => event.eventId === entry.id)
+    const detail = [entry.text, ...(event?.about ? [event.about] : []), ...(event?.refs.map(ref => `${ref.uri} · ${ref.digest}`) ?? [])]
+    return [heading, ...detail.flatMap(text => host.wrapText(clean(text), Math.max(1, width - indent.length), 'wrap').split('\n').map(line => indent + line))]
+  })
+  return React.createElement(Box, { flexDirection: 'column', width, height },
+    React.createElement(Text, { wrap: 'truncate-end' }, ...channels.flatMap((channel, i) => [i ? ' · ' : '', React.createElement(Text, { key: channel ?? 'general', bold: channel === team, color: channel === team ? 'cyan' : undefined }, channel ?? 'General')])),
+    React.createElement(Box, { flexDirection: 'column', height: room, overflow: 'hidden' }, ...(thread === undefined ? entries.slice(start, start + room).map((entry, i) => row(entry, start + i === index)) : detailLines.slice(Math.min(scroll, Math.max(0, detailLines.length - room)), Math.min(scroll, Math.max(0, detailLines.length - room)) + room).map((text, i) => React.createElement(Text, { key: i, wrap: 'truncate-end' }, ...highlight(text)))), ...(entries.length === 0 ? [line('No posts yet', 'empty')] : [])),
+    line('↑↓ move · ↵ open thread · ←→ channel · esc close', 'keys'))
 }

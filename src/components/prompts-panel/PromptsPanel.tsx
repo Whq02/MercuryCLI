@@ -16,6 +16,7 @@ import {
   type SavedPromptV1,
 } from '../../utils/savedPrompts/savedPromptsStore.js'
 import { COMPOSER_COLUMNS, promptsComposerRows } from './composerLayout.js'
+import { CrewChatPanel } from './CrewChatPanel.js'
 import TextInput from '../TextInput.js'
 import { KeyValueGrid, type KVRow } from '../mercury-ui/components.js'
 import { GLYPH, truncateToWidth } from '../mercury-ui/glyphs.js'
@@ -30,6 +31,7 @@ import {
   clockOf,
   clockSecondsOf,
   crewTrafficRows,
+  crewTrafficMessages,
   limitsLine,
   promptRows,
   recordLimits,
@@ -63,8 +65,10 @@ function processStartedAtIso(): string {
 
 export function PromptsPanel({
   onClose,
+  initialSection = 'prompts',
 }: {
   onClose: (nextInput?: string) => void
+  initialSection?: SectionId
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const connector = useSessionConnector()
@@ -86,7 +90,10 @@ export function PromptsPanel({
     useCallback(() => getSavedPromptsProblem(project), [project]),
   )
 
-  const [section, setSection] = useState<SectionId>('prompts')
+  const [section, setSection] = useState<SectionId>(initialSection)
+  const [, refreshBoard] = useState(0)
+  useEffect(() => connector.subscribeWork(() => refreshBoard(value => value + 1)), [connector])
+  const board = connector.swarmBoard?.() ?? null
   const [editor, setEditor] = useState<Editor>(null)
   const [editorCursor, setEditorCursor] = useState(0)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -112,7 +119,7 @@ export function PromptsPanel({
       },
       {
         id: 'crew',
-        label: 'CREW TRAFFIC',
+        label: board?.on ? 'Crew chat' : 'CREW TRAFFIC',
         count: crew.filter(r => r.kind === 'crew').length,
         rows: crew,
         emptyHint: 'no crewmate traffic this session',
@@ -129,7 +136,7 @@ export function PromptsPanel({
               : 'no saved prompts yet — a writes one',
       },
     ],
-    [prompts, crew, saved, drafts, problem],
+    [prompts, crew, saved, drafts, problem, board?.on],
   )
 
   const columns = useMemo<ColumnDef<Row>[]>(() => {
@@ -499,8 +506,11 @@ export function PromptsPanel({
       </Box>
     ) : null
 
+  if (section === 'crew' && board?.on) return <CrewChatPanel snapshot={board} traffic={crewTrafficMessages(records)} onClose={() => onClose()} onSection={setSection} />
+
   return (
     <NavigablePanes<Row>
+      initialSectionId={section}
       view="prompts"
       subtitle={`${basename(workspace.cwd) || workspace.cwd} · session ${sessionId.slice(0, 8)}`}
       headerLine={headerLine}

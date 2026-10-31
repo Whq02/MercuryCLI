@@ -166,7 +166,7 @@ section('§4 — the reads-only census (sheet lines 5 + 10)')
     ...retiredVerbs.filter(word => code.includes(word)),
   ]
   check('the retired WORK options’ section labels and verbs are absent from the panel source', found.length === 0, found.join(', ') || 'none')
-  check('the three tabs: PROMPTS · CREW TRAFFIC · SAVED PROMPTS', panel.includes("label: 'PROMPTS'") && panel.includes("label: 'CREW TRAFFIC'") && panel.includes("label: 'SAVED PROMPTS'"))
+  check('the three tabs keep traffic off-swarm and replace it with Crew chat only when on', panel.includes("label: 'PROMPTS'") && panel.includes("label: board?.on ? 'Crew chat' : 'CREW TRAFFIC'") && panel.includes("label: 'SAVED PROMPTS'"))
   check('the honest empty lines are spelled in-panel', panel.includes('no crewmate traffic this session') && panel.includes('no prompts sent in this chat yet') && panel.includes('no saved prompts yet'))
   check('the route keeps its name (/workbench) and gate, and describes the new content', cmd.includes("name: 'workbench'") && cmd.includes('workbenchEnabled()') && /prompts panel/i.test(cmd))
   check('no model call, no network on open (no fetch/query import in the panel)', !/from '.*providers/.test(panel) && !panel.includes('fetch('))
