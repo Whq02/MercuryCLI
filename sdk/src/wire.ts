@@ -441,11 +441,14 @@ export type SessionFactsResult = {
       policyRevision: 1
     }>
     teams?: string[]
+    names?: string[]
+    duplicateMinutes?: string[]
     snapshot: number
     omitted: number
     later?: number
     admitted: number
     appearances?: number
+    uncapped?: boolean
     peerTurns: 0
     record?: {
       path: string
