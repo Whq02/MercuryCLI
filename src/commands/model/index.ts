@@ -6,6 +6,7 @@ import { renderModelName } from '../../utils/model/model.js'
 export default {
   type: 'local-jsx',
   name: 'model',
+  aliases: ['models'],
   description: 'Choose the AI model',
   currentValue: () => {
     const facts = focusedSessionModelFacts()

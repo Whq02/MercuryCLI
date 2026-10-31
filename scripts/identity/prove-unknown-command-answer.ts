@@ -83,15 +83,15 @@ check('the query sources name no such caller', !readFileSync(join(REPO, 'src/con
 
 check('/audit is the security prompt', commands.findCommand('audit', roster)?.type === 'prompt' && commands.findCommand('audit', roster)?.description === 'Analyze the changes on this branch for security risks')
 
-console.log('\n/resume — a road that lives elsewhere gets its named pointer, not a new command (the round-14 Windows row F39W-14A-04)')
-const RESUME_POINTER = 'the session picker is /sessions; a specific session resumes with `mercury --resume <id>`'
-const resumeLine = slash.unknownCommandLine('resume', roster)
-check('/resume is not a registered command, by name or alias', commands.findCommand('resume', roster) === undefined && roster.every(command => !(command.aliases ?? []).includes('resume')))
-check('typed, /resume answers the unknown-command sentence with the pointer to /sessions and `mercury --resume <id>`', resumeLine === `Unknown command: /resume — ${RESUME_POINTER} · /help lists commands`, resumeLine)
-check('the pointer names a command that exists (/sessions)', commands.findCommand('sessions', roster) !== undefined)
-check('the pointer table carries exactly that spelling', (slash as { UNKNOWN_COMMAND_POINTERS?: Readonly<Record<string, string>> }).UNKNOWN_COMMAND_POINTERS?.resume === RESUME_POINTER)
-check('the pointer leads only to roads that exist — a registered command and the CLI flag — never to the unknown name itself', /\/sessions/.test(RESUME_POINTER) && /mercury --resume <id>/.test(RESUME_POINTER) && !/\/resume\b(?! <id>)/.test(RESUME_POINTER.replace('--resume', '')))
-check('/resume still has no row anywhere: the roster, the aliases, the effective catalogue, the help domains', commands.findCommand('resume', roster) === undefined && surfaces.every(surface => surface.name !== 'resume' && !surface.aliases.includes('resume')) && domains.COMMAND_DOMAINS.every(domain => !domain.names.includes('resume')))
+console.log('\n/resume, /models, /advisor — an old spelling the operator still types reaches the command that does the work, as an alias, with no row of its own')
+const ALIASES: ReadonlyArray<readonly [string, string]> = [['resume', 'sessions'], ['models', 'model'], ['advisor', 'advise']]
+for (const [typed, target] of ALIASES) {
+  const found = commands.findCommand(typed, roster)
+  check(`/${typed} resolves to /${target}`, found !== undefined && found.name === target && (found.aliases ?? []).includes(typed), found?.name)
+  check(`/${typed} has no row of its own: not a command name, not a help-domain entry`, roster.every(command => command.name !== typed) && surfaces.every(surface => surface.name !== typed) && domains.COMMAND_DOMAINS.every(domain => !domain.names.includes(typed)))
+  check(`the effective catalogue lists /${typed} only as an alias of /${target}`, surfaces.some(surface => surface.name === target && surface.aliases.includes(typed)) && surfaces.every(surface => surface.name === target || !surface.aliases.includes(typed)))
+}
+check('the unknown-command sentence has no pointer table: an old spelling is an alias or it is unknown like any other name', !('UNKNOWN_COMMAND_POINTERS' in slash))
 check('/keysetup is the terminal-key action', commands.findCommand('keysetup', roster)?.type === 'local-jsx')
 
 const dist = join(REPO, 'dist/mercury.mjs')
@@ -122,7 +122,7 @@ if (existsSync(dist)) {
   try {
     const never = door(NEVER_HAD)
     const resumed = door('resume')
-    check('typed at the headless door, /resume gets the pointer on stderr and exit 1 (nothing on stdout)', resumed.code === 1 && resumed.out === '' && resumed.err.trim() === `Unknown command: /resume — ${RESUME_POINTER} · /help lists commands`, JSON.stringify(resumed))
+    check('typed at the headless door, /resume is /sessions: the interactive-surface sentence on stderr and exit 1 (nothing on stdout), never the unknown-command sentence', resumed.code === 1 && resumed.out === '' && resumed.err.includes('The /sessions command is an interactive surface') && !resumed.err.includes('Unknown command'), JSON.stringify(resumed))
     for (const name of NAMES) {
       if (existsSync(`/${name}`)) continue
       const typed = door(name)
