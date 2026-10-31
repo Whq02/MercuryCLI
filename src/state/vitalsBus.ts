@@ -1,5 +1,6 @@
 
 import { useSyncExternalStore } from 'react'
+import { hasSeatLive } from '../services/engine-connector/seatLive.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
 import { serialCoalescer, type SerialCoalescer } from '../services/workbench/serialCoalescer.js'
 import {
@@ -25,6 +26,7 @@ const subscribeFocusedRecords = subscribeThroughFocused((connector, listener) =>
 const TRANSCRIPT_DEBOUNCE_MS = 500
 const HEARTBEAT_MS = 15_000
 const subscribeFocusedWork = subscribeThroughFocused((connector, listener) => connector.subscribeWork(listener))
+const subscribeFocusedLive = subscribeThroughFocused((connector, listener) => (hasSeatLive(connector) ? connector.subscribeLive(listener) : () => {}))
 const WORKFLOWS_DISK_MAX = 10
 
 export type SessionGlanceSnapshot =
@@ -61,6 +63,7 @@ let heartbeat: ReturnType<typeof setInterval> | null = null
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let unsubTranscript: (() => void) | null = null
 let unsubTasks: (() => void) | null = null
+let unsubLive: (() => void) | null = null
 let unsubExecutions: (() => void) | null = null
 let unsubGitFacts: (() => void) | null = null
 let coalescer: SerialCoalescer | null = null
@@ -166,6 +169,7 @@ function startEngine(): void {
   heartbeat.unref?.()
   unsubTranscript = subscribeFocusedRecords(() => scheduleDebounced())
   unsubTasks = subscribeFocusedWork(() => scheduleDebounced())
+  unsubLive = subscribeFocusedLive(() => scheduleDebounced())
   unsubExecutions = subscribeExecutionEvents(() => scheduleDebounced())
   unsubGitFacts = subscribeGitFacts(() => pokeVitals())
   pokeVitals()
@@ -184,6 +188,8 @@ function stopEngine(): void {
   unsubTranscript = null
   unsubTasks?.()
   unsubTasks = null
+  unsubLive?.()
+  unsubLive = null
   unsubExecutions?.()
   unsubExecutions = null
   unsubGitFacts?.()
