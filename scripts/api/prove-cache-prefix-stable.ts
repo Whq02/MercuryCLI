@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
+import { arenaPath } from '../lib/platformPath.ts'
 import { runTurns } from '../lib/rows.ts'
 
 process.env.NODE_ENV = 'test'
@@ -163,7 +164,7 @@ function makeArena(fixtureUrl: string, nodeBin: string, extraEnv: Record<string,
     cwd,
     env: {
       HOME: home,
-      PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
+      PATH: arenaPath(nodeBin),
       TERM: 'dumb',
       MERCURY_CONFIG_DIR: join(home, '.mercury'),
       MERCURY_CREDENTIAL_STORE: 'file',
@@ -367,6 +368,9 @@ if (!existsSync(DIST)) {
       const systemText = (body: Body | undefined): string => (body?.system ?? []).map(block => String(block.text ?? '')).join('\n')
       const gitLine = (body: Body | undefined): string => systemText(body).split('\n').find(line => line.startsWith('gitStatus:')) ?? ''
       check('§5 the system block carries the repository status (the git status line is in it)', gitLine(bodies[0]) !== '' && systemText(bodies[0]).includes('Current branch: main'), gitLine(bodies[0]).slice(0, 160))
+      check('§5 the boot block carries a status git itself read: (clean) before the touch, with the first commit under it', systemText(bodies[0]).includes('Status:\n(clean)') && /Recent commits:\n[0-9a-f]{7,} the first commit/.test(systemText(bodies[0])), systemText(bodies[0]).split('\n').filter(line => /^(Status:|\(|Recent commits:)/.test(line)).join(' | ').slice(0, 200))
+      const arenaStatus = Bun.spawnSync(['git', 'status', '--short', '--', '.'], { cwd: arena.cwd, env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: arena.home } }).stdout.toString()
+      check('§5 the touch changed the repository: git status in the arena names changed.txt as untracked', /^\?\? changed\.txt$/m.test(arenaStatus), j(arenaStatus))
       check('§5 before the fold the system block does not move: the touch changed the repository, the block kept the status as first sent', j(withoutCacheControl(bodies[0]?.system)) === j(withoutCacheControl(bodies[1]?.system)))
       const foldSystem = systemText(bodies[2])
       check('§5 the request that lands the fold carries the re-composed block: the repository status moved with the touch and the block says so there, where the context is re-written anyway', foldSystem !== systemText(bodies[1]) && /changed\.txt/.test(foldSystem), systemText(bodies[2]).split('\n').filter(line => line.includes('changed.txt')).join(' | ').slice(0, 200))

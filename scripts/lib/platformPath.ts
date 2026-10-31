@@ -1,6 +1,10 @@
-import { posix, win32 } from 'node:path'
+import { dirname, posix, win32 } from 'node:path'
 
 export type PlatformPath = typeof posix | typeof win32
+
+export function arenaPath(nodeBin: string, platform: string = process.platform, env: NodeJS.ProcessEnv = process.env): string {
+  return platform === 'win32' ? (env.PATH ?? env.Path ?? '') : `/usr/bin:/bin:${dirname(nodeBin)}`
+}
 
 export function pathModuleFor(platform: string = process.platform): PlatformPath {
   return platform === 'win32' ? win32 : posix

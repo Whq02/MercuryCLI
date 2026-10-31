@@ -7,6 +7,7 @@ import {
   getInstructionFiles,
   onInstructionCacheInvalidated,
 } from './services/instructions/engine.js'
+import { logForDebugging } from './utils/debug.js'
 import { logForDiagnosticsNoPII } from './utils/diagLogs.js'
 import { isBareMode } from './utils/envUtils.js'
 import { execFileNoThrow } from './utils/execFileNoThrow.js'
@@ -26,11 +27,12 @@ export function isInstructionDiscoveryDisabled(): boolean {
 
 
 async function rawGit(args: string[]): Promise<string> {
-  const outcome = await execFileNoThrow(gitExe(), args, {
-    preserveOutputOnError: false,
-    useCwd: true,
-  })
-  return outcome.stdout.trim()
+  return (await gitOutcome(args)).stdout
+}
+
+async function gitOutcome(args: string[]): Promise<{ stdout: string; code: number; error?: string }> {
+  const outcome = await execFileNoThrow(gitExe(), args, { useCwd: true })
+  return outcome.code === 0 ? { stdout: outcome.stdout.trim(), code: 0 } : { stdout: '', code: outcome.code, ...(outcome.error !== undefined ? { error: outcome.error } : {}) }
 }
 
 export const getGitStatus = memoize(async (): Promise<string | null> => {
@@ -52,22 +54,27 @@ export const getGitStatus = memoize(async (): Promise<string | null> => {
     }
 
     const commandsStartedAt = Date.now()
-    const [branch, mainBranch, status, log, userName] = await Promise.all([
+    const [branch, mainBranch, statusOutcome, log, userName] = await Promise.all([
       getBranch(),
       getDefaultBranch(),
-      rawGit(['--no-optional-locks', 'status', '--short', ...projectScopePathspec(getCwd())]),
+      gitOutcome(['--no-optional-locks', 'status', '--short', ...projectScopePathspec(getCwd())]),
       rawGit(['--no-optional-locks', 'log', '--oneline', '-5']),
       rawGit(['config', 'user.name']),
     ])
+    const status = statusOutcome.stdout
     logForDiagnosticsNoPII('info', 'git_commands_completed', {
       duration_ms: Date.now() - commandsStartedAt,
       status_length: status.length,
+      status_code: statusOutcome.code,
     })
+    if (statusOutcome.code !== 0) logForDebugging(`git status did not run (exit ${statusOutcome.code}${statusOutcome.error ? `: ${statusOutcome.error}` : ''}); the system prompt carries no working-tree status`)
 
     const truncated = status.length > GIT_STATUS_MAX_LENGTH
-    const statusBody = truncated
-      ? `${status.slice(0, GIT_STATUS_MAX_LENGTH)}\n[Status truncated: the output exceeds 2k characters. Run \`git status\` through the shell tool for the complete listing.]`
-      : status
+    const statusBody = statusOutcome.code !== 0
+      ? '(not read: the git status command did not run)'
+      : truncated
+        ? `${status.slice(0, GIT_STATUS_MAX_LENGTH)}\n[Status truncated: the output exceeds 2k characters. Run \`git status\` through the shell tool for the complete listing.]`
+        : status
 
     const block = [
       "This is the repository's git status as of the start of the conversation or its most recent compaction. It is a point-in-time snapshot and is not refreshed between those points.",
