@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { endProcessGroup, spawnInOwnGroup } from './processGroup.ts'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
@@ -231,7 +231,7 @@ export type ScriptedTurn = { result: Record<string, unknown> | null; stderr: str
 
 function runHostlessTurn(args: { cwd: string; env: NodeJS.ProcessEnv; ask: string; timeoutMs: number; extraArgv: string[] }): Promise<ScriptedTurn> {
   return new Promise(resolve => {
-    const child = spawn(NODE, [DIST, 'run', '--input', 'rows', '--format', 'rows', '--model', MODEL, '--mode', 'sovereign', ...args.extraArgv], { cwd: args.cwd, env: args.env, stdio: ['pipe', 'pipe', 'pipe'] })
+    const child = spawnInOwnGroup(NODE, [DIST, 'run', '--input', 'rows', '--format', 'rows', '--model', MODEL, '--mode', 'sovereign', ...args.extraArgv], { cwd: args.cwd, env: args.env, stdio: ['pipe', 'pipe', 'pipe'] })
     let stdout = ''
     let stderr = ''
     let result: Record<string, unknown> | null = null
@@ -244,7 +244,7 @@ function runHostlessTurn(args: { cwd: string; env: NodeJS.ProcessEnv; ask: strin
     }
     const timer = setTimeout(() => {
       console.log(`  [wait] outcome: nothing within ${args.timeoutMs} ms`)
-      child.kill('SIGKILL')
+      endProcessGroup(child)
     }, args.timeoutMs)
     child.stdout!.on('data', (chunk: Buffer) => {
       stdout += chunk.toString('utf8')

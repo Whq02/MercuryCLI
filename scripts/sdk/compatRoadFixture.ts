@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
-import { spawn } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { validateEngineRequest } from '../provider-compat/fixtures/engineRules.mjs'
 import { startFixtureApi, HANDOFF_ASK_MARK, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { endProcessGroup, spawnInOwnGroup } from '../lib/processGroup.ts'
 import { PYTHON } from './runtime.ts'
 
 export const root = resolve(import.meta.dir, '../..')
@@ -54,8 +54,10 @@ export async function compatRoadFixture(turns: ScriptedTurn[] = []) {
 }
 
 export async function pythonProof(file: string, c: Awaited<ReturnType<typeof compatRoadFixture>>, ...args: string[]): Promise<void> {
-  const child = spawn(PYTHON, [join(root, 'scripts/sdk', file), JSON.stringify(mercury), c.cwd, c.model, anthropicModel, ...args], { env: { ...c.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, stdio: 'inherit' })
-  const timer = setTimeout(() => child.kill('SIGKILL'), 90_000)
-  try { assert.equal(await new Promise(resolve => child.once('close', resolve)), 0, file) }
-  finally { clearTimeout(timer) }
+  const child = spawnInOwnGroup(PYTHON, [join(root, 'scripts/sdk', file), JSON.stringify(mercury), c.cwd, c.model, anthropicModel, ...args], { env: { ...c.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, stdio: 'inherit' })
+  const timer = setTimeout(() => endProcessGroup(child), 90_000)
+  const code = await new Promise(resolve => child.once('close', resolve))
+  clearTimeout(timer)
+  if (code !== 0) endProcessGroup(child)
+  assert.equal(code, 0, file)
 }

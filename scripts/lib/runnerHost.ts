@@ -1,4 +1,5 @@
-import { spawn, type ChildProcess } from 'node:child_process'
+import { type ChildProcess } from 'node:child_process'
+import { endProcessGroup, spawnInOwnGroup } from './processGroup.ts'
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -72,7 +73,7 @@ export function hostRunner(opts: HostOptions): HostedRunner {
     ...(scratch?.env ?? {}),
     ...(opts.env ?? {}),
   }
-  const child = spawn(opts.node, [opts.dist, 'runner', ...(opts.argv ?? [])], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] })
+  const child = spawnInOwnGroup(opts.node, [opts.dist, 'runner', ...(opts.argv ?? [])], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] })
   let stderr = ''
   child.stderr!.on('data', chunk => {
     stderr += String(chunk)
@@ -215,7 +216,7 @@ export function hostRunner(opts: HostOptions): HostedRunner {
     },
     stop: async (graceMs = 2_000) => {
       host.end()
-      const timer = setTimeout(() => child.kill('SIGKILL'), graceMs)
+      const timer = setTimeout(() => endProcessGroup(child), graceMs)
       const code = await exited
       clearTimeout(timer)
       peer.close('the proof stopped the runner')

@@ -1,6 +1,7 @@
 import { proofHome } from '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { spawn, type ChildProcess } from 'node:child_process'
+import { type ChildProcess } from 'node:child_process'
+import { endProcessGroup, spawnInOwnGroup } from '../lib/processGroup.ts'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
@@ -87,14 +88,14 @@ class FixtureProvider implements OAuthClientProvider {
 async function stop(child: ChildProcess): Promise<void> {
   if (child.exitCode !== null || child.signalCode !== null) return
   await new Promise<void>(resolve => {
-    const timer = setTimeout(() => child.kill('SIGKILL'), 15_000)
+    const timer = setTimeout(() => endProcessGroup(child), 15_000)
     child.once('close', () => { clearTimeout(timer); resolve() })
     child.kill('SIGTERM')
   })
 }
 async function start(lead: string, origin?: string) {
   const args = [binary, 'mcp-server', '--model', f.model, '--max-mode', 'default', '--token-file', tokenFile, '--lead', lead, '--transport', 'http', '--port', String(port), ...(origin ? ['--origin', origin] : [])]
-  const child = spawn('node', args, { cwd: f.cwd, env: f.env, stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawnInOwnGroup('node', args, { cwd: f.cwd, env: f.env, stdio: ['ignore', 'pipe', 'pipe'] })
   children.push(child)
   let errors = ''
   child.stderr!.on('data', chunk => { errors += chunk.toString() })

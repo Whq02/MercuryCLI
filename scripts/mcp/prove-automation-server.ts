@@ -1,6 +1,7 @@
 import { proofHome } from '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { spawn, type ChildProcess } from 'node:child_process'
+import { endProcessGroup, spawnInOwnGroup } from '../lib/processGroup.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -60,7 +61,7 @@ function client(mode: 'auto' | 'legacy' = 'auto'): Client {
 async function stop(child: ChildProcess): Promise<void> {
   if (child.exitCode !== null || child.signalCode !== null) return
   await new Promise<void>(resolve => {
-    const timer = setTimeout(() => child.kill('SIGKILL'), 15_000)
+    const timer = setTimeout(() => endProcessGroup(child), 15_000)
     child.once('close', () => { clearTimeout(timer); resolve() })
     child.kill('SIGTERM')
   })
@@ -77,7 +78,7 @@ async function start(transport: 'stdio' | 'http', mode: 'auto' | 'legacy' = 'aut
     return { c, url: '', secret: token, errors: () => errors, close: async () => { await c.close() } }
   }
   args.push('--transport', 'http', '--port', '0', '--origin', 'https://mcp.example.test')
-  const child = spawn('node', args, { cwd: f.cwd, env: f.env, stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawnInOwnGroup('node', args, { cwd: f.cwd, env: f.env, stdio: ['ignore', 'pipe', 'pipe'] })
   children.push(child)
   let errors = ''
   child.stderr!.on('data', chunk => { errors += chunk.toString() })

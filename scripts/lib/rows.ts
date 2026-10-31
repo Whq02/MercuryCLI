@@ -1,5 +1,6 @@
 import type { InputRow, NoteRow, PromptRow, ShellRow } from '../../src/rows/vocabulary.ts'
 import type { ParamsOf, ResultOf } from '../../src/runner/wire/methods.ts'
+import { endProcessGroup } from './processGroup.ts'
 import { hostRunner, type HostedRunner } from './runnerHost.ts'
 
 export type Frame = Record<string, unknown>
@@ -140,7 +141,7 @@ export function runTurns(opts: {
       }
       void host.prompt(turn.prompt).catch(() => undefined)
     }
-    const killer = setTimeout(() => host.child.kill('SIGKILL'), opts.timeoutMs ?? 90_000)
+    const killer = setTimeout(() => endProcessGroup(host.child), opts.timeoutMs ?? 90_000)
     void host.exited.then(exit => {
       clearTimeout(killer)
       host.peer.close('the turns ended')

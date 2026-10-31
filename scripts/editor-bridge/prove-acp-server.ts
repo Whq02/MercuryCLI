@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
+import { execFileSync, type ChildProcess } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable, Writable } from 'node:stream'
+import { endProcessGroup, spawnInOwnGroup } from '../lib/processGroup.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -79,12 +80,7 @@ const daemonDir = mkdtempSync(join(tmpdir(), 'mosaic-acp-daemon-'))
 process.env.MERCURY_CONFIG_DIR = configHome
 const servers: ChildProcess[] = []
 process.on('exit', () => {
-  for (const s of servers) {
-    try {
-      s.kill('SIGKILL')
-    } catch {
-    }
-  }
+  for (const s of servers) endProcessGroup(s)
   for (const dir of [configHome, projDir, daemonDir]) {
     try {
       rmSync(dir, { recursive: true, force: true })
@@ -126,7 +122,7 @@ const api = await startFixtureApi([
 const acp = await import('@agentclientprotocol/sdk')
 
 function spawnServer(): ChildProcess {
-  const child = spawn((process.execPath.includes('bun') ? 'node' : process.execPath), [DIST, 'acp'], {
+  const child = spawnInOwnGroup((process.execPath.includes('bun') ? 'node' : process.execPath), [DIST, 'acp'], {
     cwd: projDir,
     stdio: ['pipe', 'pipe', 'inherit'],
     env: {
@@ -482,7 +478,7 @@ section('(5e) TRUE cross-process parity — TUI-side durable writes, the ACP pro
   const local = runRevision(owner)
   check('TUI side made two durable writes (local revision 2)', local === 2, String(local))
 
-  const parityServer = spawn((process.execPath.includes('bun') ? 'node' : process.execPath), [DIST, 'acp'], {
+  const parityServer = spawnInOwnGroup((process.execPath.includes('bun') ? 'node' : process.execPath), [DIST, 'acp'], {
     cwd: process.cwd(),
     stdio: ['pipe', 'pipe', 'inherit'],
     env: {
@@ -636,7 +632,7 @@ section('(6) cancel interrupts a hanging turn (dedicated server + fixture)')
     { kind: 'hang', deltas: ['about to hang'] },
     { kind: 'hang', deltas: ['about to hang again'] },
   ])
-  const hangServer = spawn((process.execPath.includes('bun') ? 'node' : process.execPath), [DIST, 'acp'], {
+  const hangServer = spawnInOwnGroup((process.execPath.includes('bun') ? 'node' : process.execPath), [DIST, 'acp'], {
     cwd: projDir,
     stdio: ['pipe', 'pipe', 'inherit'],
     env: {
