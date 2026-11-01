@@ -74,7 +74,7 @@ try {
   console.log('L3b an older build stamped the token in the user\'s locale; this build reads it under LC_ALL=C — the two forms of one start are one identity, never a stranger')
   {
     const form = /^(\w{3}) (\w{3}) +(\d{1,2}) (\d\d:\d\d:\d\d) (\d{4})$/.exec(strangerToken ?? '')
-    const enGB = form === null ? null : `${form[1]} ${form[3]} ${form[2]} ${form[4]} ${form[5]}`
+    const enGB = form === null ? null : `${form[1]} ${form[3].padStart(2, ' ')} ${form[2]} ${form[4]} ${form[5]}`
     const deDE = form === null ? null : `${form[1].slice(0, 2)}. ${form[3]} ${form[2] === 'Oct' ? 'Okt' : form[2] === 'Mar' ? 'Mär' : form[2] === 'May' ? 'Mai' : form[2] === 'Dec' ? 'Dez' : form[2]}. ${form[4]} ${form[5]}`
     const psUnder = (locale: string): string => Bun.spawnSync(['ps', '-o', 'lstart=', '-p', String(stranger.pid)], { env: { ...process.env, LC_ALL: locale, LANG: locale } }).stdout.toString().trim()
     const liveGB = psUnder('en_GB.UTF-8')
