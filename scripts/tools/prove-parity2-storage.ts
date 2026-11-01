@@ -42,7 +42,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 
 {
   const resume = readFileSync('src/tools/AgentTool/resumeAgent.ts', 'utf8')
-  t('the resumed transcript is replayed with the new prompt APPENDED', /const promptMessages: Message\[\] = \[\s*\.\.\.cleaned,\s*createUserMessage\(\{ content: prompt \+ note \}\),\s*\]/.test(resume))
+  t('the resumed transcript is replayed with the new prompt APPENDED', /const promptMessages: Message\[\] = \[\s*\.\.\.cleaned,\s*args\.boardEventIds === undefined\s*\?\s*createUserMessage\(\{ content: prompt \+ note \}\)\s*:\s*createAttachmentMessage\(\{ type: 'queued_command', prompt: prompt \+ note, boardEventIds: args\.boardEventIds,[^\n]*\}\),\s*\]/.test(resume))
   t('tool-result replacement state is reconstructed for cache stability', /reconstructForSubagentResume\(/.test(resume))
 }
 
