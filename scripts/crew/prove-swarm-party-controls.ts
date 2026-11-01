@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { basename, dirname, join } from 'node:path'
 import { DIST, NODE, closeWorld, findFiles, makeTally, makeWorld, record } from './crew-world.ts'
@@ -8,6 +8,9 @@ import { hostRunner, type HostedRunner } from '../lib/runnerHost.ts'
 const { open } = await import('../../src/services/crewBoard/store.ts')
 const requireRuntime = createRequire(import.meta.url)
 const { runSwarmchatCommand } = await import('../../src/commands/swarmchat/swarmchat.ts')
+const suiteHome = process.env.MERCURY_CONFIG_DIR
+assert(suiteHome, 'run with a scratch MERCURY_CONFIG_DIR')
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(suiteHome, 'controls-'))
 const tally = makeTally('swarm-party-controls')
 const USAGE = 'usage: /swarmchat [all|team \\<name\\>|main] — /swarmchat alone toggles board messages in the chat'
 

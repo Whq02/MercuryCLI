@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, readFileSync, watch, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, watch, writeFileSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-assert(process.env.MERCURY_CONFIG_DIR, 'run with a scratch MERCURY_CONFIG_DIR')
+const suiteHome = process.env.MERCURY_CONFIG_DIR
+assert(suiteHome, 'run with a scratch MERCURY_CONFIG_DIR')
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(suiteHome, 'mention-row-'))
 const { open } = await import('../../src/services/crewBoard/store.ts')
 const { crewBoardNotice, isMutedNoticeBlock, noticeOfText, noticePlate } = await import('../../src/utils/messages/noticeRows.ts')
 const { gridToPng } = await import('../ui/gridToPng.ts')
