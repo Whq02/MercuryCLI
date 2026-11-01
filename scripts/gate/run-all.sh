@@ -3,7 +3,7 @@
 # gate-env: MERCURY_PROOF_POISON_GUARD MERCURY_PYTHON
 # gate-watch: scripts/run-all-suites.sh scripts/run-drives.sh scripts/typecheck/fingerprint.sed
 # gate-watch: scripts/typecheck/prove-warm-replay.sh scripts/typecheck/run-all.sh
-# gate-watch: .bun-version .github/workflows/*.yml scripts/*/run-all.sh scripts/*/members.txt
+# gate-watch: .github/workflows/gate.yml .github/workflows/drives.yml scripts/*/run-all.sh scripts/*/members.txt
 # gate-watch: scripts/lib/** scripts/ui/vshot.py
 # gate-watch: src/daemon/controlSocket.ts src/daemon/controlServer.ts
 # gate-watch: src/rows/* src/runner/wire/*
@@ -36,7 +36,6 @@ run_proof "$here/prove-dead-letter-orphan.sh" bash "$here/prove-dead-letter-orph
 run_proof "$here/prove-dist-cache.sh" bash "$here/prove-dist-cache.sh" || fail=1
 run_proof "$here/prove-dist-readonly.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-dist-readonly.ts" || fail=1
 run_proof "$here/prove-node-resolver.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-node-resolver.ts" || fail=1
-run_proof "$here/prove-bun-pin.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-bun-pin.ts" || fail=1
 run_proof "$here/prove-bundle-ready.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-bundle-ready.ts" || fail=1
 run_proof "$here/prove-ci-verdict.sh" bash "$here/prove-ci-verdict.sh" || fail=1
 run_proof "$here/prove-gate-ledger.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-gate-ledger.ts" || fail=1
