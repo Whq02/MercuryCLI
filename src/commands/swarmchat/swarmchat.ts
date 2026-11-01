@@ -2,7 +2,7 @@ import type { LocalJSXCommandCall } from '../../types/command.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 import { swarmMasterEnabled, swarmSessionEnabled, swarmStore } from '../../services/crewBoard/seam.js'
 
-const USAGE = 'usage: /swarmchat [all|team <name>|main] — /swarmchat alone toggles board messages in the chat'
+const USAGE = 'usage: /swarmchat [all|team \\<name\\>|main] — /swarmchat alone toggles board messages in the chat'
 
 export function runSwarmchatCommand(raw: string): string {
   const words = raw.trim().split(/\s+/).filter(Boolean)

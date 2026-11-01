@@ -9,7 +9,7 @@ const { open } = await import('../../src/services/crewBoard/store.ts')
 const requireRuntime = createRequire(import.meta.url)
 const { runSwarmchatCommand } = await import('../../src/commands/swarmchat/swarmchat.ts')
 const tally = makeTally('swarm-party-controls')
-const USAGE = 'usage: /swarmchat [all|team <name>|main] — /swarmchat alone toggles board messages in the chat'
+const USAGE = 'usage: /swarmchat [all|team \\<name\\>|main] — /swarmchat alone toggles board messages in the chat'
 
 tally.section('§0 the grammar refuses bad syntax before it looks at any switch')
 for (const raw of ['bogus', 'team', 'all extra', 'team lists extra', 'main now', 'ALL']) tally.check(`"/swarmchat ${raw}" answers the usage line`, runSwarmchatCommand(raw) === USAGE, runSwarmchatCommand(raw))
