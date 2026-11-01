@@ -55,14 +55,17 @@ export function partyRow(event: ScreenEvent, turnId?: string): SystemCrewChatMes
   }
 }
 
+export function partyPaints(event: ScreenEvent, chat: BoardChat): boolean {
+  return event.authorRole === 'owner' || (chat.on && partyAdmits(event, chat.filter))
+}
+
 export type PartyHost = {
   store: () => ScreenStore | null
-  on: () => boolean
   anchor: () => string | undefined
   record: (row: SystemCrewChatMessage) => Promise<void>
 }
 
-export type PartyFeed = { check(): void; active(): boolean; blockOpen(): void; landed(): void; turnEnd(): void }
+export type PartyFeed = { check(): void; paints(event: ScreenEvent): boolean; blockOpen(): void; landed(): void; turnEnd(): void }
 
 export function partyFeed(host: PartyHost): PartyFeed {
   let active = false
@@ -83,12 +86,14 @@ export function partyFeed(host: PartyHost): PartyFeed {
   const flush = (): void => { for (const row of held.splice(0)) commit(row) }
   const check = (): void => {
     const store = host.store()
-    if (!store || !host.on()) { active = false; return }
-    if (!active) { active = true; scanned = store.screenCursor() }
+    if (!store) { active = false; return }
+    scanned = active ? Math.max(scanned, store.screenCursor()) : store.screenCursor()
+    active = true
+    const chat = store.chat()
     for (let page = store.screenEvents(scanned); page.length > 0; page = store.screenEvents(scanned)) {
       for (const event of page) {
         scanned = event.seq
-        if (!partyAdmits(event, store.chat().filter)) continue
+        if (!partyPaints(event, chat)) continue
         const row = partyRow(event, host.anchor())
         pending.add(row.seq)
         if (open) held.push(row)
@@ -99,7 +104,10 @@ export function partyFeed(host: PartyHost): PartyFeed {
   }
   return {
     check,
-    active: () => host.store() !== null && host.on(),
+    paints(event) {
+      const store = host.store()
+      return store !== null && (event.authorRole === 'owner' || store.chat().on)
+    },
     blockOpen() { open = true },
     landed() { open = false; flush() },
     turnEnd() { check(); open = false; flush() },
