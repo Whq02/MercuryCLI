@@ -3,7 +3,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
-import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { posixPtyDriverOrSkip, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 import { referenceFixtureSnapshot } from '../notifications/concourseReferenceSeed.ts'
@@ -22,11 +22,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 400) : ''}`)
 }
 
-const driver = resolveCaptureDriver()
-if (driver.kind !== 'posix-pty') {
-  console.error(`no POSIX pty capture driver on this host (${driver.kind}) — the voice journey cannot run here`)
-  process.exit(1)
-}
+const driver = posixPtyDriverOrSkip('voice-journey')
 if (!existsSync(DIST)) {
   console.error('dist/mercury.mjs missing — bun run build.ts first')
   process.exit(1)

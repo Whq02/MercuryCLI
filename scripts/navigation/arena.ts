@@ -6,7 +6,7 @@ import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { COMPASS_SID, buildCompass1k } from './fixture1k.ts'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { ptyDriverPython, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 import { entryToRecord } from '../../src/fabric/entryCodec.ts'
 import { ordinalOf } from '../../src/fabric/ordinal.ts'
@@ -112,7 +112,7 @@ export async function runCompassArena(opts: CompassArenaOpts): Promise<CompassRu
   for (const r of opts.resizes ?? []) sendArgs.push('--resize', r)
 
   const child = spawn(
-    '/usr/bin/python3',
+    ptyDriverPython('the compass arena'),
     [
       join(HERE, 'ptydrive.py'),
       '--cols', String(opts.cols ?? 120),
@@ -228,7 +228,7 @@ interface GrabbedScreen {
 
 export function grabScreens(run: CompassRun, cols: number, rows: number, offsets: number[]): GrabbedScreen[] {
   const res = spawnSync(
-    '/usr/bin/python3',
+    ptyDriverPython('the compass arena screengrab'),
     [join(FLUX, 'screengrab.py'), run.paths.drive, String(cols), String(rows), ...offsets.map(String)],
     { encoding: 'utf8', timeout: vshotBudgetMs(60_000), maxBuffer: 64 * 1024 * 1024 },
   )

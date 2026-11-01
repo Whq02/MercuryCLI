@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFi
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { posixPtyDriverOrSkip, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
@@ -16,6 +16,7 @@ if (!existsSync(DIST)) {
   console.error('✗ dist/mercury.mjs missing — run `bun run build.ts` first')
   process.exit(1)
 }
+const driver = posixPtyDriverOrSkip('contract-offer-drive')
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
@@ -67,7 +68,7 @@ const WALL_S = driveWallSeconds(sends, { tailMs: 2500 })
 const drive = join(home, 'drive.jsonl')
 const nodeBin = nodeBinPath()
 const child = spawn(
-  '/usr/bin/python3',
+  driver.python,
   [join(REPO, 'scripts', 'streaming', 'ptydrive.py'), '--cols', '120', '--rows', '40', '--seconds', String(WALL_S), '--out', drive, ...sends.flatMap(s => ['--send', s]), '--', nodeBin, DIST],
   {
     cwd,
@@ -119,7 +120,7 @@ check('the drive ladder fired whole', sendRecs.length === sends.length, `${sendR
 if (sendRecs.length === sends.length) {
   const at = (i: number): number => Math.round(sendRecs[i]!.sent! - firstOut)
   const res = spawnSync(
-    '/usr/bin/python3',
+    driver.python,
     [
       join(REPO, 'scripts', 'streaming', 'screengrab.py'),
       drive,

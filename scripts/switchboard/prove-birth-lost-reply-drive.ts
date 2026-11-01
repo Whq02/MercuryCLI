@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { posixPtyDriverOrSkip, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 import { controlSockPath } from '../../src/daemon/controlSocket.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -57,11 +57,7 @@ if (!existsSync(DIST)) {
   console.error(`✗ ${DIST} missing — run \`bun run build.ts\` first`)
   process.exit(1)
 }
-const driver = resolveCaptureDriver()
-if (driver.kind !== 'posix-pty') {
-  console.error(`✗ the PTY drive needs the POSIX capture engine — ${driver.kind === 'unavailable' ? driver.reason : `driver ${driver.kind}`}`)
-  process.exit(1)
-}
+const driver = posixPtyDriverOrSkip('birth-lost-reply-drive')
 if (!existsSync(WORLD_ROOT)) mkdirSync(WORLD_ROOT, { recursive: true })
 
 console.log('============================================================')

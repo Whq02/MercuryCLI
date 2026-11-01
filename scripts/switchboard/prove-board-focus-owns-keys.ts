@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFi
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { posixPtyDriverOrSkip, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
@@ -89,11 +89,7 @@ if (!existsSync(DIST)) {
   console.error(`✗ ${DIST} missing — run \`bun run build.ts\` first`)
   process.exit(1)
 }
-const driver = resolveCaptureDriver()
-if (driver.kind !== 'posix-pty') {
-  console.error(`✗ the PTY drive needs the POSIX capture engine — ${driver.kind === 'unavailable' ? driver.reason : `driver ${driver.kind}`}`)
-  process.exit(1)
-}
+const driver = posixPtyDriverOrSkip('board-focus-owns-keys')
 const API_KEY = 'fixture-key-000'
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const home = mkdtempSync(join(tmpdir(), 'board-focus-home-'))

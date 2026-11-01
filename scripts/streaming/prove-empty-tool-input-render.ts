@@ -14,11 +14,12 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { posixPtyDriverOrSkip, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { projectSlug } from '../../src/utils/sessionStoragePortable.ts'
 import { driverOutcome } from './artifactArena.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 
+const driver = posixPtyDriverOrSkip('empty-tool-input-render')
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(HERE, '..', '..')
 const DIST = process.env.MERCURY_ARENA_DIST || join(ROOT, 'dist', 'mercury.mjs')
@@ -75,7 +76,7 @@ const drive = join(home, 'drive.jsonl')
 const nodeBin = nodeBinPath()
 const driveStartedAt = Date.now()
 const driven = spawnSync(
-  '/usr/bin/python3',
+  driver.python,
   [join(HERE, 'ptydrive.py'), '--cols', '120', '--rows', '40', '--seconds', '8', '--out', drive, '--', nodeBin, DIST, '--resume', SID],
   {
     cwd, encoding: 'utf8', timeout: vshotBudgetMs(60_000),
@@ -94,7 +95,7 @@ const outcome = driverOutcome({
   driverOut: `${driven.stdout ?? ''}${driven.stderr ?? ''}`,
 })
 const grab = spawnSync(
-  '/usr/bin/python3',
+  driver.python,
   [join(HERE, 'screengrab.py'), drive, '120', '40', '-1'],
   { encoding: 'utf8', timeout: vshotBudgetMs(30_000), maxBuffer: 64 * 1024 * 1024 },
 )

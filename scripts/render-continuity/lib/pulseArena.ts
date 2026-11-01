@@ -1,6 +1,6 @@
 
 import { spawn } from 'node:child_process'
-import { vshotBudgetMs } from '../../lib/captureDriver.ts'
+import { ptyDriverPython, vshotBudgetMs } from '../../lib/captureDriver.ts'
 import {
   existsSync,
   mkdirSync,
@@ -147,7 +147,7 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
   for (const r of opts.resizes ?? []) sendArgs.push('--resize', r)
 
   const child = spawn(
-    '/usr/bin/python3',
+    ptyDriverPython('the pulse arena'),
     [
       PTYDRIVE,
       '--cols', String(opts.cols ?? 120),

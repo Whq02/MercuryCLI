@@ -94,3 +94,20 @@ export function resolveCaptureDriver(
   }
   return { kind: 'posix-pty', python, tempRoot: '/tmp', engine: 'scripts/ui/vshot.py' }
 }
+
+type PosixPtyDriver = Extract<CaptureDriver, { kind: 'posix-pty' }>
+
+function noPosixPtyWords(driver: CaptureDriver): string {
+  return driver.kind === 'unavailable' ? driver.reason : `the ${driver.kind} driver serves vshot captures, not the pty drive`
+}
+
+export function ptyDriverPython(what: string, driver: CaptureDriver = resolveCaptureDriver()): string {
+  if (driver.kind === 'posix-pty') return driver.python
+  throw new Error(`${what} drives a POSIX pty through scripts/streaming/ptydrive.py and this host has no posix-pty capture driver (${noPosixPtyWords(driver)}); a proof that only drives the pty skips before setup through posixPtyDriverOrSkip`)
+}
+
+export function posixPtyDriverOrSkip(proof: string, driver: CaptureDriver = resolveCaptureDriver()): PosixPtyDriver {
+  if (driver.kind === 'posix-pty') return driver
+  console.log(`__SUITE_SKIPPED ${proof}: no posix-pty capture driver on this host (${noPosixPtyWords(driver)}) — the proof drives a POSIX pty through scripts/streaming/ptydrive.py`)
+  process.exit(0)
+}

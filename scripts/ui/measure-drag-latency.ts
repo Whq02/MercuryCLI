@@ -4,6 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { nodeBinPath } from '../lib/nodeBin.ts'
+import { posixPtyDriverOrSkip } from '../lib/captureDriver.ts'
 
 process.chdir(join(import.meta.dir, '..', '..'))
 
@@ -13,6 +14,7 @@ const { runCompassArena, requireDist, pct, firstOutAfter, grabScreens } = await 
 const { TAIL_SENTINEL } = await import(`${ROOT}/scripts/navigation/fixture1k.ts`)
 
 requireDist()
+const driver = posixPtyDriverOrSkip('measure-drag-latency')
 const node = nodeBinPath()
 process.stderr.write(`[drag-arena] node: ${node} (${dirname(node)})\n`)
 
@@ -216,7 +218,7 @@ for (const l of results.legs as (Leg & { paintsPerEvent: Summary; paintsInWindow
 type AttrScreen = { atMs: number; rows: string[]; reverse: number[][]; bg: [number, number, string][] }
 function attrGrab(drive: string, offsets: number[]): AttrScreen[] {
   const res = spawnSync(
-    '/usr/bin/python3',
+    driver.python,
     [`${ROOT}/scripts/render-continuity/lib/attrgrab.py`, drive, String(COLS), String(ROWS), ...offsets.map(String)],
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   )

@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { ptyDriverPython, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 
 export { nodeBinPath }
@@ -187,7 +187,7 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
   for (const r of opts.resizes ?? []) sendArgs.push('--resize', r)
 
   const child = spawn(
-    '/usr/bin/python3',
+    ptyDriverPython('the artifact arena'),
     [
       join(HERE, 'ptydrive.py'),
       '--cols', String(opts.cols ?? 120),
@@ -404,7 +404,7 @@ export function grabScreens(
   const shift = run.anchorShiftMs ?? 0
   const actual = (o: number): number => (o < 0 || o < COMPOSER_NOMINAL_MS ? o : Math.round(o + shift))
   const res = spawnSync(
-    '/usr/bin/python3',
+    ptyDriverPython('the artifact arena screengrab'),
     [join(HERE, 'screengrab.py'), run.paths.drive, String(cols), String(rows), ...offsets.map(o => String(actual(o)))],
     { encoding: 'utf8', timeout: vshotBudgetMs(60_000), maxBuffer: 64 * 1024 * 1024 },
   )

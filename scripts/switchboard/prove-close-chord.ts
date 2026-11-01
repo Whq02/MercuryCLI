@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFi
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
+import { resolveCaptureDriver, vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
@@ -203,6 +203,12 @@ if (!existsSync(DIST)) {
   console.error(`✗ ${DIST} missing — run \`bun run build.ts\` first`)
   process.exit(1)
 }
+const driver = resolveCaptureDriver()
+if (driver.kind !== 'posix-pty') {
+  console.log(`  [SKIP] §4 the drive needs the POSIX pty capture driver (scripts/streaming/ptydrive.py); this host has ${driver.kind === 'unavailable' ? driver.reason : `the ${driver.kind} driver`}`)
+  console.log(failures === 0 ? '\nprove-close-chord: ALL LAWS HOLD' : `\nprove-close-chord: ${failures} FAILURE(S)`)
+  process.exit(failures === 0 ? 0 : 1)
+}
 const API_KEY = 'fixture-key-000'
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const home = mkdtempSync(join(tmpdir(), 'close-chord-home-'))
@@ -278,7 +284,7 @@ const WALL_S = driveWallSeconds(sends, { tailMs: 9000 })
 const drive = join(home, 'drive.jsonl')
 const nodeBin = nodeBinPath()
 const child = spawn(
-  '/usr/bin/python3',
+  driver.python,
   [join(REPO, 'scripts', 'streaming', 'ptydrive.py'), '--cols', '120', '--rows', '40', '--seconds', String(WALL_S), '--out', drive, ...sends.flatMap(s => ['--send', s]), '--', nodeBin, DIST],
   {
     cwd,
@@ -351,7 +357,7 @@ if (sendRecs.length === sends.length) {
     deleteArm: LEADER_OFFSETS.map(o => at('deleteLeader') + o),
   }
   const times = [...receiptAt, ...Object.values(grabs), ...Object.values(leaderSeries).flat(), ...enteredSeries]
-  const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', ...times.map(String), '-1'], { encoding: 'utf8', timeout: 120_000, maxBuffer: 256 * 1024 * 1024 })
+  const res = spawnSync(driver.python, [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', ...times.map(String), '-1'], { encoding: 'utf8', timeout: 120_000, maxBuffer: 256 * 1024 * 1024 })
   if (res.status !== 0) {
     console.error(`screengrab failed: ${res.stderr}`)
     process.exit(1)

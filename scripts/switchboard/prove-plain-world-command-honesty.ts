@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpath
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { posixPtyDriverOrSkip, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
@@ -16,6 +16,7 @@ if (!existsSync(DIST)) {
   console.error('✗ dist/mercury.mjs missing — run `bun run build.ts` first')
   process.exit(1)
 }
+const driver = posixPtyDriverOrSkip('plain-world-command-honesty')
 const API_KEY = 'fixture-key-000'
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 
@@ -56,7 +57,7 @@ const sends = [
 ]
 const WALL_S = driveWallSeconds(sends)
 const child = spawn(
-  '/usr/bin/python3',
+  driver.python,
   [
     join(REPO, 'scripts', 'streaming', 'ptydrive.py'),
     '--cols', '110', '--rows', '32', '--seconds', String(WALL_S), '--out', drive,
@@ -115,7 +116,7 @@ check('the drive ladder fired whole', sendRecs.length === sends.length, `${sendR
 const submitAt = Math.round((sendRecs[4]?.sent ?? firstOut) - firstOut)
 
 const res = spawnSync(
-  '/usr/bin/python3',
+  driver.python,
   [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '110', '32', String(submitAt + 1200), String(submitAt + 2400), '-1'],
   { encoding: 'utf8', timeout: vshotBudgetMs(60_000), maxBuffer: 64 * 1024 * 1024 },
 )

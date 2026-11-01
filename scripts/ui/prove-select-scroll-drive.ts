@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { posixPtyDriverOrSkip } from '../lib/captureDriver.ts'
 
 process.chdir(join(import.meta.dir, '..', '..'))
 const ROOT = join(import.meta.dir, '..', '..')
@@ -12,6 +13,7 @@ const { keyHintLabel } = await import(`${ROOT}/src/components/mercury-ui/keyHint
 const BACK_HINTS = (['macos', 'linux'] as const).map(p => keyHintLabel('⇧← back', p))
 
 requireDist()
+const driver = posixPtyDriverOrSkip('select-scroll-drive')
 
 const COLS = 120
 const ROWS = 40
@@ -39,7 +41,7 @@ type AttrScreen = { atMs: number; rows: string[]; reverse: number[][]; bg: [numb
 let copies: string[] = []
 function attrGrab(drive: string, offsets: number[]): AttrScreen[] {
   const res = spawnSync(
-    '/usr/bin/python3',
+    driver.python,
     [`${ROOT}/scripts/render-continuity/lib/attrgrab.py`, drive, String(COLS), String(ROWS), ...offsets.map(String)],
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   )
