@@ -28,7 +28,7 @@ if (!existsSync(DIST)) {
   const sends = [
     { requireAwait: true, minTick: 3, awaitText: 'choose', awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: 'Type a prompt', awaitSettleTicks: 2, data: 'hello there\r' },
-    { requireAwait: true, minTick: 5, awaitText: 'heard: hello there', awaitSettleTicks: 3, data: `${RELAUNCH_TURN_ASK}\r`, mark: 'answered' },
+    { requireAwait: true, minTick: 5, awaitText: 'was completed and its checks pass.', awaitSettleTicks: 5, data: `${RELAUNCH_TURN_ASK}\r`, mark: 'answered' },
     { requireAwait: true, minTick: 5, awaitText: doneText(RELAUNCH_TURN_ASK), awaitSettleTicks: 2, data: `${LINE}\r`, mark: 'sent' },
     { requireAwait: true, minTick: 5, awaitText: QUEUED_PLATE, awaitSettleTicks: 1, data: '', mark: 'queued' },
     { requireAwait: true, minTick: 5, awaitText: `heard: ${LINE}`, awaitSettleTicks: 5, data: '', mark: 'relaunched' },

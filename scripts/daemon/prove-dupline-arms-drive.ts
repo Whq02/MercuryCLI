@@ -145,7 +145,7 @@ if (existsSync(DIST) && driver.kind !== 'unavailable' && preflight !== null && p
   const sends = [
     { requireAwait: true, minTick: 3, awaitText: 'choose', awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: 'Type a prompt', awaitSettleTicks: 2, data: 'hello there\r' },
-    { requireAwait: true, minTick: 5, awaitText: 'heard: hello there', awaitSettleTicks: 3, data: `${AGENT_TURN_ASK}\r`, mark: 'asked' },
+    { requireAwait: true, minTick: 5, awaitText: 'was completed and its checks pass.', awaitSettleTicks: 5, data: `${AGENT_TURN_ASK}\r`, mark: 'asked' },
     { afterPrevTicks: 150, data: `${RETURN_LINE}\r`, mark: 'sent-1' },
     { afterPrevTicks: 8, data: `${AFTER_RETURN_LINE}\r`, mark: 'sent-2' },
     { afterPrevTicks: 10, data: '', mark: 'queued' },
