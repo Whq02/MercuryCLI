@@ -226,6 +226,7 @@ function stampedWorld(label: string) {
   }
   const user = (name: string, text: string, parentUuid: string | null, at: string, extra: Record<string, unknown> = {}): Stamped => keep(name, { ...(factories.createUserMessage({ content: text, ...extra }) as Stamped), parentUuid, isSidechain: false, timestamp: stamp(at) })
   const assistant = (name: string, text: string, parentUuid: string | null, at: string): Stamped => keep(name, { ...(factories.createAssistantMessage({ content: [{ type: 'text', text }] }) as Stamped), parentUuid, isSidechain: false, timestamp: stamp(at) })
+  const note = (name: string, content: string, parentUuid: string, at: string, subtype = 'crew_chat'): Stamped => keep(name, { type: 'system', subtype, uuid: randomUUID(), timestamp: stamp(at), parentUuid, isSidechain: false, level: 'info', content, name: 'Poster', authorRole: 'peer', kind: 'result', seq: names.size + 1, mentions: [], addresses: [] })
   const boundary = (name: string, at: string): Stamped => keep(name, { ...(compactMod.createCompactBoundaryMessage('manual', 1000) as Stamped), parentUuid: null, isSidechain: false, timestamp: stamp(at) })
   const summary = (name: string, of: Stamped, at: string): Stamped => user(name, `the summary under ${names.get(of.uuid)}`, of.uuid, at, { isCompactSummary: true })
   const keepTail = (b: Stamped, segment: Seg): void => {
@@ -246,7 +247,35 @@ function stampedWorld(label: string) {
     const leaf = chainMod.findLatestMessage(fold.messages.values(), (m: { isSidechain?: boolean }) => !m.isSidechain)
     return leaf === undefined ? [] : named(chainMod.buildConversationChain(fold.messages, leaf))
   }
-  return { path, user, assistant, boundary, summary, keepTail, write, named, screen, resume }
+  return { path, user, assistant, note, boundary, summary, keepTail, write, named, screen, resume }
+}
+
+section('§A1 consecutive terminal notes survive a cold screen and a resumed chain')
+for (const subtype of ['crew_chat', 'local_command', 'user']) {
+  const w = stampedWorld(`idle-chain-${subtype}`)
+  const u = w.user('u', 'The preceding prompt.', null, '2026-11-01T00:00:00Z')
+  const a = w.assistant('a', 'The preceding reply.', u.uuid, '2026-11-01T00:00:01Z')
+  const first = subtype === 'user'
+    ? w.user('first', 'FIRST-IDLE-POST', a.uuid, '2026-11-01T00:00:02Z', { isVirtual: true })
+    : w.note('first', 'FIRST-IDLE-POST', a.uuid, '2026-11-01T00:00:02Z', subtype)
+  const second = subtype === 'user'
+    ? w.user('second', 'SECOND-IDLE-POST', first.uuid, '2026-11-01T00:00:03Z', { isVirtual: true })
+    : w.note('second', 'SECOND-IDLE-POST', first.uuid, '2026-11-01T00:00:03Z', subtype)
+  w.write([u, a, first, second])
+  const expected = j(['u', 'a', 'first', 'second'])
+  check(`${subtype}: the fixture contains a real two-note parent chain`, entriesOf(w.path).find(row => row.uuid === second.uuid)?.parentUuid === first.uuid)
+  check(`${subtype}: a cold screen keeps both terminal rows`, j(await w.screen()) === expected, j(await w.screen()))
+  check(`${subtype}: a resumed chain keeps both terminal rows`, j(await w.resume()) === expected, j(await w.resume()))
+  const other = `${w.path}.reattach.jsonl`
+  copyFileSync(w.path, other)
+  check(`${subtype}: a second independent reader keeps both terminal rows`, j(await w.screen(other)) === expected, j(await w.screen(other)))
+}
+if (process.argv.includes('--idle-chain-only')) {
+  clearTimeout(guard)
+  process.chdir(REPO)
+  if (!KEEP && failures === 0) removeScratch(SCRATCH)
+  console.log(`${checks} checks, ${failures} failures`)
+  process.exit(failures === 0 ? 0 : 1)
 }
 
 section('§A2 clocks — the newest compaction is the latest boundary in file order, whatever its stamp says')
