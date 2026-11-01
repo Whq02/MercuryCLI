@@ -4,8 +4,8 @@ import { existsSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { runScriptedTurn, startScriptedFixture, type Script, type WireBlock } from '../lib/scriptedTurn.ts'
 
-export type Requirement = { id: string; ok: boolean; witness: string }
-export type RunFacts = {
+type Requirement = { id: string; ok: boolean; witness: string }
+type RunFacts = {
   runId: string
   sessionId: string
   exitCode: number | null

@@ -39,7 +39,7 @@ export async function script(ctx: Context, changes: Change[]): Promise<void> {
   const waitAsk = async (n: number): Promise<void> => {
     if (held.length >= n) return
     await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('child write did not ask')), 30000)
+      const timer = setTimeout(() => reject(new Error(`child write did not ask: ${JSON.stringify({ childCalls, asks: host.asks.map(ask => ({ id: ask.id, tool: ask.params.tool_name, agent: ask.params.agent_id })), requests: fixture.requests.map(request => ({ ask: request.ask.slice(0, 120), opening: request.opening.slice(0, 120), step: request.step, launch: request.ask === 'launch-outcome' ? request.results.map(result => result.text) : undefined })) })}`)), 30000)
       waiters.push(() => { clearTimeout(timer); resolve() })
     })
   }
