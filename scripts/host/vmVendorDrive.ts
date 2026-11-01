@@ -9,7 +9,7 @@ import { gridToPng } from '../ui/gridToPng.ts'
 
 export async function vmVendorDrive(vendor: string, makeFixture: () => Promise<any>): Promise<void> {
   assert.ok(process.env.MERCURY_CONFIG_DIR, 'scratch MERCURY_CONFIG_DIR required')
-  assert.ok(process.env.MERCURY_HOME === undefined || (process.env.MERCURY_SUITE_TMPDIR !== undefined && process.env.MERCURY_HOME.startsWith(process.env.MERCURY_SUITE_TMPDIR)), 'MERCURY_HOME is unset or the suite unit\'s hermetic proof home, never the owner\'s')
+  delete process.env.MERCURY_HOME
   const f = await llmhostFixture()
   const fixture = await makeFixture()
   const originalFetch = globalThis.fetch

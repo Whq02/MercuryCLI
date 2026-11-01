@@ -7,7 +7,8 @@ import { vastFixture } from './vastFixture.mjs'
 import { gridToPng } from '../ui/gridToPng.ts'
 import type { LlmHostQuestion, LlmHostRoad } from '../../src/services/llmHost/index.ts'
 
-if (!process.env.MERCURY_CONFIG_DIR || process.env.MERCURY_HOME) throw new Error('Use a scratch MERCURY_CONFIG_DIR with MERCURY_HOME unset')
+if (!process.env.MERCURY_CONFIG_DIR) throw new Error('Use a scratch MERCURY_CONFIG_DIR')
+delete process.env.MERCURY_HOME
 pinSourceRef()
 const at = process.argv.indexOf('--frames')
 const frames = at < 0 ? undefined : process.argv[at + 1]
