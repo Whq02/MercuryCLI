@@ -30,6 +30,7 @@ const ALLOW: Row[] = [
   { path: 'docs/CREW.md', fragment: 'Teams are labels for delivery and channels.', why: 'Board teams select delivery and channels; they do not rename the crew.' },
   { path: 'docs/CREW.md', fragment: 'its name, its team, the seats already on the board', why: 'The enrolment brief names the board team label, not a renamed crewmate.' },
   { path: 'docs/CREW.md', fragment: 'names share a colour within a team', why: 'The chat row colours names by their board team label, not a renamed crewmate.' },
+  { path: 'docs/CREW.md', fragment: "posts to that team's captain", why: 'The /team command addresses a board team label.' },
   { path: 'docs/CREW.md', fragment: 'The lead names a captain for a team of five or more crewmates', why: 'A captain heads a board team label.' },
 ]
 
