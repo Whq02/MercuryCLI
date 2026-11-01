@@ -486,6 +486,32 @@ export type SystemLocalCommandMessage = {
   isMeta?: boolean
 }
 
+export type CrewChatKind = 'ask' | 'answer' | 'blocker' | 'result' | 'correction' | 'notice'
+export type CrewChatRole = 'peer' | 'owner' | 'system'
+export type CrewChatChannel = { kind: 'general' } | { kind: 'team' | 'whisper'; target: string }
+export type CrewChatLifecycle = { kind: 'launched' | 'joined' | 'done' } | { kind: 'parked'; event: string }
+
+export type SystemCrewChatMessage = {
+  type: 'system'
+  subtype: 'crew_chat'
+  content: string
+  level: SystemMessageLevel
+  uuid: UUID
+  timestamp: string
+  isMeta?: boolean
+  seq: number
+  name: string
+  team?: string
+  captain?: true
+  authorRole: CrewChatRole
+  kind: CrewChatKind
+  mentions: string[]
+  addresses: string[]
+  channel?: CrewChatChannel
+  lifecycle?: CrewChatLifecycle
+  turnId?: string
+}
+
 export type SystemCompactBoundaryMessage = {
   type: 'system'
   subtype: 'compact_boundary'
@@ -586,6 +612,7 @@ export type SystemMessage =
   | SystemApiMetricsMessage
   | SystemCloseUsageMessage
   | SystemLocalCommandMessage
+  | SystemCrewChatMessage
   | SystemCompactBoundaryMessage
   | SystemMicrocompactBoundaryMessage
   | SystemAPIErrorMessage
