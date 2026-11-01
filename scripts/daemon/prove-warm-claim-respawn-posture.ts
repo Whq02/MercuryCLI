@@ -82,6 +82,15 @@ mock.module('../../src/daemon/headlessRun.ts', () => ({
   },
 }))
 
+const processGroup = await import('../../src/utils/processGroup.ts')
+mock.module('../../src/utils/processGroup.ts', () => ({
+  ...processGroup,
+  killProcessGroup: (child: Fake) => {
+    if (![...latest.values()].includes(child)) throw new Error('tree termination targeted a child outside the fixture')
+    child.kill()
+  },
+}))
+
 const { TaskRoster } = await import('../../src/daemon/roster.ts')
 const sup = await import('../../src/daemon/concourseWorkers.ts')
 const warm = await import('../../src/daemon/warmRunner.ts')
