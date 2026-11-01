@@ -1,0 +1,9 @@
+diff --git a/result.mjs b/result.mjs
+--- a/result.mjs
++++ b/result.mjs
+@@ -1 +1,4 @@
+-export const result = names => names.join(",");
++export const result = names => {
++  const unique = [...new Set(names.map(name => name.trim().normalize("NFC")).filter(Boolean))];
++  return `saved: ${unique.join(", ") || "nobody"}\n`;
++};
