@@ -7,6 +7,7 @@ import { pinSourceRef } from '../lib/settingsPopupHarness.js'
 
 pinSourceRef()
 const root = mkdtempSync(join(tmpdir(), 'resume-admission-'))
+process.env.TMPDIR = root
 process.env.MERCURY_CONFIG_DIR = join(root, 'home')
 process.env.MERCURY_DAEMON_DIR = join(root, 'daemon')
 mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
