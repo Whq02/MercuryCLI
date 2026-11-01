@@ -1,4 +1,6 @@
+import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { NODE } from '../daemon/dupline-world.ts'
 import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
@@ -12,10 +14,12 @@ const option = (name: string): string | undefined => { const at = process.argv.i
 const distArg = option('--dist')
 if (!distArg) throw new Error('--dist <mercury.mjs> is required')
 const dist = resolve(distArg)
-const manifest = JSON.parse(readFileSync(join(dirname(dist), 'manifest.json'), 'utf8')) as { buildTree?: string; files?: unknown }
+const manifest = JSON.parse(readFileSync(join(dirname(dist), 'manifest.json'), 'utf8')) as { buildTree?: string; bundleSha256?: string; bundle?: string }
 const tree = git(root, ['rev-parse', 'HEAD^{tree}'])
 if (manifest.buildTree !== tree) throw new Error(`artifact tree ${manifest.buildTree} differs from HEAD tree ${tree}`)
 const artifactDigest = sha256(readFileSync(dist))
+if (manifest.bundle !== basename(dist) || manifest.bundleSha256 !== artifactDigest) throw new Error('artifact bundle differs from its manifest')
+const runtimes = { controllerBun: process.versions.bun ?? 'unknown', controllerNodeCompatibility: process.versions.node, productNode: execFileSync(NODE, ['--version'], { encoding: 'utf8' }).trim(), taskNode: execFileSync('node', ['--version'], { encoding: 'utf8' }).trim(), dependencies: 'none' }
 const selected = option('--task')
 const tasks = selected === undefined ? pack : pack.filter(task => task.id === selected)
 if (tasks.length === 0) throw new Error(`unknown task ${selected}`)
@@ -32,6 +36,9 @@ try {
   for (const task of tasks) {
     const controls = [[task.controls.reference, task.expected.reference], [task.controls.alternative, task.expected.alternative], ...task.controls.wrong.map(path => [path, task.expected.wrong])] as Array<[string, 'accept' | 'refuse']>
     for (const [patch, expected] of controls) {
+      if (git(root, ['rev-parse', 'HEAD^{tree}']) !== tree) throw new Error('checkout changed during calibration')
+      execFileSync('git', ['diff', '--quiet', 'HEAD'], { cwd: root, stdio: 'pipe' })
+      if (git(root, ['ls-files', '--others', '--exclude-standard']) !== '') throw new Error('uncommitted files prevent a frozen calibration')
       const control = basename(patch, '.patch')
       if (!existsSync(patch)) { check(`${task.id}/${control} control exists`, false); continue }
       const start = new Date().toISOString()
@@ -53,15 +60,20 @@ try {
       const finalCandidate = digest(cwd)
       const firstCandidate = String(ctx.facts.effects.firstCandidateHash ?? finalCandidate)
       const changed = Object.fromEntries(Object.entries(snapshot(cwd)).filter(([path, hash]) => base[path] !== hash))
-      check(`${task.id}/${control} ${expected}`, accepted.verdict === expected && !accepted.witness.some(row => row.id === 'cell-execution'), JSON.stringify(accepted.witness.filter(row => !row.ok)))
-      let stale = false
+      const operational = new Set(['protected-files', 'allowed-paths', 'settled-run', 'stable-check-tree', 'cell-execution', 'staleRefused', 'noPartialWrite', 'correctedApplied', 'late-A-stale-after-restart', 'fresh-B-verifies', 'delivered-B', 'explicit-child-stop', 'forbiddenAbsent', 'freshAsk', 'absentBeforeFreshApproval', 'authority-order', 'one-approved-write', 'compacted', 'sameBytes', 'sameSession', 'oneRetainedResult'])
+      const broken = accepted.witness.filter(row => !row.ok && operational.has(row.id))
+      check(`${task.id}/${control} fixture completed`, broken.length === 0 && ctx.facts.runId !== '' && ctx.facts.sessionId !== '', JSON.stringify(broken))
+      check(`${task.id}/${control} ${expected}`, accepted.verdict === expected && broken.length === 0, JSON.stringify(accepted.witness.filter(row => !row.ok)))
+      const row = { task, ctx, control, expected, acceptance: accepted, baseTree, buildTree: tree, artifactDigest, runtimes, firstCandidate, finalCandidate, changed, start, end: new Date().toISOString(), durationMs: performance.now() - clock, attemptId: randomUUID(), stale: false }
+      writeLedger(ledger, calibrationRow(row))
       if (accepted.verdict === 'accept') {
         check(`${task.id}/${control} accepted state is current`, acceptanceCurrent(ctx, accepted))
         appendFileSync(join(cwd, task.files[0]!), ' ')
-        stale = !acceptanceCurrent(ctx, accepted)
+        const stale = !acceptanceCurrent(ctx, accepted)
         check(`${task.id}/${control} changed byte invalidates acceptance`, stale)
+        const staleResult: Acceptance = { ...accepted, verdict: stale ? 'refuse' : 'accept', witness: [{ id: 'old-acceptance-does-not-cover-new-bytes', ok: stale, witness: `${accepted.treeDigest} -> ${digest(cwd)}` }] }
+        writeLedger(ledger, calibrationRow({ ...row, control: `${control}/stale`, expected: 'refuse', acceptance: staleResult, finalCandidate: digest(cwd), changed: Object.fromEntries(Object.entries(snapshot(cwd)).filter(([path, hash]) => base[path] !== hash)), end: new Date().toISOString(), durationMs: performance.now() - clock, attemptId: randomUUID(), stale }))
       }
-      writeLedger(ledger, calibrationRow({ task, ctx, control, expected, acceptance: accepted, baseTree, buildTree: tree, artifactDigest, firstCandidate, finalCandidate, changed, start, end: new Date().toISOString(), durationMs: performance.now() - clock, attemptId: randomUUID(), stale }))
     }
   }
 } finally {
