@@ -57,7 +57,8 @@ const XAI_BILLING_SURFACES = new Set([
 const XAI_BILLING_WORDS = /\bpersonal-team-blocked:spending-limit\b|team(?:_id|Id|-fixture|-cycle)|\/teams\/|\/team\/default\/management-keys|\bteam (?:usage|balance|permissions|meter|credits|record|spend|lookup|billing)|team[’']s prepaid credits|prepaid-only teams|identifies the team|optional management key for the (?:API )?team\b(?:[’']s)?|xAI's team|These are team/i
 const boardLabelSurface = (rel: string): boolean => rel.startsWith('src/services/crewBoard/') || /^scripts\/crew\/prove-swarm-/.test(rel) || ['docs/CREW.md', 'src/tools/AgentTool/AgentTool.tsx', 'src/tools/AgentTool/runAgent.ts', 'src/tools/AgentTool/prompt.ts', 'scripts/providers/prove-gemini-plan-shape.ts', 'scripts/builtin-tools/fixtures/tool-census.json', 'scripts/tool-economy/fixtures/definition-corpus.json', 'scripts/prompt/prove-briefing-replay.ts'].includes(rel)
 const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
-  [/\b(?:teams?|assignTeam|setTeam|teamOf|validTeam|teamAssigned|peerTeam|swarm_team)\b/gi, 'Board delivery labels and their fields; the retired teammate and ownership-system spellings remain forbidden.', boardLabelSurface],
+  [/\/team(?![\w/-])/g, 'The owner channel command in the README roster, not a crew identity.', rel => rel === 'README.md'],
+  [/\b(?:teams?|assignTeam|setTeam|teamOf|validTeam|canonicalTeam|teamAssigned|peerTeam|swarm_team)\b/gi, 'Board delivery labels and their fields; the retired teammate and ownership-system spellings remain forbidden.', boardLabelSurface],
   [XAI_BILLING_WORDS, "xAI's billing account and documented wire fields, not a Mercury crew", rel => XAI_BILLING_SURFACES.has(rel)],
   [new RegExp(J('s', 'team'), 'i'), 'Steam, the games store the Aseprite and Godot bridges look in'],
   [new RegExp(J('rot', 'eamento'), 'i'), 'Portuguese for routing, in the Brazilian Portuguese README', rel => rel === 'docs/translations/README.pt-BR.md'],
