@@ -17,6 +17,7 @@ import { AssistantToolUseMessage } from './messages/AssistantToolUseMessage.js'
 import { AttachmentMessage } from './messages/AttachmentMessage.js'
 import { CollapsedReadSearchContent } from './messages/CollapsedReadSearchContent.js'
 import { CompactBoundaryMessage } from './messages/CompactBoundaryMessage.js'
+import { CrewChatRow } from './messages/CrewChatRow.js'
 import { CompactSummary } from './CompactSummary.js'
 import { ExpandShellOutputProvider } from './shell/ExpandShellOutputContext.js'
 import { GroupedToolUseContent } from './messages/GroupedToolUseContent.js'
@@ -163,6 +164,7 @@ function MessageInner({
           )
         }
         if (message.subtype === 'microcompact_boundary') return null
+        if (message.subtype === 'crew_chat') return <CrewChatRow message={message} />
         if (message.subtype === 'local_command') {
           return (
             <UserTextMessage
