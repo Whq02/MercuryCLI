@@ -110,10 +110,12 @@ try {
     check('the run wrote only under the container home and /tmp (docker diff)', changed.length > 0 && outside.length === 0, outside.join(', ') || diff.stderr)
     check('the mounted tree is untouched by a read-only prompt', JSON.stringify(readdirSync(work).sort()) === JSON.stringify(before), readdirSync(work).join(', '))
 
+    const beforeNoKey = api.requests.length
     const noKey = await dockerRun(['run', '--rm', ...common, TAG, 'run', 'Summarise this repository in one line.', '--format', 'text'])
     const noKeyLines = noKey.err.split('\n').filter(l => l !== '')
     check(`a run with no key refuses in one plain stderr line and exits 1 (${noKey.ms}ms)`, noKey.code === 1 && noKey.out === '' && noKeyLines.length === 1, JSON.stringify(noKey))
-    check('the no-key run never reached the provider', workRequests().length === 1 && api.messageRequests().length === 2, String(api.messageRequests().length))
+    const noKeyRequests = api.requests.slice(beforeNoKey)
+    check('the no-key run never reached the provider', noKeyRequests.length === 0, JSON.stringify(noKeyRequests.map(request => ({ method: request.method, path: request.path }))))
 
     const rootName = `headless-image-drive-root-${process.pid}`
     containers.push(rootName)
