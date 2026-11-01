@@ -47,9 +47,11 @@ try {
     const install = spawnSync(process.execPath, ['install', '--frozen-lockfile'], { cwd: base, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
     assert.equal(install.status, 0, install.stdout + install.stderr)
     const lockOf = (tree: string, name: string): string | undefined => existsSync(join(tree, 'vendor', `${name}.lock.json`)) ? readFileSync(join(tree, 'vendor', `${name}.lock.json`), 'utf8') : undefined
+    const nativeSourcesMoved = (name: string): boolean => existsSync(join(root, 'native', name)) && spawnSync('git', ['diff', '--quiet', baseSha, '--', `native/${name}`], { cwd: root }).status !== 0
     for (const name of readdirSync(join(root, 'vendor'))) {
       if (name === 'desktop' || existsSync(join(base, 'vendor', name))) continue
       if (lockOf(root, name) !== lockOf(base, name)) continue
+      if (nativeSourcesMoved(name)) { console.log(`vendor/${name} stays out of the ${baseSha} build: native/${name} has moved since, so the pack built from today's sources would read as stale there (the historical build degrades without it)`); continue }
       symlinkSync(join(root, 'vendor', name), join(base, 'vendor', name))
     }
     const build = spawnSync('nice', ['-n', '10', process.execPath, 'run', 'build.ts'], { cwd: base, env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'build-home'), MERCURY_BUILD_OUTDIR: baseOut }, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
