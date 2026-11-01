@@ -74,9 +74,12 @@ export function boardMessagesWords(n: number): string | null {
   return n > 0 ? `${n} board ${n === 1 ? 'message' : 'messages'}` : null
 }
 
-function isReplyRow(m: LooseMessage): boolean {
+function isReplyRow(m: LooseMessage, closing = false): boolean {
   if (m.type !== 'assistant' || m.isApiErrorMessage === true) return false
-  return contentBlocks(m).some(b => b['type'] === 'text' && typeof b['text'] === 'string' && (b['text'] as string).trim() !== '' && (b['text'] as string).trim() !== NO_RESPONSE_REQUESTED)
+  const blocks = contentBlocks(m)
+  const stop = m.message?.stop_reason
+  if (closing && ((stop !== undefined && stop !== 'end_turn' && stop !== 'stop_sequence') || blocks.some(b => b['type'] === 'tool_use'))) return false
+  return blocks.some(b => b['type'] === 'text' && (!closing || b['phase'] !== 'commentary') && typeof b['text'] === 'string' && (b['text'] as string).trim() !== '' && (b['text'] as string).trim() !== NO_RESPONSE_REQUESTED)
 }
 
 const READ_TOOLS = new Set(['Read', 'NotebookRead'])
@@ -122,7 +125,7 @@ type LooseMessage = {
   isVirtual?: boolean
   isApiErrorMessage?: boolean
   uuid?: string
-  message?: { content?: unknown; usage?: unknown }
+  message?: { content?: unknown; usage?: unknown; stop_reason?: string | null }
   messages?: LooseMessage[]
   results?: LooseMessage[]
   toolUseResult?: unknown
@@ -385,6 +388,7 @@ function walkTurnReceipts(
   let tally = emptyTally()
   let anchorUuid = 'turn-0'
   let replied = false
+  let replyClosed = false
   let firstIdle: number | undefined
   let previousPrompt: number | undefined
   let turnPrompt: number | undefined
@@ -403,11 +407,13 @@ function walkTurnReceipts(
   }
   for (let index = 0; index < messages.length; index++) {
     const m = messages[index]!
-    const woken = firstIdle !== undefined && isTurnWork(m)
+    const noticeWake = replyClosed && m.isVirtual === true && isTurnBoundary({ ...m, isVirtual: false })
+    const woken = noticeWake || (firstIdle !== undefined && isTurnWork(m))
     if (isTurnBoundary(m) || woken || (m.type === 'system' && m.subtype === 'away_summary')) {
       settle(index, false)
       tally = emptyTally()
       replied = false
+      replyClosed = false
       firstIdle = undefined
       anchorUuid = (m.type === 'user' || woken) && typeof m.uuid === 'string' ? m.uuid : 'turn-0'
     }
@@ -425,6 +431,7 @@ function walkTurnReceipts(
       preFoldTail = undefined
     }
     if (isReplyRow(m)) replied = true
+    if (m.type === 'assistant' || m.type === 'grouped_tool_use') replyClosed = isReplyRow(m, true)
     const chat = chatRowOf(m)
     if (chat !== null && chat.turnId === undefined && firstIdle === undefined) firstIdle = index
     for (const row of [m, ...(m.messages ?? []), ...(m.results ?? [])]) {

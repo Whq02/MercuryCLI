@@ -212,8 +212,15 @@ else {
   })
   const ADMITTED = ['The list is ready, eighteen rows.', 'The addon faults on the second image.', 'Read the fence first.']
   const IDLE = ['May I take the README row?', 'Yes, the README row is yours.']
-  const fixture = (idle: boolean) => {
-    const rows = [
+  const NOTICE_REPLIES = ['The first reply.', 'The notice reply.']
+  const NOTICE = '@main The notice arrived.'
+  const fixture = (leg: 'idle' | 'cursor' | 'notice') => {
+    const rows = leg === 'notice' ? [
+      base({ parentUuid: null, type: 'user', uuid: P3, message: { role: 'user', content: 'say hello' }, timestamp: '2026-06-19T12:00:09.000Z' }),
+      base({ parentUuid: P3, type: 'assistant', uuid: ids[0], requestId: 'req_notice_1', message: { id: 'msg_notice_1', type: 'message', role: 'assistant', model: 'claude-opus-4-8', content: [{ type: 'text', text: NOTICE_REPLIES[0] }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 13, output_tokens: 1 } }, timestamp: '2026-06-19T12:00:10.000Z' }),
+      base({ parentUuid: ids[0], type: 'user', uuid: ids[1], isVirtual: true, origin: { kind: 'task-notification' }, message: { role: 'user', content: `<crew-board>${JSON.stringify({ name: 'lists-judge', kind: 'result', text: NOTICE })}</crew-board>` }, timestamp: '2026-06-19T12:00:11.000Z' }),
+      base({ parentUuid: ids[1], type: 'assistant', uuid: ids[2], requestId: 'req_notice_2', message: { id: 'msg_notice_2', type: 'message', role: 'assistant', model: 'claude-opus-4-8', content: [{ type: 'text', text: NOTICE_REPLIES[1] }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 13, output_tokens: 1 } }, timestamp: '2026-06-19T12:00:12.000Z' }),
+    ] : [
       base({ parentUuid: null, type: 'user', uuid: P3, message: { role: 'user', content: 'fold the board' }, timestamp: '2026-06-19T12:00:09.000Z' }),
       base({ parentUuid: P3, type: 'assistant', uuid: ids[0], requestId: 'req_fold_1', message: { id: 'msg_fold_1', type: 'message', role: 'assistant', model: 'claude-opus-4-8', content: [{ type: 'tool_use', id: 'toolu_fold1', name: 'Bash', input: { command: 'echo one', description: 'First' } }], stop_reason: 'tool_use', stop_sequence: null, usage: { input_tokens: 1200, output_tokens: 1 } }, timestamp: '2026-06-19T12:00:10.000Z' }),
       base({ parentUuid: ids[0], type: 'user', uuid: ids[1], message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_fold1', content: 'one' }] }, toolUseResult: 'one', timestamp: '2026-06-19T12:00:11.000Z' }),
@@ -223,7 +230,7 @@ else {
       post(ids[3], '00000000-0000-4000-8000-00000000c002', 2, 'ocr-fix', `@main ${ADMITTED[1]}`, 'blocker', P3, 'ocr'),
       post('00000000-0000-4000-8000-00000000c002', '00000000-0000-4000-8000-00000000c003', 3, 'main', `@ocr-fix ${ADMITTED[2]}`, 'result', P3),
       base({ parentUuid: '00000000-0000-4000-8000-00000000c003', type: 'assistant', uuid: ids[4], requestId: 'req_fold_3', message: { id: 'msg_fold_3', type: 'message', role: 'assistant', model: 'claude-opus-4-8', content: [{ type: 'text', text: 'Both echoes ran.' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 3000, output_tokens: 1 } }, timestamp: '2026-06-19T12:00:17.000Z' }),
-      ...(idle ? [
+      ...(leg === 'idle' ? [
         post(ids[4], '00000000-0000-4000-8000-00000000c004', 4, 'lists-writer', `@main ${IDLE[0]}`, 'ask', undefined, 'lists'),
         post(ids[4], '00000000-0000-4000-8000-00000000c005', 5, 'main', `@lists-writer ${IDLE[1]}`, 'answer'),
       ] : []),
@@ -239,11 +246,11 @@ else {
   const closed = { awaitPattern: `^(?![\\s\\S]*${ADMITTED[2]!.replace(/[.]/g, '\\.')})[\\s\\S]*board messages` }
   try {
     for (const [cols, rows] of [[120, 44], [80, 24]] as const) {
-      for (const leg of ['idle', 'cursor'] as const) {
-        fixture(leg === 'idle')
+      for (const leg of ['idle', 'cursor', 'notice'] as const) {
+        fixture(leg)
         const tag = `party-receipt-${leg}-${cols}x${rows}`
         const gridPath = join(captures, `${tag}.grid.json`)
-        const sends = leg === 'idle'
+        const sends = leg === 'notice' ? [then('', NOTICE_REPLIES[1]!, 'woken')] : leg === 'idle'
           ? [
               then('', 'board messages', 'folded'),
               then(CLICK, 'board messages', undefined, { targetText: 'board messages' }),
@@ -267,7 +274,7 @@ else {
               then('', 'board messages', 'entered-again', closed),
               then('\x1b', 'enter expand'),
             ]
-        const config = { cwd: RUNTIME_CWD, argv: ['node', DIST, '--resume', SID], cols, rows, total: 220, out: gridPath, readyText: ['board messages'], readySettleTicks: 3, sends }
+        const config = { cwd: RUNTIME_CWD, argv: ['node', DIST, '--resume', SID], cols, rows, total: 220, out: gridPath, readyText: [leg === 'notice' ? NOTICE_REPLIES[1]! : 'board messages'], readySettleTicks: 3, sends }
         const configPath = join(captures, `${tag}.json`)
         writeFileSync(configPath, JSON.stringify(config))
         let stderr = ''
@@ -291,6 +298,18 @@ else {
           await gridToPng(stillPath, join(captures, `${tag}-${still.label}.png`))
         }
         await gridToPng(gridPath, join(captures, `${tag}.png`))
+        if (leg === 'notice') {
+          const lines = marks.get('woken') ?? []
+          const firstReply = lineOf(lines, NOTICE_REPLIES[0]!)
+          const firstReceipt = lineOf(lines, '∙ no tools ran this turn · ctx +13')
+          const notice = lineOf(lines, '[Crewboard] lists-judge')
+          const wakeReply = lineOf(lines, NOTICE_REPLIES[1]!)
+          const wakeReceipt = lineOf(lines, '∙ no tools ran this turn · ctx +0')
+          check(`${tag}: chat off resumes with a receipt under each reply and the notice between them`, firstReply >= 0 && firstReceipt > firstReply && notice > firstReceipt && wakeReply > notice && wakeReceipt > wakeReply, JSON.stringify({ firstReply, firstReceipt, notice, wakeReply, wakeReceipt }))
+          check(`${tag}: the notice keeps its words and the two receipts do not count board rows`, lineOf(lines, NOTICE) >= 0 && lines.filter(line => line.includes('no tools ran this turn')).length === 2 && !lines.some(line => line.includes('board message')), lines.join('\n'))
+          console.log(`  frames: ${join(captures, tag)}-*.png`)
+          continue
+        }
         const foldedLines = marks.get('folded') ?? []
         const receiptAt = foldedLines.findIndex(line => RECEIPT.test(line))
         check(`${tag}: the closed turn's line reads ∙ 2 shell commands · ctx ∙ 3 board messages`, receiptAt >= 0, foldedLines.filter(line => line.includes('board')).join(' | '))

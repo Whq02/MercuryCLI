@@ -231,6 +231,42 @@ withEnv('1', () => {
   check('grouped_tool_use rows contribute inner tool_uses + results', gc['commands'] === 2 && gc['fileEdits'] === 1 && gc['adds'] === 1)
 })
 
+section('a virtual notice opens a turn only after the closing reply')
+withEnv('1', () => {
+  const notice = (uuid = 'n1', extra: Record<string, unknown> = {}) => ({ type: 'user', uuid, isVirtual: true, message: { role: 'user', content: '<crew-board>{"name":"alpha","kind":"result","text":"@main ready"}</crew-board>' }, ...extra }) as never
+  const reply = (uuid: string, input: number, stop: string | null = 'end_turn', phase?: string) => ({ type: 'assistant', uuid, message: { role: 'assistant', content: [{ type: 'text', text: 'Noted.', ...(phase === undefined ? {} : { phase }) }], stop_reason: stop, usage: { input_tokens: input, output_tokens: 1 } } }) as never
+  const shape = (rows: Array<{ uuid: string }>) => rows.map(row => row.uuid).join(' ')
+  const expected = 'u1 a1 u1-turn-receipt n1 a2 n1-turn-receipt'
+  for (const stop of ['end_turn', 'stop_sequence'] as const) {
+    const rows = inject([prompt('go'), reply('a1', 13, stop), notice(), reply('a2', 13, stop)])
+    check(`${stop}: an idle notice wake keeps a receipt under each reply`, shape(rows) === expected, shape(rows))
+    const deltas = rows.filter(row => row.type === 'turn_receipt').map(row => row.contextDelta)
+    check(`${stop}: the two turns keep their own context deltas, +13 then +0`, JSON.stringify(deltas) === '[13,0]', JSON.stringify(deltas))
+  }
+  const plainReply = (uuid: string) => ({ type: 'assistant', uuid, message: { role: 'assistant', content: [{ type: 'text', text: 'Noted.' }] } }) as never
+  const plain = inject([prompt('go'), plainReply('a1'), notice(), plainReply('a2')])
+  check('the minimal prompt, reply, virtual notice, reply probe keeps both receipts', shape(plain) === expected, shape(plain))
+  const loading = injectTurnReceipts([prompt('go'), reply('a1', 13), notice()], TEMP_ROOT, true)
+  check('while the notice wake loads, the completed receipt stays below the earlier reply', shape(loading) === 'u1 a1 u1-turn-receipt n1', shape(loading))
+  const batch = inject([prompt('go'), reply('a1', 13), notice(), notice('n2'), reply('a2', 26)])
+  check('consecutive notices open one wake turn, not one turn per notice', shape(batch) === 'u1 a1 u1-turn-receipt n1 n2 a2 n1-turn-receipt', shape(batch))
+  const midTool = inject([prompt('go'), toolUse('Bash', {}, 'a1'), notice(), toolUse('Read', {}, 'a2'), reply('a3', 26)])
+  check('a notice between tool calls and the closing reply stays in one turn with both calls', shape(midTool) === 'u1 a1 n1 a2 a3 u1-turn-receipt' && receipts(midTool)[0]?.counts['commands'] === 1 && receipts(midTool)[0]?.counts['reads'] === 1, shape(midTool))
+  for (const stop of [null, 'tool_use', 'pause_turn', 'max_tokens'] as const) {
+    const midText = inject([prompt('go'), reply('a1', 13, stop), notice(), toolUse('Read', {}, 'a2'), reply('a3', 26)])
+    check(`${stop}: text before the closing reply does not split on a notice`, shape(midText) === 'u1 a1 n1 a2 a3 u1-turn-receipt', shape(midText))
+  }
+  const commentary = inject([prompt('go'), reply('a1', 13, 'end_turn', 'commentary'), notice(), toolUse('Read', {}, 'a2'), reply('a3', 26)])
+  check('commentary is not the closing reply even with a completed stop reason', shape(commentary) === 'u1 a1 n1 a2 a3 u1-turn-receipt', shape(commentary))
+  const mixed = { type: 'assistant', uuid: 'a1', message: { role: 'assistant', content: [{ type: 'text', text: 'Reading.' }, { type: 'tool_use', id: 't-a1', name: 'Read', input: {} }] } } as never
+  const beforeClose = inject([prompt('go'), mixed, notice(), reply('a2', 26)])
+  check('text beside a tool call is not the closing reply', shape(beforeClose) === 'u1 a1 n1 a2 u1-turn-receipt' && receipts(beforeClose)[0]?.counts['reads'] === 1, shape(beforeClose))
+  const afterTool = inject([prompt('go'), reply('a1', 13), toolUse('Read', {}, 'a2'), notice(), reply('a3', 26)])
+  check('work after a reply clears its closure before the notice arrives', shape(afterTool) === 'u1 a1 a2 n1 a3 u1-turn-receipt', shape(afterTool))
+  const meta = inject([prompt('go'), reply('a1', 13), notice('n1', { isMeta: true }), reply('a2', 26)])
+  check('a meta row is not a notice wake', shape(meta) === 'u1 a1 n1 a2 u1-turn-receipt', shape(meta))
+})
+
 section('the delegated spend (a delegating turn\'s cost, visible in the transcript)')
 withEnv('1', () => {
   const rows = inject([
