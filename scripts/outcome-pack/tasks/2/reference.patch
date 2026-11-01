@@ -1,0 +1,12 @@
+diff --git a/greet.mjs b/greet.mjs
+--- a/greet.mjs
++++ b/greet.mjs
+@@ -1 +1,7 @@
+-console.log("hello, " + process.argv[2]);
++const args = process.argv.slice(2);
++const name = args[0]?.trim().normalize("NFC");
++if (args.length !== 1 || !name) {
++  process.stderr.write("usage: greet <name>\n");
++  process.exit(2);
++}
++process.stdout.write(`hello, ${name}\n`);
