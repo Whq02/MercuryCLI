@@ -46,7 +46,9 @@ export function hostLookupWorld(): LookupWorld {
 
 function searchDirs(world: LookupWorld): string[] {
   const entries = world.path.split(world.platform === 'win32' ? ';' : ':')
-  if (world.platform === 'win32') return entries.filter(entry => entry !== '')
+  if (world.platform === 'win32') {
+    return entries.map(entry => entry.startsWith('"') && entry.endsWith('"') ? entry.slice(1, -1) : entry).filter(entry => entry !== '')
+  }
   return entries.map(entry => (entry === '' ? '.' : entry))
 }
 
