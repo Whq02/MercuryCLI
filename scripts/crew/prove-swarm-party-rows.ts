@@ -191,6 +191,15 @@ async function director(): Promise<string[]> {
   const writer: Seat = { author: { sessionId: sessionId!, agentId: 'a-writer', executionId: 'e-writer' }, name: 'lists-writer', team: 'lists' }
   const solo: Seat = { author: { sessionId: sessionId!, agentId: 'a-solo', executionId: 'e-solo' }, name: 'solo' }
   const landed = (marker: string): Promise<boolean> => untilAsync(() => paintedRows(transcript!).some(row => row.text.includes(marker)), vshotBudgetMs(60_000), 100)
+  const repliesRecorded = (): number => new Set(readFileSync(transcript!, 'utf8').split('\n').filter(line => line.includes('"kind":"output"')).map(line => { try { return String((JSON.parse(line) as { recordId: string }).recordId) } catch { return line } })).size
+  const wakes = async (label: string, act: () => Promise<unknown>): Promise<void> => {
+    const before = repliesRecorded()
+    await act()
+    const woke = await untilAsync(() => repliesRecorded() > before, vshotBudgetMs(60_000), 100)
+    await new Promise(tick => setTimeout(tick, 600))
+    leadWakes.push(woke)
+    notes.push(`${label}: the lead ${woke ? 'woke, replied and closed its turn' : 'did not wake within the budget'} (${repliesRecorded()} replies recorded)`)
+  }
   const post = async (who: Seat, clientOpId: string, text: string, extra: Record<string, unknown> = {}, marker = text.split(' ').at(-1)!): Promise<string> => {
     const receipt = board.post(who, { clientOpId, kind: 'result', text, ...extra } as never)
     if (!receipt.ok) { notes.push(`${clientOpId} refused: ${receipt.reason}`); return '' }
@@ -205,12 +214,14 @@ async function director(): Promise<string[]> {
     const ask = await post(judge, 'row-ask', '@lists-writer is the list ready? ROW-ASK', { kind: 'ask' })
     await post(writer, 'row-answer', 'nearly, two rows left ROW-ANSWER', { kind: 'answer', replyTo: ask })
     const result = await post(writer, 'row-multi', MULTI, {}, 'ROW-MULTI-END')
-    await post(solo, 'row-blocker', '@all the disk is full ROW-BLOCKER', { kind: 'blocker' })
+    await wakes('the @all blocker', () => post(solo, 'row-blocker', '@all the disk is full ROW-BLOCKER', { kind: 'blocker' }))
     await post(writer, 'row-correction', 'six rows, not five ROW-CORRECTION', { kind: 'correction', corrects: result })
     await post(main(), 'row-lead', 'the lead notes it ROW-LEAD')
-    const whisper = board.postOwner(main(), { clientOpId: 'row-owner', text: 'ship it ROW-OWNER', channel: 'whisper', target: 'solo' })
-    if (!whisper.ok) notes.push(`owner whisper refused: ${whisper.reason}`)
-    await landed('ROW-OWNER')
+    await wakes("the owner's whisper", async () => {
+      const whisper = board.postOwner(main(), { clientOpId: 'row-owner', text: 'ship it ROW-OWNER', channel: 'whisper', target: 'solo' })
+      if (!whisper.ok) notes.push(`owner whisper refused: ${whisper.reason}`)
+      await landed('ROW-OWNER')
+    })
     const captain = board.assignCaptain(main(), 'lists', 'lists-judge')
     if (!captain.ok) notes.push(`captain refused: ${captain.reason}`)
     await post(judge, 'row-long', LONG, {}, 'ROW-LONG-END')
@@ -238,6 +249,7 @@ async function director(): Promise<string[]> {
 }
 let narrowPhase = false
 let firstExecution = ''
+const leadWakes: boolean[] = []
 
 const THEME = ((JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')) as { theme?: string }).theme ?? 'dark') as Parameters<typeof resolveMercuryTokens>[0]
 const palette = resolveMercuryTokens(THEME, TERRA)
@@ -307,6 +319,8 @@ try {
   const launched = recorded.find(row => row.text === 'Swarm launched')
   check('the launch row a typed /swarmchat introduces is an idle row: no turn anchors it', launched !== undefined && launched.fields.turnId === undefined, JSON.stringify(launched?.fields ?? null))
   check("and it is recorded after the command's own output, never before its echo", lineOf('local-command-stdout>Swarm chat on') >= 0 && lineOf('"content":"Swarm launched"') > lineOf('local-command-stdout>Swarm chat on'), `${lineOf('"content":"Swarm launched"')} vs ${lineOf('local-command-stdout>Swarm chat on')}`)
+  check('the @all blocker and the owner\'s whisper each woke the idle lead, and the scene waited for each turn to close before posting on', leadWakes.length === 2 && leadWakes.every(Boolean), JSON.stringify(leadWakes))
+  check('the rows posted after those turns closed are idle rows: Done and the closing post carry no turn', ['[solo] Done', 'ROW-LAST'].every(marker => { const row = recorded.find(row => (marker === '[solo] Done' ? row.text === 'Done' && row.fields.name === 'solo' : row.text.includes(marker))); return row !== undefined && row.fields.turnId === undefined }), recorded.filter(row => row.text === 'Done' || row.text.includes('ROW-LAST')).map(row => `${row.text.slice(0, 12)}:${String(row.fields.turnId)}`).join(' | '))
   check('the Joined rows that arrived while the lead was idle carry no turn either', recorded.filter(row => row.text === 'Joined').length === 3 && recorded.filter(row => row.text === 'Joined').every(row => row.fields.turnId === undefined), recorded.filter(row => row.text === 'Joined').map(row => String(row.fields.turnId)).join(','))
   check("the clock is the post's own time, not the paint time", ['ROW-ASK', 'ROW-LAST'].every(marker => { const clock = clockOf(marker); return clock !== null && rowLine(rows, marker).includes(clock) }), ['ROW-ASK', 'ROW-LAST'].map(marker => `${clockOf(marker)} vs ${rowLine(rows, marker).slice(0, 12)}`).join(' | '))
 
