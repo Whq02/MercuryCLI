@@ -43,7 +43,7 @@ export async function proveWakeJourney(missingWorktree: boolean, check: (label: 
     await session.waitFor('the worker completes and parks', () => live!.screenEvents(0).some(event => event.authorName === 'wake-target' && event.lifecycle?.kind === 'parked'))
     const target = live.seats().find(seat => seat.name === 'wake-target')!
     const before = childRequests().length
-    const firstBody = childRequests()[0]!.body as { system?: unknown; tools?: { name?: string; input_schema?: unknown }[]; output_config?: unknown }
+    const firstBody = childRequests()[0]!.body as { system?: unknown; tools?: { name?: string; input_schema?: unknown }[]; output_config?: { effort?: string } }
     const metaPath = findFiles(world.config, `agent-${target.agent}.meta.json`)[0]!
     const metadataRecord = readFileSync(metaPath, 'utf8')
     const metadata = JSON.parse(metadataRecord)
@@ -86,11 +86,15 @@ export async function proveWakeJourney(missingWorktree: boolean, check: (label: 
     await session.waitFor('the resumed worker completes once', () => live!.seats().find(seat => seat.agent === target.agent)?.state === 'parked' && live!.view().peerTurns === 1)
     const resumed = childRequests().slice(before)
     assert(resumed.length)
-    const resumedBody = resumed[0]!.body as { system?: unknown; tools?: { name?: string; input_schema?: unknown }[]; output_config?: unknown; messages?: unknown[] }
+    const resumedBody = resumed[0]!.body as { system?: unknown; tools?: { name?: string; input_schema?: unknown }[]; output_config?: { effort?: string }; messages?: unknown[] }
     const wire = JSON.stringify(resumedBody.messages)
     check('the built runner resumes from the transcript with exactly one triggering body', wire.includes('BUILT-WORKER-PARKED') && wire.split('BUILT-WAKE-PACKET').length === 2 && live.view().peerTurns === 1)
     check('signed thinking stays intact on the resumed request', wire.includes('WAKE-SIGNED-THINKING') && wire.includes('wake-signed-fixture'))
-    check('the resumed request keeps model, max effort, system prefix and output schema', (resumed[0]!.body as { model?: string }).model === childModel && JSON.stringify(firstBody.output_config) === JSON.stringify(resumedBody.output_config) && JSON.stringify(firstBody.system) === JSON.stringify(resumedBody.system) && JSON.stringify(firstBody.tools?.find(tool => tool.name === 'StructuredOutput')?.input_schema) === JSON.stringify(resumedBody.tools?.find(tool => tool.name === 'StructuredOutput')?.input_schema))
+    const firstSchema = firstBody.tools?.find(tool => tool.name === 'StructuredOutput')?.input_schema
+    const resumedSchema = resumedBody.tools?.find(tool => tool.name === 'StructuredOutput')?.input_schema
+    check('the selected model and max effort remain on both requests', (resumed[0]!.body as { model?: string }).model === childModel && firstBody.output_config?.effort === 'max' && resumedBody.output_config?.effort === 'max' && JSON.stringify(firstBody.output_config) === JSON.stringify(resumedBody.output_config))
+    check('the recorded system prefix remains present and byte-identical', firstBody.system !== undefined && resumedBody.system !== undefined && JSON.stringify(firstBody.system) === JSON.stringify(resumedBody.system))
+    check('the declared output schema remains present and byte-identical', firstSchema !== null && typeof firstSchema === 'object' && resumedSchema !== null && typeof resumedSchema === 'object' && JSON.stringify(firstSchema) === JSON.stringify(schema) && JSON.stringify(firstSchema) === JSON.stringify(resumedSchema))
     const firstPwd = toolResultOf(world, 'wake-first-pwd'), secondPwd = toolResultOf(world, 'wake-second-pwd')
     check('the same recorded worktree and callable output schema survive the wake', !firstPwd?.isError && !secondPwd?.isError && firstPwd?.text.includes(metadata.worktreePath) && secondPwd?.text.includes(metadata.worktreePath) && toolResultOf(world, 'wake-second-schema')?.isError === false)
     check('the one-shot wait is consumed and the worker retains its identity', live.seats().filter(seat => seat.name === 'wake-target').length === 1 && live.seats().find(seat => seat.agent === target.agent)?.wait === undefined)
