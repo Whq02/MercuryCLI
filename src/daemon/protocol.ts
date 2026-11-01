@@ -43,7 +43,7 @@ export function verbBornAt(op: string, action?: string): number {
   return DAEMON_VERB_BORN_AT[op] ?? MIN_PROTO
 }
 
-export const DAEMON_PROTO_SHAPE = 'sha256:371452895dc0f3a61bed0137c0dca6e99b5e174dfd1cdd4a00439612f96b0310'
+export const DAEMON_PROTO_SHAPE = 'sha256:2fec03b2bad52d391b6e48e1686bda8fead3707177835cef3dfd06ed7cc534ae'
 
 export const CONTROL_FRAME_CAP = 1 << 20
 
