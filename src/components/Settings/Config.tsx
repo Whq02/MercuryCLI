@@ -1207,7 +1207,7 @@ export function Config({
       searchText: 'swarm live crew board',
       kind: 'boolean',
       value: <Text color={enabled ? tokens.success : tokens.textSecondary}>{enabled ? 'on · /swarm on enables a session' : 'off'}</Text>,
-      warning: `Live crew posts for new crewmates after /swarm on; ${number(uncapped ? 0 : limits.seatAllowance)} board tokens per agent, ${number(uncapped ? 0 : limits.waveAllowance)} per wave; no extra turns. Existing crewmates keep their messages unchanged.`,
+      warning: 'Share board messages with crewmates. /swarm on enables a session; /swarmchat shows its messages.',
       setByYou: enabled,
       change: () => {
         if (writeSource('userSettings', { swarm: { enabled: !enabled } })) {
