@@ -105,10 +105,10 @@ if (driver.kind !== 'posix-pty') {
     MERCURY_LIVE_GLYPHS: '0',
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
   }
-  const capture = (name: string, sends: unknown[], total: number): { text: string; marks: Record<string, string>; status: number | null; stderr: string } => {
+  const capture = (name: string, sends: unknown[], total: number, readyText?: string): { text: string; marks: Record<string, string>; status: number | null; stderr: string } => {
     const grid = join(SCRATCH, `${name}.json`)
     const cfgPath = join(SCRATCH, `${name}-vshot.json`)
-    writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], sends, total, cols: 100, rows: 30, out: grid, title: `${name} @100x30` }))
+    writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], sends, total, cols: 100, rows: 30, out: grid, title: `${name} @100x30`, ...(readyText === undefined ? {} : { readyText, readySettleTicks: 2 }) }))
     const res = spawnSync(driver.python, [VSHOT, cfgPath], { encoding: 'utf-8', env, timeout: vshotBudgetMs(90_000) })
     const marks: Record<string, string> = {}
     if (existsSync(grid)) {
@@ -143,7 +143,7 @@ if (driver.kind !== 'posix-pty') {
       { requireAwait: true, awaitText: 'OpenCode Zen', awaitPattern: '❯ OpenCode Zen', awaitStableTicks: 2, repeatEveryTicks: 3, mark: 'last', data: '\u001b[B' },
       { requireAwait: true, awaitText: 'OpenAI — ChatGPT', awaitPattern: '❯ OpenAI — ChatGPT', awaitStableTicks: 3, mark: 'wrapped', data: '' },
       { requireAwait: true, awaitText: 'esc back', awaitSettleTicks: 2, data: '\u001b' },
-    ], 90)
+    ], 150, 'Type a prompt')
     check('/logins wrap drive delivered every send', r.status === 0, `exit ${r.status}: ${r.stderr.trim().slice(-200)}`)
     const last = r.marks.last ?? ''
     const wrapped = r.marks.wrapped ?? ''
