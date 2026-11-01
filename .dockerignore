@@ -13,3 +13,6 @@
 !scripts/lib
 !scripts/vendor
 !vendor/*.lock.json
+!vendor/python-licences
+!vendor/document-licences
+!sdk/src
