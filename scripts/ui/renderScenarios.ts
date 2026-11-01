@@ -1,7 +1,7 @@
 import { execSync, spawn } from 'node:child_process'
 import { writeFileSync, mkdirSync, mkdtempSync, existsSync, readFileSync, readdirSync, rmdirSync, rmSync, utimesSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { REJECT_MESSAGE } from '../../src/utils/messages/rejectionText.ts'
 import { HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
 import {
@@ -18,7 +18,9 @@ import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
-const BIN = join(REPO, 'dist', 'mercury.mjs')
+const distArg = process.argv.indexOf('--dist')
+if (distArg >= 0 && (!process.argv[distArg + 1] || process.argv[distArg + 1]!.startsWith('--'))) throw new Error('--dist needs a built mercury.mjs path.')
+const BIN = distArg < 0 ? join(REPO, 'dist', 'mercury.mjs') : resolve(process.argv[distArg + 1]!)
 
 function applyRenderTheme(scratch: string): void {
   const renderTheme = process.env.MERCURY_RENDER_THEME
@@ -1283,7 +1285,7 @@ function assertFreshDist(): void {
   if (process.env.MERCURY_GATE_PREBUILT === '1' || process.env.MERCURY_STALE_DIST_OK === '1') return
   let declared: string | undefined
   try {
-    declared = (JSON.parse(readFileSync(join(REPO, 'dist', 'manifest.json'), 'utf8')) as { buildTree?: string })
+    declared = (JSON.parse(readFileSync(join(dirname(BIN), 'manifest.json'), 'utf8')) as { buildTree?: string })
       .buildTree
   } catch {
     return
@@ -1314,7 +1316,7 @@ function assertFreshDist(): void {
     }
     if (changed !== null && changed.length > 0 && changed.every(p => SAFE_DELTA.test(p))) return
     throw new Error(
-      `STALE DIST: dist/mercury.mjs was built from tree ${declared.slice(0, 12)} but the working tree is now ${now.slice(0, 12)}` +
+      `STALE DIST: ${BIN} was built from tree ${declared.slice(0, 12)} but the working tree is now ${now.slice(0, 12)}` +
         (changed !== null && changed.length > 0
           ? ` (build-input delta: ${changed.filter(p => !SAFE_DELTA.test(p)).slice(0, 5).join(', ')})`
           : '') +
