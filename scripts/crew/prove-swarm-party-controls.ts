@@ -69,7 +69,10 @@ const command = async (text: string): Promise<string> => {
   await host.prompt(text)
   await until(`${text} answered`, () => raw.slice(before).includes('"type":"command_output"'))
   const line = raw.slice(before).split('\n').find(l => l.includes('"type":"command_output"'))!
-  return String((JSON.parse(line) as { params: { text: string } }).params.text)
+  const output = (JSON.parse(line) as { params: { text: string; turn: number } }).params
+  await until(`${text} settled`, () => host.rows.some(row => row.type === 'outcome' && row.turn === output.turn))
+  assert.equal(host.rows.find(row => row.type === 'outcome' && row.turn === output.turn)?.status, 'completed', `${text} completes before the next post`)
+  return output.text
 }
 type Painted = { id: string; text: string; fields: Record<string, unknown> }
 const paintedRows = (transcript: string): Painted[] => {
@@ -288,6 +291,8 @@ try {
   tally.check('and a later off and on never repeats it', (await command('/swarmchat')) === 'Swarm chat off' && (await command('/swarmchat')) === 'Swarm chat on' && paintedRows(quietTranscript).filter(row => row.text === 'Swarm launched').length === 1)
 } finally {
   record('swarm-party-controls-out.txt', raw)
+  if (transcript && existsSync(transcript)) record('swarm-party-controls-transcript.jsonl', readFileSync(transcript, 'utf8'))
+  if (board) record('swarm-party-controls-board.json', JSON.stringify({ view: board.view(), cursor: board.screenCursor(), events: board.screenEvents(0) }))
   board?.close()
   await host.stop(5_000)
   await closeWorld(world)
