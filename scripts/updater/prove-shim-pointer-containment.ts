@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -276,6 +276,18 @@ if (WIN) {
   }))
   check('a child that refreshes its calling shim keeps its refusal and exit code, never reading the replacement at the old return offset', result.rc === 1 && result.out.trim() === '' && result.err.trim() === 'rollback refused: no previous installed version is recorded', JSON.stringify(result))
 } else console.log('  [SKIP] live CMD refresh handoff needs Windows; the tail-chain pin ran here')
+
+{
+  const source = readFileSync(new URL('../../src/cli/update.ts', import.meta.url), 'utf8')
+  const start = source.indexOf('  if (options.rollback) {')
+  const end = source.indexOf('  if (options.check) {', start)
+  if (start < 0 || end < 0) throw new Error('rollback branch missing')
+  const AsyncFunction = (async () => {}).constructor as new (...args: string[]) => (...args: unknown[]) => Promise<unknown>
+  const rollback = new AsyncFunction('options', 'installer', 'sourceCheckout', 'performRollback', 'reconcileManagedShims', 'cliError', 'roots', 'progress', source.slice(start, end))
+  let refreshed = 0
+  const result = await rollback({ rollback: true }, null, false, async () => ({ state: 'refused', reason: 'no previous version', remedy: 'nothing to roll back to' }), () => { refreshed++ }, (line: string) => line, {}, () => {})
+  check('a refused rollback leaves even an older CALL-based shim unchanged while it is running', refreshed === 0 && String(result).startsWith('rollback refused:'), String(result))
+}
 
 removeScratch(BASE)
 if (failures > 0) {

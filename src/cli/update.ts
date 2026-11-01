@@ -255,8 +255,8 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
       if (options.json) return failJson({ mode: 'rollback', state: 'refused', reason: sourceCheckoutReason, remedy, provenance: provenanceRecord })
       return cliError(`rollback refused: ${sourceCheckoutReason}\n  ${remedy}`)
     }
-    reconcileManagedShims(roots)
     const rolled = await performRollback(roots, progress)
+    if (rolled.state === 'rolled-back') reconcileManagedShims(roots)
     const daemon = rolled.state === 'rolled-back' ? await moveDaemonAfterUpdate() : null
     const openWindows = rolled.state === 'rolled-back' ? openWindowsLine(rolled.from) : null
     if (options.json) {
