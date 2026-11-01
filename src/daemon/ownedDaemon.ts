@@ -218,6 +218,16 @@ export function armDaemonSignInPoke(opts?: Parameters<typeof pokeDaemonSignIns>[
 }
 
 
+const hostEntry: string | undefined = (globalThis as { Bun?: { main?: string } }).Bun?.main ?? process.argv[1]
+
+function isMercuryEntry(script: string): boolean {
+  const normalized = script.replace(/\\/g, '/')
+  const name = normalized.slice(normalized.lastIndexOf('/') + 1)
+  if (/^mercury(?:\.m?js|\.cjs)?$/.test(name)) return true
+  if (name === 'main.tsx' && /\/src\/main\.tsx$/.test(normalized)) return true
+  return /\/src\/entrypoints\/[^/]+\.(?:m?[jt]sx?|cjs)$/.test(normalized)
+}
+
 export function spawnOwnedDaemon(
   projectDir: string,
   opts?: { label?: string; extraEnv?: Record<string, string | undefined>; persist?: boolean; script?: string; node?: string; ownerPipe?: boolean },
@@ -227,6 +237,10 @@ export function spawnOwnedDaemon(
   const node = opts?.node ?? process.execPath
   if (!script) {
     logForDebugging(`[${label}] spawnOwnedDaemon: no process.argv[1]; cannot spawn daemon`)
+    return undefined
+  }
+  if (opts?.script === undefined && script === hostEntry && !isMercuryEntry(script)) {
+    logForDebugging(`[${label}] spawnOwnedDaemon: ${script} is the running script and not a Mercury entry; the daemon is not spawned from it (the script would only relaunch itself)`)
     return undefined
   }
   const now = Date.now()
