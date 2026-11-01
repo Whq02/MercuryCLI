@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { BoardEvent, BoardSeat } from './contracts.js'
+import { boardLabelKey, type BoardEvent, type BoardSeat } from './contracts.js'
 import { boardNamesSeat, boardWaitWords, matchesBoardWait, type BoardWait, type BoardWaitPredicate } from './waits.js'
 
 type Database = {
@@ -75,7 +75,7 @@ export function createWakeState(db: Database, readOnly: boolean) {
     captains(seats: readonly WakeSeat[], seq: number): void {
       for (const seat of seats) {
         const current = wait(seat.agent)
-        if (current?.standing && (!seat.captain || seat.team !== (current.predicate.kind === 'team' ? current.predicate.team : undefined))) {
+        if (current?.standing && (!seat.captain || boardLabelKey(seat.team ?? '') !== (current.predicate.kind === 'team' ? boardLabelKey(current.predicate.team) : undefined))) {
           consume(seat.agent, current.version)
         }
         if (seat.captain && seat.team && !wait(seat.agent)) arm(seat.agent, `captain:${seat.agent}:${seq}`, seq, { kind: 'team', team: seat.team }, true)

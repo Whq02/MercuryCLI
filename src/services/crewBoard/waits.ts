@@ -1,5 +1,5 @@
 import { posix } from 'node:path'
-import type { BoardEvent, BoardPost, BoardSeat } from './contracts.js'
+import { boardLabelKey, type BoardEvent, type BoardPost, type BoardSeat } from './contracts.js'
 
 type PublicKind = 'ask' | 'answer' | 'blocker' | 'result' | 'correction'
 export type BoardWaitPredicate =
@@ -46,7 +46,7 @@ export function parseBoardWait(post: Pick<BoardPost, 'kind' | 'text'>, own: Boar
   const token = addressToken(value)
   if (token === null) return invalid()
   if (kind === 'team') {
-    if (!own.team || folded(token) !== folded(own.team)) return invalid()
+    if (!own.team || boardLabelKey(token.replace(/^@/, '')) !== boardLabelKey(own.team)) return invalid()
     return { kind, team: own.team }
   }
   const matches = seats.filter(seat => folded(token) === folded(seat.agent) || folded(token) === folded(seat.name))
@@ -78,5 +78,6 @@ export function matchesBoardWait(event: RoutedEvent, wait: BoardWait, agent: str
   if (predicate.kind === 'seat') return event.author.agentId === predicate.agent
   if (predicate.kind === 'kind') return event.kind === predicate.value
   if (predicate.kind === 'about') return (event.about ?? '').toLowerCase().includes(predicate.subject.toLowerCase()) || event.files.some(file => fileWord(file) === fileWord(predicate.subject))
-  return event.team === predicate.team || (event.addresses ?? []).some(address => folded(address) === folded(predicate.team)) || (event.recipients ?? []).some(recipient => recipient.team === predicate.team)
+  const label = boardLabelKey(predicate.team)
+  return boardLabelKey(event.team ?? '') === label || (event.addresses ?? []).some(address => boardLabelKey(address.replace(/^@/, '')) === label) || (event.recipients ?? []).some(recipient => boardLabelKey(recipient.team ?? '') === label)
 }

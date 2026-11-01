@@ -27,6 +27,10 @@ const bySeat = arm('@main wake me when seat "Writer One" posts')
 const bySubject = arm('@main wake me when about parser.ts')
 const byKind = arm('@main wake me when kind result')
 const byTraffic = arm('@main wake me when team @ENGINE posts')
+const unicodeOwn = { ...reader, team: 'Équipe' }
+const unicodePredicate = parseBoardWait({ kind: 'ask', text: '@main wake me when team @équipe posts' }, unicodeOwn, [unicodeOwn, writer])!
+const unicodeWait: BoardWait = { ...byTraffic, predicate: unicodePredicate }
+check('Unicode label waits use the board identity for authored, label and member traffic', unicodePredicate.kind === 'team' && unicodePredicate.team === 'Équipe' && matchesBoardWait(event({ team: 'équipe' }), unicodeWait, reader.agent) && matchesBoardWait(event({ team: 'view', addresses: ['ÉQUIPE'] }), unicodeWait, reader.agent) && matchesBoardWait(event({ team: 'view', recipients: [{ ...other, team: 'équipe' }] }), unicodeWait, reader.agent) && !matchesBoardWait(event({ team: 'Equipe' }), unicodeWait, reader.agent))
 check('the four declarations bind a typed predicate and canonical words', bySeat.predicate.kind === 'seat' && bySeat.predicate.agent === writer.agent && boardWaitWords(bySeat.predicate) === 'seat "Writer One" posts' && boardWaitWords(bySubject.predicate) === 'about parser.ts' && boardWaitWords(byKind.predicate) === 'kind result' && boardWaitWords(byTraffic.predicate) === 'team engine posts')
 check('seat ids and quoted single names resolve through the same exact roster', declaration('@main wake me when seat writer posts')?.kind === 'seat' && declaration("@main wake me when seat 'writer one' posts")?.kind === 'seat')
 for (const text of ['@main wake me when seat Missing posts', '@main wake me when seat Writer One posts', '@main wake me when seat writer posts later', '@main wake me when team view posts', '@main wake me when kind notice', '@main wake me when about ', '@main wake me when anything happens', '@main wake me when kind result\nthen run it']) {
