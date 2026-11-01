@@ -8,7 +8,9 @@ import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const repo = path.resolve(import.meta.dir, '../..')
-const dist = path.join(repo, 'dist/mercury.mjs')
+const distArg = process.argv.indexOf('--dist')
+if (distArg >= 0 && !process.argv[distArg + 1]) throw new Error('--dist needs a built mercury.mjs path')
+const dist = distArg < 0 ? path.join(repo, 'dist/mercury.mjs') : path.resolve(process.argv[distArg + 1]!)
 
 let failures = 0
 function check(name: string, ok: boolean, detail?: string): void {

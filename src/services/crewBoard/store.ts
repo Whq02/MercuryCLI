@@ -222,7 +222,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
       if (!labels.has(key)) labels.set(key, label)
     }
     const teams = [...labels.values()].sort()
-    const names = [...seats().map(boardSeatName), ...db.prepare("SELECT DISTINCT COALESCE(json_extract(record, '$.authorName'), json_extract(record, '$.author.agentId')) AS name, json_extract(record, '$.captain') AS captain FROM events").all().map(row => boardSeatName({ name: String(row.name), captain: row.captain === 1 }))]
+    const names = db.prepare("SELECT name FROM members UNION SELECT COALESCE(json_extract(record, '$.authorName'), json_extract(record, '$.author.agentId')) AS name FROM events").all().map(row => String(row.name))
     const duplicateMinutes = db.prepare("SELECT substr(json_extract(record, '$.createdAt'), 1, 16) AS minute FROM events GROUP BY minute HAVING COUNT(*) > 1").all().map(row => String(row.minute))
     return { on: true, events: events(db.prepare(`SELECT record FROM events WHERE ${filter} ORDER BY seq DESC LIMIT 32`).all(...values)).reverse(), seats: seats(), teams, names, duplicateMinutes, snapshot: top, omitted: Math.max(0, count - 32), later: Math.max(0, top - end + 1), admitted: admitted(), appearances: appearances(), uncapped: head.uncapped === 1, chat: chat(), peerTurns: wakes.turns(), record: { path, sessionId } }
   }

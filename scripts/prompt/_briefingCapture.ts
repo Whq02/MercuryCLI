@@ -5,8 +5,10 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
 const root = resolve(import.meta.dir, '..', '..')
-export const dist = join(root, 'dist', 'mercury.mjs')
-const vendoredNode = join(root, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
+const distArg = process.argv.indexOf('--dist')
+if (distArg >= 0 && (!process.argv[distArg + 1] || process.argv[distArg + 1]!.startsWith('--'))) throw new Error('--dist needs a built mercury.mjs path.')
+export const dist = distArg < 0 ? join(root, 'dist', 'mercury.mjs') : resolve(process.argv[distArg + 1]!)
+const vendoredNode = join(dirname(dist), 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
 const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'node'
 
 type ScriptedReply =

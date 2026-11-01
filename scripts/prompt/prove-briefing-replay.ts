@@ -143,9 +143,10 @@ if (second) {
   check('the second call carries Crewmate\'s complete definition, appended after the opening roster', crew !== undefined && secondNames.indexOf('Crewmate') === secondNames.length - 1 && JSON.stringify(secondNames.slice(0, firstNames.length)) === JSON.stringify(firstNames), secondNames.join(', '))
   const baseCrew = baseTools.find(tool => tool.name === 'Crewmate')!
   const crewShape = crew === undefined ? undefined : typeShape(crew.parameters) as { properties: Record<string, unknown>; required?: string[] }
-  const { team, ...originalProperties } = crewShape?.properties ?? {}
+  const { team, captain, ...originalProperties } = crewShape?.properties ?? {}
   const originalShape = crewShape === undefined ? undefined : { ...crewShape, properties: originalProperties }
   check('the crew board adds an optional team label with its exact schema', JSON.stringify(team) === JSON.stringify({ type: 'string', pattern: String.raw`^[\p{L}\p{N}_][\p{L}\p{N}_.-]{0,79}$` }) && !(crewShape?.required ?? []).includes('team'))
+  check('the captain appointment is an optional boolean', JSON.stringify(captain) === JSON.stringify({ type: 'boolean' }) && !(crewShape?.required ?? []).includes('captain'))
   check('that definition keeps every field of the 1.0.0 Crewmate schema, type for type', originalShape !== undefined && JSON.stringify(typeShape(baseCrew.parameters)) === JSON.stringify(originalShape))
   check('the admission record tells the model the tool is callable from this request on', second.messages.some(message => message.role === 'tool' && String(message.content).includes('Tools admitted to this session') && String(message.content).includes('Crewmate')))
   check('the Crewmate manual rides with the admission', reminderTextsOf(second).some(text => text.includes('# Tool manual: Crewmate')) || second.messages.some(message => typeof message.content === 'string' && (message.content as string).includes('# Tool manual: Crewmate')))

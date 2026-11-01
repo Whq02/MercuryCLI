@@ -70,7 +70,7 @@ check('CrewBoard keeps its real declaration and every accepted schema constraint
   const declaration = inner.tools[0]!.functionDeclarations[0]!
   assert.equal(declaration.name, board.name)
   const parameters = declaration.parameters as { properties: Record<string, any>; additionalProperties: boolean }
-  assert.deepEqual(parameters.properties.op.enum, ['read', 'post', 'swarm_team'])
+  assert.deepEqual(parameters.properties.op.enum, ['read', 'post', 'swarm_team', 'swarm_captain'])
   assert.equal(parameters.properties.refs.items.properties.digest.pattern, '^[a-f0-9]{40,64}$')
   assert.equal(parameters.properties.clientOpId.minLength, 1)
   assert.equal(parameters.properties.clientOpId.maxLength, 160)
