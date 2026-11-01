@@ -57,6 +57,7 @@ const XAI_BILLING_SURFACES = new Set([
 const XAI_BILLING_WORDS = /\bpersonal-team-blocked:spending-limit\b|team(?:_id|Id|-fixture|-cycle)|\/teams\/|\/team\/default\/management-keys|\bteam (?:usage|balance|permissions|meter|credits|record|spend|lookup|billing)|team[’']s prepaid credits|prepaid-only teams|identifies the team|optional management key for the (?:API )?team\b(?:[’']s)?|xAI's team|These are team/i
 const boardLabelSurface = (rel: string): boolean => rel.startsWith('src/services/crewBoard/') || /^scripts\/crew\/prove-swarm-/.test(rel) || ['docs/CREW.md', 'src/tools/AgentTool/AgentTool.tsx', 'src/tools/AgentTool/runAgent.ts', 'src/tools/AgentTool/prompt.ts', 'scripts/providers/prove-gemini-plan-shape.ts', 'scripts/builtin-tools/fixtures/tool-census.json', 'scripts/tool-economy/fixtures/definition-corpus.json', 'scripts/prompt/prove-briefing-replay.ts'].includes(rel)
 const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
+  [/\/team(?![\w/-])/g, 'The owner channel command in the README roster, not a crew identity.', rel => rel === 'README.md'],
   [/\b(?:teams?|assignTeam|setTeam|teamOf|validTeam|teamAssigned|peerTeam|swarm_team)\b/gi, 'Board delivery labels and their fields; the retired teammate and ownership-system spellings remain forbidden.', boardLabelSurface],
   [XAI_BILLING_WORDS, "xAI's billing account and documented wire fields, not a Mercury crew", rel => XAI_BILLING_SURFACES.has(rel)],
   [new RegExp(J('s', 'team'), 'i'), 'Steam, the games store the Aseprite and Godot bridges look in'],
@@ -93,6 +94,10 @@ console.log('============================================================')
 console.log(' no old spelling remains: every tracked file says crew, except the alias tables and the excluded areas')
 console.log('============================================================')
 
+check('the README channel command does not excuse crew names or other paths',
+  !OLD.test(crewRemainder('README.md', '`/team`')) &&
+    ['team', 'teammate', '/teammates', '/team-old', '/team/path', '/team; TeamCreate'].every(text => OLD.test(crewRemainder('README.md', text))) &&
+    OLD.test(crewRemainder('docs/README.md', '/team')))
 check('board delivery labels are scoped and do not excuse retired identities or ownership tools',
   !OLD.test(crewRemainder('src/services/crewBoard/store.ts', 'team teams assignTeam swarm_team')) &&
     OLD.test(crewRemainder('src/services/crewBoard/store.ts', 'team teammate TeamCreate')) &&
