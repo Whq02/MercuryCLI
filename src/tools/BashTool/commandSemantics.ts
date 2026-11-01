@@ -65,6 +65,26 @@ function commandWord(stage: string): string {
   return words[i] ?? ''
 }
 
+function whichOperandCount(command: string): number {
+  const stages = pinnedCommandAnalysis.splitCommand(command)
+  const parsed = pinnedCommandAnalysis.tryParseShellCommand(stages[stages.length - 1] ?? command)
+  if (!parsed.success || parsed.tokens.some(token => typeof token !== 'string')) return 0
+  const words = parsed.tokens as string[]
+  const which = words.indexOf('which')
+  if (which < 0) return 0
+  let operands = 0
+  let options = true
+  for (const word of words.slice(which + 1)) {
+    if (options && word === '--') { options = false; continue }
+    if (options && word.startsWith('-')) {
+      if (!/^(?:-a|--all|--(?:skip|show)-(?:dot|tilde)|--tty-only|--(?:read|skip)-(?:alias|functions))$/.test(word)) return 0
+      continue
+    }
+    operands++
+  }
+  return operands
+}
+
 export function interpretCommandResult(
   command: string,
   exitCode: number,
@@ -72,6 +92,9 @@ export function interpretCommandResult(
   _stderr: string,
 ): { isError: boolean; message?: string } {
   const base = baseCommandFor(command)
+  if (base === 'which' && exitCode > 1 && exitCode < 126 && exitCode <= whichOperandCount(command)) {
+    return { isError: false, message: 'a name was not found' }
+  }
   const semantic = COMMAND_SEMANTICS[base]
   if (semantic) {
     return semantic(exitCode)
