@@ -244,14 +244,10 @@ async function processUserInputBase(
   if (typeof normalizedInput === 'string') {
     prompt = normalizedInput
   } else {
-    const last = normalizedInput[normalizedInput.length - 1]
-    if (last && (last as { type?: string }).type === 'text') {
-      prompt = (last as { text: string }).text
-      precedingBlocks = normalizedInput.slice(0, -1)
-    } else {
-      prompt = null
-      precedingBlocks = normalizedInput
-    }
+    const textIndex = normalizedInput.findIndex(block => block.type === 'text')
+    const text = normalizedInput[textIndex]
+    prompt = text?.type === 'text' ? text.text : null
+    precedingBlocks = normalizedInput.filter((_, index) => index !== textIndex)
   }
 
   if (mode !== 'prompt' && prompt === null) {

@@ -51,7 +51,8 @@ try {
     const later = 'MIDTURN_LATER_PROMPT'
     const textOnly = 'MIDTURN_WITHOUT_TOOLS'
     const after = 'MIDTURN_AFTER_LOCAL'
-    const slash = ['/swarmchat', '/swarmchat main', '/midturn-unknown-command']
+    const slash = ['/swarmchat', '/swarmchat main', '/swarmchat all', '/midturn-unknown-command']
+    const image = { type: 'image' as const, media_type: 'image/png' as const, data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5r8AAAAASUVORK5CYII=' }
     const shell = "printf 'MIDTURN_SHELL_DONE\\n'"
     const ids = slash.map(() => randomUUID())
     const shellId = randomUUID()
@@ -76,7 +77,8 @@ try {
       await deadline(requested)
       await runner.prompt(slash[0]!, ids[0])
       await runner.request('queue/add', { type: 'prompt', content: [{ type: 'text', text: slash[1]! }], id: ids[1]! })
-      await runner.prompt(slash[2]!, ids[2])
+      await runner.request('queue/add', { type: 'prompt', content: [{ type: 'text', text: slash[2]! }, image], id: ids[2]! })
+      await runner.prompt(slash[3]!, ids[3])
       await runner.request('queue/add', { type: 'shell', command: shell, id: shellId })
       await runner.prompt(steering, randomUUID())
       tally.check('all commands were typed while the first request was in flight', !runner.frames.some(isOutcome))
@@ -91,7 +93,7 @@ try {
       const starts = ids.map(id => runner.frames.findIndex(f => f.type === 'turn' && Array.isArray(f.message_ids) && f.message_ids.length === 1 && f.message_ids[0] === id))
       const endings = starts.map(index => runner.frames.findIndex((f, at) => at > index && isOutcome(f) && f.turn === runner.frames[index]?.turn))
       tally.check('every local command ran as its own turn in typed order after the first receipt', starts.every((at, index) => at > (index === 0 ? firstOutcome : endings[index - 1]!)) && endings.every(at => at >= 0), JSON.stringify({ starts, endings }))
-      tally.check('both slash representations ran locally and the unknown name was refused locally', outputs.length === 2 && outputs.every((row, index) => row.turn === runner.frames[starts[index]!]?.turn) && endings.slice(0, 2).every(at => runner.frames[at]?.status === 'completed') && runner.frames[endings[2]!]!.status === 'refused', JSON.stringify(outputs))
+      tally.check('string, text-block and image-attached commands ran locally and the unknown name was refused locally', outputs.length === 3 && outputs.every((row, index) => row.turn === runner.frames[starts[index]!]?.turn) && endings.slice(0, 3).every(at => runner.frames[at]?.status === 'completed') && runner.frames[endings[3]!]!.status === 'refused', JSON.stringify(outputs))
       const shellTurn = runner.frames.findIndex(f => f.type === 'turn' && Array.isArray(f.message_ids) && f.message_ids[0] === shellId)
       tally.check('bash runs after the slash commands, not at the attachment boundary', endings.at(-1)! >= 0 && shellTurn > endings.at(-1)! && shellTurn > firstOutcome)
       await runner.prompt(later, randomUUID())
@@ -111,7 +113,7 @@ try {
       const localOutput = tail.findIndex(f => f.type === 'command_output' && f.turn === tail[localStart]?.turn)
       tally.check('a queued local command is not batched with the next prompt when no mid-turn drain runs', localStart > tail.findIndex(isOutcome) && localOutput > localStart && promptStart > localOutput && tail.slice(localOutput + 1, promptStart).some(isOutcome), JSON.stringify(tail.map(f => ({ type: f.type, command: f.command, ids: f.message_ids }))))
       const outcomes = runner.frames.filter(isOutcome)
-      tally.check('only the unknown command was refused; no turn was interrupted or failed', outcomes.filter(f => f.status === 'refused').length === 1 && outcomes.every(f => f.status === 'completed' || (f.status === 'refused' && f.turn === runner.frames[starts[2]!]?.turn)), JSON.stringify(outcomes.map(f => ({ status: f.status, error: f.error }))))
+      tally.check('only the unknown command was refused; no turn was interrupted or failed', outcomes.filter(f => f.status === 'refused').length === 1 && outcomes.every(f => f.status === 'completed' || (f.status === 'refused' && f.turn === runner.frames[starts[3]!]?.turn)), JSON.stringify(outcomes.map(f => ({ status: f.status, error: f.error }))))
     } finally {
       await runner.stop(bound(5_000))
       await fixture.close()
@@ -128,8 +130,9 @@ try {
       const answerAt = rows.findIndex(row => row.type === 'assistant' && text(row).includes('MIDTURN_FIRST_DONE'))
       const receiptAt = rows.findIndex((row, index) => index > answerAt && row.type === 'turn_receipt')
       const commandAt = rows.findIndex(row => row.type === 'user' && text(row).includes('<command-name>/swarmchat</command-name>'))
+      const imageCommandAt = rows.findIndex(row => row.type === 'user' && text(row).includes('<command-name>/swarmchat</command-name>') && text(row).includes('<command-args>all</command-args>'))
       const promptAt = rows.findIndex(row => row.type === 'user' && text(row).includes(later))
-      tally.check('the screen row order is reply → turn receipt → local command → next prompt', answerAt >= 0 && receiptAt > answerAt && commandAt > receiptAt && promptAt > commandAt, JSON.stringify({ answerAt, receiptAt, commandAt, promptAt }))
+      tally.check('the screen row order is reply → turn receipt → local commands including the image → next prompt', answerAt >= 0 && receiptAt > answerAt && commandAt > receiptAt && imageCommandAt > commandAt && promptAt > imageCommandAt, JSON.stringify({ answerAt, receiptAt, commandAt, imageCommandAt, promptAt }))
       const lookups = buildMessageLookups(normalized, records)
       const body = React.createElement(Box, { flexDirection: 'column' }, ...rows.slice(answerAt, promptAt + 1).map(message => React.createElement(MessageRow, {
         key: message.uuid, message, messages: normalized, tools: [], commands: [], verbose: false, addMargin: false, shouldAnimate: false, shouldShowDot: false, isTranscriptMode: false, isStatic: true, inProgressToolUseIDs: new Set<string>(), progressMessagesForMessage: [], lookups, width: 120,
@@ -139,8 +142,8 @@ try {
       else mounted = await mountOffscreen(element, 120, 44)
       await settle(70)
       const frame = mounted.screen()
-      const reply = frame.indexOf('MIDTURN_FIRST_DONE'), receipt = frame.indexOf('1 read'), command = frame.indexOf('/swarmchat'), next = frame.indexOf(later)
-      tally.check('the rendered frame keeps the command below the receipt and above the next prompt', reply >= 0 && receipt > reply && command > receipt && next > command, frame)
+      const reply = frame.indexOf('MIDTURN_FIRST_DONE'), receipt = frame.indexOf('1 read'), command = frame.indexOf('/swarmchat'), imageCommand = frame.indexOf('/swarmchat all'), next = frame.indexOf(later)
+      tally.check('the rendered frame keeps the image-attached command below the receipt and above the next prompt', reply >= 0 && receipt > reply && command > receipt && imageCommand > command && next > imageCommand, frame)
     }
   }
 } finally {

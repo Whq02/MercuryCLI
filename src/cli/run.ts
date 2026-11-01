@@ -1226,8 +1226,7 @@ export async function runHeadless(
     if (command.mode === 'bash') return true
     if (command.skipSlashCommands === true || (command.mode !== undefined && command.mode !== 'prompt')) return false
     const value = options.syntaxInput !== undefined && command.value === inputPrompt ? options.syntaxInput : command.value
-    const last = typeof value === 'string' ? undefined : value.at(-1)
-    const line = typeof value === 'string' ? value : last?.type === 'text' ? last.text : undefined
+    const line = typeof value === 'string' ? value : value.find(block => block.type === 'text')?.text
     const parsed = line === undefined ? null : parseSlashCommand(line)
     if (parsed === null) return false
     const found = findCommand(parsed.commandName, [...activeCommands, ...getAppState().mcp.commands])
