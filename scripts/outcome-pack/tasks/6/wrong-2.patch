@@ -1,0 +1,9 @@
+diff --git a/result.mjs b/result.mjs
+--- a/result.mjs
++++ b/result.mjs
+@@ -1 +1,4 @@
+-export const result = names => names.join(",");
++export function result(names) {
++  const labels = [...new Set(names.map(name => name.trim()).filter(Boolean))];
++  return `saved: ${labels.length ? labels.join(", ") : "nobody"}\n`;
++}

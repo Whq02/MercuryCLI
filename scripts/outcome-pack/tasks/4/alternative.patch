@@ -1,0 +1,11 @@
+diff --git a/score.mjs b/score.mjs
+--- a/score.mjs
++++ b/score.mjs
+@@ -1 +1,6 @@
+-export const score = value => value;
++export function score(value) {
++  if (!Number.isFinite(value)) return 0;
++  const rounded = Math.round(value);
++  if (rounded <= 0) return 0;
++  return rounded > 100 ? 100 : rounded;
++}

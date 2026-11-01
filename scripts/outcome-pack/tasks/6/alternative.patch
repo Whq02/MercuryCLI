@@ -1,0 +1,13 @@
+diff --git a/result.mjs b/result.mjs
+--- a/result.mjs
++++ b/result.mjs
+@@ -1 +1,8 @@
+-export const result = names => names.join(",");
++export function result(names) {
++  const labels = names.reduce((all, name) => {
++    const label = name.trim().normalize("NFC");
++    if (label !== "" && !all.includes(label)) all.push(label);
++    return all;
++  }, []);
++  return ["saved: ", labels.length ? labels.join(", ") : "nobody", "\n"].join("");
++}

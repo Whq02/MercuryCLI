@@ -1,0 +1,6 @@
+diff --git a/receipt.mjs b/receipt.mjs
+--- a/receipt.mjs
++++ b/receipt.mjs
+@@ -1 +1 @@
+-export const receipt = name => name;
++export const receipt = name => `approved: ${name.trim().normalize("NFC")}\n`;
