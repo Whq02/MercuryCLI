@@ -135,7 +135,7 @@ import {
 import { registerIdeToolDoor } from '../services/acp/ideToolBridge.js'
 import { crewBoardNotice, saturnQueueStamp } from '../utils/messages/noticeRows.js'
 import { advisorFacts, advisorMainRound, advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
-import { swarmSessionEnabled, swarmStore, swarmView, watchSwarmBoard, watchSwarmLead } from '../services/crewBoard/seam.js'
+import { swarmOwnerPost, swarmSessionEnabled, swarmStore, swarmView, watchSwarmBoard, watchSwarmLead } from '../services/crewBoard/seam.js'
 import { partyFeed } from '../services/crewBoard/party.js'
 import { localWakeStep, type LocalWakeFacts } from '../tools/ScheduleWakeupTool/localWake.js'
 import { offSkillNamesOf } from '../skills/kitGovernance.js'
@@ -2576,6 +2576,11 @@ export async function runHeadless(
     'session/send_now': () => {
       if (inFlightAbort === null) return SEND_NOW_NOTHING_QUEUED
       return sendQueuedWordsNow(getAppState, setAppState)
+    },
+    'session/board_post': params => {
+      const receipt = swarmOwnerPost({ clientOpId: params.client_op_id, channel: params.channel, ...(params.target === undefined ? {} : { target: params.target }), text: params.text })
+      if (!receipt.ok) return { ok: false as const, reason: receipt.reason, ...(receipt.candidates ? { candidates: receipt.candidates } : {}) }
+      return { ok: true as const, event_id: receipt.eventId, seq: receipt.seq, replay: receipt.replay, address: receipt.channel.kind === 'general' ? 'all' : receipt.channel.target, recipients: receipt.recipients }
     },
     'agent/stop': async params => {
       try {
