@@ -376,7 +376,7 @@ section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')
   check('K4b the same inputs derive the same pool for a launch and a resume', launch.join(',') === resume.join(','), `${launch.join(',')} vs ${resume.join(',')}`)
   check('K4b the launch narrows through the worker derivation', src('src/tools/AgentTool/AgentTool.tsx').includes('resolveWorkerTools(\n          agentDef,\n          plan.workerPermissionMode,'))
   const resumeSrc = src('src/tools/AgentTool/resumeAgent.ts')
-  check('K4b the resume narrows through the SAME derivation under the same mode, never the raw pool', resumeSrc.includes('resolveWorkerTools(\n        definition,\n        workerPermissionMode,') && !resumeSrc.includes('const tools = isForkResume\n    ? toolUseContext.options.tools\n    : assembleToolPool('))
+  check('K4b the resume narrows through the SAME derivation under the same mode, never the raw pool', /resolveWorkerTools\(\s*definition,\s*workerPermissionMode,\s*assembleToolPool\(/.test(resumeSrc) && !/const tools = isForkResume\s*\?\s*toolUseContext\.options\.tools\s*:\s*assembleToolPool\(/.test(resumeSrc))
 }
 
 {
