@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { resolveExecutionProfile } from '../lib/executionProfile.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
@@ -50,7 +51,9 @@ if (!existsSync(DIST)) {
 }
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
-  console.log(`  [SKIP] §2 the drive needs the POSIX pty capture driver (scripts/streaming/ptydrive.py); this host has ${driver.kind === 'unavailable' ? driver.reason : `the ${driver.kind} driver`}`)
+  const missing = `the drive needs the POSIX pty capture driver (scripts/streaming/ptydrive.py); this host has ${driver.kind === 'unavailable' ? driver.reason : `the ${driver.kind} driver`}`
+  if (resolveExecutionProfile(REPO).kind === 'hosted-gate') check('§2 the hosted gate drives the daemon-hosted seat', false, missing)
+  else console.log(`  [SKIP] §2 ${missing}`)
   console.log(failures === 0 ? '\nprove-unknown-command-honesty: ALL LAWS HOLD' : `\nprove-unknown-command-honesty: ${failures} FAILURE(S)`)
   process.exit(failures === 0 ? 0 : 1)
 }

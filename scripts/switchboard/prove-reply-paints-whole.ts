@@ -6,7 +6,7 @@ import { Database } from 'bun:sqlite'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs, type AvailableCaptureDriver } from '../lib/captureDriver.ts'
+import { captureEngineEntry, posixPtyDriverOrSkip, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { buildRefDist, distBuildTree } from '../lib/refDist.ts'
@@ -31,12 +31,7 @@ if (CLIENT_DIST !== undefined && !existsSync(CLIENT_DIST)) {
   console.error(`✗ ${CLIENT_DIST} missing — the older window's bundle must be built`)
   process.exit(1)
 }
-const resolved = resolveCaptureDriver()
-if (resolved.kind !== 'posix-pty') {
-  console.log(`__SUITE_SKIPPED reply-paints-whole: ${resolved.kind === 'unavailable' ? `${resolved.reason} (${resolved.remedy})` : `the ${resolved.kind} capture driver is not driven by this proof`}`)
-  process.exit(0)
-}
-const driver: AvailableCaptureDriver = resolved
+const driver = posixPtyDriverOrSkip('reply-paints-whole')
 const nodeBeside = (dist: string): string => {
   const vendored = join(dirname(dist), 'vendor', 'node', 'bin', 'node')
   return existsSync(vendored) ? vendored : 'node'
