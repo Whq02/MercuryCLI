@@ -1071,10 +1071,12 @@ export function enqueueAgentNotification(args: {
   replyTarget?: 'parent' | 'operator'
 }): void {
   let shouldEnqueue = false
+  let successorHolds = false
   let completedAt = args.controller !== undefined ? registrationEndTimes.get(args.controller) : undefined
   let replyTarget = (args.controller !== undefined ? registrationReplyTargets.get(args.controller) : undefined) ?? args.replyTarget
   updateTaskState<LocalAgentTaskState>(args.taskId, args.setAppState, task => {
     if (heldByAnotherRegistration(task, args.controller)) {
+      successorHolds = true
       shouldEnqueue = true
       return task
     }
@@ -1084,9 +1086,9 @@ export function enqueueAgentNotification(args: {
     shouldEnqueue = true
     return { ...task, notified: true }
   })
-  if (!shouldEnqueue || replyTarget === 'operator') return
+  if (!shouldEnqueue) return
 
-  abortSpeculation(args.setAppState)
+  if (replyTarget !== 'operator') abortSpeculation(args.setAppState)
 
   const landed = args.landedWrites !== undefined ? ` — ${landedWritesWords(args.landedWrites)}` : ''
   const summary =
@@ -1126,8 +1128,10 @@ export function enqueueAgentNotification(args: {
   const message = `${prefix}${resultSection}${usageSection}${worktreeSection}${lastCallsSection}${envelopeSection}
 </${TASK_NOTIFICATION_TAG}>`
 
-  const mirrored = mirrorSwarmNotice(args.taskId, message, summary, args.status === 'completed')
+  const outcome = successorHolds ? undefined : args.statusWord === 'paused' ? 'paused' : args.status === 'completed' ? 'completed' : args.status === 'failed' ? 'failed' : 'stopped'
+  const mirrored = mirrorSwarmNotice(args.taskId, message, summary, outcome)
   if (mirrored && !mirrored.ok) logForDebugging(`crew board: ${mirrored.reason}`)
+  if (replyTarget === 'operator') return
   enqueuePendingNotification({
     value: message,
     mode: 'task-notification',
