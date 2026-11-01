@@ -199,6 +199,23 @@ console.log('@@' + JSON.stringify(vs.verificationSummary('${repo}')))
   check('stale detail names the tree change', /tree changed/.test(drifted?.detail ?? ''))
 }
 
+{
+  const { seed } = await import('../outcome-pack/tasks/4/seed.ts')
+  const { delayedCheck } = await import('../outcome-pack/ordering.ts')
+  const { materialize, snapshot } = await import('../outcome-pack/runtime.ts')
+  const { DIST } = await import('../daemon/dupline-world.ts')
+  const cell = mkdtempSync(join(scratch, 'ordering-'))
+  const repo = join(cell, 'repo')
+  seed(repo)
+  const ctx = { cwd: repo, scratch: cell, runHome: join(cell, 'home'), dist: DIST, files: ['score.mjs'], protected: snapshot(repo), evaluatorVersion: 'ordering', facts: { runId: '', sessionId: '', exitCode: null as number | null, settled: false, ordinaryCheck: false, events: [] as Array<{ kind: string; at: string; monotonicMs: number; detail: unknown }>, effects: {} as Record<string, unknown> } }
+  await delayedCheck(ctx, materialize(repo, cell, join(REPO, 'scripts/outcome-pack/tasks/4/reference.patch'), ctx.files))
+  const stale = ctx.facts.effects.afterRestart as { state: string }
+  const fresh = ctx.facts.effects.afterFresh as { state: string }
+  check('late check for A leaves B stale after the product exits and an observer restarts', stale.state === 'stale', JSON.stringify(ctx.facts.effects.afterRestart))
+  check('a fresh check accepts B after restart', fresh.state === 'verified', JSON.stringify(ctx.facts.effects.afterFresh))
+  check('the composed ordering delivered B through the product', ctx.facts.effects.deliveredBytes === true && ctx.facts.settled)
+}
+
 console.log('\n============================================================')
 if (failures === 0) {
   console.log(' ✅ ALL VERIFICATION-STATE CHECKS PASS')
