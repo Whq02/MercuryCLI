@@ -40,10 +40,11 @@ t.section(`§1 — the modal family closes inside the view (${COMPACT_CONTROL_CO
   const closes = lines.some(l => l.trimStart().startsWith('╰'))
   if (!closes) lines.forEach((l, i) => console.log(`      grid[${String(i).padStart(2, '0')}] ${JSON.stringify(l)}`))
   t.check('the card CLOSES: a bottom border row is on screen', closes, lines[lines.length - 1] ?? '(empty)')
-  const focused = lines.filter(l => /│\s*❯\s+\S.+\bcurrent\b/.test(l))
-  t.check('selection survives as one current row with a caret inside the view-bounded compact popup', focused.length === 1, focused.join('\n') || '(no current row with a caret)')
+  const focused = lines.filter(l => /│\s+❯\s+\S/.test(l))
+  t.check('selection survives as one caret row inside the view-bounded compact popup (a signed-out home has no current model, so the caret rests on the first sign-in row)', focused.length === 1, focused.join('\n') || '(no caret row)')
+  t.check('the signed-out picker marks no row current', !lines.some(l => /\bcurrent\b/.test(l)) && all.includes('sign in'), lines.find(l => /\bcurrent\b/.test(l)) ?? 'no current row; sign-in rows present')
   const roomy = renderScenario('model-picker-home', 120, 40)
-  t.check('a roomy view keeps the focused row frame and the current marker', roomy.some(l => /│\s*╭/.test(l)) && roomy.some(l => /\bcurrent\b/.test(l)), roomy.join('\n'))
+  t.check('a roomy view keeps the focused row frame', roomy.some(l => /│\s*╭/.test(l)) && roomy.some(l => /│\s*│\s*│\s*\S/.test(l)), roomy.join('\n'))
   t.check('the cut is NAMED', /↓ \d+ more/.test(all), lines.find(l => l.includes('more')) ?? '(no counter)')
   t.check('the footer keeps its close hint', /esc (?:or click outside )?closes/.test(all), lines.find(l => l.includes('esc')) ?? '(no footer)')
   t.check('the title STAYS inside the compact view (the plain "Mercury · model" line and a provider heading)', all.includes('Mercury · model') && /[▾▸❯] [A-Z.]+ · /.test(all), lines.find(l => l.includes('Mercury · model')) ?? '(no title row)')
@@ -59,10 +60,11 @@ t.section(`§2 — the inline Chat keeps its input line at the floor (${COMPACT_
     inputAt > 0 && (lines[inputAt - 1] ?? '').trimStart().startsWith('╭') && (lines[inputAt + 1] ?? '').trimStart().startsWith('╰'),
     `${(lines[inputAt - 1] ?? '').slice(0, 24)} / ${(lines[inputAt + 1] ?? '').slice(0, 24)}`,
   )
+  const floor = lines[inputAt + 2] ?? ''
   t.check(
-    'the compact chat carries no shortcut hint rows (the sessions line closes the frame)',
-    !lines.some(l => l.includes('? for shortcuts') || l.includes('for commands + files')) && lines.some(l => /\d+ sessions? on · \d+ monitors? here · \d+ crewmates? here/.test(l)),
-    lines.find(l => l.includes('shortcuts') || /sessions? on/.test(l)) ?? '(no sessions line)',
+    'the compact chat carries no shortcut hint rows (the sessions line closes the frame, or the composer\'s twelve-second effort notice standing in its slot)',
+    !lines.some(l => l.includes('? for shortcuts') || l.includes('for commands + files')) && (/\d+ sessions? on · \d+ monitors? here · \d+ crewmates? here/.test(floor) || /^● effort: \S+ · \/effort to change\b/.test(floor.trim())),
+    floor.trim() || '(no floor row)',
   )
   const borderOnly = lines.some((l, i) => {
     const a = l.trim()
