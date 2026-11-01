@@ -125,10 +125,7 @@ async function paint(message: Row, verbose: boolean, columns = 120): Promise<str
     React.createElement(Box, { flexDirection: 'column', width: columns }, React.createElement(TurnReceiptRow, { message: message as never, verbose })))
   const instance = await render(node, { stdin, stdout, patchConsole: false, exitOnCtrlC: false, onFrame: () => painted() })
   await first
-  for (let index = 0; index < 6; index++) {
-    flushPendingSyncWork()
-    await new Promise<void>(resolve => setTimeout(resolve, 5))
-  }
+  flushPendingSyncWork()
   const frame = stripAnsi(instance.lastFrame()).replace(/\n$/, '')
   instance.unmount()
   instance.cleanup()
@@ -215,6 +212,7 @@ else {
   const text = (grid: Grid): string[] => grid.map(line => line.map(cell => cell.c || ' ').join(''))
   const lineOf = (lines: string[], needle: string): number => lines.findIndex(line => line.includes(needle))
   const RECEIPT = /∙ 2 shell commands(?: · ctx [+−][\d.]+[kM]?)? ∙ 3 board messages/
+  const closed = { awaitPattern: `^(?![\\s\\S]*${ADMITTED[2]!.replace(/[.]/g, '\\.')})[\\s\\S]*board messages` }
   try {
     for (const [cols, rows] of [[120, 44], [80, 24]] as const) {
       for (const leg of ['idle', 'cursor'] as const) {
@@ -227,11 +225,11 @@ else {
               then(CLICK, 'board messages', undefined, { targetText: 'board messages' }),
               then('', ADMITTED[2]!, 'clicked'),
               then(CLICK, 'board messages', undefined, { targetText: 'board messages' }),
-              { data: '', afterPrevTicks: 6, mark: 'clicked-again' },
+              then('', 'board messages', 'clicked-again', closed),
               then('\x0f', 'board messages'),
               then('', ADMITTED[2]!, 'verbose'),
               then('\x0f', 'board messages'),
-              { data: '', afterPrevTicks: 6, mark: 'verbose-off' },
+              then('', 'board messages', 'verbose-off', closed),
             ]
           : [
               then('', 'board messages', 'folded'),
@@ -242,7 +240,7 @@ else {
               then('\r', 'enter expand'),
               then('', ADMITTED[2]!, 'entered'),
               then('\r', 'enter collapse'),
-              { data: '', afterPrevTicks: 6, mark: 'entered-again' },
+              then('', 'board messages', 'entered-again', closed),
               then('\x1b', 'enter expand'),
             ]
         const config = { cwd: RUNTIME_CWD, argv: ['node', DIST, '--resume', SID], cols, rows, total: 220, out: gridPath, readyText: ['board messages'], readySettleTicks: 3, sends }

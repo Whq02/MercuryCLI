@@ -82,7 +82,7 @@ try {
     const gridPath = join(captures, `${tag}.grid.json`)
     const sends: Record<string, unknown>[] = [then('Type a prompt', '/swarm on'), then('/swarm on', '\r'), then('Swarm on for new crewmates', '/swarm'), then('/swarm', '\r')]
     if (leg === 'team') sends.push(then('open thread', '\u001b[C'))
-    if (leg === 'thread') sends.push(then('open thread', '\u001b[A'), { atTick: 999, awaitText: 'correction', requireAwait: true, minTick: 5, awaitSettleTicks: 2, data: '\r' }, { ...then('[view] [answer', ''), mark: 'top' }, ...Array.from({ length: 8 }, () => ({ data: '\u001b[B', afterPrevTicks: 1 })))
+    if (leg === 'thread') sends.push(then('open thread', '\u001b[A'), { atTick: 999, awaitText: 'correction', requireAwait: true, minTick: 5, awaitSettleTicks: 2, data: '\r' }, { ...then('[view] [answer', ''), mark: 'top' }, ...Array.from({ length: 8 }, () => then('[view] [answer', '\u001b[B')))
     if (leg === 'history') sends.push(then('open thread', '\r'), then('Count revision 1.', '\u001b[A'))
     if (leg === 'scroll') sends.push(then('open thread', '\u001b[A'), then('open thread', '\u001b[A'))
     const arrival = 'Arrived while Crew chat stayed open.'
