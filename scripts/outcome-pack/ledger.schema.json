@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Outcome attempt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "task", "execution", "delivered", "cost", "time", "acceptance", "integration"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "task": { "type": "object", "required": ["id", "stratum", "specificationHash", "baseTree", "dependencyPins", "evaluatorHash", "controlId", "pairId", "arm", "randomisation", "inclusionRule", "replacementReason"], "properties": { "id": { "type": "string" }, "specificationHash": { "$ref": "#/$defs/hash" }, "evaluatorHash": { "$ref": "#/$defs/hash" } } },
+    "execution": { "type": "object", "required": ["runId", "sessionId", "seat", "attemptId", "model", "version", "provider", "billingRoad", "effort", "thinking", "outputSettings", "toolSet", "permissionScope", "resourceIds", "askIds", "stopScope", "eventSequence"] },
+    "delivered": { "type": "object", "required": ["firstCandidateHash", "finalCandidateHash", "changedPaths", "contentDigests", "artifactDigest", "buildTree", "checkIds", "checkedTree", "checkStart", "checkEnd", "result", "capturedEffects", "staleEvidence", "refusalReason", "fixRetestAncestry"], "properties": { "firstCandidateHash": { "$ref": "#/$defs/hash" }, "finalCandidateHash": { "$ref": "#/$defs/hash" }, "artifactDigest": { "$ref": "#/$defs/hash" }, "result": { "enum": ["accept", "refuse"] } } },
+    "cost": { "type": "object", "required": ["uncachedInput", "cachedInput", "cacheWrites", "cacheTTL", "output", "billedReasoning", "retries", "failedRequests", "verifierCalls", "repairCalls", "leadJudgeCalls", "toolCharges", "computeCharges", "currency", "effectivePriceSource", "effectivePriceDate", "cash", "estimatedEquivalent", "billingClassification", "subscriptionPeriod", "subscriptionCost"], "additionalProperties": { "type": ["number", "string", "object"] } },
+    "time": { "type": "object", "required": ["start", "end", "durationMs", "clock", "queue", "permissionWait", "providerWait", "modelWork", "toolCheckTime", "repair", "activeHumanMinutes", "finalAcceptanceTime", "parkedIntervals", "supersededIntervals"], "properties": { "durationMs": { "type": "number", "minimum": 0 } } },
+    "acceptance": { "type": "object", "required": ["verdictPerRequirement", "first", "final", "expected", "controlId", "falseRejection", "falseAcceptance", "rootCauseId", "severity", "discoveryStage", "manualAdjudication", "changedRulingSource"] },
+    "integration": { "oneOf": [{ "const": "not applicable" }, { "type": "object", "required": ["mainCommit", "reviewer", "integrationTime", "postMergeChecks", "followUpDays", "regressions", "exposure"] }] }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}
