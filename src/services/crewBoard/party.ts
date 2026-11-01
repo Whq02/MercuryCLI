@@ -7,7 +7,7 @@ export type BoardChat = { on: boolean; filter: BoardChatFilter }
 export const CHAT_OFF: BoardChat = Object.freeze({ on: false, filter: { kind: 'all' as const } })
 
 export type ScreenEvent = BoardEvent & Partial<{ authorRole: CrewChatRole; channel: CrewChatChannel; addresses: string[]; captain: true; recipients: BoardSeat[]; lifecycle: CrewChatLifecycle }>
-export type ScreenStore = { chat(): BoardChat; screenEvents(since: number): BoardEvent[]; screenCursor(): number; markScreenCursor(seq: number): void }
+export type ScreenStore = { chat(): BoardChat; screenEvents(since: number): BoardEvent[]; screenCursor(): number; markScreenCursor(seq: number): void; screenIntroduction(): BoardEvent | null; markScreenIntroduced(): void }
 
 const PUBLIC_KINDS: ReadonlySet<string> = new Set(['ask', 'answer', 'blocker', 'result', 'correction'])
 const lower = (names: readonly string[] | undefined): Set<string> => new Set((names ?? []).map(name => name.toLowerCase()))
@@ -71,6 +71,7 @@ export function partyFeed(host: PartyHost): PartyFeed {
   let active = false
   let scanned = 0
   let open = false
+  let introduction = 0
   const held: SystemCrewChatMessage[] = []
   const pending = new Set<number>()
   const advance = (): void => {
@@ -81,23 +82,34 @@ export function partyFeed(host: PartyHost): PartyFeed {
   }
   const commit = (row: SystemCrewChatMessage): void => {
     pending.add(row.seq)
-    host.record(row).then(() => { pending.delete(row.seq); advance() }, () => {})
+    host.record(row).then(() => {
+      if (row.seq === introduction) { host.store()?.markScreenIntroduced(); introduction = 0 }
+      pending.delete(row.seq)
+      advance()
+    }, () => {})
   }
   const flush = (): void => { for (const row of held.splice(0)) commit(row) }
+  const admit = (event: ScreenEvent): void => {
+    const row = partyRow(event, host.anchor())
+    pending.add(row.seq)
+    if (open) held.push(row)
+    else commit(row)
+  }
   const check = (): void => {
     const store = host.store()
     if (!store) { active = false; return }
     scanned = active ? Math.max(scanned, store.screenCursor()) : store.screenCursor()
     active = true
     const chat = store.chat()
+    const intro = store.screenIntroduction()
+    if (intro !== null && !pending.has(intro.seq)) {
+      if (partyPaints(intro, chat)) { introduction = intro.seq; admit(intro) }
+      else store.markScreenIntroduced()
+    }
     for (let page = store.screenEvents(scanned); page.length > 0; page = store.screenEvents(scanned)) {
       for (const event of page) {
         scanned = event.seq
-        if (!partyPaints(event, chat)) continue
-        const row = partyRow(event, host.anchor())
-        pending.add(row.seq)
-        if (open) held.push(row)
-        else commit(row)
+        if (partyPaints(event, chat)) admit(event)
       }
     }
     advance()

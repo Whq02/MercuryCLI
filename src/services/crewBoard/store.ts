@@ -57,7 +57,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     CREATE TABLE IF NOT EXISTS requests (id TEXT NOT NULL, recipient TEXT NOT NULL, cost INTEGER NOT NULL, PRIMARY KEY(recipient, id));
     CREATE TABLE IF NOT EXISTS interests (agent TEXT NOT NULL, kind TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(agent, kind, value));
     CREATE TABLE IF NOT EXISTS lead_paint (recipient TEXT PRIMARY KEY, seq INTEGER NOT NULL);
-    CREATE TABLE IF NOT EXISTS chat_state (id INTEGER PRIMARY KEY CHECK (id = 1), switched INTEGER NOT NULL DEFAULT 0, filter TEXT NOT NULL DEFAULT '{"kind":"all"}', cursor INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS chat_state (id INTEGER PRIMARY KEY CHECK (id = 1), switched INTEGER NOT NULL DEFAULT 0, filter TEXT NOT NULL DEFAULT '{"kind":"all"}', cursor INTEGER NOT NULL DEFAULT 0, intro INTEGER NOT NULL DEFAULT 0, introduced INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, author TEXT NOT NULL, op TEXT NOT NULL, digest TEXT NOT NULL, thread TEXT NOT NULL, record TEXT NOT NULL, UNIQUE(author, op));
     CREATE TABLE IF NOT EXISTS deliveries (recipient TEXT NOT NULL, event TEXT NOT NULL, mode TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', packet TEXT, request TEXT, charge INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(recipient, event));`)
   const prior = db.prepare('SELECT session, wave FROM identity').get()
@@ -218,7 +218,10 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     get uncapped() { return uncapped() },
     chat,
     setChat(next) {
-      transaction(() => { db.prepare('UPDATE chat_state SET switched = ?, filter = ?, cursor = CASE WHEN ? THEN (SELECT COALESCE(MAX(seq), 0) FROM events) ELSE cursor END WHERE id = 1').run(next.on ? 1 : 0, JSON.stringify(next.filter), next.on ? 1 : 0) })
+      transaction(() => {
+        db.prepare('UPDATE chat_state SET switched = ?, filter = ?, cursor = CASE WHEN ? THEN (SELECT COALESCE(MAX(seq), 0) FROM events) ELSE cursor END WHERE id = 1').run(next.on ? 1 : 0, JSON.stringify(next.filter), next.on ? 1 : 0)
+        if (next.on) db.prepare("UPDATE chat_state SET intro = (SELECT COALESCE(MIN(seq), 0) FROM events WHERE json_extract(record, '$.lifecycle.kind') = 'launched'), introduced = 1 WHERE id = 1 AND introduced = 0").run()
+      })
       for (const listener of listeners) listener()
     },
     screenEvents(since) { return events(db.prepare('SELECT record FROM events WHERE seq > ? ORDER BY seq LIMIT 200').all(since)) },
@@ -226,6 +229,15 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     markScreenCursor(seq) {
       if (readOnly || !hasChat) return
       db.prepare('UPDATE chat_state SET cursor = MAX(cursor, MIN(?, (SELECT COALESCE(MAX(seq), 0) FROM events))) WHERE id = 1').run(seq)
+    },
+    screenIntroduction() {
+      const seq = hasChat ? Number(db.prepare('SELECT intro FROM chat_state WHERE id = 1').get()?.intro ?? 0) : 0
+      const row = seq > 0 ? db.prepare('SELECT record FROM events WHERE seq = ?').get(seq) : null
+      return row ? events([row])[0]! : null
+    },
+    markScreenIntroduced() {
+      if (readOnly || !hasChat) return
+      db.prepare('UPDATE chat_state SET intro = 0 WHERE id = 1').run()
     },
     setUncapped(p, value) {
       transaction(() => {

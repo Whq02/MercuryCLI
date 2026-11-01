@@ -91,6 +91,8 @@ export interface BoardStore {
   screenEvents(since: number): BoardEvent[]
   screenCursor(): number
   markScreenCursor(seq: number): void
+  screenIntroduction(): BoardEvent | null
+  markScreenIntroduced(): void
   boundary(principal: BoardPrincipal, seen: ReadonlySet<string>): { text: string; eventIds: string[] } | null
   presented(principal: BoardPrincipal, eventIds: string[], requestId: string, readPackets?: string[]): void
   view(before?: number, thread?: string, team?: string): BoardViewSnapshot
