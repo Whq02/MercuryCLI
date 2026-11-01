@@ -332,7 +332,8 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
           if (delivery !== 'mirror') {
             const root = db.prepare('SELECT author FROM events WHERE thread = ? ORDER BY seq LIMIT 1').get(thread)
             const replies = new Set([...(question ? [question.author.agentId] : []), ...(root ? [String(root.author)] : [])])
-            const recipients = new Set([...event.mentions, ...replies])
+            const captains = new Set((post.kind === 'ask' || post.kind === 'blocker') ? seats().filter(seat => seat.captain && seat.team && (seat.team === team || event.recipients?.some(recipient => recipient.team === seat.team))).map(seat => seat.agent) : [])
+            const recipients = new Set([...event.mentions, ...replies, ...captains])
             if (team !== undefined) for (const row of roster()) if (teamOf(String(row.agent)) === team) recipients.add(String(row.agent))
             for (const interest of db.prepare("SELECT agent, kind, value FROM interests WHERE kind != 'membership'").all()) {
               const relevant = interest.kind === 'team' ? team === interest.value : (post.kind === 'blocker' || post.kind === 'result') && (interest.kind === 'task' ? [post.taskId, ...post.relatedTasks].includes(String(interest.value)) : post.files.includes(String(interest.value)))
@@ -342,7 +343,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
             for (const recipient of recipients) {
               const named = (names: readonly string[]): boolean => post.mentions.some(name => names.includes(name.toLowerCase()))
               const captain = captainId(team) === recipient && !named(['all']) && ((post.kind === 'ask' || post.kind === 'blocker') || (['result', 'answer', 'correction'].includes(post.kind) && named([recipient.toLowerCase(), String(db.prepare('SELECT name FROM members WHERE agent = ?').get(recipient)?.name).toLowerCase()])))
-              const wake = recipient === 'main' && ((post.kind === 'ask' || post.kind === 'blocker') ? named(['main', 'all']) : named(['main'])) || captain
+              const wake = recipient === 'main' && ((post.kind === 'ask' || post.kind === 'blocker') ? named(['main', 'all']) : named(['main'])) || captain || captains.has(recipient)
               const mode = wake ? 'mention-wake-body' : event.mentions.includes(recipient) ? 'mention-body' : replies.has(recipient) ? 'thread-body' : delivery
               db.prepare('INSERT INTO deliveries (recipient, event, mode) VALUES (?, ?, ?)').run(recipient, eventId, mode)
             }
