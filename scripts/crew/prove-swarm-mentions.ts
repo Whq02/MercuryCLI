@@ -141,12 +141,18 @@ check('wake and screen callbacks keep the lead context rather than the posting s
 sourceBoard.read(seam.swarmPrincipal()!, { task: 'relevant', watch: true })
 sourceBoard.post(sender, { clientOpId: 'relevant-source', kind: 'result', text: 'Relevance is only for Crew chat.', taskId: 'relevant' })
 check('relevance-only traffic neither paints a lead notice nor wakes it', painted.length === 3 && wakes === 2)
+const answered = seam.swarmBoundary(undefined, new Set())[0]
+if (answered) sourceBoard.presented(seam.swarmPrincipal()!, answered.eventIds, 'before-answer')
+sourceBoard.post(sender, { clientOpId: 'answer-source', kind: 'answer', replyTo: ask.eventId, text: '@main the answer you asked for: the row parser.' })
+check('an answer addressed to main by name paints its row and wakes the idle lead once', painted.length === 4 && wakes === 3)
+sourceBoard.post(sender, { clientOpId: 'answer-aside', kind: 'answer', replyTo: ask.eventId, text: 'An answer for the thread, not addressed to the lead by name.' })
+check('an answer that does not name main wakes nobody', wakes === 3)
 watch.stop()
 const painted2: string[] = []
 const watch2 = context.run('lead', () => seam.watchSwarmLead(() => idle, () => {}, event => { painted2.push(event.eventId) }))
 check('a restarted runner paints no mention twice: the painted cursor persists in the board', painted2.length === 0 && sourceBoard.leadPainted() > 0)
 sourceBoard.post(sender, { clientOpId: 'after-restart', kind: 'ask', text: '@main an ask after the restart' })
-check('the restarted watcher paints only the mention newer than the cursor', painted2.length === 1 && painted.length === 3)
+check('the restarted watcher paints only the mention newer than the cursor', painted2.length === 1 && painted.length === 4)
 watch2.stop()
 runSwarmCommand('off')
 seam.settleSwarmAgent('sender')
@@ -157,6 +163,7 @@ const live = await makeWorld('swarm-mentions', [
   { kind: 'text', text: 'Handled one mention.' },
   { kind: 'text', text: 'Handled the mention batch.' },
   { kind: 'text', text: 'Handled the named correction.' },
+  { kind: 'text', text: 'Handled the named answer.' },
   { kind: 'text', text: 'Handled the all blocker.' },
 ])
 const settingsPath = join(live.config, 'settings.json')
@@ -198,9 +205,12 @@ try {
   assert(board.post(sender, { clientOpId: 'idle-correction', kind: 'correction', corrects: result.eventId, text: '@main corrected: verified green on the final tree.' }).ok)
   await session.waitFor('a correction addressed to main by name wakes the lead', () => session.stdout().includes('Handled the named correction.')).finally(() => record('swarm-mention-transcript.jsonl', saved()))
   check('an idle correction addressed to main by name starts one lead model turn', live.fixture.messageRequests().length === 5)
+  assert(board.post(sender, { clientOpId: 'idle-answer', kind: 'answer', replyTo: ask.eventId, text: '@main the answer: the proposed law holds.' }).ok)
+  await session.waitFor('an answer addressed to main by name wakes the lead', () => session.stdout().includes('Handled the named answer.')).finally(() => record('swarm-mention-transcript.jsonl', saved()))
+  check('an idle answer addressed to main by name starts one lead model turn with its packet', live.fixture.messageRequests().length === 6 && userTextsOf(live).some(text => text.includes('[Poster] [engine] [answer]: @main the answer: the proposed law holds.')))
   assert(board.post(sender, { clientOpId: 'all-blocker', kind: 'blocker', text: '@all A blocker for the lead too.' }).ok)
   await session.waitFor('all blocker wakes the lead', () => session.stdout().includes('Handled the all blocker.'))
-  check('a seat all blocker wakes the idle lead once', live.fixture.messageRequests().length === 6)
+  check('a seat all blocker wakes the idle lead once', live.fixture.messageRequests().length === 7)
   check('screen-only rows never duplicate board words on the model wire', live.fixture.messageRequests().every(request => !JSON.stringify(request.body).includes('<crew-board>')))
   assert.equal(await session.end(), 0, session.stderr())
 } finally {
