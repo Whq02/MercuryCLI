@@ -637,7 +637,7 @@ export function shimContent(isWindows: boolean): string {
       '  echo mercury: current.txt does not name an installed version under %MROOT% — edit it to an installed version directory name 1>&2',
       '  exit /b 1',
       ')',
-      'call "%MROOT%\\%MVER%\\mercury.cmd" %*',
+      '"%MROOT%\\%MVER%\\mercury.cmd" %*',
       'exit /b %ERRORLEVEL%',
       ':pick',
       'set "MLINE=%MLINE:"=%"',

@@ -761,7 +761,7 @@ console.log('── §15 seamark SM-I: activation renames + PATH identity + host
     cmdShim.includes('for /f "usebackq delims=" %%v in ("%MROOT%\\current.txt")') &&
       !cmdShim.split('\r\n').some(l => !l.trim().startsWith('rem') && l.includes('set /p')))
   check('VP-01: an empty pointer refuses plainly (exit 1, named remedy)', cmdShim.includes('if not defined MVER ('))
-  check('VP-01: a pointer naming no installed version refuses BEFORE the call', cmdShim.includes('if not exist "%MROOT%\\%MVER%\\mercury.cmd" (') && cmdShim.indexOf('if not exist "%MROOT%\\%MVER%\\mercury.cmd"') !== -1 && cmdShim.indexOf('if not exist "%MROOT%\\%MVER%\\mercury.cmd"') < cmdShim.indexOf('call "%MROOT%\\%MVER%\\mercury.cmd"'))
+  check('VP-01: a pointer naming no installed version refuses BEFORE the tail chain', cmdShim.includes('if not exist "%MROOT%\\%MVER%\\mercury.cmd" (') && cmdShim.indexOf('if not exist "%MROOT%\\%MVER%\\mercury.cmd"') !== -1 && cmdShim.indexOf('if not exist "%MROOT%\\%MVER%\\mercury.cmd"') < cmdShim.indexOf('\r\n"%MROOT%\\%MVER%\\mercury.cmd"'))
   check('VP-01: the refusal never echoes pointer content into a parsed line', !cmdShim.split('\r\n').some(l => l.includes('echo') && l.includes('%MVER%')))
   const shShim = shimContent(false)
   check('VP-01 parity: the sh shim reads current.txt first-non-blank-line (IFS= read -r loop, no cat)',

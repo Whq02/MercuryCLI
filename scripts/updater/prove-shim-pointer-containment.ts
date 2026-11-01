@@ -95,13 +95,14 @@ for (const road of roads) {
 section('§2 THE CMD TEMPLATE (structural)')
 {
   const cmd = shimContent(true)
+  check('the versioned launcher replaces the batch context, without a CALL return offset into a shim the child can refresh', cmd.includes('\r\n"%MROOT%\\%MVER%\\mercury.cmd" %*\r\n') && !cmd.includes('call "%MROOT%\\%MVER%\\mercury.cmd"'))
   check('quotes are STRIPPED from the pointer before use (the parse-abort class)', /%MVER:"=%/.test(cmd))
   check('a backslash in the pointer refuses', cmd.includes('%MVER:\\=%'))
   check('a forward slash in the pointer refuses', cmd.includes('%MVER:/=%'))
   check('a dot-dot in the pointer refuses', cmd.includes('%MVER:..=%'))
   check(
-    'the guards sit BEFORE the call',
-    cmd.indexOf('%MVER:..=%') !== -1 && cmd.indexOf('%MVER:..=%') < cmd.indexOf('call "%MROOT%\\%MVER%\\mercury.cmd"'),
+    'the guards sit BEFORE the tail chain',
+    cmd.indexOf('%MVER:..=%') !== -1 && cmd.indexOf('%MVER:..=%') < cmd.indexOf('\r\n"%MROOT%\\%MVER%\\mercury.cmd"'),
   )
   check('the cmd twin trims trailing whitespace before the guards (FC-055)', cmd.includes(':trimver') && cmd.indexOf(':trimver') < cmd.indexOf('%MVER:..=%'))
   check('the byte-order mark is held as its own bytes, so it decodes as the pointer file does under any code page', cmd.includes('set "MBOM=\uFEFF"'))
@@ -255,6 +256,26 @@ section('§3 THE :pick SUBROUTINE UNDER CMD\'S PERCENT RULE (static, calibrated 
   }
   check('the simulation covered every shape under every reading', simulated === 66, String(simulated))
 }
+
+if (WIN) {
+  const cmdShim = join(BASE, 'refreshing.cmd')
+  const replacement = join(BASE, 'replacement.cmd')
+  const source = shimContent(true)
+  writeFileSync(cmdShim, source)
+  writeFileSync(replacement, ' '.repeat(Buffer.byteLength(source)) + '\r\n@echo RESUMED_AFTER_REFRESH\r\n@exit /b 17\r\n')
+  writeFileSync(join(versions, 'current.txt'), '1.2.3\r\n')
+  writeFileSync(join(versions, '1.2.3', 'mercury.cmd'), [
+    '@echo off',
+    'copy /y "%SHIM_REPLACEMENT%" "%STABLE_SHIM%" >nul',
+    'echo rollback refused: no previous installed version is recorded 1>&2',
+    'exit /b 1',
+    '',
+  ].join('\r\n'))
+  const result = launched(spawnSync(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'cmd.exe'), ['/d', '/s', '/c', `""${cmdShim}" update --rollback"`], {
+    env: { ...env, SHIM_REPLACEMENT: replacement, STABLE_SHIM: cmdShim }, encoding: 'utf8', timeout: 15_000, windowsHide: true, windowsVerbatimArguments: true,
+  }))
+  check('a child that refreshes its calling shim keeps its refusal and exit code, never reading the replacement at the old return offset', result.rc === 1 && result.out.trim() === '' && result.err.trim() === 'rollback refused: no previous installed version is recorded', JSON.stringify(result))
+} else console.log('  [SKIP] live CMD refresh handoff needs Windows; the tail-chain pin ran here')
 
 removeScratch(BASE)
 if (failures > 0) {
