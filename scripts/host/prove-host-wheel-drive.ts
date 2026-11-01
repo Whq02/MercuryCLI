@@ -72,6 +72,7 @@ const selected = (): number | null => {
   return match ? Number(match[1]) : null
 }
 const visible = (): number[] => [...(mounted?.screen() ?? '').matchAll(/(?:› |  )Row (\d+)/g)].map(match => Number(match[1]))
+const choicesReady = (question: LlmHostQuestion): boolean => topOverlay()?.id === 'select' && (mounted?.screen().includes(question.title) ?? false)
 const until = async (predicate: () => boolean, label: string) => check(label, await waitFor(predicate, 4000))
 const step = async (bytes: string, target: number, label: string) => {
   mounted!.push(bytes)
@@ -80,6 +81,7 @@ const step = async (bytes: string, target: number, label: string) => {
 const wheelMove = async (bytes: string, target: number, label: string) => {
   const before = seen.length
   const transcript = scrollRef.current!.getScrollTop()
+  assert.equal(topOverlay()?.id, 'select', `${label}: the popup owns the input before the notch`)
   mounted!.push(bytes)
   const reached = await waitFor(() => selected() === target, 1500)
   console.log(JSON.stringify({ label, target, selected: selected(), input: seen.slice(before), transcriptBefore: transcript, transcriptAfter: scrollRef.current!.getScrollTop(), owner: topOverlay()?.id ?? null }))
@@ -128,8 +130,9 @@ try {
     await chatWheel()
     for (const kind of ['bank', 'door-models', 'pod-list', 'vendor']) {
       const answersBefore = answers.length
-      popup.openSettingsPopup(llmHostPopupRequest(roadFor(plan(kind))))
-      await until(() => selected() === 0, columns + ' ' + kind + ' opens on row zero')
+      const question = plan(kind)
+      popup.openSettingsPopup(llmHostPopupRequest(roadFor(question)))
+      await until(() => choicesReady(question) && selected() === 0, columns + ' ' + kind + ' opens on row zero')
       await wheelMove(wheel(true), 1, columns + ' ' + kind + ': one notch selects the next row')
       await capture(columns + '-' + kind + '-wheel-next', columns)
       await wheelMove(wheel(false), 0, columns + ' ' + kind + ': the first reverse notch selects the previous row')
@@ -154,11 +157,11 @@ try {
     }
     const short = { ...plan('bank'), initial: undefined, rows: plan('bank').rows!.slice(0, 2) }
     popup.openSettingsPopup(llmHostPopupRequest(roadFor(short)))
-    await until(() => mounted!.screen().includes('Fixture choices') && selected() === null, 'an unsuggested short list starts with no selection')
+    await until(() => choicesReady(short) && mounted!.screen().includes('Fixture choices') && selected() === null, 'an unsuggested short list starts with no selection')
     await wheelMove(wheel(true), 0, 'the first downward notch selects the first row')
     await close()
     popup.openSettingsPopup(llmHostPopupRequest(roadFor(short)))
-    await until(() => mounted!.screen().includes('Fixture choices') && selected() === null, 'the short list reopens without a selection')
+    await until(() => choicesReady(short) && mounted!.screen().includes('Fixture choices') && selected() === null, 'the short list reopens without a selection')
     await wheelMove(wheel(false), 1, 'the first upward notch selects the last row')
     await close()
     const inputAnswers = answers.length
@@ -173,7 +176,7 @@ try {
     ink!.setMouseTrackingEnabled(false)
     check('mouse-off disables capture', !ink!.isMouseTrackingEnabled())
     popup.openSettingsPopup(llmHostPopupRequest(roadFor(plan('bank'))))
-    await until(() => selected() === 0, 'mouse-off popup opens')
+    await until(() => choicesReady(plan('bank')) && selected() === 0, 'mouse-off popup opens')
     check('opening the popup does not re-enable mouse capture', !ink!.isMouseTrackingEnabled())
     await step(KEY.down, 1, 'mouse-off alternate-scroll arrows navigate the popup')
     await step(KEY.up, 0, 'mouse-off reverse arrows navigate the popup')
