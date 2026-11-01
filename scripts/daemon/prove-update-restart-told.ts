@@ -846,13 +846,14 @@ try {
   check('the third watch has a live process of its own', watch3Pids.length > 0, JSON.stringify(watch3Pids))
   const runnerZ = recOf(sid)?.pid ?? 0
   const CpidNow = (await hello())?.pid ?? 0
+  check('the handover starts with a live daemon and runner to take down (a missing pid is a failure, never a signal to the process group)', runnerZ > 0 && CpidNow > 0, JSON.stringify({ runnerZ, CpidNow }))
   pointBoth('W')
   const midHandover = await restartSessionOnInstalledBuild({
     sessionId: sid,
     turnActive: false,
     work: facts(sid)?.work ?? [],
     tell: () => {
-      for (const pid of [CpidNow, runnerZ]) {
+      for (const pid of [CpidNow, runnerZ].filter(candidate => Number.isInteger(candidate) && candidate > 0)) {
         try {
           process.kill(pid, 'SIGKILL')
         } catch {}

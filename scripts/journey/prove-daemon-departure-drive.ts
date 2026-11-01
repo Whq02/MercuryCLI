@@ -171,6 +171,10 @@ const pipeEnd = oldDaemon.stdio[3] as import('node:net').Socket | null
 pipeEnd?.on('error', () => {})
 pipeEnd?.unref()
 const oldPid = oldDaemon.pid ?? 0
+if (!(oldPid > 0)) {
+  console.error('✗ the old daemon has no pid of its own; nothing is signalled')
+  process.exit(1)
+}
 
 let up = false
 for (let i = 0; i < 160 && !up; i++) {
