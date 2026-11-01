@@ -6,7 +6,7 @@ export function accept(ctx: Context): Acceptance {
     const expected = ['saved: nobody\n', 'saved: nobody\n', 'saved: z, a\n', 'saved: é, É, 🙂, 東京\n']
     return [
       { id: 'saved-result', ok: run.code === 0 && run.stdout.trim() === JSON.stringify(expected), witness: JSON.stringify(run) },
-      ...['compacted', 'sameBytes', 'sameSession', 'oneRetainedResult'].map(id => ({ id, ok: ctx.facts.effects[id] === true, witness: String(ctx.facts.effects[id]) })),
+      ...['compacted', 'reattached', 'sameBytes', 'sameSession', 'oneRetainedResult'].map(id => ({ id, ok: ctx.facts.effects[id] === true, witness: String(ctx.facts.effects[id]) })),
     ]
   })
 }
