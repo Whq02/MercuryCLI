@@ -7,4 +7,5 @@
 set -euo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 cd "$(dirname "$0")/../.."
-bun run scripts/outcome-pack/prove-outcome-pack.ts --dist "${MERCURY_BUILD_OUTDIR:-dist}/mercury.mjs" "$@"
+out="${MERCURY_BUILD_OUTDIR:-$PWD/dist}"; case "$out" in /*) ;; *) out="$PWD/$out" ;; esac
+bun run scripts/outcome-pack/prove-outcome-pack.ts --dist "$out/mercury.mjs" "$@"
