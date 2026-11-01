@@ -59,7 +59,7 @@ const boardLabelSurface = (rel: string): boolean => rel.startsWith('src/services
 const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
   [/src\/commands\/team\/\*\*/g, 'The owner channel command path in its drive watch.', rel => rel === 'scripts/crew-drives/run-all.sh'],
   [/\bteamCandidates\b/g, 'The channel-completion proof names its label candidates.', rel => rel === 'scripts/command-catalogue/prove-swarm-channel-completion.ts'],
-  [/\/team(?![\w/-])/g, 'The owner channel command in the README roster, not a crew identity.', rel => rel === 'README.md'],
+  [/\/team(?![\w/-])/g, 'The owner channel command in the README roster and the generated surface census, not a crew identity.', rel => rel === 'README.md' || rel === 'scripts/compositor/fixtures/surface-census.md'],
   [/\b(?:teams?|assignTeam|setTeam|teamOf|validTeam|canonicalTeam|teamAssigned|peerTeam|swarm_team)\b/gi, 'Board delivery labels and their fields; the retired teammate and ownership-system spellings remain forbidden.', boardLabelSurface],
   [XAI_BILLING_WORDS, "xAI's billing account and documented wire fields, not a Mercury crew", rel => XAI_BILLING_SURFACES.has(rel)],
   [new RegExp(J('s', 'team'), 'i'), 'Steam, the games store the Aseprite and Godot bridges look in'],
@@ -100,6 +100,8 @@ console.log('============================================================')
 check('the README channel command does not excuse crew names or other paths',
   !OLD.test(crewRemainder('README.md', '`/team`')) &&
     ['team', 'teammate', '/teammates', '/team-old', '/team/path', '/team; TeamCreate'].every(text => OLD.test(crewRemainder('README.md', text))) &&
+    !OLD.test(crewRemainder('scripts/compositor/fixtures/surface-census.md', '`/team`')) &&
+    OLD.test(crewRemainder('scripts/compositor/fixtures/surface-census.md', 'team')) &&
     OLD.test(crewRemainder('docs/README.md', '/team')))
 check('board delivery labels are scoped and do not excuse retired identities or ownership tools',
   !OLD.test(crewRemainder('src/services/crewBoard/store.ts', 'team teams assignTeam swarm_team')) &&
