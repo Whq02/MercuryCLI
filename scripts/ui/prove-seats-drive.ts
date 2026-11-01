@@ -484,7 +484,9 @@ if (cap !== null) {
   const holders = byArrival.slice(0, SEAT_CEILING).map(([s]) => s)
   const waiter: Station = byArrival[SEAT_CEILING]?.[0] ?? 'd'
   const holderLabels = holders.map(labelOf)
-  const holdersNamed = new RegExp(`\\((?:${holderLabels.join('|')}), (?:${holderLabels.join('|')})\\)$`)
+  const escaped = holderLabels.map(label => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  const holdersNamed = new RegExp(`\\((?:${escaped[0]}, ${escaped[1]}|${escaped[1]}, ${escaped[0]})\\)$`)
+  check('D2 the holder sentence admits the two labels in either order and refuses a doubled label', holdersNamed.test(`(${holderLabels[0]}, ${holderLabels[1]})`) && holdersNamed.test(`(${holderLabels[1]}, ${holderLabels[0]})`) && !holdersNamed.test(`(${holderLabels[0]}, ${holderLabels[0]})`) && !holdersNamed.test(`(${holderLabels[1]}, ${holderLabels[1]})`), holderLabels.join(', '))
   console.log(`  seats on the wire: ${holderLabels.join(' and ')} hold, ${labelOf(waiter)} waits (the gate seats whoever reaches it first)`)
   if (a && b && c && d && holders.length === SEAT_CEILING) {
     const starters = [a, ...holders.map(s => firstCall(s)!)]
