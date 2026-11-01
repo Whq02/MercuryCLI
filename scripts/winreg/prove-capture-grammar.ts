@@ -15,7 +15,7 @@ const CFG_KEYS = [
   '"cols"', '"rows"', '"total"', '"argv"', '"sends"', '"out"',
   '"readyText"', '"readySettleTicks"', '"stableTicks"', '"resizes"', '"cwd"',
   '"stableRegion"', '"requireStable"',
-  '"liveSeat"',
+  '"liveSeat"', '"progressBudgetTicks"',
 ]
 const RESIZE_KEYS = ['"atTick"', '"atMs"', '"afterMark"', '"afterMs"', '"afterPrevMs"']
 const SEND_KEYS = [

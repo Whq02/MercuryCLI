@@ -104,6 +104,9 @@ except ValueError:
 if _scale > 0 and _scale != 1:
     total = max(1, int(round(total * _scale)))
 argv, sends, out = cfg["argv"], cfg.get("sends", []), cfg["out"]
+progress_budget = int(cfg.get("progressBudgetTicks", 0))
+if _scale > 0 and _scale != 1:
+    progress_budget = int(round(progress_budget * _scale))
 
 ready_texts = cfg.get("readyText")
 if isinstance(ready_texts, str):
@@ -388,6 +391,8 @@ while True:
                 marks_fired_s[nxt["mark"]] = time.monotonic() - t0
             pty.write(send_payload)
             send_receipts.append({"atTick": tick, "ts": int(time.time() * 1000)})
+            if progress_budget > 0 and nxt.get("requireAwait"):
+                total = max(total, tick + progress_budget)
             prev_send_tick = tick
             send_await_seen_tick = None
             send_stable_run = 0
