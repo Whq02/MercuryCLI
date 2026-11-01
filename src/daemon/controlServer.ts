@@ -1,5 +1,6 @@
 
 import { refuseRunnerArgv } from '../services/switchboard/runnerArgv.js'
+import { validateUuid } from '../utils/uuid.js'
 import net from 'node:net'
 import { existsSync, readFileSync } from 'node:fs'
 import { readdir, rename, symlink, unlink } from 'node:fs/promises'
@@ -742,6 +743,9 @@ async function routeControlRequest(
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
       if (!deps.concourseAdmit) {
         return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
+      }
+      if (raw.resumeSessionId !== undefined && validateUuid(raw.resumeSessionId) === null) {
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'no live session record owns this id' })
       }
       const workspaceDir = String(raw.workspaceDir ?? '')
       if (!workspaceDir) {

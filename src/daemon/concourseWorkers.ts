@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, rmdirSync, statSync,
 import { dirname, join } from 'node:path'
 import { partiallySanitizeUnicode } from '../utils/sanitization.js'
 import { randomUUID } from '../utils/crypto.js'
+import { validateUuid } from '../utils/uuid.js'
 import { recordToEntry } from '../fabric/entryCodec.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow, sessionModelOfEntry } from '../utils/model/retainedModel.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -989,6 +990,9 @@ export function makeConcourseAdmitHandler(
   deps: ConcourseAdmitDeps,
 ): (req: ConcourseAdmitRequest) => Promise<ConcourseAdmitResult> {
   return async req => {
+    if (req.resumeSessionId !== undefined && validateUuid(req.resumeSessionId) === null) {
+      return { ok: false, code: 'invalid-request', error: 'no live session record owns this id' }
+    }
     if (req.effort !== undefined) {
       const level = normalizeEffortLevelString(req.effort)
       if (level === undefined) {
