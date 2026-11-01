@@ -44,7 +44,7 @@ import { deriveScheduleAccountForModel, readLiveAccountFacts, scheduleAccountVer
 import { applyConcourseKitOp } from './sessionKitOp.js'
 import { retireWorkerAsks, RUNNER_ENDED_ASK_CAUSE, RUNNER_RESTARTED_ASK_CAUSE } from './permissionAsks.js'
 import type { QuiescenceAnswer, QuiescenceRequest } from './runnerQuiescence.js'
-import type { McpToolsV1, SessionRewindMode, SessionRewindOutcomeV1 } from './protocol.js'
+import type { BoardPostRequestV1, McpToolsV1, SessionRewindMode, SessionRewindOutcomeV1 } from './protocol.js'
 import { mcpToolsFromWire } from '../services/mcp/toolsAnswer.js'
 
 export interface SeatRosterPort {
@@ -1123,6 +1123,21 @@ export async function pauseSessionGate(
     return appliedDetail(asked.result)
   }
   return crewVerbRefusal(asked.failure, "this session's runner predates the pause gate · /daemon restart, then reopen the session")
+}
+
+export async function postSessionBoard(
+  sessionId: string,
+  post: BoardPostRequestV1,
+  roster: SeatRosterPort,
+  dir?: string,
+  opts?: { deadlineMs?: number },
+): Promise<SeatVerbOutcome> {
+  const rec = liveRecordBySession(sessionId, dir)
+  if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
+  const deadlineMs = opts?.deadlineMs ?? AGENT_VERB_ANSWER_DEADLINE_MS
+  const asked = await askSeat(roster, rec.runnerId, 'session/board_post', { client_op_id: post.clientOpId, channel: post.channel, ...(post.target === undefined ? {} : { target: post.target }), text: post.text }, 'board-post', deadlineMs)
+  if (asked.ok) return { outcome: asked.result.ok ? 'applied' : 'refused', detail: JSON.stringify(asked.result) }
+  return crewVerbRefusal(asked.failure, "this session's runner predates the owner's board posts · /daemon restart, then reopen the session")
 }
 
 export const LEAVE_ANSWER_DEADLINE_MS = 130_000

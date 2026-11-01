@@ -12,6 +12,7 @@ import {
   MIN_PROTO,
   encodeFrame,
   readControlFrame,
+  type BoardPostRequestV1,
   type DaemonHelloFacts,
   type DaemonReply,
   type DaemonSignInViewV1,
@@ -184,10 +185,12 @@ export interface ControlServerDeps {
       | 'pause-gate'
       | 'leave'
       | 'send-now'
+      | 'board-post'
     sessionId: string
     by: string
     reason?: string
     paused?: boolean
+    boardPost?: BoardPostRequestV1
     hard?: boolean
     clientMessageId?: string
     requestId?: string
@@ -958,13 +961,23 @@ async function routeControlRequest(
         raw.action === 'background-shell' ||
         raw.action === 'pause-gate' ||
         raw.action === 'leave' ||
-        raw.action === 'send-now'
+        raw.action === 'send-now' ||
+        raw.action === 'board-post'
           ? raw.action
           : undefined
       const sessionId = String(raw.sessionId ?? '')
       const by = String(raw.by ?? '')
       if (action === undefined || !sessionId || !by) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent|withdraw-send|background-shell|pause-gate|leave|send-now, sessionId, by }' })
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent|withdraw-send|background-shell|pause-gate|leave|send-now|board-post, sessionId, by }' })
+      }
+      let boardPost: BoardPostRequestV1 | undefined
+      if (action === 'board-post') {
+        const p = raw.boardPost && typeof raw.boardPost === 'object' && !Array.isArray(raw.boardPost) ? (raw.boardPost as Record<string, unknown>) : undefined
+        const channel = p?.channel === 'general' || p?.channel === 'team' || p?.channel === 'whisper' ? p.channel : undefined
+        if (channel === undefined || typeof p?.clientOpId !== 'string' || p.clientOpId.length === 0 || p.clientOpId.length > 160 || typeof p.text !== 'string' || p.text.length === 0 || (p.target !== undefined && typeof p.target !== 'string')) {
+          return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'board-post requires { boardPost: { clientOpId, channel, target?, text } }' })
+        }
+        boardPost = { clientOpId: p.clientOpId, channel, ...(typeof p.target === 'string' ? { target: p.target.slice(0, 200) } : {}), text: p.text }
       }
       let spawnSwitch: { kind: 'subagents' | 'workflows'; on: boolean } | undefined
       if (raw.spawnSwitch !== undefined) {
@@ -1083,6 +1096,7 @@ async function routeControlRequest(
         ...(typeof raw.mintedAtMs === 'number' && Number.isFinite(raw.mintedAtMs) ? { mintedAtMs: raw.mintedAtMs } : {}),
         ...(typeof raw.clientMessageId === 'string' && raw.clientMessageId ? { clientMessageId: raw.clientMessageId.slice(0, 128) } : {}),
         ...(typeof raw.paused === 'boolean' ? { paused: raw.paused } : {}),
+        ...(boardPost !== undefined ? { boardPost } : {}),
       })
       return answer(sock, { ok: true, op: requestedOp === 'concourseControl' ? 'concourseControl' : 'sessionControl', ...pickDefined(r, CONTROL_WIRE_KEYS) })
     }

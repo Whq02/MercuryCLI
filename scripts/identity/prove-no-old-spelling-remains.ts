@@ -55,8 +55,10 @@ const XAI_BILLING_SURFACES = new Set([
   'src/substrate/flagRegistry.ts',
 ])
 const XAI_BILLING_WORDS = /\bpersonal-team-blocked:spending-limit\b|team(?:_id|Id|-fixture|-cycle)|\/teams\/|\/team\/default\/management-keys|\bteam (?:usage|balance|permissions|meter|credits|record|spend|lookup|billing)|team[’']s prepaid credits|prepaid-only teams|identifies the team|optional management key for the (?:API )?team\b(?:[’']s)?|xAI's team|These are team/i
-const boardLabelSurface = (rel: string): boolean => rel.startsWith('src/services/crewBoard/') || /^scripts\/crew\/prove-swarm-/.test(rel) || ['docs/CREW.md', 'src/commands/swarmchat/index.ts', 'src/commands/swarmchat/swarmchat.ts', 'src/types/message.ts', 'src/components/messages/CrewChatRow.tsx', 'src/tools/AgentTool/AgentTool.tsx', 'src/tools/AgentTool/runAgent.ts', 'src/tools/AgentTool/prompt.ts', 'scripts/providers/prove-gemini-plan-shape.ts', 'scripts/builtin-tools/fixtures/tool-census.json', 'scripts/tool-economy/fixtures/definition-corpus.json', 'scripts/prompt/prove-briefing-replay.ts'].includes(rel)
+const boardLabelSurface = (rel: string): boolean => rel.startsWith('src/services/crewBoard/') || /^scripts\/crew\/prove-swarm-/.test(rel) || ['docs/CREW.md', 'src/commands/swarmchat/index.ts', 'src/commands/swarmchat/swarmchat.ts', 'src/types/message.ts', 'src/components/messages/CrewChatRow.tsx', 'src/tools/AgentTool/AgentTool.tsx', 'src/tools/AgentTool/runAgent.ts', 'src/tools/AgentTool/prompt.ts', 'scripts/providers/prove-gemini-plan-shape.ts', 'scripts/builtin-tools/fixtures/tool-census.json', 'scripts/tool-economy/fixtures/definition-corpus.json', 'scripts/prompt/prove-briefing-replay.ts', 'src/commands.ts', 'src/commands/team/index.ts', 'src/utils/crew/channelCommand.ts', 'src/utils/suggestions/commandSuggestions.ts', 'scripts/command-catalogue/prove-swarm-channel-completion.ts'].includes(rel)
 const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
+  [/src\/commands\/team\/\*\*/g, 'The owner channel command path in its drive watch.', rel => rel === 'scripts/crew-drives/run-all.sh'],
+  [/\bteamCandidates\b/g, 'The channel-completion proof names its label candidates.', rel => rel === 'scripts/command-catalogue/prove-swarm-channel-completion.ts'],
   [/\/team(?![\w/-])/g, 'The owner channel command in the README roster, not a crew identity.', rel => rel === 'README.md'],
   [/\b(?:teams?|assignTeam|setTeam|teamOf|validTeam|canonicalTeam|teamAssigned|peerTeam|swarm_team)\b/gi, 'Board delivery labels and their fields; the retired teammate and ownership-system spellings remain forbidden.', boardLabelSurface],
   [XAI_BILLING_WORDS, "xAI's billing account and documented wire fields, not a Mercury crew", rel => XAI_BILLING_SURFACES.has(rel)],
@@ -106,9 +108,11 @@ check('typed chat rows carry only board-label spellings',
   ['src/types/message.ts', 'src/components/messages/CrewChatRow.tsx'].every(rel =>
     !OLD.test(crewRemainder(rel, 'team')) && OLD.test(crewRemainder(rel, 'team teammate TeamCreate'))) &&
     OLD.test(crewRemainder('src/components/messages/OtherRow.tsx', 'team')))
-check('chat filter labels do not excuse retired identities',
-  ['src/commands/swarmchat/index.ts', 'src/commands/swarmchat/swarmchat.ts'].every(rel =>
+check('channel command and completion labels do not excuse retired identities',
+  ['src/commands.ts', 'src/commands/team/index.ts', 'src/commands/swarmchat/index.ts', 'src/commands/swarmchat/swarmchat.ts', 'src/utils/crew/channelCommand.ts', 'src/utils/suggestions/commandSuggestions.ts', 'scripts/command-catalogue/prove-swarm-channel-completion.ts'].every(rel =>
     !OLD.test(crewRemainder(rel, 'team')) && OLD.test(crewRemainder(rel, 'team teammate TeamCreate'))) &&
+    !OLD.test(crewRemainder('scripts/crew-drives/run-all.sh', 'src/commands/team/**')) &&
+    OLD.test(crewRemainder('scripts/crew-drives/run-all.sh', 'src/commands/team/** team')) &&
     OLD.test(crewRemainder('src/commands/other/index.ts', 'team')))
 check('the xAI billing vocabulary is excused only on its named surfaces',
   !OLD.test(crewRemainder('src/services/providers/xai/xaiUsageState.ts', 'team_id teamId /teams/ team usage')) &&

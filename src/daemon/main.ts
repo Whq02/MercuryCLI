@@ -71,6 +71,7 @@ import {
   backgroundSessionShell,
   sendSessionNow,
   pauseSessionGate,
+  postSessionBoard,
   leaveSession,
 } from './sessionSeat.js'
 import { resetSeatProjections } from '../services/engine-connector/seatProjections.js'
@@ -647,7 +648,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           return rewindSession(req.sessionId, { mode: req.mode, userMessageId: req.userMessageId, ...(req.dryRun === true ? { dryRun: true } : {}) }, roster)
         },
-        concourseControl: async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, words, effort, mode, contract, kitEdit, mcpAction, mcpServer, scheduleEdit, spawnSwitch, terminalApplication, clientOpId, mintedAtMs, title, titleSource, agentId, note, clientMessageId, paused }) => {
+        concourseControl: async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, words, effort, mode, contract, kitEdit, mcpAction, mcpServer, scheduleEdit, spawnSwitch, terminalApplication, clientOpId, mintedAtMs, title, titleSource, agentId, note, clientMessageId, paused, boardPost }) => {
           void reason
           if (clientOpId !== undefined) {
             const prior = readConcourseControlOps()[clientOpId]
@@ -825,6 +826,11 @@ async function daemonRun(args: string[]): Promise<void> {
           if (action === 'send-now') {
             if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
             return sendSessionNow(sessionId, roster)
+          }
+          if (action === 'board-post') {
+            if (boardPost === undefined) return { outcome: 'refused' as const, detail: 'board-post requires { boardPost: { clientOpId, channel, target?, text } }' }
+            if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
+            return postSessionBoard(sessionId, boardPost, roster)
           }
           if (action === 'pause-gate') {
             if (typeof paused !== 'boolean') return { outcome: 'refused' as const, detail: 'pause-gate requires paused' }

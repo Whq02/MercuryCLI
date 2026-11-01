@@ -3,6 +3,7 @@ import { getEngineModel } from '../../utils/model/model.js'
 import { getCwd } from '../../utils/cwd.js'
 import type {
   AgentControlReceiptV1,
+  BoardPostReceiptV1,
   WithdrawReceiptV1,
   AskReceiptV1,
   CheckpointFactsV1,
@@ -127,6 +128,9 @@ export class NoSessionConnector implements EngineConnectorV1 {
   }
   async pauseGate(): Promise<AgentControlReceiptV1> {
     return { outcome: 'refused', detail: NO_CHAT_OPEN }
+  }
+  async postBoard(): Promise<BoardPostReceiptV1> {
+    return { ok: false, reason: NO_CHAT_OPEN }
   }
   async leave(): Promise<LeaveReceiptV1> {
     return { note: 'skipped', detail: NO_CHAT_OPEN }

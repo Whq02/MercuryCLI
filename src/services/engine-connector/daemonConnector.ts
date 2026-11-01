@@ -75,6 +75,8 @@ import type {
   AgentControlReceiptV1,
   AskAnswerV1,
   AskReceiptV1,
+  BoardPostReceiptV1,
+  BoardPostRequestV1,
   CheckpointFactsV1,
   EditOutcomeRowV1,
   EngineConnectorV1,
@@ -2146,6 +2148,20 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       return { outcome: 'refused', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
     } catch (e) {
       return { outcome: 'refused', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
+    }
+  }
+
+  async postBoard(post: BoardPostRequestV1): Promise<BoardPostReceiptV1> {
+    try {
+      const reply = await this.chainRpc({ op: 'sessionControl', action: 'board-post', sessionId: this.record.sessionId, by: 'operator', clientOpId: post.clientOpId, boardPost: post })
+      if (reply.ok !== true) return { ok: false, reason: String(reply.error ?? 'the daemon refused the post') }
+      const detail = typeof reply.detail === 'string' ? reply.detail : ''
+      if (!detail.startsWith('{')) return { ok: false, reason: detail || `unexpected outcome ${String(reply.outcome)}` }
+      const answer = JSON.parse(detail) as { ok: true; event_id: string; seq: number; replay: boolean; address: string; recipients: string[] } | { ok: false; reason: string; candidates?: string[] }
+      if (!answer.ok) return answer
+      return { ok: true, eventId: answer.event_id, seq: answer.seq, replay: answer.replay, address: answer.address, recipients: answer.recipients }
+    } catch (e) {
+      return { ok: false, reason: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
     }
   }
 

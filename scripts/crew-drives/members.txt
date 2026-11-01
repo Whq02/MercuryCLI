@@ -7,3 +7,4 @@
 prove-swarm-chat.ts
 prove-swarm-mention-row.ts
 prove-swarm-party-rows.ts
+prove-swarm-owner-verbs.ts

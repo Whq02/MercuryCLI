@@ -47,6 +47,7 @@ const DOORS = [
   'sendNow',
   'queuedSendCount',
   'pauseGate',
+  'postBoard',
   'leave',
   'setKit',
   'checkpointFacts',
