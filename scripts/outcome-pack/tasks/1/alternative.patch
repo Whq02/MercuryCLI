@@ -1,0 +1,12 @@
+diff --git a/labels.mjs b/labels.mjs
+--- a/labels.mjs
++++ b/labels.mjs
+@@ -1,3 +1,7 @@
+ export function parseLabels(input) {
+-  return input.split(",");
++  return input.split(",").reduce((labels, part) => {
++    const label = part.trim().normalize("NFC");
++    if (label !== "" && !labels.includes(label)) labels.push(label);
++    return labels;
++  }, []);
+ }
