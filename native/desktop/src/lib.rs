@@ -14,6 +14,9 @@ mod png;
 mod ocr_mac;
 #[cfg(windows)]
 mod ocr_win;
+#[cfg(any(windows, test))]
+#[cfg_attr(not(windows), allow(dead_code))]
+mod ocr_worker;
 
 #[cfg(target_os = "macos")]
 mod mac;

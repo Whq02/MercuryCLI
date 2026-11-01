@@ -1,29 +1,40 @@
+use std::sync::Mutex;
+
 use windows::Data::Pdf::PdfDocument;
 use windows::Graphics::Imaging::{BitmapDecoder, BitmapPixelFormat, BitmapAlphaMode, SoftwareBitmap};
 use windows::Media::Ocr::OcrEngine;
 use windows::Storage::Streams::{DataWriter, InMemoryRandomAccessStream};
-use windows::Win32::System::WinRT::{RoInitialize, RoUninitialize, RO_INIT_MULTITHREADED};
+use windows::Win32::System::WinRT::{RoInitialize, RO_INIT_MULTITHREADED};
+
+use crate::ocr_worker::Worker;
+
+static WORKER: Mutex<Option<Worker>> = Mutex::new(None);
+
+fn worker() -> Result<Worker, String> {
+    let mut slot = WORKER.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some(worker) = slot.as_ref() { return Ok(worker.clone()); }
+    let started = Worker::start("mercury-ocr", || unsafe { RoInitialize(RO_INIT_MULTITHREADED) }.map_err(|e| e.to_string()))
+        .map_err(|reason| format!("Windows OCR is unavailable: {reason}"))?;
+    *slot = Some(started.clone());
+    Ok(started)
+}
 
 pub fn languages() -> Result<Vec<String>, String> {
-    std::thread::spawn(|| {
-        unsafe { RoInitialize(RO_INIT_MULTITHREADED) }.map_err(|e| e.to_string())?;
-        let result = (|| -> windows::core::Result<Vec<String>> {
-            let installed = OcrEngine::AvailableRecognizerLanguages()?;
-            let mut result = Vec::new();
-            for i in 0..installed.Size()? { result.push(installed.GetAt(i)?.LanguageTag()?.to_string()); }
-            Ok(result)
-        })();
-        unsafe { RoUninitialize() };
-        result.map_err(|e| e.to_string())
-    }).join().map_err(|_| "Windows OCR language lookup failed".to_string())?
+    worker()?.run(|| {
+        let installed = OcrEngine::AvailableRecognizerLanguages().map_err(|e| e.to_string())?;
+        let mut result = Vec::new();
+        for i in 0..installed.Size().map_err(|e| e.to_string())? {
+            result.push(installed.GetAt(i).and_then(|language| language.LanguageTag()).map_err(|e| e.to_string())?.to_string());
+        }
+        Ok(result)
+    })
 }
 
 pub fn recognise(bytes: &[u8], page: Option<u32>) -> Result<String, String> {
-    unsafe { RoInitialize(RO_INIT_MULTITHREADED) }.map_err(|e| e.to_string())?;
-    let result = recognise_inner(bytes, page).map_err(|e| e.to_string());
-    unsafe { RoUninitialize() };
-    result
+    let bytes = bytes.to_vec();
+    worker()?.run(move || recognise_inner(&bytes, page).map_err(|e| e.to_string()))
 }
+
 fn recognise_inner(bytes: &[u8], page: Option<u32>) -> windows::core::Result<String> {
     let input = InMemoryRandomAccessStream::new()?;
     let writer = DataWriter::CreateDataWriter(&input)?;
