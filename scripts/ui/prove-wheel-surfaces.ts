@@ -145,6 +145,18 @@ try {
   check('/config: the wheel selects the same row as one arrow', shot(m) === configExpected, m.screen())
   popup.closeSettingsPopup()
 
+  const { Usage } = await import('../../src/components/Settings/Usage.js')
+  m = await open(h(Usage, { width: 120, rowBudget: 20 }))
+  const usageBefore = shot(m)
+  m.push(DOWN)
+  await settle(100)
+  check('/usage (roomy): one arrow pages the bands', shot(m) !== usageBefore, m.screen())
+  m = await open(h(Usage, { width: 120, rowBudget: 20 }))
+  const usageAtRest = shot(m)
+  m.push(WHEEL_DOWN)
+  await settle(100)
+  check('/usage (roomy): a wheel notch leaves the bands where they are', shot(m) === usageAtRest, m.screen())
+
   const scroll = React.createRef<ScrollBoxHandle>()
   const background = React.createRef<ScrollBoxHandle>()
   let composerEdits = 0
