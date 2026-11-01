@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import type { PathEntryIo, PathEntryOutcome, UserPathRead } from '../../src/services/privateChannel/installPath.js'
 import type { LayoutRoots } from '../../src/services/privateChannel/installLayout.js'
 import { removeScratch } from '../lib/removeScratch.ts'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
@@ -505,7 +506,7 @@ if (IS_WIN) {
     writeFileSync(join(payload, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
     const launcher = join(payload, 'mercury')
 
-    const nodeBin = spawnSync('sh', ['-c', 'command -v node'], { encoding: 'utf8' }).stdout.trim()
+    const nodeBin = nodeBinPath()
     const nodeDir = join(scratch, 'nodebin')
     mkdirSync(nodeDir)
     symlinkSync(nodeBin, join(nodeDir, 'node'))

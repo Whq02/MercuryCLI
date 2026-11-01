@@ -738,6 +738,13 @@
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
+      "file": "scripts/gate/prove-node-resolver.ts",
+      "mechanism": "execSync-string",
+      "excerpt": "check('execSync(which node)', spelled(\"execSync('which node').toString()\").length === 1)",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
       "file": "scripts/gate/prove-proof-exit-marks.ts",
       "mechanism": "shell-dash-c",
       "excerpt": "const result = spawnSync('bash', ['-c', '. \"$1\"; run_proof \"scripts/example/prove-silent.ts\" bash -c \"exit $2\"', 'test', helper, String(code",
@@ -3107,13 +3114,6 @@
       "file": "scripts/updater/prove-install-path.ts",
       "mechanism": "shell-dash-c",
       "excerpt": "? spawnSync('zsh', ['-c', `${guard}\\n${guard}\\nprintf '%s' \"$PATH\"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin', MERCUR",
-      "cls": "intentional-shell",
-      "why": "script-land shell program — the shell is named explicitly at the call"
-    },
-    {
-      "file": "scripts/updater/prove-install-path.ts",
-      "mechanism": "shell-dash-c",
-      "excerpt": "const nodeBin = spawnSync('sh', ['-c', 'command -v node'], { encoding: 'utf8' }).stdout.trim()",
       "cls": "intentional-shell",
       "why": "script-land shell program — the shell is named explicitly at the call"
     },

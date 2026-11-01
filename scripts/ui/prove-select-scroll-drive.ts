@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -12,16 +12,6 @@ const { keyHintLabel } = await import(`${ROOT}/src/components/mercury-ui/keyHint
 const BACK_HINTS = (['macos', 'linux'] as const).map(p => keyHintLabel('⇧← back', p))
 
 requireDist()
-if (!process.env.NODE_BIN) {
-  const bunWhich = (globalThis as { Bun?: { which?: (b: string) => string | null } }).Bun?.which?.('node') ?? null
-  const shellWhich = spawnSync('which', ['node'], { encoding: 'utf8', env: process.env }).stdout?.trim() || null
-  const found = [bunWhich, shellWhich, '/opt/homebrew/bin/node', '/usr/local/bin/node', '/usr/bin/node'].filter((c): c is string => !!c).find(c => existsSync(c))
-  if (!found) {
-    console.error('no node found — set NODE_BIN')
-    process.exit(2)
-  }
-  process.env.NODE_BIN = found
-}
 
 const COLS = 120
 const ROWS = 40

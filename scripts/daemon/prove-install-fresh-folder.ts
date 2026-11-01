@@ -5,6 +5,7 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, readlinkSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const DIST = join(REPO, 'dist', 'mercury.mjs')
@@ -18,7 +19,7 @@ if (process.platform === 'win32') {
   console.log('prove-install-fresh-folder: the deploy script is a POSIX road — not staged on win32')
   process.exit(0)
 }
-const NODE = existsSync(PACK_NODE) ? PACK_NODE : (spawnSync('which', ['node'], { encoding: 'utf8' }).stdout ?? '').trim()
+const NODE = existsSync(PACK_NODE) ? PACK_NODE : nodeBinPath()
 const KEEP = process.env.FRESH_FOLDER_KEEP === '1'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

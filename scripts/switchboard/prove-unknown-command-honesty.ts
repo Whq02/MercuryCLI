@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'unknown-cmd-pure-home-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -79,7 +80,7 @@ const sends = [
 ]
 const WALL_S = driveWallSeconds(sends)
 const drive = join(home, 'drive.jsonl')
-const nodeBin = spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
+const nodeBin = nodeBinPath()
 const child = spawn(
   '/usr/bin/python3',
   [join(REPO, 'scripts', 'streaming', 'ptydrive.py'), '--cols', '110', '--rows', '32', '--seconds', String(WALL_S), '--out', drive, ...sends.flatMap(s => ['--send', s]), '--', nodeBin, DIST],

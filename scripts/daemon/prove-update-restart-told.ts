@@ -21,6 +21,7 @@ import {
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { processGone, silentSeatReport } from '../lib/seatForensics.ts'
+import { nodeBinPath, requireLiveDaemon } from '../lib/nodeBin.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const DIST = process.env.MERCURY_PROOF_DIST ?? join(REPO, 'dist', 'mercury.mjs')
@@ -28,11 +29,7 @@ if (!existsSync(DIST)) {
   console.error('dist/mercury.mjs missing — run `bun run build.ts` first')
   process.exit(1)
 }
-const NODE = (spawnSync('which', ['node'], { encoding: 'utf8' }).stdout ?? '').trim()
-if (NODE === '') {
-  console.error('no node on PATH')
-  process.exit(1)
-}
+const NODE = nodeBinPath()
 const PACK_NODE = join(dirname(DIST), 'vendor', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')
 const STANDALONE = existsSync(PACK_NODE)
 const KEEP = process.env.UPDATE_RESTART_KEEP === '1'
@@ -483,7 +480,7 @@ const cleanup = async (): Promise<void> => {
 
 try {
   section('§1 a session is born on build X and arms a persistent Monitor and a background shell')
-  check('daemon A came up on build X', await untilAsync(async () => (await hello())?.pid === Apid, 45_000), read(logA).slice(-600))
+  check('daemon A came up on build X', (await requireLiveDaemon(A, { what: 'update-restart-told: daemon A', timeoutMs: 45_000, log: logA })) === Apid)
   const s1 = await dispatch('urt-1', ARM_PROMPT)
   const sid = s1.sessionId ?? ''
   check('session was born on daemon A', s1.ok === true && sid !== '', JSON.stringify(s1))
@@ -873,7 +870,7 @@ try {
   const logD = join(SCRATCH, 'daemon-D.log')
   const D = spawnDaemon(logD)
   const Dpid = D.pid ?? 0
-  check('daemon D came up on build W', await untilAsync(async () => (await hello())?.pid === Dpid, 45_000), read(logD).slice(-600))
+  check('daemon D came up on build W', (await requireLiveDaemon(D, { what: 'update-restart-told: daemon D', timeoutMs: 45_000, log: logD })) === Dpid)
   await untilAsync(() => recOf(sid)?.crash !== undefined, 15_000)
   const deadRec = recOf(sid)
   check(

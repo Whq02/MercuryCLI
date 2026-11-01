@@ -6,6 +6,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { nodeBinPath, requireLiveDaemon } from '../lib/nodeBin.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const DIST = join(REPO, 'dist', 'mercury.mjs')
@@ -13,11 +14,7 @@ if (!existsSync(DIST)) {
   console.error('dist/mercury.mjs missing — run `bun run build.ts` first')
   process.exit(1)
 }
-const NODE = (spawnSync('which', ['node'], { encoding: 'utf8' }).stdout ?? '').trim()
-if (NODE === '') {
-  console.error('no node on PATH')
-  process.exit(1)
-}
+const NODE = nodeBinPath()
 const PACK_NODE = join(REPO, 'dist', 'vendor', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')
 const STANDALONE = existsSync(PACK_NODE)
 const KEEP = process.env.ONE_DAEMON_KEEP === '1'
@@ -242,7 +239,7 @@ const cleanup = async (): Promise<void> => {
 
 try {
   section('§1 the daemon of build X hosts a session')
-  check('daemon A came up on build X through the runtime pointer', await untilAsync(async () => (await hello())?.pid === Apid, 60_000), read(logA).slice(-600))
+  check('daemon A came up on build X through the runtime pointer', (await requireLiveDaemon(A, { what: 'one-daemon-per-build: daemon A', timeoutMs: 60_000, log: logA })) === Apid)
   check('A says its build is X', (await hello())?.buildTree?.slice(0, 12) === TREE_X.slice(0, 12), JSON.stringify(await hello()))
   const s1 = await dispatch('probe-1', 'build-probe-one: answer once')
   const sid1 = s1.sessionId ?? ''

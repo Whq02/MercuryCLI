@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 // gate-watch: src/services/api/errors.ts src/services/providers/callModelRouter.ts src/services/providers/catalogueAdmission.ts src/services/providers/credentialWall.ts src/services/providers/anthropic/anthropicCatalogue.ts
-import { spawn, spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -14,7 +15,7 @@ if (!existsSync(DIST)) {
   console.error('dist/mercury.mjs missing — run `bun run build.ts` first')
   process.exit(2)
 }
-const NODE = process.env.NODE_BIN ?? spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
+const NODE = nodeBinPath()
 const BAD_MODEL = 'claude-banana-9'
 const OFFERED = ['claude-opus-4-8', 'claude-sonnet-4-8', 'claude-haiku-4-5']
 const EMAIL = 'record@example.com'

@@ -4,6 +4,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
+import { nodeBinPath, requireLiveDaemon } from '../lib/nodeBin.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const DIST = join(REPO, 'dist', 'mercury.mjs')
@@ -11,7 +12,7 @@ if (!existsSync(DIST)) {
   console.error('✗ dist/mercury.mjs missing — run `bun run build.ts` first')
   process.exit(1)
 }
-const NODE = (spawnSync('which', ['node'], { encoding: 'utf8' }).stdout ?? '').trim()
+const NODE = nodeBinPath()
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'bash-line-background-')))
 const home = join(SCRATCH, 'home')
 const daemonDir = join(SCRATCH, 'daemon')
@@ -103,7 +104,6 @@ const log = join(SCRATCH, 'daemon.log')
 const daemon = spawn(NODE, [DIST, 'daemon', 'run', work], { cwd: work, env, stdio: ['ignore', openSync(log, 'a'), openSync(log, 'a')] })
 
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
 const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
@@ -121,14 +121,6 @@ const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
 type WorkRow = { id: string; kind: string; name: string; status: string; command?: string; toolUseId?: string; foreground?: true; description?: string; outputFile?: string }
 type Facts = { busy?: boolean; work?: WorkRow[] }
 
-const hello = async (): Promise<number | null> => {
-  try {
-    const r = (await daemonControlRpc({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: '1.0.0', clientBuildTree: null } as never, { timeoutMs: 2000, protoRetry: false })) as { ok?: boolean; pid?: number }
-    return r.ok ? (r.pid ?? null) : null
-  } catch {
-    return null
-  }
-}
 const facts = (sid: string): Facts | undefined => {
   try {
     return JSON.parse(readFileSync(join(daemonDir, 'session-facts', `${sid}.json`), 'utf8')) as Facts
@@ -167,12 +159,13 @@ try {
   check('the output row words: a background task id outranks the exit words; a plain exit reads as before', exitWordsOf(null, null, 'b7') === 'moved to the background as task b7 — see /runs' && exitWordsOf('0', '12', null) === 'exit 0 · 12ms' && exitWordsOf(null, null, null) === null, String(exitWordsOf(null, null, 'b7')))
 
   section('§1 a hosted chat runs a `!` line: the chat is in flight, the roster names the shell as the foreground one, and the key stands armed')
-  check('the daemon serves', await untilAsync(async () => (await hello()) === daemon.pid, 60_000))
+  check('the daemon serves', (await requireLiveDaemon(daemon, { what: 'bash-line-background', timeoutMs: 60_000, log })) === daemon.pid)
   const born = (await daemonControlRpc({ op: 'sessionAdmit', workspaceDir: work, isolation: 'shared', model: 'claude-sonnet-5', permissionMode: 'sovereign', by: 'operator', bornBlank: true } as never, { timeoutMs: 60_000 })) as { ok: boolean; sessionId?: string; runnerId?: string }
   sid = born.sessionId ?? ''
   check('a blank chat is born', born.ok && sid !== '', JSON.stringify(born))
   const rec = recOf(sid)
   runnerPid = rec?.pid ?? 0
+  if (!(runnerPid > 0)) throw new Error(`bash-line-background: the admission gave no runner pid (${JSON.stringify(born)}); nothing below runs against pid 0`)
   const connector = await seat.focusDaemonSession({
     sessionId: sid,
     runnerId: rec?.runnerId ?? born.runnerId ?? 'concourse-w1',

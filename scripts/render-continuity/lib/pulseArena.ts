@@ -1,5 +1,5 @@
 
-import { spawn, spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { vshotBudgetMs } from '../../lib/captureDriver.ts'
 import {
   existsSync,
@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../../lib/fixtureApi.ts'
+import { nodeBinPath } from '../../lib/nodeBin.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(HERE, '..', '..', '..')
@@ -95,10 +96,6 @@ function requireDist(): void {
     console.error('dist/mercury.mjs missing — run `bun run build.ts` first')
     process.exit(2)
   }
-}
-
-function nodeBinPath(): string {
-  return process.env.NODE_BIN ?? spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
 }
 
 function seedFiles(base: string, files: Record<string, string>): void {

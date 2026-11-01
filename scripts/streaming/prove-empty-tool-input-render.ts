@@ -17,6 +17,7 @@ import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { projectSlug } from '../../src/utils/sessionStoragePortable.ts'
 import { driverOutcome } from './artifactArena.ts'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(HERE, '..', '..')
@@ -71,7 +72,7 @@ const rows = [
 writeFileSync(join(projectDir, `${SID}.jsonl`), encodeSeedTranscript(rows, SID))
 
 const drive = join(home, 'drive.jsonl')
-const nodeBin = process.env.NODE_BIN ?? spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
+const nodeBin = nodeBinPath()
 const driveStartedAt = Date.now()
 const driven = spawnSync(
   '/usr/bin/python3',

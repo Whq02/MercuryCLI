@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { handoffTurn, startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const proofHome = mkdtempSync(join(tmpdir(), 'docs-automation-home-'))
@@ -16,7 +17,7 @@ const { hostRunner } = await import('../lib/runnerHost.ts')
 const dist = join(ROOT, 'dist', 'mercury.mjs')
 const docPath = join(ROOT, 'docs', 'AUTOMATION.md')
 const indexPath = join(ROOT, 'docs', 'README.md')
-const nodeBin = Bun.which('node') ?? process.execPath
+const nodeBin = nodeBinPath()
 const pythonBin = Bun.which('python3') ?? 'python3'
 
 let failures = 0

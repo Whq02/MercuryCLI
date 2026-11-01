@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 import { referenceFixtureSnapshot } from '../notifications/concourseReferenceSeed.ts'
 import { synthesizeToneWav } from '../../src/services/voice/wav.ts'
 import { NO_BACKEND_RECEIPT } from '../../src/services/voice/capture.ts'
@@ -45,11 +46,7 @@ const EMPTY_PACK = join(scratch, 'no-pack')
 mkdirSync(EMPTY_PACK, { recursive: true })
 
 function nodeDir(): string {
-  for (const dir of (process.env.PATH ?? '').split(delimiter)) {
-    if (dir !== '' && existsSync(join(dir, 'node'))) return dir
-  }
-  const which = spawnSync('which', ['node'], { encoding: 'utf8' })
-  return dirname((which.stdout ?? '').trim() || '/usr/local/bin/node')
+  return dirname(nodeBinPath())
 }
 
 function nodeOnlyDir(): string {

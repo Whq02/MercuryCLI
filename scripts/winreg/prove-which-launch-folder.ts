@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, join, resolve } from 'node:path'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -15,11 +16,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const windows = process.platform === 'win32'
-const node = process.env.MERCURY_NODE || Bun.which('node')
-if (!node) {
-  console.log('  [FAIL] no node on PATH to run the lookup outside Bun.which')
-  process.exit(1)
-}
+const node = nodeBinPath()
 
 const root = mkdtempSync(join(tmpdir(), 'mercury-which-'))
 const launch = join(root, 'launch')
@@ -51,7 +48,7 @@ function lookupFrom(pathValue: string): Record<string, string | null> {
   const env: Record<string, string | undefined> = {}
   for (const [key, value] of Object.entries(process.env)) if (key.toUpperCase() !== 'PATH') env[key] = value
   env.PATH = pathValue
-  const run = spawnSync(node as string, [probe, resolve(import.meta.dir, '../../src/utils/which.ts')], { cwd: launch, env, encoding: 'utf8' })
+  const run = spawnSync(node, [probe, resolve(import.meta.dir, '../../src/utils/which.ts')], { cwd: launch, env, encoding: 'utf8' })
   try {
     return JSON.parse(run.stdout.trim())
   } catch {

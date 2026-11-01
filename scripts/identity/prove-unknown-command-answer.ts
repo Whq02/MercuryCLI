@@ -2,12 +2,13 @@
 // gate-watch: src/commands.ts src/commands/effectiveCatalogue.ts src/components/HelpV2/commandDomains.ts src/utils/processUserInput/processSlashCommand.tsx src/constants/querySource.ts README.md
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { execFileSync, spawnSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import ts from 'typescript'
 import { relativeSlashed } from '../lib/platformPath.ts'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'unknown-command-home-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -98,7 +99,7 @@ check('/keysetup is the terminal-key action', commands.findCommand('keysetup', r
 const dist = join(REPO, 'dist/mercury.mjs')
 check('the built bundle stands for the headless door (bun run build.ts first)', existsSync(dist), dist)
 if (existsSync(dist)) {
-  const NODE = execFileSync('/bin/sh', ['-c', 'command -v node'], { encoding: 'utf8' }).trim()
+  const NODE = nodeBinPath()
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'unknown-command-door-')))
   const cwd = join(root, 'cwd')
   mkdirSync(cwd, { recursive: true })

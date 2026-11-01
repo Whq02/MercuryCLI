@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -136,7 +137,7 @@ const sends = [
 const TYPED_LAST = sends.length - 1
 const WALL_S = driveWallSeconds(sends, { tailMs: 700 })
 const drive = join(home, 'drive.jsonl')
-const nodeBin = spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
+const nodeBin = nodeBinPath()
 const child = spawn(
   driver.python,
   [join(REPO, 'scripts', 'streaming', 'ptydrive.py'), '--cols', '120', '--rows', '40', '--seconds', String(WALL_S), '--out', drive, ...sends.flatMap(s => ['--send', s]), '--', nodeBin, DIST],

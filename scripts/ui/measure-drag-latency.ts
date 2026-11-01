@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 process.chdir(join(import.meta.dir, '..', '..'))
 
@@ -12,17 +13,8 @@ const { runCompassArena, requireDist, pct, firstOutAfter, grabScreens } = await 
 const { TAIL_SENTINEL } = await import(`${ROOT}/scripts/navigation/fixture1k.ts`)
 
 requireDist()
-if (!process.env.NODE_BIN) {
-  const bunWhich = (globalThis as { Bun?: { which?: (bin: string) => string | null } }).Bun?.which?.('node') ?? null
-  const shellWhich = spawnSync('which', ['node'], { encoding: 'utf8', env: process.env }).stdout?.trim() || null
-  const found = [bunWhich, shellWhich, '/opt/homebrew/bin/node', '/usr/local/bin/node', '/usr/bin/node'].filter((c): c is string => !!c).find(c => existsSync(c))
-  if (!found) {
-    console.error('no node found — set NODE_BIN')
-    process.exit(2)
-  }
-  process.env.NODE_BIN = found
-}
-process.stderr.write(`[drag-arena] node: ${process.env.NODE_BIN} (${dirname(process.env.NODE_BIN)})\n`)
+const node = nodeBinPath()
+process.stderr.write(`[drag-arena] node: ${node} (${dirname(node)})\n`)
 
 const COLS = 120
 const ROWS = 40

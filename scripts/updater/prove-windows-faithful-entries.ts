@@ -8,6 +8,7 @@ import type { LayoutRoots } from '../../src/services/privateChannel/installLayou
 import { TEARDOWN_SUITE } from '../../src/ink/root/teardown.ts'
 import { slashed } from '../lib/platformPath.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 const { reconcileManagedShims, resolveLayoutRoots, SHIM_MARKER_FAMILY, shimContent, uninstallLayout, writeShimSet } = layout
 const optional = layout as unknown as { powershellEntryContent?: () => string; WIN32_POWERSHELL_ENTRY?: string }
@@ -103,7 +104,7 @@ section('(5) the facade decides for real: a fixture layout with a cmd launcher t
   chmodSync(join(vdir, 'mercury.cmd'), 0o755)
   writeFileSync(join(vdir, 'mercury.mjs'), 'process.stdout.write("NODE-ROAD " + JSON.stringify(process.argv.slice(2)) + "\\n"); process.exit(Number(process.env.FX_EXIT ?? 0))\n')
   mkdirSync(join(vdir, 'vendor', 'node'), { recursive: true })
-  const realNode = spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
+  const realNode = nodeBinPath()
   writeFileSync(join(vdir, 'vendor', 'node', 'node.exe'), `#!/bin/sh\nexec "${realNode}" "$@"\n`)
   chmodSync(join(vdir, 'vendor', 'node', 'node.exe'), 0o755)
   const facadePath = join(fx, 'mercury')

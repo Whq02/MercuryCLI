@@ -3,6 +3,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statS
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
@@ -44,14 +45,6 @@ if (row?.vendored === true) {
   check('absent ⇒ the remedy names bun install and the JavaScript road', typeof row?.remedy === 'string' && /bun install/.test(row.remedy) && /JavaScript/.test(row.remedy))
 }
 
-function stockNode(): string | null {
-  const pinned = process.env.MERCURY_NODE
-  if (pinned && existsSync(pinned)) return pinned
-  const found = spawnSync(process.platform === 'win32' ? 'where' : 'which', ['node'], { encoding: 'utf8' })
-  const first = (found.stdout ?? '').split(/\r?\n/).map(l => l.trim()).find(Boolean)
-  return first && existsSync(first) ? first : null
-}
-
 function healthRow(node: string, bundle: string, home: string): { status?: string; evidence?: string; detail?: string } | null {
   const env: Record<string, string> = {
     HOME: home,
@@ -88,10 +81,8 @@ function healthRow(node: string, bundle: string, home: string): { status?: strin
   return null
 }
 
-const node = stockNode()
-if (node === null) {
-  check('a stock node is available for the isolated artifact', false, 'no node on PATH and no MERCURY_NODE')
-} else {
+const node = nodeBinPath()
+{
   const iso = mkdtempSync(join(tmpdir(), 'mercury-image-pack-iso-'))
   const payload = join(iso, 'mercury')
   cpSync(join(DIST, 'mercury.mjs'), join(payload, 'mercury.mjs'))

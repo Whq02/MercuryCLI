@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
-import { execFileSync, spawn } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 const args = process.argv.slice(2)
 const distAt = args.indexOf('--dist')
@@ -11,7 +12,7 @@ if (!existsSync(dist)) {
   console.error(`FAIL bundle exists: ${dist}`)
   process.exit(1)
 }
-const NODE = execFileSync('/bin/sh', ['-c', 'command -v node'], { encoding: 'utf8' }).trim()
+const NODE = nodeBinPath()
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'editor-door-')))
 const cwd = join(root, 'cwd')
 mkdirSync(cwd, { recursive: true })

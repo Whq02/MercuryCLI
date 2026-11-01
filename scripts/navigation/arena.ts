@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { COMPASS_SID, buildCompass1k } from './fixture1k.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 import { entryToRecord } from '../../src/fabric/entryCodec.ts'
 import { ordinalOf } from '../../src/fabric/ordinal.ts'
 import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
@@ -58,10 +59,6 @@ export function requireDist(): void {
     console.error('dist/mercury.mjs missing — run `bun run build.ts` first')
     process.exit(2)
   }
-}
-
-function nodeBinPath(): string {
-  return process.env.NODE_BIN ?? spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
 }
 
 function encodeTranscript(lines: Record<string, unknown>[], sessionId: string): string {

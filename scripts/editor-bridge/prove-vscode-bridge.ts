@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto'
 import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -16,7 +17,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const NODE = execFileSync('/bin/sh', ['-c', 'command -v node'], { encoding: 'utf8' }).trim()
+const NODE = nodeBinPath()
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-vsix-'))
 process.on('exit', () => {
   try {

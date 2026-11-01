@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -10,11 +11,7 @@ if (!existsSync(DIST)) {
   console.log('__SUITE_SKIPPED restart-starts-installed-daemon: dist/mercury.mjs absent — build first')
   process.exit(0)
 }
-const NODE = (spawnSync('which', ['node'], { encoding: 'utf8' }).stdout ?? '').trim()
-if (NODE === '') {
-  console.error('no node on PATH')
-  process.exit(1)
-}
+const NODE = nodeBinPath()
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'restart-installed-')))
 const home = join(SCRATCH, 'home')

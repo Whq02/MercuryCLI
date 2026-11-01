@@ -14,6 +14,9 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { nodeBinPath } from '../lib/nodeBin.ts'
+
+export { nodeBinPath }
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(HERE, '..', '..')
@@ -130,10 +133,6 @@ export function requireDist(): void {
     console.error('dist/mercury.mjs missing — run `bun run build.ts` first')
     process.exit(2)
   }
-}
-
-export function nodeBinPath(): string {
-  return process.env.NODE_BIN ?? spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
 }
 
 export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {

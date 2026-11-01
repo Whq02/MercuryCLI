@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -44,7 +45,7 @@ const api = await startFixtureApi([
   { kind: 'text', text: 'Spare.', whenModel: 'opus' },
 ])
 const drive = join(home, 'drive.jsonl')
-const nodeBin = spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
+const nodeBin = nodeBinPath()
 
 const sends = [
   'after:↑↓ choose:1500:\r',

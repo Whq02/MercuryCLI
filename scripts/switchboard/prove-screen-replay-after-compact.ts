@@ -8,11 +8,12 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { removeScratch } from '../lib/removeScratch.ts'
+import { nodeBinPath, requireLiveDaemon } from '../lib/nodeBin.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SRC = join(REPO, 'src')
 const DIST = process.env.MERCURY_PROOF_DIST ?? join(REPO, 'dist', 'mercury.mjs')
-const NODE = (spawnSync('which', ['node'], { encoding: 'utf8' }).stdout ?? '').trim()
+const NODE = nodeBinPath()
 const KEEP = process.env.SCREEN_REPLAY_KEEP === '1'
 
 let failures = 0
@@ -698,7 +699,7 @@ const WORDS = ['the first words of the session', 'the second words', 'the third 
 
 try {
   section('§B folds 46ag and 46ao: measured shrinkable turns let the runner compact twice while the screen reads through its real connector')
-  check('daemon A came up', await untilAsync(async () => (await hello())?.pid === Apid, 45_000), read(logA).slice(-600))
+  check('daemon A came up', (await requireLiveDaemon(A, { what: 'screen-replay-after-compact: daemon A', timeoutMs: 45_000, log: logA })) === Apid)
   const born = await dispatch(WORDS[0]!)
   const sid = born.sessionId ?? ''
   check('the session was born on the daemon by the operator', born.ok === true && sid !== '', j(born))
@@ -801,7 +802,7 @@ try {
   const logC = join(SCRATCH, 'daemon-C.log')
   const C = spawnDaemon(logC)
   const Cpid = C.pid ?? 0
-  check('daemon C came up', await untilAsync(async () => (await hello())?.pid === Cpid, 45_000), read(logC).slice(-600))
+  check('daemon C came up', (await requireLiveDaemon(C, { what: 'screen-replay-after-compact: daemon C', timeoutMs: 45_000, log: logC })) === Cpid)
   const resumed = await resumeAsTheScreenDoes(sid)
   check('the session resumed on daemon C', resumed === null, String(resumed))
   await say('the ninth words, after the daemon restart')

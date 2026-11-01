@@ -8,6 +8,7 @@ import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 import { controlSockPath } from '../../src/daemon/controlSocket.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -17,7 +18,7 @@ const argAfter = (flag: string): string | undefined => {
 }
 const DIST = argAfter('--dist') ?? join(REPO, 'dist', 'mercury.mjs')
 const VENDORED_NODE = join(dirname(DIST), 'vendor', 'node', 'bin', 'node')
-const NODE = existsSync(VENDORED_NODE) ? VENDORED_NODE : spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
+const NODE = existsSync(VENDORED_NODE) ? VENDORED_NODE : nodeBinPath()
 const SCENE = argAfter('--scene') ?? 'lose-after-write'
 const COLS = Number(argAfter('--cols') ?? 120)
 const ROWS = Number(argAfter('--rows') ?? 40)
