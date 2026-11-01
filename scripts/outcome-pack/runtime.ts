@@ -65,7 +65,7 @@ export async function drive(ctx: Context, script: Script): Promise<void> {
     const turn = await runScriptedTurn({ cwd: ctx.cwd, runHome: ctx.runHome, base: fixture.base, ask: 'Apply the requested change and run its ordinary check.', extraArgv: ['--sovereign'], timeoutMs: 60000 })
     ctx.facts.exitCode = turn.exitCode
     ctx.facts.settled = turn.exitCode === 0 && turn.result?.status === 'completed'
-    ctx.facts.runId = String(turn.result?.run_id ?? turn.result?.id ?? '')
+    ctx.facts.runId = String(turn.result?.turn_id ?? '')
     ctx.facts.sessionId = String(turn.result?.session_id ?? '')
     event(ctx.facts, 'run-end', { exitCode: turn.exitCode, status: turn.result?.status })
   } finally {
