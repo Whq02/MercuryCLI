@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { appendFileSync, copyFileSync, mkdirSync, readFileSync, watch, writeFileSync } from 'node:fs'
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { Database } from 'bun:sqlite'
@@ -124,23 +124,27 @@ try {
     const tee = join(captures, `${tag}.tee.bin`)
     writeFileSync(tee, '')
     let appended = false
-    const observer = leg === 'tail' ? watch(tee, () => {
-      if (appended || !readFileSync(tee).includes(Buffer.from('open thread'))) return
+    const chatOpen = (): boolean => /open\s*thread/.test(readFileSync(tee, 'latin1').replace(/\x1b\[[0-9;?]*[A-Za-z]/g, ''))
+    const observer = leg === 'tail' ? setInterval(() => {
+      if (appended || !chatOpen()) return
       appended = true
       const writer = open(path, SID)
       const seat = { author: { sessionId: SID, agentId: 'tail', executionId: 'run' }, name: 'Tail', team: 'view' }
       writer.enroll(seat)
       assert(writer.post(seat, { clientOpId: 'tail', kind: 'result', text: arrival }).ok)
       writer.close()
-    }) : undefined
+    }, 100) : undefined
     let stderr = ''
     const status = await new Promise<number | null>((resolve, reject) => {
       const child = spawn(driver.kind === 'posix-pty' ? driver.python : 'python3', [join(import.meta.dir, '../ui/vshot.py'), configPath], { env: { ...process.env, VSHOT_TEE: tee }, timeout: vshotBudgetMs(120000), stdio: ['ignore', 'ignore', 'pipe'] })
       child.stderr.on('data', chunk => { stderr += chunk.toString() })
       child.on('error', reject)
       child.on('exit', resolve)
-    }).finally(() => observer?.close())
-    assert(leg !== 'tail' || appended, 'The live-tail fixture never observed an open chat')
+    }).finally(() => { if (observer !== undefined) clearInterval(observer) })
+    if (leg === 'tail' && !appended) {
+      const ended = existsSync(gridPath) ? String((JSON.parse(readFileSync(gridPath, 'utf8')) as { endReason?: string }).endReason) : 'no grid written'
+      assert.fail(`The live-tail fixture never observed an open chat: vshot status ${status}, end ${ended}, ${readFileSync(tee).length} tee bytes, chat open in the tee at the end: ${chatOpen()}; ${stderr.slice(-400)}`)
+    }
     assert.equal(status, 0, stderr)
     const grid = JSON.parse(readFileSync(gridPath, 'utf8'))
     const text = grid.grid.map((line: { c: string }[]) => line.map(cell => cell.c || ' ').join('')).join('\n')
