@@ -330,6 +330,20 @@ export const METHODS = {
     scope: 'session',
     deadlineMs: 10_000,
   }),
+  'session/board_post': method({
+    name: 'session/board_post',
+    from: 'host',
+    kind: 'request',
+    params: lazySchema(() => z.object({ client_op_id: z.string().min(1).max(160), channel: z.enum(['general', 'team', 'whisper']), target: z.string().optional(), text: z.string().min(1) })),
+    result: lazySchema(() =>
+      z.union([
+        z.object({ ok: z.literal(true), event_id: z.string(), seq: z.number().int(), replay: z.boolean(), address: z.string(), recipients: z.array(z.string()) }),
+        z.object({ ok: z.literal(false), reason: z.string(), candidates: z.array(z.string()).optional() }),
+      ]),
+    ),
+    scope: 'session',
+    deadlineMs: 10_000,
+  }),
   'session/quiesce': method({
     name: 'session/quiesce',
     from: 'host',
