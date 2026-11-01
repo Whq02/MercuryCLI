@@ -88,6 +88,8 @@ try {
   tally.check('/swarmchat toggles on', (await command('/swarmchat')) === 'Swarm chat on' && board.chat().on === true)
   await landed('Swarm launched')
   tally.check("the first enable introduces the wave's launch row once", painted().filter(row => row.text === 'Swarm launched').length === 1 && painted()[0]!.fields.name === 'main')
+  const lineOf = (needle: string): number => readFileSync(transcript, 'utf8').split('\n').findIndex(line => line.includes(needle))
+  tally.check('a typed /swarmchat is a local command, not a turn: its launch row carries no turn and lands after the command output', painted()[0]!.fields.turnId === undefined && lineOf('"content":"Swarm launched"') > lineOf('local-command-stdout>Swarm chat on'), `${JSON.stringify(painted()[0]!.fields.turnId)} · ${lineOf('"content":"Swarm launched"')} vs ${lineOf('local-command-stdout>Swarm chat on')}`)
   tally.check('/swarmchat toggles off', (await command('/swarmchat')) === 'Swarm chat off' && board.chat().on === false)
   const unknownLabel = await command('/swarmchat team lists')
   tally.check('an unknown team changes nothing and says so', unknownLabel === 'No team lists on the board.' && board.chat().on === false, unknownLabel)

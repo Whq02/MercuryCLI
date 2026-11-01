@@ -302,6 +302,12 @@ try {
   check('every row opens with its clock', ['ROW-ASK', 'ROW-ANSWER', 'ROW-BLOCKER', 'ROW-CORRECTION', 'ROW-LEAD', 'ROW-OWNER', 'ROW-LAST', '[solo] Done', 'Swarm launched'].every(marker => /^\d\d:\d\d:\d\d \[/.test(rowLine(rows, marker))), ['ROW-ASK', 'ROW-OWNER'].map(marker => rowLine(rows, marker)).join(' | '))
   const recorded = transcript === null ? [] : paintedRows(transcript)
   const clockOf = (marker: string): string | null => { const row = recorded.find(row => row.text.includes(marker)); if (!row) return null; const d = new Date(row.at); return Number.isNaN(d.getTime()) ? null : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}` }
+  const lines = transcript === null ? [] : readFileSync(transcript, 'utf8').split('\n')
+  const lineOf = (needle: string): number => lines.findIndex(line => line.includes(needle))
+  const launched = recorded.find(row => row.text === 'Swarm launched')
+  check('the launch row a typed /swarmchat introduces is an idle row: no turn anchors it', launched !== undefined && launched.fields.turnId === undefined, JSON.stringify(launched?.fields ?? null))
+  check("and it is recorded after the command's own output, never before its echo", lineOf('local-command-stdout>Swarm chat on') >= 0 && lineOf('"content":"Swarm launched"') > lineOf('local-command-stdout>Swarm chat on'), `${lineOf('"content":"Swarm launched"')} vs ${lineOf('local-command-stdout>Swarm chat on')}`)
+  check('the Joined rows that arrived while the lead was idle carry no turn either', recorded.filter(row => row.text === 'Joined').length === 3 && recorded.filter(row => row.text === 'Joined').every(row => row.fields.turnId === undefined), recorded.filter(row => row.text === 'Joined').map(row => String(row.fields.turnId)).join(','))
   check("the clock is the post's own time, not the paint time", ['ROW-ASK', 'ROW-LAST'].every(marker => { const clock = clockOf(marker); return clock !== null && rowLine(rows, marker).includes(clock) }), ['ROW-ASK', 'ROW-LAST'].map(marker => `${clockOf(marker)} vs ${rowLine(rows, marker).slice(0, 12)}`).join(' | '))
 
   section('§2 the palette: grey clock and body, team-coloured names, the lead in the first accent, the owner in the primary ink, a blocker body in the failure ink')

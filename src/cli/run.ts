@@ -81,7 +81,8 @@ import { exitCodeOf, OUTCOME_SENTENCES, type CompactionRow, type InputRow, type 
 import { isOutcome, turnOpened } from '../rows/read.js'
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
 import type { RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
-import { getCommands, clearCommandMemoizationCaches } from '../commands.js'
+import { clearCommandMemoizationCaches, findCommand, getCommands, isCommandEnabled } from '../commands.js'
+import { parseSlashCommand } from '../utils/slashCommandParsing.js'
 import {
   handleRewindFiles,
   handleRewindSession,
@@ -1221,6 +1222,16 @@ export async function runHeadless(
   }
   let turnReachedModel = false
   let turnAnchor: string | null = null
+  const localCommandInput = (command: QueuedCommand): boolean => {
+    if (command.mode === 'bash') return true
+    if (command.mode !== undefined && command.mode !== 'prompt') return false
+    const line = options.syntaxInput !== undefined && command.value === inputPrompt ? options.syntaxInput : command.value
+    const parsed = typeof line === 'string' ? parseSlashCommand(line) : null
+    if (parsed === null) return false
+    const found = findCommand(parsed.commandName, [...activeCommands, ...getAppState().mcp.commands])
+    if (found !== undefined) return found.type !== 'prompt' || !isCommandEnabled(found) || found.userInvocable === false
+    return /^[a-zA-Z0-9:_-]+$/.test(parsed.commandName) && !existsSync(`/${parsed.commandName}`)
+  }
   const executeTurn = async (
     command: QueuedCommand,
     batch: QueuedCommand[],
@@ -1240,7 +1251,10 @@ export async function runHeadless(
       command = spoken.length > 1 ? { ...spoken[0]!, value: foldNotificationValues(spoken.map(member => member.value)), uuid: spoken.findLast(member => member.uuid !== undefined)?.uuid ?? spoken[0]!.uuid } : spoken[0]!
     }
     turnReachedModel = true
-    turnAnchor = command.uuid ?? randomUUID()
+    const promptUuid = command.uuid ?? randomUUID()
+    const localCommand = localCommandInput(command)
+    turnAnchor = localCommand ? null : promptUuid
+    if (localCommand) party.blockOpen()
     const delivery = command.mode === 'task-notification' ? fitCompletionCommands(batch.length > 0 ? batch : [command], { messages, model: activeModel ?? getEngineModel() }) : []
     const promptValue = delivery.length > 1 ? foldNotificationValues(delivery.map(member => member.value)) : delivery[0]?.value ?? command.value
     const batchUuids = batch.map(member => member.uuid).filter((uuid): uuid is UUID => uuid !== undefined)
@@ -1319,7 +1333,7 @@ export async function runHeadless(
           commands: dedupedCommands,
           prompt: promptValue,
           ...(options.syntaxInput !== undefined && command.value === inputPrompt ? { syntaxInput: options.syntaxInput } : {}),
-          promptUuid: turnAnchor ?? undefined,
+          promptUuid,
           ...(batchUuids.length > 0 ? { batchUuids } : {}),
           ...(batchTail.length > 0 ? { batchTail } : {}),
           ...(initialNotices.length > 0 ? { initialNotices } : {}),
