@@ -147,7 +147,7 @@ section("§1 THE STAMP (red on the base): every road that queues a Saturn fire s
   const seatless = between(runner, 'const deliverLocalWake = (', 'driver.kick()')
   check('the seatless wake road spreads the one stamp (red on the base: a literal of its own)', seatless.includes('...saturnQueueStamp(next.origin)') && !seatless.includes("workload: 'cron'"), seatless.slice(seatless.indexOf('enqueue({'), seatless.indexOf('enqueue({') + 220))
   const stdinRoad = between(runner, 'const sentAt = typeof input.sentAt', 'driver.kick()')
-  const stdinEnqueue = stdinRoad.slice(stdinRoad.indexOf('enqueue({'))
+  const stdinEnqueue = stdinRoad.slice(stdinRoad.indexOf('const command: QueuedCommand = {'), stdinRoad.indexOf('enqueue(command)'))
   check("the stdin road's fire spreads the one stamp beside its words (red on the base: the origin rides alone, no workload — the fire bills as the session's default)", stdinEnqueue.includes('...saturnQueueStamp(input.origin)') && !stdinEnqueue.includes('{ origin: input.origin }'), stdinEnqueue)
   const carry = src('src/cli/headless/restartCarry.ts')
   const requeue = between(carry, 'export function requeueUndeliveredLines', 'return requeued')
