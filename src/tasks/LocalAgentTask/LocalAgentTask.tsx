@@ -1126,7 +1126,7 @@ export function enqueueAgentNotification(args: {
   const message = `${prefix}${resultSection}${usageSection}${worktreeSection}${lastCallsSection}${envelopeSection}
 </${TASK_NOTIFICATION_TAG}>`
 
-  const mirrored = mirrorSwarmNotice(args.taskId, message, summary)
+  const mirrored = mirrorSwarmNotice(args.taskId, message, summary, args.status === 'completed')
   if (mirrored && !mirrored.ok) logForDebugging(`crew board: ${mirrored.reason}`)
   enqueuePendingNotification({
     value: message,

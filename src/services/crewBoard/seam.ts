@@ -278,13 +278,13 @@ export function swarmPresented(agentId: string | undefined, messages: readonly M
   if (principal && (ids.length || packets.length)) swarmStore()?.presented(principal, ids, requestId, packets)
 }
 
-export function mirrorSwarmNotice(agentId: string, text: string, summary: string): BoardReceipt | null {
+export function mirrorSwarmNotice(agentId: string, text: string, summary: string, completed = false): BoardReceipt | null {
   if (!swarmRoad(agentId)) return null
   try {
     const principal = swarmPrincipal(agentId)
     if (!principal) return null
     const hash = createHash('sha256').update(text).digest('hex')
-    return swarmStore()?.post(principal, { clientOpId: `notice:${hash}`, kind: 'notice', text: summary, taskId: agentId, refs: [{ uri: `mercury://agent/${agentId}`, digest: hash }] }, 'mirror') ?? null
+    return swarmStore()?.post(principal, { clientOpId: `notice:${hash}`, kind: 'notice', text: summary, taskId: agentId, refs: [{ uri: `mercury://agent/${agentId}`, digest: hash }], ...(completed ? { lifecycle: { kind: 'done' as const } } : {}) }, 'mirror') ?? null
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : String(error) }
   } finally { closeIdleSwarm() }
