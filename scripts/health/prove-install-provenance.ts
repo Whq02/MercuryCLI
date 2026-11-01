@@ -24,6 +24,11 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'install-provenance-')))
+const CHECKOUT = join(SCRATCH, 'checkout')
+for (const directory of ['src', '.git', 'dist']) mkdirSync(join(CHECKOUT, directory), { recursive: true })
+writeFileSync(join(CHECKOUT, 'build.ts'), '')
+const DEV_ENTRY = join(CHECKOUT, 'dist', 'mercury.mjs')
+writeFileSync(DEV_ENTRY, '')
 
 function makeManaged(root: string, version: string, opts?: { manifest?: boolean; current?: string | null }): string {
   const vdir = join(root, 'versions', version)
@@ -94,7 +99,7 @@ section('§1 THE FIXTURE BATTERY (IP-15)')
     JSON.stringify(p5.managedCoResident),
   )
 
-  const pDev = gather(join(import.meta.dir, '../../dist/mercury.mjs'), join(SCRATCH, 'no-versions'))
+  const pDev = gather(DEV_ENTRY, join(SCRATCH, 'no-versions'))
   check('a confirmed checkout resolves DEVELOPMENT (IP-04)', pDev.kind === 'development', pDev.kind)
 
   const deployed = join(SCRATCH, 'deployed', 'runtime', 'builds', 'tree-bundle')
@@ -117,6 +122,10 @@ section('§1 THE FIXTURE BATTERY (IP-15)')
   const p7 = gather(join(bare, 'mercury.mjs'), join(SCRATCH, 'no-versions-2'))
   check("a bare bundle resolves UNKNOWN — never 'source-build' by default (IP-05)", p7.kind === 'unknown', p7.kind)
   check("the retired 'source-build' kind is unrepresentable", !['source-build'].includes(p7.kind))
+  const external = join(CHECKOUT, 'external')
+  symlinkSync(bare, external, 'junction')
+  const bound = gather(join(external, 'mercury.mjs'), join(SCRATCH, 'no-versions-bound'))
+  check('a checkout link to an external bare bundle keeps the target provenance', bound.kind === 'unknown' && bound.invokedPath === join(bare, 'mercury.mjs'), bound.kind)
 
   const p8 = gather(join(bare, 'mercury.mjs'), join(rCo, 'versions'))
   check(
@@ -193,7 +202,7 @@ section('§2 GUIDANCE (IP-07/08/09)')
     'managed guidance names mercury update / check / rollback — NEVER git pull (IP-07)',
     provenanceGuidance(managed).includes('mercury update') && !provenanceGuidance(managed).includes('git pull'),
   )
-  const dev = gather(join(import.meta.dir, '../../dist/mercury.mjs'), join(SCRATCH, 'no-versions-3'))
+  const dev = gather(DEV_ENTRY, join(SCRATCH, 'no-versions-3'))
   check('development ALONE gets the rebuild line (IP-08)', provenanceGuidance(dev).includes('git pull && bun run build.ts'))
   const bare2 = join(SCRATCH, 'bare2')
   mkdirSync(bare2, { recursive: true })
