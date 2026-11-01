@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { constants } from 'node:fs'
-import { copyFile, mkdir, readdir, readFile, realpath, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
+import { copyFile, cp, mkdir, readdir, readFile, realpath, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, resolve } from 'node:path'
 
 import chalk from 'chalk'
@@ -397,7 +397,20 @@ async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string,
     const target = join(worktreePath, ...segments)
     try {
       await mkdir(dirname(target), { recursive: true })
-      await symlink(join(sourceRoot, ...segments), target, 'dir')
+      const source = join(sourceRoot, ...segments)
+      try {
+        await symlink(source, target, 'dir')
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code
+        if (process.platform !== 'win32' || (code !== 'EPERM' && code !== 'EACCES')) throw error
+        await mkdir(target)
+        try {
+          await cp(source, target, { recursive: true, dereference: true, force: false, errorOnExist: true })
+        } catch (copyError) {
+          await rm(target, { recursive: true, force: true }).catch(() => {})
+          throw copyError
+        }
+      }
       linked.push(relPath)
     } catch (error) {
       const code = (error as { code?: string }).code
