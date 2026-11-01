@@ -10,7 +10,7 @@ import type { AgentWaitV1 } from '../../tasks/LocalAgentTask/agentWait.js'
 import type { AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
 import type { SpawnSwitchFacts, SpawnSwitchKind } from '../switchboard/spawnSwitches.js'
-import type { McpToolsV1, SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
+import type { BoardPostRequestV1, McpToolsV1, SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
 import type { JevStatusKind } from '../jev/jevContract.js'
 import type { ContextFillView } from '../../utils/contextFill.js'
 
@@ -68,6 +68,10 @@ export type AgentControlReceiptV1 = {
   outcome: 'applied' | 'refused'
   detail?: string
 }
+
+export type BoardPostReceiptV1 =
+  | { ok: true; eventId: string; seq: number; replay: boolean; address: string; recipients: string[] }
+  | { ok: false; reason: string; candidates?: string[] }
 
 export type LeaveReceiptV1 = {
   note: 'stored' | 'skipped' | 'none'
@@ -253,7 +257,7 @@ export type McpRosterV1 = {
   clients: readonly McpRosterEntryV1[]
 }
 
-export type { McpToolEntryV1, McpToolsV1 } from '../../daemon/protocol.js'
+export type { BoardPostRequestV1, McpToolEntryV1, McpToolsV1 } from '../../daemon/protocol.js'
 
 
 export type KitDialReceiptV1 = {
@@ -437,6 +441,7 @@ export interface EngineConnectorV1 {
   sendNow(): Promise<AgentControlReceiptV1>
   queuedSendCount(): number
   pauseGate(paused: boolean): Promise<AgentControlReceiptV1>
+  postBoard(post: BoardPostRequestV1): Promise<BoardPostReceiptV1>
   leave(opts?: { signal?: AbortSignal }): Promise<LeaveReceiptV1>
 
   modelFacts(): ModelFactsV1

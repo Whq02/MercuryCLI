@@ -2,7 +2,7 @@
 import type { ProcessSweepDaemonAnswer, ProcessSweepEntry } from './processSweep.js'
 import type { SessionKitEditV1, SessionKitV1 } from './sessionKit.js'
 
-export const MERCURY_DAEMON_PROTO = 18
+export const MERCURY_DAEMON_PROTO = 19
 
 export const MIN_PROTO = 1
 
@@ -30,7 +30,10 @@ export const DAEMON_VERB_BORN_AT: Readonly<Record<string, number>> = {
   'sessionControl/mcp-tools': 16,
   sessionFileRestore: 17,
   'sessionControl/send-now': 18,
+  'sessionControl/board-post': 19,
 }
+
+export type BoardPostRequestV1 = { clientOpId: string; channel: 'general' | 'team' | 'whisper'; target?: string; text: string }
 
 export function verbBornAt(op: string, action?: string): number {
   if (action !== undefined) {
@@ -257,10 +260,12 @@ export type DaemonRequest =
         | 'set-kit'
         | 'set-schedule'
         | 'send-now'
+        | 'board-post'
       sessionId: string
       by: string
       reason?: string
       paused?: boolean
+      boardPost?: BoardPostRequestV1
       hard?: boolean
       requestId?: string
       allow?: boolean

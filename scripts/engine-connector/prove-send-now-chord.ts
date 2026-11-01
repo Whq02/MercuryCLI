@@ -77,7 +77,7 @@ check('the connector counts a sent line as queued only while the runner\'s queue
 check('the connector\'s verb is the seat\'s send-now action on the verb chain', connector.includes("const reply = await this.chainRpc({ op: 'sessionControl', action: 'send-now', sessionId: this.record.sessionId, by: 'operator' })"))
 const noSession = read('src/services/engine-connector/noSessionConnector.ts')
 check('no chat open: the verb refuses with the one sentence and counts nothing', noSession.includes('async sendNow(): Promise<AgentControlReceiptV1> {\n    return { outcome: \'refused\', detail: NO_CHAT_OPEN }') && noSession.includes('queuedSendCount(): number {\n    return 0'))
-check('the daemon verb sessionControl/send-now is born at proto 18, the wire\'s current proto', DAEMON_VERB_BORN_AT['sessionControl/send-now'] === 18 && verbBornAt('sessionControl', 'send-now') === 18 && MERCURY_DAEMON_PROTO === 18)
+check('the daemon verb sessionControl/send-now is born at proto 18 and the wire is at least there', DAEMON_VERB_BORN_AT['sessionControl/send-now'] === 18 && verbBornAt('sessionControl', 'send-now') === 18 && MERCURY_DAEMON_PROTO >= 18)
 const server = read('src/daemon/controlServer.ts')
 check('the control server admits the action and names it in its refusal', server.includes("raw.action === 'send-now'") && /requires \{ action: [^']*\|send-now(\|[a-z-]+)*, sessionId, by \}/.test(server))
 const main = read('src/daemon/main.ts')
