@@ -793,12 +793,13 @@ try {
   section('§F the daemon restarts: the session is resumed by a new daemon; the screen shows every row once')
   const Bpid = (await hello())?.pid ?? 0
   const runnerPid = recOf(sid)?.pid ?? 0
-  for (const pid of [Bpid, runnerPid]) {
+  check('§F starts with a live daemon and runner to take down (a missing pid is a failure, never a signal to the process group)', Bpid > 0 && runnerPid > 0, j({ Bpid, runnerPid }))
+  for (const pid of [Bpid, runnerPid].filter(candidate => Number.isInteger(candidate) && candidate > 0)) {
     try {
       process.kill(pid, 'SIGKILL')
     } catch {}
   }
-  check('the daemon and the runner are gone', await untilAsync(() => !isProcessAlive(Bpid) && !isProcessAlive(runnerPid), 15_000))
+  check('the daemon and the runner are gone', Bpid > 0 && runnerPid > 0 && await untilAsync(() => !isProcessAlive(Bpid) && !isProcessAlive(runnerPid), 15_000))
   const logC = join(SCRATCH, 'daemon-C.log')
   const C = spawnDaemon(logC)
   const Cpid = C.pid ?? 0

@@ -256,7 +256,8 @@ console.log('[0] the sweep reaps only the children it owns')
   await new Promise(resolve => setTimeout(resolve, 300))
   check('the unrelated process named by the stale records is still running untouched', bystanderEnded === null && alive(bystander.pid ?? -1), String(bystanderEnded))
   try {
-    process.kill(-(bystander.pid ?? 0), 'SIGTERM')
+    if (bystander.pid === undefined || bystander.pid <= 0) throw new Error('the bystander has no pid of its own')
+    process.kill(-bystander.pid, 'SIGTERM')
   } catch {
     bystander.kill('SIGTERM')
   }
