@@ -133,6 +133,9 @@ await seam.latchSwarmAgent('beta', 'Beta', false, false, 'engine')
   const wall = createAssistantAPIErrorMessage({ content: 'Sign in to continue.', error: 'authentication_failed' })
   const spoken = createUserMessage({ content: 'fix the parser row' })
   check('a board notice behind the auth wall is never restored into the composer: a virtual row is not the operator\'s words', promptBehindAuthWall([notice, nudge, wall]) === null && promptBehindAuthWall([spoken, notice, nudge, wall])?.text === 'fix the parser row')
+  const echo = createUserMessage({ content: '<command-message>swarm on</command-message><command-name>/swarm on</command-name><command-args>on</command-args>' })
+  const stdout = createUserMessage({ content: '<local-command-stdout>Swarm on for new crewmates</local-command-stdout>' })
+  check('a finished local command is not a prompt behind the wall: neither its output nor its echo is restored', promptBehindAuthWall([spoken, echo, stdout, notice, nudge, wall]) === null && promptBehindAuthWall([echo, createUserMessage({ content: 'expanded skill prompt', isMeta: true }), wall])?.text === '/swarm on on')
 }
 
 console.log('§4 the typed verb reaches the board from the real screen')
