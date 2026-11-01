@@ -488,6 +488,7 @@ export async function loadConversationForResume(
         tag: log.tag,
         mode: log.mode,
         advisor: log.advisor,
+        swarm: log.swarm,
         model: log.model,
         worktreeSession: log.worktreeSession,
         prNumber: log.prNumber,

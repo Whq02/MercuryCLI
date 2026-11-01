@@ -14,6 +14,7 @@
 # gate-watch: src/tasks/LocalAgentTask/launchReceipts* src/tools/AgentTool/resumeAgent*
 # gate-watch: docs/SESSIONS.md scripts/daemon/dupline-world.ts scripts/lib/firstRunSeed.ts
 # gate-watch: scripts/lib/fixtureApi.ts scripts/lib/captureDriver.ts src/Task.ts src/bootstrap/state.ts src/cli/run.ts
+# gate-watch: scripts/lib/runnerHost.ts src/commands/swarmchat/** src/components/messages/CrewChatRow.tsx src/utils/sessionStorage/rowGraph.ts src/utils/conversationRecovery.ts src/fabric/entryCodec.ts
 # gate-watch: src/commands/exit/exit.tsx src/components/MercuryExitConfirm.tsx
 # gate-watch: src/components/PromptInput/Notifications.tsx src/components/mercury-ui/screens/CrewView.tsx
 # gate-watch: src/components/mercury-ui/screens/crewPauseDoor.ts src/run-core/pauseGate.ts src/run-core/turn-machine.ts

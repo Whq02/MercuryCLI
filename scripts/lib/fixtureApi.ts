@@ -57,6 +57,8 @@ type ScriptedTurnBody =
       preDeltas: string[]
       gapMs: number
       tools: { name: string; input: Record<string, unknown>; id?: string }[]
+      inputGapMs?: number
+      inputChunks?: number
     }
   | {
       kind: 'stream'
@@ -102,6 +104,7 @@ export interface FixtureApi {
   usageRequests: UsageRequestRecord[]
   pacedEmits: { turn: number; index: number; text: string; at: number }[]
   toolEmits: { turn: number; name: string; id: string; at: number }[]
+  toolInputEmits: { turn: number; id: string; chunk: number; at: number }[]
   streamEmits: {
     turn: number
     blockIndex: number
@@ -460,6 +463,7 @@ export async function startFixtureApi(
   let destroyedReplays = 0
   const pacedEmits: FixtureApi['pacedEmits'] = []
   const toolEmits: FixtureApi['toolEmits'] = []
+  const toolInputEmits: FixtureApi['toolInputEmits'] = []
   const streamEmits: FixtureApi['streamEmits'] = []
   let msgSeq = 0
   let clientAborted = false
@@ -761,13 +765,40 @@ export async function startFixtureApi(
           if (i >= turn.preDeltas.length) {
             clearInterval(tick)
             res.write(sseEvent('content_block_stop', { type: 'content_block_stop', index: 0 }))
+            if (turn.inputGapMs === undefined) {
+              turn.tools.forEach((tool, ti) => {
+                const id = tool.id ?? `toolu_fixture_${turnNo}_${ti}`
+                res.write(toolUseBlocks(id, tool.name, tool.input, ti + 1))
+                toolEmits.push({ turn: turnNo, name: tool.name, id, at: Date.now() })
+              })
+              res.end(messageEnd('tool_use'))
+              openResponses.delete(res)
+              return
+            }
+            const frames: { write: string; emit?: () => void }[] = []
             turn.tools.forEach((tool, ti) => {
               const id = tool.id ?? `toolu_fixture_${turnNo}_${ti}`
-              res.write(toolUseBlocks(id, tool.name, tool.input, ti + 1))
-              toolEmits.push({ turn: turnNo, name: tool.name, id, at: Date.now() })
+              const index = ti + 1
+              const json = JSON.stringify(tool.input)
+              const size = Math.ceil(json.length / Math.max(1, Math.min(turn.inputChunks ?? 4, json.length)))
+              frames.push({ write: sseEvent('content_block_start', { type: 'content_block_start', index, content_block: { type: 'tool_use', id, name: tool.name, input: {} } }) })
+              for (let chunk = 0; chunk * size < json.length; chunk++) {
+                frames.push({ write: sseEvent('content_block_delta', { type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: json.slice(chunk * size, (chunk + 1) * size) } }), emit: () => toolInputEmits.push({ turn: turnNo, id, chunk, at: Date.now() }) })
+              }
+              frames.push({ write: sseEvent('content_block_stop', { type: 'content_block_stop', index }), emit: () => toolEmits.push({ turn: turnNo, name: tool.name, id, at: Date.now() }) })
             })
-            res.end(messageEnd('tool_use'))
-            openResponses.delete(res)
+            const inputGapMs = turn.inputGapMs
+            frames.forEach((frame, fi) => {
+              setTimeout(() => {
+                if (res.destroyed || res.socket?.destroyed) return
+                res.write(frame.write)
+                frame.emit?.()
+                if (fi === frames.length - 1) {
+                  res.end(messageEnd('tool_use'))
+                  openResponses.delete(res)
+                }
+              }, inputGapMs * (fi + 1))
+            })
             return
           }
           const text = turn.preDeltas[i]!
@@ -982,6 +1013,7 @@ export async function startFixtureApi(
     usageRequests,
     pacedEmits,
     toolEmits,
+    toolInputEmits,
     streamEmits,
     messageRequests: () => requests.filter(r => r.path.includes('/v1/messages')),
     refusals,

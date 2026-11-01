@@ -6,13 +6,13 @@ import { formatClock } from '../../utils/messages/replyAddress.js'
 import { stripTerminalControls } from '../../utils/stringUtils.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 
-export function crewChatPlate(message: SystemCrewChatMessage): string {
+function crewChatPlate(message: SystemCrewChatMessage): string {
   return message.captain ? `captain ${message.name}` : message.name
 }
 
 export function CrewChatRow({ message }: { message: SystemCrewChatMessage }): React.ReactNode {
   const tokens = useMercuryTokens()
-  const name = message.authorRole === 'owner' ? tokens.warning : chatNameColor(message.team ?? message.name, tokens)
+  const name = message.authorRole === 'owner' ? tokens.textPrimary : chatNameColor(message.team ?? message.name, tokens)
   const body = message.kind === 'blocker' ? tokens.failureText : tokens.textSecondary
   return (
     <Text color={tokens.textSecondary} wrap="wrap">

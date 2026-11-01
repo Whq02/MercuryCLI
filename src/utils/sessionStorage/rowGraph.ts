@@ -298,15 +298,32 @@ class TranscriptRows {
     }
     const withNotes: TranscriptMessage[] = []
     for (const row of conversation) {
-      withNotes.push(row)
-      for (const note of this.ordered(this.children.get(row.uuid) ?? [])) {
-        if (note.type !== 'system' || seen.has(note.uuid) || note.subtype === 'compact_boundary' || note.subtype === 'microcompact_boundary') continue
-        seen.add(note.uuid)
-        withNotes.push(note)
-      }
-      withNotes.push(...this.hookRowsHangingOff(row.uuid, seen))
+      withNotes.push(row, ...this.notesUnder(row.uuid, seen))
     }
     return withNotes
+  }
+
+  private notesUnder(id: UUID, seen: Set<UUID>): TranscriptMessage[] {
+    const notes = this.systemNotesUnder(id, seen)
+    notes.push(...this.hookRowsHangingOff(id, seen))
+    const pending = [...this.ordered(this.children.get(id) ?? [])]
+    while (pending.length > 0) {
+      const row = pending.shift()!
+      if (row.type !== 'attachment') continue
+      notes.push(...this.systemNotesUnder(row.uuid, seen))
+      pending.push(...this.ordered(this.children.get(row.uuid) ?? []))
+    }
+    return notes
+  }
+
+  private systemNotesUnder(id: UUID, seen: Set<UUID>): TranscriptMessage[] {
+    const notes: TranscriptMessage[] = []
+    for (const note of this.ordered(this.children.get(id) ?? [])) {
+      if (note.type !== 'system' || seen.has(note.uuid) || note.subtype === 'compact_boundary' || note.subtype === 'microcompact_boundary') continue
+      seen.add(note.uuid)
+      notes.push(note, ...this.notesUnder(note.uuid, seen))
+    }
+    return notes
   }
 
   chain(leaf: TranscriptMessage): TranscriptMessage[] {
