@@ -26,11 +26,11 @@
                              │ │   OpenRouter — sign in                                                                         │ │
                              │ │ ▾ GEMINI · connect Gemini to browse its models — /logins connects                              │ │
                              │ │   Gemini — sign in                                                                             │ │
-                             │ │ ▾ HUGGING FACE · connect Hugging Face to browse its models — /logins connects (or HF_TOKEN) ·… │ │
+                             │ │ ▾ HUGGING FACE · connect Hugging Face to browse its models — /logins connects (or HF_TOKEN)    │ │
                              │ │   Hugging Face — sign in                                                                       │ │
                              │ │ ▾ Z.AI · no Z.AI API key — /logins zai (or ZAI_API_KEY)                                        │ │
                              │ │   Z.AI — attach a key                                                                          │ │
-                             │ │   ↓ 70 more                                                                                    │ │
+                             │ │   ↓ 69 more                                                                                    │ │
                              │ │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                                     │ │
                              │ │                                                                                                │ │
                              │ │ context —  · tier API billing                                                                  │ │

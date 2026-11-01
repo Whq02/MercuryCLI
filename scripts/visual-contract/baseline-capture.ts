@@ -8,7 +8,7 @@ import { argValue, parseJobs, vshotSlotsFor } from '../lib/captureJobs.ts'
 import { SETTLE_LAW, settleWallMs } from '../ui/visualBaseline.ts'
 
 const REPO = resolve(import.meta.dir, '../..')
-const OUT = argValue(process.argv, '--out') ?? join(import.meta.dir, 'baselines')
+const OUT = argValue(process.argv, '--out') ?? join(REPO, 'scripts/visual-contract/baselines')
 const SPLASH = join(REPO, 'assets/splash/mercury-splash.mjs')
 const DRIVER = resolveCaptureDriver()
 if (DRIVER.kind !== 'posix-pty') {

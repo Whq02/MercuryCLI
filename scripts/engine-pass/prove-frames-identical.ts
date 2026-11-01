@@ -87,7 +87,7 @@ for (const line of historicalLines) {
   assert.ok(/historical|BEFORE|poison control/.test(declaration), `no historical declaration: ${path}`)
   const source = readFileSync(join(ROOT, prover), 'utf8')
   assert.ok(source.includes(declaration) && source.includes(caller), `historical declaration moved: ${path}`)
-  const named = source.includes(path) || (path.startsWith('scripts/visual-contract/baselines/') && source.includes('scripts/visual-contract/baselines/'))
+  const named = source.includes(path) || (path.startsWith('scripts/visual-contract/baselines/') && source.includes('scripts/visual-contract/baselines'))
   assert.ok(named, `prover does not name historical frame: ${path}`)
   historical.add(path)
 }

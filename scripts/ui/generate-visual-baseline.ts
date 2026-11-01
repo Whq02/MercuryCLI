@@ -134,7 +134,7 @@ function needlesSeenAt(receipt: { sendReceipts?: Array<{ atTick: number }> }, se
 }
 
 function sceneNeedles(spec: CaptureSpec, cfg: { readyText?: string | string[] }): string[] {
-  const loadedFrame = spec.scenario === 'frame' && spec.cols >= HELM_HOME_MIN_COLS ? ['ready ·', '· ctx ≈'] : []
+  const loadedFrame = spec.scenario === 'frame' && spec.cols >= HELM_HOME_MIN_COLS ? ['ready ·', 'ctx ≈'] : []
   return settleNeedles(cfg, cockpitReadyText(spec.cols, HELM_HOME_MIN_COLS, HELM_BOTH_RAILS_MIN), [...(SCENE_SETTLE_NEEDLES[spec.scenario] ?? []), ...loadedFrame])
 }
 
