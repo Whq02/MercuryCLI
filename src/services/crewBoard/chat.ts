@@ -1,14 +1,14 @@
-import type { BoardModule, BoardViewSnapshot } from './contracts.js'
+import { boardSeatName, type BoardModule, type BoardViewSnapshot } from './contracts.js'
 import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
 
 type Traffic = NonNullable<Parameters<BoardModule['view']>[0]['traffic']>
-type ChatRow = { id: string; at: string; name: string; team?: string; kind: string; text: string; thread: string; parent?: string; reply: boolean; traffic: boolean }
+type ChatRow = { id: string; at: string; name: string; colorName: string; team?: string; kind: string; text: string; thread: string; parent?: string; reply: boolean; traffic: boolean }
 
 export function chatRows(snapshot: BoardViewSnapshot, traffic: Traffic = [], team?: string, thread?: string): ChatRow[] {
-  const board = snapshot.events.map(event => ({ id: event.eventId, at: event.createdAt, name: event.authorName ?? event.author.agentId, team: event.team, kind: snapshot.events.some(correction => correction.corrects === event.eventId) ? `${event.kind} → correction` : event.kind, text: event.text, thread: event.threadId, parent: event.corrects ?? event.replyTo, reply: event.replyTo !== undefined || event.corrects !== undefined, traffic: event.kind === 'message' || event.kind === 'notice' }))
+  const board = snapshot.events.map(event => ({ id: event.eventId, at: event.createdAt, name: boardSeatName({ name: event.authorName ?? event.author.agentId, captain: event.captain }), colorName: event.authorName ?? event.author.agentId, team: event.team, kind: snapshot.events.some(correction => correction.corrects === event.eventId) ? `${event.kind} → correction` : event.kind, text: event.text, thread: event.threadId, parent: event.corrects ?? event.replyTo, reply: event.replyTo !== undefined || event.corrects !== undefined, traffic: event.kind === 'message' || event.kind === 'notice' }))
   const mirrored = new Set(snapshot.events.map(event => event.clientOpId.replace(/^(message|resume):/, 'crew:')))
   const extra: ChatRow[] = traffic.filter(row => !mirrored.has(row.key) && !snapshot.events.some(event => (event.authorName === row.agent || event.author.agentId === row.agent) && event.text === row.text)).map(row => ({
-    id: row.key, at: row.at, name: row.dir === 'to' ? 'main' : row.agent,
+    id: row.key, at: row.at, name: row.dir === 'to' ? 'main' : row.agent, colorName: row.dir === 'to' ? 'main' : row.agent,
     team: snapshot.events.find(event => event.authorName === row.agent || event.author.agentId === row.agent)?.team,
     kind: row.via === 'launch' ? 'brief' : row.via === 'reply' ? 'notice' : 'message',
     text: row.text, thread: row.key, reply: false, traffic: true,

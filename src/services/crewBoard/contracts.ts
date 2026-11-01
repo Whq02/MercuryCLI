@@ -22,6 +22,9 @@ export type BoardPost = {
   files?: string[]
   refs?: BoardRef[]
 }
+export type BoardChannel = { kind: 'general' } | { kind: 'team' | 'whisper'; target: string }
+export type OwnerPostInput = { clientOpId: string; text: string; channel: 'general' | 'team' | 'whisper'; target?: string }
+export type OwnerPostReceipt = { ok: true; eventId: string; seq: number; replay: boolean; channel: BoardChannel; recipients: string[] } | { ok: false; reason: string; candidates?: string[] }
 export type BoardEvent = Omit<BoardPost, 'mentions' | 'to' | 'relatedTasks' | 'files' | 'refs'> & {
   schema: 1
   boardId: string
@@ -31,6 +34,11 @@ export type BoardEvent = Omit<BoardPost, 'mentions' | 'to' | 'relatedTasks' | 'f
   author: BoardAuthor
   authorName?: string
   team?: string
+  captain?: true
+  authorRole?: 'peer' | 'owner' | 'system'
+  channel?: BoardChannel
+  addresses?: string[]
+  recipients?: BoardSeat[]
   mentions: string[]
   unknownMentions?: string[]
   relatedTasks: string[]
@@ -44,7 +52,7 @@ export type BoardEvent = Omit<BoardPost, 'mentions' | 'to' | 'relatedTasks' | 'f
 export type BoardRead = { since?: number; snapshot?: number; thread?: string; task?: string; mentions?: string; team?: string; files?: string[]; limitTokens?: number; acknowledge?: string[]; watch?: boolean }
 export type BoardPacket = { events: (BoardEvent | { eventId: string; seq: number; text: string; truncated: true })[]; snapshot: number; cursor: number; omitted: number; tokens: number; skippedSeen: number; reread: string; packetId?: string; reason?: string }
 export type BoardReceipt = { ok: true; eventId: string; seq: number; replay: boolean; unknownMentions?: string[] } | { ok: false; reason: string; retryAfter?: number; cap?: 'thread-rounds' }
-export type BoardViewSnapshot = { on: boolean; events: BoardEvent[]; teams?: string[]; names?: string[]; duplicateMinutes?: string[]; snapshot: number; omitted: number; later?: number; admitted: number; appearances?: number; uncapped?: boolean; peerTurns: 0; record?: { path: string; sessionId: string }; error?: string }
+export type BoardViewSnapshot = { on: boolean; events: BoardEvent[]; seats?: BoardSeat[]; teams?: string[]; names?: string[]; duplicateMinutes?: string[]; snapshot: number; omitted: number; later?: number; admitted: number; appearances?: number; uncapped?: boolean; peerTurns: 0; record?: { path: string; sessionId: string }; error?: string }
 export type BoardPrincipal = { author: BoardAuthor; name: string; team?: string }
 export type BoardHost = {
   buildTool: typeof import('../../Tool.js').buildTool
@@ -52,18 +60,24 @@ export type BoardHost = {
   paused(agentId: string): boolean
   sessionOn(): boolean
 }
-export type BoardSeat = { agent: string; name: string; team?: string }
+export type BoardSeat = { agent: string; name: string; team?: string; captain?: true }
+export const boardSeatName = (seat: { name: string; captain?: boolean }): string => seat.captain ? `captain ${seat.name}` : seat.name
 export interface BoardStore {
   readonly limits: BoardLimits
   setLimits(next: BoardLimits): void
   readonly uncapped: boolean
   setUncapped(principal: BoardPrincipal, value: boolean): void
   settle(principal: BoardPrincipal): void
+  reserveEnrollment(principal: BoardPrincipal, seat: Omit<BoardSeat, 'captain'> & { captain?: boolean }): void
+  cancelEnrollment(principal: BoardPrincipal, agent: string): void
   enroll(principal: BoardPrincipal): void
   member(agentId: string): boolean
   seats(): BoardSeat[]
+  captain(team: string): BoardSeat | undefined
+  assignCaptain(principal: BoardPrincipal, team: string, seat: string): { ok: boolean; reason?: string; name?: string; team?: string }
   assignTeam(principal: BoardPrincipal, seat: string, team: string): { ok: boolean; reason?: string; name?: string; team?: string }
   post(principal: BoardPrincipal, post: BoardPost, delivery?: 'index' | 'body' | 'mirror'): BoardReceipt
+  postOwner(principal: BoardPrincipal, post: OwnerPostInput): OwnerPostReceipt
   read(principal: BoardPrincipal, input: BoardRead): BoardPacket
   leadMention(): BoardEvent | null
   leadPosts(since: number): BoardEvent[]
