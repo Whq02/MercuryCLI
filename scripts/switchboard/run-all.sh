@@ -9,7 +9,7 @@
 # gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs docs/CREW.md
 # gate-watch: assets/completions/_mercury assets/completions/mercury.bash assets/completions/mercury.fish
 # gate-watch: scripts/compact/overflowFixture.ts scripts/engine-durability/harness.ts scripts/lib/* scripts/daemon/dupline-world.ts
-# gate-watch: scripts/ops/launcher-mercury.sh
+# gate-watch: scripts/ops/launcher-mercury.sh scripts/crew/crew-world.ts src/daemon/main.ts
 # gate-watch: docs/ENGINES.md
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: scripts/lib/seatDoor.ts
