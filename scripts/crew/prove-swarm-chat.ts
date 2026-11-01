@@ -10,6 +10,8 @@ import { TERRA } from '../../src/components/mercuryPalette.ts'
 import { gridToPng } from '../ui/gridToPng.ts'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { readSessionWorkers } from '../../src/daemon/concourseWorkers.ts'
+import { boardSeatName, type BoardViewSnapshot } from '../../src/services/crewBoard/contracts.ts'
+import { displayWidth } from '../../src/components/mercury-ui/glyphs.ts'
 
 assert(process.env.MERCURY_CONFIG_DIR, 'run with a scratch MERCURY_CONFIG_DIR')
 const palette = resolveMercuryTokens('dark', TERRA)
@@ -20,6 +22,35 @@ for (const name of ['Alpha', 'Beta', 'swarm-parser']) {
   assert.notEqual(chatNameColor(name, palette), chatNameColor('main', palette))
 }
 assert.equal(new Set(['ask', 'answer', 'result', 'blocker', 'correction', 'notice'].map(kind => chatKindColor(kind, palette))).size, 6)
+{
+  const path = join(process.env.MERCURY_CONFIG_DIR, 'captain-name-width.sqlite')
+  let now = Date.parse('2026-10-01T09:00:00Z')
+  const board = open(path, 'captain-name-width', undefined, () => now += 15000)
+  const principal = (agentId: string, name: string, team?: string) => ({ author: { sessionId: 'captain-name-width', agentId, executionId: 'run' }, name, team })
+  const main = principal('main', 'main'), captain = principal('judge', 'lists-judge', 'lists'), member = principal('writer', 'lists-writer', 'lists')
+  const width = (snapshot: BoardViewSnapshot) => Math.max(2, ...[...(snapshot.names ?? []), ...chatRows(snapshot).map(row => row.name)].map(name => displayWidth(`[${name}]`)))
+  try {
+    for (const seat of [main, captain, member]) board.enroll(seat)
+    assert(board.post(captain, { clientOpId: 'before', kind: 'result', text: 'The list is ready.' }).ok)
+    const before = board.view()
+    assert(board.assignCaptain(main, 'lists', 'judge').ok)
+    assert.equal(width(board.view()), width(before), 'appointment alone never widens the Workbench name column')
+    const posted = board.post(captain, { clientOpId: 'after', kind: 'result', text: 'The reviewed list is ready.' })
+    assert(posted.ok)
+    const after = board.view()
+    assert.equal(after.events.find(event => event.eventId === posted.eventId)?.captain, true)
+    assert.equal(boardSeatName(board.captain('lists')!), 'captain lists-judge', 'roster and party labels keep the captain role')
+    assert(chatRows(after).filter(row => row.name.includes('lists-judge')).every(row => row.name === 'lists-judge'))
+    assert.equal(width(after), width(before), 'a captain post keeps the baseline name-column width')
+    const previous = board.view().events.find(event => event.clientOpId === 'before')!
+    assert.equal(width(board.view(previous.seq + 1)), width(before), 'earlier pages use the same plain-name inventory')
+    assert.equal(width(board.view(undefined, undefined, 'lists')), width(before), 'team channels use the same plain-name inventory')
+    const reader = open(path, 'captain-name-width', undefined, Date.now, true)
+    try { assert.equal(width(reader.view()), width(before), 'read-only reopening keeps the baseline name-column width') } finally { reader.close() }
+  } finally { board.close() }
+  console.log('PASS captain appointment leaves the Workbench name column at its baseline width')
+}
+if (process.argv.includes('--projection-only')) process.exit(0)
 const arg = (name: string) => { const index = process.argv.indexOf(name); return index < 0 ? undefined : process.argv[index + 1] }
 const fixture = arg('--fixture')
 const captures = arg('--captures') ?? join(process.env.MERCURY_CONFIG_DIR, 'captures')
