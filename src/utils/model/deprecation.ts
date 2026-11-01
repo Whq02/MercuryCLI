@@ -23,6 +23,26 @@ const DEPRECATION_TABLE: DeprecationEntry[] = [
     name: 'Claude 3.5 Haiku',
     date: 'February 19, 2026',
   },
+  {
+    match: 'claude-opus-4-20250514',
+    name: 'Claude Opus 4',
+    date: 'June 15, 2026',
+  },
+  {
+    match: 'claude-sonnet-4-20250514',
+    name: 'Claude Sonnet 4',
+    date: 'June 15, 2026',
+  },
+  {
+    match: 'claude-opus-4-1',
+    name: 'Claude Opus 4.1',
+    date: 'August 5, 2026',
+  },
+  {
+    match: 'claude-sonnet-4-5',
+    name: 'Claude Sonnet 4.5',
+    date: 'November 30, 2026',
+  },
 ]
 
 function findDeprecation(id: string): { entry: DeprecationEntry; date: string | null } | null {
