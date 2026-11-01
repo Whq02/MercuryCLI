@@ -3,7 +3,7 @@ import type { LocalCommandResult } from '../../types/command.js'
 import type { BoardPostReceiptV1, BoardPostRequestV1 } from '../../services/engine-connector/types.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 
-export type ChannelKind = BoardPostRequestV1['channel']
+type ChannelKind = BoardPostRequestV1['channel']
 
 export const CHANNEL_USAGE: Record<ChannelKind, string> = {
   general: '/general <text>',
@@ -23,11 +23,11 @@ export function parseChannelArgs(channel: ChannelKind, args: string): { target?:
   return { target, text }
 }
 
-export function channelRefusal(receipt: Extract<BoardPostReceiptV1, { ok: false }>): string {
+function channelRefusal(receipt: Extract<BoardPostReceiptV1, { ok: false }>): string {
   return receipt.candidates?.length ? `${receipt.reason} ${receipt.candidates.join(' · ')}` : receipt.reason
 }
 
-export async function postOwnerChannel(post: BoardPostRequestV1): Promise<BoardPostReceiptV1> {
+async function postOwnerChannel(post: BoardPostRequestV1): Promise<BoardPostReceiptV1> {
   if (hasFocusedSession()) return getFocusedSessionConnector().postBoard(post)
   const { swarmOwnerPost } = await import('../../services/crewBoard/seam.js')
   const receipt = swarmOwnerPost(post)
