@@ -10,6 +10,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed Crew chat in the Workbench to wrap each message to three lines in the timeline, with the full text in the thread.
 - Changed /crew to say why a parked crewmate is waiting: the post it waits for, or a worktree that is missing.
 - Changed housekeeping to keep Node's compile cache under 512 MiB and 8,192 files, retiring the oldest entries at start-up.
+- Changed the model retirement notice to know Anthropic's current dates: Claude Sonnet 4.5 retires on November 30, 2026, and Claude Opus 4.1, Sonnet 4 and Opus 4 are retired.
 - Fixed a crew-board notice or a finished command's output landing in the composer after a sign-in failure.
 - Fixed a resumed session forgetting its swarm switch; /swarm on survives a resume.
 - Fixed command messages after the last reply disappearing when a session is resumed or opened in another window.
