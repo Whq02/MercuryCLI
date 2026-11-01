@@ -78,6 +78,18 @@ check('the same rows fold the moment the turn closes', JSON.stringify(shape(clos
 const earlierOpen = inject(many, true)
 check('an open tail folds nothing of the earlier closed turns', receiptOf(earlierOpen, 'p1')?.counts.boardMessages === 3 && !earlierOpen.some(row => row.uuid === 'c1'))
 
+section('a wake turn after idle rows is its own turn')
+const woken = [prompt('go', 'p1'), toolUse('Bash', 'a1'), reply('done', 'a2', 1000), chat('c1', 1, 'alpha', 'idle one'), chat('c2', 2, 'beta', '@main idle two'), reply('Noted.', 'a3', 1013), chat('c3', 3, 'alpha', 'during the wake', 'n1'), chat('c4', 4, 'beta', 'after the wake')]
+const wake = inject(woken)
+check('the wake receipt sits under the reply, after the row it admitted and before the idle row that follows; the idle rows before the wake stay above the earlier receipt', JSON.stringify(shape(wake)) === JSON.stringify(['p1', 'a1', 'a2', 'receipt:p1', 'c1', 'c2', 'a3', 'receipt:a3', 'c4']), JSON.stringify(shape(wake)))
+check('the earlier turn keeps its own counts and the wake turn its own: 1 shell command · ctx +1.0k, then no tools · ctx +13 ∙ 1 board message', receiptOf(wake, 'p1')?.counts.commands === 1 && (wake.find(row => row.uuid === 'p1-turn-receipt') as { contextDelta?: number }).contextDelta === 1000 && receiptOf(wake, 'a3')?.counts.commands === 0 && receiptOf(wake, 'a3')?.counts.boardMessages === 1 && receiptOf(wake, 'a3')?.board?.[0]?.uuid === 'c3' && (wake.find(row => row.uuid === 'a3-turn-receipt') as { contextDelta?: number }).contextDelta === 13, JSON.stringify(wake.filter(row => row.type === 'turn_receipt')))
+const wakeWork = inject([prompt('go', 'p1'), reply('done', 'a1'), chat('c1', 1, 'alpha', 'idle'), chat('c2', 2, 'beta', 'first of the wake', 'n1'), reply('Noted.', 'a2')])
+check('a row admitted before the wake\'s first reply opens the wake turn and folds into its receipt, not the earlier one', JSON.stringify(shape(wakeWork)) === JSON.stringify(['p1', 'a1', 'receipt:p1', 'c1', 'a2', 'receipt:c2']) && receiptOf(wakeWork, 'c2')?.counts.boardMessages === 1 && receiptOf(wakeWork, 'p1')?.counts.boardMessages === 0, JSON.stringify(shape(wakeWork)))
+const waking = inject(woken.slice(0, 5), true)
+check('while the wake turn loads and nothing of it has landed, the closed turn stays folded', JSON.stringify(shape(waking)) === JSON.stringify(['p1', 'a1', 'a2', 'receipt:p1', 'c1', 'c2']), JSON.stringify(shape(waking)))
+const wakeOpen = inject(woken.slice(0, 7), true)
+check('while the wake turn runs, its admitted row stays on screen and its receipt counts none', wakeOpen.some(row => row.uuid === 'c3') && (receiptOf(wakeOpen, 'a3')?.counts.boardMessages ?? 0) === 0 && receiptOf(wakeOpen, 'p1')?.counts.boardMessages === 0, JSON.stringify(shape(wakeOpen)))
+
 section('MERCURY_TURN_RECEIPT=0 keeps every row in place')
 process.env.MERCURY_TURN_RECEIPT = '0'
 check('the injector returns its input untouched: admitted rows stay expanded in place', injectTurnReceipts(many as never, TEMP_ROOT) === (many as never))

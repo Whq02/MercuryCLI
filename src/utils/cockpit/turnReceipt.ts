@@ -286,6 +286,10 @@ export function isTurnBoundary(m: LooseMessage): boolean {
   )
 }
 
+function isTurnWork(m: LooseMessage): boolean {
+  return m.type === 'assistant' || m.type === 'grouped_tool_use' || chatRowOf(m)?.turnId !== undefined
+}
+
 function makeReceipt(counts: TurnReceiptCounts, anchorUuid: string, contextDelta: number | undefined, board: SystemCrewChatMessage[]): TurnReceiptMessage {
   const tools: Record<string, number> = {}
   for (const [name, n] of Object.entries(counts.tools ?? {}).sort((a, b) => a[0].localeCompare(b[0]))) if (n > 0) tools[name] = n
@@ -393,18 +397,19 @@ function walkTurnReceipts(
     return delta
   }
   const settle = (end: number, last: boolean): void => {
-    if (last && open) tally.admitted = []
+    if (last && open && firstIdle === undefined) tally.admitted = []
     const counts = settleTally(tally)
     visit(counts, anchorUuid, end, replied, settleDelta(), { board: boardRows([...tally.carried, ...tally.admitted]), close: firstIdle ?? end })
   }
   for (let index = 0; index < messages.length; index++) {
     const m = messages[index]!
-    if (isTurnBoundary(m) || (m.type === 'system' && m.subtype === 'away_summary')) {
+    const woken = firstIdle !== undefined && isTurnWork(m)
+    if (isTurnBoundary(m) || woken || (m.type === 'system' && m.subtype === 'away_summary')) {
       settle(index, false)
       tally = emptyTally()
       replied = false
       firstIdle = undefined
-      anchorUuid = m.type === 'user' && typeof m.uuid === 'string' ? m.uuid : 'turn-0'
+      anchorUuid = (m.type === 'user' || woken) && typeof m.uuid === 'string' ? m.uuid : 'turn-0'
     }
     if (m.type === 'system' && m.subtype === 'compact_boundary') {
       previousPrompt = m.compactMetadata?.postTokens
