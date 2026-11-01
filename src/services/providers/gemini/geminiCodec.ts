@@ -428,9 +428,26 @@ export interface GeminiPlanEnvelope {
   toolMode?: 'VALIDATED' | 'AUTO'
 }
 
+function planContent(content: GeminiContent): GeminiContent {
+  if (content.role !== 'user') return content
+  const last = content.parts.findLast(part => part.functionResponse !== undefined)
+  const texts = content.parts.flatMap(part => part.text === undefined ? [] : [part.text])
+  if (!last?.functionResponse || texts.length === 0) return content
+  const response = last.functionResponse.response
+  const output = response.output
+  const parts = content.parts.filter(part => part.text === undefined).map(part => part !== last ? part : {
+    ...part,
+    functionResponse: {
+      ...last.functionResponse!,
+      response: { ...response, output: [...(output === undefined ? [] : [typeof output === 'string' ? output : JSON.stringify(output)]), ...texts].join('\n\n') },
+    },
+  })
+  return { ...content, parts }
+}
+
 export function buildGeminiPlanRequest(request: GeminiRequest, model: string, envelope: GeminiPlanEnvelope): Record<string, unknown> {
   const inner: Record<string, unknown> = {
-    contents: request.contents,
+    contents: request.contents.map(planContent),
     ...(request.systemInstruction ? { systemInstruction: { role: 'user', parts: request.systemInstruction.parts } } : {}),
     ...(request.tools?.length
       ? {
