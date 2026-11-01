@@ -389,7 +389,7 @@ try {
           readyText = 'nterrupted'
           sends = [
             ...boot,
-            { data: '\x1b', afterPrevTicks: 8, mark: 'stopping' },
+            { data: '\x1b', afterPrevTicks: 20, mark: 'stopping' },
             { data: '', atTick: 999, awaitText: 'nterrupted', requireAwait: true, minTick: 2, awaitSettleTicks: 10, awaitStableTicks: 4, mark: 'stopped' },
           ]
         }
