@@ -1208,7 +1208,7 @@ export function Config({
       kind: 'boolean',
       value: <Text color={enabled ? tokens.success : tokens.textSecondary}>{enabled ? 'on · /swarm on enables a session' : 'off'}</Text>,
       warning: 'Share board messages with crewmates. /swarm on enables a session; /swarmchat shows its messages.',
-      setByYou: enabled,
+      setByYou: saved?.enabled !== undefined,
       change: () => {
         if (writeSource('userSettings', { swarm: { enabled: !enabled } })) {
           recordToggle('swarm', `Swarm ${enabled ? 'off' : 'on'}`)

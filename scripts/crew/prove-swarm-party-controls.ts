@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { basename, dirname, join } from 'node:path'
 import { DIST, NODE, closeWorld, findFiles, makeTally, makeWorld, record } from './crew-world.ts'
@@ -11,12 +11,16 @@ const { runSwarmchatCommand } = await import('../../src/commands/swarmchat/swarm
 const suiteHome = process.env.MERCURY_CONFIG_DIR
 assert(suiteHome, 'run with a scratch MERCURY_CONFIG_DIR')
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(suiteHome, 'controls-'))
+const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
 const tally = makeTally('swarm-party-controls')
 const USAGE = 'usage: /swarmchat [all|team \\<name\\>|main] — /swarmchat alone toggles board messages in the chat'
 
 tally.section('§0 the grammar refuses bad syntax before it looks at any switch')
 for (const raw of ['bogus', 'team', 'all extra', 'team lists extra', 'main now', 'ALL']) tally.check(`"/swarmchat ${raw}" answers the usage line`, runSwarmchatCommand(raw) === USAGE, runSwarmchatCommand(raw))
-tally.check('without the master Swarm setting every valid form names /config once', ['', 'all', 'main', 'team lists'].every(raw => runSwarmchatCommand(raw) === 'Swarm is off — enable swarm.enabled in your user settings.json (/config → Swarm).'), runSwarmchatCommand(''))
+updateSettingsForSource('userSettings', { swarm: { enabled: false } })
+tally.check('with the master Swarm setting false every valid form names /config once', ['', 'all', 'main', 'team lists'].every(raw => runSwarmchatCommand(raw) === 'Swarm is off — enable swarm.enabled in your user settings.json (/config → Swarm).'), runSwarmchatCommand(''))
+updateSettingsForSource('userSettings', { swarm: { enabled: undefined } })
+tally.check('with the setting absent the master is on, so every valid form names the session switch instead', ['', 'all', 'main', 'team lists'].every(raw => runSwarmchatCommand(raw) === 'Swarm is off for this session — /swarm on enables it.'), runSwarmchatCommand(''))
 
 tally.section('§0b a new board starts with the channel on; the launch row is introduced once, at the launch or by hand')
 {
@@ -48,7 +52,8 @@ tally.section('§0b a new board starts with the channel on; the launch row is in
 
 const world = await makeWorld('swarm-party-controls', Array.from({ length: 24 }, () => ({ kind: 'text' as const, text: 'Lead is waiting.' })))
 const settings = join(world.config, 'settings.json')
-writeFileSync(settings, JSON.stringify({ ...(existsSync(settings) ? JSON.parse(readFileSync(settings, 'utf8')) : {}), swarm: { enabled: true } }))
+const seeded = existsSync(settings) ? JSON.parse(readFileSync(settings, 'utf8')) as Record<string, unknown> : {}
+tally.check('the world leaves swarm.enabled unset: the sessions below run on the default, which is on', !('swarm' in seeded), JSON.stringify(seeded.swarm))
 let raw = ''
 const boot = (argv: string[]): HostedRunner => hostRunner({ dist: DIST, node: NODE, cwd: world.project, home: world.config, env: world.env as Record<string, string | undefined>, argv: ['--model', 'claude-fable-5-1', '--allowed-tools', 'Bash', 'CrewBoard', ...argv], raw: line => { raw += line } })
 let host = boot([])

@@ -35,11 +35,15 @@ const { operatorPauseGate } = await import('../../src/run-core/pauseGate.ts')
 let checks = 0
 function check(label: string, truth: unknown): void { assert(truth, label); checks++; console.log(`PASS ${label}`) }
 
-check('cold off imports no implementation', !seam.swarmModuleLoaded())
-check('cold off offers no board tool', !getAllBaseTools().some(t => t.name === 'CrewBoard'))
-check('master off refuses the command with the setting door', runSwarmCommand('on').includes('swarm.enabled') && !seam.swarmModuleLoaded())
+check('cold, with nothing set, the master is on and no implementation is imported', seam.swarmMasterEnabled() && !seam.swarmModuleLoaded())
+check('cold offers no board tool', !getAllBaseTools().some(t => t.name === 'CrewBoard'))
+updateSettingsForSource('userSettings', { swarm: { enabled: false } })
+check('an explicit false is the opt-out: the command answers with the setting door', !seam.swarmMasterEnabled() && runSwarmCommand('on').includes('swarm.enabled') && !seam.swarmModuleLoaded())
 updateSettingsForSource('projectSettings', { swarm: { enabled: true } })
 check('a repository cannot enable the board', !seam.swarmMasterEnabled())
+updateSettingsForSource('userSettings', { swarm: { enabled: undefined } })
+updateSettingsForSource('projectSettings', { swarm: { enabled: false } })
+check('with the user setting absent the master is on, and a repository cannot turn it off either', seam.swarmMasterEnabled())
 updateSettingsForSource('userSettings', { swarm: { enabled: true } })
 check('the setting alone does not load the board', seam.swarmMasterEnabled() && !seam.swarmModuleLoaded())
 check('an earlier launch stays plain', await seam.latchSwarmAgent('earlier', 'Earlier') === false)

@@ -26,7 +26,7 @@ const key = (agent: string): string => `${getSessionId()}:${agent}`
 const EMPTY: BoardViewSnapshot = { on: false, events: [], snapshot: 0, omitted: 0, admitted: 0, peerTurns: 0 }
 
 export function swarmMasterEnabled(): boolean {
-  return getSettingsForSource('userSettings')?.swarm?.enabled === true
+  return getSettingsForSource('userSettings')?.swarm?.enabled !== false
 }
 
 export function swarmLimits(): BoardLimits {

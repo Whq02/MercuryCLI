@@ -6,10 +6,11 @@
       "type": "string"
     },
     "swarm": {
-      "description": "Live crew board switch and limits; user settings only, off by default; limits are held for each wave",
+      "description": "Live crew board switch and limits; user settings only, on by default; limits are held for each wave",
       "type": "object",
       "properties": {
         "enabled": {
+          "description": "On unless false; the Swarm row in /config writes it",
           "type": "boolean"
         },
         "seatAllowance": {
