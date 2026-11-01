@@ -1061,10 +1061,35 @@ SessionFactsResultAdvisor = TypedDict("SessionFactsResultAdvisor", {
     "model": "None | str",
 })
 
+SessionFactsResultSwarmEventsItemLifecycleChoice0 = TypedDict("SessionFactsResultSwarmEventsItemLifecycleChoice0", {
+    "kind": "Literal[\"launched\"] | Literal[\"joined\"] | Literal[\"done\"]",
+})
+
+SessionFactsResultSwarmEventsItemLifecycleChoice1 = TypedDict("SessionFactsResultSwarmEventsItemLifecycleChoice1", {
+    "kind": "Literal[\"parked\"]",
+    "event": "str",
+})
+
 SessionFactsResultSwarmEventsItemAuthor = TypedDict("SessionFactsResultSwarmEventsItemAuthor", {
     "sessionId": "str",
     "agentId": "str",
     "executionId": "str",
+})
+
+SessionFactsResultSwarmEventsItemChannelChoice0 = TypedDict("SessionFactsResultSwarmEventsItemChannelChoice0", {
+    "kind": "Literal[\"general\"]",
+})
+
+SessionFactsResultSwarmEventsItemChannelChoice1 = TypedDict("SessionFactsResultSwarmEventsItemChannelChoice1", {
+    "kind": "Literal[\"team\"] | Literal[\"whisper\"]",
+    "target": "str",
+})
+
+SessionFactsResultSwarmEventsItemRecipientsItem = TypedDict("SessionFactsResultSwarmEventsItemRecipientsItem", {
+    "agent": "str",
+    "name": "str",
+    "team": "NotRequired[str]",
+    "captain": "NotRequired[Literal[True]]",
 })
 
 SessionFactsResultSwarmEventsItemRefsItem = TypedDict("SessionFactsResultSwarmEventsItemRefsItem", {
@@ -1081,6 +1106,7 @@ SessionFactsResultSwarmEventsItem = TypedDict("SessionFactsResultSwarmEventsItem
     "corrects": "NotRequired[str]",
     "taskId": "NotRequired[str]",
     "about": "NotRequired[str]",
+    "lifecycle": "NotRequired[SessionFactsResultSwarmEventsItemLifecycleChoice0 | SessionFactsResultSwarmEventsItemLifecycleChoice1]",
     "schema": "Literal[1]",
     "boardId": "str",
     "waveId": "str",
@@ -1089,6 +1115,11 @@ SessionFactsResultSwarmEventsItem = TypedDict("SessionFactsResultSwarmEventsItem
     "author": "SessionFactsResultSwarmEventsItemAuthor",
     "authorName": "NotRequired[str]",
     "team": "NotRequired[str]",
+    "captain": "NotRequired[Literal[True]]",
+    "authorRole": "NotRequired[Literal[\"peer\"] | Literal[\"owner\"] | Literal[\"system\"]]",
+    "channel": "NotRequired[SessionFactsResultSwarmEventsItemChannelChoice0 | SessionFactsResultSwarmEventsItemChannelChoice1]",
+    "addresses": "NotRequired[list[str]]",
+    "recipients": "NotRequired[list[SessionFactsResultSwarmEventsItemRecipientsItem]]",
     "mentions": "list[str]",
     "unknownMentions": "NotRequired[list[str]]",
     "relatedTasks": "list[str]",
@@ -1099,6 +1130,31 @@ SessionFactsResultSwarmEventsItem = TypedDict("SessionFactsResultSwarmEventsItem
     "policyRevision": "Literal[1]",
 })
 
+SessionFactsResultSwarmSeatsItem = TypedDict("SessionFactsResultSwarmSeatsItem", {
+    "agent": "str",
+    "name": "str",
+    "team": "NotRequired[str]",
+    "captain": "NotRequired[Literal[True]]",
+})
+
+SessionFactsResultSwarmChatFilterChoice0 = TypedDict("SessionFactsResultSwarmChatFilterChoice0", {
+    "kind": "Literal[\"all\"]",
+})
+
+SessionFactsResultSwarmChatFilterChoice1 = TypedDict("SessionFactsResultSwarmChatFilterChoice1", {
+    "kind": "Literal[\"main\"]",
+})
+
+SessionFactsResultSwarmChatFilterChoice2 = TypedDict("SessionFactsResultSwarmChatFilterChoice2", {
+    "kind": "Literal[\"team\"]",
+    "team": "str",
+})
+
+SessionFactsResultSwarmChat = TypedDict("SessionFactsResultSwarmChat", {
+    "on": "bool",
+    "filter": "SessionFactsResultSwarmChatFilterChoice0 | SessionFactsResultSwarmChatFilterChoice1 | SessionFactsResultSwarmChatFilterChoice2",
+})
+
 SessionFactsResultSwarmRecord = TypedDict("SessionFactsResultSwarmRecord", {
     "path": "str",
     "sessionId": "str",
@@ -1107,6 +1163,7 @@ SessionFactsResultSwarmRecord = TypedDict("SessionFactsResultSwarmRecord", {
 SessionFactsResultSwarm = TypedDict("SessionFactsResultSwarm", {
     "on": "bool",
     "events": "list[SessionFactsResultSwarmEventsItem]",
+    "seats": "NotRequired[list[SessionFactsResultSwarmSeatsItem]]",
     "teams": "NotRequired[list[str]]",
     "names": "NotRequired[list[str]]",
     "duplicateMinutes": "NotRequired[list[str]]",
@@ -1116,6 +1173,7 @@ SessionFactsResultSwarm = TypedDict("SessionFactsResultSwarm", {
     "admitted": "float",
     "appearances": "NotRequired[float]",
     "uncapped": "NotRequired[bool]",
+    "chat": "NotRequired[SessionFactsResultSwarmChat]",
     "peerTurns": "Literal[0]",
     "record": "NotRequired[SessionFactsResultSwarmRecord]",
     "error": "NotRequired[str]",
@@ -1839,4 +1897,4 @@ class TypedSyncRequests:
     def notify(self, method: str, params: Any = None) -> None:
         self._sync_notify(method, params)
 
-__all__ = ["GENERATED","GENERATED_BY","GENERATED_FROM","HookEndingChoice0","HookEndingChoice1","HookEnding","Usage","ModelUsageRow","SessionRowTools_withheldItem","SessionRowMcp_serversItem","SessionRowExtensionsItem","SessionRow","TurnRow","ReplyMarkRow","TextRow","ReasoningRow","ToolCallRow","ToolResultRow","ToolUpdateRow","StepRow","OutcomeError","Denial","OutcomeRowNoticesItem","TypedOutcome","OutcomeRow","CloseRow","WaitRow","HeartbeatRow","CompactionRow","ModeRow","RateLimitRow","TaskRowUsage","TaskRow","NoticeRow","CommandOutputRow","MissionUpdatedRow","SamplesUpdatedRow","BlockStartRow","TextDeltaRow","ReasoningDeltaRow","ToolInputDeltaRow","RetractedRow","Row","InputBlockChoice0","InputBlockChoice1","InputBlock","PromptRowOrigin","PromptRow","ShellRowOrigin","ShellRow","NoteRow","OutsideReportRow","InputRow","InitializeParamsHost","InitializeParamsCapabilities","InitializeParams","InitializeResultRunner","InitializeResultFile_checkpoints","InitializeResult","SessionClaimParams","SessionClaimResult","ProjectQueryParams","ProjectQueryResult","SessionFactsParams","SessionFactsResultModel","SessionFactsResultUsageModel_spendItem","SessionFactsResultUsageContext","SessionFactsResultUsageLimit_warningChoice1","SessionFactsResultUsageOpenai_observedPrimary","SessionFactsResultUsageOpenai_observedSecondary","SessionFactsResultUsageOpenai_observedCredits","SessionFactsResultUsageOpenai_observed","SessionFactsResultUsageAnthropic_window","SessionFactsResultUsageAnthropicObservedFiveHour","SessionFactsResultUsageAnthropicObservedSevenDay","SessionFactsResultUsageAnthropicObserved","SessionFactsResultUsageOpenai_window","SessionFactsResultUsageGemini_window","SessionFactsResultUsageOpenrouter_window","SessionFactsResultUsageHuggingface_window","SessionFactsResultUsageJevLast_failure","SessionFactsResultUsageJevStatus","SessionFactsResultUsageJev","SessionFactsResultUsage","SessionFactsResultIdentity","SessionFactsResultSkillsItem","SessionFactsResultMcpItem","SessionFactsResultWorkspace","SessionFactsResultQueueItemOriginChoice0","SessionFactsResultQueueItemOriginChoice1","SessionFactsResultQueueItemOriginChoice2","SessionFactsResultQueueItemOriginChoice3","SessionFactsResultQueueItemOriginChoice4","SessionFactsResultQueueItemOriginChoice5","SessionFactsResultQueueItemOriginChoice6","SessionFactsResultQueueItemOriginChoice7","SessionFactsResultQueueItem","SessionFactsResultWorkItemPhasesItemAgentsItem","SessionFactsResultWorkItemPhasesItem","SessionFactsResultWorkItemPulse","SessionFactsResultWorkItemPhase","SessionFactsResultWorkItemPaused","SessionFactsResultWorkItem","SessionFactsResultMissionItem","SessionFactsResultSamplesItem","SessionFactsResultNoticesItem","SessionFactsResultKitDeltas","SessionFactsResultKit","SessionFactsResultPending_schedule_editsItem","SessionFactsResultFile_checkpoints","SessionFactsResultSpawn_switchesSubagents","SessionFactsResultSpawn_switchesWorkflows","SessionFactsResultSpawn_switches","SessionFactsResultBoxLockChoice1HoldersItem","SessionFactsResultBoxLockChoice1WaitersItem","SessionFactsResultBoxLockChoice1","SessionFactsResultBoxMemory","SessionFactsResultBox","SessionFactsResultOpenai_catalogueModelsItem","SessionFactsResultOpenai_catalogue","SessionFactsResultPause_gate","SessionFactsResultAdvisor","SessionFactsResultSwarmEventsItemAuthor","SessionFactsResultSwarmEventsItemRefsItem","SessionFactsResultSwarmEventsItem","SessionFactsResultSwarmRecord","SessionFactsResultSwarm","SessionFactsResultEdit_outcomesItem","SessionFactsResult","SessionSetModelParams","SessionSetModelResult","SessionSetEffortParams","SessionSetEffortResult","SessionSetModeParams","SessionSetModeResult","SessionSetSpawnSwitchParams","SessionSetSpawnSwitchResult","McpActionParams","McpActionResult","McpToolsParams","McpToolsResultToolsItem","McpToolsResult","SessionSetKitParams","SessionSetKitResult","SessionRewindParams","SessionRewindResultCode","SessionRewindResultConversation","SessionRewindResult","SessionFileRestoreParamsChoice0","SessionFileRestoreParamsChoice1","SessionFileRestoreParams","SessionFileRestoreResult","SessionPauseGateParams","SessionPauseGateResult","SessionQuiesceParams","SessionQuiesceResult","SessionLeaveParams","SessionLeaveResult","QueueAddParams","QueueAddResultChoice0","QueueAddResultChoice1","QueueAddResult","QueueWithdrawParams","QueueWithdrawResultChoice0","QueueWithdrawResultChoice1","QueueWithdrawResult","TurnInterruptParams","TurnInterruptResult","AgentStopParams","AgentStopResult","AgentResumeParams","AgentResumeResultChoice0","AgentResumeResultChoice1","AgentResumeResult","ShellBackgroundParams","ShellBackgroundResult","SessionSendNowParams","SessionSendNowResult","ScheduleEditParams","ScheduleEditResultPreflight","ScheduleEditResult","ScheduleRosterParams","ScheduleRosterResult","CredentialsChangedParams","CredentialsChangedResult","CancelRequestParams","CancelRequestResult","PermissionRequestParamsSuggestionsItemChoice0RulesItem","PermissionRequestParamsSuggestionsItemChoice0","PermissionRequestParamsSuggestionsItemChoice1RulesItem","PermissionRequestParamsSuggestionsItemChoice1","PermissionRequestParamsSuggestionsItemChoice2RulesItem","PermissionRequestParamsSuggestionsItemChoice2","PermissionRequestParamsSuggestionsItemChoice3","PermissionRequestParams","PermissionRequestResultChoice0RulesItemChoice0RulesItem","PermissionRequestResultChoice0RulesItemChoice0","PermissionRequestResultChoice0RulesItemChoice1RulesItem","PermissionRequestResultChoice0RulesItemChoice1","PermissionRequestResultChoice0RulesItemChoice2RulesItem","PermissionRequestResultChoice0RulesItemChoice2","PermissionRequestResultChoice0RulesItemChoice3","PermissionRequestResultChoice0","PermissionRequestResultChoice1","PermissionRequestResult","ElicitationRequestParams","ElicitationRequestResult","FsReadTextFileParams","FsReadTextFileResult","FsWriteTextFileParams","FsWriteTextFileResult","TerminalCreateParamsEnvItem","TerminalCreateParams","TerminalCreateResult","TerminalOutputParams","TerminalOutputResultExit_statusChoice0","TerminalOutputResult","TerminalWaitForExitParams","TerminalWaitForExitResult","TerminalKillParams","TerminalKillResult","TerminalReleaseParams","TerminalReleaseResult","RowParams","RowResult","SessionAppliedParams","SessionAppliedResult","ElicitationCompleteParams","ElicitationCompleteResult","MethodSchema","RowType","PartialRowType","InputRowType","OutcomeStatus","StopWord","ErrorClass","PermissionMode","EffortLevel","RunFormat","HostRequestName","HostNotificationName","RunnerRequestName","RunnerNotificationName","DefaultTimeout","DEFAULT_TIMEOUT","TypedRequests","TypedSyncRequests","ROWS_SCHEMA","ROW_TYPES","PARTIAL_ROW_TYPES","INPUT_ROW_TYPES","OUTCOME_STATUSES","STOP_WORDS","ERROR_CLASSES","OUTCOME_EXIT_CODES","ROW_SCHEMAS","INPUT_ROW_SCHEMAS","PERMISSION_MODES","EFFORT_LEVELS","RUN_OPTIONS","RUNNER_PROTOCOL","METHODS","BAD_LINE_LIMIT","MAX_LINE_BYTES","REFUSAL_KINDS","RPC_CANCELLED","RPC_ERROR_CODES","RPC_INVALID_PARAMS","RPC_INVALID_REQUEST","RPC_METHOD_NOT_FOUND","RPC_NOT_INITIALIZED","RPC_PARSE_ERROR","RPC_REFUSED"]
+__all__ = ["GENERATED","GENERATED_BY","GENERATED_FROM","HookEndingChoice0","HookEndingChoice1","HookEnding","Usage","ModelUsageRow","SessionRowTools_withheldItem","SessionRowMcp_serversItem","SessionRowExtensionsItem","SessionRow","TurnRow","ReplyMarkRow","TextRow","ReasoningRow","ToolCallRow","ToolResultRow","ToolUpdateRow","StepRow","OutcomeError","Denial","OutcomeRowNoticesItem","TypedOutcome","OutcomeRow","CloseRow","WaitRow","HeartbeatRow","CompactionRow","ModeRow","RateLimitRow","TaskRowUsage","TaskRow","NoticeRow","CommandOutputRow","MissionUpdatedRow","SamplesUpdatedRow","BlockStartRow","TextDeltaRow","ReasoningDeltaRow","ToolInputDeltaRow","RetractedRow","Row","InputBlockChoice0","InputBlockChoice1","InputBlock","PromptRowOrigin","PromptRow","ShellRowOrigin","ShellRow","NoteRow","OutsideReportRow","InputRow","InitializeParamsHost","InitializeParamsCapabilities","InitializeParams","InitializeResultRunner","InitializeResultFile_checkpoints","InitializeResult","SessionClaimParams","SessionClaimResult","ProjectQueryParams","ProjectQueryResult","SessionFactsParams","SessionFactsResultModel","SessionFactsResultUsageModel_spendItem","SessionFactsResultUsageContext","SessionFactsResultUsageLimit_warningChoice1","SessionFactsResultUsageOpenai_observedPrimary","SessionFactsResultUsageOpenai_observedSecondary","SessionFactsResultUsageOpenai_observedCredits","SessionFactsResultUsageOpenai_observed","SessionFactsResultUsageAnthropic_window","SessionFactsResultUsageAnthropicObservedFiveHour","SessionFactsResultUsageAnthropicObservedSevenDay","SessionFactsResultUsageAnthropicObserved","SessionFactsResultUsageOpenai_window","SessionFactsResultUsageGemini_window","SessionFactsResultUsageOpenrouter_window","SessionFactsResultUsageHuggingface_window","SessionFactsResultUsageJevLast_failure","SessionFactsResultUsageJevStatus","SessionFactsResultUsageJev","SessionFactsResultUsage","SessionFactsResultIdentity","SessionFactsResultSkillsItem","SessionFactsResultMcpItem","SessionFactsResultWorkspace","SessionFactsResultQueueItemOriginChoice0","SessionFactsResultQueueItemOriginChoice1","SessionFactsResultQueueItemOriginChoice2","SessionFactsResultQueueItemOriginChoice3","SessionFactsResultQueueItemOriginChoice4","SessionFactsResultQueueItemOriginChoice5","SessionFactsResultQueueItemOriginChoice6","SessionFactsResultQueueItemOriginChoice7","SessionFactsResultQueueItem","SessionFactsResultWorkItemPhasesItemAgentsItem","SessionFactsResultWorkItemPhasesItem","SessionFactsResultWorkItemPulse","SessionFactsResultWorkItemPhase","SessionFactsResultWorkItemPaused","SessionFactsResultWorkItem","SessionFactsResultMissionItem","SessionFactsResultSamplesItem","SessionFactsResultNoticesItem","SessionFactsResultKitDeltas","SessionFactsResultKit","SessionFactsResultPending_schedule_editsItem","SessionFactsResultFile_checkpoints","SessionFactsResultSpawn_switchesSubagents","SessionFactsResultSpawn_switchesWorkflows","SessionFactsResultSpawn_switches","SessionFactsResultBoxLockChoice1HoldersItem","SessionFactsResultBoxLockChoice1WaitersItem","SessionFactsResultBoxLockChoice1","SessionFactsResultBoxMemory","SessionFactsResultBox","SessionFactsResultOpenai_catalogueModelsItem","SessionFactsResultOpenai_catalogue","SessionFactsResultPause_gate","SessionFactsResultAdvisor","SessionFactsResultSwarmEventsItemLifecycleChoice0","SessionFactsResultSwarmEventsItemLifecycleChoice1","SessionFactsResultSwarmEventsItemAuthor","SessionFactsResultSwarmEventsItemChannelChoice0","SessionFactsResultSwarmEventsItemChannelChoice1","SessionFactsResultSwarmEventsItemRecipientsItem","SessionFactsResultSwarmEventsItemRefsItem","SessionFactsResultSwarmEventsItem","SessionFactsResultSwarmSeatsItem","SessionFactsResultSwarmChatFilterChoice0","SessionFactsResultSwarmChatFilterChoice1","SessionFactsResultSwarmChatFilterChoice2","SessionFactsResultSwarmChat","SessionFactsResultSwarmRecord","SessionFactsResultSwarm","SessionFactsResultEdit_outcomesItem","SessionFactsResult","SessionSetModelParams","SessionSetModelResult","SessionSetEffortParams","SessionSetEffortResult","SessionSetModeParams","SessionSetModeResult","SessionSetSpawnSwitchParams","SessionSetSpawnSwitchResult","McpActionParams","McpActionResult","McpToolsParams","McpToolsResultToolsItem","McpToolsResult","SessionSetKitParams","SessionSetKitResult","SessionRewindParams","SessionRewindResultCode","SessionRewindResultConversation","SessionRewindResult","SessionFileRestoreParamsChoice0","SessionFileRestoreParamsChoice1","SessionFileRestoreParams","SessionFileRestoreResult","SessionPauseGateParams","SessionPauseGateResult","SessionQuiesceParams","SessionQuiesceResult","SessionLeaveParams","SessionLeaveResult","QueueAddParams","QueueAddResultChoice0","QueueAddResultChoice1","QueueAddResult","QueueWithdrawParams","QueueWithdrawResultChoice0","QueueWithdrawResultChoice1","QueueWithdrawResult","TurnInterruptParams","TurnInterruptResult","AgentStopParams","AgentStopResult","AgentResumeParams","AgentResumeResultChoice0","AgentResumeResultChoice1","AgentResumeResult","ShellBackgroundParams","ShellBackgroundResult","SessionSendNowParams","SessionSendNowResult","ScheduleEditParams","ScheduleEditResultPreflight","ScheduleEditResult","ScheduleRosterParams","ScheduleRosterResult","CredentialsChangedParams","CredentialsChangedResult","CancelRequestParams","CancelRequestResult","PermissionRequestParamsSuggestionsItemChoice0RulesItem","PermissionRequestParamsSuggestionsItemChoice0","PermissionRequestParamsSuggestionsItemChoice1RulesItem","PermissionRequestParamsSuggestionsItemChoice1","PermissionRequestParamsSuggestionsItemChoice2RulesItem","PermissionRequestParamsSuggestionsItemChoice2","PermissionRequestParamsSuggestionsItemChoice3","PermissionRequestParams","PermissionRequestResultChoice0RulesItemChoice0RulesItem","PermissionRequestResultChoice0RulesItemChoice0","PermissionRequestResultChoice0RulesItemChoice1RulesItem","PermissionRequestResultChoice0RulesItemChoice1","PermissionRequestResultChoice0RulesItemChoice2RulesItem","PermissionRequestResultChoice0RulesItemChoice2","PermissionRequestResultChoice0RulesItemChoice3","PermissionRequestResultChoice0","PermissionRequestResultChoice1","PermissionRequestResult","ElicitationRequestParams","ElicitationRequestResult","FsReadTextFileParams","FsReadTextFileResult","FsWriteTextFileParams","FsWriteTextFileResult","TerminalCreateParamsEnvItem","TerminalCreateParams","TerminalCreateResult","TerminalOutputParams","TerminalOutputResultExit_statusChoice0","TerminalOutputResult","TerminalWaitForExitParams","TerminalWaitForExitResult","TerminalKillParams","TerminalKillResult","TerminalReleaseParams","TerminalReleaseResult","RowParams","RowResult","SessionAppliedParams","SessionAppliedResult","ElicitationCompleteParams","ElicitationCompleteResult","MethodSchema","RowType","PartialRowType","InputRowType","OutcomeStatus","StopWord","ErrorClass","PermissionMode","EffortLevel","RunFormat","HostRequestName","HostNotificationName","RunnerRequestName","RunnerNotificationName","DefaultTimeout","DEFAULT_TIMEOUT","TypedRequests","TypedSyncRequests","ROWS_SCHEMA","ROW_TYPES","PARTIAL_ROW_TYPES","INPUT_ROW_TYPES","OUTCOME_STATUSES","STOP_WORDS","ERROR_CLASSES","OUTCOME_EXIT_CODES","ROW_SCHEMAS","INPUT_ROW_SCHEMAS","PERMISSION_MODES","EFFORT_LEVELS","RUN_OPTIONS","RUNNER_PROTOCOL","METHODS","BAD_LINE_LIMIT","MAX_LINE_BYTES","REFUSAL_KINDS","RPC_CANCELLED","RPC_ERROR_CODES","RPC_INVALID_PARAMS","RPC_INVALID_REQUEST","RPC_METHOD_NOT_FOUND","RPC_NOT_INITIALIZED","RPC_PARSE_ERROR","RPC_REFUSED"]

@@ -416,6 +416,12 @@ export type SessionFactsResult = {
       corrects?: string
       taskId?: string
       about?: string
+      lifecycle?: {
+        kind: 'launched' | 'joined' | 'done'
+      } | {
+        kind: 'parked'
+        event: string
+      }
       schema: 1
       boardId: string
       waveId: string
@@ -428,6 +434,21 @@ export type SessionFactsResult = {
       }
       authorName?: string
       team?: string
+      captain?: true
+      authorRole?: 'peer' | 'owner' | 'system'
+      channel?: {
+        kind: 'general'
+      } | {
+        kind: 'team' | 'whisper'
+        target: string
+      }
+      addresses?: string[]
+      recipients?: Array<{
+        agent: string
+        name: string
+        team?: string
+        captain?: true
+      }>
       mentions: string[]
       unknownMentions?: string[]
       relatedTasks: string[]
@@ -440,6 +461,12 @@ export type SessionFactsResult = {
       payloadDigest: string
       policyRevision: 1
     }>
+    seats?: Array<{
+      agent: string
+      name: string
+      team?: string
+      captain?: true
+    }>
     teams?: string[]
     names?: string[]
     duplicateMinutes?: string[]
@@ -449,6 +476,17 @@ export type SessionFactsResult = {
     admitted: number
     appearances?: number
     uncapped?: boolean
+    chat?: {
+      on: boolean
+      filter: {
+        kind: 'all'
+      } | {
+        kind: 'main'
+      } | {
+        kind: 'team'
+        team: string
+      }
+    }
     peerTurns: 0
     record?: {
       path: string
