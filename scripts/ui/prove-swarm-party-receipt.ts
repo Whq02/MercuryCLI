@@ -26,7 +26,7 @@ function section(title: string): void {
 }
 
 process.env.MERCURY_TURN_RECEIPT = '1'
-const { injectTurnReceipts, foldedTurnReceipts, hasActivity, boardMessagesWords, isTurnBoundary } = await import('../../src/utils/cockpit/turnReceipt.ts')
+const { injectTurnReceipts, injectRetainedChatRows, foldedTurnReceipts, retainedChatRows, hasActivity, boardMessagesWords, isTurnBoundary } = await import('../../src/utils/cockpit/turnReceipt.ts')
 const { isNavigableMessage, copyTextOf, MESSAGE_ACTIONS } = await import('../../src/components/messageActions.tsx')
 type Row = Record<string, unknown>
 const prompt = (text: string, uuid: string): Row => ({ type: 'user', uuid, message: { role: 'user', content: text } })
@@ -36,7 +36,7 @@ const chat = (uuid: string, seq: number, name: string, content: string, turnId?:
   type: 'system', subtype: 'crew_chat', content, level: 'info', uuid, timestamp: `2026-11-01T08:00:${String(seq).padStart(2, '0')}.000Z`,
   seq, name, authorRole: 'peer', kind, mentions: ['main'], addresses: ['main'], ...(turnId === undefined ? {} : { turnId }),
 })
-const inject = (rows: Row[], open = false) => injectTurnReceipts(rows as never, TEMP_ROOT, open) as Row[]
+const inject = (rows: Row[], open = false) => injectTurnReceipts(injectRetainedChatRows(rows as never), TEMP_ROOT, open) as Row[]
 const shape = (rows: Row[]): string[] => rows.map(row => row.type === 'turn_receipt' ? `receipt:${String(row.uuid).replace(/-turn-receipt$/, '')}` : String(row.uuid))
 const receiptOf = (rows: Row[], anchor: string) => rows.find(row => row.type === 'turn_receipt' && row.uuid === `${anchor}-turn-receipt`) as { counts: { boardMessages: number; commands: number }; board?: Array<{ uuid: string; content: string }> } | undefined
 
@@ -81,22 +81,29 @@ process.env.MERCURY_TURN_RECEIPT = '0'
 check('the injector returns its input untouched: admitted rows stay expanded in place', injectTurnReceipts(many as never, TEMP_ROOT) === (many as never))
 process.env.MERCURY_TURN_RECEIPT = '1'
 
-section('compaction keeps the complete rows behind the receipt')
+section('compaction keeps the admitted rows behind the receipt and the idle rows as rows')
 const kept = many.slice(9)
 const carried = foldedTurnReceipts(many as never, kept as never, 'sum', TEMP_ROOT)
+const idle = retainedChatRows(many as never, kept as never, 'sum')
 const retained = carried.find(receipt => receipt.beforeUuid === 'sum')
-check('a fully folded turn leaves one retained receipt on the summary with its admitted and idle rows, complete', retained !== undefined && retained.counts.boardMessages === 5 && JSON.stringify(retained.board?.map(row => row.uuid)) === '["c1","c2","c3","c4","c5"]' && retained.board?.every(row => typeof row.content === 'string' && row.content !== '') === true, JSON.stringify(carried))
-const boundary = (receipts: unknown): Row => ({ type: 'system', subtype: 'compact_boundary', uuid: 'cb', compactMetadata: { work: { receipts, recap: { turns: 1, toolCounts: [], files: [], toolFailures: 0, failedToolUseIds: [] } } } })
+check('a fully folded turn leaves one retained receipt on the summary with its three admitted rows, complete', retained !== undefined && retained.counts.boardMessages === 3 && JSON.stringify(retained.board?.map(row => row.uuid)) === '["c1","c2","c3"]' && retained.board?.every(row => typeof row.content === 'string' && row.content !== '') === true, JSON.stringify(carried))
+check('its idle rows are retained apart, anchored on the summary, whole and uncounted', JSON.stringify(idle.map(group => [group.after, group.rows.map(row => row.uuid)])) === '[["sum",["c4","c5"]]]' && idle[0]!.rows.every(row => row.turnId === undefined && row.content !== ''), JSON.stringify(idle))
+const boundary = (receipts: unknown, retainedIdle: unknown, uuid = 'cb'): Row => ({ type: 'system', subtype: 'compact_boundary', uuid, compactMetadata: { work: { receipts, idle: retainedIdle, recap: { turns: 1, toolCounts: [], files: [], toolFailures: 0, failedToolUseIds: [] } } } })
 const summary: Row = { type: 'user', uuid: 'sum', isCompactSummary: true, isVisibleInTranscriptOnly: true, message: { role: 'user', content: 'The summary.' } }
-const afterFold = inject([boundary(carried), summary, ...kept])
-check('after the fold the retained receipt paints once, after the summary, with the five rows expandable', JSON.stringify(shape(afterFold)) === JSON.stringify(['cb', 'sum', 'receipt:p1', 'p2', 'a4', 'receipt:p2']) && receiptOf(afterFold, 'p1')?.board?.length === 5, JSON.stringify(shape(afterFold)))
+const afterFold = inject([boundary(carried, idle), summary, ...kept])
+check('after the fold: the summary, the receipt with its three rows expandable, the two idle rows as rows, then the kept turn', JSON.stringify(shape(afterFold)) === JSON.stringify(['cb', 'sum', 'receipt:p1', 'c4', 'c5', 'p2', 'a4', 'receipt:p2']) && receiptOf(afterFold, 'p1')?.board?.length === 3, JSON.stringify(shape(afterFold)))
+process.env.MERCURY_TURN_RECEIPT = '0'
+check('with the receipt switch off the retained idle rows still paint after the summary', JSON.stringify(shape(inject([boundary(carried, idle), summary, ...kept]))) === JSON.stringify(['cb', 'sum', 'c4', 'c5', 'p2', 'a4']), JSON.stringify(shape(inject([boundary(carried, idle), summary, ...kept]))))
+process.env.MERCURY_TURN_RECEIPT = '1'
 const partialKept = many.slice(4)
 const partial = foldedTurnReceipts(many as never, partialKept as never, 'sum', TEMP_ROOT)
-const afterPartial = inject([boundary(partial), summary, ...partialKept])
-check('a turn cut by the fold carries its folded rows onto its surviving part: count and rows agree, the kept row is not doubled', receiptOf(afterPartial, 'p1')?.counts.boardMessages === 3 && JSON.stringify(receiptOf(afterPartial, 'p1')?.board?.map(row => row.uuid)) === '["c1","c2","c3"]', JSON.stringify(receiptOf(afterPartial, 'p1')))
-const again = foldedTurnReceipts([boundary(carried), summary, ...kept] as never, [kept[0]!, kept[1]!] as never, 'sum2', TEMP_ROOT)
-const twice = inject([boundary(again), { ...summary, uuid: 'sum2' }, kept[0]!, kept[1]!])
-check('a second compaction carries the retained rows again, each event once', receiptOf(twice, 'p1')?.counts.boardMessages === 5 && new Set(receiptOf(twice, 'p1')?.board?.map(row => row.uuid)).size === 5, JSON.stringify(again))
+const afterPartial = inject([boundary(partial, retainedChatRows(many as never, partialKept as never, 'sum')), summary, ...partialKept])
+check('a turn cut by the fold carries its folded rows onto its surviving part: count and rows agree, kept rows are not doubled', receiptOf(afterPartial, 'p1')?.counts.boardMessages === 3 && JSON.stringify(receiptOf(afterPartial, 'p1')?.board?.map(row => row.uuid)) === '["c1","c2","c3"]' && retainedChatRows(many as never, partialKept as never, 'sum').length === 0 && shape(afterPartial).filter(id => id === 'c4').length === 1, JSON.stringify(shape(afterPartial)))
+const folded2 = [boundary(carried, idle), summary, ...kept]
+const again = foldedTurnReceipts(folded2 as never, [kept[0]!, kept[1]!] as never, 'sum2', TEMP_ROOT)
+const idle2 = retainedChatRows(folded2 as never, [kept[0]!, kept[1]!] as never, 'sum2')
+const twice = inject([boundary(again, idle2, 'cb2'), { ...summary, uuid: 'sum2' }, kept[0]!, kept[1]!])
+check('a second compaction carries the receipt rows and the idle rows again, each event once, re-anchored on the new summary', receiptOf(twice, 'p1')?.counts.boardMessages === 3 && JSON.stringify(shape(twice)) === JSON.stringify(['cb2', 'sum2', 'receipt:p1', 'c4', 'c5', 'p2', 'a4', 'receipt:p2']), JSON.stringify({ shape: shape(twice), idle2 }))
 
 section('the receipt with rows is navigable and clickable; without rows it stays as it was')
 const withRows = receiptOf(folded, 'p1')!
