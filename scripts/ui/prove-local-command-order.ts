@@ -57,6 +57,7 @@ async function assertFrame(label: string): Promise<void> {
   if (mounted) mounted.resize(element, 120, 44)
   else mounted = await mountOffscreen(element, 120, 44)
   await settle(70)
+  for (let waited = 70; mounted.screen().trim() === '' && waited < 5_000; waited += 25) await settle(25)
   const frame = mounted.screen()
   const commandAt = frame.indexOf('/order-fixture')
   const answerAt = frame.indexOf('COMMAND_ANSWER')
