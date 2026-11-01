@@ -296,7 +296,7 @@ async function settleShellTask(args: {
   }
 
   if (!wasKilled && !wasNotified && launchCwd) {
-    recordShellCommandOutcome(command, result.code, launchCwd, processOwnerForLane(agentId ?? null), result.pipelineStatus)
+    recordShellCommandOutcome(command, result.code, launchCwd, processOwnerForLane(agentId ?? null), result.pipelineStatus, shellCommand.verificationStart)
   }
 
   const outcome = shellOutcomeState({

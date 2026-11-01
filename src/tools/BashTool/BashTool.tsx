@@ -10,6 +10,8 @@ import { isRunInputClosed } from '../../bootstrap/state.js'
 import { servicesEnabled } from '../../services/projectServices/contracts.js'
 import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
 import { exec, resolveShellCwd } from '../../utils/Shell.js'
+import { captureVerificationStart } from '../../utils/verification/verificationState.js'
+import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import { execViaIdeTerminal, IdeTerminalUnavailableError, ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
 import { HARD_CAP_MULTIPLIER } from '../../utils/ShellCommand.js'
 import type { ExecResult } from '../../utils/ShellCommand.js'
@@ -321,6 +323,7 @@ async function* runBash(
     progressResolve?.()
   }
   let editorTerminalNote: string | undefined
+  const verificationStart = captureVerificationStart(input.command, cwd, processOwnerForLane(agentId ?? null))
   const ideShellCommand =
     isMainThread && !input.run_in_background && ideTerminalAvailable()
       ? await execViaIdeTerminal(input.command, abortController.signal, {
@@ -349,6 +352,7 @@ async function* runBash(
       onProgress,
     }))
 
+  shellCommand.verificationStart = verificationStart
   let timeoutAutoBackgroundedAfterMs: number | undefined
   let foregroundTaskId: string | null = null
   let backgroundId: string | undefined

@@ -33,12 +33,19 @@ export type VerificationScope =
   | 'check'
   | 'read-back'
 
+export interface VerificationStart {
+  treeDigest: string | null
+  startedAt: number
+  mutationSeq: number
+}
+
 export interface EvidenceRecord {
   command: string
   ok: boolean
   scope: VerificationScope
   coverage: string
   ranAt: number
+  startedAt?: number
   treeDigest: string | null
   seq: number
   gateId?: string
@@ -1216,6 +1223,11 @@ export function subscribeEvidenceRecorded(cb: EvidenceRecordedSubscriber): () =>
   }
 }
 
+export function captureVerificationStart(command: string, cwd: string, owner?: OwnerKey): VerificationStart | undefined {
+  if (!verifyEvidenceEnabled() || !classifyVerificationCommand(command, cwd)) return undefined
+  return { treeDigest: computeWorkingTreeDigest(cwd, { fresh: true }), startedAt: Date.now(), mutationSeq: ownerStates.get(effectiveOwner(owner)).mutationSeq }
+}
+
 export function recordEvidence(
   cwd: string,
   e: {
@@ -1227,6 +1239,7 @@ export function recordEvidence(
     minRuns?: number
   },
   owner?: OwnerKey,
+  start?: VerificationStart,
 ): void {
   const resolvedOwner = effectiveOwner(owner)
   const state = ownerStates.get(resolvedOwner)
@@ -1234,8 +1247,9 @@ export function recordEvidence(
   const record: EvidenceRecord = {
     ...e,
     ranAt: Date.now(),
-    treeDigest: computeWorkingTreeDigest(cwd, { fresh: true }),
-    seq: state.mutationSeq,
+    ...(start ? { startedAt: start.startedAt } : {}),
+    treeDigest: start ? start.treeDigest : computeWorkingTreeDigest(cwd, { fresh: true }),
+    seq: start?.mutationSeq ?? state.mutationSeq,
   }
   delete state.unscoredVerification
   if (e.ok) state.evidenceDemands = 0
@@ -1269,11 +1283,12 @@ export function recordShellCommandOutcome(
   cwd: string,
   owner?: OwnerKey,
   pipelineStatus?: number[],
+  start?: VerificationStart,
 ): void {
   try {
     if (!verifyEvidenceEnabled()) return
     const cls = classifyVerificationCommand(command, cwd, { code: exitCode, pipelineStatus })
-    if (cls) recordEvidence(cwd, { command, ok: (cls.exitCode ?? exitCode) === 0, ...cls }, owner)
+    if (cls) recordEvidence(cwd, { command, ok: (cls.exitCode ?? exitCode) === 0, ...cls }, owner, start)
     else if (hasMaskedVerification(command, cwd, pipelineStatus)) {
       ownerStates.get(effectiveOwner(owner)).unscoredVerification = command.replace(/\s+/g, ' ').slice(0, 240)
     }

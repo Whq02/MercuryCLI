@@ -1,4 +1,5 @@
 import type { ChildProcess } from 'child_process'
+import type { VerificationStart } from './verification/verificationState.js'
 import { stat } from 'node:fs/promises'
 
 import { generateTaskId } from '../Task.js'
@@ -40,6 +41,7 @@ export type ShellCommand = {
   taskOutput: TaskOutput
   pid?: number
   treeKillReceipt?: Promise<ProcessTreeKillReceipt>
+  verificationStart?: VerificationStart
   scrubbedSessionEnv?: readonly string[]
 }
 
