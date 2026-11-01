@@ -104,6 +104,9 @@ const again = foldedTurnReceipts(folded2 as never, [kept[0]!, kept[1]!] as never
 const idle2 = retainedChatRows(folded2 as never, [kept[0]!, kept[1]!] as never, 'sum2')
 const twice = inject([boundary(again, idle2, 'cb2'), { ...summary, uuid: 'sum2' }, kept[0]!, kept[1]!])
 check('a second compaction carries the receipt rows and the idle rows again, each event once, re-anchored on the new summary', receiptOf(twice, 'p1')?.counts.boardMessages === 3 && JSON.stringify(shape(twice)) === JSON.stringify(['cb2', 'sum2', 'receipt:p1', 'c4', 'c5', 'p2', 'a4', 'receipt:p2']), JSON.stringify({ shape: shape(twice), idle2 }))
+const c6 = chat('c6', 6, 'alpha', 'named twice')
+const doubled = injectRetainedChatRows([boundary([], [{ after: 'sum', rows: [c6] }, { after: 'p2', rows: [c6, chat('c4', 4, 'alpha', 'kept')] }]), summary, kept[0]!, chat('c4', 4, 'alpha', 'kept')] as never) as Row[]
+check('a row two groups name paints once, at its first placement; a row already on the screen is never added', JSON.stringify(shape(doubled)) === JSON.stringify(['cb', 'sum', 'c6', 'p2', 'c4']), JSON.stringify(shape(doubled)))
 
 section('the receipt with rows is navigable and clickable; without rows it stays as it was')
 const withRows = receiptOf(folded, 'p1')!
