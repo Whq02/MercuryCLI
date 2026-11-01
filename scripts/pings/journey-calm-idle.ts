@@ -152,7 +152,8 @@ section('§0 the tripwire is non-vacuous (poison control: a forced connect logs)
 const OUT = join(aux, 'captures')
 mkdirSync(OUT, { recursive: true })
 const IDLE_TICKS = 300
-const SETTLE_MARGIN_TICKS = 50
+const EFFORT_NOTICE_TICKS = 60
+const SETTLE_MARGIN_TICKS = EFFORT_NOTICE_TICKS + 20
 const TOTAL = 460
 
 type Cell = { c: string }
