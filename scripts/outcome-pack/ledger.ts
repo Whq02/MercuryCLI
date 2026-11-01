@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { Acceptance, Context } from './runtime.ts'
 
@@ -6,6 +6,11 @@ const fixture = 'not applicable: fixture' as const
 const costColumns = ['uncachedInput', 'cachedInput', 'cacheWrites', 'cacheTTL', 'output', 'billedReasoning', 'retries', 'failedRequests', 'verifierCalls', 'repairCalls', 'leadJudgeCalls', 'toolCharges', 'computeCharges', 'currency', 'effectivePriceSource', 'effectivePriceDate', 'cash', 'estimatedEquivalent', 'billingClassification', 'subscriptionPeriod', 'subscriptionCost'] as const
 export function writeLedger(path: string, row: Record<string, unknown>): void {
   for (const key of ['schemaVersion', 'task', 'execution', 'delivered', 'cost', 'time', 'acceptance', 'integration']) if (!(key in row)) throw new Error(`ledger missing ${key}`)
+  const task = row.task as { id: string; controlId: string }
+  if (existsSync(path)) {
+    const previous = readFileSync(path, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as { task: { id: string; controlId: string }; execution: { attemptId: string } }).findLast(prior => prior.task.id === task.id && prior.task.controlId === task.controlId)
+    if (previous) (row.delivered as Record<string, unknown>).fixRetestAncestry = previous.execution.attemptId
+  }
   mkdirSync(dirname(path), { recursive: true })
   appendFileSync(path, `${JSON.stringify(row)}\n`)
 }

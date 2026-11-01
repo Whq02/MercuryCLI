@@ -20,7 +20,7 @@ export async function script(ctx: Context, changes: Change[]): Promise<void> {
       return [{ type: 'text', text: 'Done.' }]
     }
     if (req.ask === 'prepare-outcome') return apply(req)
-    if (req.ask === 'launch-outcome' && req.step === 0) return [{ type: 'tool_use', name: 'Crewmate', input: { name: 'outcome-writer', description: 'Write the approved receipt', prompt: 'outcome-child', run_in_background: true, isolation: 'shared' } }]
+    if (req.ask === 'launch-outcome' && req.step === 0) return [{ type: 'tool_use', name: 'Crewmate', input: { name: 'outcome-writer', description: 'Write the approved receipt', prompt: 'outcome-child', run_in_background: true } }]
     return [{ type: 'text', text: 'Done.' }]
   })
   seedScratchHome(ctx.runHome, ctx.cwd)
@@ -39,7 +39,7 @@ export async function script(ctx: Context, changes: Change[]): Promise<void> {
   const waitAsk = async (n: number): Promise<void> => {
     if (held.length >= n) return
     await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`child write did not ask: ${JSON.stringify({ childCalls, asks: host.asks.map(ask => ({ id: ask.id, tool: ask.params.tool_name, agent: ask.params.agent_id })), requests: fixture.requests.map(request => ({ ask: request.ask.slice(0, 120), opening: request.opening.slice(0, 120), step: request.step, launch: request.ask === 'launch-outcome' ? request.results.map(result => result.text) : undefined })) })}`)), 30000)
+      const timer = setTimeout(() => reject(new Error(`child write did not ask: ${JSON.stringify({ childCalls, asks: host.asks.map(ask => ({ id: ask.id, tool: ask.params.tool_name, agent: ask.params.agent_id })), requests: fixture.requests.map(request => ({ ask: request.ask.slice(0, 120), opening: request.opening.slice(0, 120), step: request.step, launch: request.ask === 'launch-outcome' ? request.results.map(result => result.text.split('\n\n<system-reminder>')[0]?.slice(0, 1000)) : undefined })) })}`)), 30000)
       waiters.push(() => { clearTimeout(timer); resolve() })
     })
   }
