@@ -105,7 +105,7 @@ fn native_launcher_forwards_arguments_stdio_and_exit_codes() {
         assert!(text.contains("stdin=input kept\n"));
         assert!(text.contains(&format!(
             "cache={}",
-            root.0.join("home/compile-cache").display()
+            root.0.join("home").join("compile-cache").display()
         )));
         let cwd = text
             .lines()
