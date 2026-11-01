@@ -155,6 +155,9 @@ try {
     assert(directed.ok)
     check('owner commands never wake outside their fixed targets, even for a matching wait', ownerBoard.pendingWakes().map(wake => wake.agent).join(',') === 'B' && ownerBoard.seats().find(seat => seat.agent === 'A')?.wait !== undefined)
     check('a directed owner post remains publicly readable without waking the reader', ownerBoard.read(a, { since: directed.seq - 1 }).events.some(event => event.eventId === directed.eventId))
+    const ownerClaim = ownerBoard.claimWake(lead, ownerBoard.pendingWakes()[0]!)!
+    const ownerPacket = ownerBoard.wakePacket(lead, ownerClaim)!
+    check('an owner wake carries its trusted role and channel with one body', ownerPacket.text.includes('"authorRole":"owner"') && ownerPacket.text.includes('"channel":{"kind":"whisper","target":"B"}') && ownerPacket.text.includes('[owner]: Work with this, mentioning @A does not widen it.') && ownerPacket.text.split('Work with this, mentioning @A does not widen it.').length === 2)
   } finally { ownerBoard.close() }
 }
 const boot = await import('../../src/bootstrap/state.ts')
