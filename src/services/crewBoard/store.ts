@@ -3,6 +3,8 @@ import { mkdirSync, renameSync, rmSync, watch, writeFileSync, type FSWatcher } f
 import { basename, dirname, resolve } from 'node:path'
 import { createRequire } from 'node:module'
 import { DEFAULT_BOARD_LIMITS, boardSeatName, type BoardChannel, type BoardLimits, type BoardEvent, type BoardPacket, type BoardPost, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot } from './contracts.js'
+import { CHAT_OFF, type BoardChat } from './party.js'
+import type { CrewChatLifecycle } from '../../types/message.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
 
 type Database = {
@@ -20,6 +22,7 @@ const normalize = (input: BoardPost) => ({
   ...(input.corrects === undefined ? {} : { corrects: input.corrects }),
   ...(input.taskId === undefined ? {} : { taskId: input.taskId }),
   ...(input.about === undefined ? {} : { about: input.about }),
+  ...(input.lifecycle === undefined ? {} : { lifecycle: input.lifecycle }),
   mentions: [...new Set([...(input.mentions ?? []), ...(input.to ?? []), ...Array.from(input.text.matchAll(/(?<![\w@])@([\p{L}\p{N}_][\p{L}\p{N}_.-]*)/gu), match => match[1]!.replace(/[.]+$/, ''))].map(name => name.replace(/^@/, '')))].sort(),
   relatedTasks: [...new Set(input.relatedTasks ?? [])].sort(),
   files: [...new Set(input.files ?? [])].sort(), refs: input.refs ?? [],
@@ -54,6 +57,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     CREATE TABLE IF NOT EXISTS requests (id TEXT NOT NULL, recipient TEXT NOT NULL, cost INTEGER NOT NULL, PRIMARY KEY(recipient, id));
     CREATE TABLE IF NOT EXISTS interests (agent TEXT NOT NULL, kind TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(agent, kind, value));
     CREATE TABLE IF NOT EXISTS lead_paint (recipient TEXT PRIMARY KEY, seq INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS chat_state (id INTEGER PRIMARY KEY CHECK (id = 1), switched INTEGER NOT NULL DEFAULT 0, filter TEXT NOT NULL DEFAULT '{"kind":"all"}', cursor INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, author TEXT NOT NULL, op TEXT NOT NULL, digest TEXT NOT NULL, thread TEXT NOT NULL, record TEXT NOT NULL, UNIQUE(author, op));
     CREATE TABLE IF NOT EXISTS deliveries (recipient TEXT NOT NULL, event TEXT NOT NULL, mode TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', packet TEXT, request TEXT, charge INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(recipient, event));`)
   const prior = db.prepare('SELECT session, wave FROM identity').get()
@@ -66,11 +70,12 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
   const savedLimits = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'board_limits'").get() ? db.prepare('SELECT value FROM board_limits WHERE id = 1').get() : null
   let limits: BoardLimits = Object.freeze({ ...DEFAULT_BOARD_LIMITS, ...(savedLimits ? JSON.parse(String(savedLimits.value)) : requestedLimits) })
   if (!readOnly) {
-    db.exec('INSERT OR IGNORE INTO wave_controls VALUES (1, 0); INSERT OR IGNORE INTO seat_state (agent, joined, cursor) SELECT agent, 0, 0 FROM members WHERE enrolled = 1;')
+    db.exec('INSERT OR IGNORE INTO wave_controls VALUES (1, 0); INSERT OR IGNORE INTO chat_state (id) VALUES (1); INSERT OR IGNORE INTO seat_state (agent, joined, cursor) SELECT agent, 0, 0 FROM members WHERE enrolled = 1;')
   }
   const hasState = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'seat_state'").get() != null
   const hasControls = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'wave_controls'").get() != null
   const hasCaptains = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'captains'").get() != null
+  const hasChat = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'chat_state'").get() != null
   const uncapped = (): boolean => hasControls && db.prepare('SELECT uncapped FROM wave_controls WHERE id = 1').get()?.uncapped === 1
   const burst = (): number => limits.postsPerMinute * 2
   const refillMs = (): number => 60000 / limits.postsPerMinute
@@ -165,6 +170,13 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     event.seq = latest()
     db.prepare('UPDATE events SET record = ? WHERE id = ?').run(JSON.stringify(event), event.eventId)
   }
+  const lifecycleEvent = (p: BoardPrincipal, lifecycle: CrewChatLifecycle, text: string): void => {
+    const post = normalize({ clientOpId: `lifecycle:${lifecycle.kind}`, kind: 'notice', text })
+    const team = teamOf(p.author.agentId)
+    const event: BoardEvent = { ...post, mentions: [], addresses: [], authorRole: 'system', lifecycle, ...(team === undefined ? {} : { team }), ...(captainId(team) === p.author.agentId ? { captain: true } : {}), schema: 1, boardId, waveId, seq: 0, eventId: randomUUID(), author: p.author, authorName: p.name, createdAt: new Date(now()).toISOString(), payloadDigest: digest(JSON.stringify(post)), threadId: randomUUID(), policyRevision: 1 }
+    appendEvent(event)
+    db.prepare('INSERT INTO mirror_events VALUES (?)').run(event.eventId)
+  }
   const resolveMentions = (names: string[]): { mentions: string[]; unknownMentions: string[] } => {
     const members = roster()
     const mentions = new Set<string>()
@@ -180,7 +192,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     const head = db.prepare(`SELECT COALESCE(MAX(seq), 0) AS top, ${hasControls ? '(SELECT uncapped FROM wave_controls WHERE id = 1)' : '0'} AS uncapped FROM events`).get()!
     const top = Number(head.top)
     const end = before ?? top + 1
-    const filters = ['seq < ?']
+    const filters = ['seq < ?', "COALESCE(json_extract(record, '$.lifecycle.kind'), 'done') = 'done'"]
     const values: (string | number)[] = [end]
     if (thread !== undefined) { filters.push('thread = ?'); values.push(thread) }
     if (team !== undefined) { filters.push("json_extract(record, '$.team') = ?"); values.push(team) }
@@ -189,7 +201,11 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     const teams = [...new Set([...db.prepare("SELECT DISTINCT value FROM interests WHERE kind = 'membership'").all().map(row => String(row.value)), ...db.prepare("SELECT DISTINCT json_extract(record, '$.team') AS team FROM events WHERE json_extract(record, '$.team') IS NOT NULL").all().map(row => String(row.team))])].sort()
     const names = [...seats().map(boardSeatName), ...db.prepare("SELECT DISTINCT COALESCE(json_extract(record, '$.authorName'), json_extract(record, '$.author.agentId')) AS name, json_extract(record, '$.captain') AS captain FROM events").all().map(row => boardSeatName({ name: String(row.name), captain: row.captain === 1 }))]
     const duplicateMinutes = db.prepare("SELECT substr(json_extract(record, '$.createdAt'), 1, 16) AS minute FROM events GROUP BY minute HAVING COUNT(*) > 1").all().map(row => String(row.minute))
-    return { on: true, events: events(db.prepare(`SELECT record FROM events WHERE ${filter} ORDER BY seq DESC LIMIT 32`).all(...values)).reverse(), seats: seats(), teams, names, duplicateMinutes, snapshot: top, omitted: Math.max(0, count - 32), later: Math.max(0, top - end + 1), admitted: admitted(), appearances: appearances(), uncapped: head.uncapped === 1, peerTurns: 0, record: { path, sessionId } }
+    return { on: true, events: events(db.prepare(`SELECT record FROM events WHERE ${filter} ORDER BY seq DESC LIMIT 32`).all(...values)).reverse(), seats: seats(), teams, names, duplicateMinutes, snapshot: top, omitted: Math.max(0, count - 32), later: Math.max(0, top - end + 1), admitted: admitted(), appearances: appearances(), uncapped: head.uncapped === 1, chat: chat(), peerTurns: 0, record: { path, sessionId } }
+  }
+  const chat = (): BoardChat => {
+    const row = hasChat ? db.prepare('SELECT switched, filter FROM chat_state WHERE id = 1').get() : null
+    return row ? { on: row.switched === 1, filter: JSON.parse(String(row.filter)) } : CHAT_OFF
   }
   const store: BoardStore = {
     get limits() { return limits },
@@ -200,6 +216,17 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
       for (const listener of listeners) listener()
     },
     get uncapped() { return uncapped() },
+    chat,
+    setChat(next) {
+      transaction(() => { db.prepare('UPDATE chat_state SET switched = ?, filter = ?, cursor = CASE WHEN ? THEN (SELECT COALESCE(MAX(seq), 0) FROM events) ELSE cursor END WHERE id = 1').run(next.on ? 1 : 0, JSON.stringify(next.filter), next.on ? 1 : 0) })
+      for (const listener of listeners) listener()
+    },
+    screenEvents(since) { return events(db.prepare('SELECT record FROM events WHERE seq > ? ORDER BY seq LIMIT 200').all(since)) },
+    screenCursor() { return hasChat ? Number(db.prepare('SELECT cursor FROM chat_state WHERE id = 1').get()?.cursor ?? 0) : 0 },
+    markScreenCursor(seq) {
+      if (readOnly || !hasChat) return
+      db.prepare('UPDATE chat_state SET cursor = MAX(cursor, MIN(?, (SELECT COALESCE(MAX(seq), 0) FROM events))) WHERE id = 1').run(seq)
+    },
     setUncapped(p, value) {
       transaction(() => {
         checkPrincipal(p)
@@ -233,15 +260,21 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
       if (p.author.sessionId !== sessionId) throw new Error('A board cannot enroll another session.')
       if (p.author.agentId.toLowerCase() === 'owner' || p.name.trim().toLowerCase() === 'owner') throw new Error('Owner is reserved for the operator.')
       transaction(() => {
+        if (p.author.agentId === 'main') {
+          const stored = db.prepare('SELECT execution FROM members WHERE agent = ?').get('main')?.execution
+          if (stored !== undefined && stored !== p.author.executionId) db.prepare('DELETE FROM enrollments').run()
+        }
         const reservation = db.prepare('SELECT name, team, captain FROM enrollments WHERE agent = ?').get(p.author.agentId)
         const assigned = teamOf(p.author.agentId) ?? (reservation ? String(reservation.team) || undefined : p.team)
         const team = assigned === undefined ? undefined : canonicalTeam(assigned)
-        if (!reservation && !member(p.author.agentId)) checkEnrollment(p.author.agentId, team)
+        const fresh = !member(p.author.agentId)
+        if (!reservation && (fresh || teamOf(p.author.agentId) !== team)) checkEnrollment(p.author.agentId, team)
         db.prepare('INSERT INTO members (agent, name, execution, credits, refilled) VALUES (?, ?, ?, ?, ?) ON CONFLICT(agent) DO UPDATE SET name = excluded.name, execution = excluded.execution').run(p.author.agentId, p.name, p.author.executionId, burst(), now())
         db.prepare('INSERT INTO seat_state (agent, joined, cursor) VALUES (?, ?, ?) ON CONFLICT(agent) DO UPDATE SET active = 1').run(p.author.agentId, latest(), latest())
         if (team !== undefined && teamOf(p.author.agentId) === undefined) db.prepare("INSERT INTO interests VALUES (?, 'membership', ?)").run(p.author.agentId, team)
         if (reservation?.captain === 1 && team !== undefined) appoint(team, p.author.agentId)
         db.prepare('DELETE FROM enrollments WHERE agent = ?').run(p.author.agentId)
+        if (fresh) lifecycleEvent(p, p.author.agentId === 'main' ? { kind: 'launched' } : { kind: 'joined' }, p.author.agentId === 'main' ? 'Swarm launched' : 'Joined')
       })
       publish()
     },
