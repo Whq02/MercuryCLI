@@ -15,14 +15,21 @@ function executableFile(path: string): boolean {
   }
 }
 
+const PROBE_BUDGETS_MS = [30_000, 90_000]
+
 function identityOf(command: string, env: NodeJS.ProcessEnv): { execPath: string; why: string } {
-  let asked: SpawnSyncReturns<string>
-  try {
-    asked = spawnSync(command, ['-p', IDENTITY], { encoding: 'utf8', env, timeout: 30_000, windowsHide: true })
-  } catch (error) {
-    return { execPath: '', why: `${command} did not start: ${(error as Error).message}` }
+  let asked: SpawnSyncReturns<string> | undefined
+  for (const [attempt, budget] of PROBE_BUDGETS_MS.entries()) {
+    try {
+      asked = spawnSync(command, ['-p', IDENTITY], { encoding: 'utf8', env, timeout: budget, windowsHide: true })
+    } catch (error) {
+      return { execPath: '', why: `${command} did not start: ${(error as Error).message}` }
+    }
+    const timedOut = asked.error !== undefined && (asked.error as NodeJS.ErrnoException).code === 'ETIMEDOUT'
+    if (!timedOut || attempt === PROBE_BUDGETS_MS.length - 1) break
   }
-  if (asked.error) return { execPath: '', why: `${command} did not start: ${asked.error.message}` }
+  if (asked === undefined) return { execPath: '', why: `${command} was never asked` }
+  if (asked.error) return { execPath: '', why: `${command} did not start: ${asked.error.message}${(asked.error as NodeJS.ErrnoException).code === 'ETIMEDOUT' ? ` (asked twice, ${PROBE_BUDGETS_MS.join(' and ')} ms; a cold start that slow is a host fact)` : ''}` }
   if (asked.status !== 0) return { execPath: '', why: `${command} -p exited ${asked.status ?? asked.signal}: ${(asked.stderr ?? '').trim().slice(0, 200)}` }
   const line = (asked.stdout ?? '').trim().split('\n').at(-1) ?? ''
   let answer: { execPath?: unknown; bun?: unknown }
