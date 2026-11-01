@@ -2,7 +2,7 @@ import { evaluate, execute, type Acceptance, type Context } from '../../runtime.
 
 export function accept(ctx: Context): Acceptance {
   return evaluate(ctx, () => {
-    const run = execute(ctx.cwd, ['--input-type=module', '-e', 'import {receipt} from "./receipt.mjs";console.log(JSON.stringify(["alice"," e\\u0301 ","", "\\t", "東京 🙂", "A  B"].map(receipt)));'])
+    const run = execute(ctx.cwd, ['--input-type=module', '-e', 'import {receipt} from "./receipt.mjs";console.log(JSON.stringify(["alice"," e\\u0301 ","", "\\t", "東京 🙂", "A  B"].map(name => receipt(name))));'])
     const expected = ['approved: alice\n', 'approved: é\n', 'approved: anonymous\n', 'approved: anonymous\n', 'approved: 東京 🙂\n', 'approved: A  B\n']
     const order = ctx.facts.events.map(event => event.kind)
     const steps = ['write-ask', 'stop-request', 'stop-settled', 'late-allow-sent', 'outside-report', 'forbidden-write-checked', 'new-continuation', 'write-ask', 'fresh-allow-sent', 'approved-write-settled']
