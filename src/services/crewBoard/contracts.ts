@@ -2,6 +2,8 @@ import type * as React from 'react'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 import type { CrewChatLifecycle } from '../../types/message.js'
 import type { BoardChat } from './party.js'
+import type { BoardWait } from './waits.js'
+import type { BoardSettlement, BoardWake, BoardWakeClaim } from './wakeState.js'
 
 export type BoardLimits = Readonly<{ seatAllowance: number; waveAllowance: number; postsPerMinute: number; postsPerSeat: number; postChars: number }>
 export const DEFAULT_BOARD_LIMITS: BoardLimits = Object.freeze({ seatAllowance: 0, waveAllowance: 0, postsPerMinute: 4, postsPerSeat: 120, postChars: 0 })
@@ -55,7 +57,7 @@ export type BoardEvent = Omit<BoardPost, 'mentions' | 'to' | 'relatedTasks' | 'f
 export type BoardRead = { since?: number; snapshot?: number; thread?: string; task?: string; mentions?: string; team?: string; files?: string[]; limitTokens?: number; acknowledge?: string[]; watch?: boolean }
 export type BoardPacket = { events: (BoardEvent | { eventId: string; seq: number; text: string; truncated: true })[]; snapshot: number; cursor: number; omitted: number; tokens: number; skippedSeen: number; reread: string; packetId?: string; reason?: string }
 export type BoardReceipt = { ok: true; eventId: string; seq: number; replay: boolean; unknownMentions?: string[] } | { ok: false; reason: string; retryAfter?: number; cap?: 'thread-rounds' }
-export type BoardViewSnapshot = { on: boolean; events: BoardEvent[]; seats?: BoardSeat[]; teams?: string[]; names?: string[]; duplicateMinutes?: string[]; snapshot: number; omitted: number; later?: number; admitted: number; appearances?: number; uncapped?: boolean; chat?: BoardChat; peerTurns: 0; record?: { path: string; sessionId: string }; error?: string }
+export type BoardViewSnapshot = { on: boolean; events: BoardEvent[]; seats?: BoardSeat[]; teams?: string[]; names?: string[]; duplicateMinutes?: string[]; snapshot: number; omitted: number; later?: number; admitted: number; appearances?: number; uncapped?: boolean; chat?: BoardChat; peerTurns: number; record?: { path: string; sessionId: string }; error?: string }
 export type BoardPrincipal = { author: BoardAuthor; name: string; team?: string }
 export type BoardHost = {
   buildTool: typeof import('../../Tool.js').buildTool
@@ -63,7 +65,7 @@ export type BoardHost = {
   paused(agentId: string): boolean
   sessionOn(): boolean
 }
-export type BoardSeat = { agent: string; name: string; team?: string; captain?: true }
+export type BoardSeat = { agent: string; name: string; team?: string; captain?: true; state?: 'running' | 'parked'; wait?: BoardWait }
 export const boardSeatName = (seat: { name: string; captain?: boolean }): string => seat.captain ? `captain ${seat.name}` : seat.name
 export interface BoardStore {
   readonly limits: BoardLimits
@@ -71,6 +73,12 @@ export interface BoardStore {
   readonly uncapped: boolean
   setUncapped(principal: BoardPrincipal, value: boolean): void
   settle(principal: BoardPrincipal): void
+  complete(principal: BoardPrincipal, outcome: BoardSettlement): CrewChatLifecycle | undefined
+  pendingWakes(): BoardWake[]
+  claimWake(principal: BoardPrincipal, wake: BoardWake): BoardWakeClaim | null
+  wakePacket(principal: BoardPrincipal, claim: BoardWakeClaim): { text: string; eventIds: string[] } | null
+  admitWake(principal: BoardPrincipal, claim: BoardWakeClaim): void
+  holdWake(principal: BoardPrincipal, claim: BoardWakeClaim, reason: string): void
   reserveEnrollment(principal: BoardPrincipal, seat: Omit<BoardSeat, 'captain'> & { captain?: boolean }): void
   cancelEnrollment(principal: BoardPrincipal, agent: string): void
   enroll(principal: BoardPrincipal): void
