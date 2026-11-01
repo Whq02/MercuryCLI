@@ -62,6 +62,7 @@ export type BoardHost = {
 }
 export type BoardSeat = { agent: string; name: string; team?: string; captain?: true }
 export const boardSeatName = (seat: { name: string; captain?: boolean }): string => seat.captain ? `captain ${seat.name}` : seat.name
+export const boardLabelKey = (label: string): string => label.toLowerCase()
 export interface BoardStore {
   readonly limits: BoardLimits
   setLimits(next: BoardLimits): void
