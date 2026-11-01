@@ -41,7 +41,7 @@ const run = await runArtifactArena({
     { kind: 'tool_use', preText: 'Entering the scratch folder.\n', name: 'Bash', input: { command: 'mkdir -p scratch && cd scratch && pwd', description: ENTER_SCRATCH } },
     { kind: 'tool_use', name: 'Read', input: { file_path: join(cwd, FILE) } },
     { kind: 'tool_use', name: 'Edit', input: { file_path: join(cwd, FILE), old_string: 'alpha', new_string: 'beta' } },
-    { kind: 'tool_use', name: 'Bash', input: { command: `pwd && touch ${MARKER}`, description: PRINT_FOLDER } },
+    { kind: 'tool_use', name: 'Bash', input: { command: `pwd && touch ${MARKER} && chmod 600 ${MARKER}`, description: PRINT_FOLDER } },
     { kind: 'text', text: CLOSING },
   ],
   sends: [
