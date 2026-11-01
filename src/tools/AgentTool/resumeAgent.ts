@@ -265,6 +265,7 @@ export async function resumeAgentBackground(args: {
     if (args.automatic !== true || canUseTool === undefined) throw new Error('A board resume needs the lead’s guarded resume context.')
     const refusal = boardResumeRefusal(agentId, tasksNow)
     if (refusal !== null) throw new Error(refusal)
+    if (toolUseContext.pauseGate?.holds(agentId) || toolUseContext.pauseGate?.holds('main')) throw new Error('The operator pause is still in force.')
   }
   toolUseContext.abortController.signal.throwIfAborted()
   if (args.automatic !== true) {
@@ -385,7 +386,11 @@ export async function resumeAgentBackground(args: {
     invocationKind: 'resume',
   }
   const directory = worktreePath ?? cwdPath ?? getCwdState()
-  try { args.onAdmitted?.() } catch (error) {
+  try {
+    task.abortController!.signal.throwIfAborted()
+    if (args.boardEventIds !== undefined && (operatorPauseGate.holds('main') || operatorPauseGate.holds(agentId) || toolUseContext.pauseGate?.holds(agentId) || toolUseContext.pauseGate?.holds('main'))) throw new Error('The operator pause is still in force.')
+    args.onAdmitted?.()
+  } catch (error) {
     failAgentTask(agentId, errorMessage(error), rootSetAppState, task.abortController)
     settleSwarmAgent(agentId)
     throw error

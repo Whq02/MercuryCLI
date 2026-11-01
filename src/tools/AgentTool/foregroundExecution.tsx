@@ -40,6 +40,7 @@ import type { AgentToolProgress, ShellProgress } from '../../types/tools.js'
 import type { SetAppState } from '../../Task.js'
 import { runWithAgentContext, type AgentContext } from '../../utils/agentContext.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { mirrorSwarmNotice } from '../../services/crewBoard/seam.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
@@ -665,6 +666,8 @@ export async function runForegroundAgentExecution(
             pauseAgentTask(foregroundTask.taskId, windowPause, rootSetAppState, foregroundTask.abortController)
           }
         }
+        const mirrored = mirrorSwarmNotice(foregroundTask.taskId, `settled:${foregroundTask.taskId}:${agentStartTime}`, description, seatPause ? 'paused' : status)
+        if (mirrored && !mirrored.ok) logForDebugging(`crew board: ${mirrored.reason}`)
         emitTaskEnded(foregroundTask.taskId, status, {
           ...(toolUseContext.toolUseId !== undefined ? { toolUseId: toolUseContext.toolUseId } : {}),
           summary: description,

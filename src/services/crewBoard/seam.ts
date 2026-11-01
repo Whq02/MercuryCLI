@@ -5,12 +5,15 @@ import { dirname, join } from 'node:path'
 import { buildTool, type Tool, type ToolUseContext } from '../../Tool.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { getSettingsForSource } from '../../utils/settings/settings.js'
-import { swarmSwitchOfSession } from '../../utils/sessionStorage/writer.js'
+import { flushSessionStorage, swarmSwitchOfSession } from '../../utils/sessionStorage/writer.js'
 import { getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage/paths.js'
 import { operatorPauseGate } from '../../run-core/pauseGate.js'
 import type { AgentId } from '../../types/ids.js'
 import type { Message } from '../../types/message.js'
 import { DEFAULT_BOARD_LIMITS, boardSeatName, type BoardEvent, type BoardLimits, type BoardModule, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot, type OwnerPostInput, type OwnerPostReceipt } from './contracts.js'
+import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import { logForDebugging } from '../../utils/debug.js'
+import type { BoardSettlement } from './wakeState.js'
 
 const requireOptional = createRequire(import.meta.url)
 let implementation: BoardModule | undefined
@@ -117,6 +120,59 @@ export function watchSwarmLead(idle: () => boolean, wake: () => void, paint: (ev
 export function watchSwarmBoard(check: () => void): () => void {
   leadChecks.add(check)
   return () => { leadChecks.delete(check) }
+}
+
+export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTool: CanUseToolFn, ready: () => boolean, resume?: typeof import('../../tools/AgentTool/resumeAgent.js').resumeAgentBackground): { check: () => void; stop: () => void } {
+  const leadContext = AsyncLocalStorage.snapshot()
+  let running = false, pending = false, stopped = false
+  const check = (): void => leadContext(() => {
+    if (stopped) return
+    pending = true
+    if (running) return
+    running = true
+    queueMicrotask(() => { void drain() })
+  })
+  const drain = async (): Promise<void> => {
+    try {
+      while (pending && !stopped) {
+        pending = false
+        if (!ready() || !swarmMasterEnabled() || operatorPauseGate.holds('main')) continue
+        const store = swarmStore()
+        if (!store || !store.pendingWakes().length) continue
+        const { boardResumeRefusal, resumeAgentBackground } = await import('../../tools/AgentTool/resumeAgent.js')
+        await flushSessionStorage()
+        if (stopped || !ready()) continue
+        for (const wake of store.pendingWakes()) {
+          const current = context()
+          if (!current || boardResumeRefusal(wake.agent, current.getAppState().tasks) !== null) continue
+          const principal = swarmPrincipal()
+          if (!principal) continue
+          const claim = store.claimWake(principal, wake)
+          if (!claim) continue
+          try {
+            const packet = store.wakePacket(principal, claim)
+            if (!packet?.eventIds.includes(wake.eventId)) throw new Error('The triggering post could not be delivered; the lead can resume this crewmate.')
+            const { toolUseId: _stale, ...base } = current
+            void _stale
+            await (resume ?? resumeAgentBackground)({ agentId: wake.agent, prompt: packet.text, boardEventIds: packet.eventIds, automatic: true, toolUseContext: { ...base, abortController: new AbortController() }, canUseTool, onAdmitted: () => store.admitWake(principal, claim) })
+          } catch (error) {
+            const reason = error instanceof Error ? error.message : String(error)
+            store.holdWake(principal, claim, reason)
+            logForDebugging(`crew board: ${wake.agent} could not resume: ${reason}`)
+          }
+        }
+      }
+    } catch (error) {
+      logForDebugging(`crew board: wake dispatch failed: ${error instanceof Error ? error.message : String(error)}`)
+    } finally {
+      running = false
+      if (pending && !stopped) check()
+    }
+  }
+  const unwatch = watchSwarmBoard(check)
+  const unpause = operatorPauseGate.subscribe(check)
+  check()
+  return { check, stop: () => { stopped = true; unwatch(); unpause() } }
 }
 
 export function swarmRoad(agentId = 'main'): boolean {
@@ -278,13 +334,15 @@ export function swarmPresented(agentId: string | undefined, messages: readonly M
   if (principal && (ids.length || packets.length)) swarmStore()?.presented(principal, ids, requestId, packets)
 }
 
-export function mirrorSwarmNotice(agentId: string, text: string, summary: string, completed = false): BoardReceipt | null {
+export function mirrorSwarmNotice(agentId: string, text: string, summary: string, outcome?: BoardSettlement): BoardReceipt | null {
   if (!swarmRoad(agentId)) return null
   try {
     const principal = swarmPrincipal(agentId)
     if (!principal) return null
     const hash = createHash('sha256').update(text).digest('hex')
-    return swarmStore()?.post(principal, { clientOpId: `notice:${hash}`, kind: 'notice', text: summary, taskId: agentId, refs: [{ uri: `mercury://agent/${agentId}`, digest: hash }], ...(completed ? { lifecycle: { kind: 'done' as const } } : {}) }, 'mirror') ?? null
+    const store = swarmStore()
+    const lifecycle = outcome === undefined ? undefined : store?.complete(principal, outcome)
+    return store?.post(principal, { clientOpId: `notice:${hash}`, kind: 'notice', text: summary, taskId: agentId, refs: [{ uri: `mercury://agent/${agentId}`, digest: hash }], ...(lifecycle ? { lifecycle } : {}) }, 'mirror') ?? null
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : String(error) }
   } finally { closeIdleSwarm() }
