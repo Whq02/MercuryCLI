@@ -49,7 +49,7 @@ section('§0 the reader law: system rows recorded one after another after the la
   }
   check('two board rows after the last reply both paint', painted([user('u1', null, 'hi', '1'), assistant('a1', 'u1', 'm1', 'hello', '2'), system('c1', 'a1', 'crew_chat', 'one', '3'), system('c2', 'c1', 'crew_chat', 'two', '4')]) === 'u1 a1 c1 c2')
   check('three board rows after the last reply all paint, in file order', painted([user('u1', null, 'hi', '1'), assistant('a1', 'u1', 'm1', 'hello', '2'), system('c1', 'a1', 'crew_chat', 'one', '3'), system('c2', 'c1', 'crew_chat', 'two', '4'), system('c3', 'c2', 'crew_chat', 'three', '5')]) === 'u1 a1 c1 c2 c3')
-  check('two local command rows after the last reply both paint', painted([user('u1', null, 'hi', '1'), assistant('a1', 'u1', 'm1', 'hello', '2'), system('l1', 'a1', 'local_command', '/cost', '3'), system('l2', 'l1', 'local_command', '/help', '4')]) === 'u1 a1 l1 l2')
+  check('two local command rows after the last reply both paint', painted([user('u1', null, 'hi', '1'), assistant('a1', 'u1', 'm1', 'hello', '2'), system('l1', 'a1', 'local_command', '/usage', '3'), system('l2', 'l1', 'local_command', '/help', '4')]) === 'u1 a1 l1 l2')
   const attachment = (uuid: string, parent: string | null, t: string) => ({ ...base(uuid, parent, t), type: 'attachment', attachment: { type: 'usage' } })
   check('board rows under the attachment that closed the last turn both paint', painted([user('u1', null, 'hi', '1'), assistant('a1', 'u1', 'm1', 'hello', '2'), attachment('t1', 'a1', '3'), system('c1', 't1', 'crew_chat', 'one', '4'), system('c2', 'c1', 'crew_chat', 'two', '5')]) === 'u1 a1 c1 c2')
   check('board rows followed by a prompt and its reply paint whole', painted([user('u1', null, 'hi', '1'), assistant('a1', 'u1', 'm1', 'hello', '2'), system('c1', 'a1', 'crew_chat', 'one', '3'), system('c2', 'c1', 'crew_chat', 'two', '4'), user('u2', 'c2', 'next', '5'), assistant('a2', 'u2', 'm2', 'reply', '6')]) === 'u1 a1 c1 c2 u2 a2')
@@ -281,7 +281,7 @@ try {
   for (const [label, needle] of [
     ['the launch row', '[main] Swarm launched'],
     ['a Joined row for each seat', '[lists-judge] Joined'],
-    ['an ask by a teamed seat', '[lists-judge] @lists-writer is the list ready? ROW-ASK'],
+    ['an ask by a labelled seat', '[lists-judge] @lists-writer is the list ready? ROW-ASK'],
     ['an answer', '[lists-writer] nearly, two rows left ROW-ANSWER'],
     ['a blocker', '[solo] @all the disk is full ROW-BLOCKER'],
     ['a correction', '[lists-writer] six rows, not five ROW-CORRECTION'],
@@ -312,7 +312,7 @@ try {
   const lists = hex(chatNameColor('lists', palette))
   check(`two seats of one team share the team's colour (${lists})`, fgOf(rows, 'ROW-ASK', 'name') === lists && fgOf(rows, 'ROW-ANSWER', 'name') === lists, `${fgOf(rows, 'ROW-ASK', 'name')} / ${fgOf(rows, 'ROW-ANSWER', 'name')}`)
   check('the captain plate wears that colour whole', fgOf(rows, 'ROW-LONG-END', 'name') === lists || fgOf(rows, 'The long post keeps going', 'name') === lists, String(fgOf(rows, 'The long post keeps going', 'name')))
-  check(`an unteamed seat is keyed by its name (${hex(chatNameColor('solo', palette))})`, fgOf(rows, 'ROW-BLOCKER', 'name') === hex(chatNameColor('solo', palette)), String(fgOf(rows, 'ROW-BLOCKER', 'name')))
+  check(`a seat without a label is keyed by its name (${hex(chatNameColor('solo', palette))})`, fgOf(rows, 'ROW-BLOCKER', 'name') === hex(chatNameColor('solo', palette)), String(fgOf(rows, 'ROW-BLOCKER', 'name')))
   check(`the lead keeps the first accent (${hex(palette.agentAccents[0]!.color)})`, fgOf(rows, 'ROW-LEAD', 'name') === hex(palette.agentAccents[0]!.color), String(fgOf(rows, 'ROW-LEAD', 'name')))
   check(`the owner's name is the primary ink (${hex(palette.textPrimary)}), its body grey`, fgOf(rows, 'ROW-OWNER', 'name') === hex(palette.textPrimary) && fgOf(rows, 'ROW-OWNER', 'body') === grey, `${fgOf(rows, 'ROW-OWNER', 'name')} / ${fgOf(rows, 'ROW-OWNER', 'body')}`)
   check('lifecycle rows are grey bodies with the seat colour on the name', fgOf(rows, '[solo] Done', 'body') === grey && fgOf(rows, '[solo] Done', 'name') === hex(chatNameColor('solo', palette)), `${fgOf(rows, '[solo] Done', 'body')} / ${fgOf(rows, '[solo] Done', 'name')}`)
