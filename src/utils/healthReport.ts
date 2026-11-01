@@ -775,6 +775,23 @@ function standingWindowWords(family: string): string {
   }
 }
 
+export function ocrReadinessCheck(reads?: Parameters<typeof import('./ocr.js').resolveOcrEngine>[0]): CheckSpec {
+  return {
+    id: 'iface-ocr',
+    label: 'OCR',
+    depth: 'fast',
+    probe: 'configuration',
+    timeoutMs: 11_000,
+    run: async () => {
+      const { resolveOcrEngine } = await import('./ocr.js')
+      const engine = await resolveOcrEngine(reads)
+      return engine.kind === 'unavailable'
+        ? { status: 'info', evidence: `unavailable — ${engine.message}`, fix: engine.message }
+        : { status: 'ok', evidence: engine.name, detail: `Languages: ${engine.languages.join(', ')}` }
+    },
+  }
+}
+
 export function browserReadinessCheck(reads?: import('../services/browser/browserResolver.js').BrowserResolverReads): CheckSpec {
   return {
     id: 'iface-browser',
@@ -3042,6 +3059,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
           },
         },
+        ocrReadinessCheck(),
         {
           id: 'iface-image-processor',
           label: 'Image processor',
