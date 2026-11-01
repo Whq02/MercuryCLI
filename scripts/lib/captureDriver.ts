@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
+import { resolveExecutionProfile } from './executionProfile.ts'
 import { configHomeIsReal } from './loginDriverGuard.ts'
 import { resolveProofHome } from './proofHome.ts'
 
@@ -108,6 +109,11 @@ export function ptyDriverPython(what: string, driver: CaptureDriver = resolveCap
 
 export function posixPtyDriverOrSkip(proof: string, driver: CaptureDriver = resolveCaptureDriver()): PosixPtyDriver {
   if (driver.kind === 'posix-pty') return driver
-  console.log(`__SUITE_SKIPPED ${proof}: no posix-pty capture driver on this host (${noPosixPtyWords(driver)}) — the proof drives a POSIX pty through scripts/streaming/ptydrive.py`)
+  const why = `no posix-pty capture driver on this host (${noPosixPtyWords(driver)}) — the proof drives a POSIX pty through scripts/streaming/ptydrive.py`
+  if (resolveExecutionProfile(join(import.meta.dir, '..', '..')).kind === 'hosted-gate') {
+    console.error(`  [FAIL] the hosted gate cannot drive the pty — ${why}`)
+    process.exit(1)
+  }
+  console.log(`__SUITE_SKIPPED ${proof}: ${why}`)
   process.exit(0)
 }

@@ -1,6 +1,9 @@
 #!/usr/bin/env bun
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { fileURLToPath } from 'node:url'
+import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { describeCapturePreflight, preflightCaptureDriver } from '../lib/capturePreflight.ts'
+import { resolveExecutionProfile } from '../lib/executionProfile.ts'
 
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = {
@@ -12,7 +15,7 @@ process.env.NODE_ENV = 'test'
   MERCURY_DEMO: false,
 }
 
-const SELF = new URL(import.meta.url).pathname
+const SELF = fileURLToPath(import.meta.url)
 
 if (process.env.TOOLGLYPH_RENDER_CHILD) {
   const React = await import('react')
@@ -383,38 +386,50 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
 
   t.section('§5 — REAL RENDER: every mark reaches the grid as one cell')
   {
-    const out = join(scratch, 'glyphs.json')
-    const cfg = join(scratch, 'cfg.json')
-    writeFileSync(
-      cfg,
-      JSON.stringify({
-        argv: [process.execPath, 'run', SELF],
-        sends: [],
-        total: 14,
-        cols: 40,
-        rows: 16,
-        out,
-      }),
-    )
-    const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfg], {
-      encoding: 'utf8',
-      timeout: vshotBudgetMs(60_000),
-      env: { ...process.env, TERM: 'xterm-256color', TOOLGLYPH_RENDER_CHILD: '1' },
-    })
-    let lines: string[] = []
-    try {
-      const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: { c: string }[][] }
-      lines = payload.grid.map(cells => cells.map(cell => cell.c).join(''))
-    } catch {
-    }
-    t.check('the vocabulary rendered', r.status === 0 && lines.length > 0, `exit=${r.status}`)
-    for (const [family, mark] of Object.entries(TOOL_FAMILY_MARKS)) {
-      const line = lines.find(l => l.includes(`|${family}`))
-      t.check(
-        `${family}: the mark paints, and its separator lands in column 2`,
-        line !== undefined && line.startsWith(`${mark.glyph}|`),
-        line?.slice(0, 12).trim() ?? 'missing',
+    const ROOT = join(import.meta.dir, '..', '..')
+    const driver = resolveCaptureDriver()
+    const engine = ((): { missing: string } | { python: string; entry: string } => {
+      if (driver.kind === 'unavailable') return { missing: `${driver.reason} (${driver.remedy})` }
+      const preflight = preflightCaptureDriver(driver, ROOT)
+      return preflight.ok ? { python: driver.python, entry: captureEngineEntry(driver, ROOT) } : { missing: describeCapturePreflight(preflight) }
+    })()
+    if ('missing' in engine) {
+      if (resolveExecutionProfile(ROOT).kind === 'hosted-gate') t.check('the hosted gate captures the real render', false, engine.missing)
+      else console.log(`  [SKIP] §5 the real render needs a capture engine this host does not have — ${engine.missing}`)
+    } else {
+      const out = join(scratch, 'glyphs.json')
+      const cfg = join(scratch, 'cfg.json')
+      writeFileSync(
+        cfg,
+        JSON.stringify({
+          argv: [process.execPath, 'run', SELF],
+          sends: [],
+          total: 14,
+          cols: 40,
+          rows: 16,
+          out,
+        }),
       )
+      const r = spawnSync(engine.python, [engine.entry, cfg], {
+        encoding: 'utf8',
+        timeout: vshotBudgetMs(60_000),
+        env: { ...process.env, TERM: 'xterm-256color', TOOLGLYPH_RENDER_CHILD: '1' },
+      })
+      let lines: string[] = []
+      try {
+        const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: { c: string }[][] }
+        lines = payload.grid.map(cells => cells.map(cell => cell.c).join(''))
+      } catch {
+      }
+      t.check('the vocabulary rendered', r.status === 0 && lines.length > 0, `exit=${r.status}`)
+      for (const [family, mark] of Object.entries(TOOL_FAMILY_MARKS)) {
+        const line = lines.find(l => l.includes(`|${family}`))
+        t.check(
+          `${family}: the mark paints, and its separator lands in column 2`,
+          line !== undefined && line.startsWith(`${mark.glyph}|`),
+          line?.slice(0, 12).trim() ?? 'missing',
+        )
+      }
     }
   }
 

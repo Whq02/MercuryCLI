@@ -423,13 +423,6 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
-      "file": "scripts/cockpit-interaction/prove-tool-projection.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfg], {",
-      "cls": "platform-owner",
-      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
-    },
-    {
       "file": "scripts/command-catalogue/capture-model-flash.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [path.join(repo, 'scripts/ui/vshot.py'), cfgPath], {",
