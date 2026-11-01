@@ -489,7 +489,7 @@ export type SystemLocalCommandMessage = {
 }
 
 export type CrewChatKind = 'ask' | 'answer' | 'blocker' | 'result' | 'correction' | 'notice'
-export type CrewChatRole = 'peer' | 'owner' | 'system'
+export type CrewChatRole = 'peer' | 'lead' | 'owner' | 'system'
 export type CrewChatChannel = { kind: 'general' } | { kind: 'team' | 'whisper'; target: string }
 export type CrewChatLifecycle = { kind: 'launched' | 'joined' | 'done' } | { kind: 'parked'; event: string }
 

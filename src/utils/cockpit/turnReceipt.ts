@@ -338,7 +338,7 @@ export function retainedChatRows(messages: Message[], kept: Message[], summaryUu
   for (const group of compactWorkOf(messages)?.idle ?? []) add(keptByUuid.has(group.after) ? group.after : summaryUuid, group.rows)
   add(summaryUuid, messages.flatMap(m => {
     const row = chatRowOf(m)
-    return row !== null && row.turnId === undefined ? [row] : []
+    return row !== null && (row.turnId === undefined || row.authorRole === 'lead') ? [row] : []
   }))
   return [...groups].filter(([, rows]) => rows.length > 0).map(([after, rows]) => ({ after, rows }))
 }
@@ -370,7 +370,7 @@ function countMessage(m: LooseMessage, t: Tally, tempRoot: string): void {
     for (const res of m.results ?? []) countResult(res, t, tempRoot)
   } else {
     const chat = chatRowOf(m)
-    if (chat !== null && chat.turnId !== undefined) t.admitted.push(chat)
+    if (chat !== null && chat.turnId !== undefined && chat.authorRole !== 'lead') t.admitted.push(chat)
   }
 }
 

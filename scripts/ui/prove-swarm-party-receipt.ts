@@ -3,7 +3,7 @@
 import React from 'react'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -39,6 +39,84 @@ const chat = (uuid: string, seq: number, name: string, content: string, turnId?:
 const inject = (rows: Row[], open = false) => injectTurnReceipts(injectRetainedChatRows(rows as never), TEMP_ROOT, open) as Row[]
 const shape = (rows: Row[]): string[] => rows.map(row => row.type === 'turn_receipt' ? `receipt:${String(row.uuid).replace(/-turn-receipt$/, '')}` : String(row.uuid))
 const receiptOf = (rows: Row[], anchor: string) => rows.find(row => row.type === 'turn_receipt' && row.uuid === `${anchor}-turn-receipt`) as { counts: { boardMessages: number; commands: number }; board?: Array<{ uuid: string; content: string }> } | undefined
+
+section('the lead speaks at the call boundary; only incoming rows fold')
+const leadPost: Row = { ...chat('lead-post', 2, 'main', '@alpha Read the fence first.', 'p1'), authorRole: 'lead' }
+const leadTurn = [prompt('ask the crew', 'p1'), toolUse('CrewBoard', 'call'), chat('peer-one', 1, 'alpha', 'first incoming post', 'p1'), leadPost, chat('peer-two', 3, 'beta', 'second incoming post', 'p1'), reply('The crew has the note.', 'done')]
+const leadClosed = inject(leadTurn)
+check('the lead post stays between its call and reply after the turn closes', JSON.stringify(shape(leadClosed)) === '["p1","call","lead-post","done","receipt:p1"]', JSON.stringify(shape(leadClosed)))
+check('only the two crewmate rows are counted and held by the receipt', receiptOf(leadClosed, 'p1')?.counts.boardMessages === 2 && JSON.stringify(receiptOf(leadClosed, 'p1')?.board?.map(row => row.uuid)) === '["peer-one","peer-two"]', JSON.stringify(receiptOf(leadClosed, 'p1')))
+check('the lead post stays at the same boundary while the turn runs', shape(inject(leadTurn, true)).indexOf('lead-post') === 3)
+const leadOnly = inject([leadTurn[0]!, leadTurn[1]!, leadPost, leadTurn[5]!])
+check('a lead-only post adds no board-message item or expandable board rows', receiptOf(leadOnly, 'p1')?.counts.boardMessages === 0 && receiptOf(leadOnly, 'p1')?.board === undefined)
+
+section('the board event makes one durable row, not the tool result')
+{
+  const home = process.env.MERCURY_CONFIG_DIR
+  if (!home) throw new Error('use a scratch MERCURY_CONFIG_DIR')
+  const scratch = mkdtempSync(join(home, 'lead-row-'))
+  const { buildTool } = await import('../../src/Tool.ts')
+  const { open } = await import('../../src/services/crewBoard/store.ts')
+  const { tool } = await import('../../src/services/crewBoard/implementation.ts')
+  const { partyFeed } = await import('../../src/services/crewBoard/party.ts')
+  const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
+  const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
+  const sessionId = '00000000-0000-4000-8000-000000000001'
+  const board = open(join(scratch, 'board.sqlite'), sessionId)
+  const principal = { author: { sessionId, agentId: 'main', executionId: 'lead-turn' }, name: 'main' }
+  const peer = { author: { sessionId, agentId: 'alpha', executionId: 'peer-turn' }, name: 'alpha' }
+  const rows: Row[] = []
+  const transcript = join(scratch, `${sessionId}.jsonl`)
+  const record = (row: Row): void => {
+    const entry = { ...row, parentUuid: rows.at(-1)?.uuid ?? null, isSidechain: false, sessionId, timestamp: row.timestamp ?? new Date().toISOString() }
+    rows.push(entry)
+    appendFileSync(transcript, encodeTranscriptLine(transcript, entry).line)
+  }
+  const party = partyFeed({ store: () => board, anchor: () => 'p1', record: async row => { record(row) } })
+  try {
+    board.enroll(principal)
+    board.enroll(peer)
+    board.setChat({ on: true, filter: { kind: 'all' } })
+    board.markScreenIntroduced()
+    board.markScreenCursor(board.view().snapshot)
+    record(prompt('post the note', 'p1'))
+    party.blockOpen()
+    record(toolUse('CrewBoard', 'call'))
+    party.landed()
+    const boardTool = tool({ buildTool, principal: () => principal, paused: () => false, sessionOn: () => true }, () => board)
+    const input = { op: 'post', clientOpId: 'lead-note', kind: 'result', text: '@alpha Read the fence first.' }
+    const result = await boardTool.call(input, {} as never, undefined as never, {} as never, undefined as never)
+    party.check()
+    await Promise.resolve()
+    const own = rows.find(row => row.subtype === 'crew_chat')
+    check('the CrewBoard post supplies its event id; the feed stamps lead and main at the call boundary', (result.data as { ok?: boolean; eventId?: string }).ok === true && own?.uuid === (result.data as { eventId?: string }).eventId && own?.authorRole === 'lead' && own?.name === 'main' && own?.turnId === 'p1' && rows[2] === own, JSON.stringify(own))
+    const live = await reader.readTranscriptChainSince(transcript, null)
+    record({ type: 'user', uuid: 'result', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't-call', content: JSON.stringify(result.data) }] } })
+    for (const clientOpId of ['one', 'two']) {
+      const posted = board.post(peer, { clientOpId, kind: 'result', text: clientOpId })
+      if (!posted.ok) throw new Error(posted.reason)
+    }
+    party.check()
+    await Promise.resolve()
+    record(reply('The crew has the note.', 'done'))
+    party.turnEnd()
+    const streamed = await reader.readTranscriptChainSince(transcript, live.cursor)
+    const reattached = await reader.readTranscriptChainSince(transcript, null)
+    reader._resetTranscriptReaderForTesting()
+    const cold = await reader.readTranscriptChainSince(transcript, null)
+    const expected = ['p1', 'call', own?.uuid, 'result', 'done', 'receipt:p1']
+    for (const [label, chain] of [['live', streamed], ['reattach', reattached], ['cold resume', cold]] as const) {
+      const painted = inject([...chain.rows] as Row[])
+      check(`${label}: the lead row stands once at its boundary and only two incoming rows fold`, JSON.stringify(shape(painted)) === JSON.stringify(expected) && receiptOf(painted, 'p1')?.counts.boardMessages === 2 && receiptOf(painted, 'p1')?.board?.length === 2, JSON.stringify(shape(painted)))
+    }
+    party.check()
+    await Promise.resolve()
+    check('the persisted cursor prevents a second copy of the lead row', rows.filter(row => row.uuid === own?.uuid).length === 1 && board.screenCursor() === board.view().snapshot)
+  } finally {
+    board.close()
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
 
 section('words')
 check('zero adds nothing', boardMessagesWords(0) === null)
@@ -104,6 +182,10 @@ check('a fully folded turn leaves one retained receipt on the summary with its t
 check('its idle rows are retained apart, anchored on the summary, whole and uncounted', JSON.stringify(idle.map(group => [group.after, group.rows.map(row => row.uuid)])) === '[["sum",["c4","c5"]]]' && idle[0]!.rows.every(row => row.turnId === undefined && row.content !== ''), JSON.stringify(idle))
 const boundary = (receipts: unknown, retainedIdle: unknown, uuid = 'cb'): Row => ({ type: 'system', subtype: 'compact_boundary', uuid, compactMetadata: { work: { receipts, idle: retainedIdle, recap: { turns: 1, toolCounts: [], files: [], toolFailures: 0, failedToolUseIds: [] } } } })
 const summary: Row = { type: 'user', uuid: 'sum', isCompactSummary: true, isVisibleInTranscriptOnly: true, message: { role: 'user', content: 'The summary.' } }
+const leadCarry = foldedTurnReceipts(leadTurn as never, [] as never, 'sum', TEMP_ROOT)
+const leadRetained = retainedChatRows(leadTurn as never, [] as never, 'sum')
+const leadCompacted = inject([boundary(leadCarry, leadRetained), summary])
+check('compaction retains the lead post as a visible row and only the two incoming posts in the fold', leadCompacted.some(row => row.uuid === leadPost.uuid) && receiptOf(leadCompacted, 'p1')?.counts.boardMessages === 2 && receiptOf(leadCompacted, 'p1')?.board?.length === 2 && JSON.stringify(leadRetained.flatMap(group => group.rows.map(row => row.uuid))) === '["lead-post"]', JSON.stringify(shape(leadCompacted)))
 const afterFold = inject([boundary(carried, idle), summary, ...kept])
 check('after the fold: the summary, the receipt with its three rows expandable, the two idle rows as rows, then the kept turn', JSON.stringify(shape(afterFold)) === JSON.stringify(['cb', 'sum', 'receipt:p1', 'c4', 'c5', 'p2', 'a4', 'receipt:p2']) && receiptOf(afterFold, 'p1')?.board?.length === 3, JSON.stringify(shape(afterFold)))
 process.env.MERCURY_TURN_RECEIPT = '0'
@@ -178,7 +260,9 @@ else {
   const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
   const { gridToPng } = await import('./gridToPng.ts')
   const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-  const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
+  const { seedFirstRun, FIXTURE_API_KEY } = await import('../lib/firstRunSeed.ts')
+  const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+  const api = await startFixtureApi([])
   const captures = arg('--captures') ?? join(home, 'captures')
   mkdirSync(captures, { recursive: true })
   const RUNTIME_CWD = ROOT
@@ -195,6 +279,7 @@ else {
     MERCURY_BOOT_PREFLIGHT: '0', MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0',
     MERCURY_TURN_RECEIPT: '1', MERCURY_VERIFY_EVIDENCE: '0', TERM: 'xterm-256color', USER: 'sam', MERCURY_OPERATOR: 'sam',
+    ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: api.url,
   }
   const projects = getProjectDir(RUNTIME_CWD)
   mkdirSync(projects, { recursive: true })
@@ -208,9 +293,10 @@ else {
   const ids = ['00000000-0000-4000-8000-00000000a004', '00000000-0000-4000-8000-00000000a005', '00000000-0000-4000-8000-00000000a006', '00000000-0000-4000-8000-00000000a007', '00000000-0000-4000-8000-00000000a008']
   const post = (parent: string, uuid: string, seq: number, name: string, content: string, kind: string, turnId?: string, team?: string) => base({
     parentUuid: parent, type: 'system', subtype: 'crew_chat', uuid, content, level: 'info', timestamp: `2026-06-19T12:00:${10 + seq}.000Z`,
-    seq, name, ...(team === undefined ? {} : { team }), authorRole: 'peer', kind, mentions: ['main'], addresses: ['main'], ...(turnId === undefined ? {} : { turnId }),
+    seq, name, ...(team === undefined ? {} : { team }), authorRole: name === 'main' ? 'lead' : 'peer', kind, mentions: ['main'], addresses: ['main'], ...(turnId === undefined ? {} : { turnId }),
   })
-  const ADMITTED = ['The list is ready, eighteen rows.', 'The addon faults on the second image.', 'Read the fence first.']
+  const ADMITTED = ['The list is ready, eighteen rows.', 'The addon faults on the second image.']
+  const LEAD = 'Read the fence first.'
   const IDLE = ['May I take the README row?', 'Yes, the README row is yours.']
   const NOTICE_REPLIES = ['The first reply.', 'The notice reply.']
   const NOTICE = '@main The notice arrived.'
@@ -228,7 +314,7 @@ else {
       base({ parentUuid: '00000000-0000-4000-8000-00000000c001', type: 'assistant', uuid: ids[2], requestId: 'req_fold_2', message: { id: 'msg_fold_2', type: 'message', role: 'assistant', model: 'claude-opus-4-8', content: [{ type: 'tool_use', id: 'toolu_fold2', name: 'Bash', input: { command: 'echo two', description: 'Second' } }], stop_reason: 'tool_use', stop_sequence: null, usage: { input_tokens: 2400, output_tokens: 1 } }, timestamp: '2026-06-19T12:00:13.000Z' }),
       base({ parentUuid: ids[2], type: 'user', uuid: ids[3], message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_fold2', content: 'two' }] }, toolUseResult: 'two', timestamp: '2026-06-19T12:00:14.000Z' }),
       post(ids[3], '00000000-0000-4000-8000-00000000c002', 2, 'ocr-fix', `@main ${ADMITTED[1]}`, 'blocker', P3, 'ocr'),
-      post('00000000-0000-4000-8000-00000000c002', '00000000-0000-4000-8000-00000000c003', 3, 'main', `@ocr-fix ${ADMITTED[2]}`, 'result', P3),
+      post('00000000-0000-4000-8000-00000000c002', '00000000-0000-4000-8000-00000000c003', 3, 'main', `@ocr-fix ${LEAD}`, 'result', P3),
       base({ parentUuid: '00000000-0000-4000-8000-00000000c003', type: 'assistant', uuid: ids[4], requestId: 'req_fold_3', message: { id: 'msg_fold_3', type: 'message', role: 'assistant', model: 'claude-opus-4-8', content: [{ type: 'text', text: 'Both echoes ran.' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 3000, output_tokens: 1 } }, timestamp: '2026-06-19T12:00:17.000Z' }),
       ...(leg === 'idle' ? [
         post(ids[4], '00000000-0000-4000-8000-00000000c004', 4, 'lists-writer', `@main ${IDLE[0]}`, 'ask', undefined, 'lists'),
@@ -242,8 +328,8 @@ else {
   type Grid = Array<Array<{ c: string }>>
   const text = (grid: Grid): string[] => grid.map(line => line.map(cell => cell.c || ' ').join(''))
   const lineOf = (lines: string[], needle: string): number => lines.findIndex(line => line.includes(needle))
-  const RECEIPT = /∙ 2 shell commands(?: · ctx [+−][\d.]+[kM]?)? ∙ 3 board messages/
-  const closed = { awaitPattern: `^(?![\\s\\S]*${ADMITTED[2]!.replace(/[.]/g, '\\.')})[\\s\\S]*board messages` }
+  const RECEIPT = /∙ 2 shell commands(?: · ctx [+−][\d.]+[kM]?)? ∙ 2 board messages/
+  const closed = { awaitPattern: `^(?![\\s\\S]*${ADMITTED[1]!.replace(/[.]/g, '\\.')})[\\s\\S]*board messages` }
   try {
     for (const [cols, rows] of [[120, 44], [80, 24]] as const) {
       for (const leg of ['idle', 'cursor', 'notice'] as const) {
@@ -254,11 +340,11 @@ else {
           ? [
               then('', 'board messages', 'folded'),
               then(CLICK, 'board messages', undefined, { targetText: 'board messages' }),
-              then('', ADMITTED[2]!, 'clicked'),
+              then('', ADMITTED[1]!, 'clicked'),
               then(CLICK, 'board messages', undefined, { targetText: 'board messages' }),
               then('', 'board messages', 'clicked-again', closed),
               then('\x0f', 'board messages'),
-              then('', ADMITTED[2]!, 'verbose'),
+              then('', ADMITTED[1]!, 'verbose'),
               then('\x0f', 'board messages'),
               then('', 'board messages', 'verbose-off', closed),
             ]
@@ -268,8 +354,9 @@ else {
               then('\x1b[B', 'navigate'),
               then('\x1b[B', 'navigate'),
               then('\x1b[B', 'navigate'),
+              then('\x1b[B', 'navigate'),
               then('\r', 'enter expand'),
-              then('', ADMITTED[2]!, 'entered'),
+              then('', ADMITTED[1]!, 'entered'),
               then('\r', 'enter collapse'),
               then('', 'board messages', 'entered-again', closed),
               then('\x1b', 'enter expand'),
@@ -312,16 +399,19 @@ else {
         }
         const foldedLines = marks.get('folded') ?? []
         const receiptAt = foldedLines.findIndex(line => RECEIPT.test(line))
-        check(`${tag}: the closed turn's line reads ∙ 2 shell commands · ctx ∙ 3 board messages`, receiptAt >= 0, foldedLines.filter(line => line.includes('board')).join(' | '))
-        check(`${tag}: the three admitted rows are behind the receipt, not on the screen`, ADMITTED.every(words => lineOf(foldedLines, words.slice(0, 18)) < 0), foldedLines.filter(line => ADMITTED.some(words => line.includes(words.slice(0, 18)))).join(' | '))
+        check(`${tag}: the closed turn counts only the two crewmate posts`, receiptAt >= 0, foldedLines.filter(line => line.includes('board')).join(' | '))
+        check(`${tag}: the two incoming rows are behind the receipt, not on the screen`, ADMITTED.every(words => lineOf(foldedLines, words.slice(0, 18)) < 0), foldedLines.filter(line => ADMITTED.some(words => line.includes(words.slice(0, 18)))).join(' | '))
+        const leadAt = lineOf(foldedLines, `[main] @ocr-fix ${LEAD}`)
+        const replyAt = lineOf(foldedLines, 'Both echoes ran.')
+        check(`${tag}: the lead row stays before the reply and receipt after resume`, leadAt >= 0 && replyAt > leadAt && receiptAt > replyAt, JSON.stringify({ leadAt, replyAt, receiptAt }))
         if (leg === 'idle') {
           const idleAt = IDLE.map(words => lineOf(foldedLines, words.slice(0, 18)))
           check(`${tag}: the two idle rows stay as rows below the receipt, in order`, idleAt[0]! > receiptAt && idleAt[1]! > idleAt[0]!, JSON.stringify({ receiptAt, idleAt }))
           const clicked = marks.get('clicked') ?? []
           const opened = ADMITTED.map(words => lineOf(clicked, words.slice(0, 18)))
           const clickedReceipt = clicked.findIndex(line => RECEIPT.test(line))
-          check(`${tag}: a click opens the receipt: the three rows paint beneath it in board order, above the idle rows`, opened.every(at => at > clickedReceipt) && opened[0]! < opened[1]! && opened[1]! < opened[2]! && opened[2]! < lineOf(clicked, IDLE[0]!.slice(0, 18)), JSON.stringify({ clickedReceipt, opened }))
-          check(`${tag}: the opened rows and the idle rows sit tight, one line each, no blank between them`, opened[1] === opened[0]! + 1 && opened[2] === opened[1]! + 1 && lineOf(clicked, IDLE[0]!.slice(0, 18)) === opened[2]! + 1 && clickedReceipt === opened[0]! - 1, JSON.stringify({ clickedReceipt, opened, idle: lineOf(clicked, IDLE[0]!.slice(0, 18)) }))
+          check(`${tag}: a click opens the two incoming rows in board order, above the idle rows`, opened.every(at => at > clickedReceipt) && opened[0]! < opened[1]! && opened[1]! < lineOf(clicked, IDLE[0]!.slice(0, 18)), JSON.stringify({ clickedReceipt, opened }))
+          check(`${tag}: the opened rows and the idle rows sit tight, one line each, no blank between them`, opened[1] === opened[0]! + 1 && lineOf(clicked, IDLE[0]!.slice(0, 18)) === opened[1]! + 1 && clickedReceipt === opened[0]! - 1, JSON.stringify({ clickedReceipt, opened, idle: lineOf(clicked, IDLE[0]!.slice(0, 18)) }))
           check(`${tag}: the rows keep the row shape: time, name in brackets, the words`, /\d{2}:\d{2}:\d{2} \[lists-judge\] @main The list is ready/.test(clicked[opened[0]!] ?? ''), clicked[opened[0]!] ?? '')
           check(`${tag}: a second click closes it`, ADMITTED.every(words => lineOf(marks.get('clicked-again') ?? [], words.slice(0, 18)) < 0))
           check(`${tag}: ctrl+o shows the same rows`, ADMITTED.every(words => lineOf(marks.get('verbose') ?? [], words.slice(0, 18)) >= 0))
@@ -331,10 +421,17 @@ else {
           check(`${tag}: enter on the selected receipt opens it`, ADMITTED.every(words => lineOf(entered, words.slice(0, 18)) >= 0) && lineOf(entered, 'enter collapse') >= 0, entered.filter(line => line.includes('enter ')).join(' | '))
           check(`${tag}: enter again closes it`, ADMITTED.every(words => lineOf(marks.get('entered-again') ?? [], words.slice(0, 18)) < 0))
         }
+        check(`${tag}: expanding or collapsing never hides or duplicates the lead post`, [...marks.values()].every(lines => lines.filter(line => line.includes(`[main] @ocr-fix ${LEAD}`)).length === 1))
         console.log(`  frames: ${join(captures, tag)}-*.png`)
       }
     }
+    writeFileSync(join(captures, 'requests.json'), JSON.stringify(api.messageRequests(), null, 2))
+    check('the saved-turn captures request only automatic titles, never another conversational reply', api.messageRequests().every(request => {
+      const body = request.body as { output_config?: { format?: { schema?: { required?: string[] } } }; tools?: unknown[] }
+      return JSON.stringify(body.output_config?.format?.schema?.required) === '["title"]' && body.tools?.length === 0
+    }))
   } finally {
+    await api.close()
     if (existsSync(daemonDir)) {
       for (const worker of Object.values(readSessionWorkers(daemonDir))) if (worker.pid && worker.endedAt === undefined) { try { process.kill(worker.pid, 'SIGTERM') } catch {} }
       try { const pid = Number(readFileSync(join(daemonDir, 'daemon.pid'), 'utf8').trim()); if (pid > 1) process.kill(pid, 'SIGTERM') } catch {}

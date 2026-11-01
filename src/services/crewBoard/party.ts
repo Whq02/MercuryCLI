@@ -30,7 +30,7 @@ function lifecycleWords(lifecycle: CrewChatLifecycle): string {
 }
 
 function partyRow(event: ScreenEvent, turnId?: string): SystemCrewChatMessage {
-  const authorRole: CrewChatRole = event.lifecycle ? 'system' : event.authorRole ?? 'peer'
+  const authorRole: CrewChatRole = event.lifecycle ? 'system' : event.authorRole ?? (event.author.agentId === 'main' ? 'lead' : 'peer')
   const label = event.channel === undefined ? undefined : event.channel.kind === 'general' ? 'all' : event.channel.target
   const kind: CrewChatKind = PUBLIC_KINDS.has(event.kind) ? (event.kind as CrewChatKind) : 'notice'
   return {
@@ -42,7 +42,7 @@ function partyRow(event: ScreenEvent, turnId?: string): SystemCrewChatMessage {
     timestamp: event.createdAt,
     content: event.lifecycle !== undefined ? lifecycleWords(event.lifecycle) : authorRole === 'owner' && label !== undefined ? `@${label} ${event.text}` : event.text,
     seq: event.seq,
-    name: event.authorName ?? event.author.agentId,
+    name: authorRole === 'lead' ? 'main' : event.authorName ?? event.author.agentId,
     ...(event.team === undefined ? {} : { team: event.team }),
     ...(event.captain ? { captain: true } : {}),
     authorRole,
