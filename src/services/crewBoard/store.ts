@@ -233,10 +233,14 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
       if (p.author.sessionId !== sessionId) throw new Error('A board cannot enroll another session.')
       if (p.author.agentId.toLowerCase() === 'owner' || p.name.trim().toLowerCase() === 'owner') throw new Error('Owner is reserved for the operator.')
       transaction(() => {
+        if (p.author.agentId === 'main') {
+          const stored = db.prepare('SELECT execution FROM members WHERE agent = ?').get('main')?.execution
+          if (stored !== undefined && stored !== p.author.executionId) db.prepare('DELETE FROM enrollments').run()
+        }
         const reservation = db.prepare('SELECT name, team, captain FROM enrollments WHERE agent = ?').get(p.author.agentId)
         const assigned = teamOf(p.author.agentId) ?? (reservation ? String(reservation.team) || undefined : p.team)
         const team = assigned === undefined ? undefined : canonicalTeam(assigned)
-        if (!reservation && !member(p.author.agentId)) checkEnrollment(p.author.agentId, team)
+        if (!reservation && (!member(p.author.agentId) || teamOf(p.author.agentId) !== team)) checkEnrollment(p.author.agentId, team)
         db.prepare('INSERT INTO members (agent, name, execution, credits, refilled) VALUES (?, ?, ?, ?, ?) ON CONFLICT(agent) DO UPDATE SET name = excluded.name, execution = excluded.execution').run(p.author.agentId, p.name, p.author.executionId, burst(), now())
         db.prepare('INSERT INTO seat_state (agent, joined, cursor) VALUES (?, ?, ?) ON CONFLICT(agent) DO UPDATE SET active = 1').run(p.author.agentId, latest(), latest())
         if (team !== undefined && teamOf(p.author.agentId) === undefined) db.prepare("INSERT INTO interests VALUES (?, 'membership', ?)").run(p.author.agentId, team)
