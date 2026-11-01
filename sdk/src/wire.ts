@@ -428,6 +428,21 @@ export type SessionFactsResult = {
       }
       authorName?: string
       team?: string
+      captain?: true
+      authorRole?: 'peer' | 'owner' | 'system'
+      channel?: {
+        kind: 'general'
+      } | {
+        kind: 'team' | 'whisper'
+        target: string
+      }
+      addresses?: string[]
+      recipients?: Array<{
+        agent: string
+        name: string
+        team?: string
+        captain?: true
+      }>
       mentions: string[]
       unknownMentions?: string[]
       relatedTasks: string[]
@@ -439,6 +454,12 @@ export type SessionFactsResult = {
       createdAt: string
       payloadDigest: string
       policyRevision: 1
+    }>
+    seats?: Array<{
+      agent: string
+      name: string
+      team?: string
+      captain?: true
     }>
     teams?: string[]
     names?: string[]
