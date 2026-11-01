@@ -20,6 +20,7 @@ export function runSwarmCommand(raw: string): string {
     const board = swarmStore()
     if (!board) return off
     if (op === 'uncap' || op === 'cap') setSwarmUncapped(op === 'uncap')
+    if (op === 'on' && board.chat().on) board.setChat(board.chat())
     const words = (value: number): string => board.uncapped || value === 0 ? 'no limit' : value.toLocaleString('en-US')
     return `Swarm ${swarmSessionEnabled() ? 'on' : 'off'} for new crewmates — board context ${words(board.limits.seatAllowance)} per agent, ${words(board.limits.waveAllowance)} per wave; ${board.uncapped || board.limits.postChars === 0 ? 'no limit per post' : `${words(board.limits.postChars)} characters per post`}${board.uncapped ? '; /swarm uncap is on' : ''}; ${board.limits.postsPerMinute} posts/min, ${board.limits.postsPerSeat} posts per seat.`
   } catch (error) {
