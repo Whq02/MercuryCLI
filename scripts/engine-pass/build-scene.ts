@@ -2,6 +2,12 @@ import { mkdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { ROOT } from './support.ts'
 
+const DEPARTED_DEPENDENCIES: Record<string, string> = {
+  '@anthropic-ai/sdk': resolve(import.meta.dir, 'base-stubs/anthropic-sdk.ts'),
+  '@anthropic-ai/sdk/error': resolve(import.meta.dir, 'base-stubs/anthropic-sdk.ts'),
+  '@anthropic-ai/sandbox-runtime': resolve(import.meta.dir, 'base-stubs/sandbox-runtime.ts'),
+}
+
 export async function buildScene(sourceRoot: string, outdir: string, entry = 'scripts/engine-pass/scene.tsx'): Promise<string> {
   const src = resolve(sourceRoot, 'src')
   const pkg = JSON.parse(readFileSync(resolve(sourceRoot, 'package.json'), 'utf8'))
@@ -30,6 +36,7 @@ export async function buildScene(sourceRoot: string, outdir: string, entry = 'sc
           return found ? { path: found } : undefined
         })
         build.onResolve({ filter: /^color-diff-napi$/ }, () => ({ path: resolve(src, 'native-ts/color-diff/index.ts') }))
+        build.onResolve({ filter: /^@anthropic-ai\/(?:sdk|sdk\/error|sandbox-runtime)$/ }, args => ({ path: DEPARTED_DEPENDENCIES[args.path]! }))
         build.onResolve({ filter: /\.node$/ }, args => ({ path: args.path, external: true }))
         build.onResolve({ filter: /^jsonc-parser$/ }, () => ({ path: resolve(ROOT, 'node_modules/jsonc-parser/lib/esm/main.js') }))
       },
