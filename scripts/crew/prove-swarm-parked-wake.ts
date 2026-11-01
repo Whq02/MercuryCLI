@@ -235,11 +235,13 @@ if (!process.argv.includes('--source-only')) {
   try {
     session.submit('/swarm on')
     await session.waitFor('the built wave opens', () => session.stdout().includes('Swarm on for new crewmates'))
-    session.submit('wake-parent-only: launch the worker, then wait.')
-    await session.waitFor('the worker declares its wait', () => toolResultOf(world, 'wake-declare') !== null)
     const path = findFiles(world.config, 'board.sqlite')[0]!
     const sid = dirname(dirname(dirname(path))).split(/[\\/]/).at(-1)!
     live = open(path, sid)
+    const sender = { author: { sessionId: sid, agentId: 'fixture-poster', executionId: 'fixture' }, name: 'Fixture poster' }
+    live.enroll(sender)
+    session.submit('wake-parent-only: launch the worker, then wait.')
+    await session.waitFor('the worker declares its wait', () => toolResultOf(world, 'wake-declare') !== null)
     await session.waitFor('the worker parks after its first response', () => live!.seats().some(seat => seat.name === 'wake-target' && seat.state === 'parked' && seat.wait !== undefined) && childRequests().some(request => JSON.stringify(request.body).includes('wake-first-schema')))
     const target = live.seats().find(seat => seat.name === 'wake-target')!
     const before = childRequests().length
@@ -247,8 +249,6 @@ if (!process.argv.includes('--source-only')) {
     const metaPath = findFiles(world.config, `agent-${target.agent}.meta.json`)[0]!
     const metadata = JSON.parse(readFileSync(metaPath, 'utf8'))
     assert(metadata.worktreePath)
-    const sender = { author: { sessionId: sid, agentId: 'fixture-poster', executionId: 'fixture' }, name: 'Fixture poster' }
-    live.enroll(sender)
     const posted = live.post(sender, { clientOpId: 'built-trigger', kind: 'result', about: 'built-trigger', text: 'BUILT-WAKE-PACKET' })
     assert(posted.ok)
     assert(live.post(sender, { clientOpId: 'built-trigger', kind: 'result', about: 'built-trigger', text: 'BUILT-WAKE-PACKET' }).ok)
