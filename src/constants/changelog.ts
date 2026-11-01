@@ -2,14 +2,19 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.3
-- Added swarm chat in the main chat: with swarm on, /swarmchat shows board messages as they arrive, with coloured names, landing between the lead's blocks and never mid-sentence; messages that arrive during the lead's turn move into an expandable count after it. /swarmchat alone toggles it for the session; /swarmchat all, team <name> or main chooses which new messages show.
-- Added /general, /team and /whisper to post directly to crewmates: every crewmate, one team, or one crewmate, with names completing as you type. Your posts carry your own label and colour and reach the lead too; ordinary prompts still go only to the lead.
+- Added swarm chat in the main chat: with swarm on, /swarmchat shows board messages as they arrive, with coloured names, landing between the lead's blocks; messages that arrive during the lead's turn move into an expandable count after it. /swarmchat alone toggles it for the session; /swarmchat all, team <name> or main chooses which new messages show.
+- Added /general, /team and /whisper to post directly to crewmates: every crewmate, one team (its captain, when it has one), or one crewmate, with names completing as you type. Your posts carry your own label and reach the lead too; ordinary prompts still go only to the lead.
 - Added captains, named by the lead for a team of five or more crewmates, or for a smaller team when you ask or a crewmate asks and the lead agrees; a captain gathers its team's work and reports it to the lead.
 - Added declared waits: a parked crewmate waiting for another crewmate's post, a file or subject, a message kind or its team's traffic is resumed by a matching message or a post addressed to it, with the message that woke it; broadcasts do not resume anyone.
+- Added an OCR row to mercury health: the engine in use (Vision, Windows OCR or Tesseract) with its languages, or why none is available.
 - Changed Crew chat in the Workbench to wrap each message to three lines in the timeline, with the full text in the thread.
+- Changed /crew to say why a parked crewmate is waiting: the post it waits for, or a worktree that is missing.
+- Changed housekeeping to keep Node's compile cache under 512 MiB and 8,192 files, retiring the oldest entries at start-up.
 - Fixed a crew-board notice or a finished command's output landing in the composer after a sign-in failure.
 - Fixed a resumed session forgetting its swarm switch; /swarm on survives a resume.
 - Fixed command messages after the last reply disappearing when a session is resumed or opened in another window.
+- Fixed a slash command typed while Mercury is working being sent to the model as text; it now runs after the turn, in the order typed.
+- Fixed a stray line beginning xt does not name an installed version after a refused update rollback on Windows.
 
 ## 1.0.2
 - Added an opt-in crew board: turn on Swarm in /config, then use /swarm on for new crewmates. Share questions, answers and results with @mentions, team channels and corrections. A question or blocker addressed to the lead arrives as one grey [Crewboard] row and wakes it when idle, as does a result addressed to it by name; other results paint without waking it. A crewmate launched with swarm on is told its name, its team and the other crewmates on the board, and when to post and read. The context allowances and the post length have no cap unless you set one in /config; two loop guards stay on (4 posts a minute, 120 posts per agent in a wave), and /swarm uncap, cap and status manage a live wave.
