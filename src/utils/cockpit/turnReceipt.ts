@@ -302,6 +302,35 @@ function addCounts(target: TurnReceiptCounts, source: Partial<TurnReceiptCounts>
 }
 
 type Fold = { board: SystemCrewChatMessage[]; close: number }
+type RetainedChat = NonNullable<NonNullable<CompactMetadata['work']>['idle']>[number]
+
+export function injectRetainedChatRows(messages: RenderableMessage[]): RenderableMessage[] {
+  const groups = compactWorkOf(messages)?.idle ?? []
+  if (groups.length === 0) return messages
+  const present = new Set<string>(messages.map(m => m.uuid))
+  const after = new Map<string, SystemCrewChatMessage[]>()
+  for (const group of groups) after.set(group.after, boardRows([...(after.get(group.after) ?? []), ...group.rows.filter(row => !present.has(row.uuid))]))
+  const out: RenderableMessage[] = []
+  for (const m of messages) {
+    out.push(m)
+    out.push(...(after.get(m.uuid) ?? []))
+  }
+  return out
+}
+
+export function retainedChatRows(messages: Message[], kept: Message[], summaryUuid: string): RetainedChat[] {
+  const keptByUuid = new Set<string>(kept.map(m => m.uuid))
+  const groups = new Map<string, SystemCrewChatMessage[]>()
+  const add = (after: string, rows: SystemCrewChatMessage[]): void => {
+    groups.set(after, boardRows([...(groups.get(after) ?? []), ...rows.filter(row => !keptByUuid.has(row.uuid))]))
+  }
+  for (const group of compactWorkOf(messages)?.idle ?? []) add(keptByUuid.has(group.after) ? group.after : summaryUuid, group.rows)
+  add(summaryUuid, messages.flatMap(m => {
+    const row = chatRowOf(m)
+    return row !== null && row.turnId === undefined ? [row] : []
+  }))
+  return [...groups].filter(([, rows]) => rows.length > 0).map(([after, rows]) => ({ after, rows }))
+}
 
 export function injectTurnReceipts(messages: RenderableMessage[], tempRoot: string, open = false): RenderableMessage[] {
   if (!isTurnReceiptEnabled()) return messages
@@ -428,7 +457,7 @@ export function foldedTurnReceipts(
     const segment = messages.slice(start, end)
     const surviving = segment.flatMap(m => keptByUuid.has(m.uuid) ? [keptByUuid.get(m.uuid)!] : [])
     start = end
-    const board = boardRows([...fold.board, ...segment.flatMap(m => chatRowOf(m) ?? [])].filter(row => !keptByUuid.has(row.uuid)))
+    const board = boardRows(fold.board.filter(row => !keptByUuid.has(row.uuid)))
     if (surviving.length === 0 && !(kept.length === 0 && end === messages.length)) {
       if (board.length > 0) retain({ beforeUuid: summaryUuid, anchorUuid, counts: { ...emptyCounts(), boardMessages: board.length }, board })
       return
