@@ -227,6 +227,17 @@ console.log('── 7 · install --uninstall, run by the bundle whose directory 
   check('a second uninstall is honest: nothing to remove, home still preserved', again.code === 0 && again.stdout.includes(`nothing to remove at ${versionsDir}`) && again.stdout.includes(`nothing to remove at ${shim} (absent)`), again.all.slice(0, 300))
 }
 
+console.log('── 7b · an update onto a layout with no earlier version says there is nothing to roll back to ──')
+{
+  const r = run(launcher, ['update', '--allow-unsigned'])
+  check('update exits 0, reports from → to and says no earlier version was installed', r.code === 0 && r.stdout.includes(`updated: ${VERSION} → ${NEXT}`) && r.stdout.includes('no earlier version was installed, so there is nothing to roll back to') && !r.stdout.includes('previous version kept'), r.all.slice(0, 500))
+  check('pointers: current = newer, no previous recorded', pointer('current') === NEXT && pointer('previous') === null)
+  const back = run(launcher, ['update', '--rollback'])
+  check('a rollback with no earlier version refuses by name and leaves the pointer', back.code !== 0 && back.all.includes('no previous installed version is recorded') && pointer('current') === NEXT, back.all.slice(0, 300))
+  const gone = run(launcher, ['install', '--uninstall'])
+  check('the layout is removed again for the audit', gone.code === 0 && !existsSync(versionsDir), gone.all.slice(0, 300))
+}
+
 console.log('── 8 · the channel transport audit ──')
 {
   const log = existsSync(ghLog) ? readFileSync(ghLog, 'utf8') : ''
