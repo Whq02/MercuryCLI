@@ -8,10 +8,10 @@ export function accept(ctx: Context): Acceptance {
     const steps = ['write-ask', 'stop-request', 'stop-settled', 'late-allow-sent', 'outside-report', 'forbidden-write-checked', 'new-continuation', 'write-ask', 'fresh-allow-sent', 'approved-write-settled']
     let cursor = -1
     const ordered = steps.every(kind => { const next = order.indexOf(kind, cursor + 1); cursor = next; return next >= 0 })
-    const stop = ctx.facts.effects.stop as { outcome?: string } | undefined
+    const stop = ctx.facts.effects.stop as { receipt?: string; status?: string } | undefined
     return [
       { id: 'receipt-format', ok: run.code === 0 && run.stdout.trim() === JSON.stringify(expected), witness: JSON.stringify(run) },
-      { id: 'explicit-child-stop', ok: stop?.outcome === 'applied', witness: JSON.stringify(stop) },
+      { id: 'explicit-child-stop', ok: stop?.receipt === 'applied' && stop.status === 'killed', witness: JSON.stringify(stop) },
       ...['pendingAskWasPending', 'noUnapprovedContinuation', 'forbiddenAbsent', 'freshAsk', 'absentBeforeFreshApproval'].map(id => ({ id, ok: ctx.facts.effects[id] === true, witness: String(ctx.facts.effects[id]) })),
       { id: 'authority-order', ok: ordered, witness: JSON.stringify(order) },
       { id: 'one-approved-write', ok: ctx.facts.effects.writeCount === 1, witness: String(ctx.facts.effects.writeCount) },

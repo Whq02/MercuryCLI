@@ -11,11 +11,16 @@ export async function script(ctx: Context, changes: Change[]): Promise<void> {
   const apply = patchScript(ctx, changes)
   const successes = new Set<string>()
   let childCalls = 0
+  let writesRequested = 0
+  let freshContinuation = false
   let body = ''
   const fixture = await startScriptedFixture(req => {
     if (req.ask.includes('outcome-child') || req.opening === 'outcome-child') {
       childCalls++
-      if (req.step === 0) return [{ type: 'tool_use', name: 'Write', input: { file_path: witness, content: body } }]
+      if (writesRequested === 0 || (freshContinuation && writesRequested === 1)) {
+        writesRequested++
+        return [{ type: 'tool_use', name: 'Write', input: { file_path: witness, content: body } }]
+      }
       for (const result of req.results) if (!result.isError) successes.add(result.toolUseId)
       return [{ type: 'text', text: 'Done.' }]
     }
@@ -39,7 +44,7 @@ export async function script(ctx: Context, changes: Change[]): Promise<void> {
   const waitAsk = async (n: number): Promise<void> => {
     if (held.length >= n) return
     await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`child write did not ask: ${JSON.stringify({ childCalls, asks: host.asks.map(ask => ({ id: ask.id, tool: ask.params.tool_name, agent: ask.params.agent_id })), requests: fixture.requests.map(request => ({ ask: request.ask.slice(0, 120), opening: request.opening.slice(0, 120), step: request.step, launch: request.ask === 'launch-outcome' ? request.results.map(result => result.text.split('\n\n<system-reminder>')[0]?.slice(0, 1000)) : undefined })) })}`)), 30000)
+      const timer = setTimeout(() => reject(new Error(`child write ask ${n} did not arrive: ${JSON.stringify({ childCalls, asks: host.asks.map(ask => ({ id: ask.id, tool: ask.params.tool_name, agent: ask.params.agent_id })), requests: fixture.requests.map(request => ({ ask: request.ask.slice(0, 120), opening: request.opening.slice(0, 120), step: request.step, launch: request.ask === 'launch-outcome' ? request.results.map(result => result.text.split('\n\n<system-reminder>')[0]?.slice(0, 1000)) : undefined })) })}`)), 30000)
       waiters.push(() => { clearTimeout(timer); resolve() })
     })
   }
@@ -78,6 +83,7 @@ export async function script(ctx: Context, changes: Change[]): Promise<void> {
     const beforeResume = childCalls
     event(ctx.facts, 'forbidden-write-checked', { absent: ctx.facts.effects.forbiddenAbsent, childCalls })
     event(ctx.facts, 'new-continuation', { agentId: childId })
+    freshContinuation = true
     const resumed = await host.request('agent/resume', { agent_id: childId, note: 'outcome-child: request a fresh approval, then write once.' })
     ctx.facts.effects.resumed = resumed
     await waitAsk(2)
