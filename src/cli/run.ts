@@ -1319,7 +1319,7 @@ export async function runHeadless(
           commands: dedupedCommands,
           prompt: promptValue,
           ...(options.syntaxInput !== undefined && command.value === inputPrompt ? { syntaxInput: options.syntaxInput } : {}),
-          promptUuid: command.uuid,
+          promptUuid: turnAnchor,
           ...(batchUuids.length > 0 ? { batchUuids } : {}),
           ...(batchTail.length > 0 ? { batchTail } : {}),
           ...(initialNotices.length > 0 ? { initialNotices } : {}),

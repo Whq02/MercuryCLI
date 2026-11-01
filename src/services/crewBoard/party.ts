@@ -81,26 +81,27 @@ export function partyFeed(host: PartyHost): PartyFeed {
     host.record(row).then(() => { pending.delete(row.seq); advance() }, () => {})
   }
   const flush = (): void => { for (const row of held.splice(0)) commit(row) }
-  return {
-    check() {
-      const store = host.store()
-      if (!store || !host.on()) { active = false; return }
-      if (!active) { active = true; scanned = store.screenCursor() }
-      for (let page = store.screenEvents(scanned); page.length > 0; page = store.screenEvents(scanned)) {
-        for (const event of page) {
-          scanned = event.seq
-          if (!partyAdmits(event, store.chat().filter)) continue
-          const row = partyRow(event, host.anchor())
-          pending.add(row.seq)
-          if (open) held.push(row)
-          else commit(row)
-        }
+  const check = (): void => {
+    const store = host.store()
+    if (!store || !host.on()) { active = false; return }
+    if (!active) { active = true; scanned = store.screenCursor() }
+    for (let page = store.screenEvents(scanned); page.length > 0; page = store.screenEvents(scanned)) {
+      for (const event of page) {
+        scanned = event.seq
+        if (!partyAdmits(event, store.chat().filter)) continue
+        const row = partyRow(event, host.anchor())
+        pending.add(row.seq)
+        if (open) held.push(row)
+        else commit(row)
       }
-      advance()
-    },
+    }
+    advance()
+  }
+  return {
+    check,
     active: () => host.store() !== null && host.on(),
     blockOpen() { open = true },
     landed() { open = false; flush() },
-    turnEnd() { open = false; flush() },
+    turnEnd() { check(); open = false; flush() },
   }
 }
