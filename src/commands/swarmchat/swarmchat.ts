@@ -6,7 +6,7 @@ const USAGE = 'usage: /swarmchat [all|team <name>|main] — /swarmchat alone tog
 
 export function runSwarmchatCommand(raw: string): string {
   const words = raw.trim().split(/\s+/).filter(Boolean)
-  const verb = (words[0] ?? '').toLowerCase()
+  const verb = words[0] ?? ''
   if (!['', 'all', 'team', 'main'].includes(verb) || words.length > (verb === 'team' ? 2 : 1) || (verb === 'team' && words.length < 2)) return USAGE
   if (!swarmMasterEnabled()) return 'Swarm is off — enable swarm.enabled in your user settings.json (/config → Swarm).'
   const board = swarmSessionEnabled() ? swarmStore() : null

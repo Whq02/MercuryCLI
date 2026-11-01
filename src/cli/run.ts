@@ -1682,6 +1682,7 @@ export async function runHeadless(
     anchor: () => turnAnchor ?? undefined,
     record: async row => {
       if (messages.some(message => message.uuid === row.uuid)) return
+      if ((peekProject()?.sessionFile ?? null) === null && hasConversationTurn(messages) && !isSessionPersistenceDisabled()) adoptResumedSessionFile()
       messages.push(row)
       await recordTranscript([row], undefined, messages)
     },
