@@ -442,7 +442,7 @@ export class TaskRoster {
     }
     h.longLived.reconfiguring = true
     try {
-      h.child?.kill('SIGTERM')
+      if (h.child) killProcessGroup(h.child, 'SIGTERM')
     } catch (e) {
       logForDebugging(`[daemon] reconfigure(${short}) kill failed: ${e}`)
       h.longLived.reconfiguring = false
