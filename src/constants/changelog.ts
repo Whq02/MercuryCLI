@@ -43,6 +43,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a tool definition the conversation never used being resent whole after a compaction; it is deferred like the rest.
 - Fixed Bash in the default mode asking about a cwd spelled as the current folder in another way; such a spelling is read as the current folder.
 - Fixed mercury update reporting a previous version kept and a rollback available when no earlier version was installed; it now says there is nothing to roll back to.
+- Fixed Gemini through Sign in with Google refusing a request after a crew-board message arrived beside a tool result; the message now rides inside the result.
 
 ## 1.0.1
 - Added images and video on a rented GPU: choose an existing SSH rental in /imagesetup, send reference files over its tunnel and save the results to your project; setup and generation use the rental's hourly rate.
