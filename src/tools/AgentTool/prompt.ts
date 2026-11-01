@@ -85,6 +85,7 @@ ${typeSelection}`
     "State explicitly whether the crewmate should write code or only research — it cannot see the user's intent.",
     'When an agent description says to use it proactively, honour that cue without waiting to be asked.',
     'With swarm on (`/swarm on`), a crewmate launched afterwards is enrolled on the live crew board and told its name, its `team` and the seats already there, with when to post and read; put the task\'s own board habits in the brief when they differ (what to post, whom to @mention), and expect its asks and blockers as `[name] [team] [kind]:` rows between turns.',
+    'For a planned team of five or more, launch its named captain first with captain: true and a team, or appoint an enrolled member with CrewBoard swarm_captain before the fifth seat. For a smaller team, appoint one only when the owner asks or a seat asks on the board and you agree. A seat never self-appoints; the captain folds its team\'s work and reports one result to @main.',
     "Passing `isolation: \"worktree\"` hands the crewmate a temporary git worktree of its own. It requires a git repository (or a configured worktree-create hook); outside one, omit the parameter. Nothing is removed automatically: the worktree survives the crewmate's end unlocked, its path and branch riding back in the result with what it holds, and the seven-day janitor removes only a clean one whose commits are reachable.",
   ]
   sections.push(`## Usage notes
