@@ -186,6 +186,7 @@ export type RunAgentParams = {
   description?: string
   name?: string
   team?: string
+  captain?: boolean
   launchedAt?: number
   seatHolder?: string
   transcriptSubdir?: string
