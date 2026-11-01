@@ -26,6 +26,7 @@ type Scene = {
   seconds: number
   tailMs: number
   grabStep: number
+  composerHolds?: string
 }
 
 const scenes: Scene[] = [
@@ -53,6 +54,7 @@ const scenes: Scene[] = [
     seconds: 16,
     tailMs: 4420,
     grabStep: 120,
+    composerHolds: 'errored paint probe',
   },
   {
     name: 'C queued follow-up (submit during an active turn)',
@@ -111,7 +113,7 @@ function sendOffOf(sendLog: Array<{ sent: number; b64: string }>, needle: string
 
 function transcriptHits(rows: string[], probe: string): number[] {
   const hits: number[] = []
-  const sigiled = new RegExp(`❯[^│]*${probe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
+  const sigiled = new RegExp(`\\] ❯[^│]*${probe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
   rows.forEach((row, index) => {
     if (!row.includes(probe)) return
     if (!sigiled.test(row)) return
@@ -183,6 +185,10 @@ for (const scene of scenes) {
     }
     t.check(`「${probe}」 paints on EXACTLY ONE row in every frame from first paint to final`, doubled === null, doubled ? `doubled at ${doubled.atMs}ms` : '')
     t.check(`「${probe}」 never vanishes after first paint (no gap frame)`, gap === null, gap ? `gone at ${gap.atMs}ms` : '')
+  }
+  if (scene.composerHolds !== undefined) {
+    const draft = new RegExp(`│❯ ${scene.composerHolds.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
+    t.check(`the composer holds 「${scene.composerHolds}」 as its draft after the wall (the auth-wall restore, not a transcript row)`, final.rows.some(r => draft.test(r)), final.rows.find(r => r.includes('│❯'))?.trimEnd() ?? '(no composer row)')
   }
   run.cleanup()
 }
