@@ -1,0 +1,13 @@
+diff --git a/greet.mjs b/greet.mjs
+--- a/greet.mjs
++++ b/greet.mjs
+@@ -1 +1,8 @@
+-console.log("hello, " + process.argv[2]);
++const args = process.argv.slice(2);
++const name = (args[0] ?? "").trim().normalize("NFC");
++if (args.length !== 1 || name === "") {
++  console.log("usage: greet <name>");
++  process.exitCode = 2;
++} else {
++  console.log(`hello, ${name}`);
++}

@@ -1,0 +1,12 @@
+diff --git a/config.mjs b/config.mjs
+--- a/config.mjs
++++ b/config.mjs
+@@ -1 +1 @@
+-export const limit = 3;
++export const limit = 8;
+diff --git a/view.mjs b/view.mjs
+--- a/view.mjs
++++ b/view.mjs
+@@ -1 +1 @@
+-export const renderLimit = name => `${name}: 3`;
++export const renderLimit = name => `${name.trim()}: 8`;
