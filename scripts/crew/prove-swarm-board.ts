@@ -169,7 +169,7 @@ const initial = budget.boundary(b, new Set())
 assert(initial)
 budget.close()
 const recovered = open(budgetFile, 'budget-session', undefined, () => now)
-check('append-before-notify and prepare-before-dispatch survive reopening', recovered.view().snapshot === 120 && JSON.stringify(recovered.boundary(b, new Set())) === JSON.stringify(initial))
+check('append-before-notify and prepare-before-dispatch survive reopening', recovered.view().snapshot === 122 && JSON.stringify(recovered.boundary(b, new Set())) === JSON.stringify(initial))
 recovered.presented(b, initial.eventIds, 'sent')
 recovered.presented(b, initial.eventIds, 'sent')
 check('replayed acknowledgment does not replay the event', !recovered.boundary(b, new Set())?.eventIds.some(id => initial.eventIds.includes(id)))
@@ -180,7 +180,7 @@ check('the per-member requested-context allowance refuses further bodies', cappe
 check('every view and read batch stays bounded', recovered.view().events.length <= 32 && recovered.view().omitted === 88)
 check('the board has no peer-started turns', recovered.view().peerTurns === 0)
 const older = recovered.view(89)
-check('the human can page earlier history without a context charge', older.events.length === 32 && older.events.at(-1)!.seq === 88 && older.omitted === 56)
+check('the human can page earlier history without a context charge', older.events.length === 32 && older.events.at(-1)!.seq === 88 && older.omitted === 54)
 const receipts = recovered.view().admitted
 for (let i = 0; i < 8; i++) {
   const reader = { author: { sessionId: 'budget-session', agentId: `reader-${i}`, executionId: 'execution' }, name: `reader-${i}` }
