@@ -12,6 +12,9 @@ import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { readSessionWorkers } from '../../src/daemon/concourseWorkers.ts'
 
 assert(process.env.MERCURY_CONFIG_DIR, 'run with a scratch MERCURY_CONFIG_DIR')
+const THREE_LINES = 'Three lines:\nthe header row,\nthe footer row.'
+const LONG_POST = 'The parser keeps every row it reads: the header row, the footer row and each body row between them, in the order the file holds them, with the column widths measured over the whole table rather than the first page, so that a narrow first page never clips a wide later one and the footer lands under the right columns.'
+const LONG_TAIL = 'lands under the right columns'
 const palette = resolveMercuryTokens('dark', TERRA)
 assert.equal(chatNameColor('main', palette), palette.agentAccents[0]!.color)
 for (const name of ['Alpha', 'Beta', 'swarm-parser']) {
@@ -46,6 +49,8 @@ if (fixture) {
   assert(wrong.ok)
   assert(board.post(b, { clientOpId: 'c', kind: 'correction', corrects: wrong.eventId, text: '@Alpha five rows including the footer.' }).ok)
   assert(board.post(a, { clientOpId: 'message:mirror', kind: 'message', text: 'The shared message.', to: ['Beta'] }, 'body').ok)
+  assert(board.post(a, { clientOpId: 'three', kind: 'result', replyTo: question.eventId, text: THREE_LINES }).ok)
+  assert(board.post(b, { clientOpId: 'long', kind: 'result', replyTo: question.eventId, text: LONG_POST }).ok)
   const view = board.view()
   assert.deepEqual(board.view(undefined, undefined, 'view').names, view.names, 'name column uses the whole wave in every channel')
   assert.deepEqual(board.view(3).names, view.names, 'name column uses the whole wave on earlier pages')
@@ -66,7 +71,7 @@ console.log(`PASS chat projection: ${corpus.events.length} corpus posts, public 
 const settings = join(CONFIG_HOME, 'settings.json')
 writeFileSync(settings, JSON.stringify({ swarm: { enabled: true } }))
 const then = (awaitText: string, data: string) => ({ atTick: 999, awaitText, requireAwait: true, minTick: 5, awaitSettleTicks: 2, data })
-const frames: [number, number, string][] = [[120, 44, 'timeline'], [80, 24, 'timeline'], ...(!fixture ? [[120, 44, 'team'], [80, 24, 'thread'], [120, 44, 'tail'], ...(arg('--leg') === 'history' ? [[120, 44, 'history']] : [])] as [number, number, string][] : [])]
+const frames: [number, number, string][] = [[120, 44, 'timeline'], [80, 24, 'timeline'], ...(!fixture ? [[120, 44, 'team'], [80, 24, 'thread'], [80, 20, 'scroll'], [120, 44, 'tail'], ...(arg('--leg') === 'history' ? [[120, 44, 'history']] : [])] as [number, number, string][] : [])]
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') console.log(`SKIP the picture frames: they need the POSIX pty capture driver (scripts/ui/vshot.py); this host has ${driver.kind === 'unavailable' ? `none (${driver.reason}; ${driver.remedy})` : driver.kind}`)
 try {
@@ -75,10 +80,11 @@ try {
     appendFileSync(join(projects, `${SID}.jsonl`), encodeFixtureTranscript([{ type: 'swarm-switch', sessionId: SID, on: true }], SID))
     const tag = `crew-chat-${cols}x${rows}${leg === 'timeline' ? '' : `-${leg}`}`
     const gridPath = join(captures, `${tag}.grid.json`)
-    const sends = [then('Type a prompt', '/swarm on'), then('/swarm on', '\r'), then('Swarm on for new crewmates', '/swarm'), then('/swarm', '\r')]
+    const sends: Record<string, unknown>[] = [then('Type a prompt', '/swarm on'), then('/swarm on', '\r'), then('Swarm on for new crewmates', '/swarm'), then('/swarm', '\r')]
     if (leg === 'team') sends.push(then('open thread', '\u001b[C'))
-    if (leg === 'thread') sends.push(then('open thread', '\u001b[A'), { atTick: 999, awaitText: 'correction', requireAwait: true, minTick: 5, awaitSettleTicks: 2, data: '\r' })
+    if (leg === 'thread') sends.push(then('open thread', '\u001b[A'), { atTick: 999, awaitText: 'correction', requireAwait: true, minTick: 5, awaitSettleTicks: 2, data: '\r' }, { ...then('[view] [answer', ''), mark: 'top' }, ...Array.from({ length: 8 }, () => ({ data: '\u001b[B', afterPrevTicks: 1 })))
     if (leg === 'history') sends.push(then('open thread', '\r'), then('Count revision 1.', '\u001b[A'))
+    if (leg === 'scroll') sends.push(then('open thread', '\u001b[A'), then('open thread', '\u001b[A'))
     const arrival = 'Arrived while Crew chat stayed open.'
     const readyText = leg === 'tail' ? ['Crew chat', arrival] : leg === 'history' ? ['Crew chat', 'Four rows.'] : ['Crew chat', 'General', 'open thread']
     const capture = { ...config, total: 170, out: gridPath, readyText, readySettleTicks: 3, sends }
@@ -143,7 +149,27 @@ try {
     }
     if (!fixture && leg === 'timeline') assert(grid.grid.flat().some((cell: { c: string; bold: boolean }) => cell.c === '@' && cell.bold), 'mentions are highlighted in the rendered cells')
     if (leg === 'team') assert(text.includes('[Alpha]') && !text.includes('[Beta]') && !text.includes('Four rows.'), text)
-    if (leg === 'thread') assert(text.includes('Four rows.') && text.includes('five rows including the footer.'), text)
+    const lines = text.split('\n')
+    const trimmed = (line: string): string => line.replace(/^[\s│]+|[\s│]+$/g, '')
+    if (!fixture && leg === 'timeline') {
+      const threeAt = lines.findIndex(line => line.includes('Three lines:'))
+      assert(threeAt >= 0 && lines[threeAt + 1]!.includes('the header row,') && lines[threeAt + 2]!.includes('the footer row.') && !lines[threeAt + 2]!.includes('…'), 'a post of exactly three lines paints whole, without an ellipsis')
+      const longAt = lines.findIndex(line => line.includes('The parser keeps every row'))
+      assert(longAt >= 0 && !/\d{2}:\d{2}/.test(lines[longAt + 1]!) && !/\d{2}:\d{2}/.test(lines[longAt + 2]!) && /…\s*│?\s*$/.test(lines[longAt + 2]!) && !text.includes(LONG_TAIL), 'a longer post paints three lines and the third ends with an ellipsis')
+      const column = lines[longAt]!.indexOf('The parser keeps')
+      assert(trimmed(lines[longAt + 1]!.slice(0, column)) === '' && lines[longAt + 1]!.length > column && lines[longAt + 1]![column] !== ' ', 'continuation lines sit under the body column')
+    }
+    if (leg === 'thread') {
+      const top = (grid.marks as Array<{ label: string; grid: { c: string }[][] }> | undefined)?.find(mark => mark.label === 'top')?.grid.map(line => line.map(cell => cell.c || ' ').join('')).join('\n') ?? ''
+      assert(top.includes('Four rows.') && top.includes('five rows including the footer.'), top)
+      assert(lines.map(trimmed).join(' ').replace(/\s+/g, ' ').includes(LONG_TAIL), 'the thread view keeps the whole post')
+    }
+    if (leg === 'scroll') {
+      const panel = lines.slice(lines.findIndex(line => line.includes('General')), lines.findIndex(line => line.includes('↑↓ move')))
+      const marked = panel.findIndex(line => trimmed(line).startsWith('›'))
+      assert(marked >= 0 && panel[marked]!.includes('[correction]:') && panel[marked + 1]!.includes('the footer.'), 'two rows up from the end selects the correction and keeps both of its lines on screen')
+      assert(panel.join('\n').includes('The shared message.') && !panel.join('\n').includes('…'), 'the window follows the selection by row height: the top rows return and the long post below leaves the frame')
+    }
     if (leg === 'tail') assert(appended && text.includes(arrival), text)
     if (leg === 'history') assert(text.includes('Four rows.') && text.includes('does the parser include the footer?'), text)
     if (leg === 'timeline' && cols === 80) assert(text.includes('…'), 'long messages end in an ellipsis')
