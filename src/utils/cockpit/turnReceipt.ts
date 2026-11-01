@@ -307,13 +307,17 @@ type RetainedChat = NonNullable<NonNullable<CompactMetadata['work']>['idle']>[nu
 export function injectRetainedChatRows(messages: RenderableMessage[]): RenderableMessage[] {
   const groups = compactWorkOf(messages)?.idle ?? []
   if (groups.length === 0) return messages
-  const present = new Set<string>(messages.map(m => m.uuid))
+  const placed = new Set<string>(messages.map(m => m.uuid))
   const after = new Map<string, SystemCrewChatMessage[]>()
-  for (const group of groups) after.set(group.after, boardRows([...(after.get(group.after) ?? []), ...group.rows.filter(row => !present.has(row.uuid))]))
+  for (const group of groups) after.set(group.after, boardRows([...(after.get(group.after) ?? []), ...group.rows]))
   const out: RenderableMessage[] = []
   for (const m of messages) {
     out.push(m)
-    out.push(...(after.get(m.uuid) ?? []))
+    for (const row of after.get(m.uuid) ?? []) {
+      if (placed.has(row.uuid)) continue
+      placed.add(row.uuid)
+      out.push(row)
+    }
   }
   return out
 }
