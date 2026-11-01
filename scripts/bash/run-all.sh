@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-env: MERCURY_PROOF_POISON_SCRUB MERCURY_SHELL_ENGINE MERCURY_TMPDIR
+# gate-watch: scripts/lib/settingsPopupHarness.ts
 # gate-watch: src/utils/permissions/shellRuleMatching* src/utils/shell/globPreamble*
 # gate-watch: src/utils/shell/readOnlyCommandValidation*
 # gate-watch: src/utils/ShellCommand.ts src/tasks/LocalShellTask/* src/tools/BashTool/BashTool.tsx src/tools/BashTool/commandSemantics.ts
@@ -112,6 +113,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-cd-dot-is-current.ts" || { __rc=$?
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-result-redaction.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-result-redaction.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-git-rules-in-git-context.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-git-rules-in-git-context.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-which-exit-one-is-a-result.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-which-exit-one-is-a-result.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-which-missing-count.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-which-missing-count.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-plain-tool-result.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-plain-tool-result.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-timeout-result-carries-output.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-timeout-result-carries-output.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-timeout-clamp-says-so.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-timeout-clamp-says-so.ts" "$__t" "$__rc"
