@@ -1,5 +1,5 @@
 {
-  "base": "94931c6f51621f930b2351b9d153fa56c9836d33",
+  "base": "83315284be144781ed97afc9dc449678cd6b629b",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -47,6 +47,10 @@
             "description": "Team label on the live crew board; teams guide delivery, never privacy.",
             "type": "string",
             "pattern": "^[\\p{L}\\p{N}_][\\p{L}\\p{N}_.-]{0,79}$"
+          },
+          "captain": {
+            "description": "Appoint this named seat as its team captain. Requires name, team, swarm enrollment and the lead; a team of five or more needs one before its fifth seat.",
+            "type": "boolean"
           },
           "isolation": {
             "description": "Run the crewmate in a temporary git worktree.",
