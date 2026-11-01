@@ -5,8 +5,11 @@ import { WHEEL_STEP_ROWS } from '../../components/mercury-ui/composerFloor.js'
 import { open } from './store.js'
 import { existsSync } from 'node:fs'
 import { chatKindColor, chatNameColor, chatRows } from './chat.js'
-import { displayWidth, padTo, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
+import { displayWidth, padTo } from '../../components/mercury-ui/glyphs.js'
+import { truncateToWidthNoEllipsis } from '../../utils/truncate.js'
 export { open }
+
+const TIMELINE_LINES = 3
 
 export const tail: BoardModule['tail'] = record => {
   if (!existsSync(record.path)) throw new Error('The saved board is no longer available.')
@@ -154,23 +157,30 @@ export const view: BoardModule['view'] = host => {
     const label = `[${entry.kind}]`
     const channel = !body && entry.team ? `[${clean(entry.team)}] ` : ''
     const prefix = `${marker}${gutter}${time}  ${name} ${traffic}${channel}${label}: `
-    return React.createElement(Text, { key: entry.id, color: tokens.textPrimary, wrap: 'truncate-end' },
-      React.createElement(Text, { color: on ? tokens.focus : tokens.textMuted }, marker),
-      React.createElement(Text, { color: tokens.textMuted }, `${gutter}${time}  `),
-      React.createElement(Text, { color: chatNameColor(entry.colorName, tokens), bold: true }, name), ' ',
-      React.createElement(Text, { color: tokens.textMuted }, traffic + channel),
-      React.createElement(Text, { color: chatKindColor(entry.kind, tokens) }, label), ': ',
-      ...(body ? highlight(truncateToWidth(clean(entry.text), Math.max(1, width - displayWidth(prefix)))) : []))
+    const bodyWidth = Math.max(1, width - displayWidth(prefix))
+    const lines = body ? host.wrapText(clean(entry.text), bodyWidth, 'wrap').split('\n') : []
+    const shown = lines.length > TIMELINE_LINES ? [...lines.slice(0, TIMELINE_LINES - 1), `${truncateToWidthNoEllipsis(lines[TIMELINE_LINES - 1]!, bodyWidth - 1)}…`] : lines
+    return [
+      React.createElement(Text, { key: entry.id, color: tokens.textPrimary, wrap: 'truncate-end' },
+        React.createElement(Text, { color: on ? tokens.focus : tokens.textMuted }, marker),
+        React.createElement(Text, { color: tokens.textMuted }, `${gutter}${time}  `),
+        React.createElement(Text, { color: chatNameColor(entry.colorName, tokens), bold: true }, name), ' ',
+        React.createElement(Text, { color: tokens.textMuted }, traffic + channel),
+        React.createElement(Text, { color: chatKindColor(entry.kind, tokens) }, label), ': ',
+        ...(body ? highlight(shown[0] ?? '') : [])),
+      ...shown.slice(1).map((text, i) => React.createElement(Text, { key: `${entry.id}-${i + 1}`, color: tokens.textPrimary, wrap: 'truncate-end' }, ' '.repeat(displayWidth(prefix)), ...highlight(text))),
+    ]
   }
   const room = Math.max(1, height - 2)
-  const timeline = entries.flatMap((entry, i) => [...(i && entries[i - 1]!.thread !== entry.thread ? [React.createElement(Box, { key: `gap-${entry.id}`, height: 1, flexShrink: 0 })] : []), row(entry, i === index)])
-  const selectedLine = timeline.findIndex(node => node.key === entries[index]?.id)
+  const timeline = entries.flatMap((entry, i) => [...(i && entries[i - 1]!.thread !== entry.thread ? [React.createElement(Box, { key: `gap-${entry.id}`, height: 1, flexShrink: 0 })] : []), ...row(entry, i === index)])
+  const selectedId = entries[index]?.id
+  const selectedLine = selectedId === undefined ? -1 : timeline.findLastIndex(node => node.key === selectedId || String(node.key).startsWith(`${selectedId}-`))
   const start = Math.max(0, selectedLine - room + 1)
   const detailLines = entries.flatMap(entry => {
     const indent = entry.reply ? '      ' : '  '
     const event = snapshot.events.find(event => event.eventId === entry.id)
     const detail = [entry.text, ...(event?.about ? [event.about] : []), ...(event?.refs.map(ref => `${ref.uri} · ${ref.digest}`) ?? [])]
-    return [row(entry, false, false), ...detail.flatMap((text, block) => host.wrapText(clean(text), Math.max(1, width - indent.length), 'wrap').split('\n').map((text, i) => React.createElement(Text, { key: `${entry.id}-${block}-${i}`, color: tokens.textPrimary, wrap: 'truncate-end' }, indent, ...highlight(text))))]
+    return [...row(entry, false, false), ...detail.flatMap((text, block) => host.wrapText(clean(text), Math.max(1, width - indent.length), 'wrap').split('\n').map((text, i) => React.createElement(Text, { key: `${entry.id}-${block}-${i}`, color: tokens.textPrimary, wrap: 'truncate-end' }, indent, ...highlight(text))))]
   })
   const detailStart = Math.min(scroll, Math.max(0, detailLines.length - room))
   return React.createElement(Box, { flexDirection: 'column', width, height },
