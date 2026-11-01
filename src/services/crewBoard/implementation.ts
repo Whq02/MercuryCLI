@@ -139,6 +139,7 @@ export const view: BoardModule['view'] = host => {
     if (key.downArrow) setSelected(index + 1 >= entries.length - 1 ? undefined : entries[index + 1]?.id)
   })
   const clean = (text: string): string => text.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ')
+  const bodyLines = (text: string, bodyWidth: number): string[] => host.wrapText(text.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/g, ' '), bodyWidth, 'wrap').split('\n')
   const allRows = chatRows(live, host.traffic)
   const names = [...(live.names ?? []), ...allRows.map(entry => entry.name)]
   const nameWidth = Math.max(2, ...names.map(name => displayWidth(`[${clean(name)}]`)))
@@ -158,7 +159,7 @@ export const view: BoardModule['view'] = host => {
     const channel = !body && entry.team ? `[${clean(entry.team)}] ` : ''
     const prefix = `${marker}${gutter}${time}  ${name} ${traffic}${channel}${label}: `
     const bodyWidth = Math.max(1, width - displayWidth(prefix))
-    const lines = body ? host.wrapText(clean(entry.text), bodyWidth, 'wrap').split('\n') : []
+    const lines = body ? bodyLines(entry.text, bodyWidth) : []
     const shown = lines.length > TIMELINE_LINES ? [...lines.slice(0, TIMELINE_LINES - 1), `${truncateToWidthNoEllipsis(lines[TIMELINE_LINES - 1]!, bodyWidth - 1)}…`] : lines
     return [
       React.createElement(Text, { key: entry.id, color: tokens.textPrimary, wrap: 'truncate-end' },
@@ -180,7 +181,7 @@ export const view: BoardModule['view'] = host => {
     const indent = entry.reply ? '      ' : '  '
     const event = snapshot.events.find(event => event.eventId === entry.id)
     const detail = [entry.text, ...(event?.about ? [event.about] : []), ...(event?.refs.map(ref => `${ref.uri} · ${ref.digest}`) ?? [])]
-    return [...row(entry, false, false), ...detail.flatMap((text, block) => host.wrapText(clean(text), Math.max(1, width - indent.length), 'wrap').split('\n').map((text, i) => React.createElement(Text, { key: `${entry.id}-${block}-${i}`, color: tokens.textPrimary, wrap: 'truncate-end' }, indent, ...highlight(text))))]
+    return [...row(entry, false, false), ...detail.flatMap((text, block) => bodyLines(text, Math.max(1, width - indent.length)).map((text, i) => React.createElement(Text, { key: `${entry.id}-${block}-${i}`, color: tokens.textPrimary, wrap: 'truncate-end' }, indent, ...highlight(text))))]
   })
   const detailStart = Math.min(scroll, Math.max(0, detailLines.length - room))
   return React.createElement(Box, { flexDirection: 'column', width, height },
