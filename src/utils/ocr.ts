@@ -11,13 +11,19 @@ type NativeOcr = { recognise: (bytes: Buffer, page?: number) => Promise<string>;
 type OcrEngine = ({ kind: 'native'; name: string } & NativeOcr) | { kind: 'tesseract'; name: 'Tesseract'; languages: string[] } | { kind: 'unavailable'; message: string }
 export function ocrInstallHint(platform: string = process.platform): string {
   if (platform === 'darwin') return 'Install Tesseract with `brew install tesseract` to read its text.'
-  if (platform === 'win32') return 'Add an OCR language in Settings › Time & language › Language & region, or run `Add-WindowsCapability -Online -Name Language.OCR~~~en-US~0.0.1.0` as Administrator.'
+  if (platform === 'win32') return 'Windows OCR is off in this version while a crash in it is repaired; install Tesseract (`winget install UB-Mannheim.TesseractOCR`) to read its text, or set MERCURY_WINDOWS_OCR=native to use Windows OCR anyway. An OCR language is added in Settings › Time & language › Language & region, or with `Add-WindowsCapability -Online -Name Language.OCR~~~en-US~0.0.1.0` as Administrator.'
   return 'Install Tesseract with your package manager (Debian/Ubuntu: `sudo apt-get install tesseract-ocr`) to read its text.'
 }
 
-export async function resolveOcrEngine(options: { platform?: string; native?: () => NativeOcr | undefined; probe?: () => Promise<boolean>; listLanguages?: () => Promise<string[]> } = {}): Promise<OcrEngine> {
+const WINDOWS_NATIVE_OCR_SWITCH = 'MERCURY_WINDOWS_OCR'
+
+function windowsNativeOcrAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
+  return (env[WINDOWS_NATIVE_OCR_SWITCH] ?? '').trim().toLowerCase() === 'native'
+}
+
+export async function resolveOcrEngine(options: { platform?: string; native?: () => NativeOcr | undefined; probe?: () => Promise<boolean>; listLanguages?: () => Promise<string[]>; env?: NodeJS.ProcessEnv } = {}): Promise<OcrEngine> {
   const platform = options.platform ?? process.platform
-  if (platform === 'darwin' || platform === 'win32') {
+  if (platform === 'darwin' || (platform === 'win32' && windowsNativeOcrAllowed(options.env))) {
     let native: NativeOcr | undefined
     if (options.native) native = options.native()
     else {

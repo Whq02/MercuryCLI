@@ -22,9 +22,14 @@ try {
     const tesseract = await resolveOcrEngine({ platform, native: () => undefined, probe: async () => true, listLanguages: async () => ['eng', 'ara'] })
     assert.equal(tesseract.name, 'Tesseract')
   }
-  const windows = await resolveOcrEngine({ platform: 'win32', native: () => ({ languages: ['en-US', 'ar-SA'], recognise: async () => 'Windows fixture' }), probe: async () => { throw new Error('native must precede PATH') } })
+  const fenced = await resolveOcrEngine({ platform: 'win32', native: () => ({ languages: ['en-US', 'ar-SA'], recognise: async () => 'Windows fixture' }), probe: async () => false, env: {} })
+  assert.equal(fenced.kind, 'unavailable')
+  if (fenced.kind === 'unavailable') assert.match(fenced.message, /Windows OCR is off in this version.*MERCURY_WINDOWS_OCR=native/)
+  const windows = await resolveOcrEngine({ platform: 'win32', native: () => ({ languages: ['en-US', 'ar-SA'], recognise: async () => 'Windows fixture' }), probe: async () => { throw new Error('native must precede PATH') }, env: { MERCURY_WINDOWS_OCR: 'native' } })
   assert.equal(windows.name, 'Windows OCR')
-  console.log('PASS Windows/Linux OCR resolution and missing-engine hints; real Windows/Linux OCR not run')
+  const mac = await resolveOcrEngine({ platform: 'darwin', native: () => ({ languages: ['en-US'], recognise: async () => 'Vision fixture' }), probe: async () => { throw new Error('native must precede PATH') }, env: {} })
+  assert.equal(mac.name, 'macOS Vision')
+  console.log('PASS Windows/Linux OCR resolution and missing-engine hints: Windows OCR fenced unless MERCURY_WINDOWS_OCR=native, macOS Vision as before; real Windows/Linux OCR not run')
   if (process.platform === 'darwin') {
     const { getImageProcessor } = await import('../../src/tools/FileReadTool/imageProcessor.ts')
     const sharp = await getImageProcessor()

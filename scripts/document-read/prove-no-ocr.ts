@@ -21,7 +21,7 @@ try {
   assert.match(message, /scan\.pdf.*image-only PDF/i)
   assert.match(message, /install|Add-WindowsCapability/i)
   assert.doesNotMatch(message, /unavailable|fallback|verified|RETURNED|\n\s*at /)
-  for (const [platform, install, unrelated] of [['darwin', /brew install tesseract/, /apt-get|Windows/], ['linux', /apt-get install tesseract-ocr/, /brew|Windows/], ['win32', /Add-WindowsCapability.*Language\.OCR/, /brew|apt-get/]] as const) {
+  for (const [platform, install, unrelated] of [['darwin', /brew install tesseract/, /apt-get|Windows/], ['linux', /apt-get install tesseract-ocr/, /brew|Windows/], ['win32', /Windows OCR is off in this version.*Tesseract.*MERCURY_WINDOWS_OCR=native.*Add-WindowsCapability.*Language\.OCR/, /brew|apt-get install/]] as const) {
     const result = await resolveOcrEngine({ platform, native: () => undefined, probe: async () => false })
     assert.equal(result.kind, 'unavailable')
     if (result.kind === 'unavailable') { assert.match(result.message, install); assert.doesNotMatch(result.message, unrelated) }
