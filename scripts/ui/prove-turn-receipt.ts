@@ -424,7 +424,7 @@ check(
 check(
   'Message.tsx dispatches turn_receipt → TurnReceiptRow',
   /case 'turn_receipt':/.test(src('components', 'Message.tsx')) &&
-    /<TurnReceiptRow message=\{message\} \/>/.test(src('components', 'Message.tsx')),
+    /<TurnReceiptRow message=\{message\} verbose=\{verbose\} \/>/.test(src('components', 'Message.tsx')),
 )
 check(
   'the row renders dim with success/error delta accents (tokens only)',
