@@ -44,7 +44,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed Bash in the default mode asking about a cwd spelled as the current folder in another way; such a spelling is read as the current folder.
 - Fixed mercury update reporting a previous version kept and a rollback available when no earlier version was installed; it now says there is nothing to roll back to.
 - Fixed Gemini through Sign in with Google refusing a request after a crew-board message arrived beside a tool result; the message now rides inside the result.
-- Fixed a crash of the session's background runner on Windows when an image was read: the native Windows OCR this version added fails inside Windows, so it is off until repaired; reading pictures works as before, OCR on Windows uses Tesseract when installed, and MERCURY_WINDOWS_OCR=native turns the native engine back on.
+- Fixed a crash of the session's background runner on Windows when an image was read: the Windows OCR engine was started and shut down around every call and the next call failed inside Windows; it now runs on one thread that stays up for the life of the session, so reading pictures and OCR on Windows work again.
 
 ## 1.0.1
 - Added images and video on a rented GPU: choose an existing SSH rental in /imagesetup, send reference files over its tunnel and save the results to your project; setup and generation use the rental's hourly rate.
