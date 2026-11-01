@@ -6,6 +6,9 @@ import { isCommandEnabled } from './commands/enablement.js'
 import verify from './commands/verify.js'
 import advise from './commands/advise/index.js'
 import swarm from './commands/swarm/index.js'
+import general from './commands/general/index.js'
+import team from './commands/team/index.js'
+import whisper from './commands/whisper/index.js'
 import agents from './commands/agents/index.js'
 import clear from './commands/clear/index.js'
 import caching from './commands/caching/index.js'
@@ -136,6 +139,9 @@ const COMMANDS = memoize((): Command[] => [
   verify,
   advise,
   swarm,
+  general,
+  team,
+  whisper,
   agents,
   clear,
   compact,
