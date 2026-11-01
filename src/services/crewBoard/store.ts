@@ -155,8 +155,8 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
   const canonicalTeam = (team: string): string => db.prepare("SELECT value FROM interests WHERE kind = 'membership' AND lower(value) = lower(?) LIMIT 1").get(team)?.value as string | undefined ?? team
   const captainId = (team: string | undefined): string | undefined => team === undefined || !hasCaptains ? undefined : db.prepare('SELECT agent FROM captains WHERE team = ? COLLATE NOCASE').get(team)?.agent as string | undefined
   const seats = (): BoardSeat[] => roster().map(row => {
-    const agent = String(row.agent), team = teamOf(agent), wait = wakes.wait(agent)
-    return { agent, name: String(row.name), state: wakes.state(agent), ...(wait ? { wait } : {}), ...(team !== undefined ? { team } : {}), ...(captainId(team) === agent ? { captain: true as const } : {}) }
+    const agent = String(row.agent), team = teamOf(agent), wait = wakes.wait(agent), wakeProblem = wakes.problem(agent)
+    return { agent, name: String(row.name), state: wakes.state(agent), ...(wait ? { wait } : {}), ...(wakeProblem ? { wakeProblem } : {}), ...(team !== undefined ? { team } : {}), ...(captainId(team) === agent ? { captain: true as const } : {}) }
   })
   const reserveCount = (team: string, agent: string): number => Number(db.prepare("SELECT COUNT(*) AS n FROM (SELECT agent FROM interests JOIN members USING (agent) WHERE kind = 'membership' AND lower(value) = lower(?) AND enrolled = 1 AND agent != 'main' UNION SELECT agent FROM enrollments WHERE lower(team) = lower(?)) WHERE agent != ?").get(team, team, agent)!.n)
   const checkEnrollment = (agent: string, team: string | undefined, captain = false): void => {
@@ -262,6 +262,10 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
       publish()
       return lifecycle
     },
+    resumeAdmitted(p) {
+      transaction(() => { checkPrincipal(p); wakes.admit(p.author.agentId) })
+      publish()
+    },
     pendingWakes() { return wakes.pending() },
     claimWake(p, wake) {
       const claim = transaction(() => {
@@ -287,14 +291,16 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
       })
       publish()
     },
-    holdWake(p, claim, reason) {
-      transaction(() => {
+    holdWake(p, claim, reason, problem) {
+      const held = transaction(() => {
         checkPrincipal(p)
-        if (p.author.agentId !== 'main' || !wakes.holds(claim)) return
-        wakes.hold(claim, reason)
+        if (p.author.agentId !== 'main' || !wakes.holds(claim)) return false
+        wakes.hold(claim, reason, problem)
         notice(claim.agent, `wake:${claim.id}`, `The board resume did not start: ${reason} The lead can use ResumeCrewmate.`)
+        return true
       })
-      publish()
+      if (held) publish()
+      return held
     },
     reserveEnrollment(p, seat) {
       transaction(() => {
@@ -478,7 +484,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
           } else if (input.channel === 'whisper') {
             if (['main', 'owner'].includes(target.toLowerCase())) return { ok: false, reason: 'Use the prompt line for main.' }
             recipients = roster.filter(seat => seat.agent === target || seat.name.toLowerCase() === target.toLowerCase())
-            if (recipients.length !== 1) return { ok: false, reason: 'Name one enrolled crewmate.', candidates: (recipients.length ? recipients : roster).map(seat => `${seat.name} (${seat.agent})`) }
+            if (recipients.length !== 1) return { ok: false, reason: 'Name one enrolled crewmate.', candidates: (recipients.length ? recipients : roster).map(seat => roster.filter(other => other.name.toLowerCase() === seat.name.toLowerCase()).length > 1 ? `${seat.name} (${seat.agent})` : seat.name) }
             channel = { kind: 'whisper', target: recipients[0]!.name }; address = recipients[0]!.name
           } else return { ok: false, reason: 'Use general, team or whisper.' }
           const event: BoardEvent = { schema: 1, boardId, waveId, seq: 0, eventId: randomUUID(), author: { ...p.author, agentId: 'owner' }, authorName: 'owner', authorRole: 'owner', kind: 'ask', text: input.text, clientOpId: input.clientOpId, channel, addresses: [address, 'main'], mentions: [...new Set(['main', ...recipients.map(seat => seat.agent)])], recipients: seats().filter(seat => seat.agent === 'main' || recipients.some(recipient => recipient.agent === seat.agent)), relatedTasks: [], files: [], refs: [], createdAt: new Date(now()).toISOString(), payloadDigest: hash, threadId: randomUUID(), policyRevision: 1 }

@@ -8,6 +8,7 @@ type Database = {
 }
 type WakeSeat = BoardSeat & { captain?: true }
 export type BoardSettlement = 'completed' | 'failed' | 'stopped' | 'paused'
+export type BoardWakeProblem = { kind: 'worktree-missing'; path: string }
 export type BoardWake = { agent: string; eventId: string; seq: number; version: number }
 export type BoardWakeClaim = BoardWake & { id: string }
 
@@ -17,7 +18,9 @@ export function createWakeState(db: Database, readOnly: boolean) {
     CREATE TABLE IF NOT EXISTS wake_waits (agent TEXT PRIMARY KEY, event TEXT NOT NULL, seq INTEGER NOT NULL, version INTEGER NOT NULL, predicate TEXT NOT NULL, standing INTEGER NOT NULL, armed INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS wake_events (agent TEXT NOT NULL, event TEXT NOT NULL, seq INTEGER NOT NULL, version INTEGER NOT NULL, PRIMARY KEY(agent, event));
     CREATE TABLE IF NOT EXISTS wake_claims (agent TEXT PRIMARY KEY, id TEXT NOT NULL UNIQUE, event TEXT NOT NULL, seq INTEGER NOT NULL, version INTEGER NOT NULL, state TEXT NOT NULL, error TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS wake_problems (agent TEXT PRIMARY KEY, record TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS wake_dispatches (id TEXT PRIMARY KEY, agent TEXT NOT NULL, event TEXT NOT NULL);`)
+  const hasProblems = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'wake_problems'").get() != null
   const exists = (): boolean => db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'wake_seats'").get() != null
   const wait = (agent: string): BoardWait | undefined => {
     if (!exists()) return undefined
@@ -39,14 +42,21 @@ export function createWakeState(db: Database, readOnly: boolean) {
   return {
     wait,
     state,
+    problem(agent: string): BoardWakeProblem | undefined {
+      const row = hasProblems ? db.prepare('SELECT record FROM wake_problems WHERE agent = ?').get(agent) : undefined
+      return row ? JSON.parse(String(row.record)) as BoardWakeProblem : undefined
+    },
     version(): unknown {
-      return exists() ? [db.prepare('SELECT * FROM wake_seats ORDER BY agent').all(), db.prepare('SELECT * FROM wake_waits ORDER BY agent').all(), db.prepare('SELECT * FROM wake_claims ORDER BY agent').all()] : []
+      return exists() ? [db.prepare('SELECT * FROM wake_seats ORDER BY agent').all(), db.prepare('SELECT * FROM wake_waits ORDER BY agent').all(), db.prepare('SELECT * FROM wake_claims ORDER BY agent').all(), hasProblems ? db.prepare('SELECT * FROM wake_problems ORDER BY agent').all() : []] : []
     },
     enroll(agent: string, execution: string): void {
       const prior = db.prepare('SELECT execution FROM wake_seats WHERE agent = ?').get(agent)
       if (prior?.execution === execution) return
       db.prepare("INSERT INTO wake_seats VALUES (?, ?, 'running', '', 0) ON CONFLICT(agent) DO UPDATE SET execution = excluded.execution, state = 'running', outcome = ''").run(agent, execution)
+    },
+    admit(agent: string): void {
       db.prepare("DELETE FROM wake_claims WHERE agent = ? AND state = 'held'").run(agent)
+      db.prepare('DELETE FROM wake_problems WHERE agent = ?').run(agent)
     },
     settle(agent: string, execution: string, seq: number): void {
       db.prepare("UPDATE wake_seats SET state = 'parked', parked_seq = ? WHERE agent = ? AND execution = ? AND state = 'running'").run(seq, agent, execution)
@@ -103,8 +113,9 @@ export function createWakeState(db: Database, readOnly: boolean) {
       db.prepare("INSERT INTO wake_claims VALUES (?, ?, ?, ?, ?, 'reserved', '')").run(wake.agent, id, wake.eventId, wake.seq, wake.version)
       return { ...wake, id }
     },
-    hold(claim: BoardWakeClaim, error: string): void {
+    hold(claim: BoardWakeClaim, error: string, problem?: BoardWakeProblem): void {
       db.prepare("UPDATE wake_claims SET state = 'held', error = ? WHERE agent = ? AND id = ?").run(error, claim.agent, claim.id)
+      if (problem) db.prepare('INSERT INTO wake_problems VALUES (?, ?) ON CONFLICT(agent) DO UPDATE SET record = excluded.record').run(claim.agent, JSON.stringify(problem))
     },
     open(seats: readonly WakeSeat[]): { seat: string; event: string }[] {
       return seats.flatMap(seat => {

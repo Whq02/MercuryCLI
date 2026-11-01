@@ -8,7 +8,7 @@ import type { Message } from '../../types/message.js'
 import type { AgentId } from '../../types/ids.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { assembleToolPool } from '../../tools.js'
-import { latchSwarmAgent, settleSwarmAgent } from '../../services/crewBoard/seam.js'
+import { latchSwarmAgent, settleSwarmAgent, swarmResumeAdmitted } from '../../services/crewBoard/seam.js'
 import {
   failAgentTask,
   isLocalAgentTask,
@@ -87,6 +87,12 @@ type ResumeAgentResult = {
 }
 
 const RESUMED_AGENT_DESCRIPTION = 'Resumed crewmate'
+
+export class BoardResumeDirectoryError extends Error {
+  constructor(readonly directory: string, readonly kind: 'worktree' | 'directory') {
+    super(`The recorded ${kind} is unavailable: ${directory}.`)
+  }
+}
 
 export function definitionForStoredType(
   storedType: string | undefined,
@@ -228,6 +234,11 @@ export async function resumeAgentBackground(args: {
         `resumeAgent: recorded directory ${meta.cwd} is gone — resuming in the parent cwd`,
       )
     }
+  }
+
+  if (args.boardEventIds !== undefined) {
+    if (meta?.worktreePath && worktreePath === undefined) throw new BoardResumeDirectoryError(meta.worktreePath, 'worktree')
+    if (meta?.cwd && cwdPath === undefined) throw new BoardResumeDirectoryError(meta.cwd, 'directory')
   }
 
   const directoryFacts = meta?.worktreePath && worktreePath === undefined
@@ -390,6 +401,7 @@ export async function resumeAgentBackground(args: {
     task.abortController!.signal.throwIfAborted()
     if (args.boardEventIds !== undefined && (operatorPauseGate.holds('main') || operatorPauseGate.holds(agentId) || toolUseContext.pauseGate?.holds(agentId) || toolUseContext.pauseGate?.holds('main'))) throw new Error('The operator pause is still in force.')
     args.onAdmitted?.()
+    swarmResumeAdmitted(agentId)
   } catch (error) {
     failAgentTask(agentId, errorMessage(error), rootSetAppState, task.abortController)
     settleSwarmAgent(agentId)

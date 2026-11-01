@@ -339,7 +339,9 @@ function AgentRow({
   const unread = crewUnreadLabel(facts)
   const parkedByOperator = crewOperatorPauseParts(facts)
   const askDetail = crewAskWaitDetail(facts, asks, now)
-  const status = facts.status === 'completed' && seat?.state === 'parked' && seat.wait ? `parked · waiting on ${boardWaitWords(seat.wait.predicate)}` : crewStatusWords(facts, now)
+  const status = seat?.state === 'parked' && seat.wakeProblem?.kind === 'worktree-missing'
+    ? 'parked · worktree missing'
+    : facts.status === 'completed' && seat?.state === 'parked' && seat.wait ? `parked · waiting on ${boardWaitWords(seat.wait.predicate)}` : crewStatusWords(facts, now)
   const cells = crewRowWidths(width, status)
   return (
     <Box width={width} flexDirection="column">

@@ -469,6 +469,10 @@ export type SessionFactsResult = {
           }
           standing: boolean
         }
+        wakeProblem?: {
+          kind: 'worktree-missing'
+          path: string
+        }
       }>
       mentions: string[]
       unknownMentions?: string[]
@@ -507,6 +511,10 @@ export type SessionFactsResult = {
           team: string
         }
         standing: boolean
+      }
+      wakeProblem?: {
+        kind: 'worktree-missing'
+        path: string
       }
     }>
     teams?: string[]

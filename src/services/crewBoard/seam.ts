@@ -10,9 +10,10 @@ import { getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage
 import { operatorPauseGate } from '../../run-core/pauseGate.js'
 import type { AgentId } from '../../types/ids.js'
 import type { Message } from '../../types/message.js'
-import { DEFAULT_BOARD_LIMITS, boardSeatName, type BoardEvent, type BoardLimits, type BoardModule, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot, type OwnerPostInput, type OwnerPostReceipt } from './contracts.js'
+import { BOARD_PACKET_RULE, DEFAULT_BOARD_LIMITS, boardSeatName, type BoardEvent, type BoardLimits, type BoardModule, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot, type OwnerPostInput, type OwnerPostReceipt } from './contracts.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import type { BoardSettlement } from './wakeState.js'
 
 const requireOptional = createRequire(import.meta.url)
@@ -139,7 +140,7 @@ export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTo
         if (!ready() || !swarmMasterEnabled() || operatorPauseGate.holds('main')) continue
         const store = swarmStore()
         if (!store || !store.pendingWakes().length) continue
-        const { boardResumeRefusal, resumeAgentBackground } = await import('../../tools/AgentTool/resumeAgent.js')
+        const { boardResumeRefusal, resumeAgentBackground, BoardResumeDirectoryError } = await import('../../tools/AgentTool/resumeAgent.js')
         await flushSessionStorage()
         if (stopped || !ready()) continue
         for (const wake of store.pendingWakes()) {
@@ -157,7 +158,8 @@ export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTo
             await (resume ?? resumeAgentBackground)({ agentId: wake.agent, prompt: packet.text, boardEventIds: packet.eventIds, automatic: true, toolUseContext: { ...base, abortController: new AbortController() }, canUseTool, onAdmitted: () => store.admitWake(principal, claim) })
           } catch (error) {
             const reason = error instanceof Error ? error.message : String(error)
-            store.holdWake(principal, claim, reason)
+            const held = store.holdWake(principal, claim, reason, error instanceof BoardResumeDirectoryError && error.kind === 'worktree' ? { kind: 'worktree-missing', path: error.directory } : undefined)
+            if (held) enqueuePendingNotification({ value: BOARD_PACKET_RULE, mode: 'task-notification', priority: 'next', isMeta: true })
             logForDebugging(`crew board: ${wake.agent} could not resume: ${reason}`)
           }
         }
@@ -353,6 +355,11 @@ export function closeIdleSwarm(): void {
   if (swarmSessionEnabled() || [...pendingLaunches].some(id => id.startsWith(`${sessionId}:`)) || [...roads].some(([id, road]) => id.startsWith(`${sessionId}:`) && road.on && road.active)) return
   sessions.get(sessionId)?.store.close()
   sessions.delete(sessionId)
+}
+
+export function swarmResumeAdmitted(agentId: string): void {
+  const principal = swarmPrincipal(agentId)
+  if (principal) swarmStore()?.resumeAdmitted(principal)
 }
 
 export function settleSwarmAgent(agentId: string): void {

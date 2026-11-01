@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { execFileSync } from 'node:child_process'
+import { rmSync } from 'node:fs'
+import { join } from 'node:path'
 import { boardNamesSeat, boardWaitWords, boardWakeEligible, matchesBoardWait, parseBoardWait, type BoardWait } from '../../src/services/crewBoard/waits.ts'
 import type { BoardEvent, BoardSeat } from '../../src/services/crewBoard/contracts.ts'
 
@@ -78,11 +77,13 @@ try {
   const claimed = transaction(() => wakes.claim(candidate))!
   assert(claimed)
   check('one atomic claim reserves the event without displaying a running seat', wakes.state(reader.agent) === 'parked' && transaction(() => wakes.claim(candidate)) === null && wakes.pending().length === 0)
-  wakes.hold(claimed, 'admission refused')
-  check('a failed admission stays unread and held without spin retry', wakes.pending().length === 0 && wakes.wait(reader.agent) !== undefined && db.query('SELECT state FROM wake_claims WHERE agent = ?').get(reader.agent)?.state === 'held')
+  wakes.hold(claimed, 'admission refused', { kind: 'worktree-missing', path: '/fixture/worktree' })
+  check('a failed admission stays unread and held without spin retry', wakes.pending().length === 0 && wakes.wait(reader.agent) !== undefined && wakes.problem(reader.agent)?.path === '/fixture/worktree' && db.query('SELECT state FROM wake_claims WHERE agent = ?').get(reader.agent)?.state === 'held')
   wakes.enroll(reader.agent, 'second')
+  check('preparing a manual resume does not clear its held problem', wakes.problem(reader.agent)?.kind === 'worktree-missing')
+  wakes.admit(reader.agent)
   wakes.presented(reader.agent, [unread.eventId])
-  check('the lead can resume a held seat, carrying the same unread event', wakes.state(reader.agent) === 'running' && wakes.wait(reader.agent) === undefined)
+  check('the lead can resume a held seat, carrying the same unread event', wakes.state(reader.agent) === 'running' && wakes.wait(reader.agent) === undefined && wakes.problem(reader.agent) === undefined)
   wakes.complete(reader, 'second', 15, 'completed')
   const named = event({ eventId: 'named', seq: 16, addresses: ['Reader'], recipients: [reader] })
   wakes.posted(named, seats)
@@ -227,70 +228,8 @@ try {
   seam.settleSwarmAgent('poster'); seam.settleSwarmAgent('woken')
 }
 if (!process.argv.includes('--source-only')) {
-  const { makeWorld, bootLead, closeWorld, LEAD_MODEL, findFiles, toolResultOf, record } = await import('./crew-world.ts')
-  const childModel = 'claude-opus-4-6'
-  const schema = { type: 'object', properties: { phase: { type: 'string' } }, required: ['phase'] }
-  const world = await makeWorld('swarm-parked-wake', [
-    { kind: 'tool_use', name: 'Bash', id: 'wake-first-pwd', input: { command: 'pwd', description: 'Read the assigned directory' }, thinking: 'WAKE-SIGNED-THINKING', signature: 'wake-signed-fixture', whenModel: 'opus-4-6', model: childModel },
-    { kind: 'tool_use', name: 'CrewBoard', id: 'wake-declare', input: { op: 'post', clientOpId: 'built-wait', kind: 'ask', text: '@main wake me when about built-trigger' }, whenModel: 'opus-4-6', model: childModel },
-    { kind: 'tool_use', name: 'StructuredOutput', id: 'wake-first-schema', input: { phase: 'waiting' }, whenModel: 'opus-4-6', model: childModel },
-    { kind: 'text', text: 'BUILT-WORKER-PARKED', whenModel: 'opus-4-6', model: childModel },
-    { kind: 'tool_use', name: 'Bash', id: 'wake-second-pwd', input: { command: 'pwd', description: 'Read the retained directory' }, whenModel: 'opus-4-6', model: childModel },
-    { kind: 'tool_use', name: 'StructuredOutput', id: 'wake-second-schema', input: { phase: 'resumed' }, whenModel: 'opus-4-6', model: childModel },
-    { kind: 'text', text: 'BUILT-WORKER-WOKE', whenModel: 'opus-4-6', model: childModel },
-    { kind: 'tool_use', name: 'Crewmate', id: 'wake-launch', input: { name: 'wake-target', description: 'Wait for the board subject', prompt: 'wake-child-only. Read your directory, declare the subject wait, and finish.', crewmate_type: 'mercury-crew', run_in_background: true, model: childModel, effort: 'max', isolation: 'worktree', output_schema: schema }, whenModel: 'fable-5-1', model: LEAD_MODEL },
-    ...Array.from({ length: 12 }, () => ({ kind: 'text' as const, text: 'BUILT-LEAD-IDLE', whenModel: 'fable-5-1', model: LEAD_MODEL })),
-  ])
-  execFileSync('git', ['init', world.project], { stdio: 'pipe' })
-  execFileSync('git', ['-C', world.project, 'add', 'README.md'], { stdio: 'pipe' })
-  execFileSync('git', ['-C', world.project, 'commit', '-m', 'fixture'], { stdio: 'pipe', env: { ...process.env, GIT_AUTHOR_NAME: 'Fixture', GIT_AUTHOR_EMAIL: 'fixture@example.invalid', GIT_COMMITTER_NAME: 'Fixture', GIT_COMMITTER_EMAIL: 'fixture@example.invalid' } })
-  const settings = join(world.config, 'settings.json')
-  writeFileSync(settings, JSON.stringify({ ...(existsSync(settings) ? JSON.parse(readFileSync(settings, 'utf8')) : {}), swarm: { enabled: true } }))
-  const session = bootLead(world, ['--sovereign'], ['Crewmate', 'CrewBoard', 'Bash'])
-  const { open } = await import('../../src/services/crewBoard/store.ts')
-  let live: ReturnType<typeof open> | undefined
-  const childRequests = () => world.fixture.messageRequests().filter(request => (request.body as { model?: string }).model === childModel)
-  try {
-    session.submit('/swarm on')
-    await session.waitFor('the built wave opens', () => session.stdout().includes('Swarm on for new crewmates'))
-    const path = findFiles(world.config, 'board.sqlite')[0]!
-    const sid = dirname(dirname(dirname(path))).split(/[\\/]/).at(-1)!
-    live = open(path, sid)
-    const sender = { author: { sessionId: sid, agentId: 'fixture-poster', executionId: 'fixture' }, name: 'Fixture poster' }
-    live.enroll(sender)
-    session.submit('wake-parent-only: launch the worker, then wait.')
-    await session.waitFor('the worker declares its wait', () => toolResultOf(world, 'wake-declare') !== null)
-    await session.waitFor('the worker parks after its first response', () => live!.seats().some(seat => seat.name === 'wake-target' && seat.state === 'parked' && seat.wait !== undefined) && childRequests().some(request => JSON.stringify(request.body).includes('wake-first-schema')))
-    const target = live.seats().find(seat => seat.name === 'wake-target')!
-    const before = childRequests().length
-    const firstBody = childRequests()[0]!.body as { system?: unknown; tools?: { name?: string; input_schema?: unknown }[]; output_config?: unknown }
-    const metaPath = findFiles(world.config, `agent-${target.agent}.meta.json`)[0]!
-    const metadata = JSON.parse(readFileSync(metaPath, 'utf8'))
-    assert(metadata.worktreePath)
-    const posted = live.post(sender, { clientOpId: 'built-trigger', kind: 'result', about: 'built-trigger', text: 'BUILT-WAKE-PACKET' })
-    assert(posted.ok)
-    assert(live.post(sender, { clientOpId: 'built-trigger', kind: 'result', about: 'built-trigger', text: 'BUILT-WAKE-PACKET' }).ok)
-    await session.waitFor('the real resumed worker submits its existing schema', () => toolResultOf(world, 'wake-second-schema') !== null)
-    await session.waitFor('the resumed worker completes once', () => live!.seats().find(seat => seat.agent === target.agent)?.state === 'parked' && live!.view().peerTurns === 1)
-    const resumed = childRequests().slice(before)
-    assert(resumed.length)
-    const resumedBody = resumed[0]!.body as { system?: unknown; tools?: { name?: string; input_schema?: unknown }[]; output_config?: unknown; messages?: unknown[] }
-    const wire = JSON.stringify(resumedBody.messages)
-    check('the built runner resumes from the transcript with exactly one triggering body', wire.includes('BUILT-WORKER-PARKED') && wire.split('BUILT-WAKE-PACKET').length === 2 && live.view().peerTurns === 1)
-    check('signed thinking stays intact on the resumed request', wire.includes('WAKE-SIGNED-THINKING') && wire.includes('wake-signed-fixture'))
-    check('the resumed request keeps model, max effort, system prefix and output schema', (resumed[0]!.body as { model?: string }).model === childModel && JSON.stringify(firstBody.output_config) === JSON.stringify(resumedBody.output_config) && JSON.stringify(firstBody.system) === JSON.stringify(resumedBody.system) && JSON.stringify(firstBody.tools?.find(tool => tool.name === 'StructuredOutput')?.input_schema) === JSON.stringify(resumedBody.tools?.find(tool => tool.name === 'StructuredOutput')?.input_schema))
-    const firstPwd = toolResultOf(world, 'wake-first-pwd'), secondPwd = toolResultOf(world, 'wake-second-pwd')
-    check('the same recorded worktree and callable output schema survive the wake', !firstPwd?.isError && !secondPwd?.isError && firstPwd?.text.includes(metadata.worktreePath) && secondPwd?.text.includes(metadata.worktreePath) && toolResultOf(world, 'wake-second-schema')?.isError === false)
-    check('the one-shot wait is consumed and the worker retains its identity', live.seats().filter(seat => seat.name === 'wake-target').length === 1 && live.seats().find(seat => seat.agent === target.agent)?.wait === undefined)
-    const node = live.screenEvents(0).filter(event => event.author.agentId === target.agent && event.lifecycle)
-    check('a real completed run contributes one parked row and its resumed run one Done', node.filter(event => event.lifecycle?.kind === 'parked').length === 1 && node.filter(event => event.lifecycle?.kind === 'done').length === 1)
-    assert.equal(await session.end(), 0, session.stderr())
-  } finally {
-    record('parked-wake-out.txt', session.stdout())
-    record('parked-wake-requests.json', JSON.stringify(childRequests().map(request => request.body)))
-    live?.close()
-    await session.terminate()
-    await closeWorld(world)
-  }
+  const { proveWakeJourney } = await import('./swarm-wake-world.ts')
+  await proveWakeJourney(false, check)
+  await proveWakeJourney(true, check)
 }
 console.log(`${checks} parked-wake checks passed`)
