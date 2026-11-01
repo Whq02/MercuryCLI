@@ -557,7 +557,8 @@
       "operations": [
         "read",
         "post",
-        "swarm_team"
+        "swarm_team",
+        "swarm_captain"
       ],
       "units": [
         "task-coordination"

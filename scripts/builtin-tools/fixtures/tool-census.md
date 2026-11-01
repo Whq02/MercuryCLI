@@ -6,7 +6,7 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 72 built-in production tools · 200 operations · 72 with a declared capability contract.
+Census version 1 — 72 built-in production tools · 201 operations · 72 with a declared capability contract.
 
 ## Summary
 
@@ -33,7 +33,7 @@ Census version 1 — 72 built-in production tools · 200 operations · 72 with a
 | Computer | execution | desktop-drive | 19 | cancel | yes | — | desktop-session (child-execution) | — | scripts/computer/prove-computer-asks.ts |
 | ContextLeft | observation | resource-inspection | — | block | yes | — | — | — | scripts/tools/prove-context-left-tool.ts |
 | Correct | mutation | memory | 3 | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |
-| CrewBoard | coordination | task-coordination | 3 | block | yes | — | — | — | scripts/crew/prove-swarm-board.ts |
+| CrewBoard | coordination | task-coordination | 4 | block | yes | — | — | — | scripts/crew/prove-swarm-board.ts |
 | Crewmate | coordination | task-coordination | — | block | no | — | agent (external-projection) | mercury://agent | scripts/tools/prove-tool-contracts.ts |
 | CronCreate | mutation | scheduling | — | block | yes | — | — | — | scripts/daemon/prove-cron-create-answer.ts |
 | CronDelete | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
