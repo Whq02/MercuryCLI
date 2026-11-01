@@ -228,6 +228,7 @@ media	4
 advisor	33
 sdk	0
 release	90
+outcome-pack	92
 # The real-terminal drive halves of the split suites: an estimate from each
 # parent's measured wall (the drives carry most of it) until a run re-seeds.
 attention-drives	33
@@ -259,7 +260,7 @@ stop-policy-boots	19
 ui-drives	2735
 local-setup-drives	18
 docs	4
-host	120
+host	732
 usage	6
 extensions-drives	600
 document	14
