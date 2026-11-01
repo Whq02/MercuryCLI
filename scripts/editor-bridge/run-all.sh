@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/editor-bridge/**
+# gate-watch: scripts/editor-bridge/** scripts/lib/nodeBin.ts
 # gate-watch: src/services/workbench/** src/services/resources/adapters/workbench.ts
 # gate-watch: src/services/acp/** src/services/walkthrough/**
 # gate-watch: src/utils/artifacts/** src/components/diff/** src/components/prompts-panel/**

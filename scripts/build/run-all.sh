@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-env: MERCURY_SMOKE_LIVE
-# gate-watch: build.ts bun.lock package.json
+# gate-watch: build.ts bun.lock package.json scripts/lib/nodeBin.ts
 # gate-watch: scripts/vendor/**
 # gate-watch: src/tools/** src/utils/ripgrep*
 # gate-watch: src/utils/gracefulShutdown* src/utils/proxy* src/utils/mtls* src/utils/lockfile* src/utils/caCerts*

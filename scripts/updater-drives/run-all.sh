@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: scripts/updater/prove-install-path.ts src/services/privateChannel/installPath.ts src/cli/installVerb.ts
+# gate-watch: scripts/updater/prove-install-path.ts src/services/privateChannel/installPath.ts src/cli/installVerb.ts scripts/lib/nodeBin.ts
 # gate-watch: scripts/release/launcherTemplates.mjs scripts/release/package.mjs
 # gate-watch: package.json scripts/computer/computerDriveKit.ts scripts/lib/captureDriver.ts
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/release/payloadContract.mjs

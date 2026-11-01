@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/providers/temporaryStreamError.ts src/services/providers/busyRetry.ts src/services/providers/openai/openaiWire.ts src/services/api/retryJitter.ts
+# gate-watch: src/services/providers/temporaryStreamError.ts src/services/providers/busyRetry.ts src/services/providers/openai/openaiWire.ts src/services/api/retryJitter.ts scripts/lib/nodeBin.ts
 # gate-watch: scripts/gate/ci-shard.sh scripts/lib/hermetic.ts
 # gate-watch: src/services/providers/melious/** scripts/providers/fixtures/melious-documented-2026-10-24.json
 # gate-watch: scripts/provider-compat/fixtures/gemini-usage-roads-2026-09-30.json scripts/provider-compat/fixtures/huggingface-whoami-v2-documented.json
