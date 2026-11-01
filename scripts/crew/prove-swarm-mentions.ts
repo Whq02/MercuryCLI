@@ -153,8 +153,10 @@ seam.settleSwarmAgent('sender')
 const { bootLead, closeWorld, findFiles, makeWorld, record, userTextsOf } = await import('./crew-world.ts')
 const live = await makeWorld('swarm-mentions', [
   { kind: 'text', text: 'Lead is waiting.' },
+  { kind: 'text', text: 'Handled the named result.' },
   { kind: 'text', text: 'Handled one mention.' },
   { kind: 'text', text: 'Handled the mention batch.' },
+  { kind: 'text', text: 'Handled the named correction.' },
   { kind: 'text', text: 'Handled the all blocker.' },
 ])
 const settingsPath = join(live.config, 'settings.json')
@@ -174,28 +176,31 @@ try {
   board = open(path, sid)
   const sender = { author: { sessionId: sid, agentId: 'poster', executionId: 'run' }, name: 'Poster', team: 'engine' }
   board.enroll(sender)
-  const result = board.post(sender, { clientOpId: 'idle-result', kind: 'result', text: '@main result without wake.' })
-  assert(result.ok)
   const saved = () => readFileSync(transcript, 'utf8')
-  await session.waitFor('the idle result paints', () => saved().includes('result without wake.'))
+  const plain = board.post(sender, { clientOpId: 'idle-all-result', kind: 'result', text: '@all a result for everyone, no wake.' })
+  assert(plain.ok)
+  await session.waitFor('the all result paints', () => saved().includes('a result for everyone, no wake.'))
   await new Promise(resolve => setTimeout(resolve, 400))
-  check('an idle main result paints without a model turn', live.fixture.messageRequests().length === 1)
+  check('an idle result addressed to all paints without a model turn', live.fixture.messageRequests().length === 1)
+  const result = board.post(sender, { clientOpId: 'idle-result', kind: 'result', text: '@main the fold is verified green.' })
+  assert(result.ok)
+  await session.waitFor('a result addressed to main by name wakes the lead', () => session.stdout().includes('Handled the named result.')).finally(() => record('swarm-mention-transcript.jsonl', saved()))
+  check('an idle result addressed to main by name starts one lead model turn with its packet', live.fixture.messageRequests().length === 2 && userTextsOf(live).some(text => text.includes('[Poster] [engine] [result]: @main the fold is verified green.')))
   const ask = board.post(sender, { clientOpId: 'idle-ask', kind: 'ask', text: '@main Please check the proposed law.', about: 'law.ts', threadId: 'idle-ask-thread' })
   assert(ask.ok)
   await session.waitFor('one addressed ask wakes the lead', () => session.stdout().includes('Handled one mention.')).finally(() => record('swarm-mention-transcript.jsonl', saved()))
-  check('one idle main ask starts exactly one lead model turn with its whole packet', live.fixture.messageRequests().length === 2 && userTextsOf(live).some(text => text.includes('[Poster] [engine] [ask]: @main Please check the proposed law.') && text.includes('"about":"law.ts"') && text.includes('"thread":"idle-ask-thread"')))
+  check('one idle main ask starts exactly one lead model turn with its whole packet', live.fixture.messageRequests().length === 3 && userTextsOf(live).some(text => text.includes('[Poster] [engine] [ask]: @main Please check the proposed law.') && text.includes('"about":"law.ts"') && text.includes('"thread":"idle-ask-thread"')))
   assert(board.post(sender, { clientOpId: 'batch-ask', kind: 'ask', text: '@main First in the batch.' }).ok)
   assert(board.post(sender, { clientOpId: 'batch-blocker', kind: 'blocker', text: '@main Second in the batch.' }).ok)
   await session.waitFor('the batch wakes once', () => session.stdout().includes('Handled the mention batch.'))
   await new Promise(resolve => setTimeout(resolve, 400))
-  check('two main posts in one idle stretch start one turn carrying both', live.fixture.messageRequests().length === 3 && userTextsOf(live).some(text => text.includes('First in the batch.') && text.includes('Second in the batch.')))
-  assert(board.post(sender, { clientOpId: 'idle-correction', kind: 'correction', corrects: result.eventId, text: '@main corrected result without wake.' }).ok)
-  await session.waitFor('the correction paints', () => saved().includes('corrected result without wake.')).finally(() => record('swarm-mention-transcript.jsonl', saved()))
-  await new Promise(resolve => setTimeout(resolve, 400))
-  check('an idle main correction paints without a model turn', live.fixture.messageRequests().length === 3)
+  check('two main posts in one idle stretch start one turn carrying both', live.fixture.messageRequests().length === 4 && userTextsOf(live).some(text => text.includes('First in the batch.') && text.includes('Second in the batch.')))
+  assert(board.post(sender, { clientOpId: 'idle-correction', kind: 'correction', corrects: result.eventId, text: '@main corrected: verified green on the final tree.' }).ok)
+  await session.waitFor('a correction addressed to main by name wakes the lead', () => session.stdout().includes('Handled the named correction.')).finally(() => record('swarm-mention-transcript.jsonl', saved()))
+  check('an idle correction addressed to main by name starts one lead model turn', live.fixture.messageRequests().length === 5)
   assert(board.post(sender, { clientOpId: 'all-blocker', kind: 'blocker', text: '@all A blocker for the lead too.' }).ok)
   await session.waitFor('all blocker wakes the lead', () => session.stdout().includes('Handled the all blocker.'))
-  check('a seat all blocker wakes the idle lead once', live.fixture.messageRequests().length === 4)
+  check('a seat all blocker wakes the idle lead once', live.fixture.messageRequests().length === 6)
   check('screen-only rows never duplicate board words on the model wire', live.fixture.messageRequests().every(request => !JSON.stringify(request.body).includes('<crew-board>')))
   assert.equal(await session.end(), 0, session.stderr())
 } finally {

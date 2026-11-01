@@ -270,7 +270,8 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
             }
             recipients.delete(p.author.agentId)
             for (const recipient of recipients) {
-              const wake = recipient === 'main' && (post.kind === 'ask' || post.kind === 'blocker') && post.mentions.some(name => ['main', 'all'].includes(name.toLowerCase()))
+              const named = (names: readonly string[]): boolean => post.mentions.some(name => names.includes(name.toLowerCase()))
+              const wake = recipient === 'main' && ((post.kind === 'ask' || post.kind === 'blocker') ? named(['main', 'all']) : named(['main']))
               const mode = event.mentions.includes(recipient) ? wake ? 'mention-wake-body' : 'mention-body' : replies.has(recipient) ? 'thread-body' : delivery
               db.prepare('INSERT INTO deliveries (recipient, event, mode) VALUES (?, ?, ?)').run(recipient, eventId, mode)
             }
