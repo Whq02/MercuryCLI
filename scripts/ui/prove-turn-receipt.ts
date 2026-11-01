@@ -419,12 +419,12 @@ check('the Windows spelling counts', isScratchpadPath('C:\\Temp\\mercury\\p\\s1\
 section('render wiring (source + dist needles)')
 check(
   'Messages.tsx chain runs injectTurnReceipts before the collapse passes',
-  /collapsed = injectTurnReceipts\(collapsed, getMercuryTempDir\(\)\)\s*collapsed = collapseReadSearchGroups\(/.test(src('components', 'Messages.tsx')),
+  /collapsed = injectTurnReceipts\(collapsed, getMercuryTempDir\(\), turnOpen\)\s*collapsed = collapseReadSearchGroups\(/.test(src('components', 'Messages.tsx')),
 )
 check(
   'Message.tsx dispatches turn_receipt → TurnReceiptRow',
   /case 'turn_receipt':/.test(src('components', 'Message.tsx')) &&
-    /<TurnReceiptRow message=\{message\} \/>/.test(src('components', 'Message.tsx')),
+    /<TurnReceiptRow message=\{message\} verbose=\{verbose\} \/>/.test(src('components', 'Message.tsx')),
 )
 check(
   'the row renders dim with success/error delta accents (tokens only)',

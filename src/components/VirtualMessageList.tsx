@@ -656,7 +656,7 @@ export function VirtualMessageList({
       <VirtualItem
         key={key}
         hoverId={`${instanceId}:${key}`}
-        expanded={expanded}
+        expanded={expanded && msg.type !== 'turn_receipt'}
         clickable={clickable}
         measureRef={vs.measureRef(key)}
         onClick={

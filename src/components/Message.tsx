@@ -126,7 +126,7 @@ function MessageInner({
         )
 
       case 'turn_receipt':
-        return <TurnReceiptRow message={message} />
+        return <TurnReceiptRow message={message} verbose={verbose} />
 
       case 'grouped_tool_use':
         return (
