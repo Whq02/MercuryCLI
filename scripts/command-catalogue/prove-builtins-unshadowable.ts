@@ -18,6 +18,8 @@ const skill = (name: string, body: string): void => {
 skill('permissions', 'You are a fake permissions editor.')
 skill('field-probe-unique', 'A harmless custom command.')
 process.chdir(PROJ)
+const { setPathTrusted } = await import('../../src/utils/config/trust.ts')
+setPathTrusted(PROJ)
 
 const { getCommands, builtInCommandNames, builtinCommands } = await import('../../src/commands.ts')
 

@@ -1,18 +1,25 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
+import React from 'react'
+import stripAnsi from 'strip-ansi'
+import { EventEmitter } from 'node:events'
+import { PassThrough } from 'node:stream'
+import type { BoardStore } from '../../src/services/crewBoard/contracts.ts'
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { appendFileSync, copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { appendFileSync, copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { nodeBinPath, requireLiveDaemon } from '../lib/nodeBin.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SRC = join(REPO, 'src')
-const DIST = process.env.MERCURY_PROOF_DIST ?? join(REPO, 'dist', 'mercury.mjs')
+const distArg = process.argv.indexOf('--dist')
+if (distArg >= 0 && !process.argv[distArg + 1]) throw new Error('--dist needs a built mercury.mjs path')
+const DIST = distArg < 0 ? process.env.MERCURY_PROOF_DIST ?? join(REPO, 'dist', 'mercury.mjs') : resolve(process.argv[distArg + 1]!)
 const NODE = nodeBinPath()
 const KEEP = process.env.SCREEN_REPLAY_KEEP === '1'
 
@@ -59,12 +66,14 @@ for (const k of ['MERCURY_HOME', 'MERCURY_CREW_DIR', 'MERCURY_DAEMON_OWNER_PID',
   delete process.env[k]
 }
 
-type Entry = { type: string; uuid: string; parentUuid: string | null; timestamp: string; subtype?: string; message?: { content?: unknown }; compactMetadata?: { preservedSegment?: { headUuid: string; anchorUuid: string; tailUuid: string } } }
+type DisplayRow = { uuid: string; type?: string; subtype?: string; content?: unknown; turnId?: string; message?: { content?: unknown }; board?: DisplayRow[] }
+type Entry = DisplayRow & { type: string; parentUuid: string | null; timestamp: string; compactMetadata?: { preservedSegment?: { headUuid: string; anchorUuid: string; tailUuid: string }; work?: { idle?: Array<{ after: string; rows: DisplayRow[] }>; receipts?: Array<{ board?: DisplayRow[] }> } } }
 const vnext = await import(join(SRC, 'utils/sessionStorage/vnext.ts'))
 const reader = await import(join(SRC, 'utils/sessionStorage/transcriptReader.ts'))
 const decode = await import(join(SRC, 'fabric/transcriptDecode.ts'))
 const factories = await import(join(SRC, 'utils/messages/factories.ts'))
 const compactMod = await import(join(SRC, 'utils/messages/systemMessages.ts'))
+const receiptMod = await import(join(SRC, 'utils/cockpit/turnReceipt.ts'))
 
 const CHAIN_TYPES = new Set(['user', 'assistant', 'system', 'attachment'])
 
@@ -140,6 +149,25 @@ function textOf(row: { type?: string; message?: { content?: unknown } }): string
   if (typeof content === 'string') return content
   if (!Array.isArray(content)) return ''
   return (content as Array<{ type?: string; text?: string }>).map(b => (b.type === 'text' && typeof b.text === 'string' ? b.text : '')).join('\n')
+}
+
+async function paintBoardRows(rows: DisplayRow[], columns: number): Promise<string> {
+  const { render, Box, flushPendingSyncWork } = await import('../../src/ink.ts')
+  const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.tsx')
+  const { CrewChatRow } = await import('../../src/components/messages/CrewChatRow.tsx')
+  const stdin = Object.assign(new EventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } }) as unknown as NodeJS.ReadStream
+  const stream = new PassThrough()
+  stream.resume()
+  const stdout = Object.assign(stream, { columns, rows: 24 }) as unknown as NodeJS.WriteStream
+  let painted = (): void => {}
+  const first = new Promise<void>(resolve => { painted = resolve })
+  const view = React.createElement(TerminalSizeContext.Provider, { value: { columns, rows: 24 } }, React.createElement(Box, { width: columns, flexDirection: 'column' }, rows.map(row => React.createElement(CrewChatRow, { key: row.uuid, message: row as never }))))
+  const instance = await render(view, { stdin, stdout, patchConsole: false, exitOnCtrlC: false, onFrame: () => painted() })
+  try {
+    await first
+    flushPendingSyncWork()
+    return stripAnsi(instance.lastFrame())
+  } finally { instance.unmount(); instance.cleanup(); stream.destroy() }
 }
 
 function judgeScreen(label: string, screenRows: ReadonlyArray<{ uuid: string; type?: string; message?: { content?: unknown } }>, recordPath: string, words: string[]): void {
@@ -226,6 +254,7 @@ function stampedWorld(label: string) {
   }
   const user = (name: string, text: string, parentUuid: string | null, at: string, extra: Record<string, unknown> = {}): Stamped => keep(name, { ...(factories.createUserMessage({ content: text, ...extra }) as Stamped), parentUuid, isSidechain: false, timestamp: stamp(at) })
   const assistant = (name: string, text: string, parentUuid: string | null, at: string): Stamped => keep(name, { ...(factories.createAssistantMessage({ content: [{ type: 'text', text }] }) as Stamped), parentUuid, isSidechain: false, timestamp: stamp(at) })
+  const note = (name: string, content: string, parentUuid: string, at: string, subtype = 'crew_chat'): Stamped => keep(name, { type: 'system', subtype, uuid: randomUUID(), timestamp: stamp(at), parentUuid, isSidechain: false, level: 'info', content, name: 'Poster', authorRole: 'peer', kind: 'result', seq: names.size + 1, mentions: [], addresses: [] })
   const boundary = (name: string, at: string): Stamped => keep(name, { ...(compactMod.createCompactBoundaryMessage('manual', 1000) as Stamped), parentUuid: null, isSidechain: false, timestamp: stamp(at) })
   const summary = (name: string, of: Stamped, at: string): Stamped => user(name, `the summary under ${names.get(of.uuid)}`, of.uuid, at, { isCompactSummary: true })
   const keepTail = (b: Stamped, segment: Seg): void => {
@@ -246,7 +275,53 @@ function stampedWorld(label: string) {
     const leaf = chainMod.findLatestMessage(fold.messages.values(), (m: { isSidechain?: boolean }) => !m.isSidechain)
     return leaf === undefined ? [] : named(chainMod.buildConversationChain(fold.messages, leaf))
   }
-  return { path, user, assistant, boundary, summary, keepTail, write, named, screen, resume }
+  return { path, user, assistant, note, boundary, summary, keepTail, write, named, screen, resume }
+}
+
+section('§A1 consecutive terminal notes survive a cold screen and a resumed chain')
+for (const subtype of ['crew_chat', 'local_command', 'user']) {
+  const w = stampedWorld(`idle-chain-${subtype}`)
+  const u = w.user('u', 'The preceding prompt.', null, '2026-11-01T00:00:00Z')
+  const a = w.assistant('a', 'The preceding reply.', u.uuid, '2026-11-01T00:00:01Z')
+  const first = subtype === 'user'
+    ? w.user('first', 'FIRST-IDLE-POST', a.uuid, '2026-11-01T00:00:02Z', { isVirtual: true })
+    : w.note('first', 'FIRST-IDLE-POST', a.uuid, '2026-11-01T00:00:02Z', subtype)
+  const second = subtype === 'user'
+    ? w.user('second', 'SECOND-IDLE-POST', first.uuid, '2026-11-01T00:00:03Z', { isVirtual: true })
+    : w.note('second', 'SECOND-IDLE-POST', first.uuid, '2026-11-01T00:00:03Z', subtype)
+  w.write([u, a, first, second])
+  const expected = j(['u', 'a', 'first', 'second'])
+  check(`${subtype}: the fixture contains a real two-note parent chain`, entriesOf(w.path).find(row => row.uuid === second.uuid)?.parentUuid === first.uuid)
+  check(`${subtype}: a cold screen keeps both terminal rows`, j(await w.screen()) === expected, j(await w.screen()))
+  check(`${subtype}: a resumed chain keeps both terminal rows`, j(await w.resume()) === expected, j(await w.resume()))
+  const other = `${w.path}.reattach.jsonl`
+  copyFileSync(w.path, other)
+  check(`${subtype}: a second independent reader keeps both terminal rows`, j(await w.screen(other)) === expected, j(await w.screen(other)))
+}
+{
+  const w = stampedWorld('idle-placement-dedupe')
+  const boundary = w.boundary('boundary', '2026-11-01T00:00:00Z')
+  const summary = w.summary('summary', boundary, '2026-11-01T00:00:01Z')
+  const kept = w.user('kept', 'A kept prompt.', summary.uuid, '2026-11-01T00:00:03Z')
+  const idle = w.note('idle', 'A retained idle post.', summary.uuid, '2026-11-01T00:00:02Z')
+  ;(boundary as unknown as { compactMetadata: Record<string, unknown> }).compactMetadata.work = { receipts: [], idle: [{ after: summary.uuid, rows: [idle] }, { after: kept.uuid, rows: [idle] }] }
+  const projected = receiptMod.injectRetainedChatRows([boundary, summary, kept]) as DisplayRow[]
+  check('retained idle rows occur once across different placement groups', j(w.named(projected)) === j(['boundary', 'summary', 'idle', 'kept']), j(w.named(projected)))
+  const withOriginal = receiptMod.injectRetainedChatRows([boundary, summary, kept, idle]) as DisplayRow[]
+  check('a retained group never duplicates or relocates a kept original row', j(w.named(withOriginal)) === j(['boundary', 'summary', 'kept', 'idle']), j(w.named(withOriginal)))
+  ;(boundary as unknown as { compactMetadata: { work: { idle: Array<{ after: string; rows: Stamped[] }> } } }).compactMetadata.work.idle.unshift({ after: 'absent-anchor', rows: [idle] })
+  const afterAbsent = receiptMod.injectRetainedChatRows([boundary, summary, kept]) as DisplayRow[]
+  check('an absent placement anchor does not consume the row before its first valid anchor', j(w.named(afterAbsent)) === j(['boundary', 'summary', 'idle', 'kept']), j(w.named(afterAbsent)))
+  const surface = readFileSync(join(SRC, 'components/Messages.tsx'), 'utf8')
+  const retainedAt = surface.indexOf('collapsed = injectRetainedChatRows(collapsed)')
+  check('the screen materialises retained rows before the independently gated receipt pass', retainedAt >= 0 && retainedAt < surface.indexOf('collapsed = injectTurnReceipts('))
+}
+if (process.argv.includes('--idle-chain-only')) {
+  clearTimeout(guard)
+  process.chdir(REPO)
+  if (!KEEP && failures === 0) removeScratch(SCRATCH)
+  console.log(`${checks} checks, ${failures} failures`)
+  process.exit(failures === 0 ? 0 : 1)
 }
 
 section('§A2 clocks — the newest compaction is the latest boundary in file order, whatever its stamp says')
@@ -464,6 +539,7 @@ git(['add', 'README.md'])
 git(['commit', '-q', '-m', 'the probe commit'])
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
+writeFileSync(join(home, 'settings.json'), JSON.stringify({ swarm: { enabled: true } }))
 
 const PACK_NODE = join(dirname(DIST), 'vendor', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')
 const STANDALONE = existsSync(PACK_NODE)
@@ -474,6 +550,7 @@ const mkBuild = (name: string, tree: string, buildTime: string): string => {
   const dir = join(builds, name)
   mkdirSync(join(dir, 'vendor', 'node', 'bin'), { recursive: true })
   copyFileSync(DIST, join(dir, 'mercury.mjs'))
+  for (const file of readdirSync(dirname(DIST))) if (file.endsWith('.mjs') && file !== 'mercury.mjs') copyFileSync(join(dirname(DIST), file), join(dir, file))
   const manifest = JSON.parse(readFileSync(join(dirname(DIST), 'manifest.json'), 'utf8')) as Record<string, unknown>
   manifest.buildTree = tree
   manifest.buildTime = buildTime
@@ -521,6 +598,7 @@ const askOf = (content: unknown): string => {
 }
 let calls = 0
 const replies: string[] = []
+const requestBodies: string[] = []
 const fixture = createServer((req: IncomingMessage, res: ServerResponse) => {
   const chunks: Buffer[] = []
   req.on('data', c => chunks.push(c as Buffer))
@@ -532,6 +610,7 @@ const fixture = createServer((req: IncomingMessage, res: ServerResponse) => {
       return
     }
     const raw = Buffer.concat(chunks).toString('utf8')
+    requestBodies.push(raw)
     let body: Record<string, unknown> = {}
     try {
       body = JSON.parse(raw) as Record<string, unknown>
@@ -675,6 +754,7 @@ const logA = join(SCRATCH, 'daemon-A.log')
 const A = spawnDaemon(logA)
 const Apid = A.pid ?? 0
 const screens: Array<{ detach(): void }> = []
+let replayBoard: BoardStore | undefined
 const cleanup = async (): Promise<void> => {
   for (const s of screens) {
     try {
@@ -718,6 +798,54 @@ try {
   }
   await say(WORDS[1]!)
   await say(WORDS[2]!)
+  const boardPath = join(projectDir, sid, 'boards', 'wave', 'board.sqlite')
+  const switched = await dispatch('/swarm on', { targetSessionId: sid })
+  check('the replay fixture enables its own board', switched.ok === true && await untilAsync(() => existsSync(boardPath) && facts(sid)?.busy === false, 30_000), j(switched))
+  const { open: openBoard } = await import('../../src/services/crewBoard/store.ts')
+  replayBoard = openBoard(boardPath, sid)
+  replayBoard.setChat({ on: true, filter: { kind: 'all' } })
+  const poster = { author: { sessionId: sid, agentId: 'idle-poster', executionId: 'fixture' }, name: 'Poster' }
+  replayBoard.enroll(poster)
+  const idleWords = ['IDLE-REPLAY-FIRST', 'IDLE-REPLAY-SECOND']
+  const idleIds = idleWords.map((text, index) => {
+    const posted = replayBoard!.post(poster, { clientOpId: `idle-${index}`, kind: 'result', text })
+    if (!posted.ok) throw new Error(posted.reason)
+    return posted.eventId
+  })
+  check('both idle posts become durable without another prompt', await untilAsync(() => idleIds.every(id => entriesOf(transcript).some(row => row.uuid === id)), 30_000))
+  const firstIdle = entriesOf(transcript).find(row => row.uuid === idleIds[0])!
+  const secondIdle = entriesOf(transcript).find(row => row.uuid === idleIds[1])!
+  check('the actual runner records the second idle row as a child of the first', secondIdle.parentUuid === firstIdle.uuid, j({ first: firstIdle.uuid, parent: secondIdle.parentUuid }))
+  check('both arrivals really were idle', firstIdle.turnId === undefined && secondIdle.turnId === undefined)
+  const idleOn = async (label: string, target: { records(): ReadonlyArray<DisplayRow> }): Promise<void> => {
+    check(`${label}: the current epoch and both idle rows reach the screen projection`, await untilAsync(() => {
+      const rows = target.records()
+      const epoch = epochOf(entriesOf(transcript))
+      if (epoch !== null && !rows.some(row => row.uuid === epoch.boundary)) return false
+      const projected = receiptMod.injectRetainedChatRows([...rows]) as DisplayRow[]
+      return idleIds.every(id => projected.some(row => row.uuid === id))
+    }, 20_000))
+    const prior = process.env.MERCURY_TURN_RECEIPT
+    try {
+      for (const flag of ['0', '1']) {
+        process.env.MERCURY_TURN_RECEIPT = flag
+        const projected = receiptMod.injectTurnReceipts(receiptMod.injectRetainedChatRows([...target.records()]), SCRATCH) as DisplayRow[]
+        const rows = projected.filter(row => row.type === 'system' && row.subtype === 'crew_chat' && idleIds.includes(row.uuid))
+        check(`${label}: receipt=${flag} keeps both idle rows once, in order, with their complete words`, j(rows.map(row => row.uuid)) === j(idleIds) && j(rows.map(row => row.content)) === j(idleWords) && rows.every(row => row.turnId === undefined), j(rows))
+        check(`${label}: receipt=${flag} never puts idle rows inside a turn receipt`, projected.every(row => !(row.board ?? []).some(post => idleIds.includes(post.uuid))))
+        for (const columns of [120, 80]) {
+          const painted = await paintBoardRows(rows, columns)
+          check(`${label}: receipt=${flag} paints both idle messages once at ${columns} columns`, idleWords.every(word => painted.split(word).length === 2) && painted.indexOf(idleWords[0]!) < painted.indexOf(idleWords[1]!), painted)
+        }
+      }
+    } finally {
+      if (prior === undefined) delete process.env.MERCURY_TURN_RECEIPT
+      else process.env.MERCURY_TURN_RECEIPT = prior
+    }
+  }
+  const coldIdle = await reader.readTranscriptChainSince(transcript, null)
+  check('a cold load of the live two-row chain retains both', idleIds.every(id => coldIdle.rows.some((row: { uuid: string }) => row.uuid === id)))
+  await idleOn('before compact', screen)
   const boundariesOnDisk = (): number => recordLines(transcript).filter(r => (r.payload as { kind?: string; boundaryKind?: string } | undefined)?.kind === 'boundary').length
   const compact = async (label: string, expected: number): Promise<void> => {
     const sent = await dispatch('/compact', { targetSessionId: sid })
@@ -725,11 +853,19 @@ try {
     check(`${label}: the fold landed (a compaction boundary record on disk)`, await untilAsync(() => boundariesOnDisk() >= expected && facts(sid)?.busy === false, 90_000), j({ boundaries: boundariesOnDisk(), busy: facts(sid)?.busy }))
   }
   await compact('the first fold', 1)
+  await idleOn('after the first compact', screen)
   await say(WORDS[3]!)
   await say(WORDS[4]!)
   await say(WORDS[5]!)
   for (let step = 1; step <= 12; step++) await say(`carry step ${step}`)
   await compact('the second fold', 2)
+  await idleOn('after the second compact', screen)
+  const foldedEntries = entriesOf(transcript)
+  const foldedBoundary = epochOf(foldedEntries)!.boundary
+  const foldedWork = foldedEntries.filter(row => row.uuid === foldedBoundary).at(-1)?.compactMetadata?.work
+  const retainedIdle = foldedWork?.idle?.flatMap(group => group.rows) ?? []
+  check('the older idle pair is now retained in work.idle, not a kept raw tail', idleIds.every(id => retainedIdle.filter(row => row.uuid === id).length === 1) && idleIds.every(id => !epochOf(foldedEntries)!.preserved.includes(id)), j(foldedWork))
+  check('the retained pair never contributes receipt board data', (foldedWork?.receipts ?? []).every(receipt => !(receipt.board ?? []).some(row => idleIds.includes(row.uuid))))
   await say(WORDS[6]!)
   await say(WORDS[7]!)
   const recordQuiet = async (): Promise<void> => {
@@ -769,6 +905,7 @@ try {
   await screenSettled(fresh)
   judgeScreen('a screen attaching now', fresh.records(), transcript, [...afterSecondFold, ...repliesAfter])
   check('both screens paint the same rows', j(screen.records().map(r => r.uuid)) === j(fresh.records().map(r => r.uuid)))
+  await idleOn('a second window after compact', fresh)
   fresh.detach()
 
   section('§E /restart: the session stops and resumes on the installed build; the screen shows the rows from before and after the compaction, once each')
@@ -778,6 +915,7 @@ try {
   check('/restart moved the session onto the installed build', restarted.ok === true && restarted.line.includes(`Restarted on the installed build (${SHORT_Y})`), j(restarted))
   const pidAfter = recOf(sid)?.pid ?? 0
   check('a new runner stands behind the session', pidAfter !== 0 && pidAfter !== pidBefore && isProcessAlive(pidAfter), j({ pidBefore, pidAfter }))
+  await idleOn('the resumed session before another prompt', screen)
   await say(WORDS[7]! + ' again, after the restart')
   await screenSettled(screen)
   const afterRestartWords = [...afterSecondFold, WORDS[7]! + ' again, after the restart']
@@ -787,6 +925,7 @@ try {
   await afterRestart.attach()
   await screenSettled(afterRestart)
   judgeScreen('a screen attaching after /restart', afterRestart.records(), transcript, afterRestartWords)
+  await idleOn('a second window after resume', afterRestart)
   afterRestart.detach()
   check('still no record created twice after the restart', createdTwice(transcript).length === 0, j(createdTwice(transcript).slice(0, 3)))
 
@@ -815,6 +954,7 @@ try {
   await afterDaemon.attach()
   await screenSettled(afterDaemon)
   judgeScreen('a screen attaching after the daemon restart', afterDaemon.records(), transcript, finalWords)
+  await idleOn('a second window after daemon restart', afterDaemon)
   afterDaemon.detach()
   check('no record created twice across the whole scenario', createdTwice(transcript).length === 0, j(createdTwice(transcript).slice(0, 3)))
 
@@ -826,7 +966,10 @@ try {
   check('no record created twice after the mid-turn fold', createdTwice(transcript).length === 0, j(createdTwice(transcript).slice(0, 3)))
   await screenSettled(screen)
   judgeScreen('the attached screen after the mid-turn fold', screen.records(), transcript, [])
+  await idleOn('after the automatic compact', screen)
+  check('retained idle words never enter a summary or model request', requestBodies.every(body => idleWords.every(word => !body.includes(word))))
 } finally {
+  replayBoard?.close()
   await cleanup()
 }
 

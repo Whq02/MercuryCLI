@@ -75,6 +75,7 @@ const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
   [new RegExp(J("'max'/'pro'/'", 'team', "'"), ''), 'the plan tiers'],
   [new RegExp(J('max/enterprise/', 'team'), ''), 'the plan tiers'],
   [new RegExp(J('team', 'mate_mailbox'), ''), 'the old kind of the message row: the attachment types read it through their own table, the validator keeps its shape row, the pins drive it', rel => MESSAGE_ROW_READERS.includes(rel)],
+  [/\bteam\b/g, 'The receipt fixture carries the board label on its typed row.', rel => rel === 'scripts/ui/prove-swarm-party-receipt.ts'],
 ]
 
 function crewRemainder(rel: string, line: string): string {
@@ -132,6 +133,11 @@ check('the Portuguese routing word is excused only in the Brazilian Portuguese R
   !OLD.test(crewRemainder('docs/translations/README.pt-BR.md', 'deixar o ' + J('rot', 'eamento') + ' com o OpenRouter')) &&
     OLD.test(crewRemainder('docs/translations/README.pt-BR.md', 'o ' + J('rot', 'eamento') + ' da team')) &&
     OLD.test(crewRemainder('docs/README.md', 'deixar o ' + J('rot', 'eamento') + ' com o OpenRouter')))
+
+check('the receipt fixture label allowance does not excuse retired identities or other UI files',
+  !OLD.test(crewRemainder('scripts/ui/prove-swarm-party-receipt.ts', 'team')) &&
+    OLD.test(crewRemainder('scripts/ui/prove-swarm-party-receipt.ts', 'team teammate TeamCreate')) &&
+    OLD.test(crewRemainder('scripts/ui/other-proof.ts', 'team')))
 
 const files = execFileSync('git', ['-C', ROOT, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split('\0').filter(Boolean)
 const scoped = files.filter(f => /^(src|scripts|docs|design-system|assets|integrations)\//.test(f) || ['README.md', 'AGENTS.md', 'MERCURY.md', 'BUILD-NOTES.md', 'CONTRIBUTING.md'].includes(f))
