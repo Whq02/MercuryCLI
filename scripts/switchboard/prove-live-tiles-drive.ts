@@ -112,10 +112,12 @@ const paths = await import('../../src/utils/sessionStorage/paths.ts')
 
 let alphaId = ''
 try {
-  const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
+  const { runArtifactArena, grabScreens, sendStamp } = await import('../streaming/artifactArena.ts')
+  const MIRROR_MARK = 'tile-beta prelude'
   const run = await runArtifactArena({
     turns: [],
-    sends: ['11000:\t', '13000:\x1b[C', '18000:\x1b[C'],
+    sends: [{ awaitText: MIRROR_MARK, settleMs: 0, text: '' }],
+    anchor: null,
     seconds: 34,
     cols: SIZE.cols,
     rows: SIZE.rows,
@@ -206,19 +208,26 @@ try {
     }
     const bandText = (g: { rows: string[] }): string => listBandRows(g).join('\n')
     const mirrorText = (g: { rows: string[] }): string => mirrorRows(g).join('\n')
-    const peekFrames = grabs.filter(g => g.atMs >= 14000 && g.atMs <= 17000 && text(g).includes('SESSIONS'))
+    const mark = run.sendLog.find(s => s.awaitText === MIRROR_MARK)
+    const markAt = mark === undefined ? Number.POSITIVE_INFINITY : sendStamp(run, mark)
+    const peekFrames = [...(mark?.screen === undefined ? [] : [{ atMs: markAt, rows: mark.screen }]), ...boardFrames.filter(g => g.atMs >= markAt)]
     const bodyNeedle = (t: string): boolean => /tile-beta prelude|try a cleanup|rm -rf scratchling|Running 1 bash/.test(t)
     const opened = peekFrames.filter(g => bodyNeedle(mirrorText(g)) && /headless · waiting/.test(bandText(g)) && /Beta asker/.test(mirrorText(g)))
-    check("§5 the selected row's chat paints in the mirror below the list (the ask on its row, the transcript rows in the pane)", opened.length > 0, `frames: ${opened.map(g => g.atMs).join(',') || 'none'}`)
+    check(
+      "§5 the selected row's chat paints in the mirror below the list (the ask on its row, the transcript rows in the pane)",
+      opened.length > 0,
+      mark === undefined ? `the mirror never painted "${MIRROR_MARK}": ${run.outcome.report?.unfired.join(' · ') || run.outcome.reason || 'no driver report'}` : `mark at ${markAt}ms; frames: ${opened.map(g => g.atMs).join(',') || 'none'}`,
+    )
     check('§5 the peek is not a hop (the board frame stays)', opened.every(g => text(g).includes('SESSIONS')))
     check('§5 the list band keeps its rows under the mirror (nothing displaced)', opened.every(g => /Alpha stream/.test(bandText(g)) && /Beta asker/.test(bandText(g))))
     const selTitle = (g: { rows: string[] }): string => {
-      const row = g.rows.find(r => r.includes('▸'))
+      const column = Math.max(0, ...g.rows.map(r => r.indexOf('STATUS & TITLE')))
+      const row = listBandRows(g).map(r => r.slice(column)).find(r => r.includes('▸'))
       if (row === undefined) return ''
       return row.includes('Alpha stream') ? 'alpha' : row.includes('Beta asker') ? 'beta' : row.trim().slice(0, 24)
     }
-    const postTab = boardFrames.filter(g => g.atMs >= 12000 && selTitle(g) !== '')
-    check('§9 selection holds while tiles update', postTab.length >= 2 && new Set(postTab.map(selTitle)).size === 1, `selections: ${postTab.map(g => `${g.atMs}:${selTitle(g)}`).join(',')}`)
+    const selected = boardFrames.filter(g => selTitle(g) !== '')
+    check('§9 selection holds while tiles update', selected.length >= 2 && new Set(selected.map(selTitle)).size === 1, `selections: ${selected.map(g => `${g.atMs}:${selTitle(g)}`).join(',')}`)
     const entries = readFileSync(tripwireLog, 'utf8')
       .split('\n')
       .filter(Boolean)

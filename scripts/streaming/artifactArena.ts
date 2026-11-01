@@ -42,6 +42,7 @@ interface ObservedSend {
   awaitText: string | string[]
   awaitAbsent?: string | string[]
   afterPrevMs?: number
+  settleMs?: number
   text?: string
   targetText?: string
   targetHeader?: string
