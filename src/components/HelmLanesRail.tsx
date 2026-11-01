@@ -385,7 +385,7 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
   const mainChatTaskId = useAppState(s => s.mainChatTaskId)
   const roster = useFocusedWorkRoster()
   const sessionCrew = useSessionCrew()
-  const vitals = useVitals()
+  const ledger = useVitals(s => s.tasks)
   const filesOff = useAppState(s => s.settings.view?.files === false)
   const filesFolder = basename(useFocusedWorkspaceCwd())
   const mission = getActiveMission()
@@ -409,7 +409,7 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
     roster,
     viewingAgentTaskId,
     mainChatTaskId,
-    vitals,
+    vitals: ledger,
   }))
   const nowMs = Date.now()
   const published = getHelmRows('lanes')
@@ -425,7 +425,7 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
     tasks,
     roster,
     workRunSnap: workLaneOff ? null : workRunSnap,
-    ledger: vitals.tasks,
+    ledger,
     lastSentPrompt,
     filesOff,
     filesFolder,

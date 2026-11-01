@@ -133,6 +133,7 @@ async function refreshOnce(): Promise<void> {
     }
     ;(kept as Record<string, unknown>)[key as string] = fresh
   }
+  if (snapshots.version > 0 && Object.keys(kept).length === 0) return
   snapshots = {
     ...snapshots,
     ...kept,
