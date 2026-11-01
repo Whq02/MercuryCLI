@@ -1023,7 +1023,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     suppressEnterSubmit:
       typeahead.suggestions.length > 0 &&
       (typeahead.suggestionType === 'command' ||
-        typeahead.suggestionType === 'custom-title'),
+        typeahead.suggestionType === 'custom-title' ||
+        typeahead.suggestionType === 'channel-target'),
     maxVisibleLines,
     argumentHint: typeahead.commandArgumentHint,
     inlineGhostText: typeahead.inlineGhostText,

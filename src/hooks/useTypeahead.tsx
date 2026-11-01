@@ -29,12 +29,17 @@ import {
 } from '../utils/argumentSubstitution.js'
 import {
   applyCommandSuggestion,
+  channelTargetCandidates,
+  findChannelTargetQuery,
   isNameAnchoredSuggestion,
   findMidInputSlashCommand,
   generateCommandSuggestions,
   getBestCommandMatch,
   hasCommandArgs,
+  rankChannelTargets,
 } from '../utils/suggestions/commandSuggestions.js'
+import { getFocusedSessionConnector, hasFocusedSession, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
+import { swarmView } from '../services/crewBoard/seam.js'
 import {
   getPathCompletions,
   isPathLikeToken,
@@ -311,6 +316,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
   const [asyncGhostText, setAsyncGhostText] = useState<InlineGhostText | null>(
     null,
   )
+  const [rosterStamp, setRosterStamp] = useState(0)
 
   const cursorOffsetRef = useRef(cursorOffset)
   cursorOffsetRef.current = cursorOffset
@@ -433,6 +439,14 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(
+    () =>
+      subscribeThroughFocused((connector, listener) => connector.subscribeWork(listener))(() => {
+        if (findChannelTargetQuery(inputRef.current, cursorOffsetRef.current)) setRosterStamp(stamp => stamp + 1)
+      }),
+    [],
+  )
+
   useEffect(() => {
     const cursor = cursorOffsetRef.current
 
@@ -455,6 +469,14 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
         getBestCommandMatch(midCommand.partialCommand, commands)
       ) {
         clearSuggestions()
+        return
+      }
+      const target = findChannelTargetQuery(input, cursor)
+      if (target) {
+        const seats = (hasFocusedSession() ? getFocusedSessionConnector().swarmBoard?.()?.seats : swarmView().seats) ?? []
+        const items = rankChannelTargets(target.query, channelTargetCandidates(target.kind, seats))
+        if (items.length > 0) publish(items, 'channel-target', { selected: 0 })
+        else clearSuggestions()
         return
       }
     }
@@ -670,7 +692,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, mode, suppressSuggestions, commands])
+  }, [input, mode, suppressSuggestions, commands, rosterStamp])
 
   function describeAgent(
     state: ReturnType<typeof appStateStore.getState>,
@@ -847,6 +869,18 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
               setCursorOffset,
               shellCompletionTypeOf(suggestion),
             )
+            clearSuggestions()
+            return
+          }
+          case 'channel-target': {
+            const target = findChannelTargetQuery(currentInput, cursor)
+            if (!target) {
+              clearSuggestions()
+              return
+            }
+            const rebuilt = `${currentInput.slice(0, target.start)}${String(suggestion.metadata ?? suggestion.displayText)} `
+            setInput(rebuilt)
+            setCursorOffset(rebuilt.length)
             clearSuggestions()
             return
           }

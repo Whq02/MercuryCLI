@@ -18,6 +18,7 @@ export type SuggestionType =
   | 'shell'
   | 'custom-title'
   | 'agent'
+  | 'channel-target'
   | 'variable'
 
 export type SuggestionItem = {
