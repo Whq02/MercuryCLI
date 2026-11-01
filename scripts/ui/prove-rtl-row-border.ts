@@ -257,6 +257,80 @@ console.log('§5 contextual forms come from the Unicode source rows')
   check('a joiner replacement never shares an isolate with its Arabic base', Array.from(persian.matchAll(/\u2068([^\u2069]*)\u2069/g), match => match[1]!).every(value => stringWidth(value) === 1))
 }
 
+console.log('§6 the terminal projection decodes only rows that contain RTL')
+if (appleTerminal) {
+  const { CharPool, HyperlinkPool, StylePool, CellWidth, cellAt, createScreen, setCellAt } = await import('../../src/ink/cell-grid.js')
+  const { terminalBidiFrame } = await import('../../src/ink/terminalBidiFrame.js')
+  const { shapeBidiForTerminal } = await import('../../src/ink/bidi.js')
+  type Frame = import('../../src/ink/frame.js').Frame
+  type Screen = import('../../src/ink/cell-grid.js').Screen
+  const fullProjection = (frame: Frame): Frame => {
+    const source = frame.screen
+    let projected: Screen | undefined
+    for (let y = 0; y < source.height; y++) {
+      const row = []
+      for (let x = 0; x < source.width; x++) {
+        const cell = cellAt(source, x, y)!
+        if (cell.width === CellWidth.SpacerTail) continue
+        row.push({ value: cell.width === CellWidth.SpacerHead ? ' ' : cell.char, width: cell.width === CellWidth.Wide ? 2 : 1, styleId: cell.styleId, hyperlink: cell.hyperlink })
+      }
+      const paint = shapeBidiForTerminal(row)
+      if (paint === row) continue
+      if (!projected) {
+        const cells = source.cells.slice()
+        projected = { ...source, cells, cells64: new BigInt64Array(cells.buffer) }
+      }
+      let x = 0
+      for (const cell of paint) {
+        setCellAt(projected, x, y, { char: cell.value, width: cell.width === 2 ? CellWidth.Wide : CellWidth.Narrow, styleId: cell.styleId, hyperlink: cell.hyperlink })
+        x += cell.width
+      }
+    }
+    return projected ? { ...frame, screen: projected } : frame
+  }
+  const makeFrame = (chars = new CharPool()): Frame => ({
+    screen: createScreen(177, 49, new StylePool(), chars, new HyperlinkPool()),
+    viewport: { width: 177, height: 49 }, cursor: { x: 0, y: 48, visible: false },
+  })
+  const put = (frame: Frame, x: number, y: number, char: string, wide = false) => setCellAt(frame.screen, x, y, {
+    char, width: wide ? CellWidth.Wide : CellWidth.Narrow, styleId: x % 3, hyperlink: x % 2 ? 'https://example.test/rtl' : undefined,
+  })
+  const latin = makeFrame()
+  for (let y = 0; y < 49; y++) for (let x = 0; x < 177; x++) put(latin, x, y, 'Latin 123 │'[x % 11]!)
+  const chars = latin.screen.charPool
+  const get = chars.get.bind(chars)
+  let reads = 0
+  chars.get = slot => { reads++; return get(slot) }
+  check('Latin projection returns the logical frame', terminalBidiFrame(latin) === latin)
+  reads = 0
+  check('a warm Latin frame does not decode its cells again', terminalBidiFrame(latin) === latin && reads === 0, `${reads} glyph reads`)
+  chars.get = get
+  const agrees = (label: string, frame: Frame): void => {
+    const before = frame.screen.cells.slice()
+    const expected = fullProjection(frame)
+    const actual = terminalBidiFrame(frame)
+    check(label, actual.screen.cells.every((word, i) => word === expected.screen.cells[i]) && JSON.stringify(actual.screen.damage) === JSON.stringify(expected.screen.damage))
+    check(`${label}: logical cells untouched`, frame.screen.cells.every((word, i) => word === before[i]))
+  }
+  for (const [i, char] of Array.from('بلا تفلسف (שלום)').entries()) put(latin, i + 4, 20, char)
+  put(latin, 24, 20, 'مُ')
+  put(latin, 26, 20, '👨‍👩‍👧‍👦', true)
+  put(latin, 30, 20, '\u200c')
+  put(latin, 32, 20, '\u200d')
+  agrees('new RTL glyphs after a Latin cache match the full projection', latin)
+  for (let x = 0; x < 177; x++) put(latin, x, 20, ' ')
+  check('erasing the RTL row returns the same logical frame', terminalBidiFrame(latin) === latin)
+  const fresh = makeFrame()
+  put(fresh, 4, 1, 'ب')
+  agrees('a fresh pool reusing glyph slots still shapes RTL', fresh)
+  const shared = makeFrame(chars)
+  put(shared, 176, 48, 'שָׁ')
+  agrees('another screen sharing the pool shapes its last cell', shared)
+  process.env.TERM_PROGRAM = 'xterm'
+  check('other terminal profiles leave RTL logical', terminalBidiFrame(fresh) === fresh)
+  process.env.TERM_PROGRAM = 'Apple_Terminal'
+}
+
 if (!appleTerminal) {
   const apple = spawnSync(process.execPath, [import.meta.filename, '--apple'], { env: process.env, encoding: 'utf8' })
   process.stdout.write(apple.stdout ?? '')

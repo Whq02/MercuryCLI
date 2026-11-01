@@ -20,6 +20,8 @@ type BidiApi = {
 const RTL_RE =
   /[\u0590-\u05FF\uFB1D-\uFB4F\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0780-\u07BF\u0700-\u074F]/
 
+export const containsRtl = (text: string): boolean => RTL_RE.test(text)
+
 let softwareBidi: boolean | null = null
 let bidi: BidiApi | null = null
 
@@ -42,7 +44,7 @@ export function reorderBidi<T extends BidiChar>(characters: T[]): T[] {
   if (!needsSoftwareBidi()) return characters
   if (characters.length === 0) return characters
   const text = characters.map(c => c.value).join('')
-  if (!RTL_RE.test(text)) return characters
+  if (!containsRtl(text)) return characters
 
   const { levels } = getBidi().getEmbeddingLevels(text)
 
@@ -99,7 +101,7 @@ const joinsRight = (type: string): boolean => type === 'D' || type === 'R' || ty
 
 export function shapeBidiForTerminal<T extends BidiChar>(characters: T[]): T[] {
   const text = characters.map(c => c.value).join('')
-  if (!RTL_RE.test(text)) return characters
+  if (!containsRtl(text)) return characters
   const embedding = getBidi().getEmbeddingLevels(text, 'ltr')
   const mirrors = getBidi().getMirroredCharactersMap(text, embedding)
   const points = Array.from(text)
