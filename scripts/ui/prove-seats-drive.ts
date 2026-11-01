@@ -480,13 +480,22 @@ if (cap !== null) {
   const c = firstCall('c')
   const d = firstCall('d')
   check('D1 all four stations reached the wire', a !== undefined && b !== undefined && c !== undefined && d !== undefined, seatHits.map(h => `${h.station}:${h.kind}`).join(','))
-  if (a && b && c && d) {
-    const span3 = Math.max(a.startMs, b.startMs, c.startMs) - Math.min(a.startMs, b.startMs, c.startMs)
-    check(`D1 a, b and c start together (span ${span3} ms < ${HOLD_MS / 4} ms) — the idle agent holds no seat`, span3 < HOLD_MS / 4, `span ${span3} ms`)
-    const dGap = d.startMs - c.startMs
-    check(`D1 d waits for a seat (starts ≥ ${Math.round(HOLD_MS * 0.6)} ms after c)`, dGap >= HOLD_MS * 0.6, `gap ${dGap} ms`)
-    const freedAt = Math.min(b.endMs || Infinity, c.endMs || Infinity)
-    check('D1 d starts once a held call ends (the queue forms only with two calls in flight)', d.startMs >= freedAt - 1500, `d@${d.startMs - clock0} · freed@${freedAt - clock0}`)
+  const byArrival = (['b', 'c', 'd'] as const).map(s => [s, firstCall(s)] as const).filter((pair): pair is readonly [Station, Hit] => pair[1] !== undefined).sort((x, y) => x[1].startMs - y[1].startMs)
+  const holders = byArrival.slice(0, SEAT_CEILING).map(([s]) => s)
+  const waiter: Station = byArrival[SEAT_CEILING]?.[0] ?? 'd'
+  const holderLabels = holders.map(labelOf)
+  const holdersNamed = new RegExp(`\\((?:${holderLabels.join('|')}), (?:${holderLabels.join('|')})\\)$`)
+  console.log(`  seats on the wire: ${holderLabels.join(' and ')} hold, ${labelOf(waiter)} waits (the gate seats whoever reaches it first)`)
+  if (a && b && c && d && holders.length === SEAT_CEILING) {
+    const starters = [a, ...holders.map(s => firstCall(s)!)]
+    const span3 = Math.max(...starters.map(h => h.startMs)) - Math.min(...starters.map(h => h.startMs))
+    check(`D1 a and the two holders start together (span ${span3} ms < ${HOLD_MS / 4} ms) — the idle agent holds no seat`, span3 < HOLD_MS / 4, `span ${span3} ms`)
+    const second = Math.max(...holders.map(s => firstCall(s)!.startMs))
+    const waiterCall = firstCall(waiter)!
+    const dGap = waiterCall.startMs - second
+    check(`D1 the third holder-to-be waits for a seat (starts ≥ ${Math.round(HOLD_MS * 0.6)} ms after the second holder)`, dGap >= HOLD_MS * 0.6, `${labelOf(waiter)} gap ${dGap} ms`)
+    const freedAt = Math.min(...holders.map(s => firstCall(s)!.endMs || Infinity))
+    check('D1 the waiter starts once a held call ends (the queue forms only with two calls in flight)', waiterCall.startMs >= freedAt - 1500, `${labelOf(waiter)}@${waiterCall.startMs - clock0} · freed@${freedAt - clock0}`)
   }
 
   console.log('\n— D2 the words at the busy moment —')
@@ -497,19 +506,19 @@ if (cap !== null) {
     return a === undefined ? '(no summary)' : `${a.state}${a.waiting !== undefined ? `/${a.waiting}` : ''}${a.waitWords !== undefined ? ` "${a.waitWords}"` : ''}`
   }
   console.log(`  manifest ${(manifest.atMs / 1000).toFixed(1)}s after the first seat call: ${STATIONS.map(s => `${labelOf(s)} ${wordsOf(s)}`).join(' · ')}`)
-  const dTile = summary('d')
+  const dTile = summary(waiter)
   const aTile = summary('a')
   check('D2 the manifest carries every agent', STATIONS.every(s => summary(s) !== undefined), String(manifest.agents?.map(a => a.label).join(',')))
-  check("D2 d's tile says why it waits — the seat sentence (2 of 2 held)", dTile?.waiting === 'seat' && /^waiting for a seat — 2 of 2 held/.test(dTile.waitWords ?? ''), wordsOf('d'))
-  check('D2 the sentence names the two holders by their labels — the calls in flight (b, c), never a waiter', /\(seat-b, seat-c\)$/.test(dTile?.waitWords ?? ''), wordsOf('d'))
-  check("D2 b's and c's tiles hold seats: neither waits for one", summary('b')?.waiting !== 'seat' && summary('c')?.waiting !== 'seat', `${wordsOf('b')} || ${wordsOf('c')}`)
-  check("D2 a's second call waits for a seat like any other (its seat was free while its tool ran)", aTile?.waiting === 'seat' && /\(seat-b, seat-c\)$/.test(aTile.waitWords ?? ''), wordsOf('a'))
+  check(`D2 the waiter's tile (${labelOf(waiter)}) says why it waits — the seat sentence (2 of 2 held)`, dTile?.waiting === 'seat' && /^waiting for a seat — 2 of 2 held/.test(dTile.waitWords ?? ''), wordsOf(waiter))
+  check(`D2 the sentence names the two holders by their labels — the calls in flight (${holderLabels.join(', ')}), never a waiter`, holdersNamed.test(dTile?.waitWords ?? ''), wordsOf(waiter))
+  check(`D2 the holders' tiles (${holderLabels.join(', ')}) hold seats: neither waits for one`, holders.every(s => summary(s)?.waiting !== 'seat'), holders.map(s => wordsOf(s)).join(' || '))
+  check("D2 a's second call waits for a seat like any other (its seat was free while its tool ran)", aTile?.waiting === 'seat' && holdersNamed.test(aTile.waitWords ?? ''), wordsOf('a'))
   check('D2 no tile wears a gate sentence of its own (a start tile carries no words)', (manifest.agents ?? []).every(a => a.state !== 'start' || a.waitWords === undefined), String(manifest.agents?.map(a => `${a.label}:${a.state}`).join(',')))
   const busy = m['run-busy']
   const lanes = STATIONS.map(s => laneOf(busy, s))
   console.log(`  run view lanes: ${lanes.map((l, i) => `${labelOf(STATIONS[i]!)}: ${l.slice(0, 120) || '(none)'}`).join(' | ')}`)
   check('D2 no lane on the screen reads a bare queued', !lanes.some(l => /\bqueued\b/.test(l)), lanes.join(' || ').slice(0, 300))
-  check("D2 d's lane on the screen wears the seat sentence", /waiting for a seat — 2 of 2 held/.test(laneOf(busy, 'd')), laneOf(busy, 'd').slice(0, 200))
+  check(`D2 the waiter's lane on the screen (${labelOf(waiter)}) wears the seat sentence`, /waiting for a seat — 2 of 2 held/.test(laneOf(busy, waiter)), laneOf(busy, waiter).slice(0, 200))
 
   console.log('\n— D3 the settle —')
   check('D3 every station reported (SEAT-DONE on the wire)', STATIONS.every(s => seatHits.some(h => h.station === s && (h.kind === 'held' || h.kind === 'done'))), seatHits.map(h => `${h.station}:${h.kind}`).join(','))
