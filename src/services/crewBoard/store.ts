@@ -478,7 +478,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
           } else if (input.channel === 'whisper') {
             if (['main', 'owner'].includes(target.toLowerCase())) return { ok: false, reason: 'Use the prompt line for main.' }
             recipients = roster.filter(seat => seat.agent === target || seat.name.toLowerCase() === target.toLowerCase())
-            if (recipients.length !== 1) return { ok: false, reason: 'Name one enrolled crewmate.', candidates: (recipients.length ? recipients : roster).map(seat => `${seat.name} (${seat.agent})`) }
+            if (recipients.length !== 1) return { ok: false, reason: 'Name one enrolled crewmate.', candidates: (recipients.length ? recipients : roster).map(seat => roster.filter(other => other.name.toLowerCase() === seat.name.toLowerCase()).length > 1 ? `${seat.name} (${seat.agent})` : seat.name) }
             channel = { kind: 'whisper', target: recipients[0]!.name }; address = recipients[0]!.name
           } else return { ok: false, reason: 'Use general, team or whisper.' }
           const event: BoardEvent = { schema: 1, boardId, waveId, seq: 0, eventId: randomUUID(), author: { ...p.author, agentId: 'owner' }, authorName: 'owner', authorRole: 'owner', kind: 'ask', text: input.text, clientOpId: input.clientOpId, channel, addresses: [address, 'main'], mentions: [...new Set(['main', ...recipients.map(seat => seat.agent)])], recipients: seats().filter(seat => seat.agent === 'main' || recipients.some(recipient => recipient.agent === seat.agent)), relatedTasks: [], files: [], refs: [], createdAt: new Date(now()).toISOString(), payloadDigest: hash, threadId: randomUUID(), policyRevision: 1 }
