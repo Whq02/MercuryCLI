@@ -6,9 +6,9 @@ import { getFocusedSessionConnector, hasFocusedSession } from '../../services/en
 type ChannelKind = BoardPostRequestV1['channel']
 
 export const CHANNEL_USAGE: Record<ChannelKind, string> = {
-  general: '/general <text>',
-  team: '/team <name> <text>',
-  whisper: '/whisper <name> <text>',
+  general: 'usage: /general \\<text\\>',
+  team: 'usage: /team \\<name\\> \\<text\\>',
+  whisper: 'usage: /whisper \\<name\\> \\<text\\>',
 }
 
 const TARGET = /^@?(?:"([^"]*)"|'([^']*)'|(\S+))(?:\s+([\s\S]*))?$/

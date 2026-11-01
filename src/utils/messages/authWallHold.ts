@@ -18,6 +18,7 @@ export function promptBehindAuthWall(records: readonly Message[]): AuthWallHold 
       if (row.isApiErrorMessage === true) continue
       return null
     }
+    if (row.type === 'system' && row.subtype === 'local_command') return null
     if (row.type !== 'user') continue
     if (row.isMeta === true || row.isVirtual === true) continue
     if (isToolUseResultMessage(row)) return null
