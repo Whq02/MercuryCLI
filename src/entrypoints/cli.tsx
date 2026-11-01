@@ -105,6 +105,13 @@ async function main(): Promise<void> {
   } catch {
   }
 
+  if (!process.versions?.bun && process.env.NODE_DISABLE_COMPILE_CACHE === undefined) {
+    const cacheHome = await resolveCompileCacheHome()
+    if (cacheHome) void import('../utils/runtime/compileCachePrune.js')
+      .then(({ pruneCompileCache }) => pruneCompileCache(cacheHome))
+      .catch(() => {})
+  }
+
   if (
     process.platform === 'win32' &&
     process.stdout.isTTY &&
