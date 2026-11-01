@@ -71,6 +71,7 @@ try {
   await dispatch('Launch the waiting child.')
   await until('the child wait is durably parked', () => toolResultOf(world, 'cold-wait') !== null && board!.seats().some(seat => seat.name === 'cold-target' && seat.state === 'parked' && seat.wait !== undefined))
   const target = board.seats().find(seat => seat.name === 'cold-target')!
+  await until('the child parked notice is committed', () => board!.screenEvents(0).some(event => event.author.agentId === target.agent && event.kind === 'notice' && event.lifecycle?.kind === 'parked'))
   const beforeRequests = childRequests().length
   const prefix = board.screenEvents(0)
   const chat = board.chat()
