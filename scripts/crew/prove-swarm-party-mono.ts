@@ -123,8 +123,8 @@ const renamed = ['ink-two', 'ink-second', 'ink-deux', 'ink-zwei', 'ink-dos', 'in
 
 try {
   let board = openBoard()
+  tally.check('a new board starts with the channel on, so the rows paint without a command', JSON.stringify(board.chat()) === JSON.stringify({ on: true, filter: { kind: 'all' } }), JSON.stringify(board.chat()))
   board.enroll(main)
-  board.setChat({ on: true, filter: { kind: 'all' } })
   board.reserveEnrollment(main, { agent: seats[0]!.author.agentId, name: seats[0]!.name, team: 'inks', captain: true })
   for (const seat of seats) board.enroll(seat)
   const refused: string[] = []

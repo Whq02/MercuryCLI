@@ -281,7 +281,6 @@ try {
     FACE,
     after(BACK, 'boot', 4),
     type('/swarm on\r', BACK),
-    type('/swarmchat\r', 'Swarm on for new crewmates'),
     after('Swarm launched', 'launched', 4),
     after('[solo] Joined', 'joined', 4),
     after('ROW-OWNER', 'owner', 4),
@@ -317,8 +316,9 @@ try {
   const lines = transcript === null ? [] : readFileSync(transcript, 'utf8').split('\n')
   const lineOf = (needle: string): number => lines.findIndex(line => line.includes(needle))
   const launched = recorded.find(row => row.text === 'Swarm launched')
-  check('the launch row a typed /swarmchat introduces is an idle row: no turn anchors it', launched !== undefined && launched.fields.turnId === undefined, JSON.stringify(launched?.fields ?? null))
-  check("and it is recorded after the command's own output, never before its echo", lineOf('local-command-stdout>Swarm chat on') >= 0 && lineOf('"content":"Swarm launched"') > lineOf('local-command-stdout>Swarm chat on'), `${lineOf('"content":"Swarm launched"')} vs ${lineOf('local-command-stdout>Swarm chat on')}`)
+  check('the launch row /swarm on introduces, with the channel on from the start, is an idle row: no turn anchors it', launched !== undefined && launched.fields.turnId === undefined, JSON.stringify(launched?.fields ?? null))
+  check("and it is recorded after the command's own output, never before its echo", lineOf('local-command-stdout>Swarm on for new crewmates') >= 0 && lineOf('"content":"Swarm launched"') > lineOf('local-command-stdout>Swarm on for new crewmates'), `${lineOf('"content":"Swarm launched"')} vs ${lineOf('local-command-stdout>Swarm on for new crewmates')}`)
+  check('no /swarmchat was typed: the channel was on by default', lineOf('local-command-stdout>Swarm chat on') < 0)
   check('the @all blocker and the owner\'s whisper each woke the idle lead, and the scene waited for each turn to close before posting on', leadWakes.length === 2 && leadWakes.every(Boolean), JSON.stringify(leadWakes))
   check('the rows posted after those turns closed are idle rows: Done and the closing post carry no turn', ['[solo] Done', 'ROW-LAST'].every(marker => { const row = recorded.find(row => (marker === '[solo] Done' ? row.text === 'Done' && row.fields.name === 'solo' : row.text.includes(marker))); return row !== undefined && row.fields.turnId === undefined }), recorded.filter(row => row.text === 'Done' || row.text.includes('ROW-LAST')).map(row => `${row.text.slice(0, 12)}:${String(row.fields.turnId)}`).join(' | '))
   check('the Joined rows that arrived while the lead was idle carry no turn either', recorded.filter(row => row.text === 'Joined').length === 3 && recorded.filter(row => row.text === 'Joined').every(row => row.fields.turnId === undefined), recorded.filter(row => row.text === 'Joined').map(row => String(row.fields.turnId)).join(','))

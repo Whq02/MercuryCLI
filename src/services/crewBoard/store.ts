@@ -59,7 +59,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     CREATE TABLE IF NOT EXISTS requests (id TEXT NOT NULL, recipient TEXT NOT NULL, cost INTEGER NOT NULL, PRIMARY KEY(recipient, id));
     CREATE TABLE IF NOT EXISTS interests (agent TEXT NOT NULL, kind TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(agent, kind, value));
     CREATE TABLE IF NOT EXISTS lead_paint (recipient TEXT PRIMARY KEY, seq INTEGER NOT NULL);
-    CREATE TABLE IF NOT EXISTS chat_state (id INTEGER PRIMARY KEY CHECK (id = 1), switched INTEGER NOT NULL DEFAULT 0, filter TEXT NOT NULL DEFAULT '{"kind":"all"}', cursor INTEGER NOT NULL DEFAULT 0, intro INTEGER NOT NULL DEFAULT 0, introduced INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS chat_state (id INTEGER PRIMARY KEY CHECK (id = 1), switched INTEGER NOT NULL DEFAULT 1, filter TEXT NOT NULL DEFAULT '{"kind":"all"}', cursor INTEGER NOT NULL DEFAULT 0, intro INTEGER NOT NULL DEFAULT 0, introduced INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, author TEXT NOT NULL, op TEXT NOT NULL, digest TEXT NOT NULL, thread TEXT NOT NULL, record TEXT NOT NULL, UNIQUE(author, op));
     CREATE TABLE IF NOT EXISTS deliveries (recipient TEXT NOT NULL, event TEXT NOT NULL, mode TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', packet TEXT, request TEXT, charge INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(recipient, event));`)
   const prior = db.prepare('SELECT session, wave FROM identity').get()
