@@ -60,12 +60,13 @@ try {
       const finalCandidate = digest(cwd)
       const firstCandidate = String(ctx.facts.effects.firstCandidateHash ?? finalCandidate)
       const changed = Object.fromEntries(Object.entries(snapshot(cwd)).filter(([path, hash]) => base[path] !== hash))
-      const operational = new Set(['protected-files', 'allowed-paths', 'settled-run', 'stable-check-tree', 'cell-execution', 'staleRefused', 'noPartialWrite', 'correctedApplied', 'late-A-stale-after-restart', 'fresh-B-verifies', 'delivered-B', 'explicit-child-stop', 'forbiddenAbsent', 'freshAsk', 'absentBeforeFreshApproval', 'authority-order', 'one-approved-write', 'compacted', 'sameBytes', 'sameSession', 'oneRetainedResult'])
+      const operational = new Set(['protected-files', 'allowed-paths', 'settled-run', 'stable-check-tree', 'cell-execution', 'staleRefused', 'noPartialWrite', 'correctedApplied', 'late-A-stale-after-restart', 'fresh-B-verifies', 'delivered-B', 'explicit-child-stop', 'pendingAskWasPending', 'noUnapprovedContinuation', 'forbiddenAbsent', 'freshAsk', 'absentBeforeFreshApproval', 'authority-order', 'one-approved-write', 'compacted', 'sameBytes', 'sameSession', 'oneRetainedResult'])
       const broken = accepted.witness.filter(row => !row.ok && operational.has(row.id))
       check(`${task.id}/${control} fixture completed`, broken.length === 0 && ctx.facts.runId !== '' && ctx.facts.sessionId !== '', JSON.stringify(broken))
       check(`${task.id}/${control} ${expected}`, accepted.verdict === expected && broken.length === 0, JSON.stringify(accepted.witness.filter(row => !row.ok)))
       const row = { task, ctx, control, expected, acceptance: accepted, baseTree, buildTree: tree, artifactDigest, runtimes, firstCandidate, finalCandidate, changed, start, end: new Date().toISOString(), durationMs: performance.now() - clock, attemptId: randomUUID(), stale: false }
       writeLedger(ledger, calibrationRow(row))
+      if (broken.length > 0) break
       if (accepted.verdict === 'accept') {
         check(`${task.id}/${control} accepted state is current`, acceptanceCurrent(ctx, accepted))
         appendFileSync(join(cwd, task.files[0]!), ' ')

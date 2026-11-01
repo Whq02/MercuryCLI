@@ -28,9 +28,9 @@ export async function script(ctx: Context, changes: Change[]): Promise<void> {
   const held: Array<{ id: number; params: PermissionRequestParams }> = []
   const waiters: Array<() => void> = []
   host.onAsk((params, id) => {
-    if (params.tool_name === 'Write' && params.input.file_path === witness) {
+    if (params.tool_name === 'Write') {
       held.push({ id, params })
-      event(ctx.facts, 'write-ask', { id, agent: params.agent_id, resource: witness })
+      event(ctx.facts, 'write-ask', { id, agent: params.agent_id, resource: params.input.file_path ?? params.blocked_path, expectedResource: witness })
       for (const notify of waiters.splice(0)) notify()
       return new Promise(() => {})
     }
@@ -61,6 +61,8 @@ export async function script(ctx: Context, changes: Change[]): Promise<void> {
     const childId = first.params.agent_id
     if (!childId) throw new Error('pending ask has no child identity')
     ctx.facts.effects.stopScope = { kind: 'child', agentId: childId }
+    ctx.facts.effects.pendingAskWasPending = !host.withdrawn.has(first.id) && !existsSync(witness)
+    const stoppedCalls = childCalls
     event(ctx.facts, 'stop-request', { agentId: childId })
     const stop = await host.request('agent/stop', { agent_id: childId, note: 'Stop this child before its pending write.' })
     ctx.facts.effects.stop = stop
@@ -72,6 +74,7 @@ export async function script(ctx: Context, changes: Change[]): Promise<void> {
     await launched
     await host.request('session/facts', {})
     ctx.facts.effects.forbiddenAbsent = !existsSync(witness)
+    ctx.facts.effects.noUnapprovedContinuation = childCalls === stoppedCalls
     const beforeResume = childCalls
     event(ctx.facts, 'forbidden-write-checked', { absent: ctx.facts.effects.forbiddenAbsent, childCalls })
     event(ctx.facts, 'new-continuation', { agentId: childId })

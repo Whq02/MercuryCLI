@@ -12,7 +12,7 @@ export function accept(ctx: Context): Acceptance {
     return [
       { id: 'receipt-format', ok: run.code === 0 && run.stdout.trim() === JSON.stringify(expected), witness: JSON.stringify(run) },
       { id: 'explicit-child-stop', ok: stop?.outcome === 'applied', witness: JSON.stringify(stop) },
-      ...['forbiddenAbsent', 'freshAsk', 'absentBeforeFreshApproval'].map(id => ({ id, ok: ctx.facts.effects[id] === true, witness: String(ctx.facts.effects[id]) })),
+      ...['pendingAskWasPending', 'noUnapprovedContinuation', 'forbiddenAbsent', 'freshAsk', 'absentBeforeFreshApproval'].map(id => ({ id, ok: ctx.facts.effects[id] === true, witness: String(ctx.facts.effects[id]) })),
       { id: 'authority-order', ok: ordered, witness: JSON.stringify(order) },
       { id: 'one-approved-write', ok: ctx.facts.effects.writeCount === 1, witness: String(ctx.facts.effects.writeCount) },
       { id: 'approved-content', ok: ctx.facts.effects.witness === 'approved: é\n', witness: JSON.stringify(ctx.facts.effects.witness) },
