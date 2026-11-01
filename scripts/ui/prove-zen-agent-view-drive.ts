@@ -179,7 +179,8 @@ async function compactLeg(cols: number, rows: number, zen: boolean): Promise<voi
   const back = marks['strip-back'] ?? ''
   check(`${tag}: ↵ on the lead's row goes back — the lead's rows return, the band is the session's own, the sleeper still runs`, leadRowsBack(back) && bandRow(back).includes('✶ Mercury') && has(back, '1 crewmate here'), flat(back).slice(0, 300))
   const popup = marks['popup'] ?? ''
-  check(`${tag}: /crewmates lists the sleeper still sleeping (the way back stopped nothing)`, has(popup, SEAT_NAME) && has(popup, 'Sleeping for'), flat(popup).slice(0, 300))
+  const sleeperRow = rowsOf(popup).find(row => row.includes(SEAT_NAME) && row.includes('claude-opus')) ?? ''
+  check(`${tag}: /crewmates lists the sleeper still running (the way back stopped nothing)`, /\brunning\b/.test(sleeperRow) && !/stopped|landed|interrupted|paused/.test(sleeperRow), flat(sleeperRow || popup).slice(0, 300))
   const popupView = marks['popup-view'] ?? ''
   check(`${tag}: /crewmates' ↵ opens the sleeper in the view too — its rows take the transcript`, crewmateRowsTakeTheCentre(popupView) && bandRow(popupView).includes(`◉ ${SEAT_NAME}`), flat(popupView).slice(0, 300))
   const cut = marks['cut'] ?? ''
