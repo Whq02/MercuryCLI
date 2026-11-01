@@ -2,17 +2,17 @@ import type { UUID } from 'crypto'
 import type { BoardEvent, BoardSeat } from './contracts.js'
 import type { CrewChatChannel, CrewChatKind, CrewChatLifecycle, CrewChatRole, SystemCrewChatMessage } from '../../types/message.js'
 
-export type BoardChatFilter = { kind: 'all' } | { kind: 'main' } | { kind: 'team'; team: string }
+type BoardChatFilter = { kind: 'all' } | { kind: 'main' } | { kind: 'team'; team: string }
 export type BoardChat = { on: boolean; filter: BoardChatFilter }
 export const CHAT_OFF: BoardChat = Object.freeze({ on: false, filter: { kind: 'all' as const } })
 
-export type ScreenEvent = BoardEvent & Partial<{ authorRole: CrewChatRole; channel: CrewChatChannel; addresses: string[]; captain: true; recipients: BoardSeat[]; lifecycle: CrewChatLifecycle }>
-export type ScreenStore = { chat(): BoardChat; screenEvents(since: number): BoardEvent[]; screenCursor(): number; markScreenCursor(seq: number): void; screenIntroduction(): BoardEvent | null; markScreenIntroduced(): void }
+type ScreenEvent = BoardEvent & Partial<{ authorRole: CrewChatRole; channel: CrewChatChannel; addresses: string[]; captain: true; recipients: BoardSeat[]; lifecycle: CrewChatLifecycle }>
+type ScreenStore = { chat(): BoardChat; screenEvents(since: number): BoardEvent[]; screenCursor(): number; markScreenCursor(seq: number): void; screenIntroduction(): BoardEvent | null; markScreenIntroduced(): void }
 
 const PUBLIC_KINDS: ReadonlySet<string> = new Set(['ask', 'answer', 'blocker', 'result', 'correction'])
 const lower = (names: readonly string[] | undefined): Set<string> => new Set((names ?? []).map(name => name.toLowerCase()))
 
-export function partyAdmits(event: ScreenEvent, filter: BoardChatFilter): boolean {
+function partyAdmits(event: ScreenEvent, filter: BoardChatFilter): boolean {
   const lifecycle = event.lifecycle !== undefined
   if (!lifecycle && !PUBLIC_KINDS.has(event.kind)) return false
   if (filter.kind === 'all') return true
@@ -24,12 +24,12 @@ export function partyAdmits(event: ScreenEvent, filter: BoardChatFilter): boolea
   return addresses.has('all') || addresses.has(team) || (event.recipients ?? []).some(seat => seat.team?.toLowerCase() === team && (addresses.has(seat.name.toLowerCase()) || addresses.has(seat.agent.toLowerCase())))
 }
 
-export function lifecycleWords(lifecycle: CrewChatLifecycle): string {
+function lifecycleWords(lifecycle: CrewChatLifecycle): string {
   if (lifecycle.kind === 'parked') return `parked · waiting on ${lifecycle.event}`
   return lifecycle.kind === 'launched' ? 'Swarm launched' : lifecycle.kind === 'joined' ? 'Joined' : 'Done'
 }
 
-export function partyRow(event: ScreenEvent, turnId?: string): SystemCrewChatMessage {
+function partyRow(event: ScreenEvent, turnId?: string): SystemCrewChatMessage {
   const authorRole: CrewChatRole = event.lifecycle ? 'system' : event.authorRole ?? 'peer'
   const label = event.channel === undefined ? undefined : event.channel.kind === 'general' ? 'all' : event.channel.target
   const kind: CrewChatKind = PUBLIC_KINDS.has(event.kind) ? (event.kind as CrewChatKind) : 'notice'
@@ -55,17 +55,17 @@ export function partyRow(event: ScreenEvent, turnId?: string): SystemCrewChatMes
   }
 }
 
-export function partyPaints(event: ScreenEvent, chat: BoardChat): boolean {
+function partyPaints(event: ScreenEvent, chat: BoardChat): boolean {
   return event.authorRole === 'owner' || (chat.on && partyAdmits(event, chat.filter))
 }
 
-export type PartyHost = {
+type PartyHost = {
   store: () => ScreenStore | null
   anchor: () => string | undefined
   record: (row: SystemCrewChatMessage) => Promise<void>
 }
 
-export type PartyFeed = { check(): void; paints(event: ScreenEvent): boolean; blockOpen(): void; landed(): void; turnEnd(): void }
+type PartyFeed = { check(): void; paints(event: ScreenEvent): boolean; blockOpen(): void; landed(): void; turnEnd(): void }
 
 export function partyFeed(host: PartyHost): PartyFeed {
   let active = false

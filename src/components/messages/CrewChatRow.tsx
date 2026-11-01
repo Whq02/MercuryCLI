@@ -6,7 +6,7 @@ import { formatClock } from '../../utils/messages/replyAddress.js'
 import { stripTerminalControls } from '../../utils/stringUtils.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 
-export function crewChatPlate(message: SystemCrewChatMessage): string {
+function crewChatPlate(message: SystemCrewChatMessage): string {
   return message.captain ? `captain ${message.name}` : message.name
 }
 
