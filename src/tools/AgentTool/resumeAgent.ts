@@ -8,8 +8,9 @@ import type { Message } from '../../types/message.js'
 import type { AgentId } from '../../types/ids.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { assembleToolPool } from '../../tools.js'
-import { latchSwarmAgent } from '../../services/crewBoard/seam.js'
+import { latchSwarmAgent, settleSwarmAgent } from '../../services/crewBoard/seam.js'
 import {
+  failAgentTask,
   isLocalAgentTask,
   registerAsyncAgent,
   setAgentWaitLine,
@@ -33,6 +34,8 @@ import {
   filterWhitespaceOnlyAssistantMessages,
 } from '../../utils/messages.js'
 import { createUserMessage } from '../../utils/messages.js'
+import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
+import { errorMessage } from '../../utils/errors.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { getQuerySourceForAgent } from '../../utils/promptCategory.js'
 import {
@@ -45,7 +48,7 @@ import { recordedRequestContexts, restoreBoundPrefixFromMessages } from '../../s
 import { pendingToolRosterRestore } from '../../services/providers/toolEconomy.js'
 import { getSchemaBoundStructuredOutputTool, STRUCTURED_OUTPUT_TOOL_NAME } from '../WorkflowTool/structuredOutputTool.js'
 import { getCwdState, getSdkAgentProgressSummariesEnabled } from '../../bootstrap/state.js'
-import { cancelAutomaticResume, resolveWorkerTools, runAsyncAgentLifecycle } from './agentToolUtils.js'
+import { automaticResumePending, cancelAutomaticResume, resolveWorkerTools, runAsyncAgentLifecycle } from './agentToolUtils.js'
 import { operatorPauseGate } from '../../run-core/pauseGate.js'
 import { MERCURY_CREW_AGENT_TYPE } from './constants.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
@@ -114,6 +117,16 @@ export function liveAgentOwner(
   return null
 }
 
+export function boardResumeRefusal(agentId: string, tasks: Record<string, unknown> | undefined): string | null {
+  if (operatorPauseGate.holds('main') || operatorPauseGate.holds(agentId)) return 'The operator pause is still in force.'
+  const owner = liveAgentOwner(agentId, tasks)
+  if (owner !== null) return owner.words
+  const task = tasks?.[agentId]
+  if (isLocalAgentTask(task) && (task.status === 'pending' || task.status === 'killed' || task.stopReason !== undefined || task.paused !== undefined)) return 'The crewmate is held; the lead can resume it.'
+  if (automaticResumePending(agentId)) return 'The provider recovery already holds this crewmate.'
+  return null
+}
+
 export async function resumeAgentBackground(args: {
   agentId: string
   prompt: string
@@ -124,6 +137,8 @@ export async function resumeAgentBackground(args: {
   model?: string
   effort?: EffortLevel
   automatic?: boolean
+  boardEventIds?: string[]
+  onAdmitted?: () => void
 }): Promise<ResumeAgentResult> {
   const { agentId, prompt, toolUseContext, canUseTool } = args
 
@@ -223,28 +238,16 @@ export async function resumeAgentBackground(args: {
   const note = continuationDirectoryNote(directoryFacts)
   const promptMessages: Message[] = [
     ...cleaned,
-    createUserMessage({ content: prompt + note }),
+    args.boardEventIds === undefined
+      ? createUserMessage({ content: prompt + note })
+      : createAttachmentMessage({ type: 'queued_command', prompt: prompt + note, boardEventIds: args.boardEventIds, origin: { kind: 'coordinator' }, isMeta: true }),
   ]
 
 
   const description = recordedDescription(meta?.description) || RESUMED_AGENT_DESCRIPTION
 
-  await latchSwarmAgent(agentId, meta?.name ?? description, false, true)
   const instructionProfileOverride = meta?.instructionProfile
-
   const workerPermissionMode = (definition.permissionMode ?? 'implement') as NonNullable<AgentDefinition['permissionMode']>
-  const tools = resolveWorkerTools(
-        definition,
-        workerPermissionMode,
-        assembleToolPool(
-          {
-            ...toolUseContext.getAppState().toolPermissionContext,
-            mode: workerPermissionMode as never,
-          },
-          toolUseContext.getAppState().mcp?.tools ?? [],
-          agentId,
-        ),
-      )
 
   const launchName = meta?.name
   const launchedAt = meta?.launchedAt
@@ -258,6 +261,12 @@ export async function resumeAgentBackground(args: {
   })
   const owner = liveAgentOwner(agentId, tasksNow)
   if (owner !== null) throw new Error(owner.words)
+  if (args.boardEventIds !== undefined) {
+    if (args.automatic !== true || canUseTool === undefined) throw new Error('A board resume needs the lead’s guarded resume context.')
+    const refusal = boardResumeRefusal(agentId, tasksNow)
+    if (refusal !== null) throw new Error(refusal)
+  }
+  toolUseContext.abortController.signal.throwIfAborted()
   if (args.automatic !== true) {
     cancelAutomaticResume(agentId)
     operatorPauseGate.lift(agentId)
@@ -274,6 +283,19 @@ export async function resumeAgentBackground(args: {
     toolUseId: toolUseContext.toolUseId,
     replyTarget,
   })
+  let tools: ReturnType<typeof resolveWorkerTools>
+  try {
+    await latchSwarmAgent(agentId, meta?.name ?? description, false, true)
+    tools = resolveWorkerTools(definition, workerPermissionMode, assembleToolPool(
+      { ...toolUseContext.getAppState().toolPermissionContext, mode: workerPermissionMode as never },
+      toolUseContext.getAppState().mcp?.tools ?? [],
+      agentId,
+    ))
+  } catch (error) {
+    failAgentTask(agentId, errorMessage(error), rootSetAppState, task.abortController)
+    settleSwarmAgent(agentId)
+    throw error
+  }
   await writeAgentMetadata(agentId as AgentId, {
     agentType: definition.agentType,
     swarm: meta?.swarm === true,
@@ -363,6 +385,11 @@ export async function resumeAgentBackground(args: {
     invocationKind: 'resume',
   }
   const directory = worktreePath ?? cwdPath ?? getCwdState()
+  try { args.onAdmitted?.() } catch (error) {
+    failAgentTask(agentId, errorMessage(error), rootSetAppState, task.abortController)
+    settleSwarmAgent(agentId)
+    throw error
+  }
   void runWithAgentContext(resumeContext, () =>
     directory
       ? runWithCwdOverride(directory, runLifecycle)
