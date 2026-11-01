@@ -309,6 +309,9 @@ for (const subtype of ['crew_chat', 'local_command', 'user']) {
   check('retained idle rows occur once across different placement groups', j(w.named(projected)) === j(['boundary', 'summary', 'idle', 'kept']), j(w.named(projected)))
   const withOriginal = receiptMod.injectRetainedChatRows([boundary, summary, kept, idle]) as DisplayRow[]
   check('a retained group never duplicates or relocates a kept original row', j(w.named(withOriginal)) === j(['boundary', 'summary', 'kept', 'idle']), j(w.named(withOriginal)))
+  ;(boundary as unknown as { compactMetadata: { work: { idle: Array<{ after: string; rows: Stamped[] }> } } }).compactMetadata.work.idle.unshift({ after: 'absent-anchor', rows: [idle] })
+  const afterAbsent = receiptMod.injectRetainedChatRows([boundary, summary, kept]) as DisplayRow[]
+  check('an absent placement anchor does not consume the row before its first valid anchor', j(w.named(afterAbsent)) === j(['boundary', 'summary', 'idle', 'kept']), j(w.named(afterAbsent)))
   const surface = readFileSync(join(SRC, 'components/Messages.tsx'), 'utf8')
   const retainedAt = surface.indexOf('collapsed = injectRetainedChatRows(collapsed)')
   check('the screen materialises retained rows before the independently gated receipt pass', retainedAt >= 0 && retainedAt < surface.indexOf('collapsed = injectTurnReceipts('))
