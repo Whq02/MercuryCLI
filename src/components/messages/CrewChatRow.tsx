@@ -13,7 +13,7 @@ function crewChatPlate(message: SystemCrewChatMessage): string {
 
 export function CrewChatRow({ message }: { message: SystemCrewChatMessage }): React.ReactNode {
   const tokens = useMercuryTokens()
-  const name = message.authorRole === 'owner' ? tokens.textPrimary : chatNameColor(message.team ?? message.name, tokens)
+  const name = message.authorRole === 'owner' ? tokens.textPrimary : chatNameColor(message.name, tokens, message.slot)
   const blocker = message.kind === 'blocker'
   const body = blocker ? tokens.failureText : tokens.textSecondary
   return (

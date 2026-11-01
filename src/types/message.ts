@@ -503,6 +503,7 @@ export type SystemCrewChatMessage = {
   isMeta?: boolean
   seq: number
   name: string
+  slot?: number
   team?: string
   captain?: true
   authorRole: CrewChatRole

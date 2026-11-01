@@ -1,14 +1,21 @@
-import type { BoardModule, BoardViewSnapshot } from './contracts.js'
+import type { BoardModule, BoardSeat, BoardViewSnapshot } from './contracts.js'
 import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
 
 type Traffic = NonNullable<Parameters<BoardModule['view']>[0]['traffic']>
-type ChatRow = { id: string; at: string; name: string; colorName: string; team?: string; kind: string; text: string; thread: string; parent?: string; reply: boolean; traffic: boolean }
+type ChatRow = { id: string; at: string; name: string; colorName: string; slot?: number; team?: string; kind: string; text: string; thread: string; parent?: string; reply: boolean; traffic: boolean }
+
+export function chatSeatSlot(seats: readonly BoardSeat[] | undefined, agent: string): number | undefined {
+  const order = (seats ?? []).filter(seat => seat.agent !== 'main')
+  const byId = order.findIndex(seat => seat.agent === agent)
+  const at = byId >= 0 ? byId : order.findIndex(seat => seat.name === agent)
+  return at < 0 ? undefined : at + 1
+}
 
 export function chatRows(snapshot: BoardViewSnapshot, traffic: Traffic = [], team?: string, thread?: string): ChatRow[] {
-  const board = snapshot.events.map(event => ({ id: event.eventId, at: event.createdAt, name: event.authorName ?? event.author.agentId, colorName: event.authorName ?? event.author.agentId, team: event.team, kind: snapshot.events.some(correction => correction.corrects === event.eventId) ? `${event.kind} → correction` : event.kind, text: event.text, thread: event.threadId, parent: event.corrects ?? event.replyTo, reply: event.replyTo !== undefined || event.corrects !== undefined, traffic: event.kind === 'message' || event.kind === 'notice' }))
+  const board = snapshot.events.map(event => ({ id: event.eventId, at: event.createdAt, name: event.authorName ?? event.author.agentId, colorName: event.authorName ?? event.author.agentId, slot: chatSeatSlot(snapshot.seats, event.author.agentId), team: event.team, kind: snapshot.events.some(correction => correction.corrects === event.eventId) ? `${event.kind} → correction` : event.kind, text: event.text, thread: event.threadId, parent: event.corrects ?? event.replyTo, reply: event.replyTo !== undefined || event.corrects !== undefined, traffic: event.kind === 'message' || event.kind === 'notice' }))
   const mirrored = new Set(snapshot.events.map(event => event.clientOpId.replace(/^(message|resume):/, 'crew:')))
   const extra: ChatRow[] = traffic.filter(row => !mirrored.has(row.key) && !snapshot.events.some(event => (event.authorName === row.agent || event.author.agentId === row.agent) && event.text === row.text)).map(row => ({
-    id: row.key, at: row.at, name: row.dir === 'to' ? 'main' : row.agent, colorName: row.dir === 'to' ? 'main' : row.agent,
+    id: row.key, at: row.at, name: row.dir === 'to' ? 'main' : row.agent, colorName: row.dir === 'to' ? 'main' : row.agent, ...(row.dir === 'to' ? {} : { slot: chatSeatSlot(snapshot.seats, row.agent) }),
     team: snapshot.events.find(event => event.authorName === row.agent || event.author.agentId === row.agent)?.team,
     kind: row.via === 'launch' ? 'brief' : row.via === 'reply' ? 'notice' : 'message',
     text: row.text, thread: row.key, reply: false, traffic: true,
@@ -31,9 +38,10 @@ export function chatRows(snapshot: BoardViewSnapshot, traffic: Traffic = [], tea
   })
 }
 
-export function chatNameColor(name: string, tokens: MercuryThemeTokens): string {
+export function chatNameColor(name: string, tokens: MercuryThemeTokens, slot?: number): string {
   if (name === 'main') return tokens.agentAccents[0]?.color ?? tokens.accent
   const accents = tokens.agentAccents.slice(1)
+  if (slot !== undefined && slot >= 1 && slot <= accents.length) return accents[slot - 1]!.color
   let hash = 2166136261
   for (const char of name) hash = Math.imul(hash ^ char.codePointAt(0)!, 16777619) >>> 0
   return accents[hash % accents.length]?.color ?? tokens.accentSoft

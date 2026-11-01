@@ -12,7 +12,6 @@ import { distBuildTree } from '../lib/refDist.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { resolveMercuryTokens } from '../../src/utils/mercuryTokens.ts'
 import { TERRA } from '../../src/components/mercuryPalette.ts'
-import { chatNameColor } from '../../src/services/crewBoard/chat.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -258,6 +257,7 @@ const hex = (color: string): string => {
   if (rgb) return rgb.slice(1, 4).map(part => Number(part).toString(16).padStart(2, '0')).join('')
   return color.replace('#', '').toLowerCase()
 }
+const seatInk = (slot: number): string => hex(palette.agentAccents[slot]!.color)
 const fgOf = (frame: Frame, marker: string, part: 'clock' | 'name' | 'body'): string | null => {
   const y = frame.lines.findIndex(line => line.includes(marker))
   if (y < 0) return null
@@ -324,18 +324,18 @@ try {
   check('the Joined rows that arrived while the lead was idle carry no turn either', recorded.filter(row => row.text === 'Joined').length === 3 && recorded.filter(row => row.text === 'Joined').every(row => row.fields.turnId === undefined), recorded.filter(row => row.text === 'Joined').map(row => String(row.fields.turnId)).join(','))
   check("the clock is the post's own time, not the paint time", ['ROW-ASK', 'ROW-LAST'].every(marker => { const clock = clockOf(marker); return clock !== null && rowLine(rows, marker).includes(clock) }), ['ROW-ASK', 'ROW-LAST'].map(marker => `${clockOf(marker)} vs ${rowLine(rows, marker).slice(0, 12)}`).join(' | '))
 
-  section('§2 the palette: grey clock and body, team-coloured names, the lead in the first accent, the owner in the primary ink, a blocker body in the failure ink')
+  section('§2 the palette: grey clock and body, one ink per seat in join order, the lead in the first accent, the owner in the primary ink, a blocker body in the failure ink')
   const grey = hex(palette.textSecondary)
   check(`the clock is grey (${grey})`, ['ROW-ASK', 'ROW-BLOCKER', 'ROW-OWNER'].every(marker => fgOf(rows, marker, 'clock') === grey), ['ROW-ASK', 'ROW-BLOCKER', 'ROW-OWNER'].map(marker => fgOf(rows, marker, 'clock')).join(' / '))
   check('an ask, an answer and a correction keep a grey body', ['ROW-ASK', 'ROW-ANSWER', 'ROW-CORRECTION'].every(marker => fgOf(rows, marker, 'body') === grey), ['ROW-ASK', 'ROW-ANSWER', 'ROW-CORRECTION'].map(marker => fgOf(rows, marker, 'body')).join(' / '))
   check(`a blocker's body wears the failure ink (${hex(palette.failureText)})`, fgOf(rows, 'ROW-BLOCKER', 'body') === hex(palette.failureText), String(fgOf(rows, 'ROW-BLOCKER', 'body')))
-  const lists = hex(chatNameColor('lists', palette))
-  check(`two seats of one team share the team's colour (${lists})`, fgOf(rows, 'ROW-ASK', 'name') === lists && fgOf(rows, 'ROW-ANSWER', 'name') === lists, `${fgOf(rows, 'ROW-ASK', 'name')} / ${fgOf(rows, 'ROW-ANSWER', 'name')}`)
-  check('the captain plate wears that colour whole', fgOf(rows, 'ROW-LONG-END', 'name') === lists || fgOf(rows, 'The long post keeps going', 'name') === lists, String(fgOf(rows, 'The long post keeps going', 'name')))
-  check(`a seat without a label is keyed by its name (${hex(chatNameColor('solo', palette))})`, fgOf(rows, 'ROW-BLOCKER', 'name') === hex(chatNameColor('solo', palette)), String(fgOf(rows, 'ROW-BLOCKER', 'name')))
+  check(`the first seat enrolled paints accent 1 (${seatInk(1)})`, fgOf(rows, 'ROW-ASK', 'name') === seatInk(1), String(fgOf(rows, 'ROW-ASK', 'name')))
+  check(`its team-mate, enrolled second, paints accent 2 (${seatInk(2)}) on every row`, fgOf(rows, 'ROW-ANSWER', 'name') === seatInk(2) && fgOf(rows, 'ROW-CORRECTION', 'name') === seatInk(2) && fgOf(rows, 'ROW-LAST', 'name') === seatInk(2), `${fgOf(rows, 'ROW-ANSWER', 'name')} / ${fgOf(rows, 'ROW-CORRECTION', 'name')} / ${fgOf(rows, 'ROW-LAST', 'name')}`)
+  check('the captain plate wears its seat ink whole', fgOf(rows, 'The long post keeps going', 'name') === seatInk(1), String(fgOf(rows, 'The long post keeps going', 'name')))
+  check(`the third seat, without a label, paints accent 3 (${seatInk(3)})`, fgOf(rows, 'ROW-BLOCKER', 'name') === seatInk(3), String(fgOf(rows, 'ROW-BLOCKER', 'name')))
   check(`the lead keeps the first accent (${hex(palette.agentAccents[0]!.color)})`, fgOf(rows, 'ROW-LEAD', 'name') === hex(palette.agentAccents[0]!.color), String(fgOf(rows, 'ROW-LEAD', 'name')))
   check(`the owner's name is the primary ink (${hex(palette.textPrimary)}), its body grey`, fgOf(rows, 'ROW-OWNER', 'name') === hex(palette.textPrimary) && fgOf(rows, 'ROW-OWNER', 'body') === grey, `${fgOf(rows, 'ROW-OWNER', 'name')} / ${fgOf(rows, 'ROW-OWNER', 'body')}`)
-  check('lifecycle rows are grey bodies with the seat colour on the name', fgOf(rows, '[solo] Done', 'body') === grey && fgOf(rows, '[solo] Done', 'name') === hex(chatNameColor('solo', palette)), `${fgOf(rows, '[solo] Done', 'body')} / ${fgOf(rows, '[solo] Done', 'name')}`)
+  check('lifecycle rows are grey bodies with the seat ink on the name', fgOf(rows, '[solo] Done', 'body') === grey && fgOf(rows, '[solo] Done', 'name') === seatInk(3) && fgOf(rows, '[solo] Joined', 'name') === seatInk(3), `${fgOf(rows, '[solo] Done', 'body')} / ${fgOf(rows, '[solo] Done', 'name')} / ${fgOf(rows, '[solo] Joined', 'name')}`)
 
   section('§3 the narrow window: the same session resumed at 80x24 paints the rows again, wraps a long post whole, and takes a live post')
   await untilAsync(() => transcript === null || !existsSync(`${transcript}.writer.lock`), vshotBudgetMs(30_000))
@@ -350,12 +350,14 @@ try {
   check('the narrow window ran its journey to the end', narrow.endReason === 'stable' || narrow.endReason === 'ready', `endReason ${narrow.endReason} · ${narrow.receipts} sends fired · vshot exit ${narrow.status}`)
   const boot = narrow.frames.get('boot')
   check('the resumed narrow screen paints the newest rows of the wide leg', boot !== undefined && text(boot).includes('ROW-LAST') && text(boot).includes('[solo] Done'), boot === undefined ? 'no boot frame' : text(boot).slice(-600))
+  check(`the replayed rows keep their seat inks after the cold resume (${seatInk(2)}, ${seatInk(3)})`, boot !== undefined && fgOf(boot, 'ROW-LAST', 'name') === seatInk(2) && fgOf(boot, '[solo] Done', 'name') === seatInk(3), boot === undefined ? 'no boot frame' : `${fgOf(boot, 'ROW-LAST', 'name')} / ${fgOf(boot, '[solo] Done', 'name')}`)
   const narrowFrame = narrow.frames.get('narrow') ?? narrow.frames.get('final')!
   const narrowText = text(narrowFrame)
   check('a long post posted live wraps whole at 80 columns, every word in order, no shortening', narrowText.includes(collapse(NARROW)) && !narrowText.includes('…'), narrowText.slice(narrowText.indexOf('A second long post') - 20, narrowText.indexOf('A second long post') + 260))
   const narrowLines = narrowFrame.lines.filter(line => line.includes('second long post') || line.includes('narrow window') || line.includes('ROW-NARROW-END') || line.includes('wraps the same way'))
   check('the wrapped post spans several screen lines with one clock and one name', narrowLines.length >= 2 && narrowLines.filter(line => /\d\d:\d\d:\d\d \[/.test(line)).length === 1, narrowLines.join(' | '))
   check('the narrow rows keep the shape: clock, bracketed name, body', /^\d\d:\d\d:\d\d \[captain lists-judge\] A second long post/.test(rowLine(narrowFrame, 'A second long post')), rowLine(narrowFrame, 'A second long post'))
+  check(`the seat re-enrolled for the resume posts live in its own ink, accent 1 (${seatInk(1)})`, fgOf(narrowFrame, 'A second long post', 'name') === seatInk(1), String(fgOf(narrowFrame, 'A second long post', 'name')))
   if (transcript !== null) {
     const all = paintedRows(transcript)
     check('no row was recorded twice across the two windows', new Set(all.map(row => row.id)).size === all.length, `${all.length} rows`)

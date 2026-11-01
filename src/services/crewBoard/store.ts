@@ -159,7 +159,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     const value = db.prepare("SELECT value FROM interests WHERE agent = ? AND kind = 'membership'").get(agent)?.value
     return value === undefined ? undefined : canonicalTeam(String(value))
   }
-  const roster = () => db.prepare('SELECT agent, name FROM members WHERE enrolled = 1').all()
+  const roster = () => db.prepare('SELECT agent, name FROM members WHERE enrolled = 1 ORDER BY rowid').all()
   const captainRows = (team: string) => hasCaptains ? db.prepare('SELECT team, agent FROM captains ORDER BY rowid').all().filter(row => boardLabelKey(String(row.team)) === boardLabelKey(team)) : []
   const captainId = (team: string | undefined): string | undefined => team === undefined ? undefined : captainRows(team)[0]?.agent as string | undefined
   const eventLabels = (team: string): string[] => [...new Set([team, ...db.prepare("SELECT DISTINCT json_extract(record, '$.team') AS value FROM events WHERE json_extract(record, '$.team') IS NOT NULL").all().map(row => String(row.value)).filter(label => boardLabelKey(label) === boardLabelKey(team))])]

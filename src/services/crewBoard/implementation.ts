@@ -165,7 +165,7 @@ export const view: BoardModule['view'] = host => {
       React.createElement(Text, { key: entry.id, color: tokens.textPrimary, wrap: 'truncate-end' },
         React.createElement(Text, { color: on ? tokens.focus : tokens.textMuted }, marker),
         React.createElement(Text, { color: tokens.textMuted }, `${gutter}${time}  `),
-        React.createElement(Text, { color: chatNameColor(entry.colorName, tokens), bold: true }, name), ' ',
+        React.createElement(Text, { color: chatNameColor(entry.colorName, tokens, entry.slot), bold: true }, name), ' ',
         React.createElement(Text, { color: tokens.textMuted }, traffic + channel),
         React.createElement(Text, { color: chatKindColor(entry.kind, tokens) }, label), ': ',
         ...(body ? highlight(shown[0] ?? '') : [])),

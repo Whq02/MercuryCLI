@@ -1,13 +1,14 @@
 import type { UUID } from 'crypto'
 import type { BoardEvent, BoardSeat } from './contracts.js'
 import type { CrewChatChannel, CrewChatKind, CrewChatLifecycle, CrewChatRole, SystemCrewChatMessage } from '../../types/message.js'
+import { chatSeatSlot } from './chat.js'
 
 type BoardChatFilter = { kind: 'all' } | { kind: 'main' } | { kind: 'team'; team: string }
 export type BoardChat = { on: boolean; filter: BoardChatFilter }
 export const CHAT_OFF: BoardChat = Object.freeze({ on: false, filter: { kind: 'all' as const } })
 
 type ScreenEvent = BoardEvent & Partial<{ authorRole: CrewChatRole; channel: CrewChatChannel; addresses: string[]; captain: true; recipients: BoardSeat[]; lifecycle: CrewChatLifecycle }>
-type ScreenStore = { chat(): BoardChat; screenEvents(since: number): BoardEvent[]; screenCursor(): number; markScreenCursor(seq: number): void; screenIntroduction(): BoardEvent | null; markScreenIntroduced(): void }
+type ScreenStore = { chat(): BoardChat; seats(): BoardSeat[]; screenEvents(since: number): BoardEvent[]; screenCursor(): number; markScreenCursor(seq: number): void; screenIntroduction(): BoardEvent | null; markScreenIntroduced(): void }
 
 const PUBLIC_KINDS: ReadonlySet<string> = new Set(['ask', 'answer', 'blocker', 'result', 'correction'])
 const lower = (names: readonly string[] | undefined): Set<string> => new Set((names ?? []).map(name => name.toLowerCase()))
@@ -29,10 +30,11 @@ function lifecycleWords(lifecycle: CrewChatLifecycle): string {
   return lifecycle.kind === 'launched' ? 'Swarm launched' : lifecycle.kind === 'joined' ? 'Joined' : 'Done'
 }
 
-function partyRow(event: ScreenEvent, turnId?: string): SystemCrewChatMessage {
+function partyRow(event: ScreenEvent, seats: readonly BoardSeat[], turnId?: string): SystemCrewChatMessage {
   const authorRole: CrewChatRole = event.lifecycle ? 'system' : event.authorRole ?? (event.author.agentId === 'main' ? 'lead' : 'peer')
   const label = event.channel === undefined ? undefined : event.channel.kind === 'general' ? 'all' : event.channel.target
   const kind: CrewChatKind = PUBLIC_KINDS.has(event.kind) ? (event.kind as CrewChatKind) : 'notice'
+  const slot = authorRole === 'owner' ? undefined : chatSeatSlot(seats, event.author.agentId)
   return {
     type: 'system',
     subtype: 'crew_chat',
@@ -43,6 +45,7 @@ function partyRow(event: ScreenEvent, turnId?: string): SystemCrewChatMessage {
     content: event.lifecycle !== undefined ? lifecycleWords(event.lifecycle) : authorRole === 'owner' && label !== undefined ? `@${label} ${event.text}` : event.text,
     seq: event.seq,
     name: authorRole === 'lead' ? 'main' : event.authorName ?? event.author.agentId,
+    ...(slot === undefined ? {} : { slot }),
     ...(event.team === undefined ? {} : { team: event.team }),
     ...(event.captain ? { captain: true } : {}),
     authorRole,
@@ -89,8 +92,8 @@ export function partyFeed(host: PartyHost): PartyFeed {
     }, () => {})
   }
   const flush = (): void => { for (const row of held.splice(0)) commit(row) }
-  const admit = (event: ScreenEvent): void => {
-    const row = partyRow(event, host.anchor())
+  const admit = (event: ScreenEvent, seats: readonly BoardSeat[]): void => {
+    const row = partyRow(event, seats, host.anchor())
     pending.add(row.seq)
     if (open) held.push(row)
     else commit(row)
@@ -103,13 +106,14 @@ export function partyFeed(host: PartyHost): PartyFeed {
     const chat = store.chat()
     const intro = store.screenIntroduction()
     if (intro !== null && !pending.has(intro.seq)) {
-      if (partyPaints(intro, chat)) { introduction = intro.seq; admit(intro) }
+      if (partyPaints(intro, chat)) { introduction = intro.seq; admit(intro, store.seats()) }
       else store.markScreenIntroduced()
     }
     for (let page = store.screenEvents(scanned); page.length > 0; page = store.screenEvents(scanned)) {
+      const seats = store.seats()
       for (const event of page) {
         scanned = event.seq
-        if (partyPaints(event, chat)) admit(event)
+        if (partyPaints(event, chat)) admit(event, seats)
       }
     }
     advance()

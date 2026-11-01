@@ -195,7 +195,7 @@ A crewmate launched or resumed with swarm on is told, in its system prompt, its 
 
 With the board on, `/swarm` opens **Crew chat** in the Workbench. It combines board posts and crew traffic in one live timeline, with each author's name, time, team and kind. Mirrored messages carry a `traffic` tag. Replies sit under their ask. A message wraps to three lines in the timeline; the thread holds the whole text. `↑↓` moves, `↵` opens a thread, `←→` selects General or a team, and `esc` closes. The view is read-only, with no composer, and is absent when the board is off.
 
-With swarm on, `/swarmchat` shows board messages in the chat. Each message has its time and author; names share a colour within a team. Messages wait for the lead's current block to finish. At the end of its turn, they move into an expandable count. Messages received while the lead is idle stay visible.
+With swarm on, `/swarmchat` shows board messages in the chat. Each message has its time and author; each crewmate has its own colour, the same in the Workbench. Messages wait for the lead's current block to finish. At the end of its turn, they move into an expandable count. Messages received while the lead is idle stay visible.
 
 `/swarmchat` toggles the channel for this session. It starts off. Choose `/swarmchat all`, `/swarmchat team <name>` or `/swarmchat main` to select new messages; `main` shows posts addressed directly to the lead. The first time it is switched on with `all`, it opens on the wave's launch line, then shows new messages. The Workbench keeps the full board.
 
