@@ -63,6 +63,8 @@ check('the receipt sits after the turn\'s last content row and before the first 
 check('idle rows are not counted by the turn before them or the turn after them', receiptOf(folded, 'p2')?.counts.boardMessages === 0)
 const before = inject([chat('c0', 1, 'alpha', 'before any prompt'), prompt('first', 'p1'), toolUse('Bash', 'a1'), reply('done', 'a2')])
 check('a row before the first prompt stays where it is', shape(before)[0] === 'c0' && receiptOf(before, 'p1')?.counts.boardMessages === 0, JSON.stringify(shape(before)))
+const trailing = inject([prompt('ends on an attachment', 'p1'), reply('waiting', 'a1'), { type: 'attachment', uuid: 't1', attachment: { type: 'queued_command', prompt: 'later', isMeta: true } }, chat('c7', 7, 'alpha', 'after the attachment')])
+check('a turn whose transcript ends with an attachment still puts its receipt before the idle row', JSON.stringify(shape(trailing)) === JSON.stringify(['p1', 'a1', 't1', 'receipt:p1', 'c7']), JSON.stringify(shape(trailing)))
 
 section('a board-only turn gets a receipt; an open turn keeps its rows on screen')
 const boardOnly = inject([prompt('ask the crew', 'p1'), chat('c1', 1, 'alpha', 'answer', 'p1'), reply('they said so', 'a1'), prompt('next', 'p2')])
@@ -288,6 +290,7 @@ else {
           const opened = ADMITTED.map(words => lineOf(clicked, words.slice(0, 18)))
           const clickedReceipt = clicked.findIndex(line => RECEIPT.test(line))
           check(`${tag}: a click opens the receipt: the three rows paint beneath it in board order, above the idle rows`, opened.every(at => at > clickedReceipt) && opened[0]! < opened[1]! && opened[1]! < opened[2]! && opened[2]! < lineOf(clicked, IDLE[0]!.slice(0, 18)), JSON.stringify({ clickedReceipt, opened }))
+          check(`${tag}: the opened rows and the idle rows sit tight, one line each, no blank between them`, opened[1] === opened[0]! + 1 && opened[2] === opened[1]! + 1 && lineOf(clicked, IDLE[0]!.slice(0, 18)) === opened[2]! + 1 && clickedReceipt === opened[0]! - 1, JSON.stringify({ clickedReceipt, opened, idle: lineOf(clicked, IDLE[0]!.slice(0, 18)) }))
           check(`${tag}: the rows keep the row shape: time, name in brackets, the words`, /\d{2}:\d{2}:\d{2} \[lists-judge\] @main The list is ready/.test(clicked[opened[0]!] ?? ''), clicked[opened[0]!] ?? '')
           check(`${tag}: a second click closes it`, ADMITTED.every(words => lineOf(marks.get('clicked-again') ?? [], words.slice(0, 18)) < 0))
           check(`${tag}: ctrl+o shows the same rows`, ADMITTED.every(words => lineOf(marks.get('verbose') ?? [], words.slice(0, 18)) >= 0))

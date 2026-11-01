@@ -176,7 +176,9 @@ export const view: BoardModule['view'] = host => {
   const timeline = entries.flatMap((entry, i) => [...(i && entries[i - 1]!.thread !== entry.thread ? [React.createElement(Box, { key: `gap-${entry.id}`, height: 1, flexShrink: 0 })] : []), ...row(entry, i === index)])
   const selectedId = entries[index]?.id
   const selectedLine = selectedId === undefined ? -1 : timeline.findLastIndex(node => node.key === selectedId || String(node.key).startsWith(`${selectedId}-`))
-  const start = Math.max(0, selectedLine - room + 1)
+  const floor = Math.max(0, selectedLine - room + 1)
+  const heads = entries.map(entry => timeline.findIndex(node => node.key === entry.id))
+  const start = heads.find(head => head >= floor && head <= (heads[index] ?? -1)) ?? floor
   const detailLines = entries.flatMap(entry => {
     const indent = entry.reply ? '      ' : '  '
     const event = snapshot.events.find(event => event.eventId === entry.id)

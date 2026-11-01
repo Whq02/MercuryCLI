@@ -84,7 +84,7 @@ try {
     if (leg === 'team') sends.push(then('open thread', '\u001b[C'))
     if (leg === 'thread') sends.push(then('open thread', '\u001b[A'), { atTick: 999, awaitText: 'correction', requireAwait: true, minTick: 5, awaitSettleTicks: 2, data: '\r' }, { ...then('[view] [answer', ''), mark: 'top' }, ...Array.from({ length: 8 }, () => then('[view] [answer', '\u001b[B')))
     if (leg === 'history') sends.push(then('open thread', '\r'), then('Count revision 1.', '\u001b[A'))
-    if (leg === 'scroll') sends.push(then('open thread', '\u001b[A'), then('open thread', '\u001b[A'))
+    if (leg === 'scroll') sends.push({ ...then('open thread', ''), mark: 'bottom' }, then('open thread', '\u001b[A'), then('open thread', '\u001b[A'))
     const arrival = 'Arrived while Crew chat stayed open.'
     const readyText = leg === 'tail' ? ['Crew chat', arrival] : leg === 'history' ? ['Crew chat', 'Four rows.'] : ['Crew chat', 'General', 'open thread']
     const capture = { ...config, total: 170, out: gridPath, readyText, readySettleTicks: 3, sends }
@@ -165,10 +165,16 @@ try {
       assert(lines.map(trimmed).join(' ').replace(/\s+/g, ' ').includes(LONG_TAIL), 'the thread view keeps the whole post')
     }
     if (leg === 'scroll') {
-      const panel = lines.slice(lines.findIndex(line => line.includes('General')), lines.findIndex(line => line.includes('↑↓ move')))
+      const panelOf = (rows: string[]): string[] => rows.slice(rows.findIndex(line => line.includes('General')), rows.findIndex(line => line.includes('↑↓ move')))
+      const opensOnARow = (rows: string[]): boolean => /^(›\s*)?(└\s+)?\d{2}:\d{2}(?::\d{2})?\s+\[/.test(trimmed(rows[1] ?? ''))
+      const bottom = panelOf(((grid.marks as Array<{ label: string; grid: { c: string }[][] }> | undefined)?.find(mark => mark.label === 'bottom')?.grid ?? []).map(line => line.map(cell => cell.c || ' ').join('')))
+      assert(bottom.length > 2 && !bottom.join('\n').includes('The shared message.') && bottom.join('\n').includes('…'), 'the opening window is scrolled: the first rows are off the top and the long post is at the bottom')
+      assert(opensOnARow(bottom), `the scrolled window opens on a row's first line, with its time and name: ${trimmed(bottom[1] ?? '')}`)
+      const panel = panelOf(lines)
       const marked = panel.findIndex(line => trimmed(line).startsWith('›'))
       assert(marked >= 0 && panel[marked]!.includes('[correction]:') && panel[marked + 1]!.includes('the footer.'), 'two rows up from the end selects the correction and keeps both of its lines on screen')
       assert(panel.join('\n').includes('The shared message.') && !panel.join('\n').includes('…'), 'the window follows the selection by row height: the top rows return and the long post below leaves the frame')
+      assert(opensOnARow(panel), `after scrolling up the window still opens on a row's first line: ${trimmed(panel[1] ?? '')}`)
     }
     if (leg === 'tail') assert(appended && text.includes(arrival), text)
     if (leg === 'history') assert(text.includes('Four rows.') && text.includes('does the parser include the footer?'), text)
