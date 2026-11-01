@@ -157,9 +157,11 @@ else {
   const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
   const { gridToPng } = await import('./gridToPng.ts')
   const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+  const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
   const captures = arg('--captures') ?? join(home, 'captures')
   mkdirSync(captures, { recursive: true })
   const RUNTIME_CWD = ROOT
+  seedFirstRun(home, [RUNTIME_CWD])
   const SID = `00000000-aaaa-bbbb-dddd-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
   const daemonDir = join(tmpdir(), `mercury-receipt-daemon-${process.pid}`)
   const env: Record<string, string> = {
@@ -202,7 +204,7 @@ else {
       base({ parentUuid: '00000000-0000-4000-8000-00000000c003', type: 'assistant', uuid: ids[4], requestId: 'req_fold_3', message: { id: 'msg_fold_3', type: 'message', role: 'assistant', model: 'claude-opus-4-8', content: [{ type: 'text', text: 'Both echoes ran.' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 3000, output_tokens: 1 } }, timestamp: '2026-06-19T12:00:17.000Z' }),
       ...(idle ? [
         post(ids[4], '00000000-0000-4000-8000-00000000c004', 4, 'lists-writer', `@main ${IDLE[0]}`, 'ask', undefined, 'lists'),
-        post('00000000-0000-4000-8000-00000000c004', '00000000-0000-4000-8000-00000000c005', 5, 'main', `@lists-writer ${IDLE[1]}`, 'answer'),
+        post(ids[4], '00000000-0000-4000-8000-00000000c005', 5, 'main', `@lists-writer ${IDLE[1]}`, 'answer'),
       ] : []),
     ]
     writeFileSync(join(projects, `${SID}.jsonl`), encode(rows))
@@ -234,7 +236,9 @@ else {
           : [
               then('', 'board messages', 'folded'),
               then('\x1b[1;2A', 'board messages'),
-              then('\x1b[1;3B', 'navigate'),
+              then('\x1b[B', 'navigate'),
+              then('\x1b[B', 'navigate'),
+              then('\x1b[B', 'navigate'),
               then('\r', 'enter expand'),
               then('', ADMITTED[2]!, 'entered'),
               then('\r', 'enter collapse'),
