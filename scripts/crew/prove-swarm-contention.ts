@@ -172,9 +172,9 @@ if (workerAt >= 0) {
     assert(traffic.ok)
     const captain = board.captain('builders')!
     assert.equal(captain.agent, 'alpha')
-    const teamWake = board.pendingWakes().filter(wake => wake.agent === 'alpha')
-    assert.equal(teamWake.length, traffic.seq > captain.wait!.seq ? 1 : 0)
-    if (teamWake.length) assert.equal(teamWake[0]!.eventId, traffic.eventId)
+    const captainWakes = board.pendingWakes().filter(wake => wake.agent === 'alpha')
+    assert.equal(captainWakes.length, traffic.seq > captain.wait!.seq ? 1 : 0)
+    if (captainWakes.length) assert.equal(captainWakes[0]!.eventId, traffic.eventId)
     const body = board.boundary(writers[0]!, new Set())!
     assert.equal(body.eventIds.filter(id => id === traffic.eventId).length, 1)
     console.log('PASS captain appointment and team traffic share one serialization point without duplicate fanout')
