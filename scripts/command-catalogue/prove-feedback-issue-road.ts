@@ -262,7 +262,9 @@ section('B6 privacy: the `~` spelling, the bounded health, the gates')
 }
 
 section('B3/B4 the real bundle: the chooser, the review frame, the filing')
-const BIN = join(REPO, 'dist', 'mercury.mjs')
+const distArg = process.argv.indexOf('--dist')
+if (distArg >= 0 && !process.argv[distArg + 1]) throw new Error('--dist needs a built mercury.mjs path')
+const BIN = distArg < 0 ? join(REPO, 'dist', 'mercury.mjs') : resolve(process.argv[distArg + 1]!)
 const { resolveCaptureDriver, vshotBudgetMs } = await import('../lib/captureDriver.ts')
 const driver = resolveCaptureDriver()
 if (!existsSync(BIN)) {
