@@ -98,6 +98,7 @@ import type { AgentDefinition } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
 import { getPrompt } from './prompt.js'
 import { runAgent, type RunAgentParams } from './runAgent.js'
+import { reserveSwarmLaunch } from '../../services/crewBoard/seam.js'
 import { setAgentColor } from './agentColorManager.js'
 import * as UI from './UI.js'
 import { isResultTruncated } from './UI.js'
@@ -122,6 +123,7 @@ export type AgentToolInput = {
   run_in_background?: boolean
   name?: string
   team?: string
+  captain?: boolean
   mode?: string
   isolation?: 'worktree'
   worktree_at?: string
@@ -215,6 +217,7 @@ export const inputSchema = lazySchema(() => {
         'Name for a crewmate you will message again: a named crewmate takes more work through ResumeCrewmate({to: name}), running or finished, and notes through SendMessage({to: name}) while it runs. Omit it for a crewmate that works its prompt once and returns its report.',
       ),
     team: z.string().regex(/^[\p{L}\p{N}_][\p{L}\p{N}_.-]{0,79}$/u).refine(value => !['all', 'general'].includes(value.toLowerCase())).optional().describe('Team label on the live crew board; teams guide delivery, never privacy.'),
+    captain: z.boolean().optional().describe('Appoint this named seat as its team captain. Requires name, team, swarm enrollment and the lead; a team of five or more needs one before its fifth seat.'),
     isolation: z
       .literal('worktree')
       .optional()
@@ -243,7 +246,7 @@ export const inputSchema = lazySchema(() => {
         "With output_schema: 'strict' fails the call when none passed; 'permissive' (default) returns the prose under status \"missing\" or \"invalid\".",
       ),
   }
-  return z.object(base)
+  return z.object(base).refine(input => !input.captain || Boolean(input.name?.trim() && input.team), { message: 'A captain launch needs name and team.' })
 })
 
 
@@ -562,6 +565,9 @@ Full usage notes arrive when loaded or first used.`
     }
 
     const earlyAgentId = generateTaskId('local_agent') as AgentId
+    const releaseEnrollment = reserveSwarmLaunch(earlyAgentId, input, context.agentId ?? 'main')
+    let backgroundOwnsEnrollment = false
+    try {
     const willOverrideCwd = plan.isolation === 'worktree' || cwdParam !== undefined
     if (!willOverrideCwd) {
       try {
@@ -708,6 +714,7 @@ Full usage notes arrive when loaded or first used.`
       description: input.description,
       ...(input.name ? { name: input.name } : {}),
       ...(input.team ? { team: input.team } : {}),
+      ...(input.captain !== undefined ? { captain: input.captain } : {}),
       launchedAt: startTime,
       onWait: line => setAgentWaitLine(earlyAgentId, line, rootSetAppState),
       onPendingAsks: count => setAgentPendingAsks(earlyAgentId, count, rootSetAppState),
@@ -763,11 +770,12 @@ Full usage notes arrive when loaded or first used.`
           canUseTool,
         })
 
+      backgroundOwnsEnrollment = true
       void runWithAgentContext(agentContext, () =>
         cwdOverride
           ? runWithCwdOverride(cwdOverride, lifecycle)
           : runWithOwnShellCwd(lifecycle),
-      )
+      ).finally(releaseEnrollment)
 
       const canReadOutputFile = options.tools.some(
         tool =>
@@ -820,6 +828,9 @@ Full usage notes arrive when loaded or first used.`
     })
 
     return { data: result.data }
+    } finally {
+      if (!backgroundOwnsEnrollment) releaseEnrollment()
+    }
   },
 
   mapToolResultToToolResultBlockParam(

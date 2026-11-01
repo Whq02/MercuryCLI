@@ -416,6 +416,12 @@ export type SessionFactsResult = {
       corrects?: string
       taskId?: string
       about?: string
+      lifecycle?: {
+        kind: 'launched' | 'joined' | 'done'
+      } | {
+        kind: 'parked'
+        event: string
+      }
       schema: 1
       boardId: string
       waveId: string
@@ -428,6 +434,46 @@ export type SessionFactsResult = {
       }
       authorName?: string
       team?: string
+      captain?: true
+      authorRole?: 'peer' | 'owner' | 'system'
+      channel?: {
+        kind: 'general'
+      } | {
+        kind: 'team' | 'whisper'
+        target: string
+      }
+      addresses?: string[]
+      recipients?: Array<{
+        agent: string
+        name: string
+        team?: string
+        captain?: true
+        state?: 'parked' | 'running'
+        wait?: {
+          eventId: string
+          seq: number
+          version: number
+          predicate: {
+            kind: 'seat'
+            agent: string
+            name: string
+          } | {
+            kind: 'about'
+            subject: string
+          } | {
+            kind: 'kind'
+            value: 'ask' | 'answer' | 'blocker' | 'result' | 'correction'
+          } | {
+            kind: 'team'
+            team: string
+          }
+          standing: boolean
+        }
+        wakeProblem?: {
+          kind: 'worktree-missing'
+          path: string
+        }
+      }>
       mentions: string[]
       unknownMentions?: string[]
       relatedTasks: string[]
@@ -440,6 +486,37 @@ export type SessionFactsResult = {
       payloadDigest: string
       policyRevision: 1
     }>
+    seats?: Array<{
+      agent: string
+      name: string
+      team?: string
+      captain?: true
+      state?: 'parked' | 'running'
+      wait?: {
+        eventId: string
+        seq: number
+        version: number
+        predicate: {
+          kind: 'seat'
+          agent: string
+          name: string
+        } | {
+          kind: 'about'
+          subject: string
+        } | {
+          kind: 'kind'
+          value: 'ask' | 'answer' | 'blocker' | 'result' | 'correction'
+        } | {
+          kind: 'team'
+          team: string
+        }
+        standing: boolean
+      }
+      wakeProblem?: {
+        kind: 'worktree-missing'
+        path: string
+      }
+    }>
     teams?: string[]
     names?: string[]
     duplicateMinutes?: string[]
@@ -449,7 +526,18 @@ export type SessionFactsResult = {
     admitted: number
     appearances?: number
     uncapped?: boolean
-    peerTurns: 0
+    chat?: {
+      on: boolean
+      filter: {
+        kind: 'all'
+      } | {
+        kind: 'main'
+      } | {
+        kind: 'team'
+        team: string
+      }
+    }
+    peerTurns: number
     record?: {
       path: string
       sessionId: string
@@ -578,6 +666,12 @@ export interface MethodParams {
 }
   "session/pause_gate": {
   paused: boolean
+}
+  "session/board_post": {
+  client_op_id: string
+  channel: 'general' | 'team' | 'whisper'
+  target?: string
+  text: string
 }
   "session/quiesce": {
   action: 'prepare' | 'commit' | 'cancel'
@@ -786,6 +880,18 @@ export interface MethodResults {
   parked: number
   changed: boolean
 }
+  "session/board_post": {
+  ok: true
+  event_id: string
+  seq: number
+  replay: boolean
+  address: string
+  recipients: string[]
+} | {
+  ok: false
+  reason: string
+  candidates?: string[]
+}
   "session/quiesce": {
   token: string
   phase: string
@@ -926,7 +1032,7 @@ export interface MethodResults {
 export type MethodName = keyof MethodParams
 export type ParamsOf<M extends MethodName> = MethodParams[M]
 export type ResultOf<M extends MethodName> = MethodResults[M]
-export type HostRequestName = "initialize" | "session/claim" | "project/query" | "session/facts" | "session/set_model" | "session/set_effort" | "session/set_mode" | "session/set_spawn_switch" | "mcp/action" | "mcp/tools" | "session/set_kit" | "session/rewind" | "session/file_restore" | "session/pause_gate" | "session/quiesce" | "session/leave" | "queue/add" | "queue/withdraw" | "turn/interrupt" | "agent/stop" | "agent/resume" | "shell/background" | "session/send_now" | "schedule/roster"
+export type HostRequestName = "initialize" | "session/claim" | "project/query" | "session/facts" | "session/set_model" | "session/set_effort" | "session/set_mode" | "session/set_spawn_switch" | "mcp/action" | "mcp/tools" | "session/set_kit" | "session/rewind" | "session/file_restore" | "session/pause_gate" | "session/board_post" | "session/quiesce" | "session/leave" | "queue/add" | "queue/withdraw" | "turn/interrupt" | "agent/stop" | "agent/resume" | "shell/background" | "session/send_now" | "schedule/roster"
 export type HostNotificationName = "credentials/changed" | "$/cancel_request"
 export type RunnerRequestName = "schedule/edit" | "permission/request" | "elicitation/request" | "fs/read_text_file" | "fs/write_text_file" | "terminal/create" | "terminal/output" | "terminal/wait_for_exit" | "terminal/kill" | "terminal/release"
 export type RunnerNotificationName = "$/cancel_request" | "row" | "session/applied" | "elicitation/complete"
@@ -1681,6 +1787,105 @@ export const METHODS: Record<MethodName, MethodSchema> = {
         "paused",
         "parked",
         "changed"
+      ]
+    }
+  },
+  "session/board_post": {
+    "from": "host",
+    "kind": "request",
+    "scope": "session",
+    "deadlineMs": 10000,
+    "params": {
+      "type": "object",
+      "properties": {
+        "client_op_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "channel": {
+          "type": "string",
+          "enum": [
+            "general",
+            "team",
+            "whisper"
+          ]
+        },
+        "target": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "client_op_id",
+        "channel",
+        "text"
+      ]
+    },
+    "result": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "ok": {
+              "type": "boolean",
+              "const": true
+            },
+            "event_id": {
+              "type": "string"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "replay": {
+              "type": "boolean"
+            },
+            "address": {
+              "type": "string"
+            },
+            "recipients": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "ok",
+            "event_id",
+            "seq",
+            "replay",
+            "address",
+            "recipients"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ok": {
+              "type": "boolean",
+              "const": false
+            },
+            "reason": {
+              "type": "string"
+            },
+            "candidates": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "ok",
+            "reason"
+          ]
+        }
       ]
     }
   },

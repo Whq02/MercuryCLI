@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { loadSwarm } from '../../../services/crewBoard/seam.js'
-import type { BoardViewSnapshot } from '../../../services/crewBoard/contracts.js'
+import { boardSeatName, type BoardSeat, type BoardViewSnapshot } from '../../../services/crewBoard/contracts.js'
+import { boardWaitWords } from '../../../services/crewBoard/waits.js'
 import { useMemo, useState, useSyncExternalStore } from 'react'
 import { Box, Text, useInput, wrapText } from '../../../ink.js'
 import { usePopupListPaging } from '../../CustomSelect/popup-list.js'
@@ -294,7 +295,7 @@ export function CrewView({
               const on = gi === sel
               return (
                 <InteractiveRow key={row.id} id={`crew:row:${row.id}`} selected={on} onSelect={() => cursor.select(gi)} onActivate={() => openRow(row)} selectionBand={false} hoverStyle="chrome-ink">
-                  {() => <AgentRow facts={row.facts} on={on} now={now} width={width} billed={billed} asks={asks} />}
+                  {() => <AgentRow facts={row.facts} seat={board?.seats?.find(seat => seat.agent === row.facts.id)} on={on} now={now} width={width} billed={billed} asks={asks} />}
                 </InteractiveRow>
               )
             })}
@@ -308,6 +309,7 @@ export function CrewView({
 
 function AgentRow({
   facts,
+  seat,
   on,
   now,
   width,
@@ -315,6 +317,7 @@ function AgentRow({
   asks,
 }: {
   facts: CrewAgentFacts
+  seat?: BoardSeat
   on: boolean
   now: number
   width: number
@@ -336,7 +339,9 @@ function AgentRow({
   const unread = crewUnreadLabel(facts)
   const parkedByOperator = crewOperatorPauseParts(facts)
   const askDetail = crewAskWaitDetail(facts, asks, now)
-  const status = crewStatusWords(facts, now)
+  const status = seat?.state === 'parked' && seat.wakeProblem?.kind === 'worktree-missing'
+    ? 'parked · worktree missing'
+    : facts.status === 'completed' && seat?.state === 'parked' && seat.wait ? `parked · waiting on ${boardWaitWords(seat.wait.predicate)}` : crewStatusWords(facts, now)
   const cells = crewRowWidths(width, status)
   return (
     <Box width={width} flexDirection="column">
@@ -345,7 +350,7 @@ function AgentRow({
         {facts.running && !pending && wait === null ? <WorkingGlyph color={tokens.success} active /> : <Text color={wait !== null ? tokens.warning : tone}>{wait !== null ? GLYPH.pending : glyph}</Text>}
         <Text bold={on} color={nameColor}>
           {' '}
-          {padTo(truncateToWidth(facts.name, cells.name), cells.name)}
+          {padTo(truncateToWidth(seat ? boardSeatName(seat) : facts.name, cells.name), cells.name)}
         </Text>
         <Text color={settled ? tokens.textMuted : tokens.textSecondary}> {padTo(truncateToWidth(crewModelLabel(facts), MODEL_W), MODEL_W)}</Text>
         <Text color={tone}> {padTo(truncateToWidth(paused ? 'paused' : status, cells.status), cells.status)}</Text>
