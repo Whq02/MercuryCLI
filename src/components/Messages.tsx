@@ -253,8 +253,9 @@ export function composeTranscript(input: {
   truncateTranscript: boolean
   tools: Tools
   inProgressToolUseIDs: Set<string>
+  turnOpen?: boolean
 }): TranscriptComposition {
-  const { normalized, syntheticStreamingRows, verbose, fullscreen, isTranscriptMode, truncateTranscript, tools, inProgressToolUseIDs } = input
+  const { normalized, syntheticStreamingRows, verbose, fullscreen, isTranscriptMode, truncateTranscript, tools, inProgressToolUseIDs, turnOpen = false } = input
   let working: NormalizedMessage[] = normalized
   if (!verbose && !fullscreen) {
     const boundary = findLastCompactBoundaryIndex(working)
@@ -338,7 +339,7 @@ export function composeTranscript(input: {
     tools,
     verbose,
   ).messages as RenderableMessage[]
-  collapsed = injectTurnReceipts(collapsed, getMercuryTempDir())
+  collapsed = injectTurnReceipts(collapsed, getMercuryTempDir(), turnOpen)
   collapsed = collapseReadSearchGroups(
     collapsed as Parameters<typeof collapseReadSearchGroups>[0],
     tools,
@@ -446,8 +447,8 @@ function MessagesInner({
     isTranscriptMode && !showAllInTranscript && !virtualised
 
   const derived = useMemo(
-    () => composeTranscript({ normalized, syntheticStreamingRows, verbose, fullscreen, isTranscriptMode, truncateTranscript, tools, inProgressToolUseIDs }),
-    [verbose, normalized, isTranscriptMode, syntheticStreamingRows, truncateTranscript, tools, fullscreen, inProgressToolUseIDs],
+    () => composeTranscript({ normalized, syntheticStreamingRows, verbose, fullscreen, isTranscriptMode, truncateTranscript, tools, inProgressToolUseIDs, turnOpen: isLoading }),
+    [verbose, normalized, isTranscriptMode, syntheticStreamingRows, truncateTranscript, tools, fullscreen, inProgressToolUseIDs, isLoading],
   )
   const derivedAfter = useMemo(
     () =>
@@ -602,6 +603,7 @@ function MessagesInner({
       if (!verbose && withheldDisclosure.byRow.has(message.uuid)) return true
       if (!verbose && hasNoticeFold(message)) return true
       if (message.type === 'collapsed_read_search') return true
+      if (message.type === 'turn_receipt') return (message.board?.length ?? 0) > 0
       const live = lookupsRef.current
       if (message.type === 'assistant') {
         const content = Array.isArray(message.message.content)

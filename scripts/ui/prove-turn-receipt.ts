@@ -419,7 +419,7 @@ check('the Windows spelling counts', isScratchpadPath('C:\\Temp\\mercury\\p\\s1\
 section('render wiring (source + dist needles)')
 check(
   'Messages.tsx chain runs injectTurnReceipts before the collapse passes',
-  /collapsed = injectTurnReceipts\(collapsed, getMercuryTempDir\(\)\)\s*collapsed = collapseReadSearchGroups\(/.test(src('components', 'Messages.tsx')),
+  /collapsed = injectTurnReceipts\(collapsed, getMercuryTempDir\(\), turnOpen\)\s*collapsed = collapseReadSearchGroups\(/.test(src('components', 'Messages.tsx')),
 )
 check(
   'Message.tsx dispatches turn_receipt → TurnReceiptRow',
