@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, renameSync, rmSync, watch, writeFileSync, type FSWatcher } from 'node:fs'
 import { basename, dirname, resolve } from 'node:path'
 import { createRequire } from 'node:module'
-import { BOARD_PACKET_RULE, DEFAULT_BOARD_LIMITS, boardSeatName, type BoardChannel, type BoardLimits, type BoardEvent, type BoardPacket, type BoardPost, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot } from './contracts.js'
+import { BOARD_PACKET_RULE, DEFAULT_BOARD_LIMITS, boardSeatName, boardLabelKey, type BoardChannel, type BoardLimits, type BoardEvent, type BoardPacket, type BoardPost, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot } from './contracts.js'
 import { CHAT_OFF, type BoardChat } from './party.js'
 import type { CrewChatLifecycle } from '../../types/message.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
@@ -51,7 +51,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     CREATE TABLE IF NOT EXISTS whole_deliveries (recipient TEXT NOT NULL, event TEXT NOT NULL, PRIMARY KEY(recipient, event));
     CREATE TABLE IF NOT EXISTS cap_notices (id TEXT PRIMARY KEY, agent TEXT NOT NULL, allowance TEXT NOT NULL, text TEXT NOT NULL, presented INTEGER NOT NULL DEFAULT 0, UNIQUE(agent, allowance));
     CREATE TABLE IF NOT EXISTS members (agent TEXT PRIMARY KEY, name TEXT NOT NULL, execution TEXT NOT NULL, enrolled INTEGER NOT NULL DEFAULT 1, credits REAL NOT NULL DEFAULT 8, refilled REAL NOT NULL, posts INTEGER NOT NULL DEFAULT 0, admitted INTEGER NOT NULL DEFAULT 0);
-    CREATE TABLE IF NOT EXISTS captains (team TEXT PRIMARY KEY COLLATE NOCASE, agent TEXT NOT NULL UNIQUE);
+    CREATE TABLE IF NOT EXISTS captains (team TEXT PRIMARY KEY, agent TEXT NOT NULL UNIQUE);
     CREATE TABLE IF NOT EXISTS enrollments (agent TEXT PRIMARY KEY, name TEXT NOT NULL, team TEXT, captain INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS roster_changes (id TEXT NOT NULL, recipient TEXT NOT NULL, record TEXT NOT NULL, PRIMARY KEY(id, recipient));
     CREATE TABLE IF NOT EXISTS reads (id TEXT PRIMARY KEY, recipient TEXT NOT NULL, cost INTEGER NOT NULL);
@@ -79,6 +79,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
   const hasCaptains = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'captains'").get() != null
   const hasChat = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'chat_state'").get() != null
   const wakes = createWakeState(db, readOnly)
+  const hasEnrollments = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'enrollments'").get() != null
   const uncapped = (): boolean => hasControls && db.prepare('SELECT uncapped FROM wave_controls WHERE id = 1').get()?.uncapped === 1
   const burst = (): number => limits.postsPerMinute * 2
   const refillMs = (): number => 60000 / limits.postsPerMinute
@@ -150,22 +151,32 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     if (owner) return `${envelope}\n[owner]: ${e.text}`
     return `${envelope}\n[${boardSeatName({ name: e.authorName ?? e.author.agentId, captain: e.captain })}]${e.team ? ` [${e.team}]` : ''} [${e.kind}]: ${e.text}`
   }
-  const teamOf = (agent: string): string | undefined => db.prepare("SELECT value FROM interests WHERE agent = ? AND kind = 'membership'").get(agent)?.value as string | undefined
+  const canonicalTeam = (team: string): string => {
+    const labels = [...db.prepare("SELECT value FROM interests WHERE kind = 'membership' ORDER BY rowid").all(), ...(hasEnrollments ? db.prepare("SELECT team AS value FROM enrollments WHERE team != '' ORDER BY rowid").all() : [])]
+    return labels.map(row => String(row.value)).find(label => boardLabelKey(label) === boardLabelKey(team)) ?? team
+  }
+  const teamOf = (agent: string): string | undefined => {
+    const value = db.prepare("SELECT value FROM interests WHERE agent = ? AND kind = 'membership'").get(agent)?.value
+    return value === undefined ? undefined : canonicalTeam(String(value))
+  }
   const roster = () => db.prepare('SELECT agent, name FROM members WHERE enrolled = 1').all()
-  const canonicalTeam = (team: string): string => db.prepare("SELECT value FROM interests WHERE kind = 'membership' AND lower(value) = lower(?) LIMIT 1").get(team)?.value as string | undefined ?? team
-  const captainId = (team: string | undefined): string | undefined => team === undefined || !hasCaptains ? undefined : db.prepare('SELECT agent FROM captains WHERE team = ? COLLATE NOCASE').get(team)?.agent as string | undefined
+  const captainRows = (team: string) => hasCaptains ? db.prepare('SELECT team, agent FROM captains ORDER BY rowid').all().filter(row => boardLabelKey(String(row.team)) === boardLabelKey(team)) : []
+  const captainId = (team: string | undefined): string | undefined => team === undefined ? undefined : captainRows(team)[0]?.agent as string | undefined
+  const eventLabels = (team: string): string[] => [...new Set([team, ...db.prepare("SELECT DISTINCT json_extract(record, '$.team') AS value FROM events WHERE json_extract(record, '$.team') IS NOT NULL").all().map(row => String(row.value)).filter(label => boardLabelKey(label) === boardLabelKey(team))])]
   const seats = (): BoardSeat[] => roster().map(row => {
     const agent = String(row.agent), team = teamOf(agent), wait = wakes.wait(agent), wakeProblem = wakes.problem(agent)
     return { agent, name: String(row.name), state: wakes.state(agent), ...(wait ? { wait } : {}), ...(wakeProblem ? { wakeProblem } : {}), ...(team !== undefined ? { team } : {}), ...(captainId(team) === agent ? { captain: true as const } : {}) }
   })
-  const reserveCount = (team: string, agent: string): number => Number(db.prepare("SELECT COUNT(*) AS n FROM (SELECT agent FROM interests JOIN members USING (agent) WHERE kind = 'membership' AND lower(value) = lower(?) AND enrolled = 1 AND agent != 'main' UNION SELECT agent FROM enrollments WHERE lower(team) = lower(?)) WHERE agent != ?").get(team, team, agent)!.n)
+  const reserveCount = (team: string, agent: string): number => new Set(db.prepare("SELECT agent, value FROM interests JOIN members USING (agent) WHERE kind = 'membership' AND enrolled = 1 UNION ALL SELECT agent, team AS value FROM enrollments").all().filter(row => row.agent !== agent && row.agent !== 'main' && boardLabelKey(String(row.value)) === boardLabelKey(team)).map(row => String(row.agent))).size
   const checkEnrollment = (agent: string, team: string | undefined, captain = false): void => {
     if (team !== undefined && !validTeam(team)) throw new Error('Use a team label of letters, numbers, dots, dashes or underscores; all and general are reserved.')
     if (team !== undefined && agent !== 'main' && reserveCount(team, agent) >= 4 && !captainId(team) && !captain) throw new Error(`Name a captain for team ${team} before its fifth seat, or launch this named seat with captain: true.`)
   }
   const appoint = (team: string, agent: string): void => {
-    if (captainId(team) === agent) return
-    db.prepare('INSERT INTO captains VALUES (?, ?) ON CONFLICT(team) DO UPDATE SET agent = excluded.agent').run(team, agent)
+    const current = captainRows(team)
+    if (current.length === 1 && current[0]!.agent === agent) return
+    for (const row of current) db.prepare('DELETE FROM captains WHERE team = ? COLLATE BINARY').run(String(row.team))
+    db.prepare('INSERT INTO captains VALUES (?, ?)').run(canonicalTeam(team), agent)
     wakes.captains(seats(), latest())
     const seat = seats().find(seat => seat.agent === agent)!
     const record = JSON.stringify({ team, captain: seat.agent, name: boardSeatName(seat) })
@@ -189,7 +200,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     const mentions = new Set<string>()
     const unknownMentions: string[] = []
     for (const name of names) {
-      const targets = name.toLowerCase() === 'all' ? members : members.filter(row => String(row.agent).toLowerCase() === name.toLowerCase() || String(row.name).toLowerCase() === name.toLowerCase() || teamOf(String(row.agent))?.toLowerCase() === name.toLowerCase())
+      const targets = name.toLowerCase() === 'all' ? members : members.filter(row => String(row.agent).toLowerCase() === name.toLowerCase() || String(row.name).toLowerCase() === name.toLowerCase() || boardLabelKey(teamOf(String(row.agent)) ?? '') === boardLabelKey(name))
       if (!targets.length) unknownMentions.push(name)
       for (const target of targets) mentions.add(String(target.agent))
     }
@@ -202,10 +213,15 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     const filters = ['seq < ?', "COALESCE(json_extract(record, '$.lifecycle.kind'), 'done') NOT IN ('launched', 'joined')"]
     const values: (string | number)[] = [end]
     if (thread !== undefined) { filters.push('thread = ?'); values.push(thread) }
-    if (team !== undefined) { filters.push("json_extract(record, '$.team') = ?"); values.push(team) }
+    if (team !== undefined) { const labels = eventLabels(team); filters.push(`json_extract(record, '$.team') IN (${labels.map(() => '?').join(',')})`); values.push(...labels) }
     const filter = filters.join(' AND ')
     const count = Number(db.prepare(`SELECT COUNT(*) AS n FROM events WHERE ${filter}`).get(...values)!.n)
-    const teams = [...new Set([...db.prepare("SELECT DISTINCT value FROM interests WHERE kind = 'membership'").all().map(row => String(row.value)), ...db.prepare("SELECT DISTINCT json_extract(record, '$.team') AS team FROM events WHERE json_extract(record, '$.team') IS NOT NULL").all().map(row => String(row.team))])].sort()
+    const labels = new Map<string, string>()
+    for (const row of [...db.prepare("SELECT value FROM interests WHERE kind = 'membership' ORDER BY rowid").all(), ...db.prepare("SELECT json_extract(record, '$.team') AS value FROM events WHERE json_extract(record, '$.team') IS NOT NULL GROUP BY value ORDER BY MIN(seq)").all()]) {
+      const label = canonicalTeam(String(row.value)), key = boardLabelKey(label)
+      if (!labels.has(key)) labels.set(key, label)
+    }
+    const teams = [...labels.values()].sort()
     const names = [...seats().map(boardSeatName), ...db.prepare("SELECT DISTINCT COALESCE(json_extract(record, '$.authorName'), json_extract(record, '$.author.agentId')) AS name, json_extract(record, '$.captain') AS captain FROM events").all().map(row => boardSeatName({ name: String(row.name), captain: row.captain === 1 }))]
     const duplicateMinutes = db.prepare("SELECT substr(json_extract(record, '$.createdAt'), 1, 16) AS minute FROM events GROUP BY minute HAVING COUNT(*) > 1").all().map(row => String(row.minute))
     return { on: true, events: events(db.prepare(`SELECT record FROM events WHERE ${filter} ORDER BY seq DESC LIMIT 32`).all(...values)).reverse(), seats: seats(), teams, names, duplicateMinutes, snapshot: top, omitted: Math.max(0, count - 32), later: Math.max(0, top - end + 1), admitted: admitted(), appearances: appearances(), uncapped: head.uncapped === 1, chat: chat(), peerTurns: wakes.turns(), record: { path, sessionId } }
@@ -351,7 +367,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
       const result = transaction(() => {
         checkPrincipal(p)
         if (p.author.agentId !== 'main') return { ok: false, reason: 'Only the lead appoints a captain.' }
-        const matches = seats().filter(row => row.agent !== 'main' && (row.agent === seat || row.name.toLowerCase() === seat.toLowerCase()) && row.team?.toLowerCase() === team.toLowerCase())
+        const matches = seats().filter(row => row.agent !== 'main' && (row.agent === seat || row.name.toLowerCase() === seat.toLowerCase()) && row.team !== undefined && boardLabelKey(row.team) === boardLabelKey(team))
         if (matches.length !== 1) return { ok: false, reason: 'Name one enrolled seat in that team.' }
         const row = matches[0]!
         appoint(row.team!, row.agent)
@@ -435,7 +451,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
             const recipients = new Set([...event.mentions, ...replies, ...waiting, ...captains])
             if (team !== undefined) for (const row of roster()) if (teamOf(String(row.agent)) === team) recipients.add(String(row.agent))
             for (const interest of db.prepare("SELECT agent, kind, value FROM interests WHERE kind != 'membership'").all()) {
-              const relevant = interest.kind === 'team' ? team === interest.value : (post.kind === 'blocker' || post.kind === 'result') && (interest.kind === 'task' ? [post.taskId, ...post.relatedTasks].includes(String(interest.value)) : post.files.includes(String(interest.value)))
+              const relevant = interest.kind === 'team' ? team !== undefined && boardLabelKey(team) === boardLabelKey(String(interest.value)) : (post.kind === 'blocker' || post.kind === 'result') && (interest.kind === 'task' ? [post.taskId, ...post.relatedTasks].includes(String(interest.value)) : post.files.includes(String(interest.value)))
               if (relevant) recipients.add(String(interest.agent))
             }
             recipients.delete(p.author.agentId)
@@ -476,7 +492,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
             recipients = roster; channel = { kind: 'general' }; address = 'all'
           } else if (input.channel === 'team') {
             const labels = [...new Set(roster.flatMap(seat => seat.team ? [seat.team] : []))]
-            const label = labels.find(label => label.toLowerCase() === target.toLowerCase())
+            const label = labels.find(label => boardLabelKey(label) === boardLabelKey(target))
             if (!label) return { ok: false, reason: 'Name one team on the board.', candidates: labels }
             const captain = captainId(label)
             recipients = roster.filter(seat => captain ? seat.agent === captain : seat.team === label)
@@ -516,13 +532,13 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
           if (input.watch) {
             if (input.task !== undefined) db.prepare('INSERT INTO interests VALUES (?, ?, ?)').run(agent, 'task', input.task)
             for (const file of new Set(input.files ?? [])) db.prepare('INSERT INTO interests VALUES (?, ?, ?)').run(agent, 'file', file)
-            if (input.team !== undefined) db.prepare('INSERT INTO interests VALUES (?, ?, ?)').run(agent, 'team', input.team)
+            if (input.team !== undefined) db.prepare('INSERT INTO interests VALUES (?, ?, ?)').run(agent, 'team', canonicalTeam(input.team))
           }
         }
         const where = ['seq <= ?', 'NOT EXISTS (SELECT 1 FROM mirror_events WHERE event = events.id)']
         const args: (string | number)[] = [top]
         if (input.thread !== undefined) { where.push('thread = ?'); args.push(input.thread) }
-        if (input.team !== undefined) { where.push("json_extract(record, '$.team') = ?"); args.push(input.team) }
+        if (input.team !== undefined) { const labels = eventLabels(input.team); where.push(`json_extract(record, '$.team') IN (${labels.map(() => '?').join(',')})`); args.push(...labels) }
         if (input.task !== undefined) { where.push("(json_extract(record, '$.taskId') = ? OR EXISTS (SELECT 1 FROM json_each(events.record, '$.relatedTasks') WHERE value = ?))"); args.push(input.task, input.task) }
         if (input.mentions !== undefined) { where.push("EXISTS (SELECT 1 FROM json_each(events.record, '$.mentions') WHERE value = ?)"); args.push(input.mentions) }
         if (input.files?.length) { where.push(`EXISTS (SELECT 1 FROM json_each(events.record, '$.files') WHERE value IN (${input.files.map(() => '?').join(',')}))`); args.push(...input.files) }

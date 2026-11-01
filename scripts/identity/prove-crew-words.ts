@@ -53,9 +53,10 @@ const ALLOW: Row[] = [
   ...[
     'CREATE TABLE IF NOT EXISTS captains',
     'SELECT team, agent FROM captains ORDER BY team',
-    'SELECT agent FROM captains WHERE team = ? COLLATE NOCASE',
-    'SELECT COUNT(*) AS n FROM (SELECT agent FROM interests JOIN members',
-    'INSERT INTO captains VALUES (?, ?) ON CONFLICT(team)',
+    "SELECT team AS value FROM enrollments WHERE team != '' ORDER BY rowid",
+    'SELECT team, agent FROM captains ORDER BY rowid',
+    "SELECT agent, value FROM interests JOIN members USING (agent) WHERE kind = 'membership' AND enrolled = 1 UNION ALL SELECT agent, team AS value FROM enrollments",
+    'DELETE FROM captains WHERE team = ? COLLATE BINARY',
     'INSERT INTO enrollments (agent, name, team, captain)',
     'SELECT name, team, captain FROM enrollments WHERE agent = ?',
     'Name a captain for team',
