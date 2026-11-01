@@ -2,6 +2,7 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.3
+- Added swarm chat in the main chat: with swarm on, /swarmchat shows board messages as they arrive, with coloured names, landing between the lead's blocks and never mid-sentence. /swarmchat alone toggles it for the session; /swarmchat all, team <name> or main chooses which new messages show.
 - Added captains, named by the lead for a team of five or more crewmates, or for a smaller team when you ask or a crewmate asks and the lead agrees; a captain gathers its team's work and reports it to the lead.
 
 ## 1.0.2
