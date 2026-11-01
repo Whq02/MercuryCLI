@@ -89,7 +89,9 @@ try {
   assert(general.ok, JSON.stringify(general))
   const mixed = board.boundary(gamma, new Set())!
   const lines = bodies(mixed.text)
-  check('one packet carries the peer ask and the owner broadcast, each once, in board order', mixed.eventIds.length === 2 && mixed.text.indexOf(`crew-board-event:${peerAsk.eventId}`) < mixed.text.indexOf(`crew-board-event:${general.eventId}`) && lines.length === 2 && lines[0]!.startsWith('[Alpha] [engine] [ask]: @Gamma is the view row wrapped?') && lines[1] === '[owner]: Everyone: stop at the next boundary.')
+  const peerAt = mixed.text.indexOf(`crew-board-event:${peerAsk.eventId}`)
+  const generalAt = mixed.text.indexOf(`crew-board-event:${general.eventId}`)
+  check('one packet carries the peer ask and the owner broadcast, each once, in board order', mixed.eventIds.length === 2 && peerAt >= 0 && generalAt >= 0 && peerAt < generalAt && lines.length === 2 && lines[0]!.startsWith('[Alpha] [engine] [ask]: @Gamma is the view row wrapped?') && lines[1] === '[owner]: Everyone: stop at the next boundary.')
   check('the two envelopes disagree only where the roles differ', mixed.text.includes('"who":"alpha"') && mixed.text.includes('"authorRole":"peer"') && mixed.text.includes('"who":"owner"') && mixed.text.includes('"authorRole":"owner","channel":{"kind":"general"}'))
   check('the rule heads the packet exactly once', mixed.text.startsWith(BOARD_PACKET_RULE) && mixed.text.split(BOARD_PACKET_RULE).length === 2)
   board.presented(gamma, mixed.eventIds, 'gamma-2')
