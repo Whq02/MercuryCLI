@@ -16,14 +16,23 @@ let checks = 0
 const check = (name: string, truth: unknown): void => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
 const bundle = option('--bundle')
 if (bundle) {
-  const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
-  const { vshotBudgetMs } = await import('../lib/captureDriver.ts')
-  const arena = await runArtifactArena({ distPath: resolve(bundle), turns: [], sends: ['4500:/llmhost', '5300:\r', '9800:\x1b[6~'], seconds: 14, cols: 120, rows: 44, keep: true })
+  const { runArtifactArena } = await import('../streaming/artifactArena.ts')
+  const arena = await runArtifactArena({ distPath: resolve(bundle), turns: [], sends: [
+    { awaitText: 'Type a prompt', text: '/llmhost' },
+    { awaitText: '❯ /llmhost', text: '\r' },
+    { awaitText: ['Which model?', 'GLM-5.3-Flash', 'pgup/pgdn'], text: '\x1b[6~' },
+    { awaitText: ['Which model?', 'My computers', 'More options'], text: '' },
+  ], seconds: 14, cols: 120, rows: 44, keep: true })
   try {
-    const shots = grabScreens(arena, 120, 44, [7000, 9000, 11000, 13000].map(vshotBudgetMs))
-    if (frames) shots.forEach((shot, index) => writeFileSync(join(frames, 'bundle-' + index + '.txt'), shot.rows.join('\n')))
-    check('built /llmhost opens the model-first popup', shots.some(shot => shot.rows.join(' ').includes('Which model?')))
-    check('built popup includes model choices and, a page down, the existing roads link', shots.some(shot => shot.rows.join(' ').includes('GLM-5.3-Flash')) && shots.some(shot => { const text = shot.rows.join(' '); return text.includes('My computers') && text.includes('More options') }))
+    const steps = arena.sendLog.filter(row => row.step !== undefined)
+    if (frames) {
+      steps.forEach((step, index) => writeFileSync(join(frames, 'bundle-' + index + '.txt'), (step.screen ?? []).join('\n')))
+      writeFileSync(join(frames, 'bundle-marks.json'), JSON.stringify({ outcome: arena.outcome, steps, driver: arena.driverOut }))
+    }
+    assert.ok(arena.outcome.complete && steps.length === 4, JSON.stringify({ outcome: arena.outcome, steps }))
+    const first = steps[2]!.screen!.join(' '), second = steps[3]!.screen!.join(' ')
+    check('built /llmhost opens the model-first popup', first.includes('Which model?'))
+    check('built popup includes model choices and, a page down, the existing roads link', first.includes('GLM-5.3-Flash') && second.includes('My computers') && second.includes('More options'))
   } finally { arena.cleanup() }
 }
 const f = await llmhostFixture()
