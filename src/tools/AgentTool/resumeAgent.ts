@@ -238,12 +238,12 @@ export async function resumeAgentBackground(args: {
 
   if (args.boardEventIds !== undefined) {
     if (meta?.worktreePath && worktreePath === undefined) throw new BoardResumeDirectoryError(meta.worktreePath, 'worktree')
-    if (meta?.cwd && cwdPath === undefined) throw new BoardResumeDirectoryError(meta.cwd, 'directory')
+    if (worktreePath === undefined && meta?.cwd && cwdPath === undefined) throw new BoardResumeDirectoryError(meta.cwd, 'directory')
   }
 
   const directoryFacts = meta?.worktreePath && worktreePath === undefined
     ? { cwdFallback: 'parent-checkout' as const }
-    : meta?.cwd && cwdPath === undefined
+    : worktreePath === undefined && meta?.cwd && cwdPath === undefined
       ? { cwdFallback: 'parent-directory' as const, recordedCwd: meta.cwd }
       : {}
   const note = continuationDirectoryNote(directoryFacts)
