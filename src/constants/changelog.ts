@@ -7,6 +7,8 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Added captains, named by the lead for a team of five or more crewmates, or for a smaller team when you ask or a crewmate asks and the lead agrees; a captain gathers its team's work and reports it to the lead.
 - Changed Crew chat in the Workbench to wrap each message to three lines in the timeline, with the full text in the thread.
 - Fixed a crew-board notice or a finished command's output landing in the composer after a sign-in failure.
+- Fixed a resumed session forgetting its swarm switch; /swarm on survives a resume.
+- Fixed command messages after the last reply disappearing when a session is resumed or opened in another window.
 
 ## 1.0.2
 - Added an opt-in crew board: turn on Swarm in /config, then use /swarm on for new crewmates. Share questions, answers and results with @mentions, team channels and corrections. A question or blocker addressed to the lead arrives as one grey [Crewboard] row and wakes it when idle, as does a result addressed to it by name; other results paint without waking it. A crewmate launched with swarm on is told its name, its team and the other crewmates on the board, and when to post and read. The context allowances and the post length have no cap unless you set one in /config; two loop guards stay on (4 posts a minute, 120 posts per agent in a wave), and /swarm uncap, cap and status manage a live wave.
