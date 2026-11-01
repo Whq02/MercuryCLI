@@ -142,6 +142,21 @@ try {
   const saved = createWakeState(reopened, true)
   check('reopening preserves parked state, the replacement wait and the held claim', saved.state(reader.agent) === 'parked' && saved.wait(reader.agent)?.predicate.kind === 'about' && saved.pending().length === 0)
 } finally { reopened.close(); for (const suffix of ['', '-wal', '-shm']) rmSync(statePath + suffix, { force: true }) }
+{
+  const { open } = await import('../../src/services/crewBoard/store.ts')
+  const ownerBoard = open(join(home, 'owner-wake.sqlite'), 'owner-wake')
+  const principal = (agent: string) => ({ author: { sessionId: 'owner-wake', agentId: agent, executionId: 'run' }, name: agent })
+  const lead = principal('main'), a = principal('A'), b = principal('B')
+  try {
+    for (const seat of [lead, a, b]) ownerBoard.enroll(seat)
+    assert(ownerBoard.post(a, { clientOpId: 'wait-ask', kind: 'ask', text: '@main wake me when kind ask' }).ok)
+    ownerBoard.complete(a, 'completed'); ownerBoard.complete(b, 'completed')
+    const directed = ownerBoard.postOwner(lead, { clientOpId: 'whisper-b', channel: 'whisper', target: 'B', text: 'Work with this, mentioning @A does not widen it.' })
+    assert(directed.ok)
+    check('owner commands never wake outside their fixed targets, even for a matching wait', ownerBoard.pendingWakes().map(wake => wake.agent).join(',') === 'B' && ownerBoard.seats().find(seat => seat.agent === 'A')?.wait !== undefined)
+    check('a directed owner post remains publicly readable without waking the reader', ownerBoard.read(a, { since: directed.seq - 1 }).events.some(event => event.eventId === directed.eventId))
+  } finally { ownerBoard.close() }
+}
 const boot = await import('../../src/bootstrap/state.ts')
 boot.setOriginalCwd(home); boot.setCwdState(home); boot.setProjectRoot(home)
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
@@ -213,7 +228,7 @@ if (!process.argv.includes('--source-only')) {
   const childModel = 'claude-opus-4-6'
   const schema = { type: 'object', properties: { phase: { type: 'string' } }, required: ['phase'] }
   const world = await makeWorld('swarm-parked-wake', [
-    { kind: 'tool_use', name: 'Bash', id: 'wake-first-pwd', input: { command: 'pwd', description: 'Read the assigned directory' }, whenModel: 'opus-4-6', model: childModel },
+    { kind: 'tool_use', name: 'Bash', id: 'wake-first-pwd', input: { command: 'pwd', description: 'Read the assigned directory' }, thinking: 'WAKE-SIGNED-THINKING', signature: 'wake-signed-fixture', whenModel: 'opus-4-6', model: childModel },
     { kind: 'tool_use', name: 'CrewBoard', id: 'wake-declare', input: { op: 'post', clientOpId: 'built-wait', kind: 'ask', text: '@main wake me when about built-trigger' }, whenModel: 'opus-4-6', model: childModel },
     { kind: 'tool_use', name: 'StructuredOutput', id: 'wake-first-schema', input: { phase: 'waiting' }, whenModel: 'opus-4-6', model: childModel },
     { kind: 'text', text: 'BUILT-WORKER-PARKED', whenModel: 'opus-4-6', model: childModel },
@@ -259,6 +274,7 @@ if (!process.argv.includes('--source-only')) {
     const resumedBody = resumed[0]!.body as { system?: unknown; tools?: { name?: string; input_schema?: unknown }[]; output_config?: unknown; messages?: unknown[] }
     const wire = JSON.stringify(resumedBody.messages)
     check('the built runner resumes from the transcript with exactly one triggering body', wire.includes('BUILT-WORKER-PARKED') && wire.split('BUILT-WAKE-PACKET').length === 2 && live.view().peerTurns === 1)
+    check('signed thinking stays intact on the resumed request', wire.includes('WAKE-SIGNED-THINKING') && wire.includes('wake-signed-fixture'))
     check('the resumed request keeps model, max effort, system prefix and output schema', (resumed[0]!.body as { model?: string }).model === childModel && JSON.stringify(firstBody.output_config) === JSON.stringify(resumedBody.output_config) && JSON.stringify(firstBody.system) === JSON.stringify(resumedBody.system) && JSON.stringify(firstBody.tools?.find(tool => tool.name === 'StructuredOutput')?.input_schema) === JSON.stringify(resumedBody.tools?.find(tool => tool.name === 'StructuredOutput')?.input_schema))
     const firstPwd = toolResultOf(world, 'wake-first-pwd'), secondPwd = toolResultOf(world, 'wake-second-pwd')
     check('the same recorded worktree and callable output schema survive the wake', !firstPwd?.isError && !secondPwd?.isError && firstPwd?.text.includes(metadata.worktreePath) && secondPwd?.text.includes(metadata.worktreePath) && toolResultOf(world, 'wake-second-schema')?.isError === false)
