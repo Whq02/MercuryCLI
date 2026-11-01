@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/utils/runtime/** src/entrypoints/cli*
+# gate-watch: src/utils/runtime/** src/entrypoints/cli* scripts/lib/nodeBin.ts
 # gate-watch: scripts/release/** scripts/ops/launcher-mercury.sh .github/workflows/** package.json .node-version build.ts
 # gate-watch: src/**
 # gate-watch: src/rows/* src/runner/wire/*
