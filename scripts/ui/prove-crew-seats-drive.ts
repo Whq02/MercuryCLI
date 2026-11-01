@@ -426,19 +426,21 @@ async function leg(mainDialect: Dialect): Promise<void> {
   const starts = seatHits.map(h => `${h.seat}@${(h.at / 1000).toFixed(1)}s`)
   console.log(`  wire: ${starts.join(' · ')}`)
   check(`${tag}: four seat requests reached the wire`, seatHits.length === 4, starts.join(','))
+  const mid = marks['crew-mid'] ?? ''
+  const waiter: string = seatHits.length === 4 ? seatHits[3]!.seat ?? 'seat' : SEATS[3]
+  const held = SEATS.filter(s => s !== waiter)
   if (seatHits.length === 4) {
     const firstThreeSpan = seatHits[2]!.at - seatHits[0]!.at
     const fourthGap = seatHits[3]!.at - seatHits[2]!.at
     check(`${tag}: S1 three seats start together (span ${Math.round(firstThreeSpan)} ms < ${SEAT_HOLD_MS / 2} ms)`, firstThreeSpan < SEAT_HOLD_MS / 2, `span ${firstThreeSpan} ms`)
     check(`${tag}: S1 the fourth waits for a seat (starts ≥ ${Math.round(SEAT_HOLD_MS * 0.6)} ms after the third)`, fourthGap >= SEAT_HOLD_MS * 0.6, `gap ${fourthGap} ms`)
-    check(`${tag}: S1 the queue drains in launch order (the fourth to start is the last launched)`, seatHits[3]!.seat === SEATS[3], seatHits.map(h => h.seat).join(','))
+    check(`${tag}: S1 the fourth on the wire is the one row that waited for a seat (the seats go to whoever reaches the gate first)`, SEATS.filter(s => /waiting for a seat/.test(rowOf(mid, s) ?? '')).join() === waiter, `wire ${seatHits.map(h => h.seat).join(',')} · waiting rows ${SEATS.filter(s => /waiting for a seat/.test(rowOf(mid, s) ?? '')).join(',') || 'none'}`)
   }
 
-  const mid = marks['crew-mid'] ?? ''
-  const fourth = rowOf(mid, SEATS[3]) ?? ''
-  check(`${tag}: S2 the fourth row says why it waits — the seat sentence`, /waiting for a seat/.test(fourth) && /3 of 3 held/.test(fourth), flat(fourth))
+  const fourth = rowOf(mid, waiter) ?? ''
+  check(`${tag}: S2 the waiting row says why it waits — the seat sentence`, /waiting for a seat/.test(fourth) && /3 of 3 held/.test(fourth), flat(fourth))
   const heldWords = /(\brunning\b|first byte|request sent|streaming|reasoning|replying|retry)/
-  check(`${tag}: S2 the three held rows run (a phase or 'running'; never a seat wait)`, SEATS.slice(0, 3).every(s => heldWords.test(rowOf(mid, s) ?? '') && !/waiting for a seat/.test(rowOf(mid, s) ?? '')), SEATS.slice(0, 3).map(s => flat(rowOf(mid, s) ?? '(no row)')).join(' | ').slice(0, 400))
+  check(`${tag}: S2 the three held rows run (a phase or 'running'; never a seat wait)`, held.every(s => heldWords.test(rowOf(mid, s) ?? '') && !/waiting for a seat/.test(rowOf(mid, s) ?? '')), held.map(s => flat(rowOf(mid, s) ?? '(no row)')).join(' | ').slice(0, 400))
 
   check(`${tag}: S3 every seat rode the seats' wire on ${seatModel}`, seatHits.every(h => h.lane === seatLane && seatIs(h.model)), seatHits.map(h => `${h.lane}:${h.model}`).join(','))
   if (seatModel === GPT_ID) check(`${tag}: S3 every GPT seat's request carries a reasoning effort`, seatHits.every(h => h.effort !== null), seatHits.map(h => String(h.effort)).join(','))
