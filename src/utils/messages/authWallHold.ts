@@ -16,7 +16,7 @@ export function promptBehindAuthWall(records: readonly Message[]): AuthWallHold 
       return null
     }
     if (row.type !== 'user') continue
-    if (row.isMeta === true) continue
+    if (row.isMeta === true || row.isVirtual === true) continue
     if (isToolUseResultMessage(row)) return null
     const words = textForResubmit(row as UserMessage)
     if (words === null || words.text.trim() === '') return null
