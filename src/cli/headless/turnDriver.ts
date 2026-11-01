@@ -32,6 +32,8 @@ export function canBatchWith(
   return (
     next !== undefined &&
     next.mode === 'prompt' &&
+    head.localCommand !== true &&
+    next.localCommand !== true &&
     next.workload === head.workload &&
     next.isMeta === head.isMeta &&
     next.schema === undefined &&

@@ -1224,9 +1224,11 @@ export async function runHeadless(
   let turnAnchor: string | null = null
   const localCommandInput = (command: QueuedCommand): boolean => {
     if (command.mode === 'bash') return true
-    if (command.mode !== undefined && command.mode !== 'prompt') return false
-    const line = options.syntaxInput !== undefined && command.value === inputPrompt ? options.syntaxInput : command.value
-    const parsed = typeof line === 'string' ? parseSlashCommand(line) : null
+    if (command.skipSlashCommands === true || (command.mode !== undefined && command.mode !== 'prompt')) return false
+    const value = options.syntaxInput !== undefined && command.value === inputPrompt ? options.syntaxInput : command.value
+    const last = typeof value === 'string' ? undefined : value.at(-1)
+    const line = typeof value === 'string' ? value : last?.type === 'text' ? last.text : undefined
+    const parsed = line === undefined ? null : parseSlashCommand(line)
     if (parsed === null) return false
     const found = findCommand(parsed.commandName, [...activeCommands, ...getAppState().mcp.commands])
     if (found !== undefined) return found.type !== 'prompt' || !isCommandEnabled(found) || found.userInvocable === false
@@ -2019,7 +2021,7 @@ export async function runHeadless(
     }
     const sentAt = typeof input.sentAt === 'string' && Number.isFinite(Date.parse(input.sentAt)) ? input.sentAt : new Date().toISOString()
     if (input.kind === 'prompt' && !('origin' in saturnQueueStamp(input.origin))) operatorPauseGate.resume()
-    enqueue({
+    const command: QueuedCommand = {
       value: input.kind === 'shell' ? input.command : input.content,
       mode: input.kind === 'shell' ? 'bash' : 'prompt',
       sentAt,
@@ -2027,8 +2029,10 @@ export async function runHeadless(
       ...(input.priority !== undefined ? { priority: input.priority } : {}),
       ...(input.kind === 'prompt' && input.schema !== undefined ? { schema: input.schema } : {}),
       ...saturnQueueStamp(input.origin),
-    })
-    if (input.kind === 'prompt' && input.priority !== 'later' && !('origin' in saturnQueueStamp(input.origin)) && driver.isRunning() && !queuedWordsWaitForTurnEnd()) {
+    }
+    if (localCommandInput(command)) command.localCommand = true
+    enqueue(command)
+    if (input.kind === 'prompt' && command.localCommand !== true && input.priority !== 'later' && !('origin' in saturnQueueStamp(input.origin)) && driver.isRunning() && !queuedWordsWaitForTurnEnd()) {
       handOverForegroundAgentsToQueuedMessage(getAppState, setAppState)
     }
     driver.kick()

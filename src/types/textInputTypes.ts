@@ -130,6 +130,7 @@ type QueueRouting = {
   priority?: QueuePriority
   agentId?: string
   waitsForTurnEnd?: true
+  localCommand?: true
   ridesNextWords?: true
 }
 

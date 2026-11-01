@@ -117,7 +117,7 @@ function getCommandsByMaxPriority(
 }
 
 export function getDrainableCommands(sleepBoundary: boolean): QueuedCommand[] {
-  const waits = (cmd: QueuedCommand): boolean => wordsWaitForTurnEnd && cmd.waitsForTurnEnd === true
+  const waits = (cmd: QueuedCommand): boolean => cmd.localCommand === true || (wordsWaitForTurnEnd && cmd.waitsForTurnEnd === true)
   if (!sleepBoundary) return getCommandsByMaxPriority('next').filter(cmd => !waits(cmd))
   const nextThreshold = PRIORITY_ORDER['next']
   return queue.filter(cmd => {
