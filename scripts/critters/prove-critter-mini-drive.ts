@@ -52,8 +52,9 @@ process.env.ANTHROPIC_API_KEY = KEY
 const WRAP_VERB = 'Reading the complete fixture response and checking every part of it'
 const STACK_VERB = 'Reading the whole fixture answer before replying'
 const TALL_VERB = `${WRAP_VERB} against the recorded expectations before answering`
-const GROW_VERB = 'Basking'
+const WIDE_STACK_VERB = 'Reading the whole fixture answer once again before replying'
 const ONE_LINE_COLS = 130
+const verbFor = (cols: number): string => (cols >= 120 ? WIDE_STACK_VERB : STACK_VERB)
 
 function homeFor(name: string, verb = name.startsWith('busy-') ? WRAP_VERB : undefined): { configHome: string; cwd: string } {
   const world = join(scratch, name)
@@ -338,23 +339,23 @@ try {
   }
   console.log('§14 the sprite’s middle tracks the thinking box’s middle however tall the box grows')
   for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
-    const legs: Array<[string, string, number, number]> = [['one', GROW_VERB, 3, ONE_LINE_COLS], ['stack', STACK_VERB, 4, cols], ['tall', TALL_VERB, cols === 120 ? 5 : 6, cols]]
+    const legs: Array<[string, string, number, number]> = [['one', verbFor(cols), 3, ONE_LINE_COLS], ['stack', verbFor(cols), 4, cols], ['tall', TALL_VERB, cols === 120 ? 5 : 6, cols]]
     for (const [leg, verb, expectedRows, legCols] of legs) {
       const shot = await capture(`level-${leg}-${cols}x${rows}`, homeFor(`level-${leg}-${cols}`, verb), legCols, rows, [onReady('hello fixture\r', 'idle')], 'first byte', [], true)
       const b = berthOf(shot.grid)
-      check(`${legCols}×${rows} ${leg}: the thinking box is ${expectedRows} rows tall with the complete sprite beside it${leg === 'one' ? ' (the reading-phase meta shares the verb’s line only from 130 columns: at 120 and 100 it stacks under even the shortest verb)' : ''}`, cardRows(b) === expectedRows && b.cells === 27 && b.bottom - b.top - 1 === expectedRows, `card ${b.cardTop}..${b.cardBottom} (${cardRows(b)} rows), box ${b.top}..${b.bottom}, art cells ${b.cells}`)
+      check(`${legCols}×${rows} ${leg}: the thinking box is ${expectedRows} rows tall with the complete sprite beside it${leg === 'one' ? ' (the clock and the received count share the verb’s line at 130 columns and stack under it at ${cols})' : ''}`, cardRows(b) === expectedRows && b.cells === 27 && b.bottom - b.top - 1 === expectedRows, `card ${b.cardTop}..${b.cardBottom} (${cardRows(b)} rows), box ${b.top}..${b.bottom}, art cells ${b.cells}`)
       check(`${legCols}×${rows} ${leg}: the sprite’s middle is the box’s middle, the lower middle row for an even box (sprite rows ${spriteTop(b)}–${spriteTop(b) + 2})`, b.y === spriteTop(b), `sprite top ${b.y}, expected ${spriteTop(b)}`)
       check(`${legCols}×${rows} ${leg}: no sprite row lies beside the box’s top border unless the box is three rows`, expectedRows === 3 || b.y > b.cardTop, `sprite rows ${b.y}–${b.y + 2}, top border ${b.cardTop}`)
     }
     const wide = ONE_LINE_COLS
-    const grow = await capture(`grow-${cols}x${rows}`, homeFor(`grow-${cols}`, GROW_VERB), wide, rows, [
+    const grow = await capture(`grow-${cols}x${rows}`, homeFor(`grow-${cols}`, verbFor(cols)), wide, rows, [
       onReady('hello fixture\r', 'idle'),
-      { requireAwait: true, awaitText: GROW_VERB, awaitSettleTicks: 5, data: '', mark: 'one-line' },
+      { requireAwait: true, awaitText: verbFor(cols), awaitSettleTicks: 5, data: '', mark: 'one-line' },
     ], '│ (', [{ afterMark: 'one-line', afterMs: 400, cols, rows }], true)
     const before = berthOf(grow.marks[`stage0:${wide}x${rows}`]!)
     const after = berthOf(grow.grid)
     console.log(`  ${cols}×${rows} grow: the box is ${cardRows(before)} rows at ${wide} columns and ${cardRows(after)} rows at ${cols} (sprite top ${before.y} → ${after.y})`)
-    check(`${cols}×${rows} grow: at ${wide} columns the status (reading the prompt · the clock · the first-byte promise) fits one line beside the verb and the box is three rows`, cardRows(before) === 3 && before.cells === 27 && before.y === before.cardTop, `card ${before.cardTop}..${before.cardBottom} (${cardRows(before)} rows), sprite top ${before.y}, art cells ${before.cells}`)
+    check(`${cols}×${rows} grow: at ${wide} columns the status (the clock · the received count) fits one line beside the verb and the box is three rows`, cardRows(before) === 3 && before.cells === 27 && before.y === before.cardTop, `card ${before.cardTop}..${before.cardBottom} (${cardRows(before)} rows), sprite top ${before.y}, art cells ${before.cells}`)
     check(`${cols}×${rows} grow: at ${cols} columns the meta stacks and the box is four rows`, cardRows(after) === 4 && after.cells === 27, `card ${after.cardTop}..${after.cardBottom} (${cardRows(after)} rows), art cells ${after.cells}`)
     check(`${cols}×${rows} grow: once the stats stack the sprite sits on the box’s lower three rows (the verb line, the stats, the bottom border)`, after.y === after.cardTop + 1, `sprite top ${after.y}, card top ${after.cardTop}`)
     check(`${cols}×${rows} grow: the sprite moves down one row as the box grows from three rows to four, its middle following the box’s middle`, after.y === before.y + 1 && before.cardTop === after.cardTop, `sprite top ${before.y} → ${after.y}, card top ${before.cardTop} → ${after.cardTop}`)
