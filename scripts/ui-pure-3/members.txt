@@ -119,3 +119,4 @@ prove-sessions-command-routing.ts
 prove-diff-hunk-coordinates.ts
 prove-hardening-consent-chords.ts
 prove-hardening-input-ownership.ts
+prove-vitals-live-refresh.ts
