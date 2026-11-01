@@ -1,5 +1,7 @@
 import type * as React from 'react'
 import type { Tool, ToolUseContext } from '../../Tool.js'
+import type { CrewChatLifecycle } from '../../types/message.js'
+import type { BoardChat } from './party.js'
 
 export type BoardLimits = Readonly<{ seatAllowance: number; waveAllowance: number; postsPerMinute: number; postsPerSeat: number; postChars: number }>
 export const DEFAULT_BOARD_LIMITS: BoardLimits = Object.freeze({ seatAllowance: 0, waveAllowance: 0, postsPerMinute: 4, postsPerSeat: 120, postChars: 0 })
@@ -21,6 +23,7 @@ export type BoardPost = {
   relatedTasks?: string[]
   files?: string[]
   refs?: BoardRef[]
+  lifecycle?: CrewChatLifecycle
 }
 export type BoardChannel = { kind: 'general' } | { kind: 'team' | 'whisper'; target: string }
 export type OwnerPostInput = { clientOpId: string; text: string; channel: 'general' | 'team' | 'whisper'; target?: string }
@@ -52,7 +55,7 @@ export type BoardEvent = Omit<BoardPost, 'mentions' | 'to' | 'relatedTasks' | 'f
 export type BoardRead = { since?: number; snapshot?: number; thread?: string; task?: string; mentions?: string; team?: string; files?: string[]; limitTokens?: number; acknowledge?: string[]; watch?: boolean }
 export type BoardPacket = { events: (BoardEvent | { eventId: string; seq: number; text: string; truncated: true })[]; snapshot: number; cursor: number; omitted: number; tokens: number; skippedSeen: number; reread: string; packetId?: string; reason?: string }
 export type BoardReceipt = { ok: true; eventId: string; seq: number; replay: boolean; unknownMentions?: string[] } | { ok: false; reason: string; retryAfter?: number; cap?: 'thread-rounds' }
-export type BoardViewSnapshot = { on: boolean; events: BoardEvent[]; seats?: BoardSeat[]; teams?: string[]; names?: string[]; duplicateMinutes?: string[]; snapshot: number; omitted: number; later?: number; admitted: number; appearances?: number; uncapped?: boolean; peerTurns: 0; record?: { path: string; sessionId: string }; error?: string }
+export type BoardViewSnapshot = { on: boolean; events: BoardEvent[]; seats?: BoardSeat[]; teams?: string[]; names?: string[]; duplicateMinutes?: string[]; snapshot: number; omitted: number; later?: number; admitted: number; appearances?: number; uncapped?: boolean; chat?: BoardChat; peerTurns: 0; record?: { path: string; sessionId: string }; error?: string }
 export type BoardPrincipal = { author: BoardAuthor; name: string; team?: string }
 export type BoardHost = {
   buildTool: typeof import('../../Tool.js').buildTool
@@ -83,6 +86,11 @@ export interface BoardStore {
   leadPosts(since: number): BoardEvent[]
   leadPainted(): number
   markLeadPainted(seq: number): void
+  chat(): BoardChat
+  setChat(next: BoardChat): void
+  screenEvents(since: number): BoardEvent[]
+  screenCursor(): number
+  markScreenCursor(seq: number): void
   boundary(principal: BoardPrincipal, seen: ReadonlySet<string>): { text: string; eventIds: string[] } | null
   presented(principal: BoardPrincipal, eventIds: string[], requestId: string, readPackets?: string[]): void
   view(before?: number, thread?: string, team?: string): BoardViewSnapshot
