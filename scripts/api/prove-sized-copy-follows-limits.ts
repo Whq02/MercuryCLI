@@ -32,8 +32,8 @@ const { fitImagesToRequestCap, imageLimitsForModel, requestImageSidePx } = await
 
 const DIRECT = 'claude-opus-5-5'
 const RELAYED = 'glm-5'
-const WIDTH = 6001
-const HEIGHT = 1300
+const WIDTH = 8001
+const HEIGHT = 1600
 const MiB = 1024 * 1024
 const kb = (n: number): string => `${(n / MiB).toFixed(2)} MiB`
 
@@ -74,13 +74,14 @@ const direct = imageLimitsForModel(DIRECT)
 const relayed = imageLimitsForModel(RELAYED)
 const directCeiling = direct.maxBase64Bytes ?? direct.maxRequestBytes
 const relayedCeiling = relayed.maxBase64Bytes ?? relayed.maxRequestBytes
-const sidePx = requestImageSidePx(direct)
+const sidePx = requestImageSidePx(direct, 1)
+const relayedSidePx = requestImageSidePx(relayed, 1)
 
 section('§1 the two families a session can move between share the per-side cap and differ in the byte ceiling')
 {
   check(`${DIRECT} sizes to the anthropic table`, direct.family === 'anthropic', direct.family)
   check(`${RELAYED} sizes to the generic table (a route without documented figures of its own)`, relayed.family === 'generic', relayed.family)
-  check(`both tables bound every image at the same side from its first send (${String(sidePx)} px, the many-image bound)`, sidePx !== null && requestImageSidePx(relayed) === sidePx, `${String(sidePx)} vs ${String(requestImageSidePx(relayed))}`)
+  check(`the anthropic table bounds a single image at ${String(sidePx)} px from its first send; the generic table keeps its ${String(relayedSidePx)} px until a request carries more than 20 images (no documented native tier stands behind the other routes)`, sidePx === 3000 && relayedSidePx === 8000 && requestImageSidePx(relayed, 21) === 3000, `${String(sidePx)} vs ${String(relayedSidePx)}`)
   check(`the generic ceiling is stricter than the anthropic one (${kb(relayedCeiling)} vs ${kb(directCeiling)} as base64)`, relayedCeiling < directCeiling)
 }
 
@@ -103,7 +104,7 @@ const second = await fitImagesToRequestCap(history, { model: RELAYED })
 const secondCopy = copyOf(second.messages)
 {
   check('one image was sized', second.sized === 1 && secondCopy !== null, `sized=${second.sized} firstEdited=${second.firstEdited}`)
-  check(`the copy is within ${String(sidePx)} px a side (sized, never left as it was)`, secondCopy !== null && Math.max(secondCopy.width, secondCopy.height) <= (sidePx ?? 0), secondCopy ? `${secondCopy.width}x${secondCopy.height}` : 'no copy')
+  check(`the copy is within ${String(relayedSidePx)} px a side (sized for its bytes, never left as it was)`, secondCopy !== null && Math.max(secondCopy.width, secondCopy.height) <= (relayedSidePx ?? 0), secondCopy ? `${secondCopy.width}x${secondCopy.height}` : 'no copy')
   check(
     `the copy fits the generic ceiling (${secondCopy ? kb(secondCopy.data.length) : '-'} of ${kb(relayedCeiling)}) — a copy sized for another family\'s ceiling is never served here`,
     secondCopy !== null && secondCopy.data.length <= relayedCeiling,

@@ -5,7 +5,7 @@ export interface ImageLimits {
   family: ImageLimitFamily
   doc: string
   maxSidePx: number | null
-  manyImages: { threshold: number; maxSidePx: number } | null
+  manyImages: { threshold: number; maxSidePx: number; fromFirstSend: boolean } | null
   maxBase64Bytes: number | null
   maxPatchesPerImage: { patchPx: number; count: number } | null
   nativeLongEdgePx: { standard: number; highResolution: number }
@@ -20,7 +20,7 @@ export const ANTHROPIC_IMAGE_LIMITS: ImageLimits = {
   family: 'anthropic',
   doc: 'https://platform.claude.com/docs/en/build-with-claude/vision',
   maxSidePx: 8000,
-  manyImages: { threshold: 20, maxSidePx: 3000 },
+  manyImages: { threshold: 20, maxSidePx: 3000, fromFirstSend: true },
   maxBase64Bytes: 10 * MiB,
   maxPatchesPerImage: null,
   nativeLongEdgePx: { standard: 1568, highResolution: 2576 },
@@ -59,7 +59,7 @@ export const GENERIC_IMAGE_LIMITS: ImageLimits = {
   family: 'generic',
   doc: 'https://platform.claude.com/docs/en/build-with-claude/vision',
   maxSidePx: 8000,
-  manyImages: { threshold: 20, maxSidePx: 3000 },
+  manyImages: { threshold: 20, maxSidePx: 3000, fromFirstSend: false },
   maxBase64Bytes: 5 * MiB,
   maxPatchesPerImage: null,
   nativeLongEdgePx: { standard: 1568, highResolution: 1568 },

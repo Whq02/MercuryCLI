@@ -281,7 +281,7 @@ section('§1 the refusal sentences say what is true now')
   const singleWords = rowText(single)
   note(`single-image refusal: ${singleWords}`)
   check('the single-image sentence names 8000px, the next send, the transcript, and the image left out of the request', singleWords.includes('8000px') && /at the next send/.test(singleWords) && /nothing is dropped from the transcript/.test(singleWords) && /cannot be sized is left out of the request/.test(singleWords) && !/on retry/.test(singleWords), singleWords)
-  check('the stated 2000 px limit lowers the process bound for the next send; this prover forgets it so the arms below meet the documented bound', resizer.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS) === 2000 && (resizer.resetStatedManyImageBoundForTesting(), resizer.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS) === MANY_CAP))
+  check('the stated 2000 px limit is read from the row the refused conversation keeps, and nothing else in the process moves: a fresh request still meets the documented bound', resizer.manyImageLimitStatedIn([many]) === 2000 && resizer.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS, 1) === MANY_CAP && resizer.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS, MANY_THRESHOLD + 1, 2000) === 2000)
 }
 
 type LeftOutApi = {

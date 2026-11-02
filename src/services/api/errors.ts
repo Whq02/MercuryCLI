@@ -26,7 +26,7 @@ import {
 } from './errorUtils.js'
 import { retryAfterHeaderMs } from './retryAfter.js'
 import { providerWaitWords, stampProviderWait } from './recoveryBudget.js'
-import { ImageResizeError, noteManyImageRefusal } from '../../utils/imageResizer.js'
+import { ImageResizeError, statedManyImageLimit } from '../../utils/imageResizer.js'
 import { ImageSizeError } from '../../utils/imageValidation.js'
 
 
@@ -565,7 +565,7 @@ function composeAssistantMessageFromError(
   }
 
   if (status === 400 && message.includes('image dimensions exceed') && isManyImageRefusal(message)) {
-    const limit = noteManyImageRefusal(message) ?? ANTHROPIC_IMAGE_LIMITS.manyImages?.maxSidePx ?? 3000
+    const limit = statedManyImageLimit(message) ?? ANTHROPIC_IMAGE_LIMITS.manyImages?.maxSidePx ?? 3000
     const base =
       `An image exceeds the API's stricter ${limit}-pixel limit for a request with more than 20 images. The images in this conversation are sized to that limit at the next send, and an image that cannot be sized is left out of the request; nothing is dropped from the transcript.`
     return createAssistantAPIErrorMessage({

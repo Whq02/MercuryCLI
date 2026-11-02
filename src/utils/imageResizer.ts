@@ -93,40 +93,38 @@ function base64LengthOf(rawBytes: number): number {
   return Math.ceil(rawBytes / 3) * 4
 }
 
-const statedManyImageBound = new Map<ImageLimitFamily, number>()
-
-export function resetStatedManyImageBoundForTesting(): void {
-  statedManyImageBound.clear()
-}
-
-export function manyImageSidePx(limits: ImageLimits): number | null {
-  if (limits.manyImages === null) return null
-  const stated = statedManyImageBound.get(limits.family)
-  return stated === undefined ? limits.manyImages.maxSidePx : Math.min(limits.manyImages.maxSidePx, stated)
-}
-
-export function noteManyImageRefusal(sentence: string, limits: ImageLimits = IMAGE_LIMITS_BY_FAMILY.anthropic): number | null {
+export function statedManyImageLimit(sentence: string): number | null {
   const at = sentence.search(/many[- ]images?/i)
-  if (at === -1 || limits.manyImages === null) return null
+  if (at === -1) return null
   const tail = sentence.slice(at)
   const stated = />\s*(\d{3,5})(?:\s*x\s*(\d{3,5}))?\s*(?:px|pixels)\b/i.exec(tail) ?? /:\s*(\d{3,5})\s*(?:px|pixels)\b/i.exec(tail)
   if (stated === null) return null
-  const bound = stated[2] === undefined ? Number(stated[1]) : Math.min(Number(stated[1]), Number(stated[2]))
-  const held = statedManyImageBound.get(limits.family)
-  if (bound < limits.manyImages.maxSidePx && (held === undefined || bound < held)) statedManyImageBound.set(limits.family, bound)
-  return bound
+  return stated[2] === undefined ? Number(stated[1]) : Math.min(Number(stated[1]), Number(stated[2]))
 }
 
-export function requestImageSidePx(limits: ImageLimits): number | null {
-  const many = manyImageSidePx(limits)
+export function manyImageLimitStatedIn(messages: readonly unknown[]): number | null {
+  let lowest: number | null = null
+  for (const row of messages) {
+    const record = row as { type?: unknown; isApiErrorMessage?: unknown; errorDetails?: unknown } | null
+    if (record === null || record.type !== 'assistant' || record.isApiErrorMessage !== true || typeof record.errorDetails !== 'string') continue
+    const stated = statedManyImageLimit(record.errorDetails)
+    if (stated !== null && (lowest === null || stated < lowest)) lowest = stated
+  }
+  return lowest
+}
+
+export function requestImageSidePx(limits: ImageLimits, imagesInRequest: number, statedSidePx?: number | null): number | null {
+  const many = limits.manyImages
   if (many === null) return limits.maxSidePx
-  return limits.maxSidePx === null ? many : Math.min(limits.maxSidePx, many)
+  if (!many.fromFirstSend && imagesInRequest <= many.threshold) return limits.maxSidePx
+  const bound = statedSidePx !== null && statedSidePx !== undefined ? Math.min(many.maxSidePx, statedSidePx) : many.maxSidePx
+  return limits.maxSidePx === null ? bound : Math.min(limits.maxSidePx, bound)
 }
 
 async function resolveCaps(options: ResizeOptions | undefined): Promise<Caps> {
   const model = options?.model ?? (options?.limits === undefined || options?.role === 'tool-result' ? await engineModel() : undefined)
   const limits = options?.limits ?? imageLimitsForModel(model)
-  const sidePx = requestImageSidePx(limits)
+  const sidePx = requestImageSidePx(limits, options?.imagesInRequest ?? 0)
   let longEdgePx: number | null = null
   if (options?.role === 'tool-result' && limits.toolResultRejectsAboveNative) {
     const tier = limits.family === 'anthropic' ? anthropicResolutionTier(model) : 'standard'
@@ -383,6 +381,7 @@ export interface RequestImageFitOptions {
   limits?: ImageLimits
   model?: string
   owner?: string
+  statedSidePx?: number | null
 }
 
 export interface ImagesLeftOutReceiptV1 {
@@ -579,7 +578,7 @@ export async function fitImagesToRequestCap<M extends RequestRow>(
 ): Promise<RequestImageFit<M>> {
   const limits = options?.limits ?? imageLimitsForModel(options?.model ?? (await engineModel()))
   const images = countRequestImages(messages)
-  const sidePx = requestImageSidePx(limits)
+  const sidePx = requestImageSidePx(limits, images, options?.statedSidePx)
   const owner = options?.owner
   const conversation = owner === undefined ? undefined : conversationEditKey(owner, messages as Array<{ type: string; uuid?: unknown }>)
   const identity: RequestImageFit<M> = { messages, firstEdited: -1, images, sized: 0, leftOut: 0, sidePx }
@@ -652,7 +651,7 @@ export async function fitImagesToRequestCap<M extends RequestRow>(
   }
   if (firstEdited === -1) return identity
   sized -= leftOut
-  logForDebugging(`${sized} of the ${images} images in this request sized to ${sidePx ?? 'their remembered'} px a side${leftOut > 0 ? `, ${leftOut} left out of the request` : ''} (${limits.family} limits${limits.manyImages !== null ? `, the bound for a request with more than ${limits.manyImages.threshold} images applied from an image's first send` : ''})`)
+  logForDebugging(`${sized} of the ${images} images in this request sized to ${sidePx ?? 'their remembered'} px a side${leftOut > 0 ? `, ${leftOut} left out of the request` : ''} (${limits.family} limits${limits.manyImages !== null && (limits.manyImages.fromFirstSend || images > limits.manyImages.threshold) ? `, the bound for a request with more than ${limits.manyImages.threshold} images${limits.manyImages.fromFirstSend ? ' applied from an image\'s first send' : ''}${options?.statedSidePx !== null && options?.statedSidePx !== undefined ? `, held to the ${options.statedSidePx} px a refusal in this conversation stated` : ''}` : ''})`)
   if (leftOut > 0 && owner !== undefined && leftOutCap !== null) leftOutReceipts.set(owner, { count: leftOut, images, sidePx: leftOutCap, at: Date.now() })
   const settled = settleWireEdits(owner, out, edits)
   return { messages: settled.messages, firstEdited: settled.firstEdited, images, sized, leftOut, sidePx }

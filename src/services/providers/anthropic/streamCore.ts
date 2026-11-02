@@ -108,7 +108,7 @@ import { validateBoundedIntEnvVar } from '../../../utils/envValidation.js'
 import { isEnvTruthy } from '../../../utils/envUtils.js'
 import { errorMessage } from '../../../utils/errors.js'
 import { computeFingerprintFromMessages } from '../../../utils/fingerprint.js'
-import { fitImagesToRequestCap } from '../../../utils/imageResizer.js'
+import { fitImagesToRequestCap, manyImageLimitStatedIn } from '../../../utils/imageResizer.js'
 import { captureAPIRequest } from '../../../utils/log.js'
 import {
   createAssistantAPIErrorMessage,
@@ -561,7 +561,7 @@ async function* queryModel(
     retiredScreenshots.firstEdited === -1
       ? retiredScreenshots.messages
       : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
-  const fittedImages = await fitImagesToRequestCap(messagesForAPI, { model: options.model, owner: rosterOwnerKey })
+  const fittedImages = await fitImagesToRequestCap(messagesForAPI, { model: options.model, owner: rosterOwnerKey, statedSidePx: manyImageLimitStatedIn(messages) })
   messagesForAPI =
     fittedImages.firstEdited === -1
       ? fittedImages.messages

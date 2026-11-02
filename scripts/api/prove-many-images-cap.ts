@@ -190,8 +190,9 @@ const wireMessages = (body: Record<string, unknown> | null): unknown[] => (Array
 section('§1 the wolf-fence: the many-images bound lives in the resizer and applies from an image\'s first send, never from the count')
 {
   const resizer = readFileSync(join(ROOT, 'src/utils/imageResizer.ts'), 'utf8')
-  const sidePxSource = /export function requestImageSidePx\([\s\S]*?\n\}/.exec(resizer)?.[0] ?? ''
-  check('requestImageSidePx reads the family\'s many-images bound and never the request\'s image count', sidePxSource.includes('manyImageSidePx(limits)') && !sidePxSource.includes('imagesInRequest'), sidePxSource.slice(0, 200))
+  const resizerMod = await import('../../src/utils/imageResizer.ts')
+  const generic = limitsMod.GENERIC_IMAGE_LIMITS
+  check('the Anthropic family applies its many-images bound from the first send at any count; the generic family, with no documented native tier behind it, keeps the count rule', RULE?.fromFirstSend === true && generic.manyImages?.fromFirstSend === false && resizerMod.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS, 1) === CAP && resizerMod.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS, THRESHOLD + 1) === CAP && resizerMod.requestImageSidePx(generic, 1) === 8000 && resizerMod.requestImageSidePx(generic, THRESHOLD + 1) === 3000)
   check('the Anthropic table: 3000 px per side for a request with more than 20 images (the vision page, read 2026-11-02), above every tier\'s native long edge', RULE !== null && THRESHOLD === 20 && CAP === 3000 && CAP > limitsMod.ANTHROPIC_IMAGE_LIMITS.nativeLongEdgePx.highResolution, j(RULE))
   check('the count still reaches the resizer for the one rule that needs it: an image whose size cannot be read is left out only over the threshold', resizer.includes('overManyImagesThreshold(limits, imagesInRequest)'))
   const routes: Array<[string, string]> = [
@@ -262,26 +263,29 @@ section('§4 the per-side ceiling at composition: an image over 8000 px in a sho
   check(`the ${SINGLE_CAP + 412} px image rides within ${CAP} px a side, at the bound or a rounding below it`, big !== undefined && big.width <= CAP && big.width >= CAP * 0.99, big ? `${big.width}x${big.height}` : seen.map(i => `${i.width}x${i.height}`).join(' '))
 }
 
-section('§5 the refusal words name the limit the provider stated, and the next send fits to it')
+section('§5 the refusal words name the limit the provider stated; that conversation, and only that conversation, fits to it at its next send')
 {
   const resizerMod = await import('../../src/utils/imageResizer.ts')
   const manyImageSentence = 'messages.11.content.1.image.source.base64.data: image dimensions exceed max allowed size for many-image requests: 2500x1400 pixels > 2000x2000 pixels'
   const manyImageSentenceAtBound = 'messages.11.content.1.image.source.base64.data: image dimensions exceed max allowed size for many-image requests: 3500x1960 pixels > 3000x3000 pixels'
+  const manyImageSentenceBare = 'messages.1.content.43.image.source.base64.data: At least one of the image dimensions exceed max allowed size for many-image requests: 2000 pixels'
   const singleImageSentence = 'messages.5.content.237.image.source.base64.data: image dimensions exceed max allowed size: 8412 pixels > 8000 pixels'
-  const rowFor = (sentence: string): string => {
-    const err = new APIError(400, { type: 'error', error: { type: 'invalid_request_error', message: sentence } } as never, undefined, undefined as never)
-    const row = errorsMod.getAssistantMessageFromError(err, MODEL) as unknown as AnyMsg
-    return (row.message as { content: Array<{ text?: string }> }).content[0]?.text ?? ''
-  }
-  check(`before any refusal the bound is the documented ${CAP} px`, resizerMod.manyImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS) === CAP)
+  const rowOf = (sentence: string): AnyMsg => errorsMod.getAssistantMessageFromError(new APIError(400, { type: 'error', error: { type: 'invalid_request_error', message: sentence } } as never, undefined, undefined as never), MODEL) as unknown as AnyMsg
+  const rowFor = (sentence: string): string => (rowOf(sentence).message as { content: Array<{ text?: string }> }).content[0]?.text ?? ''
+  check('the stated limit is read from the provider\'s sentence in both of its shapes, and the image\'s own size is never mistaken for it', resizerMod.statedManyImageLimit(manyImageSentence) === 2000 && resizerMod.statedManyImageLimit(manyImageSentenceBare) === 2000 && resizerMod.statedManyImageLimit(manyImageSentenceAtBound) === 3000 && resizerMod.statedManyImageLimit(singleImageSentence) === null)
   const atBound = rowFor(manyImageSentenceAtBound)
-  check('a refusal stating the documented bound names it (3000-pixel) and leaves the bound where it is', atBound.includes('3000-pixel') && /more than 20 images/.test(atBound) && resizerMod.manyImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS) === CAP, atBound)
+  check('a refusal stating the documented bound names it (3000-pixel)', atBound.includes('3000-pixel') && /more than 20 images/.test(atBound), atBound)
+  const refusalRow = rowOf(manyImageSentence)
   const many = rowFor(manyImageSentence)
   check('a refusal stating 2000 pixels names that limit for a request with more than 20 images', many.includes('2000-pixel') && /more than 20 images|many images/.test(many), many)
   check('…and never the 8000 px single-image label', !many.includes('8000'), many)
-  check('…and the next send fits to the limit the provider stated (2000 px), not to the documented bound', resizerMod.manyImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS) === 2000 && resizerMod.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS) === 2000)
-  resizerMod.resetStatedManyImageBoundForTesting()
-  check('the stated limit is forgotten with the process state, the documented bound stands again', resizerMod.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS) === CAP)
+  check('the refusal row carries the provider\'s sentence, so the conversation that was refused reads its stated limit back from its own history (2000 px) and no other conversation does', refusalRow.isApiErrorMessage === true && resizerMod.manyImageLimitStatedIn([userRow('x'), refusalRow]) === 2000 && resizerMod.manyImageLimitStatedIn([userRow('x')]) === null)
+  check('the next send of that conversation fits to the stated 2000 px; a conversation without the row keeps the documented bound; the stated figure never raises the bound', resizerMod.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS, THRESHOLD + 1, 2000) === 2000 && resizerMod.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS, THRESHOLD + 1, null) === CAP && resizerMod.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS, 1, 4000) === CAP)
+  const images = Array.from({ length: THRESHOLD + 1 }, (_, index) => (index === 5 ? retina : small))
+  fixture.script(() => ({ text: 'seen' }))
+  const other = await send(MODEL, history(images))
+  const seen = other.body === null ? [] : wireImages(other.body)
+  check('a conversation that was never refused still carries its 2880x1800 image untouched after another conversation\'s refusal (no process-wide clamp)', other.errors.length === 0 && seen.some(image => image.width === 2880 && image.data === retina.toString('base64')), seen.map(i => `${i.width}x${i.height}`).join(' '))
   const single = rowFor(singleImageSentence)
   check('the single-image refusal still names the 8000 px per-side limit', single.includes('8000px on any side'), single)
   check('both sentences read as media-size errors', errorsMod.isMediaSizeError(manyImageSentence) && errorsMod.isMediaSizeError(singleImageSentence))
