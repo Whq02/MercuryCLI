@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { bootRunner, bound, childEnv, DIST, isOutcome, makeTally, transcriptFiles } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture } from '../lib/scriptedTurn.ts'
-import { mountOffscreen, settle } from '../lib/settingsPopupHarness.ts'
+import { mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
 import type { Message } from '../../src/types/message.ts'
 
 const tally = makeTally('midturn-local-commands')
@@ -140,7 +140,7 @@ try {
       const element = React.createElement(AppStateProvider, { children: body })
       if (mounted) mounted.resize(element, 120, 44)
       else mounted = await mountOffscreen(element, 120, 44)
-      await settle(70)
+      await waitFor(() => mounted!.screen().includes('/swarmchat all') && mounted!.screen().includes(later), bound(5_000))
       const frame = mounted.screen()
       const reply = frame.indexOf('MIDTURN_FIRST_DONE'), receipt = frame.indexOf('1 read'), command = frame.indexOf('/swarmchat'), imageCommand = frame.indexOf('/swarmchat all'), next = frame.indexOf(later)
       tally.check('the rendered frame keeps the image-attached command below the receipt and above the next prompt', reply >= 0 && receipt > reply && command > receipt && imageCommand > command && next > imageCommand, frame)
