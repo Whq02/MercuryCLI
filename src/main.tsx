@@ -23,7 +23,6 @@ import { launchChat } from './chatLauncher.js'
 import { getInstructionFiles } from './services/instructions/engine.js'
 import { initializeLspServerManager, waitForInitialization } from './services/lsp/manager.js'
 import { mercuryLspEnabled } from './services/lsp/mercuryLsp.js'
-import { qualifiedIdSpaceOf } from './services/providers/idSpaces.js'
 import { fetchAnthropicConnectorsIfEligible } from './services/mcp/anthropicConnectors.js'
 import {
   clearServerCache,
@@ -2160,7 +2159,7 @@ async function runLaunch(args: {
 
   setHeadlessOneShot(args.inputFormat !== 'rows')
 
-  if (mercuryLspEnabled() && qualifiedIdSpaceOf(getEngineModel())?.route !== 'local') {
+  if (mercuryLspEnabled()) {
     initializeLspServerManager()
     await waitForInitialization()
   }
