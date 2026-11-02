@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { constants } from 'node:fs'
-import { copyFile, cp, mkdir, readdir, readFile, realpath, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
+import { copyFile, cp, lstat, mkdir, readdir, readFile, realpath, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, resolve } from 'node:path'
 
 import chalk from 'chalk'
@@ -403,7 +403,8 @@ async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string,
       } catch (error) {
         const code = (error as NodeJS.ErrnoException).code
         if (process.platform !== 'win32' || (code !== 'EPERM' && code !== 'EACCES')) throw error
-        await mkdir(target)
+        const present = await lstat(target).then(() => true, (probe: NodeJS.ErrnoException) => { if (probe.code !== 'ENOENT') throw probe; return false })
+        if (present) throw Object.assign(new Error(`${target} already exists`), { code: 'EEXIST' })
         try {
           await cp(source, target, { recursive: true, dereference: true, force: false, errorOnExist: true })
         } catch (copyError) {
