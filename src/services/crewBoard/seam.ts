@@ -20,7 +20,7 @@ const requireOptional = createRequire(import.meta.url)
 let implementation: BoardModule | undefined
 let boardTool: Tool | undefined
 const sessions = new Map<string, { store: BoardStore; execution: string }>()
-const roads = new Map<string, { on: boolean; execution: string; name: string; active: boolean }>()
+const roads = new Map<string, { on: boolean; execution: string; name: string; active: boolean; brief?: string }>()
 const leadChecks = new Set<() => void>()
 const pendingLaunches = new Set<string>()
 const key = (agent: string): string => `${getSessionId()}:${agent}`
@@ -240,14 +240,17 @@ function swarmBriefWords(own: BoardSeat, peers: readonly BoardSeat[], captain: B
   ].join(' ')
 }
 
-export function swarmBrief(agentId: string): string | null {
+export function swarmBrief(agentId: string, recorded?: string | null): string | null {
   const road = roads.get(key(agentId))
   if (!road?.on || !swarmMasterEnabled()) return null
+  if (road.brief === undefined && typeof recorded === 'string' && recorded !== '') road.brief = recorded
+  if (road.brief !== undefined) return road.brief
   const store = swarmStore()
   if (!store) return null
   const seats = store.seats()
   const own = seats.find(seat => seat.agent === agentId) ?? { agent: agentId, name: road.name }
-  return swarmBriefWords(own, seats.filter(seat => seat.agent !== agentId && seat.agent !== 'main'), own.team ? store.captain(own.team) : undefined)
+  road.brief = swarmBriefWords(own, seats.filter(seat => seat.agent !== agentId && seat.agent !== 'main'), own.team ? store.captain(own.team) : undefined)
+  return road.brief
 }
 
 export function swarmPrincipal(agentId = 'main'): BoardPrincipal | null {

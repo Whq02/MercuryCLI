@@ -350,6 +350,7 @@ export async function resumeAgentBackground(args: {
             abortController: task.abortController!,
             ...(recordedContexts?.userContext !== undefined ? { userContext: recordedContexts.userContext } : {}),
             ...(recordedContexts?.systemContext !== undefined ? { systemContext: recordedContexts.systemContext } : {}),
+            ...(meta?.swarmBrief !== undefined ? { swarmBrief: meta.swarmBrief } : {}),
           },
           model: restoredModel,
           availableTools: tools,

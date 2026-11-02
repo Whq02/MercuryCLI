@@ -155,6 +155,7 @@ type RunAgentOverride = {
   userContext?: { [k: string]: string }
   systemContext?: { [k: string]: string }
   systemPrompt?: string[]
+  swarmBrief?: string
   abortController?: AbortController
   agentId?: string
 }
@@ -996,7 +997,7 @@ export async function* runAgent(
         }. Prose before the call is welcome; the structured payload is the contract.`,
       )
     }
-    const swarmWords = swarm ? swarmBrief(agentId) : null
+    const swarmWords = swarm ? swarmBrief(agentId, override?.swarmBrief) : null
     if (swarmWords !== null) systemPrompt.push(swarmWords)
 
     const parentOptions = toolUseContext.options
@@ -1099,6 +1100,7 @@ export async function* runAgent(
       ...(description ? { description } : {}),
       ...(name ? { name } : {}),
       ...(launchedAt !== undefined ? { launchedAt } : {}),
+      ...(swarmWords !== null ? { swarmBrief: swarmWords } : {}),
       model: resolvedAgentModel,
       thinkingConfig: thinkingOverride.thinkingConfig,
       ...(structuredOutputSpec ? { structuredOutputSpec } : {}),

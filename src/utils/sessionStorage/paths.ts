@@ -92,7 +92,7 @@ export type AgentMetadata = {
   launchedAt?: number
 } & Partial<Record<
   'worktreePath' | 'cwd' | 'description' | 'effort' |
-  'instructionProfile' | 'instructionDigest' | 'name', string
+  'instructionProfile' | 'instructionDigest' | 'name' | 'swarmBrief', string
 >>
 export type AgentMetadataRow = { agentId: AgentId; metadata: AgentMetadata }
 
