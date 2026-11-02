@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -12,7 +12,8 @@ process.env.MERCURY_DAEMON_DIR = join(root, 'MixedCaseDaemon')
 delete process.env.MERCURY_HOME
 const dir = process.env.MERCURY_DAEMON_DIR
 mkdirSync(dir, { recursive: true })
-const upper = dir.toUpperCase()
+const upper = process.platform === 'linux' ? join(root, 'MIXEDCASEDAEMON') : dir.toUpperCase()
+if (process.platform === 'linux' && !existsSync(upper)) symlinkSync(dir, upper, 'dir')
 const aliases = [dir, upper, ...(process.platform === 'win32' ? [dir.replaceAll('\\', '/')] : [])]
 const sockets: net.Server[] = []
 const sock = await import('../../src/daemon/controlSocket.ts')
@@ -29,7 +30,7 @@ const listen = async (path: string, key: string): Promise<net.Server> => {
 }
 const close = (server: net.Server): Promise<void> => new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
 try {
-  assert.equal(statSync(dir, { bigint: true }).ino, statSync(upper, { bigint: true }).ino, 'fixture needs a case-insensitive filesystem')
+  assert.equal(statSync(dir, { bigint: true }).ino, statSync(upper, { bigint: true }).ino, 'fixture spellings must identify one native directory')
   const pipes = aliases.map(alias => {
     process.env.MERCURY_DAEMON_DIR = alias
     return (sock.controlSockPath as (platform?: string) => string)('win32')
