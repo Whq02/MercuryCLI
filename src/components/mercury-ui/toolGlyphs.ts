@@ -78,6 +78,7 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   SendMessage: 'agent',
   ResumeCrewmate: 'agent',
   Workflow: 'agent',
+  CrewBoard: 'agent',
   Test: 'test',
   Journey: 'test',
   CronCreate: 'plan',
