@@ -6,7 +6,7 @@ import { logForDebugging } from '../../../utils/debug.js'
 import { procStartToken } from '../../../utils/genericProcessUtils.js'
 import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
 import { holderAlive } from '../../../substrate/pidLock.js'
-import { getProcessStartTokenAsync } from '../../../daemon/ownerWatch.js'
+import { getProcessStartTokensAsync } from '../../../daemon/ownerWatch.js'
 import { selectedTreeChanges, type ProofTreeFacts } from './proofDrift.js'
 
 export interface LeaseHolder {
@@ -299,24 +299,33 @@ async function openLeaseDatabase(file: string): Promise<LeaseDatabase> {
   return db
 }
 
-async function transaction<T>(projectRoot: string, change: (db: LeaseDatabase) => T): Promise<T> {
+async function transaction<T>(projectRoot: string, change: (db: LeaseDatabase, tokens: ReadonlyMap<number, string | null>) => T, requester?: LeaseHolder): Promise<T> {
   const root = realpathSync(projectRoot)
   const db = await openLeaseDatabase(leaseFile(root))
   try {
     migrate(db)
     const tokens = new Map<number, string | null>()
-    for (const row of distinctHolders(db)) {
-      if (row.proc_start && !tokens.has(row.pid)) tokens.set(row.pid, procStartToken(row.pid) ?? await getProcessStartTokenAsync(row.pid))
+    const holders = distinctHolders(db).map(holderOf)
+    if (requester) holders.push(requester)
+    const identityKey = (holder: LeaseHolder): string => JSON.stringify([holder.pid, holder.procStart ?? null])
+    const observed = new Set(holders.map(identityKey))
+    const pending: LeaseHolder[] = []
+    for (const holder of holders) {
+      const local = tokens.get(holder.pid) ?? procStartToken(holder.pid)
+      if (local !== undefined) tokens.set(holder.pid, local)
+      else pending.push(holder)
     }
+    for (const [pid, token] of await getProcessStartTokensAsync(pending)) tokens.set(pid, token)
     db.exec('BEGIN IMMEDIATE')
     try {
       for (const row of distinctHolders(db)) {
         const holder = holderOf(row)
-        const alive = holderAlive({ owner: holder.sessionId, pid: holder.pid, procStart: holder.procStart, acquiredAt: 0 }, 'assume-alive', tokens.get(holder.pid) ?? null)
+        const token = observed.has(identityKey(holder)) ? tokens.get(holder.pid) ?? null : null
+        const alive = holderAlive({ owner: holder.sessionId, pid: holder.pid, procStart: holder.procStart, acquiredAt: 0 }, 'assume-alive', token)
         const sessionEnded = holder.pid === process.pid && (ended.has(holderKey(root, holder)) || agentLifetimes.get(agentKey(holder))?.ended === true)
         if (!alive || sessionEnded) db.prepare('DELETE FROM leases WHERE session = ? AND agent = ? AND pid = ? AND proc_start IS ?').run(row.session, row.agent, row.pid, row.proc_start)
       }
-      const result = change(db)
+      const result = change(db, tokens)
       db.exec('COMMIT')
       return result
     } catch (error) {
@@ -366,10 +375,10 @@ export async function takeProjectLeases(projectRoot: string, paths: readonly str
   const lifetime = agentLifetimes.get(agentKey(identity))
   const sessionId = getSessionId()
   const revision = sessionRevision
-  const liveToken = procStartToken(identity.pid) ?? await getProcessStartTokenAsync(identity.pid)
-  identity.procStart ??= liveToken || undefined
-  if (!holderAlive({ owner: identity.sessionId, pid: identity.pid, procStart: identity.procStart, acquiredAt: 0 }, 'assume-alive', liveToken)) throw new Error('the lease holder process has ended')
-  return transaction<ProjectLeaseTakeResult>(root, db => {
+  return transaction<ProjectLeaseTakeResult>(root, (db, tokens) => {
+    const liveToken = tokens.get(identity.pid) ?? null
+    identity.procStart ??= liveToken || undefined
+    if (!holderAlive({ owner: identity.sessionId, pid: identity.pid, procStart: identity.procStart, acquiredAt: 0 }, 'assume-alive', liveToken)) throw new Error('the lease holder process has ended')
     if (identity.pid === process.pid && (closing || ended.has(holderKey(root, identity)) || revision !== sessionRevision || sessionId !== getSessionId())) throw new Error('the lease holder session has ended')
     if (identity.pid === process.pid && (lifetime?.ended || agentLifetimes.get(agentKey(identity)) !== lifetime)) throw new Error('the lease holder agent has ended')
     const conflict = firstConflict(db, resolved, identity)
@@ -380,7 +389,7 @@ export async function takeProjectLeases(projectRoot: string, paths: readonly str
     const own = holderWhere(identity)
     const totals = db.prepare(`SELECT COUNT(*) AS count, MIN(path) AS first, MAX(path) AS last FROM leases WHERE ${own.sql}`).get(...own.values)
     return { ok: true, held: Number(totals?.count ?? 0), under: totals?.first ? commonDirectory(String(totals.first), String(totals.last)) : '', leases: leaseDetail(db, own.sql, own.values) }
-  })
+  }, identity)
 }
 
 export async function releaseProjectLeases(projectRoot: string, holder: LeaseHolder = projectLeaseHolder(), paths?: readonly string[], options: { agentId?: string; all?: boolean } = {}): Promise<ProjectLeaseReleaseResult> {

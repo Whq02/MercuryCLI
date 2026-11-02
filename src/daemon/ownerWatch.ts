@@ -95,9 +95,9 @@ export function getProcessStartToken(pid: number): string | null {
         windowsHide: true,
         env: { ...subprocessEnv() },
       })
-      return win32StartTokenVerdict({ ran: !r.error, exitCode: r.status, stdout: r.stdout, stderr: r.stderr })
+      return invalidateDeadStartToken(pid, win32StartTokenVerdict({ ran: !r.error, exitCode: r.status, stdout: r.stdout, stderr: r.stderr }))
     }
-    if (process.platform === 'linux') return linuxProcessStartToken(pid)
+    if (process.platform === 'linux') return invalidateDeadStartToken(pid, linuxProcessStartToken(pid))
     const r = spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], {
       windowsHide: true,
       encoding: 'utf-8',
@@ -105,16 +105,16 @@ export function getProcessStartToken(pid: number): string | null {
       env: { ...subprocessEnv(), LC_ALL: 'C' },
     })
     if (r.error) return null
-    if (r.status !== 0) return ''
+    if (r.status !== 0) return invalidateDeadStartToken(pid, '')
     const s = (r.stdout || '').trim()
-    return s.length > 0 ? s : ''
+    return invalidateDeadStartToken(pid, s)
   } catch {
     return null
   }
 }
 
 export function getProcessStartTokenAsync(pid: number): Promise<string | null> {
-  return new Promise(resolve => {
+  return new Promise<string | null>(resolve => {
     const unknownErr = (err: unknown): boolean => {
       const e = err as NodeJS.ErrnoException & { killed?: boolean }
       return e?.code === 'ENOENT' || e?.killed === true
@@ -160,25 +160,159 @@ export function getProcessStartTokenAsync(pid: number): Promise<string | null> {
     } catch {
       resolve(null)
     }
+  }).then(token => invalidateDeadStartToken(pid, token))
+}
+
+const startTokenCache = new Map<number, { token: string; at: number }>()
+const startTokenInflight = new Map<number, Promise<string | null>>()
+
+function invalidateDeadStartToken(pid: number, token: string | null): string | null {
+  if (token === '') {
+    startTokenCache.delete(pid)
+    startTokenInflight.delete(pid)
+  }
+  return token
+}
+
+export const PROCESS_START_CACHE_MS = 3000
+export const PROCESS_START_PROBE_TIMEOUT_MS = 1500
+
+type StartProbeResult = { kind: 'reply'; code: number; stdout: string; stderr: string } | { kind: 'failed' | 'timeout' }
+
+function runStartProbe(file: string, args: string[], deadline: number): Promise<StartProbeResult> {
+  const remaining = Math.ceil(deadline - performance.now())
+  if (remaining <= 0) return Promise.resolve({ kind: 'timeout' })
+  return new Promise(resolve => {
+    let settled = false
+    let child: ReturnType<typeof execFile> | undefined
+    const finish = (result: StartProbeResult): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve(result)
+    }
+    const timer = setTimeout(() => {
+      finish({ kind: 'timeout' })
+      try { child?.kill('SIGKILL') } catch {}
+    }, remaining)
+    try {
+      child = execFile(file, args, {
+        encoding: 'utf-8', timeout: remaining, killSignal: 'SIGKILL', windowsHide: true,
+        env: { ...subprocessEnv(), LC_ALL: 'C' },
+      }, (error, stdout, stderr) => {
+        if (error && (error.killed || typeof error.code !== 'number')) {
+          finish({ kind: error.killed ? 'timeout' : 'failed' })
+          return
+        }
+        finish({ kind: 'reply', code: typeof error?.code === 'number' ? error.code : 0, stdout, stderr })
+      })
+    } catch {
+      finish({ kind: 'failed' })
+    }
   })
 }
 
-const startTokenCache = new Map<number, { token: string | null; at: number }>()
-const startTokenInflight = new Set<number>()
+function parseStartBatch(pids: readonly number[], reply: StartProbeResult, windows: boolean): Map<number, string | null> | null {
+  if (reply.kind !== 'reply' || reply.stderr.trim() || (reply.code !== 0 && (windows || reply.code !== 1 || reply.stdout.trim()))) return null
+  const tokens = new Map<number, string | null>(pids.map(pid => [pid, '']))
+  try {
+    const rows: unknown = windows ? JSON.parse(reply.stdout) : reply.stdout.split('\n').filter(line => line.trim()).map(line => {
+      const match = /^\s*(\d+)\s+(.+?)\s*$/.exec(line)
+      return match ? { pid: Number(match[1]), token: match[2] } : null
+    })
+    if (!Array.isArray(rows)) return null
+    const seen = new Set<number>()
+    for (const row of rows) {
+      if (!row || !tokens.has(row.pid) || seen.has(row.pid) || typeof row.token !== 'string' || !row.token.trim()) return null
+      seen.add(row.pid)
+      tokens.set(row.pid, row.token.trim())
+    }
+    return tokens
+  } catch {
+    return null
+  }
+}
+
+async function probeStartTokens(pids: readonly number[]): Promise<Map<number, string | null>> {
+  if (process.platform === 'linux') return new Map(pids.map(pid => [pid, linuxProcessStartToken(pid)]))
+  const deadline = performance.now() + PROCESS_START_PROBE_TIMEOUT_MS
+  const windows = process.platform === 'win32'
+  const file = windows ? win32PsExe() : 'ps'
+  const args = windows ? [
+    '-NoProfile', '-NonInteractive', '-Command',
+    `$ErrorActionPreference='Stop'; ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process -Filter "${pids.map(pid => `ProcessId=${pid}`).join(' OR ')}" -ErrorAction Stop | ForEach-Object { [pscustomobject]@{ pid=[int]$_.ProcessId; token=($_.CreationDate | Out-String).Trim() } })`,
+  ] : ['-o', 'pid=', '-o', 'lstart=', '-p', pids.join(',')]
+  const reply = await runStartProbe(file, args, deadline)
+  const batch = parseStartBatch(pids, reply, windows)
+  if (batch) return batch
+  if (reply.kind === 'timeout' || performance.now() >= deadline) return new Map(pids.map(pid => [pid, null]))
+  const tokens = new Map<number, string | null>()
+  for (const pid of pids) {
+    const single = await runStartProbe(file, windows ? startTokenArgs(pid) : ['-o', 'lstart=', '-p', String(pid)], deadline)
+    const token = single.kind !== 'reply' ? null : windows
+      ? win32StartTokenVerdict({ ran: true, exitCode: single.code, stdout: single.stdout, stderr: single.stderr })
+      : single.code === 0 ? single.stdout.trim() : single.code === 1 && !single.stderr.trim() ? '' : null
+    tokens.set(pid, token)
+  }
+  return tokens
+}
+
+export async function getProcessStartTokensAsync(holders: readonly { pid: number; procStart?: string }[], maxAgeMs = PROCESS_START_CACHE_MS): Promise<Map<number, string | null>> {
+  const expected = new Map<number, Set<string>>()
+  for (const holder of holders) {
+    if (!Number.isSafeInteger(holder.pid) || holder.pid <= 1) continue
+    const tokens = expected.get(holder.pid) ?? new Set<string>()
+    if (holder.procStart) tokens.add(holder.procStart)
+    expected.set(holder.pid, tokens)
+  }
+  const result = new Map<number, string | null>()
+  const pending: Promise<void>[] = []
+  const missing: number[] = []
+  const wait = (pid: number, probe: Promise<string | null>): void => { pending.push(probe.then(token => { result.set(pid, token) })) }
+  for (const [pid, tokens] of expected) {
+    if (!isProcessAlive(pid)) {
+      startTokenCache.delete(pid)
+      startTokenInflight.delete(pid)
+      result.set(pid, '')
+      continue
+    }
+    const hit = startTokenCache.get(pid)
+    if (hit && Date.now() - hit.at < maxAgeMs && [...tokens].every(token => token === hit.token)) {
+      result.set(pid, hit.token)
+      continue
+    }
+    const inflight = startTokenInflight.get(pid)
+    if (inflight) wait(pid, inflight)
+    else missing.push(pid)
+  }
+  if (missing.length) {
+    const batch = probeStartTokens(missing)
+    for (const pid of missing) {
+      const probe = batch.then(tokens => tokens.get(pid) ?? null, () => null).then(token => {
+        if (startTokenInflight.get(pid) === probe) {
+          startTokenInflight.delete(pid)
+          if (token) startTokenCache.set(pid, { token, at: Date.now() })
+          else startTokenCache.delete(pid)
+        }
+        return token
+      })
+      startTokenInflight.set(pid, probe)
+      wait(pid, probe)
+    }
+  }
+  await Promise.all(pending)
+  return result
+}
 
 export function getProcessStartTokenCachedOrRefresh(pid: number, maxAgeMs = 10_000): string | null {
+  if (!isProcessAlive(pid)) {
+    startTokenCache.delete(pid)
+    startTokenInflight.delete(pid)
+    return ''
+  }
   const hit = startTokenCache.get(pid)
   if (hit && Date.now() - hit.at < maxAgeMs) return hit.token
-  if (!startTokenInflight.has(pid)) {
-    startTokenInflight.add(pid)
-    void getProcessStartTokenAsync(pid)
-      .then(token => {
-        startTokenCache.set(pid, { token, at: Date.now() })
-      })
-      .finally(() => {
-        startTokenInflight.delete(pid)
-      })
-  }
+  void getProcessStartTokensAsync([{ pid }], maxAgeMs)
   return hit ? hit.token : null
 }
 
