@@ -135,6 +135,7 @@ async function imageReplay(): Promise<void> {
       check('twenty then twenty-one images remain available', imageSources(before).length === 20 && imageSources(crossing).length === 21 && imageSources(after).length === 21)
       const dims = await Promise.all([before, crossing, after].map(async body => { const meta = await sharp(Buffer.from(imageSources(body)[0]!, 'base64')).metadata(); return `${meta.width}x${meta.height}` }))
       console.log(`image dimensions before/crossing/after: ${dims.join(' / ')}`)
+      check('native-sized input keeps its full resolution from first send', dims[0] === '2500x1400' && dims[1] === '2500x1400' && dims[2] === '2500x1400')
       reportPair('20-to-21 image transition keeps the sent prefix', before, crossing, true)
       reportPair('image continuation keeps the fitted prefix', crossing, after, true)
     }
@@ -146,16 +147,16 @@ async function imageReplay(): Promise<void> {
 
 async function compactReplay(): Promise<void> {
   const world = await makeWorld('cache-compact-replay', [
-    tool('ToolSearch', { query: 'select:Read' }, 'discover-read'),
+    tool('ToolSearch', { query: 'select:WebFetch' }, 'discover-fetch'),
     { ...tool('Read', { file_path: 'note.txt' }, 'read-note'), usage: { input_tokens: 150_000 } },
     { kind: 'text', text: 'Summary: the synthetic note was read.', model: LEAD_MODEL, whenBody: 'Produce the summary now.' },
     tool('Bash', { command: 'echo after-fold' }, 'after-fold'), text('FOLD-ONE'), text('FOLD-TWO'),
   ])
   writeFileSync(join(world.project, 'note.txt'), 'synthetic note\n')
   Object.assign(world.env, { MERCURY_TOOL_SEARCH: 'tst', MERCURY_CACHE_DIAGNOSTICS: '1', MERCURY_THINKING_BINDING: 'drop_block', MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '7', MERCURY_COMPACT_KEEP_TAIL: '0', TMPDIR: process.env.TMPDIR })
-  const session = bootLead(world, ['--sovereign'], ['ToolSearch', 'Read', 'Bash'])
+  const session = bootLead(world, ['--sovereign'], ['ToolSearch', 'Read', 'Bash', 'WebFetch'])
   try {
-    session.submit('Discover Read and read the synthetic note.')
+    session.submit('Discover WebFetch without fetching, then read the synthetic note.')
     await session.waitFor('fold turn finished', () => session.stdout().includes('FOLD-ONE'))
     session.submit('And now?')
     await session.waitFor('post-fold turn finished', () => session.stdout().includes('FOLD-TWO'))
@@ -168,6 +169,7 @@ async function compactReplay(): Promise<void> {
     if (main.length === 5 && summary === 2) {
       reportPair('ToolSearch is stable before the boundary', main[0]!, main[1]!, true)
       reportPair('compaction changes the prefix at its boundary', main[1]!, main[2]!, false)
+      check('the discovered deferred tool changes only at compaction', prefixDifference(main[1]!, main[2]!)?.path.startsWith('tools[') === true && toolResultOf(world, 'discover-fetch')?.isError === false)
       reportPair('first post-fold tool round is stable', main[2]!, main[3]!, true)
       reportPair('next post-fold turn is stable', main[3]!, main[4]!, true)
     }
