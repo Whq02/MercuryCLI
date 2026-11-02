@@ -1,7 +1,7 @@
 import { realpathSync, statSync } from 'node:fs'
 import { win32 } from 'node:path'
 
-export type DirectoryIdentity = { canonical: string; key: string; exists: boolean }
+type DirectoryIdentity = { canonical: string; key: string; exists: boolean }
 
 export function directoryIdentityKey(canonical: string, file: { dev: bigint; ino: bigint } | null, platform: string = process.platform): string {
   if (file !== null && file.ino !== 0n) return `file:${file.dev}:${file.ino}`
