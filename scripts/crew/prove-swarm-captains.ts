@@ -139,6 +139,8 @@ await check('schema-and-brief', async () => {
   assert.equal(parsed.data.isolation, launch.isolation)
   for (const patch of [{ name: undefined }, { name: ' ' }, { team: undefined }, { captain: 'true' }]) assert(!inputSchema().safeParse({ ...launch, ...patch }).success)
   assert(inputSchema().safeParse({ description: 'A plain seat', prompt: 'Read', captain: false }).success)
+  assert.equal(seam.swarmSessionEnabled(), true)
+  runSwarmCommand('off')
   assert.throws(() => seam.reserveSwarmLaunch('off', launch), /swarm enrollment/)
   updateSettingsForSource('userSettings', { swarm: { enabled: true } })
   runSwarmCommand('on')
