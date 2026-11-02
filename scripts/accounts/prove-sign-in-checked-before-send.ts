@@ -146,6 +146,12 @@ const BRIEF = 'اقرأ سندات الأرض في المجلد وابدأ با�
   check('an ordinary turn holds nothing', promptBehindAuthWall([user('u1', BRIEF), reply('r1', 'answer')] as never) === null)
   check('an API error of another kind holds nothing', promptBehindAuthWall([user('u1', BRIEF), { ...wall('e1'), error: 'rate_limit' }] as never) === null)
   check('a meta user row is skipped on the walk back to the prompt', promptBehindAuthWall([user('u1', BRIEF), user('m1', '<system-reminder>x</system-reminder>', { isMeta: true }), wall('e1')] as never)?.text === BRIEF)
+  const CREW_NOTE = '<task-notification>\n<task-id>a1b2c3d4e</task-id>\n<status>completed</status>\n<summary>Crewmate "the rows" completed</summary>\n<result>done</result>\n</task-notification>'
+  const MONITOR_LINES = '<monitor task="b1b2c3d4e" name="the build log">\nline one\n</monitor>'
+  check("a crewmate's note that bounced off the wall is never handed to the composer", promptBehindAuthWall([reply('r0', 'answer'), user('n1', CREW_NOTE), wall('e1')] as never) === null)
+  check("a monitor's lines that bounced off the wall are never handed to the composer", promptBehindAuthWall([reply('r0', 'answer'), user('n2', MONITOR_LINES), wall('e1')] as never) === null)
+  check('a row from a harness origin is never handed to the composer', promptBehindAuthWall([reply('r0', 'answer'), user('n3', 'wake: check the queue', { origin: { kind: 'saturn', fire: 'cron', firedAt: new Date().toISOString(), scheduleId: 's1' } }), wall('e1')] as never) === null)
+  check("the operator's unanswered line is still held when a crewmate's note landed behind it", promptBehindAuthWall([user('u1', BRIEF), user('n1', CREW_NOTE), wall('e1')] as never)?.text === BRIEF)
   const hold = { errorUuid: 'e1', text: BRIEF, mode: 'prompt' as const, epoch: 7, model: 'claude-sonnet-4-5' }
   check('after /logins with no credential landed (cancelled), the words stay in the composer', decideResend(hold, { door: 'logins', epoch: 7, model: hold.model, walled: false, composerText: BRIEF }) === 'keep')
   check('after /logins landed a credential but the wall still stands, keep', decideResend(hold, { door: 'logins', epoch: 8, model: hold.model, walled: true, composerText: BRIEF }) === 'keep')
