@@ -123,6 +123,10 @@ const ENV_NOT_NAMES = new Map<string, string>([
   ['SESSION_ID', 'a placeholder in an example command'],
 ])
 
+const EXTERNAL_ENV_NAMES = new Map<string, string>([
+  ['docs/INSTALL.md:MERCURYCLI_PIN', 'the npm launcher package-release selector, owned by its bin/mercury.js'],
+])
+
 const SETTINGS_LOOKALIKES = new Map<string, string>([
   ['VULCAN-GODOT-TOOLS.md:media.', 'fields of a Godot capture result'],
 ])
@@ -294,7 +298,7 @@ function checkDoc(file: string, text: string, v: Vocab): Hit[] {
       const name = m[0]
       const after = l[(m.index ?? 0) + name.length] ?? ''
       if (after === '.' && /^\.[a-z]{2,4}\b/.test(l.slice((m.index ?? 0) + name.length))) continue
-      if (ENV_NOT_NAMES.has(name) || v.envCorpus.has(name)) continue
+      if (ENV_NOT_NAMES.has(name) || EXTERNAL_ENV_NAMES.has(`${file}:${name}`) || v.envCorpus.has(name)) continue
       add(line, 'env', name, 'no source file carries this name')
     }
   }
@@ -859,6 +863,8 @@ function selfTest(): void {
     ['settings-key', 'Set `engine.nonsense` to true.', 'docs/X.md'],
     ['enum', '| Key | What it sets |\n| --- | --- |\n| `compatProvider.<name>.dialect` | `chat-completions` (default). |', 'docs/SETTINGS.md'],
     ['env', 'Set `MERCURY_NOT_A_REAL_NAME=1`.', 'docs/X.md'],
+    ['env', 'Set `MERCURYCLI_PIN=1`.', 'docs/SETTINGS.md'],
+    ['env', 'Set `MERCURYCLI_PIN_UNKNOWN=1`.', 'docs/INSTALL.md'],
     ['tool', 'The `Frobnicate` tool reads files.', 'docs/X.md'],
     ['tool', 'Use `Frobnicate(*.ts)` as a rule.', 'docs/X.md'],
     ['skill', 'The `frobnicate` skill helps.', 'docs/X.md'],
@@ -894,7 +900,10 @@ function selfTest(): void {
     'Open the `Session Concourse at boot` row.',
     'Open **Machines I’m paying for** to check.',
   ].join('\n')
-  const cleanHits = checkDoc('docs/SETTINGS.md', clean, v)
+  const cleanHits = [
+    ...checkDoc('docs/SETTINGS.md', clean, v),
+    ...checkDoc('docs/INSTALL.md', 'The npm launcher accepts `MERCURYCLI_PIN=1`.', v),
+  ]
   if (cleanHits.length > 0) {
     console.error('self-test FAILED: clean text was flagged:')
     for (const h of cleanHits) console.error(`  ${h.kind} ${h.name}: ${h.detail}`)
