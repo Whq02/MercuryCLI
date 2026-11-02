@@ -174,11 +174,14 @@ try {
     let m = await openPanel()
     check('the panel opens on the newest prompt', selectedPrompt(m) === 'PROMPT_69' && listRows(m).length === 33, m.screen())
     await push(m, WHEEL_UP.repeat(11), 250)
+    await waitFor(() => selectedPrompt(m) === 'PROMPT_58', 8000)
     const rows = listRows(m)
     check('eleven notches up select prompt 58 (one row a notch)', selectedPrompt(m) === 'PROMPT_58', selectedPrompt(m))
     check('every list row the viewport owns paints a prompt (the window follows the viewport, not the selection)', rows.length === 33 && rows.every(line => /PROMPT_\d\d/.test(line)), rows.filter(line => !/PROMPT_\d\d/.test(line)).join('\n') || m.screen())
     for (let n = 0; n < 6; n++) {
+      const before = selectedPrompt(m)
       await push(m, WHEEL_UP, 60)
+      await waitFor(() => selectedPrompt(m) !== before, 8000)
       const live = listRows(m)
       check(`after notch ${n + 12} the list still paints every row`, live.length === 33 && live.every(line => /PROMPT_\d\d/.test(line)), m.screen())
     }
