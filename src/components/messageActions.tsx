@@ -145,7 +145,7 @@ export function isNavigableMessage(msg: NavigableMessage): boolean {
     case 'collapsed_read_search':
       return true
     case 'turn_receipt':
-      return (msg.board?.length ?? 0) > 0
+      return false
     case 'attachment':
       return INCLUDED_ATTACHMENT_TYPES.has(msg.attachment.type)
     default:
@@ -208,7 +208,7 @@ export function copyTextOf(msg: NavigableMessage): string {
       return msg.subtype
     }
     case 'turn_receipt':
-      return (msg.board ?? []).map(row => `[${row.name}] ${row.content}`).join('\n')
+      return ''
     case 'attachment': {
       const attachment = msg.attachment
       if (attachment.type === 'queued_command') {
@@ -266,7 +266,7 @@ export const MESSAGE_ACTIONS: readonly MessageAction[] = [
   {
     key: 'enter',
     label: cursor => (cursor.expanded ? 'collapse' : 'expand'),
-    types: ['grouped_tool_use', 'collapsed_read_search', 'attachment', 'system', 'user', 'turn_receipt'],
+    types: ['grouped_tool_use', 'collapsed_read_search', 'attachment', 'system', 'user'],
     isApplicable: cursor => cursor.type !== 'user' || cursor.notice === true,
     staysInCursorMode: true,
     run: () => {},

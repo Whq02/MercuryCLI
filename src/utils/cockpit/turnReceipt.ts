@@ -23,7 +23,6 @@ export interface TurnReceiptCounts {
   delegatedTokens: number
   delegatedCostUSD: number
   delegatedUnpriced: number
-  boardMessages: number
   tools: Record<string, number>
 }
 
@@ -42,7 +41,6 @@ function emptyCounts(): TurnReceiptCounts {
     delegatedTokens: 0,
     delegatedCostUSD: 0,
     delegatedUnpriced: 0,
-    boardMessages: 0,
     tools: {},
   }
 }
@@ -55,7 +53,7 @@ function otherToolCalls(tools: Record<string, number> | undefined): number {
 
 export function hasActivity(c: TurnReceiptCounts): boolean {
   return (
-    c.scratchpadEdits + c.fileEdits + c.reads + c.searches + c.fetches + c.commands + c.browser + c.agents + c.boardMessages + otherToolCalls(c.tools) > 0
+    c.scratchpadEdits + c.fileEdits + c.reads + c.searches + c.fetches + c.commands + c.browser + c.agents + otherToolCalls(c.tools) > 0
   )
 }
 
@@ -68,10 +66,6 @@ export function otherToolsLine(c: TurnReceiptCounts): string | null {
   const shown = named.slice(0, OTHER_TOOLS_NAMED).map(([name, n]) => `${name} ×${n}`)
   const rest = named.length - shown.length
   return rest > 0 ? `${shown.join(' · ')} · +${rest} more tools` : shown.join(' · ')
-}
-
-export function boardMessagesWords(n: number): string | null {
-  return n > 0 ? `${n} board ${n === 1 ? 'message' : 'messages'}` : null
 }
 
 function isReplyRow(m: LooseMessage, closing = false): boolean {
@@ -159,18 +153,16 @@ function contentBlocks(m: LooseMessage): Array<Record<string, unknown>> {
 interface Tally {
   counts: TurnReceiptCounts
   pending: Map<string, string>
-  admitted: SystemCrewChatMessage[]
   carried: SystemCrewChatMessage[]
 }
 
 function emptyTally(): Tally {
-  return { counts: emptyCounts(), pending: new Map(), admitted: [], carried: [] }
+  return { counts: emptyCounts(), pending: new Map(), carried: [] }
 }
 
 function settleTally(t: Tally): TurnReceiptCounts {
   for (const name of t.pending.values()) t.counts.tools[name] = (t.counts.tools[name] ?? 0) + 1
   t.pending.clear()
-  t.counts.boardMessages += t.admitted.length
   return t.counts
 }
 
@@ -293,10 +285,10 @@ function isTurnWork(m: LooseMessage): boolean {
   return m.type === 'assistant' || m.type === 'grouped_tool_use' || chatRowOf(m)?.turnId !== undefined
 }
 
-function makeReceipt(counts: TurnReceiptCounts, anchorUuid: string, contextDelta: number | undefined, board: SystemCrewChatMessage[]): TurnReceiptMessage {
+function makeReceipt(counts: TurnReceiptCounts, anchorUuid: string, contextDelta: number | undefined): TurnReceiptMessage {
   const tools: Record<string, number> = {}
   for (const [name, n] of Object.entries(counts.tools ?? {}).sort((a, b) => a[0].localeCompare(b[0]))) if (n > 0) tools[name] = n
-  return { type: 'turn_receipt', uuid: `${anchorUuid}-turn-receipt`, counts: { ...counts, tools }, ...(board.length > 0 ? { board } : {}), ...(contextDelta !== undefined ? { contextDelta } : {}) }
+  return { type: 'turn_receipt', uuid: `${anchorUuid}-turn-receipt`, counts: { ...counts, tools }, ...(contextDelta !== undefined ? { contextDelta } : {}) }
 }
 
 function addCounts(target: TurnReceiptCounts, source: Partial<TurnReceiptCounts> | undefined, sign: 1 | -1): void {
@@ -308,7 +300,7 @@ function addCounts(target: TurnReceiptCounts, source: Partial<TurnReceiptCounts>
   for (const [name, n] of Object.entries(source.tools ?? {})) target.tools[name] = (target.tools[name] ?? 0) + sign * n
 }
 
-type Fold = { board: SystemCrewChatMessage[]; close: number }
+type Fold = { carried: SystemCrewChatMessage[]; close: number }
 type RetainedChat = NonNullable<NonNullable<CompactMetadata['work']>['idle']>[number]
 
 export function injectRetainedChatRows(messages: RenderableMessage[]): RenderableMessage[] {
@@ -335,26 +327,29 @@ export function retainedChatRows(messages: Message[], kept: Message[], summaryUu
   const add = (after: string, rows: SystemCrewChatMessage[]): void => {
     groups.set(after, boardRows([...(groups.get(after) ?? []), ...rows.filter(row => !keptByUuid.has(row.uuid))]))
   }
-  for (const group of compactWorkOf(messages)?.idle ?? []) add(keptByUuid.has(group.after) ? group.after : summaryUuid, group.rows)
-  add(summaryUuid, messages.flatMap(m => {
-    const row = chatRowOf(m)
-    return row !== null && (row.turnId === undefined || row.authorRole === 'lead') ? [row] : []
-  }))
+  const work = compactWorkOf(messages)
+  for (const group of work?.idle ?? []) add(keptByUuid.has(group.after) ? group.after : summaryUuid, group.rows)
+  add(summaryUuid, (work?.receipts ?? []).flatMap(receipt => receipt.board ?? []))
+  add(summaryUuid, messages.flatMap(m => chatRowOf(m) ?? []))
   return [...groups].filter(([, rows]) => rows.length > 0).map(([after, rows]) => ({ after, rows }))
 }
 
-export function injectTurnReceipts(messages: RenderableMessage[], tempRoot: string, open = false): RenderableMessage[] {
+export function injectTurnReceipts(messages: RenderableMessage[], tempRoot: string): RenderableMessage[] {
   if (!isTurnReceiptEnabled()) return messages
   const out: RenderableMessage[] = []
+  const placed = new Set<string>(messages.map(m => m.uuid))
   let start = 0
   walkTurnReceipts(messages, tempRoot, (counts, anchorUuid, end, replied, contextDelta, fold) => {
-    const receipt = hasActivity(counts) || (replied && anchorUuid !== 'turn-0') ? makeReceipt(counts, anchorUuid, contextDelta, fold.board) : null
-    const folded = new Set<string>(receipt === null ? [] : fold.board.map(row => row.uuid))
-    for (let index = start; index < fold.close; index++) if (!folded.has(messages[index]!.uuid)) out.push(messages[index]!)
-    if (receipt !== null) out.push(receipt)
+    for (let index = start; index < fold.close; index++) out.push(messages[index]!)
+    for (const row of fold.carried) {
+      if (placed.has(row.uuid)) continue
+      placed.add(row.uuid)
+      out.push(row)
+    }
+    if (hasActivity(counts) || (replied && anchorUuid !== 'turn-0')) out.push(makeReceipt(counts, anchorUuid, contextDelta))
     for (let index = fold.close; index < end; index++) out.push(messages[index]!)
     start = end
-  }, open)
+  })
   return out
 }
 
@@ -368,9 +363,6 @@ function countMessage(m: LooseMessage, t: Tally, tempRoot: string): void {
   else if (m.type === 'grouped_tool_use') {
     for (const inner of m.messages ?? []) countToolUses(inner, t)
     for (const res of m.results ?? []) countResult(res, t, tempRoot)
-  } else {
-    const chat = chatRowOf(m)
-    if (chat !== null && chat.turnId !== undefined && chat.authorRole !== 'lead') t.admitted.push(chat)
   }
 }
 
@@ -378,7 +370,6 @@ function walkTurnReceipts(
   messages: readonly LooseMessage[],
   tempRoot: string,
   visit: (counts: TurnReceiptCounts, anchorUuid: string, end: number, replied: boolean, contextDelta: number | undefined, fold: Fold) => void,
-  open = false,
 ): void {
   const pending = new Map<string, NonNullable<CompactMetadata['work']>['receipts'][number]>()
   for (const receipt of compactWorkOf(messages)?.receipts ?? []) {
@@ -400,17 +391,15 @@ function walkTurnReceipts(
     turnPrompt = undefined
     return delta
   }
-  const settle = (end: number, last: boolean): void => {
-    if (last && open && firstIdle === undefined) tally.admitted = []
-    const counts = settleTally(tally)
-    visit(counts, anchorUuid, end, replied, settleDelta(), { board: boardRows([...tally.carried, ...tally.admitted]), close: firstIdle ?? end })
+  const settle = (end: number): void => {
+    visit(settleTally(tally), anchorUuid, end, replied, settleDelta(), { carried: boardRows(tally.carried), close: firstIdle ?? end })
   }
   for (let index = 0; index < messages.length; index++) {
     const m = messages[index]!
     const noticeWake = replyClosed && m.isVirtual === true && isTurnBoundary({ ...m, isVirtual: false })
     const woken = noticeWake || (firstIdle !== undefined && isTurnWork(m))
     if (isTurnBoundary(m) || woken || (m.type === 'system' && m.subtype === 'away_summary')) {
-      settle(index, false)
+      settle(index)
       tally = emptyTally()
       replied = false
       replyClosed = false
@@ -445,7 +434,7 @@ function walkTurnReceipts(
     }
     countMessage(m, tally, tempRoot)
   }
-  settle(messages.length, true)
+  settle(messages.length)
 }
 
 export function foldedTurnReceipts(
@@ -460,29 +449,18 @@ export function foldedTurnReceipts(
   const retain = (receipt: Receipt): void => {
     const key = `${receipt.beforeUuid}:${receipt.blockIndex ?? 0}`
     const prior = receipts.get(key)
-    if (prior === undefined) {
-      receipts.set(key, receipt)
-      return
-    }
-    addCounts(prior.counts, receipt.counts, 1)
-    const board = boardRows([...(prior.board ?? []), ...(receipt.board ?? [])])
-    if (board.length > 0) prior.board = board
+    if (prior === undefined) receipts.set(key, receipt)
+    else addCounts(prior.counts, receipt.counts, 1)
   }
   let start = 0
-  walkTurnReceipts(messages, tempRoot, (counts, anchorUuid, end, _replied, _contextDelta, fold) => {
-    const segment = messages.slice(start, end)
-    const surviving = segment.flatMap(m => keptByUuid.has(m.uuid) ? [keptByUuid.get(m.uuid)!] : [])
+  walkTurnReceipts(messages, tempRoot, (counts, anchorUuid, end) => {
+    const surviving = messages.slice(start, end).flatMap(m => keptByUuid.has(m.uuid) ? [keptByUuid.get(m.uuid)!] : [])
     start = end
-    const board = boardRows(fold.board.filter(row => !keptByUuid.has(row.uuid)))
-    if (surviving.length === 0 && !(kept.length === 0 && end === messages.length)) {
-      if (board.length > 0) retain({ beforeUuid: summaryUuid, anchorUuid, counts: { ...emptyCounts(), boardMessages: board.length }, board })
-      return
-    }
+    if (surviving.length === 0 && !(kept.length === 0 && end === messages.length)) return
     const retained = emptyTally()
     for (const m of surviving) countMessage(m, retained, tempRoot)
     const missing = { ...counts, tools: { ...counts.tools } }
     addCounts(missing, settleTally(retained), -1)
-    missing.boardMessages = board.length
     let target: { beforeUuid: string; blockIndex?: number } | undefined
     for (const m of surviving) {
       if (m.type !== 'assistant' && m.type !== 'user') continue
@@ -495,7 +473,7 @@ export function foldedTurnReceipts(
       target = { beforeUuid: m.uuid, ...(blockIndex > 0 ? { blockIndex } : {}) }
       break
     }
-    if (target || kept.length === 0) retain({ ...(target ?? { beforeUuid: summaryUuid }), anchorUuid, counts: missing, ...(board.length > 0 ? { board } : {}) })
+    if (target || kept.length === 0) retain({ ...(target ?? { beforeUuid: summaryUuid }), anchorUuid, counts: missing })
   })
   return [...receipts.values()]
 }

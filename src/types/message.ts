@@ -715,10 +715,8 @@ export type TurnReceiptMessage = {
     delegatedTokens: number
     delegatedCostUSD: number
     delegatedUnpriced: number
-    boardMessages: number
     tools: Record<string, number>
   }
-  board?: SystemCrewChatMessage[]
   contextDelta?: number
 }
 

@@ -26,7 +26,8 @@ function section(title: string): void {
 }
 
 process.env.MERCURY_TURN_RECEIPT = '1'
-const { injectTurnReceipts, injectRetainedChatRows, foldedTurnReceipts, retainedChatRows, hasActivity, boardMessagesWords, isTurnBoundary } = await import('../../src/utils/cockpit/turnReceipt.ts')
+const receiptModule = await import('../../src/utils/cockpit/turnReceipt.ts')
+const { injectTurnReceipts, injectRetainedChatRows, foldedTurnReceipts, retainedChatRows, hasActivity, isTurnBoundary } = receiptModule
 const { isNavigableMessage, copyTextOf, MESSAGE_ACTIONS } = await import('../../src/components/messageActions.tsx')
 type Row = Record<string, unknown>
 const prompt = (text: string, uuid: string): Row => ({ type: 'user', uuid, message: { role: 'user', content: text } })
@@ -36,19 +37,19 @@ const chat = (uuid: string, seq: number, name: string, content: string, turnId?:
   type: 'system', subtype: 'crew_chat', content, level: 'info', uuid, timestamp: `2026-11-01T08:00:${String(seq).padStart(2, '0')}.000Z`,
   seq, name, authorRole: 'peer', kind, mentions: ['main'], addresses: ['main'], ...(turnId === undefined ? {} : { turnId }),
 })
-const inject = (rows: Row[], open = false) => injectTurnReceipts(injectRetainedChatRows(rows as never), TEMP_ROOT, open) as Row[]
+const inject = (rows: Row[]) => injectTurnReceipts(injectRetainedChatRows(rows as never), TEMP_ROOT) as Row[]
 const shape = (rows: Row[]): string[] => rows.map(row => row.type === 'turn_receipt' ? `receipt:${String(row.uuid).replace(/-turn-receipt$/, '')}` : String(row.uuid))
-const receiptOf = (rows: Row[], anchor: string) => rows.find(row => row.type === 'turn_receipt' && row.uuid === `${anchor}-turn-receipt`) as { counts: { boardMessages: number; commands: number }; board?: Array<{ uuid: string; content: string }> } | undefined
+const receiptOf = (rows: Row[], anchor: string) => rows.find(row => row.type === 'turn_receipt' && row.uuid === `${anchor}-turn-receipt`) as { counts: Record<string, unknown> & { commands: number }; board?: unknown } | undefined
+const plain = (rows: Row[]): boolean => rows.filter(row => row.type === 'turn_receipt').every(row => (row as { board?: unknown }).board === undefined && !('boardMessages' in ((row as { counts: Record<string, unknown> }).counts)))
 
-section('the lead speaks at the call boundary; only incoming rows fold')
+section('the lead speaks at the call boundary; every row stays where it landed')
 const leadPost: Row = { ...chat('lead-post', 2, 'main', '@alpha Read the fence first.', 'p1'), authorRole: 'lead' }
 const leadTurn = [prompt('ask the crew', 'p1'), toolUse('CrewBoard', 'call'), chat('peer-one', 1, 'alpha', 'first incoming post', 'p1'), leadPost, chat('peer-two', 3, 'beta', 'second incoming post', 'p1'), reply('The crew has the note.', 'done')]
 const leadClosed = inject(leadTurn)
-check('the lead post stays between its call and reply after the turn closes', JSON.stringify(shape(leadClosed)) === '["p1","call","lead-post","done","receipt:p1"]', JSON.stringify(shape(leadClosed)))
-check('only the two crewmate rows are counted and held by the receipt', receiptOf(leadClosed, 'p1')?.counts.boardMessages === 2 && JSON.stringify(receiptOf(leadClosed, 'p1')?.board?.map(row => row.uuid)) === '["peer-one","peer-two"]', JSON.stringify(receiptOf(leadClosed, 'p1')))
-check('the lead post stays at the same boundary while the turn runs', shape(inject(leadTurn, true)).indexOf('lead-post') === 3)
+check('the lead post and both incoming rows stay between the call and the reply after the turn closes; the receipt follows the reply', JSON.stringify(shape(leadClosed)) === '["p1","call","peer-one","lead-post","peer-two","done","receipt:p1"]', JSON.stringify(shape(leadClosed)))
+check('the receipt carries no rows and no board count', plain(leadClosed) && receiptOf(leadClosed, 'p1') !== undefined, JSON.stringify(receiptOf(leadClosed, 'p1')))
 const leadOnly = inject([leadTurn[0]!, leadTurn[1]!, leadPost, leadTurn[5]!])
-check('a lead-only post adds no board-message item or expandable board rows', receiptOf(leadOnly, 'p1')?.counts.boardMessages === 0 && receiptOf(leadOnly, 'p1')?.board === undefined)
+check('a lead-only turn reads the same way', JSON.stringify(shape(leadOnly)) === '["p1","call","lead-post","done","receipt:p1"]' && plain(leadOnly))
 
 section('the board event makes one durable row, not the tool result')
 {
@@ -92,9 +93,11 @@ section('the board event makes one durable row, not the tool result')
     check('the CrewBoard post supplies its event id; the feed stamps lead and main at the call boundary', (result.data as { ok?: boolean; eventId?: string }).ok === true && own?.uuid === (result.data as { eventId?: string }).eventId && own?.authorRole === 'lead' && own?.name === 'main' && own?.turnId === 'p1' && rows[2] === own, JSON.stringify(own))
     const live = await reader.readTranscriptChainSince(transcript, null)
     record({ type: 'user', uuid: 'result', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't-call', content: JSON.stringify(result.data) }] } })
+    const incoming: string[] = []
     for (const clientOpId of ['one', 'two']) {
       const posted = board.post(peer, { clientOpId, kind: 'result', text: clientOpId })
       if (!posted.ok) throw new Error(posted.reason)
+      incoming.push(posted.eventId)
     }
     party.check()
     await Promise.resolve()
@@ -104,10 +107,10 @@ section('the board event makes one durable row, not the tool result')
     const reattached = await reader.readTranscriptChainSince(transcript, null)
     reader._resetTranscriptReaderForTesting()
     const cold = await reader.readTranscriptChainSince(transcript, null)
-    const expected = ['p1', 'call', own?.uuid, 'result', 'done', 'receipt:p1']
+    const expected = ['p1', 'call', own?.uuid, 'result', ...incoming, 'done', 'receipt:p1']
     for (const [label, chain] of [['live', streamed], ['reattach', reattached], ['cold resume', cold]] as const) {
       const painted = inject([...chain.rows] as Row[])
-      check(`${label}: the lead row stands once at its boundary and only two incoming rows fold`, JSON.stringify(shape(painted)) === JSON.stringify(expected) && receiptOf(painted, 'p1')?.counts.boardMessages === 2 && receiptOf(painted, 'p1')?.board?.length === 2, JSON.stringify(shape(painted)))
+      check(`${label}: the lead row stands once at its boundary and the two incoming rows stand where they landed, before the reply`, JSON.stringify(shape(painted)) === JSON.stringify(expected) && plain(painted), JSON.stringify(shape(painted)))
     }
     party.check()
     await Promise.resolve()
@@ -119,100 +122,98 @@ section('the board event makes one durable row, not the tool result')
 }
 
 section('words')
-check('zero adds nothing', boardMessagesWords(0) === null)
-check('one is singular', boardMessagesWords(1) === '1 board message')
-check('many are plural', boardMessagesWords(14) === '14 board messages', String(boardMessagesWords(14)))
+check('the derive owner has no board-message words left', !('boardMessagesWords' in receiptModule) && !/board message/.test(readFileSync(join(ROOT, 'src', 'utils', 'cockpit', 'turnReceipt.ts'), 'utf8')))
+check('the row prints no board-message words and no rows of its own', !/board/.test(readFileSync(join(ROOT, 'src', 'components', 'messages', 'TurnReceiptRow.tsx'), 'utf8')) && !/CrewChatRow/.test(readFileSync(join(ROOT, 'src', 'components', 'messages', 'TurnReceiptRow.tsx'), 'utf8')))
 
 section('a board row is never a turn boundary')
 check('a crew_chat row is not a boundary', !isTurnBoundary(chat('c0', 1, 'alpha', 'x', 'p1') as never))
 check('a virtual user row (the off-state Crewboard notice) is not a boundary either', !isTurnBoundary({ type: 'user', isVirtual: true, message: { role: 'user', content: '<crew-board>{}</crew-board>' } } as never))
 const split = inject([prompt('go', 'p1'), toolUse('Bash', 'a1'), chat('c1', 1, 'alpha', 'one', 'p1'), toolUse('Bash', 'a2'), reply('done', 'a3'), prompt('next', 'p2')])
-check('two shell commands around an admitted row stay one turn: one receipt, 2 commands, 1 board message', receiptOf(split, 'p1')?.counts.commands === 2 && receiptOf(split, 'p1')?.counts.boardMessages === 1 && shape(split).filter(s => s.startsWith('receipt')).length === 1, JSON.stringify(shape(split)))
+check('two shell commands around an admitted row stay one turn: the row between them, one receipt of 2 commands', JSON.stringify(shape(split)) === '["p1","a1","c1","a2","a3","receipt:p1","p2"]' && receiptOf(split, 'p1')?.counts.commands === 2 && plain(split), JSON.stringify(shape(split)))
 
-section('count 0, 1 and many; the fold at close; idle rows stay below the receipt')
+section('no row leaves the stream at the close; idle rows stay below the receipt')
 const none = inject([prompt('plain', 'p1'), toolUse('Bash', 'a1'), reply('done', 'a2'), prompt('next', 'p2')])
-check('a turn without board rows counts zero and carries no rows', receiptOf(none, 'p1')?.counts.boardMessages === 0 && receiptOf(none, 'p1')?.board === undefined)
+check('a turn without board rows reads as it did', JSON.stringify(shape(none)) === '["p1","a1","a2","receipt:p1","p2"]' && plain(none))
 const one = inject([prompt('one', 'p1'), toolUse('Bash', 'a1'), chat('c1', 1, 'alpha', 'the one', 'p1'), reply('done', 'a2'), prompt('next', 'p2')])
-check('one admitted row folds: the row leaves the transcript and the receipt carries it', receiptOf(one, 'p1')?.counts.boardMessages === 1 && receiptOf(one, 'p1')?.board?.[0]?.uuid === 'c1' && !one.some(row => row.uuid === 'c1'), JSON.stringify(shape(one)))
+check('one admitted row stays where it landed, before the reply and the receipt', JSON.stringify(shape(one)) === '["p1","a1","c1","a2","receipt:p1","p2"]' && plain(one), JSON.stringify(shape(one)))
 const many = [prompt('many', 'p1'), toolUse('Bash', 'a1'), chat('c2', 2, 'beta', 'second', 'p1'), chat('c1', 1, 'alpha', 'first', 'p1'), toolUse('Bash', 'a2'), chat('c3', 3, 'gamma', 'third', 'p1'), reply('done', 'a3'), chat('c4', 4, 'alpha', 'idle one'), chat('c5', 5, 'beta', 'idle two'), prompt('next', 'p2'), reply('ok', 'a4')]
-const folded = inject(many)
-check('three admitted rows fold into one receipt, in board sequence order', receiptOf(folded, 'p1')?.counts.boardMessages === 3 && JSON.stringify(receiptOf(folded, 'p1')?.board?.map(row => row.uuid)) === '["c1","c2","c3"]', JSON.stringify(receiptOf(folded, 'p1')?.board?.map(row => row.uuid)))
-check('the receipt sits after the turn\'s last content row and before the first idle row; the idle rows stay as rows', JSON.stringify(shape(folded)) === JSON.stringify(['p1', 'a1', 'a2', 'a3', 'receipt:p1', 'c4', 'c5', 'p2', 'a4', 'receipt:p2']), JSON.stringify(shape(folded)))
-check('idle rows are not counted by the turn before them or the turn after them', receiptOf(folded, 'p2')?.counts.boardMessages === 0)
+const closed = inject(many)
+check('three admitted rows stay in arrival order among the tool rows; the receipt sits after the reply and before the first idle row; the idle rows stay as rows', JSON.stringify(shape(closed)) === JSON.stringify(['p1', 'a1', 'c2', 'c1', 'a2', 'c3', 'a3', 'receipt:p1', 'c4', 'c5', 'p2', 'a4', 'receipt:p2']) && plain(closed), JSON.stringify(shape(closed)))
+check('the receipts count tool work only', receiptOf(closed, 'p1')?.counts.commands === 2 && receiptOf(closed, 'p2')?.counts.commands === 0)
 const before = inject([chat('c0', 1, 'alpha', 'before any prompt'), prompt('first', 'p1'), toolUse('Bash', 'a1'), reply('done', 'a2')])
-check('a row before the first prompt stays where it is', shape(before)[0] === 'c0' && receiptOf(before, 'p1')?.counts.boardMessages === 0, JSON.stringify(shape(before)))
+check('a row before the first prompt stays where it is', shape(before)[0] === 'c0' && plain(before), JSON.stringify(shape(before)))
 const trailing = inject([prompt('ends on an attachment', 'p1'), reply('waiting', 'a1'), { type: 'attachment', uuid: 't1', attachment: { type: 'queued_command', prompt: 'later', isMeta: true } }, chat('c7', 7, 'alpha', 'after the attachment')])
 check('a turn whose transcript ends with an attachment still puts its receipt before the idle row', JSON.stringify(shape(trailing)) === JSON.stringify(['p1', 'a1', 't1', 'receipt:p1', 'c7']), JSON.stringify(shape(trailing)))
 
-section('a board-only turn gets a receipt; an open turn keeps its rows on screen')
+section('a board-only turn: the rows are the record; a receipt comes only with a reply or tool work')
 const boardOnly = inject([prompt('ask the crew', 'p1'), chat('c1', 1, 'alpha', 'answer', 'p1'), reply('they said so', 'a1'), prompt('next', 'p2')])
-check('a turn with no tool and one admitted row has activity and a receipt of 1 board message', hasActivity(receiptOf(boardOnly, 'p1')!.counts as never) && receiptOf(boardOnly, 'p1')?.counts.boardMessages === 1)
+check('a turn with no tool and one admitted row keeps the row and gets the reply\'s receipt without activity', JSON.stringify(shape(boardOnly)) === '["p1","c1","a1","receipt:p1","p2"]' && !hasActivity(receiptOf(boardOnly, 'p1')!.counts as never), JSON.stringify(shape(boardOnly)))
 const cut = inject([prompt('cut short', 'p1'), chat('c1', 1, 'alpha', 'arrived', 'p1'), prompt('next', 'p2')])
-check('a turn with no reply and no tool but an admitted row still mints its receipt (the row is never lost)', receiptOf(cut, 'p1')?.counts.boardMessages === 1 && !cut.some(row => row.uuid === 'c1'))
-const open = inject(many.slice(0, 7), true)
-check('while the tail turn runs its admitted rows stay visible and its receipt counts none of them', open.some(row => row.uuid === 'c1') && open.some(row => row.uuid === 'c3') && (receiptOf(open, 'p1')?.counts.boardMessages ?? 0) === 0, JSON.stringify(shape(open)))
-const closed = inject(many.slice(0, 7))
-check('the same rows fold the moment the turn closes', JSON.stringify(shape(closed)) === JSON.stringify(['p1', 'a1', 'a2', 'a3', 'receipt:p1']), JSON.stringify(shape(closed)))
-const earlierOpen = inject(many, true)
-check('an open tail folds nothing of the earlier closed turns', receiptOf(earlierOpen, 'p1')?.counts.boardMessages === 3 && !earlierOpen.some(row => row.uuid === 'c1'))
+check('a turn with no reply and no tool keeps its admitted row and mints no receipt (the row is never lost)', JSON.stringify(shape(cut)) === '["p1","c1","p2"]', JSON.stringify(shape(cut)))
+const running = inject(many.slice(0, 7))
+check('the tail turn reads the same while it runs and once it closes', JSON.stringify(shape(running)) === JSON.stringify(['p1', 'a1', 'c2', 'c1', 'a2', 'c3', 'a3', 'receipt:p1']) && plain(running), JSON.stringify(shape(running)))
 
 section('a wake turn after idle rows is its own turn')
 const woken = [prompt('go', 'p1'), toolUse('Bash', 'a1'), reply('done', 'a2', 1000), chat('c1', 1, 'alpha', 'idle one'), chat('c2', 2, 'beta', '@main idle two'), reply('Noted.', 'a3', 1013), chat('c3', 3, 'alpha', 'during the wake', 'n1'), chat('c4', 4, 'beta', 'after the wake')]
 const wake = inject(woken)
-check('the wake receipt sits under the reply, after the row it admitted and before the idle row that follows; the idle rows before the wake stay above the earlier receipt', JSON.stringify(shape(wake)) === JSON.stringify(['p1', 'a1', 'a2', 'receipt:p1', 'c1', 'c2', 'a3', 'receipt:a3', 'c4']), JSON.stringify(shape(wake)))
-check('the earlier turn keeps its own counts and the wake turn its own: 1 shell command · ctx +1.0k, then no tools · ctx +13 ∙ 1 board message', receiptOf(wake, 'p1')?.counts.commands === 1 && (wake.find(row => row.uuid === 'p1-turn-receipt') as { contextDelta?: number }).contextDelta === 1000 && receiptOf(wake, 'a3')?.counts.commands === 0 && receiptOf(wake, 'a3')?.counts.boardMessages === 1 && receiptOf(wake, 'a3')?.board?.[0]?.uuid === 'c3' && (wake.find(row => row.uuid === 'a3-turn-receipt') as { contextDelta?: number }).contextDelta === 13, JSON.stringify(wake.filter(row => row.type === 'turn_receipt')))
+check('the wake receipt sits under the reply and the row the wake admitted, before the idle row that follows; the idle rows before the wake stay above the earlier receipt', JSON.stringify(shape(wake)) === JSON.stringify(['p1', 'a1', 'a2', 'receipt:p1', 'c1', 'c2', 'a3', 'c3', 'receipt:a3', 'c4']), JSON.stringify(shape(wake)))
+check('the earlier turn keeps its own counts and the wake turn its own: 1 shell command · ctx +1.0k, then no tools · ctx +13', receiptOf(wake, 'p1')?.counts.commands === 1 && (wake.find(row => row.uuid === 'p1-turn-receipt') as { contextDelta?: number }).contextDelta === 1000 && receiptOf(wake, 'a3')?.counts.commands === 0 && (wake.find(row => row.uuid === 'a3-turn-receipt') as { contextDelta?: number }).contextDelta === 13 && plain(wake), JSON.stringify(wake.filter(row => row.type === 'turn_receipt')))
 const wakeWork = inject([prompt('go', 'p1'), reply('done', 'a1'), chat('c1', 1, 'alpha', 'idle'), chat('c2', 2, 'beta', 'first of the wake', 'n1'), reply('Noted.', 'a2')])
-check('a row admitted before the wake\'s first reply opens the wake turn and folds into its receipt, not the earlier one', JSON.stringify(shape(wakeWork)) === JSON.stringify(['p1', 'a1', 'receipt:p1', 'c1', 'a2', 'receipt:c2']) && receiptOf(wakeWork, 'c2')?.counts.boardMessages === 1 && receiptOf(wakeWork, 'p1')?.counts.boardMessages === 0, JSON.stringify(shape(wakeWork)))
-const waking = inject(woken.slice(0, 5), true)
-check('while the wake turn loads and nothing of it has landed, the closed turn stays folded', JSON.stringify(shape(waking)) === JSON.stringify(['p1', 'a1', 'a2', 'receipt:p1', 'c1', 'c2']), JSON.stringify(shape(waking)))
-const wakeOpen = inject(woken.slice(0, 7), true)
-check('while the wake turn runs, its admitted row stays on screen and its receipt counts none', wakeOpen.some(row => row.uuid === 'c3') && (receiptOf(wakeOpen, 'a3')?.counts.boardMessages ?? 0) === 0 && receiptOf(wakeOpen, 'p1')?.counts.boardMessages === 0, JSON.stringify(shape(wakeOpen)))
+check('a row admitted before the wake\'s first reply opens the wake turn and stays as its first row', JSON.stringify(shape(wakeWork)) === JSON.stringify(['p1', 'a1', 'receipt:p1', 'c1', 'c2', 'a2', 'receipt:c2']) && plain(wakeWork), JSON.stringify(shape(wakeWork)))
+const waking = inject(woken.slice(0, 5))
+check('while the wake turn loads and nothing of it has landed, the closed turn keeps its receipt and the idle rows stay below it', JSON.stringify(shape(waking)) === JSON.stringify(['p1', 'a1', 'a2', 'receipt:p1', 'c1', 'c2']), JSON.stringify(shape(waking)))
+const wakeOpen = inject(woken.slice(0, 7))
+check('while the wake turn runs, its admitted row stays on screen after the reply', JSON.stringify(shape(wakeOpen)) === JSON.stringify(['p1', 'a1', 'a2', 'receipt:p1', 'c1', 'c2', 'a3', 'c3', 'receipt:a3']), JSON.stringify(shape(wakeOpen)))
 
 section('MERCURY_TURN_RECEIPT=0 keeps every row in place')
 process.env.MERCURY_TURN_RECEIPT = '0'
 check('the injector returns its input untouched: admitted rows stay expanded in place', injectTurnReceipts(many as never, TEMP_ROOT) === (many as never))
 process.env.MERCURY_TURN_RECEIPT = '1'
 
-section('compaction keeps the admitted rows behind the receipt and the idle rows as rows')
+section('compaction keeps every board row as a row: the rows not kept come back after the summary in seq order')
 const kept = many.slice(9)
 const carried = foldedTurnReceipts(many as never, kept as never, 'sum', TEMP_ROOT)
 const idle = retainedChatRows(many as never, kept as never, 'sum')
-const retained = carried.find(receipt => receipt.beforeUuid === 'sum')
-check('a fully folded turn leaves one retained receipt on the summary with its three admitted rows, complete', retained !== undefined && retained.counts.boardMessages === 3 && JSON.stringify(retained.board?.map(row => row.uuid)) === '["c1","c2","c3"]' && retained.board?.every(row => typeof row.content === 'string' && row.content !== '') === true, JSON.stringify(carried))
-check('its idle rows are retained apart, anchored on the summary, whole and uncounted', JSON.stringify(idle.map(group => [group.after, group.rows.map(row => row.uuid)])) === '[["sum",["c4","c5"]]]' && idle[0]!.rows.every(row => row.turnId === undefined && row.content !== ''), JSON.stringify(idle))
+check('a fully folded turn retains no receipt and no receipt carries board rows', carried.every(receipt => receipt.board === undefined && !('boardMessages' in receipt.counts)) && !carried.some(receipt => receipt.beforeUuid === 'sum'), JSON.stringify(carried))
+check('its five rows, the admitted and the idle alike, are retained whole, anchored on the summary, in seq order', JSON.stringify(idle.map(group => [group.after, group.rows.map(row => row.uuid)])) === '[["sum",["c1","c2","c3","c4","c5"]]]' && idle[0]!.rows.every(row => row.content !== ''), JSON.stringify(idle))
 const boundary = (receipts: unknown, retainedIdle: unknown, uuid = 'cb'): Row => ({ type: 'system', subtype: 'compact_boundary', uuid, compactMetadata: { work: { receipts, idle: retainedIdle, recap: { turns: 1, toolCounts: [], files: [], toolFailures: 0, failedToolUseIds: [] } } } })
 const summary: Row = { type: 'user', uuid: 'sum', isCompactSummary: true, isVisibleInTranscriptOnly: true, message: { role: 'user', content: 'The summary.' } }
 const leadCarry = foldedTurnReceipts(leadTurn as never, [] as never, 'sum', TEMP_ROOT)
 const leadRetained = retainedChatRows(leadTurn as never, [] as never, 'sum')
 const leadCompacted = inject([boundary(leadCarry, leadRetained), summary])
-check('compaction retains the lead post as a visible row and only the two incoming posts in the fold', leadCompacted.some(row => row.uuid === leadPost.uuid) && receiptOf(leadCompacted, 'p1')?.counts.boardMessages === 2 && receiptOf(leadCompacted, 'p1')?.board?.length === 2 && JSON.stringify(leadRetained.flatMap(group => group.rows.map(row => row.uuid))) === '["lead-post"]', JSON.stringify(shape(leadCompacted)))
+check('compaction retains the lead post and both incoming posts as rows after the summary, the receipt after them', JSON.stringify(shape(leadCompacted)) === JSON.stringify(['cb', 'sum', 'peer-one', 'lead-post', 'peer-two', 'receipt:p1']) && JSON.stringify(leadRetained.flatMap(group => group.rows.map(row => row.uuid))) === '["peer-one","lead-post","peer-two"]' && plain(leadCompacted), JSON.stringify(shape(leadCompacted)))
 const afterFold = inject([boundary(carried, idle), summary, ...kept])
-check('after the fold: the summary, the receipt with its three rows expandable, the two idle rows as rows, then the kept turn', JSON.stringify(shape(afterFold)) === JSON.stringify(['cb', 'sum', 'receipt:p1', 'c4', 'c5', 'p2', 'a4', 'receipt:p2']) && receiptOf(afterFold, 'p1')?.board?.length === 3, JSON.stringify(shape(afterFold)))
+check('after the fold: the summary, the five rows as rows, then the kept turn', JSON.stringify(shape(afterFold)) === JSON.stringify(['cb', 'sum', 'c1', 'c2', 'c3', 'c4', 'c5', 'p2', 'a4', 'receipt:p2']) && plain(afterFold), JSON.stringify(shape(afterFold)))
 process.env.MERCURY_TURN_RECEIPT = '0'
-check('with the receipt switch off the retained idle rows still paint after the summary', JSON.stringify(shape(inject([boundary(carried, idle), summary, ...kept]))) === JSON.stringify(['cb', 'sum', 'c4', 'c5', 'p2', 'a4']), JSON.stringify(shape(inject([boundary(carried, idle), summary, ...kept]))))
+check('with the receipt switch off the retained rows still paint after the summary', JSON.stringify(shape(inject([boundary(carried, idle), summary, ...kept]))) === JSON.stringify(['cb', 'sum', 'c1', 'c2', 'c3', 'c4', 'c5', 'p2', 'a4']), JSON.stringify(shape(inject([boundary(carried, idle), summary, ...kept]))))
 process.env.MERCURY_TURN_RECEIPT = '1'
 const partialKept = many.slice(4)
 const partial = foldedTurnReceipts(many as never, partialKept as never, 'sum', TEMP_ROOT)
-const afterPartial = inject([boundary(partial, retainedChatRows(many as never, partialKept as never, 'sum')), summary, ...partialKept])
-check('a turn cut by the fold carries its folded rows onto its surviving part: count and rows agree, kept rows are not doubled', receiptOf(afterPartial, 'p1')?.counts.boardMessages === 3 && JSON.stringify(receiptOf(afterPartial, 'p1')?.board?.map(row => row.uuid)) === '["c1","c2","c3"]' && retainedChatRows(many as never, partialKept as never, 'sum').length === 0 && shape(afterPartial).filter(id => id === 'c4').length === 1, JSON.stringify(shape(afterPartial)))
+const partialIdle = retainedChatRows(many as never, partialKept as never, 'sum')
+const afterPartial = inject([boundary(partial, partialIdle), summary, ...partialKept])
+check('a turn cut by the fold: its two folded rows come back after the summary, its kept rows are not doubled, its receipt keeps the folded command', JSON.stringify(shape(afterPartial)) === JSON.stringify(['cb', 'sum', 'c1', 'c2', 'a2', 'c3', 'a3', 'receipt:p1', 'c4', 'c5', 'p2', 'a4', 'receipt:p2']) && receiptOf(afterPartial, 'p1')?.counts.commands === 2 && JSON.stringify(partialIdle.map(group => [group.after, group.rows.map(row => row.uuid)])) === '[["sum",["c1","c2"]]]', JSON.stringify(shape(afterPartial)))
 const folded2 = [boundary(carried, idle), summary, ...kept]
 const again = foldedTurnReceipts(folded2 as never, [kept[0]!, kept[1]!] as never, 'sum2', TEMP_ROOT)
 const idle2 = retainedChatRows(folded2 as never, [kept[0]!, kept[1]!] as never, 'sum2')
 const twice = inject([boundary(again, idle2, 'cb2'), { ...summary, uuid: 'sum2' }, kept[0]!, kept[1]!])
-check('a second compaction carries the receipt rows and the idle rows again, each event once, re-anchored on the new summary', receiptOf(twice, 'p1')?.counts.boardMessages === 3 && JSON.stringify(shape(twice)) === JSON.stringify(['cb2', 'sum2', 'receipt:p1', 'c4', 'c5', 'p2', 'a4', 'receipt:p2']), JSON.stringify({ shape: shape(twice), idle2 }))
+check('a second compaction carries the five rows again, each event once, re-anchored on the new summary', JSON.stringify(shape(twice)) === JSON.stringify(['cb2', 'sum2', 'c1', 'c2', 'c3', 'c4', 'c5', 'p2', 'a4', 'receipt:p2']), JSON.stringify({ shape: shape(twice), idle2 }))
+const older = [boundary([{ beforeUuid: 'sum', anchorUuid: 'p1', counts: { scratchpadEdits: 0, fileEdits: 0, adds: 0, dels: 0, reads: 0, searches: 0, fetches: 0, commands: 2, browser: 0, agents: 0, delegatedTokens: 0, delegatedCostUSD: 0, delegatedUnpriced: 0, boardMessages: 3, tools: {} }, board: [many[3], many[2], many[5]] }], [{ after: 'sum', rows: [many[7], many[8]] }]), summary, ...kept]
+const olderPainted = inject(older)
+check('a transcript written under the old fold: the rows its receipt carried paint as rows before the receipt, in seq order, and the count is forgotten', JSON.stringify(shape(olderPainted)) === JSON.stringify(['cb', 'sum', 'c1', 'c2', 'c3', 'receipt:p1', 'c4', 'c5', 'p2', 'a4', 'receipt:p2']) && receiptOf(olderPainted, 'p1')?.counts.commands === 2 && plain(olderPainted), JSON.stringify(shape(olderPainted)))
+const olderAgain = retainedChatRows(older as never, [kept[0]!, kept[1]!] as never, 'sum2')
+check('a second compaction of that transcript retains the carried rows as rows beside the idle rows', JSON.stringify(olderAgain.map(group => [group.after, group.rows.map(row => row.uuid)])) === '[["sum2",["c1","c2","c3","c4","c5"]]]', JSON.stringify(olderAgain))
 const c6 = chat('c6', 6, 'alpha', 'named twice')
 const doubled = injectRetainedChatRows([boundary([], [{ after: 'sum', rows: [c6] }, { after: 'p2', rows: [c6, chat('c4', 4, 'alpha', 'kept')] }]), summary, kept[0]!, chat('c4', 4, 'alpha', 'kept')] as never) as Row[]
 check('a row two groups name paints once, at its first placement; a row already on the screen is never added', JSON.stringify(shape(doubled)) === JSON.stringify(['cb', 'sum', 'c6', 'p2', 'c4']), JSON.stringify(shape(doubled)))
 
-section('the receipt with rows is navigable and clickable; without rows it stays as it was')
-const withRows = receiptOf(folded, 'p1')!
-const withoutRows = receiptOf(none, 'p1')!
-check('navigable only when it carries rows', isNavigableMessage(withRows as never) && !isNavigableMessage(withoutRows as never))
-check('enter expands it from the row cursor', MESSAGE_ACTIONS.some(action => action.key === 'enter' && action.types.includes('turn_receipt')))
-check('copy takes the rows\' words', copyTextOf(withRows as never) === '[alpha] first\n[beta] second\n[gamma] third', JSON.stringify(copyTextOf(withRows as never)))
+section('the receipt is never navigable or clickable, and never copies rows')
+const receiptRow = receiptOf(closed, 'p1')!
+check('not navigable', !isNavigableMessage(receiptRow as never))
+check('enter does not address it', !MESSAGE_ACTIONS.some(action => action.key === 'enter' && action.types.includes('turn_receipt')))
+check('copy takes nothing from it', copyTextOf(receiptRow as never) === '')
 const messagesSrc = readFileSync(join(ROOT, 'src', 'components', 'Messages.tsx'), 'utf8')
-check('a click toggles it (Messages.tsx counts a receipt with rows as clickable and opens the fold on the loading flag)', /message\.type === 'turn_receipt'\) return \(message\.board\?\.length \?\? 0\) > 0/.test(messagesSrc) && /turnOpen: isLoading/.test(messagesSrc))
-check('Message.tsx hands the row its verbose flag', /<TurnReceiptRow message=\{message\} verbose=\{verbose\} \/>/.test(readFileSync(join(ROOT, 'src', 'components', 'Message.tsx'), 'utf8')))
+check('Messages.tsx counts no receipt as clickable and composes the transcript without a turn-open flag', !/turn_receipt'\) return/.test(messagesSrc) && !/turnOpen/.test(messagesSrc) && /collapsed = injectTurnReceipts\(collapsed, getMercuryTempDir\(\)\)/.test(messagesSrc))
+check('Message.tsx hands the row no verbose flag', /<TurnReceiptRow message=\{message\} \/>/.test(readFileSync(join(ROOT, 'src', 'components', 'Message.tsx'), 'utf8')))
 
 section('the painted words')
 const { enableConfigs } = await import('../../src/utils/config.js')
@@ -220,7 +221,7 @@ enableConfigs()
 const { render, Box, flushPendingSyncWork } = await import('../../src/ink.js')
 const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
 const { TurnReceiptRow } = await import('../../src/components/messages/TurnReceiptRow.js')
-async function paint(message: Row, verbose: boolean, columns = 120): Promise<string[]> {
+async function paint(message: Row, columns = 120): Promise<string[]> {
   const stdin = Object.assign(new NodeEventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } }) as unknown as NodeJS.ReadStream
   const stream = new PassThrough()
   stream.resume()
@@ -228,7 +229,7 @@ async function paint(message: Row, verbose: boolean, columns = 120): Promise<str
   let painted = (): void => {}
   const first = new Promise<void>(resolve => { painted = resolve })
   const node = React.createElement(TerminalSizeContext.Provider, { value: { columns, rows: 24 } },
-    React.createElement(Box, { flexDirection: 'column', width: columns }, React.createElement(TurnReceiptRow, { message: message as never, verbose })))
+    React.createElement(Box, { flexDirection: 'column', width: columns }, React.createElement(TurnReceiptRow, { message: message as never })))
   const instance = await render(node, { stdin, stdout, patchConsole: false, exitOnCtrlC: false, onFrame: () => painted() })
   await first
   flushPendingSyncWork()
@@ -238,14 +239,12 @@ async function paint(message: Row, verbose: boolean, columns = 120): Promise<str
   stream.destroy()
   return frame.split('\n').filter(line => line.trim() !== '')
 }
-const words = (counts: Partial<Record<string, number>>, extra: Row = {}): Row => ({ type: 'turn_receipt', uuid: 'w-turn-receipt', counts: { scratchpadEdits: 0, fileEdits: 0, adds: 0, dels: 0, reads: 0, searches: 0, fetches: 0, commands: 0, browser: 0, agents: 0, delegatedTokens: 0, delegatedCostUSD: 0, delegatedUnpriced: 0, boardMessages: 0, tools: {}, ...counts }, ...extra })
-check('the owner\'s line: ∙ 2 shell commands · ctx +1.8k ∙ 14 board messages', (await paint(words({ commands: 2, boardMessages: 14 }, { contextDelta: 1800 }), false))[0] === '∙ 2 shell commands · ctx +1.8k ∙ 14 board messages', (await paint(words({ commands: 2, boardMessages: 14 }, { contextDelta: 1800 }), false))[0])
-check('with no other item: ∙ 1 board message, and never the no-tools words', (await paint(words({ boardMessages: 1 }), false))[0] === '∙ 1 board message')
-check('a context delta alone keeps its place before the board item', (await paint(words({ boardMessages: 3 }, { contextDelta: 600 }), false))[0] === '∙ ctx +600 ∙ 3 board messages')
-check('without board rows the line is as it was', (await paint(words({ commands: 2 }, { contextDelta: 1800 }), false))[0] === '∙ 2 shell commands · ctx +1.8k' && (await paint(words({}), false))[0] === '∙ no tools ran this turn')
-const expanded = await paint({ ...withRows, uuid: 'w-turn-receipt' } as Row, true)
-check('expanded, the rows paint beneath the line in board order with their time and name', expanded.length === 4 && expanded[1]!.includes('[alpha]') && expanded[1]!.includes('first') && expanded[2]!.includes('[beta]') && expanded[3]!.includes('[gamma]'), JSON.stringify(expanded))
-check('collapsed, only the line paints', (await paint({ ...withRows, uuid: 'w-turn-receipt' } as Row, false)).length === 1)
+const words = (counts: Partial<Record<string, number>>, extra: Row = {}): Row => ({ type: 'turn_receipt', uuid: 'w-turn-receipt', counts: { scratchpadEdits: 0, fileEdits: 0, adds: 0, dels: 0, reads: 0, searches: 0, fetches: 0, commands: 0, browser: 0, agents: 0, delegatedTokens: 0, delegatedCostUSD: 0, delegatedUnpriced: 0, tools: {}, ...counts }, ...extra })
+check('the owner\'s line: ∙ 2 shell commands · ctx +1.8k, nothing after it', JSON.stringify(await paint(words({ commands: 2 }, { contextDelta: 1800 }))) === JSON.stringify(['∙ 2 shell commands · ctx +1.8k']), JSON.stringify(await paint(words({ commands: 2 }, { contextDelta: 1800 }))))
+check('a turn with no tool work reads the no-tools words', (await paint(words({})))[0] === '∙ no tools ran this turn')
+check('a context delta alone keeps its place', (await paint(words({}, { contextDelta: 600 })))[0] === '∙ no tools ran this turn · ctx +600')
+const stale = await paint(words({ commands: 2, boardMessages: 14 }, { contextDelta: 1800, board: [many[3], many[2]] }))
+check('a count or rows left on an old receipt object paint nothing: one line, no board words, no rows beneath', JSON.stringify(stale) === JSON.stringify(['∙ 2 shell commands · ctx +1.8k']), JSON.stringify(stale))
 
 section('frames')
 const { resolveCaptureDriver, vshotBudgetMs } = await import('../lib/captureDriver.ts')
@@ -328,8 +327,8 @@ else {
   type Grid = Array<Array<{ c: string }>>
   const text = (grid: Grid): string[] => grid.map(line => line.map(cell => cell.c || ' ').join(''))
   const lineOf = (lines: string[], needle: string): number => lines.findIndex(line => line.includes(needle))
-  const RECEIPT = /∙ 2 shell commands(?: · ctx [+−][\d.]+[kM]?)? ∙ 2 board messages/
-  const closed = { awaitPattern: `^(?![\\s\\S]*${ADMITTED[1]!.replace(/[.]/g, '\\.')})[\\s\\S]*board messages` }
+  const RECEIPT = /∙ 2 shell commands/
+  const REPLY = 'Both echoes ran.'
   try {
     for (const [cols, rows] of [[120, 44], [80, 24]] as const) {
       for (const leg of ['idle', 'cursor', 'notice'] as const) {
@@ -338,30 +337,26 @@ else {
         const gridPath = join(captures, `${tag}.grid.json`)
         const sends = leg === 'notice' ? [then('', NOTICE_REPLIES[1]!, 'woken')] : leg === 'idle'
           ? [
-              then('', 'board messages', 'folded'),
-              then(CLICK, 'board messages', undefined, { targetText: 'board messages' }),
-              then('', ADMITTED[1]!, 'clicked'),
-              then(CLICK, 'board messages', undefined, { targetText: 'board messages' }),
-              then('', 'board messages', 'clicked-again', closed),
-              then('\x0f', 'board messages'),
-              then('', ADMITTED[1]!, 'verbose'),
-              then('\x0f', 'board messages'),
-              then('', 'board messages', 'verbose-off', closed),
+              then('', REPLY, 'painted'),
+              then(CLICK, REPLY, undefined, { targetText: '2 shell commands' }),
+              then('', REPLY, 'clicked'),
+              then('\x0f', REPLY),
+              then('', REPLY, 'verbose'),
+              then('\x0f', REPLY),
+              then('', REPLY, 'verbose-off'),
             ]
           : [
-              then('', 'board messages', 'folded'),
-              then('\x1b[1;2A', 'board messages'),
+              then('', REPLY, 'painted'),
+              then('\x1b[1;2A', REPLY),
               then('\x1b[B', 'navigate'),
               then('\x1b[B', 'navigate'),
               then('\x1b[B', 'navigate'),
               then('\x1b[B', 'navigate'),
-              then('\r', 'enter expand'),
-              then('', ADMITTED[1]!, 'entered'),
-              then('\r', 'enter collapse'),
-              then('', 'board messages', 'entered-again', closed),
-              then('\x1b', 'enter expand'),
+              then('\r', REPLY),
+              then('', REPLY, 'entered'),
+              then('\x1b', REPLY),
             ]
-        const config = { cwd: RUNTIME_CWD, argv: ['node', DIST, '--resume', SID], cols, rows, total: 220, out: gridPath, readyText: [leg === 'notice' ? NOTICE_REPLIES[1]! : 'board messages'], readySettleTicks: 3, sends }
+        const config = { cwd: RUNTIME_CWD, argv: ['node', DIST, '--resume', SID], cols, rows, total: 220, out: gridPath, readyText: [leg === 'notice' ? NOTICE_REPLIES[1]! : REPLY], readySettleTicks: 3, sends }
         const configPath = join(captures, `${tag}.json`)
         writeFileSync(configPath, JSON.stringify(config))
         let stderr = ''
@@ -397,31 +392,29 @@ else {
           console.log(`  frames: ${join(captures, tag)}-*.png`)
           continue
         }
-        const foldedLines = marks.get('folded') ?? []
-        const receiptAt = foldedLines.findIndex(line => RECEIPT.test(line))
-        check(`${tag}: the closed turn counts only the two crewmate posts`, receiptAt >= 0, foldedLines.filter(line => line.includes('board')).join(' | '))
-        check(`${tag}: the two incoming rows are behind the receipt, not on the screen`, ADMITTED.every(words => lineOf(foldedLines, words.slice(0, 18)) < 0), foldedLines.filter(line => ADMITTED.some(words => line.includes(words.slice(0, 18)))).join(' | '))
-        const leadAt = lineOf(foldedLines, `[main] @ocr-fix ${LEAD}`)
-        const replyAt = lineOf(foldedLines, 'Both echoes ran.')
-        check(`${tag}: the lead row stays before the reply and receipt after resume`, leadAt >= 0 && replyAt > leadAt && receiptAt > replyAt, JSON.stringify({ leadAt, replyAt, receiptAt }))
+        const painted = marks.get('painted') ?? []
+        const receiptAt = painted.findIndex(line => RECEIPT.test(line))
+        check(`${tag}: the closed turn's receipt counts the two shell commands and the context, nothing about the board`, receiptAt >= 0 && !painted.some(line => line.includes('board message')), painted.filter(line => line.includes('shell command') || line.includes('board')).join(' | '))
+        const places = (lines: string[]): number[] => {
+          const found = [...ADMITTED.map(words => lineOf(lines, words.slice(0, 18))), lineOf(lines, `[main] @ocr-fix ${LEAD}`), lineOf(lines, REPLY), lines.findIndex(line => RECEIPT.test(line)), ...(leg === 'idle' ? IDLE.map(words => lineOf(lines, words.slice(0, 18))) : [])]
+          return found.map(at => (at < 0 ? -1 : at - found[0]!))
+        }
+        const firstAt = lineOf(painted, ADMITTED[0]!.slice(0, 18)), secondAt = lineOf(painted, ADMITTED[1]!.slice(0, 18)), leadAt = lineOf(painted, `[main] @ocr-fix ${LEAD}`), replyAt = lineOf(painted, REPLY)
+        check(`${tag}: the two incoming rows stand where they landed, in arrival order, before the lead row, the reply and the receipt`, firstAt >= 0 && secondAt > firstAt && leadAt > secondAt && replyAt > leadAt && receiptAt > replyAt, JSON.stringify({ firstAt, secondAt, leadAt, replyAt, receiptAt }))
+        check(`${tag}: the rows keep the row shape: time, name in brackets, the words`, /\d{2}:\d{2}:\d{2} \[lists-judge\] @main The list is ready/.test(painted[firstAt] ?? '') && /\d{2}:\d{2}:\d{2} \[ocr-fix\] @main The addon faults/.test(painted[secondAt] ?? ''), `${painted[firstAt]} | ${painted[secondAt]}`)
+        const everyRow = (lines: string[]): boolean => ADMITTED.every(words => lineOf(lines, words.slice(0, 18)) >= 0) && lines.filter(line => line.includes(`[main] @ocr-fix ${LEAD}`)).length === 1
         if (leg === 'idle') {
-          const idleAt = IDLE.map(words => lineOf(foldedLines, words.slice(0, 18)))
+          const idleAt = IDLE.map(words => lineOf(painted, words.slice(0, 18)))
           check(`${tag}: the two idle rows stay as rows below the receipt, in order`, idleAt[0]! > receiptAt && idleAt[1]! > idleAt[0]!, JSON.stringify({ receiptAt, idleAt }))
           const clicked = marks.get('clicked') ?? []
-          const opened = ADMITTED.map(words => lineOf(clicked, words.slice(0, 18)))
-          const clickedReceipt = clicked.findIndex(line => RECEIPT.test(line))
-          check(`${tag}: a click opens the two incoming rows in board order, above the idle rows`, opened.every(at => at > clickedReceipt) && opened[0]! < opened[1]! && opened[1]! < lineOf(clicked, IDLE[0]!.slice(0, 18)), JSON.stringify({ clickedReceipt, opened }))
-          check(`${tag}: the opened rows and the idle rows sit tight, one line each, no blank between them`, opened[1] === opened[0]! + 1 && lineOf(clicked, IDLE[0]!.slice(0, 18)) === opened[1]! + 1 && clickedReceipt === opened[0]! - 1, JSON.stringify({ clickedReceipt, opened, idle: lineOf(clicked, IDLE[0]!.slice(0, 18)) }))
-          check(`${tag}: the rows keep the row shape: time, name in brackets, the words`, /\d{2}:\d{2}:\d{2} \[lists-judge\] @main The list is ready/.test(clicked[opened[0]!] ?? ''), clicked[opened[0]!] ?? '')
-          check(`${tag}: a second click closes it`, ADMITTED.every(words => lineOf(marks.get('clicked-again') ?? [], words.slice(0, 18)) < 0))
-          check(`${tag}: ctrl+o shows the same rows`, ADMITTED.every(words => lineOf(marks.get('verbose') ?? [], words.slice(0, 18)) >= 0))
-          check(`${tag}: ctrl+o again hides them`, ADMITTED.every(words => lineOf(marks.get('verbose-off') ?? [], words.slice(0, 18)) < 0))
+          check(`${tag}: a click on the receipt hides nothing: every row keeps its place`, JSON.stringify(places(clicked)) === JSON.stringify(places(painted)), JSON.stringify({ painted: places(painted), clicked: places(clicked) }))
+          check(`${tag}: ctrl+o keeps every row`, everyRow(marks.get('verbose') ?? []))
+          check(`${tag}: ctrl+o again keeps every row`, everyRow(marks.get('verbose-off') ?? []))
         } else {
           const entered = marks.get('entered') ?? []
-          check(`${tag}: enter on the selected receipt opens it`, ADMITTED.every(words => lineOf(entered, words.slice(0, 18)) >= 0) && lineOf(entered, 'enter collapse') >= 0, entered.filter(line => line.includes('enter ')).join(' | '))
-          check(`${tag}: enter again closes it`, ADMITTED.every(words => lineOf(marks.get('entered-again') ?? [], words.slice(0, 18)) < 0))
+          check(`${tag}: the row cursor and enter hide no row and open nothing under the receipt`, everyRow(entered) && JSON.stringify(places(entered)) === JSON.stringify(places(painted)) && !entered.some(line => line.includes('board message')), JSON.stringify({ painted: places(painted), entered: places(entered) }))
         }
-        check(`${tag}: expanding or collapsing never hides or duplicates the lead post`, [...marks.values()].every(lines => lines.filter(line => line.includes(`[main] @ocr-fix ${LEAD}`)).length === 1))
+        check(`${tag}: no frame hides or duplicates the lead post`, [...marks.values()].every(lines => lines.filter(line => line.includes(`[main] @ocr-fix ${LEAD}`)).length === 1))
         console.log(`  frames: ${join(captures, tag)}-*.png`)
       }
     }

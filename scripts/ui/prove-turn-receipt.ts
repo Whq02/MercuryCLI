@@ -246,7 +246,7 @@ withEnv('1', () => {
   const plainReply = (uuid: string) => ({ type: 'assistant', uuid, message: { role: 'assistant', content: [{ type: 'text', text: 'Noted.' }] } }) as never
   const plain = inject([prompt('go'), plainReply('a1'), notice(), plainReply('a2')])
   check('the minimal prompt, reply, virtual notice, reply probe keeps both receipts', shape(plain) === expected, shape(plain))
-  const loading = injectTurnReceipts([prompt('go'), reply('a1', 13), notice()], TEMP_ROOT, true)
+  const loading = injectTurnReceipts([prompt('go'), reply('a1', 13), notice()], TEMP_ROOT)
   check('while the notice wake loads, the completed receipt stays below the earlier reply', shape(loading) === 'u1 a1 u1-turn-receipt n1', shape(loading))
   const batch = inject([prompt('go'), reply('a1', 13), notice(), notice('n2'), reply('a2', 26)])
   check('consecutive notices open one wake turn, not one turn per notice', shape(batch) === 'u1 a1 u1-turn-receipt n1 n2 a2 n1-turn-receipt', shape(batch))
@@ -265,6 +265,16 @@ withEnv('1', () => {
   check('work after a reply clears its closure before the notice arrives', shape(afterTool) === 'u1 a1 a2 n1 a3 u1-turn-receipt', shape(afterTool))
   const meta = inject([prompt('go'), reply('a1', 13), notice('n1', { isMeta: true }), reply('a2', 26)])
   check('a meta row is not a notice wake', shape(meta) === 'u1 a1 n1 a2 u1-turn-receipt', shape(meta))
+})
+
+section('a board row that lands mid-turn is a row of the turn, never the receipt\'s')
+withEnv('1', () => {
+  const chatRow = (uuid: string, seq: number, turnId?: string) => ({ type: 'system', subtype: 'crew_chat', uuid, content: `post ${seq}`, level: 'info', timestamp: `2026-11-01T08:00:0${seq}.000Z`, seq, name: 'alpha', authorRole: 'peer', kind: 'result', mentions: ['main'], addresses: ['main'], ...(turnId === undefined ? {} : { turnId }) }) as never
+  const rows = inject([prompt('go', 'p1'), toolUse('Bash', {}, 'a1'), chatRow('c1', 1, 'p1'), toolUse('Bash', {}, 'a2'), chatRow('c2', 2, 'p1'), { type: 'assistant', uuid: 'a3', message: { role: 'assistant', content: [{ type: 'text', text: 'done' }] } } as never, chatRow('c3', 3), prompt('next', 'p2')])
+  const shape = (rows as Array<{ uuid: string }>).map(row => row.uuid).join(' ')
+  check('the admitted rows keep their places among the tool rows; the receipt follows the reply and precedes the idle row', shape === 'p1 a1 c1 a2 c2 a3 p1-turn-receipt c3 p2', shape)
+  const counts = receipts(rows)[0]!.counts as Record<string, unknown>
+  check('the receipt counts the two commands and knows no board count', counts['commands'] === 2 && !('boardMessages' in counts) && !('board' in receipts(rows)[0]!), JSON.stringify(receipts(rows)[0]))
 })
 
 section('the delegated spend (a delegating turn\'s cost, visible in the transcript)')
@@ -455,12 +465,12 @@ check('the Windows spelling counts', isScratchpadPath('C:\\Temp\\mercury\\p\\s1\
 section('render wiring (source + dist needles)')
 check(
   'Messages.tsx chain runs injectTurnReceipts before the collapse passes',
-  /collapsed = injectTurnReceipts\(collapsed, getMercuryTempDir\(\), turnOpen\)\s*collapsed = collapseReadSearchGroups\(/.test(src('components', 'Messages.tsx')),
+  /collapsed = injectTurnReceipts\(collapsed, getMercuryTempDir\(\)\)\s*collapsed = collapseReadSearchGroups\(/.test(src('components', 'Messages.tsx')),
 )
 check(
   'Message.tsx dispatches turn_receipt → TurnReceiptRow',
   /case 'turn_receipt':/.test(src('components', 'Message.tsx')) &&
-    /<TurnReceiptRow message=\{message\} verbose=\{verbose\} \/>/.test(src('components', 'Message.tsx')),
+    /<TurnReceiptRow message=\{message\} \/>/.test(src('components', 'Message.tsx')),
 )
 check(
   'the row renders dim with success/error delta accents (tokens only)',

@@ -87,7 +87,7 @@ check('the daemon sweeps a settled session\'s scratchpad, derived from its recor
 const init = readFileSync(join(ROOT, 'src/entrypoints/init.ts'), 'utf8')
 check('the entry layer arms the sweep beside the shutdown hooks', init.includes('armScratchpadSweep()'))
 for (const [file, needle] of [
-  ['src/components/Messages.tsx', 'injectTurnReceipts(collapsed, getMercuryTempDir(), turnOpen)'],
+  ['src/components/Messages.tsx', 'injectTurnReceipts(collapsed, getMercuryTempDir())'],
   ['src/components/concourse/workerTranscriptFold.ts', 'injectTurnReceipts(grouped, getMercuryTempDir())'],
 ]) check(`${file} hands the receipt the temp root`, readFileSync(join(ROOT, file!), 'utf8').includes(needle!))
 

@@ -2,16 +2,13 @@ import * as React from 'react'
 import { BULLET_OPERATOR } from '../../constants/figures.js'
 import { Box, Text } from '../../ink.js'
 import type { TurnReceiptMessage } from '../../types/message.js'
-import { boardMessagesWords, delegatedSpendLine, formatContextDelta, NO_TOOLS_RAN_WORDS, otherToolsLine } from '../../utils/cockpit/turnReceipt.js'
+import { delegatedSpendLine, formatContextDelta, NO_TOOLS_RAN_WORDS, otherToolsLine } from '../../utils/cockpit/turnReceipt.js'
 import { plural } from '../../utils/stringUtils.js'
-import { CrewChatRow } from './CrewChatRow.js'
 
 export function TurnReceiptRow({
   message,
-  verbose = false,
 }: {
   message: TurnReceiptMessage
-  verbose?: boolean
 }): React.ReactNode {
   const c = message.counts
   const parts: React.ReactNode[] = []
@@ -83,19 +80,13 @@ export function TurnReceiptRow({
   if (delegated !== null) {
     push(<Text key="delegated">{delegated}</Text>)
   }
-  const board = boardMessagesWords(c.boardMessages)
-  if (parts.length === 0 && board === null) push(<Text key="none">{NO_TOOLS_RAN_WORDS}</Text>)
+  if (parts.length === 0) push(<Text key="none">{NO_TOOLS_RAN_WORDS}</Text>)
   if (message.contextDelta !== undefined) push(<Text key="ctx">{formatContextDelta(message.contextDelta)}</Text>)
-  if (board !== null) parts.push(<Text key="board">{parts.length > 0 ? ` ${BULLET_OPERATOR} ` : ''}{board}</Text>)
-  const rows = verbose ? message.board ?? [] : []
   return (
-    <Box marginTop={1} flexDirection="column">
+    <Box marginTop={1}>
       <Text dimColor>
         {BULLET_OPERATOR} {parts}
       </Text>
-      {rows.map(row => (
-        <CrewChatRow key={row.uuid} message={row} />
-      ))}
     </Box>
   )
 }
