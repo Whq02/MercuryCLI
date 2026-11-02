@@ -546,6 +546,7 @@
     "getAutoCompactThresholdWithFixed",
     "getBlockingLimit",
     "getEffectiveContextWindowSize",
+    "getTurnReserveTokens",
     "isAutoCompactEnabled",
     "rapidRefillCount",
     "rapidRefillPauseText",
