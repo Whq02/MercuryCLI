@@ -23,7 +23,7 @@ import { STATE_STYLE } from '../mercury-ui/theme.js'
 import { agentSnapshotState } from './WorkflowDetailDialog.js'
 import { agentPulse, agentPulseWord } from '../../tools/WorkflowTool/livePulse.js'
 import { usageSpeaks, workflowSpendWords, workflowUsageSpend } from '../../tools/WorkflowTool/workflowUsage.js'
-import { agentRuntime } from './RunDetailPane.js'
+import { agentRuntime, laneStateWord as stateWord } from './RunDetailPane.js'
 import { useNowTick } from '../mercury-ui/components.js'
 import { useAgentTranscriptView } from './useAgentTranscriptView.js'
 
@@ -31,22 +31,6 @@ function shortModel(m: string | undefined): string | undefined {
   return m?.replace(/^claude-/, '')
 }
 
-function stateWord(state: WorkflowRunAgentSummary['state']): string {
-  switch (state) {
-    case 'done':
-      return 'done'
-    case 'error':
-      return 'error'
-    case 'stopped':
-      return 'stopped'
-    case 'skipped':
-      return 'skipped'
-    case 'progress':
-      return 'running'
-    default:
-      return 'starting'
-  }
-}
 
 function SectionHead({
   glyph,

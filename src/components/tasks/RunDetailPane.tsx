@@ -98,7 +98,7 @@ function LaneStateGlyph({
   return <Text color={color}>{glyph}</Text>
 }
 
-function laneStateWord(state: WorkflowRunAgentSummary['state']): string {
+export function laneStateWord(state: WorkflowRunAgentSummary['state']): string {
   switch (state) {
     case 'done':
       return 'done'
