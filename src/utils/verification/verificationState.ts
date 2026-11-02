@@ -50,6 +50,7 @@ export interface EvidenceRecord {
   seq: number
   gateId?: string
   minRuns?: number
+  inherited?: true
 }
 
 export type VerificationStateWord = 'verified' | 'stale' | 'failed' | 'unverified'
@@ -718,7 +719,7 @@ function loadPersisted(cwd: string, state: OwnerVerificationState): void {
     }
     const parsed = JSON.parse(raw) as { schema?: number; records?: EvidenceRecord[] }
     if (parsed.schema === EVIDENCE_SCHEMA && Array.isArray(parsed.records)) {
-      state.sessionRecords = parsed.records.slice(-MAX_RECORDS).map(r => ({ ...r, seq: 0 }))
+      state.sessionRecords = parsed.records.slice(-MAX_RECORDS).map(r => ({ ...r, seq: 0, inherited: true as const }))
     }
   } catch {
   }
@@ -726,7 +727,8 @@ function loadPersisted(cwd: string, state: OwnerVerificationState): void {
 
 function persist(cwd: string, state: OwnerVerificationState): void {
   try {
-    const payload = JSON.stringify({ schema: EVIDENCE_SCHEMA, records: state.sessionRecords.slice(-MAX_RECORDS) }, null, 2)
+    const records = state.sessionRecords.slice(-MAX_RECORDS).map(({ inherited: _inherited, ...r }) => r)
+    const payload = JSON.stringify({ schema: EVIDENCE_SCHEMA, records }, null, 2)
     durableAtomicPublishSync(evidencePath(cwd), payload)
     if (workspaceEvidenceOptIn()) {
       durableAtomicPublishSync(workspaceEvidencePath(cwd), payload)
@@ -1298,7 +1300,7 @@ export function recordShellCommandOutcome(
 
 export function evidenceRecordsFor(owner?: OwnerKey): readonly EvidenceRecord[] {
   const state = ownerStates.peek(effectiveOwner(owner))
-  return state ? [...state.sessionRecords] : []
+  return state ? state.sessionRecords.filter(r => r.inherited !== true) : []
 }
 
 export function verificationSummary(

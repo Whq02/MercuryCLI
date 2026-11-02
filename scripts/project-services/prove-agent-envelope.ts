@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -17,15 +17,14 @@ const { attachAgentEnvelope, envelopeFor } = await import(
 )
 const { observeToolTerminal } = await import('../../src/services/run/effectObserver.ts')
 const { processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
-const { recordEvidence, _resetForTesting } = await import(
+const { recordEvidence, verificationSummary, _resetVerificationStateForTesting } = await import(
   '../../src/utils/verification/verificationState.ts'
-).then(m => ({
-  recordEvidence: (m as Record<string, unknown>).recordEvidence as Function,
-  _resetForTesting: null,
-}))
+)
 const { _resetChangeReceiptsForTesting } = await import(
   '../../src/services/changeTransaction/receipts.ts'
 )
+const { getMercuryHome } = await import('../../src/utils/envUtils.ts')
+const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -150,6 +149,47 @@ section('O. observed truth — the observer, never prose')
     block.includes('changed (observed): /tmp/real-a.ts') &&
     block.includes('failed/indeterminate attempts (observed): 1') &&
     block.includes(`full output: mercury://agent/${AGENT_ID}`))
+}
+
+section('P. a second seat in the same project reports only the checks its own run performed')
+{
+  const FRESH_ID = 'agent-envelope-fresh-seat'
+  const fresh = processOwnerForLane(FRESH_ID)
+  const inherited = verificationSummary('/tmp', { skipDigest: true, owner: fresh })
+  check('P1 the project history still reaches the fresh seat as tree state (the last persisted check was the failed typecheck)',
+    inherited.state === 'failed' && inherited.lastEvidence?.command === 'bun run typecheck', `${inherited.state} · ${inherited.lastEvidence?.command ?? 'no evidence'}`)
+  const idle = await buildAgentResultEnvelope({
+    agentId: FRESH_ID,
+    status: 'completed',
+    finalText: 'Read the brief; ran nothing.\n<mercury-envelope>{"summary":"read only"}</mercury-envelope>',
+  })
+  check('P2 a seat that ran no check reports no check — the persisted project history is not its observed checks',
+    idle.checks.length === 0, idle.checks.map(c => `${c.name}:${c.state}`).join(' · '))
+  recordEvidence('/tmp', { command: 'bun run scripts/eval/prove-output-bounds.ts', ok: true, scope: 'proof', coverage: 'prove-output-bounds.ts' }, fresh)
+  const own = await buildAgentResultEnvelope({
+    agentId: FRESH_ID,
+    status: 'completed',
+    finalText: 'Ran one proof.\n<mercury-envelope>{"summary":"one proof","checks":["prove-output-bounds"]}</mercury-envelope>',
+  })
+  check('P3 after its own check the envelope carries exactly that one, observed',
+    own.checks.length === 1 && own.checks[0]?.name === 'prove-output-bounds' && own.checks[0]?.state === 'observed', own.checks.map(c => `${c.name}:${c.state}`).join(' · '))
+  check('P4 the seat that performed the checks still reports them',
+    (await buildAgentResultEnvelope({ agentId: AGENT_ID, status: 'completed', finalText: 'done' })).checks.length === 2)
+
+  _resetVerificationStateForTesting()
+  const RESUMED_ID = 'agent-envelope-resumed-seat'
+  const resumed = processOwnerForLane(RESUMED_ID)
+  const afterRestart = verificationSummary('/tmp', { skipDigest: true, owner: resumed })
+  const store = readFileSync(join(getMercuryHome(), 'verify', sanitizePath('/tmp'), 'evidence.json'), 'utf8')
+  check('P5 after a restart the store still answers tree state, and the store carries no in-memory marker',
+    afterRestart.lastEvidence?.command === 'bun run scripts/eval/prove-output-bounds.ts' && !store.includes('inherited'),
+    `${afterRestart.lastEvidence?.command ?? 'no evidence'} · marker in store: ${store.includes('inherited')}`)
+  const resumedEnvelope = await buildAgentResultEnvelope({
+    agentId: RESUMED_ID,
+    status: 'completed',
+    finalText: 'Resumed; ran nothing this time.\n<mercury-envelope>{"summary":"resumed"}</mercury-envelope>',
+  })
+  check('P6 a resumed seat with zero tool uses reports zero checks', resumedEnvelope.checks.length === 0, resumedEnvelope.checks.map(c => `${c.name}:${c.state}`).join(' · '))
 }
 
 section('B. the AgentTool parent boundary')
