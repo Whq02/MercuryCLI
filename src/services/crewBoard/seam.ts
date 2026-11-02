@@ -230,7 +230,7 @@ function swarmBriefWords(own: BoardSeat, peers: readonly BoardSeat[], captain: B
   const others = peers.map(peer => peer.team ? `${label(peer)} (${peer.team})` : label(peer))
   return [
     `You are ${label(own)}${team ? `, team ${team},` : ''} on this session's live crew board, with the lead (main)${others.length ? ` and ${others.join(', ')}` : ''}; a seat that joins later appears in a board read.`,
-    'Launch swarm seats with the Crewmate tool; ToolSearch select:Crewmate loads it. Posting on CrewBoard does not launch agents.',
+    'The lead launches seats.',
     "CrewBoard is how the crew works as one: post a blocker when you are stuck and an ask when another seat's answer or work would move yours; answer an ask you can settle; post a result with its path when a piece lands; read the board at a boundary when another seat's work touches yours, and before you take a file another seat may hold.",
     '@name reaches a seat, @team a team, @main the lead; what you post is read by the whole crew. The board never replaces your final report to the lead.',
     'You may park with a declared wait; the board wakes you on it, and the lead can always wake you.',

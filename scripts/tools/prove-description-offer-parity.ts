@@ -136,6 +136,15 @@ for (const kind of kinds) {
     })) as { description?: string }
     const description = schema.description ?? ''
     descriptions.set(tool.name, description)
+    if (tool.name === 'CrewBoard') {
+      const canLaunch = offered.has('Crewmate')
+      const summary = await tool.description(undefined, { tools: pool })
+      const empty = await tool.call({ op: 'read' } as never, { options: { tools: pool } } as never, (() => {}) as never, {} as never)
+      for (const [surface, text] of [['description', summary], ['prompt', description], ['empty read', JSON.stringify(empty.data)]]) {
+        check(`${kind.label}: CrewBoard ${surface} names only the available launch road`, canLaunch ? text!.includes('ToolSearch select:Crewmate') : text!.includes('The lead launches seats.') && !/\bCrewmate\b/.test(text!))
+      }
+      check(`${kind.label}: the board roster hint names no unavailable launcher`, canLaunch || !/\bCrewmate\b/.test(tool.searchHint ?? ''))
+    }
     const resumedChildContract = 'One launched with output_schema keeps its StructuredOutput tool for the resumed turn.'
     if (tool.name === 'ResumeCrewmate') check(`${kind.label}: the resumed-child tool promise is stated exactly`, description.endsWith(resumedChildContract))
     const manual = tool.wireDescription === undefined ? '' : await tool.prompt({ getToolPermissionContext: async () => permissionContext, tools: pool, agents: [], model: 'claude-opus-4-8' })
