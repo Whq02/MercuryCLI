@@ -38,7 +38,7 @@ try {
     for (const [patch, expected] of controls) {
       if (git(root, ['rev-parse', 'HEAD^{tree}']) !== tree) throw new Error('checkout changed during calibration')
       execFileSync('git', ['diff', '--quiet', 'HEAD'], { cwd: root, stdio: 'pipe' })
-      const strays = git(root, ['ls-files', '--others', '--exclude-standard']).split('\n').filter(path => path !== '' && (!path.includes('/') || /^(src|scripts|sdk|docs|vendor)\//.test(path)))
+      const strays = git(root, ['ls-files', '--others', '--exclude-standard']).split('\n').filter(path => path !== '' && !/^dist(\.|\/|$)/.test(path) && (!path.includes('/') || /^(src|scripts|sdk|docs|vendor)\//.test(path)))
       if (strays.length > 0) throw new Error(`uncommitted files prevent a frozen calibration: ${strays.join(', ')}`)
       const control = basename(patch, '.patch')
       if (!existsSync(patch)) { check(`${task.id}/${control} control exists`, false); continue }
