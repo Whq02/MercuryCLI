@@ -36,6 +36,8 @@ const repo = path.join(scratch, 'repo')
 const elsewhere = path.join(scratch, 'elsewhere')
 mkdirSync(path.join(repo, 'tests'), { recursive: true })
 mkdirSync(path.join(repo, 'plain'), { recursive: true })
+mkdirSync(path.join(repo, '.mercury', 'wave'), { recursive: true })
+mkdirSync(path.join(repo, 'alpha.beta'), { recursive: true })
 mkdirSync(elsewhere, { recursive: true })
 writeFileSync(path.join(repo, 'pyproject.toml'), '[project]\nname = "wordcount"\nversion = "0.0.1"\n')
 writeFileSync(path.join(repo, 'wordcount.py'), 'def count(text):\n    return len(text.split())\n')
@@ -44,6 +46,10 @@ writeFileSync(path.join(repo, 'tests', '__init__.py'), '')
 writeFileSync(path.join(repo, 'tests', 'test_more.py'), 'import unittest\n\nclass TestMore(unittest.TestCase):\n    def test_more(self):\n        self.assertTrue(True)\n')
 writeFileSync(path.join(repo, 'plain', 'test_plain.py'), 'import unittest\n\nclass TestPlain(unittest.TestCase):\n    def test_plain(self):\n        self.assertTrue(True)\n')
 writeFileSync(path.join(elsewhere, 'test_else.py'), 'import unittest\n\nclass TestElse(unittest.TestCase):\n    def test_else(self):\n        self.assertEqual(1, 2)\n')
+writeFileSync(path.join(repo, '.mercury', 'wave', '__init__.py'), '')
+writeFileSync(path.join(repo, '.mercury', 'wave', 'helpers.py'), 'def frames():\n    return 12\n')
+writeFileSync(path.join(repo, '.mercury', 'wave', 'test_timing.py'), 'import unittest\nfrom .helpers import frames\n\nclass TestTiming(unittest.TestCase):\n    def test_ok(self):\n        self.assertEqual(frames(), 12)\n')
+writeFileSync(path.join(repo, 'alpha.beta', 'test_dotted.py'), 'import unittest\n\nclass TestDotted(unittest.TestCase):\n    def test_dotted(self):\n        self.assertTrue(True)\n')
 
 process.chdir(repo)
 const { enableConfigs } = await import('../../src/utils/config.js')
@@ -114,6 +120,27 @@ try {
     if (record) check('the counts agree with unittest\'s own line', total(record) === ranCount(record) && record.counts.failed === 1 && record.counts.errored === 0, `${j(record.counts)} vs ${ranLine(record)} ${verdictLine(record)}`)
   }
 
+  section('§5b path = a file under a hidden folder (.mercury/wave): the module path starts below the folder no module name can spell, and the package still imports its sibling')
+  {
+    const record = await run([path.join(repo, '.mercury', 'wave', 'test_timing.py')])
+    check('the run lands', record !== null)
+    if (record) {
+      check('one case, passed, named wave.test_timing — not a _FailedTest for ".mercury.wave.test_timing"', ids(record).join() === 'wave.test_timing.TestTiming.test_ok:passed', j(ids(record)))
+      check('the counts agree with unittest\'s own line', total(record) === ranCount(record) && ranCount(record) === 1 && record.counts.errored === 0 && verdictLine(record) === 'OK', `${j(record.counts)} vs ${ranLine(record)} ${verdictLine(record)}`)
+      check('no "Empty module name" and no ModuleNotFoundError in the cases', !j(record.cases).includes('Empty module name') && !j(record.cases).includes('No module named'), j(record.cases).slice(0, 300))
+    }
+  }
+
+  section('§5c path = a file under a folder with a literal dot (alpha.beta): the file loads by its own name from that folder')
+  {
+    const record = await run([path.join(repo, 'alpha.beta', 'test_dotted.py')])
+    check('the run lands', record !== null)
+    if (record) {
+      check('one case, passed, named test_dotted — not a miss for the module "alpha"', ids(record).join() === 'test_dotted.TestDotted.test_dotted:passed' && record.verdict === undefined, j({ ids: ids(record), verdict: record.verdict }))
+      check('the counts agree with unittest\'s own line', total(record) === ranCount(record) && ranCount(record) === 1 && verdictLine(record) === 'OK', `${j(record.counts)} vs ${ranLine(record)} ${verdictLine(record)}`)
+    }
+  }
+
   section('§6 a name that loads nothing is no-match — zero counts, and the loader\'s own words name the miss')
   {
     const record = await run(['nonsense.module'])
@@ -137,12 +164,12 @@ try {
       'exec(open(sys.argv[1]).read(), ns)',
       'BS = chr(92)',
       'root = "C:" + BS + "Users" + BS + "WHQ" + BS + "AppData" + BS + "Local" + BS + "Temp" + BS + "mercury" + BS + "scratchpad" + BS + "repo"',
-      'files = {root + BS + "test_wordcount.py", root + BS + "tests" + BS + "__init__.py", root + BS + "tests" + BS + "test_more.py", "C:" + BS + "Users" + BS + "WHQ" + BS + "Desktop" + BS + "other" + BS + "test_other.py", "D:" + BS + "elsewhere" + BS + "test_d.py"}',
+      'files = {root + BS + "test_wordcount.py", root + BS + "tests" + BS + "__init__.py", root + BS + "tests" + BS + "test_more.py", "C:" + BS + "Users" + BS + "WHQ" + BS + "Desktop" + BS + "other" + BS + "test_other.py", "D:" + BS + "elsewhere" + BS + "test_d.py", root + BS + ".mercury" + BS + "wave" + BS + "test_timing.py"}',
       'dirs = {root, root + BS + "tests", root + BS + "plain"}',
       'norm = lambda p: ntpath.normcase(ntpath.normpath(p))',
       'isfile = lambda p: norm(p) in {norm(f) for f in files}',
       'isdir = lambda p: norm(p) in {norm(d) for d in dirs}',
-      'items = [root + BS + "test_wordcount.py", root.replace(BS, "/") + "/test_wordcount.py", root.lower() + BS + "test_wordcount.py", root, root + BS + "tests", root + BS + "plain", root + BS + "tests" + BS + "test_more.py", "C:" + BS + "Users" + BS + "WHQ" + BS + "Desktop" + BS + "other" + BS + "test_other.py", "D:" + BS + "elsewhere" + BS + "test_d.py", "test_wordcount.TestWordcount.test_count"]',
+      'items = [root + BS + "test_wordcount.py", root.replace(BS, "/") + "/test_wordcount.py", root.lower() + BS + "test_wordcount.py", root, root + BS + "tests", root + BS + "plain", root + BS + "tests" + BS + "test_more.py", "C:" + BS + "Users" + BS + "WHQ" + BS + "Desktop" + BS + "other" + BS + "test_other.py", "D:" + BS + "elsewhere" + BS + "test_d.py", "test_wordcount.TestWordcount.test_count", root + BS + ".mercury" + BS + "wave" + BS + "test_timing.py"]',
       'print(json.dumps(ns["selection_plan"](root, items, osp=ntpath, isfile=isfile, isdir=isdir)))',
     ].join('\n')
     const r = spawnSync(SYS_PY, ['-c', harness, runnerPath], { encoding: 'utf8' })
@@ -159,6 +186,7 @@ try {
     check('a file outside the root runs through unittest\'s file road from its own folder', plan[7]?.kind === 'file' && plan[7].start === 'C:\\Users\\WHQ\\Desktop\\other' && plan[7].top === plan[7].start && plan[7].pattern === 'test_other.py', j(plan[7]))
     check('a file on another drive takes the same road (no relpath error)', plan[8]?.kind === 'file' && plan[8].start === 'D:\\elsewhere' && plan[8].pattern === 'test_d.py', j(plan[8]))
     check('a node id passes through as a name', plan[9]?.kind === 'name' && plan[9].name === 'test_wordcount.TestWordcount.test_count', j(plan[9]))
+    check('a file under a hidden folder is the module wave.test_timing with that folder as the top', plan[10]?.kind === 'name' && plan[10].name === 'wave.test_timing' && plan[10].top === `${root}\\.mercury`, j(plan[10]))
   }
 } finally {
   process.chdir(tmpdir())

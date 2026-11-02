@@ -286,7 +286,17 @@ def selection_plan(start_dir, items, osp=os.path, isfile=None, isdir=None):
             if rel is None:
                 plan.append({"kind": "file", "start": osp.dirname(path), "top": osp.dirname(path), "pattern": osp.basename(path)})
             else:
-                plan.append({"kind": "name", "name": rel[:-3].replace("\\\\", ".").replace("/", ".")})
+                # A folder whose name is not an identifier (.mercury, alpha.beta, light-art-wave) cannot be
+                # spelled as a module, so the dotted name starts below it and that folder joins sys.path,
+                # the way the shell runs the file from there.
+                parts = rel[:-3].replace("\\\\", "/").split("/")
+                k = len(parts) - 1
+                while k > 0 and parts[k - 1].isidentifier():
+                    k -= 1
+                target = {"kind": "name", "name": ".".join(parts[k:])}
+                if k > 0:
+                    target["top"] = osp.join(root, *parts[:k])
+                plan.append(target)
         elif item.lower().endswith(".py") or osp.sep in item or "/" in item:
             plan.append({"kind": "missing", "name": item})
         else:
@@ -348,6 +358,8 @@ if __name__ == "__main__":
                 if target["kind"] == "missing":
                     missing.append((target["name"], "no such file or directory: %s" % target["name"]))
                 elif target["kind"] == "name":
+                    if target.get("top") is not None and target["top"] not in sys.path:
+                        sys.path.insert(0, target["top"])
                     for test in iter_tests(loader.loadTestsFromName(target["name"])):
                         unloaded = type(test).__name__ == "_FailedTest" and type(test).__module__ == "unittest.loader"
                         if unloaded and missing_part(target["name"]) is not None:
