@@ -6,6 +6,7 @@ import type { TSNode } from '../../services/structure/grammarFacility.js'
 import { FRONTMATTER_REGEX, parseFrontmatter } from '../../utils/frontmatterParser.js'
 import { parseYaml } from '../../utils/yaml.js'
 import { MAX_LISTING_DESC_CHARS } from '../SkillTool/constants.js'
+import { stripBom } from '../../utils/readFileInRange.js'
 type ParseFormat = 'JSON' | 'YAML'
 
 function formatForPath(filePath: string): ParseFormat | undefined {
@@ -15,9 +16,6 @@ function formatForPath(filePath: string): ParseFormat | undefined {
   return undefined
 }
 
-function stripBom(text: string): string {
-  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text
-}
 
 function parseOnce(format: ParseFormat, text: string): string | undefined {
   const body = stripBom(text)

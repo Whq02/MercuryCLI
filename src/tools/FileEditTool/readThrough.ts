@@ -3,6 +3,7 @@ import { bytesPerTokenForFileType } from '../../services/tokenEstimation.js'
 import { addLineNumbers } from '../../utils/file.js'
 import { getDefaultFileReadingLimits } from '../FileReadTool/limits.js'
 import { MAX_LINES_TO_READ } from '../FileReadTool/prompt.js'
+import { stripBom } from '../../utils/readFileInRange.js'
 
 export type LineRange = { start: number; end: number }
 
@@ -66,9 +67,6 @@ function extensionOf(path: string): string {
   return dot === -1 ? '' : base.slice(dot + 1).toLowerCase()
 }
 
-function stripBom(text: string): string {
-  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text
-}
 
 export function planReadThrough(
   content: string,

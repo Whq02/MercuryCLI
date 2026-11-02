@@ -16,6 +16,7 @@ import {
   type ReadThroughBound,
 } from './readThrough.js'
 import { locateActualString } from './utils.js'
+import { stripBom } from '../../utils/readFileInRange.js'
 
 export const EDIT_RESULT_MAX_ROWS = 60
 export const EDIT_RESULT_MAX_RENDERED_CHARS = 6000
@@ -49,9 +50,6 @@ export function editResultBound(): ReadThroughBound {
   return { maxLines: EDIT_RESULT_MAX_ROWS, maxTokens: getDefaultFileReadingLimits().maxTokens, maxRenderedChars: EDIT_RESULT_MAX_RENDERED_CHARS }
 }
 
-function stripBom(text: string): string {
-  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text
-}
 
 export function linesOfText(text: string): string[] {
   const body = stripBom(text)
