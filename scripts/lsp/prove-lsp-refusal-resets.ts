@@ -103,6 +103,34 @@ process.env.MERCURY_LSP_SERVERS = JSON.stringify(fixtureServer('fixture-ts', FAI
     check('interrupt settles before the request deadline and never counts', Date.now() - start < 10_000 && ledger._lspFailureLedgerForTesting().length === 0)
   } finally { await door.close() }
 }
+{
+  const rust = writeProject(scratch, 'rust', { 'main.rs': 'fn main() {}\n', 'lib.rs': 'pub fn item() {}\n' })
+  const component = join(scratch, 'rust-analyzer-component')
+  const rustPids = join(scratch, 'rust-pids')
+  const rustSpawns = () => existsSync(rustPids) ? readFileSync(rustPids, 'utf8').trim().split('\n').length : 0
+  process.env.MERCURY_LSP_SERVERS = JSON.stringify(fixtureServer('rust-analyzer', FAILING_SERVER, { FAILING_LSP_MODE: 'rust-component-missing', FAILING_LSP_COMPONENT_FILE: component, FAILING_LSP_PID_FILE: rustPids }, '.rs', 'rust'))
+  const door = await openToolDoor(rust)
+  try {
+    const input = { operation: 'diagnostics', filePath: join(rust, 'main.rs') }
+    const first = await door.drive({ operation: 'diagnostics', paths: [input.filePath, join(rust, 'lib.rs')] })
+    check('the missing Rust component names the exact rustup command', first.isError && first.text.includes('rustup component add rust-analyzer'), first.text)
+    check('a deterministic missing binary carries no 15-second schedule', !/first call after|in 15 s|\/extensions reload/.test(first.text), first.text)
+    check('one missing-component spawn serves a multi-file call', rustSpawns() === 1)
+    const server = door.manager()!.getAllServers().get('env:rust-analyzer')!
+    check('the stored start failure has no retry timestamp', (server.lastError as { retryAt?: number } | undefined)?.retryAt === undefined)
+    for (let attempt = 2; attempt <= 5; attempt++) {
+      const result = await door.drive(input)
+      check(`explicit missing-component call ${attempt} starts once without waiting or hitting a crash cap`, result.isError && result.text.includes('rustup component add rust-analyzer') && rustSpawns() === attempt && !result.text.includes('Not tried'), result.text)
+    }
+    await door.drive({ operation: 'serverStatus' })
+    check('a status read does not spawn the missing server', rustSpawns() === 5)
+    appendFileSync(component, 'installed')
+    const fixed = await door.drive(input)
+    check('installing the component makes the very next call start and answer, without reload', !fixed.isError && rustSpawns() === 6 && server.state === 'running', fixed.text)
+    const reused = await door.drive(input)
+    check('later calls reuse the healthy server', !reused.isError && rustSpawns() === 6)
+  } finally { await door.close() }
+}
 ledger._setLspLedgerClockForTesting()
 cleanup(scratch)
 finish('prove-lsp-refusal-resets')

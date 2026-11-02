@@ -4,8 +4,11 @@ type LspCallScope = { signal: AbortSignal | undefined; faults: number }
 const lspAbortStorage = new AsyncLocalStorage<LspCallScope>()
 
 export function runWithLspAbortSignal<T>(signal: AbortSignal | undefined, fn: () => T): T {
-  if (signal === undefined) return fn()
   return lspAbortStorage.run({ signal, faults: 0 }, fn)
+}
+
+export function currentLspCall(): object | undefined {
+  return lspAbortStorage.getStore()
 }
 
 export function currentLspAbortSignal(): AbortSignal | undefined {

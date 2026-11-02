@@ -12,6 +12,11 @@ const spawnOrdinal = (() => {
 })()
 if (process.env.FAILING_LSP_PID_FILE) appendFileSync(process.env.FAILING_LSP_PID_FILE, `${process.pid}\n`)
 
+if (mode === 'rust-component-missing' && !existsSync(process.env.FAILING_LSP_COMPONENT_FILE ?? '')) {
+  process.stderr.write("error: Unknown binary 'rust-analyzer' in official toolchain 'fixture-toolchain'\n")
+  process.exit(1)
+}
+
 if (mode === 'exit-before-initialize') {
   process.stderr.write('fixture-ts: the typescript compiler is missing from this machine\n')
   process.exit(1)

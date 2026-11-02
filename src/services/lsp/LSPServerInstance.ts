@@ -15,9 +15,9 @@ import { registerExecutionDomain } from '../primitives/executionPlane.js'
 import { projectExternalState } from '../primitives/externalProjection.js'
 import { processMainOwner } from '../run/resolveOwner.js'
 import { lspLedgerNow } from './failureLedger.js'
-import { startFailureCause } from './failureWords.js'
+import { missingRustAnalyzerComponent, startFailureCause } from './failureWords.js'
 import type { LSPClient, LSPStopResult } from './LSPClient.js'
-import { currentLspAbortSignal, noteLspRequestFault } from './lspAbort.js'
+import { currentLspAbortSignal, currentLspCall, noteLspRequestFault } from './lspAbort.js'
 import { mercuryLspEnabled } from './mercuryLsp.js'
 import type { LspServerState, ScopedLspServerConfig } from './types.js'
 
@@ -186,6 +186,7 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
   let inFlightStart: Promise<void> | null = null
   let initFailures = 0
   let lastInitFailureAt = 0
+  let missingComponentCall: object | undefined
   let idleTimer: NodeJS.Timeout | null = null
   let lastActivityAt = 0
 
@@ -277,6 +278,7 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
       startTime = Date.now()
       crashRecoveries = 0
       initFailures = 0
+      missingComponentCall = undefined
       generation++
       lastActivityAt = Date.now()
       armIdleTimer()
@@ -287,7 +289,12 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
       initFailures++
       lastInitFailureAt = lspLedgerNow()
       const error = startFailure(name, initFailures, err)
-      error.retryAt = lastInitFailureAt + Math.min(INIT_BACKOFF_BASE_MS * 2 ** (initFailures - 1), INIT_BACKOFF_MAX_MS)
+      if (missingRustAnalyzerComponent(error.lspCause)) {
+        missingComponentCall = currentLspCall()
+        crashRecoveries = 0
+      } else {
+        error.retryAt = lastInitFailureAt + Math.min(INIT_BACKOFF_BASE_MS * 2 ** (initFailures - 1), INIT_BACKOFF_MAX_MS)
+      }
       lastError = error
       setState('error', error)
       logError(error)
@@ -296,7 +303,7 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
   }
 
   function initBackoffRemainingMs(): number {
-    if (initFailures === 0) return 0
+    if (initFailures === 0 || lastError && missingRustAnalyzerComponent(lastError.message)) return 0
     const window = Math.min(INIT_BACKOFF_BASE_MS * 2 ** (initFailures - 1), INIT_BACKOFF_MAX_MS)
     return Math.max(0, lastInitFailureAt + window - lspLedgerNow())
   }
@@ -306,6 +313,7 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
     if (state === 'starting' && inFlightStart !== null) {
       return inFlightStart
     }
+    if (lastError && missingRustAnalyzerComponent(lastError.message) && missingComponentCall !== undefined && missingComponentCall === currentLspCall()) throw lastError
     const backoffMs = initBackoffRemainingMs()
     if (backoffMs > 0) {
       const error = startFailure(name, initFailures, lastError ?? 'no error recorded')
@@ -365,6 +373,7 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
   async function restart(): Promise<LSPStopResult | undefined> {
     initFailures = 0
     lastInitFailureAt = 0
+    missingComponentCall = undefined
     let stopped: LSPStopResult | undefined
     try {
       stopped = await stop()

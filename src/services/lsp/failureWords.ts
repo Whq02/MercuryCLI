@@ -95,8 +95,13 @@ export function startFailureCause(serverName: string, error: unknown): string {
   return stripped.replace(/^failed to start:?\s*/i, '').replace(/^crashed/, 'exited').trim()
 }
 
+export function missingRustAnalyzerComponent(cause: string): boolean {
+  return /Unknown binary ['"]rust-analyzer['"] in (?:official )?toolchain/i.test(cause)
+}
+
 export function remedyForLanguageServer(server: Pick<LSPServerInstance, 'name' | 'config'>, path: string, cause: string, cwd: string): string {
   const language = serverLanguage(server, path)
+  if (language === 'Rust' && missingRustAnalyzerComponent(cause)) return 'install the Rust component with rustup component add rust-analyzer'
   if (language === 'TypeScript' || language === 'JavaScript') {
     const typecheck = typecheckCommand(cwd)
     if (mentionsMissingTypescript(cause)) {
@@ -142,6 +147,7 @@ export function retryTimeWords(retryAt: number, now = lspLedgerNow()): string {
 }
 
 export function lspStartFailureWords(error: LspStartFailure, title: string, remedy: string, attempted: string): string {
+  if (missingRustAnalyzerComponent(error.lspCause)) return attempted
   const when = retryTimeWords(error.retryAt ?? lspLedgerNow())
   if (error.refused) {
     return `Not tried: ${title} did not start ${error.attempts} time${error.attempts === 1 ? '' : 's'} in a row — ${error.lspCause}. It will be started again on the first call after ${when}, or at once after the operator runs /extensions reload.${remedy ? ` What helps: ${remedy}.` : ''}`
