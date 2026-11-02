@@ -326,4 +326,3 @@ Full grammar and usage notes arrive on discovery or first use.`
   renderToolUseErrorMessage,
 })
 
-export type { Output as AstSearchOutput }

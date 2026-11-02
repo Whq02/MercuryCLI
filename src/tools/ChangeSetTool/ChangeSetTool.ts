@@ -16,7 +16,6 @@ import {
 } from '../../services/changeTransaction/anchorPatchLower.js'
 import {
   CHANGESET_BOUNDS,
-  changeSetEnabled,
   type ChangeSetMemberInput,
   type ChangeSetPlan,
   type ChangeSetTargetBytes,
@@ -1367,4 +1366,3 @@ Not this tool (refused by name): file creation (Write) · binary content · note
   },
 })
 
-export { changeSetEnabled as isChangeSetToolCatalogEnabled }

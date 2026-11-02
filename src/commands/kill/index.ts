@@ -19,4 +19,3 @@ export const unkill = {
   load: () => import('./unkill.js'),
 } as Command
 
-export default kill

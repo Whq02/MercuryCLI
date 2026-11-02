@@ -91,7 +91,6 @@ import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { shellWebContentNotice } from './webContent.js'
 import { boxLockLineForCommand, commandNamesBoxLock, refreshBoxReading } from '../../utils/boxLock.js'
 
-export type { BashProgress }
 
 
 const QUIET_WINDOW_MS = 2_000

@@ -9,7 +9,6 @@ import { JEV_EVAL_BYTES_PER_TOKEN, JEV_EVAL_ESCAPE_MEANS, JEV_EVAL_ESCAPE_OPTION
 import { expandJevEvalEvidence, type JevEvalItem, type JevEvalSource } from './jevEvalEvidence.js'
 import type { JevEvalInput, JevEvalQuestion } from './jevEvalSchema.js'
 
-export { expandJevEvalEvidence, type JevEvalItem, jevEvalRowLabel } from './jevEvalEvidence.js'
 
 interface JevEvalEstimate {
   stateTokens: number

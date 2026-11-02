@@ -12,7 +12,6 @@ const searchResultSchema = z.object({
   tool_use_id: z.string().describe('Id of the search this hit group belongs to'),
   content: z.array(searchHitSchema).describe('Search hits with their source'),
 })
-export type SearchResult = z.infer<typeof searchResultSchema>
 export const outputSchema = z.object({
   query: z.string(),
   results: z.array(z.union([searchResultSchema, z.string()])),

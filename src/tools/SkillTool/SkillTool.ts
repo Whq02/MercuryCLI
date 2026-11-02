@@ -46,7 +46,6 @@ import {
 } from './UI.js'
 
 
-export type { SkillToolProgress as Progress }
 
 export const inputSchema = lazySchema(() =>
   z.object({

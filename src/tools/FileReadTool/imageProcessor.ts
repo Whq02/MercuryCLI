@@ -2,7 +2,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { armImagePack, imagePackPackages, imagePackPlatform, vendoredImagePackDir } from './imagePackArm.js'
 import { javascriptImageProcessor } from './imageProcessorJs.js'
 
-export { IMAGE_PACK_PATH, armImagePack, imagePackPackages, imagePackPlatform, vendoredImagePackDir } from './imagePackArm.js'
+export { IMAGE_PACK_PATH, imagePackPackages, imagePackPlatform } from './imagePackArm.js'
 
 export type SharpInstance = {
   metadata(): Promise<{ width?: number; height?: number; format?: string }>

@@ -18,7 +18,6 @@ import { pageAccessNotice } from './pageAccess.js'
 import { arxivPaperUrl, resetStructuredFetchPacing, tryStructuredFetch } from './structuredHosts.js'
 import { extractPdfText, renderPdfText } from '../../utils/pdfText.js'
 import { recognisePdfPage, renderOcr } from '../../utils/ocr.js'
-export type { RedirectResult } from './fetchTransport.js'
 export { EgressBlockedError } from './fetchErrors.js'
 
 const MAX_URL_LENGTH = 2000

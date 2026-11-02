@@ -532,4 +532,3 @@ export const AstEditTool = buildTool({
   renderToolUseErrorMessage,
 })
 
-export type { Output as AstEditOutput }

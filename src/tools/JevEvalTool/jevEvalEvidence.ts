@@ -64,7 +64,7 @@ type JevEvalRecordsResult = { ok: true; records: JevEvalRecord[] } | { ok: false
 type JevEvalTableResult = { ok: true; columns: string[]; rows: string[][]; lines: number[] } | { ok: false; reason: string }
 type JevEvalExpansion = { ok: true; items: JevEvalItem[]; sources: JevEvalSource[] } | { ok: false; reason: string }
 
-export function jevEvalRowLabel(index: number): string {
+function jevEvalRowLabel(index: number): string {
   return `${JEV_EVAL_ROW_POSITION_PREFIX}${index + 1}`
 }
 

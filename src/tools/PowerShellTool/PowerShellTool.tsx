@@ -63,7 +63,6 @@ import { join } from 'node:path'
 import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
 
-export type { PowerShellProgress }
 
 const SLEEP_THRESHOLD_SECONDS = 2
 

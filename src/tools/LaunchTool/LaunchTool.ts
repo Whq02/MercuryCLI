@@ -17,7 +17,6 @@ import {
 import {
   discoverLaunchProfiles,
   getLaunchProfile,
-  launchProfilesEnabled,
   type LaunchProfile,
 } from '../../services/ide/launchProfiles.js'
 import { pythonTestsEnabled } from '../../services/ide/pythonTests.js'
@@ -512,4 +511,3 @@ debug and test return that tool's own result plus the call they ran as. debug an
   },
 })
 
-export { launchProfilesEnabled as isLaunchToolCatalogEnabled }

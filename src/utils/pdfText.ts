@@ -9,14 +9,14 @@ import { PDF_MAX_EXTRACT_SIZE } from '../constants/apiLimits.js'
 import { normaliseForMatch } from './text/normaliseForMatch.js'
 import { ensureToolResultsDir, getToolResultsDir } from './toolResultStorage.js'
 
-export interface PdfTextPage {
+interface PdfTextPage {
   pageNumber: number
   text: string
   rawText?: string
   hasTextLayer: boolean
   hasImages: boolean
 }
-export interface PdfTextDocument {
+interface PdfTextDocument {
   pageCount: number
   pages: PdfTextPage[]
   metadata: Record<string, string>

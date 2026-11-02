@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { performWebSearch } from '../../services/search/searchDoor.js'
 import { mapSearchResult, outputSchema, type Output } from './searchOutput.js'
-export type { Output, SearchResult } from './searchOutput.js'
+export type { Output } from './searchOutput.js'
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js'
 import type { WebSearchProgress } from '../../types/tools.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
@@ -11,7 +11,6 @@ import { truncate } from '../../utils/format.js'
 import { getWebSearchPrompt, PROVIDER_SEARCH_TOOL_NAME, WEB_SEARCH_TOOL_NAME } from './prompt.js'
 import { getToolUseSummary, renderToolResultMessage, renderToolUseMessage, renderToolUseProgressMessage } from './UI.js'
 
-export type { WebSearchProgress }
 
 const inputSchema = z.strictObject({
   query: z.string().min(2).describe('The search query to use'),
