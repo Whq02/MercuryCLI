@@ -67,7 +67,7 @@ import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../run/r
 import { buildRunContinuationCapsule } from '../run/runContinuationCapsule.js'
 import { roughTokenCountEstimation, roughTokenCountEstimationForMessages } from '../tokenEstimation.js'
 import { estimateRequestGauge, readRequestGauge } from '../run/requestGauge.js'
-import { getBlockingLimit, getEffectiveContextWindowSize, resolveAutoCompactWindow } from './autoCompact.js'
+import { getBlockingLimit, getEffectiveContextWindowSize, getTurnReserveTokens, resolveAutoCompactWindow } from './autoCompact.js'
 import { PERSISTED_OUTPUT_TAG, TOOL_RESULT_CLEARED_MESSAGE } from '../../utils/toolResultStorage.js'
 import { FileReadTool } from '../../tools/FileReadTool/FileReadTool.js'
 import { REPEATED_RESULT_TAG } from '../../constants/toolLimits.js'
@@ -1727,7 +1727,7 @@ export async function projectManualFold(
   const owner = ownerFromToolUseContext(context)
   const ledger = buildFoldLedger(messages, owner, getContextEpoch(owner).epoch + 1)
   const gauge = readRequestGauge(messages, context.options.engineModel)
-  const landing = ceiling === undefined ? undefined : foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1, gauge?.density.residuals)
+  const landing = ceiling === undefined ? undefined : foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1, gauge?.density.residuals, getTurnReserveTokens(context.options.engineModel))
   const landingCount = (rows: Message[]): number => {
     const request = [...rows, ...(cacheSafeParams.postFoldCarry ?? [])]
     return gauge ? estimateRequestGauge(request, gauge.fixed, gauge.density, context.options.engineModel) : estimateContextTokens(request, context.options.engineModel)
@@ -1812,7 +1812,7 @@ export async function compactConversation(
     const capsuleProbe = buildRunContinuationCapsule(owner)
     const ledger = buildFoldLedger(messages, owner, getContextEpoch(owner).epoch + 1)
     const gauge = readRequestGauge(messages, context.options.engineModel)
-    landing = ceiling === undefined ? undefined : foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1, gauge?.density.residuals)
+    landing = ceiling === undefined ? undefined : foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1, gauge?.density.residuals, getTurnReserveTokens(context.options.engineModel))
     const landingCount = (rows: Message[]): number => {
       const request = [...rows, ...(cacheSafeParams.postFoldCarry ?? [])]
       return gauge ? estimateRequestGauge(request, gauge.fixed, gauge.density, context.options.engineModel) : estimateContextTokens(request, context.options.engineModel)
@@ -1878,7 +1878,7 @@ export async function compactConversation(
     const prose = proseSkipped ?? rawSummary
     if (overflow?.source === 'provider' && overflow.limitTokens !== undefined) {
       ceiling = Math.min(ceiling ?? Infinity, overflow.limitTokens)
-      landing = Math.min(landing ?? Infinity, foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1, gauge?.density.residuals))
+      landing = Math.min(landing ?? Infinity, foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1, gauge?.density.residuals, getTurnReserveTokens(context.options.engineModel)))
     }
     context.onCompactProgress?.({ type: 'stage', stage: 'restoring' })
     const memory = retireFoldToMemory({

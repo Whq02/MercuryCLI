@@ -123,6 +123,10 @@ export function getEffectiveContextWindowSize(model: string, settingsWindow?: nu
   return window - reserve
 }
 
+export function getTurnReserveTokens(model: string): number {
+  return Math.min(getModelMaxOutputTokens(model).upperLimit, AUTOCOMPACT_BUFFER_TOKENS, Math.floor(resolveAutoCompactWindow(model).window / 8))
+}
+
 export function getAutoCompactThreshold(model: string): number {
   return autoCompactThreshold(model, 0)
 }
@@ -149,7 +153,7 @@ function autoCompactThreshold(model: string, fixedTokens: number): number {
     const effective = getEffectiveContextWindowSize(model)
     return Math.min(Math.max(1, Math.floor((effective * pct) / 100)), full)
   }
-  return Math.max(1, full - AUTOCOMPACT_BUFFER_TOKENS, fixedFloor)
+  return Math.max(1, full - getTurnReserveTokens(model), fixedFloor)
 }
 
 export function getAutoCompactThresholdWithFixed(model: string, fixedTokens: number): number {

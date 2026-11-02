@@ -359,7 +359,7 @@ section('§6 a 32k auto-compaction trigger budgets the measured fixed material p
   const largeBefore = autoCompact.getAutoCompactThreshold('compat/my-model')
   const largeAfter = thresholdFor('compat/my-model', 13_900)
   record(`32k threshold with 13,900 fixed tokens: ${fmt(smallBefore)} → ${fmt(smallAfter)}; 200k: ${fmt(largeBefore)} → ${fmt(largeAfter)}`)
-  check('32k: 5,394 becomes fixed 13,900 + one 5,394-token turn = 19,294', smallBefore === 5_394 && smallAfter === 19_294, `${smallBefore} → ${smallAfter}`)
+  check('32k: 17,480 rises to fixed 13,900 + one 5,394-token turn = 19,294', smallBefore === 17_480 && smallAfter === 19_294, `${smallBefore} → ${smallAfter}`)
   check('200k: the existing 157,000 trigger is byte-identical with the same fixed material', largeBefore === 157_000 && largeAfter === 157_000, `${largeBefore} → ${largeAfter}`)
 
   const statuses: Array<{ exit?: string }> = []
@@ -405,7 +405,7 @@ section('§6 a 32k auto-compaction trigger budgets the measured fixed material p
   const skips = debug.split('\n').filter(line => line.includes('autoCompact:') && line.includes('skip'))
   record(`three-turn failure counts ${JSON.stringify(outcomes.map(outcome => outcome.consecutiveFailures))}; failed statuses ${statuses.filter(status => status.exit === 'failed').length}; debug skips ${skips.length}`)
   check('three tool turns produce no failed compaction status and no fold attempt', statuses.filter(status => status.exit === 'failed').length === 0 && outcomes.every(outcome => !outcome.wasCompacted), JSON.stringify({ statuses, outcomes }))
-  check('three tool turns produce no [ERROR] stack and exactly one debug skip', !debug.includes('[ERROR]') && skips.length === 1, JSON.stringify({ errors: debug.split('\n').filter(line => line.includes('[ERROR]')), skips }))
+  check('three tool turns stay below the trigger: no [ERROR] stack and no debug skip', !debug.includes('[ERROR]') && skips.length === 0, JSON.stringify({ errors: debug.split('\n').filter(line => line.includes('[ERROR]')), skips }))
 }
 
 ollama.server.close()
