@@ -3,8 +3,6 @@ import type { ParseEntry } from 'shell-quote'
 import { logError } from '../log.js'
 import { jsonStringify } from '../slowOperations.js'
 
-export type { ParseEntry } from 'shell-quote'
-
 type ShellParseResult =
   | { success: true; tokens: ParseEntry[] }
   | { success: false; error: string }

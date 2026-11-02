@@ -4,7 +4,7 @@ import { analyzeCommand, type TreeSitterAnalysis } from './treeSitterAnalysis.js
 
 type OutputRedirection = { target: string; operator: '>' | '>>' }
 
-export interface IParsedCommand {
+interface IParsedCommand {
   readonly originalCommand: string
   toString(): string
   getPipeSegments(): string[]

@@ -117,7 +117,7 @@ export const COMMON_ALIASES: Record<string, string> = Object.assign(Object.creat
   sls: 'Select-String',
 })
 
-export const PS_TOKENIZER_DASH_CHARS: ReadonlySet<string> = new Set(['-', '–', '—', '―'])
+const PS_TOKENIZER_DASH_CHARS: ReadonlySet<string> = new Set(['-', '–', '—', '―'])
 
 
 const ASSIGNMENT_OVERHEAD = 21
@@ -539,19 +539,6 @@ export function getVariablesByScope(parsed: ParsedPowerShellCommand, scope: stri
   return parsed.variables.filter(v => v.path.toLowerCase().startsWith(prefix))
 }
 
-export function hasCommandNamed(parsed: ParsedPowerShellCommand, name: string): boolean {
-  const target = name.toLowerCase()
-  const targetCanonical = (COMMON_ALIASES[target] ?? name).toLowerCase()
-  for (const commandName of getAllCommandNames(parsed)) {
-    if (commandName === target) return true
-    const canonical = (COMMON_ALIASES[commandName] ?? commandName).toLowerCase()
-    if (canonical === target) return true
-    if (commandName === targetCanonical) return true
-    if (canonical === targetCanonical) return true
-  }
-  return false
-}
-
 export function getPipelineSegments(parsed: ParsedPowerShellCommand): ParsedStatement[] {
   return parsed.statements
 }
@@ -560,24 +547,6 @@ export function isPowerShellParameter(arg: string, elementClass?: ElementClass):
   if (elementClass !== undefined) return elementClass === 'Parameter'
   if (arg === '') return false
   return PS_TOKENIZER_DASH_CHARS.has(arg[0]!)
-}
-
-export function commandHasArgAbbreviation(
-  command: ParsedCommandElement,
-  fullName: string,
-  minPrefix: string,
-): boolean {
-  const full = fullName.toLowerCase()
-  const min = minPrefix.toLowerCase()
-  for (const arg of command.args) {
-    const colon = arg.indexOf(':', 1)
-    const withoutValue = colon === -1 ? arg : arg.slice(0, colon)
-    const cleaned = withoutValue.replace(/`/g, '').toLowerCase()
-    if (cleaned.startsWith(min) && full.startsWith(cleaned) && cleaned.length <= full.length) {
-      return true
-    }
-  }
-  return false
 }
 
 export function deriveSecurityFlags(parsed: ParsedPowerShellCommand): {

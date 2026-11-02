@@ -3,7 +3,6 @@ import type { CommandPrefixResult, CommandSubcommandPrefixResult } from '../shel
 import { preparedSecurityParse } from './ast.js'
 import { preparedCommandRoot, type Node } from './parser.js'
 
-export type { CommandPrefixResult, CommandSubcommandPrefixResult } from '../shell/prefix.js'
 
 const SEPARATORS = new Set(['&&', '||', ';', '&', '|', '|&', '\n'])
 const CONTAINERS = new Set(['program', 'list', 'pipeline'])
@@ -45,7 +44,6 @@ export function pipeSpans(root: Node): Array<{ start: number; end: number }> {
   return spans.sort((a, b) => a.start - b.start)
 }
 
-type InputRedirectionResult = { commandWithoutRedirections: string; targets: string[] }
 type OutputRedirectionCapture = { target: string; operator: '>' | '>>' }
 type OutputRedirectionResult = {
   commandWithoutRedirections: string
@@ -79,15 +77,6 @@ function withoutRedirects(command: string, input: boolean): string {
     text = text.slice(0, span.startIndex - root.startIndex) + text.slice(span.endIndex - root.startIndex)
   }
   return text.trim() || command
-}
-
-export function extractInputRedirections(command: string): InputRedirectionResult {
-  const parsed = preparedSecurityParse(command)
-  if (parsed.kind !== 'simple') return { commandWithoutRedirections: command, targets: [] }
-  return {
-    commandWithoutRedirections: withoutRedirects(command, true),
-    targets: parsed.commands.flatMap(simple => simple.redirects.filter(redirect => redirect.op === '<').map(redirect => redirect.target)),
-  }
 }
 
 export function extractOutputRedirections(command: string): OutputRedirectionResult {

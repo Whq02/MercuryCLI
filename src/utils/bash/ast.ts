@@ -30,7 +30,7 @@ const reclaimedCommands = new FinalizationRegistry<{ text: string; reference: We
   if (preparedSimpleCommands.get(text) === reference) preparedSimpleCommands.delete(text)
 })
 
-export function preparedSimpleCommand(text: string): SimpleCommand | null {
+function preparedSimpleCommand(text: string): SimpleCommand | null {
   return preparedSimpleCommands.get(text)?.deref() ?? null
 }
 
