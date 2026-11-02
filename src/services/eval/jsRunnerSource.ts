@@ -346,12 +346,16 @@ async function runCell(id, code) {
       // Only bindings initialized by this cell count; an older global with
       // the same name does not prove that this declaration initialized.
       const survived = (Array.isArray(names) ? names : []).filter(n => globalThis.__mercuryPersistedNames.includes(n))
+      const header = error && error.message ? String(error.name) + ': ' + String(error.message) : String(error && error.name)
+      let stack = String((error && error.stack) || '')
+      if (stack === header) stack = ''
+      else if (stack.startsWith(header + '\\n')) stack = stack.slice(header.length + 1)
       emit({
         t: 'error',
         id,
         name: (error && error.constructor && error.constructor.name) || 'Error',
         value: String((error && error.message) !== undefined ? error.message : error).slice(0, 2000),
-        traceback: String((error && error.stack) || '').slice(0, 8000),
+        traceback: stack.slice(0, 8000),
         declared: names,
         survived,
       })
