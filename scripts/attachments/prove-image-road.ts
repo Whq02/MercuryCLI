@@ -64,7 +64,7 @@ if (!JS_ROAD) {
   check('gemini: no pixel ceiling · 20 MB inline request · 3600 images · 768 px tiles', G.maxSidePx === null && G.maxBase64Bytes === 20 * MiB && G.maxImagesPerRequest === 3600 && G.nativeLongEdgePx.standard === 768)
   check('gemini: the image-understanding page is cited', G.doc === 'https://ai.google.dev/gemini-api/docs/image-understanding')
   const X = limitsMod.GENERIC_IMAGE_LIMITS
-  check('generic: the strictest documented figures (8000 px · 3000 px above 20 · 5 MB partner cap)', X.maxSidePx === 8000 && X.manyImages?.maxSidePx === 3000 && X.maxBase64Bytes === 5 * MiB)
+  check('generic: the strictest figures, unchanged for the routes without documented tiers (8000 px · 2000 px above 20, count rule · 5 MB partner cap)', X.maxSidePx === 8000 && X.manyImages?.maxSidePx === 2000 && X.manyImages.fromFirstSend === false && X.maxBase64Bytes === 5 * MiB)
   check('the strictest base64 ceiling is the generic family\'s', limitsMod.STRICTEST_IMAGE_MAX_BASE64_BYTES === 5 * MiB)
   const source = await import('node:fs').then(fs => fs.readFileSync(join(ROOT, 'src', 'constants', 'apiLimits.ts'), 'utf8'))
   check('no harness-invented width survives (no IMAGE_MAX_WIDTH owner)', !/IMAGE_MAX_WIDTH|IMAGE_MAX_HEIGHT/.test(source))

@@ -59,7 +59,7 @@ export const GENERIC_IMAGE_LIMITS: ImageLimits = {
   family: 'generic',
   doc: 'https://platform.claude.com/docs/en/build-with-claude/vision',
   maxSidePx: 8000,
-  manyImages: { threshold: 20, maxSidePx: 3000, fromFirstSend: false },
+  manyImages: { threshold: 20, maxSidePx: 2000, fromFirstSend: false },
   maxBase64Bytes: 5 * MiB,
   maxPatchesPerImage: null,
   nativeLongEdgePx: { standard: 1568, highResolution: 1568 },

@@ -81,7 +81,7 @@ section('§1 the two families a session can move between share the per-side cap 
 {
   check(`${DIRECT} sizes to the anthropic table`, direct.family === 'anthropic', direct.family)
   check(`${RELAYED} sizes to the generic table (a route without documented figures of its own)`, relayed.family === 'generic', relayed.family)
-  check(`the anthropic table bounds a single image at ${String(sidePx)} px from its first send; the generic table keeps its ${String(relayedSidePx)} px until a request carries more than 20 images (no documented native tier stands behind the other routes)`, sidePx === 3000 && relayedSidePx === 8000 && requestImageSidePx(relayed, 21) === 3000, `${String(sidePx)} vs ${String(relayedSidePx)}`)
+  check(`the anthropic table bounds a single image at ${String(sidePx)} px from its first send; the generic table keeps its ${String(relayedSidePx)} px until a request carries more than 20 images (no documented native tier stands behind the other routes)`, sidePx === 3000 && relayedSidePx === 8000 && requestImageSidePx(relayed, 21) === 2000, `${String(sidePx)} vs ${String(relayedSidePx)}`)
   check(`the generic ceiling is stricter than the anthropic one (${kb(relayedCeiling)} vs ${kb(directCeiling)} as base64)`, relayedCeiling < directCeiling)
 }
 
