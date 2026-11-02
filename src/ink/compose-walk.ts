@@ -510,15 +510,16 @@ function groundStale(walk: Walk, stale: readonly Rectangle[], ground: Color | un
   }
 }
 
-function staleRectOf(child: FrameNode, cached: CachedLayout | undefined, x: number, y: number, width: number, height: number, hidden: boolean): CachedLayout | null {
+function staleRectOf(child: FrameNode, cached: CachedLayout | undefined, x: number, y: number, width: number, height: number, hidden: boolean): Rectangle | null {
   if (cached === undefined) return null
-  if (hidden) return child.dirty ? cached : null
-  if (!rectHeldBy(cached, x, y, width, height)) return cached
+  const painted = cached.reach ?? cached
+  if (hidden) return child.dirty ? painted : null
+  if (!rectHeldBy(cached, x, y, width, height)) return painted
   if (!child.dirty) return null
   const kind = child.nodeName
-  if (kind === 'ink-text' || kind === 'ink-raw-ansi') return cached
+  if (kind === 'ink-text' || kind === 'ink-raw-ansi') return painted
   const memo = child as unknown as FillMemo
-  return memo.__prevBorder !== child.style.borderStyle ? cached : null
+  return memo.__prevBorder !== child.style.borderStyle ? painted : null
 }
 
 function collectStale(parent: FrameNode, offsetX: number, offsetY: number, out: Rectangle[]): void {
@@ -762,6 +763,7 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
     buffer.blit(prevScreen, Math.floor(x), top, columns, bottom - top + 1)
     if (regionHint) buffer.shift(top, bottom, delta)
     else buffer.shiftRect(top, bottom, rectShift!.x0, rectShift!.x1, delta)
+    shiftContentCaches(content, delta, top, bottom)
     const incomingTop = delta > 0 ? bottom - delta + 1 : top
     const incomingBottom = delta > 0 ? bottom : top - delta - 1
     buffer.clear({ x: Math.floor(x), y: incomingTop, width: columns, height: incomingBottom - incomingTop + 1 })
@@ -820,7 +822,7 @@ function repairStableRows(content: FrameNode, walk: Walk, dirtyChildren: Set<Fra
     if (offscreen || insideIncoming) continue
     const screenTop = Math.floor(contentTop + childTop)
     const childWas = isDirty ? undefined : nodeCache.get(child)
-    if (childWas && Math.floor(childWas.y) - delta === screenTop) continue
+    if (childWas && Math.floor(childWas.y) === screenTop) continue
     const screenBottom = Math.min(Math.floor(contentTop + childBottom), viewportFloor)
     if (screenTop < screenBottom) {
       buffer.write(left, screenTop, groundRows(columns, screenBottom - screenTop, boxBackgroundColor))
@@ -939,20 +941,27 @@ type StaleGround = { ground: Color | undefined; bounds: Rectangle }
 function scrolledStale(node: FrameNode, offsetX: number, offsetY: number, stale: StaleGround, walk: Walk): void {
   const vacated = vacatedRects(node)
   const out: Rectangle[] = vacated === undefined ? [] : [...vacated]
-  let growthAbove = 0
+  let shiftedAbove = vacated !== undefined
   for (const entry of node.childNodes) {
     if (entry.nodeName === '#text') continue
     const child = entry as FrameNode
     const layout = child.layoutNode
+    if (!layout) continue
     const cached = nodeCache.get(child)
-    if (!layout || cached === undefined) continue
-    if (!child.dirty && growthAbove === 0 && vacated === undefined) continue
+    if (cached === undefined) {
+      if (child.dirty) shiftedAbove = true
+      continue
+    }
+    if (!child.dirty && !shiftedAbove) continue
     const top = layout.getComputedTop()
     const height = layout.getComputedHeight()
-    if (child.dirty) growthAbove += height - cached.height
+    if (child.dirty && height !== cached.height) shiftedAbove = true
     const hidden = layout.getDisplay() === LayoutDisplay.None
     const rect = staleRectOf(child, cached, offsetX + layout.getComputedLeft(), offsetY + top, layout.getComputedWidth(), height, hidden)
-    if (rect !== null) out.push(rect)
+    if (rect !== null) {
+      out.push(rect)
+      if (!rectHeldBy(cached, offsetX + layout.getComputedLeft(), offsetY + top, layout.getComputedWidth(), height)) shiftedAbove = true
+    }
   }
   groundStale(walk, out, stale.ground, stale.bounds)
 }
@@ -977,6 +986,33 @@ function composeScrolledChildren(node: FrameNode, walk: Walk, offsetX: number, o
     const inPlace = child.style.position !== 'absolute' ? keptInPlace(child, before) : null
     if (inPlace === null) offerOpen = false
     else kept.push(inPlace)
+  }
+}
+
+function shiftContentCaches(content: FrameNode, delta: number, top: number, bottom: number): void {
+  for (const entry of content.childNodes) {
+    if (entry.nodeName === '#text') continue
+    const child = entry as FrameNode
+    const cached = nodeCache.get(child)
+    if (cached === undefined) continue
+    const y = cached.y - delta
+    if (y + cached.height <= top || y > bottom) forgetSubtree(child)
+    else shiftSubtreeCaches(child, delta)
+  }
+}
+
+function shiftSubtreeCaches(root: FrameNode, delta: number): void {
+  const pending: FrameNode[] = [root]
+  while (pending.length > 0) {
+    const node = pending.pop()!
+    const cached = nodeCache.get(node)
+    if (cached !== undefined) {
+      cached.y -= delta
+      if (cached.reach !== undefined) cached.reach.y -= delta
+    }
+    for (const child of node.childNodes) {
+      if (child.nodeName !== '#text') pending.push(child as FrameNode)
+    }
   }
 }
 
