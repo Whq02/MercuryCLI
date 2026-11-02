@@ -150,7 +150,7 @@ try {
   const listed = await op(leasedRoot, 'lease_list', {})
   check('lease_list exposes the live project holder without a crew', JSON.stringify(listed).includes(holder.sessionId), listed)
   const wrongRelease = await releaseProjectLeases(leasedRoot, other)
-  check('another holder cannot release the lease', wrongRelease.released.length === 0 && (await listProjectLeases(leasedRoot)).length === 1)
+  check('another holder cannot release the lease', wrongRelease.released === 0 && (await listProjectLeases(leasedRoot)).length === 1)
   let escaped = false
   symlinkSync(scratch, join(leasedRoot, 'outside-link'), 'dir')
   try { await takeProjectLeases(leasedRoot, ['outside-link/file.gd'], other) } catch { escaped = true }
@@ -175,7 +175,7 @@ check('the lease is released when its holder process ends', (await listProjectLe
 const viaTake = await op(leasedRoot, 'lease_take', { paths: ['tests/runtime_checks.gd'] })
 check('lease_take is exposed through the Godot operation dispatcher', viaTake.ok === true, viaTake)
 const viaRelease = await op(leasedRoot, 'lease_release', {})
-check('lease_release drops the calling holder\'s lease', viaRelease.ok === true && viaRelease.released?.includes('tests/runtime_checks.gd'), viaRelease)
+check('lease_release drops the calling holder\'s lease', viaRelease.ok === true && viaRelease.released === 1 && viaRelease.paths?.includes('tests/runtime_checks.gd'), viaRelease)
 
 const containmentRoot = project('worker-containment')
 const outsideTarget = join(scratch, 'protected-addon')

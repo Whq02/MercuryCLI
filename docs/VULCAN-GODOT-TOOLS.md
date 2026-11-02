@@ -287,14 +287,18 @@ another holder. The project keeps one lease record under `.mercury/`.
 ```
 
 A conflicting take is refused with the existing holder's session and
-agent named. Paths must stay under the project, including through
-symbolic links.
+agent named. A path ending in `/` is a directory lease: one record that
+covers every file under it, refused while another holder has a file
+there, and named when another holder asks for a file under it. Paths
+must stay under the project, including through symbolic links.
 
 ```json
 { "op": "lease_list", "args": {} }
 ```
 
-Lists live holders and their paths; it needs no crew membership.
+Lists live holders — session, agent, count and the directory their
+leases share — with the paths while there are at most 100, or those of
+one agent named with `agentId`; it needs no crew membership.
 
 ```json
 { "op": "lease_release", "args": {} }

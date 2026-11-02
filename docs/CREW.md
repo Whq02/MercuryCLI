@@ -227,16 +227,19 @@ A `correction` names an earlier event id in `corrects` and appends the replaceme
 
 ## File leases
 
-The in-process `mercury` MCP server every session carries holds exact
-project file leases: `mcp__mercury__lease_take` takes the named
-repo-relative paths for the calling session and agent, `mcp__mercury__lease_release`
-releases the named paths or every lease the caller holds when paths are omitted
-or `null`, and `mcp__mercury__lease_list` lists the leases with their session and
-agent holders. The session director can pass `agentId` to release that agent's
-leases, or `all: true` for every holder in its own session, never another
-session's. A path another live holder has taken is named and refused. A
-crewmate's leases are freed when it finishes, fails or is stopped; a resumed
-crewmate can take them again.
+The in-process `mercury` MCP server every session carries holds project
+file and directory leases: `mcp__mercury__lease_take` takes the named
+repo-relative paths for the calling session and agent — a file, or a directory
+with a trailing slash (`art/`), which is one lease covering everything under it;
+`mcp__mercury__lease_release` releases the named paths or every lease the caller
+holds when paths are omitted or `null`; `mcp__mercury__lease_list` answers with
+one row per holder (session, agent, count and the directory its leases share),
+with the leases themselves while there are at most 100, or those of the agent
+named with `agentId`. The session director can pass `agentId` to release that
+agent's leases, or `all: true` for every holder in its own session, never another
+session's. A path another live holder has taken, or a file under a directory it
+holds, is named and refused. A crewmate's leases are freed when it finishes,
+fails or is stopped; a resumed crewmate can take them again.
 The Godot engine's file operations respect the leases; elsewhere a lease is
 the crew's own coordination, read before an edit. The same server serves
 `render_tui`, the TUI capture.

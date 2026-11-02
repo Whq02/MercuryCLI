@@ -7,7 +7,7 @@ import { logMCPDebug } from '../../utils/log.js'
 import type { McpServerConfig } from './types.js'
 import { renderTui } from './renderTuiTool.js'
 import { getOriginalCwd, getSessionProjectDir } from '../../bootstrap/state.js'
-import { listProjectLeases, projectLeaseHolder, releaseProjectLeases, takeProjectLeases, type LeaseHolder } from '../vulcan/engine/leases.js'
+import { describeProjectLeases, projectLeaseHolder, releaseProjectLeases, takeProjectLeases, type LeaseHolder } from '../vulcan/engine/leases.js'
 
 const invocationLeaseHolder = new AsyncLocalStorage<LeaseHolder>()
 
@@ -81,7 +81,7 @@ export async function createMercuryServer(): Promise<{
     {
       capabilities: { tools: {} },
       instructions:
-        'Mercury in-process tools: exact project file leases (take, list, release — another live holder is named and refused) ' +
+        'Mercury in-process tools: project file and directory leases (take, list, release — another live holder is named and refused) ' +
         'and the TUI capture (render_tui). Prefer the lease tools over Bash when agents share files.',
     },
   )
@@ -119,17 +119,18 @@ export async function createMercuryServer(): Promise<{
     },
   }
 
-  const holderShape = z.object({ sessionId: z.string(), agentId: z.string(), pid: z.number(), procStart: z.string() })
+  const holderShape = z.object({ sessionId: z.string(), agentId: z.string(), pid: z.number(), procStart: z.string().optional() })
   const leaseShape = z.object({ path: z.string(), acquiredAt: z.string(), holder: holderShape })
+  const holderSummaryShape = z.object({ holder: holderShape, count: z.number(), under: z.string() })
 
   server.registerTool(
     'lease_take',
     {
       title: 'Take project file leases',
       description:
-        'Take exact project-local file paths for the current session and agent. Another live holder is named and refused. ' +
-        'Leases are released with lease_release or when the holder ends.',
-      inputSchema: { paths: z.array(z.string()).min(1).describe('Exact project-relative file paths, not globs.') },
+        'Take project-relative paths for the current session and agent: files, or a directory with a trailing slash, which is one lease covering everything under it. ' +
+        'Another live holder is named and refused. Leases are released with lease_release or when the holder ends.',
+      inputSchema: { paths: z.array(z.string()).min(1).describe('Project-relative file paths, or directories ending in "/"; not globs.') },
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
     async ({ paths }): Promise<CallToolResult> => {
@@ -162,7 +163,7 @@ export async function createMercuryServer(): Promise<{
       try {
         const holder = leaseHolder()
         const result = await releaseProjectLeases(projectRoot(), holder, paths ?? undefined, { agentId: agentId ?? undefined, all: all ?? undefined })
-        return structuredJsonResult({ ok: true, ...(all ? {} : { agentId: agentId ?? holder.agentId }), released: result.released.length > 0 })
+        return structuredJsonResult({ ok: true, ...(all ? {} : { agentId: agentId ?? holder.agentId }), released: result.released > 0 })
       } catch (e) {
         return errorResult(`lease_release failed: ${errorMessage(e)}`)
       }
@@ -173,17 +174,22 @@ export async function createMercuryServer(): Promise<{
     'lease_list',
     {
       title: 'List current file leases',
-      description: 'List the exact project file leases with their session and agent holders.',
-      inputSchema: {},
+      description: 'List who holds project leases: one row per holder with its count and common directory, plus the leases themselves while there are at most 100, or those of the one agent named.',
+      inputSchema: {
+        agentId: z.string().min(1).nullish().describe('List this agent’s leases (its first 100 paths in order).'),
+        sessionId: z.string().min(1).nullish().describe('The session that agent belongs to; the caller’s own when omitted.'),
+      },
       outputSchema: {
         ok: z.boolean(),
-        leases: z.array(leaseShape),
+        total: z.number(),
+        holders: z.array(holderSummaryShape),
+        leases: z.array(leaseShape).optional(),
       },
       annotations: { readOnlyHint: true },
     },
-    async (): Promise<CallToolResult> => {
+    async ({ agentId, sessionId }): Promise<CallToolResult> => {
       try {
-        return structuredJsonResult({ ok: true, leases: await listProjectLeases(projectRoot()) })
+        return structuredJsonResult({ ok: true, ...await describeProjectLeases(projectRoot(), { agentId: agentId ?? undefined, sessionId: sessionId ?? undefined }) })
       } catch (e) {
         return errorResult(`lease_list failed: ${errorMessage(e)}`)
       }

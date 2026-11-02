@@ -151,7 +151,7 @@ export async function stopPausedAgent(
   let leasesReleased = 0
   try {
     const released = await releaseProjectLeases(getSessionProjectDir() ?? getOriginalCwd(), projectLeaseHolder(), undefined, { agentId: taskId })
-    leasesReleased = released.released.length
+    leasesReleased = released.released
   } catch (error) {
     logForDebugging(`stop of paused crewmate ${taskId}: its leases could not be released — ${error instanceof Error ? error.message : String(error)}`)
   }

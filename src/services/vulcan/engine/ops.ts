@@ -5,7 +5,7 @@ import { engineLogTail } from './logs.js'
 import { readEngineManifest } from './manifest.js'
 import { requestVulcanInstance } from '../vulcanClient.js'
 import { liveEngines } from './spawn.js'
-import { listProjectLeases, projectLeaseHolder, releaseProjectLeases, takeProjectLeases, type LeaseHolder } from './leases.js'
+import { describeProjectLeases, projectLeaseHolder, releaseProjectLeases, takeProjectLeases, type LeaseHolder } from './leases.js'
 import {
   ENGINE_DEFAULT_PRIORITY,
   ENGINE_PRIORITIES,
@@ -227,13 +227,13 @@ export async function runEngineOp(op: string, args: Args | undefined, projectRoo
   switch (op) {
     case 'lease_take': {
       const paths = listArg(a.paths)
-      if (paths.length === 0) return 'lease_take needs {paths:[...]} with exact project files, not globs'
+      if (paths.length === 0) return 'lease_take needs {paths:[...]}: project files, or a directory with a trailing slash; no globs'
       return json(await takeProjectLeases(projectRoot, paths, holder))
     }
     case 'lease_release':
       return json(await releaseProjectLeases(projectRoot, holder, a.paths === undefined ? undefined : listArg(a.paths)))
     case 'lease_list':
-      return json({ ok: true, leases: await listProjectLeases(projectRoot) })
+      return json({ ok: true, ...await describeProjectLeases(projectRoot, { agentId: typeof a.agentId === 'string' ? a.agentId : undefined, sessionId: typeof a.sessionId === 'string' ? a.sessionId : undefined }) })
     case 'engine_scene_tree':
     case 'engine_node_get':
     case 'engine_node_call':
