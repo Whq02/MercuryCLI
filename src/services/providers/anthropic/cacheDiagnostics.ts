@@ -60,7 +60,7 @@ export function cacheMissReasonOf(message: unknown): CacheMissReason | null | un
   return reason as CacheMissReason
 }
 
-export interface LedgerFirstDifference {
+interface LedgerFirstDifference {
   part: string
   path: string
 }
