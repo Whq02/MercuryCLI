@@ -65,15 +65,37 @@ export function swarmModuleLoaded(): boolean {
 }
 
 const IMPLEMENTATION_SPECIFIER = import.meta.url.endsWith('.ts') ? './implementation.ts' : './crew-board.mjs'
+const SWARM_SIDECAR_MISSING = 'Swarm is unavailable — crew-board.mjs is missing beside mercury.mjs; reinstall Mercury (mercury update) or rebuild (bun run build.ts).'
+let sidecarMissing = false
+
+function sidecarAbsent(error: unknown): boolean {
+  const failure = error as { code?: string; message?: string }
+  return failure.code === 'MODULE_NOT_FOUND' && typeof failure.message === 'string' && failure.message.includes(IMPLEMENTATION_SPECIFIER)
+}
+
+function implementationModule(): BoardModule | null {
+  if (implementation !== undefined) return implementation
+  if (sidecarMissing) return null
+  try {
+    implementation = requireOptional(IMPLEMENTATION_SPECIFIER) as BoardModule
+    return implementation
+  } catch (error) {
+    if (!sidecarAbsent(error)) throw error
+    sidecarMissing = true
+    return null
+  }
+}
 
 export function loadSwarm(): BoardModule {
   if (!swarmMasterEnabled()) throw new Error('Swarm is off — enable swarm.enabled in your user settings.json (/config → Swarm).')
-  implementation ??= requireOptional(IMPLEMENTATION_SPECIFIER) as BoardModule
-  return implementation
+  const module = implementationModule()
+  if (module === null) throw new Error(SWARM_SIDECAR_MISSING)
+  return module
 }
 
 export function swarmCensusTool(): Tool {
-  const module = requireOptional(IMPLEMENTATION_SPECIFIER) as BoardModule
+  const module = implementationModule()
+  if (module === null) throw new Error(SWARM_SIDECAR_MISSING)
   return module.tool({ buildTool, principal: () => null, paused: () => false, sessionOn: () => false }, () => null)
 }
 
@@ -88,7 +110,8 @@ export function swarmStore(create = true): BoardStore | null {
   if (!swarmSessionEnabled() && ![...roads].some(([id, road]) => id.startsWith(`${sessionId}:`) && road.on)) return null
   const path = join(dirname(getTranscriptPath()), sessionId, 'boards', 'wave', 'board.sqlite')
   if (!create && !existsSync(path)) return null
-  const module = loadSwarm()
+  const module = create ? loadSwarm() : implementationModule()
+  if (module === null) return null
   const store = module.open(path, sessionId, swarmLimits())
   const execution = randomUUID()
   sessions.set(sessionId, { store, execution })
@@ -269,7 +292,9 @@ export function swarmPrincipal(agentId = 'main'): BoardPrincipal | null {
 
 export function swarmTools(agentId = 'main'): Tool[] {
   if (!swarmRoad(agentId) || !swarmMasterEnabled()) return []
-  boardTool ??= loadSwarm().tool({ buildTool, principal: context => context.agentKind === 'workflow' ? null : swarmPrincipal(context.agentId), paused: id => operatorPauseGate.holds(id), sessionOn: swarmSessionEnabled, limits: swarmLimits, uncapped: swarmUncapped }, swarmStore)
+  const module = implementationModule()
+  if (module === null) return []
+  boardTool ??= module.tool({ buildTool, principal: context => context.agentKind === 'workflow' ? null : swarmPrincipal(context.agentId), paused: id => operatorPauseGate.holds(id), sessionOn: swarmSessionEnabled, limits: swarmLimits, uncapped: swarmUncapped }, swarmStore)
   return [boardTool]
 }
 
