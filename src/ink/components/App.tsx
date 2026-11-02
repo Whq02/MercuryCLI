@@ -198,6 +198,9 @@ export default class App extends PureComponent<Props, State> {
   private identityProbed = false
   private readonly internal_eventEmitter = new EventEmitter()
   private keyParseState: KeyParseState = INITIAL_STATE
+  private readonly inputBatches: Array<{ atoms: ParsedInput[]; flush: boolean }> = []
+  private inputBatchIndex = 0
+  private inputDrain: ReturnType<typeof setImmediate> | null = null
   private incompleteEscapeTimer: ReturnType<typeof setTimeout> | null = null
   private loneEscapeGraceUsed = 0
   private lastMouseEventTime = 0
@@ -254,6 +257,10 @@ export default class App extends PureComponent<Props, State> {
       termWrite(this.props.stdout, SHOW_CURSOR, 'mode')
       noteModeReleased(CURSOR_LEDGER_OWNER, 'cursor-hidden')
     }
+    if (this.inputDrain) clearImmediate(this.inputDrain)
+    this.inputDrain = null
+    this.inputBatches.length = 0
+    this.inputBatchIndex = 0
     if (this.incompleteEscapeTimer) {
       clearTimeout(this.incompleteEscapeTimer)
       this.incompleteEscapeTimer = null
@@ -466,28 +473,21 @@ export default class App extends PureComponent<Props, State> {
     for (let i = 0; i < atoms.length; i++) {
       const wheel = isReportedWheel(atoms[i]!)
       if (!wheel && !isActingNamedKey(atoms[i]!)) continue
-      if (i > start) {
-        const run = atoms.slice(start, i)
-        this.dispatchDiscrete(run)
-        reconciler.flushSyncWork()
-      }
+      if (i > start) this.inputBatches.push({ atoms: atoms.slice(start, i), flush: true })
       if (wheel) {
         const gesture = coalesceWheelRun(atoms, i, this.props.rows - 1)
         for (let step = 0; step < gesture.steps; step++) {
-          this.dispatchDiscrete([gesture.atom!])
-          reconciler.flushSyncWork()
+          this.inputBatches.push({ atoms: [gesture.atom!], flush: true })
         }
         start = gesture.end
         i = gesture.end - 1
         continue
       }
-      this.dispatchDiscrete([atoms[i]!])
-      reconciler.flushSyncWork()
+      this.inputBatches.push({ atoms: [atoms[i]!], flush: true })
       start = i + 1
     }
-    if (start < atoms.length) {
-      this.dispatchDiscrete(atoms.slice(start))
-    }
+    if (start < atoms.length) this.inputBatches.push({ atoms: atoms.slice(start), flush: false })
+    if (this.inputDrain === null) this.drainInput()
 
     const state = this.keyParseState
     if (
@@ -501,6 +501,27 @@ export default class App extends PureComponent<Props, State> {
         this.handleIncompleteFlush,
         state.mode === 'IN_PASTE' ? PASTE_MODE_TIMEOUT_MS : INCOMPLETE_SEQUENCE_TIMEOUT_MS,
       )
+    }
+  }
+
+  private drainInput = (): void => {
+    this.inputDrain = null
+    while (this.inputBatchIndex < this.inputBatches.length) {
+      const batch = this.inputBatches[this.inputBatchIndex++]!
+      if (this.inputBatchIndex === this.inputBatches.length) {
+        this.inputBatches.length = 0
+        this.inputBatchIndex = 0
+      }
+      this.inputDrain = setImmediate(this.drainInput)
+      try {
+        this.dispatchDiscrete(batch.atoms)
+        if (batch.flush) reconciler.flushSyncWork()
+      } catch (error) {
+        logError(error)
+      }
+      if (batch.flush) return
+      if (this.inputDrain) clearImmediate(this.inputDrain)
+      this.inputDrain = null
     }
   }
 

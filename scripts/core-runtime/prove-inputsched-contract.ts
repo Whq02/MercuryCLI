@@ -867,12 +867,15 @@ function isFrameWrite(w: string): boolean {
 
   const counters = { probe: 0, sibling: 0 }
   const handled: string[] = []
+  let captureOnly = false
   const InputProbe = (): React.ReactElement => {
     counters.probe++
     const [text, setText] = React.useState('ready')
     useInput((input: string, key: Key) => {
       handled.push(key.upArrow ? '<up>' : key.downArrow ? '<down>' : input)
-      setText(prev => `${prev}|${key.upArrow ? 'U' : key.downArrow ? 'D' : input}`)
+      if (input === 'THROW_INPUT') throw new Error('input-handler-fixture')
+      if (input === 'REENTER') stdin.push('INNER')
+      if (!captureOnly) setText(prev => `${prev}|${key.upArrow ? 'U' : key.downArrow ? 'D' : input}`)
     })
     return React.createElement(Text, null, `probe ${text}`)
   }
@@ -896,9 +899,10 @@ function isFrameWrite(w: string): boolean {
   const sibling0 = counters.sibling
   const m0 = stdout.markerAt()
   stdin.push(`a${ESC}[Ab${ESC}[B`)
+  check('dispatch: the leading text lands before the acting-key drain yields', handled.join(',') === 'a', handled.join(','))
+  await settle()
   check('dispatch: four atoms in one chunk dispatch four InputEvents in order',
     handled.join(',') === 'a,<up>,b,<down>', handled.join(','))
-  await settle()
   check('dispatch: acting keys segment the chunk — text flushes BEFORE each actor reads', counters.probe - probe0 === 4, String(counters.probe - probe0))
   check('dispatch: an input commit never re-renders the sibling subtree', counters.sibling === sibling0, String(counters.sibling - sibling0))
   const chunkFrames = stdout.writes.slice(m0).filter(isFrameWrite)
@@ -941,9 +945,37 @@ function isFrameWrite(w: string): boolean {
     finalGrid.includes('probe ready|a|U|b|D|xyz|p|q') && finalGrid.includes('sibling static row'),
     JSON.stringify(finalGrid.split('\n').slice(0, 2)))
 
+  captureOnly = true
+  handled.length = 0
+  stdin.push(`${'\x7f'.repeat(2048)}TAIL`)
+  stdin.push('NEXT')
+  const drainDeadline = Date.now() + 5000
+  while (handled.length < 2050 && Date.now() < drainDeadline) await settle()
+  check('dispatch: a long burst has no dropped keys and later chunks stay behind its tail',
+    handled.length === 2050 && handled.slice(0, 2048).every(value => value === '') && handled.slice(-2).join(',') === 'TAIL,NEXT',
+    `${handled.length} events; tail ${handled.slice(-2).join(',')}`)
+  check('dispatch: the readable stream drains even while acting keys remain queued', stdin.readableLength === 0)
+
+  handled.length = 0
+  stdin.push(`THROW_INPUT\x7fAFTER`)
+  stdin.push('READ_AGAIN')
+  await settle()
+  check('dispatch: a throwing input handler cannot strand the rest of the burst or the reader',
+    handled.join(',') === 'THROW_INPUT,,AFTER,READ_AGAIN' && stdin.readableLength === 0, handled.join(','))
+
+  handled.length = 0
+  stdin.push(`REENTER\x7fTAIL`)
+  await settle()
+  check('dispatch: reentrant reads queue behind the in-flight chunk', handled.join(',') === 'REENTER,,TAIL,INNER', handled.join(','))
+
+  handled.length = 0
+  stdin.push(`${'\x7f'.repeat(90)}AFTER_UNMOUNT`)
   const exited = ink.waitUntilExit()
   ink.unmount()
   await exited
+  const atExit = handled.length
+  await settle()
+  check('dispatch: unmount cancels queued delivery', handled.length === atExit && !handled.includes('AFTER_UNMOUNT'), handled.join(','))
 }
 
 rmSync(HERMETIC_HOME, { recursive: true, force: true })
