@@ -1,12 +1,12 @@
 import { createHash, type UUID } from 'node:crypto'
-import { realpathSync } from 'node:fs'
-import { open, realpath, stat } from 'node:fs/promises'
+import { open, stat } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 
 import { getMercuryHome } from './envUtils.js'
 import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
 import { djb2Hash } from './hash.js'
 import { sliceHeadAtGrapheme } from './intl.js'
+import { projectDirectoryIdentity, resolveDirectoryIdentity, resolveProjectStore, type StoreSpellingRules } from './projectStoreIdentity.js'
 import { stripGroundNote } from '../daemon/isolationNote.js'
 
 
@@ -278,12 +278,16 @@ export function projectSlug(canonical: string): string {
   return `${sanitizePath(canonical)}-${shortProjectHash(canonical)}`
 }
 
+export function projectSlugMatches(name: string, spelling: string): boolean {
+  const sanitized = spelling.replace(/[^a-zA-Z0-9]/g, '-')
+  const tail = `-${shortProjectHash(spelling)}`
+  if (sanitized.length <= MAX_SANITIZED_LENGTH) return name === sanitized + tail
+  if (!name.startsWith(`${sanitized.slice(0, MAX_SANITIZED_LENGTH)}-`) || !name.endsWith(tail)) return false
+  return /^[a-z0-9]+$/i.test(name.slice(MAX_SANITIZED_LENGTH + 1, -tail.length))
+}
+
 export async function canonicalizePath(dir: string): Promise<string> {
-  try {
-    return (await realpath(dir)).normalize('NFC')
-  } catch {
-    return dir.normalize('NFC')
-  }
+  return resolveDirectoryIdentity(dir).canonical
 }
 
 async function directoryExists(path: string): Promise<boolean> {
@@ -291,14 +295,6 @@ async function directoryExists(path: string): Promise<boolean> {
     return (await stat(path)).isDirectory()
   } catch {
     return false
-  }
-}
-
-function canonicalizePathSyncFacts(dir: string): { canonical: string; canonicalized: boolean } {
-  try {
-    return { canonical: realpathSync(dir).normalize('NFC'), canonicalized: true }
-  } catch {
-    return { canonical: dir.normalize('NFC'), canonicalized: false }
   }
 }
 
@@ -313,21 +309,24 @@ export function foldProjectConfigHomeTail(dir: string): string {
   return parent
 }
 
+const storeSpellingRules: StoreSpellingRules = { fold: foldProjectConfigHomeTail, slugMatches: projectSlugMatches }
+
 export function getProjectDir(projectDir: string): string {
-  const memoised = projectDirMemo.get(projectDir)
+  const projects = getProjectsDir()
+  const spelled = `${projects}\0${projectDir}`
+  const memoised = projectDirMemo.get(spelled)
   if (memoised !== undefined) return memoised
-  const folded = foldProjectConfigHomeTail(projectDir)
-  const facts = canonicalizePathSyncFacts(folded)
-  const canonical = foldProjectConfigHomeTail(facts.canonical)
-  const byCanonical = projectDirMemo.get(canonical)
+  const identity = projectDirectoryIdentity(projectDir, foldProjectConfigHomeTail)
+  const canonicalKey = `${projects}\0${identity.canonical}`
+  const byCanonical = projectDirMemo.get(canonicalKey)
   if (byCanonical !== undefined) {
-    if (facts.canonicalized) projectDirMemo.set(projectDir, byCanonical)
+    if (identity.exists) projectDirMemo.set(spelled, byCanonical)
     return byCanonical
   }
-  const resolved = join(getProjectsDir(), projectSlug(canonical))
-  if (facts.canonicalized) {
-    projectDirMemo.set(projectDir, resolved)
-    projectDirMemo.set(canonical, resolved)
+  const resolved = resolveProjectStore(projects, identity, projectSlug(identity.canonical), storeSpellingRules)
+  if (identity.exists) {
+    projectDirMemo.set(spelled, resolved)
+    projectDirMemo.set(canonicalKey, resolved)
   }
   return resolved
 }
