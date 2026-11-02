@@ -1,13 +1,12 @@
 import { createHash, type UUID } from 'node:crypto'
-import { open, stat } from 'node:fs/promises'
+import { realpathSync } from 'node:fs'
+import { open, realpath, stat } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 
 import { getMercuryHome } from './envUtils.js'
 import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
 import { djb2Hash } from './hash.js'
 import { sliceHeadAtGrapheme } from './intl.js'
-import { directoryIdentity } from './directoryIdentity.js'
-import { resolveProjectStore } from './projectStoreIdentity.js'
 import { stripGroundNote } from '../daemon/isolationNote.js'
 
 
@@ -280,7 +279,11 @@ export function projectSlug(canonical: string): string {
 }
 
 export async function canonicalizePath(dir: string): Promise<string> {
-  return directoryIdentity(dir).canonical
+  try {
+    return (await realpath(dir)).normalize('NFC')
+  } catch {
+    return dir.normalize('NFC')
+  }
 }
 
 async function directoryExists(path: string): Promise<boolean> {
@@ -291,6 +294,15 @@ async function directoryExists(path: string): Promise<boolean> {
   }
 }
 
+function canonicalizePathSyncFacts(dir: string): { canonical: string; canonicalized: boolean } {
+  try {
+    return { canonical: realpathSync(dir).normalize('NFC'), canonicalized: true }
+  } catch {
+    return { canonical: dir.normalize('NFC'), canonicalized: false }
+  }
+}
+
+const projectDirMemo = new Map<string, string>()
 
 export function foldProjectConfigHomeTail(dir: string): string {
   const base = basename(dir)
@@ -302,11 +314,22 @@ export function foldProjectConfigHomeTail(dir: string): string {
 }
 
 export function getProjectDir(projectDir: string): string {
+  const memoised = projectDirMemo.get(projectDir)
+  if (memoised !== undefined) return memoised
   const folded = foldProjectConfigHomeTail(projectDir)
-  const facts = directoryIdentity(folded)
+  const facts = canonicalizePathSyncFacts(folded)
   const canonical = foldProjectConfigHomeTail(facts.canonical)
-  const identity = canonical === facts.canonical ? facts : directoryIdentity(canonical)
-  return resolveProjectStore(getProjectsDir(), identity, projectSlug(canonical), foldProjectConfigHomeTail)
+  const byCanonical = projectDirMemo.get(canonical)
+  if (byCanonical !== undefined) {
+    if (facts.canonicalized) projectDirMemo.set(projectDir, byCanonical)
+    return byCanonical
+  }
+  const resolved = join(getProjectsDir(), projectSlug(canonical))
+  if (facts.canonicalized) {
+    projectDirMemo.set(projectDir, resolved)
+    projectDirMemo.set(canonical, resolved)
+  }
+  return resolved
 }
 
 export async function findProjectDir(projectPath: string): Promise<string | undefined> {

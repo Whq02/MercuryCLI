@@ -29,7 +29,6 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a fast burst of keys, such as a held Backspace or a long paste, stopping the screen; the keys are applied in order.
 - Fixed the mouse wheel in the classic Windows console typing arrow keys into the draft; the wheel scrolls the transcript and the draft stays.
 - Fixed Windows starting a second background daemon when the home folder was reached by another spelling of its path.
-- Fixed a project opened by another spelling of its path, such as a different case or a short name, showing none of its sessions; the same folder now opens the same project.
 - Fixed interrupting a Python Eval cell on Windows losing the kernel's variables; the cell stops and the state stays.
 - Fixed the screen rewriting whole regions on every tick under a dark theme in a 24-bit colour terminal; only the cells that change are written.
 
