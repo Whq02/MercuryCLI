@@ -79,7 +79,7 @@ try {
   board.setChat({ on: true, filter: { kind: 'all' } })
   const sender = { author: { sessionId: sid, agentId: 'poster', executionId: 'run' }, name: 'poster', team: 'lists' }
   board.enroll(sender)
-  await until('the launch row and the Joined row landed while the lead was idle', () => { const text = readFileSync(transcript, 'utf8'); return text.includes('Swarm launched') && text.includes('"Joined"') })
+  await until('the launch row and the Joined row landed while the lead was idle', () => { const text = readFileSync(transcript, 'utf8'); return text.includes('Swarm launched') && text.includes('"content":"joined') })
   const post = (clientOpId: string, text: string): string => {
     const receipt = board!.post(sender, { clientOpId, kind: 'result', text })
     assert(receipt.ok, JSON.stringify(receipt))
@@ -132,7 +132,7 @@ try {
     tally.check(label, a >= 0 && b >= 0 && a < b, `${a} vs ${b}: ${rows.map(row => `${row.what}:${row.text.slice(0, 24)}`).join(' | ')}`)
   }
   tally.section('§1 one record per post, every post recorded once')
-  tally.check("the channel opens on the wave's launch row, then the seat that joined has one Joined row, then the eight posts", party.length === 10 && party[0]!.text === 'Swarm launched' && party[0]!.fields.name === 'main' && party[1]!.text === 'Joined' && party[1]!.fields.authorRole === 'system', party.map(row => row.text).join(' | '))
+  tally.check("the channel opens on the wave's launch row, then the seat that joined has one Joined row, then the eight posts", party.length === 10 && party[0]!.text === 'Swarm launched' && party[0]!.fields.name === 'main' && /^joined(?: · team .+)?$/.test(party[1]!.text) && party[1]!.fields.authorRole === 'system', party.map(row => row.text).join(' | '))
   const creations = allRecords.filter(row => row.what === 'party' && row.creation)
   tally.check('every party row is created once: one creation record per board event, before any projection', creations.length === party.length && new Set(creations.map(row => row.id)).size === creations.length, `${creations.length} creation records for ${party.length} rows`)
   tally.check('a party row carries the post words, the seat and its team', party.slice(2).every(row => row.fields.name === 'poster' && row.fields.team === 'lists' && row.fields.kind === 'result' && row.fields.authorRole === 'peer'))

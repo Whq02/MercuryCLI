@@ -147,6 +147,19 @@ async function paint(body: React.ReactElement, meta: { type: string; timestamp?:
   check('free text drained on the notification lane paints as a plain notice', frame.includes('● notice · 1 line ›') && !frame.includes('Stop hook blocking error from command "lint": 3 errors') && !frame.includes('❯'), frame.slice(0, 200))
 }
 {
+  const { BOARD_PACKET_RULE } = await import(join(ROOT, 'src/services/crewBoard/contracts.ts'))
+  const wake = { type: 'queued_command', prompt: BOARD_PACKET_RULE, commandMode: 'task-notification', isMeta: true }
+  const packet = { type: 'queued_command', prompt: 'a board packet for the model', boardEventIds: ['00000000-0000-4000-8000-000000000001'], origin: { kind: 'coordinator' }, isMeta: true }
+  const chat = async (attachment: Record<string, unknown>): Promise<string> => paint(h(AttachmentMessage as never, { attachment, addMargin: false, verbose: false }), { type: 'attachment', timestamp: STAMP })
+  const transcript = async (attachment: Record<string, unknown>): Promise<string> => paint(h(AttachmentMessage as never, { attachment, addMargin: false, verbose: true, isTranscriptMode: true }), { type: 'attachment', timestamp: STAMP })
+  const wakeChat = await chat(wake)
+  check("the lead's wake sentence for a board mention, a meta queued command, paints no row in the chat: no notice plate, no words", !wakeChat.includes('notice') && !wakeChat.includes('Posts marked') && !wakeChat.includes('●'), wakeChat.slice(0, 200))
+  check('…and stands in the transcript view', (await transcript(wake)).includes('notice'), (await transcript(wake)).slice(0, 200))
+  check('a swarm boundary packet follows the same law: nothing in the chat, the words in the transcript view', !(await chat(packet)).includes('a board packet') && (await transcript(packet)).includes('a board packet'), `${(await chat(packet)).slice(0, 120)} | ${(await transcript(packet)).slice(0, 120)}`)
+  const plain = await chat({ type: 'queued_command', prompt: 'Stop hook blocking error from command "lint": 3 errors', commandMode: 'task-notification' })
+  check('a notification the operator is owed, not meta, keeps its row', plain.includes('● notice · 1 line ›'), plain.slice(0, 200))
+}
+{
   const frame = await paint(h(UserTextMessage as never, { addMargin: false, param: { type: 'text', text: 'carried to the owner, waiting' }, verbose: false }), { type: 'user', timestamp: STAMP })
   check("the operator's own line keeps its caret and handle", frame.includes('[sam]') && frame.includes('❯ carried to the owner, waiting'), frame.slice(0, 160))
   check('…and wears no notice plate', !frame.includes('● notice') && !frame.includes('[Monitor]'), frame.slice(0, 160))

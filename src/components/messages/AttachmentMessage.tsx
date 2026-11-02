@@ -172,7 +172,7 @@ export function AttachmentMessage({
       )
 
     case 'queued_command': {
-      if (attachment.boardEventIds !== undefined && !isTranscriptMode) return null
+      if ((attachment.boardEventIds !== undefined || attachment.isMeta === true) && !isTranscriptMode) return null
       const prompt = attachment.prompt
       const text =
         typeof prompt === 'string'

@@ -117,7 +117,7 @@ const rowsOf = async (board: BoardStore): Promise<SystemCrewChatMessage[]> => {
 const plateOf = (message: SystemCrewChatMessage): string => (message.captain ? `captain ${message.name}` : message.name)
 const inkOfRow = async (message: SystemCrewChatMessage | undefined, theme?: string): Promise<string | null> => (message === undefined ? null : inkOf(await paintRow(message, theme), plateOf(message)))
 const named = (rows: SystemCrewChatMessage[], marker: string): SystemCrewChatMessage | undefined => rows.find(row => row.content.includes(marker))
-const joined = (rows: SystemCrewChatMessage[], name: string): SystemCrewChatMessage | undefined => rows.find(row => row.name === name && row.content === 'Joined')
+const joined = (rows: SystemCrewChatMessage[], name: string): SystemCrewChatMessage | undefined => rows.find(row => row.name === name && /^joined(?: · team .+)?$/.test(row.content))
 const fake = { agentAccents: Array.from({ length: 8 }, (_, i) => ({ name: `c${i}`, color: `c${i}` })), accent: 'x', accentSoft: 'y' } as unknown as Parameters<typeof chatNameColor>[1]
 const renamed = ['ink-two', 'ink-second', 'ink-deux', 'ink-zwei', 'ink-dos', 'ink-due', 'ink-dois', 'ink-twee'].find(name => chatNameColor(name, fake) !== 'c2')!
 
@@ -135,7 +135,7 @@ try {
   if (!owner.ok) refused.push(owner.reason)
   tally.check('seven seats of one team joined and posted, the lead and the owner posted', refused.length === 0, refused.join(' | '))
   const first = await rowsOf(board)
-  tally.check('the feed admitted the launch row, seven Joined rows, seven results, the lead and the owner', first.filter(row => row.content === 'Joined').length === 7 && seats.every((_, i) => named(first, `INK-${i + 1} `) !== undefined) && named(first, 'INK-LEAD') !== undefined && named(first, 'INK-OWNER') !== undefined && named(first, 'Swarm launched') !== undefined, first.map(row => `[${row.name}] ${row.content}`).join(' | '))
+  tally.check('the feed admitted the launch row, seven Joined rows, seven results, the lead and the owner', first.filter(row => /^joined(?: · team .+)?$/.test(row.content)).length === 7 && seats.every((_, i) => named(first, `INK-${i + 1} `) !== undefined) && named(first, 'INK-LEAD') !== undefined && named(first, 'INK-OWNER') !== undefined && named(first, 'Swarm launched') !== undefined, first.map(row => `[${row.name}] ${row.content}`).join(' | '))
   const inks = await Promise.all(seats.map((_, i) => inkOfRow(named(first, `INK-${i + 1} `))))
   for (const [i, ink] of inks.entries()) tally.check(`seat ${i + 1} (${seats[i]!.name}, joined ${i + 1}${['st', 'nd', 'rd'][i] ?? 'th'}) paints accent ${i + 1}`, ink !== null && ink === accent(i + 1), `${ink} vs ${accent(i + 1)}`)
   tally.check('seven seats of one team paint seven distinct inks', new Set(inks).size === 7 && !inks.includes(null), inks.join(' | '))
@@ -157,7 +157,7 @@ try {
   const third = await rowsOf(board)
   const renamedRow = named(third, 'INK-RENAMED')
   tally.check(`a seat re-enrolled under a new name (${renamed}) keeps its slot: accent 2, not the name's hash`, rename.ok && renamedRow?.name === renamed && (await inkOfRow(renamedRow)) === accent(2), `${renamedRow?.name} ${await inkOfRow(renamedRow)} vs ${accent(2)}`)
-  tally.check('a re-enrolled seat does not join again', !third.some(row => row.content === 'Joined'), third.map(row => `[${row.name}] ${row.content}`).join(' | '))
+  tally.check('a re-enrolled seat does not join again', !third.some(row => /^joined(?: · team .+)?$/.test(row.content)), third.map(row => `[${row.name}] ${row.content}`).join(' | '))
   const eighth = principal('a-ink-8', 'ink-8', undefined, 'inks')
   board.enroll(eighth)
   const overflow = board.post(eighth, { clientOpId: 'ink-8', kind: 'result', text: 'INK-8 the palette is exhausted' })

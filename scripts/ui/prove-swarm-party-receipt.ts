@@ -299,8 +299,17 @@ else {
   const IDLE = ['May I take the README row?', 'Yes, the README row is yours.']
   const NOTICE_REPLIES = ['The first reply.', 'The notice reply.']
   const NOTICE = '@main The notice arrived.'
-  const fixture = (leg: 'idle' | 'cursor' | 'notice') => {
-    const rows = leg === 'notice' ? [
+  const WAKE_POST = '@main The wake arrived.'
+  const WAKE_REPLY = 'The wake reply.'
+  const { BOARD_PACKET_RULE } = await import('../../src/services/crewBoard/contracts.ts')
+  const fixture = (leg: 'idle' | 'cursor' | 'notice' | 'wake') => {
+    const rows = leg === 'wake' ? [
+      base({ parentUuid: null, type: 'user', uuid: P3, message: { role: 'user', content: 'say hello' }, timestamp: '2026-06-19T12:00:09.000Z' }),
+      base({ parentUuid: P3, type: 'assistant', uuid: ids[0], requestId: 'req_wake_1', message: { id: 'msg_wake_1', type: 'message', role: 'assistant', model: 'claude-opus-4-8', content: [{ type: 'text', text: NOTICE_REPLIES[0] }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 13, output_tokens: 1 } }, timestamp: '2026-06-19T12:00:10.000Z' }),
+      base({ parentUuid: ids[0], type: 'attachment', uuid: ids[1], attachment: { type: 'queued_command', prompt: BOARD_PACKET_RULE, commandMode: 'task-notification', isMeta: true, sentAt: '2026-06-19T12:00:11.000Z' }, timestamp: '2026-06-19T12:00:11.000Z' }),
+      post(ids[1], '00000000-0000-4000-8000-00000000c001', 1, 'lists-judge', WAKE_POST, 'result', undefined, 'lists'),
+      base({ parentUuid: '00000000-0000-4000-8000-00000000c001', type: 'assistant', uuid: ids[2], requestId: 'req_wake_2', message: { id: 'msg_wake_2', type: 'message', role: 'assistant', model: 'claude-opus-4-8', content: [{ type: 'text', text: WAKE_REPLY }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 13, output_tokens: 1 } }, timestamp: '2026-06-19T12:00:12.000Z' }),
+    ] : leg === 'notice' ? [
       base({ parentUuid: null, type: 'user', uuid: P3, message: { role: 'user', content: 'say hello' }, timestamp: '2026-06-19T12:00:09.000Z' }),
       base({ parentUuid: P3, type: 'assistant', uuid: ids[0], requestId: 'req_notice_1', message: { id: 'msg_notice_1', type: 'message', role: 'assistant', model: 'claude-opus-4-8', content: [{ type: 'text', text: NOTICE_REPLIES[0] }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 13, output_tokens: 1 } }, timestamp: '2026-06-19T12:00:10.000Z' }),
       base({ parentUuid: ids[0], type: 'user', uuid: ids[1], isVirtual: true, origin: { kind: 'task-notification' }, message: { role: 'user', content: `<crew-board>${JSON.stringify({ name: 'lists-judge', kind: 'result', text: NOTICE })}</crew-board>` }, timestamp: '2026-06-19T12:00:11.000Z' }),
@@ -331,11 +340,11 @@ else {
   const REPLY = 'Both echoes ran.'
   try {
     for (const [cols, rows] of [[120, 44], [80, 24]] as const) {
-      for (const leg of ['idle', 'cursor', 'notice'] as const) {
+      for (const leg of ['idle', 'cursor', 'notice', 'wake'] as const) {
         fixture(leg)
         const tag = `party-receipt-${leg}-${cols}x${rows}`
         const gridPath = join(captures, `${tag}.grid.json`)
-        const sends = leg === 'notice' ? [then('', NOTICE_REPLIES[1]!, 'woken')] : leg === 'idle'
+        const sends = leg === 'wake' ? [then('', WAKE_REPLY, 'woken')] : leg === 'notice' ? [then('', NOTICE_REPLIES[1]!, 'woken')] : leg === 'idle'
           ? [
               then('', REPLY, 'painted'),
               then(CLICK, REPLY, undefined, { targetText: '2 shell commands' }),
@@ -356,7 +365,7 @@ else {
               then('', REPLY, 'entered'),
               then('\x1b', REPLY),
             ]
-        const config = { cwd: RUNTIME_CWD, argv: ['node', DIST, '--resume', SID], cols, rows, total: 220, out: gridPath, readyText: [leg === 'notice' ? NOTICE_REPLIES[1]! : REPLY], readySettleTicks: 3, sends }
+        const config = { cwd: RUNTIME_CWD, argv: ['node', DIST, '--resume', SID], cols, rows, total: 220, out: gridPath, readyText: [leg === 'wake' ? WAKE_REPLY : leg === 'notice' ? NOTICE_REPLIES[1]! : REPLY], readySettleTicks: 3, sends }
         const configPath = join(captures, `${tag}.json`)
         writeFileSync(configPath, JSON.stringify(config))
         let stderr = ''
@@ -380,6 +389,14 @@ else {
           await gridToPng(stillPath, join(captures, `${tag}-${still.label}.png`))
         }
         await gridToPng(gridPath, join(captures, `${tag}.png`))
+        if (leg === 'wake') {
+          const lines = marks.get('woken') ?? []
+          const seatAt = lineOf(lines, `[lists-judge] ${WAKE_POST}`)
+          check(`${tag}: the post that woke the idle lead paints as the seat's row, between the first reply and the wake reply`, seatAt > lineOf(lines, NOTICE_REPLIES[0]!) && lineOf(lines, WAKE_REPLY) > seatAt && /\d{2}:\d{2}:\d{2} \[lists-judge\] @main The wake arrived\./.test(lines[seatAt] ?? ''), JSON.stringify({ seatAt, first: lineOf(lines, NOTICE_REPLIES[0]!), wake: lineOf(lines, WAKE_REPLY) }))
+          check(`${tag}: the lead's wake sentence paints no row: no notice plate, no fold, none of its words`, !lines.some(line => /notice · \d+ lines? [›⌄]/.test(line) || line.includes('Posts marked') || line.includes('board message')), lines.filter(line => line.includes('notice') || line.includes('Posts marked')).join(' | '))
+          console.log(`  frames: ${join(captures, tag)}-*.png`)
+          continue
+        }
         if (leg === 'notice') {
           const lines = marks.get('woken') ?? []
           const firstReply = lineOf(lines, NOTICE_REPLIES[0]!)

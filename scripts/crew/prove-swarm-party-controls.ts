@@ -175,7 +175,7 @@ try {
   tally.check('mentions: main qualifies', !absent('MAIN-MENTION'))
   tally.check("the lead's own post qualifies only when addressed to main", absent('MAIN-LEAD'))
   tally.check("the owner's command always paints, as its sender receipt", painted().some(row => row.text === '@solo quietly MAIN-OWNER' && row.fields.authorRole === 'owner' && row.fields.name === 'owner'))
-  tally.check('a lifecycle row is not addressed traffic under main', !painted().some(row => row.text === 'Joined' && row.fields.name === 'runner'))
+  tally.check('a lifecycle row is not addressed traffic under main', !painted().some(row => /^joined/.test(row.text) && row.fields.name === 'runner'))
 
   tally.section('§4 team: traffic for that team, not a subscription')
   tally.check('select team lists', (await command('/swarmchat team lists')) === 'Swarm chat · team lists')
@@ -203,8 +203,8 @@ try {
   tally.check("another team's traffic does not paint", absent('TEAM-OTHER'))
   tally.check("the lead's post to a member paints", !absent('TEAM-LEAD'))
   tally.check("the owner's broadcast paints as the sender receipt", painted().some(row => row.text === '@all everyone TEAM-OWNER' && row.fields.authorRole === 'owner'))
-  tally.check("a team seat's Joined row paints", painted().some(row => row.text === 'Joined' && row.fields.name === 'lists-reader'))
-  tally.check("another team's Joined row does not", !painted().some(row => row.text === 'Joined' && row.fields.name === 'keeper'))
+  tally.check("a team seat's Joined row paints", painted().some(row => row.text === 'joined · team lists' && row.fields.name === 'lists-reader'))
+  tally.check("another team's Joined row does not", !painted().some(row => /^joined/.test(row.text) && row.fields.name === 'keeper'))
 
   tally.section('§5 all: every public kind and lifecycle row, nothing else')
   tally.check('select all', (await command('/swarmchat all')) === 'Swarm chat · all')
@@ -219,7 +219,7 @@ try {
   tally.check('a message kind never paints', absent('ALL-MESSAGE'))
   tally.check('a plain notice never paints', absent('ALL-NOTICE'))
   tally.check('corrections and asks paint', !absent('ALL-CORRECTION') && !absent('ALL-ASK'))
-  tally.check('a completed run paints Done once', painted().filter(row => row.text === 'Done' && row.fields.name === 'solo').length === 1)
+  tally.check('a completed run paints done once', painted().filter(row => row.text === 'done' && row.fields.name === 'solo').length === 1)
   const workbench = board.view()
   tally.check('the Workbench projection is untouched by the display controls: no lifecycle launch or Joined rows, the public posts and the completion notice', workbench.events.every(event => { const lifecycle = (event as { lifecycle?: { kind: string } }).lifecycle; return lifecycle === undefined || lifecycle.kind === 'done' }) && workbench.events.some(event => event.text.includes('ALL-MESSAGE')), workbench.events.map(event => event.text.slice(0, 20)).join(' | '))
   const consumed = (): Record<string, number> => {

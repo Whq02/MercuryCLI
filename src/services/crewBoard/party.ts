@@ -25,9 +25,10 @@ function partyAdmits(event: ScreenEvent, filter: BoardChatFilter): boolean {
   return addresses.has('all') || addresses.has(team) || (event.recipients ?? []).some(seat => seat.team?.toLowerCase() === team && (addresses.has(seat.name.toLowerCase()) || addresses.has(seat.agent.toLowerCase())))
 }
 
-function lifecycleWords(lifecycle: CrewChatLifecycle): string {
+function lifecycleWords(lifecycle: CrewChatLifecycle, team: string | undefined): string {
   if (lifecycle.kind === 'parked') return `parked · waiting on ${lifecycle.event}`
-  return lifecycle.kind === 'launched' ? 'Swarm launched' : lifecycle.kind === 'joined' ? 'Joined' : 'Done'
+  if (lifecycle.kind === 'joined') return team === undefined ? 'joined' : `joined · team ${team}`
+  return lifecycle.kind === 'launched' ? 'Swarm launched' : 'done'
 }
 
 function partyRow(event: ScreenEvent, seats: readonly BoardSeat[], turnId?: string): SystemCrewChatMessage {
@@ -42,7 +43,7 @@ function partyRow(event: ScreenEvent, seats: readonly BoardSeat[], turnId?: stri
     isMeta: false,
     uuid: event.eventId as UUID,
     timestamp: event.createdAt,
-    content: event.lifecycle !== undefined ? lifecycleWords(event.lifecycle) : authorRole === 'owner' && label !== undefined ? `@${label} ${event.text}` : event.text,
+    content: event.lifecycle !== undefined ? lifecycleWords(event.lifecycle, event.team) : authorRole === 'owner' && label !== undefined ? `@${label} ${event.text}` : event.text,
     seq: event.seq,
     name: authorRole === 'lead' ? 'main' : event.authorName ?? event.author.agentId,
     ...(slot === undefined ? {} : { slot }),
