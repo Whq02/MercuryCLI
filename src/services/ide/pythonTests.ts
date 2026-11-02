@@ -286,9 +286,6 @@ def selection_plan(start_dir, items, osp=os.path, isfile=None, isdir=None):
             if rel is None:
                 plan.append({"kind": "file", "start": osp.dirname(path), "top": osp.dirname(path), "pattern": osp.basename(path)})
             else:
-                # A folder whose name is not an identifier (.mercury, alpha.beta, light-art-wave) cannot be
-                # spelled as a module, so the dotted name starts below it and that folder joins sys.path,
-                # the way the shell runs the file from there.
                 parts = rel[:-3].replace("\\\\", "/").split("/")
                 k = len(parts) - 1
                 while k > 0 and parts[k - 1].isidentifier():
