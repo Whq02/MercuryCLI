@@ -2,7 +2,7 @@ import { closeSync, openSync, readFileSync, readSync, readdirSync, realpathSync,
 import { join } from 'node:path'
 import { directoryIdentity, directoryIdentityKey } from './directoryIdentity.js'
 
-export type StoreDirectoryIdentity = ReturnType<typeof directoryIdentity>
+type StoreDirectoryIdentity = ReturnType<typeof directoryIdentity>
 
 export type StoreSpellingRules = {
   fold: (dir: string) => string
@@ -140,7 +140,7 @@ function storeOwnsIdentity(store: string, name: string, identity: StoreDirectory
   return recorded !== null && claims(recorded)
 }
 
-export function olderSpellingStore(projects: string, identity: StoreDirectoryIdentity, candidate: string, rules: StoreSpellingRules): string | null {
+function olderSpellingStore(projects: string, identity: StoreDirectoryIdentity, candidate: string, rules: StoreSpellingRules): string | null {
   let names: string[]
   try {
     names = readdirSync(projects)
