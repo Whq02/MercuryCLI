@@ -440,6 +440,9 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
             const rounds = history.filter(e => e.kind === 'ask' || (e.kind === 'answer' && history.find(parent => parent.eventId === e.replyTo)?.author.agentId !== e.author.agentId)).length
             if (rounds >= 4) return { ok: false, cap: 'thread-rounds', reason: 'This thread has two question-and-answer rounds. Corrections and replies to your own posts remain open.' }
           }
+          const addressing = resolveMentions(post.mentions)
+          const team = teamOf(p.author.agentId)
+          if (!mirrored && addressing.unknownMentions.length > 0 && addressing.mentions.length === 0 && team === undefined && !post.mentions.some(name => name.toLowerCase() === 'main')) return { ok: false, reason: `no seat named ${addressing.unknownMentions.join(', ')} — a seat exists once Crewmate launches it` }
           const author = db.prepare('SELECT credits, refilled, posts FROM members WHERE agent = ?').get(p.author.agentId)!
           const time = now()
           const credits = Math.min(burst(), Number(author.credits) + Math.max(0, time - Number(author.refilled)) / refillMs())
@@ -448,8 +451,6 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
           const own = seats().find(seat => seat.agent === p.author.agentId)
           const declared = !mirrored && own ? parseBoardWait(post, own, seats()) : null
           const eventId = randomUUID()
-          const addressing = resolveMentions(post.mentions)
-          const team = teamOf(p.author.agentId)
           const event: BoardEvent = { ...post, addresses: post.mentions, mentions: addressing.mentions, recipients: seats().filter(seat => addressing.mentions.includes(seat.agent)), ...(post.lifecycle ? { authorRole: 'system' as const } : {}), ...(addressing.unknownMentions.length ? { unknownMentions: addressing.unknownMentions } : {}), ...(team === undefined ? {} : { team }), ...(captainId(team) === p.author.agentId ? { captain: true } : {}), ...(post.taskId === undefined && question?.taskId !== undefined ? { taskId: question.taskId } : {}), schema: 1, boardId, waveId, seq: 0, eventId, author: p.author, authorName: p.name, createdAt: new Date(time).toISOString(), payloadDigest: hash, threadId: thread, policyRevision: 1 }
           appendEvent(event)
           if (mirrored) db.prepare('INSERT INTO mirror_events VALUES (?)').run(eventId)

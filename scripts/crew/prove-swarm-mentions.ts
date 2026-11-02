@@ -32,6 +32,25 @@ function world(id: string, limits: Partial<BoardLimits> = {}) {
   return { board, main, alpha, beta, seat, post }
 }
 {
+  const w = world('unknown')
+  try {
+    const before = w.board.view().snapshot
+    for (const address of [{ text: '@missing-a @missing-b launch the seats.' }, { text: 'Launch the seats.', to: ['missing-a', 'missing-b'] }, { text: 'Launch the seats.', mentions: ['missing-a', 'missing-b'] }]) {
+      const refused = w.board.post(w.main, { clientOpId: 'missing-only', kind: 'ask', ...address })
+      check('only unknown addresses refuse with the launcher remedy', !refused.ok && refused.reason === 'no seat named missing-a, missing-b — a seat exists once Crewmate launches it')
+      check('a refused post adds no row or delivery', w.board.view().snapshot === before && w.board.boundary(w.beta, new Set()) === null)
+    }
+    const mixed = w.post(w.main, '@Beta @missing-a this has a recipient.')
+    check('mixed known and unknown names still land and report the unknown', mixed.unknownMentions?.join(',') === 'missing-a' && w.board.boundary(w.beta, new Set())?.eventIds.includes(mixed.eventId))
+    for (const name of ['main', 'all', 'view']) check(`${name} supplies a real recipient`, w.post(w.main, `@${name} @missing-a a real address.`).unknownMentions?.[0] === 'missing-a')
+    check('the author delivery label still admits team traffic', w.post(w.alpha, '@missing-a for the crew on this label.').unknownMentions?.[0] === 'missing-a')
+    check('an unaddressed general post still lands', w.post(w.main, 'A general finding.').ok)
+    w.seat('missing-a')
+    const retry = w.board.post(w.main, { clientOpId: 'missing-only', kind: 'ask', text: '@missing-a @missing-b launch the seats.' })
+    check('refusal does not consume the retry key; enrollment makes it admissible', retry.ok && !retry.replay && retry.unknownMentions?.[0] === 'missing-b')
+  } finally { w.board.close() }
+}
+{
   const w = world('whole')
   try {
     const text = '@Beta ' + 'Whole words " quoted \\ and Unicode é. '.repeat(80)

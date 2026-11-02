@@ -69,7 +69,7 @@ const context = (agentId?: string): any => ({
 })
 let serial = 0
 let dispatchedMessages: any[] = []
-async function dispatch(agent: string | undefined, name: string, input: unknown): Promise<any> {
+async function dispatch(agent: string | undefined, name: string, input: unknown, expectError = false): Promise<any> {
   const id = `board-call-${++serial}`
   const toolUse = { type: 'tool_use', id, name, input }
   const assistant = createAssistantMessage({ content: [toolUse] as never })
@@ -82,7 +82,8 @@ async function dispatch(agent: string | undefined, name: string, input: unknown)
     if (msg?.type === 'user') for (const block of msg.message.content) if (block.type === 'tool_result') results.push(block)
   }
   assert.equal(results.length, 1, JSON.stringify(results))
-  assert(!results[0].is_error, String(results[0].content))
+  assert.equal(results[0].is_error === true, expectError, String(results[0].content))
+  if (expectError) return results[0].content
   const text = typeof results[0].content === 'string' ? results[0].content : results[0].content.map((b: any) => b.text).join('')
   return name === 'CrewBoard' ? JSON.parse(text) : { success: !results[0].is_error, message: text }
 }
@@ -125,8 +126,10 @@ const original = board.post(principal, post)
 const repeated = board.post(principal, post)
 check('identical retry returns the committed identity', original.ok && repeated.ok && repeated.replay && original.eventId === repeated.eventId)
 check('changed payload under a retry key refuses', !board.post(principal, { ...post, text: 'A different question.' }).ok)
-const foreign = await dispatch('beta', 'CrewBoard', { op: 'post', ...post, clientOpId: 'foreign', to: ['outside'] })
-check('out-of-wave mention lands through real dispatch with its unknown name', foreign.ok && foreign.unknownMentions?.[0] === 'outside')
+const foreign = await dispatch('beta', 'CrewBoard', { op: 'post', ...post, clientOpId: 'foreign', to: ['outside'] }, true)
+check('an unknown-only post returns a plain tool error through real dispatch', foreign === 'no seat named outside — a seat exists once Crewmate launches it')
+const mixed = await dispatch('beta', 'CrewBoard', { op: 'post', ...post, clientOpId: 'foreign', to: ['outside', 'Alpha'] })
+check('a mixed post lands and reports the unknown name', mixed.ok && mixed.unknownMentions?.[0] === 'outside')
 const taskless = await dispatch('beta', 'CrewBoard', { op: 'post', clientOpId: 'taskless', kind: 'result', text: 'The parser accepts the row.', about: 'parser.ts' })
 check('a taskless result lands through real dispatch', taskless.ok)
 const teamAssigned = await dispatch(undefined, 'CrewBoard', { op: 'swarm_team', seat: 'Beta', team: 'parser' })
