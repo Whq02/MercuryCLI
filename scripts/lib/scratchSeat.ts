@@ -2,10 +2,10 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { DIST, NODE, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, sleep } from '../daemon/dupline-world.ts'
-import { seedScratchHome, startScriptedFixture, type Script, type ScriptedFixture, type ScriptedRequest, type WireBlock } from '../lib/scriptedTurn.ts'
+import { seedScratchHome, startScriptedFixture, type Script } from '../lib/scriptedTurn.ts'
 
-export { DIST, NODE, SCRATCH_ROOT, bound, childEnv, isOutcome, makeTally, seedScratchHome, sleep, startScriptedFixture }
-export type { Script, ScriptedFixture, ScriptedRequest, WireBlock }
+export { DIST, NODE, bound, childEnv, isOutcome, makeTally, seedScratchHome, sleep, startScriptedFixture }
+export type { Script }
 
 type Turn = { result: Record<string, unknown> | null; stderr: string; exitCode: number | null; frames: unknown[] }
 
