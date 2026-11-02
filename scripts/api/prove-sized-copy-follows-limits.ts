@@ -32,8 +32,8 @@ const { fitImagesToRequestCap, imageLimitsForModel, requestImageSidePx } = await
 
 const DIRECT = 'claude-opus-5-5'
 const RELAYED = 'glm-5'
-const WIDTH = 8001
-const HEIGHT = 240
+const WIDTH = 6001
+const HEIGHT = 1300
 const MiB = 1024 * 1024
 const kb = (n: number): string => `${(n / MiB).toFixed(2)} MiB`
 
@@ -74,13 +74,13 @@ const direct = imageLimitsForModel(DIRECT)
 const relayed = imageLimitsForModel(RELAYED)
 const directCeiling = direct.maxBase64Bytes ?? direct.maxRequestBytes
 const relayedCeiling = relayed.maxBase64Bytes ?? relayed.maxRequestBytes
-const sidePx = requestImageSidePx(direct, 1)
+const sidePx = requestImageSidePx(direct)
 
 section('§1 the two families a session can move between share the per-side cap and differ in the byte ceiling')
 {
   check(`${DIRECT} sizes to the anthropic table`, direct.family === 'anthropic', direct.family)
   check(`${RELAYED} sizes to the generic table (a route without documented figures of its own)`, relayed.family === 'generic', relayed.family)
-  check(`both tables cap a single image at the same side (${String(sidePx)} px)`, sidePx !== null && requestImageSidePx(relayed, 1) === sidePx, `${String(sidePx)} vs ${String(requestImageSidePx(relayed, 1))}`)
+  check(`both tables bound every image at the same side from its first send (${String(sidePx)} px, the many-image bound)`, sidePx !== null && requestImageSidePx(relayed) === sidePx, `${String(sidePx)} vs ${String(requestImageSidePx(relayed))}`)
   check(`the generic ceiling is stricter than the anthropic one (${kb(relayedCeiling)} vs ${kb(directCeiling)} as base64)`, relayedCeiling < directCeiling)
 }
 

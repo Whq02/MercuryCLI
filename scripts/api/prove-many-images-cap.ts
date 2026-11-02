@@ -155,8 +155,8 @@ async function send(model: string, messages: AnyMsg[]): Promise<{ errors: AnyMsg
 }
 
 const small = await flat(64, 48)
-const wide = await flat(2500, 1400)
-const tall = await flat(1200, 2200)
+const wide = await flat(3500, 1960)
+const retina = await flat(2880, 1800)
 const huge = await flat(SINGLE_CAP + 412, 120)
 
 function history(images: Buffer[], options: { thinkingAfter?: number } = {}): AnyMsg[] {
@@ -180,20 +180,20 @@ const srcFiles = (dir: string): string[] => {
   return out
 }
 
-section('§1 the wolf-fence: the many-images rule lives in the resizer behind imagesInRequest, and exactly one owner passes the count')
+const withoutCacheControl = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(withoutCacheControl)
+  if (value === null || typeof value !== 'object') return value
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([key]) => key !== 'cache_control').map(([key, part]) => [key, withoutCacheControl(part)]))
+}
+const wireMessages = (body: Record<string, unknown> | null): unknown[] => (Array.isArray(body?.messages) ? (body!.messages as unknown[]) : [])
+
+section('§1 the wolf-fence: the many-images bound lives in the resizer and applies from an image\'s first send, never from the count')
 {
   const resizer = readFileSync(join(ROOT, 'src/utils/imageResizer.ts'), 'utf8')
-  check('the resizer applies the family\'s many-images cap only when a caller passes imagesInRequest', resizer.includes('options?.imagesInRequest') && resizer.includes('limits.manyImages'))
-  check('the Anthropic table: 2000 px per side once a request carries more than 20 images', RULE !== null && THRESHOLD === 20 && CAP === 2000, j(RULE))
-  const passers: string[] = []
-  for (const file of srcFiles(join(ROOT, 'src'))) {
-    const text = readFileSync(file, 'utf8')
-    if (file.endsWith('src/utils/imageResizer.ts')) continue
-    if (/imagesInRequest:\s*[A-Za-z_$][\w$.]*/.test(text)) passers.push(file.slice(ROOT.length + 1))
-  }
-  note(`callers passing imagesInRequest: ${passers.length === 0 ? 'none' : passers.join(', ')}`)
-  const ownerPasses = /imagesInRequest:\s*[A-Za-z_$][\w$.]*/.test(resizer)
-  check('the count is passed where a request is composed (the resizer\'s own composition owner), so ingestion never has to guess it', ownerPasses, 'no composition owner passes imagesInRequest')
+  const sidePxSource = /export function requestImageSidePx\([\s\S]*?\n\}/.exec(resizer)?.[0] ?? ''
+  check('requestImageSidePx reads the family\'s many-images bound and never the request\'s image count', sidePxSource.includes('manyImageSidePx(limits)') && !sidePxSource.includes('imagesInRequest'), sidePxSource.slice(0, 200))
+  check('the Anthropic table: 3000 px per side for a request with more than 20 images (the vision page, read 2026-11-02), above every tier\'s native long edge', RULE !== null && THRESHOLD === 20 && CAP === 3000 && CAP > limitsMod.ANTHROPIC_IMAGE_LIMITS.nativeLongEdgePx.highResolution, j(RULE))
+  check('the count still reaches the resizer for the one rule that needs it: an image whose size cannot be read is left out only over the threshold', resizer.includes('overManyImagesThreshold(limits, imagesInRequest)'))
   const routes: Array<[string, string]> = [
     ['anthropic', 'src/services/providers/anthropic/streamCore.ts'],
     ['openai', 'src/services/providers/openai/openaiCallModel.ts'],
@@ -202,66 +202,86 @@ section('§1 the wolf-fence: the many-images rule lives in the resizer behind im
   ]
   for (const [route, file] of routes) {
     const text = readFileSync(join(ROOT, file), 'utf8')
-    check(`the ${route} route fits its request's images to the cap the count implies at composition`, text.includes('fitImagesToRequestCap('), `${file} never calls the composition owner`)
+    check(`the ${route} route fits its request's images to the bound at composition`, text.includes('fitImagesToRequestCap('), `${file} never calls the composition owner`)
   }
 }
 
-section('§2 the wire: a 21-image request on the Anthropic lane carries every image within the many-images cap')
+section('§2 the wire: twenty images, then twenty-one — the twenty-first image changes nothing before it')
 {
-  const images = Array.from({ length: THRESHOLD + 1 }, (_, index) => (index === 5 ? wide : small))
-  const rows = history(images, { thinkingAfter: 3 })
+  const twenty = Array.from({ length: THRESHOLD }, (_, index) => (index === 5 ? wide : small))
+  const rowsTwenty = history(twenty, { thinkingAfter: 3 })
   fixture.script(() => ({ text: 'seen' }))
-  const run = await send(MODEL, rows)
-  check('the request reached the Anthropic wire and settled', run.body !== null && run.thrown === undefined && run.errors.length === 0, `thrown=${String(run.thrown)} errors=${j(run.errors.map(e => j(e.message).slice(0, 160)))}`)
+  const first = await send(MODEL, rowsTwenty)
+  check(`the ${THRESHOLD}-image request reached the Anthropic wire and settled`, first.body !== null && first.thrown === undefined && first.errors.length === 0, `thrown=${String(first.thrown)} errors=${j(first.errors.map(e => j(e.message).slice(0, 160)))}`)
+  const seenTwenty = first.body === null ? [] : wireImages(first.body)
+  const sizedAtTwenty = seenTwenty.find(image => image.width === CAP || image.height === CAP)
+  check(`at ${THRESHOLD} images the 3500x1960 image already rides at the bound, keeping its shape (3000x1680): the bound applies from the first send`, seenTwenty.length === THRESHOLD && sizedAtTwenty !== undefined && sizedAtTwenty.width === 3000 && sizedAtTwenty.height === 1680, seenTwenty.map(i => `${i.width}x${i.height}`).join(' '))
+
+  const rowsTwentyOne = [
+    ...rowsTwenty.slice(0, -1),
+    userRow([{ type: 'text', text: `image ${THRESHOLD + 1} of ${THRESHOLD + 1}` }, imageBlock(small)]),
+    assistantRow([thinkingBlock(`reasoning after image ${THRESHOLD + 1}`), { type: 'text', text: `noted image ${THRESHOLD + 1}` }]),
+    userRow('and the next step?'),
+  ]
+  fixture.script(() => ({ text: 'seen' }))
+  const run = await send(MODEL, rowsTwentyOne)
+  check(`the ${THRESHOLD + 1}-image request reached the Anthropic wire and settled`, run.body !== null && run.thrown === undefined && run.errors.length === 0, `thrown=${String(run.thrown)} errors=${j(run.errors.map(e => j(e.message).slice(0, 160)))}`)
   const seen = run.body === null ? [] : wireImages(run.body)
   check(`the wire carried all ${THRESHOLD + 1} images (nothing dropped)`, seen.length === THRESHOLD + 1, `${seen.length} images`)
   const over = seen.filter(image => Math.max(image.width, image.height) > CAP)
-  check(`every image on the wire is within ${CAP} px a side (the many-images cap applied at composition)`, seen.length > 0 && over.length === 0, over.map(image => `message ${image.message} block ${image.block}: ${image.width}x${image.height}`).join(', ') || 'no image on the wire')
-  const sized = seen.find(image => image.width === CAP || image.height === CAP)
-  check('the 2500x1400 image was sized to the cap keeping its shape (2000x1120)', sized !== undefined && sized.width === 2000 && sized.height === 1120, sized ? `${sized.width}x${sized.height}` : seen.map(i => `${i.width}x${i.height}`).join(' '))
+  check(`every image on the wire is within ${CAP} px a side`, seen.length > 0 && over.length === 0, over.map(image => `message ${image.message} block ${image.block}: ${image.width}x${image.height}`).join(', ') || 'no image on the wire')
+  const shared = THRESHOLD * 2
+  const before = wireMessages(first.body).slice(0, shared).map(withoutCacheControl)
+  const after = wireMessages(run.body).slice(0, shared).map(withoutCacheControl)
+  const firstDifferent = before.findIndex((row, index) => j(row) !== j(after[index]))
+  check(`the ${shared} messages before the twenty-first image ride byte-identical across the crossing: the cached prefix holds (no messages_changed)`, before.length === shared && firstDifferent === -1, `first differing message ${firstDifferent}`)
   const untouched = seen.filter(image => image.width === 64 && image.data === small.toString('base64'))
-  check('the twenty images already within the cap ride byte-identical', untouched.length === THRESHOLD, `${untouched.length} untouched`)
-  const originalOnRows = rows.filter(row => row.type === 'user').some(row => j(row.message).includes(wide.toString('base64').slice(0, 200)))
-  check('the history rows still hold the original 2500x1400 bytes (the wire carries copies)', originalOnRows)
+  check('the twenty small images ride byte-identical', untouched.length === THRESHOLD, `${untouched.length} untouched`)
+  const originalOnRows = rowsTwentyOne.filter(row => row.type === 'user').some(row => j(row.message).includes(wide.toString('base64').slice(0, 200)))
+  check('the history rows still hold the original 3500x1960 bytes (the wire carries copies)', originalOnRows)
   const thinking = run.body === null ? [] : wireThinking(run.body)
-  const firstSizedMessage = sized?.message ?? -1
-  const before = thinking.filter(block => block.message < firstSizedMessage)
-  const after = thinking.filter(block => block.message > firstSizedMessage)
-  check('reasoning written before the first sized message stays on the wire (its prefix is intact)', before.length > 0, `${before.length} blocks before message ${firstSizedMessage}`)
-  check('reasoning written after the first sized message leaves the wire (the edited-prefix law every history edit follows)', firstSizedMessage >= 0 && after.length === 0, `${after.length} thinking blocks after message ${firstSizedMessage}: ${after.map(block => block.text).join(' | ')}`)
+  check('the reasoning minted after the crossing is on the wire', thinking.some(block => block.text === `reasoning after image ${THRESHOLD + 1}`), j(thinking.map(block => block.text)))
 }
 
-section('§3 below the threshold nothing is sized: a 20-image request carries the 2500 px image as it is')
+section('§3 an image above the native long edge and within the bound rides as it is at any count: the API does its own downscale')
 {
-  const images = Array.from({ length: THRESHOLD }, (_, index) => (index === 5 ? wide : small))
+  const images = Array.from({ length: THRESHOLD + 1 }, (_, index) => (index === 5 ? retina : small))
   fixture.script(() => ({ text: 'seen' }))
   const run = await send(MODEL, history(images))
   const seen = run.body === null ? [] : wireImages(run.body)
-  const kept = seen.find(image => image.width === 2500 && image.height === 1400)
-  check(`a request of exactly ${THRESHOLD} images keeps the 2500x1400 image untouched (the cap applies past the threshold only)`, seen.length === THRESHOLD && kept !== undefined && kept.data === wide.toString('base64'), `${seen.length} images; ${seen.map(i => `${i.width}x${i.height}`).join(' ')}`)
+  const kept = seen.find(image => image.width === 2880 && image.height === 1800)
+  check(`a ${THRESHOLD + 1}-image request carries the 2880x1800 image untouched (2880 is under the 3000 bound and over the 2576 native long edge)`, seen.length === THRESHOLD + 1 && kept !== undefined && kept.data === retina.toString('base64'), `${seen.length} images; ${seen.map(i => `${i.width}x${i.height}`).join(' ')}`)
 }
 
-section('§4 the single-image cap at composition: an image over 8000 px in a short request is sized, never refused')
+section('§4 the per-side ceiling at composition: an image over 8000 px in a short request is sized to the bound, never refused')
 {
   fixture.script(() => ({ text: 'seen' }))
   const run = await send(MODEL, history([small, huge, small]))
   const seen = run.body === null ? [] : wireImages(run.body)
-  const big = seen.find(image => image.width > SINGLE_CAP * 0.9)
-  check(`the ${SINGLE_CAP + 412} px image rides within ${SINGLE_CAP} px a side (the family's per-side ceiling), at the ceiling or a rounding below it`, big !== undefined && big.width <= SINGLE_CAP && big.width >= SINGLE_CAP * 0.99, big ? `${big.width}x${big.height}` : seen.map(i => `${i.width}x${i.height}`).join(' '))
+  const big = seen.find(image => image.width > CAP * 0.9)
+  check(`the ${SINGLE_CAP + 412} px image rides within ${CAP} px a side, at the bound or a rounding below it`, big !== undefined && big.width <= CAP && big.width >= CAP * 0.99, big ? `${big.width}x${big.height}` : seen.map(i => `${i.width}x${i.height}`).join(' '))
 }
 
-section('§5 the refusal words name the case that happened')
+section('§5 the refusal words name the limit the provider stated, and the next send fits to it')
 {
+  const resizerMod = await import('../../src/utils/imageResizer.ts')
   const manyImageSentence = 'messages.11.content.1.image.source.base64.data: image dimensions exceed max allowed size for many-image requests: 2500x1400 pixels > 2000x2000 pixels'
+  const manyImageSentenceAtBound = 'messages.11.content.1.image.source.base64.data: image dimensions exceed max allowed size for many-image requests: 3500x1960 pixels > 3000x3000 pixels'
   const singleImageSentence = 'messages.5.content.237.image.source.base64.data: image dimensions exceed max allowed size: 8412 pixels > 8000 pixels'
   const rowFor = (sentence: string): string => {
     const err = new APIError(400, { type: 'error', error: { type: 'invalid_request_error', message: sentence } } as never, undefined, undefined as never)
     const row = errorsMod.getAssistantMessageFromError(err, MODEL) as unknown as AnyMsg
     return (row.message as { content: Array<{ text?: string }> }).content[0]?.text ?? ''
   }
+  check(`before any refusal the bound is the documented ${CAP} px`, resizerMod.manyImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS) === CAP)
+  const atBound = rowFor(manyImageSentenceAtBound)
+  check('a refusal stating the documented bound names it (3000-pixel) and leaves the bound where it is', atBound.includes('3000-pixel') && /more than 20 images/.test(atBound) && resizerMod.manyImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS) === CAP, atBound)
   const many = rowFor(manyImageSentence)
-  check('the many-images refusal names the 2000-pixel limit for a request with more than 20 images', many.includes('2000') && /more than 20 images|many images/.test(many), many)
+  check('a refusal stating 2000 pixels names that limit for a request with more than 20 images', many.includes('2000-pixel') && /more than 20 images|many images/.test(many), many)
   check('…and never the 8000 px single-image label', !many.includes('8000'), many)
+  check('…and the next send fits to the limit the provider stated (2000 px), not to the documented bound', resizerMod.manyImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS) === 2000 && resizerMod.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS) === 2000)
+  resizerMod.resetStatedManyImageBoundForTesting()
+  check('the stated limit is forgotten with the process state, the documented bound stands again', resizerMod.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS) === CAP)
   const single = rowFor(singleImageSentence)
   check('the single-image refusal still names the 8000 px per-side limit', single.includes('8000px on any side'), single)
   check('both sentences read as media-size errors', errorsMod.isMediaSizeError(manyImageSentence) && errorsMod.isMediaSizeError(singleImageSentence))

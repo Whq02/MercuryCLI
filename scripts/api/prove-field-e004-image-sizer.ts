@@ -60,6 +60,7 @@ const { recordSentRequest, resetSentRequestsForTests } = await import(join(ROOT,
 const { processOwnerForLane, rosterOwnerFromToolUseContext } = await import(join(ROOT, 'src/services/run/resolveOwner.ts'))
 const OWNER = String(processOwnerForLane(null))
 const resizer = await import(join(ROOT, 'src/utils/imageResizer.ts'))
+const limitsMod = await import(join(ROOT, 'src/constants/apiLimits.ts'))
 const { createAttachmentMessage } = await import(join(ROOT, 'src/utils/attachments/orchestrator.ts'))
 const { describeImageProcessor, imageProcessorState } = await import(join(ROOT, 'src/tools/FileReadTool/imageProcessor.ts'))
 const sharp = (await import('sharp')).default
@@ -69,7 +70,7 @@ type WireImage = { message: number; path: string; width: number; height: number;
 const MODEL_A = 'claude-opus-5-5'
 const MODEL_B = 'claude-sonnet-5'
 const SINGLE_CAP = 8000
-const MANY_CAP = 2000
+const MANY_CAP = 3000
 const MANY_THRESHOLD = 20
 
 function dimsOf(buf: Buffer): { width: number; height: number; mime: string } | null {
@@ -235,14 +236,14 @@ async function buildArm(name: 'jsjpeg' | 'jspng' | 'jsmany'): Promise<Arm> {
   const history: AnyMsg[] = []
   if (name === 'jsmany') {
     const screen = await flatPng(1280, 720)
-    const jpeg = await flatJpeg(3000, 2000)
+    const jpeg = await flatJpeg(3500, 2000)
     for (let i = 0; i < MANY_THRESHOLD + 1; i++) {
       const isJpeg = i === 10
       history.push(...toolPair(`toolu_${name}_${i}`, 'Read', { file_path: `D:/cutroom/cache/install/tui/screen-${i}.${isJpeg ? 'jpg' : 'png'}` }, [imageBlock(isJpeg ? jpeg : screen, isJpeg ? 'jpeg' : 'png')], MODEL_A))
       history.push(assistantRow([{ type: 'text', text: `looked at screen ${i + 1}` }], MODEL_A))
     }
     history.push(userRow('checking the colours and layout on the key ones'))
-    return { name, history, images: MANY_THRESHOLD + 1, unsizable: { width: 3000, height: 2000 } }
+    return { name, history, images: MANY_THRESHOLD + 1, unsizable: { width: 3500, height: 2000 } }
   }
   const big = name === 'jsjpeg' ? await flatJpeg(9000, 1200) : await flatPng(1600, 9000, true)
   const d = dimsOf(big)!
@@ -280,6 +281,7 @@ section('§1 the refusal sentences say what is true now')
   const singleWords = rowText(single)
   note(`single-image refusal: ${singleWords}`)
   check('the single-image sentence names 8000px, the next send, the transcript, and the image left out of the request', singleWords.includes('8000px') && /at the next send/.test(singleWords) && /nothing is dropped from the transcript/.test(singleWords) && /cannot be sized is left out of the request/.test(singleWords) && !/on retry/.test(singleWords), singleWords)
+  check('the stated 2000 px limit lowers the process bound for the next send; this prover forgets it so the arms below meet the documented bound', resizer.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS) === 2000 && (resizer.resetStatedManyImageBoundForTesting(), resizer.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS) === MANY_CAP))
 }
 
 type LeftOutApi = {
@@ -344,7 +346,7 @@ for (const armName of ['jsjpeg', 'jspng', 'jsmany'] as const) {
     const receipt = leftOutApi?.takeImagesLeftOutReceipt(OWNER) ?? null
     if (receipt !== null) {
       receipts++
-      check(`${step.label}: the request's receipt names one image left out of ${arm.images} at the ${receipt.sidePx} px limit`, receipt.count === 1 && receipt.images === arm.images && receipt.sidePx === (arm.images > MANY_THRESHOLD ? MANY_CAP : SINGLE_CAP), j(receipt))
+      check(`${step.label}: the request's receipt names one image left out of ${arm.images} at the ${receipt.sidePx} px limit (the bound applies from the first send, at any count)`, receipt.count === 1 && receipt.images === arm.images && receipt.sidePx === MANY_CAP, j(receipt))
       if (leftOutApi !== null && !leftOutApi.imagesLeftOutMarked(session)) {
         noticesPainted++
         session.push(createAttachmentMessage({ type: 'images_left_out', count: receipt.count, images: receipt.images, sidePx: receipt.sidePx } as never) as unknown as AnyMsg)

@@ -3,7 +3,7 @@ import { isBedrockThrottle } from './bedrockThrottle.js'
 import { ANTHROPIC_WORKSPACE_FIX, needsAnthropicWorkspace } from '../providers/anthropic/anthropicWorkspace.js'
 
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
-import { API_PDF_MAX_PAGES, PDF_TARGET_RAW_SIZE } from '../../constants/apiLimits.js'
+import { ANTHROPIC_IMAGE_LIMITS, API_PDF_MAX_PAGES, PDF_TARGET_RAW_SIZE } from '../../constants/apiLimits.js'
 import type { AssistantMessage, FailoverCause, Message } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import { getAnthropicApiKeyWithSource, getApiKeyHelperFailure, getAuthTokenSource, hasStoredOAuthToken, isClaudeAISubscriber, isAnthropicOAuthSignInExpired, wireCredentialSource, type WireCredentialSource } from '../../utils/auth.js'
@@ -26,7 +26,7 @@ import {
 } from './errorUtils.js'
 import { retryAfterHeaderMs } from './retryAfter.js'
 import { providerWaitWords, stampProviderWait } from './recoveryBudget.js'
-import { ImageResizeError } from '../../utils/imageResizer.js'
+import { ImageResizeError, noteManyImageRefusal } from '../../utils/imageResizer.js'
 import { ImageSizeError } from '../../utils/imageValidation.js'
 
 
@@ -565,8 +565,9 @@ function composeAssistantMessageFromError(
   }
 
   if (status === 400 && message.includes('image dimensions exceed') && isManyImageRefusal(message)) {
+    const limit = noteManyImageRefusal(message) ?? ANTHROPIC_IMAGE_LIMITS.manyImages?.maxSidePx ?? 3000
     const base =
-      'An image exceeds the API\'s stricter 2000-pixel limit for a request with more than 20 images. The images in this conversation are sized to that limit at the next send, and an image that cannot be sized is left out of the request; nothing is dropped from the transcript.'
+      `An image exceeds the API's stricter ${limit}-pixel limit for a request with more than 20 images. The images in this conversation are sized to that limit at the next send, and an image that cannot be sized is left out of the request; nothing is dropped from the transcript.`
     return createAssistantAPIErrorMessage({
       content: nonInteractive
         ? base

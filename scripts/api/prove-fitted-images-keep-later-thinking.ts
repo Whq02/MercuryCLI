@@ -146,7 +146,7 @@ async function send(messages: AnyMsg[], ownerKey: string): Promise<{ errors: Any
 }
 
 const small = await flat(64, 48)
-const wide = await flat(2500, 1400)
+const wide = await flat(3500, 1960)
 
 function history(images: Buffer[], thinkingAfter: number): AnyMsg[] {
   const rows: AnyMsg[] = []
@@ -212,10 +212,10 @@ section('§2 the composition owner: a fitted image is a new edit once; the think
     if (row.type !== 'user' || !Array.isArray(content)) return []
     return (content as Array<Record<string, unknown>>).filter(b => b.type === 'image').map(b => pngDims(String((b.source as { data: string }).data)))
   })
-  check(`a later request below the ${THRESHOLD}-image threshold keeps the once-fitted image at ${CAP} px (its bytes never change back)`, wideOnWire.some(d => d !== null && d.width === CAP && d.height === 1120) && refit.firstEdited === -1, `${j(wideOnWire)} firstEdited ${refit.firstEdited}`)
+  check(`a later request below the ${THRESHOLD}-image threshold keeps the once-fitted image at ${CAP} px (its bytes never change back)`, wideOnWire.some(d => d !== null && d.width === CAP && d.height === 1680) && refit.firstEdited === -1, `${j(wideOnWire)} firstEdited ${refit.firstEdited}`)
 }
 
-section('§3 the wire: twenty-one images, then five turns — the cap holds and the thinking minted after the 21st image rides')
+section('§3 the wire: twenty-one images, then five turns — the bound holds and the thinking minted after the 21st image rides')
 {
   resetWireEditsForTesting()
   resetFittedImagesForTesting()

@@ -61,7 +61,8 @@ const MODEL_A = 'claude-opus-5-5'
 const MODEL_B = 'claude-sonnet-5'
 const RULE = limitsMod.ANTHROPIC_IMAGE_LIMITS.manyImages
 const THRESHOLD = RULE?.threshold ?? 20
-const CAP = RULE?.maxSidePx ?? 2000
+const CAP = RULE?.maxSidePx ?? 3000
+const EARLIER_LIMIT = 2000
 const SINGLE_CAP = limitsMod.ANTHROPIC_IMAGE_LIMITS.maxSidePx ?? 8000
 
 const flat = (width: number, height: number, tone = 240): Promise<Buffer> =>
@@ -99,8 +100,8 @@ function wireImages(body: Record<string, unknown>): WireImage[] {
   return out
 }
 
-const manyImageSentence = (image: WireImage): string =>
-  `messages.${image.message}.content.${image.block}.image.source.base64.data: image dimensions exceed max allowed size for many-image requests: ${image.width}x${image.height} pixels > ${CAP}x${CAP} pixels`
+const manyImageSentence = (image: WireImage, limit = CAP): string =>
+  `messages.${image.message}.content.${image.block}.image.source.base64.data: image dimensions exceed max allowed size for many-image requests: ${image.width}x${image.height} pixels > ${limit}x${limit} pixels`
 const singleImageSentence = (image: WireImage): string =>
   `messages.${image.message}.content.${image.block}.image.source.base64.data: image dimensions exceed max allowed size: ${Math.max(image.width, image.height)} pixels > ${SINGLE_CAP} pixels`
 const refusal = (sentence: string): { error: { status: number; body: unknown } } => ({
@@ -192,14 +193,15 @@ const imageDataOf = (rows: AnyMsg[]): string[] =>
     return (content as Array<{ type?: string; source?: { data?: string } }>).flatMap(block => (block.type === 'image' && typeof block.source?.data === 'string' ? [block.source.data] : []))
   })
 
-section('§1 the first send of an image-heavy session: 21 images, two over the many-images cap')
+section(`§1 the first send of an image-heavy session: 21 images, two above the earlier build's ${EARLIER_LIMIT} px limit and within today's ${CAP} px bound`)
 const rows = history()
 rows.push(userRow('make the paddle move with the arrow keys'))
 {
   const run = await send(MODEL_A, rows)
   const seen = run.body === null ? [] : wireImages(run.body)
   note(`the wire saw ${seen.length} images, the largest ${Math.max(0, ...seen.map(image => Math.max(image.width, image.height)))} px a side; fixture refusals so far: ${refusals.length}`)
-  check('the first send is answered (every image sized to the cap at composition, nothing refused)', answered(run) && seen.length === THRESHOLD + 1 && seen.every(image => Math.max(image.width, image.height) <= CAP), `errors=${j(run.errors.map(rowText))} thrown=${String(run.thrown)}`)
+  check('the first send is answered (every image within the bound at composition, nothing refused)', answered(run) && seen.length === THRESHOLD + 1 && seen.every(image => Math.max(image.width, image.height) <= CAP), `errors=${j(run.errors.map(rowText))} thrown=${String(run.thrown)}`)
+  check('the 2500x1400 and 1200x2200 captures ride as they are: under the bound, nothing is sized', seen.some(image => image.width === 2500 && image.height === 1400) && seen.some(image => image.width === 1200 && image.height === 2200), seen.map(image => `${image.width}x${image.height}`).join(' '))
   if (run.errors.length > 0) note(`the refusal row read: ${rowText(run.errors[0])}`)
 }
 
@@ -207,7 +209,7 @@ section('§2 a session already refused (the state a session from the earlier bui
 const refused = history()
 refused.push(userRow('make the paddle move with the arrow keys'))
 const priorRefusal = errorsMod.getAssistantMessageFromError(
-  new APIError(400, { type: 'error', error: { type: 'invalid_request_error', message: manyImageSentence({ message: 10, block: 1, width: 2500, height: 1400, data: '' }) } } as never, undefined, undefined as never),
+  new APIError(400, { type: 'error', error: { type: 'invalid_request_error', message: manyImageSentence({ message: 10, block: 1, width: 2500, height: 1400, data: '' }, EARLIER_LIMIT) } } as never, undefined, undefined as never),
   MODEL_A,
 ) as unknown as AnyMsg
 refused.push(priorRefusal)
@@ -219,10 +221,10 @@ refused.push(userRow('please continue'))
 {
   const run = await send(MODEL_A, refused)
   const seen = run.body === null ? [] : wireImages(run.body)
-  check(`the next send on ${MODEL_A} is answered — the history's images ride sized to ${CAP} px, no /clear needed`, answered(run) && seen.every(image => Math.max(image.width, image.height) <= CAP), `errors=${j(run.errors.map(rowText))} thrown=${String(run.thrown)} largest=${Math.max(0, ...seen.map(image => Math.max(image.width, image.height)))}`)
-  const sizedWide = seen.find(image => image.width === CAP && Math.abs(image.height - 1120) <= 1)
-  const sizedTall = seen.find(image => image.height === CAP && Math.abs(image.width - 1091) <= 1)
-  check('the two oversized captures were sized to the cap keeping their shape, not dropped (21 images still on the wire)', seen.length === THRESHOLD + 1 && sizedWide !== undefined && sizedTall !== undefined, seen.map(image => `${image.width}x${image.height}`).join(' '))
+  check(`the next send on ${MODEL_A} is answered — the history's images ride sized to the ${EARLIER_LIMIT} px the refusal stated, no /clear needed`, answered(run) && seen.every(image => Math.max(image.width, image.height) <= EARLIER_LIMIT), `errors=${j(run.errors.map(rowText))} thrown=${String(run.thrown)} largest=${Math.max(0, ...seen.map(image => Math.max(image.width, image.height)))}`)
+  const sizedWide = seen.find(image => image.width === EARLIER_LIMIT && Math.abs(image.height - 1120) <= 1)
+  const sizedTall = seen.find(image => image.height === EARLIER_LIMIT && Math.abs(image.width - 1091) <= 1)
+  check('the two captures over the stated limit were sized to it keeping their shape, not dropped (21 images still on the wire)', seen.length === THRESHOLD + 1 && sizedWide !== undefined && sizedTall !== undefined, seen.map(image => `${image.width}x${image.height}`).join(' '))
   check('the earlier refusal row itself never reaches the wire', run.body !== null && !j(run.body).includes(refusalWords.slice(0, 40)))
   for (const row of run.rows) if (row.isApiErrorMessage !== true) refused.push({ ...row, message: { ...(row.message as Record<string, unknown>), model: MODEL_A } })
 }

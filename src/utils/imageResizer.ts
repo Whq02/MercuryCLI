@@ -93,18 +93,40 @@ function base64LengthOf(rawBytes: number): number {
   return Math.ceil(rawBytes / 3) * 4
 }
 
-export function requestImageSidePx(limits: ImageLimits, imagesInRequest: number): number | null {
-  const sidePx = limits.maxSidePx
-  if (limits.manyImages !== null && imagesInRequest > limits.manyImages.threshold) {
-    return sidePx === null ? limits.manyImages.maxSidePx : Math.min(sidePx, limits.manyImages.maxSidePx)
-  }
-  return sidePx
+const statedManyImageBound = new Map<ImageLimitFamily, number>()
+
+export function resetStatedManyImageBoundForTesting(): void {
+  statedManyImageBound.clear()
+}
+
+export function manyImageSidePx(limits: ImageLimits): number | null {
+  if (limits.manyImages === null) return null
+  const stated = statedManyImageBound.get(limits.family)
+  return stated === undefined ? limits.manyImages.maxSidePx : Math.min(limits.manyImages.maxSidePx, stated)
+}
+
+export function noteManyImageRefusal(sentence: string, limits: ImageLimits = IMAGE_LIMITS_BY_FAMILY.anthropic): number | null {
+  const at = sentence.search(/many[- ]images?/i)
+  if (at === -1 || limits.manyImages === null) return null
+  const tail = sentence.slice(at)
+  const stated = />\s*(\d{3,5})(?:\s*x\s*(\d{3,5}))?\s*(?:px|pixels)\b/i.exec(tail) ?? /:\s*(\d{3,5})\s*(?:px|pixels)\b/i.exec(tail)
+  if (stated === null) return null
+  const bound = stated[2] === undefined ? Number(stated[1]) : Math.min(Number(stated[1]), Number(stated[2]))
+  const held = statedManyImageBound.get(limits.family)
+  if (bound < limits.manyImages.maxSidePx && (held === undefined || bound < held)) statedManyImageBound.set(limits.family, bound)
+  return bound
+}
+
+export function requestImageSidePx(limits: ImageLimits): number | null {
+  const many = manyImageSidePx(limits)
+  if (many === null) return limits.maxSidePx
+  return limits.maxSidePx === null ? many : Math.min(limits.maxSidePx, many)
 }
 
 async function resolveCaps(options: ResizeOptions | undefined): Promise<Caps> {
   const model = options?.model ?? (options?.limits === undefined || options?.role === 'tool-result' ? await engineModel() : undefined)
   const limits = options?.limits ?? imageLimitsForModel(model)
-  const sidePx = requestImageSidePx(limits, options?.imagesInRequest ?? 0)
+  const sidePx = requestImageSidePx(limits)
   let longEdgePx: number | null = null
   if (options?.role === 'tool-result' && limits.toolResultRejectsAboveNative) {
     const tier = limits.family === 'anthropic' ? anthropicResolutionTier(model) : 'standard'
@@ -557,7 +579,7 @@ export async function fitImagesToRequestCap<M extends RequestRow>(
 ): Promise<RequestImageFit<M>> {
   const limits = options?.limits ?? imageLimitsForModel(options?.model ?? (await engineModel()))
   const images = countRequestImages(messages)
-  const sidePx = requestImageSidePx(limits, images)
+  const sidePx = requestImageSidePx(limits)
   const owner = options?.owner
   const conversation = owner === undefined ? undefined : conversationEditKey(owner, messages as Array<{ type: string; uuid?: unknown }>)
   const identity: RequestImageFit<M> = { messages, firstEdited: -1, images, sized: 0, leftOut: 0, sidePx }
@@ -630,7 +652,7 @@ export async function fitImagesToRequestCap<M extends RequestRow>(
   }
   if (firstEdited === -1) return identity
   sized -= leftOut
-  logForDebugging(`${sized} of the ${images} images in this request sized to ${sidePx ?? 'their remembered'} px a side${leftOut > 0 ? `, ${leftOut} left out of the request` : ''} (${limits.family} limits${limits.manyImages !== null && images > limits.manyImages.threshold ? `, the cap for a request with more than ${limits.manyImages.threshold} images` : ''})`)
+  logForDebugging(`${sized} of the ${images} images in this request sized to ${sidePx ?? 'their remembered'} px a side${leftOut > 0 ? `, ${leftOut} left out of the request` : ''} (${limits.family} limits${limits.manyImages !== null ? `, the bound for a request with more than ${limits.manyImages.threshold} images applied from an image's first send` : ''})`)
   if (leftOut > 0 && owner !== undefined && leftOutCap !== null) leftOutReceipts.set(owner, { count: leftOut, images, sidePx: leftOutCap, at: Date.now() })
   const settled = settleWireEdits(owner, out, edits)
   return { messages: settled.messages, firstEdited: settled.firstEdited, images, sized, leftOut, sidePx }
