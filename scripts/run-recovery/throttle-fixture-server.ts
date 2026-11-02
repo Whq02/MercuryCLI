@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { parseFixtureRequest } from '../lib/fixtureRequest.ts'
 import { appendFileSync } from 'node:fs'
 
 const captureFile = process.argv[2]
@@ -116,13 +117,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   req.on('end', () => {
     const raw = Buffer.concat(chunks).toString('utf8')
     const url = (req.url ?? '').split('?')[0] ?? ''
-    const body = ((): Record<string, unknown> => {
-      try {
-        return JSON.parse(raw) as Record<string, unknown>
-      } catch {
-        return {}
-      }
-    })()
+    const body = parseFixtureRequest(raw)
     if (req.method !== 'POST' || !url.endsWith('/v1/messages')) {
       record({ kind: 'hit', method: req.method, url })
       res.writeHead(404, { 'content-type': 'application/json' })

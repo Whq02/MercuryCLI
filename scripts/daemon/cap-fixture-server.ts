@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { parseFixtureRequest } from '../lib/fixtureRequest.ts'
 import { appendFileSync } from 'node:fs'
 import { ANTHROPIC_REPLY, GPT_ID, HOLD_ASK, OPENAI_REPLY, RESET_IN_SECONDS, SPEND_ASK } from './cap-fixture-words.ts'
 
@@ -60,13 +61,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   req.on('end', () => {
     const raw = Buffer.concat(chunks).toString('utf8')
     const url = (req.url ?? '').split('?')[0] ?? ''
-    const body = ((): Record<string, unknown> => {
-      try {
-        return JSON.parse(raw) as Record<string, unknown>
-      } catch {
-        return {}
-      }
-    })()
+    const body = parseFixtureRequest(raw)
     const model = String(body.model ?? '')
     if (req.method === 'GET' && url.endsWith('/models')) {
       record({ kind: 'models', url, at: Date.now() })

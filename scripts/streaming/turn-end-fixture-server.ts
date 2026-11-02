@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { parseFixtureRequest } from '../lib/fixtureRequest.ts'
 import { appendFileSync } from 'node:fs'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
@@ -249,13 +250,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   req.on('end', () => {
     const raw = Buffer.concat(chunks).toString('utf8')
     const url = (req.url ?? '').split('?')[0] ?? ''
-    const body = ((): Record<string, unknown> => {
-      try {
-        return JSON.parse(raw) as Record<string, unknown>
-      } catch {
-        return {}
-      }
-    })()
+    const body = parseFixtureRequest(raw)
     if (req.method === 'GET' && url.endsWith('/models')) {
       record({ kind: 'hit', method: req.method, url, at: Date.now() })
       res.writeHead(200, { 'content-type': 'application/json' })
