@@ -857,6 +857,16 @@ function composeChildren(node: FrameNode, walk: Walk, offsetX: number, offsetY: 
     collectStale(node, offsetX, offsetY, stale)
     groundStale(walk, stale, staleGround, WHOLE_SCREEN)
   }
+  const absoluteClears: Rectangle[] = []
+  for (const child of node.childNodes as FrameNode[]) {
+    if (child.style.position !== 'absolute' || !child.layoutNode) continue
+    const cached = nodeCache.get(child)
+    if (cached === undefined) continue
+    const layout = child.layoutNode
+    const x = offsetX + layout.getComputedLeft()
+    const y = Math.max(0, offsetY + layout.getComputedTop())
+    if (child.dirty || !rectHeldBy(cached, x, y, layout.getComputedWidth(), layout.getComputedHeight())) absoluteClears.push(cached)
+  }
   let offer: ScreenOffer = vacated !== undefined ? 'closed' : 'open'
   const kept: Rectangle[] = []
   for (const child of node.childNodes as FrameNode[]) {
@@ -865,7 +875,8 @@ function composeChildren(node: FrameNode, walk: Walk, offsetX: number, offsetY: 
     const floating = child.style.position === 'absolute'
     const seeThrough = floating && !child.style.opaque && child.style.backgroundColor === undefined
     const overlapsKept = before !== undefined && kept.some(rect => intersects(rect, before))
-    composeNode(child, walk, { offsetX, offsetY, prevScreen: offer === 'closed' || overlapsKept ? undefined : prevScreen, skipSelfBlit: offer === 'clipped' && seeThrough, inheritedBackgroundColor, inheritedRowBg, staleGround })
+    const behindClear = !floating && before !== undefined && absoluteClears.some(rect => intersects(rect, before.reach ?? before))
+    composeNode(child, walk, { offsetX, offsetY, prevScreen: offer === 'closed' || overlapsKept || behindClear ? undefined : prevScreen, skipSelfBlit: offer === 'clipped' && seeThrough, inheritedBackgroundColor, inheritedRowBg, staleGround })
     if (!wasDirty || offer === 'closed') continue
     if (floating) {
       offer = 'closed'

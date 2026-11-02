@@ -376,6 +376,26 @@ const paddedTranscriptSteps: Step<Transcript>[] = [
   { name: 'scroll back with both padding bands', apply: t => scrollBy(t.scroller, -4), bandCap: transcriptBandCap },
 ]
 
+type Sheet = { rig: Rig; ground: DOMElement; sheet: DOMElement; label: DOMElement }
+function buildSheet(ctx: ComposeContext): Sheet {
+  const r = rig(ctx, 80, 24, false)
+  const label = text('commands')
+  const sheet = box({ position: 'absolute', bottom: 0, width: 80, height: 24, backgroundColor: GROUND }, [text('help'), label])
+  const backdrop = box({ width: 80, height: 24 }, [text('the critter\nready\n\n\n\nthe prompt')])
+  const ground = box({ width: 80, height: 24, backgroundColor: GROUND }, [backdrop])
+  appendChildNode(r.root, ground)
+  return { rig: r, ground, sheet, label }
+}
+const sheetSteps: Step<Sheet>[] = [
+  { name: 'the backdrop before the sheet opens', apply: () => {} },
+  { name: 'a full-height sheet opens', apply: t => appendChildNode(t.ground, t.sheet) },
+  { name: 'the sheet shrinks to show its backdrop', apply: t => applySceneStyle(t.sheet, { ...t.sheet.style, height: 16 }) },
+  { name: 'the sheet becomes narrower', apply: t => applySceneStyle(t.sheet, { ...t.sheet.style, width: 50 }) },
+  { name: 'the sheet content changes', apply: t => retext(t.label, 'swarmchat') },
+  { name: 'the sheet stays still', apply: () => {}, expectNoWrite: true },
+  { name: 'the sheet closes', apply: t => removeChildNode(t.ground, t.sheet) },
+]
+
 const TRANSCRIPT_ONLY = process.argv.includes('--transcript-only')
 console.log('the held ground: the compose walk reuses the previous frame under a filled box')
 if (!TRANSCRIPT_ONLY) {
@@ -396,6 +416,11 @@ for (const [cols, rows] of TRANSCRIPT_ONLY ? [] : [[120, 44], [178, 51]] as cons
     const ctx = makeContext()
     runScene(`§7 padded transcript ${cols}x${rows}, ${regionScroll ? 'region' : 'rectangle'} shift`, buildPaddedTranscript(ctx, cols, rows, regionScroll), buildPaddedTranscript(ctx, cols, rows, regionScroll), paddedTranscriptSteps)
   }
+}
+
+if (!TRANSCRIPT_ONLY) {
+  const ctx = makeContext()
+  runScene('§9 a sheet over the held ground at 80x24', buildSheet(ctx), buildSheet(ctx), sheetSteps)
 }
 
 if (!HARNESS_ONLY && !TRANSCRIPT_ONLY) {
@@ -643,6 +668,55 @@ if (!HARNESS_ONLY) {
       await api.close()
     }
   }
+}
+
+if (!HARNESS_ONLY && !TRANSCRIPT_ONLY) {
+  console.log('§10 compact help — the command sheet preserves the backdrop above it')
+  const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
+  const { nodeBinPath } = await import('../lib/nodeBin.ts')
+  const { ptyDriverPython, vshotBudgetMs } = await import('../lib/captureDriver.ts')
+  const dir = mkdtempSync(join(tmpdir(), 'ground-reuse-sheet-'))
+  const home = join(dir, 'home')
+  const cwd = join(dir, 'cwd')
+  mkdirSync(cwd)
+  seedFirstRun(home, [cwd])
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ activity: { tips: { enabled: false } } }))
+  const ESC = '\x1b'
+  const wait = (awaitText: string, data: string, mark?: string): Record<string, unknown> => ({ atTick: 99999, requireAwait: true, awaitText, awaitSettleTicks: 6, data, mark })
+  const out = join(dir, 'grid.json')
+  const cfg = join(dir, 'capture.json')
+  writeFileSync(cfg, JSON.stringify({
+    argv: [nodeBinPath(), DIST], cwd, cols: 80, rows: 24, total: 400, stableTicks: 6, out,
+    sends: [
+      wait('↑↓ choose', '\r'), wait('Type a prompt', '/help'), wait('/help', '\r'), wait('commands', '\t'),
+      { afterPrevTicks: 3, data: `${ESC}[5~` },
+      ...Array.from({ length: 14 }, () => ({ afterPrevTicks: 2, data: `${ESC}[B` })),
+      wait('Show board messages in the chat', '', 'sheet'),
+      { afterPrevTicks: 16, data: '', mark: 'sheet-fresh' },
+    ],
+    resizes: [{ afterMark: 'sheet', afterMs: 300, cols: 80, rows: 25 }, { afterMark: 'sheet', afterMs: 1500, cols: 80, rows: 24 }],
+  }))
+  const env: NodeJS.ProcessEnv = {
+    PATH: process.env.PATH, HOME: home, MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: join(dir, 'daemon'),
+    MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_BOOT_PREFLIGHT: '0', MERCURY_UPDATE_NOTICE: '0',
+    MERCURY_OPERATOR: 'sam', MERCURY_LIVE_GLYPHS: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0', MERCURY_LIVE_CLOCK: '0',
+    ANTHROPIC_API_KEY: 'fixture-key-000', BROWSER: '/usr/bin/true', TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal', LANG: 'en_US.UTF-8', COLORTERM: 'truecolor', TMPDIR: tmpdir(), INK_COMPOSED_TEE: join(dir, 'composed.jsonl'),
+  }
+  const result = spawnSync(ptyDriverPython('the compact help sheet'), [join(ROOT, 'scripts/ui/vshot.py'), cfg], { cwd, env, encoding: 'utf8', timeout: vshotBudgetMs(400 * 200 + 120_000) })
+  check('sheet: the live capture completed', result.status === 0 && existsSync(out), `rc=${result.status} ${result.stderr.slice(-200)}`)
+  type Cell = { c: string; fg: string; bg: string; bold: boolean; rev: boolean }
+  type Mark = { label: string; grid: Cell[][] }
+  const marks = existsSync(out) ? (JSON.parse(readFileSync(out, 'utf8')) as { marks: Mark[] }).marks : []
+  const selected = marks.find(m => m.label === 'sheet')
+  const fresh = marks.find(m => m.label === 'sheet-fresh')
+  check('sheet: both same-state frames were captured', selected !== undefined && fresh !== undefined)
+  const different: string[] = []
+  if (selected && fresh) for (let y = 0; y < 24; y++) for (let x = 0; x < 80; x++) {
+    if (JSON.stringify(selected.grid[y]?.[x]) !== JSON.stringify(fresh.grid[y]?.[x])) different.push(`(${x},${y})`)
+  }
+  check('sheet: the whole frame equals its fresh paint, every cell and style', selected !== undefined && fresh !== undefined && different.length === 0, `${different.length} differences, first ${different[0]}`)
+  check('sheet: the critter remains above the sheet', selected?.grid.slice(0, 8).some(row => row.some(cell => cell.c === '▄')) === true)
+  console.log(`  capture: ${dir}`)
 }
 
 if (failures > 0) {
