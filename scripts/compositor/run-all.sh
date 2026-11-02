@@ -13,6 +13,7 @@
 # gate-watch: src/skills/bundled/keybindings.ts src/utils/bash/ShellSnapshot.ts src/utils/cockpit/*
 # gate-watch: src/utils/config/schema.ts src/utils/mercuryTokens.ts src/utils/messages/streaming.ts src/utils/truncate.ts
 # gate-watch: src/utils/sessionStoragePortable.ts
+# gate-watch: src/components/HelpV2/HelpV2.tsx src/components/PromptInput/PromptInput.tsx src/context/overlayStack.ts src/context/surfaceRoute.ts src/hooks/useLayoutTier.ts src/ink.ts src/ink/session/delivery.ts src/state/AppStateStore.ts src/utils/config.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
