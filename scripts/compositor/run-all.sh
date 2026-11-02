@@ -33,7 +33,6 @@ run() {
 
 run scripts/compositor/prove-ground-owner.ts
 run scripts/compositor/prove-fill-law.ts
-run scripts/compositor/prove-ground-reuse.ts
 run scripts/compositor/prove-stable-identity.ts
 run scripts/compositor/prove-surface-census.ts
 run scripts/compositor/prove-hold-takeover.ts

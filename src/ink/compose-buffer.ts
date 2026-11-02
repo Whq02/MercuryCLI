@@ -52,7 +52,7 @@ type WriteOp = {
 }
 type ClipOp = { type: 'clip'; clip: Clip }
 type UnclipOp = { type: 'unclip' }
-type BlitOp = { type: 'blit'; src: Screen; x: number; y: number; width: number; height: number; fallback?: string }
+type BlitOp = { type: 'blit'; src: Screen; x: number; y: number; width: number; height: number }
 type ClearOp = { type: 'clear'; region: Rectangle; fromAbsolute?: boolean }
 type NoSelectOp = { type: 'noSelect'; region: Rectangle }
 type ShiftOp = { type: 'shift'; top: number; bottom: number; n: number }
@@ -144,8 +144,8 @@ export default class ComposeBuffer {
     this.operations.push({ type: 'unclip' })
   }
 
-  blit(src: Screen, x: number, y: number, width: number, height: number, fallback?: string): void {
-    this.operations.push({ type: 'blit', src, x, y, width, height, fallback })
+  blit(src: Screen, x: number, y: number, width: number, height: number): void {
+    this.operations.push({ type: 'blit', src, x, y, width, height })
   }
 
   shift(top: number, bottom: number, n: number): void {
@@ -237,10 +237,6 @@ export default class ComposeBuffer {
                 blitCells += (row - bandStart) * (x1 - x0)
               }
               bandStart = row + 1
-            }
-            if (excluded && op.fallback !== undefined) {
-              const whole = x0 === op.x && x1 === op.x + op.width
-              writeCells += this.writeLine(whole ? op.fallback : this.clipLine(op.fallback, x0 - op.x, x1 - op.x), x0, row) - x0
             }
           }
           continue
