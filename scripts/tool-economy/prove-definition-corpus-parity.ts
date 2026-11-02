@@ -52,9 +52,10 @@ tools.splice(testIndex, 0, DebugTool)
 const browserIndex = tools.findIndex(tool => tool.name === 'Browser')
 assert.notEqual(browserIndex, -1, 'the corpus has its desktop insertion point')
 tools.splice(browserIndex + 1, 0, ComputerTool)
-assert.equal(tools.length, 61, 'the corpus covers all 61 base catalogue entries')
-assert.equal(new Set(tools.map(tool => tool.name)).size, 61, 'every definition has a distinct name')
+assert.equal(tools.length, 62, 'the corpus covers all 62 base catalogue entries')
+assert.equal(new Set(tools.map(tool => tool.name)).size, 62, 'every definition has a distinct name')
 assert.ok(tools.some(tool => tool.name === 'Debug'), 'the corpus covers Debug even when no local adapter resolves')
+assert.ok(tools.some(tool => tool.name === 'CrewBoard'), 'the default-on board is present in the base catalogue')
 const permissionContext = getEmptyToolPermissionContext()
 const definitions: Array<import('../../src/types/wire.js').ApiTool & { description: string }> = []
 for (const tool of tools) {
@@ -86,7 +87,7 @@ assert.match(computerDefinition.description, /Call Computer directly, not throug
 const bytes = JSON.stringify({ base, model, definitions }, null, 2) + '\n'
 if (record) {
   writeFileSync(fixture, bytes)
-  console.log(`RECORDED 61 definitions at ${base}`)
+  console.log(`RECORDED 62 definitions at ${base}`)
 }
 const previousDefinitions = new Map((recorded ?? { definitions }).definitions.map(definition => [(definition as { name: string }).name, definition]))
 const moved = tools
@@ -95,4 +96,4 @@ const moved = tools
 if (record) console.log(moved.length === 0 ? 'no definition moved since the previous recording' : `moved since the previous recording (list the diff in the fold log): ${moved.join(', ')}`)
 else assert.deepEqual(moved, [], `a definition moved since the recording at ${base} — re-record with --record and list the diff: ${moved.join(', ')}`)
 assert.equal(bytes, readFileSync(fixture, 'utf8'), 'every definition remains byte-identical in catalogue order')
-console.log(`PASS CORPUS 61 definitions identical; ${Buffer.byteLength(bytes)} bytes; sha256 ${createHash('sha256').update(bytes).digest('hex')}`)
+console.log(`PASS CORPUS 62 definitions identical; ${Buffer.byteLength(bytes)} bytes; sha256 ${createHash('sha256').update(bytes).digest('hex')}`)
