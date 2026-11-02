@@ -97,5 +97,31 @@ section('§4 the roads that do not move')
   check('the data object keeps its three required fields', ['matches', 'query', 'total_deferred_tools'].every(key => key in sleep))
 }
 
+section('§5 swarm words find the launcher and the board on the real roster')
+{
+  const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
+  const { getAllBaseTools } = await import('../../src/tools.ts')
+  const { isDeferredToolFor } = await import('../../src/tools/ToolSearchTool/prompt.ts')
+  const { searchToolsWithKeywords } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
+  runSwarmCommand('on')
+  const tools = getAllBaseTools()
+  for (const model of ['claude-fable-5-1', 'gemini-4-argon']) {
+    const deferred = tools.filter(tool => isDeferredToolFor(tool, model))
+    check(`${model}: launcher and board remain deferred`, ['Crewmate', 'CrewBoard'].every(name => deferred.some(tool => tool.name === name)))
+    const ctx = { ...context(), options: { tools, engineModel: model } }
+    for (const query of ['swarm', 'agents', 'seats', 'team', 'launch', 'wave']) {
+      const ranked = await searchToolsWithKeywords(query, deferred, tools, 5)
+      check(`${model}: ${query} returns Crewmate and CrewBoard`, ranked.includes('Crewmate') && ranked.includes('CrewBoard'), ranked.join(', '))
+      const result = await ToolSearchTool.call({ query, max_results: 5 }, ctx as never)
+      check(`${model}: ${query} dispatch uses the same ranking`, JSON.stringify(result.data.matches) === JSON.stringify(ranked))
+    }
+    const withoutLauncher = deferred.filter(tool => tool.name !== 'Crewmate')
+    check(`${model}: a missing launcher is not invented`, !(await searchToolsWithKeywords('swarm', withoutLauncher, withoutLauncher, 5)).includes('Crewmate'))
+    check(`${model}: the result bound holds`, (await searchToolsWithKeywords('swarm', deferred, tools, 1)).length === 1)
+    const exact = await ToolSearchTool.call({ query: 'select:Launch', max_results: 5 }, ctx as never)
+    check(`${model}: exact selection still returns only Launch`, JSON.stringify(exact.data.matches) === JSON.stringify(['Launch']))
+  }
+}
+
 console.log(`\n${checks - failures}/${checks} checks passed`)
 process.exit(failures === 0 ? 0 : 1)

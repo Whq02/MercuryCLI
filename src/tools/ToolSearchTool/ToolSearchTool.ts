@@ -157,7 +157,7 @@ export async function searchToolsWithKeywords(
 
   const exactDeferred = deferredTools.find(tool => tool.name.toLowerCase() === normalised)
   const exact = exactDeferred ?? allTools.find(tool => tool.name.toLowerCase() === normalised)
-  if (exact) return [exact.name]
+  if (exact && normalised !== 'launch') return [exact.name]
 
   if (normalised.startsWith(MCP_PREFIX) && normalised.length > MCP_PREFIX.length) {
     const prefixed = deferredTools
@@ -246,7 +246,8 @@ export async function searchToolsWithKeywords(
     if (a.enabled !== b.enabled) return a.enabled ? -1 : 1
     return b.score - a.score
   })
-  return scored.slice(0, maxResults).map(entry => entry.name)
+  const ranked = scored.map(entry => entry.name)
+  return (exact ? [exact.name, ...ranked.filter(name => name !== exact.name)] : ranked).slice(0, maxResults)
 }
 
 function pendingMcpServerNames(context: ToolUseContext): string[] {
