@@ -228,7 +228,7 @@ export function seenLinesOf(
   return { generation: at!, ranges: withoutCutLines(coalesce([...own, ...written]), entry !== undefined && entry.generation === at ? entry.cuts ?? [] : []) }
 }
 
-function lineCountOfText(text: string): number {
+export function lineCountOfText(text: string): number {
   if (text === '') return 0
   return text.split('\n').length - (text.endsWith('\n') ? 1 : 0)
 }

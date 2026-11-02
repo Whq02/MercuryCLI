@@ -15,7 +15,7 @@ import {
   spanText,
   type EditHunkInput,
 } from '../../services/changeTransaction/hunks.js'
-import { columnCutsOf, retainColumnCuts, losslessReadCall, fileGeneration, generationOfWrittenBytes, recordLinesWritten, recordSeenLines, seenLinesOf } from '../../services/changeTransaction/seenLines.js'
+import { columnCutsOf, retainColumnCuts, losslessReadCall, fileGeneration, generationOfWrittenBytes, recordLinesWritten, recordSeenLines, seenLinesOf, lineCountOfText as lineCountOf } from '../../services/changeTransaction/seenLines.js'
 import {
   recordNoChangeOutcome,
 } from '../../services/changeTransaction/repetitionPolicy.js'
@@ -519,10 +519,6 @@ export function linesOfHunks(hunks: readonly EditHunkInput[] | undefined): LineR
   return coalesceLineRanges(ranges)
 }
 
-function lineCountOf(text: string): number {
-  if (text === '') return 0
-  return text.split('\n').length - (text.endsWith('\n') ? 1 : 0)
-}
 
 type ReadLines = { ranges: LineRange[]; recorded: LineRange[]; ledger: LineRange[]; earlier: boolean; attachmentOnly: boolean; separate?: boolean }
 
