@@ -7,6 +7,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Added captains, named by the lead for a team of five or more crewmates, or for a smaller team when you ask or a crewmate asks and the lead agrees; a captain gathers its team's work and reports it to the lead.
 - Added declared waits: a parked crewmate waiting for another crewmate's post, a file or subject, a message kind or its team's traffic is resumed by a matching message or a post addressed to it, with the message that woke it; broadcasts do not resume anyone.
 - Added an OCR row to mercury health: the engine in use (Vision, Windows OCR or Tesseract) with its languages, or why none is available.
+- Added directory leases: a crewmate leases a folder with a trailing slash as one lease covering everything under it, and lease listings name each holder with its count and folder.
 - Changed Swarm to be on for new sessions by default; /swarm off turns it off for a session and /swarm on turns it back on. Resumed sessions keep their choice. The Swarm row in /config is the master switch.
 - Changed Crew chat in the Workbench to wrap each message to three lines in the timeline, with the full text in the thread.
 - Changed /crew to say why a parked crewmate is waiting: the post it waits for, or a worktree that is missing.
@@ -30,6 +31,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed the mouse wheel in the classic Windows console typing arrow keys into the draft; the wheel scrolls the transcript and the draft stays.
 - Fixed Windows starting a second background daemon when the home folder was reached by another spelling of its path.
 - Fixed interrupting a Python Eval cell on Windows losing the kernel's variables; the cell stops and the state stays.
+- Fixed one crewmate's large set of file leases stalling every other crewmate's lease calls for minutes; a lease call now takes milliseconds whatever the others hold, and a failing one answers with its reason.
 
 ## 1.0.2
 - Added an opt-in crew board: turn on Swarm in /config, then use /swarm on for new crewmates. Share questions, answers and results with @mentions, team channels and corrections. A question or blocker addressed to the lead arrives as one grey [Crewboard] row and wakes it when idle, as does a result addressed to it by name; other results paint without waking it. A crewmate launched with swarm on is told its name, its team and the other crewmates on the board, and when to post and read. The context allowances and the post length have no cap unless you set one in /config; two loop guards stay on (4 posts a minute, 120 posts per agent in a wave), and /swarm uncap, cap and status manage a live wave.
