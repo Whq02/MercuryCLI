@@ -1,7 +1,11 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
+import React from 'react'
+import stripAnsi from 'strip-ansi'
 
 const { injectTurnReceipts, isScratchpadPath, isTurnReceiptEnabled, delegatedSpendLine, formatDelegatedTokens, formatDelegatedCost, createdLineCount, hasActivity, NO_TOOLS_RAN_WORDS, otherToolsLine } = await import(
   '../../src/utils/cockpit/turnReceipt.js'
@@ -47,11 +51,11 @@ const editResult = (filePath: string, lines: string[], uuid = 'r1', forUse = 'x'
     toolUseResult: { filePath, structuredPatch: [{ lines }] },
   }) as never
 const EMPTY_USAGE = { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: null, cache_read_input_tokens: null, server_tool_use: null, service_tier: null, cache_creation: null }
-const agentResult = (totalTokens: number, costUSD: number | undefined, uuid = 'ar1', status: 'completed' | 'failed' = 'completed') =>
+const agentResult = (totalTokens: number, costUSD: number | undefined, uuid = 'ar1', status: 'completed' | 'failed' = 'completed', forUse = 'a1') =>
   ({
     type: 'user',
     uuid,
-    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't-x' }] },
+    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `t-${forUse}` }] },
     toolUseResult: {
       agentId: `agent-${uuid}`,
       outcome: status === 'completed' ? { status, promotedNarration: false } : { status, reason: 'provider-declined', error: 'declined' },
@@ -68,14 +72,14 @@ const olderAgentResult = (totalTokens: number, uuid = 'ar0') =>
   ({
     type: 'user',
     uuid,
-    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't-x' }] },
+    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't-a1' }] },
     toolUseResult: { agentId: `agent-${uuid}`, content: [{ type: 'text', text: 'done' }], totalToolUseCount: 1, totalDurationMs: 1, totalTokens, usage: EMPTY_USAGE },
   }) as never
 const launchResult = (toolUseResult: Record<string, unknown>, uuid = 'lr1') =>
   ({
     type: 'user',
     uuid,
-    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't-x' }] },
+    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't-a1' }] },
     toolUseResult,
   }) as never
 type Receipt = { type: string; counts: Record<string, number> }
@@ -154,7 +158,7 @@ withEnv('1', () => {
   const mc = named(memory)[0]?.counts
   check('ToolSearch ×1 + Recall ×20 count by name and read as activity (RED on the base: no receipt at all)', mc !== undefined && named(memory).length === 1 && mc.tools['Recall'] === 20 && mc.tools['ToolSearch'] === 1 && hasActivity(mc as never), JSON.stringify(mc?.tools))
   check('the line names the most-called first, then alphabetical: "Recall ×20 · ToolSearch ×1"', mc !== undefined && otherToolsLine(mc as never) === 'Recall ×20 · ToolSearch ×1', String(mc && otherToolsLine(mc as never)))
-  const sets = inject([prompt('named sets stay named', 'p1'), toolUse('Read', {}, 'a1'), toolUse('Grep', {}, 'a2'), toolUse('WebFetch', {}, 'a3'), toolUse('Bash', {}, 'a4'), toolUse('Browser', {}, 'a5'), toolUse('Crewmate', {}, 'a6')])
+  const sets = inject([prompt('named sets stay named', 'p1'), toolUse('Read', {}, 'a1'), toolUse('Grep', {}, 'a2'), toolUse('WebFetch', {}, 'a3'), toolUse('Bash', {}, 'a4'), toolUse('Browser', {}, 'a5'), toolUse('Crewmate', {}, 'a6'), resultFor('a6', { agentId: 'agent-six' })])
   check('a tool in a named set is never counted twice: its category counts, the by-name map stays empty', Object.keys(named(sets)[0]!.counts.tools).length === 0 && otherToolsLine(named(sets)[0]!.counts as never) === null, JSON.stringify(named(sets)[0]!.counts.tools))
   const edited = inject([prompt('an edit that wrote', 'p1'), toolUse('Edit', { file_path: '/repo/a.ts' }, 'a1'), resultFor('a1', { filePath: '/repo/a.ts', structuredPatch: [{ lines: ['+a'] }] })])
   check('an Edit whose result counted a file is "1 file edit" alone — not an Edit ×1 beside it', named(edited)[0]!.counts['fileEdits'] === 1 && Object.keys(named(edited)[0]!.counts.tools).length === 0, JSON.stringify(named(edited)[0]!.counts))
@@ -284,7 +288,7 @@ withEnv('1', () => {
     toolUse('Crewmate', { description: 'reader one', prompt: 'read' }, 'a1'),
     toolUse('Crewmate', { description: 'reader two', prompt: 'read' }, 'a2'),
     agentResult(60_000, 0.61, 'r1'),
-    agentResult(24_200, 0.3, 'r2', 'failed'),
+    agentResult(24_200, 0.3, 'r2', 'failed', 'a2'),
   ])
   const c = receipts(rows)[0]!.counts
   check('two Agent launches are counted', c['agents'] === 2)
@@ -301,7 +305,8 @@ withEnv('1', () => {
   check('the line says so: `1 crewmate · 900 tokens (1 unpriced)`', delegatedSpendLine(lc as never) === '1 crewmate · 900 tokens (1 unpriced)', String(delegatedSpendLine(lc as never)))
   const solo = inject([prompt('no delegation', 'p1'), toolUse('Bash', { command: 'ls' }, 'a1')])
   check('a turn that delegated nothing carries no spend line (null) and its counts stay zero', delegatedSpendLine(receipts(solo)[0]!.counts as never) === null && receipts(solo)[0]!.counts['agents'] === 0)
-  check('a Crewmate launch alone is activity (a receipt exists even with no other tool)', receipts(inject([prompt('just launch', 'p1'), toolUse('Crewmate', {}, 'a1')])).length === 1)
+  const pending = receipts(inject([prompt('just launch', 'p1'), toolUse('Crewmate', {}, 'a1')]))
+  check('a pending Crewmate call is activity, not a launch', pending.length === 1 && pending[0]!.counts['agents'] === 0 && (pending[0]!.counts as unknown as { tools: Record<string, number> }).tools['Crewmate'] === 1)
   check('the token words: 84200 → 84.2k · 1500000 → 1.5M · 900 → 900', formatDelegatedTokens(84_200) === '84.2k' && formatDelegatedTokens(1_500_000) === '1.5M' && formatDelegatedTokens(900) === '900')
   check('the cost words: 0.91 → $0.91 · 0.004 → <$0.01 · 12 → $12.00', formatDelegatedCost(0.91) === '$0.91' && formatDelegatedCost(0.004) === '<$0.01' && formatDelegatedCost(12) === '$12.00')
   const grouped = inject([
@@ -328,9 +333,157 @@ withEnv('1', () => {
   check('a workflow launch is not a crewmate and carries no spend at launch: no line', receipts(workflow).length === 0 || delegatedSpendLine(receipts(workflow)[0]!.counts as never) === null)
   const agentResultSrc = src('tools', 'AgentTool', 'agentToolUtils.ts')
   check('the Crewmate tool\'s result carries the ledger\'s list price beside its token total (the row the receipt reads)', /costUSD: ledger\.costUSD,\s*unpricedTurns: ledger\.unpricedTurns,/.test(agentResultSrc) && /costUSD: z\.number\(\)\.optional\(\)/.test(agentResultSrc))
-  check('the receipt reads the record by the fields the schema declares (agentId beside totalTokens), never a status the record does not carry at its top', /agentId: z\.string\(\)/.test(agentResultSrc) && /totalTokens: z\.number\(\)/.test(agentResultSrc) && /typeof r\.agentId !== 'string' \|\| typeof r\.totalTokens !== 'number'/.test(src('utils', 'cockpit', 'turnReceipt.ts')))
+  check('the receipt reads the record by the fields the schema declares (agentId beside totalTokens), never a status the record does not carry at its top', /agentId: z\.string\(\)/.test(agentResultSrc) && /totalTokens: z\.number\(\)/.test(agentResultSrc) && !/r\.status/.test(src('utils', 'cockpit', 'turnReceipt.ts')))
   check('the row prints the derive owner\'s words', /delegatedSpendLine\(c\)/.test(src('components', 'messages', 'TurnReceiptRow.tsx')))
 })
+
+section('refused launches stay error rows; only results with an agent id count')
+{
+  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  enableConfigs()
+  const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.js')
+  const { normalizeMessages } = await import('../../src/utils/messages/normalize.js')
+  const { composeTranscript } = await import('../../src/components/Messages.js')
+  const { Message } = await import('../../src/components/Message.js')
+  const { Box } = await import('../../src/ink.js')
+  const { renderToAnsiString } = await import('../../src/utils/staticRender.js')
+  const tools = [AgentTool]
+  const descriptions = ['Gate medic: Linux refused', 'Gate medic: Mac refused', 'Gate medic: Linux pool', 'Gate medic: Mac pool']
+  const errors = ['Unknown model: fixture-invalid', 'Worktree not found: missing-worktree']
+  const call = (i: number) => ({ type: 'tool_use', id: `launch-${i}`, name: 'Crewmate', input: { description: descriptions[i], prompt: 'Inspect the assigned pool.', run_in_background: true } })
+  const calls = (indices: number[], id: string) => ({ type: 'assistant', uuid: id, timestamp: '2026-11-01T08:00:00.000Z', message: { id, role: 'assistant', content: indices.map(call) } }) as never
+  const result = (i: number, failed = i < 2, data?: Record<string, unknown>) => ({
+    type: 'user', uuid: `launch-result-${i}`, timestamp: '2026-11-01T08:00:01.000Z',
+    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `launch-${i}`, is_error: failed, content: failed ? errors[i % 2] : 'Crewmate launched in the background' }] },
+    ...(!failed || data ? { toolUseResult: data ?? { status: 'async_launched', isAsync: true, agentId: `agent-${i}`, description: descriptions[i], prompt: 'Inspect the assigned pool.' } } : {}),
+  }) as never
+  const fixture = [prompt('Inspect both pools.', 'launch-prompt'), calls([0, 1], 'refused-calls'), result(0), result(1), calls([2, 3], 'real-calls'), result(2), result(3)]
+  const compose = (rows: readonly never[], verbose = false) => composeTranscript({ normalized: normalizeMessages([...rows]), syntheticStreamingRows: [], verbose, fullscreen: false, isTranscriptMode: false, truncateTranscript: false, tools, inProgressToolUseIDs: new Set() })
+  for (const [label, rows] of [
+    ['two refused calls, then two real calls', fixture],
+    ['four calls in one message', [fixture[0]!, calls([0, 1, 2, 3], 'mixed-calls'), result(0), result(1), result(2), result(3)]],
+  ] as const) {
+    const { collapsed } = compose(rows)
+    const groups = collapsed.filter(row => row.type === 'grouped_tool_use')
+    const ids = groups.flatMap(group => group.messages.map(row => row.message.content[0]?.type === 'tool_use' ? row.message.content[0].id : ''))
+    check(`${label}: one group contains only the two real launches`, groups.length === 1 && ids.join(',') === 'launch-2,launch-3', JSON.stringify(ids))
+    check(`${label}: each refusal remains a standalone error result`, collapsed.filter(row => row.type === 'user' && row.message.content[0]?.type === 'tool_result' && row.message.content[0].is_error).length === 2)
+    const counts = receipts(collapsed)[0]?.counts
+    check(`${label}: the receipt counts 2 crewmates`, counts?.['agents'] === 2 && delegatedSpendLine(counts as never) === '2 crewmates', JSON.stringify(counts))
+    check(`${label}: verbose derives the same launch count`, receipts(compose(rows, true).collapsed)[0]?.counts['agents'] === 2)
+  }
+  const pending = compose([fixture[0]!, calls([0, 1], 'pending-calls')]).collapsed
+  check('calls without results do not form a launched group', !pending.some(row => row.type === 'grouped_tool_use') && receipts(pending)[0]?.counts['agents'] === 0)
+  for (const [label, failed, data] of [
+    ['refusal', true, undefined],
+    ['missing agent id', false, { status: 'async_launched' }],
+    ['empty agent id', false, { status: 'async_launched', agentId: '' }],
+    ['error carrying an id', true, { agentId: 'not-launched', totalTokens: 100 }],
+  ] as const) {
+    const rows = compose([fixture[0]!, calls([0, 1], `${label}-calls`), result(0, failed, data), result(1, failed, data)]).collapsed
+    check(`${label}: no crewmate group or launch count`, !rows.some(row => row.type === 'grouped_tool_use') && receipts(rows)[0]?.counts['agents'] === 0)
+  }
+  const captureIndex = process.argv.indexOf('--capture-dir')
+  const captureDir = captureIndex < 0 ? undefined : process.argv[captureIndex + 1]
+  if (captureDir) mkdirSync(captureDir, { recursive: true })
+  const { collapsed, lookups } = compose(fixture)
+  for (const [columns, rows] of [[120, 44], [80, 24]] as const) {
+    const ansi = await renderToAnsiString(React.createElement(Box, { width: columns, height: rows, flexDirection: 'column' }, ...collapsed.map(message => React.createElement(Message, {
+      key: message.uuid, message, tools, verbose: false, addMargin: false, shouldAnimate: false, shouldShowDot: false,
+      isTranscriptMode: false, isStatic: true, inProgressToolUseIDs: new Set<string>(), progressMessagesForMessage: [], lookups, width: columns,
+    }))), columns)
+    const frame = stripAnsi(ansi)
+    const folded = frame.replace(/\s+/g, ' ')
+    check(`${columns}x${rows}: exactly two crewmate progress rows paint`, (folded.match(/crewmate \(/g) ?? []).length === 2, frame.trim())
+    for (const error of errors) check(`${columns}x${rows}: ${error} paints once`, folded.split(error).length === 2)
+    check(`${columns}x${rows}: only one launched-group header paints`, (folded.match(/background crewmates launched/g) ?? []).length === 1 && folded.includes('2 background crewmates launched'))
+    check(`${columns}x${rows}: the receipt says 2 crewmates, never 4`, folded.includes('2 crewmates') && !folded.includes('4 crewmates'))
+    if (captureDir) {
+      const stem = join(captureDir, `refused-launch-${columns}x${rows}`)
+      writeFileSync(`${stem}.ansi`, ansi)
+      writeFileSync(`${stem}.txt`, frame)
+      console.log(`  capture: ${stem}.{ansi,txt}`)
+    }
+  }
+  if (captureDir) {
+    const { resolveCaptureDriver, vshotBudgetMs } = await import('../lib/captureDriver.js')
+    const driver = resolveCaptureDriver()
+    const home = process.env.MERCURY_CONFIG_DIR
+    if (!home) throw new Error('captures need a scratch MERCURY_CONFIG_DIR')
+    if (driver.kind !== 'posix-pty') throw new Error(`captures need the POSIX pty driver, not ${driver.kind}`)
+    const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.js')
+    const { entryToRecord } = await import('../../src/fabric/entryCodec.js')
+    const { gridToPng } = await import('./gridToPng.js')
+    const { seedFirstRun, FIXTURE_API_KEY } = await import('../lib/firstRunSeed.js')
+    const { startFixtureApi } = await import('../lib/fixtureApi.js')
+    const api = await startFixtureApi([])
+    seedFirstRun(home, [ROOT])
+    const sessionId = randomUUID()
+    const { getEngineModel } = await import('../../src/utils/model/model.js')
+    const saved = [...fixture, { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Launch check complete.' }], stop_reason: 'end_turn' } }] as Array<{ type: string; message: Record<string, unknown> }>
+    const ids = saved.map(() => randomUUID())
+    const lines = saved.map((row, index) => ({
+      ...row, uuid: ids[index], parentUuid: ids[index - 1] ?? null, sessionId, cwd: ROOT, isSidechain: false, version: '1.0.0', timestamp: '2026-11-01T08:00:00.000Z',
+      message: row.type === 'assistant' ? { id: `fixture-${index}`, type: 'message', model: getEngineModel(), stop_reason: 'tool_use', stop_sequence: null, usage: { input_tokens: 0, output_tokens: 0 }, ...row.message } : row.message,
+    }))
+    let ordinal = 0
+    const context = { sessionId, nextOrdinal: () => String(++ordinal), observedAt: '2026-11-01T08:00:00.000Z', source: { channel: 'sdk' } }
+    const projects = getProjectDir(ROOT)
+    mkdirSync(projects, { recursive: true })
+    writeFileSync(join(projects, `${sessionId}.jsonl`), lines.map(line => JSON.stringify(entryToRecord(line, context as never))).join('\n') + '\n')
+    const env = {
+      ...Object.fromEntries(Object.entries(process.env).filter(([key, value]) => value !== undefined && !['CI', 'MERCURY_HOME', 'MERCURY_CRITTER', 'ANTHROPIC_API_KEY'].includes(key))),
+      MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CREW_DIR: join(home, 'crew'), MERCURY_HEALTH_STATE_DIR: join(home, 'health'),
+      MERCURY_BOOT_PREFLIGHT: '0', MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_TURN_RECEIPT: '1',
+      MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0', TERM: 'xterm-256color', USER: 'sam', MERCURY_OPERATOR: 'sam',
+      ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: api.url,
+    }
+    const distArg = process.argv.indexOf('--dist')
+    const captureDist = (distArg < 0 ? undefined : process.argv[distArg + 1]) ?? join(ROOT, 'dist', 'mercury.mjs')
+    try {
+      for (const [cols, rows] of [[120, 44], [80, 24]] as const) {
+        const stem = join(captureDir, `refused-launch-repl-${cols}x${rows}`)
+        const gridPath = `${stem}.grid.json`
+        const configPath = `${stem}.json`
+        const then = (data: string, awaitText: string, mark?: string) => ({ data, atTick: 999, awaitText, requireAwait: true, minTick: 2, awaitSettleTicks: 3, ...(mark ? { mark } : {}) })
+        const sends = cols === 80 ? [then('', 'Launch check complete.', 'receipt'), then('\x1b[5~', 'Launch check complete.'), then('', 'Inspect both pools.', 'launches')] : []
+        writeFileSync(configPath, JSON.stringify({ cwd: ROOT, argv: ['node', captureDist, '--resume', sessionId], cols, rows, total: 120, out: gridPath, readyText: [cols === 80 ? 'Inspect both pools.' : 'Launch check complete.'], readySettleTicks: 3, sends }))
+        rmSync(gridPath, { force: true })
+        let stderr = ''
+        const code = await new Promise<number | null>((resolve, reject) => {
+          const child = spawn(driver.python, [join(import.meta.dir, 'vshot.py'), configPath], { env, timeout: vshotBudgetMs(360000), stdio: ['ignore', 'ignore', 'pipe'] })
+          child.stderr.on('data', chunk => { stderr += String(chunk) })
+          child.on('error', reject)
+          child.on('exit', resolve)
+        })
+        check(`${cols}x${rows}: the resumed transcript paints`, code === 0, code === 0 ? '' : stderr.slice(-600))
+        if (!existsSync(gridPath)) continue
+        type Grid = Array<Array<{ c: string }>>
+        const payload = JSON.parse(readFileSync(gridPath, 'utf8')) as { grid: Grid; marks?: Array<{ label: string; grid: Grid }> }
+        const frames: string[] = []
+        for (const { label, grid } of [{ label: '', grid: payload.grid }, ...(payload.marks ?? [])]) {
+          const frame = grid.map(line => line.map(cell => cell.c || ' ').join('')).join('\n')
+          frames.push(frame.replace(/\s+/g, ' '))
+          const path = label ? `${stem}-${label}` : stem
+          writeFileSync(`${path}.txt`, frame + '\n')
+          writeFileSync(`${path}.grid.json`, JSON.stringify({ grid, cols, rows }))
+          await gridToPng(`${path}.grid.json`, `${path}.png`)
+          console.log(`  capture: ${path}.png`)
+        }
+        const progressRows = descriptions.filter(description => frames.some(frame => frame.includes(`crewmate (${description})`)))
+        check(`${cols}x${rows}: the built REPL paints only the two real crewmate rows`, JSON.stringify(progressRows) === JSON.stringify(descriptions.slice(2)))
+        for (const error of errors) check(`${cols}x${rows}: the built REPL keeps ${error} once`, frames.some(frame => frame.split(error).length === 2) && frames.every(frame => frame.split(error).length <= 2))
+        check(`${cols}x${rows}: the built REPL counts two launched crewmates`, frames.some(frame => frame.includes('2 background crewmates launched')) && frames.some(frame => frame.includes('2 crewmates')) && frames.every(frame => !frame.includes('4 crewmates') && (frame.match(/background crewmates launched/g) ?? []).length <= 1))
+      }
+    } finally {
+      await api.close()
+      const daemonDir = env.MERCURY_DAEMON_DIR
+      const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.js')
+      for (const worker of Object.values(readSessionWorkers(daemonDir))) if (worker.pid && worker.endedAt === undefined) { try { process.kill(worker.pid, 'SIGTERM') } catch {} }
+      try { const pid = Number(readFileSync(join(daemonDir, 'daemon.pid'), 'utf8').trim()); if (pid > 1) process.kill(pid, 'SIGTERM') } catch {}
+    }
+  }
+}
 
 section('every tool that writes files counts (RELEASE-29-AIR R29A-06): ChangeSet files and lines, a created file\'s lines; a preview, a refusal, a replay count nothing')
 const resultRow = (toolUseResult: Record<string, unknown>, uuid: string, forUse = 'x') =>
@@ -478,7 +631,8 @@ check(
     /color="success"/.test(src('components', 'messages', 'TurnReceiptRow.tsx')) &&
     /color="error"/.test(src('components', 'messages', 'TurnReceiptRow.tsx')),
 )
-const distPath = join(ROOT, 'dist', 'mercury.mjs')
+const distIndex = process.argv.indexOf('--dist')
+const distPath = (distIndex < 0 ? undefined : process.argv[distIndex + 1]) ?? join(ROOT, 'dist', 'mercury.mjs')
 if (!existsSync(distPath)) {
   console.log('  [SKIP] dist absent — run `bun run build.ts` for the dist needle')
 } else {

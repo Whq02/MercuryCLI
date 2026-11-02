@@ -81,7 +81,6 @@ const SEARCH_TOOLS = new Set(['Grep', 'Glob', 'WebSearch', 'ProviderSearch'])
 const FETCH_TOOLS = new Set(['WebFetch'])
 const COMMAND_TOOLS = new Set(['Bash'])
 const BROWSER_TOOLS = new Set(['Browser'])
-const DELEGATE_TOOLS = new Set(['Crewmate'])
 
 export function formatDelegatedTokens(tokens: number): string {
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`
@@ -176,7 +175,6 @@ function countToolUses(m: LooseMessage, t: Tally): void {
     else if (FETCH_TOOLS.has(name)) c.fetches += 1
     else if (COMMAND_TOOLS.has(name)) c.commands += 1
     else if (BROWSER_TOOLS.has(name)) c.browser += 1
-    else if (DELEGATE_TOOLS.has(name)) c.agents += 1
     else if (typeof block['id'] === 'string' && !t.pending.has(block['id'])) t.pending.set(block['id'], name)
     else c.tools[name] = (c.tools[name] ?? 0) + 1
   }
@@ -187,12 +185,15 @@ function resultToolUseId(m: LooseMessage): string | undefined {
   return typeof id === 'string' ? id : undefined
 }
 
-function countDelegatedResult(m: LooseMessage, c: TurnReceiptCounts): void {
+function countDelegatedResult(m: LooseMessage, c: TurnReceiptCounts): boolean {
   const r = m.toolUseResult as { agentId?: unknown; totalTokens?: unknown; costUSD?: unknown } | undefined
-  if (!r || typeof r.agentId !== 'string' || typeof r.totalTokens !== 'number') return
+  if (typeof r?.agentId !== 'string' || r.agentId === '' || contentBlocks(m).some(block => block['type'] === 'tool_result' && block['is_error'])) return false
+  c.agents += 1
+  if (typeof r.totalTokens !== 'number') return true
   c.delegatedTokens += r.totalTokens
   if (typeof r.costUSD === 'number') c.delegatedCostUSD += r.costUSD
   else c.delegatedUnpriced += 1
+  return true
 }
 
 function countHunkLines(hunks: unknown, c: TurnReceiptCounts): void {
@@ -265,9 +266,9 @@ function countEditResult(m: LooseMessage, c: TurnReceiptCounts, tempRoot: string
 
 function countResult(m: LooseMessage, t: Tally, tempRoot: string): void {
   const wrote = countEditResult(m, t.counts, tempRoot)
-  countDelegatedResult(m, t.counts)
+  const delegated = countDelegatedResult(m, t.counts)
   const id = resultToolUseId(m)
-  if (wrote && id !== undefined) t.pending.delete(id)
+  if ((wrote || delegated) && id !== undefined) t.pending.delete(id)
 }
 
 export function isTurnBoundary(m: LooseMessage): boolean {

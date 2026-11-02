@@ -7,6 +7,7 @@ import type {
 } from '../types/message.js'
 import type { ToolUseBlock } from '../types/wire.js'
 
+import { AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
 
 type MessageWithoutProgress = Exclude<NormalizedMessage, { type: 'progress' }>
 
@@ -42,11 +43,23 @@ export function applyGrouping(
   if (verbose) return { messages }
   const groupable = groupedToolNames(tools)
 
+  const resultByToolUseId = new Map<string, NormalizedUserMessage>()
+  for (const message of messages) {
+    if (message.type !== 'user') continue
+    for (const block of message.message.content) {
+      if (block.type === 'tool_result') resultByToolUseId.set(block.tool_use_id, message)
+    }
+  }
   const groups = new Map<string, NormalizedAssistantMessage<ToolUseBlock>[]>()
   const groupKeyByMessage = new Map<MessageWithoutProgress, string>()
   for (const message of messages) {
     const use = firstToolUse(message)
     if (!use || !groupable.has(use.name)) continue
+    if (use.name === AGENT_TOOL_NAME) {
+      const result = resultByToolUseId.get(use.id)
+      const output = result?.toolUseResult as { agentId?: unknown } | undefined
+      if (typeof output?.agentId !== 'string' || output.agentId === '' || result?.message.content.some(block => block.type === 'tool_result' && block.is_error)) continue
+    }
     const key = `${(message as NormalizedAssistantMessage).message.id}::${use.name}`
     const members = groups.get(key) ?? []
     members.push(message as NormalizedAssistantMessage<ToolUseBlock>)
@@ -59,16 +72,6 @@ export function applyGrouping(
   for (const key of validKeys) {
     for (const member of groups.get(key) as NormalizedAssistantMessage<ToolUseBlock>[]) {
       groupedIds.add((member.message.content[0] as ToolUseBlock).id)
-    }
-  }
-  const resultByToolUseId = new Map<string, NormalizedUserMessage>()
-  for (const message of messages) {
-    if (message.type !== 'user') continue
-    for (const block of message.message.content) {
-      const record = block as { type?: string; tool_use_id?: string }
-      if (record.type === 'tool_result' && record.tool_use_id && groupedIds.has(record.tool_use_id)) {
-        resultByToolUseId.set(record.tool_use_id, message)
-      }
     }
   }
 
