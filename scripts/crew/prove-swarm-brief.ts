@@ -52,6 +52,22 @@ check('a latched seat is briefed from the live board: its own name and team, mai
 check('the other seat sees Parser with its team and not itself', seam.swarmBrief('docs')?.startsWith('You are Docs on this session\'s live crew board, with the lead (main) and Parser (engine);') === true)
 check('the brief carries the four habits', ['post a blocker', 'an ask', 'answer an ask', 'post a result', 'read the board at a boundary'].every(habit => live!.includes(habit)))
 check('the brief carries the three addresses and keeps the final report', ['@name reaches a seat', '@team a team', '@main the lead', 'never replaces your final report'].every(part => live!.includes(part)))
+const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
+const { formatDeferredToolLine, isDeferredToolFor } = await import('../../src/tools/ToolSearchTool/prompt.ts')
+for (const unattended of [false, true]) {
+  const hint = formatDeferredToolLine(AgentTool, unattended)
+  check('the launcher roster line names launch, seat, swarm, agents, team and wave', ['launch', 'seat', 'swarm', 'agents', 'team', 'wave'].every(word => hint.includes(word)))
+}
+check('the launcher stays deferred on cloud routes', isDeferredToolFor(AgentTool, 'claude-fable-5-1') && isDeferredToolFor(AgentTool, 'gemini-4-argon'))
+const boardTool = seam.swarmTools()[0]!
+const remedy = (text: string) => text.includes('Crewmate') && text.includes('ToolSearch select:Crewmate') && text.includes('launch')
+check('the board description names the launcher and exact load query', remedy(await boardTool.description({} as never)))
+check('the board prompt names the launcher and exact load query', remedy(await boardTool.prompt({} as never)))
+const empty = await boardTool.call({ op: 'read' } as never, {} as never, (() => {}) as never, {} as never)
+check('an empty board read names the launcher without inventing a post', remedy(JSON.stringify(empty.data)) && seam.swarmStore()!.view().events.length === 0)
+check('the enrolled seat is told where launches live', remedy(live!))
+const assignedCaptain = seam.swarmStore()!.assignCaptain(seam.swarmPrincipal()!, 'engine', 'parser')
+check('the captain reads the same launcher road', assignedCaptain.ok && remedy(seam.swarmBrief('parser')!))
 seam.swarmStore()?.close()
 
 const launch = readFileSync(new URL('../../src/tools/AgentTool/runAgent.ts', import.meta.url), 'utf8')

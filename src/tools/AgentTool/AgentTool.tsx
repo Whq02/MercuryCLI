@@ -379,7 +379,7 @@ const CREWMATE_SEAT: MercuryAgentSeat = 'a crewmate'
 export const AgentTool = buildTool({
   name: AGENT_TOOL_NAME,
   maxResultSizeChars: RESULT_SIZE_CAP,
-  searchHint: 'delegate a task to a crewmate that works on its own',
+  searchHint: 'launch swarm agents as seats on a team or wave; delegate a task to a crewmate',
   get inputSchema(): ZodType<AgentToolInput, AgentToolInput> {
     return inputSchema() as unknown as ZodType<AgentToolInput, AgentToolInput>
   },
