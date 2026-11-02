@@ -2,7 +2,6 @@
 import type { ParsedInput, ParsedKey } from '../input/input-decoder.js'
 
 export const ALTERNATE_SCROLL_POLICY = 'scroll-first-in-native-selection' as const
-export const WINDOWS_ALTERNATE_SCROLL_POLICY = 'scrollable-transcript-first-until-sgr-wheel' as const
 
 interface AlternateScrollState {
   altScreenActive: boolean
