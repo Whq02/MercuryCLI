@@ -16,29 +16,29 @@ export interface LeaseHolder {
   procStart?: string
 }
 
-export interface ProjectLease {
+interface ProjectLease {
   path: string
   holder: LeaseHolder
   acquiredAt: string
 }
 
-export interface LeaseHolderSummary {
+interface LeaseHolderSummary {
   holder: LeaseHolder
   count: number
   under: string
 }
 
-export interface ProjectLeaseListing {
+interface ProjectLeaseListing {
   total: number
   holders: LeaseHolderSummary[]
   leases?: ProjectLease[]
 }
 
-export type ProjectLeaseTakeResult =
+type ProjectLeaseTakeResult =
   | { ok: true; held: number; under: string; leases: ProjectLease[] }
   | { ok: false; conflict: ProjectLease; message: string }
 
-export type ProjectLeaseReleaseResult = { ok: true; released: number; paths: string[] }
+type ProjectLeaseReleaseResult = { ok: true; released: number; paths: string[] }
 
 export const LEASE_DETAIL_LIMIT = 100
 
