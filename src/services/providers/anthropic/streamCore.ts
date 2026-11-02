@@ -74,7 +74,7 @@ import { gatewayHost } from '../deferralWire.js'
 import { deadlineBreachLine, isDeadlineBreach } from '../fetchDeadline.js'
 import { conversationRosterKey, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
 import { declareLawfulPrefixChange } from '../lawfulPrefixChange.js'
-import { applyInducedPrefixEdit, inducedEditApplies, judgeAndRecordPrefix, noteRequestOnWire, resolveInducedPrefixEdit, type WirePrefixParts } from './prefixLedger.js'
+import { applyInducedPrefixEdit, inducedEditApplies, judgeAndRecordPrefix, noteRequestOnWire, resolveInducedPrefixEdit, type PrefixMismatch, type WirePrefixParts } from './prefixLedger.js'
 import { cacheDiagnosticsParam, noteCacheDiagnostics } from './cacheDiagnostics.js'
 import { deadThinkingMarks, stripDeadThinking } from './thinkingBinding.js'
 import type {
@@ -624,6 +624,7 @@ async function* queryModel(
 
   const consumedCacheEdits = cachedMCEnabled ? consumePendingCacheEdits() : null
   const consumedPinnedEdits = cachedMCEnabled ? getPinnedCacheEdits() : []
+  let ledgerFirstDifference: PrefixMismatch | null = null
 
   const paramsFromContext = (retryContext: RetryContext) => {
     const attribution = getAttributionHeader(fingerprint)
@@ -769,6 +770,7 @@ async function* queryModel(
     }, params.messages === wireMessages ? wireMessageIds : params.messages.map(() => null), {
       replaceRecord: isTurnOwningQuerySource(options.querySource),
     })
+    ledgerFirstDifference = verdict.mismatch
     const contractMove = clientContractMoveOf(verdict.mismatch)
     if (contractMove !== null) declareLawfulPrefixChange(rosterOwnerKey, contractMove)
     return params
@@ -1140,7 +1142,7 @@ async function* queryModel(
             ttftMs = Date.now() - start
             usage = updateUsage(usage, part.message?.usage)
             noteServedModel(part.message?.model)
-            noteCacheDiagnostics(part.message, part.message?.usage)
+            noteCacheDiagnostics(part.message, part.message?.usage, ledgerFirstDifference)
             break
           }
           case 'content_block_start':

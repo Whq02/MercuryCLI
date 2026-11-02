@@ -60,7 +60,16 @@ export function cacheMissReasonOf(message: unknown): CacheMissReason | null | un
   return reason as CacheMissReason
 }
 
-export function describeCacheDiagnostics(message: unknown, usage: { cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null } | undefined): string | null {
+export interface LedgerFirstDifference {
+  part: string
+  path: string
+}
+
+export function describeCacheDiagnostics(
+  message: unknown,
+  usage: { cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null } | undefined,
+  firstDifference?: LedgerFirstDifference | null,
+): string | null {
   const diagnostics = (message as { diagnostics?: unknown } | null | undefined)?.diagnostics
   if (diagnostics === undefined) return null
   const read = usage?.cache_read_input_tokens ?? 0
@@ -70,11 +79,18 @@ export function describeCacheDiagnostics(message: unknown, usage: { cache_read_i
   const reason = cacheMissReasonOf(message)
   if (reason === null || reason === undefined) return `cache diagnostics: comparison pending (${tokens})`
   const missed = typeof reason.cache_missed_input_tokens === 'number' ? `, ~${reason.cache_missed_input_tokens} tokens after the divergence` : ''
-  return `cache diagnostics: ${reason.type}${missed} (${tokens})`
+  const named = firstDifference !== null && firstDifference !== undefined && reason.type.endsWith('_changed')
+    ? ` — the prefix ledger's first difference: ${firstDifference.part} (${firstDifference.path})`
+    : ''
+  return `cache diagnostics: ${reason.type}${missed} (${tokens})${named}`
 }
 
-export function noteCacheDiagnostics(message: unknown, usage: { cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null } | undefined): void {
-  const words = describeCacheDiagnostics(message, usage)
+export function noteCacheDiagnostics(
+  message: unknown,
+  usage: { cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null } | undefined,
+  firstDifference?: LedgerFirstDifference | null,
+): void {
+  const words = describeCacheDiagnostics(message, usage, firstDifference)
   if (words === null) return
   const reason = cacheMissReasonOf(message)
   logForDebugging(words, reason !== null && reason !== undefined && reason.type.endsWith('_changed') ? { level: 'warn' } : undefined)
