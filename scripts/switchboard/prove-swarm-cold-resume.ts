@@ -60,11 +60,17 @@ try {
   assert(birth.ok && birth.sessionId, JSON.stringify(birth))
   sessionId = birth.sessionId
   assert((await daemonControlRpc({ op: 'sessionControl', action: 'focus', sessionId, by: `operator:${process.pid}` } as never)).ok)
-  await dispatch('/swarm on')
-  await until('the wave opens', () => findFiles(world.config, 'board.sqlite').length === 1)
+  await dispatch('/swarm status')
+  await until('the session starts with its wave on', () => findFiles(world.config, 'board.sqlite').length === 1)
   const path = findFiles(world.config, 'board.sqlite')[0]!
   assert.equal(basename(dirname(dirname(dirname(path)))), sessionId)
   board = open(path, sessionId)
+  const transcript = join(dirname(dirname(dirname(path))), '..', `${sessionId}.jsonl`)
+  await until('status answers on without an opt-in', () => existsSync(transcript) && readFileSync(transcript, 'utf8').includes('Swarm on for new crewmates'))
+  assert(!readFileSync(transcript, 'utf8').includes('"noticeKind":"crew_chat"'), 'a fresh session paints no swarm row')
+  assert(board.chat().on)
+  console.log('PASS a new session starts on with chat on and no extra screen row')
+  await dispatch('/swarm on')
   await dispatch('/swarmchat all')
   await until('the chat selection commits', () => board!.chat().on)
   await dispatch('/crewmates on')
@@ -80,7 +86,6 @@ try {
   const metaPath = findFiles(world.config, `agent-${target.agent}.meta.json`)[0]!
   assert(metaPath)
   const metadata = readFileSync(metaPath, 'utf8')
-  const transcript = join(dirname(dirname(dirname(path))), '..', `${sessionId}.jsonl`)
   assert(existsSync(transcript))
   const beforeTranscript = readFileSync(transcript, 'utf8')
   await stop()
@@ -101,6 +106,7 @@ try {
   assert(resumed.ok, JSON.stringify(resumed))
   await until('the cold session has a new runner', () => owned()?.pid !== undefined && owned()?.pid !== oldPid)
   const resumedPid = owned()!.pid
+  assert(resumedPid)
   const reattached = await daemonControlRpc({ op: 'sessionAdmit', workspaceDir: world.project, resumeSessionId: sessionId, isolation: 'shared', by: 'operator' } as never, { timeoutMs: 60_000 }) as { ok: boolean; liveHop?: boolean }
   assert(reattached.ok && reattached.liveHop, JSON.stringify(reattached))
   assert.equal(owned()?.pid, resumedPid)
@@ -123,6 +129,22 @@ try {
   assert.equal(new Set(creations.map(row => row.recordId)).size, creations.length)
   assert.equal(creations.filter(row => row.payload.content === 'Swarm launched').length, 1)
   console.log('PASS cold resume and live reattach retain one wave, one launch row and one matched child continuation at max effort')
+  const beforeOff = readFileSync(transcript, 'utf8').length
+  await dispatch('/swarm off')
+  await until('off is recorded', () => readFileSync(transcript, 'utf8').slice(beforeOff).includes('Swarm off for new crewmates'))
+  await stop()
+  await until('the off session releases its runner', () => { try { process.kill(resumedPid, 0); return false } catch { return true } })
+  await start()
+  const offResume = await daemonControlRpc({ op: 'sessionAdmit', workspaceDir: world.project, resumeSessionId: sessionId, isolation: 'shared', by: 'operator' } as never, { timeoutMs: 60_000 }) as { ok: boolean }
+  assert(offResume.ok, JSON.stringify(offResume))
+  const beforeStatus = readFileSync(transcript, 'utf8').length
+  await dispatch('/swarm status')
+  await until('a resumed off session stays off', () => readFileSync(transcript, 'utf8').slice(beforeStatus).includes('Swarm off for new crewmates'))
+  const beforeOn = readFileSync(transcript, 'utf8').length
+  await dispatch('/swarm on')
+  await until('on restores the existing wave', () => readFileSync(transcript, 'utf8').slice(beforeOn).includes('Swarm on for new crewmates'))
+  assert.equal(findFiles(world.config, 'board.sqlite').length, 1)
+  console.log('PASS an explicit off survives cold resume and on restores the same wave')
 } finally {
   record('swarm-cold-resume-daemon.txt', log)
   record('swarm-cold-resume-requests.json', JSON.stringify(world.fixture.messageRequests().map(request => request.body)))

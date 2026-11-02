@@ -105,6 +105,7 @@ export function partyFeed(host: PartyHost): PartyFeed {
     active = true
     const chat = store.chat()
     const intro = store.screenIntroduction()
+    if (scanned === 0 && intro === null && store.screenEvents(0).every(event => event.lifecycle?.kind === 'launched')) return
     if (intro !== null && !pending.has(intro.seq)) {
       if (partyPaints(intro, chat)) { introduction = intro.seq; admit(intro, store.seats()) }
       else store.markScreenIntroduced()

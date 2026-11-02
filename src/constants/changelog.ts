@@ -7,7 +7,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Added captains, named by the lead for a team of five or more crewmates, or for a smaller team when you ask or a crewmate asks and the lead agrees; a captain gathers its team's work and reports it to the lead.
 - Added declared waits: a parked crewmate waiting for another crewmate's post, a file or subject, a message kind or its team's traffic is resumed by a matching message or a post addressed to it, with the message that woke it; broadcasts do not resume anyone.
 - Added an OCR row to mercury health: the engine in use (Vision, Windows OCR or Tesseract) with its languages, or why none is available.
-- Changed Swarm to be on by default; the Swarm row in /config turns it off. A session still joins with /swarm on.
+- Changed Swarm to be on for new sessions by default; /swarm off turns it off for a session and /swarm on turns it back on. Resumed sessions keep their choice. The Swarm row in /config is the master switch.
 - Changed Crew chat in the Workbench to wrap each message to three lines in the timeline, with the full text in the thread.
 - Changed /crew to say why a parked crewmate is waiting: the post it waits for, or a worktree that is missing.
 - Changed housekeeping to keep Node's compile cache under 512 MiB and 8,192 files, retiring the oldest entries at start-up.

@@ -20,7 +20,9 @@ for (const raw of ['bogus', 'team', 'all extra', 'team lists extra', 'main now',
 updateSettingsForSource('userSettings', { swarm: { enabled: false } })
 tally.check('with the master Swarm setting false every valid form names /config once', ['', 'all', 'main', 'team lists'].every(raw => runSwarmchatCommand(raw) === 'Swarm is off — enable swarm.enabled in your user settings.json (/config → Swarm).'), runSwarmchatCommand(''))
 updateSettingsForSource('userSettings', { swarm: { enabled: undefined } })
-tally.check('with the setting absent the master is on, so every valid form names the session switch instead', ['', 'all', 'main', 'team lists'].every(raw => runSwarmchatCommand(raw) === 'Swarm is off for this session — /swarm on enables it.'), runSwarmchatCommand(''))
+const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
+runSwarmCommand('off')
+tally.check('with the session explicitly off every valid form names the session switch instead', ['', 'all', 'main', 'team lists'].every(raw => runSwarmchatCommand(raw) === 'Swarm is off for this session — /swarm on enables it.'), runSwarmchatCommand(''))
 
 tally.section('§0b a new board starts with the channel on; the launch row is introduced once, at the launch or by hand')
 {
@@ -91,9 +93,11 @@ let transcript = ''
 try {
   await host.initialize({ partial_rows: true })
   tally.section('§1 the session switch comes first; the controls never enable it')
-  tally.check('before /swarm on, /swarmchat names the switch to flip', (await command('/swarmchat')) === 'Swarm is off for this session — /swarm on enables it.')
+  tally.check('the fresh session defaults on', (await command('/swarm status')).startsWith('Swarm on for new crewmates'))
+  tally.check('/swarm off disables future enrollment', (await command('/swarm off')).startsWith('Swarm off for new crewmates'))
+  tally.check('after /swarm off, /swarmchat names the switch to flip', (await command('/swarmchat')) === 'Swarm is off for this session — /swarm on enables it.')
   tally.check('and so does /swarmchat all', (await command('/swarmchat all')) === 'Swarm is off for this session — /swarm on enables it.')
-  tally.check('neither opened a board', findFiles(world.config, 'board.sqlite').length === 0)
+  tally.check('the controls reuse the one board from session birth', findFiles(world.config, 'board.sqlite').length === 1)
   const swarmOn = await command('/swarm on')
   tally.check('/swarm on answers its usual words', swarmOn.startsWith('Swarm on for new crewmates'), swarmOn)
   const path = findFiles(world.config, 'board.sqlite')[0]!

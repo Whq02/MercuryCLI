@@ -35,13 +35,13 @@ for (const mode of modes) {
     await session.waitFor('the built session answered', () => session.stdout().includes(mode === 'on' ? 'Board request finished.' : 'Plain request finished.'))
     assert.equal(await session.end(), 0, session.stderr())
     const loaded = existsSync(loads) ? readFileSync(loads, 'utf8') : ''
-    assert.equal(loaded.includes('crew-board.mjs'), mode === 'on', `${mode}: ${loaded}`)
+    assert.equal(loaded.includes('crew-board.mjs'), enabled, `${mode}: ${loaded}`)
     if (mode === 'on') {
       const requests = world.fixture.messageRequests()
       assert(requests.some(r => r.raw.includes('built-lead')))
       assert(session.stdout().includes('eventId'), session.stdout().slice(-3000))
     } else assert(!world.fixture.messageRequests().some(r => r.raw.includes('CrewBoard reads and posts')))
-    console.log(`PASS built session ${mode}: optional implementation ${mode === 'on' ? 'loaded after /swarm on' : 'never loaded'}`)
+    console.log(`PASS built session ${mode}: optional implementation ${enabled ? 'loaded with the session on' : 'never loaded with the master off'}`)
   } finally {
     await session.terminate()
     await closeWorld(world)

@@ -18,7 +18,8 @@ import type { BoardSettlement } from './wakeState.js'
 
 const requireOptional = createRequire(import.meta.url)
 let implementation: BoardModule | undefined
-const sessions = new Map<string, { store: BoardStore; execution: string; tool?: Tool }>()
+let boardTool: Tool | undefined
+const sessions = new Map<string, { store: BoardStore; execution: string }>()
 const roads = new Map<string, { on: boolean; execution: string; name: string; active: boolean }>()
 const leadChecks = new Set<() => void>()
 const pendingLaunches = new Set<string>()
@@ -99,7 +100,7 @@ export function watchSwarmLead(idle: () => boolean, wake: () => void, paint: (ev
   const check = (): void => leadContext(() => {
     if (!swarmSessionEnabled()) return
     const session = String(getSessionId())
-    const store = sessions.get(session)?.store ?? swarmStore()
+    const store = sessions.get(session)?.store
     if (!store) return
     for (const event of store.leadPosts(painted.get(session) ?? store.leadPainted())) {
       painted.set(session, event.seq)
@@ -259,10 +260,9 @@ export function swarmPrincipal(agentId = 'main'): BoardPrincipal | null {
 }
 
 export function swarmTools(agentId = 'main'): Tool[] {
-  if (!swarmRoad(agentId) || !swarmStore()) return []
-  const state = sessions.get(String(getSessionId()))!
-  state.tool ??= loadSwarm().tool({ buildTool, principal: context => context.agentKind === 'workflow' ? null : swarmPrincipal(context.agentId), paused: id => operatorPauseGate.holds(id), sessionOn: swarmSessionEnabled }, swarmStore)
-  return [state.tool]
+  if (!swarmRoad(agentId) || !swarmMasterEnabled()) return []
+  boardTool ??= loadSwarm().tool({ buildTool, principal: context => context.agentKind === 'workflow' ? null : swarmPrincipal(context.agentId), paused: id => operatorPauseGate.holds(id), sessionOn: swarmSessionEnabled }, swarmStore)
+  return [boardTool]
 }
 
 export function swarmView(): BoardViewSnapshot {

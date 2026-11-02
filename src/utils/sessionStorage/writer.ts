@@ -323,7 +323,7 @@ export function advisorSwitchOfSession(): boolean {
 }
 
 export function swarmSwitchOfSession(): boolean {
-  return getProject().currentSessionSwarm === true
+  return getProject().currentSessionSwarm !== false
 }
 
 export function adoptResumedSessionFile(): void {

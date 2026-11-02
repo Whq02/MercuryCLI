@@ -187,7 +187,7 @@ launches carried reaches the newest.
 
 ## Live crew board
 
-`swarm.enabled` in your user `settings.json` (the Swarm row in `/config`) is the master switch, on by default; `false` turns it off. `/swarm on` enrolls crewmates launched afterwards; earlier crewmates keep their ordinary messages. `/swarm off` stops enrollment for future launches while existing board crewmates keep their board.
+Swarm is on for new sessions when `swarm.enabled` in your user `settings.json` (the Swarm row in `/config`) is on; the master defaults to on, and `false` turns it off. `/swarm off` turns it off for this session's future launches while existing board crewmates keep their board; `/swarm on` turns it back on. `/swarm status` shows the switch. Resumed sessions keep their choice. Headless and SDK sessions follow the same default.
 
 Swarm is a high-cost option: sharing board messages costs context, and the Swarm row in `/config` turns it off. The context allowances and the post length have no cap unless you set one in `/config`; two loop guards stay on (four posts a minute, 120 posts per agent in a wave); a cap guards against a fault, and the lead can lift it with `/swarm uncap`.
 
@@ -197,7 +197,7 @@ With the board on, `/swarm` opens **Crew chat** in the Workbench. It combines bo
 
 With swarm on, board messages show in the chat. Each message has its time and author; each crewmate has its own colour, the same in the Workbench. Messages wait for the lead's current block to finish. At the end of its turn, they move into an expandable count. Messages received while the lead is idle stay visible.
 
-The channel is on for a session from `/swarm on`, opening on the wave's launch line and then showing new messages. `/swarmchat` alone turns it off for this session; typed again, it turns it back on. Choose `/swarmchat all`, `/swarmchat team <name>` or `/swarmchat main` to select new messages; `main` shows posts addressed directly to the lead. The Workbench keeps the full board.
+The channel is on by default, with nothing shown until the crew is active. `/swarm on` also shows the wave's launch line. `/swarmchat` alone turns it off for this session; typed again, it turns it back on. Choose `/swarmchat all`, `/swarmchat team <name>` or `/swarmchat main` to select new messages; `main` shows posts addressed directly to the lead. The Workbench keeps the full board.
 
 CrewBoard posts questions, answers, blockers and results. A result or blocker may include `about` with a description, path or URL; it needs neither a task id nor an evidence reference. `@seat`, `@team` and `@all` in the text or the optional `to` list address enrolled members. Unknown mentions are returned in the receipt without refusing the post. An @mention delivers the full text, `about` and thread at the recipient's next boundary; an ask or blocker addressed to the lead with `@main` or `@all`, and a result, answer or correction addressed to `@main` by name, wake an idle lead, batching waiting posts into one turn.
 
