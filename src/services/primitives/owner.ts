@@ -13,16 +13,10 @@ export {
   MAIN_LANE,
   makeOwnerKey,
   ownerEquals,
-  ownerKeyFileStem,
   parseOwnerKey,
 } from '../run/ownerKey.js'
-export type { OwnerIdentity, OwnerKey } from '../run/ownerKey.js'
-export {
-  disposeOwner,
-  registerOwnerDisposer,
-  registerOwnerScopedStore,
-  unregisterOwnerDisposer,
-} from '../run/ownerLifecycle.js'
+export type { OwnerKey } from '../run/ownerKey.js'
+import '../run/ownerLifecycle.js'
 export { OwnerScopedStore } from '../run/ownerScopedStore.js'
 
 type OwnerScope =

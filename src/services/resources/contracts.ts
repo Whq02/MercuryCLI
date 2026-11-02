@@ -68,7 +68,7 @@ export function formatRef(kind: string, id: string): string {
   return `${MERCURY_REF_SCHEME}${kind}${id ? `/${id}` : ''}`
 }
 
-export function isMercuryRef(value: string): boolean {
+function isMercuryRef(value: string): boolean {
   return value.startsWith(MERCURY_REF_SCHEME)
 }
 
