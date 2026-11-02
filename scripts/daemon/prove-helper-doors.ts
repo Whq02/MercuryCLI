@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { copyDistChunks } from '../lib/copyDistChunks.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const root = resolve(import.meta.dir, '../..')
@@ -59,7 +60,7 @@ const deploy = (dir: string): void => {
 const payload = (name: string): string => {
   const dir = join(world, name)
   mkdirSync(dir)
-  copyFileSync(join(dist, 'mercury.mjs'), join(dir, 'mercury.mjs'))
+  copyDistChunks(dist, dir)
   const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8'))
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify({ ...manifest, buildTree: name.repeat(12).slice(0, 40) }))
   return dir
@@ -311,7 +312,7 @@ try {
     } else {
       const oldDir = join(world, 'r26')
       mkdirSync(oldDir)
-      copyFileSync(join(oldDist, 'mercury.mjs'), join(oldDir, 'mercury.mjs'))
+      copyDistChunks(oldDist, oldDir)
       const manifest = JSON.parse(readFileSync(join(oldDist, 'manifest.json'), 'utf8')) as { buildTree?: string | null }
       writeFileSync(join(oldDir, 'manifest.json'), JSON.stringify({ ...manifest, buildTree: typeof manifest.buildTree === 'string' && manifest.buildTree !== '' ? manifest.buildTree : 'r26'.repeat(14).slice(0, 40) }))
       deploy(oldDir)

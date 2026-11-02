@@ -3,9 +3,10 @@
 
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { copyDistChunks } from '../lib/copyDistChunks.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const DIST = join(REPO, 'dist', 'mercury.mjs')
@@ -220,7 +221,7 @@ try {
   const mkBuild = (name: string, tree: string): string => {
     const dir = join(runtime, 'builds', name)
     mkdirSync(dir, { recursive: true })
-    copyFileSync(DIST, join(dir, 'mercury.mjs'))
+    copyDistChunks(dirname(DIST), dir)
     const manifest = JSON.parse(readFileSync(join(REPO, 'dist', 'manifest.json'), 'utf8')) as Record<string, unknown>
     manifest.buildTree = tree
     writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2))

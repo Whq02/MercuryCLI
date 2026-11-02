@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 import { spawn, type ChildProcess } from 'node:child_process'
-import { copyFileSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { copyDistChunks } from '../lib/copyDistChunks.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const dist = resolve(process.env.HELPERS_DIST ?? join(root, 'dist'))
@@ -50,7 +51,7 @@ const deploy = (dir: string): void => {
 const payload = (name: string): string => {
   const dir = join(world, name)
   mkdirSync(dir)
-  copyFileSync(join(dist, 'mercury.mjs'), join(dir, 'mercury.mjs'))
+  copyDistChunks(dist, dir)
   const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8'))
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify({ ...manifest, buildTree: name.repeat(12) }))
   return dir
