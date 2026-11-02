@@ -28,6 +28,7 @@ import type { OwnerKey } from '../run/ownerKey.js'
 import { handleSampleCall } from '../samples/bridge.js'
 import { rekeyScreenshot } from '../desktop/desktopSession.js'
 import { COMPUTER_TOOL_NAME } from '../desktop/toolName.js'
+import { PERSISTED_OUTPUT_CLOSING_TAG, PERSISTED_OUTPUT_TAG, readPersistedToolResult } from '../../utils/toolResultStorage.js'
 
 const toolPayload = z.object({ name: z.string(), input: z.record(z.string(), z.unknown()).default({}) })
 const agentPayload = z.object({
@@ -98,6 +99,16 @@ function extractToolResult(
     return { text, isError: b.is_error === true }
   }
   return null
+}
+
+async function withPersistedValue(text: string, toolUseId: string): Promise<string> {
+  const start = text.indexOf(PERSISTED_OUTPUT_TAG)
+  if (start === -1) return text
+  const end = text.indexOf(PERSISTED_OUTPUT_CLOSING_TAG, start)
+  if (end === -1) return text
+  const full = await readPersistedToolResult(toolUseId)
+  if (full === null) return text
+  return text.slice(0, start) + full + text.slice(end + PERSISTED_OUTPUT_CLOSING_TAG.length)
 }
 
 function screenshotOf(message: UserMessage): BridgeScreenshot | null {
@@ -229,7 +240,7 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
       return { ok: true, value: shellCallValue({ ...shellRun, ...(output !== undefined ? { output } : {}) }, result.text), code: shellRun.code }
     }
     if (result.isError) return { ok: false, error: unwrapToolUseError(result.text) || `the ${name} call failed`, errorKind: cellAbort.signal.aborted ? 'cancelled' : permissionDenied ? 'permission' : 'error' }
-    return { ok: true, value: rawValue !== undefined && result.text === rawMarker ? rawValue : result.text }
+    return { ok: true, value: rawValue !== undefined && result.text === rawMarker ? rawValue : await withPersistedValue(result.text, toolUseId) }
   }
 
   return async function serve(frame: BridgeRequestFrame, budget: CellBudgetHooks): Promise<BridgeAnswer> {

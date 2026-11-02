@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { sliceHeadAtGrapheme, sliceTailAtGrapheme } from './intl.js'
 import { join } from 'node:path'
 
@@ -158,6 +158,22 @@ export async function persistToolResult(
   }
   const { preview, hasMore } = generatePreview(serialized, PREVIEW_SIZE_CHARS)
   return { filepath: filePath, originalSize: sizeBytes, isJson, preview, hasMore }
+}
+
+export async function readPersistedToolResult(toolUseId: string): Promise<string | null> {
+  try {
+    return await readFile(getToolResultPath(toolUseId, false), 'utf8')
+  } catch {
+  }
+  try {
+    const blocks = JSON.parse(await readFile(getToolResultPath(toolUseId, true), 'utf8')) as TextBlockLike[]
+    return blocks
+      .map(block => (block.type === 'text' && typeof block.text === 'string' ? block.text : ''))
+      .filter(Boolean)
+      .join('\n')
+  } catch {
+    return null
+  }
 }
 
 export function buildLargeToolResultMessage(result: PersistedToolResult, cutWords?: string): string {
