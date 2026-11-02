@@ -31,6 +31,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed Windows starting a second background daemon when the home folder was reached by another spelling of its path.
 - Fixed a project opened by another spelling of its path, such as a different case or a short name, showing none of its sessions; the same folder now opens the same project.
 - Fixed interrupting a Python Eval cell on Windows losing the kernel's variables; the cell stops and the state stays.
+- Fixed the screen rewriting whole regions on every tick under a dark theme in a 24-bit colour terminal; only the cells that change are written.
 
 ## 1.0.2
 - Added an opt-in crew board: turn on Swarm in /config, then use /swarm on for new crewmates. Share questions, answers and results with @mentions, team channels and corrections. A question or blocker addressed to the lead arrives as one grey [Crewboard] row and wakes it when idle, as does a result addressed to it by name; other results paint without waking it. A crewmate launched with swarm on is told its name, its team and the other crewmates on the board, and when to post and read. The context allowances and the post length have no cap unless you set one in /config; two loop guards stay on (4 posts a minute, 120 posts per agent in a wave), and /swarm uncap, cap and status manage a live wave.
