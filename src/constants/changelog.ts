@@ -12,6 +12,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed /crew to say why a parked crewmate is waiting: the post it waits for, or a worktree that is missing.
 - Changed housekeeping to keep Node's compile cache under 512 MiB and 8,192 files, retiring the oldest entries at start-up.
 - Changed the model retirement notice to know Anthropic's current dates: Claude Sonnet 4.5 retires on November 30, 2026, and Claude Opus 4.1, Sonnet 4 and Opus 4 are retired.
+- Changed /swarmchat to accept on and off as well as the bare toggle.
 - Fixed a crew-board notice or a finished command's output landing in the composer after a sign-in failure.
 - Fixed a resumed session forgetting its swarm switch; /swarm on survives a resume.
 - Fixed command messages after the last reply disappearing when a session is resumed or opened in another window.
@@ -19,6 +20,12 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a stray line beginning xt does not name an installed version after a refused update rollback on Windows.
 - Fixed a check that started before an edit and finished after it counting as verification of the edited tree; the evidence now binds to the tree the check ran on.
 - Fixed mercury update refusals to end with the reinstall command for your installation method.
+- Fixed prompt-cache misses in long crew sessions: a crewmate re-entering no longer rewrites its system prompt with the live crew list, and a conversation's 21st image no longer resizes the earlier images in place.
+- Fixed small-window local models compacting almost at once: the turn reserve follows the model's window, and local setup asks for the model's trained context when the loaded one is smaller.
+- Fixed local models running without language services; a local engine now gets the same lazily started servers as a cloud one.
+- Fixed a refused crewmate launch painting as a finished crewmate; it paints as the refusal, and the turn summary counts only launches that happened.
+- Fixed mercury health --json creating crew-board files; the board opens only when a crewmate launches, a board command runs or chat first paints.
+- Fixed a language server that could not start for a missing rustup component retrying every 15 seconds; the failure names the rustup command and the next call tries again.
 
 ## 1.0.2
 - Added an opt-in crew board: turn on Swarm in /config, then use /swarm on for new crewmates. Share questions, answers and results with @mentions, team channels and corrections. A question or blocker addressed to the lead arrives as one grey [Crewboard] row and wakes it when idle, as does a result addressed to it by name; other results paint without waking it. A crewmate launched with swarm on is told its name, its team and the other crewmates on the board, and when to post and read. The context allowances and the post length have no cap unless you set one in /config; two loop guards stay on (4 posts a minute, 120 posts per agent in a wave), and /swarm uncap, cap and status manage a live wave.
