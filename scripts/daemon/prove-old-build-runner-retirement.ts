@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { DIST, NODE, SCRATCH_ROOT, makeTally, sleep } from './dupline-world.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { copyDistChunks } from '../lib/copyDistChunks.ts'
 import { SESSIONLESS_EXIT_GRACE_MS, SESSIONLESS_EXIT_BEAT_MS } from '../../src/daemon/sessionlessExit.ts'
 
 if (process.platform === 'win32') {
@@ -50,7 +51,7 @@ Object.assign(process.env, {
 function buildIdentity(name: string, tree: string): string {
   const dir = join(runtime, 'builds', name)
   mkdirSync(dir, { recursive: true })
-  for (const file of ['mercury.mjs', 'shell-parent-guard.mjs']) copyFileSync(join(dirname(DIST), file), join(dir, file))
+  copyDistChunks(dirname(DIST), dir)
   symlinkSync(join(dirname(DIST), 'vendor'), join(dir, 'vendor'), 'dir')
   const manifest = JSON.parse(readFileSync(join(dirname(DIST), 'manifest.json'), 'utf8'))
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify({ ...manifest, buildTree: tree }))

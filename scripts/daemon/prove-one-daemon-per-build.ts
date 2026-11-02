@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { nodeBinPath, requireLiveDaemon } from '../lib/nodeBin.ts'
 import { requirePositivePid } from '../lib/processGroup.ts'
+import { copyDistChunks } from '../lib/copyDistChunks.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const DIST = join(REPO, 'dist', 'mercury.mjs')
@@ -69,7 +70,7 @@ const TREE_Y = 'y'.repeat(40)
 const mkBuild = (name: string, tree: string): string => {
   const dir = join(builds, name)
   mkdirSync(join(dir, 'vendor', 'node', 'bin'), { recursive: true })
-  copyFileSync(DIST, join(dir, 'mercury.mjs'))
+  copyDistChunks(dirname(DIST), dir)
   const manifest = JSON.parse(readFileSync(join(REPO, 'dist', 'manifest.json'), 'utf8')) as Record<string, unknown>
   manifest.buildTree = tree
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2))

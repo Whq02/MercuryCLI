@@ -22,6 +22,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { processGone, silentSeatReport } from '../lib/seatForensics.ts'
 import { nodeBinPath, requireLiveDaemon } from '../lib/nodeBin.ts'
+import { copyDistChunks } from '../lib/copyDistChunks.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const DIST = process.env.MERCURY_PROOF_DIST ?? join(REPO, 'dist', 'mercury.mjs')
@@ -107,7 +108,7 @@ const SHORT_W = TREE_W.slice(0, 12)
 const mkBuild = (name: string, tree: string, buildTime: string): string => {
   const dir = join(builds, name)
   mkdirSync(join(dir, 'vendor', 'node', 'bin'), { recursive: true })
-  copyFileSync(DIST, join(dir, 'mercury.mjs'))
+  copyDistChunks(dirname(DIST), dir)
   const manifest = JSON.parse(readFileSync(join(dirname(DIST), 'manifest.json'), 'utf8')) as Record<string, unknown>
   manifest.buildTree = tree
   manifest.buildTime = buildTime
