@@ -272,6 +272,7 @@ function firstConflict(db: LeaseDatabase, resolved: readonly string[], holder: L
   const ranges: [string, string][] = []
   for (const lease of resolved) {
     exact.add(lease)
+    exact.add(isDirectoryLease(lease) ? lease.slice(0, -1) : `${lease}/`)
     for (const dir of coveringDirectories(lease)) exact.add(dir)
     if (isDirectoryLease(lease)) ranges.push([lease, directoryUpperBound(lease)])
   }

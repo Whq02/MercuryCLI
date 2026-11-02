@@ -57,6 +57,12 @@ try {
   check('a directory cannot be taken over someone\'s file under it', await refusal(['other/'], owner) === `other/a.png is ${names(other)}`)
   check('nor over a file deeper down', await refusal(['other/'], owner) === `other/a.png is ${names(other)}` && (await refusal(['oth/'], owner)).startsWith('ok:'))
 
+  check('a future file taken by one holder refuses the same path as a directory to another', (await refusal(['future-file'], owner)) === 'ok: art/,art/sub/y.png,future-file,oth/' && await refusal(['future-file/']) === `future-file is ${names(owner)}`)
+  check('a future directory taken by one holder refuses the same path as a file to another', (await refusal(['future-dir/'], owner)).startsWith('ok:') && await refusal(['future-dir']) === `future-dir/ is ${names(owner)}`)
+  check('the same two kinds collide below the top level, in both directions', (await refusal(['deep/file'], owner)).startsWith('ok:') && await refusal(['deep/file/']) === `deep/file is ${names(owner)}` && (await refusal(['deep/dir/'], owner)).startsWith('ok:') && await refusal(['deep/dir']) === `deep/dir/ is ${names(owner)}`)
+  check('the engine run refusal reads the opposite kind too', await engineLeaseRefusal(root, { commit: 'HEAD', baseBlobs: new Map([['future-dir', 'a']]), overlay: new Map([['future-dir', 'b']]) }, other) === `future-dir/ is ${names(owner)}`)
+  await releaseProjectLeases(root, owner, ['future-file', 'future-dir/', 'deep/file', 'deep/dir/'])
+
   check('an existing directory named without a slash is a directory lease', (await refusal(['assets/icons'], owner)) === 'ok: art/,art/sub/y.png,assets/icons/,oth/')
   check('a trailing slash on a file is refused by name', await refusal(['notes.txt/'], owner) === 'error: lease path names a file, not a directory: notes.txt/')
   check('the project directory that holds the lease store cannot be covered', await refusal(['.mercury/'], owner) === 'error: .mercury/ holds the lease store and cannot be leased')
