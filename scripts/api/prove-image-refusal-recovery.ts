@@ -109,7 +109,7 @@ section('§1 the limits at their one home: the provider\'s rule per family')
   check('the 6000x6000 fixture really is over the patch rule (35,344 patches)', patches(6000, 6000) === 35_344 && patches(6000, 6000) > 30_000)
 }
 
-section('§2 the ladder shrinks to the patch rule on the OpenAI family and leaves the Anthropic family as it was')
+section('§2 the ladder follows the OpenAI patch rule and Anthropic first-send sizing')
 {
   const out = await resizer.maybeResizeAndDownsampleImageBuffer(big, big.length, 'png', { limits: OPENAI as never })
   const outDims = await dims(out.buffer)
@@ -119,7 +119,11 @@ section('§2 the ladder shrinks to the patch rule on the OpenAI family and leave
   const kept = await resizer.maybeResizeAndDownsampleImageBuffer(fits, fits.length, 'png', { limits: OPENAI as never })
   check('a 4000x3000 PNG (11,750 patches) passes through byte-identical', kept.buffer.equals(fits))
   const anthropicOut = await resizer.maybeResizeAndDownsampleImageBuffer(big, big.length, 'png', { limits: ANTHROPIC as never })
-  check('anthropic: the same 6000x6000 PNG passes through unchanged (within 8000 px and 10 MB)', anthropicOut.buffer.equals(big))
+  const anthropicDims = await dims(anthropicOut.buffer)
+  check('anthropic: the 6000x6000 PNG is sized to exactly 3000x3000 from its first send', anthropicDims.width === 3000 && anthropicDims.height === 3000, j(anthropicDims))
+  check('anthropic: the sizing record retains the 6000x6000 original and 3000x3000 display', anthropicOut.dimensions?.originalWidth === 6000 && anthropicOut.dimensions.originalHeight === 6000 && anthropicOut.dimensions.displayWidth === 3000 && anthropicOut.dimensions.displayHeight === 3000, j(anthropicOut.dimensions))
+  const anthropicKept = await resizer.maybeResizeAndDownsampleImageBuffer(small, small.length, 'png', { limits: ANTHROPIC as never })
+  check('anthropic: an image within the first-send bounds stays byte-identical', anthropicKept.buffer.equals(small))
   let words = ''
   try {
     await resizer.maybeResizeAndDownsampleImageBuffer(big, big.length, 'png', { limits: { ...OPENAI, maxRequestBytes: 64 } as never })
