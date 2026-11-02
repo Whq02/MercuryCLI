@@ -26,6 +26,11 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a refused crewmate launch painting as a finished crewmate; it paints as the refusal, and the turn summary counts only launches that happened.
 - Fixed mercury health --json creating crew-board files; the board opens only when a crewmate launches, a board command runs or chat first paints.
 - Fixed a language server that could not start for a missing rustup component retrying every 15 seconds; the failure names the rustup command and the next call tries again.
+- Fixed a fast burst of keys, such as a held Backspace or a long paste, stopping the screen; the keys are applied in order.
+- Fixed the mouse wheel in the classic Windows console typing arrow keys into the draft; the wheel scrolls the transcript and the draft stays.
+- Fixed Windows starting a second background daemon when the home folder was reached by another spelling of its path.
+- Fixed a project opened by another spelling of its path, such as a different case or a short name, showing none of its sessions; the same folder now opens the same project.
+- Fixed interrupting a Python Eval cell on Windows losing the kernel's variables; the cell stops and the state stays.
 
 ## 1.0.2
 - Added an opt-in crew board: turn on Swarm in /config, then use /swarm on for new crewmates. Share questions, answers and results with @mentions, team channels and corrections. A question or blocker addressed to the lead arrives as one grey [Crewboard] row and wakes it when idle, as does a result addressed to it by name; other results paint without waking it. A crewmate launched with swarm on is told its name, its team and the other crewmates on the board, and when to post and read. The context allowances and the post length have no cap unless you set one in /config; two loop guards stay on (4 posts a minute, 120 posts per agent in a wave), and /swarm uncap, cap and status manage a live wave.
