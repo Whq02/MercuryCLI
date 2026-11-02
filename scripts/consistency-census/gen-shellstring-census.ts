@@ -123,6 +123,11 @@ const RULES: Array<{ test: (f: string, mechanism: string) => boolean; cls: strin
     why: 'the documented darwin system-python fallback candidate (the pyexpat class) — a candidate list entry, not a temp/exec decision',
   },
   {
+    test: (f, m) => m === 'exec-string' && f === 'scripts/eval/prove-kernel-cancel.ts',
+    cls: 'test-fixture',
+    why: "exec here is the proof's own kernel helper: a Python cell handed to the loopback kernel under test, no shell parses a line",
+  },
+  {
     test: (f, m) => m === 'hardcoded-interpreter' && f.startsWith('scripts/'),
     cls: 'platform-owner',
     why: 'POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform.',

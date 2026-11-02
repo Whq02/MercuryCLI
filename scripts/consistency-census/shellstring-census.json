@@ -612,6 +612,13 @@
       "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
     },
     {
+      "file": "scripts/editor-bridge/prove-acp-sign-in.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const replay = spawnSync(process.env.MERCURY_PYTHON ?? '/usr/bin/python3', ['-c', 'import sys, pyte; screen = pyte.Screen(120, 30); pyte.Str",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
       "file": "scripts/engine-connector/prove-busy-stall-drive.ts",
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q && git -c user.email=busy@proof.invalid -c user.name=busy commit -q --allow-empty -m seed', {",
@@ -638,6 +645,48 @@
       "excerpt": "hits = execSync(`grep -rlF ${JSON.stringify(name)} src --include='*.ts' --include='*.tsx' || true`, {",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/eval/prove-kernel-cancel.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const seed = await exec('seed', 'import os, signal, sys\\nkept = 7\\noriginal_pid = os.getpid()\\nsignal.getsignal(signal.SIGINT).__name__')",
+      "cls": "test-fixture",
+      "why": "exec here is the proof's own kernel helper: a Python cell handed to the loopback kernel under test, no shell parses a line"
+    },
+    {
+      "file": "scripts/eval/prove-kernel-cancel.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const stale = await exec('stale', shortLoop, whenReady(() => { interrupt('seed'); interrupt('stale', 'wrong-token') }))",
+      "cls": "test-fixture",
+      "why": "exec here is the proof's own kernel helper: a Python cell handed to the loopback kernel under test, no shell parses a line"
+    },
+    {
+      "file": "scripts/eval/prove-kernel-cancel.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const cancelled = await exec('wire', shortLoop, whenReady(() => { interrupt('wire'); interrupt('wire') }))",
+      "cls": "test-fixture",
+      "why": "exec here is the proof's own kernel helper: a Python cell handed to the loopback kernel under test, no shell parses a line"
+    },
+    {
+      "file": "scripts/eval/prove-kernel-cancel.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const after = await exec('after-wire', '(kept, os.getpid() == original_pid)')",
+      "cls": "test-fixture",
+      "why": "exec here is the proof's own kernel helper: a Python cell handed to the loopback kernel under test, no shell parses a line"
+    },
+    {
+      "file": "scripts/eval/prove-kernel-cancel.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const hostStopped = await exec('host', shortLoop, whenReady(() => kernel.interrupt()))",
+      "cls": "test-fixture",
+      "why": "exec here is the proof's own kernel helper: a Python cell handed to the loopback kernel under test, no shell parses a line"
+    },
+    {
+      "file": "scripts/eval/prove-kernel-cancel.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const late = await exec('late', shortLoop + '\\n(kept, os.getpid() == original_pid)', whenReady(() => interrupt('host')))",
+      "cls": "test-fixture",
+      "why": "exec here is the proof's own kernel helper: a Python cell handed to the loopback kernel under test, no shell parses a line"
     },
     {
       "file": "scripts/eval/prove-kernel-cancel.ts",
