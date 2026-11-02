@@ -41,11 +41,10 @@ import { memoryWriteRefusal } from '../../utils/memoryFileDetection.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import type { UUID } from 'node:crypto'
 
-import type { FileState } from '../../utils/fileStateCache.js'
 import { modifiedSinceReadMessage, unreadExistingWriteMessage } from '../FileEditTool/otherSession.js'
 import { stripSequentialReadPrefixes } from '../FileEditTool/utils.js'
 import { spellLineRanges } from '../FileEditTool/readThrough.js'
-import { APPLIED_NO_REREAD_NOTE } from '../FileEditTool/FileEditTool.js'
+import { APPLIED_NO_REREAD_NOTE, isFullReadEntry } from '../FileEditTool/FileEditTool.js'
 import { gitDiffSchema, hunkSchema, type FileEditOutput } from '../FileEditTool/types.js'
 import { checkIntroducedParseError } from './parseCheck.js'
 import {
@@ -108,9 +107,6 @@ function sha16(content: string): string {
   return runtimeKernel().hash.sha256Hex(content).slice(0, 16)
 }
 
-function isFullReadEntry(entry: FileState): boolean {
-  return (entry.offset === undefined || entry.offset === 0) && entry.limit === undefined
-}
 
 function shapeToExistingFile(rawBody: string, content: string, majority: LineEndingType): string {
   let body = content.replaceAll('\r\n', '\n')

@@ -167,7 +167,7 @@ async function notFoundSuggestionSentence(expandedPath: string): Promise<string>
   return suggestion ? ` Did you mean ${suggestion}?` : ''
 }
 
-function isFullReadEntry(entry: FileState): boolean {
+export function isFullReadEntry(entry: FileState): boolean {
   return (entry.offset === undefined || entry.offset === 0) && entry.limit === undefined
 }
 
