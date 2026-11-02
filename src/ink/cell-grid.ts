@@ -1,5 +1,5 @@
 import { type AnsiCode, ansiCodesToString, diffAnsiCodes } from '@alcalzone/ansi-tokenize'
-import { type Point, type Rectangle, type Size, unionRect } from './layout/geometry.js'
+import type { Point, Rectangle, Size } from './layout/geometry.js'
 import { BEL, ESC, SEP } from './termio/ansi.js'
 import * as warn from './warn.js'
 
@@ -643,18 +643,15 @@ export function diff(prev: Screen, next: Screen): DiffRow[] {
 
 const freshView = (): Cell => ({ char: ' ', styleId: 0, width: CellWidth.Narrow, hyperlink: undefined })
 
-function walkRegion(prev: Screen, next: Screen): Rectangle {
-  const untouched = { x: 0, y: 0, width: 0, height: 0 }
-  const everything = { x: 0, y: 0, width: next.width, height: next.height }
-  const damaged = next.damage ? (prev.damage ? unionRect(next.damage, prev.damage) : next.damage) : (prev.damage ?? untouched)
-  let region = prev.width === 0 && prev.height === 0 ? everything : damaged
-  if (prev.height > next.height) region = unionRect(region, { x: 0, y: next.height, width: prev.width, height: prev.height - next.height })
-  if (prev.width > next.width) region = unionRect(region, { x: next.width, y: 0, width: prev.width - next.width, height: prev.height })
-  return region
+function walkRegion(prev: Screen, next: Screen, fromRow: number): Rectangle {
+  const width = Math.max(prev.width, next.width)
+  const height = Math.max(prev.height, next.height)
+  const top = Math.min(Math.max(0, Math.floor(fromRow)), height)
+  return { x: 0, y: top, width, height: height - top }
 }
 
-export function diffEach(prev: Screen, next: Screen, cb: DiffCallback): boolean {
-  const region = walkRegion(prev, next)
+export function diffEach(prev: Screen, next: Screen, cb: DiffCallback, fromRow = 0): boolean {
+  const region = walkRegion(prev, next, fromRow)
   const endY = Math.min(region.y + region.height, Math.max(prev.height, next.height))
   const endX = Math.min(region.x + region.width, Math.max(prev.width, next.width))
   const removedView = freshView()

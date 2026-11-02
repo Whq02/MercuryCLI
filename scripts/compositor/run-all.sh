@@ -41,5 +41,6 @@ run scripts/compositor/prove-uiux-wave0-census.ts
 run scripts/compositor/prove-ground-contrast-floors.ts
 run scripts/compositor/prove-field-findings-keytruth.ts
 run scripts/compositor/prove-hangul-jamo-width.ts
+run scripts/compositor/prove-wire-census.ts
 
 exit "$fail"

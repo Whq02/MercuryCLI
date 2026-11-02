@@ -274,8 +274,7 @@ function emitDirtyCells(
   minRow: number,
   rowLimit: number,
   alt: boolean,
-): { droppedFrozen: number } {
-  let droppedFrozen = 0
+): void {
   bleedLedger.clear()
   const stride = next.screen.width
   diffEach(prev.screen, next.screen, (x, y, removed, added) => {
@@ -296,14 +295,6 @@ function emitDirtyCells(
     }
     if (added && isEmptyCellAt(next.screen, x, y) && !removed) return
 
-    if (y < minRow) {
-      if (!alt) {
-        droppedFrozen++
-        return
-      }
-      return
-    }
-
     if (removed && (!added || added.char !== removed.char || added.styleId !== removed.styleId)) {
       const rows = bleedRows(removed.char)
       if (rows !== 0) {
@@ -320,7 +311,7 @@ function emitDirtyCells(
       appendText(out, ' ')
       cursor.wrote(1, true)
     }
-  })
+  }, minRow)
   if (bleedLedger.size > 0) {
     for (const packed of bleedLedger) {
       const y = Math.floor(packed / stride)
@@ -339,7 +330,6 @@ function emitDirtyCells(
       }
     }
   }
-  return { droppedFrozen }
 }
 
 const describeDamage = (damage: Rectangle | undefined): string =>
@@ -495,21 +485,7 @@ export class FrameWriter {
     const frozenBoundary = Math.max(frozenRowBoundary(prev, next), this.flushedRows)
     const growing = next.screen.height > prev.screen.height
     const growthLimit = Math.min(prev.screen.height, next.screen.height)
-    const { droppedFrozen } = emitDirtyCells(
-      out,
-      cursor,
-      attrs,
-      prev,
-      next,
-      frozenBoundary,
-      growthLimit,
-      false,
-    )
-    if (droppedFrozen > 0) {
-      logForDebugging(
-        `[inline] print-once: dropped ${droppedFrozen} frozen-row cell diff(s) below row ${frozenBoundary}`,
-      )
-    }
+    emitDirtyCells(out, cursor, attrs, prev, next, frozenBoundary, growthLimit, false)
 
     if (growing) {
       attrs.resetAll(out)
