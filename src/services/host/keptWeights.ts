@@ -18,11 +18,11 @@ import { HostTerminationUnconfirmed, hostJobReadOnly, type HostReadOnly } from '
 import { HostVendorHttpError } from './vendors/http.js'
 import type { HostVendor } from './vendors/vendor.js'
 import { downloadFailure, downloadWatchScript, keptDownloadMinutes, keptRunMs, type DownloadWatchOptions } from './download.js'
+import { shQuote as quote } from './boxExecution.js'
 export { keptDownloadMinutes, keptStallWords } from './download.js'
 export class HostPreparationCleanupFailed extends Error {}
 interface WeightScriptOptions extends DownloadWatchOptions { fully?: boolean; sampleManifestSha256?: string; progressPath?: string; fullWords?: string }
 const manifestsSchema = z.array(z.object({ model: z.string(), include: z.string(), revision: z.string(), files: z.array(z.object({ path: z.string(), size: z.number().int().nonnegative(), sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(), git: z.string().regex(/^[a-f0-9]{40}$/).optional() })) }))
-const quote = (value: string): string => "'" + value.replaceAll("'", "'\\''") + "'"
 const KEPT_MISMATCH = 'Kept weights failed pinned SHA256/sizes verification'
 export const keptWeightsPath = (recipe: HostRecipe): string => '/workspace/mercury-weights/' + createHash('sha256').update(recipe.model + '\n' + (recipe.include ?? '')).digest('hex').slice(0, 24)
 function weightManifests(): WeightManifest[] {

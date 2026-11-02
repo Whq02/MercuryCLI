@@ -9,9 +9,9 @@ import { hostNotice } from './notices.js'
 import { patchHostRecord, readHostRecord, type HostRecord } from './store.js'
 import { sshArguments, startHostEngine, waitHostEngine, type HostRunner, type SshTarget } from './ssh.js'
 import { hostJobReadOnly, HostTerminationUnconfirmed, type HostReadOnly } from './retry.js'
+import { shQuote as quote } from './boxExecution.js'
 
 const clusterPlacementMs = 30 * 60_000
-const quote = (value: string): string => "'" + value.replaceAll("'", "'\\''") + "'"
 
 export const hostShape = (recipe: HostRecipe): string => ((recipe.nodes ?? 1) > 1 ? recipe.nodes + ' nodes × ' : '') + recipe.count + '× ' + recipe.gpu
 export const hostCreateRefusal = (recipe: HostRecipe, error: unknown) => error instanceof HostCreateError && error.outcome === 'refused' ? { status: error.status, detail: error.message, retryAfterSeconds: undefined } : (recipe.nodes ?? 1) > 1 ? clusterCreateRefusal(error) : createRefusal(error)

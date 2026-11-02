@@ -29,13 +29,13 @@ import { HostEngineDeath, engineDeathAfterReady, ensureHostKey, hostRunner, insp
 import { hostRetuneLive, reconcileHostTune, tunedRecipe } from './tune.js'
 import { HostTerminationUnconfirmed, hostJobReadOnly, hostReadFailureWords } from './retry.js'
 import { hostMachineOf, noteHostLink, hostLinkAttemptWords, hostLinkRecoveredWords, hostLinkLossWords } from './reliability.js'
+import { shQuote as quote } from './boxExecution.js'
 
 const notFound = (error: unknown): boolean => (error instanceof RunpodHttpError || error instanceof HostVendorHttpError) && error.status === 404
 class HostPodMissing extends Error {}
 class HostLinkLost extends Error {
   constructor(message: string, readonly engineLog: string) { super(message) }
 }
-const quote = (value: string): string => "'" + value.replaceAll("'", "'\\''") + "'"
 const unauthorized = (error: unknown): boolean => (error instanceof RunpodHttpError || error instanceof HostVendorHttpError) && (error.status === 401 || error.status === 403)
 const inferredWeightsSource = (record: HostRecord, recipe: HostRecipe | undefined, vendor: HostVendorId): WeightsSource => {
   if (record.volumeId) return { kind: 'volume', volumeId: record.volumeId }
