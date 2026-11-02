@@ -23,6 +23,7 @@ import {
   type Progress,
 } from 'src/services/privateChannel/updateService.js'
 import { describeChannelRoad } from 'src/services/privateChannel/channelTransport.js'
+import { updateReinstallCommand } from 'src/services/privateChannel/updateRemedy.js'
 import { formatBootResidueWarning, readBootAttemptResidue } from 'src/substrate/bootBeacon.js'
 import { jsonStringify } from 'src/utils/slowOperations.js'
 import { cliError, cliJsonError, cliOk } from './exit.js'
@@ -42,6 +43,16 @@ const progressToStderr: Progress = (state, detail) => {
 
 const emitJson = (value: unknown): never => cliOk(jsonStringify(value, null, 1) ?? '{}')
 const failJson = (value: unknown): never => cliJsonError(jsonStringify(value, null, 1) ?? '{}')
+
+function refusalExits(reinstallCommand: string): {
+  cliError: (message: string) => never
+  failJson: (value: object) => never
+} {
+  return {
+    cliError: message => cliError(`${message}\n${reinstallCommand}`),
+    failJson: value => failJson({ ...value, reinstallCommand }),
+  }
+}
 
 async function moveDaemonAfterUpdate(): Promise<{ state: string; line: string } | null> {
   try {
@@ -118,7 +129,9 @@ async function installerRoad(
   options: UpdateCliOptions,
   roots: LayoutRoots,
   provenance: Record<string, unknown>,
+  reinstallCommand: string,
 ): Promise<never> {
+  const { cliError, failJson } = refusalExits(reinstallCommand)
   const command = installer.updateCommand
   if (!options.yes) {
     if (options.json) {
@@ -186,11 +199,6 @@ async function installerRoad(
 }
 
 export async function update(options: UpdateCliOptions = {}): Promise<never> {
-  const picked = [options.check, options.status, options.rollback].filter(Boolean).length
-  if (picked > 1) {
-    console.error('mercury update: --check, --status and --rollback are mutually exclusive')
-    process.exit(2)
-  }
   const roots = resolveLayoutRoots()
   const provenance = resolveInstallProvenance()
   const installer = foreignInstallerOf(provenance)
@@ -198,6 +206,13 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
   const sourceCheckoutReason = `this Mercury is a source checkout at ${provenance.activeRoot} and no managed install lives under ${roots.versionsDir}; \`mercury update\` manages installs made by \`mercury install\` or the install script`
   const sourceCheckoutRemedy = 'rebuild it with `git pull && bun run build.ts`'
   const npmWrapper = provenance.kind === 'managed' ? npmWrapperOnPath(commandOnPath(roots)) : null
+  const reinstallCommand = updateReinstallCommand(provenance, npmWrapper)
+  const { cliError, failJson } = refusalExits(reinstallCommand)
+  const picked = [options.check, options.status, options.rollback].filter(Boolean).length
+  if (picked > 1) {
+    console.error(`mercury update: --check, --status and --rollback are mutually exclusive\n${reinstallCommand}`)
+    process.exit(2)
+  }
   const provenanceRecord = {
     kind: provenance.kind,
     activeRoot: provenance.activeRoot,
@@ -311,7 +326,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
     }
   }
 
-  if (installer) return installerRoad(installer, options, roots, provenanceRecord)
+  if (installer) return installerRoad(installer, options, roots, provenanceRecord, reinstallCommand)
   if (sourceCheckout) {
     if (options.json) return failJson({ mode: 'update', state: 'refused', stage: 'provenance', reason: sourceCheckoutReason, remedy: sourceCheckoutRemedy, provenance: provenanceRecord })
     return cliError(`update refused: ${sourceCheckoutReason}\n  ${sourceCheckoutRemedy}\nthe active installation was not changed`)

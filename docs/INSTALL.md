@@ -61,6 +61,10 @@ terminal picks up the change automatically.
 
 Use `mercury update` with any installation method.
 
+If you are on 1.0.0-rc.1, run `curl -fsSL https://mercury-cli.ai/install.sh | sh`
+once (on Windows, `irm https://mercury-cli.ai/install.ps1 | iex`); your settings
+and sessions stay.
+
 For an installation made with the shell or PowerShell installer, or with
 `mercury install`, it updates Mercury in place. `--check` checks for updates,
 `--status` reports update status, and `--rollback` returns to the previous
@@ -75,8 +79,9 @@ prompt in scripts.
 The npm launcher uses the same release layout as the installers and delegates
 each run to the installed release. `mercury update` therefore updates an npm
 installation in place through Mercury's own update channel.
-`npm update -g mercury-tech-cli` changes only the release the package installs
-on its first run. This also applies when using mise.
+`npm i -g mercury-tech-cli@latest` installs and activates the package's release
+when it is newer than the installed release; it does not downgrade a newer
+installation unless you set `MERCURYCLI_PIN=1`. This also applies when using mise.
 
 `--check` reads the same release list for every installation method and tells
 you how to update yours. When an update is available, the home screen shows
