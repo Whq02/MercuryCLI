@@ -154,7 +154,7 @@ export interface ConsolidateResult {
 const LOCK_STALE_MS = 5 * 60 * 1000
 const LOCK_DEAD_GRACE_MS = 15 * 1000
 
-function pidAlive(pid: number): boolean {
+export function pidAlive(pid: number): boolean {
   try {
     process.kill(pid, 0)
     return true

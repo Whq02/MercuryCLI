@@ -13,6 +13,7 @@ import {
   pinnedRowWaits,
   readLibraryMeta,
   releaseConsolidateLock,
+  pidAlive as pidAliveSafe,
 } from './mnemeConsolidate.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { publishLibraryFile } from './mnemeLibrary.js'
@@ -43,14 +44,6 @@ interface MnemeMaintenanceOutcome {
   wallMs?: number
 }
 
-function pidAliveSafe(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (e) {
-    return (e as NodeJS.ErrnoException).code === 'EPERM'
-  }
-}
 
 interface LockView {
   present: boolean
