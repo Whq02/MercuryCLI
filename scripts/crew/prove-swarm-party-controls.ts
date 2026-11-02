@@ -13,16 +13,29 @@ assert(suiteHome, 'run with a scratch MERCURY_CONFIG_DIR')
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(suiteHome, 'controls-'))
 const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
 const tally = makeTally('swarm-party-controls')
-const USAGE = 'usage: /swarmchat [all|team \\<name\\>|main] — /swarmchat alone toggles board messages in the chat'
+const USAGE = 'usage: /swarmchat [on|off|all|team \\<name\\>|main] — /swarmchat alone toggles board messages in the chat'
 
 tally.section('§0 the grammar refuses bad syntax before it looks at any switch')
-for (const raw of ['bogus', 'team', 'all extra', 'team lists extra', 'main now', 'ALL']) tally.check(`"/swarmchat ${raw}" answers the usage line`, runSwarmchatCommand(raw) === USAGE, runSwarmchatCommand(raw))
+for (const raw of ['bogus', 'team', 'all extra', 'team lists extra', 'main now', 'on extra', 'off extra', 'ALL', 'ON', 'OFF']) tally.check(`"/swarmchat ${raw}" answers the usage line`, runSwarmchatCommand(raw) === USAGE, runSwarmchatCommand(raw))
 updateSettingsForSource('userSettings', { swarm: { enabled: false } })
-tally.check('with the master Swarm setting false every valid form names /config once', ['', 'all', 'main', 'team lists'].every(raw => runSwarmchatCommand(raw) === 'Swarm is off — enable swarm.enabled in your user settings.json (/config → Swarm).'), runSwarmchatCommand(''))
+tally.check('with the master Swarm setting false every valid form names /config once', ['', 'on', 'off', 'all', 'main', 'team lists'].every(raw => runSwarmchatCommand(raw) === 'Swarm is off — enable swarm.enabled in your user settings.json (/config → Swarm).'), runSwarmchatCommand(''))
 updateSettingsForSource('userSettings', { swarm: { enabled: undefined } })
 const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
 runSwarmCommand('off')
-tally.check('with the session explicitly off every valid form names the session switch instead', ['', 'all', 'main', 'team lists'].every(raw => runSwarmchatCommand(raw) === 'Swarm is off for this session — /swarm on enables it.'), runSwarmchatCommand(''))
+tally.check('with the session explicitly off every valid form names the session switch instead', ['', 'on', 'off', 'all', 'main', 'team lists'].every(raw => runSwarmchatCommand(raw) === 'Swarm is off for this session — /swarm on enables it.'), runSwarmchatCommand(''))
+
+tally.section('§0a an unchanged switch keeps pending rows and the screen cursor')
+{
+  const { swarmStore, swarmPrincipal } = await import('../../src/services/crewBoard/seam.ts')
+  runSwarmCommand('on')
+  const board = swarmStore()!
+  const principal = swarmPrincipal()!
+  const cursor = board.screenCursor()
+  const posted = board.post(principal, { clientOpId: 'pending-on', kind: 'result', text: 'A row waiting to paint.' })
+  assert(posted.ok && posted.seq > cursor)
+  for (const raw of ['on', ' on ']) tally.check('on when already on leaves the pending row unread', runSwarmchatCommand(raw) === 'Swarm chat on' && board.chat().on && board.screenCursor() === cursor && board.screenEvents(cursor).some(event => event.eventId === posted.eventId))
+  runSwarmCommand('off')
+}
 
 tally.section('§0b a new board starts with the channel on; the launch row is introduced once, at the launch or by hand')
 {
@@ -97,6 +110,7 @@ try {
   tally.check('/swarm off disables future enrollment', (await command('/swarm off')).startsWith('Swarm off for new crewmates'))
   tally.check('after /swarm off, /swarmchat names the switch to flip', (await command('/swarmchat')) === 'Swarm is off for this session — /swarm on enables it.')
   tally.check('and so does /swarmchat all', (await command('/swarmchat all')) === 'Swarm is off for this session — /swarm on enables it.')
+  for (const verb of ['on', 'off']) tally.check(`/swarmchat ${verb} never enables the session switch`, (await command(`/swarmchat ${verb}`)) === 'Swarm is off for this session — /swarm on enables it.')
   tally.check('the controls reuse the one board from session birth', findFiles(world.config, 'board.sqlite').length === 1)
   const swarmOn = await command('/swarm on')
   tally.check('/swarm on answers its usual words', swarmOn.startsWith('Swarm on for new crewmates'), swarmOn)
@@ -126,12 +140,21 @@ try {
   const landed = async (marker: string): Promise<void> => until(`${marker} painted`, () => painted().some(row => row.text.includes(marker)))
   const absent = (marker: string): boolean => !painted().some(row => row.text.includes(marker))
 
+  const explicitSwitches = async (): Promise<void> => {
+    const filter = board!.chat().filter
+    for (const verb of ['on', 'on', 'off', 'off', 'on']) {
+      const words = await command(`/swarmchat ${verb}`)
+      tally.check(`${verb} sets the channel without changing filter ${filter.kind}, including repeated calls`, words === (verb === 'on' ? 'Swarm chat on' : 'Swarm chat off') && JSON.stringify(board!.chat()) === JSON.stringify({ on: verb === 'on', filter }), words)
+    }
+  }
+
   tally.section('§2 every grammar arm, through the runner')
   tally.check('a fresh board starts on, filter all', JSON.stringify(board.chat()) === JSON.stringify({ on: true, filter: { kind: 'all' } }), JSON.stringify(board.chat()))
   await landed('Swarm launched')
   tally.check("with the channel on from the start, /swarm on introduces the wave's launch row once, with no command typed", painted().filter(row => row.text === 'Swarm launched').length === 1 && painted()[0]!.fields.name === 'main', painted().map(row => `${row.fields.name}:${row.text}`).join(' | '))
   const lineOf = (needle: string, file = transcript): number => readFileSync(file, 'utf8').split('\n').findIndex(line => line.includes(needle))
   tally.check('/swarm on is a local command, not a turn: the launch row carries no turn and lands after the command output', painted()[0]!.fields.turnId === undefined && lineOf('local-command-stdout>Swarm on for new crewmates') >= 0 && lineOf('"content":"Swarm launched"') > lineOf('local-command-stdout>Swarm on for new crewmates'), `${JSON.stringify(painted()[0]!.fields.turnId)} · ${lineOf('"content":"Swarm launched"')} vs ${lineOf('local-command-stdout>Swarm on for new crewmates')}`)
+  await explicitSwitches()
   tally.check('/swarmchat alone turns the channel off', (await command('/swarmchat')) === 'Swarm chat off' && board.chat().on === false)
   const unknownLabel = await command('/swarmchat team lists')
   tally.check('an unknown team changes nothing and says so', unknownLabel === 'No team lists on the board.' && board.chat().on === false, unknownLabel)
@@ -141,11 +164,13 @@ try {
   board.enroll(scout)
   const labelWords = await command('/swarmchat team LISTS')
   tally.check('team selects an existing team by its canonical spelling, case-insensitively', labelWords === 'Swarm chat · team lists' && JSON.stringify(board.chat()) === JSON.stringify({ on: true, filter: { kind: 'team', team: 'lists' } }), labelWords)
+  await explicitSwitches()
   const stillUnknown = await command('/swarmchat team nobody')
   tally.check('an unknown team leaves the current filter in place and names the teams', stillUnknown === 'No team nobody on the board — teams: lists, maps.' && board.chat().filter.kind === 'team', stillUnknown)
   tally.check('the toggle off keeps the filter', (await command('/swarmchat')) === 'Swarm chat off' && JSON.stringify(board.chat()) === JSON.stringify({ on: false, filter: { kind: 'team', team: 'lists' } }))
   tally.check('and the toggle on brings it back', (await command('/swarmchat')) === 'Swarm chat on' && JSON.stringify(board.chat()) === JSON.stringify({ on: true, filter: { kind: 'team', team: 'lists' } }))
   tally.check('main selects traffic addressed to the lead', (await command('/swarmchat main')) === 'Swarm chat · main' && board.chat().filter.kind === 'main')
+  await explicitSwitches()
   tally.check('all selects everything', (await command('/swarmchat all')) === 'Swarm chat · all' && board.chat().filter.kind === 'all')
   tally.check('bad syntax through the runner answers the usage line and changes nothing', (await command('/swarmchat nonsense')) === USAGE && (await command('/swarmchat team')) === USAGE && JSON.stringify(board.chat()) === JSON.stringify({ on: true, filter: { kind: 'all' } }))
   tally.check('no control dumped the board: the four seats joined while the channel was off, so only the launch row has painted', painted().length === 1, painted().map(row => `${row.fields.name}:${row.text}`).join(' | '))
@@ -239,10 +264,10 @@ try {
   tally.check('painting forty rows presented, read or marked nothing for any seat: the deliveries the posts created stay pending', JSON.stringify(afterBurst) === JSON.stringify(beforeBurst), `${JSON.stringify(beforeBurst)} → ${JSON.stringify(afterBurst)}`)
 
   tally.section('§7 off stops new rows, on resumes at the current sequence; /swarm off suspends, /swarm on resumes')
-  tally.check('toggle off', (await command('/swarmchat')) === 'Swarm chat off')
+  tally.check('explicit off', (await command('/swarmchat off')) === 'Swarm chat off')
   post(judge, 'o1', 'posted while the chat is off OFF-1')
   post(judge, 'o2', 'posted while the chat is off OFF-2')
-  tally.check('toggle on', (await command('/swarmchat')) === 'Swarm chat on')
+  tally.check('explicit on', (await command('/swarmchat on')) === 'Swarm chat on')
   post(judge, 'o3', 'posted after the chat came back ON-1')
   await landed('ON-1')
   tally.check('the posts made while off never paint', absent('OFF-1') && absent('OFF-2'))

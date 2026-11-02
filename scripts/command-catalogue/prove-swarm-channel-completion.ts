@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
-const { channelTargetCandidates, findChannelTargetQuery, rankChannelTargets } = await import('../../src/utils/suggestions/commandSuggestions.js')
+const { channelTargetCandidates, findChannelTargetQuery, generateCommandSuggestions, rankChannelTargets } = await import('../../src/utils/suggestions/commandSuggestions.js')
 
 let passed = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -27,6 +27,7 @@ check('once the body begins, completion stops', findChannelTargetQuery('/whisper
 check('/general has no target token', findChannelTargetQuery('/general hi', 11) === null)
 check('a cursor away from the end completes nothing', findChannelTargetQuery('/whisper al', 5) === null)
 check('other commands are untouched', findChannelTargetQuery('/sessions al', 12) === null && findChannelTargetQuery('/swarmchat all', 14) === null)
+check('explicit on and off have no channel target to complete', ['/swarmchat on', '/swarmchat off', '/swarmchat on ', '/swarmchat off '].every(input => findChannelTargetQuery(input, input.length) === null))
 
 console.log('§2 candidates come from the live roster, never from main or owner')
 const seats = [
@@ -73,6 +74,8 @@ check('the footer knows the type', readFileSync(join(REPO, 'src/components/Promp
 console.log('§5 the three verbs in the catalogue')
 const { builtinCommands } = await import('../../src/commands.js')
 const byName = new Map(builtinCommands().map(command => [command.name, command]))
+const swarmchat = byName.get('swarmchat')!
+check('the swarmchat candidate carries on and off in its argument hint', swarmchat.argumentHint === '[on|off|all|team <name>|main]' && generateCommandSuggestions('/swarmch', [...byName.values()])[0]?.metadata === swarmchat)
 check('general: Post to every crewmate on the board, <text>', byName.get('general')?.description === 'Post to every crewmate on the board' && byName.get('general')?.argumentHint === '<text>')
 check('team: Post to one team on the board, <name> <text>', byName.get('team')?.description === 'Post to one team on the board' && byName.get('team')?.argumentHint === '<name> <text>')
 check('whisper: Post to one crewmate on the board, <name> <text>', byName.get('whisper')?.description === 'Post to one crewmate on the board' && byName.get('whisper')?.argumentHint === '<name> <text>')
