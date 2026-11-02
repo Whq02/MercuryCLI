@@ -7,6 +7,7 @@ import { copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, openSync, r
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { nodeBinPath, requireLiveDaemon } from '../lib/nodeBin.ts'
+import { requirePositivePid } from '../lib/processGroup.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const DIST = join(REPO, 'dist', 'mercury.mjs')
@@ -229,7 +230,7 @@ const cleanup = async (): Promise<void> => {
   await sleep(1500)
   for (const pid of daemonPids()) {
     try {
-      process.kill(pid, 'SIGKILL')
+      process.kill(requirePositivePid(pid), 'SIGKILL')
     } catch {}
   }
   await new Promise<void>(resolve => fixture.close(() => resolve()))
@@ -244,8 +245,9 @@ try {
   const s1 = await dispatch('probe-1', 'build-probe-one: answer once')
   const sid1 = s1.sessionId ?? ''
   check('S1 was born on A', s1.ok === true && sid1 !== '', JSON.stringify(s1))
+  if (s1.ok !== true || sid1 === '') throw new Error(`S1 admission failed: ${JSON.stringify(s1)}`)
   check('S1 answered its first turn', await untilAsync(() => transcriptOf(sid1).includes('build-probe answer one') && facts(sid1)?.busy === false, 60_000), transcriptOf(sid1).slice(-300))
-  const p1 = recOf(sid1)?.pid ?? 0
+  const p1 = requirePositivePid(recOf(sid1)?.pid)
   check('S1 runs as a child of A', p1 > 0 && psParent(p1) === Apid, `pid ${p1} ppid ${psParent(p1)}`)
 
   section('§2 build Y is installed: the runtime pointer moves, the folder of X stays')
@@ -276,8 +278,9 @@ try {
   const s2 = await dispatch('probe-2', 'build-probe-two: answer once')
   const sid2 = s2.sessionId ?? ''
   check('S2 was born after the install', s2.ok === true && sid2 !== '', JSON.stringify(s2))
+  if (s2.ok !== true || sid2 === '') throw new Error(`S2 admission failed: ${JSON.stringify(s2)}`)
   check('S2 answered', await untilAsync(() => transcriptOf(sid2).includes('build-probe answer two') && facts(sid2)?.busy === false, 60_000), transcriptOf(sid2).slice(-300))
-  const p2 = recOf(sid2)?.pid ?? 0
+  const p2 = requirePositivePid(recOf(sid2)?.pid)
   check('S2 runs as a child of B, never of A', p2 > 0 && psParent(p2) === Bpid, `pid ${p2} ppid ${psParent(p2)} (A ${Apid}, B ${Bpid})`)
   check('S2 runs the bundle of Y', realBuildOf(psCommand(p2)) === Y, psCommand(p2))
 
@@ -289,7 +292,7 @@ try {
   check('exactly two daemons serve this home: A (X) and B (Y)', daemonPids().sort().join(',') === [Apid, Bpid].sort().join(','), daemonPids().join(','))
 
   section("§5 the old daemon's own respawns stay on its own build")
-  process.kill(p1, 'SIGKILL')
+  process.kill(requirePositivePid(p1), 'SIGKILL')
   const respawned = await untilAsync(() => {
     const r = recOf(sid1)
     return r !== undefined && r.pid !== undefined && r.pid !== p1 && isProcessAlive(r.pid)

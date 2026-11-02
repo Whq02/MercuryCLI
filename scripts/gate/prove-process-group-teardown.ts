@@ -3,7 +3,7 @@
 import { spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { endProcessGroup, spawnInOwnGroup } from '../lib/processGroup.ts'
+import { endProcessGroup, requirePositivePid, spawnInOwnGroup } from '../lib/processGroup.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
 let failures = 0
@@ -32,6 +32,13 @@ const grandchildPidOf = (child: { stdout: NodeJS.ReadableStream | null }): Promi
     })
   })
 const PARENT_THAT_LEAVES_A_CHILD = 'sleep 600 & echo $!; wait'
+
+for (const pid of [undefined, -1, 0, 1, 1.5, NaN, Infinity]) {
+  let refused = false
+  try { requirePositivePid(pid) } catch { refused = true }
+  check(`a proof refuses the unsafe signal pid ${String(pid)}`, refused)
+}
+check('a proof retains a positive process pid', requirePositivePid(process.pid) === process.pid)
 
 console.log('§1 a timed-out road ends the whole tree it started, not just its first process')
 if (process.platform === 'win32') {

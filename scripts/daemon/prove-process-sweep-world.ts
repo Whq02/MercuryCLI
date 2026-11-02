@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { connect } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { requirePositivePid } from '../lib/processGroup.ts'
 
 const SCRATCH_ROOT = process.platform === 'darwin' ? '/private/tmp/mw' : tmpdir()
 mkdirSync(SCRATCH_ROOT, { recursive: true })
@@ -313,12 +314,12 @@ async function cleanup(): Promise<void> {
   }
   for (const pid of pids) {
     try {
-      process.kill(pid, 'SIGCONT')
+      process.kill(requirePositivePid(pid), 'SIGCONT')
     } catch {
       continue
     }
     try {
-      process.kill(pid, 'SIGKILL')
+      process.kill(requirePositivePid(pid), 'SIGKILL')
     } catch {
       continue
     }
@@ -371,7 +372,7 @@ try {
   await sleep(1500)
   for (const runner of [runner2, runner3]) {
     if (runner === null) continue
-    process.kill(runner.pid, 'SIGSTOP')
+    process.kill(requirePositivePid(runner.pid), 'SIGSTOP')
     const released = await rawRpc(dirs.live, { op: 'sessionRelease', runnerId: runner.runnerId })
     check(`the product released ${runner.runnerId} while its paused process survives`, released.ok === true && alive(runner.pid) && (psRow(runner.pid)?.stat.startsWith('T') ?? false), JSON.stringify({ released, stat: psRow(runner.pid)?.stat }))
   }
@@ -392,8 +393,8 @@ try {
   writeFileSync(writerTemp, '')
   check('the second cockpit registers itself, read past the writer\'s empty temp file beside its registration', await waitFor('the window registration', () => registrationFor(windowPid) !== null, 90000))
   rmSync(writerTemp, { force: true })
-  process.kill(windowPid, 'SIGSTOP')
-  process.kill(windowScript.pid!, 'SIGKILL')
+  process.kill(requirePositivePid(windowPid), 'SIGSTOP')
+  process.kill(requirePositivePid(windowScript.pid), 'SIGKILL')
   await sleep(700)
   const windowRegistration = registrationFor(windowPid)
   check('the closed-pty cockpit is paused and still names its terminal in the process table', alive(windowPid) && (psRow(windowPid)?.stat.startsWith('T') ?? false), JSON.stringify(psRow(windowPid)))
@@ -495,7 +496,7 @@ try {
     check('a process that survives the kill signal is reported as one that needs a reboot', ending?.outcome === 'survived' && ending.reason.startsWith(PROCESS_SWEEP_WORDS.unkillable), JSON.stringify(ending))
     check('the ladder sent the termination signal and then the kill signal to that one pid', swallowed.length === 2 && swallowed[0] === `${staleR3.process.pid}:SIGTERM` && swallowed[1] === `${staleR3.process.pid}:SIGKILL`, swallowed.join(' '))
     check('the survivor is still listed, not claimed ended', entryOf(survived.entries, staleR3.process.pid) !== undefined)
-    process.kill(staleR3.process.pid, 'SIGKILL')
+    process.kill(requirePositivePid(staleR3.process.pid), 'SIGKILL')
     await waitFor('the unkillable stand-in to leave', () => !alive(staleR3.process.pid), 5000)
   }
 
