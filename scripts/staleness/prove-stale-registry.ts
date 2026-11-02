@@ -122,6 +122,7 @@ src/keybindings/loadUserBindings.ts :: cached :: keyed-by-truth
 src/keybindings/loadUserBindings.ts :: cachedCwd :: keyed-by-truth
 src/mneme/mnemeIndex.ts :: fileCache :: keyed-by-truth
 src/mneme/paths.ts :: getMnemeHome :: static-for-process
+src/mneme/paths.ts :: mnemeProjectKeyMemo :: keyed-by-truth
 src/projectOnboardingState.ts :: projectOnboardingHint :: invalidator=applyHarnessGround
 src/projectOnboardingState.ts :: shouldShowProjectOnboarding :: invalidator=applyHarnessGround
 src/services/aseprite/asepriteApp.ts :: versionCache :: ttl-bounded

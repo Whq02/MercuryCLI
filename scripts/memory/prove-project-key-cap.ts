@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -26,6 +27,12 @@ const { mnemeProjectKeyFor, lineagePath, getMemoryBaseDir } = await import('../.
 const { getProjectDir, sanitizePath, MAX_SANITIZED_LENGTH, capSanitizedName } = await import('../../src/utils/sessionStoragePortable.js')
 const { sanitizePathComponent } = await import('../../src/utils/tasks.js')
 
+function freshKey(root: string): string {
+  const module = join(import.meta.dir, '..', '..', 'src', 'mneme', 'paths.ts')
+  const child = spawnSync(process.execPath, ['-e', `globalThis.MACRO={VERSION:'1.0.0'}; const {mnemeProjectKeyFor}=await import(${JSON.stringify(module)}); console.log(mnemeProjectKeyFor(process.argv[1]))`, root], { env: process.env, encoding: 'utf8', windowsHide: true })
+  if (child.status !== 0) throw new Error(`key reader rc ${child.status}: ${child.stderr}`)
+  return child.stdout.trim()
+}
 let deepRoot = join(scratch, 'deep')
 for (let index = 1; deepRoot.length < 236; index++) deepRoot = join(deepRoot, `lvl-abcdefghij${index}`)
 mkdirSync(deepRoot, { recursive: true })
@@ -55,12 +62,13 @@ const uncapped = sanitizePathComponent(deepRoot)
 const projects = join(getMemoryBaseDir(), 'projects')
 mkdirSync(join(projects, uncapped, 'lineage'), { recursive: true })
 writeFileSync(join(projects, uncapped, 'lineage', 'ledger.jsonl'), '{"sessionId":"old","ordinal":1}\n')
-const keyWithOldStore = mnemeProjectKeyFor(deepRoot)
+const keyWithOldStore = freshKey(deepRoot)
 check('with only the long-form store on disk, the key is the long form (the existing ledger is read where it stands)', keyWithOldStore === uncapped, keyWithOldStore)
 check('…so the lineage path is the existing file', lineagePath(keyWithOldStore) === join(projects, uncapped, 'lineage', 'ledger.jsonl') && existsSync(lineagePath(keyWithOldStore)), lineagePath(keyWithOldStore))
 check('nothing was moved or created under the capped key', !existsSync(join(projects, memoryKey)))
 mkdirSync(join(projects, memoryKey), { recursive: true })
-check('when both forms exist, the capped form is the law', mnemeProjectKeyFor(deepRoot) === memoryKey, mnemeProjectKeyFor(deepRoot))
+check('when both forms exist, a fresh process selects the capped form', freshKey(deepRoot) === memoryKey)
+check('an existing process keeps the store it already selected', mnemeProjectKeyFor(deepRoot) === memoryKey)
 
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-project-key-cap: ALL LAWS HOLD' : `\nprove-project-key-cap: ${failures} FAILURE(S)`)

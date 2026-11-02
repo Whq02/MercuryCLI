@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { isAbsolute, join, normalize, sep } from 'node:path'
+import { basename, isAbsolute, join, normalize, sep } from 'node:path'
 import { memoize } from 'lodash-es'
 import { getMercuryHome, isEnvTruthy } from '../utils/envUtils.js'
 import { getInitialSettings, getSettingsForSource } from '../utils/settings/settings.js'
@@ -8,6 +8,7 @@ import { findCanonicalGitRoot } from '../utils/git.js'
 import { getProjectRoot } from '../bootstrap/state.js'
 import { sanitizePathComponent } from '../utils/tasks.js'
 import { capSanitizedName } from '../utils/sessionStoragePortable.js'
+import { projectDirectoryIdentity, resolveProjectStore, type StoreSpellingRules } from '../utils/projectStoreIdentity.js'
 
 export function isMnemeEnabled(): boolean {
   if (isEnvTruthy(process.env.MERCURY_BARE)) return false
@@ -58,16 +59,40 @@ export const getMnemeHome = memoize((): string => {
   if (override !== undefined) return override
   const key = mnemeProjectKey()
   return `${join(getMemoryBaseDir(), 'projects', key, 'memory')}${sep}`.normalize('NFC')
-}, () => getProjectRoot())
+}, () => `${getMemoryBaseDir()}\0${getProjectRoot()}`)
+
+const mnemeProjectKeyMemo = new Map<string, string>()
+const foldMemoryRoot = (root: string): string => findCanonicalGitRoot(root) ?? root
+const memorySpellingRules: StoreSpellingRules = {
+  fold: foldMemoryRoot,
+  spellingBody: name => name,
+  slugMatches: (name, spelling) => {
+    const plain = sanitizePathComponent(spelling)
+    return name === plain || name === capSanitizedName(plain, spelling)
+  },
+}
 
 export function mnemeProjectKeyFor(root: string): string {
-  const canonical = findCanonicalGitRoot(root) ?? root
-  const uncapped = sanitizePathComponent(canonical)
-  const capped = capSanitizedName(uncapped, canonical)
-  if (capped === uncapped) return capped
   const projects = join(getMemoryBaseDir(), 'projects')
-  if (!existsSync(join(projects, capped)) && existsSync(join(projects, uncapped))) return uncapped
-  return capped
+  const spelled = `${projects}\0${root}`
+  const memoised = mnemeProjectKeyMemo.get(spelled)
+  if (memoised !== undefined) return memoised
+  const identity = projectDirectoryIdentity(root, foldMemoryRoot)
+  const canonicalKey = `${projects}\0${identity.canonical}`
+  const byCanonical = mnemeProjectKeyMemo.get(canonicalKey)
+  if (byCanonical !== undefined) {
+    if (identity.exists) mnemeProjectKeyMemo.set(spelled, byCanonical)
+    return byCanonical
+  }
+  const uncapped = sanitizePathComponent(identity.canonical)
+  const capped = capSanitizedName(uncapped, identity.canonical)
+  const candidate = capped !== uncapped && !existsSync(join(projects, capped)) && existsSync(join(projects, uncapped)) ? uncapped : capped
+  const key = basename(resolveProjectStore(projects, identity, candidate, memorySpellingRules))
+  if (identity.exists) {
+    mnemeProjectKeyMemo.set(spelled, key)
+    mnemeProjectKeyMemo.set(canonicalKey, key)
+  }
+  return key
 }
 
 export function mnemeProjectKey(): string {

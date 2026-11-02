@@ -7,6 +7,7 @@ type StoreDirectoryIdentity = ReturnType<typeof directoryIdentity>
 export type StoreSpellingRules = {
   fold: (dir: string) => string
   slugMatches: (name: string, spelling: string) => boolean
+  spellingBody?: (name: string) => string | null
 }
 
 const SLUG_TAIL = /-[0-9a-f]{8}$/
@@ -99,9 +100,13 @@ function newestTranscriptCwd(store: string): string | null {
   }
 }
 
-function caseVariantSpelling(name: string, canonical: string): string | null {
-  const body = name.slice(0, -9)
-  if (body.length !== canonical.length) return null
+function spellingBody(name: string, rules: StoreSpellingRules): string | null {
+  return rules.spellingBody === undefined ? (SLUG_TAIL.test(name) ? name.slice(0, -9) : null) : rules.spellingBody(name)
+}
+
+function caseVariantSpelling(name: string, canonical: string, rules: StoreSpellingRules): string | null {
+  const body = spellingBody(name, rules)
+  if (body === null || body.length !== canonical.length) return null
   let spelling = ''
   for (let index = 0; index < canonical.length; index++) {
     const own = canonical[index]!
@@ -109,11 +114,7 @@ function caseVariantSpelling(name: string, canonical: string): string | null {
     if (/[a-zA-Z]/.test(own)) {
       if (theirs.toLowerCase() !== own.toLowerCase()) return null
       spelling += theirs
-    } else if (/[0-9]/.test(own)) {
-      if (theirs !== own) return null
-      spelling += own
     } else {
-      if (theirs !== '-') return null
       spelling += own
     }
   }
@@ -134,7 +135,7 @@ function keyedBySpelling(name: string, spelling: string, rules: StoreSpellingRul
 function storeOwnsIdentity(store: string, name: string, identity: StoreDirectoryIdentity, rules: StoreSpellingRules): boolean {
   const claims = (spelling: string): boolean =>
     keyedBySpelling(name, spelling, rules) && projectDirectoryIdentity(spelling.normalize('NFC'), rules.fold).key === identity.key
-  const variant = caseVariantSpelling(name, identity.canonical)
+  const variant = caseVariantSpelling(name, identity.canonical, rules)
   if (variant !== null && claims(variant)) return true
   const recorded = cardDir(store) ?? newestTranscriptCwd(store)
   return recorded !== null && claims(recorded)
@@ -149,7 +150,7 @@ function olderSpellingStore(projects: string, identity: StoreDirectoryIdentity, 
   }
   let chosen: { name: string; mtime: number } | null = null
   for (const name of names) {
-    if (name === candidate || !SLUG_TAIL.test(name)) continue
+    if (name === candidate || spellingBody(name, rules) === null) continue
     const store = join(projects, name)
     let facts: ReturnType<typeof statSync>
     try {
