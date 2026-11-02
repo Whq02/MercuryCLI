@@ -16,6 +16,7 @@ import {
   type ScheduleOpDepsV1,
   type SaturnScheduleSubmissionV1,
 } from './saturn.js'
+import { sleepSyncMs as sleepSync } from '../utils/file.js'
 
 export interface SaturnBoxFileV1 {
   version: 1
@@ -94,9 +95,6 @@ export function saturnBoxLockPath(dir?: string): string {
   return `${saturnBoxSchedulesPath(dir)}.lock`
 }
 
-function sleepSync(ms: number): void {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
-}
 
 function withBoxLock<T>(dir: string | undefined, body: () => T): T {
   const lock = saturnBoxLockPath(dir)
