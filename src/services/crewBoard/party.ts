@@ -122,7 +122,7 @@ export function partyFeed(host: PartyHost): PartyFeed {
     check,
     paints(event) {
       const store = host.store()
-      return store !== null && (event.authorRole === 'owner' || store.chat().on)
+      return store !== null && partyPaints(event, store.chat())
     },
     blockOpen() { open = true },
     landed() { open = false; flush() },

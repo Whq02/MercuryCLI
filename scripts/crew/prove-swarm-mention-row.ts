@@ -35,12 +35,14 @@ try {
     writeFileSync(configPath, JSON.stringify({ ...config, total: 170, out: gridPath, readyText: ['[Crewboard] Poster', '@main Please'], readySettleTicks: 3, sends: [
       { atTick: 999, awaitText: 'Type a prompt', requireAwait: true, minTick: 5, awaitSettleTicks: 2, data: '/swarm on' },
       { atTick: 999, awaitText: '/swarm on', requireAwait: true, minTick: 5, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 999, awaitText: 'Swarm on for new crewmates', requireAwait: true, minTick: 5, awaitSettleTicks: 2, data: '/swarmchat' },
+      { atTick: 999, awaitText: '/swarmchat', requireAwait: true, minTick: 5, awaitSettleTicks: 2, data: '\r' },
     ] }))
     const tee = join(captures, `crewboard-${cols}.tee.bin`)
     writeFileSync(tee, '')
     let posted = false
     const observer = watch(tee, () => {
-      if (posted || !readFileSync(tee).includes(Buffer.from('Swarm on for new crewmates'))) return
+      if (posted || !readFileSync(tee).includes(Buffer.from('Swarm chat off'))) return
       posted = true
       const board = open(path, SID)
       const sender = { author: { sessionId: SID, agentId: `poster-${cols}`, executionId: 'run' }, name: 'Poster' }
@@ -56,7 +58,7 @@ try {
       child.on('error', reject)
       child.on('exit', resolve)
     }).finally(() => observer.close())
-    assert(posted, 'the fixture never observed the board switch')
+    assert(posted, 'the fixture never observed the channel switched off')
     assert.equal(code, 0, stderr)
     const grid = JSON.parse(readFileSync(gridPath, 'utf8'))
     const lines: string[] = grid.grid.map((cells: { c: string }[]) => cells.map(cell => cell.c || ' ').join(''))
