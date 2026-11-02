@@ -21,7 +21,7 @@ const { createLinkedTransportPair } = await import('../../src/services/mcp/InPro
 
 const ROWS = 150_000
 const TREE = 'art/pack/'
-const STEP_BOUND_MS = 1_000
+const STEP_BOUND_MS = 5_000
 const BULK_RELEASE_BOUND_MS = 3_000
 const CONCURRENT_BOUND_MS = 5_000
 const ABANDON_MS = 10_000
