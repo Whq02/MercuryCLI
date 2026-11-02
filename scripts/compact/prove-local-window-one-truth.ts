@@ -162,25 +162,25 @@ section('§1 the pre-flight limit reads the window Mercury sends: a 4,096 served
   record(`the sentence the tester saw on the base: ${stale}`)
 }
 
-section('§2 one window: the request\'s num_ctx equals the limit\'s window, the gauge agrees, and after the turn the server holds the model at it')
+section('§2 the request budgets its selected window; the gauges follow the loaded window before and after the turn')
 {
   const messages = [createUserMessage({ content: 'hello' })] as Message[]
   const fill = contextFillView(messages, CODER_MODEL)
   const gauge = modelGauge(CODER_MODEL)
-  check('the context gauge and the model gauge read 32,768 before any request', fill.window === 32768 && gauge.data.window === 32768, JSON.stringify({ fill: fill.window, gauge: gauge.data.window }))
+  check('the context gauge and the model gauge keep the loaded 4,096 before the first request', fill.window === 4096 && gauge.data.window === 4096, JSON.stringify({ fill: fill.window, gauge: gauge.data.window }))
   const sent = await sendOne(CODER_MODEL, 'hello')
   check('the request carried num_ctx 32768 and was answered (no refusal)', sent.numCtx === 32768 && sent.errors.length === 0, JSON.stringify(sent))
   check('the hold is 32,768 (your setting) and the server now serves the model at it', w.heldLocalWindow(coder)?.window === 32768 && w.heldLocalWindow(coder)?.reason === 'set' && coder.contextWindow?.tokens === 32768 && coder.contextWindow.source === 'served', JSON.stringify({ hold: w.heldLocalWindow(coder)?.window, served: coder.contextWindow }))
   check('the limit, the gauge and the request still agree after the turn', getBlockingLimit(CODER_MODEL) === limitOn(CODER_MODEL, 32768) && contextFillView(messages, CODER_MODEL).window === 32768, String(getBlockingLimit(CODER_MODEL)))
 }
 
-section('§3 a window change takes effect without a restart: /config → 64k moves the limit and the gauge at once, the next request carries it; server default reads the served figure; auto reads the decision')
+section('§3 a setting changes the next request without a restart; the gauge changes when that window is loaded')
 {
   const epochBefore = catalogueEpoch()
   w.writeLocalWindowSetting(coder, 65536)
   check('the setting write bumps the catalogue epoch (the gauge repaints)', catalogueEpoch() > epochBefore, `${epochBefore} → ${catalogueEpoch()}`)
   check('the limit reads the 64k window before any request (the stale 32k hold is not read)', getBlockingLimit(CODER_MODEL) === limitOn(CODER_MODEL, 65536) && resolveContextWindow(CODER_MODEL).effectiveWindow === 65536, String(getBlockingLimit(CODER_MODEL)))
-  check('the gauge reads 65,536 at once', contextFillView([createUserMessage({ content: 'hello' })] as Message[], CODER_MODEL).window === 65536)
+  check('the gauge keeps the loaded 32,768 until the next request', contextFillView([createUserMessage({ content: 'hello' })] as Message[], CODER_MODEL).window === 32768)
   const sent = await sendOne(CODER_MODEL, 'hello again')
   check('the next request carried num_ctx 65536 (the hold re-decided on the new setting)', sent.numCtx === 65536 && w.heldLocalWindow(coder)?.window === 65536, JSON.stringify(sent))
   w.writeLocalWindowSetting(coder, 'server')

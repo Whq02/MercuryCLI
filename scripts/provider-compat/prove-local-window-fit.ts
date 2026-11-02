@@ -144,7 +144,7 @@ const owner = await (async () => {
 if (!owner) finish()
 {
   const { fitLocalWindow, localWindowRefusal, LOCAL_WINDOW_LADDER, localWindowRungs, serverCacheTypeOf, serverSlotsOf, fitLocalWindowOn } = owner
-  check('the ladder is 32k · 64k · 128k · 256k; a 40k-trained model gets the one rung 32k; a 200k-trained model climbs to 128k', LOCAL_WINDOW_LADDER.join(',') === '32768,65536,131072,262144' && localWindowRungs(40960).join(',') === '32768' && localWindowRungs(200_000).join(',') === '32768,65536,131072' && localWindowRungs(undefined).length === 4)
+  check('the ladder keeps its standard rungs and includes the exact trained endpoint', LOCAL_WINDOW_LADDER.join(',') === '32768,65536,131072,262144' && localWindowRungs(40960).join(',') === '32768,40960' && localWindowRungs(200_000).join(',') === '32768,65536,131072,200000' && localWindowRungs(undefined).length === 4)
   const g27 = memory.kvGeometryOf(INFO_27)!
   const g9 = memory.kvGeometryOf(INFO_9)!
   const box = (totalGib: number, usableGib?: number) => ({ machineBytes: totalGib * GIB, usableBytes: usableGib !== undefined ? Math.round(usableGib * GIB) : defaultMachineTruth('darwin', totalGib * GIB).usableMemoryBytes })
@@ -173,7 +173,7 @@ if (!owner) finish()
   const chosen = at(m9, 16, 'f16', 1)
   check('every rung projected: 32k 7.1 · 64k 8.1 · 128k 10.1 fit; 256k 14.1 does not (12.0 usable)', chosen.ladder.map(r => `${memory.tokensWords(r.window)} ${memory.gibWords(r.totalBytes)} ${r.fits}`).join(' | ') === '32k 7.1 GiB true | 64k 8.1 GiB true | 128k 10.1 GiB true | 256k 14.1 GiB false', j(chosen.ladder))
   check('the chosen rung is the biggest that fits and the next does not — the memory module\'s own arithmetic (projectLoad)', chosen.totalBytes === memory.projectLoad({ name: MODEL_9, weightsBytes: WEIGHTS_9, geometry: g9 }, 131072, 1, 'f16').totalBytes && chosen.fits && chosen.ladder[3]!.fits === false)
-  check('never above the trained max: a 40k-trained 9B on 96 GiB gets 32k, at max', at({ ...m9, trainedMax: 40960 }, 96, 'f16', 1).window === 32768 && at({ ...m9, trainedMax: 40960 }, 96, 'f16', 1).atMax === false && at({ ...m9, trainedMax: 32768 }, 96, 'f16', 1).atMax === true)
+  check('never above the trained max: a 40k-trained 9B on 96 GiB gets 40k, at max', at({ ...m9, trainedMax: 40960 }, 96, 'f16', 1).window === 40960 && at({ ...m9, trainedMax: 40960 }, 96, 'f16', 1).atMax === true && at({ ...m9, trainedMax: 32768 }, 96, 'f16', 1).atMax === true)
   check('no trained max stated: the ladder runs to 256k and the rung is never called max', at({ name: MODEL_9, weightsBytes: WEIGHTS_9, geometry: g9 }, 96, 'f16', 1).window === 262144 && at({ name: MODEL_9, weightsBytes: WEIGHTS_9, geometry: g9 }, 96, 'f16', 1).atMax === false)
   check('an unknown cache type projects as f16 and is named as the runner gave it; the slots floor at 1', at(m9, 48, 'nonsense', 0, 36.9).cacheType === 'nonsense' && at(m9, 48, 'nonsense', 0, 36.9).cacheBytes === at(m9, 48, 'f16', 1, 36.9).cacheBytes && at(m9, 48, 'nonsense', 0, 36.9).slots === 1)
   const refusal9 = localWindowRefusal(chosen, 262144)

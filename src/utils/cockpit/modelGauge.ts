@@ -1,5 +1,4 @@
 
-import { getSdkBetas } from '../../bootstrap/state.js'
 import { catalogueEpoch, subscribeCatalogueEpoch } from '../../services/providers/catalogueEpoch.js'
 import {
   resolveProviderUsability,
@@ -7,7 +6,8 @@ import {
   type ProviderUsability,
 } from '../../services/providers/providerUsability.js'
 import { declaredRouteOf } from '../../services/providers/routeLaw.js'
-import { resolveContextWindow, type ContextResolution } from '../model/capabilities.js'
+import type { ContextResolution } from '../model/capabilities.js'
+import { resolveDisplayedContextWindow } from '../contextFill.js'
 import { renderModelName, type ModelName } from '../model/model.js'
 import { withState, type Snapshot } from './types.js'
 
@@ -34,7 +34,7 @@ const EMPTY: ModelData = {
 
 export function modelGauge(model: ModelName): Snapshot<{ data: ModelData }> {
   try {
-    const resolution = resolveContextWindow(model, getSdkBetas())
+    const resolution = resolveDisplayedContextWindow(model)
     const provider = declaredRouteOf(model) ?? 'unrecognised'
     let usability: ModelData['usability'] = null
     try {

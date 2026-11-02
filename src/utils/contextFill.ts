@@ -5,6 +5,7 @@ import type { Message } from '../types/message.js'
 import { contextFillPercent } from './context.js'
 import { type ContextResolution, resolveContextWindow } from './model/capabilities.js'
 import { contextFill } from './tokens.js'
+import { localContextSourceWords, localRecordFor } from '../services/providers/local/localCatalogue.js'
 
 export interface ContextFillView {
   usedTokens: number | null
@@ -18,8 +19,16 @@ export interface ContextFillView {
   leftUntilCompactPct: number | null
 }
 
-export function contextFillView(messages: readonly Message[], model: string): ContextFillView {
+export function resolveDisplayedContextWindow(model: string): ContextResolution {
   const resolution = resolveContextWindow(model, getSdkBetas())
+  const served = localRecordFor(model)?.contextWindow
+  return served?.source === 'served'
+    ? { ...resolution, effectiveWindow: served.tokens, source: 'live-current', fallbackReason: `local server context: ${localContextSourceWords(served.source)}` }
+    : resolution
+}
+
+export function contextFillView(messages: readonly Message[], model: string): ContextFillView {
+  const resolution = resolveDisplayedContextWindow(model)
   const window = resolution.effectiveWindow
   const fill = contextFill(messages, model)
   const hasResponse = messages.some(message => message.type === 'assistant')

@@ -53,7 +53,7 @@ export interface LocalWindowFit {
 
 export function localWindowRungs(trainedMax?: number): number[] {
   const rungs = LOCAL_WINDOW_LADDER.filter(window => trainedMax === undefined || window <= trainedMax)
-  if (rungs.length === 0 && trainedMax !== undefined) rungs.push(trainedMax)
+  if (trainedMax !== undefined && !rungs.includes(trainedMax)) rungs.push(trainedMax)
   return rungs
 }
 
