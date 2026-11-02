@@ -36,7 +36,7 @@
 # gate-watch: src/utils/settings/*
 # gate-watch: src/components/Settings/Config.tsx src/services/providers/idSpaces.ts src/services/providers/patience.ts src/services/providers/streamIdleBudget.ts
 # gate-watch: src/services/providers/moonshot/moonshotCatalogue.ts
-# gate-watch: src/tools/AgentTool/runAgent.ts scripts/api/read-instruction-heading.ts
+# gate-watch: src/tools/AgentTool/runAgent.ts src/services/crewBoard/seam.ts scripts/crew/crew-world.ts scripts/api/read-instruction-heading.ts
 # gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts
 # gate-watch: src/rows/* src/runner/wire/* scripts/settings/settings-schema.json
 # gate-watch: src/commands/model/mercuryModel.tsx src/commands/model/model.tsx src/commands/model/persistModelChoice.ts src/components/PromptInput/useComposerModelDoors.tsx
@@ -80,6 +80,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-instructions
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-credential-refusal-words.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-credential-refusal-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sent-prefix-frozen.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-sent-prefix-frozen.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-cache-prefix-stable.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-cache-prefix-stable.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-cache-divergence-replay.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-cache-divergence-replay.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-switch-row-says-default.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-switch-row-says-default.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-memory-save-keeps-prefix.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-memory-save-keeps-prefix.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-dead-thinking-in-turn.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-dead-thinking-in-turn.ts" "$__t" "$__rc"
