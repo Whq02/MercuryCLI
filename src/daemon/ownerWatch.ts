@@ -174,8 +174,8 @@ function invalidateDeadStartToken(pid: number, token: string | null): string | n
   return token
 }
 
-export const PROCESS_START_CACHE_MS = 3000
-export const PROCESS_START_PROBE_TIMEOUT_MS = 1500
+const PROCESS_START_CACHE_MS = 3000
+const PROCESS_START_PROBE_TIMEOUT_MS = 1500
 
 type StartProbeResult = { kind: 'reply'; code: number; stdout: string; stderr: string } | { kind: 'failed' | 'timeout' }
 
