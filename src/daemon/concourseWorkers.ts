@@ -55,17 +55,14 @@ import { deriveSessionKitForPreset, deriveSessionKitForWorkspace, kitStampOf, no
 import { parseSessionKind, SESSION_KIND_ENV, sessionKindOfAsker, type SessionKind } from '../utils/sessionKind.js'
 import type { ConcourseRowV1 } from '../components/concourse/contracts.js'
 import { runningBuildTree } from '../utils/artifactIdentity.js'
+import { resolveDirectoryIdentity } from '../utils/projectStoreIdentity.js'
 
 
 export const CONCOURSE_SHORT_PREFIX = 'concourse-w'
 
 
 export function canonicalWorkspaceId(dir: string): string {
-  try {
-    return realpathSync(dir).normalize('NFC')
-  } catch {
-    return dir.normalize('NFC')
-  }
+  return resolveDirectoryIdentity(dir).canonical
 }
 
 
@@ -371,6 +368,7 @@ export function readSessionWorkersSnapshot(dir?: string): SessionWorkersSnapshot
         legacy.runnerId = legacy.workerId
       }
       delete legacy.workerId
+      if (typeof rec.workspaceId === 'string') rec.workspaceId = canonicalWorkspaceId(rec.workspaceId)
     }
     return { state: 'known', workers: raw.workers }
   } catch (error) {
