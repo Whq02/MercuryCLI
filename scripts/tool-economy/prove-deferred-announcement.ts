@@ -53,7 +53,7 @@ const SPEC_BODY = [
   'Computer — computer use: see the screen, drive the mouse and keyboard, screenshot the desktop, click type…',
   'ContextLeft — how much context window is left: tokens used, window, tokens before autocompact',
   'Correct — correct project memory supersede amend retract',
-  'Crewmate — delegate a task to a crewmate that works on its own',
+  'Crewmate — launch swarm agents as seats on a team or wave; delegate a task to a crewmate',
   'Debug — real debugger via DAP: launch/attach, breakpoints (conditional/hit-count/logpoints), function…',
   'EnterWorktree — switch this session into an isolated git worktree',
   'ExitWorktree — end the worktree session and return to the original directory',
@@ -187,7 +187,7 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
   const row = getDeferredToolsDeltaAttachment(roster, MODEL, [first])[0] as { addedNames: string[]; body: string } | undefined
   const announced = computerToolEnabled() ? 48 : 47
   check(`${announced} tools are announced`, row !== undefined && row.addedNames.length === announced, String(row?.addedNames.length))
-  check(computerToolEnabled() ? 'the body equals the split announcement byte for byte (4,127 bytes; 4,164 wrapped)' : 'the body equals the split announcement without the Computer line (this build has no desktop driver)', row !== undefined && row.body === specBody && (!computerToolEnabled() || (Buffer.byteLength(row.body, 'utf8') === 4127 && Buffer.byteLength(rendered(row as never), 'utf8') === 4164)), row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== specBody.split('\n')[i]) ?? 'none'}`)
+  check(computerToolEnabled() ? 'the body equals the split announcement byte for byte (4,153 bytes; 4,190 wrapped)' : 'the body equals the split announcement without the Computer line (this build has no desktop driver)', row !== undefined && row.body === specBody && (!computerToolEnabled() || (Buffer.byteLength(row.body, 'utf8') === 4153 && Buffer.byteLength(rendered(row as never), 'utf8') === 4190)), row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== specBody.split('\n')[i]) ?? 'none'}`)
   if (row !== undefined) {
     for (const name of ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind', 'Crewmate', 'Skill', 'LspRead', 'AstSearch']) {
       check(`${name} has its line`, row.body.split('\n').some(line => line.startsWith(`${name} — `)))
