@@ -339,7 +339,9 @@ function remember(root: string, holder: LeaseHolder): void {
   hooksInstalled = true
   registerCleanup(async () => {
     closing = true
-    await Promise.all([...owned.values()].map(entry => releaseProjectLeases(entry.root, entry.holder)))
+    await Promise.all([...owned.values()].map(entry => releaseProjectLeases(entry.root, entry.holder).catch(error => {
+      logForDebugging(`project lease cleanup could not release ${entry.root} at exit: ${String(error)}`)
+    })))
   })
   onSessionSwitch(id => {
     sessionRevision++
