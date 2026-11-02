@@ -2,7 +2,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 
 
 export type AgentState = 'working' | 'blocked' | 'done' | 'failed'
-export type AgentTempo = 'active' | 'idle' | 'blocked'
+type AgentTempo = 'active' | 'idle' | 'blocked'
 
 export function agentNeedsYouEnabled(): boolean {
   const v = flagEnv('MERCURY_AGENT_NEEDS_YOU')

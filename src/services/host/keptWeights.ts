@@ -20,7 +20,6 @@ import type { HostVendor } from './vendors/vendor.js'
 import { downloadFailure, downloadWatchScript, keptDownloadMinutes, keptRunMs, type DownloadWatchOptions } from './download.js'
 export { keptDownloadMinutes, keptStallWords } from './download.js'
 export class HostPreparationCleanupFailed extends Error {}
-export type { HostWeightManifest as WeightManifest } from './recipes.js'
 interface WeightScriptOptions extends DownloadWatchOptions { fully?: boolean; sampleManifestSha256?: string; progressPath?: string; fullWords?: string }
 const manifestsSchema = z.array(z.object({ model: z.string(), include: z.string(), revision: z.string(), files: z.array(z.object({ path: z.string(), size: z.number().int().nonnegative(), sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(), git: z.string().regex(/^[a-f0-9]{40}$/).optional() })) }))
 const quote = (value: string): string => "'" + value.replaceAll("'", "'\\''") + "'"

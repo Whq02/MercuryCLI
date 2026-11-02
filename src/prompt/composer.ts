@@ -6,7 +6,6 @@ import {
 } from './behaviourContract.js'
 import type { NamedSection } from './mercuryContract.js'
 
-export type { NamedSection }
 
 interface ComposerDynamicSpec {
   name: string

@@ -1,4 +1,3 @@
-import { getOauthConfig } from '../../constants/oauth.js'
 import { openBrowser } from '../../utils/browser.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { AuthCodeListener } from './auth-code-listener.js'
@@ -142,5 +141,3 @@ export class OAuthService {
   }
 }
 
-export { AuthCodeListener } from './auth-code-listener.js'
-export { getOauthConfig }

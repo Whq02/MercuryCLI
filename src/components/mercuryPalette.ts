@@ -18,13 +18,13 @@ export const ASH = '#142327'
 export const ASH_RAISED = '#1A2C31'
 export const DUNE_FAINT = '#233A40'
 
-export const SURFACE_PANEL = ASH
+const SURFACE_PANEL = ASH
 
 export const DIFF_ADD_BG = '#082620'
 export const DIFF_ADD_WORD = '#0E4036'
 export const DIFF_DEL_BG = '#301014'
 export const DIFF_DEL_WORD = '#501A20'
-export const SURFACE_RAISED = ASH_RAISED
+const SURFACE_RAISED = ASH_RAISED
 
 type GroundFamily = {
   NIGHT: string

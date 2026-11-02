@@ -15,7 +15,7 @@ import { resolveBlenderAddonHome } from './addonHome.js'
 import { ensureBlenderBridgeToken } from './bridgeToken.js'
 import { blenderBridgeTokenOverride } from '../../utils/blender/bridgeGates.js'
 
-export type { BlenderBridgeError, BlenderBridgeResult } from './bridgeProtocol.js'
+export type { BlenderBridgeResult } from './bridgeProtocol.js'
 
 interface BlenderBridgeEvent {
   event: string

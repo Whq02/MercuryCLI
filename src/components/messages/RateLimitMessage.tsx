@@ -2,10 +2,7 @@
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 
-export {
-  getUpsellMessage,
-  type UpsellMessageParams,
-} from '../../services/rateLimitMessages.js'
+export { getUpsellMessage } from '../../services/rateLimitMessages.js'
 
 export function RateLimitMessage({
   addMargin = false,

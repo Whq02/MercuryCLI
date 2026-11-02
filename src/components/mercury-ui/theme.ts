@@ -1,25 +1,11 @@
 
 export {
-  TERRA,
   IVORY,
   SECOND,
   FAINT,
   TEAL,
   AMBER,
   CRIMSON,
-  CLAW,
-  OASIS,
-  BELLY,
-  DUNE,
-  SAND,
-  NIGHT,
-  NIGHT_SOFT,
-  ASH,
-  ASH_RAISED,
-  DUNE_FAINT,
-  SURFACE_PANEL,
-  SURFACE_RAISED,
-  mercuryPalette,
 } from '../mercuryPalette.js'
 
 import { AMBER, CRIMSON, FAINT, SECOND, TEAL } from '../mercuryPalette.js'

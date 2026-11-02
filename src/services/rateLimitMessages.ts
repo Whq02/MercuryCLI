@@ -198,7 +198,7 @@ export function getRateLimitErrorMessage(limits: AnthropicLimits, model: string)
 }
 
 
-export type UpsellMessageParams = {
+type UpsellMessageParams = {
   shouldShowUpsell: boolean
 }
 

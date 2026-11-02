@@ -24,11 +24,9 @@ interface CppBuildDirInfo {
 }
 
 export {
-  listCMakePresets,
   configurePreset,
   configureConventional,
   buildTarget,
-  clean,
   type CppBuildRun,
 } from './cppBuild.js'
 

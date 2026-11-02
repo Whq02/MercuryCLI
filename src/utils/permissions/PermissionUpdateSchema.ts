@@ -1,10 +1,7 @@
 import { z } from 'zod/v4'
 
 
-export type {
-  PermissionUpdate,
-  PermissionUpdateDestination,
-} from '../../types/permissions.js'
+export type { PermissionUpdate } from '../../types/permissions.js'
 
 function permissionUpdateDestinationSchema() {
   return z.enum(['userSettings', 'projectSettings', 'localSettings', 'session', 'cliArg'])

@@ -3,7 +3,6 @@ import { getRelativeTimeFormat, getTimeZone } from './intl.js'
 
 export {
   truncate,
-  truncatePathMiddle,
   truncateStartToWidth,
   truncateToWidth,
   truncateToWidthNoEllipsis,

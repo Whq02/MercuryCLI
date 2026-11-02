@@ -50,7 +50,6 @@ import type { WorkerBadgeProps } from './WorkerBadge.js'
 
 import type { ToolUseContext } from '../../Tool.js'
 
-export type { ToolUseContext }
 
 export type ToolUseConfirm<Input = Record<string, unknown>> = {
   assistantMessage: AssistantMessage

@@ -3,7 +3,7 @@ import { markDaemonHaltStanddown } from './daemonStanddown.js'
 import { stopTask } from '../tasks/stopTask.js'
 import { runningTaskIds, type HaltResult } from './haltDecide.js'
 
-export { runningTaskIds, summarizeHalt, type HaltResult } from './haltDecide.js'
+export { summarizeHalt } from './haltDecide.js'
 
 type LooseTask = { id: string; status: string }
 type HaltContext = {

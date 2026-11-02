@@ -2,7 +2,7 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { type CaptureStreamErrors, loadVoiceAddon, resolveVoicePackDir, VOICE_ADDON_FILE, voiceCheckoutRoot } from './voicePack.js'
+import { type CaptureStreamErrors, loadVoiceAddon, resolveVoicePackDir, voiceCheckoutRoot } from './voicePack.js'
 import { encodeWav, pcmDurationMs, pcmIsSilent, pcmSamples, readWav, VOICE_SAMPLE_RATE } from './wav.js'
 
 export const CAPTURE_BOUND_MS = 5 * 60_000
@@ -390,4 +390,3 @@ export function describeVendoredPack(): { state: 'ok'; version: string; platform
   return { state: 'ok', version: load.manifest.version, platform: load.manifest.platform, devices, defaultDevice, dir: load.dir }
 }
 
-export { VOICE_ADDON_FILE }

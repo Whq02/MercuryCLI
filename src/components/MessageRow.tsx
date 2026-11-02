@@ -302,7 +302,7 @@ function MessageRowInner({
   )
 }
 
-export function shouldRenderStatically(
+function shouldRenderStatically(
   message: RenderableMessage,
   streamingToolUseIDs: Set<string>,
   inProgressToolUseIDs: Set<string>,

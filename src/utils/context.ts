@@ -1,6 +1,5 @@
 export {
   MODEL_CONTEXT_WINDOW_DEFAULT,
-  is1mContextDisabled,
   has1mContext,
   modelSupports1M,
   getContextWindowForModel,

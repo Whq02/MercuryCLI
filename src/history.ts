@@ -16,7 +16,6 @@ import {
   storePastedText,
 } from './utils/pasteStore.js'
 
-export type { HistoryEntry }
 
 export type HistoryRecord = {
   display: string

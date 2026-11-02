@@ -28,7 +28,6 @@ import { which } from './which.js'
 import { nativeCwdFromShellRecord, posixPathToWindowsPath } from './windowsPaths.js'
 import { planWindowsBatchInvocation, runWindowsBatchCommand } from './shell/windowsBatchInvocation.js'
 
-export type { ExecResult } from './ShellCommand.js'
 
 
 const SHELL_FALLBACK_DIRECTORIES = ['/bin', '/usr/bin', '/usr/local/bin', '/opt/homebrew/bin']

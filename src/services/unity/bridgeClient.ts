@@ -14,7 +14,7 @@ import {
 } from './bridgeProtocol.js'
 import { ensureUnityBridgeToken } from './bridgeToken.js'
 
-export type { UnityBridgeError, UnityBridgeResult } from './bridgeProtocol.js'
+export type { UnityBridgeResult } from './bridgeProtocol.js'
 
 interface UnityBridgeEvent {
   event: string

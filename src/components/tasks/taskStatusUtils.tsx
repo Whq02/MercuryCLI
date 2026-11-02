@@ -76,4 +76,3 @@ export function agentLifecycleOf(task: TaskState): AgentLifecycle | undefined {
   })
 }
 
-export { isLocalAgentTask }

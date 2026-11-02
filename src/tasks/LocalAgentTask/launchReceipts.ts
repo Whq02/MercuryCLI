@@ -307,7 +307,6 @@ export const AGENT_RELAUNCH_NOTE =
 
 export type RestartCarryCounts = { relaunched: number; delivered: number; stopped: number }
 
-export { RESTART_CARRY_ROW_PREFIX }
 
 export function restartCarryRow(reason: RunnerRestartReason | undefined, counts: RestartCarryCounts): string {
   const because = reason === 'stop' ? 'after a stop' : reason === 'update' ? 'after an update' : reason === 'ended' ? 'after it ended around an update' : 'after a crash'

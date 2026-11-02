@@ -3,10 +3,10 @@ import { basename, join, resolve } from 'node:path'
 import { getOriginalCwd, getSessionExtensions } from '../bootstrap/state.js'
 import { MERCURY_VERSION } from '../constants/product.js'
 import { getSettingsForSource } from '../utils/settings/settings.js'
-import { blockReason, matchBlock } from './blocklist.js'
+import { matchBlock } from './blocklist.js'
 import { bundledRoster } from './bundled/index.js'
 import { readSwitch, recordBundledApproval } from './install.js'
-import { contributionsHash, extensionId, readManifest, type ExtensionManifest } from './manifest.js'
+import { contributionsHash, extensionId, readManifest } from './manifest.js'
 import { PROJECT_EXTENSIONS_DIR } from './paths.js'
 import { MERCURY_PROJECT_DIR } from '../utils/projectConfig.js'
 import { readInstalled, readSources, type InstalledRecord, type SourceRecord } from './records.js'
@@ -14,7 +14,6 @@ import { compareWithCatalogue, readSourceCatalogue } from './sources.js'
 import { hashTree } from './tree.js'
 import type { RosterEntry, RosterSummary, TrustState } from './types.js'
 
-export { blockReason }
 
 
 export type ActiveSnapshot = Map<string, { version: string; contributionsHash: string }>
@@ -337,4 +336,3 @@ export function rosterSummary(entries: RosterEntry[], healthOutcomes: Map<string
   return summary
 }
 
-export type { ExtensionManifest }

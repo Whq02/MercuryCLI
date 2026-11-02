@@ -135,7 +135,6 @@ export function computeSliceStart(
   return start
 }
 
-export { shouldRenderStatically } from './MessageRow.js'
 
 const SAME_ROW_DEPTH = 3
 

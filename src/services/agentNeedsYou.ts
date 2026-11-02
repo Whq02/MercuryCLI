@@ -19,13 +19,7 @@ import {
 import { routedCallModelSettled } from './providers/callModelRouter.js'
 
 
-export {
-  type AgentState,
-  type AgentTempo,
-  type AgentStateVerdict,
-  agentNeedsYouEnabled,
-  classifyAgentStateHeuristic,
-} from './agentStateHeuristic.js'
+export { type AgentStateVerdict, agentNeedsYouEnabled } from './agentStateHeuristic.js'
 
 const CLASSIFY_TAIL_CHARS = 2000
 

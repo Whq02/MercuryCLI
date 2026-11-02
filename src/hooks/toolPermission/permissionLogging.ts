@@ -1,9 +1,9 @@
 
-export type PermissionApprovalSource =
+type PermissionApprovalSource =
   | { type: 'hook'; permanent?: boolean }
   | { type: 'user'; permanent: boolean }
 
-export type PermissionRejectionSource =
+type PermissionRejectionSource =
   | { type: 'hook' }
   | { type: 'userAbort' }
   | { type: 'userReject'; hasFeedback: boolean }

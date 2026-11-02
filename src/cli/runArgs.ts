@@ -1,1 +1,1 @@
-export { inspectSessionArgs as inspectRunArgs, isSessionRunArgv as isRunArgv } from './sessionArgs.js'
+export { inspectSessionArgs as inspectRunArgs } from './sessionArgs.js'

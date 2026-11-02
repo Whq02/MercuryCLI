@@ -25,13 +25,10 @@ import {
 } from '../../utils/permissions/PermissionUpdate.js'
 import {
   logPermissionDecision,
-  type PermissionApprovalSource,
   type PermissionDecisionArgs,
   type PermissionLogContext,
-  type PermissionRejectionSource,
 } from './permissionLogging.js'
 
-export type { PermissionApprovalSource, PermissionRejectionSource }
 
 
 
