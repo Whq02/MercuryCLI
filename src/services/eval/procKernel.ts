@@ -365,6 +365,10 @@ export class ProcKernel {
   interrupt(): void {
     try {
       if (!this.alive || !this.child.pid) return
+      if (this.protocol !== null) {
+        if (this.currentCellId !== null) this.send({ t: 'interrupt', id: this.currentCellId, token: this.token })
+        return
+      }
       if (process.platform === 'win32') {
         this.kill()
         return

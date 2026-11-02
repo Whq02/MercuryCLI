@@ -62,6 +62,7 @@ export type BridgeRequestFrame = z.infer<typeof bridgeFrame>
 type HostFrame =
   | { t: 'hello'; token: string; cwd: string }
   | { t: 'exec'; id: string; code: string; seq: number }
+  | { t: 'interrupt'; id: string; token: string }
   | { t: 'bridge_result'; bridgeId: string; ok: boolean; value?: unknown; error?: string; errorKind?: 'permission' | 'cancelled' | 'error' }
   | { t: 'bye' }
 

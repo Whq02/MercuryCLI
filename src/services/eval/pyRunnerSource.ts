@@ -22,6 +22,7 @@ _PROTO_LOCK = threading.Lock()
 _TOKEN = [None]
 _CWD = [None]
 _CURRENT_CELL = [None]
+_INTERRUPT_CELL = [None]
 _EXEC_COUNT = [0]
 _BRIDGE_SEQ = [0]
 _BRIDGE_WAITS = {}
@@ -160,6 +161,13 @@ def _take_line(raw):
         _QUEUE.put(msg)
     elif t == "exec":
         _QUEUE.put(msg)
+    elif t == "interrupt":
+        cell_id = _CURRENT_CELL[0]
+        if (_PROTOCOL_PORT[0] is not None and cell_id is not None
+                and msg.get("id") == cell_id and msg.get("token") == _TOKEN[0]
+                and _INTERRUPT_CELL[0] != cell_id):
+            _INTERRUPT_CELL[0] = cell_id
+            signal.raise_signal(signal.SIGINT)
     elif t == "bridge_result":
         w = _BRIDGE_WAITS.get(msg.get("bridgeId"))
         if w is not None:
@@ -388,6 +396,11 @@ def _interrupt_handler(signum, frame):
     raise KeyboardInterrupt()
 
 
+def _channel_interrupt_handler(signum, frame):
+    if _CURRENT_CELL[0] is not None and _INTERRUPT_CELL[0] == _CURRENT_CELL[0]:
+        raise KeyboardInterrupt()
+
+
 _NS = {
     "__name__": "__main__",
     "display": display,
@@ -406,6 +419,7 @@ _NS = {
 
 
 def _run_cell(cell_id, code):
+    _INTERRUPT_CELL[0] = None
     _CURRENT_CELL[0] = cell_id
     _EXEC_COUNT[0] += 1
     _emit({"t": "started", "id": cell_id})
@@ -414,7 +428,7 @@ def _run_cell(cell_id, code):
     names_before = set(_NS.keys())
     try:
         if hasattr(signal, "SIGINT"):
-            signal.signal(signal.SIGINT, _interrupt_handler)
+            signal.signal(signal.SIGINT, _channel_interrupt_handler if _PROTOCOL_PORT[0] is not None else _interrupt_handler)
         tree = ast.parse(code, mode="exec")
         last_expr = None
         if tree.body and isinstance(tree.body[-1], ast.Expr):

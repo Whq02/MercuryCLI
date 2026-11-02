@@ -2,7 +2,12 @@
 import { check, cleanup, finish, refusingBridge, loadEval, section, setup, sleep, within } from './lib.js'
 
 const { work } = setup()
-const { evalKernelManager } = await loadEval()
+const { evalKernelManager, EvalKernelManager } = await loadEval()
+const { ProcKernel } = await import('../../src/services/eval/procKernel.js')
+const { encodeHostFrame } = await import('../../src/services/eval/protocol.js')
+const { primeEvalAvailability } = await import('../../src/services/eval/interpreters.js')
+const { ensurePyRunner } = await import('../../src/services/eval/runnerCache.js')
+const { buildKernelEnv } = await import('../../src/services/eval/kernelEnv.js')
 const bridge = refusingBridge()
 
 const run = (
@@ -23,7 +28,86 @@ const run = (
     }),
   )
 
+async function proveInterruptChannel(): Promise<void> {
+  section('Windows-shaped Python interrupt channel: scoped frames, handler, retained namespace and PID')
+  const python = (await primeEvalAvailability(work)).find(row => row.language === 'py')
+  check('Python is available for the channel proof', python?.available === true)
+  if (!python?.interpreterPath) return
+  const kernel = await ProcKernel.launch({ command: python.interpreterPath, args: [ensurePyRunner()], cwd: work, env: buildKernelEnv(), transport: 'loopback' })
+  type HostFrame = Parameters<typeof encodeHostFrame>[0]
+  const wire = kernel as unknown as { send: (frame: HostFrame) => void }
+  const sent: HostFrame[] = []
+  const send = wire.send.bind(kernel)
+  wire.send = frame => { sent.push(frame); send(frame) }
+  const interrupt = (id: string, token = kernel.token): void => wire.send({ t: 'interrupt', id, token })
+  const exec = async (id: string, code: string, onOutput: (text: string) => void = () => undefined) => {
+    let repr: string | undefined
+    let error: string | undefined
+    const end = await within('channel cell', 10_000, kernel.exec(id, code, {
+      onStdout: onOutput, onStderr: () => undefined, onDisplay: () => undefined,
+      onResult: value => { repr = value }, onError: value => { error = value.name }, onBridge: () => undefined,
+    }))
+    return { end, repr, error }
+  }
+  const shortLoop = 'import time\nprint("channel-ready", flush=True)\nuntil = time.monotonic() + 0.6\nwhile time.monotonic() < until:\n    time.sleep(0.02)'
+  const whenReady = (act: () => void) => {
+    let output = ''
+    let acted = false
+    return (chunk: string): void => {
+      output += chunk
+      if (!acted && output.includes('channel-ready')) { acted = true; act() }
+    }
+  }
+  try {
+    check('channel handshakes', await kernel.handshake(work))
+    const seed = await exec('seed', 'import os, signal, sys\nkept = 7\noriginal_pid = os.getpid()\nsignal.getsignal(signal.SIGINT).__name__')
+    check('loopback cell installs its channel interrupt handler', seed.repr === "'_channel_interrupt_handler'", JSON.stringify(seed))
+    interrupt('seed')
+    const stale = await exec('stale', shortLoop, whenReady(() => { interrupt('seed'); interrupt('stale', 'wrong-token') }))
+    check('idle, stale-cell and wrong-token interrupts do not cancel the next cell', stale.end.kind === 'done' && stale.end.status === 'ok', JSON.stringify(stale))
+    const cancelled = await exec('wire', shortLoop, whenReady(() => { interrupt('wire'); interrupt('wire') }))
+    check('an interrupt frame alone cancels the running cell with KeyboardInterrupt', cancelled.end.kind === 'done' && cancelled.end.status === 'cancelled' && cancelled.error === 'KeyboardInterrupt', JSON.stringify(cancelled))
+    const after = await exec('after-wire', '(kept, os.getpid() == original_pid)')
+    check('the same-channel interrupt preserves bindings and process identity', after.repr === '(7, True)', JSON.stringify(after))
+    const hostStopped = await exec('host', shortLoop, whenReady(() => kernel.interrupt()))
+    check('ProcKernel sends the active cell and token on the interrupt channel', sent.some(frame => frame.t === 'interrupt' && frame.id === 'host' && frame.token === kernel.token), JSON.stringify(sent.filter(frame => frame.t === 'interrupt')))
+    check('the host interrupt also ends in KeyboardInterrupt, not process exit', hostStopped.end.kind === 'done' && hostStopped.end.status === 'cancelled' && hostStopped.error === 'KeyboardInterrupt', JSON.stringify(hostStopped))
+    const late = await exec('late', shortLoop + '\n(kept, os.getpid() == original_pid)', whenReady(() => interrupt('host')))
+    check('a delayed interrupt for the previous cell cannot cancel its successor', late.end.kind === 'done' && late.end.status === 'ok' && late.repr === '(7, True)', JSON.stringify(late))
+  } finally {
+    await kernel.dispose()
+    check('the direct channel kernel is disposed', !kernel.alive)
+  }
+
+  const manager = new EvalKernelManager({ pyTransport: 'loopback' })
+  const cell = (code: string, timeoutSeconds = 10, abortSignal = new AbortController().signal) =>
+    within('managed channel cell', 15_000, manager.runCell({ owner: 'channel-cancel-owner', cwd: work, input: { language: 'py', code, timeoutSeconds }, abortSignal, serveBridge: bridge }))
+  try {
+    const seed = await cell('import os\nkept = 7\noriginal_pid = os.getpid()')
+    check('managed channel seed succeeds', seed.status === 'ok', JSON.stringify(seed.error))
+    const budget = await cell('import time\nwhile True:\n    time.sleep(0.05)', 1)
+    check('channel budget interrupt yields KeyboardInterrupt and keeps one kernel', budget.status === 'cancelled' && budget.error?.name === 'KeyboardInterrupt' && manager.kernelCount() === 1, JSON.stringify({ budget, kernels: manager.kernelCount() }))
+    const afterBudget = await cell('(kept, os.getpid() == original_pid)')
+    check('the budget interrupt keeps the namespace, PID and execution count', afterBudget.status === 'ok' && afterBudget.resultRepr === '(7, True)' && afterBudget.executionCount === 3, JSON.stringify(afterBudget))
+    const abort = new AbortController()
+    const busy = cell('while True:\n    pass', 0, abort.signal)
+    await sleep(300)
+    abort.abort()
+    const stopped = await busy
+    check('a user abort interrupts Python bytecode through the same channel', stopped.status === 'cancelled' && stopped.error?.name === 'KeyboardInterrupt' && manager.kernelCount() === 1, JSON.stringify(stopped))
+    const afterAbort = await cell('(kept, os.getpid() == original_pid)')
+    check('the user-aborted channel kernel keeps its state too', afterAbort.status === 'ok' && afterAbort.resultRepr === '(7, True)', JSON.stringify(afterAbort))
+    const ignored = await cell('import signal, time\nsignal.signal(signal.SIGINT, signal.SIG_IGN)\nwhile True:\n    time.sleep(0.05)', 1)
+    check('a kernel that ignores the channel still escalates and is removed', ignored.status === 'cancelled' && ignored.annotations.some(note => note.includes('not honoured')) && manager.kernelCount() === 0, JSON.stringify(ignored))
+  } finally {
+    await manager.disposeAll()
+    check('no channel kernel remains after disposal', manager.kernelCount() === 0)
+  }
+}
+
 try {
+  await proveInterruptChannel()
+
   section('runtime budget interrupts Python; the kernel SURVIVES with state')
   const seed = await run('py', 'kept = 7')
   check('seed cell ok', seed.status === 'ok')
