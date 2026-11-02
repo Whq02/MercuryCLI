@@ -2,7 +2,8 @@
 process.env.FORCE_COLOR = '3'
 delete process.env.NO_COLOR
 
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -105,7 +106,7 @@ function firstDifference(a: Frame, b: Frame): string | null {
   return null
 }
 
-type Step<T> = { name: string; apply: (t: T) => void; writeCap?: number; expectNoWrite?: boolean }
+type Step<T> = { name: string; apply: (t: T) => void; writeCap?: number; bandCap?: (t: T) => number; expectNoWrite?: boolean }
 
 function runScene<T extends { rig: Rig }>(title: string, live: T, scratch: T, steps: Step<T>[]): void {
   console.log(title)
@@ -119,6 +120,10 @@ function runScene<T extends { rig: Rig }>(title: string, live: T, scratch: T, st
     check(`${step.name}: the screen equals the from-scratch compose`, diff === null, diff ?? '')
     if (step.writeCap !== undefined) {
       check(`${step.name}: writes ${counts.write} cells, within one row (${step.writeCap}), blits ${counts.blit}`, counts.write <= step.writeCap && counts.blit >= live.rig.cols * live.rig.rows)
+    }
+    if (step.bandCap) {
+      const cap = step.bandCap(live)
+      check(`${step.name}: writes ${counts.write} cells within the band (${cap}, ground and text), blits ${counts.blit}`, counts.write <= cap && counts.blit > 0)
     }
     if (step.expectNoWrite) check(`${step.name}: writes nothing`, counts.write === 0, `write=${counts.write}`)
   }
@@ -331,21 +336,69 @@ const transcriptSteps: Step<Transcript>[] = [
   { name: 'spinner tick at the end', apply: t => retext(t.status, '✹ thinking'), writeCap: COLS },
 ]
 
+function buildPaddedTranscript(ctx: ComposeContext, cols: number, rows: number, regionScroll: boolean): Transcript {
+  const r = rig(ctx, cols, rows, regionScroll)
+  const status = text('thinking', { width: 8 })
+  const items = Array.from({ length: 18 }, (_, i) => text(`message ${i}\n  a wrapped continuation of this message\n  its last line`))
+  const content = box({ flexGrow: 1, width: '100%' }, items)
+  const scroller = box({ width: cols - (regionScroll ? 0 : 24), height: rows - 12, paddingTop: 1, overflowX: 'scroll', overflowY: 'scroll' }, [content])
+  setAttribute(scroller, 'stickyScroll', true)
+  const body = box({ flexDirection: 'row', height: rows - 12 }, [
+    ...(regionScroll ? [] : [box({ width: 24 }, [text('lanes')])]),
+    scroller,
+  ])
+  appendChildNode(r.root, box({ width: cols, height: rows, backgroundColor: GROUND }, [box({ height: 6 }, [status]), body, box({ height: 6 }, [text('Type a prompt')])]))
+  return { rig: r, status, scroller, content, items }
+}
+
+const transcriptBandCap = (t: Transcript): number => 2 * t.scroller.layoutNode!.getComputedWidth() * t.scroller.layoutNode!.getComputedHeight()
+const resizeTranscript = (t: Transcript, delta: number): void => {
+  t.rig.cols += delta
+  applySceneStyle(t.rig.root, { ...t.rig.root.style, width: t.rig.cols })
+  const ground = t.rig.root.childNodes[0] as DOMElement
+  applySceneStyle(ground, { ...ground.style, width: t.rig.cols })
+  applySceneStyle(t.scroller, { ...t.scroller.style, width: Number(t.scroller.style.width) + delta })
+}
+const paddedTranscriptSteps: Step<Transcript>[] = [
+  { name: 'first paint at the tail, with a padded top band', apply: () => {} },
+  { name: 'wheel up', apply: t => scrollBy(t.scroller, -3), bandCap: transcriptBandCap },
+  { name: 'wheel up again', apply: t => scrollBy(t.scroller, -3), bandCap: transcriptBandCap },
+  { name: 'PageUp', apply: t => scrollBy(t.scroller, -(t.scroller.scroll!.scrollViewportHeight! - 1)), bandCap: transcriptBandCap },
+  { name: 'PageDown', apply: t => scrollBy(t.scroller, t.scroller.scroll!.scrollViewportHeight! - 1), bandCap: transcriptBandCap },
+  { name: 'End', apply: t => { t.scroller.scroll!.stickyScroll = true; markDirty(t.scroller) }, bandCap: transcriptBandCap },
+  { name: 'Home', apply: t => scrollTo(t.scroller, 0), bandCap: transcriptBandCap },
+  { name: 'nothing changed after scrolling', apply: () => {}, expectNoWrite: true },
+  { name: 'spinner tick after scrolling', apply: t => retext(t.status, 'working'), writeCap: 120 },
+  { name: 'resize wider', apply: t => resizeTranscript(t, 1) },
+  { name: 'resize back', apply: t => resizeTranscript(t, -1) },
+  { name: 'both padding bands grow', apply: t => applySceneStyle(t.scroller, { ...t.scroller.style, paddingTop: 2, paddingBottom: 2 }) },
+  { name: 'scroll down with both padding bands', apply: t => scrollBy(t.scroller, 4), bandCap: transcriptBandCap },
+  { name: 'scroll back with both padding bands', apply: t => scrollBy(t.scroller, -4), bandCap: transcriptBandCap },
+]
+
+const TRANSCRIPT_ONLY = process.argv.includes('--transcript-only')
 console.log('the held ground: the compose walk reuses the previous frame under a filled box')
-{
+if (!TRANSCRIPT_ONLY) {
   const ctx = makeContext()
   runScene('§1 cockpit harness — incremental compose equals a from-scratch compose at every step, and a tick writes its own row', buildCockpit(ctx), buildCockpit(ctx), cockpitSteps)
 }
-{
+if (!TRANSCRIPT_ONLY) {
   const ctx = makeContext()
   runScene('§4 health-shaped harness — rows scroll one at a time through the fast path, then a row unfolds, folds, shrinks and grows', buildHealth(ctx), buildHealth(ctx), healthSteps)
 }
-{
+if (!TRANSCRIPT_ONLY) {
   const ctx = makeContext()
   runScene('§5 full-width transcript harness — the region scrolls under a held ground, then rows unfold and fold', buildTranscript(ctx), buildTranscript(ctx), transcriptSteps)
 }
 
-if (!HARNESS_ONLY) {
+for (const [cols, rows] of TRANSCRIPT_ONLY ? [] : [[120, 44], [178, 51]] as const) {
+  for (const regionScroll of [false, true]) {
+    const ctx = makeContext()
+    runScene(`§7 padded transcript ${cols}x${rows}, ${regionScroll ? 'region' : 'rectangle'} shift`, buildPaddedTranscript(ctx, cols, rows, regionScroll), buildPaddedTranscript(ctx, cols, rows, regionScroll), paddedTranscriptSteps)
+  }
+}
+
+if (!HARNESS_ONLY && !TRANSCRIPT_ONLY) {
   if (!existsSync(DIST)) {
     console.error(`✗ ${DIST} missing — run \`bun run build.ts\` first, or name a bundle with --dist`)
     process.exit(2)
@@ -506,6 +559,89 @@ if (!HARNESS_ONLY) {
     check('health: the next row unfolds and equals its from-scratch reference, cell for cell', next.length > 0 && firstRowDiff(next, bodyOf('next-reference')) === '', firstRowDiff(next, bodyOf('next-reference')))
     const stale = [...plainOf('unfolded'), ...plainOf('next-unfolded')].filter(l => /(info|ok|off)[a-z]*─|ok[a-z]{1,3}\s|[A-Z]{4,}[a-z]─/.test(l))
     check('health: no row carries a previous row\'s tail or a stale letter before a rule', stale.length === 0, stale.slice(0, 2).join(' | '))
+  }
+}
+
+if (!HARNESS_ONLY) {
+  const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+  const { seedFirstRun, FIXTURE_API_KEY } = await import('../lib/firstRunSeed.ts')
+  const { nodeBinPath } = await import('../lib/nodeBin.ts')
+  const { ptyDriverPython, vshotBudgetMs } = await import('../lib/captureDriver.ts')
+  type Cell = { c: string; fg: string; bg: string; bold: boolean; rev: boolean }
+  type Mark = { label: string; cols: number; rows: number; grid: Cell[][] }
+  for (const [cols, rows] of [[120, 44], [178, 51]] as const) {
+    console.log(`§8 live transcript ${cols}x${rows} — wheel, PageUp, PageDown, End and resize against a fresh paint`)
+    const dir = mkdtempSync(join(tmpdir(), 'ground-reuse-transcript-'))
+    const home = join(dir, 'home')
+    const cwd = join(dir, 'cwd')
+    mkdirSync(cwd)
+    seedFirstRun(home, [cwd])
+    writeFileSync(join(home, 'settings.json'), JSON.stringify({ activity: { tips: { enabled: false } } }))
+    const api = await startFixtureApi([{ kind: 'paced', whenModel: 'opus', deltas: Array.from({ length: 24 }, (_, i) => `Record ${String(i).padStart(2, '0')}: ${createHash('sha256').update(`transcript-${i}`).digest('hex')}\n\n`), gapMs: 30 }])
+    const ESC = '\x1b'
+    const shot = (mark: string, ticks = 8): Record<string, unknown> => ({ afterPrevTicks: ticks, data: '', mark })
+    const key = (data: string): Record<string, unknown> => ({ afterPrevTicks: 1, data })
+    const names = ['wheel-1', 'wheel-2', 'PageUp', 'PageDown', 'End', 'resize']
+    const pair = (name: string): Record<string, unknown>[] => [shot(name), shot(`${name}-fresh`, 16)]
+    const sends = [
+      { atTick: 99999, requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 3, data: '\r' },
+      { atTick: 99999, requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 6, data: 'Read the transcript\r' },
+      { atTick: 99999, requireAwait: true, awaitText: 'Record 23:', awaitSettleTicks: 12, data: '', mark: 'tail' },
+      { atTick: 99999, requireAwait: true, awaitText: 'ready', awaitSettleTicks: 8, data: '' },
+      { atTick: 99999, requireAwait: true, awaitText: 'ctrl+x p for commands', awaitSettleTicks: 6, data: '' },
+      key(`${ESC}[<64;70;18M`), ...pair('wheel-1'),
+      key(`${ESC}[<64;70;18M`), ...pair('wheel-2'),
+      key(`${ESC}[5~`), ...pair('PageUp'),
+      key(`${ESC}[6~`), ...pair('PageDown'),
+      key(`${ESC}[1;5F`), ...pair('End'),
+      shot('resize-start'), shot('resize', 16), shot('resize-fresh', 16),
+    ]
+    const roundTrip = (afterMark: string): Record<string, unknown>[] => [{ afterMark, afterMs: 300, cols, rows: rows + 1 }, { afterMark, afterMs: 1500, cols, rows }]
+    const out = join(dir, 'grid.json')
+    const tee = join(dir, 'composed.jsonl')
+    const cfg = join(dir, 'capture.json')
+    writeFileSync(cfg, JSON.stringify({ argv: [nodeBinPath(), DIST], cwd, cols, rows, total: 600, stableTicks: 6, sends, out, resizes: [...names.flatMap(roundTrip), ...roundTrip('resize-start')] }))
+    const env: NodeJS.ProcessEnv = {
+      ...process.env, HOME: home, MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: join(dir, 'daemon'),
+      MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_BOOT_PREFLIGHT: '0', MERCURY_UPDATE_NOTICE: '0',
+      MERCURY_OPERATOR: 'sam', MERCURY_LIVE_GLYPHS: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0', MERCURY_LIVE_CLOCK: '0',
+      ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: FIXTURE_API_KEY, BROWSER: '/usr/bin/true', TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal', LANG: 'en_US.UTF-8', COLORTERM: 'truecolor', INK_COMPOSED_TEE: tee,
+    }
+    for (const name of ['MERCURY_HOME', 'MERCURY_CRITTER', 'NO_COLOR', 'FORCE_COLOR', 'CI', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'MERCURY_MODEL']) delete env[name]
+    try {
+      let stderr = ''
+      const code = await new Promise<number | null>((done, reject) => {
+        const child = spawn(ptyDriverPython('the live transcript'), [join(ROOT, 'scripts/ui/vshot.py'), cfg], { cwd, env, stdio: ['ignore', 'ignore', 'pipe'] })
+        child.stderr.on('data', data => { stderr += String(data) })
+        const timer = setTimeout(() => { child.kill('SIGTERM') }, vshotBudgetMs(600 * 200 + 120_000))
+        child.once('error', error => { clearTimeout(timer); reject(error) })
+        child.once('close', code => { clearTimeout(timer); done(code) })
+      })
+      check(`${cols}: the live capture completed`, code === 0 && existsSync(out), `rc=${code} ${stderr.slice(-200)}`)
+      const payload = existsSync(out) ? JSON.parse(readFileSync(out, 'utf8')) as { marks?: Mark[] } : {}
+      const marks = new Map((payload.marks ?? []).map(mark => [mark.label, mark]))
+      const difference = (a: Mark | undefined, b: Mark | undefined): string => {
+        if (!a || !b) return 'missing capture'
+        if (a.cols !== b.cols || a.rows !== b.rows) return 'dimensions differ'
+        for (let y = 0; y < a.rows; y++) for (let x = 0; x < a.cols; x++) {
+          if (JSON.stringify(a.grid[y]![x]) !== JSON.stringify(b.grid[y]![x])) return `cell (${x},${y}) ${JSON.stringify(a.grid[y]![x])} vs ${JSON.stringify(b.grid[y]![x])}`
+        }
+        return ''
+      }
+      check(`${cols}: the fixture produced the live transcript`, api.pacedEmits.length === 24 && api.messageRequests().length === 1 && marks.has('tail'), `${api.pacedEmits.length} emits, ${api.messageRequests().length} requests`)
+      for (const [from, to] of [['tail', 'wheel-1'], ['wheel-1-fresh', 'wheel-2'], ['wheel-2-fresh', 'PageUp'], ['PageUp-fresh', 'PageDown']] as const) {
+        check(`${cols}: ${to} moved the transcript`, marks.has(from) && marks.has(to) && difference(marks.get(from), marks.get(to)) !== '')
+      }
+      for (const name of names) {
+        const diff = difference(marks.get(name), marks.get(`${name}-fresh`))
+        check(`${cols}: ${name} equals its from-scratch paint, every cell and style`, diff === '', diff)
+      }
+      const before = marks.get('End')
+      check(`${cols}: resizing round trip preserves the same frame`, difference(before, marks.get('resize')) === '', difference(before, marks.get('resize')))
+      console.log(`  capture: ${dir}`)
+    } finally {
+      await api.close()
+    }
   }
 }
 

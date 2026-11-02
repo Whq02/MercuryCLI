@@ -646,6 +646,7 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
   const contentHeight = contentYoga?.getComputedHeight() ?? 0
   const prevScrollHeight = scroll.scrollHeight ?? contentHeight
   const prevInnerHeight = scroll.scrollViewportHeight ?? innerHeight
+  const prevViewportTop = scroll.scrollViewportTop
   scroll.scrollHeight = contentHeight
   scroll.scrollViewportHeight = innerHeight
   scroll.scrollViewportTop = (y1 ?? y) + paddingTop
@@ -722,6 +723,8 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
   const contentTop = y + contentYoga.getComputedTop() - paintTop
 
   const contentWas = nodeCache.get(content)
+  const boxMoved = boxCached !== undefined && !rectHeldBy(boxCached, x, y, width, height)
+  const viewportMoved = prevViewportTop !== scroll.scrollViewportTop || prevInnerHeight !== innerHeight
   let regionHint: ScrollHint | null = null
   let rectShift: RectShift | null = null
   if (contentWas && contentWas.y !== contentTop) {
@@ -733,7 +736,7 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
     fluxMark('scroll:xlate', viewportTop * 1000 + delta + 500)
     if (rowSampler === undefined) {
       const spansFullWidth = Math.floor(x) <= 0 && Math.ceil(x + width) >= buffer.width
-      const stableForShift = boxCached?.y === y && boxCached.height === height && innerHeight > 0 && Math.abs(delta) < innerHeight
+      const stableForShift = boxCached !== undefined && !boxMoved && !viewportMoved && innerHeight > 0 && Math.abs(delta) < innerHeight
       if (stableForShift && spansFullWidth && walk.regionScrollUsable) {
         regionHint = { top: viewportTop, bottom: viewportBottom, delta }
         signals.scrollHint = regionHint
@@ -776,6 +779,17 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
       const viewportFloor = Math.floor((y1 ?? y) + paddingTop + innerHeight)
       repairStableRows(content, walk, dirtyChildren, contentLeft, contentTop, delta, paintTop, innerHeight, incomingTop, incomingBottom, viewportFloor, Math.floor(x), columns, boxBackgroundColor)
     }
+    const bandTop = Math.floor(y1 ?? y)
+    const bandBottom = Math.floor(y2 ?? y + height)
+    const repaintBand = (from: number, to: number, boundary: number): void => {
+      if (from >= to) return
+      groundWrite(walk, { x: Math.floor(x), y: from, width: columns, height: to - from }, boxBackgroundColor)
+      buffer.clip({ x1: undefined, x2: undefined, y1: from, y2: to })
+      composeScrolledChildren(content, walk, contentLeft, contentTop, hasRemovedChild, undefined, boundary, boundary, boxBackgroundColor, true)
+      buffer.unclip()
+    }
+    repaintBand(bandTop, top, paintTop)
+    repaintBand(bottom + 1, bandBottom, paintTop + innerHeight)
     for (const rect of walk.prevAbsoluteRects) {
       if (rect.y >= bottom + 1 || rect.y + rect.height <= top) continue
       const shiftedTop = Math.max(top, Math.floor(rect.y) - delta)
@@ -788,16 +802,16 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
     }
   } else {
     const scrolled = contentWas !== undefined && contentWas.y !== contentTop
-    if (scrolled && y1 !== undefined && y2 !== undefined) buffer.clear({ x: Math.floor(x), y: Math.floor(y1), width: Math.floor(width), height: Math.floor(y2 - y1) })
+    const repaintBand = scrolled || boxMoved || viewportMoved || !contentWas
+    if (repaintBand && y1 !== undefined && y2 !== undefined) buffer.clear({ x: Math.floor(x), y: Math.floor(y1), width: Math.floor(width), height: Math.floor(y2 - y1) })
     if (rowSampler !== undefined && y1 !== undefined && y2 !== undefined && Math.floor(width) >= 1) {
       const viewTop = Math.floor(y1)
       const viewBottom = Math.floor(y2)
       for (let row = viewTop; row < viewBottom; row++) buffer.write(Math.floor(x), row, groundRows(Math.floor(width), 1, rowSampler(row)))
-    } else if (boxBackgroundColor && y1 !== undefined && y2 !== undefined && (scrolled || !contentWas) && Math.floor(width) >= 1 && Math.floor(y2 - y1) >= 1) {
+    } else if (repaintBand && y1 !== undefined && y2 !== undefined && Math.floor(width) >= 1 && Math.floor(y2 - y1) >= 1) {
       buffer.write(Math.floor(x), Math.floor(y1), groundRows(Math.floor(width), Math.floor(y2 - y1), boxBackgroundColor))
     }
-    const boxMoved = boxCached !== undefined && (boxCached.x !== x || boxCached.y !== y || boxCached.width !== width || boxCached.height !== height)
-    const settled = rowSampler === undefined && !scrolled && !boxMoved
+    const settled = rowSampler === undefined && !repaintBand
     const viewport = y1 !== undefined && y2 !== undefined ? { x: Math.floor(x), y: Math.floor(y1), width: Math.floor(width), height: Math.floor(y2 - y1) } : undefined
     composeScrolledChildren(content, walk, contentLeft, contentTop, hasRemovedChild, settled ? prevScreen : undefined, paintTop, paintTop + innerHeight, boxBackgroundColor, false, rowSampler, settled && contentWas !== undefined && viewport !== undefined ? { ground: staleGround, bounds: viewport } : undefined)
   }
