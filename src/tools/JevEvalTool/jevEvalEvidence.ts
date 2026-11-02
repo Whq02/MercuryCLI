@@ -80,7 +80,7 @@ function refuse(reason: string): { ok: false; reason: string } {
   return { ok: false, reason }
 }
 
-function count(n: number, noun: string): string {
+export function count(n: number, noun: string): string {
   return `${n} ${noun}${n === 1 ? '' : 's'}`
 }
 

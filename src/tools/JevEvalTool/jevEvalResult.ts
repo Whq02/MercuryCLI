@@ -11,7 +11,7 @@ import {
 import { jevStatusIsFinalForSession } from '../../services/jev/jevStatus.js'
 import { collapseAndClip } from '../../utils/stringUtils.js'
 import { JEV_EVAL_CONFIDENCE_FLOOR, JEV_EVAL_LEVEL_LABEL_CLIP, JEV_EVAL_UNSURE } from './constants.js'
-import { type JevEvalSource, jevEvalSourceLine } from './jevEvalEvidence.js'
+import { type JevEvalSource, jevEvalSourceLine, count } from './jevEvalEvidence.js'
 import type { JevEvalKind } from './jevEvalSchema.js'
 
 export const JEV_EVAL_FINAL_NOTICE = 'no further call will succeed this session for this reason; do not retry; carry on unaided'
@@ -91,9 +91,6 @@ export function jevEvalLegendLines(table: JevEvalTable): string[] {
   return lines
 }
 
-function count(n: number, noun: string): string {
-  return `${n} ${noun}${n === 1 ? '' : 's'}`
-}
 
 export function jevEvalStatedUsd(answered: ReadonlyArray<Extract<JevEvalRowOutcome, { kind: 'answered' }>>): number | undefined {
   if (answered.length === 0 || answered.some(outcome => outcome.response.usage.cost === undefined)) return undefined
