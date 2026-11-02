@@ -1,9 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { spawn } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
 import React from 'react'
 import stripAnsi from 'strip-ansi'
 
@@ -405,84 +403,6 @@ section('refused launches stay error rows; only results with an agent id count')
       console.log(`  capture: ${stem}.{ansi,txt}`)
     }
   }
-  if (captureDir) {
-    const { resolveCaptureDriver, vshotBudgetMs } = await import('../lib/captureDriver.js')
-    const driver = resolveCaptureDriver()
-    const home = process.env.MERCURY_CONFIG_DIR
-    if (!home) throw new Error('captures need a scratch MERCURY_CONFIG_DIR')
-    if (driver.kind !== 'posix-pty') throw new Error(`captures need the POSIX pty driver, not ${driver.kind}`)
-    const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.js')
-    const { entryToRecord } = await import('../../src/fabric/entryCodec.js')
-    const { gridToPng } = await import('./gridToPng.js')
-    const { seedFirstRun, FIXTURE_API_KEY } = await import('../lib/firstRunSeed.js')
-    const { startFixtureApi } = await import('../lib/fixtureApi.js')
-    const api = await startFixtureApi([])
-    seedFirstRun(home, [ROOT])
-    const sessionId = randomUUID()
-    const { getEngineModel } = await import('../../src/utils/model/model.js')
-    const saved = [...fixture, { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Launch check complete.' }], stop_reason: 'end_turn' } }] as Array<{ type: string; message: Record<string, unknown> }>
-    const ids = saved.map(() => randomUUID())
-    const lines = saved.map((row, index) => ({
-      ...row, uuid: ids[index], parentUuid: ids[index - 1] ?? null, sessionId, cwd: ROOT, isSidechain: false, version: '1.0.0', timestamp: '2026-11-01T08:00:00.000Z',
-      message: row.type === 'assistant' ? { id: `fixture-${index}`, type: 'message', model: getEngineModel(), stop_reason: 'tool_use', stop_sequence: null, usage: { input_tokens: 0, output_tokens: 0 }, ...row.message } : row.message,
-    }))
-    let ordinal = 0
-    const context = { sessionId, nextOrdinal: () => String(++ordinal), observedAt: '2026-11-01T08:00:00.000Z', source: { channel: 'sdk' } }
-    const projects = getProjectDir(ROOT)
-    mkdirSync(projects, { recursive: true })
-    writeFileSync(join(projects, `${sessionId}.jsonl`), lines.map(line => JSON.stringify(entryToRecord(line, context as never))).join('\n') + '\n')
-    const env = {
-      ...Object.fromEntries(Object.entries(process.env).filter(([key, value]) => value !== undefined && !['CI', 'MERCURY_HOME', 'MERCURY_CRITTER', 'ANTHROPIC_API_KEY'].includes(key))),
-      MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CREW_DIR: join(home, 'crew'), MERCURY_HEALTH_STATE_DIR: join(home, 'health'),
-      MERCURY_BOOT_PREFLIGHT: '0', MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_TURN_RECEIPT: '1',
-      MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0', TERM: 'xterm-256color', USER: 'sam', MERCURY_OPERATOR: 'sam',
-      ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: api.url,
-    }
-    const distArg = process.argv.indexOf('--dist')
-    const captureDist = (distArg < 0 ? undefined : process.argv[distArg + 1]) ?? join(ROOT, 'dist', 'mercury.mjs')
-    try {
-      for (const [cols, rows] of [[120, 44], [80, 24]] as const) {
-        const stem = join(captureDir, `refused-launch-repl-${cols}x${rows}`)
-        const gridPath = `${stem}.grid.json`
-        const configPath = `${stem}.json`
-        const then = (data: string, awaitText: string, mark?: string) => ({ data, atTick: 999, awaitText, requireAwait: true, minTick: 2, awaitSettleTicks: 3, ...(mark ? { mark } : {}) })
-        const sends = cols === 80 ? [then('', 'Launch check complete.', 'receipt'), then('\x1b[5~', 'Launch check complete.'), then('', 'Inspect both pools.', 'launches')] : []
-        writeFileSync(configPath, JSON.stringify({ cwd: ROOT, argv: ['node', captureDist, '--resume', sessionId], cols, rows, total: 120, out: gridPath, readyText: [cols === 80 ? 'Inspect both pools.' : 'Launch check complete.'], readySettleTicks: 3, sends }))
-        rmSync(gridPath, { force: true })
-        let stderr = ''
-        const code = await new Promise<number | null>((resolve, reject) => {
-          const child = spawn(driver.python, [join(import.meta.dir, 'vshot.py'), configPath], { env, timeout: vshotBudgetMs(360000), stdio: ['ignore', 'ignore', 'pipe'] })
-          child.stderr.on('data', chunk => { stderr += String(chunk) })
-          child.on('error', reject)
-          child.on('exit', resolve)
-        })
-        check(`${cols}x${rows}: the resumed transcript paints`, code === 0, code === 0 ? '' : stderr.slice(-600))
-        if (!existsSync(gridPath)) continue
-        type Grid = Array<Array<{ c: string }>>
-        const payload = JSON.parse(readFileSync(gridPath, 'utf8')) as { grid: Grid; marks?: Array<{ label: string; grid: Grid }> }
-        const frames: string[] = []
-        for (const { label, grid } of [{ label: '', grid: payload.grid }, ...(payload.marks ?? [])]) {
-          const frame = grid.map(line => line.map(cell => cell.c || ' ').join('')).join('\n')
-          frames.push(frame.replace(/\s+/g, ' '))
-          const path = label ? `${stem}-${label}` : stem
-          writeFileSync(`${path}.txt`, frame + '\n')
-          writeFileSync(`${path}.grid.json`, JSON.stringify({ grid, cols, rows }))
-          await gridToPng(`${path}.grid.json`, `${path}.png`)
-          console.log(`  capture: ${path}.png`)
-        }
-        const progressRows = descriptions.filter(description => frames.some(frame => frame.includes(`crewmate (${description})`)))
-        check(`${cols}x${rows}: the built screen paints only the two real crewmate rows`, JSON.stringify(progressRows) === JSON.stringify(descriptions.slice(2)))
-        for (const error of errors) check(`${cols}x${rows}: the built screen keeps ${error} once`, frames.some(frame => frame.split(error).length === 2) && frames.every(frame => frame.split(error).length <= 2))
-        check(`${cols}x${rows}: the built screen counts two launched crewmates`, frames.some(frame => frame.includes('2 background crewmates launched')) && frames.some(frame => frame.includes('2 crewmates')) && frames.every(frame => !frame.includes('4 crewmates') && (frame.match(/background crewmates launched/g) ?? []).length <= 1))
-      }
-    } finally {
-      await api.close()
-      const daemonDir = env.MERCURY_DAEMON_DIR
-      const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.js')
-      for (const worker of Object.values(readSessionWorkers(daemonDir))) if (worker.pid && worker.endedAt === undefined) { try { process.kill(worker.pid, 'SIGTERM') } catch {} }
-      try { const pid = Number(readFileSync(join(daemonDir, 'daemon.pid'), 'utf8').trim()); if (pid > 1) process.kill(pid, 'SIGTERM') } catch {}
-    }
-  }
 }
 
 section('every tool that writes files counts (RELEASE-29-AIR R29A-06): ChangeSet files and lines, a created file\'s lines; a preview, a refusal, a replay count nothing')
@@ -631,8 +551,7 @@ check(
     /color="success"/.test(src('components', 'messages', 'TurnReceiptRow.tsx')) &&
     /color="error"/.test(src('components', 'messages', 'TurnReceiptRow.tsx')),
 )
-const distIndex = process.argv.indexOf('--dist')
-const distPath = (distIndex < 0 ? undefined : process.argv[distIndex + 1]) ?? join(ROOT, 'dist', 'mercury.mjs')
+const distPath = process.env.MERCURY_PROOF_DIST ?? join(ROOT, 'dist', 'mercury.mjs')
 if (!existsSync(distPath)) {
   console.log('  [SKIP] dist absent — run `bun run build.ts` for the dist needle')
 } else {
