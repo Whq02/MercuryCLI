@@ -34,6 +34,7 @@ if (DIR) {
       }
       return orig.call(this, p, ...rest)
     }
+    Object.assign(obj[fn], orig)
   }
   const wrapFd = (obj, fn) => {
     const orig = obj[fn]
