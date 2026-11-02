@@ -347,8 +347,21 @@ if (process.platform === 'win32') {
   })
   const output = (): string => Buffer.concat(recording.records.filter(record => record.direction === 'output').map(record => record.bytes)).toString('utf8')
   const { default: figures } = await import('figures')
-  const painted = await until(() => output().includes(figures.pointer) && output().includes(ACP_LOGIN_INTRO.slice(0, 40)), 90_000)
-  check('pty: the card paints with its intro and the method pointer', painted, bare(output()).slice(-600))
+  let replayed = '', frame = ''
+  const frameText = (): string => {
+    const bytes = output()
+    if (bytes === replayed) return frame
+    const replay = spawnSync(process.env.MERCURY_PYTHON ?? '/usr/bin/python3', ['-c', 'import sys, pyte; screen = pyte.Screen(120, 30); pyte.Stream(screen).feed(sys.stdin.read()); print("\\n".join(screen.display))'], { input: bytes, encoding: 'utf8', timeout: 5000 })
+    if (replay.status !== 0) throw new Error(`PTY frame replay failed: ${replay.stderr || replay.error?.message}`)
+    replayed = bytes
+    frame = replay.stdout
+    return frame
+  }
+  const painted = await until(() => {
+    const text = frameText()
+    return text.includes(figures.pointer) && text.includes(ACP_LOGIN_INTRO.slice(0, 40))
+  }, 90_000)
+  check('pty: the card paints with its intro and the method pointer', painted, frameText())
   check('pty: the alternate screen was entered before the card painted', output().indexOf('\x1b[?1049h') >= 0 && output().indexOf('\x1b[?1049h') < output().indexOf(figures.pointer))
   recording.send('\x1b')
   const exit = await Promise.race([recording.exited, new Promise<number | null>(resolve => setTimeout(() => resolve(null), 20_000))])
