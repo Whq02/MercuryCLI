@@ -4,6 +4,7 @@ import { stopOrDismissAgent } from '../../state/crewmateViewHelpers.js'
 import { AGENT_STOP_BY_OPERATOR, isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalWorkflowTask, killWorkflowTask } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import { isPausedAgentRow, StopTaskError, stopPausedAgent, stopTask, taskNotFoundWords } from '../../tasks/stopTask.js'
+import { sleep as wait } from '../../utils/processGroup.js'
 
 export const AGENT_STOP_SETTLE_MS = 3_000
 const SETTLE_TICK_MS = 50
@@ -25,7 +26,6 @@ type OperatorStopOptions = {
   reason?: string
 }
 
-const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 function nameOf(task: { description?: string; id: string }): string {
   return typeof task.description === 'string' && task.description !== '' ? task.description : task.id

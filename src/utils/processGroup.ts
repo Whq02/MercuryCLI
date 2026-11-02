@@ -20,7 +20,7 @@ const REAP_POLL_MS = 40
 const MSYS_TABLE_BOUND_MS = 800
 const MSYS_SWEEP_ROUNDS = 3
 
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+export const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 export function win32TaskkillCommand(pid: number): { file: string; args: string[] } {
   return {
