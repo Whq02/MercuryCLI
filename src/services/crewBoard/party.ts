@@ -14,6 +14,7 @@ const PUBLIC_KINDS: ReadonlySet<string> = new Set(['ask', 'answer', 'blocker', '
 const lower = (names: readonly string[] | undefined): Set<string> => new Set((names ?? []).map(name => name.toLowerCase()))
 
 function partyAdmits(event: ScreenEvent, filter: BoardChatFilter): boolean {
+  if (event.lifecycle?.kind === 'done') return false
   const lifecycle = event.lifecycle !== undefined
   if (!lifecycle && !PUBLIC_KINDS.has(event.kind)) return false
   if (filter.kind === 'all') return true

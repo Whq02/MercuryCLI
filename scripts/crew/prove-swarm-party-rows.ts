@@ -44,7 +44,7 @@ section('§0 the lifecycle words and the fold: joined · team <team>, parked · 
   check('every kind stays a plain navigable row', every.every(r => isNavigableMessage(r as never)))
   check('Message.tsx paints a crew_chat row only through CrewChatRow', /if \(message\.subtype === 'crew_chat'\) return <CrewChatRow message=\{message\} \/>/.test(readFileSync(join(REPO, 'src/components/Message.tsx'), 'utf8')))
   const party = readFileSync(join(REPO, 'src/services/crewBoard/party.ts'), 'utf8')
-  check('the party spells the lifecycle rows in the four shapes and no other', party.includes("return team === undefined ? 'joined' : `joined · team ${team}`") && party.includes("return lifecycle.kind === 'launched' ? 'Swarm launched' : 'done'") && party.includes('`parked · waiting on ${lifecycle.event}`') && !/'Joined'|'Done'/.test(party))
+  check('the party spells the lifecycle rows in the four shapes and no other, and a done row never paints', party.includes("if (event.lifecycle?.kind === 'done') return false") && party.includes("return team === undefined ? 'joined' : `joined · team ${team}`") && party.includes("return lifecycle.kind === 'launched' ? 'Swarm launched' : 'done'") && party.includes('`parked · waiting on ${lifecycle.event}`') && !/'Joined'|'Done'/.test(party))
 }
 
 section('§0 the reader law: system rows recorded one after another after the last reply all survive a cold load')
@@ -314,18 +314,17 @@ try {
     ["the lead's own post", '[main] the lead notes it ROW-LEAD'],
     ["the owner's whisper as its sender receipt", '[owner] @solo ship it ROW-OWNER'],
     ['a captain row, named at the time of its post', '[captain lists-judge] The long post keeps going'],
-    ['the completion row', '[solo] done'],
   ] as const) check(`${label}: ${needle}`, wideText.includes(needle), wideText.slice(-1200))
   check('the ask was posted before the appointment and keeps its plain plate', wideText.includes('[lists-judge] @lists-writer') && !wideText.includes('[captain lists-judge] @lists-writer'))
   check('a resumed seat does not join again: one joined row per seat, and the old capitalised words are gone', (wideText.match(/\[lists-judge\] joined · team lists/g) ?? []).length === 1 && (wideText.match(/\[lists-writer\] joined · team lists/g) ?? []).length === 1 && (wideText.match(/\[solo\] joined/g) ?? []).length === 1 && !/\] Joined\b/.test(wideText))
-  check('one completion, one launch', (wideText.match(/\[solo\] done/g) ?? []).length === 1 && !/\] Done\b/.test(wideText) && (wideText.match(/Swarm launched/g) ?? []).length === 1)
+  check('no completion row (the completion notice carries it), one launch', !/\[solo\] done/.test(wideText) && !/\] Done\b/.test(wideText) && (wideText.match(/Swarm launched/g) ?? []).length === 1)
   check('a message body and a plain notice never reach the chat', !wideText.includes('ROW-MESSAGE') && !wideText.includes('ROW-NOTICE'))
   check('the multiline post paints its three lines literally, in order', wideText.includes('first line of one post ROW-MULTI second line of the same post stays its body third line closes it ROW-MULTI-END'), wideText.slice(wideText.indexOf('ROW-MULTI') - 40, wideText.indexOf('ROW-MULTI') + 160))
   check('the continuation lines carry no second clock or name', !/second line of the same post/.test(rowLine(rows, 'second line')) || !/\d\d:\d\d:\d\d \[/.test(rowLine(rows, 'second line')), rowLine(rows, 'second line'))
   check('the long post is whole at 120 columns', wideText.includes(collapse(LONG)), wideText.slice(wideText.indexOf('The long post') - 30, wideText.indexOf('The long post') + 300))
-  const order = ['ROW-ASK', 'ROW-ANSWER', 'ROW-MULTI-END', 'ROW-BLOCKER', 'ROW-CORRECTION', 'ROW-LEAD', 'ROW-OWNER', 'ROW-LONG-END', '[solo] done', 'ROW-LAST'].map(marker => wideText.indexOf(marker))
+  const order = ['ROW-ASK', 'ROW-ANSWER', 'ROW-MULTI-END', 'ROW-BLOCKER', 'ROW-CORRECTION', 'ROW-LEAD', 'ROW-OWNER', 'ROW-LONG-END', 'ROW-LAST'].map(marker => wideText.indexOf(marker))
   check('rows follow the board sequence', order.every((at, i) => at >= 0 && (i === 0 || at > order[i - 1]!)), order.join(','))
-  check('every row opens with its clock', ['ROW-ASK', 'ROW-ANSWER', 'ROW-BLOCKER', 'ROW-CORRECTION', 'ROW-LEAD', 'ROW-OWNER', 'ROW-LAST', '[solo] done', '[solo] joined', '[lists-judge] joined · team lists', 'Swarm launched'].every(marker => /^\d\d:\d\d:\d\d \[/.test(rowLine(rows, marker))), ['ROW-ASK', 'ROW-OWNER'].map(marker => rowLine(rows, marker)).join(' | '))
+  check('every row opens with its clock', ['ROW-ASK', 'ROW-ANSWER', 'ROW-BLOCKER', 'ROW-CORRECTION', 'ROW-LEAD', 'ROW-OWNER', 'ROW-LAST', '[solo] joined', '[lists-judge] joined · team lists', 'Swarm launched'].every(marker => /^\d\d:\d\d:\d\d \[/.test(rowLine(rows, marker))), ['ROW-ASK', 'ROW-OWNER'].map(marker => rowLine(rows, marker)).join(' | '))
   const recorded = transcript === null ? [] : paintedRows(transcript)
   const clockOf = (marker: string): string | null => { const row = recorded.find(row => row.text.includes(marker)); if (!row) return null; const d = new Date(row.at); return Number.isNaN(d.getTime()) ? null : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}` }
   const lines = transcript === null ? [] : readFileSync(transcript, 'utf8').split('\n')
@@ -335,7 +334,7 @@ try {
   check("and it is recorded after the command's own output, never before its echo", lineOf('local-command-stdout>Swarm on for new crewmates') >= 0 && lineOf('"content":"Swarm launched"') > lineOf('local-command-stdout>Swarm on for new crewmates'), `${lineOf('"content":"Swarm launched"')} vs ${lineOf('local-command-stdout>Swarm on for new crewmates')}`)
   check('no /swarmchat was typed: the channel was on by default', lineOf('local-command-stdout>Swarm chat on') < 0)
   check('the @all blocker and the owner\'s whisper each woke the idle lead, and the scene waited for each turn to close before posting on', leadWakes.length === 2 && leadWakes.every(Boolean), JSON.stringify(leadWakes))
-  check('the rows posted after those turns closed are idle rows: done and the closing post carry no turn', ['[solo] done', 'ROW-LAST'].every(marker => { const row = recorded.find(row => (marker === '[solo] done' ? row.text === 'done' && row.fields.name === 'solo' : row.text.includes(marker))); return row !== undefined && row.fields.turnId === undefined }), recorded.filter(row => row.text === 'done' || row.text.includes('ROW-LAST')).map(row => `${row.text.slice(0, 12)}:${String(row.fields.turnId)}`).join(' | '))
+  check('the rows posted after those turns closed are idle rows: the closing post carries no turn, and the done event records no row', !recorded.some(row => row.text === 'done' && row.fields.name === 'solo') && ['ROW-LAST'].every(marker => { const row = recorded.find(row => row.text.includes(marker)); return row !== undefined && row.fields.turnId === undefined }), recorded.filter(row => row.text === 'done' || row.text.includes('ROW-LAST')).map(row => `${row.text.slice(0, 12)}:${String(row.fields.turnId)}`).join(' | '))
   check('the joined rows that arrived while the lead was idle carry no turn either, and the recorded words are the team-naming ones', recorded.filter(row => JOINED.test(row.text)).length === 3 && recorded.filter(row => JOINED.test(row.text)).every(row => row.fields.turnId === undefined) && recorded.some(row => row.text === 'joined · team lists' && row.fields.name === 'lists-judge') && recorded.some(row => row.text === 'joined' && row.fields.name === 'solo'), recorded.filter(row => JOINED.test(row.text)).map(row => `${row.fields.name}:${row.text}:${String(row.fields.turnId)}`).join(','))
   check("the clock is the post's own time, not the paint time", ['ROW-ASK', 'ROW-LAST'].every(marker => { const clock = clockOf(marker); return clock !== null && rowLine(rows, marker).includes(clock) }), ['ROW-ASK', 'ROW-LAST'].map(marker => `${clockOf(marker)} vs ${rowLine(rows, marker).slice(0, 12)}`).join(' | '))
 
@@ -350,7 +349,7 @@ try {
   check(`the third seat, without a label, paints accent 3 (${seatInk(3)})`, fgOf(rows, 'ROW-BLOCKER', 'name') === seatInk(3), String(fgOf(rows, 'ROW-BLOCKER', 'name')))
   check(`the lead keeps the first accent (${hex(palette.agentAccents[0]!.color)})`, fgOf(rows, 'ROW-LEAD', 'name') === hex(palette.agentAccents[0]!.color), String(fgOf(rows, 'ROW-LEAD', 'name')))
   check(`the owner's name is the primary ink (${hex(palette.textPrimary)}), its body grey`, fgOf(rows, 'ROW-OWNER', 'name') === hex(palette.textPrimary) && fgOf(rows, 'ROW-OWNER', 'body') === grey, `${fgOf(rows, 'ROW-OWNER', 'name')} / ${fgOf(rows, 'ROW-OWNER', 'body')}`)
-  check('lifecycle rows are grey bodies with the seat ink on the name', fgOf(rows, '[solo] done', 'body') === grey && fgOf(rows, '[solo] done', 'name') === seatInk(3) && fgOf(rows, '[solo] joined', 'name') === seatInk(3), `${fgOf(rows, '[solo] done', 'body')} / ${fgOf(rows, '[solo] done', 'name')} / ${fgOf(rows, '[solo] joined', 'name')}`)
+  check('lifecycle rows are grey bodies with the seat ink on the name', fgOf(rows, '[solo] joined', 'body') === grey && fgOf(rows, '[solo] joined', 'name') === seatInk(3) && fgOf(rows, '[lists-judge] joined', 'name') === seatInk(1), `${fgOf(rows, '[solo] joined', 'body')} / ${fgOf(rows, '[solo] joined', 'name')} / ${fgOf(rows, '[lists-judge] joined', 'name')}`)
 
   section('§3 the narrow window: the same session resumed at 80x24 paints the rows again, wraps a long post whole, and takes a live post')
   await untilAsync(() => transcript === null || !existsSync(`${transcript}.writer.lock`), vshotBudgetMs(30_000))
@@ -364,8 +363,8 @@ try {
   for (const note of notes) console.log(`  ${note}`)
   check('the narrow window ran its journey to the end', narrow.endReason === 'stable' || narrow.endReason === 'ready', `endReason ${narrow.endReason} · ${narrow.receipts} sends fired · vshot exit ${narrow.status}`)
   const boot = narrow.frames.get('boot')
-  check('the resumed narrow screen paints the newest rows of the wide leg', boot !== undefined && text(boot).includes('ROW-LAST') && text(boot).includes('[solo] done'), boot === undefined ? 'no boot frame' : text(boot).slice(-600))
-  check(`the replayed rows keep their seat inks after the cold resume (${seatInk(2)}, ${seatInk(3)})`, boot !== undefined && fgOf(boot, 'ROW-LAST', 'name') === seatInk(2) && fgOf(boot, '[solo] done', 'name') === seatInk(3), boot === undefined ? 'no boot frame' : `${fgOf(boot, 'ROW-LAST', 'name')} / ${fgOf(boot, '[solo] done', 'name')}`)
+  check('the resumed narrow screen paints the newest rows of the wide leg', boot !== undefined && text(boot).includes('ROW-LAST') && text(boot).includes('ROW-LONG-END'), boot === undefined ? 'no boot frame' : text(boot).slice(-600))
+  check(`the replayed rows keep their inks after the cold resume (${seatInk(2)}, the lead's ${hex(palette.agentAccents[0]!.color)})`, boot !== undefined && fgOf(boot, 'ROW-LAST', 'name') === seatInk(2) && fgOf(boot, 'ROW-LEAD', 'name') === hex(palette.agentAccents[0]!.color), boot === undefined ? 'no boot frame' : `${fgOf(boot, 'ROW-LAST', 'name')} / ${fgOf(boot, 'ROW-LEAD', 'name')}`)
   const narrowFrame = narrow.frames.get('narrow') ?? narrow.frames.get('final')!
   const narrowText = text(narrowFrame)
   check('a long post posted live wraps whole at 80 columns, every word in order, no shortening', narrowText.includes(collapse(NARROW)) && !narrowText.includes('…'), narrowText.slice(narrowText.indexOf('A second long post') - 20, narrowText.indexOf('A second long post') + 260))

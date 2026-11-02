@@ -2,7 +2,7 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.3
-- Added swarm chat in the main chat: with swarm on, board messages show as they arrive, each its own row with its time and the crewmate's colour, landing between the lead's blocks; a crewmate joining, parking or finishing shows the same way; the turn summary counts tool work only. /swarmchat alone turns it off for the session; /swarmchat all, team <name> or main chooses which new messages show.
+- Added swarm chat in the main chat: with swarm on, board messages show as they arrive, each its own row with its time and the crewmate's colour, landing between the lead's blocks; a crewmate joining or parking shows the same way, a crewmate finishing as its completion notice; the turn summary counts tool work only. /swarmchat alone turns it off for the session; /swarmchat all, team <name> or main chooses which new messages show.
 - Added /general, /team and /whisper to post directly to crewmates: every crewmate, one team (its captain, when it has one), or one crewmate, with names completing as you type. Your posts carry your own label and reach the lead too; ordinary prompts still go only to the lead.
 - Added captains, named by the lead for a team of five or more crewmates, or for a smaller team when you ask or a crewmate asks and the lead agrees; a captain gathers its team's work and reports it to the lead.
 - Added declared waits: a parked crewmate waiting for another crewmate's post, a file or subject, a message kind or its team's traffic is resumed by a matching message or a post addressed to it, with the message that woke it; broadcasts do not resume anyone.

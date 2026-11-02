@@ -244,7 +244,7 @@ try {
   tally.check('a message kind never paints', absent('ALL-MESSAGE'))
   tally.check('a plain notice never paints', absent('ALL-NOTICE'))
   tally.check('corrections and asks paint', !absent('ALL-CORRECTION') && !absent('ALL-ASK'))
-  tally.check('a completed run paints done once', painted().filter(row => row.text === 'done' && row.fields.name === 'solo').length === 1)
+  tally.check('a completed run paints no done row: the completion notice carries it', painted().filter(row => row.text === 'done' && row.fields.name === 'solo').length === 0)
   const workbench = board.view()
   tally.check('the Workbench projection is untouched by the display controls: no lifecycle launch or Joined rows, the public posts and the completion notice', workbench.events.every(event => { const lifecycle = (event as { lifecycle?: { kind: string } }).lifecycle; return lifecycle === undefined || lifecycle.kind === 'done' }) && workbench.events.some(event => event.text.includes('ALL-MESSAGE')), workbench.events.map(event => event.text.slice(0, 20)).join(' | '))
   const consumed = (): Record<string, number> => {
