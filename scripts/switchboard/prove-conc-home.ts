@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 
@@ -152,7 +152,9 @@ console.log('§4 — THE NEVER-AGAIN INVARIANT: no board classes one folder\'s r
     }
     return canonical
   }
-  const aliasSpelling = SCRATCH.startsWith('/private/') ? P_HOME.replace(/^\/private\//, '/') : P_HOME
+  const aliasSpelling = process.platform === 'linux' ? join(SCRATCH, 'project-alias') : SCRATCH.startsWith('/private/') ? P_HOME.replace(/^\/private\//, '/') : P_HOME
+  if (process.platform === 'linux') symlinkSync(P_HOME, aliasSpelling, 'dir')
+  check('the alias fixture resolves to the same native folder', oracle(aliasSpelling) === oracle(P_HOME))
   const SUB = join(P_HOME, 'csgo-prototype')
   const CARVED = join(P_HOME, 'carved-ground')
   const SCRATCH2 = mkdtempSync(join(tmpdir(), 'conc-home-twin-'))
