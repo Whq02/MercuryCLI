@@ -12,7 +12,7 @@ import { choosePrivateRecipesFile, privateRecipesRow, PRIVATE_RECIPES_ROW } from
 import { compatModelEndpoint } from '../providers/openaicompat/compatAccounts.js'
 import { createHostResource, getHostResource, listHostResources, terminateHostResource, hostClusterRecord, hostCreateRefusal, hostResourceKind, hostResourceLabel, hostShape } from './cluster.js'
 import { heavyWeights, hostPriceLines, hostShortStorageWords, hostSpendSoFar } from './costs.js'
-import { cents, type RunpodClient, type HostOffer, type HostPod } from './runpod.js'
+import { cents, type RunpodClient, type HostOffer, type HostPod, stockRank } from './runpod.js'
 import { closeHostTunnel, ensureHostKey, fitsSsh, hostRunner, inspectSsh, localKeyPath, openHostTunnel, sshAliases, startHostEngine, waitHostEngine, type HostRunner, type SshTarget } from './ssh.js'
 import { hostRecords, readHostRecord, removeHostRecord, writeHostRecord, type HostRecord } from './store.js'
 import { activeHostWatches as activeWatches, hostJobRunning, hostLogTail, queueHostSetup, queueHostWatch, requireHostJobOwner, stopHostSetup, watchModel } from './jobs.js'
@@ -38,7 +38,6 @@ const paidWords = (pod: VendorPod): string => pod.vendor === 'huggingface' ? 'HF
 const price = (amount: number): string => '$' + amount.toFixed(2) + '/hr'
 const shape = hostShape
 const modelTitle = (recipe: HostRecipe): string => recipe.label.split(' · ')[0]!
-const stockRank = (value?: string): number => value === 'HIGH' ? 3 : value === 'MEDIUM' ? 2 : value === 'LOW' ? 1 : 0
 const verifiedRank = (recipe: HostRecipe): number => ['measured', 'documented', 'community', 'unverified'].indexOf(hostRecipeVerificationWord(recipe))
 const keepWords = (pod: HostPod, vendor: HostVendorId): string => pod.id + ' · ' + (vendor === 'huggingface' ? 'HF endpoint · ' + (pod.status === 'EXITED' ? 'Paused · no compute bills' : 'running · ' + price(pod.cost) + ' until Pause or Terminate') + ' · /llmhost → Machines I’m paying for' : pod.family ? 'cluster still billable · /llmhost → Machines I’m paying for → Terminate' : pod.status === 'EXITED' ? words.stoppedDisk : 'machine still running · /llmhost → Machines I’m paying for → ' + (vendor === 'lambda' ? 'Terminate (Lambda has no Stop)' : 'Stop or Terminate'))
 

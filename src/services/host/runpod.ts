@@ -12,7 +12,7 @@ export type HostPod = z.infer<typeof podSchema> & { family?: HostCluster; nodes?
 export type HostClusterPod = z.infer<typeof clusterPodSchema>
 export interface HostOffer { recipe: HostRecipe; gpuId: string; price: number; dataCenter?: string; availability?: string; hostingType?: 'datacenter' | 'community host' | 'host'; machineId?: number }
 const gpuSchema = z.object({ id: z.string(), name: z.string(), memory: z.number(), secure: z.boolean(), price: z.object({ secure: z.number().nonnegative() }), maxCount: z.object({ secure: z.number() }), availability: z.string().optional(), dataCenters: z.array(z.object({ id: z.string(), availability: z.string() })).optional() })
-const stockRank = (value?: string): number => value === 'HIGH' ? 3 : value === 'MEDIUM' ? 2 : value === 'LOW' ? 1 : 0
+export const stockRank = (value?: string): number => value === 'HIGH' ? 3 : value === 'MEDIUM' ? 2 : value === 'LOW' ? 1 : 0
 const stock = (value?: string): boolean => stockRank(value) > 0
 const unverifiedRank = (recipe: HostRecipe): number => recipe.verified?.by === 'unverified' ? 1 : 0
 const refusalStatuses = [400, 401, 402, 403, 413, 422, 429]
