@@ -43,7 +43,7 @@ import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { ApprovalCardView } from './ApprovalCardView.js'
 import { charWord, resolveExtensionsBindings } from './bindings.js'
-import { ExtensionView } from './ExtensionView.js'
+import { ExtensionView, bytesWord } from './ExtensionView.js'
 import { SourceView } from './SourceView.js'
 import {
   age,
@@ -101,11 +101,6 @@ type Slot =
   | { mode: 'fetch'; id: string; name: string; url: string; ref: string | null }
   | { mode: 'option'; id: string; schema: NonNullable<ManifestNeeds['options']>; keys: string[]; index: number; text: string }
 
-function bytesWord(n: number): string {
-  if (n < 1024) return `${n} B`
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} kB`
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`
-}
 
 
 export function ExtensionsBoard({

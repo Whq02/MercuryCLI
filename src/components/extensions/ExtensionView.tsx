@@ -32,7 +32,7 @@ const KIND_LETTER: Record<SwitchKind, string> = {
   keybindings: 'k',
 }
 
-function bytesWord(n: number): string {
+export function bytesWord(n: number): string {
   if (n < 1024) return `${n} B`
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} kB`
   return `${(n / (1024 * 1024)).toFixed(1)} MB`
