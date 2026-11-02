@@ -26,6 +26,7 @@ import { vulcanEnabled } from '../../utils/vulcan/vulcanGates.js'
 import {
   vulcanInstallStatus,
   type VulcanInstallStatus,
+  sectionSpan,
 } from '../vulcan/addonInstaller.js'
 import { presenceNudge, probeVulcanEditorPresence } from '../vulcan/editorPresence.js'
 import { getVulcanClient, type VulcanClient, type VulcanResult } from '../vulcan/vulcanClient.js'
@@ -129,13 +130,6 @@ export function _resetGodotSessionForTesting(): void {
   parseCache = null
 }
 
-function sectionSpan(text: string, section: string): [number, number] | null {
-  const m = new RegExp(`\\[${section}\\]`).exec(text)
-  if (!m) return null
-  const start = m.index + m[0].length
-  const rest = text.slice(start).search(/\n\[[^\]]+\]/)
-  return [start, rest === -1 ? text.length : start + rest]
-}
 
 function unescapeGodotString(raw: string): string {
   return raw.replace(/\\(.)/g, '$1')

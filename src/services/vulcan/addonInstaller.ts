@@ -154,7 +154,7 @@ export async function mutateProjectGodot(
 }
 
 
-function sectionSpan(text: string, section: string): [number, number] | null {
+export function sectionSpan(text: string, section: string): [number, number] | null {
   const m = new RegExp(`\\[${section}\\]`).exec(text)
   if (!m) return null
   const start = m.index + m[0].length
