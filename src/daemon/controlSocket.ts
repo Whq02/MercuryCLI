@@ -1,7 +1,7 @@
 
 import net from 'node:net'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
-import { readFileSync, unlinkSync } from 'node:fs'
+import { mkdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import {
   mkdir,
@@ -14,6 +14,8 @@ import { loadavg, platform, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { acquirePidLock, noteLockRelease, releasePidLock } from '../substrate/pidLock.js'
 import { getMercuryHome } from '../utils/envUtils.js'
+import { directoryIdentity } from '../utils/directoryIdentity.js'
+import { isProcessAlive } from './ownerWatch.js'
 import { availableCores } from '../utils/availableCores.js'
 import { logForDebugging } from '../utils/debug.js'
 import { recordSpawnExit } from '../utils/spawnLedger.js'
@@ -40,9 +42,11 @@ export function daemonDir(): string {
 }
 
 const SUN_PATH_SAFE_MAX = 100
-export function controlSockPath(): string {
-  if (platform() === 'win32') {
-    const h = createHash('sha1').update(daemonDir()).digest('hex').slice(0, 12)
+export function controlSockPath(hostPlatform: string = platform()): string {
+  if (hostPlatform === 'win32') {
+    const dir = daemonDir()
+    mkdirSync(dir, { recursive: true })
+    const h = createHash('sha1').update(directoryIdentity(dir).key).digest('hex').slice(0, 12)
     return `\\\\.\\pipe\\hermes-daemon-${h}`
   }
   const preferred = join(daemonDir(), 'control.sock')
@@ -51,6 +55,17 @@ export function controlSockPath(): string {
   return join(tmpdir(), `hermes-daemon-${h}.sock`)
 }
 
+export function controlConnectPath(hostPlatform: string = platform()): string {
+  try {
+    const state = JSON.parse(readFileSync(daemonStatePath(), 'utf8')) as DaemonState
+    const local = typeof state.controlSock === 'string' && (hostPlatform === 'win32'
+      ? state.controlSock.startsWith('\\\\.\\pipe\\hermes-daemon-') && /^[0-9a-f]{12}$/.test(state.controlSock.slice('\\\\.\\pipe\\hermes-daemon-'.length))
+      : state.controlSock.startsWith('/'))
+    if (local && Number.isInteger(state.pid) && state.pid > 0 && isProcessAlive(state.pid)) return state.controlSock
+  } catch {
+  }
+  return controlSockPath(hostPlatform)
+}
 export function daemonStatePath(): string {
   return join(daemonDir(), 'daemon.json')
 }
@@ -470,7 +485,7 @@ function rpcOnce(outbound: DaemonRequest & { proto?: number; auth?: string }, ti
       timer.unref?.()
     }
 
-    const sock = net.connect(controlSockPath())
+    const sock = net.connect(controlConnectPath())
     const collected: Buffer[] = []
 
     arm(timeoutMs)

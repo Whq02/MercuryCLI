@@ -1,6 +1,7 @@
 
 import {
   controlSockPath,
+  controlConnectPath,
   currentVersion,
   daemonControlRpc,
   readDaemonState,
@@ -170,7 +171,7 @@ async function helperCensus(known: HelperRow[], predecessors: number[]): Promise
 
 function sockPathOrPlaceholder(): string {
   try {
-    return controlSockPath()
+    return controlConnectPath()
   } catch {
     return '<unavailable>'
   }
