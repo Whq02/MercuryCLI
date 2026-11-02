@@ -42,6 +42,8 @@ const ALLOW: Row[] = [
     ['src/substrate/flagRegistry.ts', 'xAI Management API base for team billing reads'],
   ].map(([path, fragment]) => ({ path: path!, fragment: fragment!, why: "xAI's billing account, not a Mercury crew" })),
   { path: 'src/commands/team/index.ts', fragment: 'Post to one team on the board', why: 'The owner channel command targets the board delivery label.' },
+  { path: 'src/services/crewBoard/party.ts', fragment: 'joined · team', why: "The joined row names the seat's board delivery label in the owner's words." },
+  ...['/swarmchat shows board posts in the chat — all, one team, or only those that name main.', '/team <name> <text> posts to one team on the board.'].map(fragment => ({ path: 'src/services/tips/tipRegistry.ts', fragment, why: 'The spinner tips name the owner channel command and the board delivery label.' })),
   { path: 'src/commands/swarmchat/index.ts', fragment: '[all|team <name>|main]', why: 'The channel filter uses a board delivery label.' },
   ...['usage: /swarmchat [all|team \\<name\\>|main]', 'No team ', 'teams:', 'Swarm chat · team'].map(fragment => ({ path: 'src/commands/swarmchat/swarmchat.ts', fragment, why: 'The channel controls name a board label and its available choices.' })),
   ...['@main wake me when seat <name-or-id> posts | about', 'team posts'].map(fragment => ({ path: 'src/services/crewBoard/waits.ts', fragment, why: 'The declared-wait grammar names the seat\'s board delivery label.' })),

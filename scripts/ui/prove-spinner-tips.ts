@@ -90,6 +90,14 @@ check(
   'the catalogue advertises the load-bearing surfaces (spot pins)',
   ['help', 'logins', 'concourse', 'sessions', 'diff', 'review', 'caching', 'rewind', 'memory'].every(c => seenCommands.has(c)),
 )
+check(
+  'the crew chat has one tip per command: /swarm, /swarmchat, /team, /whisper, /general',
+  ['swarm', 'swarmchat', 'team', 'whisper', 'general'].every(c => seenCommands.has(c)) && ['swarm-crew-chat', 'swarmchat-channel', 'team-post', 'whisper-post', 'general-post'].every(id => ids.has(id)),
+  [...seenCommands].join(','),
+)
+check('every advertised command resolves in the command table, none retired or hidden', [...seenCommands].every(c => roster.has(c)), [...seenCommands].filter(c => !roster.has(c)).join(','))
+const submodels = await tips.find(t => t.id === 'submodels-seats')!.content({ theme: 'dark' })
+check("the submodels tip names the command's scope — the Console's and the Advisor's models", submodels.includes("Console's and the Advisor's"), submodels)
 check('the chord parser reads the ctrl+x family whole and never eats the next word', chordsSpelled('ctrl+x s opens it; shift+tab cycles').join(',') === 'ctrl+x s,shift+tab')
 check('the mode tip spells a chord the table carries', chordsSpelled(await tips.find(t => t.id === 'cycle-mode')!.content({ theme: 'dark' })).length === 1)
 

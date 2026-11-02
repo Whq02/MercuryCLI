@@ -205,10 +205,60 @@ const GENERAL_TIPS: Tip[] = [
     },
   },
   {
+    id: 'swarm-crew-chat',
+    cooldownSessions: 12,
+    async content() {
+      return '/swarm opens Crew chat; /swarm on shares the board with new crewmates.'
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+  {
+    id: 'swarmchat-channel',
+    cooldownSessions: 12,
+    async content() {
+      return '/swarmchat shows board posts in the chat — all, one team, or only those that name main.'
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+  {
+    id: 'team-post',
+    cooldownSessions: 15,
+    async content() {
+      return '/team <name> <text> posts to one team on the board.'
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+  {
+    id: 'whisper-post',
+    cooldownSessions: 15,
+    async content() {
+      return '/whisper <name> <text> posts to one crewmate on the board.'
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+  {
+    id: 'general-post',
+    cooldownSessions: 15,
+    async content() {
+      return '/general <text> posts to every crewmate on the board.'
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+  {
     id: 'submodels-seats',
     cooldownSessions: 20,
     async content() {
-      return '/submodels seats the Console model for side questions.'
+      return "/submodels seats the Console's and the Advisor's models — side questions and advice."
     },
     async isRelevant() {
       return true

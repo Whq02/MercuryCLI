@@ -76,6 +76,7 @@ const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
   [new RegExp(J('max/enterprise/', 'team'), ''), 'the plan tiers'],
   [new RegExp(J('team', 'mate_mailbox'), ''), 'the old kind of the message row: the attachment types read it through their own table, the validator keeps its shape row, the pins drive it', rel => MESSAGE_ROW_READERS.includes(rel)],
   [/\bteam\b/g, 'The receipt fixture carries the board label on its typed row.', rel => rel === 'scripts/ui/prove-swarm-party-receipt.ts'],
+  [/\bteam\b/g, 'The spinner tips name the owner channel command and the board delivery label.', rel => rel === 'src/services/tips/tipRegistry.ts' || rel === 'scripts/ui/prove-spinner-tips.ts'],
 ]
 
 function crewRemainder(rel: string, line: string): string {
