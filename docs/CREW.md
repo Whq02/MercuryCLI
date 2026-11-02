@@ -229,7 +229,7 @@ A `correction` names an earlier event id in `corrects` and appends the replaceme
 
 The in-process `mercury` MCP server every session carries holds project
 file and directory leases: `mcp__mercury__lease_take` takes the named
-repo-relative paths for the calling session and agent — a file, or a directory
+repo-relative paths for the calling session and agent: a file, or a directory
 with a trailing slash (`art/`), which is one lease covering everything under it;
 `mcp__mercury__lease_release` releases the named paths or every lease the caller
 holds when paths are omitted or `null`; `mcp__mercury__lease_list` answers with

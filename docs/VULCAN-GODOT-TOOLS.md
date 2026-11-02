@@ -296,8 +296,8 @@ must stay under the project, including through symbolic links.
 { "op": "lease_list", "args": {} }
 ```
 
-Lists live holders — session, agent, count and the directory their
-leases share — with the paths while there are at most 100, or those of
+Lists live holders (session, agent, count and the directory their
+leases share), with the paths while there are at most 100, or those of
 one agent named with `agentId`; it needs no crew membership.
 
 ```json
