@@ -481,7 +481,9 @@ section('§5 step 5: the window from this machine\'s memory — the one fit owne
     check(`${name}: the chosen rung fits the ceiling and the next rung does not, by the memory module's own projectLoad (${choice.words})`, (choice.fits ? chosenFits : !chosenFits) && !nextFits && projected === choice.totalBytes)
   }
   const capped = setup.chooseWindowFrom({ tag: TAG, weightsBytes: WEIGHTS, geometry, trainedMax: 40960, machineBytes: 96 * GB, usableBytes: usableOf(96 * GB), slots: 1 })
-  check('never above the trained maximum: a 40k-trained model gets 32k', capped.window === 32768 && capped.ladder.length === 1, JSON.stringify(capped.ladder))
+  check('the exact trained maximum remains a rung: a fitting 40960-trained model gets 40960', capped.window === 40960 && capped.fits && JSON.stringify(capped.ladder.map(r => r.window)) === '[32768,40960]', JSON.stringify(capped.ladder))
+  const belowTrained = setup.chooseWindowFrom({ tag: TAG, weightsBytes: WEIGHTS, geometry, trainedMax: 40960, machineBytes: 96 * GB, usableBytes: capped.ladder[0]!.totalBytes, slots: 1 })
+  check('a smaller usable budget still chooses the largest fitting rung below the trained maximum', belowTrained.window === 32768 && belowTrained.fits && belowTrained.ladder.find(r => r.window === 40960)?.fits === false, JSON.stringify(belowTrained.ladder))
   const slots4 = setup.chooseWindowFrom({ tag: TAG, weightsBytes: WEIGHTS, geometry, trainedMax: 262144, machineBytes: 16 * GB, usableBytes: usableOf(16 * GB), slots: 4 })
   check('slots multiply the cache: 4 slots on 16 GB ⇒ 32k', slots4.window === 32768 && slots4.fits && slots4.words.includes('· f16 · 4 slots'), slots4.words)
   const q8 = setup.chooseWindowFrom({ tag: TAG, weightsBytes: WEIGHTS, geometry, trainedMax: 262144, machineBytes: 51539607552, usableBytes: OWNER_USABLE, slots: 1, cacheType: 'q8_0' })
