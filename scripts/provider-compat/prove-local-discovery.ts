@@ -334,10 +334,18 @@ section('9 · the cockpit gauge on a local main (the model line is the served tr
   const live = g.modelGauge('local/qwen3:8b')
   check('a discovered local main paints live', live.state === 'live', live.state)
   if (live.state === 'live') {
-    check('server default: the window is the SERVED truth (32768, live-current — no fallback note)', live.data.window === 32768 && live.data.windowSource === 'live-current' && live.data.windowReason === undefined, `${live.data.window} · ${live.data.windowSource}`)
+    check('server default: the gauge displays the loaded 32768 window with its served reason', live.data.window === 32768 && live.data.windowSource === 'live-current' && live.data.windowReason === 'local server context: served', JSON.stringify(live.data))
     gaugeWindows.writeLocalWindowSetting({ id: 'qwen3:8b' }, undefined)
     const auto = g.modelGauge('local/qwen3:8b')
-    check('auto: the gauge reads the window the request will send (the trained max 40,960), the reason naming the choice', auto.state === 'live' && auto.data.window === 40960 && (auto.data.windowReason ?? '').includes('chosen by Mercury'), auto.state === 'live' ? `${auto.data.window} · ${auto.data.windowReason ?? ''}` : auto.state)
+    check('auto: the gauge keeps the loaded 32768 window until the server confirms a reload', auto.state === 'live' && auto.data.window === 32768 && auto.data.windowSource === 'live-current' && auto.data.windowReason === 'local server context: served', auto.state === 'live' ? JSON.stringify(auto.data) : auto.state)
+    const request = resolveContextWindow('local/qwen3:8b')
+    check('auto: request budgeting remains the trained 40960 window beside the loaded gauge', request.effectiveWindow === 40960 && (request.fallbackReason ?? '').includes('chosen by Mercury'), JSON.stringify(request))
+    OLLAMA_PS.models[0]!.context_length = 40960
+    await refreshLocalDiscovery({ force: true })
+    const reloaded = g.modelGauge('local/qwen3:8b')
+    check('a confirmed reload advances the gauge to the new served 40960 window', reloaded.state === 'live' && reloaded.data.window === 40960 && reloaded.data.windowReason === 'local server context: served', reloaded.state === 'live' ? JSON.stringify(reloaded.data) : reloaded.state)
+    OLLAMA_PS.models[0]!.context_length = 32768
+    await refreshLocalDiscovery({ force: true })
     check("the provider is routeLaw's 'local'", live.data.provider === 'local', String(live.data.provider))
     check('the provider is USABLE with the keyless credential word (discovery is presence)', live.data.usability?.usable === true && live.data.usability.credential === 'keyless', JSON.stringify(live.data.usability))
   }
