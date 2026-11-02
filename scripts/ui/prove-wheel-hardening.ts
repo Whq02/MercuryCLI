@@ -128,14 +128,27 @@ let mounted: Mounted | undefined
 let scene = 0
 async function openPanel(): Promise<Mounted> {
   const element = h(AppStateProvider, { children: h(KeybindingSetup, { children: h(Box, { key: ++scene, width: COLS, height: ROWS, flexDirection: 'column' }, h(PromptsPanel, { onClose: noop })) }) })
-  if (mounted) mounted.resize(element, COLS, ROWS)
+  if (mounted) { await quiet(mounted); mounted.resize(element, COLS, ROWS) }
   else mounted = await mountOffscreen(element, COLS, ROWS, { mouseTracking: true })
   await settle(180)
+  await quiet(mounted)
   return mounted
 }
 async function push(m: Mounted, data: string, ms = 120): Promise<void> {
   m.push(data)
   await settle(ms)
+  await quiet(m)
+}
+async function quiet(m: Mounted, ms = 8000): Promise<void> {
+  const deadline = Date.now() + ms
+  let last = selectedPrompt(m)
+  let still = 0
+  while (Date.now() < deadline && still < 3) {
+    await settle(80)
+    const now = selectedPrompt(m)
+    still = now === last ? still + 1 : 0
+    last = now
+  }
 }
 
 try {
