@@ -471,9 +471,9 @@ section('refused launches stay error rows; only results with an agent id count')
           console.log(`  capture: ${path}.png`)
         }
         const progressRows = descriptions.filter(description => frames.some(frame => frame.includes(`crewmate (${description})`)))
-        check(`${cols}x${rows}: the built REPL paints only the two real crewmate rows`, JSON.stringify(progressRows) === JSON.stringify(descriptions.slice(2)))
-        for (const error of errors) check(`${cols}x${rows}: the built REPL keeps ${error} once`, frames.some(frame => frame.split(error).length === 2) && frames.every(frame => frame.split(error).length <= 2))
-        check(`${cols}x${rows}: the built REPL counts two launched crewmates`, frames.some(frame => frame.includes('2 background crewmates launched')) && frames.some(frame => frame.includes('2 crewmates')) && frames.every(frame => !frame.includes('4 crewmates') && (frame.match(/background crewmates launched/g) ?? []).length <= 1))
+        check(`${cols}x${rows}: the built screen paints only the two real crewmate rows`, JSON.stringify(progressRows) === JSON.stringify(descriptions.slice(2)))
+        for (const error of errors) check(`${cols}x${rows}: the built screen keeps ${error} once`, frames.some(frame => frame.split(error).length === 2) && frames.every(frame => frame.split(error).length <= 2))
+        check(`${cols}x${rows}: the built screen counts two launched crewmates`, frames.some(frame => frame.includes('2 background crewmates launched')) && frames.some(frame => frame.includes('2 crewmates')) && frames.every(frame => !frame.includes('4 crewmates') && (frame.match(/background crewmates launched/g) ?? []).length <= 1))
       }
     } finally {
       await api.close()
