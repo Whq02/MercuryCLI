@@ -271,6 +271,8 @@ export default class Ink {
   private altScreenActive = false
   private mouseTracking: boolean
   private mouseTrackingPref: boolean
+  private wheelReportingConfirmed = false
+  private transcriptScrollTarget: (() => boolean) | null = null
   private displayCursor: CursorPoint | null = null
   private needsEraseBeforePaint = false
   private resizeSettleTimer: ReturnType<typeof setTimeout> | null = null
@@ -1072,6 +1074,7 @@ export default class Ink {
     if (active === this.altScreenActive) return
     this.altScreenActive = active
     this.mouseTracking = active && mouseTracking
+    this.wheelReportingConfirmed = false
     if (active) {
       this.resetFramesForAltScreen()
     } else {
@@ -1086,6 +1089,25 @@ export default class Ink {
     return this.mouseTracking
   }
 
+  confirmWheelReporting(): void {
+    if (this.altScreenActive && this.mouseTracking) this.wheelReportingConfirmed = true
+  }
+
+  isWheelReportingConfirmed(): boolean {
+    return this.wheelReportingConfirmed
+  }
+
+  registerTranscriptScrollTarget(target: () => boolean): () => void {
+    this.transcriptScrollTarget = target
+    return () => {
+      if (this.transcriptScrollTarget === target) this.transcriptScrollTarget = null
+    }
+  }
+
+  hasScrollableTranscriptTarget(): boolean {
+    return this.transcriptScrollTarget?.() === true
+  }
+
   isMouseTrackingPreferred(): boolean {
     return this.mouseTrackingPref
   }
@@ -1094,6 +1116,7 @@ export default class Ink {
     this.mouseTrackingPref = on
     if (on === this.mouseTracking) return
     this.mouseTracking = on
+    this.wheelReportingConfirmed = false
     if (!this.altScreenActive) return
     if (!on) resetPointerShape(s => termWrite(this.options.stdout, s, 'mode'))
     termWrite(this.options.stdout, on ? ENABLE_MOUSE_TRACKING : DISABLE_MOUSE_TRACKING, 'mode')

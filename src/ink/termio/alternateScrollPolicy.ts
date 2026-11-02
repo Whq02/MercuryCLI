@@ -2,11 +2,15 @@
 import type { ParsedInput, ParsedKey } from '../input/input-decoder.js'
 
 export const ALTERNATE_SCROLL_POLICY = 'scroll-first-in-native-selection' as const
+export const WINDOWS_ALTERNATE_SCROLL_POLICY = 'scrollable-transcript-first-until-sgr-wheel' as const
 
 interface AlternateScrollState {
   altScreenActive: boolean
   mouseTrackingEnabled: boolean
   elevatedSurfaceActive: boolean
+  platform?: string
+  wheelReportingConfirmed?: boolean
+  scrollableTranscript?: boolean
 }
 
 const isPlainArrow = (i: ParsedInput): i is ParsedKey =>
@@ -16,14 +20,20 @@ const isPlainArrow = (i: ParsedInput): i is ParsedKey =>
   !i.meta &&
   !i.shift &&
   !i.option &&
-  !i.super
+  !i.super &&
+  !i.fn &&
+  !i.isPasted
 
 export function resolveAlternateScrollIntent(
   items: readonly ParsedInput[],
   state: AlternateScrollState,
 ): ParsedInput[] {
+  const unconfirmedWindowsWheel =
+    (state.platform ?? process.platform) === 'win32' &&
+    !state.wheelReportingConfirmed && state.scrollableTranscript === true
   const engaged =
-    state.altScreenActive && !state.mouseTrackingEnabled && !state.elevatedSurfaceActive
+    state.altScreenActive && !state.elevatedSurfaceActive &&
+    (!state.mouseTrackingEnabled || unconfirmedWindowsWheel)
   if (!engaged) return [...items]
   return items.map(i =>
     isPlainArrow(i) ? { ...i, name: i.name === 'up' ? 'wheelup' : 'wheeldown' } : i,

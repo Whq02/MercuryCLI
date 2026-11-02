@@ -573,10 +573,15 @@ export default class App extends PureComponent<Props, State> {
 
   private dispatchBatch(rawAtoms: ParsedInput[]): void {
     const instance = instances.get(this.props.stdout)
+    if (rawAtoms.some(atom => isReportedWheel(atom) && atom.sequence?.startsWith('\x1b[<'))) {
+      instance?.confirmWheelReporting()
+    }
     const atoms = instance
       ? resolveAlternateScrollIntent(rawAtoms, {
           altScreenActive: instance.isAltScreenActive,
           mouseTrackingEnabled: instance.isMouseTrackingEnabled(),
+          wheelReportingConfirmed: instance.isWheelReportingConfirmed(),
+          scrollableTranscript: instance.hasScrollableTranscriptTarget(),
           elevatedSurfaceActive: hasElevatedSurface(),
         })
       : rawAtoms
@@ -632,7 +637,8 @@ export default class App extends PureComponent<Props, State> {
       if (chunkConsumed) continue
 
       this.handleRawInput(atom)
-      const event = new InputEvent(atom, isReportedWheel(atom))
+      const alternateWheel = atom !== rawAtoms[i] && instance?.isMouseTrackingEnabled() === true
+      const event = new InputEvent(atom, isReportedWheel(atom) || alternateWheel)
       this.internal_eventEmitter.emit('input', event)
       if (event.wheelStep && !event.didStopImmediatePropagation()) this.internal_eventEmitter.emit('wheel', event)
       if (event.seq <= inputConsumedThroughSeq()) {

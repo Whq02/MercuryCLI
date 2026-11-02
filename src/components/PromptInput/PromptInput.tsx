@@ -978,6 +978,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       setHelpOpen(false)
     },
     onExit,
+    onEscape: history.historyIndex === 0 ? undefined : () => {
+      onChange('')
+      setCursorOffset(0)
+      setMode('prompt')
+      setHelpOpen(false)
+      history.resetHistory()
+    },
     onExitMessage: exitStateChange,
     onHistoryUp: () => {
       if (!historyNavAllowed('first')) return
