@@ -12,8 +12,8 @@ You can also open the file list directly with `/localsetup author/model-GGUF`.
 
 The list shows each complete GGUF quantisation, its download size and the
 projected memory for its context window. Split GGUF files appear as one choice.
-The window is the largest fitting 32k, 64k, 128k or 256k rung, never above the
-model's trained maximum. The calculation uses the GGUF header's attention
+The window is the largest fitting 32k, 64k, 128k or 256k rung or the model's
+exact trained maximum, never above the model's trained maximum. The calculation uses the GGUF header's attention
 geometry and includes the vision projector's weights. A file without enough
 header information to calculate memory cannot be started through this dialog.
 
@@ -63,8 +63,9 @@ Choose **Ollama / running server** to use the existing server setup:
   commands needing administrator access say so.
 - Choose an installed model or a listed Ollama pull. Sizes and memory fit are
   shown before the pull; its progress updates in the dialog.
-- Set the chosen model's window from its cache geometry and available model
-  memory, then select it and request a short reply.
+- Set the chosen model's window from its cache geometry and available model memory
+(requesting the model's trained context when the loaded window is smaller), then
+select it and request a short reply.
 
 The window setting is the same one used by `/config` → Local model window and
 the model picker's `w` key. Ollama retains its own model store and server

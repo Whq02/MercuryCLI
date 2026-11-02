@@ -858,10 +858,11 @@ prune alike.
 ## When the context overflows
 
 A request can outgrow the model's window (from a large paste, a long run of
-tool results, or a switch to a model with a smaller window). The conversation
-folds automatically 20,000 tokens before the usable edge by default, with
-proportional room preserved on small local windows. The gauge, warning line
-and ContextLeft tool count down to that same point. When a request outgrows
+tool results, or a switch to a model with a smaller window). The conversation folds automatically 20,000 tokens before the usable edge by
+default, with the turn reserve and the landing room after a fold scaling to
+`min(maxOutputTokens, 20,000, window / 8)` so small-window local models do not
+compact almost at once. The gauge, warning line and ContextLeft tool count down
+to that same point. When a request outgrows
 that headroom anyway, the turn recovers instead of ending:
 
 - The conversation is folded first (producing the same summary `/compact` makes
@@ -899,9 +900,10 @@ off, and whether emergency folding remains available.
 
 ## A line sent while the model works
 
-A plain line sent while a turn runs goes to the session at once and waits in
-the runner's queue; its row paints under the composer with the badge
-`queued` and no timer. The runner reads that queue at every tool boundary of
+A plain line sent while a turn runs goes to the session at once and waits in the
+runner's queue; its row paints under the composer with the badge `queued` and no
+timer. A slash command typed while Mercury is working is held out of the running
+model turn and runs after the turn finishes, in the order typed. The runner reads that queue at every tool boundary of
 the running turn: once a tool round's results are in, and before the next
 request goes out, the line reaches the model with those results, introduced
 with `"The operator sent a new message while you were

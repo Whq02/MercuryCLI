@@ -19,8 +19,9 @@ The certificate holds three properties:
 
 The report is strictly read-only against the harness: it consults gate helpers,
 snapshots, small local artifacts, and OS metrics. It never runs a session,
-never mutates state, and never echoes a credential; its only write is the
-last-certificate summary described below.
+never mutates state, and never echoes a credential; its only write is the last-certificate summary described below. Running `mercury
+health` or `mercury health --json` never creates crew-board files (the board
+opens only when a crewmate launches, a board command runs or chat first paints).
 
 ## Checks and the verdict
 

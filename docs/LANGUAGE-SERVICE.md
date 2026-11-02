@@ -64,8 +64,10 @@ path and apply refusals do not count, nor does an interruption. A successful,
 unchanged or indeterminate answer clears the call's fault count.
 
 A failed server start has its own 15-second to five-minute backoff. Calls during
-that backoff do not count as new starts or extend it. An explicit restart or
-`/extensions reload` allows a fresh start.
+that backoff do not count as new starts or extend it. An explicit restart or `/extensions reload` allows a fresh start; when
+`rust-analyzer` cannot start because its `rustup` component is missing, the
+failure names `rustup component add rust-analyzer` and the next call tries again
+without waiting for the 15-second backoff.
 
 From the composer, `/lsp status` prints the `serverStatus` rows and `/lsp
 restart <server>` stops and starts one server at once; `/lsp restart` alone

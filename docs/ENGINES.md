@@ -751,8 +751,8 @@ token, the tools weighed as the request carries them, with the non-deferred
 schemas in full and the rest by name; anything closer is sent, and the server's
 own refusal is the truth). The window a local
 model is served with is a setting inside Mercury (`/config` → Local model
-window, per model): `auto` (unset) chooses the biggest of 32k · 64k · 128k ·
-256k, never above the trained maximum, whose projected load (the weights plus
+window, per model): `auto` (unset) chooses the biggest of 32k · 64k · 128k · 256k or the model's
+exact trained maximum, never above the trained maximum, whose projected load (the weights plus
 the KV cache of the layers that keep one; a hybrid such as Qwen 3.5/3.8
 states `full_attention_interval` in its own metadata so one layer in four
 counts, at the server's cache type and slots, from the model's own
@@ -766,8 +766,9 @@ runner; when the machine's memory cannot be read because the server states no
 geometry or the read fails, the window comes out larger: the
 trained maximum when the model states one, else the served window, else twice
 the first request rounded up to 16k and never under 64k, and the words say so);
-the rail's ctx row names the reason (`max` · `fit` · `set` · `srv`) and the
-deck's ctx row carries the figures; `server default` leaves the choice to the
+the rail's ctx row names the reason (`max` · `fit` · `set` · `srv`), the context
+gauge and the model gauge read the loaded server window while the request
+budgets the requested one, and the deck's ctx row carries the figures; `server default` leaves the choice to the
 server (Ollama loads the model and `/api/ps` states the figure); `32k` · `64k`
 · `128k` · `trained max` or a number pin it (a pinned rung whose load does not
 fit the available memory says so on the row, names the largest rung that does, and

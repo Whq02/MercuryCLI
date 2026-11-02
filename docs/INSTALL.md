@@ -61,9 +61,11 @@ terminal picks up the change automatically.
 
 Use `mercury update` with any installation method.
 
-If you are on 1.0.0-rc.1, run `curl -fsSL https://mercury-cli.ai/install.sh | sh`
-once (on Windows, `irm https://mercury-cli.ai/install.ps1 | iex`); your settings
-and sessions stay.
+On 1.0.0-rc.1 or 1.0.0? Run the installer once (`curl -fsSL https://mercury-cli.ai/install | sh`
+on macOS and Linux, where `https://mercury-cli.ai/install.sh` serves the same script;
+on Windows, `irm https://mercury-cli.ai/install.ps1 | iex`); your settings and sessions
+stay. Every `mercury update` refusal also ends with the reinstall command for your
+installation method.
 
 For an installation made with the shell or PowerShell installer, or with
 `mercury install`, it updates Mercury in place. `--check` checks for updates,

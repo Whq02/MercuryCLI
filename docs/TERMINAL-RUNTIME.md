@@ -164,11 +164,16 @@ updated yet. Entering `n` (or pressing Enter) leaves the installation untouched 
 skips the prompt; `--json` requires `--yes` and writes the command's output to
 stderr. `--rollback` declines in a Homebrew install because Homebrew manages its own versions. A
 bundle running directly from `node_modules/mercury-tech-cli` follows the same prompt
-with `npm update -g mercury-tech-cli`. Because `mercury-tech-cli` downloads the
-Mercury release into `~/.mercury/versions/` on its first run and launches it from
-there, `mercury update` updates that installed release directly through Mercury's
-own update channel, while `npm update -g mercury-tech-cli` only updates the
-bootstrap wrapper. When the `mercury` on `PATH` is the npm wrapper,
+with `npm update -g mercury-tech-cli`. Because `mercury-tech-cli` downloads the Mercury release into
+`~/.mercury/versions/` on its first run and launches it from there, `mercury
+update` updates that installed release directly through Mercury's own update
+channel, while `npm i -g mercury-tech-cli@latest` installs and activates the
+package's release when it is newer than the installed release, without
+downgrading a newer installation ([INSTALL.md](INSTALL.md) names the pin that
+allows one; the same applies through mise). Every `mercury update` refusal ends with the reinstall
+command for your installation method (a `--json` refusal carries
+`reinstallCommand`), and a refused `mercury update --rollback` leaves the
+managed command shims unchanged. When the `mercury` on `PATH` is the npm wrapper,
 `--check`, `--status` and the health check report `"installed through
 npm's wrapper, updated through Mercury's own channel"` and the health check's
 Command on PATH row requires no `PATH` change. `--check` compares the
