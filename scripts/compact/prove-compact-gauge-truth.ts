@@ -56,7 +56,7 @@ const FALLBACK = 'compat/my-model'
 const GPT = 'gpt-5.6-sol'
 
 console.log('============================================================')
-console.log(' compact gauge truth — one owner, 20k of headroom, the switch re-anchors')
+console.log(' compact gauge truth — one owner, bounded turn reserve, the switch re-anchors')
 console.log('============================================================')
 
 section('G1 · one owner: used % + left % = the fold point, on one window')
@@ -89,7 +89,7 @@ section('G2 · the default threshold leaves 20k below the usable edge')
     check(`  compactAtPct reads ${expectPct} % of the window`, view.compactAtPct !== null && Math.abs(view.compactAtPct - expectPct) < 0.01, String(view.compactAtPct))
   }
   const auto = src('src/services/compact/autoCompact.ts')
-  check('the one owner names a 20k early buffer', compact.AUTOCOMPACT_BUFFER_TOKENS === 20_000 && auto.includes('full - AUTOCOMPACT_BUFFER_TOKENS'))
+  check('the owner derives its early buffer from the bounded turn reserve', compact.AUTOCOMPACT_BUFFER_TOKENS === 20_000 && compact.getTurnReserveTokens(OPUS) === 20_000 && compact.getTurnReserveTokens(FALLBACK) === 20_000 && auto.includes('full - getTurnReserveTokens(model)'))
 }
 
 section('G3 · a set threshold is honoured')
@@ -134,5 +134,5 @@ section('G5 · the contradiction is dead')
   check('  the view says the same: used 22 · left 57 · fold 78.5', view.usedPct === 22 && view.leftUntilCompactPct !== null && view.leftUntilCompactPct >= 56 && view.leftUntilCompactPct <= 57, JSON.stringify(view))
 }
 
-console.log(failures === 0 ? '\n ✅ COMPACT GAUGE TRUTH — one owner, 20k of headroom, the switch re-anchors' : `\n ❌ ${failures} FAILED`)
+console.log(failures === 0 ? '\n ✅ COMPACT GAUGE TRUTH — one owner, bounded turn reserve, the switch re-anchors' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

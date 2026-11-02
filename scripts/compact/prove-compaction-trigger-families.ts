@@ -115,15 +115,16 @@ for (const f of FAMILIES) {
   const threshold = compact.getAutoCompactThreshold(f.model)
   thresholds.set(f.model, threshold)
   const reserve = Math.min(getModelMaxOutputTokens(f.model).upperLimit, 20_000, Math.floor(f.window / 4))
-  const expected = effective - 3_000 - 20_000
-  check(`${f.label}: window ${f.window.toLocaleString()} · effective ${effective.toLocaleString()} · threshold ${threshold.toLocaleString()} (${((threshold / f.window) * 100).toFixed(1)}%)`, r.effectiveWindow === f.window && effective === f.window - reserve && threshold === expected, JSON.stringify({ w: r.effectiveWindow, s: r.source, effective, threshold }))
+  const turnReserve = Math.min(getModelMaxOutputTokens(f.model).upperLimit, 20_000, Math.floor(f.window / 8))
+  const expected = effective - 3_000 - turnReserve
+  check(`${f.label}: window ${f.window.toLocaleString()} · effective ${effective.toLocaleString()} · threshold ${threshold.toLocaleString()} (${((threshold / f.window) * 100).toFixed(1)}%)`, r.effectiveWindow === f.window && effective === f.window - reserve && compact.getTurnReserveTokens(f.model) === turnReserve && threshold === expected, JSON.stringify({ w: r.effectiveWindow, s: r.source, effective, threshold }))
 }
 check('a 1M carrier never compacts at ~160k: its threshold exceeds 950,000', thresholds.get('openrouter/stealth/ox-alpha')! > 950_000)
-check('a 131k carrier never sails to 200k: its threshold is below 131,072', thresholds.get('openrouter/meta/llama-small')! < 131_072 && thresholds.get('openrouter/meta/llama-small')! === 131_072 - 20_000 - 3_000 - 20_000)
+check('a 131k carrier reserves 16,384 for the turn and folds at 91,688', compact.getTurnReserveTokens('openrouter/meta/llama-small') === 16_384 && thresholds.get('openrouter/meta/llama-small') === 91_688)
 {
   const tiny = compact.getAutoCompactThreshold('openrouter/tiny/edge-32k')
   const tinyEff = compact.getEffectiveContextWindowSize('openrouter/tiny/edge-32k')
-  check('a 32,768 row keeps the proportional reserve and threshold floor: effective 24,576; threshold 5,394', tinyEff === 24_576 && tiny === 5_394, JSON.stringify({ tinyEff, tiny }))
+  check('a 32,768 row keeps proportional summary and turn reserves: effective 24,576; turn reserve 4,096; threshold 17,480', tinyEff === 24_576 && compact.getTurnReserveTokens('openrouter/tiny/edge-32k') === 4_096 && tiny === 17_480, JSON.stringify({ tinyEff, tiny }))
 }
 
 section('T2 · shouldAutoCompact is exact to the token on every family')

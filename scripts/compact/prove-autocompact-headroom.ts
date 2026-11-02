@@ -38,7 +38,7 @@ process.env.MERCURY_AUTOCOMPACT_PCT_OVERRIDE = '100'
 check('the percent override can still select the edge, never beyond it', policy.getAutoCompactThreshold(model) === edge)
 delete process.env.MERCURY_AUTOCOMPACT_PCT_OVERRIDE
 saveGlobalConfig(c => ({ ...c, autoCompactWindow: 100_000 }))
-check('a 100k settings window still receives the full 20k headroom', policy.getAutoCompactThreshold(model) === 57_000)
+check('a 100k settings window reserves 12,500 for the turn and folds at 64,500', policy.getTurnReserveTokens(model) === 12_500 && policy.getAutoCompactThreshold(model) === 64_500)
 saveGlobalConfig(c => ({ ...c, autoCompactWindow: undefined }))
 process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = '8'
 check('a tiny usable edge keeps a positive proportional floor', policy.getAutoCompactThreshold(model) === 2)
