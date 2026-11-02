@@ -64,6 +64,8 @@ export type BoardHost = {
   principal(context: ToolUseContext): BoardPrincipal | null
   paused(agentId: string): boolean
   sessionOn(): boolean
+  limits?(): BoardLimits
+  uncapped?(): boolean
 }
 export type BoardSeat = { agent: string; name: string; team?: string; captain?: true; state?: 'running' | 'parked'; wait?: BoardWait; wakeProblem?: BoardWakeProblem }
 export const boardSeatName = (seat: { name: string; captain?: boolean }): string => seat.captain ? `captain ${seat.name}` : seat.name

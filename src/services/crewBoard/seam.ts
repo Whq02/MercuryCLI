@@ -1,10 +1,12 @@
 import { createRequire } from 'node:module'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { randomUUID, createHash } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { buildTool, type Tool, type ToolUseContext } from '../../Tool.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { getSettingsForSource } from '../../utils/settings/settings.js'
+import { isReadOnlyDiagnostic } from '../../utils/diagnosticReadOnly.js'
 import { flushSessionStorage, swarmSwitchOfSession } from '../../utils/sessionStorage/writer.js'
 import { getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage/paths.js'
 import { operatorPauseGate } from '../../run-core/pauseGate.js'
@@ -44,7 +46,7 @@ export function swarmLimits(): BoardLimits {
 }
 
 export function swarmUncapped(): boolean {
-  return sessions.get(String(getSessionId()))?.store.uncapped === true
+  return !isReadOnlyDiagnostic() && sessions.get(String(getSessionId()))?.store.uncapped === true
 }
 
 export function setSwarmUncapped(value: boolean): void {
@@ -75,8 +77,8 @@ export function swarmCensusTool(): Tool {
   return module.tool({ buildTool, principal: () => null, paused: () => false, sessionOn: () => false }, () => null)
 }
 
-export function swarmStore(): BoardStore | null {
-  if (!swarmMasterEnabled()) return null
+export function swarmStore(create = true): BoardStore | null {
+  if (isReadOnlyDiagnostic() || !swarmMasterEnabled()) return null
   const sessionId = String(getSessionId())
   const existing = sessions.get(sessionId)
   if (existing) {
@@ -84,8 +86,10 @@ export function swarmStore(): BoardStore | null {
     return existing.store
   }
   if (!swarmSessionEnabled() && ![...roads].some(([id, road]) => id.startsWith(`${sessionId}:`) && road.on)) return null
+  const path = join(dirname(getTranscriptPath()), sessionId, 'boards', 'wave', 'board.sqlite')
+  if (!create && !existsSync(path)) return null
   const module = loadSwarm()
-  const store = module.open(join(dirname(getTranscriptPath()), sessionId, 'boards', 'wave', 'board.sqlite'), sessionId, swarmLimits())
+  const store = module.open(path, sessionId, swarmLimits())
   const execution = randomUUID()
   sessions.set(sessionId, { store, execution })
   store.enroll({ author: { sessionId, agentId: 'main', executionId: execution }, name: 'main' })
@@ -98,7 +102,7 @@ export function watchSwarmLead(idle: () => boolean, wake: () => void, paint: (ev
   const painted = new Map<string, number>()
   const leadContext = AsyncLocalStorage.snapshot()
   const check = (): void => leadContext(() => {
-    if (!swarmSessionEnabled()) return
+    if (isReadOnlyDiagnostic() || !swarmSessionEnabled()) return
     const session = String(getSessionId())
     const store = sessions.get(session)?.store
     if (!store) return
@@ -139,7 +143,7 @@ export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTo
       while (pending && !stopped) {
         pending = false
         if (!ready() || !swarmMasterEnabled() || operatorPauseGate.holds('main')) continue
-        const store = swarmStore()
+        const store = swarmStore(false)
         if (!store || !store.pendingWakes().length) continue
         const { boardResumeRefusal, resumeAgentBackground, BoardResumeDirectoryError } = await import('../../tools/AgentTool/resumeAgent.js')
         await flushSessionStorage()
@@ -255,7 +259,7 @@ export function swarmBrief(agentId: string, recorded?: string | null): string | 
 
 export function swarmPrincipal(agentId = 'main'): BoardPrincipal | null {
   if (!swarmRoad(agentId)) return null
-  const store = swarmStore()
+  const store = swarmStore(false)
   if (!store) return null
   const road = roads.get(key(agentId))
   const execution = agentId === 'main' ? sessions.get(String(getSessionId()))?.execution : road?.execution
@@ -265,13 +269,13 @@ export function swarmPrincipal(agentId = 'main'): BoardPrincipal | null {
 
 export function swarmTools(agentId = 'main'): Tool[] {
   if (!swarmRoad(agentId) || !swarmMasterEnabled()) return []
-  boardTool ??= loadSwarm().tool({ buildTool, principal: context => context.agentKind === 'workflow' ? null : swarmPrincipal(context.agentId), paused: id => operatorPauseGate.holds(id), sessionOn: swarmSessionEnabled }, swarmStore)
+  boardTool ??= loadSwarm().tool({ buildTool, principal: context => context.agentKind === 'workflow' ? null : swarmPrincipal(context.agentId), paused: id => operatorPauseGate.holds(id), sessionOn: swarmSessionEnabled, limits: swarmLimits, uncapped: swarmUncapped }, swarmStore)
   return [boardTool]
 }
 
 export function swarmView(): BoardViewSnapshot {
   if (!swarmSessionEnabled()) return EMPTY
-  try { return swarmStore()?.view() ?? EMPTY } catch (error) { return { ...EMPTY, on: true, error: error instanceof Error ? error.message : String(error) } }
+  try { return swarmStore(false)?.view() ?? { ...EMPTY, on: true } } catch (error) { return { ...EMPTY, on: true, error: error instanceof Error ? error.message : String(error) } }
 }
 
 const directWords = (text: string): string => `${Array.from(text).slice(0, 400).join('')}… (sent directly)`
@@ -355,6 +359,7 @@ export function mirrorSwarmNotice(agentId: string, text: string, summary: string
 }
 
 export function closeIdleSwarm(): void {
+  if (isReadOnlyDiagnostic()) return
   const sessionId = String(getSessionId())
   if (swarmSessionEnabled() || [...pendingLaunches].some(id => id.startsWith(`${sessionId}:`)) || [...roads].some(([id, road]) => id.startsWith(`${sessionId}:`) && road.on && road.active)) return
   sessions.get(sessionId)?.store.close()
@@ -369,7 +374,7 @@ export function swarmResumeAdmitted(agentId: string): void {
 export function settleSwarmAgent(agentId: string): void {
   const road = roads.get(key(agentId))
   if (road) {
-    const state = sessions.get(String(getSessionId()))
+    const state = isReadOnlyDiagnostic() ? undefined : sessions.get(String(getSessionId()))
     if (road.on && state) state.store.settle({ author: { sessionId: String(getSessionId()), agentId, executionId: road.execution }, name: road.name })
     road.active = false
   }

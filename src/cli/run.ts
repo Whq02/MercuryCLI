@@ -1694,7 +1694,7 @@ export async function runHeadless(
   const { watchHostNotices } = await import('../services/host/notices.js')
   const stopHostNotices = watchHostNotices(() => getSessionId())
   const party = partyFeed({
-    store: () => (!awaitingSessionClaim && swarmSessionEnabled() ? swarmStore() : null),
+    store: () => (!awaitingSessionClaim && swarmSessionEnabled() ? swarmStore(false) : null),
     anchor: () => turnAnchor ?? undefined,
     record: async row => {
       if (messages.some(message => message.uuid === row.uuid)) return

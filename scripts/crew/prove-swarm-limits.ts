@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 
 const suiteHome = process.env.MERCURY_CONFIG_DIR
 assert(suiteHome, 'run with a scratch MERCURY_CONFIG_DIR')
@@ -41,7 +41,21 @@ settings.updateSettingsForSource('localSettings', { swarm: { enabled: true, ...c
 check('only the user setting turns the master off, and project and local settings cannot turn it back on', !seam.swarmMasterEnabled() && JSON.stringify(seam.swarmLimits()) === JSON.stringify(DEFAULT_BOARD_LIMITS))
 set({ enabled: true, ...chosen })
 check('the setting alone leaves the store unloaded', !seam.swarmModuleLoaded())
+const { getTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
+const boardPath = () => join(dirname(getTranscriptPath()), String(bootstrap.getSessionId()), 'boards', 'wave', 'board.sqlite')
+const offered = seam.swarmTools()[0]!
+check('the default-on roster keeps CrewBoard without creating a board', offered.name === 'CrewBoard' && !existsSync(boardPath()))
+check('the cold tool prompt reads the chosen limits without creating a board', (await offered.prompt({} as never)).includes('300,000') && !existsSync(boardPath()))
+check('a fresh board view keeps the switch on without creating a board', seam.swarmView().on && !existsSync(boardPath()))
+seam.swarmBoundary(undefined, new Set())
+seam.swarmPresented(undefined, [], 'cold-request')
+const leadWatch = seam.watchSwarmLead(() => true, () => {}, () => {})
+const resumeWatch = seam.watchSwarmResumes(() => null, (() => {}) as never, () => true)
+await new Promise(resolve => setImmediate(resolve))
+leadWatch.stop(); resumeWatch.stop()
+check('passive boundary and watcher reads leave the board absent', !existsSync(boardPath()))
 const on = runSwarmCommand('on')
+check('an explicit board verb creates the board', existsSync(boardPath()))
 check('millions are accepted and the command names the chosen values', on.includes('300,000 per agent, 5,000,000 per wave') && seam.swarmLimits().waveAllowance === 5000000)
 const board = seam.swarmStore()!
 const tool = seam.swarmTools()[0]!
@@ -80,8 +94,11 @@ check('negative allowances clamp to the floor, never to unlimited', negative.set
 runSwarmCommand('off')
 bootstrap.regenerateSessionId()
 set({ enabled: true, seatAllowance: 1000, waveAllowance: 1000, postChars: 400 })
-runSwarmCommand('on')
+const { clearSessionMetadata } = await import('../../src/utils/sessionStorage/logs.ts')
+clearSessionMetadata()
+check('a new session is on without a board', seam.swarmSessionEnabled() && !existsSync(boardPath()))
 await seam.latchSwarmAgent('recipient', 'Recipient')
+check('a seat launch creates its board without an opt-in command', existsSync(boardPath()))
 const directBoard = seam.swarmStore()!
 const main = seam.swarmPrincipal()!, recipient = seam.swarmPrincipal('recipient')!
 for (let i = 0; i < 3; i++) assert(directBoard.post(main, { clientOpId: `fill-${i}`, kind: 'result', text: 'x'.repeat(400) }).ok)
@@ -110,6 +127,16 @@ runSwarmCommand('on')
 const liveCost = directBoard.view().admitted
 seam.settleSwarmAgent('recipient')
 check('the real settlement seam removes completed-seat wave charges', liveCost > 0 && directBoard.view().admitted < liveCost)
-runSwarmCommand('off')
+check('the diagnostic guard is tested with an existing board', seam.swarmStore() !== null && existsSync(boardPath()))
+const { beginReadOnlyDiagnostic } = await import('../../src/utils/diagnosticReadOnly.ts')
+beginReadOnlyDiagnostic()
+check('read-only diagnostics never return a writable existing board', seam.swarmStore() === null)
+bootstrap.regenerateSessionId()
+clearSessionMetadata()
+const diagnosticTool = seam.swarmTools()[0]!
+await diagnosticTool.prompt({} as never)
+seam.swarmView()
+const diagnosticCall = await diagnosticTool.call({ op: 'read' } as never, {} as never, (() => {}) as never, {} as never)
+check('read-only diagnostics keep the tool but never open a board, even through its call', diagnosticTool.name === 'CrewBoard' && seam.swarmStore() === null && !existsSync(boardPath()) && 'ok' in diagnosticCall.data && diagnosticCall.data.ok === false)
 console.log(`${checks} settings, live-command and direct-message checks passed`)
 process.exit(0)

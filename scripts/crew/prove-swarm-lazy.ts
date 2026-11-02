@@ -2,21 +2,21 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { bootLead, closeWorld, DIST, makeWorld } from './crew-world.ts'
+import { bootLead, closeWorld, DIST, findFiles, makeWorld } from './crew-world.ts'
 
 const bundle = readFileSync(DIST, 'utf8')
 assert(!bundle.includes('CREATE TABLE IF NOT EXISTS deliveries'), 'the boot bundle must not contain the board store')
 assert(!bundle.includes('A post holds at most 16 mentions'), 'the boot bundle must not contain the board implementation')
-const modes = process.argv.includes('--cold-only') ? ['cold', 'setting'] as const : ['cold', 'setting', 'refused', 'on'] as const
+const modes = process.argv.includes('--cold-only') ? ['cold', 'setting', 'default'] as const : ['cold', 'setting', 'default', 'refused', 'on'] as const
 for (const mode of modes) {
-  const enabled = mode === 'setting' || mode === 'on'
+  const enabled = mode === 'setting' || mode === 'default' || mode === 'on'
   const world = await makeWorld(`swarm-${mode}`, mode === 'on' ? [
     { kind: 'tool_use', name: 'CrewBoard', input: { op: 'post', clientOpId: 'built-lead', kind: 'ask', text: 'Which lane has the parser?', taskId: 'parser' } },
     { kind: 'text', text: 'Board request finished.' },
   ] : [{ kind: 'text', text: 'Plain request finished.' }])
   const settings = join(world.config, 'settings.json')
   const prior = existsSync(settings) ? JSON.parse(readFileSync(settings, 'utf8')) : {}
-  writeFileSync(settings, JSON.stringify({ ...prior, swarm: { enabled } }))
+  writeFileSync(settings, JSON.stringify({ ...prior, ...(mode === 'default' ? {} : { swarm: { enabled } }) }))
   const loads = join(world.dir, 'loads.txt')
   const hook = join(world.dir, 'loads.mjs')
   writeFileSync(hook, `import { registerHooks } from 'node:module'; import { appendFileSync } from 'node:fs'; registerHooks({ load(url, context, next) { if (url.includes('crew-board.mjs')) appendFileSync(${JSON.stringify(loads)}, url + '\\n'); return next(url, context); } });`)
@@ -27,12 +27,14 @@ for (const mode of modes) {
       session.submit('/swarm on')
       await session.waitFor('swarm command answered', () => session.stdout().includes(mode === 'on' ? 'Swarm on for new crewmates' : 'enable swarm.enabled'))
     }
+    session.submit('Check the wave.')
+    await session.waitFor('the built session answered', () => session.stdout().includes(mode === 'on' ? 'Board request finished.' : 'Plain request finished.'))
+    assert.equal(findFiles(world.config, 'board.sqlite').length, mode === 'on' ? 1 : 0, `${mode}: a plain turn must not create a board`)
     const beforeStatus = session.stdout().length
     session.submit('/swarm')
     await session.waitFor('headless swarm still answers its state', () => /Swarm (on|off) for new crewmates|Swarm is off — enable swarm\.enabled/.test(session.stdout().slice(beforeStatus)))
     assert(!session.stdout().includes('interactive in this form'), session.stdout())
-    session.submit('Check the wave.')
-    await session.waitFor('the built session answered', () => session.stdout().includes(mode === 'on' ? 'Board request finished.' : 'Plain request finished.'))
+    assert.equal(findFiles(world.config, 'board.sqlite').length, enabled ? 1 : 0, `${mode}: a board verb opens the enabled board`)
     assert.equal(await session.end(), 0, session.stderr())
     const loaded = existsSync(loads) ? readFileSync(loads, 'utf8') : ''
     assert.equal(loaded.includes('crew-board.mjs'), enabled, `${mode}: ${loaded}`)

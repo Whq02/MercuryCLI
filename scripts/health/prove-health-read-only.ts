@@ -84,6 +84,7 @@ console.log('§1 the built health --json leaves the config home unmutated (no co
     const was = before.get(rel)
     if (was === undefined || mt > was + 0.5) changed.push(rel)
   }
+  check('the first and subsequent health runs create no board database or sidecars', ![...before.keys(), ...after.keys()].some(rel => rel.includes('/boards/')), [...after.keys()].filter(rel => rel.includes('/boards/')).join(', '))
   check('no config file is written under the home', !changed.some(r => r === '.mercury.json' || r.endsWith('.mercury.json')), changed.join(', '))
   check('no timestamped config backup is written', !changed.some(r => r.startsWith('backups/')), changed.join(', '))
   check('no verification index is written under the home', !changed.some(r => r.startsWith('verify/')), changed.join(', '))
