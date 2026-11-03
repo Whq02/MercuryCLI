@@ -35,7 +35,7 @@ const inputSchema = z.strictObject({
     .string()
     .optional()
     .describe(
-      'Directory the search runs in: a real directory path, or left out for the current working directory — never "undefined" or "null".',
+      'The directory to search; the current working directory when omitted.',
     ),
 })
 

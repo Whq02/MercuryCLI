@@ -67,7 +67,7 @@ try {
   check('the line formats thousands and carries the count alone', ignoredPathsLine(1204) === '· 1,204 paths under ignore rules not listed', ignoredPathsLine(1204))
   check('one ignored path reads singular', ignoredPathsLine(1) === '· 1 path under ignore rules not listed')
   const { DESCRIPTION } = await import('../../src/tools/GlobTool/prompt.ts')
-  check('the tool\'s description carries the road inside an ignored folder (the tail never claims it)', DESCRIPTION.includes('name an ignored folder as the path to search inside it') && DESCRIPTION.includes('Ignore files apply'), DESCRIPTION)
+  check('the tool\'s description carries the road inside an ignored folder (the tail never claims it)', DESCRIPTION.includes('naming an ignored folder as the path searches inside it') && DESCRIPTION.includes('Ignore files apply'), DESCRIPTION)
 
   console.log('\n§2 the whole tree, and a search that matches only ignored files')
   const everything = await ask({ pattern: '**/*', path: project })
