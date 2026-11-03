@@ -23,27 +23,27 @@ const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
 const expected = {
   type: 'object', properties: {
     language: { type: 'string', enum: ['py', 'js'], description: 'The retained runtime this cell runs in.' },
-    code: { type: 'string', minLength: 1, description: 'The cell source. State persists to your next cell in this language.' },
+    code: { type: 'string', minLength: 1, description: 'The cell source.' },
     title: { description: 'Short human title for the cell card.', type: 'string' },
-    timeoutSeconds: { description: 'Runtime budget in seconds: default 30, at most 600 (a larger value runs at 600 and the result says so); 0 disables; bridge and permission time never counts.', type: 'integer', minimum: 0, maximum: 9007199254740991 },
+    timeoutSeconds: { description: 'Runtime budget in seconds: default 30, at most 600; 0 disables; time inside tool calls and permission waits never counts.', type: 'integer', minimum: 0, maximum: 9007199254740991 },
     reset: { description: "Recreate this language's kernel first (the other language keeps its state).", type: 'boolean' },
   }, required: ['language', 'code'], additionalProperties: false,
 }
 const options = { tools: [EvalTool, { name: 'Inspect' }] as never, agents: [], getToolPermissionContext: async () => getEmptyToolPermissionContext() }
 for (const [enabled, hash, manualBytes, bytes] of [
-  ['1', '863cb65c8d9934e606ba207405886d361a437e0363f7da741dd710fbeb7380af', 7375, 2004],
-  ['0', '93123c2a359d87ad856fdd6fa7ed664e019d9e9081d258e0337301a9add6b4d3', 5341, 1962],
+  ['1', 'dd53f748d62b7b48176cdda430cb04da8cff82d8da03db1659d608063d6a7985', 6822, 1217],
+  ['0', 'e28e17325a176f518b87f6fdc4b67598c45e4a731164954c5dbc111cc7d1cf79', 4788, 1217],
 ] as const) {
   process.env.MERCURY_SAMPLES = enabled
   clearToolSchemaCache()
   const manual = await EvalTool.prompt(options)
   const definition = await toolToAPISchema(EvalTool, options) as any
-  check(`samples=${enabled}: the complete manual matches fold 46as bridge accounting with fold 46bc's read_file and Bash helper lines (${manualBytes} bytes)`, createHash('sha256').update(manual).digest('hex') === hash && Buffer.byteLength(manual) === manualBytes, `${Buffer.byteLength(manual)} bytes: ${manual}`)
-  check(`samples=${enabled}: the wire carries the Eval wire contract rendered from that manual (fold 46bh), the manual arriving on discovery or first use`, typeof EvalTool.wireDescription === 'function' && definition.description === EvalTool.wireDescription(manual) && definition.description.includes(enabled === '1' ? 'sample publishes only on an operator ask' : 'JS read_file needs await.\n'), definition.description)
+  check(`samples=${enabled}: the complete manual matches the 1.0.5 text (the steering sentences gone, the helper reference whole; ${manualBytes} bytes)`, createHash('sha256').update(manual).digest('hex') === hash && Buffer.byteLength(manual) === manualBytes, `${Buffer.byteLength(manual)} bytes: ${manual}`)
+  check(`samples=${enabled}: the wire carries the Eval wire contract rendered from that manual (fold 46bh), the manual arriving on discovery or first use`, typeof EvalTool.wireDescription === 'function' && definition.description === EvalTool.wireDescription(manual) && definition.description.includes('their signatures arrive on first use') && !definition.description.includes('Bash/Read/Edit') && !definition.description.includes('never retry'), definition.description)
   let same = true
   try { deepStrictEqual(definition.input_schema, expected) } catch { same = false }
   check('five-field wire schema matches exactly', same, JSON.stringify(definition.input_schema))
-  check(`samples=${enabled}: the timeoutSeconds field names the runtime constants (default ${contracts.EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${contracts.EVAL_MAX_TIMEOUT_SECONDS}) from contracts.ts`, definition.input_schema.properties.timeoutSeconds.description === `Runtime budget in seconds: default ${contracts.EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${contracts.EVAL_MAX_TIMEOUT_SECONDS} (a larger value runs at ${contracts.EVAL_MAX_TIMEOUT_SECONDS} and the result says so); 0 disables; bridge and permission time never counts.`, definition.input_schema.properties.timeoutSeconds.description)
+  check(`samples=${enabled}: the timeoutSeconds field names the runtime constants (default ${contracts.EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${contracts.EVAL_MAX_TIMEOUT_SECONDS}) from contracts.ts`, definition.input_schema.properties.timeoutSeconds.description === `Runtime budget in seconds: default ${contracts.EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${contracts.EVAL_MAX_TIMEOUT_SECONDS}; 0 disables; time inside tool calls and permission waits never counts.`, definition.input_schema.properties.timeoutSeconds.description)
   const wire = JSON.stringify({ ...definition, eager_input_streaming: true })
   check(`samples=${enabled}: the fold 46bh wire definition with eager_input_streaming is ${bytes} bytes`, Buffer.byteLength(wire) === bytes, String(Buffer.byteLength(wire)))
 }

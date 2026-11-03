@@ -36,7 +36,7 @@ export async function buildEvalPrompt(tools: Tools = []): Promise<string> {
   const inspect = tools.some(tool => tool.name === 'Inspect') ? ' `tool.Inspect({ref})` reads a mercury:// ref.' : ''
   const sample = samplesEnabled() ? '\n' + SAMPLE_PROMPT_LINES.join('\n') : ''
 
-  return `Run one code cell in a retained runtime, for work that is computation: parsing and transforming data, numbers, plots, a workflow of several tool calls whose results code must combine. Shell commands, git, builds, tests, file reads and edits go through Bash, Read, Edit and the other tools directly, never through a cell — a cell that only wraps a shell command is the wrong tool. Variables, imports, functions and classes survive to your next cell in the same language. One call is one cell: for several steps, make several Eval calls — calls in one message run in order, each with its own result.
+  return `Run one code cell in a retained runtime: parsing and transforming data, numbers, plots, a workflow of several tool calls whose results code must combine. Variables, imports, functions and classes survive to your next cell in the same language. One call is one cell: for several steps, make several Eval calls — calls in one message run in order, each with its own result.
 
 Languages in this session:
 ${languageLines}
@@ -47,8 +47,8 @@ ${languageLines}
 
 ## In-cell helpers (both languages)
 - JS: \`await tool.<Name>(...)\`, \`await agent(prompt, ...)\`, and \`await completion(prompt, ...)\` resolve async calls. Python helpers are synchronous: no await.
-- \`tool.<Name>(...)\` / \`tool('<Name>', {...})\` — call any session tool from code (Python: keyword args; JS: one input object).${inspect} A call obeys the session's permission mode exactly like your direct calls — one that asks the operator waits. It raises into the cell only when the tool refused to run (an unknown tool, the kill switch, a permission, a ward): handle it or let the cell fail; do not retry a denial.
-- \`tool.Bash({command})\` — only for a command whose output the cell itself goes on to process; a command run for its own sake is a direct Bash call. A command that ran returns \`{code, stdout, stderr}\` whatever it exited: \`code\` is the exit code (null while it runs in the background), \`stdout\` is the one interleaved capture, \`stderr\` is always \`''\`. The cell receives the full captured stdout, including output persisted for size, not the model's preview stub. A non-zero exit is a value, never a raise.
+- \`tool.<Name>(...)\` / \`tool('<Name>', {...})\` — call any session tool from code (Python: keyword args; JS: one input object).${inspect} A call obeys the session's permission mode exactly like your direct calls — one that asks the operator waits. It raises into the cell only when the tool refused to run (an unknown tool, the kill switch, a permission, a ward).
+- \`tool.Bash({command})\` — a command that ran returns \`{code, stdout, stderr}\` whatever it exited: \`code\` is the exit code (null while it runs in the background), \`stdout\` is the one interleaved capture, \`stderr\` is always \`''\`. The cell receives the full captured stdout, including output persisted for size, not the model's preview stub. A non-zero exit is a value, never a raise.
 - \`tool.attempt.<Name>(...)\` (JS) / \`tool.attempt('<Name>', ...)\` (both) — the same call with its error as a value: \`{ok: true, value}\` or \`{ok: false, error}\`.
 - A cell that throws keeps what it bound before the throw; the result names the bindings that survived.
 - \`agent(prompt, ...)\` — run one crewmate (options: agentType, label, schema, strict, worktree); returns its final text, or parsed and validated data when you pass a JSON schema.
@@ -66,6 +66,5 @@ ${languageLines}
 
 ## Dialect notes
 - Both languages: the last expression's value is the cell result, shown after \`⇒\`.
-- JS: an ES module with top-level await; \`process.cwd()\` is the working directory. \`import\` statements and top-level \`const\`/\`let\`/\`var\`/\`class\`/\`function\` declarations persist across cells (one per statement; prefer \`new RegExp(...)\` to a regex literal with quotes or braces). \`require()\` resolves from the working directory; \`module\`, \`exports\`, \`__dirname\`, \`__filename\` and \`import.meta\` are not defined. The global \`crypto\` is Web Crypto; \`createHash\`, \`createHmac\` and \`randomBytes\` come from \`node:crypto\`.
-- The test for a cell: the work needs a runtime holding state between steps, or code over data. If a one-line shell command would do, Bash does it.${available.length === 0 ? '\n\nNo language is available in this session: every call is refused.' : ''}`
+- JS: an ES module with top-level await; \`process.cwd()\` is the working directory. \`import\` statements and top-level \`const\`/\`let\`/\`var\`/\`class\`/\`function\` declarations persist across cells (one per statement; prefer \`new RegExp(...)\` to a regex literal with quotes or braces). \`require()\` resolves from the working directory; \`module\`, \`exports\`, \`__dirname\`, \`__filename\` and \`import.meta\` are not defined. The global \`crypto\` is Web Crypto; \`createHash\`, \`createHmac\` and \`randomBytes\` come from \`node:crypto\`.${available.length === 0 ? '\n\nNo language is available in this session: every call is refused.' : ''}`
 }
