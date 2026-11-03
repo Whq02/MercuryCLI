@@ -80,7 +80,6 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/file
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
 const { getAttachments, createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
 const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
 const { planToolPayload, clearToolRosterLatches, toolRosterLatchFor } = await import('../../src/services/providers/toolEconomy.ts')
 const { processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
@@ -192,6 +191,7 @@ for (const enabled of [true, false]) {
   restoreBoundPrefixFromMessages(restored, { rosterOnly: true })
   const restoredTools = [ToolSearchTool, loaded, pending, joined] as Tool[]
   const notice = deltas(await collect(restoredTools, restored, agentId)).flatMap(row => row.addedNames).sort()
+  check(`resume with deferral ${enabled}: collection does not seed the request latch`, toolRosterLatchFor(String(processOwnerForLane(agentId)), restored, model) === undefined)
   const planned = await plan(restoredTools, restored, agentId)
   check(`resume with deferral ${enabled}: the first notice follows the recorded roster and its MCP join`, JSON.stringify(notice) === JSON.stringify(enabled ? [pending.name, joined.name].sort() : []))
   check(`resume with deferral ${enabled}: collection preserves the request's saved enablement and full tool`, planned.enabled === enabled && !planned.deferredNames.has(loaded.name) && planned.roster.some(tool => tool.name === loaded.name))

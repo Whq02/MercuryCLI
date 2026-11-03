@@ -3,7 +3,8 @@ import type { Message } from 'src/types/message.js'
 import type { Tools, ToolUseContext } from '../../Tool.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import { deferralSearchIsServerSide, deferralWireFormFor, supportsToolDeferral } from '../../services/providers/deferralWire.js'
-import { heldToolsAtLastPlan, planToolPayloadUnseeded, type ToolPayloadPlan } from '../../services/providers/toolEconomy.js'
+import { conversationRosterKey, heldToolsAtLastPlan, planToolPayloadUnseeded, type ToolPayloadPlan } from '../../services/providers/toolEconomy.js'
+import { isDeferredToolFor } from '../../tools/ToolSearchTool/prompt.js'
 import { rosterOwnerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import {
   getMcpInstructionsDelta,
@@ -42,6 +43,17 @@ export async function getPlannedDeferredToolsAttachment(
     source: scanContext.querySource,
     latchKey: String(rosterOwnerFromToolUseContext(context)),
   })
+  const suffix = conversationRosterKey('', messages, model)
+  const recorded = plan.conversationKey === undefined
+    ? messages.findLast(message => message.type === 'attachment' && message.attachment.type === 'bound_prefix' && message.attachment.boundKey.endsWith(suffix))
+    : undefined
+  if (recorded?.type === 'attachment' && recorded.attachment.type === 'bound_prefix') {
+    return getDeferredToolsDeltaAttachment(tools, model, messages, scanContext, {
+      enabled: recorded.attachment.rosterEnabled,
+      wireForm: plan.wireForm,
+      deferredNames: new Set(tools.filter(tool => isDeferredToolFor(tool, model, undefined, messages)).map(tool => tool.name)),
+    })
+  }
   return getDeferredToolsDeltaAttachment(tools, model, messages, scanContext, plan)
 }
 
@@ -50,7 +62,7 @@ export function getDeferredToolsDeltaAttachment(
   model: string,
   messages: Message[] | undefined,
   scanContext?: DeferredToolsDeltaScanContext,
-  plan?: ToolPayloadPlan,
+  plan?: Pick<ToolPayloadPlan, 'enabled' | 'wireForm' | 'deferredNames'>,
 ): Attachment[] {
   if (!(plan?.enabled ?? isToolSearchEnabledOptimistic()) || !supportsToolDeferral(model)) return []
   const form = plan?.wireForm ?? deferralWireFormFor(model).form
