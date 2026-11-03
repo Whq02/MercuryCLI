@@ -103,7 +103,7 @@ const scratch = mkdtempSync(join(tmpdir(), 'swarm-party-inks-'))
 const boardPath = join(scratch, 'board.sqlite')
 const session = 'inks-session'
 let clock = Date.now()
-const openBoard = (): BoardStore => open(boardPath, session, undefined, () => (clock += 20_000))
+const openBoard = (): BoardStore => open(boardPath, session, () => (clock += 20_000))
 const principal = (agent: string, name: string, execution = `e-${agent}`, team?: string): BoardPrincipal => ({ author: { sessionId: session, agentId: agent, executionId: execution }, name, ...(team === undefined ? {} : { team }) })
 const main = principal('main', 'main')
 const seats = Array.from({ length: 7 }, (_, i) => principal(`a-ink-${i + 1}`, `ink-${i + 1}`, undefined, 'inks'))

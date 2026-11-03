@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, renameSync, rmSync, watch, writeFileSync, type FSWatcher } from 'node:fs'
 import { basename, dirname, resolve } from 'node:path'
 import { createRequire } from 'node:module'
-import { BOARD_PACKET_RULE, DEFAULT_BOARD_LIMITS, boardSeatName, boardLabelKey, type BoardChannel, type BoardLimits, type BoardEvent, type BoardPacket, type BoardPost, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot } from './contracts.js'
+import { BOARD_PACKET_RULE, boardSeatName, boardLabelKey, type BoardChannel, type BoardEvent, type BoardPacket, type BoardPost, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot } from './contracts.js'
 import { CHAT_OFF, type BoardChat } from './party.js'
 import type { CrewChatLifecycle } from '../../types/message.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
@@ -16,7 +16,6 @@ type Database = {
 }
 const requireRuntime = createRequire(import.meta.url)
 const digest = (text: string): string => createHash('sha256').update(text).digest('hex')
-const charge = (text: string): number => Buffer.byteLength(text, 'utf8')
 const normalize = (input: BoardPost) => ({
   clientOpId: input.clientOpId, kind: input.kind, text: input.text,
   ...(input.threadId === undefined ? {} : { threadId: input.threadId }),
@@ -32,57 +31,52 @@ const normalize = (input: BoardPost) => ({
 const feeds = new Map<string, Set<() => void>>()
 const validTeam = (team: string): boolean => /^[\p{L}\p{N}_][\p{L}\p{N}_.-]{0,79}$/u.test(team) && !['all', 'general'].includes(team.toLowerCase())
 
-export function open(path: string, sessionId: string, requestedLimits: BoardLimits = DEFAULT_BOARD_LIMITS, now: () => number = Date.now, readOnly = false): BoardStore {
+export function open(path: string, sessionId: string, now: () => number = Date.now, readOnly = false): BoardStore {
   if (!readOnly) mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
   const sqlite = requireRuntime(process.versions.bun ? 'bun:sqlite' : 'node:sqlite')
   const db: Database = process.versions.bun
     ? readOnly ? new sqlite.Database(path, { readonly: true }) : new sqlite.Database(path)
     : new sqlite.DatabaseSync(path, { readOnly })
   db.exec('PRAGMA busy_timeout = 5000')
-  if (!readOnly) db.exec(`
+  const hasTable = (name: string): boolean => db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?").get(name) != null
+  if (!readOnly) {
+    db.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA synchronous = FULL;
     CREATE TABLE IF NOT EXISTS identity (session TEXT PRIMARY KEY, wave TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS board_limits (id INTEGER PRIMARY KEY CHECK (id = 1), value TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS wave_controls (id INTEGER PRIMARY KEY CHECK (id = 1), uncapped INTEGER NOT NULL DEFAULT 0);
-    CREATE TABLE IF NOT EXISTS seat_state (agent TEXT PRIMARY KEY, joined INTEGER NOT NULL, cursor INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 1, read_cost INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS seat_state (agent TEXT PRIMARY KEY, joined INTEGER NOT NULL, cursor INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 1);
     CREATE TABLE IF NOT EXISTS seen_events (agent TEXT NOT NULL, event TEXT NOT NULL, PRIMARY KEY(agent, event));
     CREATE TABLE IF NOT EXISTS mirror_events (event TEXT PRIMARY KEY);
-    CREATE TABLE IF NOT EXISTS whole_deliveries (recipient TEXT NOT NULL, event TEXT NOT NULL, PRIMARY KEY(recipient, event));
-    CREATE TABLE IF NOT EXISTS cap_notices (id TEXT PRIMARY KEY, agent TEXT NOT NULL, allowance TEXT NOT NULL, text TEXT NOT NULL, presented INTEGER NOT NULL DEFAULT 0, UNIQUE(agent, allowance));
-    CREATE TABLE IF NOT EXISTS members (agent TEXT PRIMARY KEY, name TEXT NOT NULL, execution TEXT NOT NULL, enrolled INTEGER NOT NULL DEFAULT 1, credits REAL NOT NULL DEFAULT 8, refilled REAL NOT NULL, posts INTEGER NOT NULL DEFAULT 0, admitted INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS lead_notices (id TEXT PRIMARY KEY, agent TEXT NOT NULL, subject TEXT NOT NULL, text TEXT NOT NULL, presented INTEGER NOT NULL DEFAULT 0, UNIQUE(agent, subject));
+    CREATE TABLE IF NOT EXISTS members (agent TEXT PRIMARY KEY, name TEXT NOT NULL, execution TEXT NOT NULL, enrolled INTEGER NOT NULL DEFAULT 1);
     CREATE TABLE IF NOT EXISTS captains (team TEXT PRIMARY KEY, agent TEXT NOT NULL UNIQUE);
     CREATE TABLE IF NOT EXISTS enrollments (agent TEXT PRIMARY KEY, name TEXT NOT NULL, team TEXT, captain INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS roster_changes (id TEXT NOT NULL, recipient TEXT NOT NULL, record TEXT NOT NULL, PRIMARY KEY(id, recipient));
-    CREATE TABLE IF NOT EXISTS reads (id TEXT PRIMARY KEY, recipient TEXT NOT NULL, cost INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS read_events (packet TEXT NOT NULL, recipient TEXT NOT NULL, event TEXT NOT NULL, PRIMARY KEY(packet, event));
-    CREATE TABLE IF NOT EXISTS requests (id TEXT NOT NULL, recipient TEXT NOT NULL, cost INTEGER NOT NULL, PRIMARY KEY(recipient, id));
     CREATE TABLE IF NOT EXISTS interests (agent TEXT NOT NULL, kind TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(agent, kind, value));
     CREATE TABLE IF NOT EXISTS lead_paint (recipient TEXT PRIMARY KEY, seq INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS chat_state (id INTEGER PRIMARY KEY CHECK (id = 1), switched INTEGER NOT NULL DEFAULT 1, filter TEXT NOT NULL DEFAULT '{"kind":"all"}', cursor INTEGER NOT NULL DEFAULT 0, intro INTEGER NOT NULL DEFAULT 0, introduced INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, author TEXT NOT NULL, op TEXT NOT NULL, digest TEXT NOT NULL, thread TEXT NOT NULL, record TEXT NOT NULL, UNIQUE(author, op));
-    CREATE TABLE IF NOT EXISTS deliveries (recipient TEXT NOT NULL, event TEXT NOT NULL, mode TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', packet TEXT, request TEXT, charge INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(recipient, event));`)
+    CREATE TABLE IF NOT EXISTS deliveries (recipient TEXT NOT NULL, event TEXT NOT NULL, mode TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', request TEXT, PRIMARY KEY(recipient, event));
+    DROP TABLE IF EXISTS board_limits; DROP TABLE IF EXISTS wave_controls; DROP TABLE IF EXISTS cap_notices; DROP TABLE IF EXISTS whole_deliveries; DROP TABLE IF EXISTS reads; DROP TABLE IF EXISTS requests;`)
+    for (const [table, columns] of [['members', ['credits', 'refilled', 'posts', 'admitted']], ['seat_state', ['read_cost']], ['deliveries', ['packet', 'charge']]] as const) {
+      const present = new Set(db.prepare(`PRAGMA table_info(${table})`).all().map(row => String(row.name)))
+      for (const column of columns) if (present.has(column)) db.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`)
+    }
+  }
   const prior = db.prepare('SELECT session, wave FROM identity').get()
   if (prior != null && prior.session !== sessionId) { db.close(); throw new Error('This board belongs to another session.') }
   if (prior == null) {
     if (readOnly) { db.close(); throw new Error('This board has no session.') }
     db.prepare('INSERT INTO identity VALUES (?, ?)').run(sessionId, randomUUID())
   }
-  if (!readOnly) db.prepare('INSERT OR IGNORE INTO board_limits VALUES (1, ?)').run(JSON.stringify(prior == null ? requestedLimits : DEFAULT_BOARD_LIMITS))
-  const savedLimits = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'board_limits'").get() ? db.prepare('SELECT value FROM board_limits WHERE id = 1').get() : null
-  let limits: BoardLimits = Object.freeze({ ...DEFAULT_BOARD_LIMITS, ...(savedLimits ? JSON.parse(String(savedLimits.value)) : requestedLimits) })
   if (!readOnly) {
-    db.exec('INSERT OR IGNORE INTO wave_controls VALUES (1, 0); INSERT OR IGNORE INTO chat_state (id) VALUES (1); INSERT OR IGNORE INTO seat_state (agent, joined, cursor) SELECT agent, 0, 0 FROM members WHERE enrolled = 1;')
+    db.exec('INSERT OR IGNORE INTO chat_state (id) VALUES (1); INSERT OR IGNORE INTO seat_state (agent, joined, cursor) SELECT agent, 0, 0 FROM members WHERE enrolled = 1;')
   }
-  const hasState = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'seat_state'").get() != null
-  const hasControls = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'wave_controls'").get() != null
-  const hasCaptains = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'captains'").get() != null
-  const hasChat = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'chat_state'").get() != null
+  const hasCaptains = hasTable('captains')
+  const hasChat = hasTable('chat_state')
   const wakes = createWakeState(db, readOnly)
-  const hasEnrollments = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'enrollments'").get() != null
-  const uncapped = (): boolean => hasControls && db.prepare('SELECT uncapped FROM wave_controls WHERE id = 1').get()?.uncapped === 1
-  const burst = (): number => limits.postsPerMinute * 2
-  const refillMs = (): number => 60000 / limits.postsPerMinute
+  const hasEnrollments = hasTable('enrollments')
   const waveId = String(db.prepare('SELECT wave FROM identity').get()!.wave)
   const boardId = `board-${waveId}`
   const listeners = new Set<() => void>()
@@ -114,26 +108,9 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     if (p.author.sessionId !== sessionId || !member(p.author.agentId)) throw new Error('This seat is not enrolled in this wave.')
     if (db.prepare('SELECT execution FROM members WHERE agent = ?').get(p.author.agentId)?.execution !== p.author.executionId) throw new Error('This execution no longer holds this seat.')
   }
-  const admitted = (): number => Number(db.prepare(`SELECT COALESCE(SUM(admitted), 0) AS total FROM members${hasState ? ' JOIN seat_state USING (agent) WHERE active = 1' : ''}`).get()!.total)
-  const appearances = (): number => Number(db.prepare(`SELECT COALESCE(SUM(cost), 0) AS total FROM requests${hasState ? ' JOIN seat_state ON agent = recipient WHERE active = 1' : ''}`).get()!.total)
-  const readRoom = (agent: string): number => uncapped() || limits.seatAllowance === 0 ? Infinity : Math.max(0, limits.seatAllowance - Number(db.prepare('SELECT read_cost FROM seat_state WHERE agent = ?').get(agent)!.read_cost))
-  const notice = (agent: string, allowance: string, detail: string): string => {
+  const notice = (agent: string, subject: string, detail: string): void => {
     const name = String(db.prepare('SELECT name FROM members WHERE agent = ?').get(agent)?.name ?? agent)
-    const text = `${name}: ${detail}`
-    db.prepare('INSERT OR IGNORE INTO cap_notices (id, agent, allowance, text) VALUES (?, ?, ?, ?)').run(`cap:${randomUUID()}`, agent, allowance, text)
-    return detail
-  }
-  const readRefusal = (agent: string): string => notice(agent, 'seatAllowance', `The seat's board-context allowance (swarm.seatAllowance, ${limits.seatAllowance.toLocaleString('en-US')}) is used up. The lead can use /swarm uncap.`)
-  const deliveryCap = (agent: string, cost: number): string | null => {
-    if (uncapped()) return null
-    if (limits.seatAllowance !== 0 && Number(db.prepare('SELECT admitted FROM members WHERE agent = ?').get(agent)!.admitted) + cost > limits.seatAllowance) return 'seatAllowance'
-    if (limits.waveAllowance !== 0 && admitted() + cost > limits.waveAllowance) return 'waveAllowance'
-    if (limits.waveAllowance !== 0 && appearances() + cost * 60 > limits.waveAllowance * 100) return 'appearances'
-    return null
-  }
-  const reserve = (agent: string, cost: number, requested: boolean): void => {
-    db.prepare('UPDATE members SET admitted = admitted + ? WHERE agent = ?').run(cost, agent)
-    if (requested) db.prepare('UPDATE seat_state SET read_cost = read_cost + ? WHERE agent = ?').run(cost, agent)
+    db.prepare('INSERT OR IGNORE INTO lead_notices (id, agent, subject, text) VALUES (?, ?, ?, ?)').run(`notice:${randomUUID()}`, agent, subject, `${name}: ${detail}`)
   }
   const markSeen = (agent: string, event: string): void => { db.prepare('INSERT OR IGNORE INTO seen_events VALUES (?, ?)').run(agent, event); wakes.presented(agent, [event]) }
   const advance = (agent: string): number => {
@@ -144,10 +121,9 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
   }
   const events = (rows: Record<string, unknown>[]): BoardEvent[] => rows.map(row => JSON.parse(String(row.record)) as BoardEvent)
   const latest = (): number => Number(db.prepare('SELECT COALESCE(MAX(seq), 0) AS seq FROM events').get()!.seq)
-  const packetText = (e: BoardEvent, body: boolean): string => {
+  const packetText = (e: BoardEvent): string => {
     const owner = e.authorRole === 'owner'
-    const envelope = JSON.stringify({ eventId: e.eventId, seq: e.seq, who: e.author.agentId, when: e.createdAt, kind: e.kind, authorRole: e.authorRole ?? 'peer', ...(owner && e.channel ? { channel: e.channel } : {}), thread: e.threadId, ...(e.taskId === undefined ? {} : { task: e.taskId }), ...(body ? { about: e.about, refs: e.refs } : {}) })
-    if (!body) return envelope
+    const envelope = JSON.stringify({ eventId: e.eventId, seq: e.seq, who: e.author.agentId, when: e.createdAt, kind: e.kind, authorRole: e.authorRole ?? 'peer', ...(owner && e.channel ? { channel: e.channel } : {}), thread: e.threadId, ...(e.taskId === undefined ? {} : { task: e.taskId }), about: e.about, refs: e.refs })
     if (owner) return `${envelope}\n[owner]: ${e.text}`
     return `${envelope}\n[${boardSeatName({ name: e.authorName ?? e.author.agentId, captain: e.captain })}]${e.team ? ` [${e.team}]` : ''} [${e.kind}]: ${e.text}`
   }
@@ -207,8 +183,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     return { mentions: [...mentions].sort(), unknownMentions }
   }
   const snapshot = (before?: number, thread?: string, team?: string): BoardViewSnapshot => {
-    const head = db.prepare(`SELECT COALESCE(MAX(seq), 0) AS top, ${hasControls ? '(SELECT uncapped FROM wave_controls WHERE id = 1)' : '0'} AS uncapped FROM events`).get()!
-    const top = Number(head.top)
+    const top = latest()
     const end = before ?? top + 1
     const filters = ['seq < ?', "COALESCE(json_extract(record, '$.lifecycle.kind'), 'done') NOT IN ('launched', 'joined')"]
     const values: (string | number)[] = [end]
@@ -224,21 +199,13 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     const teams = [...labels.values()].sort()
     const names = db.prepare("SELECT name FROM members UNION SELECT COALESCE(json_extract(record, '$.authorName'), json_extract(record, '$.author.agentId')) AS name FROM events").all().map(row => String(row.name))
     const duplicateMinutes = db.prepare("SELECT substr(json_extract(record, '$.createdAt'), 1, 16) AS minute FROM events GROUP BY minute HAVING COUNT(*) > 1").all().map(row => String(row.minute))
-    return { on: true, events: events(db.prepare(`SELECT record FROM events WHERE ${filter} ORDER BY seq DESC LIMIT 32`).all(...values)).reverse(), seats: seats(), teams, names, duplicateMinutes, snapshot: top, omitted: Math.max(0, count - 32), later: Math.max(0, top - end + 1), admitted: admitted(), appearances: appearances(), uncapped: head.uncapped === 1, chat: chat(), peerTurns: wakes.turns(), record: { path, sessionId } }
+    return { on: true, events: events(db.prepare(`SELECT record FROM events WHERE ${filter} ORDER BY seq DESC LIMIT 32`).all(...values)).reverse(), seats: seats(), teams, names, duplicateMinutes, snapshot: top, omitted: Math.max(0, count - 32), later: Math.max(0, top - end + 1), chat: chat(), peerTurns: wakes.turns(), record: { path, sessionId } }
   }
   const chat = (): BoardChat => {
     const row = hasChat ? db.prepare('SELECT switched, filter FROM chat_state WHERE id = 1').get() : null
     return row ? { on: row.switched === 1, filter: JSON.parse(String(row.filter)) } : CHAT_OFF
   }
   const store: BoardStore = {
-    get limits() { return limits },
-    setLimits(next) {
-      if (readOnly || JSON.stringify(next) === JSON.stringify(limits)) return
-      limits = Object.freeze({ ...DEFAULT_BOARD_LIMITS, ...next })
-      db.prepare('INSERT INTO board_limits VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET value = excluded.value').run(JSON.stringify(limits))
-      for (const listener of listeners) listener()
-    },
-    get uncapped() { return uncapped() },
     chat,
     setChat(next) {
       transaction(() => {
@@ -261,13 +228,6 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     markScreenIntroduced() {
       if (readOnly || !hasChat) return
       db.prepare('UPDATE chat_state SET intro = 0 WHERE id = 1').run()
-    },
-    setUncapped(p, value) {
-      transaction(() => {
-        checkPrincipal(p)
-        if (p.author.agentId !== 'main') throw new Error('Only the lead can use /swarm uncap or /swarm cap.')
-        db.prepare('UPDATE wave_controls SET uncapped = ? WHERE id = 1').run(value ? 1 : 0)
-      })
     },
     settle(p) {
       transaction(() => {
@@ -362,7 +322,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
         const team = assigned === undefined ? undefined : canonicalTeam(assigned)
         const fresh = !member(p.author.agentId)
         if (!reservation && (fresh || teamOf(p.author.agentId) !== team)) checkEnrollment(p.author.agentId, team)
-        db.prepare('INSERT INTO members (agent, name, execution, credits, refilled) VALUES (?, ?, ?, ?, ?) ON CONFLICT(agent) DO UPDATE SET name = excluded.name, execution = excluded.execution').run(p.author.agentId, p.name, p.author.executionId, burst(), now())
+        db.prepare('INSERT INTO members (agent, name, execution) VALUES (?, ?, ?) ON CONFLICT(agent) DO UPDATE SET name = excluded.name, execution = excluded.execution').run(p.author.agentId, p.name, p.author.executionId)
         db.prepare('INSERT INTO seat_state (agent, joined, cursor) VALUES (?, ?, ?) ON CONFLICT(agent) DO UPDATE SET active = 1').run(p.author.agentId, latest(), latest())
         wakes.enroll(p.author.agentId, p.author.executionId)
         if (team !== undefined && teamOf(p.author.agentId) === undefined) db.prepare("INSERT INTO interests VALUES (?, 'membership', ?)").run(p.author.agentId, team)
@@ -407,13 +367,13 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
       if (result.ok) publish()
       return result
     },
-    post(p, input, delivery = 'index'): BoardReceipt {
+    post(p, input, delivery): BoardReceipt {
       let result: BoardReceipt
       try {
         result = transaction(() => {
           if (input.kind === 'message' || input.kind === 'notice') {
             if (p.author.sessionId !== sessionId) throw new Error('This message belongs to another session.')
-            db.prepare('INSERT INTO members (agent, name, execution, enrolled, credits, refilled) VALUES (?, ?, ?, 0, ?, ?) ON CONFLICT(agent) DO NOTHING').run(p.author.agentId, p.name, p.author.executionId, burst(), now())
+            db.prepare('INSERT INTO members (agent, name, execution, enrolled) VALUES (?, ?, ?, 0) ON CONFLICT(agent) DO NOTHING').run(p.author.agentId, p.name, p.author.executionId)
           } else checkPrincipal(p)
           const post = normalize(input)
           const mirrored = delivery === 'mirror' && (post.kind === 'message' || post.kind === 'notice')
@@ -423,8 +383,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
           const prior = db.prepare('SELECT id, seq, digest, record FROM events WHERE author = ? AND op = ?').get(p.author.agentId, post.clientOpId)
           if (prior != null) return prior.digest === hash ? { ok: true, eventId: String(prior.id), seq: Number(prior.seq), replay: true, ...(JSON.parse(String(prior.record)).unknownMentions?.length ? { unknownMentions: JSON.parse(String(prior.record)).unknownMentions } : {}) } : { ok: false, reason: 'That retry key already names a different post.' }
           if (!post.text.trim()) return { ok: false, reason: 'A post needs text.' }
-          if (!mirrored && !uncapped() && limits.postChars !== 0 && Array.from(post.text).length > limits.postChars) return { ok: false, reason: notice(p.author.agentId, 'postChars', `Board posts hold ${limits.postChars.toLocaleString('en-US')} characters (swarm.postChars). The lead can use /swarm uncap.`) }
-          if (post.files.length > 32 || post.refs.length > 8 || JSON.stringify({ ...post, text: '', mentions: [] }).length > 8000) return { ok: false, reason: 'A post holds at most 32 files and 8 references.' }
+          if (post.files.length > 32 || post.refs.length > 8) return { ok: false, reason: 'A post holds at most 32 files and 8 references.' }
           if (post.files.some(file => !file || file.startsWith('/') || file.split(/[\\/]/).includes('..'))) return { ok: false, reason: 'Files must be exact paths relative to the task repository.' }
           if (post.kind === 'correction' && !post.corrects) return { ok: false, reason: 'A correction names its earlier post with corrects.' }
           const target = post.corrects ?? post.replyTo
@@ -435,26 +394,16 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
           if (post.kind === 'answer' && question?.kind !== 'ask' && !ownReply) return { ok: false, reason: 'An answer names an ask or your own earlier post with replyTo.' }
           const thread = question?.threadId ?? post.threadId ?? randomUUID()
           if (post.threadId !== undefined && question !== undefined && post.threadId !== question.threadId) return { ok: false, reason: 'The reply belongs to the earlier post’s thread.' }
-          if (delivery !== 'mirror' && !ownReply && (post.kind === 'ask' || post.kind === 'answer')) {
-            const history = events(db.prepare('SELECT record FROM events WHERE thread = ? ORDER BY seq').all(thread))
-            const rounds = history.filter(e => e.kind === 'ask' || (e.kind === 'answer' && history.find(parent => parent.eventId === e.replyTo)?.author.agentId !== e.author.agentId)).length
-            if (rounds >= 4) return { ok: false, cap: 'thread-rounds', reason: 'This thread has two question-and-answer rounds. Corrections and replies to your own posts remain open.' }
-          }
           const addressing = resolveMentions(post.mentions)
           const team = teamOf(p.author.agentId)
           if (!mirrored && addressing.unknownMentions.length > 0 && addressing.mentions.length === 0 && team === undefined && !post.mentions.some(name => name.toLowerCase() === 'main')) return { ok: false, reason: `no seat named ${addressing.unknownMentions.join(', ')} — a seat exists once Crewmate launches it` }
-          const author = db.prepare('SELECT credits, refilled, posts FROM members WHERE agent = ?').get(p.author.agentId)!
           const time = now()
-          const credits = Math.min(burst(), Number(author.credits) + Math.max(0, time - Number(author.refilled)) / refillMs())
-          if (post.kind !== 'notice' && !mirrored && Number(author.posts) >= limits.postsPerSeat) return { ok: false, reason: notice(p.author.agentId, 'postsPerSeat', `This seat has used its ${limits.postsPerSeat.toLocaleString('en-US')} posts for this wave (swarm.postsPerSeat). This loop guard stays on under /swarm uncap.`) }
-          if (post.kind !== 'notice' && !mirrored && credits < 1) return { ok: false, reason: notice(p.author.agentId, 'postsPerMinute', `Board posts allow ${limits.postsPerMinute === 4 ? 'four' : limits.postsPerMinute} a minute, with a burst of ${burst() === 8 ? 'eight' : burst()} (swarm.postsPerMinute). This loop guard stays on under /swarm uncap.`), retryAfter: Math.ceil((1 - credits) * refillMs()) }
           const own = seats().find(seat => seat.agent === p.author.agentId)
           const declared = !mirrored && own ? parseBoardWait(post, own, seats()) : null
           const eventId = randomUUID()
           const event: BoardEvent = { ...post, addresses: post.mentions, mentions: addressing.mentions, recipients: seats().filter(seat => addressing.mentions.includes(seat.agent)), ...(post.lifecycle ? { authorRole: 'system' as const } : {}), ...(addressing.unknownMentions.length ? { unknownMentions: addressing.unknownMentions } : {}), ...(team === undefined ? {} : { team }), ...(captainId(team) === p.author.agentId ? { captain: true } : {}), ...(post.taskId === undefined && question?.taskId !== undefined ? { taskId: question.taskId } : {}), schema: 1, boardId, waveId, seq: 0, eventId, author: p.author, authorName: p.name, createdAt: new Date(time).toISOString(), payloadDigest: hash, threadId: thread, policyRevision: 1 }
           appendEvent(event)
           if (mirrored) db.prepare('INSERT INTO mirror_events VALUES (?)').run(eventId)
-          if (post.kind !== 'notice' && !mirrored) db.prepare('UPDATE members SET credits = ?, refilled = ?, posts = posts + 1 WHERE agent = ?').run(credits - 1, time, p.author.agentId)
           if (delivery !== 'mirror') {
             if (declared) wakes.declare(p.author.agentId, event, declared)
             const waiting = new Set(wakes.posted(event, seats()))
@@ -472,7 +421,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
               const named = (names: readonly string[]): boolean => post.mentions.some(name => names.includes(name.toLowerCase()))
               const captain = captainId(team) === recipient && !named(['all']) && ((post.kind === 'ask' || post.kind === 'blocker') || (['result', 'answer', 'correction'].includes(post.kind) && named([recipient.toLowerCase(), String(db.prepare('SELECT name FROM members WHERE agent = ?').get(recipient)?.name).toLowerCase()])))
               const wake = recipient === 'main' && ((post.kind === 'ask' || post.kind === 'blocker') ? named(['main', 'all']) : named(['main'])) || captain || captains.has(recipient) || waiting.has(recipient)
-              const mode = wake ? 'mention-wake-body' : event.mentions.includes(recipient) ? 'mention-body' : replies.has(recipient) ? 'thread-body' : delivery
+              const mode = wake ? 'mention-wake-body' : event.mentions.includes(recipient) ? 'mention-body' : replies.has(recipient) ? 'thread-body' : 'body'
               db.prepare('INSERT INTO deliveries (recipient, event, mode) VALUES (?, ?, ?)').run(recipient, eventId, mode)
             }
           }
@@ -497,7 +446,6 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
           }
           if (!input.clientOpId || input.clientOpId.length > 160) return { ok: false, reason: 'A post needs a retry key of at most 160 characters.' }
           if (!input.text.trim()) return { ok: false, reason: 'A post needs text.' }
-          if (!uncapped() && limits.postChars !== 0 && Array.from(input.text).length > limits.postChars) return { ok: false, reason: `Board posts hold ${limits.postChars.toLocaleString('en-US')} characters (swarm.postChars). The lead can use /swarm uncap.` }
           const roster = seats().filter(seat => seat.agent !== 'main')
           const target = (input.target ?? '').replace(/^@/, '')
           let recipients: BoardSeat[], channel: BoardChannel, address: string
@@ -532,13 +480,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
         const agent = p.author.agentId
         const state = db.prepare('SELECT joined, cursor FROM seat_state WHERE agent = ?').get(agent)!
         const top = Math.min(input.snapshot ?? latest(), latest())
-        let cursor = input.since ?? Number(state.cursor)
-        let tokens = 0
-        let reason: string | undefined
-        const chosen: BoardPacket['events'] = []
-        if (input.limitTokens !== undefined && (!Number.isSafeInteger(input.limitTokens) || input.limitTokens < 1)) throw new Error('limitTokens must be a positive integer.')
-        const allowance = readRoom(agent)
-        const limit = Math.min(input.limitTokens ?? allowance, allowance)
+        const cursor = input.since ?? Number(state.cursor)
         for (const id of input.acknowledge ?? []) db.prepare("UPDATE deliveries SET state = 'acknowledged' WHERE recipient = ? AND event = ? AND state = 'presented'").run(agent, id)
         if (input.watch !== undefined) {
           db.prepare("DELETE FROM interests WHERE agent = ? AND kind != 'membership'").run(agent)
@@ -558,42 +500,10 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
         const seenClause = 'EXISTS (SELECT 1 FROM seen_events WHERE agent = ? AND event = events.id)'
         const skippedSeen = input.since === undefined ? Number(db.prepare(`SELECT COUNT(*) AS n FROM events WHERE ${where.join(' AND ')} AND seq > ? AND ${seenClause}`).get(...args, Number(state.joined), agent)!.n) : 0
         if (input.since === undefined) { where.push(`NOT ${seenClause}`); args.push(agent) }
-        const omitted = (): number => Number(db.prepare(`SELECT COUNT(*) AS n FROM events WHERE ${where.join(' AND ')} AND seq > ?`).get(...args, cursor)!.n)
-        const finish = (): BoardPacket => {
-          const packetId = tokens === 0 ? undefined : randomUUID()
-          if (packetId !== undefined) {
-            db.prepare('INSERT INTO reads VALUES (?, ?, ?)').run(packetId, agent, tokens)
-            for (const event of chosen) if (!('truncated' in event)) db.prepare('INSERT INTO read_events VALUES (?, ?, ?)').run(packetId, agent, event.eventId)
-          }
-          return { events: chosen, snapshot: top, cursor, omitted: omitted(), tokens, skippedSeen, reread: 'Use since: 0 or since: <seq> to re-read deliberately; re-reads are charged.', ...(packetId === undefined ? {} : { packetId }), ...(reason === undefined ? {} : { reason }) }
-        }
-        const rows = events(db.prepare(`SELECT record FROM events WHERE ${where.join(' AND ')} AND seq > ? ORDER BY seq LIMIT 1200`).all(...args, cursor))
-        if (rows.length && allowance === 0) { reason = readRefusal(agent); return finish() }
-        for (const event of rows) {
-          let entry: BoardPacket['events'][number] = event
-          let cost = charge(JSON.stringify(entry))
-          if (tokens + cost > limit) {
-            if (limit === allowance) reason = notice(agent, 'seatAllowance', `This read reached the remaining seat allowance (swarm.seatAllowance, ${limits.seatAllowance.toLocaleString('en-US')}). The lead can use /swarm uncap.`)
-            if (chosen.length) break
-            const partial = { eventId: event.eventId, seq: event.seq, text: '', truncated: true as const }
-            let room = limit - charge(JSON.stringify(partial))
-            const text: string[] = []
-            for (const char of event.text) {
-              const bytes = charge(JSON.stringify(char)) - 2
-              if (bytes > room) break
-              text.push(char); room -= bytes
-            }
-            partial.text = text.join('')
-            entry = partial
-            cost = charge(JSON.stringify(entry))
-          }
-          if (cost > readRoom(agent)) { reason = readRefusal(agent); return finish() }
-          reserve(agent, cost, true)
-          chosen.push(entry); tokens += cost
-          if ('truncated' in entry) break
-          cursor = event.seq
-        }
-        return finish()
+        const chosen = events(db.prepare(`SELECT record FROM events WHERE ${where.join(' AND ')} AND seq > ? ORDER BY seq`).all(...args, cursor))
+        const packetId = chosen.length ? randomUUID() : undefined
+        if (packetId !== undefined) for (const event of chosen) db.prepare('INSERT INTO read_events VALUES (?, ?, ?)').run(packetId, agent, event.eventId)
+        return { events: chosen, snapshot: top, cursor: chosen.at(-1)?.seq ?? cursor, skippedSeen, reread: 'Use since: 0 or since: <seq> to re-read deliberately.', ...(packetId === undefined ? {} : { packetId }) }
       })
     },
     leadPosts(since) {
@@ -617,7 +527,6 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
         const agent = p.author.agentId
         const parts: string[] = []
         const ids: string[] = []
-        let cost = 0
         if (agent === 'main') {
           const waits = wakes.open(seats())
           const id = `waits:${digest(JSON.stringify(waits))}`
@@ -626,43 +535,19 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
             ids.push(id)
           }
         }
-        if (agent === 'main') for (const row of db.prepare('SELECT id, text FROM cap_notices WHERE presented = 0 ORDER BY rowid').all()) {
+        if (agent === 'main') for (const row of db.prepare('SELECT id, text FROM lead_notices WHERE presented = 0 ORDER BY rowid').all()) {
           if (seen.has(String(row.id))) continue
-          const text = `crew-board-event:${row.id}\n${JSON.stringify({ notice: row.text })}`
-          if (cost + charge(text) > 768) break
-          parts.push(text); ids.push(String(row.id)); cost += charge(text)
+          parts.push(`crew-board-event:${row.id}\n${JSON.stringify({ notice: row.text })}`); ids.push(String(row.id))
         }
         for (const row of db.prepare('SELECT id, record FROM roster_changes WHERE recipient = ? ORDER BY rowid').all(agent)) {
           if (seen.has(String(row.id))) continue
           parts.push(`crew-board-event:${row.id}\n${JSON.stringify({ roster: JSON.parse(String(row.record)) })}`); ids.push(String(row.id))
         }
-        const pending = db.prepare("SELECT e.record, d.mode, d.packet, d.charge FROM deliveries d JOIN events e ON e.id = d.event WHERE d.recipient = ? AND d.state = 'pending' AND NOT EXISTS (SELECT 1 FROM seen_events WHERE agent = d.recipient AND event = d.event) ORDER BY CASE WHEN d.mode LIKE 'mention-%' THEN 0 WHEN d.mode LIKE 'thread-%' THEN 1 ELSE 2 END, e.seq").all(agent)
+        const pending = db.prepare("SELECT e.record FROM deliveries d JOIN events e ON e.id = d.event WHERE d.recipient = ? AND d.state = 'pending' AND NOT EXISTS (SELECT 1 FROM seen_events WHERE agent = d.recipient AND event = d.event) ORDER BY CASE WHEN d.mode LIKE 'mention-%' THEN 0 WHEN d.mode LIKE 'thread-%' THEN 1 ELSE 2 END, e.seq").all(agent)
         for (const row of pending) {
           const event = JSON.parse(String(row.record)) as BoardEvent
           if (seen.has(event.eventId)) continue
-          const index = `crew-board-event:${event.eventId}\n${packetText(event, false)}`
-          const body = `crew-board-event:${event.eventId}\n${packetText(event, true)}`
-          const directed = /^(mention|thread)-/.test(String(row.mode))
-          let whole = directed || (String(row.mode).endsWith('body') && charge(body) <= 640)
-          let text = String(row.packet ?? (whole ? body : index))
-          if (Number(row.charge) === 0) {
-            if (directed && charge(text) > readRoom(agent)) { readRefusal(agent); continue }
-            const cap = directed ? null : deliveryCap(agent, charge(text))
-            if (cap) {
-              notice(agent, cap, `Unsolicited board delivery reached ${cap === 'appearances' ? 'the replay forecast for swarm.waveAllowance' : `swarm.${cap}`}. Requested reads remain available within the seat allowance. The lead can use /swarm uncap.`)
-              whole = false
-              text = index
-              if (deliveryCap(agent, charge(text))) continue
-            }
-          }
-          const next = charge(text)
-          if (!directed && cost + next > 768) break
-          if (Number(row.charge) === 0) {
-            reserve(agent, next, directed)
-            if (whole) db.prepare('INSERT OR IGNORE INTO whole_deliveries VALUES (?, ?)').run(agent, event.eventId)
-          }
-          db.prepare('UPDATE deliveries SET packet = ?, charge = ? WHERE recipient = ? AND event = ?').run(text, next, agent, event.eventId)
-          parts.push(text); ids.push(event.eventId); if (!directed) cost += next
+          parts.push(`crew-board-event:${event.eventId}\n${packetText(event)}`); ids.push(event.eventId)
         }
         return parts.length ? { text: `${BOARD_PACKET_RULE}\n${parts.join('\n')}`, eventIds: ids } : null
       })
@@ -671,20 +556,14 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
       transaction(() => {
         checkPrincipal(p)
         const agent = p.author.agentId
-        let cost = 0
         for (const id of new Set(ids)) {
           db.prepare('DELETE FROM roster_changes WHERE recipient = ? AND id = ?').run(agent, id)
-          if (agent === 'main') db.prepare('UPDATE cap_notices SET presented = 1 WHERE id = ?').run(id)
-          cost += Number(db.prepare('SELECT charge FROM deliveries WHERE recipient = ? AND event = ?').get(agent, id)?.charge ?? 0)
+          if (agent === 'main') db.prepare('UPDATE lead_notices SET presented = 1 WHERE id = ?').run(id)
           db.prepare("UPDATE deliveries SET state = 'presented', request = ? WHERE recipient = ? AND event = ? AND state = 'pending'").run(requestId, agent, id)
-          if (db.prepare('SELECT event FROM whole_deliveries WHERE recipient = ? AND event = ?').get(agent, id)) markSeen(agent, id)
+          if (db.prepare('SELECT event FROM deliveries WHERE recipient = ? AND event = ?').get(agent, id)) markSeen(agent, id)
         }
-        for (const id of new Set(packets)) {
-          cost += Number(db.prepare('SELECT cost FROM reads WHERE recipient = ? AND id = ?').get(agent, id)?.cost ?? 0)
-          for (const event of db.prepare('SELECT event FROM read_events WHERE recipient = ? AND packet = ?').all(agent, id)) markSeen(agent, String(event.event))
-        }
+        for (const id of new Set(packets)) for (const event of db.prepare('SELECT event FROM read_events WHERE recipient = ? AND packet = ?').all(agent, id)) markSeen(agent, String(event.event))
         advance(agent)
-        if (cost > 0) db.prepare('INSERT INTO requests VALUES (?, ?, ?) ON CONFLICT(recipient, id) DO NOTHING').run(requestId, agent, cost)
       })
       publish()
     },

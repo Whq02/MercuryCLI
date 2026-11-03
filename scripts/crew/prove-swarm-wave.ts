@@ -6,13 +6,13 @@ import { bootLead, closeWorld, LEAD_MODEL, makeWorld, toolResultOf } from './cre
 const world = await makeWorld('swarm-wave', [
   { kind: 'tool_use', name: 'Crewmate', id: 'launch-alpha', input: { name: 'alpha', team: 'parser', description: 'Check parser fields', prompt: 'Post a parser question on the board, read the thread, then finish.', crewmate_type: 'mercury-crew', model: LEAD_MODEL, run_in_background: false } },
   { kind: 'tool_use', name: 'CrewBoard', id: 'alpha-post', input: { op: 'post', clientOpId: 'alpha-question', kind: 'ask', threadId: 'parser', taskId: 'parser', text: 'Which fields identify the resumed run?' } },
-  { kind: 'tool_use', name: 'CrewBoard', id: 'alpha-read', input: { op: 'read', thread: 'parser', limitTokens: 1500 } },
+  { kind: 'tool_use', name: 'CrewBoard', id: 'alpha-read', input: { op: 'read', thread: 'parser' } },
   { kind: 'text', text: 'Alpha posted and read the parser thread.' },
   { kind: 'tool_use', name: 'Crewmate', id: 'launch-beta', input: { name: 'beta', team: 'transport', description: 'Check transport fields', prompt: 'Read the parser thread, post a transport question to it, then finish.', crewmate_type: 'mercury-crew', model: LEAD_MODEL, run_in_background: false } },
-  { kind: 'tool_use', name: 'CrewBoard', id: 'beta-read', input: { op: 'read', thread: 'parser', since: 0, limitTokens: 1500 } },
+  { kind: 'tool_use', name: 'CrewBoard', id: 'beta-read', input: { op: 'read', thread: 'parser', since: 0 } },
   { kind: 'tool_use', name: 'CrewBoard', id: 'beta-post', input: { op: 'post', clientOpId: 'beta-question', kind: 'ask', threadId: 'parser', taskId: 'transport', text: 'Does the next packet preserve both fields?' } },
   { kind: 'text', text: 'Beta read and posted to the parser thread.' },
-  { kind: 'tool_use', name: 'CrewBoard', id: 'lead-read', input: { op: 'read', thread: 'parser', limitTokens: 1500 } },
+  { kind: 'tool_use', name: 'CrewBoard', id: 'lead-read', input: { op: 'read', thread: 'parser' } },
   { kind: 'text', text: 'The two-seat board wave is finished.' },
 ])
 const settings = join(world.config, 'settings.json')

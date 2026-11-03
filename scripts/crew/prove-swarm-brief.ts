@@ -8,12 +8,11 @@ assert(suiteHome, 'run with a scratch MERCURY_CONFIG_DIR')
 const home = mkdtempSync(join(suiteHome, 'brief-home-'))
 process.env.MERCURY_CONFIG_DIR = home
 const { open } = await import('../../src/services/crewBoard/store.ts')
-const { DEFAULT_BOARD_LIMITS } = await import('../../src/services/crewBoard/contracts.ts')
 let checks = 0
 const check = (label: string, value: unknown) => { assert(value, label); console.log(`PASS ${label}`); checks++ }
 
 {
-  const board = open(join(home, 'seats.sqlite'), 'seats', DEFAULT_BOARD_LIMITS, () => 0)
+  const board = open(join(home, 'seats.sqlite'), 'seats', () => 0)
   const seat = (agentId: string, name = agentId, team?: string): BoardPrincipal => {
     const principal = { author: { sessionId: 'seats', agentId, executionId: 'run' }, name, team }
     board.enroll(principal)

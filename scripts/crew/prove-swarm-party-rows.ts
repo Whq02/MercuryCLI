@@ -197,7 +197,7 @@ async function director(): Promise<string[]> {
   boardPath = join(dirname(transcript!), sessionId, 'boards', 'wave', 'board.sqlite')
   await untilAsync(() => existsSync(boardPath!) && paintedRows(transcript!).some(row => row.text === 'Swarm launched'), vshotBudgetMs(90_000), 200)
   const { open } = await import('../../src/services/crewBoard/store.ts')
-  const board = open(boardPath!, sessionId!, undefined, () => (clock += 20_000))
+  const board = open(boardPath!, sessionId!, () => (clock += 20_000))
   const mainExecution = (): string => mainExecutionOf(boardPath!)
   const main = (): Seat => ({ author: { sessionId: sessionId!, agentId: 'main', executionId: mainExecution() }, name: 'main' })
   const judge: Seat = { author: { sessionId: sessionId!, agentId: 'a-judge', executionId: 'e-judge' }, name: 'lists-judge', team: 'lists' }
@@ -240,7 +240,7 @@ async function director(): Promise<string[]> {
     await post(judge, 'row-long', LONG, {}, 'ROW-LONG-END')
     const judgeResumed: Seat = { ...judge, author: { ...judge.author, executionId: 'e-judge-resumed' } }
     board.enroll(judgeResumed)
-    const message = board.post(writer, { clientOpId: 'row-message', kind: 'message', text: 'a shared message, not a post ROW-MESSAGE', to: ['lists-judge'] }, 'body')
+    const message = board.post(writer, { clientOpId: 'row-message', kind: 'message', text: 'a shared message, not a post ROW-MESSAGE', to: ['lists-judge'] })
     if (!message.ok) notes.push(`message refused: ${message.reason}`)
     const notice = board.post(solo, { clientOpId: 'row-notice', kind: 'notice', text: 'a plain mirrored notice ROW-NOTICE' }, 'mirror')
     if (!notice.ok) notes.push(`notice refused: ${notice.reason}`)

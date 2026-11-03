@@ -165,16 +165,11 @@ edit `imageModel` and `videoModel` in `<media.root>/config.json`, never in
 
 ## Swarm
 
-The live [crew board](CREW.md#live-crew-board) reads these keys from user settings only. The **Swarm limits** group in `/config` edits these numbers. Out-of-range values are clamped and named in settings validation. A wave keeps its opening limits, including after reopening; changes apply to new waves. Swarm is on for new sessions by default; `/swarm off` turns it off for a session and `/swarm on` turns it back on. Resumed sessions keep their choice. The Swarm row in `/config` is the master switch. Sharing board messages costs context, and the allowances guard against faults. `/swarm uncap` lifts context and post-length allowances for a live wave; `/swarm cap` restores them and `/swarm status` shows the override. Post-rate and post-count guards stay on.
+The live [crew board](CREW.md#live-crew-board) reads this key from user settings only. Swarm is on for new sessions by default; `/swarm off` turns it off for a session and `/swarm on` turns it back on. Resumed sessions keep their choice. The Swarm row in `/config` is the master switch. Sharing board messages costs context.
 
 | Key | What it sets |
 | --- | --- |
 | `swarm.enabled` | Master switch for the live crew board; on by default, `false` turns it off. New sessions enroll crewmates by default when the master is on; `/swarm off` turns off enrollment for that session. |
-| `swarm.seatAllowance` | Requested board-context tokens per seat: no cap by default (0); 1,000–5,000,000 caps it. |
-| `swarm.waveAllowance` | Live-wave board context before unsolicited delivery degrades: no cap by default (0); from `swarm.seatAllowance` to 20,000,000 caps it. Completed seats no longer count. |
-| `swarm.postChars` | Characters per post: no cap by default (0); 400–20,000 caps it. Direct messages to and from the lead are exempt. |
-| `swarm.postsPerMinute` | Posts per minute per seat: 4 by default; 1–30, with a burst of twice this rate. |
-| `swarm.postsPerSeat` | Posts per seat per wave: 120 by default; 10–1,000. |
 
 ## Permissions
 

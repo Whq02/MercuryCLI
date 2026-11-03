@@ -43,7 +43,7 @@ async function run(withTool: boolean): Promise<any[]> {
     requests.push(request)
     request.options.onStreamActivity?.(Date.now())
     if (requests.length === 1) {
-      assert(board.post(writer, { clientOpId: `during-${++serial}`, kind: 'message', text: withTool ? 'The next tool boundary sees this.' : 'Keep this for the next active turn.', mentions: ['reader'] }, 'body').ok)
+      assert(board.post(writer, { clientOpId: `during-${++serial}`, kind: 'message', text: withTool ? 'The next tool boundary sees this.' : 'Keep this for the next active turn.', mentions: ['reader'] }).ok)
       if (withTool) {
         const row = createAssistantMessage({ content: [{ type: 'tool_use', id: `echo-${serial}`, name: 'Echo', input: {} }] as never })
         row.message.stop_reason = 'tool_use'

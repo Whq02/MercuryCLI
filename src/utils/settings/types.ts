@@ -88,24 +88,12 @@ export const ExtensionsSettingsSchema = lazySchema(() =>
   }),
 )
 
-const swarmAllowance = (minimum: number, maximum: number) => z.number().int().max(maximum).superRefine((value, ctx) => {
-  if (value !== 0 && value < minimum) ctx.addIssue({ code: 'too_small', origin: 'number', minimum, inclusive: true })
-}).meta({ minimum: 0, anyOf: [{ const: 0 }, { minimum }] })
-
 export const SettingsSchema = lazySchema(() => {
   const base = z.object({
     $schema: z.string().optional(),
     swarm: z.object({
       enabled: z.boolean().optional().describe('On unless false; the Swarm row in /config writes it'),
-      seatAllowance: swarmAllowance(1000, 5000000).optional().describe('Requested board-context tokens per seat: 0 (no cap) by default; 1000–5000000 caps it'),
-      waveAllowance: swarmAllowance(1000, 20000000).optional().describe('Live-wave board context before unsolicited delivery degrades: 0 (no cap) by default; from seatAllowance up to 20000000 caps it'),
-      postChars: swarmAllowance(400, 20000).optional().describe('Characters per post: 0 (no cap) by default; 400–20000 caps it'),
-      postsPerMinute: z.number().int().min(1).max(30).optional().describe('Posts per minute per seat, with a burst of twice this rate, default 4'),
-      postsPerSeat: z.number().int().min(10).max(1000).optional().describe('Posts per seat per wave, default 120'),
-    }).strict().superRefine((swarm, ctx) => {
-      const minimum = Math.max(1000, Math.min(5000000, swarm.seatAllowance ?? 200000))
-      if (swarm.waveAllowance !== undefined && swarm.waveAllowance !== 0 && swarm.waveAllowance < minimum) ctx.addIssue({ code: 'too_small', origin: 'number', minimum, inclusive: true, path: ['waveAllowance'] })
-    }).optional().describe('Live crew board switch and limits; user settings only, on by default; limits are held for each wave'),
+    }).optional().describe('Live crew board switch; user settings only, on by default'),
     models: ModelFactsSchema().optional().describe('Model facts keyed by the full id: contextWindow, maxOutputTokens, prices, efforts, images, reasoning and thinkingBudget (the thinking-token cap a wire that documents one takes); _default maps provider families to facts for unknown ids; recorded capabilities are never reduced'),
     compatProvider: CompatProviderSchema().optional().describe('Custom endpoints keyed by name, or one endpoint named default: baseUrl, label, models, headers, sessionAffinityHeader and dialect; keys are kept by /logins, not in settings'),
     videoProvider: VideoProviderSettingsSchema.optional().describe('Named video generators: kind (minimax), optional baseUrl and model; billable calls use the existing /logins minimax key, never a key in settings'),

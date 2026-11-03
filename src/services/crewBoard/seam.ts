@@ -12,7 +12,7 @@ import { getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage
 import { operatorPauseGate } from '../../run-core/pauseGate.js'
 import type { AgentId } from '../../types/ids.js'
 import type { Message } from '../../types/message.js'
-import { BOARD_PACKET_RULE, DEFAULT_BOARD_LIMITS, boardSeatName, type BoardEvent, type BoardLimits, type BoardModule, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot, type OwnerPostInput, type OwnerPostReceipt } from './contracts.js'
+import { BOARD_PACKET_RULE, boardSeatName, type BoardEvent, type BoardModule, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot, type OwnerPostInput, type OwnerPostReceipt } from './contracts.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
@@ -26,34 +26,10 @@ const roads = new Map<string, { on: boolean; execution: string; name: string; ac
 const leadChecks = new Set<() => void>()
 const pendingLaunches = new Set<string>()
 const key = (agent: string): string => `${getSessionId()}:${agent}`
-const EMPTY: BoardViewSnapshot = { on: false, events: [], snapshot: 0, omitted: 0, admitted: 0, peerTurns: 0 }
+const EMPTY: BoardViewSnapshot = { on: false, events: [], snapshot: 0, omitted: 0, peerTurns: 0 }
 
 export function swarmMasterEnabled(): boolean {
   return getSettingsForSource('userSettings')?.swarm?.enabled !== false
-}
-
-export function swarmLimits(): BoardLimits {
-  const settings = getSettingsForSource('userSettings')?.swarm
-  const seatAllowance = settings?.seatAllowance ?? DEFAULT_BOARD_LIMITS.seatAllowance
-  const waveAllowance = settings?.waveAllowance ?? DEFAULT_BOARD_LIMITS.waveAllowance
-  return {
-    seatAllowance,
-    waveAllowance: waveAllowance === 0 ? 0 : Math.max(seatAllowance, waveAllowance),
-    postsPerMinute: settings?.postsPerMinute ?? DEFAULT_BOARD_LIMITS.postsPerMinute,
-    postsPerSeat: settings?.postsPerSeat ?? DEFAULT_BOARD_LIMITS.postsPerSeat,
-    postChars: settings?.postChars ?? DEFAULT_BOARD_LIMITS.postChars,
-  }
-}
-
-export function swarmUncapped(): boolean {
-  return !isReadOnlyDiagnostic() && sessions.get(String(getSessionId()))?.store.uncapped === true
-}
-
-export function setSwarmUncapped(value: boolean): void {
-  const store = swarmStore()
-  const state = sessions.get(String(getSessionId()))
-  if (!store || !state) throw new Error('No live wave; /swarm on opens it.')
-  store.setUncapped({ author: { sessionId: String(getSessionId()), agentId: 'main', executionId: state.execution }, name: 'main' }, value)
 }
 
 export function swarmSessionEnabled(): boolean {
@@ -103,16 +79,13 @@ export function swarmStore(create = true): BoardStore | null {
   if (isReadOnlyDiagnostic() || !swarmMasterEnabled()) return null
   const sessionId = String(getSessionId())
   const existing = sessions.get(sessionId)
-  if (existing) {
-    existing.store.setLimits(swarmLimits())
-    return existing.store
-  }
+  if (existing) return existing.store
   if (!swarmSessionEnabled() && ![...roads].some(([id, road]) => id.startsWith(`${sessionId}:`) && road.on)) return null
   const path = join(dirname(getTranscriptPath()), sessionId, 'boards', 'wave', 'board.sqlite')
   if (!create && !existsSync(path)) return null
   const module = create ? loadSwarm() : implementationModule()
   if (module === null) return null
-  const store = module.open(path, sessionId, swarmLimits())
+  const store = module.open(path, sessionId)
   const execution = randomUUID()
   sessions.set(sessionId, { store, execution })
   store.enroll({ author: { sessionId, agentId: 'main', executionId: execution }, name: 'main' })
@@ -294,7 +267,7 @@ export function swarmTools(agentId = 'main'): Tool[] {
   if (!swarmRoad(agentId) || !swarmMasterEnabled()) return []
   const module = implementationModule()
   if (module === null) return []
-  boardTool ??= module.tool({ buildTool, principal: context => context.agentKind === 'workflow' ? null : swarmPrincipal(context.agentId), paused: id => operatorPauseGate.holds(id), sessionOn: swarmSessionEnabled, limits: swarmLimits, uncapped: swarmUncapped }, swarmStore)
+  boardTool ??= module.tool({ buildTool, principal: context => context.agentKind === 'workflow' ? null : swarmPrincipal(context.agentId), paused: id => operatorPauseGate.holds(id), sessionOn: swarmSessionEnabled }, swarmStore)
   return [boardTool]
 }
 
@@ -323,7 +296,7 @@ export function swarmPeerMessage(context: ToolUseContext, recipient: string, tex
   const principal = swarmPrincipal(sender) ?? { author: { sessionId: String(getSessionId()), agentId: sender, executionId: context.toolUseId ?? sender }, name: sender }
   const onBoard = recipient === 'main' || swarmRoad(recipient)
   const op = context.toolUseId ?? randomUUID()
-  const result = board.post(principal, { clientOpId: `message:${op}`, kind: 'message', text, taskId: recipient, mentions: onBoard ? [recipient] : [] }, onBoard ? 'body' : 'mirror')
+  const result = board.post(principal, { clientOpId: `message:${op}`, kind: 'message', text, taskId: recipient, mentions: onBoard ? [recipient] : [] }, onBoard ? undefined : 'mirror')
   if (!result.ok) return { handled: true, result: { success: false, message: result.reason } }
   if (!onBoard) return { handled: false }
   return { handled: true, result: { success: true, message: `Posted for ${recipient}; it reads the message at its next active boundary. No turn was started.` } }
@@ -347,7 +320,7 @@ function readPackets(messages: readonly Message[]): { packetId: string; eventIds
       try {
         const text = typeof block.content === 'string' ? block.content : (block.content ?? []).flatMap(part => part.type === 'text' ? [part.text] : []).join('')
         const data: unknown = JSON.parse(text)
-        if (data && typeof data === 'object' && 'packetId' in data && typeof data.packetId === 'string' && 'events' in data && Array.isArray(data.events)) packets.push({ packetId: data.packetId, eventIds: data.events.flatMap(event => event && typeof event === 'object' && typeof event.eventId === 'string' && event.truncated !== true ? [event.eventId] : []) })
+        if (data && typeof data === 'object' && 'packetId' in data && typeof data.packetId === 'string' && 'events' in data && Array.isArray(data.events)) packets.push({ packetId: data.packetId, eventIds: data.events.flatMap(event => event && typeof event === 'object' && typeof event.eventId === 'string' ? [event.eventId] : []) })
       } catch {}
     }
   }

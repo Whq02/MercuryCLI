@@ -10,7 +10,6 @@ assert(suiteHome, 'run with a scratch MERCURY_CONFIG_DIR')
 const home = mkdtempSync(join(suiteHome, 'owner-verbs-home-'))
 process.env.MERCURY_CONFIG_DIR = home
 const { open } = await import('../../src/services/crewBoard/store.ts')
-const { DEFAULT_BOARD_LIMITS } = await import('../../src/services/crewBoard/contracts.ts')
 const { CHANNEL_USAGE, parseChannelArgs } = await import('../../src/utils/crew/channelCommand.ts')
 let checks = 0
 const check = (label: string, value: unknown) => { assert(value, label); console.log(`PASS ${label}`); checks++ }
@@ -27,7 +26,7 @@ check('a target without words, or words without a target, answers the usage line
 console.log('§2 the target matrix in the store')
 {
   let now = 0
-  const board = open(join(home, 'verbs.sqlite'), 'verbs', { ...DEFAULT_BOARD_LIMITS, postsPerMinute: 1, postsPerSeat: 2 }, () => now)
+  const board = open(join(home, 'verbs.sqlite'), 'verbs', () => now)
   const seat = (agentId: string, name = agentId, team?: string): BoardPrincipal => {
     const principal = { author: { sessionId: 'verbs', agentId, executionId: 'run' }, name, team }
     board.enroll(principal)
@@ -187,7 +186,7 @@ else {
     }).finally(() => observer.close())
     assert(enrolled, 'the fixture never observed the board switch')
     assert.equal(code, 0, stderr)
-    const board = open(boardPath, SID, undefined, Date.now, true)
+    const board = open(boardPath, SID, Date.now, true)
     try {
       const owners = board.view().events.filter(e => e.authorRole === 'owner')
       check('the typed whisper is one owner event on the board, addressed to the seat and main', owners.length === 1 && owners[0]!.channel?.kind === 'whisper' && owners[0]!.channel.target === 'Poster' && owners[0]!.text === 'hello there' && JSON.stringify(owners[0]!.mentions) === JSON.stringify(['main', `poster-${cols}`]))

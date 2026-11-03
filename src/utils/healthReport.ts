@@ -2254,14 +2254,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'swarm',
           label: 'Swarm',
           run: async () => {
-            const { swarmMasterEnabled, swarmSessionEnabled, swarmLimits, swarmUncapped } = await import('../services/crewBoard/seam.js')
+            const { swarmMasterEnabled, swarmSessionEnabled } = await import('../services/crewBoard/seam.js')
             const master = swarmMasterEnabled()
-            const limits = swarmLimits()
-            const words = (value: number): string => value === 0 || swarmUncapped() ? 'no limit' : value.toLocaleString('en-US')
             return {
               status: master ? 'ok' : 'off',
               evidence: master ? `Swarm ${swarmSessionEnabled() ? 'on' : 'off'} for new crewmates` : 'Swarm off',
-              detail: `swarm.enabled in user settings.json is the master switch; /swarm on enables this session for subsequently launched crewmates. Board context: ${words(limits.seatAllowance)} per agent, ${words(limits.waveAllowance)} for live members of the wave, charged conservatively in UTF-8 bytes. /swarm uncap lifts context and post-length allowances; /swarm cap restores them. Direct messages to and from the lead are uncharged.`,
+              detail: 'swarm.enabled in user settings.json is the master switch; /swarm on enables this session for subsequently launched crewmates.',
               link: '/config',
             }
           },

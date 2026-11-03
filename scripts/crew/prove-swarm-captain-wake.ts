@@ -16,7 +16,7 @@ for (const kind of kinds) for (const route of routes) {
   const sessionId = `${kind}-${route}`
   if (only && only !== sessionId) continue
   let now = 0
-  const board = open(join(home, `${sessionId}.sqlite`), sessionId, undefined, () => now += 15000)
+  const board = open(join(home, `${sessionId}.sqlite`), sessionId, () => now += 15000)
   const seat = (agentId: string, name: string, team?: string): BoardPrincipal => ({ author: { sessionId, agentId, executionId: 'run' }, name, team })
   const main = seat('main', 'main')
   const captain = seat('captain-id', 'Captain', 'engine')
@@ -42,9 +42,9 @@ for (const kind of kinds) for (const route of routes) {
     const packet = board.boundary(captain, new Set())
     const directed = ['named', 'id', 'label', 'broadcast', 'lead'].includes(route)
     const incoming = route === 'member' && (kind === 'ask' || kind === 'blocker')
-    const whole = directed || (route === 'own-label' || incoming) && (kind === 'ask' || kind === 'blocker')
-    assert.equal(packet?.text.includes(text) ?? false, whole, `${sessionId}: whole-body delivery`)
-    assert.equal(packet?.eventIds.includes(posted.eventId) ?? false, directed || route === 'own-label' || incoming, `${sessionId}: delivery selection`)
+    const selected = directed || route === 'own-label' || incoming
+    assert.equal(packet?.text.includes(text) ?? false, selected, `${sessionId}: whole-body delivery`)
+    assert.equal(packet?.eventIds.includes(posted.eventId) ?? false, selected, `${sessionId}: delivery selection`)
     const saved = board.view().events.find(event => event.eventId === posted.eventId)!
     assert.deepEqual(saved.addresses, addresses)
     if (route === 'member') assert(!saved.mentions.includes(captain.author.agentId), 'captain fanout is not an explicit mention')
@@ -82,7 +82,7 @@ if (!only || only === 'owner-member') {
 if (!only || only === 'standing') {
   let now = 0, serial = 0
   const path = join(home, 'standing.sqlite')
-  const board = open(path, 'standing', undefined, () => now += 15000)
+  const board = open(path, 'standing', () => now += 15000)
   const seat = (agentId: string, team?: string): BoardPrincipal => ({ author: { sessionId: 'standing', agentId, executionId: 'first' }, name: agentId, team })
   const main = seat('main'), member = seat('member', 'engine'), replacement = seat('replacement', 'engine'), outside = seat('outside', 'view')
   let captain = seat('captain', 'engine')

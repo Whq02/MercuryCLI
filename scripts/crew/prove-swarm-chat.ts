@@ -28,7 +28,7 @@ assert.equal(new Set(['ask', 'answer', 'result', 'blocker', 'correction', 'notic
 {
   const path = join(process.env.MERCURY_CONFIG_DIR, 'captain-name-width.sqlite')
   let now = Date.parse('2026-10-01T09:00:00Z')
-  const board = open(path, 'captain-name-width', undefined, () => now += 15000)
+  const board = open(path, 'captain-name-width', () => now += 15000)
   const principal = (agentId: string, name: string, team?: string) => ({ author: { sessionId: 'captain-name-width', agentId, executionId: 'run' }, name, team })
   const main = principal('main', 'main'), captain = principal('judge', 'lists-judge', 'lists'), member = principal('writer', 'lists-writer', 'lists')
   const width = (snapshot: BoardViewSnapshot) => Math.max(2, ...[...(snapshot.names ?? []), ...chatRows(snapshot).map(row => row.name)].map(name => displayWidth(`[${name}]`)))
@@ -48,7 +48,7 @@ assert.equal(new Set(['ask', 'answer', 'result', 'blocker', 'correction', 'notic
     const previous = board.view().events.find(event => event.clientOpId === 'before')!
     assert.equal(width(board.view(previous.seq + 1)), width(before), 'earlier pages use the same plain-name inventory')
     assert.equal(width(board.view(undefined, undefined, 'lists')), width(before), 'team channels use the same plain-name inventory')
-    const reader = open(path, 'captain-name-width', undefined, Date.now, true)
+    const reader = open(path, 'captain-name-width', Date.now, true)
     try { assert.equal(width(reader.view()), width(before), 'read-only reopening keeps the baseline name-column width') } finally { reader.close() }
   } finally { board.close() }
   console.log('PASS captain appointment leaves the Workbench name column at its baseline width')
@@ -70,7 +70,7 @@ if (fixture) {
   copy.close()
 } else {
   let now = Date.parse('2026-10-01T10:00:00Z')
-  const board = open(path, SID, undefined, () => now += 15000)
+  const board = open(path, SID, () => now += 15000)
   const a = { author: { sessionId: SID, agentId: 'alpha', executionId: 'run' }, name: 'Alpha', team: 'engine' }
   const b = { author: { sessionId: SID, agentId: 'beta', executionId: 'run' }, name: 'Beta', team: 'view' }
   board.enroll(a); board.enroll(b)
@@ -79,7 +79,7 @@ if (fixture) {
   const wrong = board.post(b, { clientOpId: 'a', kind: 'answer', replyTo: question.eventId, text: 'Four rows.' })
   assert(wrong.ok)
   assert(board.post(b, { clientOpId: 'c', kind: 'correction', corrects: wrong.eventId, text: '@Alpha five rows including the footer.' }).ok)
-  assert(board.post(a, { clientOpId: 'message:mirror', kind: 'message', text: 'The shared message.', to: ['Beta'] }, 'body').ok)
+  assert(board.post(a, { clientOpId: 'message:mirror', kind: 'message', text: 'The shared message.', to: ['Beta'] }).ok)
   assert(board.post(a, { clientOpId: 'three', kind: 'result', replyTo: question.eventId, text: THREE_LINES }).ok)
   assert(board.post(b, { clientOpId: 'long', kind: 'result', replyTo: question.eventId, text: LONG_POST }).ok)
   const view = board.view()
@@ -94,7 +94,7 @@ if (fixture) {
   if (arg('--leg') === 'history') for (let i = 0; i < 33; i++) assert(board.post(b, { clientOpId: `history-${i}`, kind: 'correction', corrects: wrong.eventId, text: `Count revision ${i}.` }).ok)
   board.close()
 }
-const saved = open(path, SID, undefined, Date.now, true)
+const saved = open(path, SID, Date.now, true)
 const corpus = saved.view()
 assert(corpus.events.length > 0)
 saved.close()

@@ -91,7 +91,7 @@ const first = await dispatch(undefined, 'CrewBoard', { op: 'post', clientOpId: '
 check('lead posts through real dispatch', first.ok)
 const second = await dispatch('alpha', 'CrewBoard', { op: 'post', clientOpId: 'alpha-answer', kind: 'answer', text: 'The row parser handles it.', replyTo: first.eventId, mentions: ['beta'] })
 check('a peer answers in the same ordered thread', second.ok && second.seq === first.seq + 1)
-const read = await dispatch('beta', 'CrewBoard', { op: 'read', since: 0, limitTokens: 1500 })
+const read = await dispatch('beta', 'CrewBoard', { op: 'read', since: 0 })
 check('the second peer selectively reads typed events', read.events.length > 0 && read.events[0].eventId === first.eventId && read.snapshot === second.seq)
 check('the subscribed view changes only after commit', changes === 2 && board.view().events.length === 2)
 const sent = await dispatch('alpha', 'SendMessage', { to: 'beta', message: 'Check the row boundary.' })
@@ -141,14 +141,14 @@ check('the tool refuses forged identity and phase-two operations', !schema.safeP
 board.read(seam.swarmPrincipal('beta')!, { task: 'dependency', files: ['parser.ts'], watch: true })
 const finding = board.post(seam.swarmPrincipal('alpha')!, { clientOpId: 'dependency-result', kind: 'blocker', text: 'The parser needs the missing field.', taskId: 'other-task', files: ['parser.ts'], refs: [{ uri: 'mercury://agent/alpha', digest: 'a'.repeat(64) }] })
 check('declared file dependencies receive relevant events without mentions', finding.ok && seam.swarmBoundary('beta', new Set()).some(packet => packet.eventIds.includes(finding.eventId)))
-const filtered = board.read(seam.swarmPrincipal('alpha')!, { task: 'missing-task', limitTokens: 1500 })
-check('filtered omitted counts do not count unrelated topics', filtered.events.length === 0 && filtered.omitted === 0)
+const filtered = board.read(seam.swarmPrincipal('alpha')!, { task: 'missing-task' })
+check('a filtered read of an unrelated topic returns nothing', filtered.events.length === 0)
 const readSince = board.view().snapshot
 await dispatch('alpha', 'SendMessage', { to: 'beta', message: 'Read this directly before the next boundary.' })
-const directRead = await dispatch('beta', 'CrewBoard', { op: 'read', since: readSince, limitTokens: 1500 })
+const directRead = await dispatch('beta', 'CrewBoard', { op: 'read', since: readSince })
 check('an explicit read does not gain a second automatic body in the same request', directRead.events.length === 1 && !JSON.stringify(getSwarmAttachments(context('beta'), dispatchedMessages)).includes('Read this directly before the next boundary.'))
 seam.swarmPresented('beta', dispatchedMessages, 'read-before-notify')
-check('dispatched reads acknowledge their events and count replay', !JSON.stringify(getSwarmAttachments(context('beta'), [])).includes('Read this directly before the next boundary.') && (board.view().appearances ?? 0) >= directRead.tokens)
+check('dispatched reads acknowledge their events', !JSON.stringify(getSwarmAttachments(context('beta'), [])).includes('Read this directly before the next boundary.'))
 const resumeContext = { ...context(), toolUseId: 'resume-proof' }
 const mirroredResume = seam.mirrorSwarmResume(resumeContext, 'alpha', 'Continue the parser work.')
 seam.mirrorSwarmResume(resumeContext, 'alpha', 'Continue the parser work.')
@@ -160,68 +160,28 @@ updateSettingsForSource('userSettings', { swarm: { enabled: true } })
 unsubscribe()
 const { open } = await import('../../src/services/crewBoard/store.ts')
 let now = 0
-const budgetFile = join(work, 'budget.sqlite')
-const smallLimits = { seatAllowance: 6000, waveAllowance: 40000, postsPerMinute: 4, postsPerSeat: 120, postChars: 4000 }
-const budget = open(budgetFile, 'budget-session', smallLimits, () => now)
-const a = { author: { sessionId: 'budget-session', agentId: 'one', executionId: 'execution' }, name: 'one' }
-const b = { author: { sessionId: 'budget-session', agentId: 'two', executionId: 'execution' }, name: 'two' }
-budget.enroll(a); budget.enroll(b)
-for (let i = 0; i < 8; i++) assert(budget.post(a, { clientOpId: `p${i}`, kind: 'ask', text: `Question ${i}`, mentions: ['two'] }).ok)
-const ninth = budget.post(a, { clientOpId: 'ninth', kind: 'ask', text: 'Too soon.' })
-check('N+1 exceeds the burst with a plain reason and retryAfter', !ninth.ok && ninth.retryAfter === 15000 && ninth.reason.includes('four a minute'))
-now = 15000
-check('the sustained rate restores one credit', budget.post(a, { clientOpId: 'ninth', kind: 'ask', text: 'Now allowed.' }).ok)
-for (let i = 9; i < 120; i++) { now += 15000; assert(budget.post(a, { clientOpId: `wave${i}`, kind: 'ask', text: 'Work finding.' }).ok) }
-now += 15000
-check('the 121st post exceeds the wave allowance', !budget.post(a, { clientOpId: 'over-wave', kind: 'ask', text: 'Too many.' }).ok)
-const initial = budget.boundary(b, new Set())
+const reopenFile = join(work, 'reopen.sqlite')
+const opened = open(reopenFile, 'reopen-session', () => now)
+const a = { author: { sessionId: 'reopen-session', agentId: 'one', executionId: 'execution' }, name: 'one' }
+const b = { author: { sessionId: 'reopen-session', agentId: 'two', executionId: 'execution' }, name: 'two' }
+opened.enroll(a); opened.enroll(b)
+for (let i = 0; i < 8; i++) assert(opened.post(a, { clientOpId: `p${i}`, kind: 'ask', text: `Question ${i}`, mentions: ['two'] }).ok)
+for (let i = 8; i < 120; i++) { now += 15000; assert(opened.post(a, { clientOpId: `wave${i}`, kind: 'ask', text: 'Work finding.' }).ok) }
+const initial = opened.boundary(b, new Set())
 assert(initial)
-budget.close()
-const recovered = open(budgetFile, 'budget-session', undefined, () => now)
+opened.close()
+const recovered = open(reopenFile, 'reopen-session', () => now)
 check('append-before-notify and prepare-before-dispatch survive reopening', recovered.view().snapshot === 122 && JSON.stringify(recovered.boundary(b, new Set())) === JSON.stringify(initial))
 recovered.presented(b, initial.eventIds, 'sent')
 recovered.presented(b, initial.eventIds, 'sent')
 check('replayed acknowledgment does not replay the event', !recovered.boundary(b, new Set())?.eventIds.some(id => initial.eventIds.includes(id)))
-let capped = false
-const beforeReads = recovered.view().admitted
-for (let i = 0; i < 20; i++) { const page = recovered.read(b, { since: 0, limitTokens: 1500 }); if (page.reason?.includes('allowance')) { capped = true; break } }
-check('the per-member requested-context allowance refuses further bodies', capped && recovered.view().admitted - beforeReads <= 6000)
-check('every view and read batch stays bounded', recovered.view().events.length <= 32 && recovered.view().omitted === 88)
+check('every view batch stays bounded', recovered.view().events.length <= 32 && recovered.view().omitted === 88)
 check('the board has no peer-started turns', recovered.view().peerTurns === 0)
 const older = recovered.view(89)
-check('the human can page earlier history without a context charge', older.events.length === 32 && older.events.at(-1)!.seq === 88 && older.omitted === 54)
-const receipts = recovered.view().admitted
-for (let i = 0; i < 8; i++) {
-  const reader = { author: { sessionId: 'budget-session', agentId: `reader-${i}`, executionId: 'execution' }, name: `reader-${i}` }
-  recovered.enroll(reader)
-  for (let j = 0; j < 20; j++) { const read = recovered.read(reader, { since: 0, limitTokens: 1500 }); assert(read.tokens <= 1500); if (read.reason?.includes('allowance')) break }
-}
-check('the wave-wide guard does not refuse a seat’s requested read', recovered.view().admitted > 40000 && recovered.view().admitted > receipts)
+check('the human can page earlier history', older.events.length === 32 && older.events.at(-1)!.seq === 88 && older.omitted === 54)
 const member = { ...b, author: { ...b.author, executionId: 'new-execution' } }
 recovered.enroll(member)
 check('an earlier execution cannot post after same-seat continuation', !recovered.post(b, { clientOpId: 'stale', kind: 'ask', text: 'Stale execution.' }).ok)
-const costFile = join(work, 'cost.sqlite')
-const cost = open(costFile, 'cost-session', smallLimits)
-const peers = Array.from({ length: 8 }, (_, i) => ({ author: { sessionId: 'cost-session', agentId: `peer-${i}`, executionId: 'run' }, name: `peer-${i}` }))
-for (const peer of peers) cost.enroll(peer)
-cost.read(peers[3]!, { task: 'task-0', watch: true })
-for (let i = 0; i < 8; i++) assert(cost.post(peers[0]!, { clientOpId: `topic-${i}`, kind: 'result', taskId: `task-${i}`, text: 'A measured finding from the same recorded schedule.', mentions: ['peer-1', 'peer-2'] }).ok)
-const full = cost.view().events
-const push = full.reduce((n, event) => n + Buffer.byteLength(JSON.stringify(event)), 0) * 7
-let selective = 0
-for (const peer of peers.slice(1, 3)) {
-  for (;;) { const packet = cost.boundary(peer, new Set()); if (!packet) break; selective += Buffer.byteLength(packet.text); cost.presented(peer, packet.eventIds, `request-${selective}`) }
-}
-check('selective packet replay admits less than full push with no missed mentions', selective < push && peers.slice(1, 3).every(peer => cost.boundary(peer, new Set()) === null))
-console.log(`Recorded schedule: push ${push} bytes, selective ${selective} bytes; at 60 appearances ${push * 60} versus ${selective * 60}; zero extra turns`)
-const readPackets = Array.from({ length: 4 }, () => cost.read(peers[0]!, { limitTokens: 1500 }))
-const packetIds = readPackets.map(packet => packet.packetId!).filter(Boolean)
-const repeatedCost = readPackets.reduce((sum, packet) => sum + packet.tokens, 0)
-assert(repeatedCost > 0)
-for (let i = 0; i <= Math.ceil(4000000 / repeatedCost); i++) cost.presented(peers[0]!, [], `continued-task-${i}`, packetIds)
-const forecastHeld = cost.read(peers[3]!, { limitTokens: 1500 })
-check('observed replay holds unsolicited delivery, not a requested read', (cost.view().appearances ?? 0) >= 4000000 && forecastHeld.events.length > 0 && !forecastHeld.reason && cost.boundary(peers[3]!, new Set()) === null)
-cost.close()
 recovered.close()
 console.log(`${checks} board checks passed`)
 process.exit(0)

@@ -24,7 +24,7 @@ async function check(name: string, run: () => void | Promise<void>): Promise<voi
 async function world(name: string, run: (board: BoardStore, main: BoardPrincipal, seat: (id: string, team?: string, name?: string) => BoardPrincipal, path: string) => void | Promise<void>): Promise<void> {
   const path = join(home, `${name}.sqlite`)
   let now = 0
-  const board = open(path, name, undefined, () => now += 15000)
+  const board = open(path, name, () => now += 15000)
   const seat = (id: string, team?: string, display = id): BoardPrincipal => ({ author: { sessionId: name, agentId: id, executionId: 'run' }, name: display, ...(team ? { team } : {}) })
   const main = seat('main')
   board.enroll(main)
@@ -56,7 +56,7 @@ await check('appointment', () => world('appointment', (board, main, seat, path) 
   assert(packet.text.includes('captain Beta'))
   board.presented(other, packet.eventIds, 'roster-arrived')
   assert.equal(board.boundary(other, new Set()), null)
-  const reader = open(path, 'appointment', undefined, Date.now, true)
+  const reader = open(path, 'appointment', Date.now, true)
   try { assert.equal(reader.captain('ENGINE')?.agent, 'beta') } finally { reader.close() }
 }))
 
@@ -222,7 +222,7 @@ await check('unicode-labels', () => world('unicode-labels', (board, main, seat, 
   assert(board.boundary(outsider, new Set())?.eventIds.includes(finding.eventId))
   assert(board.read(outsider, { since: 0, team: 'équipe' }).events.some(row => row.eventId === finding.eventId))
   assert(board.view(undefined, undefined, 'ÉQUIPE').events.some(row => row.eventId === finding.eventId))
-  const reopened = open(path, 'unicode-labels', undefined, Date.now, true)
+  const reopened = open(path, 'unicode-labels', Date.now, true)
   try {
     assert.equal(reopened.captain('équipe')?.agent, 'c')
     assert.deepEqual(reopened.view().teams, ['Équipe'])
@@ -273,9 +273,9 @@ await check('unicode-stored', () => world('unicode-stored', async (board, main, 
     const fresh = board.post(seat('c'), { clientOpId: 'canonical-post', kind: 'result', text: 'Current spelling.' })
     assert(fresh.ok)
     assert.deepEqual(board.view(undefined, undefined, 'ÉQUIPE').events.map(event => event.eventId), [old.eventId, fresh.eventId])
-    assert.deepEqual(board.read(main, { since: 0, team: 'équipe' }).events.filter(event => !('truncated' in event) && event.kind === 'result').map(event => event.eventId), [old.eventId, fresh.eventId])
+    assert.deepEqual(board.read(main, { since: 0, team: 'équipe' }).events.filter(event => event.kind === 'result').map(event => event.eventId), [old.eventId, fresh.eventId])
     assert.deepEqual(board.view().teams, ['Équipe'])
-    const reader = open(path, 'unicode-stored', undefined, Date.now, true)
+    const reader = open(path, 'unicode-stored', Date.now, true)
     try {
       assert.equal(reader.captain('équipe')?.agent, 'b')
       assert(reader.seats().filter(row => row.agent !== 'main').every(row => row.team === 'Équipe'))

@@ -10,13 +10,13 @@ const home = mkdtempSync(join(suiteHome, 'owner-packets-home-'))
 process.env.MERCURY_CONFIG_DIR = home
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { open } = await import('../../src/services/crewBoard/store.ts')
-const { BOARD_PACKET_RULE, DEFAULT_BOARD_LIMITS } = await import('../../src/services/crewBoard/contracts.ts')
+const { BOARD_PACKET_RULE } = await import('../../src/services/crewBoard/contracts.ts')
 let checks = 0
 const check = (label: string, value: unknown) => { assert(value, label); console.log(`PASS ${label}`); checks++ }
 const source = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8')
 
 let now = 0
-const board = open(join(home, 'packets.sqlite'), 'packets', { ...DEFAULT_BOARD_LIMITS, postsPerMinute: 1, postsPerSeat: 2 }, () => now)
+const board = open(join(home, 'packets.sqlite'), 'packets', () => now)
 const principal = (agentId: string, name = agentId, team?: string): BoardPrincipal => ({ author: { sessionId: 'packets', agentId, executionId: 'run' }, name, ...(team === undefined ? {} : { team }) })
 const seat = (agentId: string, name = agentId, team?: string): BoardPrincipal => { const p = principal(agentId, name, team); board.enroll(p); return p }
 const main = seat('main')

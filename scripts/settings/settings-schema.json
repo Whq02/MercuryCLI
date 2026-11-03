@@ -6,66 +6,12 @@
       "type": "string"
     },
     "swarm": {
-      "description": "Live crew board switch and limits; user settings only, on by default; limits are held for each wave",
+      "description": "Live crew board switch; user settings only, on by default",
       "type": "object",
       "properties": {
         "enabled": {
           "description": "On unless false; the Swarm row in /config writes it",
           "type": "boolean"
-        },
-        "seatAllowance": {
-          "description": "Requested board-context tokens per seat: 0 (no cap) by default; 1000–5000000 caps it",
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 5000000,
-          "anyOf": [
-            {
-              "const": 0
-            },
-            {
-              "minimum": 1000
-            }
-          ]
-        },
-        "waveAllowance": {
-          "description": "Live-wave board context before unsolicited delivery degrades: 0 (no cap) by default; from seatAllowance up to 20000000 caps it",
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 20000000,
-          "anyOf": [
-            {
-              "const": 0
-            },
-            {
-              "minimum": 1000
-            }
-          ]
-        },
-        "postChars": {
-          "description": "Characters per post: 0 (no cap) by default; 400–20000 caps it",
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 20000,
-          "anyOf": [
-            {
-              "const": 0
-            },
-            {
-              "minimum": 400
-            }
-          ]
-        },
-        "postsPerMinute": {
-          "description": "Posts per minute per seat, with a burst of twice this rate, default 4",
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 30
-        },
-        "postsPerSeat": {
-          "description": "Posts per seat per wave, default 120",
-          "type": "integer",
-          "minimum": 10,
-          "maximum": 1000
         }
       },
       "additionalProperties": false

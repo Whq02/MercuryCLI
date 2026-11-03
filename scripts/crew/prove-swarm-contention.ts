@@ -10,13 +10,12 @@ import type { BoardWake } from '../../src/services/crewBoard/wakeState.ts'
 
 const sessionId = 'contention'
 const instant = 1_800_000_000_000
-const limits = { seatAllowance: 0, waveAllowance: 0, postChars: 0, postsPerMinute: 1000, postsPerSeat: 1000 }
 const seat = (agentId: string, executionId = 'first', team?: string): BoardPrincipal => ({ author: { sessionId, agentId, executionId }, name: agentId, team })
 const main = seat('main'), reader = seat('reader'), writers = ['alpha', 'beta', 'gamma'].map(agent => seat(agent, 'first', 'builders'))
 type Operation = { id: number; op: 'post'; author: BoardPrincipal; post: BoardPost } | { id: number; op: 'boundary'; seen: string[] } | { id: number; op: 'claim'; wake: BoardWake } | { id: number; op: 'captain' }
 const workerAt = process.argv.indexOf('--worker')
 if (workerAt >= 0) {
-  const board = open(process.argv[workerAt + 1]!, sessionId, limits, () => instant)
+  const board = open(process.argv[workerAt + 1]!, sessionId, () => instant)
   console.log(JSON.stringify({ ready: true }))
   for await (const line of createInterface({ input: process.stdin })) {
     const command = JSON.parse(line) as Operation
@@ -34,7 +33,7 @@ if (workerAt >= 0) {
   assert(process.env.MERCURY_CONFIG_DIR, 'run with a scratch MERCURY_CONFIG_DIR')
   const home = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR, 'contention-'))
   const path = join(home, 'board.sqlite')
-  const board = open(path, sessionId, limits, () => instant)
+  const board = open(path, sessionId, () => instant)
   for (const principal of [main, reader, ...writers]) board.enroll(principal)
   type Command = Operation extends infer O ? O extends Operation ? Omit<O, 'id'> : never : never
   const worker = () => {

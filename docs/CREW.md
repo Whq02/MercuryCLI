@@ -189,9 +189,9 @@ launches carried reaches the newest.
 
 Swarm is on for new sessions when `swarm.enabled` in your user `settings.json` (the Swarm row in `/config`) is on; the master defaults to on, and `false` turns it off. `/swarm off` turns it off for this session's future launches while existing board crewmates keep their board; `/swarm on` turns it back on. `/swarm status` shows the switch. Resumed sessions keep their choice. Headless and SDK sessions follow the same default.
 
-Swarm is a high-cost option: sharing board messages costs context, and the Swarm row in `/config` turns it off. The context allowances and the post length have no cap unless you set one in `/config`; two loop guards stay on (four posts a minute, 120 posts per agent in a wave); a cap guards against a fault, and the lead can lift it with `/swarm uncap`.
+Swarm is a high-cost option: sharing board messages costs context, and the Swarm row in `/config` turns it off.
 
-A crewmate launched or resumed with swarm on is told, in its system prompt, its name, its team, the seats already on the board, and when to post and read; the lead's brief adds the task's own habits. SendMessage and ResumeCrewmate from the lead, and SendMessage back to `main`, stay direct, whole and uncharged whether swarm is on or off. The board keeps only the first 400 characters plus `… (sent directly)` for the timeline. That mirror is not delivered to the model or charged by a board read.
+A crewmate launched or resumed with swarm on is told, in its system prompt, its name, its team, the seats already on the board, and when to post and read; the lead's brief adds the task's own habits. SendMessage and ResumeCrewmate from the lead, and SendMessage back to `main`, stay direct and whole whether swarm is on or off. The board keeps only the first 400 characters plus `… (sent directly)` for the timeline. That mirror is not delivered to the model.
 
 With the board on, `/swarm` opens **Crew chat** in the Workbench. It combines board posts and crew traffic in one live timeline, with each author's name, time, team and kind. Mirrored messages carry a `traffic` tag. Replies sit under their ask. A message wraps to three lines in the timeline; the thread holds the whole text. `↑↓` moves, `↵` opens a thread, `←→` selects General or a team, and `esc` closes. The view is read-only, with no composer, and is absent when the board is off.
 
@@ -209,21 +209,9 @@ The lead names a captain for a team of five or more crewmates. A smaller team ha
 
 Crewmates can park with a declared wait for another crewmate's post, a file or subject, a message kind, or their team's traffic. A matching message or a post addressed to them can resume their conversation. Broadcasts do not resume parked crewmates. The status shows what each waiting crewmate needs. If its worktree is unavailable, it stays parked and the lead receives the path.
 
-A read without `since` continues from the seat's cursor, starting at its enrollment. Whole events already handed to its model, through a read or a boundary message, are skipped without another charge. The receipt counts those seen events and names the re-read road: `since: 0` or `since: <seq>` deliberately reads them again and is charged. Truncated events stay unread and can return whole on the next read. Reads pack oldest-first; `limitTokens` requests a smaller page. A tiny page still returns the id envelope at its actual cost. Board context is charged conservatively in UTF-8 bytes.
+A read without `since` continues from the seat's cursor, starting at its enrollment. Whole events already handed to its model, through a read or a boundary message, are skipped. The receipt counts those seen events and names the re-read road: `since: 0` or `since: <seq>` deliberately reads them again. Reads return every new event oldest-first.
 
-Only live seats count against the wave. Relevance-selected delivery degrades to an index or waits first; mentions, thread replies and requested reads are refused only when the recipient's own allowance is spent. Each seat and allowance can raise one notice to the lead's next boundary. `/swarm uncap` lifts context and post-length allowances for the live wave, `/swarm cap` restores them, and `/swarm status` shows the override. Post-rate, post-count and discussion guards stay on.
-
-The **Swarm limits** group in `/config` sets these user-only `settings.json` values. Values outside their ranges are clamped and named in settings validation. Each wave keeps the limits its board opened with, including after reopening; changes apply to new waves. A nonzero wave allowance is never below the seat allowance. Zero removes the chosen context or post-length cap.
-
-| Key | What it sets |
-| --- | --- |
-| `swarm.seatAllowance` | Requested board-context tokens per seat: no cap by default (0); 1,000–5,000,000 caps it. |
-| `swarm.waveAllowance` | Live-wave board context before unsolicited delivery degrades: no cap by default (0); from the seat allowance to 20,000,000 caps it. |
-| `swarm.postChars` | Characters per post: no cap by default (0); 400–20,000 caps it. Direct messages to and from the lead are exempt. |
-| `swarm.postsPerMinute` | Posts per minute per seat: 4 by default; 1–30. The burst is twice this rate. |
-| `swarm.postsPerSeat` | Posts per seat per wave: 120 by default; 10–1,000. |
-
-A `correction` names an earlier event id in `corrects` and appends the replacement words beside the original in its thread. The earlier post stays readable and links to its correction. Corrections and answers to your own posts do not consume the two question-and-answer rounds allowed per thread.
+A `correction` names an earlier event id in `corrects` and appends the replacement words beside the original in its thread. The earlier post stays readable and links to its correction.
 
 ## File leases
 

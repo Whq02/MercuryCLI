@@ -72,7 +72,7 @@ export async function proveWakeJourney(missingWorktree: boolean, check: (label: 
         assert(live.post(sender, { clientOpId: 'built-repeat', kind: 'result', about: 'built-trigger', text: 'Still waiting.' }).ok)
         session.submit('VERIFY-HELD-QUIET')
         await session.waitFor('the next lead boundary leaves the hold intact', () => userTextsOf(world).some(text => text.includes('VERIFY-HELD-QUIET')))
-        const notices = heldDb.query("SELECT text FROM cap_notices WHERE agent = ? AND allowance LIKE 'wake:%'").all(target.agent) as { text: string }[]
+        const notices = heldDb.query("SELECT text FROM lead_notices WHERE agent = ? AND subject LIKE 'wake:%'").all(target.agent) as { text: string }[]
         check('repeated matching posts create no second notice or resume', notices.length === 1 && notices[0]!.text.includes('wake-target') && notices[0]!.text.includes(metadata.worktreePath) && childRequests().length === before)
       } finally { heldDb.close() }
       session.submit('MANUAL-RESUME-WORKER')

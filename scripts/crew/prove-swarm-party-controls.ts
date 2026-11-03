@@ -119,7 +119,7 @@ try {
   const sid = basename(sessionDir)
   transcript = join(dirname(sessionDir), `${sid}.jsonl`)
   let clock = Date.now()
-  board = open(path, sid, undefined, () => (clock += 20_000))
+  board = open(path, sid, () => (clock += 20_000))
   const mainExecution = (): string => {
     const db = new (requireRuntime('bun:sqlite').Database)(path, { readonly: true }) as { prepare(sql: string): { get(): { execution: string } }; close(): void }
     try { return String(db.prepare("SELECT execution FROM members WHERE agent = 'main'").get().execution) } finally { db.close() }
@@ -250,7 +250,7 @@ try {
   const consumed = (): Record<string, number> => {
     const db = new (requireRuntime('bun:sqlite').Database)(path, { readonly: true }) as { prepare(sql: string): { get(): { n: number } }; close(): void }
     const count = (sql: string): number => Number(db.prepare(sql).get().n)
-    try { return { presented: count("SELECT COUNT(*) AS n FROM deliveries WHERE state != 'pending'"), whole: count('SELECT COUNT(*) AS n FROM whole_deliveries'), seen: count('SELECT COUNT(*) AS n FROM seen_events'), read: count('SELECT COUNT(*) AS n FROM read_events'), requests: count('SELECT COUNT(*) AS n FROM requests') } } finally { db.close() }
+    try { return { presented: count("SELECT COUNT(*) AS n FROM deliveries WHERE state != 'pending'"), seen: count('SELECT COUNT(*) AS n FROM seen_events'), read: count('SELECT COUNT(*) AS n FROM read_events') } } finally { db.close() }
   }
   const beforeBurst = consumed()
 

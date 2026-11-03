@@ -2,19 +2,18 @@ import assert from 'node:assert/strict'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
-import type { BoardLimits, BoardPost, BoardPrincipal } from '../../src/services/crewBoard/contracts.ts'
+import type { BoardPost, BoardPrincipal } from '../../src/services/crewBoard/contracts.ts'
 
 const suiteHome = process.env.MERCURY_CONFIG_DIR
 assert(suiteHome, 'run with a scratch MERCURY_CONFIG_DIR')
 const home = mkdtempSync(join(suiteHome, 'mentions-home-'))
 process.env.MERCURY_CONFIG_DIR = home
 const { open } = await import('../../src/services/crewBoard/store.ts')
-const { DEFAULT_BOARD_LIMITS } = await import('../../src/services/crewBoard/contracts.ts')
 let checks = 0
 const check = (label: string, value: unknown) => { assert(value, label); console.log(`PASS ${label}`); checks++ }
-function world(id: string, limits: Partial<BoardLimits> = {}) {
+function world(id: string) {
   let now = 0, serial = 0
-  const board = open(join(home!, `${id}.sqlite`), id, { ...DEFAULT_BOARD_LIMITS, ...limits }, () => now)
+  const board = open(join(home!, `${id}.sqlite`), id, () => now)
   const seat = (agentId: string, name = agentId, team?: string): BoardPrincipal => {
     const principal = { author: { sessionId: id, agentId, executionId: 'run' }, name, team }
     board.enroll(principal)
@@ -23,9 +22,9 @@ function world(id: string, limits: Partial<BoardLimits> = {}) {
   const main = seat('main')
   const alpha = seat('alpha', 'Alpha', 'engine')
   const beta = seat('beta', 'Beta', 'view')
-  const post = (sender: BoardPrincipal, text: string, extra: Partial<BoardPost> = {}, delivery: 'body' | 'index' = 'index') => {
+  const post = (sender: BoardPrincipal, text: string, extra: Partial<BoardPost> = {}) => {
     now += 15000
-    const receipt = board.post(sender, { clientOpId: `p${++serial}`, kind: 'result', text, ...extra }, delivery)
+    const receipt = board.post(sender, { clientOpId: `p${++serial}`, kind: 'result', text, ...extra })
     assert(receipt.ok, JSON.stringify(receipt))
     return receipt
   }
@@ -57,11 +56,10 @@ function world(id: string, limits: Partial<BoardLimits> = {}) {
     const mention = w.post(w.alpha, text, { about: 'src/parser.ts', threadId: 'whole-thread' })
     const packet = w.board.boundary(w.beta, new Set())!
     check('a mention longer than the old packet ceiling arrives whole with about and thread', packet.text.includes(`[Alpha] [engine] [result]: ${text}`) && packet.text.includes('"about":"src/parser.ts"') && packet.text.includes('"thread":"whole-thread"'))
-    const paid = w.board.view().admitted
-    check('the prepared packet is retry-safe and charged once', JSON.stringify(w.board.boundary(w.beta, new Set())) === JSON.stringify(packet) && w.board.view().admitted === paid && paid > 768)
+    check('the prepared packet is retry-safe', JSON.stringify(w.board.boundary(w.beta, new Set())) === JSON.stringify(packet))
     w.board.presented(w.beta, packet.eventIds, 'whole')
     const read = w.board.read(w.beta, {})
-    check('whole mentions are seen once without another read charge', read.events.length === 0 && read.skippedSeen === 1 && read.tokens === 0 && w.board.boundary(w.beta, new Set()) === null)
+    check('whole mentions are seen once', read.events.length === 0 && read.skippedSeen === 1 && w.board.boundary(w.beta, new Set()) === null)
     check('whole mentions remain deliberately rereadable', w.board.read(w.beta, { since: mention.seq - 1 }).events[0]?.text === text)
     const question = w.post(w.beta, 'Which parser?', { kind: 'ask', threadId: 'reply-thread' })
     const reply = w.post(w.alpha, 'The row parser.', { kind: 'answer', replyTo: question.eventId, about: 'row.ts' })
@@ -76,47 +74,6 @@ function world(id: string, limits: Partial<BoardLimits> = {}) {
     w.board.assignTeam(w.main, 'main', 'leads')
     w.post(w.alpha, '@leads a label is not an idle-lead wake.', { kind: 'ask' })
     check('a team addressing the lead is not a direct main or all wake', w.board.leadMention() === null)
-  } finally { w.board.close() }
-}
-{
-  const w = world('mixed', { seatAllowance: 6000, waveAllowance: 2000, postChars: 0 })
-  try {
-    const filling = w.seat('filling')
-    w.post(w.alpha, 'x'.repeat(5000))
-    w.board.read(filling, { limitTokens: 1300 })
-    w.board.read(w.beta, { task: 'relevant', watch: true })
-    const relevantText = 'r'.repeat(200)
-    const relevant = w.post(w.alpha, relevantText, { taskId: 'relevant' }, 'body')
-    const mention = w.post(w.alpha, '@Beta this is addressed.')
-    const packet = w.board.boundary(w.beta, new Set())!
-    check('under refuse-last the same packet has a whole mention and a relevance reference', packet.eventIds[0] === mention.eventId && packet.eventIds.includes(relevant.eventId) && packet.text.includes('@Beta this is addressed.') && !packet.text.includes(relevantText))
-    w.board.presented(w.beta, packet.eventIds, 'mixed')
-    const unread = w.board.read(w.beta, { task: 'relevant' })
-    check('the reference stays unread while the mention is seen', unread.events[0]?.text === relevantText && w.board.read(w.beta, { mentions: 'beta' }).events.length === 0)
-  } finally { w.board.close() }
-}
-{
-  const w = world('spent', { seatAllowance: 1000, waveAllowance: 1000, postChars: 0 })
-  try {
-    w.post(w.alpha, 'x'.repeat(5000))
-    assert.equal(w.board.read(w.beta, {}).tokens, 1000)
-    const mention = w.post(w.alpha, '@Beta this cannot become a silent reference.')
-    check('a seat with zero remaining allowance gets no mention reference', w.board.boundary(w.beta, new Set()) === null)
-    const notice = w.board.boundary(w.main, new Set())!
-    check('a refused mention raises the lead notice with the seat and uncap road', notice.text.includes('Beta:') && notice.text.includes('swarm.seatAllowance') && notice.text.includes('/swarm uncap'))
-    w.board.presented(w.main, notice.eventIds, 'cap-notice')
-    w.board.boundary(w.beta, new Set())
-    check('a mention cap raises one notice per seat and allowance', w.board.boundary(w.main, new Set()) === null)
-    w.board.setUncapped(w.main, true)
-    check('uncap delivers the retained mention whole', w.board.boundary(w.beta, new Set())?.eventIds.includes(mention.eventId) && w.board.boundary(w.beta, new Set())?.text.includes('@Beta this cannot become a silent reference.'))
-  } finally { w.board.close() }
-}
-{
-  const w = world('unlimited', { seatAllowance: 0, waveAllowance: 0, postChars: 0 })
-  try {
-    const text = '@Beta ' + 'unlimited '.repeat(1000)
-    w.post(w.alpha, text)
-    check('configured zero still means unlimited rather than a spent allowance', w.board.boundary(w.beta, new Set())?.text.includes(text))
   } finally { w.board.close() }
 }
 

@@ -222,9 +222,8 @@ try {
   await Promise.race([fired, new Promise<never>((_resolve, reject) => { timeout = setTimeout(() => reject(new Error('the board watcher never resumed its parked seat')), 5000) })])
   await new Promise<void>(resolve => setImmediate(resolve))
   check('two live watchers dispatch one packet in the lead context without a duplicate boundary copy', count === 1 && board.view().peerTurns === 1 && board.boundary(seam.swarmPrincipal('woken')!, new Set()) === null)
-  const spent = board.view().admitted
   seam.swarmPresented('woken', [], 'unrelated')
-  check('presentation consumes the one-shot wait and never recharges its prepared packet', board.seats().find(seat => seat.agent === 'woken')?.wait === undefined && board.view().admitted === spent)
+  check('presentation consumes the one-shot wait', board.seats().find(seat => seat.agent === 'woken')?.wait === undefined)
 } finally {
   if (timeout !== undefined) clearTimeout(timeout)
   for (const watcher of watchers) watcher.stop()
