@@ -99,19 +99,19 @@ const stepSchema = () =>
     z.strictObject({
       kind: z.literal('log.match'),
       service: z.string(),
-      pattern: z.string(),
+      pattern: z.string().describe('Regular expression polled against the service logs.'),
       label: z.string().optional(),
       timeoutMs: z.number().optional(),
     }),
     z.strictObject({
       kind: z.literal('diagnostic.check'),
-      files: z.array(z.string()),
+      files: z.array(z.string()).describe('Files to check for parse-level diagnostics.'),
       label: z.string().optional(),
       timeoutMs: z.number().optional(),
     }),
     z.strictObject({
       kind: z.literal('value.assert'),
-      jsonPath: z.string(),
+      jsonPath: z.string().describe("Path in the last http.request's JSON response."),
       equals: z.string(),
       label: z.string().optional(),
       timeoutMs: z.number().optional(),
@@ -126,10 +126,10 @@ const stepSchema = () =>
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(OPS).describe('run a journey · status of one · list recorded'),
+    op: z.enum(OPS).describe('Journey operation.'),
     objective: z.string().optional().describe('run: what this journey verifies'),
     steps: z.array(stepSchema()).optional().describe('run: the ordered steps'),
-    cleanup: z.enum(['stop-started', 'keep']).optional().describe('run: cleanup policy (default stop-started)'),
+    cleanup: z.enum(['stop-started', 'keep']).optional().describe('stop-started stops journey-started services after the run (default); keep leaves them running.'),
     id: z.string().optional().describe('status: the journey (jy-…)'),
   }),
 )
@@ -185,22 +185,7 @@ export const JourneyTool = buildTool({
     return 'Declarative local application-journey verification with per-step evidence and an honest verdict'
   },
   async prompt() {
-    return `Compositional local application-journey verification: declare an ordered step list; the runner executes it over the existing owners (project services · bounded commands · loopback HTTP · file/log/diagnostic checks), records per-step observed evidence, stops the services it started, and settles an honest verdict — a failed step is never summarized into success.
-
-op:"run" (objective, steps, cleanup?):
-  service.start {name, command, args?, readiness?[log|tcp|http|file|stable], readinessMode?}
-  service.wait {name, timeoutMs?} — failure names the unmet conditions
-  http.request {url (loopback only), method?, body?, expect?{status, bodyIncludes, headerIncludes, jsonPath+equals}}
-  command.run {command, args?, expect?{exitCode, stdoutIncludes}}
-  file.inspect {path, expect?{exists, contains}}
-  log.match {service, pattern} — polls the service's cursored logs
-  diagnostic.check {files} — parse-level diagnostics (semantic diagnostics belong to the language service when it is mounted)
-  value.assert {jsonPath, equals} — into the last http.request's JSON body
-  service.stop {name}
-Steps run in order; the first failure marks the rest skipped; cleanup stops journey-started services and is part of the record. Cancellation settles 'cancelled'.
-
-op:"status" (id) — the full record. op:"list" — recorded journeys.
-Everything inspectable: mercury://journey/<id> · mercury://execution/<id> · per-step mercury://evidence refs.`
+    return 'Run a local application check across services, HTTP, commands, files and diagnostics. Returns per-step evidence, cleanup outcome and a verdict; the first failure skips remaining steps.'
   },
   userFacingName,
   shouldDefer: true,
