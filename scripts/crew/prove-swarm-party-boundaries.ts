@@ -187,9 +187,10 @@ try {
   tally.check('the idle row carries no turn', field(p8) === undefined)
   tally.check('the launch row and the Joined row arrived while the lead was idle and carry no turn', field(party[0]!.id) === undefined && field(party[1]!.id) === undefined, `${JSON.stringify([field(party[0]!.id), field(party[1]!.id)])} vs prompts ${JSON.stringify(prompts.map(row => `${row.id.slice(0, 8)}:${row.text.slice(0, 20)}`))}`)
 
-  tally.section('§6 party rows are screen rows, not model input')
-  const wire = JSON.stringify(world.fixture.messageRequests().map(request => request.body))
-  tally.check('no post words reached the model through the rows', !wire.includes('posted while the lead thinks') && !wire.includes('posted while the tool runs') && !wire.includes('still being typed') && !wire.includes('crew_chat'))
+  tally.section('§6 party rows are screen rows, not model input: the words reach the lead only through its board boundary')
+  const bodies = world.fixture.messageRequests().map(request => JSON.stringify(request.body))
+  const words = ['posted while the lead thinks', 'posted while the tool runs', 'still being typed']
+  tally.check('no row reached the model: every post word on the wire rides a board packet at a boundary', bodies.every(body => !body.includes('crew_chat')) && words.every(word => bodies.some(body => body.includes(word))) && bodies.every(body => body.includes('crew-board-event:') || words.every(word => !body.includes(word))))
 } finally {
   record('swarm-party-boundaries-out.txt', raw)
   record('swarm-party-boundaries-requests.json', JSON.stringify(world.fixture.messageRequests().map(request => request.body)))

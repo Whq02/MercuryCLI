@@ -42,7 +42,7 @@ for (const kind of kinds) for (const route of routes) {
     const packet = board.boundary(captain, new Set())
     const directed = ['named', 'id', 'label', 'broadcast', 'lead'].includes(route)
     const incoming = route === 'member' && (kind === 'ask' || kind === 'blocker')
-    const selected = directed || route === 'own-label' || incoming
+    const selected = route !== 'self'
     assert.equal(packet?.text.includes(text) ?? false, selected, `${sessionId}: whole-body delivery`)
     assert.equal(packet?.eventIds.includes(posted.eventId) ?? false, selected, `${sessionId}: delivery selection`)
     const saved = board.view().events.find(event => event.eventId === posted.eventId)!

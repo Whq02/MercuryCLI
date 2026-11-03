@@ -410,12 +410,7 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
             const root = db.prepare('SELECT author FROM events WHERE thread = ? ORDER BY seq LIMIT 1').get(thread)
             const replies = new Set([...(question ? [question.author.agentId] : []), ...(root ? [String(root.author)] : [])])
             const captains = new Set((post.kind === 'ask' || post.kind === 'blocker') ? seats().filter(seat => seat.captain && seat.team && (seat.team === team || event.recipients?.some(recipient => recipient.team === seat.team))).map(seat => seat.agent) : [])
-            const recipients = new Set([...event.mentions, ...replies, ...waiting, ...captains])
-            if (team !== undefined) for (const row of roster()) if (teamOf(String(row.agent)) === team) recipients.add(String(row.agent))
-            for (const interest of db.prepare("SELECT agent, kind, value FROM interests WHERE kind != 'membership'").all()) {
-              const relevant = interest.kind === 'team' ? team !== undefined && boardLabelKey(team) === boardLabelKey(String(interest.value)) : (post.kind === 'blocker' || post.kind === 'result') && (interest.kind === 'task' ? [post.taskId, ...post.relatedTasks].includes(String(interest.value)) : post.files.includes(String(interest.value)))
-              if (relevant) recipients.add(String(interest.agent))
-            }
+            const recipients = new Set([...event.mentions, ...replies, ...waiting, ...captains, ...roster().map(row => String(row.agent))])
             recipients.delete(p.author.agentId)
             for (const recipient of recipients) {
               const named = (names: readonly string[]): boolean => post.mentions.some(name => names.includes(name.toLowerCase()))
@@ -482,14 +477,6 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
         const top = Math.min(input.snapshot ?? latest(), latest())
         const cursor = input.since ?? Number(state.cursor)
         for (const id of input.acknowledge ?? []) db.prepare("UPDATE deliveries SET state = 'acknowledged' WHERE recipient = ? AND event = ? AND state = 'presented'").run(agent, id)
-        if (input.watch !== undefined) {
-          db.prepare("DELETE FROM interests WHERE agent = ? AND kind != 'membership'").run(agent)
-          if (input.watch) {
-            if (input.task !== undefined) db.prepare('INSERT INTO interests VALUES (?, ?, ?)').run(agent, 'task', input.task)
-            for (const file of new Set(input.files ?? [])) db.prepare('INSERT INTO interests VALUES (?, ?, ?)').run(agent, 'file', file)
-            if (input.team !== undefined) db.prepare('INSERT INTO interests VALUES (?, ?, ?)').run(agent, 'team', canonicalTeam(input.team))
-          }
-        }
         const where = ['seq <= ?', 'NOT EXISTS (SELECT 1 FROM mirror_events WHERE event = events.id)']
         const args: (string | number)[] = [top]
         if (input.thread !== undefined) { where.push('thread = ?'); args.push(input.thread) }

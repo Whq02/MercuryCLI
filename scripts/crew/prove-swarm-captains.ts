@@ -215,7 +215,6 @@ await check('unicode-labels', () => world('unicode-labels', (board, main, seat, 
   board.enroll(seat('e', 'équipe'))
   assert.equal(board.assignCaptain(main, 'ÉQUIPE', 'c').ok, true)
   assert.equal(board.seats().filter(row => row.captain).length, 1)
-  board.read(outsider, { team: 'équipe', watch: true })
   const finding = board.post(members[0]!, { clientOpId: 'unicode-finding', kind: 'result', text: 'The label has one identity.', to: ['équipe'] })
   assert(finding.ok)
   assert.deepEqual([...board.view().events.find(row => row.eventId === finding.eventId)!.mentions].sort(), ['a', 'b', 'c', 'd', 'e'])

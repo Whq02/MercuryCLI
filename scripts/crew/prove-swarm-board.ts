@@ -138,9 +138,8 @@ check('team assignment dispatch takes only the lead road', teamAssigned.ok && !p
 check('a forged sender cannot post', !board.post({ ...principal, author: { ...principal.author, sessionId: 'another' } }, post).ok)
 const schema = seam.swarmTools()[0]!.inputSchema
 check('the tool refuses forged identity and phase-two operations', !schema.safeParse({ op: 'post', author: 'main' }).success && !schema.safeParse({ op: 'claim' }).success && !schema.safeParse({ op: 'takeover' }).success)
-board.read(seam.swarmPrincipal('beta')!, { task: 'dependency', files: ['parser.ts'], watch: true })
 const finding = board.post(seam.swarmPrincipal('alpha')!, { clientOpId: 'dependency-result', kind: 'blocker', text: 'The parser needs the missing field.', taskId: 'other-task', files: ['parser.ts'], refs: [{ uri: 'mercury://agent/alpha', digest: 'a'.repeat(64) }] })
-check('declared file dependencies receive relevant events without mentions', finding.ok && seam.swarmBoundary('beta', new Set()).some(packet => packet.eventIds.includes(finding.eventId)))
+check('an unaddressed blocker reaches another seat at its boundary without mentions', finding.ok && seam.swarmBoundary('beta', new Set()).some(packet => packet.eventIds.includes(finding.eventId)))
 const filtered = board.read(seam.swarmPrincipal('alpha')!, { task: 'missing-task' })
 check('a filtered read of an unrelated topic returns nothing', filtered.events.length === 0)
 const readSince = board.view().snapshot

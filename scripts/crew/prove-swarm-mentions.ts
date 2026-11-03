@@ -114,9 +114,8 @@ check('a pending board ask cannot lift a pause or wake a paused lead', wakes ===
 operatorPauseGate.resume()
 check('the existing resume boundary can deliver a pending ask', wakes === 2)
 check('wake and screen callbacks keep the lead context rather than the posting seat context', contexts.every(value => value === 'lead'))
-sourceBoard.read(seam.swarmPrincipal()!, { task: 'relevant', watch: true })
-sourceBoard.post(sender, { clientOpId: 'relevant-source', kind: 'result', text: 'Relevance is only for Crew chat.', taskId: 'relevant' })
-check('relevance-only traffic neither paints a lead notice nor wakes it', painted.length === 3 && wakes === 2)
+sourceBoard.post(sender, { clientOpId: 'relevant-source', kind: 'result', text: 'An unaddressed result is only for Crew chat and the next boundary.', taskId: 'relevant' })
+check('an unaddressed result neither paints a lead notice nor wakes the lead', painted.length === 3 && wakes === 2)
 const answered = seam.swarmBoundary(undefined, new Set())[0]
 if (answered) sourceBoard.presented(seam.swarmPrincipal()!, answered.eventIds, 'before-answer')
 sourceBoard.post(sender, { clientOpId: 'answer-source', kind: 'answer', replyTo: ask.eventId, text: '@main the answer you asked for: the row parser.' })

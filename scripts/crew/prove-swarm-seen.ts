@@ -61,12 +61,11 @@ try {
   const skipped = handed(delivery.board, receiver, {})
   check('a presented boundary event is skipped by the next read', skipped.events.length === 0 && skipped.skippedSeen === 1)
   check('a boundary event is still explicitly re-readable', handed(delivery.board, receiver, { since: whole.seq - 1 }).events[0]?.eventId === whole.eventId)
-  delivery.board.read(receiver, { task: 'watched', watch: true })
-  const watched = delivery.post('A watched finding.', { taskId: 'watched' })
-  const relevant = delivery.board.boundary(receiver, new Set())!
-  check('a relevance-selected delivery arrives whole', relevant.eventIds.includes(watched.eventId) && relevant.text.includes('A watched finding.'))
-  delivery.board.presented(receiver, relevant.eventIds, 'watched')
-  check('a presented relevance delivery is seen too', handed(delivery.board, receiver, {}).events.length === 0)
+  const plain = delivery.post('An unaddressed finding.')
+  const everyone = delivery.board.boundary(receiver, new Set())!
+  check('an unaddressed post arrives whole at the next boundary', everyone.eventIds.includes(plain.eventId) && everyone.text.includes('An unaddressed finding.'))
+  delivery.board.presented(receiver, everyone.eventIds, 'plain')
+  check('a presented unaddressed post is seen too', handed(delivery.board, receiver, {}).events.length === 0)
 
   const topics = world('topics')
   const small = topics.seat('small')

@@ -51,7 +51,7 @@ export type BoardEvent = Omit<BoardPost, 'mentions' | 'to' | 'relatedTasks' | 'f
   threadId: string
   policyRevision: 1
 }
-export type BoardRead = { since?: number; snapshot?: number; thread?: string; task?: string; mentions?: string; team?: string; files?: string[]; acknowledge?: string[]; watch?: boolean }
+export type BoardRead = { since?: number; snapshot?: number; thread?: string; task?: string; mentions?: string; team?: string; files?: string[]; acknowledge?: string[] }
 export type BoardPacket = { events: BoardEvent[]; snapshot: number; cursor: number; skippedSeen: number; reread: string; packetId?: string }
 export type BoardReceipt = { ok: true; eventId: string; seq: number; replay: boolean; unknownMentions?: string[] } | { ok: false; reason: string }
 export type BoardViewSnapshot = { on: boolean; events: BoardEvent[]; seats?: BoardSeat[]; teams?: string[]; names?: string[]; duplicateMinutes?: string[]; snapshot: number; omitted: number; later?: number; chat?: BoardChat; peerTurns: number; record?: { path: string; sessionId: string }; error?: string }
