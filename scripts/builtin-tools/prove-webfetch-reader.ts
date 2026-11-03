@@ -63,8 +63,11 @@ try {
   await assert.rejects(() => pace.run(3000, ac.signal, async () => { throw new Error('request must not run') }), /aborted|abort/i)
   check('an aborted queued request is not sent', true)
   const description = await WebFetchTool.prompt({} as never)
-  check('the tool describes direct egress, hosted rendering and its off switch', description.includes("leave the user's machine") && description.includes('hosted reader r.jina.ai') && description.includes('MERCURY_FETCH_READER=0'))
-  check('the tool distinguishes page text from readings and names continuation', description.includes('Omit prompt') && description.includes('labelled reading') && description.includes('38,000') && description.includes('from offset'))
+  const disclosure = 'Sparse HTML on public hosts may send the full URL to r.jina.ai; private addresses are excluded and no cookies or credentials go to that reader.'
+  check('the reader privacy disclosure is present exactly once without the operator switch', description.split(disclosure).length === 2 && !description.includes('MERCURY_FETCH_READER'))
+  const fields = (await import('../../src/utils/zodToJsonSchema.ts')).zodToJsonSchema(WebFetchTool.inputSchema) as any
+  check('model readings and continuation are owned by their fields', fields.properties.prompt.description.includes('Ask a model') && fields.properties.from.description.includes('character offset') && !/Omit prompt|from offset/.test(description))
+  check('the wire description stays under 300 bytes with no sibling tool or refusal catalogue', Buffer.byteLength(description) <= 300 && !/\bRead\b|MCP|GitHub|robots\.txt/.test(description))
 } finally {
   if (priorFlag === undefined) delete process.env.MERCURY_FETCH_READER
   else process.env.MERCURY_FETCH_READER = priorFlag
