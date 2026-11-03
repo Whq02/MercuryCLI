@@ -50,6 +50,7 @@ import { reasonForRule, refusalWithReason, ruleWords } from '../../utils/permiss
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { plural } from '../../utils/stringUtils.js'
 import { syncServersAfterWrite } from '../LSPTool/mercuryOps.js'
+import { AST_GLOB_FIELD, AST_PATH_FIELD, AST_PATTERN_FIELD, astLanguageField } from '../AstSearchTool/prompt.js'
 import { AST_EDIT_TOOL_NAME, getAstEditDescription } from './prompt.js'
 import {
   getToolUseSummary,
@@ -61,19 +62,17 @@ import {
 
 
 const inputSchema = z.strictObject({
-  pattern: z
-    .string()
-    .describe('The structural pattern to match — code in the target language with $NAME (one node) and $$$NAME (a sequence) meta-variables'),
+  pattern: z.string().describe(AST_PATTERN_FIELD),
   rewrite: z
     .string()
-    .describe('The replacement, as code; $NAME and $$$NAME insert the captured source. "" deletes each matched node.'),
-  path: z.string().optional().describe('Where to rewrite — a file or a directory; the current working directory when omitted.'),
-  glob: z.string().optional().describe('Restrict to files matching this glob, relative to path, e.g. "**/*.ts"; {a,b} lists alternatives: "**/*.{ts,tsx}"'),
-  lang: z.string().optional().describe('Force one language instead of detecting it per file from the extension'),
+    .describe('The replacement, as code in the target language: $NAME and $$$NAME insert the captured source verbatim, and every meta-variable here must be captured by the pattern ($_ and $$$ cannot be inserted); "" deletes each matched node, and a node that owns its line takes the line with it.'),
+  path: z.string().optional().describe(AST_PATH_FIELD),
+  glob: z.string().optional().describe(AST_GLOB_FIELD),
+  lang: z.string().optional().describe(astLanguageField()),
   apply: semanticBoolean(z.boolean().optional()).describe(
-    'Omitted or false: a dry run — the diff and a plan token, nothing written. true: write the change; needs plan from the dry run.',
+    'Omitted or false: a dry run returning the diff and a plan token, nothing written. true: write the change; needs the plan from the dry run.',
   ),
-  plan: z.string().optional().describe('The plan token (ae-…) the dry run returned; apply refuses when anything differs from that dry run.'),
+  plan: z.string().optional().describe('The plan token (ae-…) the dry run returned; apply refuses when a file, the pattern, the rewrite or the scope differs from that dry run.'),
 })
 
 type Input = z.infer<typeof inputSchema>
@@ -218,8 +217,8 @@ export const AstEditTool = buildTool({
   async description(): Promise<string> {
     return getAstEditDescription()
   },
-  async prompt(options): Promise<string> {
-    return getAstEditDescription(options?.tools === undefined ? null : new Set(options.tools.map(tool => tool.name)))
+  async prompt(): Promise<string> {
+    return getAstEditDescription()
   },
   async validateInput(input: Input) {
     const pathRefusal = controlCharacterPathRefusal(input.path)

@@ -31,7 +31,7 @@ import { checkReadPermissionForTool, matchingRuleForInput } from '../../utils/pe
 import { mercurySecretPath } from '../../utils/permissions/protectedPaths.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { plural } from '../../utils/stringUtils.js'
-import { AST_SEARCH_TOOL_NAME, getAstSearchDescription } from './prompt.js'
+import { AST_GLOB_FIELD, AST_PATH_FIELD, AST_PATTERN_FIELD, AST_SEARCH_TOOL_NAME, astLanguageField, getAstSearchDescription } from './prompt.js'
 import {
   getToolUseSummary,
   isResultTruncated,
@@ -42,31 +42,18 @@ import {
 
 
 const inputSchema = z.strictObject({
-  pattern: z
-    .string()
-    .describe(
-      'The structural pattern: code in the target language with meta-variables — $NAME for one node, $$$NAME for a sequence, e.g. "$FN($$$ARGS)" or "if ($COND) { $$$BODY }"',
-    ),
-  path: z
-    .string()
-    .optional()
-    .describe('Where to search — a file or a directory; the current working directory when omitted.'),
-  glob: z
-    .string()
-    .optional()
-    .describe('Restrict the search to files matching this glob, relative to path, e.g. "**/*.ts" or "src/**/*.py"; {a,b} lists alternatives: "**/*.{ts,tsx}"'),
-  lang: z
-    .string()
-    .optional()
-    .describe('Force one language instead of detecting it per file from the extension (typescript, python, go, rust, …)'),
+  pattern: z.string().describe(AST_PATTERN_FIELD),
+  path: z.string().optional().describe(AST_PATH_FIELD),
+  glob: z.string().optional().describe(AST_GLOB_FIELD),
+  lang: z.string().optional().describe(astLanguageField()),
   mode: z
     .enum(['matches', 'count'])
     .optional()
     .describe('"matches" (the default) lists each match with its captures; "count" tallies matches per file'),
   limit: semanticNumber(z.number().optional()).describe(
-    `Matches to return (default ${AST_BOUNDS.defaultLimit}, max ${AST_BOUNDS.maxLimit}); the rest is counted, never dropped silently.`,
+    `Matches to return (default ${AST_BOUNDS.defaultLimit}, max ${AST_BOUNDS.maxLimit}); the rest are counted.`,
   ),
-  offset: semanticNumber(z.number().optional()).describe('Matches to skip before the window (paging). Default 0.'),
+  offset: semanticNumber(z.number().optional()).describe('Matches to skip before the window. Default 0.'),
 })
 
 type Input = z.infer<typeof inputSchema>
@@ -159,13 +146,8 @@ export const AstSearchTool = buildTool({
   async description(): Promise<string> {
     return getAstSearchDescription()
   },
-  wireDescription(fullPrompt: string) {
-    return `Use this over Grep to find code by syntax shape, not text; strings and comments do not match. pattern is a complete node, e.g. "$FN($$$ARGS)"; wrap fragments in their container and include declared return types. $NAME captures one node; $$$NAME captures siblings; $_ and $$$ do not capture. Names are uppercase letters/digits/underscore; repeated names require identical code. Whitespace is immaterial.
-path scopes a file/directory; glob is relative to it. lang selects the grammar, otherwise extensions decide. Ignored/build/dependency folders are skipped unless named in path; missing grammars and parse failures are reported. Results give file:line:col and captures; limit+offset page, mode:"count" counts.${fullPrompt.includes('AstEdit rewrites') ? ' AstEdit rewrites these same matches.' : ''}
-Full grammar and usage notes arrive on discovery or first use.`
-  },
-  async prompt(options): Promise<string> {
-    return getAstSearchDescription(options?.tools === undefined ? null : new Set(options.tools.map(tool => tool.name)))
+  async prompt(): Promise<string> {
+    return getAstSearchDescription()
   },
   async validateInput(input: Input) {
     const pathRefusal = controlCharacterPathRefusal(input.path)

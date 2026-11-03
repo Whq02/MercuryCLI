@@ -158,25 +158,24 @@ section('§11 — the descriptions')
   const description = await AstSearchTool.description()
   const prompt = await AstSearchTool.prompt({ getToolPermissionContext: async () => ({}) })
   check('prompt equals description', prompt === description)
-  check('carries the complete-node, capture and declaration grammar', [
-    'One complete node, written as code:',
-    '$NAME matches one node and captures it; $$$NAME matches zero or more siblings (arguments, parameters, statements) and captures them; $_ and $$$ match without capturing.',
-    'Names are UPPERCASE letters, digits and _; a name used twice must match identical code; $$X and $$$name are literal text.',
-    'Spacing, line breaks and comments never matter.',
-    'A symbol by name is its declaration, written with every part it has:',
-    'a declared return type needs ": $_" (TypeScript) or " -> $_" (Python) after the parameters.',
-  ].every(line => description.includes(line)))
-  check('carries no examples: the pattern, mode and glob parameters show the shapes', (description.match(/^- \{ "pattern"/gm) ?? []).length === 0 && !description.includes('Examples:'))
-  check('names every supported language', astLanguageNames().every((n: string) => description.includes(n)))
-  check('names the bound', description.includes('default 50, max 200'))
+  const pattern = String(AstSearchTool.inputSchema.shape.pattern.description)
+  check('the pattern field carries the complete-node, capture and declaration grammar once', [
+    'One complete node written as code in the target language',
+    '$NAME matches one node and captures it; $$$NAME matches zero or more siblings and captures them; $_ and $$$ match without capturing.',
+    'Names are uppercase letters, digits and underscores, a repeated name must match identical code, and spacing, line breaks and comments never matter.',
+    'a declaration carries every part it has (a declared return type as ": $_" in TypeScript, " -> $_" in Python)',
+  ].every(line => pattern.includes(line)) && !description.includes('$NAME'))
+  check('carries no examples and no other tool: what it does and what comes back', !description.includes('e.g.') && !description.includes('Examples:') && !/\bGrep\b|\bAstEdit\b/.test(description) && description.startsWith('Searches code by its syntax') && description.includes('file:line:col'))
+  check('the lang field names every supported language; the description names none', astLanguageNames().every((n: string) => String(AstSearchTool.inputSchema.shape.lang.description).includes(n)) && !description.includes('this build carries'))
+  check('the limit field names the bound', String(AstSearchTool.inputSchema.shape.limit.description).includes('default 50, max 200'))
   const editDescription = await AstEditTool.description()
   check('AstEdit: prompt equals description', (await AstEditTool.prompt({ getToolPermissionContext: async () => ({}) })) === editDescription)
-  check('AstEdit: names the dry-run + plan law', editDescription.includes('Two calls, always') && editDescription.includes('plan "ae-…"'))
-  check('AstEdit: names the refusals', editDescription.includes('a match nested inside another') && editDescription.includes('a result that would not parse') && editDescription.includes('an uncaptured meta-variable'))
+  check('AstEdit: says the dry run returns the diff and a plan and writes nothing, and apply with that plan writes', editDescription.includes('dry run that returns the unified diff per file and a plan token and writes nothing') && editDescription.includes('apply: true and that plan writes the change'))
+  check('AstEdit: pre-empts no refusal and names no other tool; the plan field carries the drift refusal', !editDescription.includes('Refused by name') && !editDescription.includes('nested inside another') && !/\bEdit\b|\bAstSearch\b/.test(editDescription) && String(AstEditTool.inputSchema.shape.plan.description).includes('apply refuses when a file, the pattern, the rewrite or the scope differs from that dry run'))
   check('AstEdit: carries no examples: the apply and plan parameters show the two calls', (editDescription.match(/^- \{ "pattern"/gm) ?? []).length === 0 && !editDescription.includes('Examples:'))
 }
 
-section('§12 — the descriptions name only the grammars the build carries')
+section('§12 — the lang field names only the grammars the build carries')
 {
   const { execFileSync } = await import('node:child_process')
   const { GRAMMAR_REGISTRY: registry } = await import(join(REPO, 'src/services/structure/grammarRegistry.ts'))
@@ -186,7 +185,7 @@ section('§12 — the descriptions name only the grammars the build carries')
   writeFileSync(join(probeRoot, 'a.json'), '{"a": 1}\n')
   writeFileSync(join(probeRoot, 'a.py'), 'print(1)\n')
   const PROBE = `
-const { getAstSearchDescription } = await import(${JSON.stringify(join(REPO, 'src/tools/AstSearchTool/prompt.ts'))})
+const { getAstSearchDescription, astLanguageField } = await import(${JSON.stringify(join(REPO, 'src/tools/AstSearchTool/prompt.ts'))})
 const { getAstEditDescription } = await import(${JSON.stringify(join(REPO, 'src/tools/AstEditTool/prompt.ts'))})
 const { astLanguageNames, resolveAstScope, searchAstPattern, renderSearchTrailer, isAstRefusal } = await import(${JSON.stringify(join(REPO, 'src/utils/astPatterns.ts'))})
 const root = ${JSON.stringify(probeRoot)}
@@ -198,8 +197,8 @@ const pinned = resolveAstScope({ cwd: root, path: root, lang: 'json' })
 console.log(JSON.stringify({
   names: astLanguageNames(),
   search: getAstSearchDescription(),
-  edit: getAstEditDescription(new Set()),
-  editWithSearch: getAstEditDescription(new Set(['AstSearch'])),
+  edit: getAstEditDescription(),
+  langField: astLanguageField(),
   matches: isAstRefusal(search) ? -1 : search.matches.length,
   trailer,
   single: isAstRefusal(single) ? single.refused : 'ok',
@@ -216,21 +215,20 @@ console.log(JSON.stringify({
       MERCURY_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'ast-clean-clone-home-')),
     },
   })
-  const probe = JSON.parse(out.trim().split('\n').at(-1)!) as { names: string[]; search: string; edit: string; editWithSearch: string; matches: number; trailer: string; single: string; pinned: string }
+  const probe = JSON.parse(out.trim().split('\n').at(-1)!) as { names: string[]; search: string; edit: string; langField: string; matches: number; trailer: string; single: string; pinned: string }
   check('a vscode-pack-only engine carries exactly the 16 vscode grammars', probe.names.length === vscodeNames.length && vscodeNames.every(n => probe.names.includes(n)), probe.names.join(','))
   const advertised = (text: string): string[] => (/this build carries: ([^;]+);/.exec(text)?.[1] ?? '').split(' · ').map(s => s.trim()).filter(Boolean)
-  const searchList = advertised(probe.search)
-  const editList = advertised(probe.edit)
-  check('AstEdit shares AstSearch grammar when offered and carries its own otherwise', probe.editWithSearch.includes('work as in AstSearch') && !probe.edit.includes('AstSearch') && advertised(probe.editWithSearch).length === 0)
-  check('the descriptions advertise exactly the carried set (no grammar-pack language)', JSON.stringify(searchList) === JSON.stringify(probe.names) && JSON.stringify(editList) === JSON.stringify(probe.names) && packNames.every(n => !searchList.includes(n)), `${searchList.join(',')} | ${editList.join(',')}`)
-  check('the descriptions still name every carried language', vscodeNames.every(n => searchList.includes(n) && editList.includes(n)))
+  const langList = advertised(probe.langField)
+  check('neither description names the other tool; both tools carry the one grammar in pattern and the one carried-grammar list in lang', !probe.search.includes('AstEdit') && !probe.edit.includes('AstSearch') && advertised(probe.search).length === 0 && advertised(probe.edit).length === 0 && AstSearchTool.inputSchema.shape.lang.description === AstEditTool.inputSchema.shape.lang.description && AstSearchTool.inputSchema.shape.pattern.description === AstEditTool.inputSchema.shape.pattern.description)
+  check('the lang field advertises exactly the carried set (no grammar-pack language)', JSON.stringify(langList) === JSON.stringify(probe.names) && packNames.every(n => !langList.includes(n)), langList.join(','))
+  check('the lang field still names every carried language', vscodeNames.every(n => langList.includes(n)))
   check('the python file still matches; the json file is skipped as uncarried and the remedy named', probe.matches === 1 && probe.trailer.includes('whose grammar this build does not carry (.json ×1)') && probe.trailer.includes('fetch-grammars'), probe.trailer)
   check('a single uncarried file refuses by name with the remedy', probe.single.includes('this build does not carry the json grammar') && probe.single.includes('fetch-grammars'), probe.single)
   check('a lang pin on an uncarried grammar refuses by name with the remedy', probe.pinned.includes('this build does not carry the json grammar'), probe.pinned)
   const here = astLanguageNames() as string[]
-  const hereDescription = await AstSearchTool.description()
+  const hereField = String(AstSearchTool.inputSchema.shape.lang.description)
   const carriedHere = (registry as Array<{ wasm: string }>).filter(g => existsSync(join(engineDir, g.wasm))).length
-  check(`the composed engine here carries ${here.length} of ${(registry as unknown[]).length} registry languages and advertises exactly those`, here.every(n => hereDescription.includes(n)) && here.length === carriedHere, here.join(','))
+  check(`the composed engine here carries ${here.length} of ${(registry as unknown[]).length} registry languages and the lang field advertises exactly those`, here.every(n => hereField.includes(n)) && here.length === carriedHere, here.join(','))
 }
 
 finish('AST SEARCH LAWS')
