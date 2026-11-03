@@ -20,8 +20,8 @@ try {
   const renameTool = available.LSP_TOOLS.find(tool => tool.name === 'LspRename')
   const readText = (await readTool?.prompt?.({} as never)) ?? ''
   const renameText = (await renameTool?.prompt?.({} as never)) ?? ''
-  check('the read tool owns the IDE-evidence facts: definitions and references over text search, diagnostics on files just edited', readText.includes('Use this over Grep and Read for definitions and references') && readText.includes('Run it on files you just edited'))
-  check('the rename tool owns the structured-rename fact', renameText.includes('Rename a symbol everywhere the language server sees it'))
+  check('the read tool owns the IDE-evidence facts — definitions, references and diagnostics from the language servers — and names no other tool', readText.includes('where a symbol is defined, every reference to it') && readText.includes('the current errors and warnings in files') && !/\b(?:Grep|Read|Edit|ToolSearch|LspRename)\b/.test(readText))
+  check('the rename tool owns the structured-rename fact', renameText.includes('Renames a symbol everywhere the language server sees it'))
   const map = computeHarnessMapLines().join('\n')
   check('the harness map repeats none of it (the roster lists the tools)', !map.includes('Code intelligence is native'))
   for (const tool of available.LSP_TOOLS) {

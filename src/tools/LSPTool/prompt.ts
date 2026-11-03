@@ -15,41 +15,11 @@ export const LSP_SEARCH_HINTS: Record<LspToolName, string> = {
 }
 
 export const LSP_DESCRIPTIONS: Record<LspToolName, string> = {
-  LspRead: `Use this over Grep and Read for definitions and references: the language server resolves symbols rather than matching text.
-
-Ask the language servers about code: where a symbol is defined, every reference to it, its type and documentation, its callers and callees, the symbols in a file or across the workspace, and the current errors and warnings in files. It only reads.
-
-Operations, and the arguments each one reads:
-- goToDefinition, findReferences, hover, goToImplementation, typeDefinition, incomingCalls, outgoingCalls: filePath, line, character — 1-based, as Read shows it
-- documentSymbol: filePath
-- workspaceSymbol: query; limit; filePath, optional, picks the server for that file's language
-- diagnostics: paths (a directory stands for the files under it that a server covers), or filePath for one file. Run it on files you just edited.
-- serverStatus: each server's state, restarts, last error and what it can answer; filePath marks the server for that file
-An argument the operation does not read is ignored. When no server covers a file type, the answer says what would provide one.
-
-Changes go through tools loaded with ToolSearch: LspRename, LspMoveSymbol, LspMoveFile, LspCodeAction, LspFormat, LspRequest.
-
-A call a server fails three times in a row is not sent again until a file it names changes, the server restarts, or the time in the answer has passed.`,
-  LspRename: `Rename a symbol everywhere the language server sees it: the declaration, imports, re-exports and every reference in every file — never a comment or a string. Point filePath, line and character at any occurrence of the name (1-based, as Read shows it).
-
-Two calls. Without apply nothing is written: the answer lists the edits (file, line:character range, old → new text; up to 40 per file, the rest counted) and a plan token. Then send the same arguments with apply: true and plan: "<token>" to write exactly those edits; if any of those files changed since the preview, nothing is written and the answer says so. apply: true without plan writes only if this session has read the touched lines of every file as they stand now.
-
-A name that would collide with or capture another symbol, or that the server refuses, is refused with the reason. After writing, the answer gives the error and warning count the server reports for the first file written.`,
-  LspMoveSymbol: `Move a top-level declaration — function, class, interface, type, enum or variable — into another file, with every import of it rewritten by the language server. Point filePath, line and character at the declaration's name (1-based, as Read shows it). TypeScript and JavaScript only; in other languages move the code with Edit and fix the imports with LspRename or LspMoveFile.
-
-targetPath is the file it moves into: created when absent, appended to when present.
-
-Two calls. Without apply nothing is written: the answer lists the edits (file, line:character range, old → new text; up to 40 per file, the rest counted) and a plan token. Then send the same arguments with apply: true and plan: "<token>" to write exactly those edits; if any of those files changed since the preview, nothing is written and the answer says so. apply: true without plan writes only if this session has read the touched lines of every file as they stand now.`,
-  LspMoveFile: `Move or rename a file or a directory, and update every import of it that a language server knows about. newPath must not exist yet.
-
-Two calls. Without apply nothing moves: the answer lists the import edits and, when there are any, a plan token. Then send the same arguments with apply: true (and plan: "<token>" when one was printed) to write the edits and move the path; if a touched file changed since the preview, nothing is written or moved. If a participating server's willRenameFiles request fails or returns an invalid edit, the move aborts with that server named and all files unchanged. When no language server for that file type updates imports, the path moves without import updates, and the preview says so. A move whose imports touch more than 100 files is refused; move it in smaller steps.`,
-  LspCodeAction: `List and apply what the language server offers at a position or range: quick fixes for the errors there, refactors (extract, convert), and, with kind, whole-file source actions — source.organizeImports, source.addMissingImports, source.removeUnusedImports, source.removeUnused.
-
-With neither actionId nor actionIndex: the list, each action with a stable id. With one of them: that action's edits and a plan token, nothing written. Add apply: true and plan: "<token>" to write exactly those edits; if a touched file changed since, nothing is. apply: true with a kind that leaves exactly one action applies that one. actionIndex picks by position in the current list; actionId names the action itself and is the safer choice. An action that only runs a server command is refused: only edits are applied.`,
-  LspFormat: `Format a file — or only its lines line through endLine — with the language server that owns formatting for its type; or, with organizeImports: true, sort and prune its imports. Python files are handled by ruff when ruff is installed.
-
-Two calls. Without apply nothing is written: the answer lists the edits (file, line:character range, old → new text; up to 40 per file, the rest counted) and a plan token. Then send the same arguments with apply: true and plan: "<token>" to write exactly those edits; if any of those files changed since the preview, nothing is written and the answer says so. apply: true without plan writes only if this session has read the touched lines of every file as they stand now.
-
-A file that is already formatted comes back unchanged, with nothing to write.`,
-  LspRequest: `Send one raw request to the language server for a file — any method, params as JSON text — and get its raw answer. Nothing it returns is applied. Methods that edit are refused by name (textDocument/rename, textDocument/codeAction, codeAction/resolve, textDocument/formatting, textDocument/rangeFormatting, workspace/executeCommand, workspace/willRenameFiles, workspace/applyEdit): use LspRename, LspCodeAction, LspFormat or LspMoveFile. params are sent exactly as given; textDocument and position are not filled in.`,
+  LspRead: `Asks the language servers about code and returns their answer: where a symbol is defined, every reference to it, its type and documentation, its callers and callees, the symbols in a file or across the workspace, the current errors and warnings in files, and each server's state, restarts, last error and what it can answer. It only reads.`,
+  LspRename: `Renames a symbol everywhere the language server sees it — the declaration, imports, re-exports and every reference in every file, never a comment or a string. Without apply it returns the edits (file, line:character range, old → new text, up to 40 per file with the rest counted) and a plan token and writes nothing; with apply: true and that plan it writes exactly those edits and returns the error and warning count the server reports for the first file written.`,
+  LspMoveSymbol: `Moves a top-level declaration — function, class, interface, type, enum or variable — into another file, with every import of it rewritten by the language server; TypeScript and JavaScript only. Without apply it returns the edits (file, line:character range, old → new text, up to 40 per file with the rest counted) and a plan token and writes nothing; with apply: true and that plan it writes exactly those edits.`,
+  LspMoveFile: `Moves or renames a file or a directory and updates every import of it that a language server knows about; a file type no server covers moves without import updates, and the preview says so. Without apply it returns the import edits and, when there are any, a plan token, and moves nothing; with apply: true and that plan it writes the edits and moves the path.`,
+  LspCodeAction: `Lists what the language server offers at a position or range — quick fixes for the errors there, refactors such as extract and convert, and whole-file source actions — each with a stable id; with an action chosen it returns that action's edits and a plan token and writes nothing; with apply: true and that plan it writes exactly those edits. Only edits are applied, never a server command.`,
+  LspFormat: `Formats a file, or only a range of its lines, with the language server that owns formatting for its type — ruff for Python when it is installed — or sorts and prunes its imports. Without apply it returns the edits (file, line:character range, old → new text, up to 40 per file with the rest counted) and a plan token and writes nothing; with apply: true and that plan it writes exactly those edits.`,
+  LspRequest: `Sends one raw request to the language server for a file — any method, with params as JSON text — and returns its raw answer; nothing it returns is applied.`,
 }

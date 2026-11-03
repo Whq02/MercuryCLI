@@ -41,7 +41,7 @@ try {
   const opsSource = await Bun.file(join(REPO, 'src/tools/LSPTool/mercuryOps.ts')).text()
   check('the codeActions re-run hint keeps its positional-selector words', /actionIndex is the positional selector from this listing/.test(opsSource) && !/legacy positional/.test(opsSource))
   const actionIndex = LSP_INPUT_JSON_SCHEMAS.LspCodeAction.properties.actionIndex.description
-  check('actionIndex remains positional and actionId remains preferred', actionIndex.includes('positional selector from a prior listing') && actionIndex.includes('actionId is preferred'))
+  check('actionIndex remains positional, and the field says positions shift where ids do not', actionIndex.includes('The position of an action in the current list') && actionIndex.includes('positions shift between listings') && LSP_INPUT_JSON_SCHEMAS.LspCodeAction.properties.actionId.description.includes('ids are stable across listings'))
   const air = { operation: 'diagnostics', paths: [here, join(project, 'main.ts')], line: 1, character: 1, query: 'unused', limit: 50 }
   const answer = await door.drive(air)
   check('the filled read schema answers the reported multi-file diagnostic case', !answer.isError && /2322/.test(answer.text) && /2 of 2 file\(s\) checked/.test(answer.text), answer.text)

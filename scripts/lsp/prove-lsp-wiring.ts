@@ -82,8 +82,8 @@ function check(name: string, ok: boolean, detail?: string): void {
 {
   const s = read('src/tools/LSPTool/prompt.ts')
   check(
-    'prompt.ts: the read description names the six deferred writing tools',
-    s.includes('Changes go through tools loaded with ToolSearch: LspRename, LspMoveSymbol, LspMoveFile, LspCodeAction, LspFormat, LspRequest.'),
+    'prompt.ts: the read description names none of the six writing tools (the deferred roster carries them)',
+    !/LspRead: `[^`]*\b(?:LspRename|LspMoveSymbol|LspMoveFile|LspCodeAction|LspFormat|LspRequest|ToolSearch)\b/.test(s),
   )
   check(
     'prompt.ts: the read description does not gloss the six tools again (the deferred roster lines carry each one\'s search hint)',
@@ -96,13 +96,13 @@ function check(name: string, ok: boolean, detail?: string): void {
   const { LSP_DESCRIPTIONS, LSP_TOOL_NAMES } = await import('../../src/tools/LSPTool/prompt.ts')
   const { truncateToLines } = await import('../../src/utils/stringUtils.ts')
   const CARD_SHA256: Record<string, string> = {
-    LspRead: 'c67a0336cff2a20c4a422f4ea132d7860da5042bdf5abe9ec0ee931d7b46eaec',
-    LspRename: 'c3b1f84bf5304bf8434d68aeacb2c27a06a1d82c3be85a5223ac0135228735e9',
-    LspMoveSymbol: 'cc8bab7b2d215fd6e2789f1001d5e35fb76a6d4d18e510e6b17a87cfd1811ced',
-    LspMoveFile: '8a8e6ec1f11dd96a4f1fc9a7dc5643e41fa07c54d20cf24d434ef49c70e5d05a',
-    LspCodeAction: '88bf29165c81c37ffb8e4f6a20e6a22db73ead72c37700a2983be7d1fd4b2b5a',
-    LspFormat: '96b0de2212be0ca1a9452f3fa5015f6588233c40c074b6aec1d31810d5c8f1bd',
-    LspRequest: '475d9ac660191a081241eaf7b1f8d32a10d040da92b6c8dbc97daa967ac5fb9d',
+    LspRead: 'e8dcb24e66b983fc4569db7a0f4ba8cfa2fda359c3bb20a60c87ee20a9d5ab0a',
+    LspRename: '7ce7e31decab00a564947aca7518da973b200dc5398b82d97a8e5023aaad7350',
+    LspMoveSymbol: 'd06e6490705f7f8fc0f8b7190ccee3b6a0e306d13c8462a88d6c66f1fae9ab93',
+    LspMoveFile: 'a26e776bb09eec4ee1d7a127e121b65fcb3454b8aab1c59468220c21af6f8bed',
+    LspCodeAction: '6b3f0fd4e2496b6c2b7534e3075363cf0561248bc6c6417189b2988697f7c0ff',
+    LspFormat: '512eb9b28f3d5c64d6ce670279d9c649fc26cfe5bea02db2c9b155e8a47fb29f',
+    LspRequest: 'b533e047b9e67711d4696e07a4b9a03f3a7dc1540e118be2c7fe886a7da5f091',
   }
   for (const name of LSP_TOOL_NAMES) {
     const card = truncateToLines(LSP_DESCRIPTIONS[name], 3)
@@ -201,7 +201,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   const schema = read('src/tools/LSPTool/schemas.ts')
   check('the read schema carries no removed source/header operation', !schema.includes("'switchSourceHeader'"))
   const prompt = read('src/tools/LSPTool/prompt.ts')
-  check('the raw request description takes any protocol method', prompt.includes('any method, params as JSON text'))
+  check('the raw request description takes any protocol method', prompt.includes('any method, with params as JSON text'))
   const ui = read('src/tools/LSPTool/UI.tsx')
   check('UI: switchSourceHeader operation label', ui.includes('switchSourceHeader: {'))
   const ops = read('src/tools/LSPTool/mercuryOps.ts')
