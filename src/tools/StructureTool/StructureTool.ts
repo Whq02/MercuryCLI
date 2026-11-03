@@ -309,6 +309,7 @@ async function runOp(
 export const StructureTool = buildTool({
   name: 'Structure',
   searchHint: 'query JavaScript and TypeScript syntax and preview structural edits',
+  searchKeywords: ['JS', 'TS', 'AST', 'node kind', 'previewed codemod', 'imports', 'calls', 'declarations', 'renames', 'import swaps'],
   capability: {
     intents: [
       'find JS/TS calls by dotted callee',

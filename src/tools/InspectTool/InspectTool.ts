@@ -49,6 +49,7 @@ export const InspectTool = buildTool({
   shouldDefer: true,
   name: INSPECT_TOOL_NAME,
   searchHint: 'read Mercury records by mercury:// reference',
+  searchKeywords: ['work-graph', 'objects', 'ref', 'runs', 'receipts', 'tasks', 'crews', 'workflows', 'artifacts', 'agents', 'health', 'seat identity', 'model', 'effort', 'posture', 'engine history'],
   maxResultSizeChars: 100_000,
   strict: true,
   isEnabled() {

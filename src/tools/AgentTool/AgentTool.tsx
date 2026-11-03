@@ -378,6 +378,7 @@ export const AgentTool = buildTool({
   name: AGENT_TOOL_NAME,
   maxResultSizeChars: RESULT_SIZE_CAP,
   searchHint: 'delegate a bounded task to an independent agent and receive its report',
+  searchKeywords: ['swarm', 'agents', 'seats', 'team', 'launch', 'wave', 'delegate', 'crew', 'subagent'],
   get inputSchema(): ZodType<AgentToolInput, AgentToolInput> {
     return inputSchema() as unknown as ZodType<AgentToolInput, AgentToolInput>
   },

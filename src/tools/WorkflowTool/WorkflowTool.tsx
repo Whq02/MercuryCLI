@@ -344,6 +344,7 @@ const WorkflowToolDef = {
   name: WORKFLOW_TOOL_NAME,
   aliases: ['RunWorkflow'],
   searchHint: 'run deterministic JavaScript workflows coordinating crewmates',
+  searchKeywords: ['orchestrate', 'workflow'],
   shouldDefer: true,
   maxResultSizeChars: 1e5,
   isEnabled: () => dynamicWorkflowsEnabled() && evaluateLaunchAuthority('workflows').allowed,

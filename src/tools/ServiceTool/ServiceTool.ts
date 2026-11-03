@@ -277,6 +277,7 @@ export const ServiceTool = buildTool({
   shouldDefer: true,
   name: SERVICE_TOOL_NAME,
   searchHint: 'manage long-running project processes, their readiness, logs and input',
+  searchKeywords: ['services', 'start', 'observe', 'wait', 'stop', 'long-lived', 'web servers', 'watch builds', 'local APIs'],
   maxResultSizeChars: 100_000,
   strict: true,
   straightQuoteInputs: ['command', 'cwd'],

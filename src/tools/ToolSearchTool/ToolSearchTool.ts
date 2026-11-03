@@ -195,13 +195,14 @@ export async function searchToolsWithKeywords(
   }
 
   const hintFor = (tool: Tool): string => (tool.searchHint ?? '').toLowerCase()
+  const keywordsFor = (tool: Tool): string => (tool.searchKeywords ?? []).join(' ').toLowerCase()
 
   const matchesRequired = async (tool: Tool, term: string): Promise<boolean> => {
     const { parts } = parseNameParts(tool)
     if (parts.includes(term)) return true
     if (parts.some(part => part.includes(term))) return true
     if (patternFor(term).test(await descriptionFor(tool))) return true
-    return patternFor(term).test(hintFor(tool))
+    return patternFor(term).test(hintFor(tool)) || patternFor(term).test(keywordsFor(tool))
   }
 
   let candidates: Tools = deferredTools
@@ -228,12 +229,13 @@ export async function searchToolsWithKeywords(
     const mcp = isMcpToolLike(tool)
     const description = await descriptionFor(tool)
     const hint = hintFor(tool)
+    const keywords = keywordsFor(tool)
     let score = 0
     for (const term of scoringTerms) {
       if (parts.includes(term)) score += mcp ? 12 : 10
       else if (parts.some(part => part.includes(term))) score += mcp ? 6 : 5
       else if (score === 0 && full.includes(term)) score += 3
-      if (hint && patternFor(term).test(hint)) score += 4
+      if (patternFor(term).test(hint) || patternFor(term).test(keywords)) score += 4
       if (description && patternFor(term).test(description)) score += 2
     }
     score += intentBoost(tool, queryTokens)

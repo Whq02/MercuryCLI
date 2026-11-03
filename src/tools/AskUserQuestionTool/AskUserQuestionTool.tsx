@@ -203,6 +203,7 @@ export const AskUserQuestionTool = buildTool({
   maxResultSizeChars: RESULT_SIZE_CAP,
   shouldDefer: true,
   searchHint: "present structured questions and collect the user's answers",
+  searchKeywords: ['ask', 'multiple-choice'],
   async description() {
     return DESCRIPTION
   },
