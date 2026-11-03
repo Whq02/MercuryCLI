@@ -104,7 +104,7 @@ See [docs/README.md](docs/README.md) for the full documentation catalogue ([docs
 
 ## Author
 
-Mercury CLI is designed, built and maintained by **Waleed Al Qusous** as its sole developer: seven months from the first line to this release, 48 public releases, 572,000 lines of TypeScript and 4,300 proofs, built with the AI agents it now runs. [GitHub](https://github.com/Whq02) · [X](https://x.com/dubsthedev) · [mercury-cli.ai](https://mercury-cli.ai)
+Mercury CLI is designed, built and maintained by **Waleed Al Qusous** as its sole developer: seven months from the first line to this release, 49 public releases, 572,000 lines of TypeScript and 4,300 proofs, built with the AI agents it now runs. [GitHub](https://github.com/Whq02) · [X](https://x.com/dubsthedev) · [mercury-cli.ai](https://mercury-cli.ai)
 
 ## Reporting a problem
 
