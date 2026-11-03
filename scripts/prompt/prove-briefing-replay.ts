@@ -30,7 +30,7 @@ const CONSTRAINTS: Record<string, string[]> = {
   Glob: ['glob pattern', 'newest modification first', 'Ignore files apply'],
   Eval: ['retained', 'reaped', 'run in order', 'Helpers', 'arrive on first use'],
   ChangeSet: ['apply', 'preview', 'status', 'discard', 'read anchor', 'whole set', 'nothing is written', 'verified by reread', '16 files', '30 minutes'],
-  ToolSearch: ['Deferred tools:', 'select:', 'keyword', 'loads nothing', 'already in your tool list'],
+  ToolSearch: ['Deferred tools:', 'become callable', 'no different from the tools the prompt opened with'],
 }
 
 let failures = 0

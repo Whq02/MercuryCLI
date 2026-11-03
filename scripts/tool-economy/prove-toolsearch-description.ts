@@ -31,32 +31,11 @@ const { getPrompt } = await import('../../src/tools/ToolSearchTool/prompt.ts')
 const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
 const { kimiSupportsDynamicToolLoading } = await import('../../src/services/providers/moonshot/kimiPins.ts')
 
-const SPEC_BLOCK = `Load the full schemas of deferred tools so they become callable.
-
-Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one per line: the name, then what the tool is for. Before that fetch, the name and its line are all you hold — without a parameter schema the tool stays uncallable. Hand it a query; it matches against the deferred roster and answers with the complete JSONSchema definition of each match, inside a <functions> block. A schema landing in that result makes its tool callable, no different from the tools the prompt opened with. A tool already in your tool list needs no fetch: call it directly.
-
-Shape of the result: every match lands as its own \`<function>{"description": "...", "name": "...", "parameters": {...}}</function>\` line inside the <functions> block, encoded the way the opening tool list is. A select that names a tool this session does not have loads nothing; the result names the miss.
-
-Query forms:
-- \`select:WebFetch,Sleep\` — names spelled as the list spells them
-- \`notebook jupyter\` — keyword search
-- \`+slack send\` — "slack" must appear in the name; remaining terms only rank`
-const SPEC_TEXT = `Load the full schemas of deferred tools so they become callable.
-
-Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one per line: the name, then what the tool is for. Before that fetch, the name and its line are all you hold — without a parameter schema the tool stays uncallable. Hand it a query; it matches against the deferred roster and admits each match: the result names the admitted tools, and from that request on their complete definitions are in your tool list, no different from the tools the prompt opened with. A tool already in your tool list needs no fetch: call it directly. A select that names a tool this session does not have loads nothing; the result names the miss.
-
-Query forms:
-- \`select:WebFetch,Sleep\` — names spelled as the list spells them
-- \`notebook jupyter\` — keyword search
-- \`+slack send\` — "slack" must appear in the name; remaining terms only rank`
-const SPEC_TEXT_APPEND = `Load the full schemas of deferred tools so they become callable.
-
-Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one per line: the name, then what the tool is for. Before that fetch, the name and its line are all you hold — without a parameter schema the tool stays uncallable. Hand it a query; it matches against the deferred roster and admits each match: the result names the admitted tools, and their complete definitions are appended to the conversation right after it, callable from then on, no different from the tools the prompt opened with. A tool already in your tool list needs no fetch: call it directly. A select that names a tool this session does not have loads nothing; the result names the miss.
-
-Query forms:
-- \`select:WebFetch,Sleep\` — names spelled as the list spells them
-- \`notebook jupyter\` — keyword search
-- \`+slack send\` — "slack" must appear in the name; remaining terms only rank`
+const HEAD = 'Loads the full definitions of deferred tools so they become callable.\n\n'
+const LOCATION = 'Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one per line: the name, then what the tool is for.'
+const SPEC_BLOCK = `${HEAD}${LOCATION} The result carries the complete definition of each match inside a <functions> block, callable from then on, no different from the tools the prompt opened with.`
+const SPEC_TEXT = `${HEAD}${LOCATION} The result names the admitted tools, and from that request on their complete definitions are in your tool list, no different from the tools the prompt opened with.`
+const SPEC_TEXT_APPEND = `${HEAD}${LOCATION} The result names the admitted tools, and their complete definitions are appended to the conversation right after it, callable from then on, no different from the tools the prompt opened with.`
 
 const firstDifference = (a: string, b: string): string => {
   let i = 0
@@ -71,10 +50,10 @@ section('§1 the block form, first party')
   const text = await ToolSearchTool.prompt({ model: BLOCK })
   check('the description equals the specification\'s block text exactly', text === SPEC_BLOCK, firstDifference(text, SPEC_BLOCK))
   check('it never calls the list name-only', !text.includes('name-only'))
-  check('its select example no longer names three always-loaded tools', !text.includes('select:Read,Edit,Grep') && text.includes('select:WebFetch,Sleep'))
+  check('it carries no worked query examples: the grammar is the query field\'s', !text.includes('select:') && !text.includes('Query forms'))
   check('it says where the list is and what a line holds', text.includes('messages that begin "Deferred tools:", one per line: the name, then what the tool is for'))
-  check('it says a loaded tool needs no fetch', text.includes('A tool already in your tool list needs no fetch: call it directly.'))
-  check('it says a select with a miss loads nothing', text.includes('A select that names a tool this session does not have loads nothing; the result names the miss.'))
+  check('it says a loaded definition is callable like the tools the prompt opened with', text.includes('no different from the tools the prompt opened with'))
+  check('it pre-empts no miss and explains no mechanism: the result names a miss at call time', !text.includes('loads nothing') && !text.includes('Shape of the result') && !text.includes('all you hold'))
   check('the input schema is unchanged', JSON.stringify(ToolSearchTool.inputSchema.shape ? Object.keys(ToolSearchTool.inputSchema.shape).sort() : []) === JSON.stringify(['max_results', 'query']))
   check('getPrompt() defaults to the block text', getPrompt() === SPEC_BLOCK && getPrompt('block') === SPEC_BLOCK)
   console.log(`  block text: ${Buffer.byteLength(text, 'utf8')} bytes`)
@@ -86,7 +65,7 @@ section('§2 the text form')
   check(`${TEXT} rides the text form`, deferralWireFormFor(TEXT).form === 'text')
   const text = await ToolSearchTool.prompt({ model: TEXT })
   check('the description equals the specification\'s text-form text exactly', text === SPEC_TEXT, firstDifference(text, SPEC_TEXT))
-  check('it promises the admission notice and the tool list, never the <functions> expansion', text.includes('admits each match') && text.includes('in your tool list') && !text.includes('<functions>'))
+  check('it promises the admission notice and the tool list, never the <functions> expansion', text.includes('names the admitted tools') && text.includes('in your tool list') && !text.includes('<functions>'))
   check('getPrompt(\'text\') is the same text', getPrompt('text') === SPEC_TEXT)
   console.log(`  text-form text: ${Buffer.byteLength(text, 'utf8')} bytes`)
 }
@@ -102,19 +81,19 @@ section('§3 the text-append form')
   check('getPrompt(\'text-append\') is the same text', getPrompt('text-append') === SPEC_TEXT_APPEND)
 }
 
-section('§4 every form shares the head, the location, the direct-call sentence, the miss sentence and the query forms')
+section('§4 every form shares the head and the location; the grammar lives in the query field')
 {
   for (const form of ['block', 'text', 'text-append'] as const) {
     const text = getPrompt(form)
-    check(`${form}: starts with the head and names the "Deferred tools:" list`, text.startsWith('Load the full schemas of deferred tools so they become callable.\n\nDeferred tools are listed in <system-reminder> messages that begin "Deferred tools:"'))
-    check(`${form}: carries the three query forms`, text.endsWith('Query forms:\n- `select:WebFetch,Sleep` — names spelled as the list spells them\n- `notebook jupyter` — keyword search\n- `+slack send` — "slack" must appear in the name; remaining terms only rank'))
+    check(`${form}: starts with the head and names the "Deferred tools:" list`, text.startsWith(`${HEAD}Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:"`))
+    check(`${form}: one paragraph after the head, under 400 bytes`, text.split('\n\n').length === 2 && Buffer.byteLength(text) <= 400, `${Buffer.byteLength(text)} bytes`)
     check(`${form}: never names <available-deferred-tools>`, !text.includes('<available-deferred-tools>'))
     check(`${form}: the query forms do not say again what the query and max_results fields say (the exact names, the best matches, the result bound)`, !text.includes('pull exactly the tools named') && !text.includes('best matches') && !text.includes('max_results'))
     const spec = form === 'block' ? SPEC_BLOCK : form === 'text' ? SPEC_TEXT : SPEC_TEXT_APPEND
-    check(`${form}: the first three lines — all the Fallback permission card prints under an explicit ask rule — are the specification's, unchanged from .36`, text.split('\n').slice(0, 3).join('\n') === spec.split('\n').slice(0, 3).join('\n') && text.split('\n')[2]!.includes('Hand it a query; it matches against the deferred roster and '), text.split('\n').slice(0, 3).join('\n').slice(0, 160))
+    check(`${form}: the first three lines — all the Fallback permission card prints under an explicit ask rule — are the specification's`, text.split('\n').slice(0, 3).join('\n') === spec.split('\n').slice(0, 3).join('\n'), text.split('\n').slice(0, 3).join('\n').slice(0, 160))
   }
   const fields = (ToolSearchTool.inputSchema as unknown as { shape: Record<string, { description?: string }> }).shape
-  check('the query field says the two modes and the roster', (fields.query?.description ?? '') === 'What to load: exact names as "select:<name>,<name>", or keywords ranked against the deferred roster.', fields.query?.description)
+  check('the query field says the three forms and the roster', (fields.query?.description ?? '') === 'What to load: exact names as "select:<name>,<name>"; or keywords ranked against the deferred roster, where "+word" requires the word in the name.', fields.query?.description)
   check('the max_results field says the result bound and its default', (fields.max_results?.description ?? '') === 'Maximum number of results to return (default: 5)', fields.max_results?.description)
 }
 
@@ -122,7 +101,7 @@ section('§5 the unattended run (no host answers asks, the roster names only): t
 {
   const { isUnattendedRun, markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
   const HOSTED_LOCATION = 'one per line: the name, then what the tool is for.'
-  const UNATTENDED_LOCATION = 'one name per line, optionally followed by a hint. Keyword search matches names and descriptions even when only names are listed.'
+  const UNATTENDED_LOCATION = 'one name per line, optionally followed by a hint; keyword search matches names and descriptions even when only names are listed.'
   check('this proof renders the hosted posture (no session mark, so a screen may print the card)', isUnattendedRun() === false)
   for (const form of ['block', 'text', 'text-append'] as const) {
     const hosted = getPrompt(form)
