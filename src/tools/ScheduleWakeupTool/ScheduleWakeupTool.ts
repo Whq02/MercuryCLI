@@ -27,14 +27,14 @@ const inputSchema = lazySchema(() =>
     delaySeconds: z
       .number()
       .describe(
-        `Seconds to wait before the wake fires. Clamped to [${WAKEUP_MIN_DELAY_SECONDS}, ${WAKEUP_MAX_DELAY_SECONDS}]. The fire lands on the next minute boundary at/after the delay (cron resolution is 1 minute).`,
+        `Delay in seconds, clamped to ${WAKEUP_MIN_DELAY_SECONDS}–${WAKEUP_MAX_DELAY_SECONDS}; the wake fires on the next minute boundary at or after it.`,
       ),
     prompt: z.string().describe('The prompt to enqueue when the wake fires.'),
     reason: z
       .string()
       .optional()
       .describe(
-        'Optional short note on why you are waking yourself (for your own continuity; not shown to the user).',
+        'A short note on why you are waking yourself, carried to the woken turn; not shown to the user.',
       ),
   }),
 )

@@ -1,7 +1,4 @@
-import {
-  CRON_CREATE_TOOL_NAME,
-  cronToolsMountable,
-} from '../ScheduleCronTool/prompt.js'
+import { cronToolsMountable } from '../ScheduleCronTool/prompt.js'
 
 export const SCHEDULE_WAKEUP_TOOL_NAME = 'ScheduleWakeup'
 
@@ -16,19 +13,5 @@ export const SCHEDULE_WAKEUP_DESCRIPTION =
   'Schedule your own next wake: enqueue a prompt to fire once after a short delay (60s–1h) in this session. Use to pace a self-directed loop — do some work now, then schedule the next step.'
 
 export function buildScheduleWakeupPrompt(): string {
-  return `Schedule a single self-paced wake. After ${WAKEUP_MIN_DELAY_SECONDS}–${WAKEUP_MAX_DELAY_SECONDS} seconds the given prompt is enqueued once into this session. On a daemon-hosted session the wake rides the session record (the daemon fires it, receipted, then it removes itself); on a bare streaming run it is a process-local timer that dies with the run.
-
-This is the native way to run a self-paced loop: instead of a fixed cron cadence, you do a unit of work now and call ${SCHEDULE_WAKEUP_TOOL_NAME} to wake yourself for the next unit. To continue the loop, the prompt you schedule should itself call ${SCHEDULE_WAKEUP_TOOL_NAME} again when more work remains; to stop, simply don't reschedule.
-
-## Input
-- delaySeconds: how long to wait before the wake fires. Clamped to [${WAKEUP_MIN_DELAY_SECONDS}, ${WAKEUP_MAX_DELAY_SECONDS}] seconds. Because the scheduler's resolution is one minute, the actual fire lands on the next minute boundary at or after the delay.
-- prompt: the instruction to run when you wake.
-- reason: optional short note on why you're waking yourself (for your own continuity; not shown to the user).
-
-## When to use
-- "check back in a few minutes once the build finishes" → delaySeconds: 120
-- pacing a long self-directed task across several wakes without burning a turn idling
-- Not for fixed recurring schedules ("every 5 minutes", "every day at 9am") — use ${CRON_CREATE_TOOL_NAME} for those. This tool fires exactly once per call.
-
-The wake fires only while the session is idle (not mid-turn), same as all scheduled prompts. When the operator interrupts or stops the session, the pending wake is dropped (with a receipt) and the loop does not resume on its own; a parked session keeps its wake and is woken by it when it fires.`
+  return `Wakes this session once, after ${WAKEUP_MIN_DELAY_SECONDS}–${WAKEUP_MAX_DELAY_SECONDS} seconds, with the prompt given. The wake fires on a minute boundary once the session is idle; an operator interruption or stop drops it, a parked session keeps it. A daemon-hosted wake persists with the session; on a bare run it is a timer that ends with the run. It fires once: a loop continues only when the woken prompt schedules the next wake.`
 }
