@@ -40,6 +40,9 @@ try {
   const { FileReadTool } = await import(`${root}/src/tools/FileReadTool/FileReadTool.ts`)
   const { ToolSearchTool } = await import(`${root}/src/tools/ToolSearchTool/ToolSearchTool.ts`)
   const { WebFetchTool } = await import(`${root}/src/tools/WebFetchTool/WebFetchTool.ts`)
+  const { planToolPayload, clearToolRosterLatches } = await import(`${root}/src/services/providers/toolEconomy.ts`)
+  const { processOwnerForLane } = await import(`${root}/src/services/run/resolveOwner.ts`)
+  const deferred = (rows: any[]) => rows.filter(row => row.type === 'deferred_tools_delta')
   const roster = (attachments: any[]) => attachments.filter(row => !row.capsuleReceipt).map(row => ({ kind: row.type, bytes: Buffer.byteLength(normalizeAttachmentForAPI(row).flatMap((message: any) => {
     const content = message.message.content
     return typeof content === 'string' ? [content] : content.filter((block: any) => block.type === 'text').map((block: any) => block.text)
@@ -66,14 +69,20 @@ try {
     const second = await getAttachments('Read later.ts.', context, [])
     console.log(JSON.stringify({ mode, turn: 1, roster: roster(first) }))
     console.log(JSON.stringify({ mode, turn: 2, roster: roster(second), sections: second.filter((row: any) => row.type === 'context_capsule').flatMap((row: any) => (row.sections ?? []).map((section: any) => ({ kinds: section.kinds, bytes: Buffer.byteLength(section.content.filter((block: any) => block.type === 'text').map((block: any) => block.text).join('')) }))) }))
-    const cut = second.filter((row: any) => ['deferred_tools_delta', 'date_change', 'user_context', 'task_reminder', 'contract_reminder', 'harness_map_delta'].includes(row.type) || (row.type === 'context_capsule' && row.markdown))
-    check(`${mode}: no post-first-turn reminder producers`, cut.length === 0, JSON.stringify(roster(cut)))
+    const cut = second.filter((row: any) => ['date_change', 'user_context', 'task_reminder', 'contract_reminder', 'harness_map_delta'].includes(row.type) || (row.type === 'context_capsule' && row.markdown))
+    check(`${mode}: no post-first-turn reminder producers beyond a roster change`, cut.length === 0, JSON.stringify(roster(cut)))
+    check(`${mode}: the joined deferred tool alone is announced`, JSON.stringify(deferred(second).map(row => [row.addedNames, row.removedNames])) === JSON.stringify([[['WebFetch'], []]]), JSON.stringify(deferred(second)))
     check(`${mode}: the full first-use manual still arrives`, second.some((row: any) => row.type === 'critical_system_reminder' && row.content.startsWith('# Tool manual: Read\n')))
     check(`${mode}: prior request bytes are untouched`, JSON.stringify(context.messages) === history)
     context.messages.push(...second.map(createAttachmentMessage))
     const third = await getAttachments(null, context, [])
     console.log(JSON.stringify({ mode, turn: 3, roster: roster(third) }))
     check(`${mode}: no repeat of a delivered manual`, !third.some((row: any) => row.type === 'critical_system_reminder' && row.content.startsWith('# Tool manual: Read\n')))
+    check(`${mode}: an unchanged roster produces no later deferred notice`, deferred(third).length === 0, JSON.stringify(deferred(third)))
+    context.options.tools = [FileReadTool, ToolSearchTool]
+    const removed = await getAttachments(null, context, [])
+    check(`${mode}: the departed tool alone is announced`, JSON.stringify(deferred(removed).map(row => [row.addedNames, row.removedNames])) === JSON.stringify([[[], ['WebFetch']]]), JSON.stringify(deferred(removed)))
+    context.options.tools.push(WebFetchTool)
     const mark = replyMarkOf({ timestamp: '2026-10-29T12:00:00Z', attachment: { type: 'queued_command', source_uuid: 'operator-follow-up', origin: { kind: 'human' } } })
     check(`${mode}: reply address belongs only to the screen`, mode === 'interactive' ? mark?.uuid === 'operator-follow-up' : mark === null)
     const boundary = { type: 'system', subtype: 'compact_boundary', uuid: 'fixture-boundary' }
@@ -86,6 +95,16 @@ try {
     check(`${mode}: changed operator instructions still arrive without environment repetition`, changedInstructions.length === 1 && changedInstructions[0].body.includes('The operator changed the project instructions.') && !changedInstructions[0].body.includes('changed environment') && !changedInstructions[0].body.includes('changed date'))
     const repeatedInstructions = await getUserContextAttachment([...context.messages, ...changedInstructions.map(createAttachmentMessage)], { instructions: 'The operator changed the project instructions.', environment: 'another environment', currentDate: 'another date' }, false)
     check(`${mode}: unchanged instructions do not repeat`, repeatedInstructions.length === 0)
+    clearToolRosterLatches()
+    const stable = [createUserMessage({ content: 'Keep this request roster.' }), createAssistantMessage({ content: 'Earlier reply.' })]
+    const savedSearchMode = process.env.MERCURY_TOOL_SEARCH
+    process.env.MERCURY_TOOL_SEARCH = '0'
+    const planned = await planToolPayload({ model: context.options.engineModel, tools: context.options.tools, messages: stable, agents: [], getToolPermissionContext: async () => state.toolPermissionContext, latchKey: String(processOwnerForLane()) })
+    if (savedSearchMode === undefined) delete process.env.MERCURY_TOOL_SEARCH
+    else process.env.MERCURY_TOOL_SEARCH = savedSearchMode
+    const unchanged = await getAttachments(null, { ...context, messages: stable }, [], stable)
+    check(`${mode}: a roster latched in full produces no late notice when the search setting changes`, !planned.enabled && deferred(unchanged).length === 0, JSON.stringify(deferred(unchanged)))
+    clearToolRosterLatches()
   }
 } finally {
   setSystemTime()

@@ -64,11 +64,12 @@ export function getDeferredToolsDeltaAttachment(
   scanContext?: DeferredToolsDeltaScanContext,
   plan?: Pick<ToolPayloadPlan, 'enabled' | 'wireForm' | 'deferredNames'>,
 ): Attachment[] {
-  if (!(plan?.enabled ?? isToolSearchEnabledOptimistic()) || !supportsToolDeferral(model)) return []
+  if ((plan === undefined && !isToolSearchEnabledOptimistic()) || !supportsToolDeferral(model)) return []
   const form = plan?.wireForm ?? deferralWireFormFor(model).form
   if (form === 'block' && !modelSupportsToolReference(model)) return []
   if (!isToolSearchToolAvailable(tools)) return []
-  const delta = getDeferredToolsDelta(tools, messages ?? [], scanContext, model, plan?.deferredNames)
+  const deferredNames = plan?.enabled === false ? new Set<string>() : plan?.deferredNames
+  const delta = getDeferredToolsDelta(tools, messages ?? [], scanContext, model, deferredNames)
   if (!delta) return []
   const addedHead = deferralSearchIsServerSide(form) ? SERVER_SEARCH_ANNOUNCEMENT_HEAD : DEFERRED_TOOLS_ANNOUNCEMENT_HEAD
   const body = [
