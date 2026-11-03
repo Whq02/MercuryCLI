@@ -887,6 +887,13 @@ function actDetail(input: Input): string {
 export const BrowserTool = buildTool({
   name: 'Browser',
   searchHint: 'drive an isolated web browser; inspect pages and capture screenshots',
+  searchKeywords: [
+    'playwright', 'puppeteer', 'selenium', 'end-to-end', 'e2e', 'automation', 'test', 'verify',
+    'web app', 'frontend UI journey', 'localhost dev server', 'website', 'fill', 'submit', 'form',
+    'log in', 'page', 'reproduce', 'UI bug', 'click', 'type', 'scroll', 'wait', 'selector', 'text',
+    'navigation', 'extract', 'render', 'accessibility tree', 'DOM', 'console errors', 'screenshot',
+    'headless', 'chrome', 'edge', 'chromium', 'provenance', 'status',
+  ],
   capability: {
     intents: [
       'test and verify a web app or UI journey end to end in a real browser',

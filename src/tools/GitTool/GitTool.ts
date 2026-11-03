@@ -510,6 +510,11 @@ export const GitTool = buildTool({
   searchHint: repoHostDiscoveryEnabled()
     ? 'inspect repositories and hosted reviews; stage changes and preview commit groups'
     : 'inspect repositories; stage changes and preview commit groups',
+  searchKeywords: [
+    'status', 'diff', 'hunks', 'conflicts', 'commit', 'plans', 'atomic', 'stale-safe', 'multi-commit',
+    'application', 'repository', 'read', 'file', 'tree', 'exact', 'ref', 'branch', 'compare', 'review', 'record',
+    ...(repoHostDiscoveryEnabled() ? ['pull request', 'PR', 'checks', 'issue', 'context', 'host', 'hosted', 'search', 'paginated', 'workflow run', 'watch'] : []),
+  ],
   capability: {
     intents: [
       'inspect the local git working tree',

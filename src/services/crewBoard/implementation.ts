@@ -54,6 +54,7 @@ export function tool(host: BoardHost, store: () => BoardStore | null): Tool {
   return host.buildTool({
     name: 'CrewBoard',
     searchHint: 'read and post shared crew messages; lead-only team assignments',
+    searchKeywords: ['swarm', 'agents', 'seats', 'team', 'launch', 'wave', 'board', 'posts', 'messages'],
     shouldDefer: true,
     maxResultSizeChars: Infinity,
     inputSchema,

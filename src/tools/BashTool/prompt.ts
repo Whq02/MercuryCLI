@@ -76,7 +76,7 @@ function buildOutputParagraph(): string {
 function brushShellParagraphs(): string[] {
   const paragraphs: string[] = []
   paragraphs.push(
-    'One shell session serves the whole conversation: the working directory, variables, functions, aliases and options persist from call to call. Each crewmate has a session of its own, which ends with the crewmate. A timed-out command, a bare `exit` or a `set -u` failure resets the session, and the result says when earlier state was lost. A `run_in_background` call runs in its own shell and shares no state with the session.',
+    'One shell session serves the whole conversation: the working directory, variables, functions, aliases and options persist from call to call. Each crewmate has a shell session of its own, which ends with the crewmate. An operator stop ends the command and resets the session, as do a bare `exit` or a `set -u` failure; the result says when earlier state was lost. A `run_in_background` call runs in its own shell and shares no state with the session.',
   )
   const ceiling = resolveEngineSessionCeiling(getInitialSettings().shell?.sessions)
   paragraphs.push(

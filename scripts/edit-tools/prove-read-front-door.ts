@@ -97,8 +97,8 @@ section('F. OFF ⇒ byte-identical plain Read')
 {
   process.env.MERCURY_READ_TARGETS = '0'
   const prompt = await (FileReadTool as { prompt: Function }).prompt()
-  check('F1 no-directories line present', prompt.includes('reads files, never directories'))
-  check('F2 no front-door lines', !prompt.includes('mercury:// resource references'))
+  check('F1 files-only fact present once', prompt.split('Files only: a directory path is refused.').length === 2)
+  check('F2 no resource front-door text', !prompt.includes('mercury://'))
   const desc = await (FileReadTool as { description: Function }).description()
   check('F3 description has no front-door suffix', !desc.includes('bounded listing'))
   const offDir = await readViaTool(dirTarget, makeContext(new Map()))
@@ -111,7 +111,7 @@ section('D. directory targets — deterministic bounded listing')
 {
   process.env.MERCURY_READ_TARGETS = '1'
   const prompt = await (FileReadTool as { prompt: Function }).prompt()
-  check('D0 front-door prompt lines ON', prompt.includes('deterministic bounded listing') && !prompt.includes('reads files, never directories'))
+  check('D0 front-door facts present once ON, files-only refusal absent', prompt.split('A directory path returns a bounded listing.').length === 2 && prompt.split('A mercury:// reference reads a session record;').length === 2 && !prompt.includes('Files only: a directory path is refused.'))
   const state = new Map<string, ReadStamp>()
   const r1 = await readViaTool(dirTarget, makeContext(state))
   check('D1 directory resolves ON', r1.ok)

@@ -308,6 +308,7 @@ interface ToolMembers<TInput, TOutput, TProgress extends ToolProgressData> {
   alwaysLoad?: boolean
   loadInFullOnCloud?: boolean
   searchHint?: string
+  searchKeywords?: readonly string[]
   userFacingNameBackgroundColor?(input?: any): string | undefined
   description(
     input?: any,

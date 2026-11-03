@@ -393,12 +393,12 @@ function hasNullAt(value: unknown, path: string[]): boolean {
 }
 
 const EXPECTED_NON_STRICT: Record<string, RegExp> = {
-  Crewmate: /propertyNames/, AskUserQuestion: /propertyNames/, Service: /propertyNames/, Git: /propertyNames/, Journey: /propertyNames/,
+  Crewmate: /propertyNames/, Service: /propertyNames/, Git: /propertyNames/, Journey: /propertyNames/,
   Godot: /propertyNames/, Unity: /propertyNames/, Blender: /propertyNames/, Aseprite: /propertyNames/, JevEval: /additionalProperties/,
   StructuredOutput: /additionalProperties/, TaskCreate: /propertyNames/, TaskUpdate: /propertyNames/, Workflow: /admits any value.* at args/,
   Document: /propertyNames/,
 }
-const MUST_BE_STRICT = ['Read', 'Edit', 'Write', 'Bash', 'Glob', 'Grep', 'ChangeSet', 'WebFetch', 'WebSearch', 'NotebookEdit', 'Skill', 'ToolSearch', 'Monitor', 'Sleep', 'Computer']
+const MUST_BE_STRICT = ['Read', 'Edit', 'Write', 'Bash', 'Glob', 'Grep', 'ChangeSet', 'WebFetch', 'WebSearch', 'NotebookEdit', 'Skill', 'ToolSearch', 'Monitor', 'Sleep', 'Computer', 'AskUserQuestion']
 
 function makeContext(): unknown {
   return {
@@ -481,10 +481,10 @@ t('one bad schema never sinks its neighbours: a free-form tool beside Read leave
   const read = wireByTool.get('Read')!.parameters as Node
   const props = read.properties as Node
   t('Read strict form: every key required, closed object', JSON.stringify(read.required) === JSON.stringify(Object.keys(props)) && read.additionalProperties === false, JSON.stringify(read.required))
-  t('Read strict form: file_path stays a plain required string', JSON.stringify(props.file_path) === JSON.stringify({ type: 'string', description: 'Absolute path of the file to open' }), JSON.stringify(props.file_path))
+  t('Read strict form: file_path stays a plain required string', JSON.stringify(props.file_path) === JSON.stringify({ type: 'string', description: 'Absolute path of the file to read' }), JSON.stringify(props.file_path))
   t('Read strict form: pages is "string or null" and keeps its description', isNode(props.pages) && JSON.stringify(props.pages.type) === '["string","null"]' && typeof props.pages.description === 'string', JSON.stringify(props.pages))
   t('Read strict form: crop is "the four-integer box or null" (the vendor anyOf spelling for a constrained type)', isNode(props.crop) && Array.isArray(props.crop.anyOf) && JSON.stringify((props.crop.anyOf as Node[])[1]) === '{"type":"null"}' && (props.crop.anyOf as Node[])[0]!.minItems === 4, JSON.stringify(props.crop))
-  t('Read strict form: the description keeps the plain meaning (no vendor words added)', typeof props.crop === 'object' && String((props.crop as Node).description).startsWith('For an image: a box [x1, y1, x2, y2]'))
+  t('Read strict form: the description keeps the plain meaning (no vendor words added)', isNode(props.crop) && props.crop.description === ((originalFor(roster.get('Read')!).properties as Node).crop as Node).description && String(props.crop.description).includes('[x1, y1, x2, y2] in original pixels'))
   const changeSet = wireByTool.get('ChangeSet')!.parameters as Node
   const unwrap = (node: Node): Node => (Array.isArray(node.anyOf) ? (node.anyOf as Node[])[0]! : node)
   const changes = unwrap((changeSet.properties as Node).changes as Node)

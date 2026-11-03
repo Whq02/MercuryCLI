@@ -155,6 +155,7 @@ export const WebFetchTool = buildTool({
   name: WEB_FETCH_TOOL_NAME,
   userFacingName: () => 'Fetch',
   searchHint: 'fetch public pages as text or saved documents',
+  searchKeywords: ['fetches', 'extracts', 'content', 'URL'],
   shouldDefer: true,
   maxResultSizeChars: 140_000,
   inputSchema,
