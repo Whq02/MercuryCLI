@@ -35,12 +35,12 @@ const inputSchema = z.object({
   summary: z
     .string()
     .min(1)
-    .describe('The layman review of the completed spec — concise plain language'),
+    .describe('The review of the completed spec in plain language; a technical term only beside its plain meaning'),
   blockers: z
     .array(z.string().min(1))
     .default([])
     .describe(
-      'What still prevents a one-shot prototype, each with a short comment; empty when nothing blocks',
+      'What still prevents a one-shot prototype, each with a short comment; empty asks the user to begin the build',
     ),
   specFiles: z
     .array(z.string())
