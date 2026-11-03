@@ -199,10 +199,10 @@ section('§2 NATIVE-OPENAI + THE REGISTRATION CENSUS — the anthropic spy sees 
   check('a local home lists the vendored tool ALONE', ProviderSearchTool.isEnabled() === false, `mainModel=${getEngineModel()}`)
   const providerPrompt = await ProviderSearchTool.prompt({ getToolPermissionContext: async () => getEmptyToolPermissionContext() } as never)
   const vendoredPrompt = await WebSearchTool.prompt({ getToolPermissionContext: async () => getEmptyToolPermissionContext() } as never)
-  check("the prompts are DISTINGUISHABLE and honest: ProviderSearch says the provider's own + spends this session's account",
-    providerPrompt.includes("provider's own live web search") && providerPrompt.includes("spends this session's own provider account"), providerPrompt.slice(0, 160))
-  check('…and WebSearch says vendored + never spends the provider account + names the other door + the scraping default with its off doors + what leaves the machine',
-    vendoredPrompt.includes('session provider') && vendoredPrompt.includes('official APIs') && vendoredPrompt.includes('on unless the operator turned it off in /config or with MERCURY_SEARCH_KEYLESS=0') && vendoredPrompt.includes("Every source receives the query and the client's address") && vendoredPrompt.includes('no source answered'), vendoredPrompt.slice(0, 160))
+  check("the prompts are DISTINGUISHABLE and honest: ProviderSearch says the provider's own search on this session's account, with no other source tried",
+    providerPrompt.includes("the session provider's own search, on this session's provider account") && providerPrompt.includes('no other source tried') && !/\bWebSearch\b/.test(providerPrompt), providerPrompt.slice(0, 160))
+  check('…and WebSearch says the source order with the provider first on this session\'s account, the scraping door the operator can turn off, and what leaves the machine, naming no other tool',
+    vendoredPrompt.includes("the session provider's own search, on this session's account") && vendoredPrompt.includes('the official API the query words select') && vendoredPrompt.includes('DuckDuckGo page scraping unless the operator turned it off') && vendoredPrompt.includes("Every source receives the query and the client's address") && !/\bProviderSearch\b/.test(vendoredPrompt), vendoredPrompt.slice(0, 160))
   delete process.env.OPENAI_API_KEY
   fixture.reset()
 }

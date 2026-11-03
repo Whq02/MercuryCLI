@@ -8,12 +8,12 @@ import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js'
 import type { WebSearchProgress } from '../../types/tools.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
 import { truncate } from '../../utils/format.js'
-import { getWebSearchPrompt, PROVIDER_SEARCH_TOOL_NAME, WEB_SEARCH_TOOL_NAME } from './prompt.js'
+import { getWebSearchPrompt, SEARCH_QUERY_FIELD, WEB_SEARCH_TOOL_NAME } from './prompt.js'
 import { getToolUseSummary, renderToolResultMessage, renderToolUseMessage, renderToolUseProgressMessage } from './UI.js'
 
 
 const inputSchema = z.strictObject({
-  query: z.string().min(2).describe('The search query to use'),
+  query: z.string().min(2).describe(SEARCH_QUERY_FIELD),
   allowed_domains: z.array(z.string()).optional().describe('Only include search results from these domains'),
   blocked_domains: z.array(z.string()).optional().describe('Never include search results from these domains'),
 })
@@ -65,8 +65,8 @@ export const WebSearchTool = buildTool({
   async description(input?: Partial<Input>): Promise<string> {
     return `Mercury wants to search the web for: ${input?.query ?? ''}`
   },
-  async prompt(options): Promise<string> {
-    return getWebSearchPrompt(options?.tools?.some(tool => tool.name === PROVIDER_SEARCH_TOOL_NAME) ?? true)
+  async prompt(): Promise<string> {
+    return getWebSearchPrompt()
   },
   getActivityDescription(input: Partial<Input> | undefined): string {
     if (!input?.query) return 'Searching the web'
