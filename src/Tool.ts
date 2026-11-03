@@ -326,6 +326,7 @@ interface ToolMembers<TInput, TOutput, TProgress extends ToolProgressData> {
     model?: string
   }): Promise<string>
   wireDescription?(fullPrompt: string): string
+  manualText?(fullPrompt: string): string
   isOpenWorld?(input?: TInput): boolean
   requiresUserInteraction?(input?: TInput): boolean
   settleUnansweredAsk?(input: TInput, ask: PermissionAskDecision): PermissionAllowDecision | null

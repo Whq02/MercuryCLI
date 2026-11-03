@@ -6,7 +6,6 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { controlCharacterPathRefusal } from '../../utils/path.js'
 import {
   structureEnabled,
-  structurePolyglotEnabled,
   STRUCTURE_SELECTS,
   type StructurePreview,
   type StructureQuery,
@@ -14,7 +13,6 @@ import {
 } from '../../services/structure/contracts.js'
 import { runStructureQuery } from '../../services/structure/query.js'
 import { applyPreview, buildPreview } from '../../services/structure/transform.js'
-import { resolveGrammarEngineDir } from '../../services/structure/grammarFacility.js'
 import { getPreview, getQuery, rememberQuery } from '../../services/structure/store.js'
 import {
   loadTs,

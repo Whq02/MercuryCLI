@@ -130,8 +130,8 @@ section('§C the Windows incident wave (intake F): evidence preserved, boundarie
 
   const wtSrc = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
   check('the unavailability error is agent-actionable', wtSrc.includes('Retry the same Crewmate call WITHOUT the isolation parameter'))
-  const agentPrompt = readFileSync(join(ROOT, 'src/tools/AgentTool/prompt.ts'), 'utf8')
-check('the isolation capability names its precondition', /requires a git repository/i.test(agentPrompt))
+  const agentTool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
+  check('the isolation precondition is caught at call time by the actionable error above; the cwd field says the worktree comes from that directory\'s repository', /its repository supplies the worktree/.test(agentTool))
 
   const { needsPowerShellBom } = await import('../../src/utils/file.js')
   check('PS files on win32 get the BOM', needsPowerShellBom('C:/x/deploy.ps1', 'win32') && needsPowerShellBom('/x/m.psm1', 'win32') && needsPowerShellBom('/x/m.psd1', 'win32'))

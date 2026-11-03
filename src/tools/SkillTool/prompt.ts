@@ -6,7 +6,7 @@ import { COMMAND_NAME_TAG } from '../../constants/xml.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import type { Command } from '../../types/command.js'
 import { truncateToWidth } from '../../utils/format.js'
-import { MAX_LISTING_DESC_CHARS, SKILL_TOOL_NAME } from './constants.js'
+import { MAX_LISTING_DESC_CHARS } from './constants.js'
 
 
 const SKILL_BUDGET_CONTEXT_PERCENT = 0.01

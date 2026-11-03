@@ -26,7 +26,7 @@ export interface GoldenJudgeInput {
   outcomeStatus: string
 }
 
-export interface GoldenVerdict {
+interface GoldenVerdict {
   completed: boolean
   reasons: string[]
   wrongToolCalls: string[]

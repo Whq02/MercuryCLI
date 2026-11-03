@@ -16,6 +16,7 @@
 # gate-watch: src/services/resources/adapters/workflow.ts src/services/resources/registry.ts src/state/vitalsBus.ts
 # gate-watch: src/hooks/useFocusedWorkspaceCwd.ts src/components/tasks/WorkflowsBoard.tsx src/services/run/ownerKey.ts src/utils/cwd.ts
 # gate-watch: src/utils/cockpit/helmVitalsModel.ts
+# gate-watch: src/services/providers/gemini/geminiCodec.ts src/services/providers/openai/responsesBridge.ts src/services/providers/zai/zaiCodec.ts src/services/schema/jsonSchemaEngine.ts src/utils/api.ts src/utils/normalizeToolSchema.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

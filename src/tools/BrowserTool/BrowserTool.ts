@@ -4,7 +4,6 @@ import { metadataRefusal, metadataSafeAddresses } from '../WebFetchTool/privateH
 import type { ElementHandle, Frame, Page, SerializedAXNode } from 'puppeteer-core'
 import { z } from 'zod/v4'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
-import { canAnswerAsks, getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { readImageWithTokenBudget } from '../FileReadTool/FileReadTool.js'

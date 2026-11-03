@@ -206,8 +206,8 @@ section('§4 the Crewmate tool: haiku is a dispatch word like any other, and the
   const manual = await AgentTool.prompt({ getToolPermissionContext: async () => permissionContext, tools: [...getAllBaseTools()], agents: [] })
   const MODEL_SECTION = '\n## Model selection\n'
   const modelWords = manual.includes(MODEL_SECTION) ? manual.slice(manual.indexOf(MODEL_SECTION) + MODEL_SECTION.length).split('\n## ')[0]! : ''
-  check('the model description, on the wire and in the manual, names no provider as the exact-id case', description.length > 0 && !/Anthropic/.test(description) && modelWords.length > 0 && !/Anthropic/.test(modelWords), description.slice(0, 200))
-  check("the wire says an exact id or a family word; the manual's model section says an exact id names its model exactly", /exact id or family word/.test(description) && /an exact id names its model exactly/.test(modelWords), description.slice(0, 200))
+  check('the model field names no provider as the exact-id case, and the manual has no model section of its own', description.length > 0 && !/Anthropic/.test(description) && modelWords.length === 0, description.slice(0, 200))
+  check("the model field says an exact id or a family word, and where to read the ids", /Exact model id or family word/.test(description) && /mercury:\/\/models/.test(description), description.slice(0, 200))
   check('the schema admits an exact gemini or openrouter id (the dispatch grammar validates it)', schema.safeParse({ description: 'test', prompt: 'test', model: 'gemini-2.5-pro' }).success === true && schema.safeParse({ description: 'test', prompt: 'test', model: 'openrouter/qwen/qwen3-coder' }).success === true)
   check('neither the schema text nor the manual enumerates a per-boot id list', !description.includes('gpt-5.6-sol') && !description.includes('glm-5.2') && !modelWords.includes('gpt-5.6-sol') && !modelWords.includes('glm-5.2'))
   const { unrecognisedModelWordRefusal } = await import('../../src/utils/crew/engineDispatch.ts')

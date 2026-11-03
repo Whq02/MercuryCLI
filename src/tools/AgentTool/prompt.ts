@@ -23,6 +23,20 @@ function formatAgentLine(agent: AgentDefinition, refusal?: string): string {
   return refusal === undefined ? line : `${line} — ${refusal}`
 }
 
+const AGENT_ROSTER_HEAD = 'Agents, by crewmate_type:'
+
+export function agentRosterOf(fullPrompt: string): string {
+  const start = fullPrompt.indexOf(AGENT_ROSTER_HEAD)
+  if (start === -1) return ''
+  const end = fullPrompt.indexOf('\n\n', start)
+  return end === -1 ? fullPrompt.slice(start) : fullPrompt.slice(start, end)
+}
+
+export function withoutAgentRoster(fullPrompt: string): string {
+  const roster = agentRosterOf(fullPrompt)
+  return roster === '' ? fullPrompt : fullPrompt.replace(roster, '').replace(/^\n+/, '').replace(/\n{3,}/g, '\n\n')
+}
+
 export async function getPrompt(
   agentDefinitions: readonly AgentDefinition[],
   isCoordinator = false,
@@ -35,7 +49,7 @@ export async function getPrompt(
     ? agentDefinitions.filter(agent => allowedAgentTypes.includes(agent.agentType))
     : agentDefinitions
   const listing = effectiveAgents.map(agent => formatAgentLine(agent, refusals?.get(agent.agentType))).join('\n')
-  const sections: string[] = listing ? [`## Agent definitions\n${listing}`] : []
+  const sections: string[] = listing ? [`${AGENT_ROSTER_HEAD}\n${listing}`] : []
   if (isCoordinator) return sections.join('\n\n')
 
   sections.push(`## Execution

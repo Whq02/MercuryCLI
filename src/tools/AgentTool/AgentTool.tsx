@@ -96,7 +96,7 @@ import { buildFrozenWorktreeNotice } from './frozenWorktreeNotice.js'
 import { buildWorktreePrepareNotice } from './worktreePrepareNotice.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
-import { getPrompt } from './prompt.js'
+import { agentRosterOf, getPrompt, withoutAgentRoster } from './prompt.js'
 import { runAgent, type RunAgentParams } from './runAgent.js'
 import { reserveSwarmLaunch } from '../../services/crewBoard/seam.js'
 import { setAgentColor } from './agentColorManager.js'
@@ -388,8 +388,12 @@ export const AgentTool = buildTool({
   async description() {
     return 'Delegate a task to a crewmate: a new crewmate that handles complex, multi-step work on its own'
   },
-  wireDescription() {
-    return 'Launch an independent crewmate from a task brief and return its report. The child does not inherit this conversation; its session-owned processes end with it.'
+  wireDescription(fullPrompt: string) {
+    const roster = agentRosterOf(fullPrompt)
+    return `Launch an independent crewmate from a task brief and return its report. The child does not inherit this conversation; its session-owned processes end with it.${roster ? `\n\n${roster}` : ''}`
+  },
+  manualText(fullPrompt: string) {
+    return withoutAgentRoster(fullPrompt)
   },
   async prompt(options: {
     getToolPermissionContext: () => Promise<

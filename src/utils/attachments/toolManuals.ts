@@ -28,7 +28,7 @@ export async function getToolManualAttachments(context: ToolUseContext, selected
       allowedAgentTypes: context.options.agentDefinitions?.allowedAgentTypes,
       model: context.options.engineModel,
     })
-    attachments.push({ type: 'critical_system_reminder', content: `${head}\n\n${manual}` })
+    attachments.push({ type: 'critical_system_reminder', content: `${head}\n\n${tool.manualText?.(manual) ?? manual}` })
   }
   return attachments
 }

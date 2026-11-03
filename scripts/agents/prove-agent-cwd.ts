@@ -61,7 +61,7 @@ const schema = agentTool.inputSchema()
 const shape = schema.shape as Record<string, { description?: string }>
 check('the schema carries cwd', 'cwd' in shape, Object.keys(shape).join(','))
 const words = shape.cwd?.description ?? ''
-check('…and its words name the trust bound and the worktree', words.includes('starting folder') && words.includes("isolation 'worktree'"), words)
+check('…and its words name the trust bound and the worktree', words.includes('Starting outside the session\'s folder asks for permission') && words.includes('with isolation, its repository supplies the worktree'), words)
 const parsed = schema.safeParse({ description: 'd', prompt: 'p', cwd: '/x' })
 check('a cwd on the wire reaches the call', parsed.success && (parsed.data as { cwd?: string }).cwd === '/x', JSON.stringify(parsed.success ? parsed.data : parsed.error.issues))
 

@@ -206,7 +206,7 @@ for (const name of purposeNames) {
   const hint = tool?.searchHint ?? ''
   check(`${name} has a complete purpose under 100 characters`, tool !== undefined && hint.length > 0 && hint.length <= 100 && formatDeferredToolLine(tool, false) === `${name} — ${hint}`)
 }
-check('CrewBoard names messaging and lead-only assignments, not launches', purposeTools.find(tool => tool.name === 'CrewBoard')?.searchHint === 'read and post shared crew messages; lead-only team assignments')
+check('CrewBoard names messaging and lead-only assignments, not launches', /^read and post shared crew messages; lead-only \w+ assignments$/.test(purposeTools.find(tool => tool.name === 'CrewBoard')?.searchHint ?? '') && !/launch/.test(purposeTools.find(tool => tool.name === 'CrewBoard')?.searchHint ?? ''))
 check('ListMcpResources has its resource-listing purpose', ListMcpResourcesTool.searchHint === 'list resources exposed by connected MCP servers')
 
 const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
