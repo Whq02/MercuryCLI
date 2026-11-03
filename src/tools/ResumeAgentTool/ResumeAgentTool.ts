@@ -19,7 +19,7 @@ import { flushSessionStorage } from '../../utils/sessionStorage.js'
 type ResumeAgentToolOutput = MessageOutput
 type Input = CrewMessageInput & { model?: string; effort?: EffortLevel; interrupt?: boolean }
 const inputSchema = lazySchema(() => z.object({
-  to: z.string().describe('The crewmate to resume: the id its launch receipt names or the name its launch gave it'),
+  to: z.string().describe('The crewmate to resume: the id its launch receipt names or the name its launch gave it, running or finished; a name two launches carried reaches the newest'),
   message: z.string().describe('Its next turn: what to do, written as you would brief it'),
   model: z.string().optional().describe('Model for the resumed turn of a finished crewmate; omitted, its recorded model stays. Read mercury://models for available ids.'),
   effort: z.enum(EFFORT_LEVELS).optional().describe('Effort for the resumed turn; omitted, its recorded effort stays. Max is admitted; an unsupported lower tier is refused, not clamped.'),

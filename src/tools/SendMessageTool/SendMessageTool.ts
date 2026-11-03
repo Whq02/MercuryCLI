@@ -11,7 +11,7 @@ import { endedWords, mapMessageResult, messageNoticeFor, messageWorkflowWorker, 
 export type SendMessageToolOutput = MessageOutput
 export type Input = CrewMessageInput
 const inputSchema = lazySchema(() => z.object({
-  to: z.string().describe('The crewmate to send to: the id its launch receipt names or the name its launch gave it; "main" from a background crewmate reaches the agent that launched it'),
+  to: z.string().describe('The crewmate to send to: the id its launch receipt names or the name its launch gave it (a name two launches carried reaches the newest); "main" from a background crewmate reaches the agent that launched it'),
   message: z.string().describe('The message'),
 }))
 type InputSchema = ReturnType<typeof inputSchema>
@@ -26,7 +26,7 @@ export const SendMessageTool = buildTool({
   get outputSchema() { return outputSchema() },
   isReadOnly: () => true,
   async description() { return DESCRIPTION },
-  async prompt({ tools }) { return getPrompt(new Set(tools.map(tool => tool.name))) },
+  async prompt() { return getPrompt() },
   async checkPermissions(input: Input) { return { behavior: 'allow' as const, updatedInput: input } },
   validateInput: validateCrewMessage,
   async call(input: Input, context: ToolUseContext) {

@@ -146,7 +146,7 @@ for (const kind of kinds) {
       check(`${kind.label}: the CrewBoard prompt names no launch road and no launcher, whatever the pool offers`, !description.includes('ToolSearch select:Crewmate') && !description.includes('The lead launches seats.') && !/\bCrewmate\b/.test(description))
       check(`${kind.label}: the board roster hint names no unavailable launcher`, canLaunch || !/\bCrewmate\b/.test(tool.searchHint ?? ''))
     }
-    const resumedChildContract = 'One launched with output_schema keeps its StructuredOutput tool for the resumed turn.'
+    const resumedChildContract = 'a crewmate launched with an output schema keeps its StructuredOutput tool for the resumed turn.'
     if (tool.name === 'ResumeCrewmate') check(`${kind.label}: the resumed-child tool promise is stated exactly`, description.endsWith(resumedChildContract))
     const manual = tool.wireDescription === undefined ? '' : await tool.prompt({ getToolPermissionContext: async () => permissionContext, tools: pool, agents: [], model: 'claude-opus-4-8' })
     if (tool.wireDescription !== undefined) check(`${kind.label}: ${tool.name} keeps its full manual behind the short wire contract`, description === tool.wireDescription(manual) && manual.length > description.length)

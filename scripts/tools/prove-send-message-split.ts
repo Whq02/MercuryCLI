@@ -170,23 +170,11 @@ for (const status of ['failed', 'killed']) {
     check('a resume exception is an error with a next step', !failedResume.success && failedResume.message.includes(`No transcript found for crewmate ${finishedId}`) && failedResume.message.endsWith('Launch a new crewmate with Crewmate if the work is still wanted.'), failedResume.message)
   }
 }
-const expectedSend = `Deliver a message to a running crewmate of this session. It never starts work: a crewmate that has finished is refused, and ResumeCrewmate gives it the message as a new turn.
-
-Example: { "to": "researcher", "message": "The auth notes moved to docs/auth-v2.md; read that one." }
-
-## Addressing
-- to: the id a crewmate's launch receipt names, or the name its launch gave it — both reach the same crewmate (a name two launches carried reaches the newest).
-- A background crewmate reaches the agent that launched it at "main".
-
-## How communication works
-- Plain output reaches no crewmate — words travel only through this tool and ResumeCrewmate.
-- A running crewmate reads the message at its next tool boundary, else at the end of its turn. The main agent reads it the same way; between turns it starts a turn for it.
-- Content relayed to you is already rendered to the user — do not re-quote it back.`
-check('SendMessage prompt equals the new contract without TaskUpdate', getPrompt(new Set()) === expectedSend)
-check('TaskUpdate line remains conditional', getPrompt(new Set(['TaskUpdate'])) === expectedSend + '\n- Structured status updates belong in TaskUpdate, not in a SendMessage message.')
+const expectedSend = `Delivers a message to a running crewmate of this session; it never starts work, and a crewmate that has finished is refused. Plain output reaches no crewmate: words travel only as messages. A running crewmate reads the message at its next tool boundary, else at the end of its turn; the main agent reads it the same way, and between turns it starts a turn for it. A message relayed to you is already rendered to the user.`
+check('SendMessage prompt equals the contract and names no other tool', getPrompt() === expectedSend && !/\b(?:ResumeCrewmate|TaskUpdate|Crewmate)\b/.test(expectedSend))
 const expectedSchemas = [
-  { type: 'object', properties: { to: { type: 'string', description: 'The crewmate to send to: the id its launch receipt names or the name its launch gave it; "main" from a background crewmate reaches the agent that launched it' }, message: { type: 'string', description: 'The message' } }, required: ['to', 'message'] },
-  { type: 'object', properties: { to: { type: 'string', description: 'The crewmate to resume: the id its launch receipt names or the name its launch gave it' }, message: { type: 'string', description: 'Its next turn: what to do, written as you would brief it' }, model: { description: 'Model for the resumed turn of a finished crewmate; omitted, its recorded model stays. Read mercury://models for available ids.', type: 'string' }, effort: { description: 'Effort for the resumed turn; omitted, its recorded effort stays. Max is admitted; an unsupported lower tier is refused, not clamped.', type: 'string', enum: ['low', 'medium', 'high', 'xhigh', 'max'] }, interrupt: { description: 'Interrupt a running turn and start this message as its next turn; omitted or false, deliver it at the next tool boundary.', type: 'boolean' } }, required: ['to', 'message'] },
+  { type: 'object', properties: { to: { type: 'string', description: 'The crewmate to send to: the id its launch receipt names or the name its launch gave it (a name two launches carried reaches the newest); "main" from a background crewmate reaches the agent that launched it' }, message: { type: 'string', description: 'The message' } }, required: ['to', 'message'] },
+  { type: 'object', properties: { to: { type: 'string', description: 'The crewmate to resume: the id its launch receipt names or the name its launch gave it, running or finished; a name two launches carried reaches the newest' }, message: { type: 'string', description: 'Its next turn: what to do, written as you would brief it' }, model: { description: 'Model for the resumed turn of a finished crewmate; omitted, its recorded model stays. Read mercury://models for available ids.', type: 'string' }, effort: { description: 'Effort for the resumed turn; omitted, its recorded effort stays. Max is admitted; an unsupported lower tier is refused, not clamped.', type: 'string', enum: ['low', 'medium', 'high', 'xhigh', 'max'] }, interrupt: { description: 'Interrupt a running turn and start this message as its next turn; omitted or false, deliver it at the next tool boundary.', type: 'boolean' } }, required: ['to', 'message'] },
 ]
 for (const [index, tool] of [SendMessageTool, ResumeAgentTool].entries()) {
   if (!tool) continue
@@ -196,7 +184,7 @@ for (const [index, tool] of [SendMessageTool, ResumeAgentTool].entries()) {
   const description = await tool.prompt({ tools: [] } as never)
   const bytes = Buffer.byteLength(JSON.stringify({ name: tool.name, description, input_schema: schema, eager_input_streaming: true, defer_loading: true }))
   console.log(`${tool.name} definition bytes=${bytes}`)
-  check(`${tool.name} definition has the specified byte budget`, bytes === [1346, 2050][index])
+  check(`${tool.name} definition has the specified byte budget`, bytes === [890, 1573][index])
   check(`${tool.name} is deferred with a search hint`, tool.shouldDefer === true && Boolean(tool.searchHint))
 }
 for (const task of Object.values(state.tasks)) if (task.type === 'local_agent') stop(task.id)

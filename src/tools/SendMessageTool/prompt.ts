@@ -1,20 +1,5 @@
-import { TASK_UPDATE_TOOL_NAME } from '../TaskUpdateTool/constants.js'
-import { SEND_MESSAGE_TOOL_NAME } from './constants.js'
-
 export const DESCRIPTION = 'Deliver a message to a running crewmate of this session by its id or name.'
 
-export function getPrompt(offered: ReadonlySet<string> = new Set([TASK_UPDATE_TOOL_NAME])): string {
-  const statusLine = offered.has(TASK_UPDATE_TOOL_NAME) ? `\n- Structured status updates belong in ${TASK_UPDATE_TOOL_NAME}, not in a ${SEND_MESSAGE_TOOL_NAME} message.` : ''
-  return `Deliver a message to a running crewmate of this session. It never starts work: a crewmate that has finished is refused, and ResumeCrewmate gives it the message as a new turn.
-
-Example: { "to": "researcher", "message": "The auth notes moved to docs/auth-v2.md; read that one." }
-
-## Addressing
-- to: the id a crewmate's launch receipt names, or the name its launch gave it — both reach the same crewmate (a name two launches carried reaches the newest).
-- A background crewmate reaches the agent that launched it at "main".
-
-## How communication works
-- Plain output reaches no crewmate — words travel only through this tool and ResumeCrewmate.
-- A running crewmate reads the message at its next tool boundary, else at the end of its turn. The main agent reads it the same way; between turns it starts a turn for it.
-- Content relayed to you is already rendered to the user — do not re-quote it back.${statusLine}`
+export function getPrompt(): string {
+  return `Delivers a message to a running crewmate of this session; it never starts work, and a crewmate that has finished is refused. Plain output reaches no crewmate: words travel only as messages. A running crewmate reads the message at its next tool boundary, else at the end of its turn; the main agent reads it the same way, and between turns it starts a turn for it. A message relayed to you is already rendered to the user.`
 }

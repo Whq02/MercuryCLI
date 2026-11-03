@@ -93,9 +93,9 @@ section('§3 THE WORDS — the description and the prompt say a plain message, b
 {
   check('the description names a crewmate by id or name', /crewmate/.test(DESCRIPTION) && /id or name/.test(DESCRIPTION), DESCRIPTION)
   const prompt = getPrompt()
-  check('the prompt example is to + message alone', /"to": "researcher", "message":/.test(prompt) && !/summary/.test(prompt), prompt.split('\n').find(line => line.startsWith('Example')) ?? '')
+  check('the prompt carries no example: to and message are the schema\'s', !/Example/.test(prompt) && !/summary/.test(prompt), prompt)
   const { getPrompt: resumePrompt } = await import('../../src/tools/ResumeAgentTool/prompt.ts')
-  check('the prompts separate delivery timing from an ended crewmate resume', /next tool boundary/.test(prompt) && /It never starts work/.test(prompt) && /resumed from its transcript/.test(resumePrompt()))
+  check('the prompts separate delivery timing from an ended crewmate resume', /next tool boundary/.test(prompt) && /it never starts work/.test(prompt) && /resumed from its transcript/.test(resumePrompt()))
 }
 
 console.log(`\nprove-send-message-plain-string: ${checks} checks, ${failures} failed`)

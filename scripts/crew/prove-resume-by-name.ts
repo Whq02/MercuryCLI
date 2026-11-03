@@ -327,8 +327,9 @@ section('§9 THE READER — the launch receipts by name, read-only, in transcrip
 section('§10 THE WORDS — the prompt tells the model a finished agent\'s name still reaches it (RED on the base)')
 {
   const prompt = getPrompt()
-  check('the prompt keeps the two-address sentence the receipts proof pins', prompt.includes("the id a crewmate's launch receipt names, or the name its launch gave it"))
-  check('…and says the name reaches the agent after it has finished, the newest launch when two carried it', /running or finished/.test(prompt) && /newest/.test(prompt), prompt.split('\n').find(line => line.includes('launch receipt')) ?? '')
+  const toField = String((ResumeAgentTool.inputSchema as { shape: { to: { description?: string } } }).shape.to.description)
+  check('the to field keeps the two-address sentence the receipts proof pins', toField.includes('the id its launch receipt names or the name its launch gave it'))
+  check('…and says the name reaches the agent after it has finished, the newest launch when two carried it; the prompt says what a resumed turn is', /running or finished/.test(toField) && /newest/.test(toField) && prompt.includes('resumed from its transcript'), toField)
 }
 
 section('§11 THE SEAMS IN SOURCE')
