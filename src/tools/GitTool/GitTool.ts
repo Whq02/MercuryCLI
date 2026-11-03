@@ -98,16 +98,16 @@ const inputSchema = lazySchema(() =>
       .optional()
       .describe('the folder to run in (default: the session folder). The repository containing it is used; when it is not inside one but holds exactly one repository directly below it, that one is used'),
     scope: z.enum(['worktree', 'staged', 'commit', 'range']).optional().describe('diff: what to diff (default worktree)'),
-    ref: z.string().optional().describe("diff: a sha (scope 'commit') or 'A..B' (scope 'range')"),
+    ref: z.string().optional().describe('diff: commit SHA or A..B range; fileAtRef/tree: source ref.'),
     paths: z.array(z.string()).optional().describe('diff: limit to these paths'),
     sha: z.string().optional().describe('show: the commit'),
-    refA: z.string().optional().describe('mergebase: first ref'),
-    refB: z.string().optional().describe('mergebase: second ref'),
-    groups: z.array(groupSchema()).optional().describe('plan: the proposed commit groups, in dependency order'),
-    planId: z.string().optional().describe('apply/verify: the plan (gp-…)'),
-    files: z.array(z.string()).optional().describe('stage/restore: exact repo-relative paths'),
+    refA: z.string().optional().describe('mergebase: first ref; compare: base.'),
+    refB: z.string().optional().describe('mergebase: second ref; compare: head.'),
+    groups: z.array(groupSchema()).optional().describe('plan: proposed commit groups in dependency order; previews without committing.'),
+    planId: z.string().optional().describe('Plan id (gp-…). apply creates commits after checking the tree digest; earlier groups stay committed if a later group fails. verify reports applicability and created commits.'),
+    files: z.array(z.string()).optional().describe('Exact repo-relative paths to stage or restore; restore unstages without changing working files.'),
     hunks: z.record(z.string(), z.array(z.string())).optional().describe('stage: per-file exact hunk-id subsets'),
-    path: z.string().optional().describe('resolve: the conflicted path'),
+    path: z.string().optional().describe('resolve: conflicted path to resolve and stage; fileAtRef: file; tree: optional directory.'),
     take: z.enum(['ours', 'theirs']).optional().describe('resolve: take one side wholesale'),
     content: z.string().optional().describe('resolve: explicit resolved content (instead of take)'),
     pr: semanticNumber(z.number().int().positive().optional()).describe('reviewContext/prDiff: compose against this PR instead of the current branch (needs the gh session)'),
@@ -119,7 +119,7 @@ const inputSchema = lazySchema(() =>
     limit: semanticNumber(z.number().int().positive().optional()).describe('hostSearch/runs: result bound (search ≤50 default 10 · runs ≤20 default 10)'),
     file: z.string().optional().describe("prDiff: one changed file's path — pages that file's diff (omit for the file list)"),
     page: semanticNumber(z.number().int().nonnegative().optional()).describe('prDiff: 0-based page of the selected file (80 diff lines per page)'),
-    run: z.string().optional().describe('runs/runWatch: a workflow-run id (runs: inspect one run · runWatch: the run to watch)'),
+    run: z.string().optional().describe('Workflow-run id. runs inspects one run; runWatch returns immediately and settles on its observed conclusion.'),
     cancel: z.boolean().optional().describe('runWatch: true cancels the live watch for `run` instead of starting one'),
   }),
 )
@@ -548,42 +548,7 @@ export const GitTool = buildTool({
     return 'Typed local Git work graph: bounded observation + preview-first atomic commit plans; repository-host PR/checks/issue context and the typed review record. Runs in the session folder or a given cwd: the repository containing that folder, or the one repository directly below it'
   },
   async prompt() {
-    return `An optional typed surface for local status, diffs, staging and explicitly requested preview-first commit plans; the repository commit workflow uses Bash, and this surface is for work that should be inspectable and verifiable. It never pushes, never fetches, never rewrites history, never discards uncommitted content.
-
-Where it runs: cwd (optional) names the folder; the session folder when absent. The repository containing that folder is used, or the one repository directly below it. A folder with no repository, or with several directly below it, is refused — pass cwd:"<one of them>".
-
-Observation (free):
-- op:"status" — branch · changed files · the tree digest plans pin to. mercury://git/status
-- op:"diff" (scope: worktree|staged|commit|range, ref?, paths?) — bounded files + hunks with stable ids (gh-…) for exact staging.
-- op:"show" (sha) · op:"worktree" · op:"conflicts" (three-way heads) · op:"mergebase" (refA, refB).
-- op:"fileAtRef" (ref, path) — one file's content at an exact ref (full payload: mercury://git/at/<ref>/<path>). op:"tree" (ref, path?) — one directory level at a ref. op:"compare" (refA=base, refB=head) — ahead/behind counts + bounded commit lists + three-dot diffstat.
-
-Commit plans:
-- op:"plan" (groups: [{files, hunks?, message, checks?}]) — a preview-first atomic plan: validates every file really changed, no file in two groups, names exclusions and ambiguous (staged+unstaged) files, pins the tree digest; it commits nothing. mercury://git/plan/<id>
-- op:"apply" (planId) — revalidates the digest (a changed tree refuses: stale plan), then per group stages exactly the planned files/hunks, commits, and verifies the created commit's file list from the commit itself. A failure mid-plan stops there: created commits stand, content is never lost.
-- op:"verify" (planId) — is the plan still applicable / what did it create?
-
-Index operations (asked):
-- op:"stage" (files, hunks?) — exact file/hunk staging. op:"restore" (files) — index-only unstage, working copy untouched. op:"resolve" (path, take:ours|theirs or content) — resolve + stage a conflict.
-
-Review (observational; push/comment stay with explicit workflows):
-- op:"reviewContext" (pr?) — the composed review input: the reviewed diff set (worktree or PR) + the project-intel impact ref + an honest diagnostics note. mercury://repo/review/context
-- op:"reviewRecord" (findings, inspected, reviewNote?, pr?) — record a typed review: class defect|question|polish · severity · exact path+range inside the reviewed set (locations are never invented); an empty review must name what it inspected. mercury://repo/review/latest${
-      repoHostDiscoveryEnabled()
-        ? `
-- repository-host context (read-only, via the gh session): mercury://repo · /branch · /pr/<n> · /checks/<n> · /issue/<n> — read them with Read or Inspect.`
-        : ''
-    }${
-      repoHostDiscoveryEnabled()
-        ? `
-
-Host observation (read-only, never publishes/pushes; MERCURY_REPO_HOST):
-- op:"hostSearch" (searchKind: code|commits|prs|issues, query, limit?) — bounded typed host search.
-- op:"prDiff" (pr?, file?, page?) — the PR's changed-file list, or one file's diff a page at a time (80 lines/page). mercury://repo/pr/<n>/diff
-- op:"runs" (limit? · run?) — workflow-run list, or one run with its jobs. mercury://repo/runs
-- op:"runWatch" (run, cancel?) — a cancellable watch on one run (returns immediately; settles from the observed conclusion).`
-        : ''
-    }`
+    return `Inspect local repositories${repoHostDiscoveryEnabled() ? ' and hosted review/check data' : ''}, stage exact changes, or preview and apply commit groups. Returns bounded records and stable hunk/plan ids. It does not fetch, push, rewrite history or discard working-tree content.`
   },
   userFacingName,
   shouldDefer: true,

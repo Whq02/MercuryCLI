@@ -21,7 +21,7 @@ const wanted: Array<[string, RegExp]> = [
   ['AstEdit', /over Edit[\s\S]*every match/],
   ['LspRead', /^Read-only language-server queries; prefer over text search for symbols/],
   ['Test', /^Prefer this to Bash for structured test results, exact failure reruns and durable records/],
-  ['Git', /optional[\s\S]*preview-first commit plans[\s\S]*repository commit workflow uses Bash/],
+  ['Git', /^Inspect local repositories[\s\S]*preview and apply commit groups/],
   ['Debug', /(?:over|instead of) print debugging/],
   ['Monitor', /over polling a log/],
   ['Checkpoint', /detour[\s\S]*keep in context/],
