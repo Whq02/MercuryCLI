@@ -23,13 +23,11 @@ const inputSchema = lazySchema(() =>
   z.strictObject({
     rule: z
       .string()
-      .describe('the durable project convention, as one plain standing-order sentence'),
+      .describe('The convention, as one plain standing-order sentence'),
     replaces: z
       .string()
       .optional()
-      .describe(
-        'merge verb: a distinctive substring of the existing rule line this one supersedes — the old line is swapped in place instead of a near-copy appended',
-      ),
+      .describe('A distinctive substring of the existing rule line this one supersedes; that line is swapped in place'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>

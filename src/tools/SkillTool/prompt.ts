@@ -120,21 +120,9 @@ export function formatCommandsWithinBudget(commands: Command[], contextWindowTok
 }
 
 function buildPrompt(): string {
-  return `Run a skill inline in this conversation.
-
-Before acting on a request, sweep the available skills for one that covers it. When the user says "slash command" or types "/something", they mean a skill — invoke it with this tool.
-
-With arguments: skill: "review", args: "src/server.ts"
-
-The available skills ride in system-reminder messages in this conversation.
-
-Rules:
-- A matching skill comes before anything else: invoke it ahead of any other response to the task.
-- Naming a skill means invoking it through this tool — never one without the other.
-- A skill already running is never re-invoked.
-- Built-in CLI commands are not skills and cannot be invoked here.
-- If a <${COMMAND_NAME_TAG}> tag appears in the current turn, that skill is already loaded: follow its instructions directly instead of calling ${SKILL_TOOL_NAME} again.`
+  return `Runs a skill inline in this conversation, by name, with optional arguments. The skills on offer ride in system-reminder messages in this conversation; a request one of them covers goes through that skill first, and a user's "slash command" or "/something" means a skill. A skill named in a <${COMMAND_NAME_TAG}> tag in the current turn is already loaded, and its instructions apply directly.`
 }
+
 
 const promptForRoot = memoize(async (_cwd: string): Promise<string> => buildPrompt())
 
