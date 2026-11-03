@@ -101,6 +101,10 @@ function isCiEnvironment(): boolean {
   return env.isCI || Boolean(process.env.CI)
 }
 
+function recordsFixtures(): boolean {
+  return process.env.MERCURY_VCR_RECORD === '1'
+}
+
 async function withFixture<T>(fixtureName: string, input: unknown, produce: () => Promise<T>): Promise<T> {
   const hash = createHash('sha1').update(jsonStringify(input) ?? '').digest('hex').slice(0, 12)
   const path = fixturePath(`${fixtureName}-${hash}`)
@@ -116,6 +120,7 @@ async function withFixture<T>(fixtureName: string, input: unknown, produce: () =
     )
   }
   const result = await produce()
+  if (!recordsFixtures()) return result
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, JSON.stringify(result, null, 2))
   return result
@@ -240,9 +245,7 @@ export async function withVCR<T>(
     )
   }
   const live = await produce()
-  if (isCiEnvironment()) {
-    return live
-  }
+  if (!recordsFixtures()) return live
   const dehydrated = (live as unknown as VcrMessage[]).map((message, index) =>
     mapOutputMessage(message, dehydrateString, `00000000-0000-0000-0000-${String(index).padStart(12, '0')}`),
   )
