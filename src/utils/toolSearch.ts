@@ -269,6 +269,7 @@ export function getDeferredToolsDelta(
   messages: Message[],
   scanContext?: DeferredToolsDeltaScanContext,
   model?: string,
+  deferredNames?: ReadonlySet<string>,
 ): DeferredToolsDelta | null {
   const holdMcpRemovals = scanContext?.hasPendingMcpServers === true
 
@@ -282,7 +283,12 @@ export function getDeferredToolsDelta(
     for (const name of delta.removedNames ?? []) announced.delete(name)
   }
 
-  const deferrableTools = tools.filter(tool => isDeferredToolFor(tool, model, undefined, messages))
+  const loaded = extractDiscoveredToolNames(messages)
+  for (const message of messages) {
+    if (message.type !== 'assistant' || !Array.isArray(message.message.content)) continue
+    for (const block of message.message.content) if (block.type === 'tool_use') loaded.add(block.name)
+  }
+  const deferrableTools = tools.filter(tool => !loaded.has(tool.name) && (deferredNames?.has(tool.name) ?? isDeferredToolFor(tool, model, undefined, messages)))
   const deferrableNames = new Set(deferrableTools.map(tool => tool.name))
   const pooledNames = new Set(tools.map(tool => tool.name))
 

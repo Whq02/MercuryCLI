@@ -13,7 +13,7 @@ import type {
 import type { CompactMetadata } from '../../types/message.js'
 import type { UUID } from 'node:crypto'
 import { getAgentRosterAttachment, queuedNoticeTaskIds } from '../../utils/attachments/agentRoster.js'
-import { getDeferredToolsDeltaAttachment, getMcpInstructionsDeltaAttachment } from '../../utils/attachments/deltas.js'
+import { getPlannedDeferredToolsAttachment, getMcpInstructionsDeltaAttachment } from '../../utils/attachments/deltas.js'
 import { generateFileAttachment } from '../../utils/attachments/fileAttachments.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import type { Attachment } from '../../utils/attachments/types.js'
@@ -1392,7 +1392,7 @@ async function assembleAttachments(
   if (skills !== null) attachments.push(skills)
   const model = context.options.engineModel
   const deltas = [
-    ...getDeferredToolsDeltaAttachment(context.options.tools, model, preserved, {
+    ...await getPlannedDeferredToolsAttachment(context, preserved, {
       callSite,
       hasPendingMcpServers: [...context.options.mcpClients, ...(context.getAppState?.().mcp?.clients ?? [])].some(client => client.type === 'pending'),
     }),

@@ -29,7 +29,7 @@ import {
   getQueuedCommandAttachments,
 } from './queuedCommands.js'
 import {
-  getDeferredToolsDeltaAttachment,
+  getPlannedDeferredToolsAttachment,
   getHeldToolsAttachment,
   getMcpInstructionsDeltaAttachment,
   getMcpServersFailedAttachment,
@@ -123,23 +123,14 @@ export async function getAttachments(
       Promise.resolve(opening ? getCapsuleDateChange(context, messages) : []),
     ),
     maybe('deferred_tools_delta', () =>
-      Promise.resolve(
-        getDeferredToolsDeltaAttachment(
-          toolUseContext.options.tools,
-          toolUseContext.options.engineModel,
-          messages,
-          {
-            callSite: isMainThread
-              ? 'attachments_main'
-              : 'attachments_subagent',
-            querySource,
-            hasPendingMcpServers: [
-              ...toolUseContext.options.mcpClients,
-              ...(toolUseContext.getAppState?.().mcp?.clients ?? []),
-            ].some(client => client.type === 'pending'),
-          },
-        ),
-      ),
+      getPlannedDeferredToolsAttachment(toolUseContext, messages, {
+        callSite: isMainThread ? 'attachments_main' : 'attachments_subagent',
+        querySource,
+        hasPendingMcpServers: [
+          ...toolUseContext.options.mcpClients,
+          ...(toolUseContext.getAppState?.().mcp?.clients ?? []),
+        ].some(client => client.type === 'pending'),
+      }),
     ),
     maybe('held_tools', () =>
       Promise.resolve(

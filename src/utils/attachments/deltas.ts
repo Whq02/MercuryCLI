@@ -1,9 +1,10 @@
 
 import type { Message } from 'src/types/message.js'
-import type { Tools } from '../../Tool.js'
+import type { Tools, ToolUseContext } from '../../Tool.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import { deferralSearchIsServerSide, deferralWireFormFor, supportsToolDeferral } from '../../services/providers/deferralWire.js'
-import { heldToolsAtLastPlan } from '../../services/providers/toolEconomy.js'
+import { heldToolsAtLastPlan, planToolPayloadUnseeded, type ToolPayloadPlan } from '../../services/providers/toolEconomy.js'
+import { rosterOwnerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import {
   getMcpInstructionsDelta,
   isMcpInstructionsDeltaEnabled,
@@ -24,17 +25,38 @@ export const SERVER_SEARCH_ANNOUNCEMENT_HEAD =
 export const DEFERRED_TOOLS_ANNOUNCEMENT_HEAD =
   'Deferred tools: offered in this session, but their definitions are not loaded. To call one, first load it with ToolSearch — query "select:<name>", or "select:<name>,<name>" for several — then call it.'
 
+export async function getPlannedDeferredToolsAttachment(
+  context: ToolUseContext,
+  messages: Message[],
+  scanContext: DeferredToolsDeltaScanContext,
+): Promise<Attachment[]> {
+  const model = context.options.engineModel
+  const tools = context.options.tools
+  const plan = await planToolPayloadUnseeded({
+    model,
+    tools,
+    messages,
+    getToolPermissionContext: async () => context.getAppState().toolPermissionContext,
+    agents: context.options.agentDefinitions?.activeAgents ?? [],
+    hasPendingMcpServers: scanContext.hasPendingMcpServers,
+    source: scanContext.querySource,
+    latchKey: String(rosterOwnerFromToolUseContext(context)),
+  })
+  return getDeferredToolsDeltaAttachment(tools, model, messages, scanContext, plan)
+}
+
 export function getDeferredToolsDeltaAttachment(
   tools: Tools,
   model: string,
   messages: Message[] | undefined,
   scanContext?: DeferredToolsDeltaScanContext,
+  plan?: ToolPayloadPlan,
 ): Attachment[] {
-  if (!isToolSearchEnabledOptimistic() || !supportsToolDeferral(model)) return []
-  const form = deferralWireFormFor(model).form
+  if (!(plan?.enabled ?? isToolSearchEnabledOptimistic()) || !supportsToolDeferral(model)) return []
+  const form = plan?.wireForm ?? deferralWireFormFor(model).form
   if (form === 'block' && !modelSupportsToolReference(model)) return []
   if (!isToolSearchToolAvailable(tools)) return []
-  const delta = getDeferredToolsDelta(tools, messages ?? [], scanContext, model)
+  const delta = getDeferredToolsDelta(tools, messages ?? [], scanContext, model, plan?.deferredNames)
   if (!delta) return []
   const addedHead = deferralSearchIsServerSide(form) ? SERVER_SEARCH_ANNOUNCEMENT_HEAD : DEFERRED_TOOLS_ANNOUNCEMENT_HEAD
   const body = [
