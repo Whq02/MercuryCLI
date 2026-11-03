@@ -113,6 +113,13 @@ const PANEL_FIXTURE_KEY = 'sk-ant-panel-captures-probe'
   writeFileSync(cfgPath, JSON.stringify(cfg))
 }
 
+const settingsPath = join(CONFIG_HOME, 'settings.json')
+function setSwarmMaster(enabled: boolean): void {
+  const current = existsSync(settingsPath) ? (JSON.parse(readFileSync(settingsPath, 'utf8')) as Record<string, unknown>) : {}
+  writeFileSync(settingsPath, JSON.stringify({ ...current, swarm: { ...((current['swarm'] as Record<string, unknown> | undefined) ?? {}), enabled } }))
+}
+setSwarmMaster(false)
+
 const savedPromptsDir = join(CONFIG_HOME, 'saved-prompts')
 function clearSavedPrompts(): void {
   rmSync(savedPromptsDir, { recursive: true, force: true })
@@ -208,6 +215,13 @@ for (const [cols, rows] of SIZES) {
     check(`[${size}] L6 the limits line says since when and that the transcript was resumed`, /5 prompts since \d\d:\d\d · resumed transcript included/.test(g))
     check(`[${size}] L10 no retired WORK option label reappears`, !/\bLANES\b|\bREVIEW\b|\bGRAPH\b|TO-REVIEW|no running work/.test(g))
     check(`[${size}] L4 the footer teaches the panes grammar (tab/1-9 · esc close)`, /tab\/1-9 section/.test(g) && /esc close/.test(g))
+  }
+
+  {
+    setSwarmMaster(true)
+    const g = text(capture('L1-board', cols, rows, { transcript: POPULATED, sends: OPEN_PANEL, readyText: 'SAVED PROMPTS' }))
+    setSwarmMaster(false)
+    check(`[${size}] L1b with the board on, the middle tab is the crew chat (Crew chat · PROMPTS · SAVED PROMPTS)`, /PROMPTS/.test(g) && /Crew chat/.test(g) && /SAVED PROMPTS/.test(g) && !/CREW TRAFFIC/.test(g))
   }
 
   {
