@@ -63,23 +63,23 @@ const readinessSchema = () =>
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(OPS).describe('The service operation'),
+    op: z.enum(OPS).describe('Service operation; restart reuses the saved start specification.'),
     name: z.string().optional().describe('Project-scoped service name (all ops except list)'),
     command: z.string().optional().describe('start: the executable (argv[0] — no shell parsing)'),
     args: z.array(z.string()).optional().describe('start: argument array'),
     cwd: z.string().optional().describe('start: working directory (default: session cwd)'),
     env: z.record(z.string(), z.string()).optional().describe('start: environment additions'),
-    readiness: z.array(readinessSchema()).max(8).optional().describe('start: readiness conditions, an array of condition objects (log regex · tcp · http · file · stable window), e.g. [{"kind":"tcp","port":3000}]'),
+    readiness: z.array(readinessSchema()).max(8).optional().describe('start: readiness conditions.'),
     readinessMode: z.enum(['all', 'any']).optional().describe('start: how conditions combine (default all)'),
     restart: z.enum(['never', 'on-failure']).optional().describe('start: auto-restart policy (default never; bounded backoff, explicit stop always suppresses)'),
-    lifecycle: z.enum(['session', 'project']).optional().describe('start: session = dies with this Mercury session (default); project = detached, survives it'),
-    pty: z.boolean().optional().describe('start: run the command inside a pseudo-terminal, so a program that needs a terminal (an interactive interpreter, an interactive CLI, a prompt that asks) sees one; its screen bytes land in the log and op:"input" types to it (default false: a plain pipe)'),
-    mode: z.enum(['write', 'submit', 'eof']).optional().describe('input: write = the text exactly as given (keystrokes, control bytes such as \u0003); submit = the text with Enter after it (default); eof = end of input (the text is ignored)'),
+    lifecycle: z.enum(['session', 'project']).optional().describe('start: session dies with this session (default); project survives it and can be stopped from any session on this project.'),
+    pty: z.boolean().optional().describe('start: use a pseudo-terminal; screen bytes become log lines and input sends keystrokes. Default false uses a pipe.'),
+    mode: z.enum(['write', 'submit', 'eof']).optional().describe('input: write sends exact text and control bytes; submit adds Enter (default); eof ends input and ignores text.'),
     timeoutMs: semanticNumber(z.number().int().min(0).optional()).describe(`wait: readiness deadline in ms (default ${WAIT_DEFAULT_MS}, min ${WAIT_MIN_MS}, max ${WAIT_MAX_MS}); input: how long to wait for the service's reply in ms (default ${INPUT_WAIT_DEFAULT_MS}, min ${INPUT_WAIT_MIN_MS}, max ${INPUT_WAIT_MAX_MS}); a value outside the bounds is clamped to them and the result says so`),
     cursor: semanticNumber(z.number().int().min(0).optional()).describe('logs: byte cursor from a previous read (omit for the tail)'),
     limitLines: semanticNumber(z.number().int().min(1).max(1000).optional()).describe('logs, input: max lines (default 100)'),
     filterRegex: z.string().optional().describe('logs: keep only matching lines'),
-    text: z.string().optional().describe('input: the line to write to the service stdin'),
+    text: z.string().optional().describe('input: text sent to stdin; only the spawning session can send it.'),
   }),
 )
 type SchemaType = ReturnType<typeof inputSchema>
@@ -288,18 +288,7 @@ export const ServiceTool = buildTool({
     return 'Run and observe named long-lived project processes with readiness + cursored logs'
   },
   async prompt() {
-    return `Named long-lived project processes as state machines: queued → starting → ready/running → stopping → stopped/failed. Use Service for processes meant to stay up (web servers, watch builds, local APIs, file watchers); use Bash for finite commands.
-
-Operations:
-· start — name + command + args (argv array, no shell parsing) + optional readiness: an array of condition objects, e.g. [{kind:"tcp",port:3000}] ({kind:"log",regex} · {kind:"tcp",port} · {kind:"http",url,status?,bodyRegex?} · {kind:"file",path,contentRegex?} · {kind:"stable",ms}), readinessMode all|any, restart never|on-failure (bounded backoff; an explicit stop always suppresses restart), lifecycle session (dies with this session, default) | project (detached — survives it, stoppable from any session on this project).
-· wait — block until ready or the deadline; a timeout names exactly the unmet conditions.
-· logs — ordered byte cursors: first call tails, pass the returned cursor for strictly-newer lines; filterRegex bounds noise. stdout+stderr share one ordered log.
-· describe / list — reconciled truth (a dead pid is never reported live).
-· input — type to the service (only the spawning session holds it): mode submit writes the text with Enter after it (default), write sends it exactly as given, eof ends the input. The answer carries what the service printed in reply — it waits up to timeoutMs (default 500 ms) for the output to settle or the process to end — with the cursor for op:"logs" and the service's state.
-· start with pty:true runs the command inside a pseudo-terminal: a program that needs a terminal sees one (its screen bytes land in the log, read back as plain lines), input types keystrokes to it, and Enter is the terminal's.
-· stop / restart — explicit lifecycle; restart reuses the retained spec.
-
-Services are addressable as mercury://service/<name> (Inspect). Never auto-started: a package.json script is a suggestion you start deliberately.`
+    return 'Manage named long-running project processes and their readiness, logs and input. Returns current state and cursored output from one ordered stdout/stderr log; wait reports readiness or unmet conditions.'
   },
   userFacingName() {
     return 'Service'
