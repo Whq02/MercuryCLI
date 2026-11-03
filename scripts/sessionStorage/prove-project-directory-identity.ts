@@ -8,6 +8,7 @@ import { basename, dirname, join, relative } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const ROOT = realpathSync.native(mkdtempSync(join(tmpdir(), 'project-identity-')))
+const CASE_MOUNT = join(ROOT, 'case-sensitive')
 const HOME = join(ROOT, 'home')
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_BARE = '1'
@@ -48,13 +49,13 @@ function treeHash(root: string): string {
 const inode = (path: string): string => String(statSync(path, { bigint: true }).ino)
 
 let aliasCount = 0
-function olderSpelling(path: string): string {
-  const upper = path.toUpperCase()
+function olderSpelling(path: string, casing: 'upper' | 'lower' = 'upper'): string {
+  const variant = casing === 'upper' ? path.toUpperCase() : path.toLowerCase()
   try {
-    if (upper !== path && inode(upper) === inode(path)) return upper
+    if (variant !== path && inode(variant) === inode(path)) return variant
   } catch {
   }
-  const alias = join(dirname(path), `${basename(path).toUpperCase()}-ALIAS-${aliasCount++}`)
+  const alias = join(dirname(path), `${basename(variant)}-ALIAS-${aliasCount++}`)
   symlinkSync(path, alias, 'dir')
   return alias
 }
@@ -180,7 +181,7 @@ try {
   seedStore(workspaceStore, sibling, 'hosted worker words', UUID('d444'))
   check('D1 a hash-less directory is never adopted, a case variant whose hash is not its own is never adopted, a store whose card names another directory is never adopted, a store whose transcript merely visited the directory is never adopted', getProjectDir(sibling) === join(PROJECTS, projectSlug(sibling)), getProjectDir(sibling))
   check('D1 the sibling reads "no store" (an absent canonical path), as an unknown directory does today', !existsSync(getProjectDir(sibling)) && (await findProjectDir(sibling)) === undefined)
-  check('D2 the other project keeps its own older store (the card names it)', getProjectDir(other) === otherStore && getProjectDir(workspace) === workspaceStore)
+  check('D2 the other project keeps its own older store (the card names it)', getProjectDir(other) === otherStore && getProjectDir(workspace) === workspaceStore, JSON.stringify({ other: getProjectDir(other), otherStore, workspace: getProjectDir(workspace), workspaceStore }))
   for (const leaf of ['app.1', 'app_1']) mkdirSync(join(ROOT, leaf))
   check('D3 punctuation siblings mint distinct stores', getProjectDir(join(ROOT, 'app.1')) !== getProjectDir(join(ROOT, 'app_1')))
   const brokenHome = join(ROOT, 'broken-home')
@@ -202,26 +203,22 @@ try {
   const twin = join(ROOT, 'TwinProject')
   mkdirSync(twin)
   const twinUpper = olderSpelling(twin)
-  const twinLower = twin.toLowerCase() !== twin && inode(twin.toLowerCase()) === inode(twin) ? twin.toLowerCase() : null
-  if (twinLower !== null && twinLower !== twinUpper) {
-    const storeA = join(PROJECTS, projectSlug(twinUpper))
-    const storeB = join(PROJECTS, projectSlug(twinLower))
-    seedStore(storeA, twinUpper, 'upper words', UUID('e111'))
-    seedStore(storeB, twinLower, 'lower words', UUID('e222'))
-    const old = new Date(Date.now() - 120_000)
-    utimesSync(storeA, old, old)
-    const chosen = getProjectDir(twin)
-    check('E1 the newest-modified verified store is chosen', chosen === storeB, chosen)
-    const fresh = childAnswers(twin, twinUpper, twinLower)
-    check('E1 a fresh process makes the same choice for every spelling', fresh.every(answer => answer === storeB), fresh.join(' | '))
-    const now = new Date()
-    utimesSync(storeA, now, now)
-    utimesSync(storeB, old, old)
-    check('E2 within the process the answer does not flap when the other store becomes newer (the memo holds the one choice)', getProjectDir(twin) === storeB && getProjectDir(twinUpper) === storeB && getProjectDir(twinLower) === storeB)
-    check('E2 neither store was copied, renamed or removed', existsSync(join(storeA, `${UUID('e111')}.jsonl`)) && existsSync(join(storeB, `${UUID('e222')}.jsonl`)) && readdirSync(PROJECTS).filter(name => name.toLowerCase() === basename(storeA).toLowerCase() || name.toLowerCase() === basename(storeB).toLowerCase()).length === 2)
-  } else {
-    console.log('  [SKIP] E — this filesystem does not fold case, so two case-variant stores cannot both verify')
-  }
+  const twinLower = olderSpelling(twin, 'lower')
+  const storeUpper = join(PROJECTS, projectSlug(twinUpper))
+  const storeLower = join(PROJECTS, projectSlug(twinLower))
+  seedStore(storeUpper, twinUpper, 'upper words', UUID('e111'))
+  seedStore(storeLower, twinLower, 'lower words', UUID('e222'))
+  const old = new Date(Date.now() - 120_000)
+  utimesSync(storeUpper, old, old)
+  const chosen = getProjectDir(twin)
+  check('E1 the newest-modified verified store is chosen', chosen === storeLower, chosen)
+  const freshTwin = childAnswers(twin, twinUpper, twinLower)
+  check('E1 a fresh process makes the same choice for every spelling', freshTwin.length === 3 && freshTwin.every(answer => answer === storeLower), freshTwin.join(' | '))
+  const now = new Date()
+  utimesSync(storeUpper, now, now)
+  utimesSync(storeLower, old, old)
+  check('E2 within the process the answer does not flap when the other store becomes newer (the memo holds the one choice)', getProjectDir(twin) === storeLower && getProjectDir(twinUpper) === storeLower && getProjectDir(twinLower) === storeLower)
+  check('E2 neither store was copied, renamed or removed', existsSync(join(storeUpper, `${UUID('e111')}.jsonl`)) && existsSync(join(storeLower, `${UUID('e222')}.jsonl`)) && readdirSync(PROJECTS).filter(name => name === basename(storeUpper) || name === basename(storeLower)).length === 2)
 
   section('F — the sibling search is bounded: a few hundred stores, one pass, memoised for the process')
   const crowdHome = join(ROOT, 'crowd-home')
@@ -240,8 +237,9 @@ try {
   }
   const needle = join(ROOT, 'NeedleProject')
   mkdirSync(needle)
-  const needleStore = join(crowdProjects, projectSlug(olderSpelling(needle)))
-  seedStore(needleStore, olderSpelling(needle), 'needle words', UUID('f111'))
+  const needleOlder = olderSpelling(needle)
+  const needleStore = join(crowdProjects, projectSlug(needleOlder))
+  seedStore(needleStore, needleOlder, 'needle words', UUID('f111'))
   process.env.MERCURY_CONFIG_DIR = crowdHome
   const startedAt = performance.now()
   const found = getProjectDir(needle)
@@ -281,7 +279,58 @@ try {
   }
   const long = join(ROOT, ...Array.from({ length: 30 }, () => 'Segment'), 'LongProject')
   check('H2 an overlong spelling matches its capped slug through the tail hash alone', projectSlugMatches(projectSlug(long), long) && !projectSlugMatches(projectSlug(long), `${long}x`))
+
+  section('I — a project card names the owner independently of the store spelling')
+  const cardProject = join(ROOT, 'CardProject')
+  mkdirSync(cardProject)
+  const cardDoor = join(ROOT, 'CARD-DOOR')
+  symlinkSync(cardProject, cardDoor, process.platform === 'win32' ? 'junction' : 'dir')
+  const cardStore = join(PROJECTS, projectSlug(cardDoor))
+  seedStore(cardStore, sibling, 'worker words', UUID('a444'))
+  seedCard(cardStore, cardProject)
+  const casedProject = join(ROOT, 'CasedProject')
+  mkdirSync(casedProject)
+  const casedOlder = join(ROOT, 'CASEDPROJECT')
+  const casedStore = join(PROJECTS, projectSlug(casedOlder))
+  seedCard(casedStore, casedProject)
+  const vetoProject = join(ROOT, 'VetoProject')
+  mkdirSync(vetoProject)
+  const vetoOlder = join(ROOT, 'VETOPROJECT')
+  if (!existsSync(vetoOlder)) symlinkSync(vetoProject, vetoOlder, process.platform === 'win32' ? 'junction' : 'dir')
+  const vetoStore = join(PROJECTS, projectSlug(vetoOlder))
+  seedStore(vetoStore, vetoOlder, 'wrong owner', UUID('a555'))
+  seedCard(vetoStore, other)
+  const cardsBefore = treeHash(HOME)
+  const cardAnswers = childAnswers(cardProject, cardDoor, casedProject, vetoProject)
+  check('I1 a fresh process adopts an alias-keyed store whose card names the native directory, despite a foreign transcript cwd', cardAnswers[0] === cardStore && cardAnswers[1] === cardStore, cardAnswers.join(' | '))
+  check('I2 a card adopts a case-variant store even when that spelling is not a live path', cardAnswers[2] === casedStore, cardAnswers[2])
+  check('I3 a card naming another directory vetoes a live case variant and its transcript', cardAnswers[3] === join(PROJECTS, projectSlug(vetoProject)), cardAnswers[3])
+  check('I4 card ownership reads wrote nothing', treeHash(HOME) === cardsBefore)
+
+  if (process.platform === 'darwin' && existsSync(join(ROOT, 'mixedcaseproject'))) {
+    section('J — the same laws on case-sensitive APFS')
+    const image = join(ROOT, 'case-sensitive.dmg')
+    const diskOptions = { encoding: 'utf8' as const, stdio: ['ignore', 'pipe', 'pipe'] as ['ignore', 'pipe', 'pipe'], timeout: 60_000 }
+    const created = spawnSync('hdiutil', ['create', '-size', '400m', '-fs', 'Case-sensitive APFS', '-volname', 'project-identity', image], diskOptions)
+    check('J1 the case-sensitive image is created unattended', created.status === 0, created.stderr || String(created.error ?? created.status))
+    if (created.status === 0) {
+      mkdirSync(CASE_MOUNT)
+      const attached = spawnSync('hdiutil', ['attach', '-nobrowse', '-mountpoint', CASE_MOUNT, image], diskOptions)
+      check('J2 the image mounts unattended', attached.status === 0, attached.stderr || String(attached.error ?? attached.status))
+      if (attached.status === 0) {
+        const temp = join(CASE_MOUNT, 'tmp')
+        mkdirSync(temp)
+        const run = spawnSync(process.execPath, [import.meta.path], { ...diskOptions, timeout: 120_000, env: { ...process.env, TMPDIR: temp, MERCURY_CONFIG_DIR: join(CASE_MOUNT, 'home') } })
+        console.log(run.stdout)
+        check('J3 the full identity proof passes on case-sensitive APFS', run.status === 0, run.stderr || String(run.error ?? run.status))
+      }
+    }
+  }
 } finally {
+  if (existsSync(CASE_MOUNT) && statSync(CASE_MOUNT).dev !== statSync(ROOT).dev) {
+    const detached = spawnSync('hdiutil', ['detach', CASE_MOUNT], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 60_000 })
+    if (detached.status !== 0) throw new Error(`case-sensitive image remains mounted at ${CASE_MOUNT}: ${detached.stderr || detached.error || detached.status}`)
+  }
   rmSync(ROOT, { recursive: true, force: true })
 }
 

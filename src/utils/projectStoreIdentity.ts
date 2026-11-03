@@ -133,12 +133,14 @@ function keyedBySpelling(name: string, spelling: string, rules: StoreSpellingRul
 }
 
 function storeOwnsIdentity(store: string, name: string, identity: StoreDirectoryIdentity, rules: StoreSpellingRules): boolean {
+  const recorded = cardDir(store)
+  if (recorded !== null) return projectDirectoryIdentity(recorded.normalize('NFC'), rules.fold).key === identity.key
   const claims = (spelling: string): boolean =>
     keyedBySpelling(name, spelling, rules) && projectDirectoryIdentity(spelling.normalize('NFC'), rules.fold).key === identity.key
   const variant = caseVariantSpelling(name, identity.canonical, rules)
   if (variant !== null && claims(variant)) return true
-  const recorded = cardDir(store) ?? newestTranscriptCwd(store)
-  return recorded !== null && claims(recorded)
+  const cwd = newestTranscriptCwd(store)
+  return cwd !== null && claims(cwd)
 }
 
 function olderSpellingStore(projects: string, identity: StoreDirectoryIdentity, candidate: string, rules: StoreSpellingRules): string | null {
