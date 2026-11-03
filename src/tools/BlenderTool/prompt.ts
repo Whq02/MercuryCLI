@@ -27,23 +27,12 @@ export function getBlenderVerbCatalog(): string {
 }
 
 export function getBlenderToolDescription(): string {
-  return `Drive the running Blender over the Mercury bridge: scene and object truth, opening .blend files, render state and still-frame renders, the report tail, and python_run — the mercury_blender_bridge add-on serves a token-authed loopback connection.
+  return `Drives the running Blender over the Mercury bridge, a token-authed loopback connection served by the mercury_blender_bridge add-on: scene and object truth, .blend opens, render state and still renders, the report tail, and python_run. Call shape: { op: "<name>", args: { … } }; a bridge error returns {code, message, hint}. Paths (blend_open's path, render_still's outputPath) resolve against the working directory and stay inside it.
 
-Call shape: { op: "<name>", args: { … } }. Paths (blend_open's path, render_still's outputPath) may be context-relative; the tool resolves them against the working directory and FENCES them inside it before anything reaches the wire.
+The connection holds across blend_open and renders. blend_open switches the open .blend, not as an undo step. render_still answers {started:true} at once; the durable result is the image at outputPath, and the render_finished event arrives with a later call's drain. python_run runs your source inside Blender: a variable named \`result\` answers as its repr, output is capped with the truncation counted, and a raise answers PYTHON_EXCEPTION with the traceback tail. ${BLENDER_PYTHON_RUN_NO_SANDBOX_SENTENCE} ${BLENDER_PYTHON_RUN_NO_PREEMPTION_SENTENCE} Ops marked [exec] ask permission; python_run's ask carries the code's size and first line.
 
-THE NO-RELOAD FACT (the deliberate inverse of Unity): Blender never reloads the add-on's state on file opens or renders — the connection HOLDS across blend_open, and a mid-flight drop means Blender quit or the add-on was disabled, never a by-design transition. Renders run as editor jobs: render_still answers {started:true} at once, the DURABLE result is the image file at outputPath, and the render_finished event reports the end on the next call's drain. While a render job runs, mutate/exec ops refuse RENDER_ACTIVE; reads stay free (render_state during a render is the point).
+blender_status probes the flag, the add-on home, the install, the token and reachability on 127.0.0.1:${blenderBridgePort()}. blender_bridge_install writes mercury_blender_bridge into the user add-on home; enabling it in Blender is the operator's act.
 
-python_run — the two sentences that are contract:
-· ${BLENDER_PYTHON_RUN_NO_SANDBOX_SENTENCE}
-· ${BLENDER_PYTHON_RUN_NO_PREEMPTION_SENTENCE}
-Every python_run asks permission with the code's size and first line. Output is capped with truncation counted; a raise answers PYTHON_EXCEPTION with the traceback tail; a variable named \`result\` answers as its repr.
-
-Ops marked [exec] always ask permission. blend_open is a mutate: it switches the open .blend (NOT an undo step; unsaved work refuses with BLEND_DIRTY rather than discarding — save in Blender first).
-
-Setup: the add-on must be installed AND ENABLED, with Blender open. op:"blender_status" probes everything (flag, addon home, install, token, reachability on 127.0.0.1:${blenderBridgePort()}); op:"blender_bridge_install" materializes mercury_blender_bridge into the user addon home — ENABLING IT IN BLENDER STAYS YOUR ACT (Edit > Preferences > Add-ons, search "Mercury"; the install receipt prints the one-liner alternative). A closed Blender answers with a teaching error, never a hang.
-
-Routing: PYTHON BREAKPOINT debugging inside Blender → the Debug tool's debugpy recipe (the Launch tool's blender-debug row prints the listener line). HEADLESS batch renders/scripts → the Launch tool's blender profiles (operator-run; the exact command is printed, arguments in documented order). In-Blender scene/object/render truth, file opens, still renders, reports, and python_run live HERE.
-
-Op catalog (name(args) — ? marks optional):
+Ops (name(args), ? optional):
 ${getBlenderVerbCatalog()}`
 }
