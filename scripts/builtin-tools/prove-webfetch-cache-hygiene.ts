@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { LRUCache } from 'lru-cache'
+import { getPrompt } from '../../src/tools/WebFetchTool/prompt.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -50,12 +51,12 @@ console.log('prove-webfetch-cache-hygiene — the self-cleaning cache is literal
     urlCacheBlock.includes('ttl: 15 * 60 * 1000') && urlCacheBlock.includes('ttlAutopurge: true'),
   )
   check('the URL cache is the module\'s one cache (no domain-verdict cache remains)', !src.includes('domainCheckCache'))
+  const prompt = getPrompt()
   check(
-    'the prompt copy still promises self-cleaning (the pin keeps it honest)',
-    readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'WebFetchTool', 'prompt.ts'), 'utf-8').includes(
-      'self-cleaning',
-    ),
+    'the prompt discloses the fifteen-minute repeat-fetch lifetime once',
+    prompt.split('Repeat pulls ride a fifteen-minute cache.').length === 2,
   )
+  check('the disclosure stays in one paragraph under 300 bytes', !prompt.includes('\n') && Buffer.byteLength(prompt) <= 300, String(Buffer.byteLength(prompt)))
 }
 
 console.log('')
