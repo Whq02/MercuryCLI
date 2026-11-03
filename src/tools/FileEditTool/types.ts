@@ -8,42 +8,41 @@ import { semanticBoolean } from '../../utils/semanticBoolean.js'
 
 
 const FILE_PATH_DESCRIPTION = 'The absolute path to the file to modify'
-const OLD_STRING_DESCRIPTION = 'The text to replace (always sent together with new_string)'
-const NEW_STRING_DESCRIPTION =
-  'The text to replace it with (must be different from old_string; required whenever old_string is sent — "" deletes the text)'
-const REPLACE_ALL_DESCRIPTION = 'Replace all occurences of old_string (default false)'
+const OLD_STRING_DESCRIPTION = 'The exact text to replace, sent with new_string; unique in the file unless replace_all'
+const NEW_STRING_DESCRIPTION = 'The text to replace it with; "" deletes old_string'
+const REPLACE_ALL_DESCRIPTION = 'Replace every occurrence of old_string'
 const EXPECTED_ANCHOR_DESCRIPTION =
-  'The staleness anchor from your most recent Read of this file: the parenthesised "(anchor: …)" value, carried across exactly'
+  'The anchor from your latest Read of this file: the "(anchor: …)" value, carried across exactly'
 const APPEND_DESCRIPTION =
-  'Text added at the end of the file on its own line (the file is created when absent), no prior read needed; with `section`, at the end of that section instead. Mutually exclusive with old_string/new_string/hunks.'
+  'Text added on its own line at the end of the file (created when absent; no prior read needed), or at the end of `section`'
 const SECTION_DESCRIPTION =
-  'A Markdown heading line exactly as it stands in the file ("## Checks"), which must occur once, naming the section (the heading through the line before the next heading of the same or a higher level): with new_string the whole section, heading included, becomes new_string; with append the text is added inside it. Mutually exclusive with old_string/hunks.'
+  'A Markdown heading line exactly as it stands in the file ("## Checks"), occurring once: with new_string the whole section, heading included, becomes new_string; with append the text is added inside it'
 
 const hunksDescription = (): string =>
   lineAnchorsEnabled()
-    ? 'Line-addressed hunks against the anchored snapshot. Mutually exclusive with old_string/new_string; requires expected_anchor unless every hunk is anchor-qualified ("12#ab3f" from a line_anchors read — then the line anchors are the staleness contract).'
-    : 'Line-addressed hunks against the anchored snapshot. Mutually exclusive with old_string/new_string; requires expected_anchor.'
+    ? 'Line-addressed hunks against the snapshot expected_anchor names, or against the content anchors when every hunk carries one'
+    : 'Line-addressed hunks against the snapshot expected_anchor names'
 
 const hunkLinesDescription = (): string =>
   lineAnchorsEnabled()
-    ? 'A 1-based line number ("12"), inclusive range ("12-18"), or anchor-qualified spelling copied exactly from a line_anchors read ("12#ab3f", "12#ab3f-18#9c2e"); an anchored endpoint is checked against the current content, and a drifted line refuses with the current anchors — re-aim from those, never retype content.'
-    : 'A 1-based line number ("12") or inclusive range ("12-18") of the anchored snapshot'
+    ? 'A 1-based line ("12"), an inclusive range ("12-18"), or the anchored spelling from a line_anchors read ("12#ab3f", "12#ab3f-18#9c2e")'
+    : 'A 1-based line ("12") or inclusive range ("12-18") of the snapshot'
 
 const hunkEntrySchema = () =>
   z.strictObject({
     lines: z.string().describe(hunkLinesDescription()),
     replace: z
       .string()
-      .describe('The replacement body ("" deletes the range; with insert, the inserted body)'),
+      .describe('The replacement body; "" deletes the range; with insert, the inserted body'),
     insert: z
       .enum(['before', 'after'])
       .optional()
-      .describe('Insert relative to the single anchor line instead of replacing it'),
+      .describe('Insert beside the single anchor line instead of replacing it'),
   })
 
 
 const EDIT_SHAPES_DESCRIPTION =
-  'One of four shapes: old_string + new_string (both required together; replace_all rewrites every occurrence) · hunks · append · section + new_string'
+  'One of four shapes: old_string + new_string · hunks · append · section + new_string or append'
 
 const widestSchemaFactory = () =>
   z

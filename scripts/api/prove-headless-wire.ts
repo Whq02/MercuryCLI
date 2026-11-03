@@ -76,7 +76,7 @@ try {
   assert.equal(new Set(hashes).size, 1)
   const final = JSON.stringify(requests[3]!.body.messages)
   assert.equal(final.split('# Tool manual: Read').length - 1, 0, 'Read is one text: no manual rides')
-  assert.equal(final.split('# Tool manual: Edit').length - 1, 1)
+  assert.equal(final.split('# Tool manual: Edit').length - 1, 0, 'Edit is one text: no manual rides')
   assert.equal(output.split('\n').filter(line => line.includes('"type":"reasoning"') && line.includes('Use the requested file operation.')).length, 3)
   console.log('PASS headless request bytes, full roster, reasoning, output ceiling and frozen prefix')
 } finally {

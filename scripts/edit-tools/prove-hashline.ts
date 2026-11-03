@@ -371,7 +371,7 @@ section('R. the anchored read mode (real FileReadTool)')
     'R8 the teaching rides the gate in the line_anchors field (on: it names the N#hhhh anchor and the Edit address; off: no field) and the prompt never restates it',
     typeof fieldDefault === 'string' &&
       fieldDefault.includes('content anchor ("N#hhhh")') &&
-      fieldDefault.includes('anchor-qualified Edit hunks') &&
+      fieldDefault.includes('anchored Edit hunk') &&
       fieldOff === null &&
       !String(promptOff).includes('line_anchors') &&
       !String(promptOn).includes('line_anchors'),

@@ -156,8 +156,8 @@ for (const kind of kinds) {
   }
   rendered.set(kind.label, descriptions)
   if (kind.mountLsp) {
-    const steered = ['Grep', 'Edit', 'Structure'].filter(name => /\bLsp(?:Read|Rename)\b/.test(descriptions.get(name) ?? ''))
-    check(`${kind.label}: the semantic steering names the language-service tools exactly when the pool offers them`, offered.has('LspRead') ? steered.length === 3 : steered.length === 0, steered.join(','))
+    const steered = ['Grep', 'Structure'].filter(name => /\bLsp(?:Read|Rename)\b/.test(descriptions.get(name) ?? ''))
+    check(`${kind.label}: the semantic steering names the language-service tools exactly when the pool offers them (Edit names no other tool at all)`, (offered.has('LspRead') ? steered.length === 2 : steered.length === 0) && !/\b(Lsp\w+|AstEdit|Structure)\b/.test(descriptions.get('Edit') ?? ''), steered.join(','))
   }
   check(`${kind.label}: no offered description names a tool the session does not offer (${offered.size} offered)`, pairs.length === 0, pairs.join('; '))
 }

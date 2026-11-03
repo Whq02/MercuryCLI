@@ -41,7 +41,7 @@ check('the root stays an object with every field listed (the form every road tak
 check('the root requires file_path and nothing else: replace_all no longer reads as required', JSON.stringify(rootRequired) === JSON.stringify(['file_path']), JSON.stringify(rootRequired))
 check('the root carries no anyOf, oneOf or allOf (the Anthropic API refuses a combinator at the top level of input_schema: the lead\'s live check read "API Error: 400 tools.5.custom.input_schema: input_schema does not support oneOf, allOf, or anyOf at the top level" on every turn)', wire.anyOf === undefined && wire.oneOf === undefined && wire.allOf === undefined, JSON.stringify(Object.keys(wire)))
 check('the root description names the four shapes: old_string + new_string · hunks · append · section + new_string', /old_string \+ new_string/.test(rootWords) && /\bhunks\b/.test(rootWords) && /\bappend\b/.test(rootWords) && /section \+ new_string/.test(rootWords), rootWords)
-check('the root description says old_string and new_string are required together', /both required together/.test(rootWords), rootWords)
+check('the root description carries no field rule of its own: the pair rides as old_string + new_string, and the fields say they travel together', !/required together/.test(rootWords), rootWords)
 check('the old_string and new_string field words say they travel together', String((wire.properties?.old_string as { description?: string })?.description ?? '').includes('new_string') && String((wire.properties?.new_string as { description?: string })?.description ?? '').includes('old_string'))
 
 section('§2 under the one JSON-schema engine the four shapes validate; the shapes a plain root cannot refuse, the runtime refuses')
