@@ -15,10 +15,9 @@ const { getAllBaseTools } = await import('../../src/tools.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { toolToAPISchema } = await import('../../src/utils/api.ts')
 const pool = getAllBaseTools()
-const lawful = ['ChangeSet', 'Git', 'Test', 'AstSearch', 'AstEdit', 'LspRead']
+const lawful = ['ChangeSet', 'Git', 'Test', 'AstSearch', 'AstEdit', 'LspRead', 'Monitor']
 const pending: Array<[string, RegExp]> = [
   ['Debug', /(?:over|instead of) print debugging/],
-  ['Monitor', /over polling a log/],
   ['Checkpoint', /detour[\s\S]*keep in context/],
   ['Rewind', /detour[\s\S]*keep in context/],
 ]

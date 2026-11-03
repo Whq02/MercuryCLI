@@ -24,19 +24,10 @@ const RATE_BURST = 20
 const RATE_REFILL_PER_SEC = 10
 const OVERFLOW_STOP_MS = 10_000
 
-const DESCRIPTION = `Use this over polling a log: new lines arrive as notifications while you keep working.
-
-Start a background monitor that streams events from a long-running script. Each stdout line is an event — you keep working and notifications arrive in the chat. Events arrive on their own schedule and are not replies from the user, even if one lands while you're waiting for the user to answer a question.
-
-Pick by how many notifications you need:
-- **One** ("tell me when the server is ready / the build finishes") → use **Bash with \`run_in_background\`** and a command that exits when the condition is true, e.g. \`until grep -q "Ready in" dev.log; do sleep 0.5; done\`. You get a single completion notification when it exits.
-- **One per occurrence, indefinitely** ("tell me every time an ERROR line appears", "wake me on every line another agent appends to this file") → Monitor with an unbounded command (\`tail -f\`, \`inotifywait -m\`, \`while true\`) and \`persistent: true\`, so the watch runs until you stop it with TaskStop or the session ends.
-- **One per occurrence, until a known end** ("emit each CI step result, stop when the run finishes") → Monitor with a command that exits when the watch is over.
-
-A monitor without \`persistent\` expires after \`timeout_ms\` (default 5 minutes, at most 1 hour): it is killed and you get one expiry notice that says how to re-arm it. Lines that arrive within ${BURST_WINDOW_MS}ms fold into one notification; ongoing output is delivered at most once every ${DELIVERY_INTERVAL_MS / 1000} seconds, with its line count and last line. Events that land while the session's usage window is closed are held by the watch and delivered together, in one notification, on your first turn after the window reopens — they are not lost, and they never wake a session the provider would refuse once the session has met the closed window.`
+const DESCRIPTION = `Starts a background watch on a command and delivers each line of its stdout as a notification in the chat while you keep working. A notification is an event of the watch, not a reply from the user, even when it lands while you are waiting for their answer; lines within ${BURST_WINDOW_MS}ms fold into one notification, ongoing output is delivered at most once every ${DELIVERY_INTERVAL_MS / 1000} seconds with its line count and last line, and events that land while the session's usage window is closed are held and delivered together on your first turn after it reopens. The watch ends when the command exits, when its timeout passes with one expiry notice, or, with persistent, when it is stopped or the session ends.`
 
 const COMMAND_DESCRIPTION =
-  'Shell command or script. Each stdout line is an event; exit ends the watch.'
+  'The shell command; each stdout line is an event, and its exit ends the watch.'
 
 export function monitorExpiryNotice(description: string, taskId: string, timeoutMs: number, events: number): string {
   return `[Monitor "${description}" (task ${taskId}) expired after ${Math.round(timeoutMs / 1000)}s with ${events} event${events === 1 ? '' : 's'}. Re-arm it by calling Monitor again with the same command if the watch is still wanted; set persistent: true for a watch that must outlive the deadline.]`
@@ -52,18 +43,16 @@ const inputSchema = lazySchema(() =>
   z.strictObject({
     description: z
       .string()
-      .describe(
-        'Short human-readable description of what you are monitoring (shown in notifications).',
-      ),
+      .describe('A few words naming what is watched, shown in each notification.'),
     timeout_ms: semanticNumber(
       z.number().min(0).optional().default(DEFAULT_TIMEOUT_MS),
     ).describe(
-      `Kill the monitor after this deadline. Default ${DEFAULT_TIMEOUT_MS}ms, min ${MIN_TIMEOUT_MS}ms, max ${MAX_TIMEOUT_MS}ms; a value outside the bounds is clamped to them and the result says so. Ignored when persistent is true.`,
+      `The watch is killed after this many milliseconds. Default ${DEFAULT_TIMEOUT_MS}, min ${MIN_TIMEOUT_MS}, max ${MAX_TIMEOUT_MS}; a value outside the bounds is clamped to them and the result says so. Ignored when persistent is true.`,
     ),
     persistent: semanticBoolean(
       z.boolean().optional().default(false),
     ).describe(
-      'Run for the lifetime of the session (no timeout): the watch runs until TaskStop or the session ends. Use for session-length watches like PR monitoring, log tails or a file other agents append to.',
+      'true runs the watch for the life of the session, with no timeout, until it is stopped or the session ends.',
     ),
     command: z.string().describe(COMMAND_DESCRIPTION),
   }),
@@ -92,8 +81,7 @@ export type Output = z.infer<OutputSchema>
 export const MonitorTool = buildTool({
   name: MONITOR_TOOL_NAME,
   shellCommandOf: (input: unknown) => stringInputField(input, 'command'),
-  searchHint:
-    'watch, monitor, or keep an eye on a process/log/command — stream each stdout line as a live notification',
+  searchHint: 'watch a command, log or process and deliver each new line as a notification',
   maxResultSizeChars: 10_000,
   userFacingName() {
     return 'Monitor'
@@ -118,11 +106,8 @@ export const MonitorTool = buildTool({
   async description() {
     return DESCRIPTION
   },
-  async prompt(options) {
-    const canStop = options?.tools?.some(tool => tool.name === 'TaskStop') ?? true
-    return canStop
-      ? DESCRIPTION
-      : DESCRIPTION.replace('until you stop it with TaskStop or the session ends', 'until the session ends (this session has no stop control, so prefer a bounded watch)')
+  async prompt() {
+    return DESCRIPTION
   },
   mapToolResultToToolResultBlockParam(output, toolUseID) {
     return {

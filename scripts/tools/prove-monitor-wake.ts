@@ -157,12 +157,12 @@ function harness(wall: WatchWall) {
   check('the expiry notice names the watch, the deadline and the event count', notice.includes('"the comms watch"') && notice.includes('task b1') && notice.includes('300s') && notice.includes('3 events'))
   check('the expiry notice says how to re-arm and names the persistent flag', notice.includes('calling Monitor again with the same command') && notice.includes('persistent: true'))
   const description = await MonitorTool.prompt()
-  check('the model-facing description says when to set persistent', description.includes('`persistent: true`') && description.includes('until you stop it with TaskStop or the session ends'))
-  check('the model-facing description names the default deadline and the expiry notice', description.includes('default 5 minutes, at most 1 hour') && description.includes('expiry notice that says how to re-arm'))
-  check('the model-facing description says what happens to events behind a closed usage window', description.includes('usage window is closed are held') && description.includes('delivered together, in one notification'))
-  check('the model-facing description names the burst window', description.includes(`${BURST_WINDOW_MS}ms fold into one notification`))
+  check('the model-facing description says how the watch ends, including the expiry notice and the persistent road, and names no other tool', description.includes('when its timeout passes with one expiry notice') && description.includes('with persistent, when it is stopped or the session ends') && !/\b(?:TaskStop|Bash)\b/.test(description))
+  check('the deadline bounds live in the timeout_ms field', String(MonitorTool.inputSchema.shape.timeout_ms.description).includes('Default 300000, min 1000, max 3600000'))
+  check('the model-facing description says what happens to events behind a closed usage window', description.includes("usage window is closed are held and delivered together on your first turn after it reopens"))
+  check('the model-facing description names the burst window and says an event is not a user reply', description.includes(`${BURST_WINDOW_MS}ms fold into one notification`) && description.includes('not a reply from the user'))
   const source = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'MonitorTool', 'MonitorTool.ts'), 'utf8')
-  check("the persistent field's own words tell the model the watch outlives the deadline until TaskStop", /persistent: semanticBoolean\([\s\S]{0,200}?the watch runs until TaskStop or the session ends/.test(source))
+  check("the persistent field's own words tell the model the watch outlives the deadline until stopped or the session ends", /persistent: semanticBoolean\([\s\S]{0,200}?until it is stopped or the session ends/.test(source))
   check('every event the tool emits rides the mailbox, never the queue directly', (source.match(/mailbox\.push\(/g) ?? []).length >= 4 && (source.match(/\bemit\(/g) ?? []).length === 1)
 }
 
@@ -198,7 +198,7 @@ function harness(wall: WatchWall) {
   const plainText = (MonitorTool.mapToolResultToToolResultBlockParam({ taskId: 'b1', timeoutMs: 60_000, persistent: false } as never, 'toolu_y') as { content: string }).content
   check('a deadline inside the bounds carries the batch delivery law without a clamp', plainText === 'Monitor started (task b1, timeout 60000ms). You will receive batched events, at most once every 30 seconds during ongoing output. Keep working — do not poll or sleep. Events may arrive while you are waiting for the user — an event is not their reply.', plainText)
   const words = (MonitorTool.inputSchema as unknown as { shape: Record<string, { description?: string }> }).shape['timeout_ms']?.description ?? ''
-  check("the timeout_ms parameter's own words name both bounds and say a value outside them is clamped", words.includes('max 3600000ms') && words.includes('min 1000ms') && /clamped/.test(words), words)
+  check("the timeout_ms parameter's own words name both bounds and say a value outside them is clamped", words.includes('max 3600000') && words.includes('min 1000') && /clamped/.test(words), words)
 }
 
 console.log(failures === 0 ? 'prove-monitor-wake: ALL LAWS HOLD' : 'prove-monitor-wake: FAILURE(S)')

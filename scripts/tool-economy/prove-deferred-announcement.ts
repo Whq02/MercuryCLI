@@ -69,7 +69,7 @@ const SPEC_BODY = [
   'LspRead — language server questions: definition, references, hover, symbols, callers, type, diagnostics',
   'LspRename — rename a symbol in every file through the language server: preview the edits, then apply them',
   'LspRequest — send one raw language-server protocol request and read the raw answer',
-  'Monitor — watch, monitor, or keep an eye on a process/log/command — stream each stdout line as a live…',
+  'Monitor — watch a command, log or process and deliver each new line as a notification',
   'NotebookEdit — edit Jupyter notebook .ipynb cells',
   "ProviderSearch — searches the web through the session provider's own native search",
   'Recall — search project memory with stable ids and provenance',
@@ -199,7 +199,7 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
 
 section('§3 the rewritten hints fit without a clipped tail')
 const { ListMcpResourcesTool } = await import('../../src/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts')
-const purposeNames = ['Inspect', 'Retain', 'Computer', 'Git', 'WebFetch', 'AskUserQuestion', 'Crewmate', 'Workflow', 'Service', 'Browser', 'Structure', 'CrewBoard', 'Journey', 'ListMcpResources', 'Test']
+const purposeNames = ['Inspect', 'Retain', 'Computer', 'Git', 'WebFetch', 'AskUserQuestion', 'Crewmate', 'Workflow', 'Service', 'Browser', 'Structure', 'CrewBoard', 'Journey', 'ListMcpResources', 'Test', 'Monitor']
 const purposeTools = [...getAllBaseTools(), ListMcpResourcesTool]
 for (const name of purposeNames) {
   const tool = purposeTools.find(tool => tool.name === name)
