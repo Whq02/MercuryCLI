@@ -31,25 +31,14 @@ try {
   check('Structure has exactly the 18 select fields in order', JSON.stringify(Object.keys(schema.input_schema.properties)) === JSON.stringify(expectedKeys), Object.keys(schema.input_schema.properties).join(','))
   check('Structure requires only op and rejects additional properties', JSON.stringify(schema.input_schema.required) === '["op"]' && schema.input_schema.additionalProperties === false)
   check('Structure has exactly eight select transformations', JSON.stringify(schema.input_schema.properties.action.enum) === JSON.stringify(actions))
-  check('replacement names replace and the insertion actions', schema.input_schema.properties.replacement.description === 'preview replace · insert-before · insert-after: the new text ($TEXT, in replace, is the original node)')
-  const rest = `JS/TS questions by node kind — imports by module, calls by dotted callee, declarations by kind and name, a node inside a named class or function — and for a rename, import swap, callee swap or property value that must land as one previewed change.`
-  const operations = `\n\n1. op:"query" (select, filters…) — a bounded AST query. Selects: ${STRUCTURE_SELECTS.join(' · ')}. Filters: name (exact or glob with *), callee ('fs.*'), module, value, within ('class:Name'), files (globs relative to the project root), limit (default 50, max 200). Only .js .jsx .mjs .cjs .ts .mts .cts .tsx files are read. Returns stable match ids (sm-…) and the record mercury://structure/query/<id>.
-2. op:"preview" (action, queryId?, matchIds?) — writes nothing; shows the files, the match count and each edit's first line before and after (8 per file, the rest counted). Actions: replace (replacement; $TEXT is the original node) · rename (to — the name token only) · remove · insert-before/insert-after (replacement — new text on its own line at the node's boundary) · replace-import (newModule) · replace-callee (to) · set-value (newValue).
-3. op:"apply" (previewId) — refuses if a file changed since the preview or the result would not parse; writes atomically with rollback, verifies by re-reading, reruns parse diagnostics, and reports a partial application as a failure.
-4. op:"explain" (matchId, queryId?) — the AST ancestry of one match.
-
-Records: mercury://structure/query/<id> · mercury://structure/preview/<id> (Inspect).`
-  for (const [tools, lead] of [
-    [[AstSearchTool, AstEditTool], 'To find code by its shape in any language use AstSearch, and AstEdit to rewrite every match; use this tool for'],
-    [[AstSearchTool], 'To find code by its shape in any language use AstSearch; use this tool for'],
-    [[AstEditTool], 'To rewrite every match of a code shape in any language use AstEdit; use this tool for'],
-    [[], 'Use it for'],
-  ] as const) {
+  check('replacement owns original-node substitution and insertion placement', schema.input_schema.properties.replacement.description.includes('$TEXT in replace is the original node') && schema.input_schema.properties.replacement.description.includes('own line at the node boundary'))
+  for (const tools of [[AstSearchTool, AstEditTool], [AstSearchTool], [AstEditTool], []]) {
     const text = await StructureTool.prompt({ ...options, tools: [StructureTool, ...tools] as never })
-    const expected = `Structural queries by node kind, and previewed, stale-safe codemods, over JS/TS/JSX/TSX only, on the TypeScript compiler's syntax tree. ${lead} ${rest}${operations}`
-    check(`Structure exact description with ${tools.map(t => t.name).join(',') || 'no Ast companions'}`, text === expected)
-    check('Structure prompt carries no duplicate-lane or unprinted-anchor claim', !/POLYGLOT|pattern lane|SYMBOL ADDRESSING|metavariable|expected anchors/.test(text))
+    check('Structure describes its own queries and previewed writes under 250 bytes', text.includes('Queries return match ids; previews return plans without writing.') && text.includes('unchanged sources and valid syntax') && Buffer.byteLength(text) <= 250)
+    check('offered companions do not add sibling-tool routing or a second operation schema', !/AstSearch|AstEdit|LspRename|Inspect|op:"|Selects:/.test(text))
   }
+  check('rename is token-only in its field, not a semantic rename claim', schema.input_schema.properties.to.description.includes('rename changes the token, not every symbol reference'))
+  check('the file field owns the accepted extensions', schema.input_schema.properties.files.description.includes('.js/.jsx/.mjs/.cjs/.ts/.mts/.cts/.tsx'))
   for (const [tool, companion] of [[AstSearchTool, AstEditTool], [AstEditTool, AstSearchTool]] as const) {
     const alone = await toolToAPISchema(tool as never, { ...options, tools: [tool] as never }) as any
     const together = await toolToAPISchema(tool as never, options) as any
@@ -99,7 +88,7 @@ Records: mercury://structure/query/<id> · mercury://structure/preview/<id> (Ins
   check('search steering names only the offered shape owner, with its loading road', searchSteeringLine(new Set(['AstSearch'])) === '  - Semantic shortcut: for code by its shape, AstSearch (load it with ToolSearch) matches the parse tree rather than the text.' && searchSteeringLine(new Set(['Structure'])) === null)
   check('edit steering names only the offered rewrite owner', editSteeringLine(new Set(['AstEdit'])) === 'Semantic shortcut: one rewrite at every match of a code shape belongs to AstEdit (dry run, then apply).' && editSteeringLine(new Set(['Structure'])) === null)
   check('AstEdit and AstSearch both stay deferred, neither loaded in full on cloud', AstEditTool.shouldDefer === true && !AstEditTool.loadInFullOnCloud && AstSearchTool.shouldDefer === true && !AstSearchTool.loadInFullOnCloud)
-  for (const [tool, ceiling] of [[StructureTool, 4219], [AstSearchTool, 3659], [AstEditTool, 3050]] as const) {
+  for (const [tool, ceiling] of [[StructureTool, 2600], [AstSearchTool, 3659], [AstEditTool, 3050]] as const) {
     const wire = await toolToAPISchema(tool as never, { ...options, deferLoading: tool.name !== 'AstSearch' }) as any
     const bytes = Buffer.byteLength(JSON.stringify(wire))
     const reference = { ...wire }
