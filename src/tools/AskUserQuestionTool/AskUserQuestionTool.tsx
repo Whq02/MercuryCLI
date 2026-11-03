@@ -1,6 +1,7 @@
 
 import * as React from 'react'
 import { z } from 'zod'
+import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { getQuestionPreviewFormat } from '../../bootstrap/state.js'
 import { Box, Text } from '../../ink.js'
@@ -113,6 +114,8 @@ const inputSchemaObject = z
     },
   )
 
+const modelInputSchemaObject = z.strictObject({ questions: inputSchemaObject.shape.questions })
+
 const outputSchemaObject = z.object({
   questions: z.array(questionSchema),
   answers: z.record(z.string(), z.string()).default({}),
@@ -193,6 +196,9 @@ function identityResultText(output: Output): string {
 export const AskUserQuestionTool = buildTool({
   name: ASK_USER_QUESTION_TOOL_NAME,
   inputSchema: inputSchemaObject,
+  get inputJSONSchema() {
+    return zodToJsonSchema(modelInputSchemaObject) as never
+  },
   outputSchema: outputSchemaObject,
   maxResultSizeChars: RESULT_SIZE_CAP,
   shouldDefer: true,
