@@ -26,7 +26,7 @@ const CONSTRAINTS: Record<string, string[]> = {
   Read: ['2000 lines', 'line number followed by a tab', 'not file content', 'unread range', 'pictures', 'PDFs', 'Notebooks', '<archive>:<entry>', '<db>:<table>', 'transcripts', 'mercury://'],
   Edit: ['exact string', 'hunks', 'appended', 'Markdown section', 'read coverage', 'append needs none', 'changed lines', 'count as read', 'syntax error'],
   Write: ['overwritten', 'Read has to have read the file first', 'entire file', 'syntax error', 'Documentation files', 'never proactively'],
-  Grep: ['ripgrep', 'braces need escaping', 'PCRE2', 'literal: true', 'documents', '20 documents'],
+  Grep: ['ripgrep', 'matching paths, lines or counts', 'extracted text', 'page or section labels'],
   Glob: ['glob patterns', 'newest modification first', 'Ignore files apply'],
   Eval: ['retained', 'One call is one cell', 'reaped', 'never retry a denial', 'nonzero is a value', 'timeoutSeconds', 'Full helper signatures'],
   ChangeSet: ['apply', 'preview', 'status', 'discard', 'expected_anchor', 'hunks', 'edits', 'delete', 'move', 'new_path', 'disjoint', 'writes nothing', 'noChangePaths', '16 files/set', '32 hunks/file', '128 hunks/set', '4MB', '16 retained plans', '30-minute', 'Write', 'NotebookEdit', 'Bash'],

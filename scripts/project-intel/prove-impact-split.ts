@@ -99,40 +99,27 @@ async function main(): Promise<void> {
   )
   check('every cross-stream overlap is flagged (no silent overlap)', nonContested.length === 0, nonContested.join(','))
 
-  section('(3) point-of-use steering — advertised iff ON, byte-identical OFF')
+  section('(3) point-of-use steering — no tool describes another: the search and edit steering lines are gone; the read orientation line gates on projectIntel')
   delete process.env.MERCURY_LSP
   delete process.env.MERCURY_STRUCTURE
   const lspManager = await import('../../src/services/lsp/manager.js')
-  const beforeMount = steering.searchSteeringLine()
-  check('LSP steering is absent while no server is mounted', beforeMount !== null && !beforeMount.includes('LSP'), beforeMount ?? 'null')
+  check('searchSteeringLine and editSteeringLine no longer exist', !('searchSteeringLine' in steering) && !('editSteeringLine' in steering))
   lspManager.initializeLspServerManager()
   await lspManager.waitForInitialization()
   check('the LSP tool is mounted for the steering leg', lspManager.isLspToolMounted(), JSON.stringify(lspManager.getInitializationStatus()))
-  const onLine = steering.searchSteeringLine()
-  check('search steering present when owners on', typeof onLine === 'string' && onLine.includes('LspRead') && onLine.includes('AstSearch'), onLine ?? 'null')
+  const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
+  const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
+  const grepOn = await GrepTool.prompt({ tools: [{ name: 'Grep' }, { name: 'LspRead' }, { name: 'AstSearch' }] } as never)
+  const editOn = await FileEditTool.prompt({ tools: [{ name: 'Edit' }, { name: 'LspRename' }, { name: 'AstEdit' }] } as never)
+  check('Grep and Edit name no other tool with the LSP mounted and the shape owners offered', !/\b(Lsp\w+|AstSearch|AstEdit|Structure|ToolSearch)\b/.test(grepOn) && !/\b(Lsp\w+|AstSearch|AstEdit|Structure|ToolSearch)\b/.test(editOn), grepOn)
   process.env.MERCURY_LSP = '0'
-  const noLsp = steering.searchSteeringLine()
-  check('OFF owner never advertised (no LSP mention)', noLsp !== null && !noLsp.includes('LSP'), noLsp ?? 'null')
   process.env.MERCURY_STRUCTURE = '0'
-  check('all owners off ⇒ null (descriptions byte-identical)', steering.searchSteeringLine() === null && steering.editSteeringLine() === null)
+  check('…and their text is byte-identical with every owner off', await GrepTool.prompt({ tools: [{ name: 'Grep' }] } as never) === grepOn && await FileEditTool.prompt({ tools: [{ name: 'Edit' }] } as never) === editOn)
+  delete process.env.MERCURY_LSP
+  delete process.env.MERCURY_STRUCTURE
   process.env.MERCURY_PROJECT_INTEL = '0'
   check('read steering gates on projectIntel too', steering.readSteeringLine() === null)
-  delete process.env.MERCURY_LSP
-  delete process.env.MERCURY_STRUCTURE
-  check(
-    'MERCURY_PROJECT_INTEL is the MASTER gate — =0 alone kills search+edit steering',
-    steering.searchSteeringLine() === null && steering.editSteeringLine() === null,
-  )
   delete process.env.MERCURY_PROJECT_INTEL
-  const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-  const descOn = await GrepTool.description()
-  process.env.MERCURY_LSP = '0'
-  process.env.MERCURY_STRUCTURE = '0'
-  const descOff = await GrepTool.description()
-  delete process.env.MERCURY_LSP
-  delete process.env.MERCURY_STRUCTURE
-  check('Grep description carries the line when on', descOn.includes('Semantic shortcut'))
-  check('Grep description drops it entirely when off', !descOff.includes('Semantic shortcut'))
 
   const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.js')
   const offered = new Set(['Bash', 'Test', 'Debug'])

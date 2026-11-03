@@ -59,17 +59,17 @@ const DEFAULT_PER_FILE_MATCHES = 25
 const VCS_EXCLUDED_DIRECTORIES = ['.git', '.svn', '.hg', '.bzr', '.jj', '.sl']
 
 const inputSchema = z.strictObject({
-  pattern: z.string().describe('The regex to hunt for inside file contents'),
+  pattern: z.string().describe('The ripgrep regular expression to search for; lookaround and backreferences fall back to PCRE2'),
   path: z
     .string()
     .optional()
     .describe(
-      'Where to search — a file or directory (rg PATH); the current working directory when omitted.',
+      'The file or directory to search; the current working directory when omitted.',
     ),
   glob: z
     .string()
     .optional()
-    .describe('Restrict the search to files matching this glob (rg --glob), e.g. "*.js" or "*.{ts,tsx}"'),
+    .describe('Search only files matching this glob (rg --glob)'),
   output_mode: z
     .enum(['content', 'files_with_matches', 'count'])
     .optional()
@@ -86,7 +86,7 @@ const inputSchema = z.strictObject({
     'Context lines printed both sides of each hit (rg -C; "content" mode only).',
   ),
   context: semanticNumber(z.number().optional()).describe(
-    'Same as -C: surrounding context lines per hit ("content" mode only).',
+    'Same as -C.',
   ),
   '-n': semanticBoolean(z.boolean().optional()).describe(
     'Prefix output with line numbers (rg -n; "content" mode only). On by default.',
@@ -96,7 +96,7 @@ const inputSchema = z.strictObject({
     .string()
     .optional()
     .describe(
-      'Search only one file type (rg --type) — js, py, rust, go, java and the like; cheaper than a glob for standard types.',
+      'Search only one file type (rg --type): js, py, rust, go and the like.',
     ),
   head_limit: semanticNumber(z.number().optional()).describe(
     `Cap the output at the first N lines/entries (default ${DEFAULT_HEAD_LIMIT}); applies in every output mode; 0 lifts the cap.`,
@@ -108,7 +108,7 @@ const inputSchema = z.strictObject({
     'Let patterns span line boundaries, with . matching newlines (rg -U --multiline-dotall). Off by default.',
   ),
   literal: semanticBoolean(z.boolean().optional()).describe(
-    'Match the pattern as exact text, not a regex (rg -F) — for code with regex characters such as foo(bar[0]), $VAR or a.b, nothing escaped. Off by default.',
+    'Match the pattern as exact text, not a regex (rg -F). Off by default.',
   ),
 })
 

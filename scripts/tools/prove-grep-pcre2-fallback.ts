@@ -228,7 +228,9 @@ try {
 
   console.log('\n§6 the description tells the model in one sentence')
   const description = await GrepTool.description()
-  check('the description names the fallback', /PCRE2/.test(description), description.split('\n').filter(line => /pcre2/i.test(line)).join(' | '))
+  const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+  const patternField = String((zodToJsonSchema((GrepTool as unknown as { inputSchema: never }).inputSchema) as { properties?: { pattern?: { description?: string } } }).properties?.pattern?.description ?? '')
+  check('the pattern field names the fallback (the description says what the tool does, the field what its pattern is)', /PCRE2/.test(patternField) && !/PCRE2/.test(description), patternField)
 
   if (process.platform !== 'win32') {
     const shimDir = join(base, 'shim')

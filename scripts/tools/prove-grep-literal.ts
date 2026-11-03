@@ -75,7 +75,7 @@ console.log('refusals: the literal road adds nothing a regex would — no quote 
 console.log('the description says when to use it and the schema carries the switch')
 {
   const description = getDescription()
-  check('the usage line names literal: true with the three examples', description.includes('`literal: true` matches the pattern as exact text (rg -F): `foo(bar[0])`, `$VAR` or `a.b` need no escaping'), description)
+  check('the description carries no worked examples: literal is the field\'s own fact (rg -F)', !description.includes('foo(bar[0])') && !description.includes('need no escaping'), description)
   const schema = GrepTool.inputJSONSchema as { properties?: Record<string, { type?: string; description?: string }> } | undefined
   const properties = schema?.properties ?? (GrepTool.inputSchema as unknown as { shape: Record<string, unknown> }).shape
   check('the schema has a literal property, off by default', 'literal' in properties && !/literal: true/.test(JSON.stringify(GrepTool.inputSchema.safeParse({ pattern: 'x' }))))

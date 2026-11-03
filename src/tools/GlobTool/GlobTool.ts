@@ -92,15 +92,7 @@ export const GlobTool = buildTool({
     return searchRootFor(path, pattern)
   },
   async description(): Promise<string> {
-    let text = DESCRIPTION
-    try {
-      const { searchSteeringLine } =
-        require('../../services/projectIntel/steering.js') as typeof import('../../services/projectIntel/steering.js')
-      const line = searchSteeringLine()
-      if (line) text += `\n${line}`
-    } catch {
-    }
-    return text
+    return DESCRIPTION
   },
   async prompt(): Promise<string> {
     return DESCRIPTION
