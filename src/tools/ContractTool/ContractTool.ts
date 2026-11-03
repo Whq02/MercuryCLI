@@ -12,11 +12,11 @@ const inputSchema = lazySchema(() =>
   z.strictObject({
     action: z
       .enum(['read', 'acknowledge', 'check-in', 'sufficiency', 'propose-amend', 'close-against'])
-      .describe('read · acknowledge (your restatement) · check-in (a move, judged by you) · sufficiency (complete enough? ask-with-the-gap or continue) · propose-amend (the honest stop) · close-against (the closing report)'),
-    restatement: z.string().max(20_000).optional().describe('acknowledge: the contract in YOUR OWN words — the restatement is the signature.'),
+      .describe('Contract action.'),
+    restatement: z.string().max(20_000).optional().describe('acknowledge: the contract in your own words.'),
     about: z.string().max(4_000).optional().describe('check-in: what you are about to do.'),
     proposal: z.string().max(4_000).optional().describe('propose-amend: the clause that does not survive contact, and why.'),
-    report: z.string().max(20_000).optional().describe('close-against: the closing report against the contract’s items — delivered, not delivered, and why.'),
+    report: z.string().max(20_000).optional().describe('close-against: what was delivered against the contract’s items, what was not, and why.'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>
