@@ -215,8 +215,8 @@ const aborted = await inflight
 check('an abort after send: status aborted, both charges unconfirmed and counted', aborted.status === 'aborted' && /status=aborted/.test(aborted.text) && /2 of 2 requests/.test(aborted.text) && jevLedgerSnapshot().unconfirmedCharges === 2 && jevLedgerSnapshot().attempts === 2, aborted.text)
 
 section('§8 the description says the shape')
-check('the prompt names the list, the one question set and one table back; one request per item, all at once, is the evidence field\'s alone', /list of evidence items/.test(JEV_EVAL_PROMPT) && /one question set/.test(JEV_EVAL_PROMPT) && /one table/.test(JEV_EVAL_PROMPT) && !/one request per item/.test(JEV_EVAL_PROMPT) && jsonSchema.includes('one request each, all at once'), JEV_EVAL_PROMPT.slice(0, 200))
-check('the prompt shows the paragraph-list form with a literal example keyed by position', /"evidence": \["[^"]+", "[^"]+"\]/.test(JEV_EVAL_PROMPT) && /#1/.test(JEV_EVAL_PROMPT))
+check('the prompt says one table comes back, a row per item and a column per question; one request per item, all at once, is the evidence field\'s alone', /One table comes back: a row per evidence item/.test(JEV_EVAL_PROMPT) && /a column per question/.test(JEV_EVAL_PROMPT) && !/one request/.test(JEV_EVAL_PROMPT) && jsonSchema.includes('one request each, all at once'), JEV_EVAL_PROMPT.slice(0, 200))
+check('the paragraph form is the string item\'s field alone: keyed by position (#1, #2, …), with no example in the prompt', jsonSchema.includes('its row is keyed by position (#1, #2, …)') && !/"evidence": \[/.test(JEV_EVAL_PROMPT))
 
 await standin.close()
 resetJevLedger()

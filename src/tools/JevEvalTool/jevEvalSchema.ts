@@ -28,16 +28,16 @@ const fileItemSchema = () =>
   z.strictObject({
     [JEV_EVAL_FILE_KEY]: z
       .strictObject({
-        path: z.string().min(1).describe('The file to read: an absolute path (a relative one resolves against the working directory, ~ expands); it passes the same read rules as Read'),
+        path: z.string().min(1).describe("The file to read: an absolute path (a relative one resolves against the working directory, ~ expands), under this session's read permissions"),
         format: z
           .enum(JEV_EVAL_FORMATS)
           .optional()
           .describe(
-            'Absent, the extension decides: .tsv tsv, .csv csv, .md/.markdown markdown (the first pipe table), .jsonl/.ndjson jsonl (one object per line), anything else text (the whole file is ONE item as the fact `text`); paragraphs splits a text file on blank lines, one item each',
+            'Absent, the extension decides: .tsv tsv, .csv csv, .md/.markdown markdown (the first pipe table), .jsonl/.ndjson jsonl (one object per line), anything else text (the whole file is one item as the fact `text`); paragraphs splits a text file on blank lines, one item each',
           ),
         id_column: idColumnSchema(),
       })
-      .describe('A file of evidence: a table file becomes one item per row, the header names the facts; a text file one item'),
+      .describe('A file of evidence: a table file is one item per row, its header naming the facts; a text file one item'),
   })
 
 const tableItemSchema = () =>
@@ -63,7 +63,7 @@ const evidenceItemSchema = lazySchema(() =>
         })
         .catchall(z.string())
         .describe(
-          "Named facts, sent verbatim as Jev's state: filtered excerpts and measured values only — never a whole file pasted in (a file of rows is the file form), the transcript, environment values, secrets or stack traces; everything here leaves the machine under the selected road's data policy",
+          "Named facts, sent verbatim as Jev's state, which leaves the machine under the selected road's data policy; unrelated material costs accuracy",
         ),
     ],
     {
@@ -96,7 +96,7 @@ const questionFields = () =>
     ask: z
       .string()
       .min(1)
-      .describe('The whole question, short and literal — Jev reads only this and `evidence`; name the evidence keys it turns on in backticks'),
+      .describe('The question; Jev reads only this and `evidence`'),
     options: z
       .record(z.string(), z.string().nullable())
       .optional()
@@ -134,7 +134,7 @@ export const jevEvalInputSchema = lazySchema(() =>
         .array(evidenceItemSchema())
         .min(1)
         .describe(
-          `The evidence items, each a record of named facts, a bare paragraph, a file ({"${JEV_EVAL_FILE_KEY}":{"path":…}}: a table file — tsv, csv, a markdown pipe table, jsonl — is one item per row named by its header, a text file one item) or an inline table ({"${JEV_EVAL_TABLE_KEY}":{"columns":[…],"rows":[[…]]}}: one item per row); every item is judged against every question, one request each, all at once, each counted against the pace and the budget; one table back, rows keyed by the item's id (a record's id, a row's ${JEV_EVAL_ID_COLUMN} column, never sent) or by position. The size rule: files and tables add at most ${JEV_EVAL_MAX_ROWS} rows to one call and a file is at most ${JEV_EVAL_MAX_FILE_BYTES} bytes; above either the call is refused naming the count, nothing trimmed, nothing sent; a ragged row is refused naming its line, never padded or cut`,
+          `The evidence items: records of named facts, paragraphs, files ({"${JEV_EVAL_FILE_KEY}":{"path":…}}) and inline tables ({"${JEV_EVAL_TABLE_KEY}":{"columns":[…],"rows":[[…]]}}), every item judged against every question, one request each, all at once; the rows come back keyed by the item's id (a record's id, a row's ${JEV_EVAL_ID_COLUMN} column, never sent) or by position. Files and tables add at most ${JEV_EVAL_MAX_ROWS} rows to one call, and a file is at most ${JEV_EVAL_MAX_FILE_BYTES} bytes`,
         ),
       questions: z.array(questionSchema()).min(1).describe('The one question set, asked of every evidence item'),
     })

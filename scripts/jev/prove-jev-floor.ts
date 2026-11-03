@@ -93,25 +93,14 @@ console.log(rendered.text.split('\n').map(l => `    ${l}`).join('\n'))
 check('the header says the floor once', rendered.status === 'ok' && lines[0] === 'JEV jev-1.13.0 | 1 item × 3 questions | in 400 tok | $0.000017 | floor 0.6 | ok' && rendered.text.split('floor').length === 2, lines[0])
 check('the row: the noul at .52 and the choice at conf .41 read unsure with their numbers; the score at .9 reads plain', lines[2] === 'ui | unsure · .52 | unsure · harness .45 conf .41 | 1.9 of 0..2 conf .90', lines[2])
 
-section('§3 the description says exactly how the floor applies to each kind, and carries ONE literal example that parses')
+section('§3 the description says once how the floor applies to each kind, and carries no worked example')
 const prompt = JEV_EVAL_PROMPT
-check('the floor sentence: under the floor the cell reads unsure — do not act on it', /[Uu]nder the floor[^.]*reads unsure/.test(prompt) && /do not act on it/.test(prompt), prompt.slice(0, 120))
-check('the choice and score rule: confidence under 0.6', /choice or a score whose confidence is under 0\.6/.test(prompt))
-check('the noul rule: p\\(yes\\) from 0.4 through 0.6, the floor mirrored around a half', /noul carries no confidence[^.]*p\(yes\) from 0\.4 through 0\.6/.test(prompt) && /mirrored around a half/.test(prompt))
-check('the numbers stay and the header names the floor', /numbers stay/.test(prompt) && /header names the floor/.test(prompt))
-const examples = prompt.split('\n').filter(line => line.startsWith('{"goal":'))
-check('exactly one complete example call, on its own line', examples.length === 1, String(examples.length))
-let parsedExample: unknown
-try {
-  parsedExample = JSON.parse(examples[0] ?? '')
-} catch {
-  parsedExample = undefined
-}
-check('the example is JSON the schema accepts as a real call', parsedExample !== undefined && schema.safeParse(parsedExample).success, parsedExample === undefined ? 'not JSON' : refusal(parsedExample))
-const example = parsedExample as { evidence?: unknown[]; questions?: Array<{ kind?: string; options?: unknown; allow_none?: unknown }> } | undefined
-check('the example is real-shaped: two named-facts items with ids, a noul and a choice with allow_none, keys named in backticks', Array.isArray(example?.evidence) && example!.evidence!.length === 2 && example!.evidence!.every(item => typeof item === 'object' && item !== null && 'id' in item) && example?.questions?.some(q => q.kind === 'noul') === true && example?.questions?.some(q => q.kind === 'choice' && q.allow_none !== undefined) === true && /"ask":"[^"]*`[a-z_]+`/.test(examples[0]!), examples[0])
-const reads = prompt.indexOf('reads back as')
-check('the example says what its table reads back as', reads > -1 && /rows/.test(prompt.slice(reads, reads + 200)))
+check('the floor sentence: the header names the floor, and a cell under it reads unsure with its numbers kept', /The header names the floor, 0\.6:/.test(prompt) && /reads unsure with its numbers kept/.test(prompt), prompt.slice(-240))
+check('the choice and score rule: confidence under the floor', /a choice or score whose confidence is under it/.test(prompt))
+check('the noul rule: p\\(yes\\) from 0.4 through 0.6, the floor mirrored around a half, since a noul carries no confidence', /a noul whose p\(yes\) lies from 0\.4 through 0\.6 \(the floor mirrored around a half, since a noul carries no confidence\)/.test(prompt))
+check('the floor is said once in the description', prompt.split('floor').length === 3, String(prompt.split('floor').length - 1))
+check('no example call rides in the description (the schema carries the grammar)', !prompt.includes('{"goal":') && !prompt.includes('reads back as'), prompt.slice(0, 80))
+check('a real-shaped call still parses: two named-facts items with ids, a noul and a choice with allow_none', schema.safeParse({ goal: 'which of two reds was killed from outside', evidence: [{ id: 'ui', tail: 'rc 137 after the 240 s deadline' }, { id: 'api', tail: 'rc 1' }], questions: [{ id: 'killed', kind: 'noul', ask: 'Does `tail` name a kill from outside?' }, { id: 'class', kind: 'choice', ask: 'Which class does `tail` show?', options: { harness: 'a kill', product: 'other words' }, allow_none: true, none_means: 'the words decide neither' }] }).success)
 
 section('§4 a malformed call is refused naming the offending field, never a generic error')
 const good = { goal: 'g', evidence: [{ id: 'ui', tail: 'rc 137' }], questions: [{ id: 'q', kind: 'noul', ask: 'Is it?' }] }
