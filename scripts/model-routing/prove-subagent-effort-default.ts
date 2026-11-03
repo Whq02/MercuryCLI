@@ -82,7 +82,7 @@ const doctrine = await import('../../src/constants/subagentDoctrine.js')
   check('the Crewmate tool\'s description leaves the effort field to the field\'s own text (said once)', !src('src/tools/AgentTool/prompt.ts').includes("parameter sets the agent's reasoning effort") && !src('src/tools/AgentTool/prompt.ts').includes('never at your own level'))
   const hooks = src('src/tools/WorkflowTool/agentHooks.ts')
   check('a workflow\'s agent({effort}) validates against the ladder and rides as the pin', hooks.includes('!(EFFORT_LEVELS as readonly string[]).includes(opts.effort)') && hooks.includes("effortOverride: args.effort as RunAgentOpts['effortOverride']"))
-  check('the workflow prompt says an omitted effort rides the configured default, never the session\'s', src('src/tools/WorkflowTool/workflowPrompt.ts').includes('Omitted, the configured crewmate default applies (high unless the operator changed it in /config) — never the session\'s own level'))
+  check('the Workflow effort option owns the configured-default fact', src('src/tools/WorkflowTool/workflowPrompt.ts').includes('Omitted, uses the configured crewmate default (high), not the session level.'))
 }
 
 {

@@ -72,7 +72,7 @@ section('the tool, the consent dialog and the prompt carry no per-workflow speci
   check('the consent facts branch on no workflow name (source · phases · args · resume only)', !/workflowName\s*===/.test(consent) && consent.includes("{ k: 'args'") && consent.includes("{ k: 'resume'"))
   const prompt = code(read('src/tools/WorkflowTool/workflowPrompt.ts'))
   check('the prompt module reads no flag (the gates are gone with the ledger)', !prompt.includes('flagRegistry') && !/flagEnabled\(|flagEnv\(/.test(prompt))
-  check('the prompt composes exactly the base text and the doctrine', /return WORKFLOW_TOOL_PROMPT \+ AUTHORING_DOCTRINE_SECTION/.test(prompt))
+  check('the prompt returns one API reference without a second doctrine', /return WORKFLOW_TOOL_PROMPT\s*\n/.test(prompt) && !prompt.includes('AUTHORING_DOCTRINE_SECTION'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

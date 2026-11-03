@@ -21,7 +21,7 @@ assert.ok(!schema.properties.model.description.includes('mercury://models/known'
 const manual: string = await AgentTool.prompt({ getToolPermissionContext: async () => getEmptyToolPermissionContext(), tools: [], agents: [] })
 assert.ok(!manual.includes('\n## Model selection\n'), 'the manual has no duplicate model section')
 assert.ok(!manual.includes(MODEL_LOOKUP_LADDER), 'the concrete refusal, not the manual, carries the ladder')
-assert.ok(getWorkflowToolPrompt().includes(MODEL_LOOKUP_LADDER))
+assert.ok(!getWorkflowToolPrompt().includes(MODEL_LOOKUP_LADDER), 'Workflow leaves the ladder to concrete launch refusals')
 const word = 'frobnicator-9000'
 assert.ok(unrecognisedModelWordRefusal(word)?.includes(MODEL_LOOKUP_LADDER))
 assert.ok(liveModelsReferenceText({ providers: [], notSignedIn: [], readAt: 'fixture' }).includes(PROVIDER_MODEL_PAGES.xai!))

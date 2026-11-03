@@ -51,11 +51,11 @@ section("§1 the launch tool's model parameter")
 section('§2 the same words wherever the model parameter repeats')
 {
   const workflow = src('src/tools/WorkflowTool/workflowPrompt.ts')
-  check("the Workflow tool's opts.model line points at mercury://models and the known page and keeps the operator-asks rung (RED on the base: 'a string the catalog cannot resolve fails the dispatch')", workflow.includes('read mercury://models and name one of them by its id') && workflow.includes('mercury://models/known decides') && workflow.includes('${MODEL_LOOKUP_LADDER}'), workflow.match(/opts\.model —[^\n]*/)?.[0] ?? '')
+  check('Workflow defines its model option without copying discovery or recovery', workflow.includes('opts.model: operator-selected model id or family word') && !workflow.includes('mercury://models') && !workflow.includes('${MODEL_LOOKUP_LADDER}'))
   const { getWorkflowToolPrompt } = await import('../../src/tools/WorkflowTool/workflowPrompt.ts').catch(() => ({ getWorkflowToolPrompt: undefined as undefined | (() => string) }))
   if (typeof getWorkflowToolPrompt === 'function') {
     const composed = String(getWorkflowToolPrompt())
-    check("the composed Workflow prompt carries the pointer", composed.includes('read mercury://models and name one of them by its id'), composed.slice(0, 200))
+    check('the composed Workflow manual keeps model selection in its option once', composed.split('opts.model:').length === 2 && !composed.includes('mercury://models'), composed.slice(0, 200))
   }
   const { InspectTool } = await import('../../src/tools/InspectTool/InspectTool.ts')
   const inspect = await InspectTool.prompt({} as never)
