@@ -70,7 +70,13 @@ try {
         assert.ok(!schema.description.includes(`${helper}(`), 'the wire does not abridge the API')
       }
     }
-    if (['Browser', 'Debug'].includes(tool.name)) {
+    if (tool.name === 'Browser') {
+      assert.ok(bytes <= 350 && Buffer.byteLength(full) <= 3000)
+      assert.ok(!schema.description.includes('status:') && !schema.description.includes('waitFor:'))
+      assert.equal(schema.input_schema.properties.op.description, 'Browser operation.')
+      for (const operation of schema.input_schema.properties.op.enum as string[]) assert.ok(full.includes(operation), `${operation} has manual depth`)
+    }
+    if (tool.name === 'Debug') {
       const operations = schema.input_schema.properties.op.enum as string[]
       for (const operation of operations) assert.ok(schema.description.includes(operation), `${tool.name} must keep ${operation} in the short contract`)
     }
