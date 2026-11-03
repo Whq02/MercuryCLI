@@ -190,7 +190,7 @@ section('§8 posture: read-only, concurrency-safe, permission-free, no parameter
   const verdict = await subject.checkPermissions({}, { getAppState: () => ({ toolPermissionContext: permissionContext }) } as never)
   check('checkPermissions allows outright (no ask)', verdict.behavior === 'allow')
   check('the schema is the empty strict object', subject.inputSchema.safeParse({}).success === true && subject.inputSchema.safeParse({ tokens: 1 }).success === false)
-  check('the description and prompt tell the model when to call and when not to', (await subject.description()).includes('context window') && (await subject.prompt()).includes('Do not call it every turn') && (await subject.prompt()).includes('unknown'))
+  check('the description names the window; the prompt says what comes back, that the count is unknown before the first answer, and no when-to-call', (await subject.description()).includes('context window') && (await subject.prompt()).includes('the count is unknown') && (await subject.prompt()).includes('tokens left until autocompact') && !/Use it when|Do not call it/.test(await subject.prompt()))
   const source = readFileSync(join(ROOT, TOOL_FILE), 'utf8')
   check('the tool reads messages and engineModel off the tool-use context', /contextFillView\(context\.messages, context\.options\.engineModel\)/.test(source))
   check('no second derivation: the tool imports the one view and none of the token, window or compact owners', source.includes("from '../../utils/contextFill.js'") && !/utils\/tokens\.js|utils\/context\.js|services\/compact\/|model\/capabilities\.js/.test(source))
