@@ -20,11 +20,11 @@ const inputSchema = lazySchema(() => z.strictObject({
   references: z.array(z.strictObject({
     path: z.string().min(1),
     role: z.enum(['first_frame', 'last_frame', 'reference_image', 'reference_video', 'reference_audio']).optional(),
-  })).optional().describe('Project-local images, clips or audio to send; omitted roles select the matching reference role'),
+  })).optional().describe('Project-local images (first_frame, last_frame or reference_image), MP4/MOV clips (reference_video) and MP3/WAV audio (reference_audio) to send; an omitted role is the matching reference role'),
   duration: z.number().int().min(4).max(15).optional().describe('Seconds of generated video, default 5; H3-Max needs at least 5'),
   aspect: aspect().optional().describe('Output aspect; default 16:9 for text, adaptive with references'),
   ratio: aspect().optional().describe('MiniMax spelling of aspect; both must agree if supplied'),
-  resolution: z.enum(['480P', '768P', '2K']).optional().describe('MiniMax resolution; default 768P'),
+  resolution: z.enum(['480P', '768P', '2K']).optional().describe('MiniMax resolution (default 768P); H3 takes 768P or 2K, H3-Max 480P or 768P'),
   extra: z.strictObject({ prompt_expansion_mode: z.enum(['disabled', 'balanced', 'quality']).optional() }).optional(),
   callback_url: z.url().optional().describe('MiniMax callback URL; task updates are also sent to this address'),
   outputDir: z.string().min(1).optional().describe('Destination directory inside the project; default videos/'),
