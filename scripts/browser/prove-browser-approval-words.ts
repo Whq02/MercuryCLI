@@ -70,7 +70,10 @@ console.log('§3 the tool tells the model which browser it drives and what reads
   check('the description names Chrome for Testing and says installed browsers are never driven', description.includes('Chrome for Testing') && description.includes('installed browsers are never driven'), description)
   const prompt = await BrowserTool.prompt({} as never)
   check('the status line of the prompt no longer ranks installed browsers as drivable', !prompt.includes('operator pin > installed browser'), prompt.match(/op:"status"[^\n]*/)?.[0] ?? '')
-  check('the prompt says reads never ask on a crossed-to origin either, and what to do about it', /on a crossed-to origin too/.test(prompt) && /name the origin when you report them/.test(prompt), prompt.match(/Reads \([^\n]*/)?.[0] ?? '')
+  const wire = BrowserTool.wireDescription()
+  check('origin consent is on the wire once, not copied into the manual', wire.includes('Opening a new origin or first acting on a crossed-to origin asks; reads never ask.') && wire.includes('Grants belong to this agent and end with its session.') && !prompt.includes('first visit to an origin'))
+  const fields = BrowserTool.inputSchema.shape
+  check('secret consent is on its field once, outside the manual and short wire', fields.secretRef.description?.includes('each secret-and-origin pairing needs separate approval') === true && fields.secretRef.description.includes('value stays out of the conversation') && !prompt.includes('secretRef') && !wire.includes('secretRef'))
 }
 
 console.log(`\n${checks} checks, ${failures} failures`)

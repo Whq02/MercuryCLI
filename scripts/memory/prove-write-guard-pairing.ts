@@ -88,8 +88,7 @@ const pendingReason = conflictReason({ entry: { id: 'pending:1', kind: 'pending'
 check('a pending fact takes the fact road', pendingReason.startsWith('conflicts with a pending fact: "the daemon restarts after an update": ask the user which is true; on their word, Correct pending:1 with their reason'), pendingReason)
 check('no refusal reason says supersede', ![factReason, ruleReason, pendingReason].some(reason => reason.toLowerCase().includes('supersede')))
 check('the user\'s line is unchanged and plain', conflictNotice({ entry: { ...factEntry, id: 'seq:43', seq: 43, kind: 'rule', asked: true }, overlap: 1, flip: 'a negation' }) === 'not stored: it conflicts with rule 43, "run the suites in parallel and batch the…" — the rule stands')
-const promptLine = RETAIN_PROMPT.split('\n').find(line => line.includes('states the opposite of one already on record')) ?? ''
-check('the Retain prompt gives the model the same law (the user\'s call, then the two roads on their word) and never says supersede', promptLine.includes("A contradiction is the user's call: tell them the conflict in one line and ask which is true; never Correct the record on a contradiction refusal without their word in the same conversation. On their word, Correct the old one with their reason and retain again, or retain both with the difference stated (when, where, which)") && !promptLine.includes('supersede'), promptLine)
+check('Retain does not duplicate the concrete contradiction recovery tested above', !/Correct|contradiction|supersede/.test(RETAIN_PROMPT) && RETAIN_PROMPT.includes('refusal reason'), RETAIN_PROMPT)
 
 section('§6 the library census: every fact of a library re-retained word for word is already on record — no candidate against the library, none refused')
 const library = process.argv[2] === undefined ? null : resolve(process.argv[2])

@@ -1,6 +1,7 @@
 
 import * as React from 'react'
 import { z } from 'zod'
+import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { getQuestionPreviewFormat } from '../../bootstrap/state.js'
 import { Box, Text } from '../../ink.js'
@@ -41,7 +42,7 @@ const questionSchema = z.object({
   question: z
     .string()
     .describe(
-      'Clear, specific question ending in a question mark; phrase for multi-select when applicable',
+      'Question text; phrase for multi-select when applicable',
     ),
   header: z
     .string()
@@ -54,7 +55,7 @@ const questionSchema = z.object({
     .min(2)
     .max(4)
     .describe(
-      'Mutually exclusive unless multiSelect; an "Other" free-text option is supplied automatically — never author one',
+      'Mutually exclusive unless multiSelect; an Other free-text answer is supplied automatically',
     ),
   multiSelect: semanticBoolean(z.boolean().default(false)).describe(
     'Allow several answers to this question',
@@ -112,6 +113,8 @@ const inputSchemaObject = z
         'Question texts must be unique across the call, and option labels must be unique within each question.',
     },
   )
+
+const modelInputSchemaObject = z.strictObject({ questions: inputSchemaObject.shape.questions })
 
 const outputSchemaObject = z.object({
   questions: z.array(questionSchema),
@@ -193,10 +196,13 @@ function identityResultText(output: Output): string {
 export const AskUserQuestionTool = buildTool({
   name: ASK_USER_QUESTION_TOOL_NAME,
   inputSchema: inputSchemaObject,
+  get inputJSONSchema() {
+    return zodToJsonSchema(modelInputSchemaObject) as never
+  },
   outputSchema: outputSchemaObject,
   maxResultSizeChars: RESULT_SIZE_CAP,
   shouldDefer: true,
-  searchHint: 'ask the user structured multiple-choice questions',
+  searchHint: "present structured questions and collect the user's answers",
   async description() {
     return DESCRIPTION
   },

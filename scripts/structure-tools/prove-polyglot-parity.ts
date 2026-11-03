@@ -26,6 +26,6 @@ for (const [label, env, ast, structure] of [
   check(`${label}: Structure discovery never advertises a duplicate lane`, !/pattern lane|metavariable|SYMBOL ADDRESSING|POLYGLOT/.test(result.prompt + result.hint))
   check(`${label}: AstSearch and AstEdit follow the polyglot and master gates`, ['AstSearch', 'AstEdit'].every(name => result.tools.includes(name) === ast))
   check(`${label}: Structure follows only its master gate`, result.tools.includes('Structure') === structure)
-  check(`${label}: descriptions name Ast tools only while they are offered`, /AstSearch/.test(result.prompt) === ast && /AstEdit/.test(result.prompt) === ast)
+  check(`${label}: Structure names no other structural tool regardless of availability`, !/AstSearch|AstEdit/.test(result.prompt))
 }
 finish('POLYGLOT PARITY')

@@ -77,12 +77,12 @@ const doctrine = await import('../../src/constants/subagentDoctrine.js')
   const tool = src('src/tools/AgentTool/AgentTool.tsx')
   check('the input type carries an optional ladder word', /effort\?: EffortLevel/.test(tool))
   check('the schema enumerates the ladder from its one owner', /effort: z\s*\.enum\(EFFORT_LEVELS\)\s*\.optional\(\)/.test(tool))
-  check("the field's text says a spawn without it rides the configured default, never the session's level", /Omitted, the configured crewmate default applies \(high unless the operator changed it in \/config\) — never your own level/.test(tool))
+  check('the effort field alone states the configured default, not the parent level', tool.includes('omitted uses the configured crewmate default (high), not the parent level') && !src('src/tools/AgentTool/prompt.ts').includes('configured crewmate default'))
   check("the call's word is the run's pin", /\.\.\.\(input\.effort !== undefined \? \{ effortOverride: input\.effort \} : \{\}\)/.test(tool))
   check('the Crewmate tool\'s description leaves the effort field to the field\'s own text (said once)', !src('src/tools/AgentTool/prompt.ts').includes("parameter sets the agent's reasoning effort") && !src('src/tools/AgentTool/prompt.ts').includes('never at your own level'))
   const hooks = src('src/tools/WorkflowTool/agentHooks.ts')
   check('a workflow\'s agent({effort}) validates against the ladder and rides as the pin', hooks.includes('!(EFFORT_LEVELS as readonly string[]).includes(opts.effort)') && hooks.includes("effortOverride: args.effort as RunAgentOpts['effortOverride']"))
-  check('the workflow prompt says an omitted effort rides the configured default, never the session\'s', src('src/tools/WorkflowTool/workflowPrompt.ts').includes('Omitted, the configured crewmate default applies (high unless the operator changed it in /config) — never the session\'s own level'))
+  check('the Workflow effort option owns the configured-default fact', src('src/tools/WorkflowTool/workflowPrompt.ts').includes('Omitted, uses the configured crewmate default (high), not the session level.'))
 }
 
 {

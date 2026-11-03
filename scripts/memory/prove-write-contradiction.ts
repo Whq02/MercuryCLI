@@ -148,7 +148,7 @@ const lines = conflictLines(outcomes)
 console.log(`  the user's lines:\n    ${lines.join('\n    ')}`)
 check('one line reaches the user per conflict, in plain words', lines.length === 3 && lines[0] === `not stored: it conflicts with rule ${bunSeq}, "always use bun for installs; the lockfile only…" — the rule stands` && lines[1] === `not stored: it conflicts with fact ${suitesSeq}, "run the suites in parallel and batch the…"`, j(lines))
 check('the user\'s lines carry no code, no id and no percentage', lines.every(line => !/seq:|pending:|%|\d\.\d/.test(line)), j(lines))
-check('the Retain prompt tells the model the refusal, that a contradiction is the user\'s call, and the two roads on their word', RETAIN_PROMPT.includes('refused whole, naming the record it conflicts with') && RETAIN_PROMPT.includes("A contradiction is the user's call: tell them the conflict in one line and ask which is true; never Correct the record on a contradiction refusal without their word in the same conversation.") && RETAIN_PROMPT.includes('On their word, Correct the old one with their reason and retain again, or retain both with the difference stated') && RETAIN_PROMPT.includes("a pinned rule is the user's to change"))
+check('Retain names per-item refusals without preloading the contradiction recovery', RETAIN_PROMPT.includes('refusal reason') && !/Correct|contradiction|\/memory/.test(RETAIN_PROMPT))
 
 section('§3 a pending row is on record too; an item that replaces a rule is judged against everything but that rule')
 _resetMemoryVerbSessionStateForTesting()

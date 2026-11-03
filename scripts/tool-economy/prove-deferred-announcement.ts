@@ -45,22 +45,22 @@ const HEAD = 'Deferred tools: offered in this session, but their definitions are
 const SPEC_BODY = [
   'Deferred tools: offered in this session, but their definitions are not loaded. To call one, first load it with ToolSearch — query "select:<name>", or "select:<name>,<name>" for several — then call it.',
   'ApolloReview — present the completed Apollo pre-flight spec for review',
-  'AskUserQuestion — ask the user structured multiple-choice questions',
+  "AskUserQuestion — present structured questions and collect the user's answers",
   'AstEdit — structural code rewrite by syntax pattern across files, dry-run diff then apply',
   'AstSearch — structural code search by syntax pattern with meta-variables across languages',
-  'Browser — drive a real browser: the native playwright puppeteer selenium alternative for end-to-end e2e…',
+  'Browser — drive an isolated web browser; inspect pages and capture screenshots',
   'Checkpoint — checkpoint / mark context state before an exploration, rewindable',
-  'Computer — computer use: see the screen, drive the mouse and keyboard, screenshot the desktop, click type…',
+  'Computer — inspect desktop applications and operate their mouse and keyboard',
   'ContextLeft — how much context window is left: tokens used, window, tokens before autocompact',
   'Correct — correct project memory supersede amend retract',
-  'Crewmate — launch swarm agents as seats on a team or wave; delegate a task to a crewmate',
+  'Crewmate — delegate a bounded task to an independent agent and receive its report',
   'Debug — real debugger via DAP: launch/attach, breakpoints (conditional/hit-count/logpoints), function…',
   'EnterWorktree — switch this session into an isolated git worktree',
   'ExitWorktree — end the worktree session and return to the original directory',
-  'Git — typed local git work graph: status diff hunks conflicts commit plans, atomic stale-safe multi-commit…',
-  'Inspect — read Mercury work-graph objects by mercury:// ref (runs, receipts, tasks, crews, workflows…',
+  'Git — inspect repositories and hosted reviews; stage changes and preview commit groups',
+  'Inspect — read Mercury records by mercury:// reference',
   'JevEval — Jev second opinion: rank hypotheses, judge calls, check proposals',
-  'Journey — run and verify a local application end to end: start services, request loopback http, assert status…',
+  'Journey — verify local applications with ordered checks and per-step evidence',
   'Launch — launch.json, Python test, CMake, Godot, script profiles: debug via Debug, test via Test, run, build…',
   "LspCodeAction — list and apply the language server's quick fixes, refactors and source actions at a position",
   'LspFormat — format a file or a range of its lines, or organize its imports, through the language server',
@@ -75,19 +75,19 @@ const SPEC_BODY = [
   'Recall — search project memory with stable ids and provenance',
   'RecordConvention — record a user-stated durable project convention into MERCURY.md or its pointed guide',
   'Reflect — synthesize an answer over recalled memory with citations',
-  'Retain — store durable facts into project memory',
+  'Retain — store requested facts and standing rules in project memory',
   'Rewind — rewind context to the checkpoint, carry a report back',
   'SendMessage — send a note to a running crewmate of this session; it never starts a finished one',
-  'Service — named project services: start/observe/wait/logs/stop long-lived processes (web servers, watch…',
+  'Service — manage long-running project processes, their readiness, logs and input',
   'Skill — invoke a slash-command skill by name',
   'Sleep — wait / pause / rest for a duration without a shell',
-  'Structure — JS/TS AST query by node kind, previewed codemod: imports, calls, declarations, renames, import swaps',
+  'Structure — query JavaScript and TypeScript syntax and preview structural edits',
   'TaskStop — kill or stop a running background task',
   'Test — structured test runs: discover, run, rerun failed, run the relevant tests for your changes…',
   'Transaction — see what changed and was checked; finish the work only after a passing check',
-  'WebFetch — fetches and extracts content from a URL',
+  'WebFetch — fetch public pages as text or saved documents',
   'WebSearch — searches the web for current information',
-  'Workflow — orchestrate crewmates with deterministic JavaScript workflow',
+  'Workflow — run deterministic JavaScript workflows coordinating crewmates',
   'mcp__mercury__lease_list',
   'mcp__mercury__lease_release',
   'mcp__mercury__lease_take',
@@ -187,7 +187,7 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
   const row = getDeferredToolsDeltaAttachment(roster, MODEL, [first])[0] as { addedNames: string[]; body: string } | undefined
   const announced = computerToolEnabled() ? 48 : 47
   check(`${announced} tools are announced`, row !== undefined && row.addedNames.length === announced, String(row?.addedNames.length))
-  check(computerToolEnabled() ? 'the body equals the split announcement byte for byte (4,153 bytes; 4,190 wrapped)' : 'the body equals the split announcement without the Computer line (this build has no desktop driver)', row !== undefined && row.body === specBody && (!computerToolEnabled() || (Buffer.byteLength(row.body, 'utf8') === 4153 && Buffer.byteLength(rendered(row as never), 'utf8') === 4190)), row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== specBody.split('\n')[i]) ?? 'none'}`)
+  check('the body equals the purpose-line specification under 4,000 bytes', row !== undefined && row.body === specBody && Buffer.byteLength(row.body, 'utf8') <= 4000, row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== specBody.split('\n')[i]) ?? 'none'}`)
   if (row !== undefined) {
     for (const name of ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind', 'Crewmate', 'Skill', 'LspRead', 'AstSearch']) {
       check(`${name} has its line`, row.body.split('\n').some(line => line.startsWith(`${name} — `)))
@@ -196,6 +196,18 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
     check('no loaded tool has a line', ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Eval', 'ChangeSet', 'ToolSearch'].every(name => !row.addedNames.includes(name)))
   }
 }
+
+section('§3 the fourteen rewritten hints fit without a clipped tail')
+const { ListMcpResourcesTool } = await import('../../src/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts')
+const purposeNames = ['Inspect', 'Retain', 'Computer', 'Git', 'WebFetch', 'AskUserQuestion', 'Crewmate', 'Workflow', 'Service', 'Browser', 'Structure', 'CrewBoard', 'Journey', 'ListMcpResources']
+const purposeTools = [...getAllBaseTools(), ListMcpResourcesTool]
+for (const name of purposeNames) {
+  const tool = purposeTools.find(tool => tool.name === name)
+  const hint = tool?.searchHint ?? ''
+  check(`${name} has a complete purpose under 100 characters`, tool !== undefined && hint.length > 0 && hint.length <= 100 && formatDeferredToolLine(tool, false) === `${name} — ${hint}`)
+}
+check('CrewBoard names messaging and lead-only assignments, not launches', purposeTools.find(tool => tool.name === 'CrewBoard')?.searchHint === 'read and post shared crew messages; lead-only team assignments')
+check('ListMcpResources has its resource-listing purpose', ListMcpResourcesTool.searchHint === 'list resources exposed by connected MCP servers')
 
 const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
 markSessionNonInteractive()

@@ -38,7 +38,8 @@ try {
   check('a denied URL is not fetched', seen.length === before && denied.data.result.includes('fixture refusal'))
   check('mixed single/batch and oversized lists refuse', !WebFetchTool.inputSchema.safeParse({ url: urls[0], urls }).success && !WebFetchTool.inputSchema.safeParse({ urls: [...urls, urls[0]] }).success)
   const prompt = await WebFetchTool.prompt()
-  check('description states batch byte budgets', prompt.includes('urls') && prompt.includes('132,000') && prompt.includes('38,000 bytes'))
+  const fields = (await import('../../src/utils/zodToJsonSchema.ts')).zodToJsonSchema(WebFetchTool.inputSchema) as any
+  check('the urls field alone states batch byte budgets', fields.properties.urls.description.includes('132,000') && fields.properties.urls.description.includes('38,000 bytes') && !/132,000|38,000/.test(prompt))
 } catch (error) {
   check('batch call completes', false, String(error))
 } finally {

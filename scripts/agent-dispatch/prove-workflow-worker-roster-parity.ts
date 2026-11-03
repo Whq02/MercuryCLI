@@ -162,7 +162,7 @@ section('§3 THE DISPATCH SEAM')
 section('§4 THE DOC WORDS')
 {
   const prompt = readFileSync(join(import.meta.dir, '../../src/tools/WorkflowTool/workflowPrompt.ts'), 'utf8')
-  check('the Workflow tool prompt says a workflow agent carries a background sub-agent\'s tool box', /same tool box as a background crewmate/.test(prompt))
+  check('the agentType option states declared permissions and connected tools without describing another launcher', prompt.includes('its declared tools and permissions apply') && prompt.includes("session's permitted worker tools, including connected MCP tools") && !prompt.includes('Crewmate tool'))
 }
 
 if (failures > 0) {

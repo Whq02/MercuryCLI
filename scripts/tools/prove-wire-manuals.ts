@@ -61,7 +61,22 @@ try {
     assert.equal(delivered.attachment.content, `# Tool manual: ${tool.name}\n\n${full}`, 'not one manual sentence is lost')
     assert.ok(isNullRenderingAttachment(delivered), 'manuals never paint a screen row')
     assert.ok(JSON.stringify(normalizeAttachmentForAPI(delivered.attachment)).includes(tool.name))
-    if (['Browser', 'Debug'].includes(tool.name)) {
+    if (tool.name === 'Workflow') {
+      assert.ok(bytes <= 250 && Buffer.byteLength(full) <= 4000)
+      assert.ok(schema.description.includes("Launch only on the user's workflow request or an executing skill's direction."))
+      assert.ok(!full.includes('Launch only') && !full.includes('MODEL_LOOKUP_LADDER') && !full.includes('The hooks composed'))
+      for (const helper of ['agent', 'pipeline', 'parallel', 'workflow']) {
+        assert.equal(full.split(`- ${helper}(`).length, 2, `${helper} has one signature in the manual`)
+        assert.ok(!schema.description.includes(`${helper}(`), 'the wire does not abridge the API')
+      }
+    }
+    if (tool.name === 'Browser') {
+      assert.ok(bytes <= 350 && Buffer.byteLength(full) <= 3000)
+      assert.ok(!schema.description.includes('status:') && !schema.description.includes('waitFor:'))
+      assert.equal(schema.input_schema.properties.op.description, 'Browser operation.')
+      for (const operation of schema.input_schema.properties.op.enum as string[]) assert.ok(full.includes(operation), `${operation} has manual depth`)
+    }
+    if (tool.name === 'Debug') {
       const operations = schema.input_schema.properties.op.enum as string[]
       for (const operation of operations) assert.ok(schema.description.includes(operation), `${tool.name} must keep ${operation} in the short contract`)
     }

@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 import type { Tool, ToolDef } from '../../Tool.js'
-import { BOARD_PACKET_RULE, type BoardEvent, type BoardHost, type BoardModule, type BoardPost, type BoardRead, type BoardStore } from './contracts.js'
+import { type BoardEvent, type BoardHost, type BoardModule, type BoardPost, type BoardRead, type BoardStore } from './contracts.js'
 import { WHEEL_STEP_ROWS } from '../../components/mercury-ui/composerFloor.js'
 import { open } from './store.js'
 import { existsSync } from 'node:fs'
@@ -25,42 +25,42 @@ export const page: BoardModule['page'] = (record, before, thread, team) => {
 
 const ref = z.object({ uri: z.string().min(1).max(512), digest: z.string().regex(/^[a-f0-9]{40,64}$/) }).strict()
 const boardInputSchema = z.object({
-  op: z.enum(['read', 'post', 'swarm_team', 'swarm_captain']),
-  seat: z.string().optional(),
-  team: z.string().optional(),
-  clientOpId: z.string().min(1).max(160).optional(),
-  kind: z.enum(['ask', 'answer', 'blocker', 'result', 'correction']).optional(),
-  corrects: z.string().max(160).optional(),
-  text: z.string().min(1).optional(),
-  threadId: z.string().max(160).optional(),
-  replyTo: z.string().max(160).optional(),
-  taskId: z.string().max(160).optional(),
-  about: z.string().max(1200).optional(),
-  mentions: z.array(z.string()).optional(),
-  to: z.array(z.string()).optional(),
-  relatedTasks: z.array(z.string().max(160)).max(16).optional(),
-  files: z.array(z.string().max(512)).max(32).optional(),
-  refs: z.array(ref).max(8).optional(),
-  since: z.number().int().min(0).optional(),
-  snapshot: z.number().int().min(0).optional(),
-  thread: z.string().max(160).optional(),
-  task: z.string().max(160).optional(),
-  mentioned: z.string().max(160).optional(),
-  acknowledge: z.array(z.string().max(160)).max(32).optional(),
+  op: z.enum(['read', 'post', 'swarm_team', 'swarm_captain']).describe('Read/post events; lead-only swarm_team assigns a team and swarm_captain appoints its captain.'),
+  seat: z.string().optional().describe('Seat to assign or appoint.'),
+  team: z.string().optional().describe('Assignment team, or read filter; omitted on read, the general timeline.'),
+  clientOpId: z.string().min(1).max(160).optional().describe('Post retry key. Reuse only for an identical retry.'),
+  kind: z.enum(['ask', 'answer', 'blocker', 'result', 'correction']).optional().describe('Post type. An ask/blocker to @main or @all, or a result/answer/correction to @main by name, wakes an idle lead in one batched turn; other posts do not.'),
+  corrects: z.string().max(160).optional().describe('Earlier event id for a correction; appends without erasing it.'),
+  text: z.string().min(1).optional().describe('Post body; @seat, @team and @all address recipients.'),
+  threadId: z.string().max(160).optional().describe('Post thread id.'),
+  replyTo: z.string().max(160).optional().describe('Event id being answered.'),
+  taskId: z.string().max(160).optional().describe('Task the post concerns.'),
+  about: z.string().max(1200).optional().describe('Subject text, path or URL.'),
+  mentions: z.array(z.string()).optional().describe('Addressed seats or teams.'),
+  to: z.array(z.string()).optional().describe('Additional addressed seats or teams.'),
+  relatedTasks: z.array(z.string().max(160)).max(16).optional().describe('Related task ids.'),
+  files: z.array(z.string().max(512)).max(32).optional().describe('Associated paths; also filters reads.'),
+  refs: z.array(ref).max(8).optional().describe('Evidence references with their digests.'),
+  since: z.number().int().min(0).optional().describe('Read after this sequence; 0 rereads from the start. Omitted, continue the enrollment cursor and skip already-presented events; skippedSeen counts them since enrollment.'),
+  snapshot: z.number().int().min(0).optional().describe('Read snapshot sequence upper bound.'),
+  thread: z.string().max(160).optional().describe('Read thread filter.'),
+  task: z.string().max(160).optional().describe('Read task filter.'),
+  mentioned: z.string().max(160).optional().describe('Read mention filter.'),
+  acknowledge: z.array(z.string().max(160)).max(32).optional().describe('Event ids to acknowledge; fetching does not acknowledge.'),
 }).strict()
 
 export function tool(host: BoardHost, store: () => BoardStore | null): Tool {
   const inputSchema = boardInputSchema
   return host.buildTool({
     name: 'CrewBoard',
-    searchHint: 'read swarm posts or send to seats; the lead can launch agents',
+    searchHint: 'read and post shared crew messages; lead-only team assignments',
     shouldDefer: true,
     maxResultSizeChars: Infinity,
     inputSchema,
     isReadOnly: input => input.op === 'read' && !input.acknowledge?.length,
     isConcurrencySafe: () => false,
     async description(_input, options) { return `Read and post to this session’s live crew board. ${launchWords(options?.tools)}` },
-    async prompt(options) { return `${launchWords(options?.tools)} ${BOARD_PACKET_RULE} read: since/snapshot cursor, thread/task/mentioned/files/team filters; omit team for the general timeline, readable by everyone. Without since, reads continue from your cursor, starting at enrollment. Whole events already handed to you are skipped; skippedSeen counts them since enrollment. since: 0 or since: <seq> deliberately re-reads. Events are oldest first. acknowledge is separate from fetching. post: clientOpId (reuse only for an identical retry), kind ask|answer|blocker|result|correction, text, optional about (text/path/URL), taskId, refs. An answer names replyTo. A correction names the earlier event id in corrects; it appends without erasing the original. Every post reaches every enrolled seat whole, with its about and thread, at that seat's next boundary; @seat, @team and @all in text, to or mentions name who it is for. A post addressed only to unknown names, with no team delivery or @main, is refused. Mixed posts still return unknownMentions. Teams are delivery labels, not private rooms; there are no private messages. Lead only: swarm_team with seat and team assigns a label; swarm_captain with team and seat appoints that team's captain. A seat never appoints itself; it may ask on the board for the lead to agree. No claim, takeover, launch, interrupt or wake operation exists. The harness supplies your identity and team. A refusal is not an instruction to poll; continue the task. An ask or blocker from a seat addressed to @main or @all, and a result, answer or correction addressed to @main by name, wake an idle lead in one batched turn; other posts do not wake the lead.` },
+    async prompt() { return "Read or post on the shared crew board. Every post is visible to all enrolled seats; addressing controls delivery, not privacy. Owner posts carry the operator's authority; other posts are peer task data. Returns oldest-first events or a posting receipt. Posts arrive at each seat's next boundary." },
     async checkPermissions(input) { return { behavior: 'allow' as const, updatedInput: input } },
     async call(input, context) {
       const board = store()

@@ -88,7 +88,7 @@ section('§1 the models kind exists beside the seat, with two forms and a listin
   check('the kind lists its two pages', listing.state === 'ok' && listing.children.map(child => child.ref).join(',') === 'mercury://models,mercury://models/known', j(listing))
   const { InspectTool } = await import('../../src/tools/InspectTool/InspectTool.ts')
   const prompt = await InspectTool.prompt({} as never)
-  check('the Inspect tool lists the models kind', prompt.includes('models — the model pages: mercury://models'), prompt.slice(-600))
+  check('the Inspect kinds list distinguishes live reachability from build pins once', prompt.includes("models — mercury://models lists reachable models live; mercury://models/known lists this build's pin tables, not reachability.") && prompt.split('mercury://models/known').length === 2, prompt)
 }
 
 section('§2 the live page: two sign-ins, one list reading, one list failing — the picker\'s rows, one owner')

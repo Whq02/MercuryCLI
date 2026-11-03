@@ -193,7 +193,46 @@ const baseSchema = lazySchema(() =>
 export type Input = z.infer<ReturnType<typeof baseSchema>> & { steps?: Input[] }
 type SchemaType = z.ZodType<Input>
 const inputSchema = lazySchema((): SchemaType => baseSchema().extend({ steps: z.array(z.lazy(() => inputSchema())).optional() }))
-const modelInputSchema = lazySchema(() => baseSchema().extend({ steps: z.array(baseSchema()).optional().describe('Sequence actions; no nesting') }))
+const modelInputSchema = lazySchema(() => {
+  const base = baseSchema()
+  const step = base.extend({ action: z.enum(ACTIONS.filter(action => action !== 'sequence')) })
+  const f = base.shape
+  return base.extend({
+    x: f.x.describe('Last-screenshot x coordinate; paired with y.'),
+    y: f.y.describe('Last-screenshot y coordinate; paired with x.'),
+    toX: f.toX.describe('drag: destination x coordinate.'),
+    toY: f.toY.describe('drag: destination y coordinate.'),
+    dx: f.dx.describe('scroll: horizontal notches, positive right.'),
+    dy: f.dy.describe('scroll: vertical notches, positive down.'),
+    text: f.text.describe(`type: at most ${TYPE_TEXT_CAP} characters; only newline and tab control characters.`),
+    key: f.key.describe(`Key chord: ${KEY_CHORD_VOCABULARY}.`),
+    durationMs: f.durationMs.describe(`hold: ${HOLD_MIN_MS}–${HOLD_CAP_MS} ms; wait: default ${WAIT_DEFAULT_MS}, maximum ${WAIT_CAP_MS} ms.`),
+    display: f.display.describe('Display number; omitted, the front window. Also applies to acts with capture:true.'),
+    settleMs: f.settleMs.describe(`Post-action delay in ms, default ${SETTLE_DEFAULT_MS}, capped at ${SETTLE_CAP_MS}; not a readiness check.`),
+    capture: f.capture.describe('Return an image after an act. A sequence returns one final image; screenshot steps capture in place. wait-until captures on a match. false suppresses images.'),
+    full: f.full.describe('Capture a display instead of the front window; also applies to acts with capture:true.'),
+    pixels: f.pixels.describe('Return terminal pixels rather than accessibility text.'),
+    scale: f.scale.describe('Capture scale; default 0.5 for windows, 1 for displays/regions.'),
+    label: f.label.describe('Capture label.'),
+    depth: f.depth.describe(`Tree depth; default ${TREE_DEPTH_DEFAULT}, clamped at ${TREE_DEPTH_CAP}. Targets use the cap by default.`),
+    limit: f.limit.describe(`Tree rows; default ${TREE_LIMIT_DEFAULT}, clamped at ${TREE_LIMIT_CAP}. Targets use the cap by default.`),
+    target: f.target.describe('Accessibility target: exact role/name, substring text; nth selects a 1-based match.'),
+    ref: f.ref.describe('Node number from the latest tree; valid until the next tree read. Choose ref, target or x/y.'),
+    root: f.root.describe('Tree root: node number or accessibility target.'),
+    all: f.all.describe('Include hidden tree nodes.'),
+    points: f.points.describe('Include tree-node pixel positions.'),
+    clipboard: f.clipboard.describe('read: use clipboard text with separate consent instead of target/ref.'),
+    focusApp: f.focusApp.describe('Bring a running application forward by name or bundle id.'),
+    toTarget: f.toTarget.describe('drag: destination accessibility target instead of toX/toY.'),
+    until: f.until.describe('wait: text/title/URL substring or role/name; gone waits for removal.'),
+    count: f.count.describe('click: number of clicks, 1–3.'),
+    region: f.region.describe('Capture box in last-screenshot pixels.'),
+    scope: f.scope.describe('Tree scope: window by default; app includes menus and windows.'),
+    verify: f.verify.describe('Compare trees after acting; reports change, not task success.'),
+    captcha: f.captcha.describe('Hand a captcha to the operator.'),
+    steps: z.array(step).optional().describe('Non-nested sequence; stops at first failure. Capture, region, scale and settleMs belong on the sequence. Step fields have the same meanings as the top-level fields.'),
+  })
+})
 
 export type Output = {
   action: Input['action']
@@ -881,8 +920,7 @@ function denied(message: string, reason: string) {
 
 export const ComputerTool = buildTool({
   name: COMPUTER_TOOL_NAME,
-  searchHint:
-    'computer use: see the screen, drive the mouse and keyboard, screenshot the desktop, click type scroll press keys in a desktop application window, control a native app, automate a GUI',
+  searchHint: 'inspect desktop applications and operate their mouse and keyboard',
   capability: {
     intents: [
       'see the screen and drive the mouse and keyboard',
@@ -906,18 +944,11 @@ export const ComputerTool = buildTool({
     return "Drive the operator's screen: screenshot, click, type, press keys, scroll and drag in the application in front, on every model route that receives images"
   },
   async prompt() {
-    return `Call Computer directly, not through Eval. Coordinates are pixels of its last screenshot; renew after compaction/frame changes. target:{role?,name?,text?,nth?}: exact role/name, text substring; nth selects a 1-based match.
-screenshot: front window; full:true/display:N for a display. region:{x,y,width,height} uses last-shot pixels. scale:0.25–1 (window .5, display/region 1). These capture options also work on acts with capture:true.
-Terminal screenshot/tree reads AX text, cut at 15000; pixels:true gets an image.
-click(x,y OR target OR ref,count? 1–3,modifiers?) · doubleClick · rightClick · move. drag adds toX/toY OR toTarget; scroll adds dx/dy notches, positive down/right.
-type(text) ≤${TYPE_TEXT_CAP}, newline/tab only controls. key(key); hold(key,durationMs) 50–${HOLD_CAP_MS}ms. Keys: ${KEY_CHORD_VOCABULARY}.
-tree: [n] role "title" value; ref:n until reread. root:n|{role,name}; all:true hidden; points:true pixels. Depth/rows ${TREE_DEPTH_DEFAULT}/${TREE_LIMIT_DEFAULT}, caps ${TREE_DEPTH_CAP}/${TREE_LIMIT_CAP}, larger budgets clamp; scope:window default, app includes menus/windows; find(target). Targets use caps by default.
-wait(durationMs?,until?) ${WAIT_DEFAULT_MS} default/${WAIT_CAP_MS} max: until:{text}, {role,name}, {title} or {url} (substrings); gone:true waits for an element to leave. Image on match/capture:true; capture:false overrides. cursor/displays/frontmost read facts.
-read(target|ref) returns labelled text/value, up to 20000 chars; clipboard:true reads copied text with separate consent. focusApp:{name} brings a running app forward (name or bundle id).
-sequence(steps): acts/reads/screenshot, no nesting; first failure stops. Screenshot steps capture there; one final image unless capture:false. Put capture/region/scale/settleMs on the sequence.
-Acts: image only with capture:true; label?; verify:true compares trees, not task success. settleMs ${SETTLE_DEFAULT_MS}/${SETTLE_CAP_MS} max; changed/unchanged tracks title/focus, not page readiness; use wait-until for readiness.
-After the same act twice with an unchanged result, read the screen before acting again.
-The first act in an application asks; tree/find/read/wait-until share its grant. Other reads never ask. Sovereign skips asks. One driving session. Own terminal: only app-switch keys or focusApp; clicks outside its window. esc/ctrl+c releases input. Operator typing pauses/refuses acts. Never solve captchas: captcha:true hands them to the operator. Screenshots leave saved history.`
+    return `Operate the desktop by screenshot coordinates or accessibility targets. Coordinates are pixels of its last screenshot; refresh after frame changes. Returns screen observations and action results; trees use [n] role "title" value rows. Terminal captures return accessibility text by default.
+
+The first act in an application asks; tree/find/read/wait-until share its grant. Other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input. Screenshots remain in saved history.
+
+After the same act twice with an unchanged result, read the screen before acting again.`
   },
   userFacingName,
   shouldDefer: true,

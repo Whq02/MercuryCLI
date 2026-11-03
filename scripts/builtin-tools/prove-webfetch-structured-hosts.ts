@@ -461,9 +461,9 @@ try {
     )
 
     check(
-      'control: WebFetchTool DESCRIPTION and getPrompt() remain untouched',
-      DESCRIPTION.startsWith('Reads a public page as markdown in the page’s own words.') &&
-        getPrompt().includes(DESCRIPTION),
+      'control: WebFetchTool has one public-page contract with the reader disclosure',
+      DESCRIPTION.startsWith('Fetch public HTTP(S) pages without credentials.') &&
+        getPrompt() === DESCRIPTION && DESCRIPTION.includes('full URL to r.jina.ai'),
     )
   }
   section('§6 review — documented shapes only, redirects within the host, large registry documents, the rate-limit reset, no user credentials, deny rules in every mode')

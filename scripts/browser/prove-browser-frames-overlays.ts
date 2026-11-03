@@ -109,7 +109,8 @@ try {
   const disabled = await run({ op: 'click', selector: '#disabled', force: true })
   check('force never enables a disabled control', disabled.outcome === 'failed' && disabled.result.includes('disabled'), disabled.result)
   const prompt = await BrowserTool.prompt()
-  check('frame and force contracts are in the model prompt', prompt.includes('frame:') && prompt.includes('force: true') && !prompt.includes('selectors do not reach into frames'))
+  const fields = BrowserTool.inputSchema.shape
+  check('frame/force meanings live in fields and frame-coordinate depth stays in the manual', fields.frame.description?.includes('Acts use that frame origin') === true && fields.force.description?.includes('DOM click to a covered selector target') === true && prompt.includes('coordinate clicks stay in the main viewport'))
 } finally {
   await disposeBrowserOwner(owner)
   server.closeAllConnections()

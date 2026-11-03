@@ -26,7 +26,7 @@ const inputSchema = lazySchema(() =>
     ref: z
       .string()
       .describe(
-        'A mercury:// ref — mercury://<kind>/<id>[?lines=A-B&q=…&cursor=N&limit=N&child=name]. mercury://<kind> with no id lists that kind.',
+        'mercury://<kind>[/<id>][?lines=A-B&q=text&cursor=N&limit=N&child=name]. Selectors choose a line range, substring filter, page or named child.',
       ),
   }),
 )
@@ -42,16 +42,13 @@ export type Output = {
 }
 
 function kindsLine(): string {
-  return resourceAdapterKinds()
-    .map(k => `  ${k.kind} — ${k.describe}`)
-    .join('\n')
+  return resourceAdapterKinds().map(k => k.kind).join(', ')
 }
 
 export const InspectTool = buildTool({
   shouldDefer: true,
   name: INSPECT_TOOL_NAME,
-  searchHint:
-    'read Mercury work-graph objects by mercury:// ref (runs, receipts, tasks, crews, workflows, artifacts, agents, health, seat identity, model, effort, posture, engine history)',
+  searchHint: 'read Mercury records by mercury:// reference',
   maxResultSizeChars: 100_000,
   strict: true,
   isEnabled() {
@@ -61,18 +58,11 @@ export const InspectTool = buildTool({
     return "Inspect Mercury's durable work graph by mercury:// reference"
   },
   async prompt() {
-    return `Inspect any Mercury work-graph object through one typed reference: mercury://<kind>/<id>.
+    return `Read Mercury records by reference. Returns bounded pages and distinct absent, expired or unavailable states. Omitting the id lists objects of that kind.
 
-Known kinds:
-${kindsLine()}
-
-Selectors (append as ?key=value&…): lines=A-B (text range) · q=substring (filter lines) · cursor=N + limit=N (pagination) · child=name (a named sub-resource, e.g. a workflow crewmate).
-
-mercury://<kind> with no id lists that kind's objects. Answers are honest: absent (never existed) / expired (retention dropped it) / unavailable (subsystem off) are distinct — an empty listing means genuinely empty. Full payloads stay behind refs: results are bounded pages; follow the cursor rather than raising the limit.
-
-Use Inspect when a tool result or crewmate hands you a mercury:// ref, or to check run/receipt/workflow/service state without replaying transcripts. For plain file content, Read remains the primary tool (Inspect's file kind exists for uniformity and directory listings).
-
-mercury://seat is this seat's own reference: the model this turn runs on (the id the dispatch stamps), the effort, the posture, and the engines this session has run on with the time of each switch. Asked which model runs you, read it and answer from it; a model named in an earlier reply is not evidence of the one running now. mercury://models is what the operator sees in /model and /logins: the providers signed in and the models each reaches, read live; mercury://models/known is what this build knows from its pin tables, not what is reachable now. Before naming a model for a launch, read mercury://models and name one of its rows; never switch to another provider on your own.`
+Kinds: ${kindsLine()}.
+models — mercury://models lists reachable models live; mercury://models/known lists this build's pin tables, not reachability.
+seat — mercury://seat gives this turn's model, effort, posture and session engine history with switch times.`
   },
   userFacingName() {
     return 'Inspect'

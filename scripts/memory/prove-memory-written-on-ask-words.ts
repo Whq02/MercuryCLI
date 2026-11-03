@@ -20,13 +20,11 @@ try {
   const { MEMORY_WRITE_VERBS_SENTENCE, emptyMemoryPage, forReader, renderFrontPage } = await import('../../src/mneme/mnemeFrontPage.ts')
   const { MEMORY_EVIDENCE_CONTRACT } = await import('../../src/mneme/memoryEvidence.ts')
 
-  console.log('── the Retain tool: when memory is written ──')
-  const whenLine = RETAIN_PROMPT.split('\n').find(line => line.startsWith('- Only when the user asks')) ?? ''
-  check('the prompt opens its last bullet with the when-rule', whenLine.startsWith('- Only when the user asks for something to be remembered: a preference about how to work, a constraint they state, a fact they name — in their words.'), RETAIN_PROMPT.split('\n').at(-1))
-  check('the same bullet forbids a write on the model\'s own judgement and sends decisions and outcomes to the project\'s records', whenLine.includes('Never on your own judgement; a decision or an outcome belongs in the project\'s records, not in memory.'), whenLine)
-  check('the old invitation to write unasked is gone', !RETAIN_PROMPT.includes('Use for: decisions made') && !RETAIN_PROMPT.includes('outcomes worth keeping across sessions'), RETAIN_PROMPT)
-  check('the secret refusal and the not-for list stand in the same bullet', whenLine.includes('Not for: secrets, transcripts, or anything the repo already records.') && whenLine.includes('A fact that looks like a key, a token or a password is refused by the tool itself, whoever asked: memory is a plain-text record on disk.'), whenLine)
-  check('the pin bullet is unchanged', RETAIN_PROMPT.includes('store their words as said with pin: true') && RETAIN_PROMPT.includes('Never pin on your own judgement.'))
+  console.log('── the Retain tool: purpose and outcomes, not the memory doctrine ──')
+  check('the description names storage and per-item outcomes', RETAIN_PROMPT.startsWith('Store facts in project memory.') && ['stored id', 'already-staged', 'refusal reason'].every(word => RETAIN_PROMPT.includes(word)), RETAIN_PROMPT)
+  check('pending consolidation and plaintext storage remain visible', RETAIN_PROMPT.includes('pending observations and consolidate into topic pages') && RETAIN_PROMPT.includes('Memory is plaintext.'))
+  check('the wire description is at most 250 bytes', Buffer.byteLength(RETAIN_PROMPT) <= 250)
+  check('the system-owned memory doctrine and refusal recipes are absent', !/Only when|Never pin|Correct|\/memory|looks like a key|2,000/.test(RETAIN_PROMPT), RETAIN_PROMPT)
   check('the one-line description is unchanged', RETAIN_DESCRIPTION.startsWith('Store durable facts into project memory; a rule the user asks Mercury to remember'))
 
   console.log('── the memory page every session reads ──')

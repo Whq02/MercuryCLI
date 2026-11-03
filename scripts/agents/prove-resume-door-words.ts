@@ -6,7 +6,7 @@ let failures = 0
 let checks = 0
 const check = (label: string, yes: boolean) => { checks++; if (!yes) failures++; console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}`) }
 const expectations: Array<[string, string[]]> = [
-  ['src/tools/AgentTool/AgentTool.tsx', ['To continue this crewmate, use ${RESUME_AGENT_TOOL_NAME} addressed to that id', 'A crewmate name must be addressable by SendMessage and ResumeCrewmate:', 'takes more work through ResumeCrewmate({to: name}), running or finished, and notes through SendMessage({to: name}) while it runs.']],
+  ['src/tools/AgentTool/AgentTool.tsx', ['To continue this crewmate, use ${RESUME_AGENT_TOOL_NAME} addressed to that id', 'A crewmate name must be addressable by SendMessage and ResumeCrewmate:', 'Seat name for later messages and additional work; omitted, the crewmate runs its brief once.']],
   ['src/tasks/LocalAgentTask/LocalAgentTask.tsx', ['resume it from the crew view (r on its row) or by ResumeCrewmate to its id']],
   ['src/services/agentResults/lifecycle.ts', ['ResumeCrewmate revives it from its transcript with your message', 'ResumeCrewmate revives it warm (the prompt cache still holds its prefix)', 'ResumeCrewmate revives it (cold replay)']],
   ['src/tasks/stopTask.ts', ['; ResumeCrewmate to that id resumes it']],

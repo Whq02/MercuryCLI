@@ -59,6 +59,14 @@ const START_STEP = {
 }
 
 try {
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+  const { JourneyTool } = await import('../../src/tools/JourneyTool/JourneyTool.ts')
+  const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+  const words = await JourneyTool.prompt()
+  const fields = (zodToJsonSchema(JourneyTool.inputSchema) as any).properties
+  check('the description names evidence and first-failure behavior without repeating the step schema', words.includes('per-step evidence, cleanup outcome and a verdict') && words.includes('first failure skips remaining steps') && !/op:"|service\.start \{|Inspect/.test(words) && Buffer.byteLength(words) <= 250)
+  check('cleanup effects and value source live in their fields', fields.cleanup.description.includes('keep leaves them running') && fields.steps.items.oneOf.find((step: any) => step.properties.kind.const === 'value.assert').properties.jsonPath.description.includes("last http.request's JSON response"))
+  check('the real nine-step union is preserved', fields.steps.items.oneOf.length === 9)
   console.log('── the successful journey ──')
   const good = await runJourney(
     {

@@ -25,15 +25,6 @@ import { forEachQueryMatch } from '../../services/structure/query.js'
 import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
 
-function lspMounted(offered: ReadonlySet<string> | null): boolean {
-  if (offered !== null && !offered.has('LspRename')) return false
-  try {
-    const { isLspToolMounted } = require('../../services/lsp/manager.js') as typeof import('../../services/lsp/manager.js')
-    return isLspToolMounted()
-  } catch {
-    return false
-  }
-}
 import {
   renderToolResultMessage,
   renderToolUseErrorMessage,
@@ -48,22 +39,22 @@ const SELECT_LANE_EXTS = ['.js', '.jsx', '.mjs', '.cjs', '.ts', '.mts', '.cts', 
 const inputSchema = lazySchema(() =>
   z.strictObject({
     op: z.enum(OPS).describe('The structural operation'),
-    select: z.enum(STRUCTURE_SELECTS).optional().describe('query: what to select (function · class · call · import · property · …)'),
+    select: z.enum(STRUCTURE_SELECTS).optional().describe('query: node kind.'),
     name: z.string().optional().describe('query: name filter — exact or glob with *'),
-    callee: z.string().optional().describe('query select:call — dotted callee glob (console.log · fs.* · *.push)'),
+    callee: z.string().optional().describe('query select:call — dotted callee glob.'),
     module: z.string().optional().describe('query select:import/export — module specifier glob'),
     value: z.string().optional().describe('query select:string — literal substring'),
-    within: z.string().optional().describe("query: ancestor constraint ('class:Name' · 'function:name' · 'class')"),
-    files: z.array(z.string()).optional().describe('query: file globs relative to the project root'),
+    within: z.string().optional().describe('query: ancestor kind or kind:name.'),
+    files: z.array(z.string()).optional().describe('query: file globs relative to the project root; .js/.jsx/.mjs/.cjs/.ts/.mts/.cts/.tsx files only.'),
     limit: z.number().optional().describe('query: match bound (default 50, max 200)'),
     queryId: z.string().optional().describe('preview/explain: the query record (sq-…); defaults to the latest'),
     matchIds: z.array(z.string()).optional().describe('preview: match subset (default: every match)'),
-    replacement: z.string().optional().describe('preview replace · insert-before · insert-after: the new text ($TEXT, in replace, is the original node)'),
-    to: z.string().optional().describe('preview rename/replace-callee: the new name/callee'),
+    replacement: z.string().optional().describe('preview replace · insert-before · insert-after: new text; $TEXT in replace is the original node. Inserts land on their own line at the node boundary.'),
+    to: z.string().optional().describe('preview rename/replace-callee: new name/callee. rename changes the token, not every symbol reference.'),
     newModule: z.string().optional().describe('preview replace-import: the new module specifier'),
     newValue: z.string().optional().describe('preview set-value: the new property value text'),
     previewId: z.string().optional().describe('apply: the preview to apply (sp-…)'),
-    matchId: z.string().optional().describe('explain: the match to explain (sm-…)'),
+    matchId: z.string().optional().describe('explain: match id (sm-…) whose AST ancestry to return.'),
     action: z.enum(ACTIONS).optional().describe('preview: the transformation'),
   }),
 )
@@ -317,7 +308,7 @@ async function runOp(
 
 export const StructureTool = buildTool({
   name: 'Structure',
-  searchHint: 'JS/TS AST query by node kind, previewed codemod: imports, calls, declarations, renames, import swaps',
+  searchHint: 'query JavaScript and TypeScript syntax and preview structural edits',
   capability: {
     intents: [
       'find JS/TS calls by dotted callee',
@@ -344,24 +335,8 @@ export const StructureTool = buildTool({
   async description() {
     return 'Structural source queries and previewed multi-file codemods over JS/TS/JSX/TSX'
   },
-  async prompt(options) {
-    const offered = options?.tools === undefined ? null : new Set(options.tools.map(tool => tool.name))
-    const astAvailable = () => structurePolyglotEnabled() && resolveGrammarEngineDir().state === 'ok'
-    const search = offered?.has('AstSearch') ?? astAvailable()
-    const edit = offered?.has('AstEdit') ?? astAvailable()
-    const shape = search
-      ? `To find code by its shape in any language use AstSearch${edit ? ', and AstEdit to rewrite every match' : ''}; use this tool for`
-      : edit
-        ? 'To rewrite every match of a code shape in any language use AstEdit; use this tool for'
-        : 'Use it for'
-    return `Structural queries by node kind, and previewed, stale-safe codemods, over JS/TS/JSX/TSX only, on the TypeScript compiler's syntax tree. ${shape} JS/TS questions by node kind — imports by module, calls by dotted callee, declarations by kind and name, a node inside a named class or function — and for a rename, import swap, callee swap or property value that must land as one previewed change.${lspMounted(offered) ? ' For a true symbol rename, a file move or a language-server fix, prefer LspRename, LspMoveFile or LspCodeAction.' : ''}
-
-1. op:"query" (select, filters…) — a bounded AST query. Selects: ${STRUCTURE_SELECTS.join(' · ')}. Filters: name (exact or glob with *), callee ('fs.*'), module, value, within ('class:Name'), files (globs relative to the project root), limit (default 50, max 200). Only .js .jsx .mjs .cjs .ts .mts .cts .tsx files are read. Returns stable match ids (sm-…) and the record mercury://structure/query/<id>.
-2. op:"preview" (action, queryId?, matchIds?) — writes nothing; shows the files, the match count and each edit's first line before and after (8 per file, the rest counted). Actions: replace (replacement; $TEXT is the original node) · rename (to — the name token only) · remove · insert-before/insert-after (replacement — new text on its own line at the node's boundary) · replace-import (newModule) · replace-callee (to) · set-value (newValue).
-3. op:"apply" (previewId) — refuses if a file changed since the preview or the result would not parse; writes atomically with rollback, verifies by re-reading, reruns parse diagnostics, and reports a partial application as a failure.
-4. op:"explain" (matchId, queryId?) — the AST ancestry of one match.
-
-Records: mercury://structure/query/<id> · mercury://structure/preview/<id> (Inspect).`
+  async prompt() {
+    return 'Query JS/TS/JSX/TSX syntax by node kind and preview targeted codemods. Queries return match ids; previews return plans without writing. Apply checks unchanged sources and valid syntax before writing atomically.'
   },
   userFacingName,
   shouldDefer: true,

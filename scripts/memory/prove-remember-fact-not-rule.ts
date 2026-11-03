@@ -18,13 +18,13 @@ const { RECORD_CONVENTION_DESCRIPTION } = await import('../../src/tools/RecordCo
 const { unansweredConventionNote, UNANSWERED_ASK, RecordConventionTool } = await import('../../src/tools/RecordConventionTool/RecordConventionTool.ts')
 const { settleUnansweredAsk } = await import('../../src/cli/headless/runnerAsks.ts')
 
-console.log('\n§1 the Retain prompt: a plain "remember:" is a fact; the pin needs words that ask for a standing rule')
-const pinLine = RETAIN_PROMPT.split('\n').find(line => line.includes('pin: true')) ?? ''
-check('the pin line exists', pinLine !== '', RETAIN_PROMPT)
-check('the pin line no longer lists "remember: …" among the words that pin', !pinLine.includes('"remember: …"'), pinLine)
-check('the pin line names the standing-rule words', ['"always …"', '"from now on …"', '"every session"', '"keep this as a rule"'].every(words => pinLine.includes(words)), pinLine)
-check('the pin line says a plain "remember: <a fact>" is a fact stored without pin', pinLine.includes('A plain "remember: <a fact>" is a fact, not a rule: store it without pin; the pin needs words that ask for a standing rule.'), pinLine)
-check('the pin line still forbids a pin on the model\'s own judgement', pinLine.includes('Never pin on your own judgement.'), pinLine)
+console.log('\n§1 the pin field distinguishes a lasting rule from an ordinary fact')
+const { RetainTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
+const { z } = await import('zod/v4')
+const schema = z.toJSONSchema(RetainTool.inputSchema as never) as any
+const pinLine = schema.properties.items.items.properties.pin.description as string
+check('the field names the exact words, standing rule and lasting request', ["user's exact words", 'standing rule or preference', 'asked for that lasting rule'].every(words => pinLine.includes(words)), pinLine)
+check('pinning is not retaught in the description or through worked trigger phrases', !RETAIN_PROMPT.includes('pin: true') && !pinLine.includes('remember:') && !pinLine.includes('crewmate'), pinLine)
 check('the RecordConvention description still sends a remembered rule to Retain with pin, never to the estate', RECORD_CONVENTION_DESCRIPTION.includes('that is pinned memory (Retain with pin)'), RECORD_CONVENTION_DESCRIPTION)
 const mneme = readFileSync(join(REPO, 'docs', 'MNEME.md'), 'utf8')
 check('the manual\'s example of a remembered rule carries a standing-rule word', /"remember: always …"/.test(mneme), mneme.split('\n').find(l => l.includes('remember:')) ?? '')

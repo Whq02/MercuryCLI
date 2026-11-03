@@ -54,7 +54,7 @@ try {
   const maps = await run('https://maps.example.org/maps')
   check('robots refusal names the absent maps road', maps.includes('robots.txt disallows') && maps.includes('no geocoding or routing road'), maps)
   const prompt = await WebFetchTool.prompt()
-  check('description states robots and reader rules', prompt.includes('404 or 410') && prompt.includes('sparse successful HTML') && prompt.includes('shared by agents'), prompt.split('\n').filter(line => /robots|shared by agents/.test(line)).join(' '))
+  check('the description keeps reader egress but leaves refusal and retry details to the observed result', prompt.includes('full URL to r.jina.ai') && !/404 or 410|sparse successful HTML|shared by agents|geocoding/.test(prompt), prompt)
   const { networkFailureClass } = await import('../../src/tools/WebFetchTool/fetchErrors.ts')
   check('DNS and TLS classes survive nested errors', networkFailureClass({ cause: { code: 'ENOTFOUND' } }).includes('DNS failure') && networkFailureClass({ code: 'CERT_HAS_EXPIRED' }).includes('TLS failure'), 'typed cause codes')
   const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')

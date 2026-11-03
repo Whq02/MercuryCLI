@@ -11,7 +11,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
 
 const DESCRIPTION_BUDGET = 160
-const PROMPT_BUDGET = 2_500
+const PROMPT_BUDGET = 650
 const SCHEMA_BUDGET = 2_600
 const NEEDLES = ['anthropic', 'claude', 'openai', 'gpt', 'gemini', 'google', 'deepseek', 'moonshot', 'kimi', 'z.ai', 'zhipu', 'hugging', 'openrouter', 'ollama', 'compat']
 
@@ -91,6 +91,12 @@ section('§3 the byte budgets and the needles')
   const found = NEEDLES.filter(needle => corpus.includes(needle))
   check('no vendor or route word appears in the description, the prompt or the schema', found.length === 0, found.join(', '))
   check('the prompt teaches the coordinate rule, the ask rule and the stop key', prompt.includes('pixels of its last screenshot') && prompt.includes('first act in an application') && prompt.includes('esc'))
+  check('the loop breaker stays verbatim', prompt.includes('After the same act twice with an unchanged result, read the screen before acting again.'))
+  check('the description has no other tool or action dictionary', !/Eval|click\(x|type\(text|sequence\(steps\)/.test(prompt))
+  const wire = ComputerTool.inputJSONSchema as any
+  check('the model schema keeps every inline field within its measured ceiling', bytes(JSON.stringify(wire)) <= 7700)
+  check('the step action enum excludes sequence while the top-level enum retains it', wire.properties.action.enum.includes('sequence') && !wire.properties.steps.items.properties.action.enum.includes('sequence'))
+  check('field semantics are on the top-level fields, not repeated on steps', wire.properties.key.description.includes('cmd/ctrl/alt/shift') && wire.properties.verify.description.includes('not task success') && wire.properties.steps.items.properties.key.description === undefined)
 }
 
 section('§4 the shape fields')
@@ -110,7 +116,7 @@ section('§4 the shape fields')
   }
   check('userFacingName() is Computer', ComputerTool.userFacingName({ action: 'screenshot' } as never) === 'Computer')
   check('the result size cap is 20000', ComputerTool.maxResultSizeChars === 20_000)
-  check('the search hint names computer use', typeof ComputerTool.searchHint === 'string' && ComputerTool.searchHint.toLowerCase().includes('computer use'))
+  check('the roster hint names desktop input without clipping', ComputerTool.searchHint === 'inspect desktop applications and operate their mouse and keyboard' && ComputerTool.searchHint.length <= 100)
   check('isEnabled() follows the flag', ComputerTool.isEnabled() === true)
 }
 

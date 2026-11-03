@@ -139,21 +139,21 @@ const inputSchema = lazySchema(() =>
     op: z
       .enum(OPS)
       .describe(
-        'status · open · click · type · scroll · waitFor · back · reload · select · press · hover · viewport · provision · extract · console · info · screenshot · close',
+        'Browser operation.',
       ),
     url: z.string().optional().describe('open: the URL to navigate to (http/https)'),
     waitUntil: z
       .enum(['domcontentloaded', 'load', 'networkidle2'])
       .optional()
-      .describe('open/reload: the navigation settle condition (default load; networkidle2 for busy SPAs)'),
+      .describe('open/reload: navigation settle condition (default load).'),
     selector: z
       .string()
       .optional()
       .describe(
-        'click/type/scroll/waitFor/extract: the element target — CSS, or aria/<name>[role="<role>"] (role + the exact full accessible name; extract mode:"tree" prints these), text/<substring> (rendered-text substring), xpath/<expr>, or `host >>> inner` piercing shadow roots (type: the focused element when omitted; extract: whole page when omitted)',
+        'Element target: CSS, aria/<name>[role="<role>"] with exact accessible name, text/<substring>, xpath/<expr>, or host >>> inner across shadow roots. Omitted: type uses focus; extract uses the whole page.',
       ),
-    frame: z.union([z.number().int().nonnegative(), z.string().min(1)]).optional().describe('Target frame: 0 is the main frame, 1 onwards are child frames in the extract listing; a string matches one frame URL substring. Acts ask for the target frame origin.'),
-    force: z.boolean().optional().describe('click with selector: after reading the overlay, dispatch a DOM click to a covered target; disabled targets still refuse'),
+    frame: z.union([z.number().int().nonnegative(), z.string().min(1)]).optional().describe('Frame index from extract (0 is main), or a unique URL substring. Acts use that frame origin, including secret fills.'),
+    force: z.boolean().optional().describe('click: dispatch a DOM click to a covered selector target.'),
     x: z.number().optional().describe('click: viewport x for a point click (with y; selector wins when both given)'),
     y: z.number().optional().describe('click: viewport y for a point click (with x)'),
     text: z.string().optional().describe('type: the characters to type · waitFor: the page text to await'),
@@ -161,7 +161,7 @@ const inputSchema = lazySchema(() =>
       .string()
       .optional()
       .describe(
-        'type: fill an operator-registered named secret instead of text (UPPER_SNAKE name; requires selector; only credential-shaped targets accept it) — the value never enters the conversation; the ask names the secret + origin pairing',
+        'type: operator-registered UPPER_SNAKE secret name, with selector. Credential fields require this instead of text. The value stays out of the conversation; each secret-and-origin pairing needs separate approval.',
       ),
     clear: z.boolean().optional().describe('type: clear the field first (selector targets only)'),
     enter: z.boolean().optional().describe('type: press Enter after typing'),
@@ -170,13 +170,13 @@ const inputSchema = lazySchema(() =>
       .number()
       .optional()
       .describe(
-        `waitFor + selector acts/reads (click/type/scroll/extract): deadline in ms (default ${WAIT_DEFAULT_MS}, cap ${WAIT_CAP_MS}) — a miss fails by name`,
+        `waitFor and selector actions/reads: deadline in ms (default ${WAIT_DEFAULT_MS}, cap ${WAIT_CAP_MS}).`,
       ),
     state: z
       .enum(['visible', 'attached', 'hidden'])
       .optional()
       .describe(
-        'waitFor selector: the awaited condition — visible (default), attached (in the DOM even if hidden), hidden (hidden OR gone: the spinner-vanished wait)',
+        'waitFor selector: visible (default), attached even if hidden, or hidden/removed.',
       ),
     mode: z
       .enum(['text', 'tree'])
@@ -199,14 +199,14 @@ const inputSchema = lazySchema(() =>
     buildId: z
       .string()
       .optional()
-      .describe('provision: pin an exact Chrome-for-Testing build (default: current stable; the ask names it)'),
+      .describe('provision: exact Chrome-for-Testing build (default current stable).'),
     width: z.number().optional().describe('viewport: CSS px width (320-3840)'),
     height: z.number().optional().describe('viewport: CSS px height (240-2160)'),
-    deviceScaleFactor: z.number().optional().describe('viewport: 1-3 (2 = retina screenshots)'),
+    deviceScaleFactor: z.number().optional().describe('viewport: device scale, 1–3.'),
     offset: z
       .number()
       .optional()
-      .describe('extract: start the text window at this char — the header names the chars shown of N; page a long extract'),
+      .describe('extract: character offset for the text window.'),
     limit: z.number().optional().describe('console: last N entries (default 50)'),
     fullPage: z.boolean().optional().describe('screenshot: capture the full scroll height (default viewport)'),
     label: z.string().optional().describe('screenshot: artifact filename hint'),
@@ -886,8 +886,7 @@ function actDetail(input: Input): string {
 
 export const BrowserTool = buildTool({
   name: 'Browser',
-  searchHint:
-    'drive a real browser: the native playwright puppeteer selenium alternative for end-to-end e2e browser automation — test and verify a web app or frontend UI journey, open a localhost dev server website, fill and submit a form, log in to a page, reproduce a UI bug, click type scroll, wait for selector text navigation, extract render page text accessibility tree DOM, read console errors, capture a screenshot, headless chrome edge chromium provenance status',
+  searchHint: 'drive an isolated web browser; inspect pages and capture screenshots',
   capability: {
     intents: [
       'test and verify a web app or UI journey end to end in a real browser',
@@ -918,59 +917,31 @@ export const BrowserTool = buildTool({
     return 'Drive a headless Chrome for Testing from the managed cache (or an operator-pinned browser; installed browsers are never driven) with full provenance: navigate, click, type, scroll, wait on events, extract text or the accessibility tree, read the console, screenshot'
   },
   wireDescription() {
-    return `Drive one owned browser session per agent through the bundled driver. Full usage notes arrive when loaded or first used.
-status: resolve operator pin > managed Chrome-for-Testing > unavailable; installed browsers are never driven. Does not launch.
-open: navigate an http(s) URL, launching on first use.
-click: selector or x+y; covered or disabled targets refuse.
-type: text into editable selector/focus; credential fields require secretRef, never plain text.
-scroll: selector into view or dy pixels.
-waitFor: selector, text, or navigation; selector defaults to visible, state may be attached/hidden. Prefer events over fixed pauses.
-back: history navigation.
-reload: refresh the page.
-select: native select options by value or visible label.
-press: navigation/edit key with optional modifiers; printable characters belong to type.
-hover: reveal hover controls.
-viewport: resize width/height, optional scale.
-extract: readable text or accessibility tree, selector/offset for scope and paging.
-console: logs, page errors and failed requests.
-info: current URL, title and approval.
-screenshot: viewport, fullPage or selector to a PNG.
-close: end the session and its approvals.
-provision: ask before installing Chrome-for-Testing when unavailable; never install a separate browser harness.
-Read the accessibility tree before acting; use its aria/name[role="role"], CSS, text/, xpath/, or >>> shadow selectors, never guessed classes. Wait for content when the body is empty. Selector actions auto-wait, bounded by timeoutMs.
-The first visit to each origin asks; crossing origins requires approval before further acts. Reads never ask, even across origins: name that origin when reporting, not as approved. Grants and sessions belong only to this agent. Secret fills need a separate secret+origin approval; register values out of band. Downloads and uploads are not performed here; fetch downloads separately. A new tab is closed unadopted: open its URL explicitly.`
+    return 'Drive one isolated browser session per agent through the bundled driver. Returns page observations, action results and screenshots. Opening a new origin or first acting on a crossed-to origin asks; reads never ask. Grants belong to this agent and end with its session.'
   },
   async prompt() {
-    return `Drive a real browser through the bundled driver: one owned headless session per agent (launched on first open, reaped on close/exit — concurrent agents each drive their own, they never share a page), full provenance on every act.
+    return `## Operations
+status reports browser resolution (operator pin, then managed Chrome-for-Testing), versions and session state without launching. Installed browsers are not driven.
+open launches on first use and navigates. Its navigation deadline reaches ${NAVIGATION_CAP_MS / 1000}s.
+click acts on an element or viewport point after actionability checks. A click that opens a new tab closes it unadopted; the result carries its URL.
+type focuses a selector target before entering text; editable inputs, textarea and contenteditable are supported.
+scroll brings a selector target into view or scrolls by a pixel delta.
+waitFor observes a selector, text, or navigation when neither is supplied. Text matching is case-insensitive with normalized whitespace. A navigation already completed during the previous act returns immediately.
+back navigates history; reload refreshes the page.
+select changes native dropdown options; press sends a key; hover moves over an element.
+viewport resizes the render surface; the initial size is 1280×800.
+extract returns text or indented role/name/state rows, including iframe content and frame indices/URLs. Output windows hold ${EXTRACT_CAP} characters.
+console returns an ordered ring of ${CONSOLE_RING_CAP} entries: logs, page errors, failed requests, HTTP errors, navigation dividers and dialogs. Dialogs are auto-dismissed; beforeunload is auto-accepted.
+info reports URL, title and approval state.
+screenshot saves a PNG artifact and attaches an image when the engine supports image input.
+close ends the session. Protocol calls have a ${BROWSER_PROTOCOL_TIMEOUT_MS / 1000}s deadline; close has ${BROWSER_CLOSE_BOUND_MS / 1000}s before the process is ended.
+provision asks before installing Chrome-for-Testing.
 
-op:"status" — the resolution verdict (operator pin > managed Chrome-for-Testing cache > unavailable; installed browsers are discovered for information and never driven), driver/browser versions, the live-session state, the session's approved origins and the approval rule; never launches a browser session.
-op:"open" (url, waitUntil?, timeoutMs?) — navigate to an http(s) URL (settles on load by default — networkidle2 for busy SPAs, domcontentloaded for speed; timeoutMs reaches 90s for a cold dev-server compile). A page census of 0 body-text chars means the app is still rendering: waitFor a selector or text before extract/screenshot.
-op:"click" (selector, or x+y; force?) — click an element or a viewport point. Selector clicks auto-wait (present and visible, bounded by timeoutMs) and gate on actionability: a disabled or covered target refuses instead of clicking nowhere. After reading the overlay, force: true dispatches a DOM click to the covered selector target; disabled targets still refuse. After a click that starts a navigation, op:"waitFor" (navigation) lets it settle.
-op:"type" (text, selector?, clear?, enter?) — type into the selector-named element (auto-waited, focused first, shadow roots resolved) or the currently focused element. Only text-bearing targets accept text (text/search/url/tel/email/number/date-family inputs, textarea, contenteditable); checkboxes/radios/buttons, file inputs and readOnly fields refuse. Credential-shaped fields (password inputs, one-time-code/cc-* autocomplete, password/otp/secret/api-key-shaped names) refuse plain text; the one road into a credential field is secretRef: the operator registers a named secret out-of-band (a MERCURY_BROWSER_SECRET_<NAME> env var, or the browser-secrets file in the config home, owner-only mode) and op:"type" with secretRef:"NAME" + selector fills it — the value never enters this conversation, the fill lands only on credential-shaped targets, and the operator approves the secret + origin pairing (an approved origin alone never covers it).
-op:"scroll" (selector, or dy) — scroll an element into view, or by dy pixels (positive = down).
-op:"waitFor" (selector | text | neither = navigation; state?, timeoutMs?) — event-driven waiting bounded by a deadline (default ${WAIT_DEFAULT_MS}ms, cap ${WAIT_CAP_MS}ms). Selector waits default to visible (a pre-rendered hidden modal is not "present"); state chooses attached or hidden instead. Text waits match case-insensitively with whitespace normalized. A navigation wait whose navigation already landed during the previous act returns at once. Prefer this over any fixed pause.
-op:"back" / op:"reload" — history navigation / reload the current page.
-op:"select" (selector, values) — choose <select> options by value, falling back to visible label. A native dropdown cannot be driven by click; select drives it.
-op:"press" (key, modifiers?) — press a navigation or edit key (Enter, Escape, Tab, arrows, Backspace, Delete, Home/End, PageUp/PageDown). Printable characters are deliberately not pressable — type owns them, and refuses credential fields.
-op:"hover" (selector) — hover an element (menus and controls that render on hover).
-op:"viewport" (width, height, deviceScaleFactor?) — resize the render surface (session default 1280x800 desktop). A read — no origin ask.
-op:"extract" (mode: "text"|"tree", selector?, offset?) — the page as readable text (innerText) or as an accessibility-tree projection (indented role "name" [state] lines; the tree includes iframe content; frame selects a child frame). Output beyond ${EXTRACT_CAP} chars is truncated — offset pages the window, selector narrows the scope.
-op:"console" (limit?) — the page's bounded truth ring (last ${CONSOLE_RING_CAP} entries, newest last): console logs, page errors with their stack head, network failures and 4xx/5xx responses (method + path + status), navigation dividers, and dialogs. "why is this page broken" reads from here. JS dialogs are auto-dismissed (beforeunload auto-accepted) and land in the ring with their text; choosing a dialog's answer is not offered.
-op:"info" — current URL, title and the origin's approval state; cheap facts, no side effects.
-op:"screenshot" (fullPage?, selector?, label?) — capture the page, the full scroll height, or one element (selector) to a PNG artifact; the image is attached to the result only when your engine takes image input, else the result names the file.
-op:"close" — end the session (origin approvals die with it). Every op is bounded: a browser that stops answering is given ${BROWSER_PROTOCOL_TIMEOUT_MS / 1000}s per protocol call and close ${BROWSER_CLOSE_BOUND_MS / 1000}s before its process is ended.
+## Targeting
+Selector actions wait for present and visible elements; scoped extract waits for attachment, so it can read hidden content. Frame-targeted click, scroll and screenshot require selectors; coordinate clicks stay in the main viewport.
 
-Selectors: every selector door takes CSS by default, plus four forms the bundled driver resolves everywhere: aria/<name>[role="<role>"] (role + the exact full accessible name — the two fields extract mode:"tree" prints, so a tree line \`button "Save"\` is addressable as aria/Save[role="button"]), text/<substring> (substring of rendered text), xpath/<expr>, and the >>> deep combinator that pierces shadow roots (my-widget >>> input). Read with extract mode:"tree", then act with the selector the tree handed you — never guess a CSS class on an app you have not read.
-
-Frames: pass frame: 1 (child-frame index from extract, 0 is the main frame), or frame: "<unique URL substring>" with click/type/scroll/waitFor/select/hover/extract/screenshot. Selectors, including >>> shadow selectors, resolve inside that frame. Extract lists child-frame indices and URLs. Acts and secret fills use the target frame's origin, not the embedding page's approval. Click coordinates remain main-viewport coordinates; frame requires a selector for click, scroll and screenshot.
-
-Auto-wait: selector acts (click/type/scroll) resolve with a bounded present-and-visible wait (default ${WAIT_DEFAULT_MS}ms, cap ${WAIT_CAP_MS}ms, timeoutMs overrides) — a late-rendered element needs no waitFor first. Scoped reads (extract selector) wait for attached only — hidden content is readable, not actable.
-
-A click that opens a new tab closes it unadopted (one owned page) — op:"open" its URL to follow it.
-
-Permissions: the first visit to an origin asks ${getIsNonInteractiveSession() && !canAnswerAsks() ? 'for approval by URL — in this headless session no one can answer, so an unapproved origin is refused unless the tool was pre-approved at launch with --allowed-tools Browser or the run started in a permission mode that does not stop here' : 'the operator by URL'}; once approved, opening and acting anywhere on that origin rides the grant for the rest of the session. A navigation that crosses to an unapproved origin (a link click, a redirect) re-asks before the next act there. Reads (status/waitFor/extract/console/info/screenshot) never ask — on a crossed-to origin too, so an approved page can lead you to read pages elsewhere: name the origin when you report them, and know the operator approved only the origin they were asked for. Sessions and origin approvals are per agent: an approval granted in one agent's session never authorises another agent. The default cap is 3 child browsers per parent session (MERCURY_BROWSER_MAX_SESSIONS changes it), plus a reserved lead slot that children cannot consume. Each browser closes after 5 minutes idle, allowing time to read and reason between acts without retaining unused browsers indefinitely; a running operation never expires, and completion renews the lease. A secret fill (type + secretRef) is its own consent class, approved per secret + origin pairing for the session.
-
-Downloads are never implicit: the driven session denies page-initiated downloads at the protocol level and the result names what was refused — "the link is a download (<type>, <size>, saves as <name>)" on a click, "open failed: <url> is a download (…)" on an open — ${DOWNLOADS_NOT_FOLLOWED}; the one consented download road is provisioning the engine itself — op:"provision" (buildId?) asks the operator before installing a Chrome-for-Testing build (/browser install is the same road by hand). When nothing resolves, provision instead of dead-ending or hand-rolling a headless-Chrome harness. File uploads stay out of scope. The driver needs node >= 22.12.`
+## Session lifetime
+The default cap is 3 child browsers per parent session plus a reserved lead slot. Each browser closes after 5 minutes idle; running operations do not expire, and completion renews the lease. Page-initiated downloads and file uploads are not performed here. The driver needs node >= 22.12.`
   },
   userFacingName,
   shouldDefer: true,

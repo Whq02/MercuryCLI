@@ -6,7 +6,6 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import { z } from 'zod/v4'
-import { semanticBoolean } from '../../utils/semanticBoolean.js'
 
 import {
   buildTool,
@@ -122,12 +121,9 @@ export function workflowRunLabel(meta: { name?: string; title?: string; descript
 type WorkflowInput = {
   script?: string
   name?: string
-  description?: string
-  title?: string
   args?: unknown
   scriptPath?: string
   resumeFromRunId?: string
-  run_in_background?: boolean
 }
 
 type WorkflowResultData = {
@@ -212,53 +208,33 @@ export const inputSchema = lazySchema(() =>
         .max(MAX_SCRIPT_BYTES)
         .optional()
         .describe(
-          'Self-contained workflow script. Must begin with `export const meta = { name, description, phases }` ' +
-            '(pure literal, no computed values) followed by the script body using agent()/parallel()/pipeline()/phase().',
+          'Self-contained JavaScript workflow source.',
         ),
       name: z
         .string()
         .optional()
         .describe(
-          'Name of a predefined workflow (built-in or from the project workflows directory). Resolves to a self-contained script.',
-        ),
-      description: z
-        .string()
-        .optional()
-        .describe(
-          "Ignored — set the workflow description in the script's `meta` block.",
-        ),
-      title: z
-        .string()
-        .optional()
-        .describe(
-          "Ignored — set the workflow title in the script's `meta` block.",
+          'Saved or built-in workflow name; used when scriptPath is absent.',
         ),
       args: z
         .unknown()
         .optional()
         .describe(
-          'Optional input value exposed to the script as the global `args`, verbatim. Pass arrays/objects as actual ' +
-            'JSON values, never as a JSON-encoded string — a stringified list breaks `args.filter`/`args.map` in the script.',
+          'JSON value exposed as args, verbatim; omitted, undefined.',
         ),
       scriptPath: z
         .string()
         .optional()
         .describe(
-          'Path to a workflow script file on disk — the persisted copy an earlier launch named: edit it with ' +
-            'Write/Edit and re-invoke with the same `scriptPath` instead of re-sending the script. Takes precedence ' +
-            'over `script` and `name`.',
+          'Path to a saved workflow, selected before name.',
         ),
       resumeFromRunId: z
         .string()
         .regex(/^wf_[a-z0-9-]{6,}$/)
         .optional()
         .describe(
-          `Run ID of a prior Workflow invocation to resume from (unchanged agent() calls replay from the journal). ` +
-            `Same-session only. Stop the prior run first (${TASK_STOP_TOOL_NAME}) before resuming.`,
+          'Prior run ID from this session, after that run stops.',
         ),
-      run_in_background: semanticBoolean(z.boolean().optional()).describe(
-        'Ignored — workflows always run in the background; the tool returns immediately with a task ID.',
-      ),
     })
     .refine(h => h.script || h.name || h.scriptPath, {
       message: 'Must provide script, name, or scriptPath',
@@ -367,24 +343,13 @@ function createProgressBatcher(opts: {
 const WorkflowToolDef = {
   name: WORKFLOW_TOOL_NAME,
   aliases: ['RunWorkflow'],
-  searchHint: 'orchestrate crewmates with deterministic JavaScript workflow',
+  searchHint: 'run deterministic JavaScript workflows coordinating crewmates',
   shouldDefer: true,
   maxResultSizeChars: 1e5,
   isEnabled: () => dynamicWorkflowsEnabled() && evaluateLaunchAuthority('workflows').allowed,
 
   wireDescription() {
-    return `Run a deterministic JavaScript workflow coordinating crewmates. Full usage notes arrive when loaded or first used.
-Launch: supply script, a registered name, or scriptPath (path takes precedence); args is a JSON value, never stringified JSON. Returns a task ID immediately; completion arrives by notification.
-Resume: scriptPath + resumeFromRunId, same session only; stop the earlier run first. Unchanged calls replay from the journal; changed args invalidate replay.
-agent(prompt, opts): dispatch one crewmate; schema returns validated data, otherwise text. Failed or skipped agents return null.
-pipeline(items, ...stages): each item advances independently; a failed stage skips that item's remainder.
-parallel(thunks): concurrent barrier; failures return null slots, so filter before using results.
-phase(title): select a progress group; concurrent stages must pass opts.phase explicitly.
-log(message): show a progress line.
-workflow(nameOrRef, args): one nesting level, shared counters and budget.
-budget: shared output-token target; absent total means no target, never loop on Infinity.
-Launch only on the user's workflow/multi-agent request, an executing skill's direction, or a requested saved workflow. Otherwise ask with the estimated fleet and cost. The operator chooses each dispatch's model or tier; read mercury://models, never substitute a smaller model. Implementation workflows include independent verification before success.
-Scripts start with literal export const meta = {name, description, phases}; no TypeScript, computed meta, filesystem, network, Date.now(), Math.random(), or zero-argument new Date(). Agents do external work. At most 1000 agent calls and 4096 items per fan-out; concurrent calls queue under the capacity governor. Crewmate permissions and declared tool sets still apply.`
+    return "Run a deterministic JavaScript script coordinating crewmates. Returns a task ID immediately and notifies on completion. Launch only on the user's workflow request or an executing skill's direction."
   },
   async prompt() {
     return getWorkflowToolPrompt()

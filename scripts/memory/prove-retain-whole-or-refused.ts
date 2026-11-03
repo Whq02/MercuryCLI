@@ -65,7 +65,9 @@ const block = RetainTool.mapToolResultToToolResultBlockParam({ outcomes: refused
 const content = String(block.content)
 check('the result is an error block that says 0 stored · 1 refused', (block as { is_error?: boolean }).is_error === true && content.startsWith('0 stored · 1 refused'), content.slice(0, 120))
 check('the result names the count, the limit and that the fact was NOT stored', content.includes('2,920 characters') && content.includes('the limit is 2,000') && content.includes('NOT stored'), content)
-check('the Retain prompt tells the model the limit and that nothing is ever cut', RETAIN_PROMPT.includes('2,000 characters') && /never cut/.test(RETAIN_PROMPT), RETAIN_PROMPT.split('\n').find(l => l.includes('2,000')) ?? '(no limit line)')
+const { z } = await import('zod/v4')
+const schema = z.toJSONSchema(RetainTool.inputSchema as never) as any
+check('the content field alone carries the combined character bound', schema.properties.items.items.properties.content.description.includes('content and context together may contain at most 2000 characters') && !/2000|2,000|never cut/.test(RETAIN_PROMPT))
 
 section('§5 the buffer law for every caller: an over-limit observation is not written, cut or whole')
 const direct = appendObservation({ text: long, source: 'proof' }, dir)

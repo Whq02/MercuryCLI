@@ -41,32 +41,25 @@ const src = (rel: string): string => readFileSync(join(import.meta.dir, '../../'
 
 section("§1 the launch tool's model parameter")
 {
-  check('the wire parameter is a short contract that names the two pages and points at the manual for the ladder', wireWords.length > 0 && Buffer.byteLength(wireWords) < 600 && wireWords.includes('mercury://models') && wireWords.includes('mercury://models/known') && wireWords.includes('The full manual'), wireWords)
-  check('the manual carries the ladder under its own heading (## Model selection), the last section of the manual', manual.includes(MODEL_SECTION) && modelWords.length > 200, manual.slice(-300))
-  check('the parameter has words', modelWords.length > 200, modelWords.slice(0, 120))
-  check('"must be in its live catalogue" has left the prompt (RED on the base)', !modelWords.includes('must be in its live catalogue'), modelWords.slice(-300))
-  check('it says how to know what is reachable: read mercury://models and name one of its rows (RED on the base)', modelWords.includes('To see the providers the operator is signed into and the models each reaches, read mercury://models and name one of them by its id'), modelWords)
-  check("a family word runs that family's current default", modelWords.includes("a family word runs that family's current default"), modelWords)
-  check('the ladder is spelled live, then known, then ask, with the known page named', modelWords.includes('The ladder is live, then known, then web, then ask') && modelWords.includes('mercury://models/known decides') && modelWords.includes('the launch receipt says so') && modelWords.includes('an exact id the known page lists runs'), modelWords)
-  check('the last rung: ask the operator in an interactive session (AskUserQuestion, naming the signed-in providers and the nearest rows); one line and stop in a headless run', modelWords.includes('ask the operator for the model id with AskUserQuestion, naming the providers that are signed in, the nearest live or known rows') && modelWords.includes('in a headless run say why in one line and stop'), modelWords)
-  check('never switch to another provider on your own — if the one asked for cannot run, say why and stop', modelWords.includes('Never switch to another provider on your own — if the one you were asked for cannot run, say why and stop.'), modelWords)
-  check('the family words keep their rows named (grok, glm, kimi, deepseek, muse, mistral)', modelWords.includes("'grok' (xAI's newest Grok row)") && modelWords.includes("'glm' (Z.AI's newest GLM row)") && modelWords.includes("'kimi' (Moonshot's newest Kimi row)") && modelWords.includes("'deepseek' (DeepSeek's newest row)") && modelWords.includes("'muse' (Meta's newest served Standard Muse Spark row)") && modelWords.includes("'mistral' (Mistral's newest row)"), modelWords)
-  check(`the sentence is free of the tool's own name (${AGENT_TOOL_NAME})`, !new RegExp(`\\b${AGENT_TOOL_NAME}\\b`).test(modelWords) && !/\bCrewmate tool\b/.test(modelWords), modelWords)
-  check('no model-facing word, on the wire or in the manual, says "catalogue-verified" or demands a live catalogue', !/catalogue-verified|live catalogue/.test(modelWords) && !/catalogue-verified|live catalogue/.test(wireWords), modelWords)
+  check('the model field names live discovery once without a fallback ladder', wireWords.includes('read mercury://models') && wireWords.split('mercury://models').length === 2 && !wireWords.includes('mercury://models/known'), wireWords)
+  check('the field preserves model grammar and precedence', ['[1m]', 'your own family keeps your exact model', 'Overrides the agent definition', 'omitted inherits yours'].every(words => wireWords.includes(words)), wireWords)
+  check('the operator model/effort choice is preserved once in its field', wireWords.includes("Follow the operator's model and effort; never downgrade to obtain read-only scoping.") && !manual.includes('never downgrade'), wireWords)
+  check('the manual has no model ladder or alias inventory', !manual.includes(MODEL_SECTION) && modelWords === '' && !manual.includes('Class aliases:') && !manual.includes('mercury://models'), manual)
+  check('the wire is a purpose statement, not an abridged manual', Buffer.byteLength(AgentTool.wireDescription()) <= 200 && !AgentTool.wireDescription().includes('Model and effort:') && !manual.includes(AgentTool.wireDescription()))
 }
 
 section('§2 the same words wherever the model parameter repeats')
 {
   const workflow = src('src/tools/WorkflowTool/workflowPrompt.ts')
-  check("the Workflow tool's opts.model line points at mercury://models and the known page and keeps the operator-asks rung (RED on the base: 'a string the catalog cannot resolve fails the dispatch')", workflow.includes('read mercury://models and name one of them by its id') && workflow.includes('mercury://models/known decides') && workflow.includes('${MODEL_LOOKUP_LADDER}'), workflow.match(/opts\.model —[^\n]*/)?.[0] ?? '')
+  check('Workflow defines its model option without copying discovery or recovery', workflow.includes('opts.model: operator-selected model id or family word') && !workflow.includes('mercury://models') && !workflow.includes('${MODEL_LOOKUP_LADDER}'))
   const { getWorkflowToolPrompt } = await import('../../src/tools/WorkflowTool/workflowPrompt.ts').catch(() => ({ getWorkflowToolPrompt: undefined as undefined | (() => string) }))
   if (typeof getWorkflowToolPrompt === 'function') {
     const composed = String(getWorkflowToolPrompt())
-    check("the composed Workflow prompt carries the pointer", composed.includes('read mercury://models and name one of them by its id'), composed.slice(0, 200))
+    check('the composed Workflow manual keeps model selection in its option once', composed.split('opts.model:').length === 2 && !composed.includes('mercury://models'), composed.slice(0, 200))
   }
   const { InspectTool } = await import('../../src/tools/InspectTool/InspectTool.ts')
   const inspect = await InspectTool.prompt({} as never)
-  check('the Inspect tool tells the model the two pages exist and what each is (RED on the base)', inspect.includes('mercury://models is what the operator sees in /model and /logins') && inspect.includes('mercury://models/known is what this build knows from its pin tables, not what is reachable now') && inspect.includes('Before naming a model for a launch, read mercury://models'), inspect.slice(-700))
+  check('Inspect names both model pages once and carries no launch runbook', inspect.includes("models — mercury://models lists reachable models live; mercury://models/known lists this build's pin tables, not reachability.") && inspect.split('mercury://models/known').length === 2 && !inspect.includes('Before naming a model for a launch') && Buffer.byteLength(inspect) <= 800, inspect)
   const { readTargetPromptLines } = await import('../../src/tools/FileReadTool/readTarget.ts')
   const read = readTargetPromptLines()
   check("the Read tool's description keeps its byte budget: mercury:// records in one sentence, the models pages not named (the fact lives once, in the launch parameter and the Inspect listing)", read.includes('A mercury:// reference reads a session record') && !read.includes('mercury://models'), read)

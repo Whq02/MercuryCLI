@@ -134,7 +134,7 @@ export type AgentToolInput = {
 }
 
 const CWD_PARAM_DESCRIPTION =
-  "The absolute directory the crewmate starts in: its shell, file tools and environment section start there instead of this session's directory. It must exist. Starting outside this session's starting folder asks for ordinary permission; Sovereign mode does not ask. The child has one starting folder of its own. With isolation 'worktree' the worktree is cut from that directory's repository and becomes the child's starting folder."
+  "Absolute starting directory. Starting outside the session's folder asks for permission; with isolation, its repository supplies the worktree that becomes the child's directory."
 
 function agentDirectoryOf(spelling: string): string {
   if (!isAbsolute(spelling) || hasControlCharacter(spelling)) {
@@ -174,11 +174,9 @@ export function agentCwdQuestion(spelling: string, permissionContext: ToolPermis
   }
 }
 
-const MODEL_PARAM_DESCRIPTION =
-  "Model override for this launch. A family word selects that family (the [1m] forms select the 1M-context variant; a word naming the parent's own family keeps the parent's exact model) and an exact id names its model exactly; an explicit model here wins over the agent definition's own model; omitted, the crewmate inherits the parent's model. Engine backends all run in-process with this harness's own tools. Class aliases: 'gpt' (qualified OpenAI default) · 'glm' (Z.AI's newest GLM row) · 'kimi' (Moonshot's newest Kimi row) · 'deepseek' (DeepSeek's newest row) · 'grok' (xAI's newest Grok row) · 'muse' (Meta's newest served Standard Muse Spark row) · 'compat' (the operator-named OpenAI-compatible endpoint's first model) · 'huggingface' (the session's own Hugging Face model, else the router flagship) · 'local' (the session's own local model, else the first discovered one) · 'gemini' (the session's own Gemini model, else the newest Gemini row the account lists) · 'openrouter' (the session's own OpenRouter model, else the auto router) · 'mistral' (Mistral's newest row) · 'nous' (the session's own Nous Portal model, else the Portal's first recommended live row) · 'zen' (the session's own OpenCode Zen model, else the gateway's first listed row) · 'minimax' (MiniMax's newest text row) · 'together' (the session's own Together AI model, else the gateway's first listed chat row) · 'cohere' (Cohere's newest row) · 'groq' (the session's own Groq model, else the first row of the Groq text list) · 'melious' (the session's own Melious AI model, else the first live chat row) · 'orcarouter' (the session's own OrcaRouter model, else the first listed row) · 'cerebras' (the session's own Cerebras model, else the first row of the Cerebras text list) · 'fireworks' (the session's own Fireworks model, else the first row of the Fireworks text list) · 'qwen' (Qwen's newest text row). To see the providers the operator is signed into and the models each reaches, read mercury://models and name one of them by its id; a family word runs that family's current default. When a signed-in provider's live list cannot be read, mercury://models/known decides — a family word runs the default this build knows and the launch receipt says so; an exact id the known page lists runs. " + MODEL_LOOKUP_LADDER
 
 function effortParamDescription(): string {
-  return `Reasoning effort for this crewmate: ${EFFORT_LEVELS.join(' | ')}. Omitted, the configured crewmate default applies (high unless the operator changed it in /config) — never your own level. A level the crewmate's model does not serve runs the nearest level it does; a model with no effort control runs without one. Setting it also turns on extended reasoning where the model supports it. Spend the top tiers on the hardest judge and verify work.`
+  return 'Reasoning effort; omitted uses the configured crewmate default (high), not the parent level. An unsupported level maps to the nearest served level; models without effort control ignore it. Enables extended reasoning where supported.'
 }
 
 export const inputSchema = lazySchema(() => {
@@ -186,7 +184,7 @@ export const inputSchema = lazySchema(() => {
     description: z
       .string()
       .describe('A short (3-5 word) summary of the task'),
-    prompt: z.string().describe('The task briefing handed to the crewmate'),
+    prompt: z.string().describe('Task brief: objective, evidence, boundaries, acceptance criteria and whether to implement or research.'),
     crewmate_type: z
       .string()
       .optional()
@@ -194,7 +192,7 @@ export const inputSchema = lazySchema(() => {
     model: z
       .string()
       .optional()
-      .describe("Model override: exact id or family word ([1m] selects the 1M variant; your own family keeps your exact model). Wins over the agent definition; omitted inherits yours. Read mercury://models for reachable ids, mercury://models/known if the signed-in provider's live list is unavailable. Family words use that family's current default; never switch providers without the operator's word. All engines keep this harness's tools. The full manual lists every alias and fallback."),
+      .describe("Exact model id or family word; read mercury://models. [1m] selects the 1M variant; your own family keeps your exact model. Overrides the agent definition; omitted inherits yours. Follow the operator's model and effort; never downgrade to obtain read-only scoping."),
     effort: z
       .enum(EFFORT_LEVELS)
       .optional()
@@ -214,30 +212,30 @@ export const inputSchema = lazySchema(() => {
           'A crewmate name must be addressable by SendMessage and ResumeCrewmate: it cannot contain "@" or be "*".',
       })
       .describe(
-        'Name for a crewmate you will message again: a named crewmate takes more work through ResumeCrewmate({to: name}), running or finished, and notes through SendMessage({to: name}) while it runs. Omit it for a crewmate that works its prompt once and returns its report.',
+        'Seat name for later messages and additional work; omitted, the crewmate runs its brief once.',
       ),
     team: z.string().regex(/^[\p{L}\p{N}_][\p{L}\p{N}_.-]{0,79}$/u).refine(value => !['all', 'general'].includes(value.toLowerCase())).optional().describe('Team label on the live crew board; teams guide delivery, never privacy.'),
     captain: z.boolean().optional().describe('Appoint this named seat as its team captain. Requires name, team, swarm enrollment and the lead; a team of five or more needs one before its fifth seat.'),
     isolation: z
       .literal('worktree')
       .optional()
-      .describe('Run the crewmate in a temporary git worktree.'),
+      .describe('Temporary git worktree; kept unlocked when the crewmate ends, with its path and branch in the result.'),
     worktree_at: z
       .string()
       .optional()
       .describe(
-        "With isolation 'worktree': pin the worktree to this commit, detached — the crewmate reads a frozen tree no later commit or edit can move (a reviewer reads exactly the reviewed commit). The spelling must resolve to a commit in the repository.",
+        "With isolation 'worktree': commit ref for a detached, frozen worktree.",
       ),
     cwd: z
       .string()
       .optional()
       .describe(CWD_PARAM_DESCRIPTION),
-    review_receipt: z.string().optional().describe("Launch a review of a committed change: with isolation 'worktree' and worktree_at naming the reviewed commit, the absolute path of an existing Markdown report outside that worktree whose \"## Review\" section is the crewmate's one permitted write. The crewmate reads the frozen commit, runs confined bun/bash verification under scripts (and bun run typecheck) with sources read-only, writes its findings into that section and ends with REVIEW: CLEAN or REVIEW: FINDINGS <count>. Name the job and any rules document in the prompt."),
+    review_receipt: z.string().optional().describe('Absolute path to an existing Markdown report outside the worktree. Its "## Review" section is the only permitted write; requires isolation and worktree_at.'),
     output_schema: z
       .record(z.string(), z.unknown())
       .optional()
       .describe(
-        'JSON Schema for the final answer, submitted through a StructuredOutput tool that checks it. The result opens with <structured status="valid"> and the checked JSON; "missing" or "invalid" means none passed.',
+        'JSON Schema for the final answer. The result carries the checked JSON with status valid, missing or invalid; valid means schema-valid, not independently verified.',
       ),
     schema_mode: z
       .enum(['permissive', 'strict'])
@@ -379,7 +377,7 @@ const CREWMATE_SEAT: MercuryAgentSeat = 'a crewmate'
 export const AgentTool = buildTool({
   name: AGENT_TOOL_NAME,
   maxResultSizeChars: RESULT_SIZE_CAP,
-  searchHint: 'launch swarm agents as seats on a team or wave; delegate a task to a crewmate',
+  searchHint: 'delegate a bounded task to an independent agent and receive its report',
   get inputSchema(): ZodType<AgentToolInput, AgentToolInput> {
     return inputSchema() as unknown as ZodType<AgentToolInput, AgentToolInput>
   },
@@ -389,15 +387,8 @@ export const AgentTool = buildTool({
   async description() {
     return 'Delegate a task to a crewmate: a new crewmate that handles complex, multi-step work on its own'
   },
-  wireDescription(fullPrompt: string) {
-    return `${fullPrompt.split('## When delegating is the wrong move')[0]!.trim()}
-
-Launch: brief a new crewmate with the objective, evidence, boundaries, acceptance criteria and whether to implement or research. Use direct tools for known-file reads or small searches.
-Background: run_in_background returns immediately; completion notifies you. Do not poll. Foreground waits for the report when your next step needs it. Launch independent crewmates together.
-Isolation: isolation="worktree" needs a repository or configured hook. cwd must exist; starting outside this session's folder asks. Worktrees survive unlocked; nothing is discarded automatically.
-Model and effort: follow the operator's choice, never downgrade to obtain read-only scoping. The child receives its declared tools, not the parent conversation; session-owned processes end with it.
-Results: relay a concise summary; verify load-bearing prose claims. A valid structured output passed its schema; require evidence fields where needed, not redundant rereads.
-Full usage notes arrive when loaded or first used.`
+  wireDescription() {
+    return 'Launch an independent crewmate from a task brief and return its report. The child does not inherit this conversation; its session-owned processes end with it.'
   },
   async prompt(options: {
     getToolPermissionContext: () => Promise<
@@ -423,7 +414,7 @@ Full usage notes arrive when loaded or first used.`
       const rule = getDenyRuleForAgent(permissionContext, AGENT_TOOL_NAME, agent.agentType)
       if (rule) refusals.set(agent.agentType, refusalWithReason(ruleSentence('launching it', 'deny', rule), reasonForRule(permissionContext, rule)))
     }
-    return `${await getPrompt(mcpEligible, false, options.allowedAgentTypes, new Set(options.tools.map(tool => tool.name)), refusals)}\n\n## Model selection\n${MODEL_PARAM_DESCRIPTION}`
+    return getPrompt(mcpEligible, false, options.allowedAgentTypes, new Set(options.tools.map(tool => tool.name)), refusals)
   },
   isEnabled(): boolean {
     return evaluateLaunchAuthority('subagents').allowed

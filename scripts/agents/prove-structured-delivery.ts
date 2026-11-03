@@ -49,7 +49,7 @@ const E4 = '<structured status="invalid">\nThe crewmate\'s last StructuredOutput
 const E4_BARE = '<structured status="invalid">\nThe crewmate\'s last StructuredOutput call failed your schema, so nothing below was checked against it. Check any value you take from its prose before relying on it, or launch the crewmate again with your schema\'s rules stated in its prompt.\n</structured>'
 const E5 = '<structured status="missing">\nThe crewmate never called StructuredOutput, and schema_mode "strict" fails the call without a payload. Launch the crewmate again and require the answer through StructuredOutput, or omit schema_mode to accept its prose.\n</structured>'
 const E6 = '<structured status="invalid">\nThe crewmate\'s last StructuredOutput call failed your schema (/def_line: must be integer), and schema_mode "strict" fails the call without a valid payload. Launch the crewmate again with that rule stated in its prompt, or omit schema_mode to accept its prose.\n</structured>'
-const OUTPUT_SCHEMA_WORDS = 'JSON Schema for the final answer, submitted through a StructuredOutput tool that checks it. The result opens with <structured status="valid"> and the checked JSON; "missing" or "invalid" means none passed.'
+const OUTPUT_SCHEMA_WORDS = 'JSON Schema for the final answer. The result carries the checked JSON with status valid, missing or invalid; valid means schema-valid, not independently verified.'
 const SCHEMA_MODE_WORDS = 'With output_schema: \'strict\' fails the call when none passed; \'permissive\' (default) returns the prose under status "missing" or "invalid".'
 const USAGE_NOTE = 'Treat the crewmate\'s prose as a claim to verify, not a fact: spot-check load-bearing results with a diff, a render, or a test before relying on them. A status="valid" payload passed your schema: use it without re-reading what the crewmate read, and require evidence as a field when a value needs it.'
 const AGENT_ID = 'acq4kdds9'
@@ -227,7 +227,7 @@ section('9. the words — the two field descriptions and the usage note')
   check('output_schema describes the block', shape.output_schema?.description === OUTPUT_SCHEMA_WORDS, JSON.stringify(shape.output_schema?.description))
   check('schema_mode describes the statuses', shape.schema_mode?.description === SCHEMA_MODE_WORDS, JSON.stringify(shape.schema_mode?.description))
   const prompt = await getPrompt([])
-  check('the usage note narrows the claim to the prose and tells the parent to use a valid payload', prompt.includes(USAGE_NOTE))
+  check('the schema field owns the validity distinction without a duplicate manual instruction', shape.output_schema?.description?.includes('schema-valid, not independently verified') === true && !prompt.includes(USAGE_NOTE) && !prompt.includes('without re-reading'))
   check('the old sentence is gone', !prompt.includes('Treat the agent\'s output as a claim to verify'))
 }
 

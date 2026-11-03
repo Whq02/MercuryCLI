@@ -105,8 +105,9 @@ tally.section("§3 the Crewmate tool's words say the rule: the worktree survives
 {
   const prompt = readFileSync(join(ROOT, 'src/tools/AgentTool/prompt.ts'), 'utf8')
   tally.check('the description no longer promises that an untouched worktree cleans itself up', !prompt.includes('cleans itself up'), 'prompt.ts still says "cleans itself up"')
-  tally.check('the description says nothing is removed automatically and the worktree survives unlocked with its path and branch in the result', /Nothing is removed automatically/.test(prompt) && /survives the crewmate's end unlocked/.test(prompt) && /path and branch riding back in the result/.test(prompt), 'the rule is not in the description')
-  tally.check("the description names the seven-day janitor's safe removal", /seven-day janitor removes only a clean one whose commits are reachable/.test(prompt), 'the janitor line is missing')
+  const fields = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
+  tally.check('the isolation field says the worktree is kept unlocked, with path and branch in the result', fields.includes('Temporary git worktree; kept unlocked when the crewmate ends, with its path and branch in the result.') && !prompt.includes('kept unlocked'))
+  tally.check('the manual names safe delayed cleanup', prompt.includes('seven-day janitor removes only a clean worktree whose commits are reachable'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

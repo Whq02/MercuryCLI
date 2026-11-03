@@ -200,8 +200,9 @@ section('§7 — the tool\'s surface')
   const shape = (schema as unknown as { shape: Record<string, unknown> }).shape
   check('start takes pty and input takes mode', 'pty' in shape && 'mode' in shape, Object.keys(shape).join(','))
   const words = await ServiceTool.prompt({} as never)
-  check('the prompt names pty:true and the three input modes', words.includes('pty:true') && words.includes('submit') && words.includes('write') && words.includes('eof'))
-  check("the prompt says an input's answer carries the service's reply, the cursor and its state", words.includes('The answer carries what the service printed in reply') && words.includes('default 500 ms') && words.includes("the cursor for op:\"logs\" and the service's state"))
+  const fields = shape as Record<string, { description?: string }>
+  check('pty and input meanings live in their fields, not the description', fields.pty?.description?.includes('pseudo-terminal') === true && fields.mode?.description?.includes('submit adds Enter') === true && !/pty:true|submit|eof/.test(words))
+  check('the description names returned state and cursored output; the timeout field owns reply waiting', words.includes('current state and cursored output') && fields.timeoutMs?.description?.includes('default 500') === true && !words.includes('500'))
   const ctx = { abortController: new AbortController(), getAppState: () => ({ sessionId: SESSION }), setAppState: () => {}, options: { tools: [], isNonInteractiveSession: true } } as never
   const toolTty = await ServiceTool.call({ op: 'start', name: 'tool-tty', command: python.interpreterPath!, args: ['-c', 'import sys\nname = input("name? ")\nprint("hello", name, flush=True)\nsys.stdin.readline()'], cwd: workDir, pty: true } as never, ctx)
   check('a pty service starts through the tool', toolTty.data.state === 'starting', toolTty.data.result)
