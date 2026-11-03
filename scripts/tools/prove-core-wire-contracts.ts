@@ -51,8 +51,8 @@ for (const name of names) {
 }
 const crew = tools.find(tool => tool.name === 'Crewmate')!
 const crewManual = await crew.prompt(options)
-assert.ok(crewManual.includes('## When delegating is the wrong move'))
-assert.ok(crewManual.includes('## Model selection') && crewManual.includes("'qwen'"))
+assert.ok(!crewManual.includes('## When delegating is the wrong move') && !crewManual.includes('## Model selection') && !crewManual.includes("'qwen'"), 'the Crewmate manual carries execution depth, not a when-not-to list or a model alias runbook')
+assert.ok(Buffer.byteLength(crewManual) < 2000 && Buffer.byteLength(crewManual) > 200, `the Crewmate manual is short depth (${Buffer.byteLength(crewManual)} bytes)`)
 assert.ok(!crewManual.includes('[object Promise]'))
 const crewSchema: any = await toolToAPISchema(crew, options)
 assert.deepEqual(shape(crewSchema.input_schema), shape(corpus.definitions.find((row: any) => row.name === 'Crewmate').input_schema))

@@ -140,9 +140,10 @@ for (const kind of kinds) {
       const canLaunch = offered.has('Crewmate')
       const summary = await tool.description(undefined, { tools: pool })
       const empty = await tool.call({ op: 'read' } as never, { options: { tools: pool } } as never, (() => {}) as never, {} as never)
-      for (const [surface, text] of [['description', summary], ['prompt', description], ['empty read', JSON.stringify(empty.data)]]) {
-        check(`${kind.label}: CrewBoard ${surface} names only the available launch road`, canLaunch ? text!.includes('ToolSearch select:Crewmate') : text!.includes('The lead launches seats.') && !/\bCrewmate\b/.test(text!))
+      for (const [surface, text] of [['description', summary], ['empty read', JSON.stringify(empty.data)]]) {
+        check(`${kind.label}: CrewBoard ${surface} (operator text, a call-time hint) names only the available launch road`, canLaunch ? text!.includes('ToolSearch select:Crewmate') : text!.includes('The lead launches seats.') && !/\bCrewmate\b/.test(text!))
       }
+      check(`${kind.label}: the CrewBoard prompt names no launch road and no launcher, whatever the pool offers`, !description.includes('ToolSearch select:Crewmate') && !description.includes('The lead launches seats.') && !/\bCrewmate\b/.test(description))
       check(`${kind.label}: the board roster hint names no unavailable launcher`, canLaunch || !/\bCrewmate\b/.test(tool.searchHint ?? ''))
     }
     const resumedChildContract = 'One launched with output_schema keeps its StructuredOutput tool for the resumed turn.'
@@ -156,8 +157,8 @@ for (const kind of kinds) {
   }
   rendered.set(kind.label, descriptions)
   if (kind.mountLsp) {
-    const steered = ['Structure'].filter(name => /\bLsp(?:Read|Rename)\b/.test(descriptions.get(name) ?? ''))
-    check(`${kind.label}: Structure's steering names the language-service tools exactly when the pool offers them; Grep and Edit name no other tool at all`, (offered.has('LspRead') ? steered.length === 1 : steered.length === 0) && !/\b(Lsp\w+|AstSearch|AstEdit|Structure)\b/.test(descriptions.get('Grep') ?? '') && !/\b(Lsp\w+|AstEdit|Structure)\b/.test(descriptions.get('Edit') ?? ''), steered.join(','))
+    const steered = ['Grep', 'Edit', 'Structure'].filter(name => /\bLsp(?:Read|Rename)\b/.test(descriptions.get(name) ?? ''))
+    check(`${kind.label}: no tool steers to the language-service tools, whatever the pool offers; Grep and Edit name no other tool at all`, steered.length === 0 && !/\b(Lsp\w+|AstSearch|AstEdit|Structure)\b/.test(descriptions.get('Grep') ?? '') && !/\b(Lsp\w+|AstEdit|Structure)\b/.test(descriptions.get('Edit') ?? ''), steered.join(','))
   }
   check(`${kind.label}: no offered description names a tool the session does not offer (${offered.size} offered)`, pairs.length === 0, pairs.join('; '))
 }

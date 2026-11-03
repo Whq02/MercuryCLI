@@ -70,12 +70,12 @@ for (const tool of tools) {
 }
 const crewTool = tools.find(tool => tool.name === 'Crewmate')!
 const crewPrompt = await crewTool.prompt({ getToolPermissionContext: async () => permissionContext, tools, agents: [] })
-assert.match(crewPrompt, /Implementation briefs carry the known target and acceptance criteria/)
-assert.match(crewPrompt, /Investigation briefs carry the unresolved question, evidence already checked, boundaries and required evidence in the answer/)
-assert.match(crewPrompt, /Keep ownership of the overall task; delegate reasoning inside a well-scoped question/)
-assert.ok(!crewPrompt.includes('Never hand the synthesis'))
+const crewDefinition = definitions.find(definition => definition.name === 'Crewmate')! as { input_schema: { properties: { prompt: { description: string }; model: { description: string } } } }
+assert.match(crewDefinition.input_schema.properties.prompt.description, /objective, evidence, boundaries, acceptance criteria and whether to implement or research/)
+assert.match(crewDefinition.input_schema.properties.model.description, /never downgrade to obtain read-only scoping/)
+assert.ok(!crewPrompt.includes('Never hand the synthesis') && !crewPrompt.includes('## Model selection'))
 const bashDefinition = definitions.find(definition => definition.name === 'Bash')!
-assert.equal(bashDefinition.description.split('Use `Test` for typed failures and rerunning only failed tests').length, 2)
+assert.ok(!bashDefinition.description.includes('Use `Test`') && !/\b(Glob|Grep|Read|Edit|Write|WebFetch|Browser|Service|TaskStop|ToolSearch)\b/.test(bashDefinition.description), 'Bash names no other tool')
 const debugDefinition = definitions.find(definition => definition.name === 'Debug')!
 const debugManual = await DebugTool.prompt({ getToolPermissionContext: async () => permissionContext, tools, agents: [] })
 assert.match(debugManual, /depth sets how many, default 20/)
@@ -83,7 +83,8 @@ assert.match(debugManual, /\.mercury\/dap-adapters\.json in the trusted working 
 assert.equal((debugDefinition as { input_schema: { properties: { depth: { description: string } } } }).input_schema.properties.depth.description, 'stack: number of frames to return (default 20)')
 const computerDefinition = definitions.find(definition => definition.name === 'Computer')!
 assert.ok('description' in computerDefinition && typeof computerDefinition.description === 'string')
-assert.match(computerDefinition.description, /Call Computer directly, not through Eval\. Coordinates are pixels of its last screenshot; renew after compaction\/frame changes\./)
+assert.match(computerDefinition.description, /Coordinates are pixels of its last screenshot; refresh after frame changes\./)
+assert.ok(!computerDefinition.description.includes('not through Eval'), 'no Eval prohibition: tool.Computer works from a cell')
 const bytes = JSON.stringify({ base, model, definitions }, null, 2) + '\n'
 if (record) {
   writeFileSync(fixture, bytes)
