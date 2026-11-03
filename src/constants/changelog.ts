@@ -1,6 +1,23 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.4
+- Changed the crew board to carry every post whole to every crewmate: a post reaches every enrolled crewmate, the lead included, at its next turn boundary, and a read returns everything new. The swarm limits are gone with their settings: /swarm cap and /swarm uncap, the Swarm limits group in /config, and the swarm.seatAllowance, swarm.waveAllowance, swarm.postChars, swarm.postsPerMinute and swarm.postsPerSeat keys; an older settings file still carrying them loads silently, and a board file from an older build drops its limit tables when opened.
+- Fixed a crewmate on the live crew board posting once or twice and then losing its CrewBoard tool for the rest of its run; a crewmate now carries the board tool in full from launch or resume, while the lead keeps it on demand.
+- Fixed the notice that tells the model which tools joined or left: it names only real changes (a tool the model already called or found by search is not announced again, and the last deferred tool leaving still is), and a resumed session's notice follows what that session recorded.
+- Fixed tools from an MCP server added during a session not being offered to the model until the next session.
+- Fixed the working row losing its clock, token count and speed after a permission dialog when a prompt had been sent mid-turn; switching views no longer needed to bring them back.
+- Fixed a project opened by two spellings of its path (a different letter case, a symlink, or a case-sensitive disk) getting a second session store, memory and workspace; the directory's own identity decides, a store under an older spelling is adopted on the first write, and reads never create files.
+- Fixed Mercury refusing to start when crew-board.mjs is missing beside mercury.mjs; the swarm says what is missing and names the reinstall instead.
+- Fixed a crewmate's note appearing in the composer after a sign-in wall; only your own unanswered line is handed back.
+- Fixed the transcript search not finding words from crew-board posts.
+- Fixed a crewmate's completion report listing checks that other crewmates ran; it reports only its own.
+- Fixed an Eval cell failing to read a nested tool's large result once the transcript kept only its preview; the cell receives the whole value and the display names the saved file.
+- Fixed a failed JS Eval cell printing its error headline twice.
+- Fixed the Test tool failing to load a unittest file under a hidden or dotted folder, such as .mercury or alpha.beta; the module path now starts below that folder.
+- Fixed lease calls on Windows paying about half a second per holder; holders are checked in one batch and the answer is kept for three seconds, and a stale answer can keep a refusal but never take a live lease.
+- Fixed an uncaught disk error when the crew-board file disappears under a running session; the read reports no change.
+
 ## 1.0.3
 - Added swarm chat in the main chat: with swarm on, board messages show as they arrive, each its own row with its time and the crewmate's colour, landing between the lead's blocks; a crewmate joining or parking shows the same way, a crewmate finishing as its completion notice; the turn summary counts tool work only. /swarmchat alone turns it off for the session; /swarmchat all, team <name> or main chooses which new messages show.
 - Added /general, /team and /whisper to post directly to crewmates: every crewmate, one team (its captain, when it has one), or one crewmate, with names completing as you type. Your posts carry your own label and reach the lead too; ordinary prompts still go only to the lead.
