@@ -74,7 +74,7 @@ export const GOLDEN_TASKS: readonly GoldenTask[] = [
     id: 'T10',
     name: 'no-match grep',
     prompt: 'count the FIXME comments under src/',
-    sentenceUnderTest: 'Except exit 1 when the last command is grep, rg, find, diff, cmp, pgrep, test, `[, which or `command -v`: that is a result with a label such as `no matches found (exit code 1)`.',
+    sentenceUnderTest: 'Except exit 1 when the last command is grep, rg, find, diff, cmp, pgrep, test, `[`, which or `command -v`: that is a result with a label such as `no matches found (exit code 1)`.',
     completion: 'The answer is zero and does not report the no-match exit as an error.',
   },
 ] as const
