@@ -2,7 +2,7 @@
 import { EFFORT_LEVELS } from '../../utils/effortLadder.js'
 
 const WORKFLOW_TOOL_PROMPT: string = `## Script format
-The first statement is \`export const meta = {…}\`, a pure object literal without computed values. name and description are required; whenToUse and phases are optional. Each phase has a title, optional detail and optional model. Titles match phase() calls exactly; a call without a matching entry opens its own progress group.
+The first statement is \`export const meta = {…}\`, a pure object literal without computed values. name and description are required; title, whenToUse and phases are optional. Each phase has a title, optional detail and optional model. Titles match phase() calls exactly; a call without a matching entry opens its own progress group.
 
 The body is JavaScript in an async wrapper with top-level await and ordinary built-ins. TypeScript syntax, Date.now(), Math.random() and zero-argument new Date() are unavailable. The script has no filesystem or network access; agents do external work.
 

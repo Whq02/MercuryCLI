@@ -6,7 +6,6 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import { z } from 'zod/v4'
-import { semanticBoolean } from '../../utils/semanticBoolean.js'
 
 import {
   buildTool,
@@ -122,12 +121,9 @@ export function workflowRunLabel(meta: { name?: string; title?: string; descript
 type WorkflowInput = {
   script?: string
   name?: string
-  description?: string
-  title?: string
   args?: unknown
   scriptPath?: string
   resumeFromRunId?: string
-  run_in_background?: boolean
 }
 
 type WorkflowResultData = {
@@ -212,25 +208,13 @@ export const inputSchema = lazySchema(() =>
         .max(MAX_SCRIPT_BYTES)
         .optional()
         .describe(
-          'JavaScript workflow source; overrides the body selected by scriptPath or name.',
+          'Self-contained JavaScript workflow source.',
         ),
       name: z
         .string()
         .optional()
         .describe(
           'Saved or built-in workflow name; used when scriptPath is absent.',
-        ),
-      description: z
-        .string()
-        .optional()
-        .describe(
-          'Ignored.',
-        ),
-      title: z
-        .string()
-        .optional()
-        .describe(
-          'Ignored.',
         ),
       args: z
         .unknown()
@@ -242,7 +226,7 @@ export const inputSchema = lazySchema(() =>
         .string()
         .optional()
         .describe(
-          'Saved workflow path; selects the file before name. With script, uses the supplied source.',
+          'Path to a saved workflow, selected before name.',
         ),
       resumeFromRunId: z
         .string()
@@ -251,9 +235,6 @@ export const inputSchema = lazySchema(() =>
         .describe(
           'Prior run ID from this session, after that run stops.',
         ),
-      run_in_background: semanticBoolean(z.boolean().optional()).describe(
-        'Ignored.',
-      ),
     })
     .refine(h => h.script || h.name || h.scriptPath, {
       message: 'Must provide script, name, or scriptPath',
