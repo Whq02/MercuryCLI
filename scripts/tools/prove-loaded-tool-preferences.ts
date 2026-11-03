@@ -16,7 +16,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { toolToAPISchema } = await import('../../src/utils/api.ts')
 const pool = getAllBaseTools()
 const wanted: Array<[string, RegExp]> = [
-  ['ChangeSet', /over Edit[\s\S]*several files/],
+  ['ChangeSet', /^Applies one set of edits, moves and deletions across existing text files as a whole:[\s\S]*every member is checked against its read anchor before the first write and one operator decision covers the set; a drifted or invalid member refuses the whole set and nothing is written\./],
   ['AstSearch', /over Grep[\s\S]*shape/],
   ['AstEdit', /over Edit[\s\S]*every match/],
   ['LspRead', /^Read-only language-server queries; prefer over text search for symbols/],
@@ -33,7 +33,9 @@ for (const [name, comparison] of wanted) {
   const schema = tool && await toolToAPISchema(tool, { tools: pool, agents: [], getToolPermissionContext: async () => getEmptyToolPermissionContext(), model: 'claude-sonnet-5' })
   const description = schema?.description ?? ''
   const ok = typeof description === 'string' && comparison.test(description)
+    && (name !== 'ChangeSet' || (Buffer.byteLength(description) <= 550 && !/\bEdit\b|\bprefer\b|\n\n/.test(description)))
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}: the wire description says when to prefer it — ${Buffer.byteLength(String(description))} description bytes`)
+  const fact = name === 'ChangeSet' ? 'one atomic-set paragraph, no tool comparison, at most 550 bytes' : 'the wire description says when to prefer it'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}: ${fact} — ${Buffer.byteLength(String(description))} description bytes`)
 }
 process.exit(failures === 0 ? 0 : 1)
