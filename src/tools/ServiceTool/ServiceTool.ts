@@ -69,7 +69,7 @@ const inputSchema = lazySchema(() =>
     args: z.array(z.string()).optional().describe('start: argument array'),
     cwd: z.string().optional().describe('start: working directory (default: session cwd)'),
     env: z.record(z.string(), z.string()).optional().describe('start: environment additions'),
-    readiness: z.array(readinessSchema()).max(8).optional().describe('start: readiness conditions.'),
+    readiness: z.array(readinessSchema()).max(8).optional().describe('start: readiness conditions — log regex · tcp port (host 127.0.0.1) · http url (GET, status 200) · file path · stable ms (the process alive that long).'),
     readinessMode: z.enum(['all', 'any']).optional().describe('start: how conditions combine (default all)'),
     restart: z.enum(['never', 'on-failure']).optional().describe('start: auto-restart policy (default never; bounded backoff, explicit stop always suppresses)'),
     lifecycle: z.enum(['session', 'project']).optional().describe('start: session dies with this session (default); project survives it and can be stopped from any session on this project.'),

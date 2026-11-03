@@ -27,7 +27,9 @@ export function renderPromptTemplate(
   const images = media.images
     ? 'Images are shown as pictures, or as recognised text with `ocr`.'
     : 'Images return recognised text through an installed OCR engine, or the installation needed when none is available.'
-  const pdfs = 'PDFs open as numbered text with page markers, or as page pictures with `pages`; a scanned page is read by OCR.'
+  const pdfs = media.images
+    ? 'PDFs open as numbered text with page markers, or as page pictures with `pages`; a scanned page is read by OCR.'
+    : 'PDFs open as numbered text with page markers (`pages` selects pages as text); a scanned page is read by OCR.'
   const targets = targetLines ?? STOCK_DIRECTORY_LINE
   return `Reads a local file and returns its text with up to ${MAX_LINES_TO_READ} lines, each prefixed by ${lineFormat}; the prefix is not file content. A result that is not the whole file names the unread range.
 

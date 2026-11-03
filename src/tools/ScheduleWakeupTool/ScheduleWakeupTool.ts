@@ -34,7 +34,7 @@ const inputSchema = lazySchema(() =>
       .string()
       .optional()
       .describe(
-        'A short note on why you are waking yourself, carried to the woken turn; not shown to the user.',
+        'A short note on why you are waking yourself; it heads the woken prompt and shows on the wake\'s row.',
       ),
   }),
 )

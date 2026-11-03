@@ -25,7 +25,7 @@ const RESULT_SIZE_CAP = 100_000
 
 
 const questionOptionSchema = z.object({
-  id: z.string().optional(),
+  id: z.string().optional().describe('Stable id of the option in the answer; defaults from its position'),
   label: z.string().describe('Concise 1-5 word label for this option'),
   description: z
     .string()
@@ -37,8 +37,8 @@ const questionOptionSchema = z.object({
 })
 
 const questionSchema = z.object({
-  id: z.string().optional(),
-  decisionId: z.string().optional(),
+  id: z.string().optional().describe('Stable id of the question in the answer; defaults from its position'),
+  decisionId: z.string().optional().describe('Key of the question\'s interview record (mercury://interview/<session>/<decisionId>); defaults when omitted'),
   question: z
     .string()
     .describe(

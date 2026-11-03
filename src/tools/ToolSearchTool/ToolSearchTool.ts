@@ -19,7 +19,7 @@ const inputSchema = z.object({
   query: z
     .string()
     .describe(
-      'What to load: exact names as "select:<name>,<name>"; or keywords ranked against the deferred roster, where "+word" requires the word in the name.',
+      'What to load: exact names as "select:<name>,<name>"; or keywords ranked against the deferred roster, where "+word" requires the word (in a tool\'s name, description or search words) and the other words only rank.',
     ),
   max_results: z.number().optional().default(5).describe('Maximum number of results to return (default: 5)'),
 })

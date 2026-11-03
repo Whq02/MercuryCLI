@@ -12,7 +12,7 @@ const OLD_STRING_DESCRIPTION = 'The exact text to replace, sent with new_string;
 const NEW_STRING_DESCRIPTION = 'The text to replace it with; "" deletes old_string'
 const REPLACE_ALL_DESCRIPTION = 'Replace every occurrence of old_string'
 const EXPECTED_ANCHOR_DESCRIPTION =
-  'The anchor from your latest Read of this file: the "(anchor: …)" value, carried across exactly'
+  'The latest "(anchor: …)" value for this file — from a Read, or from an Edit or Write result — carried across exactly'
 const APPEND_DESCRIPTION =
   'Text added on its own line at the end of the file (created when absent; no prior read needed), or at the end of `section`'
 const SECTION_DESCRIPTION =

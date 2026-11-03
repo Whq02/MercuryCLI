@@ -16,8 +16,8 @@ export function describeTimeout(): string {
 
 export async function getPrompt(): Promise<string> {
   return [
-    'Runs one PowerShell command and returns its output, stdout and stderr merged in the order written. The output comes back to you, not to the operator.',
-    `Up to ${getMaxOutputLength()} characters come back inline; a longer output is saved to a file, and the result carries its path with about ${PREVIEW_SIZE_CHARS} characters from its start and end. A non-zero exit comes back as an error naming the code, except exit 1 from grep, rg, findstr, where, fc, comp, diff or cmp, and a robocopy code under 8, which are results.`,
-    'The working directory persists between calls; other shell state does not.',
+    'Runs one PowerShell command and returns its output, stdout and stderr merged in the order written. The output comes back to you; the operator sees at most a folded preview.',
+    `Up to ${getMaxOutputLength()} characters come back inline; a longer output is saved to a file, and the result carries its path with about ${PREVIEW_SIZE_CHARS} characters from its start and end. A non-zero exit comes back as an error naming the code, except exit 1 when the last command is grep, rg, findstr, where, fc, comp, diff or cmp, or a robocopy code under 8, which are results labelled with what the exit means.`,
+    'In the main conversation the working directory persists between calls (a crewmate\'s does not); other shell state never does.',
   ].join('\n\n')
 }

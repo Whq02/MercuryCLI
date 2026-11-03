@@ -36,7 +36,7 @@ export const inputSchema = lazySchema(() =>
   z.strictObject({
     notebook_path: z
       .string()
-      .describe('Absolute path of the .ipynb file to modify (relative paths are rejected)'),
+      .describe('Path of the .ipynb file; a relative path resolves against the working directory'),
     cell_id: z
       .string()
       .optional()

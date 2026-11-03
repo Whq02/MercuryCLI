@@ -18,7 +18,7 @@ const prompt = await ServiceTool.prompt({} as never)
 check('the description names process observations without a second schema or sibling tool', prompt.includes('current state and cursored output') && !/Operations:|Bash|Inspect|readiness:/.test(prompt) && Buffer.byteLength(prompt) <= 250, prompt)
 const schema = ServiceTool.inputSchema as { shape: Record<string, { description?: string }> }
 const readiness = schema.shape.readiness?.description ?? ''
-check('the readiness field gives meaning without worked examples or a copied union', readiness === 'start: readiness conditions.', readiness)
+check('the readiness field names each condition with its default, without worked examples or a copied union', readiness === 'start: readiness conditions — log regex · tcp port (host 127.0.0.1) · http url (GET, status 200) · file path · stable ms (the process alive that long).', readiness)
 const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
 const field = (zodToJsonSchema(ServiceTool.inputSchema) as any).properties.readiness
 check('the schema itself owns the readiness array and five variants', field.type === 'array' && field.maxItems === 8 && field.items.anyOf.length === 5)

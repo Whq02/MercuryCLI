@@ -37,7 +37,7 @@ tally.section('4.2 — one text: the description says what comes back, each fact
     tally.check(`gone: "${gone}" (another tool, a rule, a repeat or a pre-empted result)`, !prompt.includes(gone))
   }
   const noMedia: string = await FileReadTool.prompt({ model: 'glm-5.3' })
-  tally.check('a model without image input gets the OCR sentence in the same place and nothing else changes', noMedia.includes('Images return recognised text through an installed OCR engine, or the installation needed when none is available.') && !noMedia.includes('shown as pictures') && noMedia.replace('Images return recognised text through an installed OCR engine, or the installation needed when none is available.', 'Images are shown as pictures, or as recognised text with `ocr`.') === prompt, noMedia)
+  tally.check('a model without image input gets the OCR sentence and the text-only PDF sentence in the same places and nothing else changes', noMedia.includes('Images return recognised text through an installed OCR engine, or the installation needed when none is available.') && !noMedia.includes('shown as pictures') && !noMedia.includes('page pictures') && noMedia.replace('Images return recognised text through an installed OCR engine, or the installation needed when none is available.', 'Images are shown as pictures, or as recognised text with `ocr`.').replace('PDFs open as numbered text with page markers (`pages` selects pages as text); a scanned page is read by OCR.', 'PDFs open as numbered text with page markers, or as page pictures with `pages`; a scanned page is read by OCR.') === prompt, noMedia)
 }
 
 tally.section('5 — the input schema: shapes unchanged, prose carries each fact alone, and it matches its recorded copy')

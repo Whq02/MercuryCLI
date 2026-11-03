@@ -79,7 +79,7 @@ assert.ok(!bashDefinition.description.includes('Use `Test`') && !/\b(Glob|Grep|R
 const debugDefinition = definitions.find(definition => definition.name === 'Debug')!
 const debugManual = await DebugTool.prompt({ getToolPermissionContext: async () => permissionContext, tools, agents: [] })
 assert.ok(!/default 20/.test(debugManual), 'the depth default lives in the depth field alone, not in the manual')
-assert.match(debugManual, /\.mercury\/dap-adapters\.json in the trusted working directory/)
+assert.ok(!/MERCURY_DAP_ADAPTERS|dap-adapters\.json/.test(debugManual), 'adapter registration is operator documentation, not model text')
 assert.equal((debugDefinition as { input_schema: { properties: { depth: { description: string } } } }).input_schema.properties.depth.description, 'stack: number of frames to return (default 20)')
 const computerDefinition = definitions.find(definition => definition.name === 'Computer')!
 assert.ok('description' in computerDefinition && typeof computerDefinition.description === 'string')

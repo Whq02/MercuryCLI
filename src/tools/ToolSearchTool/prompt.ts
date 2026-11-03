@@ -105,7 +105,7 @@ export function getPrompt(wireForm: DeferralWireForm = 'block', unattended: bool
 `
   const location = unattended
     ? `Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one name per line, optionally followed by a hint; keyword search matches names and descriptions even when only names are listed.`
-    : `Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one per line: the name, then what the tool is for.`
+    : `Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one per line: the name, and what the tool is for when it declares one; keyword search also reads each tool's full description.`
   if (wireForm === 'text-append') {
     return head + location + ` The result names the admitted tools, and their complete definitions are appended to the conversation right after it, callable from then on, no different from the tools the prompt opened with.`
   }

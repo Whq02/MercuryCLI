@@ -176,7 +176,7 @@ export function agentCwdQuestion(spelling: string, permissionContext: ToolPermis
 
 
 function effortParamDescription(): string {
-  return 'Reasoning effort; omitted uses the configured crewmate default (high), not the parent level. An unsupported level maps to the nearest served level; models without effort control ignore it. Enables extended reasoning where supported.'
+  return "Reasoning effort; omitted, the agent definition's effort, else the configured crewmate default (high unless the operator changed it), never the parent level. An unsupported level maps to the nearest served level; models without effort control ignore it. Enables extended reasoning where supported."
 }
 
 export const inputSchema = lazySchema(() => {
@@ -192,7 +192,7 @@ export const inputSchema = lazySchema(() => {
     model: z
       .string()
       .optional()
-      .describe("Exact model id or family word; read mercury://models. [1m] selects the 1M variant; your own family keeps your exact model. Overrides the agent definition; omitted inherits yours. Follow the operator's model and effort; never downgrade to obtain read-only scoping."),
+      .describe("Exact model id or family word; read mercury://models. [1m] selects the 1M variant; your own family keeps your exact model. Overrides the agent definition; omitted, the definition's model, else the configured crewmate default, else yours. Follow the operator's model and effort; never downgrade to obtain read-only scoping."),
     effort: z
       .enum(EFFORT_LEVELS)
       .optional()

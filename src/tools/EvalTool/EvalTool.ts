@@ -7,7 +7,7 @@ import { evalCodePermission } from '../../utils/permissions/shellProtectedPaths.
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { modelReceivesImageBlocks } from '../../utils/model/capabilities.js'
 import { getEngineModel } from '../../utils/model/model.js'
-import {
+import { EVAL_IDLE_TTL_MS,
   evalEnabled,
   EVAL_DEFAULT_TIMEOUT_SECONDS,
   EVAL_MAX_DISPLAY_CHARS,
@@ -126,7 +126,7 @@ const evalToolDef = buildTool({
   },
   wireDescription(fullPrompt: string) {
     const languages = fullPrompt.split('Languages in this session:\n')[1]?.split('\n\n')[0] ?? ''
-    return `Runs one code cell in a retained Python or JavaScript runtime and returns its value, output and errors. State is kept per agent, language and working directory, and reaped after 15 minutes idle; cells in one message run in order. Helpers inside a cell call session tools, launch a crewmate, run a model completion, read and write files and display rich output; their signatures arrive on first use.
+    return `Runs one code cell in a retained Python or JavaScript runtime and returns its value, output and errors. State is kept per agent, language and working directory, and reaped after ${EVAL_IDLE_TTL_MS / 60_000} minutes idle; cells in one message run in order. Helpers inside a cell call session tools, launch a crewmate, run a model completion, read and write files and display rich output; their signatures arrive on first use.
 ${languages}`
   },
   getActivityDescription(input?: Partial<EvalToolInput>) {

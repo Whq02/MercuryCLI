@@ -69,13 +69,14 @@ case "$res" in
   *)   echo "  ✗ resolver invariant failed: $res"; fail=1 ;;
 esac
 
-verify_str="Treat the crewmate's prose as a claim to verify, not a fact"
+contract="$root/src/prompt/mercuryContract.ts"
+verify_str="Use memory, documentation and crewmate reports as context. Verify their material claims when accuracy or currency matters."
 trust_str="The agent's outputs should generally be trusted"
-if grep -qF "$verify_str" "$agentprompt" \
-   && ! grep -qF "$trust_str" "$agentprompt"; then
-  echo "  ✓ agent-prompt verify-line unconditional (no blanket-trust sentence in source)"
+if grep -qF "$verify_str" "$contract" \
+   && ! grep -qF "$trust_str" "$contract" "$agentprompt"; then
+  echo "  ✓ contract verify-line unconditional (no blanket-trust sentence in source)"
 else
-  echo "  ✗ agent-prompt verify-line missing or a blanket-trust sentence present"; fail=1
+  echo "  ✗ contract verify-line missing or a blanket-trust sentence present"; fail=1
 fi
 if [ -f "$dist" ]; then
   if grep -qF "$verify_str" "$dist"; then echo "  ✓ verify-line ships (dist)"; else echo "  ✗ verify-line absent from dist"; fail=1; fi

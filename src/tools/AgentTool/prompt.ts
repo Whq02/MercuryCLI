@@ -53,7 +53,7 @@ export async function getPrompt(
   if (isCoordinator) return sections.join('\n\n')
 
   sections.push(`## Execution
-Launches in one message overlap; separate messages run serially. Foreground calls wait for the report. Reports return to the caller, not directly to the user.
+Launches in one message overlap; foreground launches in separate messages run one after another. Foreground calls wait for the report. Reports return to the caller, not directly to the user.
 
 Tool access follows the selected agent definition and the session's permissions. Foreground and background launches have the same tool access.
 

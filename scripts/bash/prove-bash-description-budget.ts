@@ -43,10 +43,10 @@ const fields = (BashTool as { inputJSONSchema: { properties: Record<string, { de
 const field = (name: string): string => fields[name]?.description ?? ''
 check(`the description is at most 800 bytes, a fifth of .28's 7,126 (${size})`, size <= 800, `${size} bytes`)
 check('it opens with what the tool runs and what comes back', text.startsWith('Runs one shell command and returns its output, stdout and stderr merged in the order written.'))
-check('it says once who sees the output', text.includes('The output comes back to you, not to the operator.'))
+check('it says once who sees the output', text.includes('The output comes back to you; the operator sees at most a folded preview.'))
 check('the output rule names the inline size, the saved file with its path and the preview', text.includes('Up to 30000 characters come back inline; a longer output is saved to a file, and the result carries its path with about 2000 characters from its start and end.'))
 check('the exit-1 rule lists which and command -v beside grep and the others', text.includes('grep, rg, find, diff, cmp, pgrep, test, `[`, which or `command -v`'))
-check('the shell rule says what persists and what does not', text.includes('The working directory persists between calls; shell variables, functions and options do not'))
+check('the shell rule says what persists and what does not, and where', text.includes("In the main conversation the working directory persists between calls (a crewmate's does not); shell variables, functions and options never do"))
 check('three paragraphs on this branch: the tool, its output, its shell', text.split('\n\n').length === 3, String(text.split('\n\n').length))
 console.log(`  paragraph bytes: ${text.split('\n\n').map(p => bytes(p)).join(' · ')}`)
 

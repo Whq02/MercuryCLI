@@ -111,7 +111,7 @@ const stepSchema = () =>
     }),
     z.strictObject({
       kind: z.literal('value.assert'),
-      jsonPath: z.string().describe("Path in the last http.request's JSON response."),
+      jsonPath: z.string().describe("Dot-separated keys from the last http.request's JSON response root (data.items.0.id); compared as text."),
       equals: z.string(),
       label: z.string().optional(),
       timeoutMs: z.number().optional(),
@@ -129,7 +129,7 @@ const inputSchema = lazySchema(() =>
     op: z.enum(OPS).describe('Journey operation.'),
     objective: z.string().optional().describe('run: what this journey verifies'),
     steps: z.array(stepSchema()).optional().describe('run: the ordered steps'),
-    cleanup: z.enum(['stop-started', 'keep']).optional().describe('stop-started stops journey-started services after the run (default); keep leaves them running.'),
+    cleanup: z.enum(['stop-started', 'keep']).optional().describe('stop-started stops journey-started services after the run (default); keep leaves them running until this session ends.'),
     id: z.string().optional().describe('status: the journey (jy-…)'),
   }),
 )

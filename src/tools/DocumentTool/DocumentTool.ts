@@ -37,7 +37,8 @@ async function renderDocument(input: DocumentInput, io: DocumentIO): Promise<Doc
 export const DocumentTool = buildTool({
   name: DOCUMENT_TOOL_NAME,
   shouldDefer: true,
-  searchHint: 'create convert inspect documents spreadsheets slides PDFs citations',
+  searchHint: 'create, convert, merge, split and inspect local documents, and format citations',
+  searchKeywords: ['create', 'convert', 'inspect', 'documents', 'spreadsheets', 'slides', 'PDFs', 'citations', 'docx', 'xlsx', 'pptx', 'pdf', 'bibtex', 'doi'],
   wireDescription() { return DOCUMENT_WIRE },
   inputSchema: documentSchema,
   maxResultSizeChars: 60_000,

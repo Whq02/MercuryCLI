@@ -2,7 +2,6 @@ import memoize from 'lodash-es/memoize.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 import { getSkillToolCommands } from '../../commands.js'
-import { COMMAND_NAME_TAG } from '../../constants/xml.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import type { Command } from '../../types/command.js'
 import { truncateToWidth } from '../../utils/format.js'
@@ -120,8 +119,9 @@ export function formatCommandsWithinBudget(commands: Command[], contextWindowTok
 }
 
 function buildPrompt(): string {
-  return `Runs a skill inline in this conversation, by name, with optional arguments. The skills on offer ride in system-reminder messages in this conversation; a request one of them covers goes through that skill first, and a user's "slash command" or "/something" means a skill. A skill named in a <${COMMAND_NAME_TAG}> tag in the current turn is already loaded, and its instructions apply directly.`
+  return `Runs a skill by name, with optional arguments — inline in this conversation, or in a forked crewmate when the skill declares one. The skills on offer ride in system-reminder messages in this conversation; a user's "slash command" or "/something" means a skill.`
 }
+
 
 
 const promptForRoot = memoize(async (_cwd: string): Promise<string> => buildPrompt())

@@ -168,7 +168,7 @@ export const GlobTool = buildTool({
     let content = data.filenames.join('\n')
     if (data.truncated) {
       content +=
-        '\n(Results are truncated. Consider using a more specific path or pattern.)'
+        '\n(Results are truncated to a sample spread across top-level folders, each newest first. Consider using a more specific path or pattern.)'
     }
     return { tool_use_id: toolUseID, type: 'tool_result' as const, content: content + ignoredNote + incompleteNote }
   },

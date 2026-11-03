@@ -134,7 +134,7 @@ const stockFields = () => ({
     .max(MAX_RANGES_PER_READ)
     .optional()
     .describe(
-      `Up to ${MAX_RANGES_PER_READ} 1-based line ranges read in one call ("1-20", "-15"), each with its own continuation mark.`,
+      `Up to ${MAX_RANGES_PER_READ} line ranges read in one call, each N, N-M, N+K, N- or -N (the last N lines), each with its own continuation mark.`,
     ),
   pages: z
     .string()
