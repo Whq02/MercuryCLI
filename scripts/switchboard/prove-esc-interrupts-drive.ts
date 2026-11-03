@@ -236,14 +236,10 @@ console.log('leg E — the capsule\'s live counter after a permission pause and 
     writeFileSync(join(frames, `${tag}.txt`), read.stdout)
     return read.stdout
   }
-  const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
-  const until = async (read: () => boolean, ms: number): Promise<boolean> => {
-    const deadline = Date.now() + ms
-    do {
-      if (read()) return true
-      await sleep(250)
-    } while (Date.now() < deadline)
-    return false
+  const until = (read: () => boolean, ms: number): Promise<boolean> => untilAsync(read, ms)
+  const holdDialog = (ms: number): Promise<boolean> => {
+    const release = Date.now() + ms
+    return untilAsync(() => Date.now() >= release, ms + S(5_000))
   }
   const capsuleRow = (text: string): string | null => {
     for (const line of text.split('\n')) {
@@ -270,40 +266,50 @@ console.log('leg E — the capsule\'s live counter after a permission pause and 
     check('E: the boot menu painted', await until(() => /new session/i.test(frame('boot')), S(60_000)))
     pty.send('\r')
     check('E: the chat painted', await until(() => /Type a prompt|\? for shortcuts/.test(frame('chat')), S(60_000)))
-    await sleep(1500)
-    pty.send('go')
-    await sleep(300)
+    pty.send('write the first note')
+    check('E: the composer took the prompt', await until(() => /write the first note/.test(frame('typed')), S(15_000)))
     pty.send('\r')
     check('E: the write asked for consent (the first permission dialog)', await until(() => /create note-1\.txt\?/.test(frame('dialog-1')), S(60_000)))
-    await sleep(HOLD_MS)
+    await holdDialog(HOLD_MS)
     pty.send('\r')
     check('E: the second request streamed after the consent', await until(() => messageRequests() >= 2, S(30_000)))
-    const secondAt = Date.now()
-    await sleep(3_000)
-    const before = capsuleRow(frame('before-later'))
+    let before: string | null = null
+    const counting = await until(() => {
+      before = capsuleRow(frame('before-later'))
+      const clock = clockOf(before)
+      return clock !== null && clock >= 1 && clock < HOLD_MS / 1000
+    }, S(15_000))
     const clockBefore = clockOf(before)
-    check('E: the capsule row carries the clock and the count before the mid-turn prompt (the dialog hold is not counted)', clockBefore !== null && clockBefore < HOLD_MS / 1000, JSON.stringify(before))
+    check('E: the capsule row carries the clock and the count before the mid-turn prompt (the dialog hold is not counted)', counting && clockBefore !== null, JSON.stringify(before))
     const startBefore = facts()?.turnStartedAt ?? 0
-    pty.send('later')
-    await sleep(300)
+    pty.send('later please')
+    check('E: the composer took the mid-turn prompt', await until(() => /later please/.test(frame('typed-later')), S(15_000)))
     pty.send('\r')
     check('E: the queued prompt re-stamped the seat\'s turn start while the turn stayed busy', await until(() => (facts()?.turnStartedAt ?? 0) > startBefore, S(15_000)), JSON.stringify({ startBefore, after: facts()?.turnStartedAt }))
-    await sleep(Math.max(0, secondAt + 8_000 - Date.now()))
-    const after = capsuleRow(frame('after-later'))
+    let after: string | null = null
+    const grew = await until(() => {
+      after = capsuleRow(frame('after-later'))
+      const clock = clockOf(after)
+      return clock !== null && clockBefore !== null && clock >= clockBefore + 2
+    }, S(12_000))
     const clockAfter = clockOf(after)
-    check('E: the mounted row keeps counting across the re-stamp (no leap by the dialog hold, no loss)', clockBefore !== null && clockAfter !== null && clockAfter >= clockBefore && clockAfter - clockBefore <= 8, JSON.stringify({ before, after }))
+    check('E: the mounted row keeps counting across the re-stamp (no leap by the dialog hold, no loss)', grew && clockBefore !== null && clockAfter !== null && clockAfter - clockBefore <= 12, JSON.stringify({ before, after }))
     check('E: the second write asked for consent (the row remounts behind it)', await until(() => /create note-2\.txt\?/.test(frame('dialog-2')), S(60_000)))
-    await sleep(SECOND_HOLD_MS)
+    await holdDialog(SECOND_HOLD_MS)
     pty.send('\r')
     check('E: the third request streamed after the second consent', await until(() => messageRequests() >= 3, S(30_000)))
-    const thirdAt = Date.now()
-    const remounted: Array<string | null> = []
-    for (const offset of [3_000, 6_000]) {
-      await sleep(Math.max(0, thirdAt + offset - Date.now()))
-      remounted.push(capsuleRow(frame(`remounted-${offset / 1000}s`)))
-    }
-    check('E RED ON THE BASE: the remounted capsule row carries the clock and the ↓ count at once — the pause before the re-stamp never hides the live counter', remounted.every(row => clockOf(row) !== null), JSON.stringify(remounted))
-    check('E: the remounted clock reads from the re-stamped start, the second hold excluded', remounted.every(row => { const c = clockOf(row); return c !== null && c >= 6 && c < (thirdAt - startBefore) / 1000 }), JSON.stringify(remounted))
+    const remounted: Array<{ row: string | null; atMs: number }> = []
+    const sample = (tag: string): void => { remounted.push({ row: capsuleRow(frame(tag)), atMs: Date.now() }) }
+    const painted = await until(() => clockOf(capsuleRow(frame('remounted-first'))) !== null, S(10_000))
+    sample('remounted-first')
+    const firstClock = clockOf(remounted[0]!.row)
+    const kept = await until(() => {
+      const clock = clockOf(capsuleRow(frame('remounted-later')))
+      return clock !== null && firstClock !== null && clock >= firstClock + 3
+    }, S(10_000))
+    sample('remounted-later')
+    check('E RED ON THE BASE: the remounted capsule row carries the clock and the ↓ count at once — the pause before the re-stamp never hides the live counter', painted && kept && remounted.every(({ row }) => clockOf(row) !== null), JSON.stringify(remounted))
+    check('E: the remounted clock reads from the re-stamped start, the second hold excluded', remounted.every(({ row, atMs }) => { const c = clockOf(row); return c !== null && c >= 6 && c < (atMs - startBefore) / 1000 - 1 }), JSON.stringify(remounted))
     check('E: the long turn settled with its reply on the screen', await until(() => /done with the long turn/.test(frame('end')), S(60_000)))
   } catch (error) {
     check('E: the drive completed', false, String(error))
