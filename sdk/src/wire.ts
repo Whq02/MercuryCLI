@@ -523,9 +523,6 @@ export type SessionFactsResult = {
     snapshot: number
     omitted: number
     later?: number
-    admitted: number
-    appearances?: number
-    uncapped?: boolean
     chat?: {
       on: boolean
       filter: {
