@@ -1,4 +1,5 @@
 import type { CallModelRoute } from '../services/providers/idSpaces.js'
+import { isRecord } from './isRecord.js'
 
 type SchemaNode = Record<string, unknown>
 
@@ -12,10 +13,6 @@ const JSON_TYPES = new Set(['object', 'array', 'string', 'number', 'integer', 'b
 
 const memo = new WeakMap<object, Map<SchemaLane, { schema: SchemaNode; renamed: RenameTree | null }>>()
 const renamedByTool = new Map<string, RenameTree>()
-
-function isRecord(value: unknown): value is SchemaNode {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 export function schemaLaneFor(route: CallModelRoute | null): SchemaLane | null {
   switch (route) {

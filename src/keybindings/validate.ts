@@ -2,6 +2,7 @@
 import { chordToString } from './parser.js'
 import { getReservedShortcuts, normalizeKeyForComparison } from './reservedShortcuts.js'
 import type { KeybindingBlock, ParsedBinding } from './types.js'
+import { isRecord } from '../utils/isRecord.js'
 
 type KeybindingWarningType =
   | 'parse_error'
@@ -50,10 +51,6 @@ function isValidContext(context: string): boolean {
 
 export function isUserConfigContext(context: string): boolean {
   return isValidContext(context)
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 

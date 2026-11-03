@@ -1,3 +1,5 @@
+import { isRecord } from '../isRecord.js'
+
 type SchemaNode = { [key: string]: unknown }
 
 export type StrictToolSchemaForm =
@@ -55,10 +57,6 @@ class StrictViolation extends Error {
   constructor(rule: string, message: string, path: string) {
     super(`${rule} ${message} at ${path === '' ? 'root' : path}`)
   }
-}
-
-function isRecord(v: unknown): v is SchemaNode {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
 function join(path: string, key: string): string {

@@ -17,6 +17,7 @@ import { DEFAULT_BINDINGS } from './defaultBindings.js'
 import { parseBindings } from './parser.js'
 import type { KeybindingBlock, ParsedBinding } from './types.js'
 import { checkDuplicateKeysInJson, validateBindings, type KeybindingWarning } from './validate.js'
+import { isRecord } from '../utils/isRecord.js'
 
 const FILE_NAME = 'keybindings.json'
 
@@ -46,10 +47,6 @@ type ParsedLayer = {
 }
 
 const WRAPPER_SHAPE = '{ "bindings": [ { "context": "...", "bindings": { ... } } ] }'
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 function isBlockShape(value: unknown): value is KeybindingBlock {
   return isRecord(value) && typeof value.context === 'string' && isRecord(value.bindings)

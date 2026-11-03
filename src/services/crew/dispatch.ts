@@ -12,6 +12,7 @@ import {
   seatOfAgent,
   type SeatDeliveryOutcome,
 } from './seatBridge.js'
+import { isRecord } from '../../utils/isRecord.js'
 
 export const DELIVERY_STATES = ['delivered', 'not-delivered', 'delivery-unknown'] as const
 export type DeliveryState = (typeof DELIVERY_STATES)[number]
@@ -78,10 +79,6 @@ function projectKey(): string {
 }
 
 const INSTRUCTION_OUTCOMES: ReadonlySet<string> = new Set(['accepted', 'rejected', 'unknown'])
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
-}
 
 function isDeliveryReceipt(v: unknown): v is DeliveryReceiptV1 {
   return (

@@ -4,6 +4,7 @@ import type { EditableSettingSource } from './constants.js'
 import { getSettingsFilePathForSource, updateSettingsForSource } from './settings.js'
 import type { SettingsJson } from './types.js'
 import type { ValidationError } from './validation.js'
+import { isRecord as isPlainObject } from '../isRecord.js'
 
 const EDITABLE_SOURCES: readonly EditableSettingSource[] = ['userSettings', 'projectSettings', 'localSettings']
 
@@ -30,10 +31,6 @@ export function removableUnknownKeys(errors: ValidationError[]): UnknownKeyRemov
     if (keys.length > 0) removals.push({ source, file, keys })
   }
   return removals
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function deletionsFromFile(rawBase: Record<string, unknown>, keys: string[]): Partial<SettingsJson> {

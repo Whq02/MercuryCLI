@@ -18,6 +18,7 @@ import {
   type JevWireOutcome,
   jevWireFailureKindForStatus,
 } from './jevContract.js'
+import { isRecord } from '../../utils/isRecord.js'
 
 declare const MACRO: { VERSION: string }
 
@@ -59,10 +60,6 @@ export function jevWireRequest(input: JevRequestInput, road: JevRoad = 'official
     questions: input.questions,
     ...(road === 'openrouter' ? { provider: { data_collection: 'deny' as const, allow_fallbacks: false as const } } : {}),
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function isUnit(value: unknown): value is number {

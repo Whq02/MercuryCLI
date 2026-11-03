@@ -116,6 +116,7 @@ import { MediaConfigPicker, useMediaConfig, type MediaMenu } from './Media.js'
 import { reloadExtensions, noteReloaded } from '../../extensions/boot.js'
 import { extensionsStateFrom } from '../../hooks/useExtensions.js'
 import { setAdvisorEnabled, setAdvisorMinutes } from '../../services/advisor/advisorSettings.js'
+import { isRecord as configObject } from '../../utils/isRecord.js'
 
 const LABEL_CELLS = 36
 
@@ -354,10 +355,6 @@ function validated<T extends string>(
 
 type ConfigUndoSource = 'global' | 'localSettings' | 'userSettings' | 'app'
 type ConfigUndo = { source: ConfigUndoSource; path: string[]; previous: unknown }
-
-function configObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 function configUndoLeaves(source: ConfigUndoSource, before: unknown, after: unknown, path: string[] = [], partial = false): ConfigUndo[] {
   if (isDeepStrictEqual(before, after)) return []

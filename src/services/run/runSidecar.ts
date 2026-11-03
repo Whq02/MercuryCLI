@@ -7,6 +7,7 @@ import { classifyReadFailure } from '../../substrate/sourceState.js'
 import { getTranscriptPathForSession } from '../../utils/sessionStorage/paths.js'
 import { ownerKeyFileStem, parseOwnerKey, type OwnerKey } from './ownerKey.js'
 import { RUN_SCHEMA_VERSION, type RunSnapshot } from './runKernel.js'
+import { isRecord } from '../../utils/isRecord.js'
 
 export type RunSidecarLoad =
   | { state: 'none' }
@@ -87,10 +88,6 @@ async function publishRunSidecar(
 
 export function runRevision(owner: OwnerKey): number {
   return writeSeqByOwner.get(owner) ?? 0
-}
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
 function isRecordArray(v: unknown): v is Record<string, unknown>[] {

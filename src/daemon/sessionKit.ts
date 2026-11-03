@@ -6,6 +6,7 @@ import { getGlobalConfig, getProjectConfigForWorkspace } from '../utils/config.j
 import { emptyKitDeltas, kitDeltasForWorkspace, type KitDeltasV1 } from '../services/mcp/kitStore.js'
 import { kitPresetDeltas } from '../services/mcp/presetStore.js'
 import type { ConcourseWorkerRecordV1 } from './concourseWorkers.js'
+import { isRecord } from '../utils/isRecord.js'
 
 export interface SessionKitV1 {
   schema: 1
@@ -26,10 +27,6 @@ const KIT_SKILL_NAME_PATTERN = /^[^\s/\\\x00-\x1f\x7f]{1,200}$/
 export const KIT_LIST_CAP = 2000
 
 type KitValidation = { ok: true; kit: SessionKitV1 } | { ok: false; reason: string }
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
-}
 
 function validateNames(
   raw: unknown,

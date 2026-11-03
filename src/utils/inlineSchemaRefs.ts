@@ -1,3 +1,5 @@
+import { isRecord } from './isRecord.js'
+
 type SchemaNode = Record<string, unknown>
 
 const SCHEMA_TABLES = new Set(['properties', 'patternProperties', 'dependentSchemas'])
@@ -9,10 +11,6 @@ const RESOLUTION_BUDGET = 4000
 const INLINED_BYTES_CEILING = 1_000_000
 
 const flattened = new WeakMap<object, SchemaNode>()
-
-function isRecord(value: unknown): value is SchemaNode {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 function isLocalRef(node: SchemaNode): node is SchemaNode & { $ref: string } {
   return typeof node.$ref === 'string' && node.$ref.startsWith('#')

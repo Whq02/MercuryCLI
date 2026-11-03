@@ -11,6 +11,7 @@ import {
   type HookKind,
 } from '../utils/hooks/contract.js'
 import { matcherArgumentFault, matcherCompiles, matcherShape } from '../utils/hooks/matcherGrammar.js'
+import { isRecord as isPlainObject } from '../utils/isRecord.js'
 
 const entryShape = () => ({
   run: z.string().min(1).optional().describe('A shell command; the payload arrives on stdin'),
@@ -94,10 +95,6 @@ export const HookEntrySchema = lazySchema(() =>
     return value
   }, entryObjectSchema()),
 )
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 const hooksMapSchema = lazySchema(() =>
   z.partialRecord(z.enum(HOOK_EVENTS as [HookEvent, ...HookEvent[]]), z.array(HookEntrySchema())).superRefine((map, ctx) => {

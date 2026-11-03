@@ -4,6 +4,7 @@ import { getSettingsForSource, getSettingsWithErrors } from './settings.js'
 import { getSessionSettingsCache } from './settingsCache.js'
 import type { SettingsJson } from './types.js'
 import type { ValidationError } from './validation.js'
+import { isRecord as isPlainObject } from '../isRecord.js'
 
 type ProvenanceSource = SettingSource
 
@@ -31,10 +32,6 @@ function deepFreeze<T>(value: T): T {
     deepFreeze((value as Record<string, unknown>)[key])
   }
   return Object.freeze(value)
-}
-
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
 const NESTED_PROVENANCE_KEYS = new Set([

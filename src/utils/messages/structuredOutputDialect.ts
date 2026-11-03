@@ -1,9 +1,6 @@
+import { isRecord } from '../isRecord.js'
 
 type SchemaNode = { [key: string]: unknown }
-
-function isRecord(v: unknown): v is SchemaNode {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
-}
 
 function nullable(node: unknown): unknown {
   if (!isRecord(node)) return node

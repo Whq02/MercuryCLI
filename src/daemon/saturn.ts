@@ -8,6 +8,7 @@ import { appendSessionReceipt } from '../services/switchboard/sessionReceipts.js
 import { CONTRACT_TEXT_CAP } from './sessionContract.js'
 import { updateConcourseWorkers } from './concourseWorkers.js'
 import { wakeDelayOfSpelling } from '../utils/messages/noticeRows.js'
+import { isRecord } from '../utils/isRecord.js'
 
 
 export interface ScheduleAccountV1 {
@@ -110,10 +111,6 @@ export interface SaturnScheduleSubmissionV1 {
 export type SaturnValidation =
   | { ok: true; submission: SaturnScheduleSubmissionV1 }
   | { ok: false; reason: string }
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
-}
 
 function cleanString(v: unknown, cap: number): string | null {
   if (typeof v !== 'string') return null

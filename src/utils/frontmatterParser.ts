@@ -1,6 +1,7 @@
 import { logForDebugging } from './debug.js'
 import type { HooksSettings } from './settings/types.js'
 import { parseYaml } from './yaml.js'
+import { isRecord as isPlainObject } from './isRecord.js'
 
 
 export type FrontmatterShell = 'bash' | 'powershell'
@@ -55,10 +56,6 @@ function quoteSpecialValues(block: string): string {
       return `${key}: "${escaped}"${cr}`
     })
     .join('\n')
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 export function parseFrontmatter(markdown: string, sourcePath?: string): ParsedMarkdown {
