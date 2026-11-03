@@ -61,7 +61,7 @@ const SPEC_BODY = [
   'Inspect — read Mercury records by mercury:// reference',
   'JevEval — Jev second opinion: rank hypotheses, judge calls, check proposals',
   'Journey — verify local applications with ordered checks and per-step evidence',
-  'Launch — launch.json, Python test, CMake, Godot, script profiles: debug via Debug, test via Test, run, build…',
+  "Launch — list and run the project's launch profiles: debug, run, test or build one by id",
   "LspCodeAction — list and apply the language server's quick fixes, refactors and source actions at a position",
   'LspFormat — format a file or a range of its lines, or organize its imports, through the language server',
   'LspMoveFile — move or rename a file or directory and update its imports through the language server',
@@ -199,7 +199,7 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
 
 section('§3 the rewritten hints fit without a clipped tail')
 const { ListMcpResourcesTool } = await import('../../src/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts')
-const purposeNames = ['Inspect', 'Retain', 'Computer', 'Git', 'WebFetch', 'AskUserQuestion', 'Crewmate', 'Workflow', 'Service', 'Browser', 'Structure', 'CrewBoard', 'Journey', 'ListMcpResources', 'Test', 'Monitor']
+const purposeNames = ['Inspect', 'Retain', 'Computer', 'Git', 'WebFetch', 'AskUserQuestion', 'Crewmate', 'Workflow', 'Service', 'Browser', 'Structure', 'CrewBoard', 'Journey', 'ListMcpResources', 'Test', 'Monitor', 'Launch']
 const purposeTools = [...getAllBaseTools(), ListMcpResourcesTool]
 for (const name of purposeNames) {
   const tool = purposeTools.find(tool => tool.name === name)

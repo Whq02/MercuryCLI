@@ -36,9 +36,9 @@ const OPS = ['list', 'inspect', 'debug', 'run', 'test', 'build', 'last'] as cons
 const inputSchema = lazySchema(() =>
   z.strictObject({
     op: z.enum(OPS).describe('The launch-profile operation'),
-    profile: z.string().optional().describe('The profile id (lp-…) from op:"list" — required for inspect/debug/run/test/build'),
-    session: z.string().optional().describe('Debug session for debug (default "main") or for a still-running run (default "launch")'),
-    file: z.string().optional().describe('debug: source file for breakpoints'),
+    profile: z.string().optional().describe('The profile id (lp-…) from list; required for inspect, debug, run, test and build'),
+    session: z.string().optional().describe('The debugger session for debug (default "main") or for a still-running run (default "launch")'),
+    file: z.string().optional().describe('debug: the source file for breakpoints'),
     lines: z
       .array(semanticNumber(z.number().int().positive()))
       .optional()
@@ -401,24 +401,13 @@ async function runOp(input: Input, context: ToolUseContext, onProgress?: ToolCal
 
 export const LaunchTool = buildTool({
   name: 'Launch',
-  searchHint:
-    'launch.json, Python test, CMake, Godot, script profiles: debug via Debug, test via Test, run, build — lp- ids, list/inspect, package.json Cargo.toml go.mod scripts, Unity/Blender recipes',
+  searchHint: 'list and run the project\'s launch profiles: debug, run, test or build one by id',
   maxResultSizeChars: 60_000,
   async description() {
     return 'Discover launch profiles and run them — debug through Debug, tests through Test'
   },
   async prompt() {
-    return `One list of the project's launch profiles: .vscode/launch.json configs, the detected Python tests (and a rerun of the last failures), CMake presets, Godot scenes, package.json/Cargo.toml/go.mod test and build scripts, Unity/Blender headless recipes (printed, never run). Ids (lp-…) are content-stable: a changed source gives a new id, so re-list.
-
-1. op:"list" — every profile, and skipped launch.json configs with why.
-2. op:"inspect" (profile) — payload, origin, dropped fields, and the Debug or Test call it runs as.
-3. op:"debug" (profile; file + lines for breakpoints) — runs as a Debug launch in Debug's default session "main" (or session), replacing a live session of that name; the rerun profile runs as Test op:"debug" on its first failure.
-4. op:"run" (profile) — the same without a debugger; a program still running after 15 s stays in Debug session "launch" (or session).
-5. op:"test" (profile) — runs as Test op:"run" (op:"rerunFailed" for the rerun profile).
-6. op:"build" (profile) — CMake configure + build, or the runner's build/check script.
-7. op:"last" — this session's last Launch action.
-
-debug and test return that tool's own result plus the call they ran as. debug and run need the Debug tool in this session, test the Test tool; without it they refuse.`
+    return `Lists and runs the project's launch profiles: .vscode/launch.json configurations, the detected Python tests and a rerun of their last failures, CMake presets, Godot scenes, package.json, Cargo.toml and go.mod test and build scripts, and Unity and Blender headless recipes (printed, never run). A profile's id (lp-…) follows its content, so a changed source gives a new id. list returns every profile and the skipped launch.json configurations with why; inspect returns a profile's payload, origin, dropped fields and the call it runs as; debug starts it under its debugger in a debugger session that replaces a live session of the same name, with breakpoints from file and lines; run starts it without a debugger, and a program still running after 15 s stays in a debugger session; test runs its tests; build runs its CMake configure and build or the runner's build script; last returns this session's last Launch action. debug and test return the run's own result with the call it ran as.`
   },
   userFacingName,
   shouldDefer: true,

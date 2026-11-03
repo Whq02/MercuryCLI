@@ -14,18 +14,8 @@ const check = (label: string, ok: boolean, detail = '') => {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
-const prompt = `One list of the project's launch profiles: .vscode/launch.json configs, the detected Python tests (and a rerun of the last failures), CMake presets, Godot scenes, package.json/Cargo.toml/go.mod test and build scripts, Unity/Blender headless recipes (printed, never run). Ids (lp-…) are content-stable: a changed source gives a new id, so re-list.
-
-1. op:"list" — every profile, and skipped launch.json configs with why.
-2. op:"inspect" (profile) — payload, origin, dropped fields, and the Debug or Test call it runs as.
-3. op:"debug" (profile; file + lines for breakpoints) — runs as a Debug launch in Debug's default session "main" (or session), replacing a live session of that name; the rerun profile runs as Test op:"debug" on its first failure.
-4. op:"run" (profile) — the same without a debugger; a program still running after 15 s stays in Debug session "launch" (or session).
-5. op:"test" (profile) — runs as Test op:"run" (op:"rerunFailed" for the rerun profile).
-6. op:"build" (profile) — CMake configure + build, or the runner's build/check script.
-7. op:"last" — this session's last Launch action.
-
-debug and test return that tool's own result plus the call they ran as. debug and run need the Debug tool in this session, test the Test tool; without it they refuse.`
-const hint = 'launch.json, Python test, CMake, Godot, script profiles: debug via Debug, test via Test, run, build — lp- ids, list/inspect, package.json Cargo.toml go.mod scripts, Unity/Blender recipes'
+const prompt = `Lists and runs the project's launch profiles: .vscode/launch.json configurations, the detected Python tests and a rerun of their last failures, CMake presets, Godot scenes, package.json, Cargo.toml and go.mod test and build scripts, and Unity and Blender headless recipes (printed, never run). A profile's id (lp-…) follows its content, so a changed source gives a new id. list returns every profile and the skipped launch.json configurations with why; inspect returns a profile's payload, origin, dropped fields and the call it runs as; debug starts it under its debugger in a debugger session that replaces a live session of the same name, with breakpoints from file and lines; run starts it without a debugger, and a program still running after 15 s stays in a debugger session; test runs its tests; build runs its CMake configure and build or the runner's build script; last returns this session's last Launch action. debug and test return the run's own result with the call it ran as.`
+const hint = "list and run the project's launch profiles: debug, run, test or build one by id"
 const fixture = (name: string, test: string) => {
   const dir = join(scratch, name)
   mkdirSync(join(dir, 'tests'), { recursive: true })
@@ -196,7 +186,7 @@ try {
     const run = await call('test', rerun.id)
     check('rerun test routes through Test rerunFailed', run.data.route?.input?.op === 'rerunFailed' && run.effect.operation === 'launch.test' && run.data.result.endsWith(routeText('Test', { op: 'rerunFailed' }, rerun.id)))
   })
-  check('L14 the whole Launch description matches the specified words', await LaunchTool.prompt() === prompt)
+  check('L14 the whole Launch description matches the specified words, and names no other tool', await LaunchTool.prompt() === prompt && !/\b(?:Debug|Test)\b/.test(prompt.replace(/\bLaunch action\b/, '')))
   check('L15 every stored input shape still parses', [
     { op: 'debug', profile: 'lp-x', session: 'launch', file: 'a.py', lines: [3] },
     { op: 'test', profile: 'lp-x' }, { op: 'run', profile: 'lp-x', session: 's' }, { op: 'last' },
@@ -206,7 +196,7 @@ try {
   const bytes = Buffer.byteLength(JSON.stringify(definition))
   console.log(`MEASURE Launch definition ${bytes} bytes; description ${Buffer.byteLength(definition.description)}; schema ${Buffer.byteLength(JSON.stringify(definition.input_schema))}`)
   check('L16 definition is at most 2,133 bytes and stays deferred', bytes <= 2133 && LaunchTool.shouldDefer === true)
-  check('L17 search hint and announcement line name the routes', LaunchTool.searchHint === hint && formatDeferredToolLine(LaunchTool) === 'Launch — launch.json, Python test, CMake, Godot, script profiles: debug via Debug, test via Test, run, build…')
+  check('L17 search hint and announcement line name the purpose, unclipped and without another tool', LaunchTool.searchHint === hint && formatDeferredToolLine(LaunchTool) === `Launch — ${hint}` && !/\b(?:Debug|Test)\b/.test(hint))
 } catch (error) {
   failures++
   console.error(`FAIL launch route fixture: ${error instanceof Error ? error.stack : String(error)}`)
