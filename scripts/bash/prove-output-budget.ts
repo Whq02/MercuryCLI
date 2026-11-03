@@ -64,7 +64,7 @@ const formatOutput = bashUtils.formatOutput as (content: string, opts?: { preExc
 const outputBudgetClause = bashUtils.outputBudgetClause as (budget: Budget) => string | undefined
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
 const { normalizeToolInput } = await import('../../src/utils/api.ts')
-const { getSimplePrompt, maxOutputCharsBullet } = await import('../../src/tools/BashTool/prompt.ts')
+const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
 const { getScratchpadDir } = await import('../../src/utils/permissions/filesystem.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const toolErrors = (await import('../../src/utils/toolErrors.ts')) as Record<string, unknown>
@@ -328,9 +328,8 @@ const psJson = zodToJsonSchema(PowerShellTool.inputSchema as never) as { propert
 const psProjected = psJson.properties?.max_output_chars
 check('the PowerShell projection carries the field as an optional integer', psProjected?.type === 'integer' && !(psJson.required ?? []).includes('max_output_chars'), JSON.stringify(psProjected ?? null))
 check('…with the very description Bash offers (one owner of the words)', psProjected?.description !== undefined && psProjected.description === projected?.description, (psProjected?.description ?? '(absent)').slice(0, 120))
-const bulletOf = (text: string): string => /^- The optional `max_output_chars`.*$/m.exec(text)?.[0] ?? ''
 const psPrompt = await getPowerShellPrompt()
-check('the PowerShell prompt carries the max_output_chars bullet from its one owner in the Bash prompt module (the field says the head and the tail)', bulletOf(psPrompt) !== '' && bulletOf(psPrompt) === `- ${maxOutputCharsBullet()}` && /head and tail/.test(projected?.description ?? ''), bulletOf(psPrompt).slice(0, 120) || '(absent)')
+check('the PowerShell description, like Bash\'s, says a long output is saved with its path and a preview, and leaves max_output_chars to the field alone (the field says the head and the tail)', psPrompt.includes('a longer output is saved to a file, and the result carries its path') && !psPrompt.includes('max_output_chars') && /head and tail/.test(psProjected?.description ?? ''), psPrompt.slice(0, 120))
 const psValidate = (value: unknown): Promise<Verdict> => validateWith(PowerShellTool as unknown as ShellTool, value)
 const psRefused = await psValidate(' 2000 ')
 check('PowerShell’s validateInput refuses a raw " 2000 " with the schema’s words', psRefused.result === false && (psRefused.message ?? '').startsWith('max_output_chars: '), JSON.stringify(psRefused))

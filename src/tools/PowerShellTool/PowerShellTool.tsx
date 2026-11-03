@@ -22,8 +22,8 @@ import { EndTruncatingAccumulator } from '../../utils/stringUtils.js'
 import { detectGitOperation, trackGitOperations } from '../../tools/shared/gitOperationTracking.js'
 import { buildLargeToolResultMessage, generatePreview, PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { interpretCommandResult } from './commandSemantics.js'
-import { getPrompt, getDefaultTimeoutMs, getMaxTimeoutMs } from './prompt.js'
-import { describeMaxOutputChars } from '../BashTool/prompt.js'
+import { describeTimeout, getPrompt, getDefaultTimeoutMs, getMaxTimeoutMs } from './prompt.js'
+import { describeCommandDescription, describeMaxOutputChars, describeRunInBackground } from '../BashTool/prompt.js'
 import { resolveOutputBudget } from '../../utils/shell/outputLimits.js'
 import { windowedError } from '../../utils/toolErrors.js'
 import { getCachedPowerShellPath } from '../../utils/shell/powershellDetection.js'
@@ -94,10 +94,10 @@ function buildModelSchema() {
   return z.strictObject({
     command: z.string().describe('The PowerShell command to execute'),
     cwd: z.string().optional().describe('Run in this directory: absolute, or relative to the starting folder; the session directory stays.'),
-    timeout: semanticNumber(z.number().optional()).describe(`Optional timeout in milliseconds (max ${getMaxTimeoutMs()})`),
-    description: z.string().optional().describe('A short description of what the command does, in active voice.'),
-    run_in_background: semanticBoolean(z.boolean().optional()).describe('Set to true to run the command in the background and read its output later.'),
-    inherit_session_env: semanticBoolean(z.boolean().optional()).describe("Set to true to hand the command the session's own MERCURY_* stamps (the values Mercury wrote on this process); by default they are scrubbed, since a proof or a build must not see them."),
+    timeout: semanticNumber(z.number().optional()).describe(describeTimeout()),
+    description: z.string().optional().describe(describeCommandDescription()),
+    run_in_background: semanticBoolean(z.boolean().optional()).describe(describeRunInBackground()),
+    inherit_session_env: semanticBoolean(z.boolean().optional()).describe("Hand the command the session's own MERCURY_* values; by default they are scrubbed, so a build or a proof never sees them."),
     max_output_chars: maxOutputCharsField.describe(describeMaxOutputChars()),
   })
 }
