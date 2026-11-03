@@ -184,62 +184,35 @@ check('noul', jevEvalCell({ type: 'noul', noul: 0.07 }) === '.07')
 check('choice: the pick\'s own probability, not the top of the distribution', jevEvalCell({ type: 'choice', choice: 'b', probabilities: { a: 0.5, b: 0.3, c: 0.2 }, confidence: 0.7 }) === 'b .30 conf .70')
 check('score: the position on 0..k-1 with the levels counted from the legend', jevEvalCell({ type: 'score', score: 2.5, legend: { '0': 'a', '1': 'b', '2': 'c', '3': 'd' }, probabilities: { '0': 0, '1': 0.25, '2': 0.25, '3': 0.5 }, confidence: 0.9 }) === '2.5 of 0..3 conf .90')
 
-section('§7 the prompt: the one rule, the law of shapes, what Jev is and is not, the unavailability words, no "experimental", Eval kept apart')
+section('§7 the prompt: what Jev answers and what comes back, each fact once; no when-to-use, no worked example, no other tool, no pre-empted refusal')
 const prompt = JEV_EVAL_PROMPT
 const firstLine = prompt.split('\n')[0]!
-check('the first line keeps Eval (code cells) and JevEval apart', /not the Eval tool/.test(firstLine) && /Eval runs code cells/.test(firstLine) && /JevEval runs no code/.test(firstLine))
-check('the one rule, the owner\'s words: use it whenever a closed question over evidence in front of you decides the next step', /[Uu]se it whenever a closed question over evidence in front of you decides the next step/.test(prompt))
-check('the closed questions it names: which hypothesis and which test separates them; a qualitative call once measured — code measures, Jev judges; a proposal against the owner\'s recorded rulings', /which test would separate them/.test(prompt) && /once the frames or numbers are measured/.test(prompt) && /code measures, Jev judges/.test(prompt) && /against the owner's recorded rulings/.test(prompt))
-const sparingness: Array<[string, RegExp]> = [
+check('the first paragraph says what it is: one paid round trip for a second opinion on a judgement you have framed', /^One paid round trip to TypeSafe's Jev for a second opinion on a judgement you have framed\./.test(firstLine))
+check('…what Jev reads and answers: only the evidence, numbers per typed question', /Jev reads only the `evidence` you supply and answers each typed question with numbers/.test(firstLine))
+check('…the three kinds in one sentence each: noul a probability, choice an option with a probability per option and a confidence, score a position with a confidence', /`noul` the probability, 0\.\.1, that a yes\/no statement holds; `choice` one of your options, with a probability per option and a confidence; `score` a position on your ordered levels, with a confidence/.test(firstLine))
+check('…what the numbers are: an opinion, 0 and 1 prove nothing, confidence is concentration not accuracy, no reasons', /writes no prose and gives no reasons/.test(firstLine) && /0 and 1 prove nothing/.test(firstLine) && /how concentrated the distribution is, not how often Jev is right/.test(firstLine))
+check('the second paragraph says what comes back: one table, a row per item keyed by id or position, a column per question, a missing answer said in place', /One table comes back: a row per evidence item, keyed by its id or by position, a column per question, and a row that no answer reached says so in place\./.test(prompt))
+check('two paragraphs, under 1,100 bytes', prompt.split('\n\n').length === 2 && Buffer.byteLength(prompt, 'utf8') <= 1100, `${prompt.split('\n\n').length} paragraphs, ${Buffer.byteLength(prompt, 'utf8')} bytes`)
+const gone: Array<[string, RegExp]> = [
+  ['another tool named (Eval)', /\bEval\b/],
+  ['a when-to-use clause', /[Uu]se it whenever|decides the next step/],
+  ['a worked example or a shape that worked', /killed from outside|capture starve|fixture fault|coin flip|fold_intent|reads back as|"goal":/],
+  ['a rule written as a rule', /[Nn]ever call it|[Dd]o not re-ask|[Dd]o not act on it|never attribute|Never retry/],
+  ['the crewmate budget and pace (limits speak at call time)', /200 calls|50 requests a minute/],
+  ['the unavailability paragraph (the result names the reason and the next admission)', /end Jev for this session|next attempt is admitted|unavailable result/],
+  ['the one-call rule', /in ONE call|re-sends the evidence/],
   ['"use them only if needed"', /only if needed/i],
   ['"do not call it as a ritual"', /ritual/i],
-  ['the "first uses are three" framing', /first uses are three/i],
-  ['"call it when a real fork" gating', /[Cc]all it when a real fork/],
   ['sparingly', /sparing/i],
-  ['budget as restraint ("if you ask at all")', /if you ask at all/],
   ['budget as restraint ("hold back")', /hold back/i],
 ]
-for (const [label, rx] of sparingness) check(`no sparingness clause: ${label}`, !rx.test(prompt), (prompt.match(rx) ?? [''])[0])
-check('the law: ask only what the evidence answers', /[Aa]sk only what the evidence answers/.test(prompt))
-const worked: Array<[string, RegExp, RegExp]> = [
-  ['killed from outside?', /killed from outside\?/, /rc 137/],
-  ['did the capture starve?', /did the capture starve\?/, /capture deadline exceeded/],
-  ['does the output name a fixture fault?', /does the output name a fixture fault\?/, /(stand-in|fixture|Bun-versus-Node)/],
-]
-for (const [label, shape, example] of worked) check(`a shape that worked, with a one-line example: ${label}`, shape.test(prompt) && example.test(prompt))
-check('the fixture-fault shape is called the weakest of the three', /weakest of the three/.test(prompt))
-const failedShapes: Array<[string, RegExp, RegExp]> = [
-  ['is the product wrong or is the proof stale?', /is the product wrong or is the proof stale\?/, /coin flip/],
-  ['did the fold\'s intent change this?', /did the fold's intent change this\?/, /fold_intent|commit subjects/],
-]
-for (const [label, shape, example] of failedShapes) check(`a shape that did not work, named with its example: ${label}`, shape.test(prompt) && example.test(prompt))
-check('for the two that did not: run the proof on the tip and read the source; never ask Jev', /run the proof on the tip and read the source/.test(prompt) && /never ask Jev/.test(prompt))
-check('the two more shapes that held: a question for the lead, ask first', /need the lead's answer\?/.test(prompt) && /asked first\?/.test(prompt))
-check('the pace and the crewmate budget stay as facts, not as a reason to hold back', /A crewmate has 200 calls for its whole task; all crewmates in a session share 50 requests a minute on each road, separately from the main model's pace\./.test(prompt))
-const exclusions: Array<[string, RegExp]> = [
-  ['what code settles exactly is evidence to pass in, not a question', /arithmetic, geometry, resizing, dates, counts/],
-  ['a fact already in context is not a question', /already in your context/],
-  ['never a permission or a consent gate', /grant a permission or to satisfy a consent gate/],
-  ['never proof of a green gate', /never as proof that tests pass, a build is green or a gate is met/],
-  ['no re-asking a rephrased question', /re-ask a rephrased question/],
-  ['report the answer even when it contradicts you', /even when it contradicts you/],
-  ['one batched call', /in ONE call/],
-  ['filtered evidence only and why', /filtered excerpts or a file of filtered rows — never a whole source file, never the transcript/],
-  ['why: it leaves the machine under the chosen road policy', /leaves the machine under the selected road's data policy/],
-  ['why: unrelated material costs accuracy', /unrelated material measurably costs accuracy/],
-  ['every option in, allow_none set', /Put every option you are genuinely weighing into `options` and set `allow_none` so Jev can say none of them fit/],
-  ['numbers are opinions, 0 and 1 prove nothing', /0 and 1 prove nothing/],
-  ['confidence is concentration, noul has none', /how concentrated the distribution is/],
-  ['never attribute a rationale', /never attribute a rationale to it/],
-  ['the crewmate budget', /A crewmate has 200 calls/],
-  ['the shared crewmate session pace', /all crewmates in a session share 50 requests a minute/],
-]
-for (const [label, rx] of exclusions) check(label, rx.test(prompt))
+for (const [label, rx] of gone) check(`gone: ${label}`, !rx.test(prompt), (prompt.match(rx) ?? [''])[0])
 check('"an option you omit cannot be chosen" is the options field\'s alone, not said again in the prompt', JSON.stringify(jsonSchema).includes('an option you omit cannot be chosen') && !prompt.includes('an option you omit cannot be chosen'))
+check('the privacy effect is the evidence record\'s alone, once: everything sent leaves the machine under the selected road\'s data policy', JSON.stringify(jsonSchema).split("leaves the machine under the selected road's data policy").length === 2 && !prompt.includes('leaves the machine'))
 check('the Fallback permission card prints JevEval\'s description() whole (one line, so truncateToLines keeps all of it): unchanged from .36', (await JevEvalTool.description()) === "A second opinion from TypeSafe's Jev: typed yes/no, choice and score questions over evidence you supply, answered with numbers only — never an approval, never a reason")
 const headwords = JEV_STATUS_KINDS.filter(k => k !== 'ready').map(k => JEV_STATUS_HEADWORDS[k])
-check('the unavailability paragraph names every reason in the resolver\'s headwords', headwords.every(w => prompt.includes(w)), headwords.filter(w => !prompt.includes(w)).join(','))
-check('final reasons end Jev for the session; waits name the next admission; never retry', /end Jev for this session/.test(prompt) && /name when the next attempt is admitted/.test(prompt) && /Never retry a refusal/.test(prompt))
+const headwordIn = (w: string): boolean => new RegExp(`\\b${w}\\b`).test(prompt)
+check('no unavailability headword is pre-empted in the prompt (the result carries the reason and the wait, proven in prove-jev-honesty)', !headwords.some(headwordIn), headwords.filter(headwordIn).join(','))
 check('no "experimental" anywhere the model reads', !/experimental/i.test(prompt + JEV_EVAL_DESCRIPTION + JEV_EVAL_SEARCH_HINT + JSON.stringify(jsonSchema)))
 check('the short description is not Eval\'s and names numbers, never an approval', /numbers only/.test(JEV_EVAL_DESCRIPTION) && /never an approval/.test(JEV_EVAL_DESCRIPTION) && !/code cell/.test(JEV_EVAL_DESCRIPTION))
 check('the prompt is what the wire carries', (await JevEvalTool.prompt({} as never)) === prompt && (await JevEvalTool.description()) === JEV_EVAL_DESCRIPTION)

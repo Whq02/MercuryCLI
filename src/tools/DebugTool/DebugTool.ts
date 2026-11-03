@@ -36,7 +36,7 @@ import {
   type DapSession,
 } from '../../services/dap/dapClient.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
-import { DEBUG_TOOL_NAME, getDebugToolDescription } from './prompt.js'
+import { DEBUG_TOOL_NAME, DEBUG_WIRE_DESCRIPTION, getDebugToolDescription } from './prompt.js'
 import {
   renderToolResultMessage,
   renderToolUseErrorMessage,
@@ -79,36 +79,36 @@ const OPS = [
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(OPS).describe('The debug operation to perform'),
+    op: z.enum(OPS).describe('Debug operation.'),
     session: z
       .string()
       .optional()
-      .describe('Named session (default "main"); a re-launch on the same name replaces it'),
+      .describe('Session name (default "main"); a re-launch on the same name replaces that session'),
     adapter: z
       .string()
       .optional()
-      .describe('Adapter key for launch (python | lldb | MERCURY_DAP_ADAPTERS key); inferred from the program extension when omitted'),
-    program: z.string().optional().describe('Program path for launch'),
-    args: z.array(z.string()).optional().describe('Program arguments for launch'),
-    stopOnEntry: semanticBoolean(z.boolean().optional()).describe('Stop at the first instruction (launch)'),
-    timeoutMs: semanticNumber(z.number().positive().optional()).describe('Deadline in milliseconds for a stop wait (default 10000; longer waits are allowed)'),
-    file: z.string().optional().describe('Source file for breakpoints'),
-    lines: z.array(semanticNumber(z.number().int().positive())).optional().describe('Breakpoint lines (replaces the set for the file; [] clears the file\'s breakpoints on every session)'),
+      .describe('launch/attach: adapter key; inferred from the program extension when omitted'),
+    program: z.string().optional().describe('launch: the program to run. attach: the running program to join'),
+    args: z.array(z.string()).optional().describe('launch: program arguments'),
+    stopOnEntry: semanticBoolean(z.boolean().optional()).describe('launch: stop at the first instruction'),
+    timeoutMs: semanticNumber(z.number().positive().optional()).describe('Milliseconds to wait for the next stop (default 10000, no cap)'),
+    file: z.string().optional().describe('breakpoints: the source file'),
+    lines: z.array(semanticNumber(z.number().int().positive())).optional().describe('breakpoints: the lines, replacing the file\'s set on every session; [] clears it'),
     breakpoints: z
       .array(
         z.strictObject({
           line: semanticNumber(z.number().int().positive()),
-          condition: z.string().optional().describe('Condition expression (capability-gated)'),
-          hitCondition: z.string().optional().describe('Hit count, e.g. "3" (capability-gated)'),
-          logMessage: z.string().optional().describe('Log instead of stopping — a logpoint (capability-gated)'),
+          condition: z.string().optional().describe('Stop only when this expression holds'),
+          hitCondition: z.string().optional().describe('Stop on this hit count ("3")'),
+          logMessage: z.string().optional().describe('Log this instead of stopping (a logpoint)'),
         }),
       )
       .optional()
-      .describe('Rich breakpoints for file (replaces the set; use INSTEAD of lines when conditions/hit counts/logpoints are needed; [] clears the file\'s breakpoints on every session)'),
-    pid: semanticNumber(z.number().int().positive().optional()).describe('attach: the running process id (or give port/program instead)'),
-    port: semanticNumber(z.number().int().positive().max(65_535).optional()).describe('attach: the debuggee\'s listening debug port'),
+      .describe('breakpoints: rows with a condition, hit count or log message, in place of lines; replaces the file\'s set on every session, [] clears it'),
+    pid: semanticNumber(z.number().int().positive().optional()).describe('attach: the process id'),
+    port: semanticNumber(z.number().int().positive().max(65_535).optional()).describe('attach: the debuggee\'s listening debug port; alone, it selects the python adapter'),
     host: z.string().optional().describe('attach: the debug host (default 127.0.0.1)'),
-    method: z.string().optional().describe('customRequest: the DAP request command to send verbatim'),
+    method: z.string().optional().describe('customRequest: the DAP command, sent verbatim'),
     body: z.string().optional().describe('customRequest: the request arguments as JSON text'),
     functions: z
       .array(
@@ -116,13 +116,13 @@ const inputSchema = lazySchema(() =>
           z.string(),
           z.strictObject({
             name: z.string().describe('The function to break on entry of'),
-            condition: z.string().optional().describe('Condition expression (capability-gated)'),
-            hitCondition: z.string().optional().describe('Hit count, e.g. "3" (capability-gated)'),
+            condition: z.string().optional().describe('Stop only when this expression holds'),
+            hitCondition: z.string().optional().describe('Stop on this hit count ("3")'),
           }),
         ]),
       )
       .optional()
-      .describe('functionBreakpoints: functions to break on entry of — names, or {name, condition?, hitCondition?} rows (replaces the set on every session of the tree; [] clears it)'),
+      .describe('functionBreakpoints: names, or {name, condition?, hitCondition?} rows; the set reaches every session of the tree and a child session started later, and [] clears it everywhere'),
     dataBreakpoints: z
       .array(
         z.strictObject({
@@ -130,38 +130,38 @@ const inputSchema = lazySchema(() =>
           variablesReference: semanticNumber(z.number().int().optional()).describe('The scope or structure holding the variable (from scopes/variables)'),
           frameId: semanticNumber(z.number().int().optional()).describe('Frame for an expression-style name, when the adapter resolves by frame'),
           accessType: z.enum(['read', 'write', 'readWrite']).optional().describe('Stop on read, write (default) or both'),
-          condition: z.string().optional().describe('Condition expression (capability-gated)'),
-          hitCondition: z.string().optional().describe('Hit count, e.g. "3" (capability-gated)'),
+          condition: z.string().optional().describe('Stop only when this expression holds'),
+          hitCondition: z.string().optional().describe('Stop on this hit count ("3")'),
         }),
       )
       .optional()
-      .describe('dataBreakpoints: variables to stop on when accessed (replaces the data-breakpoint set; an empty array clears it)'),
+      .describe('dataBreakpoints: the variables to stop on; replaces the set, [] clears it'),
     instructionBreakpoints: z
       .array(
         z.strictObject({
           instructionReference: z.string().describe('A stack frame\'s [ip …] or an address from disassemble'),
           offset: semanticNumber(z.number().int().optional()).describe('Byte offset from the reference'),
-          condition: z.string().optional().describe('Condition expression (capability-gated)'),
-          hitCondition: z.string().optional().describe('Hit count, e.g. "3" (capability-gated)'),
+          condition: z.string().optional().describe('Stop only when this expression holds'),
+          hitCondition: z.string().optional().describe('Stop on this hit count ("3")'),
         }),
       )
       .optional()
-      .describe('instructionBreakpoints: machine addresses to stop at (replaces the instruction-breakpoint set; an empty array clears it)'),
+      .describe('instructionBreakpoints: the instruction addresses to stop at; replaces the set, [] clears it'),
     memoryReference: z.string().optional().describe('disassemble/readMemory/writeMemory: a memory reference (a stack frame\'s [ip …] or a variable\'s [memory …])'),
-    count: semanticNumber(z.number().int().positive().optional()).describe('readMemory: byte count (bounded to 4096)'),
+    count: semanticNumber(z.number().int().positive().optional()).describe('readMemory: bytes to read (at most 4096)'),
     offset: semanticNumber(z.number().int().optional()).describe('disassemble/readMemory/writeMemory: byte offset from the memory reference'),
     data: z.string().optional().describe('writeMemory: the bytes to write, base64-encoded'),
     allowPartial: semanticBoolean(z.boolean().optional()).describe('writeMemory: accept a partial write when only part of the range is writable'),
-    instructionCount: semanticNumber(z.number().int().positive().optional()).describe('disassemble: instructions to decode (bounded to 64, default 16)'),
+    instructionCount: semanticNumber(z.number().int().positive().optional()).describe('disassemble: instructions to decode (default 16, at most 64)'),
     granularity: z
       .enum(['statement', 'instruction'])
       .optional()
-      .describe('next/stepIn: step granularity — "instruction" steps one machine instruction (capability-gated)'),
+      .describe('next/stepIn: "instruction" steps one machine instruction'),
     threadId: semanticNumber(z.number().int().optional()).describe('Thread for stack/continue/step/pause (defaults to the stopped thread)'),
-    frameId: semanticNumber(z.number().int().optional()).describe('Frame for scopes/evaluate (from stack); evaluate defaults to the top frame of the thread that stopped last'),
+    frameId: semanticNumber(z.number().int().optional()).describe('Frame for scopes/evaluate/completions (from stack); evaluate defaults to the top frame of the thread that stopped last'),
     depth: semanticNumber(z.number().int().positive().optional()).describe('stack: number of frames to return (default 20)'),
     variablesReference: semanticNumber(z.number().int().optional()).describe('Reference from scopes/variables/evaluate to expand (variables/setVariable)'),
-    expression: z.string().optional().describe('Expression for evaluate (runs in the debuggee)'),
+    expression: z.string().optional().describe('evaluate: the expression, run in the debuggee'),
     context: z
       .enum(['repl', 'watch', 'hover', 'clipboard', 'variables'])
       .optional()
@@ -169,11 +169,11 @@ const inputSchema = lazySchema(() =>
     filters: z
       .array(z.string())
       .optional()
-      .describe('exceptionBreakpoints: filter ids to arm (omit to LIST the adapter\'s available filters)'),
+      .describe('exceptionBreakpoints: filter ids to arm; omitted, the adapter\'s filters are listed'),
     sourceReference: semanticNumber(z.number().int().optional()).describe('source: the sourceReference from a stack frame or loadedSources (>0)'),
     name: z.string().optional().describe('setVariable: the variable name inside variablesReference'),
     value: z.string().optional().describe('setVariable: the new value expression'),
-    text: z.string().optional().describe('completions: the partial expression to complete (frameId optional)'),
+    text: z.string().optional().describe('completions: the partial expression to complete'),
   }),
 )
 
@@ -1279,38 +1279,7 @@ export const DebugTool = buildTool({
     return 'Drive a real debugger over DAP: breakpoints, stepping, stacks, scopes, variables, evaluate'
   },
   wireDescription() {
-    return `Use a real DAP debugger instead of print debugging. Full usage notes arrive when loaded or first used.
-launch: program, adapter?, args?, stopOnEntry?, file+lines breakpoints before execution.
-attach: pid, port (+host), or program; bare port selects Python.
-threads: list debuggee threads.
-stack: stopped-thread frames and native instruction pointers.
-scopes: frameId to expandable variablesReference.
-variables: expand a variablesReference.
-evaluate: expression in frameId or the last stopped frame; pause first if running. Context defaults to repl.
-continue: run to the next stop.
-next: step over.
-stepIn: enter a call.
-stepOut: leave the frame.
-pause: interrupt execution.
-restart: rerun when supported.
-output: drain program and adapter output.
-status: sessions, breakpoints and last stop.
-breakpoints: file+lines or conditional/hit-count/log rows; [] clears that file across the session tree.
-functionBreakpoints: names or conditional rows; [] clears the tree.
-loadedSources: loaded source inventory.
-modules: loaded module inventory.
-source: generated source by sourceReference.
-completions: text completion in an optional frameId.
-setVariable: variablesReference + name + value.
-exceptionBreakpoints: list filters, then set filter ids.
-disassemble: memoryReference, up to 64 instructions.
-readMemory: memoryReference, up to 4096 bytes.
-dataBreakpoints: variable accesses to stop on.
-instructionBreakpoints: instruction addresses and offsets.
-writeMemory: memoryReference + base64 data, optional offset/allowPartial.
-customRequest: permission-gated raw method + body.
-disconnect: terminate the debuggee and reap the adapter.
-Unsupported adapter capabilities refuse by name. Stop waits use timeoutMs (default 10000, longer allowed). Cancellation interrupts waits, not necessarily the debuggee; inspect status and disconnect to finish. runInTerminal uses shell permissions and session-managed processes, never an external terminal. Adapter selection follows the program extension or an explicit configured adapter; never fabricate debugger results.`
+    return DEBUG_WIRE_DESCRIPTION
   },
   async prompt() {
     return getDebugToolDescription()

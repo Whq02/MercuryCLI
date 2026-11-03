@@ -32,10 +32,10 @@ const part = () => z.discriminatedUnion('kind', [
 const viewing = () => ({ frame: integer().min(0).optional(), tag: z.string().min(1).optional(), scale: integer().min(1).optional() })
 export function artFields() {
   return {
-    ops: z.array(z.union([stroke(), part()])).min(1).optional().describe('draw: ordered primitives with kind, layer path, 0-based frame, colour {index} or {r,g,b,a?}, x,y; line/rect/ellipse add inclusive x2,y2; circle adds radius; fill defaults false. parts: ordered create/show/hide/reorder/duplicate operations'),
-    frame: integer().min(0).optional().describe('render/draw/parts: 0-based frame to view; absent = all frames side by side, or tag'),
-    preview: z.boolean().optional().describe('draw/parts: return a PNG render after the batch (default true); scale is a positive integer for nearest-neighbour viewing'),
-    palette: palette().optional().describe('palette-check: .gpl/.hex file inside the tree, or a list of RGB(A) hex strings / {r,g,b,a?}; absent = sprite palette at each frame'),
+    ops: z.array(z.union([stroke(), part()])).min(1).optional().describe('draw: ordered strokes, each with kind, layer (full path), 0-based frame, colour ({index}, or {r,g,b,a?} matching a palette colour exactly on an indexed sprite) and x,y; line, rect and ellipse add inclusive x2,y2, circle a centre and radius, and rect, ellipse and circle take fill. parts: ordered create, show, hide, reorder (0-based index among siblings, bottom first) and duplicate (one frame\'s cel into target frames) operations on full layer or group paths'),
+    frame: integer().min(0).optional().describe('render/draw/parts: the 0-based frame to render; absent, every frame side by side, or the frames of tag'),
+    preview: z.boolean().optional().describe('draw/parts: return a PNG render after the batch (default true)'),
+    palette: palette().optional().describe('palette-check: a .gpl/.hex file, or a list of RGB(A) hex strings or {r,g,b,a?}; absent, the sprite palette at each frame'),
   }
 }
 const artSchema = () => z.discriminatedUnion('op', [

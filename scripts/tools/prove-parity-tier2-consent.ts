@@ -15,8 +15,8 @@ t(
 const powershell = await import('../../src/tools/PowerShellTool/prompt.ts')
 const psDescription: string = await powershell.getPrompt()
 t(
-  'PowerShell description carries the same clause',
-  psDescription.includes('the operator does not reliably see it'),
+  'PowerShell description carries the same sentence, in the same words',
+  psDescription.includes('The output comes back to you, not to the operator.'),
 )
 
 process.exit(failures)

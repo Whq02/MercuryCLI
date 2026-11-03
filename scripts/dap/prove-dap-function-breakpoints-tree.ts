@@ -147,11 +147,15 @@ async function main(): Promise<void> {
     check('validateInput still refuses a missing functions field', omitted?.result === false, JSON.stringify(omitted))
   }
 
-  section('D  the description says it in one sentence')
+  section('D  the functions field says it once; the manual names the op and nothing twice')
   {
     const text = getDebugToolDescription(false)
-    check('…the rows and their gates', /functions also takes \{name, condition\?, hitCondition\?\} rows \(condition and hit count capability-gated\)/.test(text))
-    check('…every session and a later child; [] clears everywhere', /the set reaches every session of the tree and a child session started later, and functions: \[\] clears it everywhere/.test(text))
+    const fields = (DebugTool.inputSchema as { shape: Record<string, { description?: string }> }).shape
+    const functions = fields.functions?.description ?? ''
+    check('…the rows', /names, or \{name, condition\?, hitCondition\?\} rows/.test(functions), functions)
+    check('…every session and a later child; [] clears everywhere', /the set reaches every session of the tree and a child session started later, and \[\] clears it everywhere/.test(functions), functions)
+    check('…the manual names functionBreakpoints once and leaves the tree fact to the field', text.split('functionBreakpoints').length === 2 && !/child session started later/.test(text))
+    check('…no capability gate is pre-empted in the text', !/capability-gated/.test(functions) && !/capability-gated/.test(text))
   }
 
   check('no sessions leak', _dapSessionCountForTesting() === 0, String(_dapSessionCountForTesting()))
