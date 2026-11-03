@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
@@ -9,6 +9,8 @@ import { fixtureSnapshot, judgeGoldenTask, type GoldenToolCall } from './judge.t
 import { compareBaselines, markdownOf, type Baseline, type RunRow } from './report.ts'
 import { judgeSelfCheck } from './self-check.ts'
 import { GOLDEN_TASKS, type GoldenTask } from './tasks.ts'
+
+if ('bun' in process.versions) throw new Error('Run this drive with Node 24.20+; Bun builds the artifact but does not host the drive.')
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const MW = '/private/tmp/mw'
@@ -33,7 +35,7 @@ if (args.includes('--compare')) {
   process.exit(0)
 }
 if (args.includes('--help')) {
-  console.log('bun scripts/golden-set/drive-golden-set.ts --home <scratch-directory> [--model <id> ...] [--defer-model <id> ...] [--tree <checkout>] [--runs 2] [--run N] [--tasks T1,T2] [--output <directory>] [--markdown <path>] [--self-check] [--skip-build] [--jobs 1] [--max-time 150] [--max-turns 8] [--budget 0.75]')
+  console.log('node scripts/golden-set/drive-golden-set.ts --home <scratch-directory> [--model <id> ...] [--defer-model <id> ...] [--tree <checkout>] [--runs 2] [--run N] [--tasks T1,T2] [--output <directory>] [--markdown <path>] [--self-check] [--skip-build] [--jobs 1] [--max-time 150] [--max-turns 8] [--budget 0.75]')
   process.exit(0)
 }
 const knownFlags = new Set(['--home', '--model', '--defer-model', '--tree', '--runs', '--run', '--tasks', '--output', '--markdown', '--self-check', '--skip-build', '--jobs', '--max-time', '--max-turns', '--budget'])
@@ -168,7 +170,7 @@ function runProcess(cwd: string, home: string, model: string, task: GoldenTask, 
     }
     delete env.MERCURY_HOME
     delete env.MERCURY_CRITTER
-    const child = spawn('node', [
+    const child = spawn(process.execPath, [
       DIST, 'run', '--format', 'rows', '--model', model, '--effort', LIMITS.effort, '--mode', 'sovereign',
       '--max-turns', String(LIMITS.maxTurns), '--max-time', `${LIMITS.maxTime}s`, '--budget', String(LIMITS.budget),
       '--title', `golden-${task.id}`, '--', task.prompt,

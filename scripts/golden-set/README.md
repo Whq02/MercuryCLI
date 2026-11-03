@@ -7,10 +7,10 @@ Ten small end-to-end tasks measure completion, not whether a model says it follo
 From the checkout containing this eval, with Bun, Node 24, git, dependencies, and the project's vendor packs installed:
 
 ```sh
-H=$(mktemp -d) && env -u MERCURY_HOME -u MERCURY_CRITTER TMPDIR=/private/tmp/mw MERCURY_CONFIG_DIR="$H" bun scripts/golden-set/drive-golden-set.ts --home "$H" --tree "$PWD" --model local/qwen3.5:9b --runs 2 --output "$PWD/scripts/golden-set/results/before"
+H=$(mktemp -d) && env -u MERCURY_HOME -u MERCURY_CRITTER TMPDIR=/private/tmp/mw MERCURY_CONFIG_DIR="$H" node scripts/golden-set/drive-golden-set.ts --home "$H" --tree "$PWD" --model local/qwen3.5:9b --runs 2 --output "$PWD/scripts/golden-set/results/before"
 ```
 
-`--tree` selects the Mercury checkout to build and run; it may differ from the checkout holding this eval. Omit it to test this checkout. The default model is `local/qwen3.5:9b`; repeat `--model` to name another model explicitly. Read `mercury://models` before choosing live model IDs. The build and every child run have scratch homes. `MERCURY_HOME` is removed from each child environment and `TMPDIR` is `/private/tmp/mw`. This driver never reads, copies, or seeds credential files.
+`--tree` selects the Mercury checkout to build and run; it may differ from the checkout holding this eval. Omit it to test this checkout. The default model is `local/qwen3.5:9b`; repeat `--model` to name another model explicitly. Read `mercury://models` before choosing live model IDs. Node 24 hosts the drive and its headless children; Bun builds the artifact and runs the fixture test. The build and every child run have scratch homes. `MERCURY_HOME` is removed from each child environment and `TMPDIR` is `/private/tmp/mw`. This driver never reads, copies, or seeds credential files.
 
 Each row gets a fresh fixture and a distinct config directory under `--home`. The driver rejects homes under the owner's home or checkout. It creates only onboarding settings, not credentials. A local run needs no account state. For a credentialed road, the lead must arrange the account through Mercury's sign-in surfaces in the row's config directory; this seat does not provision it. Row directory names are `<task>-<sanitized-model>-run<N>-config`. Supplied existing config directories are preserved; newly created config directories and fixture copies are deleted after the final state is judged.
 
@@ -27,7 +27,7 @@ Re-run the same command with the same `--output` to resume. All settled measured
 ## Judge and red-to-green check
 
 ```sh
-H=$(mktemp -d) && env -u MERCURY_HOME TMPDIR=/private/tmp/mw MERCURY_CONFIG_DIR="$H" bun scripts/golden-set/drive-golden-set.ts --home "$H" --self-check
+H=$(mktemp -d) && env -u MERCURY_HOME TMPDIR=/private/tmp/mw MERCURY_CONFIG_DIR="$H" node scripts/golden-set/drive-golden-set.ts --home "$H" --self-check
 ```
 
 The self-check accepts a correct example and rejects a sabotage for every task. In particular, an unchanged greeting fails T2 even when the answer says “Done”; this proves that completion is not a transcript-word check. A watchdog fails T1 despite a correct line-count answer, an unsolicited Markdown file fails T8, and curl is counted separately from T6's correct title answer. The same check runs before every paid or local drive.
@@ -39,7 +39,7 @@ Completion and tool choice are separate. The named wrong-tool list records shell
 ## Compare two baselines
 
 ```sh
-bun scripts/golden-set/drive-golden-set.ts --compare scripts/golden-set/results/before/results.json scripts/golden-set/results/after/results.json
+node scripts/golden-set/drive-golden-set.ts --compare scripts/golden-set/results/before/results.json scripts/golden-set/results/after/results.json
 ```
 
 The comparison lists **each task/model/repetition that flipped** and both transcript paths, not a single aggregate score. It refuses differing fixture or task hashes, and names unmatched rows. Examine the flipped transcripts and per-task metrics before deciding whether to keep a tool-text change. Two repeats are a small sample, not a causal ablation or a confidence interval.
