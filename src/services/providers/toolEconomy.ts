@@ -326,7 +326,8 @@ export function toolsOnTheWire(plan: ToolPayloadPlan): Tool[] {
 
 export async function planToolPayloadUnseeded(input: ToolPayloadPlanInput & { latchKey: string }): Promise<ToolPayloadPlan> {
   const { latchKey, ...unlatched } = input
-  return planToolPayload(toolRosterLatchFor(latchKey, input.messages, input.model) === undefined ? unlatched : input)
+  const restored = armedRestoreFor(rosterLatchKey(latchKey, input.messages, input.model)) !== null
+  return planToolPayload(restored || toolRosterLatchFor(latchKey, input.messages, input.model) !== undefined ? input : unlatched)
 }
 
 function boundaryAdmittedNames(messages: readonly Message[]): Set<string> {

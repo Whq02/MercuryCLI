@@ -120,7 +120,7 @@ for await (const reply of runAgent({
   canUseTool: (async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never,
   isAsync: true, querySource: 'agent:builtin:mercury-crew', availableTools, model, effortOverride: 'max',
   override: { agentId: 'fixture-seat', userContext: {}, systemContext: {} },
-  name: 'fixture-seat', team: 'fixture-team', cwd: workspace,
+  name: 'fixture-seat', cwd: workspace,
   onCacheSafeParams: params => { pool = [...params.toolUseContext.options.tools] },
 })) messages.push(reply)
 const board = pool.find(tool => tool.name === 'CrewBoard')!
@@ -174,7 +174,30 @@ const oldSeatMessages = [createUserMessage({ content: 'An existing seat roster.'
 await plan([ToolSearchTool, { ...board, alwaysLoad: false }, pending], oldSeatMessages, 'old-seat')
 const oldSeat = await plan([ToolSearchTool, board, pending], oldSeatMessages, 'old-seat')
 check('an existing seat keeps its deferred mark rather than changing its cache prefix', oldSeat.deferredNames.has(board.name))
+const { restoreBoundPrefixFromMessages } = await import('../../src/services/providers/anthropic/boundPrefixRecord.ts')
+const { conversationRosterKey, clearToolRosterRestore } = await import('../../src/services/providers/toolEconomy.ts')
+for (const enabled of [true, false]) {
+  clearToolRosterLatches()
+  clearToolRosterRestore()
+  const agentId = `resumed-${enabled}`
+  const first = createUserMessage({ content: 'Resume the recorded roster.' })
+  const record = createAttachmentMessage({
+    type: 'bound_prefix',
+    boundKey: conversationRosterKey(String(processOwnerForLane(agentId)), [first], model),
+    rosterEnabled: enabled,
+    roster: [{ name: 'ToolSearch', deferred: false }, { name: loaded.name, deferred: false }, { name: pending.name, deferred: enabled }],
+    sections: [], systemContext: {},
+  })
+  const restored = [first, record, createAssistantMessage({ content: 'Earlier reply.' })] as Message[]
+  restoreBoundPrefixFromMessages(restored, { rosterOnly: true })
+  const restoredTools = [ToolSearchTool, loaded, pending, joined] as Tool[]
+  const notice = deltas(await collect(restoredTools, restored, agentId)).flatMap(row => row.addedNames).sort()
+  const planned = await plan(restoredTools, restored, agentId)
+  check(`resume with deferral ${enabled}: the first notice follows the recorded roster and its MCP join`, JSON.stringify(notice) === JSON.stringify(enabled ? [pending.name, joined.name].sort() : []))
+  check(`resume with deferral ${enabled}: collection preserves the request's saved enablement and full tool`, planned.enabled === enabled && !planned.deferredNames.has(loaded.name) && planned.roster.some(tool => tool.name === loaded.name))
+}
 clearToolRosterLatches()
+clearToolRosterRestore()
 seam.swarmStore()?.close()
 server.close()
 console.log(`swarm deferred requests: ${failures} failures`)
