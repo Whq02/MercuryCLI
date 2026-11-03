@@ -9,7 +9,7 @@ const HEADER_CHARS = 80
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    report: z.string().describe('The carried-back handoff: findings, decisions, exact paths, next steps. Required, non-empty after trim.'),
+    report: z.string().describe('The one artifact that survives the rewind, written as a handoff: findings, decisions, exact paths, next steps. Required, non-empty after trim.'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>

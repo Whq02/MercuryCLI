@@ -34,7 +34,7 @@ const inputSchema = z.strictObject({
     .boolean()
     .optional()
     .describe(
-      'Required to be true when removing a worktree that has uncommitted files or unmerged commits; without it the tool refuses and lists them.',
+      'With remove: true discards the worktree\'s uncommitted files and unmerged commits with it, on the user\'s word; false (the default) removes only a worktree that has none.',
     ),
 })
 

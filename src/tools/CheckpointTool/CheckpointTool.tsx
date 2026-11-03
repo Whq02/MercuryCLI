@@ -7,7 +7,7 @@ import { CHECKPOINT_TOOL_NAME, CHECKPOINT_TOOL_PROMPT, DESCRIPTION } from './pro
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    goal: z.string().min(1).describe('What the exploration sets out to learn or attempt — echoed back on Rewind.'),
+    goal: z.string().min(1).describe('What the exploration sets out to learn or attempt; echoed back at the rewind.'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>

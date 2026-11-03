@@ -15,11 +15,7 @@ const { getAllBaseTools } = await import('../../src/tools.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { toolToAPISchema } = await import('../../src/utils/api.ts')
 const pool = getAllBaseTools()
-const lawful = ['ChangeSet', 'Git', 'Test', 'AstSearch', 'AstEdit', 'LspRead', 'Monitor', 'Debug']
-const pending: Array<[string, RegExp]> = [
-  ['Checkpoint', /detour[\s\S]*keep in context/],
-  ['Rewind', /detour[\s\S]*keep in context/],
-]
+const lawful = ['ChangeSet', 'Git', 'Test', 'AstSearch', 'AstEdit', 'LspRead', 'Monitor', 'Debug', 'Checkpoint', 'Rewind']
 const names = pool.map(tool => tool.name)
 const PREFERENCE = /\bprefer\w*\b|\binstead of\b|\brather than\b|\buse this\b/i
 let failures = 0
@@ -38,9 +34,5 @@ for (const name of lawful) {
   const first = description.split(/(?<=\.)\s/)[0] ?? ''
   const others = names.filter(other => other !== name && new RegExp(`\\b${other}\\b`).test(first.replace(/^\w+/, '')))
   report(first.length >= 40 && others.length === 0 && !PREFERENCE.test(first), `${name}: opens with what it does, names no other tool and no preference — "${first.slice(0, 90)}${first.length > 90 ? '…' : ''}" (${Buffer.byteLength(description)} description bytes${others.length ? `; names ${others.join(', ')}` : ''})`)
-}
-for (const [name, comparison] of pending) {
-  const description = await describe(name)
-  report(comparison.test(description), `${name}: still carries its old sentence until its rewrite lands — ${Buffer.byteLength(description)} description bytes`)
 }
 process.exit(failures === 0 ? 0 : 1)
