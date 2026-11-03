@@ -18,8 +18,8 @@ const OPS = ['status', 'finish'] as const
 const FINISH_VERDICTS = ['completed', 'failed', 'abandoned'] as const
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(OPS).describe('status: what changed, which checks ran since the last change, whether "completed" can land · finish: close and save the record'),
-    verdict: z.enum(FINISH_VERDICTS).optional().describe('finish (required there): "completed" is refused until a check after the last change passed; "failed" and "abandoned" always land'),
+    op: z.enum(OPS).describe('status: show the record · finish: close and save it'),
+    verdict: z.enum(FINISH_VERDICTS).optional().describe('finish, required: "completed", "failed" or "abandoned"'),
     unresolved: z.array(z.string()).optional().describe('finish: real remaining doubt, kept word for word on the record'),
   }),
 )
@@ -118,12 +118,7 @@ export const TransactionTool = buildTool({
     return 'Show or close the automatic record of the changes and checks in this project'
   },
   async prompt() {
-    return `Shows and closes the record Mercury keeps of your work in this project. Optional: use it when the task wants a checked finish, or to see what has changed and what was checked.
-
-You never write to the record. Every change a tool lands in this project (Edit, Write, ChangeSet, AstEdit, NotebookEdit, LSP writes, Structure, …) and every check that runs (tests, builds, type checks and lints run through Bash; Test, Launch and Journey runs) is recorded as it happens. Where Mercury finds no test or build setup, reading each changed file back in full counts as the check. A record starts with the first change after the last finish.
-
-{ op: "status" } — what changed, which checks ran after the last change, and whether "completed" can land now.
-{ op: "finish", verdict, unresolved? } — closes and saves the record. "completed" lands only when a check ran after the last change, the newest such check passed, and no change attempted after it failed or ended indeterminate; otherwise it is refused, the refusal names what is missing, and the record stays open. "failed" and "abandoned" always land. Put real remaining doubt in unresolved; it is kept word for word.`
+    return `Shows or closes the record Mercury keeps of the work in this project: every change a tool lands and every check that runs — tests, builds, type checks and lints — is recorded as it happens, nothing is written to it by hand, and a record starts with the first change after the last finish; where the project has no test or build setup, reading each changed file back in full counts as the check. status returns what changed, which checks ran after the last change and whether "completed" can land now. finish closes and saves the record with its verdict: "completed" lands only when the newest check after the last change passed and no later change attempt failed or ended indeterminate, and the record stays open otherwise; "failed" and "abandoned" always land.`
   },
   userFacingName,
   get inputSchema(): SchemaType { return inputSchema() },

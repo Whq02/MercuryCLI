@@ -3,12 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, fixture, emit, evidence, status, finish, done, call, tx, TransactionTool, projectHomeStore } from './transactionProof.js'
 
-const prompt = `Shows and closes the record Mercury keeps of your work in this project. Optional: use it when the task wants a checked finish, or to see what has changed and what was checked.
-
-You never write to the record. Every change a tool lands in this project (Edit, Write, ChangeSet, AstEdit, NotebookEdit, LSP writes, Structure, …) and every check that runs (tests, builds, type checks and lints run through Bash; Test, Launch and Journey runs) is recorded as it happens. Where Mercury finds no test or build setup, reading each changed file back in full counts as the check. A record starts with the first change after the last finish.
-
-{ op: "status" } — what changed, which checks ran after the last change, and whether "completed" can land now.
-{ op: "finish", verdict, unresolved? } — closes and saves the record. "completed" lands only when a check ran after the last change, the newest such check passed, and no change attempted after it failed or ended indeterminate; otherwise it is refused, the refusal names what is missing, and the record stays open. "failed" and "abandoned" always land. Put real remaining doubt in unresolved; it is kept word for word.`
+const prompt = `Shows or closes the record Mercury keeps of the work in this project: every change a tool lands and every check that runs — tests, builds, type checks and lints — is recorded as it happens, nothing is written to it by hand, and a record starts with the first change after the last finish; where the project has no test or build setup, reading each changed file back in full counts as the check. status returns what changed, which checks ran after the last change and whether "completed" can land now. finish closes and saves the record with its verdict: "completed" lands only when the newest check after the last change passed and no later change attempt failed or ended indeterminate, and the record stays open otherwise; "failed" and "abandoned" always land.`
 const { $schema, ...schema } = z.toJSONSchema(TransactionTool.inputSchema)
 check('T1 strict two-operation schema with only op, verdict, unresolved', JSON.stringify(Object.keys(schema.properties ?? {})) === '["op","verdict","unresolved"]' &&
   JSON.stringify((schema.properties?.op as { enum?: string[] })?.enum) === '["status","finish"]' &&
@@ -19,7 +14,7 @@ check('T5 status only is read-only, including the empty-input guard', Transactio
   !TransactionTool.isReadOnly({ op: 'finish', verdict: 'failed' } as never) && !TransactionTool.isReadOnly({} as never))
 const description = await TransactionTool.prompt({} as never)
 const bytes = Buffer.byteLength(JSON.stringify({ name: 'Transaction', description, input_schema: schema, eager_input_streaming: true, defer_loading: true }))
-check('T6 exact description and definition at most 1917 bytes', description === prompt && bytes <= 1917, `${bytes} bytes`)
+check('T6 exact description, naming no other tool, and definition at most 1500 bytes', description === prompt && !/\b(?:Edit|Write|ChangeSet|AstEdit|NotebookEdit|Structure|Bash|Test|Launch|Journey)\b/.test(description) && bytes <= 1500, `${bytes} bytes`)
 console.log(`MEASURE Transaction definition ${bytes} bytes; description ${Buffer.byteLength(description)}; schema ${Buffer.byteLength(JSON.stringify(schema))}`)
 check('surface guards retain deferral, strictness, output size, concurrency and replay', TransactionTool.shouldDefer === true && TransactionTool.strict === true &&
   TransactionTool.maxResultSizeChars === 40_000 && !TransactionTool.isConcurrencySafe({} as never) && !('outputSchema' in TransactionTool))
