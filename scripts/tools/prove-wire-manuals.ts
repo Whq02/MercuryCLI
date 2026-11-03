@@ -77,8 +77,13 @@ try {
       for (const operation of schema.input_schema.properties.op.enum as string[]) assert.ok(full.includes(operation), `${operation} has manual depth`)
     }
     if (tool.name === 'Debug') {
-      const operations = schema.input_schema.properties.op.enum as string[]
-      for (const operation of operations) assert.ok(schema.description.includes(operation), `${tool.name} must keep ${operation} in the short contract`)
+      assert.ok(bytes <= 600 && Buffer.byteLength(full) <= 4000)
+      assert.equal(schema.input_schema.properties.op.description, 'Debug operation.')
+      for (const operation of schema.input_schema.properties.op.enum as string[]) assert.ok(full.includes(operation), `${operation} has manual depth`)
+      assert.ok(!schema.description.includes('launch:') && !schema.description.includes('Full usage notes'), 'the wire does not abridge the manual')
+      assert.ok(schema.description.includes('launch, attach and customRequest ask permission'), 'the consent fact rides the wire once')
+      assert.equal(full.split('ask permission').length, 1, 'the manual does not repeat it')
+      assert.equal(full.split('disconnect terminates the debuggee and reaps the adapter').length, 2, 'the disconnect effect is said once, in the manual')
     }
   }
   context.messages = JSON.parse(JSON.stringify(picked.newMessages))

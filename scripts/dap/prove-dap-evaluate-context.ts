@@ -108,12 +108,15 @@ async function main(): Promise<void> {
     await call({ op: 'disconnect', session: 'free' })
   }
 
-  section('D  the description says it in one sentence')
+  section('D  each evaluate fact is said once, in the field or sentence that carries it')
   {
     const text = getDebugToolDescription(false)
-    check('…the default frame', /evaluate runs in the top frame of the thread that stopped last unless frameId is given/.test(text))
-    check('…the five contexts', /context "repl" \(default\) \| "watch" \| "hover" \| "clipboard" \| "variables"/.test(text))
-    check('…the expandable reference', /an expandable result carries \[variablesReference N\] — pass N to op:"variables"/.test(text))
+    const fields = (DebugTool.inputSchema as { shape: Record<string, { description?: string }> }).shape
+    const field = (name: string): string => fields[name]?.description ?? ''
+    check('…the default frame lives in the frameId field, and the manual does not repeat it', /evaluate defaults to the top frame of the thread that stopped last/.test(field('frameId')) && !/top frame of the thread that stopped last/.test(text))
+    check('…the five contexts live in the context field', /default "repl"; "watch" for a side-effect-free read, "hover" for a symbol under the cursor, "clipboard" for a copyable value, "variables" for a variables-view value/.test(field('context')) && !text.includes('"clipboard"'))
+    check('…the manual says what evaluate returns: an expandable result carries a variablesReference', /an expandable result carries \[variablesReference N\], which variables expands/.test(text))
+    check('…the refusal for a running debuggee is not pre-empted in the text', !/pause first/.test(text) && !/pause first/.test(field('frameId')))
   }
 
   check('no sessions leak', _dapSessionCountForTesting() === 0, String(_dapSessionCountForTesting()))
