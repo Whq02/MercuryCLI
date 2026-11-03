@@ -150,9 +150,9 @@ check('every roster prompt+description renders', renderFailures.length === 0, re
 check(`every rendered text is brand-free (${brandCleanCount}/${roster.length})`, brandCleanCount === roster.length - renderFailures.length)
 
 const readTool = roster.find(t => t.name === 'Read')!
-const VISUAL_CLAIM = 'shown as the picture itself'
+const VISUAL_CLAIM = 'Images are shown as pictures'
 const OCR_CLAIM = 'return recognised text through an installed OCR engine'
-const PDF_CLAIM = 'PDFs open as numbered text with page markers on every model'
+const PDF_CLAIM = 'PDFs open as numbered text with page markers'
 for (const family of FAMILIES) {
   const model = EXEMPLARS[family]!
   const caps = resolveModelCapabilities(model)
@@ -183,16 +183,16 @@ const schemaOptions = (model: string) => ({
 const readOnGlm1 = await toolToAPISchema(readTool, schemaOptions(EXEMPLARS.zai!))
 const readOnClaude = await toolToAPISchema(readTool, schemaOptions(EXEMPLARS.anthropic!))
 const readOnGlm2 = await toolToAPISchema(readTool, schemaOptions(EXEMPLARS.zai!))
-const wireOf = async (model: string): Promise<string> => readTool.wireDescription!(await readTool.prompt(promptOptions(model)))
+const wireOf = async (model: string): Promise<string> => readTool.prompt(promptOptions(model))
 const claudeWire = await wireOf(EXEMPLARS.anthropic!)
 const glmWire = await wireOf(EXEMPLARS.zai!)
-check('the wire is the wire contract of the manual, never the manual itself', typeof readTool.wireDescription === 'function' && claudeWire.length < (await readTool.prompt(promptOptions(EXEMPLARS.anthropic!))).length)
+check('the wire is the one text: Read has no manual behind its description', readTool.wireDescription === undefined && claudeWire === (await readTool.prompt(promptOptions(EXEMPLARS.anthropic!))))
 check('a foreign-lane render does not poison the anthropic render', (readOnClaude as { description: string }).description === claudeWire)
 const glmCaps = resolveModelCapabilities(EXEMPLARS.zai!)
 const glmText = (readOnGlm1 as { description: string }).description
 check(
   `the foreign render carries its own media truth (images=${glmCaps.media.images}, pdf=${glmCaps.media.pdf})`,
-  glmText === glmWire && glmText.split('\n')[1] !== claudeWire.split('\n')[1] && glmText.includes('PDFs return numbered text'),
+  glmText === glmWire && glmText.split('\n\n')[1] !== claudeWire.split('\n\n')[1] && glmText.includes(PDF_CLAIM),
 )
 check('the two postures render different bytes', glmText !== (readOnClaude as { description: string }).description)
 check('same-posture renders are byte-stable (memo hit)', (readOnGlm1 as { description: string }).description === (readOnGlm2 as { description: string }).description)

@@ -164,7 +164,7 @@ tally.section('S — the same results through the built product (one scripted tu
     tally.check('S1. the product first window ends with line 2000, the mark and the anchor', tail(openingBody, 3) === '2000\tentry 2000: posted\n[lines 1-2000 of 3000 — Read(offset: 2001, limit: 1000) continues from there]\n(anchor: ra:bc6c970c7895:L1+2000)', JSON.stringify(tail(openingBody, 3)))
     const continuation = seen[1]?.text ?? ''
     const body = withoutTrailingReminders(continuation)
-    tally.check('S1b. the Read manual rides the first result once, on first use, and never the continuation', opening.split('# Tool manual: Read').length === 2 && !continuation.includes('# Tool manual: Read'), `${opening.split('# Tool manual: Read').length - 1} / ${continuation.split('# Tool manual: Read').length - 1}`)
+    tally.check('S1b. no Read manual rides either result: the description is the one text', !opening.includes('# Tool manual: Read') && !continuation.includes('# Tool manual: Read'), `${opening.split('# Tool manual: Read').length - 1} / ${continuation.split('# Tool manual: Read').length - 1}`)
     tally.check('S2. the product continuation ends with line 3000, the end-of-file mark and the real-count anchor', tail(body, 3) === '3000\tentry 3000: posted\n[lines 2001-3000 of 3000 — the end of the file]\n(anchor: ra:8872ebe6ae6b:L2001+1000)', JSON.stringify(tail(body, 3)))
     tally.check('S2b. the product never numbers a line 3001', !/^3001\t/m.test(continuation), tail(body, 3))
   } finally {

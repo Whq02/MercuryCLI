@@ -24,32 +24,36 @@ if (process.argv.includes('--record')) {
 }
 const tally = makeTally('prove-read-description')
 
-const LINE = '- With no window parameters the read returns up to 2000 lines from the top of the file. A result that is not the whole file closes its numbered lines with `[lines 1-2000 of 3000 — Read(offset: 2001, limit: 1000) continues from there]` or `[lines 2001-3000 of 3000 — the end of the file]`; without that line it is the whole file'
-const OLD_LINE = '- With no window parameters the read returns up to 2000 lines from the top of the file\n'
-const NEXT_LINE = '- An optional line offset and limit narrow the window.'
-
-tally.section('4.2 — the description: each fact once, 2,898 bytes with read targets on for a PDF- and image-capable model')
+tally.section('4.2 — one text: the description says what comes back, each fact once, and no manual rides behind it')
 {
   const prompt: string = await FileReadTool.prompt({ model: 'claude-sonnet-5-5' })
   tally.check('read targets are on for this rendering', readTargetsEnabled() === true)
-  tally.check('the line stands once, exactly, followed by the unchanged offset-and-limit line', prompt.split(LINE).length === 2 && prompt.includes(`${LINE}\n${NEXT_LINE}\n`), prompt)
-  tally.check('.28\'s bare line is gone', !prompt.includes(OLD_LINE), prompt)
-  tally.check('the 256 KB sentence stays off (FORK 5 side B)', !prompt.includes('256KB') && !prompt.includes('256 KB'), prompt)
-  tally.check('the default window, the PDF per-request maximum and the line_anchors explanation are said once, in the offset and limit fields, the pages field and the line_anchors field, and not again in the description', !prompt.includes('Leaving them out') && !prompt.includes('handy for very long') && !prompt.includes('pages per request') && !prompt.includes('e.g. "1-5"') && !prompt.includes('line_anchors'), prompt)
-  tally.check('the description names the archive, SQLite (<db>:<table>), document, negative offset and ranges lanes', prompt.includes('<archive>:<entry>') && prompt.includes('<db>:<table>') && prompt.includes('offset: -N') && prompt.includes('ranges'), prompt)
-  tally.check('the description is 2,898 bytes (including the archive, SQLite, document, tail-offset and ranges sentence and the audio and video line)', Buffer.byteLength(prompt) === 2898, `${Buffer.byteLength(prompt)} bytes`)
-  const lines = prompt.split('\n')
-  tally.check('the other lines: the opener, the clipping line, the prefix line, the media lines, the audio and video line, the target lines, the empty-file line', lines[0] === 'Read the contents of a local file: any file on the machine, and a path that does not exist returns an error.' && lines[5] === '- Individual lines are cut off past 2000 characters; use `lossless: true` with `offset` + `limit` or `ranges` to show them completely within the same total budget. A clipped line does not authorise replacing its unseen text.' && lines[6] === '- Every returned line carries a prefix — a line number followed by a tab, then the line content — with numbering starting at 1' && lines[7] === '- Image files (PNG, JPG, and similar) are shown as the picture itself; `ocr: true` returns recognised text instead.' && lines[9] === '- Local audio and video (wav, mp3, m4a, aac, flac, ogg, opus, webm, mp4, mov, mkv) return numbered, timestamped transcripts through on-device Whisper; offset, limit and ranges select transcript lines, and the first use prepares the speech model if needed.' && lines.at(-1) === '- A file that exists but is empty produces a system-reminder note in place of content.' && lines.length === 17, JSON.stringify(lines))
+  tally.check('no wire/manual split: the description is the whole text the model ever reads for Read', (FileReadTool as { wireDescription?: unknown }).wireDescription === undefined)
+  tally.check('the opener says the text, the window, the prefix and that the prefix is not content', prompt.startsWith('Reads a local file and returns its text with up to 2000 lines, each prefixed by a line number followed by a tab, then the line content; the prefix is not file content. A result that is not the whole file names the unread range.'), prompt)
+  tally.check('the formats are said once: pictures or ocr, PDFs with pages, notebooks, office, archives (<archive>:<entry>), SQLite (<db>:<table>), audio and video', prompt.includes('Images are shown as pictures, or as recognised text with `ocr`.') && prompt.includes('PDFs open as numbered text with page markers, or as page pictures with `pages`') && prompt.includes('<archive>:<entry>') && prompt.includes('<db>:<table>') && prompt.includes('audio and video as timestamped transcripts'), prompt)
+  tally.check('the targets are said once: a directory listing and mercury:// records, with mercury://seat named as this seat\'s own', prompt.includes('A directory path returns a bounded listing.') && prompt.includes("mercury://seat is this seat's own: the model, effort and posture this turn runs on."), prompt)
+  tally.check('three paragraphs, under 900 bytes', prompt.split('\n\n').length === 3 && Buffer.byteLength(prompt) <= 900, `${prompt.split('\n\n').length} paragraphs, ${Buffer.byteLength(prompt)} bytes`)
+  for (const gone of ['Usage:', 'Never edit', 'screenshot', 'ask which model', 'never from an earlier reply', 'WebFetch', 'Glob', 'Inspect', 'Bash', 'Whisper', 'ffmpeg', 'system-reminder', 'Full usage notes', 'continues from there', 'only when the whole file is too large']) {
+    tally.check(`gone: "${gone}" (another tool, a rule, a repeat or a pre-empted result)`, !prompt.includes(gone))
+  }
   const noMedia: string = await FileReadTool.prompt({ model: 'glm-5.3' })
-  tally.check('a rendering for a model without PDF or image input (glm-5.3) changes in the same one line only', noMedia.includes(`${LINE}\n${NEXT_LINE}\n`) && !noMedia.includes(OLD_LINE) && !noMedia.includes('This tool can read PDF files') && noMedia.includes('return recognised text through an installed OCR engine') && noMedia.includes('PDFs open as numbered text'), noMedia)
+  tally.check('a model without image input gets the OCR sentence in the same place and nothing else changes', noMedia.includes('Images return recognised text through an installed OCR engine, or the installation needed when none is available.') && !noMedia.includes('shown as pictures') && noMedia.replace('Images return recognised text through an installed OCR engine, or the installation needed when none is available.', 'Images are shown as pictures, or as recognised text with `ocr`.') === prompt, noMedia)
 }
 
-tally.section('5 — the input schema matches its recorded copy')
+tally.section('5 — the input schema: shapes unchanged, prose carries each fact alone, and it matches its recorded copy')
 {
   const schema = JSON.stringify(zodToJsonSchema((FileReadTool as { inputSchema: never }).inputSchema))
   const stored = readFileSync(join(import.meta.dir, 'fixtures', 'read-input-schema-28.json'), 'utf8').replace(/\n$/, '')
   tally.check('the JSON Schema of inputSchema() equals fixtures/read-input-schema-28.json byte for byte', schema === stored, `${schema.length} vs ${stored.length}`)
-  tally.check('it is 2,156 bytes with lossless ranges, outline, negative offset, image crop, scale and OCR', Buffer.byteLength(schema) === 2156, `${Buffer.byteLength(schema)} bytes`)
+  tally.check('it is under 1,800 bytes with lossless ranges, outline, negative offset, image crop, scale and OCR', Buffer.byteLength(schema) <= 1800, `${Buffer.byteLength(schema)} bytes`)
+  const parsed = JSON.parse(schema) as { properties: Record<string, { description?: string; type?: string }>; required?: string[] }
+  tally.check('eleven fields in their order, file_path required', Object.keys(parsed.properties).join(',') === 'file_path,ocr,lossless,offset,limit,ranges,pages,scale,crop,outline,line_anchors' && JSON.stringify(parsed.required) === '["file_path"]', Object.keys(parsed.properties).join(','))
+  const field = (name: string): string => parsed.properties[name]?.description ?? ''
+  tally.check('the line clip lives in lossless alone', field('lossless').includes('a line is otherwise cut at 2000 characters') && field('lossless').includes('requires offset + limit or ranges, without outline'))
+  tally.check('offset and limit carry no "only when the file is too large" rule', !field('offset').includes('too large') && !field('limit').includes('too large') && field('limit').includes('default 2000'))
+  tally.check('the PDF page cap lives in pages alone', field('pages').includes('at most 20 pages per call'))
+  tally.check('crop carries its box and no pre-empted refusal', field('crop') === 'For an image, a box [x1, y1, x2, y2] in original pixels, cut before any downscale.')
+  tally.check('line_anchors names the anchor and what takes it', field('line_anchors').includes('"N#hhhh"') && field('line_anchors').includes('anchored Edit hunk'))
   tally.check('the tool keeps its name', FileReadTool.name === 'Read')
 }
 

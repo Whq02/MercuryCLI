@@ -23,7 +23,7 @@ const normalizeText = (text: string): string => text
 
 const CONSTRAINTS: Record<string, string[]> = {
   Bash: ['stdout and stderr merged', 'not to the operator', 'saved to a file', 'Exited with code', 'exit 1', 'no matches found', 'working directory persists', 'shell variables, functions and options do not'],
-  Read: ['numbered from 1', '2000 lines', 'offset', 'limit', 'ranges', 'lossless', 'Never edit unseen clipped text', 'OCR', 'pages', 'Notebooks', 'mercury://', 'WebFetch', 'outline', 'line_anchors'],
+  Read: ['2000 lines', 'line number followed by a tab', 'not file content', 'unread range', 'pictures', 'PDFs', 'Notebooks', '<archive>:<entry>', '<db>:<table>', 'transcripts', 'mercury://'],
   Edit: ['old_string', 'new_string', 'replace_all', 'hunks', 'append', 'section', 'indentation', 'line-number prefix', 'stale or unread', 'expected_anchor', 'fa:', 'ra:', 'do not reread'],
   Write: ['overwritten', 'Read has to have read the file first', 'entire file', 'syntax error', 'Documentation files', 'never proactively'],
   Grep: ['ripgrep', 'braces need escaping', 'PCRE2', 'literal: true', 'documents', '20 documents'],

@@ -120,35 +120,35 @@ import {
 const MAX_RANGES_PER_READ = 32
 
 const stockFields = () => ({
-  file_path: z.string().describe('Absolute path of the file to open'),
-  ocr: semanticBoolean(z.boolean().optional()).describe('For an image, return recognised text instead of the picture. Automatic on models without image input; scanned PDF pages use OCR when read as text.'),
-  lossless: semanticBoolean(z.boolean().optional()).describe('With offset + limit or ranges, show complete text lines within the existing total output budget.'),
+  file_path: z.string().describe('Absolute path of the file to read'),
+  ocr: semanticBoolean(z.boolean().optional()).describe('For an image, return recognised text instead of the picture; automatic on a model without image input.'),
+  lossless: semanticBoolean(z.boolean().optional()).describe('Show complete lines (a line is otherwise cut at 2000 characters); requires offset + limit or ranges, without outline.'),
   offset: semanticNumber(z.number().int().optional()).describe(
-    'The first line to read (a negative -N starts N lines from the end); only when the whole file is too large for one read',
+    'The first line to read, 1-based; a negative -N starts N lines from the end.',
   ),
   limit: semanticNumber(z.number().int().gt(0).optional()).describe(
-    'The most lines to return; only when the whole file is too large for one read',
+    `The most lines to return (default ${MAX_LINES_TO_READ}).`,
   ),
   ranges: z
     .array(z.string())
     .max(MAX_RANGES_PER_READ)
     .optional()
     .describe(
-      `Up to ${MAX_RANGES_PER_READ} 1-based line ranges read in one call (["1-20", "85-100", "-15"]), each keeping its continuation mark`,
+      `Up to ${MAX_RANGES_PER_READ} 1-based line ranges read in one call ("1-20", "-15"), each with its own continuation mark.`,
     ),
   pages: z
     .string()
     .optional()
     .describe(
-      `PDF page range ("2-6", "9", "12-24"), at most ${MAX_PDF_PAGES_PER_REQUEST} pages per call`,
+      `PDF page range ("2-6"), at most ${MAX_PDF_PAGES_PER_REQUEST} pages per call; page pictures on a model with image input, text otherwise.`,
     ),
-  scale: semanticNumber(z.number().min(1).optional()).describe('Upscale the crop by this factor (for example 2) before reading; requires crop, within the same image output budget'),
+  scale: semanticNumber(z.number().min(1).optional()).describe('Upscale factor for the crop, within the image output budget; requires crop.'),
   crop: z
     .array(semanticNumber(z.number().int().min(0)))
     .length(4)
     .optional()
     .describe(
-      'For an image: a box [x1, y1, x2, y2] in original pixels, cut before any downscale so small text stays crisp (zoom into a screenshot by re-reading it with a box); refused when it reaches outside the image or is inverted',
+      'For an image, a box [x1, y1, x2, y2] in original pixels, cut before any downscale.',
     ),
 })
 
@@ -156,10 +156,10 @@ const anchoredSchemaFactory = () =>
   z.strictObject({
     ...stockFields(),
     outline: semanticBoolean(z.boolean().optional()).describe(
-      'True returns a structural outline (signatures kept, function and method bodies elided, original line numbers kept) from the vendored tree-sitter grammar for the file type; off, the full window',
+      'Return the file\'s declarations with their original line numbers and bodies elided, instead of the full text.',
     ),
     line_anchors: semanticBoolean(z.boolean().optional()).describe(
-      'True stamps each text line prefix with its content anchor ("N#hhhh"), the copyable address for anchor-qualified Edit hunks; off, the plain numbered form',
+      'Prefix each line with its content anchor ("N#hhhh"), the address an anchored Edit hunk takes.',
     ),
   })
 
@@ -1720,18 +1720,6 @@ export const FileReadTool = buildTool({
       }
     }
     return text
-  },
-  wireDescription(fullPrompt: string) {
-    const images = fullPrompt.includes('shown as the picture itself')
-      ? 'Images are shown; ocr returns recognised text. Read user-supplied screenshots here.'
-      : 'Images return OCR text, or an installation remedy when no engine is available.'
-    const targets = fullPrompt.includes('also reads directories')
-      ? 'Directories list entries; mercury:// reads records (ask which model: read mercury://seat); URLs delegate to WebFetch, never fetch here.'
-      : 'Files only; use Bash to list directories.'
-    return `Read local files. Text is numbered from 1 (line number + tab, not part of the content); default 2000 lines. A continuation marker names the unread range. Use offset+limit, negative offset for a tail, or ranges; lossless requires a window and no outline. Never edit unseen clipped text.
-${images} PDFs return numbered text; pages selects pictures on image-capable models, text otherwise, with OCR for scans. Notebooks include cells and outputs; office documents, archives and SQLite open as text (archive:entry, database:table). Local audio and video return timestamped transcripts through on-device Whisper; ffmpeg decodes formats other than 16 kHz mono PCM WAV.
-${targets}
-outline returns declarations; line_anchors supplies edit addresses. Full usage notes arrive on discovery or first use.`
   },
   async prompt(options?: { model?: string }): Promise<string> {
     const targetLines = readTargetsEnabled() ? readTargetPromptLines() : undefined

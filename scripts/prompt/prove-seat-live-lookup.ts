@@ -90,8 +90,8 @@ section('§1 the seat page speaks local time, names /model, and the Read tool po
 
   const { readTargetPromptLines } = await import('../../src/tools/FileReadTool/readTarget.ts')
   const readLines = readTargetPromptLines()
-  check('the Read tool (always loaded) tells the seat that mercury://seat is its own reference and what it holds (RED on the base: only the Inspect prompt did, and Inspect is deferred)', readLines.includes('mercury://seat is this seat\'s own reference') && readLines.includes('the model this turn runs on'), readLines)
-  check('…and to answer "which model" from it, never from an earlier reply, an environment variable or the ledger file', readLines.includes('asked which model runs you, read it and answer from it') && readLines.includes('an environment variable') && readLines.includes('the ledger file'), readLines)
+  check('the Read tool (always loaded) tells the seat that mercury://seat is its own record and what it holds (Inspect is deferred, so the fact rides Read)', readLines.includes("mercury://seat is this seat's own") && readLines.includes('the model, effort and posture this turn runs on'), readLines)
+  check('…as a fact, not a rule: no "never from an earlier reply" sentence rides the tool text (the result of reading the record answers the question)', !readLines.includes('never from an earlier reply') && !readLines.includes('the ledger file'), readLines)
   const { InspectTool } = await import('../../src/tools/InspectTool/InspectTool.ts')
   check('the Inspect tool is deferred, which is why the pointer must ride Read', (InspectTool as { shouldDefer?: boolean }).shouldDefer === true)
 }

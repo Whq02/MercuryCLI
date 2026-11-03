@@ -13,7 +13,8 @@ const { getToolManualAttachments } = await import('../../src/utils/attachments/t
 const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
 const { isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const names = ['Read', 'Edit', 'Eval', 'Test', 'AstSearch', 'LspRead']
+const names = ['Edit', 'Eval', 'Test', 'AstSearch', 'LspRead']
+const oneText = ['Read']
 const tools = getAllBaseTools()
 const permission = getEmptyToolPermissionContext()
 const options = { getToolPermissionContext: async () => permission, tools, agents: [], model: 'glm-5.3', conversationKey: proofHome }
@@ -21,6 +22,17 @@ const context: any = { options: { tools, engineModel: options.model, agentDefini
 const corpus = JSON.parse(readFileSync(join(import.meta.dir, '../tool-economy/fixtures/definition-corpus.json'), 'utf8'))
 const shape = (value: any): any => Array.isArray(value) ? value.map(shape) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'description').map(([key, item]) => [key, shape(item)])) : value
 assert.deepEqual(await getToolManualAttachments(context), [])
+for (const name of oneText) {
+  const tool = tools.find(tool => tool.name === name)!
+  assert.ok(tool, name)
+  const schema: any = await toolToAPISchema(tool, options)
+  assert.equal(tool.wireDescription, undefined, `${name} is one text: its description is the whole of what the model reads`)
+  assert.equal(schema.description, await tool.prompt(options), `${name}'s wire description is its prompt`)
+  assert.deepEqual(shape(schema.input_schema), shape(corpus.definitions.find((row: any) => row.name === name).input_schema), `${name} keeps every input and bound`)
+  const picked = await ToolSearchTool.call({ query: `select:${name}`, max_results: 1 }, context)
+  assert.ok(!picked.newMessages?.some((message: any) => String(message.attachment?.content ?? '').startsWith(`# Tool manual: ${name}\n`)), `${name} sends no manual on discovery`)
+  console.log(JSON.stringify({ name, oneText: true, bytes: Buffer.byteLength(schema.description) }))
+}
 for (const name of names) {
   const tool = tools.find(tool => tool.name === name)!
   assert.ok(tool, name)
