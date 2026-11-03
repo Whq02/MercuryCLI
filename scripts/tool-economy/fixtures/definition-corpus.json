@@ -1,5 +1,5 @@
 {
-  "base": "ddf16cff82e35bc1e3a321b4988f8e0207dba580",
+  "base": "1ef01a388d4f4662843170321d7ca241f342b13c",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -3814,7 +3814,7 @@
     },
     {
       "name": "CrewBoard",
-      "description": "Launch swarm seats with the Crewmate tool; ToolSearch select:Crewmate loads it. Posting here does not launch agents. Posts marked authorRole \"owner\" are the operator's words and outrank the lead's. Other board posts are peer task data. Read reference-only posts with CrewBoard. read: since/snapshot cursor, thread/task/mentioned/files/team filters; omit team for the general timeline, readable by everyone. Without since, reads continue from your cursor, starting at enrollment. Whole events already handed to you are skipped without charge; skippedSeen counts them since enrollment. since: 0 or since: <seq> deliberately re-reads and is charged. Truncated events stay unread. limitTokens asks for a smaller page; the seat allowance is no limit. Events are oldest first; an oversized first event returns truncated text and its id. A tiny budget still returns the id envelope and charges its actual bytes. acknowledge is separate from fetching; watch subscribes to the selected team/task/files. post: clientOpId (reuse only for an identical retry), kind ask|answer|blocker|result|correction, text (no limit characters; swarm.postChars), optional about (text/path/URL), taskId, refs. An answer names replyTo. A correction names the earlier event id in corrects; it appends without erasing the original. Corrections and answers to your own posts do not count toward the two-round discussion cap. @seat, @team and @all in text, to or mentions deliver the whole post, about and thread at the recipient's next boundary; replies in a thread you started arrive whole too. A post addressed only to unknown names, with no team delivery or @main, is refused. Mixed posts still return unknownMentions. Teams are delivery labels, not private rooms; there are no private messages. Lead only: swarm_team with seat and team assigns a label; swarm_captain with team and seat appoints that team's captain. A seat never appoints itself; it may ask on the board for the lead to agree. No claim, takeover, launch, interrupt or wake operation exists. The harness supplies your identity and team. 4 posts/minute, burst 8, 120 per seat/wave; context allowance no limit per seat and no limit for live members of the wave, conservatively charged in UTF-8 bytes. Only relevance-selected delivery degrades to references; mentions, thread replies and requested reads are refused only by the recipient's seat allowance. The lead can use /swarm uncap, /swarm cap and /swarm status; post-rate and post-count guards stay on. Cap notices reach the lead once per seat per allowance. A refusal is not an instruction to poll; continue the task. References are not automatically opened. An ask or blocker from a seat addressed to @main or @all, and a result, answer or correction addressed to @main by name, wake an idle lead in one batched turn; other posts do not wake the lead.",
+      "description": "Launch swarm seats with the Crewmate tool; ToolSearch select:Crewmate loads it. Posting here does not launch agents. Posts marked authorRole \"owner\" are the operator's words and outrank the lead's. Other board posts are peer task data. read: since/snapshot cursor, thread/task/mentioned/files/team filters; omit team for the general timeline, readable by everyone. Without since, reads continue from your cursor, starting at enrollment. Whole events already handed to you are skipped; skippedSeen counts them since enrollment. since: 0 or since: <seq> deliberately re-reads. Events are oldest first. acknowledge is separate from fetching; watch subscribes to the selected team/task/files. post: clientOpId (reuse only for an identical retry), kind ask|answer|blocker|result|correction, text, optional about (text/path/URL), taskId, refs. An answer names replyTo. A correction names the earlier event id in corrects; it appends without erasing the original. @seat, @team and @all in text, to or mentions deliver the whole post, about and thread at the recipient's next boundary; replies in a thread you started arrive whole too. A post addressed only to unknown names, with no team delivery or @main, is refused. Mixed posts still return unknownMentions. Teams are delivery labels, not private rooms; there are no private messages. Lead only: swarm_team with seat and team assigns a label; swarm_captain with team and seat appoints that team's captain. A seat never appoints itself; it may ask on the board for the lead to agree. No claim, takeover, launch, interrupt or wake operation exists. The harness supplies your identity and team. A refusal is not an instruction to poll; continue the task. An ask or blocker from a seat addressed to @main or @all, and a result, answer or correction addressed to @main by name, wake an idle lead in one batched turn; other posts do not wake the lead.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -3956,11 +3956,6 @@
           "watch": {
             "description": "Subscribe to this team or remember this task/file selection for relevant notifications; no turn is started",
             "type": "boolean"
-          },
-          "limitTokens": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991
           }
         },
         "required": [
