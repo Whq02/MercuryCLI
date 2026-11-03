@@ -24,7 +24,7 @@ import {
   extractConnectionErrorDetails as connectionDetailsFor,
   formatAPIError as formatConnectionFallback,
 } from './errorUtils.js'
-import { retryAfterHeaderMs } from './retryAfter.js'
+import { retryAfterHeaderMs, errorHeaders } from './retryAfter.js'
 import { providerWaitWords, stampProviderWait } from './recoveryBudget.js'
 import { ImageResizeError, statedManyImageLimit } from '../../utils/imageResizer.js'
 import { ImageSizeError } from '../../utils/imageValidation.js'
@@ -176,9 +176,6 @@ function headerValue(headers: unknown, name: string): string | undefined {
   return record[name] ?? record[name.toLowerCase()]
 }
 
-function errorHeaders(error: unknown): unknown {
-  return (error as { headers?: unknown } | null)?.headers
-}
 
 function routeOfModel(model: string): string {
   try {
