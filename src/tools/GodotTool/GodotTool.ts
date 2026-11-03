@@ -20,11 +20,11 @@ import {
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    op: z.string().describe('The Godot operation (see the op catalog in the tool description)'),
+    op: z.string().describe('Godot operation, from the ops list.'),
     args: z
       .record(z.string(), z.unknown())
       .optional()
-      .describe('Operation arguments (validated editor-side; errors return actionable hints)'),
+      .describe('The operation\'s arguments.'),
   }),
 )
 
