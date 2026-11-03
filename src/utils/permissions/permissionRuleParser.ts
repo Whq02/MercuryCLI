@@ -1,6 +1,6 @@
 import type { PermissionRuleValue } from '../../types/permissions.js'
 
-function precedingBackslashes(text: string, i: number): number {
+export function precedingBackslashes(text: string, i: number): number {
   let count = 0
   let j = i - 1
   while (j >= 0 && text[j] === '\\') {

@@ -1,5 +1,6 @@
 import type { PermissionUpdate } from '../../types/permissions.js'
 import { isDestructiveCommandVerb } from '../../tools/BashTool/destructiveCommandWarning.js'
+import { precedingBackslashes } from './permissionRuleParser.js'
 
 const COMMAND_PREFIX_ARITY: Readonly<Record<string, number>> = {
   git: 2, npm: 2, pnpm: 2, yarn: 2, bun: 2, docker: 2, gh: 2, cargo: 2,
@@ -37,15 +38,6 @@ export type ShellPermissionRule =
   | { type: 'exact'; command: string }
   | { type: 'wildcard'; pattern: string }
 
-function precedingBackslashes(text: string, i: number): number {
-  let count = 0
-  let j = i - 1
-  while (j >= 0 && text[j] === '\\') {
-    count++
-    j--
-  }
-  return count
-}
 
 export function hasWildcards(pattern: string): boolean {
   for (let i = 0; i < pattern.length; i++) {
