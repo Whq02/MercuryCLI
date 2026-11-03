@@ -23,35 +23,17 @@ export function buildCronCreateDescription(): string {
 }
 
 export function buildCronCreatePrompt(): string {
-  return `Put a prompt on this session's clock: one run after a delay or at a set time, or a repeating cron schedule. The Mercury daemon keeps it on this session's record and fires it, even into a parked session.
-
-## When: exactly one of
-- delayMinutes: "in 20 minutes" → 20.
-- at: "3:47pm today" → "<today's date>T15:47". A time already past is refused, never moved to another day.
-- cron: never convert to UTC. Fields take numbers, *, ranges (1-5), lists (1,15), steps (*/10); no names (MON, JAN). Every 5 minutes "*/5 * * * *"; hourly at :07 "7 * * * *"; weekdays 09:00 "0 9 * * 1-5".
-
-## The answer
-The call waits for the daemon. "Scheduled <id> …" gives the 8-character id and the fire time in local time and UTC: tell the user that time; ${CRON_DELETE_TOOL_NAME} with that id cancels. A refusal means nothing was scheduled; it says why and what to do next. "NOT confirmed" means the request may have landed: check ${CRON_LIST_TOOL_NAME} before retrying. "Queued, not confirmed …" means an older daemon took the request without answering: check ${CRON_LIST_TOOL_NAME} before telling the user anything is scheduled.
-
-## Firing
-- The daemon checks every 30 seconds: a fire lands within 30 seconds after its time, only while the session is idle.
-- It runs on this session's model and account. A fire the sign-in cannot serve (expired, rate-limited) is held with a receipt until /logins releases it; a fire due while the machine slept runs late, or past the catch-up window is recorded as missed. Never silently dropped.
-- A schedule outlives interrupts; for a self-paced loop that should end when the user interrupts, use ScheduleWakeup (one wake, 1 to 60 minutes).
-- At most 50 schedules per session.
-
-## Prompt and title
-The prompt comes back verbatim at each fire with no memory of why it was set. Give a title when the user named the task. Mention the ${SATURN_BOARD_COMMAND} board, where the user sees every schedule.`
+  return `Puts a prompt on this session's clock — one run after a delay or at a set time, or a repeating cron schedule — kept by the Mercury daemon on this session's record and fired into the session, parked or not, on this session's model and account; the operator sees every schedule on the ${SATURN_BOARD_COMMAND} board. The call waits for the daemon and returns the schedule's id and its fire time in local time and UTC; an answer that is not "Scheduled" says whether the request may have landed and how to find out. A fire lands within 30 seconds after its time, only while the session is idle; one the sign-in cannot serve is held with a receipt until /logins releases it, one due while the machine slept runs late or, past the catch-up window, is recorded as missed, and a schedule outlives interrupts.`
 }
 
 export const CRON_DELETE_DESCRIPTION = "Take a schedule off this session's clock, by id."
 
 export function buildCronDeletePrompt(): string {
-  return `Cancel a schedule on this session's record. Pass the id ${CRON_CREATE_TOOL_NAME} returned or ${CRON_LIST_TOOL_NAME} shows. The removal travels on the session's next facts beat and is receipted.`
+  return `Cancels a schedule on this session's record by id; the removal travels on the session's next facts beat and is receipted.`
 }
 
 export const CRON_LIST_DESCRIPTION = "List this session's schedules."
 
-export function buildCronListPrompt(offersCreate = true): string {
-  const creator = offersCreate ? `${CRON_CREATE_TOOL_NAME} answered` : 'the session answered'
-  return `List this session's schedules as the daemon last pushed them: id, human-readable timing, one-shot or recurring, fire-into-session or session-birth, next fire, paused state. A schedule ${creator} "Scheduled" is listed already; one it answered "Queued, not confirmed" appears once the daemon applies it.`
+export function buildCronListPrompt(): string {
+  return `Lists this session's schedules as the daemon last pushed them: id, timing, one-shot or recurring, fire-into-session or session-birth, next fire, paused state. A schedule answered "Queued, not confirmed" at creation appears once the daemon applies it.`
 }

@@ -23,13 +23,13 @@ import { createResultText, scheduleQueued, scheduleRefusal, scheduleUnconfirmed,
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    cron: z.string().optional().describe('Repeating: 5 fields (minute hour day-of-month month day-of-week) in local time, e.g. "0 9 * * 1-5". Pass exactly one of cron, at, delayMinutes.'),
-    at: z.string().optional().describe('One run at a local date and time, "YYYY-MM-DDTHH:MM" (an offset like "Z" or "+01:00" is accepted); must be in the future.'),
+    cron: z.string().optional().describe('Repeating: five fields (minute hour day-of-month month day-of-week) in local time, never UTC; numbers, *, ranges (1-5), lists (1,15) and steps (*/10), no names. Pass exactly one of cron, at, delayMinutes.'),
+    at: z.string().optional().describe('One run at a local date and time, "YYYY-MM-DDTHH:MM" (an offset such as "Z" or "+01:00" is accepted); must be in the future.'),
     delayMinutes: semanticNumber(z.number().min(1).max(525_600)).optional().describe('One run this many minutes from now (1 to 525600); it fires on the next whole minute at or after the delay.'),
-    prompt: z.string().describe('What runs at each fire: self-contained, 1 to 20,000 characters, no secrets (it is stored with the schedule).'),
+    prompt: z.string().describe('What runs at each fire, 1 to 20,000 characters, stored with the schedule and delivered verbatim with no memory of why it was set: self-contained, no secrets.'),
     recurring: semanticBoolean(z.boolean().optional()).describe('With cron only. Default true; false runs once at the next match, then removes itself (for one run prefer at or delayMinutes).'),
     onParked: z.enum(['wake', 'queue']).optional().describe("What a fire does when the session is parked: 'wake' (default) reactivates the session and delivers; 'queue' holds the fire for the session's own next wake."),
-    title: z.string().optional().describe('A short name for the schedule (one line of at most 200 characters), shown on its rows in the chat and the list in place of the id — "morning brief", "nightly audit".'),
+    title: z.string().optional().describe('A short name for the schedule (one line of at most 200 characters), shown on its rows in the chat and the list in place of the id; the name the user gave the task, when they gave one.'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>

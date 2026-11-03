@@ -6,7 +6,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { buildCronDeletePrompt, CRON_DELETE_DESCRIPTION, CRON_DELETE_TOOL_NAME, CRON_LIST_TOOL_NAME, cronToolsMountable } from './prompt.js'
 import { renderDeleteResultMessage, renderDeleteToolUseMessage } from './UI.js'
 
-const ID_HINT = `The schedule id to cancel (eight hex characters — ${CRON_LIST_TOOL_NAME} shows them)`
+const ID_HINT = 'The schedule id to cancel (eight hex characters)'
 
 const inputSchema = lazySchema(() => z.strictObject({ id: z.string().describe(ID_HINT) }))
 const outputSchema = lazySchema(() => z.object({ id: z.string(), note: z.string() }))
