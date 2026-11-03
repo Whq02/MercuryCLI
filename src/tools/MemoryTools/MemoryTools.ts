@@ -67,11 +67,11 @@ const retainSchema = lazySchema(() =>
     items: z
       .array(
         z.strictObject({
-          content: z.string().describe('One self-contained durable fact.'),
+          content: z.string().describe('One durable fact; content and context together may contain at most 2000 characters.'),
           context: z.string().optional().describe('Where the fact came from (provenance note).'),
           topic: z.string().optional().describe('Topic routing hint (slugified).'),
-          pin: z.boolean().optional().describe("Only when the user asked to remember this as a standing rule or preference: pins it, in their words, marked as asked for by the user. A pin needs the user's own words in the main chat — the rule in their latest message, or their 'yes, pin it' after stating it; otherwise it is refused and nothing is stored. A crewmate cannot pin: retain the fact without pin."),
-          replaces: z.string().optional().describe('Only when the user said this rule replaces an earlier one: that rule as seq:<n> — from the pinned shelf, or the rule the user unpinned in /memory and now restates. The new rule takes its place and the old one becomes history, so one rule stays current. For a rule marked asked for by the user, the user answers a yes/no card first (under sovereign, no card).'),
+          pin: z.boolean().optional().describe("Pin the user's exact words as an always-loaded standing rule or preference, when they asked for that lasting rule."),
+          replaces: z.string().optional().describe('Prior rule id (seq:<n>) the user explicitly replaced; keeps the old wording as history. For a user-requested rule, the user answers a yes/no card first (under sovereign, no card).'),
         }),
       )
       .min(1)

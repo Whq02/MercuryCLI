@@ -107,7 +107,7 @@ try {
 
   section('§5 the words: the gate is stated once, where the model reads it')
   check('memoryAskRefusal is the one judge: no window ⇒ refused, an asking window ⇒ allowed, a crewmate ⇒ refused', memoryAskRefusal([]) === retainAskRefusal(undefined) && memoryAskRefusal([user('remember this')]) === null && memoryAskRefusal([user('remember this')], 'c') === CREWMATE_RETAIN_REFUSAL)
-  check('the Retain prompt tells the model the tool refuses an unasked write', RETAIN_PROMPT.includes('The tool refuses a write when the user\'s latest message does not ask for something to be remembered'), RETAIN_PROMPT.split('\n').at(-1) ?? '')
+  check('the Retain description carries outcomes rather than repeating the system-owned asking rule', RETAIN_PROMPT.includes('refusal reason') && !RETAIN_PROMPT.includes("user's latest message"), RETAIN_PROMPT)
   const mneme = readFileSync(join(REPO, 'docs', 'MNEME.md'), 'utf8')
   check('docs/MNEME.md says the refusal is the tool\'s, not guidance, and names the words that ask', /Retain and Correct read your latest typed\s+message for the asking words and refuse otherwise, quoting the message they\s+read/.test(mneme) && /crewmate's\s+Retain or Correct is refused always/.test(mneme) && !/and the like/.test(mneme) && /"save", "add", "store",\s+"put" or "record" something "to memory"/.test(mneme), mneme.split('\n').find(l => l.includes('Retain and Correct')) ?? '')
 } finally {

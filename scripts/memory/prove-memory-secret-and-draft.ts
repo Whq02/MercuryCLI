@@ -49,7 +49,7 @@ check('an Anthropic key is reported only as anthropic-key, never also as an Open
 check('…while an OpenAI key, a short sk-ant- prefix and a text carrying both keep their kinds', kinds('key sk-proj-LiveTestFake0000000000000000000') === 'openai-key' && kinds('key sk-ant-LiveTestFake0000') === 'openai-key' && kinds('a sk-ant-api03-LiveTestFake00000000000000000000 and b sk-proj-LiveTestFake0000000000000000000') === 'anthropic-key,openai-key', [kinds('key sk-proj-LiveTestFake0000000000000000000'), kinds('key sk-ant-LiveTestFake0000')].join(' | '))
 const block = RetainTool.mapToolResultToToolResultBlockParam({ outcomes: secret, stored: 0, refused: 1 }, 'tid')
 check('the tool answer is an error that says the fact was NOT stored and why', (block as { is_error?: boolean }).is_error === true && String(block.content).includes('looks like a secret') && String(block.content).includes('NOT stored'), String(block.content))
-check('the Retain prompt names the refusal so the model never promises a store it cannot make', /looks like a key, a token or a password is refused by the tool itself/.test(RETAIN_PROMPT), RETAIN_PROMPT.split('\n').find(l => /secret/.test(l)) ?? '')
+check('Retain discloses plaintext storage, while the result above owns the secret refusal', RETAIN_PROMPT.includes('Memory is plaintext.') && !RETAIN_PROMPT.includes('looks like a key'), RETAIN_PROMPT)
 
 section('§2 "forget it" strikes a pending row: a draft leaves no history and no bytes')
 _resetMemoryVerbSessionStateForTesting()
