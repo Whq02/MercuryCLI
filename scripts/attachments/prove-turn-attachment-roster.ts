@@ -14,6 +14,7 @@ process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
+process.env.MERCURY_TOOL_SEARCH = '1'
 for (const key of ['MERCURY_HOME', 'MERCURY_BARE', 'NODE_ENV', 'MERCURY_PROJECT_INTEL']) delete process.env[key]
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const previousCwd = process.cwd()
