@@ -404,7 +404,7 @@ async function landLeg(dialect: Dialect): Promise<void> {
         argv: argvFor(dialect),
         sends: [
           ...bootSends(ASK),
-          { data: '/crewmates', atTick: 999, awaitText: 'Running 2 crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'running' },
+          { data: '/crewmates', atTick: 999, awaitText: 'Sleeping for', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'running' },
           { data: '\r', afterPrevTicks: 4 },
           { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-running' },
           { data: '/crewmates', atTick: 999, awaitText: 'crewmates finished', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'landed' },
@@ -437,7 +437,7 @@ async function landLeg(dialect: Dialect): Promise<void> {
   const running = marks['running'] ?? ''
   check(
     `${tag}: the running card's rows read the record — both names, the served model, tokens > 0`,
-    agentRow(running, SEAT_ONE, servedModel) && agentRow(running, SEAT_TWO, servedModel) && rowTokens(running, SEAT_ONE) && rowTokens(running, SEAT_TWO),
+    [SEAT_ONE, SEAT_TWO].every(name => running.split('\n').some((line, at, lines) => line.includes('△ crewmate') && line.includes(name) && (lines[at + 1] ?? '').includes(servedModel) && /\brunning\b/.test(lines[at + 1] ?? '') && nonZeroTokens(lines[at + 1] ?? ''))),
   )
   check(
     `${tag}: the CREW lane rows carry the token figure while they run (the word where the row has room), the names whole`,
@@ -484,7 +484,7 @@ async function stopLeg(dialect: Dialect): Promise<void> {
         argv: argvFor(dialect),
         sends: [
           ...bootSends(ASK),
-          { data: '\x1b', atTick: 999, awaitText: 'Running 2 crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'running' },
+          { data: '\x1b', atTick: 999, awaitText: 'Sleeping for', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'running' },
           { data: '/crewmates', atTick: 999, awaitText: 'still running', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'interrupted' },
           { data: '\r', afterPrevTicks: 4 },
           { data: 'x', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-running' },
