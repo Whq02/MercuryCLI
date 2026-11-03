@@ -41,18 +41,11 @@ const src = (rel: string): string => readFileSync(join(import.meta.dir, '../../'
 
 section("§1 the launch tool's model parameter")
 {
-  check('the wire parameter is a short contract that names the two pages and points at the manual for the ladder', wireWords.length > 0 && Buffer.byteLength(wireWords) < 600 && wireWords.includes('mercury://models') && wireWords.includes('mercury://models/known') && wireWords.includes('The full manual'), wireWords)
-  check('the manual carries the ladder under its own heading (## Model selection), the last section of the manual', manual.includes(MODEL_SECTION) && modelWords.length > 200, manual.slice(-300))
-  check('the parameter has words', modelWords.length > 200, modelWords.slice(0, 120))
-  check('"must be in its live catalogue" has left the prompt (RED on the base)', !modelWords.includes('must be in its live catalogue'), modelWords.slice(-300))
-  check('it says how to know what is reachable: read mercury://models and name one of its rows (RED on the base)', modelWords.includes('To see the providers the operator is signed into and the models each reaches, read mercury://models and name one of them by its id'), modelWords)
-  check("a family word runs that family's current default", modelWords.includes("a family word runs that family's current default"), modelWords)
-  check('the ladder is spelled live, then known, then ask, with the known page named', modelWords.includes('The ladder is live, then known, then web, then ask') && modelWords.includes('mercury://models/known decides') && modelWords.includes('the launch receipt says so') && modelWords.includes('an exact id the known page lists runs'), modelWords)
-  check('the last rung: ask the operator in an interactive session (AskUserQuestion, naming the signed-in providers and the nearest rows); one line and stop in a headless run', modelWords.includes('ask the operator for the model id with AskUserQuestion, naming the providers that are signed in, the nearest live or known rows') && modelWords.includes('in a headless run say why in one line and stop'), modelWords)
-  check('never switch to another provider on your own — if the one asked for cannot run, say why and stop', modelWords.includes('Never switch to another provider on your own — if the one you were asked for cannot run, say why and stop.'), modelWords)
-  check('the family words keep their rows named (grok, glm, kimi, deepseek, muse, mistral)', modelWords.includes("'grok' (xAI's newest Grok row)") && modelWords.includes("'glm' (Z.AI's newest GLM row)") && modelWords.includes("'kimi' (Moonshot's newest Kimi row)") && modelWords.includes("'deepseek' (DeepSeek's newest row)") && modelWords.includes("'muse' (Meta's newest served Standard Muse Spark row)") && modelWords.includes("'mistral' (Mistral's newest row)"), modelWords)
-  check(`the sentence is free of the tool's own name (${AGENT_TOOL_NAME})`, !new RegExp(`\\b${AGENT_TOOL_NAME}\\b`).test(modelWords) && !/\bCrewmate tool\b/.test(modelWords), modelWords)
-  check('no model-facing word, on the wire or in the manual, says "catalogue-verified" or demands a live catalogue', !/catalogue-verified|live catalogue/.test(modelWords) && !/catalogue-verified|live catalogue/.test(wireWords), modelWords)
+  check('the model field names live discovery once without a fallback ladder', wireWords.includes('read mercury://models') && wireWords.split('mercury://models').length === 2 && !wireWords.includes('mercury://models/known'), wireWords)
+  check('the field preserves model grammar and precedence', ['[1m]', 'your own family keeps your exact model', 'Overrides the agent definition', 'omitted inherits yours'].every(words => wireWords.includes(words)), wireWords)
+  check('the operator model/effort choice is preserved once in its field', wireWords.includes("Follow the operator's model and effort; never downgrade to obtain read-only scoping.") && !manual.includes('never downgrade'), wireWords)
+  check('the manual has no model ladder or alias inventory', !manual.includes(MODEL_SECTION) && modelWords === '' && !manual.includes('Class aliases:') && !manual.includes('mercury://models'), manual)
+  check('the wire is a purpose statement, not an abridged manual', Buffer.byteLength(AgentTool.wireDescription()) <= 200 && !AgentTool.wireDescription().includes('Model and effort:') && !manual.includes(AgentTool.wireDescription()))
 }
 
 section('§2 the same words wherever the model parameter repeats')

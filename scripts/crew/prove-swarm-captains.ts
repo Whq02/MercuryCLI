@@ -164,9 +164,9 @@ await check('schema-and-brief', async () => {
   assert(admission >= 0 && admission < source.indexOf('await createAgentWorktree(') && admission < source.indexOf('runAgent({'))
   assert(source.includes('.finally(releaseEnrollment)') && /finally\s*\{\s*if \(!backgroundOwnsEnrollment\) releaseEnrollment\(\)/.test(source))
   const prompt = readFileSync(new URL('../../src/tools/AgentTool/prompt.ts', import.meta.url), 'utf8')
-  assert(prompt.includes('For a planned team of five or more, launch its named captain first'))
-  assert(prompt.includes('For a smaller team, appoint one only when the owner asks or a seat asks on the board and you agree.'))
-  assert.equal(prompt.split('A seat never self-appoints;').length, 2)
+  assert(source.includes('a team of five or more needs one before its fifth seat.'))
+  assert(source.includes('Requires name, team, swarm enrollment and the lead;'))
+  assert(!prompt.includes('For a planned team of five or more') && !prompt.includes('swarm_captain'))
   seam.swarmStore()?.close()
 })
 
