@@ -91,10 +91,10 @@ const baseShape = () => ({
   changes: z
     .array(
       z.strictObject({
-        file_path: z.string().describe('Absolute path to an EXISTING text file'),
+        file_path: z.string().describe('Absolute path to an existing text file'),
         expected_anchor: z
           .string()
-          .describe('REQUIRED staleness anchor from a prior Read of this file (the "(anchor: …)" value)'),
+          .describe('The anchor from your latest Read of this file (the "(anchor: …)" value)'),
         hunks: z
           .array(
             z.strictObject({
@@ -103,29 +103,29 @@ const baseShape = () => ({
                 .describe('1-based original line ("12") or inclusive range ("12-18") of the anchored snapshot'),
               replace: z
                 .string()
-                .describe('Replacement body ("" deletes the range; with insert, the inserted body)'),
+                .describe('Replacement body; "" deletes the range; with insert, the inserted body'),
               insert: z
                 .enum(['before', 'after'])
                 .optional()
-                .describe('Insert relative to the single anchor line instead of replacing it'),
+                .describe('Insert beside the single anchor line instead of replacing it'),
             }),
           )
           .optional()
-          .describe('Disjoint line-addressed hunks against the anchored snapshot (the Edit hunk vocabulary); a member carries hunks or edits, a move optionally, a delete neither'),
+          .describe('Disjoint line-addressed hunks against the anchored snapshot; a member carries hunks or edits, a move optionally, a delete neither'),
         edits: z
           .array(
             z.strictObject({
-              old_string: z.string().describe('The text to replace, as the file spells it'),
-              new_string: z.string().describe('The text to replace it with ("" deletes the text)'),
-              replace_all: semanticBoolean(z.boolean().optional()).describe('Replace all occurrences of old_string (default false)'),
+              old_string: z.string().describe('The exact text to replace; unique in the file unless replace_all'),
+              new_string: z.string().describe('The text to replace it with; "" deletes old_string'),
+              replace_all: semanticBoolean(z.boolean().optional()).describe('Replace every occurrence of old_string'),
             }),
           )
           .optional()
-          .describe('Exact-string edits against the anchored snapshot (the Edit old_string/new_string vocabulary) instead of hunks; each old_string occurs once unless replace_all'),
+          .describe('Disjoint exact-string edits against the anchored snapshot, instead of hunks'),
         op: z
           .enum(['edit', 'delete', 'move'])
           .optional()
-          .describe('"edit" (default) applies the hunks or edits; "delete" removes the file (neither); "move" renames it to new_path after any hunks or edits'),
+          .describe('"edit" (default) applies the hunks or edits; "delete" removes the file; "move" renames it to new_path after any hunks or edits'),
         new_path: z
           .string()
           .optional()
@@ -133,7 +133,7 @@ const baseShape = () => ({
       }),
     )
     .optional()
-    .describe('preview / apply: the file members (one per existing text file)'),
+    .describe('preview / apply: the file members, one per existing text file'),
   plan_id: z
     .string()
     .optional()
@@ -1109,23 +1109,7 @@ export const ChangeSetTool = buildTool({
     return 'Prepare, review, and apply one anchored text change across several existing files'
   },
   async prompt() {
-    return `Use this over Edit when the same change spans several files: one call preflights every target before the first write, takes one operator decision for the whole set, applies, and refuses a drifted target; an interrupted apply is journaled and reconciled at the next boot.
-
-Operations:
-1. { op: "apply", changes: [...] } — preflight every member, one aggregate decision, apply; for when you hold fresh Read anchors for every file.
-2. { op: "preview", changes: [...] } — build an immutable content-addressed plan (cs-…) and write nothing; then { op: "apply", plan_id: "cs-…" }. A drifted file refuses the whole apply and names the Read that refreshes its anchor.
-3. { op: "status", plan_id } — plan state and per-file freshness.
-4. { op: "discard", plan_id } — retire a prepared plan.
-
-Each changes[] member targets one existing text file with the Edit vocabulary:
-  { file_path, expected_anchor (required — the "(anchor: …)" value from your Read), hunks: [{ lines: "N" | "N-M", replace, insert?: "before"|"after" }] or edits: [{ old_string, new_string, replace_all? }], op?: "edit" | "delete" | "move", new_path? }
-Hunks are 1-based against the anchored snapshot and disjoint; "" deletes the range; insert takes a single anchor line. Edits match the same snapshot, each old_string once unless replace_all, on disjoint text; a member carries hunks or edits, not both. op "delete" removes the file (neither); op "move" renames it to new_path, which must not exist, after any hunks or edits. Read knowledge is keyed to content: a Read of the touched lines, a content-mode Grep that showed them, or expected_anchor from a full Read all count.
-
-Any preparation, validation, scope or drift failure writes nothing — never the valid subset of an invalid set. A normal apply reaches the complete planned state, verified by reread; when later bytes prevent safe reconciliation the unresolved paths are named, never reported as success. Already-satisfied members are omitted from writes and reported as noChangePaths; an all-satisfied set is one no-change result with zero writes; applying a committed plan replays its result without writing twice.
-
-Bounds (an exceeded bound names the limit and the smallest recovery): ${CHANGESET_BOUNDS.maxFiles} files/set · ${CHANGESET_BOUNDS.maxHunksPerFile} hunks/file · ${CHANGESET_BOUNDS.maxHunksTotal} hunks/set · 4MB staged content/set · ${CHANGESET_BOUNDS.planRing} retained plans · ${Math.round(CHANGESET_BOUNDS.planTtlMs / 60_000)}-minute plan lifetime.
-
-Not this tool (refused by name): file creation (Write) · binary content · notebooks (NotebookEdit) · command execution (Bash).${
+    return `Applies one set of edits, moves and deletions across existing text files as a whole: every member is checked against its read anchor before the first write and one operator decision covers the set; a drifted or invalid member refuses the whole set and nothing is written. preview builds a plan (cs-…) without writing; apply writes a plan or the changes given, verified by reread, and names any path it could not settle; status and discard manage a plan. Up to ${CHANGESET_BOUNDS.maxFiles} files a set; a plan lives ${Math.round(CHANGESET_BOUNDS.planTtlMs / 60_000)} minutes.${
       anchorPatchEnabled() ? `\n\n${ANCHOR_PATCH_TEACHING}` : ''
     }`
   },

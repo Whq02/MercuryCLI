@@ -452,7 +452,7 @@ console.log("── A9 edits members through changes[]: Edit's exact-string lane
   check("new quotes take the prose file's curly style through the tool", styled.effect.outcome === 'succeeded' && readFileSync(prose, 'utf8') === 'She said “hello” and “bye” to him.\n', styled.data.result)
 
   const description = await (ChangeSetTool as { prompt: (input: { tools: unknown[]; model: string }) => Promise<string> }).prompt({ tools: [], model: '' })
-  check('the tool description says a member carries hunks or edits', description.includes('edits: [{ old_string, new_string, replace_all? }]') && description.includes('a member carries hunks or edits, not both'), description)
+  check('the tool description says the set is whole: a drifted or invalid member refuses the whole set and nothing is written; the member shape lives in the schema, not the prose', description.includes('a drifted or invalid member refuses the whole set and nothing is written') && !description.includes('old_string') && !description.includes('refused by name'), description)
   const shape = (ChangeSetTool.inputSchema as unknown as { shape: { changes: { unwrap: () => { element: { shape: Record<string, unknown> } } } } }).shape.changes.unwrap().element.shape
   check('the schema carries edits beside hunks on a member', 'edits' in shape && 'hunks' in shape, Object.keys(shape).join(','))
 }

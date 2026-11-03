@@ -29,7 +29,7 @@ const CONSTRAINTS: Record<string, string[]> = {
   Grep: ['ripgrep', 'matching paths, lines or counts', 'extracted text', 'page or section labels'],
   Glob: ['glob pattern', 'newest modification first', 'Ignore files apply'],
   Eval: ['retained', 'reaped', 'run in order', 'Helpers', 'arrive on first use'],
-  ChangeSet: ['apply', 'preview', 'status', 'discard', 'expected_anchor', 'hunks', 'edits', 'delete', 'move', 'new_path', 'disjoint', 'writes nothing', 'noChangePaths', '16 files/set', '32 hunks/file', '128 hunks/set', '4MB', '16 retained plans', '30-minute', 'Write', 'NotebookEdit', 'Bash'],
+  ChangeSet: ['apply', 'preview', 'status', 'discard', 'read anchor', 'whole set', 'nothing is written', 'verified by reread', '16 files', '30 minutes'],
   ToolSearch: ['Deferred tools:', 'select:', 'keyword', 'loads nothing', 'already in your tool list'],
 }
 
