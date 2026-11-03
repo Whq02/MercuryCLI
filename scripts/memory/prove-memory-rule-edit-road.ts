@@ -59,7 +59,7 @@ section('§0 the words every road reads: the legend, the refusal, the prompts an
 check('the pinned list legend names the road: ↵ opens a rule, c corrects it, x retires it, u unpins it', /↵ opens a rule: c corrects it, x retires it, u unpins it/.test(layout.VIEW_LEGEND.pinned), layout.VIEW_LEGEND.pinned)
 check('the model-facing refusal names the key, not just the screen', /c corrects it/.test(USER_ASKED_RULE_ROAD) && /\/memory/.test(USER_ASKED_RULE_ROAD) && /u unpins it/.test(USER_ASKED_RULE_ROAD), USER_ASKED_RULE_ROAD)
 check('Retain leaves the edit-key recovery to the refusal above rather than preloading it', !/↵|\/memory|ONE rule/.test(RETAIN_PROMPT) && RETAIN_PROMPT.includes('refusal reason'))
-check('the Correct prompt tells the model the road', /↵ opens the rule and c corrects it/.test(CORRECT_PROMPT))
+check('Correct leaves the edit-key road to the refusal above rather than preloading it', !/↵|\/memory/.test(CORRECT_PROMPT) && /u unpins it/.test(USER_ASKED_RULE_ROAD))
 const manual = readFileSync(join(REPO, 'docs/MNEME.md'), 'utf8')
 check('the manual says how a rule you asked for is changed', manual.includes('`↵` opens the rule and `c` corrects it') && manual.includes('the pin and its "asked for'), manual.split('\n').find(l => l.includes('corrects it')) ?? '')
 

@@ -121,7 +121,7 @@ try {
   check('a crewmate is refused on the card road too', !crewOnRule.data.ok && crewOnRule.data.code === 'crewmate', JSON.stringify(crewOnRule.data))
 
   section('§4 the words say so')
-  check('the Correct prompt tells the model the tool refuses an unasked change and a crewmate always', CORRECT_PROMPT.includes("The tool refuses a change when the user's latest message does not ask for a memory to be remembered or changed") && CORRECT_PROMPT.includes("a crewmate's always"), CORRECT_PROMPT)
+  check('the Correct prompt pre-empts no refusal: the refusal itself says the change was not asked for, and a crewmate is refused always', !CORRECT_PROMPT.includes('refuses') && !CORRECT_PROMPT.includes('crewmate') && /ask/.test(String(correctAskRefusal([user('fine, thanks')] as never, undefined) ?? '')) && /crewmate/i.test(CREWMATE_CORRECT_REFUSAL), CORRECT_PROMPT)
   check('the Correct prompt says a replaced draft keeps the old words as history', CORRECT_PROMPT.includes('the new row keeps the old words as its history'), CORRECT_PROMPT)
   const mneme = readFileSync(join(REPO, 'docs', 'MNEME.md'), 'utf8')
   check('docs/MNEME.md says the rule covers Retain and Correct, and a crewmate\'s either is refused', /The model writes or changes memory only when you ask it to/.test(mneme) && /crewmate's\s+Retain or Correct is refused always/.test(mneme), mneme.split('\n').find(l => l.includes('writes or changes memory')) ?? '')

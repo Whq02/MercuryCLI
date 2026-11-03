@@ -198,7 +198,7 @@ export const RetainTool = buildTool({
 const recallSchema = lazySchema(() =>
   z
     .strictObject({
-      query: z.string().optional().describe('Search memory for pointers: facts and pinned rulings in the pages, archive and pending observations, and the sessions and handoffs of the lineage ledger. A phrase or regex matches literally; otherwise the words of the query are matched. A pointer is an id, a title and footnotes: open one with read to see the record.'),
+      query: z.string().optional().describe('Words to search for across the pages, the archive, the pending observations and the lineage ledger; a phrase or regex matches literally, otherwise the words of the query are matched. A pointer is an id, a title and footnotes: open one with read to see the record.'),
       read: z.string().optional().describe('Read one full record by id: seq:<n> (a fact or ruling) · doc:<slug> (a whole page) · pending:<ts> · ledger:<ordinal> (a session\'s entry and its handoff).'),
       limit: z.number().int().min(1).max(POINTER_LIMIT).optional().describe(`Max pointers (default ${POINTER_DEFAULT_LIMIT}, at most ${POINTER_LIMIT}).`),
     })
@@ -411,11 +411,11 @@ export const ReflectTool = buildTool({
 
 const correctSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(['supersede', 'amend', 'retract']).describe('supersede = new truth; amend = fix wording (read the full record first); retract = mark wrong (a consolidated row keeps its history; a pending row is a draft and is struck).'),
-    id: z.string().describe('The record id from Recall: seq:<n> for a consolidated row, pending:<ts> for a draft still in the buffer.'),
-    content: z.string().optional().describe('The new/corrected content (supersede/amend).'),
-    replacementId: z.string().optional().describe('supersede only: an existing seq:<n> already carrying the truth.'),
-    reason: z.string().describe('Why — corrections always carry their reason.'),
+    op: z.enum(['supersede', 'amend', 'retract']).describe('supersede = a new truth; amend = fix the wording, which needs the full record read this session; retract = mark it wrong.'),
+    id: z.string().describe('The record id: seq:<n> for a consolidated row, pending:<ts> for a draft still in the buffer.'),
+    content: z.string().optional().describe('The new or corrected content (supersede, amend).'),
+    replacementId: z.string().optional().describe('supersede only: an existing seq:<n> already carrying the truth, instead of content.'),
+    reason: z.string().describe('Why; every correction carries its reason.'),
   }),
 )
 type CorrectSchema = ReturnType<typeof correctSchema>

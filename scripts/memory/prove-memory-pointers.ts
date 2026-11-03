@@ -80,7 +80,7 @@ const negated = [RECALL_PROMPT, RECALL_DESCRIPTION, querySchemaText].flatMap(tex
 check(
   'the tool teaches the ledger spelling and the pointer fact',
   RECALL_PROMPT.includes('ledger:<ordinal>') &&
-    RECALL_PROMPT.includes('- A pointer carries no content: open the record with read before you rely on it or quote it.') &&
+    RECALL_PROMPT.includes('A pointer carries no content: open the record with read before you rely on it or quote it.') &&
     RECALL_DESCRIPTION.includes('footnotes (which session, which ruling, superseded by what). Read one full record by id.') &&
     querySchemaText.includes('A pointer is an id, a title and footnotes: open one with read to see the record.'),
   querySchemaText.slice(-90),

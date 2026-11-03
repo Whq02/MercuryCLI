@@ -126,7 +126,7 @@ const ambiguous = correctMemory({ op: 'retract', id: `pending:${twin}`, reason: 
 check('a pending id two rows share is refused as ambiguous and nothing is struck', ambiguous.ok === false && ambiguous.code === 'invalid' && /share the time/.test(ambiguous.message) && pendingRows(dir).filter(r => r.ts === twin).length === 2, JSON.stringify(ambiguous))
 
 section('§8 the Correct prompt tells the model the draft road')
-check('the prompt says a pending row is a draft: retract strikes it, supersede or amend replaces it, history is for consolidated rows', /pending:<ts>/.test(CORRECT_PROMPT) && /draft/.test(CORRECT_PROMPT) && /struck/.test(CORRECT_PROMPT), CORRECT_PROMPT.split('\n').find(l => /pending/.test(l)) ?? '')
+check('the prompt says a pending row is a draft: retract strikes it, supersede or amend replaces it, history is for consolidated rows', /pending:<ts>/.test(CORRECT_PROMPT) && /draft/.test(CORRECT_PROMPT) && /retract strikes it and no history is kept/.test(CORRECT_PROMPT) && /supersede or amend replaces it with a new pending row/.test(CORRECT_PROMPT), CORRECT_PROMPT.split('\n').find(l => /pending/.test(l)) ?? '')
 
 console.log('\n' + '═'.repeat(76))
 console.log(failures === 0 ? '✅ ALL SECRET-AND-DRAFT PROOFS PASS' : `❌ ${failures} SECRET-AND-DRAFT PROOF(S) FAILED`)
