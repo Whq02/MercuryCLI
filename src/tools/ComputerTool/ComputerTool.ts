@@ -195,6 +195,7 @@ type SchemaType = z.ZodType<Input>
 const inputSchema = lazySchema((): SchemaType => baseSchema().extend({ steps: z.array(z.lazy(() => inputSchema())).optional() }))
 const modelInputSchema = lazySchema(() => {
   const base = baseSchema()
+  const step = base.extend({ action: z.enum(ACTIONS.filter(action => action !== 'sequence')) })
   const f = base.shape
   return base.extend({
     x: f.x.describe('Last-screenshot x coordinate; paired with y.'),
@@ -229,7 +230,7 @@ const modelInputSchema = lazySchema(() => {
     scope: f.scope.describe('Tree scope: window by default; app includes menus and windows.'),
     verify: f.verify.describe('Compare trees after acting; reports change, not task success.'),
     captcha: f.captcha.describe('Hand a captcha to the operator.'),
-    steps: z.array(base).optional().describe('Non-nested sequence; stops at first failure. Capture, region, scale and settleMs belong on the sequence. Step fields have the same meanings as the top-level fields.'),
+    steps: z.array(step).optional().describe('Non-nested sequence; stops at first failure. Capture, region, scale and settleMs belong on the sequence. Step fields have the same meanings as the top-level fields.'),
   })
 })
 

@@ -94,7 +94,8 @@ section('§3 the byte budgets and the needles')
   check('the loop breaker stays verbatim', prompt.includes('After the same act twice with an unchanged result, read the screen before acting again.'))
   check('the description has no other tool or action dictionary', !/Eval|click\(x|type\(text|sequence\(steps\)/.test(prompt))
   const wire = ComputerTool.inputJSONSchema as any
-  check('the model schema remains under its prose ceiling', bytes(JSON.stringify(wire)) <= 7800)
+  check('the model schema keeps every inline field within its measured ceiling', bytes(JSON.stringify(wire)) <= 7700)
+  check('the step action enum excludes sequence while the top-level enum retains it', wire.properties.action.enum.includes('sequence') && !wire.properties.steps.items.properties.action.enum.includes('sequence'))
   check('field semantics are on the top-level fields, not repeated on steps', wire.properties.key.description.includes('cmd/ctrl/alt/shift') && wire.properties.verify.description.includes('not task success') && wire.properties.steps.items.properties.key.description === undefined)
 }
 

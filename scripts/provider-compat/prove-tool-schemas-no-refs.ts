@@ -29,7 +29,8 @@ assert.deepEqual(references, [], 'every advertised tool schema must be self-cont
 const computer = wire.find(tool => tool.function.name === ComputerTool.name)!.function.parameters as any
 assert.equal(computer.properties.steps.items.type, 'object')
 assert.deepEqual(Object.keys(computer.properties.steps.items.properties).sort(), Object.keys(computer.properties).filter(key => key !== 'steps').sort())
-assert.match(computer.properties.steps.description, /no nesting/)
+assert.match(computer.properties.steps.description, /Non-nested sequence/)
+assert.deepEqual(computer.properties.steps.items.properties.action.enum, computer.properties.action.enum.filter((action: string) => action !== 'sequence'))
 assert.equal(ComputerTool.inputSchema.safeParse({ action: 'sequence', steps: [{ action: 'click', x: 1, y: 2 }] }).success, true)
 assert.equal(computer.properties.steps.items.properties.steps, undefined)
 const { toolContext } = await import('../computer/computerToolKit.ts')
