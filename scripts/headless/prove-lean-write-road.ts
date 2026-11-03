@@ -49,8 +49,7 @@ try {
   check('the lean roster offers Bash, Read, Edit and Write', ['Bash', 'Read', 'Edit', 'Write'].every(name => names.includes(name)), names.join(','))
   check('the lean roster stays lean: no Glob, Grep, Crewmate, Web or LSP tools', !names.some(name => ['Glob', 'Grep', 'Crewmate', 'WebFetch', 'WebSearch', 'LspRead'].includes(name)), names.join(','))
   const bash = (first?.tools ?? []).find(tool => tool.name === 'Bash')?.description ?? ''
-  const prefer = /Prefer the dedicated tools when they fit: ([^.]+)\./.exec(bash)?.[1] ?? ''
-  check('the Bash tool names only the roads lean offers: Read, Edit and Write — never Glob or Grep', prefer === 'Read to read a file, Edit to change one, Write to create one', prefer || bash.slice(0, 200))
+  check('the Bash tool names no other tool at all, so the lean roster withholds nothing from it', !/\b(Glob|Grep|Read|Edit|Write)\b/.test(bash), bash.slice(0, 200))
   check('the run answered', answer.code === 0 && answer.out.trim() === 'done', JSON.stringify(answer).slice(0, 300))
   check('Write created the file with the content the model gave', existsSync(target) && readFileSync(target, 'utf8') === CONTENT, existsSync(target) ? readFileSync(target, 'utf8') : 'no file')
   const results = toolResults(requests[1]?.body as Body | undefined)

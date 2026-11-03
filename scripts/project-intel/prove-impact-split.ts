@@ -138,19 +138,13 @@ async function main(): Promise<void> {
   const offered = new Set(['Bash', 'Test', 'Debug'])
   process.env.MERCURY_PROJECT_INTEL = '0'
   const bashBase = getSimplePrompt(offered)
-  const debugLine = (steering as { debugSteeringLine?: (offered: ReadonlySet<string>) => string | null }).debugSteeringLine
-  check('Bash debugging steering obeys the master gate', debugLine !== undefined && debugLine(offered) === null)
   delete process.env.MERCURY_PROJECT_INTEL
-  const line = debugLine?.(offered)
-  check('Bash points at Test and Debug when both are offered', !!line && line.includes('`Test`') && line.includes('`Debug`'), line ?? 'missing')
-  const bashOn = getSimplePrompt(offered)
-  check('the offered steering appears exactly once in the Bash description', !!line && bashOn.split(line).length === 2 && bashOn.replace(`\n\n${line}`, '') === bashBase, bashOn)
-  for (const names of [[], ['Test'], ['Debug']]) {
-    const pool = new Set(['Bash', ...names])
-    check(`Bash advertises no unavailable debugger pair (${names.join(',') || 'neither'})`, debugLine !== undefined && debugLine(pool) === null && getSimplePrompt(pool) === bashBase)
+  check('Bash carries no steering line: it names neither Test nor Debug, whatever is offered', !/\b(Test|Debug)\b/.test(getSimplePrompt(offered)) && !('debugSteeringLine' in steering))
+  for (const names of [[], ['Test'], ['Debug'], ['Test', 'Debug']]) {
+    check(`the Bash description is byte-identical whatever debugger pair is offered (${names.join(',') || 'neither'})`, getSimplePrompt(new Set(['Bash', ...names])) === bashBase)
   }
   process.env.MERCURY_PROJECT_INTEL = '0'
-  check('master gate off restores the byte-identical Bash description', getSimplePrompt(offered) === bashBase)
+  check('the master gate leaves the Bash description byte-identical', getSimplePrompt(offered) === bashBase)
   delete process.env.MERCURY_PROJECT_INTEL
 
   section('(4) mercury://transcript — bounded concise rows, distinct states')

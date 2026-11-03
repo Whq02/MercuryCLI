@@ -112,7 +112,7 @@ function buildModelSchema() {
     description: z.string().optional().describe(describeCommandDescription()),
     run_in_background: semanticBoolean(z.boolean().optional()).describe(describeRunInBackground()),
     inherit_session_env: semanticBoolean(z.boolean().optional()).describe(
-      "Set to true to hand the command the session's own MERCURY_* stamps (the values Mercury wrote on this process); by default they are scrubbed, since a proof or a build must not see them.",
+      "Hand the command the session's own MERCURY_* values; by default they are scrubbed, so a build or a proof never sees them.",
     ),
     max_output_chars: maxOutputCharsField.describe(describeMaxOutputChars()),
   })

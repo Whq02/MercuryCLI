@@ -81,7 +81,7 @@ try {
   check('printed command text is not a web fetch', await shellWebContentNotice('echo "curl https://example.org"') === '', 'echo remains ordinary output')
   const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
   const bashPrompt = getSimplePrompt(new Set(['WebFetch', 'Browser', 'TaskStop', 'Service', 'ToolSearch']))
-  check('Bash teaches the allowed honest-identification road', bashPrompt.includes('use WebFetch first') && bashPrompt.includes('identify Mercury honestly') && bashPrompt.includes('remain allowed'), 'model-facing prompt')
+  check('the Bash description names neither WebFetch nor an identification rule: the result notice above carries the web-content fact at call time', !bashPrompt.includes('WebFetch') && !bashPrompt.includes('identify Mercury') && !bashPrompt.includes('curl'), 'model-facing prompt')
   console.log(`Bash prompt bytes: ${Buffer.byteLength(bashPrompt)}`)
 } finally {
   axios.get = get

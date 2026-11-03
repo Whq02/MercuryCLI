@@ -10,7 +10,7 @@ const bash = await import('../../src/tools/BashTool/prompt.ts')
 const bashDescription: string = bash.getSimplePrompt()
 t(
   'bash description says output reaches the model, not reliably the operator',
-  bashDescription.includes('the operator does not reliably see it'),
+  bashDescription.includes('The output comes back to you, not to the operator.'),
 )
 const powershell = await import('../../src/tools/PowerShellTool/prompt.ts')
 const psDescription: string = await powershell.getPrompt()

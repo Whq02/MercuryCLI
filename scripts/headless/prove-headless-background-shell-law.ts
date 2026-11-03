@@ -132,15 +132,14 @@ tally.section('S2 — the same run with a Service of lifecycle project: the proc
   if (Number.isInteger(pid)) end(pid)
 }
 
-tally.section('S3 — the words the model reads before choosing: the Bash tool prompt and the sessions doc name the road')
+tally.section('S3 — the words the model reads before choosing: the run_in_background field carries the lifetime, the start result names the road, the sessions doc names it too')
 {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
+  const { getSimplePrompt, describeRunInBackground } = await import('../../src/tools/BashTool/prompt.ts')
   const offered = getSimplePrompt(new Set(['Bash', 'Service', 'ToolSearch']))
-  const loaded = getSimplePrompt(new Set(['Bash', 'Service']))
   const without = getSimplePrompt(new Set(['Bash']))
-  tally.check('the Bash prompt’s Background paragraph names the Service road when the Service tool is offered, with the ToolSearch hint when it is deferred', offered.includes(`${PROMPT_ROAD} (ToolSearch \`select:Service\` loads it when deferred), not a background shell.`) && loaded.includes(`${PROMPT_ROAD}, not a background shell.`), offered.slice(offered.indexOf('Background:'), offered.indexOf('Background:') + 700))
-  tally.check('without the Service tool the paragraph stops at the polling rule', !without.includes(PROMPT_ROAD) && without.includes('Never poll with repeated calls.'), '')
+  tally.check('the run_in_background field says the command is stopped when the run that started it ends', describeRunInBackground().includes('the command is stopped when the run that started it ends'), describeRunInBackground())
+  tally.check('the Bash description names no Service road and no polling rule, whatever is offered: the start result carries the road at call time (S2)', !offered.includes(PROMPT_ROAD) && !offered.includes('Service') && !offered.includes('Never poll') && offered === without, offered.slice(0, 300))
   const sessions = readFileSync(join(ROOT, 'docs/SESSIONS.md'), 'utf8')
   tally.check('SESSIONS.md says a headless run ends every background shell and names the Service road for a process that must stay up', sessions.includes('A headless run whose input closes ends every monitor and every') && sessions.includes('lifecycle `project`'), '')
 }
