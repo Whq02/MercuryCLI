@@ -159,6 +159,7 @@ let projectTrustAsked = false
 let projectStayedOff = false
 let removed = false
 const TITLE = 'MCP Popup'
+const BUNDLED_MCP = ['ext:filmcraft:app', 'ext:lightcraft:app', 'ext:photocraft:app']
 const driveText = (path: string): string => {
   if (!existsSync(path)) return ''
   return readFileSync(path, 'utf8').split('\n').filter(Boolean).flatMap(line => {
@@ -178,6 +179,7 @@ try {
       `after:${TITLE}:4000:\\r`,
       `after:${TITLE}:5400:\\r`,
       { awaitText: 'Type a prompt', afterPrevMs: 1000, text: '/mcp\r' },
+      { awaitText: ['Mercury · mcp', ...BUNDLED_MCP.map(name => `${name} · connected`)], afterPrevMs: 500, text: '/runpod' },
       { awaitText: ['runpod', 'needs sign-in'], afterPrevMs: 500, text: '\r' },
       { awaitText: ['runpod', 'connected'], afterPrevMs: 700, text: '\x1b', arrivedAbsent: '↑↓ move · ↵ act' },
       { awaitText: 'Type a prompt', afterPrevMs: 500, text: '/mcp\r' },
@@ -196,12 +198,15 @@ try {
       check('isolated daemon is ready', await until(async () => (await rpc({ op: 'ping' })).ok === true, S(45_000)))
       const admitted = await rpc({ op: 'sessionDispatch', clientMessageId: 'popup-birth', prompt: 'seat-task-gpt: work on the gpt engine', workspaceDir: cwd, title: TITLE, model: 'gpt-6-astra' })
       sessionId = admitted.sessionId ?? ''; runnerId = admitted.runnerId ?? admitted.workerId ?? ''
-      check('session starts without MCP servers', admitted.ok === true && await until(() => facts()?.mcp.length === 0 && modelRequests.length > 0), JSON.stringify(admitted))
+      check('session starts with only the bundled MCP servers and reaches the model fixture', admitted.ok === true && await until(() => {
+        const roster = facts()?.mcp ?? []
+        return roster.length === BUNDLED_MCP.length && BUNDLED_MCP.every(name => roster.some(row => row.name === name && row.type === 'connected' && row.toolCount === 3)) && modelRequests.length > 0
+      }), JSON.stringify(admitted))
       beforePid = record()?.pid ?? 0
       const drive = join(dirname(home), 'drive.jsonl')
       journey = (async () => {
-        const opened = await until(() => driveText(drive).includes('No MCP servers'), S(35_000))
-        check('empty MCP popup opens on the real UI', opened)
+        const opened = await until(() => driveText(drive).includes('No matching servers'), S(35_000))
+        check('the real MCP popup has no runpod match before server addition', opened)
         const cli = spawn('node', [DIST, 'mcp', 'add', '--transport', 'http', '--scope', 'user', 'runpod', `${fixtureBase}/mcp`], { cwd, env: { ...process.env, ...environment, MERCURY_CONFIG_DIR: home }, stdio: ['ignore', 'pipe', 'pipe'] })
         let output = ''; cli.stdout.on('data', data => { output += data }); cli.stderr.on('data', data => { output += data })
         const exit = await new Promise<number | null>(resolve => cli.once('close', resolve))
