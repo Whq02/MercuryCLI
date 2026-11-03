@@ -124,7 +124,7 @@ export async function getAttachments(
     ),
     maybe('deferred_tools_delta', () =>
       Promise.resolve(
-        opening ? getDeferredToolsDeltaAttachment(
+        getDeferredToolsDeltaAttachment(
           toolUseContext.options.tools,
           toolUseContext.options.engineModel,
           messages,
@@ -138,7 +138,7 @@ export async function getAttachments(
               ...(toolUseContext.getAppState?.().mcp?.clients ?? []),
             ].some(client => client.type === 'pending'),
           },
-        ) : [],
+        ),
       ),
     ),
     maybe('held_tools', () =>
