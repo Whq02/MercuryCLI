@@ -85,7 +85,7 @@ section('§1 the environment section names no engine; the seat reference does')
   check('the seat kind is listed for the Inspect prompt', resourceAdapterKinds().some(kind => kind.kind === 'seat' && kind.describe.includes('mercury://seat')), j(resourceAdapterKinds().map(kind => kind.kind)))
   const { InspectTool } = await import('../../src/tools/InspectTool/InspectTool.ts')
   const prompt = await InspectTool.prompt({} as never)
-  check('the Inspect tool tells the seat the reference exists and what it holds', prompt.includes('mercury://seat is this seat\'s own reference') && prompt.includes('the model this turn runs on') && prompt.includes('Asked which model runs you, read it and answer from it'), prompt.slice(-400))
+  check('the Inspect kinds list carries the seat facts once, without a lookup doctrine', prompt.includes("seat — mercury://seat gives this turn's model, effort, posture and session engine history with switch times.") && prompt.split('mercury://seat').length === 2 && !prompt.includes('Asked which model'), prompt)
   const words = seat === null ? '' : seat.seatPostureWords('implement')
   check('the posture words carry the permission mode', words.endsWith('; permission mode implement'), words)
 

@@ -66,7 +66,7 @@ section('§2 the same words wherever the model parameter repeats')
   }
   const { InspectTool } = await import('../../src/tools/InspectTool/InspectTool.ts')
   const inspect = await InspectTool.prompt({} as never)
-  check('the Inspect tool tells the model the two pages exist and what each is (RED on the base)', inspect.includes('mercury://models is what the operator sees in /model and /logins') && inspect.includes('mercury://models/known is what this build knows from its pin tables, not what is reachable now') && inspect.includes('Before naming a model for a launch, read mercury://models'), inspect.slice(-700))
+  check('Inspect names both model pages once and carries no launch runbook', inspect.includes("models — mercury://models lists reachable models live; mercury://models/known lists this build's pin tables, not reachability.") && inspect.split('mercury://models/known').length === 2 && !inspect.includes('Before naming a model for a launch') && Buffer.byteLength(inspect) <= 800, inspect)
   const { readTargetPromptLines } = await import('../../src/tools/FileReadTool/readTarget.ts')
   const read = readTargetPromptLines()
   check("the Read tool's description keeps its byte budget: the pages ride its mercury:// line without a sentence of their own (the fact lives once, in the launch parameter and the Inspect listing)", read.includes('This tool also reads mercury:// resource references') && !read.includes('mercury://models'), read)
