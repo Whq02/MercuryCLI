@@ -8,7 +8,7 @@
 # gate-watch: src/prompt/engineIdentity.ts src/constants/prompts.ts
 # gate-watch: src/components/mercury-ui/keyHintLabel.ts src/daemon/controlSocket.ts src/utils/bootCardFacts.ts
 # gate-watch: src/utils/config.ts src/utils/model/configs.ts src/utils/sessionStorage/paths.ts
-# gate-watch: src/components/Spinner/liveCounterWords.ts
+# gate-watch: src/components/Spinner/liveCounterWords.ts src/components/Spinner/seatClock.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

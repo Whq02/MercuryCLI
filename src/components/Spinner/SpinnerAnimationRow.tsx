@@ -18,6 +18,7 @@ import type { LiveTurnFactsV1 } from '../../services/engine-connector/seatLive.j
 import { liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'
 import { turnStripLines } from './stripHeight.js'
 import { planSpinnerHud } from './spinnerHud.js'
+import { anchoredElapsedMs, anchorSeatClock, type SeatClockAnchor } from './seatClock.js'
 
 const SLOW_TICK_MS = WORK_TICK_MS * 2
 
@@ -73,13 +74,11 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
   if (loadingStartTimeRef.current === 0) {
     loadingStartTimeRef.current = now
   }
-  const earliestStartRef = useRef(loadingStartTimeRef.current)
-  if (loadingStartTimeRef.current < earliestStartRef.current) {
-    earliestStartRef.current = loadingStartTimeRef.current
-  }
+  const anchorRef = useRef<SeatClockAnchor | null>(null)
+  anchorRef.current = anchorSeatClock(anchorRef.current, loadingStartTimeRef.current, totalPausedMsRef.current)
   const pauseHeld = pauseStartTimeRef.current !== null ? now - pauseStartTimeRef.current : 0
   const segmentElapsed = now - loadingStartTimeRef.current - totalPausedMsRef.current - pauseHeld
-  const anchoredElapsed = now - earliestStartRef.current - totalPausedMsRef.current - pauseHeld
+  const anchoredElapsed = anchoredElapsedMs(anchorRef.current, now, pauseHeld)
   const effectiveElapsedMs = Math.max(segmentElapsed, anchoredElapsed, 0)
 
   const [workRef, workTime] = useAnimationValue(reducedMotion ? null : WORK_TICK_MS, time => time)

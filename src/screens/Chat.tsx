@@ -66,6 +66,7 @@ import { submitTrace } from '../utils/submitTrace.js';
 import { fluxMark, fluxWhy } from '../utils/flux/fluxProbe.js';
 import { SpinnerWithVerb } from '../components/Spinner.js';
 import { StreamingHoldRow } from '../components/Spinner/StreamingHoldRow.js';
+import { adoptSeatTurnStart } from '../components/Spinner/seatClock.js';
 import type { SpinnerMode } from '../components/Spinner/types.js';
 import { SwitchboardAttributionProvider } from '../components/SwitchboardTagBar.js';
 import { useMercuryTokens } from '../components/mercury-ui/useMercuryTokens.js';
@@ -879,9 +880,14 @@ export function Chat({
   const seatPausedMsRef = useRef(0);
   const seatPauseStartRef = useRef<number | null>(null);
   {
-    const started = seatLive.turnStartedAtMs;
-    if (started !== null) seatStartTimeRef.current = started;
-    else if (seatStartTimeRef.current === 0) seatStartTimeRef.current = Date.now();
+    const ledger = adoptSeatTurnStart(
+      { startMs: seatStartTimeRef.current, pausedMs: seatPausedMsRef.current, pauseStartMs: seatPauseStartRef.current },
+      seatLive.turnStartedAtMs,
+      Date.now(),
+    );
+    seatStartTimeRef.current = ledger.startMs;
+    seatPausedMsRef.current = ledger.pausedMs;
+    seatPauseStartRef.current = ledger.pauseStartMs;
   }
   const previousFocusedDialogRef = useRef<FocusedInputDialog | undefined>(undefined);
   useEffect(() => {
