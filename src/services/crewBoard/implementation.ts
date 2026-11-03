@@ -53,7 +53,7 @@ export function tool(host: BoardHost, store: () => BoardStore | null): Tool {
   const inputSchema = boardInputSchema
   return host.buildTool({
     name: 'CrewBoard',
-    searchHint: 'read swarm posts or send to seats; the lead can launch agents',
+    searchHint: 'read and post shared crew messages; lead-only team assignments',
     shouldDefer: true,
     maxResultSizeChars: Infinity,
     inputSchema,

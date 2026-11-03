@@ -115,7 +115,7 @@ section('§4 the shape fields')
   }
   check('userFacingName() is Computer', ComputerTool.userFacingName({ action: 'screenshot' } as never) === 'Computer')
   check('the result size cap is 20000', ComputerTool.maxResultSizeChars === 20_000)
-  check('the search hint names computer use', typeof ComputerTool.searchHint === 'string' && ComputerTool.searchHint.toLowerCase().includes('computer use'))
+  check('the roster hint names desktop input without clipping', ComputerTool.searchHint === 'inspect desktop applications and operate their mouse and keyboard' && ComputerTool.searchHint.length <= 100)
   check('isEnabled() follows the flag', ComputerTool.isEnabled() === true)
 }
 

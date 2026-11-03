@@ -48,8 +48,7 @@ function kindsLine(): string {
 export const InspectTool = buildTool({
   shouldDefer: true,
   name: INSPECT_TOOL_NAME,
-  searchHint:
-    'read Mercury work-graph objects by mercury:// ref (runs, receipts, tasks, crews, workflows, artifacts, agents, health, seat identity, model, effort, posture, engine history)',
+  searchHint: 'read Mercury records by mercury:// reference',
   maxResultSizeChars: 100_000,
   strict: true,
   isEnabled() {

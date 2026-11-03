@@ -196,7 +196,7 @@ export const AskUserQuestionTool = buildTool({
   outputSchema: outputSchemaObject,
   maxResultSizeChars: RESULT_SIZE_CAP,
   shouldDefer: true,
-  searchHint: 'ask the user structured multiple-choice questions',
+  searchHint: "present structured questions and collect the user's answers",
   async description() {
     return DESCRIPTION
   },

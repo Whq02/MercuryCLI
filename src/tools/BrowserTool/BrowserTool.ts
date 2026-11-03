@@ -886,8 +886,7 @@ function actDetail(input: Input): string {
 
 export const BrowserTool = buildTool({
   name: 'Browser',
-  searchHint:
-    'drive a real browser: the native playwright puppeteer selenium alternative for end-to-end e2e browser automation — test and verify a web app or frontend UI journey, open a localhost dev server website, fill and submit a form, log in to a page, reproduce a UI bug, click type scroll, wait for selector text navigation, extract render page text accessibility tree DOM, read console errors, capture a screenshot, headless chrome edge chromium provenance status',
+  searchHint: 'drive an isolated web browser; inspect pages and capture screenshots',
   capability: {
     intents: [
       'test and verify a web app or UI journey end to end in a real browser',

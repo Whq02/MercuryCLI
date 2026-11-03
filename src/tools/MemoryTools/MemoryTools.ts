@@ -102,7 +102,7 @@ function ruleAnswerWords(via: RuleAuthority | undefined, verb: string, history: 
 
 export const RetainTool = buildTool({
   name: RETAIN_TOOL_NAME,
-  searchHint: 'store durable facts into project memory',
+  searchHint: 'store requested facts and standing rules in project memory',
   maxResultSizeChars: 20_000,
   shouldDefer: true,
   get inputSchema(): RetainSchema {

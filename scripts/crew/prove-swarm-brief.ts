@@ -62,7 +62,7 @@ const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { formatDeferredToolLine, isDeferredToolFor } = await import('../../src/tools/ToolSearchTool/prompt.ts')
 for (const unattended of [false, true]) {
   const hint = formatDeferredToolLine(AgentTool, unattended)
-  check('the launcher roster line names launch, seat, swarm, agents, team and wave', ['launch', 'seat', 'swarm', 'agents', 'team', 'wave'].every(word => hint.includes(word)))
+  check('the launcher roster line names independent delegation, not a required swarm', hint === 'Crewmate — delegate a bounded task to an independent agent and receive its report')
 }
 check('the launcher stays deferred on cloud routes', isDeferredToolFor(AgentTool, 'claude-fable-5-1') && isDeferredToolFor(AgentTool, 'gemini-4-argon'))
 const boardTool = seam.swarmTools()[0]!

@@ -508,8 +508,8 @@ export type GitApplyPreview = {
 export const GitTool = buildTool({
   name: 'Git',
   searchHint: repoHostDiscoveryEnabled()
-    ? 'typed local git work graph: status diff hunks conflicts commit plans, atomic stale-safe multi-commit application; file/tree at a ref, branch compare, pull request / checks / issue context, host search, paginated PR diff, workflow-run watch via mercury://repo and the typed review record'
-    : 'typed local git work graph: status diff hunks conflicts commit plans, atomic stale-safe multi-commit application; file/tree at a ref, branch compare; the typed review record',
+    ? 'inspect repositories and hosted reviews; stage changes and preview commit groups'
+    : 'inspect repositories; stage changes and preview commit groups',
   capability: {
     intents: [
       'inspect the local git working tree',

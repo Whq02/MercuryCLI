@@ -362,7 +362,7 @@ function createProgressBatcher(opts: {
 const WorkflowToolDef = {
   name: WORKFLOW_TOOL_NAME,
   aliases: ['RunWorkflow'],
-  searchHint: 'orchestrate crewmates with deterministic JavaScript workflow',
+  searchHint: 'run deterministic JavaScript workflows coordinating crewmates',
   shouldDefer: true,
   maxResultSizeChars: 1e5,
   isEnabled: () => dynamicWorkflowsEnabled() && evaluateLaunchAuthority('workflows').allowed,

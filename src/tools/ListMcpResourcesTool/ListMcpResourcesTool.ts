@@ -35,6 +35,7 @@ const outputSchema = z.array(
 
 export const ListMcpResourcesTool = buildTool({
   name: LIST_MCP_RESOURCES_TOOL_NAME,
+  searchHint: 'list resources exposed by connected MCP servers',
   shouldDefer: true,
   maxResultSizeChars: 100_000,
   inputSchema,

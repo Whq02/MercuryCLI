@@ -159,8 +159,7 @@ function describeRecord(j: NonNullable<ReturnType<typeof getJourney>>): string {
 
 export const JourneyTool = buildTool({
   name: 'Journey',
-  searchHint:
-    'run and verify a local application end to end: start services, request loopback http, assert status body logs files, honest verdict',
+  searchHint: 'verify local applications with ordered checks and per-step evidence',
   capability: {
     intents: [
       'start and verify a local application',

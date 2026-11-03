@@ -919,8 +919,7 @@ function denied(message: string, reason: string) {
 
 export const ComputerTool = buildTool({
   name: COMPUTER_TOOL_NAME,
-  searchHint:
-    'computer use: see the screen, drive the mouse and keyboard, screenshot the desktop, click type scroll press keys in a desktop application window, control a native app, automate a GUI',
+  searchHint: 'inspect desktop applications and operate their mouse and keyboard',
   capability: {
     intents: [
       'see the screen and drive the mouse and keyboard',

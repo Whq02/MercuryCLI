@@ -154,7 +154,7 @@ To complete the request, call ${WEB_FETCH_TOOL_NAME} again with url: "${fetched.
 export const WebFetchTool = buildTool({
   name: WEB_FETCH_TOOL_NAME,
   userFacingName: () => 'Fetch',
-  searchHint: 'fetches and extracts content from a URL',
+  searchHint: 'fetch public pages as text or saved documents',
   shouldDefer: true,
   maxResultSizeChars: 140_000,
   inputSchema,
