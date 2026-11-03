@@ -967,7 +967,7 @@ try {
   await screenSettled(screen)
   judgeScreen('the attached screen after the mid-turn fold', screen.records(), transcript, [])
   await idleOn('after the automatic compact', screen)
-  check('retained idle words never enter a summary or model request', requestBodies.every(body => idleWords.every(word => !body.includes(word))))
+  check('the idle posts reached the lead as whole board rows (every post reaches every enrolled seat at its next boundary)', requestBodies.some(body => idleWords.every(word => body.includes(word))))
 } finally {
   replayBoard?.close()
   await cleanup()

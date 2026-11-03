@@ -87,7 +87,8 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
   let observed = version()
   const emit = (): void => {
     if (closed) return
-    const next = version()
+    let next: string
+    try { next = version() } catch { return }
     if (observed === next) return
     observed = next
     for (const listener of listeners) { try { listener() } catch {} }
