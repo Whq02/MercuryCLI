@@ -15,25 +15,37 @@ const { getAllBaseTools } = await import('../../src/tools.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { toolToAPISchema } = await import('../../src/utils/api.ts')
 const pool = getAllBaseTools()
-const wanted: Array<[string, RegExp]> = [
-  ['ChangeSet', /over Edit[\s\S]*several files/],
+const lawful = ['ChangeSet', 'Git', 'Test']
+const pending: Array<[string, RegExp]> = [
   ['AstSearch', /over Grep[\s\S]*shape/],
   ['AstEdit', /over Edit[\s\S]*every match/],
   ['LspRead', /^Read-only language-server queries; prefer over text search for symbols/],
-  ['Test', /^Prefer this to Bash for structured test results, exact failure reruns and durable records/],
-  ['Git', /^Inspect local repositories[\s\S]*preview and apply commit groups/],
   ['Debug', /(?:over|instead of) print debugging/],
   ['Monitor', /over polling a log/],
   ['Checkpoint', /detour[\s\S]*keep in context/],
   ['Rewind', /detour[\s\S]*keep in context/],
 ]
+const names = pool.map(tool => tool.name)
+const PREFERENCE = /\bprefer\w*\b|\binstead of\b|\brather than\b|\buse this\b/i
 let failures = 0
-for (const [name, comparison] of wanted) {
-  const tool = pool.find(t => t.name === name)
-  const schema = tool && await toolToAPISchema(tool, { tools: pool, agents: [], getToolPermissionContext: async () => getEmptyToolPermissionContext(), model: 'claude-sonnet-5' })
-  const description = schema?.description ?? ''
-  const ok = typeof description === 'string' && comparison.test(description)
+function report(ok: boolean, line: string): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}: the wire description says when to prefer it — ${Buffer.byteLength(String(description))} description bytes`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${line}`)
+}
+async function describe(name: string): Promise<string> {
+  const tool = pool.find(t => t.name === name)
+  if (!tool) return ''
+  const schema = await toolToAPISchema(tool, { tools: pool, agents: [], getToolPermissionContext: async () => getEmptyToolPermissionContext(), model: 'claude-sonnet-5' }) as { description?: unknown }
+  return typeof schema.description === 'string' ? schema.description : ''
+}
+for (const name of lawful) {
+  const description = await describe(name)
+  const first = description.split(/(?<=\.)\s/)[0] ?? ''
+  const others = names.filter(other => other !== name && new RegExp(`\\b${other}\\b`).test(first.replace(/^\w+/, '')))
+  report(first.length >= 40 && others.length === 0 && !PREFERENCE.test(first), `${name}: opens with what it does, names no other tool and no preference — "${first.slice(0, 90)}${first.length > 90 ? '…' : ''}" (${Buffer.byteLength(description)} description bytes${others.length ? `; names ${others.join(', ')}` : ''})`)
+}
+for (const [name, comparison] of pending) {
+  const description = await describe(name)
+  report(comparison.test(description), `${name}: still carries its old sentence until its rewrite lands — ${Buffer.byteLength(description)} description bytes`)
 }
 process.exit(failures === 0 ? 0 : 1)

@@ -74,37 +74,37 @@ function adapterUnavailable(err: unknown): { debuggerMissing: string; remedy: st
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(OPS).describe('The test operation to perform'),
+    op: z.enum(OPS).describe('The test operation'),
     framework: z
       .enum(['pytest', 'unittest', 'node-test', 'vitest', 'jest', 'cargo', 'go'])
       .optional()
-      .describe('Force a framework. Default: python (pytest when detected+importable, else unittest) in python projects; otherwise the single manifest-declared runner (package.json → node-test/vitest/jest · Cargo.toml → cargo · go.mod → go); an ambiguous project names its options instead of guessing'),
+      .describe('The runner. Default: in a Python project pytest when it is importable, else unittest; otherwise the one runner the manifest declares (package.json → node-test, vitest or jest · Cargo.toml → cargo · go.mod → go)'),
     path: z
       .string()
       .optional()
-      .describe('run: limit to one test file/directory (a selection of one path). A file or folder outside the session project names another project: discover, run, rerunFailed, debug and report then read the project that path lies in (its nearest manifest or Python root) and say which they read'),
+      .describe('run: one test file or directory. A path outside the session project selects that project (its nearest manifest or Python root) for every op, and the result names the project it read'),
     node: z
       .string()
       .optional()
-      .describe('run: one test node id (pytest: file::test_name · unittest: module.Class.test). debug: required — the test to debug (node-test, vitest, jest: file::name, or a bare name the latest run\'s case rows place · go: TestName, TestName/subtest or dir::TestName · cargo: module::path::test_name)'),
+      .describe('run: one test node id (pytest: file::test_name · unittest: module.Class.test). debug: required, the test to debug (node-test, vitest, jest: file::name, or a bare name from the latest run\'s case rows · go: TestName, TestName/subtest or dir::TestName · cargo: module::path::test_name)'),
     changed: z
       .boolean()
       .optional()
-      .describe("run: focus on the working tree's changed files via the runner's own related-test machinery (vitest related · jest --findRelatedTests · changed test files for node-test/pytest · changed packages for go; cargo declines honestly)"),
+      .describe("run: only the tests related to the working tree's changed files (vitest related · jest --findRelatedTests · the changed test files for node-test and pytest · the changed packages for go; not available for cargo)"),
     profile: z
       .string()
       .optional()
-      .describe('run: an exact runner-profile id (rp-… from op:"discover") — the explicit runner/target override'),
+      .describe('run: a runner-profile id (rp-…) from discover'),
     session: z
       .string()
       .optional()
-      .describe('debug: the Debug-tool session name to create (default "test"; continue with the Debug tool)'),
-    file: z.string().optional().describe('debug: source file for breakpoints'),
+      .describe('debug: the name of the debugger session the call leaves open (default "test")'),
+    file: z.string().optional().describe('debug: the source file for breakpoints'),
     lines: z
       .array(semanticNumber(z.number().int().positive()))
       .optional()
       .describe('debug: breakpoint lines in file'),
-    runId: z.string().optional().describe('report: a specific run id (default: the latest run)'),
+    runId: z.string().optional().describe('report: a run id (default: the latest run)'),
   }),
 )
 
@@ -678,29 +678,13 @@ export function isPathShapedNode(node: string, cwd: string = getCwd()): boolean 
 
 export const TestTool = buildTool({
   name: 'Test',
-  searchHint:
-    'structured test runs: discover, run, rerun failed, run the relevant tests for your changes (changed-file focus), debug one test (pytest/unittest · node-test/vitest/jest · cargo · go; durable mercury://test records)',
+  searchHint: 'run, discover, rerun or debug the project\'s tests with recorded, structured results',
   maxResultSizeChars: 60_000,
   async description() {
     return 'Run project tests as structured transactions: discover, run, rerun failures, debug one test'
   },
-  wireDescription() {
-    return `Prefer this to Bash for structured test results, exact failure reruns and durable records. discover lists test nodes or runner profiles; run selects the suite, path, node, changed files or an exact profile; rerunFailed repeats only recorded failures; debug requires node and optionally file+lines, leaving Debug session "test" open; report reads latest or runId. Python uses pytest/unittest; manifests select node-test/vitest/jest/cargo/go. Ambiguity and missing debuggers are reported, not guessed.
-Execution follows permissions and returns argv, counts, typed failures, diagnostics and mercury://test/run/<id>; /latest and /failures track the newest run. Read spilled output by its artifact. Trust structured records when verdictNote reports an exit-code disagreement. Zero matched tests is neither a pass nor a failure: choose a discover result. Prefer run, fix, rerunFailed. Full selection and debugger notes arrive on discovery or first use.`
-  },
   async prompt() {
-    return `Use this over running tests in Bash for structured results, precise failure reruns and durable test records.
-
-Run project tests as structured transactions (Python: pytest/unittest — the framework is auto-resolved from the project and the shared interpreter; results come from framework-level records, never parsed prose).
-
-Operations:
-1. op:"discover" — list test node ids (pytest: file::test · unittest: module.Class.test) or the manifest-declared runner profiles (rp-…). Collect errors are reported, never hidden.
-2. op:"run" — the whole suite, one file (path), one node (node), the changed-file focus (changed:true — the runner's own related-test machinery: vitest related · jest --findRelatedTests · changed test files for node-test/pytest · changed packages for go; cargo declines honestly), or an exact profile (profile:"rp-…" — the explicit runner override). The permission ask shows the exact resolved argv before anything executes; long runs stream a bounded live status line. Returns the ran argv + counts + typed failure locations (file:line + test name) + available LSP diagnostics + a durable record (mercury://test/run/<id>; mercury://test/latest and /failures always point at the newest truth). Full output spills to an artifact ref.
-3. op:"rerunFailed" — re-run exactly the failures recorded by the latest run.
-4. op:"debug" — debug one test (node required) under its own debugger, stopping on the test's first line: python under debugpy · node-test, vitest and jest under js-debug (node spelled file::name, or a bare name from the latest run) · go under delve (TestName, TestName/subtest or dir::TestName) · cargo under lldb-dap or gdb (module::path::test_name); a debugger that is not installed answers unavailable with its install line. Pass file+lines for breakpoints of your own; the call reports the first stop and leaves Debug session "test" open — continue with the Debug tool (stack/scopes/variables/continue, then disconnect).
-5. op:"report" — the latest (or runId) durable record.
-
-A run whose exit code disagrees with its structured records says so (verdictNote) — trust the records. A selection that matched no test comes back as "no test matched <selection> — <the runner's own words>" with zero counts: not a failure, and not a pass — pick another selector (a node id from discover, or the file as path). Prefer run→fix→rerunFailed loops over re-running the whole suite.`
+    return `Runs the project's tests from their framework's own records and returns the argv that ran, the counts, each failure with its test name, file and line, available diagnostics and a durable record at mercury://test/run/<id> (mercury://test/latest and mercury://test/failures follow the newest run); output past the result goes to an artifact reference. discover lists the test node ids or the runner profiles the manifest declares; run executes the suite, one path, one node, the tests related to the changed files, or one profile; rerunFailed repeats the failures the latest run recorded; debug starts one test under its language's debugger, stops on the test's first line and leaves that debugger session open; report reads a record. Python projects run under pytest or unittest, others under the runner their manifest declares (node-test, vitest, jest, cargo, go). A run whose exit code disagrees with its records says so in a verdictNote; a selection that matched no test returns zero counts, which is neither a pass nor a failure.`
   },
   userFacingName,
   shouldDefer: true,

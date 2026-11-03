@@ -13,8 +13,8 @@ const { getToolManualAttachments } = await import('../../src/utils/attachments/t
 const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
 const { isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const names = ['Eval', 'Test', 'AstSearch', 'LspRead']
-const oneText = ['Read', 'Edit']
+const names = ['Eval', 'AstSearch', 'LspRead']
+const oneText = ['Read', 'Edit', 'Test']
 const tools = getAllBaseTools()
 const permission = getEmptyToolPermissionContext()
 const options = { getToolPermissionContext: async () => permission, tools, agents: [], model: 'glm-5.3', conversationKey: proofHome }

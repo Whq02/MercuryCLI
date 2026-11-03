@@ -83,7 +83,7 @@ const SPEC_BODY = [
   'Sleep — wait / pause / rest for a duration without a shell',
   'Structure — query JavaScript and TypeScript syntax and preview structural edits',
   'TaskStop — kill or stop a running background task',
-  'Test — structured test runs: discover, run, rerun failed, run the relevant tests for your changes…',
+  'Test — run, discover, rerun or debug the project\'s tests with recorded, structured results',
   'Transaction — see what changed and was checked; finish the work only after a passing check',
   'WebFetch — fetch public pages as text or saved documents',
   'WebSearch — searches the web for current information',
@@ -197,9 +197,9 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
   }
 }
 
-section('§3 the fourteen rewritten hints fit without a clipped tail')
+section('§3 the rewritten hints fit without a clipped tail')
 const { ListMcpResourcesTool } = await import('../../src/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts')
-const purposeNames = ['Inspect', 'Retain', 'Computer', 'Git', 'WebFetch', 'AskUserQuestion', 'Crewmate', 'Workflow', 'Service', 'Browser', 'Structure', 'CrewBoard', 'Journey', 'ListMcpResources']
+const purposeNames = ['Inspect', 'Retain', 'Computer', 'Git', 'WebFetch', 'AskUserQuestion', 'Crewmate', 'Workflow', 'Service', 'Browser', 'Structure', 'CrewBoard', 'Journey', 'ListMcpResources', 'Test']
 const purposeTools = [...getAllBaseTools(), ListMcpResourcesTool]
 for (const name of purposeNames) {
   const tool = purposeTools.find(tool => tool.name === name)
