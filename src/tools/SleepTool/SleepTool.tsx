@@ -88,7 +88,8 @@ type Output = z.infer<OutputSchema>
 export const SleepTool = buildTool({
   shouldDefer: true,
   name: SLEEP_TOOL_NAME,
-  searchHint: 'wait / pause / rest for a duration without a shell',
+  searchHint: 'wait for a number of seconds without holding a shell',
+  searchKeywords: ['wait', 'pause', 'rest', 'sleep', 'duration', 'delay'],
   maxResultSizeChars: 10_000,
   userFacingName: () => 'Sleep',
   get inputSchema(): InputSchema {

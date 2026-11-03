@@ -1266,13 +1266,14 @@ export const DebugTool = buildTool({
   name: DEBUG_TOOL_NAME,
   keepEmptyInputs: ['lines', 'breakpoints', 'functions', 'dataBreakpoints', 'instructionBreakpoints'],
   straightQuoteInputs: ['program', 'file', 'expression', 'name', 'value', 'text', 'functions'],
-  get searchHint() {
-    return (
-      'real debugger via DAP: launch/attach, breakpoints (conditional/hit-count/logpoints), function breakpoints, data breakpoints (stop on a variable write/read), instruction breakpoints, stepping (incl. instruction), stack traces, scopes, variables, evaluate, disassemble, readMemory, writeMemory, restart (python debugpy, native lldb' +
-      (gdbProbeFromMemo().viable ? '/gdb' : '') +
-      (mercuryGodotEnabled() ? ', godot editor' : '') +
-      ')'
-    )
+  searchHint: 'drive a real debugger over DAP: launch or attach, breakpoints, stepping, stacks, variables, memory',
+  get searchKeywords() {
+    return [
+      'debugger', 'DAP', 'launch', 'attach', 'breakpoints', 'conditional', 'hit-count', 'logpoints', 'function breakpoints', 'data breakpoints', 'instruction breakpoints',
+      'stepping', 'stack traces', 'scopes', 'variables', 'evaluate', 'disassemble', 'readMemory', 'writeMemory', 'restart', 'python', 'debugpy', 'native', 'lldb',
+      ...(gdbProbeFromMemo().viable ? ['gdb'] : []),
+      ...(mercuryGodotEnabled() ? ['godot', 'godot editor'] : []),
+    ]
   },
   maxResultSizeChars: 100_000,
   async description() {

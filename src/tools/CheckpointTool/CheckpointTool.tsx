@@ -32,7 +32,8 @@ const taken = (count: number): string =>
 export const CheckpointTool = buildTool({
   ...contextOnlyTraits(),
   name: CHECKPOINT_TOOL_NAME,
-  searchHint: 'checkpoint / mark context state before an exploration, rewindable',
+  searchHint: 'mark the conversation state before an exploration, for a later rewind',
+  searchKeywords: ['checkpoint', 'mark', 'context', 'exploration', 'rewindable', 'rewind'],
   userFacingName: () => 'Checkpoint',
   get inputSchema(): InputSchema {
     return inputSchema()

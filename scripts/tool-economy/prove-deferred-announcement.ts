@@ -49,12 +49,12 @@ const SPEC_BODY = [
   'AstEdit — structural code rewrite by syntax pattern across files, dry-run diff then apply',
   'AstSearch — structural code search by syntax pattern with meta-variables across languages',
   'Browser — drive an isolated web browser; inspect pages and capture screenshots',
-  'Checkpoint — checkpoint / mark context state before an exploration, rewindable',
+  'Checkpoint — mark the conversation state before an exploration, for a later rewind',
   'Computer — inspect desktop applications and operate their mouse and keyboard',
   'ContextLeft — how much context window is left: tokens used, window, tokens before autocompact',
-  'Correct — correct project memory supersede amend retract',
+  'Correct — supersede, amend or retract one project memory record by id',
   'Crewmate — delegate a bounded task to an independent agent and receive its report',
-  'Debug — real debugger via DAP: launch/attach, breakpoints (conditional/hit-count/logpoints), function…',
+  'Debug — drive a real debugger over DAP: launch or attach, breakpoints, stepping, stacks, variables, memory',
   'EnterWorktree — switch this session into an isolated git worktree',
   'ExitWorktree — end the worktree session and return to the original directory',
   'Git — inspect repositories and hosted reviews; stage changes and preview commit groups',
@@ -80,7 +80,7 @@ const SPEC_BODY = [
   'SendMessage — send a note to a running crewmate of this session; it never starts a finished one',
   'Service — manage long-running project processes, their readiness, logs and input',
   'Skill — invoke a slash-command skill by name',
-  'Sleep — wait / pause / rest for a duration without a shell',
+  'Sleep — wait for a number of seconds without holding a shell',
   'Structure — query JavaScript and TypeScript syntax and preview structural edits',
   'TaskStop — kill or stop a running background task',
   'Test — run, discover, rerun or debug the project\'s tests with recorded, structured results',
@@ -199,7 +199,7 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
 
 section('§3 the rewritten hints fit without a clipped tail')
 const { ListMcpResourcesTool } = await import('../../src/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts')
-const purposeNames = ['Inspect', 'Retain', 'Computer', 'Git', 'WebFetch', 'AskUserQuestion', 'Crewmate', 'Workflow', 'Service', 'Browser', 'Structure', 'CrewBoard', 'Journey', 'ListMcpResources', 'Test', 'Monitor', 'Launch']
+const purposeNames = ['Inspect', 'Retain', 'Computer', 'Git', 'WebFetch', 'AskUserQuestion', 'Crewmate', 'Workflow', 'Service', 'Browser', 'Structure', 'CrewBoard', 'Journey', 'ListMcpResources', 'Test', 'Monitor', 'Launch', 'Debug', 'Correct', 'Checkpoint', 'Sleep']
 const purposeTools = [...getAllBaseTools(), ListMcpResourcesTool]
 for (const name of purposeNames) {
   const tool = purposeTools.find(tool => tool.name === name)

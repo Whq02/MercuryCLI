@@ -424,7 +424,8 @@ export type CorrectToolOutput = CorrectOutcome
 
 export const CorrectTool = buildTool({
   name: CORRECT_TOOL_NAME,
-  searchHint: 'correct project memory supersede amend retract',
+  searchHint: 'supersede, amend or retract one project memory record by id',
+  searchKeywords: ['correct', 'supersede', 'amend', 'retract', 'memory'],
   maxResultSizeChars: 20_000,
   shouldDefer: true,
   get inputSchema(): CorrectSchema {
