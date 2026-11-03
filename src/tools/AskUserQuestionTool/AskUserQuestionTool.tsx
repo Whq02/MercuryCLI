@@ -41,7 +41,7 @@ const questionSchema = z.object({
   question: z
     .string()
     .describe(
-      'Clear, specific question ending in a question mark; phrase for multi-select when applicable',
+      'Question text; phrase for multi-select when applicable',
     ),
   header: z
     .string()
@@ -54,7 +54,7 @@ const questionSchema = z.object({
     .min(2)
     .max(4)
     .describe(
-      'Mutually exclusive unless multiSelect; an "Other" free-text option is supplied automatically — never author one',
+      'Mutually exclusive unless multiSelect; an Other free-text answer is supplied automatically',
     ),
   multiSelect: semanticBoolean(z.boolean().default(false)).describe(
     'Allow several answers to this question',

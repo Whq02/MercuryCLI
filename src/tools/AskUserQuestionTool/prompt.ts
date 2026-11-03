@@ -7,25 +7,8 @@ export const DESCRIPTION =
   'Put a fixed set of choices in front of the user — to collect facts, resolve something ambiguous, learn a preference, settle a decision, or present alternatives.'
 
 export const PREVIEW_FEATURE_PROMPT: Record<'markdown' | 'html', string> = {
-  markdown: `## Option previews (markdown)
-Options may carry a \`preview\` rendered when the option is focused. Use previews for artefacts the user must visually compare — ASCII mockups, code snippets, diagram sketches, alternative configs. A preview renders as markdown inside a monospace box and may span several lines. When any option carries a preview the layout switches to a vertical option list beside the preview pane. Previews are wasted on simple preference questions, and forbidden on multi-select — single-select only.`,
-  html: `## Option previews (HTML)
-Options may carry a \`preview\` rendered when the option is focused. Use previews for artefacts the user must visually compare — HTML mockups, formatted code, visual comparisons. A preview has to arrive as one self-contained HTML fragment: no document wrapper (\`<html>\`, \`<body>\`, doctype), no \`<script>\` or \`<style>\` elements — use inline style attributes. Previews are single-select only; never use them on a multi-select question.`,
+  markdown: `Previews use multiline Markdown in a monospace box beside a vertical option list. Single-select only.`,
+  html: `Previews use a self-contained HTML fragment with inline styles, without a document wrapper, script or style elements. Single-select only.`,
 }
 
-export const ASK_USER_QUESTION_TOOL_PROMPT = `Ask the user structured multiple-choice questions to collect facts, resolve ambiguity, learn preferences, or settle decisions.
-
-## The asking doctrine
-Investigate before asking. Use what the request itself, the architecture already committed to, the project's conventions, decisions already on record, and measurable constraints tell you to eliminate choices already decided — a question the code answers is not a question.
-
-- Ask only unresolved, consequential decisions. Do not ask about file names, internal types, or test frameworks the repository already uses — those details are yours to settle.
-- State briefly why the decision is still open despite what you found.
-- Offer 2–4 genuinely distinct options. Each description spells out honestly what follows from picking it — never steer with loaded phrasing.
-- When the evidence supports a recommendation, put that option first and append "(Recommended)" to its label. Recommend nothing otherwise.
-- Group independent decisions into one call; ask a dependent question only after its parent answer is known.
-- Do not re-ask a question the user already answered unless new evidence makes the earlier answer inconsistent — and then say what changed.
-- Stop asking when all material ambiguity is resolved.
-
-## Usage notes
-- An "Other" free-text option is supplied automatically — never author one.
-- Set \`multiSelect: true\` to allow several answers to one question.`
+export const ASK_USER_QUESTION_TOOL_PROMPT = `Ask structured multiple-choice questions and return the user's answers.`
