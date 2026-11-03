@@ -1,5 +1,5 @@
 {
-  "base": "f84083432346c20dd25d253a69d7085b2c2e660b",
+  "base": "bf4519e6c663fd86b3272bfbeed21910ab3ed9da",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -21,11 +21,11 @@
             "type": "string"
           },
           "model": {
-            "description": "Exact model id or family word; read mercury://models. [1m] selects the 1M variant; your own family keeps your exact model. Overrides the agent definition; omitted inherits yours. Follow the operator's model and effort; never downgrade to obtain read-only scoping.",
+            "description": "Exact model id or family word; read mercury://models. [1m] selects the 1M variant; your own family keeps your exact model. Overrides the agent definition; omitted, the definition's model, else the configured crewmate default, else yours. Follow the operator's model and effort; never downgrade to obtain read-only scoping.",
             "type": "string"
           },
           "effort": {
-            "description": "Reasoning effort; omitted uses the configured crewmate default (high), not the parent level. An unsupported level maps to the nearest served level; models without effort control ignore it. Enables extended reasoning where supported.",
+            "description": "Reasoning effort; omitted, the agent definition's effort, else the configured crewmate default (high unless the operator changed it), never the parent level. An unsupported level maps to the nearest served level; models without effort control ignore it. Enables extended reasoning where supported.",
             "type": "string",
             "enum": [
               "low",
@@ -95,7 +95,7 @@
     },
     {
       "name": "Bash",
-      "description": "Runs one shell command and returns its output, stdout and stderr merged in the order written. The output comes back to you, not to the operator.\n\nUp to 30000 characters come back inline; a longer output is saved to a file, and the result carries its path with about 2000 characters from its start and end. A non-zero exit comes back as an error ending `Exited with code N`, except exit 1 from a search or test command (grep, rg, find, diff, cmp, pgrep, test, `[`, which or `command -v`), which is a result labelled `no matches found (exit code 1)`.\n\nThe working directory persists between calls; shell variables, functions and options do not, and each call starts from your profile (bash or zsh).",
+      "description": "Runs one shell command and returns its output, stdout and stderr merged in the order written. The output comes back to you; the operator sees at most a folded preview.\n\nUp to 30000 characters come back inline; a longer output is saved to a file, and the result carries its path with about 2000 characters from its start and end. A non-zero exit comes back as an error ending `Exited with code N`, except exit 1 when the last command is grep, rg, find, diff, cmp, pgrep, test, `[`, which or `command -v`: a result labelled with what the exit means, such as `no matches found (exit code 1)`.\n\nIn the main conversation the working directory persists between calls (a crewmate's does not); shell variables, functions and options never do, and each call starts from your profile (bash or zsh).",
       "input_schema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -270,7 +270,7 @@
             "maximum": 9007199254740991
           },
           "ranges": {
-            "description": "Up to 32 1-based line ranges read in one call (\"1-20\", \"-15\"), each with its own continuation mark.",
+            "description": "Up to 32 line ranges read in one call, each N, N-M, N+K, N- or -N (the last N lines), each with its own continuation mark.",
             "maxItems": 32,
             "type": "array",
             "items": {
@@ -337,7 +337,7 @@
             "type": "boolean"
           },
           "expected_anchor": {
-            "description": "The anchor from your latest Read of this file: the \"(anchor: …)\" value, carried across exactly",
+            "description": "The latest \"(anchor: …)\" value for this file — from a Read, or from an Edit or Write result — carried across exactly",
             "type": "string"
           },
           "hunks": {
@@ -418,7 +418,7 @@
         "properties": {
           "notebook_path": {
             "type": "string",
-            "description": "Absolute path of the .ipynb file to modify (relative paths are rejected)"
+            "description": "Path of the .ipynb file; a relative path resolves against the working directory"
           },
           "cell_id": {
             "description": "Which cell to target, by id. For inserts the new cell lands just after this cell — or at the very beginning when no id is given.",
@@ -456,7 +456,7 @@
     },
     {
       "name": "WebFetch",
-      "description": "Fetch public HTTP(S) pages without credentials. Returns Markdown page text or a saved binary path. Sparse HTML on public hosts may send the full URL to r.jina.ai; private addresses are excluded and no cookies or credentials go to that reader. Repeat pulls ride a fifteen-minute cache.",
+      "description": "Fetch HTTP(S) pages without credentials. Returns Markdown page text or a saved binary path. Sparse HTML on public hosts may send the full URL to r.jina.ai; private addresses are excluded and no cookies or credentials go to that reader. Repeat pulls ride a fifteen-minute cache.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -590,9 +590,11 @@
               "type": "object",
               "properties": {
                 "id": {
+                  "description": "Stable id of the question in the answer; defaults from its position",
                   "type": "string"
                 },
                 "decisionId": {
+                  "description": "Key of the question's interview record (mercury://interview/<session>/<decisionId>); defaults when omitted",
                   "type": "string"
                 },
                 "question": {
@@ -612,6 +614,7 @@
                     "type": "object",
                     "properties": {
                       "id": {
+                        "description": "Stable id of the option in the answer; defaults from its position",
                         "type": "string"
                       },
                       "label": {
@@ -657,13 +660,13 @@
     },
     {
       "name": "Skill",
-      "description": "Runs a skill inline in this conversation, by name, with optional arguments. The skills on offer ride in system-reminder messages in this conversation; a request one of them covers goes through that skill first, and a user's \"slash command\" or \"/something\" means a skill. A skill named in a <command-name> tag in the current turn is already loaded, and its instructions apply directly.",
+      "description": "Runs a skill by name, with optional arguments — inline in this conversation, or in a forked crewmate when the skill declares one. The skills on offer ride in system-reminder messages in this conversation; a user's \"slash command\" or \"/something\" means a skill.",
       "input_schema": {
         "type": "object",
         "properties": {
           "skill": {
             "type": "string",
-            "description": "The skill name (e.g. \"commit\", \"review\", or an extension-namespaced \"<extension>:skill\")"
+            "description": "The skill's name, or \"<extension>:<skill>\" for an extension skill"
           },
           "args": {
             "description": "Optional arguments passed to the skill",
@@ -1104,7 +1107,7 @@
             }
           },
           "readiness": {
-            "description": "start: readiness conditions.",
+            "description": "start: readiness conditions — log regex · tcp port (host 127.0.0.1) · http url (GET, status 200) · file path · stable ms (the process alive that long).",
             "maxItems": 8,
             "type": "array",
             "items": {
@@ -2088,7 +2091,7 @@
                 },
                 "expected_anchor": {
                   "type": "string",
-                  "description": "The anchor from your latest Read of this file (the \"(anchor: …)\" value)"
+                  "description": "The latest \"(anchor: …)\" value for this file, from a Read or from an Edit or Write result"
                 },
                 "hunks": {
                   "description": "Disjoint line-addressed hunks against the anchored snapshot; a member carries hunks or edits, a move optionally, a delete neither",
@@ -2856,7 +2859,7 @@
                     },
                     "jsonPath": {
                       "type": "string",
-                      "description": "Path in the last http.request's JSON response."
+                      "description": "Dot-separated keys from the last http.request's JSON response root (data.items.0.id); compared as text."
                     },
                     "equals": {
                       "type": "string"
@@ -2902,7 +2905,7 @@
             }
           },
           "cleanup": {
-            "description": "stop-started stops journey-started services after the run (default); keep leaves them running.",
+            "description": "stop-started stops journey-started services after the run (default); keep leaves them running until this session ends.",
             "type": "string",
             "enum": [
               "stop-started",
@@ -4006,12 +4009,12 @@
     },
     {
       "name": "Sleep",
-      "description": "Waits the given seconds without holding a shell process; an interrupt from the user ends the wait at once, and the result reports the time actually waited. Periodic check-in prompts wrapped in <tick> tags may arrive during the wait, each a nudge to look for useful work before sleeping on. Every wake is a model call, and the prompt cache lapses after 5 minutes of idleness.",
+      "description": "Waits the given seconds without holding a shell process, returning early when the user interrupts, new input arrives, or the crewmates and background commands it tracks finish; the result says which and reports the time actually waited. Periodic check-in prompts wrapped in <tick> tags may arrive during the wait, each a nudge to look for useful work before sleeping on. Every wake is a model call, and the prompt cache lapses after 5 minutes of idleness.",
       "input_schema": {
         "type": "object",
         "properties": {
           "seconds": {
-            "description": "How many seconds to wait before returning (min 1, max 3600; a value outside the bounds is clamped to them and the result says so). The user can interrupt the sleep at any time (it resolves early, reporting the elapsed time).",
+            "description": "How many seconds to wait before returning (min 1, max 3600; a value outside the bounds is clamped to them and the result says so).",
             "type": "number",
             "minimum": 0
           }
@@ -4114,7 +4117,7 @@
             "description": "The prompt to enqueue when the wake fires."
           },
           "reason": {
-            "description": "A short note on why you are waking yourself, carried to the woken turn; not shown to the user.",
+            "description": "A short note on why you are waking yourself; it heads the woken prompt and shows on the wake's row.",
             "type": "string"
           }
         },
@@ -4386,13 +4389,13 @@
     },
     {
       "name": "ToolSearch",
-      "description": "Loads the full definitions of deferred tools so they become callable.\n\nDeferred tools are listed in <system-reminder> messages that begin \"Deferred tools:\", one per line: the name, then what the tool is for. The result names the admitted tools, and from that request on their complete definitions are in your tool list, no different from the tools the prompt opened with.",
+      "description": "Loads the full definitions of deferred tools so they become callable.\n\nDeferred tools are listed in <system-reminder> messages that begin \"Deferred tools:\", one per line: the name, and what the tool is for when it declares one; keyword search also reads each tool's full description. The result names the admitted tools, and from that request on their complete definitions are in your tool list, no different from the tools the prompt opened with.",
       "input_schema": {
         "type": "object",
         "properties": {
           "query": {
             "type": "string",
-            "description": "What to load: exact names as \"select:<name>,<name>\"; or keywords ranked against the deferred roster, where \"+word\" requires the word in the name."
+            "description": "What to load: exact names as \"select:<name>,<name>\"; or keywords ranked against the deferred roster, where \"+word\" requires the word (in a tool's name, description or search words) and the other words only rank."
           },
           "max_results": {
             "default": 5,
