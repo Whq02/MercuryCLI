@@ -31,40 +31,40 @@ const SHEET_TYPES = ['horizontal', 'vertical', 'rows', 'columns', 'packed'] as c
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(OPS).describe('status · info · export · create · run-script · draw · render · parts · describe · palette-check'),
+    op: z.enum(OPS).describe('Aseprite operation.'),
     ...artFields(),
     file: z
       .string()
       .optional()
-      .describe('info/export: the sprite file (.aseprite/.ase; context-relative, fenced inside the working tree). run-script: optional sprite to open first (not fenced — the ask names it)'),
+      .describe('The sprite file (.aseprite/.ase) to act on; run-script: an optional sprite to open first'),
     output: z
       .string()
       .optional()
-      .describe('export/create: destination file (context-relative, fenced; export split modes may use {layer}/{tag}/{frame} templates)'),
-    scale: z.number().optional().describe('export: resize factor applied before saving (2 = double size)'),
+      .describe('export/create: the destination file; an export may place {layer}, {tag} or {frame} in the name'),
+    scale: z.number().optional().describe('export: resize factor applied before saving. render/draw/parts: integer magnification of the returned PNG, nearest-neighbour; the sprite itself is never resized'),
     layer: z
       .union([z.string(), z.array(z.string())])
       .optional()
-      .describe('export: include ONLY these layers'),
+      .describe('export: include only these layers'),
     ignoreLayer: z
       .union([z.string(), z.array(z.string())])
       .optional()
       .describe('export: exclude these layers'),
     allLayers: z.boolean().optional().describe('export: include hidden layers too'),
-    tag: z.string().optional().describe('export: only the frames of this animation tag'),
+    tag: z.string().optional().describe('export/render/draw/parts: only the frames of this animation tag'),
     frameRange: z
       .string()
       .optional()
-      .describe('export: "from,to" frame window, 0-based (the CLI counts frames from 0)'),
+      .describe('export: "from,to" frame window, 0-based'),
     splitLayers: z.boolean().optional().describe('export: one file per layer ({layer} template in output)'),
     splitTags: z.boolean().optional().describe('export: one file per tag ({tag} template in output)'),
     sheetType: z
       .enum(SHEET_TYPES)
       .optional()
-      .describe('export: sprite-sheet layout — its presence (or dataOutput) selects the sheet road; absent = plain save-as'),
+      .describe('export: sprite-sheet layout; given, or with dataOutput, the export is a sheet rather than a plain save'),
     sheetColumns: z.number().optional().describe('export sheet: fixed column count (sheetType rows)'),
     sheetRows: z.number().optional().describe('export sheet: fixed row count (sheetType columns)'),
-    dataOutput: z.string().optional().describe('export sheet: JSON metadata destination (fenced)'),
+    dataOutput: z.string().optional().describe('export sheet: the JSON metadata file written beside the image'),
     dataFormat: z.enum(['json-hash', 'json-array']).optional().describe('export sheet: metadata shape (default json-hash)'),
     trim: z.boolean().optional().describe('export: trim the sprite (save-as) or each frame (sheet)'),
     ignoreEmpty: z.boolean().optional().describe('export: drop empty frames'),
@@ -78,7 +78,7 @@ const inputSchema = lazySchema(() =>
     source: z
       .string()
       .optional()
-      .describe('run-script: the Lua source to execute (app.params carries params); asks permission every time'),
+      .describe('run-script: the Lua source to run'),
     params: z
       .record(z.string(), z.string())
       .optional()
