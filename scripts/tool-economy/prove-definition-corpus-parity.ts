@@ -78,7 +78,7 @@ const bashDefinition = definitions.find(definition => definition.name === 'Bash'
 assert.ok(!bashDefinition.description.includes('Use `Test`') && !/\b(Glob|Grep|Read|Edit|Write|WebFetch|Browser|Service|TaskStop|ToolSearch)\b/.test(bashDefinition.description), 'Bash names no other tool')
 const debugDefinition = definitions.find(definition => definition.name === 'Debug')!
 const debugManual = await DebugTool.prompt({ getToolPermissionContext: async () => permissionContext, tools, agents: [] })
-assert.match(debugManual, /depth sets how many, default 20/)
+assert.ok(!/default 20/.test(debugManual), 'the depth default lives in the depth field alone, not in the manual')
 assert.match(debugManual, /\.mercury\/dap-adapters\.json in the trusted working directory/)
 assert.equal((debugDefinition as { input_schema: { properties: { depth: { description: string } } } }).input_schema.properties.depth.description, 'stack: number of frames to return (default 20)')
 const computerDefinition = definitions.find(definition => definition.name === 'Computer')!

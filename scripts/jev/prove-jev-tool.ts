@@ -184,7 +184,7 @@ check('noul', jevEvalCell({ type: 'noul', noul: 0.07 }) === '.07')
 check('choice: the pick\'s own probability, not the top of the distribution', jevEvalCell({ type: 'choice', choice: 'b', probabilities: { a: 0.5, b: 0.3, c: 0.2 }, confidence: 0.7 }) === 'b .30 conf .70')
 check('score: the position on 0..k-1 with the levels counted from the legend', jevEvalCell({ type: 'score', score: 2.5, legend: { '0': 'a', '1': 'b', '2': 'c', '3': 'd' }, probabilities: { '0': 0, '1': 0.25, '2': 0.25, '3': 0.5 }, confidence: 0.9 }) === '2.5 of 0..3 conf .90')
 
-section('§7 the prompt: what Jev answers and what comes back, each fact once; no when-to-use, no worked example, no other tool, no pre-empted refusal')
+section('§7 the prompt: what Jev answers and what comes back, each fact once, and the owner\'s one rule; no worked example, no other tool, no pre-empted refusal')
 const prompt = JEV_EVAL_PROMPT
 const firstLine = prompt.split('\n')[0]!
 check('the first paragraph says what it is: one paid round trip for a second opinion on a judgement you have framed', /^One paid round trip to TypeSafe's Jev for a second opinion on a judgement you have framed\./.test(firstLine))
@@ -192,10 +192,10 @@ check('…what Jev reads and answers: only the evidence, numbers per typed quest
 check('…the three kinds in one sentence each: noul a probability, choice an option with a probability per option and a confidence, score a position with a confidence', /`noul` the probability, 0\.\.1, that a yes\/no statement holds; `choice` one of your options, with a probability per option and a confidence; `score` a position on your ordered levels, with a confidence/.test(firstLine))
 check('…what the numbers are: an opinion, 0 and 1 prove nothing, confidence is concentration not accuracy, no reasons', /writes no prose and gives no reasons/.test(firstLine) && /0 and 1 prove nothing/.test(firstLine) && /how concentrated the distribution is, not how often Jev is right/.test(firstLine))
 check('the second paragraph says what comes back: one table, a row per item keyed by id or position, a column per question, a missing answer said in place', /One table comes back: a row per evidence item, keyed by its id or by position, a column per question, and a row that no answer reached says so in place\./.test(prompt))
-check('two paragraphs, under 1,100 bytes', prompt.split('\n\n').length === 2 && Buffer.byteLength(prompt, 'utf8') <= 1100, `${prompt.split('\n\n').length} paragraphs, ${Buffer.byteLength(prompt, 'utf8')} bytes`)
+check('the one rule, the owner\'s words (d5adc0314f), closes the first paragraph: use it whenever a closed question over evidence in front of you decides the next step', /Use it whenever a closed question over evidence in front of you decides the next step\.$/.test(firstLine))
+check('two paragraphs, under 1,200 bytes', prompt.split('\n\n').length === 2 && Buffer.byteLength(prompt, 'utf8') <= 1200, `${prompt.split('\n\n').length} paragraphs, ${Buffer.byteLength(prompt, 'utf8')} bytes`)
 const gone: Array<[string, RegExp]> = [
   ['another tool named (Eval)', /\bEval\b/],
-  ['a when-to-use clause', /[Uu]se it whenever|decides the next step/],
   ['a worked example or a shape that worked', /killed from outside|capture starve|fixture fault|coin flip|fold_intent|reads back as|"goal":/],
   ['a rule written as a rule', /[Nn]ever call it|[Dd]o not re-ask|[Dd]o not act on it|never attribute|Never retry/],
   ['the crewmate budget and pace (limits speak at call time)', /200 calls|50 requests a minute/],

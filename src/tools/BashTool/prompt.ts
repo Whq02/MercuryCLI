@@ -32,10 +32,6 @@ export function describeRunInBackground(): string {
   return 'Start the command and return at once with a task id and an output file. A notice with its exit code reaches you when it ends; the command is stopped when the run that started it ends.'
 }
 
-export function maxOutputCharsBullet(): string {
-  return 'The optional `max_output_chars` parameter bounds this call\'s inline output to its head and tail; the field\'s description has the bounds.'
-}
-
 export const EDITOR_TERMINAL_RESULT_NOTE =
   'This command ran in the editor terminal: its working directory and shell variables end with the call; start a command that needs a directory with `cd dir && …` in the same call.'
 

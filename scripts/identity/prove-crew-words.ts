@@ -50,7 +50,7 @@ const ALLOW: Row[] = [
   { path: 'src/tools/', fragment: null, why: "a tool's prompt.ts is its instructions to the model, not a screen" },
   { path: 'src/tools/SendMessageTool/', fragment: null, why: 'SendMessage keeps working exactly as it does now: its schema, words and results are frozen' },
   { path: 'src/tools/AgentTool/AgentTool.tsx', fragment: null, why: "the Crewmate tool's schema words, launch refusals and receipts are the model's; the one start road rewrites them" },
-  ...['omit team for the general timeline', 'swarm_team needs seat and team.', 'swarm_captain needs seat and team.'].map(fragment => ({ path: 'src/services/crewBoard/implementation.ts', fragment, why: 'Board team labels address delivery and channels, not a renamed crew.' })),
+  ...['omit team for the general timeline', 'swarm_team needs seat and team.', 'swarm_captain needs seat and team.', 'lead-only swarm_team assigns a team', 'Assignment team, or read filter', 'Addressed seats or teams.', 'Additional addressed seats or teams.', 'lead-only team assignments'].map(fragment => ({ path: 'src/services/crewBoard/implementation.ts', fragment, why: 'Board team labels address delivery and channels, not a renamed crew.' })),
   ...["SELECT DISTINCT json_extract(record, '$.team') AS team", 'Use a team label', 'Only the lead assigns teams.'].map(fragment => ({ path: 'src/services/crewBoard/store.ts', fragment, why: 'The board stores and validates its delivery label, not a crew identity.' })),
   ...[', team ,', '@team a team'].map(fragment => ({ path: 'src/services/crewBoard/seam.ts', fragment, why: "The enrolment brief names the seat's board team label and the @team address, not a renamed crew" })),
   ...[
