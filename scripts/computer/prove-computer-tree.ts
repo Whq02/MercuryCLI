@@ -191,8 +191,9 @@ section('§6 Accessibility not granted: the read says so with the remedy and rea
 section('§7 the words and the road')
 {
   const prompt = await ComputerTool.prompt({ getToolPermissionContext: async () => ({}) as never, tools: [], agents: [] } as never)
-  check('the prompt teaches refs, outline options, kept budgets and scopes', prompt.split('\n').includes(`tree: [n] role "title" value; ref:n until reread. root:n|{role,name}; all:true hidden; points:true pixels. Depth/rows ${TREE_DEPTH_DEFAULT}/${TREE_LIMIT_DEFAULT}, caps ${TREE_DEPTH_CAP}/${TREE_LIMIT_CAP}, larger budgets clamp; scope:window default, app includes menus/windows; find(target). Targets use caps by default.`), prompt)
-  check('the prompt teaches tree budgets, scopes and explicit clipboard consent', [`${TREE_DEPTH_DEFAULT}/${TREE_LIMIT_DEFAULT}`, `${TREE_DEPTH_CAP}/${TREE_LIMIT_CAP}`, 'scope:window', 'find(target)', 'clipboard:true', 'separate consent'].every(words => prompt.includes(words)), prompt)
+  const fields = (ComputerTool.inputJSONSchema as any).properties
+  check('the ref field carries node lifetime; the prompt carries the returned row format', fields.ref.description.includes('valid until the next tree read') && prompt.includes('[n] role "title" value'))
+  check('the fields carry tree budgets, scopes and clipboard consent once', fields.depth.description.includes(`default ${TREE_DEPTH_DEFAULT}, clamped at ${TREE_DEPTH_CAP}`) && fields.limit.description.includes(`default ${TREE_LIMIT_DEFAULT}, clamped at ${TREE_LIMIT_CAP}`) && fields.scope.description.includes('app includes menus and windows') && fields.clipboard.description.includes('separate consent') && !prompt.includes('separate consent'))
   check('the prompt puts tree reads under the application grant', prompt.includes('first act in an application asks') && prompt.includes('tree/find/read/wait-until share its grant'))
   const tool = sourceText('src/tools/ComputerTool/ComputerTool.ts')
   const addon = sourceText('native/desktop/src/mac.rs')

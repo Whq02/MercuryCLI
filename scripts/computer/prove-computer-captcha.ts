@@ -54,5 +54,5 @@ const screenshotChallenge = { action: 'click', x: 10, y: 10, captcha: true, capt
 const explicit = await ComputerTool.validateInput!(screenshotChallenge as never, context)
 check('a challenge reported from screenshot pixels is a code refusal', explicit.result === false && /captcha/i.test(explicit.message) && /operator/i.test(explicit.message), JSON.stringify(explicit))
 const prompt = await ComputerTool.prompt({ getToolPermissionContext: async () => context.getAppState().toolPermissionContext, tools: [], agents: [] })
-check('prompt forbids solving visual and accessible captchas', /never solve/i.test(prompt) && prompt.includes('captcha:true') && /screenshot/i.test(prompt), prompt)
+check('the captcha field names the operator handoff once, without an advance refusal lecture', (ComputerTool.inputJSONSchema as any).properties.captcha.description === 'Hand a captcha to the operator.' && !/captcha/i.test(prompt), prompt)
 finish('prove-computer-captcha')
