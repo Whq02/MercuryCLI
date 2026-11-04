@@ -577,7 +577,7 @@ export function Config({
     ),
     warning: coordinatorOn
       ? 'a boot switch: the stored coordinator mode and model apply while it is on'
-      : 'a boot switch, off by default: the board\'s composer starts sessions directly and no coordinator runs',
+      : 'a boot switch, off by default: n on the board starts sessions directly and no coordinator runs',
   })
   const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null)
   const configStamp = useSyncExternalStore(subscribeGlobalConfigCache, getGlobalConfigCacheStamp, getGlobalConfigCacheStamp)

@@ -489,7 +489,7 @@ async function run(): Promise<void> {
     .option('--chat', 'Open only the screen Mercury opens on (the Boot face) and a chat: no board of your sessions (no concourse) in this boot, and the row of screens shift+←/→ move between (the strip) is those two alone; ↵ New Session on the menu starts the chat (`-chat` is the same switch)')
     .option('--concourse-off', 'Turn the concourse off for this and every future boot (persisted; the strip is the Boot face and the chat alone; the Boot face\'s Session Concourse row keeps a plain live view of your sessions; `-concourse-off` is the same switch)')
     .option('--concourse-on', 'Turn the concourse back on for this and every future boot (persisted; the default is on; `-concourse-on` is the same switch)')
-    .option('--coordinator-on', 'Turn the concourse coordinator on for this and every future boot (persisted; the default is off: the board\'s composer starts sessions directly and no coordinator runs; a coordinator mode or model saved by an earlier version does not turn it on)')
+    .option('--coordinator-on', 'Turn the concourse coordinator on for this and every future boot (persisted; the default is off: n on the board starts sessions directly and no coordinator runs; a coordinator mode or model saved by an earlier version does not turn it on)')
     .option('--coordinator-off', 'Turn the concourse coordinator off again for this and every future boot (persisted; the last of --coordinator-on/--coordinator-off on the line wins)')
     .option('--agent-defs <json>', 'Extra agent definitions (JSON)')
     .option('--config-layers <sources>', 'Which settings sources may apply, comma-separated: user, project, local')
