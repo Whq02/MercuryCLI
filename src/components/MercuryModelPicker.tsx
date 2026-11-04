@@ -29,6 +29,7 @@ import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { EffortStrip, effortStripText } from './mercury-ui/EffortStrip.js'
 import { gaugeColor } from './mercury-ui/theme.js'
 import { modelPickerFooter } from '../utils/model/modelPickerFooter.js'
+import type { ModelPickerFooterKeys } from '../utils/model/modelPickerFooter.js'
 import { wrapPlain } from './BootHealthScreen.js'
 import { FOLD_CLOSED_LEAD, FOLD_OPEN_LEAD, MenuFilterLine } from './mercury-ui/menuFold.js'
 import {
@@ -51,6 +52,7 @@ import {
   headingIndexOf,
   headingWords,
   initialPickerFolds,
+  isCuratedGroup,
   isCursorStop,
   isModelRow,
   isSearchCharacter,
@@ -58,15 +60,30 @@ import {
   matchWords,
   moreLineWords,
   nextStop,
+  orderPickerGroups,
+  pickerCellColumns,
   pickerColumns,
   pickerReachTotal,
   providerNameOfGroup,
   rowKey,
   type CatalogueDoorFacet,
   type FoldState,
+  type PickerGroup,
   type PickerLine,
   type ProviderHeading,
 } from '../utils/model/modelPickerGroups.js'
+import {
+  TENSORFOLD_GROUPS,
+  TENSORFOLD_HOST_GROUP,
+  TENSORFOLD_MODEL_GROUP,
+  tensorFoldFoldedOnOpen,
+  tensorFoldPickerRows,
+  type TensorFoldAct,
+  type TensorFoldChoice,
+  type TensorFoldPickerFacts,
+  type TensorFoldTyping,
+} from './tensorfold/tensorfoldRows.js'
+import { TensorFoldCard, tensorFoldInk } from './tensorfold/TensorFoldCard.js'
 import { isLocalModelId, LOCAL_MODEL_GROUP, localPickerWindowNotice, localRecordFor } from '../services/providers/local/localCatalogue.js'
 import { LOCAL_SETUP_PICKER_OFFER } from '../commands/localsetup/words.js'
 import { LOCAL_WINDOW_CHOICES, localWindowApplication, localWindowChoiceLine, localWindowNoticeKind, localWindowRefusalSpan, localWindowSettingOf, nextLocalWindowSetting, parseLocalWindowSetting, writeLocalWindowSetting } from '../services/providers/local/localWindow.js'
@@ -115,6 +132,9 @@ export type ModelChoice = {
   searchableAction?: boolean
   expand?: CatalogueDoorFacet
   choice?: string
+  rest?: boolean
+  key?: string
+  tensorfold?: TensorFoldChoice
 }
 
 type Props = {
@@ -132,11 +152,31 @@ type Props = {
   topGroup?: string
   expandRows?: (group: string) => ModelChoice[]
   initialFilter?: string
+  view?: 'model' | 'tensorfold'
+  live?: string
+  tensorfold?: TensorFoldPickerFacts
+  onTensorFold?: (act: TensorFoldAct) => void
+  recentAt?: (group: string) => number | undefined
+  tensorFoldFirst?: boolean
 }
 
 const cell = (text: string, width: number): string => (width <= 2 ? '' : `${padTo(text, width - 2)}  `)
 
-export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, headings, topGroup, expandRows, initialFilter }: Props): React.ReactNode {
+function withTensorFoldRows(given: ModelChoice[], rows: ModelChoice[]): ModelChoice[] {
+  const at = given.findIndex(row => row.group === LOCAL_MODEL_GROUP)
+  return at < 0 ? [...given, ...rows] : [...given.slice(0, at), ...rows, ...given.slice(at)]
+}
+
+function placeTensorFoldGroups(groups: PickerGroup<ModelChoice>[], opts: { top?: string; recentAt?: (group: string) => number | undefined; first: boolean }): PickerGroup<ModelChoice>[] {
+  const missing = TENSORFOLD_GROUPS.filter(name => !groups.some(group => group.group === name)).map(name => ({ group: name, rows: [], doors: [] }))
+  const ordered = orderPickerGroups([...groups, ...missing], { ...(opts.top !== undefined ? { top: opts.top } : {}), ...(opts.recentAt !== undefined ? { recentAt: opts.recentAt } : {}), ...(opts.first ? { pinned: TENSORFOLD_GROUPS } : {}) })
+  const host = ordered.find(group => group.group === TENSORFOLD_HOST_GROUP)
+  const rest = ordered.filter(group => group !== host)
+  const at = rest.findIndex(group => group.group === TENSORFOLD_MODEL_GROUP)
+  return host === undefined || at < 0 ? ordered : [...rest.slice(0, at + 1), host, ...rest.slice(at + 1)]
+}
+
+export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, headings: givenHeadings, topGroup, expandRows, initialFilter, view = 'model', live, tensorfold, onTensorFold, recentAt, tensorFoldFirst = false }: Props): React.ReactNode {
   const surfaceRef = useElevatedSurface()
   React.useEffect(() => {
     markTransitionEnd('picker-open')
@@ -145,6 +185,15 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const TERRA = useSessionAccent().accent
   const tokens = useMercuryTokens()
   const currentRow = stripGptServedWindowSuffix(current)
+  const [tfWindows, setTfWindows] = useState<Record<string, number>>({})
+  const [tfTyping, setTfTyping] = useState<TensorFoldTyping | null>(null)
+  const [tfConfirm, setTfConfirm] = useState<string | null>(null)
+  const tf = React.useMemo(
+    () => (tensorfold === undefined ? undefined : tensorFoldPickerRows(tensorfold, { view, current: currentRow, windows: tfWindows, ...(tfTyping !== null ? { typing: tfTyping } : {}), ...(tfConfirm !== null ? { confirmStop: tfConfirm } : {}) })),
+    [tensorfold, view, currentRow, tfWindows, tfTyping, tfConfirm],
+  )
+  const listed = React.useMemo(() => (tf === undefined ? given : view === 'tensorfold' ? tf.rows : withTensorFoldRows(given, tf.rows)), [tf, given, view])
+  const headings = React.useMemo(() => (tf === undefined ? givenHeadings : { ...givenHeadings, ...tf.headings }), [tf, givenHeadings])
   const expandRowsRef = React.useRef(expandRows)
   expandRowsRef.current = expandRows
   const fullCache = React.useRef<{ listed: ModelChoice[]; rows: Map<string, ModelChoice[]> }>({ listed, rows: new Map() })
@@ -154,8 +203,16 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     if (!cache.has(group)) cache.set(group, expandRowsRef.current?.(group) ?? [])
     return cache.get(group)
   }
-  const groups = React.useMemo(() => groupPickerRows(listed), [listed])
-  const top = topGroup ?? groups[0]?.group
+  const seatGroup = (candidates: readonly PickerGroup<ModelChoice>[]): string | undefined =>
+    candidates.find(group => TENSORFOLD_GROUPS.includes(group.group) && group.rows.some(row => row.id === currentRow && row.action !== true))?.group
+  const groups = React.useMemo(() => {
+    const grouped = groupPickerRows(listed)
+    if (tf === undefined) return grouped
+    const seat = seatGroup(grouped)
+    const lead = seat ?? topGroup
+    return placeTensorFoldGroups(grouped, { ...(lead !== undefined ? { top: lead } : {}), ...(recentAt !== undefined ? { recentAt } : {}), first: tensorFoldFirst && seat === undefined })
+  }, [listed, tf, currentRow, topGroup, recentAt, tensorFoldFirst])
+  const top = seatGroup(groups) ?? topGroup ?? groups[0]?.group
   const keyOfId = (id: string): string | undefined => {
     const own = listed.find(m => m.id === id && isModelRow(m))
     if (own !== undefined) return rowKey(own)
@@ -169,11 +226,12 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const currentKey = keyOfId(currentRow)
   const pendingKey = pendingNext === undefined ? undefined : keyOfId(pendingNext)
   const [folds, setFolds] = useState<Record<string, FoldState>>(() => {
-    const initial = initialPickerFolds(groups, top, currentKey)
+    const initial = initialPickerFolds(groups, top, currentKey, tensorfold === undefined ? [] : tensorFoldFoldedOnOpen(tensorfold, view))
     for (const group of groups) {
       if (group.door === undefined || group.rows.some(m => rowKey(m) === currentKey)) continue
       if (fullRowsOf(group.group)?.some(m => rowKey(m) === currentKey)) initial[group.group] = 'full'
     }
+    if (view === 'tensorfold' && initial[TENSORFOLD_MODEL_GROUP] !== 'folded') initial[TENSORFOLD_MODEL_GROUP] = 'full'
     return initial
   })
   const [filter, setFilter] = useState(initialFilter ?? '')
@@ -197,6 +255,8 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const landing = ((): number => {
     const at = currentKey === undefined ? -1 : lines.findIndex(line => line.kind === 'row' && line.key === currentKey)
     if (at >= 0) return at
+    const served = view === 'tensorfold' ? lines.findIndex(line => line.kind === 'row' && line.row.tensorfold !== undefined && line.row.action !== true) : -1
+    if (served >= 0) return served
     const first = firstRowIndex(lines)
     return first >= 0 ? first : Math.max(0, lines.findIndex(line => isCursorStop(line)))
   })()
@@ -249,7 +309,8 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const [ctxNotice, setCtxNotice] = useState<string | null>(null)
   const [windowTyping, setWindowTyping] = useState<string | null>(null)
   const [, setWindowStamp] = useState(0)
-  const focusedLocal = focusedModel !== undefined && isModelRow(focusedModel) && isLocalModelId(focusedModel.id) ? localRecordFor(focusedModel.id) : undefined
+  const focusedTf = focusedModel?.tensorfold
+  const focusedLocal = focusedModel !== undefined && focusedTf === undefined && isModelRow(focusedModel) && isLocalModelId(focusedModel.id) ? localRecordFor(focusedModel.id) : undefined
   const focusedLocalCycles = focusedLocal !== undefined && (localWindowApplication(focusedLocal) === 'request' || localWindowApplication(focusedLocal) === 'load')
   useSyncExternalStore(subscribeLocalServerTruth, localServerTruthStamp, localServerTruthStamp)
   const focusedLocalKey = focusedLocal !== undefined ? `${focusedLocal.server}/${focusedLocal.id}` : null
@@ -257,7 +318,8 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     if (focusedLocal === undefined || !focusedLocalCycles || focusedLocal.geometry === undefined) return
     void refreshLocalMachineTruth(focusedLocal.server).catch(() => undefined)
   }, [focusedLocalKey])
-  const localOffer = !filtering && headings?.[LOCAL_MODEL_GROUP]?.reason !== undefined && !groups.some(group => group.group === LOCAL_MODEL_GROUP)
+  const panelView = view === 'tensorfold'
+  const localOffer = !panelView && !filtering && headings?.[LOCAL_MODEL_GROUP]?.reason !== undefined && !groups.some(group => group.group === LOCAL_MODEL_GROUP)
   const focusedNative1m = ((): boolean => {
     const p = focusedModel?.id
     if (!p || focusedSupports1m || focusedGptWindow) return false
@@ -271,6 +333,8 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     setI(n)
     setCtxNotice(null)
     setWindowTyping(null)
+    setTfTyping(null)
+    setTfConfirm(null)
     const line = lines[n]
     if (line?.kind === 'row') setContext1m(ctxStateOf(line.row.id))
   }
@@ -282,6 +346,8 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     setI(at)
     setCtxNotice(null)
     setWindowTyping(null)
+    setTfTyping(null)
+    setTfConfirm(null)
     const line = next[at]
     if (line?.kind === 'row') setContext1m(ctxStateOf(line.row.id))
   }
@@ -295,7 +361,28 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     const nextFolds = { ...folds, [group]: fold }
     const next = composePickerLines(groups, nextFolds, filter, fullRowsOf)
     setFolds(nextFolds)
-    landOn(next, keep, group)
+    const own = groups.find(candidate => candidate.group === group)
+    const revealed = keep === undefined && fold !== 'folded' && own !== undefined && isCuratedGroup(own)
+      ? next.find(line => line.kind === 'row' && line.row.group === group && !lines.some(seen => seen.kind === 'row' && seen.key === line.key))
+      : undefined
+    landOn(next, revealed?.kind === 'row' ? revealed.key : keep, group)
+  }
+  const stepWindow = (window: { rungs: readonly number[]; at: number; repo: string }, step: 1 | -1): void => {
+    const at = window.rungs.indexOf(window.at)
+    const next = window.rungs[Math.max(0, Math.min(window.rungs.length - 1, (at < 0 ? 0 : at) + step))]
+    if (next === undefined || next === window.at) return
+    setTfWindows(prev => ({ ...prev, [window.repo]: next }))
+    setTfConfirm(null)
+  }
+  const tensorFoldEnter = (m: ModelChoice): void => {
+    const enter = m.tensorfold?.keys.enter
+    if (enter === undefined) return
+    if (enter.input !== undefined) {
+      setTfTyping({ key: rowKey(m), input: enter.input, text: '' })
+      return
+    }
+    if (enter.act?.kind === 'switch') onSelect?.(enter.act.id)
+    else if (enter.act !== undefined) onTensorFold?.(enter.act)
   }
   const groupHidden = (group: string): boolean => lines.some(line => line.kind === 'more' && line.group === group)
   const commitCurrent = (): void => {
@@ -308,6 +395,10 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     }
     if (line.kind !== 'row') return
     const m = line.row
+    if (m.tensorfold !== undefined) {
+      tensorFoldEnter(m)
+      return
+    }
     if (!onSelect) return
     if (m.gated) {
       if (m.gatedReason) setCtxNotice(`${m.gatedReason} — not selectable`)
@@ -327,6 +418,58 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const overlayToken = useRegisterOverlay('model-picker', true)
   useInput((input, key, event) => {
     const rowAxis = decodeNavKey(input, key, { orientation: 'vertical', hierarchy: true, tabFocus: true })
+    if (tfTyping !== null) {
+      event.stopImmediatePropagation()
+      if (rowAxis === 'cancel') {
+        setTfTyping(null)
+        return
+      }
+      if (rowAxis === 'activate') {
+        const text = tfTyping.text.trim()
+        setTfTyping(null)
+        if (text !== '') onTensorFold?.(tfTyping.input === 'repo' ? { kind: 'read', repo: text } : { kind: 'address', address: text })
+        return
+      }
+      if (key.backspace || key.delete) {
+        setTfTyping(typing => (typing === null ? typing : { ...typing, text: typing.text.slice(0, -1) }))
+        return
+      }
+      if (isSearchCharacter(input, key)) setTfTyping(typing => (typing === null ? typing : { ...typing, text: typing.text + input }))
+      return
+    }
+    if (rowAxis === 'cancel' && tfConfirm !== null) {
+      event.stopImmediatePropagation()
+      setTfConfirm(null)
+      return
+    }
+    const tfKeys = focusedTf?.keys
+    if ((rowAxis === 'enterChild' || rowAxis === 'leaveChild') && !filtering && tfKeys?.window !== undefined) {
+      event.stopImmediatePropagation()
+      stepWindow(tfKeys.window, rowAxis === 'enterChild' ? 1 : -1)
+      return
+    }
+    if (key.ctrl && !key.meta && input === MODEL_PICKER_CONTEXT_CHORD_KEY && focusedTf !== undefined) {
+      event.stopImmediatePropagation()
+      if (tfKeys?.window !== undefined) stepWindow(tfKeys.window, 1)
+      return
+    }
+    if (!filterFocus && !key.ctrl && !key.meta && tfKeys !== undefined && ((input === 's' && tfKeys.stop !== undefined) || (input === 'w' && tfKeys.limit !== undefined) || (input === 'c' && tfKeys.support !== undefined))) {
+      event.stopImmediatePropagation()
+      if (!pastOpenEvent()) return
+      if (input === 's' && tfKeys.stop !== undefined) {
+        const repo = tfKeys.stop.act.kind === 'stop' ? tfKeys.stop.act.row.repo : undefined
+        if (tfKeys.stop.confirm && repo !== undefined && tfConfirm !== repo) {
+          setTfConfirm(repo)
+          return
+        }
+        setTfConfirm(null)
+        onTensorFold?.(tfKeys.stop.act)
+        return
+      }
+      const act = input === 'w' ? tfKeys.limit : tfKeys.support
+      if (act !== undefined) onTensorFold?.(act)
+      return
+    }
     if (windowTyping !== null) {
       event.stopImmediatePropagation()
       if (rowAxis === 'cancel') {
@@ -494,11 +637,13 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       setFilterText(filter + input)
     }
   })
+  const cardWidth = inner - 4
   const linePaint = (idx: number): number => {
     const line = lines[idx]
     if (!line) return 0
     if (line.kind !== 'row') return 1
     if (compact || idx !== i) return 1
+    if (line.row.tensorfold !== undefined) return 3 + line.row.tensorfold.card(cardWidth).length
     const tag = line.row.tag
     return tag === '' ? 3 : 3 + wrapText(tag, panelWidth - 8, 'wrap').split('\n').length
   }
@@ -526,12 +671,13 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       : reasonLines !== null
         ? reasonLines
         : [...(localWindowLine !== null ? wrapPlain(localWindowLine, inner) : []), ...(notice ? wrapPlain(notice, inner) : [])]
+  const liveLine = panelView && live !== undefined && live !== ''
   const chromeBase =
-    2 + 1 + (compact ? 0 : 2) + (shedMeters ? 0 : 1) + 2 +
+    2 + 1 + (compact ? 0 : 2) + (panelView ? (liveLine ? 1 : 0) : shedMeters ? 0 : 1) + 2 +
     (pendingLine !== null ? painted(pendingLine.map(part => part.text).join('')) : 0) +
     noticeLines.length + (localOffer ? 1 : 0)
-  const effortPaint = hasEffort ? (compact ? 1 : painted(effortStripText(efforts!, effort))) : 0
-  const shedPageHint = compact && availRows - chromeBase - 1 - effortPaint < 4
+  const effortPaint = hasEffort && !panelView ? (compact ? 1 : painted(effortStripText(efforts!, effort))) : 0
+  const shedPageHint = panelView || (compact && availRows - chromeBase - 1 - effortPaint < 4)
   const chromePaint = chromeBase + (shedPageHint ? 0 : 1)
   const shedEffort = compact && effortPaint > 0 && availRows - chromePaint - effortPaint < 4
   const room = availRows - chromePaint - (shedEffort ? 0 : effortPaint)
@@ -558,6 +704,18 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const matched = lines.reduce((sum, line) => sum + (line.kind === 'heading' ? (line.matched ?? 0) : 0), 0)
   const stateWordOf = (m: ModelChoice, key: string): [string, string] =>
     key === currentKey ? [MODEL_PICKER_CURRENT, TEAL] : pendingKey !== undefined && key === pendingKey ? ['next', AMBER] : m.gated ? [MODEL_PICKER_UNAVAILABLE, SAND] : ['', FAINT]
+  const footerKeys = ((): ModelPickerFooterKeys | undefined => {
+    if (focusedTf === undefined) return undefined
+    const keys = focusedTf.keys
+    const action = keys.enter?.words ?? (keys.limit !== undefined ? 'w raise the limit' : keys.stop?.words)
+    return {
+      ...(action !== undefined ? { action } : {}),
+      window: keys.window !== undefined,
+      ...(keys.stop !== undefined && action !== keys.stop.words ? { stop: keys.stop.words } : {}),
+      support: keys.support !== undefined,
+      ...(keys.legend !== undefined ? { legend: keys.legend } : {}),
+    }
+  })()
   const footer = modelPickerFooter(
     {
       gated: !!focusedModel?.gated,
@@ -565,6 +723,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       ...(focusedHeading !== undefined ? { heading: { fold: focusedHeading.fold === 'folded' ? 'folded' : 'open' } } : {}),
       filterFocus,
       filtering,
+      ...(footerKeys !== undefined ? { keys: footerKeys } : {}),
     },
     inner,
   )
@@ -604,6 +763,36 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     }
     const m = line.row
     const on = idx === i
+    if (m.tensorfold !== undefined) {
+      const choice = m.tensorfold
+      const cells = pickerCellColumns(inner - 4)
+      const ink = (tone: Parameters<typeof tensorFoldInk>[0]): string => tensorFoldInk(tone, tokens, TERRA)
+      return (
+        <InteractiveRow key={line.key} id={`model:row:${line.key}`} selected={on} onSelect={() => selectRow(idx)} onActivate={commitCurrent} flexDirection="column" selectionBand={compact}>
+          <Box borderStyle={on && !compact ? 'round' : undefined} borderColor={on && !compact ? TERRA : undefined} paddingLeft={on && !compact ? 1 : 2} paddingRight={1} flexDirection="column">
+            <Text wrap="truncate-end">
+              {compact ? <Text color={on ? TERRA : FAINT}>{on ? `${figures.pointer} ` : '  '}</Text> : null}
+              {m.action === true ? (
+                <>
+                  <Text bold color={IVORY}>{m.name}</Text>
+                  {choice.words !== undefined ? <Text color={FAINT}>{` — ${choice.words}`}</Text> : null}
+                  {choice.state !== undefined ? <Text color={ink(choice.state.tone)}>{`  ${choice.state.text}`}</Text> : null}
+                </>
+              ) : (
+                <>
+                  <Text bold color={IVORY}>{cell(m.name, cells.alias)}</Text>
+                  <Text color={FAINT}>{cell(m.id, cells.id)}</Text>
+                  <Text color={ink(choice.state?.tone ?? 'faint')}>{cell(choice.state?.text ?? '', cells.state)}</Text>
+                  <Text color={FAINT}>{cell(m.ctx, cells.ctx)}</Text>
+                  <Text color={ink(choice.memory?.tone ?? 'faint')}>{truncateToWidth(choice.memory?.text ?? '', cells.tail)}</Text>
+                </>
+              )}
+            </Text>
+            {on && !compact ? <TensorFoldCard lines={choice.card(cardWidth)} tokens={tokens} accent={TERRA} /> : null}
+          </Box>
+        </InteractiveRow>
+      )
+    }
     const [stateWord, stateColor] = stateWordOf(m, line.key)
     const model = isModelRow(m)
     const alias = model ? (hasAlias(m) ? m.name : '—') : m.name
@@ -645,7 +834,9 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   return (
     <Box flexDirection="column" alignItems={modelPickerCentred() ? 'center' : 'flex-start'}>
     <Box ref={surfaceRef} flexDirection="column" borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} width={panelWidth} flexShrink={0}>
-      <ProductLockup view="model" separator=" · " plain {...(filtering ? { subtitle: matchWords(matched, totalModels) } : {})} />
+      {panelView
+        ? <ProductLockup view="tensorfold" separator=" · " plain {...(filtering ? { subtitle: matchWords(matched, totalModels) } : {})} />
+        : <ProductLockup view="model" separator=" · " plain {...(filtering ? { subtitle: matchWords(matched, totalModels) } : {})} />}
       <MenuFilterLine focused={filterFocus} text={truncateStartToWidth(filter, inner - 2)} placeholder={filterFocus ? MODEL_PICKER_SEARCH_PLACEHOLDER : MODEL_PICKER_FILTER_PLACEHOLDER} accent={TERRA} muted={FAINT} primary={IVORY} id="model:filter" onFocus={() => setFilterFocus(true)} />
       {compact ? null : <Box height={1} />}
       {pendingLine !== null ? (
@@ -662,14 +853,15 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       {markersOn && win.below > 0 ? <Text color={FAINT}>  ↓ {win.below} more</Text> : null}
       {localOffer ? <Text wrap="truncate-end"><Text color={FAINT}>{FOLD_OPEN_LEAD}</Text><Text bold color={tokens.info}>{headings?.[LOCAL_MODEL_GROUP]?.name ?? providerNameOfGroup(LOCAL_MODEL_GROUP)}</Text><Text color={FAINT}>{` · ${LOCAL_SETUP_PICKER_OFFER}`}</Text></Text> : null}
       {compact ? null : <Box height={1} />}
-      {shedMeters ? null : <Box>
+      {liveLine ? <Text color={FAINT} wrap="truncate-end">{live}</Text> : null}
+      {shedMeters || panelView ? null : <Box>
         <Text wrap="truncate-end"><Text color={FAINT}>context </Text>{ctxPct === null ? <Text color={FAINT}>—</Text> : <><Text color={gaugeColor(ctxPct)}>{bar(ctxPct, 12)}</Text><Text color={SAND}> {ctxPct}%</Text></>}{((): React.ReactNode => {
           if (compact) return null
           const tier = activeSourceUsage().tier
           return tier ? <Text><Text color={FAINT}>  · tier </Text><Text color={IVORY}>{tier}</Text></Text> : null
         })()}</Text>
       </Box>}
-      {hasEffort && !shedEffort ? (
+      {hasEffort && !shedEffort && !panelView ? (
         compact ? (
           <Text wrap="truncate-end">
             <Text color={FAINT}>effort  </Text>

@@ -15,6 +15,8 @@ export type PickerRow = {
   gated?: boolean
   choice?: string
   expand?: CatalogueDoorFacet
+  rest?: boolean
+  key?: string
 }
 
 export type FoldState = 'folded' | 'top' | 'full'
@@ -43,7 +45,7 @@ export const MODEL_PICKER_UNAVAILABLE = 'unavailable'
 export const MODEL_PICKER_PANEL = { cap: 100, reserve: 2, min: 20 } as const
 
 export type ProviderDoor = { door: string; account?: string; active?: boolean }
-export type ProviderHeading = { name: string; doors: ProviderDoor[]; reason?: string; note?: string }
+export type ProviderHeading = { name: string; doors: ProviderDoor[]; reason?: string; note?: string; status?: string }
 
 export type PickerGroup<T extends PickerRow> = {
   group: string
@@ -59,6 +61,7 @@ export type PickerLine<T extends PickerRow> =
   | { kind: 'more'; group: string; hidden: number; reach: boolean }
 
 export function rowKey(row: PickerRow): string {
+  if (row.key !== undefined) return row.key
   return row.door === undefined ? row.id : `${row.id}@${row.door}`
 }
 
@@ -118,12 +121,17 @@ export function groupLiveSize<T extends PickerRow>(group: PickerGroup<T>): numbe
 
 export function orderPickerGroups<T extends PickerRow>(
   groups: readonly PickerGroup<T>[],
-  opts: { top?: string; recentAt?: (group: string) => number | undefined },
+  opts: { top?: string; recentAt?: (group: string) => number | undefined; pinned?: readonly string[] },
 ): PickerGroup<T>[] {
   const at = (group: string): number => opts.recentAt?.(group) ?? 0
+  const pin = (group: string): number => {
+    const index = opts.pinned?.indexOf(group) ?? -1
+    return index < 0 ? Number.MAX_SAFE_INTEGER : index
+  }
   return groups
     .map((group, index) => ({ group, index }))
     .sort((a, b) => {
+      if (pin(a.group.group) !== pin(b.group.group)) return pin(a.group.group) - pin(b.group.group)
       if (a.group.group === opts.top) return -1
       if (b.group.group === opts.top) return 1
       const diff = at(b.group.group) - at(a.group.group)
@@ -134,19 +142,19 @@ export function orderPickerGroups<T extends PickerRow>(
 
 export function orderPickerRows<T extends PickerRow>(
   rows: readonly T[],
-  opts: { top?: string; recentAt?: (group: string) => number | undefined },
+  opts: { top?: string; recentAt?: (group: string) => number | undefined; pinned?: readonly string[] },
 ): T[] {
   return orderPickerGroups(groupPickerRows(rows), opts).flatMap(group => (group.door === undefined ? group.rows : [...group.rows, group.door]))
 }
 
-export function initialPickerFolds<T extends PickerRow>(groups: readonly PickerGroup<T>[], top: string | undefined, currentKey?: string): Record<string, FoldState> {
+export function initialPickerFolds<T extends PickerRow>(groups: readonly PickerGroup<T>[], top: string | undefined, currentKey?: string, folded: readonly string[] = []): Record<string, FoldState> {
   const folds: Record<string, FoldState> = {}
   for (const group of groups) {
     const isTop = group.group === top
-    folds[group.group] = isTop || groupLiveSize(group) <= PICKER_FOLD_BOUND ? 'top' : 'folded'
+    folds[group.group] = folded.includes(group.group) ? 'folded' : isTop || groupLiveSize(group) <= PICKER_FOLD_BOUND ? 'top' : 'folded'
     if (currentKey !== undefined) {
       const index = group.rows.findIndex(row => rowKey(row) === currentKey)
-      if (index >= 0) folds[group.group] = index < PICKER_TOP_ROWS ? 'top' : 'full'
+      if (index >= 0) folds[group.group] = group.rows[index]!.rest === true || (group.rows[index]!.rest === undefined && index >= PICKER_TOP_ROWS) ? 'full' : 'top'
     }
   }
   return folds
@@ -187,6 +195,10 @@ export function pickerReachTotal<T extends PickerRow>(groups: readonly PickerGro
   return groups.reduce((sum, group) => sum + reachOfGroup(group, fullRows).filter(isModelRow).length, 0)
 }
 
+export function isCuratedGroup<T extends PickerRow>(group: PickerGroup<T>): boolean {
+  return group.rows.some(row => row.rest !== undefined)
+}
+
 export function composePickerLines<T extends PickerRow>(
   groups: readonly PickerGroup<T>[],
   folds: Record<string, FoldState>,
@@ -216,6 +228,13 @@ export function composePickerLines<T extends PickerRow>(
     const live = group.door !== undefined ? Math.max(group.door.expand?.total ?? 0, liveCount(group.rows)) : liveCount(group.rows)
     out.push({ kind: 'heading', group: group.group, fold, live })
     if (fold === 'folded') continue
+    if (isCuratedGroup(group)) {
+      const shown = fold === 'full' ? group.rows : group.rows.filter(row => row.rest !== true)
+      for (const row of shown) out.push({ kind: 'row', row, key: rowKey(row) })
+      const hidden = group.rows.length - shown.length
+      if (hidden > 0) out.push({ kind: 'more', group: group.group, hidden, reach: hidden > PICKER_FILTER_REACH })
+      continue
+    }
     const actions = group.rows.filter(row => !isModelRow(row))
     const shownModels = fold === 'full' ? (group.door !== undefined ? reachOf().filter(isModelRow) : listedModels) : topRows(group, listedModels)
     const shown = [...actions, ...shownModels]
@@ -290,6 +309,7 @@ export function headingWords(
 ): string {
   const name = heading?.name ?? providerNameOfGroup(group)
   const count = countWords(counts.live, counts.matched, counts.total)
+  if (heading?.status !== undefined) return joinWithinWidth([name, ...(heading.status !== '' ? [heading.status] : []), ...(counts.matched !== undefined ? [count] : [])], -1, width)
   if (heading === undefined) return counts.live === 0 && counts.matched === undefined ? name : `${name} · ${count}`
   const parts = [name]
   let accountAt = -1
@@ -324,4 +344,9 @@ export function pickerColumns(rowWidth: number): PickerColumns {
   const id = Math.max(20, Math.min(32, rowWidth - alias - state - ctx - tailTarget))
   const tail = Math.max(0, rowWidth - alias - id - state - ctx)
   return { alias, id, state, ctx, tail }
+}
+
+export function pickerCellColumns(rowWidth: number): PickerColumns {
+  const base = pickerColumns(rowWidth)
+  return { ...base, id: base.id - 1, state: base.state + 1 }
 }

@@ -8,6 +8,7 @@ prove-model-picker-reader-census.ts
 prove-model-picker-edges.ts
 prove-model-picker-popup-edges.ts
 prove-model-picker-typed-letters.ts
+prove-tensorfold-model-groups.ts
 prove-model-name-matcher.ts
 prove-clipboard-encoding.ts
 prove-consent-queue-marker.ts
