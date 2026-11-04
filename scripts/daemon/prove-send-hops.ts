@@ -138,7 +138,7 @@ section('S6 the echo paints before the obligations read (deliver)')
   const body = at >= 0 ? src.slice(at, at + 6000) : ''
   const setAt = body.indexOf('this.echoRows.set(provisionalId,')
   const paintAt = body.indexOf('this.paint()', setAt)
-  const readAt = body.indexOf('const answering = await this.openQuestion()')
+  const readAt = body.indexOf('await this.openQuestion()')
   check('the echo row is set and painted BEFORE the obligations read', setAt > 0 && paintAt > setAt && readAt > paintAt, `${setAt},${paintAt},${readAt}`)
   check('a held/failed resend of the same words keeps its id (minted before the read)', /const provisionalId =\n\s*this\.retainedSend !== null && this\.retainedSend\.text === expanded \? this\.retainedSend\.id : randomUUID\(\)/.test(body))
   check('the answering case re-keys the row in place', /const clientMessageId = answering !== null \? `obl-answer:\$\{answering\}` : provisionalId\n\s*if \(clientMessageId !== provisionalId\) \{[\s\S]{0,500}?this\.echoRows\.set\(key === provisionalId \? clientMessageId : key, row\)/.test(body))
