@@ -73,6 +73,7 @@ export type TensorFoldServeRequest = {
   port?: number
   drafter?: string
   promptCacheGib?: number
+  share?: boolean
 }
 
 export type TensorFoldServed = {
