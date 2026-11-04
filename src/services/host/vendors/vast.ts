@@ -34,6 +34,7 @@ export const VAST_GPU_NAMES: Readonly<Record<string, string>> = {
   'RTX PRO 6000': 'NVIDIA RTX PRO 6000 Blackwell', 'RTX PRO 6000 WS': 'NVIDIA RTX PRO 6000 Blackwell',
   'RTX PRO 6000 S': 'NVIDIA RTX PRO 6000 Blackwell', 'RTX PRO 6000 BLACKWELL': 'NVIDIA RTX PRO 6000 Blackwell',
   'RTX PRO 6000 BLACKWELL SERVER EDITION': 'NVIDIA RTX PRO 6000 Blackwell',
+  'RTX 5090': 'NVIDIA GeForce RTX 5090', 'RTX 4090': 'NVIDIA GeForce RTX 4090', 'RTX 3090': 'NVIDIA GeForce RTX 3090', 'RTX A6000': 'NVIDIA RTX A6000', A6000: 'NVIDIA RTX A6000', L40S: 'NVIDIA L40S', L4: 'NVIDIA L4',
 }
 const ONSTART = 'mkdir -p /workspace && touch /root/.no_auto_tmux'
 const gpuName = (name: string): string | undefined => VAST_GPU_NAMES[name.toUpperCase().replace(/^NVIDIA\s+/, '').replaceAll('_', ' ').replace(/\s+/g, ' ').trim()]

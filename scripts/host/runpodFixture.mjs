@@ -138,7 +138,7 @@ export async function runpodFixture() {
       if (outcome === 'refuse402') return problem(402, 'Payment Required', 'fixture: insufficient balance')
       if (outcome === 'refuse422') return send({ title: 'Unprocessable Entity', status: 422, detail: 'request validation failed', errors: state.createErrors ?? ['$.gpu.minCudaVersion: does not match pattern ^\\d+\\.\\d+$'] }, 422)
       state.creates++; state.createBodies.push(body)
-      assert.deepEqual(body.ports, ['22/tcp'])
+      assert.deepEqual(body.ports, body.image.startsWith('nvidia/cuda:13.0.3-base-ubuntu24.04@sha256:') ? ['22/tcp', '8080/http'] : ['22/tcp'])
       assert.equal(body.cloud, 'SECURE')
       assert.equal(body.gpu.minCudaVersion, '13.0')
       assert.ok(body.env.PUBLIC_KEY.startsWith('ssh-ed25519 '))
@@ -187,13 +187,14 @@ export async function runpodFixture() {
   return { baseUrl: 'http://127.0.0.1:' + server.address().port + '/v2', key, state, requests, close: () => new Promise(resolve => { server.closeAllConnections(); server.close(resolve) }) }
 }
 
-export function fakeSshRunner(modelBaseUrl, actualRunner, modelState) {
+export function fakeSshRunner(modelBaseUrl, actualRunner, modelState, options = {}) {
   assert.equal(new URL(modelBaseUrl).hostname, '127.0.0.1')
+  const enginePort = options.enginePort ?? 30000
   const commands = []
   const children = new Set()
   const local = modelState ? mkdtempSync(join(process.env.MERCURY_CONFIG_DIR, 'ssh-engine-')) : undefined
   const shell = text => { const parsed = spawnSync(PYTHON3, ['-c', 'import json, shlex, sys; print(json.dumps(shlex.split(sys.argv[1])))', text], { encoding: 'utf8' }); assert.equal(parsed.status, 0, parsed.stderr); return JSON.parse(parsed.stdout) }
-  const state = { weights: new Map(), weightFetches: 0, sampledChecks: 0, fullChecks: 0, corruptWeights: false, stallDownload: 0, checkTransport: false, refuse: false, failEngine: false, holdHealth: false, failRetune: false, failRestore: false, retuned: false, restored: false, restarts: 0, script: '', backup: '', gpus: null, docker: true, goneEngines: new Set(), log: 'MERCURY_STEP installing\nMERCURY_STEP building llama.cpp\nMERCURY_STEP downloading weights\n' }
+  const state = { weights: new Map(), weightFetches: 0, sampledChecks: 0, fullChecks: 0, corruptWeights: false, stallDownload: 0, checkTransport: false, refuse: false, failEngine: false, holdHealth: false, failRetune: false, failRestore: false, retuned: false, restored: false, restarts: 0, script: '', backup: '', gpus: null, docker: true, goneEngines: new Set(), keyFile: '', log: 'MERCURY_STEP installing\nMERCURY_STEP building llama.cpp\nMERCURY_STEP downloading weights\n' }
   const runner = {
     async run(command, args, signal, timeout) {
       commands.push({ command, args })
@@ -249,9 +250,18 @@ export function fakeSshRunner(modelBaseUrl, actualRunner, modelState) {
       }
       if (remote.includes('/props') && !remote.includes('MERCURY_ENGINE_READ ')) output = JSON.stringify({ default_generation_settings: { n_ctx: modelState?.window }, total_slots: modelState?.slots })
       if (remote.includes('nvidia-smi')) output = state.gpus ?? Array.from({ length: 4 }, () => 'NVIDIA B200, 196608').join('\n') + (state.docker ? '\nDOCKER_ENGINE_PRESENT' : '')
+      if (remote.includes('umask 077') && remote.includes('/api-key')) {
+        const parts = shell(remote); const at = parts.findIndex((value, index) => value === 'printf' && parts[index + 1] === '%s')
+        if (at >= 0) state.keyFile = parts[at + 2]
+      }
       if (remote.includes('/health')) {
         if (state.holdHealth || state.failRetune && state.retuned || state.failRestore && state.restored) throw new Error('fixture model loading')
-        assert.equal((await fetch(modelBaseUrl + '/models')).status, 200)
+        const keyed = /Authorization: Bearer \$\(cut -d ' ' -f 2 '[^']+\/api-key'\)/.test(remote)
+        if (keyed) assert.ok(remote.includes('http://127.0.0.1:' + enginePort + '/health') && remote.includes('http://127.0.0.1:' + enginePort + '/v1/models'), 'the keyed readiness pair reads the engine port')
+        const key = keyed ? state.keyFile.split(': ')[1]?.trim() : undefined
+        if (keyed && !key) throw new Error('fixture: the key file was never written')
+        if (keyed) assert.equal((await fetch(modelBaseUrl.replace(/\/v1$/, '') + '/health')).status, 200)
+        assert.equal((await fetch(modelBaseUrl + '/models', keyed ? { headers: { Authorization: 'Bearer ' + key } } : {})).status, 200)
         output = 'healthy models'
       }
       if (state.failEngine && remote.includes('launch.log')) throw new Error('launch.log: fixture outer launch permission denied')
@@ -263,7 +273,7 @@ export function fakeSshRunner(modelBaseUrl, actualRunner, modelState) {
     tunnel(args) {
       commands.push({ command: 'tunnel', args })
       const forward = args[args.indexOf('-L') + 1]
-      assert.match(forward, /^127\.0\.0\.1:\d+:127\.0\.0\.1:30000$/)
+      assert.match(forward, new RegExp('^127\\.0\\.0\\.1:\\d+:127\\.0\\.0\\.1:' + enginePort + '$'))
       assert.ok(args.includes('ExitOnForwardFailure=yes'))
       const port = Number(forward.split(':')[1])
       const code = "const http=require('node:http'); const base=process.argv[1]; const server=http.createServer(async(req,res)=>{try{let body='';for await(const c of req)body+=c; const out=await fetch(base+req.url,{method:req.method,headers:req.headers,...(body?{body}:{}),redirect:'error'});res.writeHead(out.status,Object.fromEntries(out.headers));res.end(Buffer.from(await out.arrayBuffer()));}catch(e){res.writeHead(502);res.end(String(e));}});server.listen(Number(process.argv[2]),'127.0.0.1');process.on('SIGTERM',()=>{server.closeAllConnections();server.close(()=>process.exit(0));});"

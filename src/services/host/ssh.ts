@@ -9,6 +9,7 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { recipeFits, type HostRecipe } from './recipes.js'
 
 import { downloadFailure, hostDownloadScript } from './download.js'
+import { tensorFoldEngineScript, tensorFoldReadyCommand } from './tensorfoldRelease.js'
 import { hostEngineOomWords, type HostEngineDeathFacts } from '../../commands/llmhost/words.js'
 export interface SshTarget { host: string; user?: string; key?: string; port?: number }
 export interface HostRunner {
@@ -160,7 +161,7 @@ function engineFailure(text: string, recipe: HostRecipe, exited = false): Error 
 }
 export const engineCacheExports = (cache: string): string => 'mkdir -p ' + quote(cache) + '\n' + [['SGLANG_CACHE_DIR', cache + '/sglang'], ['SGLANG_DG_CACHE_DIR', cache + '/sglang/deep_gemm'], ['SGL_DG_CACHE_DIR', cache + '/sglang/deep_gemm'], ['DG_JIT_CACHE_DIR', cache + '/deep_gemm'], ['FLASHINFER_WORKSPACE_BASE', cache], ['TORCHINDUCTOR_CACHE_DIR', cache + '/inductor'], ['TRITON_CACHE_DIR', cache + '/triton'], ['CUDA_CACHE_PATH', cache + '/nv'], ['TILELANG_CACHE_DIR', cache + '/tilelang'], ['VLLM_CACHE_ROOT', cache + '/vllm']].map(([name, value]) => 'export ' + name + '=' + quote(value!) + '\n').join('') + "echo 'MERCURY_STEP engine cache on the kept volume · compiled kernels can be reused on later boots; graph capture still runs'\n"
 export async function startHostEngine(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, docker: boolean, pod: boolean, bank?: string, keptWeights?: string, cluster?: { nodes: number; rank: number; head: string; address: string }, engineCache?: string): Promise<void> {
-  if (!pod && !docker && !recipe.pythonInstall) throw new Error('This recipe requires its preview Docker image. Install Docker with NVIDIA GPU access, or choose another recipe.')
+  if (!pod && !docker && !recipe.pythonInstall && recipe.engine !== 'tensorfold') throw new Error('This recipe requires its preview Docker image. Install Docker with NVIDIA GPU access, or choose another recipe.')
   const dir = '/workspace/mercury-host/' + recipe.id
   const args = sshArguments(target)
   const launchLog = quote(dir + '/launch.log')
@@ -201,13 +202,13 @@ export async function startHostEngine(target: SshTarget, recipe: HostRecipe, run
   const guardedDownload = bank || keptWeights ? download : 'python3 -c ' + quote(hostDownloadScript(download, dir + '/weights', recipe))
   const install = prebuilt ? undefined : recipe.install?.replace(' && cmake ', " && echo 'MERCURY_STEP building llama.cpp' && cmake ")
   const imagePath = pod ? 'if test -r /proc/1/environ; then image_path="$(tr \'\\0\' \'\\n\' < /proc/1/environ | sed -n \'s/^PATH=//p\')"; if test -n "$image_path"; then export PATH="$image_path:$PATH"; fi; fi\n' : ''
-  let script = 'set -e\n' + imagePath + 'export PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc\nexport HF_HOME=/workspace/huggingface\n' + (engineCache ? engineCacheExports(engineCache) : '') + Object.entries(recipe.environment ?? {}).map(([name, value]) => 'export ' + name + '=' + quote(value) + '\n').join('') + (prebuilt ? "echo 'MERCURY_STEP using prebuilt engine'\n" : "echo 'MERCURY_STEP installing'\n") + (install ? '( ' + install + ' )\n' : '') + "echo 'MERCURY_STEP downloading weights'\n" + guardedDownload + '\n' + "echo 'MERCURY_STEP starting engine'\n" + engine + '\nwait\n'
+  let script = recipe.engine === 'tensorfold' ? tensorFoldEngineScript(recipe, dir) : 'set -e\n' + imagePath + 'export PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc\nexport HF_HOME=/workspace/huggingface\n' + (engineCache ? engineCacheExports(engineCache) : '') + Object.entries(recipe.environment ?? {}).map(([name, value]) => 'export ' + name + '=' + quote(value) + '\n').join('') + (prebuilt ? "echo 'MERCURY_STEP using prebuilt engine'\n" : "echo 'MERCURY_STEP installing'\n") + (install ? '( ' + install + ' )\n' : '') + "echo 'MERCURY_STEP downloading weights'\n" + guardedDownload + '\n' + "echo 'MERCURY_STEP starting engine'\n" + engine + '\nwait\n'
   if (cluster) {
     const network = 'export SGLANG_HOST_IP=' + quote(cluster.address) + '\nexport VLLM_HOST_IP=' + quote(cluster.address) + '\n' + 'export NCCL_SOCKET_IFNAME="$(ip -o -4 addr show | grep -F ' + quote(' ' + cluster.address + '/') + ' | awk ' + quote('{split($2,a,"@"); print a[1]; exit}') + ')"\ntest -n "$NCCL_SOCKET_IFNAME"\nexport GLOO_SOCKET_IFNAME="$NCCL_SOCKET_IFNAME"\n'
     script = 'set -e\n' + network + script
   }
   if (docker && !pod) script = 'docker run --rm --gpus all --ipc=host --network=host -v /workspace:/workspace -e HF_HOME=/workspace/huggingface --entrypoint bash ' + quote(recipe.image) + ' -c ' + quote(script) + '\nwait\n'
-  else if (!pod) script = 'set -e\n' + recipe.pythonInstall + '\nexport PATH=/workspace/mercury-host/venv/bin:$PATH\n' + script
+  else if (!pod && recipe.engine !== 'tensorfold') script = 'set -e\n' + recipe.pythonInstall + '\nexport PATH=/workspace/mercury-host/venv/bin:$PATH\n' + script
   const scriptPath = quote(dir + '/engine.sh')
   const pidPath = quote(dir + '/engine.pid')
   const match = quote('[b]ash ' + dir + '/engine.sh')
@@ -241,7 +242,7 @@ export async function waitHostEngine(target: SshTarget, recipe: HostRecipe, runn
     previous = rows
     const failed = engineFailure(log, recipe, log.includes('MERCURY_ENGINE_EXITED'))
     if (failed) throw failed
-    try { await runner.run('ssh', [...sshArguments(target), 'curl -fsS --max-time 10 http://127.0.0.1:30000/health && curl -fsS --max-time 10 http://127.0.0.1:30000/v1/models'], signal); return } catch (error) { last = String(error) }
+    try { await runner.run('ssh', [...sshArguments(target), recipe.engine === 'tensorfold' ? tensorFoldReadyCommand(dir) : 'curl -fsS --max-time 10 http://127.0.0.1:30000/health && curl -fsS --max-time 10 http://127.0.0.1:30000/v1/models'], signal); return } catch (error) { last = String(error) }
     last = log || last
     await delay(pauseMs, undefined, { signal })
   }

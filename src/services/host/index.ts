@@ -27,6 +27,7 @@ import { deleteVastKeptVolume, reconcileVastVolumes, vastKeptVolumes, vastRental
 import { hostMachineOf } from './reliability.js'
 import { WEIGHTS_SOURCE_ROW, chooseWeightsSource, weightsSourceDefault, weightsSourceWords, type WeightsSource, type WeightsSourceContext } from './weightsSource.js'
 import { huggingfaceStoredTokens, resolveHuggingfaceApiKey } from '../providers/huggingface/huggingfaceAccounts.js'
+import { isTensorFoldPodBox } from './tensorfoldPod.js'
 
 type VendorReadState = { credential: string; tail: Promise<void>; failure?: { summary: string; detail: string; parked: boolean; permission: boolean; operation: string; status: number } }
 const vendorReadSessions = new Map<string, Map<string, VendorReadState>>()
@@ -442,7 +443,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         rentVendor: (client, offer, rentAsk, rentEmit, rentSignal) => rentDoorVendor(createHostRoad({ ...options, rental: { client: clientFor(client.vendor as HostVendorId), offer } }), client, offer, rentAsk, rentEmit, rentSignal),
         records: hostRecords,
         road: createHostRoad(options),
-        boxes: () => listBoxes().map(box => ({ name: box.name, kind: box.kind, os: box.os, memoryGb: box.memoryGb, unifiedMemory: box.unifiedMemory, engines: box.engines.map(engine => ({ kind: engine.kind, version: engine.version, port: engine.port })), models: currentHostRecipes().filter(recipe => BOX_RECIPES.some(row => sameModel(row.label.split(' · ')[0]!, modelTitle(recipe)))).map(modelTitle) })),
+        boxes: () => listBoxes().filter(box => !isTensorFoldPodBox(box)).map(box => ({ name: box.name, kind: box.kind, os: box.os, memoryGb: box.memoryGb, unifiedMemory: box.unifiedMemory, engines: box.engines.map(engine => ({ kind: engine.kind, version: engine.version, port: engine.port })), models: currentHostRecipes().filter(recipe => BOX_RECIPES.some(row => sameModel(row.label.split(' · ')[0]!, modelTitle(recipe)))).map(modelTitle) })),
         startBox: (box, recipe, boxAsk, boxEmit, boxSignal) => {
           const boxRecipe = BOX_RECIPES.find(row => sameModel(row.label.split(' · ')[0]!, modelTitle(recipe)))
           if (!boxRecipe) return Promise.resolve({ ok: false, words: modelTitle(recipe) + ' has no local recipe. Nothing was started.' })
@@ -669,7 +670,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         target = { host: host.trim(), ...(user.trim() ? { user: user.trim() } : {}), ...(port.trim() ? { port: Number(port) } : {}), key: localKeyPath(path.trim()) }
         const hardware = await inspectSsh(target, runner, signal)
         docker = hardware.docker
-        const fits = currentHostRecipes().filter(row => fitsSsh(row, hardware.gpus) && (docker || Boolean(row.pythonInstall)))
+        const fits = currentHostRecipes().filter(row => fitsSsh(row, hardware.gpus) && (docker || Boolean(row.pythonInstall) || row.engine === 'tensorfold'))
         const selected = await question({ step: 'ssh-recipe', title: 'Models for this SSH box', found: hardware.gpus.map(gpu => gpu.name + ' ' + gpu.memory + ' GB').join(' · '), willRun: fits.length ? '' : 'No model fits these GPUs and installed engines.', rows: fits.map(row => ({ value: row.id, label: row.label + ' · ' + shape(row) })) })
         if (!selected) return stopped()
         recipe = fits.find(row => row.id === selected)!

@@ -112,7 +112,7 @@ function prebuiltEngineImage(engine: string | undefined, image: string | undefin
 
 export function hostSetupEstimate(recipe: { engine?: string; pythonInstall?: string; install?: string; image?: string; diskGb: number; weightsGb?: number }, kept?: { check: string }): string {
   const size = recipe.weightsGb
-  const engineMinutes = prebuiltEngineImage(recipe.engine, recipe.image) ? 1 : recipe.engine === 'llamacpp' || recipe.pythonInstall ? 10 : 5
+  const engineMinutes = prebuiltEngineImage(recipe.engine, recipe.image) || recipe.engine === 'tensorfold' ? 1 : recipe.engine === 'llamacpp' || recipe.pythonInstall ? 10 : 5
   const engine = engineMinutes === 1 ? 'engine ~1 min' : recipe.engine === 'llamacpp' ? 'build ~10 min' : recipe.pythonInstall ? 'engine ~10 min' : 'engine ~5 min'
   if (size === undefined || !Number.isFinite(size) || size <= 0) return engine + ' · ' + recipe.diskGb + ' GB disk'
   const fast = Math.max(5, Math.ceil(size / 60 / 5) * 5)

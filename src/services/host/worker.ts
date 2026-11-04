@@ -10,7 +10,7 @@ import { HostVendorHttpError } from './vendors/http.js'
 import type { HostVendor } from './vendors/vendor.js'
 import { VAST_VOLUME_MOUNT, VastClient } from './vendors/vast.js'
 import { vastRentalVolume } from './vastVolumes.js'
-import { linkLlmHostPod, runLlmHost } from '../llmHost/index.js'
+import { linkLlmHostPod, registerHostEfforts, runLlmHost } from '../llmHost/index.js'
 import { hostMachineName, hostReadyWords, LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
 import { RunpodHttpError, cents, type HostOffer, type HostPod } from './runpod.js'
 import { createHostResource, hostClusterRecord, hostCreateRefusal, hostResourceKind, hostShape, startHostCluster } from './cluster.js'
@@ -30,6 +30,7 @@ import { hostRetuneLive, reconcileHostTune, tunedRecipe } from './tune.js'
 import { HostTerminationUnconfirmed, hostJobReadOnly, hostReadFailureWords } from './retry.js'
 import { hostMachineOf, noteHostLink, hostLinkAttemptWords, hostLinkRecoveredWords, hostLinkLossWords } from './reliability.js'
 import { shQuote as quote } from './boxExecution.js'
+import { TENSORFOLD_HOST_WORDS, isTensorFoldRecipe, registerTensorFoldPod, tensorFoldPodAnsweringCommand, tensorFoldPodKey, tensorFoldPodService, writeTensorFoldPodKey } from './tensorfoldPod.js'
 
 const notFound = (error: unknown): boolean => (error instanceof RunpodHttpError || error instanceof HostVendorHttpError) && error.status === 404
 class HostPodMissing extends Error {}
@@ -341,6 +342,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
   try {
     if (!key) throw new Error(keyRefusal ?? 'The saved ' + vendorLabel(vendor) + ' key is unavailable.')
     if (!recipe) throw new Error('The saved host recipe is unavailable.')
+    const tensorfold = isTensorFoldRecipe(recipe) ? tensorFoldPodKey(id) : undefined
     const api = vendorClient(initial, { key })
     let endpointBase: string | undefined
     let loadedWeights: string | undefined
@@ -399,7 +401,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       sshRead = hostJobReadOnly({ label: api.label, pauseMs: pause, timeoutMs: timeout, deadline: sshDeadline, signal, mark })
     }
     patchHostRecord(id, { target, status: 'RUNNING' })
-    const answering = initial.linkLost && await runner.run('ssh', [...sshArguments(target), 'curl -fsS --max-time 10 http://127.0.0.1:30000/health && curl -fsS --max-time 10 http://127.0.0.1:30000/v1/models'], signal).then(() => true).catch(() => false)
+    const answering = initial.linkLost && await runner.run('ssh', [...sshArguments(target), tensorfold ? tensorFoldPodAnsweringCommand(recipe) : 'curl -fsS --max-time 10 http://127.0.0.1:30000/health && curl -fsS --max-time 10 http://127.0.0.1:30000/v1/models'], signal).then(() => true).catch(() => false)
     if (answering) {
       loadedWeights = initial.loadedWeights
       mark('engine still answering · reconnecting')
@@ -407,6 +409,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     let keptWeights: string | undefined
     let engineCache: string | undefined
     const source = initial.weightsSource ?? inferredWeightsSource(initial, recipe, vendor)
+    if (tensorfold && source.kind !== 'huggingface') throw new Error(TENSORFOLD_HOST_WORDS.gated)
     const vm = vendor === 'lambda' || api.capabilities.vm === true
     const docker = vm ? (await inspectSsh(target, runner, signal)).docker : false
     const stillLoaded = initial.loadedWeights && source.kind !== 'volume'
@@ -431,6 +434,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       keptWeights = await downloadPrivateRepoForRental(source, recipe, token, target, runner, signal, mark, { docker, pod: !vm })
     }
     mark(recipe.engine === 'llamacpp' ? 'checking engine' : 'installing')
+    if (tensorfold) await writeTensorFoldPodKey(target, recipe, tensorfold, runner, signal, sshArguments)
     await startHostEngine(target, recipe, runner, signal, docker, !vm, undefined, keptWeights, undefined, engineCache)
     await waitHostEngine(target, recipe, runner, signal, pause, timeout, log, options.engineGraceMs)
     loadedWeights = keptWeights ?? (recipe.weightsGb || recipe.engine === 'llamacpp' ? '/workspace/mercury-host/' + recipe.id + '/weights' : undefined)
@@ -441,7 +445,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (!api.capabilities.managed) {
       if (!target) throw new Error('The pod has no SSH address.')
       mark('starting engine')
-      port = await openHostTunnel(id, target, runner, signal, initial.linkLost ? initial.localPort : undefined)
+      port = await openHostTunnel(id, target, runner, signal, initial.linkLost ? initial.localPort : undefined, tensorfold ? tensorFoldPodService(tensorfold) : undefined)
       patchHostRecord(id, { localPort: port })
       mark('tunnel on 127.0.0.1:' + port)
       endpointBase = 'http://127.0.0.1:' + port + '/v1'
@@ -453,8 +457,8 @@ export async function runHostJob(id: string, generation: string, options: { runn
         case 'servers': return initial.provider ?? '__add__'
         case 'action': return 'repoint'
         case 'address': return endpointBase!
-        case 'dialect': return recipe.engine ?? 'sglang'
-        case 'key': if (api.capabilities.managed) { key = await huggingfaceKey(); return key ?? null }; if (question.found === LLM_HOST_WORDS.keyOptional) return ''; break
+        case 'dialect': return tensorfold ? 'chat-completions' : recipe.engine ?? 'sglang'
+        case 'key': if (tensorfold) return tensorfold; if (api.capabilities.managed) { key = await huggingfaceKey(); return key ?? null }; if (question.found === LLM_HOST_WORDS.keyOptional) return ''; break
         case 'model': return question.rows?.find(row => row.value === recipe.model || row.value.startsWith(recipe.model + ':'))?.value ?? (question.rows?.length === 1 ? question.rows[0]!.value : null)
         case 'name':
           if (configuredCompatEndpoints().some(endpoint => endpoint.name === provider)) provider = 'pod-' + randomUUID().replaceAll('-', '').slice(0, 28)
@@ -466,6 +470,10 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (result.registered) {
       patchHostRecord(id, { provider })
       linkLlmHostPod(provider, id)
+      if (tensorfold && result.model && endpointBase) {
+        registerHostEfforts([result.model], recipe.efforts?.levels ?? [])
+        await registerTensorFoldPod({ id, vendor, recipe, baseUrl: endpointBase, key: tensorfold, served: result.model.split('/').at(-1)!, target })
+      }
     }
     if (!result.ok || !result.registered || !result.model) throw new Error(result.words)
     mark('ready')
@@ -489,7 +497,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
           log(words)
           patchHostRecord(id, { step: words })
           try {
-            await openHostTunnel(id, target, runner, signal, port)
+            await openHostTunnel(id, target, runner, signal, port, tensorfold ? tensorFoldPodService(tensorfold) : undefined)
             patchHostRecord(id, { step: 'ready' })
             log(hostLinkRecoveredWords(noteHostLink({ ...record, vendor }, { outcome: 'recovered', attempt }), port))
             return
@@ -508,7 +516,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
         let response: Response
         try {
           if (api.capabilities.managed) key = await huggingfaceKey()
-          response = await fetch(endpointBase + '/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]), ...(api.capabilities.managed ? { headers: { Authorization: 'Bearer ' + key } } : {}), redirect: 'error' })
+          response = await fetch(endpointBase + '/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]), ...(api.capabilities.managed || tensorfold ? { headers: { Authorization: 'Bearer ' + (tensorfold ?? key) } } : {}), redirect: 'error' })
         } catch (error) {
           const current = readHostRecord(id)
           if (current && hostRetuneLive(current) || current?.advancedAt !== observed?.advancedAt) continue

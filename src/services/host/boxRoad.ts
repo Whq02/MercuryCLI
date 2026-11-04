@@ -6,13 +6,14 @@ import { boxServiceLifetimeWords, readBoxService } from './boxService.js'
 import { registerBoxServer, stopBoxTunnel } from './boxRegistration.js'
 import { boxHardwareWords, discoverBox, listBoxes, readBox, type HostBox } from './boxes.js'
 import { hostRunner, localKeyPath, type HostRunner } from './ssh.js'
+import { isTensorFoldPodBox } from './tensorfoldPod.js'
 
 export function createBoxRoad(runner: HostRunner = hostRunner): LlmHostRoad {
   return async (ask, emit, signal) => {
     const stopped = { ok: false, words: 'No computer changed.' }
     const question: Parameters<LlmHostRoad>[0] = plan => signal.aborted ? Promise.resolve(null) : ask(plan)
     try {
-      const selected = await question({ step: 'boxes', title: 'One of my computers', found: '', willRun: '', rows: [{ value: 'this-computer', label: 'This computer' }, ...listBoxes().filter(box => box.name !== 'this-computer').map(box => ({ value: box.name, label: box.name + ' · ' + boxHardwareWords(box) })), { value: '__add__', label: 'Add a box over SSH' }] })
+      const selected = await question({ step: 'boxes', title: 'One of my computers', found: '', willRun: '', rows: [{ value: 'this-computer', label: 'This computer' }, ...listBoxes().filter(box => box.name !== 'this-computer' && !isTensorFoldPodBox(box)).map(box => ({ value: box.name, label: box.name + ' · ' + boxHardwareWords(box) })), { value: '__add__', label: 'Add a box over SSH' }] })
       if (!selected) return stopped
       let box: HostBox
       if (selected === '__add__') {

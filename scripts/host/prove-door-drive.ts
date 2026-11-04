@@ -187,7 +187,8 @@ try {
   await until('run it → /llmhost')
   check('real /model paints the run-it action', mounted!.screen().includes('Qwen3.8-27B'))
   for (let n = 0; n < 6 && !popup.isSettingsPopupOpen(); n++) {
-    mounted!.push(KEY.down); mounted!.push(KEY.enter)
+    if (n > 0) mounted!.push(KEY.down)
+    mounted!.push(KEY.enter)
     await waitFor(() => popup.isSettingsPopupOpen(), 500)
   }
   await heading('Qwen3.8-27B'); await until('CONVERSATIONS × CONTEXT')
