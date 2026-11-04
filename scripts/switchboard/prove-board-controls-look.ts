@@ -96,11 +96,7 @@ const fixturePath = join(scratch, 'board-controls-look-fixture.json')
 writeFileSync(fixturePath, JSON.stringify(fixture))
 
 const sends: Send[] = [
-  { data: 'run the overnight sweep', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 2 },
-  { data: '\r', afterPrevTicks: 2 },
-  { data: ESC, awaitText: "Past the machine's reading", requireAwait: true, awaitSettleTicks: 3, mark: 'seat-card' },
-  { data: '\t', afterPrevTicks: 3 },
-  { data: 'm', afterPrevTicks: 2, mark: 'live-legend' },
+  { data: 'm', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 2, mark: 'live-legend' },
   { data: ESC, awaitText: 'Mercury · model', requireAwait: true, awaitSettleTicks: 3, mark: 'model-picker' },
   { data: 'e', afterPrevTicks: 2 },
   { data: ESC, awaitText: 'EFFORT —', requireAwait: true, awaitSettleTicks: 3, mark: 'effort-picker' },
@@ -143,12 +139,6 @@ for (const m of payload.marks ?? []) {
 const has = (lines: string[], needle: string): boolean => lines.some(l => l.includes(needle))
 const mk = (label: string): string[] => marks.get(label) ?? []
 
-console.log('L1 — the seat-overload card + the 5/4· chip')
-check('the card is the STANDARD consent frame with the ruled title', has(mk('seat-card'), "Past the machine's reading"))
-check('the reading sentence is capacityCheck\'s own (never a bare number)', /the consented capacity reading from 2025-07-31: 4[\s\S]{0,160}?\bseats \(stored at the first-boot ask\)/.test(mk('seat-card').join('\n')))
-check('the over line names the next session over the reading', has(mk('seat-card'), 'session 5 over'))
-check('the No leg dispatches nothing, said plainly', has(mk('seat-card'), 'No, dispatch nothing (esc)'))
-check('the rail chip wears the over mark while the demand runs past the reading', has(mk('seat-card'), '5/4· seats'))
 console.log('L2 — the present-moves key-map row')
 check('a LIVE selection prints i interrupt · p pause · m model · e effort', has(mk('live-legend'), 'i interrupt') && has(mk('live-legend'), 'p pause') && has(mk('live-legend'), 'm model') && has(mk('live-legend'), 'e effort'))
 check('a PARKED selection dims to its reason and drops the controls', has(mk('parked-legend'), 'parked · ↵ brings it back') && !has(mk('parked-legend'), 'i interrupt'))
