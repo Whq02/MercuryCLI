@@ -18,7 +18,7 @@ Um agente lê e edita arquivos, executa comandos de shell, percorre testes e dep
 
 O Mercury é usado para desenvolver o próprio Mercury, com várias sessões e modelos em tarefas longas. Acompanhar esse trabalho é a parte difícil: o que ainda está rodando, o que mudou e o que precisa de uma decisão. Cada sessão escreve a própria nota de passagem ao terminar, e a sessão seguinte lê essa nota uma vez na inicialização, junto com as minhas regras fixadas, o que evita que o contexto se contamine entre sessões.
 
-![Um prompt para o coordenador no painel de sessões inicia duas sessões, cada uma no seu próprio worktree; uma pergunta antes de editar, e ambas terminam com as alterações prontas para revisão](../media/session-board-stream-black.gif)
+![A busca estrutural encontra três chamadas a console.log pelo formato em três arquivos, e a edição estrutural as reescreve para logger.debug em uma execução de teste e em seguida aplica a alteração](../media/syntax-search-edit-black.gif)
 
 O Mercury é de código aberto sob a Apache License 2.0, assim como os SDKs em [sdk/](../../sdk/) e [sdk-py/](../../sdk-py/).
 
