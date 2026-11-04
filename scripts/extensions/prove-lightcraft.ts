@@ -140,6 +140,13 @@ try {
     assert.match(text, /not a filesystem sandbox/)
     assert.doesNotMatch(text, /\$ARGUMENTS|\$\{MERCURY_SKILL_DIR\}/)
   })
+  check('the skill keeps the library, selection, window and persistence truths at the pin without the onboarding the server carries', () => {
+    const skill = readFileSync(join(extension, 'skills/lightcraft/SKILL.md'), 'utf8')
+    assert.ok(Buffer.byteLength(skill) <= 3000, `skill is ${Buffer.byteLength(skill)} bytes`)
+    for (const fact of [/discovery wins/, /persistent `path`/, /Photo IDs are local to one library/, /replace the selection with that photo/, /`get_develop \{id\}` and `render_photo \{id\}` leave it alone/, /Auto Sync on, `set_develop` changes every selected photo/, /`develop\.autoSync \{\}` toggles the mode and never reads it/, /`move` deletes originals once catalogued/, /normalized `\[x0,y0,x1,y1\]`/, /developed pixels, not the window/, /rendering headlessly/, /never proves a visible window/, /3000 px long edge/, /connect-mode and batch exports answer only when finished/, /LightCraft 0\.18\.0 has no automation roots and no control-port authentication/, /Apple Photos or iCloud/, /never replay it/, /saved in memory but not written to disk/]) assert.match(skill, fact)
+    for (const gone of [/craft_status/, /craft_install/, /--control 7980/, /mcp --connect/, /^\d+\. /m]) assert.doesNotMatch(skill, gone)
+    for (const name of ['command_run', 'command_list', 'import', 'set_develop', 'get_develop', 'crop', 'export', 'list_controls', 'render_photo', 'render_preview', 'ui_screenshot']) assert.match(skill, new RegExp(`\`${name}\\b`), name)
+  })
   check('upstream forwarding uses only the shared bootstrap', () => {
     const bridge = readFileSync(join(extension, 'server/bridge.mjs'), 'utf8')
     assert.match(bridge, /import \{ runCraftBridge \} from '\.\.\/shared\/bootstrap.mjs'/)
