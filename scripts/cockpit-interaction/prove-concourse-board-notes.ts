@@ -97,10 +97,12 @@ function boardEnv(home: string, fixture: Record<string, unknown>, tag: string): 
   }
 }
 
-function capture(name: string, cfg: Record<string, unknown>, env: NodeJS.ProcessEnv): string[] {
+type Drive = { cols: number; rows: number; total: number; readyText: string; sends: Array<Record<string, unknown>>; resizes?: Array<Record<string, unknown>> }
+function capture(name: string, cfg: Drive, env: NodeJS.ProcessEnv): string[] {
   const out = join(OUT_DIR, `${name}.json`)
   const cfgPath = join(scratch, `${name}.cfg.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], readySettleTicks: 4, stableTicks: 3, ...cfg, out }))
+  const resizes = cfg.resizes ?? []
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], readyText: cfg.readyText, readySettleTicks: 4, stableTicks: 3, cols: cfg.cols, rows: cfg.rows, total: cfg.total, sends: cfg.sends, resizes, out }))
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env, cwd: REPO })
   if (!existsSync(out)) {
     check(`${name}: the drive ran to its end (vshot exit ${res.status ?? '?'}, no frame)`, false, (res.stderr ?? '').slice(-600))
@@ -154,31 +156,37 @@ console.log(`the board notices with the coordinator off (${COLS}×${ROWS}, two p
   const OLDER_NOTE = 'the older chats stay — ↵ opens them; clear one at a time from there'
   const DOOR_NOTE = 'a door — ↵ switches the board to orchard-src; nothing to close here'
   const GROUND_NOTE = 'repo → the boot folder — new sessions launch there'
-  const settle = { requireAwait: true, awaitSettleTicks: 3 }
-  const chord = (mark: string): Array<Record<string, unknown>> => [
-    { afterPrevTicks: 3, data: CTRL_X },
-    { afterPrevTicks: 1, data: CTRL_X },
-    { afterPrevTicks: 5, data: '', mark },
-  ]
+  const QUEUED_ROW = '▸ □ queued probe'
+  const PARKED_ROW = '▸ ✧ Parked probe'
+  const OLDER_ROW = '▸ ✧ 3 older chats'
+  const DOOR_ROW = '▸ ⇄ orchard-src · 1'
+  const OLDER_NOTE_HEAD = 'the older chats stay'
+  const DOOR_NOTE_HEAD = 'a door — ↵ switches the board'
   capture('notes-off', {
     cols: COLS,
     rows: ROWS,
     total: 260,
     readyText: 'STATUS & TITLE',
     sends: [
-      { ...settle, atTick: 999, awaitText: 'queued probe', minTick: 5, data: 's' },
-      { afterPrevTicks: 5, data: '', mark: 'split' },
-      { afterPrevTicks: 1, data: '\r' },
-      { afterPrevTicks: 5, data: '', mark: 'queued' },
-      { afterPrevTicks: 1, data: DOWN },
-      ...chord('parked'),
-      { afterPrevTicks: 1, data: DOWN },
-      ...chord('older'),
-      { afterPrevTicks: 1, data: DOWN },
-      ...chord('door'),
-      { afterPrevTicks: 1, data: CTRL_G },
-      { ...settle, awaitText: 'launch here', data: '\r' },
-      { afterPrevTicks: 5, data: '', mark: 'ground' },
+      { requireAwait: true, awaitText: QUEUED_ROW, atTick: 999, minTick: 5, awaitSettleTicks: 3, data: 's' },
+      { requireAwait: true, awaitText: 'split needs 121 columns', awaitSettleTicks: 2, data: '', mark: 'split' },
+      { requireAwait: true, awaitText: QUEUED_ROW, data: '\r' },
+      { requireAwait: true, awaitText: QUEUED_NOTE, awaitSettleTicks: 2, data: '', mark: 'queued' },
+      { requireAwait: true, awaitText: QUEUED_NOTE, data: DOWN },
+      { requireAwait: true, awaitText: PARKED_ROW, awaitSettleTicks: 2, data: CTRL_X },
+      { requireAwait: true, awaitText: PARKED_ROW, data: CTRL_X },
+      { requireAwait: true, awaitText: ARMED_NOTE, awaitSettleTicks: 2, data: '', mark: 'parked' },
+      { requireAwait: true, awaitText: ARMED_NOTE, data: DOWN },
+      { requireAwait: true, awaitText: OLDER_ROW, awaitSettleTicks: 2, data: CTRL_X },
+      { requireAwait: true, awaitText: OLDER_ROW, data: CTRL_X },
+      { requireAwait: true, awaitText: OLDER_NOTE_HEAD, awaitSettleTicks: 2, data: '', mark: 'older' },
+      { requireAwait: true, awaitText: OLDER_NOTE_HEAD, data: DOWN },
+      { requireAwait: true, awaitText: DOOR_ROW, awaitSettleTicks: 2, data: CTRL_X },
+      { requireAwait: true, awaitText: DOOR_ROW, data: CTRL_X },
+      { requireAwait: true, awaitText: DOOR_NOTE_HEAD, awaitSettleTicks: 2, data: '', mark: 'door' },
+      { requireAwait: true, awaitText: DOOR_NOTE_HEAD, data: CTRL_G },
+      { requireAwait: true, awaitText: 'launch here', awaitSettleTicks: 3, data: '\r' },
+      { requireAwait: true, awaitText: GROUND_NOTE, awaitSettleTicks: 2, data: '', mark: 'ground' },
     ],
   }, boardEnv(home, boardFixture(home), 'notes-off'))
   const split = markOf('notes-off', 'split')
@@ -203,7 +211,7 @@ console.log('the capacity ask answered on entry (a home that never answered it):
     readyText: 'STATUS & TITLE',
     sends: [
       { requireAwait: true, atTick: 999, awaitText: 'capacity check', minTick: 5, awaitSettleTicks: 3, data: 'n', mark: 'ask' },
-      { afterPrevTicks: 8, data: '', mark: 'receipt' },
+      { requireAwait: true, awaitText: 'no probe — the machine', awaitSettleTicks: 2, data: '', mark: 'receipt' },
     ],
   }, boardEnv(home, boardFixture(home), 'capacity-off'))
   const ask = markOf('capacity-off', 'ask')
@@ -224,8 +232,8 @@ console.log('the split view collapsing under a resize (130×40 → 120×40): the
     readyText: 'STATUS & TITLE',
     sends: [
       { requireAwait: true, atTick: 999, awaitText: 'queued probe', minTick: 5, awaitSettleTicks: 3, data: 's', mark: 'before' },
-      { afterPrevTicks: 6, data: '', mark: 'split-on' },
-      { afterPrevTicks: 12, data: '', mark: 'after-resize' },
+      { requireAwait: true, awaitText: 'FOCUSED CHAT', awaitSettleTicks: 3, data: '', mark: 'split-on' },
+      { requireAwait: true, awaitText: 'split collapsed', awaitSettleTicks: 2, data: '', mark: 'after-resize' },
     ],
     resizes: [{ afterMark: 'split-on', afterMs: 400, cols: COLS, rows: ROWS }],
   }, boardEnv(home, boardFixture(home), 'collapse-off'))
