@@ -1,33 +1,27 @@
 # Provider proof road
 
-Source map read 2026-10-26. Work in the intended checkout and name it explicitly in build and proof commands.
+Reproduce the reported behavior on the base and the same case on the change. Select the fixture that reaches the changed owner; a usage-reader fix does not require inventing a new protocol suite.
 
-## Isolate first
+## Isolation
 
-Use a fresh scratch directory for `MERCURY_CONFIG_DIR`, set `MERCURY_CREDENTIAL_STORE=file` and `ANTHROPIC_API_KEY=proof-key-ci-gate-not-a-real-key`, and unset `MERCURY_HOME`. Set `MERCURY_LOCAL_PROBE_TARGETS=none` so a proof does not discover somebody else's server. Use a real scratch `TMPDIR`; never point a proof at the operator's home, settings, credentials or daemon. Build that checkout before setting `MERCURY_GATE_PREBUILT=1` for its suites. A dummy key is not network isolation: point every provider base a fixture exercises to its loopback server before importing the dispatch road.
+Use a fresh scratch `MERCURY_CONFIG_DIR` and `TMPDIR`, unset `MERCURY_HOME`, select the file credential store and dummy keys, and set `MERCURY_LOCAL_PROBE_TARGETS=none`. Point every exercised provider base to loopback before importing dispatch. Dummy credentials alone do not isolate a request. Build the intended checkout before a proof that drives its bundle; never read the operator's settings, credentials or daemon.
 
-## Pick the fixture that reaches the changed owner
+## Fixture map
 
-- `scripts/lib/fixtureApi.ts` serves scripted Anthropic Messages and captures request bodies. `scripts/api/authRetryFixture.ts` supplies `authWorld`, including sign-in refresh and refusal cases. `scripts/api/streamCutFixture.mjs` drives interrupted streams. `scripts/api/prove-http2-lane.ts` (`scripts/api/http2-lane.mjs`) pins the HTTP/1.1 (`allowH2: false`) dispatcher contract and concurrent fan-out over a real TLS HTTP/2 + HTTP/1.1 server.
-- `scripts/providers/prove-anthropic-workspace-key.ts` and `scripts/providers/prove-anthropic-inflight-slot-switch.ts` cover organisation-scoped `anthropic-workspace-id` headers across Messages, token-count and catalogue calls and in-flight slot switches. `scripts/providers/prove-first-byte-budget.ts` and `scripts/api/prove-anthropic-request-deadline.ts` pin first-byte and request-deadline timeout classification (`requestDeadline: true`).
-- `scripts/provider-compat/prove-compat-chat-transport.ts` injects fetch responses to pin shared request and SSE decoding. `scripts/provider-compat/prove-openrouter-mixed-upstream-retry.ts` starts a loopback Responses server and reaches it through `routedCallModel`; use that pattern when the bug spans routing and replay.
-- `scripts/providers/prove-malformed-call-tool-result.ts` exercises error `tool_result` pairing on malformed tool calls vs unpairable refusal notes across Anthropic, OpenAI Responses, Chat Completions and Gemini. `scripts/providers/prove-gemini-stop-reason.ts` pins Gemini trailing-signature ordering (`reasoning-withheld` before `text-delta`) and `stop_reason` preservation.
-- `scripts/messages/prove-stopped-resume-wire.ts` pins stopped-resume user-turn merging (`mergeAdjacentUsers` across `isTurnCutText` only) on Anthropic, OpenAI Responses, Chat Completions and Gemini wires. `scripts/api/prove-restart-keeps-thinking.ts` and `scripts/mcp/prove-mcp-list-changed-live.ts` pin replaying the recorded tool roster across restarts and delivering MCP `list_changed` updates via `tool_schema_delta` without breaking the bound prefix.
-- `scripts/providers/lib/xai-auth-fixture.ts` and `scripts/providers/lib/xai-usage-fixture.ts` provide `xaiAuthFixture` and `xaiUsageFixture`. Usage proofs such as `scripts/providers/prove-usage-truth-meters.ts` cover the common display facts; do not replace an account balance with a token estimate.
-- `scripts/compact/overflowFixture.ts` supplies `startOverflowFixture` for compaction and overflow requests across provider dialects.
+| Changed behavior | Existing owner to inspect |
+|---|---|
+| Messages requests, auth recovery, interrupted streams | `scripts/lib/fixtureApi.ts`, `scripts/api/authRetryFixture.ts`, `scripts/api/streamCutFixture.mjs` |
+| HTTP/1.1 dispatcher | `scripts/api/prove-http2-lane.ts` |
+| Workspace headers, in-flight slot switch | `scripts/providers/prove-anthropic-workspace-key.ts`, `scripts/providers/prove-anthropic-inflight-slot-switch.ts` |
+| First byte / request deadline | `scripts/providers/prove-first-byte-budget.ts`, `scripts/api/prove-anthropic-request-deadline.ts` |
+| Chat decode, Responses retry through routedCallModel | `scripts/provider-compat/prove-compat-chat-transport.ts`, `scripts/provider-compat/prove-openrouter-mixed-upstream-retry.ts` |
+| Pairable malformed calls, Gemini trailing signatures | `scripts/providers/prove-malformed-call-tool-result.ts`, `scripts/providers/prove-gemini-stop-reason.ts` |
+| Resume / roster replay | `scripts/messages/prove-stopped-resume-wire.ts`, `scripts/api/prove-restart-keeps-thinking.ts`, `scripts/mcp/prove-mcp-list-changed-live.ts` |
+| Usage, xAI account fixtures | `scripts/providers/prove-usage-truth-meters.ts`, `scripts/providers/lib/xai-auth-fixture.ts`, `scripts/providers/lib/xai-usage-fixture.ts` |
+| Context overflow | `scripts/compact/overflowFixture.ts` |
 
-A defect proof must fail on the base for the reported behavior and pass on the tip. Capture enough of each request to prove model identity, endpoint, tool/result pairing, effort and replay order without writing secrets. Exercise a served turn after a refusal: the retry/resume reaches the provider and the old usage note does not refuse it locally. Exercise `Retry-After` separately from an explicit plan-window body.
+Capture identity, endpoint, effort, tool/result pairing and replay order without secrets. For a refusal/retry change, prove a served turn after refusal and explicit Retry-After separately from a plan-window body. Select cancellation, partial output and terminal-fault cases by the affected behavior.
 
-## Keep the byte contracts
+Run the touched behavior's checks and required project gates. Byte goldens move only through their recorders: `scripts/messages/prove-dialect-byte-parity.ts` requires an archived `/base` for recording; `scripts/messages/prove-messages-parity.ts` owns its own captures. Explain every changed expectation; do not hand-edit captured bytes.
 
-`scripts/messages/dialectFixture.ts` is the shared synthetic conversation. `scripts/messages/prove-dialect-byte-parity.ts` compares complete canonical and serialized request bodies; its `--record <archived-base>` mode requires the archived source path to end in `/base`. Preserve that recorder's provenance rule. Other message goldens have their own recorder in `scripts/messages/prove-messages-parity.ts`. Never hand-edit captured bytes or erase an assertion to accept a changed transport.
-
-The mechanical behavior baseline uses `bash scripts/agent-experience/benchmark.sh --record mechanical`. Run a recorder only for an explained, intended contract change and inspect the resulting diff. Ordinary provider work first runs the existing baseline unchanged.
-
-## Close on measured evidence
-
-Run `bun run typecheck`, the nearest `scripts/api`, `scripts/provider-compat`, `scripts/providers` and `scripts/messages` proofs that exercise the changed road, and every suite whose `# gate-watch:` lines name the changed source. Run `scripts/identity/run-all.sh` when words or fixtures changed. Generated assets move through their generators and are checked with `bun scripts/gate/generated-assets.ts --all --check`.
-
-For this bundled skill, edit `mercury-skills/provider-apis/`, then run `bun scripts/skills/gen-bundled.ts provider-apis`. The generated mirror is `src/skills/bundled/provider-apis/`. Run `scripts/skills/run-all.sh`: registration, description, arguments, body and extracted references must come through the real loader. Keep the positive provider-engineering example and the negative account-sign-in example distinct; a loader check alone does not prove semantic model routing.
-
-Report which base and tip were tested, captured requests, actual exits, re-pinned expectations and anything not verified. Loopback success is not a live-provider reading. Do not spend a real model request, change the operator's account or deploy a build without separate authorisation.
+For skill changes, compare loader expansion separately from task quality: observed engineering requests, account/UI non-triggers and confusable carrier/account cases. With operator-selected engines/effort, compare current, variant and safe no-skill baseline; record invocations, references read, outcomes, tokens and latency across repeats. Smaller text alone is not a quality result. Report tested base/tip, exits, request evidence and limits; release/deployment and live inference need their own authorisation.
