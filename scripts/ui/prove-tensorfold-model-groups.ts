@@ -72,21 +72,33 @@ function willRunOf(row: TensorFoldModelRow, window: number): string[] {
 type Seam = { engine: TensorFoldEngine | null; machine: TensorFoldMachine; inventory: TensorFoldModelRow[]; best: string | null; served: TensorFoldServed[]; hosts: TensorFoldHost[]; discovered: unknown[]; app?: { running: boolean; engine?: { pid: number; model?: string; port?: number } }; helper?: string }
 let seam: Seam = { engine: ENGINE, machine: MAC_48, inventory: [], best: null, served: [], hosts: [], discovered: [] }
 const supportCalls: unknown[] = []
+const roadCalls: unknown[] = []
 
 mock.module('../../src/services/tensorfold/engine.js', () => ({
   findTensorFoldEngine: async () => seam.engine,
   tensorFoldMachine: () => seam.machine,
+  cachedTensorFoldMachineTruth: async () => ({ platform: 'darwin', ramBytes: 48 * GIB, usableBytes: 36 * GIB, usableSource: 'metal', chip: 'Apple M5 Pro', wiredLimitMib: 0, osVersion: '27.0' }),
+}))
+mock.module('../../src/services/tensorfold/install.js', () => ({
+  tensorFoldInstallPlan: () => ({ kind: 'brew', commands: ['brew install ashhart/tensorfold/tensorfold'], words: 'Homebrew · ashhart/tensorfold', found: 'Homebrew found at /opt/homebrew/bin/brew' }),
+  installTensorFold: async (_plan: unknown, onLine: (line: string) => void) => { onLine('==> Downloading'); return { ok: true, line: '' } },
+}))
+mock.module('../../src/commands/tensorfold/road.js', () => ({
+  installTensorFoldThen: async (plan: unknown, io: { install?: (plan: unknown, onLine: (line: string) => void) => Promise<{ ok: boolean }> }) => { roadCalls.push(['install', plan]); const outcome = await io.install?.(plan, () => undefined); return outcome?.ok ?? true },
+  readOtherCheckpoint: async (repo: string) => { roadCalls.push(['read', repo]) },
+  tensorFoldRoadState: () => ({ acts: {}, other: { input: 'org/m', refused: 'fixture refusal' } }),
 }))
 mock.module('../../src/services/tensorfold/inventory.js', () => ({
   readTensorFoldInventory: async (engine: TensorFoldEngine | null) => (engine === null ? seam.inventory.map(row => ({ ...row, state: 'not-pulled' as const })) : seam.inventory),
   bestTensorFoldFit: (rows: readonly TensorFoldModelRow[]) => rows.find(row => row.repo === seam.best) ?? null,
 }))
 mock.module('../../src/services/tensorfold/serve.js', () => ({
-  startTensorFold: async () => { throw new Error('the frames proof never serves') },
-  stopTensorFold: async () => undefined,
-  pullTensorFold: async () => undefined,
+  startTensorFold: async (request: { repo: string; name?: string; window: number; port?: number; share?: boolean }) => { roadCalls.push(['start', request]); return { repo: request.repo, name: request.name ?? request.repo, port: request.port ?? 8080, window: request.window, pid: 1, startedAt: 't' } },
+  stopTensorFold: async (name: string) => { roadCalls.push(['stop', name]) },
+  pullTensorFold: async (repo: string) => { roadCalls.push(['pull', repo]) },
   servedTensorFold: () => seam.served,
   tensorFoldWillRun: willRunOf,
+  tensorFoldPairingCode: () => (roadCalls.some(call => Array.isArray(call) && call[0] === 'start' && (call[1] as { share?: boolean }).share === true) ? '246810' : null),
 }))
 const realHosts = await import('../../src/services/providers/local/tensorfoldHosts.ts')
 mock.module('../../src/services/providers/local/tensorfoldHosts.js', () => ({
@@ -452,6 +464,45 @@ console.log('\n§3 the order rule and the facts the /model group reads')
   await settle(60)
   const disk = huggingFaceCacheFacts({ HF_HOME: '/srv/hf' }, '/home/someone')
   check('the pull line names the Hugging Face cache (HF_HOME honoured, home shortened)', disk.into === '/srv/hf/hub' && huggingFaceCacheFacts({}, '/home/someone').into === '~/.cache/huggingface/hub', JSON.stringify(disk))
+}
+
+console.log("\n§4 /model's own road for the keys: share, unshare, install, other checkpoint and the app row go straight through the panel lane's functions (tf-panel-106), never by handing to /tensorfold")
+{
+  const { runTensorFoldAct } = await import('../../src/commands/model/mercuryModel.tsx')
+  type HostIo = import('../../src/commands/model/mercuryModel.tsx').TensorFoldHostIo
+  const settle = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 80))
+  const notices: string[] = []
+  const installs: unknown[] = []
+  const others: unknown[] = []
+  const switches: string[] = []
+  const served = rowOf(QWEN_2B, 'serving', MAC_48, { port: 8080, startedBy: 'mercury' })
+  const facts = await factsFor({ inventory: [rowOf(QWEN_27B, 'not-pulled', MAC_48), served], served: [{ repo: QWEN_2B.repo, name: 'qwen3.5-2b', port: 8080, window: 262_144, pid: 1, startedAt: 't' }] })
+  const io: HostIo = { facts, setAct: () => undefined, setInstall: install => installs.push(install), setOther: other => others.push(other), setNotice: words => notices.push(words), open: () => true, switchTo: id => switches.push(id), rent: () => undefined }
+  roadCalls.length = 0
+  runTensorFoldAct({ kind: 'share', row: served }, io)
+  await settle()
+  const shareStart = roadCalls.find(call => Array.isArray(call) && call[0] === 'start') as [string, { share?: boolean; port?: number; window: number }] | undefined
+  check('n on a served row restarts it through startTensorFold({ share: true }) on its port and window, the session not switched, the pairing code shown', roadCalls.some(call => Array.isArray(call) && call[0] === 'stop') && shareStart?.[1].share === true && shareStart[1].port === 8080 && shareStart[1].window === 262_144 && switches.length === 0 && notices.at(-1)?.startsWith('pairing code 246810 · ') === true, JSON.stringify({ roadCalls, notices }))
+  roadCalls.length = 0
+  runTensorFoldAct({ kind: 'unshare', row: served }, io)
+  await settle()
+  const unshareStart = roadCalls.find(call => Array.isArray(call) && call[0] === 'start') as [string, { share?: boolean }] | undefined
+  check('n again restarts it with share: false', unshareStart?.[1].share === false, JSON.stringify(roadCalls))
+  roadCalls.length = 0
+  runTensorFoldAct({ kind: 'install' }, io)
+  await settle()
+  check("↵ on the install row installs through the panel lane's installTensorFoldThen, the row reading installing with the brew line meanwhile, then clears", roadCalls.some(call => Array.isArray(call) && call[0] === 'install') && JSON.stringify(installs[0]) === JSON.stringify({ road: 'brew', state: 'installing', commands: ['brew install ashhart/tensorfold/tensorfold'] }) && installs.some(install => (install as { progress?: string } | undefined)?.progress === '==> Downloading') && installs.at(-1) === undefined, JSON.stringify({ roadCalls, installs }))
+  roadCalls.length = 0
+  const notInstalled = { ...io, facts: { ...facts, engine: null } }
+  runTensorFoldAct({ kind: 'serve', row: rowOf(QWEN_27B, 'not-pulled', MAC_48), window: 131_072 }, notInstalled)
+  await settle()
+  check('↵ on a row when TensorFold is not installed: install, pull (the checkpoint and its drafter), serve and switch', roadCalls.map(call => (Array.isArray(call) ? call[0] : '')).join(',') === 'install,pull,pull,start' && switches.at(-1) === 'local/qwen3.8-27b', JSON.stringify({ roadCalls, switches }))
+  roadCalls.length = 0
+  runTensorFoldAct({ kind: 'read', repo: 'org/m' }, io)
+  await settle()
+  check("a typed repository id is read through the panel lane's readOtherCheckpoint and the road's answer lands in /model's facts", JSON.stringify(roadCalls) === JSON.stringify([['read', 'org/m']]) && JSON.stringify(others.at(-1)) === JSON.stringify({ input: 'org/m', refused: 'fixture refusal' }), JSON.stringify({ roadCalls, others }))
+  runTensorFoldAct({ kind: 'app', serving: 'qwen3.5-2b' }, io)
+  check("s on the app row says what to do, in the panel's words", notices.at(-1) === 'the app is serving qwen3.5-2b · paste from its API tab · quit the app first to serve with Mercury instead', String(notices.at(-1)))
 }
 
 await releaseScratchHome(home)

@@ -128,10 +128,14 @@ import { fireworksApiBase, resolveFireworksApiKey } from '../../services/provide
 import { getCachedQwenCatalogue, qwenCatalogueIdentity, refreshQwenCatalogue, type QwenCatalogueSnapshot } from '../../services/providers/qwen/qwenCatalogue.js'
 import { LOCAL_MODEL_GROUP, localDiscoverySummary, localRecordFor } from '../../services/providers/local/localCatalogue.js'
 import { getCachedLocalDiscovery, localProbeTargets, refreshLocalDiscovery, type LocalDiscoverySnapshot } from '../../services/providers/local/localDiscovery.js'
+import { PAIRING_WORDS } from '../../services/lan/pairing.js'
 import { rememberTensorFoldHost } from '../../services/providers/local/tensorfoldHosts.js'
 import { readTensorFoldSupportLine } from '../../services/providers/local/tensorfoldSupport.js'
-import { pullTensorFold, startTensorFold, stopTensorFold } from '../../services/tensorfold/serve.js'
+import { cachedTensorFoldMachineTruth } from '../../services/tensorfold/engine.js'
+import { installTensorFold, tensorFoldInstallPlan } from '../../services/tensorfold/install.js'
+import { pullTensorFold, startTensorFold, stopTensorFold, tensorFoldPairingCode } from '../../services/tensorfold/serve.js'
 import type { TensorFoldModelRow } from '../../services/tensorfold/contracts.js'
+import { installTensorFoldThen, readOtherCheckpoint, tensorFoldRoadState } from '../tensorfold/road.js'
 import { TENSORFOLD_HOST_GROUP, TENSORFOLD_MODEL_GROUP, type TensorFoldAct, type TensorFoldPickerFacts, type TensorFoldRowAct } from '../../components/tensorfold/tensorfoldRows.js'
 import { refreshTensorFoldPickerFacts, tensorFoldCapableMachine, useTensorFoldPickerFacts } from '../../components/tensorfold/tensorfoldFacts.js'
 import { setClipboardWithReceipt } from '../../ink/termio/osc.js'
@@ -865,17 +869,18 @@ function pulledPercent(done: number, total: number | undefined): number | undefi
   return total === undefined || total <= 0 ? undefined : Math.min(99, Math.floor((done / total) * 100))
 }
 
-type TensorFoldHostIo = {
+export type TensorFoldHostIo = {
   facts: TensorFoldPickerFacts
   setAct: (repo: string, act: TensorFoldRowAct | undefined) => void
+  setInstall: (install: TensorFoldPickerFacts['install'] | undefined) => void
+  setOther: (other: TensorFoldPickerFacts['other'] | undefined) => void
   setNotice: (words: string) => void
   open: () => boolean
   switchTo: (id: string) => void
-  panel: () => void
   rent: () => void
 }
 
-async function serveTensorFoldRow(row: TensorFoldModelRow, window: number, io: TensorFoldHostIo): Promise<void> {
+async function serveTensorFoldRow(row: TensorFoldModelRow, window: number, io: TensorFoldHostIo, opts: { share?: boolean; switch?: boolean } = {}): Promise<void> {
   const restart = row.state === 'serving'
   io.setAct(row.repo, row.state === 'not-pulled' ? { phase: 'pulling', percent: 0 } : { phase: 'starting' })
   try {
@@ -893,20 +898,38 @@ async function serveTensorFoldRow(row: TensorFoldModelRow, window: number, io: T
       ...(row.port !== undefined ? { port: row.port } : {}),
       ...(row.drafter !== undefined ? { drafter: row.drafter } : {}),
       ...(row.promptCacheGib !== undefined ? { promptCacheGib: row.promptCacheGib } : {}),
+      ...(opts.share !== undefined ? { share: opts.share } : {}),
     })
     io.setAct(row.repo, undefined)
     await refreshLocalDiscovery({ force: true }).catch(() => undefined)
     void refreshTensorFoldPickerFacts().catch(() => undefined)
-    if (io.open()) io.switchTo(`local/${served.name}`)
+    const code = tensorFoldPairingCode()
+    if (opts.share === true && code !== null) io.setNotice(PAIRING_WORDS.shown(code, served.name))
+    if (opts.switch !== false && io.open()) io.switchTo(`local/${served.name}`)
   } catch (error) {
     io.setAct(row.repo, { phase: 'refused', line: lastLineOf(error), window })
   }
 }
 
-function runTensorFoldAct(act: TensorFoldAct, io: TensorFoldHostIo): void {
+async function installTensorFoldFromPicker(io: TensorFoldHostIo): Promise<boolean> {
+  const plan = tensorFoldInstallPlan(await cachedTensorFoldMachineTruth())
+  if (plan.kind !== 'brew' && plan.kind !== 'archive') return false
+  io.setInstall({ road: plan.kind, state: 'installing', commands: plan.commands })
+  const ok = await installTensorFoldThen(plan, { install: (own, onLine) => installTensorFold(own, line => { onLine(line); if (io.open()) io.setInstall({ road: plan.kind, state: 'installing', commands: plan.commands, progress: line }) }) })
+  io.setInstall(undefined)
+  await refreshTensorFoldPickerFacts().catch(() => undefined)
+  return ok
+}
+
+async function serveAfterInstall(row: TensorFoldModelRow, window: number, io: TensorFoldHostIo): Promise<void> {
+  if (!(await installTensorFoldFromPicker(io))) return
+  await serveTensorFoldRow({ ...row, state: 'not-pulled' }, window, io)
+}
+
+export function runTensorFoldAct(act: TensorFoldAct, io: TensorFoldHostIo): void {
   switch (act.kind) {
     case 'serve':
-      if (io.facts.engine === null) io.panel()
+      if (io.facts.engine === null) void serveAfterInstall(act.row, act.window, io)
       else void serveTensorFoldRow(act.row, act.window, io)
       return
     case 'switch':
@@ -956,12 +979,23 @@ function runTensorFoldAct(act: TensorFoldAct, io: TensorFoldHostIo): void {
       io.rent()
       return
     case 'install':
-    case 'read':
-    case 'app':
-    case 'share':
-    case 'unshare':
-      io.panel()
+      void installTensorFoldFromPicker(io)
       return
+    case 'read':
+      io.setOther({})
+      void readOtherCheckpoint(act.repo)
+        .then(() => io.setOther(tensorFoldRoadState().other))
+        .catch(error => io.setNotice(lastLineOf(error)))
+      return
+    case 'app':
+      io.setNotice(`the app is serving ${act.serving} · paste from its API tab · quit the app first to serve with Mercury instead`)
+      return
+    case 'share':
+    case 'unshare': {
+      const served = (io.facts.served ?? []).find(candidate => candidate.name === act.row.shortName)
+      void serveTensorFoldRow({ ...act.row, state: 'serving', ...(served !== undefined ? { port: served.port } : {}) }, served?.window ?? act.row.window, io, { share: act.kind === 'share', switch: false })
+      return
+    }
   }
 }
 
@@ -1049,7 +1083,12 @@ function MercuryModelWrapper({
   const tensorFoldPods = new Set((tensorFoldFacts?.hosts ?? []).filter(host => host.origin === 'pod').map(host => host.name))
   const listedModels: ModelChoice[] = options.flatMap(opt => hostEndpointChoice(modelChoiceOf(opt, betas))).filter(choice => !servedByTensorFold(choice, tensorFoldPods))
   const [tensorFoldActs, setTensorFoldActs] = React.useState<Record<string, TensorFoldRowAct>>({})
-  const tensorfold = React.useMemo(() => (tensorFoldFacts === undefined ? undefined : { ...tensorFoldFacts, acts: tensorFoldActs }), [tensorFoldFacts, tensorFoldActs])
+  const [tensorFoldInstall, setTensorFoldInstall] = React.useState<TensorFoldPickerFacts['install'] | undefined>(undefined)
+  const [tensorFoldOther, setTensorFoldOther] = React.useState<TensorFoldPickerFacts['other'] | undefined>(undefined)
+  const tensorfold = React.useMemo(
+    () => (tensorFoldFacts === undefined ? undefined : { ...tensorFoldFacts, acts: tensorFoldActs, ...(tensorFoldInstall !== undefined ? { install: tensorFoldInstall } : {}), ...(tensorFoldOther !== undefined ? { other: tensorFoldOther } : {}) }),
+    [tensorFoldFacts, tensorFoldActs, tensorFoldInstall, tensorFoldOther],
+  )
   const pickerOpen = React.useRef(true)
   React.useEffect(() => () => { pickerOpen.current = false }, [])
   const uses = readModelUseLedger()
@@ -1469,12 +1508,17 @@ function MercuryModelWrapper({
         return next
       })
     },
+    setInstall: install => {
+      if (pickerOpen.current) setTensorFoldInstall(install)
+    },
+    setOther: other => {
+      if (pickerOpen.current) setTensorFoldOther(other)
+    },
     setNotice: words => {
       if (pickerOpen.current) setNotice(words)
     },
     open: () => pickerOpen.current,
     switchTo: id => handleSelect(id),
-    panel: () => onDone(undefined, { nextInput: '/tensorfold', submitNextInput: true }),
     rent: () => {
       onDone('Opening /llmhost', { display: 'system' })
       openSettingsPopup(llmHostPopupRequest())
