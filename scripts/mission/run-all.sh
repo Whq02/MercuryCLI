@@ -4,7 +4,7 @@
 # gate-watch: src/bootstrap/state.ts src/components/HelmLanesRail.tsx
 # gate-watch: src/services/engine-connector/focusedConnector.ts
 # gate-watch: src/services/engine-connector/noSessionConnector.ts src/services/mission/missionCard.ts
-# gate-watch: src/services/mission/projection.ts
+# gate-watch: src/services/mission/** src/services/jev/**
 # gate-watch: src/guards/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

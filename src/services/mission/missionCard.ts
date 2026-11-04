@@ -6,7 +6,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
 import { sanitizePathComponent } from '../../utils/tasks.js'
 
-export type MissionCardState = 'armed' | 'met' | 'stood-down' | 'cleared' | 'continued'
+export type MissionCardState = 'armed' | 'met' | 'needs-operator' | 'stood-down' | 'cleared' | 'continued'
 
 interface MissionCard {
   schema: 1
