@@ -413,7 +413,7 @@ function hostChoices(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): Mode
         keys: {},
       })
     }
-    const id = `local/${host.serving}`
+    const id = host.origin === 'pod' ? `compat/${host.name}/${host.serving}` : `local/${host.serving}`
     const current = ui.current === id
     return {
       id,

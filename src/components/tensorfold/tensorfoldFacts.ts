@@ -61,9 +61,11 @@ function tensorFoldServers(): NonNullable<ReturnType<typeof getCachedLocalDiscov
   return (getCachedLocalDiscovery()?.servers ?? []).filter(server => server.kind === 'tensorfold')
 }
 
-export function discoveredTensorFoldRows(): TensorFoldModelRow[] {
+const sameUrl = (a: string, b: string): boolean => a.replace(/\/v1\/?$/, '').replace(/\/+$/, '') === b.replace(/\/v1\/?$/, '').replace(/\/+$/, '')
+
+export function discoveredTensorFoldRows(hosts: readonly TensorFoldHost[] = []): TensorFoldModelRow[] {
   return tensorFoldServers()
-    .filter(server => isLoopbackUrl(server.baseUrl))
+    .filter(server => isLoopbackUrl(server.baseUrl) && !hosts.some(host => sameUrl(host.baseUrl, server.baseUrl)))
     .flatMap(server =>
       server.models.map((record): TensorFoldModelRow => {
         const port = portOf(server.baseUrl)
@@ -107,15 +109,15 @@ function boxTensorFoldHosts(): TensorFoldHost[] {
   })
 }
 
-function withDiscoveredRows(rows: readonly TensorFoldModelRow[]): TensorFoldModelRow[] {
+function withDiscoveredRows(rows: readonly TensorFoldModelRow[], hosts: readonly TensorFoldHost[] = []): TensorFoldModelRow[] {
   const known = new Set(rows.map(row => row.shortName))
-  return [...rows, ...discoveredTensorFoldRows().filter(row => !known.has(row.shortName))]
+  return [...rows, ...discoveredTensorFoldRows(hosts).filter(row => !known.has(row.shortName))]
 }
 
 function withDiscoveredHosts(hosts: readonly TensorFoldHost[]): TensorFoldHost[] {
   const out = [...hosts]
   for (const host of [...discoveredTensorFoldHosts(), ...boxTensorFoldHosts()]) {
-    if (!out.some(known => known.baseUrl.replace(/\/+$/, '') === host.baseUrl.replace(/\/+$/, '') || known.name === host.name)) out.push(host)
+    if (!out.some(known => sameUrl(known.baseUrl, host.baseUrl) || known.name === host.name)) out.push(host)
   }
   return out
 }
@@ -164,7 +166,7 @@ export async function readTensorFoldOffer(platform: NodeJS.Platform = process.pl
   if (platform === 'win32') return { kind: 'host' }
   if (!capable()) return null
   const engine = await quietlyAsync(() => findTensorFoldEngine(), null)
-  const rows = withDiscoveredRows(await quietlyAsync(() => readTensorFoldInventory(engine), []))
+  const rows = withDiscoveredRows(await quietlyAsync(() => readTensorFoldInventory(engine), []), quietly(() => tensorFoldHosts(), []))
   const served = rows.find(row => row.state === 'serving')
   if (served !== undefined && engine !== null) return { kind: 'served', model: served.shortName, version: engine.version }
   const best = quietly(() => bestTensorFoldFit(rows), null)
@@ -217,7 +219,7 @@ const stampOf = (): number => stamp
 
 export function tensorFoldPickerFactsNow(): TensorFoldPickerFacts {
   const facts = snapshot ?? { platform: process.platform, rows: [], hosts: withDiscoveredHosts(quietly(() => tensorFoldHosts(), [])) }
-  return facts.platform === 'win32' ? facts : { ...facts, rows: withDiscoveredRows(facts.rows) }
+  return facts.platform === 'win32' ? facts : { ...facts, rows: withDiscoveredRows(facts.rows, facts.hosts ?? []) }
 }
 
 export function useTensorFoldOffer(): TensorFoldOffer | null | undefined {

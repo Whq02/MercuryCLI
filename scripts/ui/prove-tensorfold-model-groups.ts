@@ -432,6 +432,15 @@ console.log('\n§3 the order rule and the facts the /model group reads')
   void readTensorFoldPickerFacts
   const facts = await factsFor({ hosts: [STUDIO, APP] })
   check('the app host becomes the app row and never a host row', facts.app?.serving === 'qwen3.5-2b')
+  const POD: TensorFoldHost = { name: 'pod-7f3a', baseUrl: 'http://127.0.0.1:41234', origin: 'pod', keyRef: 'pod-7f3a', serving: 'qwen3.8-27b', version: '1.2.2', chip: 'RTX 5090', window: 131_072 }
+  const tunnel = [{ kind: 'tensorfold', root: 'http://127.0.0.1:41234', baseUrl: 'http://127.0.0.1:41234/v1', label: 'TensorFold 1.2.2', version: '1.2.2', models: [{ id: 'qwen3.8-27b', server: 'tensorfold', baseUrl: 'http://127.0.0.1:41234/v1' }] }]
+  const pod = await open(await factsFor({ hosts: [POD], discovered: tunnel }), 'claude-opus-5-5', 160, 48)
+  await press(pod, [UP, UP, RIGHT])
+  check("a rented pod's loopback tunnel is a TENSORFOLD HOST row, never a served row on this machine", cells(pod, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'serving', '128k ctx', 'pod-7f3a') === false && has(pod, 'pod-7f3a · 1 serving') && has(pod, '▸ TENSORFOLD · 1.2.2 · Apple M5 Pro · 36.0 GiB usable · nothing served'), flat(pod).filter(l => /TENSORFOLD|pod-7f3a/.test(l)).join(' | '))
+  await press(pod, [KEY.enter])
+  check('↵ on the pod row switches to the pod through its compat road', pod.selected.at(-1) === 'compat/pod-7f3a/qwen3.8-27b', pod.selected.join(','))
+  pod.m.unmount()
+  await settle(60)
   const disk = huggingFaceCacheFacts({ HF_HOME: '/srv/hf' }, '/home/someone')
   check('the pull line names the Hugging Face cache (HF_HOME honoured, home shortened)', disk.into === '/srv/hf/hub' && huggingFaceCacheFacts({}, '/home/someone').into === '~/.cache/huggingface/hub', JSON.stringify(disk))
 }

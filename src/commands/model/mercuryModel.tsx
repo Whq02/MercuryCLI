@@ -851,8 +851,9 @@ function orderedModelChoices(models: ModelChoice[], currentRowId: string): Model
   })
 }
 
-function servedByTensorFold(choice: ModelChoice): boolean {
-  return choice.group === LOCAL_MODEL_GROUP && localRecordFor(choice.id)?.server === 'tensorfold'
+function servedByTensorFold(choice: ModelChoice, pods: ReadonlySet<string>): boolean {
+  const pod = /^(?:__mercury_connect__:)?compat\/([a-z0-9-]+)(?:\/|$)/.exec(choice.id)?.[1]
+  return (choice.group === LOCAL_MODEL_GROUP && localRecordFor(choice.id)?.server === 'tensorfold') || (pod !== undefined && pods.has(pod))
 }
 
 function lastLineOf(error: unknown): string {
@@ -1044,8 +1045,9 @@ function MercuryModelWrapper({
   }
 
   const options = getModelOptions()
-  const listedModels: ModelChoice[] = options.flatMap(opt => hostEndpointChoice(modelChoiceOf(opt, betas))).filter(choice => !servedByTensorFold(choice))
   const tensorFoldFacts = useTensorFoldPickerFacts()
+  const tensorFoldPods = new Set((tensorFoldFacts?.hosts ?? []).filter(host => host.origin === 'pod').map(host => host.name))
+  const listedModels: ModelChoice[] = options.flatMap(opt => hostEndpointChoice(modelChoiceOf(opt, betas))).filter(choice => !servedByTensorFold(choice, tensorFoldPods))
   const [tensorFoldActs, setTensorFoldActs] = React.useState<Record<string, TensorFoldRowAct>>({})
   const tensorfold = React.useMemo(() => (tensorFoldFacts === undefined ? undefined : { ...tensorFoldFacts, acts: tensorFoldActs }), [tensorFoldFacts, tensorFoldActs])
   const pickerOpen = React.useRef(true)
