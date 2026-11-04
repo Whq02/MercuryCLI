@@ -27,14 +27,15 @@ import {
 } from '../services/mission/missionCard.js'
 import { getCwd } from '../utils/cwd.js'
 import { verificationSummary } from '../utils/verification/verificationState.js'
-import { engageTurnGuard, disengageTurnGuard } from './guards.js'
+import { MISSION_MET_SENTINEL } from '../services/mission/sentinel.js'
+import { engageTurnGuard, disengageTurnGuard, type TurnNote } from './guards.js'
 
 
 export const MISSION_CONDITION_MAX_LENGTH = 4000
 
 const GOAL_CLOSING_CLIP = 4000
 
-export const MISSION_MET_SENTINEL = '<<<GOAL-MET>>>'
+export { MISSION_MET_SENTINEL, withoutMissionMetSentinel } from '../services/mission/sentinel.js'
 
 export const MISSION_DIRECTIVE_HEADER = 'A standing goal is now active for this session:'
 
@@ -92,6 +93,11 @@ export function getActiveMissionVersion(): number {
 }
 
 function persistCard(sessionId: string, mission: ActiveMission, state: MissionCardState): void {
+  const standing = readMissionCard(sessionId)
+  if (standing !== null && standing.state === 'armed' && standing.goal !== mission.condition && Date.parse(standing.setAt) > mission.setAt) {
+    logForDebugging(`[mission] the card for session ${sessionId} already names a newer goal; the ${state} state of the older one is not written over it`)
+    return
+  }
   writeMissionCard({
     schema: 1,
     sessionId,
@@ -273,6 +279,10 @@ function settleNeedsOperator(sessionId: string, mission: ActiveMission, question
   notifyMissionChange()
 }
 
+function needsOperatorNote(mission: ActiveMission): TurnNote {
+  return { level: 'warning', text: `goal ${mission.lastReason ?? 'needs the operator'}. Answer it, or set the goal again with /goal.` }
+}
+
 let armedAtLanding: { sessionId: string } | null = null
 let seatWatch: (() => void) | null = null
 
@@ -355,7 +365,7 @@ export function setActiveMission(
       const evidence = gatherGoalEvidence(messages, mission)
       if (mission.asking) {
         settleNeedsOperator(sessionId, mission, evidence.asksOperator ? closingQuestion(evidence.closing) : (mission.verdict?.reason ?? 'the goal needs the operator'))
-        return { hold: false }
+        return { hold: false, note: needsOperatorNote(mission) }
       }
       const verdict: GoalVerdict =
         mission.contract.feasibility === 'unattainable-now'
@@ -367,11 +377,11 @@ export function setActiveMission(
         mission.lastReason = `met — ${verdict.reason}`
         persistCard(sessionId, mission, 'met')
         notifyMissionChange()
-        return { hold: false }
+        return { hold: false, note: { level: 'suggestion', text: `goal met — ${verdict.reason}. The standing goal ends here; /goal <words> starts another.` } }
       }
       if (evidence.asksOperator) {
         settleNeedsOperator(sessionId, mission, closingQuestion(evidence.closing))
-        return { hold: false }
+        return { hold: false, note: needsOperatorNote(mission) }
       }
       const claimed = claimContinuation(
         processMainOwner(),
@@ -392,7 +402,7 @@ export function setActiveMission(
       mission.asking = true
       mission.lastReason = `${verdict.kind} — ${verdict.reason}; asking the operator`
       persistCard(sessionId, mission, 'armed')
-      return { hold: true, words: askWords(mission, verdict) }
+      return { hold: true, words: askWords(mission, verdict), note: { level: 'warning', text: `goal reads as ${verdict.kind} — ${verdict.reason}. It ends with one question to you; answer it, or set the goal again with /goal.` } }
     },
   })
 
@@ -425,11 +435,16 @@ export function clearActiveMission(
 export function syncMissionFromCard(sessionId: string): void {
   const card = readMissionCard(sessionId)
   const live = missionsBySession.get(sessionId)
-  if (card?.state === 'armed' && live === undefined) {
-    rearmMissionFromCard({ cardSessionId: sessionId, armSessionId: sessionId })
+  if (card?.state === 'armed') {
+    if (live !== undefined && (live.condition !== card.goal || live.met === true || live.needsOperator === true)) {
+      disengageTurnGuard(sessionId, live.hookId)
+      missionsBySession.delete(sessionId)
+      logForDebugging(`[mission] the armed card names a new goal for session ${sessionId}; the settled one is released`)
+    }
+    if (!missionsBySession.has(sessionId)) rearmMissionFromCard({ cardSessionId: sessionId, armSessionId: sessionId })
     return
   }
-  if (live !== undefined && card !== null && card.state !== 'armed') {
+  if (live !== undefined && card !== null) {
     disengageTurnGuard(sessionId, live.hookId)
     missionsBySession.delete(sessionId)
     logForDebugging(`[mission] released the standing mission for session ${sessionId} (the card reads ${card.state})`)
@@ -449,6 +464,8 @@ export function rearmMissionFromCard(
   setActiveMission(card.goal, { sessionId: armSessionId })
   const mission = missionsBySession.get(armSessionId)
   if (mission) {
+    const armedAt = Date.parse(card.setAt)
+    if (Number.isFinite(armedAt)) mission.setAt = armedAt
     mission.lastReason = `re-armed on resume (the previous run closed at check ${card.iterations})`
     persistCard(armSessionId, mission, 'armed')
   }

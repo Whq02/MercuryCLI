@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/voice/localFixture.ts
+# gate-watch: src/screens/Chat.tsx src/services/engine-connector/** src/guards/** src/query/stopHooks.ts src/cli/run.ts src/services/mission/**
 # gate-env: MERCURY_UI_BILLED MERCURY_LOGINS_COPY_KEEP MERCURY_LOGINS_COPY_FRAMES MERCURY_RENDER_CWD MERCURY_CARD_FIT_CAPTURE_DIR MERCURY_MODE_BAND_DRIVE_CAPTURE_DIR
 # gate-watch: scripts/ui/render-tui.ts scripts/ui/vshot.py scripts/command-catalogue/fake-gh.mjs src/bootstrap/state*
 # gate-watch: src/commands/appearance/index* src/commands/health/HealthCertificate*

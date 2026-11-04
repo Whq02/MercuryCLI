@@ -6,7 +6,7 @@ import type { MediaRefusal } from '../services/api/mediaRefusal.js'
 import type { StreamEndV1 } from '../services/providers/streamIdleBudget.js'
 import type { EffortAdjustedV1 } from '../utils/effort.js'
 import type { EffortStampV1 } from '../fabric/record.js'
-import type { AdvisorOrigin, SaturnOrigin } from '../utils/messages/noticeRows.js'
+import type { AdvisorOrigin, SaturnOrigin, ScreenCommandOrigin } from '../utils/messages/noticeRows.js'
 import type { UUID } from 'crypto'
 import type {
   BranchAction,
@@ -57,6 +57,7 @@ export type MessageOrigin =
   | { kind: 'channel'; server: string }
   | SaturnOrigin
   | AdvisorOrigin
+  | ScreenCommandOrigin
   | import('../utils/messages/outsideReport.js').OutsideReportOrigin
 
 export type CompactMetadata = {

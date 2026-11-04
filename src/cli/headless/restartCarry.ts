@@ -22,7 +22,7 @@ import type { QueuedCommand } from '../../types/textInputTypes.js'
 import type { AgentId } from '../../types/ids.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
-import { saturnQueueStamp } from '../../utils/messages/noticeRows.js'
+import { saturnQueueStamp, screenCommandQueueStamp } from '../../utils/messages/noticeRows.js'
 import { wrapInSystemReminder } from '../../utils/messages/text.js'
 import { enqueue, enqueuePendingNotification } from '../../input-core/command-queue.js'
 import { emitTaskEnded } from '../../utils/sdkEventQueue.js'
@@ -80,6 +80,7 @@ export function requeueUndeliveredLines(lines: Iterable<string>, recoveredComman
       uuid,
       ...(row.sentAt !== undefined ? { sentAt: row.sentAt } : row.at !== undefined ? { sentAt: row.at } : {}),
       ...saturnQueueStamp(row.origin),
+      ...screenCommandQueueStamp(row.origin),
     } as QueuedCommand
     enqueue(command)
     recoveredCommandIds.push(uuid)

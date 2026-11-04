@@ -9,7 +9,7 @@ import type { SystemPrompt } from '../utils/systemPromptType.js'
 import { getSessionId } from '../bootstrap/state.js'
 import { ownerFromToolUseContext } from '../services/run/resolveOwner.js'
 import { takeUnscoredVerification } from '../utils/verification/verificationState.js'
-import { judgeTurnEnd } from '../guards/guards.js'
+import { judgeTurnEnd, takeTurnNotes } from '../guards/guards.js'
 import { createAttachmentMessage } from '../utils/attachments.js'
 import { settleWriterDiagnosticsAtTurnEnd } from '../utils/attachments/diagnostics.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -72,7 +72,9 @@ export async function* handleStopHooks(
   const settlementBlocks: Message[] = []
   const unscored = takeUnscoredVerification(ownerFromToolUseContext(toolUseContext))
   if (unscored !== undefined) yield createUserMessage({ content: unscored, isMeta: true })
-  const holds = await judgeTurnEnd(agentId ?? String(getSessionId()), { messages: history }, toolUseContext.abortController.signal)
+  const guardKey = agentId ?? String(getSessionId())
+  const holds = await judgeTurnEnd(guardKey, { messages: history }, toolUseContext.abortController.signal)
+  for (const note of takeTurnNotes(guardKey)) yield createSystemMessage(note.text, note.level)
   for (const hold of holds) {
     const message = createUserMessage({ content: hold.words, isMeta: true })
     settlementBlocks.push(message)

@@ -39,6 +39,7 @@ import { RateLimitMessage } from './RateLimitMessage.js'
 import { CrewmatePlateContext, TranscriptNameplate } from './TranscriptNameplate.js'
 import { ENVELOPE_TAG, type DeclaredEnvelope } from '../../services/agentResults/contracts.js'
 import { parseDeclaration } from '../../services/agentResults/normalize.js'
+import { withoutMissionMetSentinel } from '../../services/mission/sentinel.js'
 
 const subscribeFocusedRowModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 const getFocusedRowModel = (): string => getFocusedSessionConnector().modelFacts().main
@@ -266,7 +267,7 @@ export function AssistantTextMessage({
 
   const workingNote = param.phase === 'commentary'
   const declaration = crewmatePlate !== null && text.includes(`<${ENVELOPE_TAG}>`) ? parseDeclaration(text) : null
-  const prose = declaration !== null ? declaration.prose : text
+  const prose = withoutMissionMetSentinel(declaration !== null ? declaration.prose : text)
   const closeNote = declaration === null ? null : declaration.declared !== null ? crewmateCloseNoteOf(declaration.declared) : declaration.malformedRaw !== null ? `close note (unreadable) — ${declaration.malformedRaw}` : null
   return (
     <Box

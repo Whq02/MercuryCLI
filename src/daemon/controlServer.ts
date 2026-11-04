@@ -36,6 +36,7 @@ import { clientPresenceKindOf, noteClientPresence } from './clientPresence.js'
 import { validateSessionKit, validateSessionKitEdit, type SessionKitEditV1, type SessionKitV1 } from './sessionKit.js'
 import { validateSaturnSubmission, SATURN_ID_PATTERN, type ScheduleOpRequestV1 } from './saturn.js'
 import { isOutsideReportOrigin, type OutsideReportOrigin } from '../utils/messages/outsideReport.js'
+import { isScreenCommandOrigin, type ScreenCommandOrigin } from '../utils/messages/noticeRows.js'
 import type { TaskRoster } from './roster.js'
 import { attachToJobPty } from './runPtyHost.js'
 import type { ProcessSweepEntry } from './processSweep.js'
@@ -121,7 +122,7 @@ export interface ControlServerDeps {
     agentId?: string
     priority?: 'now' | 'next' | 'later'
     content?: unknown[]
-    origin?: OutsideReportOrigin
+    origin?: OutsideReportOrigin | ScreenCommandOrigin
     by?: string
     kitPreset?: string
   }) => Promise<{
@@ -861,7 +862,10 @@ async function routeControlRequest(
       const prompt = String(raw.prompt ?? '')
       const workspaceDir = String(raw.workspaceDir ?? '')
       const targetSessionId = typeof raw.targetSessionId === 'string' && raw.targetSessionId ? raw.targetSessionId : undefined
-      if (raw.origin !== undefined && (!isOutsideReportOrigin(raw.origin) || targetSessionId === undefined)) {
+      if (raw.origin !== undefined && isScreenCommandOrigin(raw.origin) && targetSessionId === undefined) {
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'A screen command\'s meta row requires an existing target session' })
+      }
+      if (raw.origin !== undefined && !isScreenCommandOrigin(raw.origin) && (!isOutsideReportOrigin(raw.origin) || targetSessionId === undefined)) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'An outside report requires a sender and an existing target session' })
       }
       if (!clientMessageId || !prompt || (!workspaceDir && targetSessionId === undefined)) {
@@ -904,7 +908,7 @@ async function routeControlRequest(
         ...(typeof raw.permissionMode === 'string' && raw.permissionMode ? { permissionMode: raw.permissionMode as never } : {}),
         ...(Array.isArray(raw.runnerArgv) && raw.runnerArgv.length > 0 ? { runnerArgv: raw.runnerArgv as string[] } : {}),
         ...(targetSessionId !== undefined ? { targetSessionId } : {}),
-        ...(isOutsideReportOrigin(raw.origin) ? { origin: raw.origin } : {}),
+        ...(isOutsideReportOrigin(raw.origin) || isScreenCommandOrigin(raw.origin) ? { origin: raw.origin } : {}),
         ...(raw.mode === 'bash' || raw.mode === 'prompt' || raw.mode === 'task-notification' ? { mode: raw.mode } : {}),
         ...(raw.mode === 'task-notification' && typeof raw.agentId === 'string' && raw.agentId !== '' ? { agentId: raw.agentId } : {}),
         ...(raw.priority === 'now' || raw.priority === 'next' || raw.priority === 'later' ? { priority: raw.priority } : {}),

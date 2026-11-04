@@ -21,6 +21,7 @@ export type SendWordsOptions = {
   mode?: PromptInputMode
   pastedContents?: Record<number, PastedContent>
   fromKeybinding?: boolean
+  metaFrom?: { command: string }
 }
 
 export type SendReceiptV1 =
