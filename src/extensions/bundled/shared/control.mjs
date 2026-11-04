@@ -48,7 +48,7 @@ export async function verifyListener(endpoint, executable, { signal, expectedSha
   return { pid, executable: actualPath, start, sha256: digest }
 }
 
-export function controlSession(endpoint, { signal, timeoutMs = 10000 } = {}) {
+export function controlSession(endpoint, { signal, timeoutMs = 10000, token } = {}) {
   const target = loopbackEndpoint(endpoint)
   const socket = createConnection(target)
   let buffer = '', closed = false
@@ -65,7 +65,7 @@ export function controlSession(endpoint, { signal, timeoutMs = 10000 } = {}) {
       if (!line.trim()) continue
       try {
         const reply = JSON.parse(line), p = pending.get(String(reply.id))
-        if (!p) continue
+        if (!p) { if (reply.ok === false && typeof reply.error === 'string') { fail(new Error(reply.error)); socket.destroy() }; continue }
         pending.delete(String(reply.id)); clearTimeout(p.timer)
         if (reply.ok === true) p.resolve(reply.result)
         else p.reject(new Error(typeof reply.error === 'string' ? reply.error : JSON.stringify(reply.error)))
@@ -82,7 +82,7 @@ export function controlSession(endpoint, { signal, timeoutMs = 10000 } = {}) {
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => { pending.delete(id); reject(new Error('Control request timed out; outcome may be unknown. Inspect before retrying.')); socket.destroy() }, timeoutMs)
         pending.set(id, { resolve, reject, timer })
-        socket.write(JSON.stringify({ id, method, params }) + '\n')
+        socket.write(JSON.stringify({ id, token, method, params }) + '\n')
       })
     },
     close() { signal?.removeEventListener('abort', cancelled); socket.destroy() },
