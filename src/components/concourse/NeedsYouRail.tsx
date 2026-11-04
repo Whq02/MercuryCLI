@@ -62,6 +62,7 @@ export function NeedsYouRail({
   width,
   maxRows = RAIL_MAX_ROWS,
   showRule = true,
+  bare = false,
   onSelectRow,
   onAnswer,
   onOpen,
@@ -73,6 +74,7 @@ export function NeedsYouRail({
   width: number
   maxRows?: number
   showRule?: boolean
+  bare?: boolean
   onSelectRow?: (index: number) => void
   onAnswer?: (obligationId: string) => void
   onOpen?: (obligationId: string) => void
@@ -81,47 +83,50 @@ export function NeedsYouRail({
   const t = useMercuryTokens();
   const total = snapshot.needsYou.length;
   const win = paneWindow(total, selectedIndex, Math.max(1, Math.min(RAIL_MAX_ROWS, maxRows)));
-  const rows = snapshot.needsYou.slice(win.start, win.end);
-  if (rows.length === 0) return null;
+  const rows = maxRows > 0 ? snapshot.needsYou.slice(win.start, win.end) : [];
+  if (rows.length === 0 && !bare) return null;
+  const rowWidth = bare ? width : width - 4;
   return (
     <Box
       flexDirection="column"
       flexShrink={0}
-      borderStyle={paletteCollapsed() && focused ? 'bold' : 'round'}
-      borderColor={t.warning}
-      paddingX={1}
+      {...(bare ? {} : { borderStyle: paletteCollapsed() && focused ? 'bold' : 'round', borderColor: t.warning, paddingX: 1 })}
       width={width}
       overflow="hidden"
     >
       <Box height={1} overflow="hidden">
-        <Text>
-          <Text color={t.warning} bold>
-            {GLYPH.mission} NEEDS YOU
+        {total === 0 ? (
+          <Text color={t.textMuted}>NEEDS YOU · 0</Text>
+        ) : (
+          <Text>
+            <Text color={t.warning} bold>
+              {GLYPH.mission} NEEDS YOU
+            </Text>
+            <Text color={t.textSecondary}> · {total}</Text>
+            {win.above > 0 ? <Text color={t.textMuted}> · ↑{win.above}</Text> : null}
+            {win.below > 0 ? <Text color={t.textMuted}> · ↓{win.below}</Text> : null}
           </Text>
-          <Text color={t.textSecondary}> · {total}</Text>
-          {win.above > 0 ? <Text color={t.textMuted}> · ↑{win.above}</Text> : null}
-          {win.below > 0 ? <Text color={t.textMuted}> · ↓{win.below}</Text> : null}
-        </Text>
+        )}
       </Box>
       {}
-      {showRule ? (
+      {showRule && !bare ? (
         <Box height={1} flexShrink={0} overflow="hidden">
           <Text color={t.borderSubtle}>{'─'.repeat(Math.max(1, width - 4))}</Text>
         </Box>
       ) : null}
       {(() => {
         const titleBand = Math.min(
-          Math.max(14, Math.floor(width * 0.27)),
+          Math.max(14, Math.floor(rowWidth * 0.27)),
           Math.max(14, ...rows.map(o => displayWidth(o.title) + 3)),
         );
         const questionBand = Math.min(
-          Math.max(18, Math.floor(width * 0.34)),
+          Math.max(18, Math.floor(rowWidth * 0.34)),
           Math.max(18, ...rows.map(o => displayWidth(o.question) + 1)),
         );
         return rows.map((o, i) => {
         const title = truncateToWidth(o.title, titleBand - 3);
         const question = truncateToWidth(o.question, questionBand - 1);
-        const tail = railTailParts(o, Math.max(0, width - 4 - titleBand - questionBand), o.foreignProject !== undefined);
+        const tail = railTailParts(o, Math.max(0, rowWidth - titleBand - questionBand), o.foreignProject !== undefined);
         const chunkText = (p: RailTailPart, keyPrefix: string): React.ReactNode =>
           p.chunks.map((c, ci) =>
             c.tone === 'affordance-primary' ? (
@@ -139,7 +144,7 @@ export function NeedsYouRail({
         const openPart = tail.find(p => p.key === 'open');
         const dismissPart = tail.find(p => p.key === 'dismiss');
         return (
-          <Box key={o.obligationId} height={1} width={width - 4} overflow="hidden">
+          <Box key={o.obligationId} height={1} width={rowWidth} overflow="hidden">
             <InteractiveRow
               id={`concourse:rail:${o.obligationId}`}
               selected={win.start + i === selectedIndex}

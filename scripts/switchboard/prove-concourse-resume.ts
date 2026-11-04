@@ -204,7 +204,7 @@ console.log('A2 — capacity: ≤10 per project (one owner); live rows lead; the
       const win = paneWindow(flat.length, 0, after.listContentRows)
       check(`${cols}x${rows} ny=${needsYou}: the first window keeps the first live row (start ${win.start})`, win.start === 0 && win.end > 0)
       const mirrorRows = after.mirrorBand[1] - after.mirrorBand[0] + 1
-      check(`${cols}x${rows} ny=${needsYou}: the mirror keeps the geometry owner's floor under the fuller board`, mirrorRows >= 1 && after.listBand[1] < after.mirrorBand[0])
+      check(`${cols}x${rows} ny=${needsYou}: the mirror keeps the geometry owner's floor under the fuller board, clear of the list (beside it at two panes, above it stacked)`, mirrorRows >= 1 && (after.profile === 'wide' ? after.liveCols[1] < after.rightCols[0] : after.mirrorBand[1] < after.listBand[0]))
     }
   }
 }
@@ -307,7 +307,10 @@ console.log('A3 — ↵ reactivates through the ONE resume door; the close chord
   const chordAt = screen.indexOf('const closeChordGesture = (): void => {')
   const chordBody = screen.slice(chordAt, screen.indexOf('const closeChordRoutineRef', chordAt))
   check('the chord on a parked row: a fresh completed gesture ARMS the delete (nothing runs), the same gesture inside the stage window ends the record — the release grammar on the new key', chordAt !== -1 && chordBody.includes('closeChordRungOf(boardSelectionClassOf(sel), closeChordStage.standsFor(sel.sessionId))') && chordBody.includes("case 'arm-delete':") && chordBody.includes("case 'delete':") && chordBody.indexOf("case 'delete':") > chordBody.indexOf("case 'arm-delete':") && chordBody.includes('callbacks.removeSession?.(sel.sessionId)'))
-  check('plain x carries no full-size board verb (the poison the chord retired); the compact concourse alone binds x to stop, every site guarded by the compact decision', (screen.match(/input === 'x'/g) ?? []).length === 3 && screen.includes("if (compact && input === 'x' && !key.ctrl && !key.meta && pastGate()) {") && screen.includes("if (compact && region === 'live' && !key.ctrl && !key.meta && (input === 'x' || input === 'p') && liveDraftRef.current.text.length === 0 && pastGate()) {") && screen.includes("if (input === 'x') rowStop()"))
+  const listAt = screen.indexOf("    if (region === 'list') {")
+  const chatAt = screen.indexOf("    if (region === 'chat') {", listAt)
+  const listXAt = screen.indexOf("      if (input === 'x' && !key.ctrl && !key.meta && pastGate()) {", listAt)
+  check('plain x is the session list\'s stop (the manager pane names it: x stop) and nowhere a typed letter: no message box binds it; the compact live frame keeps its x/p only while its draft is empty', (screen.match(/input === 'x'/g) ?? []).length === 3 && listAt !== -1 && listXAt > listAt && listXAt < chatAt && screen.includes("if (compact && region === 'live' && !key.ctrl && !key.meta && (input === 'x' || input === 'p') && liveDraftRef.current.text.length === 0 && pastGate()) {") && screen.includes("if (input === 'x') rowStop()"))
   check('a parked row subscribes to no work chip (the calm law)', screen.includes("peekSelRow.workspaceDir !== undefined && peekSelRow.state !== 'parked'"))
   const cell = read('src/components/concourse/LiveNowCell.tsx')
   check('the NOW cell\'s live predicate excludes parked rows (no tile subscription, no motion)', cell.includes("const live = row.state === 'working' || row.state === 'needs-you' || row.state === 'starting'"))

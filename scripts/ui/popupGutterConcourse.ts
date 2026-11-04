@@ -39,15 +39,13 @@ export async function concoursePopupFrames({ sizes, wrap, mount, check, judge, s
     { name: 'concourse-capacity', title: 'FIRST BOOT', door: 'capacity' },
     { name: 'concourse-ground', title: 'REPO —', door: 'ground' },
     { name: 'concourse-trust', title: 'UNTRUSTED FOLDER', door: 'trust' },
-    { name: 'concourse-coordinator', title: 'COORDINATOR', door: 'coordinator' },
-    { name: 'concourse-seat', title: "Past the machine's reading", door: 'seat' },
     { name: 'concourse-manager-seat', title: "Past the machine's reading", door: 'manager' },
     { name: 'concourse-git', title: 'Start a git repository', door: 'git' },
   ]
   for (const size of sizes) {
     const [columns, rows] = size.split('x').map(Number) as [number, number]
     for (const surface of surfaces) {
-      if (columns < 100 && ['coordinator', 'seat', 'manager'].includes(surface.door)) continue
+      if (columns < 100 && surface.door === 'manager') continue
       manager = surface.door === 'manager'
       _resetConcourseCapsuleForTesting()
       await writeCoordinatorComposerDraft('', 0)
@@ -58,7 +56,7 @@ export async function concoursePopupFrames({ sizes, wrap, mount, check, judge, s
       const snapshot = referenceFixtureSnapshot() as unknown as Snapshot
       snapshot.needsYou = surface.door === 'git' ? [{ ...snapshot.needsYou[0]!, obligationId: 'fixture-git', sessionId: 'folder:/fixture', ref: 'permission:git-init:fixture' }] : []
       snapshot.counts.live = 4
-      snapshot.coordinator = { mode: 'rules-only' }
+      snapshot.coordinator = { mode: surface.door === 'manager' ? 'agent-assisted' : 'off' }
       const row = snapshot.groups.flatMap(g => g.rows)[0]!
       row.workspaceDir = getCwd()
       if (surface.door === 'ground' || surface.door === 'trust') {
@@ -73,13 +71,9 @@ export async function concoursePopupFrames({ sizes, wrap, mount, check, judge, s
       if (surface.door === 'effort') scene.push('e')
       if (surface.door === 'ground' || surface.door === 'trust') scene.push('\r')
       if (surface.door === 'atlas') scene.push('?')
-      if (surface.door === 'coordinator') scene.push('\x13')
-      if (surface.door === 'seat') {
-        scene.push('a fixture dispatch')
-        await settledFrame(scene, frame => frame.includes('a fixture dispatch') || frame.includes('tab or click to type'))
-        scene.push('\r')
-      }
       if (surface.door === 'manager') {
+        scene.push('\t')
+        await settledFrame(scene, frame => frame.includes('talk to the coordinator'))
         scene.push('\x1b[Z')
         await settledFrame(scene, frame => frame.includes("The manager's plan"))
         scene.push('\r')
@@ -88,8 +82,7 @@ export async function concoursePopupFrames({ sizes, wrap, mount, check, judge, s
       const lines = scene.lines()
       save(`${surface.name}-${size}`, lines)
       check(`${surface.name} ${size}: the source popup opened`, opened, lines.filter(line => /fault|refused|COORDINATOR/.test(line)).join(' | '))
-      if (['coordinator', 'git'].includes(surface.door) && columns >= 120) check(`${surface.name} ${size}: the wide coordinator is an inline pane, not a floating box`, opened)
-      else judge(`${surface.name} ${size}`, lines, surface.title, { left: 0, right: columns - 1, top: 0, bottom: rows - 1 }, columns, rows)
+      judge(`${surface.name} ${size}`, lines, surface.title, { left: 0, right: columns - 1, top: 0, bottom: rows - 1 }, columns, rows)
       scene.unmount()
     }
   }

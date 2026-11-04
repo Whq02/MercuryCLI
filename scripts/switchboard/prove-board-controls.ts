@@ -349,8 +349,8 @@ console.log('E — the seat-overload ask: every time, never silent, never rememb
   )
   check(
     'E6 one Select listens at a time — the git offer’s two mounts yield while the seat card stands, and the key stream has ONE declared owner (seat-ask outranks git-offer in boardModalOwner)',
-    screen.includes("gitOffer !== undefined && seatAsk === null && forkAsk === null && !contractAsk && geo.profile === 'wide'") &&
-      /gitOffer !== undefined &&\s*\n\s*!contractAsk &&\s*\n\s*geo\.profile !== 'wide' &&/.test(screen) &&
+    screen.includes("gitOffer !== undefined && coordinatorOn && !reducedStage && region === 'coordinator' && geo.profile === 'wide' && !geo.constrained && seatAsk === null && forkAsk === null && !contractAsk") &&
+      /gitOffer !== undefined &&\s*\n\s*!contractAsk &&\s*\n\s*!gitOfferInPane &&/.test(screen) &&
       screen.includes('gitOfferOwnsTheKeys({') &&
       screen.includes('seatAsk: seatAsk !== null,') &&
       screen.includes('seatAsk: seatAskRef.current !== null,') &&
@@ -377,17 +377,17 @@ console.log('E — the seat-overload ask: every time, never silent, never rememb
   } as never
   check('E7 the demand fold counts live + seat-queued (a repo-held wait is not seat demand)', strips.seatDemandOf(overSnap) === 5)
   check(
-    "E7 the chip reads `5/4·` while over and the plain live/reading when the demand fits",
-    strips.seatsCellText(5, 4, 4).text === '5/4·' &&
+    "E7 the chip reads `5/4` while over (the warning ink carries it, no words) and the plain live/reading when the demand fits",
+    strips.seatsCellText(5, 4, 4).text === '5/4' &&
       strips.seatsCellText(5, 4, 4).over === true &&
       strips.seatsCellText(2, 2, 4).text === '2/4' &&
       strips.seatsCellText(2, 2, 4).over === false,
   )
   const stripsSrc = read('src/components/concourse/ConcourseStrips.tsx')
   check(
-    'E7 the rail wears the over mark in warning ink on the ONE seats cell (and the budget line carries the same spelling)',
+    'E7 the rail wears the over state in warning ink on the ONE seats cell',
     stripsSrc.includes('seatsCell.over ? t.warning : t.textSecondary') &&
-      stripsSrc.includes('${seatsCell.text} seats'),
+      stripsSrc.includes('{seatsCell.text} seats'),
   )
   check(
     'E8 the strip paints context > receipt > hint (a self-expiring receipt outranks the standing door hint)',

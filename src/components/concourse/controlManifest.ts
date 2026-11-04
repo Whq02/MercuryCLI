@@ -2,7 +2,7 @@
 import { CLOSE_CHORD_STAGE_WINDOW_MS } from '../../services/concourse/closeChordStage.js'
 import { SESSION_DEFAULTS_KEY_HINT } from '../../services/switchboard/sessionDefaultsKey.js'
 
-type ConcourseMode = 'browse' | 'filter-edit' | 'coordinator-picker' | 'confirmation'
+type ConcourseMode = 'browse' | 'filter-edit' | 'confirmation'
 
 type ConcourseFocusRegion = 'needs-you' | 'list' | 'live' | 'coordinator' | 'chat'
 
@@ -29,15 +29,16 @@ export const CONCOURSE_CONTROLS: readonly ConcourseControlSpec[] = [
   { id: 'board:peek', action: 'concourse:toggle-row-peek', region: 'list', modes: ['browse'], keys: ['right'], pointer: 'none', receipt: 'selection' },
   { id: 'board:older-browse', action: 'concourse:older-browse', region: 'list', modes: ['browse'], keys: ['return', 'right', 'up', 'down', 'escape'], pointer: 'select-then-activate', receipt: 'route-transition' },
   { id: 'board:group-heading', action: 'none', region: 'list', modes: ['browse'], keys: [], pointer: 'none', receipt: 'none', informational: true },
-  { id: 'board:empty-start', action: 'concourse:focus-composer', region: 'list', modes: ['browse'], keys: [], pointer: 'activate', receipt: 'focus-move' },
   { id: 'board:empty-new', action: 'concourse:new-session', region: 'list', modes: ['browse'], keys: [], pointer: 'activate', receipt: 'route-transition' },
   { id: 'board:focus', action: 'concourse:focus-list', region: 'list', modes: ['browse'], keys: [], pointer: 'activate', receipt: 'focus-move' },
-  { id: 'coordinator:focus-title', action: 'concourse:focus-coordinator', region: 'coordinator', modes: ['browse'], keys: [], pointer: 'activate', receipt: 'focus-move' },
   { id: 'board:new-session', action: 'concourse:new-session', region: 'list', modes: ['browse'], keys: ['n'], pointer: 'activate', receipt: 'route-transition' },
   { id: 'board:model-default', action: 'concourse:model-default', region: 'list', modes: ['browse'], keys: ['m'], pointer: 'none', receipt: 'mode-transition' },
   { id: 'board:rename', action: 'concourse:rename-session', region: 'list', modes: ['browse'], keys: ['r'], pointer: 'none', receipt: 'mode-transition' },
   { id: 'board:interrupt', action: 'concourse:interrupt-session', region: 'list', modes: ['browse'], keys: ['i'], pointer: 'none', receipt: 'row-control' },
   { id: 'board:pause-resume', action: 'concourse:pause-resume-session', region: 'list', modes: ['browse'], keys: ['p'], pointer: 'none', receipt: 'row-control' },
+  { id: 'board:stop', action: 'concourse:stop-session', region: 'list', modes: ['browse'], keys: ['x'], pointer: 'none', receipt: 'row-control' },
+  { id: 'board:archive', action: 'concourse:archive-session', region: 'list', modes: ['browse'], keys: ['a'], pointer: 'none', receipt: 'row-control' },
+  { id: 'board:page', action: 'concourse:scroll-list', region: 'list', modes: ['browse'], keys: ['pageup', 'pagedown'], pointer: 'none', receipt: 'selection' },
   { id: 'board:set-model', action: 'concourse:set-session-model', region: 'list', modes: ['browse'], keys: ['m'], pointer: 'none', receipt: 'row-control' },
   { id: 'board:set-effort', action: 'concourse:set-session-effort', region: 'list', modes: ['browse'], keys: ['e'], pointer: 'none', receipt: 'row-control' },
   { id: 'board:mark', action: 'concourse:toggle-broadcast-mark', region: 'list', modes: ['browse'], keys: ['space'], pointer: 'none', receipt: 'selection' },
@@ -47,8 +48,6 @@ export const CONCOURSE_CONTROLS: readonly ConcourseControlSpec[] = [
   { id: 'board:split-ratio', action: 'concourse:nudge-split-ratio', region: 'list', modes: ['browse'], keys: ['[', ']'], pointer: 'none', receipt: 'mode-transition' },
   { id: 'split:chat-enter', action: 'concourse:enter-session', region: 'chat', modes: ['browse'], keys: ['return'], pointer: 'activate', receipt: 'route-transition' },
   { id: 'live:enter-selected', action: 'concourse:enter-session', region: 'live', modes: ['browse'], keys: ['return'], pointer: 'none', receipt: 'route-transition' },
-  { id: 'composer:send', action: 'concourse:composer-send', region: 'coordinator', modes: ['browse'], keys: ['return'], pointer: 'none', receipt: 'coordinator-turn' },
-  { id: 'composer:model-chip', action: 'concourse:coordinator-model', region: 'coordinator', modes: ['browse', 'coordinator-picker'], keys: ['ctrl+s'], pointer: 'activate', receipt: 'mode-transition' },
   { id: 'status:project-ground', action: 'concourse:ground-picker', region: 'status', modes: ['browse'], keys: ['ctrl+g'], pointer: 'activate', receipt: 'mode-transition' },
   { id: 'capacity-ask:allow', action: 'concourse:capacity-allow', region: 'coordinator', modes: ['confirmation'], keys: ['y'], pointer: 'activate', receipt: 'mode-transition' },
   { id: 'capacity-ask:decline', action: 'concourse:capacity-decline', region: 'coordinator', modes: ['confirmation'], keys: ['n', 'escape'], pointer: 'activate', receipt: 'mode-transition' },
@@ -91,7 +90,6 @@ export const CONCOURSE_REGION_KEYS = {
   coordinator: [
     { keys: '↵', label: 'send' },
     { keys: '⇧↵/⌃j', label: 'newline' },
-    { keys: '⌃s', label: 'coordinator model' },
     { keys: 'pgup/pgdn', label: 'scroll' },
   ],
   chat: [
@@ -103,6 +101,30 @@ export const CONCOURSE_REGION_KEYS = {
 } as const
 
 export const CONCOURSE_HELP_KEY = { keys: '?', label: 'keys' } as const
+
+export const MANAGER_PANE_KEYS = [
+  { keys: '↑↓', label: 'choose' },
+  { keys: '↵', label: 'enter' },
+  { keys: 'n', label: 'new' },
+  { keys: 'p', label: 'pause' },
+  { keys: 'x', label: 'stop' },
+  { keys: 'a', label: 'archive' },
+  { keys: 'pgup/pgdn', label: 'scroll' },
+] as const
+
+export function managerPaneKeysFor(opts: { newSession: boolean; paused?: boolean }): ReadonlyArray<{ keys: string; label: string }> {
+  return MANAGER_PANE_KEYS.filter(k => opts.newSession || k.keys !== 'n').map(k =>
+    k.keys === 'p' && opts.paused === true ? { keys: 'p', label: 'resume' } : k,
+  )
+}
+
+const MANAGER_PANE_TWINS = new Set(['↑↓', '↵↵', 'n', 'p', 'x', 'a', 'pgup/pgdn'])
+
+export function withoutManagerPaneKeys(
+  rows: ReadonlyArray<{ keys: string; label: string }>,
+): ReadonlyArray<{ keys: string; label: string }> {
+  return rows.filter(k => !MANAGER_PANE_TWINS.has(k.keys) && !(k.keys === '↵' && k.label === 'enter session'))
+}
 
 export function browseKeysFor(opts: {
   chatPresent: boolean
@@ -327,7 +349,6 @@ export function legendPriorityOf(keys: string, opts: { splitOn: boolean }): numb
 
 export const COORDINATOR_SURFACE_KEYS = [
   { keys: '↵', label: 'send' },
-  { keys: '⌃s', label: 'coordinator model' },
   { keys: '⇧↵/⌃j', label: 'newline' },
   { keys: 'pgup/pgdn', label: 'scroll' },
 ] as const

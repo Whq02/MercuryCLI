@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Text, paletteCollapsed, useTheme } from '../../ink.js';
 import { useBlink } from '../../hooks/useBlink.js';
 import { critterDefForKey } from '../../utils/cockpit/critterData.js';
-import { GLYPH, truncateToWidth } from '../mercury-ui/glyphs.js';
+import { GLYPH } from '../mercury-ui/glyphs.js';
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js';
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js';
 import { ReadyBreath } from '../mercury-ui/LiveGlyphs.js';
@@ -11,7 +11,6 @@ import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { useLayoutChrome } from '../../context/layoutChromeContext.js';
 import { composerBorderRole, composerBorderStyle } from '../mercury-ui/composerFloor.js';
 import { effectiveSeatCeiling } from '../../daemon/concourseWorkers.js';
-import { needsYouCount } from '../../utils/needsYouCount.js';
 import { controlNoteOf, type ConcourseSnapshotV1 } from './contracts.js';
 import { caretLens, draftLines, draftWindow, type LineDraft } from './lineDraft.js';
 
@@ -217,53 +216,26 @@ export function seatDemandOf(snapshot: ConcourseSnapshotV1): number {
   return snapshot.counts.live + queuedForSeat
 }
 
-export function seatsCellText(demanded: number, live: number, ceiling: number): { text: string; over: boolean; overWords: string | null } {
+export function seatsCellText(demanded: number, live: number, ceiling: number): { text: string; over: boolean } {
   const over = demanded > ceiling
-  return { text: over ? `${demanded}/${ceiling}·` : `${live}/${ceiling}`, over, overWords: over ? `${demanded - ceiling} over the ${ceiling}-seat reading` : null }
+  return { text: `${over ? demanded : live}/${ceiling}`, over }
 }
 
 export function ConcourseStatusRail({
   snapshot,
   width,
-  onOpenModel,
-  modelPickerOpen = false,
   onOpenGround,
   groundPickerOpen = false,
 }: {
   snapshot: ConcourseSnapshotV1
   width: number
-  onOpenModel?: () => void
-  modelPickerOpen?: boolean
   onOpenGround?: () => void
   groundPickerOpen?: boolean
 }): React.ReactNode {
   const t = useMercuryTokens();
   const mark = critterDefForKey('jellyfish').mark;
   const { isCompact } = useLayoutChrome();
-  const counts = snapshot.counts;
-  const seatsCell = seatsCellText(seatDemandOf(snapshot), counts.live, effectiveSeatCeiling());
-  const countsText = `${counts.live} live · ${needsYouCount(counts.needsYou)} · ${seatsCell.text} seats${seatsCell.overWords !== null ? ` · ${seatsCell.overWords}` : ''}`;
-  const handleText = ` · ${snapshot.context.operatorHandle}`;
-  const projectRoom = width >= 96 ? Math.max(12, snapshot.context.projectLabel.length + 5) : 0;
-  const chipRoom = width - 4 - (isCompact ? 0 : 8) - 2 - (countsText.length + 1) - projectRoom;
-  const handleShown = chipRoom - handleText.length >= 16;
-  const chipBudget = handleShown ? chipRoom - handleText.length : chipRoom;
-  const assistNotReady = snapshot.coordinator.assistModelAvailability !== undefined;
-  const coordinatorRun =
-    snapshot.coordinator.fallbackReason !== undefined
-      ? {
-          color: t.warning,
-          text: truncateToWidth(`coordinator · ${snapshot.coordinator.fallbackReason}`, Math.max(16, chipBudget)),
-        }
-      : snapshot.coordinator.mode === 'agent-assisted'
-        ? {
-            color: assistNotReady ? t.warning : t.infoText,
-            text: truncateToWidth(
-              `coordinator · ${snapshot.coordinator.assistModelLabel ?? 'pick a model'}`,
-              Math.max(16, chipBudget),
-            ),
-          }
-        : { color: t.textInstruction, text: 'coordinator off' };
+  const seatsCell = seatsCellText(seatDemandOf(snapshot), snapshot.counts.live, effectiveSeatCeiling());
   return (
     <Box
       flexShrink={0}
@@ -283,66 +255,27 @@ export function ConcourseStatusRail({
         </Box> : null}
         {}
         <InteractiveRow
-          id="concourse:rail:coordinator-model"
+          id="concourse:rail:project"
           directActivate
           hoverStyle="chrome-ink"
-          {...(onOpenModel ? { onActivate: onOpenModel } : {})}
-          flexShrink={0}
+          {...(onOpenGround ? { onActivate: onOpenGround } : {})}
+          flexShrink={1}
         >
           {hover => (
             <Text
-              color={modelPickerOpen ? t.textInverse : hover ? 'infoShimmer' : coordinatorRun.color}
-              bold={modelPickerOpen}
-              {...(modelPickerOpen ? { backgroundColor: t.accentSoft } : {})}
+              wrap="truncate-end"
+              color={groundPickerOpen ? t.textInverse : hover ? 'infoShimmer' : t.textSecondary}
+              bold={groundPickerOpen}
+              {...(groundPickerOpen ? { backgroundColor: t.accentSoft } : {})}
             >
-              {coordinatorRun.text} {GLYPH.chevronDown}
+              {snapshot.context.projectLabel} {GLYPH.chevronDown}
             </Text>
           )}
         </InteractiveRow>
-        {width >= 96 ? (
-          <Box flexShrink={1} overflow="hidden" flexDirection="row">
-            <Text color={t.textMuted}> {GLYPH.sep} </Text>
-            {}
-            <InteractiveRow
-              id="concourse:rail:project"
-              directActivate
-              hoverStyle="chrome-ink"
-              {...(onOpenGround ? { onActivate: onOpenGround } : {})}
-              flexShrink={1}
-            >
-              {hover => (
-                <Text
-                  wrap="truncate-end"
-                  color={groundPickerOpen ? t.textInverse : hover ? 'infoShimmer' : t.textSecondary}
-                  bold={groundPickerOpen}
-                  {...(groundPickerOpen ? { backgroundColor: t.accentSoft } : {})}
-                >
-                  {snapshot.context.projectLabel} {GLYPH.chevronDown}
-                </Text>
-              )}
-            </InteractiveRow>
-          </Box>
-        ) : null}
       </Box>
       <Box flexGrow={1} />
       <Box flexShrink={0} marginLeft={1}>
-        {}
-        <Text>
-          <Text color={counts.live > 0 ? t.success : t.textSecondary}>{counts.live} live</Text>
-          <Text color={t.textMuted}> · </Text>
-          <Text color={counts.needsYou > 0 ? t.warning : t.textInstruction}>{needsYouCount(counts.needsYou)}</Text>
-          <Text color={t.textMuted}> · </Text>
-          <Text color={seatsCell.over ? t.warning : t.textSecondary}>
-            {seatsCell.text} seats
-          </Text>
-          {seatsCell.overWords !== null ? <Text color={t.warning}> · {seatsCell.overWords}</Text> : null}
-          {handleShown ? (
-            <>
-              <Text color={t.textMuted}> · </Text>
-              <Text color={t.textSecondary}>{snapshot.context.operatorHandle}</Text>
-            </>
-          ) : null}
-        </Text>
+        <Text color={seatsCell.over ? t.warning : t.textSecondary}>{seatsCell.text} seats</Text>
       </Box>
     </Box>
   );

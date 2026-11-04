@@ -16,32 +16,19 @@ const check = (name: string, ok: boolean, detail?: string): void => {
   }
 }
 
-console.log('§1 ⌃s wide-twin latch (settings owner never arms without a home)')
+console.log('§1 the coordinator-model latch is gone with its key (no ⌃s branch, no settings layer, no picker mount)')
 {
   check(
-    'the ⌃s branch carries the reduced-stage guard',
-    screen.includes("if (key.ctrl && input === 's' && !reducedStage) {"),
+    'no ⌃s branch arms anything on the board',
+    !screen.includes("input === 's' && !reducedStage) {") && !screen.includes("if (key.ctrl && input === 's')"),
   )
   check(
-    'the pre-fix unguarded ⌃s branch is gone',
-    !screen.includes("if (key.ctrl && input === 's') {"),
-    'an unguarded ⌃s arms the owner from the plain live view',
+    'no settings layer state or mount remains (the picker left the front end)',
+    !screen.includes('setSettingsOpen') && !screen.includes('settingsOpen={') && !screen.includes('CoordinatorModelPicker'),
   )
   check(
-    'the arm door refuses on the reduced stage (close always allowed)',
-    screen.includes('setSettingsOpen(v => (v ? false : !reducedStage))'),
-  )
-  check(
-    'the sideways-strand disarm effect exists',
-    screen.includes('if (reducedStage && settingsOpen) setSettingsOpen(false)'),
-  )
-  check(
-    "the wide pane mount stands (settingsOpen && geo.profile === 'wide')",
-    screen.includes("settingsOpen={settingsOpen && geo.profile === 'wide'}"),
-  )
-  check(
-    "the sub-wide overlay mount stands (settingsOpen && geo.profile !== 'wide')",
-    screen.includes("{settingsOpen && geo.profile !== 'wide' ? ("),
+    'no ⌃a turn-on branch remains (only the boot switch turns the coordinator on)',
+    !screen.includes("key.ctrl && input === 'a'") && !screen.includes('switchCoordinatorMode'),
   )
 }
 
@@ -78,9 +65,9 @@ console.log('§2 applied-filter esc layer (the zero-match hint is true)')
 console.log('§3 the ? atlas reads the resolver, stage- and width-honest')
 {
   const atlasBody = screen.slice(screen.indexOf('function ConcourseKeyAtlas'))
-  check('the SESSIONS section exists (the region that owns the board verbs)', atlasBody.includes("{ title: 'SESSIONS (list)', keys: regionKeysFor('list', stage) }"))
+  check('the SESSIONS section exists (the region that owns the board verbs: the pane legend first, then the rest)', atlasBody.includes("{ title: 'SESSIONS (list)', keys: [...managerPaneKeysFor(stage), ...withoutManagerPaneKeys(regionKeysFor('list', stage))] }"))
   check('no atlas section reads a raw region table any more', !atlasBody.includes('CONCOURSE_REGION_KEYS.'))
-  check('the COORDINATOR section is stage-gated (the plain world is not taught ⌃s)', atlasBody.includes("...(reducedStage ? [] : [{ title: 'COORDINATOR (its composer)'"))
+  check('the COORDINATOR section is stage- and switch-gated (taught only while the coordinator is on)', atlasBody.includes("...(reducedStage || !coordinatorOn ? [] : [{ title: 'COORDINATOR (its composer)'"))
   check('the SPLIT section rides the split’s own width gate (one gate, one truth)', atlasBody.includes('!reducedStage && splitAvailableAt(cols, rows)'))
   check('the atlas takes the live split fact (splitOn rides splitActive)', screen.includes('splitOn={splitActive}') && atlasBody.includes('splitOn = false'))
   check("split OFF teaches the toggle only ('s split view' — no divider, no way-back)", atlasBody.includes("{ title: 'SPLIT VIEW (s toggles)', keys: [{ keys: 's', label: 'split view' }] }"))
@@ -95,7 +82,7 @@ console.log('§3 the ? atlas reads the resolver, stage- and width-honest')
   )
   const fullList = regionKeysFor('list', { newSession: true })
   check('the full-stage list keeps the whole grammar incl. marks and split', ['↵↵', 'n', 'r', '→', '/', '⌃x ⌃x', 'm', 'space', 's'].every(keys => fullList.some(k => k.keys === keys)))
-  check('the coordinator section still teaches ⌃s where it fires', regionKeysFor('coordinator', { newSession: true }).some(k => k.keys === '⌃s'))
+  check('the coordinator section teaches no ⌃s (the coordinator-model key is gone)', !regionKeysFor('coordinator', { newSession: true }).some(k => k.keys === '⌃s'))
 }
 
 console.log('§3b the atlas reads the frame and clamps to it')

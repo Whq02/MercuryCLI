@@ -109,11 +109,11 @@ console.log('§3 the concourse remains functional below the former floor')
   for (const directory of ['src/components', 'src/screens', 'src/ink']) inspect(directory)
   check('every application host is free of terminal-size refusal text', hits.length === 0, hits.join(', '))
   check('the refusal census detects both long and short refusal forms', ['terminal too small', 'too small for', 'resize to continue', 'needs 80 columns', 'needs 80×22 · resize'].every(text => refusal.test(text)))
-  const { resolveConcourseProfile, switchboardGeometry } = await import('../../src/components/concourse/ConcourseLayout.tsx')
-  for (const [cols, rows] of [[1, 1], [2, 2], [40, 10], [60, 16], [79, 22], [80, 21], [80, 24], [120, 24]]) {
-    check(`${cols}x${rows}: a real layout, never a refusal profile`, resolveConcourseProfile(cols!, rows!) === (cols! >= 120 && rows! >= 24 ? 'wide' : 'stacked'))
+  const { COORDINATOR_REST_ROWS, CONCOURSE_TWO_PANE_MIN_COLS, resolveConcourseProfile, switchboardGeometry } = await import('../../src/components/concourse/ConcourseLayout.tsx')
+  for (const [cols, rows] of [[1, 1], [2, 2], [40, 10], [60, 16], [79, 22], [80, 21], [80, 24], [100, 24], [120, 24]]) {
+    check(`${cols}x${rows}: a real layout, never a refusal profile`, resolveConcourseProfile(cols!, rows!) === (cols! >= CONCOURSE_TWO_PANE_MIN_COLS ? 'wide' : 'stacked'))
     for (const region of ['coordinator', 'list', 'live', 'rail'] as const) {
-      const g = switchboardGeometry(cols!, rows!, 2, 4, 2, 1, region === 'coordinator' ? 'coordinator' : 'mirror', 0, region)
+      const g = switchboardGeometry(cols!, rows!, 2, 4, 2, 1, region === 'coordinator' ? 'coordinator' : 'mirror', 0, region, region === 'coordinator' ? COORDINATOR_REST_ROWS : 0)
       check(`${cols}x${rows} ${region}: nonnegative dimensions`, g.interior >= 0 && g.mainRows >= 0 && g.listContentRows >= 0 && g.liveComposerRows >= 0)
       if (g.constrained) {
         const band = region === 'coordinator' ? g.coordBand : region === 'list' ? g.listBand : region === 'live' ? g.liveComposerBand : [1, g.railRows]

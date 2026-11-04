@@ -1858,6 +1858,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
       const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
       cfg['switchboardCapacity'] = { askedAt: 1754000000000, allowed: true, recommendedSeats: 5 }
       cfg['concourseCoordinator'] = { mode: 'agent-assisted', assistModel: 'claude-opus-5' }
+      cfg['coordinatorEnabled'] = true
       writeFileSync(cfgPath, JSON.stringify(cfg))
     }
     const fixture = referenceFixtureSnapshot()
@@ -1980,6 +1981,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
       cfg['switchboardCapacity'] = { askedAt: 1754000000000, allowed: true, recommendedSeats: 5 }
       if (name === 'concourse-picker-operator-pick') {
         cfg['concourseCoordinator'] = { mode: 'agent-assisted', assistModel: 'claude-opus-5' }
+        cfg['coordinatorEnabled'] = true
       }
       writeFileSync(cfgPath, JSON.stringify(cfg))
     }
@@ -2072,6 +2074,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
       const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
       cfg['switchboardCapacity'] = { askedAt: 1754000000000, allowed: true, recommendedSeats: 5 }
       cfg['concourseCoordinator'] = { mode: 'agent-assisted', assistModel: 'gpt-5.6-sol' }
+      cfg['coordinatorEnabled'] = true
       writeFileSync(cfgPath, JSON.stringify(cfg))
     }
     const fixture = referenceFixtureSnapshot()

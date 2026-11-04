@@ -500,11 +500,24 @@ session, wherever it lives, marked with `✦ "from <its project>"` beside its
 title (among the live rows when running, or at the top of PARKED when stopped),
 and pressing `Enter` opens it; focusing a session of the current
 project returns the carried row to its own project board. Two things on the board
-are machine-wide: the rail's counts (`"N live"`, the seats
-fraction) count every running session on the machine, and the NEEDS YOU
-rail lists every open question across all projects so no question goes unseen;
-pressing `Enter` on a NEEDS YOU row switches the view to its project and opens the
-chat.
+are machine-wide: the status row's seats fraction counts every running
+session on the machine, and the NEEDS YOU block lists every open question
+across all projects so no question goes unseen; pressing `Enter` on a NEEDS
+YOU row switches the view to its project and opens the chat.
+
+The board is two panes. On the left is the live view of the chosen session:
+its header line (`"<title> · <project> · <model> · <effort>"` with `"↵ enter
+session"` at its right), its running transcript, and its own message box at
+the foot, where a message waits for the session's next turn. On the right is
+the session list: the grouped rows under `STATUS & TITLE`, `PROJECT` and
+`LAST USED` (the time since the session last did anything), a `⋮` row when
+more rows lie beyond the window, the NEEDS YOU block below the list, and the
+row keys in the pane's own legend: `↑↓ choose · ↵ enter · n new · p pause · x
+stop · a archive · pgup/pgdn scroll`. The list has focus when the board
+opens, and choosing another row switches the live view; `tab` moves to the
+live view's message box and back. Under 100 columns the two panes stack, the
+live view on top. The status row below the panes names the project and the
+seats in use against the ceiling, the number turning amber over it.
 
 Pressing `Enter` on a live row switches to that session's chat (with its own
 model, permission prompts, and counters) while every
@@ -546,15 +559,17 @@ question).
 Setting `records.retentionDays` to `0` turns transcript writing off for
 new chats; the transcripts already on disk stay.
 
-Every live row is a tile: the NOW cell streams what the session is doing
-right now (the reply's last line, or the tool it is running), and `→`
-opens a preview of the selected row in place. When a runner crashes, its row
+Every live row is a tile: the NOW cell (painted when the session list is wide
+enough for it) streams what the session is doing right now (the reply's last
+line, or the tool it is running), and `→` opens a preview of the selected row
+in place. When a runner crashes, its row
 shows NEEDS YOU with the exit code and the last error or stderr line;
 the row stays across reconciles until you act on the session or release the row.
 The daemon's log records the same line for every crash. `ctrl+x ctrl+x` stops the selected
 session (the row stays, marked stopped with the next step), the chord
-again parks it, and a third chord removes the board row; typing is never a control,
-so a plain `x` lands in the composer like any other letter. The board's REPO picker
+again parks it, and a third chord removes the board row. In the session list
+`x` stops the selected session and `a` archives it; in a message box typing is
+never a control, so a plain `x` lands in the composer like any other letter. The board's REPO picker
 changes the folder new sessions launch in, and the board updates to render
 the same list of projects as the home screen's Sessions · Projects view.
 `/daemon halt` interrupts immediately while a
@@ -831,7 +846,7 @@ with both flags on one command line the later one wins. A coordinator mode,
 model or effort saved by an earlier version does not turn it on: only the
 switch does, and those settings apply once it is on.
 
-With it off, nothing coordinator-shaped runs: the board's composer starts
+With it off, nothing coordinator-shaped runs: `n` on the board starts
 sessions directly, no coordinator turn, conversation, receipt or model choice
 happens, a refused launch or a settled session starts no coordinator work in
 the daemon, the `/config` row "Concourse coordinator" reads off and names the

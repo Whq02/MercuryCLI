@@ -117,15 +117,15 @@ console.log('— CRW-16 the CREW lane keeps the letters that tell helpers apart 
   check('no verb: the name takes the row', railRowBudgets(24, 30, 0, 3).name === 24)
 }
 
-console.log('— CRW-17 the seats cell says what its over mark means —')
+console.log('— CRW-17 the seats cell is the in-use/ceiling number alone; over the ceiling it turns the warning ink, no words —')
 {
   const strips = await import('../../src/components/concourse/ConcourseStrips.tsx')
   const over = strips.seatsCellText(5, 5, 2)
-  check('the ruled cell stands (5/2· while over) and the words beside it say how far over the reading', over.text === '5/2·' && over.over && over.overWords === '3 over the 2-seat reading', JSON.stringify(over))
+  check('over the ceiling the cell reads demand/ceiling and is marked over', over.text === '5/2' && over.over && !('overWords' in over), JSON.stringify(over))
   const fits = strips.seatsCellText(2, 2, 5)
-  check('within the reading the cell is plain and carries no words', fits.text === '2/5' && !fits.over && fits.overWords === null)
+  check('within the ceiling the cell is the plain in-use/ceiling number', fits.text === '2/5' && !fits.over)
   const rail = src('src/components/concourse/ConcourseStrips.tsx')
-  check('the rail paints the words beside the cell in the same warning ink and budgets them', rail.includes('{seatsCell.overWords !== null ? <Text color={t.warning}> · {seatsCell.overWords}</Text> : null}') && rail.includes("${seatsCell.text} seats${seatsCell.overWords !== null ? ` · ${seatsCell.overWords}` : ''}"))
+  check('the rail paints the number alone, the warning ink carrying the over state', rail.includes('<Text color={seatsCell.over ? t.warning : t.textSecondary}>{seatsCell.text} seats</Text>') && !rail.includes('over the'))
 }
 
 console.log(failures === 0 ? '\nprove-helper-rows-words: ALL LAWS HOLD' : `\nprove-helper-rows-words: ${failures} FAILURE(S)`)

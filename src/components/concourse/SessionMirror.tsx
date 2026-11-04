@@ -97,6 +97,7 @@ export function SessionMirror({
   sessionId,
   workspaceId,
   title,
+  titleFacts = [],
   accent,
   paneRows,
   paneWidth,
@@ -110,12 +111,14 @@ export function SessionMirror({
   liveTailLine,
   idScope = 'mirror',
   wheelBand,
+  wheelRows,
 }: {
   sessionId: string
   workspaceId: string
   state?: string
   nowLabel?: string | null
   title: string
+  titleFacts?: readonly string[]
   accent?: string
   paneRows: number
   paneWidth: number
@@ -126,6 +129,7 @@ export function SessionMirror({
   bare?: boolean
   idScope?: string
   wheelBand?: [number, number]
+  wheelRows?: [number, number]
   liveTailLine?: string | null
 }): React.ReactNode {
   const t = useMercuryTokens()
@@ -202,8 +206,11 @@ export function SessionMirror({
       const pagerTop = topOverlay()
       if (pagerTop?.ownsPageKeys === true && !pagerTop.id.startsWith('surface:')) return
       if (key.wheelUp || key.wheelDown) {
-        const kp = event.keypress as { x?: number }
+        const kp = event.keypress as { x?: number; y?: number }
         if (wheelBand !== undefined && kp.x !== undefined && (kp.x < wheelBand[0] || kp.x > wheelBand[1])) {
+          return
+        }
+        if (wheelRows !== undefined && kp.y !== undefined && (kp.y < wheelRows[0] || kp.y > wheelRows[1])) {
           return
         }
         event.stopImmediatePropagation()
@@ -259,6 +266,9 @@ export function SessionMirror({
         : 0
   const clusterReserve = Math.min(clusterDesired, Math.max(10, Math.floor(paneWidth / 2)))
   const titleBudget = Math.max(8, paneWidth - clusterReserve - 2)
+  const factsText = titleFacts.length > 0 ? ` · ${titleFacts.join(' · ')}` : ''
+  const titleShown = truncateToWidth(title, titleBudget)
+  const factsShown = factsText.length > 0 ? truncateToWidth(factsText, Math.max(0, titleBudget - stringWidth(titleShown))) : ''
   const paneSize = useMemo(() => ({ columns: paneWidth, rows: paneRows }), [paneWidth, paneRows])
   return (
     <TerminalSizeContext.Provider value={paneSize}>
@@ -274,8 +284,9 @@ export function SessionMirror({
         >
           {hover => (
             <Box flexDirection="row" width="100%" overflow="hidden">
-              <Text color={identityInk} wrap="truncate-end">
-                {truncateToWidth(title, titleBudget)}
+              <Text wrap="truncate-end">
+                <Text color={identityInk}>{titleShown}</Text>
+                {factsShown.length > 0 ? <Text color={t.textSecondary}>{factsShown}</Text> : null}
               </Text>
               <Box flexGrow={1} />
               {noteView !== undefined && noteText !== null ? (

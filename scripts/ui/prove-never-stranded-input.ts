@@ -18,8 +18,8 @@ console.log('§1 CB-04 — the zero-row drop-down arm refused at the door; shrin
   const { switchboardGeometry, resolveConcourseProfile } = await import(
     '../../src/components/concourse/ConcourseLayout.tsx'
   )
-  const grant0 = switchboardGeometry(120, 24, 3, 6, 2, 0, 'mirror', 8).peekRows
-  check('the hazard exists: the wide minimum with a full ask rail grants the 8-row ask 0 rows', grant0 === 0, `granted ${grant0}`)
+  const grant0 = switchboardGeometry(80, 22, 3, 6, 2, 0, 'mirror', 8).peekRows
+  check('the hazard exists: the stacked minimum with a full ask block grants the 8-row ask 0 rows', grant0 === 0, `granted ${grant0}`)
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   check(
     'the arm probes the WOULD-BE geometry with the would-be ask before arming',

@@ -6,21 +6,25 @@ import { composerBorderStyle } from '../mercury-ui/composerFloor.js'
 import { PARKING_NOW_LEAD, PARK_REFUSED_NOW_LEAD } from '../../services/concourse/concourseSnapshot.js'
 
 export const COMPACT_SPLIT_MIN_COLS = 60
-export const COMPACT_LIST_FRAME_COLS = 28
-export const COMPACT_FRAME_GAP_COLS = 1
+export const COMPACT_STACK_MIN_ROWS = 16
+export const COMPACT_LIST_SHARE_PCT = 45
+export const COMPACT_LIST_FRAME_MIN_ROWS = 5
 export const COMPACT_FRAME_MIN_ROWS = 3
 export const COMPACT_MIRROR_KEEP_ROWS = 3
 
 export type CompactConcourseProfile = 'split' | 'single'
 
-export function compactConcourseProfileOf(cols: number): CompactConcourseProfile {
-  return cols >= COMPACT_SPLIT_MIN_COLS ? 'split' : 'single'
+export function compactConcourseProfileOf(cols: number, rows = Number.POSITIVE_INFINITY): CompactConcourseProfile {
+  return cols >= COMPACT_SPLIT_MIN_COLS && rows >= COMPACT_STACK_MIN_ROWS ? 'split' : 'single'
 }
 
 export interface CompactFrameSpan {
   x0: number
   x1: number
   inner: number
+  y0: number
+  y1: number
+  innerRows: number
 }
 
 export interface CompactConcourseGeometry {
@@ -40,8 +44,9 @@ export interface CompactConcourseGeometry {
   mirrorRows: number
 }
 
-function spanOf(x0: number, x1: number): CompactFrameSpan {
-  return { x0, x1, inner: Math.max(0, x1 - x0 + 1 - 2) }
+function spanOf(x0: number, x1: number, y0: number, y1: number, framed: boolean): CompactFrameSpan {
+  const height = Math.max(0, y1 - y0 + 1)
+  return { x0, x1, inner: Math.max(0, x1 - x0 + 1 - 2), y0, y1, innerRows: framed ? Math.max(0, height - 2) : height }
 }
 
 export function compactConcourseGeometry(
@@ -49,20 +54,25 @@ export function compactConcourseGeometry(
   rows: number,
   facts: { sessionCount: number; newSessionDoor: boolean; composerBand: number },
 ): CompactConcourseGeometry {
-  const profile = compactConcourseProfileOf(cols)
   const width = Math.max(0, Math.floor(cols))
   const height = Math.max(0, Math.floor(rows))
+  const profile = compactConcourseProfileOf(width, height)
   const framed = height >= COMPACT_FRAME_MIN_ROWS && width >= COMPACT_FRAME_MIN_ROWS
   const inner = framed ? height - 2 : height
-  const list = profile === 'split' ? spanOf(0, COMPACT_LIST_FRAME_COLS - 1) : spanOf(0, width - 1)
-  const live = profile === 'split' ? spanOf(COMPACT_LIST_FRAME_COLS + COMPACT_FRAME_GAP_COLS, width - 1) : spanOf(0, width - 1)
-  const listFootRows: 0 | 1 = framed && inner >= 2 ? 1 : 0
-  const listBudget = inner - listFootRows
+  const listWant = 2 + Math.max(1, facts.sessionCount) + (facts.newSessionDoor ? 2 : 0) + 1
+  const listFrameRows =
+    profile === 'split'
+      ? Math.max(COMPACT_LIST_FRAME_MIN_ROWS, Math.min(listWant, Math.floor((height * COMPACT_LIST_SHARE_PCT) / 100)))
+      : height
+  const live = profile === 'split' ? spanOf(0, width - 1, 0, height - listFrameRows - 1, framed) : spanOf(0, width - 1, 0, height - 1, framed)
+  const list = profile === 'split' ? spanOf(0, width - 1, height - listFrameRows, height - 1, framed) : spanOf(0, width - 1, 0, height - 1, framed)
+  const listFootRows: 0 | 1 = framed && list.innerRows >= 2 ? 1 : 0
+  const listBudget = list.innerRows - listFootRows
   const spare = listBudget - Math.max(1, facts.sessionCount)
   const newSessionRows: 0 | 1 | 2 = !facts.newSessionDoor ? 0 : spare >= 2 ? 2 : spare >= 1 ? 1 : 0
   const listWindowRows = Math.max(0, listBudget - newSessionRows)
-  const liveFootRows: 0 | 1 = framed && inner >= 2 ? 1 : 0
-  const available = inner - liveFootRows
+  const liveFootRows: 0 | 1 = framed && live.innerRows >= 2 ? 1 : 0
+  const available = live.innerRows - liveFootRows
   const borderRows = composerBorderStyle(height) !== undefined ? 2 : 0
   let composerRows = 0
   let composerBand = 0

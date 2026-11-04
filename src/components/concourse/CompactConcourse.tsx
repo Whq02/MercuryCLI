@@ -358,18 +358,17 @@ export function CompactConcourse({
   }
 
   return (
-    <Box flexDirection="row" width={cols} height={rows} overflow="hidden">
-      <Frame span={geo.list} rows={rows} inner={geo.inner} title={compactListTitle(sessionRows.length, filterText)} focused={region === 'list'} onFocus={wiring.focusList} id="concourse:compact:list-title">
-        {listRows(false)}
-        {geo.listFootRows > 0 ? (
-          <FootRow text={compactListFoot({ filtering, reduced })} note={null} filtering={filtering} filterText={filterText} filterCaret={filterCaret} />
-        ) : null}
-      </Frame>
-      <Box width={1} flexShrink={0} />
-      <Frame span={geo.live} rows={rows} inner={geo.inner} title={liveTitle} focused={region === 'live'} onFocus={wiring.focusLive} id="concourse:compact:live-title">
+    <Box flexDirection="column" width={cols} height={rows} overflow="hidden">
+      <Frame span={geo.live} rows={geo.live.y1 - geo.live.y0 + 1} inner={geo.live.innerRows} title={liveTitle} focused={region === 'live'} onFocus={wiring.focusLive} id="concourse:compact:live-title">
         {liveBody()}
         {geo.liveFootRows > 0 ? (
           <FootRow text={compactLiveFoot({ verbsFire })} note={note} filtering={false} filterText="" filterCaret={0} />
+        ) : null}
+      </Frame>
+      <Frame span={geo.list} rows={geo.list.y1 - geo.list.y0 + 1} inner={geo.list.innerRows} title={compactListTitle(sessionRows.length, filterText)} focused={region === 'list'} onFocus={wiring.focusList} id="concourse:compact:list-title">
+        {listRows(true)}
+        {geo.listFootRows > 0 ? (
+          <FootRow text={compactListFoot({ filtering, reduced })} note={null} filtering={filtering} filterText={filterText} filterCaret={filterCaret} />
         ) : null}
       </Frame>
     </Box>

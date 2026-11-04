@@ -304,10 +304,11 @@ and your custom definitions are the choices for a fresh launch.
 
 ## The concourse
 
-The Session Concourse (the board of the project you are in with its running
-sessions and its parked chats, switching into a row, the live tiles, NEEDS
-YOU, the navigation strip that walks only the screens that exist, and
-how chats are started, focused, closed and resumed) is covered in
+The Session Concourse (the board of the project you are in: the chosen
+session's live view beside the session list with its running sessions, its
+parked chats and NEEDS YOU, switching into a row, the live tiles, the
+navigation strip that walks only the screens that exist, and how chats are
+started, focused, closed and resumed) is covered in
 [SESSIONS.md](SESSIONS.md). This section describes the coordinator behind
 the board.
 
@@ -322,6 +323,9 @@ says so itself on the board: trust receipts, never assumed success.
 The coordinator is off by default. `mercury --coordinator-on` turns it on
 for this and every later launch (`--coordinator-off` turns it off again; a
 coordinator mode or model saved by an earlier version does not turn it on).
-While it is off, the board's composer starts sessions directly and nothing
-coordinator-shaped runs; the `/config` row "Concourse coordinator" and
-`/health`'s constitution row say so; [SESSIONS.md](SESSIONS.md) has the switch.
+While it is off, the board shows no coordinator pane, chip or key: the
+`n` on the board starts sessions directly and nothing coordinator-shaped
+runs; the `/config` row "Concourse coordinator" and `/health`'s constitution
+row say so; [SESSIONS.md](SESSIONS.md) has the switch. When it is on, it is
+the board's third pane, under the session list, and `tab` reaches it after
+the list.

@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
-import { switchboardGeometry, resolveConcourseProfile } from '../../src/components/concourse/ConcourseLayout.js'
+import { COORDINATOR_REST_ROWS, MANAGER_MIN_COLS, REDUCED_NOTICE_ROWS, switchboardGeometry, resolveConcourseProfile } from '../../src/components/concourse/ConcourseLayout.js'
+import { RAIL_MAX_ROWS } from '../../src/components/concourse/NeedsYouRail.js'
 import { draftWindow } from '../../src/components/concourse/lineDraft.js'
 
 let failures = 0
@@ -19,9 +20,10 @@ for (const cols of [80, 100, 119, 120, 140, 200, 250]) {
         for (const groups of [1, 3, 4]) {
           for (const liveAsk of [0, 1, 2, 3]) {
             for (const tallOwner of ['mirror', 'coordinator'] as const) {
+              for (const third of [0, COORDINATOR_REST_ROWS, REDUCED_NOTICE_ROWS]) {
               checks += 1
-              const id = `${cols}x${rows} ny=${needsYou} s=${sessions} g=${groups} live=${liveAsk} tall=${tallOwner}`
-              const geo = switchboardGeometry(cols, rows, needsYou, sessions, groups, liveAsk, tallOwner)
+              const id = `${cols}x${rows} ny=${needsYou} s=${sessions} g=${groups} live=${liveAsk} tall=${tallOwner} third=${third}`
+              const geo = switchboardGeometry(cols, rows, needsYou, sessions, groups, liveAsk, tallOwner, 0, 'list', third)
               const listRows = geo.listBand[1] - geo.listBand[0] + 1
               const mirrorRows = geo.mirrorBand[1] - geo.mirrorBand[0] + 1
               const coordRows = geo.coordBand[1] - geo.coordBand[0] + 1
@@ -29,57 +31,58 @@ for (const cols of [80, 100, 119, 120, 140, 200, 250]) {
               const mainTop = geo.mainBand[0]
               const mainEnd = geo.mainBand[1]
 
-              if (mainTop !== geo.railRows + 1)
-                fail(id, `mainTop ${mainTop} ≠ rail ${geo.railRows} + 1`)
+              if (mainTop !== 1) fail(id, `mainTop ${mainTop} ≠ 1 (nothing paints above the panes)`)
               if (mainEnd !== mainTop + geo.mainRows - 1) fail(id, `mainBand end ${mainEnd} vs mainRows ${geo.mainRows}`)
               if (geo.statusTop !== mainTop + geo.mainRows) fail(id, `statusTop ${geo.statusTop} ≠ main end + 1`)
               if (geo.helpTop !== geo.statusTop + 3) fail(id, `helpTop ${geo.helpTop} ≠ statusTop+3`)
-              const total = geo.railRows + geo.mainRows + 3 + 1
-              if (total < rows) fail(id, `total ${total} < rows ${rows} (underfull column)`)
-              if (geo.mainRows === rows - (geo.railRows + 4) && total !== rows)
-                fail(id, `unclamped total ${total} ≠ rows ${rows}`)
+              if (geo.mainRows + 3 + 1 !== rows) fail(id, `main ${geo.mainRows} + status 3 + legend 1 ≠ rows ${rows}`)
 
-              if (needsYou === 0 && geo.railRows !== 0) fail(id, `zero obligations budget ${geo.railRows} rail rows`)
-              if (needsYou > 0 && geo.railRows !== 3 + geo.railRuleRows + geo.railWindowRows)
-                fail(id, `railRows ${geo.railRows} ≠ 3+rule+window`)
+              if (needsYou === 0 && geo.railWindowRows !== 0) fail(id, `zero obligations budget ${geo.railWindowRows} ask rows`)
+              if (needsYou > 0 && (geo.railWindowRows < 1 || geo.railWindowRows > Math.min(needsYou, RAIL_MAX_ROWS)))
+                fail(id, `ask window ${geo.railWindowRows} outside 1..min(asks, ${RAIL_MAX_ROWS})`)
+              if (geo.railRows !== 1 + geo.railWindowRows) fail(id, `the NEEDS YOU block ${geo.railRows} ≠ its heading + ${geo.railWindowRows} asks`)
 
               if (liveAsk === 0 && composerRows !== 0) fail(id, `a zero ask budgeted ${composerRows} composer rows`)
               if (composerRows !== 0 && (composerRows < 4 || composerRows > 6))
                 fail(id, `composer band ${composerRows} outside 4..6`)
-              if (geo.profile !== 'wide' && composerRows !== 0 && composerRows !== 4)
-                fail(id, `stacked composer band ${composerRows} ≠ 4`)
-              if (geo.profile !== 'wide' && tallOwner === 'coordinator' && composerRows !== 0)
-                fail(id, `coordinator-owned tall band budgeted a live composer (${composerRows})`)
               if (composerRows > 0) {
                 const band = geo.liveComposerBand
                 if (band[1] - band[0] + 1 !== composerRows) fail(id, `composer band span ≠ liveComposerRows`)
-                if (band[0] < mainTop || band[1] > mainEnd) fail(id, `composer band outside main`)
+                if (band[0] <= geo.mirrorBand[0] || band[1] !== geo.mirrorBand[1] - 1) fail(id, `the message box is not the foot of the live pane (${band.join('..')} in ${geo.mirrorBand.join('..')})`)
               }
+              if (mirrorRows - 2 - composerRows < 2) fail(id, `live transcript crushed (${mirrorRows - 2 - composerRows} rows)`)
 
-              if (listRows < 1) fail(id, `list band inverted (${geo.listBand[0]}..${geo.listBand[1]})`)
+              if (listRows < 8) fail(id, `manager husk (${listRows} rows)`)
+              if (geo.listContentRows < 1) fail(id, `no list row (${geo.listContentRows})`)
+              if (geo.listContentRows + geo.peekRows + 6 + geo.railWindowRows > listRows)
+                fail(id, `the manager overflows: list ${geo.listContentRows} + peek ${geo.peekRows} + chrome 6 + asks ${geo.railWindowRows} > ${listRows}`)
+              if (third === 0 && coordRows !== 0) fail(id, `no third pane, yet ${coordRows} coordinator rows`)
+              if (third > 0 && tallOwner === 'mirror' && coordRows !== third) fail(id, `the resting third pane is ${coordRows}, not ${third}`)
+              if (third > 0 && tallOwner === 'coordinator' && coordRows < third) fail(id, `the focused third pane shrank to ${coordRows}`)
               if (geo.profile === 'wide') {
-                if (listRows + mirrorRows + composerRows !== geo.mainRows)
-                  fail(id, `wide tiling list ${listRows} + mirror ${mirrorRows} + composer ${composerRows} ≠ main ${geo.mainRows}`)
-                if (coordRows !== geo.mainRows) fail(id, `wide coord ${coordRows} ≠ main ${geo.mainRows}`)
-                if (listRows < 5) fail(id, `wide list husk (${listRows} rows)`)
-                if (mirrorRows < 1) fail(id, `wide mirror crushed (${mirrorRows} rows)`)
-                if (composerRows > 0 && geo.liveComposerBand[1] !== mainEnd)
-                  fail(id, `wide composer band does not end the column`)
+                if (cols < 100) fail(id, 'two panes under 100 columns')
+                if (geo.mirrorBand[0] !== mainTop || geo.mirrorBand[1] !== mainEnd) fail(id, `the live view is not the full column (${geo.mirrorBand.join('..')})`)
+                if (geo.listBand[0] !== mainTop || listRows + coordRows !== geo.mainRows)
+                  fail(id, `right column tiling list ${listRows} + coordinator ${coordRows} ≠ main ${geo.mainRows}`)
+                if (coordRows > 0 && geo.coordBand[0] !== geo.listBand[1] + 1) fail(id, 'the third pane is not under the manager')
+                if (geo.liveCols[0] !== 3 || geo.rightCols[0] !== geo.liveCols[1] + 2 || geo.rightCols[1] !== 2 + geo.interior)
+                  fail(id, `columns ${geo.liveCols.join('..')} | ${geo.rightCols.join('..')} do not tile the interior ${geo.interior}`)
+                if (geo.rightCols[1] - geo.rightCols[0] + 1 < MANAGER_MIN_COLS) fail(id, 'the manager under its floor width')
+                if (geo.liveCols[1] - geo.liveCols[0] + 1 <= geo.rightCols[1] - geo.rightCols[0] + 1) fail(id, 'the live view is not the wider pane')
               } else {
-                const tallRows = tallOwner === 'mirror' ? mirrorRows : coordRows
-                const tailRows = tallOwner === 'mirror' ? coordRows : mirrorRows
-                if (tallRows < 1) fail(id, `tall band empty/inverted (${tallRows})`)
-                if (tailRows < 0) fail(id, `tail band negative (${tailRows})`)
-                if (listRows + tallRows + Math.max(0, tailRows) + composerRows !== geo.mainRows)
-                  fail(
-                    id,
-                    `stacked tiling list ${listRows} + tall ${tallRows} + tail ${Math.max(0, tailRows)} + composer ${composerRows} ≠ main ${geo.mainRows}`,
-                  )
+                if (cols >= 100) fail(id, 'stacked at 100 columns or more')
+                if (geo.mirrorBand[0] !== mainTop || geo.listBand[0] !== geo.mirrorBand[1] + 1)
+                  fail(id, `stacked order live ${geo.mirrorBand.join('..')} then manager ${geo.listBand.join('..')}`)
+                if (mirrorRows + listRows + coordRows !== geo.mainRows)
+                  fail(id, `stacked tiling live ${mirrorRows} + manager ${listRows} + coordinator ${coordRows} ≠ main ${geo.mainRows}`)
+                if (coordRows > 0 && geo.coordBand[0] !== geo.listBand[1] + 1) fail(id, 'the third pane is not under the manager')
+                if (mirrorRows < 6) fail(id, `stacked live view under its floor (${mirrorRows})`)
               }
               if (failures > 25) {
                 console.log(`  … stopping after 25 failures (${checks} cases so far)`)
                 console.log('FAIL prove-switchboard-geometry')
                 process.exit(1)
+              }
               }
             }
           }
@@ -133,10 +136,13 @@ for (let lines = 1; lines <= 8; lines += 1) {
     }
   }
   checks += 1
+  const atStackedMin = switchboardGeometry(80, 22, 3, 6, 2, 0, 'mirror', 8)
+  if (atStackedMin.peekRows !== 0)
+    fail('the 0-grant hazard at the stacked minimum', `expected 0 at 80x22 with a full ask block (the screen-guard rationale), got ${atStackedMin.peekRows} — re-read the A2 screen guard before relaxing this`)
+  checks += 1
   const atWideMin = switchboardGeometry(120, 24, 3, 6, 2, 0, 'mirror', 8)
-  if (atWideMin.peekRows !== 0)
-    fail('the 0-grant hazard at the wide minimum', `expected 0 at 120x24 with a full ask rail (the screen-guard rationale), got ${atWideMin.peekRows} — re-read the A2 screen guard before relaxing this`)
-}
+  if (atWideMin.peekRows < 2)
+    fail('the full-height manager grants the older-chats drop-down at the wide minimum', `got ${atWideMin.peekRows} at 120x24 with a full ask block`)}
 
 if (failures === 0) {
   console.log(`  ✅ switchboard geometry laws hold (${checks} cases, cols ${cases.join('/')})`)

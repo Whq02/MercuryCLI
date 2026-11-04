@@ -189,7 +189,8 @@ console.log('leg B — the concourse with a draft (the first press clears it AND
   const { home, fixturePath } = freshHome('draft')
   const DRAFT = 'zq-draft-zq'
   const c = capture('B-draft', ['node', BIN], [
-    { data: DRAFT, requireAwait: true, awaitText: 'COORDINATOR', awaitSettleTicks: 4 },
+    { data: '\t', requireAwait: true, awaitText: 'LAST USED', awaitSettleTicks: 4 },
+    { data: DRAFT, afterPrevTicks: 3 },
     { data: CTRL_C, requireAwait: true, awaitText: DRAFT, awaitSettleTicks: 2 },
     ...armThenExit,
   ], { cols: 120, rows: 40, total: 150, env: envFor(home, fixturePath) })
@@ -203,13 +204,13 @@ console.log('leg C — the concourse under a card (the key atlas owns every key;
 {
   const { home, fixturePath } = freshHome('card')
   const c = capture('C-card', ['node', BIN], [
-    { data: '?', requireAwait: true, awaitText: 'COORDINATOR', awaitSettleTicks: 4 },
-    { data: CTRL_C, requireAwait: true, awaitText: 'COORDINATOR (its composer)', awaitSettleTicks: 2 },
+    { data: '?', requireAwait: true, awaitText: 'LAST USED', awaitSettleTicks: 4 },
+    { data: CTRL_C, requireAwait: true, awaitText: 'CONCOURSE — keys', awaitSettleTicks: 2 },
     ...armThenExit,
   ], { cols: 120, rows: 40, total: 150, env: envFor(home, fixturePath) })
   const armed = c.marks.get('armed') ?? []
   check('C: the atlas stands AND the notice paints bottom-left (a modal never imprisons the exit)',
-    noticeBottomLeft(armed) && has(armed, 'COORDINATOR (its composer)'))
+    noticeBottomLeft(armed) && has(armed, 'CONCOURSE — keys'))
   check('C: the second press EXITS (endReason eof)', c.endReason === 'eof', c.endReason)
 }
 
@@ -217,8 +218,7 @@ console.log('leg D — the split view (140×40)')
 {
   const { home, fixturePath } = freshHome('split')
   const c = capture('D-split', ['node', BIN], [
-    { data: '\t', requireAwait: true, awaitText: 'COORDINATOR', awaitSettleTicks: 4 },
-    { data: 's', afterPrevTicks: 3 },
+    { data: 's', requireAwait: true, awaitText: 'LAST USED', awaitSettleTicks: 4 },
     { data: CTRL_C, requireAwait: true, awaitText: 'FOCUSED CHAT', awaitSettleTicks: 3 },
     ...armThenExit,
   ], { cols: 140, rows: 40, total: 150, env: envFor(home, fixturePath) })
@@ -247,7 +247,8 @@ console.log('leg F — the window lapse (one press never exits; the notice clear
   const { home, fixturePath } = freshHome('lapse')
   const AFTER = 'zq-after-zq'
   const c = capture('F-lapse', ['node', BIN], [
-    { data: CTRL_C, requireAwait: true, awaitText: 'COORDINATOR', awaitSettleTicks: 4 },
+    { data: '\t', requireAwait: true, awaitText: 'LAST USED', awaitSettleTicks: 4 },
+    { data: CTRL_C, afterPrevTicks: 3 },
     { data: '', requireAwait: true, awaitText: NOTICE, awaitSettleTicks: 1, mark: 'armed' },
     { data: AFTER, afterPrevTicks: 1 },
     { data: '', afterPrevTicks: 22, mark: 'lapsed' },
@@ -259,26 +260,11 @@ console.log('leg F — the window lapse (one press never exits; the notice clear
   check('F: the process is ALIVE — one press never exits (poison: an exit on the first press)', c.endReason !== 'eof' && has(c.final, 'SESSIONS'), c.endReason)
 }
 
-console.log('leg H — the concourse under a consent card (the seat-overload Select owns its keys; the exit still fires)')
-{
-  const { home, fixturePath } = freshHome('consent', fixture => {
-    fixture.counts.live = 9
-  })
-  const c = capture('H-consent', ['node', BIN], [
-    { data: 'hello seat', requireAwait: true, awaitText: 'COORDINATOR', awaitSettleTicks: 4 },
-    { data: '\r', afterPrevTicks: 3 },
-    { data: CTRL_C, requireAwait: true, awaitText: "Past the machine's reading", awaitSettleTicks: 3 },
-    ...armThenExit,
-  ], { cols: 120, rows: 40, total: 150, env: envFor(home, fixturePath) })
-  const armed = c.marks.get('armed') ?? []
-  check('H: the consent card stands AND the notice paints bottom-left (a consent card never imprisons the exit)',
-    noticeBottomLeft(armed) && has(armed, "Past the machine's reading"))
-  check('H: the second press EXITS (endReason eof)', c.endReason === 'eof', c.endReason)
-}
-
 console.log('leg I — the concourse under a manager card (the interview card owns its keys; the exit still fires)')
 {
-  const { home, fixturePath } = freshHome('manager')
+  const { home, fixturePath } = freshHome('manager', fixture => {
+    fixture.coordinator = { mode: 'agent-assisted' }
+  })
   writeFileSync(
     join(home, 'coordinator-conversation.json'),
     JSON.stringify({
@@ -295,7 +281,8 @@ console.log('leg I — the concourse under a manager card (the interview card ow
     }),
   )
   const c = capture('I-manager', ['node', BIN], [
-    { data: '\x1b[Z', requireAwait: true, awaitText: 'COORDINATOR', awaitSettleTicks: 4 },
+    { data: '\t', requireAwait: true, awaitText: 'COORDINATOR', awaitSettleTicks: 4 },
+    { data: '\x1b[Z', requireAwait: true, awaitText: 'talk to the coordinator', awaitSettleTicks: 3 },
     { data: CTRL_C, requireAwait: true, awaitText: 'enough — plan it', awaitSettleTicks: 3 },
     ...armThenExit,
   ], { cols: 120, rows: 40, total: 150, env: envFor(home, fixturePath) })

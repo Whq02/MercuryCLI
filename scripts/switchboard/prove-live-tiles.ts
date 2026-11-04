@@ -214,33 +214,32 @@ console.log('L6 peek geometry')
   check('collapsed default grants zero', closed.peekRows === 0)
   check('wide 120x40 grants the full ~8', open.peekRows === ROW_PEEK_DESIRED_ROWS, `granted=${open.peekRows}`)
   check(
-    'the grant grows the list band exactly',
-    open.listBand[1] - open.listBand[0] === closed.listBand[1] - closed.listBand[0] + open.peekRows,
+    'the grant comes out of the list window; the manager keeps its full column',
+    open.listContentRows === closed.listContentRows - open.peekRows && open.listBand[0] === closed.listBand[0] && open.listBand[1] === closed.listBand[1],
+    `window ${closed.listContentRows} → ${open.listContentRows} for a grant of ${open.peekRows}`,
   )
-  check('the row window budget is untouched', open.listContentRows === closed.listContentRows)
-  const mirrorRows = open.mirrorBand[1] - open.mirrorBand[0] + 1
-  check('the mirror keeps its ≥5 floor', mirrorRows >= 5, `mirror=${mirrorRows}`)
+  check('the live view keeps its full column beside it', open.mirrorBand[0] === open.mainBand[0] && open.mirrorBand[1] === open.mainBand[1] && closed.mirrorBand[1] === open.mirrorBand[1])
   check(
-    'wide bands still tile the main band (the live composer ends the column — the two-composers law)',
+    'two-pane bands tile the main band (the message box ends the live pane — the two-composers law)',
     open.listBand[0] === open.mainBand[0] &&
-      open.mirrorBand[0] === open.listBand[1] + 1 &&
-      open.liveComposerBand[0] === open.mirrorBand[1] + 1 &&
-      open.liveComposerBand[1] === open.mainBand[1],
+      open.listBand[1] === open.mainBand[1] &&
+      open.liveComposerBand[1] === open.mainBand[1] - 1 &&
+      open.liveCols[1] < open.rightCols[0],
   )
-  const sClosed = switchboardGeometry(100, 30, 0, 4, 2, 1, 'mirror')
-  const sOpen = switchboardGeometry(100, 30, 0, 4, 2, 1, 'mirror', ROW_PEEK_DESIRED_ROWS)
-  check('stacked grants what the tall band can give', sOpen.peekRows > 0 && sOpen.peekRows <= ROW_PEEK_DESIRED_ROWS, `granted=${sOpen.peekRows}`)
-  const sRail = switchboardGeometry(100, 30, 1, 2, 2, 1, 'mirror', ROW_PEEK_DESIRED_ROWS)
-  check('stacked + rail still grants ≥4 (tail band yields)', sRail.peekRows >= 4, `granted=${sRail.peekRows}`)
-  const sRailBands = (sRail.listBand[1] - sRail.listBand[0] + 1) + (sRail.mirrorBand[1] - sRail.mirrorBand[0] + 1) + Math.max(0, sRail.coordBand[1] - sRail.coordBand[0] + 1) + sRail.liveComposerRows
-  check('stacked + rail bands still tile the main band (the live composer included)', sRailBands === sRail.mainRows, `${sRailBands} vs main ${sRail.mainRows}`)
+  const sClosed = switchboardGeometry(80, 30, 0, 4, 2, 1, 'mirror')
+  const sOpen = switchboardGeometry(80, 30, 0, 4, 2, 1, 'mirror', ROW_PEEK_DESIRED_ROWS)
+  check('stacked grants what the manager can give', sOpen.peekRows > 0 && sOpen.peekRows <= ROW_PEEK_DESIRED_ROWS, `granted=${sOpen.peekRows}`)
+  const sRail = switchboardGeometry(80, 30, 1, 2, 2, 1, 'mirror', ROW_PEEK_DESIRED_ROWS)
+  check('stacked + an ask still grants ≥4 (the NEEDS YOU block keeps its row)', sRail.peekRows >= 4, `granted=${sRail.peekRows}`)
+  const sRailBands = (sRail.listBand[1] - sRail.listBand[0] + 1) + (sRail.mirrorBand[1] - sRail.mirrorBand[0] + 1) + Math.max(0, sRail.coordBand[1] - sRail.coordBand[0] + 1)
+  check('stacked + an ask: live view and manager tile the main band (the message box inside the live view)', sRailBands === sRail.mainRows, `${sRailBands} vs main ${sRail.mainRows}`)
   const sTall = sOpen.mirrorBand[1] - sOpen.mirrorBand[0] + 1
-  check('stacked tall band keeps its ≥4 floor', sTall >= 4, `tall=${sTall}`)
+  check('the stacked live view keeps its ≥6 floor', sTall >= 6, `tall=${sTall}`)
   check(
-    'stacked bands still tile the main band',
-    sOpen.listBand[0] === sOpen.mainBand[0] && sOpen.coordBand[1] === sOpen.mainBand[1],
+    'stacked bands tile the main band, live view on top',
+    sOpen.mirrorBand[0] === sOpen.mainBand[0] && sOpen.listBand[0] === sOpen.mirrorBand[1] + 1 && sOpen.listBand[1] === sOpen.mainBand[1],
   )
-  check('stacked row window budget untouched', sOpen.listContentRows === sClosed.listContentRows)
+  check('the stacked drop-down never crushes the list under two rows', sOpen.listContentRows >= 2 && sClosed.listContentRows >= 2, `${sClosed.listContentRows} → ${sOpen.listContentRows}`)
   const tiny = switchboardGeometry(100, 24, 3, 8, 3, 5, 'mirror', ROW_PEEK_DESIRED_ROWS)
   check('poison: a squeezed grant clamps at 0..8', tiny.peekRows >= 0 && tiny.peekRows <= ROW_PEEK_DESIRED_ROWS, `granted=${tiny.peekRows}`)
 }

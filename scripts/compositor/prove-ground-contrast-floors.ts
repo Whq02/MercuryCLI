@@ -102,7 +102,7 @@ t.section('§4 — the truecolor gate + collapsed-focus ink (source ratchets)')
     colorize.includes('export function truecolorActive') && colorize.includes('chalk.level >= 3'),
     'the chalk-authority module',
   )
-  const listFork = /borderColor=\{region === 'list' \? t\.info : t\.borderSubtle\}/.test(layout)
+  const listFork = /borderColor=\{managerFocused \? t\.info : t\.borderSubtle\}/.test(layout) && layout.includes("const managerFocused = region === 'list' || region === 'rail'")
   const coordPane = readFileSync('src/components/concourse/CoordinatorPane.tsx', 'utf8')
   const coordFork = /borderColor=\{focused \? t\.info : t\.borderSubtle\}/.test(coordPane)
   const strips = readFileSync('src/components/concourse/ConcourseStrips.tsx', 'utf8')
@@ -114,11 +114,9 @@ t.section('§4 — the truecolor gate + collapsed-focus ink (source ratchets)')
   )
   t.check(
     'the focused chip ink is textInverse on the pill (a11y-p2-09)',
-    strips.includes('modelPickerOpen ? t.textInverse') &&
-      strips.includes('modelPickerOpen ? { backgroundColor: t.accentSoft }') &&
-      strips.includes('groundPickerOpen ? t.textInverse') &&
+    strips.includes('groundPickerOpen ? t.textInverse') &&
       strips.includes('groundPickerOpen ? { backgroundColor: t.accentSoft }'),
-    'never t.info on accentSoft (the status-rail model + project pills)',
+    'never t.info on accentSoft (the status-rail project pill)',
   )
 }
 

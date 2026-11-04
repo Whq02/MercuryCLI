@@ -3,7 +3,7 @@ import { Box, Text, useInput } from '../../ink.js';
 import { chatPresent, concourseWayBack, plainWorldWhy, stripKeyMapHint, subscribeSurfaceRoute, surfaceRouteVersion } from '../../context/surfaceRoute.js';
 import { useRegisterOverlay } from '../../context/overlayContext.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
-import { boardSelectionClassOf, browseKeysFor, closeChordHintOf, closeChordReceiptOf, closeChordRungOf, CONCOURSE_HELP_KEY, helpKeyFiresFor, regionKeysFor } from './controlManifest.js';
+import { boardSelectionClassOf, browseKeysFor, closeChordHintOf, closeChordReceiptOf, closeChordRungOf, CONCOURSE_HELP_KEY, helpKeyFiresFor, managerPaneKeysFor, regionKeysFor, withoutManagerPaneKeys } from './controlManifest.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { useLayoutChrome } from '../../context/layoutChromeContext.js';
 import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js';
@@ -50,7 +50,6 @@ import { needsSeatOverloadAsk, SeatOverloadCard } from './SeatOverloadCard.js';
 import { WorktreeLaunchCard } from './WorktreeLaunchCard.js';
 import { ManagerAskCard, ManagerPlanCard, ManagerSeatAskCard } from './ManagerCards.js';
 import { ContractOfferCard } from './ContractOfferCard.js';
-import { CoordinatorModelPicker } from './CoordinatorModelPicker.js';
 import { RowPickModal } from './RowPickModal.js';
 import { MercuryModelDefaultPicker, MercurySessionModelPicker } from '../../commands/model/mercuryModel.js';
 import { ModalContext } from '../../context/modalContext.js';
@@ -62,7 +61,9 @@ import { keyHintLabel } from '../mercury-ui/keyHintLabel.js';
 import { ConcourseComposer } from './ConcourseStrips.js';
 import {
   ConcourseLayout,
+  COORDINATOR_REST_ROWS,
   NEW_SESSION_ROW_ID,
+  REDUCED_NOTICE_ROWS,
   ROW_PEEK_DESIRED_ROWS,
   newSessionLineShown,
   switchboardGeometry,
@@ -139,7 +140,7 @@ export function liveComposerGateOf(
   region?: ConcourseRegion,
   credentialWall?: string,
 ): { ok: true; placeholder: string } | { ok: false; line: string } {
-  if (sel === undefined) return { ok: false, line: 'no session selected — the coordinator panel starts one' }
+  if (sel === undefined) return { ok: false, line: 'no session selected — n starts one' }
   if (sel.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)) {
     return {
       ok: false,
@@ -200,7 +201,7 @@ export function ConcourseScreen({
 }): React.ReactNode {
   const { columns: termCols, rows: termRows } = useTerminalSize()
   const { isCompact } = useLayoutChrome()
-  const compactProfile = isCompact ? compactConcourseProfileOf(termCols) : null
+  const compactProfile = isCompact ? compactConcourseProfileOf(termCols, termRows) : null
   const compact = compactProfile !== null
   const coordinatorOn = snapshot.coordinator.mode === 'agent-assisted'
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion)
@@ -235,7 +236,8 @@ export function ConcourseScreen({
   const [region, setRegion] = useState<ConcourseRegion>(() => {
     const carried = migrateCapsuleRegion(presentationCapsule?.region)
     if (compact) return carried === 'live' ? 'live' : 'list'
-    return reducedStage ? 'list' : (carried ?? 'coordinator')
+    if (reducedStage || (carried === 'coordinator' && !coordinatorOn)) return 'list'
+    return carried ?? 'list'
   })
   const [managerArmed, setManagerArmed] = useState<boolean>(() => presentationCapsule?.managerMode ?? false)
   const managerOn = managerArmed && !reducedStage
@@ -243,18 +245,6 @@ export function ConcourseScreen({
   managerOnRef.current = managerOn
   const [helpOpen, setHelpOpen] = useState(false)
   const helpOpenRef = useRef(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const settingsOpenRef = useRef(false)
-  settingsOpenRef.current = settingsOpen
-  const openCoordinatorSettings = (): void => {
-    setSettingsOpen(v => (v ? false : !reducedStage))
-  }
-  const closeCoordinatorSettings = (): void => {
-    setSettingsOpen(false)
-  }
-  useEffect(() => {
-    if (reducedStage && settingsOpen) setSettingsOpen(false)
-  }, [reducedStage, settingsOpen])
   const [groundPickerOpen, setGroundPickerOpen] = useState(false)
   const groundPickerOpenRef = useRef(false)
   groundPickerOpenRef.current = groundPickerOpen
@@ -342,6 +332,8 @@ export function ConcourseScreen({
       liveDraftDesired,
       focusTall,
       wouldAsk,
+      region,
+      thirdPaneRows,
     ).peekRows
     if (wouldGrant < 2) {
       setNote({ tone: 'muted', text: `no room to unfold the older chats — this height gives the list ${wouldGrant} row${wouldGrant === 1 ? '' : 's'}, it needs 2` })
@@ -469,6 +461,7 @@ export function ConcourseScreen({
     if (draftRef.current.text.length === 0) settleRestoredDraft()
   }
   useEffect(() => {
+    if (!coordinatorOn) return
     let cancelled = false
     void readCoordinatorComposerDraft().then(d => {
       if (cancelled || draftEditedRef.current || d.text.length === 0) return
@@ -814,7 +807,6 @@ export function ConcourseScreen({
     boardModalOwner({
       capacityAsk: capacityAskRef.current,
       trustAsk: trustAskRef.current !== null,
-      settingsOpen: settingsOpenRef.current,
       groundPickerOpen: groundPickerOpenRef.current,
       rowPick: rowPickRef.current !== null,
       modelDefault: modelDefaultOpenRef.current,
@@ -830,7 +822,6 @@ export function ConcourseScreen({
   const modalFactsNow = (): BoardModalFactsV1 => ({
     capacityAsk: capacityAskRef.current,
     trustAsk: trustAskRef.current !== null,
-    settingsOpen: settingsOpenRef.current,
     groundPickerOpen: groundPickerOpenRef.current,
     rowPick: rowPickRef.current !== null,
     seatAsk: seatAskRef.current !== null,
@@ -939,6 +930,15 @@ export function ConcourseScreen({
     }
     callbacks.stopSession?.(target.row.sessionId)
   }
+  const rowArchive = (): void => {
+    const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
+    const selection = boardSelectionClassOf(sel)
+    if (sel !== undefined && (selection === 'live' || selection === 'paused' || selection === 'stopped')) {
+      callbacks.archiveSession?.(sel.sessionId)
+      return
+    }
+    rowControlRefused(rowControlSel().reason ?? 'nothing to archive')
+  }
   const selectedIsDoor = (): boolean => sessionRows.find(r => r.sessionId === boardSelRef.current)?.door !== undefined
 
   const enterSession = (sessionId: string, opts: { pointer?: boolean } = {}): void => {
@@ -1034,7 +1034,7 @@ export function ConcourseScreen({
       return
     }
     const ref = o.ref ?? ''
-    if (ref.startsWith('kernel:capacity:')) {
+    if (ref.startsWith('kernel:capacity:') && coordinatorOn) {
       setRegion('coordinator')
       setNote({
         tone: 'muted',
@@ -1043,7 +1043,7 @@ export function ConcourseScreen({
       return
     }
     if (ref.startsWith('permission:git-init:')) {
-      setRegion('coordinator')
+      if (coordinatorOn) setRegion('coordinator')
       return
     }
     if (ref.startsWith('permission:')) {
@@ -1088,7 +1088,7 @@ export function ConcourseScreen({
 
   const [convTail, setConvTail] = useState<import('../../services/concourse/coordinatorConversation.js').CoordinatorConversationEntryV1 | null>(null)
   useEffect(() => {
-    if (reducedStage) return
+    if (reducedStage || !coordinatorOn) return
     let alive = true
     const load = (): void => {
       void import('../../services/concourse/coordinatorConversation.js').then(async m => {
@@ -1110,7 +1110,7 @@ export function ConcourseScreen({
       alive = false
       unsub?.()
     }
-  }, [reducedStage])
+  }, [reducedStage, coordinatorOn])
   const [dismissedAskBump, setDismissedAskBump] = useState(0)
   const dismissedAsksRef = useRef<Set<string>>(new Set())
   const [managerPlanBusy, setManagerPlanBusy] = useState(false)
@@ -1313,7 +1313,6 @@ export function ConcourseScreen({
       boardModalOwner({
         capacityAsk,
         trustAsk: trustAsk !== null,
-        settingsOpen,
         groundPickerOpen,
         rowPick: rowPick !== null,
         modelDefault: modelDefaultOpen,
@@ -1333,6 +1332,7 @@ export function ConcourseScreen({
     !rowPeekOpen && (chipLine !== null || rowControlNote !== undefined || boardArmed === peekSelRow?.sessionId || closeChordHint !== null) ? 1 : 0
   const olderRows = olderList !== null ? Math.max(2, Math.min(ROW_PEEK_DESIRED_ROWS, olderList.entries.length + 1)) : 0
   const focusTall: 'mirror' | 'coordinator' = region === 'coordinator' ? 'coordinator' : 'mirror'
+  const thirdPaneRows = reducedStage ? REDUCED_NOTICE_ROWS : coordinatorOn ? COORDINATOR_REST_ROWS : 0
   const coordBandDesired = draftWindow(draft, 5).bandRows
   const liveDraftDesired = reducedStage ? 0 : draftWindow(liveDraft, 3).bandRows
   const boardGroupCount = useMemo(() => boardGroups.filter(g => g.rows.length > 0).length, [boardGroups])
@@ -1348,8 +1348,9 @@ export function ConcourseScreen({
         focusTall,
         rowPeekOpen ? ROW_PEEK_DESIRED_ROWS : olderRows > 0 ? olderRows : chipRows,
         region,
+        thirdPaneRows,
       ),
-    [cols, termRows, snapshot.needsYou.length, sessionRows.length, newSessionLine, boardGroupCount, liveDraftDesired, focusTall, rowPeekOpen, olderRows, chipRows, region],
+    [cols, termRows, snapshot.needsYou.length, sessionRows.length, newSessionLine, boardGroupCount, liveDraftDesired, focusTall, rowPeekOpen, olderRows, chipRows, region, thirdPaneRows],
   )
   const compactGeo = useMemo(
     () =>
@@ -1364,17 +1365,18 @@ export function ConcourseScreen({
   )
 
   const regionsInOrder = useMemo<ConcourseRegion[]>(() => {
-    const ring: ConcourseRegion[] = compact || reducedStage ? ['list', 'live'] : ['coordinator', 'list', 'live']
+    const ring: ConcourseRegion[] = compact || reducedStage ? ['list', 'live'] : ['live', 'list']
     if (!compact && snapshot.needsYou.length > 0) ring.push('rail')
+    if (!compact && !reducedStage && coordinatorOn) ring.push('coordinator')
     if (splitActive) ring.push('chat')
     return ring
-  }, [snapshot.needsYou.length, reducedStage, splitActive, compact])
+  }, [snapshot.needsYou.length, reducedStage, splitActive, compact, coordinatorOn])
   useEffect(() => {
-    if (region === 'rail' && snapshot.needsYou.length === 0) setRegion(reducedStage ? 'list' : 'coordinator')
-  }, [region, snapshot.needsYou.length, reducedStage])
+    if (region === 'rail' && snapshot.needsYou.length === 0) setRegion('list')
+  }, [region, snapshot.needsYou.length])
   useEffect(() => {
-    if (reducedStage && region === 'coordinator') setRegion('list')
-  }, [region, reducedStage])
+    if ((reducedStage || !coordinatorOn) && region === 'coordinator') setRegion('list')
+  }, [region, reducedStage, coordinatorOn])
   useEffect(() => {
     if (compact && region !== 'list' && region !== 'live') setRegion('list')
   }, [compact, region])
@@ -1423,7 +1425,6 @@ export function ConcourseScreen({
     const modalOwner = boardModalOwner({
       capacityAsk: capacityAskRef.current,
       trustAsk: trustAskRef.current !== null,
-      settingsOpen: settingsOpenRef.current,
       groundPickerOpen: groundPickerOpenRef.current,
       rowPick: rowPickRef.current !== null,
       modelDefault: modelDefaultOpenRef.current,
@@ -1532,8 +1533,8 @@ export function ConcourseScreen({
             ? compactListPainted &&
               kp.x >= compactGeo.list.x0 + 1 &&
               kp.x <= compactGeo.list.x1 + 1 &&
-              kp.y >= 2 &&
-              kp.y <= compactGeo.inner + 1
+              kp.y >= compactGeo.list.y0 + 2 &&
+              kp.y <= compactGeo.list.y1
             : kp.y >= geo.listBand[0] &&
               kp.y <= geo.listBand[1] &&
               kp.x >= (geo.profile === 'wide' ? geo.rightCols[0] : 3) &&
@@ -1547,16 +1548,6 @@ export function ConcourseScreen({
         const base = v ?? Math.max(0, sessionRows.findIndex(r => r.sessionId === boardSelRef.current) - 1)
         return Math.max(0, Math.min(Math.max(0, sessionRows.length - 1), base + dir * (event.wheelStep ? 1 : 3)))
       })
-      return
-    }
-    if (key.ctrl && input === 'a' && !coordinatorOn) {
-      event.stopImmediatePropagation()
-      void callbacks.switchCoordinatorMode('agent-assisted')
-      return
-    }
-    if (key.ctrl && input === 's' && !reducedStage) {
-      event.stopImmediatePropagation()
-      openCoordinatorSettings()
       return
     }
     if (key.ctrl && input === 'g') {
@@ -1672,7 +1663,7 @@ export function ConcourseScreen({
           return
         }
         if (sessionRows.length === 0) {
-          if (!reducedStage && !compact) setRegion('coordinator')
+          if (!reducedStage && !compact && coordinatorOn) setRegion('coordinator')
           return
         }
         const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
@@ -1695,9 +1686,24 @@ export function ConcourseScreen({
         setRowPeekOpen(v => !v)
         return
       }
-      if (compact && input === 'x' && !key.ctrl && !key.meta && pastGate()) {
+      if (input === 'x' && !key.ctrl && !key.meta && pastGate()) {
         event.stopImmediatePropagation()
         rowStop()
+        return
+      }
+      if (input === 'a' && !key.ctrl && !key.meta && !compact && pastGate()) {
+        event.stopImmediatePropagation()
+        rowArchive()
+        return
+      }
+      if ((key.pageUp || key.pageDown) && !key.ctrl && !key.meta && !compact) {
+        event.stopImmediatePropagation()
+        if (sessionRows.length === 0) return
+        const page = Math.max(1, geo.listContentRows - 1)
+        setBoardScroll(v => {
+          const base = v ?? Math.max(0, sessionRows.findIndex(r => r.sessionId === boardSelRef.current) - 1)
+          return Math.max(0, Math.min(Math.max(0, sessionRows.length - 1), base + (key.pageDown ? page : -page)))
+        })
         return
       }
       if (input === 'm' && !key.ctrl && !key.meta && !compact && !reducedStage && callbacks.newSession !== undefined && (sessionRows.length === 0 || (boardSelRef.current === NEW_SESSION_ROW_ID && newSessionLineNow())) && filterRef.current.text.trim().length === 0 && snapshot.newSession.door !== undefined && pastGate()) {
@@ -2022,7 +2028,9 @@ export function ConcourseScreen({
               ? sel.waitReason === 'repo-held'
                 ? `repo held by ${sel.waitDetail ?? 'a live session'} — free the checkout to start this one`
                 : sel.waitReason === 'unblocked'
-                  ? 'unblocked — ask the coordinator to start it · m queues a message'
+                  ? coordinatorOn
+                    ? 'unblocked — ask the coordinator to start it · m queues a message'
+                    : `${concourseWaitCopy(sel.waitReason, sel.waitDetail)} · m queues a message`
                   : sel.waitReason === 'no-repository' || sel.waitReason === 'unborn-head'
                     ? 'needs git — say yes to the offer and it starts on its own'
                     : `${concourseWaitCopy(sel.waitReason, sel.waitDetail)} — it starts when one frees · m queues a message`
@@ -2041,17 +2049,28 @@ export function ConcourseScreen({
         </Box>
       )
     }
+    const peekFacts = snapshot.peek !== null && snapshot.peek.sessionId === sel.sessionId ? snapshot.peek : null
+    const modelLabel = peekFacts?.modelLabel ?? snapshot.newSession.modelOptions?.find(o => o.modelId === sel.modelId)?.displayName
+    const effortLabel = peekFacts !== null ? snapshot.context.effortLabel : undefined
     return (
       <SessionMirror
         sessionId={sel.sessionId}
         workspaceId={sel.workspaceDir}
         title={sel.title}
+        titleFacts={[sel.projectLabel, modelLabel, effortLabel].filter((f): f is string => f !== undefined && f.length > 0)}
         paneRows={rows}
         paneWidth={width}
         {...(splitGeo !== null
           ? { wheelBand: [0, splitGeo.dividerCol - 1] as [number, number] }
           : compactGeo !== null
             ? { wheelBand: [compactGeo.live.x0 + 1, compactGeo.live.x1 + 1] as [number, number] }
+            : geo.profile === 'wide' && !geo.constrained
+              ? { wheelBand: geo.liveCols }
+              : {})}
+        {...(compactGeo !== null
+          ? { wheelRows: [compactGeo.live.y0 + 2, compactGeo.live.y1] as [number, number] }
+          : !geo.constrained
+            ? { wheelRows: [geo.mirrorBand[0] + 1, geo.mirrorBand[1] - 1] as [number, number] }
             : {})}
         focused={region === 'live'}
         bare={bare}
@@ -2065,10 +2084,7 @@ export function ConcourseScreen({
     )
   }
 
-  const coordBounds: [number, number, number, number] =
-    geo.profile === 'wide'
-      ? [geo.coordCols[0], geo.coordCols[1], geo.mainBand[0], geo.mainBand[1]]
-      : [3, 2 + geo.interior, geo.coordBand[0], geo.coordBand[1]]
+  const coordBounds: [number, number, number, number] = [geo.coordCols[0], geo.coordCols[1], geo.coordBand[0], geo.coordBand[1]]
 
   const restHint = managerOn
     ? 'one goal, one shot — the manager interviews, then plans the lanes'
@@ -2173,6 +2189,8 @@ export function ConcourseScreen({
     )
   })()
 
+  const gitOfferInPane =
+    gitOffer !== undefined && coordinatorOn && !reducedStage && region === 'coordinator' && geo.profile === 'wide' && !geo.constrained && seatAsk === null && forkAsk === null && !contractAsk
   const fullTree = (
       <ConcourseLayout
         snapshot={snapshot}
@@ -2346,10 +2364,11 @@ export function ConcourseScreen({
         liveDraftRows={liveDraftDesired}
         liveDraftEmpty={liveDraft.text.length === 0}
         coordinatorDraftEmpty={draft.text.length === 0}
-        modelPickerOpen={settingsOpen}
+        coordinatorOn={coordinatorOn && !reducedStage}
+        thirdPaneRows={thirdPaneRows}
         groundPickerOpen={groundPickerOpen}
         coordinatorNode={(rows, width) => reducedStage ? (
-          <Box flexDirection="column" height={rows} width={width} overflow="hidden" paddingX={1}>
+          <Box flexDirection="column" height={rows} width={width} overflow="hidden" borderStyle={geo.constrained ? undefined : 'round'} borderColor={t.borderSubtle} paddingX={1}>
             <Text color={t.textSecondary} wrap="truncate-end">{`live view — the concourse is off${(() => { const why = plainWorldWhy(); return why !== null && why !== 'concourse off' ? ` (${why})` : '' })()}`}</Text>
             <Text color={t.textMuted} wrap="truncate-end">{`your sessions run and show here · ↵ enters one${keyMapHint.length > 0 ? ` · ${keyMapHint}` : ''}`}</Text>
             <Text color={t.textMuted} wrap="truncate-end">{concourseWayBack()}</Text>
@@ -2357,12 +2376,6 @@ export function ConcourseScreen({
         ) : (
           <CoordinatorPane
             minimal={geo.constrained}
-            callbacks={callbacks}
-            mode={snapshot.coordinator.mode}
-            {...(snapshot.coordinator.fallbackReason !== undefined
-              ? { fallbackReason: snapshot.coordinator.fallbackReason }
-              : {})}
-            operatorHandle={snapshot.context.operatorHandle}
             focused={region === 'coordinator'}
             paneRows={rows}
             paneWidth={width}
@@ -2373,7 +2386,6 @@ export function ConcourseScreen({
               boardModalOwner({
                 capacityAsk,
                 trustAsk: trustAsk !== null,
-                settingsOpen,
                 groundPickerOpen,
                 rowPick: rowPick !== null,
                 modelDefault: modelDefaultOpen,
@@ -2386,7 +2398,7 @@ export function ConcourseScreen({
                 coordinatorFocused: region === 'coordinator',
               }) !== null
             }
-            {...(gitOffer !== undefined && seatAsk === null && forkAsk === null && !contractAsk && geo.profile === 'wide' ? { gitOffer } : {})}
+            {...(gitOfferInPane ? { gitOffer } : {})}
             onAnswerGitOffer={(requestId, allow, obligationId) =>
               callbacks.answerPermission?.(requestId, allow, obligationId)
             }
@@ -2436,18 +2448,16 @@ export function ConcourseScreen({
               }
               return {}
             })()}
-            settingsOpen={settingsOpen && geo.profile === 'wide'}
-            onCloseSettings={() => closeCoordinatorSettings()}
             onFocus={() => setRegion('coordinator')}
             onPickExample={text => {
               draftEditedRef.current = true
               draftRef.current = { text, caret: text.length }
               setDraft(draftRef.current)
             }}
-            collapsed={geo.profile === 'stacked' && focusTall !== 'coordinator'}
+            collapsed={!geo.constrained && region !== 'coordinator'}
             tailNote={note}
             composerNode={
-              geo.profile === 'stacked' && focusTall !== 'coordinator' ? undefined : (
+              region !== 'coordinator' ? undefined : (
                 <ConcourseComposer
                   minimal={geo.constrained}
                   width={geo.constrained ? Math.max(0, width) : Math.max(24, width - 4)}
@@ -2499,10 +2509,6 @@ export function ConcourseScreen({
             : {}),
           focusComposer: () => setRegion('coordinator'),
           focusList: () => setRegion('list'),
-          openCoordinatorModel: () => {
-            if (!mayArmBoardModal(modalFactsNow(), 'settings')) return
-            openCoordinatorSettings()
-          },
           openGroundPicker: () => {
             if (!mayArmBoardModal(modalFactsNow(), 'ground-picker')) return
             setGroundPickerOpen(v => !v)
@@ -2582,12 +2588,7 @@ export function ConcourseScreen({
         boardTree
       )}
       {}
-      {helpOpen ? <ConcourseKeyAtlas cols={termCols} rows={termRows} chat={chatPresent()} reducedStage={reducedStage} splitOn={splitActive} /> : null}
-      {settingsOpen && geo.profile !== 'wide' ? (
-        <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: termRows }} width={72} top={Math.floor(termRows / 2) - 10}>
-          {size => <CoordinatorModelPicker callbacks={callbacks} onClose={() => closeCoordinatorSettings()} allottedRows={size.rows} allottedWidth={size.width - 4} />}
-        </FloatingPopup>
-      ) : null}
+      {helpOpen ? <ConcourseKeyAtlas cols={termCols} rows={termRows} chat={chatPresent()} reducedStage={reducedStage} splitOn={splitActive} coordinatorOn={coordinatorOn} /> : null}
       {capacityAsk ? <CapacityAskModal cols={cols} rows={termRows} onAnswer={answerCapacityAsk} /> : null}
       {seatAsk !== null ? (
         <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: termRows }} width={72} top={Math.floor(termRows / 2) - 7}>
@@ -2664,11 +2665,10 @@ export function ConcourseScreen({
       ) : null}
       {gitOffer !== undefined &&
       !contractAsk &&
-      geo.profile !== 'wide' &&
+      !gitOfferInPane &&
       gitOfferOwnsTheKeys({
         capacityAsk,
         trustAsk: trustAsk !== null,
-        settingsOpen,
         groundPickerOpen,
         rowPick: rowPick !== null,
         modelDefault: modelDefaultOpen,
@@ -2831,15 +2831,15 @@ function CapacityAskModal({
   )
 }
 
-function ConcourseKeyAtlas({ cols, rows, chat, reducedStage = false, splitOn = false }: { cols: number; rows: number; chat: boolean; reducedStage?: boolean; splitOn?: boolean }): React.ReactNode {
+function ConcourseKeyAtlas({ cols, rows, chat, reducedStage = false, splitOn = false, coordinatorOn = false }: { cols: number; rows: number; chat: boolean; reducedStage?: boolean; splitOn?: boolean; coordinatorOn?: boolean }): React.ReactNode {
   const t = useMercuryTokens()
   useRegisterOverlay('concourse-help')
   const stage = { newSession: !reducedStage }
   const sections: Array<{ title: string; keys: ReadonlyArray<{ keys: string; label: string }> }> = [
     { title: 'BROWSE', keys: [...browseKeysFor({ chatPresent: chat }), CONCOURSE_HELP_KEY] },
     { title: 'NEEDS YOU (rail)', keys: regionKeysFor('rail', stage) },
-    { title: 'SESSIONS (list)', keys: regionKeysFor('list', stage) },
-    ...(reducedStage ? [] : [{ title: 'COORDINATOR (its composer)', keys: regionKeysFor('coordinator', stage) }]),
+    { title: 'SESSIONS (list)', keys: [...managerPaneKeysFor(stage), ...withoutManagerPaneKeys(regionKeysFor('list', stage))] },
+    ...(reducedStage || !coordinatorOn ? [] : [{ title: 'COORDINATOR (its composer)', keys: regionKeysFor('coordinator', stage) }]),
     { title: 'LIVE VIEW (its composer)', keys: regionKeysFor('live', stage) },
     ...(!reducedStage && splitAvailableAt(cols, rows)
       ? [

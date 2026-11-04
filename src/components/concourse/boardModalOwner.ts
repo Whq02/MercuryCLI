@@ -2,7 +2,7 @@
 export interface BoardModalFactsV1 {
   capacityAsk: boolean
   trustAsk: boolean
-  settingsOpen: boolean
+  settingsOpen?: boolean
   groundPickerOpen: boolean
   rowPick: boolean
   seatAsk: boolean
@@ -40,7 +40,7 @@ export function boardModalOwner(facts: BoardModalFactsV1): BoardModalOwnerV1 | n
   if (facts.seatAsk) return 'seat-ask'
   if (facts.forkAsk === true) return 'fork-ask'
   if (facts.capacityAsk) return 'capacity-ask'
-  if (facts.settingsOpen) return 'settings'
+  if (facts.settingsOpen === true) return 'settings'
   if (facts.helpOpen === true) return 'help'
   if (facts.gitOffer) return 'git-offer'
   if (facts.contractAsk) return 'contract-ask'

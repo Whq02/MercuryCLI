@@ -34,8 +34,8 @@ check(
   check('needsYouCount(0) = "0 need you"', needsYouCount(0) === '0 need you', needsYouCount(0))
   const strips = readFileSync(join(ROOT, 'src', 'components', 'concourse', 'ConcourseStrips.tsx'), 'utf8')
   check(
-    "the board's status strip counts through the same owner (both paint sites)",
-    (strips.match(/needsYouCount\(counts\.needsYou\)/g) ?? []).length === 2 && !/needsYou\} needs you/.test(strips),
+    "the board's status strip paints no needs-you count (the NEEDS YOU block in the session list carries it)",
+    !/needsYouCount\(/.test(strips) && !/needs? you/.test(strips),
   )
 }
 check('the flag glyph is the sanctioned FLAG_ICON (census-cleared ⚑)', FLAG_ICON === '⚑')

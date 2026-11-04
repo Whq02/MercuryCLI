@@ -207,7 +207,6 @@ section('§5 the road census — every door reaches a capability owner; a new ju
     .sort()
   const declared = [
     'src/components/SubModelPicker.tsx',
-    'src/components/concourse/CoordinatorModelPicker.tsx',
     'src/services/concourse/concourseSnapshot.ts',
     'src/services/concourse/coordinatorModels.ts',
     'src/services/concourse/workerModels.ts',

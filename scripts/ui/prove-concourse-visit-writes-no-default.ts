@@ -41,6 +41,7 @@ const run = await runArtifactArena({
     const cfgPath = join(configDir, '.config.json')
     const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
     cfg['concourseCoordinator'] = { mode: 'agent-assisted', assistModel: COORDINATOR_MODEL }
+    cfg['coordinatorEnabled'] = true
     writeFileSync(cfgPath, JSON.stringify(cfg))
     writeFileSync(join(configDir, 'settings.json'), SETTINGS)
   },

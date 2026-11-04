@@ -1052,24 +1052,6 @@ function LiveConcourse(): React.ReactNode {
       exitToChat: () => {
         if (!enterRootChat().ok) enterBootSettings()
       },
-      switchCoordinatorModel: async modelId => {
-        const models = await import('../../services/concourse/coordinatorModels.js')
-        const receipt = await models.switchCoordinatorAssistModel(modelId)
-        refresh()
-        return receipt
-      },
-      switchCoordinatorMode: async mode => {
-        const models = await import('../../services/concourse/coordinatorModels.js')
-        const receipt = await models.switchCoordinatorMode(mode)
-        refresh()
-        return receipt
-      },
-      switchCoordinatorEffort: async effortWord => {
-        const models = await import('../../services/concourse/coordinatorModels.js')
-        const receipt = await models.switchCoordinatorEffort(effortWord)
-        refresh()
-        return receipt
-      },
       sendCoordinatorMessage: async (text, clientMessageId, onAccepted, opts) => {
         const lane = await import('../../services/concourse/coordinatorLane.js')
         await lane.runOperatorMessageTurn(text, {}, {
