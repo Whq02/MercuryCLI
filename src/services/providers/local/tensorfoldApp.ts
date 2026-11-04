@@ -64,7 +64,7 @@ export function tensorFoldAppStateOf(rows: readonly TensorFoldProcessRow[]): Ten
 export function listProcesses(): Promise<TensorFoldProcessRow[]> {
   if (process.platform === 'win32') return Promise.resolve([])
   return new Promise(resolve => {
-    execFile('ps', ['-axo', 'pid=,ppid=,comm=,args='], { timeout: 4000, maxBuffer: 16 * 1024 * 1024 }, (error, stdout) => {
+    execFile('ps', ['-axo', 'pid=,ppid=,comm=,args='], { timeout: 4000, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (error, stdout) => {
       resolve(error ? [] : parseProcessRows(String(stdout)))
     })
   })

@@ -10,6 +10,7 @@ export interface TensorFoldTurnReading {
   cachedTokens?: number
   reasoningTokens?: number
   tokensPerSecond?: number
+  decodeSeconds?: number
   timeToFirstTokenS?: number
   prefillSeconds?: number
   reasoningEffort?: string
@@ -31,6 +32,7 @@ export function noteTensorFoldTurn(reading: { model: string; baseUrl: string; us
     ...(reading.usage?.cachedInputTokens !== undefined ? { cachedTokens: reading.usage.cachedInputTokens } : {}),
     ...(reading.usage?.reasoningTokens !== undefined ? { reasoningTokens: reading.usage.reasoningTokens } : {}),
     ...(reading.runtime?.tokensPerSecond !== undefined ? { tokensPerSecond: reading.runtime.tokensPerSecond } : {}),
+    ...(reading.runtime?.decodeSeconds !== undefined ? { decodeSeconds: reading.runtime.decodeSeconds } : {}),
     ...(reading.runtime?.timeToFirstTokenS !== undefined ? { timeToFirstTokenS: reading.runtime.timeToFirstTokenS } : {}),
     ...(reading.runtime?.prefillSeconds !== undefined ? { prefillSeconds: reading.runtime.prefillSeconds } : {}),
     ...(reading.runtime?.reasoningEffort !== undefined ? { reasoningEffort: reading.runtime.reasoningEffort } : {}),
@@ -70,12 +72,14 @@ export function tensorFoldUsageLines(readings: readonly TensorFoldTurnReading[] 
   const last = readings.at(-1)!
   const lines = [`last turn · ${tensorFoldTurnLine(last)}`]
   if (readings.length > 1) {
-    const speeds = readings.map(turn => turn.tokensPerSecond).filter((v): v is number => v !== undefined)
+    const timed = readings.filter(turn => turn.decodeSeconds !== undefined && turn.decodeSeconds > 0 && turn.completionTokens > 1)
+    const decodeSeconds = timed.reduce((sum, turn) => sum + turn.decodeSeconds!, 0)
+    const decoded = timed.reduce((sum, turn) => sum + turn.completionTokens - 1, 0)
     const prompt = readings.reduce((sum, turn) => sum + turn.promptTokens, 0)
     const cached = readings.reduce((sum, turn) => sum + (turn.cachedTokens ?? 0), 0)
     const completion = readings.reduce((sum, turn) => sum + turn.completionTokens, 0)
     const parts = [`${readings.length} turns`]
-    if (speeds.length > 0) parts.push(`~${Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length)} tok/s on average`)
+    if (decodeSeconds > 0) parts.push(`~${Math.round(decoded / decodeSeconds)} tok/s on average`)
     parts.push(`${prompt.toLocaleString()} in (${cached.toLocaleString()} cached${prompt > 0 ? ` · ${Math.round((cached / prompt) * 100)}%` : ''})`)
     parts.push(`${completion.toLocaleString()} out`)
     lines.push(`this session · ${parts.join(' · ')}`)

@@ -85,6 +85,15 @@ if (!dnssd) {
     check('the announcing process is dns-sd', /dns-sd$/.test(comm), comm)
     const launchdParent = Number(execFileSync('ps', ['-o', 'ppid=', '-p', String(process.pid)], { encoding: 'utf8' }).trim())
     check('this process is not launchd\'s own child (pid 1) — not a launchd agent', launchdParent !== 1, String(launchdParent))
+    const chain: string[] = []
+    for (let pid = process.pid, depth = 0; pid > 1 && depth < 32; depth++) {
+      const row = execFileSync('ps', ['-o', 'ppid=,comm=', '-p', String(pid)], { encoding: 'utf8' }).trim()
+      const match = /^(\d+)\s+(.*)$/.exec(row)
+      if (!match) break
+      chain.push(match[2]!.split('/').pop() ?? match[2]!)
+      pid = Number(match[1])
+    }
+    check('the ancestry runs through a shell, login or sshd (a Terminal- or SSH-run tool: TN3179 grants local network access without a prompt; no grant was consulted)', chain.some(name => /^(-?zsh|-?bash|-?sh|login|sshd|sshd-session|Terminal|iTerm2|tmux|screen)$/.test(name)), chain.join(' ← '))
   }
   const found = await announcer.browseAnnouncements({ browseMs: 2500, lookupMs: 2000 })
   const mine = found.find(row => row.name === NAME)

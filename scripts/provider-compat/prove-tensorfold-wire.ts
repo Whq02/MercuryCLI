@@ -73,7 +73,7 @@ const tensorfold = await serve((req, body, res) => {
     if (applied !== 'none') res.write(sse({ id: 'c1', object: 'chat.completion.chunk', created: 1, model: 'qwen3.5-2b', choices: [{ index: 0, delta: { reasoning_content: 'Thinking.' }, finish_reason: null }] }))
     res.write(sse({ id: 'c1', object: 'chat.completion.chunk', created: 1, model: 'qwen3.5-2b', choices: [{ index: 0, delta: { content: 'Hello.' }, finish_reason: null }] }))
     res.write(sse({ ...FINISH, tensorfold: runtime }))
-    res.write(sse({ ...USAGE, usage: { prompt_tokens: 640, completion_tokens: 12, total_tokens: 652, prompt_tokens_details: { cached_tokens: 512 }, completion_tokens_details: { reasoning_tokens: applied === 'none' ? 0 : 9 } } }))
+    res.write(sse({ ...USAGE, usage: { prompt_tokens: 640, completion_tokens: 3, total_tokens: 643, prompt_tokens_details: { cached_tokens: 512 }, completion_tokens_details: { reasoning_tokens: applied === 'none' ? 0 : 2 } } }))
     res.write('data: [DONE]\n\n')
     res.end()
     return true
@@ -161,9 +161,9 @@ check('high: the stamp shows the level the engine applied (xhigh) beside the ask
 const turns = usageLedger.tensorFoldTurnReadings()
 check('two turns in the /usage ledger', turns.length === 2, String(turns.length))
 const last = turns.at(-1)
-check('the ledger reads tok/s, first token, prefill, cached and reasoning tokens', last?.tokensPerSecond !== undefined && Math.round(last.tokensPerSecond) === 109 && last.timeToFirstTokenS !== undefined && last.prefillSeconds !== undefined && last.promptTokens === 640 && last.cachedTokens === 512 && last.reasoningTokens === 9 && last.reasoningEffort === 'xhigh', JSON.stringify(last))
+check('the ledger reads tok/s, decode seconds, first token, prefill, cached and reasoning tokens', last?.tokensPerSecond !== undefined && Math.round(last.tokensPerSecond) === 109 && last.decodeSeconds !== undefined && last.timeToFirstTokenS !== undefined && last.prefillSeconds !== undefined && last.promptTokens === 640 && last.cachedTokens === 512 && last.reasoningTokens === 2 && last.reasoningEffort === 'xhigh', JSON.stringify(last))
 const lines = usageLedger.tensorFoldUsageLines()
-check('the /usage lines name the last turn and the session', lines.length === 2 && lines[0]!.startsWith('last turn · qwen3.5-2b · ~109 tok/s · first token in 58 ms · prefill 58 ms · 640 in (512 cached) · 12 out (9 thinking) · effort xhigh') && lines[1]!.startsWith('this session · 2 turns · ~109 tok/s on average · 1,280 in (1,024 cached · 80%) · 24 out'), JSON.stringify(lines))
+check('the /usage lines name the last turn and the session (the average from decode time, as his benchmark page means tok/s)', lines.length === 2 && lines[0]!.startsWith('last turn · qwen3.5-2b · ~109 tok/s · first token in 58 ms · prefill 58 ms · 640 in (512 cached) · 3 out (2 thinking) · effort xhigh') && lines[1]!.startsWith('this session · 2 turns · ~109 tok/s on average · 1,280 in (1,024 cached · 80%) · 6 out'), JSON.stringify(lines))
 check('the per-turn line carries no port, flag or path', !/--|\/Users|127\.0\.0\.1:\d+/.test(lines[0]!), lines[0])
 
 section('§4 live: a turn on the 2B when it answers (skipped when it does not)')
