@@ -126,7 +126,19 @@ section('§2 the setting: off by default; on, the helper\'s own process answers 
   check('2B: compaction stays on the session model until opted in', helper.helperCompactionModelId() === undefined)
   helper.writeHelperModelSetting({ compaction: true })
   check('compaction opt-in routes compaction to the helper', helper.helperCompactionModelId() === 'local/qwen3.5-2b')
+  const { foldModelFor } = await import('../../src/services/compact/autoCompact.js')
+  const { createUserMessage } = await import('../../src/utils/messages/factories.js')
+  const short = [createUserMessage({ content: 'a short history' })]
+  const long = [createUserMessage({ content: 'x'.repeat(400_000) })]
+  helper.writeHelperModelSetting({ compaction: false })
+  check('opt-in off: the seated model folds', foldModelFor(short, 'claude-opus-5-5', { forced: false }).source === 'seated')
+  helper.writeHelperModelSetting({ compaction: true })
+  const folded = foldModelFor(short, 'claude-opus-5-5', { forced: false })
+  check('opt-in on, the helper serving, the history under its window: the helper folds', folded.model === 'local/qwen3.5-2b' && folded.source === 'helper', JSON.stringify(folded))
+  const over = foldModelFor(long, 'claude-opus-5-5', { forced: false })
+  check('opt-in on, the history past the helper\'s window: the seated model folds and the reason says why', over.model === 'claude-opus-5-5' && over.source === 'seated' && over.reason !== undefined && over.reason.includes('the helper local/qwen3.5-2b\'s window does not hold the history'), JSON.stringify(over))
   helper.writeHelperModelSetting({ size: 'off', compaction: false })
+  check('opt-in with the helper off: the seated model folds, no reason', foldModelFor(short, 'claude-opus-5-5', { forced: false }).reason === undefined)
 }
 
 const React = await import('react')

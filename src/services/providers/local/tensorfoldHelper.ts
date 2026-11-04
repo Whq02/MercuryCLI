@@ -168,14 +168,14 @@ export function readHelperModelState(): HelperModelState {
   }
 }
 
-export function helperModelId(): string | undefined {
+export function helperModelId(opts: { start?: boolean } = {}): string | undefined {
   const setting = readHelperModelSetting()
   if (setting.size === 'off') return undefined
   const choice = helperModelChoices().find(row => row.size === setting.size)
   if (choice?.available !== true) return undefined
   const serving = helperServing(setting.size)
   if (serving === undefined) {
-    void ensureHelperServing().catch(() => undefined)
+    if (opts.start !== false) void ensureHelperServing().catch(() => undefined)
     return undefined
   }
   const twins = cachedLocalModels().filter(record => record.id.toLowerCase() === serving.id.toLowerCase()).length
@@ -183,7 +183,7 @@ export function helperModelId(): string | undefined {
 }
 
 export function helperCompactionModelId(): string | undefined {
-  return readHelperModelSetting().compaction ? helperModelId() : undefined
+  return readHelperModelSetting().compaction ? helperModelId({ start: false }) : undefined
 }
 
 export function helperHeadingWords(): string | undefined {
