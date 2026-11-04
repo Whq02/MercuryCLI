@@ -224,8 +224,8 @@ export function refusedActOf(name: string, window: number, refusal: TensorFoldRe
 }
 
 export const FEED = {
-  serves: (name: string, window: number, port: number): string => `● TensorFold serves ${name} · ${tokensWords(window)} on ${servedAddress(port)} · this session's model`,
-  servesElsewhere: (name: string, port: number, busy: number, window: number): string => `● TensorFold serves ${name} on ${servedAddress(port)} · ${busy} was in use · ${tokensWords(window)}`,
+  serves: (name: string, window: number, port: number, switched = true): string => `● TensorFold serves ${name} · ${tokensWords(window)} on ${servedAddress(port)} · ${switched ? "this session's model" : 'your default model'}`,
+  servesElsewhere: (name: string, port: number, busy: number, window: number, switched = true): string => `● TensorFold serves ${name} on ${servedAddress(port)} · ${busy} was in use · ${tokensWords(window)}${switched ? '' : ' · your default model'}`,
   pulled: (label: string, bytes: number): string => `● TensorFold pulled ${label} · ${bytesWords(bytes)} · starting it`,
   stopped: (name: string): string => `◌ TensorFold stopped ${name} · /tensorfold serves it again`,
   refused: (name: string, window: number, refusal: TensorFoldRefusal): string => {

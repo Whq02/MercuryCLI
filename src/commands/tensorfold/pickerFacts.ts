@@ -41,6 +41,8 @@ export type TensorFoldPickerAct =
   | { kind: 'address'; address: string }
   | { kind: 'rent' }
   | { kind: 'app'; serving: string }
+  | { kind: 'share'; row: TensorFoldModelRow }
+  | { kind: 'unshare'; row: TensorFoldModelRow }
 
 export function rowActOf(act: TensorFoldAct | undefined, row: TensorFoldInventoryRow, usableGib: number | undefined, window: number): TensorFoldRowAct | undefined {
   if (act === undefined) return undefined
@@ -221,14 +223,14 @@ export function standInRows(facts: TensorFoldPanelFacts): { models: ModelChoice[
   }
   for (const row of facts.rows) {
     const window = facts.windows[row.repo] ?? row.window
-    models.push({ id: `tensorfold:${row.repo}`, name: row.label, tag: standInCard(facts, row), ctx: `${tokensWords(window)} ctx`, group: TENSORFOLD_PICKER_GROUP })
+    models.push({ id: modelIdOf(row), name: row.label, tag: standInCard(facts, row), ctx: `${tokensWords(window)} ctx`, group: TENSORFOLD_PICKER_GROUP })
   }
   for (const server of facts.outside) {
     models.push({ id: `tensorfold:outside:${server.port}`, name: server.name, tag: `window    ${server.window !== undefined ? tokensWords(server.window) : '?'} · ${W.startedOutside}`, ctx: server.window !== undefined ? `${tokensWords(server.window)} ctx` : '', group: TENSORFOLD_PICKER_GROUP })
   }
   if (facts.other?.read !== undefined) {
     const row = facts.other.read
-    models.push({ id: `tensorfold:${row.repo}`, name: row.label, tag: standInCard(facts, row), ctx: `${tokensWords(facts.windows[row.repo] ?? row.window)} ctx`, group: TENSORFOLD_PICKER_GROUP })
+    models.push({ id: modelIdOf(row), name: row.label, tag: standInCard(facts, row), ctx: `${tokensWords(facts.windows[row.repo] ?? row.window)} ctx`, group: TENSORFOLD_PICKER_GROUP })
   }
   if (facts.platform !== 'win32') {
     const other = facts.other
@@ -239,6 +241,7 @@ export function standInRows(facts: TensorFoldPanelFacts): { models: ModelChoice[
     models.push({ id: `tensorfold:host:${host.name}`, name: host.serving ?? host.name, tag: `host      ${host.name}${host.chip !== undefined ? ` · ${host.chip}` : ''}${host.version !== undefined ? ` · TensorFold ${host.version}` : ''}`, ctx: host.window !== undefined ? `${tokensWords(host.window)} ctx` : '', group: TENSORFOLD_HOST_PICKER_GROUP })
   }
   models.push({ id: 'tensorfold:address', name: `${W.addressRow} — ${W.addressWords}`, tag: '', ctx: '', group: TENSORFOLD_HOST_PICKER_GROUP, action: true, searchableAction: true })
-  const landing = facts.landing === undefined ? undefined : facts.landing === 'install' ? 'tensorfold:install' : facts.landing.startsWith('outside:') ? `tensorfold:${facts.landing}` : `tensorfold:${facts.landing}`
+  const landed = facts.landing === undefined ? undefined : facts.rows.find(row => row.repo === facts.landing)
+  const landing = facts.landing === undefined ? undefined : facts.landing === 'install' ? 'tensorfold:install' : facts.landing.startsWith('outside:') ? `tensorfold:${facts.landing}` : landed !== undefined ? modelIdOf(landed) : undefined
   return { models, headings, ...(landing !== undefined ? { landing } : {}) }
 }

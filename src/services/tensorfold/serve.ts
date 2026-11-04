@@ -11,7 +11,7 @@ import type { ServiceRecord, ServiceSpec } from '../projectServices/contracts.js
 import { readRecord, reconcileRecord, startService, stopService, waitForReady } from '../projectServices/serviceManager.js'
 import type { TensorFoldModelRow, TensorFoldPullProgress, TensorFoldServeRequest, TensorFoldServed } from './contracts.js'
 import { cachedTensorFoldMachineTruth, findTensorFoldEngine, type EngineIo } from './engine.js'
-import { tensorFoldProjectedBytes, type TensorFoldMachineTruth } from './fit.js'
+import { tensorFoldLadder, tensorFoldProjectedBytes, type TensorFoldMachineTruth } from './fit.js'
 import { pullCommandLines, pullTensorFold as pullWithEngine, type PullIo } from './pull.js'
 import { readTensorFoldRefusal, type TensorFoldRefusal } from './refusal.js'
 import { PROMPT_CACHE_OPT_IN_FAMILIES, startingPointOf, tensorFoldShortName, type TensorFoldCheckpoint } from './starting.js'
@@ -41,7 +41,28 @@ export type ServeIo = EngineIo & {
   rememberPort?: (port: number) => void
   forgetPort?: (port: number) => void
   servedFile?: string
+  serviceEnv?: Record<string, string>
   sleep?: (ms: number) => Promise<void>
+  keyFile?: () => { path: string; key: string; line: string }
+  announce?: (offer: { model: string; enginePort: number; window: number; key: string }) => { stop: () => void }
+}
+
+export const TENSORFOLD_SHARE_HOST = '0.0.0.0'
+export const SHARE_NEEDS_KEY_FILE = 'sharing on your network needs the key file road'
+
+let announcement: { name: string; stop: () => void } | null = null
+
+export function tensorFoldAnnouncing(): string | null {
+  return announcement?.name ?? null
+}
+
+function endAnnouncement(): void {
+  try {
+    announcement?.stop()
+  } catch {
+    void 0
+  }
+  announcement = null
 }
 
 export class TensorFoldStartError extends Error {
@@ -87,7 +108,7 @@ export function rememberedTensorFoldPort(io: Pick<ServeIo, 'servedFile'> = {}): 
   return readServedRecord(io)?.port
 }
 
-export function serveArgs(point: Pick<TensorFoldCheckpoint, 'repo' | 'shortName' | 'drafter' | 'promptCacheGib'>, window: number, port: number, name = point.shortName): string[] {
+export function serveArgs(point: Pick<TensorFoldCheckpoint, 'repo' | 'shortName' | 'drafter' | 'promptCacheGib'>, window: number, port: number, name = point.shortName, share?: { keyFile: string }): string[] {
   return [
     'serve',
     point.repo,
@@ -97,6 +118,7 @@ export function serveArgs(point: Pick<TensorFoldCheckpoint, 'repo' | 'shortName'
     '--context',
     String(window),
     ...(point.promptCacheGib !== undefined ? ['--prompt-cache-gib', String(point.promptCacheGib)] : []),
+    ...(share !== undefined ? ['--host', TENSORFOLD_SHARE_HOST, '--api-key-file', share.keyFile] : []),
     '--port',
     String(port),
   ]
@@ -156,13 +178,13 @@ export function memoryOffers(records: readonly { name: string }[], ollamaRunning
   return offers
 }
 
-export function tensorFoldServiceSpec(binary: string, point: Pick<TensorFoldCheckpoint, 'repo' | 'shortName' | 'drafter' | 'promptCacheGib'>, window: number, port: number, cwd: string, name?: string): ServiceSpec {
+export function tensorFoldServiceSpec(binary: string, point: Pick<TensorFoldCheckpoint, 'repo' | 'shortName' | 'drafter' | 'promptCacheGib'>, window: number, port: number, cwd: string, name?: string, extraEnv: Record<string, string> = {}, share?: { keyFile: string }): ServiceSpec {
   return {
     name: TENSORFOLD_SERVICE,
     command: binary,
-    args: serveArgs(point, window, port, name),
+    args: serveArgs(point, window, port, name, share),
     cwd,
-    env: { TF_DRAIN_S: String(TENSORFOLD_DRAIN_SECONDS), TENSORFOLD_NO_UPDATE_CHECK: '1', TENSORFOLD_NO_LIVE: '1' },
+    env: { ...extraEnv, TF_DRAIN_S: String(TENSORFOLD_DRAIN_SECONDS), TENSORFOLD_NO_UPDATE_CHECK: '1', TENSORFOLD_NO_LIVE: '1' },
     readiness: [{ kind: 'http', url: `http://${TENSORFOLD_HOST}:${port}/health` }],
     readinessMode: 'all',
     restart: 'never',
@@ -218,7 +240,9 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
   }
   const pick = await pickTensorFoldPort(request.port ?? rememberedTensorFoldPort(io) ?? TENSORFOLD_DEFAULT_PORT, io)
   io.onPort?.(pick)
-  const spec = tensorFoldServiceSpec(binary, point, request.window, pick.port, cwd, name)
+  if (request.share === true && io.keyFile === undefined) throw new TensorFoldStartError(SHARE_NEEDS_KEY_FILE, null)
+  const key = request.share === true && io.keyFile !== undefined ? io.keyFile() : undefined
+  const spec = tensorFoldServiceSpec(binary, point, request.window, pick.port, cwd, name, io.serviceEnv ?? {}, key !== undefined ? { keyFile: key.path } : undefined)
   const started = await startService({ spec, sessionId })
   if ('error' in started) throw new TensorFoldStartError(started.error, null)
   const record: TensorFoldServedRecord = {
@@ -229,6 +253,7 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
     pid: started.record.pid ?? 0,
     startedAt: new Date(started.record.startedAt ?? Date.now()).toISOString(),
     project: cwd,
+    ...(key !== undefined ? { keyFile: key.path } : {}),
     ...(pick.busy !== undefined ? { busy: pick.busy } : {}),
     ...(point.drafter !== undefined ? { drafter: point.drafter.repo } : {}),
     ...(point.promptCacheGib !== undefined ? { promptCacheGib: point.promptCacheGib } : {}),
@@ -248,7 +273,7 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
       const tail = logTail(ready.record)
       writeServedRecord(null, io)
       const exit = { code: ready.record?.lastExitCode ?? null, signal: ready.record?.lastExitCode === -1 ? 'SIGKILL' : null }
-      const refusal = readTensorFoldRefusal(tail, { window: request.window, machine, ...(full !== undefined ? { needBytes: tensorFoldProjectedBytes(full, request.window) } : {}), exit })
+      const refusal = readTensorFoldRefusal(tail, { window: request.window, machine, ...(full !== undefined ? { needBytes: tensorFoldProjectedBytes(full, request.window), ladder: tensorFoldLadder(full, machine) } : {}), exit })
       throw new TensorFoldStartError(refusal.line, refusal)
     }
     io.onLoading?.(Math.round((Date.now() - begun) / 1000))
@@ -259,6 +284,14 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
     await sleep(0)
   }
   io.rememberPort?.(pick.port)
+  endAnnouncement()
+  if (key !== undefined && io.announce !== undefined) {
+    try {
+      announcement = { name, stop: io.announce({ model: name, enginePort: pick.port, window: request.window, key: key.key }).stop }
+    } catch {
+      announcement = null
+    }
+  }
   return { ...record, pid: readRecord(cwd, TENSORFOLD_SERVICE)?.pid ?? record.pid }
 }
 
@@ -266,6 +299,7 @@ export async function stopTensorFold(name: string, io: Pick<ServeIo, 'servedFile
   const record = readServedRecord(io)
   if (record === null) return
   if (record.name !== name && record.repo !== name) return
+  endAnnouncement()
   const stopped = await stopService(record.project, TENSORFOLD_SERVICE)
   writeServedRecord(null, io)
   io.forgetPort?.(record.port)

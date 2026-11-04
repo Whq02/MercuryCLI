@@ -9,8 +9,10 @@ import type { TensorFoldInventoryRow } from '../../services/tensorfold/inventory
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import { claimModelPickerPopup } from '../../utils/cockpit/modelPickerPopup.js'
 import { getEngineModel } from '../../utils/model/model.js'
-import { pickerFactsOf, standInRows, type TensorFoldPickerAct } from './pickerFacts.js'
+import { modelIdOf, pickerFactsOf, standInRows, type TensorFoldPickerAct } from './pickerFacts.js'
 import {
+  SHARE_WORDS,
+  UNSHARE_WORDS,
   copyTensorFoldSupportLine,
   copyWiredLimitCommand,
   discoveryEnvFor,
@@ -74,7 +76,7 @@ export function TensorFoldPanel({ onDone, io = {}, repo }: { onDone: (words?: st
   }, [repo, io.road])
   if (facts === null) return null
   const picker = standInRows(facts)
-  const rowOf = (id: string): TensorFoldInventoryRow | undefined => facts.rows.find(row => `tensorfold:${row.repo}` === id) ?? (facts.other?.read !== undefined && `tensorfold:${facts.other.read.repo}` === id ? facts.other.read : undefined)
+  const rowOf = (id: string): TensorFoldInventoryRow | undefined => facts.rows.find(row => modelIdOf(row) === id) ?? (facts.other?.read !== undefined && modelIdOf(facts.other.read) === id ? facts.other.read : undefined)
   const act = (what: TensorFoldPickerAct): void => void onTensorFoldAct(what, facts, io.road, { close: onDone, read: () => read(true) })
   const handleSelect = (id: string): void => {
     if (id === 'tensorfold:install') {
@@ -121,7 +123,7 @@ export function TensorFoldPanel({ onDone, io = {}, repo }: { onDone: (words?: st
 
 export async function switchOutside(name: string, port: number, io: RoadIo = {}): Promise<string> {
   const root = `http://${servedAddress(port)}`
-  const result = await pickAndProve(name, { ...io.prove, root, env: discoveryEnvFor(root, io.prove?.env), ...(io.setAppState !== undefined ? { setAppState: io.setAppState } : {}) })
+  const result = await pickAndProve(name, { ...io.prove, root, thinkingOff: true, env: discoveryEnvFor(root, io.prove?.env), ...(io.setAppState !== undefined ? { setAppState: io.setAppState } : {}) })
   return result.words
 }
 
@@ -178,6 +180,16 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
     case 'app':
       setTensorFoldNotice(`the app is serving ${act.serving} · paste from its API tab · quit the app first to serve with Mercury instead`)
       return
+    case 'share':
+    case 'unshare': {
+      const row = inventoryRow(act.row.repo)
+      const served = facts.served.find(candidate => candidate.repo === act.row.repo)
+      if (row === undefined || served === undefined) return
+      setTensorFoldNotice(act.kind === 'share' ? SHARE_WORDS : UNSHARE_WORDS)
+      await stopTensorFoldRow(row, facts.served, { current: false }, io)
+      await serveTensorFoldRow({ ...row, state: 'on-disk', port: served.port }, served.window, io, { share: act.kind === 'share' })
+      return
+    }
   }
 }
 

@@ -78,13 +78,14 @@ export async function readTensorFoldMachineTruth(io: MachineIo = {}): Promise<Te
   const seventy = { usableBytes: Math.round(ramBytes * TENSORFOLD_ADMISSION_SHARE), usableSource: 'seventy-percent' as const }
   if (platform === 'darwin') {
     const osVersion = (await run('sysctl', ['-n', 'kern.osproductversion']))?.trim()
-    const wired = positive((await run('sysctl', ['-n', 'iogpu.wired_limit_mb']))?.trim())
+    const wiredText = (await run('sysctl', ['-n', 'iogpu.wired_limit_mb']))?.trim()
+    const wired = wiredText !== undefined && /^\d+$/.test(wiredText) ? Number(wiredText) : undefined
     const brand = (await run('sysctl', ['-n', 'machdep.cpu.brand_string']))?.trim()
     const metal = parseMetalWorkingSet(await run('osascript', ['-l', 'JavaScript', '-e', METAL_WORKING_SET_SCRIPT]))
     const chip = metal?.name || brand || 'Apple silicon'
     const base = { platform, ramBytes, chip, ...(osVersion ? { osVersion } : {}), ...(wired !== undefined ? { wiredLimitMib: wired } : {}) }
     if (metal !== undefined) return { ...base, usableBytes: metal.bytes, usableSource: 'metal' }
-    if (wired !== undefined) return { ...base, usableBytes: Math.round(wired * 1024 * 1024), usableSource: 'wired-limit' }
+    if (wired !== undefined && wired > 0) return { ...base, usableBytes: Math.round(wired * 1024 * 1024), usableSource: 'wired-limit' }
     return { ...base, ...seventy }
   }
   if (platform === 'linux') {

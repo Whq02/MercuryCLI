@@ -51,7 +51,8 @@ export function readTensorFoldRefusal(stderr: string, context: { window?: number
   if (memory) {
     const gibs = gibsOf(line)
     const needGib = gibs[0]
-    const leftGib = /remains beside the weights/.test(line) ? gibs[gibs.length - 1] : gibs.length > 1 ? gibs[1] : undefined
+    const remains = /(\d+(?:\.\d+)?) GiB remains beside the weights/.exec(line)
+    const leftGib = remains !== null ? Number(remains[1]) : gibs.length > 1 ? gibs[1] : undefined
     const window = Number(/(\d+)-token/.exec(line)?.[1]) || context.window
     const next = nextWindowUnder(context.ladder, context.window, leftGib)
     const base: TensorFoldRefusal = {
@@ -65,10 +66,11 @@ export function readTensorFoldRefusal(stderr: string, context: { window?: number
     const wired = wiredReading(context)
     return wired === undefined ? base : { ...base, kind: 'gpu-limit', wired }
   }
-  if (context.exit !== undefined && (context.exit.signal !== null || (context.exit.code !== null && context.exit.code !== 0 && line === ''))) {
-    return { kind: 'exited', line: line === '' ? exitWords(context.exit) : line, ...(context.exit.signal !== null ? { signal: context.exit.signal } : {}), ...(context.exit.code !== null ? { code: context.exit.code } : {}) }
+  const spoken = /^tensorfold(?:-native)?:/.test(raw) ? line : ''
+  if (context.exit !== undefined && (context.exit.signal !== null || spoken === '')) {
+    return { kind: 'exited', line: spoken === '' ? exitWords(context.exit) : spoken, ...(context.exit.signal !== null ? { signal: context.exit.signal } : {}), ...(context.exit.code !== null ? { code: context.exit.code } : {}) }
   }
-  return { kind: 'other', line: line === '' ? exitWords(context.exit) : line }
+  return { kind: 'other', line: spoken === '' ? exitWords(context.exit) : spoken }
 }
 
 export function exitWords(exit: { code: number | null; signal: string | null } | undefined): string {

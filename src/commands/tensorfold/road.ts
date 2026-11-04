@@ -143,16 +143,19 @@ export async function copyWiredLimitCommand(command: string, io: RoadIo = {}): P
   return `copied · run it in a terminal (it asks for your password) · then /tensorfold again`
 }
 
-export type SwitchOutcome = { ok: boolean; words: string; model: string }
+export type SwitchOutcome = { ok: boolean; switched: boolean; words: string; model: string }
 
 export async function switchToTensorFold(served: TensorFoldServed, io: RoadIo = {}): Promise<SwitchOutcome> {
   const root = `http://${servedAddress(served.port)}`
-  const prove: ProveIo = { ...io.prove, root, env: discoveryEnvFor(root, io.prove?.env), ...(io.setAppState !== undefined ? { setAppState: io.setAppState } : {}) }
+  const prove: ProveIo = { ...io.prove, root, thinkingOff: true, env: discoveryEnvFor(root, io.prove?.env), ...(io.setAppState !== undefined ? { setAppState: io.setAppState } : {}) }
   const result = await pickAndProve(served.name, prove)
-  return { ok: result.ok && result.settled !== 'refused', words: result.words, model: result.model }
+  return { ok: result.ok, switched: result.settled === 'applied' || result.settled === 'queued' || result.settled === 'no-op', words: result.words, model: result.model }
 }
 
-export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: number, io: RoadIo = {}): Promise<{ served: TensorFoldServed; switched: SwitchOutcome } | null> {
+export const SHARE_WORDS = 'restarting to share on your network · plain HTTP on your home or office network · keyed'
+export const UNSHARE_WORDS = 'restarting on this Mac only'
+
+export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: number, io: RoadIo = {}, opts: { share?: boolean } = {}): Promise<{ served: TensorFoldServed; switched: SwitchOutcome } | null> {
   const key = row.repo
   const running = actOf(key)
   if (running !== undefined && (running.kind === 'pulling' || running.kind === 'starting')) return null
@@ -191,7 +194,7 @@ export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: nu
     let served: TensorFoldServed
     try {
       served = await startTensorFold(
-        { repo: row.repo, window, name, ...(row.drafter !== undefined ? { drafter: row.drafter } : {}), ...(row.promptCacheGib !== undefined ? { promptCacheGib: row.promptCacheGib } : {}) },
+        { repo: row.repo, window, name, ...(row.port !== undefined ? { port: row.port } : {}), ...(row.drafter !== undefined ? { drafter: row.drafter } : {}), ...(row.promptCacheGib !== undefined ? { promptCacheGib: row.promptCacheGib } : {}), ...(opts.share === true ? { share: true } : {}) },
         {
           ...io.serve,
           signal: controller.signal,
@@ -228,8 +231,8 @@ export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: nu
     setAct(key, undefined)
     const switched = await switchToTensorFold(served, io)
     const busy = readServedRecord(io.serve)?.busy
-    mintImmediateReceipt(busy !== undefined ? FEED.servesElsewhere(served.name, served.port, busy.port, served.window) : FEED.serves(served.name, served.window, served.port))
-    if (!switched.ok) setTensorFoldNotice(switched.words)
+    mintImmediateReceipt(busy !== undefined ? FEED.servesElsewhere(served.name, served.port, busy.port, served.window, switched.switched) : FEED.serves(served.name, served.window, served.port, switched.switched))
+    setTensorFoldNotice(switched.ok ? undefined : switched.words)
     return { served, switched }
   } finally {
     abortable.delete(key)

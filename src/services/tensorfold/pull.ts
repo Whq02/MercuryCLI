@@ -1,12 +1,12 @@
 import { spawn, type ChildProcess } from 'node:child_process'
-import { mkdirSync, openSync, closeSync } from 'node:fs'
+import { closeSync, mkdirSync, openSync, readdirSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import type { TensorFoldPullProgress } from './contracts.js'
 import { findTensorFoldEngine } from './engine.js'
-import { cacheDirOfRepo, configFactsOf, hfCacheRoot, readHfSnapshot, type ConfigFacts, type InventoryIo } from './inventory.js'
+import { cacheDirOfRepo, configFactsOf, hfCacheRoot, type ConfigFacts, type InventoryIo } from './inventory.js'
 import { isGgufRepo, isRepoId, startingPointOf, tensorFoldLabel, tensorFoldShortName, type TensorFoldCheckpoint } from './starting.js'
 
 export type PullIo = InventoryIo & {
@@ -21,8 +21,12 @@ export type PullIo = InventoryIo & {
 const rec = (v: unknown): Record<string, unknown> | undefined => (typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined)
 
 export function cacheBytesOf(root: string, repo: string, io: Pick<InventoryIo, 'listDir' | 'sizeOf'> = {}): number {
-  const snapshot = readHfSnapshot(root, repo, io)
-  return (snapshot?.weightsBytes ?? 0) + (snapshot?.incompleteBytes ?? 0)
+  const blobs = join(root, cacheDirOfRepo(repo), 'blobs')
+  const listDir = io.listDir ?? ((path: string): string[] => { try { return readdirSync(path) } catch { return [] } })
+  const sizeOf = io.sizeOf ?? ((path: string): number | undefined => { try { return statSync(path).size } catch { return undefined } })
+  let total = 0
+  for (const name of listDir(blobs)) total += sizeOf(join(blobs, name)) ?? 0
+  return total
 }
 
 export function pullSpec(repo: string): string {
@@ -64,7 +68,7 @@ async function pullOne(binary: string, repo: string, totalBytes: number | undefi
   const launch = io.spawnImpl ?? spawn
   let child: ChildProcess
   try {
-    child = launch(binary, ['pull', pullSpec(repo)], { env: { ...subprocessEnv(), ...(io.cacheRoot !== undefined ? { HF_HUB_CACHE: io.cacheRoot } : {}) }, stdio: ['ignore', logFd, logFd] })
+    child = launch(binary, ['pull', pullSpec(repo)], { env: { ...(io.env === undefined ? subprocessEnv() : io.env), ...(io.cacheRoot !== undefined ? { HF_HUB_CACHE: io.cacheRoot } : {}) }, stdio: ['ignore', logFd, logFd] })
   } finally {
     closeSync(logFd)
   }
