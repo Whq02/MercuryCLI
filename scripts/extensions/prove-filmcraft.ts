@@ -60,13 +60,13 @@ if (connection.type === 'connected') {
     const context: any = { abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: permission }), options: {} }
     const { decision } = await decideToolPermission(install, {}, context)
     assert.equal(decision.behavior, 'ask')
-    assert.match((decision as any).message, /Install FilmCraft 0\.12\.0 \([\d,]+ bytes\)/)
+    assert.match((decision as any).message, /Install FilmCraft 0\.17\.0 \([\d,]+ bytes\)/)
     assert(!JSON.stringify(decision).includes('_mercuryInstallGrant'))
     console.log('PASS: real Mercury MCP client and tool pool ask once with a private install handoff')
   } finally { await connection.client.close() }
 }
 const pins = ['filmcraft.lock.json', 'filmcraft-cli.lock.json'].map(name => JSON.parse(readFileSync(join(ext.root, 'server', name), 'utf8')))
 assert.equal(pins[0].version, pins[1].version)
-assert.equal(pins[0].platforms['darwin-arm64'].bytes + pins[1].platforms['darwin-arm64'].bytes, 134888132)
-assert.equal(pins[0].platforms['win-x64'].bytes, 70839726)
+assert.equal(pins[0].platforms['darwin-arm64'].bytes + pins[1].platforms['darwin-arm64'].bytes, 210024059)
+assert.equal(pins[0].platforms['win-x64'].bytes, 108858950)
 console.log('PASS: delivered Mac/Windows release pins and matching versions')
