@@ -94,8 +94,8 @@ export function getActiveMissionVersion(): number {
 
 function persistCard(sessionId: string, mission: ActiveMission, state: MissionCardState): void {
   const standing = readMissionCard(sessionId)
-  if (standing !== null && standing.state === 'armed' && standing.goal !== mission.condition && Date.parse(standing.setAt) > mission.setAt) {
-    logForDebugging(`[mission] the card for session ${sessionId} already names a newer goal; the ${state} state of the older one is not written over it`)
+  if (standing !== null && standing.state === 'armed' && Date.parse(standing.setAt) > mission.setAt) {
+    logForDebugging(`[mission] the card for session ${sessionId} was armed after this record; the ${state} state of the older one is not written over it`)
     return
   }
   writeMissionCard({
@@ -330,7 +330,7 @@ function followSeatAtAdmission(): void {
 
 export function setActiveMission(
   condition: string,
-  options?: { sessionId?: string; judge?: GoalJudge | null },
+  options?: { sessionId?: string; judge?: GoalJudge | null; setAt?: number },
 ): string {
   const sessionId = options?.sessionId ?? conversationIdHere()
 
@@ -340,7 +340,7 @@ export function setActiveMission(
     missionsBySession.delete(sessionId)
   }
 
-  const setAt = Date.now()
+  const setAt = options?.setAt !== undefined && Number.isFinite(options.setAt) ? options.setAt : Date.now()
   const contract = goalContract(condition)
   const record: ActiveMission = {
     condition,
@@ -436,10 +436,10 @@ export function syncMissionFromCard(sessionId: string): void {
   const card = readMissionCard(sessionId)
   const live = missionsBySession.get(sessionId)
   if (card?.state === 'armed') {
-    if (live !== undefined && (live.condition !== card.goal || live.met === true || live.needsOperator === true)) {
+    if (live !== undefined && (Date.parse(card.setAt) > live.setAt || live.condition !== card.goal || live.met === true || live.needsOperator === true)) {
       disengageTurnGuard(sessionId, live.hookId)
       missionsBySession.delete(sessionId)
-      logForDebugging(`[mission] the armed card names a new goal for session ${sessionId}; the settled one is released`)
+      logForDebugging(`[mission] the card for session ${sessionId} was armed after the live record; the live one is released`)
     }
     if (!missionsBySession.has(sessionId)) rearmMissionFromCard({ cardSessionId: sessionId, armSessionId: sessionId })
     return
@@ -461,11 +461,10 @@ export function rearmMissionFromCard(
   if (missionsBySession.has(armSessionId)) return false
   const card = readMissionCard(cardSessionId)
   if (!card || card.state !== 'armed') return false
-  setActiveMission(card.goal, { sessionId: armSessionId })
+  const armedAt = Date.parse(card.setAt)
+  setActiveMission(card.goal, { sessionId: armSessionId, ...(Number.isFinite(armedAt) ? { setAt: armedAt } : {}) })
   const mission = missionsBySession.get(armSessionId)
   if (mission) {
-    const armedAt = Date.parse(card.setAt)
-    if (Number.isFinite(armedAt)) mission.setAt = armedAt
     mission.lastReason = `re-armed on resume (the previous run closed at check ${card.iterations})`
     persistCard(armSessionId, mission, 'armed')
   }

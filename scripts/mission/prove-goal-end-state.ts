@@ -343,6 +343,64 @@ section('§6 the surfaces keep their words: the receipt, the panel, the card')
   clearActiveMission(S)
 }
 
+section('§7 a newer card wins by time: /goal run again with the same words after an asking hold re-arms, and the older record never writes over it')
+{
+  const { writeMissionCard } = await import('../../src/services/mission/missionCard.ts')
+  const { syncMissionFromCard } = mission
+  const S = 'goal-same-words-again'
+  const GOAL = 'the report is improved'
+  arm(S, GOAL, async () => verdict('ambiguous', 0.85, 'improved names no observable state'))
+  const first = await stop(S, [user(`/goal ${GOAL}`), asst('I tightened two paragraphs')])
+  const before = getActiveMission(S)
+  check('the ambiguous verdict holds the turn once and the record is asking', first.allowed === false && before?.asking === true, j({ first: first.words.split('\n')[0], asking: before?.asking }))
+  const again = new Date((before?.setAt ?? Date.now()) + 5_000).toISOString()
+  writeMissionCard({ schema: 1, sessionId: S, goal: GOAL, state: 'armed', nextStep: null, iterations: 0, setAt: again, updatedAt: again })
+  _resetContinuationLatchesForTesting()
+  const stale = await stop(S, [user(`/goal ${GOAL}`), asst('I tightened two paragraphs'), user('(hold)'), asst('reading the report again')])
+  const standing = readMissionCard(S)
+  check('without a sync, the older record settles itself but never writes over the newer card: it still reads armed at iterations 0 with its own setAt', stale.allowed && standing?.state === 'armed' && standing?.iterations === 0 && standing?.setAt === again, j({ stale, standing }))
+  syncMissionFromCard(S)
+  const live = getActiveMission(S)
+  check('the sync adopts the newer card though its words match: a fresh record born at the card\'s setAt, not asking, nothing met', live !== undefined && live !== before && live.asking !== true && live.needsOperator !== true && live.met !== true && live.iterations === 0 && live.setAt === Date.parse(again), j({ setAt: live?.setAt, again: Date.parse(again), asking: live?.asking, iterations: live?.iterations }))
+  _resetContinuationLatchesForTesting()
+  const armedStill = guardsEngaged(S).turn.some(id => id.startsWith('mission-'))
+  const judged = armedStill ? await stop(S, [user(`/goal ${GOAL}`), asst('reading the report again')]) : { allowed: true, words: 'no mission guard stands' }
+  check('the next turn end is judged anew for the re-armed goal (held as not yet met on the claim road), not settled needs-operator by the old asking flag', judged.allowed === false && judged.words.startsWith(`The goal for this session is not yet met (check 1): ${GOAL}`) && readMissionCard(S)?.state === 'armed' && readMissionCard(S)?.iterations === 1, j({ judged: judged.words.split('\n')[0], card: readMissionCard(S) }))
+  clearActiveMission(S)
+}
+
+section('§8 the concourse paints no marker: the live tile\'s last line and the now label elide the completion line')
+{
+  const { lastLineOf } = await import('../../src/components/concourse/liveTiles.ts')
+  const { tailActivity, activityNowLabel } = await import('../../src/services/concourse/concourseSnapshot.ts')
+  const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
+  const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
+  const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
+  const { mkdirSync, writeFileSync } = await import('node:fs')
+  const { dirname } = await import('node:path')
+  check('the live tile\'s last line drops a trailing completion line and keeps the words before it', lastLineOf(`wrote hello.txt with the word hello.\n${MISSION_MET_SENTINEL}\n`) === 'wrote hello.txt with the word hello.' && lastLineOf(`done\n${MISSION_MET_SENTINEL}`) === 'done' && lastLineOf('still working') === 'still working', j([lastLineOf(`wrote hello.txt with the word hello.\n${MISSION_MET_SENTINEL}\n`), lastLineOf(`done\n${MISSION_MET_SENTINEL}`)]))
+  const SID = 'goal-concourse-tile-1'
+  const WS = join(HOME, 'ws-goal-tile')
+  const path = workerTranscriptPath({ sessionId: SID, workspaceId: WS })
+  mkdirSync(dirname(path), { recursive: true })
+  let n = 0
+  const ctx = { sessionId: SID, nextOrdinal: () => ordinalOf(++n), observedAt: '2026-11-04T12:00:00.000Z', source: { channel: 'interactive' } }
+  const entries = [
+    { type: 'user', message: { role: 'user', content: 'go' }, timestamp: '2026-11-04T12:00:00.000Z' },
+    { type: 'assistant', timestamp: '2026-11-04T12:00:01.000Z', message: { id: 'm1', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: `wrote hello.txt with the word hello.\n${MISSION_MET_SENTINEL}` }], usage: { input_tokens: 10, output_tokens: 5 } } },
+  ]
+  writeFileSync(path, entries.map(e => JSON.stringify(entryToRecord(e as never, ctx as never))).join('\n') + '\n', 'utf8')
+  const activity = tailActivity({ sessionId: SID, workspaceId: WS })
+  check('the now label reads the closing words without the completion line', activity?.kind === 'text' && activity.label === 'wrote hello.txt with the word hello.' && activityNowLabel(activity) === 'wrote hello.txt with the word hello.', j(activity))
+  const onlyMarker = [
+    entries[0],
+    { type: 'assistant', timestamp: '2026-11-04T12:00:01.000Z', message: { id: 'm2', role: 'assistant', model: 'claude-sonnet-5', content: [{ type: 'text', text: 'all green, pushed.' }, { type: 'text', text: MISSION_MET_SENTINEL }], usage: { input_tokens: 10, output_tokens: 5 } } },
+  ]
+  n = 0
+  writeFileSync(path, onlyMarker.map(e => JSON.stringify(entryToRecord(e as never, ctx as never))).join('\n') + '\n', 'utf8')
+  const earlier = tailActivity({ sessionId: SID, workspaceId: WS })
+  check('a text block that is only the completion line yields to the words before it', earlier?.kind === 'text' && earlier.label === 'all green, pushed.', j(earlier))
+}
 await standin.close()
 console.log('\n' + '═'.repeat(76))
 console.log(failures === 0 ? `✅ ALL GOAL END-STATE PROOFS PASS (${checks} checks)` : `❌ ${failures}/${checks} GOAL END-STATE CHECK(S) FAILED`)

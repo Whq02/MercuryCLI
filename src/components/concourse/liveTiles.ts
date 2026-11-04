@@ -10,6 +10,7 @@ import {
   sessionTailPath,
   type SessionTailV1,
 } from '../../services/engine-connector/seatProjections.js'
+import { withoutMissionMetSentinel } from '../../services/mission/sentinel.js'
 import { WORK_UNREPORTED_MARK, workChipLine, workCounts } from '../../services/engine-connector/workCounts.js'
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { MODEL_TURN_NOW_WORD, sanitizeLabel, tailActivity } from '../../services/concourse/concourseSnapshot.js'
@@ -43,7 +44,7 @@ const nowEquals = (a: LiveTileNow, b: LiveTileNow): boolean =>
   a.kind === b.kind && (a.kind === 'still' || (b.kind !== 'still' && a.line === (b as { line: string }).line))
 
 export function lastLineOf(text: string): string {
-  const lines = text.split('\n')
+  const lines = withoutMissionMetSentinel(text).split('\n')
   for (let i = lines.length - 1; i >= 0; i--) {
     const flat = (lines[i] ?? '').replace(/\s+/g, ' ').trim()
     if (flat.length > 0) return sanitizeLabel(flat.slice(-56))
