@@ -8,7 +8,7 @@ import { settleModelSelection, type SettledSelection } from '../../utils/model/m
 import { rec, resolveSetupIo, seconds, type ResolvedSetupIo } from './setupIo.js'
 import { SETUP_PROVE_MAX_TOKENS, SETUP_PROVE_PROMPT, type ProveResult, type ProveTimings, type SessionModelDoor, type SessionModelSlice, type SessionSwitchReceipt, type SetupIo } from './setupTypes.js'
 
-export type ProveIo = SetupIo & { root?: string; server?: LocalServerKind; pickAfterReply?: boolean }
+export type ProveIo = SetupIo & { root?: string; server?: LocalServerKind; pickAfterReply?: boolean; thinkingOff?: boolean }
 
 export function setupModelIdOf(tag: string, server?: LocalServerKind): string {
   const listing = cachedLocalModels().filter(m => m.id.toLowerCase() === tag.toLowerCase())
@@ -25,8 +25,9 @@ export function proveRecordFor(tag: string, root: string | undefined, server: Lo
   return localModelRecord(tag)
 }
 
-export function proveRequestOf(record: Pick<LocalModelRecord, 'id'>): CompatChatRequest {
-  return { model: record.id, messages: [{ role: 'user', content: SETUP_PROVE_PROMPT }], extra: { max_tokens: SETUP_PROVE_MAX_TOKENS } }
+export function proveRequestOf(record: Pick<LocalModelRecord, 'id'> & Partial<Pick<LocalModelRecord, 'server'>>, thinkingOff = false): CompatChatRequest {
+  const quiet = thinkingOff || record.server === 'tensorfold' ? { reasoning_effort: 'none', chat_template_kwargs: { enable_thinking: false } } : {}
+  return { model: record.id, messages: [{ role: 'user', content: SETUP_PROVE_PROMPT }], extra: { max_tokens: SETUP_PROVE_MAX_TOKENS, ...quiet } }
 }
 
 export function proveKnobsOf(record: LocalModelRecord): OllamaChatKnobs & { window?: number } {
@@ -156,7 +157,7 @@ export async function pickAndProve(tag: string, seam: ProveIo = {}): Promise<Pro
   const model = setupModelIdOf(record.id, record.server)
   let switched: SessionSwitch = seam.pickAfterReply ? { settled: 'unavailable', settledBy: 'none' } : await switchSessionModel(model, io)
   let saved = seam.pickAfterReply || switched.settled === 'refused' ? '' : io.persist(model).sentence
-  const request = proveRequestOf(record)
+  const request = proveRequestOf(record, seam.thinkingOff === true)
   const timings: ProveTimings = { totalMs: 0 }
   let doneRow: Record<string, unknown> | undefined
   const turnStarted = io.now()
