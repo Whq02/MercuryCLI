@@ -27,6 +27,7 @@ console.log('============================================================')
 
 ;(await import('../../src/utils/config.ts')).enableConfigs()
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
+const { agentRosterOf, withoutAgentRoster } = await import('../../src/tools/AgentTool/prompt.ts')
 const { AGENT_TOOL_NAME } = await import('../../src/tools/AgentTool/constants.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { getAllBaseTools } = await import('../../src/tools.ts')
@@ -42,10 +43,12 @@ const src = (rel: string): string => readFileSync(join(import.meta.dir, '../../'
 section("§1 the launch tool's model parameter")
 {
   check('the model field names live discovery once without a fallback ladder', wireWords.includes('read mercury://models') && wireWords.split('mercury://models').length === 2 && !wireWords.includes('mercury://models/known'), wireWords)
-  check('the field preserves model grammar and precedence', ['[1m]', 'your own family keeps your exact model', 'Overrides the agent definition', 'omitted inherits yours'].every(words => wireWords.includes(words)), wireWords)
+  check('the field preserves model grammar and precedence', ['[1m]', 'your own family keeps your exact model', 'Overrides the agent definition', "omitted, the definition's model, else the configured crewmate default, else yours"].every(words => wireWords.includes(words)), wireWords)
   check('the operator model/effort choice is preserved once in its field', wireWords.includes("Follow the operator's model and effort; never downgrade to obtain read-only scoping.") && !manual.includes('never downgrade'), wireWords)
   check('the manual has no model ladder or alias inventory', !manual.includes(MODEL_SECTION) && modelWords === '' && !manual.includes('Class aliases:') && !manual.includes('mercury://models'), manual)
-  check('the wire is a purpose statement, not an abridged manual', Buffer.byteLength(AgentTool.wireDescription()) <= 200 && !AgentTool.wireDescription().includes('Model and effort:') && !manual.includes(AgentTool.wireDescription()))
+  const wire = AgentTool.wireDescription(manual)
+  const purpose = withoutAgentRoster(wire)
+  check('the wire is a purpose statement plus the agent roster, not an abridged manual', Buffer.byteLength(purpose) <= 200 && !wire.includes('Model and effort:') && !manual.includes(purpose) && wire.includes(agentRosterOf(manual)))
 }
 
 section('§2 the same words wherever the model parameter repeats')

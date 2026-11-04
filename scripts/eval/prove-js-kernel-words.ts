@@ -10,6 +10,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const { evalKernelManager } = await loadEval()
 const { splitTopLevelSegments, transformJsCell } = await import('../../src/services/eval/jsCellTransform.ts')
 const { buildEvalPrompt } = await import('../../src/tools/EvalTool/prompt.ts')
+const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
 
 const bridge: import('../../src/services/eval/kernelManager.js').BridgeServer = async () => ({ ok: false, error: 'no bridge in this proof' })
 const run = (owner: string, language: 'js' | 'py', code: string) =>
@@ -33,7 +34,8 @@ try {
   check('the prompt says require resolves from the working directory', dialect.includes(MODULE_WORDS) && dialect.includes('`require()` resolves from the working directory'), dialect.slice(0, 600))
   check('the prompt keeps top-level await and persistent imports', /top-level await/i.test(dialect) && dialect.includes('`import`'), dialect.slice(0, 1600))
   check('the prompt locates Node crypto beside Web Crypto', dialect.includes(CRYPTO_WORDS) && dialect.includes('node:crypto'), dialect.slice(0, 1600))
-  check('…and how long an idle kernel is kept before its state is gone', /idle for \d+ minutes/.test(prompt), prompt.slice(prompt.indexOf('## Persistence'), prompt.indexOf('## Persistence') + 500))
+  const wire = EvalTool.wireDescription(prompt)
+  check('…and how long an idle kernel is kept before its state is gone, on the wire once', /reaped after \d+ minutes idle/.test(wire) && !/\d+ minutes idle/.test(prompt), wire.slice(0, 400))
 
   section("§2 the kernel: what a failed cell of the record's shapes says")
   const r1 = await run('owner-esm', 'js', "const fs = require('node:fs')\nconst n = 1")

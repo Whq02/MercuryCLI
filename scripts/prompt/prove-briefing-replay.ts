@@ -22,8 +22,8 @@ const normalizeText = (text: string): string => text
   .replace(/Darwin [0-9.]+/g, 'Darwin <v>')
 
 const CONSTRAINTS: Record<string, string[]> = {
-  Bash: ['stdout and stderr merged', 'not to the operator', 'saved to a file', 'Exited with code', 'exit 1', 'no matches found', 'working directory persists', 'shell variables, functions and options do not'],
-  Read: ['2000 lines', 'line number followed by a tab', 'not file content', 'unread range', 'pictures', 'PDFs', 'Notebooks', '<archive>:<entry>', '<db>:<table>', 'transcripts', 'mercury://'],
+  Bash: ['stdout and stderr merged', 'at most a folded preview', 'saved to a file', 'Exited with code', 'exit 1', 'no matches found', 'working directory persists', 'shell variables, functions and options never do'],
+  Read: ['2000 lines', 'line number followed by a tab', 'not file content', 'unread range', 'page markers', 'PDFs', 'Notebooks', '<archive>:<entry>', '<db>:<table>', 'transcripts', 'mercury://'],
   Edit: ['exact string', 'hunks', 'appended', 'Markdown section', 'read coverage', 'append needs none', 'changed lines', 'count as read', 'syntax error'],
   Write: ['whole content', 'replacing', 'read coverage', 'syntax error'],
   Grep: ['ripgrep', 'matching paths, lines or counts', 'extracted text', 'page or section labels'],

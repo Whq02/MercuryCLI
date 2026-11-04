@@ -164,7 +164,7 @@ section('§4 the built bundle: manifest record, health row, prompt sentence')
     check("the bundle tells the model once that an operator stop ends the command and resets the engine session", bundle.split('An operator stop ends the command and resets the session').length === 2)
     check("the bundle carries the health row's word on the stop", bundle.includes('a stop while a command runs resets the session'))
     check('the bundle tells the model the ceiling on engine sessions by its setting', bundle.includes('the shell.sessions setting'))
-    check('the bundle carries the system-shell state lifetime once too', bundle.split('The working directory persists between calls; shell variables, functions and options do not, and each call starts from your profile').length === 2)
+    check('the bundle carries the system-shell state lifetime once too', bundle.split("In the main conversation the working directory persists between calls (a crewmate's does not); shell variables, functions and options never do, and each call starts from your profile").length === 2)
     check('the bundle does not describe repaired Windows shell failures', !bundle.includes('os error 193') && !bundle.includes('relative program path after a `cd`'))
   }
 }
