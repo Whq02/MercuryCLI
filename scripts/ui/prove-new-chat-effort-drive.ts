@@ -56,7 +56,6 @@ for (const world of worlds) {
   const out = join(SCRATCH, world.tag, 'grid.json')
   const full = world.cols >= 100 && world.rows >= 26
   const bornNeedle = full ? ' ready \u00b7 ' : '1 session on'
-  const stripPrompt = 'hello from the strip'
   const cfg = {
     argv: ['node', DIST],
     cwd,
@@ -72,9 +71,9 @@ for (const world of worlds) {
       ...(full
         ? [
             { afterPrevTicks: 2, data: '\x1b[1;2D', mark: 'to-concourse' },
-            { requireAwait: true, awaitText: '1 live ·', minTick: 1, awaitSettleTicks: 6, data: `${stripPrompt}\r`, mark: 'strip-sent' },
-            { requireAwait: true, awaitText: 'A worktree for this session', minTick: 1, awaitSettleTicks: 3, data: '\r', mark: 'fork-card' },
-            { requireAwait: true, awaitText: '2 live ·', minTick: 1, awaitSettleTicks: 6, data: '', mark: 'strip-born' },
+            { requireAwait: true, awaitText: '+ new session · n', minTick: 1, awaitSettleTicks: 6, data: 'n', mark: 'board' },
+            { requireAwait: true, awaitText: 'contract?', minTick: 1, awaitSettleTicks: 2, data: '\x1b', mark: 'contract-ask' },
+            { requireAwait: true, awaitText: '← back', minTick: 1, awaitSettleTicks: 6, data: '', mark: 'board-born' },
           ]
         : []),
     ],
@@ -153,13 +152,13 @@ for (const world of worlds) {
   check(`${world.tag}: the daemon admitted the face-born worker at '${world.expected}'`, admitted.length > 0 && admitted[0]!.includes(`@${world.expected},`), admitted.join(' | ').slice(0, 300))
   check(`${world.tag}: the face-born seat's facts carry the runner's applied word '${world.expected}'`, faceBorn?.factsEffort === world.expected, String(faceBorn?.factsEffort))
   if (full) {
-    const forkCard = payloadMarks.find(m => m.label === 'fork-card')
-    const forkText = forkCard ? textOf(forkCard.grid) : ''
-    check(`${world.tag}: the strip's launch into the checkout the face-born chat holds met the worktree card first, naming the holder`, forkText.includes('A worktree for this session') && forkText.includes('held by') && forkText.includes('Yes — start it on a worktree'), forkText.split('\n').filter(l => /worktree|held by/.test(l)).map(l => l.trim().slice(0, 100)).join(' | '))
-    const stripBorn = all.find(r => r.bornBlankAt === undefined && r.title === stripPrompt)
-    check(`${world.tag}: a second chat was born through the New Session strip once the card was answered Yes`, stripBorn !== undefined, all.map(brief).join(' | '))
-    check(`${world.tag}: the strip-born worker's record carries '${world.expected}'`, stripBorn?.effort === world.expected, brief(stripBorn))
-    check(`${world.tag}: the daemon admitted the strip-born worker at '${world.expected}'`, admitted.length > 1 && admitted[1]!.includes(`@${world.expected},`), admitted.join(' | ').slice(0, 300))
+    const boardMark = payloadMarks.find(m => m.label === 'board')
+    const boardText = boardMark ? textOf(boardMark.grid) : ''
+    check(`${world.tag}: ⇧← reached the two-pane board with the list focused and the face-born chat on it`, boardText.includes('+ new session · n') && boardText.includes('STATUS & TITLE'), boardText.split('\n').filter(l => /new session|STATUS/.test(l)).map(l => l.trim().slice(0, 100)).join(' | '))
+    const boardBorn = all.find(r => r.sessionId !== faceBorn?.sessionId)
+    check(`${world.tag}: a second chat was born through the board's n door (the contract ask skipped with esc)`, boardBorn !== undefined, all.map(brief).join(' | '))
+    check(`${world.tag}: the board-born worker's record carries '${world.expected}'`, boardBorn?.effort === world.expected, brief(boardBorn))
+    check(`${world.tag}: the daemon admitted the board-born worker at '${world.expected}'`, admitted.length > 1 && admitted[1]!.includes(`@${world.expected},`), admitted.join(' | ').slice(0, 300))
   }
   const stripRow = bornText.split('\n').find(l => /(?:[\u25cf\u2726\u25c6] |effort )(max|high|xhigh|medium|low)\b/.test(l)) ?? ''
   console.log(`  strip: ${stripRow.trim().slice(0, 100) || '(no effort word on this size)'} · exec-time env of the face-born runner ${String(faceBorn?.execEnvEffort)}`)
