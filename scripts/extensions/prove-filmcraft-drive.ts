@@ -30,7 +30,7 @@ assert((await installPinned(adapter, { dataDir, authorize: () => { throw new Err
 const environment = { ...process.env, HOME: join(scratch, 'home'), USERPROFILE: join(scratch, 'home'), XDG_CONFIG_HOME: join(scratch, 'config'), FILMCRAFT_DATA_DIR: join(scratch, 'app-data'), TMPDIR: join(scratch, 'tmp'), TMP: join(scratch, 'tmp'), TEMP: join(scratch, 'tmp') }
 for (const key of ['HOME', 'XDG_CONFIG_HOME', 'FILMCRAFT_DATA_DIR', 'TMPDIR'] as const) await mkdir(environment[key]!, { recursive: true })
 const version = await exec(installation.cli, ['--version'], { env: environment })
-assert.match(version.stdout, /0\.12\.0/)
+assert.match(version.stdout, /0\.17\.0/)
 console.log(version.stdout.trim())
 const client = new Client({ name: 'filmcraft-install-proof', version: '1.0.0' })
 const transport = new StdioClientTransport({ command: installation.cli, args: ['mcp'], env: environment as Record<string, string>, stderr: 'pipe' })
@@ -43,11 +43,11 @@ try {
   const texts = commands.content.filter((c: { type: string }) => c.type === 'text').map((c: { text?: string }) => c.text).join('\n')
   const parsed = JSON.parse(texts)
   const entries = Array.isArray(parsed) ? parsed : parsed.commands
-  assert.equal(entries.length, 701)
+  assert.equal(entries.length, 716)
   await writeFile(join(scratch, 'mcp-tools.json'), JSON.stringify(tools, null, 2))
   await writeFile(join(scratch, 'mcp-commands.json'), texts)
   await writeFile(join(scratch, 'install-receipt.json'), JSON.stringify({ installation, asks, version: version.stdout, server: client.getServerVersion(), tools: tools.tools.length, commands: entries.length }, null, 2))
-  console.log('PASS: offline validation, reuse, initialize, 17 MCP tools, 701 commands')
+  console.log('PASS: offline validation, reuse, initialize, 17 MCP tools, 716 commands')
   const noWindow = await client.callTool({ name: 'ui_screenshot', arguments: {} })
   assert(noWindow.isError, 'Headless screenshot must report no window, not substitute rendered output')
   await writeFile(join(scratch, 'headless-screenshot-error.json'), JSON.stringify(noWindow, null, 2))

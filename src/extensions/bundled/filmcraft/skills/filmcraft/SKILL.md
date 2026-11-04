@@ -5,14 +5,10 @@ argument-hint: "[project or editing task]"
 
 # FilmCraft
 
-Check `craft_status`. If missing, request `craft_install`; Mercury handles consent for the app and matching command-line tool. Installation does not open a window. Use `craft_connect` to attach to the control-enabled FilmCraft instance. Never close or restart a user's app without permission, and never use headless as a substitute for their open project. Headless is an explicit separate-session choice.
+FilmCraft 0.17.0 answers control requests only with the session token it was started with (`FILMCRAFT_CONTROL_TOKEN`). A `craft_connect` launch creates one; to attach to a window the user opened themselves, pass `tokenFile`, a private file holding that token. The port is loopback-only with no filesystem confinement, so the token is the only gate. A different installed version is not overwritten.
 
-FilmCraft 0.12.0 uses a loopback control port without authentication or filesystem confinement. Enable control only for a trusted local session. The desktop command is `filmcraft --control <port>`; the matching command-line server is `filmcraft-cli mcp --bridge 127.0.0.1:<port>`. A different installed version is not overwritten.
+Inspect the open project and sequence first; that identity is what every later edit is checked against. Discover command IDs, enablement and parameters with `command_list` instead of guessing; bring in media with `media_import`. Cuts are `sequence.addEdit`, placement `timeline.place`, grading `effects.setParam`; prefer seconds, frame or timecode parameters (raw ticks are 254016000000 per second). The task sets the order of edits.
 
-1. Inspect the current project and sequence. Discover the relevant command family with `command_list`; read current IDs, enablement and parameter descriptions rather than guessing.
-2. Import with `media_import` or `file.import`. Select or create the intended sequence, then place media with `timeline.place`.
-3. Cut with `sequence.addEdit`; discover effect IDs and use `effects.setParam` for grading. Prefer documented seconds, frame or timecode parameters. Raw ticks are 254016000000 per second.
-4. Read back the timeline and use `ui_screenshot` for the actual window. `render_frame` is output pixels, not the app window.
-5. Save a new `.fcproj` and export with `file.exportMedia` to a new path. Preserve originals. Observe completion, inspect the actual output file and verify its dimensions and duration before saying it was exported.
+Preserve originals: save to a new `.fcproj` and export with `file.exportMedia` to a new path. `ui_screenshot` shows the actual window; `render_frame` is output pixels, not the window. An export is done only once the file exists and its dimensions and duration have been inspected.
 
-A timeout or disconnect may follow an applied edit. Inspect the project before deciding whether to retry; do not replay a mutation blindly. A hidden window or sleeping display can make screenshots fail. Report that failure rather than substituting a render.
+A timeout or disconnect may follow an applied edit. Inspect the project before retrying; never replay a mutation blindly. A hidden window or sleeping display makes screenshots fail; report that rather than substituting a render.

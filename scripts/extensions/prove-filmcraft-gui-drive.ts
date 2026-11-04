@@ -24,7 +24,7 @@ const delivered = join(scratch, 'extension'), dataDir = join(scratch, 'data'), p
 await readFile(project)
 await cp(join(root, 'src/extensions/bundled/filmcraft'), delivered, { recursive: true })
 await cp(join(root, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
-const { adapter } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
+const { adapter, readPrivateToken, tokenPath } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
 const { checkInstall } = await import(pathToFileURL(join(delivered, 'shared/install.mjs')).href)
 const { controlSession } = await import(pathToFileURL(join(delivered, 'shared/control.mjs')).href)
 const checked = await checkInstall(adapter, { dataDir }); assert.equal(checked.state, 'installed')
@@ -111,5 +111,5 @@ try {
   console.log('PASS: same-canvas MCP edit / GUI Undo and click / screenshot / same-process reattachment / MCP close leaves GUI alive')
 } finally {
   await client.close().catch(() => {})
-  if (owned) { const control = controlSession(endpoint); try { await control.request('app.quit') } finally { control.close() } }
+  if (owned) { const control = controlSession(endpoint, { token: readPrivateToken(tokenPath(dataDir)) }); try { await control.request('app.quit') } finally { control.close() } }
 }

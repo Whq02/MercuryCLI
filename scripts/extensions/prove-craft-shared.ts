@@ -100,7 +100,7 @@ try {
   await check('ordinary mode asks once with app, version, exact size and destination', async () => {
     const { decision } = await decideToolPermission(tool, {}, context('default'))
     assert.equal(decision.behavior, 'ask')
-    assert.match(decision.message, /FilmCraft 0\.12\.0/); assert.match(decision.message, /bytes/); assert(decision.message.includes(missingData))
+    assert.match(decision.message, /FilmCraft 0\.17\.0/); assert.match(decision.message, /bytes/); assert(decision.message.includes(missingData))
     assert(await absent(missingData))
   })
   await check('sovereign passes the same installation without an ask', async () => {
@@ -156,6 +156,32 @@ try {
       const control = controlSession(endpoint, { timeoutMs: 30 })
       try { await assert.rejects(control.request('state.inspect'), /timed out; outcome may be unknown/) } finally { control.close() }
       assert.equal(received, 1, 'Timeout must never replay the request')
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
+  })
+  await check('a control token rides only when given; an id-less refusal line names the server reason', async () => {
+    const { createServer } = await import('node:net')
+    const { controlSession } = await import(pathToFileURL(join(root, 'src/extensions/bundled/shared/control.mjs')).href)
+    const lines: string[] = []
+    const server = createServer(socket => socket.on('data', chunk => {
+      for (const line of chunk.toString().split('\n').filter(Boolean)) {
+        lines.push(line)
+        const request = JSON.parse(line)
+        if (request.method === 'refuse') { socket.end(JSON.stringify({ ok: false, error: 'control authentication failed; closing the connection' }) + '\n'); return }
+        socket.write(JSON.stringify({ id: request.id, ok: true, result: { seen: request.method } }) + '\n')
+      }
+    }))
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+    const endpoint = `127.0.0.1:${(server.address() as any).port}`
+    try {
+      const withToken = controlSession(endpoint, { token: 'a'.repeat(64) })
+      try { assert.deepEqual(await withToken.request('state.inspect'), { seen: 'state.inspect' }) } finally { withToken.close() }
+      assert.match(lines[0]!, /^\{"id":"[0-9a-f-]{36}","token":"a{64}","method":"state.inspect","params":\{\}\}$/)
+      const bare = controlSession(endpoint)
+      try { assert.deepEqual(await bare.request('state.inspect', { a: 1 }), { seen: 'state.inspect' }) } finally { bare.close() }
+      assert.match(lines[1]!, /^\{"id":"[0-9a-f-]{36}","method":"state.inspect","params":\{"a":1\}\}$/)
+      const refused = controlSession(endpoint, { token: 'b'.repeat(64) })
+      try { await assert.rejects(refused.request('refuse'), /^Error: control authentication failed; closing the connection$/) } finally { refused.close() }
+      assert.equal(lines.length, 3, 'A refusal must never replay the request')
     } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
   })
   console.log(`Craft shared: ${passed} checks passed`)

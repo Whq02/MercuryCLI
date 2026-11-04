@@ -1,7 +1,7 @@
 {
   "name": "filmcraft-cli",
-  "version": "0.12.0",
-  "tag": "v0.12.0",
+  "version": "0.17.0",
+  "tag": "v0.17.0",
   "repository": "https://github.com/storytold/filmcraft",
   "license": "MIT OR Apache-2.0",
   "licenseFiles": [
@@ -11,12 +11,12 @@
   "platforms": {
     "darwin-arm64": {
       "target": "universal-apple-darwin",
-      "archive": "filmcraft-cli-0.12.0-macos-universal.zip",
-      "url": "https://github.com/storytold/filmcraft/releases/download/v0.12.0/filmcraft-cli-0.12.0-macos-universal.zip",
-      "checksum": "https://github.com/storytold/filmcraft/releases/download/v0.12.0/SHA256SUMS.txt",
-      "sha256": "04f4001afaef16b31f245696808a0393f28d4569e7eda3ee324ae30bf7906310",
-      "bytes": 60896881
+      "archive": "filmcraft-cli-0.17.0-macos-universal.zip",
+      "url": "https://github.com/storytold/filmcraft/releases/download/v0.17.0/filmcraft-cli-0.17.0-macos-universal.zip",
+      "checksum": "https://github.com/storytold/filmcraft/releases/download/v0.17.0/SHA256SUMS.txt",
+      "sha256": "338a4042e235030af22d0a1039a4e463e325cf06a0970e1db6f0cb612a82b4d0",
+      "bytes": 95033367
     }
   },
-  "notes": "Research draft only; companion CLI for filmcraft on macOS. The desktop DMG is not enough for MCP. Digest verified against upstream SHA256SUMS.txt and the downloaded bytes. CLI --version, commands, MCP initialize/tools/list/command_list were exercised; not a GUI attachment proof. Preserve all shipped notices; this ZIP does not include the repository NOTICE; carry it from the same tagged source before distribution."
+  "notes": "Companion command-line tool for filmcraft on macOS, consumed at runtime by server/install.mjs; the desktop DMG does not carry it, and the MCP server is this binary (filmcraft-cli mcp). Pinned 2026-11-04 to the v0.17.0 release (published 2026-11-03); digest from the release's SHA256SUMS.txt, byte count from GitHub asset metadata, both checked against the downloaded archive by the install drive. The drive exercises --version, MCP initialize, tools/list, command_list, a headless import, placement, cut, save and inspected export, and the bridge to a launched window. In bridge mode the CLI reads FILMCRAFT_CONTROL_TOKEN from its environment; the adapter supplies it there, never on the command line."
 }
