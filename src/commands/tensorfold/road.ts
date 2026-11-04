@@ -1,5 +1,7 @@
 import { setClipboardWithReceipt } from '../../ink/termio/osc.js'
+import { hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 import { ggufServerRoots } from '../../services/localSetup/ggufServers.js'
+import { persistModelChoice } from '../model/persistModelChoice.js'
 import { pickAndProve, type ProveIo } from '../../services/localSetup/setupProve.js'
 import type { SessionModelSetter } from '../../services/localSetup/setupTypes.js'
 import { DEFAULT_LOCAL_PROBE_TARGETS, cachedLocalModels } from '../../services/providers/local/localDiscovery.js'
@@ -132,8 +134,13 @@ export type SwitchOutcome = { ok: boolean; switched: boolean; words: string; mod
 
 export async function switchToTensorFold(served: TensorFoldServed, io: RoadIo = {}): Promise<SwitchOutcome> {
   const root = `http://${servedAddress(served.port)}`
-  const prove: ProveIo = { ...io.prove, root, thinkingOff: true, env: discoveryEnvFor(root, io.prove?.env), ...(io.setAppState !== undefined ? { setAppState: io.setAppState } : {}) }
+  const noSession = io.prove?.focusedConnector === undefined && !hasFocusedSession()
+  const prove: ProveIo = { ...io.prove, root, thinkingOff: true, env: discoveryEnvFor(root, io.prove?.env), ...(io.setAppState !== undefined ? { setAppState: io.setAppState } : {}), ...(noSession ? { pickAfterReply: true } : {}) }
   const result = await pickAndProve(served.name, prove)
+  if (noSession && result.ok) {
+    const saved = (io.prove?.persist ?? persistModelChoice)(result.model)
+    return { ok: true, switched: false, words: `${result.model} is your default model${saved.sentence} · New Session starts on it`, model: result.model }
+  }
   return { ok: result.ok, switched: result.settled === 'applied' || result.settled === 'queued' || result.settled === 'no-op', words: result.words, model: result.model }
 }
 
@@ -217,7 +224,7 @@ export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: nu
     const switched = await switchToTensorFold(served, io)
     const busy = readServedRecord(io.serve)?.busy
     mintImmediateReceipt(busy !== undefined ? FEED.servesElsewhere(served.name, served.port, busy.port, served.window, switched.switched) : FEED.serves(served.name, served.window, served.port, switched.switched))
-    setTensorFoldNotice(switched.ok ? undefined : switched.words)
+    setTensorFoldNotice(switched.ok && switched.switched ? undefined : switched.words)
     return { served, switched }
   } finally {
     abortable.delete(key)

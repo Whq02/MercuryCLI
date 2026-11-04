@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { TensorFoldMachineTruth } from '../../../src/services/tensorfold/fit.ts'
 
@@ -6,6 +6,7 @@ export const GIB = 1024 ** 3
 export const FIXTURES = import.meta.dir
 export const FAKE_SCRIPT = join(FIXTURES, 'fake-tensorfold.ts')
 export const FAKE_BIN = join(FIXTURES, 'bin')
+export const fakeExists = (path: string): boolean => path.startsWith(FAKE_BIN) && existsSync(path)
 
 export const MAC_48: TensorFoldMachineTruth = { platform: 'darwin', ramBytes: 48 * GIB, usableBytes: 36 * GIB, usableSource: 'metal', chip: 'Apple M5 Pro', wiredLimitMib: 0, osVersion: '27.0' }
 export const MAC_32: TensorFoldMachineTruth = { platform: 'darwin', ramBytes: 32 * GIB, usableBytes: 24 * GIB, usableSource: 'metal', chip: 'Apple M4 Pro', wiredLimitMib: 0, osVersion: '26.3' }

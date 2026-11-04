@@ -76,10 +76,10 @@ function freePort(): Promise<number> {
 
 interface World { tag: string; cols: number; rows: number; root: string; home: string; userHome: string; cwd: string; port: number }
 
-async function makeWorld(size: string): Promise<World> {
+async function makeWorld(size: string, leg: string): Promise<World> {
   const [cols, rows] = size.split('x').map(Number) as [number, number]
   const tag = `${cols}x${rows}`
-  const root = join(ROOT, tag)
+  const root = join(ROOT, `${leg}-${tag}`)
   const home = join(root, 'home')
   const userHome = join(root, 'user')
   const cwd = join(root, 'repo')
@@ -168,6 +168,11 @@ async function capture(world: World, argv: string[], sends: Send[], total: numbe
   return { status, stderr, lines, marks, undelivered }
 }
 
+function cardWords(lines: readonly string[]): string {
+  const popup = lines.map(line => line.slice(29, 131)).map(line => line.replace(/[│╭╮╰╯─]/g, ' ').trim()).filter(line => line !== '')
+  return popup.join(' ').replace(/\s+/g, ' ')
+}
+
 const USER = userInfo().username
 const scrub = (line: string): string => line.replace(/\s+$/, '').split(homedir()).join('~').split(ROOT).join('<scratch>').split(`[${USER}]`).join('[you]')
 
@@ -178,15 +183,15 @@ function saveFrames(world: World, c: Capture, prefix: string): void {
   writeFileSync(join(FRAMES, `${prefix}-final-${world.tag}.txt`), c.lines.map(scrub).join('\n') + '\n')
 }
 
-function servicePid(world: World): { pid: number; state: string; log: string } | null {
+function servicePid(world: World): { pid: number; state: string; explicitStop: boolean; log: string } | null {
   const dir = join(world.home, 'services')
   if (!existsSync(dir)) return null
   const { readdirSync } = require('node:fs') as typeof import('node:fs')
   for (const slug of readdirSync(dir)) {
     const file = join(dir, slug, 'tensorfold.json')
     if (!existsSync(file)) continue
-    const record = JSON.parse(readFileSync(file, 'utf8')) as { pid: number | null; state: string }
-    return { pid: record.pid ?? 0, state: record.state, log: join(dir, slug, 'tensorfold.log') }
+    const record = JSON.parse(readFileSync(file, 'utf8')) as { pid: number | null; state: string; explicitStop?: boolean }
+    return { pid: record.pid ?? 0, state: record.state, explicitStop: record.explicitStop === true, log: join(dir, slug, 'tensorfold.log') }
   }
   return null
 }
@@ -247,21 +252,38 @@ async function stopWhatWeStarted(world: World): Promise<boolean> {
   return !alive(service.pid)
 }
 
-const world = await makeWorld(SIZE)
-const quietBefore = !(await portAnswers(world.port))
+const launchWorld = await makeWorld(SIZE, 'launch')
+const launchQuietBefore = !(await portAnswers(launchWorld.port))
 
-section(`${world.tag} — leg A: mercury /tensorfold at launch opens the panel`)
-const launch = await capture(world, [COMMAND], [
-  { requireAwait: true, awaitText: 'TENSORFOLD', minTick: 3, awaitStableTicks: 3, mark: 'launch-panel', data: ESC },
-  { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'launch-boot-face', data: '' },
-], 300, '↑↓ choose')
-saveFrames(world, launch, 'launch')
-check(`${world.tag} leg A: the drive delivered every send (vshot exit 0)`, launch.status === 0, `exit ${launch.status}: ${launch.undelivered || launch.stderr.trim().split('\n').slice(-8).join(' | ')}`)
+section(`${launchWorld.tag} — leg A: mercury /tensorfold at launch opens the panel; ↵ on the 2B serves it and saves it as the default; New Session from the boot face starts on it`)
+const launch = await capture(launchWorld, [COMMAND], [
+  { requireAwait: true, awaitText: 'TENSORFOLD', minTick: 3, awaitStableTicks: 3, mark: 'launch-panel', data: DOWN },
+  { requireAwait: true, awaitText: 'Qwen3.5 2B', awaitSettleTicks: 2, data: DOWN },
+  { requireAwait: true, awaitText: 'Qwen3.5 2B', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'launch-framed-2b', data: '\r' },
+  { requireAwait: true, awaitText: `serving ${NAME_2B} on 127.0.0.1:${launchWorld.port}`, awaitStableTicks: 3, mark: 'launch-served', data: ESC },
+  { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'launch-boot-face', data: '\r' },
+  { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'launch-session', data: '/exit\r' },
+], 600, 'Type a prompt')
+saveFrames(launchWorld, launch, 'launch')
+const launchStopped = await stopWhatWeStarted(launchWorld)
+check(`${launchWorld.tag} leg A: the drive delivered every send (vshot exit 0)`, launch.status === 0, `exit ${launch.status}: ${launch.undelivered || launch.stderr.trim().split('\n').slice(-8).join(' | ')}`)
+if (launch.status !== 0) {
+  console.log(`  [record] marks reached: ${[...launch.marks.keys()].join(', ') || 'none'}`)
+  console.log(`  [record] the last frame:\n${launch.lines.map(l => '    │' + scrub(l)).filter(l => l.trim() !== '│').slice(-Math.min(launchWorld.rows, 34)).join('\n')}`)
+}
 const launchPanel = launch.marks.get('launch-panel') ?? []
-check(`${world.tag} leg A: mercury /tensorfold at launch opened the panel straight away (no boot face stop) — the TENSORFOLD group with its version, chip and usable memory, the HOST group beneath, the live footer`, launchPanel.some(l => /TENSORFOLD · 1\.2\.2 · Apple .* · \d+(\.\d+)? GiB usable · nothing served/.test(l)) && launchPanel.some(l => l.includes('TENSORFOLD HOST')) && launchPanel.some(l => l.includes('nothing served · Metal')), launchPanel.filter(l => l.includes('TENSORFOLD') || l.includes('nothing served')).map(l => l.trim()).join(' | '))
-check(`${world.tag} leg A: the three starting points are listed with the 2B on disk, the 27B landed as the best fit`, launchPanel.some(l => l.includes('Qwen3.8 27B')) && launchPanel.some(l => l.includes('Nemotron Lightning')) && launchPanel.some(l => l.includes('Qwen3.5 2B')), launchPanel.filter(l => l.includes('Qwen') || l.includes('Nemotron')).map(l => l.trim()).join(' | '))
+check(`${launchWorld.tag} leg A: mercury /tensorfold at launch opened the panel straight away (no boot face stop) — the TENSORFOLD group with its version, chip and usable memory, the HOST group beneath, the live footer`, launchPanel.some(l => /TENSORFOLD · 1\.2\.2 · Apple .* · \d+(\.\d+)? GiB usable · nothing served/.test(l)) && launchPanel.some(l => l.includes('TENSORFOLD HOST')) && launchPanel.some(l => l.includes('nothing served · Metal')), launchPanel.filter(l => l.includes('TENSORFOLD') || l.includes('nothing served')).map(l => l.trim()).join(' | '))
+check(`${launchWorld.tag} leg A: the three starting points are listed with the 2B on disk, the 27B landed as the best fit`, launchPanel.some(l => l.includes('Qwen3.8 27B')) && launchPanel.some(l => l.includes('Nemotron Lightning')) && launchPanel.some(l => l.includes('Qwen3.5 2B')), launchPanel.filter(l => l.includes('Qwen') || l.includes('Nemotron')).map(l => l.trim()).join(' | '))
+const launchServed = launch.marks.get('launch-served') ?? []
+check(`${launchWorld.tag} leg A: ↵ on the 2B served it on the seeded port from the launch panel; the row reads current`, launchServed.some(l => l.includes(`serving ${NAME_2B} on 127.0.0.1:${launchWorld.port}`)) && launchServed.some(l => l.includes('· 1 serving')), launchServed.filter(l => l.includes('serving') || l.includes('Qwen3.5 2B')).map(l => l.trim()).join(' | '))
 const launchBoot = launch.marks.get('launch-boot-face') ?? []
-check(`${world.tag} leg A: esc leaves the panel; with no session born behind a slash-command launch the chat settles to the boot face`, launchBoot.some(l => l.includes('↑↓ choose')) && launchBoot.some(l => l.includes('New Session')), launchBoot.filter(l => l.includes('choose')).map(l => l.trim()).join(' | '))
+check(`${launchWorld.tag} leg A: esc leaves the panel; with no session born behind a slash-command launch the chat settles to the boot face, the feed naming the serve as your default model`, launchBoot.some(l => l.includes('↑↓ choose')) && launchBoot.some(l => l.includes('New Session')), launchBoot.filter(l => l.includes('choose')).map(l => l.trim()).join(' | '))
+const launchSession = launch.marks.get('launch-session') ?? []
+check(`${launchWorld.tag} leg A: New Session from the boot face is born on the served 2B — the saved default read at birth, never the most recent sign-in (the strip names ${NAME_2B}, no cloud model)`, launchSession.some(l => l.includes(NAME_2B) && !l.includes('❯')) && !launchSession.some(l => l.includes('Opus 5.5 ·')), launchSession.filter(l => l.includes(NAME_2B) || l.includes('Opus')).map(l => l.trim().slice(0, 140)).join(' | '))
+check(`${launchWorld.tag} leg A: the seeded port was quiet before and nothing the leg started is left running`, launchQuietBefore && launchStopped && !(await portAnswers(launchWorld.port)))
+
+const world = await makeWorld(SIZE, 'session')
+const quietBefore = !(await portAnswers(world.port))
 
 section(`${world.tag} — leg B: in a session, /tensorfold → ↓ ↓ to the 2B on disk → ↵ serves it on a free port and switches → a turn answers`)
 const sends: Send[] = [
@@ -274,9 +296,14 @@ const sends: Send[] = [
   { requireAwait: true, awaitText: `serving ${NAME_2B} on 127.0.0.1:${world.port}`, awaitStableTicks: 3, mark: 'served', data: ESC },
   { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'after-esc', data: PROMPT },
   { requireAwait: true, awaitText: 'capital of France', awaitSettleTicks: 1, data: '\r' },
-  { requireAwait: true, awaitText: 'Paris', awaitStableTicks: 4, mark: 'reply', data: '/exit\r' },
+  { requireAwait: true, awaitText: 'Paris', awaitStableTicks: 4, mark: 'reply', data: COMMAND },
+  { requireAwait: true, awaitText: `❯ ${COMMAND}`, awaitStableTicks: 2, data: '\r' },
+  { requireAwait: true, awaitText: 'TENSORFOLD', awaitStableTicks: 3, mark: 'panel-serving', data: 's' },
+  { requireAwait: true, awaitText: 's again stops it', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'stop-asked', data: 's' },
+  { requireAwait: true, awaitText: 'nothing served · Metal', awaitSettleTicks: 2, awaitStableTicks: 3, mark: 'stopped', data: ESC },
+  { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'after-stop', data: '/exit\r' },
 ]
-const c = await capture(world, [], sends, 900, 'Paris')
+const c = await capture(world, [], sends, 1100, 'TensorFold stopped')
 saveFrames(world, c, 'drive')
 const service = servicePid(world)
 const servedAlive = service !== null && service.pid > 0 && alive(service.pid)
@@ -292,7 +319,7 @@ if (c.status !== 0) {
 const panel = c.marks.get('panel') ?? []
 check(`${world.tag} panel: /tensorfold typed in the session opens the panel with the live footer`, panel.some(l => /TENSORFOLD · 1\.2\.2 · Apple .* · \d+(\.\d+)? GiB usable · nothing served/.test(l)) && panel.some(l => l.includes('nothing served · Metal')), panel.filter(l => l.includes('TENSORFOLD') || l.includes('nothing served')).map(l => l.trim()).join(' | '))
 const framed = c.marks.get('framed-2b') ?? []
-check(`${world.tag} framed-2b: the 2B's card shows the exact serve it will run on the remembered port`, framed.map(l => l.replace(/[│╭╮╰╯─]/g, ' ').trim()).join(' ').replace(/\s+/g, ' ').includes(`tensorfold serve ${REPO_2B} --name ${NAME_2B} --context 262144 --prompt-cache-gib 1 --port ${world.port}`), framed.filter(l => l.includes('tensorfold serve') || l.includes('--port')).map(l => l.trim()).join(' | '))
+check(`${world.tag} framed-2b: the 2B's card shows the exact serve it will run on the remembered port (the line wraps inside the card at this width)`, cardWords(framed).includes(`tensorfold serve ${REPO_2B} --name ${NAME_2B} --context 262144 --prompt-cache-gib 1 --port ${world.port}`), framed.filter(l => l.includes('tensorfold serve') || l.includes('--port')).map(l => l.trim()).join(' | '))
 const served = c.marks.get('served') ?? []
 check(`${world.tag} served: ↵ served the 2B through the engine on 127.0.0.1:${world.port}; the heading says 1 serving; the row reads current`, served.some(l => l.includes(`serving ${NAME_2B} on 127.0.0.1:${world.port}`)) && served.some(l => l.includes('· 1 serving')) && served.some(l => l.includes('Qwen3.5 2B') && l.includes('current')), served.filter(l => l.includes('serving') || l.includes('Qwen3.5 2B')).map(l => l.trim()).join(' | '))
 const afterEsc = c.marks.get('after-esc') ?? []
@@ -300,11 +327,19 @@ check(`${world.tag} after-esc: the panel closed over the live session and the fe
 const reply = c.marks.get('reply') ?? []
 check(`${world.tag} reply: the session switched to the served 2B and a turn answered — a transcript line says Paris and is not the prompt`, reply.some(l => REPLY.test(l) && !l.includes('❯') && !l.includes('capital')), reply.filter(l => l.includes('Paris') || l.includes('capital')).map(l => l.trim()).join(' | '))
 check(`${world.tag} reply: the turn ran on the 2B (the strip names qwen3.5-2b, not a cloud model)`, reply.some(l => l.includes('qwen3.5-2b') && !l.includes('TensorFold serves') && !l.includes('❯')) && !reply.some(l => l.includes('Opus 5.5 ·')), reply.filter(l => l.includes('qwen3.5-2b') || l.includes('Opus')).map(l => l.trim().slice(0, 140)).join(' | '))
-check(`${world.tag}: the product started the engine itself as the tensorfold project service — its record reads ready with a pid (vshot's teardown sweeps every descendant of the captured app, so the engine outliving the app is pinned by prove-tensorfold-serve's reattach row and the detached-parent reading in the receipt, not here)`, service !== null && service.state === 'ready' && service.pid > 0, JSON.stringify({ service, servedAlive, answeredAfter }))
-check(`${world.tag}: nothing the drive started is left running (SIGTERM to the service's pid when it was still up); the port is quiet again`, stopped && quietAfter)
+const panelServing = c.marks.get('panel-serving') ?? []
+check(`${world.tag} panel again: the served 2B lands first as current with the live footer`, panelServing.some(l => l.includes('Qwen3.5 2B') && l.includes('current')) && panelServing.some(l => l.includes(`serving ${NAME_2B} on 127.0.0.1:${world.port}`)), panelServing.filter(l => l.includes('Qwen3.5 2B') || l.includes('serving')).map(l => l.trim()).join(' | '))
+const stopAsked = c.marks.get('stop-asked') ?? []
+check(`${world.tag} s on this session's model asks once more`, stopAsked.some(l => l.includes('stop      s again stops it · this session uses it')) && stopAsked.some(l => l.includes('s again stops · esc keeps it')), stopAsked.filter(l => l.includes('again')).map(l => l.trim()).join(' | '))
+const stoppedFrame = c.marks.get('stopped') ?? []
+check(`${world.tag} s again stops it: the heading reads nothing served, the 2B is on disk again`, stoppedFrame.some(l => l.includes('· nothing served')) && stoppedFrame.some(l => l.includes('Qwen3.5 2B') && l.includes('on disk')), stoppedFrame.filter(l => l.includes('TENSORFOLD ·') || l.includes('Qwen3.5 2B')).map(l => l.trim()).join(' | '))
+const afterStop = c.marks.get('after-stop') ?? []
+check(`${world.tag} after-stop: the feed carries ◌ TensorFold stopped ${NAME_2B} · /tensorfold serves it again`, afterStop.some(l => l.includes(`TensorFold stopped ${NAME_2B} · /tensorfold serves it again`)), afterStop.filter(l => l.includes('TensorFold')).map(l => l.trim()).join(' | '))
+check(`${world.tag}: the product started the engine itself as the tensorfold project service and stopped it through the service (its record reads stopped by an explicit stop, the pid gone, the port quiet)`, service !== null && service.state === 'stopped' && service.explicitStop === true && !servedAlive && !answeredAfter, JSON.stringify({ service, servedAlive, answeredAfter }))
+check(`${world.tag}: nothing the drive started is left running; the port is quiet again`, stopped && quietAfter)
 const servedFile = join(world.home, 'tensorfold', 'served.json')
 const record = existsSync(servedFile) ? (JSON.parse(readFileSync(servedFile, 'utf8')) as { repo: string; port: number; window: number } | null) : null
-check(`${world.tag}: the served record names the 2B at 256k on the chosen port (what the next /tensorfold reattaches to)`, record !== null && record.repo === REPO_2B && record.port === world.port && record.window === 262_144, JSON.stringify(record))
+check(`${world.tag}: the served record is cleared by the stop (prove-tensorfold-serve pins the reattach after a restart)`, record === null, JSON.stringify(record))
 
 console.log(`\n${failures === 0 ? 'GREEN' : `RED (${failures})`}: the TensorFold live drive on this Mac`)
 process.exit(failures === 0 ? 0 : 1)

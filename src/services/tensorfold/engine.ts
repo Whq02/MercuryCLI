@@ -6,7 +6,7 @@ import type { TensorFoldEngine, TensorFoldFamily, TensorFoldMachine } from './co
 import { readTensorFoldMachineTruth, type MachineIo, type TensorFoldMachineTruth } from './fit.js'
 import { TENSORFOLD_STARTING_POINTS } from './starting.js'
 
-export const TENSORFOLD_BINARY_NAMES = ['tensorfold', 'tensorfold-native'] as const
+export const TENSORFOLD_BINARY_NAMES = ['tensorfold-native', 'tensorfold'] as const
 export const TENSORFOLD_RUNTIME_FOLDER = join('.local', 'share', 'mercury-host', 'runtime', 'tensorfold')
 
 export type EngineExec = (file: string, args: string[]) => Promise<{ stdout: string; stderr: string; code: number } | undefined>

@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor } from '../lib/settingsPopupHarness.ts'
-import { FAKE_BIN, GIB, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, fakeWorld } from './fixtures/world.ts'
+import { FAKE_BIN, GIB, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, fakeExists, fakeWorld } from './fixtures/world.ts'
 import { FAKE_REPLY_PREFIX } from './fixtures/fake-tensorfold.ts'
 
 const argAfter = (flag: string): string | undefined => {
@@ -79,9 +79,9 @@ section('the panel through the harness: the two groups, TENSORFOLD unfolded, the
   const copied: string[] = []
   let switched = ''
   const io = {
-    facts: { cacheRoot: world.cache, machine: MAC_48, env: world.env, home: world.home, platform: 'darwin' as const, exists: (path: string) => path.startsWith(FAKE_BIN), servedFile, localModels: () => [], hosts: () => [], app: async () => ({ running: false }), diskFreeBytes: () => 37_578_240_000 },
+    facts: { cacheRoot: world.cache, machine: MAC_48, env: world.env, home: world.home, platform: 'darwin' as const, exists: fakeExists, servedFile, localModels: () => [], hosts: () => [], app: async () => ({ running: false }), diskFreeBytes: () => 37_578_240_000 },
     road: {
-      serve: { binary, cwd: world.cwd, sessionId: 'proof', env: world.env, serviceEnv: world.serviceEnv, servedFile, machine: MAC_48, freeMemoryBytes: async () => 40 * GIB, answersAs: async () => undefined, exists: (path: string) => path.startsWith(FAKE_BIN) } as never,
+      serve: { binary, cwd: world.cwd, sessionId: 'proof', env: world.env, serviceEnv: world.serviceEnv, servedFile, machine: MAC_48, freeMemoryBytes: async () => 40 * GIB, answersAs: async () => undefined, exists: fakeExists } as never,
       prove: { env: { ...world.env, MERCURY_LOCAL_PROBE_TARGETS: 'none' }, persist: (setting: string) => { switched = setting; return { sentence: ' · saved' } }, setAppState: () => undefined, focusedConnector: () => ({ carrier: 'in-process' }) as never },
       supportLine: async () => 'TensorFold 1.2.2 · Metal · Apple M5 Pro · fixture',
       copy: async (text: string) => { copied.push(text) },

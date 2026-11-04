@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { FAKE_BIN, FAKE_SCRIPT, GIB, LINUX_NO_GPU, LINUX_OLD_DRIVER, MAC_16, MAC_32, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, QWEN_9B_REPO, RTX_4090, fakeWorld } from './fixtures/world.ts'
+import { FAKE_BIN, FAKE_SCRIPT, GIB, LINUX_NO_GPU, LINUX_OLD_DRIVER, MAC_16, MAC_32, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, QWEN_9B_REPO, RTX_4090, fakeExists, fakeWorld } from './fixtures/world.ts'
 import { FAKE_LIBJPEG_WARNING } from './fixtures/fake-tensorfold.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -27,8 +27,8 @@ const gib1 = (bytes: number): string => (bytes / GIB).toFixed(1)
 section('the engine: found on PATH, --version and capabilities --json with stdout apart from stderr')
 {
   const world = fakeWorld('tf-engine')
-  const found = await engine.findTensorFoldEngine({ env: world.env, home: world.home, platform: 'darwin', exists: (path: string) => path.startsWith(FAKE_BIN), ramBytes: MAC_48.ramBytes, run: async (file: string, args: string[]) => (file === 'osascript' ? '38654705664 Apple M5 Pro' : file === 'sysctl' && args[1] === 'iogpu.wired_limit_mb' ? '0' : file === 'sysctl' && args[1] === 'kern.osproductversion' ? '27.0' : undefined) } as never)
-  check('the fake tensorfold on PATH is found by name', found !== null && found.binary === `${FAKE_BIN}/tensorfold`, String(found?.binary))
+  const found = await engine.findTensorFoldEngine({ env: world.env, home: world.home, platform: 'darwin', exists: fakeExists, ramBytes: MAC_48.ramBytes, run: async (file: string, args: string[]) => (file === 'osascript' ? '38654705664 Apple M5 Pro' : file === 'sysctl' && args[1] === 'iogpu.wired_limit_mb' ? '0' : file === 'sysctl' && args[1] === 'kern.osproductversion' ? '27.0' : undefined) } as never)
+  check('the fake tensorfold on PATH is found by name; the native binary is preferred over a launcher beside it (the service pid must be the engine itself)', found !== null && found.binary === `${FAKE_BIN}/tensorfold` && engine.TENSORFOLD_BINARY_NAMES[0] === 'tensorfold-native', String(found?.binary))
   check('--version reads 1.2.2', found?.version === '1.2.2', String(found?.version))
   check('capabilities --json is read from stdout: the Metal backend and the families', found?.backends[0] === 'metal' && found.families.some(family => family.id === 'qwen3_5' && family.qualified) && found.families.some(family => family.id === 'gemma4' && !family.qualified), JSON.stringify(found?.families.map(family => family.id)))
   check('stderr is kept apart from the JSON: the libjpeg warning is a warning, never parsed', found?.warnings.length === 1 && found.warnings[0] === FAKE_LIBJPEG_WARNING, JSON.stringify(found?.warnings))

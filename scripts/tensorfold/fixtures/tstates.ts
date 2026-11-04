@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { FAKE_BIN, GIB, LIGHTNING_REPO, MAC_16, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_CONFIG, QWEN_2B_PIN, QWEN_2B_REPO, QWEN_9B_REPO, RTX_4090, fakeWorld, type CacheSeed } from './world.ts'
+import { FAKE_BIN, GIB, LIGHTNING_REPO, MAC_16, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_CONFIG, QWEN_2B_PIN, QWEN_2B_REPO, QWEN_9B_REPO, RTX_4090, fakeExists, fakeWorld, type CacheSeed } from './world.ts'
 import type { TensorFoldHost } from '../../../src/services/tensorfold/contracts.ts'
 
 const engine = await import('../../../src/services/tensorfold/engine.ts')
@@ -35,7 +35,7 @@ export const KEYED_ADDRESS = '127.0.0.1:8080'
 
 export async function fakeEngineFound(): Promise<Engine> {
   const world = fakeWorld('tf-facts-engine')
-  const found = await engine.findTensorFoldEngine({ env: world.env, home: world.home, platform: 'darwin', exists: (path: string) => path.startsWith(FAKE_BIN), machine: MAC_48 } as never)
+  const found = await engine.findTensorFoldEngine({ env: world.env, home: world.home, platform: 'darwin', exists: fakeExists, machine: MAC_48 } as never)
   if (found === null) throw new Error('the fake engine was not found')
   return found
 }
