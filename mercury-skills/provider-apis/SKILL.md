@@ -5,7 +5,7 @@ argument-hint: "[provider road or task]"
 ---
 # Provider APIs
 
-Start with the symptom and the identity it depends on: account kind, endpoint, selected and served model. Follow `src/services/providers/callModelRouter.ts` to the owning implementation; a provider label alone does not identify the wire. Read the changed request, replay, transport or usage owner, not every subsystem.
+Account sign-in and account choice are the `/logins` and `/accounts` surfaces, not this skill. Start with the symptom and the identity it depends on: account kind, endpoint, selected and served model. Follow `src/services/providers/callModelRouter.ts` to the owning implementation; a provider label alone does not identify the wire. Read the changed request, replay, transport or usage owner, not every subsystem.
 
 ## Choose the relevant reference
 
