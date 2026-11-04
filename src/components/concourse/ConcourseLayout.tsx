@@ -51,7 +51,7 @@ const MANAGER_FLOOR_ROWS = 8
 const LIVE_FLOOR_ROWS = 6
 const MIRROR_FLOOR_ROWS = 2
 const MANAGER_CHROME_ROWS = 6
-export const MORE_BEYOND_ROW = '⋮'
+const MORE_BEYOND_ROW = '⋮'
 
 export function resolveConcourseProfile(cols: number, _rows?: number): ConcourseProfile {
   return cols >= CONCOURSE_TWO_PANE_MIN_COLS ? 'wide' : 'stacked'
