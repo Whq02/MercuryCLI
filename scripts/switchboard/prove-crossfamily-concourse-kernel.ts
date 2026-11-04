@@ -103,6 +103,8 @@ const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boo
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
+const { setCoordinatorEnabled } = await import('../../src/services/concourse/concourseEnabled.ts')
+setCoordinatorEnabled(true)
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')

@@ -136,6 +136,7 @@ console.log('§3 builder honesty rules')
 
   saveGlobalConfig(c => ({
     ...c,
+    coordinatorEnabled: true,
     concourseCoordinator: { mode: 'agent-assisted' as const, assistModel: 'claude-sonnet-5' },
   }))
   const assisted = await build({ recordsDir, crewDir, draftDir, nowMs: NOW })
@@ -144,7 +145,7 @@ console.log('§3 builder honesty rules')
     assisted.counts.seatsDenominator === liveCount * 2 + 1,
     `${assisted.counts.seatsDenominator} vs ${liveCount * 2 + 1}`,
   )
-  saveGlobalConfig(c => ({ ...c, concourseCoordinator: { mode: 'rules-only' as const } }))
+  saveGlobalConfig(c => ({ ...c, coordinatorEnabled: false, concourseCoordinator: { mode: 'rules-only' as const } }))
 }
 
 console.log('§3b paused derivation + honest actions')
