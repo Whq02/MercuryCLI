@@ -5,12 +5,11 @@ import { createConnection, createServer } from 'node:net'
 import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, parse } from 'node:path'
 import desktopLock from './photocraft.lock.json' with { type: 'json' }
-import cliLock from './photocraft-cli.lock.json' with { type: 'json' }
 import notices from './notices.json' with { type: 'json' }
 import { verifyListener } from '../shared/control.mjs'
 import { powershellEnvironment } from '../shared/powershell.mjs'
 
-const VERSION = '0.14.0'
+const VERSION = '0.20.1'
 const REMEDY = 'Save your work, then restart PhotoCraft with control enabled and the selected project folders. The open window has not been changed.'
 const descriptorPath = dataDir => join(dataDir, 'photocraft-instance.json')
 export const tokenPath = dataDir => join(dataDir, 'photocraft-control', 'control.token')
@@ -112,7 +111,7 @@ function versionOf(binary) {
   let text
   try { text = execFileSync(binary, ['--version'], { encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'] }).trim() }
   catch { throw new Error('PhotoCraft version could not be verified.') }
-  if (!/^photocraft(?:-cli)? 0\.14\.0\b/i.test(text)) throw new Error('PhotoCraft and its command-line tool must both be version 0.14.0. No existing installation was replaced.')
+  if (!/^photocraft(?:-cli)? 0\.20\.1\b/i.test(text)) throw new Error('PhotoCraft and its command-line tool must both be version 0.20.1. No existing installation was replaced.')
   return VERSION
 }
 
@@ -225,4 +224,4 @@ export function upstream({ installation, endpoint, dataDir, input }) {
   return { command: installation.cli, args, env: { PHOTOCRAFT_CONFIG_DIR: join(dataDir, 'photocraft-config'), TMPDIR: temp, TMP: temp, TEMP: temp, PHOTOCRAFT_CONTROL_TOKEN: undefined, PHOTOCRAFT_CONTROL_TOKEN_FILE: undefined, PHOTOCRAFT_CONTROL_PORT: undefined } }
 }
 
-export const adapter = { id: 'photocraft', title: 'PhotoCraft', version: VERSION, pins: [desktopLock, cliLock], notices, guiBasename: process.platform === 'darwin' ? 'PhotoCraft' : 'photocraft', cliBasename: 'photocraft-cli', defaultPort: 7878, probe, launch, upstream }
+export const adapter = { id: 'photocraft', title: 'PhotoCraft', version: VERSION, pins: [desktopLock], notices, guiBasename: process.platform === 'darwin' ? 'PhotoCraft' : 'photocraft', cliBasename: 'photocraft-cli', defaultPort: 7878, probe, launch, upstream }

@@ -100,7 +100,9 @@ try {
   const checked = await checkInstall(adapter, { dataDir: dirs.data }); assert.equal(checked.state, 'installed', JSON.stringify(checked)); installation = checked.installation
   passed('offline archive identity, licences and tree digest', { fileCount: installation.manifest.fileCount, treeDigest: installation.manifest.treeDigest })
   const cliVersion = command(installation.cli, ['--version']), guiVersion = command(installation.gui, ['--version'])
-  assert.match(cliVersion.stdout!, /photocraft-cli 0\.14\.0/); assert.match(guiVersion.stdout!, /photocraft 0\.14\.0/i)
+  assert.match(cliVersion.stdout!, /^photocraft-cli 0\.20\.1\b/); assert.match(guiVersion.stdout!, /^photocraft 0\.20\.1\b/i)
+  if (process.platform === 'darwin') assert(installation.cli.endsWith('/PhotoCraft.app/Contents/MacOS/photocraft-cli'), installation.cli)
+  passed('app and command-line tool report the pinned release', { cli: cliVersion.stdout, gui: guiVersion.stdout })
   if (process.platform === 'darwin') {
     command('/usr/bin/codesign', ['--verify', '--deep', '--strict', installation.cli])
     const app = installation.gui.slice(0, installation.gui.indexOf('.app/') + 4)
@@ -117,8 +119,8 @@ try {
   async function discover(mcp: MCP, mode: string) {
     const listed = await mcp.request('tools/list')
     const names = listed.result.tools.map((t: any) => t.name)
-    assert.equal(names.length, 28); assert(names.includes('ui_screenshot')); assert(names.includes('doc_export_layers'))
-    const commands = await mcp.json('command_list'); assert(Array.isArray(commands)); assert(commands.length >= 935)
+    assert.equal(names.length, 29); assert(names.includes('ui_screenshot')); assert(names.includes('doc_export_layers')); assert(names.includes('doc_replace_smart_object'))
+    const commands = await mcp.json('command_list'); assert(Array.isArray(commands)); assert(commands.length >= 954)
     assert(commands.some((c: any) => c.id === 'image.crop' && c.params.includes('width')))
     const resources = await mcp.request('resources/list'); assert(resources.result.resources.some((r: any) => r.uri === 'photocraft://document'))
     passed(`${mode} full upstream MCP discovery`, { upstreamTools: names.length - 3, bootstrapTools: 3, commands: commands.length })

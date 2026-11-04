@@ -37,16 +37,19 @@ try {
     assert.deepEqual(Object.keys(manifest.contributes).sort(), ['servers', 'skills'])
     assert(!manifest.module && !manifest.install && !manifest.needs.binaries)
   })
-  check('release plans bind exact app/CLI version, URL, bytes and hash', () => {
+  check('release plans bind exact app version, URL, bytes and hash; one archive per platform carries app and CLI', () => {
+    assert.equal(adapter.version, '0.20.1'); assert.deepEqual(adapter.pins.map((pin: any) => pin.name), ['photocraft'])
     for (const pin of adapter.pins) sharedInstall.validatePin(pin)
     const mac = sharedInstall.planInstall(adapter, { dataDir, platform: 'darwin-arm64' })
-    assert.equal(mac.payloads.length, 2); assert.equal(mac.bytes, 166288476)
+    assert.equal(mac.payloads.length, 1); assert.equal(mac.bytes, 247518461); assert.equal(mac.payloads[0].sha256, '5486555dc749df1650f321e363534e603a7c4f80ea31c54d9e88489ff742db03')
     for (const platform of ['win-x64', 'linux-x64']) assert.equal(sharedInstall.planInstall(adapter, { dataDir, platform }).payloads.length, 1)
-    const broken = structuredClone(adapter.pins[0]); broken.platforms['darwin-arm64'].url = broken.platforms['darwin-arm64'].url.replace('v0.14.0', 'latest')
+    const broken = structuredClone(adapter.pins[0]); broken.platforms['darwin-arm64'].url = broken.platforms['darwin-arm64'].url.replace('v0.20.1', 'latest')
     assert.throws(() => sharedInstall.validatePin(broken))
   })
   check('supplemental notices retain exact tagged bytes and provenance', () => {
-    for (const notice of adapter.notices) { assert.equal(hash(notice.content), notice.sha256); assert.equal(notice.source, `${adapter.pins[0].repository}/blob/v0.14.0/${notice.name}`) }
+    assert.deepEqual(adapter.notices.map((notice: any) => notice.name), ['NOTICE', 'LICENSE-MIT', 'LICENSE-APACHE'])
+    for (const notice of adapter.notices) { assert.equal(hash(notice.content), notice.sha256); assert.equal(notice.source, `${adapter.pins[0].repository}/blob/v0.20.1/${notice.name}`) }
+    assert.match(adapter.notices[0].content, /sctk-adwaita 0\.10\.1/)
   })
   const readRoot = join(scratch, 'project'), writeRoot = join(scratch, 'outputs')
   mkdirSync(readRoot); mkdirSync(writeRoot)
