@@ -28,7 +28,7 @@ Historical CODE map, 2026-10-26, except the dated Mistral correction. Paths are 
 
 ## Mistral
 
-**CODE inspected 2026-11-04:** `mistral/mistralCallModel.ts` ([source](https://github.com/Whq02/MercuryCLI/blob/72f853cebbaf9c2c41cc8fd85c4232e08a4b0079/src/services/providers/mistral/mistralCallModel.ts)) builds effort from `mistral/mistralCatalogue.ts` model facts and the selected effort. Thinking off sends none only when supported, otherwise the first supported effort; unsupported effort is omitted. It is not a universal high/none toggle.
+**CODE inspected 2026-11-04:** `mistral/mistralCallModel.ts` (buildMistralExtras) builds effort from `mistral/mistralCatalogue.ts` model facts and the selected effort. Thinking off sends none only when supported, otherwise the first supported effort; unsupported effort is omitted. It is not a universal high/none toggle.
 
 **LIVE page read 2026-11-04:** [Mistral reasoning](https://docs.mistral.ai/studio/conversations/reasoning) makes effort model-specific: hosted GLM 5.3 supports low/high/max, not none; Large 4 has a different ladder. An API-wide enum is not each model's vocabulary. `mistral/mistralPins.ts` holds dated per-model facts; do not change the user's selected effort to fit a copied recipe.
 
