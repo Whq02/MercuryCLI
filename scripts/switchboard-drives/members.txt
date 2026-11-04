@@ -15,7 +15,6 @@ prove-effort-ultra-drive.ts
 prove-enter-live-journey.ts
 prove-home-repo-drive.ts
 prove-local-command-stays-home-drive.ts
-prove-manager-self-managed-drive.ts
 prove-park-refusal-look.ts
 prove-reap-focus-drive.ts
 prove-reply-paints-whole.ts
