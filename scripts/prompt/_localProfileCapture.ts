@@ -14,8 +14,8 @@ export function nodeFor(distPath: string): string {
 }
 
 export const LOCAL_FIXTURE_MODEL = 'qwen3.5-2b'
-export const LOCAL_FIXTURE_WINDOW = 32768
-export const CLOUD_FIXTURE_MODEL = 'glm-5.3'
+const LOCAL_FIXTURE_WINDOW = 32768
+const CLOUD_FIXTURE_MODEL = 'glm-5.3'
 
 export type ScriptedReply =
   | { kind: 'text'; text: string }
@@ -33,7 +33,7 @@ export interface ChatRequest {
   tools?: Array<{ type: string; function: ChatFunction }>
 }
 
-export interface RoadCapture {
+interface RoadCapture {
   requests: ChatRequest[]
   code: number | null
   stdout: string
@@ -111,7 +111,7 @@ export function runMercury(args: string[], cwd: string, env: Record<string, stri
   })
 }
 
-export function normalizerFor(home: string, cwd: string): (value: string) => string {
+function normalizerFor(home: string, cwd: string): (value: string) => string {
   const key = cwd.replace(/[^a-zA-Z0-9]/g, '-')
   return (value: string) => value
     .replaceAll(home, '<home>')
@@ -124,7 +124,7 @@ export function normalizerFor(home: string, cwd: string): (value: string) => str
     .replace(/(capsule-digest:|generation )[0-9a-f]{6,}/g, '$1<digest>')
 }
 
-export const POD_FIXTURE_MODEL = 'compat/pod-fixture/qwen3.8-27b'
+const POD_FIXTURE_MODEL = 'compat/pod-fixture/qwen3.8-27b'
 
 function seedPod(home: string, base: string, engine: string): void {
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ compatProvider: { 'pod-fixture': { baseUrl: `${base}/v1`, hostPodId: 'fixturepod', dialect: engine === 'vllm' ? 'vllm' : 'chat-completions', models: ['qwen3.8-27b'] } } }))
