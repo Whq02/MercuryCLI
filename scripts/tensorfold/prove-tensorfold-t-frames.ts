@@ -120,7 +120,7 @@ function colourOf(sgr: string | undefined): string {
 async function save(name: string, run: Run): Promise<void> {
   if (FRAMES === undefined) return
   const file = `${name}-${run.columns}x${run.rows}`
-  const lines = run.m.lines().map(line => line.replace(/\s+$/, '').replaceAll(home, '<scratch>').replace(/\/private\/tmp\/mw\/tf-[a-z0-9-]+\/hub/g, '<scratch>/hub'))
+  const lines = run.m.lines().map(line => line.replace(/\s+$/, '').replaceAll(home, '<scratch>').replace(/\/private\/tmp\/mw\/tf-[A-Za-z0-9-]+\/hub/g, '<scratch>/hub'))
   writeFileSync(join(FRAMES, `${file}.txt`), lines.join('\n') + '\n')
   if (!PNG) return
   const raw = run.m.lines()

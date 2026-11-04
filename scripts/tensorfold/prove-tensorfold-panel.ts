@@ -54,7 +54,7 @@ function freePort(): Promise<number> {
 }
 const save = (name: string, columns: number, rows: number, lines: string[]): void => {
   if (FRAMES === undefined) return
-  writeFileSync(join(FRAMES, `${name}-${columns}x${rows}.txt`), lines.join('\n') + '\n')
+  writeFileSync(join(FRAMES, `${name}-${columns}x${rows}.txt`), lines.map(line => line.replace(/\s+$/, '').replace(/\/private\/tmp\/mw\/tf-[A-Za-z0-9-]+\/hub/g, '<scratch>/hub')).join('\n') + '\n')
 }
 const SIZES: Array<[number, number]> = [[160, 48], [110, 34], [96, 30]]
 const shell = (columns: number, rows: number, child: unknown): unknown => h(AppStateProvider as never, {}, h(ThemeProvider as never, {}, h(Box, { flexDirection: 'column', width: columns, height: rows, justifyContent: 'center' }, child as never)))
