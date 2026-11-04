@@ -1,3 +1,5 @@
+import { tensorFoldHostRecipes } from './tensorfoldRelease.js'
+
 type HostRecipeVerificationKind = 'measured' | 'documented' | 'community' | 'unverified'
 
 interface HostRecipeVerified {
@@ -37,7 +39,7 @@ export interface HostRecipe {
   kvBytesPerToken?: { bytes: number; conversationBytes?: number; maxContext: number; cacheType: string; verified: HostRecipeVerified }
   environment?: Record<string, string>
   files?: Record<string, string>
-  engine?: 'llamacpp' | 'vllm'
+  engine?: 'llamacpp' | 'vllm' | 'tensorfold'
   imageSource?: string
   install?: string
   weightFile?: string
@@ -66,7 +68,7 @@ const llamaInstall = 'export PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/c
 function withPrefixCaching(recipes: readonly HostRecipe[]): HostRecipe[] {
   return recipes.map(recipe => {
     const flags = recipe.engine === 'llamacpp' ? ['--cache-prompt']
-      : recipe.engine === 'vllm' ? ['--enable-prefix-caching'] : ['--enable-cache-report']
+      : recipe.engine === 'vllm' ? ['--enable-prefix-caching'] : recipe.engine === 'tensorfold' ? [] : ['--enable-cache-report']
     return { ...recipe, flags: [...recipe.flags, ...flags.filter(flag => !recipe.flags.includes(flag))] }
   })
 }
@@ -512,6 +514,7 @@ export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
     efforts: { levels: [], verified: { by: 'documented' as const, on: '2026-10-22', source: 'https://huggingface.co/google/gemma-4-31B-it/blob/main/chat_template.jinja', note: 'the template knows enable_thinking only; no effort levels' } },
     flags: ['--reasoning-parser', 'gemma4', '--tool-call-parser', 'gemma4'],
   },
+  ...tensorFoldHostRecipes(),
 ])
 
 export function hostRecipeVerificationWord(recipe: HostRecipe): HostRecipeVerificationKind {
