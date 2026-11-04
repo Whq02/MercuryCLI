@@ -102,7 +102,7 @@ export const CONCOURSE_REGION_KEYS = {
 
 export const CONCOURSE_HELP_KEY = { keys: '?', label: 'keys' } as const
 
-export const MANAGER_PANE_KEYS = [
+const MANAGER_PANE_KEYS = [
   { keys: '↑↓', label: 'choose' },
   { keys: '↵', label: 'enter' },
   { keys: 'n', label: 'new' },

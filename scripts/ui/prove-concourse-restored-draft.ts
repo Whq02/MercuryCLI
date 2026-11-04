@@ -22,8 +22,8 @@ const COLS = 130
 const ROWS = 40
 const COMPOSER_TEXT_CELLS = 37
 {
-  check('with the composer focused the label says the draft is restored, that ↵↵ sends and ⌃c clears — the keys the focused composer answers to', restoredDraftLine(true, false) === RESTORED_DRAFT_LINE && RESTORED_DRAFT_LINE.includes('restored draft') && RESTORED_DRAFT_LINE.includes('↵↵ sends') && /(?:⌃|ctrl\+)c clears/.test(RESTORED_DRAFT_LINE))
-  check('armed, the label says ↵ again sends and esc keeps', restoredDraftLine(true, true) === RESTORED_DRAFT_ARMED_LINE && RESTORED_DRAFT_ARMED_LINE.includes('↵ again sends') && RESTORED_DRAFT_ARMED_LINE.includes('esc keeps'))
+  check('the label says the draft is restored, that ↵↵ sends and ⌃c clears — the keys the focused composer answers to (the composer paints only while its pane is focused, so there is no away line)', restoredDraftLine(false) === RESTORED_DRAFT_LINE && RESTORED_DRAFT_LINE.includes('restored draft') && RESTORED_DRAFT_LINE.includes('↵↵ sends') && /(?:⌃|ctrl\+)c clears/.test(RESTORED_DRAFT_LINE))
+  check('armed, the label says ↵ again sends and esc keeps', restoredDraftLine(true) === RESTORED_DRAFT_ARMED_LINE && RESTORED_DRAFT_ARMED_LINE.includes('↵ again sends') && RESTORED_DRAFT_ARMED_LINE.includes('esc keeps'))
   check(`both labels fit the coordinator composer's hint row at ${COLS}×${ROWS} whole (${COMPOSER_TEXT_CELLS} cells; at 120 columns the pane's composer holds 35 and cuts the first label's last key)`, [RESTORED_DRAFT_LINE, RESTORED_DRAFT_ARMED_LINE].every(line => [...line].length <= COMPOSER_TEXT_CELLS), [RESTORED_DRAFT_LINE, RESTORED_DRAFT_ARMED_LINE].map(line => `${[...line].length}: ${line}`).join(' | '))
 }
 

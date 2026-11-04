@@ -77,6 +77,9 @@ const boardEnv = (fixture: Record<string, unknown>, tag: string): NodeJS.Process
     MERCURY_AWAY_SUMMARY: '0',
     MERCURY_PARTY: '0',
     MERCURY_CRITTER_GAZE: '0',
+    MERCURY_OPERATOR: 'sam',
+    USER: 'sam',
+    LOGNAME: 'sam',
     ANTHROPIC_API_KEY: 'fixture-key-000',
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
   }
