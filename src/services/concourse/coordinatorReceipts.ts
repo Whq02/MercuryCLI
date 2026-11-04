@@ -10,6 +10,7 @@ import {
   type AgentActivityV1,
 } from '../crew/activity.js'
 import { crewStoreRoot, type CrewAgentId } from '../crew/identity.js'
+import { coordinatorEnabled } from './concourseEnabled.js'
 import type { KernelReceiptV1 } from './coordinatorKernel.js'
 import type { CoordinatorSwitchReceiptV1 } from './coordinatorModels.js'
 
@@ -153,6 +154,7 @@ export function subscribeCoordinatorReceiptJournal(cb: () => void, crewDir?: str
 }
 
 function journalPayload(payload: CoordinatorFeedPayload, actorAgentId: string, atMs: number, crewDir?: string): void {
+  if (!coordinatorEnabled()) return
   void receiptJournal(crewDir)
     .mutate(s => {
       const rows = [...s.rows, { seq: s.nextSeq, pid: process.pid, atMs, actorAgentId, payload }]

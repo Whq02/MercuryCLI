@@ -527,6 +527,7 @@ export async function startWaitingManagerLane(
   dir?: string,
 ): Promise<number | null> {
   if (supervised === null || startingLane) return null
+  if (!(await import('./concourseEnabled.js')).coordinatorEnabled()) return null
   const current = supervised
   const waiting = current.plan.laneWaiting ?? []
   if (waiting.length === 0 || counts.live >= counts.ceiling) return null
@@ -632,6 +633,7 @@ export async function appendManagerSupervisionRows(
   rows: ReadonlyArray<{ sessionId: string; state: string }>,
   dir?: string,
 ): Promise<number> {
+  if (!(await import('./concourseEnabled.js')).coordinatorEnabled()) return 0
   if (!seededFromStore && supervised === null) {
     seededFromStore = true
     try {
