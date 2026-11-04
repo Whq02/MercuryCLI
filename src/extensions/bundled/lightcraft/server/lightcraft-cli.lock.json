@@ -1,22 +1,23 @@
 {
   "name": "lightcraft-cli",
-  "version": "0.13.0",
-  "tag": "v0.13.0",
+  "version": "0.18.0",
+  "tag": "v0.18.0",
   "repository": "https://github.com/storytold/lightcraft",
   "license": "MIT OR Apache-2.0",
   "licenseFiles": [
     "LICENSE-MIT",
-    "LICENSE-APACHE"
+    "LICENSE-APACHE",
+    "NOTICE"
   ],
   "platforms": {
     "darwin-arm64": {
       "target": "universal-apple-darwin",
-      "archive": "lightcraft-cli-0.13.0-macos-universal.zip",
-      "url": "https://github.com/storytold/lightcraft/releases/download/v0.13.0/lightcraft-cli-0.13.0-macos-universal.zip",
-      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.13.0/SHA256SUMS.txt",
-      "sha256": "5c456eefc93558db123ed2203f60c7819fa8ed3607bf715404a71005f9342200",
-      "bytes": 109033607
+      "archive": "lightcraft-cli-0.18.0-macos-universal.zip",
+      "url": "https://github.com/storytold/lightcraft/releases/download/v0.18.0/lightcraft-cli-0.18.0-macos-universal.zip",
+      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.18.0/SHA256SUMS.txt",
+      "sha256": "b38631b85a9b4b822db462339a6ba88344dc7768ea1614cb195cbdc9d8a95e75",
+      "bytes": 118486223
     }
   },
-  "notes": "Research draft only; companion CLI for lightcraft on macOS. The desktop DMG is not enough for MCP. Digest verified against upstream SHA256SUMS.txt and the downloaded bytes. CLI --version, commands, MCP initialize/tools/list/command_list were exercised; not a GUI attachment proof. Preserve all shipped notices; this ZIP also has NOTICE."
+  "notes": "Companion command-line tool for the macOS install, pinned 2026-11-04 to the same v0.18.0 release as lightcraft.lock.json; the DMG does not carry it. Digest copied from the release's SHA256SUMS.txt, bytes from GitHub asset metadata, both matched against the downloaded zip. The zip carries LICENSE-MIT, LICENSE-APACHE and NOTICE beside the binary. lightcraft-cli --version prints 'lightcraft-cli 0.18.0', which install.mjs requires before attaching. Exercised by scripts/extensions/prove-lightcraft-drive.ts: headless mcp --library, and mcp --connect to the live window."
 }

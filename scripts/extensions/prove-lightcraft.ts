@@ -31,7 +31,7 @@ try {
     assert.equal(manifest.needs.binaries, undefined)
   })
   check('matched version/tag and fixed URL/hash/size payloads', () => {
-    assert.equal(adapter.version, '0.13.0')
+    assert.equal(adapter.version, '0.18.0')
     for (const pin of adapter.pins) {
       assert.equal(pin.version, adapter.version)
       assert.equal(pin.tag, `v${pin.version}`)
@@ -41,8 +41,10 @@ try {
         assert.ok(payload.bytes > 0)
       }
     }
-    assert.equal(adapter.pins[0].platforms['darwin-arm64'].sha256, '9a1a9b5d8e9af96101d3299650d014d094c51d8ea8fe5e39bae83fa5a9189de0')
-    assert.equal(adapter.pins[1].platforms['darwin-arm64'].sha256, '5c456eefc93558db123ed2203f60c7819fa8ed3607bf715404a71005f9342200')
+    assert.equal(adapter.pins[0].platforms['darwin-arm64'].sha256, 'f3cb326a202a2d6f89bd2d08ccd8b108e8efe103bb9da88c2a38e52a29f93e5a')
+    assert.equal(adapter.pins[0].platforms['darwin-arm64'].bytes, 124368627)
+    assert.equal(adapter.pins[1].platforms['darwin-arm64'].sha256, 'b38631b85a9b4b822db462339a6ba88344dc7768ea1614cb195cbdc9d8a95e75')
+    assert.equal(adapter.pins[1].platforms['darwin-arm64'].bytes, 118486223)
   })
   check('only literal IPv4 loopback endpoints accepted', () => {
     assert.equal(endpointPort('127.0.0.1:7980'), 7980)
@@ -78,7 +80,7 @@ try {
     const address = server.address() as { port: number }
     try {
       const hash = createHash('sha256').update(readFileSync(process.execPath)).digest('hex')
-      await assert.rejects(verifyListener({ endpoint: `127.0.0.1:${address.port}`, installation: { gui: process.execPath, cli: process.execPath, manifest: { version: '0.13.0', guiSha256: hash, cliSha256: hash } } }), /does not match|identify|listener/)
+      await assert.rejects(verifyListener({ endpoint: `127.0.0.1:${address.port}`, installation: { gui: process.execPath, cli: process.execPath, manifest: { version: '0.18.0', guiSha256: hash, cliSha256: hash } } }), /does not match|identify|listener/)
       assert.equal(bytes, 0)
     } finally { await new Promise<void>(resolveClose => server.close(() => resolveClose())) }
   })
@@ -137,6 +139,13 @@ try {
     assert.match(text, /external editors/)
     assert.match(text, /not a filesystem sandbox/)
     assert.doesNotMatch(text, /\$ARGUMENTS|\$\{MERCURY_SKILL_DIR\}/)
+  })
+  check('the skill keeps the library, selection, window and persistence truths at the pin without the onboarding the server carries', () => {
+    const skill = readFileSync(join(extension, 'skills/lightcraft/SKILL.md'), 'utf8')
+    assert.ok(Buffer.byteLength(skill) <= 3000, `skill is ${Buffer.byteLength(skill)} bytes`)
+    for (const fact of [/discovery wins/, /persistent `path`/, /Photo IDs are local to one library/, /replace the selection with that photo/, /`get_develop \{id\}` and `render_photo \{id\}` leave it alone/, /Auto Sync on, `set_develop` changes every selected photo/, /`develop\.autoSync \{\}` toggles the mode and never reads it/, /`move` deletes originals once catalogued/, /normalized `\[x0,y0,x1,y1\]`/, /developed pixels, not the window/, /rendering headlessly/, /never proves a visible window/, /3000 px long edge/, /connect-mode and batch exports answer only when finished/, /LightCraft 0\.18\.0 has no automation roots and no control-port authentication/, /Apple Photos or iCloud/, /never replay it/, /saved in memory but not written to disk/]) assert.match(skill, fact)
+    for (const gone of [/craft_status/, /craft_install/, /--control 7980/, /mcp --connect/, /^\d+\. /m]) assert.doesNotMatch(skill, gone)
+    for (const name of ['command_run', 'command_list', 'import', 'set_develop', 'get_develop', 'crop', 'export', 'list_controls', 'render_photo', 'render_preview', 'ui_screenshot']) assert.match(skill, new RegExp(`\`${name}\\b`), name)
   })
   check('upstream forwarding uses only the shared bootstrap', () => {
     const bridge = readFileSync(join(extension, 'server/bridge.mjs'), 'utf8')

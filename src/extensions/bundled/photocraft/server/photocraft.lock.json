@@ -1,7 +1,7 @@
 {
   "name": "photocraft",
-  "version": "0.14.0",
-  "tag": "v0.14.0",
+  "version": "0.20.1",
+  "tag": "v0.20.1",
   "repository": "https://github.com/storytold/photocraft",
   "license": "MIT OR Apache-2.0",
   "licenseFiles": [
@@ -12,28 +12,28 @@
   "platforms": {
     "darwin-arm64": {
       "target": "universal-apple-darwin",
-      "archive": "photocraft-0.14.0-macos-universal.dmg",
-      "url": "https://github.com/storytold/photocraft/releases/download/v0.14.0/photocraft-0.14.0-macos-universal.dmg",
-      "checksum": "https://github.com/storytold/photocraft/releases/download/v0.14.0/SHA256SUMS.txt",
-      "sha256": "b1b81f1d4b433578e6b9d2b9800e18d8e5fb60ebbc38977918d3529d1bdb140a",
-      "bytes": 95578705
+      "archive": "photocraft-0.20.1-macos-universal.dmg",
+      "url": "https://github.com/storytold/photocraft/releases/download/v0.20.1/photocraft-0.20.1-macos-universal.dmg",
+      "checksum": "https://github.com/storytold/photocraft/releases/download/v0.20.1/SHA256SUMS.txt",
+      "sha256": "5486555dc749df1650f321e363534e603a7c4f80ea31c54d9e88489ff742db03",
+      "bytes": 247518461
     },
     "win-x64": {
       "target": "x86_64-pc-windows-msvc",
-      "archive": "photocraft-0.14.0-windows-x64-portable.zip",
-      "url": "https://github.com/storytold/photocraft/releases/download/v0.14.0/photocraft-0.14.0-windows-x64-portable.zip",
-      "checksum": "https://github.com/storytold/photocraft/releases/download/v0.14.0/SHA256SUMS.txt",
-      "sha256": "5b814c15034ddc68d35da837aef0cec18c90e9325f7682f516dfc331d64e9ab0",
-      "bytes": 87615748
+      "archive": "photocraft-0.20.1-windows-x64-portable.zip",
+      "url": "https://github.com/storytold/photocraft/releases/download/v0.20.1/photocraft-0.20.1-windows-x64-portable.zip",
+      "checksum": "https://github.com/storytold/photocraft/releases/download/v0.20.1/SHA256SUMS.txt",
+      "sha256": "e21ac903cf0477b05d8d1b6071f1f579b80f8ee9c8737a0b47b53948a17c5c73",
+      "bytes": 129241796
     },
     "linux-x64": {
       "target": "x86_64-unknown-linux-gnu",
-      "archive": "photocraft-0.14.0-linux-x86_64.tar.gz",
-      "url": "https://github.com/storytold/photocraft/releases/download/v0.14.0/photocraft-0.14.0-linux-x86_64.tar.gz",
-      "checksum": "https://github.com/storytold/photocraft/releases/download/v0.14.0/SHA256SUMS.txt",
-      "sha256": "3d1f60a76c25aafbf53f23cfedd3687bd99eb6f5309920e140d588bd3212c936",
-      "bytes": 85507497
+      "archive": "photocraft-0.20.1-linux-x86_64.tar.gz",
+      "url": "https://github.com/storytold/photocraft/releases/download/v0.20.1/photocraft-0.20.1-linux-x86_64.tar.gz",
+      "checksum": "https://github.com/storytold/photocraft/releases/download/v0.20.1/SHA256SUMS.txt",
+      "sha256": "398787d58fe46919e99c9f56e35545549ef0aaab007f869a92beff7d9fe52234",
+      "bytes": 125899904
     }
   },
-  "notes": "Research draft only; no runtime consumer. Pin observed 2026-10-23. Digests copied from the tagged SHA256SUMS.txt and matched to GitHub asset metadata. macOS needs the separately pinned photocraft-cli payload from the same release; Windows portable ZIP and Linux tarball carry the CLI. Preserve the complete upstream license/font notices. licenseFiles names required upstream notices; verify packaged locations and supplement missing NOTICE from the exact tagged source before implementation. Download only this URL or a byte-identical owner-created mirror; check size and SHA-256 before extraction, stage then atomic activate, record treeDigest, and offer no-network --check. Do not select latest at install time."
+  "notes": "Runtime pin used by server/install.mjs and the shared installer. Pinned 2026-11-04 to the v0.20.1 release (published 2026-11-03). Digests copied from the release's SHA256SUMS.txt and bytes from GitHub asset metadata; all three archives were downloaded and matched both. Every archive carries the app and photocraft-cli: since 0.18.0 the macOS DMG bundles the signed CLI at PhotoCraft.app/Contents/MacOS/photocraft-cli, so the separate photocraft-cli zip is no longer pinned. Licences: the Windows ZIP and Linux tarball carry LICENSE-MIT, LICENSE-APACHE and NOTICE; the DMG carries NOTICE (Contents/Resources) and the installer supplements LICENSE-MIT and LICENSE-APACHE from notices.json, copied from the tagged source. The Linux tarball also ships a bash completion named photocraft-cli, which the installer tells apart from the executable by mode. Exercised at this pin by scripts/extensions/prove-photocraft-drive.ts on darwin-arm64: clean download, size and SHA-256 check, offline tree validation, codesign, headless edits and a live window. Download only this URL; never select latest at install time."
 }

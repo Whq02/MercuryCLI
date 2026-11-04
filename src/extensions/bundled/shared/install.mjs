@@ -83,7 +83,8 @@ async function resolveBinaries(adapter, root, platform, entries) {
   const cliName = adapter.cliBasename + (win ? '.exe' : '')
   const guiName = adapter.guiBasename + (win ? '.exe' : '')
   const pick = (name, gui) => {
-    const matches = entries.filter(f => f.kind === 'file' && basename(f.path) === name && (!gui || !platform.startsWith('darwin') || f.path.includes('.app/Contents/MacOS/')))
+    const named = entries.filter(f => f.kind === 'file' && basename(f.path) === name && (!gui || !platform.startsWith('darwin') || f.path.includes('.app/Contents/MacOS/')))
+    const matches = named.length > 1 ? named.filter(f => f.mode & 0o111) : named
     if (matches.length !== 1) throw new Error(`Expected one ${name}, found ${matches.length}`)
     return matches[0].path
   }
