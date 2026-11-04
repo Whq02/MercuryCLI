@@ -1,8 +1,9 @@
-import { appendFileSync, mkdirSync } from 'node:fs'
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { getSessionId } from '../../bootstrap/state.js'
+import { getOriginalCwd, getSessionId, getSessionProjectDir } from '../../bootstrap/state.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { getProjectDir } from '../../utils/sessionStoragePortable.js'
 
 
 interface WireDumpResponse {
@@ -112,7 +113,180 @@ export function wireDumpPath(dir: string, sessionId: string = getSessionId()): s
 }
 
 export function scrubCredentials(text: string): string {
-  return text.replace(/sk-ant-[A-Za-z0-9_-]{8,}/g, 'sk-ant-***').replace(/Bearer\s+[A-Za-z0-9._~+/=-]{16,}/g, 'Bearer ***')
+  return text
+    .replace(/sk-ant-[A-Za-z0-9_-]{8,}/g, 'sk-ant-***')
+    .replace(/sk-proj-[A-Za-z0-9_-]{8,}/g, 'sk-proj-***')
+    .replace(/sk-or-v1-[A-Za-z0-9_-]{8,}/g, 'sk-or-v1-***')
+    .replace(/\bsk-(?!ant-|proj-|or-v1-)[A-Za-z0-9_-]{12,}/g, 'sk-***')
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]{8,}/g, 'Bearer ***')
+    .replace(/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g, 'eyJ***')
+}
+
+const SECRET_KEY_PATTERN = /^(?:authorization|x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|secret|password|cookie|set-cookie)$/i
+const CAPTURE_TEXT_MAX_CHARS = 512
+const CAPTURE_TEXT_HEAD_CHARS = 240
+const CAPTURE_TEXT_TAIL_CHARS = 120
+const CAPTURE_BLOB_HEAD_CHARS = 48
+const CAPTURE_MAX_BYTES = 48 * 1024
+
+let faultCaptureSeq = 0
+
+export interface OpenaiFaultCaptureAnomaly {
+  path: string
+  kind: 'unpaired-surrogate' | 'oversized-part'
+  detail: string
+}
+
+function findUnpairedSurrogatesInString(text: string): Array<{ index: number; codeHex: string }> {
+  const found: Array<{ index: number; codeHex: string }> = []
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i)
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const next = i + 1 < text.length ? text.charCodeAt(i + 1) : 0
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        i++
+        continue
+      }
+      found.push({ index: i, codeHex: `U+${code.toString(16).toUpperCase()}` })
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      found.push({ index: i, codeHex: `U+${code.toString(16).toUpperCase()}` })
+    }
+  }
+  return found
+}
+
+function shapeStringForCapture(
+  value: string,
+  path: string,
+  key: string,
+  anomalies: OpenaiFaultCaptureAnomaly[],
+): string {
+  if (SECRET_KEY_PATTERN.test(key)) {
+    return /^Bearer\s+/i.test(value) ? 'Bearer ***' : '[redacted]'
+  }
+  const surrogates = findUnpairedSurrogatesInString(value)
+  if (surrogates.length > 0) {
+    const first = surrogates[0]!
+    anomalies.push({
+      path,
+      kind: 'unpaired-surrogate',
+      detail: `${surrogates.length} unpaired UTF-16 surrogate(s), first ${first.codeHex} at char ${first.index} of ${value.length}`,
+    })
+  }
+  const bytes = Buffer.byteLength(value, 'utf8')
+  if (bytes > 16_384 && key !== 'instructions') {
+    anomalies.push({
+      path,
+      kind: 'oversized-part',
+      detail: `${value.length} chars, ${bytes} bytes`,
+    })
+  }
+  const scrubbed = scrubCredentials(value).toWellFormed()
+  const surrogateTag =
+    surrogates.length > 0
+      ? `; unpaired surrogate ${surrogates[0]!.codeHex} at char ${surrogates[0]!.index}`
+      : ''
+  if (key === 'encrypted_content' || key === 'file_data' || (key === 'image_url' && value.startsWith('data:'))) {
+    if (scrubbed.length <= CAPTURE_BLOB_HEAD_CHARS) return scrubbed
+    return `${scrubbed.slice(0, CAPTURE_BLOB_HEAD_CHARS)}… [truncated: ${value.length} chars, ${bytes} bytes${surrogateTag}]`
+  }
+  if (scrubbed.length <= CAPTURE_TEXT_MAX_CHARS && surrogates.length === 0) return scrubbed
+  if (scrubbed.length <= CAPTURE_TEXT_MAX_CHARS) {
+    return `${scrubbed} [truncated: ${value.length} chars, ${bytes} bytes${surrogateTag}]`
+  }
+  const head = scrubbed.slice(0, CAPTURE_TEXT_HEAD_CHARS)
+  const tail = scrubbed.slice(-CAPTURE_TEXT_TAIL_CHARS)
+  return `${head}… [truncated: ${value.length} chars, ${bytes} bytes${surrogateTag}] …${tail}`
+}
+
+function shapeValueForCapture(
+  value: unknown,
+  path: string,
+  key: string,
+  anomalies: OpenaiFaultCaptureAnomaly[],
+  depth = 0,
+): unknown {
+  if (depth > 16) return '[depth-truncated]'
+  if (typeof value === 'string') return shapeStringForCapture(value, path, key, anomalies)
+  if (value === null || value === undefined || typeof value === 'number' || typeof value === 'boolean') return value
+  if (Array.isArray(value)) {
+    return value.map((item, idx) => shapeValueForCapture(item, `${path}[${idx}]`, key, anomalies, depth + 1))
+  }
+  if (typeof value === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      const childPath = path === '' ? k : `${path}.${k}`
+      out[k] = shapeValueForCapture(v, childPath, k, anomalies, depth + 1)
+    }
+    return out
+  }
+  return String(value)
+}
+
+export function captureRejectedOpenaiRequest(args: {
+  status: number
+  request: unknown
+  headers?: Record<string, string>
+  url?: string
+  responseBody?: unknown
+}): string | null {
+  try {
+    const sessionId = getSessionId()
+    const sessionDir = join(getSessionProjectDir() ?? getProjectDir(getOriginalCwd()), sessionId)
+    const at = Date.now()
+    const seq = ++faultCaptureSeq
+    const filePath = join(sessionDir, `openai-${args.status}-${at}-${seq}.json`)
+    const anomalies: OpenaiFaultCaptureAnomaly[] = []
+    const shapedRequest = shapeValueForCapture(args.request, 'request', 'request', anomalies) as Record<string, unknown> | unknown
+    const shapedHeaders = args.headers
+      ? (shapeValueForCapture(args.headers, 'headers', 'headers', anomalies) as Record<string, unknown>)
+      : undefined
+    const shapedResponse =
+      args.responseBody !== undefined
+        ? shapeValueForCapture(args.responseBody, 'responseBody', 'responseBody', anomalies)
+        : undefined
+    let requestBytes = 0
+    try {
+      requestBytes = Buffer.byteLength(JSON.stringify(args.request), 'utf8')
+    } catch {
+      requestBytes = 0
+    }
+    const record: Record<string, unknown> = {
+      status: args.status,
+      at,
+      sessionId,
+      ...(args.url !== undefined ? { url: scrubCredentials(args.url) } : {}),
+      requestBytes,
+      ...(anomalies.length > 0 ? { anomalies } : {}),
+      ...(shapedHeaders !== undefined ? { headers: shapedHeaders } : {}),
+      ...(shapedResponse !== undefined ? { responseBody: shapedResponse } : {}),
+      request: shapedRequest,
+    }
+    let serialized = JSON.stringify(record, null, 2)
+    if (Buffer.byteLength(serialized, 'utf8') > CAPTURE_MAX_BYTES && typeof shapedRequest === 'object' && shapedRequest !== null) {
+      const reqObj = shapedRequest as Record<string, unknown>
+      if (Array.isArray(reqObj.input) && reqObj.input.length > 16) {
+        const input = reqObj.input
+        const headCount = 4
+        const tailCount = 8
+        const elidedCount = input.length - headCount - tailCount
+        reqObj.input = [
+          ...input.slice(0, headCount),
+          { type: 'elided_middle_items', count: elidedCount, totalInputItems: input.length },
+          ...input.slice(-tailCount),
+        ]
+      }
+      if (Array.isArray(reqObj.tools) && reqObj.tools.length > 8) {
+        reqObj.tools = [{ type: 'elided_tools', count: reqObj.tools.length }]
+      }
+      serialized = JSON.stringify(record, null, 2)
+    }
+    mkdirSync(sessionDir, { recursive: true })
+    writeFileSync(filePath, `${serialized}\n`, { mode: 0o600 })
+    return filePath
+  } catch {
+    return null
+  }
 }
 
 const REPLY_TEXT_KEEP = 200
