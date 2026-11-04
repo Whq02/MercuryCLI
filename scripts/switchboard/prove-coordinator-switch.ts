@@ -65,6 +65,7 @@ const models = await import('../../src/services/concourse/coordinatorModels.ts')
 const manager = await import('../../src/services/concourse/managerMode.ts')
 const compact = await import('../../src/services/concourse/coordinatorCompact.ts')
 const conv = await import('../../src/services/concourse/coordinatorConversation.ts')
+const receipts = await import('../../src/services/concourse/coordinatorReceipts.ts')
 const snapshot = await import('../../src/services/concourse/concourseSnapshot.ts')
 const activity = await import('../../src/services/crew/activity.ts')
 const { openObligations } = await import('../../src/services/crew/obligations.ts')
@@ -157,6 +158,58 @@ section('§2 an old stored preference (agent-assisted, a model, an effort) does 
   check("/health's constitution row reads 'coordinator off (switch)' instead of the contract size", row.includes('seat contracts coordinator off (switch)') && !row.includes(`coordinator ${MERCURY_COORDINATOR_CONTRACT.length}`), row)
 }
 
+const conversationPath = join(home, 'coordinator-conversation.json')
+const journalPath = join(crewDir, 'coordinator-receipt-journal.json')
+const artefactsBesideTheFixture = (): string[] => coordinatorArtefacts().filter(f => f !== conversationPath)
+const oldPlan = manager.decodeManagerPlan({
+  goal: 'ship the widget',
+  lanes: [
+    { title: 'lane A', scope: 'build the parser', deliverables: 'parser.ts green', territory: 'src/parser/**' },
+    { title: 'lane B', scope: 'build the printer', deliverables: 'printer.ts green', territory: 'src/printer/**' },
+  ],
+  supervision: 'supervising',
+  state: 'dispatched',
+  laneSessionIds: ['sid-a', null],
+  laneWaiting: [1],
+  workspaceRoot: project,
+})
+type RpcOp = { op?: string }
+const recorder = (ops: RpcOp[]) => async (req: unknown): Promise<Record<string, unknown>> => {
+  const r = req as RpcOp
+  ops.push(r)
+  if (r.op === 'sessionAdmit') return { ok: true, sessionId: 'sid-b', runnerId: 'r-b' }
+  if (r.op === 'sessionDispatch') return { ok: true, state: 'working' }
+  return { ok: true, outcome: 'applied' }
+}
+const settle = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 250))
+
+section("§2b an on-disk dispatched plan from 1.0.5 and the board's own gestures: the walkers and the journal stay idle while the switch is off")
+{
+  check('the fixture decodes as a dispatched, supervising plan with a waiting lane', oldPlan !== null && oldPlan.state === 'dispatched' && oldPlan.supervision === 'supervising' && JSON.stringify(oldPlan.laneWaiting) === '[1]' && oldPlan.workspaceRoot === project, JSON.stringify(oldPlan))
+  await conv.appendCoordinatorConversation({ id: 'op:old', role: 'operator', text: 'ship it', ts: 100 })
+  await conv.appendCoordinatorConversation({ id: 'plan:old', role: 'coordinator', text: 'the plan', ts: 200, plan: oldPlan } as never)
+  const fixtureBytes = readFileSync(conversationPath, 'utf8')
+  const stored = (JSON.parse(fixtureBytes) as { entries: Array<{ id: string; plan?: { state?: string; laneWaiting?: number[] } }> }).entries.find(e => e.id === 'plan:old')
+  check('the 1.0.5 store is on disk with the dispatched plan', stored?.plan?.state === 'dispatched' && JSON.stringify(stored.plan.laneWaiting) === '[1]', fixtureBytes.slice(0, 200))
+  manager._resetManagerSupervisionForTesting()
+  const ops: RpcOp[] = []
+  const appended = await manager.appendManagerSupervisionRows([{ sessionId: 'sid-a', state: 'completed' }])
+  const walked = await manager.startWaitingManagerLane({ live: 0, ceiling: 4 }, { rpc: recorder(ops) })
+  check('the supervision walker appends no land row and the waiting-lane walker starts no lane (no RPC)', appended === 0 && walked === null && ops.length === 0, JSON.stringify({ appended, walked, ops }))
+  check('…the conversation file is byte-identical', readFileSync(conversationPath, 'utf8') === fixtureBytes)
+  check('…and no identity or journal appeared beside the fixture', artefactsBesideTheFixture().length === 0, artefactsBesideTheFixture().join(', '))
+  const screen = src('src/components/concourse/ConcourseScreen.tsx')
+  check("the screen's manager walker effect asks the switch beside the reduced stage", /useEffect\(\(\) => \{\s*\n\s*if \(reducedStage \|\| !coordinatorOn\) return\s*\n\s*const rows = sessionRows\.map/.test(screen) && screen.includes('reducedStage, coordinatorOn, sessionRows, callbacks]'))
+  const managerSrc = src('src/services/concourse/managerMode.ts')
+  check('the two manager entry points ask the switch before the store is read or a lane starts', /export async function startWaitingManagerLane[\s\S]{0,400}?coordinatorEnabled\(\)\) return null/.test(managerSrc) && /export async function appendManagerSupervisionRows[\s\S]{0,200}?coordinatorEnabled\(\)\) return 0/.test(managerSrc))
+  const feedBefore = feedRows()
+  receipts.ingestCoordinatorReceipts([{ verb: 'session.pause', objectRef: 'sid-a', outcome: 'applied', actorAgentId: 'operator' }], { crewDir })
+  await settle()
+  check("the operator's own board gesture still rows on the in-process feed", feedRows() === feedBefore + 1, `${feedBefore} → ${feedRows()}`)
+  check('…but journals nothing on disk while the switch is off', !existsSync(journalPath))
+  check('the journal writer asks the switch first', /function journalPayload[\s\S]{0,200}?if \(!coordinatorEnabled\(\)\) return/.test(src('src/services/concourse/coordinatorReceipts.ts')))
+}
+
 section('§3 the gate has one owner and the daemon, the hook and the persona ride it')
 {
   const enabled = src('src/services/concourse/concourseEnabled.ts')
@@ -208,6 +261,15 @@ section('§4 --coordinator-on persists the key; the stored preference applies; t
   check('the coordinator artefacts now exist (the probe above was not vacuous)', coordinatorArtefacts().length > 0, coordinatorArtefacts().join(', '))
   const mgr = await manager.resolveManagerModel()
   check('manager mode resolves its model', mgr.ok === true, JSON.stringify(mgr))
+  manager._resetManagerSupervisionForTesting()
+  const ops: RpcOp[] = []
+  const appended = await manager.appendManagerSupervisionRows([{ sessionId: 'sid-a', state: 'completed' }])
+  check('the same on-disk plan is supervised again: the land row is appended', appended === 1 && (await conv.readCoordinatorConversation()).some(e => e.id === 'mgr:land:sid-a'), String(appended))
+  const walked = await manager.startWaitingManagerLane({ live: 0, ceiling: 4 }, { rpc: recorder(ops) })
+  check('…and the waiting lane starts through the RPC', walked === 1 && ops.some(o => o.op === 'sessionAdmit'), JSON.stringify({ walked, ops: ops.map(o => o.op) }))
+  receipts.ingestCoordinatorReceipts([{ verb: 'session.resume', objectRef: 'sid-a', outcome: 'applied', actorAgentId: 'operator' }], { crewDir })
+  await settle()
+  check("the operator's board gesture journals on disk again", existsSync(journalPath) && readFileSync(journalPath, 'utf8').includes('session.resume'))
   const effort = await models.switchCoordinatorEffort('low')
   check('the settings doors apply again', effort.outcome === 'applied' && getGlobalConfig().concourseCoordinator?.effort === 'low', JSON.stringify(effort))
   const row = await wrapperRow()

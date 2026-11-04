@@ -24,6 +24,10 @@ function check(label: string, ok: boolean, detail?: string): void {
 }
 const REPO = join(import.meta.dir, '../../')
 const src = (p: string) => readFileSync(join(REPO, p), 'utf8')
+const { enableConfigs } = await import('../../src/utils/config.ts')
+enableConfigs()
+const { setCoordinatorEnabled } = await import('../../src/services/concourse/concourseEnabled.ts')
+setCoordinatorEnabled(true)
 
 console.log('§1 D3 — the receipt journal folds foreign rows exactly once')
 {

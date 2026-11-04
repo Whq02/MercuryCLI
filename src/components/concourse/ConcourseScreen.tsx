@@ -1208,7 +1208,7 @@ export function ConcourseScreen({
     runManagerDispatch(ask.entryId, ask.plan, Math.max(0, ask.ceiling - ask.live))
   }
   useEffect(() => {
-    if (reducedStage) return
+    if (reducedStage || !coordinatorOn) return
     const rows = sessionRows.map(r => ({ sessionId: r.sessionId, state: r.state }))
     const counts = { live: snapshot.counts.live, ceiling: effectiveSeatCeiling() }
     void import('../../services/concourse/managerMode.js')
@@ -1218,7 +1218,7 @@ export function ConcourseScreen({
         if (startedLane !== null) callbacks.retrySnapshot?.()
       })
       .catch(() => {})
-  }, [snapshot.revision, snapshot.counts.live, reducedStage, sessionRows, callbacks])
+  }, [snapshot.revision, snapshot.counts.live, reducedStage, coordinatorOn, sessionRows, callbacks])
 
   const [capacityAsk, setCapacityAsk] = useState(false)
   const capacityAskRef = useRef(false)

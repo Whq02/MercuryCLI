@@ -120,6 +120,8 @@ check('declining the overload ask dispatches nothing (the plan card stays)',
   /answerManagerSeatAsk[\s\S]{0,400}?if \(!allowed\) \{\s*setNote[\s\S]{0,200}?return\s*\}\s*(?:\/\/[^\n]*\n\s*)*runManagerDispatch/.test(screen));
 
 const mgr = await import('../../src/services/concourse/managerMode.js');
+const { setCoordinatorEnabled } = await import('../../src/services/concourse/concourseEnabled.js');
+setCoordinatorEnabled(true);
 type Op = {
   op?: string;
   action?: string;
@@ -326,8 +328,8 @@ mgr._resetManagerSupervisionForTesting();
 const mgrSource = readFileSync('src/services/concourse/managerMode.ts', 'utf8');
 check('no watcher machinery of its own (no timers, no loops — the existing snapshot beat drives it)',
   !mgrSource.includes('setInterval') && !mgrSource.includes('setTimeout'));
-check('the screen walker rides the EXISTING snapshot revision, reduced stage excluded',
-  /useEffect\(\(\) => \{\s*if \(reducedStage\) return\s*const rows = sessionRows\.map[\s\S]{0,500}?appendManagerSupervisionRows/.test(screen));
+check('the screen walker rides the EXISTING snapshot revision, reduced stage and the coordinator switch excluded',
+  /useEffect\(\(\) => \{\s*if \(reducedStage \|\| !coordinatorOn\) return\s*const rows = sessionRows\.map[\s\S]{0,500}?appendManagerSupervisionRows/.test(screen));
 {
   const { mkdtempSync, rmSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
