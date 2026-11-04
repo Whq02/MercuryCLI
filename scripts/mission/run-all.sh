@@ -6,6 +6,8 @@
 # gate-watch: src/services/engine-connector/noSessionConnector.ts src/services/mission/missionCard.ts
 # gate-watch: src/services/mission/** src/services/jev/**
 # gate-watch: src/guards/**
+# gate-watch: src/components/concourse/liveTiles.ts src/services/concourse/concourseSnapshot.ts src/services/concourse/workerTranscript.ts
+# gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts
 # gate-watch: scripts/jev/lib/jevStandin.ts
 # gate-watch: src/commands.ts
 # gate-watch: src/services/run/continuationLatch.ts

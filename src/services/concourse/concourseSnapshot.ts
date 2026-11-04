@@ -33,6 +33,7 @@ import { stripTerminalControls } from '../../utils/stringUtils.js'
 import { keyHintLabel } from '../../components/mercury-ui/keyHintLabel.js'
 import { concourseRecordState, type ConcourseWorkerRecordV1 } from '../../daemon/concourseWorkers.js'
 import type { DaemonSessionRecordV1 } from '../engine-connector/daemonConnector.js'
+import { withoutMissionMetSentinel } from '../mission/sentinel.js'
 
 export const PARKING_NOW_LEAD = 'parking — '
 export const PARK_REFUSED_NOW_LEAD = 'park refused — '
@@ -150,8 +151,9 @@ export function tailActivity(rec: { sessionId: string; workspaceId: string }): T
           const settled = typeof b.id === 'string' && landed.has(b.id)
           return { label: sanitizeLabel(`${b.name}${hint.length > 0 ? ` · ${hint}` : ''}`.slice(0, 56)), kind: 'tool', ...(at !== undefined ? { at } : {}), ...(settled ? { settled: true } : {}) }
         }
-        if (b.type === 'text' && typeof b.text === 'string' && b.text.trim().length > 0) {
-          return { label: sanitizeLabel(b.text.trim().replace(/\s+/g, ' ').slice(0, 56)), kind: 'text', ...(at !== undefined ? { at } : {}) }
+        if (b.type === 'text' && typeof b.text === 'string') {
+          const words = withoutMissionMetSentinel(b.text).trim()
+          if (words.length > 0) return { label: sanitizeLabel(words.replace(/\s+/g, ' ').slice(0, 56)), kind: 'text', ...(at !== undefined ? { at } : {}) }
         }
       }
     }
