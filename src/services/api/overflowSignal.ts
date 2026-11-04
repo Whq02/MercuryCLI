@@ -52,7 +52,7 @@ function isRateLimitComplaint(lower: string): boolean {
 }
 
 function isBodilessRefusal(message: string): boolean {
-  const t = message.trim()
+  const t = message.replace(/\s*\(request captured: [^)]+\)\s*$/, '').trim()
   return t === '' || /^(?:http\s+)?4\d\d(?:\s+status code)?(?:\s*\(no body\))?$/i.test(t) || /^\(no body\)$/i.test(t) || /^bad request$/i.test(t)
 }
 

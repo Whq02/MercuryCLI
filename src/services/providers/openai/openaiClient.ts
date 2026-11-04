@@ -47,6 +47,7 @@ interface OpenaiStreamOptions {
   idleTimeoutMs?: number
   silentAfterHeadersMs?: number | null
   onStreamActivity?: (atMs: number) => void
+  skipFaultCapture?: boolean
   firstByte?: {
     cold: boolean
     promptTokens: number
@@ -154,18 +155,26 @@ export async function* streamOpenaiResponses(
           responseBody = JSON.parse(text)
         } catch {
           const trimmed = text.trim()
-          responseBody = trimmed !== '' && !trimmed.startsWith('<') ? { detail: trimmed } : undefined
+          const bounded = trimmed.length > 300 ? `${trimmed.slice(0, 300).toWellFormed()}…` : trimmed.toWellFormed()
+          responseBody = bounded !== '' && !bounded.startsWith('<') ? { detail: bounded } : undefined
         }
       } catch {
         responseBody = undefined
       }
       yield {
         type: 'stream-fault',
-        fault: mapOpenaiHttpFailure(response.status, responseBody, response.headers, {
-          request: options.request,
-          headers: options.headers,
-          url,
-        }),
+        fault: mapOpenaiHttpFailure(
+          response.status,
+          responseBody,
+          response.headers,
+          options.skipFaultCapture
+            ? undefined
+            : {
+                request: options.request,
+                headers: options.headers,
+                url,
+              },
+        ),
       }
       return
     }

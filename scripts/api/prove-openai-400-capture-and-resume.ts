@@ -6,6 +6,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } 
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { z } from 'zod/v4'
 
 process.chdir(resolve(dirname(fileURLToPath(import.meta.url)), '..', '..'))
 delete process.env.NODE_ENV
@@ -44,8 +45,10 @@ function section(title: string): void {
 const MODEL = 'gpt-6-astra'
 const SECRET_API_KEY = 'sk-proj-secret-fixture-credential-1234567890abcdef'
 const SECRET_BEARER = 'Bearer secret-inline-bearer-token-9876543210fedcba'
-const OFFENDING_CALL_ID = 'call_ebae0767e4b6466eaed1b0ce0ddb78e7'
-const BODY_DETAIL = 'input[3].output: invalid UTF-8 surrogate U+DC4D in 29 KB function_call_output'
+const OFFENDING_CALL_ID = 'call_fixture_oversized_webfetch_01'
+const FOLLOWUP_CALL_ID = 'call_fixture_followup_02'
+const FIXTURE_AGENT_ID = 'agent-fixture-400'
+const BODY_DETAIL = 'input[3].output: oversized 29 KB function_call_output rejected by endpoint'
 const BODY_PARAM = 'input[3].output'
 
 const MODELS_BODY = {
@@ -76,11 +79,13 @@ interface WirePost {
   parsed?: Record<string, unknown>
   hasUnpairedSurrogateEscape: boolean
   offendingOutputChars: number
+  hasFollowupOutput: boolean
   status: number
 }
 
 const wirePosts: WirePost[] = []
 let alwaysReject400 = false
+let replyWithToolCallOnce = false
 
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   const chunks: Buffer[] = []
@@ -101,6 +106,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const hasUnpairedSurrogateEscape = /\\ud[89a-f][0-9a-f]{2}/i.test(raw)
     let parsed: Record<string, unknown> | undefined
     let offendingOutputChars = 0
+    let hasFollowupOutput = false
     try {
       parsed = JSON.parse(raw) as Record<string, unknown>
       const input = Array.isArray(parsed.input) ? (parsed.input as Array<Record<string, unknown>>) : []
@@ -108,13 +114,16 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         if (item.type === 'function_call_output' && item.call_id === OFFENDING_CALL_ID && typeof item.output === 'string') {
           offendingOutputChars = item.output.length
         }
+        if (item.type === 'function_call_output' && item.call_id === FOLLOWUP_CALL_ID) {
+          hasFollowupOutput = true
+        }
       }
     } catch {
       parsed = undefined
     }
     const reject = alwaysReject400 || hasUnpairedSurrogateEscape || offendingOutputChars > 20_000
     if (reject) {
-      wirePosts.push({ raw, parsed, hasUnpairedSurrogateEscape, offendingOutputChars, status: 400 })
+      wirePosts.push({ raw, parsed, hasUnpairedSurrogateEscape, offendingOutputChars, hasFollowupOutput, status: 400 })
       res.writeHead(400, { 'content-type': 'application/json', connection: 'close' })
       res.end(
         JSON.stringify({
@@ -127,10 +136,33 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       )
       return
     }
-    wirePosts.push({ raw, parsed, hasUnpairedSurrogateEscape, offendingOutputChars, status: 200 })
-    const replyText = 'Recovered and finished the brief.'
+    wirePosts.push({ raw, parsed, hasUnpairedSurrogateEscape, offendingOutputChars, hasFollowupOutput, status: 200 })
     res.writeHead(200, { 'content-type': 'text/event-stream', connection: 'close' })
-    res.write(sse({ type: 'response.created', response: { id: `resp_ok_${wirePosts.length}` } }))
+    const respId = `resp_fixture_ok_${wirePosts.length}`
+    res.write(sse({ type: 'response.created', response: { id: respId } }))
+    if (replyWithToolCallOnce) {
+      replyWithToolCallOnce = false
+      const callItem = {
+        type: 'function_call',
+        id: 'fc_fixture_followup_02',
+        call_id: FOLLOWUP_CALL_ID,
+        name: 'Echo',
+        arguments: JSON.stringify({ text: 'step-two-check' }),
+      }
+      res.write(sse({ type: 'response.output_item.added', item: callItem }))
+      res.write(sse({ type: 'response.output_item.done', item: callItem }))
+      res.end(
+        sse({
+          type: 'response.completed',
+          response: {
+            id: respId,
+            usage: { input_tokens: 120, output_tokens: 18, input_tokens_details: { cached_tokens: 64 } },
+          },
+        }),
+      )
+      return
+    }
+    const replyText = 'Recovered and finished the brief.'
     res.write(sse({ type: 'response.output_text.delta', delta: replyText }))
     res.write(
       sse({
@@ -142,7 +174,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       sse({
         type: 'response.completed',
         response: {
-          id: `resp_ok_${wirePosts.length}`,
+          id: respId,
           usage: { input_tokens: 120, output_tokens: 12, input_tokens_details: { cached_tokens: 64 } },
         },
       }),
@@ -168,28 +200,39 @@ const { routedCallModel } = await import('../../src/services/providers/callModel
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { classifyOverflowFault } = await import('../../src/services/api/overflowSignal.ts')
+import type { Tool } from '../../src/Tool.ts'
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
 
 const sessionDir = join(getSessionProjectDir() ?? getProjectDir(getOriginalCwd()), getSessionId())
 
+const echoTool = {
+  name: 'Echo',
+  inputSchema: z.object({ text: z.string() }),
+  prompt: async () => 'Echoes fixture text.',
+  isEnabled: () => true,
+  isReadOnly: () => true,
+  isConcurrencySafe: () => true,
+} as unknown as Tool
+
 const offendingToolResultText =
-  'Source: https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B/raw/main/README.md\n' +
+  'Source: https://example.test/docs/reference.md\n' +
   `[Auth probe header that must be scrubbed in capture: ${SECRET_BEARER}]\n` +
-  Array.from({ length: 320 }, (_, i) => `Line ${i + 1}: Wan2.2-TI2V-5B reference documentation line with model parameters and benchmarks.`).join('\n') +
-  '\n---\n\uDC4D **Complex Motion Generation**: Compared to Wan2.1, Wan2.2 is trained on significantly larger data.\n' +
-  Array.from({ length: 120 }, (_, i) => `Tail line ${i + 1}: MCP specification and tool schema validation rules.`).join('\n')
+  Array.from({ length: 320 }, (_, i) => `Fixture line ${i + 1}: synthetic documentation line with parameters and benchmarks for proof coverage.`).join('\n') +
+  '\n---\n\uDC4D **Synthetic Section Heading**: fixture excerpt after slicing an emoji pair in UTF-16 code units.\n' +
+  Array.from({ length: 120 }, (_, i) => `Fixture tail ${i + 1}: synthetic protocol specification and schema validation rules.`).join('\n')
 
 function buildHistoryBeforeFault(seedLabel: string): Message[] {
   const userBrief = createUserMessage({
-    content: `[${seedLabel}] Audit the six skills and write the grade page. Never leak ${SECRET_BEARER}.`,
+    content: `[${seedLabel}] Audit the fixture pages and write the summary. Never leak ${SECRET_BEARER}.`,
   })
   const assistantToolCall: AssistantMessage = {
     type: 'assistant',
     requestId: undefined,
-    uuid: 'a19f48e4-1805-4899-a425-25ca4887c434' as never,
+    uuid: '00000000-0000-4000-8000-000000000401' as never,
     timestamp: new Date().toISOString(),
     message: {
-      id: 'openai_d73108ac-43ee-4464-9d72-de02af53fb7e',
+      id: 'openai_00000000-0000-4000-8000-000000000401',
       model: MODEL,
       role: 'assistant',
       type: 'message',
@@ -197,8 +240,8 @@ function buildHistoryBeforeFault(seedLabel: string): Message[] {
         {
           type: 'tool_use',
           id: OFFENDING_CALL_ID,
-          name: 'Eval',
-          input: { language: 'js', code: 'tool.WebFetch({ urls })' },
+          name: 'Echo',
+          input: { text: 'fetch-docs' },
         },
       ],
       stop_reason: 'tool_use',
@@ -214,21 +257,21 @@ function buildHistoryBeforeFault(seedLabel: string): Message[] {
     },
     apexProviderTurn: {
       provider: 'openai',
-      responseId: 'resp_0c5733b780a2aeb8016aea5a25897487d2bda2d860af86053f',
+      responseId: 'resp_fixture_turn_01',
       items: [
         {
           type: 'reasoning',
-          id: 'rs_0c5733b780a2aeb8016aea5a2c925487d299e6d38ffa186244',
-          summary: [{ type: 'summary_text', text: '**Fetching exact webpage targets**' }],
+          id: 'rs_fixture_turn_01',
+          summary: [{ type: 'summary_text', text: '**Checking fixture targets**' }],
           content: [],
-          encrypted_content: 'gAAAAABq6lpCKCIbicJ9wa8pLeMwbqROYgHQmtgSECvS6TaSU0MFwq5ucSAlaNuDtW7RbW6bhhcc7BpqtOV5SOW7JT5zNxZex_' + 'A'.repeat(2000),
+          encrypted_content: 'gAAAAABfixture_encrypted_reasoning_payload_' + 'A'.repeat(2000),
         },
         {
           type: 'function_call',
           call_id: OFFENDING_CALL_ID,
-          name: 'Eval',
-          arguments: JSON.stringify({ language: 'js', code: 'tool.WebFetch({ urls })' }),
-          id: 'fc_0c5733b780a2aeb8016aea5a42343c87d28b3385f3c32c8a2d',
+          name: 'Echo',
+          arguments: JSON.stringify({ text: 'fetch-docs' }),
+          id: 'fc_fixture_turn_01',
         },
       ],
     },
@@ -245,14 +288,14 @@ function buildHistoryBeforeFault(seedLabel: string): Message[] {
   return [userBrief, assistantToolCall, userToolResult]
 }
 
-async function runTurn(messages: Message[], agentId = 'a07utcjf0'): Promise<{ assistants: AssistantMessage[]; streamedText: string }> {
+async function runTurn(messages: Message[], agentId = FIXTURE_AGENT_ID): Promise<{ assistants: AssistantMessage[]; streamedText: string }> {
   const assistants: AssistantMessage[] = []
   let streamedText = ''
   const stream = routedCallModel({
     messages: messages as never,
     systemPrompt: asSystemPrompt(['You are a research specialist on the OpenAI Responses road.']),
     thinkingConfig: { type: 'disabled' },
-    tools: [],
+    tools: [echoTool],
     signal: new AbortController().signal,
     options: {
       getToolPermissionContext: () => Promise.resolve(getEmptyToolPermissionContext()),
@@ -300,8 +343,9 @@ try {
   const history1 = buildHistoryBeforeFault('run-1')
   check('fixture tool_result is ~29 KB and carries the unpaired surrogate U+DC4D', offendingToolResultText.length > 27_000 && offendingToolResultText.includes('\uDC4D'))
 
-  const turn1 = await runTurn(history1, 'a07utcjf0')
+  const turn1 = await runTurn(history1, FIXTURE_AGENT_ID)
   check('initial 400 makes exactly 1 wire POST (no recovery retry on a non-resumed turn)', wirePosts.length === 1 && wirePosts[0]?.status === 400, `posts=${wirePosts.length}`)
+  check('lone surrogates in transcript strings are sanitised before reaching the wire on every request', wirePosts[0]?.hasUnpairedSurrogateEscape === false)
 
   const errRow1 = turn1.assistants.at(-1)
   const errText1 = textOfAssistant(errRow1)
@@ -319,7 +363,7 @@ try {
   if (captureFile1 && existsSync(captureFile1)) {
     const rawCapture = readFileSync(captureFile1, 'utf8')
     const stat = statSync(captureFile1)
-    check('capture file size is bounded (< 64 KB)', stat.size > 0 && stat.size <= 65_536, `size=${stat.size}`)
+    check('capture file size is bounded (<= 48 KB)', stat.size > 0 && stat.size <= 49_152, `size=${stat.size}`)
     check('secrets and credentials are redacted from the capture file', !rawCapture.includes(SECRET_API_KEY) && !rawCapture.includes('secret-inline-bearer-token-9876543210fedcba') && rawCapture.includes('Bearer ***'))
     const parsedCapture = JSON.parse(rawCapture) as Record<string, unknown>
     check('capture file records status 400, model, and truncated large text parts with their sizes', parsedCapture.status === 400 && rawCapture.includes('truncated:') && rawCapture.includes(`${offendingToolResultText.length} chars`))
@@ -327,14 +371,15 @@ try {
     check('capture file is readable JSON with redacted secrets and truncated text sizes', false, 'capture file missing')
   }
 
-  section('§2 Recovery on resume — when the resumed turn fails at once with the same 400, it trims once with a notice and succeeds')
+  section('§2 Recovery on resume — trims once with notice, returns a tool call, and the following request stays clean and succeeds')
+  replyWithToolCallOnce = true
   const resumedMessages: Message[] = [
     ...history1,
     ...(errRow1 ? [errRow1] : []),
-    createUserMessage({ content: 'Carry on with the brief and write GRADE.md.' }),
+    createUserMessage({ content: 'Carry on with the brief and run the follow-up tool.' }),
   ]
   const postsBeforeResume = wirePosts.length
-  const turn2 = await runTurn(resumedMessages, 'a07utcjf0')
+  const turn2 = await runTurn(resumedMessages, FIXTURE_AGENT_ID)
   const resumePosts = wirePosts.slice(postsBeforeResume)
 
   check(
@@ -343,35 +388,57 @@ try {
     `statuses=${JSON.stringify(resumePosts.map(p => p.status))}`,
   )
   check(
-    'the retry compacted the offending 29 KB tool result using the road digest placeholder and removed the unpaired surrogate',
+    'the retry compacted the offending 29 KB tool result using the road digest placeholder',
     resumePosts[1] !== undefined &&
       !resumePosts[1].hasUnpairedSurrogateEscape &&
       resumePosts[1].offendingOutputChars > 0 &&
       resumePosts[1].offendingOutputChars < 200 &&
       resumePosts[1].raw.includes('[stale tool result'),
-    `offendingOutputChars=${resumePosts[1]?.offendingOutputChars} hasSurrogate=${resumePosts[1]?.hasUnpairedSurrogateEscape}`,
+    `offendingOutputChars=${resumePosts[1]?.offendingOutputChars}`,
   )
   const turn2Texts = turn2.assistants.map(textOfAssistant).join('\n')
-  console.log(`      turn2 transcript texts:\n${turn2Texts}`)
+  const settledToolUse = turn2.assistants
+    .flatMap(m => (Array.isArray(m.message.content) ? m.message.content : []))
+    .find(b => b.type === 'tool_use' && b.id === FOLLOWUP_CALL_ID)
   check(
-    'resumed turn settled without an API error and delivered the model reply',
-    turn2.assistants.length > 0 &&
+    'recovered turn settled the follow-up tool_use call alongside the one-line [openai] notice',
+    settledToolUse !== undefined &&
       turn2.assistants.every(m => m.isApiErrorMessage !== true) &&
-      turn2Texts.includes('Recovered and finished the brief.'),
-    turn2Texts,
-  )
-  check(
-    'transcript includes the one-line notice naming what was trimmed',
-    turn2.assistants.some(
-      m =>
-        textOfAssistant(m).includes('[openai]') &&
-        textOfAssistant(m).includes(OFFENDING_CALL_ID) &&
-        !textOfAssistant(m).includes('\n'),
-    ),
+      turn2.assistants.some(
+        m =>
+          textOfAssistant(m).includes('[openai]') &&
+          textOfAssistant(m).includes(OFFENDING_CALL_ID) &&
+          !textOfAssistant(m).includes('\n'),
+      ),
     turn2Texts,
   )
 
-  section('§3 Bounded recovery — when the retry also fails with 400, it stops after one retry and names the capture file')
+  const followupResult = createUserMessage({
+    content: [
+      {
+        type: 'tool_result',
+        tool_use_id: FOLLOWUP_CALL_ID,
+        content: 'step-two-complete',
+      },
+    ],
+  })
+  const postsBeforeFollowup = wirePosts.length
+  const turn2Followup = await runTurn([...resumedMessages, ...turn2.assistants, followupResult], FIXTURE_AGENT_ID)
+  const followupPosts = wirePosts.slice(postsBeforeFollowup)
+  const followupTexts = turn2Followup.assistants.map(textOfAssistant).join('\n')
+  check(
+    'following request after the recovered tool call keeps the offending tool result compacted and succeeds in 1 POST (200)',
+    followupPosts.length === 1 &&
+      followupPosts[0]?.status === 200 &&
+      followupPosts[0].hasFollowupOutput === true &&
+      followupPosts[0].offendingOutputChars > 0 &&
+      followupPosts[0].offendingOutputChars < 200 &&
+      turn2Followup.assistants.every(m => m.isApiErrorMessage !== true) &&
+      followupTexts.includes('Recovered and finished the brief.'),
+    `posts=${followupPosts.length} offendingChars=${followupPosts[0]?.offendingOutputChars} texts=${followupTexts}`,
+  )
+
+  section('§3 Bounded recovery — when the retry also fails with 400, it stops after one retry, emits the notice, and names the capture file')
   alwaysReject400 = true
   const history3 = buildHistoryBeforeFault('run-3')
   const initial3 = await runTurn(history3, 'agent-bounded-3')
@@ -391,6 +458,11 @@ try {
     `statuses=${JSON.stringify(boundedPosts.map(p => p.status))}`,
   )
   check(
+    'the one-line compaction notice still lands in the transcript before the standing error row when the retry fails',
+    resumed3.assistants.some(m => textOfAssistant(m).includes('[openai]') && textOfAssistant(m).includes(OFFENDING_CALL_ID)),
+    resumed3.assistants.map(textOfAssistant).join('\n'),
+  )
+  check(
     'one capture file per fault was written, and the standing fault names the latest capture file and body detail',
     capturesAfterBoundedResume.length === capturesBeforeBoundedResume + 2 &&
       finalErr3.includes(BODY_DETAIL) &&
@@ -398,8 +470,10 @@ try {
     finalErr3,
   )
 
-  section('§4 Shared OpenAI-compat Responses transport — 4xx captures the request and names the capture file and body detail')
+  section('§4 Shared OpenAI-compat Responses transport — explicit capture, wireMessage preservation for bodiless overflow, and retention bound')
   const { openrouterResponsesTransport } = await import('../../src/services/providers/openrouter/openrouterResponsesTransport.ts')
+  const { mapOpenaiHttpFailure } = await import('../../src/services/providers/openai/openaiWire.ts')
+  const { MAX_FAULT_CAPTURES_PER_SESSION } = await import('../../src/services/api/dumpPrompts.ts')
   const capturesBeforeCompat = listCaptureFiles().length
   const compatTransport = openrouterResponsesTransport(
     {
@@ -424,15 +498,50 @@ try {
       compatEvents.push(ev as unknown as Record<string, unknown>)
     }
   }
-  const compatFault = compatEvents.find(e => e.type === 'stream-fault') as { fault?: { message?: string } } | undefined
+  const compatFault = compatEvents.find(e => e.type === 'stream-fault') as { fault?: { message?: string; wireMessage?: string } } | undefined
   const capturesAfterCompat = listCaptureFiles()
   check(
-    'OpenAI-compat Responses transport writes a capture file on 400 and names it and the body detail in its fault message',
+    'OpenAI-compat Responses transport writes a capture file on 400, names it and the body detail in message, and carries wireMessage',
     capturesAfterCompat.length === capturesBeforeCompat + 1 &&
       typeof compatFault?.fault?.message === 'string' &&
       compatFault.fault.message.includes(BODY_DETAIL) &&
+      compatFault.fault.wireMessage === `Bad Request — ${BODY_DETAIL}` &&
       capturesAfterCompat.some(f => compatFault.fault?.message?.includes(f)),
     JSON.stringify(compatFault),
+  )
+  const bodilessCaptured = mapOpenaiHttpFailure(400, { detail: 'Bad Request' }, undefined, {
+    request: { model: 'openai/gpt-6-astra', input: [] },
+  })
+  const bodilessSignal = classifyOverflowFault({
+    family: 'openrouter',
+    status: 400,
+    code: bodilessCaptured.code,
+    message: bodilessCaptured.wireMessage ?? bodilessCaptured.message,
+    measured: () => ({ tokens: 90_000, window: 100_000 }),
+  })
+  const bodilessFromFullMessage = classifyOverflowFault({
+    family: 'openrouter',
+    status: 400,
+    code: bodilessCaptured.code,
+    message: bodilessCaptured.message,
+    measured: () => ({ tokens: 90_000, window: 100_000 }),
+  })
+  check(
+    'a near-window bodiless 400 with a capture path preserves its context-size overflow signal',
+    bodilessSignal !== null &&
+      bodilessSignal.shape === 'context-size' &&
+      bodilessSignal.measuredTokens === 90_000 &&
+      bodilessFromFullMessage !== null &&
+      bodilessFromFullMessage.shape === 'context-size',
+    JSON.stringify({ bodilessSignal, bodilessFromFullMessage }),
+  )
+  for (let i = 0; i < MAX_FAULT_CAPTURES_PER_SESSION + 5; i++) {
+    mapOpenaiHttpFailure(400, { detail: `cap-probe-${i}` }, undefined, { request: { model: MODEL, input: [] } })
+  }
+  check(
+    'session capture files are bounded by MAX_FAULT_CAPTURES_PER_SESSION',
+    listCaptureFiles().length <= MAX_FAULT_CAPTURES_PER_SESSION,
+    `count=${listCaptureFiles().length} cap=${MAX_FAULT_CAPTURES_PER_SESSION}`,
   )
 } finally {
   server.close()

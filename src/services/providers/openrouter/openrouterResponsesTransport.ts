@@ -148,6 +148,7 @@ function compatFaultOf(fault: OpenaiFault): CompatFault {
     kind,
     code: fault.code,
     message: fault.message,
+    ...(fault.wireMessage !== undefined ? { wireMessage: fault.wireMessage } : {}),
     retryable: fault.retryable,
     ...(fault.inStream ? { inStream: fault.inStream } : {}),
     ...(fault.status !== undefined ? { status: fault.status } : {}),
@@ -328,7 +329,13 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
       } catch {
         errorBody = undefined
       }
-      yield { type: 'stream-fault', fault: compatFaultOf(mapOpenaiHttpFailure(response.status, errorBody, response.headers)) }
+      let parsedRequest: unknown
+      try {
+        parsedRequest = JSON.parse(body)
+      } catch {
+        parsedRequest = undefined
+      }
+      yield { type: 'stream-fault', fault: compatFaultOf(mapOpenaiHttpFailure(response.status, errorBody, response.headers, { request: parsedRequest, url })) }
       return
     }
     if (!response.body) {

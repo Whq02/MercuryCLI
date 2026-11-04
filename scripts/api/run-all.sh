@@ -123,6 +123,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sized-copy-f
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-empty-text-block.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-empty-text-block.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-side-question-effort.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-side-question-effort.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-unrecognised-4xx-sentence.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-unrecognised-4xx-sentence.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-openai-400-capture-and-resume.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-openai-400-capture-and-resume.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-provider-wait-words.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-provider-wait-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-quiet-wire.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-quiet-wire.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-headless-wire.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-headless-wire.ts" "$__t" "$__rc"
