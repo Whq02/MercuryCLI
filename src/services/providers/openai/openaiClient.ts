@@ -147,13 +147,26 @@ export async function* streamOpenaiResponses(
     const edgeHeaders = edgeHeadersOf(response.headers)
 
     if (!response.ok) {
-      let body: unknown
+      let responseBody: unknown
       try {
-        body = await response.json()
+        const text = await response.text()
+        try {
+          responseBody = JSON.parse(text)
+        } catch {
+          const trimmed = text.trim()
+          responseBody = trimmed !== '' && !trimmed.startsWith('<') ? { detail: trimmed } : undefined
+        }
       } catch {
-        body = undefined
+        responseBody = undefined
       }
-      yield { type: 'stream-fault', fault: mapOpenaiHttpFailure(response.status, body, response.headers) }
+      yield {
+        type: 'stream-fault',
+        fault: mapOpenaiHttpFailure(response.status, responseBody, response.headers, {
+          request: options.request,
+          headers: options.headers,
+          url,
+        }),
+      }
       return
     }
     if (!response.body) {

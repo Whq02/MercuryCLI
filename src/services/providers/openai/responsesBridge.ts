@@ -275,6 +275,15 @@ function mapDerivedAssistantMessage(out: OpenaiInputItem[], message: BridgeMessa
 
 export const replayPruneCensus = { items: 0, bytes: 0 }
 
+let stagedResponsesInput: { input: OpenaiInputItem[]; at: number } | null = null
+
+export function takeStagedOpenaiInput(maxAgeMs = 60_000): { input: OpenaiInputItem[] } | undefined {
+  const held = stagedResponsesInput
+  stagedResponsesInput = null
+  if (held === null || Date.now() - held.at > maxAgeMs) return undefined
+  return { input: held.input }
+}
+
 export function mapMessagesToOpenaiInput(
   messages: readonly BridgeMessage[],
   opts?: { imagesSupported?: boolean; pdfSupported?: boolean },
@@ -329,6 +338,7 @@ export function mapMessagesToOpenaiInput(
     }
     index = next
   }
+  stagedResponsesInput = { input: out, at: Date.now() }
   return out
 }
 
@@ -369,15 +379,17 @@ export function buildOpenaiResponsesRequest(
   const searchTools = i.toolSearch ? [OPENAI_TOOL_SEARCH_TOOL] : []
   const composed = [...functionTools, ...hostedTools, ...searchTools]
   const tools = composed.length > 0 ? composed : undefined
+  const input = mapMessagesToOpenaiInput(i.messages, {
+    imagesSupported: i.imagesSupported !== false,
+    pdfSupported: i.pdfSupported === true,
+  })
+  stagedResponsesInput = null
   return {
     model: i.model,
     ...(i.instructions && i.instructions.trim() !== ''
       ? { instructions: i.instructions }
       : {}),
-    input: mapMessagesToOpenaiInput(i.messages, {
-      imagesSupported: i.imagesSupported !== false,
-      pdfSupported: i.pdfSupported === true,
-    }),
+    input,
     ...(tools ? { tools, tool_choice: i.toolChoice ?? ('auto' as const), parallel_tool_calls: true } : {}),
     reasoning: {
       ...(i.reasoningEffort ? { effort: i.reasoningEffort } : {}),

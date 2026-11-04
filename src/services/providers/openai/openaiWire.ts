@@ -1,11 +1,13 @@
 
 import type { StreamCutForensicsV1 } from './streamCutForensics.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { captureRejectedOpenaiRequest } from '../../api/dumpPrompts.js'
 import type { OutageCause } from '../../api/reconnectLadder.js'
 import { retryAfterHeaderMs, retryAfterSaysNow } from '../../api/retryAfter.js'
 import { providerWaitWords } from '../../api/recoveryBudget.js'
 import { isTemporaryStreamError } from '../temporaryStreamError.js'
 import type { StreamCapabilityAdvertisement, TextPhase } from '../../../types/wire.js'
+import { takeStagedOpenaiInput } from './responsesBridge.js'
 
 
 export interface OpenaiFunctionTool {
@@ -150,6 +152,8 @@ export interface OpenaiFault {
     | 'usage-limit'
   code: string
   message: string
+  wireMessage?: string
+  capturePath?: string
   retryable: boolean
   inStream?: true
   resetsAtMs?: number
@@ -199,19 +203,68 @@ export const OPENAI_STREAM_ADVERTISEMENT: StreamCapabilityAdvertisement = {
   timing: true,
 }
 
+export interface OpenaiFailureCaptureContext {
+  request?: unknown
+  headers?: Record<string, string>
+  url?: string
+}
+
+function formatExtraBodyClause(raw: unknown): string | undefined {
+  if (typeof raw === 'string') {
+    const trimmed = raw.replace(/[{}]/g, '').trim()
+    return trimmed === '' ? undefined : trimmed
+  }
+  if (Array.isArray(raw)) {
+    const parts = raw
+      .map(item => {
+        const rec = asRecord(item)
+        if (rec !== undefined) {
+          const loc = Array.isArray(rec.loc) ? rec.loc.map(String).join('.') : typeof rec.loc === 'string' ? rec.loc : undefined
+          const msg = typeof rec.msg === 'string' ? rec.msg : typeof rec.message === 'string' ? rec.message : undefined
+          if (loc && msg) return `${loc}: ${msg}`
+          if (msg) return msg
+        }
+        return typeof item === 'string' ? item : undefined
+      })
+      .filter((s): s is string => typeof s === 'string' && s.trim() !== '')
+    return parts.length > 0 ? parts.join('; ').replace(/[{}]/g, '').trim() : undefined
+  }
+  return undefined
+}
 
 export function mapOpenaiHttpFailure(
   status: number,
   body: unknown,
-  headers?: { get(name: string): string | null },
+  headers?: { get(name: string): string | null } | null,
+  capture?: OpenaiFailureCaptureContext | OpenaiResponsesRequest,
 ): OpenaiFault {
   const o = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : undefined
   const err =
     typeof o?.error === 'object' && o.error !== null ? (o.error as Record<string, unknown>) : undefined
   const code = typeof err?.code === 'string' ? err.code : undefined
   const errType = typeof err?.type === 'string' ? err.type : undefined
-  const message = String(err?.message ?? o?.detail ?? `HTTP ${status}`)
-  const retryable = isTemporaryStreamError({ code, type: errType, error_type: o?.error_type ?? err?.error_type ?? asRecord(err?.metadata)?.error_type, message, status })
+  const rawPrimary =
+    err?.message ??
+    (typeof o?.detail === 'string' ? o.detail : formatExtraBodyClause(o?.detail)) ??
+    (typeof o?.message === 'string' ? o.message : undefined) ??
+    (typeof o?.error === 'string' ? o.error : undefined) ??
+    `HTTP ${status}`
+  const primary = String(rawPrimary)
+  const extraParts: string[] = []
+  if (status >= 400 && status < 500 && status !== 429) {
+    for (const candidate of [err?.detail, err?.details, o?.detail, o?.message]) {
+      const text = formatExtraBodyClause(candidate)
+      if (text !== undefined && text !== primary && !primary.includes(text) && !extraParts.includes(text)) {
+        extraParts.push(text)
+      }
+    }
+    const param = formatExtraBodyClause(err?.param ?? o?.param)
+    if (param !== undefined && !primary.includes(param) && !extraParts.some(p => p.includes(param))) {
+      extraParts.push(`param ${param}`)
+    }
+  }
+  const wireMessage = extraParts.length > 0 ? `${primary} — ${extraParts.join('; ')}` : primary
+  const retryable = isTemporaryStreamError({ code, type: errType, error_type: o?.error_type ?? err?.error_type ?? asRecord(err?.metadata)?.error_type, message: wireMessage, status })
   if (status === 429) {
     const now = Date.now()
     const retryAfterHeader = headers?.get('retry-after') ?? undefined
@@ -229,8 +282,8 @@ export function mapOpenaiHttpFailure(
     const shortBodyWait = seconds !== undefined && seconds <= 3600
     let waitMs = asked ?? (seconds !== undefined ? seconds * 1000 : undefined)
     if (waitMs === undefined && planNamed) {
-      const weekly = /\bweek(?:ly)?\b|\b7[ -]?days?\b/i.test(message)
-      const short = /\b5[ -]?(?:h|hours?)\b/i.test(message)
+      const weekly = /\bweek(?:ly)?\b|\b7[ -]?days?\b/i.test(wireMessage)
+      const short = /\b5[ -]?(?:h|hours?)\b/i.test(wireMessage)
       const named = weekly
         ? bands.find(b => Number.isFinite(b.minutes) && b.minutes >= 6 * 24 * 60)?.name ?? 'secondary'
         : short ? bands.find(b => b.minutes === 5 * 60)?.name ?? 'primary' : undefined
@@ -262,17 +315,43 @@ export function mapOpenaiHttpFailure(
     return {
       kind: 'usage-limit',
       code: code || errType ? `openai-${code ?? errType}` : 'http-429',
-      message: `${words} — ${message}`,
+      message: `${words} — ${wireMessage}`,
       retryable,
       ...(waitMs !== undefined ? { resetsAtMs: now + waitMs, retryAfterMs: waitMs } : {}),
       status,
     }
   }
+  const staged = capture === undefined ? takeStagedOpenaiInput() : undefined
+  const captureSource = capture ?? staged
+  const captureContext =
+    captureSource !== undefined && typeof captureSource === 'object' && captureSource !== null && 'request' in captureSource
+      ? (captureSource as OpenaiFailureCaptureContext)
+      : captureSource !== undefined
+        ? { request: captureSource }
+        : undefined
+  const capturePath =
+    status >= 400 &&
+    status < 500 &&
+    status !== 401 &&
+    status !== 402 &&
+    status !== 403 &&
+    captureContext?.request !== undefined
+      ? captureRejectedOpenaiRequest({
+          status,
+          request: captureContext.request,
+          ...(captureContext.headers !== undefined ? { headers: captureContext.headers } : {}),
+          ...(captureContext.url !== undefined ? { url: captureContext.url } : {}),
+          responseBody: body,
+        })
+      : null
+  const message = capturePath ? `${wireMessage} (request captured: ${capturePath})` : wireMessage
   if (code || errType) {
     return {
       kind: 'api-error',
       code: `openai-${code ?? errType}`,
       message,
+      ...(wireMessage !== message ? { wireMessage } : {}),
+      ...(capturePath ? { capturePath } : {}),
       retryable,
       status,
     }
@@ -281,6 +360,8 @@ export function mapOpenaiHttpFailure(
     kind: 'http-error',
     code: `http-${status}`,
     message,
+    ...(wireMessage !== message ? { wireMessage } : {}),
+    ...(capturePath ? { capturePath } : {}),
     retryable,
     status,
   }

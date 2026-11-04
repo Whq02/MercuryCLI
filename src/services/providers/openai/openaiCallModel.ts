@@ -38,6 +38,10 @@ import {
 import { toolToAPISchema } from '../../../utils/api.js'
 import { withToolReferenceTurnBoundary } from '../../../utils/messages/apiView.js'
 import { applyStripTargetsToMessages, errorDrivenStripTargets } from '../../../utils/messages/apiPlan.js'
+import { isSyntheticApiErrorMessage } from '../../../utils/messages/factories.js'
+import { projectTimeBasedMicrocompact } from '../../compact/microCompact.js'
+import { digestClearedToolResult, isClearedOrDigested } from '../../compact/microCompactDigest.js'
+import { estimateContentTokens } from '../../tokenEstimation.js'
 import { validateImagesForAPI } from '../../../utils/imageValidation.js'
 import { classifyImageRefusalFault, type MediaRefusal } from '../../api/mediaRefusal.js'
 import {
@@ -152,11 +156,12 @@ export function openaiRetryDelayMs(attempt: number): number {
 }
 
 export function effortVocabularyRefusalOf(
-  fault: Pick<OpenaiFault, 'code' | 'message'>,
+  fault: Pick<OpenaiFault, 'code' | 'message'> & { wireMessage?: string },
   sentEffort: string | undefined,
 ): { refused: string; levels: string[] } | undefined {
   if (sentEffort === undefined || fault.code !== 'openai-invalid_value') return undefined
-  const match = /Invalid value: '([^']+)'\. Supported values are: (.+?)\.?\s*$/.exec(fault.message)
+  const text = (fault.wireMessage ?? fault.message).replace(/\s*\(request captured: [^)]+\)\s*$/, '')
+  const match = /Invalid value: '([^']+)'\. Supported values are: (.+?)\.?\s*$/.exec(text)
   if (match === null || match[1] !== sentEffort) return undefined
   const levels = [...match[2]!.matchAll(/'([^']+)'/g)].map(m => m[1]!)
   return levels.length > 0 ? { refused: match[1]!, levels } : undefined
@@ -213,8 +218,161 @@ function apiErrorMessage(
   })
 }
 
-function overflowOf(fault: { status?: number; code: string; message: string }): OverflowSignal | null {
-  return classifyOverflowFault({ family: 'openai', status: fault.status, code: fault.code, message: fault.message })
+function overflowOf(fault: { status?: number; code: string; message: string; wireMessage?: string }): OverflowSignal | null {
+  return classifyOverflowFault({ family: 'openai', status: fault.status, code: fault.code, message: fault.wireMessage ?? fault.message })
+}
+
+const priorConversation4xx = new Map<string, string>()
+
+function hasUnpairedSurrogate(text: string): boolean {
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i)
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const next = i + 1 < text.length ? text.charCodeAt(i + 1) : 0
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        i++
+        continue
+      }
+      return true
+    }
+    if (code >= 0xdc00 && code <= 0xdfff) return true
+  }
+  return false
+}
+
+function extractToolResultText(content: unknown): string {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  return content
+    .map(part =>
+      typeof part === 'object' && part !== null && (part as { type?: string }).type === 'text'
+        ? String((part as { text?: unknown }).text ?? '')
+        : '',
+    )
+    .join('\n')
+}
+
+function priorTurn4xxCodeOf(messages: readonly Message[], conversation4xxKey: string): string | undefined {
+  let sawTrailingUser = false
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i]!
+    if (m.type === 'user' || m.type === 'attachment') {
+      if (m.type === 'user' && (m as { isMeta?: boolean }).isMeta === true) {
+        const c = (m as { message?: { content?: unknown } }).message?.content
+        const text = typeof c === 'string' ? c : extractToolResultText(c)
+        if (text.includes('refused an image in the last request')) return undefined
+      }
+      sawTrailingUser = true
+      continue
+    }
+    if (m.type !== 'assistant') continue
+    if (
+      sawTrailingUser &&
+      isSyntheticApiErrorMessage(m) &&
+      m.error === 'invalid_request' &&
+      !m.mediaRefusal &&
+      !m.overflowSignal
+    ) {
+      return typeof m.errorDetails === 'string' && m.errorDetails !== '' ? m.errorDetails : '4xx'
+    }
+    break
+  }
+  return sawTrailingUser ? priorConversation4xx.get(conversation4xxKey) : undefined
+}
+
+function compactTranscriptFor4xxResume(
+  messages: Message[],
+  querySource: Options['querySource'],
+  fault: OpenaiFault,
+): { messages: Message[]; note: string } | null {
+  const micro = projectTimeBasedMicrocompact(messages, querySource, { pressure: true })
+  const base = micro ? micro.messages : messages
+  const clearedIds = new Set<string>(micro?.clearedIds ?? [])
+  let tokensSaved = micro?.tokensSaved ?? 0
+  let charsSaved = 0
+  let surrogatesFixed = 0
+  const faultText = fault.wireMessage ?? fault.message
+
+  const candidateToolIds: Array<{ id: string; chars: number; tokens: number; badSurrogate: boolean; named: boolean }> = []
+  for (const m of base) {
+    if (m.type !== 'user' || !Array.isArray(m.message.content)) continue
+    for (const rawBlock of m.message.content) {
+      const block = rawBlock as { type?: string; tool_use_id?: string; content?: unknown }
+      if (block.type !== 'tool_result' || typeof block.tool_use_id !== 'string') continue
+      if (clearedIds.has(block.tool_use_id) || isClearedOrDigested(block.content as never)) continue
+      const text = extractToolResultText(block.content)
+      if (text.trim() === '') continue
+      const badSurrogate = hasUnpairedSurrogate(text)
+      const named = faultText.includes(block.tool_use_id)
+      const tokens = estimateContentTokens(block.content)
+      candidateToolIds.push({ id: block.tool_use_id, chars: text.length, tokens, badSurrogate, named })
+    }
+  }
+
+  const targetIds = new Set<string>()
+  for (const c of candidateToolIds) {
+    if (c.badSurrogate || c.named || c.chars >= 4_000 || c.tokens >= 1_000) {
+      targetIds.add(c.id)
+    }
+  }
+  if (targetIds.size === 0 && clearedIds.size === 0 && candidateToolIds.length > 0) {
+    const largest = [...candidateToolIds].sort((a, b) => b.chars - a.chars)[0]!
+    targetIds.add(largest.id)
+  }
+
+  let firstEdited = micro ? messages.findIndex((m, idx) => m !== base[idx]) : -1
+  const rebuilt = base.map((m, idx) => {
+    if (m.type !== 'user' && m.type !== 'assistant') return m
+    const content = (m as { message?: { content?: unknown } }).message?.content
+    if (typeof content === 'string') {
+      if (!hasUnpairedSurrogate(content)) return m
+      surrogatesFixed++
+      if (firstEdited === -1 || idx < firstEdited) firstEdited = idx
+      return { ...m, message: { ...(m as { message: object }).message, content: content.toWellFormed() } } as Message
+    }
+    if (!Array.isArray(content)) return m
+    let touched = false
+    const nextBlocks = content.map(rawBlock => {
+      const block = rawBlock as { type?: string; tool_use_id?: string; content?: unknown; text?: string }
+      if (
+        block.type === 'tool_result' &&
+        typeof block.tool_use_id === 'string' &&
+        targetIds.has(block.tool_use_id) &&
+        !isClearedOrDigested(block.content as never)
+      ) {
+        touched = true
+        const beforeText = extractToolResultText(block.content)
+        if (hasUnpairedSurrogate(beforeText)) surrogatesFixed++
+        const digest = digestClearedToolResult(block.content as never)
+        const savedTok = Math.max(1, estimateContentTokens(block.content) - estimateContentTokens(digest))
+        tokensSaved += savedTok
+        charsSaved += Math.max(0, beforeText.length - digest.length)
+        clearedIds.add(block.tool_use_id)
+        return { ...block, content: digest }
+      }
+      if (block.type === 'text' && typeof block.text === 'string' && hasUnpairedSurrogate(block.text)) {
+        touched = true
+        surrogatesFixed++
+        return { ...block, text: block.text.toWellFormed() }
+      }
+      return rawBlock
+    })
+    if (!touched) return m
+    if (firstEdited === -1 || idx < firstEdited) firstEdited = idx
+    return { ...m, message: { ...(m as { message: object }).message, content: nextBlocks } } as Message
+  })
+
+  if (clearedIds.size === 0 && surrogatesFixed === 0) return null
+  const finalMessages = firstEdited === -1 ? rebuilt : stripThinkingFromIndex(rebuilt, firstEdited)
+  const idList = [...clearedIds]
+  const idsWords = idList.length <= 3 ? idList.join(', ') : `${idList.slice(0, 3).join(', ')} +${idList.length - 3} more`
+  const surrogateWords = surrogatesFixed > 0 ? '; sanitized unpaired UTF-16 surrogate' : ''
+  const whatTrimmed =
+    idList.length > 0
+      ? `compacted ${idList.length} tool result(s) (${idsWords}; ~${Math.max(1, tokensSaved).toLocaleString('en-US')} tokens${charsSaved > 0 ? `, ${charsSaved.toLocaleString('en-US')} chars` : ''}${surrogateWords})`
+      : `sanitized ${surrogatesFixed} unpaired UTF-16 surrogate(s) in transcript text`
+  const note = `[openai] resumed turn hit ${fault.code} on the replayed transcript — ${whatTrimmed} and retrying once.`
+  return { messages: finalMessages, note }
 }
 
 function recordAgreesWithContent(record: OpenaiTurnRecord, content: MessageParam['content']): boolean {
@@ -519,9 +677,15 @@ export async function* openaiCallModel(params: CallModelParams): CallModelStream
   yield* openaiTurn(params)
 }
 
-async function* openaiTurn(params: CallModelParams, deferralFormReissued?: string): CallModelStream {
+async function* openaiTurn(
+  params: CallModelParams,
+  deferralFormReissued?: string,
+  resumeTrimReissued?: string,
+): CallModelStream {
   const { messages, systemPrompt, tools, signal, options } = params
   const requestedId = normalizeModelStringForAPI(options.model).trim().toLowerCase()
+  const conversation4xxKey = `${getSessionId()}:${options.agentId ?? options.ownerKey ?? ''}:${messages[0]?.uuid ?? ''}`
+  const prior4xxCode = priorTurn4xxCodeOf(messages, conversation4xxKey)
 
   const account = resolveOpenaiAccount()
   if (!account) {
@@ -609,6 +773,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
     else logForDebugging(qualification.note, { level: 'info' })
   }
   if (deferralFormReissued !== undefined) settlementNotes.push(deferralFormReissued)
+  if (resumeTrimReissued !== undefined) settlementNotes.push(resumeTrimReissued)
 
   const retiredScreenshots = retireOlderScreenshots(wireMessages, undefined, undefined, options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)))
   const retiredMessages =
@@ -720,6 +885,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       ...(busy !== undefined ? { busy } : {}),
     })
     if (outcome.kind === 'done') {
+      priorConversation4xx.delete(conversation4xxKey)
       observeSignInResponse(signInRequest, 200)
       clearOpenaiUsageLimit(auth.account.kind)
       try {
@@ -747,7 +913,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       attempt--
       continue
     }
-    observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
+    observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.wireMessage ?? outcome.fault.message)
     const typed = openaiFaultToTypedError(outcome.fault)
     if (
       typed === 'authentication_failed' &&
@@ -784,16 +950,16 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       deferralFormReissued === undefined &&
       outcome.retryEligible &&
       outcome.fault.status === 400 &&
-      OPENAI_NATIVE_DEFERRAL_REFUSAL.test(outcome.fault.message)
+      OPENAI_NATIVE_DEFERRAL_REFUSAL.test(outcome.fault.wireMessage ?? outcome.fault.message)
     ) {
       const endpoint = openaiGatewayHost()
       const key = endpoint.firstParty ? OPENAI_FIRST_PARTY_PROBE_KEY : endpoint.host === null ? null : openaiGatewayProbeKey(endpoint.host)
       if (key !== null) {
-        const evidence = `http 400 (${auth.baseUrl}): ${outcome.fault.message}`
+        const evidence = `http 400 (${auth.baseUrl}): ${outcome.fault.wireMessage ?? outcome.fault.message}`
         recordGatewayProbe(key, { verdict: 'text', evidence, status: 400, probedAt: new Date().toISOString() })
-        const note = `[openai] ${auth.account.label} refused OpenAI's tool-search deferral form (${outcome.fault.message}) — recorded for this endpoint; this call and every later one ride the client-side text form.`
+        const note = `[openai] ${auth.account.label} refused OpenAI's tool-search deferral form (${outcome.fault.wireMessage ?? outcome.fault.message}) — recorded for this endpoint; this call and every later one ride the client-side text form.`
         logForDebugging(note, { level: 'warn' })
-        yield* openaiTurn(params, note)
+        yield* openaiTurn(params, note, resumeTrimReissued)
         return
       }
     }
@@ -806,6 +972,32 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       profile = resolveGptReasoningProfile(requestedEffort, { ...candidate.live, supportedReasoningEfforts: served })
       effortAdjusted = receiptOf(profile, true)
       request = buildRequest(profile.wireEffort)
+    }
+    const refusedMedia = classifyImageRefusalFault(
+      { status: outcome.fault.status, message: outcome.fault.wireMessage ?? outcome.fault.message },
+      requestCarriesInputImage(request),
+    )
+    const overflow = overflowOf(outcome.fault)
+    if (
+      resumeTrimReissued === undefined &&
+      prior4xxCode !== undefined &&
+      !reissueAtServedWord &&
+      outcome.retryEligible &&
+      outcome.fault.status !== undefined &&
+      outcome.fault.status >= 400 &&
+      outcome.fault.status < 500 &&
+      typed === 'invalid_request' &&
+      refusedMedia === null &&
+      overflow === null &&
+      !MODEL_NOT_FOUND_CODE.test(outcome.fault.code) &&
+      (prior4xxCode === '4xx' || prior4xxCode === outcome.fault.code)
+    ) {
+      const trimmed = compactTranscriptFor4xxResume(messages, options.querySource, outcome.fault)
+      if (trimmed !== null) {
+        logForDebugging(trimmed.note, { level: 'warn' })
+        yield* openaiTurn({ ...params, messages: trimmed.messages }, deferralFormReissued, trimmed.note)
+        return
+      }
     }
     const askedMs = outcome.fault.retryAfterMs
     const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
@@ -961,15 +1153,14 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
         remedy: 'add credit to the OpenAI account, then retry; /model picks another model meanwhile.',
       })
     }
-    const refusedMedia = classifyImageRefusalFault(
-      { status: outcome.fault.status, message: outcome.fault.message },
-      requestCarriesInputImage(request),
-    )
+    if (typed === 'invalid_request' && refusedMedia === null && overflow === null && !MODEL_NOT_FOUND_CODE.test(outcome.fault.code)) {
+      priorConversation4xx.set(conversation4xxKey, outcome.fault.code)
+    }
     yield withEffort(apiErrorMessage(
       busyPrefix(text, outcome.fault, typed),
       typed,
       outcome.fault.code,
-      overflowOf(outcome.fault),
+      overflow,
       refusedMedia,
       busy !== undefined ? busyRefusalFact('OpenAI', busy.ladder, outcome.fault) : null,
     ))
