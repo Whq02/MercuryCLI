@@ -232,7 +232,7 @@ const awaitFace = (first: boolean): Send => (first ? { atTick: 120, awaitText: R
 const faceDoor = (): Send[] => [{ afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' }]
 const boardDoor = (): Send[] => [
   { afterPrevTicks: WARM_TICKS, data: 'o', mark: 'face-o' },
-  { afterPrevTicks: 40, awaitText: BOARD_EMPTY, awaitSettleTicks: 3, data: '\t', mark: 'board' },
+  { afterPrevTicks: 40, awaitText: BOARD_EMPTY, awaitSettleTicks: 3, data: '', mark: 'board' },
   { afterPrevTicks: 3, data: 'n', mark: 'board-list' },
   { afterPrevTicks: 30, awaitText: CONTRACT_OFFER, awaitSettleTicks: 2, data: '\x1b', mark: 'contract' },
 ]

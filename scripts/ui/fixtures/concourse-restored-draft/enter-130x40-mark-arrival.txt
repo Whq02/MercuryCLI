@@ -1,0 +1,40 @@
+  ╭──────────────────────────────────────────────────────────────────────────────╮ ╭───────────────────────────────────────────╮  
+  │ Audit billing receipts · Moodle                              ↵ enter session │ │ SESSIONS                + new session · n │  
+  │                                                                              │ │ STATUS & TITLE         PROJECT  LAST USED │  
+  │ no chat yet — ready for your first words · ↵ enters it                       │ │   n starts a blank session in this proje… │  
+  │                                                                              │ │ ⊞ READY TO REVIEW · 1                     │  
+  │                                                                              │ │ ▸ ● Audit billing rec… Moodle         12m │  
+  │                                                                              │ │ ⊞ WORKING · 3                             │  
+  │                                                                              │ │   ◐ Fix OAuth callback Moodle         07m │  
+  │                                                                              │ │   ◐ Refactor parser    orchard…       18m │  
+  │                                                                              │ │   ◐ Update terminal r… orchard…       03m │  
+  │                                                                              │ │ ⊞ QUEUED · 2                              │  
+  │                                                                              │ │   □ Trace reconnect r… orchard…     waits │  
+  │                                                                              │ │   □ Document launch g… Moodle       waits │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │ NEEDS YOU · 0                             │  
+  │                                                                              │ │ ↑↓ choose · ↵ enter · n new · p pause     │  
+  │ ╭──────────────────────────────────────────────────────────────────────────╮ │ ╰───────────────────────────────────────────╯  
+  │ │ ❯ message Audit billing receipts · queued for its next turn              │ │ ╭───────────────────────────────────────────╮  
+  │ │ tab or click to type                                                     │ │ │ COORDINATOR · tab or click to focus       │  
+  │ ╰──────────────────────────────────────────────────────────────────────────╯ │ │ ask in plain words                        │  
+  ╰──────────────────────────────────────────────────────────────────────────────╯ ╰───────────────────────────────────────────╯  
+  ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮  
+  │ ▚▛▀▜▞ │ Moodle ⌄                                                                                                 2/5 seats │  
+  ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯  
+  tab panes · ⌃g ground · i interrupt · m model · e effort · r rename · → peek · / filter · ? keys · esc boot face                

@@ -56,8 +56,7 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
   const run = await runArtifactArena({
     turns: [],
     sends: [
-      'after:Quiet seat:2500:\t',
-      'after:Quiet seat:4000:\r',
+      'after:Quiet seat:2500:\r',
       'after:↵ again enters:800:\r',
       `after:Type a prompt:1500:${DRAFT}`,
       `after:Type a prompt:${escAt}:\x1b`,

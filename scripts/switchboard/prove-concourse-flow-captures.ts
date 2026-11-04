@@ -129,31 +129,25 @@ if (runLeg('git-offer')) {
   for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
     const lines = capture('git-offer', scratch, fixturePath, cols, rows, [], 50)
     const title = rowOf(lines, 'Start a git repository')
-    const coord = rowOf(lines, 'COORDINATOR')
-    const strip = rowOf(lines, '↵ send')
+    const strip = lines.findIndex(l => /\d+\/\d+ seats/.test(l))
     check(`${cols}×${rows}: the card frame paints with its title`, title >= 0)
     check(`${cols}×${rows}: the card names the EXACT folder`, has(lines, "git init(") && has(lines, folder))
     check(`${cols}×${rows}: the standard ask + options`, has(lines, 'Do you want to proceed?') && has(lines, 'Yes') && has(lines, 'No — run here as it is, alone'))
     check(`${cols}×${rows}: the standard key legend`, has(lines, '↑↓ choose · ↵ confirm · esc cancel'))
-    if (cols >= 120) {
-      check(`${cols}×${rows}: the card sits INSIDE the pane — below its title, above the composer`, coord >= 0 && title > coord && (strip < 0 || title < strip), `coord=${coord} card=${title} strip=${strip}`)
-    } else {
-      check(`${cols}×${rows}: the card overlays at the BOTTOM — above the composer strip`, title > 3 && strip > title, `card=${title} strip=${strip}`)
-      const legend = rowOf(lines, '↑↓ choose · ↵ confirm · esc cancel')
-      const cardTop = title - 1
-      const cardBottom = legend + 1
-      const left = lines[cardTop]?.indexOf('╭') ?? -1
-      const right = lines[cardTop]?.indexOf('╮') ?? -1
-      const corners = (row: string | undefined, open: string, close: string): boolean => row !== undefined && row[left] === open && row[right] === close
-      const ring = lines.slice(cardTop - 1, cardBottom + 2)
-      const ringBlank = (band: string[]): boolean => band.length === cardBottom - cardTop + 3 && band[0]!.trim() === '' && band.at(-1)!.trim() === '' && band.every(row => row[left - 1] === ' ' && row[right + 1] === ' ')
-      const poisoned = ring.map((row, at) => at === ring.length - 1 ? `${row.slice(0, left + 4)}▸${row.slice(left + 5)}` : row)
-      check(`${cols}×${rows}: the card's frame corners are all on screen`, left >= 1 && right > left && corners(lines[cardTop], '╭', '╮') && corners(lines[cardBottom], '╰', '╯'), `rows ${cardTop}/${cardBottom}, cols ${left}/${right}: ${JSON.stringify(lines[cardTop]?.trim().slice(0, 4))} ${JSON.stringify(lines[cardBottom]?.trim().slice(0, 4))}`)
-      check(`${cols}×${rows}: one blank gutter cell rings the card`, ringBlank(ring), `rows ${cardTop - 1}/${cardBottom + 1}: ${JSON.stringify(ring[0]?.trim().slice(0, 8))} ${JSON.stringify(ring.at(-1)?.trim().slice(0, 8))}`)
-      check(`${cols}×${rows}: the strip's top rule survives right outside the gutter ring`, lines[cardBottom + 2]?.trim().startsWith('╭') === true, `row ${cardBottom + 2}: ${JSON.stringify(lines[cardBottom + 2]?.trim().slice(0, 8))}`)
-      check(`${cols}×${rows}: control — a live glyph inside the gutter ring is refused`, !ringBlank(poisoned), JSON.stringify(poisoned.at(-1)?.trim().slice(0, 8)))
-    }
-    check(`${cols}×${rows}: the rail still MENTIONS the ask`, has(lines, 'NEEDS YOU') && has(lines, 'git offer'))
+    check(`${cols}×${rows}: the card overlays at the BOTTOM of the main band — above the status strip, the list still holding the focus`, title > 3 && strip > title && has(lines, '+ new session · n'), `card=${title} strip=${strip}`)
+    const legend = rowOf(lines, '↑↓ choose · ↵ confirm · esc cancel')
+    const cardTop = title - 1
+    const cardBottom = legend + 1
+    const left = lines[cardTop]?.indexOf('╭') ?? -1
+    const right = lines[cardTop]?.indexOf('╮') ?? -1
+    const corners = (row: string | undefined, open: string, close: string): boolean => row !== undefined && row[left] === open && row[right] === close
+    const ring = lines.slice(cardTop - 1, cardBottom + 2)
+    const ringBlank = (band: string[]): boolean => band.length === cardBottom - cardTop + 3 && band[0]!.trim() === '' && band.at(-1)!.trim() === '' && band.every(row => row[left - 1] === ' ' && row[right + 1] === ' ')
+    const poisoned = ring.map((row, at) => at === ring.length - 1 ? `${row.slice(0, left + 4)}▸${row.slice(left + 5)}` : row)
+    check(`${cols}×${rows}: the card's frame corners are all on screen`, left >= 1 && right > left && corners(lines[cardTop], '╭', '╮') && corners(lines[cardBottom], '╰', '╯'), `rows ${cardTop}/${cardBottom}, cols ${left}/${right}: ${JSON.stringify(lines[cardTop]?.trim().slice(0, 4))} ${JSON.stringify(lines[cardBottom]?.trim().slice(0, 4))}`)
+    check(`${cols}×${rows}: one blank gutter cell rings the card`, ringBlank(ring), `rows ${cardTop - 1}/${cardBottom + 1}: ${JSON.stringify(ring[0]?.trim().slice(0, 8))} ${JSON.stringify(ring.at(-1)?.trim().slice(0, 8))}`)
+    check(`${cols}×${rows}: the strip's top rule survives right outside the gutter ring`, lines[cardBottom + 2]?.trim().startsWith('╭') === true, `row ${cardBottom + 2}: ${JSON.stringify(lines[cardBottom + 2]?.trim().slice(0, 8))}`)
+    check(`${cols}×${rows}: control — a live glyph inside the gutter ring is refused`, !ringBlank(poisoned), JSON.stringify(poisoned.at(-1)?.trim().slice(0, 8)))
     check(`${cols}×${rows}: the strip's retired y/n context is absent`, !has(lines, 'y allows · n denies'))
   }
   const wrapped = capture('git-offer-down', scratch, fixturePath, 120, 40, [{ atTick: 999, awaitText: 'Do you want to proceed?', minTick: 5, awaitSettleTicks: 2, data: DOWN }, { afterPrevTicks: 4, data: DOWN, mark: 'after-one-down' }], 70)
@@ -199,7 +193,7 @@ if (runLeg('arrows')) {
   writeFileSync(fixturePath, JSON.stringify(fixture))
   const settle = { atTick: 999, awaitText: 'Fix OAuth cal', minTick: 5, awaitSettleTicks: 2 }
   const before = capture('arrows-before', scratch, fixturePath, 120, 40, [], 45)
-  const after = capture('arrows-after', scratch, fixturePath, 120, 40, [{ ...settle, data: '\t' }, { afterPrevTicks: 3, data: DOWN }], 60)
+  const after = capture('arrows-after', scratch, fixturePath, 120, 40, [{ ...settle, data: DOWN }], 60)
   const selRow = (lines: string[]): number => lines.findIndex(l => /▸ /.test(l) && /Audit|Fix OAuth|Refactor|Update/.test(l))
   const titleOf = (line: string | undefined): string => (line ?? '').match(/(?:Audit|Fix OAuth|Refactor|Update)(?: \S+)*/)?.[0] ?? ''
   const rowBefore = selRow(before)
@@ -237,23 +231,24 @@ if (runLeg('queued')) {
     ...fixture.groups.filter(g => g.id !== 'queued'),
   ]
   fixture.peek = null
+  fixture.coordinator = { mode: 'agent-assisted', assistModelLabel: 'Opus 5' }
   const fixturePath = join(scratch, 'concourse-fixture.json')
   writeFileSync(fixturePath, JSON.stringify(fixture))
   const settle = { atTick: 999, awaitText: 'queued probe', minTick: 5, awaitSettleTicks: 2 }
   for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
-    const lines = capture('queued-enter', scratch, fixturePath, cols, rows, [{ ...settle, data: '\t' }, { afterPrevTicks: 3, data: '\r' }], 60)
+    const lines = capture('queued-enter', scratch, fixturePath, cols, rows, [{ ...settle, data: '\r' }], 60)
     check(`${cols}×${rows}: ↵ on the queued row keeps the board`, has(lines, 'SESSIONS') && has(lines, 'queued probe'))
-    check(`${cols}×${rows}: the in-place line — a disclaimer in the estate's voice, whole (the seat count and the m door both on the row)`, lines.some(l => /queued · \d+\/\d+ busy · m queues a message/.test(l)), lines.find(l => l.includes('queued ')) ?? '(no queued line)')
+    check(`${cols}×${rows}: the in-place line in the coordinator pane's tail — a disclaimer in the estate's voice, whole (the seat count and the m door both on the row)`, lines.some(l => /queued · \d+\/\d+ busy · m queues a message/.test(l)), lines.find(l => l.includes('queued ')) ?? '(no queued line)')
     check(`${cols}×${rows}: the void screen did NOT open`, !has(lines, 'add a message — it delivers') && !has(lines, keyHintLabel('⇧← back to the concourse')))
   }
-  const room = capture('queued-room', scratch, fixturePath, 120, 40, [{ ...settle, data: '\t' }, { afterPrevTicks: 4, data: 'm' }], 70)
+  const room = capture('queued-room', scratch, fixturePath, 120, 40, [{ ...settle, data: 'm' }], 70)
   check('m on the queued row opens the deliver-on-start room (the explicit door)', has(room, 'add a message — it delivers when the session starts') && has(room, keyHintLabel('⇧← back to the concourse')), room.filter(l => /add a message|back to the concourse|queued probe/.test(l)).map(l => l.trim().slice(0, 100)).join(' | ').slice(0, 300))
   check('the room names the queued session', has(room, 'queued probe'))
   check('the list legend advertises m', lines120HasM(scratch, fixturePath))
 }
 
 function lines120HasM(scratch: string, fixturePath: string): boolean {
-  const lines = capture('queued-legend', scratch, fixturePath, 120, 40, [{ atTick: 999, awaitText: 'queued probe', minTick: 5, awaitSettleTicks: 2, data: '\t' }], 50)
+  const lines = capture('queued-legend', scratch, fixturePath, 120, 40, [{ atTick: 999, awaitText: 'queued probe', minTick: 5, awaitSettleTicks: 2, data: '' }], 50)
   return lines.some(l => l.includes('m message queued'))
 }
 
@@ -273,9 +268,10 @@ if (runLeg('thinking')) {
     const fixturePath = join(scratch, 'concourse-fixture.json')
     writeFileSync(fixturePath, JSON.stringify(fixture))
     const env = { ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url, MERCURY_CACHE_CLOCK: '0' }
+    const toPane = { atTick: 999, awaitText: 'COORDINATOR · tab or click to focus', minTick: 5, awaitSettleTicks: 2 }
     const settle = { atTick: 999, awaitText: 'talk to the coordinator', minTick: 5, awaitSettleTicks: 2 }
     for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
-      const lines = capture('thinking', scratch, fixturePath, cols, rows, [{ ...settle, data: 'status?' }, { afterPrevTicks: 3, data: '\r' }], 75, env)
+      const lines = capture('thinking', scratch, fixturePath, cols, rows, [{ ...toPane, data: '\t' }, { ...settle, data: 'status?' }, { afterPrevTicks: 3, data: '\r' }], 75, env)
       const row = lines.find(l => STAR_FRAMES.some(s => l.includes(s)) && /\(\d+s\)/.test(l))
       check(`${cols}×${rows}: the pane paints the main chat's thinking row (star cadence + verb + elapsed)`, row !== undefined && /[A-Z][^…]{2,60}… \(\d+s\)/.test(row), row ?? lines.filter(l => l.trim().length > 0).slice(-12).join(' | '))
       check(`${cols}×${rows}: the strip's old inline '↻ thinking…' token is gone`, !lines.some(l => l.includes('↻ thinking…') || l.includes(' thinking…')))

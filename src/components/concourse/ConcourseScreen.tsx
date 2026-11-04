@@ -2050,8 +2050,8 @@ export function ConcourseScreen({
       )
     }
     const peekFacts = snapshot.peek !== null && snapshot.peek.sessionId === sel.sessionId ? snapshot.peek : null
-    const modelLabel = peekFacts?.modelLabel ?? snapshot.newSession.modelOptions?.find(o => o.modelId === sel.modelId)?.displayName
-    const effortLabel = peekFacts !== null ? snapshot.context.effortLabel : undefined
+    const modelLabel = sel.modelLabel ?? peekFacts?.modelLabel ?? snapshot.newSession.modelOptions?.find(o => o.modelId === sel.modelId)?.displayName
+    const effortLabel = sel.effortLabel ?? (peekFacts !== null ? snapshot.context.effortLabel : undefined)
     return (
       <SessionMirror
         sessionId={sel.sessionId}

@@ -171,8 +171,8 @@ try {
     check(`the board paints [${COLS}×${ROWS}]`, boards.length >= 1, laneStr)
     check('VIEW: a board frame rows the coordinator-LAUNCHED seat (CMA Alpha)', boards.some(b => b.text.includes('CMA Alpha')), laneStr)
     check('VIEW: a board frame rows the directly-dispatched seat (CMA Beta)', boards.some(b => b.text.includes('CMA Beta')), laneStr)
-    check("VIEW: the rail names the cross-family chair on the LIVE path (coordinator · GPT-5.5)",
-      boards.some(b => /coordinator · GPT-5\.5/i.test(b.text)),
+    check("VIEW: the LIVE path paints the coordinator as the board's third pane, and the status row names no chair (the chip left the board)",
+      boards.some(b => b.text.includes('COORDINATOR')) && !boards.some(b => /coordinator · /.test(b.text)),
       boards.length > 0 ? boards[boards.length - 1]!.text.split('\n').filter(r => /coordinator/i.test(r)).join(' | ').slice(0, 200) : 'no boards')
     check('LAUNCH: the coordinator spoke through the GPT ack on the board', boards.some(b => b.text.includes('cma-openai-ack')), laneStr)
     check('no git-offer card held the coordinator launch (the folder was already a git repository)', lane.every(l => !/start one in|needs git/i.test(l.text)), laneStr)

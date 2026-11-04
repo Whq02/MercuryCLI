@@ -1217,6 +1217,16 @@ export async function buildConcourseSnapshot(
   if (foreignParkedRow !== undefined) rows.push(foreignParkedRow)
   const { composeWorkerModelRegistry, canonicalWorkerModelId, defaultWorkerModelId } = await import('./workerModels.js')
   const workerRegistry = await composeWorkerModelRegistry()
+  const recordOfRow = new Map(allRecords.map(r => [r.sessionId, r] as const))
+  for (const row of rows) {
+    const rec = recordOfRow.get(row.sessionId)
+    if (rec === undefined || row.modelId === undefined) continue
+    const canonical = await canonicalWorkerModelId(row.modelId)
+    const entry = workerRegistry.entries.find(e => e.modelId === canonical)
+    const effort = rec.effort ?? entry?.effort
+    if (entry !== undefined) row.modelLabel = sanitizeLabel(entry.displayName)
+    if (effort !== undefined && effort !== '') row.effortLabel = effort
+  }
   const chosenModelId =
     seedOverrides.modelKey !== undefined
       ? await canonicalWorkerModelId(seedOverrides.modelKey)

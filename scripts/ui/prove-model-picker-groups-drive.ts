@@ -219,7 +219,7 @@ try {
   const env = childEnv(home, `http://127.0.0.1:${port}/api/v1`)
   const ledger = join(home, '.model-use.json')
   const birth: Send[] = [
-    { requireAwait: true, awaitText: 'n new session', awaitStableTicks: 3, data: 'n' },
+    { requireAwait: true, awaitText: '+ new session · n', awaitStableTicks: 3, data: 'n' },
     { requireAwait: true, awaitText: 'contract?', awaitSettleTicks: 2, data: ESC },
     { requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '' },
   ]
@@ -229,7 +229,6 @@ try {
   ]
   const c = await capture('two-sessions', env, [
     { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: SHIFT_RIGHT },
-    { requireAwait: true, awaitText: 'coordinator model', awaitStableTicks: 3, data: TAB },
     ...birth,
     ...openPicker,
     { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'open', data: 'llama' },

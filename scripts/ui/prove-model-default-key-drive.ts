@@ -28,16 +28,17 @@ const SHIFT_ARROW = keyHintLabel('⇧→')
 const CHAT_HINT = '>_ ready  ·  ↵ start  ·  ↑↓ choose'
 const FULL_HINT = '>_ ready  ·  ↵ start  ·  m menu  ·  ↑↓ choose'
 const DOOR = '▸ n starts a blank session in this project'
-const DOOR_FROM_COMPOSER = '▸ tab to the list, then n starts a blank session in this project'
+const DOOR_FROM_LIVE_BOX = '▸ tab to the list, then n starts a blank session'
 const CTRL_E = '\x05'
-const FOOTER_AS_SHIPPED = keyHintLabel('↑↓ browse · tab panes · ⌃g ground · n new session · / filter · s split · ? keys · esc boot face')
-const FOOTER_WITH_KEY = keyHintLabel(`↑↓ browse · tab panes · ⌃g ground · n new session · ${PHRASE} · / filter · s split · ? keys · esc boot face`)
+const FOOTER_AS_SHIPPED = keyHintLabel('tab panes · ⌃g ground · / filter · s split · ? keys · esc boot face')
+const FOOTER_WITH_KEY = keyHintLabel(`tab panes · ⌃g ground · ${PHRASE} · / filter · s split · ? keys · esc boot face`)
+const FOOTER_WITH_KEY_IN_CHAT = keyHintLabel(`tab panes · ⌃g ground · ${PHRASE} · / filter · s split · ? keys · esc focused chat`)
 const PICKER_LEFT = 39
 const PICKER_GUTTER = 1
 const FACE_PICKER_TOP = 3
 const FACE_PICKER_BOTTOM = 46
-const BOARD_PICKER_TOP = FACE_PICKER_TOP + PICKER_GUTTER
-const BOARD_PICKER_BOTTOM = FACE_PICKER_BOTTOM + PICKER_GUTTER
+const BOARD_PICKER_TOP = 1
+const BOARD_PICKER_BOTTOM = 47
 const KEEP = process.env.MODEL_DEFAULT_KEY_KEEP === '1'
 
 let failures = 0
@@ -204,8 +205,9 @@ if (!existsSync(BIN)) {
 
 const boardSends: Send[] = [
   { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: SHIFT_RIGHT },
-  { requireAwait: true, awaitText: 'coordinator model', awaitStableTicks: 3, mark: 'coord', data: TAB },
-  { requireAwait: true, awaitText: 'n new session', awaitStableTicks: 3, mark: 'board', data: 'm' },
+  { requireAwait: true, awaitText: '+ new session · n', awaitStableTicks: 3, data: TAB },
+  { requireAwait: true, awaitText: DOOR_FROM_LIVE_BOX, awaitStableTicks: 3, mark: 'live', data: TAB },
+  { requireAwait: true, awaitText: '+ new session · n', awaitStableTicks: 3, mark: 'board', data: 'm' },
 ]
 
 if (CASE === undefined) {
@@ -220,29 +222,28 @@ section('§1 the concourse: the door row names the pair, the bottom row names m,
     { requireAwait: true, awaitText: '│ Sonnet 5.5 ', awaitStableTicks: 3, data: CTRL_E },
     { requireAwait: true, awaitText: '[xhigh]', awaitStableTicks: 3, data: '\r' },
     { requireAwait: true, awaitText: 'Sonnet 5.5 · ', awaitStableTicks: 3, mark: 'picked', data: TAB },
-    { afterPrevTicks: 3, data: TAB },
-    { afterPrevTicks: 3, data: 'm' },
+    { requireAwait: true, awaitText: DOOR_FROM_LIVE_BOX, awaitStableTicks: 3, data: 'm' },
     { afterPrevTicks: 4, data: '', mark: 'typed' },
   ], { total: 360, ready: ['esc boot face'] })
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
-  const coord = c.marks.get('coord') ?? []
+  const live = c.marks.get('live') ?? []
   const board = c.marks.get('board') ?? []
   const picker = c.marks.get('picker') ?? []
   const picked = c.marks.get('picked') ?? []
   const typed = c.marks.get('typed') ?? []
-  check('with the coordinator panel focused, the door row says the way to its key (tab to the list, then n), carries no pair, and the bottom row carries no m phrase', rowWith(coord, DOOR_FROM_COMPOSER) !== '' && rowWith(coord, DOOR) === '' && !rowWith(coord, DOOR_FROM_COMPOSER).includes(`${DOOR_FROM_COMPOSER} · `) && rowWith(coord, 'esc boot face').includes('coordinator model') && !rowWith(coord, 'esc boot face').includes(PHRASE), `${trimmedRow(coord, 'starts a blank session')} / ${trimmedRow(coord, 'esc boot face')}`)
-  check('the door row reads the pair it starts on (Opus 5.5 · ● high)', rowWith(board, DOOR).includes(`${DOOR} · Opus 5.5 · ● high`), trimmedRow(board, DOOR))
-  check('the bottom row names m between n and the filter', trimmedRow(board, 'esc boot face') === FOOTER_WITH_KEY, trimmedRow(board, 'esc boot face'))
+  check("with the live view's message box focused, the door row says the way to its key (tab to the list, then n) and the bottom row carries no m phrase", rowWith(live, DOOR_FROM_LIVE_BOX) !== '' && rowWith(live, DOOR) === '' && rowWith(live, 'esc boot face') !== '' && !rowWith(live, 'esc boot face').includes(PHRASE), `${trimmedRow(live, 'starts a blank session')} / ${trimmedRow(live, 'esc boot face')}`)
+  check('the door row reads the pair it starts on (Opus 5.5 · ●, the effort word cut by the pane at 178 columns)', rowWith(board, DOOR).includes(`${DOOR} · Opus 5.5 · ●`), trimmedRow(board, DOOR))
+  check('the bottom row names m between ground and the filter', trimmedRow(board, 'esc boot face') === FOOTER_WITH_KEY, trimmedRow(board, 'esc boot face'))
   check('m opens the picker over the concourse (the plain title row)', rowWith(picker, 'Mercury · model') !== '' && rowWith(picker, 'CHOOSE A MODEL') === '', picker.slice(3, 8).join(' | '))
-  check('the picker sits in the main band inside its blank one-cell gutter (the band border row 3 blank over its span, its top border on row 4, its left border under its title, its bottom border inside the band by row 47)', pickerFrames(picker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM), pickerWords(picker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM))
+  check('the picker stands over the two-pane board inside its blank one-cell gutter (the band border row 0 blank over its span, its top border on row 1, its left border under its title, its bottom border on row 47 with the status strip blank under it)', pickerFrames(picker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM), pickerWords(picker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM))
   for (const poison of ['the frame on the band border', 'a live cell in the gutter'] as const) check(`the picker law refuses ${poison}`, pickerFrames(picker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM) && !pickerFrames(poisonedPicker(picker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM, poison), BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM))
   check('the bottom row keeps the phrase while the picker stands', trimmedRow(picker, 'esc boot face') === FOOTER_WITH_KEY, trimmedRow(picker, 'esc boot face'))
   check('no row of the picker reads frontier:', picker.length > 0 && !picker.some(l => l.includes('frontier:')), picker.filter(l => l.includes('frontier:')).join(' | '))
   check('the Anthropic heading reads the key door with its tail and the live count', anthropicKeyHeading(picker), headingOf(picker, ANTHROPIC_TITLE))
   const saved = settingsOf(home)
   check("a pick writes the saved default (settings.json engine.model names the picked row, engine.effort the ladder move)", typeof saved.model === 'string' && /sonnet/i.test(saved.model) && saved.effort === 'xhigh', JSON.stringify(saved))
-  check('the door row follows at once (Sonnet 5.5 · ◉ xhigh) and the picker is gone', rowWith(picked, DOOR).includes(`${DOOR} · Sonnet 5.5 · ◉ xhigh`) && !picked.some(l => l.includes('Mercury · model')), trimmedRow(picked, DOOR))
-  check('with the coordinator panel focused, m types into its box (the negative pin)', typed.some(l => /│ ❯ m(▌|\s)/.test(l)) && !typed.some(l => l.includes('Mercury · model')), typed.filter(l => l.includes('❯')).join(' | '))
+  check('the door row follows at once (Sonnet 5.5, its effort cut by the pane at 178 columns) and the picker is gone', rowWith(picked, DOOR).includes(`${DOOR} · Sonnet 5.5 ·`) && !picked.some(l => l.includes('Mercury · model')), trimmedRow(picked, DOOR))
+  check("with the live view's message box focused and no session to message, m opens no picker: the gated box swallows it and stays empty (the negative pin)", typed.some(l => /│ ❯ ▌\s+│/.test(l)) && typed.some(l => l.includes('no session selected — n starts one')) && !typed.some(l => l.includes('Mercury · model')), typed.filter(l => l.includes('❯') || l.includes('Mercury · model')).join(' | '))
 }
 
 section('§2 --chat: the hint row without m menu, the bottom row names m, m opens the picker over the face, esc closes it')
@@ -405,13 +406,12 @@ section('§8 the board with sessions keeps the new-session line as its first row
   const LINE = 'n starts a blank session in this project'
   const home = seededHome('board-with-sessions')
   const birth: Send[] = [
-    { requireAwait: true, awaitText: 'n new session', awaitStableTicks: 3, data: 'n' },
+    { requireAwait: true, awaitText: '+ new session · n', awaitStableTicks: 3, data: 'n' },
     { requireAwait: true, awaitText: 'contract?', awaitSettleTicks: 2, data: ESC },
     { requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: SHIFT_LEFT },
   ]
   const c = capture('board-with-sessions', home, [], [
     { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: SHIFT_RIGHT },
-    { requireAwait: true, awaitText: 'coordinator model', awaitStableTicks: 3, data: TAB },
     ...birth,
     { requireAwait: true, awaitText: 'STATUS & TITLE', awaitStableTicks: 3, data: '' },
     ...birth,
@@ -439,14 +439,14 @@ section('§8 the board with sessions keeps the new-session line as its first row
   const headerAt = (lines: string[]): number => lines.findIndex(l => l.includes('STATUS & TITLE'))
   const sessionRows = (lines: string[]): string[] => lines.filter(l => /new session · fixture-cwd/.test(l))
   check('two blank sessions stand on the board', sessionRows(board).length >= 2, sessionRows(board).map(l => l.trim().slice(0, 80)).join(' | '))
-  check('the first row under the column header is the new-session line with its door words, unselected while a session row holds the cursor', headerAt(board) >= 0 && (board[headerAt(board) + 1] ?? '').includes(`  ${LINE} · Opus 5.5 · ● high`) && !(board[headerAt(board) + 1] ?? '').includes(`▸ ${LINE}`), (board[headerAt(board) + 1] ?? '').trim())
-  check('↑ from the first session row reaches the line: it wears the cursor and the bottom row names m for the default', (line[headerAt(line) + 1] ?? '').includes(`▸ ${LINE} · Opus 5.5 · ● high`) && trimmedRow(line, 'esc focused chat').includes(`n new session · ${PHRASE}`), `${(line[headerAt(line) + 1] ?? '').trim()} / ${trimmedRow(line, 'esc focused chat')}`)
+  check('the first row under the column header is the new-session line with its door words, unselected while a session row holds the cursor', headerAt(board) >= 0 && (board[headerAt(board) + 1] ?? '').includes(`  ${LINE} · Opus 5.5 · ●`) && !(board[headerAt(board) + 1] ?? '').includes(`▸ ${LINE}`), (board[headerAt(board) + 1] ?? '').trim())
+  check('↑ from the first session row reaches the line: it wears the cursor and the bottom row names m for the default', (line[headerAt(line) + 1] ?? '').includes(`▸ ${LINE} · Opus 5.5 · ●`) && trimmedRow(line, 'esc focused chat') === FOOTER_WITH_KEY_IN_CHAT, `${(line[headerAt(line) + 1] ?? '').trim()} / ${trimmedRow(line, 'esc focused chat')}`)
   check('the mirror shows no session while the line holds the cursor', line.some(l => l.includes('select a session to mirror its chat')), line.filter(l => l.includes('mirror')).map(l => l.trim()).join(' | '))
-  check('m on the line opens the model-default picker over the board, in the band inside its gutter', defaultPicker.some(l => l.includes('Mercury · model')) && pickerFrames(defaultPicker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM), `${pickerWords(defaultPicker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM)} · ${defaultPicker.slice(3, 8).join(' | ')}`)
+  check('m on the line opens the model-default picker over the board, inside its gutter', defaultPicker.some(l => l.includes('Mercury · model')) && pickerFrames(defaultPicker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM), `${pickerWords(defaultPicker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM)} · ${defaultPicker.slice(3, 8).join(' | ')}`)
   check('↓ returns to the first session row and the line loses the cursor', row.some(l => /▸ .*new session · fixture-cwd/.test(l)) && (row[headerAt(row) + 1] ?? '').includes(`  ${LINE}`), (row[headerAt(row) + 1] ?? '').trim())
-  check('m on a session row opens a picker over the board, in the band inside its gutter', sessionPicker.some(l => l.includes('Mercury · model')) && pickerFrames(sessionPicker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM), `${pickerWords(sessionPicker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM)} · ${sessionPicker.slice(3, 8).join(' | ')}`)
+  check('m on a session row opens a picker over the board, inside its gutter', sessionPicker.some(l => l.includes('Mercury · model')) && pickerFrames(sessionPicker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM), `${pickerWords(sessionPicker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM)} · ${sessionPicker.slice(3, 8).join(' | ')}`)
   const afterPick = settingsOf(home)
-  check("the session row's pick is the session's own: the default door still reads Opus 5.5 · ● high, settings.json keeps no model and no effort, the picker is gone", (sessionPicked[headerAt(sessionPicked) + 1] ?? '').includes(`${LINE} · Opus 5.5 · ● high`) && afterPick.model === undefined && afterPick.effort === undefined && !sessionPicked.some(l => l.includes('Mercury · model')), `${(sessionPicked[headerAt(sessionPicked) + 1] ?? '').trim()} / ${JSON.stringify(afterPick)}`)
+  check("the session row's pick is the session's own: the default door still reads Opus 5.5 · ●, settings.json keeps no model and no effort, the picker is gone", (sessionPicked[headerAt(sessionPicked) + 1] ?? '').includes(`${LINE} · Opus 5.5 · ●`) && afterPick.model === undefined && afterPick.effort === undefined && !sessionPicked.some(l => l.includes('Mercury · model')), `${(sessionPicked[headerAt(sessionPicked) + 1] ?? '').trim()} / ${JSON.stringify(afterPick)}`)
   console.log(`  [record] the session row after its pick: ${sessionPicked.filter(l => /model → |new session · fixture-cwd/.test(l)).map(l => l.trim().slice(0, 100)).join(' | ') || 'no row receipt on the frame'}`)
 }
 
@@ -458,8 +458,7 @@ if (CASE === undefined || CASE === 'session-effort') {
     const home = seededHome(`session-effort-${cols}`, { engine: { effort: 'high' } })
     const c = capture(`session-effort-${cols}`, home, [], [
       { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 3, data: SHIFT_RIGHT },
-      { requireAwait: true, awaitText: 'coordinator model', awaitSettleTicks: 3, data: TAB },
-      { requireAwait: true, awaitText: 'n new session', awaitSettleTicks: 3, data: 'n' },
+      { requireAwait: true, awaitText: '+ new session · n', awaitSettleTicks: 3, data: 'n' },
       { requireAwait: true, awaitText: 'contract?', awaitSettleTicks: 2, data: ESC },
       { requireAwait: true, awaitText: '← back', awaitSettleTicks: 4, data: `${ESC}[1;2D` },
       { requireAwait: true, awaitText: 'STATUS & TITLE', awaitSettleTicks: 4, data: 'e' },

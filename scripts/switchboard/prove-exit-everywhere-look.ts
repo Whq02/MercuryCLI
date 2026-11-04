@@ -84,7 +84,7 @@ check('the notice frame was captured', mark !== undefined)
 check("the notice sits at the BOTTOM-LEFT: the last row starts with it, in the Chat's own words",
   lines.length === 40 && lines[39]!.startsWith(NOTICE_ROW), JSON.stringify(lines[39] ?? ''))
 check('…and nowhere else on the frame (one owner, one row)', lines.slice(0, 39).every(l => !l.includes(NOTICE)))
-check('the board stands whole beneath it (the live view · SESSIONS)', has('SESSIONS') && has('LAST USED') && has('↵ enter session'))
+check('the board stands whole beneath it (the session list with its LAST USED column)', has('SESSIONS') && has('LAST USED'))
 check('one press never exits — the process is alive at the capture (endReason not eof)', payload.endReason !== 'eof', payload.endReason)
 console.log(`  [info] the mark's text: ${join(OUT_DIR, 'mark-notice.txt')}`)
 

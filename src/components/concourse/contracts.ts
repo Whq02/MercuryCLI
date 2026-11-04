@@ -33,6 +33,8 @@ export interface ConcourseRowV1 {
   ownerLabel: string | null
   ageLabel: string | null
   modelId?: string
+  modelLabel?: string
+  effortLabel?: string
   seats: { held: number; ceiling: number } | 'waits' | null
   nowLabel?: string | null
   finishedUnseen?: true
