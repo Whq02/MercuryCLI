@@ -913,6 +913,20 @@
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
+      "file": "scripts/host/prove-tensorfold-pod-road.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const write = spawnSync('bash', ['-c', tensorFoldKeyWriteCommand(remoteDir, key)], { encoding: 'utf8' })",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
+      "file": "scripts/host/prove-tensorfold-recipe-script.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const keyWrite = spawnSync('bash', ['-c', tensorFoldKeyWriteCommand(podDir, 'fixture-key-not-a-real-key')], { encoding: 'utf8' })",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
       "file": "scripts/ide/prove-closed-loop.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const SYS_PY = '/usr/bin/python3'",
