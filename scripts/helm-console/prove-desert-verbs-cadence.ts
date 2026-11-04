@@ -15,7 +15,7 @@ function extractList(src: string, name: string): string[] {
   const re = new RegExp(`(?:export\\s+)?const\\s+${name}:\\s*readonly\\s+string\\[\\]\\s*=\\s*\\[([\\s\\S]*?)\\n\\]`)
   const m = re.exec(src)
   if (!m) return []
-  return [...m[1]!.matchAll(/^\s*'([^']+)',\s*$/gm)].map(hit => hit[1]!)
+  return [...m[1]!.matchAll(/^\s*(?:'([^']+)'|"([^"]+)"),\s*$/gm)].map(hit => (hit[1] ?? hit[2])!)
 }
 
 const LEGACY_SHORT = new Set(['Basking', 'Molting'])
@@ -138,6 +138,20 @@ check('the existing cadence laws still read the verbs alone (the phrase list is 
   const stockSet = new Set(stock)
   check('MERCURY_DESERT_VERBS=0 drops the phrases with the desert verbs: every draw is stock or quicksilver', draw(300).every(v => stockSet.has(v) || quicksilver.has(v)))
   delete process.env.MERCURY_DESERT_VERBS
+  const { getSpinnerVerbs, isTensorFoldTurn } = await import('../../src/constants/spinnerVerbs.ts')
+  check(
+    'the six owner-added verbs are present in the pool in house form',
+    ['Tensorfolding', 'Open-sourcing', 'Flatlining', 'Microsofting'].every(v => desertSet.has(v)) &&
+      quicksilver.has("Chippin' in") &&
+      quicksilver.has('Klepping high-grade chrome'),
+  )
+  const plainCount = getSpinnerVerbs({ tensorfold: false }).filter(v => v === 'Tensorfolding').length
+  const tfCount = getSpinnerVerbs({ tensorfold: true }).filter(v => v === 'Tensorfolding').length
+  check(
+    'Tensorfolding favours turns whose model is on TensorFold while respecting quicksilver-only and stock modes',
+    plainCount === 1 && tfCount > plainCount && isTensorFoldTurn({ model: 'local/qwen3.8-27b' }) && !isTensorFoldTurn({ model: 'claude-opus-5-5' }),
+    `plain=${plainCount} tf=${tfCount}`,
+  )
 }
 
 console.log(failures === 0 ? '\n✅ prove-desert-verbs-cadence: ALL GREEN' : `\n❌ prove-desert-verbs-cadence: ${failures} FAILURE(S)`)

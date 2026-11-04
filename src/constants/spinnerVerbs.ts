@@ -99,6 +99,10 @@ const MERCURY_DESERT_VERBS: readonly string[] = [
   'Wadi-bridging',
   'Outpost-relieving',
   'Dune-shoring',
+  'Tensorfolding',
+  'Open-sourcing',
+  'Flatlining',
+  'Microsofting',
 ]
 
 const MERCURY_DESERT_PHRASES: readonly string[] = [
@@ -203,6 +207,7 @@ export const MERCURY_QUICKSILVER_CODE: readonly string[] = [
   'Regex at a run',
   'Fans spinning up',
   'Branch at a gallop',
+  'Klepping high-grade chrome',
 ]
 
 export const MERCURY_QUICKSILVER_FLOW: readonly string[] = [
@@ -217,6 +222,7 @@ export const MERCURY_QUICKSILVER_FLOW: readonly string[] = [
   'Two hands, one direction',
   'Every key pulling weight',
   'Fencing the wolves',
+  "Chippin' in",
 ]
 
 const QUICKSILVER_SET: readonly string[] = [
@@ -232,9 +238,21 @@ export function isQuicksilverLine(verb: string): boolean {
   return quicksilverLookup.has(verb)
 }
 
-function getSpinnerVerbs(): string[] {
+const TENSORFOLD_VERB = 'Tensorfolding'
+const TENSORFOLD_VERB_WEIGHT = 12
+
+export function isTensorFoldTurn(opts?: { model?: string; tensorfold?: boolean }): boolean {
+  if (opts?.tensorfold !== undefined) return opts.tensorfold
+  const model = (opts?.model ?? getInitialSettings().engine?.model ?? process.env.MERCURY_MODEL ?? '').trim().toLowerCase()
+  if (model.includes('tensorfold')) return true
+  if (model === 'local/qwen3.5-2b' || model === 'local/qwen3.8-27b' || model === 'local/nemotron-lightning') return true
+  return false
+}
+
+export function getSpinnerVerbs(opts?: { model?: string; tensorfold?: boolean }): string[] {
+  const desertOn = flagEnv('MERCURY_DESERT_VERBS') !== '0'
   const desert: readonly string[] =
-    flagEnv('MERCURY_DESERT_VERBS') === '0' ? STOCK_VERBS : [...MERCURY_DESERT_VERBS, ...MERCURY_DESERT_PHRASES]
+    !desertOn ? STOCK_VERBS : [...MERCURY_DESERT_VERBS, ...MERCURY_DESERT_PHRASES]
   const mode = quicksilverMode()
   const quicksilver = QUICKSILVER_SET
   let pool: string[]
@@ -244,6 +262,9 @@ function getSpinnerVerbs(): string[] {
     pool = [...quicksilver]
   } else {
     pool = [...desert, ...quicksilver]
+  }
+  if (desertOn && mode !== 'only' && isTensorFoldTurn(opts)) {
+    for (let i = 0; i < TENSORFOLD_VERB_WEIGHT; i++) pool.push(TENSORFOLD_VERB)
   }
   const setting = getInitialSettings().activity?.verbs
   if (setting) {
@@ -260,11 +281,12 @@ const FALLBACK_VERB = 'Thinking'
 const RECENT_PICKS: string[] = []
 const RECENT_WINDOW = 16
 
-export function sampleSpinnerVerb(pool: string[] = getSpinnerVerbs()): string {
-  const window = Math.min(RECENT_WINDOW, Math.floor(pool.length / 2))
+export function sampleSpinnerVerb(pool?: string[], opts?: { model?: string; tensorfold?: boolean }): string {
+  const effectivePool = pool ?? getSpinnerVerbs(opts)
+  const window = Math.min(RECENT_WINDOW, Math.floor(effectivePool.length / 2))
   const recent = new Set(RECENT_PICKS.slice(-window))
-  const candidates = pool.filter(verb => !recent.has(verb))
-  const sampleFrom = candidates.length > 0 ? candidates : pool
+  const candidates = effectivePool.filter(verb => !recent.has(verb))
+  const sampleFrom = candidates.length > 0 ? candidates : effectivePool
   const picked = sampleFrom.length > 0 ? (sampleFrom[randomInt(sampleFrom.length)] ?? FALLBACK_VERB) : FALLBACK_VERB
   RECENT_PICKS.push(picked)
   while (RECENT_PICKS.length > RECENT_WINDOW) RECENT_PICKS.shift()

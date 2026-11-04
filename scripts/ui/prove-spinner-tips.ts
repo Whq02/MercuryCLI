@@ -60,7 +60,7 @@ for (const tip of tips) {
     process.env.TERM_PROGRAM = term
     let rendered = ''
     try {
-      for (const theme of ['dark', 'true-black']) {
+      for (const theme of ['dark', 'true-black'] as const) {
         rendered = await tip.content({ theme })
         const width = stringWidth(rendered)
         check(
@@ -88,7 +88,7 @@ for (const cmd of seenCommands) {
 check('the loyalty-pinned appearance tip id is present', ids.has('appearance-command'))
 check(
   'the catalogue advertises the load-bearing surfaces (spot pins)',
-  ['help', 'logins', 'concourse', 'sessions', 'diff', 'review', 'caching', 'rewind', 'memory'].every(c => seenCommands.has(c)),
+  ['help', 'logins', 'concourse', 'sessions', 'goal', 'diff', 'review', 'caching', 'rewind', 'memory', 'localsetup'].every(c => seenCommands.has(c)),
 )
 check(
   'the crew chat has one tip per command: /swarm, /swarmchat, /team, /whisper, /general',
@@ -103,8 +103,8 @@ check('the mode tip spells a chord the table carries', chordsSpelled(await tips.
 
 const order = tips.map(t => t.id)
 check(
-  "the first five tips are the first session's (the mode · /help · the queue · /sessions · the concourse)",
-  order.slice(0, 5).join(',') === 'cycle-mode,help-browse,prompt-queue,sessions-switch,concourse-board',
+  "the first five tips are the first session's (the mode · /help · /sessions · the concourse · /goal)",
+  order.slice(0, 5).join(',') === 'cycle-mode,help-browse,sessions-switch,concourse-board,goal-end-state',
   order.slice(0, 5).join(','),
 )
 check('on a fresh config the scheduler picks the first lesson', selectTipWithLongestTimeSinceShown(tips)?.id === 'cycle-mode')
@@ -113,10 +113,78 @@ check("the depth comes last (skills · powershell are the tail)", order[order.le
 const registrySource = readFileSync(join(ROOT, 'src/services/tips/tipRegistry.ts'), 'utf8')
 check("the '#'-note tip is retired (no owner in the tree handles a leading #)", !registrySource.includes("id: 'memory-note'"))
 check(
+  'the generic and duplicate tips are retired (prompt-queue · bang-shell · image-paste · resume-session · continue-flag)',
+  ['prompt-queue', 'bang-shell', 'image-paste', 'resume-session', 'continue-flag'].every(id => !registrySource.includes(`id: '${id}'`)),
+)
+check(
   'the powershell tip advertises the product-native spelling',
   registrySource.includes('MERCURY_USE_POWERSHELL_TOOL=1'),
 )
 check('the newline tip reads the composer\'s own newline owner', registrySource.includes('getNewlineInstructions()'))
+
+const localAndTensorFoldTips = await getRelevantTips({
+  theme: 'dark',
+  model: 'local/qwen3.8-27b',
+  localServersCount: 1,
+  llmHostConfigured: true,
+  tensorfold: { installed: true, serving: true, pairedHost: true, helperEnabled: false },
+})
+const activeIds = new Set(localAndTensorFoldTips.map(t => t.id))
+const expectedLocalIds = [
+  'local-window-fit',
+  'local-prompt-cache',
+  'local-effort-wire',
+  'local-health-usage',
+  'llmhost-pod-billing',
+  'llmhost-register-model',
+]
+const expectedTensorFoldIds = [
+  'tensorfold-picker-groups',
+  'tensorfold-enter-serve',
+  'tensorfold-window-arrows',
+  'tensorfold-lan-pair',
+  'tensorfold-helper-model',
+  'tensorfold-effort-cache',
+]
+check(
+  'local and TensorFold context tips stay quiet on a fresh cloud session',
+  [...expectedLocalIds, ...expectedTensorFoldIds].every(id => !ids.has(id)),
+)
+check(
+  'local and TensorFold tips activate when their context facts hold',
+  [...expectedLocalIds, ...expectedTensorFoldIds].every(id => activeIds.has(id)),
+  [...expectedLocalIds, ...expectedTensorFoldIds].filter(id => !activeIds.has(id)).join(', '),
+)
+const discoveredOnlyTips = await getRelevantTips({
+  theme: 'dark',
+  model: 'claude-opus-5-5',
+  localServersCount: 1,
+})
+const discoveredOnlyIds = new Set(discoveredOnlyTips.map(t => t.id))
+check(
+  'local-discovery-picker activates when a local server is discovered and a cloud model is current, while localsetup-sources steps aside',
+  discoveredOnlyIds.has('local-discovery-picker') && !discoveredOnlyIds.has('localsetup-sources'),
+)
+
+const contextTipPool = [...localAndTensorFoldTips, ...discoveredOnlyTips].filter(t => !ids.has(t.id))
+const seenContextIds = new Set<string>()
+for (const tip of contextTipPool) {
+  if (seenContextIds.has(tip.id)) continue
+  seenContextIds.add(tip.id)
+  check(`cooldown ≥ 5 [${tip.id}]`, tip.cooldownSessions >= 5, String(tip.cooldownSessions))
+  const rendered = await tip.content({ theme: 'dark' })
+  const width = stringWidth(rendered)
+  check(`width ≤ ${BUDGET} [${tip.id}]`, width <= BUDGET, `${width}: ${rendered}`)
+  check(`no exclamation [${tip.id}]`, !/\S!/.test(rendered) && !/!$/.test(rendered), rendered)
+  check(`no ellipsis flourish [${tip.id}]`, !rendered.includes('…') && !rendered.includes('...'), rendered)
+  check(`no emoji [${tip.id}]`, !emojiRe.test(rendered), rendered)
+  const unbound = chordsSpelled(rendered).filter(c => !bound.has(c))
+  check(`every chord spelled is a binding [${tip.id}]`, unbound.length === 0, unbound.join(', '))
+  for (const m of rendered.matchAll(/(?:^|\s)\/([a-z][a-z0-9-]*)/g)) {
+    const cmd = m[1]!
+    check(`context tip command resolves (or is /tensorfold for the TensorFold wave): /${cmd}`, roster.has(cmd) || cmd === 'tensorfold', cmd)
+  }
+}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ SPINNER TIPS: every law holds' : `\n❌ ${failures} failure(s)`)
