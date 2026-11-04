@@ -102,9 +102,9 @@ function banked4b(): { model: string; weightsGb: number } | undefined {
   }
 }
 
-export function helperModelChoices(reads: { usable?: number; session?: LocalModelRecord; banked4b?: boolean } = {}): HelperModelChoice[] {
+export function helperModelChoices(reads: { usable?: number; session?: LocalModelRecord | null; banked4b?: boolean } = {}): HelperModelChoice[] {
   const usable = reads.usable ?? usableBytes()
-  const session = reads.session ?? sessionLocalRecord()
+  const session = reads.session === undefined ? sessionLocalRecord() : reads.session ?? undefined
   const has4b = reads.banked4b ?? banked4b() !== undefined
   const fit = (bytes: number): 'fits' | 'does not fit' => (bytes <= usable ? 'fits' : 'does not fit')
   const twoB: HelperModelChoice = { size: '2b', label: '2B (TensorFold)', engine: 'tensorfold', memory: `~${gibWords(HELPER_2B_PROJECTED_BYTES)} · an estimate`, fit: fit(HELPER_2B_PROJECTED_BYTES), available: fit(HELPER_2B_PROJECTED_BYTES) === 'fits', modelId: `${LOCAL_MODEL_PREFIX}${HELPER_2B_NAME}` }

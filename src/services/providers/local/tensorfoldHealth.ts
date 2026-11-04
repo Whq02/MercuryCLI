@@ -55,12 +55,22 @@ export function servedRow(server: TensorFoldServerState): TensorFoldHealthRow {
   return { status: 'ok', evidence: parts.join(' · ') }
 }
 
+export function optionalLibrariesWords(engine: TensorFoldState['engine']): string | undefined {
+  const missing = (engine?.optionalLibraries ?? []).filter(library => !library.found)
+  if (missing.length === 0) return undefined
+  return `optional libraries: ${missing.map(library => `${library.name}${library.note !== undefined ? ` (${library.note})` : ''}`).join('; ')}`
+}
+
 export function tensorFoldHealthRow(state: TensorFoldState): TensorFoldHealthRow | undefined {
   if (state.exited !== undefined && state.servers.every(server => server.started === undefined)) {
     return { status: 'fail', evidence: `the ${state.exited.name} service exited${state.exited.lastLine !== undefined ? ` · ${state.exited.lastLine}` : ''}`, fix: '/tensorfold starts it again' }
   }
   const server = state.servers.find(row => row.started !== undefined) ?? state.servers.find(row => row.host === undefined) ?? state.servers[0]
-  if (server !== undefined) return servedRow(server)
+  if (server !== undefined) {
+    const row = servedRow(server)
+    const detail = row.status === 'ok' ? optionalLibrariesWords(state.engine) : undefined
+    return detail !== undefined ? { ...row, detail } : row
+  }
   if (state.app.engine !== undefined) return { status: 'info', evidence: appServingWords(state.app)! }
   if (state.engine !== null && state.engine !== undefined) return { status: 'info', evidence: `TensorFold ${state.engine.version} installed · nothing served`, fix: '/tensorfold' }
   return undefined

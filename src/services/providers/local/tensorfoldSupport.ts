@@ -78,7 +78,9 @@ export function supportFactsOf(state: TensorFoldState, server: TensorFoldServerS
     ...(hostName !== undefined ? { host: hostName } : chip !== undefined ? { chip } : {}),
     osVersion,
     ...(server?.started?.repo !== undefined ? { repo: server.started.repo } : server?.model !== undefined ? { repo: server.model } : {}),
+    ...(server?.started?.drafter !== undefined ? { drafter: server.started.drafter } : {}),
     ...(server?.started?.window !== undefined ? { context: server.started.window } : server?.window !== undefined ? { context: server.window } : {}),
+    ...(server?.started?.promptCacheGib !== undefined ? { promptCacheGib: server.started.promptCacheGib } : {}),
   }
 }
 

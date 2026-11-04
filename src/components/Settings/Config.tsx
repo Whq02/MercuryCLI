@@ -1183,7 +1183,7 @@ export function Config({
   })
   {
     const helper = readHelperModelSetting(config)
-    const choices = helperModelChoices()
+    const choices = helperModelChoices({ session: localMain ?? null })
     const chosen = choices.find(choice => choice.size === helper.size) ?? choices[0]!
     const on = helper.size !== 'off' && chosen.available
     items.push({
