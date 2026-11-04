@@ -40,10 +40,7 @@ writeFileSync(fixturePath, JSON.stringify(fixture))
 const run: ArenaRun = await runArtifactArena({
   turns: [],
   sends: [
-    'after:RAILQONE:1200: ',
     'after:RAILQONE:1800:\t',
-    'after:RAILQONE:2400:\t',
-    'after:RAILQONE:3000:\t',
     'after:RAILQONE:3800:\x1b[B',
     'after:RAILQONE:4600:\x1b[B',
     'after:↑1:800:\x1b[B',
@@ -164,12 +161,18 @@ try {
 
 
 const BURST = 'concourse rail echo!'
+const COORDINATOR_REST = 'talk to the coordinator'
 const fixtureDir2 = mkdtempSync(join(tmpdir(), 'concourse-echo-'))
 
 let sidecarState = 'never-fired'
 const erun: ArenaRun = await runArtifactArena({
   turns: [],
   seedHome: configDir => {
+    const cfgPath = join(configDir, '.config.json')
+    const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
+    cfg['concourseCoordinator'] = { mode: 'agent-assisted', assistModel: 'claude-opus-5-5' }
+    cfg['coordinatorEnabled'] = true
+    writeFileSync(cfgPath, JSON.stringify(cfg))
     const draftPath = join(configDir, 'concourse-draft.json')
     let fired = false
     const fire = (why: string): void => {
@@ -201,12 +204,9 @@ const erun: ArenaRun = await runArtifactArena({
     }, S(18_000))
     ;(fallback as { unref?: () => void }).unref?.()
   },
-  sends: [
-    'after:COORDINATOR:1500: ',
-    ...BURST.split('').map((ch, i) => `after:COORDINATOR:${2500 + i * 30}:${ch}`),
-  ],
+  sends: BURST.split('').map((ch, i) => `after:${COORDINATOR_REST}:${1000 + i * 30}:${ch}`),
   seconds: 23,
-  cols: 142,
+  cols: 200,
   rows: 38,
   keep: true,
   anchor: null,
@@ -220,14 +220,14 @@ const erun: ArenaRun = await runArtifactArena({
 try {
   const offsets: number[] = []
   for (let ms = S(4000); ms <= S(22000); ms += S(400)) offsets.push(ms)
-  const grabs = grabScreens(erun, 142, 38, offsets)
+  const grabs = grabScreens(erun, 200, 38, offsets)
   const withBurst = grabs.filter(g => g.rows.some(r => r.includes(BURST)))
   const cleared = grabs.filter(
     g => !g.rows.some(r => r.includes(BURST)) && g.rows.some(r => r.includes('COORDINATOR')),
   )
 
-  t.section('§5 — the 30ms burst echoes COMPLETELY (rendered == typed)')
-  t.check('the full 20-char burst painted in the strip', withBurst.length > 0, withBurst[0] ? `@${withBurst[0].atMs}` : 'never seen')
+  t.section('§5 — the 30ms burst echoes COMPLETELY (rendered == typed) in the coordinator composer: the switch on, the arena\'s face ↵ landing on the empty list hands the keys to the coordinator pane')
+  t.check('the full 20-char burst painted in the coordinator composer', withBurst.length > 0, withBurst[0] ? `@${withBurst[0].atMs}` : `never seen · ${grabs.map(g => `@${g.atMs} ${g.rows.find(r => r.includes('COORDINATOR'))?.trim().slice(0, 50) ?? '(no COORDINATOR row)'}`).slice(0, 6).join(' | ')}`)
 
   t.section('§6 — an external store clear beats the local echo (D2 §4b)')
   const lastBurst = withBurst[withBurst.length - 1]
@@ -321,7 +321,7 @@ try {
   t.check("last: 'answer & resume' is the final survivor", answerOnly.map(p => p.key).join(',') === 'answer', joined(answerOnly))
   t.check('a hopeless budget sheds everything whole (no half-truncated affordance)', railTailParts(o, 3).length === 0)
   const railSrc2 = readFileSync(join(import.meta.dir, '../../src/components/concourse/NeedsYouRail.tsx'), 'utf8')
-  t.check('the component renders the SAME fn against the real remaining budget', railSrc2.includes('railTailParts(o, Math.max(0, width - 4 - titleBand - questionBand), o.foreignProject !== undefined)'))
+  t.check('the component renders the SAME fn against the real remaining budget', railSrc2.includes('railTailParts(o, Math.max(0, rowWidth - titleBand - questionBand), o.foreignProject !== undefined)'))
 }
 
 t.finish('prove-concourse-rail')
