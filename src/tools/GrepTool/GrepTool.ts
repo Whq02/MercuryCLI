@@ -74,7 +74,7 @@ const inputSchema = z.strictObject({
     .enum(['content', 'files_with_matches', 'count'])
     .optional()
     .describe(
-      'What comes back: "files_with_matches" (the default) lists hit paths, "content" prints the matching lines, "count" tallies matches.',
+      'What comes back: "files_with_matches" (the default) lists the paths that match, declarations and documents among them; "content" prints each matching line with its path — the mode for reading or counting call sites; "count" tallies matches per file.',
     ),
   '-B': semanticNumber(z.number().optional()).describe(
     'Context lines printed before each hit (rg -B; "content" mode only).',

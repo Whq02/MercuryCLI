@@ -1,6 +1,6 @@
 export const WEB_FETCH_TOOL_NAME = 'WebFetch'
 
-export const DESCRIPTION = `Fetch HTTP(S) pages without credentials. Returns Markdown page text or a saved binary path. Sparse HTML on public hosts may send the full URL to r.jina.ai; private addresses are excluded and no cookies or credentials go to that reader. Repeat pulls ride a fifteen-minute cache.`
+export const DESCRIPTION = `Fetch HTTP(S) pages without credentials. Returns the page's body as Markdown — the HTML head and its title are not included — or a saved binary path. Sparse HTML on public hosts may send the full URL to r.jina.ai; private addresses are excluded and no cookies or credentials go to that reader. Repeat pulls ride a fifteen-minute cache.`
 
 export function getPrompt(): string {
   return DESCRIPTION

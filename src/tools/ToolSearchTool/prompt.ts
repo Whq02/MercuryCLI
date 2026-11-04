@@ -90,9 +90,11 @@ export function isDeferredToolFor(tool: Tool, model: string | undefined, permiss
 
 const ANNOUNCEMENT_LINE_HINT_LIMIT = 100
 
+const ANNOUNCED_WITH_PURPOSE: ReadonlySet<string> = new Set([...ECONOMY_DEFERRED, 'ChangeSet'])
+
 export function formatDeferredToolLine(tool: Tool, unattended: boolean = false): string {
   const hint = (tool.searchHint ?? '').replace(/\s+/g, ' ').trim()
-  if (hint === '' || (unattended && !isEconomyDeferred(tool))) return tool.name
+  if (hint === '' || (unattended && !ANNOUNCED_WITH_PURPOSE.has(tool.name))) return tool.name
   if (hint.length <= ANNOUNCEMENT_LINE_HINT_LIMIT) return `${tool.name} — ${hint}`
   const space = hint.lastIndexOf(' ', ANNOUNCEMENT_LINE_HINT_LIMIT)
   const cut = hint.slice(0, space === -1 ? ANNOUNCEMENT_LINE_HINT_LIMIT : space).replace(/[ ,;:—]+$/u, '')

@@ -179,6 +179,10 @@ section('§0 the fixture is the local record the 9B runs on')
   check(`the real pool assembled: ${pool.length} tools, ${coreNames.length} never-deferred, ${deferredNames.length} deferrable (${mcpTools.length} fixture MCP)`, pool.length > 40 && deferredNames.length > 20 && coreNames.length >= BRIEF_CORE.length)
   check(`the brief's core is never deferred by the law: ${BRIEF_CORE.join(', ')}`, BRIEF_CORE.every(n => coreNames.includes(n)), BRIEF_CORE.filter(n => !coreNames.includes(n)).join(','))
   console.log(`  never-deferred set (${coreNames.length}): ${coreNames.join(', ')}`)
+  const changeSet = pool.find(t => t.name === 'ChangeSet')
+  const browser = pool.find(t => t.name === 'Browser')
+  check('the unattended roster announces ChangeSet with its purpose, not its bare name', changeSet !== undefined && deferredNames.includes('ChangeSet') && formatDeferredToolLine(changeSet, true).startsWith('ChangeSet — '), changeSet === undefined ? 'no ChangeSet in the pool' : formatDeferredToolLine(changeSet, true))
+  check('the unattended roster keeps the other deferred tools bare (Browser)', browser !== undefined && formatDeferredToolLine(browser, true) === 'Browser', browser === undefined ? 'no Browser in the pool' : formatDeferredToolLine(browser, true))
 }
 
 section('§1 the seam — the local route defers in the text-append form the table gives it (the tools term frozen from the first request)')
