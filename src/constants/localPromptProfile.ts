@@ -10,12 +10,10 @@ function onTensorFoldPod(model: string): boolean {
     const { compatModelEndpoint } = require('../services/providers/openaicompat/compatAccounts.js') as typeof import('../services/providers/openaicompat/compatAccounts.js')
     const podId = compatModelEndpoint(model)?.endpoint.hostPodId
     if (podId === undefined) return false
-    const { readHostRecord } = require('../services/host/store.js') as typeof import('../services/host/store.js')
-    const record = readHostRecord(podId)
-    if (record === undefined) return false
-    const { currentHostRecipes } = require('../services/host/recipesFile.js') as typeof import('../services/host/recipesFile.js')
-    const recipe = record.recipeRow ?? currentHostRecipes().find(row => row.id === record.recipe)
-    const verdict = String(recipe?.engine) === 'tensorfold'
+    const { readBox } = require('../services/host/boxes.js') as typeof import('../services/host/boxes.js')
+    const { isTensorFoldPodBox, tensorFoldPodHostName } = require('../services/host/tensorfoldPod.js') as typeof import('../services/host/tensorfoldPod.js')
+    const box = readBox(tensorFoldPodHostName(podId))
+    const verdict = box !== undefined && isTensorFoldPodBox(box)
     tensorFoldPodVerdicts.set(model, verdict)
     return verdict
   } catch {

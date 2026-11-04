@@ -46,9 +46,10 @@ export const TENSORFOLD_STARTING_POINTS: readonly TensorFoldStartingPoint[] = [
 
 export const tensorFoldMemoryGib = (point: TensorFoldStartingPoint, window: number): number => point.weightsGib + (point.drafterGib ?? 0) + window * point.cacheKibPerToken / 1048576 + (point.promptCacheGib ?? 0) + point.runtimeGib
 export const tensorFoldCardReserveGib = (card: Pick<TensorFoldCard, 'vramGb'>): number => Math.max(1, card.vramGb / 32)
+export const TENSORFOLD_HOST_WINDOW_FLOOR = 65536
 export function tensorFoldWindowFor(point: TensorFoldStartingPoint, card: Pick<TensorFoldCard, 'vramGb'>): number | undefined {
   const usable = card.vramGb - tensorFoldCardReserveGib(card)
-  return [...TENSORFOLD_HOST_WINDOWS].reverse().find(window => window <= point.maxWindow && tensorFoldMemoryGib(point, window) <= usable)
+  return [...TENSORFOLD_HOST_WINDOWS].reverse().find(window => window >= TENSORFOLD_HOST_WINDOW_FLOOR && window <= point.maxWindow && tensorFoldMemoryGib(point, window) <= usable)
 }
 export const tensorFoldWindowWords = (window: number): string => window >= 1048576 ? window / 1048576 + 'M' : Math.round(window / 1024) + 'k'
 export const tensorFoldTitle = (point: Pick<TensorFoldStartingPoint, 'title'>): string => point.title + ' on TensorFold'

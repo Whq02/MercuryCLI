@@ -25,7 +25,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 const BUDGET = 94
 
-const tips = await getRelevantTips()
+const tips = await getRelevantTips({ theme: 'dark', tensorfold: { installed: false, serving: false, pairedHost: false, helperEnabled: false } })
 check('fresh-config read yields the catalogue (≥ 20 tips)', tips.length >= 20, String(tips.length))
 
 const roster = new Set<string>()
@@ -182,7 +182,7 @@ for (const tip of contextTipPool) {
   check(`every chord spelled is a binding [${tip.id}]`, unbound.length === 0, unbound.join(', '))
   for (const m of rendered.matchAll(/(?:^|\s)\/([a-z][a-z0-9-]*)/g)) {
     const cmd = m[1]!
-    check(`context tip command resolves (or is /tensorfold for the TensorFold wave): /${cmd}`, roster.has(cmd) || cmd === 'tensorfold', cmd)
+    check(`context tip command resolves: /${cmd}`, roster.has(cmd), cmd)
   }
 }
 

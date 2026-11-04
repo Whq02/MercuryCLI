@@ -129,7 +129,9 @@ const POD_FIXTURE_MODEL = 'compat/pod-fixture/qwen3.8-27b'
 function seedPod(home: string, base: string, engine: string): void {
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ compatProvider: { 'pod-fixture': { baseUrl: `${base}/v1`, hostPodId: 'fixturepod', dialect: engine === 'vllm' ? 'vllm' : 'chat-completions', models: ['qwen3.8-27b'] } } }))
   mkdirSync(join(home, 'host', 'pods'), { recursive: true })
+  mkdirSync(join(home, 'host', 'boxes'), { recursive: true })
   writeFileSync(join(home, 'host', 'pods', 'fixturepod.json'), JSON.stringify({ vendor: 'runpod', id: 'fixturepod', name: 'fixture pod', recipe: `fixture-${engine}`, price: 1.19, startedAt: FIXED_GIT_DATE, status: 'RUNNING', jobState: 'ready', recipeRow: { id: `fixture-${engine}`, engine } }))
+  writeFileSync(join(home, 'host', 'boxes', 'pod-fixturepod.json'), JSON.stringify({ name: 'pod-fixturepod', kind: 'ssh', target: { host: '127.0.0.1', user: 'root', port: 22 }, os: 'linux', arch: 'x86_64', home: '/root', memoryGb: 32, unifiedMemory: false, gpus: [{ name: 'NVIDIA RTX 5090', memory: 32 }], engines: [{ kind: engine, path: `/workspace/mercury-host/fixture-${engine}/bin/${engine}`, version: '1.2.2', port: 8080 }], bankPaths: [], discoveredAt: FIXED_GIT_DATE }))
 }
 
 export async function captureRoad(options: {
