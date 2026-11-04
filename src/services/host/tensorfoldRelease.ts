@@ -140,7 +140,7 @@ export function tensorFoldEngineScript(recipe: HostRecipe, dir: string, options:
     "    curl --proto '=https' --proto-redir '=https' -fsSL --retry 3 --max-filesize 64 \"$base.sha256.sig\" -o \"$archive.sha256.sig\" || { echo 'This release has no checksum signature, so this installer stops.'; exit 1; }",
     '    ' + pem(options.publicKey ?? TENSORFOLD_RELEASE_PUBLIC_KEY),
     "    { printf 'tensorfold-native-checksum-v1\\n'; cat \"$archive.sha256\"; } > signed-checksum",
-    '    openssl pkeyutl -verify -rawin -pubin -inkey release-key.pem -in signed-checksum -sigfile "$archive.sha256.sig" >/dev/null 2>&1 || { echo \'Release signature verification failed; a signed checksum and OpenSSL with Ed25519 support are required.\'; exit 1; }',
+    '    openssl pkeyutl -verify -rawin -pubin -inkey release-key.pem -in signed-checksum -sigfile "$archive.sha256.sig" >/dev/null 2>&1 || { echo \'Release signature verification failed, so this installer stops; the download is not trusted.\'; exit 1; }',
     '    [ "$(cat "$archive.sha256")" = "$expected  $archive" ] || { echo "the signed checksum names another archive or digest than the one Mercury measured for TensorFold ' + TENSORFOLD_HOST_VERSION + '"; exit 1; }',
     '    sha256sum -c "$archive.sha256"',
     '    tar -xzf "$archive"',
