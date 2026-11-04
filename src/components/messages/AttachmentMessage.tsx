@@ -146,6 +146,13 @@ export function AttachmentMessage({
         </AttachmentLine>
       )
 
+    case 'dropped_image_file':
+      return (
+        <AttachmentLine>
+          Dropped <Text bold>{attachment.displayPath}</Text> — {attachment.reason}
+        </AttachmentLine>
+      )
+
     case 'nested_memory':
       return (
         <AttachmentLine>

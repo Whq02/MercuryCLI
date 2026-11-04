@@ -116,6 +116,7 @@ const ATTACHMENTS: Record<string, Fixture> = {
   },
   compact_file_reference: { good: { filename: 'a.ts', displayPath: 'a.ts' }, bad: [{ label: 'displayPath is a number', field: 'displayPath', fields: { filename: 'a.ts', displayPath: 5 } }] },
   pdf_reference: { good: { filename: 'a.pdf', pageCount: 2, fileSize: 10, displayPath: 'a.pdf' }, bad: [{ label: 'pageCount is text', field: 'pageCount', fields: { filename: 'a.pdf', pageCount: '2', fileSize: 10, displayPath: 'a.pdf' } }] },
+  dropped_image_file: { good: { filename: 'a.png', reason: 'too large', displayPath: 'a.png' }, bad: [{ label: 'reason is a number', field: 'reason', fields: { filename: 'a.png', reason: 5, displayPath: 'a.png' } }] },
   already_read_file: {
     good: { filename: 'a.ts', content: { type: 'text', file: { filePath: 'a.ts', content: 'x', numLines: 1, startLine: 1, totalLines: 1 } }, displayPath: 'a.ts' },
     bad: [{ label: 'content is a list', field: 'content', fields: { filename: 'a.ts', content: ['x'], displayPath: 'a.ts' } }],

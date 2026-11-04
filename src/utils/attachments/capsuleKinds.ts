@@ -8,6 +8,7 @@ const capsuleKinds = {
   edited_text_file: { section: 'Files', cadence: 'event' },
   edited_image_file: { section: 'Files', cadence: 'event' },
   pdf_reference: { section: 'Files', cadence: 'event' },
+  dropped_image_file: { section: 'Files', cadence: 'event' },
   compact_file_reference: { section: 'Files', cadence: 'event' },
   directory: { section: 'Mentions', cadence: 'event' },
   agent_mention: { section: 'Mentions', cadence: 'event' },

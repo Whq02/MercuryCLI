@@ -1,5 +1,5 @@
 {
-  "base": "adcb08a758df1ef80e7ddecd76897a6187601cb3",
+  "base": "b730629c2a5fc8cbd0baaac0d9900fcfeda681c7",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -109,7 +109,7 @@
             "type": "string"
           },
           "timeout": {
-            "description": "Milliseconds the call waits (default 120000, max 600000). When it passes, the command moves to the background and keeps running, and the result names its task id; a `sleep`-first command, or any command under the shell engine, is killed instead.",
+            "description": "Milliseconds the call waits (default 120000, max 600000). When it passes, the command moves to the background and keeps running, and the result names the task id TaskStop takes; a `sleep`-first command, or any command under the shell engine, is killed instead.",
             "type": "number"
           },
           "description": {
@@ -179,7 +179,7 @@
             "type": "string"
           },
           "output_mode": {
-            "description": "What comes back: \"files_with_matches\" (the default) lists hit paths, \"content\" prints the matching lines, \"count\" tallies matches.",
+            "description": "What comes back: \"files_with_matches\" (the default) lists the paths that match, declarations and documents among them; \"content\" prints each matching line with its path — the mode for reading or counting call sites; \"count\" tallies matches per file.",
             "type": "string",
             "enum": [
               "content",
@@ -456,7 +456,7 @@
     },
     {
       "name": "WebFetch",
-      "description": "Fetch HTTP(S) pages without credentials. Returns Markdown page text or a saved binary path. Sparse HTML on public hosts may send the full URL to r.jina.ai; private addresses are excluded and no cookies or credentials go to that reader. Repeat pulls ride a fifteen-minute cache.",
+      "description": "Fetch HTTP(S) pages without credentials. Returns the page's body as Markdown — the HTML head and its title are not included — or a saved binary path. Sparse HTML on public hosts may send the full URL to r.jina.ai; private addresses are excluded and no cookies or credentials go to that reader. Repeat pulls ride a fifteen-minute cache.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -710,24 +710,12 @@
           "runNote": {
             "description": "Where and how the prototype will be run, one plain line",
             "type": "string"
-          },
-          "decision": {
-            "description": "Written by the consent card with the user's choice — never author this field",
-            "type": "string",
-            "enum": [
-              "build",
-              "build-ask-first",
-              "more-questions"
-            ]
-          },
-          "refineNote": {
-            "description": "Written by the consent card — the user's note on what still needs asking. Never author this field",
-            "type": "string"
           }
         },
         "required": [
           "summary"
-        ]
+        ],
+        "additionalProperties": false
       },
       "eager_input_streaming": true
     },

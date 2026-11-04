@@ -191,6 +191,7 @@ const renderers: Renderers = {
   edited_text_file: item => reminders(`${item.filename} changed outside this conversation — the user or a linter edited it. The change is intentional: work with it, and never revert it unless the user asks. Do not mention it to the user; they already know. The relevant changes (with line numbers):\n${item.snippet}`),
   compact_file_reference: item => reminders(`${item.filename} was read before the conversation was summarized, and its contents are too large to carry across. Re-read it with ${FileReadTool.name} when you need it.`),
   pdf_reference: item => reminders(`PDF: ${item.filename} (${item.pageCount} pages, ${formatFileSize(item.fileSize)}) — too large to read in one pass. Read it through ${FILE_READ_TOOL_NAME} with the pages parameter, in ranges (e.g. pages: "1-5"); a call WITHOUT pages will fail on this file. Start with the first few pages to learn the structure, then pull more as needed — at most 20 pages per request.`),
+  dropped_image_file: item => reminders(`${item.filename} was mentioned, but its image could not be attached and was dropped from this turn: ${item.reason} Attach a smaller copy, or Read it with a crop.`),
   diagnostics: item => item.files.length ? reminders(`<new-diagnostics>New diagnostics from the language server:\n\n${DiagnosticTrackingService.formatDiagnosticsSummary(item.files)}</new-diagnostics>`) : [],
   queued_command: queuedRows,
   context_capsule: capsuleRows,

@@ -9,18 +9,21 @@ import { FileReadTool, MaxFileReadTokenExceededError, readImageWithTokenBudget, 
 import { isDirectoryTarget } from '../../tools/FileReadTool/readTarget.js'
 import { isENOENT } from '../errors.js'
 import { getFileModificationTimeAsync, isFileWithinReadSizeLimit } from '../file.js'
+import { formatFileSize } from '../format.js'
+import { isImageFilePath } from '../imagePaste.js'
 import { cacheKeys, type FileState } from '../fileStateCache.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { logError } from '../log.js'
 import { expandPath } from '../path.js'
 import { getPDFPageCount } from '../pdf.js'
 import { isPDFExtension } from '../pdfUtils.js'
+import { ImageResizeError } from '../imageResizer.js'
 import { FileTooLargeError } from '../readFileInRange.js'
 import { countCharInString } from '../stringUtils.js'
 import { isFileReadDenied } from './shared.js'
-import type { AlreadyReadFileAttachment, Attachment, CompactFileReferenceAttachment, FileAttachment, PDFReferenceAttachment } from './types.js'
+import type { AlreadyReadFileAttachment, Attachment, CompactFileReferenceAttachment, DroppedImageAttachment, FileAttachment, PDFReferenceAttachment } from './types.js'
 
-type FileRow = FileAttachment | CompactFileReferenceAttachment | PDFReferenceAttachment | AlreadyReadFileAttachment
+type FileRow = FileAttachment | CompactFileReferenceAttachment | PDFReferenceAttachment | AlreadyReadFileAttachment | DroppedImageAttachment
 type ReadWindow = { offset?: number; limit?: number }
 type ReadRequest = ReadWindow & { file_path: string }
 type ReadMode = 'compact' | 'at-mention'
@@ -48,6 +51,7 @@ async function validatedRead(input: ReadRequest, context: ToolUseContext, mode: 
     try {
       return await fileRow(input, context)
     } catch (failure) {
+      if (failure instanceof ImageResizeError) return droppedImage(input.file_path, failure.message)
       if (!(failure instanceof MaxFileReadTokenExceededError || failure instanceof FileTooLargeError)) return null
       return await oversizedFallback(input, context, mode)
     }
@@ -56,11 +60,14 @@ async function validatedRead(input: ReadRequest, context: ToolUseContext, mode: 
   }
 }
 
-async function tooLargeToMention(filename: string): Promise<boolean> {
-  if (isFileWithinReadSizeLimit(filename, getDefaultFileReadingLimits().maxSizeBytes) || pdfPath(filename)) return false
+const droppedImage = (filename: string, reason: string): DroppedImageAttachment => ({ type: 'dropped_image_file', filename, displayPath: displayOf(filename), reason })
+
+async function tooLargeToMention(filename: string): Promise<FileRow | null | false> {
+  const limit = getDefaultFileReadingLimits().maxSizeBytes
+  if (isFileWithinReadSizeLimit(filename, limit) || pdfPath(filename)) return false
   try {
-    await getFsImplementation().stat(filename)
-    return true
+    const { size } = await getFsImplementation().stat(filename)
+    return isImageFilePath(filename) ? droppedImage(filename, `The image is ${formatFileSize(size)}, over the ${formatFileSize(limit)} limit for a mentioned file.`) : null
   } catch {
     return false
   }
@@ -83,7 +90,10 @@ export async function generateFileAttachment(filename: string, context: ToolUseC
   const { offset, limit } = options ?? {}
   const plan = modes[mode]
   if (isFileReadDenied(filename, context.getAppState().toolPermissionContext)) return null
-  if (plan.checkSize && await tooLargeToMention(filename)) return null
+  if (plan.checkSize) {
+    const tooLarge = await tooLargeToMention(filename)
+    if (tooLarge !== false) return tooLarge
+  }
   if (plan.referencePDF) {
     const reference = await tryGetPDFReference(filename)
     if (reference) return reference

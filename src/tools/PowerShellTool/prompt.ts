@@ -11,7 +11,7 @@ export function getMaxTimeoutMs(): number {
 }
 
 export function describeTimeout(): string {
-  return `Milliseconds the call waits (default ${getDefaultBashTimeoutMs()}, max ${getMaxBashTimeoutMs()}). When it passes, the command moves to the background and keeps running, and the result names its task id; a \`Start-Sleep\`-first command is killed instead.`
+  return `Milliseconds the call waits (default ${getDefaultBashTimeoutMs()}, max ${getMaxBashTimeoutMs()}). When it passes, the command moves to the background and keeps running, and the result names the task id TaskStop takes; a \`Start-Sleep\`-first command is killed instead.`
 }
 
 export async function getPrompt(): Promise<string> {

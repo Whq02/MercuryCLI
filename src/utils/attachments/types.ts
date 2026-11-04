@@ -38,6 +38,7 @@ type FileBodies = {
   already_read_file: ReadFileBody
   compact_file_reference: FileLocation
   pdf_reference: FileLocation & { pageCount: number; fileSize: number }
+  dropped_image_file: FileLocation & { reason: string }
   directory: PathLocation & { content: string }
   edited_text_file: { filename: string; snippet: string }
   edited_image_file: { filename: string; content: FileReadToolOutput }
@@ -119,6 +120,7 @@ export type FileAttachment = AttachmentRow<'file'>
 export type AlreadyReadFileAttachment = AttachmentRow<'already_read_file'>
 export type CompactFileReferenceAttachment = AttachmentRow<'compact_file_reference'>
 export type PDFReferenceAttachment = AttachmentRow<'pdf_reference'>
+export type DroppedImageAttachment = AttachmentRow<'dropped_image_file'>
 export type AgentRosterAttachment = AttachmentRow<'agent_roster'>
 export type HookAttachment = AttachmentRow<'hook'>
 export type BypassedAskAttachment = AttachmentRow<'bypassed_ask'>

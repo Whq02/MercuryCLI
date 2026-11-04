@@ -187,6 +187,7 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
   file: z.looseObject({ filename: z.string(), content: z.looseObject({}), displayPath: z.string() }),
   compact_file_reference: z.looseObject({ filename: z.string(), displayPath: z.string() }),
   pdf_reference: z.looseObject({ filename: z.string(), pageCount: z.number(), fileSize: z.number(), displayPath: z.string() }),
+  dropped_image_file: z.looseObject({ filename: z.string(), reason: z.string(), displayPath: z.string() }),
   already_read_file: z.looseObject({ filename: z.string(), content: z.looseObject({}), displayPath: z.string() }),
   edited_text_file: z.looseObject({ filename: z.string(), snippet: z.string() }),
   edited_image_file: z.looseObject({ filename: z.string(), content: z.looseObject({}) }),

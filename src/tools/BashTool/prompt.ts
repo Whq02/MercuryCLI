@@ -21,7 +21,7 @@ export function describeMaxOutputChars(): string {
 }
 
 export function describeTimeout(): string {
-  return `Milliseconds the call waits (default ${getDefaultBashTimeoutMs()}, max ${getMaxBashTimeoutMs()}). When it passes, the command moves to the background and keeps running, and the result names its task id; a \`sleep\`-first command, or any command under the shell engine, is killed instead.`
+  return `Milliseconds the call waits (default ${getDefaultBashTimeoutMs()}, max ${getMaxBashTimeoutMs()}). When it passes, the command moves to the background and keeps running, and the result names the task id TaskStop takes; a \`sleep\`-first command, or any command under the shell engine, is killed instead.`
 }
 
 export function describeCommandDescription(): string {
