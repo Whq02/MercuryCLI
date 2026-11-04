@@ -127,5 +127,12 @@ try {
     assert.match(skill.description, /PhotoCraft image/); assert.match(skill.description, /Not for video editing/)
     assert(prompt[0]?.type === 'text' && prompt[0].text.includes('Trim the video timeline'))
   })
+  check('the skill keeps the hard boundaries and the live-discovery rule, without the onboarding the server instructions carry', () => {
+    const text = readFileSync(join(delivered, 'skills/photocraft/SKILL.md'), 'utf8')
+    assert(Buffer.byteLength(text) <= 2800, `skill is ${Buffer.byteLength(text)} bytes`)
+    for (const fact of [/discovery wins/, /share one active document/, /changes tabs/, /`id` from `doc_inspect`; names repeat/, /prose, not a schema/, /image\.duplicate/, /not atomic/, /Undo never unwrites a file/, /`render_preview` is document pixels; `ui_screenshot` is the attached window/, /only image or document files are ever replaced/, /\.pcraft/, /queued export is not a file/, /use its path only, never its contents/, /`file\.open`, `file\.saveAs`/, /never a wider root or a shell workaround/, /saveContents/, /never replay automatically/]) assert.match(text, fact)
+    for (const gone of [/craft_status/, /craft_install/, /mode: "headless"/, /^\d+\. /m]) assert.doesNotMatch(text, gone)
+    for (const name of ['session_list', 'doc_inspect', 'command_list', 'command_run', 'command_batch', 'render_preview', 'ui_screenshot', 'doc_open', 'doc_save']) assert.match(text, new RegExp(`\`${name}\\b`), name)
+  })
   console.log(`${passed} PhotoCraft static checks passed. Routing examples: PhotoCraft crop included; video trim explicitly excluded.`)
 } finally { publishActiveSet(null); clearExtensionCommandCaches(); removeScratch(scratch) }
