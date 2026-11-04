@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, watch, writeFileSync, type FSWatcher } from 'node:fs'
 import { createServer } from 'node:net'
 import { homedir, tmpdir, userInfo } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -179,7 +179,7 @@ function saveFrames(world: World, c: Capture, prefix: string): void {
   writeFileSync(join(FRAMES, `${prefix}-final-${world.tag}.txt`), c.lines.map(scrub).join('\n') + '\n')
 }
 
-function servicePid(world: World): { pid: number; state: string } | null {
+function servicePid(world: World): { pid: number; state: string; log: string } | null {
   const dir = join(world.home, 'services')
   if (!existsSync(dir)) return null
   const { readdirSync } = require('node:fs') as typeof import('node:fs')
@@ -187,9 +187,30 @@ function servicePid(world: World): { pid: number; state: string } | null {
     const file = join(dir, slug, 'tensorfold.json')
     if (!existsSync(file)) continue
     const record = JSON.parse(readFileSync(file, 'utf8')) as { pid: number | null; state: string }
-    return { pid: record.pid ?? 0, state: record.state }
+    return { pid: record.pid ?? 0, state: record.state, log: join(dir, slug, 'tensorfold.log') }
   }
   return null
+}
+
+function untilGone(pid: number, log: string, ceilingMs: number): Promise<boolean> {
+  return new Promise(settle => {
+    let watcher: FSWatcher | undefined
+    let ceiling: ReturnType<typeof setTimeout> | undefined
+    const finish = (): void => {
+      if (ceiling !== undefined) clearTimeout(ceiling)
+      watcher?.close()
+      settle(!alive(pid))
+    }
+    try {
+      watcher = watch(dirname(log), () => {
+        if (!alive(pid)) finish()
+      })
+    } catch {
+      watcher = undefined
+    }
+    ceiling = setTimeout(finish, vshotBudgetMs(ceilingMs))
+    if (!alive(pid)) finish()
+  })
 }
 
 function alive(pid: number): boolean {
@@ -218,11 +239,7 @@ async function stopWhatWeStarted(world: World): Promise<boolean> {
   } catch {
     return true
   }
-  const deadline = Date.now() + 10_000
-  while (Date.now() < deadline) {
-    if (!alive(service.pid)) return true
-    await new Promise(resolve => setTimeout(resolve, 100))
-  }
+  if (await untilGone(service.pid, service.log, 10_000)) return true
   try {
     process.kill(service.pid, 'SIGKILL')
   } catch {
@@ -261,7 +278,6 @@ const sends: Send[] = [
   { requireAwait: true, awaitText: 'Paris', awaitStableTicks: 4, mark: 'reply', data: '/exit\r' },
 ]
 const c = await capture(world, [], sends, 900, 'Paris')
-await new Promise(resolve => setTimeout(resolve, 1500))
 saveFrames(world, c, 'drive')
 const service = servicePid(world)
 const servedAlive = service !== null && service.pid > 0 && alive(service.pid)
