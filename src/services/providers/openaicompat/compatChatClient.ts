@@ -147,6 +147,7 @@ export interface CompatFault {
     | 'transport-error'
   code: string
   message: string
+  wireMessage?: string
   retryable: boolean
   silentMs?: number
   inStream?: true

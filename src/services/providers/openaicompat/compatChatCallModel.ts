@@ -224,14 +224,14 @@ function apiErrorMessage(
 
 function overflowOf(
   profile: Pick<CompatLaneProfile, 'lane' | 'servedWindowTokens'>,
-  fault: Pick<CompatFault, 'code' | 'message'> & { status?: number },
+  fault: Pick<CompatFault, 'code' | 'message' | 'wireMessage'> & { status?: number },
   sent: { request: CompatChatRequest; model: string },
 ): OverflowSignal | null {
   return classifyOverflowFault({
     family: profile.lane,
     status: fault.status,
     code: fault.code,
-    message: fault.message,
+    message: fault.wireMessage ?? fault.message,
     measured: () => ({
       tokens: estimateRequestTokens(sent.request),
       window: profile.servedWindowTokens?.() ?? getContextWindowForModel(sent.model),

@@ -46,6 +46,7 @@ import { validateImagesForAPI } from '../../../utils/imageValidation.js'
 import { classifyImageRefusalFault, type MediaRefusal } from '../../api/mediaRefusal.js'
 import {
   createAssistantAPIErrorMessage,
+  createAssistantMessage,
   createSystemAPIErrorMessage,
   healWalkableForWire,
   normalizeContentFromAPI,
@@ -223,6 +224,34 @@ function overflowOf(fault: { status?: number; code: string; message: string; wir
 }
 
 const priorConversation4xx = new Map<string, string>()
+const compactedToolResultsByConversation = new Map<string, Map<string, string>>()
+
+function applyCompactedToolResults(
+  messages: Message[],
+  replacements: ReadonlyMap<string, string> | undefined,
+): Message[] {
+  if (!replacements || replacements.size === 0) return messages
+  let firstEdited = -1
+  const mapped = messages.map((m, idx) => {
+    if (m.type !== 'user' || !Array.isArray(m.message.content)) return m
+    let touched = false
+    const nextBlocks = m.message.content.map(rawBlock => {
+      const block = rawBlock as { type?: string; tool_use_id?: string; content?: unknown }
+      if (block.type === 'tool_result' && typeof block.tool_use_id === 'string') {
+        const replacement = replacements.get(block.tool_use_id)
+        if (replacement !== undefined && block.content !== replacement) {
+          touched = true
+          return { ...block, content: replacement }
+        }
+      }
+      return rawBlock
+    })
+    if (!touched) return m
+    if (firstEdited === -1) firstEdited = idx
+    return { ...m, message: { ...(m as { message: object }).message, content: nextBlocks } } as Message
+  })
+  return firstEdited === -1 ? mapped : stripThinkingFromIndex(mapped, firstEdited)
+}
 
 function hasUnpairedSurrogate(text: string): boolean {
   for (let i = 0; i < text.length; i++) {
@@ -284,6 +313,7 @@ function compactTranscriptFor4xxResume(
   messages: Message[],
   querySource: Options['querySource'],
   fault: OpenaiFault,
+  conversation4xxKey: string,
 ): { messages: Message[]; note: string } | null {
   const micro = projectTimeBasedMicrocompact(messages, querySource, { pressure: true })
   const base = micro ? micro.messages : messages
@@ -292,6 +322,27 @@ function compactTranscriptFor4xxResume(
   let charsSaved = 0
   let surrogatesFixed = 0
   const faultText = fault.wireMessage ?? fault.message
+  let storedMap = compactedToolResultsByConversation.get(conversation4xxKey)
+  if (!storedMap) {
+    storedMap = new Map<string, string>()
+    compactedToolResultsByConversation.set(conversation4xxKey, storedMap)
+  }
+  if (micro) {
+    for (const m of base) {
+      if (m.type !== 'user' || !Array.isArray(m.message.content)) continue
+      for (const rawBlock of m.message.content) {
+        const block = rawBlock as { type?: string; tool_use_id?: string; content?: unknown }
+        if (
+          block.type === 'tool_result' &&
+          typeof block.tool_use_id === 'string' &&
+          clearedIds.has(block.tool_use_id) &&
+          typeof block.content === 'string'
+        ) {
+          storedMap.set(block.tool_use_id, block.content)
+        }
+      }
+    }
+  }
 
   const candidateToolIds: Array<{ id: string; chars: number; tokens: number; badSurrogate: boolean; named: boolean }> = []
   for (const m of base) {
@@ -311,13 +362,14 @@ function compactTranscriptFor4xxResume(
 
   const targetIds = new Set<string>()
   for (const c of candidateToolIds) {
-    if (c.badSurrogate || c.named || c.chars >= 4_000 || c.tokens >= 1_000) {
+    if (c.badSurrogate || c.named) {
       targetIds.add(c.id)
     }
   }
   if (targetIds.size === 0 && clearedIds.size === 0 && candidateToolIds.length > 0) {
-    const largest = [...candidateToolIds].sort((a, b) => b.chars - a.chars)[0]!
-    targetIds.add(largest.id)
+    const oversized = candidateToolIds.filter(c => c.chars >= 4_000 || c.tokens >= 1_000)
+    const chosen = oversized.length > 0 ? oversized.at(-1)! : candidateToolIds[0]!
+    targetIds.add(chosen.id)
   }
 
   let firstEdited = micro ? messages.findIndex((m, idx) => m !== base[idx]) : -1
@@ -348,6 +400,7 @@ function compactTranscriptFor4xxResume(
         tokensSaved += savedTok
         charsSaved += Math.max(0, beforeText.length - digest.length)
         clearedIds.add(block.tool_use_id)
+        storedMap.set(block.tool_use_id, digest)
         return { ...block, content: digest }
       }
       if (block.type === 'text' && typeof block.text === 'string' && hasUnpairedSurrogate(block.text)) {
@@ -508,10 +561,11 @@ async function sendOpenaiGatewayProbe(
       request: body as unknown as OpenaiResponsesRequest,
       signal: controller.signal,
       idleTimeoutMs: OPENAI_GATEWAY_PROBE_TIMEOUT_MS,
+      skipFaultCapture: true,
     })
     for await (const event of events) {
       if (event.type === 'stream-fault') {
-        return { status: event.fault.status ?? null, bodyText: event.fault.message }
+        return { status: event.fault.status ?? null, bodyText: event.fault.wireMessage ?? event.fault.message }
       }
       controller.abort()
       return { status: 200, bodyText: '' }
@@ -682,9 +736,10 @@ async function* openaiTurn(
   deferralFormReissued?: string,
   resumeTrimReissued?: string,
 ): CallModelStream {
-  const { messages, systemPrompt, tools, signal, options } = params
+  const { systemPrompt, tools, signal, options } = params
   const requestedId = normalizeModelStringForAPI(options.model).trim().toLowerCase()
-  const conversation4xxKey = `${getSessionId()}:${options.agentId ?? options.ownerKey ?? ''}:${messages[0]?.uuid ?? ''}`
+  const conversation4xxKey = `${getSessionId()}:${options.agentId ?? options.ownerKey ?? ''}:${params.messages[0]?.uuid ?? ''}`
+  const messages = applyCompactedToolResults(params.messages, compactedToolResultsByConversation.get(conversation4xxKey))
   const prior4xxCode = priorTurn4xxCodeOf(messages, conversation4xxKey)
 
   const account = resolveOpenaiAccount()
@@ -992,7 +1047,7 @@ async function* openaiTurn(
       !MODEL_NOT_FOUND_CODE.test(outcome.fault.code) &&
       (prior4xxCode === '4xx' || prior4xxCode === outcome.fault.code)
     ) {
-      const trimmed = compactTranscriptFor4xxResume(messages, options.querySource, outcome.fault)
+      const trimmed = compactTranscriptFor4xxResume(messages, options.querySource, outcome.fault, conversation4xxKey)
       if (trimmed !== null) {
         logForDebugging(trimmed.note, { level: 'warn' })
         yield* openaiTurn({ ...params, messages: trimmed.messages }, deferralFormReissued, trimmed.note)
@@ -1155,6 +1210,9 @@ async function* openaiTurn(
     }
     if (typed === 'invalid_request' && refusedMedia === null && overflow === null && !MODEL_NOT_FOUND_CODE.test(outcome.fault.code)) {
       priorConversation4xx.set(conversation4xxKey, outcome.fault.code)
+    }
+    if (resumeTrimReissued !== undefined) {
+      yield withEffort(createAssistantMessage({ content: resumeTrimReissued }))
     }
     yield withEffort(apiErrorMessage(
       busyPrefix(text, outcome.fault, typed),

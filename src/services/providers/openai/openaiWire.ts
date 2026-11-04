@@ -7,7 +7,6 @@ import { retryAfterHeaderMs, retryAfterSaysNow } from '../../api/retryAfter.js'
 import { providerWaitWords } from '../../api/recoveryBudget.js'
 import { isTemporaryStreamError } from '../temporaryStreamError.js'
 import type { StreamCapabilityAdvertisement, TextPhase } from '../../../types/wire.js'
-import { takeStagedOpenaiInput } from './responsesBridge.js'
 
 
 export interface OpenaiFunctionTool {
@@ -321,13 +320,11 @@ export function mapOpenaiHttpFailure(
       status,
     }
   }
-  const staged = capture === undefined ? takeStagedOpenaiInput() : undefined
-  const captureSource = capture ?? staged
-  const captureContext =
-    captureSource !== undefined && typeof captureSource === 'object' && captureSource !== null && 'request' in captureSource
-      ? (captureSource as OpenaiFailureCaptureContext)
-      : captureSource !== undefined
-        ? { request: captureSource }
+  const captureContext: OpenaiFailureCaptureContext | undefined =
+    capture !== undefined && typeof capture === 'object' && capture !== null && 'request' in capture
+      ? (capture as OpenaiFailureCaptureContext)
+      : capture !== undefined
+        ? { request: capture }
         : undefined
   const capturePath =
     status >= 400 &&
@@ -335,7 +332,8 @@ export function mapOpenaiHttpFailure(
     status !== 401 &&
     status !== 402 &&
     status !== 403 &&
-    captureContext?.request !== undefined
+    captureContext?.request !== undefined &&
+    !isSelfRecovering4xx(status, code, wireMessage, captureContext.request)
       ? captureRejectedOpenaiRequest({
           status,
           request: captureContext.request,
@@ -365,6 +363,41 @@ export function mapOpenaiHttpFailure(
     retryable,
     status,
   }
+}
+
+function isSelfRecovering4xx(
+  status: number,
+  code: string | undefined,
+  wireMessage: string,
+  request: unknown,
+): boolean {
+  if (status !== 400) return false
+  if (code === 'invalid_value' && /Invalid value: '[^']+'\. Supported values are: /.test(wireMessage)) {
+    return true
+  }
+  const reqObj = asRecord(request)
+  if (
+    reqObj !== undefined &&
+    Array.isArray(reqObj.input) &&
+    /encrypted reasoning or compaction content from multiple providers/i.test(wireMessage) &&
+    reqObj.input.some(item => {
+      const rec = asRecord(item)
+      return rec?.type === 'reasoning' && typeof rec.encrypted_content === 'string'
+    })
+  ) {
+    return true
+  }
+  if (reqObj?.prompt_cache_retention !== undefined && /prompt_cache_retention/i.test(wireMessage)) {
+    return true
+  }
+  if (
+    Array.isArray(reqObj?.tools) &&
+    /tool_search|defer_loading/i.test(wireMessage) &&
+    reqObj.tools.some(t => asRecord(t)?.type === 'tool_search')
+  ) {
+    return true
+  }
+  return false
 }
 
 

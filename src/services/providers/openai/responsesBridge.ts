@@ -30,6 +30,10 @@ function asRecord(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
 }
 
+function wellFormed(text: string): string {
+  return text.toWellFormed()
+}
+
 function decodeReplayItem(raw: unknown): OpenaiInputItem | undefined {
   const o = asRecord(raw)
   if (!o) return undefined
@@ -39,7 +43,7 @@ function decodeReplayItem(raw: unknown): OpenaiInputItem | undefined {
     for (const s of summaryRaw) {
       const rec = asRecord(s)
       if (rec?.type === 'summary_text' && typeof rec.text === 'string') {
-        summary.push({ type: 'summary_text', text: rec.text })
+        summary.push({ type: 'summary_text', text: wellFormed(rec.text) })
       }
     }
     return {
@@ -58,7 +62,7 @@ function decodeReplayItem(raw: unknown): OpenaiInputItem | undefined {
       type: 'function_call',
       call_id: o.call_id,
       name: o.name,
-      arguments: typeof o.arguments === 'string' ? o.arguments : '{}',
+      arguments: typeof o.arguments === 'string' ? wellFormed(o.arguments) : '{}',
       ...(typeof o.id === 'string' ? { id: o.id } : {}),
     }
   }
@@ -68,7 +72,7 @@ function decodeReplayItem(raw: unknown): OpenaiInputItem | undefined {
     for (const part of contentRaw) {
       const rec = asRecord(part)
       if (rec?.type === 'output_text' && typeof rec.text === 'string') {
-        content.push({ type: 'output_text', text: rec.text })
+        content.push({ type: 'output_text', text: wellFormed(rec.text) })
       }
     }
     if (content.length === 0) return undefined
@@ -165,15 +169,15 @@ function toolResultOutput(
   pdfSupported: boolean,
 ): string | Array<{ type: 'input_text'; text: string } | { type: 'input_image'; image_url: string } | { type: 'input_file'; filename: string; file_data: string }> {
   const prefix = isError ? '[tool error] ' : ''
-  if (typeof content === 'string') return `${prefix}${content}`
+  if (typeof content === 'string') return `${prefix}${wellFormed(content)}`
   if (content === undefined || content === null) return prefix
-  if (!Array.isArray(content)) return `${prefix}${JSON.stringify(content)}`
+  if (!Array.isArray(content)) return `${prefix}${wellFormed(JSON.stringify(content))}`
   const texts: string[] = []
   const images: string[] = []
   const files: string[] = []
   for (const part of content) {
     const rec = typeof part === 'object' && part !== null ? (part as Record<string, unknown>) : undefined
-    if (rec?.type === 'text') texts.push(String(rec.text ?? ''))
+    if (rec?.type === 'text') texts.push(wellFormed(String(rec.text ?? '')))
     else if (rec?.type === 'image') {
       const url = imagesSupported ? imageUrlOfBlock(rec) : undefined
       if (url) images.push(url)
@@ -219,11 +223,12 @@ function mapUserMessage(
 ): void {
   const turn = requestTurnOf('user', message.content)
   if (turn.stringContent !== undefined) {
-    if (turn.stringContent.trim() !== '') out.push({ type: 'message', role: 'user', content: [{ type: 'input_text', text: turn.stringContent }] })
+    if (turn.stringContent.trim() !== '') out.push({ type: 'message', role: 'user', content: [{ type: 'input_text', text: wellFormed(turn.stringContent) }] })
     return
   }
   const parts: UserPart[] = []
-  const pushText = (text: string): void => {
+  const pushText = (rawText: string): void => {
+    const text = wellFormed(rawText)
     const last = parts.at(-1)
     if (last && last.type === 'input_text') last.text += `\n${text}`
     else parts.push({ type: 'input_text', text })
@@ -249,14 +254,14 @@ function mapUserMessage(
 function mapDerivedAssistantMessage(out: OpenaiInputItem[], message: BridgeMessage): void {
   const turn = requestTurnOf('assistant', message.content)
   if (turn.stringContent !== undefined) {
-    if (turn.stringContent.trim() !== '') out.push({ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: turn.stringContent }] })
+    if (turn.stringContent.trim() !== '') out.push({ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: wellFormed(turn.stringContent) }] })
     return
   }
   const texts: string[] = []
   let textsPhase: TextPhase | undefined
   const flushTexts = (): void => {
     if (texts.length === 0) return
-    out.push({ type: 'message', role: 'assistant', content: texts.map(text => ({ type: 'output_text' as const, text })), ...(textsPhase ? { phase: textsPhase } : {}) })
+    out.push({ type: 'message', role: 'assistant', content: texts.map(text => ({ type: 'output_text' as const, text: wellFormed(text) })), ...(textsPhase ? { phase: textsPhase } : {}) })
     texts.length = 0
     textsPhase = undefined
   }
@@ -267,22 +272,13 @@ function mapDerivedAssistantMessage(out: OpenaiInputItem[], message: BridgeMessa
       texts.push(item.text)
     } else if (item.type === 'tool_call' && item.native === 'tool_use') {
       flushTexts()
-      out.push({ type: 'function_call', call_id: item.call_id, name: item.tool, arguments: JSON.stringify(item.input ?? {}) })
+      out.push({ type: 'function_call', call_id: item.call_id, name: item.tool, arguments: wellFormed(JSON.stringify(item.input ?? {})) })
     }
   }
   flushTexts()
 }
 
 export const replayPruneCensus = { items: 0, bytes: 0 }
-
-let stagedResponsesInput: { input: OpenaiInputItem[]; at: number } | null = null
-
-export function takeStagedOpenaiInput(maxAgeMs = 60_000): { input: OpenaiInputItem[] } | undefined {
-  const held = stagedResponsesInput
-  stagedResponsesInput = null
-  if (held === null || Date.now() - held.at > maxAgeMs) return undefined
-  return { input: held.input }
-}
 
 export function mapMessagesToOpenaiInput(
   messages: readonly BridgeMessage[],
@@ -338,7 +334,6 @@ export function mapMessagesToOpenaiInput(
     }
     index = next
   }
-  stagedResponsesInput = { input: out, at: Date.now() }
   return out
 }
 
@@ -383,11 +378,10 @@ export function buildOpenaiResponsesRequest(
     imagesSupported: i.imagesSupported !== false,
     pdfSupported: i.pdfSupported === true,
   })
-  stagedResponsesInput = null
   return {
     model: i.model,
     ...(i.instructions && i.instructions.trim() !== ''
-      ? { instructions: i.instructions }
+      ? { instructions: wellFormed(i.instructions) }
       : {}),
     input,
     ...(tools ? { tools, tool_choice: i.toolChoice ?? ('auto' as const), parallel_tool_calls: true } : {}),

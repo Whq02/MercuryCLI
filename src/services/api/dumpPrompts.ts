@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { getOriginalCwd, getSessionId, getSessionProjectDir } from '../../bootstrap/state.js'
@@ -119,15 +119,18 @@ export function scrubCredentials(text: string): string {
     .replace(/sk-or-v1-[A-Za-z0-9_-]{8,}/g, 'sk-or-v1-***')
     .replace(/\bsk-(?!ant-|proj-|or-v1-)[A-Za-z0-9_-]{12,}/g, 'sk-***')
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]{8,}/g, 'Bearer ***')
+    .replace(/Basic\s+[A-Za-z0-9+/=]{8,}/g, 'Basic ***')
     .replace(/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g, 'eyJ***')
 }
 
-const SECRET_KEY_PATTERN = /^(?:authorization|x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|secret|password|cookie|set-cookie)$/i
+const SECRET_KEY_PATTERN = /^(?:authorization|proxy-authorization|x-api-key|x-goog-api-key|chatgpt-account-id|cookie|set-cookie|.*(?:[_-]api[_-]?key|[_-]auth[_-]?token|access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|private[_-]?key|api[_-]?key|secret|password))$/i
 const CAPTURE_TEXT_MAX_CHARS = 512
 const CAPTURE_TEXT_HEAD_CHARS = 240
 const CAPTURE_TEXT_TAIL_CHARS = 120
 const CAPTURE_BLOB_HEAD_CHARS = 48
 const CAPTURE_MAX_BYTES = 48 * 1024
+const CAPTURE_MAX_ANOMALIES = 16
+export const MAX_FAULT_CAPTURES_PER_SESSION = 20
 
 let faultCaptureSeq = 0
 
@@ -162,10 +165,10 @@ function shapeStringForCapture(
   anomalies: OpenaiFaultCaptureAnomaly[],
 ): string {
   if (SECRET_KEY_PATTERN.test(key)) {
-    return /^Bearer\s+/i.test(value) ? 'Bearer ***' : '[redacted]'
+    return /^Bearer\s+/i.test(value) ? 'Bearer ***' : /^Basic\s+/i.test(value) ? 'Basic ***' : '[redacted]'
   }
   const surrogates = findUnpairedSurrogatesInString(value)
-  if (surrogates.length > 0) {
+  if (surrogates.length > 0 && anomalies.length < CAPTURE_MAX_ANOMALIES) {
     const first = surrogates[0]!
     anomalies.push({
       path,
@@ -174,28 +177,28 @@ function shapeStringForCapture(
     })
   }
   const bytes = Buffer.byteLength(value, 'utf8')
-  if (bytes > 16_384 && key !== 'instructions') {
+  if (bytes > 16_384 && key !== 'instructions' && anomalies.length < CAPTURE_MAX_ANOMALIES) {
     anomalies.push({
       path,
       kind: 'oversized-part',
       detail: `${value.length} chars, ${bytes} bytes`,
     })
   }
-  const scrubbed = scrubCredentials(value).toWellFormed()
+  const scrubbed = scrubCredentials(value)
   const surrogateTag =
     surrogates.length > 0
       ? `; unpaired surrogate ${surrogates[0]!.codeHex} at char ${surrogates[0]!.index}`
       : ''
   if (key === 'encrypted_content' || key === 'file_data' || (key === 'image_url' && value.startsWith('data:'))) {
-    if (scrubbed.length <= CAPTURE_BLOB_HEAD_CHARS) return scrubbed
-    return `${scrubbed.slice(0, CAPTURE_BLOB_HEAD_CHARS)}… [truncated: ${value.length} chars, ${bytes} bytes${surrogateTag}]`
+    if (scrubbed.length <= CAPTURE_BLOB_HEAD_CHARS) return scrubbed.toWellFormed()
+    return `${scrubbed.slice(0, CAPTURE_BLOB_HEAD_CHARS).toWellFormed()}… [truncated: ${value.length} chars, ${bytes} bytes${surrogateTag}]`
   }
-  if (scrubbed.length <= CAPTURE_TEXT_MAX_CHARS && surrogates.length === 0) return scrubbed
+  if (scrubbed.length <= CAPTURE_TEXT_MAX_CHARS && surrogates.length === 0) return scrubbed.toWellFormed()
   if (scrubbed.length <= CAPTURE_TEXT_MAX_CHARS) {
-    return `${scrubbed} [truncated: ${value.length} chars, ${bytes} bytes${surrogateTag}]`
+    return `${scrubbed.toWellFormed()} [truncated: ${value.length} chars, ${bytes} bytes${surrogateTag}]`
   }
-  const head = scrubbed.slice(0, CAPTURE_TEXT_HEAD_CHARS)
-  const tail = scrubbed.slice(-CAPTURE_TEXT_TAIL_CHARS)
+  const head = scrubbed.slice(0, CAPTURE_TEXT_HEAD_CHARS).toWellFormed()
+  const tail = scrubbed.slice(-CAPTURE_TEXT_TAIL_CHARS).toWellFormed()
   return `${head}… [truncated: ${value.length} chars, ${bytes} bytes${surrogateTag}] …${tail}`
 }
 
@@ -221,6 +224,29 @@ function shapeValueForCapture(
     return out
   }
   return String(value)
+}
+
+function pruneOldFaultCaptures(sessionDir: string): void {
+  try {
+    const entries = readdirSync(sessionDir)
+      .filter(name => /^openai-\d{3}-\d+-\d+\.json$/.test(name))
+      .sort((a, b) => {
+        const partsA = a.slice(0, -5).split('-')
+        const partsB = b.slice(0, -5).split('-')
+        const atA = Number(partsA[2] ?? 0)
+        const atB = Number(partsB[2] ?? 0)
+        if (atA !== atB) return atA - atB
+        return Number(partsA[3] ?? 0) - Number(partsB[3] ?? 0)
+      })
+    const excess = entries.length - MAX_FAULT_CAPTURES_PER_SESSION
+    for (let i = 0; i < excess; i++) {
+      try {
+        unlinkSync(join(sessionDir, entries[i]!))
+      } catch {
+      }
+    }
+  } catch {
+  }
 }
 
 export function captureRejectedOpenaiRequest(args: {
@@ -255,7 +281,7 @@ export function captureRejectedOpenaiRequest(args: {
       status: args.status,
       at,
       sessionId,
-      ...(args.url !== undefined ? { url: scrubCredentials(args.url) } : {}),
+      ...(args.url !== undefined ? { url: scrubCredentials(args.url).toWellFormed() } : {}),
       requestBytes,
       ...(anomalies.length > 0 ? { anomalies } : {}),
       ...(shapedHeaders !== undefined ? { headers: shapedHeaders } : {}),
@@ -265,10 +291,10 @@ export function captureRejectedOpenaiRequest(args: {
     let serialized = JSON.stringify(record, null, 2)
     if (Buffer.byteLength(serialized, 'utf8') > CAPTURE_MAX_BYTES && typeof shapedRequest === 'object' && shapedRequest !== null) {
       const reqObj = shapedRequest as Record<string, unknown>
-      if (Array.isArray(reqObj.input) && reqObj.input.length > 16) {
+      if (Array.isArray(reqObj.input) && reqObj.input.length > 12) {
         const input = reqObj.input
-        const headCount = 4
-        const tailCount = 8
+        const headCount = 3
+        const tailCount = 6
         const elidedCount = input.length - headCount - tailCount
         reqObj.input = [
           ...input.slice(0, headCount),
@@ -276,13 +302,26 @@ export function captureRejectedOpenaiRequest(args: {
           ...input.slice(-tailCount),
         ]
       }
-      if (Array.isArray(reqObj.tools) && reqObj.tools.length > 8) {
+      if (Array.isArray(reqObj.tools) && reqObj.tools.length > 4) {
         reqObj.tools = [{ type: 'elided_tools', count: reqObj.tools.length }]
       }
       serialized = JSON.stringify(record, null, 2)
     }
-    mkdirSync(sessionDir, { recursive: true })
+    if (Buffer.byteLength(serialized, 'utf8') > CAPTURE_MAX_BYTES) {
+      const reqObj = typeof shapedRequest === 'object' && shapedRequest !== null ? (shapedRequest as Record<string, unknown>) : {}
+      const rawReq = typeof args.request === 'object' && args.request !== null ? (args.request as Record<string, unknown>) : {}
+      record.request = {
+        ...(typeof reqObj.model === 'string' ? { model: reqObj.model } : {}),
+        inputItemCount: Array.isArray(rawReq.input) ? rawReq.input.length : 0,
+        toolCount: Array.isArray(rawReq.tools) ? rawReq.tools.length : 0,
+        lastInputItems: Array.isArray(reqObj.input) ? reqObj.input.slice(-2) : [],
+        truncatedToFitCapBytes: CAPTURE_MAX_BYTES,
+      }
+      serialized = JSON.stringify(record, null, 2)
+    }
+    mkdirSync(sessionDir, { recursive: true, mode: 0o700 })
     writeFileSync(filePath, `${serialized}\n`, { mode: 0o600 })
+    pruneOldFaultCaptures(sessionDir)
     return filePath
   } catch {
     return null
