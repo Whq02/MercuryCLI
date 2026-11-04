@@ -137,11 +137,11 @@ try {
     const offsets = Array.from({ length: 27 }, (_, i) => S(2000 + i * 1000))
     const grabs = grabScreens(run, COLS, ROWS, offsets)
     const text = (g: { rows: string[] }): string => g.rows.join('\n')
-    const boardWithAsk = grabs.filter(g => text(g).includes('SESSION CONCOURSE') && text(g).includes('NEEDS YOU'))
+    const boardWithAsk = grabs.filter(g => text(g).includes('SESSIONS') && text(g).includes('NEEDS YOU'))
     check('N1 the board shows the ask on its NEEDS YOU rail (as today)', boardWithAsk.length > 0, `frames: ${boardWithAsk.map(g => g.atMs).join(',') || 'none'}`)
     const hoppedFrames = grabs.filter(
       g =>
-        !text(g).includes('SESSION CONCOURSE') &&
+        !text(g).includes('SESSIONS') &&
         (text(g).includes('tidy the scratch folder') ||
           text(g).includes('about to tidy up') ||
           text(g).includes('⇧← back') ||

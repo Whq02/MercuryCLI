@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
@@ -31,10 +31,7 @@ const ESTATE = ['src/components/concourse', 'src/services/concourse'].flatMap(di
 }
 
 {
-  const header = read('src/components/concourse/ConcourseHeader.tsx')
-  check('V2 the active crumb reads FOCUSED CHAT', header.includes('<Text bold color={t.info}>FOCUSED CHAT</Text>'))
-  check("V2 the clickable crumb reads FOCUSED CHAT (the id 'focused-chat' stays a contract key)", header.includes("dest('focused-chat', 'FOCUSED CHAT', onFocusedChat)"))
-  check('V2 the narrow bypass crumb reads FOCUSED CHAT ›', header.includes('FOCUSED CHAT ›'))
+  check('V2 the board paints no crumb (the top panel is gone); FOCUSED CHAT still reads where the chat shows on the board — the split chat pane title', !existsSync(join(process.cwd(), 'src/components/concourse/ConcourseHeader.tsx')) && read('src/components/concourse/SplitChatPane.tsx').includes('        FOCUSED CHAT\n'))
 }
 
 {

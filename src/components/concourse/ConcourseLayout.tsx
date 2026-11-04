@@ -17,7 +17,6 @@ import { isEffortLevel } from '../../utils/effort.js'
 import { chatPresent, subscribeSurfaceRoute, surfaceRouteVersion } from '../../context/surfaceRoute.js'
 import { landingInFlight } from '../../services/engine-connector/focusedConnector.js'
 import { useSyncExternalStore } from 'react'
-import { ConcourseHeader } from './ConcourseHeader.js'
 import { LiveNowCell } from './LiveNowCell.js'
 import { useLiveTilesDegraded } from './liveTiles.js'
 import { NeedsYouRail, RAIL_MAX_ROWS } from './NeedsYouRail.js'
@@ -54,7 +53,6 @@ interface SwitchboardGeometry {
   constrained?: boolean
   profile: ConcourseProfile
   interior: number
-  headerRows: number
   railRows: number
   railWindowRows: number
   railRuleRows: 0 | 1
@@ -96,7 +94,7 @@ export function switchboardGeometry(
     const liveComposerBand: [number, number] = liveComposerRows > 0 ? [mainRows - liveComposerRows + 1, mainRows] : empty
     return {
       constrained: true, profile: 'stacked', interior: width,
-      headerRows: 0, railRows: focusedRegion === 'rail' ? mainRows : 0,
+      railRows: focusedRegion === 'rail' ? mainRows : 0,
       railWindowRows: focusedRegion === 'rail' ? Math.min(mainRows, needsYouCount) : 0,
       railRuleRows: 0, mainBand: all, mainRows, liveComposerRows, liveComposerBand,
       statusTop: total + 1, helpTop: helpRows > 0 ? total : total + 1,
@@ -109,14 +107,13 @@ export function switchboardGeometry(
     }
   }
   const interior = cols - 4
-  const headerRows = 3
   const statusRows = 3
   const helpRows = 1
   let railWindowRows = needsYouCount > 0 ? Math.min(needsYouCount, RAIL_MAX_ROWS) : 0
   let railRuleRows: 0 | 1 = needsYouCount > 0 ? 1 : 0
   const railRowsOf = (): number => (needsYouCount > 0 ? 3 + railRuleRows + railWindowRows : 0)
   let mainFloor = 8
-  const fixedRows = (): number => headerRows + railRowsOf() + statusRows + helpRows
+  const fixedRows = (): number => railRowsOf() + statusRows + helpRows
   const ladder: Array<() => boolean> = [
     () => (railWindowRows > 1 ? ((railWindowRows -= 1), true) : false),
     () => (railRuleRows > 0 ? ((railRuleRows = 0), true) : false),
@@ -128,7 +125,7 @@ export function switchboardGeometry(
   }
   const mainRows = Math.max(mainFloor, rows - fixedRows())
   const railRows = railRowsOf()
-  const mainTop = headerRows + railRows + 1
+  const mainTop = railRows + 1
   const mainBand: [number, number] = [mainTop, mainTop + mainRows - 1]
   const mainEnd = mainTop + mainRows - 1
   const statusTop = mainTop + mainRows
@@ -158,7 +155,7 @@ export function switchboardGeometry(
     const mirrorBand: [number, number] = [mainTop + listRows, mainEnd - composerRows]
     const liveComposerBand: [number, number] = composerRows > 0 ? [mainEnd - composerRows + 1, mainEnd] : [0, -1]
     return {
-      profile, interior, headerRows, railRows, railWindowRows, railRuleRows,
+      profile, interior, railRows, railWindowRows, railRuleRows,
       mainBand, mainRows, liveComposerRows: composerRows, liveComposerBand, statusTop, helpTop,
       coordCols, rightCols, listBand, mirrorBand,
       coordBand: mainBand,
@@ -207,7 +204,7 @@ export function switchboardGeometry(
   const tailTop = composerRows > 0 ? liveComposerBand[1] + 1 : tallBand[1] + 1
   const tailBand: [number, number] = [tailTop, tailTop + tailRows - 1]
   return {
-    profile, interior, headerRows, railRows, railWindowRows, railRuleRows,
+    profile, interior, railRows, railWindowRows, railRuleRows,
     mainBand, mainRows, liveComposerRows: composerRows, liveComposerBand, statusTop, helpTop,
     coordCols: fullCols, rightCols: fullCols,
     listBand,
@@ -268,8 +265,6 @@ interface ConcourseLayoutWiring {
   selectObligation: (index: number) => void
   answerObligation: (obligationId: string) => void
   openObligation: (obligationId: string) => void
-  openBootSettings: () => void
-  exitToChat: () => void
   focusComposer: () => void
   focusList?: () => void
   openCoordinatorModel?: () => void
@@ -782,14 +777,6 @@ export function ConcourseLayout({
     <Box flexDirection="row" width="100%" height={termRows}>
       {edgeRail}
       <Box flexDirection="column" flexGrow={1} height={termRows}>
-        <Box flexDirection="column" flexShrink={0} height={geo.headerRows} overflow="hidden">
-          <ConcourseHeader
-            snapshot={snapshot}
-            onBoot={() => wiring.openBootSettings()}
-            onFocusedChat={() => wiring.exitToChat()}
-            columns={cols}
-          />
-        </Box>
         <Box flexDirection="column" flexShrink={0} height={geo.railRows} overflow="hidden">
           {geo.constrained && region === 'rail' ? <Text color={t.warning} wrap="truncate-end">{snapshot.needsYou[railIndex]?.question ?? 'nothing needs you'}</Text> : snapshot.needsYou.length > 0 ? (
             <NeedsYouRail

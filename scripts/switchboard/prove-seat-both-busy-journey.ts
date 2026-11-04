@@ -156,7 +156,7 @@ try {
     const stageMax = (s: string): number => Math.max(-1, ...[...s.matchAll(/b-stage-(\d\d) body/g)].map(m => Number(m[1])))
     const kind = (g: { rows: string[] }): 'board' | 'boot' | 'hopped' | 'other' => {
       const s = text(g)
-      if (s.includes('SESSION CONCOURSE')) return 'board'
+      if (s.includes('SESSIONS')) return 'board'
       if (stageMax(s) >= 0 || s.includes('stream the b chain')) return 'hopped'
       if (seatMax(s) >= 0) return 'boot'
       return 'other'

@@ -51,7 +51,7 @@ seedFirstRun(TEMPLATE, [CWD])
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
-const BOARD = 'SESSION CONCOURSE'
+const BOARD = 'SESSIONS'
 const EMPTY_BOARD = 'no sessions yet'
 const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')
 const FACE_TO_CHAT = keyHintLabel('⇧→ chat')

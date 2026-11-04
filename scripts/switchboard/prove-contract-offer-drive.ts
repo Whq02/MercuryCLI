@@ -153,7 +153,7 @@ if (sendRecs.length === sends.length) {
   check('§4e the field advertises its keys truthfully (↵ starts · esc plain)', /↵ starts the session under it/.test(typedFrame!) && /esc starts it plain/.test(typedFrame!))
   check('§5 ↵ births under the words — the NEW blank chat is focused (the status row ready, the empty composer, no title row)', !/✶ VIEW/.test(afterBirth!) && /Type a prompt/.test(afterBirth!) && /ready · [^\n]*← back/.test(afterBirth!), (afterBirth ?? '').split('\n').find(r => /← back|new session/.test(r))?.trim().slice(0, 110) ?? '')
   check('§5b POISON: the birth never lands the OLD chat', !/first words here/.test(afterBirth!) && !TRANSCRIPT_TAIL.test(afterBirth!))
-  check('§2b/§5c the rows join the board (the final frame after returning to it)', /SESSION CONCOURSE/.test(fin!) && /3 live/.test(fin!))
+  check('§2b/§5c the rows join the board (the final frame after returning to it)', /SESSIONS/.test(fin!) && /3 live/.test(fin!))
   const workers = existsSync(join(daemonDir, 'concourse-workers.json')) ? (JSON.parse(readFileSync(join(daemonDir, 'concourse-workers.json'), 'utf8')) as { workers?: Record<string, { sessionId?: string; endedAt?: number; contract?: { text?: string; status?: string } }> }) : { workers: {} }
   const all = Object.values(workers.workers ?? {})
   const born = new Set(all.map(w => w.sessionId))

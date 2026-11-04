@@ -56,23 +56,18 @@ t.section('§7 — registration laws + the SEVENTH divergence class')
       !/HERMIT_DEF/.test(screen),
     'selection-derived resident',
   )
-  const header = await Bun.file('src/components/concourse/ConcourseHeader.tsx').text()
+  const concourseDir = 'src/components/concourse'
+  const concourseFiles = (await import('node:fs')).readdirSync(concourseDir).filter(f => /\.tsx?$/.test(f))
+  const painters: string[] = []
+  for (const f of concourseFiles) if (/<(?:Animated)?CritterArt\b/.test(await Bun.file(`${concourseDir}/${f}`).text())) painters.push(f)
   t.check(
-    'the header mark derives from the SAME selection owner (the operator-ruled theme-aware set)',
-    /useSessionAccent\(\)/.test(header) &&
-      /critterDefForKey\(identity\.markKey\)/.test(header) &&
-      !/critterDefForKey\(\s*['"]jellyfish['"]\s*\)/.test(header),
-    'selection-derived mark',
-  )
-  t.check(
-    'the header mounts the square-dock grid through the square form (named row #1)',
-    /<CritterArt def=\{markDef\} square /.test(header) &&
-      !/square:\s*[A-Za-z]/.test(header),
-    'square-dock mount',
+    'the concourse paints no header critter: the top panel is gone, the zero-sessions resident is its only critter art',
+    !concourseFiles.includes('ConcourseHeader.tsx') && painters.join(',') === 'ConcourseScreen.tsx' && (screen.match(/<AnimatedCritterArt\b/g) ?? []).length === 1,
+    painters.join(',') || 'no painter',
   )
   t.check(
     'the concourse only FOLLOWS the selection — no setter, no persist call on this surface',
-    !/setSessionCritter|persistSessionCritter/.test(screen) && !/setSessionCritter|persistSessionCritter/.test(header),
+    !/setSessionCritter|persistSessionCritter/.test(screen),
     'follow-only',
   )
   const seed = await import('./concourseReferenceSeed.ts')

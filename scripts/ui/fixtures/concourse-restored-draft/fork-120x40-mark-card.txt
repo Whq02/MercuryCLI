@@ -1,6 +1,3 @@
-   ▄▄▄▄▄▄▄▄▄    MERCURY — SESSION CONCOURSE                    BOOT › CONCOURSE › FOCUSED CHAT                     sam  
-   ▄▄▄▄▄▄▄▄▄                                                                                                            
-   ▀▄▄▄▀▄▄▄▀                                                                                                            
   ╭────────────────────────────────────────────╮ ╭───────────────────────────────────────────────────────────────────╮  
   │ COORDINATOR                                │ │ SESSIONS                                            + new session │  
   │ it launches, watches, and reconciles your  │ │ STATUS & TITLE              PROJECT   NOW                    AGE  │  
@@ -10,15 +7,18 @@
   │   pause the parser session                 │ │ ⊞ WORKING · 3                                                     │  
   │ coordinator off · ▸ turn on · ⌃a           │ │   ◐           Fix OAuth cal…Moodle    editing src/auth/c…    07m  │  
   │ ╭────────────────────────────────────────╮ │ │   ◐           Refactor pars…orchard-… Bash · bun test pa…    18m  │  
-  │ │ ❯ ….py. Do both n                                                                                         03m  │  
-  │ │ ↵ again sends it  ╭──────────────────────────────────────────────────────────────────────╮                     │  
-  │ ╰────────────────── │  ⦿ A worktree for this session                                       │ r a seat     waits  │  
-  │                     │  a new session in held-repo would fork a worktree                    │ r a seat     waits  │  
-  │                     │  held-repo is already held by “Fix the parser” — this session would  │ ────────────────────╯  
-  │                     │  start on a worktree of its own: a second checkout of the            │ ────────────────────╮  
-  │                     │  repository on a new branch (mercury/…). Its edits land on that      │     ↵ enter session │  
+  │ │ ❯ ….py. Do both now.                   │ │ │   ◐           Update termin…orchard-…                        03m  │  
+  │ │ ↵ again sends it · esc keeps it        │ │ │ ⊞ QUEUED · 2                                                      │  
+  │ ╰────────────────────────────────────────╯ │ │   □           Trace reconne…orchard-… waits for a seat     waits  │  
+  │                                                                                              r a seat     waits  │  
+  │                     ╭──────────────────────────────────────────────────────────────────────╮ ────────────────────╯  
+  │                     │  ⦿ A worktree for this session                                       │ ────────────────────╮  
+  │                     │  a new session in held-repo would fork a worktree                    │     ↵ enter session │  
+  │                     │  held-repo is already held by “Fix the parser” — this session would  │                     │  
+  │                     │  start on a worktree of its own: a second checkout of the            │ nters it            │  
+  │                     │  repository on a new branch (mercury/…). Its edits land on that      │                     │  
   │                     │  branch, not on the checkout you are in. Yes starts it there (the    │                     │  
-  │                     │  launch receipt names the branch). No starts nothing — your words    │ nters it            │  
+  │                     │  launch receipt names the branch). No starts nothing — your words    │                     │  
   │                     │  stay in the composer.                                               │                     │  
   │                     │  Do you want to proceed?                                             │                     │  
   │                     │  ❯ 1. Yes — start it on a worktree and its own branch                │                     │  
@@ -35,6 +35,6 @@
   │                                            │ │ tab or click to type                                              │  
   ╰────────────────────────────────────────────╯ ╰───────────────────────────────────────────────────────────────────╯  
   ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮  
-  │ ▚▛▀▜▞ │ coordinator off ⌄ │ Moodle ⌄                                            2 live · 1 needs you · 2/5 seats │  
+  │ ▚▛▀▜▞ │ coordinator off ⌄ │ Moodle ⌄                                      2 live · 1 needs you · 2/5 seats · sam │  
   ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯  
   tab panes · ⌃g ground · ↵ send · ⇧↵/⌃j newline · ⌃s coordinator model · pgup/pgdn scroll · esc boot face              

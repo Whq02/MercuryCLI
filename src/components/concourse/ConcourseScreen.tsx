@@ -2497,8 +2497,6 @@ export function ConcourseScreen({
           ...(callbacks.withdrawObligation !== undefined
             ? { withdrawObligation: (id: string) => callbacks.withdrawObligation?.(id) }
             : {}),
-          openBootSettings: () => callbacks.enterBootSettings(),
-          exitToChat: () => callbacks.exitToChat(),
           focusComposer: () => setRegion('coordinator'),
           focusList: () => setRegion('list'),
           openCoordinatorModel: () => {

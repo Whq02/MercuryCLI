@@ -170,12 +170,12 @@ console.log('§2 — the older-chats drop-down: unfolds on the board, ↵ reacti
   check('the cursor window keeps the pick visible with exact overflow counts (10 entries · cursor 7 · span 5)', win.start <= 7 && 7 < win.end && win.above === win.start && win.below === 10 - win.end)
 }
 
-console.log('§3 — one project-name owner: the rail\'s ground chip is THE name; the header carries neither name nor clock')
+console.log('§3 — one project-name owner: the rail\'s ground chip is THE name; the board has no top panel to carry a second name or a clock')
 {
-  const { readFileSync, readdirSync } = await import('node:fs')
+  const { existsSync, readFileSync, readdirSync } = await import('node:fs')
   const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
-  const header = read('src/components/concourse/ConcourseHeader.tsx')
-  check('POISON (the dedup): the header paints NO project name and NO clock — and holds no live-clock subscription', !header.includes('context.projectLabel') && !header.includes('liveClock') && !header.includes('snapshot.clock') && !header.includes('padTo(clock'))
+  const boardSources = readdirSync(join(process.cwd(), 'src', 'components', 'concourse')).filter(f => /\.(ts|tsx)$/.test(f)).map(f => read(join('src', 'components', 'concourse', f)))
+  check('POISON (the dedup): the board mounts no header (the top panel is gone) and no board file paints the clock or holds a live-clock subscription', !existsSync(join(process.cwd(), 'src/components/concourse/ConcourseHeader.tsx')) && !read('src/components/concourse/ConcourseLayout.tsx').includes('ConcourseHeader') && boardSources.every(src => !src.includes('liveClock') && !src.includes('snapshot.clock') && !src.includes('padTo(clock')))
   const strips = read('src/components/concourse/ConcourseStrips.tsx')
   check('the rail\'s ground chip IS the name (painted AND clickable — the segment that switches)', strips.includes('{snapshot.context.projectLabel} {GLYPH.chevronDown}') && strips.includes("id=\"concourse:rail:project\""))
   const dir = join(process.cwd(), 'src', 'components', 'concourse')
@@ -328,7 +328,7 @@ console.log('§8 — G1/G3: text clips inside its container; every printed key f
   const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
   const strips = read('src/components/concourse/ConcourseStrips.tsx')
   check('G1: the rail\'s coordinator chip clamps to its budget (an unbounded fallbackReason once pushed the counts)', strips.includes('truncateToWidth(`coordinator · ${snapshot.coordinator.fallbackReason}`, Math.max(16, chipBudget))'))
-  check('G1: the repo picker\'s title clips honestly; the header\'s handle yields, never pushes the lockup', read('src/components/concourse/GroundPicker.tsx').includes('<Text wrap="truncate-end">\n          <Text color={t.infoText} bold>\n            REPO') && read('src/components/concourse/ConcourseHeader.tsx').includes('<Box flexShrink={1} marginLeft={1} overflow="hidden">') && read('src/components/concourse/ConcourseHeader.tsx').replace(/\s+/g, ' ').includes('<Text color={t.textSecondary} wrap="truncate-end"> {snapshot.context.operatorHandle} </Text>'))
+  check('G1: the repo picker\'s title clips honestly; the rail\'s operator name yields, never pushes the chips (it rides the counts only while the coordinator chip keeps its 16-cell floor)', read('src/components/concourse/GroundPicker.tsx').includes('<Text wrap="truncate-end">\n          <Text color={t.infoText} bold>\n            REPO') && strips.includes('const handleShown = chipRoom - handleText.length >= 16;') && strips.includes('const chipBudget = handleShown ? chipRoom - handleText.length : chipRoom;') && strips.replace(/\s+/g, ' ').includes('{handleShown ? ( <> <Text color={t.textMuted}> · </Text> <Text color={t.textSecondary}>{snapshot.context.operatorHandle}</Text> </> ) : null}'))
   const { regionKeysFor } = await import('../../src/components/concourse/controlManifest.ts')
   const reducedList = regionKeysFor('list', { newSession: false })
   check('G3: the reduced stage\'s ↵ enters on ONE press — its legend never teaches ↵↵ (no arm without a composer)', reducedList.some(k => k.keys === '↵' && k.label === 'enter session') && !reducedList.some(k => k.keys === '↵↵'))

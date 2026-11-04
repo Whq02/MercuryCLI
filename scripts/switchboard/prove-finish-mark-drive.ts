@@ -99,7 +99,7 @@ const SUCCESS = hexOf(theme.success)
 
 const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
-const BOARD = 'SESSION CONCOURSE'
+const BOARD = 'SESSIONS'
 const TAG = keyHintLabel('⇧← back')
 const SHIFT_LEFT = '\x1b[1;2D'
 const DOWN = '\x1b[B'

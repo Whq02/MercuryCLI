@@ -227,7 +227,7 @@ async function doorsLeg(): Promise<void> {
 
 async function concourseLeg(): Promise<void> {
   const { home, cwd } = seedWorld('concourse', {})
-  const door: Door = { name: 'way-back', road: 'the status row\'s way back → /concourse (⇧→ returns to the chat)', open: [clickOn(BACK_HINT, 2)], needle: 'SESSION CONCOURSE', close: after(SHIFT_RIGHT, 1) }
+  const door: Door = { name: 'way-back', road: 'the status row\'s way back → /concourse (⇧→ returns to the chat)', open: [clickOn(BACK_HINT, 2)], needle: 'SESSIONS', close: after(SHIFT_RIGHT, 1) }
   const cap = await capture('concourse-178x51', cfgFor(cwd, [...boot(), ...doorSends(door)], 500), driveEnv(home))
   const m = cap.marks
   tally.section('concourse 178x51 · the status row\'s way back over a typed draft')

@@ -96,7 +96,7 @@ const cfg = {
     { requireAwait: true, minTick: 5, awaitText: 'SIGMA-ALPHA-7', data: '/model gpt-5.6-sol\r' },
     { requireAwait: true, minTick: 10, awaitText: ALPHA_TAIL, data: 'run the terra turn\r' },
     { requireAwait: true, minTick: 10, awaitText: TERRA, awaitSettleTicks: 5, data: '/concourse\r' },
-    { requireAwait: true, awaitText: 'SESSION CONCOURSE', awaitSettleTicks: 30, data: '\x1b' },
+    { requireAwait: true, awaitText: 'SESSIONS', awaitSettleTicks: 30, data: '\x1b' },
   ],
   readyText: ['? for shortcuts'],
   stableTicks: 6,
@@ -153,7 +153,7 @@ with open(${JSON.stringify(tee)}, 'rb') as f:
     def census():
         global board_with_reply, board_frames
         rows = screen.display
-        board = any('SESSION CONCOURSE' in r for r in rows)
+        board = any('SESSIONS' in r for r in rows)
         if board:
             board_frames += 1
             if any(${JSON.stringify(TERRA)} in r for r in rows):

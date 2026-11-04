@@ -93,7 +93,7 @@ seedFirstRun(TEMPLATE, [FIX])
 
 const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
-const BOARD = 'SESSION CONCOURSE'
+const BOARD = 'SESSIONS'
 const SHIFT_LEFT = '\x1b[1;2D'
 const WARM_TICKS = 25
 type Send = Record<string, unknown>

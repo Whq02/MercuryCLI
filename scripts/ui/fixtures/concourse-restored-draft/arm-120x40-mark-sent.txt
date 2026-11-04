@@ -1,6 +1,3 @@
-   ▄▄▄▄▄▄▄▄▄    MERCURY — SESSION CONCOURSE                    BOOT › CONCOURSE › FOCUSED CHAT                     sam  
-   ▄▄▄▄▄▄▄▄▄                                                                                                            
-   ▀▄▄▄▀▄▄▄▀                                                                                                            
   ╭────────────────────────────────────────────╮ ╭───────────────────────────────────────────────────────────────────╮  
   │ COORDINATOR                                │ │ SESSIONS                                            + new session │  
   │                                            │ │ STATUS & TITLE              PROJECT   NOW                    AGE  │  
@@ -21,20 +18,23 @@
   │                                            │ │ no chat yet — ready for your first words · ↵ enters it            │  
   │                                            │ │                                                                   │  
   │                                            │ │                                                                   │  
-  │ 15:53:21 [sam] change the greeting text    │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │ 12:09:09 [sam] change the greeting text    │ │                                                                   │  
   │ from "Hello, " to "Hi there, " and then    │ │                                                                   │  
   │ run python3 hello.py. Do both now.         │ │                                                                   │  
   │                                            │ │                                                                   │  
-  │ 15:53:21 [harness] coordinator is off —    │ │                                                                   │  
+  │ 12:09:09 [harness] coordinator is off —    │ │                                                                   │  
   │ messages here start sessions directly ·    │ │                                                                   │  
   │ turn it on in the boot menu                │ │                                                                   │  
   │ coordinator off · ▸ turn on · ⌃a           │ │                                                                   │  
   │ ╭────────────────────────────────────────╮ │ ╰───────────────────────────────────────────────────────────────────╯  
   │ │ ❯  describe a task — ↵ starts a sessi… │ │ ╭───────────────────────────────────────────────────────────────────╮  
   │ │ ↵ send · ⇧↵ newline · ⇧tab manager · … │ │ │ ❯ message Audit billing receipts · queued for its next turn       │  
-  │ ╰────────────────────────────────────────╯ │ │ ● applied — started in mercury                                    │  
+  │ ╰────────────────────────────────────────╯ │ │ ● applied — started in concourse                                  │  
   ╰────────────────────────────────────────────╯ ╰───────────────────────────────────────────────────────────────────╯  
   ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮  
-  │ ▚▛▀▜▞ │ coordinator off ⌄ │ Moodle ⌄                                            2 live · 1 needs you · 2/5 seats │  
+  │ ▚▛▀▜▞ │ coordinator off ⌄ │ Moodle ⌄                                      2 live · 1 needs you · 2/5 seats · sam │  
   ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯  
   tab panes · ⌃g ground · ↵ send · ⇧↵/⌃j newline · ⌃s coordinator model · pgup/pgdn scroll · ? keys · esc boot face     

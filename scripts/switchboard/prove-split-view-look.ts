@@ -95,7 +95,7 @@ const env = {
   check("no focused session ⇒ the board's own New Session grammar", has(mk('split-on'), '↵ new session'))
   check('the board stands beside it (SESSIONS on the same frame)', has(mk('split-on'), 'SESSIONS'))
   check('the divider rule runs between the panes', has(mk('split-on'), '│'))
-  check("the board pane's header sheds at the pane's width — lockup and crumb never collide", !has(mk('split-on'), 'CONCOURSEBOOT') && has(mk('split-on'), 'FOCUSED CHAT ›'))
+  check('the board pane paints no top panel beside the chat (no title bar, no crumb)', !has(mk('split-on'), 'SESSION CONCOURSE') && !has(mk('split-on'), 'BOOT ›') && !has(mk('split-on'), 'FOCUSED CHAT ›'))
   console.log('L2 — pane focus at a glance')
   check('the chat pane names the way back while it owns the keys', has(mk('chat-focused'), 'tab board · s full board'))
   console.log('L3 — the way back')

@@ -84,7 +84,6 @@ reg(
     'src/components/concourse/CompactConcourse.tsx',
  'src/components/concourse/ConcourseScreen.tsx',
  'src/components/concourse/ConcourseLayout.tsx',
- 'src/components/concourse/ConcourseHeader.tsx',
  'src/components/concourse/ConcourseStrips.tsx',
  'src/components/concourse/ConcourseRoute.tsx',
     'src/components/concourse/SplitChatPane.tsx',

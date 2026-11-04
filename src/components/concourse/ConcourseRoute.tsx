@@ -35,14 +35,18 @@ import { armEntryWarmth, settleEntryWarmth } from '../../services/concourse/sess
 import { removePrefixRecord } from '../../services/providers/anthropic/prefixRecordStore.js';
 import type { ConcourseCallbacks, ConcourseSnapshotV1, ControlNoteState } from './contracts.js';
 import { CONTROL_NOTE_REFUSED_MS, CONTROL_NOTE_SETTLED_MS, controlNoteOf, concourseWaitCopy } from './contracts.js';
-import { Box, Text, useInput } from '../../ink.js';
+import { Box, Text, useInput, useTheme } from '../../ink.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
+import { resolveMercuryTokens } from '../../utils/mercuryTokens.js';
 import { splitAvailableAt, splitViewOn } from './splitView.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js';
+import { rampSegments } from '../mercury-ui/focalRamp.js';
+import { useGreetingShimmer } from '../mercury-ui/useGreetingShimmer.js';
+import { displayWidth } from '../mercury-ui/glyphs.js';
+import { useSessionAccent } from '../mercury-ui/sessionAccent.js';
 import { ConcourseScreen } from './ConcourseScreen.js';
 import { SessionWaitingRoom } from './SessionWaitingRoom.js';
-import { ConcourseLockup } from './ConcourseHeader.js';
 import { thisMercuryCommand } from '../../services/privateChannel/installPath.js';
 
 
@@ -1532,6 +1536,30 @@ function LiveConcourse(): React.ReactNode {
       controlNotes={controlNotes}
       reducedStage={chatOnlyBoot()}
     />
+  )
+}
+
+function ConcourseLockup(): React.ReactNode {
+  const t = useMercuryTokens()
+  const [theme] = useTheme()
+  const sa = useSessionAccent()
+  const ramp = resolveMercuryTokens(theme, sa.accent).focalRamp
+  const shimmer = useGreetingShimmer(ramp, displayWidth('MERCURY — SESSION CONCOURSE'))
+  if (ramp.length <= 1) {
+    return (
+      <Text bold color={t.info} wrap="truncate-end">
+        MERCURY — SESSION CONCOURSE
+      </Text>
+    )
+  }
+  return (
+    <Text wrap="truncate-end">
+      {rampSegments('MERCURY — SESSION CONCOURSE', ramp, { shimmer }).map((s, i) => (
+        <Text key={i} bold color={s.color}>
+          {s.text}
+        </Text>
+      ))}
+    </Text>
   )
 }
 
