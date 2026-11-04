@@ -109,7 +109,7 @@ const { MCPTool } = await import('../../src/tools/MCPTool/MCPTool.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
 const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { formatDeferredToolLine, isDeferredTool, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
+const { formatDeferredToolLine, isDeferredTool, isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { getDeferredToolsDeltaAttachment } = await import('../../src/utils/attachments/deltas.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
@@ -124,8 +124,9 @@ const permissionContext = getEmptyToolPermissionContext()
 const mcpTools: Tool[] = buildFixtureMcpTools<Tool>(MCPTool)
 const pool: Tools = assembleToolPool(permissionContext, mcpTools)
 const poolNames = pool.map(t => t.name)
-const deferredNames = pool.filter(t => isDeferredTool(t)).map(t => t.name)
-const coreNames = pool.filter(t => !isDeferredTool(t)).map(t => t.name)
+const deferredNames = pool.filter(t => isDeferredToolFor(t, PERSISTED)).map(t => t.name)
+const coreNames = pool.filter(t => !isDeferredToolFor(t, PERSISTED)).map(t => t.name)
+const declaredCore = pool.filter(t => !isDeferredTool(t)).map(t => t.name)
 const BRIEF_CORE = ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', TOOL_SEARCH_TOOL_NAME]
 
 type WireTool = { name: string; hasSchema: boolean }
@@ -176,9 +177,15 @@ section('§0 the fixture is the local record the 9B runs on')
 {
   const record = localRecordFor(PERSISTED)
   check('the Ollama fixture lists the model with tools and thinking declared', record !== undefined && record.server === 'ollama' && record.toolsDeclared === true && record.thinkingDeclared === true, JSON.stringify(record))
-  check(`the real pool assembled: ${pool.length} tools, ${coreNames.length} never-deferred, ${deferredNames.length} deferrable (${mcpTools.length} fixture MCP)`, pool.length > 40 && deferredNames.length > 20 && coreNames.length >= BRIEF_CORE.length)
+  check(`the real pool assembled: ${pool.length} tools, ${coreNames.length} loaded in full on the local route, ${deferredNames.length} deferred (${mcpTools.length} fixture MCP)`, pool.length > 40 && deferredNames.length > 20 && coreNames.length >= BRIEF_CORE.length)
   check(`the brief's core is never deferred by the law: ${BRIEF_CORE.join(', ')}`, BRIEF_CORE.every(n => coreNames.includes(n)), BRIEF_CORE.filter(n => !coreNames.includes(n)).join(','))
-  console.log(`  never-deferred set (${coreNames.length}): ${coreNames.join(', ')}`)
+  const LOCAL_LOADED = ['Bash', 'Edit', 'Glob', 'Grep', 'Read', 'ScheduleWakeup', 'ToolSearch', 'Write']
+  check(`under the local prompt profile the local route loads exactly ${LOCAL_LOADED.join(', ')} in full (the core, and the wakeup its own exemption keeps); Crewmate, Skill and every other tool wait behind ToolSearch`, coreNames.join(',') === LOCAL_LOADED.join(',') && ['Crewmate', 'Skill'].every(n => declaredCore.includes(n) && deferredNames.includes(n)), coreNames.join(','))
+  process.env.MERCURY_LOCAL_PROMPT_PROFILE = '0'
+  const offCore = pool.filter(t => !isDeferredToolFor(t, PERSISTED)).map(t => t.name)
+  delete process.env.MERCURY_LOCAL_PROMPT_PROFILE
+  check('with the profile switched off (MERCURY_LOCAL_PROMPT_PROFILE=0) the local route loads the declared set, as before the profile', offCore.join(',') === declaredCore.join(','), offCore.join(','))
+  console.log(`  loaded in full on the local route (${coreNames.length}): ${coreNames.join(', ')}`)
   const changeSet = pool.find(t => t.name === 'ChangeSet')
   const browser = pool.find(t => t.name === 'Browser')
   check('the unattended roster announces ChangeSet with its purpose, not its bare name', changeSet !== undefined && deferredNames.includes('ChangeSet') && formatDeferredToolLine(changeSet, true).startsWith('ChangeSet — '), changeSet === undefined ? 'no ChangeSet in the pool' : formatDeferredToolLine(changeSet, true))
@@ -201,7 +208,7 @@ const first = createUserMessage({ content: 'say pong' }) as Message
   clearToolRosterLatches()
   const row = getDeferredToolsDeltaAttachment(pool, PERSISTED, [first])[0]
   check('a fresh local transcript gets the persisted name row (the base announces nothing on the local route)', row !== undefined && row.type === 'deferred_tools_delta' && row.addedNames.join(',') === [...deferredNames].sort().join(','), row === undefined ? 'no row' : (row as { addedNames?: string[] }).addedNames?.join(','))
-  check('the row is one line per deferred tool (the name, then its hint) — no schema bytes, no description', row !== undefined && row.type === 'deferred_tools_delta' && row.addedLines.join('\n') === pool.filter(tool => deferredNames.includes(tool.name)).map(tool => formatDeferredToolLine(tool)).sort().join('\n') && !row.addedLines.join('\n').includes('{'))
+  check('the row is one line per deferred tool — a bare name, the purpose only for the tools the profile defers and ChangeSet — no schema bytes, no description', row !== undefined && row.type === 'deferred_tools_delta' && row.addedLines.join('\n') === pool.filter(tool => deferredNames.includes(tool.name)).map(tool => formatDeferredToolLine(tool, false, PERSISTED)).sort().join('\n') && row.addedLines.some(line => line.startsWith('Crewmate — ')) && row.addedLines.includes('Browser') && !row.addedLines.join('\n').includes('{'), row === undefined ? 'no row' : (row as { addedLines?: string[] }).addedLines?.slice(0, 8).join(' | '))
   const rendered = row ? normalizeAttachmentForAPI(row) : []
   const transcript: Message[] = [first, ...(rendered as Message[])]
   const fresh = await drive(transcript)
@@ -209,7 +216,7 @@ const first = createUserMessage({ content: 'say pong' }) as Message
   check('exactly one /api/chat request rode the wire, no refusal', fresh.chats === 1 && fresh.error === undefined && fresh.body !== undefined, fresh.error ?? `chats=${fresh.chats}`)
   const tools = fresh.body ? wireTools(fresh.body) : []
   freshNames = tools.map(t => t.name)
-  check('the tools term is exactly the never-deferred set in pool order, ToolSearch at its place', freshNames.join(',') === coreNames.join(','), freshNames.join(','))
+  check('the tools term is exactly the set the local law loads in full, in pool order, ToolSearch at its place', freshNames.join(',') === coreNames.join(','), freshNames.join(','))
   check(`${BRIEF_CORE.join(', ')} ride with their full schemas`, BRIEF_CORE.every(n => tools.some(t => t.name === n && t.hasSchema)))
   check('no deferred tool has a schema on the wire', deferredNames.every(n => !freshNames.includes(n)), deferredNames.filter(n => freshNames.includes(n)).join(','))
   const text = fresh.body ? messagesText(fresh.body) : ''

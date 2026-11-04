@@ -9,6 +9,7 @@ import {
 import { getEngineModel } from './model/model.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { deferralWireFormFor, toolReferenceWireAccepted } from '../services/providers/deferralWire.js'
+import { localPromptProfileApplies, localToolForm } from '../constants/localPromptProfile.js'
 import { zodToJsonSchema } from './zodToJsonSchema.js'
 import { inlineLocalSchemaRefs } from './inlineSchemaRefs.js'
 import { normalizeToolSchemaFor, rememberRenamedArgumentKeys, schemaLaneFor } from './normalizeToolSchema.js'
@@ -115,7 +116,7 @@ export async function toolToAPISchema(
   const cache = getToolSchemaCache()
   const promptModel = options.model ?? getEngineModel()
   const caps = resolveModelCapabilities(promptModel)
-  const fingerprint = `${declaredRouteOf(promptModel) ?? 'unrecognised'}:${caps.media.pdf ? 'p' : ''}${caps.media.images ? 'i' : ''}:${deferralWireFormFor(promptModel).form}`
+  const fingerprint = `${declaredRouteOf(promptModel) ?? 'unrecognised'}:${caps.media.pdf ? 'p' : ''}${caps.media.images ? 'i' : ''}:${deferralWireFormFor(promptModel).form}${localPromptProfileApplies(promptModel) ? ':local-profile' : ''}`
   const pool = options.tools.map(item => item.name).sort().join(',')
   const key = `${toolCacheKey(tool)}@${fingerprint}|${pool}`
   let base = cache.get(key)
@@ -137,8 +138,8 @@ export async function toolToAPISchema(
     if (schemaLane === 'anthropic-strict' && normalized !== null) rememberRenamedArgumentKeys(tool.name, normalized.renamed)
     const input_schema = (normalized?.schema ?? rawSchema) as ToolInputSchema
 
-    const description = tool.wireDescription?.(fullPrompt) ?? fullPrompt
-    const built: ApiTool = { name: tool.name, description, input_schema }
+    const { description, input_schema: wireSchema } = localToolForm(tool.name, promptModel, tool.wireDescription?.(fullPrompt) ?? fullPrompt, input_schema)
+    const built: ApiTool = { name: tool.name, description, input_schema: wireSchema }
     if (fineGrainedToolStreamingEnabled()) {
       built.eager_input_streaming = true
     }

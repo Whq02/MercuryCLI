@@ -220,7 +220,11 @@ const economyPool = [...headlessPool, fixtureTool('Crewmate', { hint: 'delegate 
 const headlessEconomy = getDeferredToolsDeltaAttachment(economyPool, 'glm-5.3', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
 check('headless discovery keeps the purpose on the lines of the economy-deferred tools, the rest names alone', headlessEconomy.addedLines.join('\n') === ['Crewmate — delegate a task to a crewmate that works on its own', 'Debug', 'Skill — invoke a slash-command skill by name', 'mcp__fixture__lookup'].join('\n'), headlessEconomy.body)
 const localEconomy = getDeferredToolsDeltaAttachment(economyPool, 'local/qwen3-32b', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
-check('the local lane never announces the economy-deferred tools: they stay in full there', !localEconomy.addedNames.includes('Crewmate') && !localEconomy.addedNames.includes('Skill'), localEconomy.body)
+check('the local prompt profile announces the economy-deferred tools on the local lane with their purpose, the rest names alone', localEconomy.addedLines.join('\n') === ['Crewmate — delegate a task to a crewmate that works on its own', 'Debug', 'Skill — invoke a slash-command skill by name', 'mcp__fixture__lookup'].join('\n'), localEconomy.body)
+process.env.MERCURY_LOCAL_PROMPT_PROFILE = '0'
+const localOff = getDeferredToolsDeltaAttachment(economyPool, 'local/qwen3-32b', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
+delete process.env.MERCURY_LOCAL_PROMPT_PROFILE
+check('with the profile switched off the local lane never announces the economy-deferred tools: they stay in full there', !localOff.addedNames.includes('Crewmate') && !localOff.addedNames.includes('Skill'), localOff.body)
 bootstrap.setAskChannel('sdk')
 const hosted = getDeferredToolsDeltaAttachment(headlessPool, 'glm-5.3', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
 check('a host that answers asks retains the descriptive roster', hosted.addedLines.includes('Debug — real debugger'))
