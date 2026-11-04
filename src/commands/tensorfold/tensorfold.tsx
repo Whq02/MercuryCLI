@@ -2,14 +2,22 @@ import * as React from 'react'
 import { MercuryModelPicker } from '../../components/MercuryModelPicker.js'
 import { ModelPickerPopupLease } from '../../components/ModelPickerPopupSlot.js'
 import { focusedSessionModelFacts } from '../../services/engine-connector/focusedConnector.js'
-import { pickAndProve } from '../../services/localSetup/setupProve.js'
+import { modelDoorRoad } from '../../services/host/door.js'
+import { runHostedModel } from '../../services/host/index.js'
+import { resolveSetupIo } from '../../services/localSetup/setupIo.js'
+import { pickAndProve, switchSessionModel } from '../../services/localSetup/setupProve.js'
+import { PAIRING_WORDS } from '../../services/lan/pairing.js'
 import { rememberTensorFoldHost } from '../../services/providers/local/tensorfoldHosts.js'
+import type { TensorFoldHost } from '../../services/tensorfold/contracts.js'
 import type { TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
 import type { TensorFoldInventoryRow } from '../../services/tensorfold/inventory.js'
+import { tensorFoldPairingCode } from '../../services/tensorfold/serve.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import { claimModelPickerPopup } from '../../utils/cockpit/modelPickerPopup.js'
+import { openSettingsPopup } from '../../utils/cockpit/settingsPopup.js'
 import { getEngineModel } from '../../utils/model/model.js'
-import { modelIdOf, pickerFactsOf, standInRows, type TensorFoldPickerAct } from './pickerFacts.js'
+import { llmHostPopupRequest } from '../llmhost/llmhost.js'
+import { modelIdOf, pickerFactsOf, type TensorFoldPickerAct } from './pickerFacts.js'
 import {
   SHARE_WORDS,
   UNSHARE_WORDS,
@@ -27,7 +35,6 @@ import {
   switchToTensorFold,
   tensorFoldRoadState,
   tensorFoldRoadVersion,
-  windowOf,
   type RoadIo,
 } from './road.js'
 import { readTensorFoldPanelFacts, servedAddress, type FactsIo, type TensorFoldPanelFacts } from './scene.js'
@@ -74,57 +81,52 @@ export function TensorFoldPanel({ onDone, io = {}, repo }: { onDone: (words?: st
   React.useEffect(() => {
     if (repo !== undefined && repo !== '') void readOtherCheckpoint(repo, io.road)
   }, [repo, io.road])
-  if (facts === null) return null
-  const picker = standInRows(facts)
-  const rowOf = (id: string): TensorFoldInventoryRow | undefined => facts.rows.find(row => modelIdOf(row) === id) ?? (facts.other?.read !== undefined && modelIdOf(facts.other.read) === id ? facts.other.read : undefined)
-  const act = (what: TensorFoldPickerAct): void => void onTensorFoldAct(what, facts, io.road, { close: onDone, read: () => read(true) })
-  const handleSelect = (id: string): void => {
-    if (id === 'tensorfold:install') {
-      act({ kind: 'install' })
-      return
-    }
-    if (id === 'tensorfold:other') {
-      setTensorFoldNotice(`/tensorfold owner/name reads a repository · ${W.otherReads}`)
-      return
-    }
-    if (id === 'tensorfold:address') {
-      setTensorFoldNotice('/tensorfold host:port adds a server on your network')
-      return
-    }
-    if (id.startsWith('tensorfold:outside:')) {
-      const port = Number(id.slice('tensorfold:outside:'.length))
-      const server = facts.outside.find(candidate => candidate.port === port)
-      if (server !== undefined) void switchOutside(server.name, server.port, io.road).then(words => setTensorFoldNotice(words))
-      return
-    }
-    const row = rowOf(id)
-    if (row === undefined) return
-    const window = windowOf(row)
-    if (row.state === 'serving' && window === row.window) {
-      const served = facts.served.find(candidate => candidate.repo === row.repo)
-      if (served !== undefined) void switchToTensorFold(served, io.road ?? {}).then(outcome => setTensorFoldNotice(outcome.words))
-      return
-    }
-    act({ kind: 'serve', row, window })
-  }
+  const picker = React.useMemo(() => (facts === null ? null : pickerFactsOf(facts)), [facts])
+  if (facts === null || picker === null) return null
+  const doors = { close: onDone, read: () => read(true) }
   const notice = tensorFoldRoadState().notice
   return (
     <MercuryModelPicker
-      models={picker.models}
-      headings={picker.headings}
-      {...(picker.landing !== undefined ? { current: picker.landing } : {})}
+      view="tensorfold"
+      live={facts.live}
+      models={[]}
+      current={facts.current ?? ''}
       ctxPct={null}
-      notice={notice ?? facts.live}
-      onSelect={handleSelect}
+      tensorfold={picker}
+      {...(notice !== undefined ? { notice } : {})}
+      onTensorFold={act => void onTensorFoldAct(act, facts, io.road, doors)}
+      onSelect={id => void switchTensorFoldId(id, facts, io.road).then(words => setTensorFoldNotice(words))}
       onClose={() => onDone(facts.live)}
     />
   )
 }
 
 export async function switchOutside(name: string, port: number, io: RoadIo = {}): Promise<string> {
-  const root = `http://${servedAddress(port)}`
+  return switchAt(name, `http://${servedAddress(port)}`, io)
+}
+
+async function switchAt(name: string, root: string, io: RoadIo): Promise<string> {
   const result = await pickAndProve(name, { ...io.prove, root, thinkingOff: true, env: discoveryEnvFor(root, io.prove?.env), ...(io.setAppState !== undefined ? { setAppState: io.setAppState } : {}) })
   return result.words
+}
+
+async function switchPod(id: string, io: RoadIo): Promise<string> {
+  const setup = resolveSetupIo({ ...io.prove, ...(io.setAppState !== undefined ? { setAppState: io.setAppState } : {}) })
+  const switched = await switchSessionModel(id, setup)
+  if (switched.settled === 'refused') return switched.settledDetail ?? `${id} was not switched`
+  return `${id} is this session's model${setup.persist(id).sentence}`
+}
+
+export async function switchTensorFoldId(id: string, facts: TensorFoldPanelFacts, io: RoadIo = {}): Promise<string> {
+  if (id.startsWith('compat/')) return switchPod(id, io)
+  const name = id.startsWith('local/') ? id.slice('local/'.length) : id
+  const served = facts.served.find(candidate => candidate.name === name || candidate.repo === name)
+  if (served !== undefined) return (await switchToTensorFold(served, io)).words
+  const outside = facts.outside.find(server => server.name === name)
+  if (outside !== undefined) return switchOutside(outside.name, outside.port, io)
+  const host: TensorFoldHost | undefined = facts.hosts.find(candidate => candidate.serving === name)
+  if (host !== undefined) return switchAt(name, host.baseUrl, io)
+  return `${name} is not served · ↵ on its row serves it`
 }
 
 export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFoldPanelFacts, io: RoadIo = {}, doors: { close?: (words?: string) => void; read?: () => Promise<void> } = {}): Promise<void> {
@@ -146,9 +148,12 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
       await serveTensorFoldRow({ ...row, state: row.state === 'serving' ? 'on-disk' : row.state }, act.window, io)
       return
     }
+    case 'switch':
+      setTensorFoldNotice(await switchTensorFoldId(act.id, facts, io))
+      return
     case 'stop': {
       const row = inventoryRow(act.row.repo) ?? { repo: act.row.repo, shortName: act.row.shortName }
-      const current = facts.current !== undefined && facts.current.endsWith(`/${act.row.shortName}`)
+      const current = facts.current !== undefined && facts.current === modelIdOf(act.row)
       setTensorFoldNotice(await stopTensorFoldRow(row, facts.served, { current }, io))
       return
     }
@@ -164,11 +169,12 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
       await readOtherCheckpoint(act.repo, io)
       return
     case 'address': {
-      const address = act.address.trim()
+      const address = act.address.trim().replace(/^[a-z]+:\/\//i, '')
       if (address === '') return
       try {
-        rememberTensorFoldHost({ name: address.replace(/:\d+$/, ''), baseUrl: `http://${address}`, origin: 'typed' })
+        await rememberTensorFoldHost({ name: address.replace(/:\d+$/, ''), baseUrl: `http://${address}`, origin: 'typed' })
         setTensorFoldNotice(`${address} remembered · it appears under ${W.hostGroup} when it answers`)
+        await doors.read?.()
       } catch (error) {
         setTensorFoldNotice(error instanceof Error ? error.message : String(error))
       }
@@ -176,6 +182,7 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
     }
     case 'rent':
       doors.close?.('/llmhost rents a GPU pod')
+      openSettingsPopup(llmHostPopupRequest(facts.rent !== undefined ? modelDoorRoad(runHostedModel, facts.rent.title) : undefined))
       return
     case 'app':
       setTensorFoldNotice(`the app is serving ${act.serving} · paste from its API tab · quit the app first to serve with Mercury instead`)
@@ -187,7 +194,9 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
       if (row === undefined || served === undefined) return
       setTensorFoldNotice(act.kind === 'share' ? SHARE_WORDS : UNSHARE_WORDS)
       await stopTensorFoldRow(row, facts.served, { current: false }, io)
-      await serveTensorFoldRow({ ...row, state: 'on-disk', port: served.port }, served.window, io, { share: act.kind === 'share' })
+      const outcome = await serveTensorFoldRow({ ...row, state: 'on-disk', port: served.port }, served.window, io, { share: act.kind === 'share' })
+      const code = tensorFoldPairingCode()
+      if (act.kind === 'share' && outcome !== null && code !== null) setTensorFoldNotice(PAIRING_WORDS.shown(code, outcome.served.name))
       return
     }
   }

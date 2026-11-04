@@ -1,4 +1,4 @@
-import type { HelperModelState, TensorFoldEngine, TensorFoldFit, TensorFoldFitParts, TensorFoldHost, TensorFoldLastReply, TensorFoldMachine, TensorFoldModelRow, TensorFoldServed } from '../../services/tensorfold/contracts.js'
+import type { TensorFoldEngine, TensorFoldFit, TensorFoldFitParts, TensorFoldHost, TensorFoldLastReply, TensorFoldMachine, TensorFoldModelRow, TensorFoldServed } from '../../services/tensorfold/contracts.js'
 import { tensorFoldWillRun } from '../../services/tensorfold/serve.js'
 import { bytesWords } from '../../services/host/bank.js'
 import { gibWords, tokensWords } from '../../services/localServer/localServerMemory.js'
@@ -24,7 +24,7 @@ export type TensorFoldRowAct =
 
 export type TensorFoldInstallFacts = { road: 'brew' | 'archive'; state?: 'installing' | 'unavailable'; commands: readonly string[]; progress?: string }
 export type TensorFoldPortNote = { port: number; taken: number; by: string; keyed?: boolean }
-export type TensorFoldRentFacts = { pod?: string; serves?: string }
+export type TensorFoldRentFacts = { pod?: string; serves?: string; title?: string }
 
 export type TensorFoldPickerFacts = {
   platform: NodeJS.Platform
@@ -34,7 +34,7 @@ export type TensorFoldPickerFacts = {
   best?: string
   served?: readonly TensorFoldServed[]
   hosts?: readonly TensorFoldHost[]
-  helper?: HelperModelState
+  helper?: string
   acts?: Readonly<Record<string, TensorFoldRowAct>>
   install?: TensorFoldInstallFacts
   keyed?: string
@@ -139,11 +139,12 @@ function willRun(lines: readonly string[], width: number, glyph?: string): Tenso
   return out
 }
 
-function willRunOf(row: TensorFoldModelRow, window: number): string[] {
+function willRunOf(facts: TensorFoldPickerFacts, row: TensorFoldModelRow, window: number): string[] {
+  const stops = (facts.served ?? []).filter(served => served.repo !== row.repo || served.window !== window).map(served => `stop ${served.name} on 127.0.0.1:${served.port}`)
   try {
-    return tensorFoldWillRun(row, window)
+    return [...stops, ...tensorFoldWillRun(row, window)]
   } catch {
-    return []
+    return stops
   }
 }
 
@@ -241,7 +242,7 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
           const filled = Math.round(((percent ?? 0) / 100) * cells)
           return [
             [seg(pad('pull')), seg('█'.repeat(filled), 'info'), seg('░'.repeat(cells - filled)), seg(`  then serves at ${tok(at)} and switches`, 'secondary')],
-            ...willRun(willRunOf(row, at), width, '◐'),
+            ...willRun(willRunOf(facts, row, at), width, '◐'),
           ]
         },
         keys: { stop: { words: 's stops, the download resumes next time', act: { kind: 'stop', row }, confirm: false }, legend: ['s stops, the download resumes next time', 'esc closes, it keeps pulling'] },
@@ -254,7 +255,7 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
       tensorfold: {
         state: { text: 'starting', tone: 'info' },
         memory: projected(),
-        card: width => willRun(willRunOf(row, at).slice(-1), width, '◐'),
+        card: width => willRun(willRunOf(facts, row, at).slice(-1), width, '◐'),
         keys: { stop: { words: STOP_WORDS, act: { kind: 'stop', row }, confirm: false }, legend: [STOP_WORDS, 'esc closes, it keeps starting'] },
       },
     }
@@ -269,7 +270,7 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
         card: width => [
           ...kv('refused', act.line, width, 'failure'),
           strip(row, at, act.strip ?? '←→ changes it'),
-          ...(limit !== undefined ? [...willRun([limit.command], width), ...kv('cost', limit.cost, width)] : willRun(willRunOf(row, at), width)),
+          ...(limit !== undefined ? [...willRun([limit.command], width), ...kv('cost', limit.cost, width)] : willRun(willRunOf(facts, row, at), width)),
         ],
         keys: {
           ...(limit === undefined ? { enter: { words: `↵ serve at ${tok(at)} and switch`, act: { kind: 'serve', row, window: at } } } : {}),
@@ -286,7 +287,7 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
       tensorfold: {
         state: { text: 'exited', tone: 'failure' },
         memory: projected('faint'),
-        card: width => [...kv('exited', act.line, width, 'failure'), strip(row, at, '←→ changes it'), ...willRun(willRunOf(row, at), width)],
+        card: width => [...kv('exited', act.line, width, 'failure'), strip(row, at, '←→ changes it'), ...willRun(willRunOf(facts, row, at), width)],
         keys: { enter: { words: '↵ start it again and switch', act: { kind: 'serve', row, window: at } }, window, support },
       },
     }
@@ -306,7 +307,7 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
           ...(!mercury
             ? kv('window', row.window < TENSORFOLD_AGENT_FLOOR ? `${tok(row.window)} · under the ${tok(TENSORFOLD_AGENT_FLOOR)} Mercury needs` : `${tok(row.window)} · set when it started outside Mercury, which does not stop or restart it`, width)
             : restart
-              ? [strip(row, at, `↵ restarts it at ${tok(at)}`), ...memoryLine(fit, width), ...willRun(willRunOf(row, at), width)]
+              ? [strip(row, at, `↵ restarts it at ${tok(at)}`), ...memoryLine(fit, width), ...willRun(willRunOf(facts, row, at), width)]
               : [strip(row, at, '←→ restarts it at another window'), ...kv('service', `tensorfold · started by Mercury${promptCache !== undefined ? ` · prompt cache ${one(promptCache)} GiB` : ''}`, width)]),
           ...(mercury ? kv('network', shared ? 'shared · keyed · n stops sharing' : 'not shared · n shares it on this network', width) : []),
           ...(confirming ? kv('stop', 's again stops it · this session uses it', width, 'amber') : []),
@@ -360,7 +361,7 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
     tensorfold: {
       state,
       memory: projected(),
-      card: width => [strip(row, at, '←→ changes it'), ...memoryLine(fit, width), ...pullLines(width), ...willRun(willRunOf(row, at), width), ...portLines(width)],
+      card: width => [strip(row, at, '←→ changes it'), ...memoryLine(fit, width), ...pullLines(width), ...willRun(willRunOf(facts, row, at), width), ...portLines(width)],
       keys: { enter: { words: enter, act: { kind: 'serve', row, window: at } }, window, support },
     },
   }
@@ -479,21 +480,17 @@ function servingWords(rows: readonly TensorFoldModelRow[]): string {
   return 'nothing served'
 }
 
-function helperWords(helper: HelperModelState | undefined): string | undefined {
-  if (helper?.enabled !== true || (helper.engine !== undefined && helper.engine !== 'tensorfold')) return undefined
-  return helper.size === '2b' ? 'helper 2B' : helper.size === '4b' ? 'helper 4B' : undefined
-}
-
 export function tensorFoldStatus(facts: TensorFoldPickerFacts): string {
   if (facts.platform === 'win32') return 'no Windows release yet'
-  const chip = facts.engine?.chip ?? facts.machine?.chip
+  const chip = facts.machine?.chip ?? facts.engine?.chip
   const usableGib = facts.machine?.usableGib ?? facts.rows.find(row => row.fit.availableGib > 0)?.fit.availableGib
   if (facts.engine === null) return ['not installed', chip, usableGib !== undefined ? `${gib(usableGib)} usable` : undefined].filter(part => part !== undefined).join(' · ')
   if (facts.engine === undefined) return [chip, facts.rows.some(isServed) ? servingWords(facts.rows) : undefined].filter(part => part !== undefined).join(' · ')
   if (facts.keyed !== undefined) return `${facts.engine.version} · ${facts.keyed} asks for a key`
   const held = facts.rows.filter(row => row.state === 'serving' && !startedByMercury(facts, row)).reduce((sum, row) => sum + (row.inUseBytes ?? 0), 0) / GIB
   const usable = usableGib === undefined ? undefined : held > 0 ? `${one(Math.max(0, usableGib - held))} of ${gib(usableGib)} usable left` : `${gib(usableGib)} usable`
-  return [facts.engine.version, chip, usable, servingWords(facts.rows), helperWords(facts.helper)].filter(part => part !== undefined).join(' · ')
+  const words = [facts.engine.version, chip, usable, servingWords(facts.rows)].filter(part => part !== undefined).join(' · ')
+  return facts.helper === undefined ? words : `${words} ${facts.helper}`
 }
 
 export function tensorFoldHostStatus(facts: TensorFoldPickerFacts): string {

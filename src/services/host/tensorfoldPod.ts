@@ -12,7 +12,7 @@ import { stopHostSetup } from './jobs.js'
 import type { HostRecipe } from './recipes.js'
 import { closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
 import { hostDirectory, hostRecords, patchHostRecord, readHostRecord, type HostRecord } from './store.js'
-import { TENSORFOLD_CARDS, TENSORFOLD_HOST_PORT, TENSORFOLD_HOST_VERSION, tensorFoldCardFor, tensorFoldClassWords, tensorFoldKeyPath, tensorFoldKeyWriteCommand, tensorFoldReadyCommand, tensorFoldServedName, tensorFoldStartingPoint, tensorFoldWindowWords, type TensorFoldCard } from './tensorfoldRelease.js'
+import { TENSORFOLD_CARDS, TENSORFOLD_HOST_PORT, TENSORFOLD_HOST_VERSION, tensorFoldCardFor, tensorFoldClassWords, tensorFoldKeyPath, tensorFoldKeyWriteCommand, tensorFoldReadyCommand, tensorFoldServedName, tensorFoldStartingPoint, tensorFoldTitle, tensorFoldWindowWords, type TensorFoldCard } from './tensorfoldRelease.js'
 import { vendorClient, vendorLabel } from './vendors/client.js'
 import type { HostVendor } from './vendors/vendor.js'
 
@@ -31,7 +31,7 @@ export const TENSORFOLD_HOST_WORDS = {
   gone: 'this pod is no longer recorded · /llmhost → Machines I’m paying for lists what still bills',
   gated: 'TensorFold pulls public checkpoints only · a gated or private model is not served on a pod yet',
   refused: (gpu: string, evidence: string): string => gpu + ' is not offered · ' + evidence,
-  serves: (title: string, window: number): string => 'serves    ' + title + ' at ' + tensorFoldWindowWords(window) + ' with TensorFold ' + TENSORFOLD_HOST_VERSION + ' for CUDA',
+  serves: (title: string, window: number): string => title + ' at ' + tensorFoldWindowWords(window) + ' with TensorFold ' + TENSORFOLD_HOST_VERSION + ' for CUDA',
 } as const
 
 const keysDirectory = (): string => {
@@ -124,12 +124,16 @@ export function tensorFoldRentRow(offers: readonly { recipe: HostRecipe; price: 
   const card = TENSORFOLD_CARDS.find(row => row.gpu === recipe.gpu)
   return { gpu: recipe.gpu, vramGb: recipe.vramGb, vendor, title: tensorFoldStartingPoint(recipe)?.title ?? recipe.label.split(' · ')[0]!, window: recipe.context ?? 0, ...(inStock ? { price: inStock.price } : {}), classWords: card ? tensorFoldClassWords(card) : 'supported' }
 }
+export function tensorFoldRentFacts(row: TensorFoldRentRow): { pod: string; serves: string; title: string } {
+  return {
+    pod: row.gpu + ' ' + row.vramGb + ' GB' + (row.price === undefined ? ' on ' + row.vendor + ' · the price shows in /llmhost' : ' · $' + row.price.toFixed(2) + '/h on ' + row.vendor) + ' · ' + TENSORFOLD_HOST_WORDS.billingStarts,
+    serves: TENSORFOLD_HOST_WORDS.serves(row.title, row.window),
+    title: tensorFoldTitle(row),
+  }
+}
 export function tensorFoldRentCardLines(row: TensorFoldRentRow): string[] {
-  return [
-    'pod       ' + row.gpu + ' ' + row.vramGb + ' GB' + (row.price === undefined ? ' on ' + row.vendor + ' · the price shows in /llmhost' : ' · $' + row.price.toFixed(2) + '/h on ' + row.vendor) + ' · ' + TENSORFOLD_HOST_WORDS.billingStarts,
-    TENSORFOLD_HOST_WORDS.serves(row.title, row.window),
-    'through   ' + TENSORFOLD_HOST_WORDS.through,
-  ]
+  const facts = tensorFoldRentFacts(row)
+  return ['pod       ' + facts.pod, 'serves    ' + facts.serves, 'through   ' + TENSORFOLD_HOST_WORDS.through]
 }
 export const tensorFoldCardWords = (gpu: string): string | undefined => {
   const card = tensorFoldCardFor(gpu)

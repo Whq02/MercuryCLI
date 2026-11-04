@@ -1,9 +1,13 @@
 import { statfsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { bytesWords } from '../../services/host/bank.js'
+import { currentHostRecipes } from '../../services/host/recipesFile.js'
+import { tensorFoldRentFacts, tensorFoldRentRow } from '../../services/host/tensorfoldPod.js'
 import { gibWords, tokensWords } from '../../services/localServer/localServerMemory.js'
 import { LOCAL_SERVER_NAMES } from '../../services/providers/local/localCatalogue.js'
 import { cachedLocalModels, type LocalModelRecord } from '../../services/providers/local/localDiscovery.js'
+import { detectTensorFoldApp, type TensorFoldAppState } from '../../services/providers/local/tensorfoldApp.js'
+import { helperHeadingWords } from '../../services/providers/local/tensorfoldHelper.js'
 import { tensorFoldHosts } from '../../services/providers/local/tensorfoldHosts.js'
 import type { TensorFoldEngine, TensorFoldHost, TensorFoldModelRow, TensorFoldServed } from '../../services/tensorfold/contracts.js'
 import { cachedTensorFoldMachineTruth, findTensorFoldEngine, tensorFoldBackendWords, type EngineIo, type TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
@@ -47,10 +51,12 @@ export type TensorFoldPanelFacts = {
   served: readonly TensorFoldServed[]
   outside: readonly TensorFoldOutsideServer[]
   hosts: readonly TensorFoldHost[]
+  helper?: string
+  app?: string
+  rent?: { pod: string; serves: string; title: string }
   current?: string
   landing?: string
   acts: Readonly<Record<string, TensorFoldAct>>
-  windows: Readonly<Record<string, number>>
   other?: { input: string; refused?: string; read?: TensorFoldInventoryRow }
   port: { next: number; busy?: { port: number; answersAs?: string } }
   keyed?: { address: string }
@@ -64,17 +70,19 @@ export type FactsIo = EngineIo & InventoryIo & InstallIo & Pick<ServeIo, 'served
   machine?: TensorFoldMachineTruth
   localModels?: () => readonly LocalModelRecord[]
   hosts?: () => readonly TensorFoldHost[]
+  helper?: () => string | undefined
+  app?: () => Promise<TensorFoldAppState>
+  rent?: () => { pod: string; serves: string; title: string } | undefined
   current?: string
   diskFreeBytes?: (path: string) => number | undefined
 }
 
 export type FactsState = {
   acts: Readonly<Record<string, TensorFoldAct>>
-  windows: Readonly<Record<string, number>>
   other?: TensorFoldPanelFacts['other']
 }
 
-const EMPTY_STATE: FactsState = { acts: {}, windows: {} }
+const EMPTY_STATE: FactsState = { acts: {} }
 
 function defaultDiskFree(path: string): number | undefined {
   try {
@@ -98,7 +106,7 @@ function outsideOf(records: readonly LocalModelRecord[], served: readonly Tensor
     }
     if (ports.has(port)) continue
     const window = record.contextWindow?.tokens
-    out.push({ name: record.id, baseUrl: record.baseUrl, port, ...(window !== undefined ? { window } : {}), keyed: false, current: current !== undefined && current.endsWith(`/${record.id}`) })
+    out.push({ name: record.id, baseUrl: record.baseUrl, port, ...(window !== undefined ? { window } : {}), keyed: false, current: current !== undefined && current.endsWith(`/${record.id}`), ...(record.servedBytes !== undefined ? { inUseBytes: record.servedBytes } : {}) })
   }
   return out
 }
@@ -114,6 +122,19 @@ function answersAsOf(records: readonly LocalModelRecord[], port: number): string
   return hit === undefined ? undefined : LOCAL_SERVER_NAMES[hit.server]
 }
 
+function quietly<T>(read: () => T, fallback: T): T {
+  try {
+    return read()
+  } catch {
+    return fallback
+  }
+}
+
+function defaultRent(): { pod: string; serves: string; title: string } | undefined {
+  const row = tensorFoldRentRow([], currentHostRecipes())
+  return row === undefined ? undefined : tensorFoldRentFacts(row)
+}
+
 export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsState = EMPTY_STATE): Promise<TensorFoldPanelFacts> {
   const platform = io.platform ?? process.platform
   const machine = io.machine ?? (await cachedTensorFoldMachineTruth(io))
@@ -123,12 +144,10 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
   const records = io.localModels?.() ?? cachedLocalModels()
   const current = io.current
   const outside = outsideOf(records, served, current)
-  let hosts: readonly TensorFoldHost[] = []
-  try {
-    hosts = io.hosts?.() ?? tensorFoldHosts()
-  } catch {
-    hosts = []
-  }
+  const hosts = quietly(() => io.hosts?.() ?? tensorFoldHosts(), [] as readonly TensorFoldHost[])
+  const helper = quietly(() => (io.helper ?? helperHeadingWords)(), undefined)
+  const app = platform === 'darwin' ? await (io.app ?? detectTensorFoldApp)().catch(() => undefined) : undefined
+  const rent = quietly(() => (io.rent ?? defaultRent)(), undefined)
   const install = engine === null && platform !== 'win32' ? tensorFoldInstallPlan(machine, { ...io, platform }) : platform === 'win32' ? tensorFoldInstallPlan({ platform, ...(machine.gpu ? { gpu: machine.gpu } : {}) }, { ...io, platform }) : null
   const remembered = rememberedTensorFoldPort(io)
   const preferred = served[0]?.port ?? remembered ?? TENSORFOLD_DEFAULT_PORT
@@ -146,9 +165,11 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
     served,
     outside,
     hosts,
+    ...(helper !== undefined ? { helper } : {}),
+    ...(app?.engine !== undefined ? { app: app.engine.model ?? 'a model' } : {}),
+    ...(rent !== undefined ? { rent } : {}),
     ...(current !== undefined ? { current } : {}),
     acts: state.acts,
-    windows: state.windows,
     ...(state.other !== undefined ? { other: state.other } : {}),
     port,
     ...(freeBytes !== undefined ? { disk: { freeBytes, cacheWords: hfCacheWords(root, io.home ?? homedir()) } } : {}),

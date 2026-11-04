@@ -5,7 +5,6 @@ import type { SessionModelSetter } from '../../services/localSetup/setupTypes.js
 import { DEFAULT_LOCAL_PROBE_TARGETS, cachedLocalModels } from '../../services/providers/local/localDiscovery.js'
 import type { TensorFoldServed } from '../../services/tensorfold/contracts.js'
 import { findTensorFoldEngine } from '../../services/tensorfold/engine.js'
-import { chosenTensorFoldWindow } from '../../services/tensorfold/fit.js'
 import { installTensorFold, type TensorFoldInstallPlan } from '../../services/tensorfold/install.js'
 import type { TensorFoldInventoryRow } from '../../services/tensorfold/inventory.js'
 import { TensorFoldPullError, pullTensorFold, readHubRepo, stopTensorFoldPull, type PullIo } from '../../services/tensorfold/pull.js'
@@ -30,7 +29,7 @@ export type RoadIo = {
 
 type Listener = () => void
 
-const state: { acts: Record<string, TensorFoldAct>; windows: Record<string, number>; other?: FactsState['other']; notice?: string; version: number } = { acts: {}, windows: {}, version: 0 }
+const state: { acts: Record<string, TensorFoldAct>; other?: FactsState['other']; notice?: string; version: number } = { acts: {}, version: 0 }
 const listeners = new Set<Listener>()
 const abortable = new Map<string, AbortController>()
 
@@ -51,12 +50,11 @@ export function tensorFoldRoadVersion(): number {
 }
 
 export function tensorFoldRoadState(): FactsState & { notice?: string } {
-  return { acts: { ...state.acts }, windows: { ...state.windows }, ...(state.other !== undefined ? { other: state.other } : {}), ...(state.notice !== undefined ? { notice: state.notice } : {}) }
+  return { acts: { ...state.acts }, ...(state.other !== undefined ? { other: state.other } : {}), ...(state.notice !== undefined ? { notice: state.notice } : {}) }
 }
 
 export function __resetTensorFoldRoadForTest(): void {
   state.acts = {}
-  state.windows = {}
   delete state.other
   delete state.notice
   state.version = 0
@@ -84,21 +82,6 @@ export function setOtherCheckpoint(other: FactsState['other'] | undefined): void
   if (other === undefined) delete state.other
   else state.other = other
   bump()
-}
-
-export function moveTensorFoldWindow(row: TensorFoldInventoryRow, direction: -1 | 1): number {
-  const ladder = row.ladder ?? []
-  const windows = ladder.map(rung => rung.window)
-  const current = state.windows[row.repo] ?? row.window
-  const at = Math.max(0, windows.indexOf(current))
-  const next = windows[Math.max(0, Math.min(windows.length - 1, at + direction))] ?? current
-  state.windows[row.repo] = next
-  bump()
-  return next
-}
-
-export function windowOf(row: TensorFoldInventoryRow): number {
-  return state.windows[row.repo] ?? row.window
 }
 
 export function stoppable(): boolean {
@@ -297,7 +280,6 @@ export async function readOtherCheckpoint(input: string, io: RoadIo = {}): Promi
   }
   const machine = await cachedTensorFoldMachineTruth(io.serve ?? {})
   const row = rowOfCheckpoint(outcome.checkpoint, machine, { onDisk: false, bytesOnDisk: 0, drafterOnDisk: true })
-  state.windows[row.repo] = chosenTensorFoldWindow(row.ladder ?? [])
   setOtherCheckpoint({ input, read: row })
 }
 

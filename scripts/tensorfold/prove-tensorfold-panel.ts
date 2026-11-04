@@ -79,7 +79,7 @@ section('the panel through the harness: the two groups, TENSORFOLD unfolded, the
   const copied: string[] = []
   let switched = ''
   const io = {
-    facts: { cacheRoot: world.cache, machine: MAC_48, env: world.env, home: world.home, platform: 'darwin' as const, exists: (path: string) => path.startsWith(FAKE_BIN), servedFile, localModels: () => [], hosts: () => [], diskFreeBytes: () => 37_578_240_000 },
+    facts: { cacheRoot: world.cache, machine: MAC_48, env: world.env, home: world.home, platform: 'darwin' as const, exists: (path: string) => path.startsWith(FAKE_BIN), servedFile, localModels: () => [], hosts: () => [], app: async () => ({ running: false }), diskFreeBytes: () => 37_578_240_000 },
     road: {
       serve: { binary, cwd: world.cwd, sessionId: 'proof', env: world.env, serviceEnv: world.serviceEnv, servedFile, machine: MAC_48, freeMemoryBytes: async () => 40 * GIB, answersAs: async () => undefined, exists: (path: string) => path.startsWith(FAKE_BIN) } as never,
       prove: { env: { ...world.env, MERCURY_LOCAL_PROBE_TARGETS: 'none' }, persist: (setting: string) => { switched = setting; return { sentence: ' · saved' } }, setAppState: () => undefined, focusedConnector: () => ({ carrier: 'in-process' }) as never },
@@ -95,7 +95,7 @@ section('the panel through the harness: the two groups, TENSORFOLD unfolded, the
     const up = await waitFor(() => m.lines().some(line => line.includes('TENSORFOLD')), 10_000)
     await settle(300)
     const lines = m.lines()
-    save('t06-opened-standin', columns, rows, lines)
+    save('t06-opened', columns, rows, lines)
     if (columns === 160) {
       check('the panel opens with the TENSORFOLD group unfolded and its status words', up && lines.some(line => line.includes('TENSORFOLD · 1.2.2 · Apple M5 Pro · 36.0 GiB usable · nothing served')), lines.filter(line => line.trim() !== '').slice(0, 12).join(' | '))
       const joined = lines.map(line => line.replace(/[│╭╮╰╯─]/g, ' ').trim()).join('\n')
@@ -119,12 +119,12 @@ section('the panel through the harness: the two groups, TENSORFOLD unfolded, the
   const framed = m.lines()
   const framedJoined = framed.map(line => line.replace(/[│╭╮╰╯─]/g, ' ').trim()).join(' ').replace(/\s+/g, ' ')
   check('↓ ↓ frames the 2B on disk; its card runs the serve with --prompt-cache-gib 1 on the remembered port', framedJoined.includes(`tensorfold serve ${QWEN_2B_REPO} --name qwen3.5-2b --context 262144 --prompt-cache-gib 1 --port ${port}`), framed.filter(line => line.includes('tensorfold serve') || line.includes('--prompt-cache-gib')).join(' | '))
-  save('t09-on-disk-standin', columns, rows, framed)
+  save('t09-on-disk', columns, rows, framed)
   m.push(KEY.enter)
   const served = await waitFor(() => m.lines().some(line => line.includes('serving qwen3.5-2b on 127.0.0.1:')), 20_000)
   await settle(400)
   const after = m.lines()
-  save('t14-current-standin', columns, rows, after)
+  save('t14-current', columns, rows, after)
   const record = serve.servedTensorFold({ servedFile })
   check('↵ served the 2B on the remembered port and the footer says serving qwen3.5-2b on 127.0.0.1:<port>', served && record.length === 1 && record[0]!.name === 'qwen3.5-2b' && record[0]!.port === port && after.some(line => line.includes(`serving qwen3.5-2b on 127.0.0.1:${port}`)), after.filter(line => line.includes('serving')).join(' | '))
   check('the heading now says 1 serving and the served row is first, current', after.some(line => line.includes('· 1 serving')) && after.some(line => line.includes('Qwen3.5 2B') && line.includes('current')), after.filter(line => line.includes('Qwen3.5 2B') || line.includes('serving')).join(' | '))
@@ -159,7 +159,7 @@ section('the panel through the harness: the two groups, TENSORFOLD unfolded, the
   const m2 = await mountOffscreen(shell(columns, rows, h(panel.TensorFoldPanel as never, { onDone: () => undefined, io } as never)), columns, rows)
   await waitFor(() => m2.lines().some(line => line.includes('refused')), 10_000)
   await settle(300)
-  save('t17-refused-standin', columns, rows, m2.lines())
+  save('t17-refused', columns, rows, m2.lines())
   const refusedLines = m2.lines()
   const framedAt = refusedLines.findIndex(line => line.includes('Qwen3.5 2B') && line.includes('local/qwen3.5-2b'))
   check("the panel lands on the refused row and its card shows the engine's line", framedAt >= 0 && refusedLines.slice(framedAt, framedAt + 3).some(line => line.includes('refused')) && refusedLines.some(line => line.includes('one stream at a 262144-token window takes 16.00 GiB')), refusedLines.filter(line => line.includes('refused') || line.includes('Qwen3.5 2B')).join(' | '))
@@ -167,7 +167,7 @@ section('the panel through the harness: the two groups, TENSORFOLD unfolded, the
   road.__resetTensorFoldRoadForTest()
   const need = fit.tensorFoldProjectedBytes(fresh.rows.find(candidate => candidate.repo === QWEN_27B_REPO)!.checkpoint, 32_768)
   const limit = refusal.readTensorFoldRefusal('tensorfold: --parallel 1 needs 2.00 GiB for its streams and 8-row prompt scratch at a 32768-token context; 0.50 GiB remains beside the weights and an 8 GiB margin: lower --parallel or --context', { window: 32_768, needBytes: need, machine: MAC_32_LOW })
-  const limited = await scene.readTensorFoldPanelFacts({ ...io.facts, machine: MAC_32_LOW }, { acts: { [QWEN_27B_REPO]: scene.refusedActOf('qwen3.8-27b', 32_768, limit) }, windows: { [QWEN_27B_REPO]: 32_768 } })
+  const limited = await scene.readTensorFoldPanelFacts({ ...io.facts, machine: MAC_32_LOW }, { acts: { [QWEN_27B_REPO]: scene.refusedActOf('qwen3.8-27b', 32_768, limit) } })
   const m3 = await mountOffscreen(shell(columns, rows, h(panel.TensorFoldPanel as never, { onDone: () => undefined, io: { ...io, facts: { ...io.facts, machine: MAC_32_LOW } } } as never)), columns, rows)
   road.__resetTensorFoldRoadForTest()
   await settle(50)

@@ -69,7 +69,7 @@ function willRunOf(row: TensorFoldModelRow, window: number): string[] {
   ]
 }
 
-type Seam = { engine: TensorFoldEngine | null; machine: TensorFoldMachine; inventory: TensorFoldModelRow[]; best: string | null; served: TensorFoldServed[]; hosts: TensorFoldHost[]; discovered: unknown[] }
+type Seam = { engine: TensorFoldEngine | null; machine: TensorFoldMachine; inventory: TensorFoldModelRow[]; best: string | null; served: TensorFoldServed[]; hosts: TensorFoldHost[]; discovered: unknown[]; app?: { running: boolean; engine?: { pid: number; model?: string; port?: number } }; helper?: string }
 let seam: Seam = { engine: ENGINE, machine: MAC_48, inventory: [], best: null, served: [], hosts: [], discovered: [] }
 const supportCalls: unknown[] = []
 
@@ -88,11 +88,18 @@ mock.module('../../src/services/tensorfold/serve.js', () => ({
   servedTensorFold: () => seam.served,
   tensorFoldWillRun: willRunOf,
 }))
+const realHosts = await import('../../src/services/providers/local/tensorfoldHosts.ts')
 mock.module('../../src/services/providers/local/tensorfoldHosts.js', () => ({
+  ...realHosts,
   rememberTensorFoldHost: async () => undefined,
   forgetTensorFoldHost: async () => undefined,
   tensorFoldHosts: () => seam.hosts,
-  helperModelState: () => ({ enabled: false }),
+}))
+mock.module('../../src/services/providers/local/tensorfoldHelper.js', () => ({
+  helperHeadingWords: () => seam.helper,
+}))
+mock.module('../../src/services/providers/local/tensorfoldApp.js', () => ({
+  detectTensorFoldApp: async () => seam.app ?? { running: false },
 }))
 mock.module('../../src/services/providers/local/tensorfoldSupport.js', () => ({
   tensorFoldSupportLine: () => 'TensorFold 1.2.2 · Metal · Apple M5 Pro · fixture',
@@ -143,7 +150,7 @@ type Order = { fresh: boolean; uses: Record<string, number> }
 const FRESH: Order = { fresh: true, uses: {} }
 const HISTORY: Order = { fresh: false, uses: { [ANTHROPIC_MODEL_GROUP]: 100 } }
 const STUDIO: TensorFoldHost = { name: 'studio.local', baseUrl: 'http://studio.local:8080', origin: 'typed', keyRef: 'studio.local', serving: 'qwen3.8-27b', version: '1.2.2', chip: 'Apple M3 Ultra', window: 131_072, lastReply: { tokensPerSecond: 38 } }
-const APP: TensorFoldHost = { name: 'TensorFold app', baseUrl: 'http://127.0.0.1:52817', origin: 'app', serving: 'qwen3.5-2b' }
+const APP = { running: true, engine: { pid: 4242, model: 'qwen3.5-2b', port: 52817 } }
 
 function installed(machine: TensorFoldMachine = MAC_48): TensorFoldModelRow[] {
   return [rowOf(QWEN_27B, 'not-pulled', machine), rowOf(LIGHTNING, 'not-pulled', machine), rowOf(QWEN_2B, 'on-disk', machine, { bytesOnDisk: QWEN_2B.download }), rowOf(QWEN_9B, 'on-disk', machine)]
@@ -320,7 +327,7 @@ for (const [columns, rows] of SIZES) {
     await settle(60)
   }
   {
-    const run = await open(await factsFor({ hosts: [APP] }), 'claude-opus-5-5', columns, rows)
+    const run = await open(await factsFor({ app: APP }), 'claude-opus-5-5', columns, rows)
     await press(run, [UP, UP, UP, RIGHT])
     await save('m06-model-app-serving', run)
     check(`${at} app: the app's engine is a row in TENSORFOLD, never a host`, has(run, 'the app is serving qwen3.5-2b — paste from its API tab') && !has(run, 'TensorFold app') && has(run, '▸ TENSORFOLD HOST · no host'))
@@ -430,8 +437,10 @@ console.log('\n§3 the order rule and the facts the /model group reads')
   await settle(60)
   check('a machine that can run TensorFold: Apple silicon, or Linux with the R580+ NVIDIA driver loaded', tensorFoldCapableMachine('darwin', 'arm64') && !tensorFoldCapableMachine('darwin', 'x64') && tensorFoldCapableMachine('linux', 'x64', () => 'NVRM version: NVIDIA UNIX x86_64 Kernel Module  580.95.05') && !tensorFoldCapableMachine('linux', 'x64', () => undefined) && !tensorFoldCapableMachine('win32', 'x64', () => 'Kernel Module  580.95.05'))
   void readTensorFoldPickerFacts
-  const facts = await factsFor({ hosts: [STUDIO, APP] })
-  check('the app host becomes the app row and never a host row', facts.app?.serving === 'qwen3.5-2b')
+  const facts = await factsFor({ hosts: [STUDIO], app: APP })
+  check("the app's engine, detected by process (tf-engine-106's reader), becomes the app row and never a host row", facts.app?.serving === 'qwen3.5-2b' && facts.hosts?.length === 1)
+  const helped = await factsFor({ helper: '· helper 2B' })
+  check('the helper suffix comes from the one heading reader (tf-engine-106\'s helperHeadingWords)', helped.helper === '· helper 2B')
   const POD: TensorFoldHost = { name: 'pod-7f3a', baseUrl: 'http://127.0.0.1:41234', origin: 'pod', keyRef: 'pod-7f3a', serving: 'qwen3.8-27b', version: '1.2.2', chip: 'RTX 5090', window: 131_072 }
   const tunnel = [{ kind: 'tensorfold', root: 'http://127.0.0.1:41234', baseUrl: 'http://127.0.0.1:41234/v1', label: 'TensorFold 1.2.2', version: '1.2.2', models: [{ id: 'qwen3.8-27b', server: 'tensorfold', baseUrl: 'http://127.0.0.1:41234/v1' }] }]
   const pod = await open(await factsFor({ hosts: [POD], discovered: tunnel }), 'claude-opus-5-5', 160, 48)
