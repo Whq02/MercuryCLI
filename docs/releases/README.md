@@ -58,7 +58,7 @@ bundled changelog is the one source; the page points at it.
 | v1.0.2 | published 2026-11-01 | [1.0.2.md](1.0.2.md) |
 | v1.0.3 | published 2026-11-02 | [1.0.3.md](1.0.3.md) |
 | v1.0.4 | published 2026-11-03 | [1.0.4.md](1.0.4.md) |
-| v1.0.5 | ready for the tag | [1.0.5.md](1.0.5.md) |
+| v1.0.5 | published 2026-11-04 | [1.0.5.md](1.0.5.md) |
 | v1.0.6 | queued | [1.0.6.md](1.0.6.md) |
 
 How a version moves: work lands on `working`; a release folds `working` into
