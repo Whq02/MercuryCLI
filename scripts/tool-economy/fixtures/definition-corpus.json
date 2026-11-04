@@ -1,5 +1,5 @@
 {
-  "base": "99d1e2800bb6b876b1620b43b7c441c9c3f0f1b9",
+  "base": "b730629c2a5fc8cbd0baaac0d9900fcfeda681c7",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -710,24 +710,12 @@
           "runNote": {
             "description": "Where and how the prototype will be run, one plain line",
             "type": "string"
-          },
-          "decision": {
-            "description": "Written by the consent card with the user's choice — never author this field",
-            "type": "string",
-            "enum": [
-              "build",
-              "build-ask-first",
-              "more-questions"
-            ]
-          },
-          "refineNote": {
-            "description": "Written by the consent card — the user's note on what still needs asking. Never author this field",
-            "type": "string"
           }
         },
         "required": [
           "summary"
-        ]
+        ],
+        "additionalProperties": false
       },
       "eager_input_streaming": true
     },
