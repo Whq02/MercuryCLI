@@ -93,7 +93,7 @@ const CLOUD: Array<[string, string]> = [
 ]
 const LOCAL = 'local/qwen3-32b'
 
-section('§1 the predicate — ChangeSet loads in full on every route that is not the local lane; the ten are deferred everywhere; Crewmate and Skill ride deferred on cloud routes and as declared on the local lane')
+section('§1 the predicate — ChangeSet loads in full on every route that is not the local lane; the ten are deferred everywhere; Crewmate and Skill ride deferred on cloud routes and under the local prompt profile, and as declared on the local lane with the profile off')
 check('the one declares itself deferrable AND loaded in full on cloud', FULL.every(tool => tool.shouldDefer === true && tool.loadInFullOnCloud === true))
 check('every one of the ten declares itself deferrable and NOT loaded in full on cloud', EIGHT.every(tool => tool.shouldDefer === true && tool.loadInFullOnCloud !== true), EIGHT.filter(tool => !(tool.shouldDefer === true && tool.loadInFullOnCloud !== true)).map(tool => tool.name).join(', '))
 check('the economy two carry no deferral declaration of their own (the local lane keeps them in full)', ECONOMY.every(tool => tool.shouldDefer !== true && tool.loadInFullOnCloud !== true && isDeferredTool(tool) === false))
@@ -103,7 +103,10 @@ for (const [label, model] of CLOUD) {
   check(`${label}: the economy two are deferred for ${model}`, ECONOMY.every(tool => isDeferredToolFor(tool, model) && defersOnCloudFor(tool, model)), ECONOMY.filter(tool => !isDeferredToolFor(tool, model)).map(tool => tool.name).join(', '))
 }
 check(`the local lane: every one of the eleven is deferred for ${LOCAL}`, [...FULL, ...EIGHT].every(tool => isDeferredToolFor(tool, LOCAL) && !loadsInFullFor(tool, LOCAL)))
-check(`the local lane: the economy two stay in full for ${LOCAL}`, ECONOMY.every(tool => !isDeferredToolFor(tool, LOCAL) && !defersOnCloudFor(tool, LOCAL)))
+check(`the local lane: the local prompt profile defers the economy two for ${LOCAL} (its own set, not the cloud rule)`, ECONOMY.every(tool => isDeferredToolFor(tool, LOCAL) && !defersOnCloudFor(tool, LOCAL)))
+process.env.MERCURY_LOCAL_PROMPT_PROFILE = '0'
+check(`the local lane with the profile switched off: the economy two stay in full for ${LOCAL}`, ECONOMY.every(tool => !isDeferredToolFor(tool, LOCAL) && !defersOnCloudFor(tool, LOCAL)))
+delete process.env.MERCURY_LOCAL_PROMPT_PROFILE
 check('without a model the answer is the declaration', [...FULL, ...EIGHT, ...ECONOMY].every(tool => isDeferredToolFor(tool, undefined) === isDeferredTool(tool)))
 check('a tool that does not carry the mark keeps its declaration on cloud', stillDeferred.every(name => isDeferredToolFor(pool.find(tool => tool.name === name)!, 'claude-sonnet-5')))
 
@@ -149,7 +152,7 @@ for (const [label, model] of CLOUD) {
   }
 }
 
-section('§3 the local lane — the eleven in the drawer, the roster the never-deferred set without JevEval, Crewmate and Skill in full')
+section('§3 the local lane — the eleven in the drawer; under the local prompt profile the roster is the core alone (Crewmate and Skill wait behind ToolSearch)')
 {
   clearToolRosterLatches()
   const plan = await planToolPayload({ model: LOCAL, tools: pool, messages: [first], getToolPermissionContext: async () => permissionContext, agents: [], source: 'cloud-loaded' })
@@ -157,11 +160,11 @@ section('§3 the local lane — the eleven in the drawer, the roster the never-d
   check(`${LOCAL} rides the text-append form and defers`, plan.wireForm === 'text-append' && plan.enabled, `${plan.wireForm}/${plan.enabled}`)
   check('every one of the eleven is marked deferred on the local lane', MARKED_NAMES.every(name => plan.deferredNames.has(name)))
   check('none of the eleven has a schema in the local roster', MARKED_NAMES.every(name => !rosterNames.includes(name)))
-  const expected = pool.filter(tool => !isDeferredTool(tool)).map(tool => tool.name)
-  check('the local roster is exactly the never-deferred set in pool order, ToolSearch at its place', rosterNames.join(',') === expected.join(','), rosterNames.join(','))
+  const LOCAL_LOADED = ['Bash', 'Edit', 'Glob', 'Grep', 'Read', 'ScheduleWakeup', 'ToolSearch', 'Write']
+  check(`under the local prompt profile the local roster is exactly ${LOCAL_LOADED.join(', ')} in pool order — the core, the wakeup its own exemption keeps, ToolSearch at its place`, rosterNames.join(',') === LOCAL_LOADED.join(','), rosterNames.join(','))
   const outside = rosterNames.filter(name => !LOCAL_SET.includes(name))
   check(`the local roster carries no name outside the local set (${LOCAL_SET.length} names; JevEval is in the drawer there too)`, outside.length === 0, outside.join(', '))
-  check('the local roster keeps the economy two in full', ECONOMY_NAMES.every(name => rosterNames.includes(name) && !plan.deferredNames.has(name)))
+  check('the local prompt profile keeps the economy two in the drawer', ECONOMY_NAMES.every(name => !rosterNames.includes(name) && plan.deferredNames.has(name)))
   const row = getDeferredToolsDeltaAttachment(pool, LOCAL, [first])[0] as { addedNames?: string[] } | undefined
   check('the local announcement names all eleven', row !== undefined && MARKED_NAMES.every(name => (row.addedNames ?? []).includes(name)))
   console.log(`  local roster (${rosterNames.length}): ${rosterNames.join(', ')}`)
@@ -184,7 +187,8 @@ section('§4 the readers — the search corpus and the schema-not-sent hint foll
   const local = await ToolSearchTool.call({ query: QUERY, max_results: 5 }, searchContext(LOCAL) as never)
   const localData = (local as { data?: { matches?: string[]; total_deferred_tools?: number } }).data ?? (local as { matches?: string[]; total_deferred_tools?: number })
   check('the same search on the local lane still offers ChangeSet from the drawer', (localData.matches ?? []).includes('ChangeSet'), (localData.matches ?? []).join(', '))
-  check('the cloud drawer differs from the local one by exactly the one (local only) and the economy two (cloud only)', (cloudData.total_deferred_tools ?? 0) - (localData.total_deferred_tools ?? 0) === ECONOMY.length - FULL_NAMES.filter(name => pool.some(tool => tool.name === name)).length, `${localData.total_deferred_tools} vs ${cloudData.total_deferred_tools}`)
+  const profileOnly = pool.filter(tool => !FULL_NAMES.includes(tool.name) && !isDeferredToolFor(tool, 'claude-sonnet-5') && isDeferredToolFor(tool, LOCAL)).length
+  check('the cloud drawer differs from the local one by exactly the one and the local prompt profile\'s own additions (local only; the economy two sit in both)', (cloudData.total_deferred_tools ?? 0) - (localData.total_deferred_tools ?? 0) === -FULL_NAMES.filter(name => pool.some(tool => tool.name === name)).length - profileOnly, `${localData.total_deferred_tools} vs ${cloudData.total_deferred_tools} (${profileOnly} profile-only)`)
   const crewSearch = await ToolSearchTool.call({ query: 'select:Crewmate', max_results: 5 }, searchContext('claude-sonnet-5') as never)
   check('select:Crewmate on a cloud model admits Crewmate from the drawer', crewSearch.data.matches.includes('Crewmate'), crewSearch.data.matches.join(', '))
   const delegateSearch = await ToolSearchTool.call({ query: 'delegate a task to a crewmate', max_results: 5 }, searchContext('claude-sonnet-5') as never)
@@ -202,7 +206,10 @@ section('§4 the readers — the search corpus and the schema-not-sent hint foll
   check('…and fires for one of the eight on a cloud text form (Git)', buildSchemaNotSentHint(EIGHT.find(tool => tool.name === 'Git') as Tool, [first], pool) !== null)
   process.env.MERCURY_MODEL = LOCAL
   check('…and fires for the one on the local lane', buildSchemaNotSentHint(ChangeSetTool as unknown as Tool, [first], pool) !== null)
-  check('…and stays silent for Crewmate on the local lane', buildSchemaNotSentHint(ECONOMY.find(tool => tool.name === 'Crewmate') as Tool, [first], pool) === null)
+  check('…and fires for Crewmate on the local lane under the local prompt profile', buildSchemaNotSentHint(ECONOMY.find(tool => tool.name === 'Crewmate') as Tool, [first], pool) !== null)
+  process.env.MERCURY_LOCAL_PROMPT_PROFILE = '0'
+  check('…and stays silent for Crewmate on the local lane with the profile switched off', buildSchemaNotSentHint(ECONOMY.find(tool => tool.name === 'Crewmate') as Tool, [first], pool) === null)
+  delete process.env.MERCURY_LOCAL_PROMPT_PROFILE
   const model = 'gpt-5.3-codex'
   const record = createAttachmentMessage({ type: 'bound_prefix', boundKey: conversationRosterKey('restored', [first], model), rosterEnabled: true, roster: pool.map(tool => ({ name: tool.name, deferred: isDeferredTool(tool) })), sections: [], systemContext: {} })
   const restoredMessages = [first, record]

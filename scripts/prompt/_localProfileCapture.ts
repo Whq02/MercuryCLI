@@ -1,0 +1,205 @@
+import { execFileSync, spawn } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:http'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
+
+const root = resolve(import.meta.dir, '..', '..')
+const distArg = process.argv.indexOf('--dist')
+if (distArg >= 0 && (!process.argv[distArg + 1] || process.argv[distArg + 1]!.startsWith('--'))) throw new Error('--dist needs a built mercury.mjs path.')
+export const dist = distArg < 0 ? join(root, 'dist', 'mercury.mjs') : resolve(process.argv[distArg + 1]!)
+export function nodeFor(distPath: string): string {
+  const vendored = join(dirname(distPath), 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
+  return existsSync(vendored) ? vendored : Bun.which('node') ?? 'node'
+}
+
+export const LOCAL_FIXTURE_MODEL = 'qwen3.5-2b'
+export const LOCAL_FIXTURE_WINDOW = 32768
+export const CLOUD_FIXTURE_MODEL = 'glm-5.3'
+
+export type ScriptedReply =
+  | { kind: 'text'; text: string }
+  | { kind: 'tool_calls'; calls: Array<{ name: string; args: Record<string, unknown> }> }
+
+export interface ChatFunction {
+  name: string
+  description: string
+  parameters: Record<string, unknown>
+}
+
+export interface ChatRequest {
+  model: string
+  messages: Array<{ role: string; content: unknown; tool_calls?: unknown[]; tool_call_id?: string }>
+  tools?: Array<{ type: string; function: ChatFunction }>
+}
+
+export interface RoadCapture {
+  requests: ChatRequest[]
+  code: number | null
+  stdout: string
+  stderr: string
+  home: string
+  cwd: string
+  normalize(value: string): string
+}
+
+const sse = (value: unknown): string => `data: ${JSON.stringify(value)}\n\n`
+
+function replyBody(reply: ScriptedReply, n: number): string {
+  const usage = { prompt_tokens: 8, completion_tokens: 1, total_tokens: 9 }
+  const done = [sse({ id: `chat_${n}`, object: 'chat.completion.chunk', choices: [], usage }), 'data: [DONE]\n\n']
+  if (reply.kind === 'text') {
+    return [
+      sse({ id: `chat_${n}`, object: 'chat.completion.chunk', choices: [{ index: 0, delta: { role: 'assistant', content: reply.text } }] }),
+      sse({ id: `chat_${n}`, object: 'chat.completion.chunk', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] }),
+      ...done,
+    ].join('')
+  }
+  const calls = reply.calls.map((call, index) => ({ index, id: `call_${n}_${index}`, type: 'function', function: { name: call.name, arguments: JSON.stringify(call.args) } }))
+  return [
+    sse({ id: `chat_${n}`, object: 'chat.completion.chunk', choices: [{ index: 0, delta: { role: 'assistant', content: '', tool_calls: calls } }] }),
+    sse({ id: `chat_${n}`, object: 'chat.completion.chunk', choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] }),
+    ...done,
+  ].join('')
+}
+
+const TENSORFOLD_MODELS = { object: 'list', data: [{ id: LOCAL_FIXTURE_MODEL, object: 'model', created: 1, owned_by: 'tensorfold', context_length: LOCAL_FIXTURE_WINDOW, max_model_len: LOCAL_FIXTURE_WINDOW, reasoning: { default_enabled: false } }] }
+
+const FIXED_GIT_DATE = '2026-01-01T00:00:00Z'
+
+export function seedProject(cwd: string, home: string, files: Record<string, string>): void {
+  for (const [name, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(cwd, name)), { recursive: true })
+    writeFileSync(join(cwd, name), text)
+  }
+  const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'Dev', GIT_AUTHOR_EMAIL: 'dev@example.com', GIT_COMMITTER_NAME: 'Dev', GIT_COMMITTER_EMAIL: 'dev@example.com', GIT_AUTHOR_DATE: FIXED_GIT_DATE, GIT_COMMITTER_DATE: FIXED_GIT_DATE, HOME: join(home, 'user-home') }
+  for (const args of [['init', '-q', '-b', 'main'], ['config', 'user.name', 'Dev'], ['config', 'user.email', 'dev@example.com'], ['add', ...Object.keys(files)], ['commit', '-q', '-m', 'Initial import']]) {
+    execFileSync('git', args, { cwd, env: gitEnv, stdio: 'ignore' })
+  }
+  writeFileSync(join(home, '.mercury.json'), JSON.stringify({ hasCompletedOnboarding: true, lastOnboardingVersion: '99.0.0', numStartups: 10, theme: 'dark', projects: { [cwd]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } } }))
+  writeFileSync(join(home, 'settings.json'), '{}')
+}
+
+export function scratchHome(prefix: string): { home: string; cwd: string } {
+  const home = mkdtempSync(join(tmpdir(), `${prefix}-home-`))
+  const cwd = mkdtempSync(join(tmpdir(), `${prefix}-project-`))
+  mkdirSync(join(home, 'user-home'))
+  return { home, cwd }
+}
+
+export function runEnv(home: string, extra: Record<string, string>, distPath: string = dist): Record<string, string> {
+  return {
+    HOME: join(home, 'user-home'),
+    PATH: [dirname(nodeFor(distPath)), '/usr/bin', '/bin', '/usr/sbin', '/sbin'].join(process.platform === 'win32' ? ';' : ':'),
+    TERM: 'dumb', NO_COLOR: '1', LANG: 'en_US.UTF-8',
+    MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file',
+    MERCURY_DAEMON_DIR: join(home, 'daemon'),
+    MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_BOOT_PREFLIGHT: '0',
+    ...extra,
+  }
+}
+
+export function runMercury(args: string[], cwd: string, env: Record<string, string>, deadlineMs: number, distPath: string = dist): Promise<{ code: number | null; stdout: string; stderr: string }> {
+  return new Promise(resolveRun => {
+    const child = spawn(nodeFor(distPath), [distPath, ...args], { cwd, env })
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', data => { stdout += data })
+    child.stderr.on('data', data => { stderr += data })
+    const deadline = setTimeout(() => child.kill('SIGKILL'), deadlineMs)
+    child.on('close', code => { clearTimeout(deadline); resolveRun({ code, stdout, stderr }) })
+  })
+}
+
+export function normalizerFor(home: string, cwd: string): (value: string) => string {
+  const key = cwd.replace(/[^a-zA-Z0-9]/g, '-')
+  return (value: string) => value
+    .replaceAll(home, '<home>')
+    .replaceAll(cwd, '<project>')
+    .replaceAll(key, '<project-key>')
+    .replace(/Scratchpad directory: \S+/g, 'Scratchpad directory: <scratchpad>')
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '<uuid>')
+    .replace(/Today's date is \d{4}-\d{2}-\d{2}/g, 'Today\'s date is <date>')
+    .replace(/(Platform|Shell|OS Version): [^\n\\"]+/g, '$1: <machine>')
+    .replace(/(capsule-digest:|generation )[0-9a-f]{6,}/g, '$1<digest>')
+}
+
+export async function captureRoad(options: {
+  road: 'local' | 'zai'
+  task: string
+  reply: (request: ChatRequest, index: number) => ScriptedReply
+  maxTurns: number
+  mode?: string
+  env?: Record<string, string>
+  files?: Record<string, string>
+}): Promise<RoadCapture> {
+  const requests: ChatRequest[] = []
+  const server = createServer((request, response) => {
+    const chunks: Buffer[] = []
+    request.on('data', chunk => chunks.push(chunk))
+    request.on('end', () => {
+      const path = new URL(request.url ?? '/', 'http://127.0.0.1').pathname
+      if (request.method === 'GET' && path.endsWith('/models')) {
+        response.writeHead(200, { 'content-type': 'application/json' })
+        response.end(JSON.stringify(options.road === 'local' ? TENSORFOLD_MODELS : { data: [] }))
+        return
+      }
+      if (request.method !== 'POST' || !path.endsWith('/chat/completions')) {
+        response.writeHead(404, { 'content-type': 'application/json' })
+        response.end('{}')
+        return
+      }
+      const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as ChatRequest
+      requests.push(body)
+      response.writeHead(200, { 'content-type': 'text/event-stream' })
+      response.end(replyBody(options.reply(body, requests.length - 1), requests.length))
+    })
+  })
+  await new Promise<void>(resolveListen => server.listen(0, '127.0.0.1', resolveListen))
+  const address = server.address()
+  if (address === null || typeof address === 'string') throw new Error('fixture address unavailable')
+  const base = `http://127.0.0.1:${address.port}`
+  const { home, cwd } = scratchHome(`local-profile-${options.road}`)
+  try {
+    seedProject(cwd, home, options.files ?? { 'README.md': '# Fixture project\n', 'package.json': JSON.stringify({ name: 'fixture', scripts: { test: 'node test.js' } }) })
+    const roadEnv = options.road === 'local'
+      ? { MERCURY_LOCAL_BASE_URL: `${base}/v1` }
+      : { MERCURY_ZAI_API_BASE: `${base}/zai/v4`, ZAI_API_KEY: 'local-profile-fixture-key-not-real' }
+    const model = options.road === 'local' ? `local/${LOCAL_FIXTURE_MODEL}` : CLOUD_FIXTURE_MODEL
+    const result = await runMercury(['run', options.task, '--model', model, '--format', 'rows', '--mode', options.mode ?? 'default', '--max-turns', String(options.maxTurns)], cwd, runEnv(home, { ...roadEnv, ...(options.env ?? {}) }), 120_000)
+    return { requests, ...result, home, cwd, normalize: normalizerFor(home, cwd) }
+  } finally {
+    server.closeAllConnections()
+    await new Promise<void>(resolveClose => server.close(() => resolveClose()))
+  }
+}
+
+export function systemTextOf(request: ChatRequest): string {
+  return request.messages.filter(message => message.role === 'system').map(message => String(message.content)).join('')
+}
+
+export function reminderTextsOf(request: ChatRequest): string[] {
+  return request.messages
+    .filter(message => message.role === 'user' && typeof message.content === 'string' && (message.content as string).startsWith('<system-reminder>'))
+    .map(message => message.content as string)
+}
+
+export function toolNamesOf(request: ChatRequest): string[] {
+  return (request.tools ?? []).map(tool => tool.function.name)
+}
+
+export async function tokenizedCount(tokenizer: string, request: Pick<ChatRequest, 'model' | 'messages' | 'tools'>): Promise<number | undefined> {
+  try {
+    const response = await fetch(`${tokenizer.replace(/\/+$/, '').replace(/\/v1$/, '')}/v1/tokenize`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: request.model, messages: request.messages, ...(request.tools !== undefined && request.tools.length > 0 ? { tools: request.tools } : {}) }),
+      signal: AbortSignal.timeout(60_000),
+    })
+    if (!response.ok) return undefined
+    const body = (await response.json()) as { count?: unknown }
+    return typeof body.count === 'number' ? body.count : undefined
+  } catch {
+    return undefined
+  }
+}

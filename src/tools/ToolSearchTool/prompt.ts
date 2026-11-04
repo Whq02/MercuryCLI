@@ -4,6 +4,7 @@ import { discoverRunnerProfiles, hasPythonSignal } from '../../services/ide/proj
 import type { Message } from '../../types/message.js'
 import type { DeferralWireForm } from '../../services/providers/deferralWire.js'
 import { qualifiedIdSpaceOf } from '../../services/providers/idSpaces.js'
+import { localPromptProfileApplies } from '../../constants/localPromptProfile.js'
 import { isUnattendedRun } from '../../utils/cockpit/runtimePosture.js'
 import { TOOL_SEARCH_TOOL_NAME } from './constants.js'
 import {
@@ -48,6 +49,14 @@ export function defersOnCloudFor(tool: Tool, model: string | undefined): boolean
   return isEconomyDeferred(tool) && onCloudRoute(model)
 }
 
+export const LOCAL_CORE: ReadonlySet<string> = new Set(['Bash', 'PowerShell', 'Read', 'Edit', 'Write', 'Glob', 'Grep', TOOL_SEARCH_TOOL_NAME, 'StructuredOutput'])
+
+export function defersOnLocalFor(tool: Pick<Tool, 'name' | 'alwaysLoad'>, model: string | undefined): boolean {
+  if (LOCAL_CORE.has(tool.name) || tool.alwaysLoad === true) return false
+  if (tool.name === SATURN_EXEMPT_TOOL && isSaturnExemptEnabled()) return false
+  return localPromptProfileApplies(model)
+}
+
 type HistoryMarks = { model: string | undefined; length: number; marks: ReadonlyMap<string, boolean> | null; carried: ReadonlySet<string> }
 const marksByHistory = new WeakMap<readonly Message[], HistoryMarks>()
 
@@ -85,16 +94,16 @@ export function isDeferredToolFor(tool: Tool, model: string | undefined, permiss
     if (recorded !== undefined) return recorded
     if (history.carried.has(tool.name)) return false
   }
-  return (isDeferredTool(tool, permissionMode) && !loadsInFullFor(tool, model)) || defersOnCloudFor(tool, model)
+  return (isDeferredTool(tool, permissionMode) && !loadsInFullFor(tool, model)) || defersOnCloudFor(tool, model) || defersOnLocalFor(tool, model)
 }
 
 const ANNOUNCEMENT_LINE_HINT_LIMIT = 100
 
-const ANNOUNCED_WITH_PURPOSE: ReadonlySet<string> = new Set([...ECONOMY_DEFERRED, 'ChangeSet'])
+const ANNOUNCED_WITH_PURPOSE: ReadonlySet<string> = new Set([...ECONOMY_DEFERRED, 'Eval', 'ChangeSet'])
 
-export function formatDeferredToolLine(tool: Tool, unattended: boolean = false): string {
+export function formatDeferredToolLine(tool: Tool, unattended: boolean = false, model?: string): string {
   const hint = (tool.searchHint ?? '').replace(/\s+/g, ' ').trim()
-  if (hint === '' || (unattended && !ANNOUNCED_WITH_PURPOSE.has(tool.name))) return tool.name
+  if (hint === '' || ((unattended || localPromptProfileApplies(model)) && !ANNOUNCED_WITH_PURPOSE.has(tool.name))) return tool.name
   if (hint.length <= ANNOUNCEMENT_LINE_HINT_LIMIT) return `${tool.name} — ${hint}`
   const space = hint.lastIndexOf(' ', ANNOUNCEMENT_LINE_HINT_LIMIT)
   const cut = hint.slice(0, space === -1 ? ANNOUNCEMENT_LINE_HINT_LIMIT : space).replace(/[ ,;:—]+$/u, '')

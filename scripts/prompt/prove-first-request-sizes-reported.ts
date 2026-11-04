@@ -78,11 +78,12 @@ const ROUTES: Array<[string, string]> = [
   ['openai native form', 'gpt-5.6-sol'],
   ['moonshot text-append form', 'kimi-k3'],
   ['openrouter native form', 'openrouter/qwen/qwen3-coder'],
-  ['local text form', 'local/qwen3-32b'],
+  ['local text form with the local prompt profile switched off', 'local/qwen3-32b'],
 ]
 const giantBytes = GIANTS.reduce((total, tool) => total + Buffer.byteLength(LONG_TEXT(tool.name), 'utf8'), 0)
 console.log(`  the catalogue: ${GIANTS.length} tools asked for in full, ${giantBytes.toLocaleString('en-US')} bytes of description, ${WIDE_PARAMS.length} fields each`)
 check('the catalogue is far above every figure the prover once bounded', giantBytes > 10 * 240000)
+process.env.MERCURY_LOCAL_PROMPT_PROFILE = '0'
 for (const [label, model] of ROUTES) {
   clearToolRosterLatches()
   const plan = await planToolPayload({ model, tools: POOL, messages, getToolPermissionContext: async () => permissionContext, agents: [], source: 'sizes' })
@@ -102,6 +103,13 @@ for (const [label, model] of ROUTES) {
     if (Object.keys(schema.input_schema?.properties ?? {}).length !== WIDE_PARAMS.length) intact = false
   }
   check(`${label}: the first and the last definition ride byte-for-byte, every field intact`, intact)
+}
+delete process.env.MERCURY_LOCAL_PROMPT_PROFILE
+clearToolRosterLatches()
+{
+  const plan = await planToolPayload({ model: 'local/qwen3-32b', tools: POOL, messages, getToolPermissionContext: async () => permissionContext, agents: [], source: 'sizes' })
+  const rosterNames = plan.roster.map(tool => tool.name)
+  check('local text form under the local prompt profile: none of the 200 outside the core rides in full and none is dropped — each waits by name behind ToolSearch', GIANTS.every(tool => plan.deferredNames.has(tool.name) && !rosterNames.includes(tool.name)) && rosterNames.join(',') === 'ToolSearch', rosterNames.join(','))
 }
 clearToolRosterLatches()
 
