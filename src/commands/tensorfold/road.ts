@@ -109,6 +109,7 @@ export function discoveryEnvFor(root: string, env: NodeJS.ProcessEnv = process.e
   if (cachedLocalModels().some(record => record.baseUrl === `${root}/v1`)) return env
   const pinned = env.MERCURY_LOCAL_PROBE_TARGETS?.trim()
   const defaults = pinned === undefined || pinned === '' ? [...DEFAULT_LOCAL_PROBE_TARGETS.map(target => `${target.kind}=${target.root}`), ...ggufServerRoots().map(target => `llamacpp=${target}`)] : pinned.toLowerCase() === 'none' ? [] : pinned.split(',')
+  if (defaults.some(entry => entry.trim().endsWith(`=${root}`))) return env
   return { ...env, MERCURY_LOCAL_PROBE_TARGETS: [...defaults, `llamacpp=${root}`].join(',') }
 }
 
