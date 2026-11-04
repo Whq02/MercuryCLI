@@ -21,7 +21,7 @@ export interface GoalEvidence {
   asksOperator: boolean
   toolCalls: number
   verification: { state: string; detail: string } | null
-  progress: 'advanced' | 'stalled' | 'unknown'
+  progress: 'advanced' | 'stalled'
   stalledChecks: number
   checks: number
 }
@@ -64,6 +64,12 @@ function verificationWords(evidence: GoalEvidence): string {
   return evidence.verification === null ? 'no verification record' : `${evidence.verification.state} — ${evidence.verification.detail}`
 }
 
+function progressWords(evidence: GoalEvidence): string {
+  const tools = `${evidence.toolCalls} tool call(s) this turn`
+  if (evidence.progress === 'advanced') return `advanced: the tree changed or a check ran since the last judgement (${tools})`
+  return `stalled for ${evidence.stalledChecks} check(s): no change to the tree and no new verification record (${tools}; reading alone is not progress)`
+}
+
 export const judgeWithJev: GoalJudge = async (goal, evidence, signal) => {
   const settings = readJevSettings()
   const road = settings.road
@@ -78,7 +84,7 @@ export const judgeWithJev: GoalJudge = async (goal, evidence, signal) => {
     closing: evidence.closing,
     claimed_met: evidence.claimedMet ? 'yes' : 'no',
     verification: verificationWords(evidence),
-    progress: evidence.progress === 'unknown' ? 'first check' : `${evidence.progress} (${evidence.toolCalls} tool call(s) this turn)`,
+    progress: progressWords(evidence),
     checks: String(evidence.checks),
   }
   const outcome = await jevSystemOne({ state, questions: { goal: GOAL_QUESTION } }, key.key, { road, ...(signal ? { signal } : {}) })
@@ -106,15 +112,16 @@ export function judgeByClaim(evidence: GoalEvidence): GoalVerdict {
   if (evidence.claimedMet) {
     return { kind: 'met', confidence: 1, reason: 'the turn closed on the completion line; no judge road is open, so the claim stands', road: 'claim' }
   }
-  if (evidence.stalledChecks >= GOAL_STALL_CHECKS) {
-    return {
-      kind: 'unattainable',
-      confidence: 1,
-      reason: `${evidence.stalledChecks} checks in a row ended with no tool call, no change to the tree and no new verification record`,
-      road: 'claim',
-    }
-  }
   return { kind: 'open', confidence: 1, reason: 'the turn ended without the completion line', road: 'claim' }
+}
+
+export function stalledVerdict(evidence: GoalEvidence): GoalVerdict {
+  return {
+    kind: 'unattainable',
+    confidence: 1,
+    reason: `${evidence.stalledChecks} checks in a row changed nothing: no change to the tree and no new verification record (reading alone is not progress)`,
+    road: 'claim',
+  }
 }
 
 export async function judgeGoal(
@@ -126,13 +133,16 @@ export async function judgeGoal(
     return { kind: 'ambiguous', confidence: 1, reason: 'the turn ended with a question to the operator', road: 'claim' }
   }
   const judge = io.judge === undefined ? (goalJudgeOpen() ? judgeWithJev : null) : io.judge
+  let answered: GoalVerdict | null = null
   if (judge !== null) {
     try {
-      const verdict = await judge(goal, evidence, io.signal)
-      if (verdict !== null) return verdict
+      answered = await judge(goal, evidence, io.signal)
     } catch (error) {
       logForDebugging(`[mission] the goal judge failed — ${error instanceof Error ? error.message : String(error)}`)
     }
   }
-  return judgeByClaim(evidence)
+  if (answered !== null && answered.kind !== 'open') return answered
+  if (answered === null && evidence.claimedMet) return judgeByClaim(evidence)
+  if (evidence.stalledChecks >= GOAL_STALL_CHECKS) return stalledVerdict(evidence)
+  return answered ?? judgeByClaim(evidence)
 }

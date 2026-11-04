@@ -51,7 +51,7 @@ export interface ActiveMission {
   verdict?: GoalVerdict
   setAt: number
   hookId: string
-  lastSeen?: { mutationAt: number | null; evidenceSeq: number | null }
+  lastSeen: { mutationAt: number | null; evidenceSeq: number | null }
   lastAttempt?: string
 }
 
@@ -194,11 +194,13 @@ export function sawMissionMetSentinel(messages: Message[]): boolean {
 }
 
 function closingText(messages: Message[]): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i]!
-    if (m.type !== 'assistant') continue
+  const loose = messages as ReadonlyArray<Message & { toolUseResult?: unknown }>
+  for (let i = loose.length - 1; i >= 0; i--) {
+    const m = loose[i]!
     const text = textOf(m).trim()
-    if (text === '') continue
+    if (m.type === 'user' && !m.toolUseResult) break
+    if (text.includes(MISSION_DIRECTIVE_HEADER)) break
+    if (m.type !== 'assistant' || text === '') continue
     return text.length > GOAL_CLOSING_CLIP ? text.slice(-GOAL_CLOSING_CLIP) : text
   }
   return ''
@@ -210,7 +212,7 @@ function closingQuestion(closing: string): string {
 }
 
 export function closingAsksOperator(closing: string): boolean {
-  return /\?\s*$/.test(closingQuestion(closing))
+  return /[?？]['"”’)*_~\]]*\s*$/.test(closingQuestion(closing))
 }
 
 function toolCallsThisTurn(messages: Message[]): number {
@@ -225,28 +227,30 @@ function toolCallsThisTurn(messages: Message[]): number {
   return count
 }
 
+function readSeen(): { verification: GoalEvidence['verification']; seen: ActiveMission['lastSeen'] } {
+  try {
+    const summary = verificationSummary(getCwd(), { skipDigest: true })
+    return {
+      verification: { state: summary.state, detail: summary.detail },
+      seen: { mutationAt: summary.lastMutationAt, evidenceSeq: summary.lastEvidence?.seq ?? null },
+    }
+  } catch (error) {
+    logForDebugging(`[mission] the verification record could not be read: ${error instanceof Error ? error.message : String(error)}`)
+    return { verification: null, seen: { mutationAt: null, evidenceSeq: null } }
+  }
+}
+
 function gatherGoalEvidence(messages: Message[], mission: ActiveMission): GoalEvidence {
   const closing = closingText(messages)
   const claimedMet = sawMissionMetSentinel(messages)
   const toolCalls = toolCallsThisTurn(messages)
-  let verification: GoalEvidence['verification'] = null
-  let seen: ActiveMission['lastSeen'] = { mutationAt: null, evidenceSeq: null }
-  try {
-    const summary = verificationSummary(getCwd(), { skipDigest: true })
-    verification = { state: summary.state, detail: summary.detail }
-    seen = { mutationAt: summary.lastMutationAt, evidenceSeq: summary.lastEvidence?.seq ?? null }
-  } catch (error) {
-    logForDebugging(`[mission] the verification record could not be read: ${error instanceof Error ? error.message : String(error)}`)
-  }
+  const { verification, seen } = readSeen()
   const attempt = `${turnBoundaryIndex(messages)}:${messages.length}`
-  let progress: GoalEvidence['progress'] = 'unknown'
   if (mission.lastAttempt !== attempt) {
-    const moved =
-      mission.lastSeen !== undefined && (seen.mutationAt !== mission.lastSeen.mutationAt || seen.evidenceSeq !== mission.lastSeen.evidenceSeq)
-    progress = mission.lastSeen === undefined ? 'unknown' : toolCalls > 0 || moved ? 'advanced' : 'stalled'
+    const moved = seen.mutationAt !== mission.lastSeen.mutationAt || seen.evidenceSeq !== mission.lastSeen.evidenceSeq
     mission.lastSeen = seen
     mission.lastAttempt = attempt
-    mission.stalledChecks = progress === 'stalled' ? mission.stalledChecks + 1 : 0
+    mission.stalledChecks = moved ? 0 : mission.stalledChecks + 1
   }
   return {
     closing,
@@ -254,7 +258,7 @@ function gatherGoalEvidence(messages: Message[], mission: ActiveMission): GoalEv
     asksOperator: !claimedMet && closingAsksOperator(closing),
     toolCalls,
     verification,
-    progress,
+    progress: mission.stalledChecks === 0 ? 'advanced' : 'stalled',
     stalledChecks: mission.stalledChecks,
     checks: mission.iterations,
   }
@@ -336,6 +340,7 @@ export function setActiveMission(
     stalledChecks: 0,
     setAt,
     hookId: '',
+    lastSeen: readSeen().seen,
     ...(contract.feasibility === 'already-met' ? { met: true, lastReason: `already met at compile: ${contract.evidence}` } : {}),
   }
 

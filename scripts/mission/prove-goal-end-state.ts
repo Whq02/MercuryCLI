@@ -49,6 +49,7 @@ const { _resetContinuationLatchesForTesting } = await import('../../src/services
 const { setJevEnabled } = await import('../../src/services/jev/jevSetting.ts')
 const { storeJevApiKey } = await import('../../src/services/jev/jevKey.ts')
 const { jevLedgerSnapshot, resetJevLedger } = await import('../../src/services/jev/jevLedger.ts')
+const { markMutation } = await import('../../src/utils/verification/verificationState.ts')
 
 type Verdict = { kind: 'met' | 'open' | 'ambiguous' | 'unattainable'; confidence: number; reason: string; road: 'jev' | 'claim' | 'compile' }
 type Judge = (goal: unknown, evidence: unknown, signal?: AbortSignal) => Promise<Verdict | null>
@@ -61,6 +62,12 @@ const asstTool = (text: string): unknown => ({
   message: { role: 'assistant', content: [{ type: 'text', text }, { type: 'tool_use', id: 'tu-1', name: 'Read', input: { file_path: '/tmp/x' } }] },
 })
 const toolResult = (): unknown => ({ type: 'user', toolUseResult: { ok: true }, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu-1', content: 'ok' }] } })
+const asstToolOnly = (): unknown => ({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'tu-1', name: 'Read', input: { file_path: '/tmp/x' } }] } })
+const meta = (text: string): unknown => ({ type: 'user', isMeta: true, message: { role: 'user', content: [{ type: 'text', text }] } })
+const treeChanged = async (): Promise<void> => {
+  markMutation(undefined, undefined, process.cwd())
+  await new Promise(resolve => setTimeout(resolve, 2))
+}
 
 const arm = (sessionId: string, goal: string, judge?: Judge | null): string => {
   _resetContinuationLatchesForTesting()
@@ -138,14 +145,32 @@ section("§3 a met end state ends on the judge's verdict, not the block counter"
   const S = 'goal-no-cap'
   const GOAL = 'every proof in the suite is green'
   arm(S, GOAL, async () => verdict('open', 0.8, 'two proofs still red'))
+  check('the record is seeded with the verification record at arm, so the first check already counts', getActiveMission(S)?.lastSeen !== undefined && getActiveMission(S)?.stalledChecks === 0, j(getActiveMission(S)?.lastSeen))
   const transcript: unknown[] = [user(`/goal ${GOAL}`), asst('working')]
   let held = 0
   for (let i = 0; i < 14; i++) {
+    await treeChanged()
     const result = await stop(S, transcript)
     if (!result.allowed) held += 1
     transcript.push(asstTool(`round ${i}`), toolResult(), asst(`still red after round ${i}`))
   }
-  check('fourteen open verdicts hold fourteen stops: no block cap stands down the goal', held === 14 && readMissionCard(S)?.state === 'armed' && getActiveMission(S)?.needsOperator !== true, j({ held, card: readMissionCard(S) }))
+  check('fourteen open verdicts over fourteen rounds that each change the tree hold fourteen stops: no block cap stands down a goal that advances', held === 14 && readMissionCard(S)?.state === 'armed' && getActiveMission(S)?.needsOperator !== true, j({ held, card: readMissionCard(S) }))
+  clearActiveMission(S)
+}
+{
+  const S = 'goal-stalled-under-jev'
+  const GOAL = 'every proof in the suite is green'
+  arm(S, GOAL, async () => verdict('open', 0.8, 'two proofs still red'))
+  const transcript: unknown[] = [user(`/goal ${GOAL}`), asst('working')]
+  const trail: string[] = []
+  for (let i = 0; i < 8; i++) {
+    const result = await stop(S, transcript)
+    trail.push(result.allowed ? 'pass' : result.words.split('\n')[0]!.slice(0, 60))
+    if (result.allowed) break
+    transcript.push(meta('(hold)'), asstTool(`reading more (${i})`), toolResult(), asst(i === 2 ? 'I keep reading the same files. Which proof do you mean by red?' : `still reading (${i})`))
+  }
+  const stall = judgeModule?.GOAL_STALL_CHECKS ?? 0
+  check(`open verdicts over rounds that only read files are bounded too: after ${stall} checks that change nothing the goal asks the operator, whatever road answered`, trail.length === stall + 1 && trail.slice(0, stall - 1).every(line => line.startsWith('The goal for this session is not yet met')) && trail[stall - 1]!.startsWith('The goal for this session reads as unattainable') && trail[stall] === 'pass' && readMissionCard(S)?.state === 'needs-operator', j({ trail, card: readMissionCard(S) }))
   clearActiveMission(S)
 }
 
@@ -231,6 +256,23 @@ section('§5 the ask-the-human exit: an ambiguous or unattainable goal ends with
   check("a turn that already ends on a question to the operator is the exit itself: no hold, no judge call", own.allowed && asked === 0, j({ own, asked }))
   check('the card reads needs-operator with the question', readMissionCard(S)?.state === 'needs-operator' && (readMissionCard(S)?.nextStep ?? '').includes('Which one should receive the migration?'), j(readMissionCard(S)))
   clearActiveMission(S)
+  for (const closing of ['**Which database should receive the migration?**', 'Two match.\n"Which one?"', 'Which one do you mean (prod or staging)?']) {
+    arm(S, GOAL, async () => verdict('open'))
+    const styled = await stop(S, [user(`/goal ${GOAL}`), asst(closing)])
+    check(`a closing question wrapped in markdown or quotes is a question too: ${j(closing)}`, styled.allowed && readMissionCard(S)?.state === 'needs-operator', j({ styled, card: readMissionCard(S) }))
+    clearActiveMission(S)
+  }
+  arm(S, GOAL, async () => verdict('open'))
+  const midText = await stop(S, [user(`/goal ${GOAL}`), asst('Is the migration applied? Not yet: the second database still lacks it.')])
+  check('a question answered in the same breath is not a question to the operator', midText.allowed === false && readMissionCard(S)?.state === 'armed', j(midText))
+  clearActiveMission(S)
+  arm(S, GOAL, async () => verdict('open'))
+  const stale = await stop(S, [asst('Do you want the prod or the staging database?'), meta(buildMissionDirective(GOAL)), user('go'), asstToolOnly(), toolResult()])
+  check('a turn without closing words never reads a question from before the goal: the closing stops at the turn boundary', stale.allowed === false && readMissionCard(S)?.state === 'armed', j({ stale: stale.words.split('\n')[0], card: readMissionCard(S)?.state }))
+  _resetContinuationLatchesForTesting()
+  const earlier = await stop(S, [user(`/goal ${GOAL}`), asst('Which one?'), user('the second'), asstToolOnly(), toolResult()])
+  check("nor a question from the previous turn, answered since", earlier.allowed === false && readMissionCard(S)?.state === 'armed', j({ earlier: earlier.words.split('\n')[0] }))
+  clearActiveMission(S)
 }
 {
   const S = 'goal-contradiction'
@@ -251,10 +293,37 @@ section('§5 the ask-the-human exit: an ambiguous or unattainable goal ends with
     const result = await stop(S, transcript)
     trail.push(result.allowed)
     if (result.allowed) break
-    transcript.push(user('(hold)'), asst(i === 3 ? 'I cannot see what makes it flaky. What does the failing run look like on your machine?' : `still thinking (${i})`))
+    transcript.push(user('(hold)'), asst(i === 2 ? 'I cannot see what makes it flaky. What does the failing run look like on your machine?' : `still thinking (${i})`))
   }
   const stall = judgeModule?.GOAL_STALL_CHECKS ?? 0
-  check(`with the judge road closed, ${stall} checks that change nothing end the goal with a question, not a silent stand-down`, j(trail) === j([false, false, false, false, true]) && readMissionCard(S)?.state === 'needs-operator', j({ trail, card: readMissionCard(S) }))
+  check(`with the judge road closed, ${stall} checks that change nothing end the goal with a question, not a silent stand-down`, j(trail) === j([false, false, false, true]) && readMissionCard(S)?.state === 'needs-operator', j({ trail, card: readMissionCard(S) }))
+  clearActiveMission(S)
+}
+{
+  const S = 'goal-reads-only'
+  const GOAL = 'the flaky test is fixed'
+  arm(S, GOAL, null)
+  const transcript: unknown[] = [user(`/goal ${GOAL}`), asst('looking')]
+  const trail: string[] = []
+  for (let i = 0; i < 8; i++) {
+    const result = await stop(S, transcript)
+    trail.push(result.allowed ? 'pass' : result.words.split('\n')[0]!.slice(0, 60))
+    if (result.allowed) break
+    transcript.push(user('(hold)'), asstTool(`reading test ${i}`), toolResult(), asstTool(`grepping ${i}`), toolResult(), asst(i === 2 ? 'Nothing in the files explains the flake. What does the failing run look like on your machine?' : `read more (${i})`))
+  }
+  const stall = judgeModule?.GOAL_STALL_CHECKS ?? 0
+  check(`turns that only read files are not progress: ${stall} such checks end the goal on the ask-the-human exit`, trail.length === stall + 1 && trail[stall - 1]!.startsWith('The goal for this session reads as unattainable') && trail[stall] === 'pass' && readMissionCard(S)?.state === 'needs-operator' && (readMissionCard(S)?.nextStep ?? '').includes('What does the failing run look like'), j({ trail, card: readMissionCard(S) }))
+  clearActiveMission(S)
+  arm(S, GOAL, null)
+  const edits: unknown[] = [user(`/goal ${GOAL}`), asst('editing')]
+  let heldWithProgress = 0
+  for (let i = 0; i < stall + 2; i++) {
+    await treeChanged()
+    const result = await stop(S, edits)
+    if (!result.allowed) heldWithProgress += 1
+    edits.push(user('(hold)'), asst(`edited again (${i})`))
+  }
+  check('rounds that change the tree keep the goal open past the stall count', heldWithProgress === stall + 2 && readMissionCard(S)?.state === 'armed', j({ heldWithProgress, card: readMissionCard(S) }))
   clearActiveMission(S)
 }
 
