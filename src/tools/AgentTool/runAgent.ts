@@ -97,6 +97,7 @@ import {
   clearAgentTranscriptSubdir,
   flushSessionStorage,
   getAgentTranscriptPath,
+  isTranscribable,
   recordSidechainTranscript,
   registerAgentTranscriptDestination,
   setAgentTranscriptSubdir,
@@ -563,6 +564,15 @@ export async function landAgentTranscriptRows(
     await flushSessionStorage()
   } catch {
   }
+}
+
+export async function landStreamedAttachment(
+  message: Message,
+  agentId: AgentId,
+  parentUuid: string | undefined,
+): Promise<string | undefined> {
+  await landAgentTranscriptRows([message], agentId, parentUuid as never)
+  return isTranscribable(message) ? message.uuid : parentUuid
 }
 
 export async function* runAgent(
@@ -1233,12 +1243,7 @@ export async function* runAgent(
       if (anyMessage.type === 'stream_event' as never) continue
       if (anyMessage.type === 'attachment') {
         streamedRows.push(message as Message)
-        await landAgentTranscriptRows(
-          [message as Message],
-          agentId,
-          lastRecordedUuid as never,
-        )
-        lastRecordedUuid = (message as { uuid?: string }).uuid
+        lastRecordedUuid = await landStreamedAttachment(message as Message, agentId, lastRecordedUuid)
         if (
           (anyMessage as { attachment?: { type?: string } }).attachment
             ?.type === 'max_turns_reached'
