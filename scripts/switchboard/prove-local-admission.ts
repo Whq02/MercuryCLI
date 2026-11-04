@@ -116,6 +116,25 @@ section('§5 a server that came up after the last probe is found at the next adm
   check("a never-probed process with no server answering still refuses 'unreachable:local' — after a real probe, not instead of one", !ghost.ok && ghost.reason === 'unreachable:local', JSON.stringify(ghost))
 }
 
+section("§6 the daemon's order: the provider record was derived while no server answered; a server Mercury starts later is admissible at the next birth (New Session after /tensorfold serves) — the record is re-derived once per forced refresh, never on every validate")
+{
+  __resetLocalDiscoveryForTest()
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+  await refreshLocalDiscovery({ force: true })
+  const { providerFamilyPresences } = await import('../../src/services/providers/providerUsage.ts')
+  const { getCachedProviderDiscovery } = await import('../../src/services/providers/providerDiscovery.ts')
+  const { getCachedLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
+  const absent = providerFamilyPresences().find(family => family.id === 'local')
+  check('with no server answering the local family reads uncredentialed and its provider record is cached as absent', absent?.credentialed === false && getCachedProviderDiscovery('local') !== null && (getCachedProviderDiscovery('local') as { serverPresent?: boolean }).serverPresent === false, JSON.stringify(absent))
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${fixtureRoot}`
+  const born = await validateWorkerModelChoice('local/qwen3:1.7b', 'session')
+  check('the next admission re-probes, re-derives the provider record from the fresh snapshot and admits the model the server now lists', born.ok === true && (getCachedProviderDiscovery('local') as { serverPresent?: boolean }).serverPresent === true, born.ok ? '' : JSON.stringify(born))
+  const probedAt = getCachedLocalDiscovery()?.probedAtMs
+  const recordAt = getCachedProviderDiscovery('local')?.probedAtMs
+  const again = await validateWorkerModelChoice('local/qwen3:1.7b', 'session')
+  check('a second validation in a row neither probes nor primes again (the model is listed; the record is derived once per refresh)', again.ok === true && getCachedLocalDiscovery()?.probedAtMs === probedAt && getCachedProviderDiscovery('local')?.probedAtMs === recordAt, JSON.stringify({ probedAt, now: getCachedLocalDiscovery()?.probedAtMs, recordAt, recordNow: getCachedProviderDiscovery('local')?.probedAtMs }))
+}
+
 fixture.close()
 console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)
