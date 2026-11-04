@@ -190,10 +190,8 @@ section('the road: ↵ on the on-disk 2B serves it, switches the session through
   const state = road.tensorFoldRoadState()
   check('no act is left on the row after the serve', Object.keys(state.acts).length === 0, JSON.stringify(state.acts))
   const served = serve.servedTensorFold({ servedFile })
-  const first = await road.stopTensorFoldRow(row, served, { current: true }, { serve: { servedFile } as never })
-  check('s on this session\'s model asks once more', first === 's again stops it' && road.tensorFoldRoadState().acts[QWEN_2B_REPO]?.kind === 'stop-confirm')
-  const second = await road.stopTensorFoldRow(row, served, { current: true }, { serve: { servedFile } as never })
-  check('s again stops it and mints the stopped line with its door', second === 'stopped qwen3.5-2b' && seen.some(r => r.text === '◌ TensorFold stopped qwen3.5-2b · /tensorfold serves it again') && serve.servedTensorFold({ servedFile }).length === 0, JSON.stringify(seen.map(r => r.text)))
+  const stopped = await road.stopTensorFoldRow(row, served, { serve: { servedFile } as never })
+  check("the stop act stops it at once and mints the stopped line with its door (the picker is what asks s again on the session's own model — prove-tensorfold-t-frames t15b and the drive)", stopped === 'stopped qwen3.5-2b' && seen.some(r => r.text === '◌ TensorFold stopped qwen3.5-2b · /tensorfold serves it again') && serve.servedTensorFold({ servedFile }).length === 0, JSON.stringify(seen.map(r => r.text)))
   seen.length = 0
   const refusedRow = { ...row, state: 'on-disk' as const }
   const refused = await road.serveTensorFoldRow(refusedRow, 262_144, {

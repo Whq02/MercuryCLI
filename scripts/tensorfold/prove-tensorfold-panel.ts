@@ -137,9 +137,7 @@ section('the panel through the harness: the two groups, TENSORFOLD unfolded, the
   const facts = await scene.readTensorFoldPanelFacts({ ...io.facts, current: 'local/qwen3.5-2b' }, road.tensorFoldRoadState())
   const row = facts.rows[0]!
   await panel.onTensorFoldAct({ kind: 'stop', row }, facts, io.road as never)
-  check("s on this session's model asks once more (the stop-confirm act), the server still up", road.tensorFoldRoadState().acts[QWEN_2B_REPO]?.kind === 'stop-confirm' && serve.servedTensorFold({ servedFile }).length === 1)
-  await panel.onTensorFoldAct({ kind: 'stop', row }, facts, io.road as never)
-  check('s again stops it through stopService; the stopped receipt carries the door', serve.servedTensorFold({ servedFile }).length === 0 && seen.some(r => r.text === '◌ TensorFold stopped qwen3.5-2b · /tensorfold serves it again'), JSON.stringify(seen.map(r => r.text)))
+  check("the stop act (the picker sends it after its own s-again confirm on the session's model) stops it through stopService; the stopped receipt carries the door", serve.servedTensorFold({ servedFile }).length === 0 && seen.some(r => r.text === '◌ TensorFold stopped qwen3.5-2b · /tensorfold serves it again'), JSON.stringify(seen.map(r => r.text)))
   await panel.onTensorFoldAct({ kind: 'support', row, window: 262_144 }, facts, io.road as never)
   check('c copies the support line through the clipboard seam (focused on the framed row)', copied[copied.length - 1] === 'TensorFold 1.2.2 · Metal · Apple M5 Pro · fixture' && road.tensorFoldRoadState().notice === 'copied the support line', JSON.stringify(copied))
   await panel.onTensorFoldAct({ kind: 'limit', row: facts.rows[1]!, line: 'sudo sysctl iogpu.wired_limit_mb=27174' }, facts, io.road as never)

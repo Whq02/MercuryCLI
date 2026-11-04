@@ -4,7 +4,7 @@ import { ggufServerRoots } from '../../services/localSetup/ggufServers.js'
 import { persistModelChoice } from '../model/persistModelChoice.js'
 import { pickAndProve, type ProveIo } from '../../services/localSetup/setupProve.js'
 import type { SessionModelSetter } from '../../services/localSetup/setupTypes.js'
-import { DEFAULT_LOCAL_PROBE_TARGETS, cachedLocalModels } from '../../services/providers/local/localDiscovery.js'
+import { DEFAULT_LOCAL_PROBE_TARGETS, cachedLocalModels, refreshLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
 import type { TensorFoldServed } from '../../services/tensorfold/contracts.js'
 import { findTensorFoldEngine } from '../../services/tensorfold/engine.js'
 import { installTensorFold, type TensorFoldInstallPlan } from '../../services/tensorfold/install.js'
@@ -231,7 +231,7 @@ export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: nu
   }
 }
 
-export async function stopTensorFoldRow(row: Pick<TensorFoldInventoryRow, 'repo' | 'shortName'>, served: readonly TensorFoldServed[], opts: { current: boolean }, io: RoadIo = {}): Promise<string> {
+export async function stopTensorFoldRow(row: Pick<TensorFoldInventoryRow, 'repo' | 'shortName'>, served: readonly TensorFoldServed[], io: RoadIo = {}): Promise<string> {
   const act = actOf(row.repo)
   if (act?.kind === 'pulling') {
     abortable.get(row.repo)?.abort()
@@ -244,18 +244,11 @@ export async function stopTensorFoldRow(row: Pick<TensorFoldInventoryRow, 'repo'
   }
   const mine = served.find(candidate => candidate.repo === row.repo)
   if (mine === undefined) return 'nothing to stop · Mercury did not start it'
-  if (opts.current && act?.kind !== 'stop-confirm') {
-    setAct(row.repo, { kind: 'stop-confirm' })
-    return 's again stops it'
-  }
   setAct(row.repo, undefined)
   await stopTensorFold(mine.name, io.serve)
+  await refreshLocalDiscovery({ force: true, ...(io.prove?.env !== undefined ? { env: io.prove.env } : {}) }).catch(() => undefined)
   mintImmediateReceipt(FEED.stopped(mine.name))
   return `stopped ${mine.name}`
-}
-
-export function keepTensorFoldRow(repo: string): void {
-  if (actOf(repo)?.kind === 'stop-confirm') setAct(repo, undefined)
 }
 
 export async function installTensorFoldThen(plan: TensorFoldInstallPlan, io: RoadIo = {}): Promise<boolean> {

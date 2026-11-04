@@ -26,7 +26,6 @@ import {
   copyWiredLimitCommand,
   discoveryEnvFor,
   installTensorFoldThen,
-  keepTensorFoldRow,
   readOtherCheckpoint,
   serveTensorFoldRow,
   setTensorFoldNotice,
@@ -144,7 +143,7 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
       if (row === undefined) return
       if (row.state === 'serving') {
         const served = facts.served.find(candidate => candidate.repo === row.repo)
-        if (served !== undefined) await stopTensorFoldRow(row, facts.served, { current: false }, io)
+        if (served !== undefined) await stopTensorFoldRow(row, facts.served, io)
       }
       await serveTensorFoldRow({ ...row, state: row.state === 'serving' ? 'on-disk' : row.state }, act.window, io)
       return
@@ -154,8 +153,7 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
       return
     case 'stop': {
       const row = inventoryRow(act.row.repo) ?? { repo: act.row.repo, shortName: act.row.shortName }
-      const current = facts.current !== undefined && facts.current === modelIdOf(act.row)
-      setTensorFoldNotice(await stopTensorFoldRow(row, facts.served, { current }, io))
+      setTensorFoldNotice(await stopTensorFoldRow(row, facts.served, io))
       return
     }
     case 'stop-pod': {
@@ -200,17 +198,13 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
       const served = facts.served.find(candidate => candidate.repo === act.row.repo)
       if (row === undefined || served === undefined) return
       setTensorFoldNotice(act.kind === 'share' ? SHARE_WORDS : UNSHARE_WORDS)
-      await stopTensorFoldRow(row, facts.served, { current: false }, io)
+      await stopTensorFoldRow(row, facts.served, io)
       const outcome = await serveTensorFoldRow({ ...row, state: 'on-disk', port: served.port }, served.window, io, { share: act.kind === 'share' })
       const code = tensorFoldPairingCode()
       if (act.kind === 'share' && outcome !== null && code !== null) setTensorFoldNotice(PAIRING_WORDS.shown(code, outcome.served.name))
       return
     }
   }
-}
-
-export function keepTensorFold(repo: string): void {
-  keepTensorFoldRow(repo)
 }
 
 export const call: LocalJSXCommandCall = async (onDone, context, args) => {

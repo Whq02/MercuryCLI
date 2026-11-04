@@ -15,6 +15,7 @@ const argAfter = (flag: string): string | undefined => {
 const BIN = resolve(argAfter('--dist') ?? join(REPO, 'dist', 'mercury.mjs'))
 const FRAMES = argAfter('--frames')
 const SIZE = argAfter('--size') ?? '160x48'
+const ONLY = argAfter('--only')
 const VSHOT = join(REPO, 'scripts', 'ui', 'vshot.py')
 const KEY = 'proof-key-ci-gate-not-a-real-key'
 const DEAD = 'http://127.0.0.1:1'
@@ -103,6 +104,8 @@ function childEnv(world: World): NodeJS.ProcessEnv {
     ANTHROPIC_API_KEY: KEY,
     MERCURY_CONFIG_DIR: world.home,
     MERCURY_CREDENTIAL_STORE: 'file',
+    MERCURY_LOCAL_PROBE_TARGETS: `llamacpp=${DEAD}`,
+    ...(process.env.DEBUG !== undefined ? { DEBUG: process.env.DEBUG } : {}),
     MERCURY_CRITTER: 'clam',
     MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_IDLE: '0',
@@ -252,6 +255,7 @@ async function stopWhatWeStarted(world: World): Promise<boolean> {
   return !alive(service.pid)
 }
 
+if (ONLY !== 'session') {
 const launchWorld = await makeWorld(SIZE, 'launch')
 const launchQuietBefore = !(await portAnswers(launchWorld.port))
 
@@ -279,8 +283,11 @@ check(`${launchWorld.tag} leg A: ↵ on the 2B served it on the seeded port from
 const launchBoot = launch.marks.get('launch-boot-face') ?? []
 check(`${launchWorld.tag} leg A: esc leaves the panel; with no session born behind a slash-command launch the chat settles to the boot face, the feed naming the serve as your default model`, launchBoot.some(l => l.includes('↑↓ choose')) && launchBoot.some(l => l.includes('New Session')), launchBoot.filter(l => l.includes('choose')).map(l => l.trim()).join(' | '))
 const launchSession = launch.marks.get('launch-session') ?? []
-check(`${launchWorld.tag} leg A: New Session from the boot face is born on the served 2B — the saved default read at birth, never the most recent sign-in (the strip names ${NAME_2B}, no cloud model)`, launchSession.some(l => l.includes(NAME_2B) && !l.includes('❯')) && !launchSession.some(l => l.includes('Opus 5.5 ·')), launchSession.filter(l => l.includes(NAME_2B) || l.includes('Opus')).map(l => l.trim().slice(0, 140)).join(' | '))
+check(`${launchWorld.tag} leg A: New Session from the boot face is born on the served 2B — the saved default read at birth, never the most recent sign-in; the daemon admits it because discovery probes the remembered port (the pinned target is a dead loopback, so only the port Mercury remembered answers)`, launchSession.some(l => l.includes(NAME_2B) && !l.includes('❯')) && !launchSession.some(l => l.includes('Opus 5.5 ·')), launchSession.filter(l => l.includes(NAME_2B) || l.includes('Opus')).map(l => l.trim().slice(0, 140)).join(' | '))
 check(`${launchWorld.tag} leg A: the seeded port was quiet before and nothing the leg started is left running`, launchQuietBefore && launchStopped && !(await portAnswers(launchWorld.port)))
+}
+
+if (ONLY !== 'launch') {
 
 const world = await makeWorld(SIZE, 'session')
 const quietBefore = !(await portAnswers(world.port))
@@ -340,6 +347,7 @@ check(`${world.tag}: nothing the drive started is left running; the port is quie
 const servedFile = join(world.home, 'tensorfold', 'served.json')
 const record = existsSync(servedFile) ? (JSON.parse(readFileSync(servedFile, 'utf8')) as { repo: string; port: number; window: number } | null) : null
 check(`${world.tag}: the served record is cleared by the stop (prove-tensorfold-serve pins the reattach after a restart)`, record === null, JSON.stringify(record))
+}
 
 console.log(`\n${failures === 0 ? 'GREEN' : `RED (${failures})`}: the TensorFold live drive on this Mac`)
 process.exit(failures === 0 ? 0 : 1)

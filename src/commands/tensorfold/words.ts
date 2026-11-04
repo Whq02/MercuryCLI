@@ -15,7 +15,6 @@ export const TENSORFOLD_WORDS = {
   windows: 'no Windows release yet',
   windowsLive: 'nothing served here · TensorFold runs on a host',
   startedOutside: 'set when it started outside Mercury, which does not stop or restart it',
-  stopConfirm: 's again stops it · this session uses it',
   copySupport: 'c copies the support line',
   exit: 'esc or click outside closes',
   legend: {
