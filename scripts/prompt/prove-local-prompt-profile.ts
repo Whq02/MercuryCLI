@@ -159,6 +159,20 @@ const controlSystem = controlFirst ? systemTextOf(controlFirst) : ''
 check('the switched-off local request carries the headless constitution and the full tools', controlSystem.includes(MERCURY_HEADLESS_CONSTITUTION) && controlFirst !== undefined && toolNamesOf(controlFirst).includes('Crewmate'), controlFirst ? toolNamesOf(controlFirst).join(',') : 'no request')
 console.log(`  [INFO] control arm: system ${bytes(control.normalize(controlSystem))} B · tools ${controlFirst ? bytes(JSON.stringify(controlFirst.tools ?? [])) : 0} B`)
 
+section('§7 off the local route — a rented pod running the TensorFold recipe gets the profile; a vLLM pod keeps today\'s composition')
+const podTask = 'Read README.md and state its first heading.'
+const podReply = (): ScriptedReply => ({ kind: 'text', text: 'POD-DONE' })
+const tfPod = await captureRoad({ road: 'pod', podEngine: 'tensorfold', task: podTask, reply: podReply, maxTurns: 2 })
+const tfPodFirst = tfPod.requests[0]
+const tfPodSystem = tfPodFirst ? systemTextOf(tfPodFirst) : ''
+check('the TensorFold pod turn completes on the compat road', tfPod.code === 0 && answeredWith(tfPod.stdout, 'POD-DONE'), `${tfPod.stderr.slice(-300)}`)
+check('RED ON A TREE WITHOUT THE POD ARM: the TensorFold pod is sent the profile — the head, the local law, the core seven in their short forms', tfPodSystem.startsWith(`Working directory: ${tfPod.cwd}\n\n${LOCAL_LAW}`) && tfPodFirst !== undefined && toolNamesOf(tfPodFirst).join(',') === CORE.join(','), tfPodFirst ? `${JSON.stringify(tfPodSystem.slice(0, 120))} · ${toolNamesOf(tfPodFirst).join(',')}` : 'no request')
+const vllmPod = await captureRoad({ road: 'pod', podEngine: 'vllm', task: podTask, reply: podReply, maxTurns: 2 })
+const vllmPodOff = await captureRoad({ road: 'pod', podEngine: 'vllm', task: podTask, reply: podReply, maxTurns: 2, env: { MERCURY_LOCAL_PROMPT_PROFILE: '0' } })
+const vllmFirst = vllmPod.requests[0]
+check('the vLLM pod keeps the cloud composition and the cloud roster (ChangeSet in full, which the profile never loads)', vllmPod.code === 0 && systemTextOf(vllmFirst ?? { model: '', messages: [] }).includes(MERCURY_HEADLESS_CONSTITUTION) && vllmFirst !== undefined && toolNamesOf(vllmFirst).includes('ChangeSet'), vllmFirst ? toolNamesOf(vllmFirst).join(',') : vllmPod.stderr.slice(-300))
+check('the vLLM pod request is the same request with the profile switched off, byte for byte', shape(vllmPod, vllmFirst) !== '' && shape(vllmPod, vllmFirst) === shape(vllmPodOff, vllmPodOff.requests[0]), firstDifference(shape(vllmPod, vllmFirst), shape(vllmPodOff, vllmPodOff.requests[0])))
+
 function firstDifference(a: string, b: string): string {
   let at = 0
   while (at < a.length && at < b.length && a[at] === b[at]) at++

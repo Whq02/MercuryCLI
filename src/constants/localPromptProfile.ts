@@ -1,10 +1,34 @@
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import { classifyModelRoute } from '../services/providers/idSpaces.js'
 
+const tensorFoldPodVerdicts = new Map<string, boolean>()
+
+function onTensorFoldPod(model: string): boolean {
+  const known = tensorFoldPodVerdicts.get(model)
+  if (known !== undefined) return known
+  try {
+    const { compatModelEndpoint } = require('../services/providers/openaicompat/compatAccounts.js') as typeof import('../services/providers/openaicompat/compatAccounts.js')
+    const podId = compatModelEndpoint(model)?.endpoint.hostPodId
+    if (podId === undefined) return false
+    const { readHostRecord } = require('../services/host/store.js') as typeof import('../services/host/store.js')
+    const record = readHostRecord(podId)
+    if (record === undefined) return false
+    const { currentHostRecipes } = require('../services/host/recipesFile.js') as typeof import('../services/host/recipesFile.js')
+    const recipe = record.recipeRow ?? currentHostRecipes().find(row => row.id === record.recipe)
+    const verdict = String(recipe?.engine) === 'tensorfold'
+    tensorFoldPodVerdicts.set(model, verdict)
+    return verdict
+  } catch {
+    return false
+  }
+}
+
 export function localPromptProfileApplies(model: string | undefined): boolean {
   if (model === undefined || model.trim() === '') return false
   const verdict = classifyModelRoute(model)
-  return verdict.kind === 'route' && verdict.route === 'local' && flagEnabled('MERCURY_LOCAL_PROMPT_PROFILE')
+  if (verdict.kind !== 'route' || (verdict.route !== 'local' && verdict.route !== 'openai-compat')) return false
+  if (!flagEnabled('MERCURY_LOCAL_PROMPT_PROFILE')) return false
+  return verdict.route === 'local' || onTensorFoldPod(model)
 }
 
 export const LOCAL_LAW: string = `You are Mercury, the coding agent working in the operator's terminal. The model running you is a swappable engine; Mercury is the harness. Work as a capable colleague: plain words, honest about what you know and what you did.

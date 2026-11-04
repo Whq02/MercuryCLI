@@ -9,7 +9,7 @@ import {
 import { getEngineModel } from './model/model.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { deferralWireFormFor, toolReferenceWireAccepted } from '../services/providers/deferralWire.js'
-import { localToolForm } from '../constants/localPromptProfile.js'
+import { localPromptProfileApplies, localToolForm } from '../constants/localPromptProfile.js'
 import { zodToJsonSchema } from './zodToJsonSchema.js'
 import { inlineLocalSchemaRefs } from './inlineSchemaRefs.js'
 import { normalizeToolSchemaFor, rememberRenamedArgumentKeys, schemaLaneFor } from './normalizeToolSchema.js'
@@ -116,7 +116,7 @@ export async function toolToAPISchema(
   const cache = getToolSchemaCache()
   const promptModel = options.model ?? getEngineModel()
   const caps = resolveModelCapabilities(promptModel)
-  const fingerprint = `${declaredRouteOf(promptModel) ?? 'unrecognised'}:${caps.media.pdf ? 'p' : ''}${caps.media.images ? 'i' : ''}:${deferralWireFormFor(promptModel).form}`
+  const fingerprint = `${declaredRouteOf(promptModel) ?? 'unrecognised'}:${caps.media.pdf ? 'p' : ''}${caps.media.images ? 'i' : ''}:${deferralWireFormFor(promptModel).form}${localPromptProfileApplies(promptModel) ? ':local-profile' : ''}`
   const pool = options.tools.map(item => item.name).sort().join(',')
   const key = `${toolCacheKey(tool)}@${fingerprint}|${pool}`
   let base = cache.get(key)

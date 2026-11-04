@@ -124,8 +124,17 @@ export function normalizerFor(home: string, cwd: string): (value: string) => str
     .replace(/(capsule-digest:|generation )[0-9a-f]{6,}/g, '$1<digest>')
 }
 
+export const POD_FIXTURE_MODEL = 'compat/pod-fixture/qwen3.8-27b'
+
+function seedPod(home: string, base: string, engine: string): void {
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ compatProvider: { 'pod-fixture': { baseUrl: `${base}/v1`, hostPodId: 'fixturepod', dialect: engine === 'vllm' ? 'vllm' : 'chat-completions', models: ['qwen3.8-27b'] } } }))
+  mkdirSync(join(home, 'host', 'pods'), { recursive: true })
+  writeFileSync(join(home, 'host', 'pods', 'fixturepod.json'), JSON.stringify({ vendor: 'runpod', id: 'fixturepod', name: 'fixture pod', recipe: `fixture-${engine}`, price: 1.19, startedAt: FIXED_GIT_DATE, status: 'RUNNING', jobState: 'ready', recipeRow: { id: `fixture-${engine}`, engine } }))
+}
+
 export async function captureRoad(options: {
-  road: 'local' | 'zai'
+  road: 'local' | 'zai' | 'pod'
+  podEngine?: string
   task: string
   reply: (request: ChatRequest, index: number) => ScriptedReply
   maxTurns: number
@@ -141,7 +150,7 @@ export async function captureRoad(options: {
       const path = new URL(request.url ?? '/', 'http://127.0.0.1').pathname
       if (request.method === 'GET' && path.endsWith('/models')) {
         response.writeHead(200, { 'content-type': 'application/json' })
-        response.end(JSON.stringify(options.road === 'local' ? TENSORFOLD_MODELS : { data: [] }))
+        response.end(JSON.stringify(options.road === 'local' ? TENSORFOLD_MODELS : options.road === 'pod' ? { object: 'list', data: [{ id: 'qwen3.8-27b', object: 'model', created: 1, owned_by: options.podEngine ?? 'tensorfold' }] } : { data: [] }))
         return
       }
       if (request.method !== 'POST' || !path.endsWith('/chat/completions')) {
@@ -162,10 +171,13 @@ export async function captureRoad(options: {
   const { home, cwd } = scratchHome(`local-profile-${options.road}`)
   try {
     seedProject(cwd, home, options.files ?? { 'README.md': '# Fixture project\n', 'package.json': JSON.stringify({ name: 'fixture', scripts: { test: 'node test.js' } }) })
-    const roadEnv = options.road === 'local'
+    if (options.road === 'pod') seedPod(home, base, options.podEngine ?? 'tensorfold')
+    const roadEnv: Record<string, string> = options.road === 'local'
       ? { MERCURY_LOCAL_BASE_URL: `${base}/v1` }
-      : { MERCURY_ZAI_API_BASE: `${base}/zai/v4`, ZAI_API_KEY: 'local-profile-fixture-key-not-real' }
-    const model = options.road === 'local' ? `local/${LOCAL_FIXTURE_MODEL}` : CLOUD_FIXTURE_MODEL
+      : options.road === 'pod'
+        ? {}
+        : { MERCURY_ZAI_API_BASE: `${base}/zai/v4`, ZAI_API_KEY: 'local-profile-fixture-key-not-real' }
+    const model = options.road === 'local' ? `local/${LOCAL_FIXTURE_MODEL}` : options.road === 'pod' ? POD_FIXTURE_MODEL : CLOUD_FIXTURE_MODEL
     const result = await runMercury(['run', options.task, '--model', model, '--format', 'rows', '--mode', options.mode ?? 'default', '--max-turns', String(options.maxTurns)], cwd, runEnv(home, { ...roadEnv, ...(options.env ?? {}) }), 120_000)
     return { requests, ...result, home, cwd, normalize: normalizerFor(home, cwd) }
   } finally {
