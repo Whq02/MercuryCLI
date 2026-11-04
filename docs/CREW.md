@@ -304,10 +304,11 @@ and your custom definitions are the choices for a fresh launch.
 
 ## The concourse
 
-The Session Concourse (the board of the project you are in with its running
-sessions and its parked chats, switching into a row, the live tiles, NEEDS
-YOU, the navigation strip that walks only the screens that exist, and
-how chats are started, focused, closed and resumed) is covered in
+The Session Concourse (the board of the project you are in: the chosen
+session's live view beside the session list with its running sessions, its
+parked chats and NEEDS YOU, switching into a row, the live tiles, the
+navigation strip that walks only the screens that exist, and how chats are
+started, focused, closed and resumed) is covered in
 [SESSIONS.md](SESSIONS.md). This section describes the coordinator behind
 the board.
 
@@ -316,5 +317,8 @@ and your Mercury sessions running beside each other. The
 coordinator launches, watches, messages, pauses, resumes, queues and
 reconciles sessions and answers questions from the repository it sits on; it
 never does a session's work or reaches inside one, and every verb settles as
-a receipt row you see. The coordinator surface is experimental and
-says so itself on the board: trust receipts, never assumed success.
+a receipt row you see. The coordinator is off unless it is turned on for the
+boot, and while it is off the board shows no coordinator pane, chip or key.
+When it is on, it is the board's third pane, under the session list, and
+`tab` reaches it after the list. The coordinator surface is experimental:
+trust receipts, never assumed success.

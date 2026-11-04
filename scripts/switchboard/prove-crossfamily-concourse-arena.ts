@@ -81,6 +81,7 @@ try {
   const run = await runArtifactArena({
     turns: [],
     sends: [
+      'after:ask in plain words:900:\t',
       'after:ask in plain words:1500:cma-launch: start the alpha seat',
       'after:ask in plain words:2400:\r',
       'after:CMA Beta:9000:cma-steer: adjust the alpha seat',
@@ -113,6 +114,7 @@ try {
       const cfgPath = join(configDir, '.config.json')
       const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
       cfg.concourseCoordinator = { mode: 'agent-assisted', assistModel: 'gpt-5.5' }
+      cfg.coordinatorEnabled = true
       writeFileSync(cfgPath, JSON.stringify(cfg))
       seedFirstRun(configDir, [cwd, workB])
       spawnDaemonWithHome(configDir)

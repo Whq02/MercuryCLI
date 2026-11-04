@@ -244,11 +244,4 @@ export interface ConcourseCallbacks {
     onAccepted?: () => void,
     opts?: { manager?: boolean },
   ) => Promise<void>
-  switchCoordinatorModel: (modelId: string) => Promise<import('../../services/concourse/coordinatorModels.js').CoordinatorSwitchReceiptV1>
-  switchCoordinatorMode: (
-    mode: 'off' | 'rules-only' | 'agent-assisted',
-  ) => Promise<import('../../services/concourse/coordinatorModels.js').CoordinatorSwitchReceiptV1>
-  switchCoordinatorEffort?: (
-    effort: string,
-  ) => Promise<import('../../services/concourse/coordinatorModels.js').CoordinatorSwitchReceiptV1>
 }

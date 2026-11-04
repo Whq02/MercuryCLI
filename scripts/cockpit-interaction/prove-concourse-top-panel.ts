@@ -88,7 +88,7 @@ const reference = referenceFixtureSnapshot()
 const HANDLE = (reference.context as { operatorHandle: string }).operatorHandle
 const handleRe = new RegExp(`(^|[^\\w])${HANDLE}([^\\w]|$)`)
 
-console.log('W — the wide board (160×48, no ask on the rail): no top panel; the panels start on the first row; the name ends the status row')
+console.log('W — the wide board (160×48, no ask): no top panel; the two panes start on the first row; no name anywhere on the board')
 {
   const fixture = referenceFixtureSnapshot()
   fixture.needsYou = []
@@ -98,28 +98,27 @@ console.log('W — the wide board (160×48, no ask on the rail): no top panel; t
   check(`W2 no "MERCURY — ${LOCKUP}" title bar`, !lines.some(l => l.includes(LOCKUP)), lines.find(l => l.includes(LOCKUP))?.trim())
   check('W3 no BOOT › CONCOURSE › FOCUSED CHAT breadcrumb', crumbRows(lines).length === 0, crumbRows(lines).join(' | '))
   check(
-    'W4 the coordinator and sessions panels start on the first row (both top borders on row 0, both titles on row 1)',
-    panelTop(lines[0] ?? '') && ((lines[0] ?? '').match(/[╭┏]/g) ?? []).length === 2 && (lines[1] ?? '').includes('COORDINATOR') && (lines[1] ?? '').includes('SESSIONS'),
+    'W4 the live view and the session list start on the first row (both top borders on row 0; the session header and SESSIONS on row 1)',
+    panelTop(lines[0] ?? '') && ((lines[0] ?? '').match(/[╭┏]/g) ?? []).length === 2 && (lines[1] ?? '').includes('↵ enter session') && (lines[1] ?? '').includes('SESSIONS'),
     lines.slice(0, 2).map(l => l.trimEnd()).join('\n'),
   )
-  const status = lines.findIndex(l => l.includes(' live · ') && l.includes(' seats'))
-  const named = lines.flatMap((l, i) => (handleRe.test(l) ? [i] : []))
+  const status = lines.findIndex(l => l.includes('▚▛▀▜▞') && l.includes(' seats'))
   check(
-    `W5 the operator's name ("${HANDLE}") rides the right end of the bottom status row, after the seats, in the row's own · separator — and nowhere else`,
-    status >= 0 && status > lines.length - 6 && new RegExp(`seats[^│]* · ${HANDLE} │$`).test((lines[status] ?? '').trimEnd()) && named.length === 1 && named[0] === status,
-    `status row ${status}: ${(lines[status] ?? '').trim()} · name on rows ${named.join(',')}`,
+    `W5 the status row ends on the seats and the operator's name ("${HANDLE}") is on no row of the board`,
+    status >= 0 && status > lines.length - 6 && /seats │$/.test((lines[status] ?? '').trimEnd()) && !lines.some(l => handleRe.test(l)),
+    `status row ${status}: ${(lines[status] ?? '').trim()}`,
   )
 }
 
-console.log('S — the stacked board (110×34, the reference fixture): the ask rail starts on the first row; under the over-seat reading the name yields, the chips keep their room')
+console.log('S — the board at 110×34 (the reference fixture, one ask): the panes start on the first row; the ask sits in the session list, the status row carries the project and the seats alone')
 {
   const lines = capture('board-stacked-110x34', boardCfg(110, 34, 'STATUS & TITLE'), boardEnv(referenceFixtureSnapshot(), 'stacked'), REPO)
   check('S1 no critter rows, no title bar, no breadcrumb', critterRows(lines).length === 0 && !lines.some(l => l.includes(LOCKUP)) && crumbRows(lines).length === 0, lines.slice(0, 3).map(l => l.trimEnd()).join('\n'))
-  check('S2 the NEEDS YOU rail starts on the first row', panelTop(lines[0] ?? '') && (lines[1] ?? '').includes('NEEDS YOU'), lines.slice(0, 2).map(l => l.trimEnd()).join('\n'))
-  const status = lines.find(l => l.includes(' live · ') && l.includes(' seats')) ?? ''
+  check('S2 the panes start on the first row and the NEEDS YOU block sits below them, inside the session list', panelTop(lines[0] ?? '') && (lines[1] ?? '').includes('SESSIONS') && lines.findIndex(l => l.includes('NEEDS YOU')) > 1, lines.slice(0, 2).map(l => l.trimEnd()).join('\n'))
+  const status = lines.find(l => l.includes('▚▛▀▜▞') && l.includes(' seats')) ?? ''
   check(
-    'S3 the status row keeps both chips whole and the name yields when it would squeeze them (the over-seat words fill the row)',
-    status.includes('coordinator off ⌄ │ Moodle ⌄') && status.includes('over the 5-seat reading') && !handleRe.test(status),
+    'S3 the status row is the project chip and the seats, whole: no coordinator chip, no over-seat words, no name',
+    /▚▛▀▜▞ │ Moodle ⌄\s+\d+\/\d+ seats │/.test(status) && !/coordinator|over the|live/.test(status) && !handleRe.test(status),
     status.trim(),
   )
 }

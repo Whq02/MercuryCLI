@@ -111,6 +111,7 @@ try {
   const run = await runArtifactArena({
     turns: [],
     sends: [
+      { awaitText: ['SESSIONS', TITLE, TITLE_B], text: '\x1b[A', settleMs: 120 } as never,
       { awaitText: ['SESSIONS', TITLE], targetHeader: 'STATUS & TITLE', targetText: TITLE, settleMs: 120 } as never,
       { awaitText: ['SESSIONS', 'enter session'], targetHeader: 'STATUS & TITLE', targetText: TITLE, settleMs: 60, arrivedText: ['live-body', 'Type a prompt'], arrivedAbsent: 'SESSIONS' } as never,
       { awaitText: ['live-body', 'Type a prompt'], awaitAbsent: 'SESSIONS', text: '\x1b[1;2D', settleMs: 120 } as never,
@@ -161,8 +162,8 @@ try {
   })
   try {
     const legs: Array<{ name: string; title: string; clickSteps: [number, number]; arrivedStep: number }> = [
-      { name: 'the first visit', title: TITLE, clickSteps: [0, 1], arrivedStep: 2 },
-      { name: 'after shift+← back from the session, the other row', title: TITLE_B, clickSteps: [3, 4], arrivedStep: 5 },
+      { name: 'the first visit (the focused list moved off the rows first: ↑ onto the new-session door)', title: TITLE, clickSteps: [1, 2], arrivedStep: 3 },
+      { name: 'after shift+← back from the session, the other row', title: TITLE_B, clickSteps: [4, 5], arrivedStep: 6 },
     ]
     for (const leg of legs) {
       const first = run.sendLog.find(s => s.step === leg.clickSteps[0])

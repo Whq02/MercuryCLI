@@ -199,11 +199,6 @@ section('§2 raw-input captures — a closed roster: the guard that scopes the c
       legend: ['saturnFormLegendOf({ prompt: formPrompt !== null, pick: false })', "if (state.prompt) return 'type · ↵ set · esc cancel'"],
       reason: 'the schedule prompt owns the keys only while open; the form legend (s schedule it) yields to the prompt legend',
     },
-    'src/components/concourse/CoordinatorModelPicker.tsx': {
-      guard: ["!(input === 'e' && query.length === 0 && effortDoorArmedRef.current)"],
-      legend: [/list\.selectedRow\?\.kind === 'model' && query\.length === 0\s*\n?\s*\? \[\{ text: 'e effort'/],
-      reason: 'the type-to-filter search takes every printable except the one e the effort doorway fires (empty query, model row); the legend advertises e exactly then',
-    },
     'src/components/concourse/SessionWaitingRoom.tsx': {
       guard: ['if (input.length > 0 && !key.ctrl && !key.meta && !key.tab) {'],
       legend: ['add a message — it delivers when the session starts'],

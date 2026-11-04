@@ -149,6 +149,7 @@ function newScratch(tag: string, seedConversation: boolean): string {
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
   cfg['switchboardCapacity'] = { askedAt: 1754000000000, allowed: true, recommendedSeats: 5 }
   cfg['concourseCoordinator'] = { mode: 'agent-assisted', assistModel: 'claude-opus-5' }
+  cfg['coordinatorEnabled'] = true
   cfg['customApiKeyResponses'] = { approved: ['fixture-key-000'], rejected: [] }
   writeFileSync(cfgPath, JSON.stringify(cfg))
   if (seedConversation) {
@@ -216,6 +217,10 @@ const hasWrapped = (lines: string[], needle: string): boolean =>
     .map(l => (l.split('│')[1] ?? '').trim())
     .join(' ')
     .includes(needle)
+const paneText = (lines: string[]): string => {
+  const col = (lines.find(l => l.includes('COORDINATOR')) ?? '').indexOf('COORDINATOR')
+  return col < 0 ? '' : lines.map(l => l.slice(col).replace(/│/g, ' ').trim()).join(' ').replace(/\s+/g, ' ')
+}
 const selRow = (lines: string[]): number => lines.findIndex(l => /▸ /.test(l) && /Audit|Fix OAuth|Refactor|Update/.test(l))
 const titleOf = (line: string | undefined): string => (line ?? '').match(/(?:Audit|Fix OAuth|Refactor|Update)(?: \S+)*/)?.[0] ?? ''
 const sameTitle = (a: string, b: string): boolean => {
@@ -230,7 +235,8 @@ const scratches: string[] = []
   const scratch = newScratch('coord', true)
   scratches.push(scratch)
   const lines = capture('coord', scratch, [
-    { ...settle, data: DOWN, mark: 'before' },
+    { atTick: 999, awaitText: 'Fix OAuth', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '\t' },
+    { afterPrevTicks: 3, data: DOWN, mark: 'before' },
     { afterPrevTicks: 3, data: '\r', mark: 'after-down' },
     { afterPrevTicks: 3, data: '', mark: 'after-enter' },
   ], 70)
@@ -242,7 +248,7 @@ const scratches: string[] = []
   const nextRow = before.findIndex((l, i) => i > rowBefore && titleOf(l) !== '')
   check(
     'coord: the pane is OUT of its zero state (conversation painted or opening — the example walk is not in play)',
-    (hasWrapped(before, 'what model are you running on?') || has(before, 'opening the conversation')) && !has(before, COORDINATOR_EXAMPLE_PROMPTS[0]),
+    (paneText(before).includes('what model are you running on?') || has(before, 'opening the conversation')) && !has(before, COORDINATOR_EXAMPLE_PROMPTS[0]),
     before.find(l => l.includes('COORDINATOR'))?.trim().slice(0, 80) ?? '(no coordinator pane)',
   )
   check('coord: before any key the ▸ selection sits on the first session row', rowBefore >= 0 && titleOf(before[rowBefore]) !== '' && nextRow > rowBefore, `row=${rowBefore} title=${JSON.stringify(titleOf(before[rowBefore]))}`)
@@ -268,6 +274,7 @@ const scratches: string[] = []
   const scratch = newScratch('zero', false)
   scratches.push(scratch)
   capture('zero', scratch, [
+    { atTick: 999, awaitText: 'Fix OAuth', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '\t' },
     { ...settle, awaitText: 'launch two sessions', data: DOWN, mark: 'before' },
     { afterPrevTicks: 3, data: '', mark: 'after' },
   ], 60)
@@ -275,7 +282,7 @@ const scratches: string[] = []
   const after = markOf('zero', 'after')
   const first = COORDINATOR_EXAMPLE_PROMPTS[0]
   const second = COORDINATOR_EXAMPLE_PROMPTS[1]
-  const marked = (lines: string[], prompt: string): boolean => lines.some(l => l.includes(prompt) && l.includes('· ↵'))
+  const marked = (lines: string[], prompt: string): boolean => lines.some(l => l.includes(`▸ ${prompt.slice(0, 20)}`))
   check('zero: the pane paints its example prompts with the first highlighted (· ↵ fills the box)', marked(before, first) && !marked(before, second), before.find(l => l.includes(first))?.trim().slice(0, 100) ?? '(no example row)')
   check('zero: ↓ walked the highlight to the second example — the pane received the key and spent it on its own meaning', marked(after, second) && !marked(after, first), after.find(l => l.includes(second))?.trim().slice(0, 100) ?? '(no example row)')
   check('zero: the ▸ selection stayed on the first session row', selRow(after) === selRow(before) && selRow(before) >= 0, `before=${selRow(before)} after=${selRow(after)}`)
@@ -285,8 +292,7 @@ const scratches: string[] = []
   const scratch = newScratch('list', true)
   scratches.push(scratch)
   capture('list', scratch, [
-    { ...settle, data: '\t', mark: 'before' },
-    { afterPrevTicks: 3, data: DOWN },
+    { ...settle, data: DOWN, mark: 'before' },
     { afterPrevTicks: 3, data: '\r', mark: 'after-down' },
     { afterPrevTicks: 3, data: '', mark: 'after-enter' },
   ], 80)
@@ -297,7 +303,7 @@ const scratches: string[] = []
   const rowAfter = selRow(afterDown)
   const nextRow = before.findIndex((l, i) => i > rowBefore && titleOf(l) !== '')
   check(
-    'list: after tab → the rows, ONE ↓ moved the ▸ selection onto the second row',
+    'list: on entry the rows hold focus, and ONE ↓ moved the ▸ selection onto the second row',
     rowBefore >= 0 && rowAfter > rowBefore && sameTitle(titleOf(afterDown[rowAfter]), titleOf(before[nextRow])),
     `before=${rowBefore}:${JSON.stringify(titleOf(before[rowBefore]))} after=${rowAfter}:${JSON.stringify(titleOf(afterDown[rowAfter]))} expected=${JSON.stringify(titleOf(before[nextRow]))}`,
   )

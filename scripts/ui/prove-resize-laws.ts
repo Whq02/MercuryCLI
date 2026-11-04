@@ -184,7 +184,7 @@ console.log('§8 D4 — the split partitions hover ids and the wheel at the divi
     'the screen hands each side its band from the ONE split geometry',
     screen.includes('wheelBand: [0, splitGeo.dividerCol - 1]') && screen.includes('wheelBand={[splitGeo.dividerCol + 1, termCols - 1]'),
   )
-  check('the un-split full board keeps whole-width behavior (no band without splitGeo); the compact frame hands the live frame its own columns, the frame partitioning the wheel as the divider does', screen.replace(/\s+/g, ' ').includes('{...(splitGeo !== null ? { wheelBand: [0, splitGeo.dividerCol - 1] as [number, number] } : compactGeo !== null ? { wheelBand: [compactGeo.live.x0 + 1, compactGeo.live.x1 + 1] as [number, number] } : {})}'))
+  check('each board hands the live view its own wheel band: the split its board side, the compact frame its live frame, the two-pane board its live column; the stacked forms partition by rows, the frame partitioning the wheel as the divider does', screen.replace(/\s+/g, ' ').includes("{...(splitGeo !== null ? { wheelBand: [0, splitGeo.dividerCol - 1] as [number, number] } : compactGeo !== null ? { wheelBand: [compactGeo.live.x0 + 1, compactGeo.live.x1 + 1] as [number, number] } : geo.profile === 'wide' && !geo.constrained ? { wheelBand: geo.liveCols } : {})}") && screen.replace(/\s+/g, ' ').includes('{...(compactGeo !== null ? { wheelRows: [compactGeo.live.y0 + 2, compactGeo.live.y1] as [number, number] } : !geo.constrained ? { wheelRows: [geo.mirrorBand[0] + 1, geo.mirrorBand[1] - 1] as [number, number] } : {})}'))
 }
 
 console.log('§9 D5 — the collapse notice dies when the frame affords again')
@@ -271,8 +271,8 @@ console.log('§14 CB-05 — the state-word column is reserved; title columns are
   check('the resting cell is pure space', stateWordCell(null) === ' '.repeat(1 + STATE_WORD_RESERVE))
   check('the filled cell: word then spaces (the still)', stateWordCell('ready') === ' ready    ' && stateWordCell('NEEDS YOU') === ' NEEDS YOU' && stateWordCell('a door') === ' a door   ')
   check(
-    'every row paints the reserve cell (the selected row fills, the rest hold spaces)',
-    layoutSrc.includes('stateWordCell(') && layoutSrc.includes("? (STATE_WORD[r.state] ?? r.state)\n                            : null,"),
+    'every row paints the reserve cell where the list has the width for it (the selected row fills, the rest hold spaces); a narrow list drops the cell on every row alike',
+    layoutSrc.includes('stateWordCell(') && layoutSrc.includes("? (STATE_WORD[r.state] ?? r.state)\n                              : null,") && layoutSrc.includes('const stateCellShown = listInner >= 48') && layoutSrc.includes('{stateCellShown ? ('),
   )
   check('the old inserting paint is gone', !layoutSrc.includes('<Text color={t[sg.color]}> {STATE_WORD[r.state] ?? r.state}</Text>'))
 }

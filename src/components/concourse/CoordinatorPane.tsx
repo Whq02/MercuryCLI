@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, Text, paletteCollapsed, useInput } from '../../ink.js';
 import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js';
 import { GLYPH } from '../mercury-ui/glyphs.js';
-import { keyHintLabel } from '../mercury-ui/keyHintLabel.js';
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js';
 import { InteractiveDisclosure } from '../mercury-ui/InteractiveDisclosure.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
@@ -13,7 +12,7 @@ import { sampleSpinnerVerb } from '../../constants/spinnerVerbs.js';
 import { Markdown } from '../Markdown.js';
 import { stripInlineMarkdown } from '../../utils/markdown.js';
 import { TEAL, FAINT } from '../mercuryPalette.js';
-import { formatClock } from '../messages/TranscriptNameplate.js';
+import { formatClock, userHandle } from '../messages/TranscriptNameplate.js';
 import {
   readCoordinatorConversation,
   readCoordinatorGauge,
@@ -23,9 +22,7 @@ import {
 } from '../../services/concourse/coordinatorConversation.js';
 import { calculateTokenWarningState } from '../../services/compact/autoCompact.js';
 import TokenWarning from '../TokenWarning.js';
-import { CoordinatorModelPicker } from './CoordinatorModelPicker.js';
 import { GitOfferCard, type GitOfferV1 } from './GitOfferCard.js';
-import type { ConcourseCallbacks } from './contracts.js';
 
 
 export const COORDINATOR_EXAMPLE_PROMPTS = [
@@ -84,13 +81,11 @@ const CoordinatorEntryBlock = React.memo(function CoordinatorEntryBlock({
   first,
   expanded,
   onToggle,
-  operatorHandle,
 }: {
   entry: CoordinatorConversationEntryV1
   first: boolean
   expanded: boolean
   onToggle: (id: string) => void
-  operatorHandle: string
 }): React.ReactNode {
   const t = useMercuryTokens()
   const clockOf = (entry: CoordinatorConversationEntryV1): string | null => {
@@ -125,7 +120,7 @@ const CoordinatorEntryBlock = React.memo(function CoordinatorEntryBlock({
     const clock = clockOf(entry)
     const isOp = entry.role === 'operator'
     const isHarness = entry.harness === true
-    const name = isHarness ? 'harness' : isOp ? operatorHandle : 'Coordinator'
+    const name = isHarness ? 'harness' : isOp ? userHandle() : 'Coordinator'
     return (
       <Text>
         {clock !== null ? <Text color={FAINT}>{clock} </Text> : null}
@@ -175,17 +170,11 @@ const CoordinatorEntryBlock = React.memo(function CoordinatorEntryBlock({
 })
 
 export function CoordinatorPane({
-  callbacks,
-  mode,
-  fallbackReason,
-  operatorHandle,
   focused,
   paneRows,
   paneWidth,
   bounds,
   pending,
-  settingsOpen,
-  onCloseSettings,
   onPickExample,
   draftHeld = false,
   modalUp = false,
@@ -198,17 +187,11 @@ export function CoordinatorPane({
   tailNote = null,
   minimal = false,
 }: {
-  callbacks: ConcourseCallbacks
-  mode: 'off' | 'rules-only' | 'agent-assisted'
-  fallbackReason?: string
-  operatorHandle: string
   focused: boolean
   paneRows: number
   paneWidth: number
   bounds: [number, number, number, number]
   pending: boolean
-  settingsOpen: boolean
-  onCloseSettings: () => void
   onPickExample: (text: string) => void
   draftHeld?: boolean
   modalUp?: boolean
@@ -278,7 +261,7 @@ export function CoordinatorPane({
   }, [])
 
   useInput((_input, key, event) => {
-    if (modalUp || settingsOpen) return
+    if (modalUp) return
     if (paneRows === 0) return
     if (key.wheelUp || key.wheelDown) {
       const kp = event.keypress as { x?: number; y?: number }
@@ -326,7 +309,14 @@ export function CoordinatorPane({
   if (collapsed && !minimal) {
     const last = entries !== null && entries.length > 0 ? entries[entries.length - 1] : undefined
     return (
-      <Box flexDirection="column" flexShrink={0} overflow="hidden" paddingX={1}>
+      <Box
+        flexDirection="column"
+        flexGrow={1}
+        overflow="hidden"
+        borderStyle="round"
+        borderColor={t.borderSubtle}
+        paddingX={1}
+      >
         <InteractiveRow id="coordinator:focus-tail" directActivate hoverStyle="chrome-ink" {...(onFocus !== undefined ? { onActivate: onFocus } : {})}>
           {hover => (
             <Text color={hover ? t.info : t.textMuted} bold wrap="truncate-end">
@@ -345,9 +335,7 @@ export function CoordinatorPane({
             {last !== undefined
               ?
                 stripInlineMarkdown(last.text).replace(/\s+/g, ' ').slice(0, 200)
-              : mode === 'agent-assisted'
-                ? 'ask in plain words'
-                : 'coordinator off'}
+              : 'ask in plain words'}
           </Text>
         )}
       </Box>
@@ -373,23 +361,8 @@ export function CoordinatorPane({
           )}
         </InteractiveRow>
       </Box>
-      <Box flexDirection="column" flexGrow={minimal || (!settingsOpen && entries !== null && entries.length > 0) ? 1 : 0} flexShrink={1} minHeight={0} overflow="hidden">
-      {settingsOpen ? (
-        <>
-          <Box height={1} flexShrink={0}>
-            <Text bold color={t.infoText} wrap="truncate-end">
-              COORDINATOR MODEL
-            </Text>
-          </Box>
-          <CoordinatorModelPicker
-            callbacks={callbacks}
-            onClose={onCloseSettings}
-            nested
-            allottedRows={Math.max(6, paneRows - 4)}
-            allottedWidth={Math.max(24, paneWidth - 4)}
-          />
-        </>
-      ) : entries === null ? (
+      <Box flexDirection="column" flexGrow={minimal || (entries !== null && entries.length > 0) ? 1 : 0} flexShrink={1} minHeight={0} overflow="hidden">
+      {entries === null ? (
         <Box flexDirection="column" flexShrink={0}>
           <Text color={t.textMuted}>opening the conversation…</Text>
         </Box>
@@ -435,26 +408,25 @@ export function CoordinatorPane({
               first={i === 0}
               expanded={expandedIds.has(e.id)}
               onToggle={toggleExpanded}
-              operatorHandle={operatorHandle}
             />
           ))}
         </ScrollBox>
       )}
-      {pending && !settingsOpen ? (
+      {pending ? (
         <CoordinatorThinkingRow />
       ) : null}
       {}
-      {gauge !== null && !settingsOpen && calculateTokenWarningState(gauge.contextTokens, gauge.modelId).level !== 'ok' ? (
+      {gauge !== null && calculateTokenWarningState(gauge.contextTokens, gauge.modelId).level !== 'ok' ? (
         <Box height={1} flexShrink={0} overflow="hidden">
           <TokenWarning tokenUsage={gauge.contextTokens} model={gauge.modelId} />
         </Box>
       ) : null}
-      {gitOffer !== undefined && onAnswerGitOffer !== undefined && !settingsOpen ? (
+      {gitOffer !== undefined && onAnswerGitOffer !== undefined ? (
         <GitOfferCard offer={gitOffer} onAnswer={onAnswerGitOffer} />
-      ) : managerCardNode !== undefined && !settingsOpen ? (
+      ) : managerCardNode !== undefined ? (
         <Box flexDirection="column" flexShrink={0}>{managerCardNode}</Box>
       ) : null}
-      {away && !settingsOpen ? (
+      {away ? (
         <Box height={1} flexShrink={0}>
           <InteractiveRow id="coordinator:jump-newest" directActivate hoverStyle="row-fill" onActivate={jumpNewest}>
             {hover => (
@@ -465,30 +437,8 @@ export function CoordinatorPane({
           </InteractiveRow>
         </Box>
       ) : null}
-      {mode !== 'agent-assisted' && !settingsOpen ? (
-        <Box height={1} flexShrink={0}>
-          <InteractiveRow
-            id="coordinator:switch-on"
-            directActivate
-            hoverStyle="row-fill"
-            onActivate={() => {
-              void callbacks.switchCoordinatorMode('agent-assisted')
-            }}
-          >
-            {hover => (
-              <Text wrap="truncate-end">
-                <Text color={t.textMuted}>
-                  {fallbackReason !== undefined ? fallbackReason.slice(0, 90) : 'coordinator off'}
-                  {' · '}
-                </Text>
-                <Text color={hover ? 'infoShimmer' : t.info}>{`▸ turn on · ${keyHintLabel('⌃a')}`}</Text>
-              </Text>
-            )}
-          </InteractiveRow>
-        </Box>
-      ) : null}
       </Box>
-      {composerNode !== undefined && !settingsOpen ? (
+      {composerNode !== undefined ? (
         <Box flexDirection="column" flexShrink={0}>{composerNode}</Box>
       ) : null}
     </Box>

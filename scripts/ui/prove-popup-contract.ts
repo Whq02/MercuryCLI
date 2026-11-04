@@ -522,36 +522,29 @@ const subModelsModule = await import('../../src/utils/model/subModelSlots.ts')
 const registryEntries = options.map(row => ({ kind: 'model', source: 'openai', modelId: 'fixture-' + row.value, displayName: row.label, state: 'selectable', availability: 'ready', description: 'Fixture model' }))
 let subPicked = ''
 mock.module('../../src/utils/model/subModelSlots.ts', () => ({ ...subModelsModule, composeSubModelRegistry: () => ({ families: [{ source: 'openai', label: 'OpenAI', credentialed: true, credentialLabel: 'fixture' }], entries: registryEntries }), resolveSubModel: () => ({ origin: 'unset', model: '' }), setSubModel: (_container: string, value: string | null) => { subPicked = value ?? 'unset'; return { ok: true, receipt: 'Fixture selection saved' } } }))
-const coordinatorModule = await import('../../src/services/concourse/coordinatorModels.ts')
-mock.module('../../src/services/concourse/coordinatorModels.ts', () => ({ ...coordinatorModule, composeCoordinatorModelRegistry: async () => ({ entries: registryEntries, selectable: true }), canonicalCoordinatorModelId: async (id: string) => id }))
-const coordinatorLane = await import('../../src/services/concourse/coordinatorLane.ts')
-mock.module('../../src/services/concourse/coordinatorLane.ts', () => ({ ...coordinatorLane, resolveEffectiveCoordinator: async () => ({ resolution: { requested: 'off', effective: 'off' } }) }))
 const { GroundPicker } = await import('../../src/components/concourse/GroundPicker.tsx')
-const { CoordinatorModelPicker } = await import('../../src/components/concourse/CoordinatorModelPicker.tsx')
 const { SubModelPicker } = await import('../../src/components/SubModelPicker.tsx')
 const { LocalSetupDialog, LOCAL_SETUP_POPUP_HINT } = await import('../../src/components/LocalSetupDialog.tsx')
 const { MercuryHealthCertificate } = await import('../../src/commands/health/HealthCertificate.tsx')
 for (const cols of [80, 120]) {
-  for (const name of ['ground', 'coordinator', 'submodels', 'localsetup', 'health']) {
+  for (const name of ['ground', 'submodels', 'localsetup', 'health']) {
     let closed = false
     let picked = ''
     subPicked = ''
     const close = () => { closed = true }
-    const callback = async (value: string) => { picked = value; return { ok: true, receipt: 'Fixture selection saved', outcome: 'applied' } }
     const setupRoad = async function* (ask: (question: unknown) => Promise<unknown>) {
       picked = JSON.stringify(await ask({ step: '4', found: 'Fixture models', willRun: 'Select a fixture', rows: options.map(row => ({ tag: row.label, words: 'Fixture model' })) }))
       yield { kind: 'done', summary: { stopped: false, done: [], notDone: [] } }
     }
     const report = async () => ({ verdict: 'certified', ranAt: new Date().toISOString(), head: { sha: 'fixture', branch: 'fixture', dirty: false }, version: 'fixture', durationMs: 1, depth: 'fast', sections: [{ id: 'fixture', title: 'FIXTURE', checks: options.map(row => ({ id: row.value, label: row.label, status: 'ok', evidence: 'Fixture evidence ' + row.label })) }] })
     const body = name === 'ground' ? h(GroundPicker, { currentGround: '/fixture/boot', bootGround: '/fixture/boot', onPick: value => { picked = value ?? 'boot' }, onClose: close })
-      : name === 'coordinator' ? h(CoordinatorModelPicker, { callbacks: { switchCoordinatorModel: callback, switchCoordinatorMode: callback, switchCoordinatorEffort: callback } as never, onClose: close, allottedRows: 18, allottedWidth: cols - 8 })
       : name === 'submodels' ? h(SubModelPicker, { onClose: close, onRoute: noAction })
       : name === 'localsetup' ? h(Box, { flexDirection: 'column' }, h(LocalSetupDialog, { road: setupRoad as never, width: cols - 8, rowBudget: 10, onClose: close }), h(Text, {}, LOCAL_SETUP_POPUP_HINT))
       : h(MercuryHealthCertificate, { report: report as never, onClose: close })
     const scene = await mount(h(ModalContext.Provider, { value: { rows: 22, columns: cols, scrollRef: null } }, h(PopupFrameContext.Provider, { value: { rows: 20, width: cols - 4 } }, body)), cols, 26)
     const focus = () => {
       const lines = scene.lines()
-      if (name === 'ground' || name === 'submodels' || name === 'coordinator') {
+      if (name === 'ground' || name === 'submodels') {
         const position = scene.cursor()
         const line = lines[position.y] ?? ''
         return /choice \d\d|fixture-\d+|Unset|ground-|boot|Mode/.test(line) ? line.trim() : ''
@@ -559,7 +552,7 @@ for (const cols of [80, 120]) {
       return lines.find(line => /[❯›▸] /.test(line) && !/↑↓|pgup/.test(line))?.trim() ?? ''
     }
     try {
-      await settledFrame(scene, frame => frame.includes(name === 'localsetup' ? 'Fixture model' : name === 'health' ? 'FIXTURE' : name === 'ground' ? 'ground-' : name === 'coordinator' ? 'choice 01' : 'CONSOLE'))
+      await settledFrame(scene, frame => frame.includes(name === 'localsetup' ? 'Fixture model' : name === 'health' ? 'FIXTURE' : name === 'ground' ? 'ground-' : 'CONSOLE'))
       if (name === 'localsetup' && focus() === '') {
         scene.push(keys.down)
         await waitFor(() => focus() !== '', 1800)

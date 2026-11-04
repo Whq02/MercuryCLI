@@ -104,14 +104,14 @@ console.log('— K2/K3 the feed —')
 console.log('— K4 the geometry —')
 {
   const wide = layout.switchboardGeometry(120, 40, 0, 3, 1, 1, 'mirror', 1)
-  const stacked = layout.switchboardGeometry(100, 30, 0, 3, 1, 1, 'mirror', 1)
+  const stacked = layout.switchboardGeometry(80, 30, 0, 3, 1, 1, 'mirror', 1)
   check('K4 wide 120x40 grants the chip its one row', wide.profile === 'wide' && wide.peekRows === 1, `profile=${wide.profile} peekRows=${wide.peekRows}`)
-  check('K4 stacked 100x30 grants the chip its one row', stacked.peekRows === 1, `profile=${stacked.profile} peekRows=${stacked.peekRows}`)
+  check('K4 stacked 80x30 grants the chip its one row', stacked.profile === 'stacked' && stacked.peekRows === 1, `profile=${stacked.profile} peekRows=${stacked.peekRows}`)
   const none = layout.switchboardGeometry(120, 40, 0, 3, 1, 1, 'mirror', 0)
   check('K4 a zero desire grants nothing (no chip, no row)', none.peekRows === 0)
   const open = layout.switchboardGeometry(120, 40, 0, 3, 1, 1, 'mirror', layout.ROW_PEEK_DESIRED_ROWS)
   check('K4 the open peek keeps its own grant', open.peekRows >= 1 && open.peekRows <= layout.ROW_PEEK_DESIRED_ROWS && open.peekRows >= wide.peekRows)
-  check('K4 the list content rows exclude the grant (the window keeps its budget)', wide.listContentRows === none.listContentRows && stacked.listContentRows === layout.switchboardGeometry(100, 30, 0, 3, 1, 1, 'mirror', 0).listContentRows)
+  check('K4 the chip row comes out of the list window, never out of the live view beside it (the manager keeps its full column)', wide.listContentRows === none.listContentRows - 1 && wide.listBand[1] === none.listBand[1] && wide.mirrorBand[1] === none.mirrorBand[1])
 }
 
 console.log('— K5 registration gates —')

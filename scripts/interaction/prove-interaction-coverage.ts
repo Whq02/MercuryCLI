@@ -145,7 +145,6 @@ reg(
     'src/commands/effort/EffortPopup.tsx',
     'src/commands/run/run.tsx',
  'src/components/BootSettingsScreen.tsx',
- 'src/components/concourse/CoordinatorModelPicker.tsx',
  'src/components/concourse/RowPickModal.tsx',
     'src/components/concourse/GroundPicker.tsx',
     'src/components/concourse/SessionMirror.tsx',
