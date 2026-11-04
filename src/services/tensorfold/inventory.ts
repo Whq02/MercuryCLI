@@ -1,6 +1,6 @@
 import { TENSORFOLD_NOT_BUILT, type TensorFoldEngine, type TensorFoldModelRow } from './contracts.js'
 
-export async function readTensorFoldInventory(engine: TensorFoldEngine): Promise<TensorFoldModelRow[]> {
+export async function readTensorFoldInventory(engine: TensorFoldEngine | null): Promise<TensorFoldModelRow[]> {
   void engine
   throw new Error(TENSORFOLD_NOT_BUILT)
 }

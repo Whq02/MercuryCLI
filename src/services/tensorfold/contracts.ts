@@ -19,6 +19,15 @@ export type TensorFoldModelState = 'serving' | 'loading' | 'on-disk' | 'pulling'
 
 export type TensorFoldFitVerdict = 'fits' | 'needs-gpu-limit' | 'too-big'
 
+export type TensorFoldFitParts = {
+  weightsGib: number
+  drafterGib?: number
+  cacheGib: number
+  promptCacheGib?: number
+  promptCacheCapGib?: number
+  runtimeGib: number
+}
+
 export type TensorFoldFit = {
   verdict: TensorFoldFitVerdict
   neededGib: number
@@ -26,7 +35,12 @@ export type TensorFoldFit = {
   estimate: true
   reason?: string
   remedy?: string
+  parts?: TensorFoldFitParts
 }
+
+export type TensorFoldLadderRung = { window: number; fit: TensorFoldFit }
+
+export type TensorFoldLastReply = { firstTokenMs?: number; tokensPerSecond?: number }
 
 export type TensorFoldModelRow = {
   repo: string
@@ -41,6 +55,12 @@ export type TensorFoldModelRow = {
   port?: number
   loadingSeconds?: number
   bytesOnDisk?: number
+  label?: string
+  downloadBytes?: number
+  ladder?: readonly TensorFoldLadderRung[]
+  inUseBytes?: number
+  startedBy?: 'mercury' | 'outside'
+  lastReply?: TensorFoldLastReply
 }
 
 export type TensorFoldServeRequest = {
@@ -71,7 +91,12 @@ export type TensorFoldHost = {
   keyRef?: string
   serving?: string
   version?: string
+  chip?: string
+  window?: number
+  lastReply?: TensorFoldLastReply
 }
+
+export type TensorFoldMachine = { chip: string; usableGib?: number }
 
 export type HelperModelSize = '2b' | '4b' | 'session'
 
