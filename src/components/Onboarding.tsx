@@ -26,7 +26,8 @@ import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useInteractiveList } from './mercury-ui/useInteractiveList.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
-import { connectableLoginFamilyWords } from './loginFamilyRows.js'
+import { connectableLoginFamilyWords, type TensorFoldOffer } from './loginFamilyRows.js'
+import { useTensorFoldOffer } from './tensorfold/tensorfoldFacts.js'
 
 
 type StepId = 'theme' | 'provider' | 'api-key' | 'guardrails' | 'terminal'
@@ -60,8 +61,12 @@ const TERMINAL_WORDS = {
   later: 'not now; use /keysetup later',
 }
 
+function signInIntro(tensorfold: boolean): string {
+  return `Use a Claude or OpenAI subscription, usage-based billing, or connect ${connectableLoginFamilyWords(tensorfold)}.`
+}
+
 export const SIGN_IN_WORDS = {
-  intro: `Use a Claude or OpenAI subscription, usage-based billing, or connect ${connectableLoginFamilyWords()}.`,
+  intro: signInIntro(false),
 }
 
 const FITTING_PATCH = {
@@ -187,10 +192,12 @@ function ProviderStation({
   onSignedIn,
   onSkip,
   onBack,
+  tensorfold,
 }: {
   onSignedIn: () => void
   onSkip: () => void
   onBack: () => void
+  tensorfold: TensorFoldOffer | null | undefined
 }): React.ReactNode {
   const [epoch, setEpoch] = useState(0)
   const [note, setNote] = useState<string | null>(null)
@@ -198,7 +205,8 @@ function ProviderStation({
     <Box flexDirection="column">
       <ConsoleOAuthFlow
         key={epoch}
-        startingMessage={SIGN_IN_WORDS.intro}
+        startingMessage={tensorfold ? signInIntro(true) : SIGN_IN_WORDS.intro}
+        tensorfold={tensorfold ?? null}
         onDone={onSignedIn}
         onCancel={onBack}
         onAbandonLeg={() => setEpoch(current => current + 1)}
@@ -340,6 +348,7 @@ export function Onboarding({ onDone }: Props): React.ReactNode {
   const [theme] = useTheme()
   const exitState = useExitOnCtrlCDWithKeybindings()
   const notes = bootNotes()
+  const tensorfold = useTensorFoldOffer()
 
   const apiKeyNeedingApproval = useMemo(() => {
     if (!process.env.ANTHROPIC_API_KEY) {
@@ -419,7 +428,7 @@ export function Onboarding({ onDone }: Props): React.ReactNode {
       )
       break
     case 'provider':
-      body = <ProviderStation onSignedIn={advance} onSkip={advance} onBack={back} />
+      body = <ProviderStation onSignedIn={advance} onSkip={advance} onBack={back} tensorfold={tensorfold} />
       break
     case 'api-key':
       body = (

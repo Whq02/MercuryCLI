@@ -56,6 +56,8 @@ export type TensorFoldAct =
   | { kind: 'address'; address: string }
   | { kind: 'rent' }
   | { kind: 'app'; serving: string }
+  | { kind: 'share'; row: TensorFoldModelRow }
+  | { kind: 'unshare'; row: TensorFoldModelRow }
 
 export type TensorFoldInput = 'repo' | 'address'
 export type TensorFoldTyping = { key: string; input: TensorFoldInput; text: string }
@@ -74,6 +76,7 @@ export type TensorFoldKeys = {
   stop?: { words: string; act: TensorFoldAct; confirm: boolean }
   limit?: TensorFoldAct
   support?: TensorFoldAct
+  share?: { words: string; act: TensorFoldAct }
   legend?: readonly string[]
 }
 
@@ -292,6 +295,7 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
     const restart = mercury && at !== row.window
     const confirming = ui.confirmStop === row.repo
     const promptCache = row.promptCacheGib ?? fit?.parts?.promptCacheGib
+    const shared = (facts.served ?? []).some(served => served.name === row.shortName && served.keyFile !== undefined)
     return {
       ...base,
       tensorfold: {
@@ -304,11 +308,12 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
             : restart
               ? [strip(row, at, `↵ restarts it at ${tok(at)}`), ...memoryLine(fit, width), ...willRun(willRunOf(row, at), width)]
               : [strip(row, at, '←→ restarts it at another window'), ...kv('service', `tensorfold · started by Mercury${promptCache !== undefined ? ` · prompt cache ${one(promptCache)} GiB` : ''}`, width)]),
+          ...(mercury ? kv('network', shared ? 'shared · keyed · n stops sharing' : 'not shared · n shares it on this network', width) : []),
           ...(confirming ? kv('stop', 's again stops it · this session uses it', width, 'amber') : []),
         ],
         keys: {
           ...(restart ? { enter: { words: `↵ restart at ${tok(at)}`, act: { kind: 'serve', row, window: at } } } : current ? {} : { enter: { words: '↵ switch', act: { kind: 'switch', id } } }),
-          ...(mercury ? { window, stop: { words: STOP_WORDS, act: { kind: 'stop', row }, confirm: current } } : {}),
+          ...(mercury ? { window, stop: { words: STOP_WORDS, act: { kind: 'stop', row }, confirm: current }, share: shared ? { words: 'n stops sharing', act: { kind: 'unshare', row } } : { words: 'n shares it', act: { kind: 'share', row } } } : {}),
           support,
           ...(confirming ? { legend: ['s again stops', 'esc keeps it'] } : {}),
         },

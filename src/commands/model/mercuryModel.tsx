@@ -957,6 +957,8 @@ function runTensorFoldAct(act: TensorFoldAct, io: TensorFoldHostIo): void {
     case 'install':
     case 'read':
     case 'app':
+    case 'share':
+    case 'unshare':
       io.panel()
       return
   }

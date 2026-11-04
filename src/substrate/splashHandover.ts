@@ -3,6 +3,7 @@ import { readFileSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { deleteFlagEnv, flagEnv } from './flagRegistry.js'
 import { getMercuryHome } from '../utils/envUtils.js'
+import { consumeCommandDispatch, requestCommandDispatch } from '../utils/cockpit/helmFocus.js'
 
 const ACTIONS = new Set(['continue', 'health', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])
 
@@ -59,6 +60,21 @@ export function consumeBootSurfaceIntent(): BootSurfaceIntent | null {
 
 export function _setBootSurfaceIntentForTesting(v: BootSurfaceIntent | null): void {
   pendingBootSurfaceIntent = v
+}
+
+export const TENSORFOLD_DEEP_LINK = '/tensorfold'
+let tensorFoldDeepLinkArmed = false
+export function armTensorFoldDeepLink(): void {
+  tensorFoldDeepLinkArmed = true
+  pendingBootSurfaceIntent = 'repl'
+  requestCommandDispatch(TENSORFOLD_DEEP_LINK)
+}
+export function disarmTensorFoldDeepLink(): void {
+  if (!tensorFoldDeepLinkArmed) return
+  tensorFoldDeepLinkArmed = false
+  if (pendingBootSurfaceIntent === 'repl') pendingBootSurfaceIntent = null
+  const pending = consumeCommandDispatch()
+  if (pending !== null && pending !== TENSORFOLD_DEEP_LINK) requestCommandDispatch(pending)
 }
 
 const FRESH_MS = 120_000

@@ -1,4 +1,4 @@
-import { existsSync, statfsSync } from 'node:fs'
+import { existsSync, readFileSync, statfsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
@@ -11,6 +11,7 @@ import { getCachedLocalDiscovery } from '../../services/providers/local/localDis
 import { listBoxes } from '../../services/host/boxes.js'
 import { localServerProbingOff } from '../../services/localServer/localServerTruth.js'
 import type { TensorFoldPickerFacts } from './tensorfoldRows.js'
+import type { TensorFoldOffer } from '../loginFamilyRows.js'
 
 const LOOPBACK = /^(?:localhost|127(?:\.\d+){3}|::1|\[::1\])$/i
 
@@ -38,9 +39,13 @@ function urlOf(baseUrl: string): URL | undefined {
   }
 }
 
-export function tensorFoldCapableMachine(platform: NodeJS.Platform = process.platform, arch: string = process.arch, nvidia: () => boolean = () => existsSync('/proc/driver/nvidia/version')): boolean {
+export const TENSORFOLD_DRIVER_FLOOR = 580
+
+export function tensorFoldCapableMachine(platform: NodeJS.Platform = process.platform, arch: string = process.arch, nvidia: () => string | undefined = () => quietly(() => readFileSync('/proc/driver/nvidia/version', 'utf8'), undefined)): boolean {
   if (platform === 'darwin') return arch === 'arm64'
-  return platform === 'linux' && nvidia()
+  if (platform !== 'linux') return false
+  const major = Number(/Module\s+(\d+)\./.exec(nvidia() ?? '')?.[1])
+  return Number.isInteger(major) && major >= TENSORFOLD_DRIVER_FLOOR
 }
 
 export function isLoopbackUrl(baseUrl: string): boolean {
@@ -154,6 +159,36 @@ export async function readTensorFoldPickerFacts(): Promise<TensorFoldPickerFacts
   }
 }
 
+export async function readTensorFoldOffer(platform: NodeJS.Platform = process.platform, capable: () => boolean = () => tensorFoldCapableMachine()): Promise<TensorFoldOffer | null> {
+  if (localServerProbingOff()) return null
+  if (platform === 'win32') return { kind: 'host' }
+  if (!capable()) return null
+  const engine = await quietlyAsync(() => findTensorFoldEngine(), null)
+  const rows = withDiscoveredRows(await quietlyAsync(() => readTensorFoldInventory(engine), []))
+  const served = rows.find(row => row.state === 'serving')
+  if (served !== undefined && engine !== null) return { kind: 'served', model: served.shortName, version: engine.version }
+  const best = quietly(() => bestTensorFoldFit(rows), null)
+  if (best === null) return null
+  return { kind: engine === null ? 'install' : 'ready', label: best.label ?? best.shortName, place: platform === 'darwin' ? 'mac' : 'gpu' }
+}
+
+let offer: TensorFoldOffer | null | undefined
+let offerReading: Promise<TensorFoldOffer | null> | undefined
+
+export function refreshTensorFoldOffer(): Promise<TensorFoldOffer | null> {
+  offerReading ??= readTensorFoldOffer()
+    .then(next => {
+      offer = next
+      stamp++
+      for (const listener of listeners) listener()
+      return next
+    })
+    .finally(() => {
+      offerReading = undefined
+    })
+  return offerReading
+}
+
 let snapshot: TensorFoldPickerFacts | undefined
 let stamp = 0
 let reading: Promise<TensorFoldPickerFacts> | undefined
@@ -183,6 +218,14 @@ const stampOf = (): number => stamp
 export function tensorFoldPickerFactsNow(): TensorFoldPickerFacts {
   const facts = snapshot ?? { platform: process.platform, rows: [], hosts: withDiscoveredHosts(quietly(() => tensorFoldHosts(), [])) }
   return facts.platform === 'win32' ? facts : { ...facts, rows: withDiscoveredRows(facts.rows) }
+}
+
+export function useTensorFoldOffer(): TensorFoldOffer | null | undefined {
+  useSyncExternalStore(subscribe, stampOf, stampOf)
+  useEffect(() => {
+    void refreshTensorFoldOffer().catch(() => undefined)
+  }, [])
+  return offer
 }
 
 export function useTensorFoldPickerFacts(): TensorFoldPickerFacts | undefined {
