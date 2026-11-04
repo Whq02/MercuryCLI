@@ -203,6 +203,9 @@ export type SessionFactsResult = {
       at: string
       ask?: true
     } | {
+      kind: 'screen-command'
+      command: string
+    } | {
       kind: 'outside-report'
       sender: string
       via: 'mcp-server'
