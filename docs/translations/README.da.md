@@ -18,7 +18,7 @@ En agent læser og redigerer filer, kører shell-kommandoer, gennemgår tests og
 
 Mercury bruges til at bygge Mercury, hvor flere sessioner og modeller kører på tværs af lange opgaver. At holde styr på arbejdet er det svære: hvad der stadig kører, hvad der er ændret, og hvad der kræver en beslutning. Hver session skriver sin egen overleveringsnote, når den er færdig, og den næste session læser den note én gang ved opstart sammen med mine fastgjorte regler. Dermed forhindres kontekstforgiftning mellem sessionerne.
 
-![Én prompt til koordinatoren på sessionstavlen starter to sessioner, hver i sin egen worktree; den ene spørger, før den redigerer, og begge afslutter med ændringer klar til gennemgang](../media/session-board-stream.gif)
+![Én prompt til koordinatoren på sessionstavlen starter to sessioner, hver i sin egen worktree; den ene spørger, før den redigerer, og begge afslutter med ændringer klar til gennemgang](../media/session-board-stream-black.gif)
 
 Mercury er open source under Apache License 2.0, ligesom SDK'erne i [sdk/](../../sdk/) og [sdk-py/](../../sdk-py/).
 

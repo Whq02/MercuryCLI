@@ -18,7 +18,7 @@ Ein Agent liest und bearbeitet Dateien, führt Shell-Befehle aus, durchläuft Te
 
 Mercury wird eingesetzt, um Mercury zu entwickeln; dabei laufen mehrere Sessions und Modelle über lange Aufgaben hinweg. Den Überblick über diese Arbeit zu behalten ist der schwierige Teil: was noch läuft, was sich geändert hat und was eine Entscheidung braucht. Jede Session schreibt beim Abschluss ihre eigene Übergabenotiz, und die nächste Session liest diese Notiz beim Start einmal zusammen mit meinen angehefteten Regeln. So wird Kontextvergiftung zwischen den Sessions verhindert.
 
-![Ein Prompt an den Koordinator auf dem Session-Board startet zwei Sessions, jede in einem eigenen Worktree; eine fragt vor dem Bearbeiten nach, und beide enden mit Änderungen, die zur Prüfung bereitliegen](../media/session-board-stream.gif)
+![Ein Prompt an den Koordinator auf dem Session-Board startet zwei Sessions, jede in einem eigenen Worktree; eine fragt vor dem Bearbeiten nach, und beide enden mit Änderungen, die zur Prüfung bereitliegen](../media/session-board-stream-black.gif)
 
 Mercury ist Open Source unter der Apache License 2.0, ebenso wie die SDKs in [sdk/](../../sdk/) und [sdk-py/](../../sdk-py/).
 

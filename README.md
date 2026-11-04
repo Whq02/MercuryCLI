@@ -46,7 +46,7 @@
 
 An agent reads and edits files, runs shell commands, steps through tests and debuggers, and checks the results while you choose the model provider, the model, and what the agent is allowed to do. Mercury is used to build Mercury across parallel sessions and models: each session writes a handoff note when it finishes, and the next session reads that note once at startup alongside your pinned rules, stopping context poisoning between sessions.
 
-![The session board with three sessions on one project, each on its own model and effort: one ready to review, two working; opening the review session, then the finished documentation session](docs/media/session-board-stream.gif)
+![The session board with three sessions on one project, each on its own model and effort: one ready to review, two working; opening the review session, then the finished documentation session](docs/media/session-board-stream-black.gif)
 
 Mercury is open source under the Apache License 2.0, as are the SDKs in [sdk/](sdk/) and [sdk-py/](sdk-py/).
 

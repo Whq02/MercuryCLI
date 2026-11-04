@@ -18,7 +18,7 @@ Một tác nhân đọc và sửa tệp, chạy lệnh shell, đi qua từng bư
 
 Mercury được dùng để xây dựng chính Mercury, chạy nhiều phiên và mô hình xuyên suốt các tác vụ dài. Theo dõi công việc đó mới là phần khó: cái gì vẫn đang chạy, cái gì đã thay đổi, và cái gì cần một quyết định. Mỗi phiên ghi một ghi chú bàn giao khi kết thúc, và phiên kế tiếp đọc ghi chú đó một lần lúc khởi động cùng với các quy tắc đã ghim của tôi, nhờ đó ngăn ngữ cảnh bị nhiễm bẩn giữa các phiên.
 
-![Một prompt gửi đến bộ điều phối trên bảng phiên sẽ khởi chạy hai phiên, mỗi phiên trong một worktree riêng; một phiên hỏi trước khi chỉnh sửa, và cả hai đều kết thúc với các thay đổi sẵn sàng để xem xét.](../media/session-board-stream.gif)
+![Một prompt gửi đến bộ điều phối trên bảng phiên sẽ khởi chạy hai phiên, mỗi phiên trong một worktree riêng; một phiên hỏi trước khi chỉnh sửa, và cả hai đều kết thúc với các thay đổi sẵn sàng để xem xét.](../media/session-board-stream-black.gif)
 
 Mercury là mã nguồn mở theo Apache License 2.0, cũng như các SDK trong [sdk/](../../sdk/) và [sdk-py/](../../sdk-py/).
 

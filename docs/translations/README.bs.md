@@ -18,7 +18,7 @@ Agent čita i uređuje datoteke, izvršava shell naredbe, korača kroz testove i
 
 Mercury se koristi za izgradnju Mercury-ja, pokrećući više sesija i modela tokom dugih zadataka. Najteže je pratiti taj rad: šta se još izvršava, šta se promijenilo i šta traži odluku. Svaka sesija na kraju piše vlastitu bilješku za predaju, a sljedeća sesija je pri pokretanju jednom čita zajedno s mojim zakačenim pravilima, čime se sprječava zagađivanje konteksta između sesija.
 
-![Jedan prompt koordinatoru na tabli sesija pokreće dvije sesije, svaku u vlastitom worktree-u; jedna pita prije uređivanja, a obje završavaju sa spremnim promjenama za pregled](../media/session-board-stream.gif)
+![Jedan prompt koordinatoru na tabli sesija pokreće dvije sesije, svaku u vlastitom worktree-u; jedna pita prije uređivanja, a obje završavaju sa spremnim promjenama za pregled](../media/session-board-stream-black.gif)
 
 Mercury je otvorenog koda (open source) pod licencom Apache License 2.0, kao i SDK-ovi u [sdk/](../../sdk/) i [sdk-py/](../../sdk-py/).
 
