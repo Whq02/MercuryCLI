@@ -11,7 +11,7 @@ import { helperHeadingWords } from '../../services/providers/local/tensorfoldHel
 import { tensorFoldHosts } from '../../services/providers/local/tensorfoldHosts.js'
 import { getCachedLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
 import { currentHostRecipes } from '../../services/host/recipesFile.js'
-import { tensorFoldRentFacts, tensorFoldRentRow } from '../../services/host/tensorfoldPod.js'
+import { tensorFoldPodRows, tensorFoldRentFacts, tensorFoldRentRow } from '../../services/host/tensorfoldPod.js'
 import { listBoxes } from '../../services/host/boxes.js'
 import { localServerProbingOff } from '../../services/localServer/localServerTruth.js'
 import type { TensorFoldPickerFacts } from './tensorfoldRows.js'
@@ -148,11 +148,13 @@ export async function readTensorFoldPickerFacts(): Promise<TensorFoldPickerFacts
   const helper = quietly(() => helperHeadingWords(), undefined)
   const app = platform === 'darwin' ? await quietlyAsync(() => detectTensorFoldApp(), undefined) : undefined
   const rent = quietly(() => rentFacts(), undefined)
+  const pods = quietly(() => tensorFoldPodRows(currentHostRecipes()), [])
   const shared = {
     hosts: withDiscoveredHosts(hosts),
     ...(helper !== undefined ? { helper } : {}),
     ...(app?.engine !== undefined ? { app: { serving: app.engine.model ?? 'a model' } } : {}),
     ...(rent !== undefined ? { rent } : {}),
+    pods,
   }
   if (platform === 'win32') return { platform, engine: null, rows: [], ...shared }
   const engine = await quietlyAsync(() => findTensorFoldEngine(), null)

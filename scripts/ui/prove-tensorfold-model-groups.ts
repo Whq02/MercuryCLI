@@ -69,7 +69,8 @@ function willRunOf(row: TensorFoldModelRow, window: number): string[] {
   ]
 }
 
-type Seam = { engine: TensorFoldEngine | null; machine: TensorFoldMachine; inventory: TensorFoldModelRow[]; best: string | null; served: TensorFoldServed[]; hosts: TensorFoldHost[]; discovered: unknown[]; app?: { running: boolean; engine?: { pid: number; model?: string; port?: number } }; helper?: string }
+type PodRow = { hostName: string; id: string; provider?: string; words: string; bills: boolean }
+type Seam = { engine: TensorFoldEngine | null; machine: TensorFoldMachine; inventory: TensorFoldModelRow[]; best: string | null; served: TensorFoldServed[]; hosts: TensorFoldHost[]; discovered: unknown[]; app?: { running: boolean; engine?: { pid: number; model?: string; port?: number } }; helper?: string; pods?: PodRow[] }
 let seam: Seam = { engine: ENGINE, machine: MAC_48, inventory: [], best: null, served: [], hosts: [], discovered: [] }
 const supportCalls: unknown[] = []
 const roadCalls: unknown[] = []
@@ -99,6 +100,12 @@ mock.module('../../src/services/tensorfold/serve.js', () => ({
   servedTensorFold: () => seam.served,
   tensorFoldWillRun: willRunOf,
   tensorFoldPairingCode: () => (roadCalls.some(call => Array.isArray(call) && call[0] === 'start' && (call[1] as { share?: boolean }).share === true) ? '246810' : null),
+}))
+const realPod = await import('../../src/services/host/tensorfoldPod.ts')
+mock.module('../../src/services/host/tensorfoldPod.js', () => ({
+  ...realPod,
+  tensorFoldPodRows: () => seam.pods ?? [],
+  stopTensorFoldPod: async (id: string) => { roadCalls.push(['stop-pod', id]); return { ok: true, words: 'runpod pod stopped · compute billing ended · ~$0.24 so far · the disk bills until you terminate it in /llmhost' } },
 }))
 const realHosts = await import('../../src/services/providers/local/tensorfoldHosts.ts')
 mock.module('../../src/services/providers/local/tensorfoldHosts.js', () => ({
@@ -454,12 +461,18 @@ console.log('\n§3 the order rule and the facts the /model group reads')
   const helped = await factsFor({ helper: '· helper 2B' })
   check('the helper suffix comes from the one heading reader (tf-engine-106\'s helperHeadingWords)', helped.helper === '· helper 2B')
   const POD: TensorFoldHost = { name: 'pod-7f3a', baseUrl: 'http://127.0.0.1:41234', origin: 'pod', keyRef: 'pod-7f3a', serving: 'qwen3.8-27b', version: '1.2.2', chip: 'RTX 5090', window: 131_072 }
+  const POD_ROW: PodRow = { hostName: 'pod-7f3a', id: '7f3a', provider: 'pod-7f3a-runpod', words: '$1.19/h on Runpod · 12 min · ~$0.24 so far · s stops the pod and its billing', bills: true }
   const tunnel = [{ kind: 'tensorfold', root: 'http://127.0.0.1:41234', baseUrl: 'http://127.0.0.1:41234/v1', label: 'TensorFold 1.2.2', version: '1.2.2', models: [{ id: 'qwen3.8-27b', server: 'tensorfold', baseUrl: 'http://127.0.0.1:41234/v1' }] }]
-  const pod = await open(await factsFor({ hosts: [POD], discovered: tunnel }), 'claude-opus-5-5', 160, 48)
+  const pod = await open(await factsFor({ hosts: [POD], discovered: tunnel, pods: [POD_ROW] }), 'claude-opus-5-5', 160, 48)
   await press(pod, [UP, UP, RIGHT])
   check("a rented pod's loopback tunnel is a TENSORFOLD HOST row, never a served row on this machine", cells(pod, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'serving', '128k ctx', 'pod-7f3a') === false && has(pod, 'pod-7f3a · 1 serving') && has(pod, '▸ TENSORFOLD · 1.2.2 · Apple M5 Pro · 36.0 GiB usable · nothing served'), flat(pod).filter(l => /TENSORFOLD|pod-7f3a/.test(l)).join(' | '))
+  check("the pod row's card carries tf-host-106's pod line (price, time, spend, s) under the host line", has(pod, 'host      127.0.0.1:41234 · RTX 5090 · TensorFold 1.2.2 · keyed') && has(pod, 'pod       $1.19/h on Runpod · 12 min · ~$0.24 so far · s stops the pod and its billing'), flat(pod).slice(4, 16).join(' | '))
+  check('the legend offers s stops the pod', has(pod, '↑↓ select · ↵ switch · s stops the pod'), flat(pod).find(l => l.includes('↑↓ select')) ?? '')
+  await press(pod, ['s'])
+  const stopPod = pod.acts.at(-1)
+  check("s on the pod row hands the pod's id on (tf-host-106's stopTensorFoldPod ends its billing)", stopPod?.kind === 'stop-pod' && stopPod.id === '7f3a' && stopPod.name === 'pod-7f3a', JSON.stringify(stopPod ?? null))
   await press(pod, [KEY.enter])
-  check('↵ on the pod row switches to the pod through its compat road', pod.selected.at(-1) === 'compat/pod-7f3a/qwen3.8-27b', pod.selected.join(','))
+  check("↵ on the pod row switches to the pod through its compat road, named for the pod's endpoint", pod.selected.at(-1) === 'compat/pod-7f3a-runpod/qwen3.8-27b', pod.selected.join(','))
   pod.m.unmount()
   await settle(60)
   const disk = huggingFaceCacheFacts({ HF_HOME: '/srv/hf' }, '/home/someone')
@@ -503,6 +516,13 @@ console.log("\n§4 /model's own road for the keys: share, unshare, install, othe
   check("a typed repository id is read through the panel lane's readOtherCheckpoint and the road's answer lands in /model's facts", JSON.stringify(roadCalls) === JSON.stringify([['read', 'org/m']]) && JSON.stringify(others.at(-1)) === JSON.stringify({ input: 'org/m', refused: 'fixture refusal' }), JSON.stringify({ roadCalls, others }))
   runTensorFoldAct({ kind: 'app', serving: 'qwen3.5-2b' }, io)
   check("s on the app row says what to do, in the panel's words", notices.at(-1) === 'the app is serving qwen3.5-2b · paste from its API tab · quit the app first to serve with Mercury instead', String(notices.at(-1)))
+  roadCalls.length = 0
+  runTensorFoldAct({ kind: 'stop-pod', id: '7f3a', name: 'pod-7f3a' }, io)
+  await settle()
+  check("s on a pod row stops the pod through tf-host-106's stopTensorFoldPod and the notice says compute billing ended, the disk bills until terminate", JSON.stringify(roadCalls) === JSON.stringify([['stop-pod', '7f3a']]) && notices.at(-1) === 'runpod pod stopped · compute billing ended · ~$0.24 so far · the disk bills until you terminate it in /llmhost', JSON.stringify({ roadCalls, notices: notices.slice(-2) }))
+  const { servedByTensorFold, tensorFoldPodEndpoints } = await import('../../src/commands/model/mercuryModel.tsx')
+  const endpoints = tensorFoldPodEndpoints([{ id: '7f3a' }], [{ name: 'pod-7f3a-runpod', hostPodId: '7f3a' }, { name: 'pod-other', hostPodId: 'abcd' }, { name: 'plain' }])
+  check("a compat endpoint whose hostPodId names a TensorFold pod leaves the custom-endpoint group (it lives under TENSORFOLD HOST); other pods and plain endpoints stay", [...endpoints].join(',') === 'pod-7f3a-runpod' && servedByTensorFold({ id: 'compat/pod-7f3a-runpod/qwen3.8-27b', group: 'OpenAI-compatible' }, endpoints) && servedByTensorFold({ id: '__mercury_connect__:compat/pod-7f3a-runpod', group: 'OpenAI-compatible' }, endpoints) && !servedByTensorFold({ id: 'compat/pod-other/m', group: 'OpenAI-compatible' }, endpoints) && !servedByTensorFold({ id: 'compat/plain/m', group: 'OpenAI-compatible' }, endpoints), [...endpoints].join(','))
 }
 
 await releaseScratchHome(home)

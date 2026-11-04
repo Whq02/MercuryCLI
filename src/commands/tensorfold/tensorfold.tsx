@@ -4,6 +4,7 @@ import { ModelPickerPopupLease } from '../../components/ModelPickerPopupSlot.js'
 import { focusedSessionModelFacts } from '../../services/engine-connector/focusedConnector.js'
 import { modelDoorRoad } from '../../services/host/door.js'
 import { runHostedModel } from '../../services/host/index.js'
+import { stopTensorFoldPod } from '../../services/host/tensorfoldPod.js'
 import { resolveSetupIo } from '../../services/localSetup/setupIo.js'
 import { pickAndProve, switchSessionModel } from '../../services/localSetup/setupProve.js'
 import { PAIRING_WORDS } from '../../services/lan/pairing.js'
@@ -155,6 +156,12 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
       const row = inventoryRow(act.row.repo) ?? { repo: act.row.repo, shortName: act.row.shortName }
       const current = facts.current !== undefined && facts.current === modelIdOf(act.row)
       setTensorFoldNotice(await stopTensorFoldRow(row, facts.served, { current }, io))
+      return
+    }
+    case 'stop-pod': {
+      setTensorFoldNotice(`stopping ${act.name}`)
+      setTensorFoldNotice((await (io.stopPod ?? stopTensorFoldPod)(act.id)).words)
+      await doors.read?.()
       return
     }
     case 'support': {

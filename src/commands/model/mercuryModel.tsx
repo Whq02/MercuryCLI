@@ -136,6 +136,7 @@ import { installTensorFold, tensorFoldInstallPlan } from '../../services/tensorf
 import { pullTensorFold, startTensorFold, stopTensorFold, tensorFoldPairingCode } from '../../services/tensorfold/serve.js'
 import type { TensorFoldModelRow } from '../../services/tensorfold/contracts.js'
 import { installTensorFoldThen, readOtherCheckpoint, tensorFoldRoadState } from '../tensorfold/road.js'
+import { stopTensorFoldPod } from '../../services/host/tensorfoldPod.js'
 import { TENSORFOLD_HOST_GROUP, TENSORFOLD_MODEL_GROUP, type TensorFoldAct, type TensorFoldPickerFacts, type TensorFoldRowAct } from '../../components/tensorfold/tensorfoldRows.js'
 import { refreshTensorFoldPickerFacts, tensorFoldCapableMachine, useTensorFoldPickerFacts } from '../../components/tensorfold/tensorfoldFacts.js'
 import { setClipboardWithReceipt } from '../../ink/termio/osc.js'
@@ -855,9 +856,14 @@ function orderedModelChoices(models: ModelChoice[], currentRowId: string): Model
   })
 }
 
-function servedByTensorFold(choice: ModelChoice, pods: ReadonlySet<string>): boolean {
-  const pod = /^(?:__mercury_connect__:)?compat\/([a-z0-9-]+)(?:\/|$)/.exec(choice.id)?.[1]
-  return (choice.group === LOCAL_MODEL_GROUP && localRecordFor(choice.id)?.server === 'tensorfold') || (pod !== undefined && pods.has(pod))
+export function servedByTensorFold(choice: Pick<ModelChoice, 'id' | 'group'>, podEndpoints: ReadonlySet<string>): boolean {
+  const endpoint = /^(?:__mercury_connect__:)?compat\/([^/]+)(?:\/|$)/.exec(choice.id)?.[1]
+  return (choice.group === LOCAL_MODEL_GROUP && localRecordFor(choice.id)?.server === 'tensorfold') || (endpoint !== undefined && podEndpoints.has(endpoint))
+}
+
+export function tensorFoldPodEndpoints(pods: readonly { id: string }[], endpoints: readonly { name: string; hostPodId?: string }[] = configuredCompatEndpoints()): ReadonlySet<string> {
+  const ids = new Set(pods.map(pod => pod.id))
+  return new Set(endpoints.filter(endpoint => endpoint.hostPodId !== undefined && ids.has(endpoint.hostPodId)).map(endpoint => endpoint.name))
 }
 
 function lastLineOf(error: unknown): string {
@@ -939,6 +945,15 @@ export function runTensorFoldAct(act: TensorFoldAct, io: TensorFoldHostIo): void
       void stopTensorFold(act.row.shortName)
         .then(() => {
           io.setAct(act.row.repo, undefined)
+          void refreshTensorFoldPickerFacts().catch(() => undefined)
+        })
+        .catch(error => io.setNotice(lastLineOf(error)))
+      return
+    case 'stop-pod':
+      io.setNotice(`stopping ${act.name}`)
+      void stopTensorFoldPod(act.id)
+        .then(({ words }) => {
+          io.setNotice(words)
           void refreshTensorFoldPickerFacts().catch(() => undefined)
         })
         .catch(error => io.setNotice(lastLineOf(error)))
@@ -1080,7 +1095,7 @@ function MercuryModelWrapper({
 
   const options = getModelOptions()
   const tensorFoldFacts = useTensorFoldPickerFacts()
-  const tensorFoldPods = new Set((tensorFoldFacts?.hosts ?? []).filter(host => host.origin === 'pod').map(host => host.name))
+  const tensorFoldPods = React.useMemo(() => tensorFoldPodEndpoints(tensorFoldFacts?.pods ?? []), [tensorFoldFacts])
   const listedModels: ModelChoice[] = options.flatMap(opt => hostEndpointChoice(modelChoiceOf(opt, betas))).filter(choice => !servedByTensorFold(choice, tensorFoldPods))
   const [tensorFoldActs, setTensorFoldActs] = React.useState<Record<string, TensorFoldRowAct>>({})
   const [tensorFoldInstall, setTensorFoldInstall] = React.useState<TensorFoldPickerFacts['install'] | undefined>(undefined)
@@ -1520,8 +1535,9 @@ function MercuryModelWrapper({
     open: () => pickerOpen.current,
     switchTo: id => handleSelect(id),
     rent: () => {
-      onDone('Opening /llmhost', { display: 'system' })
-      openSettingsPopup(llmHostPopupRequest())
+      const title = tensorfold?.rent?.title
+      onDone(title !== undefined ? 'Opening ' + title + ' in /llmhost' : 'Opening /llmhost', { display: 'system' })
+      openSettingsPopup(llmHostPopupRequest(title !== undefined ? modelDoorRoad(runHostedModel, title) : undefined))
     },
   }
 

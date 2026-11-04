@@ -25,6 +25,7 @@ export type TensorFoldRowAct =
 export type TensorFoldInstallFacts = { road: 'brew' | 'archive'; state?: 'installing' | 'unavailable'; commands: readonly string[]; progress?: string }
 export type TensorFoldPortNote = { port: number; taken: number; by: string; keyed?: boolean }
 export type TensorFoldRentFacts = { pod?: string; serves?: string; title?: string }
+export type TensorFoldPodRow = { hostName: string; id: string; provider?: string; words: string; bills: boolean }
 
 export type TensorFoldPickerFacts = {
   platform: NodeJS.Platform
@@ -43,12 +44,14 @@ export type TensorFoldPickerFacts = {
   other?: { refused?: string; read?: TensorFoldModelRow }
   disk?: { into: string; freeBytes?: number }
   rent?: TensorFoldRentFacts
+  pods?: readonly TensorFoldPodRow[]
 }
 
 export type TensorFoldAct =
   | { kind: 'serve'; row: TensorFoldModelRow; window: number }
   | { kind: 'switch'; id: string }
   | { kind: 'stop'; row: TensorFoldModelRow }
+  | { kind: 'stop-pod'; id: string; name: string }
   | { kind: 'support'; row?: TensorFoldModelRow; host?: TensorFoldHost; window?: number }
   | { kind: 'limit'; row: TensorFoldModelRow; line: string }
   | { kind: 'install' }
@@ -414,7 +417,8 @@ function hostChoices(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): Mode
         keys: {},
       })
     }
-    const id = host.origin === 'pod' ? `compat/${host.name}/${host.serving}` : `local/${host.serving}`
+    const pod = host.origin === 'pod' ? (facts.pods ?? []).find(candidate => candidate.hostName === host.name) : undefined
+    const id = host.origin === 'pod' ? `compat/${pod?.provider ?? host.name}/${host.serving}` : `local/${host.serving}`
     const current = ui.current === id
     return {
       id,
@@ -429,11 +433,16 @@ function hostChoices(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): Mode
         memory: { text: host.name, tone: 'faint' },
         card: width => [
           ...kv('host', [addressOf(host.baseUrl), host.chip, host.version !== undefined ? `TensorFold ${host.version}` : undefined, host.keyRef !== undefined ? 'keyed' : undefined].filter(part => part !== undefined).join(' · '), width),
+          ...(pod !== undefined ? kv('pod', pod.words, width) : []),
           ...(host.lastReply?.tokensPerSecond !== undefined ? kv('serving', `~${Math.round(host.lastReply.tokensPerSecond)} tok/s on its last reply`, width, 'secondary') : []),
           ...(host.window !== undefined ? kv('window', `${tok(host.window)} · set when it started outside Mercury, which does not stop or restart it`, width) : []),
           ...(network ? kv('network', LAN_WORDS, width) : []),
         ],
-        keys: { ...(current ? {} : { enter: { words: '↵ switch', act: { kind: 'switch', id } } }), support: { kind: 'support', host } },
+        keys: {
+          ...(current ? {} : { enter: { words: '↵ switch', act: { kind: 'switch', id } } }),
+          ...(pod !== undefined && pod.bills ? { stop: { words: 's stops the pod', act: { kind: 'stop-pod', id: pod.id, name: host.name }, confirm: false } } : {}),
+          support: { kind: 'support', host },
+        },
       },
     }
   })

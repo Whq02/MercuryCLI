@@ -114,6 +114,14 @@ export function tensorFoldPodFacts(record: HostRecord, recipe: HostRecipe | unde
 export function tensorFoldPods(recipes: readonly HostRecipe[], now = Date.now()): TensorFoldPodFacts[] {
   return hostRecords().flatMap(record => { const facts = tensorFoldPodFacts(record, recipes.find(row => row.id === record.recipe), now); return facts ? [facts] : [] })
 }
+export interface TensorFoldPodRowFacts { hostName: string; id: string; provider?: string; words: string; bills: boolean }
+export function tensorFoldPodRowFacts(pod: TensorFoldPodFacts): TensorFoldPodRowFacts {
+  const minutes = Math.floor(pod.elapsedMs / 60_000)
+  const elapsed = minutes >= 60 ? Math.floor(minutes / 60) + ' h ' + String(minutes % 60).padStart(2, '0') + ' min' : minutes + ' min'
+  const words = pod.state === 'stopped' ? 'stopped · compute billing ended · ~$' + pod.spendUSD.toFixed(2) + ' so far · the disk bills until you terminate it in /llmhost' : '$' + pod.price.toFixed(2) + '/h on ' + vendorLabel(pod.vendor) + ' · ' + elapsed + ' · ~$' + pod.spendUSD.toFixed(2) + ' so far · s stops the pod and its billing'
+  return { hostName: pod.hostName, id: pod.id, ...(pod.provider !== undefined ? { provider: pod.provider } : {}), words, bills: pod.bills }
+}
+export const tensorFoldPodRows = (recipes: readonly HostRecipe[], now = Date.now()): TensorFoldPodRowFacts[] => tensorFoldPods(recipes, now).map(tensorFoldPodRowFacts)
 export const tensorFoldPodByHost = (hostName: string, recipes: readonly HostRecipe[], now = Date.now()): TensorFoldPodFacts | undefined => tensorFoldPods(recipes, now).find(pod => pod.hostName === hostName)
 
 export interface TensorFoldRentRow { gpu: string; vramGb: number; vendor: string; title: string; window: number; price?: number; classWords: string }

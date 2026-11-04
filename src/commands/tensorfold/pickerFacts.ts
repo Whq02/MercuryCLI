@@ -100,6 +100,7 @@ export function pickerFactsOf(facts: TensorFoldPanelFacts): TensorFoldPickerFact
     ...(facts.other !== undefined ? { other: { ...(facts.other.refused !== undefined ? { refused: facts.other.refused } : {}), ...(facts.other.read !== undefined ? { read: facts.other.read } : {}) } } : {}),
     ...(facts.disk !== undefined ? { disk: { into: facts.disk.cacheWords, freeBytes: facts.disk.freeBytes } } : {}),
     ...(facts.rent !== undefined ? { rent: facts.rent } : {}),
+    pods: facts.pods,
   }
 }
 

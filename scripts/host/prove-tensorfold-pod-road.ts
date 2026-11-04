@@ -13,7 +13,7 @@ const { TENSORFOLD_HOST_VERSION, tensorFoldKeyWriteCommand, tensorFoldReadyComma
 const pod = await import('../../src/services/host/tensorfoldPod.ts')
 const { hostDirectory, hostRecords, readHostRecord, removeHostRecord, writeHostRecord } = await import('../../src/services/host/store.ts')
 const { listBoxes, readBox } = await import('../../src/services/host/boxes.ts')
-const { TENSORFOLD_NOT_BUILT } = await import('../../src/services/tensorfold/contracts.ts')
+const { tensorFoldHosts, tensorFoldHostKey } = await import('../../src/services/providers/local/tensorfoldHosts.ts')
 const { vendorClient } = await import('../../src/services/host/vendors/client.ts')
 const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 
@@ -68,9 +68,9 @@ try {
   const box = written[0] as { name: string; kind: string; os: string; engines: { kind: string; version: string; port: number; path: string }[]; gpus: { name: string; memory: number }[]; target?: object }
   check('the pod is registered as a host box with engine tensorfold on port 8080, its GPU and its SSH target', written.length === 1 && box.name === 'pod-fixture-pod-1' && box.kind === 'ssh' && box.os === 'linux' && box.engines.length === 1 && box.engines[0]!.kind === 'tensorfold' && box.engines[0]!.version === TENSORFOLD_HOST_VERSION && box.engines[0]!.port === 8080 && box.engines[0]!.path.endsWith('/bin/tensorfold-native') && box.gpus[0]!.name === 'NVIDIA GeForce RTX 5090' && box.gpus[0]!.memory === 32 && JSON.stringify(box.target) === JSON.stringify(target))
   const atSeam = await pod.registerTensorFoldPod({ id: 'fixture-pod-2', vendor: 'runpod', recipe, baseUrl: 'http://127.0.0.1:' + port + '/v1', key, served: 'qwen3.8-27b', target })
-  check('at the seam the stub’s ' + TENSORFOLD_NOT_BUILT.split(' ')[0] + ' refusal is tolerated: the box is still written and the registration reports remembered: false', atSeam.remembered === false && readBox('pod-fixture-pod-2')?.engines[0]?.kind === 'tensorfold' && pod.isTensorFoldPodBox(readBox('pod-fixture-pod-2')!) && pod.tensorFoldPodBoxes().some(row => row.name === 'pod-fixture-pod-2'))
-  await pod.unregisterTensorFoldPod('fixture-pod-2', async () => {})
-  check('unregistering removes the pod box and forgets the key', !readBox('pod-fixture-pod-2') && !listBoxes().some(row => row.name === 'pod-fixture-pod-2') && !existsSync(join(hostDirectory(), 'tensorfold', 'fixture-pod-2.key')))
+  check('through the real hosts store (tf-engine-106) the pod is remembered with origin pod and its key, and the box is written beside it', atSeam.remembered === true && tensorFoldHosts().some(row => row.name === 'pod-fixture-pod-2' && row.origin === 'pod' && row.serving === 'qwen3.8-27b') && tensorFoldHostKey('http://127.0.0.1:' + port) === key && readBox('pod-fixture-pod-2')?.engines[0]?.kind === 'tensorfold' && pod.isTensorFoldPodBox(readBox('pod-fixture-pod-2')!) && pod.tensorFoldPodBoxes().some(row => row.name === 'pod-fixture-pod-2'))
+  await pod.unregisterTensorFoldPod('fixture-pod-2')
+  check('unregistering forgets the host, removes the pod box and forgets the key', !tensorFoldHosts().some(row => row.name === 'pod-fixture-pod-2') && !readBox('pod-fixture-pod-2') && !listBoxes().some(row => row.name === 'pod-fixture-pod-2') && !existsSync(join(hostDirectory(), 'tensorfold', 'fixture-pod-2.key')))
 
   const startedAt = new Date(Date.now() - 90 * 60_000).toISOString()
   writeHostRecord({ vendor: 'runpod', id: 'fixture-pod-1', name: 'mercury-fixture', recipe: recipe.id, recipeRow: recipe, price: 1.19, startedAt, status: 'RUNNING', jobKind: 'setup', jobState: 'ready', step: 'ready', provider: 'pod-fixture-pod-1', localPort: port, target, apiBaseUrl: rp.baseUrl })
