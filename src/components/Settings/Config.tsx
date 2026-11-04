@@ -109,6 +109,7 @@ import { LOCAL_PULL_RECOMMENDATION } from '../../services/providers/local/localA
 import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js'
 import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
 import { heldLocalWindow, localWindowApplication, localWindowRefusalWords, localWindowRoomWords, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
+import { HELPER_JOB_WORDS, helperChoiceWords, helperJobsWords, helperModelChoices, nextHelperModelSetting, readHelperModelSetting, writeHelperModelSetting } from '../../services/providers/local/tensorfoldHelper.js'
 import { LOCAL_SERVER_APPLY_MENU, LocalServerApplyDialog, localServerConfigItems, useLocalServerConfig } from './LocalServer.js'
 import { advisorConfigItems } from './Advisor.js'
 import { swarmMasterEnabled } from '../../services/crewBoard/seam.js'
@@ -1180,6 +1181,41 @@ export function Config({
       bump()
     },
   })
+  {
+    const helper = readHelperModelSetting(config)
+    const choices = helperModelChoices({ session: localMain ?? null })
+    const chosen = choices.find(choice => choice.size === helper.size) ?? choices[0]!
+    const on = helper.size !== 'off' && chosen.available
+    items.push({
+      id: 'helperModel',
+      label: 'Helper model',
+      searchText: 'helper model local small jobs titles summaries judge compaction tensorfold llama.cpp',
+      kind: 'enum',
+      value: <Text color={helper.size === 'off' ? tokens.textSecondary : chosen.available ? tokens.success : tokens.warning} wrap="truncate-end">{helperChoiceWords(chosen)}</Text>,
+      warning: on ? helperJobsWords(helper.compaction) : `a local model for Mercury's own small jobs whatever the main model · ${choices.filter(choice => choice.size !== 'off').map(helperChoiceWords).join(' · ')}`,
+      setByYou: helper.size !== 'off',
+      change: direction => {
+        const next = nextHelperModelSetting(helper.size, direction, choices)
+        writeHelperModelSetting({ size: next }, writeGlobal)
+        recordSet('helperModel', `set the helper model to ${choices.find(choice => choice.size === next)?.label ?? next}`)
+        bump()
+      },
+    })
+    items.push({
+      id: 'helperModelCompaction',
+      label: 'Helper model for compaction',
+      searchText: 'helper model compaction opt-in small model can drop details',
+      kind: 'boolean',
+      value: <Text color={helper.compaction ? tokens.warning : tokens.textSecondary}>{helper.compaction ? `on · ${HELPER_JOB_WORDS.compactionReason}` : `off · ${HELPER_JOB_WORDS.compactionReason}`}</Text>,
+      warning: on ? undefined : 'applies once a helper model is chosen',
+      setByYou: helper.compaction,
+      change: () => {
+        writeHelperModelSetting({ compaction: !helper.compaction }, writeGlobal)
+        recordToggle('helperModelCompaction', `set the helper model for compaction to ${helper.compaction ? 'off' : 'on'}`)
+        bump()
+      },
+    })
+  }
   for (const row of configProviderRows(providerFamilyPresences())) {
     items.push({
       id: row.id,

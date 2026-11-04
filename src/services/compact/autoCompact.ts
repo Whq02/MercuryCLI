@@ -211,10 +211,26 @@ export function calculateTokenWarningState(
 }
 
 
-export type FoldModelChoice = { model: string; source: 'seated' | 'history'; count: number }
+export type FoldModelChoice = { model: string; source: 'seated' | 'history' | 'helper'; count: number; reason?: string }
+
+function helperFoldModel(): string | undefined {
+  try {
+    const { helperCompactionModelId } = require('../providers/local/tensorfoldHelper.js') as typeof import('../providers/local/tensorfoldHelper.js')
+    return helperCompactionModelId()
+  } catch {
+    return undefined
+  }
+}
 
 export function foldModelFor(messages: readonly Message[], seated: string, opts: { forced: boolean }): FoldModelChoice {
   const count = Math.max(tokenCountWithEstimation(messages, seated), tokenCountWithEstimation(messages))
+  const helper = helperFoldModel()
+  if (helper !== undefined && helper !== seated) {
+    if (count < getBlockingLimit(helper)) return { model: helper, source: 'helper', count }
+    const reason = `the helper ${helper}'s window does not hold the history (about ${count} tokens by Mercury's count) — the seated ${seated} folds it`
+    logForDebugging(`compaction: ${reason}`)
+    if (!opts.forced && count < getBlockingLimit(seated)) return { model: seated, source: 'seated', count, reason }
+  }
   const onSeat: FoldModelChoice = { model: seated, source: 'seated', count }
   if (!opts.forced && count < getBlockingLimit(seated)) return onSeat
   const stamped = usageAnchorModel(messages)

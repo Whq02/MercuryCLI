@@ -64,7 +64,8 @@ import { resolveHuggingfaceAccount } from '../../services/providers/huggingface/
 import { getHuggingfaceAvailability } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { getCachedLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
 import { resolveLocalAccount } from '../../services/providers/local/localAccounts.js'
-import { LOCAL_SERVER_NAMES } from '../../services/providers/local/localCatalogue.js'
+import { LOCAL_SERVER_NAMES, localRecordFor } from '../../services/providers/local/localCatalogue.js'
+import { tensorFoldUsageLines } from '../../services/providers/local/tensorfoldUsage.js'
 import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js'
 import { formatLaneSpend } from '../../cost-tracker.js'
 import { hostRentalUsage } from '../../services/host/costs.js'
@@ -768,6 +769,8 @@ function LocalUsageSection(): React.ReactNode {
   const account = resolveLocalAccount()
   const snapshot = getCachedLocalDiscovery()
   const spend = providerSessionSpend('local')
+  const served = useFocusedServedModel()
+  const tensorFoldLines = localRecordFor(served ?? getEngineModel())?.server === 'tensorfold' ? tensorFoldUsageLines() : []
   return (
     <Box flexDirection="column">
       <Text bold>Local models usage</Text>
@@ -784,6 +787,7 @@ function LocalUsageSection(): React.ReactNode {
               </Text>
             ))}
             <SlotSpend active route="local" spend={spend} withCost={false} />
+            {tensorFoldLines.map((line, index) => <Text key={`tensorfold-${index}`} dimColor>{line}</Text>)}
           </Box>
         ) : (
           <Text dimColor>{absentSlotLine(ENGINE_USAGE_PRESENTATION.local!.connect)}</Text>

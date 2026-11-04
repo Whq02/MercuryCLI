@@ -243,6 +243,7 @@ type ModelChoices = {
   autoCompactWindow?: number
   localModelWindows?: { [model: string]: 'server' | 'max' | number }
   localModelBatch?: { [model: string]: number }
+  helperModel?: { size?: 'off' | '2b' | '4b' | 'session'; compaction?: boolean }
   fileCheckpointingEnabled: boolean
   permissionExplainerEnabled?: boolean
   prStatusFooterEnabled?: boolean

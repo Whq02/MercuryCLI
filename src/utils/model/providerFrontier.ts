@@ -220,7 +220,18 @@ export function providerSmallFastFact(route: CallModelRoute): ProviderFrontierFa
   }
 }
 
+function helperSmallFastModel(): string | undefined {
+  try {
+    const { helperModelId } = require('../../services/providers/local/tensorfoldHelper.js') as typeof import('../../services/providers/local/tensorfoldHelper.js')
+    return helperModelId()
+  } catch {
+    return undefined
+  }
+}
+
 export function smallFastModelFor(sessionModel: string): string {
+  const helper = helperSmallFastModel()
+  if (helper !== undefined) return helper
   const route = declaredRouteOf(sessionModel)
   if (route === 'anthropic') return getSmallFastModel()
   if (route === null) return sessionModel
