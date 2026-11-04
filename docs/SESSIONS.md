@@ -79,8 +79,7 @@ only the moves that exist: `"⇧→ concourse"` on a fresh boot, `"⇧→ chat"`
 session is focused, `"⇧→ no chat open"` when nothing lies to the right,
 repainted the instant a screen appears or vanishes. On the board, `Esc` returns
 to the focused chat while one exists (and to the home screen when none does,
-matching its legend), and the FOCUSED CHAT crumb is active only
-while a chat exists.
+matching its legend).
 
 ## Starting a new session
 
