@@ -71,7 +71,7 @@ async function connect(command: string, commandArgs: string[], extraEnv: Record<
   const client = new Client({ name: 'mercury-lightcraft-proof', version: '1.0.0' }, { capabilities: {} })
   await client.connect(transport)
   activeClient = client
-  assert.deepEqual(client.getServerVersion(), { name: 'lightcraft', title: 'LightCraft', version: '0.13.0' })
+  assert.deepEqual(client.getServerVersion(), { name: 'lightcraft', title: 'LightCraft', version: '0.18.0' })
   evidence.server = client.getServerVersion()
   const tools = await client.listTools()
   evidence.tools = tools
@@ -192,7 +192,7 @@ try {
     assert.equal(reused.reused, true)
     evidence.reused = reused.reused
     evidence.version = execFileSync(installation.cli, ['--version'], { env, encoding: 'utf8' }).trim()
-    assert.equal(evidence.version, 'lightcraft-cli 0.13.0')
+    assert.equal(evidence.version, 'lightcraft-cli 0.18.0')
     if (process.platform === 'darwin') {
       const app = installation.gui.slice(0, installation.gui.indexOf('.app') + 4)
       execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', '--verbose=2', app], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
@@ -200,7 +200,7 @@ try {
       execFileSync('/usr/sbin/spctl', ['--assess', '--type', 'execute', '--verbose=2', app], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
       evidence.signature = { desktop: 'codesign exit 0', cli: 'codesign exit 0', gatekeeper: 'spctl exit 0' }
       evidence.guiVersion = execFileSync('/usr/libexec/PlistBuddy', ['-c', 'Print:CFBundleShortVersionString', join(app, 'Contents/Info.plist')], { encoding: 'utf8' }).trim()
-      assert.equal(evidence.guiVersion, '0.13.0')
+      assert.equal(evidence.guiVersion, '0.18.0')
     } else if (process.platform === 'win32') {
       evidence.signature = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '$s=@($env:LIGHTCRAFT_PROOF_GUI,$env:LIGHTCRAFT_PROOF_CLI) | ForEach-Object { Get-AuthenticodeSignature -LiteralPath $_ }; $s | Select-Object Path,Status,StatusMessage,SignerCertificate | ConvertTo-Json -Depth 4; if(@($s | Where-Object { $_.Status -ne "Valid" }).Count){exit 1}'], { env: { ...env, LIGHTCRAFT_PROOF_GUI: installation.gui, LIGHTCRAFT_PROOF_CLI: installation.cli }, encoding: 'utf8' })
     }
@@ -211,8 +211,8 @@ try {
     evidence.installation = installation
     if (modes[0] === '--headless') {
       const client = await connect(installation.cli, ['mcp', '--library', join(work, 'library')])
-      assert.equal(evidence.toolCount, 388)
-      assert.equal(evidence.commandCount, 371)
+      assert.equal(evidence.toolCount, 397)
+      assert.equal(evidence.commandCount, 380)
       await develop(client, 'headless')
       const noWindow = await client.callTool({ name: 'screenshot', arguments: {} })
       assert.equal(noWindow.isError, true)
