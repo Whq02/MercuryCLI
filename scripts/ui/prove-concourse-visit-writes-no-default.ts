@@ -20,8 +20,6 @@ function section(t: string): void {
 const SHIFT_LEFT = '\x1b[1;2D'
 const SHIFT_RIGHT = '\x1b[1;2C'
 const SHIFT_TAB = '\x1b[Z'
-const DOWN = '\x1b[B'
-const CTRL_S = '\x13'
 const ESC = '\x1b'
 const TYPED = 'draft test line, do not send'
 const COORDINATOR_MODEL = 'glm-5.3'
@@ -47,16 +45,14 @@ const run = await runArtifactArena({
   },
   sends: [
     step({ awaitText: 'Type a prompt', text: SHIFT_LEFT }),
-    step({ awaitText: 'COORDINATOR', text: TYPED }),
+    step({ awaitText: 'COORDINATOR · tab or click to focus', text: '\t' }),
+    step({ awaitText: 'talk to the coordinator', text: TYPED }),
     step({ awaitText: 'do not send', text: SHIFT_RIGHT }),
     step({ awaitText: 'Type a prompt', awaitAbsent: 'COORDINATOR', text: SHIFT_LEFT }),
-    step({ awaitText: 'tab here first', text: SHIFT_TAB }),
+    step({ awaitText: 'COORDINATOR · tab or click to focus', text: '\t' }),
     step({ awaitText: '↵↵ sends', text: '\r' }),
     step({ awaitText: '↵ again sends', text: '\r' }),
-    step({ awaitText: '[Coordinator] cma-zai', text: CTRL_S }),
-    step({ awaitText: ['COORDINATOR MODEL', '↵ selects'], afterPrevMs: 800, text: DOWN }),
-    step({ awaitText: ['COORDINATOR MODEL', '↵ selects'], afterPrevMs: 800, text: '\r' }),
-    step({ awaitText: 'switched:', afterPrevMs: 600, text: ESC }),
+    step({ awaitText: '[Coordinator] cma-zai', text: ESC }),
   ],
   anchor: null,
   extraEnv: { MERCURY_ZAI_API_BASE: chair.env.MERCURY_ZAI_API_BASE, ZAI_API_KEY: chair.env.ZAI_API_KEY },
@@ -66,13 +62,12 @@ const run = await runArtifactArena({
 try {
   const t0 = firstOutputTs(run)
   const sent = run.sendLog.map(s => Buffer.from(s.b64, 'base64').toString('latin1'))
-  check('every witnessed send fired: into the concourse, the draft, out and back, ⇧tab, ↵↵, ⌃s, ↓, ↵, esc', sent.length === 11, `${sent.length} sends: ${JSON.stringify(sent.map(s => s.slice(0, 12)))} · ${run.driverOut.slice(-300)}`)
-  const [afterSend, final] = grabScreens(run, 177, 49, [Math.round((run.sendLog[7]?.sent ?? Date.now()) - t0) - 200, -1])
+  check('every witnessed send fired: into the concourse, tab to the coordinator, the draft, out and back, tab again, ↵↵, esc', sent.length === 9, `${sent.length} sends: ${JSON.stringify(sent.map(s => s.slice(0, 12)))} · ${run.driverOut.slice(-300)}`)
+  const [afterSend, final] = grabScreens(run, 177, 49, [Math.round((run.sendLog[8]?.sent ?? Date.now()) - t0) - 200, -1])
   check('the coordinator turn ran on glm-5.3 and answered (the GLM chair took exactly one coordinator call)', chair.captured.filter(h => h.lane === 'zai').length === 1 && chair.captured.some(h => h.lane === 'zai' && h.model === COORDINATOR_MODEL) && flat(afterSend!.rows).includes('[Coordinator] cma-zai'), `${JSON.stringify(chair.captured.map(h => `${h.lane} ${h.model}`))} · ${rowsWith(afterSend!.rows, 'Coordinator')}`)
   const finalText = flat(final!.rows)
-  check('the picker pick switched the COORDINATOR model (the receipt painted and the bar names the new pick)', finalText.includes('switched:') || !finalText.includes(`coordinator · GLM-5.3`), rowsWith(final!.rows, 'coordinator ·'))
   const cfg = JSON.parse(readFileSync(join(run.paths.home, '.mercury', '.config.json'), 'utf8')) as { concourseCoordinator?: { assistModel?: string } }
-  check('the pick landed in the coordinator\'s own setting, not the default', cfg.concourseCoordinator?.assistModel !== undefined && cfg.concourseCoordinator.assistModel !== COORDINATOR_MODEL, JSON.stringify(cfg.concourseCoordinator))
+  check('the visit left the coordinator\'s own setting as seeded (the board offers no model pick to write)', cfg.concourseCoordinator?.assistModel === COORDINATOR_MODEL, JSON.stringify(cfg.concourseCoordinator))
   const settingsPath = join(run.paths.home, '.mercury', 'settings.json')
   const after = existsSync(settingsPath) ? readFileSync(settingsPath, 'utf8') : '(missing)'
   check('settings.json is byte-identical — engine.model is still the user\'s own', after === SETTINGS, after)

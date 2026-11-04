@@ -92,7 +92,12 @@ const boardFixture = (mode: 'off' | 'agent-assisted'): Record<string, unknown> =
   fixture.coordinator = mode === 'off' ? { mode: 'off' } : { mode: 'agent-assisted', assistModelLabel: 'GPT-5.6 Sol' }
   fixture.peek = { ...(fixture.peek as Record<string, unknown>), sessionId: 's-audit', title: 'Audit billing receipts', state: 'ready-to-review', modelLabel: 'Opus 5.5' }
   ;(fixture.context as Record<string, unknown>).effortLabel = 'max'
-  for (const g of fixture.groups as Array<{ rows: Array<Record<string, unknown>> }>) for (const r of g.rows) r.workspaceDir = boardHome
+  for (const g of fixture.groups as Array<{ rows: Array<Record<string, unknown>> }>) {
+    for (const r of g.rows) {
+      r.workspaceDir = boardHome
+      if (r.sessionId === 's-oauth') Object.assign(r, { modelLabel: 'GPT-5.6 Sol', effortLabel: 'xhigh' })
+    }
+  }
   return fixture
 }
 const boardEnv = (fixture: Record<string, unknown>, tag: string): NodeJS.ProcessEnv => {
@@ -232,8 +237,8 @@ console.log('R — choosing another row switches the live view (160×48: ↓ on 
   const cols = twoColumns(lines)
   const left = cols === null ? [] : slice(lines, 0, cols.bottom, cols.left[0], cols.left[1])
   check(
-    'R1 the left column now shows the chosen row: its header and its transcript, not the first one',
-    /^.{0,2}Fix OAuth callback · Moodle/.test((left[1] ?? '').trim()) &&
+    'R1 the left column now shows the chosen row: its header (its own model and effort from the row, no peek round-trip) and its transcript, not the first one',
+    /^.{0,2}Fix OAuth callback · Moodle · GPT-5\.6 Sol · x/.test((left[1] ?? '').trim()) &&
       left.some(l => l.includes('Tracing the callback owner in src/auth.')) &&
       !left.some(l => l.includes('Reading the receipts and the ledger.')),
     left.slice(0, 8).map(l => l.trimEnd()).join(' | '),
@@ -267,6 +272,14 @@ console.log("A — mode 'agent-assisted': the coordinator returns as the third p
     !(tabbed[statusRowOf(tabbed)] ?? '').toLowerCase().includes('coordinator'),
     (tabbed[statusRowOf(tabbed)] ?? '').trim(),
   )
+}
+
+console.log('M — the builder fills each row\'s own model and effort; the live view reads the row first')
+{
+  const builder = readFileSync(join(REPO, 'src/services/concourse/concourseSnapshot.ts'), 'utf8')
+  const screen = readFileSync(join(REPO, 'src/components/concourse/ConcourseScreen.tsx'), 'utf8')
+  check('M1 every row with a model gets its display name and its effort from the builder', builder.includes('if (entry !== undefined) row.modelLabel = sanitizeLabel(entry.displayName)') && builder.includes("if (effort !== undefined && effort !== '') row.effortLabel = effort"))
+  check('M2 the header reads the row before the peek', screen.includes('const modelLabel = sel.modelLabel ?? peekFacts?.modelLabel') && screen.includes('const effortLabel = sel.effortLabel ?? (peekFacts !== null'))
 }
 
 console.log('G — the guard: the chat screen keeps its header critter (160×48)')
