@@ -874,7 +874,7 @@ export const FileEditTool = buildTool({
           result: false as const,
           behavior: 'ask' as const,
           message:
-            'hunks require expected_anchor — carry the parenthesised "(anchor: …)" value from your preceding Read of this file.' +
+            'hunks require expected_anchor — the bare fa:… or ra:… value inside the "(anchor: …)" of your preceding Read of this file, without the wrapper.' +
             (lineAnchorsEnabled()
               ? ' (Or anchor-qualify every hunk\'s lines from a line_anchors read, such as "12#ab3f", in place of expected_anchor.)'
               : ''),

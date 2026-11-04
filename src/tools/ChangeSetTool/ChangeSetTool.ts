@@ -94,7 +94,7 @@ const baseShape = () => ({
         file_path: z.string().describe('Absolute path to an existing text file'),
         expected_anchor: z
           .string()
-          .describe('The latest "(anchor: …)" value for this file, from a Read or from an Edit or Write result'),
+          .describe('The bare fa:… or ra:… value inside the latest "(anchor: …)" for this file — a Read, or an Edit or Write result — without the wrapper'),
         hunks: z
           .array(
             z.strictObject({
