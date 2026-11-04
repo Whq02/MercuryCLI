@@ -28,7 +28,9 @@ type TurnUnderGuard = {
   messages: Message[]
 }
 
-type TurnGuardVerdict = { hold: false } | { hold: true; words: string }
+export type TurnNote = { level: 'suggestion' | 'warning'; text: string }
+
+type TurnGuardVerdict = { hold: false; note?: TurnNote } | { hold: true; words: string; note?: TurnNote }
 
 type TurnGuard = {
   id: string
@@ -47,6 +49,7 @@ const DEFAULT_GUARD_TIMEOUT_MS = 5_000
 
 const toolGuards = new Map<string, ToolGuard[]>()
 const turnGuards = new Map<string, TurnGuard[]>()
+const turnNotes = new Map<string, TurnNote[]>()
 
 function engage<G extends { id: string }>(store: Map<string, G[]>, key: string, guard: G): void {
   const list = (store.get(key) ?? []).filter(entry => entry.id !== guard.id)
@@ -91,11 +94,19 @@ export function guardsEngaged(key: string): { tool: string[]; turn: string[] } {
 export function clearGuards(key: string): void {
   toolGuards.delete(key)
   turnGuards.delete(key)
+  turnNotes.delete(key)
+}
+
+export function takeTurnNotes(key: string): TurnNote[] {
+  const notes = turnNotes.get(key) ?? []
+  turnNotes.delete(key)
+  return notes
 }
 
 export function resetGuardsForTesting(): void {
   toolGuards.clear()
   turnGuards.clear()
+  turnNotes.clear()
 }
 
 async function judged<T>(timeoutMs: number, signal: AbortSignal | undefined, run: (signal: AbortSignal) => Promise<T> | T): Promise<T> {
@@ -143,6 +154,7 @@ export async function judgeTurnEnd(key: string, turn: TurnUnderGuard, signal?: A
     if (signal?.aborted) break
     try {
       const verdict = await judged(guard.timeoutMs ?? DEFAULT_GUARD_TIMEOUT_MS, signal, inner => guard.judge(turn, inner))
+      if (verdict.note !== undefined) turnNotes.set(key, [...(turnNotes.get(key) ?? []), verdict.note])
       if (verdict.hold) holds.push({ guard: guard.id, words: verdict.words, silent: guard.silent === true })
     } catch (error) {
       logForDebugging(`guard ${guard.id} threw at the turn's end and holds nothing: ${errorMessage(error)}`, { level: 'error' })

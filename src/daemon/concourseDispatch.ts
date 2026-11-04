@@ -25,7 +25,7 @@ import type { ConcourseReviveOutcome } from './concourseWorkers.js'
 type ConcourseReviveRefusal = Extract<ConcourseReviveOutcome, { outcome: 'refused' }>['reason']
 import { workspaceKindOf } from './concourseWorktrees.js'
 import { isolationAwarenessNote } from './isolationNote.js'
-import type { SaturnOrigin } from '../utils/messages/noticeRows.js'
+import type { SaturnOrigin, ScreenCommandOrigin } from '../utils/messages/noticeRows.js'
 import { isOutsideReportOrigin, type OutsideReportOrigin } from '../utils/messages/outsideReport.js'
 import type { InputBlock, InputRow } from '../rows/vocabulary.js'
 import { isStoredImageRef, readStoredImageRef } from '../utils/imageStore.js'
@@ -75,7 +75,7 @@ export interface HeldOpEnvelopeV1 {
   priority?: ConcoursePromptExtras['priority']
   content?: unknown[]
   sentAt?: string
-  origin?: SaturnOrigin | OutsideReportOrigin
+  origin?: SaturnOrigin | OutsideReportOrigin | ScreenCommandOrigin
 }
 
 interface DispatchFileV1 {
@@ -465,7 +465,7 @@ export interface ConcoursePromptExtras {
   content?: unknown[]
   identity?: string
   sentAt?: string
-  origin?: SaturnOrigin | OutsideReportOrigin
+  origin?: SaturnOrigin | OutsideReportOrigin | ScreenCommandOrigin
 }
 
 function promptExtrasOf(req: Pick<ConcourseDispatchRequest, 'mode' | 'priority' | 'content' | 'agentId' | 'sentAt' | 'origin'>): ConcoursePromptExtras | undefined {
@@ -607,7 +607,7 @@ export interface ConcourseDispatchRequest extends ConcourseAdmitRequest {
   priority?: 'now' | 'next' | 'later'
   content?: unknown[]
   sentAt?: string
-  origin?: SaturnOrigin | OutsideReportOrigin
+  origin?: SaturnOrigin | OutsideReportOrigin | ScreenCommandOrigin
 }
 
 export type ConcourseDispatchResult = {

@@ -1770,7 +1770,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   private async deliver(
     text: string,
-    opts: { mode?: 'prompt' | 'bash'; pastedContents?: Record<number, PastedContent>; extraBlocks?: ContentBlockParam[] },
+    opts: { mode?: 'prompt' | 'bash'; pastedContents?: Record<number, PastedContent>; extraBlocks?: ContentBlockParam[]; metaFrom?: { command: string } },
   ): Promise<SendReceiptV1> {
     const { expandPastedTextRefs, pasteUnavailableLine, resolvePastedContents } = await import('../../history.js')
     const resolved = await resolvePastedContents(text, opts.pastedContents ?? {})
@@ -1784,18 +1784,19 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const mode: 'prompt' | 'bash' = opts.mode === 'bash' ? 'bash' : 'prompt'
     const provisionalId =
       this.retainedSend !== null && this.retainedSend.text === expanded ? this.retainedSend.id : randomUUID()
-    const echo = createUserMessage({ uuid: provisionalId, content: mode === 'bash' ? `<${BASH_INPUT_TAG}>${expanded}</${BASH_INPUT_TAG}>` : expanded }) as unknown as Message
+    const meta = opts.metaFrom !== undefined
+    const echo = createUserMessage({ uuid: provisionalId, content: mode === 'bash' ? `<${BASH_INPUT_TAG}>${expanded}</${BASH_INPUT_TAG}>` : expanded, ...(meta ? { isMeta: true } : {}) }) as unknown as Message
     this.echoRows.set(provisionalId, this.factsBusy ? ({ ...echo, queued: true } as Message) : echo)
     this.paint()
-    const answering = await this.openQuestion()
+    const answering = meta ? null : await this.openQuestion()
     const clientMessageId = answering !== null ? `obl-answer:${answering}` : provisionalId
     if (clientMessageId !== provisionalId) {
       const rows = [...this.echoRows]
       this.echoRows.clear()
       for (const [key, row] of rows) this.echoRows.set(key === provisionalId ? clientMessageId : key, row)
     }
-    submitTrace('connector-deliver', expanded, { mode, clientMessageId })
-    const send: SeatSend = { clientMessageId, text: expanded, sentAtMs: Date.now(), state: 'pending', mode, source: { text, mode, pastedContents: pastes } }
+    submitTrace('connector-deliver', expanded, { mode, clientMessageId, ...(meta ? { metaFrom: opts.metaFrom!.command } : {}) })
+    const send: SeatSend = { clientMessageId, text: expanded, sentAtMs: Date.now(), state: 'pending', mode, ...(meta ? {} : { source: { text, mode, pastedContents: pastes } }) }
     this.sends = [...this.sends.filter(s => s.clientMessageId !== clientMessageId), send]
     this.stampArrival(clientMessageId)
     this.paint()
@@ -1852,6 +1853,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         by: 'operator',
         sentAt: new Date(send.sentAtMs).toISOString(),
         ...(mode === 'bash' ? { mode } : {}),
+        ...(meta ? { origin: { kind: 'screen-command', command: opts.metaFrom!.command } } : {}),
         ...(images.length > 0 ? { content: [...(expanded !== '' ? [{ type: 'text', text: expanded }] : []), ...images] } : {}),
       })
       const detail = typeof reply.error === 'string' ? reply.error : undefined
@@ -1883,6 +1885,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return this.deliver(text, {
       ...(opts?.mode === 'bash' ? { mode: 'bash' as const } : {}),
       ...(opts?.pastedContents !== undefined ? { pastedContents: opts.pastedContents } : {}),
+      ...(opts?.metaFrom !== undefined ? { metaFrom: opts.metaFrom } : {}),
     })
   }
 

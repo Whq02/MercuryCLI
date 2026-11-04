@@ -445,9 +445,12 @@ check(
   const dialogMountAt = dialogBlock.indexOf('const slot = { name: dialogName, mounted: false };')
   const dialogQueue = dialogBlock.slice(0, Math.max(0, dialogMountAt))
   const dialogMount = dialogBlock.slice(Math.max(0, dialogMountAt))
+  const dialogSends = dialogMount.split('.sendWords(').length - 1
+  const queryLegAt = dialogMount.indexOf('if (doneOptions?.shouldQuery === true) {')
+  const querySendAt = dialogMount.indexOf('focusedNow.sendWords(words, { metaFrom: { command: seatCommand.name } })')
   check(
-    '24. the dialog-command branch mounts in place — no history entry, no session send',
-    dialogIdx !== -1 && dialogMountAt !== -1 && !dialogMount.includes('takeComposer()') && !dialogMount.includes('addToHistory(') && !dialogMount.includes('.sendWords('),
+    '24. the dialog-command branch mounts in place — no history entry, no session send of its own; the one send is the query leg a dialog asks for through onDone, its words meta rows',
+    dialogIdx !== -1 && dialogMountAt !== -1 && !dialogMount.includes('takeComposer()') && !dialogMount.includes('addToHistory(') && dialogSends === 1 && queryLegAt !== -1 && querySendAt > queryLegAt,
   )
   check(
     '24b. a dialog typed while one runs queues behind it — the composer taken once, never a session send',

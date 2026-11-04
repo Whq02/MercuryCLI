@@ -1270,16 +1270,29 @@ export function Chat({
       let completed = false;
       const onDone = (
         result?: string,
-        doneOptions?: { display?: 'skip' | 'system' | 'user'; nextInput?: string; submitNextInput?: boolean },
+        doneOptions?: { display?: 'skip' | 'system' | 'user'; nextInput?: string; submitNextInput?: boolean; shouldQuery?: boolean; metaMessages?: string[] },
       ): void => {
         completed = true;
-        submitTrace('repl-dialog-done', input, { name: dialogName, result: (result ?? '').slice(0, 80), display: doneOptions?.display ?? 'user' });
+        submitTrace('repl-dialog-done', input, { name: dialogName, result: (result ?? '').slice(0, 80), display: doneOptions?.display ?? 'user', shouldQuery: doneOptions?.shouldQuery === true });
         releaseDialogSlot();
         setToolJSX(null);
         if (result && doneOptions?.display !== 'skip') {
           const resultLines = result.split(/\r?\n/).filter(line => line.trim() !== '').length;
           if (resultLines > 1) paintScreenCommandReceipt(dialogName, args, result, submittedAt);
           else addNotification({ key: `command-${seatCommand.name}`, text: result, priority: 'immediate' });
+        }
+        if (doneOptions?.shouldQuery === true) {
+          const metaRows = (doneOptions.metaMessages ?? []).filter(words => words.trim() !== '');
+          submitTrace('repl-dialog-query', input, { name: dialogName, metaRows: metaRows.length });
+          void (async () => {
+            for (const words of metaRows) {
+              const receipt = await focusedNow.sendWords(words, { metaFrom: { command: seatCommand.name } });
+              if (receipt.state === 'refused') {
+                addNotification({ key: `command-${seatCommand.name}-query`, text: `/${dialogName} could not start the turn — ${receipt.detail}`, priority: 'high', color: 'error' as const, timeoutMs: RECEIPT_TIMEOUT_MS });
+                return;
+              }
+            }
+          })();
         }
         if (doneOptions?.nextInput) {
           if (doneOptions.submitNextInput) void onSubmitRef.current(doneOptions.nextInput, INERT_PROMPT_HELPERS);

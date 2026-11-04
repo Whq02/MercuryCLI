@@ -84,6 +84,18 @@ export function saturnQueueStamp(origin: unknown): SaturnQueueStamp | Record<nev
   return isSaturnOrigin(origin) ? { origin, workload: WORKLOAD_CRON } : {}
 }
 
+export type ScreenCommandOrigin = { kind: 'screen-command'; command: string }
+
+export function isScreenCommandOrigin(origin: unknown): origin is ScreenCommandOrigin {
+  if (typeof origin !== 'object' || origin === null) return false
+  const o = origin as Record<string, unknown>
+  return o.kind === 'screen-command' && typeof o.command === 'string' && /^[a-z0-9-]{1,64}$/.test(o.command)
+}
+
+export function screenCommandQueueStamp(origin: unknown): { origin: ScreenCommandOrigin; isMeta: true } | Record<never, never> {
+  return isScreenCommandOrigin(origin) ? { origin: { kind: 'screen-command', command: origin.command }, isMeta: true } : {}
+}
+
 function clockOf(iso: string | undefined): string | null {
   if (iso === undefined) return null
   const d = new Date(iso)

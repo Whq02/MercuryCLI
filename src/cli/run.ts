@@ -134,7 +134,7 @@ import {
   takePendingScheduleEdits,
 } from '../services/saturn/sessionScheduleBridge.js'
 import { registerIdeToolDoor } from '../services/acp/ideToolBridge.js'
-import { crewBoardNotice, saturnQueueStamp } from '../utils/messages/noticeRows.js'
+import { crewBoardNotice, saturnQueueStamp, screenCommandQueueStamp } from '../utils/messages/noticeRows.js'
 import { advisorFacts, advisorMainRound, advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
 import { swarmOwnerPost, swarmSessionEnabled, swarmStore, swarmView, watchSwarmBoard, watchSwarmLead, watchSwarmResumes } from '../services/crewBoard/seam.js'
 import { partyFeed } from '../services/crewBoard/party.js'
@@ -2028,6 +2028,7 @@ export async function runHeadless(
       ...(input.priority !== undefined ? { priority: input.priority } : {}),
       ...(input.kind === 'prompt' && input.schema !== undefined ? { schema: input.schema } : {}),
       ...saturnQueueStamp(input.origin),
+      ...screenCommandQueueStamp(input.origin),
     }
     if (localCommandInput(command)) command.localCommand = true
     enqueue(command)
