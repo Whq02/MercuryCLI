@@ -116,10 +116,8 @@ export function _resetConcourseCapsuleForTesting(): void {
 
 export const RESTORED_DRAFT_LINE = keyHintLabel('restored draft · ↵↵ sends · ⌃c clears')
 export const RESTORED_DRAFT_ARMED_LINE = '↵ again sends it · esc keeps it'
-export const RESTORED_DRAFT_AWAY_LINE = 'restored draft · tab here first'
 
-export function restoredDraftLine(composerFocused: boolean, armed: boolean): string {
-  if (!composerFocused) return RESTORED_DRAFT_AWAY_LINE
+export function restoredDraftLine(armed: boolean): string {
   return armed ? RESTORED_DRAFT_ARMED_LINE : RESTORED_DRAFT_LINE
 }
 
@@ -2143,7 +2141,8 @@ export function ConcourseScreen({
     const g = compactDoorSelected
       ? { ok: true as const, placeholder: COMPACT_DOOR_REST_HINT }
       : liveComposerGate(sessionRows.find(r => r.sessionId === boardSel), region)
-    const paint = liveComposerPaintOf(g, liveNote)
+    const boardNote = coordinatorOn || compact ? null : note
+    const paint = liveComposerPaintOf(g, liveNote ?? boardNote)
     return (
       <ConcourseComposer
         minimal={geo.constrained && !compact}
@@ -2153,7 +2152,7 @@ export function ConcourseScreen({
         focused={region === 'live'}
         draft={liveDraft}
         pending={false}
-        note={compact ? null : face !== null ? liveNote : paint.note}
+        note={compact ? null : face !== null ? liveNote ?? boardNote : paint.note}
         restHint={face !== null ? face.placeholder : paint.restHint}
         contextLine={compact ? null : contextLine}
         onComposerClick={onLiveComposerClick}
@@ -2475,7 +2474,7 @@ export function ConcourseScreen({
                   }
                   contextLine={
                     draftRestored && draft.text.length > 0
-                      ? { tone: 'warning', text: restoredDraftLine(region === 'coordinator', restoredArmed) }
+                      ? { tone: 'warning', text: restoredDraftLine(restoredArmed) }
                       : null
                   }
                   onComposerClick={onCoordinatorComposerClick}
