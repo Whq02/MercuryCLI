@@ -1,0 +1,7 @@
+<system-reminder>
+# environment
+Is a git repository: Yes
+
+# currentDate
+Today's date is <date>.
+</system-reminder>
