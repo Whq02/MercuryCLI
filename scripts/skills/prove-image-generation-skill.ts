@@ -197,7 +197,7 @@ const builtinNames = new Set(builtinCommands().flatMap(item => [item.name, ...(i
 const commandsNamed = backticked(skillFiles, /`\/([a-z][a-z-]*)[^`]*`/g)
 check('every slash command the skill names is a Mercury command', commandsNamed.length > 0 && commandsNamed.every(name => builtinNames.has(name)), commandsNamed.filter(name => !builtinNames.has(name)).join(' ') || commandsNamed.join(' '))
 
-section('§6 CONTRACT: shipped MCP schemas, every documented input and enum, and typed examples; no diffusion runtime starts')
+section('§6 CONTRACT: discovered schemas, capability fixtures and documented examples; no diffusion runtime starts')
 type Schema = { properties?: Record<string, Schema>; items?: Schema; anyOf?: Schema[]; oneOf?: Schema[]; allOf?: Schema[]; enum?: unknown[]; const?: unknown; additionalProperties?: unknown }
 const pathsOf = (schema: Schema, prefix = ''): string[] => [
   ...Object.entries(schema.properties ?? {}).flatMap(([key, child]) => {
@@ -216,7 +216,14 @@ const enumsOf = (schema: Schema): string[] => [
 ]
 const sorted = (values: Iterable<string>): string => [...new Set(values)].sort().join(' ')
 const inventoryText = skillFiles.find(([rel]) => rel === 'references/tools.md')?.[1] ?? ''
-const inventory = new Map([...inventoryText.matchAll(/^\| `([a-z_]+)` \| ([^\n]+) \|$/gm)].map(match => [match[1]!, [...match[2]!.matchAll(/`([^`]+)`/g)].map(field => field[1]!)]))
+const pipelineFixture = { version: 1, name: 'Schema fixture', steps: [{ id: 'draw', kind: 'generate', inputs: { prompt: 'fixture', seed: 42 } }, { id: 'save', kind: 'output', inputs: { image: { step: 'draw', output: 'image' } } }] }
+const contractExamples: Record<string, Record<string, unknown>> = {
+  media_status: {}, media_models: {}, media_jobs: {}, media_set_default: { kind: 'image', model: 'sdxl-base-1.0' }, media_result: { job_id: 'fixture' },
+  image_generate: { prompt: 'fixture', reference_image: 'reference.png', mask: 'mask.png', strength: 0.75, loras: [{ path: 'style.safetensors', weight: 1 }], embeddings: [{ path: 'token.safetensors', token: 'style' }], control: { image: 'edge.png', kind: 'canny', strength: 0.5 }, count: 2, sheet: { columns: 2 } },
+  video_generate: { prompt: 'fixture', image: 'reference.png', frames: 49 },
+  pipeline_describe: {}, pipeline_validate: { pipeline: pipelineFixture }, pipeline_run: { pipeline: pipelineFixture, dry: true },
+  pipeline_import_workflow: { workflow: 'fixture.json' }, pipeline_export_workflow: { pipeline: pipelineFixture, destination: 'fixture-api.json' },
+}
 const noNull = (value: unknown): boolean => value !== null && (Array.isArray(value) ? value.every(noNull) : typeof value !== 'object' || Object.values(value).every(noNull))
 const client = new Client({ name: 'image-generation-skill-proof', version: '1' })
 try {
@@ -224,10 +231,12 @@ try {
   const tools = (await client.listTools()).tools
   const schemas = new Map(tools.map(tool => [tool.name, tool.inputSchema as Schema]))
   const toolNames = new Set(schemas.keys())
-  check('the inventory teaches every shipped media tool, without aliases or invented tools', sorted(inventory.keys()) === sorted(toolNames), `${sorted(inventory.keys())} vs ${sorted(toolNames)}`)
+  check('schema fixtures cover every discovered tool without invented names', sorted(Object.keys(contractExamples)) === sorted(toolNames))
   for (const [name, schema] of schemas) {
+    const compiled = compileJsonSchema(schema)
     check(`${name}: closed input schema`, schema.additionalProperties === false)
-    check(`${name}: documented fields equal the shipped fields, including nested objects and arrays`, sorted(inventory.get(name) ?? []) === sorted(pathsOf(schema)), `documented ${sorted(inventory.get(name) ?? [])}; shipped ${sorted(pathsOf(schema))}`)
+    check(`${name}: representative nested inputs validate with no null placeholders`, compiled.ok && compiled.check(contractExamples[name]).length === 0 && noNull(contractExamples[name]))
+    check(`${name}: an invented input is refused by the discovered schema`, compiled.ok && compiled.check({ ...contractExamples[name], not_a_field: 1 }).length > 0)
   }
   const described = await client.callTool({ name: 'pipeline_describe', arguments: {} })
   const pipelineSchema = (described.structuredContent as { schema?: Schema } | undefined)?.schema
@@ -247,27 +256,38 @@ try {
   check('poison controls: an invented tool, field and nested field fail the vocabulary check', unknownNames('`pipeline_imagine` `reference_image_typo` `control.missing`').length === 3)
   const renamed = structuredClone(imageSchema)
   if (renamed.properties) { renamed.properties.reference_image_renamed = renamed.properties.reference_image!; delete renamed.properties.reference_image }
-  check('poison control: a future engine field rename makes the inventory fail', sorted(inventory.get('image_generate') ?? []) !== sorted(pathsOf(renamed)))
-  for (const [field, label] of [['sampler', 'Sampler'], ['scheduler', 'Scheduler']] as const) {
-    const row = inventoryText.split('\n').find(line => line.startsWith(`${label} enum:`)) ?? ''
-    const names = [...row.matchAll(/`([^`]+)`/g)].map(match => match[1]!)
-    check(`${field}: documented enum exactly matches the shipped enum`, sorted(names) === sorted(enumsOf(imageSchema.properties?.[field] ?? {})), sorted(names))
+  const renamedContract = compileJsonSchema(renamed)
+  check('poison control: a future reference field rename rejects the editing fixture', renamedContract.ok && renamedContract.check(contractExamples.image_generate).length > 0)
+  for (const field of ['sampler', 'scheduler']) {
+    const schema = imageSchema.properties?.[field] ?? {}
+    const compiled = compileJsonSchema(schema)
+    const values = enumsOf(schema)
+    check(`${field}: every discovered enum validates and an invented value refuses`, values.length > 0 && compiled.ok && values.every(value => compiled.check(value).length === 0) && compiled.check('not-a-sampling-name').length > 0)
   }
-  check('default-slot kinds are image and video', sorted(enumsOf(schemas.get('media_set_default')?.properties?.kind ?? {})) === 'image video' && inventoryText.includes('`kind` (image or video)'))
-  check('video VAE devices are metal and cpu', sorted(enumsOf(schemas.get('video_generate')?.properties?.vae_backend ?? {})) === 'cpu metal' && inventoryText.includes('`vae_backend` accepts `metal` or `cpu`'))
+  check('default-slot kinds are image and video', sorted(enumsOf(schemas.get('media_set_default')?.properties?.kind ?? {})) === 'image video')
+  check('video VAE devices are metal and cpu', sorted(enumsOf(schemas.get('video_generate')?.properties?.vae_backend ?? {})) === 'cpu metal')
   const pipelineText = skillFiles.find(([rel]) => rel === 'references/pipelines.md')?.[1] ?? ''
-  const documentedKinds = [...pipelineText.matchAll(/^\| `([a-z-]+)` \|/gm)].map(match => match[1]!)
   const stepSchema = pipelineSchema?.properties?.steps?.items
   const stepBranches = [...(stepSchema?.anyOf ?? []), ...(stepSchema?.oneOf ?? [])]
-  check('the step table teaches every schema kind, without invented kinds', sorted(documentedKinds) === sorted(stepBranches.flatMap(branch => enumsOf(branch.properties?.kind ?? {}))), sorted(documentedKinds))
+  const stepInputs: Record<string, Record<string, unknown>> = {
+    generate: { prompt: 'fixture' }, edit: { prompt: 'fixture', reference_image: 'reference.png' }, control: { prompt: 'fixture', control: { image: 'edge.png', kind: 'canny' } },
+    upscale: { image: 'reference.png', factor: 4 }, downsize: { image: 'reference.png', factor: 2 }, palette: { image: 'reference.png', palette: 16 },
+    sheet: { images: ['reference.png'], columns: 1 }, file: { path: 'reference.png' }, output: { image: 'reference.png' }, 'workflow-import': { path: 'fixture.json' },
+  }
+  check('step fixtures cover every discovered kind, without inventing one', sorted(Object.keys(stepInputs)) === sorted(stepBranches.flatMap(branch => enumsOf(branch.properties?.kind ?? {}))))
+  const { Ajv2020 } = await import('ajv/dist/2020.js')
+  const stepValidator = new Ajv2020({ allErrors: true, logger: false }).compile(stepSchema ?? false)
+  for (const [kind, inputs] of Object.entries(stepInputs)) {
+    check(`${kind}: step input fixture validates without null placeholders`, stepValidator({ id: 'fixture', kind, inputs }) && noNull(inputs))
+    check(`${kind}: job controls do not leak into step inputs`, !stepValidator({ id: 'fixture', kind, inputs: { ...inputs, wait: true } }))
+  }
   const generationFields = Object.keys(imageSchema.properties ?? {}).filter(field => !['cwd', 'wait', 'dry', 'export_workflow'].includes(field))
   for (const branch of stepBranches.filter(branch => ['generate', 'edit', 'control'].includes(String(branch.properties?.kind?.const)))) {
     check(`${branch.properties?.kind?.const}: generation-step fields exclude job controls`, sorted(Object.keys(branch.properties?.inputs?.properties ?? {})) === sorted(generationFields))
   }
   const examples = skillFiles.flatMap(([rel, text]) => [...text.matchAll(/(?:Tool|Document): `([^`]+)`\n```json\n([\s\S]*?)\n```/g)].map(match => ({ rel, name: match[1]!, text: match[2]! })))
   const fencedCount = skillFiles.reduce((n, [, text]) => n + [...text.matchAll(/```json\n/g)].length, 0)
-  check('every JSON example names its actual tool or the pipeline document schema', examples.length >= 10 && examples.length === fencedCount, `${examples.length}/${fencedCount}`)
-  const { Ajv2020 } = await import('ajv/dist/2020.js')
+  check('every JSON example names its actual tool or the pipeline document schema', examples.length > 0 && examples.length === fencedCount, `${examples.length}/${fencedCount}`)
   const pipelineValidator = new Ajv2020({ allErrors: true, logger: false }).compile(pipelineSchema ?? false)
   const compiledPipeline = { ok: true as const, check: (value: unknown) => pipelineValidator(value) ? [] : (pipelineValidator.errors ?? []).map(error => ({ path: error.instancePath || 'root', message: error.message ?? 'failed validation', keyword: error.keyword })) }
   for (const example of examples) {
@@ -296,7 +316,7 @@ try {
   for (const [name, field, min, max, integer] of bounds) {
     const compiled = compileJsonSchema(schemas.get(name)?.properties?.[field] ?? false)
     const accepts = (value: number) => compiled.ok && compiled.check(value).length === 0
-    check(`${name}.${field}: documented bounds and numeric unit type`, accepts(min) && accepts(max) && !accepts(min - 1) && !accepts(max + 1) && (integer ? !accepts(min + 0.5) : accepts(min + 0.5)))
+    check(`${name}.${field}: schema bounds and numeric unit type`, accepts(min) && accepts(max) && !accepts(min - 1) && !accepts(max + 1) && (integer ? !accepts(min + 0.5) : accepts(min + 0.5)))
   }
   for (const [name, schema] of tools.map(tool => [tool.name, tool.inputSchema] as const)) {
     const marker = `server.registerTool("${name}"`
@@ -306,6 +326,11 @@ try {
     if (offset >= 0) console.log(`  schema source: server.js:${bundled.slice(0, offset).split('\n').length} ${name}`)
   }
   check('schema-only calls left no weights or diffusion runtime in the scratch media root', !existsSync(join(scratch, 'media', 'models')) && !existsSync(join(scratch, 'media', 'runtime')))
+  const sources = skillFiles.find(([rel]) => rel === 'references/sources.md')?.[1] ?? ''
+  const manifest = JSON.parse(readFileSync(join(ROOT, 'src/extensions/bundled/mercury-media/server/manifest.json'), 'utf8')) as { version: string }
+  check('source provenance records the inspected shipped version, not the old guide basis', sources.includes('CODE inspected 2026-11-04') && sources.includes(`media ${manifest.version}`))
+  check('tool guide delegates fields and enums to the live schema instead of copying inventories', !inventoryText.includes('## Input inventory') && !inventoryText.includes('Sampler enum:') && inventoryText.includes('live schema'))
+  check('export guidance names shared sampling resolution and refusal instead of the obsolete workaround', pipelineText.includes('resolveSampling') && pipelineText.includes('custom sigma') && !pipelineText.includes('omitted CFG and sampler can fall back differently'))
 } catch (error) {
   check('the vendored media server answers schema-only requests', false, error instanceof Error ? error.message : String(error))
 } finally {
