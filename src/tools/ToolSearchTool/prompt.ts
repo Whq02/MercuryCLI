@@ -49,7 +49,7 @@ export function defersOnCloudFor(tool: Tool, model: string | undefined): boolean
   return isEconomyDeferred(tool) && onCloudRoute(model)
 }
 
-export const LOCAL_CORE: ReadonlySet<string> = new Set(['Bash', 'PowerShell', 'Read', 'Edit', 'Write', 'Glob', 'Grep', TOOL_SEARCH_TOOL_NAME, 'StructuredOutput'])
+const LOCAL_CORE: ReadonlySet<string> = new Set(['Bash', 'PowerShell', 'Read', 'Edit', 'Write', 'Glob', 'Grep', TOOL_SEARCH_TOOL_NAME, 'StructuredOutput'])
 
 export function defersOnLocalFor(tool: Pick<Tool, 'name' | 'alwaysLoad'>, model: string | undefined): boolean {
   if (LOCAL_CORE.has(tool.name) || tool.alwaysLoad === true) return false

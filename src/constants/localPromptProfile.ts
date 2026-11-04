@@ -125,10 +125,6 @@ const LOCAL_TOOL_FORMS: Readonly<Record<string, LocalToolForm>> = {
   },
 }
 
-export function localToolFormNames(): readonly string[] {
-  return Object.keys(LOCAL_TOOL_FORMS)
-}
-
 type SchemaNode = Record<string, unknown>
 
 function nodeOf(value: unknown): SchemaNode | undefined {
