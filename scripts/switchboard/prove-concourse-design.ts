@@ -301,7 +301,7 @@ console.log('§6 — the lock: an open ask ⇒ the live composer refuses with "n
     const okGate = liveComposerGateOf(row({}), false)
     const okPaint = liveComposerPaintOf(okGate, null)
     check('an OK gate is unchanged: the placeholder advertises the target, the note passes through', okGate.ok === true && okPaint.restHint === (okGate.ok ? okGate.placeholder : '') && okPaint.note === null && liveComposerPaintOf(okGate, receipt).note === receipt)
-    check('the composer consumes the one derivation (the raw gate line never rides restHint)', screen.includes('const paint = liveComposerPaintOf(g, liveNote)') && screen.includes('restHint={face !== null ? face.placeholder : paint.restHint}') && !screen.includes('return g.ok ? g.placeholder : g.line'))
+    check('the composer consumes the one derivation (the raw gate line never rides restHint)', screen.includes('const paint = liveComposerPaintOf(g, liveNote ?? boardNote)') && screen.includes('restHint={face !== null ? face.placeholder : paint.restHint}') && !screen.includes('return g.ok ? g.placeholder : g.line'))
   }
 }
 

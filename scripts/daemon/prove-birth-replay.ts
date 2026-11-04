@@ -217,6 +217,8 @@ console.log("\nR9 the coordinator's contracted launch: the birth reply lost afte
 console.log("\nR10 the manager's lane: the birth reply times out after the daemon wrote the frame, the lane waits, the walker re-births it ⇒ one session, one runner")
 {
   const w = world(8)
+  const { setCoordinatorEnabled } = await import('../../src/services/concourse/concourseEnabled.js')
+  setCoordinatorEnabled(true)
   const mgr = await import('../../src/services/concourse/managerMode.ts')
   const plan = mgr.decodeManagerPlan({ goal: 'ship the widget', lanes: [{ title: 'lane A', scope: 'build the parser', deliverables: 'parser.ts green', territory: 'src/parser/**' }], supervision: 'launch-only', state: 'proposed' })
   check('R10 a one-lane plan decodes', plan !== null)
