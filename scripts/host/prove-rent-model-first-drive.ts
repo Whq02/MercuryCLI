@@ -119,7 +119,7 @@ try {
     const prices = modelLines.map(line => line.includes('no stock') ? Infinity : Number(/\$([\d.]+)\/hr/.exec(line)![1]))
     return prices.every((price, index) => !index || price >= prices[index - 1]!)
   })())
-  check('cursor starts on the cheapest model in stock', selected().includes('in stock') && selected().includes('$2.49/hr'))
+  check('cursor starts on the cheapest model in stock (a TensorFold starting point on the in-stock A100 at $1.79)', selected().includes('in stock') && selected().includes('$1.79/hr') && selected().includes('on TensorFold'))
   check('the suggested model remains selected without cursor narration', selected().length > 0 && !m.screen().includes('the cursor starts on a suggestion'))
 
   rp.state.customGpus = [

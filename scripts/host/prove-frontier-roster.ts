@@ -17,10 +17,11 @@ const value = (row: HostRecipe, ...names: string[]): string | undefined => {
   const at = row.flags.findIndex(flag => names.includes(flag))
   return at < 0 ? undefined : row.flags[at + 1]
 }
-check('the audit still covers 45 new rows in the 78-row, 32-repository roster', () => {
+check('the audit still covers 45 new rows in the 105-row, 35-repository roster (78 SGLang, vLLM and llama.cpp rows plus 27 TensorFold rows over three repositories)', () => {
   assert.equal(added.length, 45)
-  assert.equal(HOST_RECIPES.length, 78)
-  assert.equal(new Set(HOST_RECIPES.map(row => row.model)).size, 32)
+  assert.equal(HOST_RECIPES.length, 105)
+  assert.equal(HOST_RECIPES.filter(row => row.engine === 'tensorfold').length, 27)
+  assert.equal(new Set(HOST_RECIPES.map(row => row.model)).size, 35)
 })
 for (const row of added) check(row.id + ' exports its full shape, byte sum and context without a capability reduction', () => {
   const manifest = manifests.find(entry => entry.model === row.model)!

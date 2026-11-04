@@ -23,7 +23,7 @@ VITALS                  │ │ │ Opus 5.5            claude-opus-5-5         
                         │ │ ▾ RUN A MODEL · 0 of 0                                                                   │ │
                         │ │   Beam 1.0 501B-A23B                                                                     │ │
                         │ │   GLM-5.3                                                                                │ │
-                        │ │   ↓ 9 more                                                                               │ │
+                        │ │   ↓ 10 more                                                                              │ │
                         │ │                                                                                          │ │
                         │ │ context —  · tier API billing                                                            │ │
                         │ │ effort  low [medium] high xhigh max · ctrl+e changes it                                  │ │
