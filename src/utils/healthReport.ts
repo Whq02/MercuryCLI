@@ -741,6 +741,23 @@ function providerAuthChecks(): CheckSpec[] {
   })
 }
 
+async function tensorFoldHealthChecks(): Promise<CheckSpec[]> {
+  let rows: import('../services/providers/local/tensorfoldHealth.js').TensorFoldHealthChecks
+  let labels: typeof import('../services/providers/local/tensorfoldHealth.js')
+  try {
+    labels = await import('../services/providers/local/tensorfoldHealth.js')
+    rows = await labels.readTensorFoldHealth()
+  } catch {
+    return []
+  }
+  const specs: CheckSpec[] = []
+  const { tensorfold, support, helper } = rows
+  if (tensorfold !== undefined) specs.push({ id: 'tensorfold', label: labels.TENSORFOLD_HEALTH_LABEL, run: () => tensorfold })
+  if (support !== undefined) specs.push({ id: 'tensorfold-support', label: labels.TENSORFOLD_SUPPORT_LABEL, run: () => ({ status: 'info' as const, evidence: support }) })
+  if (helper !== undefined) specs.push({ id: 'helper-model', label: labels.HELPER_HEALTH_LABEL, run: () => helper })
+  return specs
+}
+
 function providerUsageChecks(): CheckSpec[] {
   let owner: typeof import('../services/providers/providerUsage.js')
   let presences: ReturnType<typeof owner.providerFamilyPresences>
@@ -1021,6 +1038,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
 
   const version =
     typeof MACRO !== 'undefined' && typeof MACRO.VERSION === 'string' ? MACRO.VERSION : 'dev'
+  const tensorFoldChecks = await tensorFoldHealthChecks()
 
   const specs: SectionSpec[] = [
     {
@@ -2924,7 +2942,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
     {
       id: 'auth',
       title: 'AUTH',
-      checks: [...providerAuthChecks(), ...providerUsageChecks(), providerSlotsCheck(), modelListsCheck(), webSearchDoorCheck(), extraCaCertsCheck()],
+      checks: [...providerAuthChecks(), ...tensorFoldChecks, ...providerUsageChecks(), providerSlotsCheck(), modelListsCheck(), webSearchDoorCheck(), extraCaCertsCheck()],
     },
     {
       id: 'interface',

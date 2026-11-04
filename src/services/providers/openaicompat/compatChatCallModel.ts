@@ -52,7 +52,7 @@ import {
   normalizeContentFromAPI,
 } from '../../../utils/messages.js'
 import { resolveEffortTruth, resolveWireRequestedEffort } from '../../../utils/effort.js'
-import { effortStampOf, type EffortStampV1, type EffortWireFact } from '../../../utils/effortStamp.js'
+import { EFFORT_STAMP_NONE, EFFORT_STAMP_THINKING_OFF, effortStampOf, type EffortStampV1, type EffortWireFact } from '../../../utils/effortStamp.js'
 import { compatEffortWireFact, thinkingOffWireEffort } from './compatWire.js'
 import { isKimiK3WireModel, kimiReplayProjection, replayKimiHistory } from './kimiReplay.js'
 import { nearestSupportedWireEffort } from '../openai/gptPins.js'
@@ -87,6 +87,7 @@ import {
   type CompatFault,
   type CompatFinishReason,
   type CompatLivenessReading,
+  type CompatRuntimeReading,
   type CompatStreamEvent,
   type CompatStreamOptions,
   type CompatUsage,
@@ -154,6 +155,7 @@ export interface CompatLaneProfile {
   } | undefined
   effortOnWire?(extra: Record<string, unknown>): EffortWireFact
   usageForSettlement?(usage: CompatUsage): CompatUsage
+  noteRuntime?(reading: { runtime: CompatRuntimeReading | undefined; usage: CompatUsage | undefined; served: string | undefined }): void
   policyFaultNote?(fault: CompatFault, extra: Record<string, unknown> | undefined): string | undefined
   classifyFault?(fault: CompatFault): NonNullable<AssistantMessage['error']> | undefined
   leadingNotes?: readonly string[]
@@ -976,6 +978,7 @@ async function* streamOneCompatAttempt(ctx: {
   let kimiContent = ''
   let released = 0
   let usageSeen: CompatUsage | undefined
+  let runtimeSeen: CompatRuntimeReading | undefined
   let served: string | undefined
   let finish:
     | {
@@ -1236,6 +1239,12 @@ async function* streamOneCompatAttempt(ctx: {
       case 'usage':
         usageSeen = profile.usageForSettlement?.(event.usage) ?? event.usage
         break
+      case 'runtime':
+        runtimeSeen = event.runtime
+        if (ctx.effort !== undefined && event.runtime.reasoningEffort !== undefined && ctx.effort.applied !== event.runtime.reasoningEffort && ctx.effort.wire !== EFFORT_STAMP_NONE) {
+          ctx.effort.applied = event.runtime.thinking === false && event.runtime.reasoningEffort === 'none' ? EFFORT_STAMP_THINKING_OFF : event.runtime.reasoningEffort
+        }
+        break
       case 'finish':
         finish = {
           reason: event.reason,
@@ -1417,6 +1426,7 @@ async function* streamOneCompatAttempt(ctx: {
   const stopReason =
     accepted.length > 0 || answered.size > 0 ? 'tool_use' : mappedFinish === 'tool_use' ? 'end_turn' : mappedFinish
   const finalUsage = settleUsage(fault?.code)
+  if (usageSeen !== undefined || runtimeSeen !== undefined) profile.noteRuntime?.({ runtime: runtimeSeen, usage: usageSeen, served })
   if (usageSeen) {
     void checkResponseForCacheBreak(
       options.querySource,

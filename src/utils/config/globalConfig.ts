@@ -221,6 +221,7 @@ const OPTIONAL_GLOBAL_CONFIG_FIELD_SHAPES: Record<string, ConfigFieldShape> = {
   duckduckgoScraping: 'boolean',
   localModelWindows: 'object',
   localModelBatch: 'object',
+  helperModel: 'object',
 }
 
 function configFieldShapeOf(value: unknown): ConfigFieldShape | null {
