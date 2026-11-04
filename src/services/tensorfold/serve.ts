@@ -6,9 +6,12 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { startPairingServer } from '../lan/pairing.js'
 import { gibWords } from '../localServer/localServerMemory.js'
 import type { ServiceRecord, ServiceSpec } from '../projectServices/contracts.js'
 import { readRecord, reconcileRecord, startService, stopService, waitForReady } from '../projectServices/serviceManager.js'
+import { forgetTensorFoldPort, rememberTensorFoldPort } from '../providers/local/tensorfoldHosts.js'
+import { writeTensorFoldKeyFile } from '../providers/local/tensorfoldKeyFile.js'
 import type { TensorFoldModelRow, TensorFoldPullProgress, TensorFoldServeRequest, TensorFoldServed } from './contracts.js'
 import { cachedTensorFoldMachineTruth, findTensorFoldEngine, type EngineIo } from './engine.js'
 import { runForOutput, tensorFoldLadder, tensorFoldProjectedBytes, type TensorFoldMachineTruth } from './fit.js'
@@ -27,6 +30,10 @@ export type TensorFoldServedRecord = TensorFoldServed & { project: string; busy?
 
 export type TensorFoldPortPick = { port: number; busy?: { port: number; answersAs?: string } }
 
+export type TensorFoldAnnounceOffer = { model: string; enginePort: number; window: number; key: string }
+
+export type TensorFoldAnnouncement = { stop: () => void; code?: string }
+
 export type ServeIo = EngineIo & {
   binary?: string
   cwd?: string
@@ -44,16 +51,24 @@ export type ServeIo = EngineIo & {
   serviceEnv?: Record<string, string>
   sleep?: (ms: number) => Promise<void>
   keyFile?: () => { path: string; key: string; line: string }
-  announce?: (offer: { model: string; enginePort: number; window: number; key: string }) => { stop: () => void }
+  announce?: (offer: TensorFoldAnnounceOffer) => TensorFoldAnnouncement | Promise<TensorFoldAnnouncement>
 }
 
 export const TENSORFOLD_SHARE_HOST = '0.0.0.0'
-export const SHARE_NEEDS_KEY_FILE = 'sharing on your network needs the key file road'
 
-let announcement: { name: string; stop: () => void } | null = null
+let announcement: ({ name: string } & TensorFoldAnnouncement) | null = null
 
 export function tensorFoldAnnouncing(): string | null {
   return announcement?.name ?? null
+}
+
+export function tensorFoldPairingCode(): string | null {
+  return announcement?.code ?? null
+}
+
+async function announceOnNetwork(offer: TensorFoldAnnounceOffer): Promise<TensorFoldAnnouncement> {
+  const pairing = await startPairingServer(offer)
+  return { stop: () => void pairing.stop().catch(() => undefined), code: pairing.code }
 }
 
 function endAnnouncement(): void {
@@ -240,8 +255,7 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
   }
   const pick = await pickTensorFoldPort(request.port ?? rememberedTensorFoldPort(io) ?? TENSORFOLD_DEFAULT_PORT, io)
   io.onPort?.(pick)
-  if (request.share === true && io.keyFile === undefined) throw new TensorFoldStartError(SHARE_NEEDS_KEY_FILE, null)
-  const key = request.share === true && io.keyFile !== undefined ? io.keyFile() : undefined
+  const key = request.share === true ? (io.keyFile ?? writeTensorFoldKeyFile)() : undefined
   const spec = tensorFoldServiceSpec(binary, point, request.window, pick.port, cwd, name, io.serviceEnv ?? {}, key !== undefined ? { keyFile: key.path } : undefined)
   const started = await startService({ spec, sessionId })
   if ('error' in started) throw new TensorFoldStartError(started.error, null)
@@ -283,11 +297,17 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
     }
     await sleep(0)
   }
-  io.rememberPort?.(pick.port)
+  const rememberPort = io.rememberPort ?? rememberTensorFoldPort
+  try {
+    rememberPort(pick.port)
+  } catch {
+    void 0
+  }
   endAnnouncement()
-  if (key !== undefined && io.announce !== undefined) {
+  if (key !== undefined) {
     try {
-      announcement = { name, stop: io.announce({ model: name, enginePort: pick.port, window: request.window, key: key.key }).stop }
+      const handle = await (io.announce ?? announceOnNetwork)({ model: name, enginePort: pick.port, window: request.window, key: key.key })
+      announcement = { name, ...handle }
     } catch {
       announcement = null
     }
@@ -302,7 +322,12 @@ export async function stopTensorFold(name: string, io: Pick<ServeIo, 'servedFile
   endAnnouncement()
   const stopped = await stopService(record.project, TENSORFOLD_SERVICE)
   writeServedRecord(null, io)
-  io.forgetPort?.(record.port)
+  const forgetPort = io.forgetPort ?? forgetTensorFoldPort
+  try {
+    forgetPort(record.port)
+  } catch {
+    void 0
+  }
   if ('error' in stopped) throw new Error(stopped.error)
   if (stopped.note !== undefined) throw new Error(stopped.note)
 }

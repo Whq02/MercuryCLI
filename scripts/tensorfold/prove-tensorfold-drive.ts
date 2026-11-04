@@ -103,7 +103,6 @@ function childEnv(world: World): NodeJS.ProcessEnv {
     ANTHROPIC_API_KEY: KEY,
     MERCURY_CONFIG_DIR: world.home,
     MERCURY_CREDENTIAL_STORE: 'file',
-    MERCURY_LOCAL_PROBE_TARGETS: `llamacpp=http://127.0.0.1:${world.port}`,
     MERCURY_CRITTER: 'clam',
     MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_IDLE: '0',

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { FAKE_BIN, GIB, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, fakeWorld } from './fixtures/world.ts'
@@ -128,19 +128,26 @@ section('sharing on the network: an explicit step — 0.0.0.0 with the key file,
   const world = fakeWorld('tf-share')
   const servedFile = join(world.home, 'served.json')
   const port = await freePort()
-  const refused = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 262_144, port, share: true }, { binary, cwd: world.cwd, sessionId: 'proof', env: world.env, serviceEnv: world.serviceEnv, servedFile, machine: MAC_48, freeMemoryBytes: async () => 40 * GIB }).then(() => null, error => error as Error)
-  check('without the key file road a share is refused in words, nothing starts', refused !== null && refused.message === 'sharing on your network needs the key file road' && serve.servedTensorFold({ servedFile }).length === 0, refused?.message)
+  const { tensorFoldKeyFilePath, readTensorFoldKeyFile } = await import('../../src/services/providers/local/tensorfoldKeyFile.ts')
+  const { tensorFoldPorts } = await import('../../src/services/providers/local/tensorfoldHosts.ts')
+  const own = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 262_144, port, share: true }, { binary, cwd: world.cwd, sessionId: 'proof', env: world.env, serviceEnv: { ...world.serviceEnv, FAKE_TENSORFOLD_BIND_LOOPBACK: '1' }, servedFile, machine: MAC_48, freeMemoryBytes: async () => 40 * GIB })
+  const ownKey = readTensorFoldKeyFile(tensorFoldKeyFilePath())
+  check("with no seams given, a share writes Mercury's own key file (mercury[inference]: KEY at 0600) and the served record names it", own.keyFile === tensorFoldKeyFilePath() && ownKey !== undefined && ownKey.line === `mercury[inference]: ${ownKey.key}` && (statSync(tensorFoldKeyFilePath()).mode & 0o077) === 0, JSON.stringify({ keyFile: own.keyFile, line: ownKey?.line }))
+  check('with no seams given, the pairing server announces it and the one-time code is readable for the serving Mac to show', serve.tensorFoldAnnouncing() === 'qwen3.5-2b' && /^\d{6}$/.test(serve.tensorFoldPairingCode() ?? ''), String(serve.tensorFoldPairingCode()))
+  check('the served port is remembered in the hosts store (discovery probes it after a restart)', tensorFoldPorts().includes(port), JSON.stringify(tensorFoldPorts()))
   const announced: unknown[] = []
   let stopped = 0
   const keyPath = join(world.home, 'api-key')
-  const shared = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 262_144, port, share: true }, { binary, cwd: world.cwd, sessionId: 'proof', env: world.env, serviceEnv: { ...world.serviceEnv, FAKE_TENSORFOLD_BIND_LOOPBACK: '1' }, servedFile, machine: MAC_48, freeMemoryBytes: async () => 40 * GIB, keyFile: () => ({ path: keyPath, key: 'k'.repeat(32), line: `mercury[inference]: ${'k'.repeat(32)}` }), announce: offer => { announced.push(offer); return { stop: () => { stopped += 1 } } } })
+  const shared = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 262_144, port, share: true }, { binary, cwd: world.cwd, sessionId: 'proof', env: world.env, serviceEnv: { ...world.serviceEnv, FAKE_TENSORFOLD_BIND_LOOPBACK: '1' }, servedFile, machine: MAC_48, freeMemoryBytes: async () => 40 * GIB, keyFile: () => ({ path: keyPath, key: 'k'.repeat(32), line: `mercury[inference]: ${'k'.repeat(32)}` }), announce: offer => { announced.push(offer); return { stop: () => { stopped += 1 }, code: '246810' } } })
+  check('a restart through the seams ended the default announcement; the seam\'s code is the one shown', serve.tensorFoldPairingCode() === '246810')
   const spec = readRecord(world.cwd, 'tensorfold')?.spec
   check('a shared serve binds 0.0.0.0 with the key file and keeps the port', spec?.args.join(' ') === `serve ${QWEN_2B_REPO} --name qwen3.5-2b --context 262144 --prompt-cache-gib 1 --host 0.0.0.0 --api-key-file ${keyPath} --port ${port}`, spec?.args.join(' '))
   check('the served record carries keyFile exactly while shared (the picker\'s n line reads it)', shared.keyFile === keyPath && serve.servedTensorFold({ servedFile })[0]?.keyFile === keyPath)
   check('the announcer was given the model, the engine port, the window and the key', announced.length === 1 && JSON.stringify(announced[0]) === JSON.stringify({ model: 'qwen3.5-2b', enginePort: port, window: 262_144, key: 'k'.repeat(32) }) && serve.tensorFoldAnnouncing() === 'qwen3.5-2b', JSON.stringify(announced))
   const plain = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 262_144, port }, { binary, cwd: world.cwd, sessionId: 'proof', env: world.env, serviceEnv: world.serviceEnv, servedFile, machine: MAC_48, freeMemoryBytes: async () => 40 * GIB })
-  check('serving again without share restarts on loopback with no key file and ends the announcement', plain.keyFile === undefined && stopped === 1 && serve.tensorFoldAnnouncing() === null && !(readRecord(world.cwd, 'tensorfold')?.spec.args.includes('--host') ?? true))
+  check('serving again without share restarts on loopback with no key file and ends the announcement', plain.keyFile === undefined && stopped === 1 && serve.tensorFoldAnnouncing() === null && serve.tensorFoldPairingCode() === null && !(readRecord(world.cwd, 'tensorfold')?.spec.args.includes('--host') ?? true))
   await serve.stopTensorFold('qwen3.5-2b', { servedFile })
+  check('stop forgets the port in the hosts store', !tensorFoldPorts().includes(port), JSON.stringify(tensorFoldPorts()))
 }
 
 section('pull: resumable, its progress read from the cache\'s growth, stopped with the download kept')
