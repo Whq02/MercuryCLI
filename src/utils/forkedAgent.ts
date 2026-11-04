@@ -23,7 +23,7 @@ import { createChildAbortController } from './abortController.js'
 import type { TurnAnswerContext } from '../query/turnAnswerContext.js'
 import { createUserMessage, extractTextContent, getLastAssistantMessage } from './messages.js'
 import { parseToolListFromCLI } from './permissions/permissionSetup.js'
-import { recordSidechainTranscript } from './sessionStorage.js'
+import { recordSidechainTranscript, writtenChainTail } from './sessionStorage.js'
 import { settledSidechainMessages } from './sessionStorage/settledSidechainMessages.js'
 import type { SystemPrompt } from './systemPromptType.js'
 import { cloneContentReplacementState, type ContentReplacementState } from './toolResultStorage.js'
@@ -301,8 +301,7 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
     try {
       const replay = cacheSafeParams.forkContextMessages.map(message => ({ ...message, replayOf: message.uuid }))
       await recordSidechainTranscript([...replay, ...promptMessages], agentId)
-      const last = messages[messages.length - 1] as { uuid?: UUID } | undefined
-      lastRecordedUuid = last?.uuid
+      lastRecordedUuid = writtenChainTail([...replay, ...promptMessages]) as UUID | undefined
     } catch (err) {
       logForDebugging(`forkedAgent(${label}): initial transcript record failed: ${String(err)}`)
     }
@@ -337,11 +336,9 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
       if (!skipTranscript && (message.type === 'assistant' || message.type === 'user' || message.type === 'progress')) {
         try {
           await recordSidechainTranscript([message], agentId, lastRecordedUuid)
+          lastRecordedUuid = writtenChainTail([message], lastRecordedUuid) as UUID | undefined
         } catch (err) {
           logForDebugging(`forkedAgent(${label}): transcript append failed: ${String(err)}`)
-        }
-        if (message.type !== 'progress') {
-          lastRecordedUuid = (message as { uuid?: UUID }).uuid ?? lastRecordedUuid
         }
       }
     }

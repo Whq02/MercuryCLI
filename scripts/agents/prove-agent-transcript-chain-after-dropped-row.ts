@@ -20,28 +20,32 @@ const { getAgentTranscript } = await import('../../src/utils/sessionStorage/logs
 const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.ts')
 type Message = import('../../src/types/message.ts').Message
 
-const land = runAgent.landAgentTranscriptRows as (rows: Message[], agentId: string, parent?: string | null) => Promise<void>
-const landStreamed = runAgent.landStreamedAttachment as ((row: Message, agentId: string, parent: string | undefined) => Promise<string | undefined>) | undefined
-check('runAgent lands a streamed attachment through a seam that answers the next recorded parent', typeof landStreamed === 'function', 'the base advances lastRecordedUuid for every attachment, written or not (runAgent.ts, the attachment branch)')
+const land = runAgent.landAgentTranscriptRows as (rows: Message[], agentId: string, parent?: string | null) => Promise<string | undefined>
+const { writtenChainTail } = await import('../../src/utils/sessionStorage/chain.ts')
+const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
 
-if (landStreamed) {
-  const agentId = 'agent-chain-proof'
-  const seed = createUserMessage({ content: 'the brief' }) as Message
-  await land([seed], agentId, null)
-  const dropped = createAttachmentMessage({ type: 'diagnostics', files: [], isNew: false } as never) as Message
-  check('an empty diagnostics attachment is not transcribable (the writer drops it)', !isTranscribable(dropped))
-  const afterDropped = await landStreamed(dropped, agentId, seed.uuid)
-  check('a dropped row does not become the next parent', afterDropped === seed.uuid, `parent after the dropped row: ${afterDropped}`)
-  const kept = createAttachmentMessage({ type: 'images_left_out', count: 1, images: 1, sidePx: 1024 } as never) as Message
-  const afterKept = await landStreamed(kept, agentId, afterDropped)
-  check('a written row becomes the next parent', afterKept === kept.uuid, `parent after the kept row: ${afterKept}`)
-  const answer = createUserMessage({ content: 'the next turn' }) as Message
-  await land([answer], agentId, afterKept)
-  const transcript = await getAgentTranscript(agentId as never)
-  const uuids = transcript?.messages.map(m => m.uuid) ?? []
-  check('the chain read back from the leaf reaches the brief (no severed prefix)', uuids.includes(seed.uuid) && uuids.includes(answer.uuid), `chain: ${uuids.length} rows`)
-  check('the chain holds the kept attachment and not the dropped one', uuids.includes(kept.uuid) && !uuids.includes(dropped.uuid))
-}
+const agentId = 'agent-chain-proof'
+const seed = createUserMessage({ content: 'the brief' }) as Message
+const seedParent = await land([seed], agentId, null)
+check('landing the brief answers its uuid as the next parent', seedParent === seed.uuid)
+const dropped = createAttachmentMessage({ type: 'diagnostics', files: [], isNew: false } as never) as Message
+check('an empty diagnostics attachment is not transcribable (the writer drops it)', !isTranscribable(dropped))
+const afterDropped = await land([dropped], agentId, seedParent)
+check('a dropped attachment does not become the next parent', afterDropped === seed.uuid, `parent after the dropped row: ${afterDropped}`)
+const empty = createAssistantMessage({ content: [] } as never) as Message
+check('the writer also drops an empty-content assistant row, and so does the tail', writtenChainTail([empty], afterDropped) === seed.uuid)
+const afterEmpty = await land([empty], agentId, afterDropped)
+check('an empty-content assistant row does not become the next parent', afterEmpty === seed.uuid, `parent after the empty row: ${afterEmpty}`)
+const kept = createAttachmentMessage({ type: 'images_left_out', count: 1, images: 1, sidePx: 1024 } as never) as Message
+const afterKept = await land([kept], agentId, afterEmpty)
+check('a written row becomes the next parent', afterKept === kept.uuid, `parent after the kept row: ${afterKept}`)
+check('the seed of a batch is its last written row, not its last row', writtenChainTail([seed, dropped]) === seed.uuid)
+const answer = createUserMessage({ content: 'the next turn' }) as Message
+await land([answer], agentId, afterKept)
+const transcript = await getAgentTranscript(agentId as never)
+const uuids = transcript?.messages.map(m => m.uuid) ?? []
+check('the chain read back from the leaf reaches the brief (no severed prefix)', uuids.includes(seed.uuid) && uuids.includes(answer.uuid), `chain: ${uuids.length} rows`)
+check('the chain holds the kept attachment and neither dropped row', uuids.includes(kept.uuid) && !uuids.includes(dropped.uuid) && !uuids.includes(empty.uuid))
 
 console.log(failures === 0 ? '\nALL AGENT TRANSCRIPT CHAIN PROOFS PASS' : `\n${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)
