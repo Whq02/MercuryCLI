@@ -12,6 +12,12 @@
 # gate-watch: src/tools/ToolSearchTool/prompt.ts src/utils/* src/utils/permissions/permissionSetup.ts
 # gate-watch: src/utils/settings/settings.ts
 # gate-watch: src/rows/* src/runner/wire/*
+# gate-watch: scripts/lib/hermetic.ts
+# gate-watch: src/services/providers/gemini/geminiCodec.ts
+# gate-watch: src/services/providers/openai/responsesBridge.ts
+# gate-watch: src/services/providers/zai/zaiCodec.ts
+# gate-watch: src/services/schema/jsonSchemaEngine.ts
+# gate-watch: src/Tool.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -25,6 +31,7 @@ echo "############################################################"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-apollo-carousel.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-apollo-carousel.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-apollo-mode.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-apollo-mode.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-apollo-exit.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-apollo-exit.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-apollo-review-model-schema.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-apollo-review-model-schema.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/render-apollo-faces.ts" || { __rc=$?; fail=1; }; prover_mark "$here/render-apollo-faces.ts" "$__t" "$__rc"
 if [ "$fail" -ne 0 ]; then
   echo "apollo suite: RED"
