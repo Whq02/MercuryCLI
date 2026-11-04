@@ -84,6 +84,17 @@ try {
       await assert.rejects(shared.treeRecord(installation.root), /escapes/)
     }
   })
+  if (process.platform !== 'win32') await check('a same-name file without the executable bit never hides the binary; two executables still refuse', async () => {
+    const executable = { os: 3, attrs: 0o100755 << 16 }, plain = { os: 3, attrs: 0o100644 << 16 }
+    const shape = (extra: Record<string, [Uint8Array, { os: number; attrs: number }]>) => Buffer.from(zipSync({ 'bin/fixture': [strToU8('gui'), executable], 'bin/fixture-cli': [strToU8('cli'), executable], LICENSE: strToU8('fixture licence'), ...extra }))
+    const pinned = (bytes: Buffer) => ({ ...adapter, pins: [{ ...pin, platforms: { 'linux-x64': { archive: 'fixture-1.0.0-linux.zip', url: 'https://github.com/example/fixture/releases/download/v1.0.0/fixture-1.0.0-linux.zip', sha256: shared.sha256(bytes), bytes: bytes.length } } }] })
+    const install = (name: string, bytes: Buffer) => shared.installPinned(pinned(bytes), { dataDir: join(temp, name), platform: 'linux-x64', authorize: () => true, fetcher: async () => new Response(bytes) })
+    const completion = shape({ 'share/bash-completion/completions/fixture-cli': [strToU8('complete -F _fixture fixture-cli'), plain] })
+    assert.equal((await install('completion', completion)).manifest.cli, 'fixture/bin/fixture-cli')
+    assert.equal((await shared.checkInstall(pinned(completion), { dataDir: join(temp, 'completion'), platform: 'linux-x64' })).state, 'installed')
+    await assert.rejects(install('twins', shape({ 'libexec/fixture-cli': [strToU8('cli'), executable] })), /Expected one fixture-cli, found 2/)
+    assert.deepEqual(await readdir(join(temp, 'twins', 'runtime')), [])
+  })
 
   const delivered = join(temp, 'filmcraft')
   await cp(join(root, 'src/extensions/bundled/filmcraft'), delivered, { recursive: true })
