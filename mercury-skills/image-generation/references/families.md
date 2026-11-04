@@ -1,6 +1,6 @@
 # Model families
 
-Checked 2026-10-30 against the publisher cards and media 0.2.6 code listed in `references/sources.md`. These are starting settings, not visual guarantees. No cross-family strength recipe or extra-step quality claim is assumed.
+Publisher and pinned-runtime readings date to 2026-10-30; current source basis is media 0.2.9, CODE inspected 2026-11-04 in `src/extensions/bundled/mercury-media/server/manifest.json` and catalog.json (E in `references/sources.md`). Read the connected row before using these starting settings. No cross-family strength recipe, extra-step quality or visual guarantee is assumed.
 
 ## Guidance, strength and brackets
 
@@ -19,6 +19,8 @@ Checked 2026-10-30 against the publisher cards and media 0.2.6 code listed in `r
 | `sdxl-base-1.0` | 20 steps, CFG 5, 1024×1024, multiple 64. The card supports using the base alone; Mercury's row has no refiner. Use positive and negative prompts, denoising references and compatible SDXL extras. These step/CFG values are Mercury's recipe, not a claim that the card prescribes them. | S, E |
 | `pixel-party-xl` | 25 steps, CFG 5, 1024×1024, multiple 64. The card asks for “. in pixel art style”, 8× nearest-neighbour reduction, no refiner and says init images help. Mercury appends that suffix and downsizes to 128×128, keeping the full render. Its card demonstrates the negative prompt “mixels. amateur. multiple”. | P, E |
 
+**CODE inspected 2026-11-04:** the Pixel Party row's licenseNotice in `src/extensions/bundled/mercury-media/server/catalog.json` carries the publisher request “please do not host this model”. Installation is not clearance to copy weights to a rented host; check the publisher's current hosting and commercial-use terms (source P). Qwen's research-licence rows likewise do not grant general commercial use.
+
 Qwen's cards demonstrate larger dimensions than Mercury's default 1024. Larger sizes cost more memory and time; read the row and current memory before changing size. The cards' hardware timings are not Mercury completion estimates. Registered SD checkpoints use the detected family's recipe: read that checkpoint's card rather than inheriting a different row's settings. [Q, QT, E]
 
 ## ControlNet
@@ -34,6 +36,6 @@ Qwen's cards demonstrate larger dimensions than Mercury's default 1024. Larger s
 
 ## Sampling and enlargement
 
-Leave `sampler` and `scheduler` omitted unless the selected model's card or the user's experiment calls for them. The accepted enum names and the effect of replacing Qwen's schedule are in `references/tools.md`. A popular pairing from another UI is not a per-family recommendation. [E, R1]
+Leave `sampler` and `scheduler` omitted unless the selected model's card or the user's experiment calls for them. The live schema owns accepted names; `references/tools.md` explains the effect of replacing Qwen's schedule. A popular pairing from another UI is not a per-family recommendation. [E, R1]
 
 For photos and illustrations, `upscale` selects a whole-number enlargement and optional `upscaler` names the row. `realesrgan-x4plus` is the publisher's general-image model; `realesrgan-x4plus-anime-6b` is for anime/illustration, both native 4×. Mercury runs this after palette mapping and can bilinearly resize RGB for non-native factors. Therefore the final image is not constrained to the earlier palette or pixel grid. A particular edge-softening result still needs inspection; it is not a measured outcome of this pass. Use nearest-neighbour enlargement for crisp pixel art. [U, E]

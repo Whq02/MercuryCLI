@@ -1,6 +1,6 @@
 # Sources
 
-Access dates below are 2026-10-30. Publisher examples describe their own APIs; Mercury call shapes and defaults come from the shipped code. Re-read the relevant card when selecting a new model or adapter. A website refusal is not permission to bypass it; use another publisher source or leave the advice unspecified.
+Historical LIVE page readings below are 2026-10-30 unless marked otherwise. Publisher examples describe their own APIs; Mercury call shapes and defaults come from the shipped code. Re-read the relevant card when selecting a new model or adapter. A website refusal is not permission to bypass it; use another publisher source or leave the advice unspecified.
 
 ## Publisher cards
 
@@ -26,7 +26,7 @@ All three entries were read 2026-10-30 at stable-diffusion.cpp revision e41fbcf4
 
 ## Shipped product and engine
 
-Read 2026-10-30 from Mercury candidate 4ce9603d5d and media 0.2.6 source revision d983eac3cd7309015c3ec0c536d3920db6888182. File paths here name repository source, not files extracted with this skill.
+**CODE inspected 2026-11-04:** `src/extensions/bundled/mercury-media/server/manifest.json` pins media 0.2.9 and runtime master-1015-e41fbcf. Catalog rows and server sampling/export code were inspected; no fresh render is claimed. The 2026-10-30 reading used media 0.2.6, source revision d983eac3cd7309015c3ec0c536d3920db6888182, and remains historical. Paths below name repository source, not files extracted with this skill; readable engine-source paths/line ranges describe that historical source revision.
 
 - **E, calls and rows:** `src/extensions/bundled/mercury-media/server/server.js` registrations and Zod input schemas, plus `src/extensions/bundled/mercury-media/server/catalog.json` and `src/extensions/bundled/mercury-media/server/manifest.json`. Readable engine source: `src/server.ts` (common inputs 41-50, image schema 341-359, video schema 470-480, render/postprocessing 146-339); `src/pipeline-schema.ts` (steps 8-42, tool inputs 114-122); `src/sampling.ts`; `src/storage.ts`; `src/recipes.ts`. These own accepted fields, units, enums, default values, size rules and reference conditioning.
 - **E, extras:** engine `src/upscale.ts` (6-43), `src/control.ts`, `src/png.ts`, `src/embeddings.ts`, `src/user-models.ts` (128-156). These own family checks, token insertion, pixel sampling, palette order, native upscale passes and RGB/alpha resizing. The grid/colour warning is a consequence of that processing order, not a measured pixel-art render.

@@ -1,14 +1,10 @@
 # Editable pipelines and workflow files
 
-## Save, run, change one step
+Use this only when the deliverable needs an editable source, import/export or remote execution. Discover the connected pipeline tools first; the shipped implementation is not a guarantee they are exposed.
 
-1. Call `pipeline_describe` with no pipeline. It returns the schema and step kinds; Mercury also lists the project's pipeline files. Read an existing file before editing it.
-2. Save a JSON document as a project file ending in .pipeline.json, beside `media/`. It has `version` 1, a `name`, and ordered `steps`. Each step has a unique `id`, a `kind` and `inputs`. The id begins with a letter and uses letters, digits, dots, underscores or hyphens, at most 128 characters.
-3. Use a local path or an earlier output reference for image inputs. `{"step":"draw","output":"image"}` means one image; output `images` means the batch, usable as a sheet's image list. Never reference a later step.
-4. Call `pipeline_validate` with `pipeline` as the file path or document, and `cwd` when the project is not supplied by the session. Read every returned step/field error. Call `pipeline_run` with `dry: true` to see the expanded plan without rendering or writing run files.
-5. Call `pipeline_run` without dry. `wait: true` waits for completion; otherwise use `media_jobs` and `media_result` with the returned job id. Inspect the saved images.
-6. Edit one step's inputs in the source file, retaining its id. Validate again, then run with `step` set to that id. The selected step and every later step run again. Earlier outputs are reused only if inputs and saved file hashes match; changed or missing ancestors run again. A whole run, without step, does not reuse results. Optional `resume` names a compatible earlier run record and requires `step`; omitted, the latest compatible record is used.
-7. Outputs and the record `media/pipeline-<run-id>.json` land under the project even if normal images use a different output folder. The result's record path locates it; it holds the source document, settings, models, seeds, saved paths and hashes. Source edits do not rewrite old records. The permission details name the pipeline and start step.
+## Editable source
+
+`pipeline_describe` returns the actual document and step schemas. Save a .pipeline.json with stable step IDs, validate it with `pipeline_validate`, and inspect the expanded plan with `pipeline_run` dry before an unfamiliar run. Step inputs do not take job controls such as cwd, wait, dry or resume. References point to earlier outputs; an image and an image list are not interchangeable inputs.
 
 Document: `pipeline`
 ```json
@@ -23,72 +19,18 @@ Document: `pipeline`
 }
 ```
 
-Tool: `pipeline_validate`
-```json
-{"pipeline":"landscape.pipeline.json"}
-```
+Edit the source, not a completed record. Running from a step reruns it and its successors; earlier outputs are reusable only when inputs and saved hashes match. Changed/missing ancestors run again. A whole run does not imply reuse; an explicit resume needs a starting step. Result paths locate the images and separate run record under media/. Old records retain their source/settings; changing the source does not rewrite history. These are implementation rules (E in `references/sources.md`), not freshly rendered replay evidence.
 
-Tool: `pipeline_run`
-```json
-{"pipeline":"landscape.pipeline.json","dry":true}
-```
+## ComfyUI format
 
-After changing small's factor, rerun it and the output step:
+For one request, inspect a workflow with `image_generate` dry; for editable steps, use `pipeline_import_workflow`. Read the node mapping, skipped nodes and explicit overrides before rendering. Paths resolve beside the workflow; arbitrary custom nodes are not executed. Model/CLIP LoRA strengths, branches and sampling representations must be mappable, not silently dropped.
 
-Tool: `pipeline_run`
-```json
-{"pipeline":"landscape.pipeline.json","step":"small","wait":true}
-```
+**CODE inspected 2026-11-04, media 0.2.9:** `src/extensions/bundled/mercury-media/server/server.js` computes resolveSampling once and passes the same effective settings to writeExport and the render. Export refuses unknown sampling defaults and unrepresentable custom sigma schedules. Do not require explicit CFG/sampler overrides for every export or silently replace a saved schedule to obtain one. Historical 0.2.6 default-divergence advice is superseded, not a current workaround.
 
-## Step inputs
+`export_workflow` writes one request as API JSON, including when dry; `pipeline_export_workflow` exports only the mapper's supported steps. Downsize, palette, sheets, multiple renders and an effective Pixel Party downsize can be unrepresentable; the landscape above intentionally includes such a step. Keep the pipeline instead of deleting the user's processing to make export pass. Existing destinations refuse rather than overwrite. Inspect the saved settings and outputs; a source inspection is not a visual round-trip test.
 
-Read the schema from `pipeline_describe` for the complete generation settings; its step schemas, not the job schema, own these inputs. In particular, `cwd`, `wait`, `dry`, `resume` and `export_workflow` are not generation-step fields.
+## Remote execution
 
-| Kind | Inputs and purpose |
-| --- | --- |
-| `generate` | Image settings, including `prompt` or `workflow`; no job controls. |
-| `edit` | Generation settings with required `reference_image`, which may be an earlier output. |
-| `control` | Generation settings with required `control`, including its `image` and `kind`. |
-| `upscale` | `image`, integer `factor` at least 2, optional `upscaler`; can enlarge a saved file without diffusion. |
-| `downsize` | `image`, integer `factor` 1 to 64; nearest-neighbour reduction. |
-| `palette` | `image`, `palette` as a colour count or palette file. |
-| `sheet` | `images` as an array of image inputs or an earlier batch reference, `columns` 1 to 16, no greater than the image count. |
-| `file` | `path` to copy into the run. Optional `mask` has `channel` (alpha, red, green or blue) and integer `grow` 0 to 4096 pixels. |
-| `output` | `image` to return as a selected output. |
-| `workflow-import` | `path` to a workflow file to expand into steps. |
+`media.host` chooses an existing SSH rental; it does not rent a machine. Do not change it merely to make a render fit. Check the model/adapter's hosting terms as well as commercial-use terms before sending it there.
 
-Every completed step produces a single-image output and an image-list output; that does not mean every kind accepts both as inputs.
-
-## Import and export
-
-- **One render request:** call `image_generate` with `workflow` and `dry: true` first. It reads ComfyUI UI or API JSON, returns the node-to-field mapping, skipped nodes and overrides. Explicit fields in the call override the file, so omit `model` unless deliberately replacing its selection. Paths in the workflow resolve beside it; checkpoints must match a catalogue row or registered file. Inspect the mapping, then omit dry to render.
-- **Editable document:** call `pipeline_import_workflow` with `workflow`; optional `name` labels it and `destination` saves a new .pipeline.json. Read the returned steps, validate and run as above. Omit destination to inspect without saving a pipeline file.
-- **One request out:** `image_generate` with `export_workflow` writes ComfyUI API JSON; adding `dry: true` exports without rendering. The path must not exist. This exporter does not encode downsize, palette or sheet processing; use pipeline export when you need unmappable steps named rather than omitted.
-- **Pipeline out:** `pipeline_export_workflow` needs `pipeline` and a new `destination`. It exports only what the mapper can represent: one render with supported inputs and optional upscale/output steps. Multiple renders, downsize, palette or sheet processing cannot be exported; an effective Pixel Party downsize also prevents export. Read the named step failures and explain the unsupported part. Never delete steps or change the user's intended image merely to obtain an export. The small-landscape example above is deliberately not exportable because it downsizes.
-- Unsupported workflow nodes, incompatible branches, unrepresentable samplers or schedulers, and differing model/CLIP LoRA strengths are refused by name. Mercury does not run arbitrary workflow custom nodes. Both export tools refuse existing destinations instead of overwriting.
-
-For either exporter, read the saved settings: in 0.2.6, omitted CFG and sampler can fall back differently from the runtime recipe. When matching an existing render, supply its effective `cfg`, `sampler`, `scheduler` and `seed` explicitly, and retain the pipeline if its schedule cannot be represented.
-
-Tool: `image_generate`
-```json
-{"workflow":"portrait.json","dry":true}
-```
-
-Tool: `pipeline_import_workflow`
-```json
-{"workflow":"portrait.json","destination":"portrait.pipeline.json"}
-```
-
-For a pipeline whose steps can be represented by the workflow format:
-
-Tool: `pipeline_export_workflow`
-```json
-{"pipeline":"portrait.pipeline.json","destination":"portrait-api.json"}
-```
-
-Tool: `image_generate`
-```json
-{"workflow":"portrait.json","seed":42,"dry":true,"export_workflow":"portrait-copy-api.json"}
-```
-
-Import/export may read image dependencies and create mask files. On a rented host they can transfer referenced inputs even without rendering; a pipeline dry run sends only the document. Do not describe export as a render or as a no-file operation. Sources and engine revision: `references/sources.md`.
+Prompts/settings and required images, masks, maps, palettes and local adapters travel to that host; the whole project does not. Pipeline source and downloaded outputs stay local. Import/export can transfer referenced inputs even without diffusion; pipeline dry sends only the document. Runtime/weights and ongoing rental billing are remote. Disconnection does not prove an asynchronous job stopped; reconnect to retrieve its ID, never replace the host or duplicate the job silently. The entry owns model-choice/refusal authority; this section names the transfer effect. Source owners: E in `references/sources.md`.
