@@ -104,7 +104,7 @@ if (record === undefined) {
 
 section('§1 effort → reasoning_effort plus a thinking budget per level; none at low and with thinking off')
 {
-  const extras = (effortValue: string | undefined, thinkingEnabled: boolean) => wire.buildLocalExtras({ wireModel: record.id, effortValue, thinkingEnabled, maxOutputTokensOverride: 4096, server: 'tensorfold', acceptsEffort: localModelAcceptsEffort(record) }) as { reasoning_effort?: string; thinking_budget?: number; max_tokens?: number; stream_options?: { include_usage?: boolean } }
+  const extras = (effortValue: string | undefined, thinkingEnabled: boolean, maxOutputTokensOverride: number | undefined = undefined) => wire.buildLocalExtras({ wireModel: record.id, effortValue, thinkingEnabled, maxOutputTokensOverride, server: 'tensorfold', acceptsEffort: localModelAcceptsEffort(record) }) as { reasoning_effort?: string; thinking_budget?: number; max_tokens?: number; stream_options?: { include_usage?: boolean } }
   check('⌥T off ⇒ reasoning_effort none and no budget', extras('high', false).reasoning_effort === 'none' && extras('high', false).thinking_budget === undefined, JSON.stringify(extras('high', false)))
   check('low ⇒ none (thinking off at low)', extras('low', true).reasoning_effort === 'none' && extras('low', true).thinking_budget === undefined, JSON.stringify(extras('low', true)))
   check('medium ⇒ medium with a 4096 budget', extras('medium', true).reasoning_effort === 'medium' && extras('medium', true).thinking_budget === 4096, JSON.stringify(extras('medium', true)))
@@ -112,7 +112,9 @@ section('§1 effort → reasoning_effort plus a thinking budget per level; none 
   check('xhigh ⇒ xhigh with a 32768 budget', extras('xhigh', true).reasoning_effort === 'xhigh' && extras('xhigh', true).thinking_budget === 32768)
   check('max ⇒ max with a 65536 budget', extras('max', true).reasoning_effort === 'max' && extras('max', true).thinking_budget === 65536)
   check('no effort asked ⇒ no field (the template default)', extras(undefined, true).reasoning_effort === undefined && extras(undefined, true).thinking_budget === undefined)
-  check('include_usage and max_tokens ride every request', extras('high', true).stream_options?.include_usage === true && extras('high', true).max_tokens === 4096)
+  check('include_usage and max_tokens ride every request', extras('high', true, 4096).stream_options?.include_usage === true && extras('high', true, 4096).max_tokens === 4096)
+  check('the budget stays under max_tokens less a 2048-token answer reserve (max_tokens counts the thinking)', extras('high', true, 4096).thinking_budget === 2048 && extras('xhigh', true, 40000).thinking_budget === 32768, JSON.stringify([extras('high', true, 4096), extras('xhigh', true, 40000)]))
+  check('no budget rides when max_tokens leaves no room for an answer', extras('high', true, 1024).thinking_budget === undefined && extras('high', true, 1024).reasoning_effort === 'high')
   const plain = wire.buildLocalExtras({ wireModel: 'x', effortValue: 'high', thinkingEnabled: true, maxOutputTokensOverride: undefined, server: 'tensorfold', acceptsEffort: false }) as { reasoning_effort?: string }
   check('a model without a thinking template gets no effort field', plain.reasoning_effort === undefined)
   const dial = effortVocabularyFor('local/qwen3.5-2b')
@@ -156,7 +158,7 @@ check('⌥T off: the body carries reasoning_effort none and no budget', off.body
 check('⌥T off: max_tokens rides within the window', typeof off.body?.max_tokens === 'number' && off.body.max_tokens <= WINDOW, String(off.body?.max_tokens))
 check('⌥T off: the stamp says thinking off', off.effort?.applied === 'thinking off', JSON.stringify(off.effort))
 const on = await drive(true, 'high')
-check('high: the body carries reasoning_effort high with the 16384 budget', on.body?.reasoning_effort === 'high' && on.body?.thinking_budget === 16384, JSON.stringify({ reasoning_effort: on.body?.reasoning_effort, thinking_budget: on.body?.thinking_budget }))
+check('high: the body carries reasoning_effort high with the budget held under max_tokens by the answer reserve', on.body?.reasoning_effort === 'high' && typeof on.body?.max_tokens === 'number' && on.body?.thinking_budget === Math.min(16384, on.body.max_tokens - 2048), JSON.stringify({ reasoning_effort: on.body?.reasoning_effort, thinking_budget: on.body?.thinking_budget, max_tokens: on.body?.max_tokens }))
 check('high: the stamp shows the level the engine applied (xhigh) beside the asked high', on.effort?.asked === 'high' && on.effort?.applied === 'xhigh' && String(on.effort?.wire).includes('reasoning_effort=high'), JSON.stringify(on.effort))
 const turns = usageLedger.tensorFoldTurnReadings()
 check('two turns in the /usage ledger', turns.length === 2, String(turns.length))
