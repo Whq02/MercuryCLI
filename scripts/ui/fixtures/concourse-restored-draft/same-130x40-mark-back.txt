@@ -1,0 +1,40 @@
+  ╭──────────────────────────────────────────────────────────────────────────────╮ ╭───────────────────────────────────────────╮  
+  │ Audit billing receipts · Moodle                              ↵ enter session │ │ SESSIONS                    + new session │  
+  │                                                                              │ │ STATUS & TITLE         PROJECT  LAST USED │  
+  │ no chat yet — ready for your first words · ↵ enters it                       │ │   tab to the list, then n starts a blank… │  
+  │                                                                              │ │ ⊞ READY TO REVIEW · 1                     │  
+  │                                                                              │ │ ▸ ● Audit billing rec… Moodle         12m │  
+  │                                                                              │ │ ⊞ WORKING · 3                             │  
+  │                                                                              │ │   ◐ Fix OAuth callback Moodle         07m │  
+  │                                                                              │ │   ◐ Refactor parser    orchard…       18m │  
+  │                                                                              │ │   ◐ Update terminal r… orchard…       03m │  
+  │                                                                              │ │ ⋮                                         │  
+  │                                                                              │ │ NEEDS YOU · 0                             │  
+  │                                                                              │ │ ↑↓ choose · ↵ enter · n new · p pause     │  
+  │                                                                              │ ╰───────────────────────────────────────────╯  
+  │                                                                              │ ╭───────────────────────────────────────────╮  
+  │                                                                              │ │ COORDINATOR                               │  
+  │                                                                              │ │ it launches, watches, and reconciles your │  
+  │                                                                              │ │ sessions — ask in plain words             │  
+  │                                                                              │ │ ▸ launch two sessions on this project · … │  
+  │                                                                              │ │   what needs me right now?                │  
+  │                                                                              │ │   pause the parser session                │  
+  │                                                                              │ │ ╭───────────────────────────────────────╮ │  
+  │                                                                              │ │ │ ❯ …ine, do not send                   │ │  
+  │                                                                              │ │ │ restored draft · ↵↵ sends · ⌃c clears │ │  
+  │                                                                              │ │ ╰───────────────────────────────────────╯ │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │                                                                              │ │                                           │  
+  │ ╭──────────────────────────────────────────────────────────────────────────╮ │ │                                           │  
+  │ │ ❯ message Audit billing receipts · queued for its next turn              │ │ │                                           │  
+  │ │ tab or click to type                                                     │ │ │                                           │  
+  │ ╰──────────────────────────────────────────────────────────────────────────╯ │ │                                           │  
+  ╰──────────────────────────────────────────────────────────────────────────────╯ ╰───────────────────────────────────────────╯  
+  ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮  
+  │ ▚▛▀▜▞ │ Moodle ⌄                                                                                                 2/5 seats │  
+  ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯  
+  tab panes · ⌃g ground · ↵ send · ⇧↵/⌃j newline · pgup/pgdn scroll · esc boot face                                               
