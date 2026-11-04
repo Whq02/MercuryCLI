@@ -285,7 +285,7 @@ console.log('M — the builder fills each row\'s own model and effort; the live 
 console.log('G — the guard: the chat screen keeps its header critter (160×48)')
 {
   const cfg = scenario('frame', 160, 48) as Record<string, unknown>
-  const lines = capture('chat-160x48', { ...cfg, total: 150, readyText: '❯ first task', readySettleTicks: 4 }, { ...process.env, MERCURY_CONFIG_DIR: chatHome, MERCURY_AWAY_SUMMARY: '0', MERCURY_CRITTER_GAZE: '0' }, REPO)
+  const lines = capture('chat-160x48', { ...cfg, total: 150, readyText: '❯ first task', readySettleTicks: 4 }, { ...process.env, MERCURY_CONFIG_DIR: chatHome, MERCURY_DAEMON_DIR: join(chatHome, 'daemon'), MERCURY_AWAY_SUMMARY: '0', MERCURY_CRITTER_GAZE: '0' }, REPO)
   cleanupScenario('frame')
   const rows = critterRows(lines)
   const top = rows.find(r => r < 8 && rows.includes(r + 1) && rows.includes(r + 2))
