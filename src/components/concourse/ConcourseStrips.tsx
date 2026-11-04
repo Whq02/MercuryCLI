@@ -244,7 +244,8 @@ export function ConcourseStatusRail({
   const seatsCell = seatsCellText(seatDemandOf(snapshot), counts.live, effectiveSeatCeiling());
   const countsText = `${counts.live} live · ${needsYouCount(counts.needsYou)} · ${seatsCell.text} seats${seatsCell.overWords !== null ? ` · ${seatsCell.overWords}` : ''}`;
   const handleText = ` · ${snapshot.context.operatorHandle}`;
-  const chipRoom = width - 4 - (isCompact ? 0 : 8) - (countsText.length + 1) - (width >= 96 ? 12 : 0);
+  const projectRoom = width >= 96 ? Math.max(12, snapshot.context.projectLabel.length + 5) : 0;
+  const chipRoom = width - 4 - (isCompact ? 0 : 8) - 2 - (countsText.length + 1) - projectRoom;
   const handleShown = chipRoom - handleText.length >= 16;
   const chipBudget = handleShown ? chipRoom - handleText.length : chipRoom;
   const assistNotReady = snapshot.coordinator.assistModelAvailability !== undefined;
