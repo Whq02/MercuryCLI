@@ -8,6 +8,7 @@
 # gate-watch: src/tools/SleepTool/** src/services/providers/zai/** src/services/providers/zai/zaiAdapter.ts
 # gate-watch: src/screens/Chat* design-system/readme.md src/tools.ts src/tools/**
 # gate-watch: src/services/workbench/** src/utils/artifacts/** src/commands/diff/**
+# gate-watch: src/services/concourse/workerTranscript.ts
 # gate-watch: scripts/engine-durability/bench-prompt-attribution.ts scripts/engine-durability/harness.ts
 # gate-watch: scripts/gate/ledger.ts scripts/lib/* scripts/ui/vshot.py
 # gate-watch: src/rows/* src/runner/wire/*
