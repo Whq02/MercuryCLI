@@ -18,7 +18,7 @@ En agent leser og redigerer filer, kjører shell-kommandoer, går gjennom tester
 
 Mercury brukes til å bygge Mercury, med flere økter og modeller over lange oppgaver. Å holde oversikt over arbeidet er det vanskelige: hva som fortsatt kjører, hva som er endret, og hva som krever en beslutning. Hver økt skriver sitt eget overleveringsnotat når den er ferdig, og neste økt leser notatet én gang ved oppstart, sammen med mine festede regler. Slik forhindres kontekstforgiftning mellom øktene.
 
-![Én prompt til koordinatoren på øktbordet starter to økter, hver i sitt eget worktree; den ene spør før den redigerer, og begge avslutter med endringer klare til gjennomgang](../media/session-board-stream-black.gif)
+![Strukturelt søk finner tre console.log-kall etter form på tvers av tre filer, og strukturell redigering skriver dem om til logger.debug i en prøvekjøring og tar deretter endringen i bruk](../media/syntax-search-edit-black.gif)
 
 Mercury er åpen kildekode under Apache License 2.0, på samme måte som SDK-ene i [sdk/](../../sdk/) og [sdk-py/](../../sdk-py/).
 
