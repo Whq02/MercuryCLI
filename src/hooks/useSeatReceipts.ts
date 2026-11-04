@@ -10,7 +10,7 @@ export function useSeatReceipts({
 }): void {
   useEffect(() => {
     return subscribeSeatReceipts(r => {
-      setMessages(prev => [...prev, createSeatReceiptMessage(r.text, r.level)])
+      setMessages(prev => [...prev, createSeatReceiptMessage(r.text, r.level, r.copyText)])
     })
   }, [setMessages])
 }

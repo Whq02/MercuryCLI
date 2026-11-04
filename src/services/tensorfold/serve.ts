@@ -1,4 +1,4 @@
-import { TENSORFOLD_NOT_BUILT, type TensorFoldPullProgress, type TensorFoldServeRequest, type TensorFoldServed } from './contracts.js'
+import { TENSORFOLD_NOT_BUILT, type TensorFoldModelRow, type TensorFoldPullProgress, type TensorFoldServeRequest, type TensorFoldServed } from './contracts.js'
 
 export async function startTensorFold(request: TensorFoldServeRequest): Promise<TensorFoldServed> {
   void request
@@ -17,5 +17,11 @@ export async function pullTensorFold(repo: string, onProgress: (progress: Tensor
 }
 
 export function servedTensorFold(): readonly TensorFoldServed[] {
+  throw new Error(TENSORFOLD_NOT_BUILT)
+}
+
+export function tensorFoldWillRun(row: TensorFoldModelRow, window: number): string[] {
+  void row
+  void window
   throw new Error(TENSORFOLD_NOT_BUILT)
 }
