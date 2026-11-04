@@ -1,5 +1,5 @@
 {
-  "base": "bf4519e6c663fd86b3272bfbeed21910ab3ed9da",
+  "base": "adcb08a758df1ef80e7ddecd76897a6187601cb3",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -337,7 +337,7 @@
             "type": "boolean"
           },
           "expected_anchor": {
-            "description": "The latest \"(anchor: …)\" value for this file — from a Read, or from an Edit or Write result — carried across exactly",
+            "description": "The bare fa:… or ra:… value inside the latest \"(anchor: …)\" for this file — a Read, or an Edit or Write result — without the wrapper",
             "type": "string"
           },
           "hunks": {
@@ -2091,7 +2091,7 @@
                 },
                 "expected_anchor": {
                   "type": "string",
-                  "description": "The latest \"(anchor: …)\" value for this file, from a Read or from an Edit or Write result"
+                  "description": "The bare fa:… or ra:… value inside the latest \"(anchor: …)\" for this file — a Read, or an Edit or Write result — without the wrapper"
                 },
                 "hunks": {
                   "description": "Disjoint line-addressed hunks against the anchored snapshot; a member carries hunks or edits, a move optionally, a delete neither",
