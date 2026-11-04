@@ -243,7 +243,10 @@ export function ConcourseStatusRail({
   const counts = snapshot.counts;
   const seatsCell = seatsCellText(seatDemandOf(snapshot), counts.live, effectiveSeatCeiling());
   const countsText = `${counts.live} live · ${needsYouCount(counts.needsYou)} · ${seatsCell.text} seats${seatsCell.overWords !== null ? ` · ${seatsCell.overWords}` : ''}`;
-  const chipBudget = width - 4 - (isCompact ? 0 : 8) - (countsText.length + 1) - (width >= 96 ? 12 : 0);
+  const handleText = ` · ${snapshot.context.operatorHandle}`;
+  const chipRoom = width - 4 - (isCompact ? 0 : 8) - (countsText.length + 1) - (width >= 96 ? 12 : 0);
+  const handleShown = chipRoom - handleText.length >= 16;
+  const chipBudget = handleShown ? chipRoom - handleText.length : chipRoom;
   const assistNotReady = snapshot.coordinator.assistModelAvailability !== undefined;
   const coordinatorRun =
     snapshot.coordinator.fallbackReason !== undefined
@@ -332,6 +335,12 @@ export function ConcourseStatusRail({
             {seatsCell.text} seats
           </Text>
           {seatsCell.overWords !== null ? <Text color={t.warning}> · {seatsCell.overWords}</Text> : null}
+          {handleShown ? (
+            <>
+              <Text color={t.textMuted}> · </Text>
+              <Text color={t.textSecondary}>{snapshot.context.operatorHandle}</Text>
+            </>
+          ) : null}
         </Text>
       </Box>
     </Box>

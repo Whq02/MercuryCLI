@@ -426,7 +426,7 @@ if (worlds.has('hop')) {
     const cap = await capture(`hop-${label}`, cfgFor(cols, rows, cwdA, [
       ...boot(),
       after(SHIFT_LEFT, 2),
-      gated('\t', 'SESSION CONCOURSE', { awaitSettleTicks: 4 }),
+      gated('\t', 'SESSIONS', { awaitSettleTicks: 4 }),
       after(CTRL_G, 6),
       after(DOWN, 6),
       after('\r', 4),

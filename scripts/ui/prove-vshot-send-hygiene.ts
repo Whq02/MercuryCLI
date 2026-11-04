@@ -62,7 +62,7 @@ console.log('§2 the poison: a bare awaitText literal is flagged')
 const poison = `const sends = [\n  { data: '\\t', awaitText: 'SESSIONS', awaitSettleTicks: 2 },\n  { data: 's', afterPrevTicks: 2, mark: 'x' },\n  { data: '', awaitText: 'FOCUSED CHAT', requireAwait: true, mark: 'y' },\n  { atTick: 40, awaitText: 'gate', data: '\\r' },\n]\n`
 const flagged = blindAwaitSends(poison, 'poison.ts')
 check('exactly the bare literal is flagged (requireAwait and an atTick deadline both pass)', flagged.length === 1 && flagged[0]!.line === 2, JSON.stringify(flagged))
-const walkSteps = `const sends = [\n  { awaitText: 'SESSION CONCOURSE', targetHeader: 'STATUS & TITLE', targetText: 'CMA Alpha' },\n  { awaitText: ['alpha-live body', 'Type a prompt'], awaitAbsent: 'SESSION CONCOURSE', text: '\\x1b[1;2D' },\n  { awaitText: 'Boot Settings opened', text: '' },\n  { awaitText: 'Type a prompt', data: '', text: '' },\n]\n`
+const walkSteps = `const sends = [\n  { awaitText: 'SESSIONS', targetHeader: 'STATUS & TITLE', targetText: 'CMA Alpha' },\n  { awaitText: ['alpha-live body', 'Type a prompt'], awaitAbsent: 'SESSIONS', text: '\\x1b[1;2D' },\n  { awaitText: 'Boot Settings opened', text: '' },\n  { awaitText: 'Type a prompt', data: '', text: '' },\n]\n`
 const walkFlagged = blindAwaitSends(walkSteps, 'walk.ts')
 check("an observed-walk step (a text payload, the walk's own gate keys, no data) is not a vshot send; a literal carrying data is read as one", walkFlagged.length === 1 && walkFlagged[0]!.line === 5, JSON.stringify(walkFlagged))
 

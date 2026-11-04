@@ -85,13 +85,13 @@ try {
       'after:ask in plain words:2400:\r',
       'after:CMA Beta:9000:cma-steer: adjust the alpha seat',
       'after:CMA Beta:9700:\r',
-      { awaitText: ['SESSION CONCOURSE', 'message to "CMA Alpha"'], targetHeader: 'STATUS & TITLE', targetText: 'CMA Alpha' },
-      { awaitText: 'SESSION CONCOURSE', targetHeader: 'STATUS & TITLE', targetText: 'CMA Alpha', arrivedText: ['alpha-live body', 'Type a prompt'], arrivedAbsent: 'SESSION CONCOURSE' },
-      { awaitText: ['alpha-live body', 'Type a prompt'], awaitAbsent: 'SESSION CONCOURSE', text: '\x1b[1;2D' },
-      { awaitText: 'SESSION CONCOURSE', targetHeader: 'STATUS & TITLE', targetText: 'CMA Beta' },
-      { awaitText: 'SESSION CONCOURSE', targetHeader: 'STATUS & TITLE', targetText: 'CMA Beta', arrivedText: ['beta-live body', 'Type a prompt'], arrivedAbsent: 'SESSION CONCOURSE' },
-      { awaitText: ['beta-live body', 'Type a prompt'], awaitAbsent: 'SESSION CONCOURSE', text: '\x1b[1;2D' },
-      { awaitText: 'SESSION CONCOURSE', text: '' },
+      { awaitText: ['SESSIONS', 'message to "CMA Alpha"'], targetHeader: 'STATUS & TITLE', targetText: 'CMA Alpha' },
+      { awaitText: 'SESSIONS', targetHeader: 'STATUS & TITLE', targetText: 'CMA Alpha', arrivedText: ['alpha-live body', 'Type a prompt'], arrivedAbsent: 'SESSIONS' },
+      { awaitText: ['alpha-live body', 'Type a prompt'], awaitAbsent: 'SESSIONS', text: '\x1b[1;2D' },
+      { awaitText: 'SESSIONS', targetHeader: 'STATUS & TITLE', targetText: 'CMA Beta' },
+      { awaitText: 'SESSIONS', targetHeader: 'STATUS & TITLE', targetText: 'CMA Beta', arrivedText: ['beta-live body', 'Type a prompt'], arrivedAbsent: 'SESSIONS' },
+      { awaitText: ['beta-live body', 'Type a prompt'], awaitAbsent: 'SESSIONS', text: '\x1b[1;2D' },
+      { awaitText: 'SESSIONS', text: '' },
     ],
     seconds: 31,
     anchor: null,
@@ -151,7 +151,7 @@ try {
     const frameText = (g: { rows: string[] }): string => g.rows.join('\n')
     const kind = (g: { rows: string[] }): 'board' | 'alpha' | 'beta' | 'other' => {
       const t = frameText(g)
-      if (t.includes('SESSION CONCOURSE')) return 'board'
+      if (t.includes('SESSIONS')) return 'board'
       if (/alpha-(live|done) body/.test(t)) return 'alpha'
       if (/beta-(live|done) body/.test(t)) return 'beta'
       return 'other'

@@ -187,11 +187,11 @@ try {
         check(`${id}: the pasted key was proved on the live catalogue with the key itself`, hits.some(h => h.startsWith('GET /v1beta/models') && h.includes(`key=${FIXTURE_KEY}`)) && receipt.includes('Gemini API key stored'), hits.join(' | ') || excerpt(receipt))
         check(`${id}: the receipt pane's way out names the picker that opened the door`, receipt.includes('↵ done — back to the picker'), receipt.split('\n').filter(l => l.includes('↵ done')).join('\n'))
         check(`${id}: the status bar says the picker that opened the door`, receipt.includes('connected — ↵ returns to the picker') && !receipt.includes('returns to the roster'), receipt.split('\n').filter(l => l.includes('returns to')).join('\n'))
-        check(`${id}: the completed sign-in returned to the picker that opened it, on the board`, returned.includes('Mercury · model') && returned.includes('SESSION CONCOURSE'), excerpt(returned))
+        check(`${id}: the completed sign-in returned to the picker that opened it, on the board (its legend's esc key beneath the picker)`, returned.includes('Mercury · model') && (returned.includes('esc focused chat') || returned.includes('esc boot face')), excerpt(returned))
         check(`${id}: the returned picker lists the new family's live rows`, returned.includes(FIXTURE_MODEL), returned.split('\n').filter(l => l.includes('GEMINI') || l.includes('Gemini')).join('\n'))
       } else {
-        const beneath = kind === 'face' ? keyHintLabel('⇧→ concourse') : 'SESSION CONCOURSE'
-        check(`${id}: escape returned to the picker that opened it, ${kind === 'face' ? 'on the face' : 'on the board'}`, returned.includes('Mercury · model') && returned.includes(beneath), excerpt(returned))
+        const beneath = kind === 'face' ? returned.includes(keyHintLabel('⇧→ concourse')) : returned.includes('esc focused chat') || returned.includes('esc boot face')
+        check(`${id}: escape returned to the picker that opened it, ${kind === 'face' ? 'on the face' : "on the board (its legend's esc key beneath the picker)"}`, returned.includes('Mercury · model') && beneath, excerpt(returned))
       }
       keepFrames()
     }

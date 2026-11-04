@@ -29,14 +29,14 @@ for (const cols of [80, 100, 119, 120, 140, 200, 250]) {
               const mainTop = geo.mainBand[0]
               const mainEnd = geo.mainBand[1]
 
-              if (mainTop !== geo.headerRows + geo.railRows + 1)
-                fail(id, `mainTop ${mainTop} ≠ header ${geo.headerRows} + rail ${geo.railRows} + 1`)
+              if (mainTop !== geo.railRows + 1)
+                fail(id, `mainTop ${mainTop} ≠ rail ${geo.railRows} + 1`)
               if (mainEnd !== mainTop + geo.mainRows - 1) fail(id, `mainBand end ${mainEnd} vs mainRows ${geo.mainRows}`)
               if (geo.statusTop !== mainTop + geo.mainRows) fail(id, `statusTop ${geo.statusTop} ≠ main end + 1`)
               if (geo.helpTop !== geo.statusTop + 3) fail(id, `helpTop ${geo.helpTop} ≠ statusTop+3`)
-              const total = geo.headerRows + geo.railRows + geo.mainRows + 3 + 1
+              const total = geo.railRows + geo.mainRows + 3 + 1
               if (total < rows) fail(id, `total ${total} < rows ${rows} (underfull column)`)
-              if (geo.mainRows === rows - (geo.headerRows + geo.railRows + 4) && total !== rows)
+              if (geo.mainRows === rows - (geo.railRows + 4) && total !== rows)
                 fail(id, `unclamped total ${total} ≠ rows ${rows}`)
 
               if (needsYou === 0 && geo.railRows !== 0) fail(id, `zero obligations budget ${geo.railRows} rail rows`)
@@ -133,9 +133,9 @@ for (let lines = 1; lines <= 8; lines += 1) {
     }
   }
   checks += 1
-  const atWideMin = switchboardGeometry(120, 24, 1, 6, 2, 0, 'mirror', 8)
+  const atWideMin = switchboardGeometry(120, 24, 3, 6, 2, 0, 'mirror', 8)
   if (atWideMin.peekRows !== 0)
-    fail('the 0-grant hazard at the wide minimum', `expected 0 at 120x24 (the screen-guard rationale), got ${atWideMin.peekRows} — re-read the A2 screen guard before relaxing this`)
+    fail('the 0-grant hazard at the wide minimum', `expected 0 at 120x24 with a full ask rail (the screen-guard rationale), got ${atWideMin.peekRows} — re-read the A2 screen guard before relaxing this`)
 }
 
 if (failures === 0) {

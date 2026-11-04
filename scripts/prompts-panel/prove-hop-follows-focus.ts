@@ -175,7 +175,7 @@ try {
       if (panel && t.includes(`session ${alphaSession}`) && !t.includes(`session ${betaSession}`)) return 'panel-alpha'
       if (panel && t.includes(`session ${betaSession}`) && !t.includes(`session ${alphaSession}`)) return 'panel-beta'
       if (panel) return 'panel-foreign'
-      if (t.includes('SESSION CONCOURSE')) return 'board'
+      if (t.includes('SESSIONS')) return 'board'
       if (t.includes('alpha-01 settled body')) return 'alpha'
       if (t.includes('beta-01 settled body')) return 'beta'
       return 'other'

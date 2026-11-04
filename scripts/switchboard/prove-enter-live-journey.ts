@@ -160,7 +160,7 @@ try {
         for (const r of g.rows) if (r.trim()) console.log(r.slice(0, 138))
       }
     }
-    const entered = grabs.filter(g => !text(g).includes('SESSION CONCOURSE') && /stage-\d\d live-body/.test(text(g)))
+    const entered = grabs.filter(g => !text(g).includes('SESSIONS') && /stage-\d\d live-body/.test(text(g)))
     check('§1 the entered view paints the live transcript', entered.length > 0, `entered frames: ${entered.map(g => g.atMs).join(',') || 'none'}`)
     const tokenMax = (g: { rows: string[] }): number =>
       Math.max(-1, ...[...text(g).matchAll(/stage-(\d\d) live-body/g)].map(m => Number(m[1])))

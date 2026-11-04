@@ -243,7 +243,7 @@ const ROWS = 44
 const flat = (s: string): string => s.replace(/\s+/g, ' ')
 const SPLASH_READY = 'type a prompt, or / for commands'
 const SHIFT_LEFT = '\x1b[1;2D'
-const BOARD = 'SESSION CONCOURSE'
+const BOARD = 'SESSIONS'
 const FACE_READY = '↵ start  ·  ↑↓ choose'
 
 const bootSends = (ask: string): Array<Record<string, unknown>> => [

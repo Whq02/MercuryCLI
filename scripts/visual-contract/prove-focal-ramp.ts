@@ -272,7 +272,7 @@ t.section('§4 — the BOUNDED identity set')
   const ALLOWED = new Set([
     'src/components/mercury-ui/assets.tsx',
     'src/components/mercury-ui/components.tsx',
-    'src/components/concourse/ConcourseHeader.tsx',
+    'src/components/concourse/ConcourseRoute.tsx',
     'src/components/mercury-ui/useSplashCoreAccent.ts',
   ])
   const codeOnly = (s: string): string => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\s\/\/.*$/gm, '')
@@ -312,18 +312,18 @@ t.section('§4 — the BOUNDED identity set')
     /ramp\.length > 1 \?/.test(lockup),
     'gate pin',
   )
-  const header = readFileSync('src/components/concourse/ConcourseHeader.tsx', 'utf8')
+  const route = readFileSync('src/components/concourse/ConcourseRoute.tsx', 'utf8')
   t.check(
-    'the concourse lockup + glow resolve at the SELECTED critter accent (CR-3; SR-064 reversed)',
-    /resolveMercuryTokens\(theme, sa\.accent\)/.test(header) &&
-      /useSessionAccent\(\)/.test(header) &&
-      !/JELLYFISH_HUE/.test(header),
+    'the concourse lockup (the assembling card) resolves at the SELECTED critter accent (CR-3; SR-064 reversed)',
+    /resolveMercuryTokens\(theme, sa\.accent\)/.test(route) &&
+      /useSessionAccent\(\)/.test(route) &&
+      !/JELLYFISH_HUE/.test(route),
     'accent pin',
   )
   t.check(
-    'the concourse treatment collapses on single-stop families (flat info lockup; authored art)',
-    /ramp\.length <= 1/.test(header) && /focalRamp\.length > 1 \? identity\.tokens\.accentSoft : undefined/.test(header),
-    'collapse pins',
+    'the concourse lockup collapses on single-stop families (flat info lockup)',
+    /ramp\.length <= 1/.test(route),
+    'collapse pin',
   )
   const critter = readFileSync('src/components/mercury-ui/CritterArt.tsx', 'utf8')
   t.check(

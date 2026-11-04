@@ -1,6 +1,3 @@
-   ▄▄▄▄▄▄▄▄▄    MERCURY — SESSION CONCOURSE                    BOOT › CONCOURSE › FOCUSED CHAT                     sam  
-   ▄▄▄▄▄▄▄▄▄                                                                                                            
-   ▀▄▄▄▀▄▄▄▀                                                                                                            
   ╭────────────────────────────────────────────╮ ╭───────────────────────────────────────────────────────────────────╮  
   │ COORDINATOR                                │ │ SESSIONS                                            + new session │  
   │ it launches, watches, and reconciles your  │ │ STATUS & TITLE              PROJECT   NOW                    AGE  │  
@@ -29,12 +26,15 @@
   │                                            │ │                                                                   │  
   │                                            │ │                                                                   │  
   │                                            │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │                                            │ │                                                                   │  
   │                                            │ ╰───────────────────────────────────────────────────────────────────╯  
   │                                            │ ╭───────────────────────────────────────────────────────────────────╮  
   │                                            │ │ ❯ message Audit billing receipts · queued for its next turn       │  
   │                                            │ │ tab or click to type                                              │  
   ╰────────────────────────────────────────────╯ ╰───────────────────────────────────────────────────────────────────╯  
   ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮  
-  │ ▚▛▀▜▞ │ coordinator off ⌄ │ Moodle ⌄                                            2 live · 1 needs you · 2/5 seats │  
+  │ ▚▛▀▜▞ │ coordinator off ⌄ │ Moodle ⌄                                      2 live · 1 needs you · 2/5 seats · sam │  
   ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯  
   tab panes · ⌃g ground · ↵ send · ⇧↵/⌃j newline · ⌃s coordinator model · pgup/pgdn scroll · esc boot face              
