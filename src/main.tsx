@@ -489,6 +489,8 @@ async function run(): Promise<void> {
     .option('--chat', 'Open only the screen Mercury opens on (the Boot face) and a chat: no board of your sessions (no concourse) in this boot, and the row of screens shift+←/→ move between (the strip) is those two alone; ↵ New Session on the menu starts the chat (`-chat` is the same switch)')
     .option('--concourse-off', 'Turn the concourse off for this and every future boot (persisted; the strip is the Boot face and the chat alone; the Boot face\'s Session Concourse row keeps a plain live view of your sessions; `-concourse-off` is the same switch)')
     .option('--concourse-on', 'Turn the concourse back on for this and every future boot (persisted; the default is on; `-concourse-on` is the same switch)')
+    .option('--coordinator-on', 'Turn the concourse coordinator on for this and every future boot (persisted; the default is off: the board\'s composer starts sessions directly and no coordinator runs; a coordinator mode or model saved by an earlier version does not turn it on)')
+    .option('--coordinator-off', 'Turn the concourse coordinator off again for this and every future boot (persisted; the last of --coordinator-on/--coordinator-off on the line wins)')
     .option('--agent-defs <json>', 'Extra agent definitions (JSON)')
     .option('--config-layers <sources>', 'Which settings sources may apply, comma-separated: user, project, local')
     .option('--extension <path>', 'An extension folder approved for this session only (repeatable)', (value, previous: string[]) => [...previous, value], [] as string[])
@@ -1213,7 +1215,7 @@ async function showAction(
 type RootOptions = Record<string, unknown>
 
 const RUN_OUTPUT_OPTIONS: ReadonlySet<string> = new Set(['--format', '--input', '--partial'])
-const INTERACTIVE_BOOT_OPTIONS: ReadonlySet<string> = new Set(['--chat', '--concourse-off', '--concourse-on', '--multiplex', '--pr'])
+const INTERACTIVE_BOOT_OPTIONS: ReadonlySet<string> = new Set(['--chat', '--concourse-off', '--concourse-on', '--coordinator-off', '--coordinator-on', '--multiplex', '--pr'])
 const PRINT_ONLY_VERBS: ReadonlySet<string> = new Set(['version', 'help'])
 
 async function defaultAction(inputPromptArg: string | undefined, opts: RootOptions): Promise<void> {
@@ -1655,6 +1657,11 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     const { setConcourseEnabled } = await import('./services/concourse/concourseEnabled.js')
     const lastSwitch = [...process.argv].reverse().find(a => a === '--concourse-off' || a === '--concourse-on')
     setConcourseEnabled(lastSwitch === '--concourse-on')
+  }
+  if (opts.coordinatorOff === true || opts.coordinatorOn === true) {
+    const { setCoordinatorEnabled } = await import('./services/concourse/concourseEnabled.js')
+    const lastSwitch = [...process.argv].reverse().find(a => a === '--coordinator-off' || a === '--coordinator-on')
+    setCoordinatorEnabled(lastSwitch === '--coordinator-on')
   }
 
   if (!isNonInteractiveSession) {

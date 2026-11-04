@@ -15,6 +15,13 @@ function section(t: string): void {
 }
 
 const scratch = mkdtempSync(join(tmpdir(), 'coordinator-compact-'))
+for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
+  process.env[spelling] = join(scratch, 'home')
+}
+const { enableConfigs } = await import('../../src/utils/config.js')
+enableConfigs()
+const { setCoordinatorEnabled } = await import('../../src/services/concourse/concourseEnabled.js')
+setCoordinatorEnabled(true)
 const {
   appendCoordinatorConversation,
   clearCoordinatorConversation,

@@ -4,6 +4,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import {
   executeKernelDecision,
   kernelObjectRefOf,
+  requestedCoordinatorMode,
   resolveCoordinatorMode,
   runCoordinatorKernel,
   type CoordinatorModeResolution,
@@ -37,10 +38,10 @@ interface EffectiveCoordinator {
 }
 
 export async function resolveEffectiveCoordinator(): Promise<EffectiveCoordinator> {
+  const base = resolveCoordinatorMode(await requestedCoordinatorMode())
+  if (base.requested !== 'agent-assisted') return { resolution: base }
   const { getGlobalConfig } = await import('../../utils/config.js')
   const cfg = getGlobalConfig().concourseCoordinator
-  const base = resolveCoordinatorMode(cfg?.mode)
-  if (base.requested !== 'agent-assisted') return { resolution: base }
   const { validateCoordinatorModelChoice, coordinatorModelStatusLabel } = await import('./coordinatorModels.js')
   const validated = await validateCoordinatorModelChoice(cfg?.assistModel)
   if (!validated.ok) {
@@ -296,6 +297,8 @@ export async function runAssistedTurn(
   deps: CoordinatorLaneDeps,
 ): Promise<AssistedTurnReceipt> {
   const contractDigest = coordinatorContractDigest()
+  const { coordinatorEnabled, COORDINATOR_OFF_LINE } = await import('./concourseEnabled.js')
+  if (!coordinatorEnabled()) return { outcome: 'not-assisted', reason: COORDINATOR_OFF_LINE, contractDigest, receipts: [] }
   if (event.kind !== 'operator-message') {
     const receipts = await runCoordinatorKernel(event, { ...deps, mode: 'rules-only' })
     return { outcome: 'executed', contractDigest, receipts }
@@ -622,10 +625,14 @@ export async function runOperatorMessageTurn(
   deps: CoordinatorLaneDeps,
   opts: { clientMessageId?: string; onAccepted?: () => void; manager?: boolean } = {},
 ): Promise<AssistedTurnReceipt | SelfManagedLaunchSignal> {
+  const bounded = text.slice(0, 4000)
+  if (!(await import('./concourseEnabled.js')).coordinatorEnabled()) {
+    opts.onAccepted?.()
+    return { kind: 'self-managed-launch', text: bounded }
+  }
   const conv = await import('./coordinatorConversation.js')
   const { randomUUID } = await import('../../utils/crypto.js')
   const messageId = opts.clientMessageId ?? randomUUID()
-  const bounded = text.slice(0, 4000)
   const now = Date.now()
   const prior = await conv.readCoordinatorConversation()
   if (prior.some(e => e.id === `co:${messageId}`)) {

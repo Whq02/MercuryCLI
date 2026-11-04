@@ -168,6 +168,8 @@ export async function summarizeCoordinatorConversation(opts: {
 } = {}): Promise<CoordinatorCompactResult> {
   const keep = opts.keep ?? COORDINATOR_COMPACT_KEEP
   const trigger = opts.trigger ?? 'manual'
+  const { coordinatorEnabled, COORDINATOR_OFF_LINE } = await import('./concourseEnabled.js')
+  if (!coordinatorEnabled()) return { compacted: 0, refused: COORDINATOR_OFF_LINE }
   const conv = await import('./coordinatorConversation.js')
   const entries = await conv.readCoordinatorConversation(opts.dir)
   if (entries.length <= keep) return { compacted: 0 }

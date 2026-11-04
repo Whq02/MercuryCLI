@@ -199,7 +199,19 @@ async function emitSwitchReceipt(receipt: CoordinatorSwitchReceiptV1): Promise<v
   }
 }
 
+async function switchRefusedWhileOff(
+  target: CoordinatorSwitchReceiptV1['target'],
+  value: string,
+): Promise<CoordinatorSwitchReceiptV1 | null> {
+  const { coordinatorEnabled, COORDINATOR_OFF_LINE } = await import('./concourseEnabled.js')
+  if (coordinatorEnabled()) return null
+  const { inFlightTurns, boundary } = await coordinatorSwitchBoundary()
+  return { target, value, outcome: 'refused', reason: 'coordinator-off', detail: COORDINATOR_OFF_LINE, inFlightTurns, boundary }
+}
+
 export async function switchCoordinatorAssistModel(modelId: string): Promise<CoordinatorSwitchReceiptV1> {
+  const off = await switchRefusedWhileOff('assist-model', modelId)
+  if (off !== null) return off
   const { inFlightTurns, boundary } = await coordinatorSwitchBoundary()
   const validated = await validateCoordinatorModelChoice(modelId)
   if (!validated.ok) {
@@ -231,6 +243,8 @@ export async function switchCoordinatorAssistModel(modelId: string): Promise<Coo
 }
 
 export async function switchCoordinatorEffort(effortWord: string): Promise<CoordinatorSwitchReceiptV1> {
+  const off = await switchRefusedWhileOff('effort', effortWord)
+  if (off !== null) return off
   const { inFlightTurns, boundary } = await coordinatorSwitchBoundary()
   const { normalizeEffortLevelString, EFFORT_LEVELS } = await import('../../utils/effort.js')
   const level = normalizeEffortLevelString(effortWord)
@@ -310,6 +324,8 @@ const COORDINATOR_MODES = ['off', 'rules-only', 'agent-assisted'] as const
 export async function switchCoordinatorMode(
   mode: 'off' | 'rules-only' | 'agent-assisted',
 ): Promise<CoordinatorSwitchReceiptV1> {
+  const off = await switchRefusedWhileOff('mode', String(mode))
+  if (off !== null) return off
   const { inFlightTurns, boundary } = await coordinatorSwitchBoundary()
   if (!COORDINATOR_MODES.includes(mode)) {
     const receipt: CoordinatorSwitchReceiptV1 = {

@@ -562,6 +562,23 @@ export function Config({
       recordToggle('concourse', `set the session concourse to ${next ? 'on' : 'off (live view only)'}`)
     },
   })
+  const coordinatorOn = config.coordinatorEnabled === true
+  items.push({
+    id: 'coordinator',
+    label: 'Concourse coordinator',
+    searchText: 'concourse coordinator switch coordinator-on coordinator-off agent-assisted',
+    kind: 'info',
+    setByYou: coordinatorOn,
+    value: (
+      <Text>
+        {boolValue(coordinatorOn)}
+        <Text color={tokens.textSecondary}>{coordinatorOn ? ' · `mercury --coordinator-off` turns it off' : ' · `mercury --coordinator-on` turns it on'}</Text>
+      </Text>
+    ),
+    warning: coordinatorOn
+      ? 'a boot switch: the stored coordinator mode and model apply while it is on'
+      : 'a boot switch, off by default: the board\'s composer starts sessions directly and no coordinator runs',
+  })
   const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null)
   const configStamp = useSyncExternalStore(subscribeGlobalConfigCache, getGlobalConfigCacheStamp, getGlobalConfigCacheStamp)
   useEffect(() => {

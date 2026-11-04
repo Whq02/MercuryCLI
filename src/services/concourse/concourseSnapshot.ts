@@ -906,6 +906,7 @@ async function resolvedCoordinator(): Promise<{
   assistModelStatus?: string
   fallbackReason?: string
 }> {
+  if (!(await import('./concourseEnabled.js')).coordinatorEnabled()) return { mode: 'off' }
   try {
     const { resolveEffectiveCoordinator } = await import('./coordinatorLane.js')
     const effective = await resolveEffectiveCoordinator()

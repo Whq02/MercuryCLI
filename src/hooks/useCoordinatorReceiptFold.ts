@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { logForDebugging } from '../utils/debug.js'
+import { coordinatorEnabled } from '../services/concourse/concourseEnabled.js'
 import {
   foldJournaledCoordinatorReceipts,
   subscribeCoordinatorReceiptJournal,
@@ -9,6 +10,7 @@ const POLL_MS = 15_000
 
 export function useCoordinatorReceiptFold(): void {
   useEffect(() => {
+    if (!coordinatorEnabled()) return
     let folding = false
     const fold = (): void => {
       if (folding) return

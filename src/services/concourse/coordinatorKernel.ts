@@ -15,6 +15,12 @@ export function resolveCoordinatorMode(requested: CoordinatorMode | undefined): 
   return { requested: asked, effective: asked }
 }
 
+export async function requestedCoordinatorMode(): Promise<CoordinatorMode | undefined> {
+  const { coordinatorEnabled } = await import('./concourseEnabled.js')
+  if (!coordinatorEnabled()) return 'off'
+  return (await import('../../utils/config.js')).getGlobalConfig().concourseCoordinator?.mode
+}
+
 
 export type KernelEventV1 =
   | {
@@ -394,8 +400,9 @@ export async function runCoordinatorKernel(
   let requested = opts.mode
   if (requested === undefined) {
     try {
-      requested = (await import('../../utils/config.js')).getGlobalConfig().concourseCoordinator?.mode
+      requested = await requestedCoordinatorMode()
     } catch {
+      requested = 'off'
     }
   }
   const mode = resolveCoordinatorMode(requested).effective

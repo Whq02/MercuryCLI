@@ -566,7 +566,8 @@ leaves no unread mark. A question from another project opens that project's chat
 switched into silently (the chat still opens, and a notice states that the project scope stayed unchanged).
 
 See [CREW.md](CREW.md) for the coordinator that launches, monitors, messages
-and queues sessions from the board.
+and queues sessions from the board. It is off by default; `mercury
+--coordinator-on` turns it on (its own section below).
 
 ## The folder is the project
 
@@ -819,6 +820,23 @@ screen still opens that repo's newest chat.
 
 Both flags also accept single-dash spellings (`-chat`,
 `-concourse-off` and `-concourse-on`).
+
+## `mercury --coordinator-on`
+
+The concourse coordinator ([CREW.md](CREW.md)) is off by default.
+`--coordinator-on` turns it on for this and every later launch through the
+saved `coordinatorEnabled` setting in the global config (absent reads as
+off), written only by this flag; `--coordinator-off` turns it off again, and
+with both flags on one command line the later one wins. A coordinator mode,
+model or effort saved by an earlier version does not turn it on: only the
+switch does, and those settings apply once it is on.
+
+With it off, nothing coordinator-shaped runs: the board's composer starts
+sessions directly, no coordinator turn, conversation, receipt or model choice
+happens, a refused launch or a settled session starts no coordinator work in
+the daemon, the `/config` row "Concourse coordinator" reads off and names the
+switch, and `/health`'s constitution row reads `coordinator off (switch)`.
+With it on, the coordinator behaves as before.
 
 ## Commands that never reach the model
 

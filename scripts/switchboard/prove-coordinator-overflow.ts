@@ -49,6 +49,8 @@ console.log('============================================================')
 
 const { enableConfigs, getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
+const { setCoordinatorEnabled } = await import('../../src/services/concourse/concourseEnabled.ts')
+setCoordinatorEnabled(true)
 const conv = await import('../../src/services/concourse/coordinatorConversation.ts')
 const lane = await import('../../src/services/concourse/coordinatorLane.ts')
 const { CoordinatorOverflowError, coordinatorOverflowOf } = await import('../../src/services/concourse/coordinatorOverflow.ts')

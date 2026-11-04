@@ -1140,10 +1140,11 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'wrapper',
           label: 'Mercury constitution',
-          run: () => {
+          run: async () => {
+            const { coordinatorEnabled } = await import('../services/concourse/concourseEnabled.js')
             return {
               status: 'ok',
-              evidence: `the constitution ${MERCURY_CONSTITUTION.length} chars — built-in source; seat contracts coordinator ${MERCURY_COORDINATOR_CONTRACT.length} · crewmate ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
+              evidence: `the constitution ${MERCURY_CONSTITUTION.length} chars — built-in source; seat contracts coordinator ${coordinatorEnabled() ? MERCURY_COORDINATOR_CONTRACT.length : 'off (switch)'} · crewmate ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
             }
           },
         },

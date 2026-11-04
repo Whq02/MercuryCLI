@@ -28,6 +28,8 @@ console.log('============================================================')
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
+const { coordinatorEnabled, setCoordinatorEnabled } = await import('../../src/services/concourse/concourseEnabled.ts')
+setCoordinatorEnabled(true)
 const models = await import('../../src/services/concourse/coordinatorModels.ts')
 const { getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
 
@@ -76,22 +78,25 @@ section('§3 — the turns carry it (the call site spells the reader)')
   check('…imported from the switch owner', call.includes("import { resolveCoordinatorEffort } from './coordinatorModels.js'"))
 }
 
-section('§4 — the doorway: e on the selected model, one UI, honest legend')
+section('§4 — the doorway is the switch: the dial is set through the coordinator settings while the switch is on, refused while it is off')
 {
-  const picker = readFileSync(join(import.meta.dir, '../../src/components/concourse/CoordinatorModelPicker.tsx'), 'utf8')
-  check("the e list-action exists, gated to model rows", /key: 'e',\s*\n\s*hint: 'effort',\s*\n\s*when: r => r\.kind === 'model'/.test(picker))
-  check(
-    'the search handler declines e ONLY where the doorway fires (empty query + model row); every other e types',
-    picker.includes("!(input === 'e' && query.length === 0 && effortDoorArmedRef.current)") &&
-      picker.includes("effortDoorArmedRef.current = list.selectedRow?.kind === 'model'"),
-  )
-  check('the pick writes through the switch owner callback', picker.includes('callbacks.switchCoordinatorEffort?.(id)'))
-  check('the doorway mounts the ONE RowPickModal (no picker invented)', picker.includes("import { RowPickModal } from './RowPickModal.js'") && picker.includes('titlePrefix="EFFORT"'))
-  check("…over the coordinator model's own stops from the effort owner", picker.includes('coordinatorEffortOptions(effortPick.modelId)') && picker.includes("resolveEffortTruth(modelId, undefined, { thinkingEnabled: false })"))
-  check("the legend advertises e exactly when it fires (model row + empty query)", /list\.selectedRow\?\.kind === 'model' && query\.length === 0\s*\n?\s*\? \[\{ text: 'e effort'/.test(picker))
-  check('the list yields whole while the modal is up', picker.includes('active: effortPick === null'))
-  const modal = readFileSync(join(import.meta.dir, '../../src/components/concourse/RowPickModal.tsx'), 'utf8')
-  check('RowPickModal is the one exported grammar', modal.includes('export function RowPickModal('))
+  const activity = await import('../../src/services/crew/activity.ts')
+  const feedRows = (): number => activity.activityRows(activity.cachedActivityFeed()).length
+  saveGlobalConfig(c => ({ ...c, concourseCoordinator: { ...c.concourseCoordinator, effort: 'low' } }))
+  setCoordinatorEnabled(false)
+  check('the switch reads off once set off', coordinatorEnabled() === false)
+  const before = feedRows()
+  const refused = await models.switchCoordinatorEffort('high')
+  check('a dial turn while the switch is off refuses typed, naming the switch', refused.outcome === 'refused' && refused.reason === 'coordinator-off' && /--coordinator-on/.test(refused.detail ?? ''), JSON.stringify(refused))
+  check('…the stored dial is untouched', getGlobalConfig().concourseCoordinator?.effort === 'low')
+  check('…and no switch receipt rowed on the feed', feedRows() === before, `${before} → ${feedRows()}`)
+  check('…the reader still answers the stored dial (the setting survives the switch)', models.resolveCoordinatorEffort() === 'low')
+  setCoordinatorEnabled(true)
+  const applied = await models.switchCoordinatorEffort('high')
+  check('with the switch on the same turn applies through the one owner', applied.outcome === 'applied' && applied.value === 'high' && getGlobalConfig().concourseCoordinator?.effort === 'high', JSON.stringify(applied))
+  const modelsSrc = readFileSync(join(import.meta.dir, '../../src/services/concourse/coordinatorModels.ts'), 'utf8')
+  check('the three coordinator settings (model, mode, effort) ask the switch before anything else', (modelsSrc.match(/const off = await switchRefusedWhileOff\(/g) ?? []).length === 3)
+  saveGlobalConfig(c => ({ ...c, concourseCoordinator: { ...c.concourseCoordinator, effort: undefined } }))
 }
 
 section("§5 — the session rows' e keeps its job")
