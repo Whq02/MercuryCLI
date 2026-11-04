@@ -9,13 +9,9 @@ type AgentSource =
   | 'agent:builtin'
   | `agent:builtin:${string}`
 
-type CompactionSource =
-  | 'compact'
-  | 'session_memory'
-  | 'extract_memories'
-  | 'mneme_relevance'
-  | 'away_summary'
-  | 'concourse_coordinator_compact'
+export const COMPACTION_SOURCES = ['compact', 'session_memory', 'extract_memories', 'mneme_relevance', 'away_summary', 'concourse_coordinator_compact'] as const
+
+type CompactionSource = (typeof COMPACTION_SOURCES)[number]
 
 type HookSource = 'hook_agent' | 'hook_prompt'
 

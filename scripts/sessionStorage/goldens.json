@@ -97,6 +97,10 @@
    "uuid": "«u2»"
   }
  ],
+ "writtenChainTail/kinds": [
+  "«u1»",
+  "«u2»"
+ ],
  "extractAgentIdsFromMessages/none": [],
  "sessionIdOfListing/from-path": "«undefined»",
  "isLiteListing/lite-vs-full": [

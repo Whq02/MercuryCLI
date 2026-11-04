@@ -126,6 +126,12 @@ add('getFirstMeaningfulUserMessageTextContent', 'first-real', () =>
 add('cleanForTranscript', 'passthrough-shape', () =>
   S.cleanForTranscript(clone([user(U1, null, 'y')]) as never),
 )
+add('writtenChainTail', 'kinds', () =>
+  [
+    S.writtenChainTail(clone([user(U1, null, 'y')]) as never),
+    S.writtenChainTail([{ type: 'progress', data: { type: 'hook_progress' } } as never], U2),
+  ],
+)
 add('extractAgentIdsFromMessages', 'none', () =>
   S.extractAgentIdsFromMessages(clone(CHAIN) as never),
 )

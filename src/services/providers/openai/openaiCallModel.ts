@@ -39,6 +39,7 @@ import { toolToAPISchema } from '../../../utils/api.js'
 import { withToolReferenceTurnBoundary } from '../../../utils/messages/apiView.js'
 import { applyStripTargetsToMessages, errorDrivenStripTargets } from '../../../utils/messages/apiPlan.js'
 import { isSyntheticApiErrorMessage } from '../../../utils/messages/factories.js'
+import { COMPACTION_SOURCES } from '../../../constants/querySource.js'
 import { projectTimeBasedMicrocompact } from '../../compact/microCompact.js'
 import { digestClearedToolResult, isClearedOrDigested } from '../../compact/microCompactDigest.js'
 import { estimateContentTokens } from '../../tokenEstimation.js'
@@ -224,6 +225,8 @@ function overflowOf(fault: { status?: number; code: string; message: string; wir
 }
 
 const priorConversation4xx = new Map<string, string>()
+
+const isCompactionSource = (source: unknown): boolean => (COMPACTION_SOURCES as readonly string[]).includes(String(source))
 const compactedToolResultsByConversation = new Map<string, Map<string, string>>()
 
 function applyCompactedToolResults(
@@ -1036,6 +1039,7 @@ async function* openaiTurn(
     if (
       resumeTrimReissued === undefined &&
       prior4xxCode !== undefined &&
+      !isCompactionSource(options.querySource) &&
       !reissueAtServedWord &&
       outcome.retryEligible &&
       outcome.fault.status !== undefined &&
@@ -1208,7 +1212,7 @@ async function* openaiTurn(
         remedy: 'add credit to the OpenAI account, then retry; /model picks another model meanwhile.',
       })
     }
-    if (typed === 'invalid_request' && refusedMedia === null && overflow === null && !MODEL_NOT_FOUND_CODE.test(outcome.fault.code)) {
+    if (typed === 'invalid_request' && refusedMedia === null && overflow === null && !MODEL_NOT_FOUND_CODE.test(outcome.fault.code) && !isCompactionSource(options.querySource)) {
       priorConversation4xx.set(conversation4xxKey, outcome.fault.code)
     }
     if (resumeTrimReissued !== undefined) {

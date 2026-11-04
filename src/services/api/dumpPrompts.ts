@@ -134,7 +134,7 @@ export const MAX_FAULT_CAPTURES_PER_SESSION = 20
 
 let faultCaptureSeq = 0
 
-export interface OpenaiFaultCaptureAnomaly {
+interface OpenaiFaultCaptureAnomaly {
   path: string
   kind: 'unpaired-surrogate' | 'oversized-part'
   detail: string

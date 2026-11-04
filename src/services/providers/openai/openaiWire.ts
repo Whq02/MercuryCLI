@@ -202,7 +202,7 @@ export const OPENAI_STREAM_ADVERTISEMENT: StreamCapabilityAdvertisement = {
   timing: true,
 }
 
-export interface OpenaiFailureCaptureContext {
+interface OpenaiFailureCaptureContext {
   request?: unknown
   headers?: Record<string, string>
   url?: string
