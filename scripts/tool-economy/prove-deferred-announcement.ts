@@ -199,8 +199,9 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
 
 section('§3 the rewritten hints fit without a clipped tail')
 const { ListMcpResourcesTool } = await import('../../src/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts')
+const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
 const purposeNames = ['Inspect', 'Retain', 'Computer', 'Git', 'WebFetch', 'AskUserQuestion', 'Crewmate', 'Workflow', 'Service', 'Browser', 'Structure', 'CrewBoard', 'Journey', 'ListMcpResources', 'Test', 'Monitor', 'Launch', 'Debug', 'Correct', 'Checkpoint', 'Sleep']
-const purposeTools = [...getAllBaseTools(), ListMcpResourcesTool]
+const purposeTools = [...getAllBaseTools(), ListMcpResourcesTool, ComputerTool]
 for (const name of purposeNames) {
   const tool = purposeTools.find(tool => tool.name === name)
   const hint = tool?.searchHint ?? ''

@@ -4,6 +4,7 @@
 # gate-watch: src/utils/permissions/filesystem* scripts/skills/** scripts/gate/generated-assets.tsv scripts/lib/generated-assets-map.mjs scripts/lib/codeText.ts
 # gate-watch: src/Tool.ts src/bootstrap/state.ts src/commands.ts src/extensions/load/contributions.ts
 # gate-watch: src/hooks/useSkillsChange.ts src/services/engine-connector/rosterTerms.ts
+# gate-watch: src/extensions/bundled/mercury-media/server/manifest.json src/services/providers/idSpaces.ts src/services/providers/mistral/mistralCallModel.ts src/services/providers/mistral/mistralPins.ts
 # gate-watch: src/services/instructions/sourceText.ts src/services/kitMenu/kitCatalogue.ts
 # gate-watch: src/services/mcp/sessionKitPin.ts src/skills/* src/tools/AgentTool/loadAgentsDir.ts
 # gate-watch: src/tools/SkillTool/* src/utils/* src/utils/attachments/skillListing.ts

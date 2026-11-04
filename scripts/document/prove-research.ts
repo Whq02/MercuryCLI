@@ -24,8 +24,8 @@ try {
   const negative = 'Fix the login form'
   const expanded = (await skill.getPromptForCommand(positive, {})).map((b: any) => b.text ?? '').join('')
   assert.ok(expanded.endsWith(`\n\n${positive}`))
-  assert.ok(expanded.includes(`“${negative}” does not`))
-  for (const phrase of ['exact page', 'printed page label', 'OCR', 'Document inspect', 'Document create', 'Document cite', 'only when live Crossref resolution is wanted', 'Keep source files unchanged']) assert.ok(expanded.includes(phrase), phrase)
+  assert.ok(!/loads this skill|does not\b.*this skill/.test(expanded), `the loaded guidance routes nothing; the description alone decides (${negative})`)
+  for (const phrase of ['exact page', 'printed page label', 'OCR', 'Document inspect', 'Document create', 'Document cite', 'only when live Crossref resolution is wanted', 'Document create', 'Keep source files unchanged']) assert.ok(expanded.includes(phrase), phrase)
   assert.equal(readFileSync(join(root, 'mercury-skills/research/SKILL.md'), 'utf8'), readFileSync(join(root, 'src/skills/bundled/research/SKILL.md'), 'utf8'))
-  console.log('PASS research: real generated loader, model-only discovery, arguments appended, positive request expanded and negative example excluded by the loaded guidance; no live classifier call')
+  console.log('PASS research: real generated loader, model-only discovery, arguments appended, positive request expanded and routing left to the description; no live classifier call')
 } finally { rmSync(proofHome, { recursive: true, force: true }) }
