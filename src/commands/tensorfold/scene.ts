@@ -154,11 +154,11 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
     ...(freeBytes !== undefined ? { disk: { freeBytes, cacheWords: hfCacheWords(root, io.home ?? homedir()) } } : {}),
   }
   const landing = landingOf(facts)
-  return { ...facts, ...(landing !== undefined ? { landing } : {}), live: liveLineOf(facts), copySupportOffered: Object.values(state.acts).some(act => act.kind === 'refused' || act.kind === 'exited') }
+  return { ...facts, ...(landing !== undefined ? { landing } : {}), live: liveLineOf(facts), copySupportOffered: Object.values(state.acts).some(act => act.kind === 'refused' || act.kind === 'exited' || act.kind === 'tight') }
 }
 
 export function landingOf(facts: Pick<TensorFoldPanelFacts, 'rows' | 'served' | 'outside' | 'install' | 'platform' | 'acts'>): string | undefined {
-  const acting = Object.entries(facts.acts).find(([, act]) => act.kind === 'pulling' || act.kind === 'starting' || act.kind === 'refused' || act.kind === 'exited')
+  const acting = Object.entries(facts.acts).find(([, act]) => act.kind === 'pulling' || act.kind === 'starting' || act.kind === 'refused' || act.kind === 'exited' || act.kind === 'tight')
   if (acting !== undefined) return acting[0]
   if (facts.served.length > 0) return facts.served[0]!.repo
   if (facts.outside.length > 0) return `outside:${facts.outside[0]!.port}`

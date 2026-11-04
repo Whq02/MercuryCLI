@@ -30,7 +30,7 @@ export type MachineIo = {
   run?: (file: string, args: string[]) => Promise<string | undefined>
 }
 
-function defaultRun(file: string, args: string[]): Promise<string | undefined> {
+export function runForOutput(file: string, args: string[]): Promise<string | undefined> {
   return new Promise(resolve => {
     try {
       execFile(file, args, { encoding: 'utf8', timeout: 4_000, maxBuffer: 1 << 20 }, (error, stdout) => resolve(error ? undefined : String(stdout)))
@@ -74,7 +74,7 @@ export function cudaVersionOfDriver(driver: string | undefined): string | undefi
 export async function readTensorFoldMachineTruth(io: MachineIo = {}): Promise<TensorFoldMachineTruth> {
   const platform = io.platform ?? process.platform
   const ramBytes = io.ramBytes ?? totalmem()
-  const run = io.run ?? defaultRun
+  const run = io.run ?? runForOutput
   const seventy = { usableBytes: Math.round(ramBytes * TENSORFOLD_ADMISSION_SHARE), usableSource: 'seventy-percent' as const }
   if (platform === 'darwin') {
     const osVersion = (await run('sysctl', ['-n', 'kern.osproductversion']))?.trim()

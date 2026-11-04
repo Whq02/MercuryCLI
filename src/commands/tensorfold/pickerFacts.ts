@@ -61,9 +61,15 @@ export function rowActOf(act: TensorFoldAct | undefined, row: TensorFoldInventor
       }
     case 'exited':
       return { phase: 'exited', line: act.line }
+    case 'tight':
+      return { phase: 'refused', line: tightWords(act), window }
     default:
       return undefined
   }
+}
+
+export function tightWords(act: { needBytes: number; freeBytes: number; offers: readonly string[] }): string {
+  return [`${gibWords(act.needBytes)} needed · ${gibWords(act.freeBytes)} free on this Mac`, ...act.offers].join(' · ')
 }
 
 export function pickerFactsOf(facts: TensorFoldPanelFacts): TensorFoldPickerFacts {
@@ -164,6 +170,7 @@ export function stateWords(row: TensorFoldInventoryRow, act: TensorFoldAct | und
   if (act?.kind === 'starting') return { text: 'starting', tone: 'info' }
   if (act?.kind === 'refused') return { text: 'refused', tone: 'failure' }
   if (act?.kind === 'exited') return { text: 'exited', tone: 'failure' }
+  if (act?.kind === 'tight') return { text: 'does not fit', tone: 'amber' }
   if (row.state === 'serving') return current ? { text: 'current', tone: 'teal' } : { text: 'serving', tone: 'teal' }
   const rung = row.ladder?.find(candidate => candidate.window === window)
   if (rung !== undefined && rung.fit.verdict !== 'fits') return { text: 'does not fit', tone: 'amber' }
@@ -188,6 +195,7 @@ export function standInCard(facts: TensorFoldPanelFacts, row: TensorFoldInventor
   const lines: string[] = []
   if (act?.kind === 'refused') lines.push(`refused   ${act.words}`)
   if (act?.kind === 'exited') lines.push(`exited    ${act.line}`)
+  if (act?.kind === 'tight') lines.push(`memory    ${tightWords(act)}`)
   lines.push(`window    ${(row.ladder ?? []).map(rung => (rung.window === window ? `[${tokensWords(rung.window)}]` : tokensWords(rung.window))).join(' ')} · ${windowStripWords(act, row, window, facts.machine.usableGib)}`)
   lines.push(`memory    ${memoryWords({ fit: row.ladder?.find(rung => rung.window === window)?.fit ?? row.fit })}`)
   const pull = pullWords(facts)

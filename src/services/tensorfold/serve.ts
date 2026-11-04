@@ -11,7 +11,7 @@ import type { ServiceRecord, ServiceSpec } from '../projectServices/contracts.js
 import { readRecord, reconcileRecord, startService, stopService, waitForReady } from '../projectServices/serviceManager.js'
 import type { TensorFoldModelRow, TensorFoldPullProgress, TensorFoldServeRequest, TensorFoldServed } from './contracts.js'
 import { cachedTensorFoldMachineTruth, findTensorFoldEngine, type EngineIo } from './engine.js'
-import { tensorFoldLadder, tensorFoldProjectedBytes, type TensorFoldMachineTruth } from './fit.js'
+import { runForOutput, tensorFoldLadder, tensorFoldProjectedBytes, type TensorFoldMachineTruth } from './fit.js'
 import { pullCommandLines, pullTensorFold as pullWithEngine, type PullIo } from './pull.js'
 import { readTensorFoldRefusal, type TensorFoldRefusal } from './refusal.js'
 import { PROMPT_CACHE_OPT_IN_FAMILIES, startingPointOf, tensorFoldShortName, type TensorFoldCheckpoint } from './starting.js'
@@ -231,7 +231,7 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
   const full = startingPointOf(request.repo)
   if (full !== undefined) {
     const needBytes = tensorFoldProjectedBytes({ ...full, ...(request.promptCacheGib !== undefined ? { promptCacheGib: request.promptCacheGib } : {}) }, request.window)
-    const freeBytes = io.freeMemoryBytes !== undefined ? await io.freeMemoryBytes() : await defaultFreeMemory(machine.platform, io.run ?? (async () => undefined))
+    const freeBytes = io.freeMemoryBytes !== undefined ? await io.freeMemoryBytes() : await defaultFreeMemory(machine.platform, io.run ?? runForOutput)
     if (freeBytes + TENSORFOLD_MEMORY_TIGHT_GIB * 1024 ** 3 < needBytes && freeBytes > 0) {
       const ollama = await portFree(11434).then(free => !free)
       const offers = memoryOffers(readRecord(cwd, 'local-gguf') !== null ? [{ name: 'local-gguf' }] : [], ollama)
