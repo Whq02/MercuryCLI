@@ -37,6 +37,8 @@ console.log('============================================================')
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
+const { setCoordinatorEnabled } = await import('../../src/services/concourse/concourseEnabled.ts')
+setCoordinatorEnabled(true)
 
 const conv = await import('../../src/services/concourse/coordinatorConversation.ts')
 

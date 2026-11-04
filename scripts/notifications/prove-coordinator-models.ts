@@ -26,6 +26,8 @@ process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:1'
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
+const { setCoordinatorEnabled } = await import('../../src/services/concourse/concourseEnabled.ts')
+setCoordinatorEnabled(true)
 const { APEX_GPT_ROLES } = await import('../../src/services/providers/openai/openaiCatalogue.ts')
 const q = await import('../../src/services/providers/openai/qualificationStore.ts')
 const {

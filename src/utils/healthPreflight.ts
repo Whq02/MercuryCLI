@@ -48,11 +48,12 @@ async function wrapped(
 async function runPreflight(): Promise<PreflightSummary> {
   const t0 = Date.now()
   const checks = await Promise.all([
-    wrapped('wrapper', () => {
+    wrapped('wrapper', async () => {
+      const { coordinatorEnabled } = await import('../services/concourse/concourseEnabled.js')
       return {
         id: 'wrapper',
         status: 'ok' as const,
-        evidence: `the constitution ${MERCURY_CONSTITUTION.length} chars — repo-owned source; seat contracts coordinator ${MERCURY_COORDINATOR_CONTRACT.length} · crewmate ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
+        evidence: `the constitution ${MERCURY_CONSTITUTION.length} chars — repo-owned source; seat contracts coordinator ${coordinatorEnabled() ? MERCURY_COORDINATOR_CONTRACT.length : 'off (switch)'} · crewmate ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
       }
     }),
     wrapped('gate', async () => {

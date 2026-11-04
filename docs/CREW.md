@@ -318,3 +318,10 @@ reconciles sessions and answers questions from the repository it sits on; it
 never does a session's work or reaches inside one, and every verb settles as
 a receipt row you see. The coordinator surface is experimental and
 says so itself on the board: trust receipts, never assumed success.
+
+The coordinator is off by default. `mercury --coordinator-on` turns it on
+for this and every later launch (`--coordinator-off` turns it off again; a
+coordinator mode or model saved by an earlier version does not turn it on).
+While it is off, the board's composer starts sessions directly and nothing
+coordinator-shaped runs; the `/config` row "Concourse coordinator" and
+`/health`'s constitution row say so; [SESSIONS.md](SESSIONS.md) has the switch.

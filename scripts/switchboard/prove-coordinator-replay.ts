@@ -117,6 +117,8 @@ console.log('============================================================')
 
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
+const { setCoordinatorEnabled } = await import('../../src/services/concourse/concourseEnabled.ts')
+setCoordinatorEnabled(true)
 const replay = await import('../../src/services/concourse/coordinatorReplay.ts')
 const conv = await import('../../src/services/concourse/coordinatorConversation.ts')
 const lane = await import('../../src/services/concourse/coordinatorLane.ts')

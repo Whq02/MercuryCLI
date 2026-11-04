@@ -298,9 +298,11 @@ export const MANAGER_NEEDS_MODEL_LINE =
 
 export type ManagerModelResolution =
   | { ok: true; modelId: string; label: string }
-  | { ok: false; reason: 'no-choice' | 'unknown-model' | 'unreadable'; line: string }
+  | { ok: false; reason: 'coordinator-off' | 'no-choice' | 'unknown-model' | 'unreadable'; line: string }
 
 export async function resolveManagerModel(): Promise<ManagerModelResolution> {
+  const { coordinatorEnabled, COORDINATOR_OFF_LINE } = await import('./concourseEnabled.js')
+  if (!coordinatorEnabled()) return { ok: false, reason: 'coordinator-off', line: COORDINATOR_OFF_LINE }
   let choice: string | undefined
   try {
     const { getGlobalConfig } = await import('../../utils/config.js')

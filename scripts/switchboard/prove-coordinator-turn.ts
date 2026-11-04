@@ -439,6 +439,8 @@ t.section('§7 — IP-5 lane wiring: deltas stream a PARTIAL entry; the final re
 {
   const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
   enableConfigs()
+  const { setCoordinatorEnabled } = await import('../../src/services/concourse/concourseEnabled.ts')
+  setCoordinatorEnabled(true)
   const modelId = 'claude-sonnet-5'
   saveGlobalConfig(c => ({ ...c, concourseCoordinator: { mode: 'agent-assisted' as const, assistModel: modelId } }))
   lane._resetCoordinatorLaneForTesting()

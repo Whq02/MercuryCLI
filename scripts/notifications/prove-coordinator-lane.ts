@@ -24,6 +24,8 @@ process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:1'
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
+const { setCoordinatorEnabled } = await import('../../src/services/concourse/concourseEnabled.ts')
+setCoordinatorEnabled(true)
 const anthropicId = 'claude-sonnet-5'
 const q = await import('../../src/services/providers/openai/qualificationStore.ts')
 const lane = await import('../../src/services/concourse/coordinatorLane.ts')
