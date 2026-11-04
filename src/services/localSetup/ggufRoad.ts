@@ -10,6 +10,15 @@ import { resolveSetupIo } from './setupIo.js'
 import { pickAndProve } from './setupProve.js'
 import { pickOf, runSetupRoad, streamed } from './setupRoad.js'
 import type { SetupConsentFn, SetupEvent, SetupStepLabel, SetupStepPlan, SetupSummary } from './setupTypes.js'
+import { closeSettingsPopup } from '../../utils/cockpit/settingsPopup.js'
+import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
+
+export const TENSORFOLD_SOURCE = 'TensorFold'
+
+export function tensorFoldSourceRow(platform: NodeJS.Platform): { tag: string; on: 'server'; words: string }[] {
+  if (platform !== 'darwin' && platform !== 'linux') return []
+  return [{ tag: TENSORFOLD_SOURCE, on: 'server', words: `serve an MLX model on ${platform === 'darwin' ? 'this Mac' : "this machine's NVIDIA GPU"} · /tensorfold` }]
+}
 
 export interface GgufSetupIo extends GgufServerIo { repo?: string; hubBase?: string; bankRunner?: HostRunner }
 const choiceKeys = '↑↓ choose · ↵ pick · esc keeps your model'
@@ -28,7 +37,7 @@ export async function* runLocalSetupRoad(consent: SetupConsentFn, seam: GgufSetu
   try {
     let source = 'Hugging Face'
     if (!seam.repo) {
-      const row = { ...plan('1', 'Local models', 'Choose where to get the model'), keys: '↑↓ choose · ↵ pick · s skip · esc keeps your model', skippable: true, rows: [{ tag: 'Hugging Face', on: 'pull' as const, words: 'pull a GGUF by repository id' }, { tag: 'Bank', on: 'server' as const, words: 'use downloaded GGUF weights' }, { tag: 'Ollama / running server', on: 'server' as const, words: 'choose a server model or install Ollama' }] }
+      const row = { ...plan('1', 'Local models', 'Choose where to get the model'), keys: '↑↓ choose · ↵ pick · s skip · esc keeps your model', skippable: true, rows: [{ tag: 'Hugging Face', on: 'pull' as const, words: 'pull a GGUF by repository id' }, { tag: 'Bank', on: 'server' as const, words: 'use downloaded GGUF weights' }, { tag: 'Ollama / running server', on: 'server' as const, words: 'choose a server model or install Ollama' }, ...tensorFoldSourceRow(io.platform)] }
       yield { type: 'step', plan: row }
       const answer = await ask(row)
       if (answer === 'skip') {
@@ -41,6 +50,12 @@ export async function* runLocalSetupRoad(consent: SetupConsentFn, seam: GgufSetu
         source = picked
         yield result('1', source)
         if (source === 'Ollama / running server') { yield* runSetupRoad(consent, seam); return }
+        if (source === TENSORFOLD_SOURCE) {
+          closeSettingsPopup()
+          requestCommandDispatch('/tensorfold')
+          yield done('stopped', '')
+          return
+        }
       }
     }
     let folder = bankFolder() ?? join(io.home, 'mercury-model-bank')

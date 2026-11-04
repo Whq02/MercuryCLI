@@ -71,11 +71,13 @@ import {
   openaiArmPickRows,
   SIGN_IN_LATER_ROW,
   signInLaterRow,
+  TENSORFOLD_FAMILY_VALUE,
   type LoginFamilyValue,
+  type TensorFoldOffer,
 } from './loginFamilyRows.js'
 import { localDiscoverySummary } from '../services/providers/local/localCatalogue.js'
 import { refreshLocalDiscovery } from '../services/providers/local/localDiscovery.js'
-import { armFaceDoorDeepLink } from '../substrate/splashHandover.js'
+import { armFaceDoorDeepLink, armTensorFoldDeepLink, disarmTensorFoldDeepLink } from '../substrate/splashHandover.js'
 
 type EngineLeg =
   | 'anthropic'
@@ -132,7 +134,9 @@ export function ConsoleOAuthFlow({
   onSkip,
   onAbandonLeg,
   onAccountChange,
+  tensorfold,
 }: {
+  tensorfold?: TensorFoldOffer | null
   onAccountChange?: (receipt: string) => void
   onDone: () => void
   onCancel?: () => void
@@ -186,7 +190,7 @@ export function ConsoleOAuthFlow({
     else settingsFrame?.setHint(null)
     return () => settingsFrame?.setHint(null)
   }, [listUp, settingsFrame])
-  const menuCount = loginFamilyRows({ engineLegs: onOpenaiDone !== undefined }).length + (onSkip !== undefined ? 1 : 0)
+  const menuCount = loginFamilyRows({ engineLegs: onOpenaiDone !== undefined, tensorfold }).length + (onSkip !== undefined ? 1 : 0)
   usePopupMarker(compact && menuUp ? settingsPopupMarker(menuFocus + 1, menuCount) : null)
   const [code, setCodeState] = useState('')
   const codeRef = useRef('')
@@ -267,6 +271,12 @@ export function ConsoleOAuthFlow({
   }
 
   const startFamily = (value: string): void => {
+    if (value === TENSORFOLD_FAMILY_VALUE) {
+      armTensorFoldDeepLink()
+      onSkip?.()
+      return
+    }
+    disarmTensorFoldDeepLink()
     if (value === SIGN_IN_LATER_ROW.value) {
       if (localRoadOpen(localRoad)) armFaceDoorDeepLink('model')
       onSkip?.()
@@ -408,7 +418,7 @@ export function ConsoleOAuthFlow({
   switch (state.name) {
     case 'idle': {
       const idleRows = [
-        ...loginFamilyRows({ engineLegs: onOpenaiDone !== undefined }),
+        ...loginFamilyRows({ engineLegs: onOpenaiDone !== undefined, tensorfold }),
         ...(onSkip !== undefined ? [signInLaterRow(localRoad)] : []),
       ]
       const recordedFocus = loginFamilyFocusFor(mostRecentSignInFamily())
@@ -441,6 +451,7 @@ export function ConsoleOAuthFlow({
           <PopupFormContext.Provider value={popup || singleLineRows}>
           <PopupCompactContext.Provider value={{ compact: rosterCompact || singleLineRows, setMarker: () => {} }}>
           <Select
+            key={tensorfold ? 'tensorfold' : 'roster'}
             hideIndexes
             disableSelection="numeric"
             visibleOptionCount={rosterWindow}

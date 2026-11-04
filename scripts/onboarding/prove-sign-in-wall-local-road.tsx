@@ -77,7 +77,8 @@ if (scenario !== null) {
   await shot('theme', 'Choose your theme')
   mounted.push(KEY.enter)
   await shot('catalogue', withServer ? 'or run a local model' : /sign in · 2\/\d/)
-  for (let i = 0; i < loginFamilyRows({ engineLegs: true }).length; i++) {
+  const focusedLine = (): string => mounted.screen().split('\n').find(line => /[▸❯]/.test(line)) ?? ''
+  for (let i = 0; i <= loginFamilyRows({ engineLegs: true, tensorfold: { kind: 'host' } }).length && !focusedLine().includes('Sign in later'); i++) {
     mounted.push(KEY.down)
     await settle(60)
   }
