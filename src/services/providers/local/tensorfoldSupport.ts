@@ -4,7 +4,7 @@ import { MERCURY_VERSION } from '../../../constants/product.js'
 import { getLinuxDistroInfo } from '../../../utils/platform.js'
 import { readTensorFoldState, type TensorFoldServerState, type TensorFoldState, type TensorFoldStateReads } from './tensorfoldState.js'
 
-export interface TensorFoldSupportFacts {
+interface TensorFoldSupportFacts {
   version?: string
   backend?: string
   chip?: string
@@ -24,7 +24,7 @@ export function tensorFoldBackendWords(backend: string | undefined): string | un
   return BACKEND_WORDS[backend.toLowerCase()] ?? backend
 }
 
-export function osVersionWords(platform: NodeJS.Platform = process.platform, kernel: string = release(), reads?: { productVersion?: () => string | undefined }): string {
+function osVersionWords(platform: NodeJS.Platform = process.platform, kernel: string = release(), reads?: { productVersion?: () => string | undefined }): string {
   if (platform === 'darwin') {
     const product = reads?.productVersion?.() ?? readMacProductVersion()
     return product !== undefined ? `macOS ${product}` : `macOS (Darwin ${kernel})`
@@ -67,7 +67,7 @@ export async function readOsVersionWords(): Promise<string> {
   return osVersionWords()
 }
 
-export function supportFactsOf(state: TensorFoldState, server: TensorFoldServerState | undefined, osVersion: string): TensorFoldSupportFacts {
+function supportFactsOf(state: TensorFoldState, server: TensorFoldServerState | undefined, osVersion: string): TensorFoldSupportFacts {
   const engine = state.engine ?? undefined
   const chip = server?.device ?? engine?.chip
   const backend = server?.backend ?? engine?.backends[0]
@@ -84,7 +84,7 @@ export function supportFactsOf(state: TensorFoldState, server: TensorFoldServerS
   }
 }
 
-export function supportServerOf(state: TensorFoldState): TensorFoldServerState | undefined {
+function supportServerOf(state: TensorFoldState): TensorFoldServerState | undefined {
   return state.servers.find(server => server.started !== undefined) ?? state.servers.find(server => server.host === undefined) ?? state.servers[0]
 }
 
@@ -107,7 +107,7 @@ export async function readTensorFoldSupportLine(focus?: TensorFoldSupportFocus, 
   })
 }
 
-export function tensorFoldSupportLine(facts: TensorFoldSupportFacts): string {
+function tensorFoldSupportLine(facts: TensorFoldSupportFacts): string {
   const parts: string[] = [facts.version ? `TensorFold ${facts.version}` : 'TensorFold']
   const backend = tensorFoldBackendWords(facts.backend)
   if (backend !== undefined) parts.push(backend)

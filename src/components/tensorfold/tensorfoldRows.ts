@@ -9,12 +9,12 @@ import type { ModelChoice } from '../MercuryModelPicker.js'
 export const TENSORFOLD_MODEL_GROUP = 'Mercury — TensorFold models'
 export const TENSORFOLD_HOST_GROUP = 'Mercury — TensorFold host models'
 export const TENSORFOLD_GROUPS: readonly string[] = [TENSORFOLD_MODEL_GROUP, TENSORFOLD_HOST_GROUP]
-export const TENSORFOLD_AGENT_FLOOR = 32_768
+const TENSORFOLD_AGENT_FLOOR = 32_768
 
 export type TensorFoldTone = 'faint' | 'ivory' | 'teal' | 'amber' | 'info' | 'failure' | 'secondary' | 'accent' | 'sand'
-export type TensorFoldSeg = { text: string; tone: TensorFoldTone; bold?: boolean }
+type TensorFoldSeg = { text: string; tone: TensorFoldTone; bold?: boolean }
 export type TensorFoldCardLine = readonly TensorFoldSeg[]
-export type TensorFoldCell = { text: string; tone: TensorFoldTone }
+type TensorFoldCell = { text: string; tone: TensorFoldTone }
 
 export type TensorFoldRowAct =
   | { phase: 'pulling'; percent?: number }
@@ -22,10 +22,10 @@ export type TensorFoldRowAct =
   | { phase: 'refused'; line: string; window?: number; strip?: string; limit?: { command: string; cost: string } }
   | { phase: 'exited'; line: string }
 
-export type TensorFoldInstallFacts = { road: 'brew' | 'archive'; state?: 'installing' | 'unavailable'; commands: readonly string[]; progress?: string }
-export type TensorFoldPortNote = { port: number; taken: number; by: string; keyed?: boolean }
-export type TensorFoldRentFacts = { pod?: string; serves?: string; title?: string }
-export type TensorFoldPodRow = { hostName: string; id: string; provider?: string; words: string; bills: boolean }
+type TensorFoldInstallFacts = { road: 'brew' | 'archive'; state?: 'installing' | 'unavailable'; commands: readonly string[]; progress?: string }
+type TensorFoldPortNote = { port: number; taken: number; by: string; keyed?: boolean }
+type TensorFoldRentFacts = { pod?: string; serves?: string; title?: string }
+type TensorFoldPodRow = { hostName: string; id: string; provider?: string; words: string; bills: boolean }
 
 export type TensorFoldPickerFacts = {
   platform: NodeJS.Platform
@@ -62,10 +62,10 @@ export type TensorFoldAct =
   | { kind: 'share'; row: TensorFoldModelRow }
   | { kind: 'unshare'; row: TensorFoldModelRow }
 
-export type TensorFoldInput = 'repo' | 'address'
+type TensorFoldInput = 'repo' | 'address'
 export type TensorFoldTyping = { key: string; input: TensorFoldInput; text: string }
 
-export type TensorFoldPickerUi = {
+type TensorFoldPickerUi = {
   view: 'model' | 'tensorfold'
   current?: string
   windows?: Readonly<Record<string, number>>
@@ -73,7 +73,7 @@ export type TensorFoldPickerUi = {
   confirmStop?: string
 }
 
-export type TensorFoldKeys = {
+type TensorFoldKeys = {
   enter?: { words: string; act?: TensorFoldAct; input?: TensorFoldInput }
   window?: { rungs: readonly number[]; at: number; repo: string }
   stop?: { words: string; act: TensorFoldAct; confirm: boolean }
@@ -103,7 +103,7 @@ const tok = (window: number): string => tokensWords(window)
 const gib = (value: number): string => gibWords(value * GIB)
 const one = (value: number): string => value.toFixed(1).replace(/\.0$/, '')
 
-export function wrapCells(text: string, width: number): string[] {
+function wrapCells(text: string, width: number): string[] {
   const out: string[] = []
   let line = ''
   const words = text.split(' ').flatMap(word => {
@@ -151,7 +151,7 @@ function willRunOf(facts: TensorFoldPickerFacts, row: TensorFoldModelRow, window
   }
 }
 
-export function fitAt(row: TensorFoldModelRow, window: number): TensorFoldFit | undefined {
+function fitAt(row: TensorFoldModelRow, window: number): TensorFoldFit | undefined {
   return row.ladder?.find(rung => rung.window === window)?.fit ?? (window === row.window ? row.fit : undefined)
 }
 
@@ -172,7 +172,7 @@ function strip(row: TensorFoldModelRow, at: number, tail: string, tailTone: Tens
   ]
 }
 
-export function memoryPartsWords(parts: TensorFoldFitParts): string {
+function memoryPartsWords(parts: TensorFoldFitParts): string {
   const items = [
     `weights ${one(parts.weightsGib)}`,
     ...(parts.drafterGib !== undefined ? [`drafter ${one(parts.drafterGib)}`] : []),
@@ -214,10 +214,6 @@ function isServed(row: TensorFoldModelRow): boolean {
 function startedByMercury(facts: TensorFoldPickerFacts, row: TensorFoldModelRow): boolean {
   if (row.startedBy !== undefined) return row.startedBy === 'mercury'
   return (facts.served ?? []).some(served => served.name === row.shortName)
-}
-
-function legendOf(parts: Array<string | undefined>): string[] {
-  return parts.filter((part): part is string => part !== undefined)
 }
 
 function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: TensorFoldModelRow, rest: boolean): ModelChoice {
@@ -489,7 +485,7 @@ function servingWords(rows: readonly TensorFoldModelRow[]): string {
   return 'nothing served'
 }
 
-export function tensorFoldStatus(facts: TensorFoldPickerFacts): string {
+function tensorFoldStatus(facts: TensorFoldPickerFacts): string {
   if (facts.platform === 'win32') return 'no Windows release yet'
   const chip = facts.machine?.chip ?? facts.engine?.chip
   const usableGib = facts.machine?.usableGib ?? facts.rows.find(row => row.fit.availableGib > 0)?.fit.availableGib
@@ -502,7 +498,7 @@ export function tensorFoldStatus(facts: TensorFoldPickerFacts): string {
   return facts.helper === undefined ? words : `${words} ${facts.helper}`
 }
 
-export function tensorFoldHostStatus(facts: TensorFoldPickerFacts): string {
+function tensorFoldHostStatus(facts: TensorFoldPickerFacts): string {
   const hosts = (facts.hosts ?? []).filter(host => host.origin !== 'app')
   if (hosts.length === 0) return HOST_NONE
   const serving = hosts.filter(host => host.serving !== undefined).length

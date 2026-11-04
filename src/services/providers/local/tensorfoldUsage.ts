@@ -1,7 +1,7 @@
 import type { CompatRuntimeReading, CompatUsage } from '../openaicompat/compatChatClient.js'
 import { tensorFoldHostAddress } from './tensorfoldHosts.js'
 
-export interface TensorFoldTurnReading {
+interface TensorFoldTurnReading {
   at: number
   model: string
   address: string
@@ -55,7 +55,7 @@ function secondsWords(seconds: number): string {
   return seconds < 1 ? `${Math.round(seconds * 1000)} ms` : `${seconds.toFixed(1)} s`
 }
 
-export function tensorFoldTurnLine(turn: TensorFoldTurnReading): string {
+function tensorFoldTurnLine(turn: TensorFoldTurnReading): string {
   const parts = [turn.model]
   if (turn.tokensPerSecond !== undefined) parts.push(`~${Math.round(turn.tokensPerSecond)} tok/s`)
   if (turn.timeToFirstTokenS !== undefined) parts.push(`first token in ${secondsWords(turn.timeToFirstTokenS)}`)

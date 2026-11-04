@@ -24,13 +24,20 @@ if (scenario !== null) {
     { repo: 'TensorFold/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-MLX-4bit', shortName: 'nemotron-lightning', label: 'Nemotron Lightning', family: 'nemotron', state: 'not-pulled' as const, fit: fit(20.8), window: 262_144, qualified: true },
     { repo: 'mlx-community/Qwen3.5-2B-MLX-4bit', shortName: 'qwen3.5-2b', label: 'Qwen3.5 2B', family: 'qwen3_5', state: 'on-disk' as const, fit: fit(7.6), window: 262_144, qualified: true, bytesOnDisk: 1.6 * GIB },
   ]
+  const realEngine = await import('../../src/services/tensorfold/engine.ts')
   mock.module('../../src/services/tensorfold/engine.js', () => ({
+    ...realEngine,
     findTensorFoldEngine: async () => (Bun.which('tensorfold') !== null ? { version: '1.2.2', binary: Bun.which('tensorfold')!, chip: 'Apple M5 Pro', backends: ['metal'], families: [] } : null),
     tensorFoldMachine: () => ({ chip: 'Apple M5 Pro', usableGib: 36 }),
   }))
+  const realInventory = await import('../../src/services/tensorfold/inventory.ts')
   mock.module('../../src/services/tensorfold/inventory.js', () => ({
+    ...realInventory,
     readTensorFoldInventory: async () => ROWS_ON_DISK,
     bestTensorFoldFit: (rows: readonly { repo: string }[]) => rows[0] ?? null,
+  }))
+  mock.module('../../src/services/providers/local/tensorfoldApp.js', () => ({
+    detectTensorFoldApp: async () => ({ running: false }),
   }))
   const React = await import('react')
   const { KEY, mountOffscreen, settle, waitFor } = await import('../lib/settingsPopupHarness.ts')

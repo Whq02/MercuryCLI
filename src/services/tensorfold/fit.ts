@@ -4,14 +4,14 @@ import { localWindowRungs } from '../localServer/localWindowFit.js'
 import type { TensorFoldFit, TensorFoldFitParts, TensorFoldLadderRung } from './contracts.js'
 import { GIB, TENSORFOLD_AGENT_FLOOR, TENSORFOLD_RAISED_LIMIT_BELOW_BYTES, TENSORFOLD_RAISED_LIMIT_REPOS, TENSORFOLD_RUNTIME_MARGIN, type TensorFoldCheckpoint } from './starting.js'
 
-export const TENSORFOLD_ADMISSION_SHARE = 0.7
-export const TENSORFOLD_PROMPT_CACHE_CAP_GIB = 16
-export const WIRED_LIMIT_MARGIN_BYTES = 4 * GIB
-export const WIRED_LIMIT_OS_FLOOR_BYTES = 4 * GIB
-export const WIRED_LIMIT_TIGHT_BYTES = 8 * GIB
+const TENSORFOLD_ADMISSION_SHARE = 0.7
+const TENSORFOLD_PROMPT_CACHE_CAP_GIB = 16
+const WIRED_LIMIT_MARGIN_BYTES = 4 * GIB
+const WIRED_LIMIT_OS_FLOOR_BYTES = 4 * GIB
+const WIRED_LIMIT_TIGHT_BYTES = 8 * GIB
 export const METAL_WORKING_SET_SCRIPT = "ObjC.import('Metal'); var d = $.MTLCreateSystemDefaultDevice(); d ? String(d.recommendedMaxWorkingSetSize) + ' ' + d.name.js : ''"
 
-export type TensorFoldUsableSource = 'metal' | 'wired-limit' | 'seventy-percent' | 'cuda' | 'available'
+type TensorFoldUsableSource = 'metal' | 'wired-limit' | 'seventy-percent' | 'cuda' | 'available'
 
 export type TensorFoldMachineTruth = {
   platform: NodeJS.Platform
@@ -45,14 +45,14 @@ const positive = (value: unknown): number | undefined => {
   return Number.isFinite(n) && n > 0 ? n : undefined
 }
 
-export function parseMetalWorkingSet(text: string | undefined): { bytes: number; name: string } | undefined {
+function parseMetalWorkingSet(text: string | undefined): { bytes: number; name: string } | undefined {
   const match = /^\s*(\d+)\s*(.*?)\s*$/s.exec(text ?? '')
   if (!match) return undefined
   const bytes = positive(match[1])
   return bytes === undefined ? undefined : { bytes, name: match[2] ?? '' }
 }
 
-export function parseNvidiaSmiLine(text: string | undefined): { name: string; memoryBytes: number; driver?: string } | undefined {
+function parseNvidiaSmiLine(text: string | undefined): { name: string; memoryBytes: number; driver?: string } | undefined {
   const line = (text ?? '').split('\n').map(row => row.trim()).find(row => row !== '')
   if (line === undefined) return undefined
   const [name, mib, driver] = line.split(',').map(cell => cell.trim())
@@ -61,7 +61,7 @@ export function parseNvidiaSmiLine(text: string | undefined): { name: string; me
   return { name, memoryBytes: Math.round(memory * 1024 * 1024), ...(driver ? { driver } : {}) }
 }
 
-export function cudaReserveBytes(cardBytes: number): number {
+function cudaReserveBytes(cardBytes: number): number {
   return Math.max(GIB, Math.round(cardBytes / 32))
 }
 
@@ -99,7 +99,7 @@ export async function readTensorFoldMachineTruth(io: MachineIo = {}): Promise<Te
   return { platform, ramBytes, chip: platform === 'win32' ? 'Windows' : platform, ...seventy }
 }
 
-export function tensorFoldFloorBytes(point: Pick<TensorFoldCheckpoint, 'weightsBytes' | 'drafter'>): number {
+function tensorFoldFloorBytes(point: Pick<TensorFoldCheckpoint, 'weightsBytes' | 'drafter'>): number {
   return point.weightsBytes + (point.drafter?.weightsBytes ?? 0) + TENSORFOLD_RUNTIME_MARGIN
 }
 
@@ -115,7 +115,7 @@ export function gibOf(bytes: number): number {
   return bytes / GIB
 }
 
-export function fitPartsOf(point: TensorFoldCheckpoint, window: number): TensorFoldFitParts {
+function fitPartsOf(point: TensorFoldCheckpoint, window: number): TensorFoldFitParts {
   const cacheCapped = point.promptCacheGib === undefined
   return {
     weightsGib: gibOf(point.weightsBytes),
@@ -144,7 +144,7 @@ export function wiredLimitRemedyWords(offer: WiredLimitOffer | null): string {
   return `sudo sysctl iogpu.wired_limit_mb=${offer.limitMib} · resets at reboot; restart the engine after it${offer.tight ? ' · tight — quit other apps first' : ''}`
 }
 
-export function fitTensorFold(point: TensorFoldCheckpoint, window: number, machine: TensorFoldMachineTruth): TensorFoldFit {
+function fitTensorFold(point: TensorFoldCheckpoint, window: number, machine: TensorFoldMachineTruth): TensorFoldFit {
   const neededBytes = tensorFoldProjectedBytes(point, window)
   const base = { neededGib: gibOf(neededBytes), availableGib: gibOf(machine.usableBytes), estimate: true as const, parts: fitPartsOf(point, window) }
   const admission = Math.round(machine.ramBytes * TENSORFOLD_ADMISSION_SHARE)

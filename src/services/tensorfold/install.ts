@@ -31,7 +31,7 @@ function executable(path: string): boolean {
   }
 }
 
-export function findBrew(io: InstallIo = {}): string | undefined {
+function findBrew(io: InstallIo = {}): string | undefined {
   const exists = io.exists ?? executable
   const env = io.env ?? process.env
   const dirs = [...(env.PATH ?? '').split(delimiter).filter(dir => dir !== ''), '/opt/homebrew/bin', '/usr/local/bin']
@@ -42,18 +42,18 @@ export function findBrew(io: InstallIo = {}): string | undefined {
   return undefined
 }
 
-export const BREW_INSTALL_COMMAND = `brew install ${TENSORFOLD_BREW_FORMULA}`
-export const NEEDS_BREW_WORDS = 'Homebrew · brew.sh installs it, then /tensorfold again'
-export const WINDOWS_WORDS = 'no Windows release yet'
-export const NO_GPU_WORDS = 'no NVIDIA GPU found'
-export const RUNTIME_FOLDER_WORDS = `~/${TENSORFOLD_RUNTIME_FOLDER}`
+const BREW_INSTALL_COMMAND = `brew install ${TENSORFOLD_BREW_FORMULA}`
+const NEEDS_BREW_WORDS = 'Homebrew · brew.sh installs it, then /tensorfold again'
+const WINDOWS_WORDS = 'no Windows release yet'
+const NO_GPU_WORDS = 'no NVIDIA GPU found'
+const RUNTIME_FOLDER_WORDS = `~/${TENSORFOLD_RUNTIME_FOLDER}`
 
-export function linuxArchiveName(arch: string): string {
+function linuxArchiveName(arch: string): string {
   const platform = arch === 'arm64' || arch === 'aarch64' ? 'linux-aarch64' : 'linux-x86_64'
   return `tensorfold-${TENSORFOLD_RELEASE}-${platform}.tar.gz`
 }
 
-export function archiveInstallCommands(archive: string, folderWords: string = RUNTIME_FOLDER_WORDS): string[] {
+function archiveInstallCommands(archive: string, folderWords: string = RUNTIME_FOLDER_WORDS): string[] {
   return [
     `cd ${folderWords}`,
     `curl -fLO ${TENSORFOLD_RELEASE_BASE}/${archive}`,
@@ -80,7 +80,7 @@ export function tensorFoldInstallPlan(machine: Pick<TensorFoldMachineTruth, 'pla
   return { kind: 'archive', folder, archive, commands: archiveInstallCommands(archive), words: 'release archive · checksum verified', found: `not installed · NVIDIA driver ${driver} (CUDA 13)` }
 }
 
-export type InstallRun = { command: string; args: string[]; cwd?: string }
+type InstallRun = { command: string; args: string[]; cwd?: string }
 
 export function installRuns(plan: TensorFoldInstallPlan): InstallRun[] {
   if (plan.kind === 'brew') return [{ command: plan.brew, args: ['install', TENSORFOLD_BREW_FORMULA] }]
@@ -97,7 +97,7 @@ export function installRuns(plan: TensorFoldInstallPlan): InstallRun[] {
   return []
 }
 
-export type InstallOutcome = { ok: true } | { ok: false; step: string; line: string }
+type InstallOutcome = { ok: true } | { ok: false; step: string; line: string }
 
 export async function installTensorFold(plan: TensorFoldInstallPlan, onLine: (line: string) => void, io: { signal?: AbortSignal; spawnImpl?: typeof spawn; env?: NodeJS.ProcessEnv } = {}): Promise<InstallOutcome> {
   const runs = installRuns(plan)

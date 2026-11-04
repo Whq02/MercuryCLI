@@ -1,7 +1,7 @@
 import type { FileStateCache } from '../../utils/fileStateCache.js'
 import type { ThemeName } from '../../utils/theme.js'
 
-export type TipTensorFoldContext = {
+type TipTensorFoldContext = {
   installed?: boolean
   serving?: boolean
   pairedHost?: boolean

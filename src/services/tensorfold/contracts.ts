@@ -7,7 +7,7 @@ export type TensorFoldFamily = {
   qualified: boolean
 }
 
-export type TensorFoldOptionalLibrary = { name: string; found: boolean; note?: string }
+type TensorFoldOptionalLibrary = { name: string; found: boolean; note?: string }
 
 export type TensorFoldEngine = {
   version: string
@@ -18,9 +18,9 @@ export type TensorFoldEngine = {
   optionalLibraries?: readonly TensorFoldOptionalLibrary[]
 }
 
-export type TensorFoldModelState = 'serving' | 'loading' | 'on-disk' | 'pulling' | 'not-pulled'
+type TensorFoldModelState = 'serving' | 'loading' | 'on-disk' | 'pulling' | 'not-pulled'
 
-export type TensorFoldFitVerdict = 'fits' | 'needs-gpu-limit' | 'too-big'
+type TensorFoldFitVerdict = 'fits' | 'needs-gpu-limit' | 'too-big'
 
 export type TensorFoldFitParts = {
   weightsGib: number

@@ -9,7 +9,7 @@ import { TENSORFOLD_STARTING_POINTS } from './starting.js'
 export const TENSORFOLD_BINARY_NAMES = ['tensorfold-native', 'tensorfold'] as const
 export const TENSORFOLD_RUNTIME_FOLDER = join('.local', 'share', 'mercury-host', 'runtime', 'tensorfold')
 
-export type EngineExec = (file: string, args: string[]) => Promise<{ stdout: string; stderr: string; code: number } | undefined>
+type EngineExec = (file: string, args: string[]) => Promise<{ stdout: string; stderr: string; code: number } | undefined>
 
 export type EngineIo = MachineIo & {
   env?: NodeJS.ProcessEnv
@@ -60,7 +60,7 @@ export function parseTensorFoldVersion(text: string | undefined): string | undef
   return match?.[1]
 }
 
-export type TensorFoldCapabilities = {
+type TensorFoldCapabilities = {
   version?: string
   chip: string | null
   backends: string[]
@@ -112,7 +112,7 @@ export function parseTensorFoldCapabilities(stdout: string): TensorFoldCapabilit
   }
 }
 
-export function tensorFoldFamiliesOf(families: Record<string, string[]>): TensorFoldFamily[] {
+function tensorFoldFamiliesOf(families: Record<string, string[]>): TensorFoldFamily[] {
   return Object.entries(families).map(([id, quantisations]) => {
     const points = TENSORFOLD_STARTING_POINTS.filter(point => point.family === id)
     const drafter = points.find(point => point.drafter !== undefined)?.drafter?.repo

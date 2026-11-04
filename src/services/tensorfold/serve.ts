@@ -19,20 +19,20 @@ import { pullCommandLines, pullTensorFold as pullWithEngine, type PullIo } from 
 import { readTensorFoldRefusal, type TensorFoldRefusal } from './refusal.js'
 import { PROMPT_CACHE_OPT_IN_FAMILIES, startingPointOf, tensorFoldShortName, type TensorFoldCheckpoint } from './starting.js'
 
-export const TENSORFOLD_SERVICE = 'tensorfold'
+const TENSORFOLD_SERVICE = 'tensorfold'
 export const TENSORFOLD_DEFAULT_PORT = 8080
 export const TENSORFOLD_HOST = '127.0.0.1'
-export const TENSORFOLD_DRAIN_SECONDS = 4
-export const TENSORFOLD_START_WAIT_MS = 15 * 60_000
-export const TENSORFOLD_MEMORY_TIGHT_GIB = 2
+const TENSORFOLD_DRAIN_SECONDS = 4
+const TENSORFOLD_START_WAIT_MS = 15 * 60_000
+const TENSORFOLD_MEMORY_TIGHT_GIB = 2
 
-export type TensorFoldServedRecord = TensorFoldServed & { project: string; busy?: { port: number; answersAs?: string } }
+type TensorFoldServedRecord = TensorFoldServed & { project: string; busy?: { port: number; answersAs?: string } }
 
-export type TensorFoldPortPick = { port: number; busy?: { port: number; answersAs?: string } }
+type TensorFoldPortPick = { port: number; busy?: { port: number; answersAs?: string } }
 
-export type TensorFoldAnnounceOffer = { model: string; enginePort: number; window: number; key: string }
+type TensorFoldAnnounceOffer = { model: string; enginePort: number; window: number; key: string }
 
-export type TensorFoldAnnouncement = { stop: () => void; code?: string }
+type TensorFoldAnnouncement = { stop: () => void; code?: string }
 
 export type ServeIo = EngineIo & {
   binary?: string
@@ -54,7 +54,7 @@ export type ServeIo = EngineIo & {
   announce?: (offer: TensorFoldAnnounceOffer) => TensorFoldAnnouncement | Promise<TensorFoldAnnouncement>
 }
 
-export const TENSORFOLD_SHARE_HOST = '0.0.0.0'
+const TENSORFOLD_SHARE_HOST = '0.0.0.0'
 
 let announcement: ({ name: string } & TensorFoldAnnouncement) | null = null
 
@@ -111,7 +111,7 @@ export function servedTensorFold(io: Pick<ServeIo, 'servedFile'> = {}): readonly
   return [{ ...record, pid: service.pid }]
 }
 
-export function servedTensorFoldRecord(io: Pick<ServeIo, 'servedFile'> = {}): (TensorFoldServedRecord & { service: ServiceRecord }) | null {
+function servedTensorFoldRecord(io: Pick<ServeIo, 'servedFile'> = {}): (TensorFoldServedRecord & { service: ServiceRecord }) | null {
   const record = readServedRecord(io)
   if (record === null) return null
   const service = reconcileRecord(record.project, TENSORFOLD_SERVICE)
@@ -123,7 +123,7 @@ export function rememberedTensorFoldPort(io: Pick<ServeIo, 'servedFile'> = {}): 
   return readServedRecord(io)?.port
 }
 
-export function serveArgs(point: Pick<TensorFoldCheckpoint, 'repo' | 'shortName' | 'drafter' | 'promptCacheGib'>, window: number, port: number, name = point.shortName, share?: { keyFile: string }): string[] {
+function serveArgs(point: Pick<TensorFoldCheckpoint, 'repo' | 'shortName' | 'drafter' | 'promptCacheGib'>, window: number, port: number, name = point.shortName, share?: { keyFile: string }): string[] {
   return [
     'serve',
     point.repo,
@@ -139,7 +139,7 @@ export function serveArgs(point: Pick<TensorFoldCheckpoint, 'repo' | 'shortName'
   ]
 }
 
-export function serveCommandLine(point: Pick<TensorFoldCheckpoint, 'repo' | 'shortName' | 'drafter' | 'promptCacheGib'>, window: number, port: number, name?: string): string {
+function serveCommandLine(point: Pick<TensorFoldCheckpoint, 'repo' | 'shortName' | 'drafter' | 'promptCacheGib'>, window: number, port: number, name?: string): string {
   return ['tensorfold', ...serveArgs(point, window, port, name)].join(' ')
 }
 
@@ -216,11 +216,6 @@ function logTail(record: ServiceRecord | null, bytes = 65_536): string {
   } catch {
     return ''
   }
-}
-
-export function tensorFoldLogTail(io: Pick<ServeIo, 'servedFile'> = {}): string {
-  const served = servedTensorFoldRecord(io)
-  return served === null ? '' : logTail(served.service)
 }
 
 const defaultSleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))

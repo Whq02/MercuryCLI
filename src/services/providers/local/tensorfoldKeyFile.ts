@@ -5,16 +5,16 @@ import { publishAtomicSync } from '../../../substrate/fileStore.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 
-export const TENSORFOLD_KEY_LABEL = 'mercury'
-export const TENSORFOLD_KEY_SCOPE = 'inference'
+const TENSORFOLD_KEY_LABEL = 'mercury'
+const TENSORFOLD_KEY_SCOPE = 'inference'
 
-export interface TensorFoldKeyFile {
+interface TensorFoldKeyFile {
   path: string
   key: string
   line: string
 }
 
-export function tensorFoldKeyLine(key: string, label: string = TENSORFOLD_KEY_LABEL): string {
+function tensorFoldKeyLine(key: string, label: string = TENSORFOLD_KEY_LABEL): string {
   return `${label}[${TENSORFOLD_KEY_SCOPE}]: ${key}`
 }
 

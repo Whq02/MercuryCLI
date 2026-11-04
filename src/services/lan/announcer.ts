@@ -3,7 +3,7 @@ import { hostname } from 'node:os'
 
 export const MERCURY_TENSORFOLD_SERVICE_TYPE = '_mercury-tf._tcp'
 
-export interface AnnouncementTxt {
+interface AnnouncementTxt {
   model?: string
   window?: number
   version?: string
@@ -36,7 +36,7 @@ export function announcerMachineName(): string {
   return raw.replace(/[^A-Za-z0-9 _.-]/g, '').trim() || 'Mac'
 }
 
-export function txtWords(txt: AnnouncementTxt): string[] {
+function txtWords(txt: AnnouncementTxt): string[] {
   const out: string[] = []
   for (const [key, value] of Object.entries(txt)) {
     if (value === undefined || value === '') continue
@@ -76,7 +76,7 @@ export function startAnnouncer(announcement: Announcement, io: AnnouncerIo = {})
   }
 }
 
-export interface BrowsedAnnouncement {
+interface BrowsedAnnouncement {
   name: string
   host: string
   port: number

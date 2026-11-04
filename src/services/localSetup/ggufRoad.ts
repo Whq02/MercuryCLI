@@ -13,9 +13,9 @@ import type { SetupConsentFn, SetupEvent, SetupStepLabel, SetupStepPlan, SetupSu
 import { closeSettingsPopup } from '../../utils/cockpit/settingsPopup.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 
-export const TENSORFOLD_SOURCE = 'TensorFold'
+const TENSORFOLD_SOURCE = 'TensorFold'
 
-export function tensorFoldSourceRow(platform: NodeJS.Platform): { tag: string; on: 'server'; words: string }[] {
+function tensorFoldSourceRow(platform: NodeJS.Platform): { tag: string; on: 'server'; words: string }[] {
   if (platform !== 'darwin' && platform !== 'linux') return []
   return [{ tag: TENSORFOLD_SOURCE, on: 'server', words: `serve an MLX model on ${platform === 'darwin' ? 'this Mac' : "this machine's NVIDIA GPU"} · /tensorfold` }]
 }

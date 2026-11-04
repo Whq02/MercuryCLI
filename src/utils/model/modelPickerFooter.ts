@@ -5,9 +5,9 @@ type ModelPickerFooterHeading = { fold: 'folded' | 'open' }
 export type ModelPickerFooterKeys = { action?: string; window: boolean; stop?: string; share?: string; support: boolean; legend?: readonly string[] }
 
 export const MODEL_PICKER_EXIT_WORDS = 'esc or click outside closes'
-export const MODEL_PICKER_SHORT_EXIT_WORDS = 'esc closes'
-export const MODEL_PICKER_WINDOW_WORDS = '←→ window'
-export const MODEL_PICKER_SUPPORT_WORDS = 'c copies the support line'
+const MODEL_PICKER_SHORT_EXIT_WORDS = 'esc closes'
+const MODEL_PICKER_WINDOW_WORDS = '←→ window'
+const MODEL_PICKER_SUPPORT_WORDS = 'c copies the support line'
 
 export function modelPickerFooter(
   opts: {

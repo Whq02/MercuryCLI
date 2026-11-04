@@ -9,7 +9,7 @@ import { QWEN_2B, TENSORFOLD_STARTING_POINTS, startingPointOf, tensorFoldLabel, 
 
 export type TensorFoldInventoryRow = TensorFoldModelRow & { label: string; checkpoint: TensorFoldCheckpoint; quantisation?: string }
 
-export type HfSnapshot = {
+type HfSnapshot = {
   repo: string
   dir: string
   config: Record<string, unknown>
@@ -32,7 +32,6 @@ export function hfCacheRoot(env: NodeJS.ProcessEnv = process.env, home: string =
   return join(home, '.cache', 'huggingface', 'hub')
 }
 
-export const HF_CACHE_WORDS = '~/.cache/huggingface/hub'
 
 export function hfCacheWords(root: string, home: string = homedir()): string {
   return root.startsWith(home) ? `~${root.slice(home.length)}` : root
@@ -65,7 +64,7 @@ function defaultSizeOf(path: string): number | undefined {
 const rec = (v: unknown): Record<string, unknown> | undefined => (typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined)
 const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined)
 
-export function repoOfCacheDir(name: string): string | undefined {
+function repoOfCacheDir(name: string): string | undefined {
   if (!name.startsWith('models--')) return undefined
   const rest = name.slice('models--'.length)
   const cut = rest.indexOf('--')
@@ -109,7 +108,7 @@ export function readHfSnapshot(root: string, repo: string, io: Pick<InventoryIo,
   return { repo, dir, config, weightsBytes, incompleteBytes }
 }
 
-export function listHfRepos(root: string, io: Pick<InventoryIo, 'listDir'> = {}): string[] {
+function listHfRepos(root: string, io: Pick<InventoryIo, 'listDir'> = {}): string[] {
   const listDir = io.listDir ?? defaultListDir
   return listDir(root)
     .map(repoOfCacheDir)
@@ -186,7 +185,7 @@ export function rowOfCheckpoint(point: TensorFoldCheckpoint, machine: TensorFold
   }
 }
 
-export function rankTensorFoldRows(rows: readonly TensorFoldInventoryRow[]): TensorFoldInventoryRow[] {
+function rankTensorFoldRows(rows: readonly TensorFoldInventoryRow[]): TensorFoldInventoryRow[] {
   const rank = (row: TensorFoldInventoryRow): number => {
     const at = TENSORFOLD_STARTING_POINTS.findIndex(point => point.repo === row.repo)
     return at < 0 ? TENSORFOLD_STARTING_POINTS.length : at

@@ -3,11 +3,11 @@ import { gibWords, tokensWords } from '../../services/localServer/localServerMem
 import type { TensorFoldModelRow } from '../../services/tensorfold/contracts.js'
 import type { TensorFoldInventoryRow } from '../../services/tensorfold/inventory.js'
 import { bestTensorFoldFit } from '../../services/tensorfold/inventory.js'
-import { TENSORFOLD_MODEL_PREFIX, type TensorFoldAct, type TensorFoldOutsideServer, type TensorFoldPanelFacts } from './scene.js'
+import type { TensorFoldAct, TensorFoldOutsideServer, TensorFoldPanelFacts } from './scene.js'
 
 export type { TensorFoldAct as TensorFoldPickerAct } from '../../components/tensorfold/tensorfoldRows.js'
 
-export function rowActOf(act: TensorFoldAct | undefined, row: TensorFoldInventoryRow, usableGib: number | undefined, window: number): TensorFoldRowAct | undefined {
+function rowActOf(act: TensorFoldAct | undefined, row: TensorFoldInventoryRow, usableGib: number | undefined, window: number): TensorFoldRowAct | undefined {
   if (act === undefined) return undefined
   switch (act.kind) {
     case 'pulling':
@@ -31,11 +31,11 @@ export function rowActOf(act: TensorFoldAct | undefined, row: TensorFoldInventor
   }
 }
 
-export function tightWords(act: { needBytes: number; freeBytes: number; offers: readonly string[] }): string {
+function tightWords(act: { needBytes: number; freeBytes: number; offers: readonly string[] }): string {
   return [`${gibWords(act.needBytes)} needed · ${gibWords(act.freeBytes)} free on this Mac`, ...act.offers].join(' · ')
 }
 
-export function windowStripWords(act: TensorFoldAct | undefined, row: TensorFoldInventoryRow, window: number, usableGib: number | undefined): string {
+function windowStripWords(act: TensorFoldAct | undefined, row: TensorFoldInventoryRow, window: number, usableGib: number | undefined): string {
   if (act?.kind === 'refused') {
     if (act.refusal.kind === 'gpu-limit' && window === (row.ladder?.[0]?.window ?? window)) return 'already the smallest window'
     if (act.cacheGibAt !== undefined && act.leftGib !== undefined) return `${tokensWords(window)} takes ${act.cacheGibAt.toFixed(1)} GiB of cache · ${act.leftGib.toFixed(2)} GiB left`
@@ -51,7 +51,7 @@ export function windowStripWords(act: TensorFoldAct | undefined, row: TensorFold
   return '←→ changes it'
 }
 
-export function outsideRowOf(server: TensorFoldOutsideServer): TensorFoldModelRow {
+function outsideRowOf(server: TensorFoldOutsideServer): TensorFoldModelRow {
   return {
     repo: server.name,
     shortName: server.name,
@@ -102,8 +102,4 @@ export function pickerFactsOf(facts: TensorFoldPanelFacts): TensorFoldPickerFact
     ...(facts.rent !== undefined ? { rent: facts.rent } : {}),
     pods: facts.pods,
   }
-}
-
-export function modelIdOf(row: Pick<TensorFoldModelRow, 'shortName'>): string {
-  return `${TENSORFOLD_MODEL_PREFIX}${row.shortName}`
 }

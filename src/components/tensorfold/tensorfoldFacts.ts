@@ -43,7 +43,7 @@ function urlOf(baseUrl: string): URL | undefined {
   }
 }
 
-export const TENSORFOLD_DRIVER_FLOOR = 580
+const TENSORFOLD_DRIVER_FLOOR = 580
 
 export function tensorFoldCapableMachine(platform: NodeJS.Platform = process.platform, arch: string = process.arch, nvidia: () => string | undefined = () => quietly(() => readFileSync('/proc/driver/nvidia/version', 'utf8'), undefined)): boolean {
   if (platform === 'darwin') return arch === 'arm64'
@@ -52,7 +52,7 @@ export function tensorFoldCapableMachine(platform: NodeJS.Platform = process.pla
   return Number.isInteger(major) && major >= TENSORFOLD_DRIVER_FLOOR
 }
 
-export function isLoopbackUrl(baseUrl: string): boolean {
+function isLoopbackUrl(baseUrl: string): boolean {
   return LOOPBACK.test(urlOf(baseUrl)?.hostname ?? '')
 }
 
@@ -67,7 +67,7 @@ function tensorFoldServers(): NonNullable<ReturnType<typeof getCachedLocalDiscov
 
 const sameUrl = (a: string, b: string): boolean => a.replace(/\/v1\/?$/, '').replace(/\/+$/, '') === b.replace(/\/v1\/?$/, '').replace(/\/+$/, '')
 
-export function discoveredTensorFoldRows(hosts: readonly TensorFoldHost[] = []): TensorFoldModelRow[] {
+function discoveredTensorFoldRows(hosts: readonly TensorFoldHost[] = []): TensorFoldModelRow[] {
   return tensorFoldServers()
     .filter(server => isLoopbackUrl(server.baseUrl) && !hosts.some(host => sameUrl(host.baseUrl, server.baseUrl)))
     .flatMap(server =>
@@ -88,7 +88,7 @@ export function discoveredTensorFoldRows(hosts: readonly TensorFoldHost[] = []):
     )
 }
 
-export function discoveredTensorFoldHosts(): TensorFoldHost[] {
+function discoveredTensorFoldHosts(): TensorFoldHost[] {
   return tensorFoldServers()
     .filter(server => !isLoopbackUrl(server.baseUrl))
     .map(server => {
@@ -174,7 +174,7 @@ export async function readTensorFoldPickerFacts(): Promise<TensorFoldPickerFacts
   }
 }
 
-export async function readTensorFoldOffer(platform: NodeJS.Platform = process.platform, capable: () => boolean = () => tensorFoldCapableMachine()): Promise<TensorFoldOffer | null> {
+async function readTensorFoldOffer(platform: NodeJS.Platform = process.platform, capable: () => boolean = () => tensorFoldCapableMachine()): Promise<TensorFoldOffer | null> {
   if (localServerProbingOff()) return null
   if (platform === 'win32') return { kind: 'host' }
   if (!capable()) return null
@@ -190,7 +190,7 @@ export async function readTensorFoldOffer(platform: NodeJS.Platform = process.pl
 let offer: TensorFoldOffer | null | undefined
 let offerReading: Promise<TensorFoldOffer | null> | undefined
 
-export function refreshTensorFoldOffer(): Promise<TensorFoldOffer | null> {
+function refreshTensorFoldOffer(): Promise<TensorFoldOffer | null> {
   offerReading ??= readTensorFoldOffer()
     .then(next => {
       offer = next

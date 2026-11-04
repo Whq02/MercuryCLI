@@ -2,17 +2,17 @@ import { randomBytes, randomInt, timingSafeEqual } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { announcerMachineName, startAnnouncer, type AnnouncerHandle, type AnnouncerIo, type Announcement } from './announcer.js'
 
-export const PAIRING_CODE_LENGTH = 6
-export const PAIRING_CODE_TTL_MS = 10 * 60_000
-export const PAIRING_ATTEMPTS = 3
+const PAIRING_CODE_LENGTH = 6
+const PAIRING_CODE_TTL_MS = 10 * 60_000
+const PAIRING_ATTEMPTS = 3
 
-export function mintPairingCode(): string {
+function mintPairingCode(): string {
   let code = ''
   for (let i = 0; i < PAIRING_CODE_LENGTH; i++) code += String(randomInt(0, 10))
   return code
 }
 
-export interface PairingOffer {
+interface PairingOffer {
   model: string
   enginePort: number
   window?: number
@@ -22,7 +22,7 @@ export interface PairingOffer {
   name?: string
 }
 
-export interface PairingServer {
+interface PairingServer {
   name: string
   code: string
   port: number
@@ -31,7 +31,7 @@ export interface PairingServer {
   stop(): Promise<void>
 }
 
-export interface PairingReply {
+interface PairingReply {
   baseUrl: string
   model: string
   key?: string

@@ -255,7 +255,6 @@ type Hints = {
   hasUsedBackslashReturn?: boolean
   hasSeenTasksHint?: boolean
   hasUsedStash?: boolean
-  promptQueueUseCount: number
 }
 
 type TerminalSetup = {
@@ -297,7 +296,6 @@ export function createDefaultGlobalConfig(): GlobalConfig {
     expandedView: 'none',
     customApiKeyResponses: { approved: [], rejected: [] },
     tipsHistory: {},
-    promptQueueUseCount: 0,
     showExpandedTasks: false,
     fileCheckpointingEnabled: true,
     terminalProgressBarEnabled: true,

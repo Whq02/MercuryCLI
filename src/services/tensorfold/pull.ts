@@ -29,7 +29,7 @@ export function cacheBytesOf(root: string, repo: string, io: Pick<InventoryIo, '
   return total
 }
 
-export function pullSpec(repo: string): string {
+function pullSpec(repo: string): string {
   const point = startingPointOf(repo)
   return point?.pin !== undefined ? `${point.repo}@${point.pin}` : repo
 }
@@ -46,10 +46,6 @@ export class TensorFoldPullError extends Error {
 }
 
 const pulls = new Map<string, ChildProcess>()
-
-export function pullingTensorFold(): string[] {
-  return [...pulls.keys()]
-}
 
 export function stopTensorFoldPull(repo: string): boolean {
   const child = pulls.get(repo)
@@ -103,12 +99,12 @@ export async function pullTensorFold(repo: string, onProgress: (progress: Tensor
   if (point?.drafter !== undefined) await pullOne(binary, point.drafter.repo, point.drafter.downloadBytes, onProgress, io)
 }
 
-export type HubRead = { checkpoint: TensorFoldCheckpoint; facts: ConfigFacts } | { refused: string }
+type HubRead = { checkpoint: TensorFoldCheckpoint; facts: ConfigFacts } | { refused: string }
 
-export const GGUF_REFUSED = "GGUF is llama.cpp's format · /localsetup serves it"
-export const NOT_A_REPO = 'not a repository id · owner/name'
+const GGUF_REFUSED = "GGUF is llama.cpp's format · /localsetup serves it"
+const NOT_A_REPO = 'not a repository id · owner/name'
 
-export function hubEndpoint(env: NodeJS.ProcessEnv = process.env): string {
+function hubEndpoint(env: NodeJS.ProcessEnv = process.env): string {
   return (env.HF_ENDPOINT ?? 'https://huggingface.co').replace(/\/+$/, '')
 }
 

@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 
-export interface TensorFoldProcessRow {
+interface TensorFoldProcessRow {
   pid: number
   ppid: number
   command: string
@@ -12,7 +12,7 @@ export interface TensorFoldAppState {
   engine?: { pid: number; model?: string; port?: number }
 }
 
-export const TENSORFOLD_APP_BUNDLE = 'TensorFold.app'
+const TENSORFOLD_APP_BUNDLE = 'TensorFold.app'
 const ENGINE_BINARY = /(^|\/)tensorfold-native$/
 const APP_PATTERN = /TensorFold\.app\/Contents\/MacOS\/TensorFold(\s|$)/
 
@@ -90,8 +90,4 @@ export const TENSORFOLD_SECOND_COPY_REFUSAL = 'the TensorFold app is already ser
 
 export function refuseSecondCopy(state: TensorFoldAppState): string | undefined {
   return state.engine !== undefined ? TENSORFOLD_SECOND_COPY_REFUSAL : undefined
-}
-
-export function __resetTensorFoldAppForTest(): void {
-  cachedApp = undefined
 }

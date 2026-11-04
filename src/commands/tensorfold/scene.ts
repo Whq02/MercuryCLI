@@ -9,7 +9,7 @@ import { cachedLocalModels, type LocalModelRecord } from '../../services/provide
 import { detectTensorFoldApp, type TensorFoldAppState } from '../../services/providers/local/tensorfoldApp.js'
 import { helperHeadingWords } from '../../services/providers/local/tensorfoldHelper.js'
 import { tensorFoldHosts } from '../../services/providers/local/tensorfoldHosts.js'
-import type { TensorFoldEngine, TensorFoldHost, TensorFoldModelRow, TensorFoldServed } from '../../services/tensorfold/contracts.js'
+import type { TensorFoldEngine, TensorFoldHost, TensorFoldServed } from '../../services/tensorfold/contracts.js'
 import { cachedTensorFoldMachineTruth, findTensorFoldEngine, tensorFoldBackendWords, type EngineIo, type TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
 import type { TensorFoldMachineTruth } from '../../services/tensorfold/fit.js'
 import { tensorFoldInstallPlan, type InstallIo, type TensorFoldInstallPlan } from '../../services/tensorfold/install.js'
@@ -19,8 +19,6 @@ import { refusalNextStep, refusedWords, wiredLimitCommand, wiredLimitCostWords, 
 import { rememberedTensorFoldPort, servedTensorFold, TENSORFOLD_DEFAULT_PORT, TENSORFOLD_HOST, type ServeIo } from '../../services/tensorfold/serve.js'
 import { TENSORFOLD_RELEASE } from '../../services/tensorfold/starting.js'
 import { TENSORFOLD_WORDS as W } from './words.js'
-
-export const TENSORFOLD_MODEL_PREFIX = 'local/'
 
 export type TensorFoldAct =
   | { kind: 'installing'; line?: string }
@@ -181,7 +179,7 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
   return { ...facts, ...(landing !== undefined ? { landing } : {}), live: liveLineOf(facts), copySupportOffered: Object.values(state.acts).some(act => act.kind === 'refused' || act.kind === 'exited' || act.kind === 'tight') }
 }
 
-export function landingOf(facts: Pick<TensorFoldPanelFacts, 'rows' | 'served' | 'outside' | 'install' | 'platform' | 'acts'>): string | undefined {
+function landingOf(facts: Pick<TensorFoldPanelFacts, 'rows' | 'served' | 'outside' | 'install' | 'platform' | 'acts'>): string | undefined {
   const acting = Object.entries(facts.acts).find(([, act]) => act.kind === 'pulling' || act.kind === 'starting' || act.kind === 'refused' || act.kind === 'exited' || act.kind === 'tight')
   if (acting !== undefined) return acting[0]
   if (facts.served.length > 0) return facts.served[0]!.repo
@@ -218,7 +216,7 @@ export function liveLineOf(facts: Omit<TensorFoldPanelFacts, 'live' | 'copySuppo
   return `${W.nothingServed} · ${facts.machine.backend}`
 }
 
-export function replyWords(reply: { firstTokenMs?: number; tokensPerSecond?: number } | undefined): string {
+function replyWords(reply: { firstTokenMs?: number; tokensPerSecond?: number } | undefined): string {
   const speed = reply?.tokensPerSecond !== undefined ? `~${Math.round(reply.tokensPerSecond)} tok/s` : undefined
   if (reply?.firstTokenMs !== undefined) return [`first reply in ${Math.round(reply.firstTokenMs)} ms`, speed].filter(part => part !== undefined).join(' · ')
   return ['idle', speed].filter(part => part !== undefined).join(' · ')

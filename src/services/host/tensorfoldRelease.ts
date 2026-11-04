@@ -2,8 +2,8 @@ import type { HostRecipe } from './recipes.js'
 
 export const TENSORFOLD_HOST_VERSION = '1.2.2'
 export const TENSORFOLD_HOST_IMAGE = 'nvidia/cuda:13.0.3-base-ubuntu24.04@sha256:7c7413a56200486f71f181cad9310f6fd31b6bb21816ade15fc9c1e1e927a5c1'
-export const TENSORFOLD_HOST_IMAGE_SOURCE = 'https://hub.docker.com/layers/nvidia/cuda/13.0.3-base-ubuntu24.04/images/sha256-7c7413a56200486f71f181cad9310f6fd31b6bb21816ade15fc9c1e1e927a5c1'
-export const TENSORFOLD_RELEASE_BASE = 'https://github.com/ashhart/TensorFold/releases/download/v' + TENSORFOLD_HOST_VERSION + '/'
+const TENSORFOLD_HOST_IMAGE_SOURCE = 'https://hub.docker.com/layers/nvidia/cuda/13.0.3-base-ubuntu24.04/images/sha256-7c7413a56200486f71f181cad9310f6fd31b6bb21816ade15fc9c1e1e927a5c1'
+const TENSORFOLD_RELEASE_BASE = 'https://github.com/ashhart/TensorFold/releases/download/v' + TENSORFOLD_HOST_VERSION + '/'
 export const TENSORFOLD_RELEASE_PUBLIC_KEY = 'MCowBQYDK2VwAyEA80FFo6a9/NXHNX9zBV3/2tM9AbC//mShbseG74mkkGw='
 export const TENSORFOLD_RELEASE_SIGNED_PREFIX = 'tensorfold-native-checksum-v1\n'
 export const TENSORFOLD_RELEASE_ARCHIVES = {
@@ -11,14 +11,14 @@ export const TENSORFOLD_RELEASE_ARCHIVES = {
   aarch64: { platform: 'linux-aarch64', sha256: '17632c30f761e7f9051255744a17fc36f0b9c0d46343d47617bb34e7ec4e4128', bytes: 45836984 },
 } as const
 export const TENSORFOLD_HOST_PORT = 8080
-export const TENSORFOLD_HOST_VOLUME = '/workspace'
-export const TENSORFOLD_HOST_KEY_LABEL = 'mercury[inference]'
-export const TENSORFOLD_HOST_EFFORTS: readonly string[] = ['low', 'medium', 'high', 'xhigh', 'max']
-export const TENSORFOLD_HOST_CAPABILITIES: readonly string[] = ['8.0', '8.6', '8.9', '12.0', '12.1']
-export const TENSORFOLD_HOST_DRIVER_FLOOR = 580
-export const TENSORFOLD_HOST_WINDOWS: readonly number[] = [32768, 65536, 131072, 262144]
+const TENSORFOLD_HOST_VOLUME = '/workspace'
+const TENSORFOLD_HOST_KEY_LABEL = 'mercury[inference]'
+const TENSORFOLD_HOST_EFFORTS: readonly string[] = ['low', 'medium', 'high', 'xhigh', 'max']
+const TENSORFOLD_HOST_CAPABILITIES: readonly string[] = ['8.0', '8.6', '8.9', '12.0', '12.1']
+const TENSORFOLD_HOST_DRIVER_FLOOR = 580
+const TENSORFOLD_HOST_WINDOWS: readonly number[] = [32768, 65536, 131072, 262144]
 
-export type TensorFoldCardClass = 'supported' | 'unqualified' | 'refused'
+type TensorFoldCardClass = 'supported' | 'unqualified' | 'refused'
 export interface TensorFoldCard { gpu: string; vramGb: number; capability: string; class: TensorFoldCardClass; evidence: string }
 export const TENSORFOLD_CARDS: readonly TensorFoldCard[] = [
   { gpu: 'RTX 5090', vramGb: 32, capability: '12.0', class: 'supported', evidence: '16 RTX 5090 receipts on the public TensorFold board' },
@@ -37,7 +37,7 @@ export const TENSORFOLD_CARDS: readonly TensorFoldCard[] = [
   { gpu: 'GB300', vramGb: 288, capability: '10.3', class: 'refused', evidence: 'the 1.2.2 archive holds no sm_103 machine code and no PTX' },
 ]
 
-export interface TensorFoldStartingPoint { title: string; repo: string; name: string; revision?: string; drafter?: string; promptCacheGib?: number; downloadGb: number; weightsGib: number; drafterGib?: number; cacheKibPerToken: number; runtimeGib: number; maxWindow: number; source: string; variant: string }
+interface TensorFoldStartingPoint { title: string; repo: string; name: string; revision?: string; drafter?: string; promptCacheGib?: number; downloadGb: number; weightsGib: number; drafterGib?: number; cacheKibPerToken: number; runtimeGib: number; maxWindow: number; source: string; variant: string }
 export const TENSORFOLD_STARTING_POINTS: readonly TensorFoldStartingPoint[] = [
   { title: 'Qwen3.8 27B', variant: 'MLX 4-bit + DFlash2', repo: 'TensorFold/Qwen3.8-27B-MLX-4bit', name: 'qwen3.8-27b', drafter: 'z-lab/Qwen3.8-27B-DFlash2', downloadGb: 19.930634001, weightsGib: 14.98, drafterGib: 3.58, cacheKibPerToken: 64, runtimeGib: 2, maxWindow: 262144, source: 'https://github.com/ashhart/TensorFold/blob/main/docs/recipes/qwen3.8-27b.md' },
   { title: 'Nemotron Lightning', variant: 'MLX 4-bit', repo: 'TensorFold/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-MLX-4bit', name: 'nemotron-lightning', downloadGb: 18.544234457, weightsGib: 17.27, cacheKibPerToken: 6, runtimeGib: 2, maxWindow: 262144, source: 'https://github.com/ashhart/TensorFold/blob/main/docs/recipes/nemotron-3.5.md' },
@@ -45,16 +45,16 @@ export const TENSORFOLD_STARTING_POINTS: readonly TensorFoldStartingPoint[] = [
 ]
 
 export const tensorFoldMemoryGib = (point: TensorFoldStartingPoint, window: number): number => point.weightsGib + (point.drafterGib ?? 0) + window * point.cacheKibPerToken / 1048576 + (point.promptCacheGib ?? 0) + point.runtimeGib
-export const tensorFoldCardReserveGib = (card: Pick<TensorFoldCard, 'vramGb'>): number => Math.max(1, card.vramGb / 32)
-export const TENSORFOLD_HOST_WINDOW_FLOOR = 65536
+const tensorFoldCardReserveGib = (card: Pick<TensorFoldCard, 'vramGb'>): number => Math.max(1, card.vramGb / 32)
+const TENSORFOLD_HOST_WINDOW_FLOOR = 65536
 export function tensorFoldWindowFor(point: TensorFoldStartingPoint, card: Pick<TensorFoldCard, 'vramGb'>): number | undefined {
   const usable = card.vramGb - tensorFoldCardReserveGib(card)
   return [...TENSORFOLD_HOST_WINDOWS].reverse().find(window => window >= TENSORFOLD_HOST_WINDOW_FLOOR && window <= point.maxWindow && tensorFoldMemoryGib(point, window) <= usable)
 }
 export const tensorFoldWindowWords = (window: number): string => window >= 1048576 ? window / 1048576 + 'M' : Math.round(window / 1024) + 'k'
 export const tensorFoldTitle = (point: Pick<TensorFoldStartingPoint, 'title'>): string => point.title + ' on TensorFold'
-export const tensorFoldRecipeId = (point: TensorFoldStartingPoint, card: TensorFoldCard): string => 'tensorfold-' + point.name.replaceAll('.', '') + '-' + card.gpu.toLowerCase().replaceAll(' ', '-')
-export const tensorFoldServeFlags = (point: TensorFoldStartingPoint, window: number): string[] => ['--name', point.name, '--context', String(window), ...(point.drafter ? ['--drafter', point.drafter] : []), ...(point.promptCacheGib ? ['--prompt-cache-gib', String(point.promptCacheGib)] : [])]
+const tensorFoldRecipeId = (point: TensorFoldStartingPoint, card: TensorFoldCard): string => 'tensorfold-' + point.name.replaceAll('.', '') + '-' + card.gpu.toLowerCase().replaceAll(' ', '-')
+const tensorFoldServeFlags = (point: TensorFoldStartingPoint, window: number): string[] => ['--name', point.name, '--context', String(window), ...(point.drafter ? ['--drafter', point.drafter] : []), ...(point.promptCacheGib ? ['--prompt-cache-gib', String(point.promptCacheGib)] : [])]
 export const tensorFoldClassWords = (card: TensorFoldCard): string => card.class === 'supported' ? 'supported' : card.class === 'unqualified' ? 'ships · unqualified by TensorFold' : 'not offered'
 
 export function tensorFoldHostRecipes(): HostRecipe[] {
@@ -92,7 +92,7 @@ export const tensorFoldCardFor = (gpu: string): TensorFoldCard | undefined => {
 
 const quote = (value: string): string => "'" + value.replaceAll("'", "'\\''") + "'"
 const pem = (key: string): string => "printf '%s\\n' '-----BEGIN PUBLIC KEY-----' " + quote(key) + " '-----END PUBLIC KEY-----' > release-key.pem"
-export const tensorFoldKeyFileLine = (key: string): string => TENSORFOLD_HOST_KEY_LABEL + ': ' + key + '\n'
+const tensorFoldKeyFileLine = (key: string): string => TENSORFOLD_HOST_KEY_LABEL + ': ' + key + '\n'
 export const tensorFoldKeyPath = (dir: string): string => dir + '/api-key'
 export const tensorFoldReadyCommand = (dir: string): string => 'curl -fsS --max-time 10 http://127.0.0.1:' + TENSORFOLD_HOST_PORT + '/health >/dev/null && curl -fsS --max-time 10 -H "Authorization: Bearer $(cut -d \' \' -f 2 ' + quote(tensorFoldKeyPath(dir)) + ')" http://127.0.0.1:' + TENSORFOLD_HOST_PORT + '/v1/models'
 export const tensorFoldKeyWriteCommand = (dir: string, key: string): string => 'umask 077; mkdir -p ' + quote(dir) + ' && printf %s ' + quote(tensorFoldKeyFileLine(key)) + ' > ' + quote(tensorFoldKeyPath(dir)) + ' && chmod 600 ' + quote(tensorFoldKeyPath(dir))

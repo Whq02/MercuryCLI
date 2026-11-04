@@ -127,6 +127,7 @@ const SURFACES: readonly string[] = [
 
 const SKIP_FUNCTIONS = new Set([
   'weightCheckScript',
+  'tensorFoldEngineScript',
   'downloadWatchScript',
   'hostDownloadScript',
   'bankDownloadScript',

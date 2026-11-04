@@ -18,7 +18,7 @@ import { claimModelPickerPopup } from '../../utils/cockpit/modelPickerPopup.js'
 import { openSettingsPopup } from '../../utils/cockpit/settingsPopup.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { llmHostPopupRequest } from '../llmhost/llmhost.js'
-import { modelIdOf, pickerFactsOf, type TensorFoldPickerAct } from './pickerFacts.js'
+import { pickerFactsOf, type TensorFoldPickerAct } from './pickerFacts.js'
 import {
   SHARE_WORDS,
   UNSHARE_WORDS,

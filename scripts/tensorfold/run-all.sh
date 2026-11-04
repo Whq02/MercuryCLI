@@ -4,7 +4,7 @@
 # gate-watch: scripts/tensorfold/fixtures/** scripts/lib/settingsPopupHarness.ts scripts/lib/hermetic.ts
 # gate-watch: src/services/projectServices/serviceManager.ts src/services/localServer/localWindowFit.ts src/utils/model/seatReceipts.ts
 # gate-watch: src/components/design-system/ThemeProvider.tsx src/ink.ts src/state/AppState.tsx src/utils/config.ts src/services/providers/local/localDiscovery.ts
-# gate-watch: src/components/MercuryModelPicker.tsx src/components/tensorfold/** src/utils/model/modelPickerGroups.ts src/utils/model/modelPickerFooter.ts
+# gate-watch: src/components/MercuryModelPicker.tsx src/components/tensorfold/** src/utils/model/modelPickerGroups.ts src/utils/model/modelPickerFooter.ts scripts/ui/gridToPng.ts
 # gate-watch: src/services/providers/local/tensorfoldHosts.ts src/services/providers/local/tensorfoldKeyFile.ts src/services/providers/local/tensorfoldApp.ts src/services/providers/local/tensorfoldHelper.ts src/services/lan/pairing.ts src/services/host/tensorfoldPod.ts src/services/host/tensorfoldRelease.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

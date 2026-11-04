@@ -5,7 +5,7 @@ import { getCachedLocalDiscovery, refreshLocalDiscovery, type LocalDiscoverySnap
 import { detectTensorFoldApp, type TensorFoldAppState } from './tensorfoldApp.js'
 import { tensorFoldHostAddress, tensorFoldHostRecords, tensorFoldHostRoot } from './tensorfoldHosts.js'
 
-export const TENSORFOLD_SERVICE_NAME = 'tensorfold'
+const TENSORFOLD_SERVICE_NAME = 'tensorfold'
 export const TENSORFOLD_WINDOW_FLOOR = 32768
 
 export interface TensorFoldServerState {
@@ -24,7 +24,7 @@ export interface TensorFoldServerState {
   started?: TensorFoldServed
 }
 
-export interface TensorFoldExit {
+interface TensorFoldExit {
   name: string
   lastLine?: string
 }
@@ -87,7 +87,7 @@ async function readExited(): Promise<TensorFoldExit | undefined> {
   }
 }
 
-export function serverStateOf(record: LocalServerRecord, served: readonly TensorFoldServed[], hosts: readonly TensorFoldHost[]): TensorFoldServerState {
+function serverStateOf(record: LocalServerRecord, served: readonly TensorFoldServed[], hosts: readonly TensorFoldHost[]): TensorFoldServerState {
   const root = tensorFoldHostRoot(record.root)
   const model = record.models[0]
   const port = Number(new URL(root).port)
@@ -121,10 +121,6 @@ export async function readTensorFoldState(reads: TensorFoldStateReads = {}): Pro
   const hosts = (reads.hosts ?? (() => tensorFoldHostRecords()))()
   const servers = (snapshot?.servers ?? []).filter(server => server.kind === 'tensorfold').map(server => serverStateOf(server, served, hosts))
   return { engine, servers, ...(exited !== undefined ? { exited } : {}), app, helper: (reads.helper ?? readHelper)() }
-}
-
-export function localTensorFoldServers(state: TensorFoldState): TensorFoldServerState[] {
-  return state.servers.filter(server => server.host === undefined || server.host.origin === 'app')
 }
 
 export function tensorFoldPresent(state: TensorFoldState): boolean {

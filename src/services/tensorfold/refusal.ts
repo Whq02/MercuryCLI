@@ -3,7 +3,7 @@ import { LOWER_OR_SMALLER, gibOf, wiredLimitOfferFor, type TensorFoldMachineTrut
 import { GIB } from './starting.js'
 import { tokensWords } from '../localServer/localServerMemory.js'
 
-export type TensorFoldRefusalKind = 'port' | 'memory' | 'gpu-limit' | 'cache-cap' | 'not-pulled' | 'driver' | 'family' | 'exited' | 'other'
+type TensorFoldRefusalKind = 'port' | 'memory' | 'gpu-limit' | 'cache-cap' | 'not-pulled' | 'driver' | 'family' | 'exited' | 'other'
 
 export type TensorFoldRefusal = {
   kind: TensorFoldRefusalKind
@@ -28,7 +28,7 @@ export function lastStderrLine(text: string): string {
   return lines[lines.length - 1] ?? ''
 }
 
-export function stripEnginePrefix(line: string): string {
+function stripEnginePrefix(line: string): string {
   return line.replace(/^tensorfold(?:-native)?:\s*/, '').trim()
 }
 
@@ -73,7 +73,7 @@ export function readTensorFoldRefusal(stderr: string, context: { window?: number
   return { kind: 'other', line: spoken === '' ? exitWords(context.exit) : spoken }
 }
 
-export function exitWords(exit: { code: number | null; signal: string | null } | undefined): string {
+function exitWords(exit: { code: number | null; signal: string | null } | undefined): string {
   if (exit === undefined) return 'the engine stopped without a word'
   if (exit.signal !== null) return `signal ${signalNumber(exit.signal)} (${signalName(exit.signal)})`
   return `exit ${exit.code ?? 'unknown'}`
@@ -82,11 +82,11 @@ export function exitWords(exit: { code: number | null; signal: string | null } |
 const SIGNALS: Record<string, number> = { SIGHUP: 1, SIGINT: 2, SIGQUIT: 3, SIGILL: 4, SIGABRT: 6, SIGBUS: 10, SIGKILL: 9, SIGSEGV: 11, SIGTERM: 15 }
 const SIGNAL_WORDS: Record<string, string> = { SIGKILL: 'killed', SIGTERM: 'terminated', SIGINT: 'interrupted', SIGSEGV: 'crashed', SIGABRT: 'aborted', SIGBUS: 'crashed', SIGILL: 'crashed', SIGHUP: 'hung up', SIGQUIT: 'quit' }
 
-export function signalNumber(signal: string): number | string {
+function signalNumber(signal: string): number | string {
   return SIGNALS[signal] ?? signal
 }
 
-export function signalName(signal: string): string {
+function signalName(signal: string): string {
   return SIGNAL_WORDS[signal] ?? signal.toLowerCase()
 }
 
