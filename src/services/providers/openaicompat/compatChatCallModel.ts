@@ -847,7 +847,7 @@ export async function* compatChatCallModel(
         remedy: profile.billingRemedy ?? 'top up the account at the provider, then retry; /model picks another model meanwhile.',
       })
     }
-    const refusedImage = imageRefusalWords(request, outcome.fault)
+    const refusedImage = imageRefusalWords(request, { ...outcome.fault, message: outcome.fault.wireMessage ?? outcome.fault.message })
     if (refusedImage !== null) {
       noteImageRefusal(modelId, refusedImage)
       const serverRefusal = compatImageRefusalWords(modelId, refusedImage)
