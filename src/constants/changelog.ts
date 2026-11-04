@@ -1,6 +1,18 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.5
+- Changed every tool's model-facing text: each description states what the tool does and returns, once; units, bounds and defaults live on the parameter fields; only the six tools with a separate reference (Browser, Crewmate, Debug, Document, Eval, Workflow) send a first-use manual.
+- Changed the deferred tool roster to list each tool with its full one-line purpose, with search keywords kept in an off-wire index; in ToolSearch a +word term matches a tool's name, description or search words.
+- Changed the bundled FilmCraft extension to 0.17.0: the control port requires a session token that Mercury creates per launch, keeps in a private file and passes through the environment; attaching to a window you started by hand takes tokenFile; craft_connect describes all seven of its fields.
+- Changed the bundled PhotoCraft extension to 0.20.1 (one archive per platform; on macOS the command-line tool bundled in the app) and LightCraft to 0.18.0.
+- Changed the bundled skills to be smaller and current: provider-apis points at the live model classifier and per-dialect references instead of copied inventories; image-generation, mcp-smithy, skill-forge and research follow the connected servers and the requested deliverable instead of fixed procedures; the FilmCraft, PhotoCraft and LightCraft skills keep each app's safety boundaries and current commands.
+- Fixed the model-facing input schemas of AskUserQuestion, Workflow and Computer: AskUserQuestion exposes only its questions, Workflow accepts only the five parameters it reads, and Computer's step items no longer admit a nested sequence action.
+- Fixed the Bash and PowerShell descriptions: the transcript shows a collapsed preview of command output (not nothing); exit 1 is a result only when the last command is a search or test command, with a per-command label; the working directory persists between calls only in the main conversation.
+- Fixed the Read, NotebookEdit and Skill descriptions: Read selects PDF pages as pictures only on models with image input and as text otherwise; NotebookEdit resolves a relative path against the working directory; a skill declared to fork runs in a crewmate.
+- Fixed the Eval and ScheduleWakeup descriptions: Eval raises in the cell whenever a nested tool call returns an error, with tool.attempt returning the error as a value; ScheduleWakeup's reason heads the woken prompt and shows on the wake's row.
+- Fixed the Crewmate, Workflow and Journey descriptions: an omitted effort or model takes the agent definition's setting, then the configured crewmate default, then yours; Workflow's agents wait for a free crewmate slot only while a model call is in flight; a Journey's kept services end with the session.
+
 ## 1.0.4
 - Changed the crew board to carry every post whole to every crewmate: a post reaches every enrolled crewmate, the lead included, at its next turn boundary, and a read returns everything new. The swarm limits are gone with their settings: /swarm cap and /swarm uncap, the Swarm limits group in /config, and the swarm.seatAllowance, swarm.waveAllowance, swarm.postChars, swarm.postsPerMinute and swarm.postsPerSeat keys; an older settings file still carrying them loads silently, and a board file from an older build drops its limit tables when opened.
 - Fixed a crewmate on the live crew board posting once or twice and then losing its CrewBoard tool for the rest of its run; a crewmate now carries the board tool in full from launch or resume, while the lead keeps it on demand.
