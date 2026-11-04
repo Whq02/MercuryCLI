@@ -1,6 +1,7 @@
 
 import { z } from 'zod'
 import { buildTool, type ToolPermissionContext } from '../../Tool.js'
+import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
 import { getAgentContext } from '../../utils/agentContext.js'
 import {
   isFlowGateEnabled,
@@ -64,6 +65,13 @@ const inputSchema = z.object({
     ),
 })
 
+const modelInputSchema = z.strictObject({
+  summary: inputSchema.shape.summary,
+  blockers: inputSchema.shape.blockers,
+  specFiles: inputSchema.shape.specFiles,
+  runNote: inputSchema.shape.runNote,
+})
+
 const outputSchema = z.object({
   summary: z.string(),
   blockers: z.array(z.string()),
@@ -82,6 +90,9 @@ export type Output = z.infer<typeof outputSchema>
 export const ApolloReviewTool = buildTool({
   name: APOLLO_REVIEW_TOOL_NAME,
   inputSchema,
+  get inputJSONSchema() {
+    return zodToJsonSchema(modelInputSchema) as never
+  },
   outputSchema,
   maxResultSizeChars: RESULT_SIZE_CAP,
   shouldDefer: true,
