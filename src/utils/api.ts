@@ -59,12 +59,47 @@ export function splitSystemPromptBlocks(systemPrompt: readonly string[]): System
 export function appendSystemContext(
   systemPrompt: readonly string[],
   context: Record<string, string>,
+  model?: string,
 ): string[] {
   if (isWholeRecordedComposition(systemPrompt)) return [...systemPrompt]
+  const local = model !== undefined && localPromptProfileApplies(model)
+  const segments = local ? systemPrompt.filter(segment => !firstTurnSegment(segment)) : systemPrompt
   const line = Object.entries(context)
+    .filter(([key]) => !local || key !== 'gitStatus')
     .map(([key, value]) => `${key}: ${value}`)
     .join('\n')
-  return [...systemPrompt, line].filter(block => block)
+  return [...segments, line].filter(block => block)
+}
+
+function firstTurnSegment(segment: string): boolean {
+  const { isFirstTurnSegment } = require('../constants/prompts.js') as typeof import('../constants/prompts.js')
+  return isFirstTurnSegment(segment)
+}
+
+function firstUserPrompt(messages: readonly Message[] | undefined): string | undefined {
+  for (const message of messages ?? []) {
+    if (message.type !== 'user' || message.isMeta === true) continue
+    const content = message.message.content
+    if (typeof content === 'string') return content
+    const text = content.filter(block => block.type === 'text').map(block => (block as { text: string }).text).join('\n')
+    if (text !== '') return text
+  }
+  return undefined
+}
+
+export async function firstTurnUserContext(
+  userContext: Record<string, string>,
+  systemContext: Record<string, string> | (() => Promise<Record<string, string>>),
+  model: string | undefined,
+  agentId?: string,
+  messages?: readonly Message[],
+): Promise<Record<string, string>> {
+  if (model === undefined || !localPromptProfileApplies(model)) return userContext
+  const { localFirstTurnFacts } = require('../constants/prompts.js') as typeof import('../constants/prompts.js')
+  const system = typeof systemContext === 'function' ? await systemContext() : systemContext
+  const prompt = firstUserPrompt(messages)
+  const facts = await localFirstTurnFacts(agentId, prompt === undefined ? undefined : { prompt })
+  return { ...userContext, ...facts, ...(system.gitStatus ? { gitStatus: system.gitStatus } : {}) }
 }
 
 export function prependUserContext(

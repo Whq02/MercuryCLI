@@ -55,6 +55,8 @@ import {
 import type { Attachment } from './types.js'
 import { rosterOwnerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { getUserContextAttachment } from './userContext.js'
+import { firstTurnUserContext } from '../api.js'
+import { getSystemContext, getUserContext } from '../../context.js'
 import { getToolManualAttachments } from './toolManuals.js'
 
 export async function getAttachments(
@@ -195,8 +197,8 @@ export async function getAttachments(
         }),
       { priority: true },
     ),
-    maybe('user_context', () =>
-      isMainThread ? getUserContextAttachment(messages, undefined, opening) : Promise.resolve([]),
+    maybe('user_context', async () =>
+      isMainThread ? getUserContextAttachment(messages, await firstTurnUserContext(await getUserContext(), getSystemContext, toolUseContext.options.engineModel, undefined, messages), opening) : [],
     ),
     maybe('tool_manuals', () => getToolManualAttachments(context), { priority: true, inputScoped: true }),
     maybe('critical_system_reminder', () =>

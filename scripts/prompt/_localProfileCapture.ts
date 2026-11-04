@@ -133,7 +133,7 @@ function seedPod(home: string, base: string, engine: string): void {
 }
 
 export async function captureRoad(options: {
-  road: 'local' | 'zai' | 'pod'
+  road: 'local' | 'zai' | 'pod' | 'llamacpp'
   podEngine?: string
   task: string
   reply: (request: ChatRequest, index: number) => ScriptedReply
@@ -141,6 +141,7 @@ export async function captureRoad(options: {
   mode?: string
   env?: Record<string, string>
   files?: Record<string, string>
+  reuse?: { home: string; cwd: string }
 }): Promise<RoadCapture> {
   const requests: ChatRequest[] = []
   const server = createServer((request, response) => {
@@ -148,9 +149,14 @@ export async function captureRoad(options: {
     request.on('data', chunk => chunks.push(chunk))
     request.on('end', () => {
       const path = new URL(request.url ?? '/', 'http://127.0.0.1').pathname
+      if (request.method === 'GET' && options.road === 'llamacpp' && path === '/props') {
+        response.writeHead(200, { 'content-type': 'application/json' })
+        response.end(JSON.stringify({ default_generation_settings: { n_ctx: LOCAL_FIXTURE_WINDOW }, build_info: 'fixture' }))
+        return
+      }
       if (request.method === 'GET' && path.endsWith('/models')) {
         response.writeHead(200, { 'content-type': 'application/json' })
-        response.end(JSON.stringify(options.road === 'local' ? TENSORFOLD_MODELS : options.road === 'pod' ? { object: 'list', data: [{ id: 'qwen3.8-27b', object: 'model', created: 1, owned_by: options.podEngine ?? 'tensorfold' }] } : { data: [] }))
+        response.end(JSON.stringify(options.road === 'local' ? TENSORFOLD_MODELS : options.road === 'pod' ? { object: 'list', data: [{ id: 'qwen3.8-27b', object: 'model', created: 1, owned_by: options.podEngine ?? 'tensorfold' }] } : options.road === 'llamacpp' ? { object: 'list', data: [{ id: LOCAL_FIXTURE_MODEL, object: 'model', created: 1, owned_by: 'llamacpp', meta: { n_ctx: LOCAL_FIXTURE_WINDOW } }] } : { data: [] }))
         return
       }
       if (request.method !== 'POST' || !path.endsWith('/chat/completions')) {
@@ -168,22 +174,30 @@ export async function captureRoad(options: {
   const address = server.address()
   if (address === null || typeof address === 'string') throw new Error('fixture address unavailable')
   const base = `http://127.0.0.1:${address.port}`
-  const { home, cwd } = scratchHome(`local-profile-${options.road}`)
+  const { home, cwd } = options.reuse ?? scratchHome(`local-profile-${options.road}`)
   try {
-    seedProject(cwd, home, options.files ?? { 'README.md': '# Fixture project\n', 'package.json': JSON.stringify({ name: 'fixture', scripts: { test: 'node test.js' } }) })
+    if (options.reuse === undefined) seedProject(cwd, home, options.files ?? { 'README.md': '# Fixture project\n', 'package.json': JSON.stringify({ name: 'fixture', scripts: { test: 'node test.js' } }) })
     if (options.road === 'pod') seedPod(home, base, options.podEngine ?? 'tensorfold')
     const roadEnv: Record<string, string> = options.road === 'local'
       ? { MERCURY_LOCAL_BASE_URL: `${base}/v1` }
-      : options.road === 'pod'
-        ? {}
-        : { MERCURY_ZAI_API_BASE: `${base}/zai/v4`, ZAI_API_KEY: 'local-profile-fixture-key-not-real' }
-    const model = options.road === 'local' ? `local/${LOCAL_FIXTURE_MODEL}` : options.road === 'pod' ? POD_FIXTURE_MODEL : CLOUD_FIXTURE_MODEL
+      : options.road === 'llamacpp'
+        ? { MERCURY_LOCAL_PROBE_TARGETS: `llamacpp=${base}` }
+        : options.road === 'pod'
+          ? {}
+          : { MERCURY_ZAI_API_BASE: `${base}/zai/v4`, ZAI_API_KEY: 'local-profile-fixture-key-not-real' }
+    const model = options.road === 'local' || options.road === 'llamacpp' ? `local/${LOCAL_FIXTURE_MODEL}` : options.road === 'pod' ? POD_FIXTURE_MODEL : CLOUD_FIXTURE_MODEL
     const result = await runMercury(['run', options.task, '--model', model, '--format', 'rows', '--mode', options.mode ?? 'default', '--max-turns', String(options.maxTurns)], cwd, runEnv(home, { ...roadEnv, ...(options.env ?? {}) }), 120_000)
     return { requests, ...result, home, cwd, normalize: normalizerFor(home, cwd) }
   } finally {
     server.closeAllConnections()
     await new Promise<void>(resolveClose => server.close(() => resolveClose()))
   }
+}
+
+export function commitChange(cwd: string, home: string, file: string, text: string): void {
+  writeFileSync(join(cwd, file), text)
+  const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'Dev', GIT_AUTHOR_EMAIL: 'dev@example.com', GIT_COMMITTER_NAME: 'Dev', GIT_COMMITTER_EMAIL: 'dev@example.com', GIT_AUTHOR_DATE: FIXED_GIT_DATE, GIT_COMMITTER_DATE: FIXED_GIT_DATE, HOME: join(home, 'user-home') }
+  for (const args of [['add', file], ['commit', '-q', '-m', `Change ${file}`]]) execFileSync('git', args, { cwd, env: gitEnv, stdio: 'ignore' })
 }
 
 export function systemTextOf(request: ChatRequest): string {
@@ -200,7 +214,7 @@ export function toolNamesOf(request: ChatRequest): string[] {
   return (request.tools ?? []).map(tool => tool.function.name)
 }
 
-export async function tokenizedCount(tokenizer: string, request: Pick<ChatRequest, 'model' | 'messages' | 'tools'>): Promise<number | undefined> {
+export async function tokenizedTokens(tokenizer: string, request: Pick<ChatRequest, 'model' | 'messages' | 'tools'>): Promise<number[] | undefined> {
   try {
     const response = await fetch(`${tokenizer.replace(/\/+$/, '').replace(/\/v1$/, '')}/v1/tokenize`, {
       method: 'POST',
@@ -209,9 +223,17 @@ export async function tokenizedCount(tokenizer: string, request: Pick<ChatReques
       signal: AbortSignal.timeout(60_000),
     })
     if (!response.ok) return undefined
-    const body = (await response.json()) as { count?: unknown }
-    return typeof body.count === 'number' ? body.count : undefined
+    const body = (await response.json()) as { tokens?: unknown }
+    return Array.isArray(body.tokens) && body.tokens.every(token => typeof token === 'number') ? (body.tokens as number[]) : undefined
   } catch {
     return undefined
   }
+}
+
+export async function tokenizedCount(tokenizer: string, request: Pick<ChatRequest, 'model' | 'messages' | 'tools'>): Promise<number | undefined> {
+  return (await tokenizedTokens(tokenizer, request))?.length
+}
+
+export function userContextReminderOf(request: ChatRequest): string {
+  return reminderTextsOf(request).find(text => text.includes('# currentDate')) ?? ''
 }
