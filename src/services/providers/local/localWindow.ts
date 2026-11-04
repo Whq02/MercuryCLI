@@ -154,6 +154,7 @@ export function localWindowApplication(record: Pick<LocalModelRecord, 'server'>)
       return 'load'
     case 'vllm':
     case 'llamacpp':
+    case 'tensorfold':
       return 'server-start'
     case 'openai-compatible':
       return 'none'
