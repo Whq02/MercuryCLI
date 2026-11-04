@@ -7,12 +7,15 @@ export type TensorFoldFamily = {
   qualified: boolean
 }
 
+export type TensorFoldOptionalLibrary = { name: string; found: boolean; note?: string }
+
 export type TensorFoldEngine = {
   version: string
   binary: string
   chip: string
   backends: readonly string[]
   families: readonly TensorFoldFamily[]
+  optionalLibraries?: readonly TensorFoldOptionalLibrary[]
 }
 
 export type TensorFoldModelState = 'serving' | 'loading' | 'on-disk' | 'pulling' | 'not-pulled'
@@ -80,6 +83,8 @@ export type TensorFoldServed = {
   pid: number
   startedAt: string
   keyFile?: string
+  drafter?: string
+  promptCacheGib?: number
 }
 
 export type TensorFoldHostOrigin = 'lan-paired' | 'typed' | 'pod' | 'app'
