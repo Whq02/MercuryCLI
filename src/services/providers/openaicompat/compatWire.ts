@@ -185,14 +185,24 @@ export const TENSORFOLD_THINKING_BUDGETS: Readonly<Record<string, number>> = {
   max: 65536,
 }
 
-export function tensorFoldEffortWire(args: { effortValue: string | undefined; thinkingEnabled: boolean }): { reasoning_effort: string; thinking_budget?: number } | undefined {
+export const TENSORFOLD_ANSWER_RESERVE = 2048
+
+export function tensorFoldThinkingBudget(asked: string, maxOutputTokens: number | undefined): number | undefined {
+  const budget = TENSORFOLD_THINKING_BUDGETS[asked]
+  if (budget === undefined) return undefined
+  if (maxOutputTokens === undefined) return budget
+  const room = maxOutputTokens - TENSORFOLD_ANSWER_RESERVE
+  return room > 0 ? Math.min(budget, room) : undefined
+}
+
+export function tensorFoldEffortWire(args: { effortValue: string | undefined; thinkingEnabled: boolean; maxOutputTokensOverride?: number | undefined }): { reasoning_effort: string; thinking_budget?: number } | undefined {
   if (!args.thinkingEnabled) return { reasoning_effort: 'none' }
   const asked = args.effortValue
   if (asked === undefined) return undefined
   if (TENSORFOLD_THINKING_OFF_LEVELS.includes(asked)) return { reasoning_effort: 'none' }
   const wire = LOCAL_SERVER_EFFORTS.tensorfold.includes(asked) ? asked : nearestSupportedWireEffort(asked, LOCAL_SERVER_EFFORTS.tensorfold)
   if (wire === undefined) return undefined
-  const budget = TENSORFOLD_THINKING_BUDGETS[asked]
+  const budget = tensorFoldThinkingBudget(asked, args.maxOutputTokensOverride)
   return { reasoning_effort: wire, ...(budget !== undefined ? { thinking_budget: budget } : {}) }
 }
 
