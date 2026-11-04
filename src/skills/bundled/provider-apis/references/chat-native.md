@@ -12,7 +12,7 @@ Historical CODE map, 2026-10-26, except the dated Mistral correction. Paths are 
 
 ## xAI
 
-`xai/xaiCallModel.ts` selects shared chat for API keys and `xai/xaiResponsesTransport.ts` for subscription credentials. Chat settlement reconciles reasoning outside `completion_tokens` using total minus input, and preserves `cost_in_usd_ticks`. `xai/xaiUsageState.ts` separates subscription credit from team billing through an optional management key. Public management docs establish a separate credential/host; subscription proxy and private quota fields remain CODE/account-specific, **UNRESOLVED** externally.
+`xai/xaiCallModel.ts` selects shared chat for API keys and `xai/xaiResponsesTransport.ts` for subscription credentials. Chat settlement reconciles reasoning outside `completion_tokens` using total minus input, and preserves `cost_in_usd_ticks`. `xai/xaiUsageState.ts` separates subscription credit from the console's usage meter, read through an optional management key. Public management docs establish a separate credential/host; subscription proxy and private quota fields remain CODE/account-specific, **UNRESOLVED** externally.
 
 ## Meta
 
