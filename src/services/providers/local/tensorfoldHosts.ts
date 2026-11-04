@@ -55,10 +55,11 @@ function hostRecordOf(raw: unknown): TensorFoldHostRecord | undefined {
     name,
     baseUrl: tensorFoldHostRoot(baseUrl),
     origin: origin as TensorFoldHostOrigin,
-    ...(str(row.key) !== undefined ? { key: str(row.key)!, keyRef: 'stored' } : {}),
+    ...(str(row.key) !== undefined ? { key: str(row.key)!, keyRef: str(row.keyRef) ?? 'stored' } : str(row.keyRef) !== undefined ? { keyRef: str(row.keyRef)! } : {}),
     ...(str(row.serving) !== undefined ? { serving: str(row.serving)! } : {}),
     ...(str(row.version) !== undefined ? { version: str(row.version)! } : {}),
     ...(str(row.chip) !== undefined ? { chip: str(row.chip)! } : {}),
+    ...(typeof row.window === 'number' && Number.isFinite(row.window) && row.window > 0 ? { window: row.window } : {}),
     ...(str(row.pairedAt) !== undefined ? { pairedAt: str(row.pairedAt)! } : {}),
   }
 }
@@ -93,10 +94,11 @@ export async function rememberTensorFoldHost(host: TensorFoldHost & { key?: stri
     name: host.name,
     baseUrl,
     origin: host.origin,
-    ...(host.key !== undefined && host.key !== '' ? { key: host.key, keyRef: 'stored' } : before?.key !== undefined ? { key: before.key, keyRef: 'stored' } : {}),
+    ...(host.key !== undefined && host.key !== '' ? { key: host.key, keyRef: host.keyRef ?? 'stored' } : before?.key !== undefined ? { key: before.key, keyRef: host.keyRef ?? before.keyRef ?? 'stored' } : host.keyRef !== undefined ? { keyRef: host.keyRef } : {}),
     ...(host.serving !== undefined ? { serving: host.serving } : before?.serving !== undefined ? { serving: before.serving } : {}),
     ...(host.version !== undefined ? { version: host.version } : before?.version !== undefined ? { version: before.version } : {}),
     ...(host.chip !== undefined ? { chip: host.chip } : before?.chip !== undefined ? { chip: before.chip } : {}),
+    ...(host.window !== undefined ? { window: host.window } : before?.window !== undefined ? { window: before.window } : {}),
     pairedAt: before?.pairedAt ?? new Date().toISOString(),
   }
   writeStore({ ...store, hosts: [...store.hosts.filter(row => row !== before), next] })
