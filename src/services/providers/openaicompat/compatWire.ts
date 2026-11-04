@@ -144,13 +144,14 @@ export function buildHuggingfaceExtras(args: LaneExtrasArgs): Record<string, unk
   }
 }
 
-export type LocalServerKind = 'ollama' | 'lmstudio' | 'vllm' | 'llamacpp' | 'openai-compatible'
+export type LocalServerKind = 'ollama' | 'lmstudio' | 'vllm' | 'llamacpp' | 'tensorfold' | 'openai-compatible'
 
 export const LOCAL_SERVER_EFFORTS: Readonly<Record<LocalServerKind | 'sglang', readonly string[]>> = {
   ollama: ['none', 'low', 'medium', 'high', 'max'],
   vllm: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
   sglang: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
   llamacpp: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+  tensorfold: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
   lmstudio: [],
   'openai-compatible': [],
 }
@@ -161,6 +162,7 @@ export const LOCAL_SERVER_STATES_THINKING: Readonly<Record<LocalServerKind | 'sg
   vllm: false,
   sglang: false,
   llamacpp: false,
+  tensorfold: true,
   'openai-compatible': false,
 }
 

@@ -6,7 +6,7 @@ import { hostDirectory } from './store.js'
 import { hostRunner, inspectBoxMachine, inspectSsh, type HostRunner, type SshTarget } from './ssh.js'
 
 export const boxNameSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,27}$/)
-const engineKind = z.enum(['ollama', 'llamacpp', 'lmstudio', 'vllm', 'sglang'])
+const engineKind = z.enum(['ollama', 'llamacpp', 'lmstudio', 'vllm', 'sglang', 'tensorfold'])
 const boxSchema = z.object({
   name: boxNameSchema,
   kind: z.enum(['this-computer', 'ssh']),
