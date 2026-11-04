@@ -242,6 +242,7 @@ export type SystemSeatReceiptMessage = {
   subtype: 'seat_receipt'
   content: string
   level: SystemMessageLevel
+  copyText?: string
   isMeta?: boolean
   uuid: UUID
   timestamp: string

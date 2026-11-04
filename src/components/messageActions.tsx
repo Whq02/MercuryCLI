@@ -201,6 +201,7 @@ export function copyTextOf(msg: NavigableMessage): string {
       return parts.join('\n\n')
     }
     case 'system': {
+      if ('copyText' in msg && typeof msg.copyText === 'string' && msg.copyText !== '') return msg.copyText
       if ('content' in msg && typeof msg.content === 'string' && msg.content) {
         return msg.content
       }

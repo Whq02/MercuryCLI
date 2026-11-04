@@ -160,8 +160,8 @@ export function createThinkingDeadMessage(dead: Rows.DeadThinkingMark[], content
   return systemRow('thinking_dead', { level: 'info', content, dead })
 }
 
-export function createSeatReceiptMessage(content: string, level: Rows.SystemMessageLevel = 'info'): Rows.SystemSeatReceiptMessage {
-  return systemRow('seat_receipt', { level, content })
+export function createSeatReceiptMessage(content: string, level: Rows.SystemMessageLevel = 'info', copyText?: string): Rows.SystemSeatReceiptMessage {
+  return systemRow('seat_receipt', { level, content, ...(copyText !== undefined ? { copyText } : {}) })
 }
 
 export function createRosterTransitionMessage(toggle: 'subagents' | 'workflows', on: boolean, content: string): Rows.SystemRosterTransitionMessage {
