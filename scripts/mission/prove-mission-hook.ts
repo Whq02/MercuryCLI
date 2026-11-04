@@ -91,35 +91,36 @@ check(
   sawMissionMetSentinel([user('/mission g'), asst(`done.\n${MISSION_MET_SENTINEL}\n\n`)]) === true,
 )
 check(
-  'buildMissionDirective teaches the snapshot-condition rule',
+  'buildMissionDirective teaches the snapshot-goal rule',
   /progress snapshot/.test(buildMissionDirective('g')) &&
-    /PAST the described state counts as met/.test(buildMissionDirective('g')),
+    /met once the work it describes is done/.test(buildMissionDirective('g')),
 )
 
 section('sticky `met` flag wired in the Stop callback (structural)')
 const gh = src('guards', 'mission.ts')
 check(
-  'the block re-prompt (errorMessage) teaches the snapshot-condition rule',
-  /snapshot-style condition[\s\S]{0,180}past the described state is completion/i.test(gh),
+  'the hold re-prompt (the words) teaches the snapshot-goal rule',
+  /progress snapshot[\s\S]{0,120}met once the work it describes is done/i.test(gh),
 )
 check(
-  'the interactive /mission panel surfaces met + DISARMED (mirrors mission.ts wording)',
+  'the interactive /mission panel surfaces met + NEEDS THE OPERATOR (mirrors mission.ts wording)',
   /Mission met — stops are allowed/.test(src('commands', 'mission', 'mission-jsx.tsx')) &&
-    /Mission DISARMED \(block cap reached/.test(src('commands', 'mission', 'mission-jsx.tsx')),
+    /Mission NEEDS THE OPERATOR \(not met/.test(src('commands', 'mission', 'mission-jsx.tsx')),
 )
-check('the judge short-circuits on mission.met (sticky completion)', /if \(mission\.met\) return \{ hold: false \}/.test(gh))
-check('callback sets mission.met = true when the sentinel is first seen', /mission\.met = true/.test(gh))
+check('the judge short-circuits on mission.met and on the ask-the-human exit (sticky completion)', /if \(mission\.met \|\| mission\.needsOperator\) return \{ hold: false \}/.test(gh))
+check('callback sets mission.met = true on a met verdict', /mission\.met = true/.test(gh))
 check('ActiveMission carries the met field', /met\?:\s*boolean/.test(gh))
 
-section('honest cap-disarm: gaveUp recorded + surfaced (the LOW HONESTY finding)')
-check('ActiveMission carries the gaveUp field', /gaveUp\?:\s*boolean/.test(gh))
+section('the ask-the-human exit: needsOperator recorded + surfaced (no silent cap disarm)')
+check('ActiveMission carries the needsOperator field', /needsOperator\?:\s*boolean/.test(gh))
 check(
-  'the block-cap branch records the disarm before allowing the stop',
-  /mission\.gaveUp = true[\s\S]{0,200}block cap \(\$\{maxBlocks\}\) reached/.test(gh),
+  'the exit records needs-operator on the card before the stop is allowed',
+  /mission\.needsOperator = true[\s\S]{0,240}persistCard\(sessionId, mission, 'needs-operator'\)/.test(gh),
 )
+check('no block cap stands anywhere in the guard', !/maxBlocks|block cap|DEFAULT_MISSION_MAX_BLOCKS/.test(gh))
 check(
-  '/mission status renders met / DISARMED / active as distinct states',
-  /mission\.met[\s\S]{0,80}Mission met[\s\S]{0,120}mission\.gaveUp[\s\S]{0,120}DISARMED/.test(
+  '/mission status renders met / NEEDS THE OPERATOR / active as distinct states',
+  /mission\.met[\s\S]{0,80}Mission met[\s\S]{0,120}mission\.needsOperator[\s\S]{0,120}NEEDS THE OPERATOR/.test(
     src('commands', 'mission', 'mission.ts'),
   ),
 )

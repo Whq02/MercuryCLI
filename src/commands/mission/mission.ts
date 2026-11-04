@@ -35,12 +35,12 @@ export const call = async (
         }
       } catch {
       }
-      return text('No mission set. Usage: `/mission <condition>`')
+      return text('No mission set. Usage: `/mission <goal>` (or `/goal <goal>`)')
     }
     const stateLabel = mission.met
       ? 'Mission met'
-      : mission.gaveUp
-        ? 'Mission DISARMED (block cap reached, not met — set it again to re-arm)'
+      : mission.needsOperator
+        ? 'Mission NEEDS THE OPERATOR (not met — answer its question, or set the goal again)'
         : 'Mission active'
     const iterationsLabel =
       mission.iterations === 0
@@ -57,7 +57,7 @@ export const call = async (
 
   if (arg.length > MISSION_CONDITION_MAX_LENGTH) {
     return text(
-      `Mission condition is limited to ${MISSION_CONDITION_MAX_LENGTH} characters (got ${arg.length})`,
+      `A goal is limited to ${MISSION_CONDITION_MAX_LENGTH} characters (got ${arg.length})`,
     )
   }
 

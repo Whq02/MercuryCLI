@@ -13,7 +13,7 @@ const argument = (name: string): string | undefined => {
 const DIST = argument('--dist')
 const FRAMES = argument('--frames')
 const MISSION = 'relay probe'
-const HOOK_WORDS = `The standing mission for this session is not yet met: ${MISSION}`
+const HOOK_WORDS = `The goal for this session is not yet met (check 1): ${MISSION}`
 const CARD_LOOK_AFTER_MS = 2400
 
 let failures = 0

@@ -17,7 +17,7 @@ import {
 } from '../../guards/mission.js'
 
 
-type MissionView = Pick<ActiveMission, 'condition' | 'iterations' | 'lastReason' | 'met' | 'gaveUp'> & { seat?: boolean }
+type MissionView = Pick<ActiveMission, 'condition' | 'iterations' | 'lastReason' | 'met' | 'needsOperator'> & { seat?: boolean }
 
 function MissionStatusPanel({ mission }: { mission: MissionView }): React.ReactNode {
   const iterationsLabel =
@@ -26,8 +26,8 @@ function MissionStatusPanel({ mission }: { mission: MissionView }): React.ReactN
       : `${mission.iterations} ${plural(mission.iterations, 'turn')}`
   const stateLine = mission.met
     ? '✓ Mission met — stops are allowed; a new /mission replaces it'
-    : mission.gaveUp
-      ? `${GLYPH.warn} Mission DISARMED (block cap reached, not met — set it again to re-arm)`
+    : mission.needsOperator
+      ? `${GLYPH.warn} Mission NEEDS THE OPERATOR (not met — ${mission.lastReason ?? 'answer its question'}; a new /mission replaces it)`
       : `${iterationsLabel}${mission.lastReason ? ` · ${mission.lastReason}` : ''}${mission.seat ? " · the hook rides the session's seat" : ''}`
   return (
     <Box flexDirection="column">
@@ -79,7 +79,7 @@ export async function call(
         }
       } catch {
       }
-      onDone('No mission set. Usage: `/mission <condition>`')
+      onDone('No mission set. Usage: `/mission <goal>` (or `/goal <goal>`)')
       return null
     }
     const output = await renderToString(<MissionStatusPanel mission={mission} />)
@@ -97,7 +97,7 @@ export async function call(
 
   if (arg.length > MISSION_CONDITION_MAX_LENGTH) {
     onDone(
-      `Mission condition is limited to ${MISSION_CONDITION_MAX_LENGTH} characters (got ${arg.length})`,
+      `A goal is limited to ${MISSION_CONDITION_MAX_LENGTH} characters (got ${arg.length})`,
       { display: 'system' },
     )
     return null
