@@ -46,6 +46,7 @@ export {
   removeExtraFields,
   cleanForTranscript,
   isTranscribable,
+  writtenChainTail,
 } from './sessionStorage/chain.js'
 
 

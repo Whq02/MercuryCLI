@@ -170,6 +170,10 @@ export type Transcript = (
   | SystemMessage
 )[]
 
+export function writtenChainTail(messages: Message[], parentUuid?: string | null): string | undefined {
+  return cleanForTranscript(messages).at(-1)?.uuid ?? parentUuid ?? undefined
+}
+
 export function isTranscribable(m: Message): boolean {
   if (m.type === 'progress') return false
   if (m.type !== 'attachment') return true

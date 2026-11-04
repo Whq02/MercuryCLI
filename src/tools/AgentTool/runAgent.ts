@@ -97,11 +97,11 @@ import {
   clearAgentTranscriptSubdir,
   flushSessionStorage,
   getAgentTranscriptPath,
-  isTranscribable,
   recordSidechainTranscript,
   registerAgentTranscriptDestination,
   setAgentTranscriptSubdir,
   writeAgentMetadata,
+  writtenChainTail,
 } from '../../utils/sessionStorage.js'
 import { settledSidechainMessages } from '../../utils/sessionStorage/settledSidechainMessages.js'
 import { latchSwarmAgent, settleSwarmAgent, swarmBrief } from '../../services/crewBoard/seam.js'
@@ -558,21 +558,14 @@ export async function landAgentTranscriptRows(
   messages: Message[],
   agentId: AgentId,
   parentUuid?: string | null,
-): Promise<void> {
+): Promise<string | undefined> {
   try {
     await recordSidechainTranscript(messages, agentId, parentUuid as never)
     await flushSessionStorage()
   } catch {
+    return parentUuid ?? undefined
   }
-}
-
-export async function landStreamedAttachment(
-  message: Message,
-  agentId: AgentId,
-  parentUuid: string | undefined,
-): Promise<string | undefined> {
-  await landAgentTranscriptRows([message], agentId, parentUuid as never)
-  return isTranscribable(message) ? message.uuid : parentUuid
+  return writtenChainTail(messages, parentUuid)
 }
 
 export async function* runAgent(
@@ -1128,7 +1121,7 @@ export async function* runAgent(
         : {}),
     }).catch(() => {})
 
-    let lastRecordedUuid: string | undefined = messages[messages.length - 1]?.uuid
+    let lastRecordedUuid: string | undefined = writtenChainTail(messages)
     const effectiveMaxTurns = maxTurns ?? agentDefinition.maxTurns
 
     const deps = productionDeps()
@@ -1243,7 +1236,7 @@ export async function* runAgent(
       if (anyMessage.type === 'stream_event' as never) continue
       if (anyMessage.type === 'attachment') {
         streamedRows.push(message as Message)
-        lastRecordedUuid = await landStreamedAttachment(message as Message, agentId, lastRecordedUuid)
+        lastRecordedUuid = await landAgentTranscriptRows([message as Message], agentId, lastRecordedUuid)
         if (
           (anyMessage as { attachment?: { type?: string } }).attachment
             ?.type === 'max_turns_reached'
@@ -1280,13 +1273,12 @@ export async function* runAgent(
           (subtype === 'compact_boundary' || subtype === 'informational' || subtype === 'api_error' || subtype === 'stream_cut' || subtype === 'busy_recovery'))
       if (!recordable) continue
 
-      await landAgentTranscriptRows(
+      lastRecordedUuid = await landAgentTranscriptRows(
         [message as Message],
         agentId,
         lastRecordedUuid as never,
       )
       if (anyMessage.type !== 'progress') {
-        lastRecordedUuid = (message as { uuid?: string }).uuid
         streamedRows.push(message as Message)
         if (anyMessage.type === 'assistant') {
           lastAssistantRow = message as Message
@@ -1307,12 +1299,11 @@ export async function* runAgent(
     logForDebugging(
       `runAgent: ${agentId} ended on a refused ${refusalRetry.refusalClass} — one retry from its transcript`,
     )
-    await landAgentTranscriptRows(
+    lastRecordedUuid = await landAgentTranscriptRows(
       [refusalRetry.row],
       agentId,
       lastRecordedUuid as never,
     )
-    lastRecordedUuid = refusalRetry.row.uuid
     yield refusalRetry.row
     const carried = [...runMessages, ...streamedRows]
     const boundaryAt = carried.findLastIndex(row => isCompactBoundaryMessage(row))
