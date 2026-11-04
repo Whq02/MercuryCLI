@@ -88,7 +88,7 @@ Pressing `Enter` on New Session creates a session for the current folder on your
 default model, and opens it. The session, the chat and its board row are created
 together (the record is on the board before the chat paints)
 and no prompt is sent: the session starts blank and ready, just like a row
-opened from the board. A `/mission` typed in the moment before the runner
+opened from the board. A `/mission` (`/goal`) typed in the moment before the runner
 is ready still belongs to the chat you opened: it moves to the session at
 admission, its card and its Stop hook with it, and the rail shows it once
 the runner is ready. Pressing `Enter` opens a chat immediately using a pre-warmed
