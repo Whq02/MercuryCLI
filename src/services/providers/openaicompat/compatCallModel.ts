@@ -11,7 +11,7 @@ import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProvide
 import { compatResponsesTransport } from './compatResponsesTransport.js'
 import { assignLlamacppSlot, invalidateLlamacppTotalSlots, readSelfHostedLiveness, resolveLlamacppTotalSlots } from './compatProbe.js'
 import { readCompatPrefillSpeed } from './compatPrefill.js'
-import { buildHostedExtras, buildMoonshotExtras } from './compatWire.js'
+import { buildHostedExtras, buildLocalExtras, buildMoonshotExtras } from './compatWire.js'
 import { compatModelEfforts } from './compatEffort.js'
 import { cachedCompatCatalogue, refreshCompatCatalogues } from './compatCatalogue.js'
 import { compatToolSupportRefusal } from './compatRefusals.js'
@@ -32,6 +32,11 @@ import {
 } from './compatAccounts.js'
 import { buildCompatSlotExtras } from './compatWire.js'
 import { getMaxOutputTokensForModel } from '../anthropic/streamCore.js'
+import { localServerKind } from '../../../constants/localPromptProfile.js'
+import { tensorFoldOutputCeiling } from '../local/localCallModel.js'
+import { noteTensorFoldTurn } from '../local/tensorfoldUsage.js'
+import { toolDeclarationRowInResult } from '../zai/zaiCodec.js'
+import { getContextWindowForModel } from '../../../utils/model/capabilities.js'
 
 export const compatSlotLaneProfile: CompatLaneProfile = {
   lane: 'openai-compat',
@@ -89,6 +94,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
   if (params.signal.aborted) return
   const dialect = endpoint.dialect ?? 'chat-completions'
   const preservedReasoning = dialect === 'vllm' || dialect === 'sglang' || dialect === 'llamacpp' || ['kimi-k3', 'moonshotai/kimi-k3'].includes(wireId.toLowerCase())
+  const tensorFold = localServerKind(params.options.model) === 'tensorfold'
   let observation: ReturnType<typeof captureSignInRequest>
   let totalSlots: number | undefined
   let idSlot: number | undefined
@@ -149,10 +155,18 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
     ...(dialect === 'ollama' ? { omitsToolChoice: true, outputCeiling: (modelId: string) => getMaxOutputTokensForModel(modelId) } : {}),
     usageForSettlement: usage => { lastUsage = usage; return usage },
     buildExtras: args => {
+      if (tensorFold) return buildLocalExtras({ ...args, server: 'tensorfold', acceptsEffort: compatModelEfforts(params.options.model).length > 0 })
       const cache = dialect === 'llamacpp' ? { cache_prompt: true, ...(idSlot !== undefined ? { id_slot: idSlot } : {}) } : {}
       if (dialect !== 'responses' && isKimiK3WireModel(wireId)) return { ...buildCompatSlotExtras(args), ...cache, reasoning_effort: buildMoonshotExtras({ ...args, wireModel: 'kimi-k3', effortValue: args.effortValue ?? 'max' }).reasoning_effort, ...(dialect === 'sglang' ? { chat_template_kwargs: { clear_thinking: false } } : {}) }
       return { ...buildHostedExtras({ ...args, dialect, vocabulary: compatModelEfforts(params.options.model), ...(idSlot !== undefined ? { idSlot } : {}) }), ...cache }
     },
+    ...(tensorFold
+      ? {
+          outputCeiling: (modelId: string) => tensorFoldOutputCeiling({ id: wireId, server: 'tensorfold', baseUrl: endpoint.baseUrl, contextWindow: { tokens: getContextWindowForModel(modelId), source: 'served' } }),
+          toolDeclarationRow: toolDeclarationRowInResult,
+          noteRuntime: (reading: Parameters<NonNullable<CompatLaneProfile['noteRuntime']>>[0]) => { noteTensorFoldTurn({ model: reading.served ?? wireId, baseUrl: endpoint.baseUrl, usage: reading.usage, runtime: reading.runtime }) },
+        }
+      : {}),
   }
   const deadEngineWords = (): string | undefined => {
     if (!endpoint.hostPodId) return undefined

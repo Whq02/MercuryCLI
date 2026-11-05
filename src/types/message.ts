@@ -162,6 +162,7 @@ export type AssistantMessage = {
   busyRefusal?: BusyRefusalV1
   effortAdjusted?: EffortAdjustedV1
   effort?: EffortStampV1
+  outputLimit?: number
   inReplyTo?: ReplyMark[]
 }
 

@@ -1673,7 +1673,7 @@ async function* runEventMachine(
         const reasoningOnlyRecoveryCount = state.reasoningOnlyRecoveryCount ?? 0
         const decision = decideReasoningOnlyRecovery({ recoveryCount: reasoningOnlyRecoveryCount, maxTokens: reasoningOnly.maxTokens })
         const outputLimit = reasoningOnly.maxTokens
-          ? outputLimitWords(maxOutputTokensOverride ?? getModelMaxOutputTokens(iter.currentModel).default)
+          ? outputLimitWords(reasoningOnly.reply.outputLimit ?? maxOutputTokensOverride ?? getModelMaxOutputTokens(iter.currentModel).default)
           : null
         if (decision.kind === 'continue') {
           const fewerWords = reasoningOnly.maxTokens && decision.attempt >= REASONING_CUT_RECOVERY_LIMIT
