@@ -40,8 +40,9 @@ When a cloud model is current, both groups open folded in `/model`:
 
 Pressing `→` on `TENSORFOLD` unfolds the top rows (any served model, the best
 fit for this machine, and checkpoints on disk) with the remaining starting
-points behind `↓ N more · → unfolds the rest`; pressing `→` a second time
-unfolds every starting point and `other checkpoint`.
+points behind `↓ N more · ↵ unfolds the rest`. `↓` from the last row reaches
+that line; `↵` or `→` on it unfolds every starting point and `other checkpoint`
+(as does pressing `→` a second time on `TENSORFOLD`), and `←` folds the group.
 
 Running `/tensorfold` in chat (or `mercury /tensorfold` at launch, or
 `/tensorfold <owner/repo>` to inspect a repository id) opens the TensorFold

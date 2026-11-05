@@ -267,8 +267,8 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
   if (lineSnapshot.lines !== lines) {
     if (lineSnapshot.listed !== listed) {
       const prior = lineSnapshot.lines[Math.min(cursor, Math.max(0, lineSnapshot.lines.length - 1))]
-      const priorKey = prior?.kind === 'row' ? prior.key : prior?.kind === 'heading' ? `heading:${prior.group}` : undefined
-      const moved = lines.findIndex(line => (line.kind === 'row' ? line.key : line.kind === 'heading' ? `heading:${line.group}` : '') === priorKey)
+      const priorKey = prior?.kind === 'row' ? prior.key : prior?.kind === 'heading' || prior?.kind === 'more' ? `${prior.kind}:${prior.group}` : undefined
+      const moved = lines.findIndex(line => (line.kind === 'row' ? line.key : line.kind === 'heading' || line.kind === 'more' ? `${line.kind}:${line.group}` : '') === priorKey)
       if (filtering && (prior?.kind !== 'row' || moved < 0)) {
         const first = firstRowIndex(lines)
         if (first >= 0) i = first
@@ -369,12 +369,12 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
     const keep = focusedModel !== undefined ? rowKey(focusedModel) : undefined
     landOn(next, text.trim() === '' ? (keep ?? currentKey) : keep)
   }
-  const setFold = (group: string, fold: FoldState, keep?: string): void => {
+  const setFold = (group: string, fold: FoldState, keep?: string, reveal = false): void => {
     const nextFolds = { ...folds, [group]: fold }
     const next = composePickerLines(groups, nextFolds, filter, fullRowsOf)
     setFolds(nextFolds)
     const own = groups.find(candidate => candidate.group === group)
-    const revealed = keep === undefined && fold !== 'folded' && own !== undefined && isCuratedGroup(own)
+    const revealed = keep === undefined && fold !== 'folded' && own !== undefined && (reveal || isCuratedGroup(own))
       ? next.find(line => line.kind === 'row' && line.row.group === group && !lines.some(seen => seen.kind === 'row' && seen.key === line.key))
       : undefined
     landOn(next, revealed?.kind === 'row' ? revealed.key : keep, group)
@@ -403,6 +403,10 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
     if (line.kind === 'heading') {
       if (filtering) return
       setFold(line.group, line.fold === 'folded' ? 'top' : 'folded')
+      return
+    }
+    if (line.kind === 'more') {
+      setFold(line.group, 'full', undefined, true)
       return
     }
     if (line.kind !== 'row') return
@@ -536,6 +540,10 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
       event.stopImmediatePropagation()
       if (filtering) return
       const line = lines[i]
+      if (line?.kind === 'more') {
+        setFold(line.group, rowAxis === 'enterChild' ? 'full' : 'folded', undefined, true)
+        return
+      }
       if (!line || (line.kind !== 'row' && line.kind !== 'heading')) return
       const group = line.kind === 'row' ? line.row.group : line.group
       const fold = folds[group] ?? 'top'
@@ -737,6 +745,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
       gated: !!focusedModel?.gated,
       ...(focusedModel?.enableFlag !== undefined ? { enableFlag: focusedModel.enableFlag } : {}),
       ...(focusedHeading !== undefined ? { heading: { fold: focusedHeading.fold === 'folded' ? 'folded' : 'open' } } : {}),
+      ...(focusedLine?.kind === 'more' ? { more: true } : {}),
       filterFocus,
       filtering,
       ...(footerKeys !== undefined ? { keys: footerKeys } : {}),
@@ -771,10 +780,14 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
       )
     }
     if (line.kind === 'more') {
+      const on = idx === i
       return (
-        <Box key={`more:${line.group}`} height={1}>
-          <Text color={FAINT} wrap="truncate-end">{`  ${moreLineWords(line.hidden, line.reach)}`}</Text>
-        </Box>
+        <InteractiveRow key={`more:${line.group}`} id={`model:more:${line.group}`} selected={on} onSelect={() => selectRow(idx)} onActivate={commitCurrent} width={inner} height={1} selectionBand={true}>
+          <Text wrap="truncate-end">
+            <Text color={on ? TERRA : FAINT}>{on ? `${GLYPH.prompt} ` : '  '}</Text>
+            <Text color={FAINT}>{moreLineWords(line.hidden, line.reach)}</Text>
+          </Text>
+        </InteractiveRow>
       )
     }
     const m = line.row

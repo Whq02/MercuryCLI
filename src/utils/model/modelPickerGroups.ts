@@ -247,7 +247,7 @@ export function composePickerLines<T extends PickerRow>(
 }
 
 export function isCursorStop<T extends PickerRow>(line: PickerLine<T> | undefined): boolean {
-  return line !== undefined && (line.kind === 'row' || line.kind === 'heading')
+  return line !== undefined && (line.kind === 'row' || line.kind === 'heading' || line.kind === 'more')
 }
 
 export function firstRowIndex<T extends PickerRow>(lines: readonly PickerLine<T>[], from = 0): number {
@@ -274,7 +274,7 @@ export function lastStop<T extends PickerRow>(lines: readonly PickerLine<T>[]): 
 }
 
 export function moreLineWords(hidden: number, reach: boolean): string {
-  return `↓ ${hidden} more · → unfolds the rest${reach ? ' · search reaches every one' : ''}`
+  return `↓ ${hidden} more · ↵ unfolds the rest${reach ? ' · search reaches every one' : ''}`
 }
 
 export function matchWords(matched: number, total: number): string {
