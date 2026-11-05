@@ -157,10 +157,10 @@ console.log('§11 C12 — the strip note truncates its middle, never its fix')
     /note\.tone === 'warning' \? t\.warning : t\.textMuted\} wrap="truncate-middle"/.test(strips),
   )
   const { MANAGER_NEEDS_MODEL_LINE } = await import('../../src/services/concourse/managerMode.ts')
-  check('the blocking line still carries its fix in the TAIL (what middle-truncation preserves)', MANAGER_NEEDS_MODEL_LINE.endsWith('picks one'))
+  check('the blocking line still carries its fix in the TAIL (what middle-truncation preserves)', MANAGER_NEEDS_MODEL_LINE.endsWith('serve a local model'))
   const wrapText = (await import('../../src/ink/wrap-text.ts')).default
   const cut = wrapText(MANAGER_NEEDS_MODEL_LINE, 38, 'truncate-middle')
-  check('at 38 columns the middle cut keeps both the problem head and the fix tail', cut.includes('manager mode needs') && cut.includes('picks one'), cut)
+  check('at 38 columns the middle cut keeps both the problem head and the fix tail', cut.includes('manager mode needs') && cut.endsWith('local model'), cut)
 }
 
 console.log('§12 C13 — the daemon rows measure the terminal')

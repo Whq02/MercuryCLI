@@ -86,7 +86,6 @@ t.section('§5 — the seams are WIRED product-wide (every painted glyph hint ro
   const ALLOW: ReadonlyArray<{ file: string; mark: string }> = [
     { file: 'mercury-ui/glyphs.ts', mark: 'branch:' },
     { file: 'ConcourseLayout.tsx', mark: "keys === '⌃g'" },
-    { file: 'managerMode.ts', mark: 'coordinator chip or ⌃s picks one' },
     { file: 'PromptInput/PromptInputFooter.tsx', mark: "'shift + ←'" },
   ]
   const ALLOW_FILES: ReadonlyArray<string> = [
@@ -137,9 +136,9 @@ t.section('§5 — the seams are WIRED product-wide (every painted glyph hint ro
   t.check('every painted glyph hint in src folds (named allow rows only)', offenders.length === 0, offenders.join(' | ') || 'none')
   const mm = await Bun.file('src/services/concourse/managerMode.ts').text()
   t.check(
-    "managerMode folds BOTH resolution constructions (the authored const stays pin-stable)",
-    (mm.match(/keyHintLabel\(/g) ?? []).length >= 3 && /keyHintLabel\(MANAGER_NEEDS_MODEL_LINE\)/.test(mm),
-    'per-call folds present',
+    'managerMode paints no key glyph and so folds nothing (⌃s and the coordinator chip left the screen with the two-pane concourse)',
+    !MAC_MODIFIER_GLYPHS.some(g => mm.includes(g)) && !mm.includes('keyHintLabel('),
+    'no glyph, no fold',
   )
   const atlasHost = await Bun.file('src/components/concourse/ConcourseScreen.tsx').text()
   t.check(

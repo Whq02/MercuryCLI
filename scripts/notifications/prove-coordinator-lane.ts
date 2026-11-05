@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -54,8 +54,10 @@ console.log('§1 the mode lift (typed both directions)')
 {
   saveGlobalConfig(c => ({ ...c, concourseCoordinator: { mode: 'agent-assisted' as const } }))
   const noChoice = await lane.resolveEffectiveCoordinator()
-  check('agent-assisted WITHOUT a model choice downgrades rules-only', noChoice.resolution.effective === 'rules-only')
-  check('…naming the blocker (pick a model)', noChoice.resolution.fallbackReason?.includes('pick one') === true, noChoice.resolution.fallbackReason)
+  const { defaultCoordinatorModelId } = await import('../../src/services/concourse/coordinatorModels.ts')
+  check('agent-assisted WITHOUT a model choice lifts on the registry’s default (the first ready entry)', noChoice.resolution.effective === 'agent-assisted' && noChoice.assistModelId === await defaultCoordinatorModelId(), noChoice.resolution.fallbackReason ?? noChoice.assistModelId)
+  const laneSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'concourse', 'coordinatorLane.ts'), 'utf8')
+  check('…and an EMPTY registry downgrades rules-only naming the blocker (sign in or serve a local model)', laneSource.includes("validated.reason === 'no-choice'") && laneSource.includes('sign in to a provider or serve a local model'))
 
   saveGlobalConfig(c => ({ ...c, concourseCoordinator: { mode: 'agent-assisted' as const, assistModel: anthropicId } }))
   const lifted = await lane.resolveEffectiveCoordinator()

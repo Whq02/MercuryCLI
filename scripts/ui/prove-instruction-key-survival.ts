@@ -15,22 +15,21 @@ const ROOT = join(import.meta.dir, '..', '..')
 const { MANAGER_NEEDS_MODEL_LINE } = await import('../../src/services/concourse/managerMode.ts')
 const wrapText = (await import('../../src/ink/wrap-text.ts')).default
 
-console.log('§1 the note line keeps ⌃s through the middle cut')
+console.log('§1 the note line keeps its fix through the middle cut (no key: ⌃s and the coordinator chip left the screen with the two-pane concourse)')
 {
-  check('the key rides the TAIL (what middle-truncation preserves)', MANAGER_NEEDS_MODEL_LINE.endsWith('⌃s picks one'))
+  check('the line names no key', !MANAGER_NEEDS_MODEL_LINE.includes('⌃'), MANAGER_NEEDS_MODEL_LINE)
+  check('the fix rides the TAIL (what middle-truncation preserves)', MANAGER_NEEDS_MODEL_LINE.endsWith('serve a local model'))
   for (const w of [38, 30, 24]) {
     const cut = wrapText(MANAGER_NEEDS_MODEL_LINE, w, 'truncate-middle')
-    check(`at ${w} columns the cut still teaches the key`, cut.includes('⌃s picks one'), cut)
+    check(`at ${w} columns the cut still carries the fix`, cut.endsWith('local model'), cut)
   }
 }
 
-console.log('\n§2 the unknown-model construction is tail-keyed')
+console.log('\n§2 the unknown-model construction names the choice and the registry, no key')
 {
   const mm = readFileSync(join(ROOT, 'src', 'services', 'concourse', 'managerMode.ts'), 'utf-8')
-  check(
-    "its template ends with keyHintLabel('⌃s') picks one",
-    /keyHintLabel\('⌃s'\)\} picks one`/.test(mm),
-  )
+  check('its template ends with the registry, not a key', /is not in the composed registry`/.test(mm))
+  check('managerMode.ts paints no key glyph', !mm.includes('⌃'))
 }
 
 console.log('\n§3 the truncate-end card rows lead with their keys')

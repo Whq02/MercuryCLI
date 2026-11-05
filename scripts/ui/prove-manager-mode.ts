@@ -39,7 +39,7 @@ check('arming in the self-managed world speaks the honest first line at once (no
 const lane = readFileSync('src/services/concourse/coordinatorLane.ts', 'utf8');
 const mgrSrcEarly = readFileSync('src/services/concourse/managerMode.ts', 'utf8');
 check('the manager model resolves through the composed registry (validateCoordinatorModelChoice), never a guessed id',
-  mgrSrcEarly.includes('export async function resolveManagerModel') && mgrSrcEarly.includes('validateCoordinatorModelChoice(choice)'));
+  mgrSrcEarly.includes('export async function resolveManagerModel') && mgrSrcEarly.includes('validateCoordinatorModelChoice(choice ?? await defaultCoordinatorModelId())'));
 check('the lane runs the manager turn on that model in the self-managed world, AHEAD of the direct-launch hint branch',
   lane.indexOf('resolveManagerModel()') !== -1 && lane.indexOf('resolveManagerModel()') < lane.indexOf("id: 'co:hint:coordinator-off'") &&
     lane.includes("effective.resolution.effective !== 'agent-assisted' && managerModel === null"));

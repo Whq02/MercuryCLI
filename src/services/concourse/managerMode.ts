@@ -1,7 +1,6 @@
 
 import { createHash } from 'node:crypto'
 import type { CoordinatorRpc, CoordinatorToolDef, CoordinatorToolReceiptV1 } from './coordinatorTools.js'
-import { keyHintLabel } from '../../components/mercury-ui/keyHintLabel.js'
 
 
 export const MAX_MANAGER_ASK_OPTIONS = 4
@@ -308,7 +307,7 @@ export async function resolveManagerModel(): Promise<ManagerModelResolution> {
     const { getGlobalConfig } = await import('../../utils/config.js')
     choice = getGlobalConfig().concourseCoordinator?.assistModel
   } catch {
-    return { ok: false, reason: 'unreadable', line: keyHintLabel(MANAGER_NEEDS_MODEL_LINE) }
+    return { ok: false, reason: 'unreadable', line: MANAGER_NEEDS_MODEL_LINE }
   }
   const { validateCoordinatorModelChoice, defaultCoordinatorModelId } = await import('./coordinatorModels.js')
   const validated = await validateCoordinatorModelChoice(choice ?? await defaultCoordinatorModelId())
@@ -318,7 +317,7 @@ export async function resolveManagerModel(): Promise<ManagerModelResolution> {
       reason: validated.reason,
       line:
         validated.reason === 'no-choice'
-          ? keyHintLabel(MANAGER_NEEDS_MODEL_LINE)
+          ? MANAGER_NEEDS_MODEL_LINE
           : `manager mode needs a coordinator model — "${choice ?? ''}" is not in the composed registry`,
     }
   }
