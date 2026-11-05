@@ -8,7 +8,7 @@ import { stopTensorFoldPod, terminateTensorFoldPod } from '../../services/host/t
 import { resolveSetupIo } from '../../services/localSetup/setupIo.js'
 import { pickAndProve, switchSessionModel } from '../../services/localSetup/setupProve.js'
 import { PAIRING_WORDS } from '../../services/lan/pairing.js'
-import { rememberTensorFoldHost } from '../../services/providers/local/tensorfoldHosts.js'
+import { rememberTensorFoldHost, rememberTensorFoldPort } from '../../services/providers/local/tensorfoldHosts.js'
 import type { TensorFoldHost } from '../../services/tensorfold/contracts.js'
 import type { TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
 import type { TensorFoldInventoryRow } from '../../services/tensorfold/inventory.js'
@@ -200,8 +200,14 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
       const address = act.address.trim().replace(/^[a-z]+:\/\//i, '')
       if (address === '') return
       try {
-        await rememberTensorFoldHost({ name: address.replace(/:\d+$/, ''), baseUrl: `http://${address}`, origin: 'typed' })
-        setTensorFoldNotice(`${address} remembered · it appears under ${W.hostGroup} when it answers`)
+        const here = /^(?:localhost|127(?:\.\d+){3}|\[::1\]|::1)(?::(\d+))?$/i.exec(address)
+        if (here !== null) {
+          rememberTensorFoldPort(here[1] === undefined ? 8080 : Number(here[1]))
+          setTensorFoldNotice(`${address} remembered · a server on this machine appears under ${W.group} when it answers`)
+        } else {
+          await rememberTensorFoldHost({ name: address.replace(/:\d+$/, ''), baseUrl: `http://${address}`, origin: 'typed' })
+          setTensorFoldNotice(`${address} remembered · it appears under ${W.hostGroup} when it answers`)
+        }
         await doors.read?.()
       } catch (error) {
         setTensorFoldNotice(error instanceof Error ? error.message : String(error))

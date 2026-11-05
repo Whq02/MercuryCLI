@@ -231,7 +231,11 @@ serving machine only runs model inference.
 - **Connecting by typed address:** To attach to a server started by hand (or
   from Windows), choose `a server on your network` (`its address`) under
   `TENSORFOLD HOST`, press `↵`, and enter `host:port`
-  (`type host:port, e.g. studio.local:8080`). When attaching to a keyed server
+  (`type host:port, e.g. studio.local:8080`). The host's live facts (the model
+  it serves, its window, its engine version) fill in from discovery each time
+  the address answers. A loopback address (`127.0.0.1:8089`, `localhost:8080`)
+  is a server on this machine: Mercury remembers its port and lists it under
+  `TENSORFOLD` instead of the host group. When attaching to a keyed server
   started outside Mercury, paste the `mercury[inference]: <key>` line into the
   key file on the serving Mac (`paste this one line into the key file on the serving Mac`)
   or set `MERCURY_LOCAL_API_KEY`.

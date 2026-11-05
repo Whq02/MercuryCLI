@@ -80,11 +80,12 @@ export async function readOsVersionWords(): Promise<string> {
 
 function supportFactsOf(state: TensorFoldState, server: TensorFoldServerState | undefined, osVersion: string): TensorFoldSupportFacts {
   const engine = state.engine ?? undefined
+  const own = server === undefined || server.started !== undefined ? engine : undefined
   const chip = server?.device ?? engine?.chip
   const backend = server?.backend ?? engine?.backends[0]
   const hostName = server?.host !== undefined && server.host.origin !== 'app' ? server.host.name : undefined
-  const servedBy = server?.servedBy ?? server?.host?.servedBy ?? engine?.servedBy
-  const engineWords = server?.engineWords ?? ((engine as TensorFoldEngineFound | undefined)?.capabilities?.llamacpp !== undefined ? llamaCppWords((engine as TensorFoldEngineFound).capabilities.llamacpp) : undefined)
+  const servedBy = server?.servedBy ?? server?.host?.servedBy ?? own?.servedBy
+  const engineWords = server?.engineWords ?? ((own as TensorFoldEngineFound | undefined)?.capabilities?.llamacpp !== undefined ? llamaCppWords((own as TensorFoldEngineFound).capabilities.llamacpp) : undefined)
   return {
     ...(server?.version !== undefined ? { version: server.version } : engine?.version !== undefined ? { version: engine.version } : {}),
     ...(backend !== undefined ? { backend } : {}),

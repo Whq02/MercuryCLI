@@ -94,22 +94,23 @@ function discoveredTensorFoldRows(hosts: readonly TensorFoldHost[] = []): Tensor
     )
 }
 
+type TensorFoldServer = ReturnType<typeof tensorFoldServers>[number]
+
+function liveHostFacts(server: TensorFoldServer): Pick<TensorFoldHost, 'serving' | 'version' | 'window' | 'servedBy' | 'chip'> {
+  const model = server.models[0]
+  return {
+    ...(model !== undefined ? { serving: model.id } : {}),
+    ...(server.version !== undefined ? { version: server.version } : {}),
+    ...(model?.contextWindow !== undefined ? { window: model.contextWindow.tokens } : {}),
+    ...(server.engine?.servedBy !== undefined ? { servedBy: server.engine.servedBy } : {}),
+    ...(server.engine?.device !== undefined ? { chip: server.engine.device } : {}),
+  }
+}
+
 function discoveredTensorFoldHosts(): TensorFoldHost[] {
   return tensorFoldServers()
     .filter(server => !isLoopbackUrl(server.baseUrl))
-    .map(server => {
-      const model = server.models[0]
-      return {
-        name: urlOf(server.baseUrl)?.hostname ?? server.baseUrl,
-        baseUrl: server.baseUrl,
-        origin: 'typed' as const,
-        ...(model !== undefined ? { serving: model.id } : {}),
-        ...(server.version !== undefined ? { version: server.version } : {}),
-        ...(model?.contextWindow !== undefined ? { window: model.contextWindow.tokens } : {}),
-        ...(server.engine?.servedBy !== undefined ? { servedBy: server.engine.servedBy } : {}),
-        ...(server.engine?.device !== undefined ? { chip: server.engine.device } : {}),
-      }
-    })
+    .map(server => ({ name: urlOf(server.baseUrl)?.hostname ?? server.baseUrl, baseUrl: server.baseUrl, origin: 'typed' as const, ...liveHostFacts(server) }))
 }
 
 function boxTensorFoldHosts(): TensorFoldHost[] {
@@ -127,7 +128,11 @@ function withDiscoveredRows(rows: readonly TensorFoldModelRow[], hosts: readonly
 }
 
 export function withDiscoveredHosts(hosts: readonly TensorFoldHost[]): TensorFoldHost[] {
-  const out = [...hosts]
+  const servers = tensorFoldServers()
+  const out = hosts.map(host => {
+    const live = servers.find(server => sameUrl(server.baseUrl, host.baseUrl))
+    return live === undefined ? host : { ...host, ...liveHostFacts(live) }
+  })
   for (const host of [...discoveredTensorFoldHosts(), ...boxTensorFoldHosts()]) {
     if (!out.some(known => sameUrl(known.baseUrl, host.baseUrl) || known.name === host.name)) out.push(host)
   }
