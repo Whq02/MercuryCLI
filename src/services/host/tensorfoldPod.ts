@@ -95,9 +95,9 @@ export async function unregisterTensorFoldPod(id: string, forget: (name: string)
   forgetTensorFoldPodKey(id)
 }
 
-export type TensorFoldPodState = 'starting' | 'serving' | 'stopped' | 'paused' | 'failed'
+export type TensorFoldPodState = 'starting' | 'serving' | 'stopping' | 'stopped' | 'paused' | 'failed'
 export interface TensorFoldPodFacts { id: string; hostName: string; vendor: NonNullable<HostRecord['vendor']>; machine: string; gpu: string; title: string; served: string; window: number | undefined; price: number; elapsedMs: number; spendUSD: number; state: TensorFoldPodState; step?: string; provider?: string; baseUrl?: string; bills: boolean }
-const podState = (record: HostRecord): TensorFoldPodState => record.status === 'EXITED' ? 'stopped' : record.jobState === 'paused' ? 'paused' : record.jobState === 'failed' || record.status === 'TERMINATED' ? 'failed' : record.jobState === 'ready' ? 'serving' : 'starting'
+const podState = (record: HostRecord): TensorFoldPodState => record.status === 'EXITED' ? 'stopped' : record.stopRequestedAt !== undefined ? 'stopping' : record.jobState === 'paused' ? 'paused' : record.jobState === 'failed' || record.status === 'TERMINATED' ? 'failed' : record.jobState === 'ready' ? 'serving' : 'starting'
 export function tensorFoldPodFacts(record: HostRecord, recipe: HostRecipe | undefined, now = Date.now()): TensorFoldPodFacts | undefined {
   const row = recipe ?? record.recipeRow
   if (!row || !isTensorFoldRecipe(row) || record.jobKind === 'watch' || record.jobKind === 'bank') return
@@ -107,19 +107,22 @@ export function tensorFoldPodFacts(record: HostRecord, recipe: HostRecipe | unde
   return {
     id: record.id, hostName: tensorFoldPodHostName(record.id), vendor, machine: hostMachineName(vendor, record.id), gpu: row.gpu,
     title: point?.title ?? row.label.split(' · ')[0]!, served: tensorFoldServedName(row) ?? point?.name ?? row.model, window: row.context,
-    price: record.price, elapsedMs, spendUSD: hostSpendSoFar([{ status: record.status, cost: record.price, createdAt: record.startedAt }], now),
+    price: record.price, elapsedMs, spendUSD: record.status === 'EXITED' ? record.spendUSD ?? 0 : hostSpendSoFar([{ status: record.status, cost: record.price, createdAt: record.startedAt }], now),
     state: podState(record), step: record.step, provider: record.provider, ...(record.localPort ? { baseUrl: 'http://127.0.0.1:' + record.localPort } : {}), bills: hostPodBills(record),
   }
 }
 export function tensorFoldPods(recipes: readonly HostRecipe[], now = Date.now()): TensorFoldPodFacts[] {
   return hostRecords().flatMap(record => { const facts = tensorFoldPodFacts(record, recipes.find(row => row.id === record.recipe), now); return facts ? [facts] : [] })
 }
-export interface TensorFoldPodRowFacts { hostName: string; id: string; provider?: string; words: string; bills: boolean }
+export interface TensorFoldPodRowFacts { hostName: string; id: string; provider?: string; words: string; bills: boolean; state: TensorFoldPodState; title: string; served: string; window?: number; gpu: string; vendor: string; step?: string }
 export function tensorFoldPodRowFacts(pod: TensorFoldPodFacts): TensorFoldPodRowFacts {
   const minutes = Math.floor(pod.elapsedMs / 60_000)
   const elapsed = minutes >= 60 ? Math.floor(minutes / 60) + ' h ' + String(minutes % 60).padStart(2, '0') + ' min' : minutes + ' min'
   const words = pod.state === 'stopped' ? 'stopped · compute billing ended · ~$' + pod.spendUSD.toFixed(2) + ' so far · the disk bills until you terminate it in /llmhost' : '$' + pod.price.toFixed(2) + '/h on ' + vendorLabel(pod.vendor) + ' · ' + elapsed + ' · ~$' + pod.spendUSD.toFixed(2) + ' so far · s stops the pod and its billing'
-  return { hostName: pod.hostName, id: pod.id, ...(pod.provider !== undefined ? { provider: pod.provider } : {}), words, bills: pod.bills }
+  return {
+    hostName: pod.hostName, id: pod.id, ...(pod.provider !== undefined ? { provider: pod.provider } : {}), words, bills: pod.bills,
+    state: pod.state, title: pod.title, served: pod.served, ...(pod.window !== undefined ? { window: pod.window } : {}), gpu: pod.gpu, vendor: vendorLabel(pod.vendor), ...(pod.step !== undefined ? { step: pod.step } : {}),
+  }
 }
 export const tensorFoldPodRows = (recipes: readonly HostRecipe[], now = Date.now()): TensorFoldPodRowFacts[] => tensorFoldPods(recipes, now).map(tensorFoldPodRowFacts)
 export const tensorFoldPodByHost = (hostName: string, recipes: readonly HostRecipe[], now = Date.now()): TensorFoldPodFacts | undefined => tensorFoldPods(recipes, now).find(pod => pod.hostName === hostName)
@@ -166,12 +169,15 @@ export async function stopTensorFoldPod(id: string, options: { client?: HostVend
     let pod = await api.stop(id)
     const deadline = Date.now() + (options.timeoutMs ?? 120_000)
     while (pod.status !== 'EXITED' && Date.now() < deadline) { await delay(options.pauseMs ?? 5000, undefined, { signal }); pod = await api.get(id, signal) }
-    if (pod.status !== 'EXITED') throw new Error('Stop requested but the pod has not stopped yet')
+    if (pod.status !== 'EXITED') {
+      patchHostRecord(id, { stopRequestedAt: Date.now(), step: 'stopping · requested, not yet confirmed by ' + vendorLabel(vendor) })
+      throw new Error('Stop requested but the pod has not stopped yet')
+    }
   } catch (error) {
     return { ok: false, words: TENSORFOLD_HOST_WORDS.stopFailed(machine, error instanceof Error ? error.message : String(error)) }
   }
   closeHostTunnel(id)
-  patchHostRecord(id, { status: 'EXITED', step: 'stopped · compute billing ended · the disk bills until Terminate' })
+  patchHostRecord(id, { status: 'EXITED', spendUSD: spend, step: 'stopped · compute billing ended · the disk bills until Terminate' })
   const hostName = tensorFoldPodHostName(id)
   try { await (options.forget ?? forgetTensorFoldHost)(hostName) } catch (error) { if (!String(error).includes(TENSORFOLD_NOT_BUILT)) throw error }
   return { ok: true, words: TENSORFOLD_HOST_WORDS.stopped(machine, spend) }

@@ -90,7 +90,7 @@ function truthOf(machine: TensorFoldMachine): { platform: NodeJS.Platform; ramBy
   return { platform: 'darwin', ramBytes: (machine === MAC_32 ? 32 : 48) * GIB, usableBytes: (machine.usableGib ?? 36) * GIB, usableSource: 'metal', chip: machine.chip, wiredLimitMib: 0, osVersion: '27.0' }
 }
 
-type PodRow = { hostName: string; id: string; provider?: string; words: string; bills: boolean }
+type PodRow = { hostName: string; id: string; provider?: string; words: string; bills: boolean; state: 'starting' | 'serving' | 'stopping' | 'stopped' | 'paused' | 'failed'; title: string; served: string; window?: number; gpu: string; vendor: string; step?: string }
 type Server = { kind: string; root: string; baseUrl: string; label: string; version?: string; models: Array<Record<string, unknown>> }
 type Browsed = { name: string; host: string; port: number; txt: Record<string, string> }
 type StartRequest = { repo: string; name?: string; window: number; port?: number; share?: boolean }
@@ -412,6 +412,7 @@ async function save(name: string, run: Run): Promise<void> {
 
 const LEGEND_PICKER = '↑↓ select · ↵ switch · ctrl+w context · → ← fold'
 const UP = KEY.up
+const DOWN = KEY.down
 const RIGHT = KEY.right
 
 console.log('§1 the frames m01–m05, m03b and the app, win32, 32 GB and outside-server states at 160×48, 110×34 and 96×30, against DESIGN §2–§4 and the frames; /model reads them through the panel lane\'s facts (readTensorFoldPanelFacts + pickerFactsOf)')
@@ -639,12 +640,15 @@ console.log('\n§3 the order rule and the facts the /model group reads')
   const helped = await factsFor({ helper: '· helper 2B' })
   check("the helper suffix comes from the one heading reader (tf-engine-106's helperHeadingWords)", helped.helper === '· helper 2B')
   const POD: TensorFoldHost = { name: 'pod-7f3a', baseUrl: 'http://127.0.0.1:41234', origin: 'pod', keyRef: 'pod-7f3a', serving: 'qwen3.8-27b', version: '1.2.2', chip: 'RTX 5090', window: 131_072 }
-  const POD_ROW: PodRow = { hostName: 'pod-7f3a', id: '7f3a', provider: 'pod-7f3a-runpod', words: '$1.19/h on Runpod · 12 min · ~$0.24 so far · s stops the pod and its billing', bills: true }
+  const POD_ROW: PodRow = { hostName: 'pod-7f3a', id: '7f3a', provider: 'pod-7f3a-runpod', words: '$1.19/h on Runpod · 12 min · ~$0.24 so far · s stops the pod and its billing', bills: true, state: 'serving', title: 'Qwen3.8 27B', served: 'qwen3.8-27b', window: 131_072, gpu: 'RTX 5090', vendor: 'Runpod' }
+  const SETTING_UP: PodRow = { hostName: 'pod-7f3b', id: '7f3b', words: '$1.19/h on Runpod · 3 min · ~$0.06 so far · s stops the pod and its billing', bills: true, state: 'starting', title: 'Qwen3.8 27B', served: 'qwen3.8-27b', window: 131_072, gpu: 'RTX 5090', vendor: 'Runpod', step: 'pulling TensorFold/Qwen3.8-27B-MLX-4bit' }
+  const STOPPED: PodRow = { hostName: 'pod-7f3c', id: '7f3c', words: 'stopped · compute billing ended · ~$0.31 so far · the disk bills until you terminate it in /llmhost', bills: false, state: 'stopped', title: 'Qwen3.8 27B', served: 'qwen3.8-27b', window: 131_072, gpu: 'RTX 5090', vendor: 'Runpod' }
+  const PAUSED: PodRow = { hostName: 'pod-7f3d', id: '7f3d', words: '$0.53/h on Vast.ai · 9 min · ~$0.08 so far · s stops the pod and its billing', bills: true, state: 'paused', title: 'Qwen3.8 27B', served: 'qwen3.8-27b', window: 131_072, gpu: 'RTX 5090', vendor: 'Vast.ai', step: 'paused at starting engine' }
   const tunnel: Server[] = [{ kind: 'tensorfold', root: 'http://127.0.0.1:41234', baseUrl: 'http://127.0.0.1:41234/v1', label: 'TensorFold 1.2.2', version: '1.2.2', models: [{ id: 'qwen3.8-27b', server: 'tensorfold', baseUrl: 'http://127.0.0.1:41234/v1' }] }]
   const pod = await open(await factsFor({ hosts: [POD], discovered: tunnel, pods: [POD_ROW] }), 'claude-opus-5-5', 160, 48)
   await press(pod, [UP, UP, RIGHT])
   check("a rented pod's loopback tunnel is a TENSORFOLD HOST row, never a served row on this machine", cells(pod, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'serving', '128k ctx', 'pod-7f3a') === false && has(pod, 'pod-7f3a · 1 serving') && has(pod, '▸ TENSORFOLD · 1.2.2 · Apple M5 Pro · 36.0 GiB usable · nothing served'), flat(pod).filter(l => /TENSORFOLD|pod-7f3a/.test(l)).join(' | '))
-  check("the pod row's card carries tf-host-106's pod line (price, time, spend, s) under the host line", has(pod, 'host      127.0.0.1:41234 · RTX 5090 · TensorFold 1.2.2 · keyed') && has(pod, 'pod       $1.19/h on Runpod · 12 min · ~$0.24 so far · s stops the pod and its billing'), flat(pod).slice(4, 16).join(' | '))
+  check("the pod row's card carries tf-host-106's pod line (price, time, spend, s) under the host line", has(pod, 'host      RTX 5090 · TensorFold 1.2.2 · keyed') && !has(pod, '127.0.0.1:41234') && has(pod, 'window    128k · set when the pod was rented') && has(pod, 'pod       $1.19/h on Runpod · 12 min · ~$0.24 so far · s stops the pod and its billing'), flat(pod).slice(4, 16).join(' | '))
   check('the legend offers s stops the pod', has(pod, '↑↓ select · ↵ switch · s stops the pod'), legendOf(pod))
   await press(pod, ['s'])
   const stopPod = pod.acts.at(-1)
@@ -652,6 +656,21 @@ console.log('\n§3 the order rule and the facts the /model group reads')
   await press(pod, [KEY.enter])
   check("↵ on the pod row switches to the pod through its compat road, named for the pod's endpoint", pod.selected.at(-1) === 'compat/pod-7f3a-runpod/qwen3.8-27b', pod.selected.join(','))
   pod.m.unmount()
+  await settle(60)
+  const rented = await open(await factsFor({ hosts: [], pods: [SETTING_UP, STOPPED, PAUSED] }), 'claude-opus-5-5', 160, 48)
+  await press(rented, [UP, UP, RIGHT])
+  await frameRow(rented, 'compat/pod-7f3b/qwen3.8-27b')
+  check('a pod is visible from the moment it is rented: the HOST heading names the live pods and counts every state', has(rented, '▾ TENSORFOLD HOST · pod-7f3b · pod-7f3d · 1 setting up · 1 stopped · 1 paused'), flat(rented).filter(l => l.includes('TENSORFOLD HOST')).join(' | '))
+  check('the setting-up pod is a row in the columns: name, its pod id, setting up, the window, the card', cells(rented, 'Qwen3.8 27B', 'compat/pod-7f3b/qwen3.8-27b', 'setting up', '128k ctx', 'RTX 5090'), flat(rented).filter(l => l.includes('pod-7f3b')).join(' | '))
+  check("the framed setting-up row's card: the pod line with price, time and spend, then what it is doing now", has(rented, 'pod       RTX 5090 · $1.19/h on Runpod · 3 min · ~$0.06 so far · s stops the pod and its') && has(rented, 'now       pulling TensorFold/Qwen3.8-27B-MLX-4bit'), flat(rented).filter(l => /^(pod|now|paused|next) {2,}/.test(l.trim())).join(' / '))
+  check('the stopped pod stays listed with its disk-billing words and no s; the paused pod names its cause and the next step', cells(rented, 'Qwen3.8 27B', 'compat/pod-7f3c/qwen3.8-27b', 'stopped', '128k ctx', 'RTX 5090') && cells(rented, 'Qwen3.8 27B', 'compat/pod-7f3d/qwen3.8-27b', 'paused', '128k ctx', 'RTX 5090'), flat(rented).filter(l => l.includes('pod-7f3')).join(' | '))
+  check('the legend on a setting-up pod offers s stops the pod and no switch', legendOf(rented).includes('s stops the pod') && !legendOf(rented).includes('↵ switch'), legendOf(rented))
+  await press(rented, ['s'])
+  const stopRented = rented.acts.at(-1)
+  check("s on the setting-up pod hands its id on", stopRented?.kind === 'stop-pod' && stopRented.id === '7f3b' && stopRented.name === 'pod-7f3b', JSON.stringify(stopRented ?? null))
+  await frameRow(rented, 'compat/pod-7f3d/qwen3.8-27b')
+  check("the paused pod's card carries its cause and the next step", has(rented, 'paused    starting engine') && has(rented, 'next      Resume or Terminate in /llmhost'), flat(rented).filter(l => /^(pod|now|paused|next) {2,}/.test(l.trim())).join(' / '))
+  rented.m.unmount()
   await settle(60)
   const SHARED: TensorFoldHost = { name: realAnnouncer.announcerMachineName(), baseUrl: 'http://127.0.0.1:8080', origin: 'shared', keyRef: 'stored', serving: 'qwen3.5-2b', version: '1.2.2', window: 262_144 }
   const ownAnnouncement: Browsed[] = [{ name: realAnnouncer.announcerMachineName(), host: 'localhost', port: 52_000, txt: { model: 'qwen3.5-2b', engine: '8080', pair: '52000', keyed: '1' } }]

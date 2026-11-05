@@ -25,7 +25,7 @@ export type TensorFoldRowAct =
 type TensorFoldInstallFacts = { road: 'brew' | 'archive'; state?: 'installing' | 'unavailable'; commands: readonly string[]; progress?: string }
 type TensorFoldPortNote = { port: number; taken: number; by: string; keyed?: boolean }
 type TensorFoldRentFacts = { pod?: string; serves?: string; title?: string }
-type TensorFoldPodRow = { hostName: string; id: string; provider?: string; words: string; bills: boolean }
+type TensorFoldPodRow = { hostName: string; id: string; provider?: string; words: string; bills: boolean; state: 'starting' | 'serving' | 'stopping' | 'stopped' | 'paused' | 'failed'; title: string; served: string; window?: number; gpu: string; vendor: string; step?: string }
 export type TensorFoldAnnouncedHost = { name: string; host: string; pairPort: number; enginePort?: number; serving?: string; window?: number; version?: string; chip?: string; keyed: boolean; pairing?: boolean; refused?: string }
 
 export type TensorFoldPickerFacts = {
@@ -387,6 +387,32 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
   }
 }
 
+const POD_STATE_WORDS = { starting: 'setting up', serving: 'serving', stopping: 'stopping', stopped: 'stopped', paused: 'paused', failed: 'failed' } as const
+
+function podChoice(pod: TensorFoldPodRow, labels: ReadonlyMap<string, string>): ModelChoice {
+  const live = pod.state === 'starting' || pod.state === 'serving' || pod.state === 'stopping'
+  const stepWords = pod.step !== undefined && pod.state !== 'stopped' ? pod.step.replace(/^paused at /, '') : undefined
+  return {
+    id: `compat/${pod.provider ?? pod.hostName}/${pod.served}`,
+    key: `host:${pod.hostName}`,
+    name: labels.get(pod.served) ?? pod.title,
+    tag: '',
+    ctx: pod.window !== undefined ? `${tok(pod.window)} ctx` : '',
+    group: TENSORFOLD_HOST_GROUP,
+    rest: false,
+    tensorfold: {
+      state: { text: POD_STATE_WORDS[pod.state], tone: live ? 'amber' : pod.state === 'stopped' ? 'faint' : 'failure' },
+      memory: { text: pod.gpu, tone: 'faint' },
+      card: width => [
+        ...kv('pod', [pod.gpu, pod.words].join(' · '), width),
+        ...(stepWords !== undefined ? kv(pod.state === 'paused' ? 'paused' : 'now', stepWords, width, pod.state === 'paused' ? 'failure' : 'info') : []),
+        ...(pod.state === 'paused' || pod.state === 'failed' ? kv('next', 'Resume or Terminate in /llmhost', width) : []),
+      ],
+      keys: pod.bills ? { stop: { words: 's stops the pod', act: { kind: 'stop-pod', id: pod.id, name: pod.hostName }, confirm: false } } : {},
+    },
+  }
+}
+
 function actionChoice(group: string, key: string, name: string, words: string, choice: TensorFoldChoice, rest = false): ModelChoice {
   return { id: `tensorfold:${key}`, name, tag: '', ctx: '', group, action: true, rest, tensorfold: { ...choice, words } }
 }
@@ -450,10 +476,10 @@ function hostChoices(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): Mode
         state: { text: current ? 'current' : 'serving', tone: 'teal' },
         memory: { text: host.name, tone: 'faint' },
         card: width => [
-          ...kv('host', [addressOf(host.baseUrl), host.chip, host.version !== undefined ? `TensorFold ${host.version}` : undefined, host.keyRef !== undefined ? 'keyed' : undefined].filter(part => part !== undefined).join(' · '), width),
+          ...kv('host', [host.origin === 'pod' ? undefined : addressOf(host.baseUrl), host.chip, host.version !== undefined ? `TensorFold ${host.version}` : undefined, host.keyRef !== undefined ? 'keyed' : undefined].filter(part => part !== undefined).join(' · '), width),
           ...(pod !== undefined ? kv('pod', pod.words, width) : []),
           ...(host.lastReply?.tokensPerSecond !== undefined ? kv('serving', `~${Math.round(host.lastReply.tokensPerSecond)} tok/s on its last reply`, width, 'secondary') : []),
-          ...(host.window !== undefined ? kv('window', `${tok(host.window)} · set when it started outside Mercury, which does not stop or restart it`, width) : []),
+          ...(host.window !== undefined ? kv('window', host.origin === 'pod' ? `${tok(host.window)} · set when the pod was rented` : `${tok(host.window)} · set when it started outside Mercury, which does not stop or restart it`, width) : []),
           ...(network ? kv('network', LAN_WORDS, width) : []),
         ],
         keys: {
@@ -465,6 +491,7 @@ function hostChoices(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): Mode
     }
   })
   for (const announced of facts.announced ?? []) out.push(announcedChoice(announced, labels, ui))
+  for (const pod of (facts.pods ?? []).filter(pod => !hosts.some(host => host.name === pod.hostName))) out.push(podChoice(pod, labels))
   out.push(actionChoice(TENSORFOLD_HOST_GROUP, 'rent', 'rent a GPU pod', 'Runpod, through /llmhost', {
     card: width => [
       ...(facts.rent?.pod !== undefined ? kv('pod', facts.rent.pod, width) : []),
@@ -584,9 +611,13 @@ function tensorFoldStatus(facts: TensorFoldPickerFacts): string {
 
 function tensorFoldHostStatus(facts: TensorFoldPickerFacts): string {
   const hosts = [...(facts.hosts ?? []).filter(host => host.origin !== 'app'), ...(facts.announced ?? [])]
-  if (hosts.length === 0) return HOST_NONE
+  const pods = (facts.pods ?? []).filter(pod => !hosts.some(host => host.name === pod.hostName))
+  if (hosts.length === 0 && pods.length === 0) return HOST_NONE
   const serving = hosts.filter(host => host.serving !== undefined).length
-  return `${hosts.map(host => ('origin' in host && host.origin === 'shared' ? thisMachine(facts.platform) : host.name)).join(' · ')} · ${serving > 0 ? `${serving} serving` : 'nothing served'}`
+  const names = [...hosts.map(host => ('origin' in host && host.origin === 'shared' ? thisMachine(facts.platform) : host.name)), ...pods.filter(pod => pod.state !== 'stopped' && pod.state !== 'failed').map(pod => pod.hostName)]
+  const podWords = pods.map(pod => POD_STATE_WORDS[pod.state])
+  const tail = [...(serving > 0 ? [`${serving} serving`] : []), ...[...new Set(podWords)].map(word => `${podWords.filter(row => row === word).length} ${word}`)]
+  return `${[...names, ...(tail.length > 0 ? tail : ['nothing served'])].join(' · ')}`
 }
 
 export function tensorFoldPickerRows(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): { rows: ModelChoice[]; headings: Record<string, ProviderHeading> } {
