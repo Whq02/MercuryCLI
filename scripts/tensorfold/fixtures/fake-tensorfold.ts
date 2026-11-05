@@ -104,6 +104,13 @@ function json(response: ServerResponse, status: number, body: unknown): void {
   response.end(text)
 }
 
+function readKeyFile(path: string): string {
+  const line = readFileSync(path, 'utf8').split('\n').find(row => row.trim() !== '' && !row.trim().startsWith('#'))
+  if (line === undefined) fail(`${path} holds no key`, 2)
+  const colon = line.indexOf(':')
+  return (colon >= 0 ? line.slice(colon + 1) : line).trim()
+}
+
 function readBody(request: IncomingMessage): Promise<string> {
   return new Promise(resolve => {
     let text = ''
@@ -124,6 +131,8 @@ async function serve(): Promise<void> {
   const name = flagValue('--name') ?? repo.slice(repo.lastIndexOf('/') + 1)
   const context = Number(flagValue('--context') ?? 32768)
   const loadMs = Number(env.FAKE_TENSORFOLD_LOAD_MS ?? 300)
+  const keyFile = flagValue('--api-key-file')
+  const key = keyFile === undefined ? undefined : readKeyFile(keyFile)
   if (snapshotOf(repo) === undefined && env.FAKE_TENSORFOLD_CACHE !== undefined) fail(`${repo} is not in the Hugging Face cache; the native engine does not download: run tensorfold pull ${repo} first`)
   await new Promise(resolve => setTimeout(resolve, loadMs))
   if (mode === 'refuse-memory') fail(`qwen3_5: one stream at a ${context}-token window takes ${(context / 16384).toFixed(2)} GiB, more than the 5.12 GiB left under the load limit; lower --context`)
@@ -139,8 +148,10 @@ async function serve(): Promise<void> {
     const url = new URL(request.url ?? '/', `http://${host}:${port}`)
     if (request.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
       if (draining) return json(response, 503, { status: 'draining', requests_in_progress: inFlight })
+      if (key !== undefined) return json(response, 200, { status: 'ok' })
       return json(response, 200, { status: 'ok', model: name, model_ids: [name], max_batch_size: 8, warming: false, memory: { active: 3_015_330_576, cache: 0, peak: 3_015_330_576 }, live: { connections: inFlight, waiting: 0, decode_tokens_per_second: 0, prefill_tokens_per_second: 0 }, version: FAKE_TENSORFOLD_VERSION, backend: 'metal', device: 'Apple M5 Pro' })
     }
+    if (key !== undefined && request.headers.authorization !== `Bearer ${key}`) return json(response, 401, { error: { message: 'unauthorized: this server asks for a key', type: 'invalid_request_error', param: null, code: 'unauthorized' } })
     if (request.method === 'GET' && url.pathname.endsWith('/models')) {
       return json(response, 200, { object: 'list', data: [{ id: name, object: 'model', created: 1_700_000_000, owned_by: 'tensorfold', context_length: context, max_model_len: context, reasoning: { default_enabled: true, supported_efforts: ['max', 'xhigh', 'high', 'medium', 'low', 'minimal', 'none'] } }] })
     }

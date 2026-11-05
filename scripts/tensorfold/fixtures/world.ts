@@ -58,8 +58,8 @@ export type FakeWorld = { root: string; cache: string; home: string; cwd: string
 
 export function fakeWorld(prefix: string, opts: { seeds?: readonly CacheSeed[]; env?: Record<string, string> } = {}): FakeWorld {
   const root = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', `${prefix}-`))
-  const cache = join(root, 'hub')
   const home = join(root, 'home')
+  const cache = join(home, '.cache', 'huggingface', 'hub')
   const cwd = join(root, 'project')
   mkdirSync(cache, { recursive: true })
   mkdirSync(home, { recursive: true })

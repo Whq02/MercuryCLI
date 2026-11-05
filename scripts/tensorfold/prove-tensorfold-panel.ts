@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor } from '../lib/settingsPopupHarness.ts'
-import { FAKE_BIN, GIB, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, fakeExists, fakeWorld } from './fixtures/world.ts'
+import { FAKE_BIN, GIB, LIGHTNING_REPO, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, fakeExists, fakeWorld } from './fixtures/world.ts'
 import { FAKE_REPLY_PREFIX } from './fixtures/fake-tensorfold.ts'
 
 const argAfter = (flag: string): string | undefined => {
@@ -54,7 +54,7 @@ function freePort(): Promise<number> {
 }
 const save = (name: string, columns: number, rows: number, lines: string[]): void => {
   if (FRAMES === undefined) return
-  writeFileSync(join(FRAMES, `${name}-${columns}x${rows}.txt`), lines.map(line => line.replace(/\s+$/, '').replace(/\/private\/tmp\/mw\/tf-[A-Za-z0-9-]+\/hub/g, '<scratch>/hub')).join('\n') + '\n')
+  writeFileSync(join(FRAMES, `${name}-${columns}x${rows}.txt`), lines.map(line => line.replace(/\s+$/, '')).join('\n') + '\n')
 }
 const SIZES: Array<[number, number]> = [[160, 48], [110, 34], [96, 30]]
 const shell = (columns: number, rows: number, child: unknown): unknown => h(AppStateProvider as never, {}, h(ThemeProvider as never, {}, h(Box, { flexDirection: 'column', width: columns, height: rows, justifyContent: 'center' }, child as never)))
@@ -99,9 +99,9 @@ section('the panel through the harness: the two groups, TENSORFOLD unfolded, the
     if (columns === 160) {
       check('the panel opens with the TENSORFOLD group unfolded and its status words', up && lines.some(line => line.includes('TENSORFOLD · 1.2.2 · Apple M5 Pro · 36.0 GiB usable · nothing served')), lines.filter(line => line.trim() !== '').slice(0, 12).join(' | '))
       const joined = lines.map(line => line.replace(/[│╭╮╰╯─]/g, ' ').trim()).join('\n')
-      check('the three starting rows: the 27B first (the best fit, framed), Lightning, the 2B; the other-checkpoint row; the HOST group beneath', lines.some(line => line.includes('Qwen3.8 27B') && line.includes('local/qwen3.8-27b') && line.includes('128k ctx')) && lines.some(line => line.includes('Nemotron Lightning')) && lines.some(line => line.includes('Qwen3.5 2B') && line.includes('256k ctx')) && lines.some(line => line.includes('other checkpoint — a Hugging Face repository id')) && lines.some(line => line.includes('TENSORFOLD HOST · no host · a server on your network or a rented GPU pod')), lines.filter(line => line.trim() !== '').join(' | '))
+      check('the three starting rows: Lightning first (the 48 GB default, framed), the 27B, the 2B; the other-checkpoint row; the HOST group beneath', lines.findIndex(line => line.includes('Nemotron Lightning')) < lines.findIndex(line => line.includes('Qwen3.8 27B')) && lines.some(line => line.includes('Qwen3.8 27B') && line.includes('local/qwen3.8-27b') && line.includes('128k ctx')) && lines.some(line => line.includes('Nemotron Lightning') && line.includes('256k ctx')) && lines.some(line => line.includes('Qwen3.5 2B') && line.includes('256k ctx')) && lines.some(line => line.includes('other checkpoint — a Hugging Face repository id')) && lines.some(line => line.includes('TENSORFOLD HOST · no host · a server on your network or a rented GPU pod')), lines.filter(line => line.trim() !== '').join(' | '))
       check('the live footer line: nothing served · Metal', lines.some(line => line.includes('nothing served · Metal')))
-      check('the framed card shows what ↵ will run (the pulls, then the serve with its drafter, name, window and port)', joined.replace(/\s+/g, ' ').includes(`tensorfold serve ${QWEN_27B_REPO} --drafter z-lab/Qwen3.8-27B-DFlash2 --name qwen3.8-27b --context 131072 --port ${port}`), joined.split('\n').filter(line => line.includes('tensorfold')).join(' | '))
+      check('the framed card shows what ↵ will run (the pull, then the serve with its name, window and port)', joined.replace(/\s+/g, ' ').includes(`tensorfold pull ${LIGHTNING_REPO}`) && joined.replace(/\s+/g, ' ').includes(`tensorfold serve ${LIGHTNING_REPO} --name nemotron-lightning --context 262144 --port ${port}`), joined.split('\n').filter(line => line.includes('tensorfold')).join(' | '))
     } else {
       check(`${columns}×${rows}: the panel fits the width (no line wider than the terminal)`, up && lines.every(line => [...line].length <= columns), String(lines.find(line => [...line].length > columns)))
     }
