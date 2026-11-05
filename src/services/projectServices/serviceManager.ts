@@ -507,11 +507,13 @@ export async function startService(
   captureStartTokenAsync(project, spec.name, child.pid)
 
   child.on('exit', (code, signal) => {
-    liveChildren.delete(childKey(project, spec.name))
-    projectChildren.delete(childKey(project, spec.name))
-    startedBy.delete(childKey(project, spec.name))
+    if (liveChildren.get(childKey(project, spec.name)) === child) {
+      liveChildren.delete(childKey(project, spec.name))
+      projectChildren.delete(childKey(project, spec.name))
+      startedBy.delete(childKey(project, spec.name))
+    }
     const current = readRecord(project, spec.name)
-    if (!current) return
+    if (!current || current.startedAt !== record.startedAt) return
     const explicit = current.explicitStop
     const exited: ServiceRecord = {
       ...current,
