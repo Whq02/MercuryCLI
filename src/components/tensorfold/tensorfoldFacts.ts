@@ -1,8 +1,12 @@
 import { readFileSync } from 'node:fs'
+import { totalmem } from 'node:os'
 import { useEffect, useSyncExternalStore } from 'react'
 import type { TensorFoldHost, TensorFoldModelRow } from '../../services/tensorfold/contracts.js'
+import { QWEN_2B_GGUF } from '../../services/tensorfold/adapter/models.js'
 import { engineServedByAdapter, findTensorFoldEngine } from '../../services/tensorfold/engine.js'
+import { tensorFoldProjectedBytes } from '../../services/tensorfold/fit.js'
 import { adapterNeedsLlamaCpp } from '../../services/tensorfold/install.js'
+import { TENSORFOLD_AGENT_FLOOR } from '../../services/tensorfold/starting.js'
 import { bestTensorFoldFit, readTensorFoldInventory } from '../../services/tensorfold/inventory.js'
 import { announcerMachineName, browseAnnouncements } from '../../services/lan/announcer.js'
 import { pairWithHost } from '../../services/lan/pairing.js'
@@ -40,10 +44,15 @@ function urlOf(baseUrl: string): URL | undefined {
 }
 
 const TENSORFOLD_DRIVER_FLOOR = 580
+const ADAPTER_ADMISSION_SHARE = 0.7
 
-export function tensorFoldCapableMachine(platform: NodeJS.Platform = process.platform, arch: string = process.arch, nvidia: () => string | undefined = () => quietly(() => readFileSync('/proc/driver/nvidia/version', 'utf8'), undefined)): boolean {
+export function adapterFitsMachine(ramBytes: number): boolean {
+  return tensorFoldProjectedBytes(QWEN_2B_GGUF, TENSORFOLD_AGENT_FLOOR) <= ramBytes * ADAPTER_ADMISSION_SHARE
+}
+
+export function tensorFoldCapableMachine(platform: NodeJS.Platform = process.platform, arch: string = process.arch, nvidia: () => string | undefined = () => quietly(() => readFileSync('/proc/driver/nvidia/version', 'utf8'), undefined), ramBytes: number = totalmem()): boolean {
   if (platform === 'darwin') return arch === 'arm64'
-  if (platform === 'win32') return arch === 'x64'
+  if (platform === 'win32') return arch === 'x64' && adapterFitsMachine(ramBytes)
   if (platform !== 'linux') return false
   const major = Number(/Module\s+(\d+)\./.exec(nvidia() ?? '')?.[1])
   return Number.isInteger(major) && major >= TENSORFOLD_DRIVER_FLOOR

@@ -33,7 +33,7 @@ export const QWEN_4B_GGUF: AdapterCheckpoint = {
   gguf: { repo: 'unsloth/Qwen3.5-4B-GGUF', file: 'Qwen3.5-4B-Q4_K_M.gguf', quant: 'Q4_K_M', revision: 'e87f176479d0855a907a41277aca2f8ee7a09523', sha256: '00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4', bytes: 2_740_937_888 },
 }
 
-export const LIGHTNING_GGUF: AdapterCheckpoint = {
+const LIGHTNING_GGUF: AdapterCheckpoint = {
   repo: NEMOTRON_LIGHTNING.repo,
   label: NEMOTRON_LIGHTNING.label,
   shortName: NEMOTRON_LIGHTNING.shortName,

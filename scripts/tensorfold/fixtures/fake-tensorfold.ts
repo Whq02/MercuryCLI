@@ -20,7 +20,7 @@ function capabilities(): string {
     engine: 'zig',
     version: FAKE_TENSORFOLD_VERSION,
     chip: FAKE_TENSORFOLD_CHIP,
-    backends: ['metal'],
+    backends: [env.FAKE_TENSORFOLD_BACKEND ?? 'metal'],
     families: {
       qwen3_5: ['mlx-q4g32', 'mlx-q4g64', 'mlx-q8g64'],
       nemotron_h: ['mlx-q4g64', 'mlx-q8g64'],

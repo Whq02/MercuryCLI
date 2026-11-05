@@ -182,7 +182,7 @@ export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: nu
           setTensorFoldNotice('the download stopped · it resumes next time')
           return null
         }
-        await warn(io, FEED.pullFailed(row.label, error instanceof Error ? error.message : String(error)), supportFocusOf(row, window))
+        await warn(io, FEED.pullFailed(row.label, error instanceof Error ? error.message : String(error), opts.servedBy), supportFocusOf(row, window))
         return null
       }
       mintImmediateReceipt(FEED.pulled(row.label, total ?? row.bytesOnDisk ?? 0, opts.servedBy))
@@ -211,15 +211,15 @@ export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: nu
           const before = actOf(key)
           const port = before?.kind === 'starting' ? before.port : 0
           setAct(key, refusedActOf(name, window, refusal))
-          if (refusal.kind === 'port' && refusal.port !== undefined) await warn(io, FEED.portBusy(refusal.port), focus)
+          if (refusal.kind === 'port' && refusal.port !== undefined) await warn(io, FEED.portBusy(refusal.port, opts.servedBy), focus)
           else if (refusal.kind === 'gpu-limit') await warn(io, FEED.gpuLimit(name, window), focus)
-          else if (refusal.kind === 'exited') await warn(io, FEED.exited(name, port), focus)
-          else await warn(io, FEED.refused(name, window, refusal), focus)
+          else if (refusal.kind === 'exited') await warn(io, FEED.exited(name, port, opts.servedBy), focus)
+          else await warn(io, FEED.refused(name, window, refusal, opts.servedBy), focus)
           return null
         }
         if (error.tight !== null) {
           setAct(key, { kind: 'tight', needBytes: error.tight.needBytes, freeBytes: error.tight.freeBytes, offers: error.tight.offers })
-          await warn(io, FEED.tight(error.tight.needBytes, error.tight.freeBytes, error.tight.offers), focus)
+          await warn(io, FEED.tight(error.tight.needBytes, error.tight.freeBytes, error.tight.offers, opts.servedBy), focus)
           return null
         }
       }

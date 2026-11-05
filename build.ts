@@ -144,6 +144,7 @@ const adapterResult = await Bun.build({
     MACRO: JSON.stringify(MACRO),
     'process.env.NODE_ENV': JSON.stringify('production'),
   },
+  plugins: [mercuryPlugin],
 });
 if (!adapterResult.success) throw new Error(`TensorFold adapter build failed: ${adapterResult.logs.join('\n')}`);
 

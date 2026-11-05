@@ -18,7 +18,7 @@ export function hubEndpoint(env: NodeJS.ProcessEnv = process.env): string {
 
 export type GgufSource = { repo: string; file: string; quant: string; revision: string; sha256: string; bytes: number }
 
-export type GgufPaths = { base: string; blob: string; incomplete: string; snapshotDir: string; snapshotFile: string }
+type GgufPaths = { base: string; blob: string; incomplete: string; snapshotDir: string; snapshotFile: string }
 
 export function ggufPaths(root: string, gguf: GgufSource): GgufPaths {
   const base = join(root, cacheDirOfRepo(gguf.repo))

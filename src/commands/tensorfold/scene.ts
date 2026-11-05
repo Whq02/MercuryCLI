@@ -41,6 +41,7 @@ export type TensorFoldOutsideServer = {
   current: boolean
   inUseBytes?: number
   lastReply?: { firstTokenMs?: number; tokensPerSecond?: number }
+  servedBy?: string
 }
 
 export type TensorFoldPanelFacts = {
@@ -129,7 +130,7 @@ function outsideOf(records: readonly LocalModelRecord[], served: readonly Tensor
     const port = loopbackPortOf(record.baseUrl)
     if (port === undefined || ports.has(port)) continue
     const window = record.contextWindow?.tokens
-    out.push({ name: record.id, baseUrl: record.baseUrl, port, ...(window !== undefined ? { window } : {}), keyed: false, current: current !== undefined && current.endsWith(`/${record.id}`), ...(record.servedBytes !== undefined ? { inUseBytes: record.servedBytes } : {}) })
+    out.push({ name: record.id, baseUrl: record.baseUrl, port, ...(window !== undefined ? { window } : {}), keyed: false, current: current !== undefined && current.endsWith(`/${record.id}`), ...(record.servedBytes !== undefined ? { inUseBytes: record.servedBytes } : {}), ...(record.servedBy !== undefined ? { servedBy: record.servedBy } : {}) })
   }
   return out
 }
@@ -203,7 +204,7 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
   const preferred = served[0]?.port ?? remembered ?? TENSORFOLD_DEFAULT_PORT
   const takenOutside = outside.find(server => server.port === preferred)
   const keyed = served.length === 0 && takenOutside === undefined && answersAsOf(records, preferred) === undefined && !helperServed.some(row => row.port === preferred) ? await (io.keyedAt ?? defaultKeyedAt)(preferred) : false
-  const busyAs = takenOutside !== undefined || keyed ? 'TensorFold' : answersAsOf(records, preferred)
+  const busyAs = takenOutside !== undefined ? tensorFoldWho(takenOutside.servedBy) : keyed ? 'TensorFold' : answersAsOf(records, preferred)
   const port = served.length > 0 ? { next: preferred } : busyAs !== undefined ? { next: preferred + 1, busy: { port: preferred, answersAs: busyAs } } : { next: preferred }
   const root = io.cacheRoot ?? hfCacheRoot(io.env ?? process.env, io.home ?? homedir())
   const freeBytes = (io.diskFreeBytes ?? defaultDiskFree)(root)
@@ -308,15 +309,15 @@ export const FEED = {
   servesElsewhere: (name: string, port: number, busy: number, window: number, switched = true, servedBy?: string): string => `● ${tensorFoldWho(servedBy)} serves ${name} on ${servedAddress(port)} · ${busy} was in use · ${tokensWords(window)}${switched ? '' : ' · your default model'}`,
   pulled: (label: string, bytes: number, servedBy?: string): string => `● ${tensorFoldWho(servedBy)} pulled ${label} · ${bytesWords(bytes)} · starting it`,
   stopped: (name: string, servedBy?: string): string => `◌ ${tensorFoldWho(servedBy)} stopped ${name} · /tensorfold serves it again`,
-  refused: (name: string, window: number, refusal: TensorFoldRefusal): string => {
+  refused: (name: string, window: number, refusal: TensorFoldRefusal, servedBy?: string): string => {
     const numbers = refusal.needGib !== undefined && refusal.leftGib !== undefined ? ` (needs ${refusal.needGib.toFixed(1)} GiB, ${refusal.leftGib.toFixed(1)} GiB left)` : ''
-    return `▲ TensorFold refused ${name} at ${tokensWords(window)}${numbers} · /tensorfold · ${W.copySupport}`
+    return `▲ ${tensorFoldWho(servedBy)} refused ${name} at ${tokensWords(window)}${numbers} · /tensorfold · ${W.copySupport}`
   },
-  portBusy: (port: number): string => `▲ TensorFold could not listen on ${servedAddress(port)} · /tensorfold takes the next free port · ${W.copySupport}`,
+  portBusy: (port: number, servedBy?: string): string => `▲ ${tensorFoldWho(servedBy)} could not listen on ${servedAddress(port)} · /tensorfold takes the next free port · ${W.copySupport}`,
   gpuLimit: (name: string, window: number): string => `▲ TensorFold refused ${name} at ${tokensWords(window)} · macOS's GPU limit · /tensorfold shows the fix · ${W.copySupport}`,
-  exited: (name: string, port: number): string => `▲ TensorFold exited · ${name} on ${servedAddress(port)} · /tensorfold starts it again · ${W.copySupport}`,
-  pullFailed: (label: string, line: string): string => `▲ TensorFold could not pull ${label} · ${line} · /tensorfold tries again · ${W.copySupport}`,
+  exited: (name: string, port: number, servedBy?: string): string => `▲ ${tensorFoldWho(servedBy)} exited · ${name} on ${servedAddress(port)} · /tensorfold starts it again · ${W.copySupport}`,
+  pullFailed: (label: string, line: string, servedBy?: string): string => `▲ ${tensorFoldWho(servedBy)} could not pull ${label} · ${line} · /tensorfold tries again · ${W.copySupport}`,
   notInstalled: (): string => '▲ TensorFold is not installed · /tensorfold installs it',
   notServed: (name: string): string => `▲ ${name} is not served · /tensorfold serves it`,
-  tight: (need: number, free: number, offers: readonly string[]): string => `▲ TensorFold needs ${gibWords(need)} · ${gibWords(free)} free${offers.length > 0 ? ` · ${offers.join(' · ')}` : ''} · ${W.copySupport}`,
+  tight: (need: number, free: number, offers: readonly string[], servedBy?: string): string => `▲ ${tensorFoldWho(servedBy)} needs ${gibWords(need)} · ${gibWords(free)} free${offers.length > 0 ? ` · ${offers.join(' · ')}` : ''} · ${W.copySupport}`,
 } as const

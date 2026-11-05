@@ -45,8 +45,8 @@ export const SERVED_2B_RECORD: OutsideSeed = { id: 'qwen3.5-2b', baseUrl: 'http:
 export const SERVED_2B_TURN = { model: 'local/qwen3.5-2b', address: '127.0.0.1:8080', tokensPerSecond: 110, timeToFirstTokenS: 0.04 }
 
 export async function fakeEngineFound(platform: NodeJS.Platform = 'darwin'): Promise<Engine> {
-  const world = fakeWorld('tf-facts-engine')
   const onWindows = platform === 'win32'
+  const world = fakeWorld('tf-facts-engine', onWindows ? { env: { FAKE_TENSORFOLD_BACKEND: 'cuda' } } : {})
   const runFake: NonNullable<Parameters<typeof engine.findTensorFoldEngine>[0]['exec']> = (_file, args) => new Promise(resolve => {
     execFile(process.execPath, [FAKE_SCRIPT, ...args], { encoding: 'utf8', env: world.env, timeout: 8_000 }, (error, stdout, stderr) => resolve({ stdout: String(stdout), stderr: String(stderr), code: error ? 1 : 0 }))
   })

@@ -1,4 +1,5 @@
-import { cpus } from 'node:os'
+import { cpus, tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { MERCURY_VERSION } from '../../../constants/product.js'
 
 export const ADAPTER_SERVED_BY = 'mercury-llamacpp'
@@ -20,6 +21,10 @@ export const LLAMACPP_WINDOWS_CPU_ASSET = {
   sha256: 'c534f35ce9c842f3bc224fadaecc82e1b49768f63e8320922f6dbd603f66395e',
 } as const
 export const LLAMACPP_RUNTIME_BIN = ['.local', 'share', 'mercury-host', 'runtime', 'llama.cpp', 'build', 'bin'] as const
+
+export function adapterChildPidFile(port: number): string {
+  return join(tmpdir(), 'mercury-tensorfold-adapter', `port-${port}.pid`)
+}
 
 export function servedByAdapter(servedBy: string | undefined): boolean {
   return servedBy === ADAPTER_SERVED_BY

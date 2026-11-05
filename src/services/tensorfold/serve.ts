@@ -1,4 +1,4 @@
-import { readFileSync, statSync } from 'node:fs'
+import { readFileSync, rmSync, statSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { freemem } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -14,7 +14,7 @@ import { readRecord, reconcileRecord, startService, stopService, waitForReady } 
 import { detectTensorFoldApp, refuseSecondCopy, type TensorFoldAppState } from '../providers/local/tensorfoldApp.js'
 import { forgetTensorFoldHost, forgetTensorFoldPort, rememberTensorFoldHost, rememberTensorFoldPort } from '../providers/local/tensorfoldHosts.js'
 import { writeTensorFoldKeyFile } from '../providers/local/tensorfoldKeyFile.js'
-import { ADAPTER_SERVED_BY, isAdapterEntry } from './adapter/identity.js'
+import { ADAPTER_SERVED_BY, adapterChildPidFile, isAdapterEntry, servedByAdapter } from './adapter/identity.js'
 import { adapterCheckpointOf } from './adapter/models.js'
 import type { TensorFoldEngine, TensorFoldHost, TensorFoldModelRow, TensorFoldPullProgress, TensorFoldServeRequest, TensorFoldServeRole, TensorFoldServed } from './contracts.js'
 import { cachedTensorFoldMachineTruth, engineServedByAdapter, findTensorFoldEngine, tensorFoldCommand, tensorFoldCommandWords, type EngineIo } from './engine.js'
@@ -388,6 +388,7 @@ export async function stopTensorFold(name: string, io: Pick<ServeIo, 'role' | 's
   if (record.name !== name && record.repo !== name) return
   if (roleOf(io) === 'session') endAnnouncement()
   const stopped = await stopService(record.project, TENSORFOLD_SERVICES[roleOf(io)])
+  if (servedByAdapter(record.servedBy) && !('error' in stopped) && stopped.note === undefined) rmSync(adapterChildPidFile(record.port), { force: true })
   writeServedRecord(null, io)
   const forgetPort = io.forgetPort ?? forgetTensorFoldPort
   try {

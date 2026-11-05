@@ -6,7 +6,7 @@ import { ADAPTER_CHECKPOINTS, adapterCheckpointOf, adapterFamilies } from './mod
 import { GgufPullError, pullGguf } from './pull.js'
 import { ServeRefusal, parseServeArgs, runServe } from './serve.js'
 
-export type AdapterIo = {
+type AdapterIo = {
   env?: NodeJS.ProcessEnv
   home?: string
   platform?: NodeJS.Platform
@@ -17,11 +17,11 @@ export type AdapterIo = {
   llamaServer?: string
 }
 
-export const ADAPTER_SERVE_FLAGS = ['--name', '--context', '--port', '--prompt-cache-gib', '--host', '--api-key-file', '--drafter', '--parallel'] as const
-export const ADAPTER_ENV = ['HF_HOME', 'HF_HUB_CACHE', 'HF_ENDPOINT', 'HF_TOKEN', 'TF_DRAIN_S'] as const
+const ADAPTER_SERVE_FLAGS = ['--name', '--context', '--port', '--prompt-cache-gib', '--host', '--api-key-file', '--drafter', '--parallel'] as const
+const ADAPTER_ENV = ['HF_HOME', 'HF_HUB_CACHE', 'HF_ENDPOINT', 'HF_TOKEN', 'TF_DRAIN_S'] as const
 const USAGE = 'usage: tensorfold-adapter --version | capabilities --json | models [--json] | pull REPO[@REVISION] | serve MODEL [flags] | install'
 
-export type AdapterLlamaFacts = { found: boolean; binary?: string; pinned?: boolean; refused?: string; runtime: string; release: typeof LLAMACPP_RELEASE } & LlamaServerVersion
+type AdapterLlamaFacts = { found: boolean; binary?: string; pinned?: boolean; refused?: string; runtime: string; release: typeof LLAMACPP_RELEASE } & LlamaServerVersion
 
 export function capabilitiesJson(facts: { chip?: string; llama: AdapterLlamaFacts; version?: string }): Record<string, unknown> {
   return {
@@ -40,7 +40,7 @@ export function capabilitiesJson(facts: { chip?: string; llama: AdapterLlamaFact
   }
 }
 
-export async function readLlamaFacts(io: AdapterIo = {}): Promise<AdapterLlamaFacts> {
+async function readLlamaFacts(io: AdapterIo = {}): Promise<AdapterLlamaFacts> {
   const env = io.env ?? process.env
   const home = io.home ?? homedir()
   const runtime = llamaRuntimeBin(home)
@@ -49,7 +49,7 @@ export async function readLlamaFacts(io: AdapterIo = {}): Promise<AdapterLlamaFa
   return { ...resolved, runtime, release: LLAMACPP_RELEASE }
 }
 
-export function modelsJson(root: string): Record<string, unknown> {
+function modelsJson(root: string): Record<string, unknown> {
   return {
     served_by: ADAPTER_SERVED_BY,
     cache: root,

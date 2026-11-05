@@ -620,7 +620,7 @@ function servingWords(rows: readonly TensorFoldModelRow[]): string {
 
 function tensorFoldStatus(facts: TensorFoldPickerFacts): string {
   if (facts.platform === 'win32' && facts.engine === null) return 'no Windows release yet'
-  if (facts.adapter !== undefined) return ADAPTER_HEADING_WORDS
+  if (facts.adapter !== undefined) return facts.helper === undefined ? ADAPTER_HEADING_WORDS : `${ADAPTER_HEADING_WORDS} ${facts.helper}`
   const chip = facts.machine?.chip ?? facts.engine?.chip
   const usableGib = facts.machine?.usableGib ?? facts.rows.find(row => row.fit.availableGib > 0)?.fit.availableGib
   if (facts.engine === null) return ['not installed', chip, usableGib !== undefined ? `${gib(usableGib)} usable` : undefined].filter(part => part !== undefined).join(' · ')

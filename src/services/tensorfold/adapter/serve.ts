@@ -6,13 +6,14 @@ import { tmpdir, totalmem } from 'node:os'
 import { join } from 'node:path'
 import { ggufOnDisk, ggufPaths, hfCacheRoot } from '../hfCache.js'
 import { GIB, TENSORFOLD_RUNTIME_MARGIN } from '../starting.js'
-import { ADAPTER_CHILD_PREFIX, ADAPTER_SERVED_BY, ADAPTER_SPEAKER, ADAPTER_VERSION, cpuModelWords, llamaCppWords } from './identity.js'
+import { getProcessStartTokenAsync } from '../../../daemon/ownerWatch.js'
+import { ADAPTER_CHILD_PREFIX, ADAPTER_SERVED_BY, ADAPTER_SPEAKER, ADAPTER_VERSION, adapterChildPidFile, cpuModelWords, llamaCppWords } from './identity.js'
 import { readLlamaServerVersion, resolveLlamaServer, type LlamaServerVersion } from './llama.js'
 import { ADAPTER_CHECKPOINTS, adapterCheckpointOf, type AdapterCheckpoint } from './models.js'
 
-export type ServeArgs = { repo: string; name?: string; window: number; port: number; host: string; promptCacheGib: number; apiKeyFile?: string; drafter?: string }
+type ServeArgs = { repo: string; name?: string; window: number; port: number; host: string; promptCacheGib: number; apiKeyFile?: string; drafter?: string }
 
-export type ServeIo = {
+type ServeIo = {
   env?: NodeJS.ProcessEnv
   home?: string
   platform?: NodeJS.Platform
@@ -23,8 +24,8 @@ export type ServeIo = {
   readyPollMs?: number
 }
 
-export const ADAPTER_ADMISSION_SHARE = 0.7
-export const ADAPTER_EFFORTS = ['max', 'xhigh', 'high', 'medium', 'low', 'minimal', 'none'] as const
+const ADAPTER_ADMISSION_SHARE = 0.7
+const ADAPTER_EFFORTS = ['max', 'xhigh', 'high', 'medium', 'low', 'minimal', 'none'] as const
 const DEFAULT_PROMPT_CACHE_GIB = 1
 
 export class ServeRefusal extends Error {
@@ -143,9 +144,9 @@ export function translateRequest(body: Rec): { body: Rec; effort?: string; think
   return { body: out, effort, thinking }
 }
 
-export type RuntimeFacts = { effort?: string; thinking?: boolean; llama: LlamaServerVersion }
+type RuntimeFacts = { effort?: string; thinking?: boolean; llama: LlamaServerVersion }
 
-export function tensorFoldBlockOf(timings: Rec | undefined, facts: RuntimeFacts): Rec | undefined {
+function tensorFoldBlockOf(timings: Rec | undefined, facts: RuntimeFacts): Rec | undefined {
   if (timings === undefined) return undefined
   const promptMs = num(timings.prompt_ms)
   const predictedMs = num(timings.predicted_ms)
@@ -174,7 +175,7 @@ export function translateReply(chunk: Rec, facts: RuntimeFacts): Rec {
   }
 }
 
-export class SseTransformer {
+class SseTransformer {
   private rest = ''
   constructor(private readonly facts: RuntimeFacts, private readonly onTimings?: (timings: Rec) => void) {}
 
@@ -233,12 +234,18 @@ function freePort(): Promise<number> {
   })
 }
 
+export function tasklistMemoryBytes(stdout: string): number | undefined {
+  const line = stdout.split(/\r?\n/).map(row => row.trim()).filter(row => row !== '').pop() ?? ''
+  const cell = /"([^"]*)"\s*$/.exec(line)?.[1] ?? line.split(',').pop() ?? ''
+  const digits = cell.replace(/[^0-9]/g, '')
+  return digits === '' ? undefined : Number(digits) * 1024
+}
+
 function rssBytes(pid: number, platform: NodeJS.Platform): Promise<number | undefined> {
   return new Promise(resolve => {
     const done = (stdout: string): void => {
       if (platform === 'win32') {
-        const cell = stdout.split(',').pop()?.replace(/[^0-9]/g, '')
-        resolve(cell ? Number(cell) * 1024 : undefined)
+        resolve(tasklistMemoryBytes(stdout))
         return
       }
       const kib = Number(stdout.trim())
@@ -279,10 +286,6 @@ export function childEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return out
 }
 
-export function childPidFile(port: number): string {
-  return join(tmpdir(), 'mercury-tensorfold-adapter', `port-${port}.pid`)
-}
-
 function isLlamaServer(pid: number, platform: NodeJS.Platform): Promise<boolean> {
   return new Promise(resolve => {
     try {
@@ -294,30 +297,37 @@ function isLlamaServer(pid: number, platform: NodeJS.Platform): Promise<boolean>
   })
 }
 
-export async function reapStaleChild(port: number, platform: NodeJS.Platform, say: (line: string) => void): Promise<void> {
-  const file = childPidFile(port)
-  let pid: number
+export function readChildPidFile(port: number): { pid: number; token: string } | undefined {
   try {
-    pid = Number(readFileSync(file, 'utf8').trim())
+    const [first = '', ...rest] = readFileSync(adapterChildPidFile(port), 'utf8').split('\n')
+    const pid = Number(first.trim())
+    return Number.isInteger(pid) && pid > 0 ? { pid, token: rest.join('\n').trim() } : undefined
   } catch {
-    return
-  }
-  rmSync(file, { force: true })
-  if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) return
-  if (!(await isLlamaServer(pid, platform))) return
-  try {
-    process.kill(pid)
-    say(`[${ADAPTER_SPEAKER}] stopped a llama-server left behind by an earlier serve on port ${port} (pid ${pid})`)
-  } catch {
-    void 0
+    return undefined
   }
 }
 
-function rememberChild(port: number, pid: number): void {
+export async function reapStaleChild(port: number, platform: NodeJS.Platform, say: (line: string) => void, io: { startToken?: (pid: number) => Promise<string | null>; isLlamaServer?: (pid: number) => Promise<boolean> } = {}): Promise<boolean> {
+  const stale = readChildPidFile(port)
+  rmSync(adapterChildPidFile(port), { force: true })
+  if (stale === undefined || stale.pid === process.pid || stale.token === '') return false
+  const live = await (io.startToken ?? getProcessStartTokenAsync)(stale.pid)
+  if (live === null || live === '' || live !== stale.token) return false
+  if (!(await (io.isLlamaServer ?? (pid => isLlamaServer(pid, platform)))(stale.pid))) return false
   try {
-    const file = childPidFile(port)
+    process.kill(stale.pid)
+  } catch {
+    return false
+  }
+  say(`[${ADAPTER_SPEAKER}] stopped a llama-server left behind by an earlier serve on port ${port} (pid ${stale.pid})`)
+  return true
+}
+
+export async function rememberChild(port: number, pid: number, startToken: (pid: number) => Promise<string | null> = getProcessStartTokenAsync): Promise<void> {
+  try {
+    const token = (await startToken(pid)) ?? ''
     mkdirSync(join(tmpdir(), 'mercury-tensorfold-adapter'), { recursive: true })
-    writeFileSync(file, `${pid}\n`)
+    writeFileSync(adapterChildPidFile(port), `${pid}\n${token}\n`)
   } catch {
     void 0
   }
@@ -464,6 +474,7 @@ export async function runServe(args: ServeArgs, io: ServeIo = {}): Promise<numbe
       }
       response.on('close', dropped)
       request.socket.on('close', dropped)
+      response.on('finish', () => request.socket.removeListener('close', dropped))
       upstream.end(payload)
       return
     }
@@ -478,7 +489,7 @@ export async function runServe(args: ServeArgs, io: ServeIo = {}): Promise<numbe
   await reapStaleChild(args.port, platform, say)
   const launch = io.spawnImpl ?? spawn
   child = launch(llamaBinary, llamaServerArgs(model, name, args.window, innerPort, args.promptCacheGib), { env: childEnv(env), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
-  if (child.pid !== undefined) rememberChild(args.port, child.pid)
+  if (child.pid !== undefined) void rememberChild(args.port, child.pid)
   const take = (chunk: Buffer | string): void => {
     for (const line of String(chunk).split(/\r?\n/)) {
       const trimmed = line.trim()
@@ -522,7 +533,7 @@ export async function runServe(args: ServeArgs, io: ServeIo = {}): Promise<numbe
   process.on('SIGINT', () => stop('SIGINT'))
   process.on('exit', () => {
     if (child !== undefined && child.exitCode === null && child.signalCode === null) child.kill()
-    rmSync(childPidFile(args.port), { force: true })
+    rmSync(adapterChildPidFile(args.port), { force: true })
   })
   process.on('uncaughtException', error => {
     say(`${ADAPTER_SPEAKER}: ${error instanceof Error ? error.stack ?? error.message : String(error)}`)

@@ -132,7 +132,7 @@ const served = await serve.startTensorFold({ repo: QWEN_2B.repo, window: 32_768,
 const loadSeconds = (Date.now() - serveBegun) / 1000
 check(`served on 127.0.0.1:${port} after ${loadSeconds.toFixed(1)} s; the service runs the adapter under process.execPath; the served record carries servedBy`, served.port === port && served.servedBy === 'mercury-llamacpp' && readRecord(cwd, 'tensorfold')?.spec.command === process.execPath, JSON.stringify(served))
 const record = readRecord(cwd, 'tensorfold')
-const childPid = Number(readFileSync(adapterServe.childPidFile(port), 'utf8').trim())
+const childPid = adapterServe.readChildPidFile(port)?.pid ?? 0
 const root = `http://127.0.0.1:${port}`
 const probe = await probeTensorFold(root, { timeoutMs: 3_000 })
 check("the probe: TensorFold-shaped with the tell, label TensorFold adapter … (Mercury's engine), the served window", probe?.kind === 'tensorfold' && probe.engine?.servedBy === 'mercury-llamacpp' && probe.label.startsWith('TensorFold adapter ') && probe.models[0]?.contextWindow?.tokens === 32_768, JSON.stringify(probe))
@@ -171,6 +171,41 @@ await serve.stopTensorFold('qwen3.5-2b', { servedFile })
 await sleep(500)
 check('stop: the adapter and its llama-server child are gone, the port is free', !alive(served.pid) && !alive(childPid) && (await fetch(`${root}/health`, { signal: AbortSignal.timeout(500) }).then(() => false, () => true)), JSON.stringify({ adapter: alive(served.pid), child: alive(childPid) }))
 receipt.load = { seconds: loadSeconds }
+
+console.log('§5 the shipped shape against the real engine: node + dist/tensorfold-adapter.mjs serving the 2B, a streamed turn, SIGTERM')
+if (node !== undefined && existsSync(join(dist, 'tensorfold-adapter.mjs'))) {
+  const shippedPort = await freePort()
+  const child = spawn(node, [join(dist, 'tensorfold-adapter.mjs'), '--tensorfold-adapter', 'serve', QWEN_2B.repo, '--name', 'qwen3.5-2b', '--context', '8192', '--prompt-cache-gib', '1', '--port', String(shippedPort)], { env: { ...process.env, HF_HUB_CACHE: cache, TF_DRAIN_S: '2' }, stdio: ['ignore', 'pipe', 'pipe'] })
+  const lines: string[] = []
+  child.stdout.on('data', chunk => lines.push(...String(chunk).split('\n').filter(Boolean)))
+  child.stderr.on('data', chunk => lines.push(...String(chunk).split('\n').filter(Boolean)))
+  const exit = new Promise<number | null>(resolve => child.once('exit', code => resolve(code)))
+  const begun = Date.now()
+  let ready = false
+  while (Date.now() - begun < 120_000 && child.exitCode === null) {
+    if ((await fetch(`http://127.0.0.1:${shippedPort}/health`, { signal: AbortSignal.timeout(1_000) }).then(r => r.status, () => 0)) === 200) {
+      ready = true
+      break
+    }
+    await sleep(250)
+  }
+  check(`node + dist serves the real 2B on the real llama-server (ready after ${((Date.now() - begun) / 1000).toFixed(1)} s)`, ready, lines.slice(-4).join(' | '))
+  const shippedRoot = `http://127.0.0.1:${shippedPort}`
+  const shippedProbe = await probeTensorFold(shippedRoot, { timeoutMs: 3_000 })
+  const shippedTurn = await fetch(`${shippedRoot}/v1/chat/completions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: 'qwen3.5-2b', stream: true, stream_options: { include_usage: true }, messages: [{ role: 'user', content: 'Say exactly: hello world' }], max_tokens: 16, reasoning_effort: 'none', temperature: 0 }) }).then(r => r.text())
+  const shippedChunks = shippedTurn.split('\n').filter(line => line.startsWith('data: ') && line !== 'data: [DONE]').map(line => JSON.parse(line.slice(6)) as Record<string, unknown>)
+  const shippedUsage = shippedChunks.find(chunk => chunk.usage !== undefined)
+  check('the shipped shape: the probe reads the tell, a streamed turn answers with the usage chunk and the tensorfold block', shippedProbe?.engine?.servedBy === 'mercury-llamacpp' && shippedUsage !== undefined && (shippedUsage.tensorfold as Record<string, unknown>).served_by === 'mercury-llamacpp' && shippedChunks.map(chunk => ((chunk.choices as Array<{ delta?: { content?: string } }>)[0]?.delta?.content ?? '')).join('').toLowerCase().includes('hello'), shippedTurn.slice(0, 400))
+  const shippedChild = adapterServe.readChildPidFile(shippedPort)?.pid ?? 0
+  child.kill('SIGTERM')
+  const code = await exit
+  await sleep(300)
+  check('SIGTERM under node: drained, exit 0, the llama-server child gone, the port free', code === 0 && lines.includes('shutting down: drained') && !alive(shippedChild) && (await fetch(`${shippedRoot}/health`, { signal: AbortSignal.timeout(500) }).then(() => false, () => true)), JSON.stringify({ code, child: alive(shippedChild), tail: lines.slice(-3) }))
+  receipt.shippedServe = { node, lines: lines.filter(line => /serving |shutting/.test(line)) }
+} else {
+  check('the shipped shape serve leg needs dist/tensorfold-adapter.mjs and a node runtime', false, 'bun run build.ts first')
+}
+
 writeFileSync(out, JSON.stringify(receipt, null, 2) + '\n')
 console.log(`\nreceipt: ${out}`)
 console.log(failures === 0 ? '\nmeasure-tensorfold-adapter-live: ALL GREEN' : `\nmeasure-tensorfold-adapter-live: ${failures} FAILURE(S)`)

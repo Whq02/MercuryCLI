@@ -34,6 +34,7 @@ const { localServerKind } = await import('../../src/constants/localPromptProfile
 const health = await import('../../src/services/providers/local/tensorfoldHealth.ts')
 const support = await import('../../src/services/providers/local/tensorfoldSupport.ts')
 const { readRecord } = await import('../../src/services/projectServices/serviceManager.ts')
+const { adapterFitsMachine, tensorFoldCapableMachine } = await import('../../src/components/tensorfold/tensorfoldFacts.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -175,7 +176,12 @@ section('the admission and the refusal lines in his grammar, read by refusal.ts'
   const keyed = join(fakeWorld('tf-adapter-key').home, 'api-key')
   writeFileSync(keyed, '# a comment\nmercury[inference]: KEY-ONE\nbare-key\n')
   check('a key file in his name[scope]: KEY form reads its keys; comments skipped', JSON.stringify(adapterServe.readKeyFile(keyed)) === '["KEY-ONE","bare-key"]')
-  check('tasklist memory cells are read whatever the locale', (() => { const words = adapterLlama.llamaServerStartsOutcome(3221225781, 'win32'); return words === adapterLlama.VC_REDIST_WORDS && adapterLlama.llamaServerStartsOutcome(0, 'win32') === undefined && adapterLlama.llamaServerStartsOutcome(1, 'darwin') === 'llama-server --version exited 1' })())
+  check('STATUS_DLL_NOT_FOUND after an install names the Visual C++ runtime; exit 0 is fine; another exit is named', adapterLlama.llamaServerStartsOutcome(3221225781, 'win32') === adapterLlama.VC_REDIST_WORDS && adapterLlama.llamaServerStartsOutcome(0, 'win32') === undefined && adapterLlama.llamaServerStartsOutcome(1, 'darwin') === 'llama-server --version exited 1')
+  const kib = 1234567 * 1024
+  check("tasklist's quoted CSV memory cell is read whatever the locale: en-US 1,234,567 K · de-DE 1.234.567 K · fr-FR 1\u202f234\u202f567 Ko · a trailing newline", adapterServe.tasklistMemoryBytes('"llama-server.exe","1234","Console","1","1,234,567 K"\r\n') === kib && adapterServe.tasklistMemoryBytes('"llama-server.exe","1234","Console","1","1.234.567 K"') === kib && adapterServe.tasklistMemoryBytes('"llama-server.exe","1234","Console","1","1\u202f234\u202f567 Ko"\n') === kib && adapterServe.tasklistMemoryBytes('INFO: No tasks are running which match the specified criteria.') === undefined, String(adapterServe.tasklistMemoryBytes('"llama-server.exe","1234","Console","1","1,234,567 K"')))
+  check("a Windows x64 machine is capable only when the 2B fits at the 64k floor: 8 GiB yes (4.9 GiB under 70% of 8), 4 GiB no", adapterFitsMachine(8 * GIB) && !adapterFitsMachine(4 * GIB) && tensorFoldCapableMachine('win32', 'x64', () => undefined, 8 * GIB) && !tensorFoldCapableMachine('win32', 'x64', () => undefined, 4 * GIB) && !tensorFoldCapableMachine('win32', 'arm64', () => undefined, 32 * GIB))
+  const who = scene.FEED
+  check("the feed's error lines name Mercury's engine on the adapter and TensorFold otherwise", who.exited('qwen3.5-4b', 8080, 'mercury-llamacpp') === "▲ Mercury's engine exited · qwen3.5-4b on 127.0.0.1:8080 · /tensorfold starts it again · c copies the support line" && who.exited('qwen3.5-4b', 8080).startsWith('▲ TensorFold exited') && who.portBusy(8080, 'mercury-llamacpp').startsWith("▲ Mercury's engine could not listen on 127.0.0.1:8080") && who.pullFailed('Qwen3.5 4B', 'x', 'mercury-llamacpp').startsWith("▲ Mercury's engine could not pull Qwen3.5 4B · x") && who.tight(2 * GIB, GIB, [], 'mercury-llamacpp').startsWith("▲ Mercury's engine needs 2.0 GiB · 1.0 GiB free") && who.refused('qwen3.5-4b', 131_072, { kind: 'memory', line: 'l', needGib: 8, leftGib: 5.65 }, 'mercury-llamacpp') === "▲ Mercury's engine refused qwen3.5-4b at 128k (needs 8.0 GiB, 5.7 GiB left) · /tensorfold · c copies the support line", who.refused('qwen3.5-4b', 131_072, { kind: 'memory', line: 'l', needGib: 8, leftGib: 5.65 }, 'mercury-llamacpp'))
 }
 
 section('serve against the fake llama-server: 503 while loading, the TensorFold-shaped API with the tell, the stream and the usage block, the keyed mode, the client abort, the stop')
@@ -247,9 +253,10 @@ section('serve against the fake llama-server: 503 while loading, the TensorFold-
   check('keyed: /health shows status and the tell only; /v1/models answers 401 without the key and 200 with it', JSON.stringify(keyedHealth) === '{"status":"ok","served_by":"mercury-llamacpp"}' && keyedModels === 401 && withKey === 200, JSON.stringify({ keyedHealth, keyedModels, withKey }))
   keyChild.kill('SIGTERM')
   await keyChild.exit
-  const pidFile = adapterServe.childPidFile(port)
-  const childPid = Number(readFileSync(pidFile, 'utf8').trim())
-  check("the llama-server child's pid is remembered beside the front port while serving", Number.isInteger(childPid) && alive(childPid))
+  const pidFile = identity.adapterChildPidFile(port)
+  const remembered = adapterServe.readChildPidFile(port)
+  const childPid = remembered?.pid ?? 0
+  check("the llama-server child's pid and its start token are remembered beside the front port while serving", remembered !== undefined && alive(childPid) && remembered.token !== '', JSON.stringify(remembered))
   child.kill('SIGTERM')
   const exit = await child.exit
   await sleep(200)
@@ -284,6 +291,29 @@ section('the refusals from the serve verb: not pulled, port in use, --drafter, a
   const dying = worldWithLlama('tf-adapter-refuse-die', { env: { FAKE_LLAMA_DIE: '1' } })
   const died = await run(['serve', QWEN_2B.repo, '--port', String(await freePort())], { ...dying.env, HOME: dying.home })
   check("the child dying before ready: the adapter exits with its code and speaks the child's last line (the road's exited reader)", died.code === 1 && died.last === 'tensorfold-adapter: llama.cpp exited 1 · error: failed to allocate the KV cache (fake)', died.last)
+}
+
+section('the stale-child reaper: a remembered pid is killed only when its start token matches and the image is a llama-server; an empty or stale token never kills')
+{
+  const reapPort = await freePort()
+  const stray = spawn('sleep', ['60'], { stdio: 'ignore' })
+  const strayExit = new Promise<string | null>(resolve => stray.once('exit', (_code, signal) => resolve(signal)))
+  await adapterServe.rememberChild(reapPort, stray.pid!, async () => 'T1')
+  const stored = adapterServe.readChildPidFile(reapPort)
+  check('the pid file holds the pid and the token', stored?.pid === stray.pid && stored.token === 'T1', JSON.stringify(stored))
+  const said: string[] = []
+  const notMine = await adapterServe.reapStaleChild(reapPort, 'darwin', line => said.push(line), { startToken: async () => 'T2', isLlamaServer: async () => true })
+  check('a pid whose live start token differs (reused since) is left alone and the file is dropped', !notMine && alive(stray.pid!) && adapterServe.readChildPidFile(reapPort) === undefined && said.length === 0)
+  await adapterServe.rememberChild(reapPort, stray.pid!, async () => null)
+  const noToken = await adapterServe.reapStaleChild(reapPort, 'darwin', line => said.push(line), { startToken: async () => 'T1', isLlamaServer: async () => true })
+  check('a pid remembered without a token (the reader failed at start) is never killed', !noToken && alive(stray.pid!))
+  await adapterServe.rememberChild(reapPort, stray.pid!, async () => 'T1')
+  const notLlama = await adapterServe.reapStaleChild(reapPort, 'darwin', line => said.push(line), { startToken: async () => 'T1', isLlamaServer: async () => false })
+  check('a matching token on a process that is not a llama-server is left alone', !notLlama && alive(stray.pid!))
+  await adapterServe.rememberChild(reapPort, stray.pid!, async () => 'T1')
+  const reaped = await adapterServe.reapStaleChild(reapPort, 'darwin', line => said.push(line), { startToken: async () => 'T1', isLlamaServer: async () => true })
+  const signal = await strayExit
+  check('pid, token and image all matching: the stray is stopped and the adapter says so', reaped && signal === 'SIGTERM' && said[0] === `[tensorfold-adapter] stopped a llama-server left behind by an earlier serve on port ${reapPort} (pid ${stray.pid})`, JSON.stringify({ reaped, signal, said }))
 }
 
 section('pull: the HF-hub layout under the mapped GGUF repo, Range resume, the pinned sha256, a hard link into the snapshot; the road polls the mapped blobs')
@@ -369,10 +399,12 @@ section("the road end to end on the adapter: findTensorFoldEngine → the invent
   check('the panel facts: the served 2B first with the port, the heading words from the picker builder are the adapter sentence', facts.rows[0]?.repo === QWEN_2B.repo && facts.rows[0].state === 'serving' && facts.rows[0].port === port && facts.live.startsWith(`serving qwen3.5-2b on 127.0.0.1:${port}`), JSON.stringify({ first: facts.rows[0]?.shortName, live: facts.live }))
   const feed = scene.FEED.serves('qwen3.5-2b', 32_768, port, true, served.servedBy)
   check("the feed line names Mercury's engine, his engine's line unchanged otherwise", feed === `● Mercury's engine serves qwen3.5-2b · 32k on 127.0.0.1:${port} · this session's model` && scene.FEED.serves('qwen3.5-2b', 32_768, port) === `● TensorFold serves qwen3.5-2b · 32k on 127.0.0.1:${port} · this session's model` && scene.FEED.stopped('qwen3.5-2b', 'mercury-llamacpp') === "◌ Mercury's engine stopped qwen3.5-2b · /tensorfold serves it again", feed)
-  const childPid = Number(readFileSync(adapterServe.childPidFile(port), 'utf8').trim())
+  const childPid = adapterServe.readChildPidFile(port)?.pid ?? 0
+  const busyFacts = await scene.readTensorFoldPanelFacts({ cacheRoot: world.cache, machine: WIN_16, engine: found, env: world.env, home: world.home, servedFile: join(world.home, 'nothing-served.json'), platform: 'win32', localModels: () => [{ id: 'qwen3.5-2b', server: 'tensorfold', baseUrl: `http://127.0.0.1:${serve.TENSORFOLD_DEFAULT_PORT}/v1`, contextWindow: { tokens: 32_768, source: 'served' }, servedBy: 'mercury-llamacpp' }], hosts: () => [], helper: () => undefined, app: async () => ({ running: false }) })
+  check("an adapter server Mercury did not start, holding the preferred port, is named Mercury's engine in the port note and the next port is offered", busyFacts.outside[0]?.servedBy === 'mercury-llamacpp' && busyFacts.port.busy?.port === serve.TENSORFOLD_DEFAULT_PORT && busyFacts.port.busy.answersAs === "Mercury's engine" && busyFacts.port.next === serve.TENSORFOLD_DEFAULT_PORT + 1, JSON.stringify(busyFacts.port))
   await serve.stopTensorFold('qwen3.5-2b', { servedFile })
   await sleep(300)
-  check('stopTensorFold through stopService ends the adapter and its llama-server child; the port is free', serve.servedTensorFold({ servedFile }).length === 0 && !alive(served.pid) && !alive(childPid) && (await status(`http://127.0.0.1:${port}/health`)) === 0, JSON.stringify({ adapter: alive(served.pid), child: alive(childPid) }))
+  check('stopTensorFold through stopService ends the adapter and its llama-server child; the port is free; the pid file is gone', serve.servedTensorFold({ servedFile }).length === 0 && !alive(served.pid) && !alive(childPid) && (await status(`http://127.0.0.1:${port}/health`)) === 0 && !existsSync(identity.adapterChildPidFile(port)), JSON.stringify({ adapter: alive(served.pid), child: alive(childPid), pidFile: existsSync(identity.adapterChildPidFile(port)) }))
 }
 
 console.log(`\n${failures === 0 ? 'GREEN' : `RED (${failures})`}: the TensorFold adapter — verbs, surfaces, the tell, pull, install, the road`)

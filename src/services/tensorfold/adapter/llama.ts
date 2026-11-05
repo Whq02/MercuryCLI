@@ -3,9 +3,9 @@ import { createHash } from 'node:crypto'
 import { accessSync, constants, mkdirSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, delimiter, join } from 'node:path'
-import { ADAPTER_VERSION, LLAMACPP_RUNTIME_BIN, LLAMACPP_WINDOWS_CPU_ASSET } from './identity.js'
+import { ADAPTER_VERSION, LLAMACPP_RELEASE, LLAMACPP_RUNTIME_BIN, LLAMACPP_WINDOWS_CPU_ASSET } from './identity.js'
 
-export type LlamaIo = {
+type LlamaIo = {
   platform?: NodeJS.Platform
   arch?: string
   env?: NodeJS.ProcessEnv
@@ -15,7 +15,7 @@ export type LlamaIo = {
 
 export type LlamaServerVersion = { version?: string; build?: string; commit?: string }
 
-export type LlamaServerFound = { binary: string } & LlamaServerVersion
+type LlamaServerFound = { binary: string } & LlamaServerVersion
 
 function executable(path: string): boolean {
   try {
@@ -30,7 +30,7 @@ export function llamaRuntimeBin(home: string = homedir()): string {
   return join(home, ...LLAMACPP_RUNTIME_BIN)
 }
 
-export function llamaServerCandidates(io: LlamaIo = {}): string[] {
+function llamaServerCandidates(io: LlamaIo = {}): string[] {
   const platform = io.platform ?? process.platform
   const env = io.env ?? process.env
   const home = io.home ?? homedir()
@@ -40,9 +40,9 @@ export function llamaServerCandidates(io: LlamaIo = {}): string[] {
   return [...new Set(dirs.map(dir => join(dir, name)))]
 }
 
-export const LLAMACPP_BUILD_FLOOR = 11829
+const LLAMACPP_BUILD_FLOOR = 11829
 
-export type LlamaResolution = { found: true; binary: string; pinned: boolean } & LlamaServerVersion | { found: false; refused?: string }
+type LlamaResolution = { found: true; binary: string; pinned: boolean } & LlamaServerVersion | { found: false; refused?: string }
 
 export async function resolveLlamaServer(io: LlamaIo = {}): Promise<LlamaResolution> {
   const exists = io.exists ?? executable
@@ -51,15 +51,16 @@ export async function resolveLlamaServer(io: LlamaIo = {}): Promise<LlamaResolut
   const refusals: string[] = []
   for (const binary of llamaServerCandidates(io).filter(exists)) {
     const version = await readLlamaServerVersion(binary, env)
-    if (binary.startsWith(runtime)) return { found: true, binary, pinned: true, ...version }
     const build = Number(version.build)
-    if (Number.isInteger(build) && build >= LLAMACPP_BUILD_FLOOR) return { found: true, binary, pinned: false, ...version }
-    refusals.push(`${binary} is ${version.build !== undefined ? `build ${version.build}` : 'an unknown build'}`)
+    const atPin = version.commit !== undefined && LLAMACPP_RELEASE.commit.startsWith(version.commit)
+    const atFloor = Number.isInteger(build) && build >= LLAMACPP_BUILD_FLOOR
+    if (atPin || atFloor) return { found: true, binary, pinned: binary.startsWith(runtime) && atPin, ...version }
+    refusals.push(`${binary} is ${version.build !== undefined && version.build !== '1' ? `build ${version.build}` : version.commit !== undefined ? `commit ${version.commit}` : 'an unknown build'}`)
   }
   return { found: false, ...(refusals.length > 0 ? { refused: `${refusals.join('; ')}; Mercury's engine needs llama.cpp b${LLAMACPP_BUILD_FLOOR} or newer` } : {}) }
 }
 
-export function parseLlamaServerVersion(text: string | undefined): LlamaServerVersion {
+function parseLlamaServerVersion(text: string | undefined): LlamaServerVersion {
   const line = (text ?? '').split('\n').find(row => /version:/i.test(row)) ?? ''
   const version = /version:\s*([^\s(]+)/i.exec(line)?.[1]
   const build = /build\s+(\d+)/i.exec(line)?.[1]
@@ -77,7 +78,7 @@ export function readLlamaServerVersion(binary: string, env: NodeJS.ProcessEnv = 
   })
 }
 
-export type LlamaInstallIo = LlamaIo & {
+type LlamaInstallIo = LlamaIo & {
   fetchImpl?: typeof fetch
   asset?: { name: string; url: string; bytes: number; sha256: string }
   onLine?: (line: string) => void

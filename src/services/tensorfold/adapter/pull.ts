@@ -5,14 +5,14 @@ import { Readable } from 'node:stream'
 import { ggufOnDisk, ggufPaths, hubEndpoint, type GgufSource } from '../hfCache.js'
 import { ADAPTER_VERSION } from './identity.js'
 
-export type GgufPullIo = {
+type GgufPullIo = {
   fetchImpl?: typeof fetch
   env?: NodeJS.ProcessEnv
   signal?: AbortSignal
   onBytes?: (bytes: number) => void
 }
 
-export type GgufPullOutcome = { path: string; bytes: number; downloaded: boolean }
+type GgufPullOutcome = { path: string; bytes: number; downloaded: boolean }
 
 export class GgufPullError extends Error {
   constructor(message: string, public readonly stopped = false) {
@@ -55,7 +55,7 @@ function placeSnapshot(blob: string, snapshotFile: string): void {
   copyFileSync(blob, snapshotFile)
 }
 
-export function ggufDownloadUrl(gguf: GgufSource, env: NodeJS.ProcessEnv = process.env): string {
+function ggufDownloadUrl(gguf: GgufSource, env: NodeJS.ProcessEnv = process.env): string {
   return `${hubEndpoint(env)}/${gguf.repo}/resolve/${gguf.revision}/${encodeURI(gguf.file)}`
 }
 
