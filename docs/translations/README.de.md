@@ -18,7 +18,7 @@ Ein Agent liest und bearbeitet Dateien, führt Shell-Befehle aus, durchläuft Te
 
 Mercury wird eingesetzt, um Mercury zu entwickeln; dabei laufen mehrere Sessions und Modelle über lange Aufgaben hinweg. Den Überblick über diese Arbeit zu behalten ist der schwierige Teil: was noch läuft, was sich geändert hat und was eine Entscheidung braucht. Jede Session schreibt beim Abschluss ihre eigene Übergabenotiz, und die nächste Session liest diese Notiz beim Start einmal zusammen mit meinen angehefteten Regeln. So wird Kontextvergiftung zwischen den Sessions verhindert.
 
-![Strukturelle Suche findet drei console.log-Aufrufe anhand ihrer Form in drei Dateien, und strukturelles Bearbeiten schreibt sie in einem Probelauf zu logger.debug um und wendet die Änderung anschließend an](../media/syntax-search-edit-black.gif)
+![Strukturelle Suche findet drei console.log-Aufrufe anhand ihrer Form in drei Dateien, und strukturelles Bearbeiten schreibt sie in einem Probelauf zu logger.debug um und wendet die Änderung anschließend an](../media/syntax-search-edit-clean.gif)
 
 Mercury ist Open Source unter der Apache License 2.0, ebenso wie die SDKs in [sdk/](../../sdk/) und [sdk-py/](../../sdk-py/).
 

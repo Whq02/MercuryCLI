@@ -18,7 +18,7 @@ Un agente lee y edita archivos, ejecuta comandos de shell, recorre pruebas y dep
 
 Mercury se usa para desarrollar Mercury, con varias sesiones y modelos en tareas largas. Seguir la pista de ese trabajo es lo difícil: qué sigue en ejecución, qué ha cambiado y qué necesita una decisión. Cada sesión escribe su propia nota de traspaso al terminar, y la siguiente sesión lee esa nota una vez al iniciarse, junto con mis reglas fijadas, lo que evita que el contexto se contamine entre sesiones.
 
-![La búsqueda estructural encuentra tres llamadas a console.log por su forma en tres archivos, y la edición estructural las reescribe como logger.debug en una ejecución de prueba y luego aplica el cambio](../media/syntax-search-edit-black.gif)
+![La búsqueda estructural encuentra tres llamadas a console.log por su forma en tres archivos, y la edición estructural las reescribe como logger.debug en una ejecución de prueba y luego aplica el cambio](../media/syntax-search-edit-clean.gif)
 
 Mercury es de código abierto bajo la Apache License 2.0, al igual que los SDK en [sdk/](../../sdk/) y [sdk-py/](../../sdk-py/).
 

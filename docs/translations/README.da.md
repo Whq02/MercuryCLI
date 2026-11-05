@@ -18,7 +18,7 @@ En agent læser og redigerer filer, kører shell-kommandoer, gennemgår tests og
 
 Mercury bruges til at bygge Mercury, hvor flere sessioner og modeller kører på tværs af lange opgaver. At holde styr på arbejdet er det svære: hvad der stadig kører, hvad der er ændret, og hvad der kræver en beslutning. Hver session skriver sin egen overleveringsnote, når den er færdig, og den næste session læser den note én gang ved opstart sammen med mine fastgjorte regler. Dermed forhindres kontekstforgiftning mellem sessionerne.
 
-![Strukturel søgning finder tre console.log-kald ud fra deres form på tværs af tre filer, og strukturel redigering omskriver dem til logger.debug i en prøvekørsel og anvender derefter ændringen](../media/syntax-search-edit-black.gif)
+![Strukturel søgning finder tre console.log-kald ud fra deres form på tværs af tre filer, og strukturel redigering omskriver dem til logger.debug i en prøvekørsel og anvender derefter ændringen](../media/syntax-search-edit-clean.gif)
 
 Mercury er open source under Apache License 2.0, ligesom SDK'erne i [sdk/](../../sdk/) og [sdk-py/](../../sdk-py/).
 

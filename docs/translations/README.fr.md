@@ -18,7 +18,7 @@ Un agent lit et modifie des fichiers, exécute des commandes shell, parcourt pas
 
 Mercury sert à construire Mercury, en faisant tourner plusieurs sessions et plusieurs modèles sur de longues tâches. Le plus dur est de suivre ce travail : ce qui tourne encore, ce qui a changé et ce qui demande une décision. Chaque session rédige sa propre note de passation à la fin, et la session suivante lit cette note une seule fois au démarrage, avec mes règles épinglées ; la contamination du contexte d'une session à l'autre est ainsi évitée.
 
-![La recherche structurelle trouve trois appels à console.log d'après leur forme dans trois fichiers, et l'édition structurelle les réécrit en logger.debug lors d'un essai à blanc avant d'appliquer la modification](../media/syntax-search-edit-black.gif)
+![La recherche structurelle trouve trois appels à console.log d'après leur forme dans trois fichiers, et l'édition structurelle les réécrit en logger.debug lors d'un essai à blanc avant d'appliquer la modification](../media/syntax-search-edit-clean.gif)
 
 Mercury est open source sous la licence Apache 2.0, tout comme les SDK situés dans [sdk/](../../sdk/) et [sdk-py/](../../sdk-py/).
 

@@ -18,7 +18,7 @@ Bir ajan dosyaları okur ve düzenler, shell komutları çalıştırır, testler
 
 Mercury, uzun görevler boyunca birden fazla oturum ve model çalıştırarak Mercury'yi geliştirmek için kullanılır. Bu işi takip etmek asıl zor kısımdır: hâlâ neyin çalıştığı, neyin değiştiği ve neyin bir karara ihtiyaç duyduğu. Her oturum bittiğinde kendi devir notunu yazar; bir sonraki oturum başlarken bu notu benim sabitlenmiş kurallarımla birlikte bir kez okur ve oturumlar arasında bağlamın kirlenmesini (context poisoning) önler.
 
-![Yapısal arama üç dosyada biçimlerine göre üç console.log çağrısını bulur, yapısal düzenleme ise bunları önce deneme çalıştırmasında logger.debug olarak yeniden yazar ve ardından değişikliği uygular](../media/syntax-search-edit-black.gif)
+![Yapısal arama üç dosyada biçimlerine göre üç console.log çağrısını bulur, yapısal düzenleme ise bunları önce deneme çalıştırmasında logger.debug olarak yeniden yazar ve ardından değişikliği uygular](../media/syntax-search-edit-clean.gif)
 
 Mercury, [sdk/](../../sdk/) ve [sdk-py/](../../sdk-py/) içindeki SDK'lar gibi Apache License 2.0 kapsamında açık kaynaklıdır.
 

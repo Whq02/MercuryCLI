@@ -18,7 +18,7 @@ Mercury CLI(mercury-cli.ai, npm 패키지 `mercury-tech-cli`)는 macOS, Linux, W
 
 Mercury는 Mercury 자체를 만드는 데 사용되며, 긴 작업에 걸쳐 여러 세션과 모델을 실행합니다. 그 작업을 추적하는 것이 가장 어려운 부분입니다. 아직 실행 중인 것, 바뀐 것, 결정이 필요한 것을 파악해야 하기 때문입니다. 각 세션은 끝날 때 자체 인계 노트를 작성하고, 다음 세션은 시작할 때 그 노트를 제가 고정해 둔 규칙(pinned rules)과 함께 한 번 읽어, 세션 사이의 컨텍스트 오염을 막습니다.
 
-![구조 검색이 파일 세 개에서 구문 형태를 기준으로 console.log 호출 세 개를 찾고, 구조 편집이 드라이런으로 이를 logger.debug로 다시 쓴 뒤 변경 사항을 적용합니다.](../media/syntax-search-edit-black.gif)
+![구조 검색이 파일 세 개에서 구문 형태를 기준으로 console.log 호출 세 개를 찾고, 구조 편집이 드라이런으로 이를 logger.debug로 다시 쓴 뒤 변경 사항을 적용합니다.](../media/syntax-search-edit-clean.gif)
 
 Mercury는 Apache License 2.0에 따른 오픈 소스이며, [sdk/](../../sdk/)와 [sdk-py/](../../sdk-py/)의 SDK도 마찬가지입니다.
 

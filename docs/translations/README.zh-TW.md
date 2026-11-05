@@ -18,7 +18,7 @@ Mercury CLI（mercury-cli.ai，npm 套件 `mercury-tech-cli`）在終端機中�
 
 Mercury 被用來建置 Mercury 本身，同時執行多個工作階段與模型來完成長時間任務。難處在於追蹤這些工作：哪些仍在執行、哪些已經變更，以及哪些需要決策。每個工作階段結束時都會寫下自己的交接筆記；下一個工作階段啟動時，會讀取一次該筆記，並與我的釘選規則一併載入，從而防止工作階段之間的上下文汙染。
 
-![結構搜尋依語法形態在三個檔案中找到三處 console.log 呼叫，結構編輯先以試執行方式將它們改寫為 logger.debug，接著套用這項變更](../media/syntax-search-edit-black.gif)
+![結構搜尋依語法形態在三個檔案中找到三處 console.log 呼叫，結構編輯先以試執行方式將它們改寫為 logger.debug，接著套用這項變更](../media/syntax-search-edit-clean.gif)
 
 Mercury 以 Apache License 2.0 開源授權，[sdk/](../../sdk/) 與 [sdk-py/](../../sdk-py/) 中的 SDK 亦同。
 

@@ -18,7 +18,7 @@ Mercury CLI（mercury-cli.ai、npm パッケージ `mercury-tech-cli`）は、ma
 
 Mercury は Mercury 自身の開発にも使われており、複数のセッションとモデルを組み合わせて長時間のタスクを進めています。難しいのは、その作業全体を把握し続けることです。何がまだ実行中か、何が変わったか、何に判断が必要か。各セッションは終了時に自分の引き継ぎメモを書き、次のセッションは起動時に、私のピン留めされたルールと一緒にそのメモを一度読み込みます。これにより、セッション間のコンテキスト汚染を防ぎます。
 
-![構造検索が三つのファイルから三つの console.log 呼び出しを構文の形で探し出し、構造編集がドライランで logger.debug への書き換えをプレビューしてから変更を適用します](../media/syntax-search-edit-black.gif)
+![構造検索が三つのファイルから三つの console.log 呼び出しを構文の形で探し出し、構造編集がドライランで logger.debug への書き換えをプレビューしてから変更を適用します](../media/syntax-search-edit-clean.gif)
 
 Mercury は Apache License 2.0 のもとでオープンソースとして公開されており、[sdk/](../../sdk/) と [sdk-py/](../../sdk-py/) の SDK も同様です。
 
