@@ -392,11 +392,11 @@ Flagi uruchomieniowe są zdefiniowane w `src/substrate/flagRegistry.ts`, udostę
 
 | Obszar | Polecenia |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ Flagi uruchomieniowe są zdefiniowane w `src/substrate/flagRegistry.ts`, udostę
 | --- | --- |
 | `/imagesetup` | Skonfiguruj lokalne modele obrazów i wideo. |
 | `/llmhost` | Wybierz model do wynajęcia w Runpod, Vast.ai lub Lambda, uruchom go na własnym komputerze albo podłącz istniejący serwer. |
+| `/tensorfold` | Uruchom lokalny model w TensorFold: zainstaluj silnik, pobierz model, udostępnij go na tym Macu, współdziel w sieci lub wynajmij dla niego GPU i przełącz się na niego, wszystko na jednym ekranie. |
 | `/restart` | Przenosi ten czat na zainstalowaną wersję Mercury; działające obserwatory i powłoki w tle się zatrzymują. |
 | `/mcp` | Sprawdź serwery, zaloguj się, przeglądaj narzędzia i parametry każdego serwera, połącz ponownie albo przełącz serwer dla tego czatu. |
 

@@ -392,11 +392,11 @@ docker run --rm mercury --version
 
 | หมวด | คำสั่ง |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ docker run --rm mercury --version
 | --- | --- |
 | `/imagesetup` | ตั้งค่าโมเดลภาพและวิดีโอในเครื่อง |
 | `/llmhost` | เลือกโมเดลที่จะเช่าบน Runpod, Vast.ai หรือ Lambda, รันบนคอมพิวเตอร์ของคุณ หรือเชื่อมต่อกับเซิร์ฟเวอร์ที่มีอยู่แล้ว |
+| `/tensorfold` | รันโมเดลในเครื่องบน TensorFold: ติดตั้งเอนจิน ดึงโมเดล เปิดให้บริการบน Mac เครื่องนี้ แชร์บนเครือข่ายของคุณหรือเช่า GPU สำหรับโมเดลนั้น แล้วสลับไปใช้งาน ทั้งหมดในหน้าจอเดียว |
 | `/restart` | ย้ายแชทนี้ไปยังบิลด์ Mercury ที่ติดตั้งไว้; การ watch และ background shell ที่กำลังรันจะหยุด |
 | `/mcp` | ตรวจสอบเซิร์ฟเวอร์ ลงชื่อเข้าใช้ ดูเครื่องมือและพารามิเตอร์ของแต่ละเซิร์ฟเวอร์ เชื่อมต่อใหม่ หรือเปิด/ปิดเซิร์ฟเวอร์สำหรับแชทนี้ |
 

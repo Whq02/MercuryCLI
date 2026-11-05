@@ -392,11 +392,11 @@ As flags de execução são definidas em `src/substrate/flagRegistry.ts`, expost
 
 | Categoria | Comandos |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ As flags de execução são definidas em `src/substrate/flagRegistry.ts`, expost
 | --- | --- |
 | `/imagesetup` | Configure modelos locais de imagem e vídeo. |
 | `/llmhost` | Escolha um modelo para alugar na Runpod, na Vast.ai ou na Lambda, executá-lo no seu próprio computador ou conectar um servidor existente. |
+| `/tensorfold` | Execute um modelo local no TensorFold: instale o motor, baixe um modelo, sirva-o neste Mac, compartilhe-o na sua rede ou alugue uma GPU para ele, e mude para ele, tudo em uma única tela. |
 | `/restart` | Move este chat para a compilação do Mercury instalada; monitoramentos em execução e shells em segundo plano são interrompidos. |
 | `/mcp` | Inspecione os servidores, faça login, navegue pelas ferramentas e parâmetros de cada servidor, reconecte ou ative e desative um servidor para este chat. |
 

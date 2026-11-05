@@ -392,11 +392,11 @@ docker run --rm mercury --version
 
 | Раздел | Команды |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ docker run --rm mercury --version
 | --- | --- |
 | `/imagesetup` | Настроить локальные модели изображений и видео. |
 | `/llmhost` | Выбрать модель для аренды на Runpod, Vast.ai или Lambda, запустить её на своём компьютере или подключить существующий сервер. |
+| `/tensorfold` | Запустить локальную модель на TensorFold: установить движок, скачать модель, развернуть её на этом Mac, открыть к ней доступ в локальной сети или арендовать для неё GPU и переключиться на неё, всё на одном экране. |
 | `/restart` | Перенести этот чат на установленную сборку Mercury; запущенные наблюдения и фоновые shell-процессы останавливаются. |
 | `/mcp` | Просмотр серверов, вход, просмотр инструментов и параметров каждого сервера, переподключение или включение и отключение сервера для этого чата. |
 

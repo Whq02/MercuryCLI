@@ -392,11 +392,11 @@ Les options d'exécution sont définies dans `src/substrate/flagRegistry.ts`, ex
 
 | Domaine | Commandes |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ Les options d'exécution sont définies dans `src/substrate/flagRegistry.ts`, ex
 | --- | --- |
 | `/imagesetup` | Configurez les modèles locaux d’image et de vidéo. |
 | `/llmhost` | Choisissez un modèle à louer chez Runpod, Vast.ai ou Lambda, à exécuter sur votre propre ordinateur, ou à connecter à un serveur existant. |
+| `/tensorfold` | Exécutez un modèle local sur TensorFold : installez le moteur, téléchargez un modèle, servez-le sur ce Mac, partagez-le sur votre réseau ou louez un GPU pour lui, puis basculez dessus, le tout sur un seul écran. |
 | `/restart` | Déplace cette conversation vers la version de Mercury installée ; les surveillances en cours et les shells d'arrière-plan s'arrêtent. |
 | `/mcp` | Inspectez les serveurs, connectez-vous, parcourez les outils et paramètres de chaque serveur, reconnectez-vous ou activez ou désactivez un serveur pour cette conversation. |
 

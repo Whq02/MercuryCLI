@@ -392,11 +392,11 @@ Laufzeit-Flags sind in `src/substrate/flagRegistry.ts` definiert, werden als `ME
 
 | Bereich | Befehle |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ Laufzeit-Flags sind in `src/substrate/flagRegistry.ts` definiert, werden als `ME
 | --- | --- |
 | `/imagesetup` | Lokale Bild- und Videomodelle einrichten. |
 | `/llmhost` | Ein Modell wählen, das Sie bei Runpod, Vast.ai oder Lambda mieten, auf Ihrem Computer betreiben oder an einen bestehenden Server anbinden. |
+| `/tensorfold` | Ein lokales Modell auf TensorFold ausführen: die Engine installieren, ein Modell laden, es auf diesem Mac bereitstellen, in Ihrem Netzwerk teilen oder eine GPU dafür mieten und darauf wechseln, alles auf einem Bildschirm. |
 | `/restart` | Diesen Chat auf den installierten Mercury-Build verschieben; laufende Überwachungen und Hintergrund-Shells werden beendet. |
 | `/mcp` | Server prüfen, sich anmelden, die Werkzeuge und Parameter jedes Servers durchsuchen, neu verbinden oder einen Server für diesen Chat umschalten. |
 

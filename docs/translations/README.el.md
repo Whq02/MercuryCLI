@@ -392,11 +392,11 @@ docker run --rm mercury --version
 
 | Ενότητα | Εντολές |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ docker run --rm mercury --version
 | --- | --- |
 | `/imagesetup` | Ρυθμίστε τοπικά μοντέλα εικόνας και βίντεο. |
 | `/llmhost` | Επιλέξτε ένα μοντέλο για μίσθωση στη Runpod, το Vast.ai ή τη Lambda, για εκτέλεση στον δικό σας υπολογιστή ή για σύνδεση υπάρχοντος διακομιστή. |
+| `/tensorfold` | Εκτελέστε ένα τοπικό μοντέλο στο TensorFold: εγκαταστήστε τη μηχανή, κατεβάστε ένα μοντέλο, διαθέστε το σε αυτό το Mac, μοιραστείτε το στο δίκτυό σας ή μισθώστε μια GPU για αυτό, και μεταβείτε σε αυτό, όλα σε μία οθόνη. |
 | `/restart` | Μεταφέρει αυτή τη συνομιλία στην εγκατεστημένη έκδοση του Mercury· οι ενεργές παρακολουθήσεις και τα shell παρασκηνίου σταματούν. |
 | `/mcp` | Εμφάνιση διακομιστών, σύνδεση, περιήγηση στα εργαλεία και στις παραμέτρους κάθε διακομιστή, επανασύνδεση ή εναλλαγή ενός διακομιστή για αυτή τη συνομιλία. |
 

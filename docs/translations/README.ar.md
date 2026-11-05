@@ -11,7 +11,7 @@ Mercury CLI (mercury-cli.ai، وحزمة npm باسم `mercury-tech-cli`) يُش
 يقرأ الوكيل الملفات ويعدّلها، ويشغّل أوامر shell، وينتقل خطوة بخطوة عبر الاختبارات ومصحّحات الأخطاء، ويتحقق من النتائج. أنت تختار مزوّد النموذج والنموذج نفسه، وما يُسمح للوكيل بفعله:
 
 - **Concourse متعدد الجلسات و worktrees معزولة:** شغّل عدة جلسات جنبًا إلى جنب على Session Concourse (`/concourse`)، وفوّض العمل المتوازي إلى Crewmates عبر المزوّدين (`Crewmate`) داخل نسخ `git worktree` معزولة، مع حجوزات ملفات المشروع (project file leases) حتى لا تكتب الوكلاء المتوازية فوق عمل بعضها.
-- **22 مزوّدًا للنماذج، و `/llmhost` و `/localsetup`:** أبقِ المزوّدين العشرين جميعهم مسجّلين الدخول في وقت واحد (OpenAI، Anthropic، Google Gemini، DeepSeek، Moonshot/Kimi، Z.AI/GLM، OpenRouter، Hugging Face، xAI/Grok، Meta/Muse، Mistral، Nous Portal، OpenCode Zen، Qwen، MiniMax، Together AI، Cohere، Groq، Cerebras، Fireworks AI، Melious AI، OrcaRouter)، وبدّل بين المزوّدين والنماذج أثناء المحادثة. افتح `/llmhost` لاختيار نموذج، وفحص خيارات التكميم (quantization)، وتقسيم `conversations × context`، ومستوى التفكير، وتشغيله على وحدة GPU مستأجرة (Runpod أو Vast.ai أو Lambda)، أو على حاسوبك الخاص (`mercury host`)، أو على خادم موجود. أو شغّل `/localsetup` لتثبيت Ollama أو توصيله جنبًا إلى جنب مع LM Studio و vLLM و llama.cpp.
+- **22 مزوّدًا للنماذج، و `/llmhost` و `/localsetup`:** أبقِ المزوّدين الاثنين والعشرين جميعهم مسجّلين الدخول في وقت واحد (OpenAI، Anthropic، Google Gemini، DeepSeek، Moonshot/Kimi، Z.AI/GLM، OpenRouter، Hugging Face، xAI/Grok، Meta/Muse، Mistral، Nous Portal، OpenCode Zen، Qwen، MiniMax، Together AI، Cohere، Groq، Cerebras، Fireworks AI، Melious AI، OrcaRouter)، وبدّل بين المزوّدين والنماذج أثناء المحادثة. افتح `/llmhost` لاختيار نموذج، وفحص خيارات التكميم (quantization)، وتقسيم `conversations × context`، ومستوى التفكير، وتشغيله على وحدة GPU مستأجرة (Runpod أو Vast.ai أو Lambda)، أو على حاسوبك الخاص (`mercury host`)، أو على خادم موجود. أو شغّل `/localsetup` لتثبيت Ollama أو توصيله جنبًا إلى جنب مع LM Studio و vLLM و llama.cpp.
 - **ذاكرة المشروع الهجينة RAG في Mneme:** تعتمد على نموذج تضمين دلالي BGE بحجم 118 MB يعمل على الجهاز (`bge-base-en-v1.5`)، مع ترتيب الكلمات بخوارزمية BM25 وتتبّع الاستشهادات، وقواعد مثبّتة بنصّها الحرفي، وسياق بدء يراعي الفرع الحالي، وفحوص التناقض عند الكتابة، وملاحظات تسليم الجلسات، والرسم البياني في المتصفح عبر `/memory page`.
 - **أدوات المُصرِّف (Compiler) والشجرة النحوية (AST) وتصحيح DAP:** تربط ذكاء الشيفرة عبر LSP وإعادة الهيكلة المعاينة مسبقًا (`LspRead`، `LspRename`، `LspMoveSymbol`، `LspMoveFile`، `LspCodeAction`، `LspFormat`)، والبحث وإعادة الكتابة بالشجرة النحوية (AST) لـ 23 لغة عبر tree-sitter (`AstSearch`، `AstEdit`)، ومُصحّح أخطاء مدمجًا بواسطة Debug Adapter Protocol (`Debug`) (`debugpy`، `js-debug`، `lldb`، `gdb`، `dlv`) للدخول خطوة بخطوة إلى اختبارات Python و Node و Go و Rust الفاشلة، وخلايا `Eval` دائمة لـ Python و JavaScript.
 - **`WebSearch` بلا مفاتيح و `WebFetch` بصيغة markdown:** يبحث عبر البحث الأصلي لدى المزوّد، ومفاتيح Brave أو Tavily، وواجهات API الرسمية (Stack Exchange و npm و PyPI و crates.io و GitHub و Hacker News و Wikipedia)، و SearXNG و DuckDuckGo (بلا مفاتيح)، ويجلب الوثائق العامة بصيغة markdown ضمن ميزانية استدعاء قدرها 38,000 حرف.
@@ -426,11 +426,11 @@ docker run --rm mercury --version
 
 | الفئة | الأوامر |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -441,6 +441,7 @@ docker run --rm mercury --version
 | --- | --- |
 | `/imagesetup` | إعداد نماذج الصور والفيديو المحلية. |
 | `/llmhost` | اختر نموذجًا لتأجيره على Runpod أو Vast.ai أو Lambda، أو لتشغيله على حاسوبك، أو لربط خادم موجود. |
+| `/tensorfold` | شغّل نموذجًا محليًا على TensorFold: ثبّت المحرّك، واسحب نموذجًا، وقدّمه على جهاز Mac هذا، أو شاركه على شبكتك أو استأجر له وحدة GPU، وانتقل إليه، كل ذلك في شاشة واحدة. |
 | `/restart` | انقل هذه المحادثة إلى بناء Mercury المثبَّت؛ وتتوقف المراقبات (watches) والصدفات الخلفية الجارية. |
 | `/mcp` | افحص الخوادم، وسجّل الدخول، وتصفّح أدوات كل خادم ومعاملاته، وأعد الاتصال، أو بدّل حالة خادم لهذه المحادثة. |
 

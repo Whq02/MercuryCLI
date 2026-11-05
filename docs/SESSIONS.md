@@ -8,8 +8,8 @@ The session is the unit; every screen is a view. It survives
 whatever screen is looking at it (the chat, the Session Concourse board, a
 live tile and the home screen render sessions and never store their state).
 This page explains how sessions are started, focused, closed and resumed, how
-the folder you start in becomes a project, and the two boot switches that
-shape the navigation strip.
+the folder you start in becomes a project, and the boot switches that shape
+the navigation strip and the concourse coordinator.
 On Windows, each frame reads the window size from the console so the terminal UI follows it even when no resize event arrives.
 
 ## A fresh boot has no chat
@@ -90,7 +90,29 @@ and no prompt is sent: the session starts blank and ready, just like a row
 opened from the board. A `/mission` (`/goal`) typed in the moment before the runner
 is ready still belongs to the chat you opened: it moves to the session at
 admission, its card and its Stop hook with it, and the rail shows it once
-the runner is ready. Pressing `Enter` opens a chat immediately using a pre-warmed
+the runner is ready.
+
+`/goal <goal>` (`/mission <goal>`) sets a standing goal for the session (up to
+4,000 characters, split into its end state and any constraints), writes the
+goal card, and starts a turn with the goal directive; bare `/goal` shows the
+current status, `/goal clear` clears it, and a newer `/goal` replaces an older
+one. At the end of each turn, the goal Stop guard checks the end state against
+the turn's evidence: the closing text, whether the turn closed on the
+`<<<GOAL-MET>>>` line (elided on screen in the chat and concourse live tiles
+while kept in the transcript), whether the closing line asks you a question, the
+tool-call count, the verification record, and whether the working tree or
+verification record advanced since the last check. When JEV
+([ENGINES.md](ENGINES.md#jev)) is enabled and ready with a key, it judges the
+goal as `met`, `open`, `ambiguous` or `unattainable` (at a `0.6` confidence
+floor); otherwise the claim road checks for the completion line, and three
+consecutive checks with no tree change and no new verification record count as
+`unattainable`. When `met`, the goal settles with a one-line notice; when
+`open`, the turn continues; when `ambiguous` or `unattainable`, the guard asks
+the model to end its turn with one question to you and settles the goal as
+needing your answer (`"goal needs the operator — <question>. Answer it, or set
+the goal again with /goal."`).
+
+Pressing `Enter` opens a chat immediately using a pre-warmed
 background runner. The new session loads the
 repository's MCPs & Skills selection (or the preset you selected on the home screen), and
 the launch receipt names which ([KIT.md](KIT.md)). The board's `+ new session · n`
@@ -148,8 +170,8 @@ prompt is sent. A prompt that still meets an expired sign-in is not lost: the
 error line paints, its words come back to the composer, and they are sent
 again on their own once `/logins` lands a credential (or `/model` moves the
 session to a signed-in family) while the composer holds them unchanged.
-The board's New
-Session strip starts on the same saved choice; its own effort pick, when
+The board's new-session
+row starts on the same saved choice; a session row's own effort pick, when
 you make one, applies to that one session. A resumed session
 keeps the model and effort it was on unless the command line says
 otherwise: `--continue --model <id> --effort <level>` brings the session
@@ -343,7 +365,10 @@ out of the request, and nothing is dropped from the transcript. Should a
 provider still refuse an
 attached file's image, that image leaves every later request of the
 session, a resumed one included, on the OpenAI route as on the Anthropic
-one.
+one. When an `@`-mentioned image file exceeds the 256 KB mention limit or cannot
+be resized and encoded, Mercury drops the image with a `"Dropped <path> —
+<reason>"` notice row in the chat and tells the model to attach a smaller copy
+or `Read` it with a crop.
 
 The session box at the top of the view holds the critter and, while
 a turn runs, the working row in its own capsule beside it: a slim box of
@@ -436,8 +461,8 @@ Every session is hosted by the daemon as a runner, and every session is one
 of two kinds. An oculus session is one a screen belongs to: the Mercury
 screen in your terminal is the window onto it, you are there, and you may
 switch to another session and come back. Every session you start from the
-screen is oculus: New Session, `--chat`, a resume, a session the board's
-composer launches. The kind is decided once, when the daemon admits the
+screen is oculus: New Session, `--chat`, a resume, a session started from
+the board. The kind is decided once, when the daemon admits the
 session, from who asked for it, and it is stamped on the session's record
 and on its runner; it is never guessed from a terminal later, so switching
 away from an oculus session does not change what it is.
@@ -568,8 +593,8 @@ the row stays across reconciles until you act on the session or release the row.
 The daemon's log records the same line for every crash. `ctrl+x ctrl+x` stops the selected
 session (the row stays, marked stopped with the next step), the chord
 again parks it, and a third chord removes the board row. In the session list
-`x` stops the selected session and `a` archives it; in a message box typing is
-never a control, so a plain `x` lands in the composer like any other letter. The board's REPO picker
+`x` and `a` stop or archive the selected session; in a message box typing is never a control,
+so a plain `x` lands in the composer like any other letter. The board's REPO picker
 changes the folder new sessions launch in, and the board updates to render
 the same list of projects as the home screen's Sessions · Projects view.
 `/daemon halt` interrupts immediately while a
@@ -743,10 +768,10 @@ Routes that support deferral announce the remaining tools (among them `Crewmate`
 `Checkpoint` and `Rewind`) and load their schemas on demand through `ToolSearch`;
 the announcement carries a one-line summary of each tool in an interactive session,
 and in an unattended run the names alone except for `Crewmate`, `Skill`, `Test`,
-`LspRead` and `AstSearch`, which keep their summary in every posture. A local model
-loads the core daily tools in full (`Crewmate` and `Skill` among them, and `Test` whenever a
-test runner profile or Python test signal is detected in the project) and announces the
-remaining tools the same way. A deferrable tool discovered after the first request (such as a debug adapter)
+`LspRead`, `AstSearch`, `Eval` and `ChangeSet`, which keep their summary in every posture. Under the
+local prompt profile (`MERCURY_LOCAL_PROMPT_PROFILE`, on by default; [TENSORFOLD.md](TENSORFOLD.md#the-local-prompt-profile)), a local model
+loads the core tools in full (`Bash` or `PowerShell`, `Read`, `Edit`, `Write`, `Glob`, `Grep`, `ToolSearch`, and `StructuredOutput` when requested) and announces the
+remaining tools behind `ToolSearch` with the same seven summaries (`MERCURY_LOCAL_PROMPT_PROFILE=0` sends the cloud composition and loads `ChangeSet`, `Eval`, `Crewmate`, `Skill`, and `Test` when a test runner profile or Python test signal is detected, in full). A deferrable tool discovered after the first request (such as a debug adapter)
 is announced and loadable at once; a tool that loads in full and is
 discovered after the first request joins at the next compaction or `/clear`,
 without changing the current conversation's prefix. Nothing is trimmed,
@@ -846,7 +871,8 @@ with both flags on one command line the later one wins. A coordinator mode,
 model or effort saved by an earlier version does not turn it on: only the
 switch does, and those settings apply once it is on; a home that never saved
 them gets the assisted coordinator on the first ready model of the composed
-registry (the pane needs a signed-in provider or a served local model).
+registry (the pane needs a signed-in provider or a served local model, and
+when neither is ready manager mode reports `"manager mode needs a coordinator model — sign in to a provider or serve a local model"`).
 
 With it off, nothing coordinator-shaped runs: `n` on the board starts
 sessions directly, no coordinator turn, conversation, receipt or model choice

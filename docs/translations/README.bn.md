@@ -392,11 +392,11 @@ docker run --rm mercury --version
 
 | বিভাগ | কমান্ড |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ docker run --rm mercury --version
 | --- | --- |
 | `/imagesetup` | স্থানীয় ছবি ও ভিডিও মডেল সেট আপ করুন। |
 | `/llmhost` | Runpod, Vast.ai বা Lambda-তে ভাড়া নেওয়ার জন্য একটি মডেল বেছে নিন, নিজের কম্পিউটারে চালান, অথবা বিদ্যমান সার্ভারে সংযুক্ত হন। |
+| `/tensorfold` | TensorFold-এ একটি স্থানীয় মডেল চালান: ইঞ্জিন ইনস্টল করুন, একটি মডেল নামিয়ে আনুন, এই Mac-এ পরিবেশন করুন, আপনার নেটওয়ার্কে শেয়ার করুন বা এর জন্য একটি GPU ভাড়া নিন, এবং এক স্ক্রিনেই সেটিতে বদলান। |
 | `/restart` | এই চ্যাটটি ইনস্টল করা Mercury বিল্ডে সরান; চলমান watch ও ব্যাকগ্রাউন্ড shell থেমে যাবে। |
 | `/mcp` | সার্ভার দেখুন, সাইন ইন করুন, প্রতিটি সার্ভারের টুল ও প্যারামিটার ব্রাউজ করুন, পুনরায় সংযুক্ত হন, বা এই চ্যাটের জন্য একটি সার্ভার চালু বা বন্ধ করুন। |
 

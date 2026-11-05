@@ -392,11 +392,11 @@ Kullanılabilir komutlar şunları içerir:
 
 | Alan | Komutlar |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ Kullanılabilir komutlar şunları içerir:
 | --- | --- |
 | `/imagesetup` | Yerel görüntü ve video modellerini yapılandırın. |
 | `/llmhost` | Runpod, Vast.ai veya Lambda üzerinde kiralamak için bir model seçin, kendi bilgisayarınızda çalıştırın ya da mevcut bir sunucuya bağlanın. |
+| `/tensorfold` | TensorFold üzerinde yerel bir model çalıştırın: motoru kurun, bir model çekin, bu Mac üzerinde sunun, ağınızda paylaşın veya bunun için bir GPU kiralayın ve ona geçin; hepsi tek ekranda. |
 | `/restart` | Bu sohbeti kurulu Mercury sürümüne taşıyın; çalışan izleyiciler ve arka plan shell'leri durur. |
 | `/mcp` | Sunucuları inceleyin, oturum açın, her sunucunun araçlarını ve parametrelerini görüntüleyin, yeniden bağlanın veya bu sohbet için bir sunucuyu açıp kapatın. |
 

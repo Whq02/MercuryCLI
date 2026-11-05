@@ -392,11 +392,11 @@ Los indicadores de ejecución se definen en `src/substrate/flagRegistry.ts`, se 
 
 | Categoría | Comandos |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ Los indicadores de ejecución se definen en `src/substrate/flagRegistry.ts`, se 
 | --- | --- |
 | `/imagesetup` | Configure modelos locales de imagen y vídeo. |
 | `/llmhost` | Elija un modelo para alquilar en Runpod, Vast.ai o Lambda, ejecutarlo en su propio equipo o conectar un servidor existente. |
+| `/tensorfold` | Ejecute un modelo local en TensorFold: instale el motor, descargue un modelo, sírvalo en este Mac, compártalo en su red o alquile una GPU para él, y cambie a él, todo en una sola pantalla. |
 | `/restart` | Traslada este chat a la compilación de Mercury instalada; los monitores en ejecución y los shells en segundo plano se detienen. |
 | `/mcp` | Inspeccione los servidores, inicie sesión, explore las herramientas y los parámetros de cada servidor, reconecte o active y desactive un servidor para este chat. |
 

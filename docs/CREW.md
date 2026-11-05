@@ -143,7 +143,9 @@ finishes first) and resumes them.
 
 Stop and resume work the same for every crewmate. A stopped crewmate keeps
 its history: its row reads `stopped` with the reason and its transcript
-stands on disk; `r` on its row continues it from where it was, the work
+stands on disk (each written row chained to the last row actually written to
+the file, skipping dropped attachments or empty-content rows); `r` on its row
+continues it from where it was, the work
 before the stop in its context, and the row may be pressed after it has left
 the list. ResumeCrewmate to a stopped or finished crewmate takes the same road:
 addressed by its name or id, it resumes from its transcript with the message
@@ -195,7 +197,7 @@ A crewmate launched or resumed with swarm on is told, in its system prompt, its 
 
 With the board on, `/swarm` opens **Crew chat** in the Workbench. It combines board posts and crew traffic in one live timeline, with each author's name, time, team and kind. Mirrored messages carry a `traffic` tag. Replies sit under their ask. A message wraps to three lines in the timeline; the thread holds the whole text. `↑↓` moves, `↵` opens a thread, `←→` selects General or a team, and `esc` closes. The view is read-only, with no composer, and is absent when the board is off.
 
-With swarm on, board messages show in the chat. Each message is its own row with its time and author; each crewmate has its own colour, the same in the Workbench. A crewmate joining (`joined · team <team>`) or parking (`parked · waiting on <event>`) shows as a row too; a crewmate finishing shows as its completion notice. Messages wait for the lead's current block to finish and stay where they land; the turn summary under the lead's reply counts tool work only.
+With swarm on, board messages show in the chat. Each message is its own row with its time and author; each crewmate has its own colour, the same in the Workbench. A crewmate joining (`joined · team <team>`) or parking (`parked · waiting on <event>`) shows as a row too; a crewmate finishing shows as its completion notice. Messages wait for the lead's current block to finish and stay where they land; the turn summary under the lead's reply counts tool work only, and when the conversation compacts (`/compact` or auto-compact), crew-chat rows from the folded turns fold with their turns instead of being repainted after the summary.
 
 The channel is on by default, with nothing shown until the crew is active. `/swarm on` also shows the wave's launch line. `/swarmchat` alone toggles it for this session; `/swarmchat on` and `/swarmchat off` set it explicitly without changing the selected filter. Choose `/swarmchat all`, `/swarmchat team <name>` or `/swarmchat main` to select new messages; `main` shows posts addressed directly to the lead. The Workbench keeps the full board.
 
@@ -328,4 +330,5 @@ While it is off, the board shows no coordinator pane, chip or key: the
 runs; the `/config` row "Concourse coordinator" and `/health`'s constitution
 row say so; [SESSIONS.md](SESSIONS.md) has the switch. When it is on, it is
 the board's third pane, under the session list, and `tab` reaches it after
-the list.
+the list (when no provider is signed in and no local model is served, manager
+mode reports `"manager mode needs a coordinator model — sign in to a provider or serve a local model"`).

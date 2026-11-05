@@ -392,11 +392,11 @@ Zastavice izvršavanja definisane su u `src/substrate/flagRegistry.ts`, izlažu 
 
 | Oblast | Naredbe |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ Zastavice izvršavanja definisane su u `src/substrate/flagRegistry.ts`, izlažu 
 | --- | --- |
 | `/imagesetup` | Postavite lokalne modele za slike i video. |
 | `/llmhost` | Odaberite model za iznajmljivanje na Runpod-u, Vast.ai-ju ili Lambda-i, pokrenite ga na vašem računaru ili povežite postojeći server. |
+| `/tensorfold` | Pokrenite lokalni model na TensorFold-u: instalirajte engine, preuzmite model, služite ga na ovom Mac-u, podijelite ga na svojoj mreži ili iznajmite GPU za njega i prebacite se na njega, sve na jednom ekranu. |
 | `/restart` | Premješta ovaj razgovor na instaliranu verziju Mercury-ja; pokrenuti monitori i pozadinske ljuske se zaustavljaju. |
 | `/mcp` | Pregledajte servere, prijavite se, pregledajte alate i parametre svakog servera, ponovo se povežite ili uključite i isključite server za ovaj razgovor. |
 

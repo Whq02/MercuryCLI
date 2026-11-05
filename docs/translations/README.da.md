@@ -392,11 +392,11 @@ Runtime-flagene er defineret i `src/substrate/flagRegistry.ts`, eksponeres som `
 
 | Område | Kommandoer |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ Runtime-flagene er defineret i `src/substrate/flagRegistry.ts`, eksponeres som `
 | --- | --- |
 | `/imagesetup` | Opsæt lokale billed- og videomodeller. |
 | `/llmhost` | Vælg en model, der skal lejes hos Runpod, Vast.ai eller Lambda, køres på din egen computer eller forbindes til en eksisterende server. |
+| `/tensorfold` | Kør en lokal model på TensorFold: installér motoren, hent en model, servér den på denne Mac, del den på dit netværk eller lej en GPU til den, og skift til den, alt sammen på én skærm. |
 | `/restart` | Flyt denne chat over til det installerede Mercury-build; kørende overvågninger og baggrunds-shells stopper. |
 | `/mcp` | Undersøg servere, log ind, gennemse hver servers værktøjer og parametre, forbind igen, eller slå en server til eller fra for denne chat. |
 

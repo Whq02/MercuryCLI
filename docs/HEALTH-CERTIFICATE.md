@@ -55,6 +55,10 @@ A fast run certifies these sections (section id · title):
 
 ### Client contract
 
+IDENTITY's `Mercury constitution` (`wrapper`) row reports the built-in
+constitution and crewmate contract sizes and shows `coordinator off (switch)`
+when the concourse coordinator is off (`mercury --coordinator-on` turns it on).
+
 IDENTITY's `Client contract` row shows the client version Mercury presents on
 the Claude sign-in and where it came from: the built-in version and the day
 it was last checked, a newer number learned from the registry with the day
@@ -99,6 +103,12 @@ sent. When a prompt does meet an expired sign-in, its words come back to the
 composer under the error line and are sent again on their own once `/logins`
 lands a credential (or `/model` moves the session to a family that is signed
 in) while the composer still holds them unchanged.
+
+When TensorFold is installed, serving, exited or running under
+`TensorFold.app`, or when `Helper model` is enabled in `/config`, AUTH also
+carries the `TensorFold` (`tensorfold`), `support` (`tensorfold-support`) and
+`Helper model` (`helper-model`) rows
+([TENSORFOLD.md](TENSORFOLD.md#the-support-line-and-health)).
 
 INTERFACE's `Browser` row names the executable the Browser tool resolves:
 Chrome for Testing with its build id and managed cache path, or your

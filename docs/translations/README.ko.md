@@ -392,11 +392,11 @@ docker run --rm mercury --version
 
 | 영역 | 명령 |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ docker run --rm mercury --version
 | --- | --- |
 | `/imagesetup` | 로컬 이미지 및 동영상 모델을 설정합니다. |
 | `/llmhost` | Runpod, Vast.ai 또는 Lambda에서 임대할 모델을 고르거나, 사용자의 컴퓨터에서 실행하거나, 기존 서버를 연결합니다. |
+| `/tensorfold` | TensorFold에서 로컬 모델을 실행합니다: 엔진을 설치하고, 모델을 내려받고, 이 Mac에서 서빙하거나 네트워크에 공유하거나 이를 위한 GPU를 임대하고, 해당 모델로 전환하는 작업을 모두 한 화면에서 수행합니다. |
 | `/restart` | 이 채팅을 설치된 Mercury 빌드로 옮깁니다. 실행 중인 watch와 백그라운드 셸은 중지됩니다. |
 | `/mcp` | 서버를 점검하고, 로그인하고, 각 서버의 도구와 매개변수를 살펴보고, 다시 연결하거나, 이 채팅에서 서버를 켜거나 끕니다. |
 

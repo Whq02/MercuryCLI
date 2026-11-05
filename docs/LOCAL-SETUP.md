@@ -6,9 +6,10 @@ selected for you. Use the arrow keys and Enter to choose; Escape keeps your
 current model.
 
 To serve MLX, NVFP4 or EXL3 checkpoints with TensorFold on Apple silicon or an
-NVIDIA GPU, share a model on your local network, or rent a GPU pod for
-TensorFold, run `/tensorfold` (or choose **TensorFold** in step 1 on macOS and
-Linux); see [TENSORFOLD.md](TENSORFOLD.md).
+NVIDIA GPU (or on Windows x64 through Mercury's `llama.cpp` adapter until
+TensorFold ships for Windows), share a model on your local network, or rent a
+GPU pod for TensorFold, run `/tensorfold` (or choose **TensorFold** in step 1 on
+macOS and Linux); see [TENSORFOLD.md](TENSORFOLD.md).
 
 ## Pull a GGUF from Hugging Face
 

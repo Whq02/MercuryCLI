@@ -392,11 +392,11 @@ I flag di runtime sono definiti in `src/substrate/flagRegistry.ts`, esposti come
 
 | Categoria | Comandi |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ I flag di runtime sono definiti in `src/substrate/flagRegistry.ts`, esposti come
 | --- | --- |
 | `/imagesetup` | Configura i modelli locali per immagini e video. |
 | `/llmhost` | Scegli un modello da noleggiare su Runpod, Vast.ai o Lambda, eseguilo sul tuo computer oppure collega un server esistente. |
+| `/tensorfold` | Esegui un modello locale su TensorFold: installa il motore, scarica un modello, servilo su questo Mac, condividilo sulla tua rete o noleggia una GPU per eseguirlo, e passa a usarlo, tutto in un'unica schermata. |
 | `/restart` | Sposta questa chat sulla build di Mercury installata; i monitoraggi in esecuzione e le shell in background si fermano. |
 | `/mcp` | Ispeziona i server, accedi, sfoglia gli strumenti e i parametri di ciascun server, riconnetti oppure attiva o disattiva un server per questa chat. |
 
