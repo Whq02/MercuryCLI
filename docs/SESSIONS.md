@@ -104,9 +104,9 @@ tool-call count, the verification record, and whether the working tree or
 verification record advanced since the last check. When JEV
 ([ENGINES.md](ENGINES.md#jev)) is enabled and ready with a key, it judges the
 goal as `met`, `open`, `ambiguous` or `unattainable` (at a `0.6` confidence
-floor); otherwise the claim road checks for the completion line, and three
-consecutive checks with no tree change and no new verification record count as
-`unattainable`. When `met`, the goal settles with a one-line notice; when
+floor); otherwise the claim road checks for the completion line. On either road,
+three consecutive checks with no tree change and no new verification record
+count as `unattainable`. When `met`, the goal settles with a one-line notice; when
 `open`, the turn continues; when `ambiguous` or `unattainable`, the guard asks
 the model to end its turn with one question to you and settles the goal as
 needing your answer (`"goal needs the operator — <question>. Answer it, or set
@@ -593,8 +593,8 @@ the row stays across reconciles until you act on the session or release the row.
 The daemon's log records the same line for every crash. `ctrl+x ctrl+x` stops the selected
 session (the row stays, marked stopped with the next step), the chord
 again parks it, and a third chord removes the board row. In the session list
-`x` and `a` stop or archive the selected session; in a message box typing is never a control,
-so a plain `x` lands in the composer like any other letter. The board's REPO picker
+`x` stops the selected session and `a` archives it; in a message box typing is
+never a control, so a plain `x` lands in the composer like any other letter. The board's REPO picker
 changes the folder new sessions launch in, and the board updates to render
 the same list of projects as the home screen's Sessions · Projects view.
 `/daemon halt` interrupts immediately while a
@@ -771,7 +771,7 @@ and in an unattended run the names alone except for `Crewmate`, `Skill`, `Test`,
 `LspRead`, `AstSearch`, `Eval` and `ChangeSet`, which keep their summary in every posture. Under the
 local prompt profile (`MERCURY_LOCAL_PROMPT_PROFILE`, on by default; [TENSORFOLD.md](TENSORFOLD.md#the-local-prompt-profile)), a local model
 loads the core tools in full (`Bash` or `PowerShell`, `Read`, `Edit`, `Write`, `Glob`, `Grep`, `ToolSearch`, and `StructuredOutput` when requested) and announces the
-remaining tools behind `ToolSearch` with the same seven summaries (`MERCURY_LOCAL_PROMPT_PROFILE=0` sends the cloud composition and loads `ChangeSet`, `Eval`, `Crewmate`, `Skill`, and `Test` when a test runner profile or Python test signal is detected, in full). A deferrable tool discovered after the first request (such as a debug adapter)
+remaining tools behind `ToolSearch` with the same seven summaries (`MERCURY_LOCAL_PROMPT_PROFILE=0` sends the cloud composition and loads `Eval`, `Crewmate`, `Skill`, and `Test` when a test runner profile or Python test signal is detected, in full). A deferrable tool discovered after the first request (such as a debug adapter)
 is announced and loadable at once; a tool that loads in full and is
 discovered after the first request joins at the next compaction or `/clear`,
 without changing the current conversation's prefix. Nothing is trimmed,

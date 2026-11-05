@@ -4,7 +4,7 @@ Historical CODE map, 2026-10-26; paths relative to `src/services/providers/` unl
 
 `openaicompat/compatCallModel.ts`, `openaicompat/compatAccounts.ts`, `openaicompat/compatProbe.ts`, `openaicompat/compatWire.ts` and `openaicompat/compatPrefixCache.ts` own configured/rented endpoints, dialect detection and cache reuse. Responses uses `openaicompat/compatResponsesTransport.ts`; a chat decoder is not a Responses codec.
 
-- TensorFold: `local/localDiscovery.ts`, `local/tensorfoldHealth.ts`, `local/tensorfoldUsage.ts`, `src/services/tensorfold/serve.ts` and `src/services/host/tensorfoldPod.ts` own local Metal/CUDA servers, the Windows `llama.cpp` adapter (`src/services/tensorfold/adapter/serve.ts`), LAN pairing and rented TensorFold pods.
+- TensorFold (**CODE inspected 2026-11-05**): `local/localDiscovery.ts`, `local/tensorfoldHealth.ts`, `local/tensorfoldUsage.ts`, `src/services/tensorfold/serve.ts`, `src/services/lan/pairing.ts`, `src/services/lan/announcer.ts` and `src/services/host/tensorfoldPod.ts` own local Metal/CUDA servers, the Windows `llama.cpp` adapter (`src/services/tensorfold/adapter/serve.ts`), LAN pairing and rented TensorFold pods.
 - vLLM: discovered models, template and supported reasoning effort decide the request.
 - SGLang: Mercury's profile uses model_info and chat_template_kwargs for thinking/history. **UNRESOLVED** as universal template semantics: inspect the actual engine/model version.
 - llama.cpp: slots/props, cache_prompt and template effort are profile facts; props' vision capability is distinct from a model name suggesting vision. A slot does not authorize cross-conversation replay.

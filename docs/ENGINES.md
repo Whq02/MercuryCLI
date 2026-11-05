@@ -740,9 +740,9 @@ row, the side job runs on the session's own model. A crewmate hook's tier
 follows the same rule: the newest plain GPT row the list serves below the
 frontier, else the session's own model. `Helper model` in `/config` (off by
 default; [TENSORFOLD.md](TENSORFOLD.md#the-helper-model-setting)) can instead
-route titles, summaries, the goal judge and, when `Helper model for compaction`
-is on, session compaction to a local 2B or 4B model or the session's local
-model.
+route titles and summaries, model-answered hooks and the needs-you judge, and
+(when `Helper model for compaction` is on) session compaction to a local 2B or
+4B model or the session's local model.
 
 Each wire carries its provider's documented quirks, the same pins the wire
 sends from: reasoning-effort vocabularies, sampling restrictions
@@ -1109,8 +1109,8 @@ account.
 On the `/accounts` board each family's header carries the family name
 alone; the rows beneath it
 name each sign-in with its kind and identity, and a family with no limit
-shows how many sign-ins it holds beside its name. A sign-in row in
-the concourse's model picker, or on the home screen, opens the
+shows how many sign-ins it holds beside its name. A sign-in row in either of
+the concourse's model pickers, or on the home screen, opens the
 Logins screen on that row's family; a completed sign-in, or escape,
 returns to the picker that opened it, which lists the new family's models.
 

@@ -3,9 +3,9 @@
 TensorFold is a local inference engine for Apple silicon (Metal) and NVIDIA
 GPUs on Linux (CUDA). Mercury runs the TensorFold binary (`tensorfold` or
 `tensorfold-native`), connects to its `/v1/models` and `/v1/chat/completions`
-endpoints, and never changes model weights. On Windows x64, until a native
-Windows TensorFold binary is installed, Mercury serves the `TENSORFOLD` group
-on CPU through its own `llama.cpp` adapter (`served by Mercury's engine until TensorFold ships for Windows`; see [Windows](#windows)).
+endpoints, and never changes model weights. On Windows, until a native Windows
+TensorFold binary is installed, Mercury serves the `TENSORFOLD` group on CPU
+through its own `llama.cpp` adapter (`served by Mercury's engine until TensorFold ships for Windows`; see [Windows](#windows)).
 
 Mercury ships three qualified starting points for TensorFold `1.2.2`, each
 trained to a `256k` (`262,144`-token) context window:
@@ -268,8 +268,8 @@ and in `/llmhost`.
 - **The key Mercury holds:** When a pod is registered, Mercury generates a
   random 24-byte key in `<config home>/host/tensorfold/<id>.key` (`0600`),
   writes `mercury[inference]: <key>` to `api-key` (`0600`) on the pod (and
-  serves from a `0600` copy under `$TMPDIR` on the pod’s local disk so
-  network-mounted `/workspace` permissions never trip the engine’s mode check),
+  serves from a `0600` copy under `$TMPDIR` on the pod's local disk so
+  network-mounted `/workspace` permissions never trip the engine's mode check),
   checks `/health` for liveness and `GET /v1/models` with the bearer key for
   readiness, and removes the local key file when the pod is unregistered.
 - **Pod rows from the rental on, `s` stops and `t` terminates:** From the
@@ -282,25 +282,25 @@ and in `/llmhost`.
   - `paused` or `failed`: shows the cause and `next      Resume or Terminate in /llmhost`.
   - `stopping` and `stopped`: pressing `s` (`s stops the pod`) on a billing pod requests the stop at once. If the vendor confirms within the short wait, the row settles to `stopped` (`<machine> stopped · compute billing ended · ~$<spend> so far · the disk bills until you terminate it · t terminates`); if the vendor has not confirmed yet, the row reads `stopping` (`<machine> · stop requested · the row reads stopping until <Vendor> confirms, then compute billing ends · the disk bills until you terminate it · t terminates`) with the spend preserved, and the panel polls and settles it to `stopped` (or removes it if the vendor reports it gone) once confirmed. Stopping the pod from `/llmhost` also forgets its live `TENSORFOLD HOST` server entry so the row shows as `stopped`.
   While a pod is `stopped`, its container or volume disk continues to bill at
-  the vendor’s storage rate until terminated. Pressing `t` on the pod row
+  the vendor's storage rate until terminated. Pressing `t` on the pod row
   (`t terminates it`), or selecting **Terminate** under `/llmhost` →
   **Machines I’m paying for**, stops any setup job, terminates the pod at the
   vendor, closes the SSH tunnel, removes the `compat/pod-<id>` provider and the
-  `TENSORFOLD HOST` row, restores the renting session’s model, and deletes the
+  `TENSORFOLD HOST` row, restores the renting session's model, and deletes the
   host record (`<machine> terminated · the pod and its disk are gone · ~$<spend> in all`;
   if the vendor returns an error other than HTTP 404, Mercury keeps the record
   and reports `<machine> · <detail> · it may still bill · /llmhost → Machines I’m paying for → Terminate`).
 - **Turns and `/usage` on a rented TensorFold pod:** Requests to a
-  TensorFold-served pod (`compat/pod-<id>/<model>`) send the local lane’s output
+  TensorFold-served pod (`compat/pod-<id>/<model>`) send the local lane's output
   limit (`max_tokens` = `min(32768, half the served window)` fitted to the
-  request) with the effort’s thinking budget under it, parse Qwen tool-call
-  markup for deferred tools declared as text, and record the engine’s runtime
+  request) with the effort's thinking budget under it, parse Qwen tool-call
+  markup for deferred tools declared as text, and record the engine's runtime
   block in the TensorFold usage ledger so `/usage` shows the `last turn` and
   `this session` TensorFold lines for a pod model just as for a local one.
 
 ## Windows
 
-Until TensorFold ships a native Windows release, on Windows x64 Mercury serves
+Until TensorFold ships a native Windows release, on Windows Mercury serves
 the `TENSORFOLD` group on CPU through its own adapter (`dist/tensorfold-adapter.mjs`),
 which presents the TensorFold command surface and HTTP API (`/health`,
 `/v1/models`, `/v1/chat/completions`, `/memory`) backed by `llama-server`
@@ -309,69 +309,77 @@ which presents the TensorFold command surface and HTTP API (`/health`,
 `~\.local\share\mercury-host\runtime\tensorfold\bin` or `~\.tensorfold\bin`,
 Mercury uses that binary instead.
 
-On Windows x64 with the adapter:
+On Windows with the adapter:
 
 - **Group heading and starting points:** The `TENSORFOLD` heading reads
-  `TENSORFOLD · served by Mercury’s engine until TensorFold ships for Windows`
+  `TENSORFOLD · served by Mercury's engine until TensorFold ships for Windows`
   (plus `· helper 2B` when the helper model is on). Three starting points are
   listed in rank order, each mapped to a pinned GGUF checkpoint in the Hugging
   Face cache (`~/.cache/huggingface/hub`, `$HF_HUB_CACHE` or `$HF_HOME/hub`):
-  - **`Qwen3.5 4B`** (`mlx-community/Qwen3.5-4B-MLX-4bit`, served as `local/qwen3.5-4b` with `--prompt-cache-gib 1`): maps to `unsloth/Qwen3.5-4B-GGUF` · `Qwen3.5-4B-Q4_K_M.gguf (Q4_K_M)` (`2.7 GB`, revision `e87f176479d0855a907a41277aca2f8ee7a09523`), with `note      qualified by Mercury on its own engine · not one of TensorFold’s starting points`.
-  - **`Qwen3.5 2B`** (`mlx-community/Qwen3.5-2B-MLX-4bit`, served as `local/qwen3.5-2b` with `--prompt-cache-gib 1`): maps to `unsloth/Qwen3.5-2B-GGUF` · `Qwen3.5-2B-Q4_K_M.gguf (Q4_K_M)` (`1.3 GB`, revision `f6d5376be1edb4d416d56da11e5397a961aca8ae`), and backs the `2B (Mercury’s engine)` helper model.
-  - **`Nemotron Lightning`** (`TensorFold/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-MLX-4bit`, served as `local/nemotron-lightning` with `--prompt-cache-gib 1`): maps to `unsloth/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-GGUF` · `NVIDIA-Nemotron-3.5-Lightning-30B-A3B-UD-Q4_K_M.gguf (UD-Q4_K_M)` (`25.3 GB`, revision `f2d3fe3694501008786e81e5f20360cbf715496a`), marked `note      unqualified on Mercury’s engine`.
+  - **`Qwen3.5 4B`** (`mlx-community/Qwen3.5-4B-MLX-4bit`, served as `local/qwen3.5-4b` with `--prompt-cache-gib 1`): maps to `unsloth/Qwen3.5-4B-GGUF` · `Qwen3.5-4B-Q4_K_M.gguf (Q4_K_M)` (`2.7 GB`, revision `e87f176479d0855a907a41277aca2f8ee7a09523`), with `note      qualified by Mercury on its own engine · not one of TensorFold's starting points`.
+  - **`Qwen3.5 2B`** (`mlx-community/Qwen3.5-2B-MLX-4bit`, served as `local/qwen3.5-2b` with `--prompt-cache-gib 1`): maps to `unsloth/Qwen3.5-2B-GGUF` · `Qwen3.5-2B-Q4_K_M.gguf (Q4_K_M)` (`1.3 GB`, revision `f6d5376be1edb4d416d56da11e5397a961aca8ae`), and backs the `2B (Mercury's engine)` helper model.
+  - **`Nemotron Lightning`** (`TensorFold/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-MLX-4bit`, served as `local/nemotron-lightning` with `--prompt-cache-gib 1`): maps to `unsloth/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-GGUF` · `NVIDIA-Nemotron-3.5-Lightning-30B-A3B-UD-Q4_K_M.gguf (UD-Q4_K_M)` (`25.3 GB`, revision `f2d3fe3694501008786e81e5f20360cbf715496a`), marked `note      unqualified on Mercury's engine`.
 - **Installing `llama.cpp` when absent:** If `llama-server.exe` (build `b11829`
   or newer) is not already in
   `~\.local\share\mercury-host\runtime\llama.cpp\build\bin` or on `PATH` (an
   older build on `PATH` is refused with
-  `<path> is build <N>; Mercury’s engine needs llama.cpp b11829 or newer`),
+  `<path> is build <N>; Mercury's engine needs llama.cpp b11829 or newer`),
   `/tensorfold` shows `install llama.cpp` (`llama.cpp release b11829 · checksum verified`).
-  Pressing `↵` downloads `llama-b11829-bin-win-cpu-x64.zip` (`24 MB`) from
-  `github.com/ggml-org/llama.cpp`, verifies its SHA-256 digest, unpacks it into
+  On Windows x64, pressing `↵` downloads `llama-b11829-bin-win-cpu-x64.zip` (`24.1 MB`) from
+  `github.com/ggml-org/llama.cpp`, verifies its SHA-256 digest, unpacks it to
   `~\.local\share\mercury-host\runtime\llama.cpp\build\bin`, and checks
   `llama-server.exe --version` (naming the Microsoft Visual C++ Redistributable
   if a runtime DLL is missing).
-- **Pulling, serving and surfaces:** Pulling downloads the mapped GGUF into the
-  Hugging Face cache with HTTP `Range` resume and verifies its pinned SHA-256
-  digest. Serving starts `llama-server` on loopback (`127.0.0.1` only; network
-  sharing is not offered on the adapter and the card reads
-  `network   not shared · sharing from Mercury’s engine comes later`),
+- **Pulling, serving and surfaces:** Pulling downloads the mapped GGUF to the
+  local Hugging Face cache with HTTP `Range` resume and verifies its pinned
+  SHA-256 digest. Serving starts `llama-server` on loopback (`127.0.0.1` only;
+  network sharing is not offered on the adapter and the card reads
+  `network   not shared · sharing from Mercury's engine comes later`),
   translates `reasoning_effort` and `thinking_budget` into
   `chat_template_kwargs.enable_thinking` and `thinking_budget_tokens`, and
-  returns `served_by: “mercury-llamacpp”` on `/health`, `/v1/models`, `/memory`
-  and streaming usage chunks. Every surface names who serves: the card shows the `engine` line
-  (`served by Mercury’s engine until TensorFold ships for Windows`)
+  returns `served_by: "mercury-llamacpp"` on `/health`, `/v1/models`, `/memory`
+  and streaming usage chunks. Every surface names who serves: the card shows
+  `engine    served by Mercury's engine on this machine until TensorFold ships for Windows`
   and `weights   <gguf repo> · <file> (<quant>)`; chat feed receipts name
-  `Mercury’s engine` (`● Mercury’s engine serves <name> · <window> on 127.0.0.1:<port> · this session’s model`);
+  `Mercury's engine` (`● Mercury's engine serves <name> · <window> on 127.0.0.1:<port> · this session's model`);
   `/health` and the support line identify
-  `TensorFold adapter 1.0.6 (Mercury’s engine) · llama.cpp b11829 · CPU`, with
-  the loaded GGUF in the support line and the adapter note at the end.
-- **First-run sign-in and smaller machines:** On a Windows x64 machine where
-  `Qwen3.5 2B` fits at the `64k` floor (8 GB of RAM or more), first-run sign-in
-  lists `TensorFold` first (running or installing `<model>` with `Mercury’s engine, no account (/tensorfold)`).
-  On Windows ARM64, or on a machine with under 8 GB of
-  RAM where the 2B does not fit at `64k`, `TENSORFOLD` stays folded (`no Windows release yet`),
-  `TENSORFOLD HOST` opens unfolded, and first-run sign-in lists
-  `TensorFold — on a host: a server on your network or a rented GPU pod (/tensorfold)`.
-  You can also use `/localsetup` ([LOCAL-SETUP.md](LOCAL-SETUP.md)) to pull any
-  GGUF into the Bank or connect Ollama or LM Studio.
+  `TensorFold adapter 1.0.6 (Mercury's engine) · llama.cpp b11829 · CPU`, with
+  the loaded GGUF in the support line and
+  `served by Mercury's engine on this machine until TensorFold ships for Windows`
+  at the end.
+- **First-run sign-in, Windows ARM64 and smaller machines:** The adapter is
+  discovered on every Windows machine, so `TENSORFOLD` always carries the
+  adapter heading and `TENSORFOLD HOST` opens folded beneath it as usual. On a
+  Windows x64 machine where `Qwen3.5 2B` fits at the `64k` floor (8 GB of RAM or
+  more), `/model` opens with `TENSORFOLD` first on a fresh install and first-run
+  sign-in lists
+  `TensorFold — run <model> on this machine with Mercury's engine, no account (/tensorfold)`
+  (or `install and run`). On Windows ARM64, or on a machine with under 8 GB of
+  RAM where the 2B does not fit at `64k`, first-run sign-in falls back to the
+  host row (`TensorFold — on a host: a server on your network or a rented GPU pod (/tensorfold)`,
+  placed after the OpenAI and Anthropic rows), `/model` does not open with
+  `TENSORFOLD` first, and on Windows ARM64 the in-place `llama.cpp` install
+  refuses (`x64` only). You can also use `/localsetup`
+  ([LOCAL-SETUP.md](LOCAL-SETUP.md)) to pull any GGUF into the Bank or connect
+  Ollama or LM Studio.
 
 ## The helper model setting
 
 In `/config`, `Helper model` (default `off`) runs a small local model for
-Mercury’s own background jobs whatever main model the session uses:
+Mercury's own background jobs whatever main model the session uses:
 `titles and summaries ✓ · the judge ✓ · compaction ✗ · a small model can drop details`.
 Below it in `/config`, `Helper model for compaction` (default
 `off · a small model can drop details`) opts session compaction into the helper
 model when turned on. When `Helper model for compaction` is on, compaction folds
-on the helper’s own serving process when its window holds the history, unless
-the session’s seated model is already a serving local model whose window holds
+on the helper's own serving process when its window holds the history, unless
+the session's seated model is already a serving local model whose window holds
 the history (in which case the seated local model folds it); compaction never
 cold-starts a helper server.
 
 `Helper model` has four choices:
 
-- **`off`** (default): background jobs use the session’s provider route.
-- **`2B (TensorFold)`** (or **`2B (Mercury’s engine)`** on the Windows adapter;
+- **`off`** (default): background jobs use the session's provider route.
+- **`2B (TensorFold)`** (or **`2B (Mercury's engine)`** on the Windows adapter;
   `~5.0 GiB · an estimate`): serves `mlx-community/Qwen3.5-2B-MLX-4bit`
   (`local/qwen3.5-2b`, mapped to `unsloth/Qwen3.5-2B-GGUF` on the Windows
   adapter) at a `32k` window with `--prompt-cache-gib 1` as a separate
