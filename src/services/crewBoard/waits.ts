@@ -61,7 +61,7 @@ export function boardWaitWords(predicate: BoardWaitPredicate): string {
   return `team ${quoted(predicate.team)} posts`
 }
 
-export const boardBroadcast = (event: RoutedEvent): boolean => (event.addresses ?? []).some(address => folded(address) === 'all')
+const boardBroadcast = (event: RoutedEvent): boolean => (event.addresses ?? []).some(address => folded(address) === 'all')
 
 export function boardWakeEligible(event: RoutedEvent, agent: string): boolean {
   return agent !== 'main' && event.author.agentId !== agent && event.authorRole !== 'system' && publicKinds.has(event.kind) && event.channel?.kind !== 'general' && (event.authorRole !== 'owner' || event.mentions.includes(agent))

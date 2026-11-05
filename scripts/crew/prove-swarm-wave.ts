@@ -31,7 +31,7 @@ try {
   }
   const posted = (id: string) => {
     const text = toolResultOf(world, id)!.text
-    const body = text.match(/\{"ok":true,"eventId":"[^"]+","seq":\d+,"replay":false\}/)?.[0]
+    const body = text.match(/\{"ok":true,"eventId":"[^"]+","seq":\d+,"replay":false(?:,"reach":\{[^}]*\})?(?:,"note":"[^"]*")?\}/)?.[0]
     assert(body, `${id}: ${text}`)
     return JSON.parse(body)
   }
