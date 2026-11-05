@@ -5,8 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } fr
 import { join } from 'node:path'
 import { runpodFixture } from './runpodFixture.mjs'
 
-if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
-mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(process.env.TMPDIR ?? '/private/tmp', 'tensorfold-pod-road-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
 const { TENSORFOLD_HOST_VERSION, tensorFoldKeyWriteCommand, tensorFoldReadyCommand } = await import('../../src/services/host/tensorfoldRelease.ts')

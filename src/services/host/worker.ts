@@ -472,7 +472,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       linkLlmHostPod(provider, id)
       if (tensorfold && result.model && endpointBase) {
         registerHostEfforts([result.model], recipe.efforts?.levels ?? [])
-        await registerTensorFoldPod({ id, vendor, recipe, baseUrl: endpointBase, key: tensorfold, served: result.model.split('/').at(-1)!, target })
+        await registerTensorFoldPod({ id, vendor, recipe, baseUrl: endpointBase, key: tensorfold, served: result.model.slice(result.model.lastIndexOf('/') + 1), target })
       }
     }
     if (!result.ok || !result.registered || !result.model) throw new Error(result.words)

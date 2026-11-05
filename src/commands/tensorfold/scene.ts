@@ -64,7 +64,7 @@ export type TensorFoldPanelFacts = {
   copySupportOffered: boolean
 }
 
-export type TensorFoldTurnFacts = { model: string; address: string; tokensPerSecond?: number; timeToFirstTokenS?: number }
+type TensorFoldTurnFacts = { model: string; address: string; tokensPerSecond?: number; timeToFirstTokenS?: number }
 
 export type FactsIo = EngineIo & InventoryIo & InstallIo & Pick<ServeIo, 'servedFile' | 'helperFile'> & {
   engine?: TensorFoldEngineFound | null
@@ -233,7 +233,7 @@ export function servedAddress(port: number): string {
   return `${TENSORFOLD_HOST}:${port}`
 }
 
-export function liveLineOf(facts: Omit<TensorFoldPanelFacts, 'live' | 'copySupportOffered'>): string {
+function liveLineOf(facts: Omit<TensorFoldPanelFacts, 'live' | 'copySupportOffered'>): string {
   if (facts.platform === 'win32') return W.windowsLive
   const installing = facts.acts.install
   if (installing?.kind === 'installing') return `installing TensorFold ${TENSORFOLD_RELEASE} with Homebrew`
