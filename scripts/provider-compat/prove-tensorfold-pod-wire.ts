@@ -112,6 +112,7 @@ const { clearToolRosterLatches } = await import('../../src/services/providers/to
 const { registerTensorFoldPod } = await import('../../src/services/host/tensorfoldPod.ts')
 const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
 const { writeHostRecord } = await import('../../src/services/host/store.ts')
+const { tensorFoldHostAddress } = await import('../../src/services/providers/local/tensorfoldHosts.ts')
 const ledger = await import('../../src/services/providers/local/tensorfoldUsage.ts')
 type Message = import('../../src/types/message.ts').Message
 type Tools = import('../../src/Tool.ts').Tools
@@ -226,6 +227,15 @@ check('the local TensorFold lane reads the markup beside a parsed call the same 
 reply = 'markup'
 const localMarkup = await drive(LOCAL, history, { effortValue: 'high', tools: pool, bodies: big.bodies })
 check('the local lane still reads a whole-reply markup call (unchanged)', toolUses(localMarkup).map(block => block.name).join(',') === 'TaskStop', JSON.stringify(blocks(localMarkup)).slice(0, 300))
+
+section('§3 the engine\'s runtime block is recorded for a pod turn, as for a local TensorFold turn')
+reply = 'text'
+ledger.__resetTensorFoldUsageForTest()
+const recorded = await drive(POD, undefined, { effortValue: 'high', bodies: big.bodies })
+const turn = ledger.lastTensorFoldTurn()
+check('the turn completed', recorded.errors.length === 0 && answerText(recorded).includes('TF-DONE'), recorded.errors.join(' | '))
+check('RED ON THE BASE: the /usage ledger holds the pod turn: tok/s, first token, prefill, prompt and cached tokens, at the tunnel address', ledger.tensorFoldTurnReadings().length === 1 && turn?.model === 'qwen3.8-27b' && turn.address === tensorFoldHostAddress(big.root) && turn.tokensPerSecond === 357.25 && turn.timeToFirstTokenS === 0.23 && turn.prefillSeconds === 0.21 && turn.promptTokens === 640 && turn.cachedTokens === 512 && turn.reasoningTokens === 8, JSON.stringify(turn))
+check('the ledger line reads the pod turn', ledger.tensorFoldUsageLines()[0]?.startsWith('last turn · qwen3.8-27b · ~357 tok/s · first token in 230 ms · prefill 210 ms · 640 in (512 cached) · 24 out (8 thinking)') === true, JSON.stringify(ledger.tensorFoldUsageLines()))
 
 section('§4 every other road is unchanged: a vLLM pod, Cerebras, Groq and OpenRouter')
 reply = 'markup'

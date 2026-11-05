@@ -34,6 +34,7 @@ import { buildCompatSlotExtras } from './compatWire.js'
 import { getMaxOutputTokensForModel } from '../anthropic/streamCore.js'
 import { localServerKind } from '../../../constants/localPromptProfile.js'
 import { tensorFoldOutputCeiling } from '../local/localCallModel.js'
+import { noteTensorFoldTurn } from '../local/tensorfoldUsage.js'
 import { toolDeclarationRowInResult } from '../zai/zaiCodec.js'
 import { getContextWindowForModel } from '../../../utils/model/capabilities.js'
 
@@ -163,6 +164,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
       ? {
           outputCeiling: (modelId: string) => tensorFoldOutputCeiling({ id: wireId, server: 'tensorfold', baseUrl: endpoint.baseUrl, contextWindow: { tokens: getContextWindowForModel(modelId), source: 'served' } }),
           toolDeclarationRow: toolDeclarationRowInResult,
+          noteRuntime: (reading: Parameters<NonNullable<CompatLaneProfile['noteRuntime']>>[0]) => { noteTensorFoldTurn({ model: reading.served ?? wireId, baseUrl: endpoint.baseUrl, usage: reading.usage, runtime: reading.runtime }) },
         }
       : {}),
   }
