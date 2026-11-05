@@ -1,5 +1,7 @@
 # Model and route facts
 
+This reference carries no model inventory: model ids, tiers and display names live in the catalogue alone (`src/services/providers/modelRegistry.ts` and the family catalogues it indexes) — read them there, never from this page.
+
 **CODE inspected 2026-11-04:** `src/services/providers/idSpaces.ts` (recognizeModelId) resolves qualified namespace → exact ID → cached live list → aliases/prefixes. Its `PROVIDER_ID_SPACES` and `LIVE_LIST_FAMILIES` are the inventory; do not maintain another here. `src/services/providers/routeLaw.ts` owns wire-ID grammar; strip only Mercury's carrier/annotations, not the vendor's slug.
 
 **CODE inspected 2026-11-04:** exact hosted IDs in `src/services/providers/mistral/mistralPins.ts` (MISTRAL_HOSTED_DEEPSEEK_IDS) can override a native-looking prefix. Check that owner and the classifier before assigning a model to its apparent publisher. `src/services/providers/homeLaneAdmission.ts` owns explicit gateway/pin admission; an unrecognised ID does not establish a home-lane identity.
