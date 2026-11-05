@@ -2,6 +2,7 @@
 type SeatReceipt = {
   text: string
   level: 'info' | 'warning'
+  copyText?: string
 }
 
 const RECEIPT_QUEUE_CAP = 20
@@ -41,8 +42,8 @@ export function recentWarningReceipt(withinMs = 10_000): SeatReceipt | null {
   return latestWarning.receipt
 }
 
-export function mintImmediateReceipt(text: string, level: SeatReceipt['level'] = 'info'): void {
-  emit({ text, level })
+export function mintImmediateReceipt(text: string, level: SeatReceipt['level'] = 'info', copyText?: string): void {
+  emit({ text, level, ...(copyText !== undefined ? { copyText } : {}) })
 }
 
 export function __resetSeatReceiptsForTests(): void {

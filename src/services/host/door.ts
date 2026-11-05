@@ -138,7 +138,7 @@ export function hostRunModelRows(boxes: readonly DoorBox[] = []): { id: string; 
   const records = hostRecords()
   const endpoints = configuredCompatEndpoints()
   const recipes = currentHostRecipes()
-  return [...new Set(recipes.map(modelTitle))].filter(title => !records.some(record => record.status === 'RUNNING' && record.provider && endpoints.some(endpoint => endpoint.name === record.provider) && recipes.some(recipe => recipe.id === record.recipe && modelTitle(recipe) === title))).map(title => ({ id: 'host-run:' + title, name: title, tag: 'run it → /llmhost' + (boxes.some(box => box.kind === 'this-computer' && /darwin|mac/i.test(box.os) && recipes.some(recipe => modelTitle(recipe) === title && fits(box, recipe))) ? ' · run it on this Mac →' : ''), ctx: '', group: 'Run a model', action: true, searchableAction: true }))
+  return [...new Set(recipes.filter(recipe => recipe.engine !== 'tensorfold').map(modelTitle))].filter(title => !records.some(record => record.status === 'RUNNING' && record.provider && endpoints.some(endpoint => endpoint.name === record.provider) && recipes.some(recipe => recipe.id === record.recipe && modelTitle(recipe) === title))).map(title => ({ id: 'host-run:' + title, name: title, tag: 'run it → /llmhost' + (boxes.some(box => box.kind === 'this-computer' && /darwin|mac/i.test(box.os) && recipes.some(recipe => modelTitle(recipe) === title && fits(box, recipe))) ? ' · run it on this Mac →' : ''), ctx: '', group: 'Run a model', action: true, searchableAction: true }))
 }
 
 export function hostEndpointChoice<T extends { id: string; name: string; tag: string; action?: boolean }>(row: T): T[] {

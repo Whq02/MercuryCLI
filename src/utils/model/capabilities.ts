@@ -456,9 +456,14 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
       require('../../services/providers/local/localCatalogue.js') as typeof import('../../services/providers/local/localCatalogue.js')
     const { localModelAcceptsEffort } =
       require('../../services/providers/local/localCallModel.js') as typeof import('../../services/providers/local/localCallModel.js')
-    const { LOCAL_SERVER_EFFORTS, LOCAL_SERVER_STATES_THINKING, localThinkingOffWireEffort } =
+    const { LOCAL_SERVER_EFFORTS, LOCAL_SERVER_STATES_THINKING, TENSORFOLD_DIAL, localThinkingOffWireEffort } =
       require('../../services/providers/openaicompat/compatWire.js') as typeof import('../../services/providers/openaicompat/compatWire.js')
     const record = localRecordFor(model)
+    if (record?.server === 'tensorfold') {
+      return localModelAcceptsEffort(record)
+        ? { kind: 'provider', source: 'local', vocabulary: TENSORFOLD_DIAL, thinkingGated: true, thinkingOffWire: 'none' }
+        : { kind: 'none', source: 'local' }
+    }
     if (record?.thinking !== undefined) {
       const vocabulary = record.thinking.values.filter((value): value is string => typeof value === 'string')
       return vocabulary.length > 0

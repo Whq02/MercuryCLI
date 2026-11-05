@@ -9,6 +9,7 @@ import {
 import { getEngineModel } from './model/model.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { deferralWireFormFor, toolReferenceWireAccepted } from '../services/providers/deferralWire.js'
+import { localPromptProfileApplies, localToolForm } from '../constants/localPromptProfile.js'
 import { zodToJsonSchema } from './zodToJsonSchema.js'
 import { inlineLocalSchemaRefs } from './inlineSchemaRefs.js'
 import { normalizeToolSchemaFor, rememberRenamedArgumentKeys, schemaLaneFor } from './normalizeToolSchema.js'
@@ -58,12 +59,47 @@ export function splitSystemPromptBlocks(systemPrompt: readonly string[]): System
 export function appendSystemContext(
   systemPrompt: readonly string[],
   context: Record<string, string>,
+  model?: string,
 ): string[] {
   if (isWholeRecordedComposition(systemPrompt)) return [...systemPrompt]
+  const local = model !== undefined && localPromptProfileApplies(model)
+  const segments = local ? systemPrompt.filter(segment => !firstTurnSegment(segment)) : systemPrompt
   const line = Object.entries(context)
+    .filter(([key]) => !local || key !== 'gitStatus')
     .map(([key, value]) => `${key}: ${value}`)
     .join('\n')
-  return [...systemPrompt, line].filter(block => block)
+  return [...segments, line].filter(block => block)
+}
+
+function firstTurnSegment(segment: string): boolean {
+  const { isFirstTurnSegment } = require('../constants/prompts.js') as typeof import('../constants/prompts.js')
+  return isFirstTurnSegment(segment)
+}
+
+function firstUserPrompt(messages: readonly Message[] | undefined): string | undefined {
+  for (const message of messages ?? []) {
+    if (message.type !== 'user' || message.isMeta === true) continue
+    const content = message.message.content
+    if (typeof content === 'string') return content
+    const text = content.filter(block => block.type === 'text').map(block => (block as { text: string }).text).join('\n')
+    if (text !== '') return text
+  }
+  return undefined
+}
+
+export async function firstTurnUserContext(
+  userContext: Record<string, string>,
+  systemContext: Record<string, string> | (() => Promise<Record<string, string>>),
+  model: string | undefined,
+  agentId?: string,
+  messages?: readonly Message[],
+): Promise<Record<string, string>> {
+  if (model === undefined || !localPromptProfileApplies(model)) return userContext
+  const { localFirstTurnFacts } = require('../constants/prompts.js') as typeof import('../constants/prompts.js')
+  const system = typeof systemContext === 'function' ? await systemContext() : systemContext
+  const prompt = firstUserPrompt(messages)
+  const facts = await localFirstTurnFacts(agentId, prompt === undefined ? undefined : { prompt })
+  return { ...userContext, ...facts, ...(system.gitStatus ? { gitStatus: system.gitStatus } : {}) }
 }
 
 export function prependUserContext(
@@ -115,7 +151,7 @@ export async function toolToAPISchema(
   const cache = getToolSchemaCache()
   const promptModel = options.model ?? getEngineModel()
   const caps = resolveModelCapabilities(promptModel)
-  const fingerprint = `${declaredRouteOf(promptModel) ?? 'unrecognised'}:${caps.media.pdf ? 'p' : ''}${caps.media.images ? 'i' : ''}:${deferralWireFormFor(promptModel).form}`
+  const fingerprint = `${declaredRouteOf(promptModel) ?? 'unrecognised'}:${caps.media.pdf ? 'p' : ''}${caps.media.images ? 'i' : ''}:${deferralWireFormFor(promptModel).form}${localPromptProfileApplies(promptModel) ? ':local-profile' : ''}`
   const pool = options.tools.map(item => item.name).sort().join(',')
   const key = `${toolCacheKey(tool)}@${fingerprint}|${pool}`
   let base = cache.get(key)
@@ -137,8 +173,8 @@ export async function toolToAPISchema(
     if (schemaLane === 'anthropic-strict' && normalized !== null) rememberRenamedArgumentKeys(tool.name, normalized.renamed)
     const input_schema = (normalized?.schema ?? rawSchema) as ToolInputSchema
 
-    const description = tool.wireDescription?.(fullPrompt) ?? fullPrompt
-    const built: ApiTool = { name: tool.name, description, input_schema }
+    const { description, input_schema: wireSchema } = localToolForm(tool.name, promptModel, tool.wireDescription?.(fullPrompt) ?? fullPrompt, input_schema)
+    const built: ApiTool = { name: tool.name, description, input_schema: wireSchema }
     if (fineGrainedToolStreamingEnabled()) {
       built.eager_input_streaming = true
     }

@@ -121,6 +121,16 @@ export interface CompatCompletedToolCall {
   providerRefusal?: string
 }
 
+export interface CompatRuntimeReading {
+  tokensPerSecond?: number
+  timeToFirstTokenS?: number
+  prefillSeconds?: number
+  decodeSeconds?: number
+  reasoningEffort?: string
+  thinking?: boolean
+  draftAcceptance?: number
+}
+
 export type CompatStreamEvent =
   | { type: 'served-model'; model: string }
   | { type: 'reasoning-delta'; text: string }
@@ -128,6 +138,7 @@ export type CompatStreamEvent =
   | { type: 'text-delta'; text: string }
   | { type: 'tool-call-fragment'; index: number; id?: string; name?: string; argumentsFragment: string }
   | { type: 'usage'; usage: CompatUsage }
+  | { type: 'runtime'; runtime: CompatRuntimeReading }
   | {
       type: 'finish'
       reason: CompatFinishReason
@@ -975,6 +986,23 @@ export function decodeCompatUsage(usage: Record<string, unknown>, headers?: Head
   }
 }
 
+export function decodeTensorFoldRuntime(block: unknown, speculative?: unknown): CompatRuntimeReading | undefined {
+  const runtime = asRecord(block)
+  if (runtime === undefined) return undefined
+  const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined)
+  const drafts = asRecord(speculative)
+  const reading: CompatRuntimeReading = {
+    ...(num(runtime.tokens_per_second) !== undefined ? { tokensPerSecond: num(runtime.tokens_per_second)! } : {}),
+    ...(num(runtime.time_to_first_token) !== undefined ? { timeToFirstTokenS: num(runtime.time_to_first_token)! } : {}),
+    ...(num(runtime.prefill_seconds) !== undefined ? { prefillSeconds: num(runtime.prefill_seconds)! } : {}),
+    ...(num(runtime.seconds) !== undefined ? { decodeSeconds: num(runtime.seconds)! } : {}),
+    ...(typeof runtime.reasoning_effort === 'string' && runtime.reasoning_effort !== '' ? { reasoningEffort: runtime.reasoning_effort } : {}),
+    ...(typeof runtime.enable_thinking === 'boolean' ? { thinking: runtime.enable_thinking } : {}),
+    ...(num(drafts?.acceptance_rate) !== undefined && (num(drafts?.drafted) ?? 0) > 0 ? { draftAcceptance: num(drafts?.acceptance_rate)! } : {}),
+  }
+  return Object.keys(reading).length > 0 ? reading : undefined
+}
+
 function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>, activeSlotByRawIndex: Map<number, number>, headers: Headers): CompatStreamEvent[] {
   const out: CompatStreamEvent[] = []
   const o = asRecord(parsed)
@@ -1072,6 +1100,8 @@ function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>,
     const usage = decodeCompatUsage(usageRecord, headers)
     if (usage) out.push({ type: 'usage', usage })
   }
+  const runtime = decodeTensorFoldRuntime(o?.tensorfold, o?.speculative)
+  if (runtime !== undefined) out.push({ type: 'runtime', runtime })
 
   const finishRaw = choice?.finish_reason
   if (finishRaw === 'error') {

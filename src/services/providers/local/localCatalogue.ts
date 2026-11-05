@@ -35,6 +35,7 @@ export const LOCAL_SERVER_NAMES: Readonly<Record<LocalModelRecord['server'], str
   lmstudio: 'LM Studio',
   vllm: 'vLLM',
   llamacpp: 'llama.cpp',
+  tensorfold: 'TensorFold',
   'openai-compatible': 'OpenAI-compatible server',
 }
 

@@ -16,6 +16,7 @@ import { storeCompatApiKeyLogin } from '../providers/openaicompat/compatLogin.js
 import { CompatProbeError, compatServerBase, inspectCompatServer, type CompatDialect, type CompatServerReading } from '../providers/openaicompat/compatProbe.js'
 import { writeStoredCompatApiKey } from '../providers/providerSecrets.js'
 import { hostModelEfforts } from '../providers/openaicompat/compatEffort.js'
+import { unregisterTensorFoldPod } from '../host/tensorfoldPod.js'
 
 export interface LlmHostQuestion {
   step: string
@@ -58,6 +59,7 @@ export function removeLlmHostProvider(name: string): void {
   if (!existing) return
   writeStoredCompatApiKey(null, name)
   writeEndpoint(name, undefined, existing)
+  if (existing.hostPodId) void unregisterTensorFoldPod(existing.hostPodId).catch(() => {})
 }
 
 function writeEndpoint(name: string, endpoint: CompatEndpointSettings | undefined, existing?: CompatEndpoint): void {
@@ -79,6 +81,15 @@ function writeEndpoint(name: string, endpoint: CompatEndpointSettings | undefine
       compatProvider: patch as NonNullable<ReturnType<typeof getSettingsForSource>>['compatProvider'],
       ...(!endpoint ? { models: Object.fromEntries(Object.keys(raw.models ?? {}).filter(id => id.startsWith(`compat/${name}/`)).map(id => [id, undefined])) as unknown as NonNullable<ReturnType<typeof getSettingsForSource>>['models'] } : {}),
     }
+  })
+  if (result.error) throw result.error
+  bumpCatalogueEpoch()
+}
+export function registerHostEfforts(models: readonly string[], efforts: readonly string[]): void {
+  editable()
+  const result = updateSettingsForSource('userSettings', raw => {
+    const previous = ModelFactsSchema().parse(raw.models ?? {})
+    return { models: ModelFactsSchema().parse({ ...previous, ...Object.fromEntries(models.map(id => [id, { ...previous[id], efforts: [...efforts] }])) }) }
   })
   if (result.error) throw result.error
   bumpCatalogueEpoch()

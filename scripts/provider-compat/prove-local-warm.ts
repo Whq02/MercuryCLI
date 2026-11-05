@@ -216,7 +216,7 @@ const { getSystemContext, getUserContext } = await import('../../src/context.ts'
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { appendSystemContext, prependUserContext } = await import('../../src/utils/api.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { MERCURY_CONSTITUTION } = await import('../../src/prompt/mercuryContract.ts')
+const { localLaw } = await import('../../src/constants/localPromptProfile.ts')
 const { resolveBehaviourContract, renderGenericInstructions } = await import('../../src/prompt/behaviourContract.ts')
 const { getEngineModel } = await import('../../src/utils/model/model.ts')
 const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
@@ -289,7 +289,7 @@ async function firstTurn(text: string): Promise<{ usage: Record<string, number> 
 section('0 · the world: a fixture Ollama that records requests, models the prompt cache and keep_alive, and the real prompt + tool catalogue')
 {
   check('discovery found the fixture model (ollama, tools, thinking)', record !== undefined && record.server === 'ollama' && record.toolsDeclared === true && record.thinkingDeclared === true && record.modelMaxContext === TRAINED_MAX, JSON.stringify(record))
-  check(`the catalogue is the real one (${tools.length} tools) and the system prompt carries the constitution`, tools.length >= 20 && renderedSystemPrompt.includes(MERCURY_CONSTITUTION))
+  check(`the catalogue is the real one (${tools.length} tools) and the system prompt carries the law a local model is sent (the local prompt profile's)`, tools.length >= 20 && renderedSystemPrompt.includes(localLaw(PERSISTED)))
   check('no load, chat or generate rode discovery', !hits.some(h => h.path === '/api/chat' || h.path === '/api/generate'), shape(hits))
 }
 

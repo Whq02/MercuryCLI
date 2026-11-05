@@ -1,0 +1,1 @@
+{"id": "chatcmpl-62adbc34f4965a6a5d918ac7ed938ed1", "object": "chat.completion.chunk", "created": 1793822267, "model": "qwen3.5-2b", "choices": [], "usage": {"prompt_tokens": 18, "completion_tokens": 3, "total_tokens": 21, "prompt_tokens_details": {"cached_tokens": 0}, "completion_tokens_details": {"reasoning_tokens": 0}}}

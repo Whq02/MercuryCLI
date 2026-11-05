@@ -185,12 +185,19 @@ try {
   check('the cloud rule reaches the hosted route and never the local one (LspRead and Test alike)', defersOnCloudFor(LspReadTool, hosted) && defersOnCloudFor(TestTool, hosted) && !defersOnCloudFor(LspReadTool, local) && !defersOnCloudFor(TestTool, local))
   const localVerdicts = runWithCwdOverride(project, () => ({
     lsp: isDeferredToolFor(LspReadTool, local),
+    test: isDeferredToolFor(TestTool, local),
+    testHosted: isDeferredToolFor(TestTool, hosted),
+  }))
+  process.env.MERCURY_LOCAL_PROMPT_PROFILE = '0'
+  const offVerdicts = runWithCwdOverride(project, () => ({
+    lsp: isDeferredToolFor(LspReadTool, local),
     lspOwn: isDeferredTool(LspReadTool) && !loadsInFullFor(LspReadTool, local),
     test: isDeferredToolFor(TestTool, local),
     testOwn: isDeferredTool(TestTool) && !loadsInFullFor(TestTool, local),
-    testHosted: isDeferredToolFor(TestTool, hosted),
   }))
-  check('local route: each tool\'s own declaration decides, as before the cut — Test rides in full beside its discovered runner, LspRead keeps its deferrable declaration', localVerdicts.lsp === localVerdicts.lspOwn && localVerdicts.test === localVerdicts.testOwn && localVerdicts.test === false && localVerdicts.lsp === true, JSON.stringify(localVerdicts))
+  delete process.env.MERCURY_LOCAL_PROMPT_PROFILE
+  check('local route under the local prompt profile: Test and LspRead ride deferred behind ToolSearch, beside a discovered runner too', localVerdicts.test === true && localVerdicts.lsp === true, JSON.stringify(localVerdicts))
+  check('local route with the profile switched off: each tool\'s own declaration decides, as before the cut — Test rides in full beside its discovered runner, LspRead keeps its deferrable declaration', offVerdicts.lsp === offVerdicts.lspOwn && offVerdicts.test === offVerdicts.testOwn && offVerdicts.test === false && offVerdicts.lsp === true, JSON.stringify(offVerdicts))
   check('hosted route: the same discovered runner leaves Test deferred', localVerdicts.testHosted === true)
 } finally {
   server.closeAllConnections()

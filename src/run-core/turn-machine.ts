@@ -147,7 +147,7 @@ import {
   createSettleGuardWarning,
   findActiveCheckpoint,
 } from '../services/compact/checkpointRewind.js'
-import { prependUserContext, appendSystemContext } from '../utils/api.js'
+import { prependUserContext, appendSystemContext, firstTurnUserContext } from '../utils/api.js'
 import { latestUserContextBody } from '../utils/attachments/userContext.js'
 import {
   createAttachmentMessage,
@@ -679,7 +679,7 @@ async function* streamModel(
         let boardPresented = false
         const requestMessages =
           latestUserContextBody(iter.messagesForQuery) === null
-            ? prependUserContext(iter.messagesForQuery, run.userContext)
+            ? prependUserContext(iter.messagesForQuery, await firstTurnUserContext(run.userContext, run.systemContext, toolUseContext.options.engineModel, toolUseContext.agentId, iter.messagesForQuery))
             : iter.messagesForQuery
         const presentBoard = (): void => {
           if (boardPresented || !swarmRoad(toolUseContext.agentId)) return
@@ -1127,8 +1127,8 @@ async function* runEventMachine(
             : null
         })(),
         fixedRequest: requestGaugeFixed({
-          system: appendSystemContext(systemPrompt, systemContext),
-          userContext: latestUserContextBody(messages) === null ? userContext : null,
+          system: appendSystemContext(systemPrompt, systemContext, toolUseContext.options.engineModel),
+          userContext: latestUserContextBody(messages) === null ? await firstTurnUserContext(userContext, systemContext, toolUseContext.options.engineModel, toolUseContext.agentId, messages) : null,
           tools: await Promise.all(toolsOnTheWire(await planToolPayloadUnseeded({
             model: toolUseContext.options.engineModel,
             tools: toolUseContext.options.tools,
@@ -1194,7 +1194,7 @@ async function* runEventMachine(
     }
 
     let fullSystemPrompt = asSystemPrompt(
-      appendSystemContext(systemPrompt, systemContext),
+      appendSystemContext(systemPrompt, systemContext, toolUseContext.options.engineModel),
     )
 
     const forcedFold = pendingOverflow?.rung === 'fold' ? pendingOverflow.signal : undefined
@@ -1317,7 +1317,7 @@ async function* runEventMachine(
         systemContext = composed.systemContext
         run.userContext = userContext
         run.systemContext = systemContext
-        const recomposed = asSystemPrompt(appendSystemContext(systemPrompt, systemContext))
+        const recomposed = asSystemPrompt(appendSystemContext(systemPrompt, systemContext, toolUseContext.options.engineModel))
         if (recomposed.join('\u001e') !== fullSystemPrompt.join('\u001e')) logForDebugging('compaction: the system prompt was composed again after the fold, so the request that re-writes the context carries the new composition and the next turn reads it back')
         fullSystemPrompt = recomposed
       }

@@ -15,6 +15,7 @@ function probeUrl(target: { kind: LocalServerKind; root: string }): string {
     case 'lmstudio':
       return `GET ${target.root}/api/v1/models`
     case 'vllm':
+    case 'tensorfold':
       return `GET ${target.root}/v1/models`
     case 'llamacpp':
       return `GET ${target.root}/props`

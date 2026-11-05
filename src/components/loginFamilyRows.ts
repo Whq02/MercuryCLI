@@ -25,21 +25,44 @@ export type LoginFamilyValue =
   | 'fireworks'
   | 'qwen'
 
+export const TENSORFOLD_FAMILY_VALUE = 'tensorfold'
+
 export interface LoginFamilyRow {
   label: string
-  value: LoginFamilyValue | `compat/${string}`
+  value: LoginFamilyValue | `compat/${string}` | typeof TENSORFOLD_FAMILY_VALUE
+}
+
+export type TensorFoldOffer =
+  | { kind: 'host' }
+  | { kind: 'served'; model: string; version: string }
+  | { kind: 'ready' | 'install'; label: string; place: 'mac' | 'gpu' }
+
+export function tensorFoldFamilyRow(offer: TensorFoldOffer): LoginFamilyRow {
+  const place = (where: 'mac' | 'gpu'): string => (where === 'mac' ? 'this Mac' : "this machine's NVIDIA GPU")
+  const words =
+    offer.kind === 'host'
+      ? 'on a host: a server on your network or a rented GPU pod'
+      : offer.kind === 'served'
+        ? `run ${offer.model} on TensorFold ${offer.version}, no account`
+        : offer.kind === 'ready'
+          ? `run ${offer.label} on ${place(offer.place)}, no account`
+          : `install and run ${offer.label} on ${place(offer.place)}, no account`
+  return { label: `TensorFold — ${words} (/tensorfold)`, value: TENSORFOLD_FAMILY_VALUE }
 }
 
 export const META_SIGN_IN_ROADS = 'Muse Code sign-in or API key'
 export const META_LOGIN_FAMILY_LABEL = `Meta — ${META_SIGN_IN_ROADS}`
 export const ANTHROPIC_FAMILY_ROW_LABEL = 'Anthropic — Claude subscription or Console sign-in / API key'
 
-export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginFamilyRow[] {
+export function loginFamilyRows({ engineLegs, tensorfold }: { engineLegs: boolean; tensorfold?: TensorFoldOffer | null }): LoginFamilyRow[] {
+  const offered = tensorfold === undefined || tensorfold === null ? undefined : tensorFoldFamilyRow(tensorfold)
   return [
+    ...(offered !== undefined && tensorfold?.kind !== 'host' ? [offered] : []),
     ...(engineLegs
       ? [{ label: 'OpenAI — ChatGPT subscription or API key', value: 'openai' as const }]
       : []),
     { label: ANTHROPIC_FAMILY_ROW_LABEL, value: 'anthropic' },
+    ...(offered !== undefined && tensorfold?.kind === 'host' ? [offered] : []),
     ...(engineLegs
       ? [
           {
@@ -191,9 +214,9 @@ export function loginFamilyNameOf(row: LoginFamilyRow): string {
   return row.label.split(' — ')[0]!
 }
 
-export function connectableLoginFamilyWords(): string {
-  const names = loginFamilyRows({ engineLegs: true })
+export function connectableLoginFamilyWords(tensorfold = false): string {
+  const names = [...(tensorfold ? ['TensorFold'] : []), ...loginFamilyRows({ engineLegs: true })
     .filter(row => row.value !== 'openai' && row.value !== 'anthropic')
-    .map(loginFamilyNameOf)
+    .map(loginFamilyNameOf)]
   return `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`
 }

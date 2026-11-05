@@ -66,7 +66,8 @@ const vllm = await serve((req, _body, res) => {
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `vllm=${vllm.root}`
 
-const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
+const { getSystemPrompt, localFirstTurnFacts } = await import('../../src/constants/prompts.ts')
+const { appendSystemContext } = await import('../../src/utils/api.ts')
 const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
 const { getOriginalCwd, setOriginalCwd, setCwdState, getSystemPromptSectionCache } = await import('../../src/bootstrap/state.ts')
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
@@ -107,7 +108,7 @@ try {
   const lines = block.split('\n').map(l => l.trim()).filter(l => l !== '')
   check('the working-directory line opens the environment section', lines[1] === `- ${LINE}`, j(lines.slice(0, 3)))
   check('the memory section (the memory home) is named ABOVE the line', local.includes(MEMORY_WORDS) && local.indexOf(LINE) !== -1 && local.indexOf(MEMORY_WORDS) < local.indexOf(LINE), `memory at ${local.indexOf(MEMORY_WORDS)}, line at ${local.indexOf(LINE)}`)
-  check('the section cache keys the environment section on the local model', getSystemPromptSectionCache().get('env_info_simple')?.key === LOCAL_MODEL, j(getSystemPromptSectionCache().get('env_info_simple')?.key))
+  check('the section cache keys the local profile\'s environment section on the local model', getSystemPromptSectionCache().get('local_env')?.key === LOCAL_MODEL, j(getSystemPromptSectionCache().get('local_env')?.key))
 
   section('2 · a cloud model: no such line, the section bytes are the local section minus the line, the key is the cloud model')
   clearSystemPromptSections()
@@ -116,7 +117,12 @@ try {
   check('the cloud environment section carries no working-directory line', !cloud.includes('Files you create go in the working directory'), cloudBlock.slice(0, 200))
   const localWithoutLine = block.split('\n').filter(l => l.trim() !== `- ${LINE}`).join('\n')
   const cloudWithoutEngine = (text: string): string => text.split('\n').filter(l => !l.includes('In this seat the model you run through Mercury is') && !l.startsWith(' - Knowledge cutoff')).join('\n')
-  check('nothing removed: the local section is the cloud section plus the one line (the engine and cutoff lines aside, which name each model)', cloudWithoutEngine(localWithoutLine) === cloudWithoutEngine(cloudBlock), j({ local: localWithoutLine.slice(0, 160), cloud: cloudBlock.slice(0, 160) }))
+  const scratchpadLine = cloudBlock.split('\n').find(l => l.trim().startsWith('- Scratchpad directory: ')) ?? ''
+  const cloudWithoutScratchpad = cloudBlock.split('\n').filter(l => l !== scratchpadLine).join('\n')
+  check('nothing else removed: the local section is the cloud section plus the one line, less the scratchpad line the local route moves to the first user turn (the engine and cutoff lines aside, which name each model)', scratchpadLine !== '' && cloudWithoutEngine(localWithoutLine) === cloudWithoutEngine(cloudWithoutScratchpad), j({ local: localWithoutLine.slice(0, 160), cloud: cloudWithoutScratchpad.slice(0, 160) }))
+  const moved = (await localFirstTurnFacts(undefined, undefined)).Scratchpad
+  const wire = appendSystemContext(await getSystemPrompt(pool as never, LOCAL_MODEL), {}, LOCAL_MODEL).join('\n\n')
+  check('the moved scratchpad line is the one the local first user turn carries, word for word, and the local system text on the wire has none', moved === scratchpadLine.trim().replace(/^- /, '') && !wire.includes('Scratchpad directory: '), j({ moved, cloud: scratchpadLine }))
   check('the cloud key is the cloud model', getSystemPromptSectionCache().get('env_info_simple')?.key === CLOUD_MODEL, j(getSystemPromptSectionCache().get('env_info_simple')?.key))
   check('a second cloud build in the same process is byte-identical (the frozen conversation)', (await build(CLOUD_MODEL)) === cloud)
 

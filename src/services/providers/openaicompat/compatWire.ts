@@ -144,13 +144,14 @@ export function buildHuggingfaceExtras(args: LaneExtrasArgs): Record<string, unk
   }
 }
 
-export type LocalServerKind = 'ollama' | 'lmstudio' | 'vllm' | 'llamacpp' | 'openai-compatible'
+export type LocalServerKind = 'ollama' | 'lmstudio' | 'vllm' | 'llamacpp' | 'tensorfold' | 'openai-compatible'
 
 export const LOCAL_SERVER_EFFORTS: Readonly<Record<LocalServerKind | 'sglang', readonly string[]>> = {
   ollama: ['none', 'low', 'medium', 'high', 'max'],
   vllm: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
   sglang: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
   llamacpp: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+  tensorfold: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
   lmstudio: [],
   'openai-compatible': [],
 }
@@ -161,6 +162,7 @@ export const LOCAL_SERVER_STATES_THINKING: Readonly<Record<LocalServerKind | 'sg
   vllm: false,
   sglang: false,
   llamacpp: false,
+  tensorfold: true,
   'openai-compatible': false,
 }
 
@@ -172,9 +174,49 @@ export function localThinkingOffWireEffort(server: LocalServerKind | 'sglang'): 
   return LOCAL_SERVER_STATES_THINKING[server] ? thinkingOffWireEffort(LOCAL_SERVER_EFFORTS[server]) : undefined
 }
 
+export const TENSORFOLD_DIAL: readonly string[] = ['low', 'medium', 'high', 'xhigh', 'max']
+
+export const TENSORFOLD_THINKING_OFF_LEVELS: readonly string[] = ['none', 'minimal', 'low']
+
+export const TENSORFOLD_THINKING_BUDGETS: Readonly<Record<string, number>> = {
+  medium: 4096,
+  high: 16384,
+  xhigh: 32768,
+  max: 65536,
+}
+
+export const TENSORFOLD_ANSWER_RESERVE = 2048
+
+export function tensorFoldThinkingBudget(asked: string, maxOutputTokens: number | undefined): number | undefined {
+  const budget = TENSORFOLD_THINKING_BUDGETS[asked]
+  if (budget === undefined) return undefined
+  if (maxOutputTokens === undefined) return budget
+  const room = maxOutputTokens - TENSORFOLD_ANSWER_RESERVE
+  return room > 0 ? Math.min(budget, room) : undefined
+}
+
+export function tensorFoldEffortWire(args: { effortValue: string | undefined; thinkingEnabled: boolean; maxOutputTokensOverride?: number | undefined }): { reasoning_effort: string; thinking_budget?: number } | undefined {
+  if (!args.thinkingEnabled) return { reasoning_effort: 'none' }
+  const asked = args.effortValue
+  if (asked === undefined) return undefined
+  if (TENSORFOLD_THINKING_OFF_LEVELS.includes(asked)) return { reasoning_effort: 'none' }
+  const wire = LOCAL_SERVER_EFFORTS.tensorfold.includes(asked) ? asked : nearestSupportedWireEffort(asked, LOCAL_SERVER_EFFORTS.tensorfold)
+  if (wire === undefined) return undefined
+  const budget = tensorFoldThinkingBudget(asked, args.maxOutputTokensOverride)
+  return { reasoning_effort: wire, ...(budget !== undefined ? { thinking_budget: budget } : {}) }
+}
+
 export function buildLocalExtras(
   args: LaneExtrasArgs & { server: LocalServerKind | 'sglang'; acceptsEffort: boolean; idSlot?: number },
 ): Record<string, unknown> {
+  if (args.server === 'tensorfold') {
+    const effort = args.acceptsEffort ? tensorFoldEffortWire(args) : undefined
+    return {
+      stream_options: { include_usage: true },
+      ...(effort ?? {}),
+      ...(args.maxOutputTokensOverride !== undefined ? { max_tokens: args.maxOutputTokensOverride } : {}),
+    }
+  }
   const vocabulary = LOCAL_SERVER_EFFORTS[args.server]
   const wireEffort =
     !args.acceptsEffort || vocabulary.length === 0

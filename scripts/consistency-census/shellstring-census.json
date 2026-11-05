@@ -920,6 +920,20 @@
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
+      "file": "scripts/host/prove-tensorfold-pod-road.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const write = spawnSync('bash', ['-c', tensorFoldKeyWriteCommand(remoteDir, key)], { encoding: 'utf8' })",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
+      "file": "scripts/host/prove-tensorfold-recipe-script.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const keyWrite = spawnSync('bash', ['-c', tensorFoldKeyWriteCommand(podDir, 'fixture-key-not-a-real-key')], { encoding: 'utf8' })",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
       "file": "scripts/ide/prove-closed-loop.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const SYS_PY = '/usr/bin/python3'",
@@ -2129,6 +2143,13 @@
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
       "cls": "platform-owner",
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
+      "file": "scripts/tensorfold/fixtures/world.ts",
+      "mechanism": "hardcoded-tmp",
+      "excerpt": "const root = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', `${prefix}-`))",
+      "cls": "platform-owner",
+      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
     },
     {
       "file": "scripts/terminal-boundary/prove-crash-reentry-offer.ts",

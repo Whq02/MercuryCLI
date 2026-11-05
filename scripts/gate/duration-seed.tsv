@@ -224,6 +224,7 @@ tool-economy	30
 computer	55
 desktop	64
 local-setup	6
+tensorfold	45
 media	4
 advisor	33
 sdk	0
@@ -259,6 +260,7 @@ computer-drives	216
 stop-policy-boots	19
 ui-drives	2735
 local-setup-drives	18
+tensorfold-drives	260
 docs	4
 host	1134
 usage	6

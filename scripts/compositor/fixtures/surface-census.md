@@ -29,7 +29,7 @@
 | Chat cockpit (direct boot / --continue / --resume <id>) | `src/screens/Chat.tsx → src/ink/components/AlternateScreen.tsx` | claims the held screen (outermost mount consumes + arms the takeover erase) |
 | non-takeover argv paths (run · --help · subcommands · piped stdout) | `src/entrypoints/cli.tsx` | releases the hold before any output |
 
-## Slash routes — modal-slot views (local-jsx: 50)
+## Slash routes — modal-slot views (local-jsx: 51)
 
 Host: the FullscreenLayout modal slot (opaque claim; SURFACE-CLAIM
 INVARIANT forces height = terminalRows at peek 0). Kernel signals name
@@ -82,6 +82,7 @@ the interaction primitives the view actually mounts (1-hop join).
 | /submodels | ilist irow | `src/commands/submodels` |
 | /swarm | panes | `src/commands/swarm` |
 | /swarmchat | — | `src/commands/swarmchat` |
+| /tensorfold | irow | `src/commands/tensorfold` |
 | /title | — | `src/commands/title` |
 | /trace | — | `src/commands/trace` |
 | /workbench | panes | `src/commands/workbench` |

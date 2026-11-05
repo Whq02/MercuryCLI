@@ -16,7 +16,7 @@ const packagedSlug = typeof MACRO !== 'undefined' && typeof MACRO.PACKAGE_URL ==
 export const SHIPPED_HOST_RECIPES_PATH = 'assets/host/recipes.json'
 export const HOST_RECIPES_URL = `https://raw.githubusercontent.com/${packagedSlug ?? PUBLIC_HOME_SLUG}/main/${SHIPPED_HOST_RECIPES_PATH}`
 export const HOST_RECIPES_FILE_VERSION = 2
-const HOST_RECIPES_PUBLISHED_AT = '2026-10-22'
+const HOST_RECIPES_PUBLISHED_AT = '2026-11-04'
 const HOST_RECIPES_FETCH_TTL_MS = 6 * 60 * 60 * 1000
 const HOST_RECIPES_FETCH_TIMEOUT_MS = 5_000
 
@@ -61,7 +61,7 @@ const hostRecipeObject = z.object({
   kvBytesPerToken: z.object({ bytes: z.number().positive(), conversationBytes: z.number().nonnegative().optional(), maxContext: z.number().int().positive(), cacheType: z.string().regex(printable), verified: hostRecipeVerifiedSchema }).optional(),
   environment: z.record(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/), z.string()).optional(),
   files: z.record(z.string().regex(/^(?!\.{1,2}$)[A-Za-z0-9._-]+$/), z.string()).optional(),
-  engine: z.enum(['llamacpp', 'vllm']).optional(),
+  engine: z.enum(['llamacpp', 'vllm', 'tensorfold']).optional(),
   imageSource: z.string().regex(httpsUrl).optional(),
   install: z.string().optional(),
   weightFile: z.string().optional(),

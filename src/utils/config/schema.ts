@@ -243,6 +243,7 @@ type ModelChoices = {
   autoCompactWindow?: number
   localModelWindows?: { [model: string]: 'server' | 'max' | number }
   localModelBatch?: { [model: string]: number }
+  helperModel?: { size?: 'off' | '2b' | '4b' | 'session'; compaction?: boolean }
   fileCheckpointingEnabled: boolean
   permissionExplainerEnabled?: boolean
   prStatusFooterEnabled?: boolean
@@ -254,7 +255,6 @@ type Hints = {
   hasUsedBackslashReturn?: boolean
   hasSeenTasksHint?: boolean
   hasUsedStash?: boolean
-  promptQueueUseCount: number
 }
 
 type TerminalSetup = {
@@ -296,7 +296,6 @@ export function createDefaultGlobalConfig(): GlobalConfig {
     expandedView: 'none',
     customApiKeyResponses: { approved: [], rejected: [] },
     tipsHistory: {},
-    promptQueueUseCount: 0,
     showExpandedTasks: false,
     fileCheckpointingEnabled: true,
     terminalProgressBarEnabled: true,

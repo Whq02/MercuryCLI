@@ -303,7 +303,7 @@ export function getDeferredToolsDelta(
   if (added.length === 0 && removed.length === 0) return null
   return {
     addedNames: added.map(tool => tool.name).sort(),
-    addedLines: added.map(tool => formatDeferredToolLine(tool, isUnattendedRun())).sort(),
+    addedLines: added.map(tool => formatDeferredToolLine(tool, isUnattendedRun(), model)).sort(),
     removedNames: removed.sort(),
   }
 }

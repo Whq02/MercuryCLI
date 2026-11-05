@@ -27,13 +27,21 @@ import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, local
 import { adoptableLocalWindow, adoptLocalWindow, decideLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, LOCAL_WINDOW_HELD_WORDS, LOCAL_WINDOW_SETTING_WORDS, localPlannedWindow, localWindowApplication, localWindowDecisionLine, localWindowFits, localWindowSettingOf, releaseOutgrownLocalWindow, type HeldLocalWindow } from './localWindow.js'
 import { noteLocalTurn } from './localWarm.js'
 import { ollamaChatTransport, ollamaChatUrl } from './ollamaChatTransport.js'
+import { noteTensorFoldTurn } from './tensorfoldUsage.js'
 import type { CompatCallModelParams as LocalCallParams } from '../openaicompat/compatChatCallModel.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { estimateRequestTokens } from '../../tokenEstimation.js'
 
 export function localModelAcceptsEffort(record: LocalModelRecord): boolean {
-  if (record.server === 'ollama' || record.server === 'lmstudio') return record.thinkingDeclared === true
+  if (record.server === 'ollama' || record.server === 'lmstudio' || record.server === 'tensorfold') return record.thinkingDeclared === true
   return record.server === 'vllm' || record.server === 'llamacpp'
+}
+
+export const TENSORFOLD_OUTPUT_CEILING = 32768
+
+export function tensorFoldOutputCeiling(record: LocalModelRecord): number {
+  const window = localGuardWindow(record)?.tokens ?? record.contextWindow?.tokens
+  return window === undefined ? TENSORFOLD_OUTPUT_CEILING : Math.max(1, Math.min(TENSORFOLD_OUTPUT_CEILING, Math.floor(window / 2)))
 }
 
 export function localGuardWindow(record: LocalModelRecord, hold?: HeldLocalWindow): { tokens: number; sourceWords: string } | undefined {
@@ -192,6 +200,14 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
     omitsToolChoice: record.server === 'ollama',
     keepsReasoningOnContinuations: () => true,
     toolDeclarationRow: toolDeclarationRowInResult,
+    ...(record.server === 'tensorfold'
+      ? {
+          outputCeiling: () => tensorFoldOutputCeiling(record),
+          noteRuntime: (reading: { runtime: Parameters<typeof noteTensorFoldTurn>[0]['runtime']; usage: Parameters<typeof noteTensorFoldTurn>[0]['usage']; served: string | undefined }) => {
+            noteTensorFoldTurn({ model: reading.served ?? record.id, baseUrl: record.baseUrl, usage: reading.usage, runtime: reading.runtime })
+          },
+        }
+      : {}),
     ...(record.server === 'ollama'
       ? {
           streamTransport: (options: Parameters<NonNullable<CompatLaneProfile['streamTransport']>>[0]) => {

@@ -91,6 +91,7 @@ function birthModelForSignedInFamily(resolved: string | undefined, screenRoad: b
   try {
     if (!savedDefaultRoad(resolved)) return { setting: resolved, receipt: null }
     const { declaredRouteOf, providerDisplayName } = require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
+    if (declaredRouteOf(resolved) === 'local') return { setting: resolved, receipt: null }
     const { computedDefault } = require('../../utils/model/computedDefault.js') as typeof import('../../utils/model/computedDefault.js')
     const decision = computedDefault()
     const fallback =

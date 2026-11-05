@@ -10,6 +10,7 @@
 # gate-watch: src/context/modalContext.tsx src/services/providers/credentialEnvSpellings.ts
 # gate-watch: src/services/api/sdkErrors.ts
 # gate-watch: src/services/providers/patience.ts
+# gate-watch: src/utils/model/providerFrontier.ts src/services/providers/local/tensorfoldHelper.ts src/services/providers/local/tensorfoldHosts.ts src/services/compact/autoCompact.ts src/utils/messages/factories.ts
 # gate-watch: src/bootstrap/state* src/bootstrap/runtime/posture.ts
 # gate-watch: src/state/AppStateStore.ts
 # gate-watch: src/utils/settings/** src/utils/config/** src/utils/config.ts src/services/compact/autoCompact.ts src/components/Settings/Config.tsx

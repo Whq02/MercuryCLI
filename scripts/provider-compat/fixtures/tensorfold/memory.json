@@ -1,0 +1,1 @@
+{"schema_version": 1, "context_window": 32768, "context_fitted": false, "process": {"source": "darwin_rusage_info_v4", "physical_footprint_bytes": 3167980568, "lifetime_peak_physical_footprint_bytes": 3747023992}, "device": {"active_bytes": 3167980568, "cache_bytes": 0, "peak_bytes": 3279555608, "peak_scope": "since_start_or_health_reset"}}

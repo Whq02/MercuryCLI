@@ -1,0 +1,1 @@
+{"status": "ok", "model": "qwen3.5-2b", "model_ids": ["qwen3.5-2b"], "max_batch_size": 8, "warming": false, "memory": {"active": 3167980568, "cache": 0, "peak": 3279555608}, "live": {"connections": 0, "waiting": 0, "decode_tokens_per_second": 0.0, "prefill_tokens_per_second": 0.0}, "version": "1.2.2", "backend": "metal", "device": "Apple M5 Pro"}

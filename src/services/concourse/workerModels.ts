@@ -1,4 +1,5 @@
 
+import { logForDebugging } from '../../utils/debug.js'
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { CHOOSE_A_MODEL_WORDS, NO_SIGN_IN_ROW, NO_USABLE_ROW, isChooseAModel, keylessReason, resetComputedDefaultMemo, type LaneRowVerdict } from '../../utils/model/computedDefault.js'
 import { canonicalCoordinatorModelId } from './coordinatorModels.js'
@@ -344,7 +345,9 @@ async function readLocalDiscoveryIfUnlisted(idOrKey: string): Promise<boolean> {
   const { getCachedLocalDiscovery, refreshLocalDiscovery } = await import('../providers/local/localDiscovery.js')
   const listed = idOrKey === 'local' ? (getCachedLocalDiscovery()?.servers.some(server => server.models.length > 0) ?? false) : localRecordFor(idOrKey) !== undefined
   if (listed) return false
-  await refreshLocalDiscovery({ force: true }).catch(() => undefined)
+  const snapshot = await refreshLocalDiscovery({ force: true }).catch(() => null)
+  const { localProbeTargets } = await import('../providers/local/localDiscovery.js')
+  logForDebugging(`[local admission] ${idOrKey} unlisted → re-probed ${localProbeTargets().map(target => `${target.kind}=${target.root}`).join(', ') || 'no targets'} → ${snapshot === null ? 'the probe threw' : snapshot.servers.map(server => `${server.kind} ${server.root} (${server.models.length})`).join(', ') || 'no server answered'}`)
   return true
 }
 

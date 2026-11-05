@@ -4,7 +4,7 @@
 # gate-watch: src/utils/effort*
 # gate-watch: src/utils/profile/appearanceSnapshot*
 # gate-watch: src/utils/cockpit/promptProvenance*
-# gate-watch: src/constants/prompts.ts src/constants/systemPromptSections.ts src/tools/**
+# gate-watch: src/constants/prompts.ts src/constants/systemPromptSections.ts src/constants/localPromptProfile.ts src/tools/**
 # gate-watch: scripts/agent-experience/baselines/mechanical/prompts/anthropic.system.txt
 # gate-watch: scripts/lib/hermetic.ts src/Tool.ts src/bootstrap/state.ts src/components/Messages.tsx
 # gate-watch: src/components/concourse/workerTranscriptFold.ts
@@ -16,7 +16,7 @@
 # gate-watch: src/mneme/ledger.ts src/mneme/paths.ts scripts/lib/fixtureApi.ts scripts/lib/rows.ts scripts/lib/runnerHost.ts
 # gate-watch: src/mneme/entryPage.ts src/substrate/envStamps.ts
 # gate-watch: src/services/providers/anthropic/boundPrefixRecord.ts src/services/providers/toolEconomy.ts
-# gate-watch: src/utils/attachments/orchestrator.ts src/utils/cleanupRegistry.ts
+# gate-watch: src/utils/attachments/orchestrator.ts src/utils/attachments/userContext.ts src/utils/cleanupRegistry.ts
 # gate-watch: src/utils/cockpit/runtimePosture.ts src/utils/cockpit/turnReceipt.ts
 # gate-watch: src/utils/messages/attachmentText.ts src/utils/messages/factories.ts src/utils/permissions/filesystem.ts src/utils/scratchpad.ts
 # gate-watch: src/constants/system.ts src/utils/api.ts src/utils/messages.ts

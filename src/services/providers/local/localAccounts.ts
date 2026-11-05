@@ -1,6 +1,7 @@
 import { readStoredLocalApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { getCachedLocalDiscovery } from './localDiscovery.js'
+import { tensorFoldHostKey, tensorFoldHostRoot } from './tensorfoldHosts.js'
 
 export const LOCAL_PULL_RECOMMENDATION = 'ollama pull qwen3.5:9b (tool-capable, ~6.6 GB; qwen3.5:27b for 48 GB and up)'
 export const LOCAL_SETUP_WORDS = '/localsetup sets one up (Ollama, LM Studio, vLLM, llama.cpp)'
@@ -22,6 +23,18 @@ export function resolveLocalApiKey(
   if (fromCommand) return { key: fromCommand, source: 'stored' }
   const stored = readStoredLocalApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
+}
+
+export function resolveLocalApiKeyFor(
+  baseUrl: string,
+  env: Record<string, string | undefined> = process.env,
+): { key: string; source: 'env' | 'stored' | 'host' } | undefined {
+  try {
+    const hostKey = tensorFoldHostKey(tensorFoldHostRoot(baseUrl))
+    if (hostKey !== undefined) return { key: hostKey, source: 'host' }
+  } catch {
+  }
+  return resolveLocalApiKey(env)
 }
 
 export interface LocalAccountRef {

@@ -183,6 +183,7 @@ export function localLivenessProbeUrl(kind: LocalServerKind, baseUrl: string): s
     case 'lmstudio':
       return `${root}/api/v1/models`
     case 'llamacpp':
+    case 'tensorfold':
       return `${root}/health`
     case 'vllm':
     case 'openai-compatible':
@@ -199,6 +200,8 @@ export function localLoadedProbeUrl(kind: LocalServerKind, baseUrl: string): str
       return `${root}/api/v1/models`
     case 'llamacpp':
       return `${root}/health`
+    case 'tensorfold':
+      return `${root}/v1/models`
     case 'vllm':
     case 'openai-compatible':
       return null
