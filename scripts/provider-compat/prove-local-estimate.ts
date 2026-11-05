@@ -7,7 +7,7 @@ import { buildFixtureMcpTools } from '../tool-economy/fixtureMcpEstate.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.NODE_ENV
-for (const k of ['ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_MODEL', 'MERCURY_LOCAL_API_KEY', 'MERCURY_LOCAL_BASE_URL', 'MERCURY_DISABLE_1M_CONTEXT']) {
+for (const k of ['ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_MODEL', 'MERCURY_LOCAL_API_KEY', 'MERCURY_LOCAL_BASE_URL', 'MERCURY_DISABLE_1M_CONTEXT', 'MERCURY_LOCAL_PROMPT_PROFILE']) {
   delete process.env[k]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'local-estimate-'))
@@ -106,7 +106,7 @@ const { MCPTool } = await import('../../src/tools/MCPTool/MCPTool.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
 const { refreshLocalDiscovery, __resetLocalDiscoveryForTest } = await import('../../src/services/providers/local/localDiscovery.ts')
 const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { isDeferredTool, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
+const { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { getDeferredToolsDeltaAttachment } = await import('../../src/utils/attachments/deltas.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
@@ -136,8 +136,8 @@ await refreshLocalDiscovery({ force: true })
 const permissionContext = getEmptyToolPermissionContext()
 const mcpTools: Tool[] = buildFixtureMcpTools<Tool>(MCPTool)
 const pool: Tools = assembleToolPool(permissionContext, mcpTools)
-const coreNames = pool.filter(t => !isDeferredTool(t)).map(t => t.name)
-const deferredNames = pool.filter(t => isDeferredTool(t)).map(t => t.name)
+const coreNames = pool.filter(t => !isDeferredToolFor(t, PERSISTED)).map(t => t.name)
+const deferredNames = pool.filter(t => isDeferredToolFor(t, PERSISTED)).map(t => t.name)
 const record = (): NonNullable<ReturnType<typeof localRecordFor>> => localRecordFor(PERSISTED)!
 const fmt = (n: number): string => Math.round(n).toLocaleString('en-US')
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
@@ -228,7 +228,7 @@ let beforeAfter = ''
   check(`the estimate is within 10% of the real request's bytes/${WIRE_BYTES_PER_TOKEN} (the base weighs every pooled tool at 1,000 tokens: ${pool.length} × 1,000 on a ${wireSchemas(sent.chat)}-schema wire)`, within(estimate, real, 0.1), `estimate ${fmt(estimate)} vs real ${fmt(real)} (${fmt(estimate - real)} off)`)
   check('the estimate reads the plan: the schemas it weighs are the schemas on the wire, the names it weighs are the deferred pool', wire !== undefined && wire.schemas === wireSchemas(sent.chat) && wire.named === deferredNames.length, wire === undefined ? 'no tool-wire composer on the base' : j(wire))
   check('the schema bytes it weighs are the wire\'s own tools term, byte for byte', wire !== undefined && wire.schemaBytes === Buffer.byteLength(JSON.stringify(sent.chat?.body.tools ?? []), 'utf8'), wire === undefined ? 'no tool-wire composer on the base' : `${wire.schemaBytes} vs ${Buffer.byteLength(JSON.stringify(sent.chat?.body.tools ?? []), 'utf8')}`)
-  const pick = deferredNames.includes('WebFetch') ? 'WebFetch' : pool.find(t => isDeferredTool(t) && t.isMcp !== true)!.name
+  const pick = deferredNames.includes('WebFetch') ? 'WebFetch' : pool.find(t => isDeferredToolFor(t, PERSISTED) && t.isMcp !== true)!.name
   const admitted = [pick, 'mcp__filesys__read_file']
   const context = { options: { tools: pool }, getAppState: () => ({ toolPermissionContext: { ...permissionContext, mode: 'default' }, mcp: { clients: [] } }) }
   const result = await ToolSearchTool.call({ query: `select:${admitted.join(',')}`, max_results: 5 }, context as never)
@@ -320,6 +320,16 @@ section('§4 the warm follows: its estimate is the same rule and reads the roste
   check('the warm composes its prefix (not skipped)', composed !== undefined, 'skipped' in body ? body.skipped : '')
   check(`the warm's estimate is within 10% of its own request's bytes/${WIRE_BYTES_PER_TOKEN} (${composed?.toolCount ?? 0} schemas)`, composed !== undefined && within(composed.estTokens, warmReal, 0.1), composed === undefined ? 'no body' : `estimate ${fmt(composed.estTokens)} vs real ${fmt(warmReal)}`)
   check('the warm\'s window is the same fallback the turn takes: num_ctx 262144 on the unread machine', composed !== undefined && composed.knobs.numCtx === MODEL_MAX, j(composed?.knobs))
+  const messages = fresh('say pong')
+  const guess = callModel.localToolWireGuess(pool, messages, PERSISTED)
+  const planned = await tip.localToolWireOf!(paramsFor(messages))
+  console.log(`  warm: estimate ${fmt(composed?.estTokens ?? 0)} tokens · its own request ${fmt(warmReal)} tokens at ${WIRE_BYTES_PER_TOKEN} bytes/token · the fast guess ${guess.schemas} schemas, ${fmt(guess.schemaBytes)} B · the plan ${planned.schemas} schemas, ${fmt(planned.schemaBytes)} B`)
+  check('the fast guess the warm and the turn\'s fit test read weighs the roster the plan sends for this model: the same schemas and the same names', guess.schemas === planned.schemas && guess.named === planned.named, j({ guess, planned }))
+  process.env.MERCURY_LOCAL_PROMPT_PROFILE = '0'
+  const offWithModel = callModel.localToolWireGuess(pool, messages, PERSISTED)
+  const offWithout = callModel.localToolWireGuess(pool, messages)
+  delete process.env.MERCURY_LOCAL_PROMPT_PROFILE
+  check('with the local prompt profile switched off the fast guess is the one it always was (the declared deferral law, the cached or unrendered schemas)', j(offWithModel) === j(offWithout), j({ offWithModel, offWithout }))
 }
 
 ollama.server.close()
