@@ -230,7 +230,7 @@ function swarmBriefWords(own: BoardSeat, peers: readonly BoardSeat[], captain: B
     "CrewBoard is how the crew works as one: post a blocker when you are stuck and an ask when another seat's answer or work would move yours; answer an ask you can settle; post a result with its path when a piece lands; read the board at a boundary when another seat's work touches yours, and before you take a file another seat may hold.",
     '@name reaches a seat, @team a team, @main the lead; what you post is read by the whole crew. The board never replaces your final report to the lead.',
     'You may park with a declared wait; the board wakes you on it, and the lead can always wake you.',
-    'Before parking, post @main wake me when <event> using the wait grammar below. Do work that does not need that event first. A named post or matching wait can resume you; @all never resumes a parked seat.',
+    'Before parking, post @main wake me when <event> using the wait grammar below. Do work that does not need that event first. A post that names you (@name) or matches your wait can resume you; @all on its own never resumes a parked seat.',
     'Wait grammar: seat <name-or-id> posts; about <file-or-subject>; kind <ask|answer|blocker|result|correction>; team <own-team> posts.',
     own.captain
       ? `You are captain of ${team}, with a standing wait on its traffic. Fold your team's work and send one result to @main. You remain a crewmate; main is the lead. The owner's board posts outrank the lead's.`

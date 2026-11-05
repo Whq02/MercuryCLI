@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 import type { Tool, ToolDef } from '../../Tool.js'
-import { type BoardEvent, type BoardHost, type BoardModule, type BoardPost, type BoardRead, type BoardStore } from './contracts.js'
+import { boardReachWords, type BoardEvent, type BoardHost, type BoardModule, type BoardPost, type BoardRead, type BoardStore } from './contracts.js'
 import { WHEEL_STEP_ROWS } from '../../components/mercury-ui/composerFloor.js'
 import { open } from './store.js'
 import { existsSync } from 'node:fs'
@@ -92,7 +92,7 @@ export function tool(host: BoardHost, store: () => BoardStore | null): Tool {
       return { type: 'tool_result', tool_use_id: toolUseId, content: JSON.stringify(result) }
     },
     renderToolUseMessage(input) { return input.op },
-    renderToolResultMessage(result) { return 'reason' in result ? String(result.reason ?? '') : 'events' in result ? `${result.events.length} posts` : 'Posted' },
+    renderToolResultMessage(result) { return 'reason' in result ? String(result.reason ?? '') : 'events' in result ? `${result.events.length} posts` : 'reach' in result && result.reach ? `Posted · ${boardReachWords(result.reach)}` : 'Posted' },
     extractSearchText(result) {
       if ('events' in result) return (result.events as BoardEvent[]).map(event => [event.authorName, event.team, event.kind, event.about, event.text].filter(Boolean).join(' ')).join('\n')
       return 'reason' in result ? String(result.reason ?? '') : ''

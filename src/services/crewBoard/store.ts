@@ -2,11 +2,11 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, renameSync, rmSync, watch, writeFileSync, type FSWatcher } from 'node:fs'
 import { basename, dirname, resolve } from 'node:path'
 import { createRequire } from 'node:module'
-import { BOARD_PACKET_RULE, boardSeatName, boardLabelKey, type BoardChannel, type BoardEvent, type BoardPacket, type BoardPost, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot } from './contracts.js'
+import { BOARD_PACKET_RULE, boardReachNote, boardSeatName, boardLabelKey, type BoardChannel, type BoardEvent, type BoardPacket, type BoardPost, type BoardPrincipal, type BoardReach, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot } from './contracts.js'
 import { CHAT_OFF, type BoardChat } from './party.js'
 import type { CrewChatLifecycle } from '../../types/message.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
-import { boardWaitWords, parseBoardWait } from './waits.js'
+import { boardAddressesSeat, boardWaitWords, parseBoardWait } from './waits.js'
 import { createWakeState } from './wakeState.js'
 
 type Database = {
@@ -405,11 +405,16 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
           const event: BoardEvent = { ...post, addresses: post.mentions, mentions: addressing.mentions, recipients: seats().filter(seat => addressing.mentions.includes(seat.agent)), ...(post.lifecycle ? { authorRole: 'system' as const } : {}), ...(addressing.unknownMentions.length ? { unknownMentions: addressing.unknownMentions } : {}), ...(team === undefined ? {} : { team }), ...(captainId(team) === p.author.agentId ? { captain: true } : {}), ...(post.taskId === undefined && question?.taskId !== undefined ? { taskId: question.taskId } : {}), schema: 1, boardId, waveId, seq: 0, eventId, author: p.author, authorName: p.name, createdAt: new Date(time).toISOString(), payloadDigest: hash, threadId: thread, policyRevision: 1 }
           appendEvent(event)
           if (mirrored) db.prepare('INSERT INTO mirror_events VALUES (?)').run(eventId)
+          let reach: BoardReach | undefined
           if (delivery !== 'mirror') {
             if (declared) wakes.declare(p.author.agentId, event, declared)
             const waiting = new Set(wakes.posted(event, seats()))
             const root = db.prepare('SELECT author FROM events WHERE thread = ? ORDER BY seq LIMIT 1').get(thread)
             const replies = new Set([...(question ? [question.author.agentId] : []), ...(root ? [String(root.author)] : [])])
+            const queued = new Set(wakes.pending().filter(wake => wake.eventId === eventId).map(wake => wake.agent))
+            const addressed = seats().filter(seat => seat.agent !== p.author.agentId && (event.mentions.includes(seat.agent) || replies.has(seat.agent) || waiting.has(seat.agent)))
+            const idle = addressed.filter(seat => seat.state === 'parked' && !queued.has(seat.agent))
+            reach = { running: addressed.filter(seat => seat.state !== 'parked').map(seat => seat.name), wakes: addressed.filter(seat => queued.has(seat.agent)).map(seat => seat.name), held: idle.filter(seat => boardAddressesSeat(event, seat)).map(seat => seat.name), parked: idle.filter(seat => !boardAddressesSeat(event, seat)).length }
             const captains = new Set((post.kind === 'ask' || post.kind === 'blocker') ? seats().filter(seat => seat.captain && seat.team && (seat.team === team || event.recipients?.some(recipient => recipient.team === seat.team))).map(seat => seat.agent) : [])
             const recipients = new Set([...event.mentions, ...replies, ...waiting, ...captains, ...roster().map(row => String(row.agent))])
             recipients.delete(p.author.agentId)
@@ -421,7 +426,8 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
               db.prepare('INSERT INTO deliveries (recipient, event, mode) VALUES (?, ?, ?)').run(recipient, eventId, mode)
             }
           }
-          return { ok: true, eventId, seq: event.seq, replay: false, ...(addressing.unknownMentions.length ? { unknownMentions: addressing.unknownMentions } : {}) }
+          const note = reach ? boardReachNote(reach) : undefined
+          return { ok: true, eventId, seq: event.seq, replay: false, ...(addressing.unknownMentions.length ? { unknownMentions: addressing.unknownMentions } : {}), ...(reach ? { reach } : {}), ...(note ? { note } : {}) }
         })
       } catch (error) { return { ok: false, reason: error instanceof Error ? error.message : String(error) } }
       if (result.ok && !result.replay) publish()

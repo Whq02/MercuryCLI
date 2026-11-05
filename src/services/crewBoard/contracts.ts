@@ -53,7 +53,17 @@ export type BoardEvent = Omit<BoardPost, 'mentions' | 'to' | 'relatedTasks' | 'f
 }
 export type BoardRead = { since?: number; snapshot?: number; thread?: string; task?: string; mentions?: string; team?: string; files?: string[]; acknowledge?: string[] }
 export type BoardPacket = { events: BoardEvent[]; snapshot: number; cursor: number; skippedSeen: number; reread: string; packetId?: string }
-export type BoardReceipt = { ok: true; eventId: string; seq: number; replay: boolean; unknownMentions?: string[] } | { ok: false; reason: string }
+export type BoardReach = { running: string[]; wakes: string[]; held: string[]; parked: number }
+export type BoardReceipt = { ok: true; eventId: string; seq: number; replay: boolean; unknownMentions?: string[]; reach?: BoardReach; note?: string } | { ok: false; reason: string }
+export const boardReachWords = (reach: BoardReach): string => {
+  const parts = [reach.running.length ? `${reach.running.length} running` : '', reach.wakes.length ? `${reach.wakes.length} ${reach.wakes.length === 1 ? 'wake' : 'wakes'}` : '', reach.held.length ? `${reach.held.length} held` : ''].filter(Boolean)
+  return parts.length ? parts.join(' · ') : `nobody running, no wake${reach.parked ? ` · ${reach.parked} parked` : ''}`
+}
+export const boardReachNote = (reach: BoardReach): string | undefined => {
+  const held = reach.held.length ? `${reach.held.join(', ')} ${reach.held.length === 1 ? 'is' : 'are'} named but cannot be woken by a post (stopped, paused or already resuming) — ResumeCrewmate restarts a stopped seat.` : ''
+  if (reach.running.length || reach.wakes.length) return held || undefined
+  return `Nobody will act on this post: no addressed seat is running and no wake is queued. A parked seat resumes only when the post names it (@name) or its declared wait matches; @all alone wakes nobody. ResumeCrewmate restarts a finished or stopped seat.${held ? ` ${held}` : ''}`
+}
 export type BoardViewSnapshot = { on: boolean; events: BoardEvent[]; seats?: BoardSeat[]; teams?: string[]; names?: string[]; duplicateMinutes?: string[]; snapshot: number; omitted: number; later?: number; chat?: BoardChat; peerTurns: number; record?: { path: string; sessionId: string }; error?: string }
 export type BoardPrincipal = { author: BoardAuthor; name: string; team?: string }
 export type BoardHost = {

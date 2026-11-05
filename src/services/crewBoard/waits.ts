@@ -61,19 +61,25 @@ export function boardWaitWords(predicate: BoardWaitPredicate): string {
   return `team ${quoted(predicate.team)} posts`
 }
 
+export const boardBroadcast = (event: RoutedEvent): boolean => (event.addresses ?? []).some(address => folded(address) === 'all')
+
 export function boardWakeEligible(event: RoutedEvent, agent: string): boolean {
-  return agent !== 'main' && event.author.agentId !== agent && event.authorRole !== 'system' && publicKinds.has(event.kind) && event.channel?.kind !== 'general' && !(event.addresses ?? []).some(address => folded(address) === 'all') && (event.authorRole !== 'owner' || event.mentions.includes(agent))
+  return agent !== 'main' && event.author.agentId !== agent && event.authorRole !== 'system' && publicKinds.has(event.kind) && event.channel?.kind !== 'general' && (event.authorRole !== 'owner' || event.mentions.includes(agent))
+}
+
+export function boardAddressesSeat(event: RoutedEvent, seat: BoardSeat): boolean {
+  return (event.addresses ?? []).some(address => folded(address) === folded(seat.agent) || folded(address) === folded(seat.name))
 }
 
 export function boardNamesSeat(event: RoutedEvent, seat: BoardSeat): boolean {
   if (!boardWakeEligible(event, seat.agent)) return false
   if (event.authorRole === 'owner') return event.mentions.includes(seat.agent)
   const recipient = event.recipients?.find(recipient => recipient.agent === seat.agent)
-  return recipient !== undefined && (event.addresses ?? []).some(address => folded(address) === folded(recipient.agent) || folded(address) === folded(recipient.name))
+  return recipient !== undefined && boardAddressesSeat(event, recipient)
 }
 
 export function matchesBoardWait(event: RoutedEvent, wait: BoardWait, agent: string): boolean {
-  if (event.seq <= wait.seq || !boardWakeEligible(event, agent)) return false
+  if (event.seq <= wait.seq || !boardWakeEligible(event, agent) || boardBroadcast(event)) return false
   const predicate = wait.predicate
   if (predicate.kind === 'seat') return event.author.agentId === predicate.agent
   if (predicate.kind === 'kind') return event.kind === predicate.value
