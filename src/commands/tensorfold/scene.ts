@@ -14,6 +14,7 @@ import type { TensorFoldEngine, TensorFoldHost, TensorFoldLastReply, TensorFoldS
 import { cachedTensorFoldMachineTruth, findTensorFoldEngine, tensorFoldBackendWords, type EngineIo, type TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
 import type { TensorFoldMachineTruth } from '../../services/tensorfold/fit.js'
 import { tensorFoldInstallPlan, type InstallIo, type TensorFoldInstallPlan } from '../../services/tensorfold/install.js'
+import { isLoopbackUrl } from '../../utils/privacyLevel.js'
 import { bestTensorFoldFit, hfCacheRoot, hfCacheWords, readTensorFoldInventory, type InventoryIo, type TensorFoldInventoryRow } from '../../services/tensorfold/inventory.js'
 import { pullPace, pullPercent, pullProgressWords, type PullPace } from '../../services/tensorfold/pull.js'
 import { refusalNextStep, refusedWords, wiredLimitCommand, wiredLimitCostWords, type TensorFoldRefusal } from '../../services/tensorfold/refusal.js'
@@ -109,7 +110,7 @@ function outsideOf(records: readonly LocalModelRecord[], served: readonly Tensor
   const ports = new Set([...served, ...helper].map(row => row.port))
   const out: TensorFoldOutsideServer[] = []
   for (const record of records) {
-    if (record.server !== 'tensorfold') continue
+    if (record.server !== 'tensorfold' || !isLoopbackUrl(record.baseUrl)) continue
     let port: number
     try {
       port = Number(new URL(record.baseUrl).port || 80)
@@ -148,6 +149,7 @@ async function defaultKeyedAt(port: number): Promise<boolean> {
 }
 
 function answersAsOf(records: readonly LocalModelRecord[], port: number): string | undefined {
+  records = records.filter(record => isLoopbackUrl(record.baseUrl))
   const hit = records.find(record => {
     try {
       return Number(new URL(record.baseUrl).port) === port

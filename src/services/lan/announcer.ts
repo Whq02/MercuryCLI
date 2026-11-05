@@ -65,14 +65,19 @@ export function startAnnouncer(announcement: Announcement, io: AnnouncerIo = {})
   }
   child.on('error', () => {})
   child.unref?.()
+  const stopOnExit = (): void => {
+    try {
+      child.kill('SIGTERM')
+    } catch {
+    }
+  }
+  process.once('exit', stopOnExit)
   return {
     pid: child.pid,
     command: [command.file, ...command.args].join(' '),
     stop: () => {
-      try {
-        child.kill('SIGTERM')
-      } catch {
-      }
+      process.off('exit', stopOnExit)
+      stopOnExit()
     },
   }
 }

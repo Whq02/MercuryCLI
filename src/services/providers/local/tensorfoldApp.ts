@@ -72,9 +72,13 @@ export function listProcesses(): Promise<TensorFoldProcessRow[]> {
   if (process.platform === 'win32') return Promise.resolve([])
   processLists += 1
   return new Promise(resolve => {
-    execFile('ps', ['-axo', 'pid=,ppid=,comm=,args='], { env: subprocessEnv(), timeout: 4000, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (error, stdout) => {
-      resolve(error ? [] : parseProcessRows(String(stdout)))
-    })
+    try {
+      execFile('ps', ['-axo', 'pid=,ppid=,comm=,args='], { env: subprocessEnv(), timeout: 4000, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (error, stdout) => {
+        resolve(error ? [] : parseProcessRows(String(stdout)))
+      })
+    } catch {
+      resolve([])
+    }
   })
 }
 

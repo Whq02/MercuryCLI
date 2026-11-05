@@ -82,7 +82,7 @@ function writeStore(next: HostsFile): void {
 }
 
 function stripKey(host: TensorFoldHostRecord): TensorFoldHost {
-  const { key: _key, chip: _chip, pairedAt: _pairedAt, ...rest } = host
+  const { key: _key, pairedAt: _pairedAt, ...rest } = host
   return rest
 }
 

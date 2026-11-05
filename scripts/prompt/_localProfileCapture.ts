@@ -1,4 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process'
+import { mnemeProjectKeyFor } from '../../src/mneme/paths.ts'
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
@@ -112,7 +113,7 @@ export function runMercury(args: string[], cwd: string, env: Record<string, stri
 }
 
 function normalizerFor(home: string, cwd: string): (value: string) => string {
-  const key = cwd.replace(/[^a-zA-Z0-9]/g, '-')
+  const key = mnemeProjectKeyFor(cwd)
   return (value: string) => value
     .replaceAll(home, '<home>')
     .replaceAll(cwd, '<project>')
