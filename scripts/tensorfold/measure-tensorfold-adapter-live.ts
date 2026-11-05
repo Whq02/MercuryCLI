@@ -158,10 +158,11 @@ check("the probe: TensorFold-shaped with the tell, label TensorFold adapter … 
 const health = await fetch(`${root}/health`).then(r => r.json() as Promise<Record<string, unknown>>)
 console.log(`  /health: ${JSON.stringify({ device: health.device, backend: health.backend, engine: (health.engine as Record<string, unknown>)?.words, active: (health.memory as { active: number })?.active })}`)
 receipt.health = health
-await refreshLocalDiscovery({ force: true, env: { ...env, MERCURY_LOCAL_PROBE_TARGETS: `tensorfold=${root}` } })
+const probeEnv = { ...env, MERCURY_CONFIG_DIR: env.MERCURY_CONFIG_DIR, MERCURY_LOCAL_PROBE_TARGETS: `tensorfold=${root}` }
+await refreshLocalDiscovery({ force: true, env: probeEnv })
 check('the prompt profile sees llama.cpp underneath (localServerKind llamacpp)', localServerKind('local/qwen3.5-2b') === 'llamacpp', String(localServerKind('local/qwen3.5-2b')))
 road.__resetTensorFoldRoadForTest()
-const prove = { env: { ...env, MERCURY_LOCAL_PROBE_TARGETS: `tensorfold=${root}` }, persist: () => ({ sentence: '' }), setAppState: () => undefined, focusedConnector: () => ({ carrier: 'in-process' }) as never }
+const prove = { env: probeEnv, persist: () => ({ sentence: '' }), setAppState: () => undefined, focusedConnector: () => ({ carrier: 'in-process' }) as never }
 const switched = await road.switchToTensorFold(served, { prove })
 check("the switch through Mercury's own road (pickAndProve on the local lane): the prove turn answered and the session switched to local/qwen3.5-2b", switched.ok && switched.switched && switched.model === 'local/qwen3.5-2b', JSON.stringify(switched))
 type Turn = { usage?: { prompt_tokens: number; completion_tokens: number; prompt_tokens_details?: { cached_tokens: number } }; tensorfold?: Record<string, number | string | boolean>; text: string }

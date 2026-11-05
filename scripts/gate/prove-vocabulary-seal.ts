@@ -202,6 +202,7 @@ const ALLOW: Array<[string, string, string]> = [
   ['src/services/ide/pythonTests.ts', 'run-short', 'pytest selects its own modules'],
   ['src/tools/BashTool/readOnlyValidation.ts', 'run-short', 'shell utility argument grammars'],
   ['src/utils/permissions/runtimeProtection.ts', 'run-short', 'ps -p names the process whose parent pid is read'],
+  ['src/services/tensorfold/adapter/serve.ts', 'run-short', 'ps -p names the llama-server child whose memory and image are read'],
   ['src/tools/PowerShellTool/readOnlyValidation.ts', 'run-short', 'shell utility argument grammars'],
   ['src/utils/shell/readOnlyCommandValidation.ts', 'run-short', 'git and language-tool argument grammars'],
   ['src/utils/bash/ast.ts', 'run-short', 'the shell wait builtin argument grammar'],

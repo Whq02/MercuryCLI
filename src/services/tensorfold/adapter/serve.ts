@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import { ggufOnDisk, ggufPaths, hfCacheRoot } from '../hfCache.js'
 import { GIB, TENSORFOLD_RUNTIME_MARGIN } from '../starting.js'
 import { getProcessStartTokenAsync } from '../../../daemon/ownerWatch.js'
+import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { ADAPTER_CHILD_PREFIX, ADAPTER_SERVED_BY, ADAPTER_SPEAKER, ADAPTER_VERSION, adapterChildPidFile, cpuModelWords, llamaCppWords } from './identity.js'
 import { readLlamaServerVersion, resolveLlamaServer, type LlamaServerVersion } from './llama.js'
 import { ADAPTER_CHECKPOINTS, adapterCheckpointOf, type AdapterCheckpoint } from './models.js'
@@ -53,6 +54,7 @@ export function parseServeArgs(argv: readonly string[]): ServeArgs {
         out.port = Number(value)
         break
       case '--host':
+        if (value !== '127.0.0.1') throw new ServeRefusal(`--host ${value}: the adapter serves this machine only — sharing from Mercury's engine comes later`, 2)
         out.host = value
         break
       case '--prompt-cache-gib':
@@ -252,8 +254,8 @@ function rssBytes(pid: number, platform: NodeJS.Platform): Promise<number | unde
       resolve(Number.isFinite(kib) && kib > 0 ? kib * 1024 : undefined)
     }
     try {
-      if (platform === 'win32') execFile('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], { encoding: 'utf8', timeout: 3_000, windowsHide: true }, (error, stdout) => (error ? resolve(undefined) : done(String(stdout))))
-      else execFile('ps', ['-o', 'rss=', '-p', String(pid)], { encoding: 'utf8', timeout: 3_000 }, (error, stdout) => (error ? resolve(undefined) : done(String(stdout))))
+      if (platform === 'win32') execFile('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], { env: subprocessEnv(), encoding: 'utf8', timeout: 3_000, windowsHide: true }, (error, stdout) => (error ? resolve(undefined) : done(String(stdout))))
+      else execFile('ps', ['-o', 'rss=', '-p', String(pid)], { env: subprocessEnv(), encoding: 'utf8', timeout: 3_000, windowsHide: true }, (error, stdout) => (error ? resolve(undefined) : done(String(stdout))))
     } catch {
       resolve(undefined)
     }
@@ -289,8 +291,8 @@ export function childEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 function isLlamaServer(pid: number, platform: NodeJS.Platform): Promise<boolean> {
   return new Promise(resolve => {
     try {
-      if (platform === 'win32') execFile('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], { encoding: 'utf8', timeout: 3_000, windowsHide: true }, (error, stdout) => resolve(!error && /llama-server/i.test(String(stdout))))
-      else execFile('ps', ['-o', 'command=', '-p', String(pid)], { encoding: 'utf8', timeout: 3_000 }, (error, stdout) => resolve(!error && /llama-server/.test(String(stdout))))
+      if (platform === 'win32') execFile('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], { env: subprocessEnv(), encoding: 'utf8', timeout: 3_000, windowsHide: true }, (error, stdout) => resolve(!error && /llama-server/i.test(String(stdout))))
+      else execFile('ps', ['-o', 'command=', '-p', String(pid)], { env: subprocessEnv(), encoding: 'utf8', timeout: 3_000, windowsHide: true }, (error, stdout) => resolve(!error && /llama-server/.test(String(stdout))))
     } catch {
       resolve(false)
     }
@@ -483,7 +485,7 @@ export async function runServe(args: ServeArgs, io: ServeIo = {}): Promise<numbe
 
   await new Promise<void>((resolve, reject) => {
     front.once('error', (error: NodeJS.ErrnoException) => reject(new ServeRefusal(`${ADAPTER_SPEAKER}: cannot listen on ${args.host}:${args.port} (${error.code === 'EADDRINUSE' ? 'AddressInUse' : (error.code ?? 'BindFailed')})`)))
-    front.listen(args.port, args.host, () => resolve())
+    front.listen(args.port, '127.0.0.1', () => resolve())
   })
 
   await reapStaleChild(args.port, platform, say)

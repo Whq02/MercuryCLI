@@ -74,7 +74,7 @@ for (const mode of ['prompt', 'transcript'] as const) {
   const painted = screen(afterFold, mode)
   check(`${mode} screen after /compact: no folded row paints after the summary`, !painted.some(name => folded.includes(name)), j(painted))
   check(`${mode} screen after /compact: the kept turn's mid-turn row paints where it landed, between its prompt and its reply`, j(painted.filter(name => ['p2', 'mid', 'a2'].includes(name))) === j(['p2', 'mid', 'a2']), j(painted))
-  check(`${mode} screen after /compact: a row that lands after the fold paints after the kept tail`, painted.indexOf('later') > painted.indexOf('a2'), j(painted))
+  check(`${mode} screen after /compact: a row that lands after the fold paints after the kept tail`, painted.includes('a2') && painted.indexOf('later') > painted.indexOf('a2'), j(painted))
 }
 {
   const transcriptOnly = foldSummary('S-auto')
