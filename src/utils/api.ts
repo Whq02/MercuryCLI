@@ -93,11 +93,12 @@ export async function firstTurnUserContext(
   model: string | undefined,
   agentId?: string,
   messages?: readonly Message[],
+  input?: string | null,
 ): Promise<Record<string, string>> {
   if (model === undefined || !localPromptProfileApplies(model)) return userContext
   const { localFirstTurnFacts } = require('../constants/prompts.js') as typeof import('../constants/prompts.js')
   const system = typeof systemContext === 'function' ? await systemContext() : systemContext
-  const prompt = firstUserPrompt(messages)
+  const prompt = firstUserPrompt(messages) ?? (input ? input : undefined)
   const facts = await localFirstTurnFacts(agentId, prompt === undefined ? undefined : { prompt })
   return { ...userContext, ...facts, ...(system.gitStatus ? { gitStatus: system.gitStatus } : {}) }
 }
