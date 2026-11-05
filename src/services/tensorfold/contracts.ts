@@ -120,6 +120,6 @@ export type HelperModelState = {
   port?: number
 }
 
-export type TensorFoldPullProgress = { repo: string; bytes: number; totalBytes?: number }
+export type TensorFoldPullProgress = { repo: string; bytes: number; totalBytes?: number; bytesPerSecond?: number }
 
 export const TENSORFOLD_NOT_BUILT = 'TensorFold support is not built on this branch yet'

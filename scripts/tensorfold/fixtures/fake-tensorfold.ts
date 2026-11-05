@@ -68,19 +68,26 @@ async function pull(spec: string): Promise<void> {
   const total = Number(env.FAKE_TENSORFOLD_PULL_BYTES ?? 2_000_000)
   const steps = Number(env.FAKE_TENSORFOLD_PULL_STEPS ?? 10)
   const stepMs = Number(env.FAKE_TENSORFOLD_PULL_STEP_MS ?? 100)
+  const said = env.FAKE_TENSORFOLD_PULL_LINES === undefined ? [] : env.FAKE_TENSORFOLD_PULL_LINES.split('|')
+  const quiet = Number(env.FAKE_TENSORFOLD_PULL_QUIET_STEPS ?? 0)
   const blob = join(blobs, 'weightsblob')
   const partial = `${blob}.incomplete`
   process.stdout.write(`[tensorfold] downloading ${repo}@${revision ?? 'main'} from Hugging Face\n`)
+  if (said.length > 0) process.stdout.write(`${repo}: Qwen3.5-2B or Qwen3.8-27B (qwen3_5)\n  config.json: 0.00 MiB\n  tokenizer.json: 19.06 MiB\n`)
   let have = existsSync(partial) ? statSync(partial).size : existsSync(blob) ? total : 0
   let stopping = false
   process.on('SIGTERM', () => {
     stopping = true
   })
+  let step = 0
   while (have < total) {
     if (stopping) process.exit(143)
     const next = Math.min(total, have + Math.ceil(total / steps))
     writeFileSync(partial, Buffer.alloc(next))
     have = next
+    const line = said[step - quiet]
+    if (line !== undefined && line !== '') process.stdout.write(`  ${line}\n`)
+    step += 1
     await new Promise(resolve => setTimeout(resolve, stepMs))
   }
   if (existsSync(partial)) renameSync(partial, blob)
@@ -90,6 +97,7 @@ async function pull(spec: string): Promise<void> {
   writeFileSync(join(base, 'refs', 'main'), sha)
   writeFileSync(join(snapshot, 'config.json'), JSON.stringify({ model_type: env.FAKE_TENSORFOLD_MODEL_TYPE ?? 'qwen3_5', max_position_embeddings: 262144, num_hidden_layers: 24, num_key_value_heads: 2, head_dim: 256, full_attention_interval: 4 }))
   if (!existsSync(join(snapshot, 'model.safetensors'))) symlinkSync(join('..', '..', 'blobs', 'weightsblob'), join(snapshot, 'model.safetensors'))
+  if (said.length > 0) process.stdout.write(`  model.safetensors: ${(total / 1024 ** 2).toFixed(2)} MiB in ${steps} pieces\n`)
   process.stdout.write(`[tensorfold] ${repo}: ${total} bytes on disk\n`)
 }
 

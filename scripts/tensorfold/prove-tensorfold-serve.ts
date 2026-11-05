@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { spawn, type SpawnOptions } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, statSync, truncateSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
-import { FAKE_BIN, GIB, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, fakeExists, fakeWorld } from './fixtures/world.ts'
+import { FAKE_BIN, GIB, LIGHTNING_REPO, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, fakeExists, fakeWorld } from './fixtures/world.ts'
 import { FAKE_REPLY_PREFIX } from './fixtures/fake-tensorfold.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -19,6 +20,8 @@ const road = await import('../../src/commands/tensorfold/road.ts')
 const scene = await import('../../src/commands/tensorfold/scene.ts')
 const inventory = await import('../../src/services/tensorfold/inventory.ts')
 const engine = await import('../../src/services/tensorfold/engine.ts')
+const { startingPointOf } = await import('../../src/services/tensorfold/starting.ts')
+const { adapterCheckpointOf } = await import('../../src/services/tensorfold/adapter/models.ts')
 const { readRecord } = await import('../../src/services/projectServices/serviceManager.ts')
 const receipts = await import('../../src/utils/model/seatReceipts.ts')
 const { cachedLocalModels } = await import('../../src/services/providers/local/localDiscovery.ts')
@@ -226,6 +229,76 @@ section('pull: resumable, its progress read from the cache\'s growth, stopped wi
   const partial = inventory.readHfSnapshot(world2.cache, QWEN_2B_REPO)
   check('s on a pull stops it: the error says the download resumes next time, the partial blob stays on disk', stopped !== null && stopped.stopped && stopped.message === 'the download stopped · it resumes next time' && partial === undefined && existsSync(join(world2.cache, 'models--mlx-community--Qwen3.5-2B-MLX-4bit', 'blobs', 'weightsblob.incomplete')), JSON.stringify({ stopped: stopped?.message, partial }))
   check('the incomplete bytes count as what is on disk for the row', pull.cacheBytesOf(world2.cache, QWEN_2B_REPO) > 0 && pull.cacheBytesOf(world2.cache, QWEN_2B_REPO) < 2_000_000)
+}
+
+section("pull: the engine's own lines (`  <x> of <y> GiB, <z> MiB/s`, the shape tensorfold-native 1.2.2 prints) rule the bar; before its first line only what this pull fetched counts; the adapter road still reads its cache")
+{
+  type Pulling = Extract<ReturnType<typeof scene.pullActOf>, { kind: 'pulling' }>
+  const waitFor = async (cond: () => boolean, ms: number): Promise<boolean> => {
+    for (const at = Date.now(); Date.now() - at < ms && !cond(); ) await sleep(25)
+    return cond()
+  }
+  const LINES = ['0.58 of 17.25 GiB, 58.1 MiB/s', '15.44 of 17.25 GiB, 53.6 MiB/s']
+  const ENGINE_TOTAL = Math.round(17.25 * GIB)
+  const LAST = Math.round(15.44 * GIB)
+  const world = fakeWorld('tf-pull-lines', { seeds: [], env: { FAKE_TENSORFOLD_PULL_BYTES: '2000000', FAKE_TENSORFOLD_PULL_STEPS: '400', FAKE_TENSORFOLD_PULL_STEP_MS: '50', FAKE_TENSORFOLD_PULL_QUIET_STEPS: '6', FAKE_TENSORFOLD_PULL_LINES: LINES.join('|'.repeat(20)) } })
+  const earlier = join(world.cache, 'models--TensorFold--NVIDIA-Nemotron-3.5-Lightning-30B-A3B-MLX-4bit', 'blobs')
+  mkdirSync(earlier, { recursive: true })
+  writeFileSync(join(earlier, 'earlierrevision'), '')
+  truncateSync(join(earlier, 'earlierrevision'), 18_544_234_457)
+  const row = inventory.rowOfCheckpoint(startingPointOf(LIGHTNING_REPO)!, MAC_48, { onDisk: false, bytesOnDisk: 0, drafterOnDisk: true })
+  road.__resetTensorFoldRoadForTest()
+  const acts: Pulling[] = []
+  road.subscribeTensorFoldRoad(() => {
+    const act = road.tensorFoldRoadState().acts[LIGHTNING_REPO]
+    if (act?.kind === 'pulling') acts.push(act)
+  })
+  const serving = road.serveTensorFoldRow(row, row.window, { pull: { binary, env: world.env, cacheRoot: world.cache, pollMs: 25, logDir: join(world.home, 'logs') } })
+  await waitFor(() => acts.some(act => act.bytes === LAST), 8000)
+  const stopWords = await road.stopTensorFoldRow(row, [])
+  const outcome = await serving
+  const fallback = acts.filter(act => act.totalBytes === row.downloadBytes)
+  const said = acts.filter(act => act.totalBytes === ENGINE_TOTAL)
+  const last = acts[acts.length - 1]
+  check("a cache folder already holding an earlier revision's blobs (18.5 GB of them) never reads as this pull's progress: before the engine's first line the bar counted only what this pull fetched (0%), never 99%", row.downloadBytes === 18_544_234_457 && fallback.length >= 2 && fallback.every(act => act.percent === 0 && act.bytes <= 2_000_000), JSON.stringify(acts.slice(0, 6).map(act => [act.bytes, act.totalBytes, act.percent])))
+  check("the percent follows the engine's lines: 0.58 of 17.25 GiB reads 3%, 15.44 of 17.25 GiB reads 89%, the total is the engine's own, and the bar never steps back", said.some(act => act.bytes === Math.round(0.58 * GIB) && act.percent === 3) && said.some(act => act.bytes === LAST && act.percent === 89) && acts.every((act, at) => at === 0 || (act.percent ?? 0) >= (acts[at - 1]!.percent ?? 0)), JSON.stringify(acts.map(act => [act.bytes, act.totalBytes, act.percent]).filter((entry, at, all) => at === 0 || JSON.stringify(entry) !== JSON.stringify(all[at - 1]))))
+  check("the pace words follow its MiB/s: 53.6 MiB/s is the pace, and the live line reads pulling Nemotron Lightning · 16.6 GB of 19 GB · 56 MB/s · under 2 min", last?.bytes === LAST && last.pace.bytesPerSecond === 53.6 * 1024 ** 2 && pull.pullProgressWords(row.label, last.bytes, last.totalBytes, last.pace) === 'pulling Nemotron Lightning · 16.6 GB of 19 GB · 56 MB/s · under 2 min', last === undefined ? 'no act' : pull.pullProgressWords(row.label, last.bytes, last.totalBytes, last.pace))
+  check('s still stops it and the download is kept for next time', stopWords === 'stopping the download · it resumes next time' && outcome === null && road.tensorFoldRoadState().notice === 'the download stopped · it resumes next time' && road.tensorFoldRoadState().acts[LIGHTNING_REPO] === undefined, JSON.stringify({ stopWords, outcome, notice: road.tensorFoldRoadState().notice }))
+  road.__resetTensorFoldRoadForTest()
+
+  const quiet = fakeWorld('tf-pull-earlier', { seeds: [], env: { FAKE_TENSORFOLD_PULL_BYTES: '2000000', FAKE_TENSORFOLD_PULL_STEPS: '10', FAKE_TENSORFOLD_PULL_STEP_MS: '60' } })
+  const blobs = join(quiet.cache, 'models--mlx-community--Qwen3.5-2B-MLX-4bit', 'blobs')
+  mkdirSync(blobs, { recursive: true })
+  writeFileSync(join(blobs, 'earlierrevision'), Buffer.alloc(2_000_000, 0x5a))
+  const counted: Array<{ bytes: number; bytesPerSecond?: number }> = []
+  await pull.pullTensorFold(QWEN_2B_REPO, p => counted.push({ bytes: p.bytes, ...(p.bytesPerSecond !== undefined ? { bytesPerSecond: p.bytesPerSecond } : {}) }), { binary, env: quiet.env, cacheRoot: quiet.cache, pollMs: 25, logDir: join(quiet.home, 'logs'), totalBytes: 2_000_000 })
+  check("with no line from the engine the fallback counts only this pull's growth: an earlier revision's 2 MB beside it is not counted, the count rises from under the whole to exactly the download", counted.length >= 3 && counted[0]!.bytes < 2_000_000 && counted.every(p => p.bytes <= 2_000_000 && p.bytesPerSecond === undefined) && counted.some(p => p.bytes > 0 && p.bytes < 2_000_000) && counted[counted.length - 1]!.bytes === 2_000_000, JSON.stringify(counted.map(p => p.bytes)))
+
+  const whole = fakeWorld('tf-pull-whole', { seeds: [], env: { FAKE_TENSORFOLD_PULL_BYTES: '2000000', FAKE_TENSORFOLD_PULL_STEPS: '10', FAKE_TENSORFOLD_PULL_STEP_MS: '40', FAKE_TENSORFOLD_PULL_QUIET_STEPS: '2', FAKE_TENSORFOLD_PULL_LINES: '1.20 of 1.86 GiB, 61.5 MiB/s||1.80 of 1.86 GiB, 60.2 MiB/s' } })
+  const told: Array<{ bytes: number; totalBytes?: number; bytesPerSecond?: number }> = []
+  await pull.pullTensorFold(QWEN_2B_REPO, p => told.push(p), { binary, env: whole.env, cacheRoot: whole.cache, pollMs: 25, logDir: join(whole.home, 'logs'), totalBytes: 2_000_000 })
+  const wholeLog = readFileSync(join(whole.home, 'logs', 'pull-models--mlx-community--Qwen3.5-2B-MLX-4bit.log'), 'utf8')
+  const end = told[told.length - 1]
+  check("the engine's other lines (its file list, the per-file pieces, its closing line) are never read as progress: after the whole pull the last report is still its last progress line", wholeLog.includes('  tokenizer.json: 19.06 MiB') && wholeLog.includes(' MiB in 10 pieces') && end?.bytes === Math.round(1.8 * GIB) && end.totalBytes === Math.round(1.86 * GIB) && end.bytesPerSecond === 60.2 * 1024 ** 2, JSON.stringify({ end, log: wholeLog.split('\n').slice(-4) }))
+
+  const gguf = adapterCheckpointOf(QWEN_2B_REPO)!.gguf.repo
+  const adapterWorld = fakeWorld('tf-pull-adapter', { seeds: [], env: { FAKE_TENSORFOLD_PULL_BYTES: '2000000', FAKE_TENSORFOLD_PULL_STEPS: '10', FAKE_TENSORFOLD_PULL_STEP_MS: '60' } })
+  const ggufBlobs = join(adapterWorld.cache, `models--${gguf.replace('/', '--')}`, 'blobs')
+  mkdirSync(ggufBlobs, { recursive: true })
+  writeFileSync(join(ggufBlobs, 'weightsblob.incomplete'), Buffer.alloc(500_000, 0x5a))
+  const launched: string[][] = []
+  const asAdapter = ((command: string, args: readonly string[], options: SpawnOptions) => {
+    launched.push([command, ...args])
+    return spawn(binary, ['pull', gguf], options)
+  }) as unknown as typeof spawn
+  const samples: Array<{ at: number; bytes: number }> = []
+  const seen: Array<{ bytes: number; bytesPerSecond?: number }> = []
+  await pull.pullTensorFold(QWEN_2B_REPO, p => {
+    samples.push({ at: Date.now(), bytes: p.bytes })
+    seen.push({ bytes: p.bytes, ...(p.bytesPerSecond !== undefined ? { bytesPerSecond: p.bytesPerSecond } : {}) })
+  }, { binary: '/fixture/tensorfold-adapter.mjs', spawnImpl: asAdapter, env: adapterWorld.env, cacheRoot: adapterWorld.cache, pollMs: 25, logDir: join(adapterWorld.home, 'logs'), totalBytes: 2_000_000 })
+  const adapterAct = scene.pullActOf(QWEN_2B_REPO, samples.slice(0, 1), 2_000_000, 262_144)
+  check("the adapter road (Mercury's engine prints no progress line) keeps reading the mapped GGUF repo's cache whole, the resumed 500 kB included, and reaches the same act", launched[0]?.[2] === '--tensorfold-adapter' && launched[0]?.slice(-2).join(' ') === `pull ${QWEN_2B_REPO}` && seen[0]!.bytes >= 500_000 && seen.every(p => p.bytesPerSecond === undefined) && seen[seen.length - 1]!.bytes === 2_000_000 && adapterAct.kind === 'pulling' && adapterAct.percent === Math.floor((seen[0]!.bytes / 2_000_000) * 100), JSON.stringify({ launched, bytes: seen.map(p => p.bytes), act: adapterAct }))
 }
 
 section('the road: ↵ on the on-disk 2B serves it, switches the session through pickAndProve and mints the feed line')
