@@ -45,7 +45,8 @@ try {
   const { vendorClient, saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
   const { configuredCompatEndpoints, resolveCompatApiKey } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
   const { TENSORFOLD_HOST_IMAGE } = await import('../../src/services/host/tensorfoldRelease.ts')
-  const { stopTensorFoldPod, tensorFoldPodFacts, tensorFoldPodKey, TENSORFOLD_HOST_WORDS } = await import('../../src/services/host/tensorfoldPod.ts')
+  const { stopTensorFoldPod, settleStoppingTensorFoldPods, tensorFoldPodFacts, tensorFoldPodRows, tensorFoldPodKey, TENSORFOLD_HOST_WORDS } = await import('../../src/services/host/tensorfoldPod.ts')
+  const { currentHostRecipes } = await import('../../src/services/host/recipesFile.ts')
   const { hostRentalUsage } = await import('../../src/services/host/costs.ts')
   const { readBox } = await import('../../src/services/host/boxes.ts')
   const { getSettingsForSource } = await import('../../src/utils/settings/settings.ts')
@@ -85,6 +86,19 @@ try {
   const stopped = await stopTensorFoldPod(pod.id, { client: api, pauseMs: 10, forget: async () => {} })
   check('s on the HOST pod row stops the pod: compute billing ends, the disk bills until Terminate', stopped.ok && rp.state.stops === 1 && readHostRecord(pod.id)?.status === 'EXITED' && stopped.words.includes('compute billing ended') && stopped.words.includes('the disk bills until you terminate it in /llmhost') && tensorFoldPodFacts(readHostRecord(pod.id)!, offer.recipe)?.state === 'stopped')
 
+  const slowPod = await api.create(offer, 'ssh-ed25519 fixture', 'tf-slow-stop')
+  queueHostSetup({ id: slowPod.id, vendor: 'runpod', name: slowPod.name, recipe: offer.recipe.id, price: slowPod.cost, startedAt: slowPod.createdAt, status: slowPod.status, apiBaseUrl: rp.baseUrl, sessionId: session })
+  let confirmed = false
+  const slow = new Proxy(api, { get: (target, key) => key === 'stop' ? async (id: string) => ({ ...(await target.stop(id)), status: 'RUNNING' }) : key === 'get' ? async (id: string, signal?: AbortSignal) => ({ ...(await target.get(id, signal)), status: confirmed ? 'EXITED' : 'RUNNING' }) : Reflect.get(target, key) })
+  const requested = await stopTensorFoldPod(slowPod.id, { client: slow, pauseMs: 5, timeoutMs: 30, forget: async () => {} })
+  const stoppingRow = tensorFoldPodRows(currentHostRecipes()).find(row => row.id === slowPod.id)
+  check('a stop the vendor has not confirmed within the short wait returns at once: the words say stop requested and the row reads stopping (the owner, 2026-11-05: return at once and let the row settle)', requested.ok && requested.words.includes('stop requested') && requested.words.includes('the row reads stopping') && readHostRecord(slowPod.id)?.stopRequestedAt !== undefined && readHostRecord(slowPod.id)?.status !== 'EXITED' && stoppingRow?.state === 'stopping', JSON.stringify({ requested, stoppingRow }))
+  const unsettled = await settleStoppingTensorFoldPods({ client: () => slow })
+  check('the panel’s read leaves the row stopping while the vendor still says running', unsettled === 0 && tensorFoldPodRows(currentHostRecipes()).find(row => row.id === slowPod.id)?.state === 'stopping')
+  confirmed = true
+  const settled = await settleStoppingTensorFoldPods({ client: () => slow })
+  check('…and settles it to stopped once the vendor confirms, with the spend kept from the stop', settled === 1 && readHostRecord(slowPod.id)?.status === 'EXITED' && tensorFoldPodRows(currentHostRecipes()).find(row => row.id === slowPod.id)?.state === 'stopped' && typeof readHostRecord(slowPod.id)?.spendUSD === 'number', JSON.stringify(readHostRecord(slowPod.id)))
+  removeHostRecord(slowPod.id)
   const gatedPod = await api.create(offer, 'ssh-ed25519 fixture', 'tf-gated')
   const gated = queueHostSetup({ id: gatedPod.id, vendor: 'runpod', name: gatedPod.name, recipe: offer.recipe.id, price: gatedPod.cost, startedAt: gatedPod.createdAt, status: gatedPod.status, apiBaseUrl: rp.baseUrl, sessionId: session, weightsSource: { kind: 'private-repo', repo: 'someone/gated-checkpoint' } })
   const launchesBefore = ssh.commands.filter(row => String(row.args.at(-1)).includes('nohup setsid')).length
