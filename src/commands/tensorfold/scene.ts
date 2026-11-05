@@ -8,7 +8,7 @@ import { LOCAL_SERVER_NAMES } from '../../services/providers/local/localCatalogu
 import { cachedLocalModels, type LocalModelRecord } from '../../services/providers/local/localDiscovery.js'
 import { detectTensorFoldApp, type TensorFoldAppState } from '../../services/providers/local/tensorfoldApp.js'
 import { helperHeadingWords } from '../../services/providers/local/tensorfoldHelper.js'
-import { tensorFoldHosts } from '../../services/providers/local/tensorfoldHosts.js'
+import { tensorFoldHostAddress, tensorFoldHosts } from '../../services/providers/local/tensorfoldHosts.js'
 import { lastTensorFoldTurn } from '../../services/providers/local/tensorfoldUsage.js'
 import type { TensorFoldEngine, TensorFoldHost, TensorFoldLastReply, TensorFoldServed } from '../../services/tensorfold/contracts.js'
 import { cachedTensorFoldMachineTruth, findTensorFoldEngine, tensorFoldBackendWords, type EngineIo, type TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
@@ -190,7 +190,8 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
   const records = io.localModels?.() ?? cachedLocalModels()
   const rows = platform === 'win32' ? [] : withServedReadings(await readTensorFoldInventory(engine, { ...io, machine, served }), records, quietly(() => (io.lastTurn ?? lastTensorFoldTurn)(), undefined))
   const current = io.current
-  const hosts = quietly(() => io.hosts?.() ?? tensorFoldHosts(), [] as readonly TensorFoldHost[])
+  const turn = quietly(() => (io.lastTurn ?? lastTensorFoldTurn)(), undefined)
+  const hosts = quietly(() => io.hosts?.() ?? tensorFoldHosts(), [] as readonly TensorFoldHost[]).map(host => host.origin === 'pod' && host.lastReply === undefined && host.serving !== undefined && turn !== undefined && turn.address === tensorFoldHostAddress(host.baseUrl) && (turn.model === host.serving || turn.model.endsWith(`/${host.serving}`)) ? { ...host, lastReply: { ...(turn.timeToFirstTokenS !== undefined ? { firstTokenMs: turn.timeToFirstTokenS * 1000 } : {}), ...(turn.tokensPerSecond !== undefined ? { tokensPerSecond: turn.tokensPerSecond } : {}) } } : host)
   const outside = outsideOf(records, served, helperServed, hosts, current)
   const helper = quietly(() => (io.helper ?? helperHeadingWords)(), undefined)
   const app = platform === 'darwin' ? await (io.app ?? detectTensorFoldApp)().catch(() => undefined) : undefined

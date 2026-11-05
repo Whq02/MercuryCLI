@@ -114,7 +114,7 @@ export async function tStates(): Promise<TState[]> {
     { frame: 't15-switch', facts: await tStateFacts('t15', serving), land: 'local/nemotron-lightning' },
     { frame: 't15b-stop-confirm', facts: await tStateFacts('t15b', serving), keys: ['s'] },
     { frame: 't16-serving-outside', facts: await tStateFacts('t16', { outside: [{ id: 'qwen3.5-2b', baseUrl: 'http://127.0.0.1:8087/v1', window: 32_768, servedBytes: 2_965_982_016 }] }) },
-    { frame: 't16b-pod-tunnel', facts: await tStateFacts('t16b', { outside: [{ id: 'qwen3.5-2b', baseUrl: 'http://127.0.0.1:8087/v1', window: 32_768, servedBytes: 2_965_982_016 }, { id: 'qwen3.8-27b', baseUrl: 'http://127.0.0.1:18080/v1', window: 131_072 }], hosts: [POD_TUNNEL] }), unfoldHost: true },
+    { frame: 't16b-pod-tunnel', facts: await tStateFacts('t16b', { outside: [{ id: 'qwen3.5-2b', baseUrl: 'http://127.0.0.1:8087/v1', window: 32_768, servedBytes: 2_965_982_016 }, { id: 'qwen3.8-27b', baseUrl: 'http://127.0.0.1:18080/v1', window: 131_072 }], hosts: [POD_TUNNEL], turn: { model: 'compat/pod-rtx-5090/qwen3.8-27b', address: '127.0.0.1:18080', promptTokens: 4_570, completionTokens: 180, tokensPerSecond: 78.4, timeToFirstTokenS: 0.41 } }), unfoldHost: true },
     { frame: 't17-refused-memory', facts: await tStateFacts('t17', { state: { acts: { [QWEN_27B_REPO]: scene.refusedActOf('qwen3.8-27b', 131_072, memoryRefusal) } } }) },
     { frame: 't17b-wired-limit', facts: await tStateFacts('t17b', { machine: MAC_32_LOW, state: { acts: { [QWEN_27B_REPO]: scene.refusedActOf('qwen3.8-27b', 32_768, limitRefusal) } } }), land: 'local/qwen3.8-27b' },
     { frame: 't18-keyed-server', facts: await tStateFacts('t18', { keyed: true }) },
