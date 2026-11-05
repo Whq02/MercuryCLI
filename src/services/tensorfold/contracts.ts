@@ -74,7 +74,10 @@ export type TensorFoldServeRequest = {
   drafter?: string
   promptCacheGib?: number
   share?: boolean
+  role?: TensorFoldServeRole
 }
+
+export type TensorFoldServeRole = 'session' | 'helper'
 
 export type TensorFoldServed = {
   repo: string
@@ -88,7 +91,7 @@ export type TensorFoldServed = {
   promptCacheGib?: number
 }
 
-export type TensorFoldHostOrigin = 'lan-paired' | 'typed' | 'pod' | 'app'
+export type TensorFoldHostOrigin = 'lan-paired' | 'typed' | 'pod' | 'app' | 'shared'
 
 export type TensorFoldHost = {
   name: string
