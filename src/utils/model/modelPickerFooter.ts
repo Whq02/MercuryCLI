@@ -2,7 +2,7 @@ import { MODEL_PICKER_CONTEXT_WORDS } from './modelPickerGroups.js'
 
 type ModelPickerFooterHeading = { fold: 'folded' | 'open' }
 
-export type ModelPickerFooterKeys = { action?: string; window: boolean; stop?: string; share?: string; support: boolean; legend?: readonly string[] }
+export type ModelPickerFooterKeys = { action?: string; window: boolean; stop?: string; share?: string; terminate?: string; support: boolean; legend?: readonly string[] }
 
 export const MODEL_PICKER_EXIT_WORDS = 'esc or click outside closes'
 const MODEL_PICKER_SHORT_EXIT_WORDS = 'esc closes'
@@ -35,6 +35,7 @@ export function modelPickerFooter(
         { text: MODEL_PICKER_WINDOW_WORDS, show: keys.window, drop: 1 },
         { text: keys.stop ?? '', show: keys.stop !== undefined, drop: 2 },
         { text: keys.share ?? '', show: keys.share !== undefined, drop: 3 },
+        { text: keys.terminate ?? '', show: keys.terminate !== undefined, drop: 2.2 },
         { text: MODEL_PICKER_SUPPORT_WORDS, show: keys.support, drop: 2.5 },
         { text: 'tab to search', show: true, drop: 4 },
       ]

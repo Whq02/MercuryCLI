@@ -467,7 +467,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
       if (tfKeys?.window !== undefined) stepWindow(tfKeys.window, 1)
       return
     }
-    if (!filterFocus && !key.ctrl && !key.meta && tfKeys !== undefined && ((input === 's' && tfKeys.stop !== undefined) || (input === 'w' && tfKeys.limit !== undefined) || (input === 'c' && !key.ctrl && tfKeys.support !== undefined) || (input === 'n' && tfKeys.share !== undefined))) {
+    if (!filterFocus && !key.ctrl && !key.meta && tfKeys !== undefined && ((input === 's' && tfKeys.stop !== undefined) || (input === 't' && tfKeys.terminate !== undefined) || (input === 'w' && tfKeys.limit !== undefined) || (input === 'c' && !key.ctrl && tfKeys.support !== undefined) || (input === 'n' && tfKeys.share !== undefined))) {
       event.stopImmediatePropagation()
       if (!pastOpenEvent()) return
       if (input === 's' && tfKeys.stop !== undefined) {
@@ -480,7 +480,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
         onTensorFold?.(tfKeys.stop.act)
         return
       }
-      const act = input === 'w' ? tfKeys.limit : input === 'n' ? tfKeys.share?.act : tfKeys.support
+      const act = input === 'w' ? tfKeys.limit : input === 'n' ? tfKeys.share?.act : input === 't' ? tfKeys.terminate?.act : tfKeys.support
       if (act !== undefined) onTensorFold?.(act)
       return
     }
@@ -727,6 +727,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
       window: keys.window !== undefined,
       ...(keys.stop !== undefined && action !== keys.stop.words ? { stop: keys.stop.words } : {}),
       ...(keys.share !== undefined ? { share: keys.share.words } : {}),
+      ...(keys.terminate !== undefined ? { terminate: keys.terminate.words } : {}),
       support: keys.support !== undefined,
       ...(keys.legend !== undefined ? { legend: keys.legend } : {}),
     }

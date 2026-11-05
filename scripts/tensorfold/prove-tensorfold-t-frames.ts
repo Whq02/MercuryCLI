@@ -180,8 +180,8 @@ const EXPECT: Record<string, Expect> = {
   ],
   't05-windows': run => [
     ['▸ TENSORFOLD · no Windows release yet, folded', has(run, '▸ TENSORFOLD · no Windows release yet')],
-    ['▾ TENSORFOLD HOST unfolded with the rent row framed', has(run, '▾ TENSORFOLD HOST · no host · a server on your network or a rented GPU pod') && framedRow(run).includes('rent a GPU pod — Runpod, through /llmhost'), framedRow(run)],
-    ['the rent card: pod · serves · through', hasRun(run, 'pod RTX 5090 32 GB on Runpod · the price shows in /llmhost · billing starts when it boots') && has(run, 'serves    Qwen3.8 27B at 128k with TensorFold 1.2.2 for CUDA') && hasRun(run, 'through /llmhost rents it, installs TensorFold, pulls, serves, then this session switches · s stops the pod and its billing'), card(run).join(' / ')],
+    ['▾ TENSORFOLD HOST unfolded with the rent row framed', has(run, '▾ TENSORFOLD HOST · no host · a server on your network or a rented GPU pod') && framedRow(run).includes('rent a GPU pod — Runpod or Vast.ai, through /llmhost'), framedRow(run)],
+    ['the rent card: pod · serves · through', hasRun(run, 'pod RTX 5090 32 GB on Runpod or Vast.ai · the price shows in /llmhost · billing starts when it boots') && has(run, 'serves    Qwen3.8 27B at 128k with TensorFold 1.2.2 for CUDA') && hasRun(run, 'through /llmhost rents it, installs TensorFold, pulls, serves, then this session switches · s stops the pod and its billing'), card(run).join(' / ')],
     ['the address row', has(run, 'a server on your network — its address')],
     ['the footer: nothing served here · TensorFold runs on a host', has(run, 'nothing served here · TensorFold runs on a host')],
     ['the legend: ↵ rent and switch', legend(run).includes('↑↓ select · ↵ rent and switch'), legend(run)],
@@ -299,8 +299,8 @@ const EXPECT: Record<string, Expect> = {
     ['the legend: ↵ switch', legend(run).includes('↑↓ select · ↵ switch'), legend(run)],
   ],
   't23-host-rent': run => [
-    ['the rent row framed: rent a GPU pod — Runpod, through /llmhost', framedRow(run).includes('rent a GPU pod — Runpod, through /llmhost'), framedRow(run)],
-    ['pod       RTX 5090 32 GB on Runpod · the price shows in /llmhost · billing starts when it boots', hasRun(run, 'pod RTX 5090 32 GB on Runpod · the price shows in /llmhost · billing starts when it boots'), card(run).join(' / ')],
+    ['the rent row framed: rent a GPU pod — Runpod or Vast.ai, through /llmhost', framedRow(run).includes('rent a GPU pod — Runpod or Vast.ai, through /llmhost'), framedRow(run)],
+    ['pod       RTX 5090 32 GB on Runpod or Vast.ai · the price shows in /llmhost · billing starts when it boots', hasRun(run, 'pod RTX 5090 32 GB on Runpod or Vast.ai · the price shows in /llmhost · billing starts when it boots'), card(run).join(' / ')],
     ['serves    Qwen3.8 27B at 128k with TensorFold 1.2.2 for CUDA', has(run, 'serves    Qwen3.8 27B at 128k with TensorFold 1.2.2 for CUDA'), card(run).join(' / ')],
     ['through   /llmhost rents it, installs TensorFold, pulls, serves, then this session switches · s stops the pod and its billing', hasRun(run, 'through /llmhost rents it, installs TensorFold, pulls, serves, then this session switches · s stops the pod and its billing'), card(run).join(' / ')],
     ['the legend: ↵ rent and switch', legend(run).includes('↑↓ select · ↵ rent and switch'), legend(run)],

@@ -28,6 +28,7 @@ export type RoadIo = {
   now?: () => number
   readHub?: typeof readHubRepo
   stopPod?: (id: string) => Promise<{ ok: boolean; words: string }>
+  terminatePod?: (id: string) => Promise<{ ok: boolean; words: string }>
 }
 
 type Listener = () => void
