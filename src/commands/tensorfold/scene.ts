@@ -279,11 +279,11 @@ function replyWords(reply: { firstTokenMs?: number; tokensPerSecond?: number } |
   return ['idle', speed].filter(part => part !== undefined).join(' · ')
 }
 
-export function pullActOf(repo: string, samples: readonly { at: number; bytes: number }[], totalBytes: number | undefined, window: number): TensorFoldAct {
+export function pullActOf(repo: string, samples: readonly { at: number; bytes: number }[], totalBytes: number | undefined, window: number, bytesPerSecond?: number): TensorFoldAct {
   const last = samples[samples.length - 1]
   const bytes = last?.bytes ?? 0
   const percent = pullPercent(bytes, totalBytes)
-  return { kind: 'pulling', bytes, ...(totalBytes !== undefined ? { totalBytes } : {}), ...(percent !== undefined ? { percent } : {}), pace: pullPace(samples, totalBytes), then: { window } }
+  return { kind: 'pulling', bytes, ...(totalBytes !== undefined ? { totalBytes } : {}), ...(percent !== undefined ? { percent } : {}), pace: pullPace(samples, totalBytes, bytesPerSecond), then: { window } }
 }
 
 export function refusedActOf(name: string, window: number, refusal: TensorFoldRefusal): TensorFoldAct {

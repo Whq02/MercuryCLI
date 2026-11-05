@@ -276,11 +276,11 @@ section('§1 the home state at 178x51: header · groups · doors · rows · orde
   await board.key('right')
   now = board.lines()
   const partly = board.frame()
-  check('→ on a folded big list shows its listed rows and says how to unfold the rest', partly.includes('deepseek/deepseek-v4.1-flash') && partly.includes(`↓ ${OPENROUTER_TOTAL - openrouterListed.length} more · → unfolds the rest · search reaches every one`), now.filter(line => line.includes('more')).join(' | '))
+  check('→ on a folded big list shows its listed rows and says how to unfold the rest', partly.includes('deepseek/deepseek-v4.1-flash') && partly.includes(`↓ ${OPENROUTER_TOTAL - openrouterListed.length} more · ↵ unfolds the rest · search reaches every one`), now.filter(line => line.includes('more')).join(' | '))
   await board.key('down')
   await board.key('right')
   const unfolded = board.frame()
-  check('→ on a row of the partly shown list unfolds the rest (the full live list behind the door)', !unfolded.includes('→ unfolds the rest') && unfolded.includes('anthropic/claude-opus-5.5'), unfolded.split('\n').filter(line => line.includes('more')).join(' | '))
+  check('→ on a row of the partly shown list unfolds the rest (the full live list behind the door)', !unfolded.includes('↵ unfolds the rest') && unfolded.includes('anthropic/claude-opus-5.5'), unfolded.split('\n').filter(line => line.includes('more')).join(' | '))
   check('the cursor stays on the row it was on', board.lines()[board.lines().indexOf(rowOf(board.lines(), 'deepseek/deepseek-v4.1-flash')) - 1]?.includes('╭') === true)
 
   section('§3 the search: typing or tab opens the box, typing narrows every group, empty groups drop, ↵ switches, tab returns to the rows with the search kept, esc clears then closes')

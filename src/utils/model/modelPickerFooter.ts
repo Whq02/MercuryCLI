@@ -14,6 +14,7 @@ export function modelPickerFooter(
     gated: boolean
     enableFlag?: string
     heading?: ModelPickerFooterHeading
+    more?: boolean
     filterFocus?: boolean
     filtering?: boolean
     keys?: ModelPickerFooterKeys
@@ -26,9 +27,11 @@ export function modelPickerFooter(
   const tail = opts.filtering ? 'esc clears the search' : MODEL_PICKER_EXIT_WORDS
   const action = opts.heading !== undefined
     ? opts.heading.fold === 'folded' ? '↵ unfold' : '↵ fold'
-    : opts.gated
-      ? `gated${opts.enableFlag ? ` (${opts.enableFlag})` : ''}`
-      : '↵ switch'
+    : opts.more === true
+      ? '↵ unfold'
+      : opts.gated
+        ? `gated${opts.enableFlag ? ` (${opts.enableFlag})` : ''}`
+        : '↵ switch'
   const middle = keys !== undefined
     ? [
         { text: keys.action ?? '', show: keys.action !== undefined, drop: 0 },
@@ -42,7 +45,7 @@ export function modelPickerFooter(
     : [
         { text: 'type to search', show: opts.filterFocus === true, drop: 0 },
         { text: action, show: true, drop: 1 },
-        { text: MODEL_PICKER_CONTEXT_WORDS, show: opts.filterFocus !== true, drop: 3 },
+        { text: MODEL_PICKER_CONTEXT_WORDS, show: opts.filterFocus !== true && opts.more !== true, drop: 3 },
         { text: '→ ← fold', show: opts.filterFocus !== true, drop: 2 },
         { text: 'tab to search', show: opts.filterFocus !== true, drop: 4 },
         { text: 'tab back to the rows', show: opts.filterFocus === true, drop: 2 },

@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
-import { closeSync, mkdirSync, openSync, readdirSync, statSync } from 'node:fs'
+import { closeSync, fstatSync, mkdirSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
@@ -30,6 +30,41 @@ export function cacheBytesOf(root: string, repo: string, io: Pick<InventoryIo, '
   let total = 0
   for (const name of listDir(blobs)) total += sizeOf(join(blobs, name)) ?? 0
   return total
+}
+
+function fetchedBytesOf(root: string, repo: string, io: Pick<InventoryIo, 'listDir' | 'sizeOf'>): number {
+  return cacheBytesOf(root, repo, { ...io, sizeOf: io.sizeOf ?? ((path: string): number | undefined => { try { const stats = statSync(path); return Math.min(stats.size, stats.blocks * 512) } catch { return undefined } }) })
+}
+
+const ENGINE_PROGRESS = /^\s*(\d+(?:\.\d+)?) of (\d+(?:\.\d+)?) GiB, (\d+(?:\.\d+)?) MiB\/s\s*$/
+
+type EngineProgress = { bytes: number; totalBytes: number; bytesPerSecond: number }
+
+function engineProgressIn(path: string, from: number): () => EngineProgress | undefined {
+  let offset = from
+  let carry = Buffer.alloc(0)
+  let last: EngineProgress | undefined
+  return () => {
+    let fd: number | undefined
+    try {
+      fd = openSync(path, 'r')
+      const fresh = Buffer.alloc(Math.max(0, fstatSync(fd).size - offset))
+      const read = fresh.length > 0 ? readSync(fd, fresh, 0, fresh.length, offset) : 0
+      offset += read
+      const text = Buffer.concat([carry, fresh.subarray(0, read)])
+      const cut = Math.max(text.lastIndexOf(0x0a), text.lastIndexOf(0x0d)) + 1
+      carry = text.subarray(cut)
+      for (const line of text.toString('utf8', 0, cut).split(/[\r\n]/)) {
+        const said = ENGINE_PROGRESS.exec(line)
+        if (said !== null) last = { bytes: Math.round(Number(said[1]) * 1024 ** 3), totalBytes: Math.round(Number(said[2]) * 1024 ** 3), bytesPerSecond: Number(said[3]) * 1024 ** 2 }
+      }
+    } catch {
+      void 0
+    } finally {
+      if (fd !== undefined) closeSync(fd)
+    }
+    return last
+  }
 }
 
 function pullSpec(repo: string, adapter = false): string {
@@ -66,7 +101,10 @@ async function pullOne(binary: string, repo: string, totalBytes: number | undefi
   const cacheRepo = adapter ? (adapterCheckpointOf(repo)?.gguf.repo ?? repo) : repo
   const logDir = io.logDir ?? join(getMercuryHome(), 'tensorfold')
   mkdirSync(logDir, { recursive: true })
-  const logFd = openSync(join(logDir, `pull-${cacheDirOfRepo(repo)}.log`), 'a')
+  const logPath = join(logDir, `pull-${cacheDirOfRepo(repo)}.log`)
+  const logFd = openSync(logPath, 'a')
+  const engineSaid = engineProgressIn(logPath, fstatSync(logFd).size)
+  const before = adapter ? 0 : fetchedBytesOf(root, cacheRepo, io)
   const launch = io.spawnImpl ?? spawn
   const { command, args } = tensorFoldCommand(binary)
   let child: ChildProcess
@@ -80,7 +118,11 @@ async function pullOne(binary: string, repo: string, totalBytes: number | undefi
     child.kill('SIGTERM')
   }
   io.signal?.addEventListener('abort', abort, { once: true })
-  const report = (): void => onProgress({ repo, bytes: cacheBytesOf(root, cacheRepo, io), ...(totalBytes !== undefined ? { totalBytes } : {}) })
+  const report = (): void => {
+    const said = engineSaid()
+    if (said !== undefined) onProgress({ repo, ...said })
+    else onProgress({ repo, bytes: adapter ? cacheBytesOf(root, cacheRepo, io) : Math.max(0, fetchedBytesOf(root, cacheRepo, io) - before), ...(totalBytes !== undefined ? { totalBytes } : {}) })
+  }
   report()
   const poll = setInterval(report, io.pollMs ?? 500)
   try {
@@ -161,13 +203,13 @@ export async function readHubRepo(repo: string, io: { fetchImpl?: typeof fetch; 
 
 export type PullPace = { bytesPerSecond?: number; secondsLeft?: number }
 
-export function pullPace(samples: readonly { at: number; bytes: number }[], totalBytes: number | undefined): PullPace {
-  if (samples.length < 2) return {}
-  const first = samples[0]!
-  const last = samples[samples.length - 1]!
+export function pullPace(samples: readonly { at: number; bytes: number }[], totalBytes: number | undefined, stated?: number): PullPace {
+  const first = samples[0]
+  const last = samples[samples.length - 1]
+  if (first === undefined || last === undefined) return {}
   const seconds = (last.at - first.at) / 1000
-  if (seconds <= 0 || last.bytes <= first.bytes) return {}
-  const bytesPerSecond = (last.bytes - first.bytes) / seconds
+  const bytesPerSecond = stated ?? (seconds > 0 && last.bytes > first.bytes ? (last.bytes - first.bytes) / seconds : 0)
+  if (bytesPerSecond <= 0) return {}
   const secondsLeft = totalBytes !== undefined && totalBytes > last.bytes ? (totalBytes - last.bytes) / bytesPerSecond : undefined
   return { bytesPerSecond, ...(secondsLeft !== undefined ? { secondsLeft } : {}) }
 }

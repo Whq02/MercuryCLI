@@ -124,7 +124,7 @@ section('§1 the words: the owner’s hint, the box at rest and in focus, the le
   check('the rows’ hint names the chords and says tab to search', words.MODEL_PICKER_HINT === '↑↓ select · ↵ switch · ctrl+w context · → ← fold · tab to search · esc or click outside closes', words.MODEL_PICKER_HINT)
   check('the box at rest says to type', words.MODEL_PICKER_FILTER_PLACEHOLDER === 'type to search by name or id')
   check('the box in focus says what it searches', words.MODEL_PICKER_SEARCH_PLACEHOLDER === 'search by name or id')
-  check('the more line says the search reaches every folded row', words.moreLineWords(38, true) === '↓ 38 more · → unfolds the rest · search reaches every one')
+  check('the more line says the search reaches every folded row', words.moreLineWords(38, true) === '↓ 38 more · ↵ unfolds the rest · search reaches every one')
   check('the rows’ legend is the hint, whole, at width', modelPickerFooter({ gated: false }, 120) === words.MODEL_PICKER_HINT)
   check('the box’s legend: type to search · ↵ switch · tab back to the rows · esc or click outside closes', modelPickerFooter({ gated: false, filterFocus: true }, 120) === '↑↓ select · type to search · ↵ switch · tab back to the rows · esc or click outside closes')
   check('while a search stands the tail says esc clears it, on both sides', modelPickerFooter({ gated: false, filterFocus: true, filtering: true }, 120).endsWith('esc clears the search') && modelPickerFooter({ gated: false, filterFocus: false, filtering: true }, 120).endsWith('esc clears the search'))

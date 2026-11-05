@@ -459,7 +459,7 @@ for (const [columns, rows] of SIZES) {
     await save('m02-model-tensorfold-top', run)
     check(`${at} m02: → on TENSORFOLD unfolds its top rows and frames the best fit`, has(run, '▾ TENSORFOLD · 1.2.2 · Apple M5 Pro · 36.0 GiB usable · nothing served') && cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', '↓ 20 GB', '128k ctx', '28.5 GiB') && has(run, '╭'))
     check(`${at} m02: the card's keyed lines: window strip, memory, pull, will run`, has(run, 'window    32k 64k [128k] 256k · ←→ changes it') && has(run, 'memory    weights 15 + drafter 3.6 + cache 8 + runtime 2 GiB · prompt cache ≤16 GiB') && has(run, 'pull      into ~/.cache/huggingface/hub · 38 GB free on this disk') && has(run, 'will run  tensorfold pull TensorFold/Qwen3.8-27B-MLX-4bit') && has(run, 'tensorfold pull z-lab/Qwen3.8-27B-DFlash2') && has(run, 'tensorfold serve TensorFold/Qwen3.8-27B-MLX-4bit --drafter'), flat(run).slice(4, 18).join(' | '))
-    check(`${at} m02: what is on disk next, the rest behind the more-line`, cells(run, 'Qwen3.5 2B', 'local/qwen3.5-2b', 'on disk', '256k ctx', '7.6 GiB') && has(run, '↓ 2 more · → unfolds the rest'))
+    check(`${at} m02: what is on disk next, the rest behind the more-line`, cells(run, 'Qwen3.5 2B', 'local/qwen3.5-2b', 'on disk', '256k ctx', '7.6 GiB') && has(run, '↓ 2 more · ↵ unfolds the rest'))
     check(`${at} m02: a checkpoint on disk of a family TensorFold does not serve is never listed`, !flat(run).some(l => l.includes('llama')))
     check(`${at} m02: the legend says what ↵ does here, the window keys and c`, has(run, '↑↓ select · ↵ pull, serve and switch · ←→ window · c copies the support line'), legendOf(run))
     run.m.unmount()
@@ -501,7 +501,7 @@ for (const [columns, rows] of SIZES) {
     check(`${at} m04: TensorFold current → its group first, ahead of the provider with more recent use`, lineOf(run, '▾ TENSORFOLD ·') < lineOf(run, '▾ ANTHROPIC') && lineOf(run, '▸ TENSORFOLD HOST') < lineOf(run, '▾ ANTHROPIC'), flat(run).filter(l => /[▾▸❯] [A-Z]/.test(l)).join(' | '))
     check(`${at} m04: the session's model framed in TENSORFOLD, unfolded, 1 serving`, has(run, '▾ TENSORFOLD · 1.2.2 · Apple M5 Pro · 36.0 GiB usable · 1 serving') && cells(run, 'Qwen3.5 2B', 'local/qwen3.5-2b', 'current', '256k ctx', '2.8 GiB in use'))
     check(`${at} m04: the served card`, has(run, 'serving   on 127.0.0.1:8080 · first reply in 40 ms · ~110 tok/s') && has(run, 'window    32k 64k 128k [256k] · ←→ restarts it at another window') && has(run, 'service   tensorfold · started by Mercury · prompt cache 1 GiB'), flat(run).slice(4, 14).join(' | '))
-    check(`${at} m04: the best fit next and the rest behind the more-line; HOST folded; the cloud row no longer current`, cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', '↓ 20 GB', '128k ctx', '28.5 GiB') && has(run, '↓ 2 more · → unfolds the rest') && has(run, '▸ TENSORFOLD HOST') && !cells(run, 'Opus 5.5', 'claude-opus-5-5', 'current'))
+    check(`${at} m04: the best fit next and the rest behind the more-line; HOST folded; the cloud row no longer current`, cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', '↓ 20 GB', '128k ctx', '28.5 GiB') && has(run, '↓ 2 more · ↵ unfolds the rest') && has(run, '▸ TENSORFOLD HOST') && !cells(run, 'Opus 5.5', 'claude-opus-5-5', 'current'))
     check(`${at} m04: sharing on the network is an explicit step on the card, off until asked`, has(run, 'network   not shared · n shares it on this network'), flat(run).slice(4, 14).join(' | '))
     check(`${at} m04: s stops, the window, n and c in the legend`, has(run, '↑↓ select · s stops · ←→ window · n shares it · c copies the support line'), legendOf(run))
     run.m.unmount()
@@ -868,6 +868,58 @@ console.log('\n§5 the review rows: an announced Mac pairs with its code (findin
   check('/model serves through the panel lane\'s road: pull, then start, then refused', fromModel.calls.join(',') === 'pull,start' && fromPanel.calls.join(',') === 'pull,start', JSON.stringify({ model: fromModel.calls, panel: fromPanel.calls }))
   check('the refused card reads the same on /model and /tensorfold — TensorFold\'s line, the stepped-down window', fromModel.card.some(line => line === `refused   ${REFUSAL.line}`) && JSON.stringify(fromModel.card) === JSON.stringify(fromPanel.card), JSON.stringify({ model: fromModel.card, panel: fromPanel.card }))
   check('the same feed receipts from both — the refusal with c copies the support line', fromModel.receipts.at(-1)?.startsWith('▲ TensorFold refused qwen3.8-27b at 128k') === true && fromModel.receipts.at(-1)?.includes('c copies the support line') === true && JSON.stringify(fromModel.receipts) === JSON.stringify(fromPanel.receipts), JSON.stringify({ model: fromModel.receipts, panel: fromPanel.receipts }))
+}
+
+console.log('\n§6 the more line is a stop (the owner, 2026-11-05): ↓ from the last row the fold shows reaches it, ↵ or → on it unfolds the rest onto the first row it held, ← folds the group; on a model row ←→ keep moving the window')
+{
+  road.__resetTensorFoldRoadForTest()
+  const unpulled = { inventory: [rowOf(QWEN_27B, 'not-pulled', MAC_48), rowOf(LIGHTNING, 'not-pulled', MAC_48), rowOf(QWEN_2B, 'not-pulled', MAC_48)] }
+  const MORE = '↓ 3 more · ↵ unfolds the rest'
+  const framed = (run: Pick<Run, 'm'>): string => {
+    const lines = run.m.lines()
+    const top = lines.findIndex(line => /│\s*╭/.test(line))
+    return top < 0 ? '' : (lines[top + 1] ?? '')
+  }
+  const cursorInk = (run: Pick<Run, 'm'>, words: string): string => {
+    const lines = run.m.lines()
+    const y = lines.findIndex(line => line.includes(`❯ ${words}`))
+    if (y < 0) return ''
+    const glyph = [...lines[y]!].indexOf('❯')
+    const lead = run.m.styleAt(glyph, y)
+    const band = run.m.styleAt(glyph + 2, y)
+    return lead === null || band === null ? '' : `${lead.fg}|${lead.bg}|${band.bg}`
+  }
+  const best = (run: Pick<Run, 'm'>): boolean => cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', '↓ 20 GB', '128k ctx', '28.5 GiB')
+  for (const [name, key] of [['↵', KEY.enter], ['→', RIGHT]] as const) {
+    const run = await open(await factsFor(unpulled), 'claude-opus-5-5', 160, 48)
+    await press(run, [UP, UP, UP])
+    const headingInk = cursorInk(run, 'TENSORFOLD ·')
+    await press(run, [RIGHT])
+    check(`${name}: → on TENSORFOLD shows the best fit framed, the last row the fold shows, its window strip saying ←→ changes it, the rest named by the more line`, best(run) && framed(run).includes('local/qwen3.8-27b') && has(run, 'window    32k 64k [128k] 256k · ←→ changes it') && has(run, `  ${MORE}`), flat(run).slice(4, 22).join(' | '))
+    await press(run, [DOWN])
+    if (name === '↵') await save('m13-model-more-line', run)
+    check(`${name}: ↓ from that row lands on the more line — ❯ marks it in the heading's own cursor ink and band, no card is framed`, has(run, `❯ ${MORE}`) && framed(run) === '' && headingInk !== '' && cursorInk(run, MORE) === headingInk, `${flat(run).filter(l => l.includes('more') || l.includes('TENSORFOLD')).join(' | ')} · ink ${cursorInk(run, MORE)} vs heading ${headingInk}`)
+    check(`${name}: the legend on the more line says what its keys do`, legendOf(run) === '↑↓ select · ↵ unfold · → ← fold · tab to search · esc or click outside closes', legendOf(run))
+    await press(run, [key])
+    check(`${name} on the more line unfolds the rest: the more line is gone and the cursor frames Lightning, the first row it held`, !has(run, MORE) && framed(run).includes('local/nemotron-lightning') && cells(run, 'Qwen3.5 2B', 'local/qwen3.5-2b', '↓ 1.7 GB') && has(run, 'other checkpoint'), flat(run).slice(4, 26).join(' | '))
+    check(`${name}: the window of the row above the more line never moved (the 27B still reads 128k)`, best(run) && !cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'does not fit'), flat(run).filter(l => l.includes('qwen3.8-27b')).join(' | '))
+    check(`${name}: nothing was acted on and the picker stays open`, run.acts.length === 0 && run.selected.length === 0 && run.closed() === 0, JSON.stringify({ acts: run.acts, selected: run.selected }))
+    run.m.unmount()
+    await settle(60)
+  }
+  {
+    const run = await open(await factsFor(unpulled), 'claude-opus-5-5', 160, 48)
+    await press(run, [UP, UP, UP, RIGHT, DOWN, KEY.left])
+    check('← on the more line folds the group: the cursor on the TENSORFOLD heading, no row under it', has(run, '❯ TENSORFOLD · 1.2.2') && !has(run, 'local/qwen3.8-27b') && !has(run, MORE), flat(run).filter(l => /TENSORFOLD|qwen|more/.test(l)).join(' | '))
+    await press(run, [RIGHT])
+    check('→ on the heading opens it again with the 27B framed at the window it had', best(run) && framed(run).includes('local/qwen3.8-27b') && has(run, 'window    32k 64k [128k] 256k · ←→ changes it') && has(run, `  ${MORE}`), flat(run).slice(4, 22).join(' | '))
+    await press(run, [RIGHT])
+    check('→ on the framed 27B still moves its window, and the more line stays where it was', cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'does not fit', '256k ctx') && has(run, `  ${MORE}`) && framed(run).includes('local/qwen3.8-27b'), flat(run).slice(4, 22).join(' | '))
+    await press(run, [KEY.left])
+    check('← brings the window back to 128k', best(run) && has(run, 'window    32k 64k [128k] 256k · ←→ changes it'), flat(run).slice(4, 22).join(' | '))
+    run.m.unmount()
+    await settle(60)
+  }
 }
 
 await releaseScratchHome(home)
