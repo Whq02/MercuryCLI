@@ -99,7 +99,7 @@ See [docs/README.md](docs/README.md) for the full documentation catalogue ([docs
 | --- | --- |
 | `/imagesetup` | Set up local image and video models. |
 | `/llmhost` | Choose a model to rent on Runpod, Vast.ai, Lambda, Hugging Face Inference Endpoints, Hyperstack, Verda or DigitalOcean, run on your own computer, or connect an existing server. |
-| `/tensorfold` | Run a local model on TensorFold: install the engine, pull a model, serve it on this Mac, share it on your network or rent a GPU for it, and switch — one screen. |
+| `/tensorfold` | Run a local model on TensorFold: install the engine, pull a model, serve it on this Mac, share it on your network or rent a GPU for it, and switch to it, all on one screen. |
 | `/restart` | Move this chat to the installed Mercury build; running watches and background shells stop. |
 | `/mcp` | Inspect servers, sign in, browse each server’s tools and parameters, reconnect, or toggle a server for this chat. |
 

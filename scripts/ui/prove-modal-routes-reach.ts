@@ -302,13 +302,13 @@ const boxedMarker = (lines: string[]): boolean => {
   const rows = region(lines)
   return rows.some((line, index) => /^│\s*╭─+╮\s*│/.test(line) && /^│\s*│ \S/.test(rows[index + 1] ?? ''))
 }
-const MARKER_ALWAYS = new Set(['accounts', 'appearance', 'caching', 'capabilities', 'console', 'critter', 'defaultprovider', 'effort', 'export', 'feedback', 'health', 'hooks', 'keys', 'logins', 'memory', 'model', 'palette', 'samples', 'sessions', 'showcase', 'submodels'])
+const MARKER_ALWAYS = new Set(['accounts', 'appearance', 'caching', 'capabilities', 'console', 'critter', 'defaultprovider', 'effort', 'export', 'feedback', 'health', 'hooks', 'keys', 'logins', 'memory', 'model', 'palette', 'samples', 'sessions', 'showcase', 'submodels', 'tensorfold'])
 const MARKER_AFTER_WALK = new Set(['permissions'])
 const MARKER_WIDE_NAV = new Set(['extensions', 'workbench'])
 const diffListsFiles = (lines: string[]): boolean => region(lines).some(line => /Mercury — diff · \d+ files? /.test(line))
 const markerExpected = (name: string, cols: number, stage: 'open' | 'walked', frame: string[] = []): boolean =>
   MARKER_ALWAYS.has(name) || (MARKER_AFTER_WALK.has(name) && stage === 'walked') || (MARKER_WIDE_NAV.has(name) && cols >= 177) || (name === 'diff' && diffListsFiles(frame))
-const markerPainted = (lines: string[], name = ''): boolean => glyphMarker(lines) || (name === 'model' && boxedMarker(lines))
+const markerPainted = (lines: string[], name = ''): boolean => glyphMarker(lines) || ((name === 'model' || name === 'tensorfold') && boxedMarker(lines))
 const fullFrameOpen = (lines: string[]): boolean => lines.some((line, index) => /^╭─+╮\s*$/.test(line) && /^│ .*Mercury — /.test(lines[index + 1] ?? ''))
 const fullFrameClosed = (lines: string[]): boolean => lines.some(line => /^╰─+╯\s*$/.test(line))
 const describe = (lines: string[]): string => region(lines).slice(0, 6).map(line => line.replace(/\s+$/, '')).join(' | ').slice(0, 300)

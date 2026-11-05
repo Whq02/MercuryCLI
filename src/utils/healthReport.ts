@@ -2942,7 +2942,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
     {
       id: 'auth',
       title: 'AUTH',
-      checks: [...providerAuthChecks(), ...tensorFoldChecks, ...providerUsageChecks(), providerSlotsCheck(), modelListsCheck(), webSearchDoorCheck(), extraCaCertsCheck()],
+      checks: [...providerAuthChecks(), ...providerUsageChecks(), ...tensorFoldChecks, providerSlotsCheck(), modelListsCheck(), webSearchDoorCheck(), extraCaCertsCheck()],
     },
     {
       id: 'interface',
