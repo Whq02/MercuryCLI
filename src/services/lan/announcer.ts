@@ -86,7 +86,7 @@ interface BrowsedAnnouncement {
 export function parseBrowseNames(text: string): string[] {
   const names: string[] = []
   for (const line of text.split('\n')) {
-    const match = /^\S+\s+Add\s+\d+\s+\d+\s+\S+\s+\S+\s+(.+?)\s*$/.exec(line)
+    const match = /^\s*\S+\s+Add\s+\d+\s+\d+\s+\S+\s+\S+\s+(.+?)\s*$/.exec(line)
     if (match && !names.includes(match[1]!)) names.push(match[1]!)
   }
   return names
