@@ -1,5 +1,7 @@
 import type { Tool, Tools } from '../../../Tool.js'
-import { isDeferredTool, TOOL_SEARCH_TOOL_NAME } from '../../../tools/ToolSearchTool/prompt.js'
+import { isDeferredTool, isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../../../tools/ToolSearchTool/prompt.js'
+import { localPromptProfileApplies, localToolForm } from '../../../constants/localPromptProfile.js'
+import { deferralWireFormFor } from '../deferralWire.js'
 import type { Message } from '../../../types/message.js'
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { toolToAPISchema } from '../../../utils/api.js'
@@ -64,7 +66,7 @@ export function localPromptFitRefusal(model: string, params: LocalEstimateParams
   if (record === undefined) return undefined
   const guard = localGuardWindow(record)
   if (guard === undefined) return undefined
-  const toolWire = localToolWireGuess(params.tools, params.messages)
+  const toolWire = localToolWireGuess(params.tools, params.messages, model)
   const fixed = localPreComposeEstimate({ ...params, messages: [], toolWire, model })
   if (fixed <= guard.tokens * LOCAL_FIT_TOLERANCE) return undefined
   const estTokens = localPreComposeEstimate({ ...params, toolWire, model })
@@ -76,7 +78,7 @@ export function localPromptFits(model: string, params: LocalEstimateParams): boo
   if (record === undefined) return false
   const guard = localGuardWindow(record)
   if (guard === undefined) return false
-  const toolWire = localToolWireGuess(params.tools, params.messages)
+  const toolWire = localToolWireGuess(params.tools, params.messages, model)
   return localWindowFits(guard.tokens, localPreComposeEstimate({ ...params, toolWire, model }))
 }
 
@@ -107,14 +109,22 @@ function unrenderedApiTool(tool: Tool): ApiShapedTool {
   return { name: tool.name, description: ' '.repeat(LOCAL_UNRENDERED_DESCRIPTION_BYTES), input_schema }
 }
 
-export function localToolWireGuess(tools: Tools, messages: readonly Message[]): LocalToolWire {
-  const deferred = new Set(tools.filter(tool => isDeferredTool(tool)).map(tool => tool.name))
+function profileApiTool(tool: Tool, model: string, rendered: ReadonlyMap<string, ApiShapedTool>): ApiShapedTool {
+  const plain = unrenderedApiTool(tool)
+  const short = localToolForm(tool.name, model, plain.description ?? '', plain.input_schema)
+  return short.description !== plain.description ? { name: tool.name, description: short.description, input_schema: short.input_schema } : rendered.get(tool.name) ?? plain
+}
+
+export function localToolWireGuess(tools: Tools, messages: readonly Message[], model?: string): LocalToolWire {
+  const profileModel = model !== undefined && localPromptProfileApplies(model) ? model : undefined
+  const deferred = new Set(tools.filter(tool => (profileModel !== undefined ? isDeferredToolFor(tool, profileModel) : isDeferredTool(tool))).map(tool => tool.name))
   const deferring = isToolSearchEnabledOptimistic() && tools.some(tool => tool.name === TOOL_SEARCH_TOOL_NAME) && deferred.size > 0
   const admitted = deferring ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
-  const roster = deferring ? tools.filter(tool => !deferred.has(tool.name) || admitted.has(tool.name)) : tools.filter(tool => tool.name !== TOOL_SEARCH_TOOL_NAME)
+  const admittedJoin = profileModel === undefined || deferralWireFormFor(profileModel).form === 'text'
+  const roster = deferring ? tools.filter(tool => !deferred.has(tool.name) || (admittedJoin && admitted.has(tool.name))) : tools.filter(tool => tool.name !== TOOL_SEARCH_TOOL_NAME)
   const rendered = new Map<string, ApiShapedTool>()
   for (const built of getToolSchemaCache().values()) rendered.set(built.name, { name: built.name, ...(built.description ? { description: built.description } : {}), input_schema: built.input_schema })
-  const apiTools = roster.map(tool => rendered.get(tool.name) ?? unrenderedApiTool(tool))
+  const apiTools = roster.map(tool => (profileModel !== undefined ? profileApiTool(tool, profileModel, rendered) : rendered.get(tool.name) ?? unrenderedApiTool(tool)))
   const named = deferring ? [...deferred].filter(name => !admitted.has(name)).length : 0
   return { schemas: apiTools.length, schemaBytes: wireBytesOf(apiTools), named }
 }
@@ -158,7 +168,7 @@ export async function localToolWireOf(params: CompatCallModelParams): Promise<Lo
 
 export function localPreComposeEstimate(params: LocalEstimateParams): number {
   const tokens = estimateRequestTokens({ messages: params.messages, system: params.systemPrompt }, params.model ?? params.options?.model)
-  const wire = params.toolWire ?? localToolWireGuess(params.tools, params.messages)
+  const wire = params.toolWire ?? localToolWireGuess(params.tools, params.messages, params.model ?? params.options?.model)
   return tokens + Math.ceil(wire.schemaBytes / LOCAL_WIRE_BYTES_PER_TOKEN)
 }
 
