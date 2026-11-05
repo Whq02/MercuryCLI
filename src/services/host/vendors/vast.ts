@@ -247,7 +247,8 @@ export class VastClient implements HostVendor {
   }
   async get(id: string, signal?: AbortSignal): Promise<HostPod> {
     if (!/^[1-9][0-9]*$/.test(id)) throw new Error('Vast.ai requires a numeric instance ID.')
-    const { instances } = await this.api.request('/api/v0/instances/' + id + '/', z.object({ instances: instanceSchema }), 'GET', undefined, signal)
+    const { instances } = await this.api.request('/api/v0/instances/' + id + '/', z.object({ instances: instanceSchema.nullable() }), 'GET', undefined, signal)
+    if (instances === null) throw new HostVendorHttpError('Vast.ai no longer lists instance ' + id + ' (destroyed)', 404)
     if (String(instances.id) !== id) throw new Error('Vast.ai returned a different instance ID.')
     return this.pod(instances)
   }

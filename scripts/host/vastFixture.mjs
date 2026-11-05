@@ -144,6 +144,7 @@ export async function vastFixture() {
     const match = /^\/api\/v0\/instances\/(\d+)\/$/.exec(url.pathname)
     const id = Number(match?.[1])
     const pod = state.pods.get(id)
+    if (!pod && req.method === 'GET' && match) { json({ instances: null }); return }
     if (!pod) { fail(404, 'Instance not found'); return }
     if (req.method === 'GET') { const payload = shown(pod); state.provisioningRead = false; json(state.badRead ? {} : { instances: payload }); return }
     if (req.method === 'PUT' && body.state === 'stopped') { state.stops++; pod.actual_status = 'stopped'; json({ success: true }); return }

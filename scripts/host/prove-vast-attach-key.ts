@@ -28,6 +28,8 @@ try {
   const { vendorClient, saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
   saveVendorKey('vast', vast.key)
   const api = vendorClient('vast', { key: vast.key, apiBaseUrl: vast.baseUrl })
+  const destroyed = await api.get('424242', new AbortController().signal).then(() => undefined, (error: unknown) => error as { status?: number; message: string })
+  check('a destroyed instance (Vast answers HTTP 200 with instances: null) reads as not found, never as a shape Mercury cannot read', destroyed?.status === 404 && destroyed.message.includes('no longer lists instance 424242'), destroyed?.message)
   const offer = (await api.offers(new AbortController().signal)).find(row => row.recipe.id === 'qwen38-27b-rtx-pro-6000')!
   ssh = fakeSshRunner(f.baseUrl, hostRunner)
   const key = await ensureHostKey(ssh.runner, new AbortController().signal)
