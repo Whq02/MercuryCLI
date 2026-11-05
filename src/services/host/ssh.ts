@@ -89,8 +89,8 @@ export async function inspectSsh(target: SshTarget, runner: HostRunner, signal: 
   return { gpus, docker: output.includes('DOCKER_ENGINE_PRESENT') }
 }
 export function fitsSsh(recipe: HostRecipe, gpus: { name: string; memory: number }[]): boolean { return gpus.filter(gpu => recipeFits(recipe, gpu.name, gpu.memory, recipe.count)).length >= recipe.count }
-const engineCausePattern = /GGML_ASSERT|terminate called|what\(\):|error loading model|failed to load (?:model|weights)|llama_model_load: error|CUDA error|CUDA_ERROR_|out of memory|OutOfMemoryError|\bOOM\b|\.(?:c|cpp|cu|cuh|h|hpp):\d+: /i
-const engineCauseGrep = 'GGML_ASSERT|terminate called|error loading model|failed to load (model|weights)|llama_model_load: error|CUDA error|CUDA_ERROR_|out of memory|OutOfMemoryError|(^|[^A-Za-z])OOM([^A-Za-z]|$)|\\.(c|cpp|cu|cuh|h|hpp):[0-9]+: '
+const engineCausePattern = /GGML_ASSERT|terminate called|what\(\):|error loading model|failed to load (?:model|weights)|llama_model_load: error|CUDA error|CUDA_ERROR_|out of memory|OutOfMemoryError|\bOOM\b|\.(?:c|cpp|cu|cuh|h|hpp):\d+: |^tensorfold: /i
+const engineCauseGrep = 'GGML_ASSERT|terminate called|error loading model|failed to load (model|weights)|llama_model_load: error|CUDA error|CUDA_ERROR_|out of memory|OutOfMemoryError|(^|[^A-Za-z])OOM([^A-Za-z]|$)|\\.(c|cpp|cu|cuh|h|hpp):[0-9]+: |^tensorfold: '
 const engineWarningPattern = /^(?:\[rank\d+\]:)?\[W\d{4} |\b[A-Za-z]*Warning\b|\bWARN(?:ING)?\b/
 const engineWarningGrep = '(^|[^A-Za-z])(\\[rank[0-9]+\\]:)?\\[W[0-9]{4} |[A-Za-z]*Warning([^A-Za-z]|$)|(^|[^A-Za-z])WARN(ING)?([^A-Za-z]|$)'
 const fatalEngineLine = (line: string): boolean => Boolean(line) && !line.startsWith('MERCURY_') && engineCausePattern.test(line) && !engineWarningPattern.test(line)

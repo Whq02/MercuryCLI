@@ -104,7 +104,7 @@ export function tensorFoldEngineScript(recipe: HostRecipe, dir: string, options:
   const base = options.releaseBase ?? TENSORFOLD_RELEASE_BASE
   const archives = options.archives ?? TENSORFOLD_RELEASE_ARCHIVES
   const pulls = [point.repo + (point.revision ? '@' + point.revision : ''), ...(point.drafter ? [point.drafter] : [])]
-  const serve = ['tensorfold-native', 'serve', point.repo, ...recipe.flags, '--host', '0.0.0.0', '--port', String(TENSORFOLD_HOST_PORT), '--api-key-file'].map(quote).join(' ') + ' "$dir/api-key"'
+  const serve = ['tensorfold-native', 'serve', point.repo, ...recipe.flags, '--host', '0.0.0.0', '--port', String(TENSORFOLD_HOST_PORT), '--api-key-file'].map(quote).join(' ') + ' "$keydir/api-key"'
   return [
     'set -e',
     'dir=' + quote(dir),
@@ -154,6 +154,8 @@ export function tensorFoldEngineScript(recipe: HostRecipe, dir: string, options:
     'echo "MERCURY_STEP TensorFold $(tensorfold-native --version 2>/dev/null | head -n 1 | sed \'s/^tensorfold-native //\') installed"',
     '[ -f "$dir/api-key" ] || { echo \'the API key file is missing; resume the setup from /llmhost\'; exit 1; }',
     'chmod 600 "$dir/api-key"',
+    'keydir="${TMPDIR:-/tmp}/mercury-host-$(basename "$dir")"',
+    '( umask 077; mkdir -p "$keydir" && cp "$dir/api-key" "$keydir/api-key" && chmod 600 "$keydir/api-key" )',
     ...pulls.flatMap(repo => ['echo ' + quote('MERCURY_STEP pulling ' + repo), 'tensorfold-native pull ' + quote(repo)]),
     "echo 'MERCURY_STEP starting engine'",
     serve,

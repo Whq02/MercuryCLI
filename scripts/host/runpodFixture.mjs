@@ -250,7 +250,7 @@ export function fakeSshRunner(modelBaseUrl, actualRunner, modelState, options = 
       }
       if (remote.includes('/props') && !remote.includes('MERCURY_ENGINE_READ ')) output = JSON.stringify({ default_generation_settings: { n_ctx: modelState?.window }, total_slots: modelState?.slots })
       if (remote.includes('nvidia-smi')) output = state.gpus ?? Array.from({ length: 4 }, () => 'NVIDIA B200, 196608').join('\n') + (state.docker ? '\nDOCKER_ENGINE_PRESENT' : '')
-      if (remote.includes('umask 077') && remote.includes('/api-key')) {
+      if (remote.startsWith('umask 077; mkdir -p') && remote.includes('/api-key')) {
         const parts = shell(remote); const at = parts.findIndex((value, index) => value === 'printf' && parts[index + 1] === '%s')
         if (at >= 0) state.keyFile = parts[at + 2]
       }
