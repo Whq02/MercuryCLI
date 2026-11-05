@@ -7,7 +7,7 @@ import { chosenTensorFoldWindow, reachesAgentFloor, tensorFoldLadder, type Tenso
 import { servedTensorFold } from './serve.js'
 import { QWEN_27B, QWEN_27B_SECOND_WORDS, QWEN_2B, TENSORFOLD_STARTING_POINTS, startingPointOf, tensorFoldLabel, tensorFoldShortName, tensorFoldStartingOrder, type TensorFoldCheckpoint } from './starting.js'
 
-export type TensorFoldInventoryRow = TensorFoldModelRow & { label: string; checkpoint: TensorFoldCheckpoint; quantisation?: string; note?: string }
+export type TensorFoldInventoryRow = TensorFoldModelRow & { label: string; checkpoint: TensorFoldCheckpoint; quantisation?: string }
 
 type HfSnapshot = {
   repo: string
