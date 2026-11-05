@@ -1447,6 +1447,7 @@ async function* streamOneCompatAttempt(ctx: {
     lastMessage.message.usage = finalUsage as AssistantMessage['message']['usage']
     lastMessage.message.stop_reason = stopReason as AssistantMessage['message']['stop_reason']
     if (typedEnd !== null) lastMessage.streamEnd = typedEnd
+    if (ctx.servedByTensorFold && typeof request.extra?.max_tokens === 'number') lastMessage.outputLimit = request.extra.max_tokens
     if (preserveKimi && !fault && finish && accepted.length === completed.length) {
       lastMessage.kimiProviderTurn = {
         model: request.model, endpoint: requestUrl,

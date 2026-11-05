@@ -19,6 +19,7 @@ const check = (name: string, truth: unknown, detail = ''): void => { assert.ok(t
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
 const engineHits: { path: string; authorization?: string; body?: unknown }[] = []
 let podKey = (): string | undefined => undefined
+let chatContent = 'ready'
 const engine = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) {
   const path = new URL(request.url).pathname
   const authorization = request.headers.get('authorization') ?? undefined
@@ -32,7 +33,7 @@ const engine = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) 
     const body = await request.json() as { model: string }
     hit.body = body
     const chunk = (delta: unknown, finish: string | null = null, usage?: unknown): string => 'data: ' + JSON.stringify({ model: body.model, choices: [{ index: 0, delta, finish_reason: finish }], ...(usage ? { usage } : {}) }) + '\n\n'
-    return new Response(chunk({ content: 'ready' }) + chunk({}, 'stop', { prompt_tokens: 20, completion_tokens: 2, prompt_tokens_details: { cached_tokens: 0 }, tensorfold: { tokens_per_second: 110, time_to_first_token: 0.04, prefill_seconds: 0.04, reasoning_effort: 'medium' } }) + 'data: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } })
+    return new Response(chunk({ content: chatContent }) + chunk({}, 'stop', { prompt_tokens: 20, completion_tokens: 2, prompt_tokens_details: { cached_tokens: 0 }, tensorfold: { tokens_per_second: 110, time_to_first_token: 0.04, prefill_seconds: 0.04, reasoning_effort: 'medium' } }) + 'data: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } })
   }
   return new Response('not found', { status: 404 })
 } })
@@ -81,6 +82,28 @@ try {
   check('the reply check reached the engine through the tunnel with the key and the engine answered', engineHits.some(hit => hit.path === '/v1/chat/completions' && hit.authorization === 'Bearer ' + key && (hit.body as { model?: string })?.model === 'qwen3.8-27b') && !escaped.length)
   const box = readBox('pod-' + pod.id)
   check('the pod is a host box with engine tensorfold on 8080 and its SSH target, and lane 1’s facts show it serving with price and elapsed time', box?.engines[0]?.kind === 'tensorfold' && box.engines[0].port === 8080 && box.target?.host === '127.0.0.1' && tensorFoldPodFacts(ready, offer.recipe)?.state === 'serving' && tensorFoldPodFacts(ready, offer.recipe)?.price === 1.19 && hostRentalUsage(model)?.price === 1.19 && (hostRentalUsage(model)?.elapsedMs ?? -1) >= 0)
+  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { assembleToolPool } = await import('../../src/tools.ts')
+  const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
+  const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
+  const permission = getEmptyToolPermissionContext()
+  const pool = assembleToolPool(permission, [])
+  const searched = await ToolSearchTool.call({ query: 'select:TaskStop', max_results: 5 }, { options: { tools: pool }, getAppState: () => ({ toolPermissionContext: { ...permission, mode: 'default' }, mcp: { clients: [] } }) } as never)
+  const admission = ToolSearchTool.mapToolResultToToolResultBlockParam((searched as { data: unknown }).data as never, 'toolu_ts_1')
+  chatContent = '<tool_call>\n<function=TaskStop>\n<parameter=task_id>\nb4avyo465\n</parameter>\n</function>\n</tool_call>'
+  const minted: Array<{ type: string; name?: string; input?: { task_id?: string } }> = []
+  for await (const item of routedCallModel({
+    messages: [createUserMessage({ content: 'Stop the smoke server.' }), createAssistantMessage({ content: [{ type: 'tool_use', id: 'toolu_ts_1', name: 'ToolSearch', input: { query: 'select:TaskStop' } }] as never }), createUserMessage({ content: [admission] as never })] as never,
+    systemPrompt: ['You are a fixture assistant.'] as never, thinkingConfig: { type: 'enabled', budget_tokens: 1024 } as never, tools: pool, signal: AbortSignal.timeout(30_000),
+    options: { getToolPermissionContext: async () => permission, model, isNonInteractiveSession: true, querySource: 'main_thread', agents: [], hasAppendSystemPrompt: false, mcpTools: [], hasPendingMcpServers: false, effortValue: 'high' } as never,
+  })) {
+    const row = item as { type?: string; isApiErrorMessage?: boolean; message?: { content?: typeof minted } }
+    if (row.type === 'assistant' && row.isApiErrorMessage !== true) minted.push(...(row.message?.content ?? []))
+  }
+  chatContent = 'ready'
+  const sent = engineHits.filter(hit => hit.path === '/v1/chat/completions').at(-1)?.body as { max_tokens?: number; thinking_budget?: number } | undefined
+  check('the pod as registered is TensorFold-served on the compat road: a ToolSearch-loaded TaskStop it answers as Qwen markup runs, and the request carries the local lane\'s max_tokens for the 128k window (32768) with the thinking budget under it', minted.some(block => block.type === 'tool_use' && block.name === 'TaskStop' && block.input?.task_id === 'b4avyo465') && sent?.max_tokens === 32768 && sent.thinking_budget === 16384, JSON.stringify({ minted: minted.map(block => block.type + ':' + (block.name ?? '')), max_tokens: sent?.max_tokens, thinking_budget: sent?.thinking_budget }))
   check('the engine log Mercury keeps names the driver check, the install and the pull', readFileSync(ready.log!, 'utf8').includes('driver 580.95.05 · compute capability 12.0') && readFileSync(ready.log!, 'utf8').includes('pulling TensorFold/Qwen3.8-27B-MLX-4bit'))
   const stopped = await stopTensorFoldPod(pod.id, { client: api, pauseMs: 10, forget: async () => {} })
   check('s on the HOST pod row stops the pod: compute billing ends, the disk bills until Terminate', stopped.ok && rp.state.stops === 1 && readHostRecord(pod.id)?.status === 'EXITED' && stopped.words.includes('compute billing ended') && stopped.words.includes('the disk bills until you terminate it in /llmhost') && tensorFoldPodFacts(readHostRecord(pod.id)!, offer.recipe)?.state === 'stopped')

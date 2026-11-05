@@ -186,6 +186,22 @@ check('a vLLM pod (no TensorFold box) is not TensorFold-served', localServerKind
 check('the same Qwen 3.8 27B on Cerebras, Groq and OpenRouter is not TensorFold-served', OTHER_ROADS.every(model => localServerKind(model) === undefined))
 check('both fixture engines are discovered by the local lane with their served windows', localRecordFor(LOCAL)?.contextWindow?.tokens === 262144 && localRecordFor(SMALL_LOCAL)?.contextWindow?.tokens === 32768, JSON.stringify([localRecordFor(LOCAL)?.contextWindow, localRecordFor(SMALL_LOCAL)?.contextWindow]))
 
+section('§1 max_tokens and the thinking budget: the pod road sends what the local lane sends for the same window and effort')
+reply = 'text'
+for (const [label, pod, local, bodies, ceiling] of [['256k window', POD, LOCAL, big.bodies, 32768], ['32k window', SMALL_POD, SMALL_LOCAL, small.bodies, 16384]] as const) {
+  for (const [effortValue, thinking] of [['high', true], ['high', false], ['low', true], ['medium', true], ['max', true]] as const) {
+    const onPod = await drive(pod, undefined, { effortValue, thinking, bodies })
+    const onLocal = await drive(local, undefined, { effortValue, thinking, bodies })
+    const name = `${label}, effort ${effortValue}${thinking ? '' : ' with thinking off'}`
+    check(`${name}: RED ON THE BASE — the pod request carries max_tokens, and it is the local lane's (${onLocal.body?.max_tokens})`, onPod.errors.length === 0 && typeof onPod.body?.max_tokens === 'number' && onPod.body.max_tokens === onLocal.body?.max_tokens, `pod ${knobs(onPod.body)} · local ${knobs(onLocal.body)} ${onPod.errors.join(' | ')}`)
+    check(`${name}: reasoning_effort and thinking_budget match the local lane (${knobs(onLocal.body)})`, onPod.body?.reasoning_effort === onLocal.body?.reasoning_effort && onPod.body?.thinking_budget === onLocal.body?.thinking_budget, `pod ${knobs(onPod.body)} · local ${knobs(onLocal.body)}`)
+    if (effortValue === 'high' && thinking) {
+      check(`${label}: the law, not a literal — max_tokens is min(32768, window/2) = ${ceiling}, the thinking budget leaves the 2048-token answer reserve`, onLocal.body?.max_tokens === ceiling && onPod.body?.max_tokens === ceiling && onPod.body?.thinking_budget === Math.min(16384, ceiling - 2048), knobs(onPod.body))
+      check(`${label}: the reply carries the limit its request sent (outputLimit ${ceiling}) on both TensorFold roads`, onPod.assistants.at(-1)?.outputLimit === ceiling && onLocal.assistants.at(-1)?.outputLimit === ceiling, `${onPod.assistants.at(-1)?.outputLimit} · ${onLocal.assistants.at(-1)?.outputLimit}`)
+    }
+  }
+}
+
 section('§2 a deferred tool loaded through ToolSearch and called as Qwen markup runs on the pod road')
 const context = { options: { tools: pool }, getAppState: () => ({ toolPermissionContext: { ...permissionContext, mode: 'default' }, mcp: { clients: [] } }) }
 const searched = await ToolSearchTool.call({ query: 'select:TaskStop', max_results: 5 }, context as never)
