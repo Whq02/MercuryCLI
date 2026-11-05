@@ -5,7 +5,7 @@ import { getApiFetch } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import type { LocalServerKind } from '../openaicompat/compatWire.js'
 import { kvGeometryOf, type KvGeometry } from '../../localServer/localServerMemory.js'
-import { resolveLocalApiKey, resolveLocalApiKeyFor } from './localAccounts.js'
+import { resolveLocalApiKeyFor } from './localAccounts.js'
 import { ggufServerRoots } from '../../localSetup/ggufServers.js'
 import { tensorFoldHostRecords, tensorFoldPorts } from './tensorfoldHosts.js'
 
@@ -128,6 +128,15 @@ export function localProbeTargets(
 }
 
 
+function probeRoot(url: string): string {
+  try {
+    const parsed = new URL(url)
+    return `${parsed.protocol}//${parsed.host}`
+  } catch {
+    return url
+  }
+}
+
 async function probeJson(
   url: string,
   io: LocalDiscoveryIo,
@@ -135,7 +144,7 @@ async function probeJson(
 ): Promise<unknown | undefined> {
   const fetchImpl = io.fetchImpl ?? getApiFetch()
   const timeoutMs = init?.timeoutMs ?? io.timeoutMs ?? LOCAL_PROBE_TIMEOUT_MS
-  const key = resolveLocalApiKey(io.env ?? process.env)
+  const key = resolveLocalApiKeyFor(probeRoot(url), io.env ?? process.env)
   try {
     const response = await fetchWithProviderDeadline(fetchImpl, 'local', timeoutMs, url, {
       method: init?.method ?? 'GET',

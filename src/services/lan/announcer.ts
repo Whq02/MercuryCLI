@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { hostname } from 'node:os'
+import { subprocessEnv } from '../../utils/subprocessEnv.js'
 
 export const MERCURY_TENSORFOLD_SERVICE_TYPE = '_mercury-tf._tcp'
 
@@ -58,7 +59,7 @@ export function startAnnouncer(announcement: Announcement, io: AnnouncerIo = {})
   const spawnImpl = io.spawnImpl ?? spawn
   let child: ChildProcess
   try {
-    child = spawnImpl(command.file, command.args, { stdio: ['ignore', 'ignore', 'ignore'], windowsHide: true })
+    child = spawnImpl(command.file, command.args, { env: subprocessEnv(), stdio: ['ignore', 'ignore', 'ignore'], windowsHide: true })
   } catch {
     return undefined
   }
@@ -86,7 +87,7 @@ interface BrowsedAnnouncement {
 export function parseBrowseNames(text: string): string[] {
   const names: string[] = []
   for (const line of text.split('\n')) {
-    const match = /^\S+\s+Add\s+\d+\s+\d+\s+\S+\s+\S+\s+(.+?)\s*$/.exec(line)
+    const match = /^\s*\S+\s+Add\s+\d+\s+\d+\s+\S+\s+\S+\s+(.+?)\s*$/.exec(line)
     if (match && !names.includes(match[1]!)) names.push(match[1]!)
   }
   return names
@@ -111,7 +112,7 @@ function runFor(file: string, args: string[], ms: number, spawnImpl: typeof spaw
     let out = ''
     let child: ChildProcess
     try {
-      child = spawnImpl(file, args, { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true })
+      child = spawnImpl(file, args, { env: subprocessEnv(), stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true })
     } catch {
       resolve('')
       return

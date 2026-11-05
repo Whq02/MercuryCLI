@@ -1,3 +1,4 @@
+import { accessSync, constants } from 'node:fs'
 import { createServer } from 'node:net'
 import { totalmem } from 'node:os'
 import { getGlobalConfig, saveGlobalConfig } from '../../../utils/config/globalConfig.js'
@@ -6,7 +7,7 @@ import { getEngineModel } from '../../../utils/model/model.js'
 import { bankedHostRecipes, bankFolder } from '../../host/bank.js'
 import { gibWords } from '../../localServer/localServerMemory.js'
 import { defaultMachineTruth } from '../../localServer/localServerTruth.js'
-import type { HelperModelSize, HelperModelState } from '../../tensorfold/contracts.js'
+import type { HelperModelSize, HelperModelState, TensorFoldServeRequest, TensorFoldServeRole, TensorFoldServed } from '../../tensorfold/contracts.js'
 import { LOCAL_MODEL_PREFIX, LOCAL_SERVER_NAMES, localRecordFor } from './localCatalogue.js'
 import { cachedLocalModels, refreshLocalDiscovery, type LocalModelRecord } from './localDiscovery.js'
 import { forgetTensorFoldPort, rememberTensorFoldPort } from './tensorfoldHosts.js'
@@ -35,6 +36,42 @@ export const HELPER_JOB_WORDS = {
 
 export const HELPER_SINGLE_SLOT_REASON = 'its prompt cache holds one conversation · a helper request would evict this session\'s'
 export const HELPER_NO_SESSION_LOCAL_REASON = 'the session is not on a local model'
+export const HELPER_NOT_INSTALLED_REASON = 'install TensorFold'
+export const HELPER_2B_NOT_PULLED_REASON = 'pull the 2B in /tensorfold'
+
+let engineFound: boolean | undefined
+let pinnedReads: { engineFound?: boolean; twoBOnDisk?: boolean } | undefined
+
+export function __pinHelperReadsForTest(reads: { engineFound?: boolean; twoBOnDisk?: boolean } | undefined): void {
+  pinnedReads = reads
+}
+
+export function tensorFoldEngineFound(reads: { candidates?: () => string[]; executable?: (path: string) => boolean } = {}): boolean {
+  if (reads.candidates === undefined && reads.executable === undefined && engineFound !== undefined) return engineFound
+  const { tensorFoldBinaryCandidates } = require('../../tensorfold/engine.js') as typeof import('../../tensorfold/engine.js')
+  const executable = reads.executable ?? ((path: string): boolean => {
+    try {
+      accessSync(path, constants.X_OK)
+      return true
+    } catch {
+      return false
+    }
+  })
+  const found = process.platform !== 'win32' && (reads.candidates ?? (() => tensorFoldBinaryCandidates()))().some(executable)
+  if (reads.candidates === undefined && reads.executable === undefined) engineFound = found
+  return found
+}
+
+export function helper2bOnDisk(reads: { snapshot?: (repo: string) => boolean } = {}): boolean {
+  if (reads.snapshot !== undefined) return reads.snapshot(HELPER_2B_REPO)
+  try {
+    const { hfCacheRoot, readHfSnapshot } = require('../../tensorfold/inventory.js') as typeof import('../../tensorfold/inventory.js')
+    const snapshot = readHfSnapshot(hfCacheRoot(), HELPER_2B_REPO)
+    return snapshot !== undefined && snapshot.weightsBytes > 0 && snapshot.incompleteBytes === 0
+  } catch {
+    return false
+  }
+}
 
 const SINGLE_SLOT_FAMILIES: readonly RegExp[] = [/qwen3[._-]?8[-_]27b/i]
 
@@ -102,12 +139,24 @@ function banked4b(): { model: string; weightsGb: number } | undefined {
   }
 }
 
-export function helperModelChoices(reads: { usable?: number; session?: LocalModelRecord | null; banked4b?: boolean } = {}): HelperModelChoice[] {
+export function helperModelChoices(reads: { usable?: number; session?: LocalModelRecord | null; banked4b?: boolean; engineFound?: boolean; twoBOnDisk?: boolean } = {}): HelperModelChoice[] {
   const usable = reads.usable ?? usableBytes()
   const session = reads.session === undefined ? sessionLocalRecord() : reads.session ?? undefined
   const has4b = reads.banked4b ?? banked4b() !== undefined
+  const installed = reads.engineFound ?? pinnedReads?.engineFound ?? tensorFoldEngineFound()
+  const twoBOnDisk = reads.twoBOnDisk ?? pinnedReads?.twoBOnDisk ?? (installed && helper2bOnDisk())
   const fit = (bytes: number): 'fits' | 'does not fit' => (bytes <= usable ? 'fits' : 'does not fit')
-  const twoB: HelperModelChoice = { size: '2b', label: '2B (TensorFold)', engine: 'tensorfold', memory: `~${gibWords(HELPER_2B_PROJECTED_BYTES)} · an estimate`, fit: fit(HELPER_2B_PROJECTED_BYTES), available: fit(HELPER_2B_PROJECTED_BYTES) === 'fits', modelId: `${LOCAL_MODEL_PREFIX}${HELPER_2B_NAME}` }
+  const twoBMissing = !installed ? HELPER_NOT_INSTALLED_REASON : !twoBOnDisk ? HELPER_2B_NOT_PULLED_REASON : undefined
+  const twoB: HelperModelChoice = {
+    size: '2b',
+    label: '2B (TensorFold)',
+    engine: 'tensorfold',
+    memory: `~${gibWords(HELPER_2B_PROJECTED_BYTES)} · an estimate`,
+    fit: fit(HELPER_2B_PROJECTED_BYTES),
+    available: twoBMissing === undefined && fit(HELPER_2B_PROJECTED_BYTES) === 'fits',
+    ...(twoBMissing !== undefined ? { reason: twoBMissing } : {}),
+    modelId: `${LOCAL_MODEL_PREFIX}${HELPER_2B_NAME}`,
+  }
   const fourB: HelperModelChoice = {
     size: '4b',
     label: '4B (llama.cpp)',
@@ -210,25 +259,62 @@ function freePort(): Promise<number> {
   })
 }
 
+export type HelperServeSeam = {
+  start: (request: TensorFoldServeRequest) => Promise<TensorFoldServed>
+  stop: (name: string) => Promise<void>
+  served: () => readonly TensorFoldServed[]
+}
+
+export const HELPER_ROLE: TensorFoldServeRole = 'helper'
+
+async function defaultServeSeam(): Promise<HelperServeSeam> {
+  const serve = await import('../../tensorfold/serve.js')
+  const roleIo = { role: HELPER_ROLE } as unknown as Parameters<typeof serve.stopTensorFold>[1] & Parameters<typeof serve.servedTensorFold>[0]
+  return {
+    start: request => serve.startTensorFold(request),
+    stop: name => serve.stopTensorFold(name, roleIo),
+    served: () => serve.servedTensorFold(roleIo),
+  }
+}
+
+let serveSeam: (() => Promise<HelperServeSeam>) | undefined
+
+export function __pinHelperServeSeamForTest(seam: (() => Promise<HelperServeSeam>) | undefined): void {
+  serveSeam = seam
+}
+
+export function helper2bRequest(port: number): TensorFoldServeRequest {
+  return { repo: HELPER_2B_REPO, window: HELPER_2B_WINDOW, name: HELPER_2B_NAME, port, promptCacheGib: HELPER_2B_PROMPT_CACHE_GIB, role: HELPER_ROLE }
+}
+
 async function start2b(): Promise<void> {
-  const { startTensorFold } = await import('../../tensorfold/serve.js')
+  const seam = await (serveSeam ?? defaultServeSeam)()
   const port = await freePort()
-  const served = await startTensorFold({ repo: HELPER_2B_REPO, window: HELPER_2B_WINDOW, name: HELPER_2B_NAME, port, promptCacheGib: HELPER_2B_PROMPT_CACHE_GIB })
+  const served = await seam.start(helper2bRequest(port))
   rememberTensorFoldPort(served.port)
   helperProcess = { size: '2b', port: served.port, modelId: `${LOCAL_MODEL_PREFIX}${served.name}` }
+}
+
+export async function helperServedRecord(): Promise<TensorFoldServed | undefined> {
+  try {
+    const seam = await (serveSeam ?? defaultServeSeam)()
+    return seam.served().find(record => record.name === HELPER_2B_NAME)
+  } catch {
+    return undefined
+  }
 }
 
 async function start4b(): Promise<void> {
   const folder = bankFolder()
   const recipe = folder === undefined ? undefined : bankedHostRecipes(folder).find(row => HELPER_4B_PATTERN.test(row.model) && typeof row.weightFile === 'string')
   if (folder === undefined || recipe === undefined) throw new Error('pull the 4B first · /localsetup')
-  const { bankGgufModel } = await import('../../localSetup/ggufModels.js')
+  const { bankGgufModel, ggufModelName } = await import('../../localSetup/ggufModels.js')
   const { ggufServerPlan, startGgufServer } = await import('../../localSetup/ggufServer.js')
   const model = await bankGgufModel(recipe, folder, totalmem(), process.platform)
   const port = await freePort()
   const spec = { ...(await ggufServerPlan(model, folder, { port })), name: HELPER_SERVICE_NAME }
   const started = await startGgufServer(model, spec, { port })
-  helperProcess = { size: '4b', port, modelId: `${LOCAL_MODEL_PREFIX}${model.recipe.model.split('/').pop() ?? model.recipe.model}`, stop: started.stop }
+  helperProcess = { size: '4b', port, modelId: `${LOCAL_MODEL_PREFIX}${ggufModelName(model.recipe)}`, stop: started.stop }
 }
 
 export async function ensureHelperServing(): Promise<void> {
@@ -258,8 +344,8 @@ export async function stopHelperServing(): Promise<void> {
   if (running === undefined) return
   if (running.stop !== undefined) await running.stop().catch(() => undefined)
   else {
-    const { stopTensorFold } = await import('../../tensorfold/serve.js')
-    await stopTensorFold(HELPER_2B_NAME).catch(() => undefined)
+    const seam = await (serveSeam ?? defaultServeSeam)()
+    await seam.stop(HELPER_2B_NAME).catch(() => undefined)
   }
   forgetTensorFoldPort(running.port)
 }

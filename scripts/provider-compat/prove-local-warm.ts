@@ -214,7 +214,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
 const { getSystemContext, getUserContext } = await import('../../src/context.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
-const { appendSystemContext, prependUserContext } = await import('../../src/utils/api.ts')
+const { appendSystemContext, firstTurnUserContext, prependUserContext } = await import('../../src/utils/api.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { localLaw } = await import('../../src/constants/localPromptProfile.ts')
 const { resolveBehaviourContract, renderGenericInstructions } = await import('../../src/prompt/behaviourContract.ts')
@@ -235,7 +235,7 @@ const systemPromptSections = await getSystemPrompt(tools, PERSISTED, [], 'defaul
 const systemContext = await getSystemContext()
 const userContext = await getUserContext()
 const systemPrompt = asSystemPrompt(systemPromptSections)
-const fullSystemPrompt = asSystemPrompt(appendSystemContext(systemPrompt, systemContext))
+const fullSystemPrompt = asSystemPrompt(appendSystemContext(systemPrompt, systemContext, PERSISTED))
 const renderedSystemPrompt = renderGenericInstructions(resolveBehaviourContract([...fullSystemPrompt]))
 const thinkingConfig = { type: 'adaptive' as const }
 const history: unknown[] = []
@@ -263,7 +263,7 @@ const expiresIn = (tag: string): number | undefined => {
 let live = true
 
 async function firstTurn(text: string): Promise<{ usage: Record<string, number> | undefined; error: string | undefined; texts: string[] }> {
-  const messages = prependUserContext([createUserMessage({ content: text }) as never], userContext)
+  const messages = prependUserContext([createUserMessage({ content: text }) as never], await firstTurnUserContext(userContext, systemContext, PERSISTED))
   const yielded: Array<{ type?: string; isApiErrorMessage?: boolean; message?: { content?: Array<{ text?: string }> | string; usage?: Record<string, number> } }> = []
   for await (const item of localCallModel({
     messages: messages as never,

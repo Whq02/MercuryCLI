@@ -20,7 +20,7 @@ import { getMaxOutputTokensForModel } from '../anthropic/streamCore.js'
 import { EFFORT_STAMP_THINKING_OFF, EFFORT_STAMP_THINKING_ON, type EffortWireFact } from '../../../utils/effortStamp.js'
 import { planToolPayload, toolsOnTheWire } from '../toolEconomy.js'
 import { mapToolsToZai, toolDeclarationRowInResult, type ApiShapedTool } from '../zai/zaiCodec.js'
-import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKey } from './localAccounts.js'
+import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKeyFor } from './localAccounts.js'
 import { configuredProviderKeyCommand, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
 import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, residentServedWindow, type LocalDiscoveryIo, type LocalModelRecord } from './localDiscovery.js'
@@ -180,7 +180,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
     lane: 'local',
     providerLabel: LOCAL_SERVER_NAMES[record.server],
     resolveCredential: () => {
-      const key = resolveLocalApiKey()
+      const key = resolveLocalApiKeyFor(record.baseUrl)
       return key ? { apiKey: key.key } : {}
     },
     recoverCredential: async () => {

@@ -975,7 +975,7 @@ async function streamingFallbackAttempts(
     bound.request()
     const stream = routedCallModel({
       messages: apiMessages,
-      systemPrompt: asSystemPrompt(appendSystemContext([...cacheSafeParams.systemPrompt], cacheSafeParams.systemContext ?? {})),
+      systemPrompt: asSystemPrompt(appendSystemContext([...cacheSafeParams.systemPrompt], cacheSafeParams.systemContext ?? {}, model)),
       thinkingConfig: context.options.thinkingConfig,
       tools,
       signal: bound.signal,
@@ -1528,7 +1528,7 @@ type SummariserFit = {
 }
 
 export async function estimateFixedRequestTokens(context: ToolUseContext, cacheSafeParams: CacheSafeParams): Promise<number> {
-  const system = JSON.stringify(appendSystemContext([...cacheSafeParams.systemPrompt], cacheSafeParams.systemContext ?? {}))
+  const system = JSON.stringify(appendSystemContext([...cacheSafeParams.systemPrompt], cacheSafeParams.systemContext ?? {}, context.options.engineModel))
   let tools = 0
   try {
     const schemas = await Promise.all(

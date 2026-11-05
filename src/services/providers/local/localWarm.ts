@@ -2,7 +2,7 @@ import { subscribeEngineModelOverride } from '../../../bootstrap/state.js'
 import { renderGenericInstructions, resolveBehaviourContract } from '../../../prompt/behaviourContract.js'
 import type { Tools } from '../../../Tool.js'
 import type { Message } from '../../../types/message.js'
-import { appendSystemContext, prependUserContext, toolToAPISchema } from '../../../utils/api.js'
+import { appendSystemContext, firstTurnUserContext, prependUserContext, toolToAPISchema } from '../../../utils/api.js'
 import { latestUserContextBody } from '../../../utils/attachments/userContext.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { resolveWireRequestedEffort } from '../../../utils/effort.js'
@@ -207,7 +207,7 @@ export async function composeLocalWarm(record: LocalModelRecord, model: string, 
       apiTools.push({ name: shaped.name, ...(shaped.description ? { description: shaped.description } : {}), input_schema: shaped.input_schema })
     }
   }
-  const fullSystemPrompt = asSystemPrompt(appendSystemContext(context.systemPrompt, context.systemContext))
+  const fullSystemPrompt = asSystemPrompt(appendSystemContext(context.systemPrompt, context.systemContext, modelId))
   const systemText = renderGenericInstructions(resolveBehaviourContract([...fullSystemPrompt]))
   const profile = localLaneProfileFor(record)
   const wireModel = profile.wireModelId(modelId)
@@ -229,7 +229,7 @@ export async function composeLocalWarm(record: LocalModelRecord, model: string, 
     ...(apiTools.length > 0 && !toolsInPrompt ? { tools: mapToolsToZai(apiTools) } : {}),
     extra: { ...extra, max_tokens: LOCAL_WARM_NUM_PREDICT },
   }
-  const estimateMessages = latestUserContextBody(history) === null ? prependUserContext(history, context.userContext) : history
+  const estimateMessages = latestUserContextBody(history) === null ? prependUserContext(history, await firstTurnUserContext(context.userContext, context.systemContext, modelId)) : history
   const estTokens = localPreComposeEstimate({ messages: estimateMessages, systemPrompt: fullSystemPrompt, tools, model: modelId })
   const window = await localWarmKnobsFor(record, estTokens)
   const requestTokens = estimateRequestTokens(request, modelId)

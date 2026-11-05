@@ -222,10 +222,24 @@ function helperFoldModel(): string | undefined {
   }
 }
 
+function seatedLocalServing(seated: string): boolean {
+  try {
+    const { localRecordFor } = require('../providers/local/localCatalogue.js') as typeof import('../providers/local/localCatalogue.js')
+    const record = localRecordFor(seated)
+    return record !== undefined && record.loaded !== false
+  } catch {
+    return false
+  }
+}
+
 export function foldModelFor(messages: readonly Message[], seated: string, opts: { forced: boolean }): FoldModelChoice {
   const count = Math.max(tokenCountWithEstimation(messages, seated), tokenCountWithEstimation(messages))
   const helper = helperFoldModel()
   if (helper !== undefined && helper !== seated) {
+    if (seatedLocalServing(seated) && count < getBlockingLimit(seated)) {
+      logForDebugging(`compaction: the seated ${seated} is the strongest serving local model and holds the history (about ${count} tokens by Mercury's count) — it folds, not the helper ${helper}`)
+      return { model: seated, source: 'seated', count }
+    }
     if (count < getBlockingLimit(helper)) return { model: helper, source: 'helper', count }
     const reason = `the helper ${helper}'s window does not hold the history (about ${count} tokens by Mercury's count) — the seated ${seated} folds it`
     logForDebugging(`compaction: ${reason}`)

@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 
 interface TensorFoldProcessRow {
   pid: number
@@ -36,7 +37,7 @@ export function engineServedName(args: string): string | undefined {
   if (named !== undefined) return named
   const served = /\bserve\s+("([^"]*)"|'([^']*)'|(\S+))/.exec(args)
   const repo = served ? (served[2] ?? served[3] ?? served[4]) : undefined
-  return repo === undefined ? undefined : repo.split('/').pop()
+  return repo === undefined ? undefined : repo.replace(/^.*\//, '')
 }
 
 export function tensorFoldAppStateOf(rows: readonly TensorFoldProcessRow[]): TensorFoldAppState {
@@ -61,10 +62,17 @@ export function tensorFoldAppStateOf(rows: readonly TensorFoldProcessRow[]): Ten
   }
 }
 
+let processLists = 0
+
+export function __tensorFoldProcessListsForTest(): number {
+  return processLists
+}
+
 export function listProcesses(): Promise<TensorFoldProcessRow[]> {
   if (process.platform === 'win32') return Promise.resolve([])
+  processLists += 1
   return new Promise(resolve => {
-    execFile('ps', ['-axo', 'pid=,ppid=,comm=,args='], { timeout: 4000, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (error, stdout) => {
+    execFile('ps', ['-axo', 'pid=,ppid=,comm=,args='], { env: subprocessEnv(), timeout: 4000, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (error, stdout) => {
       resolve(error ? [] : parseProcessRows(String(stdout)))
     })
   })
