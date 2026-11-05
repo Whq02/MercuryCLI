@@ -73,7 +73,7 @@ named in the spec, never guessed.
 `ApolloReview` is the interview's exit tool. The
 agent calls it with a plain-English summary of the completed spec, the blocker list (empty when
 nothing blocks), the spec file paths, and a run note; the call renders the closing
-review card.
+review card (the model-facing schema exposes only those four fields: `summary`, `blockers`, `specFiles` and `runNote`, while the card records your `decision` and `refineNote`).
 
 Wrong-context calls are refused at validation, so the consent dialog can never appear
 outside a main-session Apollo interview: a crewmate's context is refused, and a

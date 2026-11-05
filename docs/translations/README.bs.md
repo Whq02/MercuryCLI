@@ -9,7 +9,7 @@ Web stranica: [mercury-cli.ai](https://mercury-cli.ai) · Repozitorij: [github.c
 Agent čita i uređuje datoteke, izvršava shell naredbe, korača kroz testove i debugere te provjerava rezultate. Vi birate dobavljača modela, model i to šta agent smije da radi:
 
 - **Više sesija u Session Concourse-u i izolovani worktree-ovi:** pokrenite više sesija jednu pored druge u Session Concourse-u (`/concourse`) i delegirajte paralelni rad crewmate-ovima od različitih dobavljača (`Crewmate`) u izolovanim `git worktree` kopijama, uz zakupe datoteka projekta (file leases) da se paralelni agenti međusobno ne bi prepisivali.
-- **22 dobavljača modela, `/llmhost` i `/localsetup`:** držite svih 22 dobavljača prijavljeno istovremeno (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter) i mijenjajte dobavljača i model usred razgovora. Otvorite `/llmhost` da odaberete model, provjerite njegovu kvantizaciju, raspodjelu `conversations × context` i nivo razmišljanja, pa ga pokrenite na iznajmljenom GPU-u (Runpod, Vast.ai ili Lambda), na vašem računaru (`mercury host`) ili na postojećem serveru. Ili pokrenite `/localsetup` da instalirate Ollamu ili je povežete uz LM Studio, vLLM i llama.cpp.
+- **22 dobavljača modela, `/llmhost` i `/localsetup`:** držite svih 22 dobavljača prijavljeno istovremeno (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter) i mijenjajte dobavljača i model usred razgovora. Otvorite `/llmhost` da odaberete model, provjerite njegovu kvantizaciju, raspodjelu `conversations × context` i nivo razmišljanja, pa ga pokrenite na iznajmljenom GPU-u (Runpod, Vast.ai ili Lambda), na vašem računaru (`mercury host`) ili na postojećem serveru. Pokrenite lokalni model na TensorFold-u uz `/tensorfold` ([docs/TENSORFOLD.md](../TENSORFOLD.md)), ili pokrenite `/localsetup` da instalirate Ollamu ili je povežete uz LM Studio, vLLM i llama.cpp.
 - **Mneme hibridna RAG memorija projekta:** koristi semantički embedding model BGE od 118 MB koji radi na uređaju (`bge-base-en-v1.5`), uz rangiranje riječi po BM25 i praćenje citata, doslovno zakačena pravila, početni kontekst svjestan grane, provjere proturječnosti u trenutku upisa, bilješke za predaju između sesija i graf u pregledniku (`/memory page`).
 - **Alati za kompajler, AST i DAP debugiranje:** povezuje LSP inteligenciju koda i refaktoriranje uz pregled (`LspRead`, `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`), pretragu i prepisivanje strukture tree-sitter AST-a za 23 jezika (`AstSearch`, `AstEdit`), ugrađeni debugger Debug Adapter Protocol (`Debug`) (`debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`) za korak-po-korak ulazak u neuspjele testove u Pythonu, Node-u, Go-u i Rust-u, te trajne `Eval` ćelije u Pythonu i JavaScriptu.
 - **`WebSearch` bez ključa i `WebFetch` u markdownu:** pretražuje kroz nativnu pretragu dobavljača, ključeve Brave ili Tavily, zvanične API-je (Stack Exchange, npm, PyPI, crates.io, GitHub, Hacker News, Wikipedia), SearXNG i DuckDuckGo bez ključa, te preuzima javnu dokumentaciju u markdownu u okviru budžeta od 38.000 znakova po pozivu.
@@ -392,11 +392,11 @@ Zastavice izvršavanja definisane su u `src/substrate/flagRegistry.ts`, izlažu 
 
 | Oblast | Naredbe |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ Zastavice izvršavanja definisane su u `src/substrate/flagRegistry.ts`, izlažu 
 | --- | --- |
 | `/imagesetup` | Postavite lokalne modele za slike i video. |
 | `/llmhost` | Odaberite model za iznajmljivanje na Runpod-u, Vast.ai-ju ili Lambda-i, pokrenite ga na vašem računaru ili povežite postojeći server. |
+| `/tensorfold` | Pokrenite lokalni model na TensorFold-u: instalirajte engine, preuzmite model, služite ga na ovom Mac-u, podijelite ga na svojoj mreži ili iznajmite GPU za njega i prebacite se na njega, sve na jednom ekranu. |
 | `/restart` | Premješta ovaj razgovor na instaliranu verziju Mercury-ja; pokrenuti monitori i pozadinske ljuske se zaustavljaju. |
 | `/mcp` | Pregledajte servere, prijavite se, pregledajte alate i parametre svakog servera, ponovo se povežite ili uključite i isključite server za ovaj razgovor. |
 

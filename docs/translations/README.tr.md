@@ -9,7 +9,7 @@ Web sitesi: [mercury-cli.ai](https://mercury-cli.ai) · Depo: [github.com/Whq02/
 Bir ajan dosyaları okur ve düzenler, shell komutları çalıştırır, testlerde ve hata ayıklayıcılarda adım adım ilerler ve sonuçları denetler. Model sağlayıcısını, modeli ve ajanın neler yapabileceğini siz seçersiniz:
 
 - **Çoklu oturum Concourse ve yalıtılmış worktree'ler:** Session Concourse'ta (`/concourse`) birden fazla oturumu yan yana çalıştırın ve paralel işleri farklı sağlayıcılardan crewmate'lere (`Crewmate`), yalıtılmış `git worktree` kopyalarında ve proje dosyası kiralamalarıyla (project file leases) devredin; böylece paralel ajanlar birbirlerinin dosyalarının üzerine yazmaz.
-- **22 model sağlayıcı, `/llmhost` ve `/localsetup`:** 22 sağlayıcının tamamında aynı anda oturum açık tutun (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter) ve sohbetin ortasında sağlayıcı ile modeli değiştirin. `/llmhost` komutunu açarak bir model seçin, quantization durumunu, `conversations × context` bölümünü ve düşünme (thinking) düzeyini inceleyin; modeli kiralık bir GPU'da (Runpod, Vast.ai veya Lambda), kendi bilgisayarınızda (`mercury host`) ya da mevcut bir sunucuda çalıştırın. Ya da `/localsetup` komutuyla LM Studio, vLLM ve llama.cpp yanında Ollama'yı kurun veya bağlayın.
+- **22 model sağlayıcı, `/llmhost` ve `/localsetup`:** 22 sağlayıcının tamamında aynı anda oturum açık tutun (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter) ve sohbetin ortasında sağlayıcı ile modeli değiştirin. `/llmhost` komutunu açarak bir model seçin, quantization durumunu, `conversations × context` bölümünü ve düşünme (thinking) düzeyini inceleyin; modeli kiralık bir GPU'da (Runpod, Vast.ai veya Lambda), kendi bilgisayarınızda (`mercury host`) ya da mevcut bir sunucuda çalıştırın. `/tensorfold` ile TensorFold üzerinde yerel bir model çalıştırın ([docs/TENSORFOLD.md](../TENSORFOLD.md)), ya da `/localsetup` komutuyla LM Studio, vLLM ve llama.cpp yanında Ollama'yı kurun veya bağlayın.
 - **Mneme hibrit RAG proje belleği:** cihaz üzerinde çalışan 118 MB'lık BGE semantic embedding modelini (`bge-base-en-v1.5`) kullanır; bunun yanında BM25 kelime sıralaması ve alıntı takibi, kelimesi kelimesine sabitlenmiş kurallar, dal farkındalıklı başlangıç bağlamı, yazma anında çelişki denetimleri, oturum devir notları ve `/memory page` tarayıcı grafiği bulunur.
 - **Derleyici, AST ve DAP hata ayıklama araçları:** LSP kod zekâsını ve önizlemeli yeniden düzenlemeleri (`LspRead`, `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`), 23 dilli tree-sitter AST yapısal aramasını ve yeniden yazmayı (`AstSearch`, `AstEdit`), başarısız Python, Node, Go ve Rust testlerinin içine adım adım girmek için yerleşik bir Debug Adapter Protocol (`Debug`) hata ayıklayıcısını (`debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`) ve kalıcı Python ile JavaScript `Eval` hücrelerini bağlar.
 - **Anahtarsız `WebSearch` ve markdown `WebFetch`:** sağlayıcının kendi aramasını, Brave veya Tavily anahtarlarını, resmî API'leri (Stack Exchange, npm, PyPI, crates.io, GitHub, Hacker News, Wikipedia), SearXNG'yi ve anahtarsız DuckDuckGo'yu kullanarak arama yapar; genel belgeleri 38.000 karakterlik bir çağrı bütçesi içinde markdown olarak getirir.
@@ -392,11 +392,11 @@ Kullanılabilir komutlar şunları içerir:
 
 | Alan | Komutlar |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ Kullanılabilir komutlar şunları içerir:
 | --- | --- |
 | `/imagesetup` | Yerel görüntü ve video modellerini yapılandırın. |
 | `/llmhost` | Runpod, Vast.ai veya Lambda üzerinde kiralamak için bir model seçin, kendi bilgisayarınızda çalıştırın ya da mevcut bir sunucuya bağlanın. |
+| `/tensorfold` | TensorFold üzerinde yerel bir model çalıştırın: motoru kurun, bir model çekin, bu Mac üzerinde sunun, ağınızda paylaşın veya bunun için bir GPU kiralayın ve ona geçin; hepsi tek ekranda. |
 | `/restart` | Bu sohbeti kurulu Mercury sürümüne taşıyın; çalışan izleyiciler ve arka plan shell'leri durur. |
 | `/mcp` | Sunucuları inceleyin, oturum açın, her sunucunun araçlarını ve parametrelerini görüntüleyin, yeniden bağlanın veya bu sohbet için bir sunucuyu açıp kapatın. |
 

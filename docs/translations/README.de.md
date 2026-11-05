@@ -9,7 +9,7 @@ Website: [mercury-cli.ai](https://mercury-cli.ai) · Repository: [github.com/Whq
 Ein Agent liest und bearbeitet Dateien, führt Shell-Befehle aus, durchläuft Tests und Debugger Schritt für Schritt und prüft die Ergebnisse. Sie bestimmen den Modellanbieter, das Modell und den Umfang dessen, was der Agent tun darf:
 
 - **Multi-Session-Concourse und isolierte Worktrees:** Führen Sie mehrere Sessions nebeneinander auf dem Session Concourse (`/concourse`) aus und delegieren Sie parallele Arbeit an anbieterübergreifende Crewmates (`Crewmate`) in isolierten Checkouts über `git worktree` mit projektbezogenen Datei-Leases, damit parallele Agenten einander nicht überschreiben.
-- **22 Modellanbieter, `/llmhost` und `/localsetup`:** Halten Sie alle 22 Anbieter gleichzeitig angemeldet (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter) und wechseln Sie Anbieter und Modelle während eines Chats. Öffnen Sie `/llmhost`, um ein Modell auszuwählen, dessen Quantisierung, die Aufteilung `conversations × context` und die Thinking-Stufe zu prüfen und das Modell auf einer gemieteten GPU (Runpod, Vast.ai oder Lambda), auf Ihrem eigenen Computer (`mercury host`) oder auf einem bestehenden Server laufen zu lassen. Oder führen Sie `/localsetup` aus, um Ollama zusammen mit LM Studio, vLLM und llama.cpp zu installieren oder anzubinden.
+- **22 Modellanbieter, `/llmhost` und `/localsetup`:** Halten Sie alle 22 Anbieter gleichzeitig angemeldet (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter) und wechseln Sie Anbieter und Modelle während eines Chats. Öffnen Sie `/llmhost`, um ein Modell auszuwählen, dessen Quantisierung, die Aufteilung `conversations × context` und die Thinking-Stufe zu prüfen und das Modell auf einer gemieteten GPU (Runpod, Vast.ai oder Lambda), auf Ihrem eigenen Computer (`mercury host`) oder auf einem bestehenden Server laufen zu lassen. Führen Sie mit `/tensorfold` ein lokales Modell auf TensorFold aus ([docs/TENSORFOLD.md](../TENSORFOLD.md)), oder führen Sie `/localsetup` aus, um Ollama zusammen mit LM Studio, vLLM und llama.cpp zu installieren oder anzubinden.
 - **Mneme-Hybrid-RAG-Projektgedächtnis:** Nutzt ein 118 MB großes, lokal auf dem Gerät laufendes semantisches Embedding-Modell BGE (`bge-base-en-v1.5`) mit BM25-Wortranking und Zitierverfolgung, wörtlich angeheftete Regeln, branch-bewussten Startkontext, Widerspruchsprüfungen beim Schreiben, Session-Übergabenotizen und den Graph-Browser `/memory page`.
 - **Werkzeuge für Compiler, AST und DAP-Debugging:** Verbindet LSP-Codeintelligenz und Vorschau-Refactorings (`LspRead`, `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`), strukturelle Suche und Umschreibung per AST für 23 Sprachen auf Basis von tree-sitter (`AstSearch`, `AstEdit`), einen integrierten Debugger über das Debug Adapter Protocol (`Debug`) (`debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`) zum schrittweisen Durchlaufen fehlschlagender Python-, Node-, Go- und Rust-Tests sowie persistente Python- und JavaScript-Zellen mit `Eval`.
 - **`WebSearch` ohne Schlüssel und `WebFetch` als Markdown:** Sucht über die native Suche des Anbieters, mit Brave- oder Tavily-Schlüsseln, über offizielle APIs (Stack Exchange, npm, PyPI, crates.io, GitHub, Hacker News, Wikipedia), über SearXNG und DuckDuckGo ohne Schlüssel und ruft öffentliche Dokumentation als Markdown ab, innerhalb eines Budgets von 38.000 Zeichen pro Aufruf.
@@ -392,11 +392,11 @@ Laufzeit-Flags sind in `src/substrate/flagRegistry.ts` definiert, werden als `ME
 
 | Bereich | Befehle |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ Laufzeit-Flags sind in `src/substrate/flagRegistry.ts` definiert, werden als `ME
 | --- | --- |
 | `/imagesetup` | Lokale Bild- und Videomodelle einrichten. |
 | `/llmhost` | Ein Modell wählen, das Sie bei Runpod, Vast.ai oder Lambda mieten, auf Ihrem Computer betreiben oder an einen bestehenden Server anbinden. |
+| `/tensorfold` | Ein lokales Modell auf TensorFold ausführen: die Engine installieren, ein Modell laden, es auf diesem Mac bereitstellen, in Ihrem Netzwerk teilen oder eine GPU dafür mieten und darauf wechseln, alles auf einem Bildschirm. |
 | `/restart` | Diesen Chat auf den installierten Mercury-Build verschieben; laufende Überwachungen und Hintergrund-Shells werden beendet. |
 | `/mcp` | Server prüfen, sich anmelden, die Werkzeuge und Parameter jedes Servers durchsuchen, neu verbinden oder einen Server für diesen Chat umschalten. |
 

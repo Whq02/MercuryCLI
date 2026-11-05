@@ -9,7 +9,7 @@ Mercury CLI (mercury-cli.ai, npm প্যাকেজ `mercury-tech-cli`) আ�
 একটি এজেন্ট ফাইল পড়ে ও সম্পাদনা করে, shell কমান্ড চালায়, টেস্ট ও ডিবাগারে ধাপে ধাপে এগোয়, এবং ফলাফল যাচাই করে। আপনি বেছে নেন মডেল প্রদানকারী, মডেল, এবং এজেন্ট কী করতে পারবে:
 
 - **মাল্টি-সেশন Concourse ও আলাদা worktree:** Session Concourse-এ (`/concourse`) পাশাপাশি একাধিক সেশন চালান, এবং সমান্তরাল কাজ বিভিন্ন প্রদানকারীর crewmate-দের (`Crewmate`) হাতে দিন। তারা আলাদা `git worktree` চেকআউটে কাজ করে এবং প্রকল্পের ফাইল লিজ (project file leases) ব্যবহার করে, যাতে সমান্তরাল এজেন্টরা একে অপরের ফাইল ওভাররাইট না করে।
-- **22টি মডেল প্রদানকারী, `/llmhost` ও `/localsetup`:** 22টি প্রদানকারীর সবগুলোতে একসঙ্গে সাইন ইন রাখুন (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter), এবং চ্যাটের মাঝখানেই প্রদানকারী ও মডেল বদলান। `/llmhost` খুলে একটি মডেল বেছে নিন, তার quantization, `conversations × context` ভাগ ও thinking লেভেল দেখুন, এবং সেটি ভাড়া করা GPU-তে (Runpod, Vast.ai বা Lambda), আপনার নিজের কম্পিউটারে (`mercury host`), অথবা বিদ্যমান কোনো সার্ভারে চালান। অথবা `/localsetup` চালিয়ে LM Studio, vLLM ও llama.cpp-এর পাশাপাশি Ollama ইনস্টল বা সংযুক্ত করুন।
+- **22টি মডেল প্রদানকারী, `/llmhost` ও `/localsetup`:** 22টি প্রদানকারীর সবগুলোতে একসঙ্গে সাইন ইন রাখুন (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter), এবং চ্যাটের মাঝখানেই প্রদানকারী ও মডেল বদলান। `/llmhost` খুলে একটি মডেল বেছে নিন, তার quantization, `conversations × context` ভাগ ও thinking লেভেল দেখুন, এবং সেটি ভাড়া করা GPU-তে (Runpod, Vast.ai বা Lambda), আপনার নিজের কম্পিউটারে (`mercury host`), অথবা বিদ্যমান কোনো সার্ভারে চালান। `/tensorfold` দিয়ে TensorFold-এ একটি স্থানীয় মডেল চালান ([docs/TENSORFOLD.md](../TENSORFOLD.md)), অথবা `/localsetup` চালিয়ে LM Studio, vLLM ও llama.cpp-এর পাশাপাশি Ollama ইনস্টল বা সংযুক্ত করুন।
 - **Mneme হাইব্রিড RAG প্রকল্প মেমরি:** ডিভাইসে চলা 118 MB-এর BGE semantic embedding মডেল (`bge-base-en-v1.5`) ব্যবহার করে। সঙ্গে আছে BM25 শব্দ র‍্যাংকিং ও উদ্ধৃতি ট্র্যাকিং, হুবহু পিন করা নিয়ম, ব্রাঞ্চ-সচেতন শুরুর প্রসঙ্গ, লেখার সময় বিরোধ যাচাই, সেশনের হ্যান্ডঅফ নোট, এবং `/memory page` ব্রাউজার গ্রাফ।
 - **কম্পাইলার, AST ও DAP ডিবাগিং টুল:** LSP কোড ইন্টেলিজেন্স ও পূর্বরূপ-সহ রিফ্যাক্টর (`LspRead`, `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`), 23 ভাষার tree-sitter AST কাঠামোগত সার্চ ও রিরাইট (`AstSearch`, `AstEdit`), অন্তর্নির্মিত Debug Adapter Protocol (`Debug`) ডিবাগার (`debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`), যা ব্যর্থ Python, Node, Go ও Rust টেস্টের ভেতরে ধাপে ধাপে ঢুকতে দেয়, এবং স্থায়ী Python ও JavaScript `Eval` সেল।
 - **কী ছাড়া `WebSearch` ও markdown `WebFetch`:** প্রদানকারীর নিজস্ব সার্চ, Brave বা Tavily কী, অফিশিয়াল API (Stack Exchange, npm, PyPI, crates.io, GitHub, Hacker News, Wikipedia), SearXNG ও কী ছাড়া DuckDuckGo-এর মাধ্যমে সার্চ করে, এবং 38,000 অক্ষরের কল বাজেটের মধ্যে পাবলিক ডকুমেন্টেশন markdown আকারে নিয়ে আসে।
@@ -392,11 +392,11 @@ docker run --rm mercury --version
 
 | বিভাগ | কমান্ড |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ docker run --rm mercury --version
 | --- | --- |
 | `/imagesetup` | স্থানীয় ছবি ও ভিডিও মডেল সেট আপ করুন। |
 | `/llmhost` | Runpod, Vast.ai বা Lambda-তে ভাড়া নেওয়ার জন্য একটি মডেল বেছে নিন, নিজের কম্পিউটারে চালান, অথবা বিদ্যমান সার্ভারে সংযুক্ত হন। |
+| `/tensorfold` | TensorFold-এ একটি স্থানীয় মডেল চালান: ইঞ্জিন ইনস্টল করুন, একটি মডেল নামিয়ে আনুন, এই Mac-এ পরিবেশন করুন, আপনার নেটওয়ার্কে শেয়ার করুন বা এর জন্য একটি GPU ভাড়া নিন, এবং এক স্ক্রিনেই সেটিতে বদলান। |
 | `/restart` | এই চ্যাটটি ইনস্টল করা Mercury বিল্ডে সরান; চলমান watch ও ব্যাকগ্রাউন্ড shell থেমে যাবে। |
 | `/mcp` | সার্ভার দেখুন, সাইন ইন করুন, প্রতিটি সার্ভারের টুল ও প্যারামিটার ব্রাউজ করুন, পুনরায় সংযুক্ত হন, বা এই চ্যাটের জন্য একটি সার্ভার চালু বা বন্ধ করুন। |
 

@@ -9,7 +9,7 @@ Mercury CLI（mercury-cli.ai，npm 套件 `mercury-tech-cli`）在終端機中�
 代理人會讀取與編輯檔案、執行 shell 指令、逐步執行測試與偵錯器，並檢查結果。你可以選擇模型供應商、模型，以及允許代理人執行哪些操作：
 
 - **多工作階段 Concourse 與隔離的工作樹：** 可在 Session Concourse（`/concourse`）上並排執行多個工作階段，並將平行工作委派給跨供應商的 crewmate（`Crewmate`）。它們會在隔離的 `git worktree` 檢出副本中工作，並透過專案檔案租約，讓平行的代理人不會互相覆寫。
-- **22 個模型供應商、`/llmhost` 與 `/localsetup`：** 可同時保持全部 22 個供應商都已登入（OpenAI、Anthropic、Google Gemini、DeepSeek、Moonshot/Kimi、Z.AI/GLM、OpenRouter、Hugging Face、xAI/Grok、Meta/Muse、Mistral、Nous Portal、OpenCode Zen、Qwen、MiniMax、Together AI、Cohere、Groq、Cerebras、Fireworks AI、Melious AI、OrcaRouter），並可在對話中切換供應商與模型。開啟 `/llmhost` 即可選擇模型、檢視其量化方式、`conversations × context` 的切分方式與思考層級，然後在租用的 GPU（Runpod、Vast.ai 或 Lambda）上、在你自己的電腦（`mercury host`）上，或在既有的伺服器上執行。也可以執行 `/localsetup`，安裝或連接 Ollama，並與 LM Studio、vLLM 與 llama.cpp 並列使用。
+- **22 個模型供應商、`/llmhost` 與 `/localsetup`：** 可同時保持全部 22 個供應商都已登入（OpenAI、Anthropic、Google Gemini、DeepSeek、Moonshot/Kimi、Z.AI/GLM、OpenRouter、Hugging Face、xAI/Grok、Meta/Muse、Mistral、Nous Portal、OpenCode Zen、Qwen、MiniMax、Together AI、Cohere、Groq、Cerebras、Fireworks AI、Melious AI、OrcaRouter），並可在對話中切換供應商與模型。開啟 `/llmhost` 即可選擇模型、檢視其量化方式、`conversations × context` 的切分方式與思考層級，然後在租用的 GPU（Runpod、Vast.ai 或 Lambda）上、在你自己的電腦（`mercury host`）上，或在既有的伺服器上執行。也可以透過 `/tensorfold` 在 TensorFold 上執行本機模型（[docs/TENSORFOLD.md](../TENSORFOLD.md)），或執行 `/localsetup`，安裝或連接 Ollama，並與 LM Studio、vLLM 與 llama.cpp 並列使用。
 - **Mneme 混合 RAG 專案記憶：** 使用裝置端的 118 MB BGE 語意嵌入模型（`bge-base-en-v1.5`），並包含 BM25 詞彙排序與引用追蹤、逐字保留的釘選規則、感知分支的啟動上下文、寫入時的矛盾檢查、工作階段交接筆記，以及 `/memory page` 瀏覽器圖譜。
 - **編譯器、AST 與 DAP 偵錯工具：** 連接 LSP 程式碼智慧與可預覽的重構（`LspRead`、`LspRename`、`LspMoveSymbol`、`LspMoveFile`、`LspCodeAction`、`LspFormat`），支援 23 種語言的 tree-sitter AST 結構搜尋與改寫（`AstSearch`、`AstEdit`），並提供內建的 Debug Adapter Protocol（`Debug`）偵錯器（`debugpy`、`js-debug`、`lldb`、`gdb`、`dlv`），用於單步進入失敗的 Python、Node、Go 與 Rust 測試，另有可持續保存狀態的 Python 與 JavaScript `Eval` 儲存格。
 - **無需金鑰的 `WebSearch` 與 Markdown 格式的 `WebFetch`：** 透過供應商原生搜尋、Brave 或 Tavily 金鑰、官方 API（Stack Exchange、npm、PyPI、crates.io、GitHub、Hacker News、Wikipedia）、SearXNG，以及無需金鑰的 DuckDuckGo 進行搜尋，並在 38,000 字元的單次呼叫預算內，以 Markdown 格式擷取公開文件。
@@ -392,11 +392,11 @@ docker run --rm mercury --version
 
 | 類別 | 指令 |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ docker run --rm mercury --version
 | --- | --- |
 | `/imagesetup` | 設定本機影像和影片模型。 |
 | `/llmhost` | 選擇要在 Runpod、Vast.ai 或 Lambda 上租用的模型、在你自己的電腦上執行，或連接既有的伺服器。 |
+| `/tensorfold` | 在 TensorFold 上執行本機模型：安裝引擎、拉取模型、在這台 Mac 上提供服務、在你的網路上共享或為其租用 GPU，並切換至該模型，全部在同一個畫面完成。 |
 | `/restart` | 把此對話移到已安裝的 Mercury 版本；正在執行的監看（watch）與背景 shell 會停止。 |
 | `/mcp` | 檢視伺服器、登入、瀏覽每個伺服器的工具與參數、重新連線，或為此對話切換伺服器的啟用狀態。 |
 

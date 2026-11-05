@@ -9,7 +9,7 @@ Mercury CLI (mercury-cli.ai, แพ็กเกจ npm `mercury-tech-cli`) ช�
 เอเจนต์อ่านและแก้ไขไฟล์ รันคำสั่ง shell ไล่ดูทีละขั้นผ่านการทดสอบและดีบักเกอร์ และตรวจสอบผลลัพธ์ คุณเป็นผู้เลือกผู้ให้บริการโมเดล โมเดล และสิ่งที่เอเจนต์ได้รับอนุญาตให้ทำ:
 
 - **Session Concourse แบบหลายเซสชันและ worktree แยกกัน:** รันหลายเซสชันควบคู่กันบน Session Concourse (`/concourse`) และมอบงานขนานให้ crewmates ข้ามผู้ให้บริการ (`Crewmate`) ใน checkout ของ `git worktree` ที่แยกกัน โดยใช้ lease ไฟล์ของโปรเจกต์ เพื่อไม่ให้เอเจนต์ที่ทำงานขนานเขียนทับกัน
-- **ผู้ให้บริการโมเดล 22 ราย, `/llmhost` และ `/localsetup`:** ทำให้ผู้ให้บริการทั้ง 22 รายลงชื่อเข้าใช้ไว้พร้อมกันได้ (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter) และสลับผู้ให้บริการกับโมเดลได้กลางแชท เปิด `/llmhost` เพื่อเลือกโมเดล ตรวจสอบ quantization การแบ่ง `conversations × context` และระดับ thinking แล้วรันบน GPU ที่เช่า (Runpod, Vast.ai หรือ Lambda) บนคอมพิวเตอร์ของคุณ (`mercury host`) หรือบนเซิร์ฟเวอร์ที่มีอยู่แล้ว หรือรัน `/localsetup` เพื่อติดตั้งหรือเชื่อมต่อ Ollama ควบคู่กับ LM Studio, vLLM และ llama.cpp
+- **ผู้ให้บริการโมเดล 22 ราย, `/llmhost` และ `/localsetup`:** ทำให้ผู้ให้บริการทั้ง 22 รายลงชื่อเข้าใช้ไว้พร้อมกันได้ (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter) และสลับผู้ให้บริการกับโมเดลได้กลางแชท เปิด `/llmhost` เพื่อเลือกโมเดล ตรวจสอบ quantization การแบ่ง `conversations × context` และระดับ thinking แล้วรันบน GPU ที่เช่า (Runpod, Vast.ai หรือ Lambda) บนคอมพิวเตอร์ของคุณ (`mercury host`) หรือบนเซิร์ฟเวอร์ที่มีอยู่แล้ว รันโมเดลในเครื่องบน TensorFold ด้วย `/tensorfold` ([docs/TENSORFOLD.md](../TENSORFOLD.md)) หรือรัน `/localsetup` เพื่อติดตั้งหรือเชื่อมต่อ Ollama ควบคู่กับ LM Studio, vLLM และ llama.cpp
 - **หน่วยความจำโปรเจกต์แบบ hybrid RAG ของ Mneme:** ใช้โมเดล semantic embedding BGE 118 MB ที่รันบนอุปกรณ์ (`bge-base-en-v1.5`) ร่วมกับการจัดอันดับคำแบบ BM25 และการติดตาม citation กฎที่ปักหมุดซึ่งคงข้อความเดิมทุกตัวอักษร (pinned rules) บริบทตอนเริ่มต้นที่รับรู้ branch การตรวจความขัดแย้งตอนบันทึก โน้ตส่งต่อระหว่างเซสชัน และกราฟเบราว์เซอร์ `/memory page`
 - **เครื่องมือ compiler, AST และ DAP debugging:** เชื่อมต่อ LSP code intelligence และการ refactor แบบดูตัวอย่างก่อนนำไปใช้ (`LspRead`, `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`) การค้นหาและเขียนโครงสร้าง AST ด้วย tree-sitter ใน 23 ภาษา (`AstSearch`, `AstEdit`) debugger แบบ Debug Adapter Protocol ในตัว (`Debug`) ผ่าน `debugpy`, `js-debug`, `lldb`, `gdb`, `dlv` สำหรับไล่เทสต์ Python, Node, Go และ Rust ที่ล้มเหลวทีละขั้น และ `Eval` cells ของ Python และ JavaScript ที่คงสถานะไว้ได้
 - **`WebSearch` ที่ไม่ต้องใช้คีย์ และ `WebFetch` แบบ markdown:** ค้นหาผ่าน provider-native search คีย์ Brave หรือ Tavily API อย่างเป็นทางการ (Stack Exchange, npm, PyPI, crates.io, GitHub, Hacker News, Wikipedia) SearXNG และ DuckDuckGo ที่ไม่ต้องใช้คีย์ และดึงเอกสารสาธารณะเป็น markdown ภายในงบ 38,000 ตัวอักษรต่อการเรียกหนึ่งครั้ง
@@ -392,11 +392,11 @@ docker run --rm mercury --version
 
 | หมวด | คำสั่ง |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ docker run --rm mercury --version
 | --- | --- |
 | `/imagesetup` | ตั้งค่าโมเดลภาพและวิดีโอในเครื่อง |
 | `/llmhost` | เลือกโมเดลที่จะเช่าบน Runpod, Vast.ai หรือ Lambda, รันบนคอมพิวเตอร์ของคุณ หรือเชื่อมต่อกับเซิร์ฟเวอร์ที่มีอยู่แล้ว |
+| `/tensorfold` | รันโมเดลในเครื่องบน TensorFold: ติดตั้งเอนจิน ดึงโมเดล เปิดให้บริการบน Mac เครื่องนี้ แชร์บนเครือข่ายของคุณหรือเช่า GPU สำหรับโมเดลนั้น แล้วสลับไปใช้งาน ทั้งหมดในหน้าจอเดียว |
 | `/restart` | ย้ายแชทนี้ไปยังบิลด์ Mercury ที่ติดตั้งไว้; การ watch และ background shell ที่กำลังรันจะหยุด |
 | `/mcp` | ตรวจสอบเซิร์ฟเวอร์ ลงชื่อเข้าใช้ ดูเครื่องมือและพารามิเตอร์ของแต่ละเซิร์ฟเวอร์ เชื่อมต่อใหม่ หรือเปิด/ปิดเซิร์ฟเวอร์สำหรับแชทนี้ |
 

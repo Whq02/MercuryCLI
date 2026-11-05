@@ -9,7 +9,7 @@ Mercury CLI（mercury-cli.ai、npm パッケージ `mercury-tech-cli`）は、ma
 エージェントはファイルを読み書きし、シェルコマンドを実行し、テストやデバッガーを一歩ずつ進めて、結果を確認します。モデルプロバイダー、モデル、エージェントに許可する操作の範囲は、自分で選べます：
 
 - **複数セッションの Concourse と分離されたワークツリー：** Session Concourse（`/concourse`）で複数のセッションを並べて実行でき、並列の作業は、プロバイダーをまたぐ crewmate（`Crewmate`）へ、分離された `git worktree` のチェックアウトとプロジェクトファイルのリースを使って委任できます。並列のエージェント同士がファイルを上書きし合わないようにするためです。
-- **22 のモデルプロバイダー、`/llmhost` と `/localsetup`：** 22 のプロバイダー（OpenAI、Anthropic、Google Gemini、DeepSeek、Moonshot/Kimi、Z.AI/GLM、OpenRouter、Hugging Face、xAI/Grok、Meta/Muse、Mistral、Nous Portal、OpenCode Zen、Qwen、MiniMax、Together AI、Cohere、Groq、Cerebras、Fireworks AI、Melious AI、OrcaRouter）すべてに同時にサインインした状態を保ち、チャットの途中でプロバイダーやモデルを切り替えられます。`/llmhost` を開くと、モデルを選び、量子化方式、`conversations × context` の配分、思考レベルを確認できます。そして、レンタルした GPU（Runpod、Vast.ai、Lambda）、自分のコンピューター（`mercury host`）、または既存のサーバーで実行できます。`/localsetup` を実行すると、Ollama をインストールまたは接続し、LM Studio、vLLM、llama.cpp と並べて使えます。
+- **22 のモデルプロバイダー、`/llmhost` と `/localsetup`：** 22 のプロバイダー（OpenAI、Anthropic、Google Gemini、DeepSeek、Moonshot/Kimi、Z.AI/GLM、OpenRouter、Hugging Face、xAI/Grok、Meta/Muse、Mistral、Nous Portal、OpenCode Zen、Qwen、MiniMax、Together AI、Cohere、Groq、Cerebras、Fireworks AI、Melious AI、OrcaRouter）すべてに同時にサインインした状態を保ち、チャットの途中でプロバイダーやモデルを切り替えられます。`/llmhost` を開くと、モデルを選び、量子化方式、`conversations × context` の配分、思考レベルを確認できます。そして、レンタルした GPU（Runpod、Vast.ai、Lambda）、自分のコンピューター（`mercury host`）、または既存のサーバーで実行できます。`/tensorfold` で TensorFold 上のローカルモデルを実行したり（[docs/TENSORFOLD.md](../TENSORFOLD.md)）、`/localsetup` を実行して Ollama をインストールまたは接続し、LM Studio、vLLM、llama.cpp と並べて使ったりできます。
 - **Mneme ハイブリッド RAG のプロジェクトメモリ：** デバイス上で動作する 118 MB の BGE セマンティック埋め込みモデル（`bge-base-en-v1.5`）を使い、BM25 の単語ランキングと引用の追跡、原文のまま保持されるピン留めルール、ブランチを意識した起動時のコンテキスト、書き込み時の矛盾チェック、セッションの引き継ぎメモ、`/memory page` のブラウザーグラフを備えます。
 - **コンパイラー、AST、DAP のデバッグツール：** LSP によるコードインテリジェンスとプレビュー付きのリファクタリング（`LspRead`、`LspRename`、`LspMoveSymbol`、`LspMoveFile`、`LspCodeAction`、`LspFormat`）に接続し、23 言語対応の tree-sitter による AST の構造検索と書き換え（`AstSearch`、`AstEdit`）を使えます。組み込みの Debug Adapter Protocol デバッガー（`Debug`、`debugpy`、`js-debug`、`lldb`、`gdb`、`dlv`）は、失敗した Python、Node、Go、Rust のテストにステップ実行で入り込めます。永続化される Python と JavaScript の `Eval` セルも使えます。
 - **キー不要の `WebSearch` と Markdown 形式の `WebFetch`：** プロバイダー提供のネイティブ検索、Brave または Tavily のキー、公式 API（Stack Exchange、npm、PyPI、crates.io、GitHub、Hacker News、Wikipedia）、SearXNG、キー不要の DuckDuckGo で検索し、38,000 文字の呼び出し予算の中で、公開ドキュメントを Markdown として取得します。
@@ -392,11 +392,11 @@ docker run --rm mercury --version
 
 | 分類 | コマンド |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ docker run --rm mercury --version
 | --- | --- |
 | `/imagesetup` | ローカルの画像・動画モデルを設定します。 |
 | `/llmhost` | Runpod、Vast.ai、Lambda でレンタルするモデルを選ぶ、自分のコンピューターで実行する、または既存のサーバーに接続します。 |
+| `/tensorfold` | TensorFold でローカルモデルを実行します。エンジンのインストール、モデルの取得、この Mac での配信、ネットワークでの共有や GPU のレンタル、そのモデルへの切り替えをすべて一つの画面で行えます。 |
 | `/restart` | 現在のチャットを、インストール済みの Mercury ビルドに移します。実行中の監視とバックグラウンドのシェルは停止します。 |
 | `/mcp` | サーバーを確認する、サインインする、各サーバーのツールとパラメーターを参照する、再接続する、またはこのチャットでサーバーを切り替えます。 |
 

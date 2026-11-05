@@ -4,7 +4,7 @@ Open the selected family section, not the whole estate:
 
 - [Native providers](chat-native.md): Moonshot/Kimi, DeepSeek, xAI, Meta, Z.AI, Gemini, Mistral, Qwen, MiniMax, Cohere.
 - [Hosted providers](chat-hosted.md): OpenRouter, Hugging Face, Nous, OpenCode Zen, Together, Groq, Cerebras, Fireworks, Melious, OrcaRouter.
-- [Local and rented engines](chat-local.md): custom compat endpoints, Ollama, LM Studio, vLLM, SGLang, llama.cpp and host billing.
+- [Local and rented engines](chat-local.md): custom compat endpoints, TensorFold, Ollama, LM Studio, vLLM, SGLang, llama.cpp and host billing.
 
 Paths in these three maps are relative to `src/services/providers/` unless prefixed with `src/`. Historical source notes date to 2026-10-26 unless a claim carries a newer reading; inspect the owner before changing its behavior. A map is not a live account test.
 

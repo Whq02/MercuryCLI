@@ -697,7 +697,13 @@ When a GPT-family model returns a refusal (including an OpenAI content-filter
 finish) or a synthetic error row, the refusal is shown to you once in the chat
 and omitted from subsequent request histories (after applying any image-refusal
 resize stamps), while user prompts and executed tool-call/result pairs stay
-paired.
+paired. On the OpenAI Responses wire, all request strings are sanitised for
+unpaired UTF-16 surrogates; non-retryable HTTP 4xx errors include `error.detail`
+and `error.param` alongside `error.message` and write a credential-scrubbed,
+size-bounded capture file (`openai-<status>-<ts>-<seq>.json`, up to 20 per
+session) in the session folder; and a resumed turn that hits a 4xx on the
+replayed transcript compacts oversized or offending tool results once, persists
+those replacements across later turns of the conversation, and retries once.
 
 A dispatched crewmate whose turn ends on the provider's overload (the busy
 refusal above on any road, such as the Anthropic wire's 529 or `overloaded_error` or
@@ -732,13 +738,18 @@ records (a mini or nano row when the list serves one); no id the list lacks
 is ever asked for, and while the list has not answered, or serves no priced
 row, the side job runs on the session's own model. A crewmate hook's tier
 follows the same rule: the newest plain GPT row the list serves below the
-frontier, else the session's own model.
+frontier, else the session's own model. `Helper model` in `/config` (off by
+default; [TENSORFOLD.md](TENSORFOLD.md#the-helper-model-setting)) can instead
+route titles and summaries, model-answered hooks and the needs-you judge, and
+(when `Helper model for compaction` is on) session compaction to a local 2B or
+4B model or the session's local model.
 
 Each wire carries its provider's documented quirks, the same pins the wire
 sends from: reasoning-effort vocabularies, sampling restrictions
 (the Kimi reasoning models fix their sampling, so that lane never sends
 temperature), output-knob names, and usage-field spellings. The local lane
-serves discovered servers (Ollama, LM Studio, vLLM, llama.cpp) at each
+serves discovered servers (TensorFold in [TENSORFOLD.md](TENSORFOLD.md), Ollama,
+LM Studio, vLLM, llama.cpp) at each
 model's own base URL, omitting what a server kind does not support. Its
 context window is never a number Mercury decides: a model's served window is
 read from the server before a request is judged against it (Ollama loads the
@@ -1098,8 +1109,8 @@ account.
 On the `/accounts` board each family's header carries the family name
 alone; the rows beneath it
 name each sign-in with its kind and identity, and a family with no limit
-shows how many sign-ins it holds beside its name. A sign-in row in either
-of the concourse's model pickers, or on the home screen, opens the
+shows how many sign-ins it holds beside its name. A sign-in row in either of
+the concourse's model pickers, or on the home screen, opens the
 Logins screen on that row's family; a completed sign-in, or escape,
 returns to the picker that opened it, which lists the new family's models.
 
@@ -1330,7 +1341,8 @@ launch; an unknown name still stops for your decision.
 
 ## Web fetch
 
-`WebFetch` returns a public page's main text as markdown, without a model
+`WebFetch` returns a public page's body as markdown (without the HTML `<head>`
+and `<title>`), without a model
 call. Headings, lists, code and links stay with the page's words; a table
 keeps its rows and columns (a markdown table, or one line per row with the
 cells separated by `·` when cells span or nest); navigation, footers and
@@ -1624,7 +1636,10 @@ credential already connected through `/logins`. `/jev off` and `/jev or off`
 turn JEV off. The card's Road row shows the selected road, and the JEV
 switches in `/config` and the home screen's Boot Menu preserve that choice. A sign-in
 never switches JEV on, and a missing key never falls through to the other
-road.
+road. When JEV is on with a key, the standing `/goal` (`/mission`) Stop check
+also uses JEV to judge whether the goal's end state is `met`, `open`,
+`ambiguous` or `unattainable` from the turn's evidence
+([SESSIONS.md](SESSIONS.md)).
 
 Each road keeps its own session spend meter and allowance cap. `/clear`
 starts a fresh chat with fresh meters; the stored caps stay unchanged.

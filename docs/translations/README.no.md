@@ -9,7 +9,7 @@ Nettsted: [mercury-cli.ai](https://mercury-cli.ai) · Repository: [github.com/Wh
 En agent leser og redigerer filer, kjører shell-kommandoer, går gjennom tester og debuggere steg for steg, og sjekker resultatene. Du velger modelleverandøren, modellen og hva agenten har lov til å gjøre:
 
 - **Flere økter på Session Concourse og isolerte worktrees:** kjør flere økter side om side på Session Concourse (`/concourse`), og deleger parallelt arbeid til crewmates på tvers av leverandører (`Crewmate`) i isolerte `git worktree`-utsjekkinger med fil-leaser for prosjektet, slik at parallelle agenter ikke overskriver hverandre.
-- **22 modelleverandører, `/llmhost` og `/localsetup`:** hold alle 22 leverandører innlogget samtidig (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter), og bytt leverandør og modell midt i en chat. Åpne `/llmhost` for å velge en modell, sjekke kvantiseringen, fordelingen `conversations × context` og tenkenivået, og kjør den på en leid GPU (Runpod, Vast.ai eller Lambda), på din egen datamaskin (`mercury host`) eller på en eksisterende server. Eller kjør `/localsetup` for å installere eller koble til Ollama sammen med LM Studio, vLLM og llama.cpp.
+- **22 modelleverandører, `/llmhost` og `/localsetup`:** hold alle 22 leverandører innlogget samtidig (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter), og bytt leverandør og modell midt i en chat. Åpne `/llmhost` for å velge en modell, sjekke kvantiseringen, fordelingen `conversations × context` og tenkenivået, og kjør den på en leid GPU (Runpod, Vast.ai eller Lambda), på din egen datamaskin (`mercury host`) eller på en eksisterende server. Kjør en lokal modell på TensorFold med `/tensorfold` ([docs/TENSORFOLD.md](../TENSORFOLD.md)), eller kjør `/localsetup` for å installere eller koble til Ollama sammen med LM Studio, vLLM og llama.cpp.
 - **Mneme hybrid RAG-prosjekthukommelse:** bruker en semantisk embedding-modell, BGE (`bge-base-en-v1.5`), på 118 MB som kjører lokalt på enheten, sammen med BM25-ordrangering og sitatsporing, ordrette festede regler, branch-bevisst oppstartskontekst, motsigelseskontroll ved skriving, overleveringsnotater mellom økter og nettlesergrafen `/memory page`.
 - **Verktøy for kompilator, AST og DAP-debugging:** kobler LSP-kodeintelligens og refaktoreringer med forhåndsvisning (`LspRead`, `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`), strukturelt søk og omskriving i AST for 23 språk basert på tree-sitter (`AstSearch`, `AstEdit`), en innebygd debugger etter Debug Adapter Protocol (`Debug`) (`debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`) for å gå inn i feilende Python-, Node-, Go- og Rust-tester steg for steg, og vedvarende Python- og JavaScript-celler med `Eval`.
 - **`WebSearch` uten nøkkel og `WebFetch` som markdown:** søker via leverandørens egen søkefunksjon, Brave- eller Tavily-nøkler, offisielle API-er (Stack Exchange, npm, PyPI, crates.io, GitHub, Hacker News, Wikipedia), SearXNG og DuckDuckGo uten nøkkel, og henter offentlig dokumentasjon som markdown innenfor et kallbudsjett på 38 000 tegn.
@@ -392,11 +392,11 @@ Runtime-flaggene er definert i `src/substrate/flagRegistry.ts`, eksponeres som `
 
 | Område | Kommandoer |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ Runtime-flaggene er definert i `src/substrate/flagRegistry.ts`, eksponeres som `
 | --- | --- |
 | `/imagesetup` | Sett opp lokale bilde- og videomodeller. |
 | `/llmhost` | Velg en modell å leie hos Runpod, Vast.ai eller Lambda, kjøre på din egen datamaskin eller koble til en eksisterende server. |
+| `/tensorfold` | Kjør en lokal modell på TensorFold: installer motoren, hent en modell, server den på denne Mac-en, del den på nettverket ditt eller lei en GPU for den, og bytt til den, alt på én skjerm. |
 | `/restart` | Flytt denne chatten til det installerte Mercury-bygget; kjørende overvåkinger og bakgrunns-shell-er stopper. |
 | `/mcp` | Undersøk servere, logg inn, bla gjennom verktøyene og parameterne til hver server, koble til på nytt, eller slå en server av eller på for denne chatten. |
 

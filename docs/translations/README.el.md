@@ -9,7 +9,7 @@
 Ένας πράκτορας διαβάζει και επεξεργάζεται αρχεία, εκτελεί εντολές shell, περνά βήμα προς βήμα από δοκιμές και αποσφαλματωτές και ελέγχει τα αποτελέσματα. Εσείς επιλέγετε τον πάροχο μοντέλων, το ίδιο το μοντέλο και τι επιτρέπεται να κάνει ο πράκτορας:
 
 - **Πολλαπλές συνεδρίες στο Concourse και απομονωμένα worktrees:** εκτελέστε πολλές συνεδρίες δίπλα-δίπλα στο Session Concourse (`/concourse`) και αναθέστε παράλληλη εργασία σε crewmates (συνεργάτες, `Crewmate`) διαφορετικών παρόχων, σε απομονωμένα αντίγραφα εργασίας του `git worktree`, με μισθώσεις αρχείων του έργου, ώστε οι παράλληλοι πράκτορες να μην αντικαθιστούν την εργασία ο ένας του άλλου.
-- **22 πάροχοι μοντέλων, `/llmhost` και `/localsetup`:** κρατήστε και τους 22 παρόχους συνδεδεμένους ταυτόχρονα (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter) και αλλάζετε παρόχους και μοντέλα μέσα στη συνομιλία. Ανοίξτε το `/llmhost` για να επιλέξετε μοντέλο, να ελέγξετε την κβαντοποίησή του, τον διαχωρισμό `conversations × context` και το επίπεδο σκέψης του, και για να το εκτελέσετε σε μισθωμένη GPU (Runpod, Vast.ai ή Lambda), στον δικό σας υπολογιστή (`mercury host`) ή σε υπάρχοντα διακομιστή. Ή εκτελέστε `/localsetup` για να εγκαταστήσετε ή να συνδέσετε το Ollama, μαζί με το LM Studio, το vLLM και το llama.cpp.
+- **22 πάροχοι μοντέλων, `/llmhost` και `/localsetup`:** κρατήστε και τους 22 παρόχους συνδεδεμένους ταυτόχρονα (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter) και αλλάζετε παρόχους και μοντέλα μέσα στη συνομιλία. Ανοίξτε το `/llmhost` για να επιλέξετε μοντέλο, να ελέγξετε την κβαντοποίησή του, τον διαχωρισμό `conversations × context` και το επίπεδο σκέψης του, και για να το εκτελέσετε σε μισθωμένη GPU (Runpod, Vast.ai ή Lambda), στον δικό σας υπολογιστή (`mercury host`) ή σε υπάρχοντα διακομιστή. Εκτελέστε ένα τοπικό μοντέλο στο TensorFold με το `/tensorfold` ([docs/TENSORFOLD.md](../TENSORFOLD.md)), ή εκτελέστε `/localsetup` για να εγκαταστήσετε ή να συνδέσετε το Ollama, μαζί με το LM Studio, το vLLM και το llama.cpp.
 - **Υβριδική μνήμη έργου RAG Mneme:** χρησιμοποιεί ένα σημασιολογικό μοντέλο embeddings BGE 118 MB που εκτελείται στη συσκευή (`bge-base-en-v1.5`), κατάταξη λέξεων BM25, παρακολούθηση αναφορών, καρφιτσωμένους κανόνες αυτολεξεί, αρχικό πλαίσιο εκκίνησης που λαμβάνει υπόψη τον κλάδο, ελέγχους αντιφάσεων κατά την εγγραφή, σημειώσεις παράδοσης μεταξύ συνεδριών και το γράφημα στον περιηγητή, που ανοίγει με το `/memory page`.
 - **Εργαλεία μεταγλωττιστή, AST και αποσφαλμάτωσης DAP:** συνδέει την ανάλυση κώδικα μέσω LSP και αναδιαρθρώσεις με προεπισκόπηση (`LspRead`, `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`), δομική αναζήτηση και επανεγγραφή με AST tree-sitter σε 23 γλώσσες (`AstSearch`, `AstEdit`), ενσωματωμένο αποσφαλματωτή Debug Adapter Protocol (`Debug`) με προσαρμογείς (`debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`) για βηματική αποσφαλμάτωση αποτυχημένων δοκιμών σε Python, Node, Go και Rust, καθώς και μόνιμα κελιά `Eval` σε Python και JavaScript.
 - **`WebSearch` χωρίς κλειδιά και `WebFetch` σε markdown:** αναζητά μέσω της εγγενούς αναζήτησης του παρόχου, κλειδιών Brave ή Tavily, επίσημων API (Stack Exchange, npm, PyPI, crates.io, GitHub, Hacker News, Wikipedia), SearXNG και DuckDuckGo χωρίς κλειδί, και ανακτά δημόσια τεκμηρίωση σε markdown εντός προϋπολογισμού κλήσης 38.000 χαρακτήρων.
@@ -392,11 +392,11 @@ docker run --rm mercury --version
 
 | Ενότητα | Εντολές |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ docker run --rm mercury --version
 | --- | --- |
 | `/imagesetup` | Ρυθμίστε τοπικά μοντέλα εικόνας και βίντεο. |
 | `/llmhost` | Επιλέξτε ένα μοντέλο για μίσθωση στη Runpod, το Vast.ai ή τη Lambda, για εκτέλεση στον δικό σας υπολογιστή ή για σύνδεση υπάρχοντος διακομιστή. |
+| `/tensorfold` | Εκτελέστε ένα τοπικό μοντέλο στο TensorFold: εγκαταστήστε τη μηχανή, κατεβάστε ένα μοντέλο, διαθέστε το σε αυτό το Mac, μοιραστείτε το στο δίκτυό σας ή μισθώστε μια GPU για αυτό, και μεταβείτε σε αυτό, όλα σε μία οθόνη. |
 | `/restart` | Μεταφέρει αυτή τη συνομιλία στην εγκατεστημένη έκδοση του Mercury· οι ενεργές παρακολουθήσεις και τα shell παρασκηνίου σταματούν. |
 | `/mcp` | Εμφάνιση διακομιστών, σύνδεση, περιήγηση στα εργαλεία και στις παραμέτρους κάθε διακομιστή, επανασύνδεση ή εναλλαγή ενός διακομιστή για αυτή τη συνομιλία. |
 

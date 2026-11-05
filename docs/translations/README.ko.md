@@ -9,7 +9,7 @@ Mercury CLI(mercury-cli.ai, npm 패키지 `mercury-tech-cli`)는 macOS, Linux, W
 에이전트는 파일을 읽고 수정하며, 셸 명령을 실행하고, 테스트와 디버거를 단계별로 진행하고, 결과를 확인합니다. 모델 제공자, 모델, 에이전트에게 허용할 작업 범위는 사용자가 선택합니다:
 
 - **멀티 세션 Concourse와 격리된 워크트리:** Session Concourse(`/concourse`)에서 여러 세션을 나란히 실행하고, 병렬 작업을 교차 제공자 crewmate(크루메이트, `Crewmate`)에게 격리된 `git worktree` 체크아웃과 프로젝트 파일 리스를 사용해 위임합니다. 병렬 에이전트끼리 서로 덮어쓰지 않도록 하기 위해서입니다.
-- **모델 제공자 22개, `/llmhost`와 `/localsetup`:** 22개 제공자(OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter)에 모두 동시에 로그인해 둘 수 있으며, 채팅 중에도 제공자와 모델을 바꿀 수 있습니다. `/llmhost`를 열면 모델을 고르고, 양자화, `conversations × context` 분할, 사고(thinking) 수준을 확인한 뒤, 임대한 GPU(Runpod, Vast.ai 또는 Lambda), 사용자의 컴퓨터(`mercury host`), 또는 기존 서버에서 실행할 수 있습니다. `/localsetup`을 실행하면 LM Studio, vLLM, llama.cpp와 함께 Ollama를 설치하거나 연결할 수 있습니다.
+- **모델 제공자 22개, `/llmhost`와 `/localsetup`:** 22개 제공자(OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Melious AI, OrcaRouter)에 모두 동시에 로그인해 둘 수 있으며, 채팅 중에도 제공자와 모델을 바꿀 수 있습니다. `/llmhost`를 열면 모델을 고르고, 양자화, `conversations × context` 분할, 사고(thinking) 수준을 확인한 뒤, 임대한 GPU(Runpod, Vast.ai 또는 Lambda), 사용자의 컴퓨터(`mercury host`), 또는 기존 서버에서 실행할 수 있습니다. `/tensorfold`로 TensorFold에서 로컬 모델을 실행하거나([docs/TENSORFOLD.md](../TENSORFOLD.md)), `/localsetup`을 실행하여 LM Studio, vLLM, llama.cpp와 함께 Ollama를 설치하거나 연결할 수 있습니다.
 - **Mneme 하이브리드 RAG 프로젝트 메모리:** 기기 내에서 실행되는 118 MB BGE 시맨틱 임베딩 모델(`bge-base-en-v1.5`)을 사용하며, BM25 단어 순위와 인용 추적, 원문 그대로의 고정 규칙(pinned rules), 브랜치를 인식하는 시작 컨텍스트, 쓰기 시점의 모순 검사, 세션 인계 노트, 그리고 `/memory page` 브라우저 그래프를 제공합니다.
 - **컴파일러, AST, DAP 디버깅 도구:** LSP 코드 인텔리전스와 미리보기로 확인하는 리팩터링(`LspRead`, `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`), 23개 언어를 지원하는 tree-sitter AST 구조 검색과 재작성(`AstSearch`, `AstEdit`), 실패하는 Python, Node, Go, Rust 테스트를 단계별로 따라가는 내장 Debug Adapter Protocol(`Debug`) 디버거(`debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`), 그리고 지속되는 Python 및 JavaScript `Eval` 셀을 제공합니다.
 - **키 없이 사용하는 `WebSearch`와 마크다운 `WebFetch`:** 제공자 고유 검색, Brave 또는 Tavily 키, 공식 API(Stack Exchange, npm, PyPI, crates.io, GitHub, Hacker News, Wikipedia), SearXNG, 키가 필요 없는 DuckDuckGo로 검색하고, 공개 문서를 호출당 38,000자 예산 안에서 마크다운으로 가져옵니다.
@@ -392,11 +392,11 @@ docker run --rm mercury --version
 
 | 영역 | 명령 |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -407,6 +407,7 @@ docker run --rm mercury --version
 | --- | --- |
 | `/imagesetup` | 로컬 이미지 및 동영상 모델을 설정합니다. |
 | `/llmhost` | Runpod, Vast.ai 또는 Lambda에서 임대할 모델을 고르거나, 사용자의 컴퓨터에서 실행하거나, 기존 서버를 연결합니다. |
+| `/tensorfold` | TensorFold에서 로컬 모델을 실행합니다: 엔진을 설치하고, 모델을 내려받고, 이 Mac에서 서빙하거나 네트워크에 공유하거나 이를 위한 GPU를 임대하고, 해당 모델로 전환하는 작업을 모두 한 화면에서 수행합니다. |
 | `/restart` | 이 채팅을 설치된 Mercury 빌드로 옮깁니다. 실행 중인 watch와 백그라운드 셸은 중지됩니다. |
 | `/mcp` | 서버를 점검하고, 로그인하고, 각 서버의 도구와 매개변수를 살펴보고, 다시 연결하거나, 이 채팅에서 서버를 켜거나 끕니다. |
 
