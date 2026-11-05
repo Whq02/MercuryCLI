@@ -18,6 +18,7 @@ import { claimModelPickerPopup } from '../../utils/cockpit/modelPickerPopup.js'
 import { openSettingsPopup } from '../../utils/cockpit/settingsPopup.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { llmHostPopupRequest } from '../llmhost/llmhost.js'
+import { pairTensorFoldHost, refreshTensorFoldAnnouncements, subscribeTensorFoldFacts, tensorFoldAnnouncementsNow, tensorFoldFactsStamp } from '../../components/tensorfold/tensorfoldFacts.js'
 import { pickerFactsOf, type TensorFoldPickerAct } from './pickerFacts.js'
 import {
   SHARE_WORDS,
@@ -54,6 +55,10 @@ function currentModelId(): string | undefined {
 
 export function TensorFoldPanel({ onDone, io = {}, repo }: { onDone: (words?: string) => void; io?: TensorFoldPanelIo; repo?: string }): React.ReactNode {
   const version = React.useSyncExternalStore(subscribeTensorFoldRoad, tensorFoldRoadVersion, tensorFoldRoadVersion)
+  const announcedStamp = React.useSyncExternalStore(subscribeTensorFoldFacts, tensorFoldFactsStamp, tensorFoldFactsStamp)
+  React.useEffect(() => {
+    void refreshTensorFoldAnnouncements()
+  }, [])
   const [facts, setFacts] = React.useState<TensorFoldPanelFacts | null>(null)
   const engineRef = React.useRef<TensorFoldEngineFound | null | undefined>(undefined)
   const alive = React.useRef(true)
@@ -81,7 +86,7 @@ export function TensorFoldPanel({ onDone, io = {}, repo }: { onDone: (words?: st
   React.useEffect(() => {
     if (repo !== undefined && repo !== '') void readOtherCheckpoint(repo, io.road)
   }, [repo, io.road])
-  const picker = React.useMemo(() => (facts === null ? null : pickerFactsOf(facts)), [facts])
+  const picker = React.useMemo(() => (facts === null ? null : { ...pickerFactsOf(facts), announced: tensorFoldAnnouncementsNow(facts.hosts) }), [facts, announcedStamp])
   if (facts === null || picker === null) return null
   const doors = { close: onDone, read: () => read(true) }
   const notice = tensorFoldRoadState().notice
@@ -179,6 +184,12 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
     case 'read':
       await readOtherCheckpoint(act.repo, io)
       return
+    case 'pair': {
+      const words = await pairTensorFoldHost(act.host, act.code)
+      if (words !== undefined) setTensorFoldNotice(words)
+      await doors.read?.()
+      return
+    }
     case 'address': {
       const address = act.address.trim().replace(/^[a-z]+:\/\//i, '')
       if (address === '') return

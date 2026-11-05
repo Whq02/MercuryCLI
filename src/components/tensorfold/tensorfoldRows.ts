@@ -148,10 +148,11 @@ function willRun(lines: readonly string[], width: number, glyph?: string): Tenso
 
 function willRunOf(facts: TensorFoldPickerFacts, row: TensorFoldModelRow, window: number): string[] {
   const stops = (facts.served ?? []).filter(served => served.repo !== row.repo || served.window !== window).map(served => `stop ${served.name} on 127.0.0.1:${served.port}`)
+  const install = facts.engine === null ? (facts.install?.commands ?? []) : []
   try {
-    return [...stops, ...tensorFoldWillRun(row, window)]
+    return [...install, ...stops, ...tensorFoldWillRun(row, window)]
   } catch {
-    return stops
+    return [...install, ...stops]
   }
 }
 
@@ -225,6 +226,7 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
   const act = facts.acts?.[row.repo]
   const unqualified = !row.qualified && row.state === 'on-disk' && act === undefined
   const note = (width: number): TensorFoldCardLine[] => (unqualified ? kv('note', 'unqualified by TensorFold', width) : [])
+  const rowNote = (width: number): TensorFoldCardLine[] => (row.note !== undefined && !unqualified ? kv('note', row.note, width) : [])
   const chosen = ui.windows?.[row.repo]
   const at = chosen ?? (act?.phase === 'refused' && act.window !== undefined ? act.window : row.window)
   const fit = fitAt(row, at)
@@ -343,6 +345,7 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
           ...note(width),
           strip(row, at, `${tok(at)} needs ${gib(fit.neededGib)}, ${gib(fit.availableGib)} usable · ${room !== undefined ? `← ${tok(room)} fits` : 'no window fits this machine'}`, 'amber'),
           ...memoryLine(fit, width),
+          ...rowNote(width),
         ],
         keys: { window, support },
       },
@@ -366,6 +369,7 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
           ...memoryLine(fit, width),
           ...(command !== undefined ? [...willRun([command], width), ...(cost.length > 0 ? kv('cost', cost.join(' · '), width) : [])] : []),
           ...pullLines(width),
+          ...rowNote(width),
         ],
         keys: { ...(command !== undefined ? { limit: { kind: 'limit', row, line: command } } : {}), window, support },
       },
@@ -377,7 +381,7 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
     tensorfold: {
       state,
       memory: projected(),
-      card: width => [...note(width), strip(row, at, '←→ changes it'), ...memoryLine(fit, width), ...pullLines(width), ...willRun(willRunOf(facts, row, at), width), ...portLines(width)],
+      card: width => [...note(width), strip(row, at, '←→ changes it'), ...memoryLine(fit, width), ...pullLines(width), ...willRun(willRunOf(facts, row, at), width), ...portLines(width), ...rowNote(width)],
       keys: { enter: { words: enter, act: { kind: 'serve', row, window: at } }, window, support },
     },
   }

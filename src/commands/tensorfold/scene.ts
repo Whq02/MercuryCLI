@@ -14,7 +14,7 @@ import type { TensorFoldEngine, TensorFoldHost, TensorFoldLastReply, TensorFoldS
 import { cachedTensorFoldMachineTruth, findTensorFoldEngine, tensorFoldBackendWords, type EngineIo, type TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
 import type { TensorFoldMachineTruth } from '../../services/tensorfold/fit.js'
 import { tensorFoldInstallPlan, type InstallIo, type TensorFoldInstallPlan } from '../../services/tensorfold/install.js'
-import { hfCacheRoot, hfCacheWords, readTensorFoldInventory, type InventoryIo, type TensorFoldInventoryRow } from '../../services/tensorfold/inventory.js'
+import { bestTensorFoldFit, hfCacheRoot, hfCacheWords, readTensorFoldInventory, type InventoryIo, type TensorFoldInventoryRow } from '../../services/tensorfold/inventory.js'
 import { pullPace, pullPercent, pullProgressWords, type PullPace } from '../../services/tensorfold/pull.js'
 import { refusalNextStep, refusedWords, wiredLimitCommand, wiredLimitCostWords, type TensorFoldRefusal } from '../../services/tensorfold/refusal.js'
 import { rememberedTensorFoldPort, servedTensorFold, TENSORFOLD_DEFAULT_PORT, TENSORFOLD_HOST, type ServeIo } from '../../services/tensorfold/serve.js'
@@ -226,7 +226,7 @@ function landingOf(facts: Pick<TensorFoldPanelFacts, 'rows' | 'served' | 'outsid
   if (facts.outside.length > 0) return `outside:${facts.outside[0]!.port}`
   if (facts.install !== null && (facts.install.kind === 'needs-brew' || facts.install.kind === 'archive' || facts.install.kind === 'no-gpu' || facts.install.kind === 'old-driver')) return 'install'
   if (facts.platform === 'win32') return 'rent'
-  return facts.rows[0]?.repo
+  return bestTensorFoldFit(facts.rows)?.repo ?? facts.rows[0]?.repo
 }
 
 export function servedAddress(port: number): string {

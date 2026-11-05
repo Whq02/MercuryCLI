@@ -152,7 +152,7 @@ const EXPECT: Record<string, Expect> = {
     ['heading not installed · Apple M5 Pro · 36.0 GiB usable, unfolded', has(run, '▾ TENSORFOLD · not installed · Apple M5 Pro · 36.0 GiB usable'), flat(run).filter(l => l.includes('TENSORFOLD')).join(' | ')],
     ['the install row: install TensorFold — Homebrew · ashhart/tensorfold', has(run, 'install TensorFold — Homebrew · ashhart/tensorfold')],
     ['landed on Lightning, the default starting point on a 48 GB Mac: ↓ 19 GB · 256k ctx · 20.8 GiB; the 27B second', framedRow(run).includes('Nemotron Lightning') && cells(run, ...LIGHTNING_CELLS) && cells(run, ...QWEN_27B_CELLS) && flat(run).findIndex(l => l.includes('Nemotron Lightning')) < flat(run).findIndex(l => l.includes('Qwen3.8 27B')), framedRow(run)],
-    ['its card runs the pull then the serve', hasRun(run, `will run tensorfold pull ${LIGHTNING_REPO}`) && hasRun(run, SERVE_LIGHTNING + ' 8080'), card(run).join(' / ')],
+    ['its card runs the install, then the pull, then the serve', hasRun(run, 'will run brew install ashhart/tensorfold') && hasRun(run, `tensorfold pull ${LIGHTNING_REPO}`) && hasRun(run, SERVE_LIGHTNING + ' 8080'), card(run).join(' / ')],
     ['the footer: not installed · Homebrew found at /opt/homebrew/bin/brew', has(run, 'not installed · Homebrew found at /opt/homebrew/bin/brew')],
     ['the legend: ↵ install, pull, serve and switch · ←→ window', legend(run).includes('↑↓ select · ↵ install, pull, serve and switch · ←→ window'), legend(run)],
   ],
