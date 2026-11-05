@@ -2,8 +2,8 @@
 
 <!-- answers: Search Hugging Face or pick a shipped recipe in `/llmhost`, bank weights and mirror Runpod volumes, rent a GPU (Runpod, Vast.ai, Lambda, Hugging Face, Hyperstack, Verda or DigitalOcean), run `mercury host`, or connect a running server. -->
 
-Run `/llmhost` in the foreground chat. **Which model?** lists 32 models across
-78 recipes alongside Hugging Face search. Rows show the model, where it can run
+Run `/llmhost` in the foreground chat. **Which model?** lists 35 models across
+102 recipes alongside Hugging Face search. Rows show the model, where it can run
 and its hourly price. Choosing a row opens the model; nothing is rented before
 you confirm the price.
 
@@ -233,8 +233,8 @@ disk never attaches to a Vast.ai instance.
    and DigitalOcean register it on the account.
    Hyperstack bills per minute, including a public IP charge; `/workspace` uses local storage that is deleted on termination. Verda prepays ten-minute compute increments with unused time refunded, charges separately for its root disk, and does not publish an egress price here; termination permanently deletes that root disk and verifies its absence. DigitalOcean bills per second with a five-minute minimum and includes local disk; Mercury lists its on-demand H100/H200 sizes; B200 and the spot/contract-only B300 are left out. Powering off these instances does not end compute billing.
 2. **Choose a model and GPU shape.** Mercury reads live stock and hourly prices
-   for the full shape (every GPU and node in the recipe) across the 32 shipped
-   models (78 recipes in `assets/host/recipes.json` version 2, including
+   for the full shape (every GPU and node in the recipe) across the 35 shipped
+   models (102 recipes in `assets/host/recipes.json` version 2, including
    GLM-5.3-Flash, Nemotron 3.5 Super VL 120B, Qwen3.8-27B,
    DeepSeek-V4.1-Flash-1017, GLM-5.3, Kimi K3, Qwen3.8-2.4T-A95B,
    DeepSeek-V4-Pro-0813, MiMo-V2.6-Pro-RL, Mistral Large 3 675B,
