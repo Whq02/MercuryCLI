@@ -573,6 +573,11 @@ console.log('\n§2 the keys on a TensorFold row: ←→ and ctrl+w the window, �
   check('nothing closed the picker', run.closed() === 0)
   run.m.unmount()
   await settle(60)
+  const typed = await open(await factsFor({ inventory: [rowOf(QWEN_27B, 'not-pulled', MAC_48), rowOf(QWEN_2B, 'serving', MAC_48, { port: 8080, startedBy: 'mercury' })] }), 'claude-opus-5-5', 160, 48)
+  await press(typed, ['s', 'o', 'n'])
+  check('from any row that is not a TensorFold row a typed letter searches: s, o, n type "son" and the rows narrow to Sonnet 5, nothing acts', flat(typed).some(line => /\/ son/.test(line)) && cells(typed, 'Sonnet 5', 'claude-sonnet-5') && !cells(typed, 'Opus 5.5', 'claude-opus-5-5') && typed.acts.length === 0, [...flat(typed).slice(0, 12), JSON.stringify(typed.acts)].join(' | '))
+  typed.m.unmount()
+  await settle(60)
 }
 {
   const served = rowOf(QWEN_2B, 'serving', MAC_48, { port: 8080, startedBy: 'mercury', inUseBytes: 2_965_982_016 })
@@ -648,6 +653,23 @@ console.log('\n§3 the order rule and the facts the /model group reads')
   check("↵ on the pod row switches to the pod through its compat road, named for the pod's endpoint", pod.selected.at(-1) === 'compat/pod-7f3a-runpod/qwen3.8-27b', pod.selected.join(','))
   pod.m.unmount()
   await settle(60)
+  const SHARED: TensorFoldHost = { name: realAnnouncer.announcerMachineName(), baseUrl: 'http://127.0.0.1:8080', origin: 'shared', keyRef: 'stored', serving: 'qwen3.5-2b', version: '1.2.2', window: 262_144 }
+  const ownAnnouncement: Browsed[] = [{ name: realAnnouncer.announcerMachineName(), host: 'localhost', port: 52_000, txt: { model: 'qwen3.5-2b', engine: '8080', pair: '52000', keyed: '1' } }]
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = PROBING_ON
+  for (const [columns, rows] of SIZES) {
+    const at = `${columns}x${rows}`
+    const base = await factsFor({ hosts: [SHARED], announced: ownAnnouncement, inventory: [rowOf(QWEN_27B, 'not-pulled', MAC_48), rowOf(QWEN_2B, 'serving', MAC_48, { port: 8080, startedBy: 'mercury' })] })
+    await refreshTensorFoldAnnouncements()
+    const facts = { ...base, announced: tensorFoldAnnouncementsNow(seam.hosts) }
+    const shared = await open(facts, 'claude-opus-5-5', columns, rows)
+    await press(shared, [UP, UP, RIGHT])
+    await save('m12-model-host-shared', shared)
+    check(`${at} m12: this Mac's own shared server reads as this Mac under TENSORFOLD HOST, shared on this network, keyed`, has(shared, '▾ TENSORFOLD HOST · this Mac · 1 serving') && cells(shared, 'Qwen3.5 2B', 'local/qwen3.5-2b', 'shared', '256k ctx', 'this Mac') && has(shared, 'host      this Mac · TensorFold 1.2.2') && has(shared, 'network   shared on this network · keyed'), flat(shared).filter(l => /TENSORFOLD HOST|shared|this Mac/.test(l)).join(' | '))
+    check(`${at} m12: never a pairable row — its own announcement is not listed and ↵ offers neither pairing nor a switch`, facts.announced.length === 0 && !has(shared, 'not paired') && !has(shared, '↵ pair') && !has(shared, '↑↓ select · ↵ switch'), [legendOf(shared), JSON.stringify(facts.announced)].join(' | '))
+    shared.m.unmount()
+    await settle(60)
+  }
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = PROBING_OFF
 }
 
 console.log("\n§4 /model keeps no TensorFold road of its own: every key but pairing goes to the panel lane's onTensorFoldAct (tf-panel-106)")

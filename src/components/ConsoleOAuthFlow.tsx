@@ -190,7 +190,8 @@ export function ConsoleOAuthFlow({
     else settingsFrame?.setHint(null)
     return () => settingsFrame?.setHint(null)
   }, [listUp, settingsFrame])
-  const menuCount = loginFamilyRows({ engineLegs: onOpenaiDone !== undefined, tensorfold }).length + (onSkip !== undefined ? 1 : 0)
+  const familyRows = loginFamilyRows({ engineLegs: onOpenaiDone !== undefined, tensorfold })
+  const menuCount = familyRows.length + (onSkip !== undefined ? 1 : 0)
   usePopupMarker(compact && menuUp ? settingsPopupMarker(menuFocus + 1, menuCount) : null)
   const [code, setCodeState] = useState('')
   const codeRef = useRef('')
@@ -418,7 +419,7 @@ export function ConsoleOAuthFlow({
   switch (state.name) {
     case 'idle': {
       const idleRows = [
-        ...loginFamilyRows({ engineLegs: onOpenaiDone !== undefined, tensorfold }),
+        ...familyRows,
         ...(onSkip !== undefined ? [signInLaterRow(localRoad)] : []),
       ]
       const recordedFocus = loginFamilyFocusFor(mostRecentSignInFamily())

@@ -25,14 +25,14 @@ export async function readModelTensorFoldFacts(io: FactsIo = {}): Promise<ModelT
   return { panel: own, picker: pickerFactsOf(own) }
 }
 
-let last: ModelTensorFoldFacts | undefined
+let factsSnapshot: ModelTensorFoldFacts | undefined
 
 export function useModelTensorFoldFacts(current: string | undefined, onNotice: (words: string) => void): ModelTensorFold | undefined {
   const off = localServerProbingOff()
   const version = useSyncExternalStore(subscribeTensorFoldRoad, tensorFoldRoadVersion, tensorFoldRoadVersion)
   const stamp = useSyncExternalStore(subscribeTensorFoldFacts, tensorFoldFactsStamp, tensorFoldFactsStamp)
   const discovery = getCachedLocalDiscovery()
-  const [facts, setFacts] = useState<ModelTensorFoldFacts | undefined>(last)
+  const [facts, setFacts] = useState<ModelTensorFoldFacts | undefined>(factsSnapshot)
   const engine = useRef<TensorFoldEngineFound | null | undefined>(undefined)
   const reading = useRef<Promise<ModelTensorFoldFacts> | undefined>(undefined)
   const alive = useRef(true)
@@ -45,7 +45,7 @@ export function useModelTensorFoldFacts(current: string | undefined, onNotice: (
     const at = currentRef.current
     const next = readModelTensorFoldFacts({ ...(at !== undefined ? { current: at } : {}), ...(engine.current !== undefined ? { engine: engine.current } : {}) }).then(read => {
       engine.current = read.panel.engine as TensorFoldEngineFound | null
-      last = read
+      factsSnapshot = read
       if (alive.current) setFacts(read)
       return read
     })

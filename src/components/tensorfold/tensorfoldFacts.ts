@@ -138,7 +138,7 @@ async function readTensorFoldOffer(platform: NodeJS.Platform = process.platform,
   return { kind: engine === null ? 'install' : 'ready', label: best.label ?? best.shortName, place: platform === 'darwin' ? 'mac' : 'gpu' }
 }
 
-let offer: TensorFoldOffer | null | undefined
+let offerSnapshot: TensorFoldOffer | null | undefined
 let offerReading: Promise<TensorFoldOffer | null> | undefined
 let stamp = 0
 const listeners = new Set<() => void>()
@@ -151,7 +151,7 @@ function emit(): void {
 function refreshTensorFoldOffer(): Promise<TensorFoldOffer | null> {
   offerReading ??= readTensorFoldOffer()
     .then(next => {
-      offer = next
+      offerSnapshot = next
       emit()
       return next
     })
@@ -175,10 +175,10 @@ export function useTensorFoldOffer(): TensorFoldOffer | null | undefined {
   useEffect(() => {
     void refreshTensorFoldOffer().catch(() => undefined)
   }, [])
-  return offer
+  return offerSnapshot
 }
 
-let announced: readonly TensorFoldAnnouncedHost[] = []
+const announcedSnapshot = new Map<string, TensorFoldAnnouncedHost>()
 let browsing: Promise<void> | undefined
 
 function txtNumber(value: string | undefined): number | undefined {
@@ -209,7 +209,7 @@ function remembered(host: TensorFoldAnnouncedHost, hosts: readonly TensorFoldHos
 }
 
 export function tensorFoldAnnouncementsNow(hosts: readonly TensorFoldHost[] = quietly(() => tensorFoldHosts(), [])): TensorFoldAnnouncedHost[] {
-  return announced.filter(host => !remembered(host, hosts))
+  return [...announcedSnapshot.values()].filter(host => !remembered(host, hosts))
 }
 
 export function refreshTensorFoldAnnouncements(): Promise<void> {
@@ -217,14 +217,12 @@ export function refreshTensorFoldAnnouncements(): Promise<void> {
   browsing ??= browseAnnouncements()
     .then(found => {
       const mine = announcerMachineName()
-      const before = new Map(announced.map(host => [host.name, host]))
-      announced = found
-        .filter(row => row.name !== mine)
-        .map(announcedOf)
-        .filter((host): host is TensorFoldAnnouncedHost => host !== undefined)
-        .map(host => {
-          return before.get(host.name)?.pairing === true ? { ...host, pairing: true } : host
-        })
+      const pairing = new Set([...announcedSnapshot.values()].filter(host => host.pairing === true).map(host => host.name))
+      announcedSnapshot.clear()
+      for (const row of found) {
+        const host = row.name === mine ? undefined : announcedOf(row)
+        if (host !== undefined) announcedSnapshot.set(host.name, pairing.has(host.name) ? { ...host, pairing: true } : host)
+      }
       emit()
     })
     .catch(() => undefined)
@@ -235,11 +233,11 @@ export function refreshTensorFoldAnnouncements(): Promise<void> {
 }
 
 function markAnnounced(name: string, mark: Pick<TensorFoldAnnouncedHost, 'pairing' | 'refused'>): void {
-  announced = announced.map(host => {
-    if (host.name !== name) return host
+  const host = announcedSnapshot.get(name)
+  if (host !== undefined) {
     const { pairing: _pairing, refused: _refused, ...rest } = host
-    return { ...rest, ...(mark.pairing === true ? { pairing: true } : {}), ...(mark.refused !== undefined ? { refused: mark.refused } : {}) }
-  })
+    announcedSnapshot.set(name, { ...rest, ...(mark.pairing === true ? { pairing: true } : {}), ...(mark.refused !== undefined ? { refused: mark.refused } : {}) })
+  }
   emit()
 }
 
@@ -266,7 +264,7 @@ export async function pairTensorFoldHost(host: TensorFoldAnnouncedHost, code: st
     markAnnounced(host.name, { refused: error instanceof Error ? error.message : String(error) })
     return undefined
   }
-  announced = announced.filter(row => row.name !== host.name)
+  announcedSnapshot.delete(host.name)
   emit()
   void refreshLocalDiscovery({ force: true }).catch(() => undefined)
   return `paired with ${reply.name} · ↵ on its row switches to ${reply.model}`

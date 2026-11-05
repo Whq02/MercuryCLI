@@ -41,8 +41,11 @@ section('§A the ONE provider station — the /logins card mounted in the walk')
     JSON.stringify(families.map(row => [row.value, parseFamilyFocus(row.value)])),
   )
   check(
-    'the /logins card derives rows AND count from the owner (never a hand copy)',
-    card.includes('loginFamilyRows({ engineLegs: onOpenaiDone !== undefined })') &&
+    'the /logins card derives rows AND count from the owner, in one call (never a hand copy) — the walk hands the owner its TensorFold offer, so the row the walk offers first is the owner\'s row too',
+    card.includes('const familyRows = loginFamilyRows({ engineLegs: onOpenaiDone !== undefined, tensorfold })') &&
+      card.includes('const menuCount = familyRows.length + ') &&
+      card.includes('...familyRows,') &&
+      (card.match(/loginFamilyRows\(\{ engineLegs: onOpenaiDone !== undefined/g) ?? []).length === 1 &&
       card.includes('rosterRows: idleRows.length') &&
       card.includes('visibleOptionCount={rosterWindow}'),
   )

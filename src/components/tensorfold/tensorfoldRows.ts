@@ -423,6 +423,7 @@ function hostChoices(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): Mode
   const labels = new Map(facts.rows.filter(row => row.label !== undefined).map(row => [row.shortName, row.label!] as const))
   const hosts = (facts.hosts ?? []).filter(host => host.origin !== 'app')
   const out: ModelChoice[] = hosts.map(host => {
+    if (host.origin === 'shared') return sharedChoice(host, labels, facts.platform)
     const network = host.origin === 'lan-paired' || host.origin === 'typed'
     if (host.serving === undefined) {
       return actionChoice(TENSORFOLD_HOST_GROUP, `host:${host.name}`, host.name, 'nothing served', {
@@ -477,6 +478,32 @@ function hostChoices(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): Mode
     keys: typing !== undefined ? { legend: ['type host:port', '↵ add it', 'esc back'], typed: text => ({ kind: 'address', address: text }) } : { enter: { words: '↵ type its address', input: 'address' } },
   }))
   return out.map(choice => ({ ...choice, rest: false }))
+}
+
+function thisMachine(platform: NodeJS.Platform): string {
+  return platform === 'darwin' ? 'this Mac' : 'this machine'
+}
+
+function sharedChoice(host: TensorFoldHost, labels: ReadonlyMap<string, string>, platform: NodeJS.Platform): ModelChoice {
+  const here = thisMachine(platform)
+  return {
+    id: host.serving !== undefined ? `local/${host.serving}` : `tensorfold:shared:${host.name}`,
+    key: `shared:${host.name}`,
+    name: host.serving !== undefined ? (labels.get(host.serving) ?? host.serving) : here,
+    tag: '',
+    ctx: host.window !== undefined ? `${tok(host.window)} ctx` : '',
+    group: TENSORFOLD_HOST_GROUP,
+    rest: false,
+    tensorfold: {
+      state: { text: 'shared', tone: 'teal' },
+      memory: { text: here, tone: 'faint' },
+      card: width => [
+        ...kv('host', [here, host.version !== undefined ? `TensorFold ${host.version}` : undefined].filter(part => part !== undefined).join(' · '), width),
+        ...kv('network', 'shared on this network · keyed', width),
+      ],
+      keys: {},
+    },
+  }
 }
 
 function announcedChoice(host: TensorFoldAnnouncedHost, labels: ReadonlyMap<string, string>, ui: TensorFoldPickerUi): ModelChoice {
@@ -555,7 +582,7 @@ function tensorFoldHostStatus(facts: TensorFoldPickerFacts): string {
   const hosts = [...(facts.hosts ?? []).filter(host => host.origin !== 'app'), ...(facts.announced ?? [])]
   if (hosts.length === 0) return HOST_NONE
   const serving = hosts.filter(host => host.serving !== undefined).length
-  return `${hosts.map(host => host.name).join(' · ')} · ${serving > 0 ? `${serving} serving` : 'nothing served'}`
+  return `${hosts.map(host => ('origin' in host && host.origin === 'shared' ? thisMachine(facts.platform) : host.name)).join(' · ')} · ${serving > 0 ? `${serving} serving` : 'nothing served'}`
 }
 
 export function tensorFoldPickerRows(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): { rows: ModelChoice[]; headings: Record<string, ProviderHeading> } {

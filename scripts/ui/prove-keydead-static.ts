@@ -48,7 +48,7 @@ function hintStrings(text: string): Array<{ line: number; str: string }> {
     const line = lines[i]!
     const t = line.trimStart()
     if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) continue
-    for (const m of line.matchAll(/(?<!\\)'((?:[^'\\]|\\.){3,120})'/g)) {
+    for (const m of line.matchAll(/(?<![\\\w])'((?:[^'\\]|\\.){3,120})'/g)) {
       const s = m[1]!
       if (!s.includes(' · ')) continue
       if (!KEY_TOKEN_HINT.test(s) && !/(?:^|· )[a-z] [a-z]/.test(s)) continue
@@ -256,6 +256,7 @@ check('a ConsoleOAuthFlow onSkip callback binds the advertised s through the chi
 check('a ConsoleOAuthFlow without onSkip cannot claim the skip key', !hasBinding('<ConsoleOAuthFlow onDone={done} />', 'letter:s', 'fixture.tsx'))
 check('another component cannot lend its onSkip callback to ConsoleOAuthFlow', !hasBinding('<ConsoleOAuthFlow onDone={done} /><Other onSkip={advance} />', 'letter:s', 'fixture.tsx'))
 check('a similarly named component cannot claim the ConsoleOAuthFlow binding', !hasBinding('<ConsoleOAuthFlowOther onSkip={advance} />', 'letter:s', 'fixture.tsx'))
+check("an apostrophe inside a word opens no string: prose like Mercury's in a template literal is never read as a hint rail", hintStrings("  warning: `a local model for Mercury's own small jobs whatever the main model · ${choices.filter(choice => choice.size !== 'off')}`,").length === 0 && hintStrings("  hint: 'esc back · s skips',").length === 1)
 const files: string[] = []
 for (const t of TREES) walk(join(ROOT, t), files)
 
