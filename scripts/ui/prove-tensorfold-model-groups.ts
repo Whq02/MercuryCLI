@@ -254,6 +254,12 @@ mock.module('../../src/utils/model/seatReceipts.js', () => ({
     receipts.push(text)
   },
 }))
+const realFacts = await import('../../src/components/tensorfold/tensorfoldFacts.ts')
+const realCapable = realFacts.tensorFoldCapableMachine
+mock.module('../../src/components/tensorfold/tensorfoldFacts.js', () => ({
+  ...realFacts,
+  tensorFoldCapableMachine: (...args: Parameters<typeof realCapable>) => (args.length === 0 ? truthOf(seam.machine).platform === 'darwin' : realCapable(...args)),
+}))
 
 const React = await import('react')
 const h = React.createElement
@@ -307,7 +313,7 @@ function installed(machine: TensorFoldMachine = MAC_48): TensorFoldModelRow[] {
 async function factsFor(next: Partial<Seam>, platform?: NodeJS.Platform): Promise<Facts> {
   seam = { ...DEFAULT_SEAM, inventory: installed(), best: QWEN_27B.repo, ...next }
   const read = await readModelTensorFoldFacts({
-    ...(platform !== undefined ? { platform } : {}),
+    platform: platform ?? truthOf(seam.machine).platform,
     engine: seam.engine as never,
     machine: truthOf(seam.machine),
     served: seam.served,
