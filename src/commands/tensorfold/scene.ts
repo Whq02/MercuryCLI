@@ -2,7 +2,7 @@ import { statfsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { bytesWords } from '../../services/host/bank.js'
 import { currentHostRecipes } from '../../services/host/recipesFile.js'
-import { tensorFoldPodRows, tensorFoldRentFacts, tensorFoldRentRow, type TensorFoldPodRowFacts } from '../../services/host/tensorfoldPod.js'
+import { settleStoppingTensorFoldPods, tensorFoldPodRows, tensorFoldRentFacts, tensorFoldRentRow, type TensorFoldPodRowFacts } from '../../services/host/tensorfoldPod.js'
 import { gibWords, tokensWords } from '../../services/localServer/localServerMemory.js'
 import { LOCAL_SERVER_NAMES } from '../../services/providers/local/localCatalogue.js'
 import { cachedLocalModels, type LocalModelRecord } from '../../services/providers/local/localDiscovery.js'
@@ -195,6 +195,7 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
   const helper = quietly(() => (io.helper ?? helperHeadingWords)(), undefined)
   const app = platform === 'darwin' ? await (io.app ?? detectTensorFoldApp)().catch(() => undefined) : undefined
   const rent = quietly(() => (io.rent ?? defaultRent)(), undefined)
+  if (io.pods === undefined) await settleStoppingTensorFoldPods().catch(() => 0)
   const pods = quietly(() => (io.pods ?? (() => tensorFoldPodRows(currentHostRecipes())))(), [] as readonly TensorFoldPodRowFacts[])
   const install = engine === null && platform !== 'win32' ? tensorFoldInstallPlan(machine, { ...io, platform }) : platform === 'win32' ? tensorFoldInstallPlan({ platform, ...(machine.gpu ? { gpu: machine.gpu } : {}) }, { ...io, platform }) : null
   const remembered = rememberedTensorFoldPort(io)

@@ -276,6 +276,21 @@ section('§4 --coordinator-on persists the key; the stored preference applies; t
   check("/health's constitution row names the coordinator contract size again", row.includes(`seat contracts coordinator ${MERCURY_COORDINATOR_CONTRACT.length}`) && !row.includes('off (switch)'), row)
 }
 
+section('§4b a home that never stored a mode or a model: --coordinator-on alone yields the assisted coordinator (the box\'s FRC2W-U-30)')
+{
+  const kept = getGlobalConfig().concourseCoordinator
+  saveGlobalConfig(c => ({ ...c, concourseCoordinator: undefined }))
+  check('nothing stored under concourseCoordinator', getGlobalConfig().concourseCoordinator === undefined)
+  check("the kernel's requested mode reads 'agent-assisted' with the switch on and no stored mode", (await storedMode()) === 'agent-assisted')
+  const fresh = await lane.resolveEffectiveCoordinator()
+  const registry = await models.composeCoordinatorModelRegistry()
+  const expected = (registry.entries.find(entry => entry.availability === 'ready') ?? registry.entries[0])?.modelId
+  check("the lane resolves 'agent-assisted' on the registry's first ready model without a stored choice", fresh.resolution.effective === 'agent-assisted' && fresh.assistModelId !== undefined && fresh.assistModelId === expected, JSON.stringify({ fresh, expected }))
+  check("the snapshot's coordinator.mode reads 'agent-assisted' — the pane's gate — with a model label", (await buildSnapshot()).coordinator.mode === 'agent-assisted' && (await buildSnapshot()).coordinator.assistModelLabel !== undefined)
+  check('the default is never written to the preference file', getGlobalConfig().concourseCoordinator === undefined && !configBytes().includes('assistModel'))
+  saveGlobalConfig(c => ({ ...c, concourseCoordinator: kept }))
+}
+
 section('§5 --coordinator-off turns it off again; the preference survives for the next --coordinator-on')
 {
   sw.setCoordinatorEnabled(false)

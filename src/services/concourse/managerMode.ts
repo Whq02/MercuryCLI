@@ -294,7 +294,7 @@ export function managerLaneBriefOf(plan: ManagerPlanV1, laneIndex: number): stri
 
 
 export const MANAGER_NEEDS_MODEL_LINE =
-  'manager mode needs a coordinator model — the rail’s coordinator chip or ⌃s picks one'
+  'manager mode needs a coordinator model — sign in to a provider or serve a local model'
 
 export type ManagerModelResolution =
   | { ok: true; modelId: string; label: string }
@@ -310,8 +310,8 @@ export async function resolveManagerModel(): Promise<ManagerModelResolution> {
   } catch {
     return { ok: false, reason: 'unreadable', line: keyHintLabel(MANAGER_NEEDS_MODEL_LINE) }
   }
-  const { validateCoordinatorModelChoice } = await import('./coordinatorModels.js')
-  const validated = await validateCoordinatorModelChoice(choice)
+  const { validateCoordinatorModelChoice, defaultCoordinatorModelId } = await import('./coordinatorModels.js')
+  const validated = await validateCoordinatorModelChoice(choice ?? await defaultCoordinatorModelId())
   if (!validated.ok) {
     return {
       ok: false,
@@ -319,7 +319,7 @@ export async function resolveManagerModel(): Promise<ManagerModelResolution> {
       line:
         validated.reason === 'no-choice'
           ? keyHintLabel(MANAGER_NEEDS_MODEL_LINE)
-          : `manager mode needs a coordinator model — "${choice ?? ''}" is not in the composed registry; ${keyHintLabel('⌃s')} picks one`,
+          : `manager mode needs a coordinator model — "${choice ?? ''}" is not in the composed registry`,
     }
   }
   return { ok: true, modelId: validated.entry.modelId, label: validated.entry.displayName }

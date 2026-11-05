@@ -4,7 +4,7 @@ import { ModelPickerPopupLease } from '../../components/ModelPickerPopupSlot.js'
 import { focusedSessionModelFacts } from '../../services/engine-connector/focusedConnector.js'
 import { modelDoorRoad } from '../../services/host/door.js'
 import { runHostedModel } from '../../services/host/index.js'
-import { stopTensorFoldPod } from '../../services/host/tensorfoldPod.js'
+import { stopTensorFoldPod, terminateTensorFoldPod } from '../../services/host/tensorfoldPod.js'
 import { resolveSetupIo } from '../../services/localSetup/setupIo.js'
 import { pickAndProve, switchSessionModel } from '../../services/localSetup/setupProve.js'
 import { PAIRING_WORDS } from '../../services/lan/pairing.js'
@@ -78,7 +78,7 @@ export function TensorFoldPanel({ onDone, io = {}, repo }: { onDone: (words?: st
     }
   }, [read, version])
   React.useEffect(() => {
-    const inFlight = facts !== null && Object.values(facts.acts).some(act => act.kind === 'pulling' || act.kind === 'starting' || act.kind === 'installing')
+    const inFlight = facts !== null && (Object.values(facts.acts).some(act => act.kind === 'pulling' || act.kind === 'starting' || act.kind === 'installing') || facts.pods.some(pod => pod.state === 'starting' || pod.state === 'stopping'))
     if (!inFlight) return
     const timer = setInterval(() => void read(), TENSORFOLD_REFRESH_MS)
     return () => clearInterval(timer)
@@ -170,6 +170,12 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
     case 'stop-pod': {
       setTensorFoldNotice(`stopping ${act.name}`)
       setTensorFoldNotice((await (io.stopPod ?? stopTensorFoldPod)(act.id)).words)
+      await doors.read?.()
+      return
+    }
+    case 'terminate-pod': {
+      setTensorFoldNotice(`terminating ${act.name}`)
+      setTensorFoldNotice((await (io.terminatePod ?? terminateTensorFoldPod)(act.id)).words)
       await doors.read?.()
       return
     }

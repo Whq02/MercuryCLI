@@ -316,6 +316,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         }
         closeHostTunnel(pod.id)
         if (record) { record.status = pod.status; if (api.capabilities.managed) record.step = 'Paused · no compute bills'; writeHostRecord(record) }
+        if (record) { const { tensorFoldPodFacts, tensorFoldPodHostName } = await import('./tensorfoldPod.js'); if (tensorFoldPodFacts(record, undefined) !== undefined) { const { forgetTensorFoldHost } = await import('../providers/local/tensorfoldHosts.js'); await forgetTensorFoldHost(tensorFoldPodHostName(pod.id)).catch(() => undefined) } }
       }
     }
     const adoptRented = async (rented: HostRecord): Promise<LlmHostResult> => {

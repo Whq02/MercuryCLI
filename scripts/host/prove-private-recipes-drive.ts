@@ -126,7 +126,7 @@ try {
     await capture(width + 'x' + height + '-result', width, height)
     check('the absolute choice is stored beside bank.json with private permissions', JSON.parse(readFileSync(choicePath, 'utf8')).path === valid && (process.platform === 'win32' || (statSync(choicePath).mode & 0o777) === 0o600))
     await choose('Private DeepSeek'); await step('door-model')
-    check('a private model offers the same chooser with loaded path and count', question!.rows!.some(row => row.value === 'private-recipes' && row.label.includes('my recipes.json') && row.label.endsWith('2 rows · replaces the shipped list')))
+    check('a private model offers the same chooser with loaded path and count', question!.rows!.some(row => row.value === 'private-recipes' && row.label.includes('my recipes.json') && row.label.endsWith('2 rows · joins the shipped list, its ids first')))
     await select('private-recipes'); await capture(width + 'x' + height + '-row-loaded', width, height)
     mounted!.push(KEY.enter); await step('door-private-recipes-file')
     check('the chosen file is a candidate and the initial value', question!.found.includes('my recipes.json') && question!.initial?.includes('my recipes.json'))
@@ -161,10 +161,10 @@ try {
   writeFileSync(valid, fileOf(privateRows))
   rmSync(choicePath)
   process.env.MERCURY_HOST_RECIPES_FILE = other
-  check('the environment override still works without a saved choice', recipes.currentHostRecipes().map(row => row.id).join(',') === 'other-private')
+  check('the environment override still works without a saved choice: its rows first, the shipped catalogue after them', recipes.currentHostRecipes()[0]?.id === 'other-private' && recipes.currentHostRecipes().filter(row => row.id === 'other-private').length === 1 && recipes.currentHostRecipes().some(row => row.engine === 'tensorfold'))
   delete process.env.MERCURY_HOST_RECIPES_FILE
   writeFileSync(recipes.privateHostRecipesPath(), fileOf(privateRows))
-  check('the home default still works without an environment override or saved choice', recipes.currentHostRecipes().map(row => row.id).join(',') === privateRows.map(row => row.id).join(','))
+  check('the home default still works without an environment override or saved choice: the private rows first, then the shipped catalogue whole (its TensorFold recipes among them)', recipes.currentHostRecipes().slice(0, privateRows.length).map(row => row.id).join(',') === privateRows.map(row => row.id).join(',') && recipes.currentHostRecipes().length === privateRows.length + HOST_RECIPES.length - privateRows.filter(row => HOST_RECIPES.some(shipped => shipped.id === row.id)).length && recipes.currentHostRecipes().some(row => row.engine === 'tensorfold'))
   check('no network request was made', escaped.length === 0)
   console.log('PRIVATE RECIPES DRIVE GREEN — ' + checks + ' checks; real popup at 120×40 and 80×24; fixture files only')
 } finally { mounted?.unmount(); globalThis.fetch = realFetch; delete process.env.MERCURY_HOST_RECIPES_FILE; f.close() }

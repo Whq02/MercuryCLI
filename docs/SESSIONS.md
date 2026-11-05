@@ -844,7 +844,9 @@ saved `coordinatorEnabled` setting in the global config (absent reads as
 off), written only by this flag; `--coordinator-off` turns it off again, and
 with both flags on one command line the later one wins. A coordinator mode,
 model or effort saved by an earlier version does not turn it on: only the
-switch does, and those settings apply once it is on.
+switch does, and those settings apply once it is on; a home that never saved
+them gets the assisted coordinator on the first ready model of the composed
+registry (the pane needs a signed-in provider or a served local model).
 
 With it off, nothing coordinator-shaped runs: `n` on the board starts
 sessions directly, no coordinator turn, conversation, receipt or model choice

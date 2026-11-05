@@ -473,7 +473,7 @@ for (const [columns, rows] of SIZES) {
     await save('m03b-model-host', run)
     check(`${at} m03b: TENSORFOLD HOST unfolded with the host's name and its server framed`, has(run, '▾ TENSORFOLD HOST · studio.local · 1 serving') && cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'serving', '128k ctx', 'studio.local'))
     check(`${at} m03b: the host card`, has(run, 'host      studio.local:8080 · Apple M3 Ultra · TensorFold 1.2.2 · keyed') && has(run, 'serving   ~38 tok/s on its last reply') && has(run, 'window    128k · set when it started outside Mercury, which does not stop or') && has(run, 'plain HTTP on your home or office network, not across the internet'), flat(run).slice(4, 18).join(' | '))
-    check(`${at} m03b: the rent and address rows`, has(run, 'rent a GPU pod — Runpod, through /llmhost') && has(run, 'a server on your network — its address'))
+    check(`${at} m03b: the rent and address rows`, has(run, 'rent a GPU pod — Runpod or Vast.ai, through /llmhost') && has(run, 'a server on your network — its address'))
     check(`${at} m03b: ↵ switches`, has(run, '↑↓ select · ↵ switch'), legendOf(run))
     run.m.unmount()
     await settle(60)
@@ -511,7 +511,7 @@ for (const [columns, rows] of SIZES) {
     const run = await open(await factsFor({}, 'win32'), 'claude-opus-5-5', columns, rows)
     await save('m07-model-win32', run)
     check(`${at} win32: TENSORFOLD reads no Windows release yet, folded`, has(run, '▸ TENSORFOLD · no Windows release yet'))
-    check(`${at} win32: TENSORFOLD HOST unfolded and holds the road`, has(run, '▾ TENSORFOLD HOST · no host · a server on your network or a rented GPU pod') && has(run, 'rent a GPU pod — Runpod, through /llmhost') && has(run, 'a server on your network — its address'))
+    check(`${at} win32: TENSORFOLD HOST unfolded and holds the road`, has(run, '▾ TENSORFOLD HOST · no host · a server on your network or a rented GPU pod') && has(run, 'rent a GPU pod — Runpod or Vast.ai, through /llmhost') && has(run, 'a server on your network — its address'))
     run.m.unmount()
     await settle(60)
   }
@@ -642,14 +642,14 @@ console.log('\n§3 the order rule and the facts the /model group reads')
   const POD: TensorFoldHost = { name: 'pod-7f3a', baseUrl: 'http://127.0.0.1:41234', origin: 'pod', keyRef: 'pod-7f3a', serving: 'qwen3.8-27b', version: '1.2.2', chip: 'RTX 5090', window: 131_072 }
   const POD_ROW: PodRow = { hostName: 'pod-7f3a', id: '7f3a', provider: 'pod-7f3a-runpod', words: '$1.19/h on Runpod · 12 min · ~$0.24 so far · s stops the pod and its billing', bills: true, state: 'serving', title: 'Qwen3.8 27B', served: 'qwen3.8-27b', window: 131_072, gpu: 'RTX 5090', vendor: 'Runpod' }
   const SETTING_UP: PodRow = { hostName: 'pod-7f3b', id: '7f3b', words: '$1.19/h on Runpod · 3 min · ~$0.06 so far · s stops the pod and its billing', bills: true, state: 'starting', title: 'Qwen3.8 27B', served: 'qwen3.8-27b', window: 131_072, gpu: 'RTX 5090', vendor: 'Runpod', step: 'pulling TensorFold/Qwen3.8-27B-MLX-4bit' }
-  const STOPPED: PodRow = { hostName: 'pod-7f3c', id: '7f3c', words: 'stopped · compute billing ended · ~$0.31 so far · the disk bills until you terminate it in /llmhost', bills: false, state: 'stopped', title: 'Qwen3.8 27B', served: 'qwen3.8-27b', window: 131_072, gpu: 'RTX 5090', vendor: 'Runpod' }
+  const STOPPED: PodRow = { hostName: 'pod-7f3c', id: '7f3c', words: 'stopped · compute billing ended · ~$0.31 so far · the disk bills until you terminate it · t terminates', bills: false, state: 'stopped', title: 'Qwen3.8 27B', served: 'qwen3.8-27b', window: 131_072, gpu: 'RTX 5090', vendor: 'Runpod' }
   const PAUSED: PodRow = { hostName: 'pod-7f3d', id: '7f3d', words: '$0.53/h on Vast.ai · 9 min · ~$0.08 so far · s stops the pod and its billing', bills: true, state: 'paused', title: 'Qwen3.8 27B', served: 'qwen3.8-27b', window: 131_072, gpu: 'RTX 5090', vendor: 'Vast.ai', step: 'paused at starting engine' }
   const tunnel: Server[] = [{ kind: 'tensorfold', root: 'http://127.0.0.1:41234', baseUrl: 'http://127.0.0.1:41234/v1', label: 'TensorFold 1.2.2', version: '1.2.2', models: [{ id: 'qwen3.8-27b', server: 'tensorfold', baseUrl: 'http://127.0.0.1:41234/v1' }] }]
   const pod = await open(await factsFor({ hosts: [POD], discovered: tunnel, pods: [POD_ROW] }), 'claude-opus-5-5', 160, 48)
   await press(pod, [UP, UP, RIGHT])
   check("a rented pod's loopback tunnel is a TENSORFOLD HOST row, never a served row on this machine", cells(pod, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'serving', '128k ctx', 'pod-7f3a') === false && has(pod, 'pod-7f3a · 1 serving') && has(pod, '▸ TENSORFOLD · 1.2.2 · Apple M5 Pro · 36.0 GiB usable · nothing served'), flat(pod).filter(l => /TENSORFOLD|pod-7f3a/.test(l)).join(' | '))
   check("the pod row's card carries tf-host-106's pod line (price, time, spend, s) under the host line", has(pod, 'host      RTX 5090 · TensorFold 1.2.2 · keyed') && !has(pod, '127.0.0.1:41234') && has(pod, 'window    128k · set when the pod was rented') && has(pod, 'pod       $1.19/h on Runpod · 12 min · ~$0.24 so far · s stops the pod and its billing'), flat(pod).slice(4, 16).join(' | '))
-  check('the legend offers s stops the pod', has(pod, '↑↓ select · ↵ switch · s stops the pod'), legendOf(pod))
+  check('the legend offers s stops the pod and t terminates it', has(pod, '↑↓ select · ↵ switch · s stops the pod · t terminates it'), legendOf(pod))
   await press(pod, ['s'])
   const stopPod = pod.acts.at(-1)
   check("s on the pod row hands the pod's id on (tf-host-106's stopTensorFoldPod ends its billing)", stopPod?.kind === 'stop-pod' && stopPod.id === '7f3a' && stopPod.name === 'pod-7f3a', JSON.stringify(stopPod ?? null))
@@ -664,10 +664,15 @@ console.log('\n§3 the order rule and the facts the /model group reads')
   check('the setting-up pod is a row in the columns: name, its pod id, setting up, the window, the card', cells(rented, 'Qwen3.8 27B', 'compat/pod-7f3b/qwen3.8-27b', 'setting up', '128k ctx', 'RTX 5090'), flat(rented).filter(l => l.includes('pod-7f3b')).join(' | '))
   check("the framed setting-up row's card: the pod line with price, time and spend, then what it is doing now", has(rented, 'pod       RTX 5090 · $1.19/h on Runpod · 3 min · ~$0.06 so far · s stops the pod and its') && has(rented, 'now       pulling TensorFold/Qwen3.8-27B-MLX-4bit'), flat(rented).filter(l => /^(pod|now|paused|next) {2,}/.test(l.trim())).join(' / '))
   check('the stopped pod stays listed with its disk-billing words and no s; the paused pod names its cause and the next step', cells(rented, 'Qwen3.8 27B', 'compat/pod-7f3c/qwen3.8-27b', 'stopped', '128k ctx', 'RTX 5090') && cells(rented, 'Qwen3.8 27B', 'compat/pod-7f3d/qwen3.8-27b', 'paused', '128k ctx', 'RTX 5090'), flat(rented).filter(l => l.includes('pod-7f3')).join(' | '))
-  check('the legend on a setting-up pod offers s stops the pod and no switch', legendOf(rented).includes('s stops the pod') && !legendOf(rented).includes('↵ switch'), legendOf(rented))
+  check('the legend on a setting-up pod offers s stops the pod and t terminates it, no switch', legendOf(rented).includes('s stops the pod') && legendOf(rented).includes('t terminates it') && !legendOf(rented).includes('↵ switch'), legendOf(rented))
   await press(rented, ['s'])
   const stopRented = rented.acts.at(-1)
   check("s on the setting-up pod hands its id on", stopRented?.kind === 'stop-pod' && stopRented.id === '7f3b' && stopRented.name === 'pod-7f3b', JSON.stringify(stopRented ?? null))
+  await frameRow(rented, 'compat/pod-7f3c/qwen3.8-27b')
+  check('the stopped row offers t and no s', legendOf(rented).includes('t terminates it') && !legendOf(rented).includes('s stops the pod'), legendOf(rented))
+  await press(rented, ['t'])
+  const terminateRented = rented.acts.at(-1)
+  check("t on the stopped pod hands its id on (the owner, 2026-11-05: t terminates from the panel as well)", terminateRented?.kind === 'terminate-pod' && terminateRented.id === '7f3c' && terminateRented.name === 'pod-7f3c', JSON.stringify(terminateRented ?? null))
   await frameRow(rented, 'compat/pod-7f3d/qwen3.8-27b')
   check("the paused pod's card carries its cause and the next step", has(rented, 'paused    starting engine') && has(rented, 'next      Resume or Terminate in /llmhost'), flat(rented).filter(l => /^(pod|now|paused|next) {2,}/.test(l.trim())).join(' / '))
   rented.m.unmount()

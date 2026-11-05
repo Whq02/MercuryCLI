@@ -577,7 +577,7 @@ export function Config({
       </Text>
     ),
     warning: coordinatorOn
-      ? 'a boot switch: the stored coordinator mode and model apply while it is on'
+      ? 'a boot switch: the assisted coordinator on the first ready model, or the stored mode and model where an earlier version saved them'
       : 'a boot switch, off by default: n on the board starts sessions directly and no coordinator runs',
   })
   const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null)

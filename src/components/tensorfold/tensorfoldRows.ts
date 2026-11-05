@@ -54,6 +54,7 @@ export type TensorFoldAct =
   | { kind: 'switch'; id: string }
   | { kind: 'stop'; row: TensorFoldModelRow }
   | { kind: 'stop-pod'; id: string; name: string }
+  | { kind: 'terminate-pod'; id: string; name: string }
   | { kind: 'support'; row?: TensorFoldModelRow; host?: TensorFoldHost; window?: number }
   | { kind: 'limit'; row: TensorFoldModelRow; line: string }
   | { kind: 'install' }
@@ -80,6 +81,7 @@ type TensorFoldKeys = {
   enter?: { words: string; act?: TensorFoldAct; input?: TensorFoldInput }
   window?: { rungs: readonly number[]; at: number; repo: string }
   stop?: { words: string; act: TensorFoldAct; confirm: boolean }
+  terminate?: { words: string; act: TensorFoldAct }
   limit?: TensorFoldAct
   support?: TensorFoldAct
   share?: { words: string; act: TensorFoldAct }
@@ -408,7 +410,7 @@ function podChoice(pod: TensorFoldPodRow, labels: ReadonlyMap<string, string>): 
         ...(stepWords !== undefined ? kv(pod.state === 'paused' ? 'paused' : 'now', stepWords, width, pod.state === 'paused' ? 'failure' : 'info') : []),
         ...(pod.state === 'paused' || pod.state === 'failed' ? kv('next', 'Resume or Terminate in /llmhost', width) : []),
       ],
-      keys: pod.bills ? { stop: { words: 's stops the pod', act: { kind: 'stop-pod', id: pod.id, name: pod.hostName }, confirm: false } } : {},
+      keys: { ...(pod.bills ? { stop: { words: 's stops the pod', act: { kind: 'stop-pod', id: pod.id, name: pod.hostName }, confirm: false } } : {}), terminate: { words: 't terminates it', act: { kind: 'terminate-pod', id: pod.id, name: pod.hostName } } },
     },
   }
 }
@@ -485,6 +487,7 @@ function hostChoices(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): Mode
         keys: {
           ...(current ? {} : { enter: { words: '↵ switch', act: { kind: 'switch', id } } }),
           ...(pod !== undefined && pod.bills ? { stop: { words: 's stops the pod', act: { kind: 'stop-pod', id: pod.id, name: host.name }, confirm: false } } : {}),
+          ...(pod !== undefined ? { terminate: { words: 't terminates it', act: { kind: 'terminate-pod', id: pod.id, name: host.name } } } : {}),
           support: { kind: 'support', host },
         },
       },
@@ -492,7 +495,7 @@ function hostChoices(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): Mode
   })
   for (const announced of facts.announced ?? []) out.push(announcedChoice(announced, labels, ui))
   for (const pod of (facts.pods ?? []).filter(pod => !hosts.some(host => host.name === pod.hostName))) out.push(podChoice(pod, labels))
-  out.push(actionChoice(TENSORFOLD_HOST_GROUP, 'rent', 'rent a GPU pod', 'Runpod, through /llmhost', {
+  out.push(actionChoice(TENSORFOLD_HOST_GROUP, 'rent', 'rent a GPU pod', 'Runpod or Vast.ai, through /llmhost', {
     card: width => [
       ...(facts.rent?.pod !== undefined ? kv('pod', facts.rent.pod, width) : []),
       ...(facts.rent?.serves !== undefined ? kv('serves', facts.rent.serves, width) : []),

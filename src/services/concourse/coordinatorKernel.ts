@@ -18,7 +18,7 @@ export function resolveCoordinatorMode(requested: CoordinatorMode | undefined): 
 export async function requestedCoordinatorMode(): Promise<CoordinatorMode | undefined> {
   const { coordinatorEnabled } = await import('./concourseEnabled.js')
   if (!coordinatorEnabled()) return 'off'
-  return (await import('../../utils/config.js')).getGlobalConfig().concourseCoordinator?.mode
+  return (await import('../../utils/config.js')).getGlobalConfig().concourseCoordinator?.mode ?? 'agent-assisted'
 }
 
 
