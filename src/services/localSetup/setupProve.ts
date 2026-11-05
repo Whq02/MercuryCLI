@@ -1,3 +1,4 @@
+import { resolveLocalApiKeyFor } from '../providers/local/localAccounts.js'
 import { cachedLocalModels, localModelRecord, refreshLocalDiscovery, type LocalModelRecord, type LocalServerKind } from '../providers/local/localDiscovery.js'
 import { LOCAL_MODEL_PREFIX, localContextSourceWords } from '../providers/local/localCatalogue.js'
 import { chooseLocalBatch, decideLocalWindow, localBatchSettingOf, localWindowSettingOf } from '../providers/local/localWindow.js'
@@ -178,7 +179,8 @@ export async function pickAndProve(tag: string, seam: ProveIo = {}): Promise<Pro
     window = held
     stream = streamOllamaChat({ ...base, url: ollamaChatUrl(record.baseUrl), firstByte: { cold: true, promptTokens: 64, model: record.id } }, knobs)
   } else {
-    stream = streamCompatChat({ ...base, url: `${record.baseUrl}/chat/completions` })
+    const apiKey = resolveLocalApiKeyFor(record.baseUrl, io.env)?.key
+    stream = streamCompatChat({ ...base, url: `${record.baseUrl}/chat/completions`, ...(apiKey !== undefined ? { apiKey } : {}) })
   }
   let text = ''
   let fault: string | undefined

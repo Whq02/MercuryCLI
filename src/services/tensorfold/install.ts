@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { accessSync, constants, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { delimiter, join } from 'node:path'
+import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { TENSORFOLD_RUNTIME_FOLDER } from './engine.js'
 import type { TensorFoldMachineTruth } from './fit.js'
 import { TENSORFOLD_BREW_FORMULA, TENSORFOLD_RELEASE, TENSORFOLD_RELEASE_BASE } from './starting.js'
@@ -109,7 +110,7 @@ export async function installTensorFold(plan: TensorFoldInstallPlan, onLine: (li
       let last = ''
       let child: ReturnType<typeof spawn>
       try {
-        child = launch(run.command, run.args, { cwd: run.cwd, env: io.env ?? process.env, stdio: ['ignore', 'pipe', 'pipe'] })
+        child = launch(run.command, run.args, { cwd: run.cwd, env: io.env ?? subprocessEnv(), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
       } catch (error) {
         resolve({ ok: false, step: run.command, line: error instanceof Error ? error.message : String(error) })
         return
