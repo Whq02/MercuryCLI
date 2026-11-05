@@ -1,5 +1,9 @@
+import { ADAPTER_HEADING_WORDS, ADAPTER_NAME, ADAPTER_NO_SHARING_WORDS, ADAPTER_SENTENCE, tensorFoldEngineLabel } from '../../services/tensorfold/adapter/identity.js'
+import { ADAPTER_QUALIFIED_WORDS, adapterCheckpointOf, ggufWords } from '../../services/tensorfold/adapter/models.js'
 import type { TensorFoldEngine, TensorFoldFit, TensorFoldFitParts, TensorFoldHost, TensorFoldLastReply, TensorFoldMachine, TensorFoldModelRow, TensorFoldServed } from '../../services/tensorfold/contracts.js'
+import { LLAMACPP_INSTALL_WORDS } from '../../services/tensorfold/install.js'
 import { tensorFoldWillRun } from '../../services/tensorfold/serve.js'
+import { TENSORFOLD_STARTING_POINTS } from '../../services/tensorfold/starting.js'
 import { bytesWords } from '../../services/host/bank.js'
 import { gibWords, tokensWords } from '../../services/localServer/localServerMemory.js'
 import { displayWidth } from '../mercury-ui/glyphs.js'
@@ -22,7 +26,8 @@ export type TensorFoldRowAct =
   | { phase: 'refused'; line: string; window?: number; strip?: string; limit?: { command: string; cost: string } }
   | { phase: 'exited'; line: string }
 
-type TensorFoldInstallFacts = { road: 'brew' | 'archive'; state?: 'installing' | 'unavailable'; commands: readonly string[]; progress?: string }
+type TensorFoldInstallFacts = { road: 'brew' | 'archive' | 'llamacpp'; state?: 'installing' | 'unavailable'; commands: readonly string[]; progress?: string }
+type TensorFoldAdapterFacts = { engineWords: string }
 type TensorFoldPortNote = { port: number; taken: number; by: string; keyed?: boolean }
 type TensorFoldRentFacts = { pod?: string; serves?: string; title?: string }
 type TensorFoldPodRow = { hostName: string; id: string; provider?: string; words: string; bills: boolean; state: 'starting' | 'serving' | 'stopping' | 'stopped' | 'paused' | 'failed'; title: string; served: string; window?: number; gpu: string; vendor: string; step?: string }
@@ -47,6 +52,7 @@ export type TensorFoldPickerFacts = {
   rent?: TensorFoldRentFacts
   pods?: readonly TensorFoldPodRow[]
   announced?: readonly TensorFoldAnnouncedHost[]
+  adapter?: TensorFoldAdapterFacts
 }
 
 export type TensorFoldAct =
@@ -99,6 +105,7 @@ export type TensorFoldChoice = {
 
 const KEY = 10
 const GIB = 1024 ** 3
+const tensorFoldStartingPointRepos: ReadonlySet<string> = new Set(TENSORFOLD_STARTING_POINTS.map(point => point.repo))
 const STOP_WORDS = 's stops'
 const HOST_NONE = 'no host · a server on your network or a rented GPU pod'
 const LAN_WORDS = 'plain HTTP on your home or office network, not across the internet'
@@ -148,14 +155,24 @@ function willRun(lines: readonly string[], width: number, glyph?: string): Tenso
   return out
 }
 
+function installNeeded(facts: TensorFoldPickerFacts): boolean {
+  return facts.install !== undefined && facts.install.state !== 'unavailable' && (facts.engine === null || facts.install.road === 'llamacpp')
+}
+
 function willRunOf(facts: TensorFoldPickerFacts, row: TensorFoldModelRow, window: number): string[] {
   const stops = (facts.served ?? []).filter(served => served.repo !== row.repo || served.window !== window).map(served => `stop ${served.name} on 127.0.0.1:${served.port}`)
-  const install = facts.engine === null ? (facts.install?.commands ?? []) : []
+  const install = installNeeded(facts) ? (facts.install?.commands ?? []) : []
   try {
-    return [...install, ...stops, ...tensorFoldWillRun(row, window)]
+    return [...install, ...stops, ...tensorFoldWillRun(row, window, facts.engine)]
   } catch {
     return [...install, ...stops]
   }
+}
+
+function adapterLines(facts: TensorFoldPickerFacts, row: TensorFoldModelRow, width: number): TensorFoldCardLine[] {
+  if (facts.adapter === undefined) return []
+  const point = adapterCheckpointOf(row.repo)
+  return [...kv('engine', ADAPTER_SENTENCE, width), ...(point !== undefined ? kv('weights', ggufWords(point), width) : [])]
 }
 
 function fitAt(row: TensorFoldModelRow, window: number): TensorFoldFit | undefined {
@@ -227,7 +244,8 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
   const id = `local/${row.shortName}`
   const act = facts.acts?.[row.repo]
   const unqualified = !row.qualified && row.state === 'on-disk' && act === undefined
-  const note = (width: number): TensorFoldCardLine[] => (unqualified ? kv('note', 'unqualified by TensorFold', width) : [])
+  const mercuryRow = facts.adapter !== undefined && row.qualified && adapterCheckpointOf(row.repo) !== undefined && tensorFoldStartingPointRepos.has(row.repo) === false
+  const note = (width: number): TensorFoldCardLine[] => (unqualified ? kv('note', facts.adapter !== undefined ? "unqualified on Mercury's engine" : 'unqualified by TensorFold', width) : mercuryRow ? kv('note', ADAPTER_QUALIFIED_WORDS, width) : [])
   const rowNote = (width: number): TensorFoldCardLine[] => (row.note !== undefined && !unqualified ? kv('note', row.note, width) : [])
   const chosen = ui.windows?.[row.repo]
   const at = chosen ?? (act?.phase === 'refused' && act.window !== undefined ? act.window : row.window)
@@ -306,6 +324,8 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
     const confirming = ui.confirmStop === row.repo
     const promptCache = row.promptCacheGib ?? fit?.parts?.promptCacheGib
     const shared = (facts.served ?? []).some(served => served.name === row.shortName && served.keyFile !== undefined)
+    const adapter = facts.adapter
+    const service = adapter !== undefined ? `${ADAPTER_NAME} · ${adapter.engineWords} · started by Mercury` : 'tensorfold · started by Mercury'
     return {
       ...base,
       tensorfold: {
@@ -317,13 +337,15 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
             ? kv('window', row.window < TENSORFOLD_AGENT_FLOOR ? `${tok(row.window)} · under the ${tok(TENSORFOLD_AGENT_FLOOR)} Mercury needs` : `${tok(row.window)} · set when it started outside Mercury, which does not stop or restart it`, width)
             : restart
               ? [strip(row, at, `↵ restarts it at ${tok(at)}`), ...memoryLine(fit, width), ...willRun(willRunOf(facts, row, at), width)]
-              : [strip(row, at, '←→ restarts it at another window'), ...kv('service', `tensorfold · started by Mercury${promptCache !== undefined ? ` · prompt cache ${one(promptCache)} GiB` : ''}`, width)]),
-          ...(mercury ? kv('network', shared ? 'shared · keyed · n stops sharing' : 'not shared · n shares it on this network', width) : []),
+              : [strip(row, at, '←→ restarts it at another window'), ...kv('service', `${service}${promptCache !== undefined ? ` · prompt cache ${one(promptCache)} GiB` : ''}`, width)]),
+          ...(mercury && adapter !== undefined ? adapterLines(facts, row, width) : []),
+          ...(mercury ? kv('network', adapter !== undefined ? ADAPTER_NO_SHARING_WORDS : shared ? 'shared · keyed · n stops sharing' : 'not shared · n shares it on this network', width) : []),
           ...(confirming ? kv('stop', 's again stops it · this session uses it', width, 'amber') : []),
         ],
         keys: {
           ...(restart ? { enter: { words: `↵ restart at ${tok(at)}`, act: { kind: 'serve', row, window: at } } } : current ? {} : { enter: { words: '↵ switch', act: { kind: 'switch', id } } }),
-          ...(mercury ? { window, stop: { words: STOP_WORDS, act: { kind: 'stop', row }, confirm: current }, share: shared ? { words: 'n stops sharing', act: { kind: 'unshare', row } } : { words: 'n shares it', act: { kind: 'share', row } } } : {}),
+          ...(mercury ? { window, stop: { words: STOP_WORDS, act: { kind: 'stop', row }, confirm: current } } : {}),
+          ...(mercury && adapter === undefined ? { share: shared ? { words: 'n stops sharing', act: { kind: 'unshare', row } } : { words: 'n shares it', act: { kind: 'share', row } } } : {}),
           support,
           ...(confirming ? { legend: ['s again stops', 'esc keeps it'] } : {}),
         },
@@ -377,13 +399,13 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
       },
     }
   }
-  const enter = facts.engine === null ? '↵ install, pull, serve and switch' : pulled ? '↵ serve and switch' : '↵ pull, serve and switch'
+  const enter = installNeeded(facts) ? (pulled ? '↵ install, serve and switch' : '↵ install, pull, serve and switch') : pulled ? '↵ serve and switch' : '↵ pull, serve and switch'
   return {
     ...base,
     tensorfold: {
       state,
       memory: projected(),
-      card: width => [...note(width), strip(row, at, '←→ changes it'), ...memoryLine(fit, width), ...pullLines(width), ...willRun(willRunOf(facts, row, at), width), ...portLines(width), ...rowNote(width)],
+      card: width => [...note(width), strip(row, at, '←→ changes it'), ...memoryLine(fit, width), ...adapterLines(facts, row, width), ...pullLines(width), ...willRun(willRunOf(facts, row, at), width), ...portLines(width), ...rowNote(width)],
       keys: { enter: { words: enter, act: { kind: 'serve', row, window: at } }, window, support },
     },
   }
@@ -420,14 +442,14 @@ function actionChoice(group: string, key: string, name: string, words: string, c
 }
 
 function installChoice(install: TensorFoldInstallFacts): ModelChoice {
-  const words = install.road === 'archive' ? 'release archive · checksum verified' : install.state === 'unavailable' ? 'needs Homebrew' : 'Homebrew · ashhart/tensorfold'
+  const words = install.road === 'llamacpp' ? LLAMACPP_INSTALL_WORDS : install.road === 'archive' ? 'release archive · checksum verified' : install.state === 'unavailable' ? 'needs Homebrew' : 'Homebrew · ashhart/tensorfold'
   const installing = install.state === 'installing'
-  return actionChoice(TENSORFOLD_MODEL_GROUP, 'install', 'install TensorFold', words, {
+  return actionChoice(TENSORFOLD_MODEL_GROUP, 'install', install.road === 'llamacpp' ? 'install llama.cpp' : 'install TensorFold', words, {
     ...(installing ? { state: { text: '◐ installing', tone: 'info' } } : install.state === 'unavailable' ? { state: { text: 'unavailable', tone: 'sand' } } : {}),
     card: width =>
       install.state === 'unavailable'
         ? kv('needs', 'Homebrew · brew.sh installs it, then /tensorfold again', width, 'secondary')
-        : [...willRun(install.commands, width, installing ? '◐' : undefined), ...(installing && install.progress !== undefined ? kv(install.road === 'brew' ? 'brew' : 'curl', install.progress, width, 'secondary') : [])],
+        : [...willRun(install.commands, width, installing ? '◐' : undefined), ...(installing && install.progress !== undefined ? kv(install.road === 'brew' ? 'brew' : install.road === 'llamacpp' ? 'fetch' : 'curl', install.progress, width, 'secondary') : [])],
     keys: installing ? { legend: ['esc closes, it keeps installing'] } : install.state === 'unavailable' ? {} : { enter: { words: '↵ install', act: { kind: 'install' } } },
   })
 }
@@ -459,7 +481,7 @@ function hostChoices(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): Mode
     const network = host.origin === 'lan-paired' || host.origin === 'typed'
     if (host.serving === undefined) {
       return actionChoice(TENSORFOLD_HOST_GROUP, `host:${host.name}`, host.name, 'nothing served', {
-        card: width => [...kv('host', [addressOf(host.baseUrl), host.chip, host.version !== undefined ? `TensorFold ${host.version}` : undefined, host.keyRef !== undefined ? 'keyed' : undefined].filter(part => part !== undefined).join(' · '), width), ...(network ? kv('network', LAN_WORDS, width) : [])],
+        card: width => [...kv('host', [addressOf(host.baseUrl), host.chip, host.version !== undefined || host.servedBy !== undefined ? tensorFoldEngineLabel(host.version, host.servedBy) : undefined, host.keyRef !== undefined ? 'keyed' : undefined].filter(part => part !== undefined).join(' · '), width), ...(network ? kv('network', LAN_WORDS, width) : [])],
         keys: {},
       })
     }
@@ -478,7 +500,7 @@ function hostChoices(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): Mode
         state: { text: current ? 'current' : 'serving', tone: 'teal' },
         memory: { text: host.name, tone: 'faint' },
         card: width => [
-          ...kv('host', [host.origin === 'pod' ? undefined : addressOf(host.baseUrl), host.chip, host.version !== undefined ? `TensorFold ${host.version}` : undefined, host.keyRef !== undefined ? 'keyed' : undefined].filter(part => part !== undefined).join(' · '), width),
+          ...kv('host', [host.origin === 'pod' ? undefined : addressOf(host.baseUrl), host.chip, host.version !== undefined || host.servedBy !== undefined ? tensorFoldEngineLabel(host.version, host.servedBy) : undefined, host.keyRef !== undefined ? 'keyed' : undefined].filter(part => part !== undefined).join(' · '), width),
           ...(pod !== undefined ? kv('pod', pod.words, width) : []),
           ...(host.lastReply?.tokensPerSecond !== undefined ? kv('serving', `~${Math.round(host.lastReply.tokensPerSecond)} tok/s on its last reply`, width, 'secondary') : []),
           ...(host.window !== undefined ? kv('window', host.origin === 'pod' ? `${tok(host.window)} · set when the pod was rented` : `${tok(host.window)} · set when it started outside Mercury, which does not stop or restart it`, width) : []),
@@ -532,7 +554,7 @@ function sharedChoice(host: TensorFoldHost, labels: ReadonlyMap<string, string>,
       state: { text: 'shared', tone: 'teal' },
       memory: { text: here, tone: 'faint' },
       card: width => [
-        ...kv('host', [here, host.version !== undefined ? `TensorFold ${host.version}` : undefined].filter(part => part !== undefined).join(' · '), width),
+        ...kv('host', [here, host.version !== undefined || host.servedBy !== undefined ? tensorFoldEngineLabel(host.version, host.servedBy) : undefined].filter(part => part !== undefined).join(' · '), width),
         ...kv('network', 'shared on this network · keyed', width),
       ],
       keys: {},
@@ -575,19 +597,19 @@ function announcedChoice(host: TensorFoldAnnouncedHost, labels: ReadonlyMap<stri
 }
 
 function modelGroupChoices(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): ModelChoice[] {
-  if (facts.platform === 'win32') return []
+  if (facts.platform === 'win32' && facts.engine === null) return []
   const families = new Set((facts.engine?.families ?? []).map(family => family.id))
   const offered = facts.rows.filter(row => row.qualified || isServed(row) || (row.state === 'on-disk' && families.has(row.family)))
   const served = offered.filter(isServed)
   const best = offered.find(row => row.repo === facts.best && !isServed(row))
   const rest = offered.filter(row => !isServed(row) && row !== best)
   const out: ModelChoice[] = []
-  if (facts.engine === null && facts.install !== undefined) out.push(installChoice(facts.install))
+  if ((facts.engine === null || facts.install?.road === 'llamacpp') && facts.install !== undefined) out.push(installChoice(facts.install))
   if (facts.app !== undefined) out.push(appChoice(facts.app))
   for (const row of [...served, ...(best !== undefined ? [best] : [])]) out.push(modelChoice(facts, ui, row, false))
   for (const row of rest) out.push(modelChoice(facts, ui, row, row.state !== 'on-disk' && row.state !== 'pulling' && facts.acts?.[row.repo] === undefined))
   if (facts.other?.read !== undefined) out.push(modelChoice(facts, ui, facts.other.read, false))
-  out.push(otherChoice(facts, ui))
+  if (facts.adapter === undefined) out.push(otherChoice(facts, ui))
   return out
 }
 
@@ -600,7 +622,8 @@ function servingWords(rows: readonly TensorFoldModelRow[]): string {
 }
 
 function tensorFoldStatus(facts: TensorFoldPickerFacts): string {
-  if (facts.platform === 'win32') return 'no Windows release yet'
+  if (facts.platform === 'win32' && facts.engine === null) return 'no Windows release yet'
+  if (facts.adapter !== undefined) return facts.helper === undefined ? ADAPTER_HEADING_WORDS : `${ADAPTER_HEADING_WORDS} ${facts.helper}`
   const chip = facts.machine?.chip ?? facts.engine?.chip
   const usableGib = facts.machine?.usableGib ?? facts.rows.find(row => row.fit.availableGib > 0)?.fit.availableGib
   if (facts.engine === null) return ['not installed', chip, usableGib !== undefined ? `${gib(usableGib)} usable` : undefined].filter(part => part !== undefined).join(' · ')
@@ -634,6 +657,6 @@ export function tensorFoldPickerRows(facts: TensorFoldPickerFacts, ui: TensorFol
 }
 
 export function tensorFoldFoldedOnOpen(facts: TensorFoldPickerFacts, view: 'model' | 'tensorfold'): string[] {
-  if (facts.platform === 'win32') return [TENSORFOLD_MODEL_GROUP]
+  if (facts.platform === 'win32' && facts.engine === null) return [TENSORFOLD_MODEL_GROUP]
   return view === 'tensorfold' ? [TENSORFOLD_HOST_GROUP] : [TENSORFOLD_MODEL_GROUP, TENSORFOLD_HOST_GROUP]
 }

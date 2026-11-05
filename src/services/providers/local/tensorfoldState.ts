@@ -20,6 +20,8 @@ export interface TensorFoldServerState {
   inUseBytes?: number
   streams?: number
   draining?: boolean
+  servedBy?: string
+  engineWords?: string
   host?: TensorFoldHost
   started?: TensorFoldServed
 }
@@ -105,6 +107,8 @@ function serverStateOf(record: LocalServerRecord, served: readonly TensorFoldSer
     ...(record.engine?.inUseBytes !== undefined ? { inUseBytes: record.engine.inUseBytes } : {}),
     ...(record.engine?.streams !== undefined ? { streams: record.engine.streams } : {}),
     ...(record.engine?.draining ? { draining: true } : {}),
+    ...(record.engine?.servedBy !== undefined ? { servedBy: record.engine.servedBy } : {}),
+    ...(record.engine?.engineWords !== undefined ? { engineWords: record.engine.engineWords } : {}),
     ...(host !== undefined ? { host } : {}),
     ...(started !== undefined ? { started } : {}),
   }

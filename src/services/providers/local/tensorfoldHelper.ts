@@ -8,8 +8,10 @@ import { bankedHostRecipes, bankFolder } from '../../host/bank.js'
 import { gibWords } from '../../localServer/localServerMemory.js'
 import { defaultMachineTruth } from '../../localServer/localServerTruth.js'
 import type { HelperModelSize, HelperModelState, TensorFoldServeRequest, TensorFoldServeRole, TensorFoldServed } from '../../tensorfold/contracts.js'
-import { LOCAL_MODEL_PREFIX, LOCAL_SERVER_NAMES, localRecordFor } from './localCatalogue.js'
+import { LOCAL_MODEL_PREFIX, localRecordFor, localServerName } from './localCatalogue.js'
 import { cachedLocalModels, refreshLocalDiscovery, type LocalModelRecord } from './localDiscovery.js'
+import { ADAPTER_ENGINE_WORDS } from '../../tensorfold/adapter/identity.js'
+import { QWEN_2B_GGUF } from '../../tensorfold/adapter/models.js'
 import { forgetTensorFoldPort, rememberTensorFoldPort } from './tensorfoldHosts.js'
 
 export type HelperModelSetting = 'off' | HelperModelSize
@@ -46,8 +48,8 @@ export function __pinHelperReadsForTest(reads: { engineFound?: boolean; twoBOnDi
   pinnedReads = reads
 }
 
-export function tensorFoldEngineFound(reads: { candidates?: () => string[]; executable?: (path: string) => boolean } = {}): boolean {
-  if (reads.candidates === undefined && reads.executable === undefined && engineFound !== undefined) return engineFound
+export function tensorFoldEngineFound(reads: { candidates?: () => string[]; executable?: (path: string) => boolean; platform?: NodeJS.Platform } = {}): boolean {
+  if (reads.candidates === undefined && reads.executable === undefined && reads.platform === undefined && engineFound !== undefined) return engineFound
   const { tensorFoldBinaryCandidates } = require('../../tensorfold/engine.js') as typeof import('../../tensorfold/engine.js')
   const executable = reads.executable ?? ((path: string): boolean => {
     try {
@@ -57,14 +59,32 @@ export function tensorFoldEngineFound(reads: { candidates?: () => string[]; exec
       return false
     }
   })
-  const found = process.platform !== 'win32' && (reads.candidates ?? (() => tensorFoldBinaryCandidates()))().some(executable)
-  if (reads.candidates === undefined && reads.executable === undefined) engineFound = found
+  const found = (reads.candidates ?? (() => tensorFoldBinaryCandidates()))().some(executable) || (reads.platform ?? process.platform) === 'win32'
+  if (reads.candidates === undefined && reads.executable === undefined && reads.platform === undefined) engineFound = found
   return found
 }
 
-export function helper2bOnDisk(reads: { snapshot?: (repo: string) => boolean } = {}): boolean {
+export function helperEngineIsAdapter(reads: { candidates?: () => string[]; executable?: (path: string) => boolean; platform?: NodeJS.Platform } = {}): boolean {
+  if ((reads.platform ?? process.platform) !== 'win32') return false
+  const { tensorFoldBinaryCandidates } = require('../../tensorfold/engine.js') as typeof import('../../tensorfold/engine.js')
+  const executable = reads.executable ?? ((path: string): boolean => {
+    try {
+      accessSync(path, constants.X_OK)
+      return true
+    } catch {
+      return false
+    }
+  })
+  return !(reads.candidates ?? (() => tensorFoldBinaryCandidates()))().some(executable)
+}
+
+export function helper2bOnDisk(reads: { snapshot?: (repo: string) => boolean; adapter?: boolean } = {}): boolean {
   if (reads.snapshot !== undefined) return reads.snapshot(HELPER_2B_REPO)
   try {
+    if (reads.adapter ?? helperEngineIsAdapter()) {
+      const { ggufOnDisk, hfCacheRoot } = require('../../tensorfold/hfCache.js') as typeof import('../../tensorfold/hfCache.js')
+      return ggufOnDisk(hfCacheRoot(), QWEN_2B_GGUF.gguf).complete
+    }
     const { hfCacheRoot, readHfSnapshot } = require('../../tensorfold/inventory.js') as typeof import('../../tensorfold/inventory.js')
     const snapshot = readHfSnapshot(hfCacheRoot(), HELPER_2B_REPO)
     return snapshot !== undefined && snapshot.weightsBytes > 0 && snapshot.incompleteBytes === 0
@@ -139,17 +159,18 @@ function banked4b(): { model: string; weightsGb: number } | undefined {
   }
 }
 
-export function helperModelChoices(reads: { usable?: number; session?: LocalModelRecord | null; banked4b?: boolean; engineFound?: boolean; twoBOnDisk?: boolean } = {}): HelperModelChoice[] {
+export function helperModelChoices(reads: { usable?: number; session?: LocalModelRecord | null; banked4b?: boolean; engineFound?: boolean; twoBOnDisk?: boolean; adapter?: boolean } = {}): HelperModelChoice[] {
   const usable = reads.usable ?? usableBytes()
   const session = reads.session === undefined ? sessionLocalRecord() : reads.session ?? undefined
   const has4b = reads.banked4b ?? banked4b() !== undefined
   const installed = reads.engineFound ?? pinnedReads?.engineFound ?? tensorFoldEngineFound()
-  const twoBOnDisk = reads.twoBOnDisk ?? pinnedReads?.twoBOnDisk ?? (installed && helper2bOnDisk())
+  const adapter = reads.adapter ?? (reads.engineFound === undefined && pinnedReads?.engineFound === undefined && helperEngineIsAdapter())
+  const twoBOnDisk = reads.twoBOnDisk ?? pinnedReads?.twoBOnDisk ?? (installed && helper2bOnDisk({ adapter }))
   const fit = (bytes: number): 'fits' | 'does not fit' => (bytes <= usable ? 'fits' : 'does not fit')
   const twoBMissing = !installed ? HELPER_NOT_INSTALLED_REASON : !twoBOnDisk ? HELPER_2B_NOT_PULLED_REASON : undefined
   const twoB: HelperModelChoice = {
     size: '2b',
-    label: '2B (TensorFold)',
+    label: adapter ? `2B (${ADAPTER_ENGINE_WORDS})` : '2B (TensorFold)',
     engine: 'tensorfold',
     memory: `~${gibWords(HELPER_2B_PROJECTED_BYTES)} · an estimate`,
     fit: fit(HELPER_2B_PROJECTED_BYTES),
@@ -169,8 +190,8 @@ export function helperModelChoices(reads: { usable?: number; session?: LocalMode
   const sessionChoice: HelperModelChoice = session === undefined
     ? { size: 'session', label: 'the session\'s local model', available: false, reason: HELPER_NO_SESSION_LOCAL_REASON }
     : singleSlotCache(session)
-      ? { size: 'session', label: `${session.id} (${LOCAL_SERVER_NAMES[session.server]})`, engine: session.server === 'tensorfold' ? 'tensorfold' : 'llamacpp', available: false, reason: HELPER_SINGLE_SLOT_REASON }
-      : { size: 'session', label: `${session.id} (${LOCAL_SERVER_NAMES[session.server]})`, ...(session.server === 'tensorfold' || session.server === 'llamacpp' ? { engine: session.server } : {}), ...(session.servedBytes !== undefined ? { memory: `${gibWords(session.servedBytes)} in use` } : {}), available: true, modelId: `${LOCAL_MODEL_PREFIX}${session.id}` }
+      ? { size: 'session', label: `${session.id} (${localServerName(session)})`, engine: session.server === 'tensorfold' ? 'tensorfold' : 'llamacpp', available: false, reason: HELPER_SINGLE_SLOT_REASON }
+      : { size: 'session', label: `${session.id} (${localServerName(session)})`, ...(session.server === 'tensorfold' || session.server === 'llamacpp' ? { engine: session.server } : {}), ...(session.servedBytes !== undefined ? { memory: `${gibWords(session.servedBytes)} in use` } : {}), available: true, modelId: `${LOCAL_MODEL_PREFIX}${session.id}` }
   return [{ size: 'off', label: 'off', available: true }, twoB, fourB, sessionChoice]
 }
 

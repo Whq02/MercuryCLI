@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process'
 import { totalmem } from 'node:os'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { localWindowRungs } from '../localServer/localWindowFit.js'
+import { cpuModelWords } from './adapter/identity.js'
 import type { TensorFoldFit, TensorFoldFitParts, TensorFoldLadderRung } from './contracts.js'
 import { GIB, TENSORFOLD_AGENT_FLOOR, TENSORFOLD_RAISED_LIMIT_BELOW_BYTES, TENSORFOLD_RAISED_LIMIT_REPOS, TENSORFOLD_RUNTIME_MARGIN, type TensorFoldCheckpoint } from './starting.js'
 
@@ -97,7 +98,7 @@ export async function readTensorFoldMachineTruth(io: MachineIo = {}): Promise<Te
     }
     return { platform, ramBytes, chip: 'no NVIDIA GPU found', ...seventy }
   }
-  return { platform, ramBytes, chip: platform === 'win32' ? 'Windows' : platform, ...seventy }
+  return { platform, ramBytes, chip: platform === 'win32' ? (cpuModelWords() ?? 'Windows') : platform, ...seventy }
 }
 
 function tensorFoldFloorBytes(point: Pick<TensorFoldCheckpoint, 'weightsBytes' | 'drafter'>): number {

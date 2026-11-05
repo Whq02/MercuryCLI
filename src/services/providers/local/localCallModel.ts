@@ -24,7 +24,7 @@ import { planToolPayload, toolsOnTheWire } from '../toolEconomy.js'
 import { mapToolsToZai, toolDeclarationRowInResult, type ApiShapedTool } from '../zai/zaiCodec.js'
 import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKeyFor } from './localAccounts.js'
 import { configuredProviderKeyCommand, recoverProviderKeyCommand } from '../providerKeyCommand.js'
-import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
+import { localContextSourceWords, localFitRefusalSentence, localRecordFor, localServerName, localWireId } from './localCatalogue.js'
 import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, residentServedWindow, type LocalDiscoveryIo, type LocalModelRecord } from './localDiscovery.js'
 import { adoptableLocalWindow, adoptLocalWindow, decideLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, LOCAL_WINDOW_HELD_WORDS, LOCAL_WINDOW_SETTING_WORDS, localPlannedWindow, localWindowApplication, localWindowDecisionLine, localWindowFits, localWindowSettingOf, releaseOutgrownLocalWindow, type HeldLocalWindow } from './localWindow.js'
 import { noteLocalTurn } from './localWarm.js'
@@ -188,7 +188,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
   }
   return {
     lane: 'local',
-    providerLabel: LOCAL_SERVER_NAMES[record.server],
+    providerLabel: localServerName(record),
     resolveCredential: () => {
       const key = resolveLocalApiKeyFor(record.baseUrl)
       return key ? { apiKey: key.key } : {}

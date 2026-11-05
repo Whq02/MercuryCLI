@@ -1,13 +1,15 @@
 import type { TensorFoldPickerFacts, TensorFoldRowAct } from '../../components/tensorfold/tensorfoldRows.js'
 import { gibWords, tokensWords } from '../../services/localServer/localServerMemory.js'
+import { llamaCppWords } from '../../services/tensorfold/adapter/identity.js'
 import type { TensorFoldModelRow } from '../../services/tensorfold/contracts.js'
+import { engineServedByAdapter, type TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
 import type { TensorFoldInventoryRow } from '../../services/tensorfold/inventory.js'
 import { bestTensorFoldFit } from '../../services/tensorfold/inventory.js'
 import type { TensorFoldAct, TensorFoldOutsideServer, TensorFoldPanelFacts } from './scene.js'
 
 export type { TensorFoldAct as TensorFoldPickerAct } from '../../components/tensorfold/tensorfoldRows.js'
 
-function rowActOf(act: TensorFoldAct | undefined, row: TensorFoldInventoryRow, usableGib: number | undefined, window: number): TensorFoldRowAct | undefined {
+function rowActOf(act: TensorFoldAct | undefined, row: TensorFoldInventoryRow, usableGib: number | undefined, window: number, platform: NodeJS.Platform): TensorFoldRowAct | undefined {
   if (act === undefined) return undefined
   switch (act.kind) {
     case 'pulling':
@@ -25,14 +27,14 @@ function rowActOf(act: TensorFoldAct | undefined, row: TensorFoldInventoryRow, u
     case 'exited':
       return { phase: 'exited', line: act.line }
     case 'tight':
-      return { phase: 'refused', line: tightWords(act), window }
+      return { phase: 'refused', line: tightWords(act, platform), window }
     default:
       return undefined
   }
 }
 
-function tightWords(act: { needBytes: number; freeBytes: number; offers: readonly string[] }): string {
-  return [`${gibWords(act.needBytes)} needed · ${gibWords(act.freeBytes)} free on this Mac`, ...act.offers].join(' · ')
+function tightWords(act: { needBytes: number; freeBytes: number; offers: readonly string[] }, platform: NodeJS.Platform): string {
+  return [`${gibWords(act.needBytes)} needed · ${gibWords(act.freeBytes)} free on ${platform === 'darwin' ? 'this Mac' : 'this machine'}`, ...act.offers].join(' · ')
 }
 
 function windowStripWords(act: TensorFoldAct | undefined, row: TensorFoldInventoryRow, window: number, usableGib: number | undefined): string {
@@ -70,7 +72,7 @@ function outsideRowOf(server: TensorFoldOutsideServer): TensorFoldModelRow {
 export function pickerFactsOf(facts: TensorFoldPanelFacts): TensorFoldPickerFacts {
   const acts: Record<string, TensorFoldRowAct> = {}
   for (const row of facts.rows) {
-    const act = rowActOf(facts.acts[row.repo], row, facts.machine.usableGib, row.window)
+    const act = rowActOf(facts.acts[row.repo], row, facts.machine.usableGib, row.window, facts.platform)
     if (act !== undefined) acts[row.repo] = act
   }
   const install = facts.install
@@ -78,9 +80,10 @@ export function pickerFactsOf(facts: TensorFoldPanelFacts): TensorFoldPickerFact
   const installFacts: TensorFoldPickerFacts['install'] | undefined =
     install === null || install.kind === 'windows'
       ? undefined
-      : install.kind === 'brew' || install.kind === 'archive'
+      : install.kind === 'brew' || install.kind === 'archive' || install.kind === 'llamacpp'
         ? { road: install.kind, commands: install.commands, ...(installing?.kind === 'installing' ? { state: 'installing' as const, ...(installing.line !== undefined ? { progress: installing.line } : {}) } : {}) }
         : { road: facts.platform === 'darwin' ? ('brew' as const) : ('archive' as const), state: 'unavailable' as const, commands: [] }
+  const adapter = engineServedByAdapter(facts.engine) ? { engineWords: llamaCppWords((facts.engine as TensorFoldEngineFound).capabilities?.llamacpp) } : undefined
   const rows = facts.rows.map(row => ({ ...row, port: row.port ?? facts.port.next, ...(facts.acts[row.repo]?.kind === 'starting' ? { state: 'loading' as const } : {}) }))
   const best = (facts.landing !== undefined ? facts.rows.find(row => row.repo === facts.landing) : undefined) ?? bestTensorFoldFit(facts.rows)
   return {
@@ -101,5 +104,6 @@ export function pickerFactsOf(facts: TensorFoldPanelFacts): TensorFoldPickerFact
     ...(facts.disk !== undefined ? { disk: { into: facts.disk.cacheWords, freeBytes: facts.disk.freeBytes } } : {}),
     ...(facts.rent !== undefined ? { rent: facts.rent } : {}),
     pods: facts.pods,
+    ...(adapter !== undefined ? { adapter } : {}),
   }
 }

@@ -4,9 +4,12 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
+import { isAdapterEntry } from './adapter/identity.js'
+import { adapterCheckpointOf } from './adapter/models.js'
 import type { TensorFoldPullProgress } from './contracts.js'
-import { findTensorFoldEngine } from './engine.js'
-import { cacheDirOfRepo, configFactsOf, hfCacheRoot, type ConfigFacts, type InventoryIo } from './inventory.js'
+import { findTensorFoldEngine, tensorFoldCommand } from './engine.js'
+import { cacheDirOfRepo, hfCacheRoot, hubEndpoint } from './hfCache.js'
+import { configFactsOf, type ConfigFacts, type InventoryIo } from './inventory.js'
 import { isGgufRepo, isRepoId, startingPointOf, tensorFoldLabel, tensorFoldShortName, type TensorFoldCheckpoint } from './starting.js'
 
 export type PullIo = InventoryIo & {
@@ -29,14 +32,15 @@ export function cacheBytesOf(root: string, repo: string, io: Pick<InventoryIo, '
   return total
 }
 
-function pullSpec(repo: string): string {
+function pullSpec(repo: string, adapter = false): string {
   const point = startingPointOf(repo)
-  return point?.pin !== undefined ? `${point.repo}@${point.pin}` : repo
+  return point?.pin !== undefined && !adapter ? `${point.repo}@${point.pin}` : repo
 }
 
-export function pullCommandLines(repo: string): string[] {
-  const point = startingPointOf(repo)
-  return [`tensorfold pull ${pullSpec(repo)}`, ...(point?.drafter !== undefined ? [`tensorfold pull ${point.drafter.repo}`] : [])]
+export function pullCommandLines(repo: string, program = 'tensorfold'): string[] {
+  const adapter = program !== 'tensorfold'
+  const point = adapter ? adapterCheckpointOf(repo) : startingPointOf(repo)
+  return [`${program} pull ${pullSpec(repo, adapter)}`, ...(point?.drafter !== undefined ? [`${program} pull ${point.drafter.repo}`] : [])]
 }
 
 export class TensorFoldPullError extends Error {
@@ -58,13 +62,16 @@ async function pullOne(binary: string, repo: string, totalBytes: number | undefi
   const env = io.env ?? process.env
   const home = io.home ?? homedir()
   const root = io.cacheRoot ?? hfCacheRoot(env, home)
+  const adapter = isAdapterEntry(binary)
+  const cacheRepo = adapter ? (adapterCheckpointOf(repo)?.gguf.repo ?? repo) : repo
   const logDir = io.logDir ?? join(getMercuryHome(), 'tensorfold')
   mkdirSync(logDir, { recursive: true })
   const logFd = openSync(join(logDir, `pull-${cacheDirOfRepo(repo)}.log`), 'a')
   const launch = io.spawnImpl ?? spawn
+  const { command, args } = tensorFoldCommand(binary)
   let child: ChildProcess
   try {
-    child = launch(binary, ['pull', pullSpec(repo)], { env: { ...(io.env === undefined ? subprocessEnv() : io.env), ...(io.cacheRoot !== undefined ? { HF_HUB_CACHE: io.cacheRoot } : {}) }, stdio: ['ignore', logFd, logFd], windowsHide: true })
+    child = launch(command, [...args, 'pull', pullSpec(repo, adapter)], { env: { ...(io.env === undefined ? subprocessEnv() : io.env), ...(io.cacheRoot !== undefined ? { HF_HUB_CACHE: io.cacheRoot } : {}) }, stdio: ['ignore', logFd, logFd], windowsHide: true })
   } finally {
     closeSync(logFd)
   }
@@ -73,7 +80,7 @@ async function pullOne(binary: string, repo: string, totalBytes: number | undefi
     child.kill('SIGTERM')
   }
   io.signal?.addEventListener('abort', abort, { once: true })
-  const report = (): void => onProgress({ repo, bytes: cacheBytesOf(root, repo, io), ...(totalBytes !== undefined ? { totalBytes } : {}) })
+  const report = (): void => onProgress({ repo, bytes: cacheBytesOf(root, cacheRepo, io), ...(totalBytes !== undefined ? { totalBytes } : {}) })
   report()
   const poll = setInterval(report, io.pollMs ?? 500)
   try {
@@ -83,7 +90,7 @@ async function pullOne(binary: string, repo: string, totalBytes: number | undefi
     })
     report()
     if (exit.signal !== null || io.signal?.aborted) throw new TensorFoldPullError(`the download stopped · it resumes next time`, repo, true)
-    if (exit.code !== 0) throw new TensorFoldPullError(`tensorfold pull ${pullSpec(repo)} exited ${exit.code ?? 'without a code'}`, repo, false)
+    if (exit.code !== 0) throw new TensorFoldPullError(`${adapter ? 'the pull' : `tensorfold pull ${pullSpec(repo)}`} exited ${exit.code ?? 'without a code'}`, repo, false)
   } finally {
     clearInterval(poll)
     io.signal?.removeEventListener('abort', abort)
@@ -94,7 +101,7 @@ async function pullOne(binary: string, repo: string, totalBytes: number | undefi
 export async function pullTensorFold(repo: string, onProgress: (progress: TensorFoldPullProgress) => void, io: PullIo = {}): Promise<void> {
   const binary = io.binary ?? (await findTensorFoldEngine(io))?.binary
   if (binary === undefined) throw new TensorFoldPullError('TensorFold is not installed', repo, false)
-  const point = startingPointOf(repo)
+  const point = isAdapterEntry(binary) ? adapterCheckpointOf(repo) : startingPointOf(repo)
   await pullOne(binary, repo, io.totalBytes ?? point?.downloadBytes, onProgress, io)
   if (point?.drafter !== undefined) await pullOne(binary, point.drafter.repo, point.drafter.downloadBytes, onProgress, io)
 }
@@ -103,10 +110,6 @@ type HubRead = { checkpoint: TensorFoldCheckpoint; facts: ConfigFacts } | { refu
 
 const GGUF_REFUSED = "GGUF is llama.cpp's format · /localsetup serves it"
 const NOT_A_REPO = 'not a repository id · owner/name'
-
-function hubEndpoint(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.HF_ENDPOINT ?? 'https://huggingface.co').replace(/\/+$/, '')
-}
 
 export async function readHubRepo(repo: string, io: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; families?: ReadonlySet<string>; signal?: AbortSignal } = {}): Promise<HubRead> {
   if (!isRepoId(repo)) return { refused: NOT_A_REPO }

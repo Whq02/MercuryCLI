@@ -1,11 +1,14 @@
 import { execFile } from 'node:child_process'
-import { accessSync, constants } from 'node:fs'
+import { accessSync, constants, existsSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { delimiter, join } from 'node:path'
+import { delimiter, dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
+import { ADAPTER_BUNDLE, ADAPTER_FLAG, adapterVersionLine, isAdapterEntry, servedByAdapter } from './adapter/identity.js'
+import { ADAPTER_CHECKPOINTS } from './adapter/models.js'
 import type { TensorFoldEngine, TensorFoldFamily, TensorFoldMachine } from './contracts.js'
 import { readTensorFoldMachineTruth, type MachineIo, type TensorFoldMachineTruth } from './fit.js'
-import { TENSORFOLD_STARTING_POINTS } from './starting.js'
+import { TENSORFOLD_STARTING_POINTS, type TensorFoldCheckpoint } from './starting.js'
 
 export const TENSORFOLD_BINARY_NAMES = ['tensorfold-native', 'tensorfold'] as const
 export const TENSORFOLD_RUNTIME_FOLDER = join('.local', 'share', 'mercury-host', 'runtime', 'tensorfold')
@@ -17,6 +20,7 @@ export type EngineIo = MachineIo & {
   home?: string
   exists?: (path: string) => boolean
   exec?: EngineExec
+  adapter?: boolean | string
 }
 
 function executable(path: string): boolean {
@@ -28,10 +32,33 @@ function executable(path: string): boolean {
   }
 }
 
+export function adapterEntry(self: string = fileURLToPath(import.meta.url)): string {
+  if (!self.endsWith('.mjs')) return fileURLToPath(new URL('../../entrypoints/tensorfoldAdapter.ts', import.meta.url))
+  const beside = join(dirname(self), ADAPTER_BUNDLE)
+  return existsSync(beside) ? beside : self
+}
+
+export function tensorFoldCommand(binary: string): { command: string; args: string[] } {
+  return isAdapterEntry(binary) ? { command: process.execPath, args: [binary, ADAPTER_FLAG] } : { command: binary, args: [] }
+}
+
+export function tensorFoldCommandWords(binary: string): string {
+  return isAdapterEntry(binary) ? `mercury ${ADAPTER_FLAG}` : 'tensorfold'
+}
+
+export function engineServedByAdapter(engine: Pick<TensorFoldEngine, 'servedBy'> | null | undefined): boolean {
+  return engine !== null && engine !== undefined && servedByAdapter(engine.servedBy)
+}
+
+export function engineStartingPoints(engine: Pick<TensorFoldEngine, 'servedBy'> | null | undefined): readonly TensorFoldCheckpoint[] {
+  return engineServedByAdapter(engine) ? ADAPTER_CHECKPOINTS : TENSORFOLD_STARTING_POINTS
+}
+
 function defaultExec(env: NodeJS.ProcessEnv): EngineExec {
   return (file, args) => new Promise(resolve => {
+    const { command, args: prefix } = tensorFoldCommand(file)
     try {
-      execFile(file, args, { encoding: 'utf8', timeout: 8_000, maxBuffer: 4 << 20, windowsHide: true, env }, (error, stdout, stderr) => {
+      execFile(command, [...prefix, ...args], { encoding: 'utf8', timeout: 8_000, maxBuffer: 4 << 20, windowsHide: true, env }, (error, stdout, stderr) => {
         const code = error && typeof (error as { code?: unknown }).code === 'number' ? (error as { code: number }).code : error ? 1 : 0
         resolve(error && stdout === '' && stderr === '' ? undefined : { stdout: String(stdout), stderr: String(stderr), code })
       })
@@ -61,7 +88,7 @@ export function parseTensorFoldVersion(text: string | undefined): string | undef
   return match?.[1]
 }
 
-type TensorFoldCapabilities = {
+export type TensorFoldCapabilities = {
   version?: string
   chip: string | null
   backends: string[]
@@ -69,6 +96,8 @@ type TensorFoldCapabilities = {
   flags: string[]
   env: string[]
   optionalLibraries: Array<{ name: string; found: boolean; usable: boolean | null; problem?: string }>
+  servedBy?: string
+  llamacpp?: { found: boolean; pinned?: boolean; binary?: string; runtime?: string; build?: string; commit?: string; version?: string; words?: string }
 }
 
 const rec = (v: unknown): Record<string, unknown> | undefined => (typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined)
@@ -102,6 +131,8 @@ export function parseTensorFoldCapabilities(stdout: string): TensorFoldCapabilit
       usable: typeof row.usable === 'boolean' ? row.usable : null,
       ...(typeof row.problem === 'string' ? { problem: row.problem } : {}),
     }))
+  const llamacpp = rec(top.llamacpp)
+  const text = (v: unknown): string | undefined => (typeof v === 'string' && v !== '' ? v : undefined)
   return {
     ...(typeof top.version === 'string' ? { version: top.version } : {}),
     chip: typeof top.chip === 'string' ? top.chip : null,
@@ -110,12 +141,27 @@ export function parseTensorFoldCapabilities(stdout: string): TensorFoldCapabilit
     flags,
     env: strings(top.env),
     optionalLibraries,
+    ...(text(top.served_by) !== undefined ? { servedBy: text(top.served_by)! } : {}),
+    ...(llamacpp !== undefined
+      ? {
+          llamacpp: {
+            found: llamacpp.found === true,
+            ...(typeof llamacpp.pinned === 'boolean' ? { pinned: llamacpp.pinned } : {}),
+            ...(text(llamacpp.binary) !== undefined ? { binary: text(llamacpp.binary)! } : {}),
+            ...(text(llamacpp.runtime) !== undefined ? { runtime: text(llamacpp.runtime)! } : {}),
+            ...(text(llamacpp.build) !== undefined ? { build: text(llamacpp.build)! } : {}),
+            ...(text(llamacpp.commit) !== undefined ? { commit: text(llamacpp.commit)! } : {}),
+            ...(text(llamacpp.version) !== undefined ? { version: text(llamacpp.version)! } : {}),
+            ...(text(llamacpp.words) !== undefined ? { words: text(llamacpp.words)! } : {}),
+          },
+        }
+      : {}),
   }
 }
 
-function tensorFoldFamiliesOf(families: Record<string, string[]>): TensorFoldFamily[] {
+function tensorFoldFamiliesOf(families: Record<string, string[]>, startingPoints: readonly TensorFoldCheckpoint[]): TensorFoldFamily[] {
   return Object.entries(families).map(([id, quantisations]) => {
-    const points = TENSORFOLD_STARTING_POINTS.filter(point => point.family === id)
+    const points = startingPoints.filter(point => point.family === id)
     const drafter = points.find(point => point.drafter !== undefined)?.drafter?.repo
     const cacheDefault = points.some(point => point.promptCacheGib === undefined) ? 16 : undefined
     return {
@@ -151,27 +197,42 @@ export function tensorFoldMachine(): TensorFoldMachine {
   return { chip: truth.chip, usableGib: truth.usableBytes / 1024 ** 3 }
 }
 
+function adapterBinaryFor(io: EngineIo, platform: NodeJS.Platform): string | undefined {
+  if (typeof io.adapter === 'string') return io.adapter
+  if (io.adapter === true || platform === 'win32') return adapterEntry()
+  return undefined
+}
+
+function adapterExec(io: EngineIo): EngineExec {
+  return async (_file, args) => {
+    if (args[0] === '--version') return { stdout: `${adapterVersionLine()}\n`, stderr: '', code: 0 }
+    const { adapterCapabilities } = await import('./adapter/main.js')
+    return adapterCapabilities({ ...(io.env !== undefined ? { env: io.env } : {}), ...(io.home !== undefined ? { home: io.home } : {}), ...(io.platform !== undefined ? { platform: io.platform } : {}) })
+  }
+}
+
 export async function findTensorFoldEngine(io: EngineIo = {}): Promise<TensorFoldEngineFound | null> {
   const exists = io.exists ?? executable
-  const exec = io.exec ?? defaultExec(io.env ?? subprocessEnv())
   const platform = io.platform ?? process.platform
-  if (platform === 'win32') return null
-  const binary = tensorFoldBinaryCandidates(io).find(exists)
+  const binary = tensorFoldBinaryCandidates(io).find(exists) ?? adapterBinaryFor(io, platform)
   if (binary === undefined) return null
+  const exec = io.exec ?? (isAdapterEntry(binary) ? adapterExec(io) : defaultExec(io.env ?? subprocessEnv()))
   const version = await exec(binary, ['--version'])
   const parsedVersion = parseTensorFoldVersion(version?.stdout)
   const capabilities = await exec(binary, ['capabilities', '--json'])
   const parsed = capabilities === undefined ? undefined : parseTensorFoldCapabilities(capabilities.stdout)
   const warnings = (capabilities?.stderr ?? '').split('\n').map(line => line.trim()).filter(line => line !== '')
   const found = parsed ?? { chip: null, backends: [], families: {}, flags: [], env: [], optionalLibraries: [] }
+  const servedBy = isAdapterEntry(binary) ? found.servedBy : undefined
   const truth = await cachedTensorFoldMachineTruth(io)
   return {
     version: parsedVersion ?? found.version ?? 'unknown',
     binary,
     chip: truth.chip,
     backends: found.backends,
-    families: tensorFoldFamiliesOf(found.families),
+    families: tensorFoldFamiliesOf(found.families, engineStartingPoints({ ...(servedBy !== undefined ? { servedBy } : {}) })),
     optionalLibraries: found.optionalLibraries.map(library => ({ name: library.name, found: library.found, ...(library.problem !== undefined ? { note: library.problem } : {}) })),
+    ...(servedBy !== undefined ? { servedBy } : {}),
     capabilities: found,
     warnings,
   }
@@ -181,5 +242,6 @@ export function tensorFoldBackendWords(engine: Pick<TensorFoldEngine, 'backends'
   const backend = engine?.backends[0]
   if (backend === 'metal' || (backend === undefined && platform === 'darwin')) return 'Metal'
   if (backend === 'cuda' || (backend === undefined && platform === 'linux')) return 'CUDA'
+  if (backend === 'cpu') return 'CPU'
   return backend ?? ''
 }

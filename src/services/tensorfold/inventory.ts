@@ -1,11 +1,15 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { ADAPTER_CHECKPOINTS, adapterCheckpointOf } from './adapter/models.js'
 import type { TensorFoldEngine, TensorFoldModelRow, TensorFoldServed } from './contracts.js'
-import { cachedTensorFoldMachineTruth, type EngineIo, type TensorFoldEngineFound } from './engine.js'
+import { cachedTensorFoldMachineTruth, engineServedByAdapter, type EngineIo, type TensorFoldEngineFound } from './engine.js'
 import { chosenTensorFoldWindow, reachesAgentFloor, tensorFoldLadder, type TensorFoldMachineTruth } from './fit.js'
+import { cacheDirOfRepo, ggufOnDisk, hfCacheRoot } from './hfCache.js'
 import { servedTensorFold } from './serve.js'
 import { QWEN_27B, QWEN_27B_SECOND_WORDS, QWEN_2B, TENSORFOLD_STARTING_POINTS, startingPointOf, tensorFoldLabel, tensorFoldShortName, tensorFoldStartingOrder, type TensorFoldCheckpoint } from './starting.js'
+
+export { cacheDirOfRepo, hfCacheRoot } from './hfCache.js'
 
 export type TensorFoldInventoryRow = TensorFoldModelRow & { label: string; checkpoint: TensorFoldCheckpoint; quantisation?: string }
 
@@ -25,13 +29,6 @@ export type InventoryIo = EngineIo & {
   readText?: (path: string) => string | undefined
   sizeOf?: (path: string) => number | undefined
 }
-
-export function hfCacheRoot(env: NodeJS.ProcessEnv = process.env, home: string = homedir()): string {
-  if (env.HF_HUB_CACHE) return env.HF_HUB_CACHE
-  if (env.HF_HOME) return join(env.HF_HOME, 'hub')
-  return join(home, '.cache', 'huggingface', 'hub')
-}
-
 
 export function hfCacheWords(root: string, home: string = homedir()): string {
   return root.startsWith(home) ? `~${root.slice(home.length)}` : root
@@ -72,10 +69,6 @@ function repoOfCacheDir(name: string): string | undefined {
   return `${rest.slice(0, cut)}/${rest.slice(cut + 2)}`
 }
 
-export function cacheDirOfRepo(repo: string): string {
-  return `models--${repo.replace('/', '--')}`
-}
-
 export function readHfSnapshot(root: string, repo: string, io: Pick<InventoryIo, 'listDir' | 'readText' | 'sizeOf'> = {}): HfSnapshot | undefined {
   const listDir = io.listDir ?? defaultListDir
   const readText = io.readText ?? defaultReadText
@@ -104,7 +97,7 @@ export function readHfSnapshot(root: string, repo: string, io: Pick<InventoryIo,
   for (const name of listDir(blobs)) if (name.endsWith('.incomplete')) incompleteBytes += sizeOf(join(blobs, name)) ?? 0
   if (dir === undefined || config === undefined) return undefined
   let weightsBytes = 0
-  for (const name of listDir(dir)) if (name.endsWith('.safetensors')) weightsBytes += sizeOf(join(dir, name)) ?? 0
+  for (const name of listDir(dir)) if (name.endsWith('.safetensors') || name.endsWith('.gguf')) weightsBytes += sizeOf(join(dir, name)) ?? 0
   return { repo, dir, config, weightsBytes, incompleteBytes }
 }
 
@@ -185,8 +178,7 @@ export function rowOfCheckpoint(point: TensorFoldCheckpoint, machine: TensorFold
   }
 }
 
-function rankTensorFoldRows(rows: readonly TensorFoldInventoryRow[], machine: TensorFoldMachineTruth): TensorFoldInventoryRow[] {
-  const order = tensorFoldStartingOrder(machine)
+function rankTensorFoldRows(rows: readonly TensorFoldInventoryRow[], machine: TensorFoldMachineTruth, order: readonly TensorFoldCheckpoint[] = tensorFoldStartingOrder(machine)): TensorFoldInventoryRow[] {
   const rank = (row: TensorFoldInventoryRow): number => {
     const at = order.findIndex(point => point.repo === row.repo)
     return at < 0 ? order.length : at
@@ -198,6 +190,14 @@ function rankTensorFoldRows(rows: readonly TensorFoldInventoryRow[], machine: Te
   return [...serving, ...(best === null ? rest : [best as TensorFoldInventoryRow, ...rest.filter(row => row !== best)])]
 }
 
+function adapterInventory(root: string, machine: TensorFoldMachineTruth, servedOf: (repo: string) => TensorFoldServed | undefined): TensorFoldInventoryRow[] {
+  const rows = ADAPTER_CHECKPOINTS.map(point => {
+    const disk = ggufOnDisk(root, point.gguf)
+    return { ...rowOfCheckpoint(point, machine, { onDisk: disk.complete, bytesOnDisk: disk.bytes, drafterOnDisk: true }, servedOf(point.repo)), quantisation: point.gguf.quant }
+  })
+  return rankTensorFoldRows(rows, machine, ADAPTER_CHECKPOINTS)
+}
+
 export async function readTensorFoldInventory(engine: TensorFoldEngine | null, io: InventoryIo = {}): Promise<TensorFoldInventoryRow[]> {
   const env = io.env ?? process.env
   const home = io.home ?? homedir()
@@ -205,6 +205,7 @@ export async function readTensorFoldInventory(engine: TensorFoldEngine | null, i
   const machine = io.machine ?? (await cachedTensorFoldMachineTruth(io))
   const served = io.served ?? servedTensorFold()
   const servedOf = (repo: string): TensorFoldServed | undefined => served.find(row => row.repo.toLowerCase() === repo.toLowerCase())
+  if (engineServedByAdapter(engine)) return adapterInventory(root, machine, servedOf)
   const known = new Set((engine as TensorFoldEngineFound | null)?.families.map(family => family.id) ?? [])
   const snapshots = new Map<string, HfSnapshot | undefined>()
   const snapshotOf = (repo: string): HfSnapshot | undefined => {
@@ -237,10 +238,12 @@ export async function readTensorFoldInventory(engine: TensorFoldEngine | null, i
   return rankTensorFoldRows(rows, machine)
 }
 
+const knownStartingPoint = (repo: string): boolean => startingPointOf(repo) !== undefined || adapterCheckpointOf(repo) !== undefined
+
 export function bestTensorFoldFit(rows: readonly TensorFoldModelRow[]): TensorFoldModelRow | null {
   for (const row of rows) {
-    if (startingPointOf(row.repo) === undefined) continue
+    if (!knownStartingPoint(row.repo) || !row.qualified) continue
     if (row.ladder !== undefined ? reachesAgentFloor(row.ladder) : row.fit.verdict === 'fits') return row
   }
-  return rows.find(row => row.repo === QWEN_2B.repo) ?? rows.find(row => startingPointOf(row.repo) !== undefined) ?? rows[0] ?? null
+  return rows.find(row => row.repo === QWEN_2B.repo) ?? rows.find(row => knownStartingPoint(row.repo)) ?? rows[0] ?? null
 }

@@ -7,6 +7,7 @@ import type { LocalServerKind } from '../openaicompat/compatWire.js'
 import { kvGeometryOf, type KvGeometry } from '../../localServer/localServerMemory.js'
 import { resolveLocalApiKeyFor } from './localAccounts.js'
 import { ggufServerRoots } from '../../localSetup/ggufServers.js'
+import { tensorFoldEngineLabel } from '../../tensorfold/adapter/identity.js'
 import { tensorFoldHostRecords, tensorFoldPorts } from './tensorfoldHosts.js'
 
 export type { LocalServerKind }
@@ -45,6 +46,7 @@ export interface LocalModelRecord {
   weightsBytes?: number
   geometry?: KvGeometry
   efforts?: readonly string[]
+  servedBy?: string
 }
 
 export interface TensorFoldEngineFacts {
@@ -55,6 +57,8 @@ export interface TensorFoldEngineFacts {
   streams?: number
   contextFitted?: boolean
   draining?: boolean
+  servedBy?: string
+  engineWords?: string
 }
 
 export interface LocalServerRecord {
@@ -391,6 +395,7 @@ function tensorFoldModelRecord(m: Record<string, unknown>, baseUrl: string): Loc
   const window = num(m.context_length) ?? num(m.max_model_len)
   const reasoning = rec(m.reasoning)
   const listed = strList(reasoning?.supported_efforts)
+  const servedBy = str(m.served_by)
   return {
     id,
     server: 'tensorfold',
@@ -399,6 +404,7 @@ function tensorFoldModelRecord(m: Record<string, unknown>, baseUrl: string): Loc
     thinkingDeclared: reasoning !== undefined,
     ...(reasoning !== undefined ? { efforts: listed !== undefined && listed.length > 0 ? listed : [] } : {}),
     loaded: true,
+    ...(servedBy !== undefined ? { servedBy } : {}),
   }
 }
 
@@ -414,11 +420,13 @@ export async function probeTensorFold(root: string, io: LocalDiscoveryIo, prefet
   const version = str(health?.version) ?? tensorFoldHostRecords().find(host => host.baseUrl === root)?.version
   const models = list.map(m => tensorFoldModelRecord(m, baseUrl)).filter((m): m is LocalModelRecord => m !== undefined)
   for (const model of models) if (open && num(memory?.active) !== undefined) model.servedBytes = num(memory?.active)!
+  const servedBy = models.find(model => model.servedBy !== undefined)?.servedBy ?? str(health?.served_by)
+  const engineWords = str(rec(health?.engine)?.words)
   return {
     kind: 'tensorfold',
     root,
     baseUrl,
-    label: version ? `TensorFold ${version}` : 'TensorFold',
+    label: tensorFoldEngineLabel(version, servedBy),
     ...(version ? { version } : {}),
     models,
     engine: {
@@ -428,6 +436,8 @@ export async function probeTensorFold(root: string, io: LocalDiscoveryIo, prefet
       ...(num(memory?.active) !== undefined ? { inUseBytes: num(memory?.active)! } : {}),
       ...(num(health?.max_batch_size) !== undefined ? { streams: num(health?.max_batch_size)! } : {}),
       ...(str(health?.status) === 'draining' ? { draining: true } : {}),
+      ...(servedBy !== undefined ? { servedBy } : {}),
+      ...(engineWords !== undefined ? { engineWords } : {}),
     },
   }
 }

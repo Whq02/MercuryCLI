@@ -36,7 +36,8 @@ export function localServerKind(model: string): string | undefined {
   if (verdict.kind === 'route' && verdict.route === 'openai-compat') return onTensorFoldPod(model) ? 'tensorfold' : undefined
   try {
     const { localRecordFor } = require('../services/providers/local/localCatalogue.js') as typeof import('../services/providers/local/localCatalogue.js')
-    return localRecordFor(model)?.server
+    const record = localRecordFor(model)
+    return record?.servedBy === 'mercury-llamacpp' ? 'llamacpp' : record?.server
   } catch {
     return undefined
   }

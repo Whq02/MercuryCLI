@@ -1,4 +1,6 @@
 import { gibWords } from '../../localServer/localServerMemory.js'
+import { ADAPTER_SENTENCE, LLAMACPP_RELEASE, servedByAdapter, tensorFoldEngineLabel } from '../../tensorfold/adapter/identity.js'
+import { adapterNeedsLlamaCpp } from '../../tensorfold/install.js'
 import { appServingWords } from './tensorfoldApp.js'
 import { helperChoiceWords, helperFailureWords, helperJobsWords, helperModelChoices, readHelperModelSetting } from './tensorfoldHelper.js'
 import { readTensorFoldState, tensorFoldPresent, TENSORFOLD_WINDOW_FLOOR, type TensorFoldServerState, type TensorFoldState, type TensorFoldStateReads } from './tensorfoldState.js'
@@ -21,12 +23,14 @@ export function windowWords(tokens: number): string {
   return tokens >= 1024 ? `${Math.round(tokens / 1024)}k` : String(tokens)
 }
 
-function engineWords(server: TensorFoldServerState): string[] {
+export function engineWords(server: Pick<TensorFoldServerState, 'version' | 'backend' | 'device' | 'servedBy' | 'engineWords'>): string[] {
   const words: string[] = []
-  if (server.version !== undefined) words.push(`TensorFold ${server.version}`)
+  if (servedByAdapter(server.servedBy)) words.push(`${tensorFoldEngineLabel(server.version, server.servedBy)}${server.engineWords !== undefined ? ` · ${server.engineWords}` : ''}`)
+  else if (server.version !== undefined) words.push(`TensorFold ${server.version}`)
   const backend = tensorFoldBackendWords(server.backend)
   if (backend !== undefined) words.push(backend)
   if (server.device !== undefined) words.push(server.device)
+  if (servedByAdapter(server.servedBy)) words.push(ADAPTER_SENTENCE)
   return words
 }
 
@@ -72,7 +76,8 @@ export function tensorFoldHealthRow(state: TensorFoldState): TensorFoldHealthRow
     return detail !== undefined ? { ...row, detail } : row
   }
   if (state.app.engine !== undefined) return { status: 'info', evidence: appServingWords(state.app)! }
-  if (state.engine !== null && state.engine !== undefined) return { status: 'info', evidence: `TensorFold ${state.engine.version} installed · nothing served`, fix: '/tensorfold' }
+  if (state.engine !== null && state.engine !== undefined && adapterNeedsLlamaCpp(state.engine)) return { status: 'warn', evidence: `llama.cpp is not installed · ${ADAPTER_SENTENCE}`, fix: `/tensorfold installs release ${LLAMACPP_RELEASE.build}` }
+  if (state.engine !== null && state.engine !== undefined) return { status: 'info', evidence: `${tensorFoldEngineLabel(state.engine.version, state.engine.servedBy)} installed · nothing served${servedByAdapter(state.engine.servedBy) ? ` · ${ADAPTER_SENTENCE}` : ''}`, fix: '/tensorfold' }
   return undefined
 }
 

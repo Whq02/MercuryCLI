@@ -73,6 +73,7 @@ ${opts.postSwitchFail ? `const dir = decodeURIComponent(new URL('.', import.meta
   writeFileSync(join(dir, 'splash.mjs'), `// fixture splash ${version}\n`)
   writeFileSync(join(dir, 'crew-board.mjs'), `// fixture crew board ${version}\n`)
   writeFileSync(join(dir, 'shell-parent-guard.mjs'), `// fixture shell parent guard ${version}\n`)
+  writeFileSync(join(dir, 'tensorfold-adapter.mjs'), `// fixture tensorfold adapter ${version}\n`)
   writeFileSync(join(dir, 'splash-core.mjs'), `// fixture splash core ${version}\n`)
   if (IS_WIN) {
     writeFileSync(join(dir, 'mercury.exe'), standInWindowsLauncher())

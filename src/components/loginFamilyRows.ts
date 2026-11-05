@@ -34,16 +34,20 @@ export interface LoginFamilyRow {
 
 export type TensorFoldOffer =
   | { kind: 'host' }
-  | { kind: 'served'; model: string; version: string }
-  | { kind: 'ready' | 'install'; label: string; place: 'mac' | 'gpu' }
+  | { kind: 'served'; model: string; version: string; servedBy?: string }
+  | { kind: 'ready' | 'install'; label: string; place: 'mac' | 'gpu' | 'adapter' }
+
+export const ADAPTER_PLACE_WORDS = "this machine with Mercury's engine"
 
 export function tensorFoldFamilyRow(offer: TensorFoldOffer): LoginFamilyRow {
-  const place = (where: 'mac' | 'gpu'): string => (where === 'mac' ? 'this Mac' : "this machine's NVIDIA GPU")
+  const place = (where: 'mac' | 'gpu' | 'adapter'): string => (where === 'mac' ? 'this Mac' : where === 'adapter' ? ADAPTER_PLACE_WORDS : "this machine's NVIDIA GPU")
   const words =
     offer.kind === 'host'
       ? 'on a host: a server on your network or a rented GPU pod'
       : offer.kind === 'served'
-        ? `run ${offer.model} on TensorFold ${offer.version}, no account`
+        ? offer.servedBy !== undefined
+          ? `run ${offer.model} on ${ADAPTER_PLACE_WORDS}, no account`
+          : `run ${offer.model} on TensorFold ${offer.version}, no account`
         : offer.kind === 'ready'
           ? `run ${offer.label} on ${place(offer.place)}, no account`
           : `install and run ${offer.label} on ${place(offer.place)}, no account`
