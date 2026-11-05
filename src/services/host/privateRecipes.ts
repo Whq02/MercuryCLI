@@ -4,7 +4,7 @@ import { currentPrivateHostRecipes, privateHostRecipesCandidates, rememberPrivat
 
 export const PRIVATE_RECIPES_ROW = 'private-recipes'
 const PRIVATE_RECIPES_EMPTY = 'Private recipes · none · choose a file →'
-const PRIVATE_RECIPES_REPLACES = 'replaces the shipped list'
+const PRIVATE_RECIPES_REPLACES = 'joins the shipped list, its ids first'
 const PRIVATE_RECIPES_PROMPT = 'Which private recipes file?'
 export function privateRecipesRow(state = currentPrivateHostRecipes()): { value: string; label: string } {
   const loaded = state.path && state.recipes.length
@@ -23,7 +23,7 @@ export async function choosePrivateRecipesFile(ask: Parameters<LlmHostRoad>[0], 
     initial = named
     try {
       const inspected = validatePrivateHostRecipesPath(named)
-      const choice = await ask({ step: 'door-private-recipes-confirm', title: 'Use this private recipes file?', found: summary(inspected), willRun: 'This file replaces the shipped list. Only use recipes you trust: they can contain install commands. Nothing runs now.', rows: [{ value: 'use', label: 'Use this file' }, { value: 'change', label: 'Change file' }] })
+      const choice = await ask({ step: 'door-private-recipes-confirm', title: 'Use this private recipes file?', found: summary(inspected), willRun: 'Its rows join the shipped list; a row with a shipped id replaces that row. Only use recipes you trust: they can contain install commands. Nothing runs now.', rows: [{ value: 'use', label: 'Use this file' }, { value: 'change', label: 'Change file' }] })
       if (choice === null || signal.aborted) return
       if (choice !== 'use') { error = ''; continue }
       const saved = rememberPrivateHostRecipesFile(inspected.path)

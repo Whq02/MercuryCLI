@@ -283,7 +283,11 @@ export function rememberPrivateHostRecipesFile(path: string): PrivateHostRecipes
 
 function loadedHostRecipes(options: HostRecipesOptions): HostRecipe[] {
   const local = currentPrivateHostRecipes(options.onDrop)
-  if (local.recipes.length) return local.recipes
+  const privateIds = new Set(local.recipes.map(row => row.id))
+  return [...local.recipes, ...catalogueHostRecipes(options).filter(row => !privateIds.has(row.id))]
+}
+
+function catalogueHostRecipes(options: HostRecipesOptions): HostRecipe[] {
   const compiledDoc: HostRecipesFile = { version: HOST_RECIPES_FILE_VERSION, publishedAt: HOST_RECIPES_PUBLISHED_AT, recipes: sortUnverifiedLast(HOST_RECIPES) }
   const shippedDoc = parseHostRecipesDocument(options.shipped ?? shippedRecipesFile, SHIPPED_HOST_RECIPES_PATH, options.onDrop)
   const baseDoc = shippedDoc && shippedDoc.version >= compiledDoc.version ? shippedDoc : compiledDoc

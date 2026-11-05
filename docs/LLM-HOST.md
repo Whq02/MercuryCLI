@@ -20,7 +20,9 @@ windows, runs a reply check, and registers the provider in `/model` and
 
 **Private recipes** opens **Which private recipes file?** from `More options →`
 or a private model's screen. The row shows
-`Private recipes · <path> · <N> rows · replaces the shipped list`.
+`Private recipes · <path> · <N> rows · joins the shipped list, its ids first`.
+The private rows join the shipped catalogue (a private row with a shipped id
+replaces that row), so the shipped recipes stay offered beside your own.
 Enter an absolute path; candidates include the saved choice, `MERCURY_HOST_RECIPES_FILE`
 and `host/private-recipes.json` under the config home, in that precedence order.
 Mercury checks JSON and recipe fields, names missing files, zero valid rows or
