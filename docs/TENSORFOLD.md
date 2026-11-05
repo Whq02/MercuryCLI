@@ -113,9 +113,12 @@ Pressing `↵` runs the needed steps in sequence, waits for `/health` and
 `/v1/models`, verifies a short reply with thinking off, and switches the
 session to `local/<name>` (`● TensorFold serves <name> · <window> on 127.0.0.1:<port> · this session's model`).
 While a checkpoint is pulling, the row shows `pulling <N>%` and the live footer
-shows downloaded gigabytes, transfer rate in `MB/s` and remaining minutes;
-pressing `s` stops the pull (`s stops, the download resumes next time`) and
-partial blobs in `~/.cache/huggingface/hub` resume on the next pull. While the
+shows downloaded gigabytes, transfer rate in `MB/s` and remaining minutes, read
+from TensorFold's own progress lines (`<x> of <y> GiB, <z> MiB/s`); before its
+first line, about ten seconds in, they count only what this pull has written, so
+a resumed pull reads low until then. Pressing `s` stops the pull
+(`s stops, the download resumes next time`) and partial blobs in
+`~/.cache/huggingface/hub` resume on the next pull. While the
 engine loads weights into memory, the footer shows
 `starting <name> on 127.0.0.1:<port> · loading · <N> s`.
 
