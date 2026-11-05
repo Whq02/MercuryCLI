@@ -96,6 +96,7 @@ import type { RefusedToolCall } from '../../../types/message.js'
 import { gateToolCalls, refusalAnswersAsToolResult, refusedCallInput, toolCallRefusalDiagnostic, toolCallRefusalNote } from '../toolCallGate.js'
 import { isLocalLivenessCut, localStreamLawFor } from '../localLiveness.js'
 import { extractToolCallMarkup } from '../local/toolCallMarkup.js'
+import { localServerKind } from '../../../constants/localPromptProfile.js'
 import { renderToolDialectHistory, toolDialectSystemText } from '../local/toolDialect.js'
 import { planToolPayload, renderAdmissionRecordsAsText, type ToolPayloadPlan } from '../toolEconomy.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
@@ -652,6 +653,7 @@ export async function* compatChatCallModel(
     callReference: options.callReference,
   })
 
+  const servedByTensorFold = localServerKind(modelId) === 'tensorfold'
   let recovery: 'retried' | 'no-new-credential' | undefined
   const turnStartedAtMs = Date.now()
   let attemptStartedAtMs = turnStartedAtMs
@@ -690,6 +692,7 @@ export async function* compatChatCallModel(
       callableTools,
       effort: effortOnWire,
       imagesSupported,
+      servedByTensorFold,
       ...(deferral !== undefined ? { deferral } : {}),
       ...(leadingNotes.length ? { leadingNotes } : {}),
       ...(busy !== undefined ? { busy } : {}),
@@ -901,6 +904,7 @@ async function* streamOneCompatAttempt(ctx: {
   callableTools?: readonly ApiShapedTool[]
   effort?: EffortStampV1
   imagesSupported: boolean
+  servedByTensorFold: boolean
   deferral?: CompatDeferralFacts
   leadingNotes?: readonly string[]
   busy?: { ladder: BusyRetryLadder; fault: CompatFault }
@@ -1292,11 +1296,12 @@ async function* streamOneCompatAttempt(ctx: {
 
   yield* ensureMessageStart()
   let completed = finish?.toolCalls ?? []
-  if (profile.lane === 'local' && completed.length === 0 && blocks.open !== null && blocks.open.kind !== 'tool' && finish !== undefined) {
+  const readsMarkup = profile.lane === 'local' || ctx.servedByTensorFold
+  if (readsMarkup && blocks.open !== null && blocks.open.kind !== 'tool' && finish !== undefined && (completed.length === 0 || (ctx.servedByTensorFold && blocks.open.kind === 'text'))) {
     const extracted = extractToolCallMarkup(blocks.open.value, ctx.callableTools ?? [])
     if (extracted !== undefined) {
-      logForDebugging(`[compat:local] ${extracted.calls.length} tool call(s) read from ${extracted.shape} markup the server left in the ${blocks.open.kind}`)
-      completed = extracted.calls.map((call, index) => ({ index, id: `markup_${randomUUID().slice(0, 8)}_${index}`, name: call.name, argumentsRaw: call.argumentsRaw, malformed: false }))
+      logForDebugging(`[compat:${profile.lane}] ${extracted.calls.length} tool call(s) read from ${extracted.shape} markup the server left in the ${blocks.open.kind}${completed.length > 0 ? ` beside ${completed.length} it parsed` : ''}`)
+      completed = [...completed, ...extracted.calls.map((call, index) => ({ index: completed.length + index, id: `markup_${randomUUID().slice(0, 8)}_${index}`, name: call.name, argumentsRaw: call.argumentsRaw, malformed: false }))]
       if (extracted.text === '') {
         yield streamEvent({ type: 'content_block_stop', index: blocks.index })
         blocks.open = null

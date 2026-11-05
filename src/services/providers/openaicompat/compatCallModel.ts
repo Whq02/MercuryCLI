@@ -32,6 +32,8 @@ import {
 } from './compatAccounts.js'
 import { buildCompatSlotExtras } from './compatWire.js'
 import { getMaxOutputTokensForModel } from '../anthropic/streamCore.js'
+import { localServerKind } from '../../../constants/localPromptProfile.js'
+import { toolDeclarationRowInResult } from '../zai/zaiCodec.js'
 
 export const compatSlotLaneProfile: CompatLaneProfile = {
   lane: 'openai-compat',
@@ -89,6 +91,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
   if (params.signal.aborted) return
   const dialect = endpoint.dialect ?? 'chat-completions'
   const preservedReasoning = dialect === 'vllm' || dialect === 'sglang' || dialect === 'llamacpp' || ['kimi-k3', 'moonshotai/kimi-k3'].includes(wireId.toLowerCase())
+  const tensorFold = localServerKind(params.options.model) === 'tensorfold'
   let observation: ReturnType<typeof captureSignInRequest>
   let totalSlots: number | undefined
   let idSlot: number | undefined
@@ -153,6 +156,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
       if (dialect !== 'responses' && isKimiK3WireModel(wireId)) return { ...buildCompatSlotExtras(args), ...cache, reasoning_effort: buildMoonshotExtras({ ...args, wireModel: 'kimi-k3', effortValue: args.effortValue ?? 'max' }).reasoning_effort, ...(dialect === 'sglang' ? { chat_template_kwargs: { clear_thinking: false } } : {}) }
       return { ...buildHostedExtras({ ...args, dialect, vocabulary: compatModelEfforts(params.options.model), ...(idSlot !== undefined ? { idSlot } : {}) }), ...cache }
     },
+    ...(tensorFold ? { toolDeclarationRow: toolDeclarationRowInResult } : {}),
   }
   const deadEngineWords = (): string | undefined => {
     if (!endpoint.hostPodId) return undefined
