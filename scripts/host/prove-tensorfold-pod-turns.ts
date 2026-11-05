@@ -79,7 +79,7 @@ function runTurn(seeded: { home: string; cwd: string }, model: string, prompt: s
     const child = spawn(node, [bundle, 'run', prompt, '--model', model, '--format', 'rows', '--max-turns', '8', '--effort', 'high', ...extra], {
       cwd: seeded.cwd,
       env: {
-        HOME: join(seeded.home, 'user-home'), PATH: process.env.PATH ?? '/usr/bin:/bin', TERM: 'dumb', NO_COLOR: '1', LANG: 'en_US.UTF-8', TMPDIR: process.env.TMPDIR ?? '/tmp',
+        HOME: join(seeded.home, 'user-home'), PATH: process.env.PATH ?? '/usr/bin:/bin', TERM: 'dumb', NO_COLOR: '1', LANG: 'en_US.UTF-8', ...(process.env.TMPDIR ? { TMPDIR: process.env.TMPDIR } : {}),
         MERCURY_CONFIG_DIR: seeded.home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_DAEMON_DIR: join(seeded.home, 'daemon'),
         MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_BOOT_PREFLIGHT: '0', ...env,
       },
