@@ -64,7 +64,7 @@ import { resolveHuggingfaceAccount } from '../../services/providers/huggingface/
 import { getHuggingfaceAvailability } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { getCachedLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
 import { resolveLocalAccount } from '../../services/providers/local/localAccounts.js'
-import { LOCAL_SERVER_NAMES, localRecordFor } from '../../services/providers/local/localCatalogue.js'
+import { localRecordFor, localServerName } from '../../services/providers/local/localCatalogue.js'
 import { tensorFoldUsageLines } from '../../services/providers/local/tensorfoldUsage.js'
 import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js'
 import { formatLaneSpend } from '../../cost-tracker.js'
@@ -781,7 +781,7 @@ function LocalUsageSection(): React.ReactNode {
           <Box flexDirection="column">
             {snapshot.servers.map(server => (
               <Text key={`${server.kind}:${server.root}`} dimColor>
-                {server.label} · {LOCAL_SERVER_NAMES[server.kind]} at {server.root} · {server.models.length} model
+                {server.label} · {localServerName({ server: server.kind, ...(server.engine?.servedBy !== undefined ? { servedBy: server.engine.servedBy } : {}) })} at {server.root} · {server.models.length} model
                 {server.models.length === 1 ? '' : 's'}
                 {server.models.some(m => m.toolsDeclared === false) ? ' · some declare no tool support' : ''}
               </Text>

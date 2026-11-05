@@ -179,6 +179,32 @@ const EXPECT: Record<string, Expect> = {
     ...(wide ? [['the archive lines name the 1.2.2 Linux archive and its .sha256 sidecar', hasRun(run, 'sha256sum -c tensorfold-1.2.2-linux-') && hasRun(run, '.tar.gz.sha256'), card(run).join(' / ')] as [string, boolean, string]] : []),
   ],
   't05-windows': run => [
+    ["heading ▾ TENSORFOLD · served by Mercury's engine until TensorFold ships for Windows, whole at every width, unfolded", has(run, "▾ TENSORFOLD · served by Mercury's engine until TensorFold ships for Windows"), flat(run).filter(l => l.includes('TENSORFOLD')).join(' | ')],
+    ['landed on the 4B (the best fit on 16 GiB): ↓ 2.7 GB · 128k ctx · 9.6 GiB; the 2B on disk at 256k · 7.2 GiB beneath; no 27B, no Lightning, no other checkpoint', framedRow(run).includes('Qwen3.5 4B') && cells(run, 'Qwen3.5 4B', 'local/qwen3.5-4b', '↓ 2.7 GB', '128k ctx', '9.6 GiB') && cells(run, 'Qwen3.5 2B', 'local/qwen3.5-2b', 'on disk', '256k ctx', '7.2 GiB') && !has(run, 'Qwen3.8 27B') && !has(run, 'Nemotron Lightning') && !has(run, 'other checkpoint'), flat(run).filter(l => /Qwen|Nemotron|other/.test(l)).join(' | ')],
+    ["its card: the note, the GGUF memory parts, engine with the full sentence, weights naming the GGUF, the adapter's pull and serve lines", hasRun(run, "note qualified by Mercury on its own engine · not one of TensorFold's starting points") && has(run, 'memory    weights 2.6 + cache 4 + prompt cache 1 + runtime 2 GiB') && hasRun(run, "engine served by Mercury's engine on this machine until TensorFold ships for Windows") && has(run, 'weights   unsloth/Qwen3.5-4B-GGUF · Qwen3.5-4B-Q4_K_M.gguf (Q4_K_M)') && hasRun(run, 'will run mercury --tensorfold-adapter pull mlx-community/Qwen3.5-4B-MLX-4bit mercury --tensorfold-adapter serve mlx-community/Qwen3.5-4B-MLX-4bit --name qwen3.5-4b --context 131072 --prompt-cache-gib 1 --port 8080'), card(run).join(' / ')],
+    ['▸ TENSORFOLD HOST folded beneath, as on every platform with an engine', has(run, '▸ TENSORFOLD HOST · no host · a server on your network or a rented GPU pod')],
+    ['the footer: nothing served · CPU · the chip · 11.2 GiB usable', has(run, 'nothing served · CPU · Intel Core i7 · 11.2 GiB usable')],
+    ['the legend: ↵ pull, serve and switch · ←→ window, no n', legend(run).includes('↑↓ select · ↵ pull, serve and switch · ←→ window') && !legend(run).includes('n shares'), legend(run)],
+  ],
+  't05b-windows-no-llamacpp': run => [
+    ['the install row framed: install llama.cpp — llama.cpp release b11829 · checksum verified', framedRow(run).includes('install llama.cpp — llama.cpp release b11829 · checksum verified'), framedRow(run)],
+    ['its card: the adapter install verb, then the zip, its size, its digest and the runtime folder', hasRun(run, 'will run mercury --tensorfold-adapter install fetches llama-b11829-bin-win-cpu-x64.zip (24 MB) from github.com/ggml-org/llama.cpp · sha256 c534f35ce9c8… · into ~\\.local\\share\\mercury-host\\runtime\\llama.cpp\\build\\bin'), card(run).join(' / ')],
+    ['the 4B and the 2B beneath, both to pull', cells(run, 'Qwen3.5 4B', 'local/qwen3.5-4b', '↓ 2.7 GB', '128k ctx', '9.6 GiB') && cells(run, 'Qwen3.5 2B', 'local/qwen3.5-2b', '↓ 1.3 GB', '256k ctx', '7.2 GiB'), flat(run).filter(l => /Qwen/.test(l)).join(' | ')],
+    ['the footer: llama.cpp not installed · release b11829 (24 MB) · ↵ installs it', has(run, 'llama.cpp not installed · release b11829 (24 MB) · ↵ installs it')],
+    ['the legend: ↵ install', legend(run).includes('↑↓ select · ↵ install'), legend(run)],
+  ],
+  't05c-windows-his-engine': run => [
+    ['his own engine on Windows (no served_by): his heading, never the adapter sentence', has(run, '▾ TENSORFOLD · 1.2.2 · Intel Core i7 · 11.2 GiB usable · nothing served') && !joined(run).includes("Mercury's engine"), flat(run).filter(l => l.includes('TENSORFOLD')).join(' | ')],
+    ['his rows: the 2B on disk at his MLX weight (7.6 GiB), the 27B and Lightning do not fit on 16 GiB, other checkpoint offered', cells(run, 'Qwen3.5 2B', 'local/qwen3.5-2b', 'on disk', '256k ctx', '7.6 GiB') && cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'does not fit', '32k ctx', '22.5 GiB') && has(run, 'other checkpoint — a Hugging Face repository id'), flat(run).filter(l => /Qwen|other/.test(l)).join(' | ')],
+    ['the serve line is his tensorfold command', hasRun(run, SERVE_2B), card(run).join(' / ')],
+  ],
+  't05d-windows-served': run => [
+    ['heading: the sentence alone; the served 4B first, current · 128k ctx · 3.0 GiB in use', has(run, "▾ TENSORFOLD · served by Mercury's engine until TensorFold ships for Windows") && framedRow(run).includes('Qwen3.5 4B') && cells(run, 'Qwen3.5 4B', 'local/qwen3.5-4b', 'current', '128k ctx', '3.0 GiB in use'), framedRow(run)],
+    ["the card: service TensorFold adapter · llama.cpp b11829 · started by Mercury · prompt cache 1 GiB; engine with the full sentence; weights; network not shared · sharing from Mercury's engine comes later", hasRun(run, 'service TensorFold adapter · llama.cpp b11829 · started by Mercury · prompt cache 1 GiB') && hasRun(run, "engine served by Mercury's engine on this machine until TensorFold ships for Windows") && has(run, 'weights   unsloth/Qwen3.5-4B-GGUF · Qwen3.5-4B-Q4_K_M.gguf (Q4_K_M)') && hasRun(run, "network not shared · sharing from Mercury's engine comes later"), card(run).join(' / ')],
+    ['the footer: serving qwen3.5-4b on 127.0.0.1:8080 · first reply in 2100 ms · ~12 tok/s', has(run, 'serving qwen3.5-4b on 127.0.0.1:8080 · first reply in 2100 ms · ~12 tok/s')],
+    ['the legend: s stops · ←→ window · c copies the support line, no n', legend(run).includes('↑↓ select · s stops · ←→ window · c copies the support line') && !legend(run).includes('n shares'), legend(run)],
+  ],
+  't05e-windows-no-adapter': run => [
     ['▸ TENSORFOLD · no Windows release yet, folded', has(run, '▸ TENSORFOLD · no Windows release yet')],
     ['▾ TENSORFOLD HOST unfolded with the rent row framed', has(run, '▾ TENSORFOLD HOST · no host · a server on your network or a rented GPU pod') && framedRow(run).includes('rent a GPU pod — Runpod, through /llmhost'), framedRow(run)],
     ['the rent card: pod · serves · through', hasRun(run, 'pod RTX 5090 32 GB on Runpod · the price shows in /llmhost · billing starts when it boots') && has(run, 'serves    Qwen3.8 27B at 128k with TensorFold 1.2.2 for CUDA') && hasRun(run, 'through /llmhost rents it, installs TensorFold, pulls, serves, then this session switches · s stops the pod and its billing'), card(run).join(' / ')],

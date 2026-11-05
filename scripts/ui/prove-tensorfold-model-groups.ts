@@ -39,6 +39,19 @@ const ENGINE: TensorFoldEngine = {
 }
 const MAC_48: TensorFoldMachine = { chip: 'Apple M5 Pro', usableGib: 36 }
 const MAC_32: TensorFoldMachine = { chip: 'Apple M4 Pro', usableGib: 24 }
+const WIN_16: TensorFoldMachine = { chip: 'Intel Core i7', usableGib: 11.2 }
+const QWEN_4B_GGUF: Point = { repo: 'mlx-community/Qwen3.5-4B-MLX-4bit', shortName: 'qwen3.5-4b', label: 'Qwen3.5 4B', family: 'qwen3_5', weights: 2_740_937_888, download: 2_740_937_888, kvPerToken: 32_768, promptCacheGib: 1 }
+const QWEN_2B_GGUF: Point = { ...QWEN_2B, weights: 1_280_835_840, download: 1_280_835_840, kvPerToken: 12_288 }
+const ADAPTER = {
+  version: '1.0.6',
+  binary: '/dist/tensorfold-adapter.mjs',
+  chip: 'Intel Core i7',
+  backends: ['cpu'],
+  families: [{ id: 'qwen3_5', repos: [QWEN_4B_GGUF.repo, QWEN_2B.repo], quantisations: ['gguf-q4_k_m'], qualified: true }],
+  servedBy: 'mercury-llamacpp',
+  capabilities: { chip: 'Intel Core i7', backends: ['cpu'], families: { qwen3_5: ['gguf-q4_k_m'] }, flags: [], env: [], optionalLibraries: [], servedBy: 'mercury-llamacpp', llamacpp: { found: true, build: '11829', commit: '184f653', words: 'llama.cpp b11829' } },
+  warnings: [],
+} as unknown as TensorFoldEngine
 const LIMIT_LINE = 'sudo sysctl iogpu.wired_limit_mb=28672'
 const LIMIT_COST = 'resets at reboot; restart the engine after it · tight — quit other apps first'
 type Limit = 'offer' | 'none'
@@ -86,7 +99,8 @@ function willRunOf(row: TensorFoldModelRow, window: number): string[] {
   ]
 }
 
-function truthOf(machine: TensorFoldMachine): { platform: NodeJS.Platform; ramBytes: number; usableBytes: number; usableSource: 'metal'; chip: string; wiredLimitMib: number; osVersion: string } {
+function truthOf(machine: TensorFoldMachine): { platform: NodeJS.Platform; ramBytes: number; usableBytes: number; usableSource: 'metal' | 'seventy-percent'; chip: string; wiredLimitMib?: number; osVersion: string } {
+  if (machine === WIN_16) return { platform: 'win32', ramBytes: 16 * GIB, usableBytes: Math.round(16 * GIB * 0.7), usableSource: 'seventy-percent', chip: machine.chip, osVersion: '10.0.19045' }
   return { platform: 'darwin', ramBytes: (machine === MAC_32 ? 32 : 48) * GIB, usableBytes: (machine.usableGib ?? 36) * GIB, usableSource: 'metal', chip: machine.chip, wiredLimitMib: 0, osVersion: '27.0' }
 }
 
@@ -359,6 +373,8 @@ const has = (run: Pick<Run, 'm'>, words: string): boolean => flat(run).some(line
 const count = (run: Pick<Run, 'm'>, words: string): number => flat(run).filter(line => line.includes(words)).length
 const cells = (run: Pick<Run, 'm'>, ...parts: string[]): boolean => flat(run).some(line => new RegExp(parts.map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s{2,}')).test(line))
 const lineOf = (run: Pick<Run, 'm'>, words: string): number => flat(run).findIndex(line => line.includes(words))
+const joined = (run: Pick<Run, 'm'>): string => flat(run).map(line => line.replace(/[╭╮╰╯─]/g, ' ').trim()).join(' ').replace(/\s+/g, ' ')
+const hasRun = (run: Pick<Run, 'm'>, words: string): boolean => joined(run).includes(words)
 const legendOf = (run: Pick<Run, 'm'>): string => flat(run).find(line => line.includes('↑↓ select') || line.includes('esc back')) ?? ''
 
 async function focusHeading(run: Pick<Run, 'm'>, words: string): Promise<boolean> {
@@ -508,10 +524,28 @@ for (const [columns, rows] of SIZES) {
     await settle(60)
   }
   {
-    const run = await open(await factsFor({}, 'win32'), 'claude-opus-5-5', columns, rows)
+    const run = await open(await factsFor({ engine: null }, 'win32'), 'claude-opus-5-5', columns, rows)
     await save('m07-model-win32', run)
-    check(`${at} win32: TENSORFOLD reads no Windows release yet, folded`, has(run, '▸ TENSORFOLD · no Windows release yet'))
-    check(`${at} win32: TENSORFOLD HOST unfolded and holds the road`, has(run, '▾ TENSORFOLD HOST · no host · a server on your network or a rented GPU pod') && has(run, 'rent a GPU pod — Runpod, through /llmhost') && has(run, 'a server on your network — its address'))
+    check(`${at} win32 without any engine (the adapter entry missing, never a shipped state): TENSORFOLD reads no Windows release yet, folded`, has(run, '▸ TENSORFOLD · no Windows release yet'))
+    check(`${at} win32 without any engine: TENSORFOLD HOST unfolded and holds the road`, has(run, '▾ TENSORFOLD HOST · no host · a server on your network or a rented GPU pod') && has(run, 'rent a GPU pod — Runpod, through /llmhost') && has(run, 'a server on your network — its address'))
+    run.m.unmount()
+    await settle(60)
+  }
+  {
+    const run = await open(await factsFor({ engine: ADAPTER, machine: WIN_16, inventory: [rowOf(QWEN_4B_GGUF, 'not-pulled', WIN_16), rowOf(QWEN_2B_GGUF, 'on-disk', WIN_16)], best: QWEN_4B_GGUF.repo }, 'win32'), 'claude-opus-5-5', columns, rows)
+    await save('m07b-model-win32-adapter', run)
+    check(`${at} win32 with Mercury's adapter: TENSORFOLD reads served by Mercury's engine until TensorFold ships for Windows, folded like every engine when a cloud model is current`, has(run, "▸ TENSORFOLD · served by Mercury's engine until TensorFold ships for Windows"), flat(run).filter(l => l.includes('TENSORFOLD')).join(' | '))
+    check(`${at} win32 with Mercury's adapter: TENSORFOLD HOST folded beneath, no rent row on screen`, has(run, '▸ TENSORFOLD HOST · no host · a server on your network or a rented GPU pod') && !has(run, 'rent a GPU pod'), flat(run).filter(l => l.includes('HOST')).join(' | '))
+    await focusHeading(run, 'TENSORFOLD ·')
+    await press(run, [RIGHT])
+    check(`${at} win32 with Mercury's adapter: → opens the 4B (landed) and the 2B with the adapter's words on the card`, has(run, '▾ TENSORFOLD') && cells(run, 'Qwen3.5 4B', 'local/qwen3.5-4b', '↓ 2.7 GB', '128k ctx', '9.6 GiB') && cells(run, 'Qwen3.5 2B', 'local/qwen3.5-2b', 'on disk', '256k ctx', '7.2 GiB') && hasRun(run, "engine served by Mercury's engine on this machine until TensorFold ships for Windows") && has(run, 'weights   unsloth/Qwen3.5-4B-GGUF · Qwen3.5-4B-Q4_K_M.gguf (Q4_K_M)'), flat(run).filter(l => /Qwen|engine|weights/.test(l)).join(' | '))
+    run.m.unmount()
+    await settle(60)
+  }
+  {
+    const run = await open(await factsFor({ machine: WIN_16, inventory: [rowOf(QWEN_27B, 'not-pulled', WIN_16), rowOf(LIGHTNING, 'not-pulled', WIN_16), rowOf(QWEN_2B, 'on-disk', WIN_16)], best: QWEN_2B.repo }, 'win32'), 'claude-opus-5-5', columns, rows)
+    await save('m07c-model-win32-his-engine', run)
+    check(`${at} win32 with his own engine installed (no served_by): his heading, never the adapter sentence`, has(run, '▸ TENSORFOLD · 1.2.2 · Intel Core i7 · 11.2 GiB usable · nothing served') && !joined(run).includes("Mercury's engine"), flat(run).filter(l => l.includes('TENSORFOLD')).join(' | '))
     run.m.unmount()
     await settle(60)
   }
@@ -634,7 +668,7 @@ console.log('\n§3 the order rule and the facts the /model group reads')
   check('TensorFold used before the cloud provider: after the current provider, ahead of the never-used one, the pair adjacent', lineOf(used, '▾ ANTHROPIC') < lineOf(used, '▸ TENSORFOLD ·') && lineOf(used, '▸ TENSORFOLD HOST') === lineOf(used, '▸ TENSORFOLD ·') + 1 && lineOf(used, '▸ TENSORFOLD HOST') < lineOf(used, '▾ OPENAI'), flat(used).filter(l => /[▾▸❯] [A-Z]/.test(l)).join(' | '))
   used.m.unmount()
   await settle(60)
-  check('a machine that can run TensorFold: Apple silicon, or Linux with the R580+ NVIDIA driver loaded', tensorFoldCapableMachine('darwin', 'arm64') && !tensorFoldCapableMachine('darwin', 'x64') && tensorFoldCapableMachine('linux', 'x64', () => 'NVRM version: NVIDIA UNIX x86_64 Kernel Module  580.95.05') && !tensorFoldCapableMachine('linux', 'x64', () => undefined) && !tensorFoldCapableMachine('win32', 'x64', () => 'Kernel Module  580.95.05'))
+  check("a machine that can run TensorFold: Apple silicon, Linux with the R580+ NVIDIA driver loaded, or Windows x64 through Mercury's adapter", tensorFoldCapableMachine('darwin', 'arm64') && !tensorFoldCapableMachine('darwin', 'x64') && tensorFoldCapableMachine('linux', 'x64', () => 'NVRM version: NVIDIA UNIX x86_64 Kernel Module  580.95.05') && !tensorFoldCapableMachine('linux', 'x64', () => undefined) && tensorFoldCapableMachine('win32', 'x64', () => undefined) && !tensorFoldCapableMachine('win32', 'arm64', () => undefined))
   const facts = await factsFor({ hosts: [STUDIO], app: APP })
   check("the app's engine, detected by process (tf-engine-106's reader), becomes the app row and never a host row", facts.app?.serving === 'qwen3.5-2b' && facts.hosts?.length === 1)
   const helped = await factsFor({ helper: '· helper 2B' })

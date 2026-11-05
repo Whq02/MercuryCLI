@@ -1,0 +1,2 @@
+#!/bin/sh
+exec "${FAKE_TENSORFOLD_BUN:-bun}" "${FAKE_LLAMA_SCRIPT:?}" "$@"

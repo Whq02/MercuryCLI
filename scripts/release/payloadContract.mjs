@@ -24,6 +24,7 @@ export function topAllowlist(target, floor) {
     'mercury.mjs',
     'crew-board.mjs',
     'shell-parent-guard.mjs',
+    'tensorfold-adapter.mjs',
     'manifest.json',
     'vendor',
     'splash.mjs',
@@ -40,6 +41,7 @@ export function memberRole(name) {
   if (name === 'mercury.mjs') return 'primary'
   if (name === 'crew-board.mjs') return 'board'
   if (name === 'shell-parent-guard.mjs') return 'shell-guard'
+  if (name === 'tensorfold-adapter.mjs') return 'tensorfold-adapter'
   if (name === 'manifest.json') return 'manifest'
   if (name === 'mercury' || name === 'mercury.cmd' || name === 'mercury.exe') return 'launcher'
   if (name === 'mercury.ps1') return 'launcher-ps'

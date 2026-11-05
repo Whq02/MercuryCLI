@@ -1,4 +1,5 @@
 import type { ModelOption } from '../../../utils/model/modelOptions.js'
+import { ADAPTER_ENGINE_WORDS, servedByAdapter } from '../../tensorfold/adapter/identity.js'
 import {
   cachedLocalModels,
   getCachedLocalDiscovery,
@@ -37,6 +38,10 @@ export const LOCAL_SERVER_NAMES: Readonly<Record<LocalModelRecord['server'], str
   llamacpp: 'llama.cpp',
   tensorfold: 'TensorFold',
   'openai-compatible': 'OpenAI-compatible server',
+}
+
+export function localServerName(record: { server: LocalModelRecord['server']; servedBy?: string }): string {
+  return servedByAdapter(record.servedBy) ? ADAPTER_ENGINE_WORDS : LOCAL_SERVER_NAMES[record.server]
 }
 
 export function localContextSourceWords(source: LocalContextSource): string {
@@ -118,8 +123,8 @@ export function getLocalModelOptions(): Array<ModelOption & { executionOrigin?: 
       label: record.displayName ?? record.id,
       description: '',
       descriptionForModel: record.executionOrigin?.kind === 'remote'
-        ? `${record.id} — ${record.executionOrigin.remoteModel ?? record.id} runs on ${record.executionOrigin.remoteHost ?? 'an upstream host'} through ${LOCAL_SERVER_NAMES[record.server]} at ${record.baseUrl}; pricing unknown; persisted as ${persisted}.`
-        : `${record.id} — served locally by ${LOCAL_SERVER_NAMES[record.server]} at ${record.baseUrl} (keyless, no metering); persisted as ${persisted}.${record.toolsDeclared === false ? ' The server declares no tool support — its tools ride in the prompt.' : ''}`,
+        ? `${record.id} — ${record.executionOrigin.remoteModel ?? record.id} runs on ${record.executionOrigin.remoteHost ?? 'an upstream host'} through ${localServerName(record)} at ${record.baseUrl}; pricing unknown; persisted as ${persisted}.`
+        : `${record.id} — served locally by ${localServerName(record)} at ${record.baseUrl} (keyless, no metering); persisted as ${persisted}.${record.toolsDeclared === false ? ' The server declares no tool support — its tools ride in the prompt.' : ''}`,
       ...(record.executionOrigin !== undefined ? { executionOrigin: record.executionOrigin } : {}),
       group: LOCAL_MODEL_GROUP,
       ...(record.contextWindow !== undefined ? { statedContextWindow: record.contextWindow.tokens } : {}),

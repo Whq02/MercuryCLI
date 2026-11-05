@@ -3,7 +3,9 @@ import { accessSync, constants, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
-import { TENSORFOLD_RUNTIME_FOLDER } from './engine.js'
+import { LLAMACPP_RELEASE, LLAMACPP_RUNTIME_BIN, LLAMACPP_WINDOWS_CPU_ASSET } from './adapter/identity.js'
+import type { TensorFoldEngine } from './contracts.js'
+import { TENSORFOLD_RUNTIME_FOLDER, engineServedByAdapter, tensorFoldCommand, tensorFoldCommandWords, type TensorFoldEngineFound } from './engine.js'
 import type { TensorFoldMachineTruth } from './fit.js'
 import { TENSORFOLD_BREW_FORMULA, TENSORFOLD_RELEASE, TENSORFOLD_RELEASE_BASE } from './starting.js'
 
@@ -14,6 +16,7 @@ export type TensorFoldInstallPlan =
   | { kind: 'no-gpu'; words: string; found: string }
   | { kind: 'old-driver'; words: string; found: string }
   | { kind: 'windows'; words: string; found: string }
+  | { kind: 'llamacpp'; entry: string; folder: string; archive: string; commands: string[]; words: string; found: string }
 
 export type InstallIo = {
   platform?: NodeJS.Platform
@@ -65,6 +68,30 @@ function archiveInstallCommands(archive: string, folderWords: string = RUNTIME_F
   ]
 }
 
+export const LLAMACPP_INSTALL_WORDS = `llama.cpp release ${LLAMACPP_RELEASE.build} · checksum verified`
+
+export function llamaCppRuntimeWords(platform: NodeJS.Platform): string {
+  return platform === 'win32' ? `~\\${LLAMACPP_RUNTIME_BIN.join('\\')}` : `~/${LLAMACPP_RUNTIME_BIN.join('/')}`
+}
+
+export function adapterNeedsLlamaCpp(engine: TensorFoldEngine | TensorFoldEngineFound | null | undefined): boolean {
+  return engineServedByAdapter(engine) && (engine as TensorFoldEngineFound).capabilities?.llamacpp?.found === false
+}
+
+export function llamaCppInstallPlan(engine: Pick<TensorFoldEngine, 'binary'>, platform: NodeJS.Platform, io: Pick<InstallIo, 'home'> = {}): TensorFoldInstallPlan {
+  const asset = LLAMACPP_WINDOWS_CPU_ASSET
+  const folder = join(io.home ?? homedir(), ...LLAMACPP_RUNTIME_BIN)
+  return {
+    kind: 'llamacpp',
+    entry: engine.binary,
+    folder,
+    archive: asset.name,
+    commands: [`${tensorFoldCommandWords(engine.binary)} install`, `fetches ${asset.name} (${(asset.bytes / 1e6).toFixed(0)} MB) from github.com/ggml-org/llama.cpp · sha256 ${asset.sha256.slice(0, 12)}… · into ${llamaCppRuntimeWords(platform)}`],
+    words: LLAMACPP_INSTALL_WORDS,
+    found: `llama.cpp not installed · release ${LLAMACPP_RELEASE.build} (${(asset.bytes / 1e6).toFixed(0)} MB) · ↵ installs it`,
+  }
+}
+
 export function tensorFoldInstallPlan(machine: Pick<TensorFoldMachineTruth, 'platform' | 'gpu'>, io: InstallIo = {}): TensorFoldInstallPlan {
   const platform = io.platform ?? machine.platform
   if (platform === 'win32') return { kind: 'windows', words: WINDOWS_WORDS, found: 'nothing served here · TensorFold runs on a host' }
@@ -85,6 +112,10 @@ type InstallRun = { command: string; args: string[]; cwd?: string }
 
 export function installRuns(plan: TensorFoldInstallPlan): InstallRun[] {
   if (plan.kind === 'brew') return [{ command: plan.brew, args: ['install', TENSORFOLD_BREW_FORMULA] }]
+  if (plan.kind === 'llamacpp') {
+    const { command, args } = tensorFoldCommand(plan.entry)
+    return [{ command, args: [...args, 'install'] }]
+  }
   if (plan.kind === 'archive') {
     const url = `${TENSORFOLD_RELEASE_BASE}/${plan.archive}`
     return [

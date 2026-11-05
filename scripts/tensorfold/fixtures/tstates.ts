@@ -1,8 +1,13 @@
+import { execFile } from 'node:child_process'
 import { join } from 'node:path'
-import { FAKE_BIN, GIB, LIGHTNING_REPO, MAC_16, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_CONFIG, QWEN_2B_PIN, QWEN_2B_REPO, QWEN_9B_REPO, RTX_4090, fakeExists, fakeWorld, type CacheSeed } from './world.ts'
+import { FAKE_BIN, FAKE_SCRIPT, GIB, LIGHTNING_REPO, MAC_16, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_CONFIG, QWEN_2B_PIN, QWEN_2B_REPO, QWEN_9B_REPO, RTX_4090, WIN_16, WIN_LLAMA_BIN, fakeExists, fakeWorld, type CacheSeed } from './world.ts'
 import type { TensorFoldHost } from '../../../src/services/tensorfold/contracts.ts'
+import type { GgufSource } from '../../../src/services/tensorfold/hfCache.ts'
 
 const engine = await import('../../../src/services/tensorfold/engine.ts')
+const adapterMain = await import('../../../src/services/tensorfold/adapter/main.ts')
+const adapterIdentity = await import('../../../src/services/tensorfold/adapter/identity.ts')
+const adapterModels = await import('../../../src/services/tensorfold/adapter/models.ts')
 const fit = await import('../../../src/services/tensorfold/fit.ts')
 const refusal = await import('../../../src/services/tensorfold/refusal.ts')
 const inventory = await import('../../../src/services/tensorfold/inventory.ts')
@@ -10,9 +15,10 @@ const scene = await import('../../../src/commands/tensorfold/scene.ts')
 
 export type Facts = Awaited<ReturnType<typeof scene.readTensorFoldPanelFacts>>
 export type Engine = NonNullable<Awaited<ReturnType<typeof engine.findTensorFoldEngine>>>
-export type OutsideSeed = { id: string; baseUrl: string; window?: number; servedBytes?: number; server?: 'tensorfold' | 'llamacpp' }
+export type OutsideSeed = { id: string; baseUrl: string; window?: number; servedBytes?: number; server?: 'tensorfold' | 'llamacpp'; servedBy?: string }
 export type TStateOptions = {
   seeds?: CacheSeed[]
+  ggufSeeds?: (GgufSource & { partialBytes?: number })[]
   machine?: typeof MAC_48
   engine?: Engine | null
   platform?: NodeJS.Platform
@@ -38,9 +44,13 @@ export const KEYED_ADDRESS = '127.0.0.1:8080'
 export const SERVED_2B_RECORD: OutsideSeed = { id: 'qwen3.5-2b', baseUrl: 'http://127.0.0.1:8080/v1', window: 262_144, servedBytes: 2_965_982_016 }
 export const SERVED_2B_TURN = { model: 'local/qwen3.5-2b', address: '127.0.0.1:8080', tokensPerSecond: 110, timeToFirstTokenS: 0.04 }
 
-export async function fakeEngineFound(): Promise<Engine> {
+export async function fakeEngineFound(platform: NodeJS.Platform = 'darwin'): Promise<Engine> {
   const world = fakeWorld('tf-facts-engine')
-  const found = await engine.findTensorFoldEngine({ env: world.env, home: world.home, platform: 'darwin', exists: fakeExists, machine: MAC_48 } as never)
+  const onWindows = platform === 'win32'
+  const runFake: NonNullable<Parameters<typeof engine.findTensorFoldEngine>[0]['exec']> = (_file, args) => new Promise(resolve => {
+    execFile(process.execPath, [FAKE_SCRIPT, ...args], { encoding: 'utf8', env: world.env, timeout: 8_000 }, (error, stdout, stderr) => resolve({ stdout: String(stdout), stderr: String(stderr), code: error ? 1 : 0 }))
+  })
+  const found = await engine.findTensorFoldEngine({ env: world.env, home: world.home, platform, exists: onWindows ? (path: string) => path.startsWith(FAKE_BIN) && path.endsWith('tensorfold.exe') : fakeExists, ...(onWindows ? { exec: runFake } : {}), machine: MAC_48 } as never)
   if (found === null) throw new Error('the fake engine was not found')
   return found
 }
@@ -53,9 +63,35 @@ export async function fakeEngine(): Promise<Engine> {
   return pinned
 }
 
+export const WIN_LLAMA = { found: true, binary: `${WIN_LLAMA_BIN}\\llama-server.exe`, pinned: true, runtime: WIN_LLAMA_BIN, release: adapterIdentity.LLAMACPP_RELEASE, version: '0.7.0', build: '11829', commit: '184f653' }
+export const WIN_NO_LLAMA = { found: false, runtime: WIN_LLAMA_BIN, release: adapterIdentity.LLAMACPP_RELEASE }
+
+export function cannedAdapterExec(llama: typeof WIN_LLAMA | typeof WIN_NO_LLAMA, chip = WIN_16.chip): NonNullable<Parameters<typeof engine.findTensorFoldEngine>[0]['exec']> {
+  return async (_file, args) => {
+    if (args[0] === '--version') return { stdout: `${adapterIdentity.adapterVersionLine()}\n`, stderr: '', code: 0 }
+    if (args[0] === 'capabilities') return { stdout: `${JSON.stringify(adapterMain.capabilitiesJson({ chip, llama }))}\n`, stderr: llama.found ? '' : `warning: llama.cpp is not installed; /tensorfold installs release ${adapterIdentity.LLAMACPP_RELEASE.build} into ${llama.runtime}\n`, code: 0 }
+    return { stdout: '', stderr: 'usage\n', code: 2 }
+  }
+}
+
+export async function adapterEngineFound(llama: typeof WIN_LLAMA | typeof WIN_NO_LLAMA = WIN_LLAMA): Promise<Engine> {
+  engine.__pinTensorFoldMachineForTest(WIN_16)
+  const found = await engine.findTensorFoldEngine({ platform: 'win32', env: {}, home: 'C:\\Users\\someone', exists: () => false, adapter: engine.adapterEntry(), exec: cannedAdapterExec(llama) })
+  engine.__pinTensorFoldMachineForTest(MAC_48)
+  if (found === null) throw new Error('the adapter engine was not found')
+  return found
+}
+
+export const QWEN_2B_GGUF_SEED: GgufSource = adapterModels.QWEN_2B_GGUF.gguf
+export const QWEN_4B_GGUF_SEED: GgufSource = adapterModels.QWEN_4B_GGUF.gguf
+export const QWEN_4B_REPO = adapterModels.QWEN_4B_GGUF.repo
+export const SERVED_4B = { repo: QWEN_4B_REPO, name: 'qwen3.5-4b', port: 8080, window: 131_072, pid: 1, startedAt: 't', promptCacheGib: 1, servedBy: adapterIdentity.ADAPTER_SERVED_BY }
+export const SERVED_4B_RECORD: OutsideSeed = { id: 'qwen3.5-4b', baseUrl: 'http://127.0.0.1:8080/v1', window: 131_072, servedBytes: 3_221_225_472, servedBy: adapterIdentity.ADAPTER_SERVED_BY }
+export const SERVED_4B_TURN = { model: 'local/qwen3.5-4b', address: '127.0.0.1:8080', tokensPerSecond: 12, timeToFirstTokenS: 2.1 }
+
 export async function tStateFacts(id: string, opts: TStateOptions = {}): Promise<Facts> {
   const found = await fakeEngine()
-  const world = fakeWorld(`tf-${id}`, { seeds: opts.seeds ?? [ON_DISK] })
+  const world = fakeWorld(`tf-${id}`, { seeds: opts.seeds ?? [ON_DISK], ...(opts.ggufSeeds !== undefined ? { ggufSeeds: opts.ggufSeeds } : {}) })
   const machine = opts.machine ?? MAC_48
   return scene.readTensorFoldPanelFacts(
     {
@@ -67,7 +103,7 @@ export async function tStateFacts(id: string, opts: TStateOptions = {}): Promise
       platform: opts.platform ?? machine.platform,
       servedFile: join(world.home, 'served.json'),
       served: opts.served ?? [],
-      localModels: () => (opts.outside ?? []).map(server => ({ id: server.id, server: server.server ?? ('tensorfold' as const), baseUrl: server.baseUrl, ...(server.window !== undefined ? { contextWindow: { tokens: server.window, source: 'served' as const } } : {}), ...(server.servedBytes !== undefined ? { servedBytes: server.servedBytes } : {}) })) as never,
+      localModels: () => (opts.outside ?? []).map(server => ({ id: server.id, server: server.server ?? ('tensorfold' as const), baseUrl: server.baseUrl, ...(server.window !== undefined ? { contextWindow: { tokens: server.window, source: 'served' as const } } : {}), ...(server.servedBytes !== undefined ? { servedBytes: server.servedBytes } : {}), ...(server.servedBy !== undefined ? { servedBy: server.servedBy } : {}) })) as never,
       hosts: () => opts.hosts ?? [],
       helper: () => undefined,
       app: async () => ({ running: false }),
@@ -100,7 +136,11 @@ export async function tStates(): Promise<TState[]> {
     { frame: 't02-installing-macos', facts: await tStateFacts('t02', { engine: null, state: { acts: { install: { kind: 'installing', line: '==> Downloading https://github.com/ashhart/TensorFold/releases/download/v1.2.2/tensorfold-1.2.2-macos-arm64.tar.gz' } } } }), land: 'install TensorFold' },
     { frame: 't03-no-homebrew-macos', facts: await tStateFacts('t03', { engine: null, brew: false }), land: 'install TensorFold' },
     { frame: 't04-not-installed-linux', facts: await tStateFacts('t04', { engine: null, machine: RTX_4090, seeds: [] }), land: 'install TensorFold' },
-    { frame: 't05-windows', facts: await tStateFacts('t05', { engine: null, platform: 'win32', machine: { ...MAC_48, platform: 'win32' } }), land: 'rent a GPU pod' },
+    { frame: 't05-windows', facts: await tStateFacts('t05', { engine: await adapterEngineFound(), platform: 'win32', machine: WIN_16, seeds: [], ggufSeeds: [QWEN_2B_GGUF_SEED] }) },
+    { frame: 't05b-windows-no-llamacpp', facts: await tStateFacts('t05b', { engine: await adapterEngineFound(WIN_NO_LLAMA), platform: 'win32', machine: WIN_16, seeds: [], ggufSeeds: [] }), land: 'install llama.cpp' },
+    { frame: 't05c-windows-his-engine', facts: await tStateFacts('t05c', { engine: await fakeEngineFound('win32'), platform: 'win32', machine: WIN_16 }) },
+    { frame: 't05d-windows-served', facts: await tStateFacts('t05d', { engine: await adapterEngineFound(), platform: 'win32', machine: WIN_16, seeds: [], ggufSeeds: [QWEN_2B_GGUF_SEED, QWEN_4B_GGUF_SEED], served: [SERVED_4B], current: 'local/qwen3.5-4b', outside: [SERVED_4B_RECORD], turn: SERVED_4B_TURN }) },
+    { frame: 't05e-windows-no-adapter', facts: await tStateFacts('t05e', { engine: null, platform: 'win32', machine: WIN_16 }), land: 'rent a GPU pod' },
     { frame: 't06-opened', facts: t06 },
     { frame: 't08-window-past-fit', facts: t06, land: 'local/qwen3.8-27b', keys: [KEY_RIGHT] },
     { frame: 't09-on-disk', facts: t06, land: 'local/qwen3.5-2b' },
@@ -126,4 +166,4 @@ export async function tStates(): Promise<TState[]> {
   ]
 }
 
-export { GIB, LIGHTNING_REPO, MAC_16, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, QWEN_9B_REPO, RTX_4090 }
+export { GIB, LIGHTNING_REPO, MAC_16, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, QWEN_9B_REPO, RTX_4090, WIN_16 }

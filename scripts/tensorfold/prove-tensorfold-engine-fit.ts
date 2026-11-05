@@ -2,6 +2,8 @@
 import '../lib/hermetic.ts'
 import { FAKE_BIN, FAKE_SCRIPT, GIB, LINUX_NO_GPU, LINUX_OLD_DRIVER, MAC_16, MAC_32, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, QWEN_9B_REPO, RTX_4090, fakeExists, fakeWorld } from './fixtures/world.ts'
 import { FAKE_LIBJPEG_WARNING } from './fixtures/fake-tensorfold.ts'
+import { WIN_NO_LLAMA, cannedAdapterExec } from './fixtures/tstates.ts'
+import { isAdapterEntry } from '../../src/services/tensorfold/adapter/identity.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -37,14 +39,18 @@ section('the engine: found on PATH, --version and capabilities --json with stdou
   check('tensorFoldMachine() answers the chip and the usable GiB after the read', engine.tensorFoldMachine().chip === 'Apple M5 Pro' && Math.abs((engine.tensorFoldMachine().usableGib ?? 0) - 36) < 0.01, JSON.stringify(engine.tensorFoldMachine()))
   const none = await engine.findTensorFoldEngine({ env: { ...world.env, PATH: '/usr/bin:/bin' }, home: world.home, platform: 'darwin', exists: () => false })
   check('with nothing on PATH, in the runtime folder or Homebrew, the engine is null (not installed)', none === null)
-  const windows = await engine.findTensorFoldEngine({ env: world.env, home: world.home, platform: 'win32' })
-  check('on win32 no engine is probed', windows === null)
+  const windows = await engine.findTensorFoldEngine({ env: { ...world.env, PATH: '/usr/bin:/bin' }, home: world.home, platform: 'win32', exists: () => false, exec: cannedAdapterExec(WIN_NO_LLAMA) })
+  check("on win32 with no tensorfold.exe the engine is Mercury's adapter: its binary is the adapter entry (a JS file run under process.execPath), servedBy mercury-llamacpp, the CPU backend, the adapter's families", windows !== null && isAdapterEntry(windows.binary) && windows.servedBy === 'mercury-llamacpp' && windows.backends[0] === 'cpu' && windows.families.some(family => family.id === 'qwen3_5' && family.qualified) && windows.capabilities.llamacpp?.found === false, JSON.stringify({ binary: windows?.binary, servedBy: windows?.servedBy, families: windows?.families.map(family => family.id) }))
+  const command = engine.tensorFoldCommand(windows!.binary)
+  check('the adapter is run as process.execPath <entry> --tensorfold-adapter; a real binary is run as itself', command.command === process.execPath && command.args[0] === windows!.binary && command.args[1] === '--tensorfold-adapter' && engine.tensorFoldCommand('/opt/homebrew/bin/tensorfold').command === '/opt/homebrew/bin/tensorfold' && engine.tensorFoldCommandWords(windows!.binary) === 'mercury --tensorfold-adapter', JSON.stringify(command))
+  const his = await engine.findTensorFoldEngine({ env: { PATH: '/x' }, home: world.home, platform: 'win32', exists: (path: string) => path.endsWith('tensorfold-native.exe') && path.startsWith('/x'), exec: async () => ({ stdout: 'tensorfold-native 1.3.0\n{"schema":1,"version":"1.3.0","chip":"cpu","backends":["cpu"],"families":{"qwen3_5":["mlx-q4g64"]}}', stderr: '', code: 0 }) } as never)
+  check("on win32 his tensorfold-native.exe wins over the adapter when it exists (no servedBy, even on a CPU backend)", his !== null && his.binary.endsWith('tensorfold-native.exe') && his.servedBy === undefined && !isAdapterEntry(his.binary), JSON.stringify({ binary: his?.binary, servedBy: his?.servedBy }))
   const candidates = engine.tensorFoldBinaryCandidates({ env: { PATH: '/x' }, home: '/h', platform: 'darwin' })
   check('both names are tried, on PATH, the runtime folder, ~/.tensorfold/bin and the Homebrew prefixes', candidates.includes('/x/tensorfold') && candidates.includes('/x/tensorfold-native') && candidates.includes('/h/.local/share/mercury-host/runtime/tensorfold/bin/tensorfold-native') && candidates.includes('/h/.tensorfold/bin/tensorfold') && candidates.includes('/opt/homebrew/bin/tensorfold'), candidates.join(','))
   check('a version line with the binary name parses; a bare number too', engine.parseTensorFoldVersion('tensorfold-native 1.2.2\n') === '1.2.2' && engine.parseTensorFoldVersion('1.3.0') === '1.3.0')
   const parsed = engine.parseTensorFoldCapabilities(`${FAKE_LIBJPEG_WARNING}\n{"schema":1,"version":"1.2.2","chip":null,"backends":["cuda"],"families":{"nemotron_h":["mlx-q4g64"]},"serve":{"flags":{"--port":{}}}}`)
   check('a stray line before the JSON does not break the read; a null chip reads as null', parsed?.chip === null && parsed.backends[0] === 'cuda' && parsed.flags.includes('--port'))
-  check('the backend words: Metal on a Mac, CUDA on Linux', engine.tensorFoldBackendWords({ backends: ['metal'] }) === 'Metal' && engine.tensorFoldBackendWords(null, 'linux') === 'CUDA')
+  check('the backend words: Metal on a Mac, CUDA on Linux, CPU on the adapter', engine.tensorFoldBackendWords({ backends: ['metal'] }) === 'Metal' && engine.tensorFoldBackendWords(null, 'linux') === 'CUDA' && engine.tensorFoldBackendWords({ backends: ['cpu'] }, 'win32') === 'CPU')
 }
 
 section('the machine truth: the Metal working set read live, the wired limit, nvidia-smi, the fallbacks')
@@ -80,7 +86,11 @@ section('install plans: Homebrew on a Mac, the verified archive on Linux, the wo
   const old = install.tensorFoldInstallPlan(LINUX_OLD_DRIVER, { platform: 'linux' })
   check('Linux with an R550 driver: unavailable, TensorFold needs R580 or newer', old.kind === 'old-driver' && old.found === 'not installed · driver 550.54 · TensorFold needs R580 or newer', JSON.stringify(old))
   const win = install.tensorFoldInstallPlan({ platform: 'win32' }, { platform: 'win32' })
-  check('Windows: no Windows release yet; TensorFold runs on a host', win.kind === 'windows' && win.words === 'no Windows release yet' && win.found === 'nothing served here · TensorFold runs on a host')
+  check('Windows without the adapter entry (never a shipped state): no Windows release yet; TensorFold runs on a host', win.kind === 'windows' && win.words === 'no Windows release yet' && win.found === 'nothing served here · TensorFold runs on a host')
+  const llama = install.llamaCppInstallPlan({ binary: '/dist/tensorfold-adapter.mjs' }, 'win32', { home: 'C:\\Users\\someone' })
+  check("Windows with the adapter and no llama.cpp: the install row fetches release b11829's win-cpu-x64 zip (24 MB, the measured sha256) into the runtime folder ggufServer.ts reads, through the adapter's install verb", llama.kind === 'llamacpp' && llama.words === 'llama.cpp release b11829 · checksum verified' && llama.commands[0] === 'mercury --tensorfold-adapter install' && llama.commands[1] === 'fetches llama-b11829-bin-win-cpu-x64.zip (24 MB) from github.com/ggml-org/llama.cpp · sha256 c534f35ce9c8… · into ~\\.local\\share\\mercury-host\\runtime\\llama.cpp\\build\\bin' && llama.found === 'llama.cpp not installed · release b11829 (24 MB) · ↵ installs it' && llama.folder.includes('mercury-host') && llama.folder.endsWith('bin'), JSON.stringify(llama))
+  const llamaRuns = install.installRuns(llama)
+  check('its one run is the adapter entry under process.execPath with the install verb, no shell', llamaRuns.length === 1 && llamaRuns[0]!.command === process.execPath && llamaRuns[0]!.args.join(' ') === '/dist/tensorfold-adapter.mjs --tensorfold-adapter install', JSON.stringify(llamaRuns))
   const brewRun = await install.installTensorFold(brew, () => undefined, { spawnImpl: ((command: string, args: string[]) => { throw new Error(`refused ${command} ${args.join(' ')}`) }) as never })
   check('installing runs brew with install and the formula (the spawn seam sees it)', !brewRun.ok && brewRun.line === 'refused /opt/homebrew/bin/brew install ashhart/tensorfold/tensorfold', JSON.stringify(brewRun))
 }

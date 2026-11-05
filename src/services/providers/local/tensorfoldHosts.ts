@@ -60,6 +60,7 @@ function hostRecordOf(raw: unknown): TensorFoldHostRecord | undefined {
     ...(str(row.version) !== undefined ? { version: str(row.version)! } : {}),
     ...(str(row.chip) !== undefined ? { chip: str(row.chip)! } : {}),
     ...(typeof row.window === 'number' && Number.isFinite(row.window) && row.window > 0 ? { window: row.window } : {}),
+    ...(str(row.servedBy) !== undefined ? { servedBy: str(row.servedBy)! } : {}),
     ...(str(row.pairedAt) !== undefined ? { pairedAt: str(row.pairedAt)! } : {}),
   }
 }
@@ -99,6 +100,7 @@ export async function rememberTensorFoldHost(host: TensorFoldHost & { key?: stri
     ...(host.version !== undefined ? { version: host.version } : before?.version !== undefined ? { version: before.version } : {}),
     ...(host.chip !== undefined ? { chip: host.chip } : before?.chip !== undefined ? { chip: before.chip } : {}),
     ...(host.window !== undefined ? { window: host.window } : before?.window !== undefined ? { window: before.window } : {}),
+    ...(host.servedBy !== undefined ? { servedBy: host.servedBy } : before?.servedBy !== undefined ? { servedBy: before.servedBy } : {}),
     pairedAt: before?.pairedAt ?? new Date().toISOString(),
   }
   writeStore({ ...store, hosts: [...store.hosts.filter(row => row !== before), next] })

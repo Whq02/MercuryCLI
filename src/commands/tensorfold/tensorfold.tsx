@@ -138,7 +138,7 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
   const inventoryRow = (repo: string): TensorFoldInventoryRow | undefined => facts.rows.find(row => row.repo === repo) ?? (facts.other?.read?.repo === repo ? facts.other.read : undefined)
   switch (act.kind) {
     case 'install': {
-      if (facts.install === null || (facts.install.kind !== 'brew' && facts.install.kind !== 'archive')) return
+      if (facts.install === null || (facts.install.kind !== 'brew' && facts.install.kind !== 'archive' && facts.install.kind !== 'llamacpp')) return
       const ok = await installTensorFoldThen(facts.install, io)
       if (ok) await doors.read?.()
       return
@@ -146,8 +146,8 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
     case 'serve': {
       const row = inventoryRow(act.row.repo)
       if (row === undefined) return
-      if (facts.engine === null) {
-        if (facts.install === null || (facts.install.kind !== 'brew' && facts.install.kind !== 'archive')) return
+      if (facts.engine === null || facts.install?.kind === 'llamacpp') {
+        if (facts.install === null || (facts.install.kind !== 'brew' && facts.install.kind !== 'archive' && facts.install.kind !== 'llamacpp')) return
         const installed = await installTensorFoldThen(facts.install, io)
         await doors.read?.()
         if (!installed) return
@@ -156,7 +156,7 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
         const served = facts.served.find(candidate => candidate.repo === row.repo)
         if (served !== undefined) await stopTensorFoldRow(row, facts.served, io)
       }
-      await serveTensorFoldRow({ ...row, state: row.state === 'serving' ? 'on-disk' : row.state }, act.window, io)
+      await serveTensorFoldRow({ ...row, state: row.state === 'serving' ? 'on-disk' : row.state }, act.window, io, { ...(facts.engine?.servedBy !== undefined ? { servedBy: facts.engine.servedBy } : {}) })
       return
     }
     case 'switch':

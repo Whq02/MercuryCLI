@@ -6,7 +6,7 @@ import { getUserAgent } from '../../utils/http.js'
 import { fetchWithProviderDeadline } from './fetchDeadline.js'
 import { resolveLocalApiKey } from './local/localAccounts.js'
 import { localModelRecord, type LocalModelRecord, type LocalServerKind } from './local/localDiscovery.js'
-import { LOCAL_SERVER_NAMES } from './local/localCatalogue.js'
+import { localServerName } from './local/localCatalogue.js'
 import { REAL_STREAM_TIMERS, type StreamTimers } from './streamIdleBudget.js'
 
 export const LOCAL_FIRST_BYTE_CAP_MS = 2 * 60 * 60_000
@@ -165,14 +165,14 @@ export function localServerRoot(baseUrl: string): string {
   return baseUrl.replace(/\/+$/, '').replace(/\/v1$/, '')
 }
 
-export function localServerWords(kind: LocalServerKind, baseUrl: string): string {
+export function localServerWords(kind: LocalServerKind, baseUrl: string, servedBy?: string): string {
   let host = localServerRoot(baseUrl)
   try {
     host = new URL(localServerRoot(baseUrl)).host
   } catch {
     host = localServerRoot(baseUrl)
   }
-  return `${LOCAL_SERVER_NAMES[kind]} at ${host}`
+  return `${localServerName({ server: kind, ...(servedBy !== undefined ? { servedBy } : {}) })} at ${host}`
 }
 
 export function localLivenessProbeUrl(kind: LocalServerKind, baseUrl: string): string {
@@ -289,7 +289,7 @@ export interface LocalLivenessSeam {
   sizeGb(): Promise<number | undefined>
 }
 
-export function localLivenessSeamFor(record: Pick<LocalModelRecord, 'id' | 'server' | 'baseUrl'>, io: LocalProbeIo = {}): LocalLivenessSeam {
+export function localLivenessSeamFor(record: Pick<LocalModelRecord, 'id' | 'server' | 'baseUrl' | 'servedBy'>, io: LocalProbeIo = {}): LocalLivenessSeam {
   return {
     async probe() {
       return (await probeAnswer(localLivenessProbeUrl(record.server, record.baseUrl), io)) !== null
@@ -339,7 +339,7 @@ export function localStreamLawFor(args: {
   const cold = args.cold
   return {
     wireModel,
-    serverWords: localServerWords(record.server, record.baseUrl),
+    serverWords: localServerWords(record.server, record.baseUrl, record.servedBy),
     cold,
     promiseMs: localFirstBytePromiseMs(uncached, pace),
     paceTokensPerSec: pace,

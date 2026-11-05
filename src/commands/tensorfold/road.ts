@@ -12,7 +12,8 @@ import type { TensorFoldInventoryRow } from '../../services/tensorfold/inventory
 import { TensorFoldPullError, pullTensorFold, readHubRepo, stopTensorFoldPull, type PullIo } from '../../services/tensorfold/pull.js'
 import { rowOfCheckpoint } from '../../services/tensorfold/inventory.js'
 import { cachedTensorFoldMachineTruth } from '../../services/tensorfold/engine.js'
-import { TensorFoldStartError, readServedRecord, startTensorFold, stopTensorFold, tensorFoldExit, type ServeIo } from '../../services/tensorfold/serve.js'
+import { TensorFoldStartError, readServedRecord, startTensorFold, stopTensorFold, tensorFoldExit, type ServeIo, type TensorFoldServedByEngine } from '../../services/tensorfold/serve.js'
+import { ADAPTER_ENGINE_WORDS, llamaCppWords, servedByAdapter } from '../../services/tensorfold/adapter/identity.js'
 import { readTensorFoldSupportLine, type TensorFoldSupportFocus } from '../../services/providers/local/tensorfoldSupport.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 import { FEED, pullActOf, refusedActOf, servedAddress, type FactsState, type TensorFoldAct } from './scene.js'
@@ -153,7 +154,7 @@ export async function switchToTensorFold(served: TensorFoldServed, io: RoadIo = 
 export const SHARE_WORDS = 'restarting to share on your network · plain HTTP on your home or office network · keyed'
 export const UNSHARE_WORDS = 'restarting on this Mac only'
 
-export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: number, io: RoadIo = {}, opts: { share?: boolean } = {}): Promise<{ served: TensorFoldServed; switched: SwitchOutcome } | null> {
+export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: number, io: RoadIo = {}, opts: { share?: boolean; servedBy?: string } = {}): Promise<{ served: TensorFoldServed; switched: SwitchOutcome } | null> {
   const key = row.repo
   const running = actOf(key)
   if (running !== undefined && (running.kind === 'pulling' || running.kind === 'starting')) return null
@@ -184,12 +185,12 @@ export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: nu
         await warn(io, FEED.pullFailed(row.label, error instanceof Error ? error.message : String(error)), supportFocusOf(row, window))
         return null
       }
-      mintImmediateReceipt(FEED.pulled(row.label, total ?? row.bytesOnDisk ?? 0))
+      mintImmediateReceipt(FEED.pulled(row.label, total ?? row.bytesOnDisk ?? 0, opts.servedBy))
     }
     const name = row.shortName
     const focus = supportFocusOf(row, window)
     setAct(key, { kind: 'starting', name, port: 0, seconds: 0 })
-    let served: TensorFoldServed
+    let served: TensorFoldServedByEngine
     try {
       served = await startTensorFold(
         { repo: row.repo, window, name, ...(row.port !== undefined ? { port: row.port } : {}), ...(row.drafter !== undefined ? { drafter: row.drafter } : {}), ...(row.promptCacheGib !== undefined ? { promptCacheGib: row.promptCacheGib } : {}), ...(opts.share === true ? { share: true } : {}) },
@@ -229,7 +230,7 @@ export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: nu
     setAct(key, undefined)
     const switched = await switchToTensorFold(served, io)
     const busy = readServedRecord(io.serve)?.busy
-    mintImmediateReceipt(busy !== undefined ? FEED.servesElsewhere(served.name, served.port, busy.port, served.window, switched.switched) : FEED.serves(served.name, served.window, served.port, switched.switched))
+    mintImmediateReceipt(busy !== undefined ? FEED.servesElsewhere(served.name, served.port, busy.port, served.window, switched.switched, served.servedBy) : FEED.serves(served.name, served.window, served.port, switched.switched, served.servedBy))
     setTensorFoldNotice(switched.ok && switched.switched ? undefined : switched.words)
     return { served, switched }
   } finally {
@@ -237,7 +238,7 @@ export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: nu
   }
 }
 
-export async function stopTensorFoldRow(row: Pick<TensorFoldInventoryRow, 'repo' | 'shortName'>, served: readonly TensorFoldServed[], io: RoadIo = {}): Promise<string> {
+export async function stopTensorFoldRow(row: Pick<TensorFoldInventoryRow, 'repo' | 'shortName'>, served: readonly TensorFoldServedByEngine[], io: RoadIo = {}): Promise<string> {
   const act = actOf(row.repo)
   if (act?.kind === 'pulling') {
     abortable.get(row.repo)?.abort()
@@ -253,7 +254,7 @@ export async function stopTensorFoldRow(row: Pick<TensorFoldInventoryRow, 'repo'
   setAct(row.repo, undefined)
   await stopTensorFold(mine.name, io.serve)
   await refreshLocalDiscovery({ force: true, ...(io.prove?.env !== undefined ? { env: io.prove.env } : {}) }).catch(() => undefined)
-  mintImmediateReceipt(FEED.stopped(mine.name))
+  mintImmediateReceipt(FEED.stopped(mine.name, mine.servedBy))
   return `stopped ${mine.name}`
 }
 
@@ -262,16 +263,17 @@ export async function installTensorFoldThen(plan: TensorFoldInstallPlan, io: Roa
   const run = io.install ?? installTensorFold
   const outcome = await run(plan, line => setAct('install', { kind: 'installing', line }))
   setAct('install', undefined)
+  const what = plan.kind === 'llamacpp' ? 'llama.cpp' : 'TensorFold'
   if (!outcome.ok) {
-    await warn(io, `▲ TensorFold did not install · ${outcome.line} · /tensorfold tries again`)
+    await warn(io, `▲ ${what} did not install · ${outcome.line} · /tensorfold tries again`)
     return false
   }
   const engine = await findTensorFoldEngine({ ...io.serve })
-  if (engine === null) {
-    await warn(io, FEED.notInstalled())
+  if (engine === null || (plan.kind === 'llamacpp' && engine.capabilities.llamacpp?.found !== true)) {
+    await warn(io, plan.kind === 'llamacpp' ? `▲ llama.cpp is not installed · /tensorfold installs it` : FEED.notInstalled())
     return false
   }
-  mintImmediateReceipt(`● TensorFold ${engine.version} installed`)
+  mintImmediateReceipt(plan.kind === 'llamacpp' && servedByAdapter(engine.servedBy) ? `● ${llamaCppWords(engine.capabilities.llamacpp)} installed · ${ADAPTER_ENGINE_WORDS}` : `● TensorFold ${engine.version} installed`)
   return true
 }
 

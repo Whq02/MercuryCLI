@@ -27,6 +27,13 @@ async function main(): Promise<void> {
     return
   }
 
+  if (args[0] === '--tensorfold-adapter') {
+    const { runTensorFoldAdapter } = await import('../services/tensorfold/adapter/main.js')
+    const code = await runTensorFoldAdapter(args.slice(1))
+    if (code !== 0) process.exitCode = code
+    return
+  }
+
   const { inspectSessionArgs, readSessionOption } = await import('../cli/sessionArgs.js')
   const runArgs = inspectSessionArgs(args)
   const hasProjectRoot = args[0] === '--project' || args[0]?.startsWith('--project=')

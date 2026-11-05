@@ -133,6 +133,20 @@ const guardResult = await Bun.build({
 });
 if (!guardResult.success) throw new Error(`Shell parent guard build failed: ${guardResult.logs.join('\n')}`);
 
+const adapterResult = await Bun.build({
+  entrypoints: [resolve(SRC, 'entrypoints/tensorfoldAdapter.ts')],
+  outdir: OUT,
+  naming: 'tensorfold-adapter.mjs',
+  target: 'node',
+  format: 'esm',
+  minify: process.env.MERCURY_BUILD_MINIFY === 'oracle' ? { whitespace: true, syntax: true, identifiers: false } : true,
+  define: {
+    MACRO: JSON.stringify(MACRO),
+    'process.env.NODE_ENV': JSON.stringify('production'),
+  },
+});
+if (!adapterResult.success) throw new Error(`TensorFold adapter build failed: ${adapterResult.logs.join('\n')}`);
+
 const result = await Bun.build({
   entrypoints: [resolve(ROOT, 'src/entrypoints/cli.tsx')],
   outdir: OUT,
@@ -1171,6 +1185,11 @@ const manifest = {
   bundle: 'mercury.mjs',
   bundleBytes: statSync(resolve(OUT, 'mercury.mjs')).size,
   bundleSha256: createHash('sha256').update(readFileSync(resolve(OUT, 'mercury.mjs'))).digest('hex'),
+  tensorfoldAdapter: {
+    bundle: 'tensorfold-adapter.mjs',
+    bundleBytes: statSync(resolve(OUT, 'tensorfold-adapter.mjs')).size,
+    bundleSha256: createHash('sha256').update(readFileSync(resolve(OUT, 'tensorfold-adapter.mjs'))).digest('hex'),
+  },
   target: { platform: SHIP.platform, arch: SHIP.arch, release: SHIP_RELEASE, host: HOST_KEY },
   node: NODE_SUPPORTED_RANGE,
   selfContained: true,

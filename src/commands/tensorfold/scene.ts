@@ -4,21 +4,23 @@ import { bytesWords } from '../../services/host/bank.js'
 import { currentHostRecipes } from '../../services/host/recipesFile.js'
 import { tensorFoldPodRows, tensorFoldRentFacts, tensorFoldRentRow, type TensorFoldPodRowFacts } from '../../services/host/tensorfoldPod.js'
 import { gibWords, tokensWords } from '../../services/localServer/localServerMemory.js'
-import { LOCAL_SERVER_NAMES } from '../../services/providers/local/localCatalogue.js'
+import { localServerName } from '../../services/providers/local/localCatalogue.js'
 import { cachedLocalModels, type LocalModelRecord } from '../../services/providers/local/localDiscovery.js'
 import { detectTensorFoldApp, type TensorFoldAppState } from '../../services/providers/local/tensorfoldApp.js'
 import { helperHeadingWords } from '../../services/providers/local/tensorfoldHelper.js'
 import { tensorFoldHosts } from '../../services/providers/local/tensorfoldHosts.js'
 import { lastTensorFoldTurn } from '../../services/providers/local/tensorfoldUsage.js'
 import type { TensorFoldEngine, TensorFoldHost, TensorFoldLastReply, TensorFoldServed } from '../../services/tensorfold/contracts.js'
-import { cachedTensorFoldMachineTruth, findTensorFoldEngine, tensorFoldBackendWords, type EngineIo, type TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
+import { servedByAdapter } from '../../services/tensorfold/adapter/identity.js'
+import { cachedTensorFoldMachineTruth, engineServedByAdapter, findTensorFoldEngine, tensorFoldBackendWords, type EngineIo, type TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
 import type { TensorFoldMachineTruth } from '../../services/tensorfold/fit.js'
-import { tensorFoldInstallPlan, type InstallIo, type TensorFoldInstallPlan } from '../../services/tensorfold/install.js'
+import { adapterNeedsLlamaCpp, llamaCppInstallPlan, tensorFoldInstallPlan, type InstallIo, type TensorFoldInstallPlan } from '../../services/tensorfold/install.js'
 import { isLoopbackUrl } from '../../utils/privacyLevel.js'
-import { bestTensorFoldFit, hfCacheRoot, hfCacheWords, readTensorFoldInventory, type InventoryIo, type TensorFoldInventoryRow } from '../../services/tensorfold/inventory.js'
+import { hfCacheRoot } from '../../services/tensorfold/hfCache.js'
+import { bestTensorFoldFit, hfCacheWords, readTensorFoldInventory, type InventoryIo, type TensorFoldInventoryRow } from '../../services/tensorfold/inventory.js'
 import { pullPace, pullPercent, pullProgressWords, type PullPace } from '../../services/tensorfold/pull.js'
 import { refusalNextStep, refusedWords, wiredLimitCommand, wiredLimitCostWords, type TensorFoldRefusal } from '../../services/tensorfold/refusal.js'
-import { rememberedTensorFoldPort, servedTensorFold, TENSORFOLD_DEFAULT_PORT, TENSORFOLD_HOST, type ServeIo } from '../../services/tensorfold/serve.js'
+import { rememberedTensorFoldPort, servedTensorFold, TENSORFOLD_DEFAULT_PORT, TENSORFOLD_HOST, type ServeIo, type TensorFoldServedByEngine } from '../../services/tensorfold/serve.js'
 import { TENSORFOLD_RELEASE } from '../../services/tensorfold/starting.js'
 import { TENSORFOLD_WORDS as W } from './words.js'
 
@@ -47,7 +49,7 @@ export type TensorFoldPanelFacts = {
   machine: { chip: string; usableGib?: number; ramGib?: number; backend: string; usableSource?: string }
   install: TensorFoldInstallPlan | null
   rows: readonly TensorFoldInventoryRow[]
-  served: readonly TensorFoldServed[]
+  served: readonly TensorFoldServedByEngine[]
   outside: readonly TensorFoldOutsideServer[]
   hosts: readonly TensorFoldHost[]
   helper?: string
@@ -165,7 +167,7 @@ function answersAsOf(records: readonly LocalModelRecord[], port: number): string
       return false
     }
   })
-  return hit === undefined ? undefined : LOCAL_SERVER_NAMES[hit.server]
+  return hit === undefined ? undefined : localServerName(hit)
 }
 
 function quietly<T>(read: () => T, fallback: T): T {
@@ -184,11 +186,11 @@ function defaultRent(): { pod: string; serves: string; title: string } | undefin
 export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsState = EMPTY_STATE): Promise<TensorFoldPanelFacts> {
   const platform = io.platform ?? process.platform
   const machine = io.machine ?? (await cachedTensorFoldMachineTruth(io))
-  const engine = platform === 'win32' ? null : io.engine !== undefined ? io.engine : await findTensorFoldEngine(io)
+  const engine = io.engine !== undefined ? io.engine : await findTensorFoldEngine(io)
   const served = io.served ?? servedTensorFold(io)
   const helperServed = quietly(() => servedTensorFold({ ...io, role: 'helper' }), [] as readonly TensorFoldServed[])
   const records = io.localModels?.() ?? cachedLocalModels()
-  const rows = platform === 'win32' ? [] : withServedReadings(await readTensorFoldInventory(engine, { ...io, machine, served }), records, quietly(() => (io.lastTurn ?? lastTensorFoldTurn)(), undefined))
+  const rows = platform === 'win32' && engine === null ? [] : withServedReadings(await readTensorFoldInventory(engine, { ...io, machine, served }), records, quietly(() => (io.lastTurn ?? lastTensorFoldTurn)(), undefined))
   const current = io.current
   const hosts = quietly(() => io.hosts?.() ?? tensorFoldHosts(), [] as readonly TensorFoldHost[])
   const outside = outsideOf(records, served, helperServed, hosts, current)
@@ -196,11 +198,11 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
   const app = platform === 'darwin' ? await (io.app ?? detectTensorFoldApp)().catch(() => undefined) : undefined
   const rent = quietly(() => (io.rent ?? defaultRent)(), undefined)
   const pods = quietly(() => (io.pods ?? (() => tensorFoldPodRows(currentHostRecipes())))(), [] as readonly TensorFoldPodRowFacts[])
-  const install = engine === null && platform !== 'win32' ? tensorFoldInstallPlan(machine, { ...io, platform }) : platform === 'win32' ? tensorFoldInstallPlan({ platform, ...(machine.gpu ? { gpu: machine.gpu } : {}) }, { ...io, platform }) : null
+  const install = engine === null ? tensorFoldInstallPlan(machine, { ...io, platform }) : adapterNeedsLlamaCpp(engine) ? llamaCppInstallPlan(engine, platform, io) : null
   const remembered = rememberedTensorFoldPort(io)
   const preferred = served[0]?.port ?? remembered ?? TENSORFOLD_DEFAULT_PORT
   const takenOutside = outside.find(server => server.port === preferred)
-  const keyed = served.length === 0 && takenOutside === undefined && answersAsOf(records, preferred) === undefined && !helperServed.some(row => row.port === preferred) && platform !== 'win32' ? await (io.keyedAt ?? defaultKeyedAt)(preferred) : false
+  const keyed = served.length === 0 && takenOutside === undefined && answersAsOf(records, preferred) === undefined && !helperServed.some(row => row.port === preferred) ? await (io.keyedAt ?? defaultKeyedAt)(preferred) : false
   const busyAs = takenOutside !== undefined || keyed ? 'TensorFold' : answersAsOf(records, preferred)
   const port = served.length > 0 ? { next: preferred } : busyAs !== undefined ? { next: preferred + 1, busy: { port: preferred, answersAs: busyAs } } : { next: preferred }
   const root = io.cacheRoot ?? hfCacheRoot(io.env ?? process.env, io.home ?? homedir())
@@ -234,8 +236,8 @@ function landingOf(facts: Pick<TensorFoldPanelFacts, 'rows' | 'served' | 'outsid
   if (acting !== undefined) return acting[0]
   if (facts.served.length > 0) return facts.served[0]!.repo
   if (facts.outside.length > 0) return `outside:${facts.outside[0]!.port}`
-  if (facts.install !== null && (facts.install.kind === 'needs-brew' || facts.install.kind === 'archive' || facts.install.kind === 'no-gpu' || facts.install.kind === 'old-driver')) return 'install'
-  if (facts.platform === 'win32') return 'rent'
+  if (facts.install !== null && (facts.install.kind === 'needs-brew' || facts.install.kind === 'archive' || facts.install.kind === 'no-gpu' || facts.install.kind === 'old-driver' || facts.install.kind === 'llamacpp')) return 'install'
+  if (facts.platform === 'win32' && facts.rows.length === 0) return 'rent'
   return bestTensorFoldFit(facts.rows)?.repo ?? facts.rows[0]?.repo
 }
 
@@ -244,10 +246,11 @@ export function servedAddress(port: number): string {
 }
 
 function liveLineOf(facts: Omit<TensorFoldPanelFacts, 'live' | 'copySupportOffered'>): string {
-  if (facts.platform === 'win32') return W.windowsLive
+  if (facts.platform === 'win32' && facts.engine === null) return W.windowsLive
   const installing = facts.acts.install
-  if (installing?.kind === 'installing') return `installing TensorFold ${TENSORFOLD_RELEASE} with Homebrew`
+  if (installing?.kind === 'installing') return facts.install?.kind === 'llamacpp' ? `installing llama.cpp ${facts.install.archive}` : `installing TensorFold ${TENSORFOLD_RELEASE} with Homebrew`
   if (facts.engine === null) return facts.install?.found ?? W.notInstalled
+  if (facts.install?.kind === 'llamacpp') return facts.install.found
   for (const [repo, act] of Object.entries(facts.acts)) {
     const row = facts.rows.find(candidate => candidate.repo === repo)
     if (act.kind === 'pulling') return pullProgressWords(row?.label ?? repo, act.bytes, act.totalBytes, act.pace)
@@ -263,6 +266,7 @@ function liveLineOf(facts: Omit<TensorFoldPanelFacts, 'live' | 'copySupportOffer
   if (outside !== undefined) return `serving ${outside.name} on ${servedAddress(outside.port)} · ${replyWords(outside.lastReply)}`
   const host = facts.hosts.find(candidate => candidate.serving !== undefined && candidate.origin !== 'shared')
   if (host !== undefined) return `nothing served here · ${host.name} serves ${host.serving}`
+  if (engineServedByAdapter(facts.engine)) return [W.nothingServed, facts.machine.backend, facts.machine.chip, facts.machine.usableGib !== undefined ? `${gibWords(facts.machine.usableGib * 1024 ** 3)} usable` : undefined].filter(part => part !== undefined && part !== '').join(' · ')
   return `${W.nothingServed} · ${facts.machine.backend}`
 }
 
@@ -295,11 +299,15 @@ export function refusedActOf(name: string, window: number, refusal: TensorFoldRe
   }
 }
 
+function tensorFoldWho(servedBy?: string): string {
+  return servedByAdapter(servedBy) ? "Mercury's engine" : 'TensorFold'
+}
+
 export const FEED = {
-  serves: (name: string, window: number, port: number, switched = true): string => `● TensorFold serves ${name} · ${tokensWords(window)} on ${servedAddress(port)} · ${switched ? "this session's model" : 'your default model'}`,
-  servesElsewhere: (name: string, port: number, busy: number, window: number, switched = true): string => `● TensorFold serves ${name} on ${servedAddress(port)} · ${busy} was in use · ${tokensWords(window)}${switched ? '' : ' · your default model'}`,
-  pulled: (label: string, bytes: number): string => `● TensorFold pulled ${label} · ${bytesWords(bytes)} · starting it`,
-  stopped: (name: string): string => `◌ TensorFold stopped ${name} · /tensorfold serves it again`,
+  serves: (name: string, window: number, port: number, switched = true, servedBy?: string): string => `● ${tensorFoldWho(servedBy)} serves ${name} · ${tokensWords(window)} on ${servedAddress(port)} · ${switched ? "this session's model" : 'your default model'}`,
+  servesElsewhere: (name: string, port: number, busy: number, window: number, switched = true, servedBy?: string): string => `● ${tensorFoldWho(servedBy)} serves ${name} on ${servedAddress(port)} · ${busy} was in use · ${tokensWords(window)}${switched ? '' : ' · your default model'}`,
+  pulled: (label: string, bytes: number, servedBy?: string): string => `● ${tensorFoldWho(servedBy)} pulled ${label} · ${bytesWords(bytes)} · starting it`,
+  stopped: (name: string, servedBy?: string): string => `◌ ${tensorFoldWho(servedBy)} stopped ${name} · /tensorfold serves it again`,
   refused: (name: string, window: number, refusal: TensorFoldRefusal): string => {
     const numbers = refusal.needGib !== undefined && refusal.leftGib !== undefined ? ` (needs ${refusal.needGib.toFixed(1)} GiB, ${refusal.leftGib.toFixed(1)} GiB left)` : ''
     return `▲ TensorFold refused ${name} at ${tokensWords(window)}${numbers} · /tensorfold · ${W.copySupport}`

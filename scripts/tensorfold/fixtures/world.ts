@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, mkdtempSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs'
+import { existsSync, linkSync, mkdirSync, mkdtempSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import type { GgufSource } from '../../../src/services/tensorfold/hfCache.ts'
 import type { TensorFoldMachineTruth } from '../../../src/services/tensorfold/fit.ts'
 
 export const GIB = 1024 ** 3
@@ -15,6 +16,9 @@ export const MAC_16: TensorFoldMachineTruth = { platform: 'darwin', ramBytes: 16
 export const RTX_4090: TensorFoldMachineTruth = { platform: 'linux', ramBytes: 64 * GIB, usableBytes: 23 * GIB, usableSource: 'cuda', chip: 'NVIDIA GeForce RTX 4090', gpu: { name: 'NVIDIA GeForce RTX 4090', memoryBytes: 24 * GIB, driver: '580.95', cuda: '13' } }
 export const LINUX_NO_GPU: TensorFoldMachineTruth = { platform: 'linux', ramBytes: 64 * GIB, usableBytes: Math.round(64 * GIB * 0.7), usableSource: 'seventy-percent', chip: 'no NVIDIA GPU found' }
 export const LINUX_OLD_DRIVER: TensorFoldMachineTruth = { platform: 'linux', ramBytes: 64 * GIB, usableBytes: 23 * GIB, usableSource: 'cuda', chip: 'NVIDIA GeForce RTX 4090', gpu: { name: 'NVIDIA GeForce RTX 4090', memoryBytes: 24 * GIB, driver: '550.54', cuda: '12' } }
+export const WIN_16: TensorFoldMachineTruth = { platform: 'win32', ramBytes: 16 * GIB, usableBytes: Math.round(16 * GIB * 0.7), usableSource: 'seventy-percent', chip: 'Intel Core i7', osVersion: '10.0.19045' }
+export const WIN_HOME = 'C:\\Users\\someone'
+export const WIN_LLAMA_BIN = `${WIN_HOME}\\.local\\share\\mercury-host\\runtime\\llama.cpp\\build\\bin`
 
 export const QWEN_2B_REPO = 'mlx-community/Qwen3.5-2B-MLX-4bit'
 export const QWEN_2B_PIN = '93760be4f1f69842a46bc13dbdc0f19e291392a3'
@@ -30,6 +34,22 @@ export const QWEN_2B_CONFIG = {
 }
 
 export type CacheSeed = { repo: string; config: Record<string, unknown>; weightsBytes: number; sha?: string; refs?: boolean; incompleteBytes?: number }
+
+export function seedGgufCache(root: string, seeds: readonly (GgufSource & { partialBytes?: number })[]): void {
+  for (const seed of seeds) {
+    const base = join(root, `models--${seed.repo.replace('/', '--')}`)
+    mkdirSync(join(base, 'blobs'), { recursive: true })
+    mkdirSync(join(base, 'snapshots', seed.revision), { recursive: true })
+    if (seed.partialBytes !== undefined) {
+      writeFileSync(join(base, 'blobs', `${seed.sha256}.incomplete`), '')
+      truncateSync(join(base, 'blobs', `${seed.sha256}.incomplete`), seed.partialBytes)
+      continue
+    }
+    writeFileSync(join(base, 'blobs', seed.sha256), '')
+    truncateSync(join(base, 'blobs', seed.sha256), seed.bytes)
+    linkSync(join(base, 'blobs', seed.sha256), join(base, 'snapshots', seed.revision, seed.file))
+  }
+}
 
 export function seedHfCache(root: string, seeds: readonly CacheSeed[]): void {
   for (const seed of seeds) {
@@ -56,7 +76,7 @@ export function seedHfCache(root: string, seeds: readonly CacheSeed[]): void {
 
 export type FakeWorld = { root: string; cache: string; home: string; cwd: string; env: NodeJS.ProcessEnv; serviceEnv: Record<string, string> }
 
-export function fakeWorld(prefix: string, opts: { seeds?: readonly CacheSeed[]; env?: Record<string, string> } = {}): FakeWorld {
+export function fakeWorld(prefix: string, opts: { seeds?: readonly CacheSeed[]; ggufSeeds?: readonly (GgufSource & { partialBytes?: number })[]; env?: Record<string, string> } = {}): FakeWorld {
   const root = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', `${prefix}-`))
   const home = join(root, 'home')
   const cache = join(home, '.cache', 'huggingface', 'hub')
@@ -65,6 +85,7 @@ export function fakeWorld(prefix: string, opts: { seeds?: readonly CacheSeed[]; 
   mkdirSync(home, { recursive: true })
   mkdirSync(cwd, { recursive: true })
   seedHfCache(cache, opts.seeds ?? [{ repo: QWEN_2B_REPO, config: QWEN_2B_CONFIG, weightsBytes: 4096, sha: QWEN_2B_PIN }])
+  seedGgufCache(cache, opts.ggufSeeds ?? [])
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     PATH: `${FAKE_BIN}:/usr/bin:/bin`,

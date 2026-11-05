@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { useEffect, useSyncExternalStore } from 'react'
 import type { TensorFoldHost, TensorFoldModelRow } from '../../services/tensorfold/contracts.js'
-import { findTensorFoldEngine } from '../../services/tensorfold/engine.js'
+import { engineServedByAdapter, findTensorFoldEngine } from '../../services/tensorfold/engine.js'
+import { adapterNeedsLlamaCpp } from '../../services/tensorfold/install.js'
 import { bestTensorFoldFit, readTensorFoldInventory } from '../../services/tensorfold/inventory.js'
 import { announcerMachineName, browseAnnouncements } from '../../services/lan/announcer.js'
 import { pairWithHost } from '../../services/lan/pairing.js'
@@ -42,6 +43,7 @@ const TENSORFOLD_DRIVER_FLOOR = 580
 
 export function tensorFoldCapableMachine(platform: NodeJS.Platform = process.platform, arch: string = process.arch, nvidia: () => string | undefined = () => quietly(() => readFileSync('/proc/driver/nvidia/version', 'utf8'), undefined)): boolean {
   if (platform === 'darwin') return arch === 'arm64'
+  if (platform === 'win32') return arch === 'x64'
   if (platform !== 'linux') return false
   const major = Number(/Module\s+(\d+)\./.exec(nvidia() ?? '')?.[1])
   return Number.isInteger(major) && major >= TENSORFOLD_DRIVER_FLOOR
@@ -95,6 +97,8 @@ function discoveredTensorFoldHosts(): TensorFoldHost[] {
         ...(model !== undefined ? { serving: model.id } : {}),
         ...(server.version !== undefined ? { version: server.version } : {}),
         ...(model?.contextWindow !== undefined ? { window: model.contextWindow.tokens } : {}),
+        ...(server.engine?.servedBy !== undefined ? { servedBy: server.engine.servedBy } : {}),
+        ...(server.engine?.device !== undefined ? { chip: server.engine.device } : {}),
       }
     })
 }
@@ -127,15 +131,16 @@ export function tensorFoldHostsNow(): TensorFoldHost[] {
 
 async function readTensorFoldOffer(platform: NodeJS.Platform = process.platform, capable: () => boolean = () => tensorFoldCapableMachine()): Promise<TensorFoldOffer | null> {
   if (localServerProbingOff()) return null
-  if (platform === 'win32') return { kind: 'host' }
-  if (!capable()) return null
+  if (!capable()) return platform === 'win32' ? { kind: 'host' } : null
   const engine = await quietlyAsync(() => findTensorFoldEngine(), null)
+  if (platform === 'win32' && engine === null) return { kind: 'host' }
+  const adapter = engineServedByAdapter(engine)
   const rows = withDiscoveredRows(await quietlyAsync(() => readTensorFoldInventory(engine), []), quietly(() => tensorFoldHosts(), []))
   const served = rows.find(row => row.state === 'serving')
-  if (served !== undefined && engine !== null) return { kind: 'served', model: served.shortName, version: engine.version }
+  if (served !== undefined && engine !== null) return adapter ? { kind: 'served', model: served.shortName, version: engine.version, servedBy: engine.servedBy } : { kind: 'served', model: served.shortName, version: engine.version }
   const best = quietly(() => bestTensorFoldFit(rows), null)
   if (best === null) return null
-  return { kind: engine === null ? 'install' : 'ready', label: best.label ?? best.shortName, place: platform === 'darwin' ? 'mac' : 'gpu' }
+  return { kind: engine === null || adapterNeedsLlamaCpp(engine) ? 'install' : 'ready', label: best.label ?? best.shortName, place: adapter ? 'adapter' : platform === 'darwin' ? 'mac' : 'gpu' }
 }
 
 let offerSnapshot: TensorFoldOffer | null | undefined

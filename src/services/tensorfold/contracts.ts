@@ -16,6 +16,7 @@ export type TensorFoldEngine = {
   backends: readonly string[]
   families: readonly TensorFoldFamily[]
   optionalLibraries?: readonly TensorFoldOptionalLibrary[]
+  servedBy?: string
 }
 
 type TensorFoldModelState = 'serving' | 'loading' | 'on-disk' | 'pulling' | 'not-pulled'
@@ -104,6 +105,7 @@ export type TensorFoldHost = {
   chip?: string
   window?: number
   lastReply?: TensorFoldLastReply
+  servedBy?: string
 }
 
 export type TensorFoldMachine = { chip: string; usableGib?: number }

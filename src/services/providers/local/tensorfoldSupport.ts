@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs'
 import { release } from 'node:os'
 import { MERCURY_VERSION } from '../../../constants/product.js'
 import { getLinuxDistroInfo } from '../../../utils/platform.js'
+import { ADAPTER_SENTENCE, llamaCppWords, servedByAdapter, tensorFoldEngineLabel } from '../../tensorfold/adapter/identity.js'
+import { adapterCheckpointOf } from '../../tensorfold/adapter/models.js'
+import type { TensorFoldEngineFound } from '../../tensorfold/engine.js'
 import { readTensorFoldState, type TensorFoldServerState, type TensorFoldState, type TensorFoldStateReads } from './tensorfoldState.js'
 
 interface TensorFoldSupportFacts {
@@ -15,9 +18,17 @@ interface TensorFoldSupportFacts {
   context?: number
   promptCacheGib?: number
   mercuryVersion?: string
+  servedBy?: string
+  engineWords?: string
 }
 
-const BACKEND_WORDS: Readonly<Record<string, string>> = { metal: 'Metal', cuda: 'CUDA', hip: 'HIP', xpu: 'XPU' }
+export function adapterWeightsWords(repo: string): string {
+  const point = adapterCheckpointOf(repo)
+  if (point === undefined) return repo
+  return `${point.gguf.repo} · ${point.gguf.file} (${point.gguf.quant}) @${point.gguf.revision.slice(0, 7)}`
+}
+
+const BACKEND_WORDS: Readonly<Record<string, string>> = { metal: 'Metal', cuda: 'CUDA', hip: 'HIP', xpu: 'XPU', cpu: 'CPU' }
 
 export function tensorFoldBackendWords(backend: string | undefined): string | undefined {
   if (backend === undefined || backend === '') return undefined
@@ -72,6 +83,8 @@ function supportFactsOf(state: TensorFoldState, server: TensorFoldServerState | 
   const chip = server?.device ?? engine?.chip
   const backend = server?.backend ?? engine?.backends[0]
   const hostName = server?.host !== undefined && server.host.origin !== 'app' ? server.host.name : undefined
+  const servedBy = server?.servedBy ?? server?.host?.servedBy ?? engine?.servedBy
+  const engineWords = server?.engineWords ?? ((engine as TensorFoldEngineFound | undefined)?.capabilities?.llamacpp !== undefined ? llamaCppWords((engine as TensorFoldEngineFound).capabilities.llamacpp) : undefined)
   return {
     ...(server?.version !== undefined ? { version: server.version } : engine?.version !== undefined ? { version: engine.version } : {}),
     ...(backend !== undefined ? { backend } : {}),
@@ -81,6 +94,8 @@ function supportFactsOf(state: TensorFoldState, server: TensorFoldServerState | 
     ...(server?.started?.drafter !== undefined ? { drafter: server.started.drafter } : {}),
     ...(server?.started?.window !== undefined ? { context: server.started.window } : server?.window !== undefined ? { context: server.window } : {}),
     ...(server?.started?.promptCacheGib !== undefined ? { promptCacheGib: server.started.promptCacheGib } : {}),
+    ...(servedBy !== undefined ? { servedBy } : {}),
+    ...(engineWords !== undefined ? { engineWords } : {}),
   }
 }
 
@@ -108,16 +123,18 @@ export async function readTensorFoldSupportLine(focus?: TensorFoldSupportFocus, 
 }
 
 function tensorFoldSupportLine(facts: TensorFoldSupportFacts): string {
-  const parts: string[] = [facts.version ? `TensorFold ${facts.version}` : 'TensorFold']
+  const adapter = servedByAdapter(facts.servedBy)
+  const parts: string[] = [adapter ? `${tensorFoldEngineLabel(facts.version, facts.servedBy)}${facts.engineWords !== undefined ? ` · ${facts.engineWords}` : ''}` : facts.version ? `TensorFold ${facts.version}` : 'TensorFold']
   const backend = tensorFoldBackendWords(facts.backend)
   if (backend !== undefined) parts.push(backend)
   const machine = facts.host ?? facts.chip
   if (machine !== undefined && machine !== '') parts.push(machine)
   parts.push(facts.osVersion ?? osVersionWords())
-  if (facts.repo !== undefined && facts.repo !== '') parts.push(facts.drafter ? `${facts.repo} + ${facts.drafter}` : facts.repo)
+  if (facts.repo !== undefined && facts.repo !== '') parts.push(adapter ? adapterWeightsWords(facts.repo) : facts.drafter ? `${facts.repo} + ${facts.drafter}` : facts.repo)
   if (facts.context !== undefined && facts.context > 0) {
     parts.push(`--context ${facts.context}${facts.promptCacheGib !== undefined && facts.promptCacheGib > 0 ? ` --prompt-cache-gib ${facts.promptCacheGib}` : ''}`)
   }
   parts.push(`Mercury ${facts.mercuryVersion ?? MERCURY_VERSION}`)
+  if (adapter) parts.push(ADAPTER_SENTENCE)
   return parts.join(' · ')
 }

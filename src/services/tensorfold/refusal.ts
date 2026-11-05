@@ -24,12 +24,14 @@ export function lastStderrLine(text: string): string {
   const lines = text
     .split(/\r?\n/)
     .map(line => line.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').trim())
-    .filter(line => line !== '' && !line.startsWith('warning:') && !/^\[tensorfold\] /.test(line))
+    .filter(line => line !== '' && !line.startsWith('warning:') && !/^\[(?:tensorfold|tensorfold-adapter|llama\.cpp)\] /.test(line))
   return lines[lines.length - 1] ?? ''
 }
 
+const ENGINE_PREFIX = /^tensorfold(?:-native|-adapter)?:\s*/
+
 function stripEnginePrefix(line: string): string {
-  return line.replace(/^tensorfold(?:-native)?:\s*/, '').trim()
+  return line.replace(ENGINE_PREFIX, '').trim()
 }
 
 const GIBS = /(\d+(?:\.\d+)?)\s*GiB/g
@@ -66,7 +68,7 @@ export function readTensorFoldRefusal(stderr: string, context: { window?: number
     const wired = wiredReading(context)
     return wired === undefined ? base : { ...base, kind: 'gpu-limit', wired }
   }
-  const spoken = /^tensorfold(?:-native)?:/.test(raw) ? line : ''
+  const spoken = ENGINE_PREFIX.test(raw) ? line : ''
   if (context.exit !== undefined && (context.exit.signal !== null || spoken === '')) {
     return { kind: 'exited', line: spoken === '' ? exitWords(context.exit) : spoken, ...(context.exit.signal !== null ? { signal: context.exit.signal } : {}), ...(context.exit.code !== null ? { code: context.exit.code } : {}) }
   }
