@@ -96,7 +96,7 @@ export function discoveryEnvFor(root: string, env: NodeJS.ProcessEnv = process.e
   const pinned = env.MERCURY_LOCAL_PROBE_TARGETS?.trim()
   const defaults = pinned === undefined || pinned === '' ? [...DEFAULT_LOCAL_PROBE_TARGETS.map(target => `${target.kind}=${target.root}`), ...ggufServerRoots().map(target => `llamacpp=${target}`)] : pinned.toLowerCase() === 'none' ? [] : pinned.split(',')
   if (defaults.some(entry => entry.trim().endsWith(`=${root}`))) return env
-  return { ...env, MERCURY_LOCAL_PROBE_TARGETS: [...defaults, `llamacpp=${root}`].join(',') }
+  return { ...env, MERCURY_LOCAL_PROBE_TARGETS: [...defaults, `tensorfold=${root}`].join(',') }
 }
 
 export function supportFocusOf(row: Pick<TensorFoldInventoryRow, 'repo' | 'drafter' | 'promptCacheGib'> | undefined, window?: number): TensorFoldSupportFocus | undefined {
@@ -116,16 +116,22 @@ async function warn(io: RoadIo, text: string, focus?: TensorFoldSupportFocus): P
   mintImmediateReceipt(text, 'warning', await supportLineOf(io, focus))
 }
 
+async function copyToTerminal(text: string): Promise<unknown> {
+  const receipt = await setClipboardWithReceipt(text)
+  if (receipt.sequence) process.stdout.write(receipt.sequence)
+  return receipt
+}
+
 export async function copyTensorFoldSupportLine(io: RoadIo = {}, focus?: TensorFoldSupportFocus): Promise<string> {
   const line = await supportLineOf(io, focus)
   if (line === undefined) return 'no support line yet · serve a model first'
-  const copy = io.copy ?? setClipboardWithReceipt
+  const copy = io.copy ?? copyToTerminal
   await copy(line)
   return `copied the support line`
 }
 
 export async function copyWiredLimitCommand(command: string, io: RoadIo = {}): Promise<string> {
-  const copy = io.copy ?? setClipboardWithReceipt
+  const copy = io.copy ?? copyToTerminal
   await copy(command)
   return `copied · run it in a terminal (it asks for your password) · then /tensorfold again`
 }

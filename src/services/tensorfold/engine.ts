@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process'
 import { accessSync, constants } from 'node:fs'
 import { homedir } from 'node:os'
 import { delimiter, join } from 'node:path'
+import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import type { TensorFoldEngine, TensorFoldFamily, TensorFoldMachine } from './contracts.js'
 import { readTensorFoldMachineTruth, type MachineIo, type TensorFoldMachineTruth } from './fit.js'
 import { TENSORFOLD_STARTING_POINTS } from './starting.js'
@@ -30,7 +31,7 @@ function executable(path: string): boolean {
 function defaultExec(env: NodeJS.ProcessEnv): EngineExec {
   return (file, args) => new Promise(resolve => {
     try {
-      execFile(file, args, { encoding: 'utf8', timeout: 8_000, maxBuffer: 4 << 20, env }, (error, stdout, stderr) => {
+      execFile(file, args, { encoding: 'utf8', timeout: 8_000, maxBuffer: 4 << 20, windowsHide: true, env }, (error, stdout, stderr) => {
         const code = error && typeof (error as { code?: unknown }).code === 'number' ? (error as { code: number }).code : error ? 1 : 0
         resolve(error && stdout === '' && stderr === '' ? undefined : { stdout: String(stdout), stderr: String(stderr), code })
       })
@@ -152,7 +153,7 @@ export function tensorFoldMachine(): TensorFoldMachine {
 
 export async function findTensorFoldEngine(io: EngineIo = {}): Promise<TensorFoldEngineFound | null> {
   const exists = io.exists ?? executable
-  const exec = io.exec ?? defaultExec(io.env ?? process.env)
+  const exec = io.exec ?? defaultExec(io.env ?? subprocessEnv())
   const platform = io.platform ?? process.platform
   if (platform === 'win32') return null
   const binary = tensorFoldBinaryCandidates(io).find(exists)

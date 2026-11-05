@@ -9,7 +9,8 @@ import { cachedLocalModels, type LocalModelRecord } from '../../services/provide
 import { detectTensorFoldApp, type TensorFoldAppState } from '../../services/providers/local/tensorfoldApp.js'
 import { helperHeadingWords } from '../../services/providers/local/tensorfoldHelper.js'
 import { tensorFoldHosts } from '../../services/providers/local/tensorfoldHosts.js'
-import type { TensorFoldEngine, TensorFoldHost, TensorFoldServed } from '../../services/tensorfold/contracts.js'
+import { lastTensorFoldTurn } from '../../services/providers/local/tensorfoldUsage.js'
+import type { TensorFoldEngine, TensorFoldHost, TensorFoldLastReply, TensorFoldServed } from '../../services/tensorfold/contracts.js'
 import { cachedTensorFoldMachineTruth, findTensorFoldEngine, tensorFoldBackendWords, type EngineIo, type TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
 import type { TensorFoldMachineTruth } from '../../services/tensorfold/fit.js'
 import { tensorFoldInstallPlan, type InstallIo, type TensorFoldInstallPlan } from '../../services/tensorfold/install.js'
@@ -63,10 +64,14 @@ export type TensorFoldPanelFacts = {
   copySupportOffered: boolean
 }
 
-export type FactsIo = EngineIo & InventoryIo & InstallIo & Pick<ServeIo, 'servedFile'> & {
+export type TensorFoldTurnFacts = { model: string; address: string; tokensPerSecond?: number; timeToFirstTokenS?: number }
+
+export type FactsIo = EngineIo & InventoryIo & InstallIo & Pick<ServeIo, 'servedFile' | 'helperFile'> & {
   engine?: TensorFoldEngineFound | null
   machine?: TensorFoldMachineTruth
   localModels?: () => readonly LocalModelRecord[]
+  lastTurn?: () => TensorFoldTurnFacts | undefined
+  keyedAt?: (port: number) => Promise<boolean>
   hosts?: () => readonly TensorFoldHost[]
   helper?: () => string | undefined
   app?: () => Promise<TensorFoldAppState>
@@ -92,8 +97,16 @@ function defaultDiskFree(path: string): number | undefined {
   }
 }
 
-function outsideOf(records: readonly LocalModelRecord[], served: readonly TensorFoldServed[], current: string | undefined): TensorFoldOutsideServer[] {
-  const ports = new Set(served.map(row => row.port))
+function portOf(baseUrl: string): number | undefined {
+  try {
+    return Number(new URL(baseUrl).port || 80)
+  } catch {
+    return undefined
+  }
+}
+
+function outsideOf(records: readonly LocalModelRecord[], served: readonly TensorFoldServed[], helper: readonly TensorFoldServed[], current: string | undefined): TensorFoldOutsideServer[] {
+  const ports = new Set([...served, ...helper].map(row => row.port))
   const out: TensorFoldOutsideServer[] = []
   for (const record of records) {
     if (record.server !== 'tensorfold') continue
@@ -108,6 +121,30 @@ function outsideOf(records: readonly LocalModelRecord[], served: readonly Tensor
     out.push({ name: record.id, baseUrl: record.baseUrl, port, ...(window !== undefined ? { window } : {}), keyed: false, current: current !== undefined && current.endsWith(`/${record.id}`), ...(record.servedBytes !== undefined ? { inUseBytes: record.servedBytes } : {}) })
   }
   return out
+}
+
+function lastReplyOf(turn: TensorFoldTurnFacts | undefined, name: string, port: number): TensorFoldLastReply | undefined {
+  if (turn === undefined || turn.address !== servedAddress(port) || (turn.model !== name && !turn.model.endsWith(`/${name}`))) return undefined
+  return { ...(turn.timeToFirstTokenS !== undefined ? { firstTokenMs: turn.timeToFirstTokenS * 1000 } : {}), ...(turn.tokensPerSecond !== undefined ? { tokensPerSecond: turn.tokensPerSecond } : {}) }
+}
+
+function withServedReadings(rows: readonly TensorFoldInventoryRow[], records: readonly LocalModelRecord[], turn: TensorFoldTurnFacts | undefined): TensorFoldInventoryRow[] {
+  return rows.map(row => {
+    if (row.state !== 'serving' || row.startedBy !== 'mercury' || row.port === undefined) return row
+    const port = row.port
+    const record = records.find(candidate => candidate.server === 'tensorfold' && portOf(candidate.baseUrl) === port)
+    const lastReply = lastReplyOf(turn, row.shortName, port)
+    return { ...row, ...(record?.servedBytes !== undefined ? { inUseBytes: record.servedBytes } : {}), ...(lastReply !== undefined ? { lastReply } : {}) }
+  })
+}
+
+async function defaultKeyedAt(port: number): Promise<boolean> {
+  try {
+    const response = await fetch(`http://${TENSORFOLD_HOST}:${port}/v1/models`, { signal: AbortSignal.timeout(400) })
+    return response.status === 401 || response.status === 403
+  } catch {
+    return false
+  }
 }
 
 function answersAsOf(records: readonly LocalModelRecord[], port: number): string | undefined {
@@ -139,10 +176,11 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
   const machine = io.machine ?? (await cachedTensorFoldMachineTruth(io))
   const engine = platform === 'win32' ? null : io.engine !== undefined ? io.engine : await findTensorFoldEngine(io)
   const served = io.served ?? servedTensorFold(io)
-  const rows = platform === 'win32' ? [] : await readTensorFoldInventory(engine, { ...io, machine, served })
+  const helperServed = quietly(() => servedTensorFold({ ...io, role: 'helper' }), [] as readonly TensorFoldServed[])
   const records = io.localModels?.() ?? cachedLocalModels()
+  const rows = platform === 'win32' ? [] : withServedReadings(await readTensorFoldInventory(engine, { ...io, machine, served }), records, quietly(() => (io.lastTurn ?? lastTensorFoldTurn)(), undefined))
   const current = io.current
-  const outside = outsideOf(records, served, current)
+  const outside = outsideOf(records, served, helperServed, current)
   const hosts = quietly(() => io.hosts?.() ?? tensorFoldHosts(), [] as readonly TensorFoldHost[])
   const helper = quietly(() => (io.helper ?? helperHeadingWords)(), undefined)
   const app = platform === 'darwin' ? await (io.app ?? detectTensorFoldApp)().catch(() => undefined) : undefined
@@ -152,7 +190,8 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
   const remembered = rememberedTensorFoldPort(io)
   const preferred = served[0]?.port ?? remembered ?? TENSORFOLD_DEFAULT_PORT
   const takenOutside = outside.find(server => server.port === preferred)
-  const busyAs = takenOutside !== undefined ? 'TensorFold' : answersAsOf(records, preferred)
+  const keyed = served.length === 0 && takenOutside === undefined && answersAsOf(records, preferred) === undefined && !helperServed.some(row => row.port === preferred) && platform !== 'win32' ? await (io.keyedAt ?? defaultKeyedAt)(preferred) : false
+  const busyAs = takenOutside !== undefined || keyed ? 'TensorFold' : answersAsOf(records, preferred)
   const port = served.length > 0 ? { next: preferred } : busyAs !== undefined ? { next: preferred + 1, busy: { port: preferred, answersAs: busyAs } } : { next: preferred }
   const root = io.cacheRoot ?? hfCacheRoot(io.env ?? process.env, io.home ?? homedir())
   const freeBytes = (io.diskFreeBytes ?? defaultDiskFree)(root)
@@ -173,6 +212,7 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
     acts: state.acts,
     ...(state.other !== undefined ? { other: state.other } : {}),
     port,
+    ...(keyed ? { keyed: { address: servedAddress(preferred) } } : {}),
     ...(freeBytes !== undefined ? { disk: { freeBytes, cacheWords: hfCacheWords(root, io.home ?? homedir()) } } : {}),
   }
   const landing = landingOf(facts)
@@ -211,7 +251,7 @@ export function liveLineOf(facts: Omit<TensorFoldPanelFacts, 'live' | 'copySuppo
   }
   const outside = facts.outside[0]
   if (outside !== undefined) return `serving ${outside.name} on ${servedAddress(outside.port)} · ${replyWords(outside.lastReply)}`
-  const host = facts.hosts.find(candidate => candidate.serving !== undefined)
+  const host = facts.hosts.find(candidate => candidate.serving !== undefined && candidate.origin !== 'shared')
   if (host !== undefined) return `nothing served here · ${host.name} serves ${host.serving}`
   return `${W.nothingServed} · ${facts.machine.backend}`
 }

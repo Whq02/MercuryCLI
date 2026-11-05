@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process'
 import { totalmem } from 'node:os'
+import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { localWindowRungs } from '../localServer/localWindowFit.js'
 import type { TensorFoldFit, TensorFoldFitParts, TensorFoldLadderRung } from './contracts.js'
 import { GIB, TENSORFOLD_AGENT_FLOOR, TENSORFOLD_RAISED_LIMIT_BELOW_BYTES, TENSORFOLD_RAISED_LIMIT_REPOS, TENSORFOLD_RUNTIME_MARGIN, type TensorFoldCheckpoint } from './starting.js'
@@ -33,7 +34,7 @@ export type MachineIo = {
 export function runForOutput(file: string, args: string[]): Promise<string | undefined> {
   return new Promise(resolve => {
     try {
-      execFile(file, args, { encoding: 'utf8', timeout: 4_000, maxBuffer: 1 << 20 }, (error, stdout) => resolve(error ? undefined : String(stdout)))
+      execFile(file, args, { encoding: 'utf8', timeout: 4_000, maxBuffer: 1 << 20, windowsHide: true, env: subprocessEnv() }, (error, stdout) => resolve(error ? undefined : String(stdout)))
     } catch {
       resolve(undefined)
     }

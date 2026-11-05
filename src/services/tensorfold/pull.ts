@@ -64,7 +64,7 @@ async function pullOne(binary: string, repo: string, totalBytes: number | undefi
   const launch = io.spawnImpl ?? spawn
   let child: ChildProcess
   try {
-    child = launch(binary, ['pull', pullSpec(repo)], { env: { ...(io.env === undefined ? subprocessEnv() : io.env), ...(io.cacheRoot !== undefined ? { HF_HUB_CACHE: io.cacheRoot } : {}) }, stdio: ['ignore', logFd, logFd] })
+    child = launch(binary, ['pull', pullSpec(repo)], { env: { ...(io.env === undefined ? subprocessEnv() : io.env), ...(io.cacheRoot !== undefined ? { HF_HUB_CACHE: io.cacheRoot } : {}) }, stdio: ['ignore', logFd, logFd], windowsHide: true })
   } finally {
     closeSync(logFd)
   }

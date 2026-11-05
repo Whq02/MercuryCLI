@@ -120,7 +120,7 @@ function colourOf(sgr: string | undefined): string {
 async function save(name: string, run: Run): Promise<void> {
   if (FRAMES === undefined) return
   const file = `${name}-${run.columns}x${run.rows}`
-  const lines = run.m.lines().map(line => line.replace(/\s+$/, '').replaceAll(home, '<scratch>').replace(/\/private\/tmp\/mw\/tf-[A-Za-z0-9-]+\/hub/g, '<scratch>/hub'))
+  const lines = run.m.lines().map(line => line.replace(/\s+$/, ''))
   writeFileSync(join(FRAMES, `${file}.txt`), lines.join('\n') + '\n')
   if (!PNG) return
   const raw = run.m.lines()
@@ -141,13 +141,18 @@ const SERVE_27B = 'tensorfold serve TensorFold/Qwen3.8-27B-MLX-4bit --drafter z-
 const SERVE_2B = 'tensorfold serve mlx-community/Qwen3.5-2B-MLX-4bit --name qwen3.5-2b --context 262144 --prompt-cache-gib 1 --port 8080'
 const MEMORY_27B = 'memory    weights 15 + drafter 3.6 + cache 8 + runtime 2 GiB · prompt cache ≤16 GiB'
 const MEMORY_2B = 'memory    weights 1.6 + cache 3 + prompt cache 1 + runtime 2 GiB'
+const LIGHTNING_REPO = 'TensorFold/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-MLX-4bit'
+const SERVE_LIGHTNING = `tensorfold serve ${LIGHTNING_REPO} --name nemotron-lightning --context 262144 --port`
+const MEMORY_LIGHTNING = 'memory    weights 17.3 + cache 1.5 + runtime 2 GiB · prompt cache ≤16 GiB'
+const LIGHTNING_CELLS = ['Nemotron Lightning', 'local/nemotron-lightning', '↓ 19 GB', '256k ctx', '20.8 GiB']
+const QWEN_27B_CELLS = ['Qwen3.8 27B', 'local/qwen3.8-27b', '↓ 20 GB', '128k ctx', '28.5 GiB']
 
 const EXPECT: Record<string, Expect> = {
   't01-not-installed-macos': run => [
     ['heading not installed · Apple M5 Pro · 36.0 GiB usable, unfolded', has(run, '▾ TENSORFOLD · not installed · Apple M5 Pro · 36.0 GiB usable'), flat(run).filter(l => l.includes('TENSORFOLD')).join(' | ')],
     ['the install row: install TensorFold — Homebrew · ashhart/tensorfold', has(run, 'install TensorFold — Homebrew · ashhart/tensorfold')],
-    ['landed on the 27B, the best fit: ↓ 20 GB · 128k ctx · 28.5 GiB', framedRow(run).includes('Qwen3.8 27B') && cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', '↓ 20 GB', '128k ctx', '28.5 GiB'), framedRow(run)],
-    ['its card runs the pulls then the serve', hasRun(run, 'will run tensorfold pull TensorFold/Qwen3.8-27B-MLX-4bit') && hasRun(run, 'tensorfold pull z-lab/Qwen3.8-27B-DFlash2') && hasRun(run, SERVE_27B), card(run).join(' / ')],
+    ['landed on Lightning, the default starting point on a 48 GB Mac: ↓ 19 GB · 256k ctx · 20.8 GiB; the 27B second', framedRow(run).includes('Nemotron Lightning') && cells(run, ...LIGHTNING_CELLS) && cells(run, ...QWEN_27B_CELLS) && flat(run).findIndex(l => l.includes('Nemotron Lightning')) < flat(run).findIndex(l => l.includes('Qwen3.8 27B')), framedRow(run)],
+    ['its card runs the pull then the serve', hasRun(run, `will run tensorfold pull ${LIGHTNING_REPO}`) && hasRun(run, SERVE_LIGHTNING + ' 8080'), card(run).join(' / ')],
     ['the footer: not installed · Homebrew found at /opt/homebrew/bin/brew', has(run, 'not installed · Homebrew found at /opt/homebrew/bin/brew')],
     ['the legend: ↵ install, pull, serve and switch · ←→ window', legend(run).includes('↑↓ select · ↵ install, pull, serve and switch · ←→ window'), legend(run)],
   ],
@@ -183,8 +188,8 @@ const EXPECT: Record<string, Expect> = {
   ],
   't06-opened': run => [
     ['heading 1.2.2 · Apple M5 Pro · 36.0 GiB usable · nothing served', has(run, '▾ TENSORFOLD · 1.2.2 · Apple M5 Pro · 36.0 GiB usable · nothing served')],
-    ['landed on the 27B at 128k; Lightning; the 2B on disk; other checkpoint; HOST folded beneath', framedRow(run).includes('Qwen3.8 27B') && cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', '↓ 20 GB', '128k ctx', '28.5 GiB') && cells(run, 'Nemotron Lightning', 'local/nemotron-lightning', '↓ 19 GB', '256k ctx', '20.8 GiB') && cells(run, 'Qwen3.5 2B', 'local/qwen3.5-2b', 'on disk', '256k ctx', '7.6 GiB') && has(run, 'other checkpoint — a Hugging Face repository id') && has(run, '▸ TENSORFOLD HOST · no host · a server on your network or a rented GPU pod'), flat(run).filter(l => /Qwen|Nemotron|other|HOST/.test(l)).join(' | ')],
-    ['the card: window strip, memory, pull, will run', has(run, 'window    32k 64k [128k] 256k · ←→ changes it') && has(run, MEMORY_27B) && card(run).some(l => l.startsWith('pull      into ')) && hasRun(run, '/hub · 38 GB free on this disk') && hasRun(run, 'will run tensorfold pull TensorFold/Qwen3.8-27B-MLX-4bit') && hasRun(run, SERVE_27B + ' 131072 --port 8080'), card(run).join(' / ')],
+    ['landed on Lightning at 256k (the 48 GB default); the 27B at 128k second; the 2B on disk; other checkpoint; HOST folded beneath', framedRow(run).includes('Nemotron Lightning') && cells(run, ...LIGHTNING_CELLS) && cells(run, ...QWEN_27B_CELLS) && flat(run).findIndex(l => l.includes('Nemotron Lightning')) < flat(run).findIndex(l => l.includes('Qwen3.8 27B')) && cells(run, 'Qwen3.5 2B', 'local/qwen3.5-2b', 'on disk', '256k ctx', '7.6 GiB') && has(run, 'other checkpoint — a Hugging Face repository id') && has(run, '▸ TENSORFOLD HOST · no host · a server on your network or a rented GPU pod'), flat(run).filter(l => /Qwen|Nemotron|other|HOST/.test(l)).join(' | ')],
+    ['the card: window strip, memory, pull into ~/.cache/huggingface/hub (the words the same under any TMPDIR), will run', has(run, 'window    32k 64k 128k [256k] · ←→ changes it') && has(run, MEMORY_LIGHTNING) && has(run, 'pull      into ~/.cache/huggingface/hub · 38 GB free on this disk') && hasRun(run, `will run tensorfold pull ${LIGHTNING_REPO}`) && hasRun(run, SERVE_LIGHTNING + ' 8080'), card(run).join(' / ')],
     ['the footer: nothing served · Metal', has(run, 'nothing served · Metal')],
     ['the legend: ↵ pull, serve and switch · ←→ window', legend(run).includes('↑↓ select · ↵ pull, serve and switch · ←→ window'), legend(run)],
   ],
@@ -225,7 +230,8 @@ const EXPECT: Record<string, Expect> = {
   't14-current': run => [
     ['heading … · 1 serving; the served 2B first, current, 256k', has(run, '· 1 serving') && framedRow(run).includes('Qwen3.5 2B') && cells(run, 'Qwen3.5 2B', 'local/qwen3.5-2b', 'current', '256k ctx'), framedRow(run)],
     ['the card: ←→ restarts it at another window; service tensorfold · started by Mercury · prompt cache 1 GiB; the network line; no serving line in /tensorfold (the footer carries it)', has(run, 'window    32k 64k 128k [256k] · ←→ restarts it at another window') && has(run, 'service   tensorfold · started by Mercury · prompt cache 1 GiB') && has(run, 'network   not shared · n shares it on this network') && !card(run).some(l => l.startsWith('serving')), card(run).join(' / ')],
-    ['the footer: serving qwen3.5-2b on 127.0.0.1:8080 · idle', has(run, 'serving qwen3.5-2b on 127.0.0.1:8080 · idle')],
+    ['the served row measures: 2.8 GiB in use', cells(run, 'Qwen3.5 2B', 'local/qwen3.5-2b', 'current', '256k ctx', '2.8 GiB in use'), framedRow(run)],
+    ['the footer: serving qwen3.5-2b on 127.0.0.1:8080 · first reply in 40 ms · ~110 tok/s', has(run, 'serving qwen3.5-2b on 127.0.0.1:8080 · first reply in 40 ms · ~110 tok/s'), flat(run).filter(l => l.includes('serving')).join(' | ')],
     ['the legend: s stops · ←→ window · n shares it · c copies the support line', legend(run).includes('↑↓ select · s stops · ←→ window · n shares it · c copies the support line'), legend(run)],
   ],
   't14b-restart-window': run => [
@@ -256,7 +262,7 @@ const EXPECT: Record<string, Expect> = {
     ['the legend: ↵ serve at 64k and switch · ←→ window', legend(run).includes('↑↓ select · ↵ serve at 64k and switch · ←→ window'), legend(run)],
   ],
   't17b-wired-limit': run => [
-    ['heading 1.2.2 · Apple M1 Max · 21.3 GiB usable · nothing served; Lightning first (the best fit), the 27B refused · 32k ctx', has(run, '▾ TENSORFOLD · 1.2.2 · Apple M1 Max · 21.3 GiB usable · nothing served') && flat(run).findIndex(l => l.includes('Nemotron Lightning')) < flat(run).findIndex(l => l.includes('Qwen3.8 27B')) && cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'refused', '32k ctx', '22.5 GiB'), flat(run).filter(l => /TENSORFOLD|Qwen|Nemotron/.test(l)).join(' | ')],
+    ['heading 1.2.2 · Apple M1 Max · 21.3 GiB usable · nothing served; the refused 27B leads (the row with the act), refused · 32k ctx; Lightning (the best fit) beneath it', has(run, '▾ TENSORFOLD · 1.2.2 · Apple M1 Max · 21.3 GiB usable · nothing served') && flat(run).findIndex(l => l.includes('Qwen3.8 27B')) < flat(run).findIndex(l => l.includes('Nemotron Lightning')) && cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'refused', '32k ctx', '22.5 GiB') && cells(run, 'Nemotron Lightning', 'local/nemotron-lightning', '↓ 19 GB', '256k ctx', '20.8 GiB'), flat(run).filter(l => /TENSORFOLD|Qwen|Nemotron/.test(l)).join(' | ')],
     ["refused   TensorFold refused qwen3.8-27b at 32k · macOS lets the GPU wire 21.3 of 32.0 GiB (iogpu.wired_limit_mb 0) · it needs 22.5 GiB", hasRun(run, 'refused TensorFold refused qwen3.8-27b at 32k · macOS lets the GPU wire 21.3 of 32.0 GiB (iogpu.wired_limit_mb 0) · it needs 22.5 GiB'), card(run).join(' / ')],
     ['the strip: already the smallest window', has(run, 'window    [32k] 64k 128k 256k · already the smallest window'), card(run).join(' / ')],
     ['will run  sudo sysctl iogpu.wired_limit_mb=27174; cost …', has(run, 'will run  sudo sysctl iogpu.wired_limit_mb=27174') && hasRun(run, 'cost asks for your password (sudo) · leaves 5.5 GiB for macOS · resets at reboot; restart the engine after it · tight — quit other apps first'), card(run).join(' / ')],
@@ -265,7 +271,8 @@ const EXPECT: Record<string, Expect> = {
   't18-keyed-server': run => [
     ['heading 1.2.2 · 127.0.0.1:8080 asks for a key', has(run, '▾ TENSORFOLD · 1.2.2 · 127.0.0.1:8080 asks for a key'), flat(run).filter(l => l.includes('TENSORFOLD')).join(' | ')],
     ['the footer: 127.0.0.1:8080 answers with a key · /health shows status only', has(run, '127.0.0.1:8080 answers with a key · /health shows status only')],
-    ['the rows as t06', cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', '↓ 20 GB', '128k ctx', '28.5 GiB')],
+    ['the rows as t06', framedRow(run).includes('Nemotron Lightning') && cells(run, ...QWEN_27B_CELLS)],
+    ['the next serve on 8081: port      8081 · 8080 is the keyed TensorFold server · Mercury remembers it', has(run, 'port      8081 · 8080 is the keyed TensorFold server · Mercury remembers it') && hasRun(run, SERVE_LIGHTNING + ' 8081'), card(run).join(' / ')],
   ],
   't19-port-busy': run => [
     ['port      8081 · 8080 answers as llama.cpp · Mercury remembers it; the serve on 8081', has(run, 'port      8081 · 8080 answers as llama.cpp · Mercury remembers it') && hasRun(run, '--prompt-cache-gib 1 --port 8081'), card(run).join(' / ')],
@@ -306,6 +313,8 @@ for (const state of states) {
     if (state.land !== undefined) check(`${state.frame} ${columns}×${rows}: the cursor reaches ${state.land}`, await landOn(run, state.land), framedRow(run))
     if (state.keys !== undefined) await press(run, state.keys)
     await save(state.frame, run)
+    const scratch = [home, process.env.TMPDIR ?? '/tmp', '/private/tmp']
+    check(`${state.frame} ${columns}×${rows}: no scratch path on screen (the fixture cache lives under the fixture home, so the frame is the same under any TMPDIR)`, !run.m.lines().some(line => scratch.some(path => line.includes(path))), run.m.lines().find(line => scratch.some(path => line.includes(path))) ?? '')
     check(`${state.frame} ${columns}×${rows}: the panel fits the width`, run.m.lines().every(line => [...line].length <= columns), String(run.m.lines().find(line => [...line].length > columns)))
     check(`${state.frame} ${columns}×${rows}: the box is Mercury · tensorfold with both groups`, has(run, 'Mercury · tensorfold') && has(run, 'TENSORFOLD HOST'), flat(run).slice(0, 6).join(' | '))
     for (const [label, cond, detail] of expect?.(run, columns === 160) ?? []) check(`${state.frame} ${columns}×${rows}: ${label}`, cond, detail ?? '')

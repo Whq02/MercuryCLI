@@ -23,6 +23,8 @@ export type TStateOptions = {
   current?: string
   brew?: boolean
   diskFree?: number
+  keyed?: boolean
+  turn?: { model: string; address: string; tokensPerSecond?: number; timeToFirstTokenS?: number }
 }
 
 export const ON_DISK: CacheSeed = { repo: QWEN_2B_REPO, config: QWEN_2B_CONFIG, weightsBytes: 4096, sha: QWEN_2B_PIN }
@@ -32,6 +34,8 @@ export const GGUF_REFUSED = { input: 'unsloth/Qwen3.5-9B-GGUF', refused: "GGUF i
 export const MEMORY_REFUSAL_LINE = "tensorfold: one stream's 131072-token window of KV pages (8.00 GiB) does not fit the 5.12 GiB left under the load limit; lower --context"
 export const LIMIT_REFUSAL_LINE = 'tensorfold: --parallel 1 needs 2.00 GiB for its streams and 8-row prompt scratch at a 32768-token context; 0.50 GiB remains beside the weights and an 8 GiB margin: lower --parallel or --context'
 export const KEYED_ADDRESS = '127.0.0.1:8080'
+export const SERVED_2B_RECORD: OutsideSeed = { id: 'qwen3.5-2b', baseUrl: 'http://127.0.0.1:8080/v1', window: 262_144, servedBytes: 2_965_982_016 }
+export const SERVED_2B_TURN = { model: 'local/qwen3.5-2b', address: '127.0.0.1:8080', tokensPerSecond: 110, timeToFirstTokenS: 0.04 }
 
 export async function fakeEngineFound(): Promise<Engine> {
   const world = fakeWorld('tf-facts-engine')
@@ -69,6 +73,8 @@ export async function tStateFacts(id: string, opts: TStateOptions = {}): Promise
       ...(opts.current !== undefined ? { current: opts.current } : {}),
       exists: (path: string) => (opts.brew === false ? false : path === '/opt/homebrew/bin/brew'),
       diskFreeBytes: () => opts.diskFree ?? 37_578_240_000,
+      keyedAt: async () => opts.keyed === true,
+      lastTurn: () => opts.turn,
     },
     opts.state ?? { acts: {} },
   )
@@ -87,7 +93,7 @@ export async function tStates(): Promise<TState[]> {
   const memoryRefusal = refusal.readTensorFoldRefusal(MEMORY_REFUSAL_LINE, { window: 131_072, ladder: fit.tensorFoldLadder(checkpoint27b, MAC_48) })
   const limitRefusal = refusal.readTensorFoldRefusal(LIMIT_REFUSAL_LINE, { window: 32_768, needBytes: fit.tensorFoldProjectedBytes(checkpoint27b, 32_768), machine: MAC_32_LOW, ladder: fit.tensorFoldLadder(checkpoint27b, MAC_32_LOW) })
   const exitRefusal = refusal.readTensorFoldRefusal('serving qwen3.5-2b at http://127.0.0.1:8080/v1 (loaded in 1.2s)\n', { exit: { code: null, signal: 'SIGKILL' } })
-  const serving = { served: [SERVED_2B], current: 'local/qwen3.5-2b' }
+  const serving: TStateOptions = { served: [SERVED_2B], current: 'local/qwen3.5-2b', outside: [SERVED_2B_RECORD], turn: SERVED_2B_TURN }
   return [
     { frame: 't01-not-installed-macos', facts: await tStateFacts('t01', { engine: null }) },
     { frame: 't02-installing-macos', facts: await tStateFacts('t02', { engine: null, state: { acts: { install: { kind: 'installing', line: '==> Downloading https://github.com/ashhart/TensorFold/releases/download/v1.2.2/tensorfold-1.2.2-macos-arm64.tar.gz' } } } }), land: 'install TensorFold' },
@@ -95,7 +101,7 @@ export async function tStates(): Promise<TState[]> {
     { frame: 't04-not-installed-linux', facts: await tStateFacts('t04', { engine: null, machine: RTX_4090, seeds: [] }), land: 'install TensorFold' },
     { frame: 't05-windows', facts: await tStateFacts('t05', { engine: null, platform: 'win32', machine: { ...MAC_48, platform: 'win32' } }), land: 'rent a GPU pod' },
     { frame: 't06-opened', facts: t06 },
-    { frame: 't08-window-past-fit', facts: t06, keys: [KEY_RIGHT] },
+    { frame: 't08-window-past-fit', facts: t06, land: 'local/qwen3.8-27b', keys: [KEY_RIGHT] },
     { frame: 't09-on-disk', facts: t06, land: 'local/qwen3.5-2b' },
     { frame: 't10-other-typing', facts: t06, land: 'other checkpoint', keys: ['\r', ...QWEN_9B_REPO] },
     { frame: 't10b-other-read', facts: await tStateFacts('t10b', { state: { acts: {}, other: { input: QWEN_9B_REPO, read: nine } } }), land: 'local/qwen3.5-9b' },
@@ -109,7 +115,7 @@ export async function tStates(): Promise<TState[]> {
     { frame: 't16-serving-outside', facts: await tStateFacts('t16', { outside: [{ id: 'qwen3.5-2b', baseUrl: 'http://127.0.0.1:8087/v1', window: 32_768, servedBytes: 2_965_982_016 }] }) },
     { frame: 't17-refused-memory', facts: await tStateFacts('t17', { state: { acts: { [QWEN_27B_REPO]: scene.refusedActOf('qwen3.8-27b', 131_072, memoryRefusal) } } }) },
     { frame: 't17b-wired-limit', facts: await tStateFacts('t17b', { machine: MAC_32_LOW, state: { acts: { [QWEN_27B_REPO]: scene.refusedActOf('qwen3.8-27b', 32_768, limitRefusal) } } }), land: 'local/qwen3.8-27b' },
-    { frame: 't18-keyed-server', facts: { ...t06, keyed: { address: KEYED_ADDRESS }, live: scene.liveLineOf({ ...t06, keyed: { address: KEYED_ADDRESS } }) } },
+    { frame: 't18-keyed-server', facts: await tStateFacts('t18', { keyed: true }) },
     { frame: 't19-port-busy', facts: await tStateFacts('t19', { outside: [{ id: 'llama', baseUrl: 'http://127.0.0.1:8080/v1', server: 'llamacpp' }] }), land: 'local/qwen3.5-2b' },
     { frame: 't20-exited', facts: await tStateFacts('t20', { state: { acts: { [QWEN_2B_REPO]: { kind: 'exited', name: 'qwen3.5-2b', port: 8080, line: `${exitRefusal.line} · its log: Service logs tensorfold` } } } }), land: 'local/qwen3.5-2b' },
     { frame: 't21-small-mac', facts: await tStateFacts('t21', { machine: MAC_16 }) },

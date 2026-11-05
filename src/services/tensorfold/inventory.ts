@@ -5,7 +5,7 @@ import type { TensorFoldEngine, TensorFoldModelRow, TensorFoldServed } from './c
 import { cachedTensorFoldMachineTruth, type EngineIo, type TensorFoldEngineFound } from './engine.js'
 import { chosenTensorFoldWindow, reachesAgentFloor, tensorFoldLadder, type TensorFoldMachineTruth } from './fit.js'
 import { servedTensorFold } from './serve.js'
-import { QWEN_2B, TENSORFOLD_STARTING_POINTS, startingPointOf, tensorFoldLabel, tensorFoldShortName, type TensorFoldCheckpoint } from './starting.js'
+import { QWEN_27B, QWEN_27B_SECOND_WORDS, QWEN_2B, TENSORFOLD_STARTING_POINTS, startingPointOf, tensorFoldLabel, tensorFoldShortName, tensorFoldStartingOrder, type TensorFoldCheckpoint } from './starting.js'
 
 export type TensorFoldInventoryRow = TensorFoldModelRow & { label: string; checkpoint: TensorFoldCheckpoint; quantisation?: string }
 
@@ -185,13 +185,15 @@ export function rowOfCheckpoint(point: TensorFoldCheckpoint, machine: TensorFold
   }
 }
 
-function rankTensorFoldRows(rows: readonly TensorFoldInventoryRow[]): TensorFoldInventoryRow[] {
+function rankTensorFoldRows(rows: readonly TensorFoldInventoryRow[], machine: TensorFoldMachineTruth): TensorFoldInventoryRow[] {
+  const order = tensorFoldStartingOrder(machine)
   const rank = (row: TensorFoldInventoryRow): number => {
-    const at = TENSORFOLD_STARTING_POINTS.findIndex(point => point.repo === row.repo)
-    return at < 0 ? TENSORFOLD_STARTING_POINTS.length : at
+    const at = order.findIndex(point => point.repo === row.repo)
+    return at < 0 ? order.length : at
   }
+  const noted = (row: TensorFoldInventoryRow): TensorFoldInventoryRow => (row.repo === QWEN_27B.repo && order[0] !== QWEN_27B && row.state !== 'serving' && row.state !== 'loading' ? { ...row, note: QWEN_27B_SECOND_WORDS } : row)
   const serving = rows.filter(row => row.state === 'serving' || row.state === 'loading')
-  const rest = rows.filter(row => !serving.includes(row)).sort((a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label))
+  const rest = rows.filter(row => !serving.includes(row)).sort((a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label)).map(noted)
   const best = bestTensorFoldFit(rest)
   return [...serving, ...(best === null ? rest : [best as TensorFoldInventoryRow, ...rest.filter(row => row !== best)])]
 }
@@ -232,13 +234,12 @@ export async function readTensorFoldInventory(engine: TensorFoldEngine | null, i
     const point = checkpointOfSnapshot(snapshot, facts)
     rows.push({ ...rowOfCheckpoint(point, machine, { onDisk: true, bytesOnDisk: snapshot.weightsBytes, drafterOnDisk: true }, servedOf(repo)), ...(facts.quantisation !== undefined ? { quantisation: facts.quantisation } : {}) })
   }
-  return rankTensorFoldRows(rows)
+  return rankTensorFoldRows(rows, machine)
 }
 
 export function bestTensorFoldFit(rows: readonly TensorFoldModelRow[]): TensorFoldModelRow | null {
-  for (const point of TENSORFOLD_STARTING_POINTS) {
-    const row = rows.find(candidate => candidate.repo === point.repo)
-    if (row === undefined) continue
+  for (const row of rows) {
+    if (startingPointOf(row.repo) === undefined) continue
     if (row.ladder !== undefined ? reachesAgentFloor(row.ladder) : row.fit.verdict === 'fits') return row
   }
   return rows.find(row => row.repo === QWEN_2B.repo) ?? rows.find(row => startingPointOf(row.repo) !== undefined) ?? rows[0] ?? null

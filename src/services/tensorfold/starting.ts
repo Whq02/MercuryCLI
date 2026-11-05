@@ -61,6 +61,22 @@ export const NEMOTRON_LIGHTNING: TensorFoldCheckpoint = {
 
 export const TENSORFOLD_STARTING_POINTS: readonly TensorFoldCheckpoint[] = [QWEN_27B, NEMOTRON_LIGHTNING, QWEN_2B]
 
+export const QWEN_27B_SECOND_WORDS = "steadier on long tasks · prefill ~350 tok/s · takes most of this Mac's memory"
+const DENSE_FIRST_RAM_BYTES = 64 * GIB
+const DENSE_FIRST_GENERATION = 5
+
+export function appleSiliconGeneration(chip: string): number | undefined {
+  const match = /\bM(\d+)\b/.exec(chip)
+  return match ? Number(match[1]) : undefined
+}
+
+export function tensorFoldStartingOrder(machine: { platform: NodeJS.Platform; ramBytes: number; chip: string }): readonly TensorFoldCheckpoint[] {
+  if (machine.platform !== 'darwin') return TENSORFOLD_STARTING_POINTS
+  const generation = appleSiliconGeneration(machine.chip)
+  const denseFirst = machine.ramBytes >= DENSE_FIRST_RAM_BYTES && generation !== undefined && generation >= DENSE_FIRST_GENERATION
+  return denseFirst ? TENSORFOLD_STARTING_POINTS : [NEMOTRON_LIGHTNING, QWEN_27B, QWEN_2B]
+}
+
 export const TENSORFOLD_RAISED_LIMIT_REPOS: ReadonlySet<string> = new Set([QWEN_27B.repo])
 export const TENSORFOLD_RAISED_LIMIT_BELOW_BYTES = 48 * GIB
 
