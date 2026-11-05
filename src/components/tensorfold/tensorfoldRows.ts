@@ -389,7 +389,7 @@ function otherChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): Mode
   return actionChoice(TENSORFOLD_MODEL_GROUP, 'other', 'other checkpoint', 'a Hugging Face repository id', {
     card: width => [
       ...(typing !== undefined ? [[seg(pad('repo')), seg(typing.text, 'ivory'), seg('▌', 'accent')]] : []),
-      ...(facts.other?.refused !== undefined ? kv('refused', facts.other.refused, width, 'amber') : typing === undefined ? kv('reads', 'Hugging Face · MLX, NVFP4 or EXL3 checkpoints, not GGUF', width) : []),
+      ...(facts.other?.refused !== undefined ? kv('refused', facts.other.refused, width, 'amber') : kv('reads', 'Hugging Face · MLX, NVFP4 or EXL3 checkpoints, not GGUF', width)),
     ],
     keys: typing !== undefined ? { legend: ['type a repository id', '↵ read it', 'esc back'] } : { enter: { words: '↵ type a repository id', input: 'repo' } },
   }, true)

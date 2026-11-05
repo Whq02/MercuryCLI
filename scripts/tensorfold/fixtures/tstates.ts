@@ -97,6 +97,7 @@ export async function tStates(): Promise<TState[]> {
     { frame: 't06-opened', facts: t06 },
     { frame: 't08-window-past-fit', facts: t06, keys: [KEY_RIGHT] },
     { frame: 't09-on-disk', facts: t06, land: 'local/qwen3.5-2b' },
+    { frame: 't10-other-typing', facts: t06, land: 'other checkpoint', keys: ['\r', ...QWEN_9B_REPO] },
     { frame: 't10b-other-read', facts: await tStateFacts('t10b', { state: { acts: {}, other: { input: QWEN_9B_REPO, read: nine } } }), land: 'local/qwen3.5-9b' },
     { frame: 't11-other-refused', facts: await tStateFacts('t11', { state: { acts: {}, other: GGUF_REFUSED } }), land: 'other checkpoint' },
     { frame: 't12-pulling', facts: await tStateFacts('t12', { state: { acts: { [QWEN_27B_REPO]: pulling } } }) },

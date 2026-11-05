@@ -198,6 +198,11 @@ const EXPECT: Record<string, Expect> = {
     ['window 32k 64k 128k [256k]; memory weights 1.6 + cache 3 + prompt cache 1 + runtime 2 GiB; no pull line; the serve with --prompt-cache-gib 1', has(run, 'window    32k 64k 128k [256k] · ←→ changes it') && has(run, MEMORY_2B) && !card(run).some(l => l.startsWith('pull')) && hasRun(run, SERVE_2B), card(run).join(' / ')],
     ['the legend: ↵ serve and switch', legend(run).includes('↑↓ select · ↵ serve and switch'), legend(run)],
   ],
+  't10-other-typing': run => [
+    ['↵ on other checkpoint opens the repo line; the typed id with its cursor', has(run, 'repo      mlx-community/Qwen3.5-9B-MLX-4bit▌'), card(run).join(' / ')],
+    ['reads     Hugging Face · MLX, NVFP4 or EXL3 checkpoints, not GGUF', has(run, 'reads     Hugging Face · MLX, NVFP4 or EXL3 checkpoints, not GGUF'), card(run).join(' / ')],
+    ['the legend: type a repository id · ↵ read it · esc back', legend(run).includes('type a repository id · ↵ read it · esc back') || flat(run).some(l => l.includes('type a repository id · ↵ read it · esc back')), flat(run).slice(-4).join(' | ')],
+  ],
   't10b-other-read': run => [
     ['the read checkpoint: Qwen3.5 9B · ↓ 6 GB · 256k ctx · 16.5 GiB', cells(run, 'Qwen3.5 9B', 'local/qwen3.5-9b', '↓ 6 GB', '256k ctx', '16.5 GiB'), framedRow(run)],
     ['its card: the memory line, the pull then the serve', has(run, 'memory    weights 5.5 + cache 8 + prompt cache 1 + runtime 2 GiB') && hasRun(run, 'will run tensorfold pull mlx-community/Qwen3.5-9B-MLX-4bit') && hasRun(run, 'tensorfold serve mlx-community/Qwen3.5-9B-MLX-4bit --name qwen3.5-9b --context 262144 --prompt-cache-gib 1 --port 8080'), card(run).join(' / ')],
