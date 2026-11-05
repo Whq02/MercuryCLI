@@ -246,7 +246,7 @@ New Session で `Enter` を押すと、既定のモデルを使って現在の�
 - **Together AI** と **Cohere：** API キー。
 - **Groq**、**Cerebras**、**Fireworks AI：** API キー。どの系列のキーも、`credentials.keyCommands.<family>` で指定したコマンドから取得できます。
 
-Mistral、Nous Portal、OpenCode Zen も `/logins` から接続できます。サインイン対象のプロバイダー系列は、合計で 22 になります。ローカルのモデルサーバー（Ollama、LM Studio、vLLM、llama.cpp）と、カスタムの OpenAI 互換エンドポイントは、プロバイダーへのサインインなしで使えます。`/tensorfold` で TensorFold 上のローカルモデルを実行できます（[docs/TENSORFOLD.md](../TENSORFOLD.md)）。また、`/localsetup` を実行すると、Ollama のインストールや起動、メモリに収まるモデルの取得、コンテキストウィンドウの設定、または実行中の LM Studio、vLLM、llama.cpp サーバーへの接続ができます（[docs/LOCAL-SETUP.md](../LOCAL-SETUP.md)）。各プロバイダーは独自のプロトコル、認証情報、エラー処理を使い、リクエストが別のプロバイダーにフォールバックすることはありません。[docs/ENGINES.md](../ENGINES.md) を参照してください。
+Mistral、Nous Portal、OpenCode Zen も `/logins` から接続できます。サインイン対象のプロバイダー系列は、合計で 22 になります。ローカルのモデルサーバー（Ollama、LM Studio、vLLM、llama.cpp）と、カスタムの OpenAI 互換エンドポイントは、プロバイダーへのサインインなしで使えます。`/localsetup` を実行すると、Ollama のインストールや起動、メモリに収まるモデルの取得、コンテキストウィンドウの設定、または実行中の LM Studio、vLLM、llama.cpp サーバーへの接続ができます（[docs/LOCAL-SETUP.md](../LOCAL-SETUP.md)）。各プロバイダーは独自のプロトコル、認証情報、エラー処理を使い、リクエストが別のプロバイダーにフォールバックすることはありません。[docs/ENGINES.md](../ENGINES.md) を参照してください。
 
 `/llmhost` は、ホストできるモデルを一覧表示し、各モデルを今どこで実行できるかを示します。Runpod、Vast.ai、Lambda からレンタルした GPU、自分のコンピューターまたは保存済みの SSH コンピューター（`mercury host`）、あるいは既存のモデルサーバーです。各モデルのページには、量子化オプション、GPU メモリの予算が並列の会話にどう分かれるか（`conversations × context`）、既定の思考レベル（`/effort` でリクエストごとに変更できます）が表示されます。GPU のレンタルには、時間単位の価格の明示的な確認が必要です。ポップアップを閉じても、セットアップはバックグラウンドで続行されます。Runpod では、レンタル前、または実行中のポッドで、品質・コンテキストの分割・思考設定を調整することもできます（`Tune`）。さらに、重みを高速読み込みボリュームに保持し、5 秒間隔の在庫監視を設定できます。Vast.ai と Lambda のレンタル機能は 1.0.0-beta.40 で追加されたもので、ベンダーが公開している API に対してフィクスチャで検証されています（実際のレンタルによる実行は行っていません）。[docs/LLM-HOST.md](../LLM-HOST.md) を参照してください。
 

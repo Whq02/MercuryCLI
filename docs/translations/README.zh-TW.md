@@ -246,7 +246,7 @@ Boot Menu 的 Performance 區段包含 Motion 設定：`auto`、`full`、`reduce
 - **Together AI** 與 **Cohere：** API 金鑰。
 - **Groq**、**Cerebras** 與 **Fireworks AI：** API 金鑰；任何供應商系列的金鑰，也可以來自 `credentials.keyCommands.<family>` 所指定的指令。
 
-Mistral、Nous Portal 與 OpenCode Zen 也能透過 `/logins` 連結，總計 22 個登入供應商系列。本機模型伺服器（Ollama、LM Studio、vLLM 與 llama.cpp）以及自訂的 OpenAI 相容端點，無需供應商登入即可使用。可透過 `/tensorfold` 在 TensorFold 上執行本機模型（[docs/TENSORFOLD.md](../TENSORFOLD.md)），或執行 `/localsetup` 以安裝或啟動 Ollama、拉取適合你記憶體容量的模型、設定其上下文視窗，或連接正在執行的 LM Studio、vLLM 或 llama.cpp 伺服器（[docs/LOCAL-SETUP.md](../LOCAL-SETUP.md)）。每個供應商都使用自己的協定、憑證與錯誤處理方式，請求絕不會改由其他供應商處理。參見 [docs/ENGINES.md](../ENGINES.md)。
+Mistral、Nous Portal 與 OpenCode Zen 也能透過 `/logins` 連結，總計 22 個登入供應商系列。本機模型伺服器（Ollama、LM Studio、vLLM 與 llama.cpp）以及自訂的 OpenAI 相容端點，無需供應商登入即可使用。執行 `/localsetup` 可安裝或啟動 Ollama、拉取適合你記憶體容量的模型、設定其上下文視窗，或連接正在執行的 LM Studio、vLLM 或 llama.cpp 伺服器（[docs/LOCAL-SETUP.md](../LOCAL-SETUP.md)）。每個供應商都使用自己的協定、憑證與錯誤處理方式，請求絕不會改由其他供應商處理。參見 [docs/ENGINES.md](../ENGINES.md)。
 
 `/llmhost` 會列出你可以代管的模型，並顯示每個模型目前可在何處執行：在從 Runpod、Vast.ai 或 Lambda 租用的 GPU 上、在你自己的電腦或已儲存的 SSH 電腦（`mercury host`）上，或在既有的模型伺服器上。每個模型頁面都會顯示量化選項、GPU 顯示記憶體預算如何分配給平行對話（`conversations × context`），以及預設的思考層級（`/effort` 可依請求變更）。租用 GPU 需要明確確認每小時價格；若你關閉彈出視窗，設定會在背景繼續進行。在 Runpod 上，你還可以在租用前或在執行中的 pod 上（`Tune`）調整品質、上下文分配與思考設定，將權重保存在快速載入的磁碟區上，並設定 5 秒級的庫存監看。Vast.ai 與 Lambda 的租用功能是 1.0.0-beta.40 的新增功能，已依各廠商公開的 API 在測試用固定資料（fixtures）上驗證（未執行實際租用）。參見 [docs/LLM-HOST.md](../LLM-HOST.md)。
 

@@ -593,8 +593,8 @@ the row stays across reconciles until you act on the session or release the row.
 The daemon's log records the same line for every crash. `ctrl+x ctrl+x` stops the selected
 session (the row stays, marked stopped with the next step), the chord
 again parks it, and a third chord removes the board row. In the session list
-`x` stops the selected session and `a` archives it; in a message box typing is
-never a control, so a plain `x` lands in the composer like any other letter. The board's REPO picker
+`x` stops the selected session and `a` archives it; in a message box typing is never a control,
+so a plain `x` lands in the composer like any other letter. The board's REPO picker
 changes the folder new sessions launch in, and the board updates to render
 the same list of projects as the home screen's Sessions · Projects view.
 `/daemon halt` interrupts immediately while a
