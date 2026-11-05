@@ -216,7 +216,7 @@ export function pullPace(samples: readonly { at: number; bytes: number }[], tota
 
 export function pullProgressWords(label: string, bytes: number, totalBytes: number | undefined, pace: PullPace): string {
   const gb = (value: number): string => `${(value / 1e9).toFixed(1)} GB`
-  const parts = [`pulling ${label}`, totalBytes !== undefined ? `${gb(bytes)} of ${(totalBytes / 1e9).toFixed(0)} GB` : gb(bytes)]
+  const parts = [`pulling ${label}`, totalBytes !== undefined ? `${gb(bytes)} of ${gb(totalBytes)}` : gb(bytes)]
   if (pace.bytesPerSecond !== undefined) parts.push(`${Math.round(pace.bytesPerSecond / 1e6)} MB/s`)
   if (pace.secondsLeft !== undefined) parts.push(pace.secondsLeft < 90 ? 'under 2 min' : `about ${Math.round(pace.secondsLeft / 60)} min`)
   return parts.join(' · ')

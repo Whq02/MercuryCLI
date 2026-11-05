@@ -244,7 +244,7 @@ const EXPECT: Record<string, Expect> = {
   't12-pulling': run => [
     ['the 27B: pulling 30% · 128k ctx', cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'pulling 30%', '128k ctx'), framedRow(run)],
     ['pull      ██████░░░…  then serves at 128k and switches', flat(run).some(l => /^pull\s+█+░+\s+then serves at 128k and switches$/.test(l)), card(run).join(' / ')],
-    ['the footer: pulling Qwen3.8 27B · 6.1 GB of 20 GB · 41 MB/s · about 6 min', has(run, 'pulling Qwen3.8 27B · 6.1 GB of 20 GB · 41 MB/s · about 6 min')],
+    ['the footer: pulling Qwen3.8 27B · 6.1 GB of 19.9 GB · 41 MB/s · about 6 min', has(run, 'pulling Qwen3.8 27B · 6.1 GB of 19.9 GB · 41 MB/s · about 6 min')],
     ['the legend: s stops, the download resumes next time · esc closes, it keeps pulling', legend(run).includes('s stops, the download resumes next time · esc closes, it keeps pulling'), legend(run)],
   ],
   't13-starting': run => [

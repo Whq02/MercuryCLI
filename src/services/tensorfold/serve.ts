@@ -155,12 +155,16 @@ function checkpointFor(repo: string, adapter: boolean): TensorFoldCheckpoint | u
   return adapter ? adapterCheckpointOf(repo) : startingPointOf(repo)
 }
 
-function loadingBytesOf(record: (TensorFoldServedRecord & { service: ServiceRecord }) | null, adapter: boolean): number {
-  if (record === null || record.service.state !== 'starting') return 0
+const LIVE_STATES = ['starting', 'ready', 'running']
+
+function heldBytesOf(record: (TensorFoldServedRecord & { service: ServiceRecord }) | null, adapter: boolean, states: readonly string[]): number {
+  if (record === null || !states.includes(record.service.state)) return 0
   const point = checkpointFor(record.repo, adapter)
   if (point === undefined) return 0
   return tensorFoldProjectedBytes({ ...point, ...(record.promptCacheGib !== undefined ? { promptCacheGib: record.promptCacheGib } : {}) }, record.window)
 }
+
+const loadingBytesOf = (record: (TensorFoldServedRecord & { service: ServiceRecord }) | null, adapter: boolean): number => heldBytesOf(record, adapter, ['starting'])
 
 async function forgetShared(sharedAs: string | undefined, io: Pick<ServeIo, 'forgetHost'>): Promise<void> {
   if (sharedAs === undefined) return
@@ -295,20 +299,19 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
     if (refused !== undefined) throw new TensorFoldStartError(refused, null)
   }
   const existing = servedTensorFoldRecord(scoped)
-  if (existing !== null && ['starting', 'ready', 'running'].includes(existing.service.state)) {
-    await stopTensorFold(existing.name, scoped)
-  }
+  const live = existing !== null && LIVE_STATES.includes(existing.service.state) ? existing : null
   const full = checkpointFor(request.repo, adapter)
   if (full !== undefined) {
     const needBytes = tensorFoldProjectedBytes({ ...full, ...(request.promptCacheGib !== undefined ? { promptCacheGib: request.promptCacheGib } : {}) }, request.window)
     const raw = io.freeMemoryBytes !== undefined ? await io.freeMemoryBytes() : await defaultFreeMemory(machine.platform, io.run ?? runForOutput)
-    const freeBytes = Math.max(0, raw - loadingBytesOf(servedTensorFoldRecord({ ...scoped, role: otherRole(role) }), adapter))
+    const freeBytes = Math.max(0, raw + heldBytesOf(live, adapter, LIVE_STATES) - loadingBytesOf(servedTensorFoldRecord({ ...scoped, role: otherRole(role) }), adapter))
     if (raw > 0 && freeBytes + TENSORFOLD_MEMORY_TIGHT_GIB * 1024 ** 3 < needBytes) {
       const ollama = await portFree(11434).then(free => !free)
       const offers = memoryOffers(role === 'session' && readRecord(cwd, 'local-gguf') !== null ? [{ name: 'local-gguf' }] : [], ollama)
-      throw new TensorFoldStartError(`${gibWords(needBytes)} needed · ${gibWords(freeBytes)} free`, null, { needBytes, freeBytes, offers })
+      throw new TensorFoldStartError(`${gibWords(needBytes)} needed · ${gibWords(freeBytes)} free${live !== null ? ` once ${live.name} stops` : ''}`, null, { needBytes, freeBytes, offers })
     }
   }
+  if (live !== null) await stopTensorFold(live.name, scoped)
   const pick = await pickTensorFoldPort(request.port ?? rememberedTensorFoldPort(scoped) ?? TENSORFOLD_DEFAULT_PORT, io)
   io.onPort?.(pick)
   const key = request.share === true && role === 'session' ? (io.keyFile ?? writeTensorFoldKeyFile)() : undefined

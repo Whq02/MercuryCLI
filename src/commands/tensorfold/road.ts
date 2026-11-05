@@ -206,6 +206,7 @@ export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: nu
         },
       )
     } catch (error) {
+      await refreshLocalDiscovery({ force: true, ...(io.prove?.env !== undefined ? { env: io.prove.env } : {}) }).catch(() => undefined)
       if (error instanceof TensorFoldStartError) {
         if (error.refusal !== null) {
           const refusal = error.refusal

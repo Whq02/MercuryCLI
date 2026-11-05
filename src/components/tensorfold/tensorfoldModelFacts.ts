@@ -5,7 +5,7 @@ import { readTensorFoldPanelFacts, type FactsIo, type TensorFoldPanelFacts } fro
 import { localServerProbingOff } from '../../services/localServer/localServerTruth.js'
 import { getCachedLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
 import type { TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
-import { refreshTensorFoldAnnouncements, sameUrl, subscribeTensorFoldFacts, tensorFoldAnnouncementsNow, tensorFoldFactsStamp, tensorFoldHostsNow, withDiscoveredHosts } from './tensorfoldFacts.js'
+import { refreshTensorFoldAnnouncements, subscribeTensorFoldFacts, tensorFoldAnnouncementsNow, tensorFoldFactsStamp, tensorFoldHostsNow } from './tensorfoldFacts.js'
 import type { TensorFoldPickerFacts } from './tensorfoldRows.js'
 
 const REFRESH_MS = 1_000
@@ -20,9 +20,7 @@ export type ModelTensorFold = {
 
 export async function readModelTensorFoldFacts(io: FactsIo = {}): Promise<ModelTensorFoldFacts> {
   const panel = await readTensorFoldPanelFacts(io, tensorFoldRoadState())
-  const hosts = withDiscoveredHosts(panel.hosts)
-  const own: TensorFoldPanelFacts = { ...panel, hosts, outside: panel.outside.filter(server => !hosts.some(host => sameUrl(host.baseUrl, server.baseUrl))) }
-  return { panel: own, picker: pickerFactsOf(own) }
+  return { panel, picker: pickerFactsOf(panel) }
 }
 
 let factsSnapshot: ModelTensorFoldFacts | undefined

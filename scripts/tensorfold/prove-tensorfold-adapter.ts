@@ -34,7 +34,7 @@ const { localServerKind } = await import('../../src/constants/localPromptProfile
 const health = await import('../../src/services/providers/local/tensorfoldHealth.ts')
 const support = await import('../../src/services/providers/local/tensorfoldSupport.ts')
 const { readRecord } = await import('../../src/services/projectServices/serviceManager.ts')
-const { adapterFitsMachine, tensorFoldCapableMachine, withDiscoveredHosts } = await import('../../src/components/tensorfold/tensorfoldFacts.ts')
+const { adapterFitsMachine, tensorFoldCapableMachine } = await import('../../src/components/tensorfold/tensorfoldFacts.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -236,10 +236,11 @@ section('serve against the fake llama-server: 503 while loading, the TensorFold-
   check("RED on the base — his engine served beside the adapter keeps its own identity on the support line: TensorFold 1.2.2 · CPU, never the adapter's name or llama.cpp's build (FRC2W: the box read 'TensorFold adapter 1.2.2 (Mercury's engine) · llama.cpp b11829' for a server that was TensorFold itself)", outsideLine !== undefined && outsideLine.startsWith('TensorFold 1.2.2 · CPU · ') && !outsideLine.includes('adapter') && !outsideLine.includes('llama.cpp') && outsideLine.includes(' · qwen3.5-2b · --context 32768 · '), outsideLine)
   const outsideRow = health.tensorFoldHealthRow(outsideState)
   check("/health's row for his engine beside the adapter names TensorFold 1.2.2, not the adapter", outsideRow?.status === 'ok' && !outsideRow.evidence.includes('adapter') && !outsideRow.evidence.includes('llama.cpp'), JSON.stringify(outsideRow))
-  const typedHost = withDiscoveredHosts([{ name: '127.0.0.1', baseUrl: root, origin: 'typed' }])
-  check("RED on the base — a remembered host whose address discovery answers carries the live facts: the model served, the window, the version, who serves it (FRC2W-U-32: a typed host stored no serving and nothing filled it)", typedHost.length === 1 && typedHost[0]!.serving === 'qwen3.5-2b' && typedHost[0]!.window === 32_768 && typedHost[0]!.servedBy === 'mercury-llamacpp' && typedHost[0]!.version !== undefined && typedHost[0]!.origin === 'typed', JSON.stringify(typedHost))
+  const typedPanel = await scene.readTensorFoldPanelFacts({ cacheRoot: world.cache, machine: WIN_16, engine: null, env: world.env, home: world.home, servedFile: join(world.home, 'nothing-served.json'), platform: 'win32', hosts: () => [{ name: '127.0.0.1', baseUrl: root, origin: 'typed' }], localModels: () => probe!.models, app: async () => undefined } as never)
+  const typedHost = typedPanel.hosts[0]
+  check("RED on the base — /tensorfold's own facts: a remembered host whose address discovery answers carries the live facts — the model served, the window, the version, who serves it — and the same server is not listed twice as an outside one (FRC2W-U-32: a typed host stored no serving and nothing filled it)", typedPanel.hosts.length === 1 && typedHost?.serving === 'qwen3.5-2b' && typedHost.window === 32_768 && typedHost.servedBy === 'mercury-llamacpp' && typedHost.version !== undefined && typedHost.origin === 'typed' && !typedPanel.outside.some(server => server.port === Number(new URL(root).port)), JSON.stringify({ hosts: typedPanel.hosts, outside: typedPanel.outside }))
   const typedRoad = readFileSync(join(ROOT, 'src', 'commands', 'tensorfold', 'tensorfold.tsx'), 'utf8')
-  check("a typed loopback address is remembered as a port on this machine (an outside server under TENSORFOLD), a typed network address as a host", /case 'address'[\s\S]{0,900}rememberTensorFoldPort\(here\[1\] === undefined \? 8080 : Number\(here\[1\]\)\)[\s\S]{0,400}rememberTensorFoldHost\(\{ name: address\.replace/.test(typedRoad) && typedRoad.includes('a server on this machine appears under ${W.group} when it answers'))
+  check("a typed loopback address is remembered as a port on this machine (an outside server under TENSORFOLD) and a legacy host record for it forgotten, a typed network address is a host, and discovery is refreshed before the panel re-reads", /case 'address'[\s\S]{0,900}rememberTensorFoldPort\(port\)[\s\S]{0,300}forgetTensorFoldHost\(host\.name\)[\s\S]{0,600}rememberTensorFoldHost\(\{ name: address\.replace[\s\S]{0,600}refreshLocalDiscovery\(\{ force: true \}\)[\s\S]{0,120}doors\.read/.test(typedRoad) && typedRoad.includes('a server on this machine appears under ${W.group} when it answers'))
   const slow = worldWithLlama('tf-adapter-slow', { env: { FAKE_LLAMA_SLOW_MS: '400' } })
   const slowPort = await freePort()
   const slowChild = adapterProcess(['serve', QWEN_2B.repo, '--name', 'qwen3.5-2b', '--context', '4096', '--port', String(slowPort)], { ...slow.env, HOME: slow.home, TF_DRAIN_S: '1' })

@@ -9,6 +9,7 @@ import { cachedLocalModels, type LocalModelRecord } from '../../services/provide
 import { detectTensorFoldApp, type TensorFoldAppState } from '../../services/providers/local/tensorfoldApp.js'
 import { helperHeadingWords } from '../../services/providers/local/tensorfoldHelper.js'
 import { tensorFoldHostAddress, tensorFoldHosts } from '../../services/providers/local/tensorfoldHosts.js'
+import { sameUrl, withDiscoveredHosts } from '../../components/tensorfold/tensorfoldFacts.js'
 import { lastTensorFoldTurn } from '../../services/providers/local/tensorfoldUsage.js'
 import type { TensorFoldEngine, TensorFoldHost, TensorFoldLastReply, TensorFoldServed } from '../../services/tensorfold/contracts.js'
 import { servedByAdapter } from '../../services/tensorfold/adapter/identity.js'
@@ -109,7 +110,7 @@ function portOf(baseUrl: string): number | undefined {
   }
 }
 
-function loopbackPortOf(baseUrl: string): number | undefined {
+export function loopbackPortOf(baseUrl: string): number | undefined {
   if (!isLoopbackUrl(baseUrl)) return undefined
   try {
     return Number(new URL(baseUrl).port || 80)
@@ -121,7 +122,7 @@ function loopbackPortOf(baseUrl: string): number | undefined {
 function outsideOf(records: readonly LocalModelRecord[], served: readonly TensorFoldServed[], helper: readonly TensorFoldServed[], hosts: readonly TensorFoldHost[], current: string | undefined): TensorFoldOutsideServer[] {
   const ports = new Set([...served, ...helper].map(row => row.port))
   for (const host of hosts) {
-    const tunnel = host.origin === 'shared' ? undefined : loopbackPortOf(host.baseUrl)
+    const tunnel = host.origin === 'pod' ? loopbackPortOf(host.baseUrl) : undefined
     if (tunnel !== undefined) ports.add(tunnel)
   }
   const out: TensorFoldOutsideServer[] = []
@@ -194,8 +195,8 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
   const rows = platform === 'win32' && engine === null ? [] : withServedReadings(await readTensorFoldInventory(engine, { ...io, machine, served }), records, quietly(() => (io.lastTurn ?? lastTensorFoldTurn)(), undefined))
   const current = io.current
   const turn = quietly(() => (io.lastTurn ?? lastTensorFoldTurn)(), undefined)
-  const hosts = quietly(() => io.hosts?.() ?? tensorFoldHosts(), [] as readonly TensorFoldHost[]).map(host => host.origin === 'pod' && host.lastReply === undefined && host.serving !== undefined && turn !== undefined && turn.address === tensorFoldHostAddress(host.baseUrl) && (turn.model === host.serving || turn.model.endsWith(`/${host.serving}`)) ? { ...host, lastReply: { ...(turn.timeToFirstTokenS !== undefined ? { firstTokenMs: turn.timeToFirstTokenS * 1000 } : {}), ...(turn.tokensPerSecond !== undefined ? { tokensPerSecond: turn.tokensPerSecond } : {}) } } : host)
-  const outside = outsideOf(records, served, helperServed, hosts, current)
+  const hosts = withDiscoveredHosts(quietly(() => io.hosts?.() ?? tensorFoldHosts(), [] as readonly TensorFoldHost[])).map(host => host.origin === 'pod' && host.lastReply === undefined && host.serving !== undefined && turn !== undefined && turn.address === tensorFoldHostAddress(host.baseUrl) && (turn.model === host.serving || turn.model.endsWith(`/${host.serving}`)) ? { ...host, lastReply: { ...(turn.timeToFirstTokenS !== undefined ? { firstTokenMs: turn.timeToFirstTokenS * 1000 } : {}), ...(turn.tokensPerSecond !== undefined ? { tokensPerSecond: turn.tokensPerSecond } : {}) } } : host)
+  const outside = outsideOf(records, served, helperServed, hosts, current).filter(server => !hosts.some(host => sameUrl(host.baseUrl, server.baseUrl)))
   const helper = quietly(() => (io.helper ?? helperHeadingWords)(), undefined)
   const app = platform === 'darwin' ? await (io.app ?? detectTensorFoldApp)().catch(() => undefined) : undefined
   const rent = quietly(() => (io.rent ?? defaultRent)(), undefined)
@@ -257,7 +258,7 @@ function liveLineOf(facts: Omit<TensorFoldPanelFacts, 'live' | 'copySupportOffer
   for (const [repo, act] of Object.entries(facts.acts)) {
     const row = facts.rows.find(candidate => candidate.repo === repo)
     if (act.kind === 'pulling') return pullProgressWords(row?.label ?? repo, act.bytes, act.totalBytes, act.pace)
-    if (act.kind === 'starting') return `starting ${act.name} on ${servedAddress(act.port)} · loading · ${act.seconds} s`
+    if (act.kind === 'starting') return `starting ${act.name}${act.port > 0 ? ` on ${servedAddress(act.port)}` : ''} · loading · ${act.seconds} s`
   }
   if (facts.keyed !== undefined) return `${facts.keyed.address} answers with a key · /health shows status only`
   const served = facts.served[0]

@@ -8,7 +8,7 @@ import { stopTensorFoldPod, terminateTensorFoldPod } from '../../services/host/t
 import { resolveSetupIo } from '../../services/localSetup/setupIo.js'
 import { pickAndProve, switchSessionModel } from '../../services/localSetup/setupProve.js'
 import { PAIRING_WORDS } from '../../services/lan/pairing.js'
-import { rememberTensorFoldHost, rememberTensorFoldPort } from '../../services/providers/local/tensorfoldHosts.js'
+import { forgetTensorFoldHost, rememberTensorFoldHost, rememberTensorFoldPort, tensorFoldHosts } from '../../services/providers/local/tensorfoldHosts.js'
 import type { TensorFoldHost } from '../../services/tensorfold/contracts.js'
 import type { TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
 import type { TensorFoldInventoryRow } from '../../services/tensorfold/inventory.js'
@@ -38,7 +38,9 @@ import {
   tensorFoldRoadVersion,
   type RoadIo,
 } from './road.js'
-import { readTensorFoldPanelFacts, servedAddress, type FactsIo, type TensorFoldPanelFacts } from './scene.js'
+import { loopbackPortOf, readTensorFoldPanelFacts, servedAddress, type FactsIo, type TensorFoldPanelFacts } from './scene.js'
+import { refreshLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
+import { localServerProbingOff } from '../../services/localServer/localServerTruth.js'
 import { TENSORFOLD_WORDS as W } from './words.js'
 
 export const TENSORFOLD_REFRESH_MS = 1_000
@@ -202,12 +204,15 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
       try {
         const here = /^(?:localhost|127(?:\.\d+){3}|\[::1\]|::1)(?::(\d+))?$/i.exec(address)
         if (here !== null) {
-          rememberTensorFoldPort(here[1] === undefined ? 8080 : Number(here[1]))
+          const port = here[1] === undefined ? 8080 : Number(here[1])
+          rememberTensorFoldPort(port)
+          for (const host of tensorFoldHosts().filter(host => host.origin === 'typed' && loopbackPortOf(host.baseUrl) === port)) await forgetTensorFoldHost(host.name)
           setTensorFoldNotice(`${address} remembered · a server on this machine appears under ${W.group} when it answers`)
         } else {
           await rememberTensorFoldHost({ name: address.replace(/:\d+$/, ''), baseUrl: `http://${address}`, origin: 'typed' })
           setTensorFoldNotice(`${address} remembered · it appears under ${W.hostGroup} when it answers`)
         }
+        if (!localServerProbingOff()) await refreshLocalDiscovery({ force: true }).catch(() => undefined)
         await doors.read?.()
       } catch (error) {
         setTensorFoldNotice(error instanceof Error ? error.message : String(error))

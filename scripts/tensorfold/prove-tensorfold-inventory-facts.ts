@@ -115,7 +115,7 @@ const order = (facts: Facts): string => built(facts).rows.filter(row => row.acti
   const t11 = facts('t11')
   check("t11 other checkpoint refused: GGUF is llama.cpp's format · /localsetup serves it", t11.other?.refused === "GGUF is llama.cpp's format · /localsetup serves it" && cardOf(t11, 'tensorfold:other')[0] === "refused   GGUF is llama.cpp's format · /localsetup serves it", cardOf(t11, 'tensorfold:other').join(' / '))
   const t12 = facts('t12')
-  check('t12 pulling: state pulling 30%; the live line pulling Qwen3.8 27B · 6.1 GB of 20 GB · 41 MB/s · about 6 min; the pulling row stays first', cellsOf(t12, 'local/qwen3.8-27b').includes(':pulling 30%:') && t12.live === 'pulling Qwen3.8 27B · 6.1 GB of 20 GB · 41 MB/s · about 6 min' && order(t12).startsWith('local/qwen3.8-27b,'), `${cellsOf(t12, 'local/qwen3.8-27b')} | ${t12.live}`)
+  check('t12 pulling: state pulling 30%; the live line pulling Qwen3.8 27B · 6.1 GB of 19.9 GB · 41 MB/s · about 6 min; the pulling row stays first', cellsOf(t12, 'local/qwen3.8-27b').includes(':pulling 30%:') && t12.live === 'pulling Qwen3.8 27B · 6.1 GB of 19.9 GB · 41 MB/s · about 6 min' && order(t12).startsWith('local/qwen3.8-27b,'), `${cellsOf(t12, 'local/qwen3.8-27b')} | ${t12.live}`)
   const t13 = facts('t13')
   check('t13 starting: heading … · 1 starting; state starting; the live line starting qwen3.8-27b on 127.0.0.1:8080 · loading · 41 s', heading(t13) === '1.2.2 · Apple M5 Pro · 36.0 GiB usable · 1 starting' && cellsOf(t13, 'local/qwen3.8-27b').includes(':starting:') && t13.live === 'starting qwen3.8-27b on 127.0.0.1:8080 · loading · 41 s', `${heading(t13)} | ${t13.live}`)
   const t14 = facts('t14')
