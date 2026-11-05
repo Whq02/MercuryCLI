@@ -23,7 +23,7 @@ export function modelPickerFooter(
   const keys = opts.heading === undefined && opts.filterFocus !== true ? opts.keys : undefined
   if (keys?.legend !== undefined) return keys.legend.join(' · ')
   const head = '↑↓ select'
-  let tail = opts.filtering ? 'esc clears the search' : MODEL_PICKER_EXIT_WORDS
+  const tail = opts.filtering ? 'esc clears the search' : MODEL_PICKER_EXIT_WORDS
   const action = opts.heading !== undefined
     ? opts.heading.fold === 'folded' ? '↵ unfold' : '↵ fold'
     : opts.gated
@@ -49,16 +49,17 @@ export function modelPickerFooter(
   const shortenBelow = keys !== undefined && tail === MODEL_PICKER_EXIT_WORDS ? 4 : -1
   const join = (parts: string[]): string => parts.join(' · ')
   let shown = middle.filter(s => s.show)
-  const fits = (): boolean => join([head, ...shown.map(s => s.text), tail]).length <= innerWidth
+  let exit = tail
+  const fits = (): boolean => join([head, ...shown.map(s => s.text), exit]).length <= innerWidth
   while (!fits() && shown.length > 0) {
     let victim = 0
     for (let k = 1; k < shown.length; k++) if (shown[k]!.drop > shown[victim]!.drop) victim = k
-    if (shown[victim]!.drop < shortenBelow && tail === MODEL_PICKER_EXIT_WORDS) {
-      tail = MODEL_PICKER_SHORT_EXIT_WORDS
+    if (shown[victim]!.drop < shortenBelow && exit === MODEL_PICKER_EXIT_WORDS) {
+      exit = MODEL_PICKER_SHORT_EXIT_WORDS
       continue
     }
     shown = shown.filter((_, k) => k !== victim)
   }
-  const line = join([head, ...shown.map(s => s.text), tail])
+  const line = join([head, ...shown.map(s => s.text), exit])
   return line.length <= innerWidth || opts.filterFocus ? line : join([head, ...shown.map(s => s.text), MODEL_PICKER_SHORT_EXIT_WORDS])
 }

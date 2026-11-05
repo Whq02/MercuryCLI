@@ -95,6 +95,9 @@ src/components/concourse/ConcourseRoute.tsx :: lastCoherentSnapshot :: subscript
 src/components/mercury-ui/sessionAccent.ts :: snapshotMemo :: keyed-by-truth
 src/components/messages/TranscriptNameplate.tsx :: cachedHandle :: static-for-process
 src/components/messages/transcriptMemory.ts :: memories :: keyed-by-truth
+src/components/tensorfold/tensorfoldFacts.ts :: announcedSnapshot :: invalidator=refreshTensorFoldAnnouncements
+src/components/tensorfold/tensorfoldFacts.ts :: offerSnapshot :: invalidator=refreshTensorFoldOffer
+src/components/tensorfold/tensorfoldModelFacts.ts :: factsSnapshot :: subscription-fed
 src/context.ts :: getGitStatus :: invalidator=applyHarnessGround
 src/context.ts :: getSystemContext :: invalidator=applyHarnessGround
 src/context.ts :: getUserContext :: invalidator=applyHarnessGround
@@ -181,6 +184,7 @@ src/services/providers/deferralProbe.ts :: cache :: keyed-by-truth
 src/services/providers/gemini/geminiCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/huggingface/huggingfaceCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/local/localDiscovery.ts :: cached :: ttl-bounded
+src/services/providers/local/tensorfoldApp.ts :: cachedApp :: ttl-bounded
 src/services/providers/meta/metaCatalogue.ts :: cache :: ttl-bounded
 src/services/providers/minimax/minimaxCatalogue.ts :: cache :: ttl-bounded
 src/services/providers/mistral/mistralCatalogue.ts :: cache :: ttl-bounded
@@ -210,6 +214,7 @@ src/services/search/searchPacing.ts :: cache :: ttl-bounded
 src/services/switchboard/capacityCheck.ts :: memorySampleMemo :: ttl-bounded
 src/services/switchboard/ensureDaemon.ts :: bootRunnerOptionsMemo :: static-for-process
 src/services/switchboard/ensureDaemon.ts :: usableMemo :: ttl-bounded
+src/services/tensorfold/engine.ts :: machineCache :: ttl-bounded
 src/services/tokenEstimation.ts :: pdfPageCountMemo :: keyed-by-truth
 src/services/vulcan/portabilityHealth.ts :: presenceMemo :: ttl-bounded
 src/services/wallet/wallet.ts :: activeMemo :: ttl-bounded

@@ -418,7 +418,7 @@ const GENERAL_TIPS: Tip[] = [
     id: 'tensorfold-picker-groups',
     cooldownSessions: 10,
     async content() {
-      return '/model pins TENSORFOLD and TENSORFOLD HOST first; /tensorfold opens the control panel.'
+      return 'TENSORFOLD sits where you last used it in /model; /tensorfold opens the control panel.'
     },
     async isRelevant(context) {
       return isTensorFoldInstalledOrServing(context) || isTensorFoldServingOrPaired(context)
