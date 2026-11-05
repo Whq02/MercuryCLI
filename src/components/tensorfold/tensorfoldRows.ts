@@ -26,6 +26,7 @@ type TensorFoldInstallFacts = { road: 'brew' | 'archive'; state?: 'installing' |
 type TensorFoldPortNote = { port: number; taken: number; by: string; keyed?: boolean }
 type TensorFoldRentFacts = { pod?: string; serves?: string; title?: string }
 type TensorFoldPodRow = { hostName: string; id: string; provider?: string; words: string; bills: boolean }
+export type TensorFoldAnnouncedHost = { name: string; host: string; pairPort: number; enginePort?: number; serving?: string; window?: number; version?: string; chip?: string; keyed: boolean; pairing?: boolean; refused?: string }
 
 export type TensorFoldPickerFacts = {
   platform: NodeJS.Platform
@@ -45,6 +46,7 @@ export type TensorFoldPickerFacts = {
   disk?: { into: string; freeBytes?: number }
   rent?: TensorFoldRentFacts
   pods?: readonly TensorFoldPodRow[]
+  announced?: readonly TensorFoldAnnouncedHost[]
 }
 
 export type TensorFoldAct =
@@ -57,12 +59,13 @@ export type TensorFoldAct =
   | { kind: 'install' }
   | { kind: 'read'; repo: string }
   | { kind: 'address'; address: string }
+  | { kind: 'pair'; host: TensorFoldAnnouncedHost; code: string }
   | { kind: 'rent' }
   | { kind: 'app'; serving: string }
   | { kind: 'share'; row: TensorFoldModelRow }
   | { kind: 'unshare'; row: TensorFoldModelRow }
 
-type TensorFoldInput = 'repo' | 'address'
+type TensorFoldInput = 'repo' | 'address' | 'code'
 export type TensorFoldTyping = { key: string; input: TensorFoldInput; text: string }
 
 type TensorFoldPickerUi = {
@@ -81,6 +84,7 @@ type TensorFoldKeys = {
   support?: TensorFoldAct
   share?: { words: string; act: TensorFoldAct }
   legend?: readonly string[]
+  typed?: (text: string) => TensorFoldAct
 }
 
 export type TensorFoldChoice = {
@@ -219,6 +223,8 @@ function startedByMercury(facts: TensorFoldPickerFacts, row: TensorFoldModelRow)
 function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: TensorFoldModelRow, rest: boolean): ModelChoice {
   const id = `local/${row.shortName}`
   const act = facts.acts?.[row.repo]
+  const unqualified = !row.qualified && row.state === 'on-disk' && act === undefined
+  const note = (width: number): TensorFoldCardLine[] => (unqualified ? kv('note', 'unqualified by TensorFold', width) : [])
   const chosen = ui.windows?.[row.repo]
   const at = chosen ?? (act?.phase === 'refused' && act.window !== undefined ? act.window : row.window)
   const fit = fitAt(row, at)
@@ -227,7 +233,7 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
   const support: TensorFoldAct = { kind: 'support', row, window: at }
   const window = { rungs: rungsOf(row), at, repo: row.repo }
   const base = { id, name: row.label ?? row.shortName, tag: '', ctx: at > 0 ? `${tok(at)} ctx` : '', group: TENSORFOLD_MODEL_GROUP, rest }
-  const projected = (tone: TensorFoldTone = fit === undefined || fit.verdict === 'fits' ? 'faint' : 'amber'): TensorFoldCell => ({ text: fit === undefined || fit.neededGib <= 0 ? '' : gib(fit.neededGib), tone })
+  const projected = (tone: TensorFoldTone = fit === undefined || fit.verdict === 'fits' ? 'faint' : 'amber'): TensorFoldCell => (unqualified ? { text: 'unqualified', tone: 'faint' } : { text: fit === undefined || fit.neededGib <= 0 ? '' : gib(fit.neededGib), tone })
   const portLines = (width: number): TensorFoldCardLine[] => (facts.port === undefined ? [] : kv('port', `${facts.port.port} · ${facts.port.taken} ${facts.port.keyed === true ? 'is the keyed TensorFold server' : `answers as ${facts.port.by}`} · Mercury remembers it`, width))
   if (act?.phase === 'pulling' || row.state === 'pulling') {
     const percent = pulledPercent(row, act)
@@ -334,6 +340,7 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
         state,
         memory: projected(),
         card: width => [
+          ...note(width),
           strip(row, at, `${tok(at)} needs ${gib(fit.neededGib)}, ${gib(fit.availableGib)} usable · ${room !== undefined ? `← ${tok(room)} fits` : 'no window fits this machine'}`, 'amber'),
           ...memoryLine(fit, width),
         ],
@@ -344,13 +351,23 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
   const pullLines = (width: number): TensorFoldCardLine[] =>
     pulled || facts.disk === undefined ? [] : kv('pull', `into ${facts.disk.into}${facts.disk.freeBytes !== undefined ? ` · ${bytesWords(facts.disk.freeBytes)} free on this disk` : ''}`, width)
   if (fit?.verdict === 'needs-gpu-limit') {
+    const [head = '', ...cost] = (fit.remedy ?? '').split(' · ')
+    const command = /^sudo sysctl iogpu\.wired_limit_mb=\d+$/.test(head) ? head : undefined
+    const verdict = command !== undefined ? 'needs the GPU limit raised · w · an estimate' : [fit.reason, fit.remedy, 'an estimate'].filter(part => part !== undefined && part !== '').join(' · ')
     return {
       ...base,
       tensorfold: {
         state,
         memory: projected(),
-        card: width => [...kv('fit', 'needs the GPU limit raised · w · an estimate', width, 'amber'), strip(row, at, '←→ changes it'), ...memoryLine(fit, width), ...pullLines(width)],
-        keys: { ...(fit.remedy !== undefined ? { limit: { kind: 'limit', row, line: fit.remedy } } : {}), window, support },
+        card: width => [
+          ...note(width),
+          ...kv('fit', verdict, width, 'amber'),
+          strip(row, at, '←→ changes it'),
+          ...memoryLine(fit, width),
+          ...(command !== undefined ? [...willRun([command], width), ...(cost.length > 0 ? kv('cost', cost.join(' · '), width) : [])] : []),
+          ...pullLines(width),
+        ],
+        keys: { ...(command !== undefined ? { limit: { kind: 'limit', row, line: command } } : {}), window, support },
       },
     }
   }
@@ -360,7 +377,7 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
     tensorfold: {
       state,
       memory: projected(),
-      card: width => [strip(row, at, '←→ changes it'), ...memoryLine(fit, width), ...pullLines(width), ...willRun(willRunOf(facts, row, at), width), ...portLines(width)],
+      card: width => [...note(width), strip(row, at, '←→ changes it'), ...memoryLine(fit, width), ...pullLines(width), ...willRun(willRunOf(facts, row, at), width), ...portLines(width)],
       keys: { enter: { words: enter, act: { kind: 'serve', row, window: at } }, window, support },
     },
   }
@@ -391,7 +408,7 @@ function otherChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): Mode
       ...(typing !== undefined ? [[seg(pad('repo')), seg(typing.text, 'ivory'), seg('▌', 'accent')]] : []),
       ...(facts.other?.refused !== undefined ? kv('refused', facts.other.refused, width, 'amber') : kv('reads', 'Hugging Face · MLX, NVFP4 or EXL3 checkpoints, not GGUF', width)),
     ],
-    keys: typing !== undefined ? { legend: ['type a repository id', '↵ read it', 'esc back'] } : { enter: { words: '↵ type a repository id', input: 'repo' } },
+    keys: typing !== undefined ? { legend: ['type a repository id', '↵ read it', 'esc back'], typed: text => ({ kind: 'read', repo: text }) } : { enter: { words: '↵ type a repository id', input: 'repo' } },
   }, true)
 }
 
@@ -442,6 +459,7 @@ function hostChoices(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): Mode
       },
     }
   })
+  for (const announced of facts.announced ?? []) out.push(announcedChoice(announced, labels, ui))
   out.push(actionChoice(TENSORFOLD_HOST_GROUP, 'rent', 'rent a GPU pod', 'Runpod, through /llmhost', {
     card: width => [
       ...(facts.rent?.pod !== undefined ? kv('pod', facts.rent.pod, width) : []),
@@ -456,14 +474,49 @@ function hostChoices(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): Mode
       ...(typing !== undefined ? [[seg(pad('address')), seg(typing.text, 'ivory'), seg('▌', 'accent')]] : kv('address', 'type host:port, e.g. studio.local:8080', width)),
       ...kv('network', LAN_WORDS, width),
     ],
-    keys: typing !== undefined ? { legend: ['type host:port', '↵ add it', 'esc back'] } : { enter: { words: '↵ type its address', input: 'address' } },
+    keys: typing !== undefined ? { legend: ['type host:port', '↵ add it', 'esc back'], typed: text => ({ kind: 'address', address: text }) } : { enter: { words: '↵ type its address', input: 'address' } },
   }))
   return out.map(choice => ({ ...choice, rest: false }))
 }
 
+function announcedChoice(host: TensorFoldAnnouncedHost, labels: ReadonlyMap<string, string>, ui: TensorFoldPickerUi): ModelChoice {
+  const key = `announced:${host.name}`
+  const typing = ui.typing?.key === key ? ui.typing : undefined
+  const address = [`${host.host}${host.enginePort !== undefined ? `:${host.enginePort}` : ''}`, host.chip, host.version !== undefined ? `TensorFold ${host.version}` : undefined, host.keyed ? 'keyed' : undefined].filter(part => part !== undefined).join(' · ')
+  return {
+    id: host.serving !== undefined ? `local/${host.serving}` : `tensorfold:${key}`,
+    key,
+    name: host.serving !== undefined ? (labels.get(host.serving) ?? host.serving) : host.name,
+    tag: '',
+    ctx: host.window !== undefined ? `${tok(host.window)} ctx` : '',
+    group: TENSORFOLD_HOST_GROUP,
+    rest: false,
+    tensorfold: {
+      state: host.pairing === true ? { text: 'pairing', tone: 'info' } : { text: 'not paired', tone: 'faint' },
+      memory: { text: host.name, tone: 'faint' },
+      card: width => [
+        ...kv('host', address, width),
+        ...(typing !== undefined
+          ? [[seg(pad('code')), seg(typing.text, 'ivory'), seg('▌', 'accent')]]
+          : host.refused !== undefined && host.pairing !== true
+            ? kv('refused', host.refused, width, 'amber')
+            : kv('pair', host.pairing === true ? `sending the code to ${host.name}` : `↵ asks once for the pairing code shown on ${host.name}`, width)),
+        ...kv('network', LAN_WORDS, width),
+      ],
+      keys:
+        typing !== undefined
+          ? { legend: ['type the pairing code', '↵ pair', 'esc back'], typed: code => ({ kind: 'pair', host, code }) }
+          : host.pairing === true
+            ? {}
+            : { enter: { words: '↵ pair with its code', input: 'code' } },
+    },
+  }
+}
+
 function modelGroupChoices(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): ModelChoice[] {
   if (facts.platform === 'win32') return []
-  const offered = facts.rows.filter(row => row.qualified || isServed(row))
+  const families = new Set((facts.engine?.families ?? []).map(family => family.id))
+  const offered = facts.rows.filter(row => row.qualified || isServed(row) || (row.state === 'on-disk' && families.has(row.family)))
   const served = offered.filter(isServed)
   const best = offered.find(row => row.repo === facts.best && !isServed(row))
   const rest = offered.filter(row => !isServed(row) && row !== best)
@@ -499,7 +552,7 @@ function tensorFoldStatus(facts: TensorFoldPickerFacts): string {
 }
 
 function tensorFoldHostStatus(facts: TensorFoldPickerFacts): string {
-  const hosts = (facts.hosts ?? []).filter(host => host.origin !== 'app')
+  const hosts = [...(facts.hosts ?? []).filter(host => host.origin !== 'app'), ...(facts.announced ?? [])]
   if (hosts.length === 0) return HOST_NONE
   const serving = hosts.filter(host => host.serving !== undefined).length
   return `${hosts.map(host => host.name).join(' · ')} · ${serving > 0 ? `${serving} serving` : 'nothing served'}`

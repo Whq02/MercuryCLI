@@ -277,6 +277,18 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
     }
     setLineSnapshot({ listed, lines })
   }
+  const touched = React.useRef(false)
+  const [tfSeat, setTfSeat] = useState(() => seatGroup(groups))
+  const seatNow = seatGroup(groups)
+  if (seatNow !== undefined && seatNow !== tfSeat) {
+    setTfSeat(seatNow)
+    if (!touched.current) {
+      const nextFolds = { ...folds, ...initialPickerFolds(groups.filter(group => group.group === seatNow), seatNow, currentKey) }
+      setFolds(nextFolds)
+      const at = composePickerLines(groups, nextFolds, filter, fullRowsOf).findIndex(line => line.kind === 'row' && line.key === currentKey)
+      if (at >= 0) setI(at)
+    }
+  }
   const focusedLine = lines[i]
   const focusedModel = focusedLine?.kind === 'row' ? focusedLine.row : undefined
   const focusedHeading = focusedLine?.kind === 'heading' ? focusedLine : undefined
@@ -417,6 +429,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
   const pastOpenEvent = useOpenEventGate()
   const overlayToken = useRegisterOverlay('model-picker', true)
   useInput((input, key, event) => {
+    touched.current = true
     const rowAxis = decodeNavKey(input, key, { orientation: 'vertical', hierarchy: true, tabFocus: true })
     if (tfTyping !== null) {
       event.stopImmediatePropagation()
@@ -426,15 +439,16 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
       }
       if (rowAxis === 'activate') {
         const text = tfTyping.text.trim()
+        const typed = listed.find(m => rowKey(m) === tfTyping.key)?.tensorfold?.keys.typed
         setTfTyping(null)
-        if (text !== '') onTensorFold?.(tfTyping.input === 'repo' ? { kind: 'read', repo: text } : { kind: 'address', address: text })
+        if (text !== '' && typed !== undefined) onTensorFold?.(typed(text))
         return
       }
       if (key.backspace || key.delete) {
         setTfTyping(typing => (typing === null ? typing : { ...typing, text: typing.text.slice(0, -1) }))
         return
       }
-      if (isSearchCharacter(input, key)) setTfTyping(typing => (typing === null ? typing : { ...typing, text: typing.text + input }))
+      if (tfTyping.input === 'code' ? !key.ctrl && !key.meta && /^\d+$/.test(input) : isSearchCharacter(input, key)) setTfTyping(typing => (typing === null ? typing : { ...typing, text: typing.input === 'code' ? (typing.text + input).slice(0, 6) : typing.text + input }))
       return
     }
     if (rowAxis === 'cancel' && tfConfirm !== null) {
@@ -453,7 +467,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
       if (tfKeys?.window !== undefined) stepWindow(tfKeys.window, 1)
       return
     }
-    if (!filterFocus && !key.ctrl && !key.meta && tfKeys !== undefined && ((input === 's' && tfKeys.stop !== undefined) || (input === 'w' && tfKeys.limit !== undefined) || (input === 'c' && tfKeys.support !== undefined) || (input === 'n' && tfKeys.share !== undefined))) {
+    if (!filterFocus && !key.ctrl && !key.meta && tfKeys !== undefined && ((input === 's' && tfKeys.stop !== undefined) || (input === 'w' && tfKeys.limit !== undefined) || (input === 'c' && !key.ctrl && tfKeys.support !== undefined) || (input === 'n' && tfKeys.share !== undefined))) {
       event.stopImmediatePropagation()
       if (!pastOpenEvent()) return
       if (input === 's' && tfKeys.stop !== undefined) {

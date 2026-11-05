@@ -76,12 +76,13 @@ if (scenario !== null) {
   }
   await shot('theme', 'Choose your theme')
   mounted.push(KEY.enter)
-  await shot('catalogue', withServer ? 'or run a local model' : /sign in · 2\/\d/)
+  await shot('catalogue', /sign in · 2\/\d/)
   const focusedLine = (): string => mounted.screen().split('\n').find(line => /[▸❯]/.test(line)) ?? ''
   for (let i = 0; i <= loginFamilyRows({ engineLegs: true, tensorfold: { kind: 'host' } }).length && !focusedLine().includes('Sign in later'); i++) {
     mounted.push(KEY.down)
     await settle(60)
   }
+  if (withServer) await until('or run a local model')
   await settle(300)
   frames['focused'] = mounted.screen()
   mounted.push(KEY.enter)
@@ -156,7 +157,7 @@ console.log('§1 a local server answers while the sign-in station paints: the la
   const frames = run('local')
   const catalogue = frames.catalogue ?? frames.error ?? ''
   check('the station is offered (sign in · 2/N on the rail)', /sign in · 2\/\d/.test(catalogue), catalogue.split('\n').slice(0, 3).join(' / '))
-  check(`the last row reads "Sign in later to look around, ${LOCAL_WORDS}"`, flat(catalogue).includes(`Sign in later to look around, ${LOCAL_WORDS}`), flat(catalogue).slice(-400))
+  check(`the last row reads "Sign in later to look around, ${LOCAL_WORDS}"`, flat(frames.focused ?? '').includes(`Sign in later to look around, ${LOCAL_WORDS}`), flat(frames.focused ?? '').slice(-400))
   check('the words "Sign-in is required to run the agent" are nowhere on the frame', !flat(catalogue).includes('Sign-in is required to run the agent'))
   check('the fourteen hosted rows still stand above it', flat(catalogue).includes('OpenAI — ChatGPT subscription') && flat(catalogue).includes('OpenCode Zen'))
   check('↓ to the end focuses the local row', focusedRow(frames.focused ?? '').startsWith('Sign in later to look around, or run a local model'), focusedRow(frames.focused ?? ''))
@@ -170,7 +171,7 @@ console.log('§1b a FRESH home on the default road (MERCURY_LOCAL_PROBE_TARGETS 
   const catalogue = frames.catalogue ?? frames.error ?? ''
   check('the child saw no probe variable (the default road, not a pinned target set)', frames.probeEnv === 'undefined', `probeEnv=${frames.probeEnv}`)
   check('the targets the station probed are the four documented defaults, Ollama first on 11434', frames.targets === 'http://127.0.0.1:11434,http://127.0.0.1:1234,http://127.0.0.1:8000,http://127.0.0.1:8080', `targets=${frames.targets}`)
-  check(`the last row reads "Sign in later to look around, ${LOCAL_WORDS}" — the station's own refresh landed and repainted the wall`, flat(catalogue).includes(`Sign in later to look around, ${LOCAL_WORDS}`), flat(catalogue).slice(-400))
+  check(`the last row reads "Sign in later to look around, ${LOCAL_WORDS}" — the station's own refresh landed and repainted the wall`, flat(frames.focused ?? '').includes(`Sign in later to look around, ${LOCAL_WORDS}`), flat(frames.focused ?? '').slice(-400))
   check('no-server words are nowhere on the frame', !flat(catalogue).includes('The agent needs a sign-in or a local model'))
   check('one server in the snapshot (the three dead default ports are simply absent)', frames.probed === '1', `probed=${frames.probed}`)
   check("Enter on the row arms the 'model' door", frames.door === 'model', `door=${frames.door}`)
@@ -180,7 +181,7 @@ console.log('§2 the probe landed before the walk mounted (the picker already kn
 {
   const frames = run('local-primed')
   const catalogue = frames.catalogue ?? frames.error ?? ''
-  check('a found local server never skips the sign-in station', /sign in · 2\/\d/.test(catalogue) && flat(catalogue).includes(LOCAL_WORDS), catalogue.split('\n').slice(0, 3).join(' / '))
+  check('a found local server never skips the sign-in station', /sign in · 2\/\d/.test(catalogue) && flat(frames.focused ?? '').includes(LOCAL_WORDS), catalogue.split('\n').slice(0, 3).join(' / '))
   check("Enter on the row arms the 'model' door here too", frames.door === 'model', `door=${frames.door}`)
 }
 

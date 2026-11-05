@@ -1,20 +1,15 @@
-import { existsSync, readFileSync, statfsSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
-import { useEffect, useMemo, useSyncExternalStore } from 'react'
+import { readFileSync } from 'node:fs'
+import { useEffect, useSyncExternalStore } from 'react'
 import type { TensorFoldHost, TensorFoldModelRow } from '../../services/tensorfold/contracts.js'
-import { findTensorFoldEngine, tensorFoldMachine } from '../../services/tensorfold/engine.js'
+import { findTensorFoldEngine } from '../../services/tensorfold/engine.js'
 import { bestTensorFoldFit, readTensorFoldInventory } from '../../services/tensorfold/inventory.js'
-import { servedTensorFold } from '../../services/tensorfold/serve.js'
-import { detectTensorFoldApp } from '../../services/providers/local/tensorfoldApp.js'
-import { helperHeadingWords } from '../../services/providers/local/tensorfoldHelper.js'
-import { tensorFoldHosts } from '../../services/providers/local/tensorfoldHosts.js'
-import { getCachedLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
-import { currentHostRecipes } from '../../services/host/recipesFile.js'
-import { tensorFoldPodRows, tensorFoldRentFacts, tensorFoldRentRow } from '../../services/host/tensorfoldPod.js'
+import { announcerMachineName, browseAnnouncements } from '../../services/lan/announcer.js'
+import { pairWithHost } from '../../services/lan/pairing.js'
+import { rememberTensorFoldHost, tensorFoldHosts } from '../../services/providers/local/tensorfoldHosts.js'
+import { getCachedLocalDiscovery, refreshLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
 import { listBoxes } from '../../services/host/boxes.js'
 import { localServerProbingOff } from '../../services/localServer/localServerTruth.js'
-import type { TensorFoldPickerFacts } from './tensorfoldRows.js'
+import type { TensorFoldAnnouncedHost } from './tensorfoldRows.js'
 import type { TensorFoldOffer } from '../loginFamilyRows.js'
 
 const LOOPBACK = /^(?:localhost|127(?:\.\d+){3}|::1|\[::1\])$/i
@@ -65,7 +60,7 @@ function tensorFoldServers(): NonNullable<ReturnType<typeof getCachedLocalDiscov
   return (getCachedLocalDiscovery()?.servers ?? []).filter(server => server.kind === 'tensorfold')
 }
 
-const sameUrl = (a: string, b: string): boolean => a.replace(/\/v1\/?$/, '').replace(/\/+$/, '') === b.replace(/\/v1\/?$/, '').replace(/\/+$/, '')
+export const sameUrl = (a: string, b: string): boolean => a.replace(/\/v1\/?$/, '').replace(/\/+$/, '') === b.replace(/\/v1\/?$/, '').replace(/\/+$/, '')
 
 function discoveredTensorFoldRows(hosts: readonly TensorFoldHost[] = []): TensorFoldModelRow[] {
   return tensorFoldServers()
@@ -118,7 +113,7 @@ function withDiscoveredRows(rows: readonly TensorFoldModelRow[], hosts: readonly
   return [...rows, ...discoveredTensorFoldRows(hosts).filter(row => !known.has(row.shortName))]
 }
 
-function withDiscoveredHosts(hosts: readonly TensorFoldHost[]): TensorFoldHost[] {
+export function withDiscoveredHosts(hosts: readonly TensorFoldHost[]): TensorFoldHost[] {
   const out = [...hosts]
   for (const host of [...discoveredTensorFoldHosts(), ...boxTensorFoldHosts()]) {
     if (!out.some(known => sameUrl(known.baseUrl, host.baseUrl) || known.name === host.name)) out.push(host)
@@ -126,52 +121,8 @@ function withDiscoveredHosts(hosts: readonly TensorFoldHost[]): TensorFoldHost[]
   return out
 }
 
-export function huggingFaceCacheFacts(env: NodeJS.ProcessEnv = process.env, home: string = homedir()): { into: string; freeBytes?: number } {
-  const hub = env.HF_HUB_CACHE?.trim() || join(env.HF_HOME?.trim() || join(home, '.cache', 'huggingface'), 'hub')
-  let probe = hub
-  while (!existsSync(probe) && dirname(probe) !== probe) probe = dirname(probe)
-  const free = quietly(() => {
-    const stats = statfsSync(probe)
-    return stats.bavail * stats.bsize
-  }, undefined)
-  return { into: hub.startsWith(`${home}/`) ? `~${hub.slice(home.length)}` : hub, ...(free !== undefined ? { freeBytes: free } : {}) }
-}
-
-function rentFacts(): { pod: string; serves: string; title: string } | undefined {
-  const row = tensorFoldRentRow([], currentHostRecipes())
-  return row === undefined ? undefined : tensorFoldRentFacts(row)
-}
-
-export async function readTensorFoldPickerFacts(): Promise<TensorFoldPickerFacts> {
-  const platform = process.platform
-  const hosts = quietly(() => tensorFoldHosts(), [])
-  const helper = quietly(() => helperHeadingWords(), undefined)
-  const app = platform === 'darwin' ? await quietlyAsync(() => detectTensorFoldApp(), undefined) : undefined
-  const rent = quietly(() => rentFacts(), undefined)
-  const pods = quietly(() => tensorFoldPodRows(currentHostRecipes()), [])
-  const shared = {
-    hosts: withDiscoveredHosts(hosts),
-    ...(helper !== undefined ? { helper } : {}),
-    ...(app?.engine !== undefined ? { app: { serving: app.engine.model ?? 'a model' } } : {}),
-    ...(rent !== undefined ? { rent } : {}),
-    pods,
-  }
-  if (platform === 'win32') return { platform, engine: null, rows: [], ...shared }
-  const engine = await quietlyAsync(() => findTensorFoldEngine(), null)
-  const inventory = await quietlyAsync(() => readTensorFoldInventory(engine), [])
-  const machine = quietly(() => tensorFoldMachine(), undefined)
-  const best = quietly(() => bestTensorFoldFit(inventory), null)
-  const served = quietly(() => servedTensorFold(), [])
-  return {
-    platform,
-    engine,
-    rows: inventory,
-    served,
-    disk: huggingFaceCacheFacts(),
-    ...(machine !== undefined ? { machine } : {}),
-    ...(best !== null ? { best: best.repo } : {}),
-    ...shared,
-  }
+export function tensorFoldHostsNow(): TensorFoldHost[] {
+  return withDiscoveredHosts(quietly(() => tensorFoldHosts(), []))
 }
 
 async function readTensorFoldOffer(platform: NodeJS.Platform = process.platform, capable: () => boolean = () => tensorFoldCapableMachine()): Promise<TensorFoldOffer | null> {
@@ -189,13 +140,19 @@ async function readTensorFoldOffer(platform: NodeJS.Platform = process.platform,
 
 let offer: TensorFoldOffer | null | undefined
 let offerReading: Promise<TensorFoldOffer | null> | undefined
+let stamp = 0
+const listeners = new Set<() => void>()
+
+function emit(): void {
+  stamp++
+  for (const listener of [...listeners]) listener()
+}
 
 function refreshTensorFoldOffer(): Promise<TensorFoldOffer | null> {
   offerReading ??= readTensorFoldOffer()
     .then(next => {
       offer = next
-      stamp++
-      for (const listener of listeners) listener()
+      emit()
       return next
     })
     .finally(() => {
@@ -204,55 +161,113 @@ function refreshTensorFoldOffer(): Promise<TensorFoldOffer | null> {
   return offerReading
 }
 
-let snapshot: TensorFoldPickerFacts | undefined
-let stamp = 0
-let reading: Promise<TensorFoldPickerFacts> | undefined
-const listeners = new Set<() => void>()
-
-export function refreshTensorFoldPickerFacts(): Promise<TensorFoldPickerFacts> {
-  reading ??= readTensorFoldPickerFacts()
-    .then(facts => {
-      snapshot = facts
-      stamp++
-      for (const listener of listeners) listener()
-      return facts
-    })
-    .finally(() => {
-      reading = undefined
-    })
-  return reading
-}
-
-function subscribe(listener: () => void): () => void {
+export function subscribeTensorFoldFacts(listener: () => void): () => void {
   listeners.add(listener)
-  return () => listeners.delete(listener)
+  return () => {
+    listeners.delete(listener)
+  }
 }
 
-const stampOf = (): number => stamp
-
-export function tensorFoldPickerFactsNow(): TensorFoldPickerFacts {
-  const facts = snapshot ?? { platform: process.platform, rows: [], hosts: withDiscoveredHosts(quietly(() => tensorFoldHosts(), [])) }
-  return facts.platform === 'win32' ? facts : { ...facts, rows: withDiscoveredRows(facts.rows, facts.hosts ?? []) }
-}
+export const tensorFoldFactsStamp = (): number => stamp
 
 export function useTensorFoldOffer(): TensorFoldOffer | null | undefined {
-  useSyncExternalStore(subscribe, stampOf, stampOf)
+  useSyncExternalStore(subscribeTensorFoldFacts, tensorFoldFactsStamp, tensorFoldFactsStamp)
   useEffect(() => {
     void refreshTensorFoldOffer().catch(() => undefined)
   }, [])
   return offer
 }
 
-export function useTensorFoldPickerFacts(): TensorFoldPickerFacts | undefined {
-  const read = useSyncExternalStore(subscribe, stampOf, stampOf)
-  const off = localServerProbingOff()
-  useEffect(() => {
-    if (!off) void refreshTensorFoldPickerFacts().catch(() => undefined)
-  }, [off])
-  const discovery = getCachedLocalDiscovery()
-  return useMemo(() => {
-    void read
-    void discovery
-    return off ? undefined : tensorFoldPickerFactsNow()
-  }, [read, discovery, off])
+let announced: readonly TensorFoldAnnouncedHost[] = []
+let browsing: Promise<void> | undefined
+
+function txtNumber(value: string | undefined): number | undefined {
+  const parsed = Number(value)
+  return value !== undefined && Number.isInteger(parsed) && parsed > 0 ? parsed : undefined
+}
+
+function announcedOf(found: { name: string; host: string; port: number; txt: Record<string, string> }): TensorFoldAnnouncedHost | undefined {
+  const pairPort = txtNumber(found.txt.pair) ?? (Number.isInteger(found.port) && found.port > 0 ? found.port : undefined)
+  if (pairPort === undefined || found.host === '') return undefined
+  const enginePort = txtNumber(found.txt.engine)
+  const window = txtNumber(found.txt.window)
+  return {
+    name: found.name,
+    host: found.host,
+    pairPort,
+    ...(enginePort !== undefined ? { enginePort } : {}),
+    ...(found.txt.model ? { serving: found.txt.model } : {}),
+    ...(window !== undefined ? { window } : {}),
+    ...(found.txt.version ? { version: found.txt.version } : {}),
+    ...(found.txt.chip ? { chip: found.txt.chip.replace(/_/g, ' ') } : {}),
+    keyed: found.txt.keyed === '1',
+  }
+}
+
+function remembered(host: TensorFoldAnnouncedHost, hosts: readonly TensorFoldHost[]): boolean {
+  return hosts.some(known => known.name === host.name || (host.enginePort !== undefined && sameUrl(known.baseUrl, `http://${host.host}:${host.enginePort}`)))
+}
+
+export function tensorFoldAnnouncementsNow(hosts: readonly TensorFoldHost[] = quietly(() => tensorFoldHosts(), [])): TensorFoldAnnouncedHost[] {
+  return announced.filter(host => !remembered(host, hosts))
+}
+
+export function refreshTensorFoldAnnouncements(): Promise<void> {
+  if (localServerProbingOff() || process.platform === 'win32') return Promise.resolve()
+  browsing ??= browseAnnouncements()
+    .then(found => {
+      const mine = announcerMachineName()
+      const before = new Map(announced.map(host => [host.name, host]))
+      announced = found
+        .filter(row => row.name !== mine)
+        .map(announcedOf)
+        .filter((host): host is TensorFoldAnnouncedHost => host !== undefined)
+        .map(host => {
+          return before.get(host.name)?.pairing === true ? { ...host, pairing: true } : host
+        })
+      emit()
+    })
+    .catch(() => undefined)
+    .finally(() => {
+      browsing = undefined
+    })
+  return browsing
+}
+
+function markAnnounced(name: string, mark: Pick<TensorFoldAnnouncedHost, 'pairing' | 'refused'>): void {
+  announced = announced.map(host => {
+    if (host.name !== name) return host
+    const { pairing: _pairing, refused: _refused, ...rest } = host
+    return { ...rest, ...(mark.pairing === true ? { pairing: true } : {}), ...(mark.refused !== undefined ? { refused: mark.refused } : {}) }
+  })
+  emit()
+}
+
+export async function pairTensorFoldHost(host: TensorFoldAnnouncedHost, code: string): Promise<string | undefined> {
+  markAnnounced(host.name, { pairing: true })
+  const outcome = await pairWithHost({ host: host.host, pairPort: host.pairPort, code })
+  if (!outcome.ok) {
+    markAnnounced(host.name, { refused: outcome.reason })
+    return undefined
+  }
+  const reply = outcome.reply
+  try {
+    await rememberTensorFoldHost({
+      name: reply.name,
+      baseUrl: reply.baseUrl,
+      origin: 'lan-paired',
+      serving: reply.model,
+      ...(reply.key !== undefined ? { key: reply.key } : {}),
+      ...(reply.version !== undefined ? { version: reply.version } : {}),
+      ...(reply.chip !== undefined ? { chip: reply.chip } : {}),
+      ...(reply.window !== undefined ? { window: reply.window } : {}),
+    })
+  } catch (error) {
+    markAnnounced(host.name, { refused: error instanceof Error ? error.message : String(error) })
+    return undefined
+  }
+  announced = announced.filter(row => row.name !== host.name)
+  emit()
+  void refreshLocalDiscovery({ force: true }).catch(() => undefined)
+  return `paired with ${reply.name} · ↵ on its row switches to ${reply.model}`
 }
