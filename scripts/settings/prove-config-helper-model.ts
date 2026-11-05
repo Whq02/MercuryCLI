@@ -91,9 +91,15 @@ await discovery.refreshLocalDiscovery({ force: true })
 const GIB = 1024 ** 3
 const session = catalogue.localRecordFor('local/qwen3.8-27b')
 
+helper.__pinHelperReadsForTest({ engineFound: true, twoBOnDisk: true })
+
 section('§1 the choices: sizes tagged with their engine, memory and fit, the session model only with a multi-slot cache')
 {
   const choices = helper.helperModelChoices({ usable: 36 * GIB, banked4b: false, session })
+  const notInstalled = helper.helperModelChoices({ usable: 36 * GIB, banked4b: false, session, engineFound: false, twoBOnDisk: false })[1]!
+  check('2B says install TensorFold when the engine is not found (red on the fold: offered regardless)', !notInstalled.available && notInstalled.reason === helper.HELPER_NOT_INSTALLED_REASON && helper.helperChoiceWords(notInstalled).endsWith('· install TensorFold'), JSON.stringify(notInstalled))
+  const notPulled = helper.helperModelChoices({ usable: 36 * GIB, banked4b: false, session, engineFound: true, twoBOnDisk: false })[1]!
+  check('2B says pull the 2B in /tensorfold when the engine is found but the 2B is not on disk', !notPulled.available && notPulled.reason === helper.HELPER_2B_NOT_PULLED_REASON, JSON.stringify(notPulled))
   check('four choices: off, 2B, 4B, the session\'s local model', JSON.stringify(choices.map(choice => choice.size)) === JSON.stringify(['off', '2b', '4b', 'session']))
   const twoB = choices[1]!
   check('2B is tagged (TensorFold) with its memory as an estimate and fits', twoB.label === '2B (TensorFold)' && twoB.engine === 'tensorfold' && twoB.memory === '~5.0 GiB · an estimate' && twoB.fit === 'fits' && twoB.available, JSON.stringify(twoB))
@@ -137,8 +143,50 @@ section('§2 the setting: off by default; on, the helper\'s own process answers 
   check('opt-in on, the helper serving, the history under its window: the helper folds', folded.model === 'local/qwen3.5-2b' && folded.source === 'helper', JSON.stringify(folded))
   const over = foldModelFor(long, 'claude-opus-5-5', { forced: false })
   check('opt-in on, the history past the helper\'s window: the seated model folds and the reason says why', over.model === 'claude-opus-5-5' && over.source === 'seated' && over.reason !== undefined && over.reason.includes('the helper local/qwen3.5-2b\'s window does not hold the history'), JSON.stringify(over))
+  helper.writeHelperModelSetting({ size: '2b', compaction: true })
+  const onLocal = foldModelFor(short, 'local/qwen3.8-27b', { forced: false })
+  check('opt-in on with the session on a serving local model that holds the history: the strongest serving local model folds, not the helper (the plan\'s row 7)', onLocal.model === 'local/qwen3.8-27b' && onLocal.source === 'seated' && onLocal.reason === undefined, JSON.stringify(onLocal))
+  const onLocalOver = foldModelFor([createUserMessage({ content: 'x'.repeat(600_000) })], 'local/qwen3.8-27b', { forced: false })
+  check('the history past the session model\'s window and the helper\'s: the fold falls through to the existing law', onLocalOver.source !== 'helper', JSON.stringify(onLocalOver))
   helper.writeHelperModelSetting({ size: 'off', compaction: false })
   check('opt-in with the helper off: the seated model folds, no reason', foldModelFor(short, 'claude-opus-5-5', { forced: false }).reason === undefined)
+}
+
+section('§2b the helper is its own process beside the session\'s server: role helper, the 27B\'s record untouched (red on the fold: start2b shared the session\'s service and stopped it)')
+{
+  helper.__resetHelperForTest()
+  const sessionRecord = { repo: 'TensorFold/Qwen3.8-27B-MLX-4bit', name: 'qwen3.8-27b', port: session27b.port, window: 131072, pid: 4242, startedAt: '2026-11-05T00:00:00.000Z' }
+  const started: Array<Record<string, unknown>> = []
+  const stopped: string[] = []
+  let helperRecord: { repo: string; name: string; port: number; window: number; pid: number; startedAt: string } | undefined
+  helper.__pinHelperServeSeamForTest(async () => ({
+    start: async request => {
+      started.push({ ...request })
+      helperRecord = { repo: request.repo, name: request.name ?? 'x', port: helper2b.port, window: request.window, pid: 777, startedAt: '2026-11-05T00:00:01.000Z' }
+      return helperRecord
+    },
+    stop: async name => {
+      stopped.push(name)
+      helperRecord = undefined
+    },
+    served: () => (helperRecord === undefined ? [] : [helperRecord]),
+  }))
+  hosts.forgetTensorFoldPort(helper2b.port)
+  await discovery.refreshLocalDiscovery({ force: true })
+  helper.writeHelperModelSetting({ size: '2b' })
+  check('before the start the helper is not serving and nothing routes to it', frontier.smallFastModelFor('claude-opus-5-5') !== 'local/qwen3.5-2b')
+  await helper.ensureHelperServing()
+  const request = started[0]
+  check('the helper started once, with role helper, its own name, window, port and prompt cache', started.length === 1 && request?.role === 'helper' && request.name === 'qwen3.5-2b' && request.repo === helper.HELPER_2B_REPO && request.window === 32768 && request.promptCacheGib === 1 && typeof request.port === 'number', JSON.stringify(request))
+  check('the session\'s 27B record is untouched (never stopped)', stopped.length === 0 && sessionRecord.port === session27b.port)
+  check('the helper\'s served record is its own', (await helper.helperServedRecord())?.name === 'qwen3.5-2b' && (await helper.helperServedRecord())?.port === helper2b.port)
+  check('after the start the helper answers the small jobs', hosts.helperModelState().port === helper2b.port && frontier.smallFastModelFor('local/qwen3.8-27b') === 'local/qwen3.5-2b')
+  await helper.stopHelperServing()
+  check('stopping the helper stops only the helper\'s name through its role', JSON.stringify(stopped) === JSON.stringify(['qwen3.5-2b']) && (await helper.helperServedRecord()) === undefined)
+  helper.__pinHelperServeSeamForTest(undefined)
+  helper.writeHelperModelSetting({ size: 'off', compaction: false })
+  hosts.rememberTensorFoldPort(helper2b.port)
+  await discovery.refreshLocalDiscovery({ force: true })
 }
 
 const React = await import('react')

@@ -7,8 +7,7 @@ import { hostRecords } from '../host/store.js'
 import { isLocalModelId, localRecordFor } from '../providers/local/localCatalogue.js'
 import { getCachedLocalDiscovery } from '../providers/local/localDiscovery.js'
 import { readHelperModelSetting } from '../providers/local/tensorfoldHelper.js'
-import { pairableTensorFoldHosts } from '../providers/local/tensorfoldHosts.js'
-import { readTensorFoldState, tensorFoldPresent, type TensorFoldState } from '../providers/local/tensorfoldState.js'
+import { tensorFoldPresenceCached, type TensorFoldPresenceCached } from '../providers/local/tensorfoldState.js'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { getPlatform } from '../../utils/platform.js'
@@ -55,15 +54,12 @@ function isLlmHostActiveOrConfigured(context?: TipContext): boolean {
   }
 }
 
-const TENSORFOLD_STATE_TTL_MS = 60_000
-let tensorFoldStateRead: { at: number; state: Promise<TensorFoldState> } | undefined
-
-function tensorFoldStateForTips(): Promise<TensorFoldState> {
-  const now = Date.now()
-  if (tensorFoldStateRead === undefined || now - tensorFoldStateRead.at > TENSORFOLD_STATE_TTL_MS) {
-    tensorFoldStateRead = { at: now, state: readTensorFoldState().catch(() => ({ engine: undefined, servers: [], app: { running: false }, helper: { enabled: false } })) }
+function tensorFoldPresenceForTips(): TensorFoldPresenceCached {
+  try {
+    return tensorFoldPresenceCached()
+  } catch {
+    return { installed: false, serving: false, paired: false }
   }
-  return tensorFoldStateRead.state
 }
 
 function isTensorFoldServing(context?: TipContext): boolean {
@@ -71,25 +67,19 @@ function isTensorFoldServing(context?: TipContext): boolean {
   const model = currentModel(context)
   const record = localRecordFor(model)
   if (record?.server === 'tensorfold') return true
-  const servers = getCachedLocalDiscovery()?.servers ?? []
-  return servers.some(server => server.kind === 'tensorfold' && server.models.length > 0)
+  return tensorFoldPresenceForTips().serving
 }
 
-async function isTensorFoldInstalledOrServing(context?: TipContext): Promise<boolean> {
+function isTensorFoldInstalledOrServing(context?: TipContext): boolean {
   if (context?.tensorfold !== undefined) return context.tensorfold.installed === true || isTensorFoldServing(context)
   if (isTensorFoldServing(context)) return true
-  return tensorFoldPresent(await tensorFoldStateForTips())
+  return tensorFoldPresenceForTips().installed
 }
 
-async function isTensorFoldServingOrPaired(context?: TipContext): Promise<boolean> {
+function isTensorFoldServingOrPaired(context?: TipContext): boolean {
   if (context?.tensorfold !== undefined) return isTensorFoldServing(context) || context.tensorfold.pairedHost === true
   if (isTensorFoldServing(context)) return true
-  try {
-    if (pairableTensorFoldHosts().length > 0) return true
-  } catch {
-    void 0
-  }
-  return (await tensorFoldStateForTips()).servers.length > 0
+  return tensorFoldPresenceForTips().paired
 }
 
 function isHelperModelEnabled(context?: TipContext): boolean {
@@ -431,7 +421,7 @@ const GENERAL_TIPS: Tip[] = [
       return '/model pins TENSORFOLD and TENSORFOLD HOST first; /tensorfold opens the control panel.'
     },
     async isRelevant(context) {
-      return (await isTensorFoldInstalledOrServing(context)) || isTensorFoldServingOrPaired(context)
+      return isTensorFoldInstalledOrServing(context) || isTensorFoldServingOrPaired(context)
     },
   },
   {
@@ -471,7 +461,7 @@ const GENERAL_TIPS: Tip[] = [
       return 'Helper model in /config (off by default) uses a local 2B or 4B for titles and goal checks.'
     },
     async isRelevant(context) {
-      return (await isTensorFoldInstalledOrServing(context)) && !isHelperModelEnabled(context)
+      return isTensorFoldInstalledOrServing(context) && !isHelperModelEnabled(context)
     },
   },
   {

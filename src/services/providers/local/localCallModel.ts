@@ -180,7 +180,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
     lane: 'local',
     providerLabel: LOCAL_SERVER_NAMES[record.server],
     resolveCredential: () => {
-      const key = resolveLocalApiKey()
+      const key = resolveLocalApiKeyFor(record.baseUrl)
       return key ? { apiKey: key.key } : {}
     },
     recoverCredential: async () => {

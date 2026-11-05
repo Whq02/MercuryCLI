@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { publishAtomicSync } from '../../../substrate/fileStore.js'
-import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
+import { getMercuryHome } from '../../../utils/envUtils.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import type { HelperModelState, TensorFoldHost, TensorFoldHostOrigin } from '../../tensorfold/contracts.js'
 
-const FILE_NAME = '.tensorfold-hosts.json'
-const ORIGINS: readonly TensorFoldHostOrigin[] = ['lan-paired', 'typed', 'pod', 'app']
+const FILE_NAME = 'tensorfold-hosts.json'
+const ORIGINS: readonly TensorFoldHostOrigin[] = ['lan-paired', 'typed', 'pod', 'app', 'shared']
 
 export interface TensorFoldHostRecord extends TensorFoldHost {
   key?: string
@@ -21,7 +21,7 @@ interface HostsFile {
 }
 
 function storePath(): string {
-  return join(getAuthConfigHomeDir(), FILE_NAME)
+  return join(getMercuryHome(), 'local-setup', FILE_NAME)
 }
 
 function rec(v: unknown): Record<string, unknown> | undefined {
@@ -76,8 +76,8 @@ function readStore(): HostsFile {
 }
 
 function writeStore(next: HostsFile): void {
-  const dir = getAuthConfigHomeDir()
-  refuseProofWriteIntoAccountStore(dir, 'the TensorFold hosts store')
+  const home = getMercuryHome()
+  refuseProofWriteIntoAccountStore(home, 'the TensorFold hosts store')
   publishAtomicSync(storePath(), JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
 }
 
@@ -127,7 +127,7 @@ export function tensorFoldHostKey(baseUrl: string): string | undefined {
 }
 
 export function pairableTensorFoldHosts(): readonly TensorFoldHost[] {
-  return tensorFoldHosts().filter(host => host.origin !== 'app')
+  return tensorFoldHosts().filter(host => host.origin !== 'app' && host.origin !== 'shared')
 }
 
 export function tensorFoldPorts(): readonly number[] {

@@ -111,6 +111,7 @@ function serverStateOf(record: LocalServerRecord, served: readonly TensorFoldSer
 }
 
 export async function readTensorFoldState(reads: TensorFoldStateReads = {}): Promise<TensorFoldState> {
+  stateReads += 1
   const [engine, snapshot, app, exited] = await Promise.all([
     (reads.engine ?? readEngine)(),
     (reads.snapshot ?? (async () => getCachedLocalDiscovery() ?? (await refreshLocalDiscovery().catch(() => null))))(),
@@ -125,4 +126,35 @@ export async function readTensorFoldState(reads: TensorFoldStateReads = {}): Pro
 
 export function tensorFoldPresent(state: TensorFoldState): boolean {
   return state.engine !== null && state.engine !== undefined || state.servers.length > 0 || state.exited !== undefined || state.app.engine !== undefined
+}
+
+export interface TensorFoldPresenceCached {
+  installed: boolean
+  serving: boolean
+  paired: boolean
+}
+
+let stateReads = 0
+
+export function __tensorFoldStateReadsForTest(): number {
+  return stateReads
+}
+
+export function tensorFoldPresenceCached(reads: { installed?: () => boolean; snapshot?: () => LocalDiscoverySnapshot | null; hosts?: () => readonly TensorFoldHost[] } = {}): TensorFoldPresenceCached {
+  let installed = false
+  try {
+    const { tensorFoldEngineFound } = require('./tensorfoldHelper.js') as typeof import('./tensorfoldHelper.js')
+    installed = (reads.installed ?? tensorFoldEngineFound)()
+  } catch {
+    installed = false
+  }
+  const snapshot = (reads.snapshot ?? getCachedLocalDiscovery)()
+  const serving = (snapshot?.servers ?? []).some(server => server.kind === 'tensorfold' && server.models.length > 0)
+  let paired = false
+  try {
+    paired = (reads.hosts ?? tensorFoldHostRecords)().some(host => host.origin !== 'app' && host.origin !== 'shared')
+  } catch {
+    paired = false
+  }
+  return { installed, serving, paired }
 }

@@ -113,7 +113,7 @@ try {
   check('the remembered port is listed', hosts.tensorFoldPorts().includes(remembered.port))
   check('the host is listed without its key', hosts.tensorFoldHosts().some(host => host.name === 'studio' && !('key' in host) && host.keyRef === 'stored'))
   check('the host key is read back for its address', hosts.tensorFoldHostKey(keyed.root) === KEY)
-  const mode = statSync(join(HOME, '.tensorfold-hosts.json')).mode & 0o777
+  const mode = statSync(join(HOME, 'local-setup', 'tensorfold-hosts.json')).mode & 0o777
   check('the hosts store is private (0600)', mode === 0o600, mode.toString(8))
   stored = true
 } catch (error) {
@@ -169,6 +169,30 @@ section('§4 the key resolves per host, the generic key stays for the rest')
 const { resolveLocalApiKeyFor, resolveLocalApiKey } = await import('../../src/services/providers/local/localAccounts.js')
 check('the keyed host resolves its own key', resolveLocalApiKeyFor(keyed.root)?.key === KEY && resolveLocalApiKeyFor(keyed.root)?.source === 'host')
 check('another root resolves no key', resolveLocalApiKeyFor(onLlamaPort.root) === undefined && resolveLocalApiKey() === undefined)
+
+section('§5 a keyed host\'s turn carries its key; this Mac\'s own shared server is found through its key file (red on the fold: the lane profile sent the generic key, the probes sent none)')
+{
+  const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.js')
+  const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.js')
+  const keyedRecord = localRecordFor('local/tensorfold/qwen3.8-27b') ?? byRoot.get(keyed.root)?.models[0]
+  const profile = keyedRecord === undefined ? undefined : localLaneProfileFor({ ...keyedRecord, baseUrl: `${keyed.root}/v1` })
+  const credential = await profile?.resolveCredential()
+  check('the lane profile resolves the keyed host\'s own key for the turn (Authorization: Bearer <key>)', credential !== undefined && credential !== null && 'apiKey' in credential && credential.apiKey === KEY, JSON.stringify(credential))
+  const { mkdirSync, writeFileSync, chmodSync } = await import('node:fs')
+  const { writeTensorFoldKeyFile } = await import('../../src/services/providers/local/tensorfoldKeyFile.js')
+  const sharedKey = writeTensorFoldKeyFile({ path: join(HOME, 'local-setup', 'tensorfold', 'api-key') })
+  const shared = await serve(tensorFoldRoutes({ model: 'qwen3.5-2b', window: 32768, key: sharedKey.key }))
+  mkdirSync(join(HOME, 'tensorfold'), { recursive: true })
+  writeFileSync(join(HOME, 'tensorfold', 'served.json'), JSON.stringify({ repo: 'mlx-community/Qwen3.5-2B-MLX-4bit', name: 'qwen3.5-2b', port: shared.port, window: 32768, pid: 1, startedAt: '2026-11-05T00:00:00.000Z', project: HOME, keyFile: sharedKey.path }) + '\n')
+  chmodSync(join(HOME, 'tensorfold', 'served.json'), 0o600)
+  check('the shared server\'s key resolves from its key file for its loopback root', resolveLocalApiKeyFor(shared.root)?.key === sharedKey.key && resolveLocalApiKeyFor(shared.root)?.source === 'shared')
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = `llamacpp=${shared.root}`
+  __resetLocalDiscoveryForTest()
+  const own = await discoverLocalServers({ timeoutMs: 3000 })
+  const sharedServer = own.servers.find(server => server.root === shared.root)
+  check('this Mac\'s discovery finds its own shared server through the llama.cpp target with the key file\'s key', sharedServer?.kind === 'tensorfold' && sharedServer.models[0]?.id === 'qwen3.5-2b' && sharedServer.engine?.keyed === true, JSON.stringify(sharedServer?.label))
+  shared.server.close()
+}
 
 for (const fixtureServer of [onLlamaPort, onVllmPort, onLmStudioPort, remembered, overridden, keyed, llamacpp, lmstudio, vllm]) fixtureServer.server.close()
 console.log(`\nprove-tensorfold-discovery: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
