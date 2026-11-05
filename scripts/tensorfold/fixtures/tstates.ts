@@ -29,6 +29,7 @@ export type TStateOptions = {
 
 export const ON_DISK: CacheSeed = { repo: QWEN_2B_REPO, config: QWEN_2B_CONFIG, weightsBytes: 4096, sha: QWEN_2B_PIN }
 export const SERVED_2B = { repo: QWEN_2B_REPO, name: 'qwen3.5-2b', port: 8080, window: 262_144, pid: 1, startedAt: 't', promptCacheGib: 1 }
+export const POD_TUNNEL: TensorFoldHost = { name: 'pod-rtx-5090', baseUrl: 'http://127.0.0.1:18080', origin: 'pod', serving: 'qwen3.8-27b', version: '1.2.2', chip: 'NVIDIA GeForce RTX 5090', window: 131_072 }
 export const STUDIO: TensorFoldHost = { name: 'studio.local', baseUrl: 'http://studio.local:8080', origin: 'typed', keyRef: 'studio.local', serving: 'qwen3.8-27b', version: '1.2.2', chip: 'Apple M3 Ultra', window: 131_072, lastReply: { tokensPerSecond: 38 } }
 export const GGUF_REFUSED = { input: 'unsloth/Qwen3.5-9B-GGUF', refused: "GGUF is llama.cpp's format · /localsetup serves it" }
 export const MEMORY_REFUSAL_LINE = "tensorfold: one stream's 131072-token window of KV pages (8.00 GiB) does not fit the 5.12 GiB left under the load limit; lower --context"
@@ -113,6 +114,7 @@ export async function tStates(): Promise<TState[]> {
     { frame: 't15-switch', facts: await tStateFacts('t15', serving), land: 'local/nemotron-lightning' },
     { frame: 't15b-stop-confirm', facts: await tStateFacts('t15b', serving), keys: ['s'] },
     { frame: 't16-serving-outside', facts: await tStateFacts('t16', { outside: [{ id: 'qwen3.5-2b', baseUrl: 'http://127.0.0.1:8087/v1', window: 32_768, servedBytes: 2_965_982_016 }] }) },
+    { frame: 't16b-pod-tunnel', facts: await tStateFacts('t16b', { outside: [{ id: 'qwen3.5-2b', baseUrl: 'http://127.0.0.1:8087/v1', window: 32_768, servedBytes: 2_965_982_016 }, { id: 'qwen3.8-27b', baseUrl: 'http://127.0.0.1:18080/v1', window: 131_072 }], hosts: [POD_TUNNEL] }), unfoldHost: true },
     { frame: 't17-refused-memory', facts: await tStateFacts('t17', { state: { acts: { [QWEN_27B_REPO]: scene.refusedActOf('qwen3.8-27b', 131_072, memoryRefusal) } } }) },
     { frame: 't17b-wired-limit', facts: await tStateFacts('t17b', { machine: MAC_32_LOW, state: { acts: { [QWEN_27B_REPO]: scene.refusedActOf('qwen3.8-27b', 32_768, limitRefusal) } } }), land: 'local/qwen3.8-27b' },
     { frame: 't18-keyed-server', facts: await tStateFacts('t18', { keyed: true }) },

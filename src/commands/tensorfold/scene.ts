@@ -106,18 +106,26 @@ function portOf(baseUrl: string): number | undefined {
   }
 }
 
-function outsideOf(records: readonly LocalModelRecord[], served: readonly TensorFoldServed[], helper: readonly TensorFoldServed[], current: string | undefined): TensorFoldOutsideServer[] {
+function loopbackPortOf(baseUrl: string): number | undefined {
+  if (!isLoopbackUrl(baseUrl)) return undefined
+  try {
+    return Number(new URL(baseUrl).port || 80)
+  } catch {
+    return undefined
+  }
+}
+
+function outsideOf(records: readonly LocalModelRecord[], served: readonly TensorFoldServed[], helper: readonly TensorFoldServed[], hosts: readonly TensorFoldHost[], current: string | undefined): TensorFoldOutsideServer[] {
   const ports = new Set([...served, ...helper].map(row => row.port))
+  for (const host of hosts) {
+    const tunnel = host.origin === 'shared' ? undefined : loopbackPortOf(host.baseUrl)
+    if (tunnel !== undefined) ports.add(tunnel)
+  }
   const out: TensorFoldOutsideServer[] = []
   for (const record of records) {
-    if (record.server !== 'tensorfold' || !isLoopbackUrl(record.baseUrl)) continue
-    let port: number
-    try {
-      port = Number(new URL(record.baseUrl).port || 80)
-    } catch {
-      continue
-    }
-    if (ports.has(port)) continue
+    if (record.server !== 'tensorfold') continue
+    const port = loopbackPortOf(record.baseUrl)
+    if (port === undefined || ports.has(port)) continue
     const window = record.contextWindow?.tokens
     out.push({ name: record.id, baseUrl: record.baseUrl, port, ...(window !== undefined ? { window } : {}), keyed: false, current: current !== undefined && current.endsWith(`/${record.id}`), ...(record.servedBytes !== undefined ? { inUseBytes: record.servedBytes } : {}) })
   }
@@ -182,8 +190,8 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
   const records = io.localModels?.() ?? cachedLocalModels()
   const rows = platform === 'win32' ? [] : withServedReadings(await readTensorFoldInventory(engine, { ...io, machine, served }), records, quietly(() => (io.lastTurn ?? lastTensorFoldTurn)(), undefined))
   const current = io.current
-  const outside = outsideOf(records, served, helperServed, current)
   const hosts = quietly(() => io.hosts?.() ?? tensorFoldHosts(), [] as readonly TensorFoldHost[])
+  const outside = outsideOf(records, served, helperServed, hosts, current)
   const helper = quietly(() => (io.helper ?? helperHeadingWords)(), undefined)
   const app = platform === 'darwin' ? await (io.app ?? detectTensorFoldApp)().catch(() => undefined) : undefined
   const rent = quietly(() => (io.rent ?? defaultRent)(), undefined)

@@ -255,6 +255,11 @@ const EXPECT: Record<string, Expect> = {
     ['the footer: serving qwen3.5-2b on 127.0.0.1:8087 · idle', has(run, 'serving qwen3.5-2b on 127.0.0.1:8087 · idle')],
     ['the legend: ↵ switch, no s', legend(run).includes('↑↓ select · ↵ switch') && !legend(run).includes('s stops'), legend(run)],
   ],
+  't16b-pod-tunnel': run => [
+    ['heading 33.2 of 36.0 GiB usable left · 1 serving: the hand-started 8087 server is the one outside row', has(run, '▾ TENSORFOLD · 1.2.2 · Apple M5 Pro · 33.2 of 36.0 GiB usable left · 1 serving'), flat(run).filter(l => l.includes('TENSORFOLD')).join(' | ')],
+    ["the pod's tunnel is never an outside row under TENSORFOLD: one qwen3.8-27b row, under TENSORFOLD HOST", flat(run).filter(l => /qwen3\.8-27b|Qwen3\.8 27B/.test(l) && !l.includes('↓ 20 GB')).length === 1, flat(run).filter(l => /qwen3\.8-27b|Qwen3\.8 27B/.test(l)).join(' | ')],
+    ['▾ TENSORFOLD HOST · pod-rtx-5090 · 1 serving with the pod row serving · 128k ctx', has(run, '▾ TENSORFOLD HOST · pod-rtx-5090 · 1 serving') && cells(run, 'Qwen3.8 27B', 'compat/pod-rtx-5090/', 'serving', '128k ctx', 'pod-rtx-5090'), flat(run).filter(l => l.includes('pod-rtx-5090')).join(' | ')],
+  ],
   't17-refused-memory': run => [
     ['the 27B: refused · 64k ctx · 24.5 GiB', cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'refused', '64k ctx', '24.5 GiB'), framedRow(run)],
     ["refused   one stream's 131072-token window of KV pages (8.00 GiB) does not fit …", hasRun(run, "refused one stream's 131072-token window of KV pages (8.00 GiB) does not fit the 5.12 GiB left under the load limit; lower --context"), card(run).join(' / ')],
