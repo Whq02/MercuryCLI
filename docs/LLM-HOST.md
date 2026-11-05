@@ -10,6 +10,13 @@ you confirm the price.
 In `/model`, a `Run a model` entry tagged `run it → /llmhost` opens the same
 screen. A fitting Mac also shows `run it on this Mac →`.
 
+For TensorFold (`Qwen3.8 27B`, `Nemotron Lightning` and `Qwen3.5 2B` on Metal
+or CUDA), open `/tensorfold` or unfold `TENSORFOLD HOST` in `/model`: `rent a GPU pod`
+(`Runpod or Vast.ai, through /llmhost`) rents a supported CUDA pod through
+`/llmhost`, installs TensorFold, pulls the checkpoint and switches this
+session, while `s` stops the pod and `t` terminates it; see
+[TENSORFOLD.md](TENSORFOLD.md).
+
 Alongside the models, **Which model?** includes **Machines I’m paying for**, **My
 computers**, `Bank · your weights`, **Refresh stock and prices**, and the
 `More options →` menu (`Rent a GPU (Runpod, Vast.ai, Lambda, Hugging Face, Hyperstack, Verda, DigitalOcean)`, `A box I can reach by SSH`,

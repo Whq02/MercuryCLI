@@ -5,6 +5,11 @@ Bank. It also sets up Ollama and connects to running servers. Nothing is
 selected for you. Use the arrow keys and Enter to choose; Escape keeps your
 current model.
 
+To serve MLX, NVFP4 or EXL3 checkpoints with TensorFold on Apple silicon or an
+NVIDIA GPU, share a model on your local network, or rent a GPU pod for
+TensorFold, run `/tensorfold` (or choose **TensorFold** in step 1 on macOS and
+Linux); see [TENSORFOLD.md](TENSORFOLD.md).
+
 ## Pull a GGUF from Hugging Face
 
 Choose **Hugging Face** and enter a repository id such as `author/model-GGUF`.
