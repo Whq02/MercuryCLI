@@ -42,8 +42,8 @@ export async function resolveEffectiveCoordinator(): Promise<EffectiveCoordinato
   if (base.requested !== 'agent-assisted') return { resolution: base }
   const { getGlobalConfig } = await import('../../utils/config.js')
   const cfg = getGlobalConfig().concourseCoordinator
-  const { validateCoordinatorModelChoice, coordinatorModelStatusLabel } = await import('./coordinatorModels.js')
-  const validated = await validateCoordinatorModelChoice(cfg?.assistModel)
+  const { validateCoordinatorModelChoice, coordinatorModelStatusLabel, defaultCoordinatorModelId } = await import('./coordinatorModels.js')
+  const validated = await validateCoordinatorModelChoice(cfg?.assistModel ?? await defaultCoordinatorModelId())
   if (!validated.ok) {
     return {
       resolution: {
@@ -51,7 +51,7 @@ export async function resolveEffectiveCoordinator(): Promise<EffectiveCoordinato
         effective: 'rules-only',
         fallbackReason:
           validated.reason === 'no-choice'
-            ? 'agent-assisted needs a coordinator model — pick one from the composed registry'
+            ? 'agent-assisted needs a coordinator model — sign in to a provider or serve a local model'
             : `the chosen coordinator model (${cfg?.assistModel ?? ''}) is not in the registry — pick one from the composed registry`,
       },
     }

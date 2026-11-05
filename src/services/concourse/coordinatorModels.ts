@@ -352,6 +352,11 @@ export async function switchCoordinatorMode(
   return receipt
 }
 
+export async function defaultCoordinatorModelId(): Promise<string | undefined> {
+  const registry = await composeCoordinatorModelRegistry()
+  return (registry.entries.find(entry => entry.availability === 'ready') ?? registry.entries[0])?.modelId
+}
+
 export async function validateCoordinatorModelChoice(
   modelId: string | undefined,
 ): Promise<
