@@ -141,6 +141,12 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
     case 'serve': {
       const row = inventoryRow(act.row.repo)
       if (row === undefined) return
+      if (facts.engine === null) {
+        if (facts.install === null || (facts.install.kind !== 'brew' && facts.install.kind !== 'archive')) return
+        const installed = await installTensorFoldThen(facts.install, io)
+        await doors.read?.()
+        if (!installed) return
+      }
       if (row.state === 'serving') {
         const served = facts.served.find(candidate => candidate.repo === row.repo)
         if (served !== undefined) await stopTensorFoldRow(row, facts.served, io)

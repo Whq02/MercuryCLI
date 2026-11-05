@@ -82,7 +82,7 @@ export function pickerFactsOf(facts: TensorFoldPanelFacts): TensorFoldPickerFact
         ? { road: install.kind, commands: install.commands, ...(installing?.kind === 'installing' ? { state: 'installing' as const, ...(installing.line !== undefined ? { progress: installing.line } : {}) } : {}) }
         : { road: facts.platform === 'darwin' ? ('brew' as const) : ('archive' as const), state: 'unavailable' as const, commands: [] }
   const rows = facts.rows.map(row => ({ ...row, port: row.port ?? facts.port.next, ...(facts.acts[row.repo]?.kind === 'starting' ? { state: 'loading' as const } : {}) }))
-  const best = bestTensorFoldFit(facts.rows)
+  const best = (facts.landing !== undefined ? facts.rows.find(row => row.repo === facts.landing) : undefined) ?? bestTensorFoldFit(facts.rows)
   return {
     platform: facts.platform,
     engine: facts.engine,
