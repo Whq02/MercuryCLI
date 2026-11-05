@@ -6,7 +6,7 @@ import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.
 import type { HelperModelState, TensorFoldHost, TensorFoldHostOrigin } from '../../tensorfold/contracts.js'
 
 const FILE_NAME = '.tensorfold-hosts.json'
-const ORIGINS: readonly TensorFoldHostOrigin[] = ['lan-paired', 'typed', 'pod', 'app']
+const ORIGINS: readonly TensorFoldHostOrigin[] = ['lan-paired', 'typed', 'pod', 'app', 'shared']
 
 export interface TensorFoldHostRecord extends TensorFoldHost {
   key?: string
