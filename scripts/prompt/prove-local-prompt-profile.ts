@@ -23,7 +23,8 @@ import {
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.MERCURY_LOCAL_PROMPT_PROFILE
-process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'local-profile-proof-home-'))
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'local-profile-proof-home-'))
+process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const { localLaw, LOCAL_SUBAGENT_DOCTRINE, LOCAL_POSTURE_WORDS, localToolForm } = await import('../../src/constants/localPromptProfile.ts')
 const { MERCURY_CONSTITUTION, MERCURY_HEADLESS_CONSTITUTION } = await import('../../src/prompt/mercuryContract.ts')
@@ -267,6 +268,22 @@ section('§11 the first-turn reminder on the attachment road — opening turn on
   const reopened = await getUserContextAttachment(folded as never, merged, false)
   const reopenedRow = reopened[0] as { body?: string } | undefined
   check('after a fold the next turn re-delivers the moved text', (reopenedRow?.body ?? '').includes('# gitStatus') && (reopenedRow?.body ?? '').includes('# Scratchpad'), JSON.stringify(reopened).slice(0, 200))
+  const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
+  const { getSessionId, regenerateSessionId, getSystemPromptSectionCache } = await import('../../src/bootstrap/state.ts')
+  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  enableConfigs()
+  const memoryKey = (): string | null | undefined => getSystemPromptSectionCache().get('memory_at_start')?.key
+  const requestKey = `${String(getSessionId())}:request`
+  const opened = memoryKey()
+  await getSystemPrompt([] as never, LOCAL_MODEL)
+  const composedWithoutTask = memoryKey()
+  await firstTurnUserContext(userContext, systemContext, LOCAL_MODEL, undefined, [firstUser, attachment, createAssistantMessage({ content: 'ok' })] as never)
+  await getSystemPrompt([] as never, LOCAL_MODEL, [], undefined, { prompt: 'a later turn' })
+  const afterLaterTurns = memoryKey()
+  check('RED ON A TREE WITHOUT THE SESSION TASK: the memory-at-start section keeps one key for the session on the local route, the opening turn\'s request key, through a composition without a task, a later turn and a composition with another task (never re-keyed per turn)', opened === requestKey && composedWithoutTask === requestKey && afterLaterTurns === requestKey, JSON.stringify({ opened, composedWithoutTask, afterLaterTurns }))
+  regenerateSessionId()
+  await firstTurnUserContext(userContext, systemContext, LOCAL_MODEL, undefined, [], 'Read README.md.')
+  check('RED ON A TREE WITHOUT THE INPUT: a new session whose opening turn carries the prompt only as the input keys the section as a request (the first real request composes it)', memoryKey() === `${String(getSessionId())}:request`, JSON.stringify(memoryKey()))
 }
 
 function firstDifference(a: string, b: string): string {

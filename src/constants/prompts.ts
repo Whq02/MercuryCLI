@@ -210,6 +210,14 @@ function memoryAtStartSpec(memoryTask: StartTask | undefined) {
   return keyedSystemPromptSection('memory_at_start', () => memoryAtStartKey(memoryTask), () => memoryAtStartForSession(memoryTask))
 }
 
+const localStartTasks = new Map<string, StartTask | undefined>()
+
+function localStartTask(task: StartTask | undefined): StartTask | undefined {
+  const session = String(getSessionId())
+  if (!localStartTasks.has(session)) localStartTasks.set(session, task)
+  return localStartTasks.get(session)
+}
+
 function entryPageSpec() {
   return keyedSystemPromptSection(
     'entry_page',
@@ -276,7 +284,7 @@ function headingBody(text: string, heading: string): string {
 export async function localFirstTurnFacts(agentId: string | undefined, task: StartTask | undefined): Promise<Record<string, string>> {
   const facts: Record<string, string> = {}
   if (agentId === undefined) {
-    const [memory, lineage] = await resolveSystemPromptSections([memoryAtStartSpec(task), entryPageSpec()])
+    const [memory, lineage] = await resolveSystemPromptSections([memoryAtStartSpec(localStartTask(task)), entryPageSpec()])
     if (memory) facts[MEMORY_AT_START_HEADING.replace(/^#\s*/, '')] = headingBody(memory, MEMORY_AT_START_HEADING)
     if (lineage) facts[ENTRY_PAGE_HEADING.replace(/^#\s*/, '')] = headingBody(lineage, ENTRY_PAGE_HEADING)
   }
@@ -324,7 +332,7 @@ async function getLocalSystemPrompt(
     systemPromptSection('summarize_tool_results', () => isUnattendedRun() ? null : SUMMARIZE_TOOL_RESULTS_LINE),
     keyedSystemPromptSection('local_env', () => model, () => computeSimpleEnvInfo(model, false)),
     mcpInstructionsSpec(mcpClients),
-    memoryAtStartSpec(memoryTask),
+    memoryAtStartSpec(localStartTask(memoryTask)),
     entryPageSpec(),
     systemPromptSection('local_scratchpad', () => scratchpadLineFor()),
   ]

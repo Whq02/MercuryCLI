@@ -198,7 +198,7 @@ export async function getAttachments(
       { priority: true },
     ),
     maybe('user_context', async () =>
-      isMainThread ? getUserContextAttachment(messages, await firstTurnUserContext(await getUserContext(), getSystemContext, toolUseContext.options.engineModel, undefined, messages), opening) : [],
+      isMainThread ? getUserContextAttachment(messages, await firstTurnUserContext(await getUserContext(), getSystemContext, toolUseContext.options.engineModel, undefined, messages, options?.localSubmission ? null : input), opening) : [],
     ),
     maybe('tool_manuals', () => getToolManualAttachments(context), { priority: true, inputScoped: true }),
     maybe('critical_system_reminder', () =>

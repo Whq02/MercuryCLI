@@ -18,6 +18,7 @@ const section = (t: string): void => {
 delete process.env.NODE_ENV
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'switch-coherence-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+delete process.env.MERCURY_LOCAL_PROMPT_PROFILE
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 type Body = Record<string, unknown>
@@ -266,13 +267,31 @@ for (const { lane, model, preservesThinking } of [
   usage[lane] = { input: o.last?.message.usage?.input_tokens ?? -1, cached: o.last?.message.usage?.cache_read_input_tokens ?? -1 }
 }
 
+section('local · a session with the local prompt profile switched off (MERCURY_LOCAL_PROMPT_PROFILE=0, its control arm)')
+const { clearConversationToolSchemas } = await import('../../src/utils/toolSchemaCache.ts')
+clearConversationToolSchemas()
+process.env.MERCURY_LOCAL_PROMPT_PROFILE = '0'
+const localOff = await drive('local/fixture-local')
+delete process.env.MERCURY_LOCAL_PROMPT_PROFILE
+const localOffTools = (localOff.body?.tools as Array<Record<string, unknown>> | undefined) ?? []
+const localOffSchema = (localOffTools[0]?.function as Record<string, unknown> | undefined)?.parameters
+check('the turn settled clean on the fixture with the profile off', localOff.threw === undefined && localOff.errors.length === 0 && localOff.last?.message.stop_reason === 'end_turn', `threw=${String(localOff.threw)} errors=${localOff.errors.length}`)
+
 section('cross-family coherence')
 {
-  const spellings = Object.entries(schemas)
+  const spellings = Object.entries(schemas).filter(([lane]) => lane !== 'local')
   const reference = text(spellings[0]?.[1])
   const { toOpenaiStrictToolSchema } = await import('../../src/utils/messages/toolSchemaDialect.ts')
   const strict = toOpenaiStrictToolSchema(schemas.anthropic)
-  check(`all ${spellings.length} dialects carry the same tool schema in their declared form`, strict.strict && spellings.length === 6 && spellings.every(([lane, schema]) => text(schema) === (lane === 'openai' ? text(strict.schema) : reference)), spellings.map(([k, s]) => `${k}:${text(s).length}`).join(' '))
+  check(`all ${spellings.length} cloud dialects and the local lane with the profile off carry the same tool schema in their declared form`, strict.strict && spellings.length === 5 && spellings.every(([lane, schema]) => text(schema) === (lane === 'openai' ? text(strict.schema) : reference)) && text(localOffSchema) === reference, [...spellings.map(([k, s]) => `${k}:${text(s).length}`), `local (profile off):${text(localOffSchema).length}`].join(' '))
+  const bare = (schema: unknown): unknown => Array.isArray(schema) ? schema.map(bare) : typeof schema === 'object' && schema !== null ? Object.fromEntries(Object.entries(schema as Record<string, unknown>).filter(([key]) => key !== 'description' && key !== '$schema').map(([key, value]) => [key, bare(value)])) : schema
+  type Frame = { properties?: Record<string, unknown>; required?: unknown; type?: unknown; additionalProperties?: unknown } | undefined
+  const short = schemas.local as Frame
+  const full = schemas.anthropic as Frame
+  const moved = short === undefined || full === undefined ? 'a schema is missing'
+    : text(short.required) !== text(full.required) || short.type !== full.type || short.additionalProperties !== full.additionalProperties ? 'required or the schema frame moved'
+      : Object.entries(short.properties ?? {}).find(([name, property]) => full.properties?.[name] === undefined || text(bare(property)) !== text(bare(full.properties[name])))?.[0] ?? null
+  check('the local lane with the profile on carries the profile\'s short form of that one contract, a declared difference: every advertised property is the full schema\'s, type for type, required and the schema frame unchanged, so a call valid on one family stays valid on the other', moved === null, `local:${text(schemas.local).length} · ${moved ?? ''}`)
   const envelopes = Object.entries(usage)
   check('every family settles the same disjoint usage envelope (6 uncached beside 4 cached)', envelopes.length === 6 && envelopes.every(([, u]) => u.input === 6 && u.cached === 4), envelopes.map(([k, u]) => `${k}:${u.input}/${u.cached}`).join(' '))
 }

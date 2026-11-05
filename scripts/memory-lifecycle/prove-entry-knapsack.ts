@@ -185,10 +185,17 @@ try {
   section('§3 the wiring: one memoized section between the memory page and the lineage page, keyed on the session and the preview/request distinction alone so the first real request composes it once and the prefix then stands')
   {
     const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
-    const memoryAt = prompts.indexOf("systemPromptSection('memory', () => loadMemoryPrompt())")
-    const startAt = prompts.indexOf("keyedSystemPromptSection('memory_at_start', () => memoryAtStartKey(memoryTask), () => memoryAtStartForSession(memoryTask))")
-    const lineageAt = prompts.indexOf("'entry_page'")
-    check('the memory-at-start section is a memoized section keyed on the session and the request/preview distinction only (never cache-breaking, never re-keyed per turn) between the memory section and the entry page', memoryAt >= 0 && startAt > memoryAt && lineageAt > startAt && !prompts.includes("DANGEROUS_uncachedSystemPromptSection('memory_at_start'") && !prompts.includes("DANGEROUS_uncachedSystemPromptSection(\n      'memory_at_start'"), j([memoryAt, startAt, lineageAt]))
+    const spec = "keyedSystemPromptSection('memory_at_start', () => memoryAtStartKey(memoryTask), () => memoryAtStartForSession(memoryTask))"
+    const body = (from: string, to: string): string => {
+      const start = prompts.indexOf(from)
+      const end = prompts.indexOf(to, start + from.length)
+      return start < 0 ? '' : prompts.slice(start, end < 0 ? undefined : end)
+    }
+    const order = (text: string, start: string): number[] => [text.indexOf("systemPromptSection('memory', () => loadMemoryPrompt())"), text.indexOf(start), text.indexOf('entryPageSpec()')]
+    const inOrder = (at: number[]): boolean => at[0]! >= 0 && at[1]! > at[0]! && at[2]! > at[1]!
+    const cloud = order(body('export async function getSystemPrompt(', '\nexport '), 'memoryAtStartSpec(memoryTask)')
+    const local = order(body('async function getLocalSystemPrompt(', '\nexport async function getSystemPrompt('), 'memoryAtStartSpec(localStartTask(memoryTask))')
+    check('the memory-at-start section is one memoized section keyed on the session and the request/preview distinction only (never cache-breaking, never re-keyed per turn), composed between the memory section and the entry page by the cloud and the local compositions; the local first-turn road reads the same section with the session\'s one start task', prompts.split(spec).length === 2 && prompts.split("'memory_at_start'").length === 2 && inOrder(cloud) && inOrder(local) && prompts.includes('memoryAtStartSpec(localStartTask(task))') && !prompts.includes("DANGEROUS_uncachedSystemPromptSection('memory_at_start'") && !prompts.includes("DANGEROUS_uncachedSystemPromptSection(\n      'memory_at_start'"), j({ cloud, local }))
     const contract = readFileSync(join(ROOT, 'src/prompt/behaviourContract.ts'), 'utf8')
     check('the section declares its owner beside the memory section', contract.includes("['dynamic:memory_at_start', 'src/mneme/entryKnapsack.ts']"))
     const doctrine = readFileSync(join(ROOT, 'src/constants/subagentDoctrine.ts'), 'utf8')

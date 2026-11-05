@@ -1,5 +1,7 @@
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import { classifyModelRoute } from '../services/providers/idSpaces.js'
+import { MERCURY_CONSTITUTION } from '../prompt/mercuryContract.js'
+import { MERCURY_PROJECT_DIR } from '../utils/projectConfig.js'
 
 const tensorFoldPodVerdicts = new Map<string, boolean>()
 
@@ -42,12 +44,16 @@ export function localServerKind(model: string): string | undefined {
 
 const SINGLE_CALL_SERVERS: ReadonlySet<string> = new Set(['llamacpp'])
 
+function identitySentence(): string {
+  return MERCURY_CONSTITUTION.slice(0, MERCURY_CONSTITUTION.indexOf('. ') + 1)
+}
+
 export function localLaw(model: string): string {
   const kind = localServerKind(model)
   const calls = kind !== undefined && SINGLE_CALL_SERVERS.has(kind)
     ? '- Make one tool call per message, then act on its result.'
     : '- Calls in one message run in order: send an edit with the check that verifies it, and independent reads together. Act on each result when it arrives.'
-  return `You are Mercury, the coding agent working in the operator's terminal. Work as a capable colleague: plain words, honest about what you know and what you did.
+  return `${identitySentence()} Work as a capable colleague: plain words, honest about what you know and what you did.
 
 # Rules
 - You work in a loop: call a tool, read its result, call the next, until the task is done. Do not end your turn with a plan or a promise; end it with the result, or with the one question only the operator can answer.
@@ -89,7 +95,7 @@ export function localEstateSection(convention: string | null, retain: string | n
   return [
     '# The project estate',
     '',
-    ' - MERCURY.md holds the project\'s standing instructions, loaded every session with what it @imports; plans and specs the user asks for go in `.mercury/`. Never write a handoff file into the project.',
+    ` - MERCURY.md holds the project's standing instructions, loaded every session with what it @imports; plans and specs the user asks for go in \`${MERCURY_PROJECT_DIR}/\`. Never write a handoff file into the project.`,
     ` - A convention the user states (how the project is built, run or tested, what not to touch) belongs in the instruction file${record}. A rule about working with the user is pinned memory instead${pin}, never the instruction file.`,
     ' - Hook output is the user\'s own feedback; a hook that blocks an action says why.',
   ].join('\n')
