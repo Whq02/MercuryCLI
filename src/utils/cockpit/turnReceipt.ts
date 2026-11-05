@@ -128,10 +128,6 @@ function chatRowOf(m: LooseMessage): SystemCrewChatMessage | null {
   return m.type === 'system' && m.subtype === 'crew_chat' ? (m as unknown as SystemCrewChatMessage) : null
 }
 
-function boardRows(rows: readonly SystemCrewChatMessage[]): SystemCrewChatMessage[] {
-  return [...new Map(rows.map(row => [row.uuid, row])).values()].sort((a, b) => a.seq - b.seq || a.timestamp.localeCompare(b.timestamp))
-}
-
 export function promptTokensOf(usage: unknown): number | undefined {
   const u = usage as { input_tokens?: unknown; cache_read_input_tokens?: unknown; cache_creation_input_tokens?: unknown } | null | undefined
   if (!u || typeof u.input_tokens !== 'number') return undefined
@@ -152,11 +148,10 @@ function contentBlocks(m: LooseMessage): Array<Record<string, unknown>> {
 interface Tally {
   counts: TurnReceiptCounts
   pending: Map<string, string>
-  carried: SystemCrewChatMessage[]
 }
 
 function emptyTally(): Tally {
-  return { counts: emptyCounts(), pending: new Map(), carried: [] }
+  return { counts: emptyCounts(), pending: new Map() }
 }
 
 function settleTally(t: Tally): TurnReceiptCounts {
@@ -301,52 +296,14 @@ function addCounts(target: TurnReceiptCounts, source: Partial<TurnReceiptCounts>
   for (const [name, n] of Object.entries(source.tools ?? {})) target.tools[name] = (target.tools[name] ?? 0) + sign * n
 }
 
-type Fold = { carried: SystemCrewChatMessage[]; close: number }
-type RetainedChat = NonNullable<NonNullable<CompactMetadata['work']>['idle']>[number]
-
-export function injectRetainedChatRows(messages: RenderableMessage[]): RenderableMessage[] {
-  const groups = compactWorkOf(messages)?.idle ?? []
-  if (groups.length === 0) return messages
-  const placed = new Set<string>(messages.map(m => m.uuid))
-  const after = new Map<string, SystemCrewChatMessage[]>()
-  for (const group of groups) after.set(group.after, boardRows([...(after.get(group.after) ?? []), ...group.rows]))
-  const out: RenderableMessage[] = []
-  for (const m of messages) {
-    out.push(m)
-    for (const row of after.get(m.uuid) ?? []) {
-      if (placed.has(row.uuid)) continue
-      placed.add(row.uuid)
-      out.push(row)
-    }
-  }
-  return out
-}
-
-export function retainedChatRows(messages: Message[], kept: Message[], summaryUuid: string): RetainedChat[] {
-  const keptByUuid = new Set<string>(kept.map(m => m.uuid))
-  const groups = new Map<string, SystemCrewChatMessage[]>()
-  const add = (after: string, rows: SystemCrewChatMessage[]): void => {
-    groups.set(after, boardRows([...(groups.get(after) ?? []), ...rows.filter(row => !keptByUuid.has(row.uuid))]))
-  }
-  const work = compactWorkOf(messages)
-  for (const group of work?.idle ?? []) add(keptByUuid.has(group.after) ? group.after : summaryUuid, group.rows)
-  add(summaryUuid, (work?.receipts ?? []).flatMap(receipt => receipt.board ?? []))
-  add(summaryUuid, messages.flatMap(m => chatRowOf(m) ?? []))
-  return [...groups].filter(([, rows]) => rows.length > 0).map(([after, rows]) => ({ after, rows }))
-}
+type Fold = { close: number }
 
 export function injectTurnReceipts(messages: RenderableMessage[], tempRoot: string): RenderableMessage[] {
   if (!isTurnReceiptEnabled()) return messages
   const out: RenderableMessage[] = []
-  const placed = new Set<string>(messages.map(m => m.uuid))
   let start = 0
   walkTurnReceipts(messages, tempRoot, (counts, anchorUuid, end, replied, contextDelta, fold) => {
     for (let index = start; index < fold.close; index++) out.push(messages[index]!)
-    for (const row of fold.carried) {
-      if (placed.has(row.uuid)) continue
-      placed.add(row.uuid)
-      out.push(row)
-    }
     if (hasActivity(counts) || (replied && anchorUuid !== 'turn-0')) out.push(makeReceipt(counts, anchorUuid, contextDelta))
     for (let index = fold.close; index < end; index++) out.push(messages[index]!)
     start = end
@@ -393,7 +350,7 @@ function walkTurnReceipts(
     return delta
   }
   const settle = (end: number): void => {
-    visit(settleTally(tally), anchorUuid, end, replied, settleDelta(), { carried: boardRows(tally.carried), close: firstIdle ?? end })
+    visit(settleTally(tally), anchorUuid, end, replied, settleDelta(), { close: firstIdle ?? end })
   }
   for (let index = 0; index < messages.length; index++) {
     const m = messages[index]!
@@ -428,7 +385,6 @@ function walkTurnReceipts(
       const carry = row.uuid === undefined ? undefined : pending.get(row.uuid)
       if (!carry) continue
       addCounts(tally.counts, carry.counts, 1)
-      tally.carried.push(...(carry.board ?? []))
       anchorUuid = carry.anchorUuid
       pending.delete(carry.beforeUuid)
       pending.delete(deriveUUID(carry.beforeUuid as Message['uuid'], carry.blockIndex ?? 0))

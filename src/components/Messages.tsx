@@ -46,7 +46,7 @@ import { applyGrouping } from '../utils/groupToolUses.js'
 import { collapseReadSearchGroups } from '../utils/collapseReadSearch.js'
 import { RowErrorBoundary } from './RowErrorBoundary.js'
 import { collapseBackgroundBashNotifications } from '../utils/collapseBackgroundBashNotifications.js'
-import { hasActivity, injectRetainedChatRows, injectTurnReceipts, isTurnBoundary } from '../utils/cockpit/turnReceipt.js'
+import { hasActivity, injectTurnReceipts, isTurnBoundary } from '../utils/cockpit/turnReceipt.js'
 import { getMercuryTempDir } from '../utils/permissions/filesystem.js'
 import { hasRealConversation as computeHasRealConversation } from '../utils/cockpit/realConversation.js'
 import {
@@ -337,7 +337,6 @@ export function composeTranscript(input: {
     tools,
     verbose,
   ).messages as RenderableMessage[]
-  collapsed = injectRetainedChatRows(collapsed)
   collapsed = injectTurnReceipts(collapsed, getMercuryTempDir())
   collapsed = collapseReadSearchGroups(
     collapsed as Parameters<typeof collapseReadSearchGroups>[0],

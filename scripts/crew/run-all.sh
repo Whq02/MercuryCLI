@@ -60,6 +60,7 @@
 # gate-watch: src/components/messages/AssistantTextMessage.tsx src/services/switchboard/spawnSwitches.ts src/tasks/LocalShellTask/LocalShellTask.tsx src/tasks/LocalShellTask/killShellTasks.ts src/tasks/taskOutcomeEnvelope.ts src/utils/sdkEventQueue.ts src/utils/cockpit/crewmateWords.ts
 # gate-watch: src/services/api/recoveryBudget.ts src/services/vulcan/engine/leases.ts src/tools/TaskStopTool/TaskStopTool.ts src/tasks/LocalAgentTask/pauseCarry.ts src/tasks/stopTask.ts src/services/agents/operatorStop.ts
 # gate-watch: src/tools/ToolSearchTool/prompt.ts
+# gate-watch: src/components/Messages.tsx src/utils/sessionStorage/transcriptReader.ts src/utils/sessionStorage/vnext.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
