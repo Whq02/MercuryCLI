@@ -143,13 +143,13 @@ export async function liveCoordinatorSummarizer(args: {
 async function resolveCompactModel(): Promise<{ ok: true; modelId: string } | { ok: false; line: string }> {
   try {
     const { getGlobalConfig } = await import('../../utils/config.js')
-    const choice = getGlobalConfig().concourseCoordinator?.assistModel
-    const { validateCoordinatorModelChoice } = await import('./coordinatorModels.js')
+    const { validateCoordinatorModelChoice, defaultCoordinatorModelId } = await import('./coordinatorModels.js')
+    const choice = getGlobalConfig().concourseCoordinator?.assistModel ?? await defaultCoordinatorModelId()
     const validated = await validateCoordinatorModelChoice(choice)
     if (!validated.ok) {
       return {
         ok: false,
-        line: 'compact needs the coordinator model to write the summary — pick one (the rail chip ⌄), or /clear starts fresh',
+        line: 'compact needs a coordinator model to write the summary — sign in to a provider or serve a local model, or /clear starts fresh',
       }
     }
     return { ok: true, modelId: validated.entry.modelId }

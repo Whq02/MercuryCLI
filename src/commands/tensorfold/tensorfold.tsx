@@ -78,7 +78,7 @@ export function TensorFoldPanel({ onDone, io = {}, repo }: { onDone: (words?: st
     }
   }, [read, version])
   React.useEffect(() => {
-    const inFlight = facts !== null && Object.values(facts.acts).some(act => act.kind === 'pulling' || act.kind === 'starting' || act.kind === 'installing')
+    const inFlight = facts !== null && (Object.values(facts.acts).some(act => act.kind === 'pulling' || act.kind === 'starting' || act.kind === 'installing') || facts.pods.some(pod => pod.state === 'starting' || pod.state === 'stopping'))
     if (!inFlight) return
     const timer = setInterval(() => void read(), TENSORFOLD_REFRESH_MS)
     return () => clearInterval(timer)

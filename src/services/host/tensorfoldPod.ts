@@ -16,19 +16,21 @@ import { terminateHostResource } from './cluster.js'
 import { TENSORFOLD_CARDS, TENSORFOLD_HOST_PORT, TENSORFOLD_HOST_VERSION, tensorFoldCardFor, tensorFoldClassWords, tensorFoldKeyPath, tensorFoldKeyWriteCommand, tensorFoldReadyCommand, tensorFoldServedName, tensorFoldStartingPoint, tensorFoldTitle, tensorFoldWindowWords, type TensorFoldCard } from './tensorfoldRelease.js'
 import { vendorClient, vendorLabel } from './vendors/client.js'
 import type { HostPod, HostVendor } from './vendors/vendor.js'
+import { HostVendorHttpError } from './vendors/http.js'
+import { RunpodHttpError } from './runpod.js'
 
 export const isTensorFoldRecipe = (recipe: Pick<HostRecipe, 'engine'> | undefined): boolean => recipe?.engine === 'tensorfold'
 export const tensorFoldPodHostName = (id: string): string => ('pod-' + id.toLowerCase().replaceAll('_', '-')).slice(0, 28)
 export const isTensorFoldPodBox = (box: Pick<HostBox, 'name' | 'engines'>): boolean => box.name.startsWith('pod-') && box.engines.some(engine => engine.kind === 'tensorfold')
 
 export const TENSORFOLD_HOST_WORDS = {
-  rentRow: 'rent a GPU pod — Runpod, through /llmhost',
+  rentRow: 'rent a GPU pod — Runpod or Vast.ai, through /llmhost',
   through: '/llmhost rents it, installs TensorFold, pulls, serves, then this session switches · s stops the pod and its billing',
   billingStarts: 'billing starts when it boots',
-  stopped: (machine: string, spend: number): string => machine + ' stopped · compute billing ended · ~$' + spend.toFixed(2) + ' so far · the disk bills until you terminate it in /llmhost',
-  alreadyStopped: (machine: string): string => machine + ' is already stopped · the disk bills until you terminate it in /llmhost',
+  stopped: (machine: string, spend: number): string => machine + ' stopped · compute billing ended · ~$' + spend.toFixed(2) + ' so far · the disk bills until you terminate it · t terminates',
+  alreadyStopped: (machine: string): string => machine + ' is already stopped · the disk bills until you terminate it · t terminates',
   stopFailed: (machine: string, detail: string): string => machine + ' · ' + detail + ' · compute may still bill · /llmhost → Machines I’m paying for → Stop again or Terminate',
-  stopping: (machine: string, vendor: string): string => machine + ' · stop requested · the row reads stopping until ' + vendor + ' confirms, then compute billing ends · the disk bills until you terminate it in /llmhost',
+  stopping: (machine: string, vendor: string): string => machine + ' · stop requested · the row reads stopping until ' + vendor + ' confirms, then compute billing ends · the disk bills until you terminate it · t terminates',
   noStop: (vendor: string): string => vendor + ' has no Stop · t terminates it',
   terminated: (machine: string, spend: number): string => machine + ' terminated · the pod and its disk are gone · ~$' + spend.toFixed(2) + ' in all',
   terminateFailed: (machine: string, detail: string): string => machine + ' · ' + detail + ' · it may still bill · /llmhost → Machines I’m paying for → Terminate',
@@ -111,8 +113,8 @@ export function tensorFoldPodFacts(record: HostRecord, recipe: HostRecipe | unde
   return {
     id: record.id, hostName: tensorFoldPodHostName(record.id), vendor, machine: hostMachineName(vendor, record.id), gpu: row.gpu,
     title: point?.title ?? row.label.split(' · ')[0]!, served: tensorFoldServedName(row) ?? point?.name ?? row.model, window: row.context,
-    price: record.price, elapsedMs, spendUSD: record.status === 'EXITED' ? record.spendUSD ?? 0 : hostSpendSoFar([{ status: record.status, cost: record.price, createdAt: record.startedAt }], now),
-    state: podState(record), step: record.step, provider: record.provider, ...(record.localPort ? { baseUrl: 'http://127.0.0.1:' + record.localPort } : {}), bills: hostPodBills(record),
+    price: record.price, elapsedMs, spendUSD: record.status === 'EXITED' || record.stopRequestedAt !== undefined ? record.spendUSD ?? 0 : hostSpendSoFar([{ status: record.status, cost: record.price, createdAt: record.startedAt }], now),
+    state: podState(record), step: record.step, provider: record.provider, ...(record.localPort ? { baseUrl: 'http://127.0.0.1:' + record.localPort } : {}), bills: hostPodBills(record) && record.stopRequestedAt === undefined,
   }
 }
 export function tensorFoldPods(recipes: readonly HostRecipe[], now = Date.now()): TensorFoldPodFacts[] {
@@ -188,6 +190,8 @@ export async function stopTensorFoldPod(id: string, options: { client?: HostVend
   return { ok: true, words: TENSORFOLD_HOST_WORDS.stopped(machine, spend) }
 }
 
+const vendorGone = (error: unknown): boolean => (error instanceof HostVendorHttpError || error instanceof RunpodHttpError) && error.status === 404
+
 export async function terminateTensorFoldPod(id: string, options: { client?: HostVendor; signal?: AbortSignal } = {}): Promise<{ ok: boolean; words: string }> {
   const record = readHostRecord(id)
   if (!record) return { ok: false, words: TENSORFOLD_HOST_WORDS.gone }
@@ -198,7 +202,7 @@ export async function terminateTensorFoldPod(id: string, options: { client?: Hos
   try { api = options.client ?? vendorClient(record) } catch (error) { return { ok: false, words: TENSORFOLD_HOST_WORDS.terminateFailed(machine, error instanceof Error ? error.message : String(error)) } }
   try {
     await stopHostSetup(id)
-    const pod = await api.get(id, options.signal).catch(() => undefined)
+    const pod = await api.get(id, options.signal).catch(error => { if (vendorGone(error)) return undefined; throw error })
     if (pod !== undefined) await terminateHostResource(api, pod)
   } catch (error) {
     return { ok: false, words: TENSORFOLD_HOST_WORDS.terminateFailed(machine, error instanceof Error ? error.message : String(error)) }
@@ -208,6 +212,8 @@ export async function terminateTensorFoldPod(id: string, options: { client?: Hos
   const { removeLlmHostProvider } = await import('../llmHost/index.js')
   for (const endpoint of configuredCompatEndpoints()) if (endpoint.hostPodId === id || endpoint.name === record.provider) removeLlmHostProvider(endpoint.name)
   await unregisterTensorFoldPod(id)
+  const { restoreRentingSession } = await import('./worker.js')
+  await restoreRentingSession(record)
   removeHostRecord(id)
   return { ok: true, words: TENSORFOLD_HOST_WORDS.terminated(machine, spend) }
 }
@@ -218,7 +224,13 @@ export async function settleStoppingTensorFoldPods(options: { client?: (record: 
     if (record.stopRequestedAt === undefined || record.status === 'EXITED') continue
     try {
       const api = options.client ? options.client(record) : vendorClient(record)
-      const pod = await api.get(record.id, options.signal ?? AbortSignal.timeout(5000))
+      const pod = await api.get(record.id, options.signal ?? AbortSignal.timeout(5000)).catch(error => { if (vendorGone(error)) return undefined; throw error })
+      if (pod === undefined || pod.status === 'TERMINATED') {
+        await unregisterTensorFoldPod(record.id)
+        removeHostRecord(record.id)
+        settled += 1
+        continue
+      }
       if (pod.status !== 'EXITED') continue
       patchHostRecord(record.id, { status: 'EXITED', step: 'stopped · compute billing ended · the disk bills until Terminate' })
       settled += 1

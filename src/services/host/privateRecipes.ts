@@ -18,7 +18,7 @@ export async function choosePrivateRecipesFile(ask: Parameters<LlmHostRoad>[0], 
   let initial = shortFolder(current.path ?? privateHostRecipesCandidates()[0]!)
   let error = current.errors.join('\n')
   while (!signal.aborted) {
-    const named = await ask({ step: 'door-private-recipes-file', title: PRIVATE_RECIPES_PROMPT, found: [error, current.recipes.length ? 'Loaded: ' + summary(current) : 'No private recipes loaded.', 'Candidates:\n' + privateHostRecipesCandidates().map(shortFolder).join('\n')].filter(Boolean).join('\n'), willRun: 'Enter an absolute file path. The file replaces the shipped list. Checked before saving; nothing runs.', initial })
+    const named = await ask({ step: 'door-private-recipes-file', title: PRIVATE_RECIPES_PROMPT, found: [error, current.recipes.length ? 'Loaded: ' + summary(current) : 'No private recipes loaded.', 'Candidates:\n' + privateHostRecipesCandidates().map(shortFolder).join('\n')].filter(Boolean).join('\n'), willRun: 'Enter an absolute file path. Its rows join the shipped list; a row with a shipped id replaces that row. Checked before saving; nothing runs.', initial })
     if (named === null || signal.aborted) return
     initial = named
     try {

@@ -262,7 +262,7 @@ export async function switchCoordinatorEffort(effortWord: string): Promise<Coord
     return receipt
   }
   const { getGlobalConfig, saveGlobalConfig } = await import('../../utils/config.js')
-  const choice = await validateCoordinatorModelChoice(getGlobalConfig().concourseCoordinator?.assistModel)
+  const choice = await validateCoordinatorModelChoice(getGlobalConfig().concourseCoordinator?.assistModel ?? await defaultCoordinatorModelId())
   const detail = choice.ok ? coordinatorEffortDetail(choice.entry.modelId, level) : undefined
   if (getGlobalConfig().concourseCoordinator?.effort === level) {
     const receipt: CoordinatorSwitchReceiptV1 = {
@@ -340,7 +340,7 @@ export async function switchCoordinatorMode(
     return receipt
   }
   const { getGlobalConfig, saveGlobalConfig } = await import('../../utils/config.js')
-  const current = getGlobalConfig().concourseCoordinator?.mode ?? 'rules-only'
+  const current = getGlobalConfig().concourseCoordinator?.mode
   if (current === mode) {
     const receipt: CoordinatorSwitchReceiptV1 = { target: 'mode', value: mode, outcome: 'no-change', inFlightTurns, boundary }
     await emitSwitchReceipt(receipt)
