@@ -64,6 +64,7 @@ export type TensorFoldModelRow = {
   inUseBytes?: number
   startedBy?: 'mercury' | 'outside'
   lastReply?: TensorFoldLastReply
+  note?: string
 }
 
 export type TensorFoldServeRequest = {
