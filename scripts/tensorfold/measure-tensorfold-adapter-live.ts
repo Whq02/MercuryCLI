@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { execFileSync, spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { createReadStream, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -94,13 +95,31 @@ console.log('§1 the engine through the road: the adapter with the tell')
 const found = await engine.findTensorFoldEngine({ adapter: true, exists: () => false })
 check('findTensorFoldEngine with the adapter seam (his own binary hidden, as on a Windows box without one): servedBy mercury-llamacpp, backends cpu, llama.cpp found', found !== null && found.servedBy === 'mercury-llamacpp' && found.backends[0] === 'cpu' && found.capabilities.llamacpp?.found === true, JSON.stringify({ binary: found?.binary, servedBy: found?.servedBy, llama: found?.capabilities.llamacpp }))
 
-console.log(`§2 pull the 2B GGUF into ${cache} (resumes and verifies when present)`)
+console.log(`§2 pull the 2B GGUF into ${cache} (a download is sha256-verified by the adapter; a whole blob is a size-matched cache hit), then the drive re-hashes the blob itself`)
+const hit = hfCache.ggufOnDisk(cache, QWEN_2B.gguf).complete
 const pulled: number[] = []
 const pullBegun = Date.now()
 await pull.pullTensorFold(QWEN_2B.repo, progress => pulled.push(progress.bytes), { binary: ENTRY, cacheRoot: cache, logDir: join(scratch, 'logs'), pollMs: 1_000, env: { ...process.env, HF_HUB_CACHE: cache } })
 const onDisk = hfCache.ggufOnDisk(cache, QWEN_2B.gguf)
-check(`the GGUF is whole in the HF-hub layout under the mapped repo (${(QWEN_2B.gguf.bytes / 1e9).toFixed(2)} GB, sha256 verified by the adapter) · ${((Date.now() - pullBegun) / 1000).toFixed(1)} s`, onDisk.complete && existsSync(hfCache.ggufPaths(cache, QWEN_2B.gguf).snapshotFile), JSON.stringify({ onDisk, pulled: pulled.slice(-2) }))
-receipt.pull = { seconds: (Date.now() - pullBegun) / 1000, bytes: onDisk.bytes, samples: pulled.length }
+check(`the GGUF is whole in the HF-hub layout under the mapped repo (${(QWEN_2B.gguf.bytes / 1e9).toFixed(2)} GB; ${hit ? 'a cache hit: the size matched the pin, nothing downloaded' : 'downloaded and sha256-verified by the adapter'}) · ${((Date.now() - pullBegun) / 1000).toFixed(1)} s`, onDisk.complete && existsSync(hfCache.ggufPaths(cache, QWEN_2B.gguf).snapshotFile), JSON.stringify({ onDisk, pulled: pulled.slice(-2) }))
+const hashBegun = Date.now()
+const digest = createHash('sha256')
+for await (const chunk of createReadStream(hfCache.ggufPaths(cache, QWEN_2B.gguf).blob)) digest.update(chunk as Buffer)
+const blobSha256 = digest.digest('hex')
+check(`the drive's own sha256 of the blob equals the table's pin (${blobSha256.slice(0, 8)}…) · ${((Date.now() - hashBegun) / 1000).toFixed(1)} s`, blobSha256 === QWEN_2B.gguf.sha256, blobSha256)
+receipt.pull = { seconds: (Date.now() - pullBegun) / 1000, bytes: onDisk.bytes, samples: pulled.length, hit, sha256: blobSha256 }
+
+console.log('§2b models --json from the shipped shape against the real cache')
+if (node !== undefined && existsSync(join(dist, 'tensorfold-adapter.mjs'))) {
+  const text = execFileSync(node, [join(dist, 'tensorfold-adapter.mjs'), '--tensorfold-adapter', 'models', '--json'], { encoding: 'utf8', env: { ...process.env, HF_HUB_CACHE: cache } })
+  const listed = JSON.parse(text) as { served_by?: string; cache?: string; models?: Array<{ repo: string; name: string; on_disk: boolean; bytes_on_disk: number; bytes: number; qualified: boolean; gguf: { repo: string; file: string; sha256: string } }> }
+  const rows = listed.models ?? []
+  const two = rows.find(row => row.repo === QWEN_2B.repo)
+  check('models --json: the tell, the cache root, the three rows in rank order (4B · 2B · Lightning) each naming its GGUF repo, file and digest; the pulled 2B on disk with the pinned byte count; Lightning unqualified', listed.served_by === 'mercury-llamacpp' && listed.cache === cache && rows.map(row => row.name).join(' · ') === 'qwen3.5-4b · qwen3.5-2b · nemotron-lightning' && rows.every(row => row.gguf.repo.endsWith('-GGUF') && row.gguf.file.endsWith('.gguf') && /^[0-9a-f]{64}$/.test(row.gguf.sha256)) && two?.on_disk === true && two.bytes_on_disk === QWEN_2B.gguf.bytes && two.bytes === QWEN_2B.gguf.bytes && rows[2]?.qualified === false, text.slice(0, 600))
+  receipt.models = rows.map(row => ({ name: row.name, on_disk: row.on_disk, bytes_on_disk: row.bytes_on_disk }))
+} else {
+  check('models --json from the shipped shape needs dist/tensorfold-adapter.mjs and a node runtime', false, 'bun run build.ts first')
+}
 
 console.log("§3 the CPU path: the adapter's own llama-server line on this binary, run once at verbosity 4 to read the memory breakdown")
 {
