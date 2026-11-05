@@ -88,7 +88,7 @@ See [docs/README.md](docs/README.md) for the full documentation catalogue ([docs
 | crew & delegation | `/agents` `/crewmates` `/crew` `/swarm` `/swarmchat` `/general` `/team` `/whisper` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |
 | config & setup | `/config` `/jev` `/localsetup` `/llmhost` `/imagesetup` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
@@ -99,6 +99,7 @@ See [docs/README.md](docs/README.md) for the full documentation catalogue ([docs
 | --- | --- |
 | `/imagesetup` | Set up local image and video models. |
 | `/llmhost` | Choose a model to rent on Runpod, Vast.ai, Lambda, Hugging Face Inference Endpoints, Hyperstack, Verda or DigitalOcean, run on your own computer, or connect an existing server. |
+| `/tensorfold` | Run a local model on TensorFold: install the engine, pull a model, serve it on this Mac, share it on your network or rent a GPU for it, and switch — one screen. |
 | `/restart` | Move this chat to the installed Mercury build; running watches and background shells stop. |
 | `/mcp` | Inspect servers, sign in, browse each server’s tools and parameters, reconnect, or toggle a server for this chat. |
 
