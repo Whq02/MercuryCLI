@@ -19,7 +19,7 @@ import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js
 import type { Attachment } from '../../utils/attachments/types.js'
 import { getUserContextAttachment } from '../../utils/attachments/userContext.js'
 import { getMemoryPath } from '../../utils/config/derived.js'
-import { foldedTurnReceipts, retainedChatRows } from '../../utils/cockpit/turnReceipt.js'
+import { foldedTurnReceipts } from '../../utils/cockpit/turnReceipt.js'
 import { collectAwayWork } from '../../utils/cockpit/awaySummary.js'
 import { getMercuryTempDir } from '../../utils/permissions/filesystem.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -406,10 +406,8 @@ export function annotateBoundaryWithPreservedSegment(
 }
 
 export function foldedWorkOf(messages: Message[], kept: Message[], summaryUuid: UUID): NonNullable<CompactMetadata['work']> {
-  const idle = retainedChatRows(messages, kept, summaryUuid)
   return {
     receipts: foldedTurnReceipts(messages, kept, summaryUuid, getMercuryTempDir()),
-    ...(idle.length > 0 ? { idle } : {}),
     recap: collectAwayWork(messages, new Set(kept.map(message => message.uuid))),
   }
 }

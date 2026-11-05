@@ -298,24 +298,6 @@ for (const subtype of ['crew_chat', 'local_command', 'user']) {
   copyFileSync(w.path, other)
   check(`${subtype}: a second independent reader keeps both terminal rows`, j(await w.screen(other)) === expected, j(await w.screen(other)))
 }
-{
-  const w = stampedWorld('idle-placement-dedupe')
-  const boundary = w.boundary('boundary', '2026-11-01T00:00:00Z')
-  const summary = w.summary('summary', boundary, '2026-11-01T00:00:01Z')
-  const kept = w.user('kept', 'A kept prompt.', summary.uuid, '2026-11-01T00:00:03Z')
-  const idle = w.note('idle', 'A retained idle post.', summary.uuid, '2026-11-01T00:00:02Z')
-  ;(boundary as unknown as { compactMetadata: Record<string, unknown> }).compactMetadata.work = { receipts: [], idle: [{ after: summary.uuid, rows: [idle] }, { after: kept.uuid, rows: [idle] }] }
-  const projected = receiptMod.injectRetainedChatRows([boundary, summary, kept]) as DisplayRow[]
-  check('retained idle rows occur once across different placement groups', j(w.named(projected)) === j(['boundary', 'summary', 'idle', 'kept']), j(w.named(projected)))
-  const withOriginal = receiptMod.injectRetainedChatRows([boundary, summary, kept, idle]) as DisplayRow[]
-  check('a retained group never duplicates or relocates a kept original row', j(w.named(withOriginal)) === j(['boundary', 'summary', 'kept', 'idle']), j(w.named(withOriginal)))
-  ;(boundary as unknown as { compactMetadata: { work: { idle: Array<{ after: string; rows: Stamped[] }> } } }).compactMetadata.work.idle.unshift({ after: 'absent-anchor', rows: [idle] })
-  const afterAbsent = receiptMod.injectRetainedChatRows([boundary, summary, kept]) as DisplayRow[]
-  check('an absent placement anchor does not consume the row before its first valid anchor', j(w.named(afterAbsent)) === j(['boundary', 'summary', 'idle', 'kept']), j(w.named(afterAbsent)))
-  const surface = readFileSync(join(SRC, 'components/Messages.tsx'), 'utf8')
-  const retainedAt = surface.indexOf('collapsed = injectRetainedChatRows(collapsed)')
-  check('the screen materialises retained rows before the independently gated receipt pass', retainedAt >= 0 && retainedAt < surface.indexOf('collapsed = injectTurnReceipts('))
-}
 if (process.argv.includes('--idle-chain-only')) {
   clearTimeout(guard)
   process.chdir(REPO)
@@ -818,24 +800,27 @@ try {
   check('the actual runner records the second idle row as a child of the first', secondIdle.parentUuid === firstIdle.uuid, j({ first: firstIdle.uuid, parent: secondIdle.parentUuid }))
   check('both arrivals really were idle', firstIdle.turnId === undefined && secondIdle.turnId === undefined)
   const idleOn = async (label: string, target: { records(): ReadonlyArray<DisplayRow> }): Promise<void> => {
-    check(`${label}: the current epoch and both idle rows reach the screen projection`, await untilAsync(() => {
+    const kept = (): string[] => { const epoch = epochOf(entriesOf(transcript)); return epoch === null ? idleIds : idleIds.filter(id => epoch.all.has(id)) }
+    check(`${label}: the current epoch and the idle rows it holds reach the screen projection`, await untilAsync(() => {
       const rows = target.records()
       const epoch = epochOf(entriesOf(transcript))
       if (epoch !== null && !rows.some(row => row.uuid === epoch.boundary)) return false
-      const projected = receiptMod.injectRetainedChatRows([...rows]) as DisplayRow[]
-      return idleIds.every(id => projected.some(row => row.uuid === id))
+      return kept().every(id => rows.some(row => row.uuid === id))
     }, 20_000))
+    const expected = kept()
     const prior = process.env.MERCURY_TURN_RECEIPT
     try {
       for (const flag of ['0', '1']) {
         process.env.MERCURY_TURN_RECEIPT = flag
-        const projected = receiptMod.injectTurnReceipts(receiptMod.injectRetainedChatRows([...target.records()]), SCRATCH) as DisplayRow[]
+        const projected = receiptMod.injectTurnReceipts([...target.records()], SCRATCH) as DisplayRow[]
         const rows = projected.filter(row => row.type === 'system' && row.subtype === 'crew_chat' && idleIds.includes(row.uuid))
-        check(`${label}: receipt=${flag} keeps both idle rows once, in order, with their complete words`, j(rows.map(row => row.uuid)) === j(idleIds) && j(rows.map(row => row.content)) === j(idleWords) && rows.every(row => row.turnId === undefined), j(rows))
+        const words = rows.map(row => idleWords[idleIds.indexOf(row.uuid)]!)
+        check(`${label}: receipt=${flag} paints an idle row exactly when the epoch holds it (${expected.length} of ${idleIds.length}), once, in order, with its complete words`, j(rows.map(row => row.uuid)) === j(expected) && j(rows.map(row => row.content)) === j(words) && rows.every(row => row.turnId === undefined), j({ rows: rows.map(row => row.uuid), expected }))
         check(`${label}: receipt=${flag} never puts idle rows inside a turn receipt`, projected.every(row => !(row.board ?? []).some(post => idleIds.includes(post.uuid))))
+        if (rows.length === 0) continue
         for (const columns of [120, 80]) {
           const painted = await paintBoardRows(rows, columns)
-          check(`${label}: receipt=${flag} paints both idle messages once at ${columns} columns`, idleWords.every(word => painted.split(word).length === 2) && painted.indexOf(idleWords[0]!) < painted.indexOf(idleWords[1]!), painted)
+          check(`${label}: receipt=${flag} paints the ${rows.length} kept idle message(s) once at ${columns} columns`, words.every(word => painted.split(word).length === 2) && (words.length < 2 || painted.indexOf(words[0]!) < painted.indexOf(words[1]!)), painted)
         }
       }
     } finally {
@@ -863,9 +848,8 @@ try {
   const foldedEntries = entriesOf(transcript)
   const foldedBoundary = epochOf(foldedEntries)!.boundary
   const foldedWork = foldedEntries.filter(row => row.uuid === foldedBoundary).at(-1)?.compactMetadata?.work
-  const retainedIdle = foldedWork?.idle?.flatMap(group => group.rows) ?? []
-  check('the older idle pair is now retained in work.idle, not a kept raw tail', idleIds.every(id => retainedIdle.filter(row => row.uuid === id).length === 1) && idleIds.every(id => !epochOf(foldedEntries)!.preserved.includes(id)), j(foldedWork))
-  check('the retained pair never contributes receipt board data', (foldedWork?.receipts ?? []).every(receipt => !(receipt.board ?? []).some(row => idleIds.includes(row.uuid))))
+  check('the older idle pair folded with its turn: the boundary carries no retained rows and the pair is not in the kept tail', foldedWork !== undefined && !('idle' in foldedWork) && idleIds.every(id => !epochOf(foldedEntries)!.preserved.includes(id)), j(foldedWork))
+  check('no receipt carries board rows', (foldedWork?.receipts ?? []).every(receipt => !('board' in receipt)), j(foldedWork?.receipts))
   await say(WORDS[6]!)
   await say(WORDS[7]!)
   const recordQuiet = async (): Promise<void> => {

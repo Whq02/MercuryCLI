@@ -84,9 +84,7 @@ export type CompactMetadata = {
       blockIndex?: number
       anchorUuid: string
       counts: import('../utils/cockpit/turnReceipt.js').TurnReceiptCounts
-      board?: SystemCrewChatMessage[]
     }>
-    idle?: Array<{ after: string; rows: SystemCrewChatMessage[] }>
     recap: {
       turns: number
       toolCounts: Array<[string, number]>
