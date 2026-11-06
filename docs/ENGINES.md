@@ -739,11 +739,12 @@ session's effort dial (`/effort`, `MERCURY_EFFORT_LEVEL`) governs the turn,
 never a side job (the one case below excepted). A hook that names its own model runs that model at its
 lowest tier: the hook reads that road's model list first, within a bounded
 wait, and when the list cannot be read in time a question rides the road's own
-default effort and a crewmate runs at the session's dial. The one exception is a local session: `Helper model` in `/config`
+default effort and a crewmate runs at the session's dial. The one exception is the
+helper you choose yourself: `Helper model` in `/config`
 (off by default; [TENSORFOLD.md](TENSORFOLD.md#the-helper-model-setting))
-routes a local seat's titles and summaries, model-answered hooks, the
-needs-you judge and the mission judge to a local 2B or 4B model or the
-session's local model, and
+routes the session's titles and summaries, model-answered hooks, the
+needs-you judge and the mission judge to a local 2B or 4B model (or the
+session's own local model) on every road, and
 `Helper model for compaction`, when on, folds session compaction on the helper
 as that page describes.
 

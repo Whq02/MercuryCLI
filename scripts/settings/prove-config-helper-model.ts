@@ -117,7 +117,7 @@ section('§1 the choices: sizes tagged with their engine, memory and fit, the se
   check('← → skip unavailable rows', helper.nextHelperModelSetting('off', 1, choices) === '2b' && helper.nextHelperModelSetting('2b', 1, choices) === 'off' && helper.nextHelperModelSetting('off', -1, choices) === '2b')
 }
 
-section('§2 the setting: off by default; on, the helper\'s own process answers a local seat\'s utility calls through utilityCallFor (an Anthropic seat never routes to it)')
+section('§2 the setting: off by default; on, the helper\'s own process answers the default selection of every seat\'s utility calls through utilityCallFor (a named model is itself)')
 {
   check('off by default', helper.readHelperModelSetting().size === 'off' && helper.readHelperModelSetting().compaction === false)
   check('helperModelState reports off', JSON.stringify(hosts.helperModelState()) === JSON.stringify({ enabled: false }))
@@ -126,10 +126,11 @@ section('§2 the setting: off by default; on, the helper\'s own process answers 
   helper.writeHelperModelSetting({ size: '2b' })
   const state = hosts.helperModelState()
   check('2B: the state names the engine, the repo and the port of its own process', state.enabled && state.size === '2b' && state.engine === 'tensorfold' && state.repo === helper.HELPER_2B_REPO && state.port === helper2b.port, JSON.stringify(state))
-  check('2B: a local seat\'s titles, summaries and judge route to the helper; an Anthropic seat keeps its own model', utility.utilityCallFor('local/qwen3.8-27b').model === 'local/qwen3.5-2b' && utility.utilityCallFor('claude-opus-5-5').model === 'claude-opus-5-5')
+  check('2B: titles, summaries and the judges route to the helper on a local seat and on an Anthropic seat alike (the user turned it on)', utility.utilityCallFor('local/qwen3.8-27b').model === 'local/qwen3.5-2b' && utility.utilityCallFor('claude-opus-5-5').model === 'local/qwen3.5-2b')
+  check('2B: the call carries the helper\'s own road: thinking adaptive and the floor of the helper\'s ladder, not the seat\'s', utility.utilityCallFor('claude-opus-5-5').thinkingConfig.type === 'adaptive', JSON.stringify(utility.utilityCallFor('claude-opus-5-5')))
   check('2B: a hook that names the 27B gets the 27B at its own floor, never the slot, on a local seat', utility.utilityCallFor('local/qwen3.8-27b', { named: true }).model === 'local/qwen3.8-27b')
   process.env.MERCURY_MODEL = 'claude-opus-5-5'
-  check('2B: on an Anthropic seat the default selection is the seat and a named local model is itself', utility.utilityCallFor().model === 'claude-opus-5-5' && utility.utilityCallFor('local/qwen3.8-27b', { named: true }).model === 'local/qwen3.8-27b')
+  check('2B: on an Anthropic seat the default selection is the slot and a named model is itself', utility.utilityCallFor().model === 'local/qwen3.5-2b' && utility.utilityCallFor('local/qwen3.8-27b', { named: true }).model === 'local/qwen3.8-27b' && utility.utilityCallFor('claude-opus-5-5', { named: true }).model === 'claude-opus-5-5')
   process.env.MERCURY_MODEL = 'local/qwen3.8-27b'
   check('2B: on a local seat the default selection is the slot and a named local model is itself', utility.utilityCallFor().model === 'local/qwen3.5-2b' && utility.utilityCallFor('local/qwen3.8-27b', { named: true }).model === 'local/qwen3.8-27b' && utility.utilityCallFor('local/qwen3.5-2b', { named: true }).model === 'local/qwen3.5-2b')
   delete process.env.MERCURY_MODEL
@@ -208,6 +209,16 @@ section('§2b the helper is its own process beside the session\'s server, starte
   check('after the start the helper answers the local seat\'s small jobs', hosts.helperModelState().port === helper2b.port && utility.utilityCallFor('local/qwen3.8-27b').model === 'local/qwen3.5-2b')
   await helper.stopHelperServing()
   check('stopping the helper stops only the helper\'s name through its role', JSON.stringify(stopped) === JSON.stringify(['qwen3.5-2b']) && (await helper.helperServedRecord()) === undefined)
+  hosts.forgetTensorFoldPort(helper2b.port)
+  await discovery.refreshLocalDiscovery({ force: true })
+  process.env.MERCURY_MODEL = 'claude-opus-5-5'
+  armLocalWarm(() => ({ messages: [], systemPrompt: [], tools: [] } as never), { io: { settleMs: 0 } })
+  const cloudStartedBy = Date.now()
+  while (started.length < 2 && Date.now() - cloudStartedBy < 5_000) await new Promise(resolve => setTimeout(resolve, 25))
+  disarmLocalWarm()
+  delete process.env.MERCURY_MODEL
+  check('a cloud session opening with the slot set starts the helper too: the setting is the user\'s choice on every road', started.length === 2 && started[1]?.role === 'helper' && started[1].name === 'qwen3.5-2b', JSON.stringify(started))
+  await helper.stopHelperServing()
   helper.__pinHelperServeSeamForTest(undefined)
   helper.writeHelperModelSetting({ size: 'off', compaction: false })
   hosts.rememberTensorFoldPort(helper2b.port)

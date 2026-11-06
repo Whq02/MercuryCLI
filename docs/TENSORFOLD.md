@@ -374,9 +374,9 @@ On Windows with the adapter:
 ## The helper model setting
 
 In `/config`, `Helper model` (default `off`) runs a small local model for
-Mercury's own background jobs when the session's main model is itself a local
-model (on every other road those jobs ride the main model at its lowest effort
-tier; [ENGINES.md](ENGINES.md#the-runtimes)):
+Mercury's own background jobs on every road, a cloud session's as much as a
+local one's (off, those jobs ride the main model at its lowest effort tier;
+[ENGINES.md](ENGINES.md#the-runtimes)):
 `titles and summaries ✓ · the judge ✓ · compaction ✗ · a small model can drop details`.
 Below it in `/config`, `Helper model for compaction` (default
 `off · a small model can drop details`) opts session compaction into the helper
