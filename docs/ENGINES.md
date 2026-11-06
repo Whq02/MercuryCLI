@@ -737,7 +737,9 @@ level on a road that grades its thinking, and no effort word on a road
 without effort control. No second model id is ever asked for, and the
 session's effort dial (`/effort`, `MERCURY_EFFORT_LEVEL`) governs the turn,
 never a side job. A hook that names its own model runs that model at its
-lowest tier. The one exception is a local session: `Helper model` in `/config`
+lowest tier: the hook reads that road's model list first, within a bounded
+wait, and when the list cannot be read in time the road's own default effort
+rides that call. The one exception is a local session: `Helper model` in `/config`
 (off by default; [TENSORFOLD.md](TENSORFOLD.md#the-helper-model-setting))
 routes a local seat's titles and summaries, model-answered hooks and the
 needs-you judge to a local 2B or 4B model or the session's local model, and
