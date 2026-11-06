@@ -111,21 +111,26 @@ one (one numbered line per criterion naming its evidence, then the
 `<<<GOAL-MET>>>` line, elided on screen in the chat and concourse live tiles
 while kept in the transcript) — the turn's tool calls and the verification
 record, never the conversation; it answers `met`, `not yet` or `impossible` with
-a one-line reason (an unreadable answer counts as `not yet`). When JEV
+a one-line reason (an answer that is not exactly that JSON counts as `not yet`;
+a judge that cannot be reached — an API error, a thrown call, the 20-second
+limit — counts as `not yet` with the reason "the judge could not be reached",
+and the next turn end is judged again). When JEV
 ([ENGINES.md](ENGINES.md#jev)) is enabled and ready with a key, its verdict
 (`met`, `open`, `ambiguous` or `unattainable` at a `0.6` confidence floor) wins
-over the judge's; when no model call can be made at all (a fixture, an offline
-run), the itemised claim is the verification. `met` needs the itemised close
-from any judge: a bare `<<<GOAL-MET>>>` or a skipped criterion is held, not met.
-When `met`, the chat gets one completed row like a finished monitor's —
-`Mission completed: <goal> — <the judge's reason> · N turns · <elapsed>` — the
-rail drops the goal, the footer indicator clears, and bare `/goal` shows the
-achieved goal with its reason, turns and duration; when `not yet`, the turn
-continues with `Mission not completed: <goal> — <what is open>. Continue.`;
-when `impossible`, the goal pauses with the reason as the note. The only brake
-on the loop is Claude Code's: three consecutive turn ends without a tool call
-pause the goal (`"mission paused after 3 turns without a tool call — your next
-message resumes it"`), while a turn with any tool call never trips it; a turn
+over the judge's; only when no model call can be made at all — no credential on
+the first-party road, a fixture seam — is the itemised claim the verification.
+`met` needs the itemised close from any judge: a bare `<<<GOAL-MET>>>` or a
+skipped criterion is held, not met. One counter of judged turn ends rides the
+card, the status line and the judge's own input. When `met`, the chat gets one
+completed row like a finished monitor's — `Mission completed: <goal> — <the
+judge's reason> · N turns · <elapsed>` — the rail drops the goal, the footer
+indicator clears, and bare `/goal` shows the achieved goal with its reason,
+turns and duration; when `not yet`, the turn continues with `Mission not
+completed: <goal> — <what is open>. Continue.`; when `impossible`, the goal
+pauses with the reason as the note. The only brake on the loop: three
+consecutive turn ends without a tool call pause the goal (`"mission paused
+after 3 turns without a tool call — your next message resumes it"`), while a
+turn with any tool call since the previous judged end never trips it; a turn
 that ends on a question to you pauses it the same way (`"mission paused — <why>
 · your next message resumes it; /mission clear ends it"`). A pause keeps the
 goal armed. Your next message resumes a paused goal; a scheduled wake does not.
