@@ -194,7 +194,7 @@ pub fn own_terminal_application() -> ApplicationAnswer {
     ApplicationAnswer::refused("no terminal application identity on this platform")
 }
 
-pub fn accessibility_tree(_pid: i32, _max_depth: u32, _max_count: u32) -> TreeAnswer {
+pub fn accessibility_tree(_pid: i32, _max_depth: u32, _max_count: u32, _scope: &str, _observation: bool) -> TreeAnswer {
     TreeAnswer::refused("the accessibility tree is read through the macOS Accessibility API; this platform has no tree reader in this release")
 }
 

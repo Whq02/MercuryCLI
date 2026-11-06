@@ -8,7 +8,7 @@ use objc2_core_foundation::{CGPoint, CGRect, CGSize};
 use objc2_foundation::NSString;
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{hidden_by, same_frame, tree_child_order, ApplicationAnswer, BoundsRecord, DisplayRecord, FocusedText, ScrollAnswer, TextRange, PermissionsAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED};
+use crate::{clipped, hidden_by, same_frame, tree_child_order, ApplicationAnswer, BoundsRecord, DisplayRecord, FocusedText, ScrollAnswer, TextRange, PermissionsAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED};
 
 type CFTypeRef = *const c_void;
 type CGEventRef = *mut c_void;
@@ -548,15 +548,6 @@ unsafe fn ax_string(element: CFTypeRef, name: &str) -> Option<String> {
         CFRelease(value);
     }
     text
-}
-
-fn clipped(text: String, cap: usize) -> String {
-    if text.chars().count() <= cap {
-        return text;
-    }
-    let mut kept: String = text.chars().take(cap).collect();
-    kept.push('…');
-    kept
 }
 
 unsafe fn ax_frame(element: CFTypeRef) -> Option<BoundsRecord> {

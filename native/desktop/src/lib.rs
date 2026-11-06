@@ -156,6 +156,15 @@ impl TreeAnswer {
     }
 }
 
+pub fn clipped(text: String, cap: usize) -> String {
+    if text.chars().count() <= cap {
+        return text;
+    }
+    let mut kept: String = text.chars().take(cap).collect();
+    kept.push('…');
+    kept
+}
+
 pub fn same_frame(a: &Option<BoundsRecord>, b: &Option<BoundsRecord>) -> bool {
     match (a, b) {
         (None, None) => true,
@@ -166,6 +175,116 @@ pub fn same_frame(a: &Option<BoundsRecord>, b: &Option<BoundsRecord>) -> bool {
 
 pub fn hidden_by(frame: &BoundsRecord, viewport: &BoundsRecord) -> i32 {
     if frame.height <= 1.0 || frame.y + frame.height > viewport.y + viewport.height - 1.0 { 1 } else if frame.y < viewport.y + 1.0 { -1 } else { 0 }
+}
+
+pub const WEB_FRAMEWORKS: [&str; 2] = ["Chrome", "Gecko"];
+
+pub fn windows_control_type(kind: i32) -> &'static str {
+    match kind {
+        50000 => "Button",
+        50001 => "Calendar",
+        50002 => "CheckBox",
+        50003 => "ComboBox",
+        50004 => "Edit",
+        50005 => "Hyperlink",
+        50006 => "Image",
+        50007 => "ListItem",
+        50008 => "List",
+        50009 => "Menu",
+        50010 => "MenuBar",
+        50011 => "MenuItem",
+        50012 => "ProgressBar",
+        50013 => "RadioButton",
+        50014 => "ScrollBar",
+        50015 => "Slider",
+        50016 => "Spinner",
+        50017 => "StatusBar",
+        50018 => "Tab",
+        50019 => "TabItem",
+        50020 => "Text",
+        50021 => "ToolBar",
+        50022 => "ToolTip",
+        50023 => "Tree",
+        50024 => "TreeItem",
+        50025 => "Custom",
+        50026 => "Group",
+        50027 => "Thumb",
+        50028 => "DataGrid",
+        50029 => "DataItem",
+        50030 => "Document",
+        50031 => "SplitButton",
+        50032 => "Window",
+        50033 => "Pane",
+        50034 => "Header",
+        50035 => "HeaderItem",
+        50036 => "Table",
+        50037 => "TitleBar",
+        50038 => "Separator",
+        50039 => "SemanticZoom",
+        50040 => "AppBar",
+        _ => "Unknown",
+    }
+}
+
+pub fn windows_role(kind: i32, framework: &str, password: bool, scrolls: bool, dialog: bool) -> String {
+    let word = match kind {
+        50000 => "AXButton",
+        50002 => "AXCheckBox",
+        50003 => "AXComboBox",
+        50004 => "AXTextField",
+        50005 => "AXLink",
+        50006 => "AXImage",
+        50007 | 50024 | 50029 => "AXRow",
+        50008 => "AXList",
+        50009 => "AXMenu",
+        50010 => "AXMenuBar",
+        50011 => "AXMenuItem",
+        50012 => "AXProgressIndicator",
+        50013 => "AXRadioButton",
+        50014 => "AXScrollBar",
+        50015 => "AXSlider",
+        50016 => "AXIncrementor",
+        50018 => "AXTabGroup",
+        50020 => "AXStaticText",
+        50021 => "AXToolbar",
+        50022 => "AXHelpTag",
+        50023 => "AXOutline",
+        50025 | 50026 | 50033 => "AXGroup",
+        50028 | 50036 => "AXTable",
+        50030 => if WEB_FRAMEWORKS.contains(&framework) { "AXWebArea" } else { "AXTextArea" },
+        50031 => "AXMenuButton",
+        50032 => "AXWindow",
+        50038 => "AXSplitter",
+        _ => windows_control_type(kind),
+    };
+    match (word, password, scrolls, dialog) {
+        ("AXTextField", true, _, _) => "AXTextField (AXSecureTextField)".to_string(),
+        ("AXGroup", _, true, false) => "AXScrollArea".to_string(),
+        ("AXWindow", _, _, true) => "AXWindow (AXDialog)".to_string(),
+        (_, _, _, true) => format!("{word} (AXApplicationDialog)"),
+        _ => word.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod windows_role_tests {
+    use super::windows_role;
+    #[test]
+    fn control_types_map_onto_the_tool_s_role_words_where_one_exists() {
+        assert_eq!(windows_role(50000, "Win32", false, false, false), "AXButton");
+        assert_eq!(windows_role(50004, "Chrome", false, false, false), "AXTextField");
+        assert_eq!(windows_role(50004, "Chrome", true, false, false), "AXTextField (AXSecureTextField)");
+        assert_eq!(windows_role(50020, "Chrome", false, false, false), "AXStaticText");
+        assert_eq!(windows_role(50030, "Chrome", false, true, false), "AXWebArea");
+        assert_eq!(windows_role(50030, "Gecko", false, false, false), "AXWebArea");
+        assert_eq!(windows_role(50030, "Win32", false, true, false), "AXTextArea");
+        assert_eq!(windows_role(50033, "Win32", false, true, false), "AXScrollArea");
+        assert_eq!(windows_role(50033, "Win32", false, false, false), "AXGroup");
+        assert_eq!(windows_role(50032, "Win32", false, false, true), "AXWindow (AXDialog)");
+        assert_eq!(windows_role(50025, "Chrome", false, false, true), "AXGroup (AXApplicationDialog)");
+        assert_eq!(windows_role(50019, "XAML", false, false, false), "TabItem");
+        assert_eq!(windows_role(0, "", false, false, false), "Unknown");
+    }
 }
 
 #[cfg(test)]
@@ -456,8 +575,8 @@ pub fn accessibility_tree(pid: u32, max_depth: u32, max_count: u32, scope: Optio
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = (scope, request_web_accessibility, observation);
-        imp::accessibility_tree(pid as i32, max_depth, max_count)
+        let _ = request_web_accessibility;
+        imp::accessibility_tree(pid as i32, max_depth, max_count, scope.as_deref().unwrap_or("app"), observation.unwrap_or(false))
     }
 }
 
