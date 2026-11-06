@@ -46,6 +46,9 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   check('the projections the lanes read carry the same word', effort.resolveWireRequestedEffort(MODEL, 'max', { agentId: 'agent-own' }) === 'max' && effort.resolveAppliedEffort(MODEL, 'max', { agentId: 'agent-own' }) === 'max')
   check("the same value WITHOUT the agent's id is the session's request (the stamp)", effort.resolveWireRequestedEffort(MODEL, 'max') === 'high' && effort.resolveAppliedEffort(MODEL, 'max') === 'high')
   check("the agent's own word stands even when the scoped value is absent", effort.resolveEffortTruth(MODEL, undefined, { agentId: 'agent-own' }).requested === 'max')
+  const pinnedCall = effort.resolveEffortTruth(MODEL, 'low', { agentId: 'agent-own', pinned: true })
+  check("a pinned call's own value outranks the agent's own word AND the stamp (a utility call at its floor: asked low → low, source pinned)", pinnedCall.requested === 'low' && pinnedCall.requestedSource === 'pinned' && pinnedCall.applied === 'low' && pinnedCall.wire === 'low' && effort.resolveWireRequestedEffort(MODEL, 'low', { agentId: 'agent-own', pinned: true }) === 'low' && effort.resolveAppliedEffort(MODEL, 'low', { agentId: 'agent-own', pinned: true }) === 'low', JSON.stringify(pinnedCall))
+  check('a pinned call with no value of its own asks nothing (never the stamp, never the own word)', effort.resolveEffortTruth(MODEL, undefined, { agentId: 'agent-own', pinned: true }).requested === undefined)
 
   const riding = effort.resolveEffortTruth(MODEL, 'medium', { agentId: 'agent-riding' })
   check("an agent riding the session's word (nothing noted) runs the stamp", riding.requested === 'high' && riding.requestedSource === 'env', JSON.stringify(riding))
@@ -84,14 +87,17 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   const src = readFileSync(join(ROOT, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
   check('the runner notes the RESOLVED word under the agent id once the claim is held, and forgets it with the claim', /executorClaims\.set\(agentId, claim\)[\s\S]{0,400}noteAgentEffortWord\(agentId, resolvedEffort\)/.test(src) && /executorClaims\.delete\(agentId\)\s*\n\s*settleSwarmAgent\(agentId\)\s*\n\s*forgetAgentEffortWord\(agentId\)/.test(src))
   check('the runner resolves the default through the one reader (never the session state)', /defaultEffort: subagentDefaultEffort\(\)/.test(src) && !/sessionEffort/.test(src))
+  const laneContext = 'const effortContext = { agentId: options.agentId, pinned: options.effortPinned === true }'
   for (const [lane, needle] of [
-    ['openai', "resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })"],
-    ['zai', "resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })"],
-    ['openaicompat', "resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })"],
-    ['anthropic', "resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId })"],
+    ['openai', 'resolveWireRequestedEffort(modelId, effortValue, effortContext)'],
+    ['zai', 'resolveWireRequestedEffort(modelId, options.effortValue, effortContext)'],
+    ['openaicompat', 'resolveWireRequestedEffort(modelId, askedEffort, effortContext)'],
+    ['anthropic', 'resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId, pinned: effortPinned })'],
   ] as const) {
     const file = lane === 'openai' ? 'src/services/providers/openai/openaiCallModel.ts' : lane === 'zai' ? 'src/services/providers/zai/zaiCallModel.ts' : lane === 'openaicompat' ? 'src/services/providers/openaicompat/compatChatCallModel.ts' : 'src/services/providers/anthropic/streamCore.ts'
-    check(`the ${lane} lane resolves its request effort with the agent id`, readFileSync(join(ROOT, file), 'utf8').includes(needle))
+    const src = readFileSync(join(ROOT, file), 'utf8')
+    const context = lane === 'anthropic' ? src.includes('const effortPinned = options.effortPinned === true') : src.includes(laneContext)
+    check(`the ${lane} lane resolves its request effort with the agent id and the call's pin (a pinned utility call outranks the seat's own word)`, src.includes(needle) && context)
   }
 }
 
