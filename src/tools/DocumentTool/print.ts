@@ -34,7 +34,7 @@ export async function printDocument(html: string, input: DocumentInput, owner: O
       void (/^data:image\/(png|jpeg);base64,/i.test(request.url()) ? request.continue() : request.abort())
     })
     await page.setContent(html, { waitUntil: 'load', timeout: 30_000 })
-    const margin = `${input.margin ?? 54}pt`
+    const margin = `${(input.margin ?? 54) / 72}in`
     const bytes = await page.pdf({ format: input.paper ?? 'A4', printBackground: true, margin: { top: margin, bottom: margin, left: margin, right: margin }, displayHeaderFooter: Boolean(input.pageNumbers), headerTemplate: '<span></span>', footerTemplate: input.pageNumbers ? '<div style="font-size:9px;width:100%;text-align:center"><span class="pageNumber"></span></div>' : '<span></span>', timeout: 30_000 })
     signal.throwIfAborted()
     return bytes
