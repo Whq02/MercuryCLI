@@ -63,10 +63,11 @@ const { parseNaturalLanguageDateTime } = await import('../../src/utils/mcp/dateT
 const { z } = await import('zod/v4')
 
 const ROADS = [
-  { road: 'anthropic', model: 'claude-fable-5-1' },
-  { road: 'openai', model: 'gpt-5.6-sol' },
-  { road: 'gemini', model: 'gemini-3-pro' },
-  { road: 'local', model: 'local/fixture-local' },
+  { road: 'anthropic', model: 'claude-fable-5-1', floor: 'low', serves: 'the first-party ladder low … max' },
+  { road: 'openai', model: 'gpt-5.6-sol', floor: 'low', serves: 'the live list serves low and high' },
+  { road: 'gemini', model: 'gemini-3-pro', floor: undefined, serves: 'no effort control' },
+  { road: 'local', model: 'local/fixture-local', floor: undefined, serves: 'no effort control' },
+  { road: 'zai', model: 'glm-5.2', floor: 'none', serves: 'GLM-5.2 serves none … max' },
 ] as const
 
 const wireModelOf = (entry: Captured): string | undefined => {
@@ -80,7 +81,6 @@ const wireEffortOf = (entry: Captured): string | undefined => {
   if (entry.dialect === 'gemini') return body.generationConfig?.thinkingConfig?.thinkingLevel
   return body.reasoning_effort
 }
-const lowestServed = (model: string): string | undefined => resolveEffortTruth(model, undefined).selectable[0]
 
 const appState = { toolPermissionContext: getEmptyToolPermissionContext() }
 const toolUseContext = { agentId: 'utility-road-proof', getAppState: () => appState, setResponseLength: undefined } as never
@@ -96,8 +96,8 @@ const SITES: Site[] = [
   { name: 'date parser', reply: '2026-11-07', run: signal => parseNaturalLanguageDateTime('tomorrow', 'date', signal), landed: result => (result as { success?: boolean }).success === true },
 ]
 
-for (const { road, model } of ROADS) {
-  section(`${road}: the main seat is ${model}; every utility call rides it at the lowest effort the road serves`)
+for (const { road, model, floor, serves } of ROADS) {
+  section(`${road}: the main seat is ${model}; every utility call rides it at the lowest effort the road serves (${serves})`)
   process.env.MERCURY_MODEL = model
   check(`${road}: the engine model is ${model}`, getEngineModel() === model, getEngineModel())
   const referenceAt = fixture.captured.length
@@ -117,8 +117,8 @@ for (const { road, model } of ROADS) {
   if (reference === undefined) continue
   const seatModel = wireModelOf(reference)
   const seatEffort = wireEffortOf(reference)
-  const lowest = lowestServed(model)
-  console.log(`  the seat's wire: ${reference.dialect} ${reference.path} model=${seatModel} effort=${seatEffort ?? 'none'}; the lowest tier the road serves: ${lowest ?? 'none (no effort control)'}`)
+  const lowest: string | undefined = floor
+  console.log(`  the seat's wire: ${reference.dialect} ${reference.path} model=${seatModel} effort=${seatEffort ?? 'none'}; the lowest tier the road serves: ${lowest ?? 'none (no effort control)'}; the ladder words the road selects from: ${j(resolveEffortTruth(model, undefined).selectable)}`)
   check(`${road}: the seat's wire names its model`, typeof seatModel === 'string' && seatModel !== '', j(reference.body))
   if (lowest !== undefined) check(`${road}: the session dial (max) rides the turn above the lowest tier, so a utility call at the lowest tier is told apart`, seatEffort !== undefined && seatEffort !== lowest, j({ seatEffort, lowest }))
   for (const site of SITES) {
