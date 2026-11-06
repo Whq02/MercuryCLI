@@ -736,7 +736,7 @@ lowest word the account's live list serves on a GPT session, the smallest
 level on a road that grades its thinking, and no effort word on a road
 without effort control. No second model id is ever asked for, and the
 session's effort dial (`/effort`, `MERCURY_EFFORT_LEVEL`) governs the turn,
-never a side job. A hook that names its own model runs that model at its
+never a side job (the one case below excepted). A hook that names its own model runs that model at its
 lowest tier: the hook reads that road's model list first, within a bounded
 wait, and when the list cannot be read in time a question rides the road's own
 default effort and a crewmate runs at the session's dial. The one exception is a local session: `Helper model` in `/config`
