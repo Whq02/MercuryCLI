@@ -208,9 +208,10 @@ try {
     assert.equal(await readFile(join(unpack, longPath), 'utf8'), 'long name')
     assert.equal(await readFile(join(unpack, 'fixture-1.0.0-linux-x86_64/short.txt'), 'utf8'), 'short')
     assert.deepEqual((await shared.treeRecord(unpack)).entries.map((e: { path: string }) => e.path), [longPath, 'fixture-1.0.0-linux-x86_64/short.txt'])
-    const dangling = Buffer.concat([header('././@LongLink', 'L', 4), block(Buffer.from('../\0')), header('..', '0', 3), block(Buffer.from('out')), Buffer.alloc(1024)])
-    await writeFile(join(temp, 'escape-1.0.0.tar.gz'), gzipSync(dangling)); await mkdir(join(temp, 'escape'))
-    await assert.rejects(shared.extractArchive(join(temp, 'escape-1.0.0.tar.gz'), join(temp, 'escape')), /Unsafe archive path/)
+    const escaping = Buffer.concat([header('././@LongLink', 'L', 14), block(Buffer.from('../escape.txt\0')), header('escape.txt', '0', 3), block(Buffer.from('out')), Buffer.alloc(1024)])
+    await writeFile(join(temp, 'escape-1.0.0.tar.gz'), gzipSync(escaping)); await mkdir(join(temp, 'escape'))
+    await assert.rejects(shared.extractArchive(join(temp, 'escape-1.0.0.tar.gz'), join(temp, 'escape')), /Unsafe archive path: "\.\.\/escape\.txt"/)
+    assert(await absent(join(temp, 'escape.txt')))
   })
   console.log(`Craft shared: ${passed} checks passed`)
 } finally { removeScratch(temp) }

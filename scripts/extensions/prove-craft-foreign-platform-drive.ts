@@ -21,7 +21,7 @@ const fetcher: typeof fetch = async (input, init) => {
   return fetch(input, init)
 }
 const evidence = { host: `${process.platform}-${process.arch}`, archives: archives ?? 'downloaded from the pinned release URLs', rows: [] as Array<Record<string, unknown>> }
-console.log('Craft foreign-platform installs: the Windows x64 and Linux x64 archives each app lock pins, installed through shared/install.mjs on this host. The binaries are not run here; the field box\'s Windows install (release step A6) is the proof that the .exe runs.')
+console.log('Craft foreign-platform installs: the Windows x64 and Linux x64 archives each app lock pins, installed through shared/install.mjs on this host. The binaries are not run here; the Windows field run is the proof that the .exe runs.')
 for (const app of apps) {
   const delivered = join(scratch, app, 'extension')
   await cp(join(root, 'src/extensions/bundled', app), delivered, { recursive: true })
