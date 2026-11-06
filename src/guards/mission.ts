@@ -294,7 +294,8 @@ export function closingAsksOperator(closing: string): boolean {
 function boundsToolWindow(row: Message & { toolUseResult?: unknown }): boolean {
   if (row.type !== 'user' || row.toolUseResult) return false
   if (!row.isMeta) return true
-  return textOf(row).startsWith(MISSION_HOLD_HEAD)
+  const text = textOf(row)
+  return text.startsWith(MISSION_HOLD_HEAD) || text.includes(MISSION_DIRECTIVE_HEADER)
 }
 
 export function toolCallsSinceLastStop(messages: Message[]): string[] {

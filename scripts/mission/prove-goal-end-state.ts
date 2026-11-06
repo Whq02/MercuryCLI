@@ -235,6 +235,23 @@ section("§3 a met end state ends on the judge's verdict over an itemised close,
     asst('done reading'),
   ] as never)
   check('the idle window is bounded by the previous judged stop, never by a meta row the turn machine wrote: [hold, Read + result, meta correction, text] counts one tool call', j(window) === j(['Read']), j(window))
+  const opened = mission.toolCallsSinceLastStop([user('read it'), asstTool('reading'), toolResult(), asst('read'), meta(buildMissionDirective(GOAL)), asst('working on it')] as never)
+  check("the window also stops at the mission's own directive row (the runner queues /mission as a meta row): the tool calls of the turn before the mission was set never count as this turn's", j(opened) === j([]), j(opened))
+  const seen: number[] = []
+  arm(S, GOAL, async (_goal, evidence) => {
+    seen.push((evidence as { toolCalls: number }).toolCalls)
+    return verdict('not yet', 0.8, 'two proofs still red')
+  })
+  const armedMidway: unknown[] = [user('read it'), asstTool('reading'), toolResult(), asst('read'), meta(buildMissionDirective(GOAL)), asst('working on it')]
+  const midwayTrail: boolean[] = []
+  for (let i = 0; i < 5; i++) {
+    const result = await stop(S, armedMidway)
+    midwayTrail.push(result.allowed)
+    if (result.allowed) break
+    armedMidway.push(meta(`Mission not completed: ${GOAL} — two proofs still red. Continue.`), asst(`still thinking (${i})`))
+  }
+  check('a mission set by the meta /mission row after a tool-calling turn: the first judged end sees zero tool calls and counts one idle turn, so three tool-less ends are two holds and then the pause', j(seen.slice(0, 1)) === j([0]) && j(midwayTrail) === j([false, false, true]) && readMissionCard(S)?.state === 'paused', j({ seen, midwayTrail, card: readMissionCard(S) }))
+  clearActiveMission(S)
 }
 
 section('§4 the Jev road: the verdict rides the existing judge road, counted in the ledger; closed, the claim stands')
