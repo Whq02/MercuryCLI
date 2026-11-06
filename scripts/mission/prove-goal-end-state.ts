@@ -474,6 +474,26 @@ section('§6 the surfaces keep their words: the receipt, the panel, the card')
   check('the guard carries no block counter, no maxBlocks option and no stall road', !/maxBlocks/.test(guard) && !/DEFAULT_MISSION_MAX_BLOCKS/.test(guard) && !/stalledChecks|GOAL_STALL_CHECKS|askWords|asking|gave no question/.test(guard))
   check('the guard still claims through the shared continuation latch', guard.includes('claimContinuation('))
   clearActiveMission(S)
+  const evidence = { closing: 'read three files', claimedMet: false, asksOperator: false, toolCalls: 3, toolNames: ['Read', 'Read', 'Bash'], verification: null, checks: 2 }
+  const prompted = judgeModule?.judgePrompt(goalModule!.compileGoal('the parser suite is green'), evidence as never).user ?? ''
+  check("the judge's tool line is a bounded tally of distinct names with counts, never one name per call: 'Tools: 3 tool call(s) this turn: Read ×2, Bash'", judgeModule?.toolTally(['Read', 'Read', 'Bash']) === 'Read ×2, Bash' && prompted.includes('Tools: 3 tool call(s) this turn: Read ×2, Bash'), j({ tally: judgeModule?.toolTally(['Read', 'Read', 'Bash']), line: prompted.split('\n').find(line => line.startsWith('Tools:')) }))
+  const judgeSource = readFileSync(join(import.meta.dir, '..', '..', 'src/services/mission/goalJudge.ts'), 'utf8')
+  check("Jev's unattainable criterion names a contradiction or something outside the session's reach, never turns that change nothing", /unattainable: "the end state cannot be reached from here without the operator: a contradiction, or something outside the session's reach"/.test(judgeSource) && !/turns that change nothing/.test(judgeSource))
+  const { call: localMission } = await import('../../src/commands/mission/mission.ts')
+  const { conversationIdHere } = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const own = conversationIdHere()
+  const OWN_GOAL = 'the parser suite is green'
+  arm(own, OWN_GOAL, async () => verdict('met', 0.92, 'the evidence shows the suite green'))
+  const ownMet = await stop(own, [user(`/goal ${OWN_GOAL}`), asst(`1. ${OWN_GOAL} — 212 passing\n${MISSION_MET_SENTINEL}`)])
+  const liveLine = await localMission('', {} as never)
+  check("after met, /mission with no words prints the completed line on the live road: 'Mission completed: <goal> — <the judge's reason> · 1 turn · <elapsed>'", ownMet.allowed && liveLine.type === 'text' && liveLine.value.startsWith(`Mission completed: ${OWN_GOAL} — the evidence shows the suite green · 1 turn · `), j({ ownMet, liveLine }))
+  clearActiveMission(own)
+  const { writeMissionCard } = await import('../../src/services/mission/missionCard.ts')
+  const setAt = new Date(Date.now() - 90_000).toISOString()
+  const metAt = new Date(Date.now() - 30_000).toISOString()
+  writeMissionCard({ schema: 1, sessionId: own, goal: OWN_GOAL, state: 'met', nextStep: null, iterations: 1, setAt, updatedAt: metAt, outcome: { reason: 'the evidence shows the suite green', metAt, turns: 1 } })
+  const cardLine = await localMission('', {} as never)
+  check('with no live record, /mission with no words prints the same completed line from the met card (the card road)', getActiveMission(own) === undefined && cardLine.type === 'text' && cardLine.value.startsWith(`Mission completed: ${OWN_GOAL} — the evidence shows the suite green · 1 turn · 1m`), j({ live: getActiveMission(own), cardLine }))
 }
 
 section('§7 a newer card wins by time: /goal run again with the same words after a pause re-arms, and the older record never writes over it')
