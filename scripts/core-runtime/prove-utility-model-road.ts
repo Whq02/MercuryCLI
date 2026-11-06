@@ -136,7 +136,7 @@ const crewmateContext = (): unknown => {
   }
 }
 
-const meliousLane = await (async () => {
+const laneServer = async (models: unknown, wireModel: string): Promise<{ requests: Array<Record<string, unknown>>; base: string; close: () => Promise<void> }> => {
   const requests: Array<Record<string, unknown>> = []
   const server = createServer((req, res) => {
     const chunks: Buffer[] = []
@@ -145,7 +145,7 @@ const meliousLane = await (async () => {
       const path = (req.url ?? '').split('?')[0] ?? ''
       if (req.method === 'GET' && path.endsWith('/models')) {
         res.writeHead(200, { 'content-type': 'application/json' })
-        res.end(JSON.stringify({ data: [{ id: 'orion-2', _meta: { type: 'chat', reasoning_type: 'reasoning', reasoning_effort: 'medium', capabilities: { reasoning: true, function_calling: true }, context_length: 128_000, max_output_tokens: 8_192 } }] }))
+        res.end(JSON.stringify(models))
         return
       }
       if (req.method === 'POST' && path.endsWith('/chat/completions')) {
@@ -153,8 +153,8 @@ const meliousLane = await (async () => {
         res.writeHead(200, { 'content-type': 'text/event-stream' })
         const usage = { prompt_tokens: 8, completion_tokens: 3, total_tokens: 11 }
         res.end([
-          `data: ${JSON.stringify({ id: 'chatcmpl-melious', object: 'chat.completion.chunk', created: 0, model: 'orion-2', choices: [{ index: 0, delta: { role: 'assistant', content: '{"note":"fine"}' }, finish_reason: null }] })}\n\n`,
-          `data: ${JSON.stringify({ id: 'chatcmpl-melious', object: 'chat.completion.chunk', created: 0, model: 'orion-2', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage })}\n\n`,
+          `data: ${JSON.stringify({ id: 'chatcmpl-lane', object: 'chat.completion.chunk', created: 0, model: wireModel, choices: [{ index: 0, delta: { role: 'assistant', content: '{"note":"fine"}' }, finish_reason: null }] })}\n\n`,
+          `data: ${JSON.stringify({ id: 'chatcmpl-lane', object: 'chat.completion.chunk', created: 0, model: wireModel, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage })}\n\n`,
           'data: [DONE]\n\n',
         ].join(''))
         return
@@ -166,9 +166,12 @@ const meliousLane = await (async () => {
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
   const port = typeof address === 'object' && address ? address.port : 0
-  return { requests, base: `http://127.0.0.1:${port}/v1`, close: () => new Promise<void>(resolve => server.close(() => resolve())) }
-})()
-process.env.MERCURY_MELIOUS_API_BASE = meliousLane.base
+  return { requests, base: `http://127.0.0.1:${port}`, close: () => new Promise<void>(resolve => server.close(() => resolve())) }
+}
+const meliousLane = await laneServer({ data: [{ id: 'orion-2', _meta: { type: 'chat', reasoning_type: 'reasoning', reasoning_effort: 'medium', capabilities: { reasoning: true, function_calling: true }, context_length: 128_000, max_output_tokens: 8_192 } }] }, 'orion-2')
+const openrouterLane = await laneServer({ data: [{ id: 'fixture/thinker', name: 'Fixture Thinker', context_length: 128_000, supported_parameters: ['reasoning', 'tools'], reasoning: { supported_efforts: ['low', 'medium', 'high'], default_effort: 'medium' }, architecture: { input_modalities: ['text'], output_modalities: ['text'] }, top_provider: { max_completion_tokens: 8_192 } }] }, 'fixture/thinker')
+process.env.MERCURY_MELIOUS_API_BASE = `${meliousLane.base}/v1`
+process.env.MERCURY_OPENROUTER_API_BASE = `${openrouterLane.base}/api/v1`
 process.env.MELIOUS_API_KEY = 'fixture-melious-key'
 
 section('the cold list: a GPT utility call and a GPT-named hook carry the floor before any list is cached (the list default is high, the dial max)')
@@ -206,6 +209,16 @@ section('the cold compat list: a question hook naming a list-only Melious model 
   const request = meliousLane.requests[before]
   check('cold compat · the hook answered through one request on the Melious chat wire', (answered as { kind?: string }).kind === 'answered' && meliousLane.requests.length === before + 1, j({ answered, requests: meliousLane.requests.length - before }))
   check('cold compat · the request names orion-2 at reasoning_effort none (the lowest word the admitted row serves; the row default is medium)', request?.model === 'orion-2' && request.reasoning_effort === 'none', j({ model: request?.model, reasoning_effort: request?.reasoning_effort }))
+}
+
+section('the cold OpenRouter list: a question hook naming an openrouter/ reasoning model on an Anthropic seat reads the list first and rides its lowest word (the row default is medium)')
+{
+  process.env.MERCURY_MODEL = 'claude-fable-5-1'
+  const before = openrouterLane.requests.length
+  const answered = await hookQuestion(new AbortController().signal, 'openrouter/fixture/thinker')
+  const request = openrouterLane.requests[before] as { model?: string; reasoning?: { effort?: string } } | undefined
+  check('cold openrouter · the hook answered through one request on the OpenRouter chat wire', (answered as { kind?: string }).kind === 'answered' && openrouterLane.requests.length === before + 1, j({ answered, requests: openrouterLane.requests.length - before }))
+  check('cold openrouter · the request names fixture/thinker at reasoning.effort low (the lowest word the listed row serves, read before the floor was computed)', request?.model === 'fixture/thinker' && request.reasoning?.effort === 'low', j({ model: request?.model, reasoning: request?.reasoning }))
 }
 
 for (const { road, model, floor, serves } of ROADS) {
@@ -249,6 +262,7 @@ for (const { road, model, floor, serves } of ROADS) {
     check(`${road} · ${site.name}: the answer landed`, site.landed(result), j({ result, thrown: thrown === undefined ? undefined : String(thrown) }))
     if (request === undefined) continue
     check(`${road} · ${site.name}: requests the main seat's model (${seatModel})`, wireModelOf(request) === seatModel, j({ requested: wireModelOf(request), seat: seatModel }))
+    if (site.name === 'hook question') check(`${road} · ${site.name}: the answer shape rides the wire without a $schema meta-reference`, !JSON.stringify(request.body).includes('"$schema"'), JSON.stringify(request.body).slice(0, 300))
     check(`${road} · ${site.name}: at the lowest tier the road serves (${lowest ?? 'none'})`, wireEffortOf(request) === lowest, j({ requested: wireEffortOf(request) ?? null, lowest: lowest ?? null, seat: seatEffort ?? null }))
   }
 }
@@ -321,6 +335,7 @@ section('the census: the small-fast spellings are gone from src')
 
 await fixture.close()
 await meliousLane.close()
+await openrouterLane.close()
 for (const home of HOMES) rmSync(home, { recursive: true, force: true })
 console.log(`\nprove-utility-model-road: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

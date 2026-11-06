@@ -161,7 +161,7 @@ section('§3 the rewritten sites import the router, never the transport')
   check('questionRunner.ts imports routedCallModelSettled from the router', hook.includes("import { routedCallModelSettled } from '../../services/providers/callModelRouter.js'"))
   check('questionRunner.ts settles through routedCallModelSettled', (hook.match(/routedCallModelSettled\(\{/g) ?? []).length === 1)
   check("questionRunner.ts defaults the question's model to the helper's (the seat, or a named model as itself) with a pinned floor", hook.includes("run.model === undefined ? utilityCallFor() : utilityCallFor(run.model, { named: true })") && hook.includes('effortPinned: true'))
-  check('questionRunner.ts never reads a model getter directly', !/\bgetDefault(?:Haiku|Sonnet|Opus)Model\b|\bgetEngineModel\b/.test(hook))
+  check('questionRunner.ts picks no model itself: no family getter, and the one getEngineModel read only names the road whose list is read first', !/\bgetDefault(?:Haiku|Sonnet|Opus)Model\b/.test(hook) && (hook.match(/\bgetEngineModel\(\)/g) ?? []).length === 1 && hook.includes('declaredRouteOf(run.model ?? getEngineModel())'))
   check('questionRunner.ts names no transport entrypoint', !/\bqueryModelWith(?:out)?Streaming\b/.test(hook))
 
   const agent = read('src/components/agents/generateAgent.ts')
