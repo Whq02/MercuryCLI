@@ -105,7 +105,8 @@ async function main(): Promise<void> {
   {
     process.env.MERCURY_MODEL = 'claude-opus-5'
     check('no model named → the seat\'s model', utilityCallFor(undefined).model === 'claude-opus-5', utilityCallFor(undefined).model)
-    check('a hook that names a model → that model at its own floor', utilityCallFor('gpt-5.6-sol').model === 'gpt-5.6-sol')
+    check('a hook that names a model → that model at its own floor', utilityCallFor('gpt-5.6-sol', { named: true }).model === 'gpt-5.6-sol')
+    check('a hook that names a local model → that model itself, never the slot (the slot substitutes only for the seat\'s default selection)', utilityCallFor('local/qwen3.8-27b', { named: true }).model === 'local/qwen3.8-27b')
     process.env.MERCURY_MODEL = 'glm-5.3'
     check('zai seat: a hook with no model rides glm', utilityCallFor(undefined).model === 'glm-5.3')
     delete process.env.MERCURY_MODEL
@@ -121,15 +122,19 @@ async function main(): Promise<void> {
     check('Feedback title rides the helper with a pinned floor', feedback.includes('utilityCallFor()') && feedback.includes('effortPinned: true'))
     check('Feedback carries no sideQuery residue', !feedback.includes('sideQuery'))
     const crewmateRunner = srcText('utils', 'hooks', 'crewmateRunner.ts')
-    check('the crewmate hook runner rides the helper, the entry\'s own model first, its floor as the seat\'s own word', /utilityCallFor\(run\.model\)/.test(crewmateRunner) && crewmateRunner.includes('noteAgentEffortWord(hookAgentId, call.effortValue)') && crewmateRunner.includes('engineModel: call.model'))
+    check('the crewmate hook runner rides the helper: the seat by default, a named model as itself at its own floor, the floor as the seat\'s own word', crewmateRunner.includes("run.model === undefined ? utilityCallFor() : utilityCallFor(run.model, { named: true })") && crewmateRunner.includes('noteAgentEffortWord(hookAgentId, call.effortValue)') && crewmateRunner.includes('engineModel: call.model'))
     const questionRunner = srcText('utils', 'hooks', 'questionRunner.ts')
-    check('the question hook runner rides the helper, the entry\'s own model first, with a pinned floor', /utilityCallFor\(run\.model\)/.test(questionRunner) && questionRunner.includes('effortPinned: true'))
+    check('the question hook runner rides the helper: the seat by default, a named model as itself at its own floor, pinned', questionRunner.includes("run.model === undefined ? utilityCallFor() : utilityCallFor(run.model, { named: true })") && questionRunner.includes('effortPinned: true'))
     const evalBridge = srcText('services', 'eval', 'evalBridge.ts')
     check("evalBridge tier 'fast' rides the helper over the session model with a pinned floor", evalBridge.includes('utilityCallFor(context.options.engineModel)') && evalBridge.includes('effortPinned: true'))
     const streamCoreSeam = srcText('services', 'providers', 'anthropic', 'streamCore.ts')
     check('queryUtility reads the helper and pins the floor', /export async function queryUtility[\s\S]{0,700}utilityCallFor\(\)[\s\S]{0,400}effortPinned: true/.test(streamCoreSeam))
     check('queryUtility delegates to the ROUTED one-shot (queryWithModel), never the unrouted engine', /export async function queryUtility[\s\S]{0,700}return queryWithModel\(/.test(streamCoreSeam))
     check('a pinned effort rides the Anthropic wire even on a side question', streamCoreSeam.includes('const effortRides = effortPinned || options.ridesSessionEffort !== false'))
+    const webFetch = srcText('tools', 'WebFetchTool', 'utils.ts')
+    check('the WebFetch fallback leg rides the fallback model as itself at its own floor, pinned through the helper, never the slot', webFetch.includes('utilityCallFor(fallbackModel, { named: true })') && webFetch.includes('options: { ...baseOptions, ...call }'))
+    const openaiTurn = srcText('services', 'providers', 'openai', 'openaiCallModel.ts')
+    check('the OpenAI road derives a wanted-but-unknown floor from the admitted list before the wire (a pinned value is never lowered)', openaiTurn.includes("const floorWanted = options.effortPinned === true && options.effortValue === undefined && servedEfforts.length > 0") && openaiTurn.includes('lowestServedEffort(servedEfforts)'))
     for (const [label, ...path] of [
       ['sessionTitle', 'utils', 'sessionTitle.ts'],
       ['generateSessionName', 'commands', 'rename', 'generateSessionName.ts'],
@@ -139,9 +144,11 @@ async function main(): Promise<void> {
     ] as const) {
       check(`${label} rides the queryUtility seam (the helper by construction)`, srcText(...path).includes('queryUtility'))
     }
-    const probeBranch = "declaredRouteOf(model) === 'anthropic' ? model : getDefaultSonnetModel()"
-    check('the count-tokens create probe names the helper\'s model on the Anthropic road, else the family default', srcText('services', 'tokenEstimation.ts').includes(probeBranch))
-    check('the key probe names the helper\'s model on the Anthropic road, else the family default', srcText('services', 'providers', 'anthropic', 'requestParams.ts').includes(probeBranch))
+    const probeBranch = "=== 'anthropic' ? "
+    const tokenEstimation = srcText('services', 'tokenEstimation.ts')
+    const requestParams = srcText('services', 'providers', 'anthropic', 'requestParams.ts')
+    check('the count-tokens create probe names the helper\'s model on the Anthropic road, else the family default, at that model\'s floor with thinking off unless the history thinks', tokenEstimation.includes(probeBranch) && tokenEstimation.includes('getDefaultSonnetModel()') && tokenEstimation.includes('thinking: thinking ? THINKING_BUDGET_TOKENS : false') && tokenEstimation.includes("...(effort !== undefined ? { effort } : {})"))
+    check('the key probe names the helper\'s model on the Anthropic road, else the family default, at that model\'s floor with thinking off', requestParams.includes(probeBranch) && requestParams.includes('getDefaultSonnetModel()') && requestParams.includes("if (!modelThinkingAlwaysOn(model)) body.thinking = { type: 'disabled' }") && requestParams.includes('if (effort !== undefined) body.output_config = { effort }') && !requestParams.includes('export function keyProbeModel'))
   }
 
   section('§4 the settlement fold — settleAssistantTurn (the one owner)')

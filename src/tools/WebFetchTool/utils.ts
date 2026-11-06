@@ -244,7 +244,8 @@ export async function applyPromptToMarkdown(
   let fallbackReason: string | null = null
   if (fallbackModel !== '' && fallbackModel !== primaryModel) {
     try {
-      const response = await withModel({ systemPrompt: asSystemPrompt([]), userPrompt, signal, options: { ...baseOptions, model: fallbackModel } })
+      const { thinkingConfig, ...call } = utilityCallFor(fallbackModel, { named: true })
+      const response = await withModel({ systemPrompt: asSystemPrompt([]), userPrompt, signal, thinkingConfig, options: { ...baseOptions, ...call } })
       if (signal.aborted) throw new AbortError()
       const refusal = refusalOf(response)
       const text = refusal === null ? textOf(response) : null

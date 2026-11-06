@@ -54,7 +54,7 @@ export async function runCrewmateHook(run: ModelHookRun): Promise<ModelHookEnd> 
       'Use the read tools you have to check what the brief asks, in as few steps as possible.',
       `When done, answer through the ${SYNTHETIC_OUTPUT_TOOL_NAME} tool with one object of the hook answer shape; an empty object means you have nothing to say.`,
     ])
-    const call = utilityCallFor(run.model)
+    const call = run.model === undefined ? utilityCallFor() : utilityCallFor(run.model, { named: true })
     noteAgentEffortWord(hookAgentId, call.effortValue)
     const getAppState = (): ReturnType<ToolUseContext['getAppState']> => {
       const state = run.toolUseContext.getAppState()

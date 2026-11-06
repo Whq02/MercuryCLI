@@ -47,7 +47,7 @@ export async function runQuestionHook(run: ModelHookRun): Promise<ModelHookEnd> 
       `You are answering a hook in Mercury at the moment ${run.event}. The hook's question follows, with the moment's facts as JSON.`,
       'Answer with exactly one JSON object of the hook answer shape; {} when you have nothing to say.',
     ])
-    const { thinkingConfig, ...call } = utilityCallFor(run.model)
+    const { thinkingConfig, ...call } = run.model === undefined ? utilityCallFor() : utilityCallFor(run.model, { named: true })
     const response = await routedCallModelSettled({
       messages: [createUserMessage({ content: hookBrief(run.text, run.payloadJson) })],
       systemPrompt,

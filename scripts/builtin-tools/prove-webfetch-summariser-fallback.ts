@@ -111,7 +111,7 @@ for (const helper of ['src/services/providers/openai/openaiCallModel.ts', 'src/s
 section('§7 the fetch tool wires the two roads')
 const utils = readFileSync(join(ROOT, 'src/tools/WebFetchTool/utils.ts'), 'utf8')
 check('it reaches for the utility call and the session model', utils.includes('utilityCallFor().model') && utils.includes('queryUtility') && utils.includes('getEngineModel') && utils.includes('queryWithModel'))
-check('the fallback runs the session model through queryWithModel with that model', utils.includes('await withModel(') && utils.includes('model: fallbackModel'))
+check('the fallback runs the session model through queryWithModel as itself at its own floor, pinned, never the slot', utils.includes('await withModel(') && utils.includes('utilityCallFor(fallbackModel, { named: true })') && utils.includes('options: { ...baseOptions, ...call }'))
 const tool = readFileSync(join(ROOT, 'src/tools/WebFetchTool/WebFetchTool.ts'), 'utf8')
 check('only the explicit prompt road calls a model', tool.includes('if (input.prompt === undefined)') && tool.includes('applyPromptToMarkdown('))
 
