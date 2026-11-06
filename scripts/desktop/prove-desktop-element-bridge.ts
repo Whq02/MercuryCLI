@@ -31,7 +31,7 @@ const PLATFORM = voicePackPlatform()
 const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')
 const signal = (): AbortSignal => new AbortController().signal
 const app = { identity: 'com.example.editor', name: 'Editor', pid: process.pid, title: 'Untitled', bounds: { x: 100, y: 100, width: 800, height: 600 } }
-const untitled = { depth: 20, role: 'AXStaticText', title: null, value: 'I build AI developer tools', frame: { x: 10, y: 10, width: 100, height: 20 } }
+const untitled = { depth: 20, role: 'AXStaticText', title: null, value: 'A line of page text', frame: { x: 10, y: 10, width: 100, height: 20 } }
 const bare = { depth: 3, role: 'AXGroup', title: null, value: null, frame: null, focused: false }
 
 let fixtureSeq = 0
@@ -142,7 +142,7 @@ console.log('\n[2] a native failure answers one sentence, never the command line
   }
 }
 
-console.log('\n[3] through the packaged addon, on the child the product runs (the bundled node), against this process, which has no window: #3211\'s element reaches the reader and the reader\'s own sentence comes back')
+console.log('\n[3] through the packaged addon, on the child the product runs (the bundled node), against this process, which has no window: an untitled static text reaches the reader and the reader\'s own sentence comes back')
 {
   const resolved = usePack(null)
   const load = pack.loadDesktopAddon()
@@ -178,10 +178,10 @@ console.log('\n[3] through the packaged addon, on the child the product runs (th
 console.log('\n[4] the fake driver reads the same element')
 {
   const scene = structuredClone(fake.FAKE_SCENE_DEFAULT)
-  scene.tree[0]!.children!.push({ role: 'AXStaticText', value: 'I build AI developer tools', frame: { x: 120, y: 500, width: 300, height: 20 } })
+  scene.tree[0]!.children!.push({ role: 'AXStaticText', value: 'A line of page text', frame: { x: 120, y: 500, width: 300, height: 20 } })
   const driver = new fake.FakeDesktopDriver(scene, null)
-  const answer = await driver.readElement(scene.frontmost, { depth: 1, role: 'AXStaticText', title: null, value: 'I build AI developer tools', frame: { x: 120, y: 500, width: 300, height: 20 } }, signal())
-  check('an untitled static text reads its value', answer.ok && answer.value?.text === 'I build AI developer tools' && answer.value.title === null, JSON.stringify(answer))
+  const answer = await driver.readElement(scene.frontmost, { depth: 1, role: 'AXStaticText', title: null, value: 'A line of page text', frame: { x: 120, y: 500, width: 300, height: 20 } }, signal())
+  check('an untitled static text reads its value', answer.ok && answer.value?.text === 'A line of page text' && answer.value.title === null, JSON.stringify(answer))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

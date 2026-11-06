@@ -36,7 +36,7 @@ function scene(): Scene {
     { role: 'AXButton', title: 'Submit', frame: { x: 400, y: 1400, width: 120, height: 32 } },
     { role: 'AXButton', title: 'Clamped', frame: { x: 400, y: 699, width: 120, height: 1 } },
     { role: 'AXStaticText', value: 'About', frame: { x: 120, y: 2000, width: 300, height: 20 }, actions: ['AXPress'] },
-    { role: 'AXTextField', title: 'LinkedIn URL*', value: '', frame: { x: 120, y: 300, width: 400, height: 30 } },
+    { role: 'AXTextField', title: 'Website', value: '', frame: { x: 120, y: 300, width: 400, height: 30 } },
     { role: 'AXTextField (AXSecureTextField)', title: 'Password', frame: { x: 120, y: 340, width: 400, height: 30 } },
     { role: 'AXGroup', title: 'Editor', frame: { x: 120, y: 400, width: 400, height: 200 }, settable: true },
     { role: 'AXButton', title: 'Twin', frame: { x: 600, y: 300, width: 80, height: 30 } },
@@ -62,7 +62,7 @@ console.log('[1] scrollToVisible through the fake driver')
   const stale = await driver.scrollToVisible(app, submit, signal())
   check('the stale frame is refused with the tree sentence', !stale.ok && stale.error.kind === 'input' && stale.error.note === NOT_UNIQUE, JSON.stringify(stale))
   const clamped = await driver.scrollToVisible(app, element(s.tree[0]!.children![3]!), signal())
-  check('an edge-clamped one-point strip (#3211) counts as hidden and is brought in', clamped.ok && clamped.value.scrolled && clamped.value.frame !== null && clamped.value.frame.y !== 699 && inside(clamped.value.frame, window), JSON.stringify(clamped))
+  check('an edge-clamped one-point strip at the window edge counts as hidden and is brought in', clamped.ok && clamped.value.scrolled && clamped.value.frame !== null && clamped.value.frame.y !== 699 && inside(clamped.value.frame, window), JSON.stringify(clamped))
   const visible = await driver.scrollToVisible(app, element(s.tree[0]!.children![0]!), signal())
   check('an element already in view keeps its frame', visible.ok && visible.value.scrolled && JSON.stringify(visible.value.frame) === JSON.stringify({ x: 100, y: 128, width: 800, height: 40 }), JSON.stringify(visible))
   const unsupported = await driver.scrollToVisible(app, element(s.tree[0]!.children![4]!), signal())
@@ -81,12 +81,12 @@ console.log('\n[2] setValue through the fake driver')
   const driver = new fake.FakeDesktopDriver(s, null)
   const app = s.frontmost
   const field = element(s.tree[0]!.children![5]!)
-  const set = await driver.setValue(app, field, 'https://www.linkedin.com/in/example', signal())
-  check('a text field takes the value and reads it back', set.ok && set.value.set && set.value.value === 'https://www.linkedin.com/in/example' && set.value.note === null, JSON.stringify(set))
+  const set = await driver.setValue(app, field, 'https://example.com/jane', signal())
+  check('a text field takes the value and reads it back', set.ok && set.value.set && set.value.value === 'https://example.com/jane' && set.value.note === null, JSON.stringify(set))
   const read = await driver.readElement(app, field, signal())
-  check('readElement on the same field answers the new value', read.ok && read.value?.text === 'https://www.linkedin.com/in/example', JSON.stringify(read))
+  check('readElement on the same field answers the new value', read.ok && read.value?.text === 'https://example.com/jane', JSON.stringify(read))
   const tree = await driver.accessibilityTree(app, { depth: 8, count: 200, scope: 'window' }, signal())
-  check('the next tree read carries the value', tree.ok && tree.value.elements.some(e => e.title === 'LinkedIn URL*' && e.value === 'https://www.linkedin.com/in/example'), JSON.stringify(tree.ok ? tree.value.elements.filter(e => e.title === 'LinkedIn URL*') : tree))
+  check('the next tree read carries the value', tree.ok && tree.value.elements.some(e => e.title === 'Website' && e.value === 'https://example.com/jane'), JSON.stringify(tree.ok ? tree.value.elements.filter(e => e.title === 'Website') : tree))
   const again = await driver.setValue(app, field, '', signal())
   check('an empty value clears the field and reads back as null, the tree\'s word for empty', again.ok && again.value.set && again.value.value === null, JSON.stringify(again))
   const button = await driver.setValue(app, element(s.tree[0]!.children![2]!), 'x', signal())
@@ -117,7 +117,7 @@ console.log('\n[3] the gates both acts share')
   setTimeout(() => controller.abort(), 5)
   const aborted = await slow.setValue(held.frontmost, field, 'x', controller.signal)
   const afterAbort = await slow.accessibilityTree(held.frontmost, { depth: 8, count: 200, scope: 'window' }, signal())
-  check('an abort during the act answers aborted and sets nothing', !aborted.ok && aborted.error.kind === 'aborted' && afterAbort.ok && afterAbort.value.elements.some(e => e.title === 'LinkedIn URL*' && e.value === null), JSON.stringify(aborted))
+  check('an abort during the act answers aborted and sets nothing', !aborted.ok && aborted.error.kind === 'aborted' && afterAbort.ok && afterAbort.value.elements.some(e => e.title === 'Website' && e.value === null), JSON.stringify(aborted))
   const closed = new fake.FakeDesktopDriver(scene(), null)
   await closed.close()
   const afterClose = await closed.scrollToVisible(denied.frontmost, field, signal())
