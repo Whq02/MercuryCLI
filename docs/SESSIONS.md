@@ -106,25 +106,25 @@ you clear it, and nothing else ends it. At the end of every turn while the goal
 stands, a judge reads it: one bounded call on the session's own model at the
 lowest effort tier that model serves (thinking off on the Anthropic road; a
 model without effort control ignores it), given the goal and its criteria, the
-turn's closing words — including an itemised completion when the model wrote
+turn's closing words, an itemised completion among them when the model wrote
 one (one numbered line per criterion naming its evidence, then the
 `<<<GOAL-MET>>>` line, elided on screen in the chat and concourse live tiles
-while kept in the transcript) — the turn's tool calls and the verification
+while kept in the transcript), the turn's tool calls and the verification
 record, never the conversation; it answers `met`, `not yet` or `impossible` with
 a one-line reason (an answer that is not exactly that JSON counts as `not yet`;
-a judge that cannot be reached — an API error, a thrown call, the 20-second
-limit — counts as `not yet` with the reason "the judge could not be reached",
+a judge that cannot be reached (an API error, a thrown call, the 20-second
+limit) counts as `not yet` with the reason "the judge could not be reached",
 and the next turn end is judged again). When JEV
 ([ENGINES.md](ENGINES.md#jev)) is enabled and ready with a key, its verdict
 (`met`, `open`, `ambiguous` or `unattainable` at a `0.6` confidence floor) wins
-over the judge's; only when no model call can be made at all — no credential on
-the first-party road, a fixture seam — is the itemised claim the verification.
+over the judge's; only when no model call can be made at all (no credential on
+the first-party road, a fixture seam) is the itemised claim the verification.
 `met` needs the itemised close from any judge: a bare `<<<GOAL-MET>>>` or a
-skipped criterion is held, not met. One counter of judged turn ends rides the
-card, the status line and the judge's own input. When `met`, the chat gets one
-completed row like a finished monitor's — `Mission completed: <goal> — <the
-judge's reason> · N turns · <elapsed>` — the rail drops the goal, the footer
-indicator clears, and bare `/goal` shows the achieved goal with its reason,
+skipped criterion is held and never counts as met. One counter of judged turn
+ends rides the card, the status line and the judge's own input. When `met`, the
+chat gets one completed row like a finished monitor's, `Mission completed:
+<goal> — <the judge's reason> · N turns · <elapsed>`; the rail drops the goal,
+the footer indicator clears, and bare `/goal` shows the achieved goal with its reason,
 turns and duration; when `not yet`, the turn continues with `Mission not
 completed: <goal> — <what is open>. Continue.`; when `impossible`, the goal
 pauses with the reason as the note. The only brake on the loop: three

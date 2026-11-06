@@ -10,7 +10,7 @@ export interface ServedMission {
   setAt: number
 }
 
-export interface MissionStatusFacts {
+interface MissionStatusFacts {
   iterations: number
   verdict?: { kind: string; reason: string }
   paused?: { why: string }
