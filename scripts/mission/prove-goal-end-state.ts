@@ -575,6 +575,25 @@ section("§9 the judge's answer is read strictly: one JSON object, a known verdi
     const judge = readSource(join(import.meta.dir, '..', '..', 'src/services/mission/goalJudge.ts'), 'utf8')
     check("an API error, a thrown call or the timeout is not the claim road: judgeWithModel answers not yet with 'the judge could not be reached', and null only when no model call can be made", (judge.match(/reason: JUDGE_UNREACHABLE/g) ?? []).length === 2 && /if \(!modelRoadOpen\(call\.model\)\) return null/.test(judge) && !/return null\n\s+\}\n\s+return verdictOfAnswer/.test(judge))
   }
+  const { judgeWithModel, modelRoadOpen, JUDGE_UNREACHABLE } = judgeModule!
+  const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
+  const { utilityCallFor } = await import('../../src/utils/model/utilityModel.ts')
+  setEngineModelOverride('claude-opus-5-5')
+  process.env.ANTHROPIC_API_KEY = 'proof-key-not-a-real-key-0106'
+  process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
+  const GOAL = 'the parser suite is green'
+  const closed = { closing: `1. ${GOAL} — 212 passing\n${MISSION_MET_SENTINEL}`, claimedMet: true, asksOperator: false, toolCalls: 0, toolNames: [], verification: null, checks: 0 }
+  check('the road is open for the thrown case: a first-party model with a credential in the scratch environment', modelRoadOpen(utilityCallFor().model), j(utilityCallFor()))
+  const thrown = await judgeWithModel(goalModule!.compileGoal(GOAL), closed as never, AbortSignal.abort())
+  check("a judge call that throws (an already-aborted signal: nothing settles, the call throws before any request — where a hung judge lands after its 20-second bound) answers not yet with 'the judge could not be reached', never null, though the close is itemised", j(thrown) === j({ kind: 'not yet', confidence: 0, reason: JUDGE_UNREACHABLE, road: 'model' }), j(thrown))
+  const S = 'goal-judge-thrown'
+  arm(S, GOAL, (goal, evidence) => judgeWithModel(goal as never, evidence as never, AbortSignal.abort()))
+  const held = await stop(S, [user(`/goal ${GOAL}`), asst(`1. ${GOAL} — 212 passing\n${MISSION_MET_SENTINEL}`)])
+  check("through the guard, that end is held with the product's own sentence and the itemised claim never meets on its own: 'Mission not completed: <goal> — the judge could not be reached. Continue.', the card armed at one judged end", held.allowed === false && held.words === `Mission not completed: ${GOAL} — ${JUDGE_UNREACHABLE}. Continue.` && getActiveMission(S)?.met !== true && readMissionCard(S)?.state === 'armed' && readMissionCard(S)?.iterations === 1, j({ held, card: readMissionCard(S) }))
+  clearActiveMission(S)
+  delete process.env.ANTHROPIC_API_KEY
+  delete process.env.ANTHROPIC_BASE_URL
+  setEngineModelOverride(undefined)
 }
 await standin.close()
 console.log('\n' + '═'.repeat(76))
