@@ -200,7 +200,7 @@ const thinkingOff = (r: Request): boolean => {
 }
 
 const sendEpochs = (run: ArenaRun, prefix: string): number[] => run.sendLog.filter(s => Buffer.from(s.b64, 'base64').toString('utf8').startsWith(prefix)).map(s => s.sent)
-const sendsOf = (run: ArenaRun): string[] => run.sendLog.map(s => Buffer.from(s.b64, 'base64').toString('utf8').replace(/\r/g, '⏎'))
+const sendsOf = (run: ArenaRun): string[] => run.sendLog.map(s => Buffer.from(s.b64, 'base64').toString('utf8').replace(/\r/g, '\\r'))
 const complete = (run: ArenaRun, expectedSends: number): boolean => run.outcome.complete && (run.outcome.report?.unfired.length ?? 1) === 0 && run.sendLog.length === expectedSends
 const runWords = (run: ArenaRun): string => `complete=${run.outcome.complete} exit=${run.outcome.exitCode} sends=${JSON.stringify(sendsOf(run).map(s => s.slice(0, 24)))} unfired=${JSON.stringify(run.outcome.report?.unfired ?? [])} ${run.outcome.reason ?? ''}`
 
@@ -382,7 +382,7 @@ if (OUT !== undefined) {
   writeFileSync(join(dir, 'screen-120x40-paused.txt'), `${(whilePaused?.rows ?? []).join('\n')}\n`)
   writeFileSync(join(dir, 'cards.json'), `${JSON.stringify(cards, null, 1)}\n`)
   writeFileSync(join(dir, 'card-timeline.json'), `${JSON.stringify(cardTimeline.map(s => ({ ...s, at: new Date(s.atMs).toISOString() })), null, 1)}\n`)
-  writeFileSync(join(dir, 'sends.json'), `${JSON.stringify(run.sendLog.map(s => ({ at: new Date(s.sent).toISOString(), text: Buffer.from(s.b64, 'base64').toString('utf8').replace(/\r/g, '⏎') })), null, 1)}\n`)
+  writeFileSync(join(dir, 'sends.json'), `${JSON.stringify(run.sendLog.map(s => ({ at: new Date(s.sent).toISOString(), text: Buffer.from(s.b64, 'base64').toString('utf8').replace(/\r/g, '\\r') })), null, 1)}\n`)
   writeFileSync(join(dir, 'requests.json'), `${JSON.stringify(requests.map((r, i) => ({ n: i + 1, model: modelOf(r), effort: effortOf(r), goalServed: goalServed(systemText(r.body)), status: statusOf(lastUserText(r.body)), operatorWords: operatorWords(lastUserText(r.body)).slice(0, 400) })), null, 1)}\n`)
   writeFileSync(join(dir, 'judge-requests.json'), `${JSON.stringify(judgeRequests.map((r, i) => ({ n: i + 1, model: modelOf(r), effort: effortOf(r), thinking: (r.body as { thinking?: unknown }).thinking ?? null, system: systemText(r.body), user: lastUserText(r.body) })), null, 1)}\n`)
   writeFileSync(join(dir, 'requests-full.json'), `${JSON.stringify(requests.map(r => ({ system: systemText(r.body), messages: messagesOf(r.body).map(m => ({ role: m.role, content: flat(m.content).slice(0, 2000) })) })), null, 1)}\n`)
