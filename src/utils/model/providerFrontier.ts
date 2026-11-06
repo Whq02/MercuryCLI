@@ -1,5 +1,5 @@
-import { declaredRouteOf, type CallModelRoute } from '../../services/providers/routeLaw.js'
-import { GPT_DISPLAY_PINS, gptDisplayName, parseGptModelId, type GptDisplayPin } from '../../services/providers/openai/gptPins.js'
+import type { CallModelRoute } from '../../services/providers/routeLaw.js'
+import { GPT_DISPLAY_PINS, gptDisplayName, parseGptModelId } from '../../services/providers/openai/gptPins.js'
 import { frontierOperatorDecision } from './frontierPolicy.js'
 import {
   getDefaultSonnetModel,
