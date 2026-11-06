@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/document/** src/tools/DocumentTool/** vendor/document-libs.lock.json
+# gate-env: MERCURY_BROWSER_CACHE_DIR
+# gate-watch: scripts/document/** src/tools/DocumentTool/** vendor/document-libs.lock.json vendor/pdfjs.lock.json
 # gate-watch: src/skills/bundled/research* src/skills/bundled/index.ts src/tools.ts package.json bun.lock
 # gate-watch: src/utils/permissions/filesystem.ts src/services/browser/browserResolver.ts
 # gate-watch: scripts/vendor/documentLibraries.ts vendor/document-licences/** mercury-skills/research/** build.ts .gitattributes
