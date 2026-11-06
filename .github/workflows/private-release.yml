@@ -94,10 +94,10 @@ jobs:
           - os: ubuntu-latest
             target: linux-x64
             node_pack: linux-x64
-          - os: macos-14
+          - os: macos-15
             target: macos-arm64
             node_pack: darwin-arm64
-          - os: macos-14
+          - os: macos-15
             target: macos-x64
             node_pack: darwin-x64
             cross: true
@@ -281,9 +281,9 @@ jobs:
         include:
           - os: ubuntu-latest
             target: linux-x64
-          - os: macos-14
+          - os: macos-15
             target: macos-arm64
-          - os: macos-14
+          - os: macos-15
             target: macos-x64
             cross: true
           - os: windows-latest
