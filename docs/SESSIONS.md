@@ -102,26 +102,33 @@ one-line mission status rides each turn beside the other attachments, so a bare
 `continue` reaches the model with the goal in sight. Bare `/goal` shows the
 current status read from the session's card, `/goal clear` clears it, and a
 newer `/goal` replaces an older one; a set goal is in force until it is met or
-you clear it, and nothing else ends it. At the end of each turn, the goal Stop
-guard checks the end state against the turn's evidence: the closing text,
-whether the turn closed on an itemised completion (one numbered line per
-criterion naming its evidence, then the `<<<GOAL-MET>>>` line, elided on screen
-in the chat and concourse live tiles while kept in the transcript), whether the
-closing line asks you a question, the tool-call count, the verification record,
-and whether the working tree or verification record advanced since the last
-check. When JEV ([ENGINES.md](ENGINES.md#jev)) is enabled and ready with a key,
-it judges the goal as `met`, `open`, `ambiguous` or `unattainable` (at a `0.6`
-confidence floor) on top of that; otherwise the itemised claim is the
-verification, and a bare `<<<GOAL-MET>>>`, a skipped criterion or a criterion
-line without evidence words is held, not met. When `met`, the goal settles with
-a one-line notice; when `open`, the turn continues with `Mission not completed:
-<goal> — <what is open>. Continue.`; when `ambiguous` or `unattainable` (three
-consecutive checks with no tree change and no new verification record count as
-such), the guard asks the model to end its turn with one question to you and
-the goal pauses — still armed, waiting — and a turn that ends on a question to
-you pauses it the same way (`"mission paused — <why> · your next message resumes
-it; /mission clear ends it"`). Your next message resumes a paused goal; a
-scheduled wake does not.
+you clear it, and nothing else ends it. At the end of every turn while the goal
+stands, a judge reads it: one bounded call on the session's own model at the
+lowest effort tier that model serves (thinking off on the Anthropic road; a
+model without effort control ignores it), given the goal and its criteria, the
+turn's closing words — including an itemised completion when the model wrote
+one (one numbered line per criterion naming its evidence, then the
+`<<<GOAL-MET>>>` line, elided on screen in the chat and concourse live tiles
+while kept in the transcript) — the turn's tool calls and the verification
+record, never the conversation; it answers `met`, `not yet` or `impossible` with
+a one-line reason (an unreadable answer counts as `not yet`). When JEV
+([ENGINES.md](ENGINES.md#jev)) is enabled and ready with a key, its verdict
+(`met`, `open`, `ambiguous` or `unattainable` at a `0.6` confidence floor) wins
+over the judge's; when no model call can be made at all (a fixture, an offline
+run), the itemised claim is the verification. `met` needs the itemised close
+from any judge: a bare `<<<GOAL-MET>>>` or a skipped criterion is held, not met.
+When `met`, the chat gets one completed row like a finished monitor's —
+`Mission completed: <goal> — <the judge's reason> · N turns · <elapsed>` — the
+rail drops the goal, the footer indicator clears, and bare `/goal` shows the
+achieved goal with its reason, turns and duration; when `not yet`, the turn
+continues with `Mission not completed: <goal> — <what is open>. Continue.`;
+when `impossible`, the goal pauses with the reason as the note. The only brake
+on the loop is Claude Code's: three consecutive turn ends without a tool call
+pause the goal (`"mission paused after 3 turns without a tool call — your next
+message resumes it"`), while a turn with any tool call never trips it; a turn
+that ends on a question to you pauses it the same way (`"mission paused — <why>
+· your next message resumes it; /mission clear ends it"`). A pause keeps the
+goal armed. Your next message resumes a paused goal; a scheduled wake does not.
 
 Pressing `Enter` opens a chat immediately using a pre-warmed
 background runner. The new session loads the
