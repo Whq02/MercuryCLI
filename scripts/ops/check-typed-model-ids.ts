@@ -121,7 +121,7 @@ const skipped: string[] = []
 {
   const auth = await import('../../src/utils/auth.js')
   const model = await import('../../src/utils/model/model.js')
-  const typed = [...new Set([model.getDefaultFableModel(), model.getDefaultOpusModel(), model.getDefaultSonnetModel(), model.getDefaultHaikuModel(), model.getSmallFastModel()].map(id => model.normalizeModelStringForAPI(id)))]
+  const typed = [...new Set([model.getDefaultFableModel(), model.getDefaultOpusModel(), model.getDefaultSonnetModel(), model.getDefaultHaikuModel()].map(id => model.normalizeModelStringForAPI(id)))]
   const headers = getAuthHeaders()
   if (headers.error) skipped.push(`anthropic · no credential · ${typed.length} typed ids not judged`)
   else {

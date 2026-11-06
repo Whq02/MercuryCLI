@@ -7,7 +7,7 @@ import {
   createUserMessage,
   getAssistantMessageText,
 } from '../utils/messages.js'
-import { sessionSmallFastModel } from '../utils/model/providerFrontier.js'
+import { utilityCallFor } from '../utils/model/utilityModel.js'
 import { asSystemPrompt } from '../utils/systemPromptType.js'
 import {
   type AgentState,
@@ -70,15 +70,17 @@ export async function classifyAgentState(
     const query = createUserMessage({
       content: `Latest agent message tail:\n${tail}`,
     })
+    const { thinkingConfig, ...call } = utilityCallFor()
     const response = await routedCallModelSettled({
       messages: [query],
       systemPrompt: asSystemPrompt([NEEDS_YOU_SYSTEM_PROMPT]),
-      thinkingConfig: { type: 'disabled' },
+      thinkingConfig,
       tools: [],
       signal,
       options: {
         getToolPermissionContext: async () => getEmptyToolPermissionContext(),
-        model: sessionSmallFastModel(),
+        ...call,
+        effortPinned: true,
         toolChoice: undefined,
         isNonInteractiveSession: false,
         hasAppendSystemPrompt: false,

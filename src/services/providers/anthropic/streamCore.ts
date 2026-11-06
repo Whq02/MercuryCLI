@@ -129,7 +129,7 @@ import {
   getPublicModelDisplayName,
   normalizeModelStringForAPI,
 } from '../../../utils/model/model.js'
-import { sessionSmallFastModel } from '../../../utils/model/providerFrontier.js'
+import { utilityCallFor } from '../../../utils/model/utilityModel.js'
 import {
   startSessionActivity,
   stopSessionActivity,
@@ -1747,9 +1747,9 @@ async function* queryModel(
   releaseStreamResources()
 }
 
-type SmallFastOptions = Omit<Options, 'model' | 'getToolPermissionContext'>
+type UtilityOptions = Omit<Options, 'model' | 'getToolPermissionContext' | 'effortValue' | 'effortPinned' | 'ridesSessionEffort'>
 
-export async function querySmallFast({
+export async function queryUtility({
   systemPrompt = asSystemPrompt([]),
   userPrompt,
   outputFormat,
@@ -1760,17 +1760,16 @@ export async function querySmallFast({
   userPrompt: string
   outputFormat?: JsonOutputFormat
   signal: AbortSignal
-  options: SmallFastOptions
+  options: UtilityOptions
 }): Promise<AssistantMessage> {
+  const { thinkingConfig, ...call } = utilityCallFor()
   return queryWithModel({
     systemPrompt,
     userPrompt,
     outputFormat,
     signal,
-    options: {
-      ...options,
-      model: sessionSmallFastModel(),
-    },
+    thinkingConfig,
+    options: { ...options, ...call, effortPinned: true },
   })
 }
 
@@ -1778,13 +1777,13 @@ type QueryWithModelOptions = Omit<Options, 'getToolPermissionContext'>
 
 type OneShotQuestion = {
   systemPrompt: SystemPrompt; userPrompt: string; outputFormat?: JsonOutputFormat
-  signal: AbortSignal; options: QueryWithModelOptions
+  signal: AbortSignal; options: QueryWithModelOptions; thinkingConfig?: ThinkingConfig
 }
 
 function sideQuestionParams(question: OneShotQuestion, systemPrompt: SystemPrompt): CallModelParams {
   return {
     messages: [createUserMessage({ content: question.userPrompt })], systemPrompt,
-    thinkingConfig: { type: 'disabled' }, tools: [], signal: question.signal,
+    thinkingConfig: question.thinkingConfig ?? { type: 'disabled' }, tools: [], signal: question.signal,
     options: {
       ridesSessionEffort: false, ...question.options, enablePromptCaching: question.options.enablePromptCaching ?? false,
       outputFormat: question.outputFormat, getToolPermissionContext: async () => getEmptyToolPermissionContext(),
@@ -1793,8 +1792,8 @@ function sideQuestionParams(question: OneShotQuestion, systemPrompt: SystemPromp
 }
 
 export async function queryWithModel(question: OneShotQuestion): Promise<AssistantMessage> {
-  const { systemPrompt = asSystemPrompt([]), userPrompt, outputFormat, signal, options } = question
-  question = { systemPrompt, userPrompt, outputFormat, signal, options }
+  const { systemPrompt = asSystemPrompt([]), userPrompt, outputFormat, signal, options, thinkingConfig } = question
+  question = { systemPrompt, userPrompt, outputFormat, signal, options, thinkingConfig }
   const { routedCallModel, settleAssistantTurn } = await import('../../providers/callModelRouter.js')
   const recordedInput = [
     createUserMessage({ content: systemPrompt.map(text => ({ type: 'text', text })) }),

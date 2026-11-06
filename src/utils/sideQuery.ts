@@ -33,6 +33,7 @@ type SideQueryOptions = {
   signal?: AbortSignal
   temperature?: number
   thinking?: number | false
+  effort?: string
   stop_sequences?: string[]
   querySource: QuerySource | string
   source?: string
@@ -111,7 +112,7 @@ export async function sideQuery(opts: SideQueryOptions): Promise<ApiMessage> {
     ...(opts.tools ? { tools: opts.tools } : {}),
     ...(toolChoice ? { tool_choice: toolChoice } : {}),
     ...(opts.stop_sequences ? { stop_sequences: opts.stop_sequences } : {}),
-    ...(opts.output_format ? { output_config: { format: opts.output_format } } : {}),
+    ...(opts.output_format || opts.effort ? { output_config: { ...(opts.output_format ? { format: opts.output_format } : {}), ...(opts.effort ? { effort: opts.effort } : {}) } } : {}),
     ...(betas.length > 0 ? { betas } : {}),
   }
 

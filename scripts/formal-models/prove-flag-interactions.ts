@@ -35,7 +35,6 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_COMPACT: ['', '0'],
   MERCURY_AUTO_COMPACT: ['', '0'],
   MERCURY_PROMPT_CACHING: ['', '0'],
-  MERCURY_PROMPT_CACHING_HAIKU: ['', '0'],
   MERCURY_PROMPT_CACHING_SONNET: ['', '0'],
   MERCURY_PROMPT_CACHING_OPUS: ['', '0'],
   MERCURY_COMPAT_API_KEY: ['', 'sk-sweep'],

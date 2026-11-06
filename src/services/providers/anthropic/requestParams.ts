@@ -12,6 +12,7 @@ import {
   getModelBetas,
   modelSupportsTemperature,
 } from '../../../utils/betas.js'
+import { modelThinkingAlwaysOn } from '../../../utils/model/capabilities.js'
 import { cacheClockTtlDecision } from 'src/utils/cache/cacheClock.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { modelSupportsEffort, type EffortValue } from 'src/utils/effort.js'
@@ -23,8 +24,10 @@ import { logError } from '../../../utils/log.js'
 import {
   getDefaultOpusModel,
   getDefaultSonnetModel,
-  getSmallFastModel,
+  normalizeModelStringForAPI,
 } from '../../../utils/model/model.js'
+import { utilityCallFor } from '../../../utils/model/utilityModel.js'
+import { declaredRouteOf } from '../routeLaw.js'
 import { jsonStringify } from '../../../utils/slowOperations.js'
 import { currentLimits } from '../../anthropicLimits.js'
 import { getAnthropicClient } from '../../api/client.js'
@@ -60,9 +63,6 @@ export function getExtraBodyParams(betaHeaders?: string[]): JsonObject {
 export function getPromptCachingEnabled(model: string): boolean {
   if (!flagEnabled('MERCURY_PROMPT_CACHING')) return false
 
-  if (!flagEnabled('MERCURY_PROMPT_CACHING_HAIKU')) {
-    if (model === getSmallFastModel()) return false
-  }
   if (!flagEnabled('MERCURY_PROMPT_CACHING_SONNET')) {
     if (model === getDefaultSonnetModel()) return false
   }
@@ -154,14 +154,22 @@ export function getAPIMetadata() {
   return { user_id: jsonStringify({ ...extra, ...identity }) }
 }
 
-function keyProbeBody(model: string, betas: string[]) {
+type KeyProbeBody = Parameters<Awaited<ReturnType<typeof getAnthropicClient>>['beta']['messages']['create']>[0]
+
+function keyProbeBody(model: string, betas: string[]): KeyProbeBody {
   const messages: MessageParam[] = [{ role: 'user', content: 'test' }]
-  return {
-    model, max_tokens: 1, messages,
-    ...(modelSupportsTemperature(model) ? { temperature: 1 } : {}),
-    ...(betas.length ? { betas } : {}),
-    metadata: getAPIMetadata(), ...getExtraBodyParams(),
-  }
+  const { effortValue } = utilityCallFor(model)
+  const effort = typeof effortValue === 'string' && isFirstPartyWireEffort(effortValue) && modelSupportsEffort(model) ? effortValue : undefined
+  const extraBody = getExtraBodyParams()
+  const outputConfig: Record<string, unknown> = { ...((extraBody.output_config as Record<string, unknown> | undefined) ?? {}) }
+  if (effort !== undefined && !('effort' in outputConfig)) outputConfig.effort = effort
+  const body: Record<string, unknown> = { model, max_tokens: 1, messages, metadata: getAPIMetadata() }
+  if (modelSupportsTemperature(model)) body.temperature = 1
+  if (betas.length) body.betas = betas
+  if (!modelThinkingAlwaysOn(model)) body.thinking = { type: 'disabled' }
+  Object.assign(body, extraBody)
+  if (Object.keys(outputConfig).length > 0) body.output_config = outputConfig
+  return body as unknown as KeyProbeBody
 }
 
 function keyProbeFailure(caught: unknown): false {
@@ -174,10 +182,15 @@ function keyProbeFailure(caught: unknown): false {
   throw error
 }
 
+function keyProbeModel(): string {
+  const { model } = utilityCallFor()
+  return normalizeModelStringForAPI(declaredRouteOf(model) === 'anthropic' ? model : getDefaultSonnetModel())
+}
+
 export async function verifyApiKey(apiKey: string, isNonInteractiveSession: boolean): Promise<boolean> {
   if (isNonInteractiveSession) return true
   try {
-    const model = getSmallFastModel()
+    const model = keyProbeModel()
     const betas = getModelBetas(model)
     const createClient = () => getAnthropicClient({ apiKey, maxRetries: 3, source: 'verify_api_key' })
     const probe = async (anthropic: Awaited<ReturnType<typeof getAnthropicClient>>): Promise<true> => {

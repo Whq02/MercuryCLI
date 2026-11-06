@@ -31,6 +31,8 @@ const FORMER_TIER_NAMES = ['HAIKU', 'OPUS', 'SONNET'].flatMap(tier =>
   ['_MODEL', '_MODEL_DESCRIPTION', '_MODEL_NAME'].map(suffix => J('ANTHROPIC_', 'DEFAULT_', tier, suffix)),
 )
 const FORMER_CI_NAMES = [J('ALL_', 'INPUTS'), J('OVERRIDE_', 'GITHUB_TOKEN'), J('DEFAULT_', 'WORKFLOW_TOKEN'), J('SSH_', 'SIGNING_KEY')]
+const FORMER_UTILITY_MODEL = J('MERCURY_', 'SMALL_', 'FAST_MODEL')
+const FORMER_HAIKU_CACHING_SWITCH = J('MERCURY_PROMPT_CACHING_', 'HAIKU')
 
 const withEnv = <T>(pins: Record<string, string | undefined>, body: () => T): T => {
   const saved = new Map<string, string | undefined>()
@@ -57,6 +59,7 @@ section('§1 the shell knobs are registered value flags')
   }
   const rows = registry.FLAG_REGISTRY as ReadonlyArray<{ env: string; formerly?: string }>
   check('no registry row names a former shell spelling, as its own name or as a former one', rows.every(r => ![FORMER_TIMEOUT, FORMER_MAX_TIMEOUT, FORMER_MAX_OUTPUT].includes(r.env) && ![FORMER_TIMEOUT, FORMER_MAX_TIMEOUT, FORMER_MAX_OUTPUT].includes(r.formerly ?? '')))
+  check('no registry row names the retired utility-model flag or the retired haiku caching switch', rows.every(r => r.env !== FORMER_UTILITY_MODEL && r.env !== FORMER_HAIKU_CACHING_SWITCH && !(r as { interactsWith?: string[] }).interactsWith?.includes(FORMER_HAIKU_CACHING_SWITCH)))
 }
 
 section('§2 the shell timeouts read their own names; a former spelling is inert')
@@ -92,7 +95,8 @@ section('§4 the pre-trust safe list and the host-managed strip set carry Mercur
   check('no former shell spelling is applied before trust', ![FORMER_TIMEOUT, FORMER_MAX_TIMEOUT, FORMER_MAX_OUTPUT].some(n => safe.has(n)))
   check('no unread model-tier spelling is applied before trust', !FORMER_TIER_NAMES.some(n => safe.has(n)), FORMER_TIER_NAMES.filter(n => safe.has(n)).join(','))
   const managedVar = managed.isProviderManagedEnvVar as (k: string) => boolean
-  check('the host-managed strip set keeps the provider endpoint, auth and model rows', ['ANTHROPIC_BASE_URL', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_MODEL', 'MERCURY_SMALL_FAST_MODEL', 'MERCURY_PROVIDER_MANAGED_BY_HOST'].every(managedVar))
+  check('the host-managed strip set keeps the provider endpoint, auth and model rows', ['ANTHROPIC_BASE_URL', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_MODEL', 'MERCURY_PROVIDER_MANAGED_BY_HOST'].every(managedVar))
+  check('the retired utility-model spelling is neither applied before trust nor host-managed', !safe.has(FORMER_UTILITY_MODEL) && !managedVar(FORMER_UTILITY_MODEL))
   check('the host-managed strip set names no unread model-tier spelling', !FORMER_TIER_NAMES.some(managedVar), FORMER_TIER_NAMES.filter(managedVar).join(','))
   check('every safe-list spelling is Mercury\'s own', [...safe].every(n => n.startsWith('MERCURY_')), [...safe].filter(n => !n.startsWith('MERCURY_')).join(','))
 }
@@ -126,7 +130,7 @@ section('§7 no reader of a former spelling remains in src')
       return ''
     }
   }
-  const former = [FORMER_TIMEOUT, FORMER_MAX_TIMEOUT, FORMER_MAX_OUTPUT, J('ANTHROPIC_', 'DEFAULT_\\$\\{'), J('ANTHROPIC_', 'DEFAULT_[A-Z]'), ...FORMER_CI_NAMES]
+  const former = [FORMER_TIMEOUT, FORMER_MAX_TIMEOUT, FORMER_MAX_OUTPUT, J('ANTHROPIC_', 'DEFAULT_\\$\\{'), J('ANTHROPIC_', 'DEFAULT_[A-Z]'), ...FORMER_CI_NAMES, FORMER_UTILITY_MODEL, FORMER_HAIKU_CACHING_SWITCH]
   const hits = former.map(n => [n, grep(`\\b${n}`).trim()] as const).filter(([, files]) => files !== '')
   check('no source file names a former spelling', hits.length === 0, hits.map(([n, f]) => `${n}: ${f.split('\n').join(' ')}`).join(' · '))
 }

@@ -87,7 +87,8 @@ import {
 import { describeWireEffortProbeWindow, noteWireEffortAccepted, recordLiveQualification, recordWireEffortRefusal } from './qualificationStore.js'
 import { clearOpenaiUsageLimit, noteOpenaiSourceIdentity, openaiLimitWindow, recordOpenaiUsageLimit } from './openaiLimitState.js'
 import { refreshProviderUsage } from '../providerUsage.js'
-import { resolveEffortTruth, resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
+import { resolveEffortTruth, resolveWireRequestedEffort, type EffortAdjustedV1, type EffortValue } from '../../../utils/effort.js'
+import { lowestServedEffort } from '../../../utils/model/utilityModel.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
 import { streamOpenaiResponses, streamOpenaiResponsesRoad, type OpenaiLiveModel } from './openaiClient.js'
@@ -793,11 +794,14 @@ async function* openaiTurn(
   const strippedMessages = applyStripTargetsToMessages(messages, errorDrivenStripTargets(messages))
   const projectedMessages = strippedMessages.map(message => message.type === 'user' ? withToolReferenceTurnBoundary(message) : message)
   const wireMessages = renderAdmissionRecordsAsText(projectedMessages)
-  const effortContext = { agentId: options.agentId, pinned: options.effortPinned === true }
-  const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue, effortContext)
-  const effortTruth = resolveEffortTruth(modelId, options.effortValue, effortContext)
   const kept = candidate === undefined ? liveGptEffortCatalogue(modelId) : undefined
   const remembered = kept !== undefined && kept.vocabulary.length > 0 ? kept : undefined
+  const effortContext = { agentId: options.agentId, pinned: options.effortPinned === true }
+  const servedEfforts = candidate?.live.supportedReasoningEfforts ?? remembered?.vocabulary ?? []
+  const floorWanted = options.effortPinned === true && options.effortValue === undefined && servedEfforts.length > 0
+  const effortValue = floorWanted ? (lowestServedEffort(servedEfforts) as EffortValue | undefined) : options.effortValue
+  const requestedEffort = resolveWireRequestedEffort(modelId, effortValue, effortContext)
+  const effortTruth = resolveEffortTruth(modelId, effortValue, effortContext)
   let profile: GptReasoningProfile = candidate
     ? resolveGptReasoningProfile(requestedEffort, candidate.live)
     : remembered !== undefined

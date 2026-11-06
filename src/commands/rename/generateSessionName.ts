@@ -1,4 +1,4 @@
-import { querySmallFast } from '../../services/providers/anthropic/streamCore.js'
+import { queryUtility } from '../../services/providers/anthropic/streamCore.js'
 import type { Message } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { safeParseJSON } from '../../utils/json.js'
@@ -30,14 +30,14 @@ export async function generateSessionName(
   const conversationText = extractConversationText(messages)
   if (conversationText === '') return null
   try {
-    const options: Parameters<typeof querySmallFast>[0]['options'] = {
+    const options: Parameters<typeof queryUtility>[0]['options'] = {
       querySource: 'rename_generate_name',
       isNonInteractiveSession: false,
       hasAppendSystemPrompt: false,
       agents: [],
       mcpTools: [],
     }
-    const response = await querySmallFast({
+    const response = await queryUtility({
       systemPrompt: asSystemPrompt(NAME_SYSTEM_PROMPT),
       userPrompt: conversationText,
       outputFormat: NAME_OUTPUT_FORMAT,

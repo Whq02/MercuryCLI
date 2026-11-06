@@ -47,7 +47,7 @@ enableConfigs()
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { queryWithModel, querySmallFast } = await import('../../src/services/providers/anthropic/streamCore.ts')
+const { queryWithModel, queryUtility } = await import('../../src/services/providers/anthropic/streamCore.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
@@ -109,20 +109,25 @@ section('§2 a side question (queryWithModel: no tools, no thinking) carries no 
   check('the reply\'s effort stamp says nothing was asked and nothing rode', effortStampLine(reply.effort) === 'effort asked none · applied none · wire none', effortStampLine(reply.effort))
 }
 
-section('§3 the small-fast tier rides the same road')
+section('§3 a utility call rides the same road on the main seat\'s model, pinned at the lowest tier whatever the dial says')
 {
+  process.env.MERCURY_MODEL = MODEL
   const from = fixture.captured.length
-  fixture.script(() => ({ text: 'the small answer' }))
-  const reply = await querySmallFast({
+  fixture.script(() => ({ text: 'the utility answer' }))
+  const reply = await queryUtility({
     systemPrompt: asSystemPrompt(['read the page']),
     userPrompt: 'what does the page say?',
     signal: new AbortController().signal,
     options: { querySource: 'web_fetch_apply', agents: [], isNonInteractiveSession: true, hasAppendSystemPrompt: false, mcpTools: [] } as never,
   })
   const body = lastAnthropicBody(from)
-  check('the small-fast question reached the wire', body !== null, j(fixture.captured.slice(from).map(entry => entry.dialect)))
-  check('it carries no output_config.effort either', body !== null && effortOf(body) === undefined, j(body?.output_config))
-  check('the answer comes back as text', extractTextContent(reply.message.content) === 'the small answer', j(reply.message.content))
+  check('the utility question reached the wire', body !== null, j(fixture.captured.slice(from).map(entry => entry.dialect)))
+  check("it names the main seat's model, no second id", body?.model === MODEL, j(body?.model))
+  check('it carries output_config.effort low (the lowest tier the road serves) under MERCURY_EFFORT_LEVEL=max', body !== null && effortOf(body) === 'low', j(body?.output_config))
+  check('it carries no thinking parameter', body !== null && body.thinking === undefined, j(body?.thinking))
+  check('the answer comes back as text', extractTextContent(reply.message.content) === 'the utility answer', j(reply.message.content))
+  check("the reply's effort stamp records the pinned low on the wire", effortStampLine(reply.effort) === 'effort asked low · applied low · wire output_config.effort=low', effortStampLine(reply.effort))
+  delete process.env.MERCURY_MODEL
 }
 
 await fixture.close()

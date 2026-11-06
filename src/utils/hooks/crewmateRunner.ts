@@ -4,6 +4,8 @@ import { ALL_AGENT_DISALLOWED_TOOLS } from '../../constants/tools.js'
 import { clearGuards } from '../../guards/guards.js'
 import { registerStructuredOutputGuard } from '../../guards/structuredOutput.js'
 import { query } from '../../query.js'
+import { readCatalogueIfPending } from '../../services/providers/catalogueOnDemand.js'
+import { declaredRouteOf } from '../../services/providers/routeLaw.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../../tools/SyntheticOutputTool/constants.js'
 import { createSyntheticOutputTool } from '../../tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { createAbortController } from '../abortController.js'
@@ -11,7 +13,9 @@ import { createCombinedAbortSignal } from '../combinedAbortSignal.js'
 import { errorMessage } from '../errors.js'
 import { createUserMessage, handleMessageFromStream } from '../messages.js'
 import { stripExplicitNulls } from '../messages/structuredOutputDialect.js'
-import { sessionLightModel } from '../model/providerFrontier.js'
+import { forgetAgentEffortWord, noteAgentEffortWord } from '../effort.js'
+import { getEngineModel } from '../model/model.js'
+import { utilityCallFor } from '../model/utilityModel.js'
 import { hasPermissionsToUseTool } from '../permissions/permissions.js'
 import { asSystemPrompt } from '../systemPromptType.js'
 import { hookAnswerJsonSchema, hookBrief, type ModelHookEnd, type ModelHookRun } from './questionRunner.js'
@@ -40,6 +44,7 @@ export async function runCrewmateHook(run: ModelHookRun): Promise<ModelHookEnd> 
     combined.signal.removeEventListener('abort', onCombinedAbort)
     combined.cleanup()
     clearGuards(hookAgentId)
+    forgetAgentEffortWord(hookAgentId)
     return end
   }
   const cutEnd = (): ModelHookEnd => (run.signal?.aborted ? { kind: 'cancelled', durationMs: Date.now() - startedAt } : { kind: 'timed_out', durationMs: Date.now() - startedAt })
@@ -52,10 +57,13 @@ export async function runCrewmateHook(run: ModelHookRun): Promise<ModelHookEnd> 
       'Use the read tools you have to check what the brief asks, in as few steps as possible.',
       `When done, answer through the ${SYNTHETIC_OUTPUT_TOOL_NAME} tool with one object of the hook answer shape; an empty object means you have nothing to say.`,
     ])
+    await readCatalogueIfPending(declaredRouteOf(run.model ?? getEngineModel()) ?? '')
+    const call = run.model === undefined ? utilityCallFor() : utilityCallFor(run.model, { named: true })
+    noteAgentEffortWord(hookAgentId, call.effortValue)
     const getAppState = (): ReturnType<ToolUseContext['getAppState']> => {
       const state = run.toolUseContext.getAppState()
       const permissionContext = state.toolPermissionContext as ToolPermissionContext
-      return { ...state, toolPermissionContext: { ...permissionContext, mode: 'dontAsk' } }
+      return { ...state, toolPermissionContext: { ...permissionContext, mode: 'dontAsk' }, effortValue: call.effortValue }
     }
     const childContext = {
       ...run.toolUseContext,
@@ -65,9 +73,9 @@ export async function runCrewmateHook(run: ModelHookRun): Promise<ModelHookEnd> 
       options: {
         ...run.toolUseContext.options,
         tools,
-        engineModel: run.model ?? sessionLightModel(),
+        engineModel: call.model,
         isNonInteractiveSession: true,
-        thinkingConfig: { type: 'disabled' },
+        thinkingConfig: call.thinkingConfig,
       },
       setInProgressToolUseIDs: () => {},
     } as unknown as ToolUseContext

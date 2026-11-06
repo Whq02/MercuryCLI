@@ -27,7 +27,7 @@ const SWEPT_FILES = [
 
 const FORBIDDEN = [
   'getEngineModel',
-  'getSmallFastModel',
+  'utilityCallFor',
   'getDefaultHaikuModel',
   'getDefaultSonnetModel',
   'getDefaultOpusModel',

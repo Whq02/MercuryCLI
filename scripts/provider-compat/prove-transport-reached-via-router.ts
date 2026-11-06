@@ -16,7 +16,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ENTRYPOINTS = ['queryModelWithStreaming', 'queryModelWithoutStreaming', 'queryWithModel', 'querySmallFast'] as const
+const ENTRYPOINTS = ['queryModelWithStreaming', 'queryModelWithoutStreaming', 'queryWithModel', 'queryUtility'] as const
 type Entrypoint = (typeof ENTRYPOINTS)[number]
 const UNROUTED = new Set<Entrypoint>(['queryModelWithStreaming', 'queryModelWithoutStreaming'])
 
@@ -122,7 +122,7 @@ for (const allowance of ALLOWED) {
   )
 }
 
-section('§2 the routed helpers stay routed — queryWithModel / querySmallFast')
+section('§2 the routed helpers stay routed — queryWithModel / queryUtility')
 {
   const core = stripComments(readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8'))
   const withModelStart = core.indexOf('export async function queryWithModel(')
@@ -131,10 +131,10 @@ section('§2 the routed helpers stay routed — queryWithModel / querySmallFast'
   check('queryWithModel late-imports the router', withModel.includes("import(") && withModel.includes('providers/callModelRouter.js'))
   check('queryWithModel drains routedCallModel (never queryModel directly)', withModel.includes('routedCallModel(sideQuestionParams(question, systemPrompt))') && !/\bqueryModel\(/.test(withModel))
   check('queryWithModel settles through the router-owned fold', withModel.includes('settleAssistantTurn('))
-  const smallStart = core.indexOf('export async function querySmallFast(')
-  const smallFast = smallStart >= 0 ? core.slice(smallStart, withModelStart) : ''
-  check('querySmallFast rides queryWithModel', smallFast.includes('return queryWithModel({'))
-  check("querySmallFast's tier is the session family's (sessionSmallFastModel)", smallFast.includes('model: sessionSmallFastModel()'))
+  const utilityStart = core.indexOf('export async function queryUtility(')
+  const utility = utilityStart >= 0 ? core.slice(utilityStart, withModelStart) : ''
+  check('queryUtility rides queryWithModel', utility.includes('return queryWithModel({'))
+  check("queryUtility's model and floor are the helper's (utilityCallFor), the floor pinned", utility.includes('utilityCallFor()') && utility.includes('effortPinned: true'))
 }
 
 section('§3 the rewritten sites import the router, never the transport')
@@ -149,19 +149,19 @@ section('§3 the rewritten sites import the router, never the transport')
   check('nativeSearch.ts imports routedCallModel from the router', nativeSearch.includes("import { routedCallModel } from '../providers/callModelRouter.js'"))
   check('nativeSearch.ts calls routedCallModel exactly once (the native search leg)', (nativeSearch.match(/routedCallModel\(\{/g) ?? []).length === 1)
   check('nativeSearch.ts names no transport entrypoint', !/\bqueryModelWith(?:out)?Streaming\b/.test(nativeSearch))
-  check('nativeSearch.ts reads no small-fast tier at all (the leg is the main model)', !/\bgetSmallFastModel\b/.test(nativeSearch) && !nativeSearch.includes('sessionSmallFastModel'))
+  check('nativeSearch.ts reads no utility helper at all (the leg is the main model)', !/\butilityCallFor\b|\bqueryUtility\b/.test(nativeSearch))
   const searchDoor = read('src/services/search/searchDoor.ts')
   check('the search door opens the native door only for the main model\'s OWN family by the routing law', searchDoor.includes('declaredRouteOf(mainModel)') && searchDoor.includes('isNativeSearchFamily(route)'))
   const webSearch = read('src/tools/WebSearchTool/WebSearchTool.ts')
-  check('WebSearchTool.ts hires no model and names no transport (the door owns the leg)', !/\brouted?CallModel\b|\bqueryModelWith(?:out)?Streaming\b|\bgetSmallFastModel\b/.test(webSearch) && webSearch.includes('performWebSearch('))
+  check('WebSearchTool.ts hires no model and names no transport (the door owns the leg)', !/\brouted?CallModel\b|\bqueryModelWith(?:out)?Streaming\b|\butilityCallFor\b/.test(webSearch) && webSearch.includes('performWebSearch('))
   const providerSearch = read('src/tools/WebSearchTool/ProviderSearchTool.ts')
-  check('ProviderSearchTool.ts reaches the wire only through the search owner (no transport, no direct router call)', !/\brouted?CallModel\b|\bqueryModelWith(?:out)?Streaming\b|\bgetSmallFastModel\b/.test(providerSearch) && providerSearch.includes('nativeSearch('))
+  check('ProviderSearchTool.ts reaches the wire only through the search owner (no transport, no direct router call)', !/\brouted?CallModel\b|\bqueryModelWith(?:out)?Streaming\b|\butilityCallFor\b/.test(providerSearch) && providerSearch.includes('nativeSearch('))
 
   const hook = read('src/utils/hooks/questionRunner.ts')
   check('questionRunner.ts imports routedCallModelSettled from the router', hook.includes("import { routedCallModelSettled } from '../../services/providers/callModelRouter.js'"))
   check('questionRunner.ts settles through routedCallModelSettled', (hook.match(/routedCallModelSettled\(\{/g) ?? []).length === 1)
-  check("questionRunner.ts defaults the question's model to the session family's small tier (sessionSmallFastModel)", hook.includes('sessionSmallFastModel()'))
-  check('questionRunner.ts never reads the Anthropic small-fast pin directly', !/\bgetSmallFastModel\b/.test(hook))
+  check("questionRunner.ts defaults the question's model to the helper's (the seat, or a named model as itself) with a pinned floor", hook.includes("run.model === undefined ? utilityCallFor() : utilityCallFor(run.model, { named: true })") && hook.includes('effortPinned: true'))
+  check('questionRunner.ts picks no model itself: no family getter, and the one getEngineModel read only names the road whose list is read first', !/\bgetDefault(?:Haiku|Sonnet|Opus)Model\b/.test(hook) && (hook.match(/\bgetEngineModel\(\)/g) ?? []).length === 1 && hook.includes('declaredRouteOf(run.model ?? getEngineModel())'))
   check('questionRunner.ts names no transport entrypoint', !/\bqueryModelWith(?:out)?Streaming\b/.test(hook))
 
   const agent = read('src/components/agents/generateAgent.ts')

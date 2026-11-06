@@ -12,7 +12,7 @@ for (const key of [
   'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN',
   'MERCURY_API_KEY_FILE_DESCRIPTOR', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR',
   'MERCURY_PROVIDER_HEADERS', 'MERCURY_WIRE_DUMP', 'MERCURY_BARE',
-  'MERCURY_MODEL', 'MERCURY_SMALL_FAST_MODEL',
+  'MERCURY_MODEL',
   'MERCURY_DEFAULT_OPUS_MODEL', 'MERCURY_DEFAULT_SONNET_MODEL',
   'MERCURY_DEFAULT_FABLE_MODEL', 'MERCURY_DEFAULT_HAIKU_MODEL',
   'MERCURY_CUSTOM_MODEL_OPTION', 'MERCURY_DISABLE_1M_CONTEXT',
@@ -104,7 +104,7 @@ try {
   const before = seen.length
   const fallback = await countTokensViaHaikuFallback(history({ type: 'thinking', thinking: 'A short plan.', signature: 'fixture-signature' }), [])
   const hit = seen.at(-1)
-  check('the Haiku fallback stays on the create endpoint with the current adaptive model', seen.length === before + 1 && hit?.path === '/v1/messages' && hit.body.model === 'claude-haiku-5-5' && show(hit.body.thinking) === show({ type: 'adaptive' }) && fallback === 37, hit)
+  check('the create-probe fallback stays on the create endpoint, naming the main seat\'s own adaptive model (base: the haiku tier)', seen.length === before + 1 && hit?.path === '/v1/messages' && hit.body.model === 'claude-sonnet-5-5' && show(hit.body.thinking) === show({ type: 'adaptive' }) && fallback === 37, hit)
 
   const { assembleTurnSystemPrompt, buildSystemPromptBlocks, buildTurnSystemBlocks } = await import('../../src/services/providers/anthropic/cacheAndUsage.js')
   const { getAttributionHeader } = await import('../../src/constants/system.js')

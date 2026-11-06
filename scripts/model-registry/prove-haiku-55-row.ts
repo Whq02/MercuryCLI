@@ -6,7 +6,7 @@ import { join } from 'node:path'
 const home = mkdtempSync(join(tmpdir(), 'haiku-55-row-'))
 process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
-for (const key of ['MERCURY_MODEL', 'MERCURY_DEFAULT_HAIKU_MODEL', 'MERCURY_SMALL_FAST_MODEL', 'MERCURY_DISABLE_1M_CONTEXT', 'MERCURY_PROVIDER_BETAS', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY']) delete process.env[key]
+for (const key of ['MERCURY_MODEL', 'MERCURY_DEFAULT_HAIKU_MODEL', 'MERCURY_DISABLE_1M_CONTEXT', 'MERCURY_PROVIDER_BETAS', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY']) delete process.env[key]
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
@@ -43,7 +43,7 @@ try {
   const recognition = recognizeModelId('haiku55')
   check('id-space recognition agrees with the alias', recognition.kind === 'first-party' && recognition.why === 'alias')
   check('Haiku family order is newest first and preserves 4.5', configs.FAMILY_GENERATIONS.haiku.join(',') === 'haiku55,haiku45', configs.FAMILY_GENERATIONS.haiku)
-  check('family default, small-fast helper and crew family word use the new head', model.getDefaultHaikuModel() === ID && model.getSmallFastModel() === ID && model.parseUserSpecifiedModel('haiku') === ID && getAgentModel('haiku', 'claude-sonnet-5-5') === ID)
+  check('family default, the haiku alias and the crew family word use the new head', model.getDefaultHaikuModel() === ID && model.parseUserSpecifiedModel('haiku') === ID && getAgentModel('haiku', 'claude-sonnet-5-5') === ID)
   check('a saved full 4.5 ID stays on 4.5', model.parseUserSpecifiedModel(OLD) === OLD && model.renderModelName(OLD) === 'Haiku 4.5')
   check('the spoken display name resolves to the new row', model.parseUserSpecifiedModel('Haiku 5.5') === ID)
   const rows = getModelOptions({ anthropicCredentialed: () => true }).filter(row => row.group === undefined)

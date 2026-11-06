@@ -127,7 +127,7 @@ const NET = 'live-API request path — pinned by billed live smokes + substrate 
 const SKIPPED: Record<string, string> = Object.fromEntries(
   [
     'queryWithModel', 'queryModelWithStreaming', 'queryModelWithoutStreaming',
-    'querySmallFast', 'executeNonStreamingRequest', 'verifyApiKey', 'cleanupStream',
+    'queryUtility', 'executeNonStreamingRequest', 'verifyApiKey', 'cleanupStream',
   ].map(k => [k, NET]),
 )
 

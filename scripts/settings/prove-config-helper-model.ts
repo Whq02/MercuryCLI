@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
@@ -71,11 +71,10 @@ const mods = await (async () => {
     return {
       helper: await import('../../src/services/providers/local/tensorfoldHelper.js'),
       hosts: await import('../../src/services/providers/local/tensorfoldHosts.js'),
-      frontier: await import('../../src/utils/model/providerFrontier.js'),
+      utility: await import('../../src/utils/model/utilityModel.js'),
       discovery: await import('../../src/services/providers/local/localDiscovery.js'),
       catalogue: await import('../../src/services/providers/local/localCatalogue.js'),
       config: await import('../../src/utils/config/globalConfig.js'),
-      model: await import('../../src/utils/model/model.js'),
     }
   } catch (error) {
     check('the helper module imports', false, error instanceof Error ? error.message.split('\n')[0] ?? '' : String(error))
@@ -84,7 +83,7 @@ const mods = await (async () => {
 })()
 const ready = mods ?? (await finish())
 check('the helper module imports', true)
-const { helper, hosts, frontier, discovery, catalogue, config, model } = ready
+const { helper, hosts, utility, discovery, catalogue, config } = ready
 config.enableConfigs()
 hosts.rememberTensorFoldPort(helper2b.port)
 await discovery.refreshLocalDiscovery({ force: true })
@@ -118,16 +117,22 @@ section('§1 the choices: sizes tagged with their engine, memory and fit, the se
   check('← → skip unavailable rows', helper.nextHelperModelSetting('off', 1, choices) === '2b' && helper.nextHelperModelSetting('2b', 1, choices) === 'off' && helper.nextHelperModelSetting('off', -1, choices) === '2b')
 }
 
-section('§2 the setting: off by default; on, the helper\'s own process answers the small jobs through smallFastModelFor')
+section('§2 the setting: off by default; on, the helper\'s own process answers a local seat\'s utility calls through utilityCallFor (an Anthropic seat never routes to it)')
 {
   check('off by default', helper.readHelperModelSetting().size === 'off' && helper.readHelperModelSetting().compaction === false)
   check('helperModelState reports off', JSON.stringify(hosts.helperModelState()) === JSON.stringify({ enabled: false }))
-  check('off: titles ride the usual small model', frontier.smallFastModelFor('claude-opus-5-5') === model.getSmallFastModel())
+  check('off: titles ride the seat\'s own model', utility.utilityCallFor('claude-opus-5-5').model === 'claude-opus-5-5' && utility.utilityCallFor('local/qwen3.8-27b').model === 'local/qwen3.8-27b')
   check('off: nothing in the heading', helper.helperHeadingWords() === undefined)
   helper.writeHelperModelSetting({ size: '2b' })
   const state = hosts.helperModelState()
   check('2B: the state names the engine, the repo and the port of its own process', state.enabled && state.size === '2b' && state.engine === 'tensorfold' && state.repo === helper.HELPER_2B_REPO && state.port === helper2b.port, JSON.stringify(state))
-  check('2B: titles, summaries and the judge route to the helper', frontier.smallFastModelFor('claude-opus-5-5') === 'local/qwen3.5-2b' && frontier.smallFastModelFor('local/qwen3.8-27b') === 'local/qwen3.5-2b')
+  check('2B: a local seat\'s titles, summaries and judge route to the helper; an Anthropic seat keeps its own model', utility.utilityCallFor('local/qwen3.8-27b').model === 'local/qwen3.5-2b' && utility.utilityCallFor('claude-opus-5-5').model === 'claude-opus-5-5')
+  check('2B: a hook that names the 27B gets the 27B at its own floor, never the slot, on a local seat', utility.utilityCallFor('local/qwen3.8-27b', { named: true }).model === 'local/qwen3.8-27b')
+  process.env.MERCURY_MODEL = 'claude-opus-5-5'
+  check('2B: on an Anthropic seat the default selection is the seat and a named local model is itself', utility.utilityCallFor().model === 'claude-opus-5-5' && utility.utilityCallFor('local/qwen3.8-27b', { named: true }).model === 'local/qwen3.8-27b')
+  process.env.MERCURY_MODEL = 'local/qwen3.8-27b'
+  check('2B: on a local seat the default selection is the slot and a named local model is itself', utility.utilityCallFor().model === 'local/qwen3.5-2b' && utility.utilityCallFor('local/qwen3.8-27b', { named: true }).model === 'local/qwen3.8-27b' && utility.utilityCallFor('local/qwen3.5-2b', { named: true }).model === 'local/qwen3.5-2b')
+  delete process.env.MERCURY_MODEL
   check('2B: the heading suffix', helper.helperHeadingWords() === '· helper 2B')
   check('2B: compaction stays on the session model until opted in', helper.helperCompactionModelId() === undefined)
   helper.writeHelperModelSetting({ compaction: true })
@@ -152,7 +157,7 @@ section('§2 the setting: off by default; on, the helper\'s own process answers 
   check('opt-in with the helper off: the seated model folds, no reason', foldModelFor(short, 'claude-opus-5-5', { forced: false }).reason === undefined)
 }
 
-section('§2b the helper is its own process beside the session\'s server: role helper, the 27B\'s record untouched (red on the fold: start2b shared the session\'s service and stopped it)')
+section('§2b the helper is its own process beside the session\'s server, started by the product when a local session opens with the slot set: role helper, the 27B\'s record untouched')
 {
   helper.__resetHelperForTest()
   const sessionRecord = { repo: 'TensorFold/Qwen3.8-27B-MLX-4bit', name: 'qwen3.8-27b', port: session27b.port, window: 131072, pid: 4242, startedAt: '2026-11-05T00:00:00.000Z' }
@@ -174,13 +179,33 @@ section('§2b the helper is its own process beside the session\'s server: role h
   hosts.forgetTensorFoldPort(helper2b.port)
   await discovery.refreshLocalDiscovery({ force: true })
   helper.writeHelperModelSetting({ size: '2b' })
-  check('before the start the helper is not serving and nothing routes to it', frontier.smallFastModelFor('claude-opus-5-5') !== 'local/qwen3.5-2b')
-  await helper.ensureHelperServing()
+  check('before the start the helper is not serving and nothing routes to it', utility.utilityCallFor('local/qwen3.8-27b').model !== 'local/qwen3.5-2b')
+  const quiet = async (ms: number): Promise<void> => { await new Promise(resolve => setTimeout(resolve, ms)) }
+  process.env.MERCURY_MODEL = 'local/qwen3.8-27b'
+  utility.utilityCallFor()
+  await quiet(500)
+  check('a utility call never starts the helper (500 ms of quiet after the call, the seam saw no start)', started.length === 0, JSON.stringify(started))
+  const { armLocalWarm, disarmLocalWarm } = await import('../../src/services/providers/local/localWarm.js')
+  helper.__pinHelperReadsForTest({ engineFound: true, twoBOnDisk: false })
+  armLocalWarm(() => ({ messages: [], systemPrompt: [], tools: [] } as never), { io: { settleMs: 0 } })
+  await quiet(500)
+  disarmLocalWarm()
+  check('a stored 2B that is not available (not on disk) is not started when a local session opens: the start goes through the availability gate', started.length === 0, JSON.stringify(started))
+  helper.__pinHelperReadsForTest({ engineFound: true, twoBOnDisk: true })
+  armLocalWarm(() => ({ messages: [], systemPrompt: [], tools: [] } as never), { io: { settleMs: 0 } })
+  const startedBy = Date.now()
+  while (started.length === 0 && Date.now() - startedBy < 5_000) await new Promise(resolve => setTimeout(resolve, 25))
+  disarmLocalWarm()
+  delete process.env.MERCURY_MODEL
+  check('a local session opening with the slot set starts the helper itself: no start after the utility call and the unavailable open, one start after the warm-up settle armed with the 2B available (the trigger is the settle)', started.length === 1, JSON.stringify(started))
+  console.log(`  the start the seam saw: role=${started[0]?.role} name=${started[0]?.name} · recorded after armLocalWarm on the 27B seat, ${Date.now() - startedBy} ms after arming`)
+  const config = readFileSync(join(REPO, 'src/components/Settings/Config.tsx'), 'utf8')
+  check('/config starts the helper when the row is set to 2B or 4B', /writeHelperModelSetting\(\{ size: next \}, writeGlobal\)\n\s*if \(next === '2b' \|\| next === '4b'\) void ensureHelperServing\(\)/.test(config))
   const request = started[0]
   check('the helper started once, with role helper, its own name, window, port and prompt cache', started.length === 1 && request?.role === 'helper' && request.name === 'qwen3.5-2b' && request.repo === helper.HELPER_2B_REPO && request.window === 32768 && request.promptCacheGib === 1 && typeof request.port === 'number', JSON.stringify(request))
   check('the session\'s 27B record is untouched (never stopped)', stopped.length === 0 && sessionRecord.port === session27b.port)
   check('the helper\'s served record is its own', (await helper.helperServedRecord())?.name === 'qwen3.5-2b' && (await helper.helperServedRecord())?.port === helper2b.port)
-  check('after the start the helper answers the small jobs', hosts.helperModelState().port === helper2b.port && frontier.smallFastModelFor('local/qwen3.8-27b') === 'local/qwen3.5-2b')
+  check('after the start the helper answers the local seat\'s small jobs', hosts.helperModelState().port === helper2b.port && utility.utilityCallFor('local/qwen3.8-27b').model === 'local/qwen3.5-2b')
   await helper.stopHelperServing()
   check('stopping the helper stops only the helper\'s name through its role', JSON.stringify(stopped) === JSON.stringify(['qwen3.5-2b']) && (await helper.helperServedRecord()) === undefined)
   helper.__pinHelperServeSeamForTest(undefined)

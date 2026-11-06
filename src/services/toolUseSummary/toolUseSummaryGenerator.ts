@@ -1,4 +1,4 @@
-import { querySmallFast } from '../providers/anthropic/index.js'
+import { queryUtility } from '../providers/anthropic/index.js'
 import { E_TOOL_USE_SUMMARY_GENERATION_FAILED } from '../../constants/errorIds.js'
 import { logError } from '../../utils/log.js'
 import { toError } from '../../utils/errors.js'
@@ -59,7 +59,7 @@ export async function generateToolUseSummary(
     }
     userPrompt += `Summarize what these tool calls accomplished:\n${blocks}\n\nReturn only the label.`
 
-    const result = await querySmallFast({
+    const result = await queryUtility({
       systemPrompt: asSystemPrompt([SYSTEM_PROMPT]),
       userPrompt,
       signal,

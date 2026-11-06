@@ -1,4 +1,4 @@
-import { querySmallFast } from '../../services/providers/anthropic/streamCore.js'
+import { queryUtility } from '../../services/providers/anthropic/streamCore.js'
 import { logError } from '../log.js'
 import { extractTextContent } from '../messages.js'
 import { asSystemPrompt } from '../systemPromptType.js'
@@ -52,7 +52,7 @@ export async function parseNaturalLanguageDateTime(
       `Expected output: ${expectedFormat}.\n` +
       'Return only the formatted string, or INVALID.'
 
-    const response = await querySmallFast({
+    const response = await queryUtility({
       systemPrompt: asSystemPrompt(systemPrompt),
       userPrompt,
       signal,
@@ -63,7 +63,7 @@ export async function parseNaturalLanguageDateTime(
         agents: [],
         mcpTools: [],
         disablePromptCaching: true,
-      } as unknown as Parameters<typeof querySmallFast>[0]['options'],
+      } as unknown as Parameters<typeof queryUtility>[0]['options'],
     })
 
     const text = extractTextContent(response.message.content, '\n').trim()

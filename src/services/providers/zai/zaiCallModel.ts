@@ -262,8 +262,9 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
     fittedImages.firstEdited === -1
       ? fittedImages.messages
       : stripThinkingFromIndex(fittedImages.messages, fittedImages.firstEdited)
-  const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
-  const effortTruth = resolveEffortTruth(modelId, options.effortValue, { agentId: options.agentId })
+  const effortContext = { agentId: options.agentId, pinned: options.effortPinned === true }
+  const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, effortContext)
+  const effortTruth = resolveEffortTruth(modelId, options.effortValue, effortContext)
   const vocabulary = glmEffortsFor(modelId)
   const wireEffort =
     effortValue && vocabulary

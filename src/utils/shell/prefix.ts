@@ -81,7 +81,6 @@ export function createCommandPrefixExtractor(config: PrefixExtractorConfig) {
         signal: abortSignal,
         querySource: config.querySource,
         cacheSystemPrompt: false,
-        useSmallFastModel: true,
       } as never)
       const answer = extractAnswer((response as { content?: unknown }).content).trim()
       return interpretAnswer(answer, command)
