@@ -14,7 +14,6 @@ for (const k of [
   'MERCURY_DEFAULT_HAIKU_MODEL',
   'MERCURY_DISABLE_1M_CONTEXT',
   'MERCURY_PROMPT_CACHING',
-  'MERCURY_PROMPT_CACHING_HAIKU',
   'MERCURY_PROMPT_CACHING_SONNET',
   'MERCURY_PROMPT_CACHING_OPUS',
   'MERCURY_EXTRA_BODY',
@@ -70,6 +69,7 @@ const ctx = await import('../../src/utils/context.js')
 const tokens = await import('../../src/utils/tokens.js')
 const tokEst = await import('../../src/services/tokenEstimation.js')
 const rp = await import('../../src/services/providers/anthropic/requestParams.js')
+const registry = await import('../../src/substrate/flagRegistry.js')
 const mp = await import('../../src/services/providers/anthropic/messageParams.js')
 const msgs = await import('../../src/utils/messages.js')
 const state = await import('../../src/bootstrap/state.js')
@@ -462,9 +462,11 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     'assembly: MERCURY_PROMPT_CACHING is global',
     withEnv({ MERCURY_PROMPT_CACHING: '0' }, () => !rp.getPromptCachingEnabled('claude-opus-4-8')),
   )
+  const retiredHaikuSwitch = 'MERCURY_PROMPT_CACHING_' + 'HAIKU'
   check(
-    'assembly: the haiku-targeted disable only hits the small-fast model',
-    withEnv({ MERCURY_PROMPT_CACHING_HAIKU: '0' }, () => rp.getPromptCachingEnabled('claude-opus-4-8')),
+    'assembly: the retired haiku-only switch is no registry row and changes nothing on any tier',
+    registry.getFlagSpec(retiredHaikuSwitch) === undefined &&
+      withEnv({ [retiredHaikuSwitch]: '0' }, () => rp.getPromptCachingEnabled(model.getDefaultHaikuModel()) && rp.getPromptCachingEnabled('claude-opus-4-8')),
   )
 
   check('assembly: default cache control is bare ephemeral', eq(rp.getCacheControl(), { type: 'ephemeral' }))

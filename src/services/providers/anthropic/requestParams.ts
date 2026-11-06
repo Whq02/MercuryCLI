@@ -60,9 +60,6 @@ export function getExtraBodyParams(betaHeaders?: string[]): JsonObject {
 export function getPromptCachingEnabled(model: string): boolean {
   if (!flagEnabled('MERCURY_PROMPT_CACHING')) return false
 
-  if (!flagEnabled('MERCURY_PROMPT_CACHING_HAIKU')) {
-    if (model === getSmallFastModel()) return false
-  }
   if (!flagEnabled('MERCURY_PROMPT_CACHING_SONNET')) {
     if (model === getDefaultSonnetModel()) return false
   }

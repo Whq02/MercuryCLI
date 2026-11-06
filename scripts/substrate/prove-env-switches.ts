@@ -23,14 +23,14 @@ enableConfigs()
 const { flagEnabled } = await import('../../src/substrate/flagRegistry.ts')
 const { getPrivacyLevel } = await import('../../src/utils/privacyLevel.ts')
 const { getPromptCachingEnabled } = await import('../../src/services/providers/anthropic/requestParams.ts')
-const { getSmallFastModel, getDefaultSonnetModel, getDefaultOpusModel } = await import('../../src/utils/model/model.ts')
+const { getDefaultHaikuModel, getDefaultSonnetModel, getDefaultOpusModel } = await import('../../src/utils/model/model.ts')
 const { isAutoCompactEnabled } = await import('../../src/services/compact/autoCompact.ts')
 const feedback = (await import('../../src/commands/feedback/index.ts')).default as { isEnabled?: () => boolean }
 const health = (await import('../../src/commands/health/index.ts')).default as { isEnabled?: () => boolean }
 const login = ((await import('../../src/commands/login/index.ts')).default as () => { isEnabled?: () => boolean })()
 const logout = (await import('../../src/commands/logout/index.ts')).default as { isEnabled?: () => boolean }
 
-const SWITCHES = ['MERCURY_ERROR_REPORTING', 'MERCURY_BUG_COMMAND', 'MERCURY_FEEDBACK_COMMAND', 'MERCURY_HEALTH_COMMAND', 'MERCURY_LOGIN_COMMAND', 'MERCURY_LOGOUT_COMMAND', 'MERCURY_PROMPT_CACHING', 'MERCURY_PROMPT_CACHING_HAIKU', 'MERCURY_PROMPT_CACHING_SONNET', 'MERCURY_PROMPT_CACHING_OPUS', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_BUILTIN_RIPGREP', 'MERCURY_MCP_LARGE_OUTPUT_FILES']
+const SWITCHES = ['MERCURY_ERROR_REPORTING', 'MERCURY_BUG_COMMAND', 'MERCURY_FEEDBACK_COMMAND', 'MERCURY_HEALTH_COMMAND', 'MERCURY_LOGIN_COMMAND', 'MERCURY_LOGOUT_COMMAND', 'MERCURY_PROMPT_CACHING', 'MERCURY_PROMPT_CACHING_SONNET', 'MERCURY_PROMPT_CACHING_OPUS', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_BUILTIN_RIPGREP', 'MERCURY_MCP_LARGE_OUTPUT_FILES']
 for (const name of SWITCHES) unset(name)
 
 section('§1 the registry polarity: unset ⇒ on, =0 ⇒ off, live')
@@ -64,10 +64,12 @@ section('§2 each switch at its owner')
   check('/logout: unset ⇒ enabled', enabledOf(logout) === true)
   off('MERCURY_LOGOUT_COMMAND'); check('/logout: =0 ⇒ gone', enabledOf(logout) === false); unset('MERCURY_LOGOUT_COMMAND')
 
-  const haiku = getSmallFastModel(); const sonnet = getDefaultSonnetModel(); const opus = getDefaultOpusModel()
+  const haiku = getDefaultHaikuModel(); const sonnet = getDefaultSonnetModel(); const opus = getDefaultOpusModel()
   check('prompt caching: unset ⇒ on for every tier', getPromptCachingEnabled(haiku) && getPromptCachingEnabled(sonnet) && getPromptCachingEnabled(opus))
   off('MERCURY_PROMPT_CACHING'); check('prompt caching: =0 ⇒ off for every tier', !getPromptCachingEnabled(haiku) && !getPromptCachingEnabled(sonnet) && !getPromptCachingEnabled(opus)); unset('MERCURY_PROMPT_CACHING')
-  off('MERCURY_PROMPT_CACHING_HAIKU'); check('haiku caching: =0 ⇒ off on the haiku tier alone', !getPromptCachingEnabled(haiku) && getPromptCachingEnabled(sonnet)); unset('MERCURY_PROMPT_CACHING_HAIKU')
+  const retiredHaikuSwitch = 'MERCURY_PROMPT_CACHING_' + 'HAIKU'
+  const unknownSwitch = (name: string): boolean => { try { flagEnabled(name); return false } catch { return true } }
+  off(retiredHaikuSwitch); check('the retired haiku-only switch: =0 changes nothing (the Haiku tier caches with the others) and the registry refuses it as unknown', getPromptCachingEnabled(haiku) && getPromptCachingEnabled(sonnet) && unknownSwitch(retiredHaikuSwitch)); unset(retiredHaikuSwitch)
   off('MERCURY_PROMPT_CACHING_SONNET'); check('sonnet caching: =0 ⇒ off on the sonnet tier alone', !getPromptCachingEnabled(sonnet) && getPromptCachingEnabled(opus)); unset('MERCURY_PROMPT_CACHING_SONNET')
   off('MERCURY_PROMPT_CACHING_OPUS'); check('opus caching: =0 ⇒ off on the opus tier alone', !getPromptCachingEnabled(opus) && getPromptCachingEnabled(sonnet)); unset('MERCURY_PROMPT_CACHING_OPUS')
 
