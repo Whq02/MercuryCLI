@@ -422,8 +422,8 @@ export async function tick(): Promise<void> {
 
 function startHelperSlot(): void {
   try {
-    const { ensureHelperServing } = require('./tensorfoldHelper.js') as typeof import('./tensorfoldHelper.js')
-    void ensureHelperServing().catch(() => undefined)
+    const { helperModelId } = require('./tensorfoldHelper.js') as typeof import('./tensorfoldHelper.js')
+    helperModelId()
   } catch {
   }
 }
