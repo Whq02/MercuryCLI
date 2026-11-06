@@ -2,18 +2,20 @@
 import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../ink.js'
-import { getActiveMission } from '../guards/mission.js'
 import { formatDuration } from '../utils/format.js'
 import { FAINT, IVORY } from './mercuryPalette.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
+import { useFocusedWorkRoster } from './tasks/useFocusedWork.js'
 
 const MISSION_ACTIVE_GLYPH = '◎'
 
 export function MercuryMissionIndicator(): React.ReactNode {
   const tokens = useMercuryTokens()
 
-  const mission = getActiveMission()
-  const setAt = mission?.setAt
+  const card = useFocusedWorkRoster().missionCard ?? null
+  const standing = card !== null && (card.state === 'armed' || card.state === 'paused') ? card : null
+  const setAtMs = standing === null ? NaN : Date.parse(standing.setAt)
+  const setAt = Number.isFinite(setAtMs) ? setAtMs : undefined
 
   const [, setTick] = useState(0)
   const aliveRef = useRef(true)
@@ -39,9 +41,9 @@ export function MercuryMissionIndicator(): React.ReactNode {
     }
   }, [setAt])
 
-  if (setAt === undefined) return null
+  if (standing === null) return null
 
-  const elapsedMs = Date.now() - setAt
+  const elapsedMs = setAt === undefined ? 0 : Date.now() - setAt
   const elapsedSuffix =
     elapsedMs < 1_000
       ? ''
@@ -51,7 +53,7 @@ export function MercuryMissionIndicator(): React.ReactNode {
     <Box flexShrink={0}>
       <Text color={tokens.info}>
         {MISSION_ACTIVE_GLYPH}
-        <Text color={IVORY}> /mission active</Text>
+        <Text color={IVORY}> /mission {standing.state === 'paused' ? 'paused' : 'active'}</Text>
         {elapsedSuffix ? <Text color={FAINT}>{elapsedSuffix}</Text> : null}
       </Text>
     </Box>

@@ -6,9 +6,13 @@ import { logForDebugging } from '../../utils/debug.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
 import { sanitizePathComponent } from '../../utils/tasks.js'
 
-export type MissionCardState = 'armed' | 'met' | 'needs-operator' | 'stood-down' | 'cleared' | 'continued'
+export type MissionCardState = 'armed' | 'paused' | 'met' | 'cleared' | 'continued'
 
-interface MissionCard {
+export function missionCardStands(state: string): state is 'armed' | 'paused' {
+  return state === 'armed' || state === 'paused'
+}
+
+export interface MissionCard {
   schema: 1
   sessionId: string
   goal: string
@@ -58,7 +62,7 @@ export function migrateOrphanedMissionCard(conversationId: string, cwd?: string)
     for (const name of readdirSync(dir)) {
       if (!name.endsWith('.json')) continue
       const card = readMissionCard(name.slice(0, -'.json'.length), cwd)
-      if (card === null || card.state !== 'armed') continue
+      if (card === null || !missionCardStands(card.state)) continue
       if (existsSync(join(projectDir, `${card.sessionId}.jsonl`))) continue
       orphans.push(card)
     }

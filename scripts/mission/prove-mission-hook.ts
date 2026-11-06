@@ -93,34 +93,43 @@ check(
 check(
   'buildMissionDirective teaches the snapshot-goal rule',
   /progress snapshot/.test(buildMissionDirective('g')) &&
-    /met once the work it describes is done/.test(buildMissionDirective('g')),
+    /once the work it describes is done/.test(buildMissionDirective('g')),
+)
+check(
+  'buildMissionDirective teaches the itemised close: one numbered line per criterion, then the completion line',
+  /one numbered line\s+per criterion naming its evidence/.test(buildMissionDirective('g')),
 )
 
 section('sticky `met` flag wired in the Stop callback (structural)')
 const gh = src('guards', 'mission.ts')
 check(
-  'the hold re-prompt (the words) teaches the snapshot-goal rule',
-  /progress snapshot[\s\S]{0,120}met once the work it describes is done/i.test(gh),
+  'the directive (the words the turn starts with) teaches the snapshot-goal rule',
+  /progress snapshot[\s\S]{0,120}once the work it describes is done/i.test(gh),
 )
 check(
-  'the interactive /mission panel surfaces met + NEEDS THE OPERATOR (mirrors mission.ts wording)',
-  /Mission met — stops are allowed/.test(src('commands', 'mission', 'mission-jsx.tsx')) &&
-    /Mission NEEDS THE OPERATOR \(not met/.test(src('commands', 'mission', 'mission-jsx.tsx')),
+  'the hold words take the form "Mission not completed: <goal> — <what is open>. Continue."',
+  /\$\{MISSION_HOLD_HEAD\} \$\{mission\.condition\} — \$\{verdict\.reason\}\. Continue\./.test(gh),
 )
-check('the judge short-circuits on mission.met and on the ask-the-human exit (sticky completion)', /if \(mission\.met \|\| mission\.needsOperator\) return \{ hold: false \}/.test(gh))
+check(
+  'the interactive /mission panel surfaces met + paused as distinct states (mirrors mission.ts wording)',
+  /Mission met — stops are allowed/.test(src('commands', 'mission', 'mission-jsx.tsx')) &&
+    /Mission paused — /.test(src('commands', 'mission', 'mission-jsx.tsx')),
+)
+check('the judge short-circuits on mission.met (sticky completion) and waits while paused until the operator speaks', /mission\.met\) return \{ hold: false \}/.test(gh) && /if \(!operatorSpokeSince\(messages, mission\.paused\)\) return \{ hold: false \}/.test(gh))
 check('callback sets mission.met = true on a met verdict', /mission\.met = true/.test(gh))
 check('ActiveMission carries the met field', /met\?:\s*boolean/.test(gh))
 
-section('the ask-the-human exit: needsOperator recorded + surfaced (no silent cap disarm)')
-check('ActiveMission carries the needsOperator field', /needsOperator\?:\s*boolean/.test(gh))
+section('the pause: a question to the operator pauses the mission (armed, waiting); met and cleared are the only ends')
+check('ActiveMission carries the paused field, never a needsOperator end state', /paused\?:\s*MissionPause/.test(gh) && !/needsOperator/.test(gh) && !/needs-operator/.test(gh) && !/stood-down/.test(gh))
 check(
-  'the exit records needs-operator on the card before the stop is allowed',
-  /mission\.needsOperator = true[\s\S]{0,240}persistCard\(sessionId, mission, 'needs-operator'\)/.test(gh),
+  'the pause records the paused card before the stop is allowed',
+  /mission\.paused = \{ why, boundary: operatorBoundary\(messages\) \}[\s\S]{0,240}persistCard\(sessionId, mission, 'paused'\)/.test(gh),
 )
+check('the mission holds without deferring to another guard: it claims the continuation and never reads the claim as a reason to stand aside', /claimContinuation\(processMainOwner\(\), turnBoundaryIndex\(messages\), messages\.length\)\n/.test(gh) && !/defers one round/.test(gh))
 check('no block cap stands anywhere in the guard', !/maxBlocks|block cap|DEFAULT_MISSION_MAX_BLOCKS/.test(gh))
 check(
-  '/mission status renders met / NEEDS THE OPERATOR / active as distinct states',
-  /mission\.met[\s\S]{0,80}Mission met[\s\S]{0,120}mission\.needsOperator[\s\S]{0,120}NEEDS THE OPERATOR/.test(
+  '/mission status renders met / PAUSED / active as distinct states',
+  /mission\.met[\s\S]{0,80}Mission met[\s\S]{0,120}mission\.paused !== undefined[\s\S]{0,120}Mission PAUSED/.test(
     src('commands', 'mission', 'mission.ts'),
   ),
 )

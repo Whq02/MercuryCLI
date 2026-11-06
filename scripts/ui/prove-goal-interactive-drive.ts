@@ -93,8 +93,8 @@ function screensAt(run: ArenaRun, cols: number, rows: number, offsets: number[])
 async function drive(cols: number, rows: number): Promise<ArenaRun> {
   return runArtifactArena({
     turns: [
-      { kind: 'text', text: `${FIRST_ANSWER}\n${MISSION_MET_SENTINEL}` },
-      { kind: 'text', text: `${SECOND_ANSWER}\n${MISSION_MET_SENTINEL}` },
+      { kind: 'text', text: `1. ${FIRST} — ${FIRST_ANSWER}\n${MISSION_MET_SENTINEL}` },
+      { kind: 'text', text: `1. ${SECOND} — ${SECOND_ANSWER}\n${MISSION_MET_SENTINEL}` },
     ],
     sends: [
       { awaitText: 'no prompts sent yet', text: `/goal ${FIRST}\r` },
@@ -143,7 +143,7 @@ check('the directive never paints in the feed', findRows(atEnd!.rows, 'A standin
 check("the transcript keeps the completion line in the assistant's words (the judge reads it there)", assistantRows.some(r => textOf(r).includes(MISSION_MET_SENTINEL)), assistantRows.map(r => textOf(r).slice(-40)).join(' | '))
 check('the painted text carries no <<>> and no marker: the completion line is elided at paint', findRows(atEnd!.rows, '<<>>').length === 0 && findRows(atEnd!.rows, 'GOAL-MET').length === 0 && findRows(atEnd!.rows, FIRST_ANSWER).length > 0, atEnd!.rows.filter(r => r.includes('<<') || r.includes(FIRST_ANSWER)).join(' | '))
 check("the met verdict is one notice line the operator can read: what happened, what next", findRows(atEnd!.rows, MET_NEEDLE).length > 0 && metNotices.length >= 1 && metNotices.every(r => r.level === 'suggestion') && textOf(metNotices[0]!).includes('/goal'), atEnd!.rows.filter(r => r.includes('goal')).join(' | '))
-check('the first goal met at its first check: the first notice in the transcript names it met with no counter burned', metNotices.length >= 1 && textOf(metNotices[0]!).includes(MET_NEEDLE) && rows.filter(r => r.type === 'user' && r.isMeta === true && textOf(r).includes('not yet met')).length === 0, rows.filter(r => r.type === 'user' && r.isMeta === true).map(r => textOf(r).slice(0, 50)).join(' | '))
+check('the first goal met at its first check on its itemised close: the first notice in the transcript names it met with no counter burned', metNotices.length >= 1 && textOf(metNotices[0]!).includes(MET_NEEDLE) && rows.filter(r => r.type === 'user' && r.isMeta === true && textOf(r).startsWith('Mission not completed:')).length === 0, rows.filter(r => r.type === 'user' && r.isMeta === true).map(r => textOf(r).slice(0, 50)).join(' | '))
 const sendMs = (prefix: string): number => run.sendLog.find(s => Buffer.from(s.b64, 'base64').toString('utf8').startsWith(prefix))?.sent ?? 0
 check("the card's setAt is the arming moment: within five seconds of its /goal send, never a later input", hosted !== undefined && Number.isFinite(firstSetAt) && Math.abs(firstSetAt - sendMs(hosted.goal === SECOND ? '/goal the file bye' : '/goal the file hello')) < 5_000, hosted === undefined ? 'no hosted card' : `setAt=${hosted.setAt} first=${new Date(sendMs('/goal the file hello')).toISOString()} second=${new Date(sendMs('/goal the file bye')).toISOString()}`)
 

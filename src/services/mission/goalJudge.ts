@@ -18,6 +18,7 @@ export type GoalJudgeRoad = 'jev' | 'claim' | 'compile'
 export interface GoalEvidence {
   closing: string
   claimedMet: boolean
+  claimDefect?: string
   asksOperator: boolean
   toolCalls: number
   verification: { state: string; detail: string } | null
@@ -38,7 +39,7 @@ export type GoalJudge = (goal: GoalStatement, evidence: GoalEvidence, signal?: A
 const GOAL_QUESTION: JevChoiceQuestion = {
   type: 'choice',
   instructions:
-    '`goal` is the end state a session was asked to reach, with its constraints. `closing` is what the assistant said as its turn ended, `claimed_met` whether it closed on the completion line, `verification` the record of checks run on the working tree, `progress` whether the turn did anything (a tool call, a change to the tree, a new check), `checks` how many turn ends this goal has been judged at. Judge the goal from the evidence, not from the claim alone.',
+    '`goal` is the end state a session was asked to reach, with its constraints. `closing` is what the assistant said as its turn ended, `claimed_met` whether it closed on the itemised completion (one line per criterion naming its evidence, then the completion line), `verification` the record of checks run on the working tree, `progress` whether the turn did anything (a tool call, a change to the tree, a new check), `checks` how many turn ends this goal has been judged at. Judge the goal from the evidence, not from the claim alone.',
   criteria: {
     met: 'the evidence shows the end state holds within the constraints',
     open: 'the end state does not hold yet, and the work can go on from here',
@@ -110,9 +111,9 @@ export const judgeWithJev: GoalJudge = async (goal, evidence, signal) => {
 
 export function judgeByClaim(evidence: GoalEvidence): GoalVerdict {
   if (evidence.claimedMet) {
-    return { kind: 'met', confidence: 1, reason: 'the turn closed on the completion line; no judge road is open, so the claim stands', road: 'claim' }
+    return { kind: 'met', confidence: 1, reason: 'the turn closed on the itemised completion; no judge road is open, so the claim is the verification', road: 'claim' }
   }
-  return { kind: 'open', confidence: 1, reason: 'the turn ended without the completion line', road: 'claim' }
+  return { kind: 'open', confidence: 1, reason: evidence.claimDefect ?? 'the turn ended without the completion line', road: 'claim' }
 }
 
 export function stalledVerdict(evidence: GoalEvidence): GoalVerdict {

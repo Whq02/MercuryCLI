@@ -13,7 +13,7 @@ const argument = (name: string): string | undefined => {
 const DIST = argument('--dist')
 const FRAMES = argument('--frames')
 const MISSION = 'relay probe'
-const HOOK_WORDS = `The goal for this session is not yet met (check 1): ${MISSION}`
+const HOOK_WORDS = `Mission not completed: ${MISSION} — `
 const CARD_LOOK_AFTER_MS = 2400
 
 let failures = 0
@@ -78,7 +78,7 @@ async function drive(cols: number, rows: number): Promise<ArenaRun> {
   return runArtifactArena({
     turns: [
       { kind: 'text', text: 'the first answer, the mission not yet met' },
-      { kind: 'text', text: `the mission is met now\n${MISSION_MET_SENTINEL}` },
+      { kind: 'text', text: `1. ${MISSION} — the mission is met now, the relay answered the probe\n${MISSION_MET_SENTINEL}` },
     ],
     sends: [`after:no prompts sent yet:0:/mission ${MISSION}\\r`, `after:relay probe:${CARD_LOOK_AFTER_MS + 400}:hello\\r`],
     seconds: 24,
@@ -118,7 +118,7 @@ check("the rail's MISSION card paints the mission once the seat has landed", fin
 const requests = run.fixture.messageRequests()
 const hookRequest = requests.find(r => lastUserText(r.body).includes(HOOK_WORDS))
 check("the hosted runner's Stop hook saw the mission: it refused the first stop and re-prompted with the goal (a second request carries the hook's words)", hookRequest !== undefined, `requests=${requests.length}`)
-check('the mission met on the sentinel: the hosted card reads met after one check', hosted?.state === 'met' && hosted.iterations === 1, JSON.stringify(hosted))
+check('the mission met on the itemised close: the hosted card reads met after one check', hosted?.state === 'met' && hosted.iterations === 1, JSON.stringify(hosted))
 check('the reply that met the mission painted', findRows(atEnd!.rows, 'the mission is met now').length > 0, atEnd!.rows.slice(-12).join(' | '))
 
 if (FRAMES !== undefined) {

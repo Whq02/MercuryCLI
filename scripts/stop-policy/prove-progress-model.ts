@@ -141,8 +141,8 @@ section('§7 one continuation per attempt across families; wording demoted; drai
   ]
   const first = cb ? await cb(transcript) : null
   const second = cb ? await cb(transcript) : null
-  check('the mission BLOCKS once per stop attempt (the claim)', first === false)
-  check('a second claimant on the SAME attempt defers (one continuation per attempt across families)', second === true)
+  check('the mission BLOCKS the stop attempt and claims the continuation', first === false)
+  check("the mission's hold outranks the latch: judged again on the SAME attempt it holds again instead of deferring a round to the earlier claimant", second === false)
   const grown = [...transcript, { type: 'assistant', message: { content: [{ type: 'text', text: 'try again' }] } }]
   const third = cb ? await cb(grown) : null
   check('a NEW attempt (grown transcript) re-arms the claim', third === false)

@@ -136,7 +136,7 @@ section("§3 a met end state ends on the judge's verdict, not the block counter"
   arm(S, GOAL, async () => verdict('open', 0.2, 'the suite still fails three cases'))
   const claimed = await stop(S, [user(`/goal ${GOAL}`), asst(`all green.\n${MISSION_MET_SENTINEL}`)])
   check('a completion claim the judge rejects is held', claimed.allowed === false, j(claimed))
-  check("the hold's first line names the goal and the check number; the judge's reason rides below", claimed.words.startsWith(`The goal for this session is not yet met (check 1): ${GOAL}`) && claimed.words.includes('the suite still fails three cases'), claimed.words)
+  check('the hold is one line of the form "Mission not completed: <goal> — <what is open>. Continue.", the judge\'s reason as what is open', claimed.words === `Mission not completed: ${GOAL} — the suite still fails three cases. Continue.`, claimed.words)
   const card = readMissionCard(S)
   check('the card advanced to check 1 and carries the reason', card?.state === 'armed' && card?.iterations === 1 && (card?.nextStep ?? '').includes('not yet met'), j(card))
   clearActiveMission(S)
@@ -154,7 +154,7 @@ section("§3 a met end state ends on the judge's verdict, not the block counter"
     if (!result.allowed) held += 1
     transcript.push(asstTool(`round ${i}`), toolResult(), asst(`still red after round ${i}`))
   }
-  check('fourteen open verdicts over fourteen rounds that each change the tree hold fourteen stops: no block cap stands down a goal that advances', held === 14 && readMissionCard(S)?.state === 'armed' && getActiveMission(S)?.needsOperator !== true, j({ held, card: readMissionCard(S) }))
+  check('fourteen open verdicts over fourteen rounds that each change the tree hold fourteen stops: no block cap stands down a goal that advances', held === 14 && readMissionCard(S)?.state === 'armed' && getActiveMission(S)?.paused === undefined, j({ held, card: readMissionCard(S) }))
   clearActiveMission(S)
 }
 {
@@ -165,12 +165,12 @@ section("§3 a met end state ends on the judge's verdict, not the block counter"
   const trail: string[] = []
   for (let i = 0; i < 8; i++) {
     const result = await stop(S, transcript)
-    trail.push(result.allowed ? 'pass' : result.words.split('\n')[0]!.slice(0, 60))
+    trail.push(result.allowed ? 'pass' : result.words.split('\n')[0]!)
     if (result.allowed) break
     transcript.push(meta('(hold)'), asstTool(`reading more (${i})`), toolResult(), asst(i === 2 ? 'I keep reading the same files. Which proof do you mean by red?' : `still reading (${i})`))
   }
   const stall = judgeModule?.GOAL_STALL_CHECKS ?? 0
-  check(`open verdicts over rounds that only read files are bounded too: after ${stall} checks that change nothing the goal asks the operator, whatever road answered`, trail.length === stall + 1 && trail.slice(0, stall - 1).every(line => line.startsWith('The goal for this session is not yet met')) && trail[stall - 1]!.startsWith('The goal for this session reads as unattainable') && trail[stall] === 'pass' && readMissionCard(S)?.state === 'needs-operator', j({ trail, card: readMissionCard(S) }))
+  check(`open verdicts over rounds that only read files are bounded too: after ${stall} checks that change nothing the goal asks the operator and pauses on the question, whatever road answered — never an end`, trail.length === stall + 1 && trail.slice(0, stall - 1).every(line => line.startsWith(`Mission not completed: ${GOAL} — `) && line.endsWith('. Continue.')) && trail[stall - 1]!.startsWith(`Mission not completed: ${GOAL} — ${stall} checks in a row changed nothing`) && trail[stall] === 'pass' && readMissionCard(S)?.state === 'paused' && (readMissionCard(S)?.nextStep ?? '').includes('Which proof do you mean by red?'), j({ trail, card: readMissionCard(S) }))
   clearActiveMission(S)
 }
 
@@ -202,12 +202,18 @@ section('§4 the Jev road: the verdict rides the existing judge road, counted in
   check('the call is counted in the Jev ledger', jevLedgerSnapshot().attempts === 1, j(jevLedgerSnapshot()))
   clearActiveMission(S)
 
+  const itemised = `1. the parser suite is green and the fix is pushed — suite green on CI, pushed as 9f1c2d\n2. without touching the public API — no diff under src/api\n${MISSION_MET_SENTINEL}`
   standin.answerWith(() => answer('open', 0.8))
   arm(S, GOAL)
-  const claimed = await stop(S, [user(`/goal ${GOAL}`), asst(`done.\n${MISSION_MET_SENTINEL}`)])
-  check("Jev at 0.8 open outranks the completion line: held, with Jev's reading in the words", claimed.allowed === false && claimed.words.includes('Jev read the goal as open'), j(claimed))
+  const claimed = await stop(S, [user(`/goal ${GOAL}`), asst(itemised)])
+  check("Jev at 0.8 open outranks the itemised close: held, with Jev's reading in the words", claimed.allowed === false && claimed.words.includes('Jev read the goal as open'), j(claimed))
   const claimedRequest = standin.received[1]?.body as { state?: Record<string, string> } | undefined
-  check('the claim is evidence Jev sees, not the verdict', claimedRequest?.state?.claimed_met === 'yes', j(claimedRequest?.state))
+  check('the itemised claim is evidence Jev sees, not the verdict', claimedRequest?.state?.claimed_met === 'yes', j(claimedRequest?.state))
+  clearActiveMission(S)
+  arm(S, GOAL)
+  const bare = await stop(S, [user(`/goal ${GOAL}`), asst(`done.\n${MISSION_MET_SENTINEL}`)])
+  const bareRequest = standin.received[2]?.body as { state?: Record<string, string> } | undefined
+  check('a bare completion line is no claim: Jev sees claimed_met no, and the hold names the missing criterion lines', bare.allowed === false && bareRequest?.state?.claimed_met === 'no', j({ bare, state: bareRequest?.state }))
   clearActiveMission(S)
 
   standin.answerWith(() => answer('met', 0.5))
@@ -219,29 +225,42 @@ section('§4 the Jev road: the verdict rides the existing judge road, counted in
   standin.answerWith(undefined)
   standin.next({ status: 500, body: { error: { message: 'fixture down' } } })
   arm(S, GOAL)
-  const down = await stop(S, [user(`/goal ${GOAL}`), asst(`pushed.\n${MISSION_MET_SENTINEL}`)])
-  check('Jev down: the claim stands and the goal is met on the claim road', down.allowed && (getActiveMission(S)?.lastReason ?? '').includes('the claim stands'), j({ down, live: getActiveMission(S)?.lastReason }))
+  const down = await stop(S, [user(`/goal ${GOAL}`), asst(itemised)])
+  check('Jev down: the itemised claim is the verification and the goal is met on the claim road', down.allowed && (getActiveMission(S)?.lastReason ?? '').includes('the claim is the verification'), j({ down, live: getActiveMission(S)?.lastReason }))
+  clearActiveMission(S)
+  standin.next({ status: 500, body: { error: { message: 'fixture down' } } })
+  arm(S, GOAL)
+  const skipped = await stop(S, [user(`/goal ${GOAL}`), asst(`1. the parser suite is green and the fix is pushed — suite green on CI, pushed as 9f1c2d\n${MISSION_MET_SENTINEL}`)])
+  check('Jev down, a close that skips a criterion is held with the skipped criterion named', skipped.allowed === false && skipped.words.includes('criterion 2 has no line in the close'), j(skipped))
+  clearActiveMission(S)
+  standin.next({ status: 500, body: { error: { message: 'fixture down' } } })
+  arm(S, GOAL)
+  const hollow = await stop(S, [user(`/goal ${GOAL}`), asst(`1. the parser suite is green and the fix is pushed — yes\n2. without touching the public API — untouched\n${MISSION_MET_SENTINEL}`)])
+  check('Jev down, a criterion line without evidence words is held with that criterion named', hollow.allowed === false && hollow.words.includes('criterion 1 names no evidence'), j(hollow))
   clearActiveMission(S)
   setJevEnabled(false)
   storeJevApiKey(null)
   check('Jev off again: the road is closed', judgeModule !== null && judgeModule.goalJudgeOpen() === false)
 }
 
-section('§5 the ask-the-human exit: an ambiguous or unattainable goal ends with a question to the operator, never silently and never by looping')
+section('§5 the pause: an ambiguous or unattainable goal asks the operator one question and pauses — armed, waiting — never an end, never a silent loop')
 {
   const S = 'goal-ambiguous'
   const GOAL = 'the report is improved'
   arm(S, GOAL, async () => verdict('ambiguous', 0.85, 'improved names no observable state'))
   const first = await stop(S, [user(`/goal ${GOAL}`), asst('I tightened two paragraphs')])
-  check('the first stop is held once, with the words that send the question to the operator', first.allowed === false && first.words.startsWith('The goal for this session reads as ambiguous: improved names no observable state') && /one question to the operator/.test(first.words), first.words)
+  check('the first stop is held once, with the words that send the question to the operator', first.allowed === false && first.words.startsWith(`Mission not completed: ${GOAL} — improved names no observable state.`) && /one question to the operator/.test(first.words) && /only the operator clears it/.test(first.words), first.words)
   check('the card still reads armed while the question is being asked', readMissionCard(S)?.state === 'armed' && (readMissionCard(S)?.nextStep ?? '').includes('asking the operator'), j(readMissionCard(S)))
   const second = await stop(S, [user(`/goal ${GOAL}`), asst('I tightened two paragraphs'), user('(hold)'), asst('The goal names no measurable state. Which reading do you want: shorter, or more complete?')])
-  check('the next stop passes: the goal ends with the question pending', second.allowed, j(second))
+  check('the next stop passes: the mission pauses with the question pending', second.allowed, j(second))
   const card = readMissionCard(S)
-  check('the card reads needs-operator and carries the question as its next step', card?.state === 'needs-operator' && (card?.nextStep ?? '').includes('Which reading do you want'), j(card))
-  check('the live record says so too', getActiveMission(S)?.needsOperator === true && getActiveMission(S)?.met !== true, j(getActiveMission(S)))
-  const third = await stop(S, [user(`/goal ${GOAL}`), asst('I tightened two paragraphs'), user('(hold)'), asst('Which reading?'), user('(a stray continuation)'), asst('still here')])
-  check('no loop: a later stop passes without another hold', third.allowed, j(third))
+  check('the card reads paused and carries the question as its next step', card?.state === 'paused' && (card?.nextStep ?? '').includes('Which reading do you want'), j(card))
+  check('the live record says so too: paused, still armed, not met', getActiveMission(S)?.paused !== undefined && getActiveMission(S)?.met !== true && guardsEngaged(S).turn.some(id => id.startsWith('mission-')), j(getActiveMission(S)))
+  const sameTurn = await stop(S, [user(`/goal ${GOAL}`), asst('I tightened two paragraphs'), user('(hold)'), asst('The goal names no measurable state. Which reading do you want: shorter, or more complete?'), meta('(a carried notice)'), asst('still waiting')])
+  check('while paused, a stop in the same turn passes without a hold: the model waits on the operator', sameTurn.allowed && readMissionCard(S)?.state === 'paused', j(sameTurn))
+  _resetContinuationLatchesForTesting()
+  const third = await stop(S, [user(`/goal ${GOAL}`), asst('I tightened two paragraphs'), user('(hold)'), asst('Which reading?'), user('shorter'), asst('made it shorter')])
+  check("the operator's next message resumes it: the stop after their words is judged again (the fixture still reads ambiguous, so it asks once more), the card armed", third.allowed === false && third.words.startsWith(`Mission not completed: ${GOAL} — `) && readMissionCard(S)?.state === 'armed' && getActiveMission(S)?.paused === undefined, j({ third, card: readMissionCard(S) }))
   clearActiveMission(S)
 }
 {
@@ -253,13 +272,13 @@ section('§5 the ask-the-human exit: an ambiguous or unattainable goal ends with
     return verdict('open')
   })
   const own = await stop(S, [user(`/goal ${GOAL}`), asst('Two databases match that name. Which one should receive the migration?')])
-  check("a turn that already ends on a question to the operator is the exit itself: no hold, no judge call", own.allowed && asked === 0, j({ own, asked }))
-  check('the card reads needs-operator with the question', readMissionCard(S)?.state === 'needs-operator' && (readMissionCard(S)?.nextStep ?? '').includes('Which one should receive the migration?'), j(readMissionCard(S)))
+  check("a turn that already ends on a question to the operator pauses the mission itself: no hold, no judge call", own.allowed && asked === 0, j({ own, asked }))
+  check('the card reads paused with the question', readMissionCard(S)?.state === 'paused' && (readMissionCard(S)?.nextStep ?? '').includes('Which one should receive the migration?'), j(readMissionCard(S)))
   clearActiveMission(S)
   for (const closing of ['**Which database should receive the migration?**', 'Two match.\n"Which one?"', 'Which one do you mean (prod or staging)?']) {
     arm(S, GOAL, async () => verdict('open'))
     const styled = await stop(S, [user(`/goal ${GOAL}`), asst(closing)])
-    check(`a closing question wrapped in markdown or quotes is a question too: ${j(closing)}`, styled.allowed && readMissionCard(S)?.state === 'needs-operator', j({ styled, card: readMissionCard(S) }))
+    check(`a closing question wrapped in markdown or quotes is a question too: ${j(closing)}`, styled.allowed && readMissionCard(S)?.state === 'paused', j({ styled, card: readMissionCard(S) }))
     clearActiveMission(S)
   }
   arm(S, GOAL, async () => verdict('open'))
@@ -280,7 +299,7 @@ section('§5 the ask-the-human exit: an ambiguous or unattainable goal ends with
   arm(S, GOAL, async () => verdict('open'))
   const first = await stop(S, [user(`/goal ${GOAL}`), asst('trying')])
   const second = await stop(S, [user(`/goal ${GOAL}`), asst('trying'), user('(hold)'), asst('Enabled and disabled at once cannot both hold. Which state do you want?')])
-  check('a goal that contradicts itself at compile asks the operator after one hold and ends', first.allowed === false && first.words.startsWith('The goal for this session reads as unattainable: the goal demands mutually exclusive states at once') && second.allowed && readMissionCard(S)?.state === 'needs-operator', j({ first: first.words.split('\n')[0], second, card: readMissionCard(S) }))
+  check('a goal that contradicts itself at compile asks the operator after one hold and pauses on the question', first.allowed === false && first.words.startsWith(`Mission not completed: ${GOAL} — the goal demands mutually exclusive states at once`) && second.allowed && readMissionCard(S)?.state === 'paused', j({ first: first.words.split('\n')[0], second, card: readMissionCard(S) }))
   clearActiveMission(S)
 }
 {
@@ -296,7 +315,18 @@ section('§5 the ask-the-human exit: an ambiguous or unattainable goal ends with
     transcript.push(user('(hold)'), asst(i === 2 ? 'I cannot see what makes it flaky. What does the failing run look like on your machine?' : `still thinking (${i})`))
   }
   const stall = judgeModule?.GOAL_STALL_CHECKS ?? 0
-  check(`with the judge road closed, ${stall} checks that change nothing end the goal with a question, not a silent stand-down`, j(trail) === j([false, false, false, true]) && readMissionCard(S)?.state === 'needs-operator', j({ trail, card: readMissionCard(S) }))
+  check(`with the judge road closed, ${stall} checks that change nothing pause the goal on a question, not a silent stand-down and not an end`, j(trail) === j([false, false, false, true]) && readMissionCard(S)?.state === 'paused', j({ trail, card: readMissionCard(S) }))
+  clearActiveMission(S)
+  arm(S, GOAL, null)
+  const mute: unknown[] = [user(`/goal ${GOAL}`), asst('thinking about it')]
+  const muteTrail: boolean[] = []
+  for (let i = 0; i < 8; i++) {
+    const result = await stop(S, mute)
+    muteTrail.push(result.allowed)
+    if (result.allowed) break
+    mute.push(user('(hold)'), asst(`still thinking (${i})`))
+  }
+  check(`asked to ask and giving no question, the model is paused all the same: the harness names the stall and waits on the operator`, j(muteTrail) === j([false, false, false, true]) && readMissionCard(S)?.state === 'paused' && (readMissionCard(S)?.nextStep ?? '').includes('the model gave no question'), j({ muteTrail, card: readMissionCard(S) }))
   clearActiveMission(S)
 }
 {
@@ -307,12 +337,12 @@ section('§5 the ask-the-human exit: an ambiguous or unattainable goal ends with
   const trail: string[] = []
   for (let i = 0; i < 8; i++) {
     const result = await stop(S, transcript)
-    trail.push(result.allowed ? 'pass' : result.words.split('\n')[0]!.slice(0, 60))
+    trail.push(result.allowed ? 'pass' : result.words.split('\n')[0]!)
     if (result.allowed) break
     transcript.push(user('(hold)'), asstTool(`reading test ${i}`), toolResult(), asstTool(`grepping ${i}`), toolResult(), asst(i === 2 ? 'Nothing in the files explains the flake. What does the failing run look like on your machine?' : `read more (${i})`))
   }
   const stall = judgeModule?.GOAL_STALL_CHECKS ?? 0
-  check(`turns that only read files are not progress: ${stall} such checks end the goal on the ask-the-human exit`, trail.length === stall + 1 && trail[stall - 1]!.startsWith('The goal for this session reads as unattainable') && trail[stall] === 'pass' && readMissionCard(S)?.state === 'needs-operator' && (readMissionCard(S)?.nextStep ?? '').includes('What does the failing run look like'), j({ trail, card: readMissionCard(S) }))
+  check(`turns that only read files are not progress: ${stall} such checks pause the goal on the model's question`, trail.length === stall + 1 && trail[stall - 1]!.startsWith(`Mission not completed: ${GOAL} — ${stall} checks in a row changed nothing`) && trail[stall] === 'pass' && readMissionCard(S)?.state === 'paused' && (readMissionCard(S)?.nextStep ?? '').includes('What does the failing run look like'), j({ trail, card: readMissionCard(S) }))
   clearActiveMission(S)
   arm(S, GOAL, null)
   const edits: unknown[] = [user(`/goal ${GOAL}`), asst('editing')]
@@ -334,9 +364,10 @@ section('§6 the surfaces keep their words: the receipt, the panel, the card')
   arm(S, 'the rail paints the goal', async () => verdict('ambiguous', 0.9, 'no observable state'))
   const { readFileSync } = await import('node:fs')
   const panel = readFileSync(join(import.meta.dir, '..', '..', 'src/commands/mission/mission-jsx.tsx'), 'utf8')
-  check('the interactive panel paints met and NEEDS THE OPERATOR as distinct states, the block-cap state gone', /Mission met — stops are allowed/.test(panel) && /NEEDS THE OPERATOR/.test(panel) && !/block cap/.test(panel) && typeof jsx.call === 'function')
+  check('the interactive panel paints met and paused as distinct states, the block-cap and needs-operator states gone', /Mission met — stops are allowed/.test(panel) && /Mission paused — /.test(panel) && !/block cap/.test(panel) && !/NEEDS THE OPERATOR/.test(panel) && typeof jsx.call === 'function')
+  check("the panel reads the session's card, never a record of its own", panel.includes('workRoster().missionCard') && !panel.includes('getActiveMission') && !panel.includes('setActiveMission('))
   const local = readFileSync(join(import.meta.dir, '..', '..', 'src/commands/mission/mission.ts'), 'utf8')
-  check('the print form mirrors the same states', /Mission met/.test(local) && /NEEDS THE OPERATOR/.test(local) && !/block cap/.test(local))
+  check('the print form mirrors the same states', /Mission met/.test(local) && /Mission PAUSED/.test(local) && !/block cap/.test(local) && !/NEEDS THE OPERATOR/.test(local))
   const guard = readFileSync(join(import.meta.dir, '..', '..', 'src/guards/mission.ts'), 'utf8')
   check('the guard carries no block counter and no maxBlocks option', !/maxBlocks/.test(guard) && !/DEFAULT_MISSION_MAX_BLOCKS/.test(guard))
   check('the guard still claims through the shared continuation latch', guard.includes('claimContinuation('))
@@ -361,11 +392,11 @@ section('§7 a newer card wins by time: /goal run again with the same words afte
   check('without a sync, the older record settles itself but never writes over the newer card: it still reads armed at iterations 0 with its own setAt', stale.allowed && standing?.state === 'armed' && standing?.iterations === 0 && standing?.setAt === again, j({ stale, standing }))
   syncMissionFromCard(S)
   const live = getActiveMission(S)
-  check('the sync adopts the newer card though its words match: a fresh record born at the card\'s setAt, not asking, nothing met', live !== undefined && live !== before && live.asking !== true && live.needsOperator !== true && live.met !== true && live.iterations === 0 && live.setAt === Date.parse(again), j({ setAt: live?.setAt, again: Date.parse(again), asking: live?.asking, iterations: live?.iterations }))
+  check('the sync adopts the newer card though its words match: a fresh record born at the card\'s setAt, not asking, not paused, nothing met', live !== undefined && live !== before && live.asking !== true && live.paused === undefined && live.met !== true && live.iterations === 0 && live.setAt === Date.parse(again), j({ setAt: live?.setAt, again: Date.parse(again), asking: live?.asking, iterations: live?.iterations }))
   _resetContinuationLatchesForTesting()
   const armedStill = guardsEngaged(S).turn.some(id => id.startsWith('mission-'))
   const judged = armedStill ? await stop(S, [user(`/goal ${GOAL}`), asst('reading the report again')]) : { allowed: true, words: 'no mission guard stands' }
-  check('the next turn end is judged anew for the re-armed goal (held as not yet met on the claim road), not settled needs-operator by the old asking flag', judged.allowed === false && judged.words.startsWith(`The goal for this session is not yet met (check 1): ${GOAL}`) && readMissionCard(S)?.state === 'armed' && readMissionCard(S)?.iterations === 1, j({ judged: judged.words.split('\n')[0], card: readMissionCard(S) }))
+  check('the next turn end is judged anew for the re-armed goal (held as not completed on the claim road), not paused by the old asking flag', judged.allowed === false && judged.words.startsWith(`Mission not completed: ${GOAL} — `) && readMissionCard(S)?.state === 'armed' && readMissionCard(S)?.iterations === 1, j({ judged: judged.words.split('\n')[0], card: readMissionCard(S) }))
   clearActiveMission(S)
 }
 

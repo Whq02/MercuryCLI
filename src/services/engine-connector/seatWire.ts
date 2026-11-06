@@ -202,8 +202,14 @@ const CATALOGUE: KeyTable = {
   sourceKind: 'source_kind',
   fetchedAtMs: 'fetched_at_ms',
 }
+const MISSION_CARD: KeyTable = {
+  nextStep: 'next_step',
+  setAt: 'set_at',
+  updatedAt: 'updated_at',
+}
 const FACTS: KeyTable = {
   recoveredCommandIds: 'recovered_command_ids',
+  missionCard: 'mission_card',
   permissionMode: 'permission_mode',
   effortSent: 'effort_sent',
   pendingScheduleEdits: 'pending_schedule_edits',
@@ -325,6 +331,7 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
   const t = (table: KeyTable): KeyTable => (direction === 'to' ? table : flip(table))
   const workKey = 'work'
   const missionKey = 'mission'
+  const missionCardKey = direction === 'to' ? 'mission_card' : 'missionCard'
   const samplesKey = 'samples'
   const noticesKey = 'notices'
   const kitKey = 'kit'
@@ -341,6 +348,7 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
     out.workspace = row(out.workspace, t(WORKSPACE))
     if (workKey in out) out[workKey] = rows(out[workKey], t(WORK_ROW), workRowNested(t(WORK_PULSE), t(AGENT_WAIT), t(AGENT_PAUSE)))
     if (missionKey in out) out[missionKey] = rows(out[missionKey], t(MISSION_ROW))
+    if (isRow(out[missionCardKey])) out[missionCardKey] = row(out[missionCardKey], t(MISSION_CARD))
     if (samplesKey in out) out[samplesKey] = rows(out[samplesKey], t(SAMPLE_ROW))
     if (noticesKey in out) out[noticesKey] = rows(out[noticesKey], t(NOTICE_ROW))
     if (kitKey in out) out[kitKey] = row(out[kitKey], t(KIT), kitNested(t(KIT_DELTAS)))

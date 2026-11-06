@@ -88,14 +88,19 @@ section('§2 a blocked stop advances the card')
   check('the card carries the loop reason as the next step', (card?.nextStep ?? '').includes('not yet met'), card?.nextStep ?? '')
 }
 
-section('§3 the sentinel settles the card')
+section('§3 the itemised close settles the card')
 {
   const hook = stopClosure(S1)
-  const verdict = await hook.callback([
+  const bare = await hook.callback([
     user(`/mission ${GOAL}`),
     asst(`suite green, pushed.\n${MISSION_MET_SENTINEL}`),
   ])
-  check('the stop passes on the sentinel', verdict === true)
+  check('a bare completion line is held, not met: the close names no criterion lines', bare === false && hook.errorMessage.includes('no criterion lines'), hook.errorMessage)
+  const verdict = await hook.callback([
+    user(`/mission ${GOAL}`),
+    asst(`1. ${GOAL} — suite green on CI run 42, pushed as 9f1c2d\n${MISSION_MET_SENTINEL}`),
+  ])
+  check('the stop passes on the itemised close: one evidence line per criterion, then the completion line', verdict === true, hook.errorMessage)
   const card = readMissionCard(S1)
   check('the card settled met, next step null', card?.state === 'met' && card?.nextStep === null, JSON.stringify(card))
 }
@@ -226,7 +231,7 @@ section('§8 the store speaks: a mission\'s birth and death wake their subscribe
   check('an unsubscribed listener hears nothing more', woken === wokenBeforeSync + 1)
   clearActiveMission(S4)
   const rail = readFileSync(join(import.meta.dir, '..', '..', 'src/components/HelmLanesRail.tsx'), 'utf8')
-  check('the lanes rail subscribes to the store through useSyncExternalStore and still reads the mission at render', rail.includes('useSyncExternalStore(subscribeActiveMission, getActiveMissionVersion, getActiveMissionVersion)') && rail.includes('const mission = getActiveMission()'))
+  check("the lanes rail keeps no mission state of its own: it reads the session's card off the focused work roster and never the process-local record", rail.includes('roster.missionCard') && !rail.includes('getActiveMission') && !rail.includes('subscribeActiveMission'))
   check('no poll and no timer stands behind it', !/setInterval\([^)]*mission/i.test(rail))
 }
 
