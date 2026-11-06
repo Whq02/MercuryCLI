@@ -53,6 +53,28 @@ async function sessionMissionCard(): Promise<MissionCardFactV1 | null> {
   }
 }
 
+const FACT_WAIT_MS = 4000
+const OLDER_RUNNER_LINE = 'the session took the line, but its runner did not take the mission: that runner predates session-owned missions — /restart restarts this chat on the installed build, then set the mission again'
+
+async function missionFactArrives(expected: (card: MissionCardFactV1 | null | undefined) => boolean): Promise<boolean> {
+  const { getFocusedSessionConnector } = await import('../../services/engine-connector/focusedConnector.js')
+  const connector = getFocusedSessionConnector()
+  if (expected(connector.workRoster().missionCard)) return true
+  return new Promise(resolve => {
+    let settle: (ok: boolean) => void = () => {}
+    const unsubscribe = connector.subscribeWork(() => {
+      if (expected(connector.workRoster().missionCard)) settle(true)
+    })
+    const timer = setTimeout(() => settle(false), FACT_WAIT_MS)
+    settle = ok => {
+      clearTimeout(timer)
+      unsubscribe()
+      resolve(ok)
+    }
+    if (expected(connector.workRoster().missionCard)) settle(true)
+  })
+}
+
 export async function call(
   onDone: LocalJSXCommandOnDone,
   context: LocalJSXCommandContext,
@@ -85,9 +107,12 @@ export async function call(
   if (isMissionClearKeyword(arg)) {
     const goal = (await sessionMissionCard())?.goal
     const receipt = await getFocusedSessionConnector().sendWords(`/mission ${arg}`, { metaFrom: { command: 'mission' } })
-    onDone(receipt.state === 'accepted' ? `Mission cleared${goal === undefined ? '' : `: ${goal}`}` : `/mission ${arg} did not reach the session — ${receipt.detail}`, {
-      display: 'system',
-    })
+    if (receipt.state !== 'accepted') {
+      onDone(`/mission ${arg} did not reach the session — ${receipt.detail}`, { display: 'system' })
+      return null
+    }
+    const cleared = await missionFactArrives(card => card === undefined || card === null || card.state === 'cleared' || card.goal !== goal)
+    onDone(cleared ? `Mission cleared${goal === undefined ? '' : `: ${goal}`}` : `/mission ${arg}: ${OLDER_RUNNER_LINE}`, { display: 'system' })
     return null
   }
 
@@ -102,6 +127,11 @@ export async function call(
   const receipt = await getFocusedSessionConnector().sendWords(`/mission ${arg}`, { metaFrom: { command: 'mission' } })
   if (receipt.state !== 'accepted') {
     onDone(`/mission did not reach the session — ${receipt.detail}`, { display: 'system' })
+    return null
+  }
+  const armed = await missionFactArrives(card => card !== undefined && card !== null && card.goal === arg && (card.state === 'armed' || card.state === 'paused' || card.state === 'met'))
+  if (!armed) {
+    onDone(`/mission: ${OLDER_RUNNER_LINE}`, { display: 'system' })
     return null
   }
   onDone(`Mission set: ${arg}`)
