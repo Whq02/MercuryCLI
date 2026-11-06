@@ -35,9 +35,9 @@ function servingLocalHelper(): string | undefined {
   }
 }
 
-export function utilityCallFor(seatModel: string = getEngineModel()): UtilityCall {
+export function utilityCallFor(seatModel: string = getEngineModel(), reads: { named?: boolean } = {}): UtilityCall {
   const route = declaredRouteOf(seatModel)
-  const model = route === 'local' ? (servingLocalHelper() ?? seatModel) : seatModel
+  const model = route === 'local' && reads.named !== true ? (servingLocalHelper() ?? seatModel) : seatModel
   const view = effortVocabularyFor(model)
   const floor = view.kind === 'ladder' || view.kind === 'provider' ? lowestServedEffort(view.vocabulary) : undefined
   const thinkingConfig: ThinkingConfig = route === null || route === 'anthropic' ? { type: 'disabled' } : { type: 'adaptive' }
