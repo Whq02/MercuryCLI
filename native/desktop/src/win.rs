@@ -1,7 +1,9 @@
 use std::ffi::c_void;
 use std::mem::size_of;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 
-use windows::core::PWSTR;
+use windows::core::{BSTR, PWSTR};
 use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND, LPARAM, POINT, RECT};
 use windows::Win32::Graphics::Gdi::{
     BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, EnumDisplayMonitors, GetDC, GetDIBits, GetMonitorInfoW, ReleaseDC, SelectObject,
@@ -9,9 +11,11 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
 use windows::Win32::System::Console::GetConsoleWindow;
+use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED};
 use windows::Win32::System::RemoteDesktop::ProcessIdToSessionId;
 use windows::Win32::System::StationsAndDesktops::{CloseDesktop, GetUserObjectInformationW, OpenInputDesktop, DESKTOP_CONTROL_FLAGS, DESKTOP_READOBJECTS, UOI_NAME};
 use windows::Win32::System::Threading::{GetCurrentProcess, GetCurrentProcessId, OpenProcess, OpenProcessToken, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION};
+use windows::Win32::UI::Accessibility::{CUIAutomation, IUIAutomation, IUIAutomationElement, IUIAutomationScrollItemPattern, IUIAutomationValuePattern, TreeScope_Subtree, UIA_ScrollItemPatternId, UIA_ValuePatternId, UIA_CONTROLTYPE_ID};
 use windows::Win32::UI::HiDpi::{SetThreadDpiAwarenessContext, DPI_AWARENESS_CONTEXT, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     SendInput, VkKeyScanW, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL,
@@ -25,7 +29,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, ScrollAnswer, TreeAnswer, TreeElement, ValueAnswer};
+use crate::{hidden_by, same_frame, ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, ScrollAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, VALUE_UNSUPPORTED};
 
 struct DpiScope {
     previous: DPI_AWARENESS_CONTEXT,
@@ -268,12 +272,175 @@ pub fn accessibility_tree(_pid: i32, _max_depth: u32, _max_count: u32) -> TreeAn
     TreeAnswer::refused("the accessibility tree is read through the macOS Accessibility API; this platform has no tree reader in this release")
 }
 
-pub fn scroll_to_visible(_pid: i32, _wanted: &TreeElement, _wheel: bool) -> Result<ScrollAnswer, String> {
-    Err("scrolling an element into view is unsupported on this platform (no accessibility actions in this release)".to_string())
+fn control_type_name(id: UIA_CONTROLTYPE_ID) -> &'static str {
+    match id.0 {
+        50000 => "Button",
+        50001 => "Calendar",
+        50002 => "CheckBox",
+        50003 => "ComboBox",
+        50004 => "Edit",
+        50005 => "Hyperlink",
+        50006 => "Image",
+        50007 => "ListItem",
+        50008 => "List",
+        50009 => "Menu",
+        50010 => "MenuBar",
+        50011 => "MenuItem",
+        50012 => "ProgressBar",
+        50013 => "RadioButton",
+        50014 => "ScrollBar",
+        50015 => "Slider",
+        50016 => "Spinner",
+        50017 => "StatusBar",
+        50018 => "Tab",
+        50019 => "TabItem",
+        50020 => "Text",
+        50021 => "ToolBar",
+        50022 => "ToolTip",
+        50023 => "Tree",
+        50024 => "TreeItem",
+        50025 => "Custom",
+        50026 => "Group",
+        50027 => "Thumb",
+        50028 => "DataGrid",
+        50029 => "DataItem",
+        50030 => "Document",
+        50031 => "SplitButton",
+        50032 => "Window",
+        50033 => "Pane",
+        50034 => "Header",
+        50035 => "HeaderItem",
+        50036 => "Table",
+        50037 => "TitleBar",
+        50038 => "Separator",
+        50039 => "SemanticZoom",
+        50040 => "AppBar",
+        _ => "Unknown",
+    }
 }
 
-pub fn set_value(_pid: i32, _wanted: &TreeElement, _text: &str) -> Result<ValueAnswer, String> {
-    Err("setting an element's value is unsupported on this platform (no accessibility actions in this release)".to_string())
+fn automation() -> Result<IUIAutomation, String> {
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).map_err(|e| format!("UI Automation is unavailable: {}", e.message()))
+    }
+}
+
+fn element_frame(element: &IUIAutomationElement) -> Option<BoundsRecord> {
+    let r = unsafe { element.CurrentBoundingRectangle() }.ok()?;
+    if r.right <= r.left || r.bottom <= r.top {
+        return None;
+    }
+    Some(BoundsRecord { x: r.left as f64, y: r.top as f64, width: (r.right - r.left) as f64, height: (r.bottom - r.top) as f64 })
+}
+
+fn element_row(element: &IUIAutomationElement) -> TreeElement {
+    let role = unsafe { element.CurrentControlType() }.map(control_type_name).unwrap_or("Unknown").to_string();
+    let title = unsafe { element.CurrentName() }.ok().map(|name| name.to_string()).filter(|name| !name.is_empty());
+    TreeElement { depth: 0, role, title, value: None, frame: element_frame(element), focused: None }
+}
+
+fn matching_element(candidate: &TreeElement, wanted: &TreeElement) -> bool {
+    candidate.role.eq_ignore_ascii_case(&wanted.role) && candidate.title == wanted.title && same_frame(&candidate.frame, &wanted.frame)
+}
+
+fn unique_element(pid: i32, wanted: &TreeElement) -> Result<(IUIAutomation, IUIAutomationElement, IUIAutomationElement), String> {
+    let automation = automation()?;
+    let front = unsafe { GetForegroundWindow() };
+    if front.0.is_null() {
+        return Err("the focused window is unavailable".to_string());
+    }
+    let mut owner = 0u32;
+    unsafe { GetWindowThreadProcessId(front, Some(&mut owner)) };
+    if owner as i32 != pid {
+        return Err("the focused window is unavailable".to_string());
+    }
+    let window = unsafe { automation.ElementFromHandle(front) }.map_err(|e| format!("the focused window has no automation element: {}", e.message()))?;
+    let condition = unsafe { automation.CreateTrueCondition() }.map_err(|e| format!("UI Automation refused a condition: {}", e.message()))?;
+    let found = unsafe { window.FindAll(TreeScope_Subtree, &condition) }.map_err(|e| format!("the window tree could not be read: {}", e.message()))?;
+    let count = unsafe { found.Length() }.unwrap_or(0);
+    let mut matches: Vec<IUIAutomationElement> = Vec::new();
+    for index in 0..count {
+        let Ok(element) = (unsafe { found.GetElement(index) }) else { continue };
+        if matching_element(&element_row(&element), wanted) {
+            matches.push(element);
+        }
+    }
+    if matches.len() != 1 {
+        return Err(ELEMENT_NOT_UNIQUE.to_string());
+    }
+    Ok((automation, window, matches.remove(0)))
+}
+
+fn settled_frame(element: &IUIAutomationElement) -> Option<BoundsRecord> {
+    let mut frame = element_frame(element);
+    for _ in 0..SCROLL_SETTLE_READS {
+        sleep(Duration::from_millis(SCROLL_SETTLE_MS));
+        let next = element_frame(element);
+        if same_frame(&next, &frame) {
+            break;
+        }
+        frame = next;
+    }
+    frame
+}
+
+fn wheel_into_view(window: &IUIAutomationElement, element: &IUIAutomationElement, started: Instant, budget: Duration) -> ScrollAnswer {
+    let Some(viewport) = element_frame(window) else {
+        return ScrollAnswer { scrolled: false, frame: element_frame(element), reason: Some(format!("{SCROLL_UNSUPPORTED}; the window's frame is unavailable for a wheel scroll")) };
+    };
+    let mut frame = element_frame(element);
+    for _ in 0..SCROLL_WHEEL_STEPS {
+        let Some(current) = frame.as_ref() else { break };
+        let direction = hidden_by(current, &viewport);
+        if direction == 0 {
+            return ScrollAnswer { scrolled: true, frame, reason: None };
+        }
+        if started.elapsed() > budget {
+            break;
+        }
+        let x = (current.x + current.width / 2.0).clamp(viewport.x + 2.0, viewport.x + viewport.width - 2.0);
+        let y = viewport.y + viewport.height / 2.0;
+        if mouse_move(x, y).and_then(|_| scroll(0, direction * SCROLL_WHEEL_LINES)).is_err() {
+            break;
+        }
+        frame = settled_frame(element);
+    }
+    ScrollAnswer { scrolled: false, frame, reason: Some(format!("{SCROLL_UNSUPPORTED}; the wheel did not bring it into view")) }
+}
+
+pub fn scroll_to_visible(pid: i32, wanted: &TreeElement, wheel: bool) -> Result<ScrollAnswer, String> {
+    let _dpi = DpiScope::enter();
+    let started = Instant::now();
+    let budget = Duration::from_millis(TREE_BUDGET_MS);
+    let (_automation, window, element) = unique_element(pid, wanted)?;
+    let pattern: Option<IUIAutomationScrollItemPattern> = unsafe { element.GetCurrentPatternAs(UIA_ScrollItemPatternId) }.ok();
+    Ok(match pattern {
+        Some(pattern) => match unsafe { pattern.ScrollIntoView() } {
+            Ok(()) => ScrollAnswer { scrolled: true, frame: settled_frame(&element), reason: None },
+            Err(error) => ScrollAnswer { scrolled: false, frame: element_frame(&element), reason: Some(format!("{SCROLL_UNSUPPORTED}; the pattern answered {}", error.message())) },
+        },
+        None if wheel => wheel_into_view(&window, &element, started, budget),
+        None => ScrollAnswer { scrolled: false, frame: element_frame(&element), reason: Some(SCROLL_UNSUPPORTED.to_string()) },
+    })
+}
+
+pub fn set_value(pid: i32, wanted: &TreeElement, text: &str) -> Result<ValueAnswer, String> {
+    let _dpi = DpiScope::enter();
+    let (_automation, _window, element) = unique_element(pid, wanted)?;
+    let pattern: Option<IUIAutomationValuePattern> = unsafe { element.GetCurrentPatternAs(UIA_ValuePatternId) }.ok();
+    let Some(pattern) = pattern else {
+        return Ok(ValueAnswer { set: false, value: None, reason: Some(VALUE_UNSUPPORTED.to_string()) });
+    };
+    let current = || unsafe { pattern.CurrentValue() }.ok().map(|value| value.to_string()).filter(|value| !value.is_empty());
+    if unsafe { pattern.CurrentIsReadOnly() }.map(|flag| flag.as_bool()).unwrap_or(true) {
+        return Ok(ValueAnswer { set: false, value: current(), reason: Some(VALUE_UNSUPPORTED.to_string()) });
+    }
+    if let Err(error) = unsafe { pattern.SetValue(&BSTR::from(text)) } {
+        return Ok(ValueAnswer { set: false, value: current(), reason: Some(format!("{VALUE_UNSUPPORTED}; the pattern answered {}", error.message())) });
+    }
+    let secure = wanted.role.contains("Secure") || unsafe { element.CurrentIsPassword() }.map(|flag| flag.as_bool()).unwrap_or(false);
+    Ok(ValueAnswer { set: true, value: if secure { None } else { current() }, reason: if secure { Some(SECURE_NOT_READ_BACK.to_string()) } else { None } })
 }
 
 pub fn cursor() -> Result<(f64, f64), String> {

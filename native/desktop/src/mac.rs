@@ -8,7 +8,7 @@ use objc2_core_foundation::{CGPoint, CGRect, CGSize};
 use objc2_foundation::NSString;
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{tree_child_order, ApplicationAnswer, BoundsRecord, DisplayRecord, FocusedText, ScrollAnswer, TextRange, PermissionsAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, SCROLL_UNSUPPORTED, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED};
+use crate::{hidden_by, same_frame, tree_child_order, ApplicationAnswer, BoundsRecord, DisplayRecord, FocusedText, ScrollAnswer, TextRange, PermissionsAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED};
 
 type CFTypeRef = *const c_void;
 type CGEventRef = *mut c_void;
@@ -116,10 +116,6 @@ pub fn keyboard_idle_ms() -> Option<f64> {
 const NUMBER_FLOAT64: isize = 13;
 const TREE_MESSAGING_TIMEOUT_S: f32 = 1.0;
 const SCROLL_ACTION: &str = "AXScrollToVisible";
-const SCROLL_SETTLE_MS: u64 = 60;
-const SCROLL_SETTLE_READS: u32 = 5;
-const SCROLL_WHEEL_STEPS: u32 = 24;
-const SCROLL_WHEEL_LINES: i32 = 5;
 
 const EVENT_SOURCE_HID_SYSTEM_STATE: i32 = 1;
 const HID_EVENT_TAP: u32 = 0;
@@ -1300,14 +1296,6 @@ unsafe fn ax_actions(element: CFTypeRef) -> Vec<String> {
     list
 }
 
-fn same_frame(a: &Option<BoundsRecord>, b: &Option<BoundsRecord>) -> bool {
-    match (a, b) {
-        (None, None) => true,
-        (Some(a), Some(b)) => a.x == b.x && a.y == b.y && a.width == b.width && a.height == b.height,
-        _ => false,
-    }
-}
-
 unsafe fn settled_frame(element: CFTypeRef) -> Option<BoundsRecord> {
     let mut frame = ax_frame(element);
     for _ in 0..SCROLL_SETTLE_READS {
@@ -1317,10 +1305,6 @@ unsafe fn settled_frame(element: CFTypeRef) -> Option<BoundsRecord> {
         frame = next;
     }
     frame
-}
-
-fn hidden_by(frame: &BoundsRecord, viewport: &BoundsRecord) -> i32 {
-    if frame.height <= 1.0 || frame.y + frame.height > viewport.y + viewport.height - 1.0 { 1 } else if frame.y < viewport.y + 1.0 { -1 } else { 0 }
 }
 
 unsafe fn wheel_into_view(window: CFTypeRef, element: CFTypeRef, started: std::time::Instant, budget: std::time::Duration) -> ScrollAnswer {
@@ -1419,15 +1403,5 @@ mod read_element_tests {
         assert!(!matching_element(&current, &original));
         current.frame = None;
         assert!(!matching_element(&current, &original));
-    }
-
-    #[test]
-    fn an_edge_clamped_strip_scrolls_down_and_a_frame_above_scrolls_up() {
-        let viewport = BoundsRecord { x: 0.0, y: 30.0, width: 1440.0, height: 956.0 };
-        assert_eq!(hidden_by(&BoundsRecord { x: 1050.0, y: 985.0, width: 105.0, height: 1.0 }, &viewport), 1);
-        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 1200.0, width: 300.0, height: 20.0 }, &viewport), 1);
-        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 10.0, width: 300.0, height: 20.0 }, &viewport), -1);
-        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 400.0, width: 300.0, height: 20.0 }, &viewport), 0);
-        assert!(same_frame(&None, &None) && !same_frame(&None, &Some(viewport.clone())));
     }
 }

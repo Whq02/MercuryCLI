@@ -51,6 +51,10 @@ pub const ELEMENT_NOT_UNIQUE: &str = "the element is no longer unique in a compl
 pub const SCROLL_UNSUPPORTED: &str = "the element does not scroll into view through the accessibility API — scroll with the wheel instead";
 pub const VALUE_UNSUPPORTED: &str = "the element does not accept a value through the accessibility API — type into it instead";
 pub const SECURE_NOT_READ_BACK: &str = "a secure field is not read back";
+pub const SCROLL_SETTLE_MS: u64 = 60;
+pub const SCROLL_SETTLE_READS: u32 = 5;
+pub const SCROLL_WHEEL_STEPS: u32 = 24;
+pub const SCROLL_WHEEL_LINES: i32 = 5;
 
 #[napi(object)]
 #[derive(Clone)]
@@ -149,6 +153,32 @@ pub struct TreeAnswer {
 impl TreeAnswer {
     pub fn refused(reason: &str) -> TreeAnswer {
         TreeAnswer { elements: Vec::new(), focused: None, truncated: false, reason: Some(reason.to_string()), scope: None, web_content: None, web_accessibility: None }
+    }
+}
+
+pub fn same_frame(a: &Option<BoundsRecord>, b: &Option<BoundsRecord>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => a.x == b.x && a.y == b.y && a.width == b.width && a.height == b.height,
+        _ => false,
+    }
+}
+
+pub fn hidden_by(frame: &BoundsRecord, viewport: &BoundsRecord) -> i32 {
+    if frame.height <= 1.0 || frame.y + frame.height > viewport.y + viewport.height - 1.0 { 1 } else if frame.y < viewport.y + 1.0 { -1 } else { 0 }
+}
+
+#[cfg(test)]
+mod scroll_tests {
+    use super::{hidden_by, same_frame, BoundsRecord};
+    #[test]
+    fn an_edge_clamped_strip_scrolls_down_and_a_frame_above_scrolls_up() {
+        let viewport = BoundsRecord { x: 0.0, y: 30.0, width: 1440.0, height: 956.0 };
+        assert_eq!(hidden_by(&BoundsRecord { x: 1050.0, y: 985.0, width: 105.0, height: 1.0 }, &viewport), 1);
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 1200.0, width: 300.0, height: 20.0 }, &viewport), 1);
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 10.0, width: 300.0, height: 20.0 }, &viewport), -1);
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 400.0, width: 300.0, height: 20.0 }, &viewport), 0);
+        assert!(same_frame(&None, &None) && !same_frame(&None, &Some(viewport.clone())));
     }
 }
 
