@@ -51,7 +51,8 @@ import {
   healWalkableForWire,
   normalizeContentFromAPI,
 } from '../../../utils/messages.js'
-import { resolveEffortTruth, resolveWireRequestedEffort } from '../../../utils/effort.js'
+import { resolveEffortTruth, resolveWireRequestedEffort, type EffortValue } from '../../../utils/effort.js'
+import { lowestServedEffort } from '../../../utils/model/utilityModel.js'
 import { EFFORT_STAMP_NONE, EFFORT_STAMP_THINKING_OFF, effortStampOf, type EffortStampV1, type EffortWireFact } from '../../../utils/effortStamp.js'
 import { compatEffortWireFact, thinkingOffWireEffort } from './compatWire.js'
 import { isKimiK3WireModel, kimiReplayProjection, replayKimiHistory } from './kimiReplay.js'
@@ -529,9 +530,13 @@ export async function* compatChatCallModel(
       }
     : undefined
   const wireMessages = renderAdmissionRecordsAsText(messages, plan.wireForm)
+  const effortView = effortVocabularyFor(modelId)
+  const servedEfforts = effortView.kind === 'ladder' || effortView.kind === 'provider' ? effortView.vocabulary : []
+  const floorWanted = options.effortPinned === true && options.effortValue === undefined && servedEfforts.length > 0
+  const askedEffort = floorWanted ? (lowestServedEffort(servedEfforts) as EffortValue | undefined) : options.effortValue
   const effortContext = { agentId: options.agentId, pinned: options.effortPinned === true }
-  const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, effortContext)
-  const effortTruth = resolveEffortTruth(modelId, options.effortValue, effortContext)
+  const effortValue = resolveWireRequestedEffort(modelId, askedEffort, effortContext)
+  const effortTruth = resolveEffortTruth(modelId, askedEffort, effortContext)
   const thinkingEnabled = thinkingConfig.type !== 'disabled'
   const toolsInPrompt = apiTools.length > 0 && profile.toolsInPrompt?.(wireModel) === true
   if (apiTools.length > 0 && !toolsInPrompt && profile.toolCapabilityRefusal) {
@@ -578,7 +583,6 @@ export async function* compatChatCallModel(
     }).messages
   }
   const mappedMessages = mapForRequest(preparedMessages)
-  const effortView = effortVocabularyFor(modelId)
   const operatorEffort =
     effortView.kind === 'provider' && effortView.source === 'operator' && effortView.vocabulary.length > 0
       ? !thinkingEnabled && effortView.thinkingGated
