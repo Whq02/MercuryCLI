@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { findRows, firstOutputTs, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'
@@ -67,10 +67,21 @@ type Request = { body: unknown }
 type Transcript = { sessionId: string; rows: Row[] }
 
 function walk(dir: string, out: string[] = []): string[] {
-  if (!existsSync(dir)) return out
-  for (const name of readdirSync(dir)) {
+  let names: string[]
+  try {
+    names = readdirSync(dir)
+  } catch {
+    return out
+  }
+  for (const name of names) {
     const p = join(dir, name)
-    if (statSync(p).isDirectory()) walk(p, out)
+    let directory: boolean
+    try {
+      directory = statSync(p).isDirectory()
+    } catch {
+      continue
+    }
+    if (directory) walk(p, out)
     else out.push(p)
   }
   return out
