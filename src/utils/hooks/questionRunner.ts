@@ -2,10 +2,13 @@ import type { z } from 'zod/v4'
 import { toJSONSchema } from 'zod/v4'
 import type { ToolPermissionContext, ToolUseContext } from '../../Tool.js'
 import { routedCallModelSettled } from '../../services/providers/callModelRouter.js'
+import { readCatalogueIfPending } from '../../services/providers/catalogueOnDemand.js'
+import { declaredRouteOf } from '../../services/providers/routeLaw.js'
 import { createCombinedAbortSignal } from '../combinedAbortSignal.js'
 import { errorMessage } from '../errors.js'
 import { createUserMessage, extractTextContent } from '../messages.js'
 import { stripExplicitNulls } from '../messages/structuredOutputDialect.js'
+import { getEngineModel } from '../model/model.js'
 import { utilityCallFor } from '../model/utilityModel.js'
 import { jsonParse } from '../slowOperations.js'
 import { asSystemPrompt } from '../systemPromptType.js'
@@ -35,7 +38,8 @@ export function hookBrief(text: string, payloadJson: string): string {
 }
 
 export function hookAnswerJsonSchema(schema: z.ZodType): Record<string, unknown> {
-  return toJSONSchema(schema as never, { unrepresentable: 'any', target: 'draft-7' }) as Record<string, unknown>
+  const { $schema: _dialect, ...shape } = toJSONSchema(schema as never, { unrepresentable: 'any', target: 'draft-07' }) as Record<string, unknown>
+  return shape
 }
 
 export async function runQuestionHook(run: ModelHookRun): Promise<ModelHookEnd> {
@@ -47,6 +51,7 @@ export async function runQuestionHook(run: ModelHookRun): Promise<ModelHookEnd> 
       `You are answering a hook in Mercury at the moment ${run.event}. The hook's question follows, with the moment's facts as JSON.`,
       'Answer with exactly one JSON object of the hook answer shape; {} when you have nothing to say.',
     ])
+    await readCatalogueIfPending(declaredRouteOf(run.model ?? getEngineModel()) ?? '')
     const { thinkingConfig, ...call } = run.model === undefined ? utilityCallFor() : utilityCallFor(run.model, { named: true })
     const response = await routedCallModelSettled({
       messages: [createUserMessage({ content: hookBrief(run.text, run.payloadJson) })],
