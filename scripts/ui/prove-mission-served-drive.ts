@@ -28,6 +28,7 @@ const BARE_CLAIM = `all done.\n${MISSION_MET_SENTINEL}`
 const JUDGE_NOT_YET_REASON = 'hello.txt is not there yet'
 const JUDGE_MET_REASON = 'hello.txt holds the word hello and nothing else changed'
 const JUDGE_UNREADABLE_REASON = 'the judge gave no readable verdict'
+const JUDGE_UNREACHABLE_REASON = 'the judge could not be reached'
 const MALFORMED_JUDGE_ANSWER = 'Looks done to me. {"verdict":"met"}'
 const SEAT_EFFORT = 'max'
 const HOLD_HEAD = `Mission not completed: ${GOAL} — `
@@ -47,7 +48,8 @@ const IDLE_TURNS = 3
 const WORKING_PLAN = [true, false, true, false, false, true]
 const WORKING_ENDS = WORKING_PLAN.length
 const WORKING_READS = WORKING_PLAN.filter(Boolean).length
-const JUDGED_ENDS = IDLE_TURNS + 1 + WORKING_ENDS + 1
+const CLOSES = 2
+const JUDGED_ENDS = IDLE_TURNS + 1 + WORKING_ENDS + CLOSES
 
 let failures = 0
 let checks = 0
@@ -209,6 +211,7 @@ function screensAt(run: ArenaRun, cols: number, rows: number, offsets: number[])
 
 const judgeTurn = (verdict: 'met' | 'not yet' | 'impossible', reason: string): ScriptedTurn => ({ kind: 'text', text: JSON.stringify({ verdict, reason }), whenBody: MISSION_JUDGE_MARK })
 const judgeRaw = (words: string): ScriptedTurn => ({ kind: 'text', text: words, whenBody: MISSION_JUDGE_MARK })
+const judgeDown = (): ScriptedTurn => ({ kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'the judge fixture refuses this call', whenBody: MISSION_JUDGE_MARK })
 const text = (words: string): ScriptedTurn => ({ kind: 'text', text: words })
 const readTool = (cwd: string): ScriptedTurn => ({ kind: 'tool_use', name: 'Read', input: { file_path: join(cwd, 'hello.txt') } })
 
@@ -231,12 +234,13 @@ const missionTurns = (cwd: string): ScriptedTurn[] => [
   judgeTurn('not yet', JUDGE_NOT_YET_REASON),
   judgeRaw(MALFORMED_JUDGE_ANSWER),
   ...Array.from({ length: IDLE_TURNS - 2 + 1 + WORKING_ENDS }, () => judgeTurn('not yet', JUDGE_NOT_YET_REASON)),
+  judgeDown(),
   judgeTurn('met', JUDGE_MET_REASON),
   ...Array.from({ length: 6 }, () => judgeTurn('not yet', JUDGE_NOT_YET_REASON)),
   ...Array.from({ length: IDLE_TURNS }, () => text(WORKING)),
   text(QUESTION),
   ...WORKING_PLAN.map(reads => (reads ? [readTool(cwd), text(WORKING)] : [text(WORKING)])).flat(),
-  text(CLOSE),
+  ...Array.from({ length: CLOSES }, () => text(CLOSE)),
   ...Array.from({ length: 6 }, () => text(WORKING)),
 ]
 const missionSends = [
@@ -304,9 +308,13 @@ const notYetVerdict = new RegExp(`^not yet \\(${JUDGE_NOT_YET_REASON}\\)$`)
 check(`a one-line mission status rides each turn's opening message with the current fields, one counter of judged ends: checks 0 · none yet · armed at arming, checks ${IDLE_TURNS} · the judge's not-yet · armed on the first continue, checks ${IDLE_TURNS + 1} on the second`, statuses.length === 3 && statuses.every(s => s !== null && !s.line.includes('\n')) && statuses[0]?.checks === 0 && statuses[0]?.verdict === 'none yet' && statuses[0]?.state === 'armed' && statuses[1]?.checks === IDLE_TURNS && notYetVerdict.test(statuses[1]?.verdict ?? '') && statuses[1]?.state === 'armed' && statuses[2]?.checks === IDLE_TURNS + 1 && notYetVerdict.test(statuses[2]?.verdict ?? '') && statuses[2]?.state === 'armed', JSON.stringify(statuses.map(s => (s === null ? null : `${s.checks}/${s.verdict.slice(0, 40)}/${s.state}: ${s.line.slice(0, 100)}`))))
 const statusShape = /^Mission status — checks \d+ · last verdict .+ · (armed|paused)/
 check('each turn-opening status line is bound to a mission_status attachment record in the hosted transcript with the same text, checks and state, and every record is one current status line (a fresh one after each hold, none without a mission)', statusRecords.length >= 3 && statuses.every(s => s !== null && statusRecords.some(r => r.attachment?.text === s.line && r.attachment?.checks === s.checks && r.attachment?.state === s.state)) && statusRecords.every(r => statusShape.test(r.attachment?.text ?? '') && !(r.attachment?.text ?? '').includes('\n')), `records=${JSON.stringify(statusRecords.map(r => ({ text: r.attachment?.text?.slice(0, 80), checks: r.attachment?.checks, state: r.attachment?.state })))}`)
-const holdForm = new RegExp(`^${HOLD_HEAD.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(${JUDGE_NOT_YET_REASON}|${JUDGE_UNREADABLE_REASON})\\. Continue\\.$`)
+const holdForm = new RegExp(`^${HOLD_HEAD.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(${JUDGE_NOT_YET_REASON}|${JUDGE_UNREADABLE_REASON}|${JUDGE_UNREACHABLE_REASON})\\. Continue\\.$`)
 const unreadableHolds = holdRows.filter(r => textOf(r).includes(JUDGE_UNREADABLE_REASON))
-check(`a turn that ends before the mission is met is held with one line "Mission not completed: <goal> — <the judge's reason>. Continue." — ${IDLE_TURNS - 1} in the idle turn, ${WORKING_ENDS} in the working turn, and no ask-hold anywhere`, holdRows.length === IDLE_TURNS - 1 + WORKING_ENDS && holdRows.every(r => holdForm.test(textOf(r).trim())) && askHolds.length === 0, `holds=${holdRows.length} ${holdRows.map(r => textOf(r).split('\n')[0]!.slice(0, 120)).join(' | ')}`)
+const unreachableHolds = holdRows.filter(r => textOf(r).includes(JUDGE_UNREACHABLE_REASON))
+const closeRows = assistantRows.filter(r => textOf(r).trim().endsWith(MISSION_MET_SENTINEL))
+const assistantBefore = (row: Row): Row | undefined => rows.slice(0, rows.indexOf(row)).reverse().find(r => r.type === 'assistant')
+check(`a turn that ends before the mission is met is held with one line "Mission not completed: <goal> — <the judge's reason>. Continue." — ${IDLE_TURNS - 1} in the idle turn, ${WORKING_ENDS} in the working turn, one at the first close, and no ask-hold anywhere`, holdRows.length === IDLE_TURNS - 1 + WORKING_ENDS + 1 && holdRows.every(r => holdForm.test(textOf(r).trim())) && askHolds.length === 0, `holds=${holdRows.length} ${holdRows.map(r => textOf(r).split('\n')[0]!.slice(0, 120)).join(' | ')}`)
+check("a judge that cannot be reached never ends the mission: the first itemised close is answered with an API error, and that end is held with 'the judge could not be reached' though the close is itemised — the claim is not the verification while the judge can be called", closeRows.length === CLOSES && unreachableHolds.length === 1 && assistantBefore(unreachableHolds[0]!) === closeRows[0] && !askHolds.includes(unreachableHolds[0]!), `closes=${closeRows.length} unreachable=${unreachableHolds.length} before=${unreachableHolds[0] === undefined ? 'none' : textOf(assistantBefore(unreachableHolds[0]!) ?? {}).slice(-80)}`)
 check("a malformed judge answer (prose around the object, no reason) reads as not yet: the second idle end is held with 'the judge gave no readable verdict', never met", unreadableHolds.length === 1 && holdRows[1] !== undefined && textOf(holdRows[1]).includes(JUDGE_UNREADABLE_REASON), `unreadable=${unreadableHolds.length} second=${holdRows[1] === undefined ? 'none' : textOf(holdRows[1]).slice(0, 160)}`)
 const modelOfSeat = first === undefined ? '' : modelOf(first)
 check(`the judge is called once at every turn end (${JUDGED_ENDS} ends, ${JUDGED_ENDS} calls), on the seat's model with thinking off, with one user message that carries the goal, the criteria, the closing words and a bounded tool tally — never the conversation`, judgeRequests.length === JUDGED_ENDS && judgeRequests.every(r => modelOf(r) === modelOfSeat && thinkingOff(r) && messagesOf(r.body).length === 1 && lastUserText(r.body).includes(`Goal: ${COMPILED.endState}`) && CRITERIA.every((c, i) => lastUserText(r.body).includes(`${i + 1}. ${c}`)) && lastUserText(r.body).includes('Closing words of the turn') && /Tools: (no tool call this turn|\d+ tool call\(s\) this turn: Read)/.test(lastUserText(r.body)) && !lastUserText(r.body).includes('A standing goal is now active') && !lastUserText(r.body).includes(HOLD_HEAD)), `judge=${judgeRequests.length} ${JSON.stringify(judgeRequests.slice(0, 3).map(r => ({ model: modelOf(r), effort: effortOf(r), thinking: (r.body as { thinking?: unknown }).thinking, messages: messagesOf(r.body).length })))} seat=${modelOfSeat}`)
@@ -322,11 +330,12 @@ const pausedOnQuestion = betweenContinues.find(s => s.state === 'paused' && (s.n
 const questionNote = pauseNotes.find(r => textOf(r).includes(QUESTION))
 check('the first continue resumes it (its opening status reads armed) and a turn ending on a question pauses it again: the card reads paused with the question before the second continue, the note names it', statuses[1]?.state === 'armed' && pausedOnQuestion !== undefined && questionNote !== undefined && stampOf(questionNote) < secondContinueEpoch && stampOf(questionNote) > firstContinueEpoch, `opening=${statuses[1]?.state} between=${JSON.stringify(betweenContinues.map(s => `${s.state}@${s.iterations}:${(s.nextStep ?? '').slice(0, 40)}`))} note=${questionNote === undefined ? 'none' : textOf(questionNote).slice(0, 100)}`)
 const afterSecond = timeline.filter(s => s.atMs >= secondContinueEpoch)
-const workingHolds = holdRows.filter(r => stampOf(r) >= secondContinueEpoch)
+const firstCloseIndex = closeRows[0] === undefined ? rows.length : rows.indexOf(closeRows[0])
+const workingHolds = holdRows.filter(r => stampOf(r) >= secondContinueEpoch && rows.indexOf(r) < firstCloseIndex)
 const toolRowsAfterSecond = rows.filter(r => hasToolUse(r) && stampOf(r) >= secondContinueEpoch)
 check(`a working sequence is never paused: after the second continue ${WORKING_ENDS} turn ends alternate reads and tool-less replies (${WORKING_PLAN.map(reads => (reads ? 'Read' : 'none')).join(', ')}) — each end is held, a Read resets the count so no run of tool-less ends reaches ${IDLE_TURNS}, none pauses, and the mission runs on to its close`, workingHolds.length === WORKING_ENDS && toolRowsAfterSecond.length >= WORKING_READS && !afterSecond.some(s => s.state === 'paused') && !pauseNotes.some(r => stampOf(r) >= secondContinueEpoch), `workingHolds=${workingHolds.length} toolRows=${toolRowsAfterSecond.length} after=${JSON.stringify(afterSecond.map(s => `${s.state}@${s.iterations}`))}`)
 const completed = completedRows[0]
-check(`met is announced like a finished monitor: one completed row in the chat — 'Mission completed: <goal> — <the judge's reason> · ${JUDGED_ENDS} turns · <elapsed>', the same count the card and the judge carry — recorded, painted, and the card reads met with that outcome`, card?.state === 'met' && card.iterations === JUDGED_ENDS && card.outcome?.reason === JUDGE_MET_REASON && card.outcome.turns === JUDGED_ENDS && completedRows.length === 1 && completed !== undefined && textOf(completed).includes(`${COMPLETED_HEAD} ${GOAL} — ${JUDGE_MET_REASON} · ${JUDGED_ENDS} turns · `) && findRows(atEnd!.rows, COMPLETED_HEAD).length > 0, `card=${JSON.stringify(card ?? null)} rows=${completedRows.map(r => textOf(r).slice(0, 200)).join(' | ')} screen=${atEnd!.rows.filter(r => r.includes('Mission')).join(' | ')}`)
+check(`met is announced like a finished monitor once the judge answers met at the second close: one completed row in the chat — 'Mission completed: <goal> — <the judge's reason> · ${JUDGED_ENDS} turns · <elapsed>', the same count the card and the judge carry — recorded, painted, and the card reads met with that outcome`, card?.state === 'met' && card.iterations === JUDGED_ENDS && card.outcome?.reason === JUDGE_MET_REASON && card.outcome.turns === JUDGED_ENDS && completedRows.length === 1 && completed !== undefined && textOf(completed).includes(`${COMPLETED_HEAD} ${GOAL} — ${JUDGE_MET_REASON} · ${JUDGED_ENDS} turns · `) && rows.indexOf(completed) > rows.indexOf(closeRows[CLOSES - 1]!) && findRows(atEnd!.rows, COMPLETED_HEAD).length > 0, `card=${JSON.stringify(card ?? null)} rows=${completedRows.map(r => textOf(r).slice(0, 200)).join(' | ')} screen=${atEnd!.rows.filter(r => r.includes('Mission')).join(' | ')}`)
 check('after met the footer indicator clears and the rail drops the goal: no /mission words in the footer, no ◆ goal row', INDICATOR_WORDS.every(word => findRows(atEnd!.rows, word).length === 0) && findRows(atEnd!.rows, `◆ ${COMPILED.endState}`).length === 0 && findRows(atEnd!.rows, '◆ the file hello').length === 0, atEnd!.rows.filter(r => r.includes('/mission') || r.includes('◆')).join(' | '))
 
 console.log('\n── a bare completion line as the first reply ──')
