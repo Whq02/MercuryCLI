@@ -12,7 +12,6 @@ import { getAgentContext } from '../../utils/agentContext.js'
 import { hasFirstPartyCredential } from '../../utils/auth.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
-import { getEngineModel } from '../../utils/model/model.js'
 import { utilityCallFor } from '../../utils/model/utilityModel.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { goalCriteria, goalWords, type GoalStatement } from './goal.js'
@@ -151,7 +150,7 @@ function assistantText(content: unknown): string {
 }
 
 export const judgeWithModel: GoalJudge = async (goal, evidence, signal) => {
-  const call = utilityCallFor(getEngineModel(), { named: true })
+  const call = utilityCallFor()
   if (!modelRoadOpen(call.model)) return null
   const prompt = judgePrompt(goal, evidence)
   const combined = createCombinedAbortSignal(signal, { timeoutMs: MISSION_JUDGE_TIMEOUT_MS })
