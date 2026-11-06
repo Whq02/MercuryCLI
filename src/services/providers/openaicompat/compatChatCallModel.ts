@@ -529,8 +529,9 @@ export async function* compatChatCallModel(
       }
     : undefined
   const wireMessages = renderAdmissionRecordsAsText(messages, plan.wireForm)
-  const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
-  const effortTruth = resolveEffortTruth(modelId, options.effortValue, { agentId: options.agentId })
+  const effortContext = { agentId: options.agentId, pinned: options.effortPinned === true }
+  const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, effortContext)
+  const effortTruth = resolveEffortTruth(modelId, options.effortValue, effortContext)
   const thinkingEnabled = thinkingConfig.type !== 'disabled'
   const toolsInPrompt = apiTools.length > 0 && profile.toolsInPrompt?.(wireModel) === true
   if (apiTools.length > 0 && !toolsInPrompt && profile.toolCapabilityRefusal) {

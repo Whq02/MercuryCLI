@@ -93,34 +93,50 @@ check(
 check(
   'buildMissionDirective teaches the snapshot-goal rule',
   /progress snapshot/.test(buildMissionDirective('g')) &&
-    /met once the work it describes is done/.test(buildMissionDirective('g')),
+    /once the work it describes is done/.test(buildMissionDirective('g')),
+)
+check(
+  'buildMissionDirective teaches the itemised close: one numbered line per criterion, then the completion line',
+  /one numbered line\s+per criterion naming its evidence/.test(buildMissionDirective('g')),
 )
 
 section('sticky `met` flag wired in the Stop callback (structural)')
 const gh = src('guards', 'mission.ts')
 check(
-  'the hold re-prompt (the words) teaches the snapshot-goal rule',
-  /progress snapshot[\s\S]{0,120}met once the work it describes is done/i.test(gh),
+  'the directive (the words the turn starts with) teaches the snapshot-goal rule',
+  /progress snapshot[\s\S]{0,120}once the work it describes is done/i.test(gh),
 )
 check(
-  'the interactive /mission panel surfaces met + NEEDS THE OPERATOR (mirrors mission.ts wording)',
-  /Mission met — stops are allowed/.test(src('commands', 'mission', 'mission-jsx.tsx')) &&
-    /Mission NEEDS THE OPERATOR \(not met/.test(src('commands', 'mission', 'mission-jsx.tsx')),
+  'the hold words take the form "Mission not completed: <goal> — <what is open>. Continue."',
+  /\$\{MISSION_HOLD_HEAD\} \$\{mission\.condition\} — \$\{verdict\.reason\}\. Continue\./.test(gh),
 )
-check('the judge short-circuits on mission.met and on the ask-the-human exit (sticky completion)', /if \(mission\.met \|\| mission\.needsOperator\) return \{ hold: false \}/.test(gh))
+check(
+  'the interactive /mission panel surfaces completed (reason, turns, elapsed) + paused as distinct states (mirrors mission.ts wording)',
+  /Mission completed — \$\{outcome\.reason\} · \$\{outcome\.turns\}/.test(src('commands', 'mission', 'mission-jsx.tsx')) &&
+    /Mission paused — /.test(src('commands', 'mission', 'mission-jsx.tsx')),
+)
+check('the judge short-circuits on mission.met (sticky completion) and waits while paused until the operator speaks', /mission\.met\) return \{ hold: false \}/.test(gh) && /if \(!operatorSpokeSince\(messages, mission\.paused\)\) return \{ hold: false \}/.test(gh))
 check('callback sets mission.met = true on a met verdict', /mission\.met = true/.test(gh))
 check('ActiveMission carries the met field', /met\?:\s*boolean/.test(gh))
 
-section('the ask-the-human exit: needsOperator recorded + surfaced (no silent cap disarm)')
-check('ActiveMission carries the needsOperator field', /needsOperator\?:\s*boolean/.test(gh))
+section('the pause: a question to the operator pauses the mission (armed, waiting); met and cleared are the only ends')
+check('ActiveMission carries the paused field, never a needsOperator end state', /paused\?:\s*MissionPause/.test(gh) && !/needsOperator/.test(gh) && !/needs-operator/.test(gh) && !/stood-down/.test(gh))
 check(
-  'the exit records needs-operator on the card before the stop is allowed',
-  /mission\.needsOperator = true[\s\S]{0,240}persistCard\(sessionId, mission, 'needs-operator'\)/.test(gh),
+  'the pause records the paused card before the stop is allowed',
+  /mission\.paused = \{ why, boundary: operatorBoundary\(messages\) \}[\s\S]{0,240}persistCard\(sessionId, mission, 'paused'\)/.test(gh),
 )
+check('the mission holds without deferring to another guard: it claims the continuation and never reads the claim as a reason to stand aside', /claimContinuation\(processMainOwner\(\), turnBoundaryIndex\(messages\), messages\.length\)\n/.test(gh) && !/defers one round/.test(gh))
 check('no block cap stands anywhere in the guard', !/maxBlocks|block cap|DEFAULT_MISSION_MAX_BLOCKS/.test(gh))
+check('the stall road is gone: no stalled-check count, no progress measure, no ask ceremony, no "gave no question" words', !/stalledChecks|GOAL_STALL_CHECKS|lastSeen|askWords|asking|gave no question/.test(gh) && !/GOAL_STALL_CHECKS|stalledVerdict|progressWords/.test(src('services', 'mission', 'goalJudge.ts')))
+check('The only brake on the loop: MISSION_IDLE_TURNS = 3 consecutive turn ends without a tool call pause the goal, with the words the operator reads', /export const MISSION_IDLE_TURNS = 3/.test(gh) && /mission\.idleTurns = evidence\.toolCalls === 0 \? mission\.idleTurns \+ 1 : 0/.test(gh) && /mission paused after \$\{MISSION_IDLE_TURNS\} turns without a tool call — your next message resumes it/.test(gh))
+check('no compile road rules a goal impossible without the judge: the guard carries no contract, judgeGoal is always called, and one counter of judged ends is bumped before the verdict branches', !/goalContract|unattainable-now|feasibility|road: .compile./.test(gh) && /mission\.verdict = verdict\n\s+mission\.iterations \+= 1\n\s+if \(verdict\.kind === 'met'\)/.test(gh))
+check("the idle window is bounded by the previous judged stop, the mission's own directive row or the operator's words, never by another meta row", /function boundsToolWindow/.test(gh) && /return text\.startsWith\(MISSION_HOLD_HEAD\) \|\| text\.includes\(MISSION_DIRECTIVE_HEADER\)/.test(gh))
+check('impossible never ends the mission: it pauses with the reason as the note', /if \(verdict\.kind === 'impossible'\) \{\n\s+pauseMission\(sessionId, mission, verdict\.reason, messages\)/.test(gh))
+check('the judge rides the utility helper: one bounded call at every turn end, Jev on top, the claim road only when no call can be made', /utilityCallFor\(\)/.test(src('services', 'mission', 'goalJudge.ts')) && /if \(goalJudgeOpen\(\)\)/.test(src('services', 'mission', 'goalJudge.ts')) && /answered \?\? judgeByClaim\(evidence\)/.test(src('services', 'mission', 'goalJudge.ts')) && /MISSION_JUDGE_TIMEOUT_MS/.test(src('services', 'mission', 'goalJudge.ts')))
+check('met is announced like a finished monitor: one completed task-notification row, no second note', /announceMissionCompleted\(sessionId, mission, outcome\)/.test(gh) && /<status>completed<\/status>/.test(gh) && !/goal met —/.test(gh))
 check(
-  '/mission status renders met / NEEDS THE OPERATOR / active as distinct states',
-  /mission\.met[\s\S]{0,80}Mission met[\s\S]{0,120}mission\.needsOperator[\s\S]{0,120}NEEDS THE OPERATOR/.test(
+  '/mission status renders completed / PAUSED / active as distinct states',
+  /mission\.met[\s\S]{0,80}Mission completed[\s\S]{0,240}mission\.paused !== undefined[\s\S]{0,120}Mission PAUSED/.test(
     src('commands', 'mission', 'mission.ts'),
   ),
 )

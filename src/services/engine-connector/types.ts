@@ -364,6 +364,16 @@ export type MissionRowV1 = {
   status: 'pending' | 'in_progress' | 'completed'
 }
 
+export type MissionCardFactV1 = {
+  goal: string
+  state: string
+  nextStep: string | null
+  iterations: number
+  setAt: string
+  updatedAt: string
+  outcome?: { reason: string; metAt: string; turns: number }
+}
+
 export type SampleRowV1 = {
   id: string
   title: string
@@ -377,6 +387,7 @@ export type SampleRowV1 = {
 export type WorkRosterV1 = {
   rows: readonly WorkRowV1[]
   mission: readonly MissionRowV1[]
+  missionCard?: MissionCardFactV1 | null
   samples?: readonly SampleRowV1[]
   reported?: boolean
   gone?: boolean

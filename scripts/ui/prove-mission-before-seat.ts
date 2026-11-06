@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path'
 import { findRows, firstOutputTs, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { MISSION_MET_SENTINEL } from '../../src/guards/mission.ts'
+import { MISSION_JUDGE_MARK } from '../../src/services/mission/goalJudge.ts'
 
 const argument = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
@@ -13,7 +14,7 @@ const argument = (name: string): string | undefined => {
 const DIST = argument('--dist')
 const FRAMES = argument('--frames')
 const MISSION = 'relay probe'
-const HOOK_WORDS = `The goal for this session is not yet met (check 1): ${MISSION}`
+const HOOK_WORDS = `Mission not completed: ${MISSION} — `
 const CARD_LOOK_AFTER_MS = 2400
 
 let failures = 0
@@ -77,8 +78,11 @@ function screensAt(run: ArenaRun, cols: number, rows: number, offsets: number[])
 async function drive(cols: number, rows: number): Promise<ArenaRun> {
   return runArtifactArena({
     turns: [
-      { kind: 'text', text: 'the first answer, the mission not yet met' },
-      { kind: 'text', text: `the mission is met now\n${MISSION_MET_SENTINEL}` },
+      { kind: 'text', text: JSON.stringify({ verdict: 'not yet', reason: 'no close yet' }), whenBody: MISSION_JUDGE_MARK },
+      { kind: 'text', text: JSON.stringify({ verdict: 'met', reason: 'the relay answered the probe' }), whenBody: MISSION_JUDGE_MARK },
+      { kind: 'paced', deltas: ['the first answer, ', 'the mission not ', 'yet met'], gapMs: 1200 },
+      { kind: 'text', text: `1. ${MISSION} — the mission is met now, the relay answered the probe\n${MISSION_MET_SENTINEL}` },
+      { kind: 'text', text: 'hello back' },
     ],
     sends: [`after:no prompts sent yet:0:/mission ${MISSION}\\r`, `after:relay probe:${CARD_LOOK_AFTER_MS + 400}:hello\\r`],
     seconds: 24,
@@ -114,11 +118,11 @@ console.log(`  at the send: ${readyRow(atMission!.rows).length === 0 ? 'no seat 
 check('the command was taken (its receipt painted) and the seat landed after it', findRows(atCard!.rows, `Mission set: ${MISSION}`).length > 0 && readyRow(atCard!.rows).length > 0, atCard!.rows.filter(r => r.includes('Mission') || r.includes('ready')).join(' | '))
 check("the mission's card is keyed by the hosted chat (the id its transcript carries), not by the cockpit's own id", hosted !== undefined, JSON.stringify(cards.map(c => ({ id: c.sessionId.slice(0, 8), state: c.state, transcript: transcriptExists(configDir, c.sessionId) }))))
 check("no card under the cockpit's own id stays armed: when the command ran before admission, that card reads continued and names the hosted chat", !windowOpened || (ownId?.state === 'continued' && hosted !== undefined && (ownId.nextStep ?? '').includes(hosted.sessionId)), JSON.stringify({ own: ownId, continued }))
-check("the rail's MISSION card paints the mission once the seat has landed", findRows(atCard!.rows, `◆ ${MISSION}`).length > 0, atCard!.rows.slice(0, 20).map(r => r.slice(0, 32)).join(' | '))
-const requests = run.fixture.messageRequests()
+check("the rail's MISSION card paints the mission while it stands and drops it once met: at the card look (the first reply still streaming) the ◆ goal row stands; at the end the completed row stands and no ◆ goal row remains", findRows(atCard!.rows, `◆ ${MISSION}`).length > 0 && findRows(atEnd!.rows, `Mission completed: ${MISSION}`).length > 0 && findRows(atEnd!.rows, `◆ ${MISSION}`).length === 0, `${atCard!.rows.filter(r => r.includes('Mission') || r.includes('◆')).join(' | ')} :: ${atEnd!.rows.filter(r => r.includes('Mission') || r.includes('◆')).join(' | ')}`)
+const requests = run.fixture.messageRequests().filter(r => !JSON.stringify((r.body as { system?: unknown }).system ?? '').includes(MISSION_JUDGE_MARK))
 const hookRequest = requests.find(r => lastUserText(r.body).includes(HOOK_WORDS))
 check("the hosted runner's Stop hook saw the mission: it refused the first stop and re-prompted with the goal (a second request carries the hook's words)", hookRequest !== undefined, `requests=${requests.length}`)
-check('the mission met on the sentinel: the hosted card reads met after one check', hosted?.state === 'met' && hosted.iterations === 1, JSON.stringify(hosted))
+check('the mission met on the itemised close: the hosted card reads met after two judged ends — the held first end and the met close', hosted?.state === 'met' && hosted.iterations === 2, JSON.stringify(hosted))
 check('the reply that met the mission painted', findRows(atEnd!.rows, 'the mission is met now').length > 0, atEnd!.rows.slice(-12).join(' | '))
 
 if (FRAMES !== undefined) {

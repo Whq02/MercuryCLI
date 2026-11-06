@@ -52,6 +52,7 @@ import {
   getBackgroundHookAttachments,
   getUnifiedTaskAttachments,
 } from './taskStatus.js'
+import { getMissionStatusAttachment } from './missionStatus.js'
 import type { Attachment } from './types.js'
 import { rosterOwnerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { getUserContextAttachment } from './userContext.js'
@@ -225,6 +226,7 @@ export async function getAttachments(
         maybe('usage_limit_notice', async () =>
           Promise.resolve(getUsageLimitNoticeAttachment(toolUseContext, messages ?? [])),
         ),
+        maybe('mission_status', async () => Promise.resolve(getMissionStatusAttachment(messages ?? [], input !== null)), { priority: true }),
       ]
     : []
 

@@ -12,7 +12,6 @@ import { useFocusedWorkRoster } from './tasks/useFocusedWork.js'
 import type { SessionListing } from '../types/logs.js'
 import { saturnWakeGlanceOf, type SaturnWakeGlanceV1 } from '../daemon/saturn.js'
 import { boardHomedSessionIds, readSessionWorkers } from '../daemon/concourseWorkers.js'
-import { getActiveMission, getActiveMissionVersion, subscribeActiveMission } from '../guards/mission.js'
 import { isProjectSession, isSubstantiveSession } from '../utils/sessionFilter.js'
 import { isSessionCleared } from '../utils/sessionStorage/clearedSessions.js'
 import { sessionIdOfListing, listSessionsAcrossProjects } from '../utils/sessionStorage.js'
@@ -366,7 +365,6 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
   const activity = useCockpitActivity()
   const ctxUsageVersion = useSyncExternalStore(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion)
   const lanesVersion = useSyncExternalStore(subscribeHelmFocus, getHelmLanesVersion, getHelmLanesVersion)
-  const missionVersion = useSyncExternalStore(subscribeActiveMission, getActiveMissionVersion, getActiveMissionVersion)
   const focused = getHelmFocus() === 'lanes'
   const cur = getHelmCursor('lanes')
   const focusedRecords = useSyncExternalStore(
@@ -388,7 +386,8 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
   const ledger = useVitals(s => s.tasks)
   const filesOff = useAppState(s => s.settings.view?.files === false)
   const filesFolder = basename(useFocusedWorkspaceCwd())
-  const mission = getActiveMission()
+  const missionCard = roster.missionCard ?? null
+  const mission = missionCard !== null && (missionCard.state === 'armed' || missionCard.state === 'paused') ? missionCard : null
   const wakeGlance = useWakeGlance()
   const solo = soloOf({ sessionCrew, viewingAgentTaskId, mainChatTaskId, tasks, roster })
   const recent = useRecentSessions(solo)
@@ -401,7 +400,7 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
     activity,
     ctxUsageVersion,
     lanesVersion,
-    missionVersion,
+    missionCard,
     accent,
     focusedRecords,
     workRunSnap,
@@ -430,7 +429,7 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
     filesOff,
     filesFolder,
     recent,
-    missionCondition: mission ? mission.condition : null,
+    missionCondition: mission ? mission.goal : null,
     wakeGlance,
     glance: mergedVitals
       ? (() => {

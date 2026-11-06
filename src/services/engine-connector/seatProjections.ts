@@ -13,6 +13,7 @@ import type {
   AdvisorFactsV1,
   EditOutcomeRowV1,
   McpRosterEntryV1,
+  MissionCardFactV1,
   MissionRowV1,
   NoticeRowV1,
   PauseGateFactsV1,
@@ -52,6 +53,7 @@ export interface SessionFactsAnswerV1 {
   recoveredCommandIds?: string[]
   work?: WorkRowV1[]
   mission?: MissionRowV1[]
+  missionCard?: MissionCardFactV1 | null
   samples?: SampleRowV1[]
   notices?: NoticeRowV1[]
   kit?: import('../../daemon/sessionKit.js').SessionKitV1

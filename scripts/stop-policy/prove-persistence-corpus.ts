@@ -240,6 +240,8 @@ async function main(): Promise<void> {
     const { _resetContinuationLatchesForTesting } = await import(
       '../../src/services/run/continuationLatch.js'
     )
+    const { _setMissionJudgeForTesting } = await import('../../src/services/mission/goalJudge.js')
+    _setMissionJudgeForTesting(null)
 
     _resetContinuationLatchesForTesting()
     mission.setActiveMission('ensure X is simultaneously enabled and disabled with no observable check', {
@@ -259,9 +261,9 @@ async function main(): Promise<void> {
       }
     }
     check(
-      'C6: a contradictory/unobservable mission never arms a blind block loop (at most one feasibility block)',
-      blocks6 <= 1,
-      `blocked ${blocks6} times before disarm`,
+      'C6: a contradictory/unobservable mission never arms a blind block loop: no compile rule judges it, the claim road holds it twice, then the idle brake pauses it',
+      blocks6 === 2,
+      `blocked ${blocks6} times before the pause`,
     )
 
     _resetContinuationLatchesForTesting()
@@ -272,8 +274,8 @@ async function main(): Promise<void> {
     check('C7 harness: the mission hook registered', typeof cb7 === 'function')
     const firstEval = cb7 ? await cb7(messagesNoSentinel) : null
     check(
-      'C7: an already-satisfied mission finishes immediately (no burned continuation)',
-      firstEval === true,
+      'C7: a goal naming a file that already exists is not met by the compile probe: the first stop is held until an itemised close',
+      firstEval === false,
       `first evaluation → ${firstEval === true ? 'allowed stop' : 'blocked'}`,
     )
   }

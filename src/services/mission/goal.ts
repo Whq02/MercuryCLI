@@ -1,15 +1,8 @@
-import { existsSync } from 'node:fs'
+import { MISSION_MET_SENTINEL } from './sentinel.js'
 
 export interface GoalStatement {
   endState: string
   constraints: string[]
-}
-
-export type GoalFeasibility = 'attainable' | 'already-met' | 'unattainable-now'
-
-export interface GoalContract {
-  feasibility: GoalFeasibility
-  evidence?: string
 }
 
 const SEGMENT_BREAK = /\s*(?:\n|;|\s[—–]\s|\s--\s)\s*/
@@ -37,28 +30,29 @@ export function goalWords(goal: GoalStatement): string {
   return lines.join('\n')
 }
 
-export function goalContract(
-  condition: string,
-  probes: { fileExists: (p: string) => boolean } = {
-    fileExists: p => {
-      try {
-        return existsSync(p)
-      } catch {
-        return false
-      }
-    },
-  },
-): GoalContract {
-  const text = condition.trim()
-  if (/\bno observable\b|\bwithout (any )?observable\b|\bcannot be (checked|observed|verified)\b/i.test(text)) {
-    return { feasibility: 'unattainable-now', evidence: 'the goal declares itself unobservable' }
+export function goalCriteria(goal: GoalStatement): string[] {
+  return [goal.endState, ...goal.constraints]
+}
+
+export type CloseReading = { met: true } | { met: false; reason: string }
+
+const CRITERION_LINE = /^\s*(\d+)\s*[.):\]-]\s*(.*)$/
+
+export function readItemisedClose(closing: string, goal: GoalStatement): CloseReading {
+  const lines = closing.split('\n').map(line => line.trim()).filter(line => line !== '')
+  if (lines[lines.length - 1] !== MISSION_MET_SENTINEL) return { met: false, reason: 'the turn ended without the completion line' }
+  const criteria = goalCriteria(goal)
+  const found = new Map<number, string>()
+  for (const line of lines.slice(0, -1)) {
+    const match = CRITERION_LINE.exec(line)
+    if (match === null) continue
+    const n = Number(match[1])
+    const words = (match[2] ?? '').trim()
+    if (n >= 1 && n <= criteria.length && words !== '' && !found.has(n)) found.set(n, words)
   }
-  if (/simultaneously[^.]*\b(enabled and disabled|disabled and enabled|on and off|true and false|present and absent)\b/i.test(text)) {
-    return { feasibility: 'unattainable-now', evidence: 'the goal demands mutually exclusive states at once' }
+  if (found.size === 0) return { met: false, reason: 'the completion line stands alone: no criterion lines precede it' }
+  for (let n = 1; n <= criteria.length; n++) {
+    if (!found.has(n)) return { met: false, reason: `criterion ${n} has no line in the close (${criteria[n - 1]})` }
   }
-  const fileExists = /\bthe file\s+(\S+)\s+exists\b/i.exec(text)
-  if (fileExists?.[1] && probes.fileExists(fileExists[1])) {
-    return { feasibility: 'already-met', evidence: `${fileExists[1]} exists` }
-  }
-  return { feasibility: 'attainable' }
+  return { met: true }
 }

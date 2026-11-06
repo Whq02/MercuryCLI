@@ -30,6 +30,7 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'mode_pack_exit',
   'output_token_usage',
   'usage_limit_notice',
+  'mission_status',
   'verify_plan_reminder',
   'current_session_memory',
   'date_change',

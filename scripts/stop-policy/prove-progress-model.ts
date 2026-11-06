@@ -133,6 +133,8 @@ section('§7 one continuation per attempt across families; wording demoted; drai
   latch._resetContinuationLatchesForTesting()
   const mission = await import('../../src/guards/mission.ts')
   const { judgeTurnEnd } = await import('../../src/guards/guards.ts')
+  const { _setMissionJudgeForTesting } = await import('../../src/services/mission/goalJudge.ts')
+  _setMissionJudgeForTesting(null)
   mission.setActiveMission('a mission that is not yet met', { sessionId: 'latch-arb' })
   const cb = async (messages: unknown[]): Promise<boolean> => (await judgeTurnEnd('latch-arb', { messages: messages as never })).length === 0
   const transcript = [
@@ -141,11 +143,16 @@ section('§7 one continuation per attempt across families; wording demoted; drai
   ]
   const first = cb ? await cb(transcript) : null
   const second = cb ? await cb(transcript) : null
-  check('the mission BLOCKS once per stop attempt (the claim)', first === false)
-  check('a second claimant on the SAME attempt defers (one continuation per attempt across families)', second === true)
-  const grown = [...transcript, { type: 'assistant', message: { content: [{ type: 'text', text: 'try again' }] } }]
+  check('the mission BLOCKS the stop attempt and claims the continuation', first === false)
+  check("the mission's hold outranks the latch: judged again on the SAME attempt it holds again instead of deferring a round to the earlier claimant", second === false)
+  const grown = [
+    ...transcript,
+    { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'latch-read', name: 'Read', input: { file_path: '/tmp/x' } }] } },
+    { type: 'user', toolUseResult: { ok: true }, message: { content: [{ type: 'tool_result', tool_use_id: 'latch-read', content: 'ok' }] } },
+    { type: 'assistant', message: { content: [{ type: 'text', text: 'try again' }] } },
+  ]
   const third = cb ? await cb(grown) : null
-  check('a NEW attempt (grown transcript) re-arms the claim', third === false)
+  check('a NEW attempt (grown transcript, a tool call in it so the idle brake stays off) re-arms the claim', third === false)
   latch._resetContinuationLatchesForTesting()
   check('the latch keeps no admission record', !src('src/services/run/continuationLatch.ts').includes('Admission'))
 

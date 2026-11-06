@@ -1239,6 +1239,15 @@ export function Chat({
       }
       return;
     }
+    if (seatCommand !== undefined && seatCommand.type === 'local-jsx' && seatCommand.name === 'mission' && args !== '' && landingInFlight() && !hasFocusedSession()) {
+      takeComposer();
+      setAppState(prev => ({
+        ...prev,
+        initialMessage: { message: createUserMessage({ content: text }), armedAtLanding: true },
+      }));
+      addNotification({ key: 'landing-hold', text: 'the session is landing — /mission sends when it lands', priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
+      return;
+    }
     if (seatCommand !== undefined && seatCommand.type === 'local-jsx') {
       const dialogName = getCommandName(seatCommand);
       const inFlight = dialogInFlightRef.current;

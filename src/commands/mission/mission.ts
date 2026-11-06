@@ -6,6 +6,7 @@ import {
   clearActiveMission,
   getActiveMission,
   isMissionClearKeyword,
+  missionCompletedLine,
   setActiveMission,
 } from '../../guards/mission.js'
 
@@ -25,9 +26,10 @@ export const call = async (
         const { getSessionId } = await import('../../bootstrap/state.js')
         const card = readMissionCard(getSessionId())
         if (card) {
+          if (card.state === 'met' && card.outcome !== undefined) return text(missionCompletedLine({ condition: card.goal, setAt: Date.parse(card.setAt) }, card.outcome))
           const stateLine =
-            card.state === 'armed'
-              ? 'Mission card ARMED (no live hook in this process — a resume re-arms it)'
+            card.state === 'armed' || card.state === 'paused'
+              ? `Mission card ${card.state.toUpperCase()} (no live hook in this process — a resume re-arms it)`
               : `Mission card ${card.state}`
           return text(
             `${stateLine}: ${card.goal}${card.nextStep ? `\nNext step: ${card.nextStep}` : ''}`,
@@ -37,10 +39,11 @@ export const call = async (
       }
       return text('No mission set. Usage: `/mission <goal>` (or `/goal <goal>`)')
     }
+    if (mission.met && mission.outcome !== undefined) return text(missionCompletedLine(mission, mission.outcome))
     const stateLabel = mission.met
-      ? 'Mission met'
-      : mission.needsOperator
-        ? 'Mission NEEDS THE OPERATOR (not met — answer its question, or set the goal again)'
+      ? 'Mission completed'
+      : mission.paused !== undefined
+        ? 'Mission PAUSED (not met — the operator\'s next message resumes it)'
         : 'Mission active'
     const iterationsLabel =
       mission.iterations === 0

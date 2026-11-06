@@ -141,7 +141,7 @@ export type EffortResolution = {
   readonly model: string
   readonly catalogue: EffortCatalogueState
   readonly requested: EffortValue | undefined
-  readonly requestedSource: 'agent' | 'env' | 'env-suppressed' | 'session' | 'none'
+  readonly requestedSource: 'pinned' | 'agent' | 'env' | 'env-suppressed' | 'session' | 'none'
   readonly supportsEffort: boolean
   readonly selectable: readonly EffortLevel[]
   readonly appliedValue: EffortValue | undefined
@@ -158,6 +158,7 @@ export type EffortResolution = {
 export type EffortTruthContext = {
   readonly thinkingEnabled?: boolean
   readonly agentId?: string
+  readonly pinned?: boolean
 }
 
 export function selectableEffortLevelsForLadder(model: string): readonly EffortLevel[] {
@@ -198,12 +199,15 @@ function resolveEffortTruthWithEnv(
 ): EffortResolution {
   const freeze = (record: EffortResolution): EffortResolution => Object.freeze(record)
 
-  const ownWord = agentOwnEffortWordOf(context.agentId)
-  const envOverride = ownWord !== undefined ? undefined : sessionEnvOverride
+  const pinned = context.pinned === true
+  const ownWord = pinned ? undefined : agentOwnEffortWordOf(context.agentId)
+  const envOverride = pinned || ownWord !== undefined ? undefined : sessionEnvOverride
   const appStateEffortValue = ownWord !== undefined ? (sessionEffortValue ?? ownWord) : sessionEffortValue
 
   const requestedSource: EffortResolution['requestedSource'] =
-    ownWord !== undefined
+    pinned
+      ? 'pinned'
+      : ownWord !== undefined
       ? 'agent'
       : envOverride === null
         ? 'env-suppressed'

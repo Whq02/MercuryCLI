@@ -631,16 +631,19 @@ export async function runHeadless(
     }
     return null
   }
+  const missionGuard = await import('../guards/mission.js')
   {
     let missionTimer: NodeJS.Timeout | null = null
-    onTasksUpdated(() => {
+    const missionMoved = (): void => {
       if (missionTimer !== null) return
       missionTimer = setTimeout(() => {
         missionTimer = null
         enqueueRow(missionUpdatedRow(liveScope()))
       }, 50)
       missionTimer.unref?.()
-    })
+    }
+    onTasksUpdated(missionMoved)
+    missionGuard.subscribeActiveMission(missionMoved)
   }
   {
     let samplesTimer: NodeJS.Timeout | null = null
@@ -1222,6 +1225,15 @@ export async function runHeadless(
   }
   let turnReachedModel = false
   let turnAnchor: string | null = null
+  const missionLineOf = (content: string | ContentBlockParam[], cap: number): string | null => {
+    const line = typeof content === 'string' ? content : content.find(block => block.type === 'text')?.text
+    const parsed = line === undefined ? null : parseSlashCommand(line)
+    if (parsed === null || parsed.isMcp) return null
+    const found = findCommand(parsed.commandName, activeCommands)
+    if (found === undefined || found.name !== 'mission') return null
+    const words = parsed.args.trim()
+    return words.length > cap ? null : words
+  }
   const localCommandInput = (command: QueuedCommand): boolean => {
     if (command.mode === 'bash') return true
     if (command.skipSlashCommands === true || (command.mode !== undefined && command.mode !== 'prompt')) return false
@@ -2019,9 +2031,18 @@ export async function runHeadless(
       return { accepted: true }
     }
     const sentAt = typeof input.sentAt === 'string' && Number.isFinite(Date.parse(input.sentAt)) ? input.sentAt : new Date().toISOString()
-    if (input.kind === 'prompt' && !('origin' in saturnQueueStamp(input.origin))) operatorPauseGate.resume()
+    const operatorWords = input.kind === 'prompt' && !('origin' in saturnQueueStamp(input.origin))
+    if (operatorWords) operatorPauseGate.resume()
+    if (operatorWords && !('origin' in screenCommandQueueStamp(input.origin))) missionSync.resumeMissionOnOperatorInput(String(getSessionId()))
+    const missionWords = input.kind === 'prompt' ? missionLineOf(input.content, missionSync.MISSION_CONDITION_MAX_LENGTH) : null
+    if (missionWords !== null && missionSync.isMissionClearKeyword(missionWords)) {
+      missionSync.clearActiveMission(String(getSessionId()))
+      if (uuid !== undefined) notifyCommandLifecycle(uuid, 'completed')
+      return { accepted: true }
+    }
+    const missionSet = missionWords !== null && missionWords !== ''
     const command: QueuedCommand = {
-      value: input.kind === 'shell' ? input.command : input.content,
+      value: missionSet ? missionSync.setActiveMission(missionWords, { sessionId: String(getSessionId()) }) : input.kind === 'shell' ? input.command : input.content,
       mode: input.kind === 'shell' ? 'bash' : 'prompt',
       sentAt,
       ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
@@ -2029,6 +2050,7 @@ export async function runHeadless(
       ...(input.kind === 'prompt' && input.schema !== undefined ? { schema: input.schema } : {}),
       ...saturnQueueStamp(input.origin),
       ...screenCommandQueueStamp(input.origin),
+      ...(missionSet ? { isMeta: true } : {}),
     }
     if (localCommandInput(command)) command.localCommand = true
     enqueue(command)
@@ -2383,6 +2405,10 @@ export async function runHeadless(
           ...(missionLedgerOf(task.metadata) !== undefined ? { ledger: missionLedgerOf(task.metadata) } : {}),
         })),
         samples: await sampleRowsOf(getSessionId()),
+        ...((): { missionCard?: SessionFactsAnswerV1['missionCard'] } => {
+          const card = missionGuard.missionCardView(String(getSessionId()))
+          return card === null ? {} : { missionCard: card }
+        })(),
         ...(sessionKitOf() !== undefined ? { kit: sessionKitOf() } : {}),
         ...((): Record<string, unknown> => {
           const edits = takePendingScheduleEdits()

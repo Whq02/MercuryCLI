@@ -4,31 +4,33 @@ import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
 } from '../../types/command.js'
+import { formatDuration } from '../../utils/format.js'
 import { plural } from '../../utils/stringUtils.js'
 import { renderToString } from '../../utils/staticRender.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
-import {
-  type ActiveMission,
-  MISSION_CONDITION_MAX_LENGTH,
-  clearActiveMission,
-  getActiveMission,
-  isMissionClearKeyword,
-  setActiveMission,
-} from '../../guards/mission.js'
+import { MISSION_CONDITION_MAX_LENGTH, isMissionClearKeyword } from '../../guards/mission.js'
+import type { MissionCardFactV1 } from '../../services/engine-connector/types.js'
 
 
-type MissionView = Pick<ActiveMission, 'condition' | 'iterations' | 'lastReason' | 'met' | 'needsOperator'> & { seat?: boolean }
+type MissionView = Pick<MissionCardFactV1, 'goal' | 'state' | 'nextStep' | 'iterations' | 'setAt' | 'outcome'>
+
+function metLine(mission: MissionView): string {
+  const outcome = mission.outcome
+  if (outcome === undefined) return '✓ Mission met — stops are allowed; a new /mission replaces it'
+  const elapsed = formatDuration(Math.max(0, Date.parse(outcome.metAt) - Date.parse(mission.setAt)), { mostSignificantOnly: true })
+  return `✓ Mission completed — ${outcome.reason} · ${outcome.turns} ${plural(outcome.turns, 'turn')} · ${elapsed} · a new /mission replaces it`
+}
 
 function MissionStatusPanel({ mission }: { mission: MissionView }): React.ReactNode {
   const iterationsLabel =
     mission.iterations === 0
-      ? 'not yet evaluated'
-      : `${mission.iterations} ${plural(mission.iterations, 'turn')}`
-  const stateLine = mission.met
-    ? '✓ Mission met — stops are allowed; a new /mission replaces it'
-    : mission.needsOperator
-      ? `${GLYPH.warn} Mission NEEDS THE OPERATOR (not met — ${mission.lastReason ?? 'answer its question'}; a new /mission replaces it)`
-      : `${iterationsLabel}${mission.lastReason ? ` · ${mission.lastReason}` : ''}${mission.seat ? " · the hook rides the session's seat" : ''}`
+      ? 'not yet checked'
+      : `checked ${mission.iterations} ${plural(mission.iterations, 'time')}`
+  const stateLine = mission.state === 'met'
+    ? metLine(mission)
+    : mission.state === 'paused'
+      ? `${GLYPH.warn} Mission paused — ${mission.nextStep ?? 'waiting on you'}; your next message resumes it`
+      : `Mission active · ${iterationsLabel}${mission.nextStep ? ` · ${mission.nextStep}` : ''} · the session checks it at every turn end`
   return (
     <Box flexDirection="column">
       <Text bold>Standing mission</Text>
@@ -36,7 +38,7 @@ function MissionStatusPanel({ mission }: { mission: MissionView }): React.ReactN
         <Text dimColor>{stateLine}</Text>
       </Box>
       <Box marginTop={1}>
-        <Text>{mission.condition}</Text>
+        <Text>{mission.goal}</Text>
       </Box>
       <Box marginTop={1}>
         <Text dimColor>"/mission clear" to drop it</Text>
@@ -45,53 +47,80 @@ function MissionStatusPanel({ mission }: { mission: MissionView }): React.ReactN
   )
 }
 
+async function sessionMissionCard(): Promise<MissionCardFactV1 | null> {
+  const { getFocusedSessionConnector } = await import('../../services/engine-connector/focusedConnector.js')
+  const connector = getFocusedSessionConnector()
+  const fact = connector.workRoster().missionCard
+  if (fact !== undefined && fact !== null) return fact
+  try {
+    const { readMissionCard } = await import('../../services/mission/missionCard.js')
+    const card = readMissionCard(connector.sessionId(), connector.workspace().originalCwd)
+    return card === null ? null : { goal: card.goal, state: card.state, nextStep: card.nextStep, iterations: card.iterations, setAt: card.setAt, updatedAt: card.updatedAt, ...(card.outcome !== undefined ? { outcome: card.outcome } : {}) }
+  } catch {
+    return null
+  }
+}
+
+const FACT_WAIT_MS = 4000
+const OLDER_RUNNER_LINE = 'the session took the line, but its runner did not take the mission: that runner predates session-owned missions — /restart restarts this chat on the installed build, then set the mission again'
+
+async function missionFactArrives(expected: (card: MissionCardFactV1 | null | undefined) => boolean): Promise<boolean> {
+  const { getFocusedSessionConnector } = await import('../../services/engine-connector/focusedConnector.js')
+  const connector = getFocusedSessionConnector()
+  if (expected(connector.workRoster().missionCard)) return true
+  return new Promise(resolve => {
+    let settle: (ok: boolean) => void = () => {}
+    const unsubscribe = connector.subscribeWork(() => {
+      if (expected(connector.workRoster().missionCard)) settle(true)
+    })
+    const timer = setTimeout(() => settle(false), FACT_WAIT_MS)
+    settle = ok => {
+      clearTimeout(timer)
+      unsubscribe()
+      resolve(ok)
+    }
+    if (expected(connector.workRoster().missionCard)) settle(true)
+  })
+}
+
 export async function call(
   onDone: LocalJSXCommandOnDone,
   context: LocalJSXCommandContext,
   args: string,
 ): Promise<React.ReactNode> {
   const arg = args.trim()
+  const { getFocusedSessionConnector, hasFocusedSession } = await import('../../services/engine-connector/focusedConnector.js')
+  const hosted = hasFocusedSession()
 
   if (arg === '') {
-    const { conversationIdHere, hasFocusedSession } = await import('../../services/engine-connector/focusedConnector.js')
-    const hosted = hasFocusedSession()
-    const mission = hosted ? undefined : getActiveMission()
-    if (!mission) {
-      try {
-        const { readMissionCard } = await import('../../services/mission/missionCard.js')
-        const card = readMissionCard(conversationIdHere())
-        if (card) {
-          if (card.state === 'armed' && hosted) {
-            const output = await renderToString(
-              <MissionStatusPanel
-                mission={{ condition: card.goal, iterations: card.iterations, ...(card.nextStep ? { lastReason: card.nextStep } : {}), seat: true }}
-              />,
-            )
-            onDone(output)
-            return null
-          }
-          const stateLine =
-            card.state === 'armed'
-              ? 'Mission card ARMED (no live hook in this process — a resume re-arms it)'
-              : `Mission card ${card.state}`
-          onDone(`${stateLine}: ${card.goal}${card.nextStep ? `\nNext step: ${card.nextStep}` : ''}`)
-          return null
-        }
-      } catch {
-      }
+    const card = hosted ? await sessionMissionCard() : null
+    if (card === null) {
       onDone('No mission set. Usage: `/mission <goal>` (or `/goal <goal>`)')
       return null
     }
-    const output = await renderToString(<MissionStatusPanel mission={mission} />)
+    if (card.state !== 'armed' && card.state !== 'paused' && card.state !== 'met') {
+      onDone(`Mission card ${card.state}: ${card.goal}${card.nextStep ? `\nNext step: ${card.nextStep}` : ''}`)
+      return null
+    }
+    const output = await renderToString(<MissionStatusPanel mission={card} />)
     onDone(output)
     return null
   }
 
+  if (!hosted) {
+    onDone('No session is open — start or open one, then /mission again', { display: 'system' })
+    return null
+  }
+
   if (isMissionClearKeyword(arg)) {
-    const cleared = clearActiveMission()
-    onDone(cleared === null ? 'No mission set' : `Mission cleared: ${cleared}`, {
-      display: 'system',
-    })
+    const goal = (await sessionMissionCard())?.goal
+    const receipt = await getFocusedSessionConnector().sendWords(`/mission ${arg}`, { metaFrom: { command: 'mission' } })
+    if (receipt.state !== 'accepted') {
+      onDone(`/mission ${arg} did not reach the session — ${receipt.detail}`, { display: 'system' })
+      return null
+    }
+    const cleared = await missionFactArrives(card => card === undefined || card === null || card.state === 'cleared' || card.goal !== goal)
+    onDone(cleared ? `Mission cleared${goal === undefined ? '' : `: ${goal}`}` : `/mission ${arg}: ${OLDER_RUNNER_LINE}`, { display: 'system' })
     return null
   }
 
@@ -103,10 +132,16 @@ export async function call(
     return null
   }
 
-  const directive = setActiveMission(arg)
-  onDone(`Mission set: ${arg}`, {
-    shouldQuery: true,
-    metaMessages: [directive],
-  })
+  const receipt = await getFocusedSessionConnector().sendWords(`/mission ${arg}`, { metaFrom: { command: 'mission' } })
+  if (receipt.state !== 'accepted') {
+    onDone(`/mission did not reach the session — ${receipt.detail}`, { display: 'system' })
+    return null
+  }
+  const armed = await missionFactArrives(card => card !== undefined && card !== null && card.goal === arg && (card.state === 'armed' || card.state === 'paused' || card.state === 'met'))
+  if (!armed) {
+    onDone(`/mission: ${OLDER_RUNNER_LINE}`, { display: 'system' })
+    return null
+  }
+  onDone(`Mission set: ${arg}`)
   return null
 }

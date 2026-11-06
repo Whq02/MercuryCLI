@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { Message } from '../types/message.js'
 import {
   conversationIdHere,
@@ -6,13 +7,15 @@ import {
   landingInFlight,
   subscribeFocusedSessionConnector,
 } from '../services/engine-connector/focusedConnector.js'
+import { enqueuePendingNotification } from '../input-core/command-queue.js'
 import { logForDebugging } from '../utils/debug.js'
 import {
   claimContinuation,
   turnBoundaryIndex,
 } from '../services/run/continuationLatch.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
-import { compileGoal, goalContract, goalWords, type GoalContract, type GoalStatement } from '../services/mission/goal.js'
+import { declareLawfulPrefixChange } from '../services/providers/lawfulPrefixChange.js'
+import { compileGoal, goalWords, readItemisedClose, type GoalStatement } from '../services/mission/goal.js'
 import {
   GOAL_CHECK_TIMEOUT_MS,
   judgeGoal,
@@ -21,40 +24,55 @@ import {
   type GoalVerdict,
 } from '../services/mission/goalJudge.js'
 import {
+  missionCardStands,
   readMissionCard,
   writeMissionCard,
+  type MissionCard,
   type MissionCardState,
+  type MissionOutcome,
 } from '../services/mission/missionCard.js'
+import { MISSION_HOLD_HEAD, missionStatusLine, type ServedMission } from '../services/mission/served.js'
 import { getCwd } from '../utils/cwd.js'
+import { formatDuration } from '../utils/format.js'
+import { plural } from '../utils/stringUtils.js'
 import { verificationSummary } from '../utils/verification/verificationState.js'
+import { escapeXml } from '../utils/xml.js'
 import { MISSION_MET_SENTINEL } from '../services/mission/sentinel.js'
 import { engageTurnGuard, disengageTurnGuard, type TurnNote } from './guards.js'
 
 
 export const MISSION_CONDITION_MAX_LENGTH = 4000
+export const MISSION_IDLE_TURNS = 3
 
 const GOAL_CLOSING_CLIP = 4000
 
 export { MISSION_MET_SENTINEL, withoutMissionMetSentinel } from '../services/mission/sentinel.js'
+export { MISSION_HOLD_HEAD, MISSION_SECTION_HEADING, MISSION_STATUS_HEAD, missionSection, missionSectionKey, missionStatusLine } from '../services/mission/served.js'
 
 export const MISSION_DIRECTIVE_HEADER = 'A standing goal is now active for this session:'
+export const MISSION_COMPLETED_HEAD = 'Mission completed:'
+
+export interface MissionPause {
+  why: string
+  boundary: string | null
+}
 
 export interface ActiveMission {
   condition: string
   goal: GoalStatement
-  contract: GoalContract
   iterations: number
-  stalledChecks: number
+  idleTurns: number
   lastReason?: string
   met?: boolean
-  needsOperator?: boolean
-  asking?: boolean
+  closed?: 'met' | 'cleared'
+  outcome?: MissionOutcome
+  paused?: MissionPause
   verdict?: GoalVerdict
   setAt: number
   hookId: string
-  lastSeen: { mutationAt: number | null; evidenceSeq: number | null }
-  lastAttempt?: string
 }
+
+export type MissionCardView = Pick<MissionCard, 'goal' | 'state' | 'nextStep' | 'iterations' | 'setAt' | 'updatedAt'> & { outcome?: MissionOutcome }
 
 const CLEAR_WORDS = new Set([
   'clear',
@@ -92,13 +110,35 @@ export function getActiveMissionVersion(): number {
   return missionVersion
 }
 
+function cardStateOf(mission: ActiveMission): MissionCardState {
+  return mission.met ? 'met' : mission.paused !== undefined ? 'paused' : 'armed'
+}
+
+const cardMemo = new Map<string, MissionCard | null>()
+
+function readCard(sessionId: string): MissionCard | null {
+  const card = readMissionCard(sessionId)
+  cardMemo.set(sessionId, card)
+  return card
+}
+
+function writeCard(card: MissionCard): void {
+  writeMissionCard(card)
+  cardMemo.set(card.sessionId, card)
+}
+
 function persistCard(sessionId: string, mission: ActiveMission, state: MissionCardState): void {
-  const standing = readMissionCard(sessionId)
-  if (standing !== null && standing.state === 'armed' && Date.parse(standing.setAt) > mission.setAt) {
+  const standing = readCard(sessionId)
+  const setAt = new Date(mission.setAt).toISOString()
+  if (standing !== null && missionCardStands(standing.state) && Date.parse(standing.setAt) > mission.setAt) {
     logForDebugging(`[mission] the card for session ${sessionId} was armed after this record; the ${state} state of the older one is not written over it`)
     return
   }
-  writeMissionCard({
+  if (mission.closed !== undefined && mission.closed !== state) {
+    logForDebugging(`[mission] the record for session ${sessionId} closed as ${mission.closed}; the ${state} state is not written over it`)
+    return
+  }
+  const card: MissionCard = {
     schema: 1,
     sessionId,
     goal: mission.condition,
@@ -107,11 +147,13 @@ function persistCard(sessionId: string, mission: ActiveMission, state: MissionCa
       state === 'met' || state === 'cleared'
         ? null
         : (mission.lastReason ??
-          `keep working toward the goal; end a turn with the ${MISSION_MET_SENTINEL} line once its end state holds`),
+          `keep working toward the goal; end a turn with one evidence line per criterion and the ${MISSION_MET_SENTINEL} line once its end state holds`),
     iterations: mission.iterations,
-    setAt: new Date(mission.setAt).toISOString(),
+    setAt,
     updatedAt: new Date().toISOString(),
-  })
+    ...(mission.outcome !== undefined ? { outcome: mission.outcome } : {}),
+  }
+  writeCard(card)
 }
 
 export function isMissionClearKeyword(text: string): boolean {
@@ -120,6 +162,31 @@ export function isMissionClearKeyword(text: string): boolean {
 
 export function getActiveMission(sessionId: string = conversationIdHere()): ActiveMission | undefined {
   return missionsBySession.get(sessionId)
+}
+
+export function servedMission(sessionId: string = conversationIdHere()): ServedMission | undefined {
+  const mission = missionsBySession.get(sessionId)
+  return mission === undefined || mission.met ? undefined : { condition: mission.condition, setAt: mission.setAt }
+}
+
+export function missionCardView(sessionId: string = conversationIdHere()): MissionCardView | null {
+  const live = missionsBySession.get(sessionId)
+  if (live !== undefined) {
+    const state = cardStateOf(live)
+    return {
+      goal: live.condition,
+      state,
+      nextStep: state === 'met' ? null : (live.lastReason ?? null),
+      iterations: live.iterations,
+      setAt: new Date(live.setAt).toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...(live.outcome !== undefined ? { outcome: live.outcome } : {}),
+    }
+  }
+  const card = cardMemo.has(sessionId) ? cardMemo.get(sessionId) ?? null : readCard(sessionId)
+  return card === null
+    ? null
+    : { goal: card.goal, state: card.state, nextStep: card.nextStep, iterations: card.iterations, setAt: card.setAt, updatedAt: card.updatedAt, ...(card.outcome !== undefined ? { outcome: card.outcome } : {}) }
 }
 
 function indented(words: string): string {
@@ -135,35 +202,38 @@ export function buildMissionDirective(condition: string): string {
     ``,
     indented(goalWords(compileGoal(condition))),
     ``,
-    `Work toward it. At each turn's end the goal check judges the end state`,
-    `against the evidence: your closing words, the verification record, what`,
-    `the turn changed. When the end state holds, end the turn with a final`,
-    `line containing exactly:`,
+    `Work toward it. At each turn's end a judge reads the end state against the`,
+    `evidence: your closing words, the tool calls the turn made, the verification`,
+    `record; the Mission section of your system prompt carries the criteria and`,
+    `the rules. When every criterion holds, end the turn with one numbered line`,
+    `per criterion naming its evidence, then a final line containing exactly:`,
     ``,
     `    ${MISSION_MET_SENTINEL}`,
     ``,
-    `A goal that reads as a progress snapshot (a plan, an in-flight status) is`,
-    `met once the work it describes is done. When the goal is ambiguous or`,
-    `cannot be reached, end the turn with one question to the operator`,
-    `instead; the goal then ends with their answer pending.`,
+    `A goal that reads as a progress snapshot (a plan, an in-flight status) is met`,
+    `once the work it describes is done; when it is ambiguous or out of reach, end`,
+    `the turn with one question to the operator — the mission pauses until they answer.`,
   ].join('\n')
 }
 
 function holdWords(mission: ActiveMission, verdict: GoalVerdict): string {
-  return [
-    `The goal for this session is not yet met (check ${mission.iterations}): ${mission.goal.endState}`,
-    ...(mission.goal.constraints.length > 0 ? [`Constraints: ${mission.goal.constraints.join('; ')}`] : []),
-    `The check read it as open: ${verdict.reason}.`,
-    `Keep working toward it. When the end state holds (a goal that reads as a progress snapshot is met once the work it describes is done), end the turn with the line ${MISSION_MET_SENTINEL}; when the goal is ambiguous or out of reach, end the turn with one question to the operator instead.`,
-  ].join('\n')
+  return `${MISSION_HOLD_HEAD} ${mission.condition} — ${verdict.reason}. Continue.`
 }
 
-function askWords(mission: ActiveMission, verdict: GoalVerdict): string {
-  return [
-    `The goal for this session reads as ${verdict.kind}: ${verdict.reason}.`,
-    goalWords(mission.goal),
-    `End this turn with one question to the operator — what would settle the goal, or whether to stand it down — and do no more work on it until they answer; the goal ends with that question pending.`,
-  ].join('\n')
+export function missionCompletedLine(mission: Pick<ActiveMission, 'condition' | 'setAt'>, outcome: MissionOutcome): string {
+  const elapsed = formatDuration(Math.max(0, Date.parse(outcome.metAt) - mission.setAt), { mostSignificantOnly: true })
+  return `${MISSION_COMPLETED_HEAD} ${mission.condition} — ${outcome.reason} · ${outcome.turns} ${plural(outcome.turns, 'turn')} · ${elapsed}`
+}
+
+function announceMissionCompleted(sessionId: string, mission: ActiveMission, outcome: MissionOutcome): void {
+  const line = missionCompletedLine(mission, outcome)
+  const id = createHash('sha256').update(`mission:${sessionId}:${mission.setAt}`).digest('hex')
+  const words = `<task-notification>\n<task-id>host-${id}</task-id>\n<status>completed</status>\n<summary>${escapeXml(line)}</summary>\n<result>${escapeXml(line)}</result>\n</task-notification>`
+  try {
+    enqueuePendingNotification({ value: words, mode: 'task-notification', priority: 'next' })
+  } catch (error) {
+    logForDebugging(`[mission] the completed row was not queued: ${error instanceof Error ? error.message : String(error)}`)
+  }
 }
 
 function textOf(m: Message): string {
@@ -221,66 +291,94 @@ export function closingAsksOperator(closing: string): boolean {
   return /[?？]['"”’)*_~\]]*\s*$/.test(closingQuestion(closing))
 }
 
-function toolCallsThisTurn(messages: Message[]): number {
-  const loose = messages as ReadonlyArray<{ type?: string; toolUseResult?: unknown; message?: { content?: unknown } }>
-  let count = 0
-  for (let i = loose.length - 1; i >= 0; i--) {
-    const m = loose[i]!
-    if (m.type === 'user' && !m.toolUseResult) break
-    if (m.type !== 'assistant' || !Array.isArray(m.message?.content)) continue
-    for (const block of m.message.content as Array<{ type?: string }>) if (block?.type === 'tool_use') count += 1
-  }
-  return count
+function boundsToolWindow(row: Message & { toolUseResult?: unknown }): boolean {
+  if (row.type !== 'user' || row.toolUseResult) return false
+  if (!row.isMeta) return true
+  const text = textOf(row)
+  return text.startsWith(MISSION_HOLD_HEAD) || text.includes(MISSION_DIRECTIVE_HEADER)
 }
 
-function readSeen(): { verification: GoalEvidence['verification']; seen: ActiveMission['lastSeen'] } {
+export function toolCallsSinceLastStop(messages: Message[]): string[] {
+  const names: string[] = []
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i]! as Message & { toolUseResult?: unknown }
+    if (boundsToolWindow(m)) break
+    if (m.type !== 'assistant' || !Array.isArray(m.message?.content)) continue
+    for (const block of m.message.content as Array<{ type?: string; name?: string }>) if (block?.type === 'tool_use') names.push(block.name ?? 'tool')
+  }
+  return names.reverse()
+}
+
+function operatorBoundary(messages: Message[]): string | null {
+  const index = turnBoundaryIndex(messages)
+  if (index === -1) return null
+  const row = messages[index] as { uuid?: string; origin?: unknown }
+  const mark = row.uuid ?? `#${index}`
+  return row.origin === undefined ? mark : `carried:${mark}`
+}
+
+function operatorSpokeSince(messages: Message[], pause: MissionPause): boolean {
+  const now = operatorBoundary(messages)
+  return now !== null && !now.startsWith('carried:') && now !== pause.boundary
+}
+
+function readVerification(): GoalEvidence['verification'] {
   try {
     const summary = verificationSummary(getCwd(), { skipDigest: true })
-    return {
-      verification: { state: summary.state, detail: summary.detail },
-      seen: { mutationAt: summary.lastMutationAt, evidenceSeq: summary.lastEvidence?.seq ?? null },
-    }
+    return { state: summary.state, detail: summary.detail }
   } catch (error) {
     logForDebugging(`[mission] the verification record could not be read: ${error instanceof Error ? error.message : String(error)}`)
-    return { verification: null, seen: { mutationAt: null, evidenceSeq: null } }
+    return null
   }
 }
 
 function gatherGoalEvidence(messages: Message[], mission: ActiveMission): GoalEvidence {
   const closing = closingText(messages)
-  const claimedMet = sawMissionMetSentinel(messages)
-  const toolCalls = toolCallsThisTurn(messages)
-  const { verification, seen } = readSeen()
-  const attempt = `${turnBoundaryIndex(messages)}:${messages.length}`
-  if (mission.lastAttempt !== attempt) {
-    const moved = seen.mutationAt !== mission.lastSeen.mutationAt || seen.evidenceSeq !== mission.lastSeen.evidenceSeq
-    mission.lastSeen = seen
-    mission.lastAttempt = attempt
-    mission.stalledChecks = moved ? 0 : mission.stalledChecks + 1
-  }
+  const close = sawMissionMetSentinel(messages) ? readItemisedClose(closing, mission.goal) : null
+  const toolNames = toolCallsSinceLastStop(messages)
   return {
     closing,
-    claimedMet,
-    asksOperator: !claimedMet && closingAsksOperator(closing),
-    toolCalls,
-    verification,
-    progress: mission.stalledChecks === 0 ? 'advanced' : 'stalled',
-    stalledChecks: mission.stalledChecks,
+    claimedMet: close !== null && close.met,
+    ...(close !== null && !close.met ? { claimDefect: close.reason } : {}),
+    asksOperator: close === null && closingAsksOperator(closing),
+    toolCalls: toolNames.length,
+    toolNames,
+    verification: readVerification(),
     checks: mission.iterations,
   }
 }
 
-function settleNeedsOperator(sessionId: string, mission: ActiveMission, question: string): void {
-  mission.needsOperator = true
-  mission.asking = false
-  mission.lastReason = `needs the operator — ${question}`
-  persistCard(sessionId, mission, 'needs-operator')
-  logForDebugging(`[mission] the goal for session ${sessionId} ends with a question to the operator: ${question}`)
+function pauseMission(sessionId: string, mission: ActiveMission, why: string, messages: Message[]): void {
+  mission.paused = { why, boundary: operatorBoundary(messages) }
+  mission.idleTurns = 0
+  mission.lastReason = `paused — ${why}`
+  persistCard(sessionId, mission, 'paused')
+  logForDebugging(`[mission] the mission for session ${sessionId} pauses: ${why}`)
   notifyMissionChange()
 }
 
-function needsOperatorNote(mission: ActiveMission): TurnNote {
-  return { level: 'warning', text: `goal ${mission.lastReason ?? 'needs the operator'}. Answer it, or set the goal again with /goal.` }
+function pausedNote(mission: ActiveMission): TurnNote {
+  return { level: 'warning', text: `mission paused — ${mission.paused?.why ?? 'waiting on you'} · your next message resumes it; /mission clear ends it` }
+}
+
+function idleNote(): TurnNote {
+  return { level: 'warning', text: `mission paused after ${MISSION_IDLE_TURNS} turns without a tool call — your next message resumes it` }
+}
+
+function resumeMission(sessionId: string, mission: ActiveMission, why: string): void {
+  delete mission.paused
+  mission.idleTurns = 0
+  mission.lastReason = `resumed — ${why}`
+  persistCard(sessionId, mission, 'armed')
+  logForDebugging(`[mission] the mission for session ${sessionId} resumes: ${why}`)
+  notifyMissionChange()
+}
+
+export function resumeMissionOnOperatorInput(sessionId: string = conversationIdHere()): boolean {
+  const mission = missionsBySession.get(sessionId)
+  if (mission === undefined || mission.paused === undefined) return false
+  resumeMission(sessionId, mission, 'the operator spoke')
+  return true
 }
 
 let armedAtLanding: { sessionId: string } | null = null
@@ -315,9 +413,9 @@ function followSeatAtAdmission(): void {
     moved.lastReason = `armed while the chat was landing; follows the seat ${hostedId}`
     persistCard(hostedId, moved, 'armed')
   }
-  const card = readMissionCard(pending.sessionId)
-  if (card !== null && card.state === 'armed') {
-    writeMissionCard({
+  const card = readCard(pending.sessionId)
+  if (card !== null && missionCardStands(card.state)) {
+    writeCard({
       ...card,
       state: 'continued',
       nextStep: `continued in session ${hostedId}`,
@@ -326,6 +424,14 @@ function followSeatAtAdmission(): void {
   }
   logForDebugging(`[mission] the mission armed while the chat was landing follows the seat (${pending.sessionId} → ${hostedId})`)
   notifyMissionChange()
+}
+
+function declarePrefixMove(reason: string): void {
+  try {
+    declareLawfulPrefixChange(String(processMainOwner()), reason)
+  } catch (error) {
+    logForDebugging(`[mission] the prefix move was not declared: ${error instanceof Error ? error.message : String(error)}`)
+  }
 }
 
 export function setActiveMission(
@@ -341,17 +447,13 @@ export function setActiveMission(
   }
 
   const setAt = options?.setAt !== undefined && Number.isFinite(options.setAt) ? options.setAt : Date.now()
-  const contract = goalContract(condition)
   const record: ActiveMission = {
     condition,
     goal: compileGoal(condition),
-    contract,
     iterations: 0,
-    stalledChecks: 0,
+    idleTurns: 0,
     setAt,
     hookId: '',
-    lastSeen: readSeen().seen,
-    ...(contract.feasibility === 'already-met' ? { met: true, lastReason: `already met at compile: ${contract.evidence}` } : {}),
   }
 
   const hookId = `mission-${sessionId}-${setAt}`
@@ -360,55 +462,54 @@ export function setActiveMission(
     timeoutMs: GOAL_CHECK_TIMEOUT_MS,
     judge: async ({ messages }, signal) => {
       const mission = missionsBySession.get(sessionId)
-      if (!mission || mission.condition !== condition) return { hold: false }
-      if (mission.met || mission.needsOperator) return { hold: false }
+      if (!mission || mission.condition !== condition || mission.met) return { hold: false }
+      if (mission.paused !== undefined) {
+        if (!operatorSpokeSince(messages, mission.paused)) return { hold: false }
+        resumeMission(sessionId, mission, 'the operator spoke')
+      }
       const evidence = gatherGoalEvidence(messages, mission)
-      if (mission.asking) {
-        settleNeedsOperator(sessionId, mission, evidence.asksOperator ? closingQuestion(evidence.closing) : (mission.verdict?.reason ?? 'the goal needs the operator'))
-        return { hold: false, note: needsOperatorNote(mission) }
-      }
-      const verdict: GoalVerdict =
-        mission.contract.feasibility === 'unattainable-now'
-          ? { kind: 'unattainable', confidence: 1, reason: mission.contract.evidence ?? 'the goal cannot be reached as stated', road: 'compile' }
-          : await judgeGoal(mission.goal, evidence, { ...(options?.judge === undefined ? {} : { judge: options.judge }), signal })
-      mission.verdict = verdict
-      if (verdict.kind === 'met') {
-        mission.met = true
-        mission.lastReason = `met — ${verdict.reason}`
-        persistCard(sessionId, mission, 'met')
-        notifyMissionChange()
-        return { hold: false, note: { level: 'suggestion', text: `goal met — ${verdict.reason}. The standing goal ends here; /goal <words> starts another.` } }
-      }
-      if (evidence.asksOperator) {
-        settleNeedsOperator(sessionId, mission, closingQuestion(evidence.closing))
-        return { hold: false, note: needsOperatorNote(mission) }
-      }
-      const claimed = claimContinuation(
-        processMainOwner(),
-        turnBoundaryIndex(messages),
-        messages.length,
-      )
-      if (!claimed) {
-        mission.lastReason = 'another hook claimed this stop attempt — the goal defers one round'
-        persistCard(sessionId, mission, 'armed')
+      const verdict = await judgeGoal(mission.goal, evidence, { ...(options?.judge === undefined ? {} : { judge: options.judge }), signal })
+      if (missionsBySession.get(sessionId) !== mission) {
+        logForDebugging(`[mission] the verdict for session ${sessionId} arrived after the record was replaced or cleared; it is discarded`)
         return { hold: false }
       }
+      mission.verdict = verdict
       mission.iterations += 1
-      if (verdict.kind === 'open') {
-        mission.lastReason = `Goal not yet met (check ${mission.iterations}) — ${verdict.reason}`
-        persistCard(sessionId, mission, 'armed')
-        return { hold: true, words: holdWords(mission, verdict) }
+      if (verdict.kind === 'met') {
+        const outcome: MissionOutcome = { reason: verdict.reason, metAt: new Date().toISOString(), turns: mission.iterations }
+        mission.met = true
+        mission.closed = 'met'
+        mission.outcome = outcome
+        mission.lastReason = `met — ${verdict.reason}`
+        persistCard(sessionId, mission, 'met')
+        announceMissionCompleted(sessionId, mission, outcome)
+        notifyMissionChange()
+        return { hold: false }
       }
-      mission.asking = true
-      mission.lastReason = `${verdict.kind} — ${verdict.reason}; asking the operator`
+      if (evidence.asksOperator) {
+        pauseMission(sessionId, mission, `the model asked: "${closingQuestion(evidence.closing)}"`, messages)
+        return { hold: false, note: pausedNote(mission) }
+      }
+      if (verdict.kind === 'impossible') {
+        pauseMission(sessionId, mission, verdict.reason, messages)
+        return { hold: false, note: pausedNote(mission) }
+      }
+      mission.idleTurns = evidence.toolCalls === 0 ? mission.idleTurns + 1 : 0
+      if (mission.idleTurns >= MISSION_IDLE_TURNS) {
+        pauseMission(sessionId, mission, `${MISSION_IDLE_TURNS} turns without a tool call`, messages)
+        return { hold: false, note: idleNote() }
+      }
+      claimContinuation(processMainOwner(), turnBoundaryIndex(messages), messages.length)
+      mission.lastReason = `not yet met (check ${mission.iterations}) — ${verdict.reason}`
       persistCard(sessionId, mission, 'armed')
-      return { hold: true, words: askWords(mission, verdict), note: { level: 'warning', text: `goal reads as ${verdict.kind} — ${verdict.reason}. It ends with one question to you; answer it, or set the goal again with /goal.` } }
+      return { hold: true, words: holdWords(mission, verdict) }
     },
   })
 
   record.hookId = hookId
   missionsBySession.set(sessionId, record)
-  persistCard(sessionId, record, record.met ? 'met' : 'armed')
+  persistCard(sessionId, record, 'armed')
+  declarePrefixMove('a mission was set')
   logForDebugging(`[mission] installed standing mission for session ${sessionId}`)
   notifyMissionChange()
   if (options?.sessionId === undefined && landingInFlight() && !hasFocusedSession()) {
@@ -426,17 +527,24 @@ export function clearActiveMission(
   if (armedAtLanding?.sessionId === sessionId) dropSeatWatch()
   disengageTurnGuard(sessionId, mission.hookId)
   missionsBySession.delete(sessionId)
+  mission.closed = 'cleared'
   persistCard(sessionId, mission, 'cleared')
+  declarePrefixMove('the mission was cleared')
   logForDebugging(`[mission] cleared standing mission for session ${sessionId}`)
   notifyMissionChange()
   return mission.condition
 }
 
+export function activeMissionStatusLine(sessionId: string = conversationIdHere()): string | null {
+  const mission = missionsBySession.get(sessionId)
+  return mission === undefined || mission.met ? null : missionStatusLine(mission)
+}
+
 export function syncMissionFromCard(sessionId: string): void {
-  const card = readMissionCard(sessionId)
+  const card = readCard(sessionId)
   const live = missionsBySession.get(sessionId)
-  if (card?.state === 'armed') {
-    if (live !== undefined && (Date.parse(card.setAt) > live.setAt || live.condition !== card.goal || live.met === true || live.needsOperator === true)) {
+  if (card !== null && missionCardStands(card.state)) {
+    if (live !== undefined && (Date.parse(card.setAt) > live.setAt || live.condition !== card.goal || live.met === true)) {
       disengageTurnGuard(sessionId, live.hookId)
       missionsBySession.delete(sessionId)
       logForDebugging(`[mission] the card for session ${sessionId} was armed after the live record; the live one is released`)
@@ -459,17 +567,24 @@ export function rearmMissionFromCard(
   const cardSessionId = normalized.cardSessionId ?? conversationIdHere()
   const armSessionId = normalized.armSessionId ?? conversationIdHere()
   if (missionsBySession.has(armSessionId)) return false
-  const card = readMissionCard(cardSessionId)
-  if (!card || card.state !== 'armed') return false
+  const card = readCard(cardSessionId)
+  if (!card || !missionCardStands(card.state)) return false
   const armedAt = Date.parse(card.setAt)
   setActiveMission(card.goal, { sessionId: armSessionId, ...(Number.isFinite(armedAt) ? { setAt: armedAt } : {}) })
   const mission = missionsBySession.get(armSessionId)
   if (mission) {
-    mission.lastReason = `re-armed on resume (the previous run closed at check ${card.iterations})`
-    persistCard(armSessionId, mission, 'armed')
+    mission.iterations = card.iterations
+    if (card.state === 'paused') {
+      mission.paused = { why: card.nextStep?.replace(/^paused — /, '') ?? 'waiting on the operator', boundary: null }
+      mission.lastReason = `re-armed on resume, still paused (the previous run closed at check ${card.iterations})`
+      persistCard(armSessionId, mission, 'paused')
+    } else {
+      mission.lastReason = `re-armed on resume (the previous run closed at check ${card.iterations})`
+      persistCard(armSessionId, mission, 'armed')
+    }
   }
   if (cardSessionId !== armSessionId) {
-    writeMissionCard({
+    writeCard({
       ...card,
       state: 'continued',
       nextStep: `continued in session ${armSessionId}`,
