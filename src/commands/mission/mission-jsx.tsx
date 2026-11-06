@@ -78,7 +78,7 @@ export async function call(
   }
 
   if (!hosted) {
-    onDone('No session is open yet — /mission sends once one is', { display: 'system' })
+    onDone('No session is open — start or open one, then /mission again', { display: 'system' })
     return null
   }
 
