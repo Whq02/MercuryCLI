@@ -17,6 +17,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a crewmate's saved transcript chain breaking when an attachment row is skipped or an empty-content message is omitted on write, so resuming a crewmate preserves its earlier history.
 - Fixed crew-board chat rows from earlier turns being retained and repainted after /compact or auto-compaction instead of compacting with their turns.
 - Fixed OpenAI Responses requests failing on unpaired UTF-16 surrogates, opaque HTTP 4xx errors, or oversized replayed tool outputs on a resumed turn: request strings are sanitised before send, non-retryable 4xx errors surface error.detail and error.param and write a credential-scrubbed diagnostic capture in the session folder, and a resumed turn that hits a 4xx compacts oversized tool results once, persists those replacements across later turns, and retries.
+- Fixed the Document tool's PDF render through the headless browser, which failed every call with "Failed to parse parameter value: 54pt": the page margin reaches the browser in inches now, and the tool's margin is still given in points.
 
 ## 1.0.5
 - Changed every tool's model-facing text: each description states what the tool does and returns, once; units, bounds and defaults live on the parameter fields; only the six tools with a separate reference (Browser, Crewmate, Debug, Document, Eval, Workflow) send a first-use manual.
