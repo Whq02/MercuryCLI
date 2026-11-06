@@ -19,6 +19,7 @@ const delivered = join(scratch, 'delivered')
 cpSync(extension, delivered, { recursive: true })
 cpSync(join(root, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
 const { adapter, endpointPort, verifyListener, readLibrary, privateEnvironment } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
+const { planInstall } = await import(pathToFileURL(join(delivered, 'shared/install.mjs')).href)
 let passed = 0
 function check(name: string, fn: () => unknown) { fn(); passed++; console.log(`PASS ${name}`) }
 async function checkAsync(name: string, fn: () => Promise<unknown>) { await fn(); passed++; console.log(`PASS ${name}`) }
@@ -45,6 +46,13 @@ try {
     assert.equal(adapter.pins[0].platforms['darwin-arm64'].bytes, 126506663)
     assert.equal(adapter.pins[1].platforms['darwin-arm64'].sha256, '2d6cb1b8f267e96e1544d4c2fe46808cfe1ca7f2153772a73cc62dff9f0030a1')
     assert.equal(adapter.pins[1].platforms['darwin-arm64'].bytes, 120745586)
+  })
+  check('one pinned archive per platform on Windows and Linux carries the app and lightcraft-cli; macOS adds the pinned CLI zip', () => {
+    const dataDir = join(scratch, 'plan')
+    assert.equal(planInstall(adapter, { dataDir, platform: 'darwin-arm64' }).payloads.length, 2)
+    for (const platform of ['win-x64', 'linux-x64']) assert.deepEqual(planInstall(adapter, { dataDir, platform }).payloads.map((p: { archive: string }) => p.archive), [adapter.pins[0].platforms[platform].archive])
+    const doubled = { ...adapter, pins: [adapter.pins[0], { ...adapter.pins[1], platforms: { ...adapter.pins[1].platforms, 'win-x64': adapter.pins[0].platforms['win-x64'] } }] }
+    assert.equal(planInstall(doubled, { dataDir, platform: 'win-x64' }).payloads.length, 2)
   })
   check('only literal IPv4 loopback endpoints accepted', () => {
     assert.equal(endpointPort('127.0.0.1:7980'), 7980)

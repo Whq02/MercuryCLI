@@ -198,7 +198,8 @@ what each extension needs, who maintains it, and the licence.
 - The bundled craft extensions show the app release their lock pins as their version, in
   `mercury extensions list`, in `--json` and on the board: `filmcraft 0.18.0`,
   `lightcraft 0.19.0` and `photocraft 0.21.0`. They update with Mercury; `mercury-media`
-  keeps its own version.
+  keeps its own version. On Windows and Linux the app's command-line tool ships inside
+  the one app archive the lock pins; macOS adds the separately pinned CLI zip.
 
 ## The verbs
 

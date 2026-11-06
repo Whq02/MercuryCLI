@@ -6,3 +6,4 @@ prove-filmcraft-drive.ts
 prove-filmcraft-gui-drive.ts
 prove-photocraft-drive.ts
 prove-lightcraft-drive.ts
+prove-craft-foreign-platform-drive.ts

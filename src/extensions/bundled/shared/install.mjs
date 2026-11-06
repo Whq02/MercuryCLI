@@ -195,12 +195,17 @@ export async function extractArchive(archive, destination, { signal } = {}) {
   } else if (archive.endsWith('.tar.gz')) {
     const data = gunzipSync(await readFile(archive)), entries = [], names = new Set()
     const string = b => b.toString('utf8').replace(/\0.*$/s, '')
+    let longName
     for (let at = 0; at + 512 <= data.length;) {
       const h = data.subarray(at, at + 512)
       if (h.every(b => b === 0)) break
+      const type = h[156], size = parseInt(string(h.subarray(124, 136)).trim(), 8) || 0
+      if (!Number.isSafeInteger(size) || size < 0 || at + 512 + size > data.length) throw new Error(`Unsafe TAR entry: ${string(h.subarray(0, 100))}`)
+      if (type === 76) { longName = string(data.subarray(at + 512, at + 512 + size)); at += 512 + Math.ceil(size / 512) * 512; continue }
       const prefix = string(h.subarray(345, 500)), name = string(h.subarray(0, 100))
-      const path = safeMember((prefix ? prefix + '/' : '') + name), type = h[156], size = parseInt(string(h.subarray(124, 136)).trim(), 8) || 0
-      if (![0, 48, 53].includes(type) || names.has(path.toLowerCase()) || !Number.isSafeInteger(size) || size < 0 || at + 512 + size > data.length) throw new Error(`Unsafe TAR entry: ${path}`)
+      const path = safeMember(longName ?? (prefix ? prefix + '/' : '') + name)
+      longName = undefined
+      if (![0, 48, 53].includes(type) || names.has(path.toLowerCase())) throw new Error(`Unsafe TAR entry: ${path}`)
       names.add(path.toLowerCase())
       entries.push({ path, directory: type === 53, data: data.subarray(at + 512, at + 512 + size), mode: parseInt(string(h.subarray(100, 108)).trim(), 8) })
       at += 512 + Math.ceil(size / 512) * 512

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: 'craft-proof' }
@@ -74,3 +76,11 @@ assert.equal(pins[0].version, pins[1].version)
 assert.equal(pins[0].platforms['darwin-arm64'].bytes + pins[1].platforms['darwin-arm64'].bytes, 211365743)
 assert.equal(pins[0].platforms['win-x64'].bytes, 109616261)
 console.log('PASS: delivered Mac/Windows release pins and matching versions')
+const { adapter } = await import(pathToFileURL(join(ext.root, 'server/install.mjs')).href)
+const { planInstall } = await import(pathToFileURL(join(ext.root, 'shared/install.mjs')).href)
+const dataDir = join(tmpdir(), 'filmcraft-plan')
+assert.equal(planInstall(adapter, { dataDir, platform: 'darwin-arm64' }).payloads.length, 2, 'macOS installs the DMG and the separately pinned filmcraft-cli zip')
+for (const platform of ['win-x64', 'linux-x64']) assert.deepEqual(planInstall(adapter, { dataDir, platform }).payloads.map((p: { archive: string }) => p.archive), [pins[0].platforms[platform].archive], `${platform}: the one app archive carries filmcraft-cli; upstream ships no separate CLI archive there`)
+const doubled = { ...adapter, pins: [pins[0], { ...pins[1], platforms: { ...pins[1].platforms, 'win-x64': pins[0].platforms['win-x64'] } }] }
+assert.equal(planInstall(doubled, { dataDir, platform: 'win-x64' }).payloads.length, 2, 'a Windows row on the CLI lock would fetch the portable zip twice and leave resolveBinaries two filmcraft-cli.exe')
+console.log('PASS: one pinned archive per platform on Windows and Linux, two on macOS')
