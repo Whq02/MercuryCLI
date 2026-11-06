@@ -177,12 +177,14 @@ for (const [i, r] of requests.entries()) console.log(`    #${i + 1} system goal=
 const first = requests[0]
 check('the arming send alone produces a model request: the first request carries the directive, and no continue has been typed yet', first !== undefined && lastUserText(first.body).includes(GOAL) && !userTexts(first.body).some(t => t.trim() === 'continue'), first === undefined ? 'no request' : lastUserText(first.body).slice(0, 200))
 check('every request after the arming one carries the goal in the system prompt — the continue requests included', requests.length > 1 && requests.slice(1).every(r => systemText(r.body).includes(GOAL_NEEDLE)), requests.map((r, i) => `#${i + 1}:${systemText(r.body).includes(GOAL_NEEDLE)}`).join(' '))
-const continueRequests = requests.filter(r => lastUserText(r.body).trim() === 'continue')
-check('a bare continue reaches the model with the goal in the system prompt (both continues)', continueRequests.length === 2 && continueRequests.every(r => systemText(r.body).includes(GOAL_NEEDLE)), `continueRequests=${continueRequests.length}`)
+const continuesCarried = (r: Request): number => userTexts(r.body).filter(t => /(^|\n)continue$/.test(t.trim())).length
+const firstContinueIndex = requests.findIndex(r => continuesCarried(r) >= 1)
+const secondContinueIndex = requests.findIndex(r => continuesCarried(r) >= 2)
+const continueRequests = [firstContinueIndex, secondContinueIndex].filter(i => i !== -1).map(i => requests[i]!)
+check('a bare continue reaches the model with the goal in the system prompt (both continues)', continueRequests.length === 2 && continueRequests.every(r => systemText(r.body).includes(GOAL_NEEDLE)), `continueRequests=${continueRequests.length} at #${firstContinueIndex + 1} and #${secondContinueIndex + 1}`)
 check('a one-line mission status rides each turn as an attachment beside the other per-turn attachments', requests.length > 1 && requests.every(r => userTexts(r.body).some(t => t.includes(STATUS_HEAD))), requests.map((r, i) => `#${i + 1}:${userTexts(r.body).some(t => t.includes(STATUS_HEAD))}`).join(' '))
 check('a turn that ends before the mission is met is held with "Mission not completed: <goal> — <what is open>. Continue."', holdRows.length >= 3 && holdRows.filter(r => !textOf(r).includes('one question to the operator')).every(r => new RegExp(`^Mission not completed: ${GOAL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} — .+\\. Continue\\.$`).test(textOf(r).split('\n')[0] ?? '')), holdRows.map(r => textOf(r).split('\n')[0]!.slice(0, 120)).join(' | '))
 check('after three non-itemised replies the card is still armed or paused: never needs-operator, never stood-down', card !== undefined && (card.state === 'armed' || card.state === 'paused'), JSON.stringify(card))
-const firstContinueIndex = requests.findIndex(r => lastUserText(r.body).trim() === 'continue')
 const firstWithQuestion = requests.findIndex(r => messagesOf(r.body).some(m => m.role === 'assistant' && flat(m.content).includes(QUESTION)))
 check('the question pauses the mission: a note names the pause and the question, and no request follows the question until the operator speaks', pauseNotes.length >= 1 && textOf(pauseNotes[0]!).includes(QUESTION) && firstWithQuestion !== -1 && firstWithQuestion === firstContinueIndex, `pauseNotes=${pauseNotes.map(r => textOf(r).slice(0, 100)).join(' | ')} firstWithQuestion=#${firstWithQuestion + 1} firstContinue=#${firstContinueIndex + 1}`)
 const afterFirstContinue = firstContinueIndex === -1 ? undefined : requests[firstContinueIndex + 1]

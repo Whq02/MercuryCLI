@@ -217,6 +217,7 @@ const renderers: Renderers = {
     return notice(`Output so far — this turn: ${turn}${allowance} tokens; this session: ${formatNumber(item.session)} tokens`)
   },
   usage_limit_notice: item => notice((require('../../services/providers/limitWarning.js') as typeof import('../../services/providers/limitWarning.js')).usageWarningNoticeText(item.text, item.pct)),
+  mission_status: item => notice(item.text),
   held_tools: item => reminders(item.body),
   tool_schema_delta: item => reminders(item.body),
   deferred_tools_delta: item => item.body !== undefined ? reminders(item.body) : changedLists([

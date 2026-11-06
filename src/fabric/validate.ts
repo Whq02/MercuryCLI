@@ -206,6 +206,7 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
   budget_usd: z.looseObject({ used: z.number(), total: z.number(), remaining: z.number() }),
   output_token_usage: z.looseObject({ turn: z.number(), session: z.number(), budget: z.number().nullable() }),
   usage_limit_notice: z.looseObject({ key: z.string(), provider: z.string(), window: z.string(), pct: z.number(), text: z.string() }),
+  mission_status: z.looseObject({ text: z.string(), checks: z.number(), state: z.string() }),
   structured_output: z.looseObject({}),
   loop_stopped: z.looseObject({ toolUseID: z.string(), cycle: z.array(z.string()), message: z.string() }),
   bypassed_ask: z.looseObject({ toolUseID: z.string(), mode: z.string(), road: z.string(), reason: z.string() }),

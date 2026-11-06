@@ -50,6 +50,7 @@ import {
   localServerKind,
 } from './localPromptProfile.js'
 import { getHarnessMapSection } from '../utils/cockpit/harnessMap.js'
+import { missionSection, missionSectionKey, type ServedMission } from '../services/mission/served.js'
 import type { Tools } from '../Tool.js'
 import type { MCPServerConnection } from '../services/mcp/types.js'
 
@@ -226,6 +227,16 @@ function entryPageSpec() {
   )
 }
 
+function servedMissionHere(): ServedMission | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const guard = require('../guards/mission.js') as typeof import('../guards/mission.js')
+  return guard.servedMission(String(getSessionId()))
+}
+
+function missionSpec() {
+  return keyedSystemPromptSection('mission', () => missionSectionKey(servedMissionHere()), () => missionSection(servedMissionHere()))
+}
+
 function languageSpec() {
   return systemPromptSection('language', () => {
     const language = getInitialSettings().voice?.language
@@ -335,6 +346,7 @@ async function getLocalSystemPrompt(
     memoryAtStartSpec(localStartTask(memoryTask)),
     entryPageSpec(),
     systemPromptSection('local_scratchpad', () => scratchpadLineFor()),
+    missionSpec(),
   ]
   const dynamicResolved = await resolveSystemPromptSections(dynamicSpecs)
   const { modeSections, wrapperSections, antiSycSections } = await closingSections()
@@ -402,6 +414,7 @@ export async function getSystemPrompt(
     systemPromptSection('summarize_tool_results', () => stockLaw === MERCURY_HEADLESS_CONSTITUTION ? null : SUMMARIZE_TOOL_RESULTS_LINE),
     systemPromptSection('runtime_posture', () => getRuntimePostureSection()),
     systemPromptSection('harness_map', () => getHarnessMapSection()),
+    missionSpec(),
   ]
   const dynamicResolved = await resolveSystemPromptSections(dynamicSpecs)
 

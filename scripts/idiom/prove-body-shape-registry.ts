@@ -150,6 +150,7 @@ const ATTACHMENTS: Record<string, Fixture> = {
   budget_usd: { good: { used: 0.5, total: 1, remaining: 0.5 }, bad: [{ label: 'total is null', field: 'total', fields: { used: 0.5, total: null, remaining: 0.5 } }] },
   output_token_usage: { good: { turn: 1, session: 2, budget: null }, bad: [{ label: 'budget is text', field: 'budget', fields: { turn: 1, session: 2, budget: 'many' } }] },
   usage_limit_notice: { good: { key: 'k', provider: 'p', window: 'w', pct: 80, text: 't' }, bad: [{ label: 'pct is text', field: 'pct', fields: { key: 'k', provider: 'p', window: 'w', pct: '80', text: 't' } }] },
+  mission_status: { good: { text: 'Mission status — checks 1 · last verdict open (the turn ended without the completion line) · armed', checks: 1, state: 'armed' }, bad: [{ label: 'checks is text', field: 'checks', fields: { text: 't', checks: '1', state: 'armed' } }] },
   structured_output: { good: { data: { ok: true } }, bad: [] },
   loop_stopped: {
     good: { toolUseID: 't', cycle: ['Grep', 'Glob'], message: 'm' },

@@ -106,6 +106,7 @@ type TurnBodies = {
   budget_usd: { used: number; total: number; remaining: number }
   output_token_usage: { turn: number; session: number; budget: number | null }
   usage_limit_notice: { key: string; provider: string; window: string; pct: number; resetsAt?: number; text: string }
+  mission_status: { text: string; checks: number; state: 'armed' | 'paused'; verdict?: string }
   images_left_out: { count: number; images: number; sidePx: number }
   bagel_console: { errorCount: number; warningCount: number; sample: string }
 }
