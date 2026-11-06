@@ -116,6 +116,7 @@ src/extensions/load/commands.ts :: skillsMemo :: invalidator=clearExtensionComma
 src/extensions/load/language.ts :: memo :: invalidator=clearExtensionLspServerCache
 src/extensions/load/servers.ts :: memo :: invalidator=clearExtensionMcpServerCache
 src/extensions/roster.ts :: activeSnapshot :: invalidator=setActiveSnapshot
+src/guards/mission.ts :: cardMemo :: invalidator=syncMissionFromCard
 src/guards/wardsGuard.ts :: homeSpellingsCache :: keyed-by-truth
 src/hooks/fileSuggestions.ts :: ignoreCache :: keyed-by-truth
 src/ink/line-width-cache.ts :: cache :: keyed-by-truth
