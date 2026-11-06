@@ -173,7 +173,7 @@ interface OverflowFixture {
   close(): Promise<void>
 }
 
-export async function startOverflowFixture(options: { stream?: (request: Captured, response: ServerResponse) => boolean } = {}): Promise<OverflowFixture> {
+export async function startOverflowFixture(options: { stream?: (request: Captured, response: ServerResponse) => boolean; openaiModels?: unknown } = {}): Promise<OverflowFixture> {
   const captured: Captured[] = []
   const asks: Captured[] = []
   const refusals: OverflowFixture['refusals'] = []
@@ -195,7 +195,7 @@ export async function startOverflowFixture(options: { stream?: (request: Capture
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(
           path.startsWith('/openai/')
-            ? JSON.stringify(OPENAI_MODELS_BODY)
+            ? JSON.stringify(options.openaiModels ?? OPENAI_MODELS_BODY)
             : path.startsWith('/xai/') ? JSON.stringify({ object: 'list', data: [{ id: 'grok-4.7', object: 'model', owned_by: 'xai', created: 3 }] })
             : path.startsWith('/meta/') ? JSON.stringify({ object: 'list', data: [{ id: 'muse-spark-1.3', object: 'model', owned_by: 'meta', created: 3 }] })
             : path.startsWith('/moonshot/') ? JSON.stringify({ object: 'list', data: [{ id: 'kimi-k3', object: 'model', owned_by: 'moonshot' }] }) : JSON.stringify({ object: 'list', data: [{ id: 'fixture-local', object: 'model', owned_by: 'fixture' }] }),
