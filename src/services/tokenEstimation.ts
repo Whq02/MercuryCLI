@@ -12,6 +12,7 @@ import { sideQuery } from '../utils/sideQuery.js'
 import { sleep } from '../utils/sleep.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { modelSupportsAdaptiveThinking } from '../utils/thinking.js'
+import { modelSupportsEffort } from '../utils/effort.js'
 import { modelReceivesImageBlocks } from '../utils/model/capabilities.js'
 import { isToolReferenceBlock } from '../utils/toolSearch.js'
 import { getAnthropicClient } from './api/client.js'
@@ -32,9 +33,11 @@ function firstPartyCountApplies(): boolean {
   return declaredRouteOf(getEngineModel()) === 'anthropic'
 }
 
-function countProbeModel(): string {
-  const { model } = utilityCallFor()
-  return normalizeModelStringForAPI(declaredRouteOf(model) === 'anthropic' ? model : getDefaultSonnetModel())
+function countProbeCall(): { model: string; effort: string | undefined } {
+  const seat = utilityCallFor().model
+  const model = normalizeModelStringForAPI(declaredRouteOf(seat) === 'anthropic' ? seat : getDefaultSonnetModel())
+  const { effortValue } = utilityCallFor(model)
+  return { model, effort: effortValue !== undefined && modelSupportsEffort(model) ? String(effortValue) : undefined }
 }
 
 function refusalWords(error: unknown): string {
@@ -203,14 +206,15 @@ export async function countTokensViaHaikuFallback(
   const apiMessages = apiMessagesFor(messages)
   const body = stripToolSearchFields(apiMessages.length === 0 ? PLACEHOLDER_MESSAGES : apiMessages)
   const thinking = hasThinkingBlocks(body)
-  const model = countProbeModel()
+  const { model, effort } = countProbeCall()
   const response = await countWithBusyRetry(`${COUNT_SOURCE} (create probe)`, () =>
     sideQuery({
       model,
       messages: body as never,
       max_tokens: thinking ? 2048 : 1,
       ...(Array.isArray(tools) && tools.length > 0 ? { tools } : {}),
-      ...(thinking ? { thinking: THINKING_BUDGET_TOKENS } : {}),
+      thinking: thinking ? THINKING_BUDGET_TOKENS : false,
+      ...(effort !== undefined ? { effort } : {}),
       maxRetries: 0,
       querySource: COUNT_SOURCE,
       source: COUNT_SOURCE,

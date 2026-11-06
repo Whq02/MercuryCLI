@@ -12,6 +12,7 @@ import {
   getModelBetas,
   modelSupportsTemperature,
 } from '../../../utils/betas.js'
+import { modelThinkingAlwaysOn } from '../../../utils/model/capabilities.js'
 import { cacheClockTtlDecision } from 'src/utils/cache/cacheClock.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { modelSupportsEffort, type EffortValue } from 'src/utils/effort.js'
@@ -153,14 +154,18 @@ export function getAPIMetadata() {
   return { user_id: jsonStringify({ ...extra, ...identity }) }
 }
 
-function keyProbeBody(model: string, betas: string[]) {
+type KeyProbeBody = Parameters<Awaited<ReturnType<typeof getAnthropicClient>>['beta']['messages']['create']>[0]
+
+function keyProbeBody(model: string, betas: string[]): KeyProbeBody {
   const messages: MessageParam[] = [{ role: 'user', content: 'test' }]
-  return {
-    model, max_tokens: 1, messages,
-    ...(modelSupportsTemperature(model) ? { temperature: 1 } : {}),
-    ...(betas.length ? { betas } : {}),
-    metadata: getAPIMetadata(), ...getExtraBodyParams(),
-  }
+  const { effortValue } = utilityCallFor(model)
+  const effort = typeof effortValue === 'string' && isFirstPartyWireEffort(effortValue) && modelSupportsEffort(model) ? effortValue : undefined
+  const body: Record<string, unknown> = { model, max_tokens: 1, messages, metadata: getAPIMetadata(), ...getExtraBodyParams() }
+  if (modelSupportsTemperature(model)) body.temperature = 1
+  if (betas.length) body.betas = betas
+  if (!modelThinkingAlwaysOn(model)) body.thinking = { type: 'disabled' }
+  if (effort !== undefined) body.output_config = { effort }
+  return body as unknown as KeyProbeBody
 }
 
 function keyProbeFailure(caught: unknown): false {
@@ -173,7 +178,7 @@ function keyProbeFailure(caught: unknown): false {
   throw error
 }
 
-export function keyProbeModel(): string {
+function keyProbeModel(): string {
   const { model } = utilityCallFor()
   return normalizeModelStringForAPI(declaredRouteOf(model) === 'anthropic' ? model : getDefaultSonnetModel())
 }
