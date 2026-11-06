@@ -420,11 +420,20 @@ export async function tick(): Promise<void> {
   }
 }
 
+function startHelperSlot(): void {
+  try {
+    const { ensureHelperServing } = require('./tensorfoldHelper.js') as typeof import('./tensorfoldHelper.js')
+    void ensureHelperServing().catch(() => undefined)
+  } catch {
+  }
+}
+
 async function settle(): Promise<void> {
   state.settleTimer = null
   if (state.context === null) return
   const model = getEngineModel()
   const record = await resolveRecord(model)
+  if (record !== undefined) startHelperSlot()
   if (state.settleTimer !== null || state.context === null) return
   if (record === undefined || record.server !== 'ollama') {
     cancelInFlight('the model is no longer a local Ollama model')

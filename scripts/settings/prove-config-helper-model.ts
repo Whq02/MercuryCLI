@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
@@ -127,6 +127,12 @@ section('§2 the setting: off by default; on, the helper\'s own process answers 
   const state = hosts.helperModelState()
   check('2B: the state names the engine, the repo and the port of its own process', state.enabled && state.size === '2b' && state.engine === 'tensorfold' && state.repo === helper.HELPER_2B_REPO && state.port === helper2b.port, JSON.stringify(state))
   check('2B: a local seat\'s titles, summaries and judge route to the helper; an Anthropic seat keeps its own model', utility.utilityCallFor('local/qwen3.8-27b').model === 'local/qwen3.5-2b' && utility.utilityCallFor('claude-opus-5-5').model === 'claude-opus-5-5')
+  check('2B: a hook that names the 27B gets the 27B at its own floor, never the slot, on a local seat', utility.utilityCallFor('local/qwen3.8-27b', { named: true }).model === 'local/qwen3.8-27b')
+  process.env.MERCURY_MODEL = 'claude-opus-5-5'
+  check('2B: on an Anthropic seat the default selection is the seat and a named local model is itself', utility.utilityCallFor().model === 'claude-opus-5-5' && utility.utilityCallFor('local/qwen3.8-27b', { named: true }).model === 'local/qwen3.8-27b')
+  process.env.MERCURY_MODEL = 'local/qwen3.8-27b'
+  check('2B: on a local seat the default selection is the slot and a named local model is itself', utility.utilityCallFor().model === 'local/qwen3.5-2b' && utility.utilityCallFor('local/qwen3.8-27b', { named: true }).model === 'local/qwen3.8-27b' && utility.utilityCallFor('local/qwen3.5-2b', { named: true }).model === 'local/qwen3.5-2b')
+  delete process.env.MERCURY_MODEL
   check('2B: the heading suffix', helper.helperHeadingWords() === '· helper 2B')
   check('2B: compaction stays on the session model until opted in', helper.helperCompactionModelId() === undefined)
   helper.writeHelperModelSetting({ compaction: true })
@@ -151,7 +157,7 @@ section('§2 the setting: off by default; on, the helper\'s own process answers 
   check('opt-in with the helper off: the seated model folds, no reason', foldModelFor(short, 'claude-opus-5-5', { forced: false }).reason === undefined)
 }
 
-section('§2b the helper is its own process beside the session\'s server: role helper, the 27B\'s record untouched (red on the fold: start2b shared the session\'s service and stopped it)')
+section('§2b the helper is its own process beside the session\'s server, started by the product when a local session opens with the slot set: role helper, the 27B\'s record untouched')
 {
   helper.__resetHelperForTest()
   const sessionRecord = { repo: 'TensorFold/Qwen3.8-27B-MLX-4bit', name: 'qwen3.8-27b', port: session27b.port, window: 131072, pid: 4242, startedAt: '2026-11-05T00:00:00.000Z' }
@@ -174,7 +180,17 @@ section('§2b the helper is its own process beside the session\'s server: role h
   await discovery.refreshLocalDiscovery({ force: true })
   helper.writeHelperModelSetting({ size: '2b' })
   check('before the start the helper is not serving and nothing routes to it', utility.utilityCallFor('local/qwen3.8-27b').model !== 'local/qwen3.5-2b')
-  await helper.ensureHelperServing()
+  check('a utility call never starts the helper', started.length === 0)
+  process.env.MERCURY_MODEL = 'local/qwen3.8-27b'
+  const { armLocalWarm, disarmLocalWarm } = await import('../../src/services/providers/local/localWarm.js')
+  armLocalWarm(() => ({ messages: [], systemPrompt: [], tools: [] } as never), { io: { settleMs: 0 } })
+  const startedBy = Date.now()
+  while (started.length === 0 && Date.now() - startedBy < 5_000) await new Promise(resolve => setTimeout(resolve, 25))
+  disarmLocalWarm()
+  delete process.env.MERCURY_MODEL
+  check('a local session opening with the slot set starts the helper itself (the warm-up settle, no utility call)', started.length === 1, JSON.stringify(started))
+  const config = readFileSync(join(REPO, 'src/components/Settings/Config.tsx'), 'utf8')
+  check('/config starts the helper when the row is set to 2B or 4B', /writeHelperModelSetting\(\{ size: next \}, writeGlobal\)\n\s*if \(next === '2b' \|\| next === '4b'\) void ensureHelperServing\(\)/.test(config))
   const request = started[0]
   check('the helper started once, with role helper, its own name, window, port and prompt cache', started.length === 1 && request?.role === 'helper' && request.name === 'qwen3.5-2b' && request.repo === helper.HELPER_2B_REPO && request.window === 32768 && request.promptCacheGib === 1 && typeof request.port === 'number', JSON.stringify(request))
   check('the session\'s 27B record is untouched (never stopped)', stopped.length === 0 && sessionRecord.port === session27b.port)

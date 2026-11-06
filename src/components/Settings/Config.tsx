@@ -109,7 +109,7 @@ import { LOCAL_PULL_RECOMMENDATION } from '../../services/providers/local/localA
 import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js'
 import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
 import { heldLocalWindow, localWindowApplication, localWindowRefusalWords, localWindowRoomWords, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
-import { HELPER_JOB_WORDS, helperChoiceWords, helperJobsWords, helperModelChoices, nextHelperModelSetting, readHelperModelSetting, writeHelperModelSetting } from '../../services/providers/local/tensorfoldHelper.js'
+import { HELPER_JOB_WORDS, ensureHelperServing, helperChoiceWords, helperJobsWords, helperModelChoices, nextHelperModelSetting, readHelperModelSetting, writeHelperModelSetting } from '../../services/providers/local/tensorfoldHelper.js'
 import { LOCAL_SERVER_APPLY_MENU, LocalServerApplyDialog, localServerConfigItems, useLocalServerConfig } from './LocalServer.js'
 import { advisorConfigItems } from './Advisor.js'
 import { swarmMasterEnabled } from '../../services/crewBoard/seam.js'
@@ -1197,6 +1197,7 @@ export function Config({
       change: direction => {
         const next = nextHelperModelSetting(helper.size, direction, choices)
         writeHelperModelSetting({ size: next }, writeGlobal)
+        if (next === '2b' || next === '4b') void ensureHelperServing().catch(() => undefined)
         recordSet('helperModel', `set the helper model to ${choices.find(choice => choice.size === next)?.label ?? next}`)
         bump()
       },
