@@ -7,6 +7,8 @@ import { findRows, firstOutputTs, runArtifactArena, type ArenaRun } from '../str
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { MISSION_MET_SENTINEL } from '../../src/guards/mission.ts'
 import { compileGoal } from '../../src/services/mission/goal.ts'
+import { missionSection, missionSectionKey } from '../../src/services/mission/served.ts'
+import { getMissionStatusAttachment } from '../../src/utils/attachments/missionStatus.ts'
 
 const argument = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
@@ -44,7 +46,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 type Card = { sessionId: string; goal: string; state: string; iterations: number; nextStep: string | null; setAt: string; updatedAt: string }
 type CardSample = { atMs: number; sessionId: string; state: string; iterations: number; nextStep: string | null }
 type Screen = { atMs: number; rows: string[] }
-type Row = { type?: string; isMeta?: boolean; subtype?: string; level?: string; timestamp?: string; content?: unknown; origin?: { kind?: string; command?: string }; message?: { role?: string; content?: unknown }; attachment?: { type?: string } }
+type Row = { type?: string; isMeta?: boolean; subtype?: string; level?: string; timestamp?: string; content?: unknown; origin?: { kind?: string; command?: string }; message?: { role?: string; content?: unknown }; attachment?: { type?: string; text?: string; checks?: number; state?: string } }
 type Request = { body: unknown }
 type Transcript = { sessionId: string; rows: Row[] }
 
@@ -149,13 +151,15 @@ function reminderBlocks(text: string): string[] {
 function operatorWords(text: string): string {
   return text.replace(REMINDER_BLOCK, '').trim()
 }
-function statusOf(text: string): { checks: number; state: string; line: string } | null {
+function statusOf(text: string): { checks: number; verdict: string; state: string; line: string } | null {
   const block = reminderBlocks(text).find(b => b.startsWith(STATUS_HEAD))
   if (block === undefined) return null
   const count = /checks (\d+)/.exec(block)
+  const verdict = /· last verdict (none yet|[a-z]+ \(.+\)) ·/.exec(block)
   const state = /· (armed|paused)(?:\s|$|—)/.exec(block)
-  return { checks: count === null ? -1 : Number(count[1]), state: state?.[1] ?? '?', line: block }
+  return { checks: count === null ? -1 : Number(count[1]), verdict: verdict?.[1] ?? '?', state: state?.[1] ?? '?', line: block }
 }
+const STALL_VERDICT = /^unattainable \(3 checks in a row changed nothing/
 function goalServed(system: string): boolean {
   return system.includes(SECTION_HEADING) && system.includes(`Goal: ${COMPILED.endState}`) && CRITERIA.every((criterion, i) => system.includes(`${i + 1}. ${criterion}`))
 }
@@ -251,7 +255,9 @@ const continueRequests = [firstContinueIndex, secondContinueIndex].filter(i => i
 check("each continue typed starts its own request whose operator words are exactly 'continue', with the goal in the system prompt (both continues)", continueRequests.length === 2 && continueRequests.every(r => operatorWords(lastUserText(r.body)) === 'continue' && goalServed(systemText(r.body))), `continueRequests=${continueRequests.length} at #${firstContinueIndex + 1} and #${secondContinueIndex + 1}`)
 const turnStarts = [first, ...continueRequests].filter((r): r is Request => r !== undefined)
 const statuses = turnStarts.map(r => statusOf(lastUserText(r.body)))
-check("a one-line mission status rides each turn's opening message as a system-reminder attachment with the current fields: checks 0 · armed at arming, checks 3 · armed on the first continue, checks 6 · armed on the second", statuses.length === 3 && statuses.every(s => s !== null && !s.line.includes('\n')) && statuses[0]?.checks === 0 && statuses[0]?.state === 'armed' && statuses[1]?.checks === 3 && statuses[1]?.state === 'armed' && statuses[2]?.checks === 6 && statuses[2]?.state === 'armed', JSON.stringify(statuses.map(s => (s === null ? null : `${s.checks}/${s.state}: ${s.line.slice(0, 100)}`))))
+const statusRecords = rows.filter(r => r.type === 'attachment' && r.attachment?.type === 'mission_status')
+check("a one-line mission status rides each turn's opening message as a system-reminder attachment with the current fields: checks 0 · none yet · armed at arming, checks 3 · the stall verdict · armed on the first continue, checks 6 · the stall verdict · armed on the second", statuses.length === 3 && statuses.every(s => s !== null && !s.line.includes('\n')) && statuses[0]?.checks === 0 && statuses[0]?.verdict === 'none yet' && statuses[0]?.state === 'armed' && statuses[1]?.checks === 3 && STALL_VERDICT.test(statuses[1]?.verdict ?? '') && statuses[1]?.state === 'armed' && statuses[2]?.checks === 6 && STALL_VERDICT.test(statuses[2]?.verdict ?? '') && statuses[2]?.state === 'armed', JSON.stringify(statuses.map(s => (s === null ? null : `${s.checks}/${s.verdict.slice(0, 40)}/${s.state}: ${s.line.slice(0, 100)}`))))
+check('each status line is bound to a mission_status attachment record in the hosted transcript with the same text, checks and state (one per turn, none other)', statusRecords.length === 3 && statuses.every(s => s !== null && statusRecords.some(r => r.attachment?.text === s.line && r.attachment?.checks === s.checks && r.attachment?.state === s.state)), `records=${JSON.stringify(statusRecords.map(r => ({ text: r.attachment?.text?.slice(0, 80), checks: r.attachment?.checks, state: r.attachment?.state })))}`)
 const holdForm = new RegExp(`^${HOLD_HEAD.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.+\\. Continue\\.$`)
 check('a turn that ends before the mission is met is held with one line of the form "Mission not completed: <goal> — <what is open>. Continue." (two per turn here, six in all)', ordinaryHolds.length === 6 && ordinaryHolds.every(r => holdForm.test(textOf(r).trim())), `ordinary=${ordinaryHolds.length} ${ordinaryHolds.map(r => textOf(r).split('\n')[0]!.slice(0, 120)).join(' | ')}`)
 check('the third check of each turn is the ask: the hold names the goal and the stall, and asks for one question to the operator (three in all)', askHolds.length === 3 && askHolds.every(r => textOf(r).startsWith(`${HOLD_HEAD}3 checks in a row changed nothing`)), askHolds.map(r => textOf(r).split('\n')[0]!.slice(0, 120)).join(' | '))
@@ -278,13 +284,16 @@ check('the bare-sentinel leg ran to its end and the bare completion line was del
 check('a reply that ends on the sentinel without the itemised criterion lines is held, not met: the hold names the missing lines and the card never reads met', holdAfterBareClaim !== undefined && textOf(holdAfterBareClaim).includes(BARE_CLAIM_REASON) && bareCard !== undefined && bareCard.state !== 'met', `hold=${holdAfterBareClaim === undefined ? 'none' : textOf(holdAfterBareClaim).slice(0, 160)} card=${JSON.stringify(bareCard ?? null)}`)
 
 console.log('\n── a session without a mission is untouched ──')
+check('without a mission the section is null, its key is off, and the status producer yields nothing', missionSection(undefined) === null && missionSectionKey(undefined) === 'off' && getMissionStatusAttachment([]).length === 0)
 const plain = await arena([WORKING, WORKING], plainSends, 12)
 const plainRequests: Request[] = plain.fixture.messageRequests().filter(r => !r.path.includes('count_tokens'))
+const plainRows = (await transcriptsUnder(join(plain.paths.home, '.mercury'))).flatMap(t => t.rows)
 const plainSections = plainRequests.filter(r => systemText(r.body).includes(SECTION_HEADING))
 const plainStatuses = plainRequests.filter(r => userTexts(r.body).some(t => reminderBlocks(t).some(b => b.startsWith(STATUS_HEAD))))
+const plainStatusRecords = plainRows.filter(r => r.type === 'attachment' && r.attachment?.type === 'mission_status')
 const plainWords = plainRequests.flatMap(r => MISSION_VOCABULARY.filter(word => JSON.stringify(r.body).includes(word)))
 check('the no-mission drive ran to its end and reached the model', complete(plain, 1) && plainRequests.length >= 1, `${runWords(plain)} requests=${plainRequests.length}`)
-check('its system prompt carries no Mission section and its messages no status attachment', plainRequests.length >= 1 && plainSections.length === 0 && plainStatuses.length === 0, `sections=${plainSections.length} statuses=${plainStatuses.length}`)
+check('its system prompt carries no Mission section, its messages no status reminder, and its transcript no mission_status record', plainRequests.length >= 1 && plainRows.length > 0 && plainSections.length === 0 && plainStatuses.length === 0 && plainStatusRecords.length === 0, `rows=${plainRows.length} sections=${plainSections.length} statuses=${plainStatuses.length} records=${plainStatusRecords.length}`)
 check('its request bodies carry none of the mission vocabulary', plainRequests.length >= 1 && plainWords.length === 0, `found=${JSON.stringify(plainWords)}`)
 check('it writes no mission card', cardsUnder(join(plain.paths.home, '.mercury')).length === 0)
 
