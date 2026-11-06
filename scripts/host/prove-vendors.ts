@@ -148,8 +148,9 @@ try {
     check('Lambda 180 GB B200 instances satisfy only the shipped B200 rows that ask 180 GB on 1, 4 or 8 GPUs and its 1x 80 GB H100 instance only the one-GPU gpt-oss-120b row, never a row asking more memory, more GPUs or more disk', shipped.length > 0 && shipped.every(row => (row.recipe.gpu === 'B200' && row.recipe.vramGb <= 180 && (row.recipe.count === 1 || row.recipe.count === 4 || row.recipe.count === 8) && row.recipe.diskGb <= (row.recipe.count === 8 ? 22528 : 11264)) || (row.recipe.gpu === 'H100' && row.recipe.id === 'gpt-oss-120b-h100' && row.recipe.count === 1 && row.recipe.vramGb <= 80 && row.recipe.diskGb <= 2816)) && shipped.some(row => row.recipe.id === 'gpt-oss-120b-h100') && HOST_RECIPES.some(row => row.vramGb > 180) && !shipped.some(row => row.recipe.vramGb > 180))
     override()
     const regional = await l.offers(signal())
-    const first = regional[0]!
-    check('Lambda maps documented type-list shape to one fitting offer per stocked region', regional.length === 2 && regional.every(row => row.price === 11.96 && recipeFits(row.recipe, row.gpuId, 180, 4)) && regional.map(row => row.dataCenter).join(',') === 'us-east-1,us-west-1')
+    const privateRows = regional.filter(row => row.recipe.id === fixtureRecipe.id)
+    const first = privateRows[0]!
+    check('Lambda maps documented type-list shape to one fitting offer per stocked region for the private recipe, which joins the shipped catalogue and replaces the shipped row of its id', privateRows.length === 2 && privateRows.every(row => row.price === 11.96 && row.recipe.vramGb === 180 && recipeFits(row.recipe, row.gpuId, 180, 4)) && privateRows.map(row => row.dataCenter).join(',') === 'us-east-1,us-west-1' && regional.length > 2 && regional.every(row => row.recipe.id !== fixtureRecipe.id || row.recipe.vramGb === 180))
     check('Lambda reads per-GPU VRAM from description, not system RAM or a guessed GPU capacity', lambdaGpu('H100 (80 GB SXM5)')?.memory === 80 && lambdaGpu('B200') === undefined)
     lambda.state.bootIp = '127.0.0.1'
     const launched = await l.create(first, key, 'mercury-lambda')
@@ -174,16 +175,16 @@ try {
     await Promise.all([l.pods(), concurrent.pods(), l.get('missing').catch(() => {})])
     check('Lambda one-token request bucket also serializes concurrent clients for the same key', lambda.requests.slice(1).every((row, index) => row.at - lambda.requests[index]!.at >= 980) && /one launch per 12 seconds/.test(l.rateLimitPolicy()))
     lambda.state.noStock = true
-    check('Lambda no-stock preserves fitting shapes without sellable regions', !(await l.offers(signal())).length && l.shapes().length === 1 && l.shapes()[0]!.availability === 'NONE')
+    check('Lambda no-stock preserves fitting shapes without sellable regions', !(await l.offers(signal())).length && l.shapes().some(row => row.recipe.id === fixtureRecipe.id) && l.shapes().every(row => row.availability === 'NONE'))
     lambda.state.noStock = false
     const originalTypes = lambda.state.types
     for (const patch of [{ gpu_description: 'B200 (179 GB SXM6)' }, { specs: { ...originalTypes[0]!.specs, storage_gib: 10 } }, { specs: { ...originalTypes[0]!.specs, gpus: 8 } }, { architecture: 'aarch64' }, { gpu_description: 'B200' }]) {
       lambda.state.types = [{ ...originalTypes[0]!, ...patch }]
-      check('Lambda rejects non-fitting or unverified hardware ' + JSON.stringify(patch), !(await l.offers(signal())).length)
+      check('Lambda rejects non-fitting or unverified hardware for the private recipe ' + JSON.stringify(patch), !(await l.offers(signal())).some(row => row.recipe.id === fixtureRecipe.id))
     }
     check('a GPU description with no stated memory is named in the offers note instead of vanishing', l.offersNote() === 'Skipped 1 Lambda instance type whose GPU description states no memory: B200.')
     lambda.state.types = [...originalTypes, { ...originalTypes[0]!, name: 'cpu_only', gpu_description: 'None (0 GB)', specs: { ...originalTypes[0]!.specs, gpus: 0, storage_gib: 0 } }]
-    check('a readable catalogue leaves the note empty and ignores zero-GPU entries without failing schema validation', (await l.offers(signal())).length === 2 && l.offersNote() === '')
+    check('a readable catalogue leaves the note empty and ignores zero-GPU entries without failing schema validation', (await l.offers(signal())).filter(row => row.recipe.id === fixtureRecipe.id).length === 2 && l.offersNote() === '')
     lambda.state.types = originalTypes
     await expectFailure(() => l.create(first, 'ssh-ed25519 ' + 'A'.repeat(4100), 'oversized-key'), /4096|OpenSSH public key/)
     check('Lambda watch respects the whole-instance price ceiling', (await l.watchOffer(fixtureRecipe, 11.96))?.price === 11.96 && await l.watchOffer(fixtureRecipe, 11.95) === undefined)
