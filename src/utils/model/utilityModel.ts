@@ -9,6 +9,7 @@ import { getEngineModel } from './model.js'
 export interface UtilityCall {
   model: string
   effortValue?: EffortValue
+  effortPinned: true
   thinkingConfig: ThinkingConfig
 }
 
@@ -43,6 +44,7 @@ export function utilityCallFor(seatModel: string = getEngineModel()): UtilityCal
   return {
     model,
     ...(floor !== undefined ? { effortValue: floor as EffortValue } : {}),
+    effortPinned: true,
     thinkingConfig,
   }
 }
