@@ -387,7 +387,7 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
   const filesOff = useAppState(s => s.settings.view?.files === false)
   const filesFolder = basename(useFocusedWorkspaceCwd())
   const missionCard = roster.missionCard ?? null
-  const mission = missionCard !== null && (missionCard.state === 'armed' || missionCard.state === 'paused' || missionCard.state === 'met') ? missionCard : null
+  const mission = missionCard !== null && (missionCard.state === 'armed' || missionCard.state === 'paused') ? missionCard : null
   const wakeGlance = useWakeGlance()
   const solo = soloOf({ sessionCrew, viewingAgentTaskId, mainChatTaskId, tasks, roster })
   const recent = useRecentSessions(solo)

@@ -38,7 +38,7 @@ export const call = async (
       return text('No mission set. Usage: `/mission <goal>` (or `/goal <goal>`)')
     }
     const stateLabel = mission.met
-      ? 'Mission met'
+      ? `Mission completed${mission.outcome === undefined ? '' : ` — ${mission.outcome.reason} · ${mission.outcome.turns} ${plural(mission.outcome.turns, 'turn')}`}`
       : mission.paused !== undefined
         ? 'Mission PAUSED (not met — the operator\'s next message resumes it)'
         : 'Mission active'

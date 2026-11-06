@@ -207,6 +207,15 @@ const MISSION_CARD: KeyTable = {
   setAt: 'set_at',
   updatedAt: 'updated_at',
 }
+const MISSION_OUTCOME: KeyTable = {
+  metAt: 'met_at',
+}
+
+function missionCardNested(outcome: KeyTable): (out: Row) => void {
+  return out => {
+    if (isRow(out.outcome)) out.outcome = renamed(out.outcome, outcome)
+  }
+}
 const FACTS: KeyTable = {
   recoveredCommandIds: 'recovered_command_ids',
   missionCard: 'mission_card',
@@ -348,7 +357,7 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
     out.workspace = row(out.workspace, t(WORKSPACE))
     if (workKey in out) out[workKey] = rows(out[workKey], t(WORK_ROW), workRowNested(t(WORK_PULSE), t(AGENT_WAIT), t(AGENT_PAUSE)))
     if (missionKey in out) out[missionKey] = rows(out[missionKey], t(MISSION_ROW))
-    if (isRow(out[missionCardKey])) out[missionCardKey] = row(out[missionCardKey], t(MISSION_CARD))
+    if (isRow(out[missionCardKey])) out[missionCardKey] = row(out[missionCardKey], t(MISSION_CARD), missionCardNested(t(MISSION_OUTCOME)))
     if (samplesKey in out) out[samplesKey] = rows(out[samplesKey], t(SAMPLE_ROW))
     if (noticesKey in out) out[noticesKey] = rows(out[noticesKey], t(NOTICE_ROW))
     if (kitKey in out) out[kitKey] = row(out[kitKey], t(KIT), kitNested(t(KIT_DELTAS)))

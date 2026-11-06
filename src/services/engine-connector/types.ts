@@ -371,6 +371,7 @@ export type MissionCardFactV1 = {
   iterations: number
   setAt: string
   updatedAt: string
+  outcome?: { reason: string; metAt: string; turns: number }
 }
 
 export type SampleRowV1 = {

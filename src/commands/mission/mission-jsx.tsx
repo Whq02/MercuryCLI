@@ -4,6 +4,7 @@ import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
 } from '../../types/command.js'
+import { formatDuration } from '../../utils/format.js'
 import { plural } from '../../utils/stringUtils.js'
 import { renderToString } from '../../utils/staticRender.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
@@ -11,7 +12,14 @@ import { MISSION_CONDITION_MAX_LENGTH, isMissionClearKeyword } from '../../guard
 import type { MissionCardFactV1 } from '../../services/engine-connector/types.js'
 
 
-type MissionView = Pick<MissionCardFactV1, 'goal' | 'state' | 'nextStep' | 'iterations'>
+type MissionView = Pick<MissionCardFactV1, 'goal' | 'state' | 'nextStep' | 'iterations' | 'setAt' | 'outcome'>
+
+function metLine(mission: MissionView): string {
+  const outcome = mission.outcome
+  if (outcome === undefined) return '✓ Mission met — stops are allowed; a new /mission replaces it'
+  const elapsed = formatDuration(Math.max(0, Date.parse(outcome.metAt) - Date.parse(mission.setAt)), { mostSignificantOnly: true })
+  return `✓ Mission completed — ${outcome.reason} · ${outcome.turns} ${plural(outcome.turns, 'turn')} · ${elapsed} · a new /mission replaces it`
+}
 
 function MissionStatusPanel({ mission }: { mission: MissionView }): React.ReactNode {
   const iterationsLabel =
@@ -19,7 +27,7 @@ function MissionStatusPanel({ mission }: { mission: MissionView }): React.ReactN
       ? 'not yet checked'
       : `checked ${mission.iterations} ${plural(mission.iterations, 'time')}`
   const stateLine = mission.state === 'met'
-    ? '✓ Mission met — stops are allowed; a new /mission replaces it'
+    ? metLine(mission)
     : mission.state === 'paused'
       ? `${GLYPH.warn} Mission paused — ${mission.nextStep ?? 'waiting on you'}; your next message resumes it`
       : `Mission active · ${iterationsLabel}${mission.nextStep ? ` · ${mission.nextStep}` : ''} · the session checks it at every turn end`
@@ -47,7 +55,7 @@ async function sessionMissionCard(): Promise<MissionCardFactV1 | null> {
   try {
     const { readMissionCard } = await import('../../services/mission/missionCard.js')
     const card = readMissionCard(connector.sessionId(), connector.workspace().originalCwd)
-    return card === null ? null : { goal: card.goal, state: card.state, nextStep: card.nextStep, iterations: card.iterations, setAt: card.setAt, updatedAt: card.updatedAt }
+    return card === null ? null : { goal: card.goal, state: card.state, nextStep: card.nextStep, iterations: card.iterations, setAt: card.setAt, updatedAt: card.updatedAt, ...(card.outcome !== undefined ? { outcome: card.outcome } : {}) }
   } catch {
     return null
   }
