@@ -184,6 +184,12 @@ function boundsOf(raw: unknown): DesktopBounds | null {
 
 const noteOf = (reason: unknown): string | null => (typeof reason === 'string' && reason !== '' ? reason : null)
 
+function readerExitWords(error: { killed?: boolean; code?: string | number | null }): string {
+  if (error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') return `the native reader answered more than ${TREE_SUBPROCESS_BUFFER / (1024 * 1024)} MiB`
+  if (error.killed) return `no answer within ${TREE_SUBPROCESS_TIMEOUT_MS / 1000} seconds (the application may not be responding)`
+  return 'the native reader exited without an answer'
+}
+
 type DesktopQueryAnswer = { value: unknown } | { error: string }
 
 function queryAnswer(stdout: string): DesktopQueryAnswer | null {
@@ -483,7 +489,7 @@ class NativeDesktopDriver implements DesktopDriver {
           if (signal.aborted) return reject(new Error(ABORTED_PREFIX))
           const answer = queryAnswer(stdout)
           if (answer !== null && 'error' in answer) return reject(new Error(answer.error))
-          if (error) return reject(new Error(`${method} failed: ${error.killed ? `no answer within ${TREE_SUBPROCESS_TIMEOUT_MS / 1000} seconds (the application may not be responding)` : 'the native reader exited without an answer'}`))
+          if (error) return reject(new Error(`${method} failed: ${readerExitWords(error)}`))
           if (answer === null) return reject(new Error(`${method} returned an unreadable record`))
           resolve(answer.value as T)
         })

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { createHash } from 'node:crypto'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -84,7 +84,14 @@ function usePack(dir: string | null): ReturnType<typeof native.resolveNativeDesk
 }
 
 const oneSentence = (note: string): boolean => !note.includes('\n') && !note.includes('Command failed') && !note.includes(' -e ') && !note.includes('.node') && !note.includes(ROOT) && !note.includes('    at ') && note.length < 300
+const grantHolds = (grant: string): boolean => grant === 'granted' || grant === 'not-required'
+const bundledNode = (): string | null => {
+  const candidate = join(ROOT, 'vendor', 'node', 'extracted', `${process.platform}-${process.arch}`, 'bin', 'node')
+  return existsSync(candidate) ? candidate : null
+}
 
+if (process.platform !== 'darwin') warn('[1]–[3] drive the native reader, a macOS road (readElement is a macOS export; the driver refuses the query elsewhere) — skipped on this platform')
+else {
 console.log('[1] what crosses the bridge: a stub addon records the element it received')
 {
   const resolved = usePack(stubPack("readElement: (pid, element) => ({ text: JSON.stringify({ pid, keys: Object.keys(element), element }), role: element.role, title: element.title === undefined ? 'absent' : String(element.title) })"))
@@ -121,6 +128,12 @@ console.log('\n[2] a native failure answers one sentence, never the command line
     const answer = await crashed.driver.readElement!(app, untitled, signal())
     check('a reader that dies without an answer is one sentence naming the reader, with no argv, path or stack', !answer.ok && answer.error.note === 'readElement failed: the native reader exited without an answer' && oneSentence(answer.error.note), JSON.stringify(answer))
   }
+  const flood = usePack(stubPack("readElement: () => ({ text: 'x'.repeat(17 * 1024 * 1024), role: 'AXStaticText', title: null })"))
+  if (flood.state !== 'ok') check('the stub pack resolves', false, flood.note)
+  else {
+    const answer = await flood.driver.readElement!(app, untitled, signal())
+    check('a reader that answers past the 16 MiB buffer says so', !answer.ok && answer.error.note === 'readElement failed: the native reader answered more than 16 MiB', JSON.stringify(answer))
+  }
   const silent = usePack(stubPack("readElement: () => { process.stdout.write('not json') }"))
   if (silent.state !== 'ok') check('the stub pack resolves', false, silent.note)
   else {
@@ -129,28 +142,37 @@ console.log('\n[2] a native failure answers one sentence, never the command line
   }
 }
 
-console.log('\n[3] through the packaged addon')
+console.log('\n[3] through the packaged addon, on the child the product runs (the bundled node), against this process, which has no window: #3211\'s element reaches the reader and the reader\'s own sentence comes back')
 {
   const resolved = usePack(null)
-  if (resolved.state !== 'ok' || resolved.driver.describe().source !== 'workspace') warn(`the packaged addon is not on this checkout (${resolved.state === 'ok' ? resolved.driver.describe().source : resolved.note}) — the packaged legs are skipped`)
+  const load = pack.loadDesktopAddon()
+  const permissions = load.state === 'ok' ? load.addon.permissions() : null
+  const node = bundledNode()
+  if (resolved.state !== 'ok' || resolved.driver.describe().source !== 'workspace' || load.state !== 'ok') warn(`the packaged addon is not on this checkout (${resolved.state === 'ok' ? resolved.driver.describe().source : resolved.note}) — the packaged legs are skipped`)
+  else if (permissions === null || permissions.session !== 'desktop' || !grantHolds(permissions.screenCapture) || !grantHolds(permissions.input)) warn(`the packaged legs need a desktop session with both grants and never ask for them (session ${permissions?.session}, screen ${permissions?.screenCapture}, input ${permissions?.input}) — skipped`)
+  else if (node === null) warn('the bundled node is absent on this checkout (bun run scripts/vendor/fetch-node.ts) — the packaged legs are skipped')
+  else if (!load.addon.readElement) check('the packaged addon exports readElement', false, 'no readElement')
   else {
-    const load = pack.loadDesktopAddon()
-    if (load.state !== 'ok' || !load.addon.readElement) check('the packaged addon exports readElement', false, load.state === 'ok' ? 'no readElement' : load.note)
-    else {
-      let raw = ''
-      try { load.addon.readElement(process.pid, untitled); raw = 'answered' } catch (error) { raw = error instanceof Error ? `${(error as Error & { code?: string }).code ?? ''}: ${error.message}` : String(error) }
-      check('napi reads a present null title as a value and refuses it (the reason the bridge omits the key)', raw.startsWith('StringExpected: ') && raw.includes('TreeElement.title'), raw)
+    let raw = ''
+    try { load.addon.readElement(process.pid, untitled); raw = 'answered' } catch (error) { raw = error instanceof Error ? `${(error as Error & { code?: string }).code ?? ''}: ${error.message}` : String(error) }
+    check('napi reads a present null title as a value and refuses it (the reason the bridge omits the key)', raw.startsWith('StringExpected: ') && raw.includes('TreeElement.title'), raw)
+    const hostExecPath = process.execPath
+    process.execPath = node
+    try {
       const answer = await resolved.driver.readElement!(app, untitled, signal())
       const note = answer.ok ? '' : answer.error.note
-      check('the null-title element reaches the native reader: the answer is the reader\'s own sentence, not StringExpected', !answer.ok && !note.includes('StringExpected') && !note.includes('Failed to convert') && (note === 'the focused window is unavailable' || note.startsWith('input control is not granted')), JSON.stringify(answer))
+      check('the null-title element reaches the native reader: the answer is the reader\'s own sentence, not StringExpected', !answer.ok && !note.includes('StringExpected') && !note.includes('Failed to convert') && note === 'the focused window is unavailable', JSON.stringify(answer))
       check('that sentence is one line with no command line, addon path or stack', oneSentence(note), note)
-      console.log(`  · packaged answer: ${note}`)
+      console.log(`  · packaged answer on ${node.slice(ROOT.length + 1)}: ${note}`)
       const withoutFrame = await resolved.driver.readElement!(app, bare, signal())
       check('a null frame and value cross the same road', !withoutFrame.ok && !withoutFrame.error.note.includes('Cannot convert') && oneSentence(withoutFrame.error.note), JSON.stringify(withoutFrame))
       const found = await resolved.driver.findApplication!('no-such-application-zzz')
       check('an answered record still crosses the same road (findApplication names zero matches)', !found.ok && found.error.kind === 'input' && found.error.note.startsWith('0 running applications named no-such-application-zzz'), JSON.stringify(found))
+    } finally {
+      process.execPath = hostExecPath
     }
   }
+}
 }
 
 console.log('\n[4] the fake driver reads the same element')

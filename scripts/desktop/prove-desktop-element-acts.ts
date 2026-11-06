@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -141,6 +141,11 @@ console.log('\n[3] the gates both acts share')
   }
 }
 
+const lib = readFileSync(join(ROOT, 'native', 'desktop', 'src', 'lib.rs'), 'utf8')
+check("the fake driver's sentences are the native addon's (lib.rs)", lib.includes(SCROLL_NOTE) && lib.includes(VALUE_NOTE) && lib.includes(NOT_UNIQUE) && lib.includes('a secure field is not read back'))
+
+if (process.platform !== 'darwin') console.log('  [WARN] [4]–[5] drive the native bridge, a macOS road here (the driver refuses the query elsewhere; the Windows pack is exercised on the field box) — skipped on this platform')
+else {
 console.log('\n[4] the native bridge: a stub addon shows what the driver sends and how it reads the answer')
 {
   const pack = await import('../../src/services/desktop/pack.js')
@@ -220,26 +225,34 @@ console.log('\n[4] the native bridge: a stub addon shows what the driver sends a
     check("a platform's unsupported words classify as unavailable; the tree sentence crosses verbatim", !scrolled.ok && scrolled.error.kind === 'unavailable' && scrolled.error.note.startsWith('scrolling an element into view is unsupported on this platform') && !set.ok && set.error.note === NOT_UNIQUE, JSON.stringify([scrolled, set]))
   }
 
-  console.log('\n[5] the packaged addon carries both exports and answers with words')
+  console.log('\n[5] the packaged addon carries both exports and answers with words, on the child the product runs (the bundled node), against this process, which has no window')
   const resolved = usePack(null)
-  const lib = readFileSync(join(ROOT, 'native', 'desktop', 'src', 'lib.rs'), 'utf8')
-  check("the fake driver's sentences are the native addon's (lib.rs)", lib.includes(SCROLL_NOTE) && lib.includes(VALUE_NOTE) && lib.includes(NOT_UNIQUE) && lib.includes('a secure field is not read back'))
-  if (resolved.state !== 'ok') check('the packaged addon on this checkout loads with both exports', false, resolved.note)
-  else if (resolved.driver.describe().source !== 'workspace') console.log(`  [WARN] the driver resolved from ${resolved.driver.describe().source}, not the checkout pack — the packaged legs still run against it`)
-  if (resolved.state === 'ok') {
-    const load = pack.loadDesktopAddon()
-    check('the packaged addon exports scrollToVisible and setValue', load.state === 'ok' && typeof load.addon.scrollToVisible === 'function' && typeof load.addon.setValue === 'function', load.state === 'ok' ? '' : load.note)
-    if (load.state === 'ok') {
-      const thrown = (run: () => unknown): string => { try { run(); return 'answered' } catch (error) { return error instanceof Error ? error.message : String(error) } }
-      const scrollWords = thrown(() => load.addon.scrollToVisible(process.pid, { depth: 20, role: 'AXStaticText', value: 'About', frame: { x: 10, y: 985, width: 100, height: 1 } }, true))
-      const valueWords = thrown(() => load.addon.setValue(process.pid, { depth: 20, role: 'AXTextField', title: 'URL', frame: { x: 10, y: 10, width: 100, height: 20 } }, 'x'))
-      check('on a process without a window both exports answer the reader\'s sentence, never a conversion error or a crash', (scrollWords === 'the focused window is unavailable' || scrollWords.startsWith('input control is not granted')) && valueWords === scrollWords, `${scrollWords} | ${valueWords}`)
-      console.log(`  · packaged answers: ${scrollWords}`)
+  const load = pack.loadDesktopAddon()
+  check('the packaged addon on this checkout loads with both exports (an older pack is refused by name)', load.state === 'ok' && typeof load.addon.scrollToVisible === 'function' && typeof load.addon.setValue === 'function', load.state === 'ok' ? '' : load.note)
+  const permissions = load.state === 'ok' ? load.addon.permissions() : null
+  const grantHolds = (grant: string): boolean => grant === 'granted' || grant === 'not-required'
+  const node = join(ROOT, 'vendor', 'node', 'extracted', `${process.platform}-${process.arch}`, 'bin', 'node')
+  if (resolved.state !== 'ok' || load.state !== 'ok') console.log('  [WARN] the packaged legs are skipped: no addon')
+  else if (permissions === null || permissions.session !== 'desktop' || !grantHolds(permissions.screenCapture) || !grantHolds(permissions.input)) console.log(`  [WARN] the packaged legs need a desktop session with both grants and never ask for them (session ${permissions?.session}, screen ${permissions?.screenCapture}, input ${permissions?.input}) — skipped`)
+  else if (!existsSync(node)) console.log('  [WARN] the bundled node is absent on this checkout (bun run scripts/vendor/fetch-node.ts) — the packaged legs are skipped')
+  else {
+    if (resolved.driver.describe().source !== 'workspace') console.log(`  [WARN] the driver resolved from ${resolved.driver.describe().source}, not the checkout pack — the packaged legs still run against it`)
+    const thrown = (run: () => unknown): string => { try { run(); return 'answered' } catch (error) { return error instanceof Error ? error.message : String(error) } }
+    const scrollWords = thrown(() => load.addon.scrollToVisible(process.pid, { depth: 20, role: 'AXStaticText', value: 'About', frame: { x: 10, y: 985, width: 100, height: 1 } }, true))
+    const valueWords = thrown(() => load.addon.setValue(process.pid, { depth: 20, role: 'AXTextField', title: 'URL', frame: { x: 10, y: 10, width: 100, height: 20 } }, 'x'))
+    check('on a process without a window both exports answer the reader\'s sentence, never a conversion error or a crash', scrollWords === 'the focused window is unavailable' && valueWords === scrollWords, `${scrollWords} | ${valueWords}`)
+    const hostExecPath = process.execPath
+    process.execPath = node
+    try {
       const scrolled = await resolved.driver.scrollToVisible!(app, untitled, signal())
       const set = await resolved.driver.setValue!(app, untitled, 'x', signal())
-      check('through the driver the same sentence arrives as the note, one line, no command line', !scrolled.ok && scrolled.error.note === scrollWords && !set.ok && set.error.note === scrollWords && !scrollWords.includes('\n'), JSON.stringify([scrolled, set]))
+      check('through the driver on the bundled node the same sentence arrives as the note, one line, no command line', !scrolled.ok && scrolled.error.note === scrollWords && !set.ok && set.error.note === scrollWords && !scrollWords.includes('\n'), JSON.stringify([scrolled, set]))
+      console.log(`  · packaged answers on ${node.slice(ROOT.length + 1)}: ${scrollWords}`)
+    } finally {
+      process.execPath = hostExecPath
     }
   }
+}
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
