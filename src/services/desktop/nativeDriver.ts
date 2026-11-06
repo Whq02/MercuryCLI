@@ -158,6 +158,25 @@ function pngSigned(png: unknown): png is Uint8Array {
   return png[0] === 0x89 && png[1] === 0x50 && png[2] === 0x4e && png[3] === 0x47
 }
 
+function bridgedElement(element: DesktopTreeElement): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(element).filter(([, value]) => value !== null))
+}
+
+type DesktopQueryAnswer = { value: unknown } | { error: string }
+
+function queryAnswer(stdout: string): DesktopQueryAnswer | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(stdout)
+  } catch {
+    return null
+  }
+  if (parsed === null || typeof parsed !== 'object') return null
+  if ('error' in parsed && typeof parsed.error === 'string') return { error: parsed.error }
+  if ('value' in parsed) return { value: parsed.value }
+  return null
+}
+
 class NativeDesktopDriver implements DesktopDriver {
   private closed = false
   private grantsRequested = false
@@ -435,12 +454,15 @@ class NativeDesktopDriver implements DesktopDriver {
     if (refusal) return this.refuseAndRequestGrants(refusal)
     try {
       const value = await new Promise<T>((resolve, reject) => {
-        const script = 'const a=require(process.argv[1]); Promise.resolve(a[process.argv[2]](...JSON.parse(process.argv[3]))).then(v=>process.stdout.write(JSON.stringify(v??null)))'
+        const script = 'const a=require(process.argv[1]); new Promise(r=>r(a[process.argv[2]](...JSON.parse(process.argv[3])))).then(v=>process.stdout.write(JSON.stringify({value:v??null})),e=>{process.stdout.write(JSON.stringify({error:e instanceof Error?e.message:String(e)}));process.exitCode=1})'
         const child = execFile(process.execPath, ['-e', script, this.addonPath, method, JSON.stringify(args)], { timeout: TREE_SUBPROCESS_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: TREE_SUBPROCESS_BUFFER, encoding: 'utf8' }, (error, stdout) => {
           signal.removeEventListener('abort', onAbort)
           if (signal.aborted) return reject(new Error(ABORTED_PREFIX))
-          if (error) return reject(new Error(`${method} failed: ${error.message}`))
-          try { resolve(JSON.parse(stdout)) } catch { reject(new Error(`${method} returned an unreadable record`)) }
+          const answer = queryAnswer(stdout)
+          if (answer !== null && 'error' in answer) return reject(new Error(answer.error))
+          if (error) return reject(new Error(`${method} failed: ${error.killed ? `no answer within ${TREE_SUBPROCESS_TIMEOUT_MS / 1000} seconds (the application may not be responding)` : 'the native reader exited without an answer'}`))
+          if (answer === null) return reject(new Error(`${method} returned an unreadable record`))
+          resolve(answer.value as T)
         })
         const onAbort = () => { child.kill('SIGKILL') }
         signal.addEventListener('abort', onAbort, { once: true })
@@ -452,7 +474,7 @@ class NativeDesktopDriver implements DesktopDriver {
 
   async readElement(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopFocusedText | null>> {
     if (!app.pid || !Number.isInteger(app.pid)) return fail({ kind: 'input', note: `${app.name} has no process id` })
-    const answer = await this.queryDesktop<DesktopFocusedText | null>('readElement', [app.pid, element], signal, true)
+    const answer = await this.queryDesktop<DesktopFocusedText | null>('readElement', [app.pid, bridgedElement(element)], signal, true)
     if (answer.ok && answer.value !== null && (typeof answer.value.text !== 'string' || typeof answer.value.role !== 'string')) return fail(contractDefect('read element', 'invalid text or role'))
     return answer
   }
