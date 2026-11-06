@@ -272,8 +272,8 @@ async function main(): Promise<void> {
     check('C7 harness: the mission hook registered', typeof cb7 === 'function')
     const firstEval = cb7 ? await cb7(messagesNoSentinel) : null
     check(
-      'C7: an already-satisfied mission finishes immediately (no burned continuation)',
-      firstEval === true,
+      'C7: a goal naming a file that already exists is not met by the compile probe: the first stop is held until an itemised close',
+      firstEval === false,
       `first evaluation → ${firstEval === true ? 'allowed stop' : 'blocked'}`,
     )
   }

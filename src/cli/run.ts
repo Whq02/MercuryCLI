@@ -631,6 +631,7 @@ export async function runHeadless(
     }
     return null
   }
+  const missionGuard = await import('../guards/mission.js')
   {
     let missionTimer: NodeJS.Timeout | null = null
     const missionMoved = (): void => {
@@ -642,7 +643,6 @@ export async function runHeadless(
       missionTimer.unref?.()
     }
     onTasksUpdated(missionMoved)
-    const missionGuard = await import('../guards/mission.js')
     missionGuard.subscribeActiveMission(missionMoved)
   }
   {
@@ -2405,7 +2405,10 @@ export async function runHeadless(
           ...(missionLedgerOf(task.metadata) !== undefined ? { ledger: missionLedgerOf(task.metadata) } : {}),
         })),
         samples: await sampleRowsOf(getSessionId()),
-        missionCard: (await import('../guards/mission.js')).missionCardView(String(getSessionId())),
+        ...((): { missionCard?: SessionFactsAnswerV1['missionCard'] } => {
+          const card = missionGuard.missionCardView(String(getSessionId()))
+          return card === null ? {} : { missionCard: card }
+        })(),
         ...(sessionKitOf() !== undefined ? { kit: sessionKitOf() } : {}),
         ...((): Record<string, unknown> => {
           const edits = takePendingScheduleEdits()

@@ -142,6 +142,9 @@ export async function judgeGoal(
       logForDebugging(`[mission] the goal judge failed — ${error instanceof Error ? error.message : String(error)}`)
     }
   }
+  if (answered !== null && answered.kind === 'met' && !evidence.claimedMet) {
+    return { kind: 'open', confidence: answered.confidence, reason: `${evidence.claimDefect ?? 'the turn ended without the completion line'}; the judge read the goal as met, but the itemised close is the prerequisite`, road: answered.road }
+  }
   if (answered !== null && answered.kind !== 'open') return answered
   if (answered === null && evidence.claimedMet) return judgeByClaim(evidence)
   if (evidence.stalledChecks >= GOAL_STALL_CHECKS) return stalledVerdict(evidence)

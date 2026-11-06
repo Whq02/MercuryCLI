@@ -1,4 +1,3 @@
-import { existsSync } from 'node:fs'
 import { MISSION_MET_SENTINEL } from './sentinel.js'
 
 export interface GoalStatement {
@@ -6,7 +5,7 @@ export interface GoalStatement {
   constraints: string[]
 }
 
-export type GoalFeasibility = 'attainable' | 'already-met' | 'unattainable-now'
+export type GoalFeasibility = 'attainable' | 'unattainable-now'
 
 export interface GoalContract {
   feasibility: GoalFeasibility
@@ -75,28 +74,13 @@ export function readItemisedClose(closing: string, goal: GoalStatement): CloseRe
   return { met: true }
 }
 
-export function goalContract(
-  condition: string,
-  probes: { fileExists: (p: string) => boolean } = {
-    fileExists: p => {
-      try {
-        return existsSync(p)
-      } catch {
-        return false
-      }
-    },
-  },
-): GoalContract {
+export function goalContract(condition: string): GoalContract {
   const text = condition.trim()
   if (/\bno observable\b|\bwithout (any )?observable\b|\bcannot be (checked|observed|verified)\b/i.test(text)) {
     return { feasibility: 'unattainable-now', evidence: 'the goal declares itself unobservable' }
   }
   if (/simultaneously[^.]*\b(enabled and disabled|disabled and enabled|on and off|true and false|present and absent)\b/i.test(text)) {
     return { feasibility: 'unattainable-now', evidence: 'the goal demands mutually exclusive states at once' }
-  }
-  const fileExists = /\bthe file\s+(\S+)\s+exists\b/i.exec(text)
-  if (fileExists?.[1] && probes.fileExists(fileExists[1])) {
-    return { feasibility: 'already-met', evidence: `${fileExists[1]} exists` }
   }
   return { feasibility: 'attainable' }
 }

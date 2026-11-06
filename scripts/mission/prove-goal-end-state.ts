@@ -44,7 +44,7 @@ const { MISSION_MET_SENTINEL, MISSION_DIRECTIVE_HEADER, buildMissionDirective, c
 const { readMissionCard } = await import('../../src/services/mission/missionCard.ts')
 const goalModule = await import('../../src/services/mission/goal.ts').catch(() => null)
 const judgeModule = await import('../../src/services/mission/goalJudge.ts').catch(() => null)
-const { guardsEngaged, judgeTurnEnd } = await import('../../src/guards/guards.ts')
+const { guardsEngaged, judgeTurnEnd, takeTurnNotes } = await import('../../src/guards/guards.ts')
 const { _resetContinuationLatchesForTesting } = await import('../../src/services/run/continuationLatch.ts')
 const { setJevEnabled } = await import('../../src/services/jev/jevSetting.ts')
 const { storeJevApiKey } = await import('../../src/services/jev/jevKey.ts')
@@ -113,7 +113,7 @@ section('§2 the goal statement: the condition stated once as an end state with 
   check('the imperative re-prompt loop is gone from the directive', !/Stop hook will keep re-prompting/.test(directive) && !/Do not stop until/.test(directive))
 }
 
-section("§3 a met end state ends on the judge's verdict, not the block counter")
+section("§3 a met end state ends on the judge's verdict over an itemised close, not the block counter")
 {
   const S = 'goal-judge-met'
   const GOAL = 'the parser suite is green'
@@ -122,12 +122,30 @@ section("§3 a met end state ends on the judge's verdict, not the block counter"
     asked += 1
     return verdict('met', 0.92, 'the evidence shows the suite green')
   })
-  const first = await stop(S, [user(`/goal ${GOAL}`), asst('the suite is green now; moving on')])
-  check('the stop passes on the judge alone: no completion line in the transcript, no counter burned', first.allowed && asked === 1, j({ first, asked }))
+  const first = await stop(S, [user(`/goal ${GOAL}`), asst(`1. ${GOAL} — the suite is green now, 212 passing\n${MISSION_MET_SENTINEL}`)])
+  check('the stop passes on the judge over an itemised close: no counter burned', first.allowed && asked === 1, j({ first, asked }))
   const live = getActiveMission(S)
   const card = readMissionCard(S)
   check('the mission reads met with the verdict as its reason', live?.met === true && (live?.lastReason ?? '').includes('the evidence shows the suite green'), j(live))
   check('the card settled met at check 0', card?.state === 'met' && card?.iterations === 0 && card?.nextStep === null, j(card))
+  clearActiveMission(S)
+  arm(S, GOAL, async () => verdict('met', 0.92, 'the evidence shows the suite green'))
+  const unclosed = await stop(S, [user(`/goal ${GOAL}`), asst('the suite is green now; moving on')])
+  check('the itemised close is the prerequisite for met from any judge: a met verdict over a turn without the close is held, the structural reason in the hold', unclosed.allowed === false && unclosed.words.startsWith(`Mission not completed: ${GOAL} — the turn ended without the completion line; the judge read the goal as met, but the itemised close is the prerequisite`) && readMissionCard(S)?.state === 'armed', j({ unclosed, card: readMissionCard(S) }))
+  clearActiveMission(S)
+}
+{
+  const S = 'goal-already-there'
+  const { mkdtempSync, writeFileSync: write } = await import('node:fs')
+  const dir = mkdtempSync(join(HOME, 'already-'))
+  const file = join(dir, 'hello.txt')
+  write(file, 'goodbye\n')
+  const GOAL = `the file ${file} exists and contains the word hello`
+  check('the compile probe never meets a mission: a goal naming a file that already exists compiles as attainable', j(goalModule?.goalContract(GOAL)) === j({ feasibility: 'attainable' }), j(goalModule?.goalContract(GOAL)))
+  arm(S, GOAL, null)
+  check('the card is armed at arming, not met, though the file stands with the wrong content', readMissionCard(S)?.state === 'armed' && getActiveMission(S)?.met !== true, j(readMissionCard(S)))
+  const held = await stop(S, [user(`/goal ${GOAL}`), asst('the file is there already.')])
+  check('a turn without the itemised close is held like any other', held.allowed === false && held.words.startsWith(`Mission not completed: ${GOAL} — the turn ended without the completion line`), j(held))
   clearActiveMission(S)
 }
 {
@@ -190,30 +208,39 @@ section('§4 the Jev road: the verdict rides the existing judge road, counted in
     probabilities[choice] = p
     return { model: 'jev-1.13.0', answers: { goal: { type: 'choice', choice, probabilities, confidence: p } }, usage: { input_tokens: 400, output_tokens: 10 } }
   }
+  const itemised = `1. the parser suite is green and the fix is pushed — suite green on CI, pushed as 9f1c2d\n2. without touching the public API — no diff under src/api\n${MISSION_MET_SENTINEL}`
   standin.answerWith(() => answer('met', 0.91))
   arm(S, GOAL)
-  const met = await stop(S, [user(`/goal ${GOAL}`), asst('suite green, pushed; the API untouched')])
+  const unclosed = await stop(S, [user(`/goal ${GOAL}`), asst('suite green, pushed; the API untouched')])
   const request = standin.received[0]?.body as { model?: string; state?: Record<string, string>; questions?: Record<string, { type?: string; criteria?: Record<string, string> }> } | undefined
   check('one request reached Jev', standin.received.length === 1, String(standin.received.length))
   check('the request carries the goal statement, the closing words and the verification record as its state', (request?.state?.goal ?? '').startsWith('Goal: the parser suite is green and the fix is pushed') && (request?.state?.goal ?? '').includes('Constraints: without touching the public API') && (request?.state?.closing ?? '').includes('suite green, pushed') && typeof request?.state?.verification === 'string' && request?.state?.claimed_met === 'no', j(request?.state))
   check('one choice question with the four verdicts', request?.questions?.goal?.type === 'choice' && j(Object.keys(request?.questions?.goal?.criteria ?? {})) === j(['met', 'open', 'ambiguous', 'unattainable']), j(request?.questions))
   check('the request rides the pinned model on the official road', request?.model === 'jev-1.13.0', j(request?.model))
-  check("Jev at 0.91 met: the stop passes and the card reads met on Jev's verdict", met.allowed && readMissionCard(S)?.state === 'met' && (getActiveMission(S)?.lastReason ?? '').includes('Jev read the goal as met'), j({ met, live: getActiveMission(S)?.lastReason }))
-  check('the call is counted in the Jev ledger', jevLedgerSnapshot().attempts === 1, j(jevLedgerSnapshot()))
+  check('Jev at 0.91 met over a turn without the itemised close: held, the structural reason first, Jev named after it', unclosed.allowed === false && unclosed.words.includes('the turn ended without the completion line; the judge read the goal as met, but the itemised close is the prerequisite') && readMissionCard(S)?.state === 'armed', j({ unclosed, card: readMissionCard(S) }))
+  clearActiveMission(S)
+  arm(S, GOAL)
+  const met = await stop(S, [user(`/goal ${GOAL}`), asst(itemised)])
+  check("Jev at 0.91 met over the itemised close: the stop passes and the card reads met on Jev's verdict", met.allowed && readMissionCard(S)?.state === 'met' && (getActiveMission(S)?.lastReason ?? '').includes('Jev read the goal as met'), j({ met, live: getActiveMission(S)?.lastReason }))
+  check('both calls are counted in the Jev ledger', jevLedgerSnapshot().attempts === 2, j(jevLedgerSnapshot()))
   clearActiveMission(S)
 
-  const itemised = `1. the parser suite is green and the fix is pushed — suite green on CI, pushed as 9f1c2d\n2. without touching the public API — no diff under src/api\n${MISSION_MET_SENTINEL}`
   standin.answerWith(() => answer('open', 0.8))
   arm(S, GOAL)
   const claimed = await stop(S, [user(`/goal ${GOAL}`), asst(itemised)])
   check("Jev at 0.8 open outranks the itemised close: held, with Jev's reading in the words", claimed.allowed === false && claimed.words.includes('Jev read the goal as open'), j(claimed))
-  const claimedRequest = standin.received[1]?.body as { state?: Record<string, string> } | undefined
+  const claimedRequest = standin.received[2]?.body as { state?: Record<string, string> } | undefined
   check('the itemised claim is evidence Jev sees, not the verdict', claimedRequest?.state?.claimed_met === 'yes', j(claimedRequest?.state))
   clearActiveMission(S)
+  standin.answerWith(() => answer('met', 0.91))
   arm(S, GOAL)
   const bare = await stop(S, [user(`/goal ${GOAL}`), asst(`done.\n${MISSION_MET_SENTINEL}`)])
-  const bareRequest = standin.received[2]?.body as { state?: Record<string, string> } | undefined
-  check('a bare completion line is no claim: Jev sees claimed_met no, and the hold names the missing criterion lines', bare.allowed === false && bareRequest?.state?.claimed_met === 'no', j({ bare, state: bareRequest?.state }))
+  const bareRequest = standin.received[3]?.body as { state?: Record<string, string> } | undefined
+  check('a bare completion line with Jev answering met is held: Jev sees claimed_met no, and the hold names the missing criterion lines before the judge', bare.allowed === false && bareRequest?.state?.claimed_met === 'no' && bare.words.includes('the completion line stands alone: no criterion lines precede it; the judge read the goal as met, but the itemised close is the prerequisite') && readMissionCard(S)?.state === 'armed', j({ bare, state: bareRequest?.state }))
+  clearActiveMission(S)
+  arm(S, GOAL)
+  const skippedWithJev = await stop(S, [user(`/goal ${GOAL}`), asst(`1. the parser suite is green and the fix is pushed — suite green on CI, pushed as 9f1c2d\n${MISSION_MET_SENTINEL}`)])
+  check('a close that skips a criterion with Jev answering met is held with the skipped criterion named', skippedWithJev.allowed === false && skippedWithJev.words.includes('criterion 2 has no line in the close') && readMissionCard(S)?.state === 'armed', j(skippedWithJev))
   clearActiveMission(S)
 
   standin.answerWith(() => answer('met', 0.5))
@@ -326,8 +353,35 @@ section('§5 the pause: an ambiguous or unattainable goal asks the operator one 
     if (result.allowed) break
     mute.push(user('(hold)'), asst(`still thinking (${i})`))
   }
-  check(`asked to ask and giving no question, the model is paused all the same: the harness names the stall and waits on the operator`, j(muteTrail) === j([false, false, false, true]) && readMissionCard(S)?.state === 'paused' && (readMissionCard(S)?.nextStep ?? '').includes('the model gave no question'), j({ muteTrail, card: readMissionCard(S) }))
+  const muteNotes = takeTurnNotes(S)
+  check(`asked to ask and giving neither a close nor a question, the model is paused all the same: the harness names the stall and the note says what resumes it`, j(muteTrail) === j([false, false, false, true]) && readMissionCard(S)?.state === 'paused' && (readMissionCard(S)?.nextStep ?? '').includes('the model gave no question') && muteNotes.some(note => note.text.startsWith('mission paused') && note.text.includes('your next message resumes it') && note.text.includes('/mission clear ends it')), j({ muteTrail, card: readMissionCard(S), notes: muteNotes }))
   clearActiveMission(S)
+  arm(S, GOAL, null)
+  const closes: unknown[] = [user(`/goal ${GOAL}`), asst('thinking about it')]
+  const closeTrail: boolean[] = []
+  for (let i = 0; i < 8; i++) {
+    const result = await stop(S, closes)
+    closeTrail.push(result.allowed)
+    if (result.allowed) break
+    closes.push(user('(hold)'), asst(i === 2 ? `1. ${GOAL} \u2014 pinned the flaky await in test/flaky.test.ts; 20 green runs in a row\n${MISSION_MET_SENTINEL}` : `still thinking (${i})`))
+  }
+  check('asked to ask and answering with a valid itemised close instead, the close is judged first and met wins: no pause', j(closeTrail) === j([false, false, false, true]) && readMissionCard(S)?.state === 'met' && getActiveMission(S)?.met === true && getActiveMission(S)?.paused === undefined, j({ closeTrail, card: readMissionCard(S) }))
+  clearActiveMission(S)
+}
+{
+  const S = 'goal-clear-during-judgement'
+  const GOAL = 'the parser suite is green'
+  const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 5))
+  for (const kind of ['open', 'met'] as const) {
+    let settle: (v: Verdict | null) => void = () => {}
+    arm(S, GOAL, () => new Promise<Verdict | null>(resolve => { settle = resolve }))
+    const pending = stop(S, [user(`/goal ${GOAL}`), asst(kind === 'met' ? `1. ${GOAL} \u2014 212 passing on CI\n${MISSION_MET_SENTINEL}` : 'working')])
+    await tick()
+    const cleared = clearActiveMission(S)
+    settle(verdict(kind))
+    const result = await pending
+    check(`a clear that lands while the judge is out (${kind} verdict) wins: no hold, no card write over the cleared card, no live record`, cleared === GOAL && result.allowed && readMissionCard(S)?.state === 'cleared' && getActiveMission(S) === undefined, j({ kind, result, card: readMissionCard(S), live: getActiveMission(S) }))
+  }
 }
 {
   const S = 'goal-reads-only'

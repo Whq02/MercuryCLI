@@ -57,6 +57,7 @@ export interface ActiveMission {
   stalledChecks: number
   lastReason?: string
   met?: boolean
+  closed?: 'met' | 'cleared'
   paused?: MissionPause
   asking?: boolean
   verdict?: GoalVerdict
@@ -108,13 +109,31 @@ function cardStateOf(mission: ActiveMission): MissionCardState {
   return mission.met ? 'met' : mission.paused !== undefined ? 'paused' : 'armed'
 }
 
+const cardMemo = new Map<string, MissionCard | null>()
+
+function readCard(sessionId: string): MissionCard | null {
+  const card = readMissionCard(sessionId)
+  cardMemo.set(sessionId, card)
+  return card
+}
+
+function writeCard(card: MissionCard): void {
+  writeMissionCard(card)
+  cardMemo.set(card.sessionId, card)
+}
+
 function persistCard(sessionId: string, mission: ActiveMission, state: MissionCardState): void {
-  const standing = readMissionCard(sessionId)
+  const standing = readCard(sessionId)
+  const setAt = new Date(mission.setAt).toISOString()
   if (standing !== null && missionCardStands(standing.state) && Date.parse(standing.setAt) > mission.setAt) {
     logForDebugging(`[mission] the card for session ${sessionId} was armed after this record; the ${state} state of the older one is not written over it`)
     return
   }
-  writeMissionCard({
+  if (mission.closed !== undefined && mission.closed !== state) {
+    logForDebugging(`[mission] the record for session ${sessionId} closed as ${mission.closed}; the ${state} state is not written over it`)
+    return
+  }
+  const card: MissionCard = {
     schema: 1,
     sessionId,
     goal: mission.condition,
@@ -125,9 +144,10 @@ function persistCard(sessionId: string, mission: ActiveMission, state: MissionCa
         : (mission.lastReason ??
           `keep working toward the goal; end a turn with one evidence line per criterion and the ${MISSION_MET_SENTINEL} line once its end state holds`),
     iterations: mission.iterations,
-    setAt: new Date(mission.setAt).toISOString(),
+    setAt,
     updatedAt: new Date().toISOString(),
-  })
+  }
+  writeCard(card)
 }
 
 export function isMissionClearKeyword(text: string): boolean {
@@ -156,7 +176,7 @@ export function missionCardView(sessionId: string = conversationIdHere()): Missi
       updatedAt: new Date().toISOString(),
     }
   }
-  const card = readMissionCard(sessionId)
+  const card = cardMemo.has(sessionId) ? cardMemo.get(sessionId) ?? null : readCard(sessionId)
   return card === null ? null : { goal: card.goal, state: card.state, nextStep: card.nextStep, iterations: card.iterations, setAt: card.setAt, updatedAt: card.updatedAt }
 }
 
@@ -381,9 +401,9 @@ function followSeatAtAdmission(): void {
     moved.lastReason = `armed while the chat was landing; follows the seat ${hostedId}`
     persistCard(hostedId, moved, 'armed')
   }
-  const card = readMissionCard(pending.sessionId)
+  const card = readCard(pending.sessionId)
   if (card !== null && missionCardStands(card.state)) {
-    writeMissionCard({
+    writeCard({
       ...card,
       state: 'continued',
       nextStep: `continued in session ${hostedId}`,
@@ -425,7 +445,6 @@ export function setActiveMission(
     setAt,
     hookId: '',
     lastSeen: readSeen().seen,
-    ...(contract.feasibility === 'already-met' ? { met: true, lastReason: `already met at compile: ${contract.evidence}` } : {}),
   }
 
   const hookId = `mission-${sessionId}-${setAt}`
@@ -440,20 +459,26 @@ export function setActiveMission(
         resumeMission(sessionId, mission, 'the operator spoke')
       }
       const evidence = gatherGoalEvidence(messages, mission)
-      if (mission.asking) {
+      if (mission.asking && !evidence.claimedMet) {
         const why = evidence.asksOperator
           ? `the model asked: "${closingQuestion(evidence.closing)}"`
           : `${mission.verdict?.reason ?? 'the mission stalled'} (the model gave no question)`
         pauseMission(sessionId, mission, why, messages)
         return { hold: false, note: pausedNote(mission) }
       }
+      mission.asking = false
       const verdict: GoalVerdict =
-        mission.contract.feasibility === 'unattainable-now'
+        mission.contract.feasibility === 'unattainable-now' && !evidence.claimedMet
           ? { kind: 'unattainable', confidence: 1, reason: mission.contract.evidence ?? 'the goal cannot be reached as stated', road: 'compile' }
           : await judgeGoal(mission.goal, evidence, { ...(options?.judge === undefined ? {} : { judge: options.judge }), signal })
+      if (missionsBySession.get(sessionId) !== mission) {
+        logForDebugging(`[mission] the verdict for session ${sessionId} arrived after the record was replaced or cleared; it is discarded`)
+        return { hold: false }
+      }
       mission.verdict = verdict
       if (verdict.kind === 'met') {
         mission.met = true
+        mission.closed = 'met'
         mission.lastReason = `met — ${verdict.reason}`
         persistCard(sessionId, mission, 'met')
         notifyMissionChange()
@@ -479,7 +504,7 @@ export function setActiveMission(
 
   record.hookId = hookId
   missionsBySession.set(sessionId, record)
-  persistCard(sessionId, record, record.met ? 'met' : 'armed')
+  persistCard(sessionId, record, 'armed')
   declarePrefixMove('a mission was set')
   logForDebugging(`[mission] installed standing mission for session ${sessionId}`)
   notifyMissionChange()
@@ -498,6 +523,7 @@ export function clearActiveMission(
   if (armedAtLanding?.sessionId === sessionId) dropSeatWatch()
   disengageTurnGuard(sessionId, mission.hookId)
   missionsBySession.delete(sessionId)
+  mission.closed = 'cleared'
   persistCard(sessionId, mission, 'cleared')
   declarePrefixMove('the mission was cleared')
   logForDebugging(`[mission] cleared standing mission for session ${sessionId}`)
@@ -511,7 +537,7 @@ export function activeMissionStatusLine(sessionId: string = conversationIdHere()
 }
 
 export function syncMissionFromCard(sessionId: string): void {
-  const card = readMissionCard(sessionId)
+  const card = readCard(sessionId)
   const live = missionsBySession.get(sessionId)
   if (card !== null && missionCardStands(card.state)) {
     if (live !== undefined && (Date.parse(card.setAt) > live.setAt || live.condition !== card.goal || live.met === true)) {
@@ -537,7 +563,7 @@ export function rearmMissionFromCard(
   const cardSessionId = normalized.cardSessionId ?? conversationIdHere()
   const armSessionId = normalized.armSessionId ?? conversationIdHere()
   if (missionsBySession.has(armSessionId)) return false
-  const card = readMissionCard(cardSessionId)
+  const card = readCard(cardSessionId)
   if (!card || !missionCardStands(card.state)) return false
   const armedAt = Date.parse(card.setAt)
   setActiveMission(card.goal, { sessionId: armSessionId, ...(Number.isFinite(armedAt) ? { setAt: armedAt } : {}) })
@@ -554,7 +580,7 @@ export function rearmMissionFromCard(
     }
   }
   if (cardSessionId !== armSessionId) {
-    writeMissionCard({
+    writeCard({
       ...card,
       state: 'continued',
       nextStep: `continued in session ${armSessionId}`,
