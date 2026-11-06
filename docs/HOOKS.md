@@ -82,8 +82,9 @@ and may carry:
 - `model`: the model a `question` or `crewmate` hook runs on; without it,
   the session's own model answers a question and runs a crewmate, at the
   lowest effort tier it serves; a named model runs at its lowest tier too,
-  after a bounded read of its road's model list (the road's default effort
-  rides when the list cannot be read in time).
+  after a bounded read of its road's model list (when the list cannot be read
+  in time, a question rides the road's default effort and a crewmate the
+  session's dial).
 - `timeout`: seconds; 600 for a `run`, 30 for a `question`, 60 for a
   `crewmate`; at most 2147483.
 - `background`: `run` only; the hook does not hold the moment, and its answer
