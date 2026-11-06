@@ -793,8 +793,9 @@ async function* openaiTurn(
   const strippedMessages = applyStripTargetsToMessages(messages, errorDrivenStripTargets(messages))
   const projectedMessages = strippedMessages.map(message => message.type === 'user' ? withToolReferenceTurnBoundary(message) : message)
   const wireMessages = renderAdmissionRecordsAsText(projectedMessages)
-  const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
-  const effortTruth = resolveEffortTruth(modelId, options.effortValue, { agentId: options.agentId })
+  const effortContext = { agentId: options.agentId, pinned: options.effortPinned === true }
+  const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue, effortContext)
+  const effortTruth = resolveEffortTruth(modelId, options.effortValue, effortContext)
   const kept = candidate === undefined ? liveGptEffortCatalogue(modelId) : undefined
   const remembered = kept !== undefined && kept.vocabulary.length > 0 ? kept : undefined
   let profile: GptReasoningProfile = candidate

@@ -257,6 +257,7 @@ export type Options = {
   skipCacheWrite?: boolean
   temperatureOverride?: number
   effortValue?: EffortValue
+  effortPinned?: boolean
   ridesSessionEffort?: boolean
   mcpTools: Tools
   hasPendingMcpServers?: boolean
@@ -457,8 +458,10 @@ async function* queryModel(
   let signInRequest: ReturnType<typeof captureSignInRequest>
   const resolvedModel = options.model
   const modelRefusalRequest: { current?: ModelRefusalRequest } = {}
-  const effortTruth = resolveEffortTruth(options.model, options.effortValue, { agentId: options.agentId })
-  const effortAsked = options.ridesSessionEffort === false ? undefined : effortTruth.requested
+  const effortPinned = options.effortPinned === true
+  const effortTruth = resolveEffortTruth(options.model, options.effortValue, { agentId: options.agentId, pinned: effortPinned })
+  const effortRides = effortPinned || options.ridesSessionEffort !== false
+  const effortAsked = effortRides ? effortTruth.requested : undefined
   let effortOnWire: EffortStampV1 = effortStampOf(effortAsked, effortTruth.supportsEffort ? { kind: 'omitted' } : { kind: 'unsupported' })
   const captureModelRequest = (params: BetaMessageStreamParams): void => {
     modelRefusalRequest.current = captureModelRefusalRequest(params.model)
@@ -603,7 +606,7 @@ async function* queryModel(
 
   const cacheEditingHeaderLatched = getCacheEditingHeaderLatched() === true
 
-  const effort = options.ridesSessionEffort === false ? undefined : resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId })
+  const effort = effortRides ? resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId, pinned: effortPinned }) : undefined
 
   const startIncludingRetries = Date.now()
   let start = Date.now()
