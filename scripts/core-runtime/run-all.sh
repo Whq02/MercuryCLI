@@ -120,6 +120,9 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-face-birth-ground.ts
 echo "── core-runtime: provider contract (T16)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-provider-contract.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-provider-contract.ts "$__t" "$__rc"
 
+echo "── core-runtime: the utility road (every side job rides the main seat at its lowest tier)"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-utility-model-road.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-utility-model-road.ts "$__t" "$__rc"
+
 echo "── core-runtime: request-shape goldens (T16 completion)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-request-shape.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-request-shape.ts "$__t" "$__rc"
 
