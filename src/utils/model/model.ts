@@ -76,10 +76,6 @@ export function isFableAvailable(): boolean {
   return frontierOperatorDecision().source === 'frontier'
 }
 
-export function getSmallFastModel(): string {
-  return process.env.MERCURY_SMALL_FAST_MODEL || getDefaultHaikuModel()
-}
-
 
 export function getBestModel(): string {
   return parseUserSpecifiedModel(frontierOperatorDecision().setting)

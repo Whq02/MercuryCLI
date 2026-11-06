@@ -142,7 +142,7 @@ function anthropicTypedIds(): string[] {
   const model = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
   return [
     ...new Set(
-      [model.getDefaultFableModel(), model.getDefaultOpusModel(), model.getDefaultSonnetModel(), model.getDefaultHaikuModel(), model.getSmallFastModel()].map(id =>
+      [model.getDefaultFableModel(), model.getDefaultOpusModel(), model.getDefaultSonnetModel(), model.getDefaultHaikuModel()].map(id =>
         model.normalizeModelStringForAPI(id),
       ),
     ),

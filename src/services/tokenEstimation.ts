@@ -5,7 +5,8 @@ import { logForDebugging } from '../utils/debug.js'
 import { logError } from '../utils/log.js'
 import { normalizeAttachmentForAPI } from '../utils/messages.js'
 import { normalizeMessagesForAPI } from '../utils/messages.js'
-import { getEngineModel, getSmallFastModel, normalizeModelStringForAPI } from '../utils/model/model.js'
+import { getDefaultSonnetModel, getEngineModel, normalizeModelStringForAPI } from '../utils/model/model.js'
+import { utilityCallFor } from '../utils/model/utilityModel.js'
 import { getModelBetas } from '../utils/betas.js'
 import { sideQuery } from '../utils/sideQuery.js'
 import { sleep } from '../utils/sleep.js'
@@ -29,6 +30,11 @@ const COUNT_SOURCE = 'count_tokens'
 
 function firstPartyCountApplies(): boolean {
   return declaredRouteOf(getEngineModel()) === 'anthropic'
+}
+
+function countProbeModel(): string {
+  const { model } = utilityCallFor()
+  return normalizeModelStringForAPI(declaredRouteOf(model) === 'anthropic' ? model : getDefaultSonnetModel())
 }
 
 function refusalWords(error: unknown): string {
@@ -197,7 +203,7 @@ export async function countTokensViaHaikuFallback(
   const apiMessages = apiMessagesFor(messages)
   const body = stripToolSearchFields(apiMessages.length === 0 ? PLACEHOLDER_MESSAGES : apiMessages)
   const thinking = hasThinkingBlocks(body)
-  const model = getSmallFastModel()
+  const model = countProbeModel()
   const response = await countWithBusyRetry(`${COUNT_SOURCE} (create probe)`, () =>
     sideQuery({
       model,

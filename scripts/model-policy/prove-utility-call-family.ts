@@ -1,0 +1,200 @@
+#!/usr/bin/env bun
+
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+
+import { mkdtempSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'utility-call-family-'))
+
+let failures = 0
+function check(label: string, cond: boolean, detail = ''): void {
+  if (!cond) failures++
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+}
+function section(t: string): void {
+  console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
+}
+
+const ROOT = join(import.meta.dir, '..', '..')
+const srcText = (...p: string[]): string => readFileSync(join(ROOT, 'src', ...p), 'utf-8')
+
+async function main(): Promise<void> {
+  console.log('============================================================')
+  console.log(' every utility call rides the main seat at its lowest tier — proof')
+  console.log('============================================================')
+
+  delete process.env.MERCURY_MODEL
+  delete process.env.MERCURY_EFFORT_LEVEL
+
+  const { lowestServedEffort, utilityCallFor } = await import('../../src/utils/model/utilityModel.js')
+  const { openaiLightChoice } = await import('../../src/utils/model/providerFrontier.js')
+  const { __resetOpenaiCatalogueForTest, refreshOpenaiCatalogue } = await import('../../src/services/providers/openai/openaiCatalogue.js')
+  const { parseGptModelId } = await import('../../src/services/providers/openai/gptPins.js')
+  for (const key of ['OPENAI_API_KEY', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
+  process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:1'
+  process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:1'
+  process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:1'
+  const OWNER_LIST = ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5']
+  const fixtureFetch = (ids: readonly string[]): typeof fetch =>
+    (async () => new Response(JSON.stringify({ object: 'list', data: ids.map(id => ({ id, object: 'model' })) }), { status: 200, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch
+  const serveList = async (ids: readonly string[] | null): Promise<void> => {
+    __resetOpenaiCatalogueForTest()
+    if (ids === null) {
+      delete process.env.OPENAI_API_KEY
+      return
+    }
+    process.env.OPENAI_API_KEY = 'fixture-openai-key'
+    const snapshot = await refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: fixtureFetch(ids) })
+    if (!snapshot || snapshot.models.length !== ids.length) throw new Error(`the fixture list did not seed: ${JSON.stringify(snapshot)}`)
+  }
+  const { settleAssistantTurn } = await import('../../src/services/providers/callModelRouter.js')
+  const { APIUserAbortError } = await import('../../src/services/api/sdkErrors.js')
+
+  section('§1 utilityCallFor — the seat\'s own model on all ten routing-law families, never a second id')
+  {
+    const anthropic = utilityCallFor('claude-opus-5')
+    check('anthropic seat → its own model at the lowest ladder word, thinking off', anthropic.model === 'claude-opus-5' && anthropic.effortValue === 'low' && anthropic.thinkingConfig.type === 'disabled', JSON.stringify(anthropic))
+    check('an anthropic seat never hops to a haiku id', !anthropic.model.includes('haiku'))
+    process.env.MERCURY_MODEL = 'claude-opus-5'
+    const viaDefault = utilityCallFor()
+    check('the default argument is the engine model', viaDefault.model === 'claude-opus-5', viaDefault.model)
+    process.env.MERCURY_EFFORT_LEVEL = 'max'
+    check('the env dial never moves the floor (the floor is the road\'s, the dial is the turn\'s)', utilityCallFor().effortValue === 'low', String(utilityCallFor().effortValue))
+    delete process.env.MERCURY_EFFORT_LEVEL
+    delete process.env.MERCURY_MODEL
+    await serveList(null)
+    check("openai seat with no live list → its own model (never the typed table)", utilityCallFor('gpt-5.6-sol').model === 'gpt-5.6-sol', utilityCallFor('gpt-5.6-sol').model)
+    await serveList(OWNER_LIST)
+    check('openai seat on the served list → still its own model (no cheaper served row is chosen)', utilityCallFor('gpt-5.6-sol').model === 'gpt-5.6-sol', utilityCallFor('gpt-5.6-sol').model)
+    check('a non-anthropic seat keeps adaptive thinking so the smallest level still thinks', utilityCallFor('gpt-5.6-sol').thinkingConfig.type === 'adaptive')
+    await serveList(null)
+    const FOLLOW_SELF = [
+      'glm-5.3',
+      'kimi-k3',
+      'deepseek-chat',
+      'gemini-2.5-pro',
+      'openrouter/qwen/qwen3-coder',
+      'compat/local-vendor-model',
+      'huggingface/org/model',
+      'local/llama-3.3-70b',
+    ]
+    for (const model of FOLLOW_SELF) {
+      check(`${model} → its own model`, utilityCallFor(model).model === model, utilityCallFor(model).model)
+    }
+    check(
+      'no cross-family hop anywhere: a non-anthropic seat never answers a claude id',
+      FOLLOW_SELF.every(model => !utilityCallFor(model).model.startsWith('claude-')),
+    )
+    check('a model without effort control carries no floor', utilityCallFor('local/llama-3.3-70b').effortValue === undefined)
+  }
+
+  section('§1b the floor is the lowest served word, and the light chooser stays pure for the refusal hint')
+  {
+    check('the lowest served word by wire rank', lowestServedEffort(['high', 'low', 'medium']) === 'low' && lowestServedEffort(['xhigh', 'max']) === 'xhigh')
+    check('a served word below the ladder (minimal, none) outranks low', lowestServedEffort(['low', 'minimal']) === 'minimal' && lowestServedEffort(['none', 'low']) === 'none')
+    check('an empty vocabulary has no floor', lowestServedEffort([]) === undefined)
+    const ceiling = parseGptModelId('gpt-6-astra')
+    check('the light tier: the newest served plain row below the frontier', openaiLightChoice(['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.5', 'gpt-5.4'], ceiling) === 'gpt-5.5')
+    check('the light tier falls to the next served plain row when gpt-5.5 is not served', openaiLightChoice(['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.4'], ceiling) === 'gpt-5.4')
+    check('the light tier answers nothing with no served plain row below the frontier', openaiLightChoice(['gpt-6-astra', 'gpt-5.6-sol', 'gpt-6'], ceiling) === undefined && openaiLightChoice(['gpt-5.5'], undefined) === undefined)
+  }
+
+  section('§2 a hook names its own model or rides the seat')
+  {
+    process.env.MERCURY_MODEL = 'claude-opus-5'
+    check('no model named → the seat\'s model', utilityCallFor(undefined).model === 'claude-opus-5', utilityCallFor(undefined).model)
+    check('a hook that names a model → that model at its own floor', utilityCallFor('gpt-5.6-sol').model === 'gpt-5.6-sol')
+    process.env.MERCURY_MODEL = 'glm-5.3'
+    check('zai seat: a hook with no model rides glm', utilityCallFor(undefined).model === 'glm-5.3')
+    delete process.env.MERCURY_MODEL
+  }
+
+  section('§3 the sites: every utility call reads the helper and pins its floor')
+  {
+    const classifier = srcText('services', 'agentNeedsYou.ts')
+    check('agentNeedsYou rides the routed seam', classifier.includes('routedCallModelSettled'))
+    check('agentNeedsYou rides the helper with a pinned floor', classifier.includes('utilityCallFor()') && classifier.includes('effortPinned: true'))
+    const feedback = srcText('components', 'Feedback.tsx')
+    check('Feedback title rides the routed seam', feedback.includes('routedCallModelSettled'))
+    check('Feedback title rides the helper with a pinned floor', feedback.includes('utilityCallFor()') && feedback.includes('effortPinned: true'))
+    check('Feedback carries no sideQuery residue', !feedback.includes('sideQuery'))
+    const crewmateRunner = srcText('utils', 'hooks', 'crewmateRunner.ts')
+    check('the crewmate hook runner rides the helper, the entry\'s own model first, its floor as the seat\'s own word', /utilityCallFor\(run\.model\)/.test(crewmateRunner) && crewmateRunner.includes('noteAgentEffortWord(hookAgentId, call.effortValue)') && crewmateRunner.includes('engineModel: call.model'))
+    const questionRunner = srcText('utils', 'hooks', 'questionRunner.ts')
+    check('the question hook runner rides the helper, the entry\'s own model first, with a pinned floor', /utilityCallFor\(run\.model\)/.test(questionRunner) && questionRunner.includes('effortPinned: true'))
+    const evalBridge = srcText('services', 'eval', 'evalBridge.ts')
+    check("evalBridge tier 'fast' rides the helper over the session model with a pinned floor", evalBridge.includes('utilityCallFor(context.options.engineModel)') && evalBridge.includes('effortPinned: true'))
+    const streamCoreSeam = srcText('services', 'providers', 'anthropic', 'streamCore.ts')
+    check('queryUtility reads the helper and pins the floor', /export async function queryUtility[\s\S]{0,700}utilityCallFor\(\)[\s\S]{0,400}effortPinned: true/.test(streamCoreSeam))
+    check('queryUtility delegates to the ROUTED one-shot (queryWithModel), never the unrouted engine', /export async function queryUtility[\s\S]{0,700}return queryWithModel\(/.test(streamCoreSeam))
+    check('a pinned effort rides the Anthropic wire even on a side question', streamCoreSeam.includes('const effortRides = effortPinned || options.ridesSessionEffort !== false'))
+    for (const [label, ...path] of [
+      ['sessionTitle', 'utils', 'sessionTitle.ts'],
+      ['generateSessionName', 'commands', 'rename', 'generateSessionName.ts'],
+      ['tool-use summary', 'services', 'toolUseSummary', 'toolUseSummaryGenerator.ts'],
+      ['WebFetch reading', 'tools', 'WebFetchTool', 'utils.ts'],
+      ['MCP datetime parser', 'utils', 'mcp', 'dateTimeParser.ts'],
+    ] as const) {
+      check(`${label} rides the queryUtility seam (the helper by construction)`, srcText(...path).includes('queryUtility'))
+    }
+    const probeBranch = "declaredRouteOf(model) === 'anthropic' ? model : getDefaultSonnetModel()"
+    check('the count-tokens create probe names the helper\'s model on the Anthropic road, else the family default', srcText('services', 'tokenEstimation.ts').includes(probeBranch))
+    check('the key probe names the helper\'s model on the Anthropic road, else the family default', srcText('services', 'providers', 'anthropic', 'requestParams.ts').includes(probeBranch))
+  }
+
+  section('§4 the settlement fold — settleAssistantTurn (the one owner)')
+  {
+    type Msg = { type: 'assistant'; isApiErrorMessage?: boolean; message: { role: 'assistant'; content: unknown[] }; uuid?: string }
+    const msg = (blocks: unknown[], apiError = false): Msg => ({
+      type: 'assistant',
+      ...(apiError ? { isApiErrorMessage: true } : {}),
+      message: { role: 'assistant', content: blocks },
+    })
+    const single = msg([{ type: 'text', text: 'whole turn' }])
+    check('single settle passes through by identity', settleAssistantTurn([single] as never, false) === (single as never))
+    const reasoning = msg([{ type: 'thinking', thinking: 'because' }])
+    const text = msg([{ type: 'text', text: 'answer' }])
+    const widened = settleAssistantTurn([reasoning, text] as never, false) as unknown as Msg
+    check(
+      'multi-block routed turn widens to the whole turn in yield order',
+      JSON.stringify(widened.message.content) ===
+        JSON.stringify([{ type: 'thinking', thinking: 'because' }, { type: 'text', text: 'answer' }]),
+    )
+    check('the widened settle keeps the LAST envelope', widened !== (reasoning as never) && !widened.isApiErrorMessage)
+    const apiErr = msg([{ type: 'text', text: 'API Error: x' }], true)
+    const contentWins = settleAssistantTurn([apiErr, text] as never, false) as unknown as Msg
+    check('content beats API-error yields', JSON.stringify(contentWins.message.content) === JSON.stringify([{ type: 'text', text: 'answer' }]))
+    const errOnly = settleAssistantTurn([apiErr] as never, false) as unknown as Msg
+    check('an error-only turn surfaces the error settle', errOnly.isApiErrorMessage === true)
+    let threwAbort = false
+    try {
+      settleAssistantTurn([] as never, true)
+    } catch (e) {
+      threwAbort = e instanceof APIUserAbortError
+    }
+    check('empty + aborted throws APIUserAbortError', threwAbort)
+    let threwEmpty = false
+    try {
+      settleAssistantTurn([] as never, false)
+    } catch (e) {
+      threwEmpty = e instanceof Error && !(e instanceof APIUserAbortError)
+    }
+    check('empty without abort throws the honest error', threwEmpty)
+    const streamCore = srcText('services', 'providers', 'anthropic', 'streamCore.ts')
+    check(
+      'queryWithModel delegates to settleAssistantTurn (one fold, one owner)',
+      /settleAssistantTurn\(\w+, (?:question\.)?signal\.aborted\)/.test(streamCore),
+    )
+  }
+
+  console.log('\n' + '='.repeat(60))
+  if (failures > 0) {
+    console.log(`❌ ${failures} CHECK(S) FAILED`)
+    process.exit(1)
+  }
+  console.log('✅ EVERY UTILITY CALL RIDES THE MAIN SEAT AT ITS LOWEST TIER')
+}
+
+void main()

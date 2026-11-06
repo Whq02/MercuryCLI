@@ -12,7 +12,9 @@ import { shellCallValue, type ShellRunFact } from '../../utils/errors.js'
 import { createAssistantMessage, createUserMessage } from '../../utils/messages.js'
 import { unwrapToolUseError } from '../../utils/messages/rejectionText.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
-import { smallFastModelFor } from '../../utils/model/providerFrontier.js'
+import { utilityCallFor } from '../../utils/model/utilityModel.js'
+import type { EffortValue } from '../../utils/effort.js'
+import type { ThinkingConfig } from '../../utils/thinking.js'
 import { runToolUse } from '../tools/toolExecution.js'
 import { routedCallModel } from '../providers/callModelRouter.js'
 import { governorCeilings } from '../capacity/governor.js'
@@ -287,17 +289,18 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
           const p = parsed.data
           const refusedSchema = refuseUncompilableSchema(p.schema,  true)
           if (refusedSchema) return refusedSchema
-          const model =
-            p.model ??
-            (p.tier === 'fast'
-              ? smallFastModelFor(context.options.engineModel)
-              : context.options.engineModel)
+          const call: CompletionCall =
+            p.model !== undefined && p.model !== null
+              ? { model: p.model }
+              : p.tier === 'fast'
+                ? { ...utilityCallFor(context.options.engineModel), effortPinned: true }
+                : { model: context.options.engineModel }
           let prompt = p.prompt
           if (p.schema !== null && p.schema !== undefined) {
             prompt += `\n\nAnswer with exactly one JSON value matching this JSON Schema — no prose around it:\n${JSON.stringify(p.schema)}`
           }
           const text = await oneShotCompletion({
-            model,
+            ...call,
             prompt,
             system: p.system ?? undefined,
             signal: cellAbort.signal,
@@ -312,8 +315,14 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
   }
 }
 
-export async function oneShotCompletion(args: {
+type CompletionCall = {
   model: string
+  effortValue?: EffortValue
+  effortPinned?: boolean
+  thinkingConfig?: ThinkingConfig
+}
+
+export async function oneShotCompletion(args: CompletionCall & {
   prompt: string
   system?: string
   signal: AbortSignal
@@ -322,11 +331,13 @@ export async function oneShotCompletion(args: {
   const stream = routedCallModel({
     messages,
     systemPrompt: asSystemPrompt(args.system ? [args.system] : []),
-    thinkingConfig: { type: 'disabled' } as never,
+    thinkingConfig: (args.thinkingConfig ?? { type: 'disabled' }) as never,
     tools: [] as never,
     signal: args.signal,
     options: {
       model: args.model,
+      effortValue: args.effortValue,
+      effortPinned: args.effortPinned,
       querySource: 'eval_completion',
       agents: [],
       isNonInteractiveSession: true,

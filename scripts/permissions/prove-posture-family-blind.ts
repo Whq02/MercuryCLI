@@ -111,7 +111,7 @@ async function main(): Promise<void> {
     check(
       'validateModeEntry (sovereign/flow arms) reads no model identity',
       validateStart !== -1 &&
-        !/getEngineModel|getSmallFastModel|resolveCallModelRoute|classifyModelRoute|declaredRouteOf|MERCURY_MODEL/.test(validateBody),
+        !/getEngineModel|utilityCallFor|resolveCallModelRoute|classifyModelRoute|declaredRouteOf|MERCURY_MODEL/.test(validateBody),
     )
   }
 

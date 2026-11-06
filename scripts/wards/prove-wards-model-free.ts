@@ -78,7 +78,7 @@ async function main(): Promise<void> {
       'callModelRouter',
       'getAnthropicClient',
       'services/api',
-      'getSmallFastModel',
+      'utilityCallFor',
       'getEngineModel',
       'getDefaultHaikuModel',
       'resolveCallModelRoute',

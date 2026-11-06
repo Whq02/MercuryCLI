@@ -6,7 +6,7 @@ import { createCombinedAbortSignal } from '../combinedAbortSignal.js'
 import { errorMessage } from '../errors.js'
 import { createUserMessage, extractTextContent } from '../messages.js'
 import { stripExplicitNulls } from '../messages/structuredOutputDialect.js'
-import { sessionSmallFastModel } from '../model/providerFrontier.js'
+import { utilityCallFor } from '../model/utilityModel.js'
 import { jsonParse } from '../slowOperations.js'
 import { asSystemPrompt } from '../systemPromptType.js'
 
@@ -47,15 +47,17 @@ export async function runQuestionHook(run: ModelHookRun): Promise<ModelHookEnd> 
       `You are answering a hook in Mercury at the moment ${run.event}. The hook's question follows, with the moment's facts as JSON.`,
       'Answer with exactly one JSON object of the hook answer shape; {} when you have nothing to say.',
     ])
+    const { thinkingConfig, ...call } = utilityCallFor(run.model)
     const response = await routedCallModelSettled({
       messages: [createUserMessage({ content: hookBrief(run.text, run.payloadJson) })],
       systemPrompt,
-      thinkingConfig: { type: 'disabled' },
+      thinkingConfig,
       tools: [],
       signal: combined.signal,
       options: {
         getToolPermissionContext: async () => run.toolUseContext.getAppState().toolPermissionContext as ToolPermissionContext,
-        model: run.model ?? sessionSmallFastModel(),
+        ...call,
+        effortPinned: true,
         isNonInteractiveSession: true,
         querySource: 'hook_prompt',
         agents: [],

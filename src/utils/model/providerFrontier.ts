@@ -3,9 +3,7 @@ import { GPT_DISPLAY_PINS, gptDisplayName, parseGptModelId, type GptDisplayPin }
 import { frontierOperatorDecision } from './frontierPolicy.js'
 import {
   getDefaultSonnetModel,
-  getEngineModel,
   getMarketingNameForModel,
-  getSmallFastModel,
 } from './model.js'
 import { keyLanePins } from './modelOptions.js'
 import { moonshotCatalogueSourceWords } from '../../services/providers/moonshot/moonshotCatalogue.js'
@@ -141,25 +139,6 @@ function openaiServedIds(): string[] | undefined {
   return qualifiedGptCandidates('specialist', account.kind).map(candidate => candidate.identity.canonicalId)
 }
 
-export function openaiSmallFastChoice(served: readonly string[], pins: readonly GptDisplayPin[] = GPT_DISPLAY_PINS): string | undefined {
-  let best: (GptRank & { price: number; out: number }) | undefined
-  for (const raw of served) {
-    const identity = parseGptModelId(raw)
-    if (!identity) continue
-    const pin = pins.find(candidate => candidate.id === identity.canonicalId)
-    const small = identity.variant === 'mini' || identity.variant === 'nano'
-    const price = pin?.costInPerMtok ?? (small ? -1 : undefined)
-    if (price === undefined) continue
-    const row = { id: identity.canonicalId, major: identity.major, minor: identity.minor, price, out: pin?.costOutPerMtok ?? -1 }
-    const cheaper =
-      best === undefined ||
-      row.price < best.price ||
-      (row.price === best.price && (row.out < best.out || (row.out === best.out && newerThan(row, best))))
-    if (cheaper) best = row
-  }
-  return best?.id
-}
-
 export function openaiLightChoice(served: readonly string[], ceiling: { major: number; minor: number } | undefined): string | undefined {
   if (!ceiling) return undefined
   let best: GptRank | undefined
@@ -196,58 +175,6 @@ export function providerLightFact(route: CallModelRoute): ProviderFrontierFact |
   } catch {
     return undefined
   }
-}
-
-export function providerSmallFastFact(route: CallModelRoute): ProviderFrontierFact | undefined {
-  try {
-    switch (route) {
-      case 'anthropic': {
-        const modelId = getSmallFastModel()
-        return { modelId, displayName: getMarketingNameForModel(modelId) ?? modelId }
-      }
-      case 'openai': {
-        const served = openaiServedIds()
-        if (!served) return undefined
-        const modelId = openaiSmallFastChoice(served, GPT_DISPLAY_PINS)
-        if (!modelId) return undefined
-        return { modelId, displayName: gptDisplayName(modelId) ?? modelId }
-      }
-      default:
-        return undefined
-    }
-  } catch {
-    return undefined
-  }
-}
-
-function helperSmallFastModel(): string | undefined {
-  try {
-    const { helperModelId } = require('../../services/providers/local/tensorfoldHelper.js') as typeof import('../../services/providers/local/tensorfoldHelper.js')
-    return helperModelId()
-  } catch {
-    return undefined
-  }
-}
-
-export function smallFastModelFor(sessionModel: string): string {
-  const helper = helperSmallFastModel()
-  if (helper !== undefined) return helper
-  const route = declaredRouteOf(sessionModel)
-  if (route === 'anthropic') return getSmallFastModel()
-  if (route === null) return sessionModel
-  return providerSmallFastFact(route)?.modelId ?? sessionModel
-}
-
-export function sessionSmallFastModel(): string {
-  return smallFastModelFor(getEngineModel())
-}
-
-export function sessionLightModel(): string {
-  const sessionModel = getEngineModel()
-  const route = declaredRouteOf(sessionModel)
-  if (route === 'anthropic') return getDefaultSonnetModel()
-  if (route === null) return sessionModel
-  return providerLightFact(route)?.modelId ?? sessionModel
 }
 
 export function providerFrontierLine(route: CallModelRoute): string | undefined {

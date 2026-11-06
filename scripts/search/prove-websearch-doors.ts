@@ -29,7 +29,7 @@ delete process.env.CI
 for (const key of [
   'https_proxy', 'HTTPS_PROXY', 'http_proxy', 'HTTP_PROXY', 'MERCURY_API_UNIX_SOCKET',
   'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN',
-  'MERCURY_MODEL', 'MERCURY_SMALL_FAST_MODEL', 'MERCURY_CUSTOM_MODEL_OPTION',
+  'MERCURY_MODEL', 'MERCURY_CUSTOM_MODEL_OPTION',
   'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY',
   'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'BRAVE_API_KEY', 'TAVILY_API_KEY',
   'MERCURY_SEARCH_BACKEND', 'MERCURY_SEARCH_KEYLESS', 'MERCURY_SEARCH_DDG_HTML_URL',
@@ -145,13 +145,11 @@ const NEMOTRON = 'openrouter/nvidia/nemotron-nano-9b-v2:free'
 section("§1 NATIVE-ANTHROPIC — ProviderSearch on the session's own wire; the vendored tool never dials it")
 {
   process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
-  process.env.MERCURY_SMALL_FAST_MODEL = 'gpt-5.5-mini'
   const run = await runProvider('claude-opus-4-8', { query: QUERY, allowed_domains: ['example.org'] })
   check('the ProviderSearch call resolves', run.output !== undefined && run.error === undefined, (run.error?.stack ?? '').slice(0, 400))
   check('exactly one POST, on the anthropic lane only', j(run.perLane) === j({ anthropic: 1 }), j(run.perLane))
   const body = (() => { try { return JSON.parse(fixture.hitsOn('anthropic').at(-1)?.body ?? '{}') as { tools?: Array<Record<string, unknown>> } } catch { return {} as { tools?: Array<Record<string, unknown>> } } })()
-  check('native search retains the main Anthropic model despite a different utility model', (body as Record<string, unknown>).model === 'claude-opus-4-8', j(body))
-  delete process.env.MERCURY_SMALL_FAST_MODEL
+  check('native search rides the main Anthropic model (the only model a session has)', (body as Record<string, unknown>).model === 'claude-opus-4-8', j(body))
   const serverTool = (body.tools ?? []).find(t => t.type === 'web_search_20250305')
   check('the body carries the web_search_20250305 server tool (name, max_uses 8, the call\'s domain filter)',
     serverTool !== undefined && serverTool.name === 'web_search' && serverTool.max_uses === 8 && j(serverTool.allowed_domains) === j(['example.org']), j(body.tools ?? []).slice(0, 300))
@@ -171,14 +169,12 @@ section("§1 NATIVE-ANTHROPIC — ProviderSearch on the session's own wire; the 
 section('§2 NATIVE-OPENAI + THE REGISTRATION CENSUS — the anthropic spy sees NOTHING')
 {
   process.env.OPENAI_API_KEY = 'fixture-openai-key'
-  process.env.MERCURY_SMALL_FAST_MODEL = 'claude-haiku-4-5-20251001'
   const run = await runProvider('gpt-5.5', { query: QUERY, allowed_domains: ['example.org'] })
   check('the ProviderSearch call resolves', run.output !== undefined && run.error === undefined, (run.error?.stack ?? '').slice(0, 400))
   check('ZERO anthropic hits (the leak\'s exact shape, dead) and zero ddg/brave/tavily', (run.perLane['anthropic'] ?? 0) === 0 && (run.perLane['ddg-html'] ?? 0) === 0 && (run.perLane['brave'] ?? 0) === 0 && (run.perLane['tavily'] ?? 0) === 0, j(run.perLane))
   check('exactly one POST on the openai responses lane', (run.perLane['openai'] ?? 0) === 1, j(run.perLane))
   const body = (() => { try { return JSON.parse(fixture.hitsOn('openai').at(-1)?.body ?? '{}') as Record<string, unknown> } catch { return {} } })()
-  check('native search retains the main OpenAI model despite a different utility model', body.model === 'gpt-5.5', j(body))
-  delete process.env.MERCURY_SMALL_FAST_MODEL
+  check('native search rides the main OpenAI model (the only model a session has)', body.model === 'gpt-5.5', j(body))
   const tools = Array.isArray(body.tools) ? (body.tools as Array<Record<string, unknown>>) : []
   const hosted = tools.find(t => t.type === 'web_search')
   check('the request carries the hosted web_search tool with filters.allowed_domains, and no function tools',

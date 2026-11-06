@@ -33,7 +33,6 @@ for (const key of [
   'ANTHROPIC_AUTH_TOKEN',
   'MERCURY_OAUTH_TOKEN',
   'MERCURY_MODEL',
-  'MERCURY_SMALL_FAST_MODEL',
   'MERCURY_DEFAULT_OPUS_MODEL',
   'MERCURY_DEFAULT_SONNET_MODEL',
   'MERCURY_DEFAULT_HAIKU_MODEL',
@@ -132,20 +131,20 @@ async function hitsDuring<T>(work: () => Promise<T>): Promise<{ result: T | 'thr
   return { result, hits, ...(hits > 0 && last ? { last: { method: last.method, url: last.url } } : {}) }
 }
 
-section('§1 the sovereign home resolves onto its own lane, small tier included')
+section('§1 the sovereign home resolves onto its own lane, the utility call included')
 process.env.OPENROUTER_API_KEY = 'sk-or-fixture-sovereign-home'
 seedHome(HOME_MODEL)
 const { getEngineModel } = await import('../../src/utils/model/model.js')
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.js')
-const { sessionSmallFastModel, smallFastModelFor } = await import('../../src/utils/model/providerFrontier.js')
+const { utilityCallFor } = await import('../../src/utils/model/utilityModel.js')
 {
   const main = getEngineModel()
   check('the main-loop model is the operator\'s OpenRouter free tier', main === HOME_MODEL, main)
   check('…and routes to openrouter', declaredRouteOf(main) === 'openrouter', declaredRouteOf(main))
-  const small = sessionSmallFastModel()
-  check('the session small-fast tier is the session\'s own id (no recorded small tier ⇒ never a first-party hop)', small === HOME_MODEL, small)
-  check('…the pure resolver agrees', smallFastModelFor(HOME_MODEL) === HOME_MODEL, smallFastModelFor(HOME_MODEL))
-  check('no first-party id anywhere in the small tier', !/claude/i.test(small), small)
+  const utility = utilityCallFor().model
+  check('the session\'s utility call rides the session\'s own id (never a first-party hop)', utility === HOME_MODEL, utility)
+  check('…the pure resolver agrees', utilityCallFor(HOME_MODEL).model === HOME_MODEL, utilityCallFor(HOME_MODEL).model)
+  check('no first-party id anywhere in the utility call', !/claude/i.test(utility), utility)
 }
 
 section('§2 the token counters answer null on the sovereign home and the origin sees nothing')

@@ -27,7 +27,7 @@ export {
   executeNonStreamingRequest,
   getMaxOutputTokensForModel,
   MAX_NON_STREAMING_TOKENS,
-  querySmallFast,
+  queryUtility,
   queryModelWithoutStreaming,
   queryModelWithStreaming,
   queryWithModel,

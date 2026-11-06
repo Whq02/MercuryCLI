@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 
 import { getIsNonInteractiveSession } from '../bootstrap/state.js'
-import { querySmallFast } from '../services/providers/anthropic/streamCore.js'
+import { queryUtility } from '../services/providers/anthropic/streamCore.js'
 import type { Message } from '../types/message.js'
 import { logForDebugging } from './debug.js'
 import { extractTextContent } from './messages.js'
@@ -53,7 +53,7 @@ const TITLE_SYSTEM_PROMPT = [
 export async function generateSessionTitle(description: string, signal: AbortSignal): Promise<string | null> {
   if (description.trim() === '') return null
   try {
-    const response = await querySmallFast({
+    const response = await queryUtility({
       systemPrompt: asSystemPrompt(TITLE_SYSTEM_PROMPT),
       userPrompt: description,
       outputFormat: TITLE_OUTPUT_FORMAT,
@@ -64,7 +64,7 @@ export async function generateSessionTitle(description: string, signal: AbortSig
         hasAppendSystemPrompt: false,
         agents: [],
         mcpTools: [],
-      } as unknown as Parameters<typeof querySmallFast>[0]['options'],
+      } as unknown as Parameters<typeof queryUtility>[0]['options'],
     })
     const text = extractTextContent(response.message.content, '\n')
     const parsed = safeParseJSON(text, false)

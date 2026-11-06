@@ -23,7 +23,7 @@ import { join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { escapeRegExp } from '../utils/stringUtils.js'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
-import { sessionSmallFastModel } from '../utils/model/providerFrontier.js'
+import { utilityCallFor } from '../utils/model/utilityModel.js'
 import { routedCallModelSettled } from '../services/providers/callModelRouter.js'
 import { createUserMessage, normalizeMessagesForAPI } from '../utils/messages.js'
 import { asSystemPrompt } from '../utils/systemPromptType.js'
@@ -149,16 +149,18 @@ async function generateTitle(
   outer.addEventListener('abort', onOuter, { once: true })
   const timer = setTimeout(() => controller.abort(new Error('title deadline')), TITLE_DEADLINE_MS)
   try {
+    const { thinkingConfig, ...call } = utilityCallFor()
     const answer = await Promise.race([
       routedCallModelSettled({
         messages: [createUserMessage({ content: description })],
         systemPrompt: asSystemPrompt([titleSystemPrompt(form)]),
-        thinkingConfig: { type: 'disabled' },
+        thinkingConfig,
         tools: [],
         signal: controller.signal,
         options: {
           getToolPermissionContext: async () => ({}) as ToolPermissionContext,
-          model: sessionSmallFastModel(),
+          ...call,
+          effortPinned: true,
           maxOutputTokensOverride: 100,
           isNonInteractiveSession: false,
           querySource: 'feedback',

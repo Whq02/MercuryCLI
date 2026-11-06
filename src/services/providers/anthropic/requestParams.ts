@@ -23,8 +23,10 @@ import { logError } from '../../../utils/log.js'
 import {
   getDefaultOpusModel,
   getDefaultSonnetModel,
-  getSmallFastModel,
+  normalizeModelStringForAPI,
 } from '../../../utils/model/model.js'
+import { utilityCallFor } from '../../../utils/model/utilityModel.js'
+import { declaredRouteOf } from '../routeLaw.js'
 import { jsonStringify } from '../../../utils/slowOperations.js'
 import { currentLimits } from '../../anthropicLimits.js'
 import { getAnthropicClient } from '../../api/client.js'
@@ -171,10 +173,15 @@ function keyProbeFailure(caught: unknown): false {
   throw error
 }
 
+export function keyProbeModel(): string {
+  const { model } = utilityCallFor()
+  return normalizeModelStringForAPI(declaredRouteOf(model) === 'anthropic' ? model : getDefaultSonnetModel())
+}
+
 export async function verifyApiKey(apiKey: string, isNonInteractiveSession: boolean): Promise<boolean> {
   if (isNonInteractiveSession) return true
   try {
-    const model = getSmallFastModel()
+    const model = keyProbeModel()
     const betas = getModelBetas(model)
     const createClient = () => getAnthropicClient({ apiKey, maxRetries: 3, source: 'verify_api_key' })
     const probe = async (anthropic: Awaited<ReturnType<typeof getAnthropicClient>>): Promise<true> => {

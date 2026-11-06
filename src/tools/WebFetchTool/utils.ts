@@ -1,8 +1,8 @@
 import { LRUCache } from 'lru-cache'
 
-import { querySmallFast, queryWithModel } from '../../services/providers/anthropic/index.js'
+import { queryUtility, queryWithModel } from '../../services/providers/anthropic/index.js'
 import { getEngineModel } from '../../utils/model/model.js'
-import { sessionSmallFastModel } from '../../utils/model/providerFrontier.js'
+import { utilityCallFor } from '../../utils/model/utilityModel.js'
 import { AbortError } from '../../utils/errors.js'
 import { isBinaryContentType, persistBinaryContent } from '../../utils/mcpOutputStorage.js'
 import { extractTextContent } from '../../utils/messages/text.js'
@@ -182,9 +182,9 @@ export async function getURLMarkdownContent(
 }
 
 interface FetchSummariseReads {
-  small?: typeof querySmallFast
+  utility?: typeof queryUtility
   withModel?: typeof queryWithModel
-  smallModelId?: () => string
+  utilityModelId?: () => string
   mainModelId?: () => string
 }
 
@@ -197,9 +197,9 @@ export async function applyPromptToMarkdown(
   reads?: FetchSummariseReads,
 ): Promise<string> {
   const bounded = markdown
-  const small = reads?.small ?? querySmallFast
+  const utility = reads?.utility ?? queryUtility
   const withModel = reads?.withModel ?? queryWithModel
-  const smallModelId = reads?.smallModelId ?? sessionSmallFastModel
+  const utilityModelId = reads?.utilityModelId ?? ((): string => utilityCallFor().model)
   const mainModelId = reads?.mainModelId ?? getEngineModel
   const userPrompt = makeSecondaryModelPrompt(bounded, prompt, isPreapprovedDomain)
   const baseOptions = {
@@ -209,12 +209,12 @@ export async function applyPromptToMarkdown(
     mcpTools: [],
     hasAppendSystemPrompt: false,
   }
-  const textOf = (response: Awaited<ReturnType<typeof querySmallFast>>): string | null => {
+  const textOf = (response: Awaited<ReturnType<typeof queryUtility>>): string | null => {
     const content = response.message.content
     const text = typeof content === 'string' ? content : extractTextContent(content, '\n')
     return text.trim() === '' ? null : text
   }
-  const refusalOf = (response: Awaited<ReturnType<typeof querySmallFast>>): string | null =>
+  const refusalOf = (response: Awaited<ReturnType<typeof queryUtility>>): string | null =>
     response.isApiErrorMessage === true ? (textOf(response) ?? 'the reply carried no text') : null
   const reasonOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
   const idOf = (fn: () => string): string => {
@@ -225,10 +225,10 @@ export async function applyPromptToMarkdown(
     }
   }
 
-  const primaryModel = idOf(smallModelId)
+  const primaryModel = idOf(utilityModelId)
   let primaryReason: string
   try {
-    const response = await small({ systemPrompt: asSystemPrompt([]), userPrompt, signal, options: baseOptions })
+    const response = await utility({ systemPrompt: asSystemPrompt([]), userPrompt, signal, options: baseOptions })
     if (signal.aborted) throw new AbortError()
     const refusal = refusalOf(response)
     const text = refusal === null ? textOf(response) : null
@@ -261,8 +261,8 @@ export async function applyPromptToMarkdown(
     : ' When quoting from this content, keep every quotation under 125 characters and never reproduce song lyrics verbatim.'
   const road =
     fallbackReason === null
-      ? `tried the small-fast model ${primaryModel || 'unknown'} (${primaryReason}); the session model is the same, so there was no second road`
-      : `tried the small-fast model ${primaryModel || 'unknown'} (${primaryReason}), then the session model ${fallbackModel || 'unknown'} (${fallbackReason})`
+      ? `tried the utility model ${primaryModel || 'unknown'} (${primaryReason}); the session model is the same, so there was no second road`
+      : `tried the utility model ${primaryModel || 'unknown'} (${primaryReason}), then the session model ${fallbackModel || 'unknown'} (${fallbackReason})`
   return `[The page was fetched, but no summariser model was available, so this is the page content itself, not an answer to the prompt.${quoteGuard} Road: ${road}.]\n\n${bounded}`
 }
 

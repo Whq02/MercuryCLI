@@ -21,7 +21,6 @@ for (const k of [
   'MERCURY_EFFORT_LEVEL',
   'MERCURY_CACHE_TTL',
   'MERCURY_THINKING_BUDGET',
-  'MERCURY_SMALL_FAST_MODEL',
 ]) {
   delete process.env[k]
 }

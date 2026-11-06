@@ -164,7 +164,8 @@ section('the census: the small-fast spellings are gone from src')
     }
   }
   walk(join(ROOT, 'src'))
-  const RETIRED = /SmallFast|SMALL_FAST|sessionLightModel|PROMPT_CACHING_HAIKU|useSmallFastModel/
+  const spell = (...parts: string[]): string => parts.join('')
+  const RETIRED = new RegExp([spell('Small', 'Fast'), spell('SMALL', '_FAST'), spell('sessionLight', 'Model'), spell('PROMPT_CACHING_', 'HAIKU')].join('|'))
   const CATALOGUE_REMNANTS = new Set(['src/utils/model/model.ts', 'src/services/providers/typedModelIds.ts'])
   const retired = files.filter(file => RETIRED.test(readFileSync(file, 'utf8'))).map(file => relative(ROOT, file))
   check('no src file spells the small-fast road, the light tier, the Haiku caching switch or the shell prefix flag', retired.length === 0, j(retired))
@@ -173,7 +174,7 @@ section('the census: the small-fast spellings are gone from src')
   const registry = readFileSync(join(ROOT, 'src/substrate/flagRegistry.ts'), 'utf8')
   const managed = readFileSync(join(ROOT, 'src/utils/managedEnvConstants.ts'), 'utf8')
   const idSpaces = readFileSync(join(ROOT, 'src/services/providers/idSpaces.ts'), 'utf8')
-  check('the flag registry, the managed-env list and the id spaces no longer name the small-fast flag', ![registry, managed, idSpaces].some(text => text.includes('MERCURY_' + 'SMALL_FAST_MODEL')))
+  check('the flag registry, the managed-env list and the id spaces no longer name the small-fast flag', ![registry, managed, idSpaces].some(text => text.includes(spell('MERCURY_', 'SMALL_', 'FAST_MODEL'))))
 }
 
 await fixture.close()
