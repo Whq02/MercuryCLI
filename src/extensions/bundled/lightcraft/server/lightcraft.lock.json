@@ -1,7 +1,7 @@
 {
   "name": "lightcraft",
-  "version": "0.18.0",
-  "tag": "v0.18.0",
+  "version": "0.18.1",
+  "tag": "v0.18.1",
   "repository": "https://github.com/storytold/lightcraft",
   "license": "MIT OR Apache-2.0",
   "licenseFiles": [
@@ -12,28 +12,28 @@
   "platforms": {
     "darwin-arm64": {
       "target": "universal-apple-darwin",
-      "archive": "lightcraft-0.18.0-macos-universal.dmg",
-      "url": "https://github.com/storytold/lightcraft/releases/download/v0.18.0/lightcraft-0.18.0-macos-universal.dmg",
-      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.18.0/SHA256SUMS.txt",
-      "sha256": "f3cb326a202a2d6f89bd2d08ccd8b108e8efe103bb9da88c2a38e52a29f93e5a",
-      "bytes": 124368627
+      "archive": "lightcraft-0.18.1-macos-universal.dmg",
+      "url": "https://github.com/storytold/lightcraft/releases/download/v0.18.1/lightcraft-0.18.1-macos-universal.dmg",
+      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.18.1/SHA256SUMS.txt",
+      "sha256": "055348c8098e6244e43cbc2526e9158726746d467f919dae336848db7bb6dbf9",
+      "bytes": 124709302
     },
     "win-x64": {
       "target": "x86_64-pc-windows-msvc",
-      "archive": "lightcraft-0.18.0-windows-x64-portable.zip",
-      "url": "https://github.com/storytold/lightcraft/releases/download/v0.18.0/lightcraft-0.18.0-windows-x64-portable.zip",
-      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.18.0/SHA256SUMS.txt",
-      "sha256": "d20bd7a7d3040388023ec6c7bb7ec6d90ebeca1eecbd559709919c2b504894d5",
-      "bytes": 120378576
+      "archive": "lightcraft-0.18.1-windows-x64-portable.zip",
+      "url": "https://github.com/storytold/lightcraft/releases/download/v0.18.1/lightcraft-0.18.1-windows-x64-portable.zip",
+      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.18.1/SHA256SUMS.txt",
+      "sha256": "ade473a721cdce23b50e8052c5b4b874f6ac11b54073186d49098ac20c9f346b",
+      "bytes": 120652191
     },
     "linux-x64": {
       "target": "x86_64-unknown-linux-gnu",
-      "archive": "lightcraft-0.18.0-linux-x86_64.tar.gz",
-      "url": "https://github.com/storytold/lightcraft/releases/download/v0.18.0/lightcraft-0.18.0-linux-x86_64.tar.gz",
-      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.18.0/SHA256SUMS.txt",
-      "sha256": "f2dcaa287d510f9125273d9d16089e713943aef005bd03d9848d95ac55d8750f",
-      "bytes": 120029344
+      "archive": "lightcraft-0.18.1-linux-x86_64.tar.gz",
+      "url": "https://github.com/storytold/lightcraft/releases/download/v0.18.1/lightcraft-0.18.1-linux-x86_64.tar.gz",
+      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.18.1/SHA256SUMS.txt",
+      "sha256": "078f8e4fef6ca88afa257a70228630b14e21380cea58031fbb5c5a1942b406f0",
+      "bytes": 120263802
     }
   },
-  "notes": "Runtime pin read by server/install.mjs (desktop.version) and the shared installer. Pinned 2026-11-04 to the v0.18.0 release (published 2026-11-03). Digests copied from the release's SHA256SUMS.txt and bytes from GitHub asset metadata; all three archives were downloaded and matched both. The DMG holds only LightCraft.app, so macOS also installs the separately pinned lightcraft-cli payload from the same release; the Windows portable ZIP and the Linux tarball carry lightcraft-cli themselves. Licences: the app bundle carries LICENSE-MIT, LICENSE-APACHE and NOTICE under Contents/Resources/Licenses, and the ZIP and tarball carry them at their roots, so no supplemental notice is needed. The control port is still unauthenticated at 0.18.0: the adapter verifies the listening process against the installed release before any request. Exercised at this pin by scripts/extensions/prove-lightcraft-drive.ts on darwin-arm64: clean download, size and SHA-256 check, offline tree validation, codesign, headless import/develop/export and a live window. Download only this URL; never select latest at install time."
+  "notes": "Runtime pin read by server/install.mjs (desktop.version) and the shared installer. Pinned 2026-11-05 to the v0.18.1 release (published 2026-11-05). Digests computed from the downloaded archives and matched against the release's SHA256SUMS.txt; bytes from GitHub asset metadata, matched against the downloads. The DMG holds only LightCraft.app, so macOS also installs the separately pinned lightcraft-cli payload from the same release; the Windows portable ZIP and the Linux tarball carry lightcraft-cli themselves. Licences: the app bundle carries LICENSE-MIT, LICENSE-APACHE and NOTICE under Contents/Resources/Licenses, and the ZIP and tarball carry them at their roots, so no supplemental notice is needed. The control port is still unauthenticated at 0.18.1: the adapter verifies the listening process against the installed release before any request. Since 0.18.1 a desktop launch with a library offers the lensfun lens database download once, in a dialog with Download and Not Now; a headless session reads the database the desktop downloaded and never fetches it. Exercised at this pin by scripts/extensions/prove-lightcraft-drive.ts on darwin-arm64: clean download, size and SHA-256 check, offline tree validation, codesign, headless import/develop/export and a live window. Download only this URL; never select latest at install time."
 }

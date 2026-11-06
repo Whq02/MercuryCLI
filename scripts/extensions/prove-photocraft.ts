@@ -38,17 +38,17 @@ try {
     assert(!manifest.module && !manifest.install && !manifest.needs.binaries)
   })
   check('release plans bind exact app version, URL, bytes and hash; one archive per platform carries app and CLI', () => {
-    assert.equal(adapter.version, '0.20.1'); assert.deepEqual(adapter.pins.map((pin: any) => pin.name), ['photocraft'])
+    assert.equal(adapter.version, '0.20.2'); assert.deepEqual(adapter.pins.map((pin: any) => pin.name), ['photocraft'])
     for (const pin of adapter.pins) sharedInstall.validatePin(pin)
     const mac = sharedInstall.planInstall(adapter, { dataDir, platform: 'darwin-arm64' })
-    assert.equal(mac.payloads.length, 1); assert.equal(mac.bytes, 247518461); assert.equal(mac.payloads[0].sha256, '5486555dc749df1650f321e363534e603a7c4f80ea31c54d9e88489ff742db03')
+    assert.equal(mac.payloads.length, 1); assert.equal(mac.bytes, 249667752); assert.equal(mac.payloads[0].sha256, '89f2ed4d4a737ec8aaa570165815bab0a824df3f453493b0a501f915179e9a55')
     for (const platform of ['win-x64', 'linux-x64']) assert.equal(sharedInstall.planInstall(adapter, { dataDir, platform }).payloads.length, 1)
-    const broken = structuredClone(adapter.pins[0]); broken.platforms['darwin-arm64'].url = broken.platforms['darwin-arm64'].url.replace('v0.20.1', 'latest')
+    const broken = structuredClone(adapter.pins[0]); broken.platforms['darwin-arm64'].url = broken.platforms['darwin-arm64'].url.replace('v0.20.2', 'latest')
     assert.throws(() => sharedInstall.validatePin(broken))
   })
   check('supplemental notices retain exact tagged bytes and provenance', () => {
     assert.deepEqual(adapter.notices.map((notice: any) => notice.name), ['NOTICE', 'LICENSE-MIT', 'LICENSE-APACHE'])
-    for (const notice of adapter.notices) { assert.equal(hash(notice.content), notice.sha256); assert.equal(notice.source, `${adapter.pins[0].repository}/blob/v0.20.1/${notice.name}`) }
+    for (const notice of adapter.notices) { assert.equal(hash(notice.content), notice.sha256); assert.equal(notice.source, `${adapter.pins[0].repository}/blob/v0.20.2/${notice.name}`) }
     assert.match(adapter.notices[0].content, /sctk-adwaita 0\.10\.1/)
   })
   const readRoot = join(scratch, 'project'), writeRoot = join(scratch, 'outputs')
@@ -129,10 +129,10 @@ try {
   })
   check('the skill keeps the hard boundaries and the live-discovery rule, without the onboarding the server instructions carry', () => {
     const text = readFileSync(join(delivered, 'skills/photocraft/SKILL.md'), 'utf8')
-    assert(Buffer.byteLength(text) <= 2800, `skill is ${Buffer.byteLength(text)} bytes`)
-    for (const fact of [/discovery wins/, /share one active document/, /changes tabs/, /`id` from `doc_inspect`; names repeat/, /prose, not a schema/, /image\.duplicate/, /not atomic/, /Undo never unwrites a file/, /`render_preview` is document pixels; `ui_screenshot` is the attached window/, /only image or document files are ever replaced/, /\.pcraft/, /queued export is not a file/, /use its path only, never its contents/, /`file\.open`, `file\.saveAs`/, /never a wider root or a shell workaround/, /saveContents/, /never replay automatically/]) assert.match(text, fact)
+    assert.ok(Buffer.byteLength(text) <= 3000, `skill is ${Buffer.byteLength(text)} bytes`)
+    for (const fact of [/discovery wins/, /share one active document/, /changes tabs/, /`id` from `doc_inspect`; names repeat/, /prose, not a schema/, /image\.duplicate/, /not atomic/, /Undo never unwrites a file/, /`render_preview` is document pixels; `ui_screenshot` is the attached window/, /only image or document files are ever replaced/, /\.pcraft/, /queued export is not a file/, /Since 0\.20\.2 `doc_save` and `doc_export` take `tiffCompression` \(none, lzw, zip\), `tiffTransparency` and `tiffPyramid`/, /`pcraftFullComposite`/, /`approveHighMemory: true`/, /use its path only, never its contents/, /`file\.open`, `file\.saveAs`/, /never a wider root or a shell workaround/, /saveContents/, /never replay automatically/]) assert.match(text, fact)
     for (const gone of [/craft_status/, /craft_install/, /mode: "headless"/, /^\d+\. /m]) assert.doesNotMatch(text, gone)
-    for (const name of ['session_list', 'doc_inspect', 'command_list', 'command_run', 'command_batch', 'render_preview', 'ui_screenshot', 'doc_open', 'doc_save']) assert.match(text, new RegExp(`\`${name}\\b`), name)
+    for (const name of ['session_list', 'doc_inspect', 'command_list', 'command_run', 'command_batch', 'render_preview', 'ui_screenshot', 'doc_open', 'doc_save', 'doc_export', 'doc_place']) assert.match(text, new RegExp(`\`${name}\\b`), name)
   })
   console.log(`${passed} PhotoCraft static checks passed. Routing examples: PhotoCraft crop included; video trim explicitly excluded.`)
 } finally { publishActiveSet(null); clearExtensionCommandCaches(); removeScratch(scratch) }
