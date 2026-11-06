@@ -248,6 +248,7 @@ export interface DesktopAddonTree {
 
 export interface DesktopAddonScroll {
   scrolled: boolean
+  road?: string | null
   frame?: DesktopAddonBounds | null
   reason?: string | null
 }

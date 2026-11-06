@@ -51,6 +51,10 @@ pub const ELEMENT_NOT_UNIQUE: &str = "the element is no longer unique in a compl
 pub const SCROLL_UNSUPPORTED: &str = "the element does not scroll into view through the accessibility API — scroll with the wheel instead";
 pub const VALUE_UNSUPPORTED: &str = "the element does not accept a value through the accessibility API — type into it instead";
 pub const SECURE_NOT_READ_BACK: &str = "a secure field is not read back";
+pub const WHEEL_FAILED: &str = "the element has no scroll-into-view action and the wheel did not bring it into view";
+pub const NOT_IN_FRONT: &str = "the application is not in front — focus it first";
+pub const ROAD_ACTION: &str = "action";
+pub const ROAD_WHEEL: &str = "wheel";
 pub const SCROLL_SETTLE_MS: u64 = 60;
 pub const SCROLL_SETTLE_READS: u32 = 5;
 pub const SCROLL_WHEEL_STEPS: u32 = 24;
@@ -173,8 +177,36 @@ pub fn same_frame(a: &Option<BoundsRecord>, b: &Option<BoundsRecord>) -> bool {
     }
 }
 
-pub fn hidden_by(frame: &BoundsRecord, viewport: &BoundsRecord) -> i32 {
-    if frame.height <= 1.0 || frame.y + frame.height > viewport.y + viewport.height - 1.0 { 1 } else if frame.y < viewport.y + 1.0 { -1 } else { 0 }
+fn hidden_along(start: f64, length: f64, from: f64, extent: f64) -> i32 {
+    let end = start + length;
+    let far = from + extent;
+    if length <= 1.0 {
+        if end >= far - 1.0 { 1 } else if start <= from + 1.0 { -1 } else { 0 }
+    } else if length >= extent {
+        if start > far - 1.0 { 1 } else if end < from + 1.0 { -1 } else { 0 }
+    } else if end > far - 1.0 {
+        1
+    } else if start < from + 1.0 {
+        -1
+    } else {
+        0
+    }
+}
+
+pub fn hidden_by(frame: &BoundsRecord, viewport: &BoundsRecord) -> (i32, i32) {
+    (hidden_along(frame.x, frame.width, viewport.x, viewport.width), hidden_along(frame.y, frame.height, viewport.y, viewport.height))
+}
+
+pub fn wheel_words(x: f64, y: f64) -> String {
+    format!("scrolled with the wheel at ({x:.0}, {y:.0}) — the cursor moved")
+}
+
+pub fn covered_words(x: f64, y: f64) -> String {
+    format!("the wheel stopped: the window under the cursor at ({x:.0}, {y:.0}) belongs to another application — bring the application in front")
+}
+
+pub fn number_words(number: f64) -> String {
+    if number.fract() == 0.0 && number.abs() < 1e15 { format!("{}", number as i64) } else { format!("{number}") }
 }
 
 pub const WEB_FRAMEWORKS: [&str; 2] = ["Chrome", "Gecko"];
@@ -293,11 +325,20 @@ mod scroll_tests {
     #[test]
     fn an_edge_clamped_strip_scrolls_down_and_a_frame_above_scrolls_up() {
         let viewport = BoundsRecord { x: 0.0, y: 30.0, width: 1440.0, height: 956.0 };
-        assert_eq!(hidden_by(&BoundsRecord { x: 1050.0, y: 985.0, width: 105.0, height: 1.0 }, &viewport), 1);
-        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 1200.0, width: 300.0, height: 20.0 }, &viewport), 1);
-        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 10.0, width: 300.0, height: 20.0 }, &viewport), -1);
-        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 400.0, width: 300.0, height: 20.0 }, &viewport), 0);
+        assert_eq!(hidden_by(&BoundsRecord { x: 1050.0, y: 985.0, width: 105.0, height: 1.0 }, &viewport), (0, 1));
+        assert_eq!(hidden_by(&BoundsRecord { x: 1050.0, y: 30.0, width: 105.0, height: 1.0 }, &viewport), (0, -1));
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 400.0, width: 300.0, height: 1.0 }, &viewport), (0, 0));
+        assert_eq!(hidden_by(&BoundsRecord { x: 1439.0, y: 400.0, width: 1.0, height: 40.0 }, &viewport), (1, 0));
+        assert_eq!(hidden_by(&BoundsRecord { x: 0.0, y: 400.0, width: 1.0, height: 40.0 }, &viewport), (-1, 0));
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 1200.0, width: 300.0, height: 20.0 }, &viewport), (0, 1));
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 10.0, width: 300.0, height: 20.0 }, &viewport), (0, -1));
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 400.0, width: 300.0, height: 20.0 }, &viewport), (0, 0));
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 100.0, width: 300.0, height: 3000.0 }, &viewport), (0, 0));
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 2000.0, width: 300.0, height: 3000.0 }, &viewport), (0, 1));
+        assert_eq!(hidden_by(&BoundsRecord { x: 1500.0, y: 400.0, width: 300.0, height: 20.0 }, &viewport), (1, 0));
         assert!(same_frame(&None, &None) && !same_frame(&None, &Some(viewport.clone())));
+        assert_eq!(super::number_words(1.0), "1");
+        assert_eq!(super::number_words(0.5), "0.5");
     }
 }
 
@@ -598,6 +639,7 @@ pub fn read_element(pid: u32, element: TreeElement) -> Result<Option<ElementText
 #[napi(object)]
 pub struct ScrollAnswer {
     pub scrolled: bool,
+    pub road: Option<String>,
     pub frame: Option<BoundsRecord>,
     pub reason: Option<String>,
 }

@@ -94,12 +94,13 @@ if (process.platform !== 'darwin') warn('[1]–[3] drive the native reader, a ma
 else {
 console.log('[1] what crosses the bridge: a stub addon records the element it received')
 {
-  const resolved = usePack(stubPack("readElement: (pid, element) => ({ text: JSON.stringify({ pid, keys: Object.keys(element), element }), role: element.role, title: element.title === undefined ? 'absent' : String(element.title) })"))
+  const resolved = usePack(stubPack("readElement: (pid, element) => ({ text: JSON.stringify({ pid, keys: Object.keys(element), element, argv: process.argv }), role: element.role, title: element.title === undefined ? 'absent' : String(element.title) })"))
   if (resolved.state !== 'ok') check('the stub pack resolves', false, resolved.note)
   else {
     const answer = await resolved.driver.readElement!(app, bare, signal())
-    const crossed = answer.ok && answer.value ? (JSON.parse(answer.value.text) as { pid: number; keys: string[]; element: Record<string, unknown> }) : null
+    const crossed = answer.ok && answer.value ? (JSON.parse(answer.value.text) as { pid: number; keys: string[]; element: Record<string, unknown>; argv: string[] }) : null
     check('a null title, value and frame never cross the bridge as keys', crossed !== null && !crossed.keys.includes('title') && !crossed.keys.includes('value') && !crossed.keys.includes('frame'), JSON.stringify(answer))
+    check("the element rides the child's stdin, never its command line: the argv is the script, the addon path and the method", crossed !== null && crossed.argv.length === 3 && crossed.argv[2] === 'readElement' && !crossed.argv.join(' ').includes('AXGroup') && !crossed.argv.join(' ').includes(String(process.pid)), JSON.stringify(crossed?.argv))
     check('depth, role and a false focused cross whole', crossed !== null && crossed.element.depth === 3 && crossed.element.role === 'AXGroup' && crossed.element.focused === false && crossed.pid === process.pid, JSON.stringify(crossed))
     check('a missing title is never coerced to an empty string', answer.ok && answer.value?.title === 'absent', JSON.stringify(answer))
     const titled = await resolved.driver.readElement!(app, { depth: 1, role: 'AXTextField', title: 'URL', value: 'old', frame: { x: 1, y: 2, width: 3, height: 4 }, focused: true }, signal())

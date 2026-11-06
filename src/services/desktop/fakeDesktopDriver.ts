@@ -42,6 +42,7 @@ interface FakeTreeNode {
   focused?: boolean
   actions?: string[]
   settable?: boolean
+  wheel?: boolean
 }
 
 interface FakeSceneSwitch {
@@ -125,9 +126,10 @@ const MODIFIERS: readonly DesktopModifier[] = ['shift', 'control', 'alt', 'super
 const SCENE_ACTS: ReadonlySet<FakeActKind> = new Set(['mouseMove', 'mouseDown', 'mouseUp', 'click', 'drag', 'scroll', 'keyTap', 'keyDown', 'keyUp', 'typeText', 'scrollToVisible', 'setValue'])
 const GRANT_REMEDY = 'the fake driver reads its grants from the scene: set permissions.screenCapture and permissions.input to granted and permissions.session to desktop'
 const ELEMENT_NOT_UNIQUE = 'the element is no longer unique in a complete window tree — read tree again'
-const SCROLL_UNSUPPORTED = 'the element does not scroll into view through the accessibility API — scroll with the wheel instead'
+const WHEEL_FAILED = 'the element has no scroll-into-view action and the wheel did not bring it into view'
 const VALUE_UNSUPPORTED = 'the element does not accept a value through the accessibility API — type into it instead'
 const SECURE_NOT_READ_BACK = 'a secure field is not read back'
+const wheelWords = (x: number, y: number): string => `scrolled with the wheel at (${x}, ${y}) — the cursor moved`
 const SCROLL_ACTION = 'AXScrollToVisible'
 const VALUE_ROLES = /^AX(TextField|TextArea|SearchField|ComboBox)/
 const CANVAS_BACKGROUND = Buffer.from([30, 30, 30, 255])
@@ -184,6 +186,7 @@ function treeProblem(value: unknown, at: string): string | null {
     if (frame !== null) return frame
     if (node.actions !== undefined && !(Array.isArray(node.actions) && node.actions.every(isText))) return `${at}[${i}].actions must be a list of action names`
     if (node.settable !== undefined && typeof node.settable !== 'boolean') return `${at}[${i}].settable must be true or false`
+    if (node.wheel !== undefined && typeof node.wheel !== 'boolean') return `${at}[${i}].wheel must be true or false`
     if (node.children !== undefined) {
       const problem = treeProblem(node.children, `${at}[${i}].children`)
       if (problem !== null) return problem
@@ -619,20 +622,26 @@ export class FakeDesktopDriver implements DesktopDriver {
     if (!located.ok) return located
     const { node, window } = located.value
     const detail = { app: app.identity, role: node.role, title: titleOf(node) }
-    if (node.actions !== undefined && !node.actions.includes(SCROLL_ACTION)) {
-      this.record('scrollToVisible', 'done', { ...detail, scrolled: false })
-      return answer({ scrolled: false, frame: node.frame ? { ...node.frame } : null, note: SCROLL_UNSUPPORTED })
-    }
+    const road = node.actions === undefined || node.actions.includes(SCROLL_ACTION) ? 'action' : 'wheel'
     const viewport = window?.frame ?? app.bounds
+    if (road === 'wheel' && node.wheel === false) {
+      this.record('scrollToVisible', 'done', { ...detail, scrolled: false, road })
+      return answer({ scrolled: false, road: null, frame: node.frame ? { ...node.frame } : null, note: WHEEL_FAILED })
+    }
+    let at: DesktopPoint | null = null
     if (node.frame && viewport) {
       const below = node.frame.y < viewport.y || node.frame.y + node.frame.height > viewport.y + viewport.height || node.frame.height <= 1
       const beside = node.frame.x < viewport.x || node.frame.x + node.frame.width > viewport.x + viewport.width
+      if (road === 'wheel' && (below || beside)) {
+        at = { x: Math.round(Math.min(Math.max(node.frame.x + node.frame.width / 2, viewport.x + 2), viewport.x + viewport.width - 2)), y: Math.round(viewport.y + viewport.height / 2) }
+        this.cursorAt = { ...at }
+      }
       if (below) node.frame = { ...node.frame, y: Math.round(viewport.y + (viewport.height - node.frame.height) / 2) }
       if (beside) node.frame = { ...node.frame, x: Math.round(viewport.x + (viewport.width - node.frame.width) / 2) }
     }
     this.sceneActs += 1
-    this.record('scrollToVisible', 'done', { ...detail, scrolled: true, frame: node.frame ?? null })
-    return answer({ scrolled: true, frame: node.frame ? { ...node.frame } : null, note: null })
+    this.record('scrollToVisible', 'done', { ...detail, scrolled: true, road, frame: node.frame ?? null, ...(at ? { at } : {}) })
+    return answer({ scrolled: true, road, frame: node.frame ? { ...node.frame } : null, note: at ? wheelWords(at.x, at.y) : null })
   }
 
   async setValue(app: DesktopApplication, element: DesktopTreeElement, text: string, signal: AbortSignal): Promise<DesktopAnswer<DesktopValueReceipt>> {
@@ -641,14 +650,15 @@ export class FakeDesktopDriver implements DesktopDriver {
     if (!located.ok) return located
     const { node } = located.value
     const detail = { app: app.identity, role: node.role, title: titleOf(node), chars: text.length }
+    const secure = node.role.includes('Secure')
     if (!(node.settable ?? VALUE_ROLES.test(node.role))) {
       this.record('setValue', 'done', { ...detail, set: false })
-      return answer({ set: false, value: isText(node.value) && node.value !== '' ? node.value : null, note: VALUE_UNSUPPORTED })
+      return answer({ set: false, value: !secure && isText(node.value) && node.value !== '' ? node.value : null, note: VALUE_UNSUPPORTED })
     }
     node.value = text
     this.sceneActs += 1
     this.record('setValue', 'done', { ...detail, set: true })
-    if (node.role.includes('Secure')) return answer({ set: true, value: null, note: SECURE_NOT_READ_BACK })
+    if (secure) return answer({ set: true, value: null, note: SECURE_NOT_READ_BACK })
     return answer({ set: true, value: text === '' ? null : text, note: null })
   }
 

@@ -104,6 +104,7 @@ export interface DesktopFocusedText {
 
 export interface DesktopScrollReceipt {
   scrolled: boolean
+  road: 'action' | 'wheel' | null
   frame: DesktopBounds | null
   note: string | null
 }

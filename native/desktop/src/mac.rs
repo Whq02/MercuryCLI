@@ -8,7 +8,7 @@ use objc2_core_foundation::{CGPoint, CGRect, CGSize};
 use objc2_foundation::NSString;
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{clipped, hidden_by, same_frame, tree_child_order, ApplicationAnswer, BoundsRecord, DisplayRecord, FocusedText, ScrollAnswer, TextRange, PermissionsAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED};
+use crate::{clipped, covered_words, hidden_by, same_frame, tree_child_order, wheel_words, ApplicationAnswer, BoundsRecord, DisplayRecord, FocusedText, ScrollAnswer, TextRange, PermissionsAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, NOT_IN_FRONT, ROAD_ACTION, ROAD_WHEEL, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED, WHEEL_FAILED};
 
 type CFTypeRef = *const c_void;
 type CGEventRef = *mut c_void;
@@ -100,6 +100,9 @@ extern "C" {
     fn AXUIElementIsAttributeSettable(element: CFTypeRef, attribute: CFTypeRef, settable: *mut u8) -> i32;
     fn AXUIElementCopyActionNames(element: CFTypeRef, names: *mut CFTypeRef) -> i32;
     fn AXUIElementPerformAction(element: CFTypeRef, action: CFTypeRef) -> i32;
+    fn AXUIElementCreateSystemWide() -> CFTypeRef;
+    fn AXUIElementCopyElementAtPosition(application: CFTypeRef, x: f32, y: f32, element: *mut CFTypeRef) -> i32;
+    fn AXUIElementGetPid(element: CFTypeRef, pid: *mut i32) -> i32;
     fn AXUIElementGetAttributeValueCount(element: CFTypeRef, attribute: CFTypeRef, count: *mut isize) -> i32;
     fn AXValueGetValue(value: CFTypeRef, kind: u32, output: *mut c_void) -> bool;
     static kAXTrustedCheckOptionPrompt: CFTypeRef;
@@ -1287,53 +1290,99 @@ unsafe fn ax_actions(element: CFTypeRef) -> Vec<String> {
     list
 }
 
-unsafe fn settled_frame(element: CFTypeRef) -> Option<BoundsRecord> {
-    let mut frame = ax_frame(element);
+unsafe fn settled_frame(element: CFTypeRef, before: Option<BoundsRecord>) -> Option<BoundsRecord> {
+    let mut frame = before;
+    let mut moved = false;
     for _ in 0..SCROLL_SETTLE_READS {
         std::thread::sleep(std::time::Duration::from_millis(SCROLL_SETTLE_MS));
         let next = ax_frame(element);
-        if same_frame(&next, &frame) { break; }
+        let changed = !same_frame(&next, &frame);
         frame = next;
+        if moved && !changed { break; }
+        moved |= changed;
     }
     frame
 }
 
-unsafe fn wheel_into_view(window: CFTypeRef, element: CFTypeRef, started: std::time::Instant, budget: std::time::Duration) -> ScrollAnswer {
+unsafe fn settled_value(element: CFTypeRef, text: &str) -> Option<String> {
+    let wanted = if text.is_empty() { None } else { Some(text.to_string()) };
+    let mut value = ax_string(element, "AXValue");
+    for _ in 0..SCROLL_SETTLE_READS {
+        if value == wanted { break; }
+        std::thread::sleep(std::time::Duration::from_millis(SCROLL_SETTLE_MS));
+        value = ax_string(element, "AXValue");
+    }
+    value
+}
+
+unsafe fn frontmost_pid() -> Option<i32> {
+    let class = AnyClass::get(c"NSWorkspace")?;
+    let workspace: *mut AnyObject = msg_send![class, sharedWorkspace];
+    if workspace.is_null() { return None; }
+    let app: *mut AnyObject = msg_send![&*workspace, frontmostApplication];
+    if app.is_null() { return None; }
+    let pid: i32 = msg_send![&*app, processIdentifier];
+    Some(pid)
+}
+
+unsafe fn pid_under(x: f64, y: f64) -> Option<i32> {
+    let system = AXUIElementCreateSystemWide();
+    if system.is_null() { return None; }
+    let mut element: CFTypeRef = ptr::null();
+    let found = AXUIElementCopyElementAtPosition(system, x as f32, y as f32, &mut element);
+    CFRelease(system);
+    if found != 0 || element.is_null() { return None; }
+    let mut pid: i32 = 0;
+    let read = AXUIElementGetPid(element, &mut pid);
+    CFRelease(element);
+    if read == 0 { Some(pid) } else { None }
+}
+
+unsafe fn wheel_into_view(pid: i32, window: CFTypeRef, element: CFTypeRef, started: std::time::Instant, budget: std::time::Duration) -> ScrollAnswer {
     let Some(viewport) = ax_frame(window) else {
-        return ScrollAnswer { scrolled: false, frame: ax_frame(element), reason: Some(format!("{SCROLL_UNSUPPORTED}; the window's frame is unavailable for a wheel scroll")) };
+        return ScrollAnswer { scrolled: false, road: None, frame: ax_frame(element), reason: Some(format!("{WHEEL_FAILED}: the window's frame is unavailable")) };
     };
     let mut frame = ax_frame(element);
+    let mut at: Option<(f64, f64)> = None;
     for _ in 0..SCROLL_WHEEL_STEPS {
         let Some(current) = frame.as_ref() else { break };
-        let direction = hidden_by(current, &viewport);
-        if direction == 0 { return ScrollAnswer { scrolled: true, frame, reason: None }; }
+        let (dx, dy) = hidden_by(current, &viewport);
+        if dx == 0 && dy == 0 {
+            return ScrollAnswer { scrolled: true, road: Some(ROAD_WHEEL.to_string()), frame, reason: at.map(|(x, y)| wheel_words(x, y)) };
+        }
         if started.elapsed() > budget { break; }
         let x = (current.x + current.width / 2.0).clamp(viewport.x + 2.0, viewport.x + viewport.width - 2.0);
         let y = viewport.y + viewport.height / 2.0;
-        if mouse_move(x, y).and_then(|_| scroll(0, direction * SCROLL_WHEEL_LINES)).is_err() { break; }
-        frame = settled_frame(element);
+        if pid_under(x, y).is_some_and(|owner| owner != pid) {
+            return ScrollAnswer { scrolled: false, road: None, frame, reason: Some(covered_words(x, y)) };
+        }
+        if mouse_move(x, y).and_then(|_| scroll(dx * SCROLL_WHEEL_LINES, dy * SCROLL_WHEEL_LINES)).is_err() { break; }
+        at = Some((x, y));
+        frame = settled_frame(element, frame);
     }
-    ScrollAnswer { scrolled: false, frame, reason: Some(format!("{SCROLL_UNSUPPORTED}; the wheel did not bring it into view")) }
+    ScrollAnswer { scrolled: false, road: None, frame, reason: Some(WHEEL_FAILED.to_string()) }
 }
 
 pub fn scroll_to_visible(pid: i32, wanted: &TreeElement, wheel: bool) -> Result<ScrollAnswer, String> {
     autoreleasepool(|_| unsafe {
+        if frontmost_pid() != Some(pid) { return Err(NOT_IN_FRONT.to_string()); }
         let started = std::time::Instant::now();
         let budget = std::time::Duration::from_millis(TREE_BUDGET_MS);
         let (window, selected) = unique_element(pid, wanted, started, budget)?;
         let answer = if ax_actions(selected).iter().any(|name| name == SCROLL_ACTION) {
+            let before = ax_frame(selected);
             let action = cf_string(SCROLL_ACTION);
             let status = AXUIElementPerformAction(selected, action);
             CFRelease(action);
             if status == 0 {
-                ScrollAnswer { scrolled: true, frame: settled_frame(selected), reason: None }
+                ScrollAnswer { scrolled: true, road: Some(ROAD_ACTION.to_string()), frame: settled_frame(selected, before), reason: None }
             } else {
-                ScrollAnswer { scrolled: false, frame: ax_frame(selected), reason: Some(format!("{SCROLL_UNSUPPORTED}; the action answered accessibility error {status}")) }
+                ScrollAnswer { scrolled: false, road: None, frame: before, reason: Some(format!("{SCROLL_UNSUPPORTED}; the action answered accessibility error {status}")) }
             }
         } else if wheel {
-            wheel_into_view(window, selected, started, budget)
+            wheel_into_view(pid, window, selected, started, budget)
         } else {
-            ScrollAnswer { scrolled: false, frame: ax_frame(selected), reason: Some(SCROLL_UNSUPPORTED.to_string()) }
+            ScrollAnswer { scrolled: false, road: None, frame: ax_frame(selected), reason: Some(SCROLL_UNSUPPORTED.to_string()) }
         };
         CFRelease(selected);
         CFRelease(window);
@@ -1343,16 +1392,19 @@ pub fn scroll_to_visible(pid: i32, wanted: &TreeElement, wheel: bool) -> Result<
 
 pub fn set_value(pid: i32, wanted: &TreeElement, text: &str) -> Result<ValueAnswer, String> {
     autoreleasepool(|_| unsafe {
+        if frontmost_pid() != Some(pid) { return Err(NOT_IN_FRONT.to_string()); }
         let started = std::time::Instant::now();
         let budget = std::time::Duration::from_millis(TREE_BUDGET_MS);
         let (window, selected) = unique_element(pid, wanted, started, budget)?;
         CFRelease(window);
+        let secure = wanted.role.contains("Secure") || ax_string(selected, "AXSubrole").is_some_and(|subrole| subrole.contains("Secure"));
+        let current = |element: CFTypeRef| if secure { None } else { ax_string(element, "AXValue") };
         let key = cf_string("AXValue");
         let mut settable: u8 = 0;
         let asked = AXUIElementIsAttributeSettable(selected, key, &mut settable);
         if asked != 0 || settable == 0 {
             CFRelease(key);
-            let value = ax_string(selected, "AXValue");
+            let value = current(selected);
             CFRelease(selected);
             return Ok(ValueAnswer { set: false, value, reason: Some(VALUE_UNSUPPORTED.to_string()) });
         }
@@ -1361,12 +1413,11 @@ pub fn set_value(pid: i32, wanted: &TreeElement, text: &str) -> Result<ValueAnsw
         CFRelease(value);
         CFRelease(key);
         if status != 0 {
-            let current = ax_string(selected, "AXValue");
+            let value = current(selected);
             CFRelease(selected);
-            return Ok(ValueAnswer { set: false, value: current, reason: Some(format!("{VALUE_UNSUPPORTED}; the value answered accessibility error {status}")) });
+            return Ok(ValueAnswer { set: false, value, reason: Some(format!("{VALUE_UNSUPPORTED}; the value answered accessibility error {status}")) });
         }
-        let secure = wanted.role.contains("Secure") || ax_string(selected, "AXSubrole").is_some_and(|subrole| subrole.contains("Secure"));
-        let read_back = if secure { None } else { ax_string(selected, "AXValue") };
+        let read_back = if secure { None } else { settled_value(selected, text) };
         CFRelease(selected);
         Ok(ValueAnswer { set: true, value: read_back, reason: if secure { Some(SECURE_NOT_READ_BACK.to_string()) } else { None } })
     })

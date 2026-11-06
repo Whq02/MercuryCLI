@@ -26,8 +26,11 @@ type Node = Scene['tree'][number]
 
 const signal = (): AbortSignal => new AbortController().signal
 const SCROLL_NOTE = 'the element does not scroll into view through the accessibility API — scroll with the wheel instead'
+const WHEEL_FAILED = 'the element has no scroll-into-view action and the wheel did not bring it into view'
+const NOT_IN_FRONT = 'the application is not in front — focus it first'
 const VALUE_NOTE = 'the element does not accept a value through the accessibility API — type into it instead'
 const NOT_UNIQUE = 'the element is no longer unique in a complete window tree — read tree again'
+const WHEEL_WORDS = /^scrolled with the wheel at \((\d+), (\d+)\) — the cursor moved$/
 
 function scene(): Scene {
   const s = structuredClone(fake.FAKE_SCENE_DEFAULT)
@@ -41,6 +44,8 @@ function scene(): Scene {
     { role: 'AXGroup', title: 'Editor', frame: { x: 120, y: 400, width: 400, height: 200 }, settable: true },
     { role: 'AXButton', title: 'Twin', frame: { x: 600, y: 300, width: 80, height: 30 } },
     { role: 'AXButton', title: 'Twin', frame: { x: 600, y: 300, width: 80, height: 30 } },
+    { role: 'AXStaticText', value: 'Stuck', frame: { x: 120, y: 2400, width: 300, height: 20 }, actions: ['AXPress'], wheel: false },
+    { role: 'AXTextField (AXSecureTextField)', title: 'PIN', value: '1234', frame: { x: 120, y: 380, width: 200, height: 30 }, settable: false },
   )
   return s
 }
@@ -55,7 +60,7 @@ console.log('[1] scrollToVisible through the fake driver')
   const app = s.frontmost
   const submit = element(s.tree[0]!.children![2]!)
   const scrolled = await driver.scrollToVisible(app, submit, signal())
-  check('a button below the fold scrolls into the window: scrolled, the frame inside the window, no note', scrolled.ok && scrolled.value.scrolled && inside(scrolled.value.frame, window) && scrolled.value.note === null, JSON.stringify(scrolled))
+  check('a button below the fold scrolls into the window by the action road: scrolled, the frame inside the window, no note', scrolled.ok && scrolled.value.scrolled && scrolled.value.road === 'action' && inside(scrolled.value.frame, window) && scrolled.value.note === null, JSON.stringify(scrolled))
   const tree = await driver.accessibilityTree(app, { depth: 8, count: 200, scope: 'window' }, signal())
   const row = tree.ok ? tree.value.elements.find(e => e.role === 'AXButton' && e.title === 'Submit') : undefined
   check('the next tree read answers the moved frame (the old frame no longer addresses it)', row !== undefined && scrolled.ok && JSON.stringify(row.frame) === JSON.stringify(scrolled.value.frame) && row.frame!.y !== 1400, JSON.stringify(row))
@@ -65,14 +70,20 @@ console.log('[1] scrollToVisible through the fake driver')
   check('an edge-clamped one-point strip at the window edge counts as hidden and is brought in', clamped.ok && clamped.value.scrolled && clamped.value.frame !== null && clamped.value.frame.y !== 699 && inside(clamped.value.frame, window), JSON.stringify(clamped))
   const visible = await driver.scrollToVisible(app, element(s.tree[0]!.children![0]!), signal())
   check('an element already in view keeps its frame', visible.ok && visible.value.scrolled && JSON.stringify(visible.value.frame) === JSON.stringify({ x: 100, y: 128, width: 800, height: 40 }), JSON.stringify(visible))
-  const unsupported = await driver.scrollToVisible(app, element(s.tree[0]!.children![4]!), signal())
-  check('an element without the action answers scrolled false with the wheel sentence and its frame', unsupported.ok && !unsupported.value.scrolled && unsupported.value.note === SCROLL_NOTE && unsupported.value.frame?.y === 2000, JSON.stringify(unsupported))
+  const cursorBefore = await driver.cursor()
+  const wheeled = await driver.scrollToVisible(app, element(s.tree[0]!.children![4]!), signal())
+  const cursorAfter = await driver.cursor()
+  const at = wheeled.ok && wheeled.value.note ? WHEEL_WORDS.exec(wheeled.value.note) : null
+  check('an element without the action is wheeled in, the road says wheel and the note names the cursor point', wheeled.ok && wheeled.value.scrolled && wheeled.value.road === 'wheel' && inside(wheeled.value.frame, window) && at !== null, JSON.stringify(wheeled))
+  check('…and the cursor moved to that point', at !== null && cursorBefore.ok && cursorAfter.ok && cursorAfter.value.x === Number(at[1]) && cursorAfter.value.y === Number(at[2]) && (cursorAfter.value.x !== cursorBefore.value.x || cursorAfter.value.y !== cursorBefore.value.y), JSON.stringify([cursorBefore, cursorAfter]))
+  const stuck = await driver.scrollToVisible(app, element(s.tree[0]!.children![10]!), signal())
+  check('a wheel that never lands answers scrolled false, no road, its own sentence and the frame', stuck.ok && !stuck.value.scrolled && stuck.value.road === null && stuck.value.note === WHEEL_FAILED && stuck.value.frame?.y === 2400, JSON.stringify(stuck))
   const twin = await driver.scrollToVisible(app, element(s.tree[0]!.children![8]!), signal())
   check('two matching elements refuse with the tree sentence', !twin.ok && twin.error.note === NOT_UNIQUE, JSON.stringify(twin))
   const other = await driver.scrollToVisible({ ...app, identity: 'com.example.other', name: 'Other' }, submit, signal())
   check('an application not in front is refused by name', !other.ok && other.error.kind === 'display' && other.error.note.includes('Other'), JSON.stringify(other))
   const acts = driver.acts.filter(a => a.act === 'scrollToVisible')
-  check('every scroll act is recorded, scrolled or not', acts.length === 4 && acts.filter(a => a.detail.scrolled === true).length === 3, JSON.stringify(acts.map(a => a.detail)))
+  check('every scroll act is recorded with its road, scrolled or not', acts.length === 5 && acts.filter(a => a.detail.scrolled === true).length === 4 && acts.filter(a => a.detail.road === 'wheel').length === 2 && acts.some(a => a.detail.road === 'wheel' && a.detail.scrolled === true && typeof a.detail.at === 'object'), JSON.stringify(acts.map(a => a.detail)))
 }
 
 console.log('\n[2] setValue through the fake driver')
@@ -93,12 +104,14 @@ console.log('\n[2] setValue through the fake driver')
   check('a button answers set false with the typing sentence and its current value', button.ok && !button.value.set && button.value.note === VALUE_NOTE && button.value.value === null, JSON.stringify(button))
   const secure = await driver.setValue(app, element(s.tree[0]!.children![6]!), 'hunter2', signal())
   check('a secure field is set but never read back', secure.ok && secure.value.set && secure.value.value === null && secure.value.note === 'a secure field is not read back', JSON.stringify(secure))
+  const pin = await driver.setValue(app, element(s.tree[0]!.children![11]!), 'x', signal())
+  check('a secure field that refuses the value never answers its current value either', pin.ok && !pin.value.set && pin.value.value === null && pin.value.note === VALUE_NOTE, JSON.stringify(pin))
   const custom = await driver.setValue(app, element(s.tree[0]!.children![7]!), 'rich', signal())
   check('a scene node marked settable accepts a value whatever its role', custom.ok && custom.value.set && custom.value.value === 'rich', JSON.stringify(custom))
   const missing = await driver.setValue(app, { depth: 2, role: 'AXTextField', title: 'Nowhere', value: null, frame: null }, 'x', signal())
   check('an element not in the tree is refused with the tree sentence', !missing.ok && missing.error.note === NOT_UNIQUE, JSON.stringify(missing))
   const acts = driver.acts.filter(a => a.act === 'setValue')
-  check('every set act is recorded with the character count, never the text', acts.length === 5 && acts.every(a => typeof a.detail.chars === 'number' && !JSON.stringify(a.detail).includes('hunter2')), JSON.stringify(acts.map(a => a.detail)))
+  check('every set act is recorded with the character count, never the text', acts.length === 6 && acts.every(a => typeof a.detail.chars === 'number' && !JSON.stringify(a.detail).includes('hunter2')), JSON.stringify(acts.map(a => a.detail)))
 }
 
 console.log('\n[3] the gates both acts share')
@@ -137,12 +150,16 @@ console.log('\n[3] the gates both acts share')
     const fromFile = new fake.FakeDesktopDriver(good.scene, null)
     const go = await fromFile.scrollToVisible(good.scene.frontmost, { depth: 1, role: 'AXButton', title: 'Go', value: null, frame: { x: 10, y: 900, width: 50, height: 20 } }, signal())
     const editor = await fromFile.setValue(good.scene.frontmost, { depth: 1, role: 'AXGroup', title: 'Editor', value: null, frame: { x: 10, y: 10, width: 50, height: 20 } }, 'typed', signal())
-    check('…and the driver honours them', go.ok && !go.value.scrolled && go.value.note === SCROLL_NOTE && editor.ok && editor.value.set && editor.value.value === 'typed', JSON.stringify([go, editor]))
+    check('…and the driver honours them', go.ok && go.value.scrolled && go.value.road === 'wheel' && editor.ok && editor.value.set && editor.value.value === 'typed', JSON.stringify([go, editor]))
+    writeFileSync(join(SCRATCH, 'stuck.json'), JSON.stringify({ tree: [{ role: 'AXWindow', title: 'Untitled', frame: { x: 0, y: 0, width: 800, height: 600 }, children: [{ role: 'AXButton', title: 'Go', frame: { x: 10, y: 900, width: 50, height: 20 }, actions: ['AXPress'], wheel: false }] }] }))
+    const stuck = fake.readFakeScene(join(SCRATCH, 'stuck.json'))
+    const stuckGo = stuck.state === 'ok' ? await new fake.FakeDesktopDriver(stuck.scene, null).scrollToVisible(stuck.scene.frontmost, { depth: 1, role: 'AXButton', title: 'Go', value: null, frame: { x: 10, y: 900, width: 50, height: 20 } }, signal()) : null
+    check('a scene node with wheel: false models a wheel that never lands', stuckGo !== null && stuckGo.ok && !stuckGo.value.scrolled && stuckGo.value.note === WHEEL_FAILED, JSON.stringify(stuckGo))
   }
 }
 
 const lib = readFileSync(join(ROOT, 'native', 'desktop', 'src', 'lib.rs'), 'utf8')
-check("the fake driver's sentences are the native addon's (lib.rs)", lib.includes(SCROLL_NOTE) && lib.includes(VALUE_NOTE) && lib.includes(NOT_UNIQUE) && lib.includes('a secure field is not read back'))
+check("the fake driver's sentences are the native addon's (lib.rs)", lib.includes(SCROLL_NOTE) && lib.includes(WHEEL_FAILED) && lib.includes(NOT_IN_FRONT) && lib.includes(VALUE_NOTE) && lib.includes(NOT_UNIQUE) && lib.includes('a secure field is not read back') && lib.includes('scrolled with the wheel at ({x:.0}, {y:.0}) — the cursor moved'))
 
 if (process.platform !== 'darwin') console.log('  [WARN] [4]–[5] drive the native bridge, a macOS road here (the driver refuses the query elsewhere; the Windows pack is exercised on the field box) — skipped on this platform')
 else {
@@ -192,23 +209,25 @@ console.log('\n[4] the native bridge: a stub addon shows what the driver sends a
   const untitled = { depth: 20, role: 'AXStaticText', title: null, value: 'About', frame: { x: 10, y: 985, width: 100, height: 1 } }
   const shortOfExports = usePack(stubPack("readElement: () => null"))
   check('the export list requires both acts (a pack without them is refused by name)', pack.DESKTOP_ADDON_EXPORTS.includes('scrollToVisible') && pack.DESKTOP_ADDON_EXPORTS.includes('setValue') && shortOfExports.state === 'unavailable' && shortOfExports.note.includes('scrollToVisible()'), JSON.stringify(shortOfExports))
-  const echo = usePack(stubPack("scrollToVisible: (pid, element, wheel) => ({ scrolled: true, frame: { x: 1, y: 2, width: 3, height: 4 }, reason: JSON.stringify({ pid, keys: Object.keys(element), wheel }) }), setValue: (pid, element, text) => ({ set: true, value: text, reason: JSON.stringify({ pid, keys: Object.keys(element) }) })"))
+  const echo = usePack(stubPack("scrollToVisible: (pid, element, wheel) => ({ scrolled: true, road: 'wheel', frame: { x: 1, y: 2, width: 3, height: 4 }, reason: JSON.stringify({ pid, keys: Object.keys(element), wheel, argv: process.argv }) }), setValue: (pid, element, text) => ({ set: true, value: text, reason: JSON.stringify({ pid, keys: Object.keys(element), argv: process.argv }) })"))
   if (echo.state !== 'ok') check('the stub pack resolves', false, echo.note)
   else {
     const scrolled = await echo.driver.scrollToVisible!(app, untitled, signal())
-    const sent = scrolled.ok && scrolled.value.note ? (JSON.parse(scrolled.value.note) as { pid: number; keys: string[]; wheel: boolean }) : null
+    const sent = scrolled.ok && scrolled.value.note ? (JSON.parse(scrolled.value.note) as { pid: number; keys: string[]; wheel: boolean; argv: string[] }) : null
     check('scrollToVisible sends the pid, the element without its null keys, and asks for the wheel fallback', sent !== null && sent.pid === process.pid && !sent.keys.includes('title') && sent.keys.includes('frame') && sent.wheel === true, JSON.stringify(scrolled))
-    check('…and reads scrolled and the frame back', scrolled.ok && scrolled.value.scrolled && JSON.stringify(scrolled.value.frame) === JSON.stringify({ x: 1, y: 2, width: 3, height: 4 }), JSON.stringify(scrolled))
-    const set = await echo.driver.setValue!(app, untitled, 'hello', signal())
-    const sentValue = set.ok && set.value.note ? (JSON.parse(set.value.note) as { pid: number; keys: string[] }) : null
-    check('setValue sends the pid, the element without its null keys and the text, and reads the value back', sentValue !== null && sentValue.pid === process.pid && !sentValue.keys.includes('title') && set.ok && set.value.set && set.value.value === 'hello', JSON.stringify(set))
+    check('…and reads scrolled, the road and the frame back', scrolled.ok && scrolled.value.scrolled && scrolled.value.road === 'wheel' && JSON.stringify(scrolled.value.frame) === JSON.stringify({ x: 1, y: 2, width: 3, height: 4 }), JSON.stringify(scrolled))
+    check("the element never rides the child's command line: the argv is the script, the addon path and the method", sent !== null && sent.argv.length === 3 && sent.argv[2] === 'scrollToVisible' && !sent.argv.join(' ').includes('About') && !sent.argv.join(' ').includes('AXStaticText'), JSON.stringify(sent?.argv))
+    const set = await echo.driver.setValue!(app, untitled, 'hunter2-the-text', signal())
+    const sentValue = set.ok && set.value.note ? (JSON.parse(set.value.note) as { pid: number; keys: string[]; argv: string[] }) : null
+    check('setValue sends the pid, the element without its null keys and the text, and reads the value back', sentValue !== null && sentValue.pid === process.pid && !sentValue.keys.includes('title') && set.ok && set.value.set && set.value.value === 'hunter2-the-text', JSON.stringify(set))
+    check("the text never rides the child's command line", sentValue !== null && sentValue.argv.length === 3 && !sentValue.argv.join(' ').includes('hunter2') && !sentValue.argv.join(' ').includes('AXStaticText'), JSON.stringify(sentValue?.argv))
   }
-  const refused = usePack(stubPack("scrollToVisible: () => ({ scrolled: false, frame: null, reason: 'the element does not scroll into view through the accessibility API — scroll with the wheel instead' }), setValue: () => ({ set: false, value: 'old', reason: 'the element does not accept a value through the accessibility API — type into it instead' })"))
+  const refused = usePack(stubPack("scrollToVisible: () => ({ scrolled: false, road: null, frame: null, reason: 'the element does not scroll into view through the accessibility API — scroll with the wheel instead' }), setValue: () => ({ set: false, value: 'old', reason: 'the element does not accept a value through the accessibility API — type into it instead' })"))
   if (refused.state !== 'ok') check('the stub pack resolves', false, refused.note)
   else {
     const scrolled = await refused.driver.scrollToVisible!(app, untitled, signal())
     const set = await refused.driver.setValue!(app, untitled, 'x', signal())
-    check('an unsupported action answers ok with scrolled false and the sentence; an unsettable value answers set false with the current value and its sentence', scrolled.ok && !scrolled.value.scrolled && scrolled.value.frame === null && scrolled.value.note === SCROLL_NOTE && set.ok && !set.value.set && set.value.value === 'old' && set.value.note === VALUE_NOTE, JSON.stringify([scrolled, set]))
+    check('an unsupported action answers ok with scrolled false, no road and the sentence; an unsettable value answers set false with the current value and its sentence', scrolled.ok && !scrolled.value.scrolled && scrolled.value.road === null && scrolled.value.frame === null && scrolled.value.note === SCROLL_NOTE && set.ok && !set.value.set && set.value.value === 'old' && set.value.note === VALUE_NOTE, JSON.stringify([scrolled, set]))
   }
   const broken = usePack(stubPack("scrollToVisible: () => ({ scrolled: 'yes' }), setValue: () => 42"))
   if (broken.state !== 'ok') check('the stub pack resolves', false, broken.note)
@@ -228,11 +247,12 @@ console.log('\n[4] the native bridge: a stub addon shows what the driver sends a
   console.log('\n[5] the packaged addon carries both exports and answers with words, on the child the product runs (the bundled node), against this process, which has no window')
   const resolved = usePack(null)
   const load = pack.loadDesktopAddon()
-  check('the packaged addon on this checkout loads with both exports (an older pack is refused by name)', load.state === 'ok' && typeof load.addon.scrollToVisible === 'function' && typeof load.addon.setValue === 'function', load.state === 'ok' ? '' : load.note)
+  const absent = load.state === 'unavailable' && load.note.startsWith(pack.DESKTOP_PACK_ABSENT_PREFIX)
+  if (!absent) check('the packaged addon on this checkout loads with both exports (an older pack is refused by name)', load.state === 'ok' && typeof load.addon.scrollToVisible === 'function' && typeof load.addon.setValue === 'function', load.state === 'ok' ? '' : load.note)
   const permissions = load.state === 'ok' ? load.addon.permissions() : null
   const grantHolds = (grant: string): boolean => grant === 'granted' || grant === 'not-required'
   const node = join(ROOT, 'vendor', 'node', 'extracted', `${process.platform}-${process.arch}`, 'bin', 'node')
-  if (resolved.state !== 'ok' || load.state !== 'ok') console.log('  [WARN] the packaged legs are skipped: no addon')
+  if (resolved.state !== 'ok' || load.state !== 'ok') console.log(`  [WARN] the packaged legs are skipped: ${load.state === 'ok' ? 'the driver did not resolve' : load.note}`)
   else if (permissions === null || permissions.session !== 'desktop' || !grantHolds(permissions.screenCapture) || !grantHolds(permissions.input)) console.log(`  [WARN] the packaged legs need a desktop session with both grants and never ask for them (session ${permissions?.session}, screen ${permissions?.screenCapture}, input ${permissions?.input}) — skipped`)
   else if (!existsSync(node)) console.log('  [WARN] the bundled node is absent on this checkout (bun run scripts/vendor/fetch-node.ts) — the packaged legs are skipped')
   else {
@@ -240,13 +260,13 @@ console.log('\n[4] the native bridge: a stub addon shows what the driver sends a
     const thrown = (run: () => unknown): string => { try { run(); return 'answered' } catch (error) { return error instanceof Error ? error.message : String(error) } }
     const scrollWords = thrown(() => load.addon.scrollToVisible(process.pid, { depth: 20, role: 'AXStaticText', value: 'About', frame: { x: 10, y: 985, width: 100, height: 1 } }, true))
     const valueWords = thrown(() => load.addon.setValue(process.pid, { depth: 20, role: 'AXTextField', title: 'URL', frame: { x: 10, y: 10, width: 100, height: 20 } }, 'x'))
-    check('on a process without a window both exports answer the reader\'s sentence, never a conversion error or a crash', scrollWords === 'the focused window is unavailable' && valueWords === scrollWords, `${scrollWords} | ${valueWords}`)
+    check('on a process that is not in front both exports answer the reader\'s sentence, never a conversion error or a crash', scrollWords === NOT_IN_FRONT && valueWords === scrollWords, `${scrollWords} | ${valueWords}`)
     const hostExecPath = process.execPath
     process.execPath = node
     try {
       const scrolled = await resolved.driver.scrollToVisible!(app, untitled, signal())
       const set = await resolved.driver.setValue!(app, untitled, 'x', signal())
-      check('through the driver on the bundled node the same sentence arrives as the note, one line, no command line', !scrolled.ok && scrolled.error.note === scrollWords && !set.ok && set.error.note === scrollWords && !scrollWords.includes('\n'), JSON.stringify([scrolled, set]))
+      check('through the driver on the bundled node the same sentence arrives as the note, one line, no command line, classified as the display', !scrolled.ok && scrolled.error.kind === 'display' && scrolled.error.note === scrollWords && !set.ok && set.error.note === scrollWords && !scrollWords.includes('\n'), JSON.stringify([scrolled, set]))
       console.log(`  · packaged answers on ${node.slice(ROOT.length + 1)}: ${scrollWords}`)
     } finally {
       process.execPath = hostExecPath

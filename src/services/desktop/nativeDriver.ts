@@ -109,6 +109,7 @@ function classifyThrown(error: unknown): DesktopError {
   if (head.startsWith('no display')) return { kind: 'display', note }
   if (head.startsWith('unsupported') || head.startsWith('no desktop session')) return { kind: 'session', note, remedy: desktopGrantWords() }
   if (head.includes('unsupported on this platform')) return { kind: 'unavailable', note }
+  if (head.startsWith('the application is not in front')) return { kind: 'display', note }
   if (head.startsWith('screen capture is not granted') || head.startsWith('input control is not granted')) return { kind: 'permission', note, remedy: desktopGrantWords() }
   return { kind: 'defect', note }
 }
@@ -483,8 +484,8 @@ class NativeDesktopDriver implements DesktopDriver {
     if (refusal) return this.refuseAndRequestGrants(refusal)
     try {
       const value = await new Promise<T>((resolve, reject) => {
-        const script = 'const a=require(process.argv[1]); new Promise(r=>r(a[process.argv[2]](...JSON.parse(process.argv[3])))).then(v=>process.stdout.write(JSON.stringify({value:v??null})),e=>{process.stdout.write(JSON.stringify({error:e instanceof Error?e.message:String(e)}));process.exitCode=1})'
-        const child = execFile(process.execPath, ['-e', script, this.addonPath, method, JSON.stringify(args)], { timeout: TREE_SUBPROCESS_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: TREE_SUBPROCESS_BUFFER, encoding: 'utf8' }, (error, stdout) => {
+        const script = 'const a=require(process.argv[1]); new Promise(r=>r(a[process.argv[2]](...JSON.parse(require("node:fs").readFileSync(0,"utf8"))))).then(v=>process.stdout.write(JSON.stringify({value:v??null})),e=>{process.stdout.write(JSON.stringify({error:e instanceof Error?e.message:String(e)}));process.exitCode=1})'
+        const child = execFile(process.execPath, ['-e', script, this.addonPath, method], { timeout: TREE_SUBPROCESS_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: TREE_SUBPROCESS_BUFFER, encoding: 'utf8' }, (error, stdout) => {
           signal.removeEventListener('abort', onAbort)
           if (signal.aborted) return reject(new Error(ABORTED_PREFIX))
           const answer = queryAnswer(stdout)
@@ -493,6 +494,8 @@ class NativeDesktopDriver implements DesktopDriver {
           if (answer === null) return reject(new Error(`${method} returned an unreadable record`))
           resolve(answer.value as T)
         })
+        child.stdin?.on('error', () => {})
+        child.stdin?.end(JSON.stringify(args))
         const onAbort = () => { child.kill('SIGKILL') }
         signal.addEventListener('abort', onAbort, { once: true })
         if (signal.aborted) onAbort()
@@ -514,7 +517,7 @@ class NativeDesktopDriver implements DesktopDriver {
     if (!answer.ok) return answer
     const raw = answer.value
     if (!raw || typeof raw.scrolled !== 'boolean') return fail(contractDefect('scroll', JSON.stringify(raw)))
-    return { ok: true, value: { scrolled: raw.scrolled, frame: boundsOf(raw.frame), note: noteOf(raw.reason) } }
+    return { ok: true, value: { scrolled: raw.scrolled, road: raw.road === 'action' || raw.road === 'wheel' ? raw.road : null, frame: boundsOf(raw.frame), note: noteOf(raw.reason) } }
   }
 
   async setValue(app: DesktopApplication, element: DesktopTreeElement, text: string, signal: AbortSignal): Promise<DesktopAnswer<DesktopValueReceipt>> {
