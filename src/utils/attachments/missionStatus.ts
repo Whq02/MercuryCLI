@@ -1,12 +1,12 @@
 import type { Attachment } from './types.js'
 
-export function getMissionStatusAttachment(messages: readonly unknown[] = []): Attachment[] {
+export function getMissionStatusAttachment(messages: readonly unknown[] = [], opening = true): Attachment[] {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const guard = require('../../guards/mission.js') as typeof import('../../guards/mission.js')
   const mission = guard.getActiveMission()
   if (mission === undefined || mission.met) return []
   const text = guard.missionStatusLine(mission)
-  if (statusAlreadyThisTurn(messages, text)) return []
+  if (!opening && statusAlreadyThisTurn(messages, text)) return []
   return [
     {
       type: 'mission_status',

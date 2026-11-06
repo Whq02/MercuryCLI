@@ -111,8 +111,8 @@ check(
   /\$\{MISSION_HOLD_HEAD\} \$\{mission\.condition\} — \$\{verdict\.reason\}\. Continue\./.test(gh),
 )
 check(
-  'the interactive /mission panel surfaces met + paused as distinct states (mirrors mission.ts wording)',
-  /Mission met — stops are allowed/.test(src('commands', 'mission', 'mission-jsx.tsx')) &&
+  'the interactive /mission panel surfaces completed (reason, turns, elapsed) + paused as distinct states (mirrors mission.ts wording)',
+  /Mission completed — \$\{outcome\.reason\} · \$\{outcome\.turns\}/.test(src('commands', 'mission', 'mission-jsx.tsx')) &&
     /Mission paused — /.test(src('commands', 'mission', 'mission-jsx.tsx')),
 )
 check('the judge short-circuits on mission.met (sticky completion) and waits while paused until the operator speaks', /mission\.met\) return \{ hold: false \}/.test(gh) && /if \(!operatorSpokeSince\(messages, mission\.paused\)\) return \{ hold: false \}/.test(gh))
@@ -127,9 +127,14 @@ check(
 )
 check('the mission holds without deferring to another guard: it claims the continuation and never reads the claim as a reason to stand aside', /claimContinuation\(processMainOwner\(\), turnBoundaryIndex\(messages\), messages\.length\)\n/.test(gh) && !/defers one round/.test(gh))
 check('no block cap stands anywhere in the guard', !/maxBlocks|block cap|DEFAULT_MISSION_MAX_BLOCKS/.test(gh))
+check('the stall road is gone: no stalled-check count, no progress measure, no ask ceremony, no "gave no question" words', !/stalledChecks|GOAL_STALL_CHECKS|lastSeen|askWords|asking|gave no question/.test(gh) && !/GOAL_STALL_CHECKS|stalledVerdict|progressWords/.test(src('services', 'mission', 'goalJudge.ts')))
+check("the only brake is Claude Code's: MISSION_IDLE_TURNS = 3 turn ends without a tool call pause the mission, with the words the operator reads", /export const MISSION_IDLE_TURNS = 3/.test(gh) && /mission\.idleTurns = evidence\.toolCalls === 0 \? mission\.idleTurns \+ 1 : 0/.test(gh) && /mission paused after \$\{MISSION_IDLE_TURNS\} turns without a tool call — your next message resumes it/.test(gh))
+check('impossible never ends the mission: it pauses with the reason as the note', /if \(verdict\.kind === 'impossible'\) \{\n\s+pauseMission\(sessionId, mission, verdict\.reason, messages\)/.test(gh))
+check('the judge rides the utility helper: one bounded call at every turn end, Jev on top, the claim road only when no call can be made', /utilityCallFor\(\)/.test(src('services', 'mission', 'goalJudge.ts')) && /if \(goalJudgeOpen\(\)\)/.test(src('services', 'mission', 'goalJudge.ts')) && /answered \?\? judgeByClaim\(evidence\)/.test(src('services', 'mission', 'goalJudge.ts')) && /MISSION_JUDGE_TIMEOUT_MS/.test(src('services', 'mission', 'goalJudge.ts')))
+check('met is announced like a finished monitor: one completed task-notification row, no second note', /announceMissionCompleted\(sessionId, mission, outcome\)/.test(gh) && /<status>completed<\/status>/.test(gh) && !/goal met —/.test(gh))
 check(
-  '/mission status renders met / PAUSED / active as distinct states',
-  /mission\.met[\s\S]{0,80}Mission met[\s\S]{0,120}mission\.paused !== undefined[\s\S]{0,120}Mission PAUSED/.test(
+  '/mission status renders completed / PAUSED / active as distinct states',
+  /mission\.met[\s\S]{0,80}Mission completed[\s\S]{0,240}mission\.paused !== undefined[\s\S]{0,120}Mission PAUSED/.test(
     src('commands', 'mission', 'mission.ts'),
   ),
 )

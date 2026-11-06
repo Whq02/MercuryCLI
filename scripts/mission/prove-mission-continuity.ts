@@ -32,6 +32,8 @@ const {
   MISSION_MET_SENTINEL,
 } = await import('../../src/guards/mission.js')
 const { readFileSync } = await import('node:fs')
+const { _setMissionJudgeForTesting } = await import('../../src/services/mission/goalJudge.js')
+_setMissionJudgeForTesting(null)
 const { readMissionCard, writeMissionCard } = await import('../../src/services/mission/missionCard.js')
 const { composeMissionView } = await import('../../src/services/mission/projection.js')
 

@@ -37,8 +37,8 @@ export function missionSection(mission: ServedMission | undefined): string | nul
     `- Work toward the mission every turn. A turn that ends before it is met comes back as "${MISSION_HOLD_HEAD} <goal> — <what is open>. Continue."; carry on from where you were.`,
     '- The operator may pause or divert you; do what they ask, then return to the mission.',
     '- Never drop it on your own. When a message would abandon it, or it cannot be reached as stated, say so and ask the operator to run /mission clear; until they do, it stands.',
-    `- Close it only when every criterion holds: end that turn with one line per criterion, numbered as above, each naming the evidence that shows it holds, then a final line that is exactly ${MISSION_MET_SENTINEL}. A bare ${MISSION_MET_SENTINEL}, a skipped criterion or a line without evidence words is not a close, and the turn comes back.`,
-    '- Unsure what it means, or blocked: end the turn with one question to the operator; the mission pauses until they answer and resumes with their next message.',
+    `- Close it only when every criterion holds: end that turn with one line per criterion, numbered as above, each naming the evidence that shows it holds, then a final line that is exactly ${MISSION_MET_SENTINEL}. A judge reads that close against the turn's evidence; a bare ${MISSION_MET_SENTINEL} or a skipped criterion is not a close, and the turn comes back.`,
+    '- Unsure what it means, or blocked: end the turn with one question to the operator; the mission pauses until they answer and resumes with their next message. Three turns in a row without a tool call pause it the same way.',
     '- /mission clear, typed by the operator, ends it; /mission <words> replaces it.',
   ].join('\n')
 }

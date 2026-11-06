@@ -240,6 +240,8 @@ async function main(): Promise<void> {
     const { _resetContinuationLatchesForTesting } = await import(
       '../../src/services/run/continuationLatch.js'
     )
+    const { _setMissionJudgeForTesting } = await import('../../src/services/mission/goalJudge.js')
+    _setMissionJudgeForTesting(null)
 
     _resetContinuationLatchesForTesting()
     mission.setActiveMission('ensure X is simultaneously enabled and disabled with no observable check', {
@@ -259,9 +261,9 @@ async function main(): Promise<void> {
       }
     }
     check(
-      'C6: a contradictory/unobservable mission never arms a blind block loop (at most one feasibility block)',
-      blocks6 <= 1,
-      `blocked ${blocks6} times before disarm`,
+      'C6: a contradictory/unobservable mission never arms a blind block loop: it is impossible, so it pauses at the first end without a hold',
+      blocks6 === 0,
+      `blocked ${blocks6} times before the pause`,
     )
 
     _resetContinuationLatchesForTesting()

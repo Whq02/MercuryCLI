@@ -44,15 +44,6 @@ export function goalCriteria(goal: GoalStatement): string[] {
 export type CloseReading = { met: true } | { met: false; reason: string }
 
 const CRITERION_LINE = /^\s*(\d+)\s*[.):\]-]\s*(.*)$/
-const EVIDENCE_TOKEN = /[\p{L}\p{N}][\p{L}\p{N}._/-]*/gu
-const EVIDENCE_WORDS_FLOOR = 2
-
-function evidenceWordCount(words: string, criterion: string): number {
-  let rest = words.trim()
-  if (rest.toLowerCase().startsWith(criterion.toLowerCase())) rest = rest.slice(criterion.length)
-  rest = rest.replace(/^[\s—–:;,.-]+/, '')
-  return (rest.match(EVIDENCE_TOKEN) ?? []).length
-}
 
 export function readItemisedClose(closing: string, goal: GoalStatement): CloseReading {
   const lines = closing.split('\n').map(line => line.trim()).filter(line => line !== '')
@@ -63,13 +54,12 @@ export function readItemisedClose(closing: string, goal: GoalStatement): CloseRe
     const match = CRITERION_LINE.exec(line)
     if (match === null) continue
     const n = Number(match[1])
-    if (n >= 1 && n <= criteria.length && !found.has(n)) found.set(n, match[2] ?? '')
+    const words = (match[2] ?? '').trim()
+    if (n >= 1 && n <= criteria.length && words !== '' && !found.has(n)) found.set(n, words)
   }
   if (found.size === 0) return { met: false, reason: 'the completion line stands alone: no criterion lines precede it' }
   for (let n = 1; n <= criteria.length; n++) {
-    const words = found.get(n)
-    if (words === undefined) return { met: false, reason: `criterion ${n} has no line in the close (${criteria[n - 1]})` }
-    if (evidenceWordCount(words, criteria[n - 1]!) < EVIDENCE_WORDS_FLOOR) return { met: false, reason: `criterion ${n} names no evidence (${criteria[n - 1]})` }
+    if (!found.has(n)) return { met: false, reason: `criterion ${n} has no line in the close (${criteria[n - 1]})` }
   }
   return { met: true }
 }

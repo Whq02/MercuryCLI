@@ -12,6 +12,12 @@ export function missionCardStands(state: string): state is 'armed' | 'paused' {
   return state === 'armed' || state === 'paused'
 }
 
+export interface MissionOutcome {
+  reason: string
+  metAt: string
+  turns: number
+}
+
 export interface MissionCard {
   schema: 1
   sessionId: string
@@ -21,6 +27,7 @@ export interface MissionCard {
   iterations: number
   setAt: string
   updatedAt: string
+  outcome?: MissionOutcome
 }
 
 function missionCardsDir(cwd: string = getOriginalCwd()): string {

@@ -226,7 +226,7 @@ export async function getAttachments(
         maybe('usage_limit_notice', async () =>
           Promise.resolve(getUsageLimitNoticeAttachment(toolUseContext, messages ?? [])),
         ),
-        maybe('mission_status', async () => Promise.resolve(getMissionStatusAttachment(messages ?? [])), { priority: true }),
+        maybe('mission_status', async () => Promise.resolve(getMissionStatusAttachment(messages ?? [], input !== null)), { priority: true }),
       ]
     : []
 
