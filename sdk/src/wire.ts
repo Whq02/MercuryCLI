@@ -295,6 +295,19 @@ export type SessionFactsResult = {
     active_form?: string
     status: 'pending' | 'in_progress' | 'completed'
   }>
+  mission_card?: null | {
+    goal: string
+    state: string
+    next_step: null | string
+    iterations: number
+    set_at: string
+    updated_at: string
+    outcome?: {
+      reason: string
+      met_at: string
+      turns: number
+    }
+  }
   samples?: Array<{
     id: string
     title: string
