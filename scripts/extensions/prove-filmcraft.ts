@@ -71,6 +71,6 @@ if (connection.type === 'connected') {
 }
 const pins = ['filmcraft.lock.json', 'filmcraft-cli.lock.json'].map(name => JSON.parse(readFileSync(join(ext.root, 'server', name), 'utf8')))
 assert.equal(pins[0].version, pins[1].version)
-assert.equal(pins[0].platforms['darwin-arm64'].bytes + pins[1].platforms['darwin-arm64'].bytes, 210355047)
-assert.equal(pins[0].platforms['win-x64'].bytes, 109020901)
+assert.equal(pins[0].platforms['darwin-arm64'].bytes + pins[1].platforms['darwin-arm64'].bytes, 211365743)
+assert.equal(pins[0].platforms['win-x64'].bytes, 109616261)
 console.log('PASS: delivered Mac/Windows release pins and matching versions')
