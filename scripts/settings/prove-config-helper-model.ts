@@ -180,15 +180,25 @@ section('§2b the helper is its own process beside the session\'s server, starte
   await discovery.refreshLocalDiscovery({ force: true })
   helper.writeHelperModelSetting({ size: '2b' })
   check('before the start the helper is not serving and nothing routes to it', utility.utilityCallFor('local/qwen3.8-27b').model !== 'local/qwen3.5-2b')
-  check('a utility call never starts the helper', started.length === 0)
+  const quiet = async (ms: number): Promise<void> => { await new Promise(resolve => setTimeout(resolve, ms)) }
   process.env.MERCURY_MODEL = 'local/qwen3.8-27b'
+  utility.utilityCallFor()
+  await quiet(500)
+  check('a utility call never starts the helper (500 ms of quiet after the call, the seam saw no start)', started.length === 0, JSON.stringify(started))
   const { armLocalWarm, disarmLocalWarm } = await import('../../src/services/providers/local/localWarm.js')
+  helper.__pinHelperReadsForTest({ engineFound: true, twoBOnDisk: false })
+  armLocalWarm(() => ({ messages: [], systemPrompt: [], tools: [] } as never), { io: { settleMs: 0 } })
+  await quiet(500)
+  disarmLocalWarm()
+  check('a stored 2B that is not available (not on disk) is not started when a local session opens: the start goes through the availability gate', started.length === 0, JSON.stringify(started))
+  helper.__pinHelperReadsForTest({ engineFound: true, twoBOnDisk: true })
   armLocalWarm(() => ({ messages: [], systemPrompt: [], tools: [] } as never), { io: { settleMs: 0 } })
   const startedBy = Date.now()
   while (started.length === 0 && Date.now() - startedBy < 5_000) await new Promise(resolve => setTimeout(resolve, 25))
   disarmLocalWarm()
   delete process.env.MERCURY_MODEL
-  check('a local session opening with the slot set starts the helper itself (the warm-up settle, no utility call)', started.length === 1, JSON.stringify(started))
+  check('a local session opening with the slot set starts the helper itself: no start after the utility call and the unavailable open, one start after the warm-up settle armed with the 2B available (the trigger is the settle)', started.length === 1, JSON.stringify(started))
+  console.log(`  the start the seam saw: role=${started[0]?.role} name=${started[0]?.name} · recorded after armLocalWarm on the 27B seat, ${Date.now() - startedBy} ms after arming`)
   const config = readFileSync(join(REPO, 'src/components/Settings/Config.tsx'), 'utf8')
   check('/config starts the helper when the row is set to 2B or 4B', /writeHelperModelSetting\(\{ size: next \}, writeGlobal\)\n\s*if \(next === '2b' \|\| next === '4b'\) void ensureHelperServing\(\)/.test(config))
   const request = started[0]

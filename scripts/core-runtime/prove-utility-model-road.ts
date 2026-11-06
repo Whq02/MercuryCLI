@@ -71,6 +71,11 @@ const { verifyApiKey } = await import('../../src/services/providers/anthropic/re
 const { countTokensViaHaikuFallback } = await import('../../src/services/tokenEstimation.ts')
 const { getDefaultSonnetModel, normalizeModelStringForAPI } = await import('../../src/utils/model/model.ts')
 const { __resetOpenaiCatalogueForTest } = await import('../../src/services/providers/openai/openaiCatalogue.ts')
+const { runCrewmateHook } = await import('../../src/utils/hooks/crewmateRunner.ts')
+const { hookAnswerSchema } = await import('../../src/utils/hooks/contract.ts')
+const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { createServer } = await import('node:http')
 const { modelThinkingAlwaysOn } = await import('../../src/utils/model/capabilities.ts')
 const { z } = await import('zod/v4')
 
@@ -114,6 +119,58 @@ const SITES: Site[] = [
   { name: 'date parser', reply: '2026-11-07', run: signal => parseNaturalLanguageDateTime('tomorrow', 'date', signal), landed: result => (result as { success?: boolean }).success === true },
 ]
 
+const crewmateContext = (): unknown => {
+  let state: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'max', toolPermissionContext: getEmptyToolPermissionContext() }
+  return {
+    abortController: new AbortController(),
+    options: { commands: [], tools: [], engineModel: 'claude-fable-5-1', thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
+    getAppState: () => state,
+    setAppState: (next: (prev: never) => never): void => { state = next(state as never) as unknown as Record<string, unknown> },
+    messages: [],
+    readFileState: createFileStateCacheWithSizeLimit(100),
+    setInProgressToolUseIDs: () => {},
+    setResponseLength: () => {},
+    updateFileHistoryState: () => {},
+    updateAttributionState: () => {},
+    agentId: undefined,
+  }
+}
+
+const meliousLane = await (async () => {
+  const requests: Array<Record<string, unknown>> = []
+  const server = createServer((req, res) => {
+    const chunks: Buffer[] = []
+    req.on('data', chunk => chunks.push(chunk as Buffer))
+    req.on('end', () => {
+      const path = (req.url ?? '').split('?')[0] ?? ''
+      if (req.method === 'GET' && path.endsWith('/models')) {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ data: [{ id: 'orion-2', _meta: { type: 'chat', reasoning_type: 'reasoning', reasoning_effort: 'medium', capabilities: { reasoning: true, function_calling: true }, context_length: 128_000, max_output_tokens: 8_192 } }] }))
+        return
+      }
+      if (req.method === 'POST' && path.endsWith('/chat/completions')) {
+        try { requests.push(JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, unknown>) } catch { requests.push({}) }
+        res.writeHead(200, { 'content-type': 'text/event-stream' })
+        const usage = { prompt_tokens: 8, completion_tokens: 3, total_tokens: 11 }
+        res.end([
+          `data: ${JSON.stringify({ id: 'chatcmpl-melious', object: 'chat.completion.chunk', created: 0, model: 'orion-2', choices: [{ index: 0, delta: { role: 'assistant', content: '{"note":"fine"}' }, finish_reason: null }] })}\n\n`,
+          `data: ${JSON.stringify({ id: 'chatcmpl-melious', object: 'chat.completion.chunk', created: 0, model: 'orion-2', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage })}\n\n`,
+          'data: [DONE]\n\n',
+        ].join(''))
+        return
+      }
+      res.writeHead(404, { 'content-type': 'application/json' })
+      res.end('{}')
+    })
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
+  const port = typeof address === 'object' && address ? address.port : 0
+  return { requests, base: `http://127.0.0.1:${port}/v1`, close: () => new Promise<void>(resolve => server.close(() => resolve())) }
+})()
+process.env.MERCURY_MELIOUS_API_BASE = meliousLane.base
+process.env.MELIOUS_API_KEY = 'fixture-melious-key'
+
 section('the cold list: a GPT utility call and a GPT-named hook carry the floor before any list is cached (the list default is high, the dial max)')
 {
   __resetOpenaiCatalogueForTest()
@@ -132,6 +189,23 @@ section('the cold list: a GPT utility call and a GPT-named hook carry the floor 
   const second = fixture.captured.slice(hookFrom)
   check('cold list · a hook naming gpt-5.6-sol on an Anthropic seat: one request on the responses wire, answered', second.length === 1 && second[0]?.dialect === 'responses' && (answered as { kind?: string }).kind === 'answered', j({ answered, requests: second.map(entry => `${entry.dialect} ${entry.path}`) }))
   check('cold list · the named model rides at low, the floor derived from the admitted list', second[0] !== undefined && wireModelOf(second[0]) === 'gpt-5.6-sol' && wireEffortOf(second[0]) === 'low', j({ model: second[0] && wireModelOf(second[0]), effort: second[0] && wireEffortOf(second[0]) }))
+  __resetOpenaiCatalogueForTest()
+  const crewFrom = fixture.captured.length
+  fixture.script(() => ({ text: 'looked, nothing to say' }))
+  const crewEnd = await runCrewmateHook({ text: 'Check the parser.', name: 'fixture-crewmate', event: 'turn.answer', payloadJson: '{}', answerSchema: hookAnswerSchema('turn.answer'), timeoutMs: 30_000, signal: new AbortController().signal, model: 'gpt-5.6-sol', toolUseContext: crewmateContext() as never })
+  const crew = fixture.captured.slice(crewFrom)
+  check('cold list · a crewmate hook naming gpt-5.6-sol on an Anthropic seat: its first request is on the responses wire', crew.length >= 1 && crew[0]?.dialect === 'responses', j({ end: crewEnd, requests: crew.map(entry => `${entry.dialect} ${entry.path}`) }))
+  check('cold list · the crewmate hook rides the named model at low (the list read before the floor was noted as the child\'s own word)', crew[0] !== undefined && wireModelOf(crew[0]) === 'gpt-5.6-sol' && wireEffortOf(crew[0]) === 'low', j({ model: crew[0] && wireModelOf(crew[0]), effort: crew[0] && wireEffortOf(crew[0]) }))
+}
+
+section('the cold compat list: a question hook naming a list-only Melious model on an Anthropic seat rides its lowest served word, not the row\'s default')
+{
+  process.env.MERCURY_MODEL = 'claude-fable-5-1'
+  const before = meliousLane.requests.length
+  const answered = await hookQuestion(new AbortController().signal, 'melious/orion-2')
+  const request = meliousLane.requests[before]
+  check('cold compat · the hook answered through one request on the Melious chat wire', (answered as { kind?: string }).kind === 'answered' && meliousLane.requests.length === before + 1, j({ answered, requests: meliousLane.requests.length - before }))
+  check('cold compat · the request names orion-2 at reasoning_effort none (the lowest word the admitted row serves; the row default is medium)', request?.model === 'orion-2' && request.reasoning_effort === 'none', j({ model: request?.model, reasoning_effort: request?.reasoning_effort }))
 }
 
 for (const { road, model, floor, serves } of ROADS) {
@@ -246,6 +320,7 @@ section('the census: the small-fast spellings are gone from src')
 }
 
 await fixture.close()
+await meliousLane.close()
 for (const home of HOMES) rmSync(home, { recursive: true, force: true })
 console.log(`\nprove-utility-model-road: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

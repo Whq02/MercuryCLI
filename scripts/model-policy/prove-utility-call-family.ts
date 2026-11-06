@@ -135,6 +135,10 @@ async function main(): Promise<void> {
     check('the WebFetch fallback leg rides the fallback model as itself at its own floor, pinned through the helper, never the slot', webFetch.includes('utilityCallFor(fallbackModel, { named: true })') && webFetch.includes('options: { ...baseOptions, ...call }'))
     const openaiTurn = srcText('services', 'providers', 'openai', 'openaiCallModel.ts')
     check('the OpenAI road derives a wanted-but-unknown floor from the admitted list before the wire (a pinned value is never lowered)', openaiTurn.includes("const floorWanted = options.effortPinned === true && options.effortValue === undefined && servedEfforts.length > 0") && openaiTurn.includes('lowestServedEffort(servedEfforts)'))
+    const compatChat = srcText('services', 'providers', 'openaicompat', 'compatChatCallModel.ts')
+    check('the shared compat road derives a wanted-but-unknown floor from the admitted vocabulary before its resolution (every compat lane: Melious, xAI, Mistral, Gemini, local)', compatChat.includes("const floorWanted = options.effortPinned === true && options.effortValue === undefined && servedEfforts.length > 0") && compatChat.includes('lowestServedEffort(servedEfforts)') && compatChat.indexOf('const floorWanted') < compatChat.indexOf('resolveWireRequestedEffort(modelId, askedEffort'))
+    check('the crewmate hook reads the named road\'s catalogue before noting the floor as the child\'s own word', crewmateRunner.includes('await readCatalogueIfPending(declaredRouteOf(run.model ?? getEngineModel())') && crewmateRunner.indexOf('readCatalogueIfPending(') < crewmateRunner.indexOf('utilityCallFor(run.model, { named: true })'))
+    check('the hook answer schema is emitted as draft-07, the dialect the verdict tool\'s engine compiles', questionRunner.includes("target: 'draft-7'"))
     for (const [label, ...path] of [
       ['sessionTitle', 'utils', 'sessionTitle.ts'],
       ['generateSessionName', 'commands', 'rename', 'generateSessionName.ts'],
@@ -148,7 +152,7 @@ async function main(): Promise<void> {
     const tokenEstimation = srcText('services', 'tokenEstimation.ts')
     const requestParams = srcText('services', 'providers', 'anthropic', 'requestParams.ts')
     check('the count-tokens create probe names the helper\'s model on the Anthropic road, else the family default, at that model\'s floor with thinking off unless the history thinks', tokenEstimation.includes(probeBranch) && tokenEstimation.includes('getDefaultSonnetModel()') && tokenEstimation.includes('thinking: thinking ? THINKING_BUDGET_TOKENS : false') && tokenEstimation.includes("...(effort !== undefined ? { effort } : {})"))
-    check('the key probe names the helper\'s model on the Anthropic road, else the family default, at that model\'s floor with thinking off', requestParams.includes(probeBranch) && requestParams.includes('getDefaultSonnetModel()') && requestParams.includes("if (!modelThinkingAlwaysOn(model)) body.thinking = { type: 'disabled' }") && requestParams.includes('if (effort !== undefined) body.output_config = { effort }') && !requestParams.includes('export function keyProbeModel'))
+    check('the key probe names the helper\'s model on the Anthropic road, else the family default, at that model\'s floor with thinking off', requestParams.includes(probeBranch) && requestParams.includes('getDefaultSonnetModel()') && requestParams.includes("if (!modelThinkingAlwaysOn(model)) body.thinking = { type: 'disabled' }") && requestParams.includes("if (effort !== undefined && !('effort' in outputConfig)) outputConfig.effort = effort") && requestParams.includes('Object.assign(body, extraBody)') && !requestParams.includes('export function keyProbeModel'))
   }
 
   section('§4 the settlement fold — settleAssistantTurn (the one owner)')
