@@ -374,7 +374,9 @@ On Windows with the adapter:
 ## The helper model setting
 
 In `/config`, `Helper model` (default `off`) runs a small local model for
-Mercury's own background jobs whatever main model the session uses:
+Mercury's own background jobs when the session's main model is itself a local
+model (on every other road those jobs ride the main model at its lowest effort
+tier; [ENGINES.md](ENGINES.md#the-runtimes)):
 `titles and summaries ✓ · the judge ✓ · compaction ✗ · a small model can drop details`.
 Below it in `/config`, `Helper model for compaction` (default
 `off · a small model can drop details`) opts session compaction into the helper
@@ -386,7 +388,8 @@ cold-starts a helper server.
 
 `Helper model` has four choices:
 
-- **`off`** (default): background jobs use the session's provider route.
+- **`off`** (default): background jobs use the session's own model at its lowest
+  effort tier.
 - **`2B (TensorFold)`** (or **`2B (Mercury's engine)`** on the Windows adapter;
   `~5.0 GiB · an estimate`): serves `mlx-community/Qwen3.5-2B-MLX-4bit`
   (`local/qwen3.5-2b`, mapped to `unsloth/Qwen3.5-2B-GGUF` on the Windows

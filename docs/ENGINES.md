@@ -729,20 +729,20 @@ outage outlasts the probing, the row marks the run failed and sending a message
 resumes it.
 
 A session's side jobs (the chat's title, the away summary, the tool-use
-summaries, the state read, the feedback card, a question hook's default model,
-the date parser and the fetch tool's summary) ride the session's own family
-on its helper tier. On the Anthropic lane that is the small family default
-(`MERCURY_SMALL_FAST_MODEL` pins it). On a GPT session it is the cheapest
-text model the account's live list serves, by the prices the GPT table
-records (a mini or nano row when the list serves one); no id the list lacks
-is ever asked for, and while the list has not answered, or serves no priced
-row, the side job runs on the session's own model. A crewmate hook's tier
-follows the same rule: the newest plain GPT row the list serves below the
-frontier, else the session's own model. `Helper model` in `/config` (off by
-default; [TENSORFOLD.md](TENSORFOLD.md#the-helper-model-setting)) can instead
-route titles and summaries, model-answered hooks and the needs-you judge, and
-(when `Helper model for compaction` is on) session compaction to a local 2B or
-4B model or the session's local model.
+summaries, the state read, the feedback card, a hook's default model, the
+date parser and the fetch tool's summary) ride the main seat's own model at
+the lowest effort tier that model serves: `low` on the Anthropic ladder, the
+lowest word the account's live list serves on a GPT session, the smallest
+level on a road that grades its thinking, and no effort word on a road
+without effort control. No second model id is ever asked for, and the
+session's effort dial (`/effort`, `MERCURY_EFFORT_LEVEL`) governs the turn,
+never a side job. A hook that names its own model runs that model at its
+lowest tier. The one exception is a local session: `Helper model` in `/config`
+(off by default; [TENSORFOLD.md](TENSORFOLD.md#the-helper-model-setting))
+routes a local seat's titles and summaries, model-answered hooks and the
+needs-you judge to a local 2B or 4B model or the session's local model, and
+`Helper model for compaction`, when on, folds session compaction on the helper
+as that page describes.
 
 Each wire carries its provider's documented quirks, the same pins the wire
 sends from: reasoning-effort vocabularies, sampling restrictions

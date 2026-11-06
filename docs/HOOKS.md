@@ -80,8 +80,8 @@ and may carry:
 
 - `shell`: `bash` (the default) or `powershell`; `run` only.
 - `model`: the model a `question` or `crewmate` hook runs on; without it,
-  the session provider's small model answers a question and its light model
-  runs a crewmate.
+  the session's own model answers a question and runs a crewmate, at the
+  lowest effort tier it serves; a named model runs at its lowest tier too.
 - `timeout`: seconds; 600 for a `run`, 30 for a `question`, 60 for a
   `crewmate`; at most 2147483.
 - `background`: `run` only; the hook does not hold the moment, and its answer
