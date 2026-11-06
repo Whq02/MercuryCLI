@@ -35,7 +35,7 @@ export function hookBrief(text: string, payloadJson: string): string {
 }
 
 export function hookAnswerJsonSchema(schema: z.ZodType): Record<string, unknown> {
-  return toJSONSchema(schema as never, { unrepresentable: 'any' }) as Record<string, unknown>
+  return toJSONSchema(schema as never, { unrepresentable: 'any', target: 'draft-7' }) as Record<string, unknown>
 }
 
 export async function runQuestionHook(run: ModelHookRun): Promise<ModelHookEnd> {
