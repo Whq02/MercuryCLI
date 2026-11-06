@@ -111,7 +111,7 @@ try {
   await check('ordinary mode asks once with app, version, exact size and destination', async () => {
     const { decision } = await decideToolPermission(tool, {}, context('default'))
     assert.equal(decision.behavior, 'ask')
-    assert.match(decision.message, /FilmCraft 0\.17\.1/); assert.match(decision.message, /bytes/); assert(decision.message.includes(missingData))
+    assert.match(decision.message, /FilmCraft 0\.18\.0/); assert.match(decision.message, /bytes/); assert(decision.message.includes(missingData))
     assert(await absent(missingData))
   })
   await check('sovereign passes the same installation without an ask', async () => {

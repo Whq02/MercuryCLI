@@ -1,7 +1,7 @@
 {
   "name": "lightcraft-cli",
-  "version": "0.18.1",
-  "tag": "v0.18.1",
+  "version": "0.19.0",
+  "tag": "v0.19.0",
   "repository": "https://github.com/storytold/lightcraft",
   "license": "MIT OR Apache-2.0",
   "licenseFiles": [
@@ -12,12 +12,12 @@
   "platforms": {
     "darwin-arm64": {
       "target": "universal-apple-darwin",
-      "archive": "lightcraft-cli-0.18.1-macos-universal.zip",
-      "url": "https://github.com/storytold/lightcraft/releases/download/v0.18.1/lightcraft-cli-0.18.1-macos-universal.zip",
-      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.18.1/SHA256SUMS.txt",
-      "sha256": "519b9dcaef272a0472604f333acb40a4380df731ef810e738e42f099e3a868b9",
-      "bytes": 118815295
+      "archive": "lightcraft-cli-0.19.0-macos-universal.zip",
+      "url": "https://github.com/storytold/lightcraft/releases/download/v0.19.0/lightcraft-cli-0.19.0-macos-universal.zip",
+      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.19.0/SHA256SUMS.txt",
+      "sha256": "2d6cb1b8f267e96e1544d4c2fe46808cfe1ca7f2153772a73cc62dff9f0030a1",
+      "bytes": 120745586
     }
   },
-  "notes": "Companion command-line tool for the macOS install, pinned 2026-11-05 to the same v0.18.1 release as lightcraft.lock.json; the DMG does not carry it. Digest computed from the downloaded zip and matched against the release's SHA256SUMS.txt, bytes from GitHub asset metadata, both matched against the downloaded zip. The zip carries LICENSE-MIT, LICENSE-APACHE and NOTICE beside the binary. lightcraft-cli --version prints 'lightcraft-cli 0.18.1', which install.mjs requires before attaching. Exercised by scripts/extensions/prove-lightcraft-drive.ts: headless mcp --library, and mcp --connect to the live window."
+  "notes": "Companion command-line tool for the macOS install, pinned 2026-11-06 to the same v0.19.0 release as lightcraft.lock.json; the DMG does not carry it. Digest computed from the downloaded zip and matched against the release's SHA256SUMS.txt, bytes from GitHub asset metadata, both matched against the downloaded zip. Upstream publishes this CLI archive for macOS only; on Windows and Linux the CLI travels inside the desktop archive pinned by lightcraft.lock.json. The zip carries LICENSE-MIT, LICENSE-APACHE and NOTICE beside the binary. lightcraft-cli --version prints 'lightcraft-cli 0.19.0', which install.mjs requires before attaching. Exercised by scripts/extensions/prove-lightcraft-drive.ts: headless mcp --library, and mcp --connect to the live window."
 }

@@ -23,7 +23,7 @@ assert.match(skill.description, /Not for PhotoCraft.*LightCraft/)
 const prompt = (await skill.getPromptForCommand('Cut the open FilmCraft sequence at one second')).map((p: any) => p.text).join('\n')
 assert(prompt.includes('Cut the open FilmCraft sequence at one second'))
 assert(prompt.includes('sequence.addEdit') && prompt.includes('ui_screenshot') && prompt.includes('file.exportMedia'))
-assert(prompt.includes('FilmCraft 0.17.1') && prompt.includes('FILMCRAFT_CONTROL_TOKEN') && prompt.includes('tokenFile') && prompt.includes('254016000000'))
+assert(prompt.includes('FilmCraft 0.18.0') && prompt.includes('FILMCRAFT_CONTROL_TOKEN') && prompt.includes('tokenFile') && prompt.includes('254016000000'))
 assert(prompt.includes('timeline.move') && prompt.includes('lastPath'), 'The skill carries the 0.17.1 words: a move takes time objects, an image sequence names its first and last stills')
 assert(!prompt.includes('craft_status') && !prompt.includes('craft_install'), 'Onboarding belongs to the server instructions, not the skill')
 assert(readFileSync(join(ext.root, 'skills/filmcraft/SKILL.md')).byteLength <= 1700)
@@ -64,7 +64,7 @@ if (connection.type === 'connected') {
     const context: any = { abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: permission }), options: {} }
     const { decision } = await decideToolPermission(install, {}, context)
     assert.equal(decision.behavior, 'ask')
-    assert.match((decision as any).message, /Install FilmCraft 0\.17\.1 \([\d,]+ bytes\)/)
+    assert.match((decision as any).message, /Install FilmCraft 0\.18\.0 \([\d,]+ bytes\)/)
     assert(!JSON.stringify(decision).includes('_mercuryInstallGrant'))
     console.log('PASS: real Mercury MCP client and tool pool ask once with a private install handoff')
   } finally { await connection.client.close() }

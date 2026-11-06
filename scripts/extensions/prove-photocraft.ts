@@ -38,17 +38,17 @@ try {
     assert(!manifest.module && !manifest.install && !manifest.needs.binaries)
   })
   check('release plans bind exact app version, URL, bytes and hash; one archive per platform carries app and CLI', () => {
-    assert.equal(adapter.version, '0.20.2'); assert.deepEqual(adapter.pins.map((pin: any) => pin.name), ['photocraft'])
+    assert.equal(adapter.version, '0.21.0'); assert.deepEqual(adapter.pins.map((pin: any) => pin.name), ['photocraft'])
     for (const pin of adapter.pins) sharedInstall.validatePin(pin)
     const mac = sharedInstall.planInstall(adapter, { dataDir, platform: 'darwin-arm64' })
-    assert.equal(mac.payloads.length, 1); assert.equal(mac.bytes, 249667752); assert.equal(mac.payloads[0].sha256, '89f2ed4d4a737ec8aaa570165815bab0a824df3f453493b0a501f915179e9a55')
+    assert.equal(mac.payloads.length, 1); assert.equal(mac.bytes, 257092439); assert.equal(mac.payloads[0].sha256, 'aa43b184ae8a2ae2340b7f2522a996431ffec3597ec76b6d977a44a6cbd7bab1')
     for (const platform of ['win-x64', 'linux-x64']) assert.equal(sharedInstall.planInstall(adapter, { dataDir, platform }).payloads.length, 1)
-    const broken = structuredClone(adapter.pins[0]); broken.platforms['darwin-arm64'].url = broken.platforms['darwin-arm64'].url.replace('v0.20.2', 'latest')
+    const broken = structuredClone(adapter.pins[0]); broken.platforms['darwin-arm64'].url = broken.platforms['darwin-arm64'].url.replace('v0.21.0', 'latest')
     assert.throws(() => sharedInstall.validatePin(broken))
   })
   check('supplemental notices retain exact tagged bytes and provenance', () => {
     assert.deepEqual(adapter.notices.map((notice: any) => notice.name), ['NOTICE', 'LICENSE-MIT', 'LICENSE-APACHE'])
-    for (const notice of adapter.notices) { assert.equal(hash(notice.content), notice.sha256); assert.equal(notice.source, `${adapter.pins[0].repository}/blob/v0.20.2/${notice.name}`) }
+    for (const notice of adapter.notices) { assert.equal(hash(notice.content), notice.sha256); assert.equal(notice.source, `${adapter.pins[0].repository}/blob/v0.21.0/${notice.name}`) }
     assert.match(adapter.notices[0].content, /sctk-adwaita 0\.10\.1/)
   })
   const readRoot = join(scratch, 'project'), writeRoot = join(scratch, 'outputs')

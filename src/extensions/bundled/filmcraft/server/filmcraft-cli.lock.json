@@ -1,7 +1,7 @@
 {
   "name": "filmcraft-cli",
-  "version": "0.17.1",
-  "tag": "v0.17.1",
+  "version": "0.18.0",
+  "tag": "v0.18.0",
   "repository": "https://github.com/storytold/filmcraft",
   "license": "MIT OR Apache-2.0",
   "licenseFiles": [
@@ -11,12 +11,12 @@
   "platforms": {
     "darwin-arm64": {
       "target": "universal-apple-darwin",
-      "archive": "filmcraft-cli-0.17.1-macos-universal.zip",
-      "url": "https://github.com/storytold/filmcraft/releases/download/v0.17.1/filmcraft-cli-0.17.1-macos-universal.zip",
-      "checksum": "https://github.com/storytold/filmcraft/releases/download/v0.17.1/SHA256SUMS.txt",
-      "sha256": "ca0749fecd44c51caee419d90938d24ce322340d7af1d1660605166f1ecd2755",
-      "bytes": 95187152
+      "archive": "filmcraft-cli-0.18.0-macos-universal.zip",
+      "url": "https://github.com/storytold/filmcraft/releases/download/v0.18.0/filmcraft-cli-0.18.0-macos-universal.zip",
+      "checksum": "https://github.com/storytold/filmcraft/releases/download/v0.18.0/SHA256SUMS.txt",
+      "sha256": "21d2da36d57cb311dd3b73db17213d3167d5a9110b68d00c2e2bd0585fd50395",
+      "bytes": 95610062
     }
   },
-  "notes": "Companion command-line tool for filmcraft on macOS, consumed at runtime by server/install.mjs; the desktop DMG does not carry it, and the MCP server is this binary (filmcraft-cli mcp). Pinned 2026-11-05 to the v0.17.1 release (published 2026-11-05); digest computed from the downloaded zip and matched against the release's SHA256SUMS.txt, byte count from GitHub asset metadata, both checked against the downloaded archive by the install drive. The zip carries LICENSE-MIT, LICENSE-APACHE and NOTICE beside the binary. The drive exercises --version, MCP initialize, tools/list, command_list, a headless import, placement, cut, save and inspected export, and the bridge to a launched window. In bridge mode the CLI reads FILMCRAFT_CONTROL_TOKEN from its environment; the adapter supplies it there, never on the command line."
+  "notes": "Companion command-line tool for filmcraft on macOS, consumed at runtime by server/install.mjs; the desktop DMG does not carry it, and the MCP server is this binary (filmcraft-cli mcp). Pinned 2026-11-06 to the v0.18.0 release (published 2026-11-06); digest computed from the downloaded zip and matched against the release's SHA256SUMS.txt, byte count from GitHub asset metadata, both checked against the downloaded archive by the install drive. Upstream publishes this CLI archive for macOS only; on Windows and Linux the CLI travels inside the desktop archive pinned by filmcraft.lock.json. The zip carries LICENSE-MIT, LICENSE-APACHE and NOTICE beside the binary. The drive exercises --version, MCP initialize, tools/list, command_list, a headless import, placement, cut, save and inspected export, and the bridge to a launched window. In bridge mode the CLI reads FILMCRAFT_CONTROL_TOKEN from its environment; the adapter supplies it there, never on the command line."
 }

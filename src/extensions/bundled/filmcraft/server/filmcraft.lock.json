@@ -1,7 +1,7 @@
 {
   "name": "filmcraft",
-  "version": "0.17.1",
-  "tag": "v0.17.1",
+  "version": "0.18.0",
+  "tag": "v0.18.0",
   "repository": "https://github.com/storytold/filmcraft",
   "license": "MIT OR Apache-2.0",
   "licenseFiles": [
@@ -12,28 +12,28 @@
   "platforms": {
     "darwin-arm64": {
       "target": "universal-apple-darwin",
-      "archive": "filmcraft-0.17.1-macos-universal.dmg",
-      "url": "https://github.com/storytold/filmcraft/releases/download/v0.17.1/filmcraft-0.17.1-macos-universal.dmg",
-      "checksum": "https://github.com/storytold/filmcraft/releases/download/v0.17.1/SHA256SUMS.txt",
-      "sha256": "ca01efef41f1e57bb5a19d70c5f94e64dd3a35d65152c54d127f8a8f701a241d",
-      "bytes": 115167895
+      "archive": "filmcraft-0.18.0-macos-universal.dmg",
+      "url": "https://github.com/storytold/filmcraft/releases/download/v0.18.0/filmcraft-0.18.0-macos-universal.dmg",
+      "checksum": "https://github.com/storytold/filmcraft/releases/download/v0.18.0/SHA256SUMS.txt",
+      "sha256": "2f39bbdc26d782969305b35090250150734a3e99a379b32b50c46373a64f4e52",
+      "bytes": 115755681
     },
     "win-x64": {
       "target": "x86_64-pc-windows-msvc",
-      "archive": "filmcraft-0.17.1-windows-x64-portable.zip",
-      "url": "https://github.com/storytold/filmcraft/releases/download/v0.17.1/filmcraft-0.17.1-windows-x64-portable.zip",
-      "checksum": "https://github.com/storytold/filmcraft/releases/download/v0.17.1/SHA256SUMS.txt",
-      "sha256": "6a87da6b1bbf3251a6995626f8de42388c6255e10f434a893034774b4a5a6766",
-      "bytes": 109020901
+      "archive": "filmcraft-0.18.0-windows-x64-portable.zip",
+      "url": "https://github.com/storytold/filmcraft/releases/download/v0.18.0/filmcraft-0.18.0-windows-x64-portable.zip",
+      "checksum": "https://github.com/storytold/filmcraft/releases/download/v0.18.0/SHA256SUMS.txt",
+      "sha256": "82847cf49087e95fd3f72dde80955d1c63af2821ad677e34e3de7a0e873e95bf",
+      "bytes": 109616261
     },
     "linux-x64": {
       "target": "x86_64-unknown-linux-gnu",
-      "archive": "filmcraft-0.17.1-linux-x86_64.tar.gz",
-      "url": "https://github.com/storytold/filmcraft/releases/download/v0.17.1/filmcraft-0.17.1-linux-x86_64.tar.gz",
-      "checksum": "https://github.com/storytold/filmcraft/releases/download/v0.17.1/SHA256SUMS.txt",
-      "sha256": "397ae9fece559b37863b4b076af46a63b6e4387c35f781709e4efad14fe71ebe",
-      "bytes": 107780902
+      "archive": "filmcraft-0.18.0-linux-x86_64.tar.gz",
+      "url": "https://github.com/storytold/filmcraft/releases/download/v0.18.0/filmcraft-0.18.0-linux-x86_64.tar.gz",
+      "checksum": "https://github.com/storytold/filmcraft/releases/download/v0.18.0/SHA256SUMS.txt",
+      "sha256": "0179f05b20db855bfd3def9136ce60dee59f22d2dcbfcf23e4a6256e0c153b05",
+      "bytes": 108299986
     }
   },
-  "notes": "Consumed at runtime by server/install.mjs through shared/install.mjs validatePin, planInstall and installPinned. Pinned 2026-11-05 to the v0.17.1 release (published 2026-11-05). Digests computed from the downloaded archives and matched against the release's SHA256SUMS.txt; byte counts from GitHub asset metadata, matched against the downloads; the installer rejects a download whose size or SHA-256 differs. macOS needs the separately pinned filmcraft-cli payload from the same release; the Windows portable ZIP and the Linux tarball carry the CLI. licenseFiles names the upstream notices the installer must find in the unpacked tree or supplement from notices.json at the same tag: the DMG carries NOTICE inside the app bundle, and LICENSE-MIT and LICENSE-APACHE come from notices.json, whose texts are unchanged since v0.17.0. Since v0.13.0 the control port answers only requests carrying the FILMCRAFT_CONTROL_TOKEN the app was started with; the adapter generates one per launch and keeps it in a private file. Only this URL is downloaded; never the latest release."
+  "notes": "Consumed at runtime by server/install.mjs through shared/install.mjs validatePin, planInstall and installPinned. Pinned 2026-11-06 to the v0.18.0 release (published 2026-11-06). Digests computed from the downloaded archives and matched against the release's SHA256SUMS.txt; byte counts from GitHub asset metadata, matched against the downloads; the installer rejects a download whose size or SHA-256 differs. macOS needs the separately pinned filmcraft-cli payload from the same release; the Windows portable ZIP and the Linux tarball carry filmcraft-cli themselves, so the CLI lock has no row for them and upstream ships no separate CLI archive for those platforms. licenseFiles names the upstream notices the installer must find in the unpacked tree or supplement from notices.json at the same tag: the DMG carries NOTICE inside the app bundle, and LICENSE-MIT and LICENSE-APACHE come from notices.json, whose texts are unchanged since v0.17.0. Since v0.13.0 the control port answers only requests carrying the FILMCRAFT_CONTROL_TOKEN the app was started with; the adapter generates one per launch and keeps it in a private file. Only this URL is downloaded; never the latest release."
 }

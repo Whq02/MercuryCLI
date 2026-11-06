@@ -100,7 +100,7 @@ try {
   const checked = await checkInstall(adapter, { dataDir: dirs.data }); assert.equal(checked.state, 'installed', JSON.stringify(checked)); installation = checked.installation
   passed('offline archive identity, licences and tree digest', { fileCount: installation.manifest.fileCount, treeDigest: installation.manifest.treeDigest })
   const cliVersion = command(installation.cli, ['--version']), guiVersion = command(installation.gui, ['--version'])
-  assert.match(cliVersion.stdout!, /^photocraft-cli 0\.20\.2\b/); assert.match(guiVersion.stdout!, /^photocraft 0\.20\.2\b/i)
+  assert.match(cliVersion.stdout!, /^photocraft-cli 0\.21\.0\b/); assert.match(guiVersion.stdout!, /^photocraft 0\.21\.0\b/i)
   if (process.platform === 'darwin') assert(installation.cli.endsWith('/PhotoCraft.app/Contents/MacOS/photocraft-cli'), installation.cli)
   passed('app and command-line tool report the pinned release', { cli: cliVersion.stdout, gui: guiVersion.stdout })
   if (process.platform === 'darwin') {
