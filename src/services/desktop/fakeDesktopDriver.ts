@@ -649,7 +649,7 @@ export class FakeDesktopDriver implements DesktopDriver {
     this.sceneActs += 1
     this.record('setValue', 'done', { ...detail, set: true })
     if (node.role.includes('Secure')) return answer({ set: true, value: null, note: SECURE_NOT_READ_BACK })
-    return answer({ set: true, value: text, note: null })
+    return answer({ set: true, value: text === '' ? null : text, note: null })
   }
 
   private async locate(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<{ node: FakeTreeNode; window: FakeTreeNode | undefined }>> {

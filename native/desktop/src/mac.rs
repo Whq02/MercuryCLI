@@ -8,7 +8,7 @@ use objc2_core_foundation::{CGPoint, CGRect, CGSize};
 use objc2_foundation::NSString;
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{tree_child_order, ApplicationAnswer, BoundsRecord, DisplayRecord, FocusedText, TextRange, PermissionsAnswer, TreeAnswer, TreeElement, TREE_BUDGET_MS, TREE_VALUE_CHARS};
+use crate::{tree_child_order, ApplicationAnswer, BoundsRecord, DisplayRecord, FocusedText, ScrollAnswer, TextRange, PermissionsAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, SCROLL_UNSUPPORTED, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED};
 
 type CFTypeRef = *const c_void;
 type CGEventRef = *mut c_void;
@@ -97,6 +97,9 @@ extern "C" {
     fn AXUIElementSetMessagingTimeout(element: CFTypeRef, timeout: f32) -> i32;
     fn AXUIElementCopyAttributeValue(element: CFTypeRef, attribute: CFTypeRef, value: *mut CFTypeRef) -> i32;
     fn AXUIElementSetAttributeValue(element: CFTypeRef, attribute: CFTypeRef, value: CFTypeRef) -> i32;
+    fn AXUIElementIsAttributeSettable(element: CFTypeRef, attribute: CFTypeRef, settable: *mut u8) -> i32;
+    fn AXUIElementCopyActionNames(element: CFTypeRef, names: *mut CFTypeRef) -> i32;
+    fn AXUIElementPerformAction(element: CFTypeRef, action: CFTypeRef) -> i32;
     fn AXUIElementGetAttributeValueCount(element: CFTypeRef, attribute: CFTypeRef, count: *mut isize) -> i32;
     fn AXValueGetValue(value: CFTypeRef, kind: u32, output: *mut c_void) -> bool;
     static kAXTrustedCheckOptionPrompt: CFTypeRef;
@@ -112,6 +115,11 @@ pub fn keyboard_idle_ms() -> Option<f64> {
 }
 const NUMBER_FLOAT64: isize = 13;
 const TREE_MESSAGING_TIMEOUT_S: f32 = 1.0;
+const SCROLL_ACTION: &str = "AXScrollToVisible";
+const SCROLL_SETTLE_MS: u64 = 60;
+const SCROLL_SETTLE_READS: u32 = 5;
+const SCROLL_WHEEL_STEPS: u32 = 24;
+const SCROLL_WHEEL_LINES: i32 = 5;
 
 const EVENT_SOURCE_HID_SYSTEM_STATE: i32 = 1;
 const HID_EVENT_TAP: u32 = 0;
@@ -1196,41 +1204,47 @@ fn matching_element(candidate: &TreeElement, wanted: &TreeElement) -> bool {
     }
 }
 
+unsafe fn unique_element(pid: i32, wanted: &TreeElement, started: std::time::Instant, budget: std::time::Duration) -> Result<(CFTypeRef, CFTypeRef), String> {
+    if !AXIsProcessTrusted() { return Err("Accessibility is not granted".to_string()); }
+    let app = AXUIElementCreateApplication(pid);
+    if app.is_null() { return Err("the application has no accessibility element".to_string()); }
+    AXUIElementSetMessagingTimeout(app, TREE_MESSAGING_TIMEOUT_S);
+    let window = ax_attribute(app, "AXFocusedWindow");
+    CFRelease(app);
+    if window.is_null() { return Err("the focused window is unavailable".to_string()); }
+    let mut stack = vec![(CFRetain(window), 1u32)];
+    let mut matches: Vec<CFTypeRef> = Vec::new();
+    let mut count = 0;
+    let mut complete = true;
+    while let Some((element, depth)) = stack.pop() {
+        if count >= 2000 || started.elapsed() > budget {
+            complete = false;
+            CFRelease(element);
+            break;
+        }
+        count += 1;
+        let row = tree_element(element, depth, ptr::null());
+        if matching_element(&row, wanted) { matches.push(CFRetain(element)); }
+        if depth < 32 {
+            for child in ax_children(element).into_iter().rev() { stack.push((child, depth + 1)); }
+        } else if ax_child_count(element) > 0 { complete = false; }
+        CFRelease(element);
+    }
+    for (rest, _) in stack { CFRelease(rest); }
+    if !complete || matches.len() != 1 {
+        for matched in matches { CFRelease(matched); }
+        CFRelease(window);
+        return Err(ELEMENT_NOT_UNIQUE.to_string());
+    }
+    Ok((window, matches[0]))
+}
+
 pub fn read_element(pid: i32, wanted: &TreeElement) -> Result<Option<crate::ElementText>, String> {
     autoreleasepool(|_| unsafe {
-        if !AXIsProcessTrusted() { return Err("Accessibility is not granted".to_string()); }
-        let app = AXUIElementCreateApplication(pid);
-        if app.is_null() { return Err("the application has no accessibility element".to_string()); }
-        AXUIElementSetMessagingTimeout(app, TREE_MESSAGING_TIMEOUT_S);
-        let window = ax_attribute(app, "AXFocusedWindow");
-        CFRelease(app);
-        if window.is_null() { return Err("the focused window is unavailable".to_string()); }
         let started = std::time::Instant::now();
         let budget = std::time::Duration::from_millis(TREE_BUDGET_MS);
-        let mut stack = vec![(window, 1u32)];
-        let mut matches: Vec<CFTypeRef> = Vec::new();
-        let mut count = 0;
-        let mut complete = true;
-        while let Some((element, depth)) = stack.pop() {
-            if count >= 2000 || started.elapsed() > budget {
-                complete = false;
-                CFRelease(element);
-                break;
-            }
-            count += 1;
-            let row = tree_element(element, depth, ptr::null());
-            if matching_element(&row, wanted) { matches.push(CFRetain(element)); }
-            if depth < 32 {
-                for child in ax_children(element).into_iter().rev() { stack.push((child, depth + 1)); }
-            } else if ax_child_count(element) > 0 { complete = false; }
-            CFRelease(element);
-        }
-        for (rest, _) in stack { CFRelease(rest); }
-        if !complete || matches.len() != 1 {
-            for matched in matches { CFRelease(matched); }
-            return Err("the element is no longer unique in a complete window tree — read tree again".to_string());
-        }
-        let selected = matches[0];
+        let (window, selected) = unique_element(pid, wanted, started, budget)?;
+        CFRelease(window);
         let role = wanted.role.clone();
         let title = ax_string(selected, "AXTitle").or_else(|| ax_string(selected, "AXDescription"));
         if role.contains("Secure") { CFRelease(selected); return Err("secure fields cannot be read".to_string()); }
@@ -1273,6 +1287,116 @@ pub fn read_element(pid: i32, wanted: &TreeElement) -> Result<Option<crate::Elem
     })
 }
 
+unsafe fn ax_actions(element: CFTypeRef) -> Vec<String> {
+    let mut names: CFTypeRef = ptr::null();
+    let mut list: Vec<String> = Vec::new();
+    if AXUIElementCopyActionNames(element, &mut names) != 0 || names.is_null() { return list; }
+    if CFGetTypeID(names) == CFArrayGetTypeID() {
+        for i in 0..CFArrayGetCount(names) {
+            if let Some(name) = ax_text(CFArrayGetValueAtIndex(names, i)) { list.push(name); }
+        }
+    }
+    CFRelease(names);
+    list
+}
+
+fn same_frame(a: &Option<BoundsRecord>, b: &Option<BoundsRecord>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => a.x == b.x && a.y == b.y && a.width == b.width && a.height == b.height,
+        _ => false,
+    }
+}
+
+unsafe fn settled_frame(element: CFTypeRef) -> Option<BoundsRecord> {
+    let mut frame = ax_frame(element);
+    for _ in 0..SCROLL_SETTLE_READS {
+        std::thread::sleep(std::time::Duration::from_millis(SCROLL_SETTLE_MS));
+        let next = ax_frame(element);
+        if same_frame(&next, &frame) { break; }
+        frame = next;
+    }
+    frame
+}
+
+fn hidden_by(frame: &BoundsRecord, viewport: &BoundsRecord) -> i32 {
+    if frame.height <= 1.0 || frame.y + frame.height > viewport.y + viewport.height - 1.0 { 1 } else if frame.y < viewport.y + 1.0 { -1 } else { 0 }
+}
+
+unsafe fn wheel_into_view(window: CFTypeRef, element: CFTypeRef, started: std::time::Instant, budget: std::time::Duration) -> ScrollAnswer {
+    let Some(viewport) = ax_frame(window) else {
+        return ScrollAnswer { scrolled: false, frame: ax_frame(element), reason: Some(format!("{SCROLL_UNSUPPORTED}; the window's frame is unavailable for a wheel scroll")) };
+    };
+    let mut frame = ax_frame(element);
+    for _ in 0..SCROLL_WHEEL_STEPS {
+        let Some(current) = frame.as_ref() else { break };
+        let direction = hidden_by(current, &viewport);
+        if direction == 0 { return ScrollAnswer { scrolled: true, frame, reason: None }; }
+        if started.elapsed() > budget { break; }
+        let x = (current.x + current.width / 2.0).clamp(viewport.x + 2.0, viewport.x + viewport.width - 2.0);
+        let y = viewport.y + viewport.height / 2.0;
+        if mouse_move(x, y).and_then(|_| scroll(0, direction * SCROLL_WHEEL_LINES)).is_err() { break; }
+        frame = settled_frame(element);
+    }
+    ScrollAnswer { scrolled: false, frame, reason: Some(format!("{SCROLL_UNSUPPORTED}; the wheel did not bring it into view")) }
+}
+
+pub fn scroll_to_visible(pid: i32, wanted: &TreeElement, wheel: bool) -> Result<ScrollAnswer, String> {
+    autoreleasepool(|_| unsafe {
+        let started = std::time::Instant::now();
+        let budget = std::time::Duration::from_millis(TREE_BUDGET_MS);
+        let (window, selected) = unique_element(pid, wanted, started, budget)?;
+        let answer = if ax_actions(selected).iter().any(|name| name == SCROLL_ACTION) {
+            let action = cf_string(SCROLL_ACTION);
+            let status = AXUIElementPerformAction(selected, action);
+            CFRelease(action);
+            if status == 0 {
+                ScrollAnswer { scrolled: true, frame: settled_frame(selected), reason: None }
+            } else {
+                ScrollAnswer { scrolled: false, frame: ax_frame(selected), reason: Some(format!("{SCROLL_UNSUPPORTED}; the action answered accessibility error {status}")) }
+            }
+        } else if wheel {
+            wheel_into_view(window, selected, started, budget)
+        } else {
+            ScrollAnswer { scrolled: false, frame: ax_frame(selected), reason: Some(SCROLL_UNSUPPORTED.to_string()) }
+        };
+        CFRelease(selected);
+        CFRelease(window);
+        Ok(answer)
+    })
+}
+
+pub fn set_value(pid: i32, wanted: &TreeElement, text: &str) -> Result<ValueAnswer, String> {
+    autoreleasepool(|_| unsafe {
+        let started = std::time::Instant::now();
+        let budget = std::time::Duration::from_millis(TREE_BUDGET_MS);
+        let (window, selected) = unique_element(pid, wanted, started, budget)?;
+        CFRelease(window);
+        let key = cf_string("AXValue");
+        let mut settable: u8 = 0;
+        let asked = AXUIElementIsAttributeSettable(selected, key, &mut settable);
+        if asked != 0 || settable == 0 {
+            CFRelease(key);
+            let value = ax_string(selected, "AXValue");
+            CFRelease(selected);
+            return Ok(ValueAnswer { set: false, value, reason: Some(VALUE_UNSUPPORTED.to_string()) });
+        }
+        let value = cf_string(text);
+        let status = AXUIElementSetAttributeValue(selected, key, value);
+        CFRelease(value);
+        CFRelease(key);
+        if status != 0 {
+            let current = ax_string(selected, "AXValue");
+            CFRelease(selected);
+            return Ok(ValueAnswer { set: false, value: current, reason: Some(format!("{VALUE_UNSUPPORTED}; the value answered accessibility error {status}")) });
+        }
+        let secure = wanted.role.contains("Secure") || ax_string(selected, "AXSubrole").is_some_and(|subrole| subrole.contains("Secure"));
+        let read_back = if secure { None } else { ax_string(selected, "AXValue") };
+        CFRelease(selected);
+        Ok(ValueAnswer { set: true, value: read_back, reason: if secure { Some(SECURE_NOT_READ_BACK.to_string()) } else { None } })
+    })
+}
+
 #[cfg(test)]
 mod read_element_tests {
     use super::*;
@@ -1295,5 +1419,15 @@ mod read_element_tests {
         assert!(!matching_element(&current, &original));
         current.frame = None;
         assert!(!matching_element(&current, &original));
+    }
+
+    #[test]
+    fn an_edge_clamped_strip_scrolls_down_and_a_frame_above_scrolls_up() {
+        let viewport = BoundsRecord { x: 0.0, y: 30.0, width: 1440.0, height: 956.0 };
+        assert_eq!(hidden_by(&BoundsRecord { x: 1050.0, y: 985.0, width: 105.0, height: 1.0 }, &viewport), 1);
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 1200.0, width: 300.0, height: 20.0 }, &viewport), 1);
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 10.0, width: 300.0, height: 20.0 }, &viewport), -1);
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 400.0, width: 300.0, height: 20.0 }, &viewport), 0);
+        assert!(same_frame(&None, &None) && !same_frame(&None, &Some(viewport.clone())));
     }
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -88,7 +88,7 @@ console.log('\n[2] setValue through the fake driver')
   const tree = await driver.accessibilityTree(app, { depth: 8, count: 200, scope: 'window' }, signal())
   check('the next tree read carries the value', tree.ok && tree.value.elements.some(e => e.title === 'LinkedIn URL*' && e.value === 'https://www.linkedin.com/in/example'), JSON.stringify(tree.ok ? tree.value.elements.filter(e => e.title === 'LinkedIn URL*') : tree))
   const again = await driver.setValue(app, field, '', signal())
-  check('an empty value clears the field', again.ok && again.value.set && again.value.value === '', JSON.stringify(again))
+  check('an empty value clears the field and reads back as null, the tree\'s word for empty', again.ok && again.value.set && again.value.value === null, JSON.stringify(again))
   const button = await driver.setValue(app, element(s.tree[0]!.children![2]!), 'x', signal())
   check('a button answers set false with the typing sentence and its current value', button.ok && !button.value.set && button.value.note === VALUE_NOTE && button.value.value === null, JSON.stringify(button))
   const secure = await driver.setValue(app, element(s.tree[0]!.children![6]!), 'hunter2', signal())
@@ -138,6 +138,107 @@ console.log('\n[3] the gates both acts share')
     const go = await fromFile.scrollToVisible(good.scene.frontmost, { depth: 1, role: 'AXButton', title: 'Go', value: null, frame: { x: 10, y: 900, width: 50, height: 20 } }, signal())
     const editor = await fromFile.setValue(good.scene.frontmost, { depth: 1, role: 'AXGroup', title: 'Editor', value: null, frame: { x: 10, y: 10, width: 50, height: 20 } }, 'typed', signal())
     check('…and the driver honours them', go.ok && !go.value.scrolled && go.value.note === SCROLL_NOTE && editor.ok && editor.value.set && editor.value.value === 'typed', JSON.stringify([go, editor]))
+  }
+}
+
+console.log('\n[4] the native bridge: a stub addon shows what the driver sends and how it reads the answer')
+{
+  const pack = await import('../../src/services/desktop/pack.js')
+  const native = await import('../../src/services/desktop/nativeDriver.js')
+  const { voicePackPlatform } = await import('../../src/services/voice/voicePack.js')
+  const { createHash } = await import('node:crypto')
+  const { mkdirSync } = await import('node:fs')
+  const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')
+  let fixtureSeq = 0
+  const stubPack = (body: string): string => {
+    const dir = join(SCRATCH, `pack-${++fixtureSeq}`)
+    mkdirSync(dir, { recursive: true })
+    const permissions = JSON.stringify({ session: 'desktop', screenCapture: 'granted', input: 'granted', reason: null })
+    const source = [
+      'const answers = {',
+      "  packVersion: () => '0.1.0',",
+      `  permissions: () => (${permissions}), requestPermissions: () => (${permissions}),`,
+      "  displays: () => ({ displays: [{ index: 0, id: 'fixture-1', originX: 0, originY: 0, width: 1440, height: 900, scale: 2, primary: true }], reason: null }),",
+      '  capture: async () => ({ png: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]), width: 2880, height: 1800, scale: 2, display: 0, displayId: \'fixture-1\', originX: 0, originY: 0, capturedAt: 1 }),',
+      "  frontmostApplication: () => ({ identity: 'com.example.editor', name: 'Editor', pid: 4242, title: 'Untitled', bounds: { x: 100, y: 100, width: 800, height: 600 }, reason: null }),",
+      "  ownTerminalApplication: () => ({ identity: null, name: null, pid: null, title: null, bounds: null, reason: 'fixture: no terminal' }),",
+      "  accessibilityTree: () => ({ elements: [{ depth: 0, role: 'AXApplication', title: 'Editor', value: null, frame: null }], truncated: false, reason: null }),",
+      '  cursor: () => ({ x: 720, y: 450, display: 0, reason: null }),',
+      '  mouseMove: () => {}, mouseDown: () => {}, mouseUp: () => {}, click: () => {}, drag: async () => {}, scroll: () => {}, keyTap: () => {}, keyDown: () => {}, keyUp: () => {}, typeText: async () => {},',
+      '  held: () => ({ buttons: [], keys: [] }), releaseAll: () => ({ buttons: [], keys: [] }), cancel: () => {},',
+      `  ${body},`,
+      '}',
+      'module.exports = answers',
+      '',
+    ].join('\n')
+    writeFileSync(join(dir, 'stub.js'), source)
+    const tree = pack.desktopPackTreeDigest(dir)
+    const manifest = { name: pack.DESKTOP_PACK_NAME, version: '0.1.0', platform: voicePackPlatform(), addon: 'stub.js', addonSha256: sha256(source), sourceTreeDigest: sha256('fixture sources'), cargo: 'cargo fixture', crates: [{ name: 'napi', version: '3.0.0', license: 'MIT' }], fileCount: tree.fileCount, treeDigest: tree.treeDigest }
+    writeFileSync(join(dir, pack.DESKTOP_PACK_MANIFEST_FILE), JSON.stringify(manifest, null, 2) + '\n')
+    return dir
+  }
+  const usePack = (dir: string | null): ReturnType<typeof native.resolveNativeDesktopDriver> => {
+    if (dir === null) delete process.env.MERCURY_DESKTOP_PACK_DIR
+    else process.env.MERCURY_DESKTOP_PACK_DIR = dir
+    native.resetNativeDesktopDriverForTest()
+    return native.resolveNativeDesktopDriver()
+  }
+  const app = { identity: 'com.example.editor', name: 'Editor', pid: process.pid, title: 'Untitled', bounds: { x: 100, y: 100, width: 800, height: 600 } }
+  const untitled = { depth: 20, role: 'AXStaticText', title: null, value: 'About', frame: { x: 10, y: 985, width: 100, height: 1 } }
+  const shortOfExports = usePack(stubPack("readElement: () => null"))
+  check('the export list requires both acts (a pack without them is refused by name)', pack.DESKTOP_ADDON_EXPORTS.includes('scrollToVisible') && pack.DESKTOP_ADDON_EXPORTS.includes('setValue') && shortOfExports.state === 'unavailable' && shortOfExports.note.includes('scrollToVisible()'), JSON.stringify(shortOfExports))
+  const echo = usePack(stubPack("scrollToVisible: (pid, element, wheel) => ({ scrolled: true, frame: { x: 1, y: 2, width: 3, height: 4 }, reason: JSON.stringify({ pid, keys: Object.keys(element), wheel }) }), setValue: (pid, element, text) => ({ set: true, value: text, reason: JSON.stringify({ pid, keys: Object.keys(element) }) })"))
+  if (echo.state !== 'ok') check('the stub pack resolves', false, echo.note)
+  else {
+    const scrolled = await echo.driver.scrollToVisible!(app, untitled, signal())
+    const sent = scrolled.ok && scrolled.value.note ? (JSON.parse(scrolled.value.note) as { pid: number; keys: string[]; wheel: boolean }) : null
+    check('scrollToVisible sends the pid, the element without its null keys, and asks for the wheel fallback', sent !== null && sent.pid === process.pid && !sent.keys.includes('title') && sent.keys.includes('frame') && sent.wheel === true, JSON.stringify(scrolled))
+    check('…and reads scrolled and the frame back', scrolled.ok && scrolled.value.scrolled && JSON.stringify(scrolled.value.frame) === JSON.stringify({ x: 1, y: 2, width: 3, height: 4 }), JSON.stringify(scrolled))
+    const set = await echo.driver.setValue!(app, untitled, 'hello', signal())
+    const sentValue = set.ok && set.value.note ? (JSON.parse(set.value.note) as { pid: number; keys: string[] }) : null
+    check('setValue sends the pid, the element without its null keys and the text, and reads the value back', sentValue !== null && sentValue.pid === process.pid && !sentValue.keys.includes('title') && set.ok && set.value.set && set.value.value === 'hello', JSON.stringify(set))
+  }
+  const refused = usePack(stubPack("scrollToVisible: () => ({ scrolled: false, frame: null, reason: 'the element does not scroll into view through the accessibility API — scroll with the wheel instead' }), setValue: () => ({ set: false, value: 'old', reason: 'the element does not accept a value through the accessibility API — type into it instead' })"))
+  if (refused.state !== 'ok') check('the stub pack resolves', false, refused.note)
+  else {
+    const scrolled = await refused.driver.scrollToVisible!(app, untitled, signal())
+    const set = await refused.driver.setValue!(app, untitled, 'x', signal())
+    check('an unsupported action answers ok with scrolled false and the sentence; an unsettable value answers set false with the current value and its sentence', scrolled.ok && !scrolled.value.scrolled && scrolled.value.frame === null && scrolled.value.note === SCROLL_NOTE && set.ok && !set.value.set && set.value.value === 'old' && set.value.note === VALUE_NOTE, JSON.stringify([scrolled, set]))
+  }
+  const broken = usePack(stubPack("scrollToVisible: () => ({ scrolled: 'yes' }), setValue: () => 42"))
+  if (broken.state !== 'ok') check('the stub pack resolves', false, broken.note)
+  else {
+    const scrolled = await broken.driver.scrollToVisible!(app, untitled, signal())
+    const set = await broken.driver.setValue!(app, untitled, 'x', signal())
+    check('an answer outside the contract is a defect naming the rebuild', !scrolled.ok && scrolled.error.kind === 'defect' && scrolled.error.note.includes('build-desktop') && !set.ok && set.error.kind === 'defect', JSON.stringify([scrolled, set]))
+  }
+  const unsupported = usePack(stubPack("scrollToVisible: () => { throw new Error('scrolling an element into view is unsupported on this platform (no accessibility actions in this release)') }, setValue: () => { throw new Error('the element is no longer unique in a complete window tree — read tree again') }"))
+  if (unsupported.state !== 'ok') check('the stub pack resolves', false, unsupported.note)
+  else {
+    const scrolled = await unsupported.driver.scrollToVisible!(app, untitled, signal())
+    const set = await unsupported.driver.setValue!(app, untitled, 'x', signal())
+    check("a platform's unsupported words classify as unavailable; the tree sentence crosses verbatim", !scrolled.ok && scrolled.error.kind === 'unavailable' && scrolled.error.note.startsWith('scrolling an element into view is unsupported on this platform') && !set.ok && set.error.note === NOT_UNIQUE, JSON.stringify([scrolled, set]))
+  }
+
+  console.log('\n[5] the packaged addon carries both exports and answers with words')
+  const resolved = usePack(null)
+  const lib = readFileSync(join(ROOT, 'native', 'desktop', 'src', 'lib.rs'), 'utf8')
+  check("the fake driver's sentences are the native addon's (lib.rs)", lib.includes(SCROLL_NOTE) && lib.includes(VALUE_NOTE) && lib.includes(NOT_UNIQUE) && lib.includes('a secure field is not read back'))
+  if (resolved.state !== 'ok') check('the packaged addon on this checkout loads with both exports', false, resolved.note)
+  else if (resolved.driver.describe().source !== 'workspace') console.log(`  [WARN] the driver resolved from ${resolved.driver.describe().source}, not the checkout pack — the packaged legs still run against it`)
+  if (resolved.state === 'ok') {
+    const load = pack.loadDesktopAddon()
+    check('the packaged addon exports scrollToVisible and setValue', load.state === 'ok' && typeof load.addon.scrollToVisible === 'function' && typeof load.addon.setValue === 'function', load.state === 'ok' ? '' : load.note)
+    if (load.state === 'ok') {
+      const thrown = (run: () => unknown): string => { try { run(); return 'answered' } catch (error) { return error instanceof Error ? error.message : String(error) } }
+      const scrollWords = thrown(() => load.addon.scrollToVisible(process.pid, { depth: 20, role: 'AXStaticText', value: 'About', frame: { x: 10, y: 985, width: 100, height: 1 } }, true))
+      const valueWords = thrown(() => load.addon.setValue(process.pid, { depth: 20, role: 'AXTextField', title: 'URL', frame: { x: 10, y: 10, width: 100, height: 20 } }, 'x'))
+      check('on a process without a window both exports answer the reader\'s sentence, never a conversion error or a crash', (scrollWords === 'the focused window is unavailable' || scrollWords.startsWith('input control is not granted')) && valueWords === scrollWords, `${scrollWords} | ${valueWords}`)
+      console.log(`  · packaged answers: ${scrollWords}`)
+      const scrolled = await resolved.driver.scrollToVisible!(app, untitled, signal())
+      const set = await resolved.driver.setValue!(app, untitled, 'x', signal())
+      check('through the driver the same sentence arrives as the note, one line, no command line', !scrolled.ok && scrolled.error.note === scrollWords && !set.ok && set.error.note === scrollWords && !scrollWords.includes('\n'), JSON.stringify([scrolled, set]))
+    }
   }
 }
 

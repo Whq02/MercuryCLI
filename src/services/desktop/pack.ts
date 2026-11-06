@@ -246,6 +246,18 @@ export interface DesktopAddonTree {
   webAccessibility?: boolean | null
 }
 
+export interface DesktopAddonScroll {
+  scrolled: boolean
+  frame?: DesktopAddonBounds | null
+  reason?: string | null
+}
+
+export interface DesktopAddonValue {
+  set: boolean
+  value?: string | null
+  reason?: string | null
+}
+
 export interface DesktopAddon {
   packVersion(): string
   recogniseText?(bytes: Buffer, page?: number): Promise<string>
@@ -258,6 +270,8 @@ export interface DesktopAddon {
   captureRegion?(display: number, bounds: DesktopAddonBounds): Promise<DesktopAddonCapture>
   focusedText?(pid: number): DesktopFocusedText | null
   readElement?(pid: number, element: DesktopTreeElement): DesktopFocusedText | null
+  scrollToVisible(pid: number, element: Partial<DesktopTreeElement>, wheel?: boolean): DesktopAddonScroll
+  setValue(pid: number, element: Partial<DesktopTreeElement>, text: string): DesktopAddonValue
   readClipboard?(): string
   findApplication?(name: string): DesktopAddonApplication
   activateApplication?(pid: number, identity: string): void
@@ -303,6 +317,8 @@ export const DESKTOP_ADDON_EXPORTS = [
   'held',
   'releaseAll',
   'cancel',
+  'scrollToVisible',
+  'setValue',
 ] as const
 
 type DesktopAddonLoad =

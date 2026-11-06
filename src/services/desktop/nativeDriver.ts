@@ -29,10 +29,12 @@ import {
   type DesktopPoint,
   type DesktopSessionKind,
   type DesktopFocusedText,
+  type DesktopScrollReceipt,
   type DesktopTree,
   type DesktopTreeElement,
   type DesktopTreeLimits,
   type DesktopTypeOptions,
+  type DesktopValueReceipt,
 } from './driver.js'
 import {
   DESKTOP_BUILD_COMMAND,
@@ -45,7 +47,9 @@ import {
   type DesktopAddonApplication,
   type DesktopAddonCapture,
   type DesktopAddonPermissions,
+  type DesktopAddonScroll,
   type DesktopAddonTree,
+  type DesktopAddonValue,
 } from './pack.js'
 
 type DesktopDriverLoad =
@@ -73,6 +77,15 @@ const DESKTOP_TYPE_GAP_CAP_MS = 1_000
 const ABORTED_PREFIX = 'aborted'
 const TREE_SUBPROCESS_TIMEOUT_MS = 12_000
 const TREE_SUBPROCESS_BUFFER = 16 * 1024 * 1024
+type DesktopQuery = 'readElement' | 'readClipboard' | 'findApplication' | 'activateApplication' | 'scrollToVisible' | 'setValue'
+const QUERY_PLATFORMS: Record<DesktopQuery, readonly string[]> = {
+  readElement: ['darwin'],
+  readClipboard: ['darwin'],
+  findApplication: ['darwin'],
+  activateApplication: ['darwin'],
+  scrollToVisible: ['darwin', 'win32'],
+  setValue: ['darwin', 'win32'],
+}
 
 export function desktopGrantWords(platform: string = process.platform): string {
   if (platform === 'darwin') return 'allow your terminal application under System Settings → Privacy & Security → Screen Recording and → Accessibility, then restart the terminal application'
@@ -95,6 +108,7 @@ function classifyThrown(error: unknown): DesktopError {
   if (head.startsWith('no such')) return { kind: 'input', note }
   if (head.startsWith('no display')) return { kind: 'display', note }
   if (head.startsWith('unsupported') || head.startsWith('no desktop session')) return { kind: 'session', note, remedy: desktopGrantWords() }
+  if (head.includes('unsupported on this platform')) return { kind: 'unavailable', note }
   if (head.startsWith('screen capture is not granted') || head.startsWith('input control is not granted')) return { kind: 'permission', note, remedy: desktopGrantWords() }
   return { kind: 'defect', note }
 }
@@ -161,6 +175,14 @@ function pngSigned(png: unknown): png is Uint8Array {
 function bridgedElement(element: DesktopTreeElement): Record<string, unknown> {
   return Object.fromEntries(Object.entries(element).filter(([, value]) => value !== null))
 }
+
+function boundsOf(raw: unknown): DesktopBounds | null {
+  if (raw === null || typeof raw !== 'object') return null
+  const b = raw as Record<string, unknown>
+  return [b.x, b.y, b.width, b.height].every(n => typeof n === 'number' && Number.isFinite(n)) ? { x: b.x as number, y: b.y as number, width: b.width as number, height: b.height as number } : null
+}
+
+const noteOf = (reason: unknown): string | null => (typeof reason === 'string' && reason !== '' ? reason : null)
 
 type DesktopQueryAnswer = { value: unknown } | { error: string }
 
@@ -443,11 +465,12 @@ class NativeDesktopDriver implements DesktopDriver {
     } catch (error) { return fail(classifyThrown(error)) }
   }
 
-  private async queryDesktop<T>(method: 'readElement' | 'readClipboard' | 'findApplication' | 'activateApplication', args: unknown[], signal: AbortSignal, needsInput = false): Promise<DesktopAnswer<T>> {
+  private async queryDesktop<T>(method: DesktopQuery, args: unknown[], signal: AbortSignal, needsInput = false): Promise<DesktopAnswer<T>> {
     const closed = this.closedRefusal<T>()
     if (closed) return closed
     if (signal.aborted) return desktopAbortedAnswer()
-    if (process.platform !== 'darwin' || !this.addon[method]) return fail({ kind: 'unavailable', note: `${method} needs the macOS desktop pack's ${method} export — rebuild it: ${DESKTOP_BUILD_COMMAND}` })
+    if (!QUERY_PLATFORMS[method].includes(process.platform)) return fail({ kind: 'unavailable', note: `${method} is unsupported on ${process.platform} in this release` })
+    if (!this.addon[method]) return fail({ kind: 'unavailable', note: `${method} needs the desktop pack's ${method} export — rebuild it: ${DESKTOP_BUILD_COMMAND}` })
     const permissions = this.readPermissions()
     if (!permissions.ok) return fail(permissions.error)
     const refusal = needsInput ? inputRefusal(permissions.value) : sessionRefusal(permissions.value)
@@ -477,6 +500,25 @@ class NativeDesktopDriver implements DesktopDriver {
     const answer = await this.queryDesktop<DesktopFocusedText | null>('readElement', [app.pid, bridgedElement(element)], signal, true)
     if (answer.ok && answer.value !== null && (typeof answer.value.text !== 'string' || typeof answer.value.role !== 'string')) return fail(contractDefect('read element', 'invalid text or role'))
     return answer
+  }
+
+  async scrollToVisible(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopScrollReceipt>> {
+    if (!app.pid || !Number.isInteger(app.pid)) return fail({ kind: 'input', note: `${app.name} has no process id` })
+    const answer = await this.queryDesktop<DesktopAddonScroll | null>('scrollToVisible', [app.pid, bridgedElement(element), true], signal, true)
+    if (!answer.ok) return answer
+    const raw = answer.value
+    if (!raw || typeof raw.scrolled !== 'boolean') return fail(contractDefect('scroll', JSON.stringify(raw)))
+    return { ok: true, value: { scrolled: raw.scrolled, frame: boundsOf(raw.frame), note: noteOf(raw.reason) } }
+  }
+
+  async setValue(app: DesktopApplication, element: DesktopTreeElement, text: string, signal: AbortSignal): Promise<DesktopAnswer<DesktopValueReceipt>> {
+    if (!app.pid || !Number.isInteger(app.pid)) return fail({ kind: 'input', note: `${app.name} has no process id` })
+    if (typeof text !== 'string') return fail({ kind: 'input', note: 'the value to set must be a string' })
+    const answer = await this.queryDesktop<DesktopAddonValue | null>('setValue', [app.pid, bridgedElement(element), text], signal, true)
+    if (!answer.ok) return answer
+    const raw = answer.value
+    if (!raw || typeof raw.set !== 'boolean') return fail(contractDefect('value', JSON.stringify(raw)))
+    return { ok: true, value: { set: raw.set, value: typeof raw.value === 'string' && raw.value !== '' ? raw.value : null, note: noteOf(raw.reason) } }
   }
 
   async readClipboard(signal: AbortSignal): Promise<DesktopAnswer<string>> {

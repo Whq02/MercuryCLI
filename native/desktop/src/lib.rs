@@ -47,6 +47,10 @@ pub const TYPE_GAP_CAP_MS: u32 = 1000;
 pub const ABORTED: &str = "aborted";
 pub const TREE_BUDGET_MS: u64 = 6000;
 pub const TREE_VALUE_CHARS: usize = 300;
+pub const ELEMENT_NOT_UNIQUE: &str = "the element is no longer unique in a complete window tree — read tree again";
+pub const SCROLL_UNSUPPORTED: &str = "the element does not scroll into view through the accessibility API — scroll with the wheel instead";
+pub const VALUE_UNSUPPORTED: &str = "the element does not accept a value through the accessibility API — type into it instead";
+pub const SECURE_NOT_READ_BACK: &str = "a secure field is not read back";
 
 #[napi(object)]
 #[derive(Clone)]
@@ -440,6 +444,32 @@ pub struct ElementText {
 pub fn read_element(pid: u32, element: TreeElement) -> Result<Option<ElementText>> {
     input_preflight().map_err(reason)?;
     imp::read_element(pid as i32, &element).map_err(reason)
+}
+
+#[napi(object)]
+pub struct ScrollAnswer {
+    pub scrolled: bool,
+    pub frame: Option<BoundsRecord>,
+    pub reason: Option<String>,
+}
+
+#[napi(object)]
+pub struct ValueAnswer {
+    pub set: bool,
+    pub value: Option<String>,
+    pub reason: Option<String>,
+}
+
+#[napi]
+pub fn scroll_to_visible(pid: u32, element: TreeElement, wheel: Option<bool>) -> Result<ScrollAnswer> {
+    input_preflight().map_err(reason)?;
+    imp::scroll_to_visible(pid as i32, &element, wheel.unwrap_or(false)).map_err(reason)
+}
+
+#[napi]
+pub fn set_value(pid: u32, element: TreeElement, text: String) -> Result<ValueAnswer> {
+    input_preflight().map_err(reason)?;
+    imp::set_value(pid as i32, &element, &text).map_err(reason)
 }
 
 #[cfg(target_os = "macos")]

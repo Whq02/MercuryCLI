@@ -52,6 +52,7 @@ function stubPack(body: string): string {
     '  cursor: () => ({ x: 720, y: 450, display: 0, reason: null }),',
     '  mouseMove: () => {}, mouseDown: () => {}, mouseUp: () => {}, click: () => {}, drag: async () => {}, scroll: () => {}, keyTap: () => {}, keyDown: () => {}, keyUp: () => {}, typeText: async () => {},',
     '  held: () => ({ buttons: [], keys: [] }), releaseAll: () => ({ buttons: [], keys: [] }), cancel: () => {},',
+    "  scrollToVisible: () => ({ scrolled: false, frame: null, reason: 'fixture: no scroll' }), setValue: () => ({ set: false, value: null, reason: 'fixture: no value' }),",
     `  ${body},`,
     '}',
     'module.exports = answers',
