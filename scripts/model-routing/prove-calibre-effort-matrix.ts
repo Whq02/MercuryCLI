@@ -132,6 +132,10 @@ function clearEffortEnv(): void {
   const pinned = effort.resolveEffortTruth('gpt-5.6-sol', 'max')
   check("env=medium beats the session value on the GPT wire (was: env never consulted)", pinned.wire === 'medium' && pinned.requestedSource === 'env')
   check('env=medium reaches the wire request projection', effort.resolveWireRequestedEffort('gpt-5.6-sol', 'max') === 'medium')
+  const floor = effort.resolveEffortTruth('gpt-5.6-sol', 'low', { pinned: true })
+  check("env=medium yields to a PINNED low (a utility call at its floor: the dial governs the turn, never a pinned side call)", floor.wire === 'low' && floor.requestedSource === 'pinned' && effort.resolveWireRequestedEffort('gpt-5.6-sol', 'low', { pinned: true }) === 'low')
+  const anthropicFloor = effort.resolveEffortTruth('claude-opus-4-8', 'low', { pinned: true })
+  check('env=medium yields to a PINNED low on Anthropic too (applied low, source pinned)', anthropicFloor.applied === 'low' && anthropicFloor.requestedSource === 'pinned' && effort.resolveAppliedEffort('claude-opus-4-8', 'low', { pinned: true }) === 'low')
   clearEffortEnv()
 }
 
@@ -239,13 +243,13 @@ function clearEffortEnv(): void {
 {
   console.log('\n— 8 · wire consumption pins —')
   const openaiSrc = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
-  check('openaiCallModel requests through resolveWireRequestedEffort (env supremacy + auto/unset)', openaiSrc.includes('resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })'))
+  check('openaiCallModel requests through resolveWireRequestedEffort with the agent id and the pin (env supremacy and auto/unset for an unpinned turn; a pinned side call outranks the env)', openaiSrc.includes('resolveWireRequestedEffort(modelId, effortValue, effortContext)') && openaiSrc.includes('const effortContext = { agentId: options.agentId, pinned: options.effortPinned === true }'))
   check('the adjustment note stays a VISIBLE settlement note', openaiSrc.includes("profile.source === 'unsupported-fallback' && profile.adjustedFrom"))
   const zaiSrc = readFileSync(join(ROOT, 'src/services/providers/zai/zaiCallModel.ts'), 'utf8')
-  check('zaiCallModel requests through resolveWireRequestedEffort', zaiSrc.includes('resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })'))
+  check('zaiCallModel requests through resolveWireRequestedEffort with the agent id and the pin', zaiSrc.includes('resolveWireRequestedEffort(modelId, options.effortValue, effortContext)') && zaiSrc.includes('const effortContext = { agentId: options.agentId, pinned: options.effortPinned === true }'))
   check('zai vocabulary rides the shared glmPins module', zaiSrc.includes("from './glmPins.js'"))
   const streamSrc = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
-  check('the Anthropic wire resolves through resolveAppliedEffort (unchanged)', streamSrc.includes('resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId })'))
+  check('the Anthropic wire resolves through resolveAppliedEffort with the agent id and the pin, and a pinned effort rides even on a side question', streamSrc.includes('resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId, pinned: effortPinned })') && streamSrc.includes('const effortRides = effortPinned || options.ridesSessionEffort !== false'))
   for (const [file, needle] of [
     ['src/components/mercury-ui/EffortChip.tsx', 'getDisplayedEffortLabel'],
     ['src/components/MercuryFrame.tsx', '<EffortChip model={model} />'],
