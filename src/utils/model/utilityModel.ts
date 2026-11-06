@@ -24,10 +24,21 @@ export function lowestServedEffort(vocabulary: readonly string[]): string | unde
   return ranked[0] ?? vocabulary[0]
 }
 
-export function utilityCallFor(model: string = getEngineModel()): UtilityCall {
+function servingLocalHelper(): string | undefined {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { helperModelId } = require('../../services/providers/local/tensorfoldHelper.js') as typeof import('../../services/providers/local/tensorfoldHelper.js')
+    return helperModelId({ start: false })
+  } catch {
+    return undefined
+  }
+}
+
+export function utilityCallFor(seatModel: string = getEngineModel()): UtilityCall {
+  const route = declaredRouteOf(seatModel)
+  const model = route === 'local' ? (servingLocalHelper() ?? seatModel) : seatModel
   const view = effortVocabularyFor(model)
   const floor = view.kind === 'ladder' || view.kind === 'provider' ? lowestServedEffort(view.vocabulary) : undefined
-  const route = declaredRouteOf(model)
   const thinkingConfig: ThinkingConfig = route === null || route === 'anthropic' ? { type: 'disabled' } : { type: 'adaptive' }
   return {
     model,
