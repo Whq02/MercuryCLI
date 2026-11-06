@@ -160,11 +160,15 @@ function keyProbeBody(model: string, betas: string[]): KeyProbeBody {
   const messages: MessageParam[] = [{ role: 'user', content: 'test' }]
   const { effortValue } = utilityCallFor(model)
   const effort = typeof effortValue === 'string' && isFirstPartyWireEffort(effortValue) && modelSupportsEffort(model) ? effortValue : undefined
-  const body: Record<string, unknown> = { model, max_tokens: 1, messages, metadata: getAPIMetadata(), ...getExtraBodyParams() }
+  const extraBody = getExtraBodyParams()
+  const outputConfig: Record<string, unknown> = { ...((extraBody.output_config as Record<string, unknown> | undefined) ?? {}) }
+  if (effort !== undefined && !('effort' in outputConfig)) outputConfig.effort = effort
+  const body: Record<string, unknown> = { model, max_tokens: 1, messages, metadata: getAPIMetadata() }
   if (modelSupportsTemperature(model)) body.temperature = 1
   if (betas.length) body.betas = betas
   if (!modelThinkingAlwaysOn(model)) body.thinking = { type: 'disabled' }
-  if (effort !== undefined) body.output_config = { effort }
+  Object.assign(body, extraBody)
+  if (Object.keys(outputConfig).length > 0) body.output_config = outputConfig
   return body as unknown as KeyProbeBody
 }
 
