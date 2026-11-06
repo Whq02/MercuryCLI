@@ -15,7 +15,7 @@ import {
 } from '../services/run/continuationLatch.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
 import { declareLawfulPrefixChange } from '../services/providers/lawfulPrefixChange.js'
-import { compileGoal, goalContract, goalWords, readItemisedClose, type GoalContract, type GoalStatement } from '../services/mission/goal.js'
+import { compileGoal, goalWords, readItemisedClose, type GoalStatement } from '../services/mission/goal.js'
 import {
   GOAL_CHECK_TIMEOUT_MS,
   judgeGoal,
@@ -60,7 +60,6 @@ export interface MissionPause {
 export interface ActiveMission {
   condition: string
   goal: GoalStatement
-  contract: GoalContract
   iterations: number
   idleTurns: number
   lastReason?: string
@@ -292,12 +291,17 @@ export function closingAsksOperator(closing: string): boolean {
   return /[?？]['"”’)*_~\]]*\s*$/.test(closingQuestion(closing))
 }
 
+function boundsToolWindow(row: Message & { toolUseResult?: unknown }): boolean {
+  if (row.type !== 'user' || row.toolUseResult) return false
+  if (!row.isMeta) return true
+  return textOf(row).startsWith(MISSION_HOLD_HEAD)
+}
+
 export function toolCallsSinceLastStop(messages: Message[]): string[] {
-  const loose = messages as ReadonlyArray<{ type?: string; toolUseResult?: unknown; message?: { content?: unknown } }>
   const names: string[] = []
-  for (let i = loose.length - 1; i >= 0; i--) {
-    const m = loose[i]!
-    if (m.type === 'user' && !m.toolUseResult) break
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i]! as Message & { toolUseResult?: unknown }
+    if (boundsToolWindow(m)) break
     if (m.type !== 'assistant' || !Array.isArray(m.message?.content)) continue
     for (const block of m.message.content as Array<{ type?: string; name?: string }>) if (block?.type === 'tool_use') names.push(block.name ?? 'tool')
   }
@@ -442,11 +446,9 @@ export function setActiveMission(
   }
 
   const setAt = options?.setAt !== undefined && Number.isFinite(options.setAt) ? options.setAt : Date.now()
-  const contract = goalContract(condition)
   const record: ActiveMission = {
     condition,
     goal: compileGoal(condition),
-    contract,
     iterations: 0,
     idleTurns: 0,
     setAt,
@@ -465,17 +467,15 @@ export function setActiveMission(
         resumeMission(sessionId, mission, 'the operator spoke')
       }
       const evidence = gatherGoalEvidence(messages, mission)
-      const verdict: GoalVerdict =
-        mission.contract.feasibility === 'unattainable-now' && !evidence.claimedMet
-          ? { kind: 'impossible', confidence: 1, reason: mission.contract.evidence ?? 'the goal cannot be reached as stated', road: 'compile' }
-          : await judgeGoal(mission.goal, evidence, { ...(options?.judge === undefined ? {} : { judge: options.judge }), signal })
+      const verdict = await judgeGoal(mission.goal, evidence, { ...(options?.judge === undefined ? {} : { judge: options.judge }), signal })
       if (missionsBySession.get(sessionId) !== mission) {
         logForDebugging(`[mission] the verdict for session ${sessionId} arrived after the record was replaced or cleared; it is discarded`)
         return { hold: false }
       }
       mission.verdict = verdict
+      mission.iterations += 1
       if (verdict.kind === 'met') {
-        const outcome: MissionOutcome = { reason: verdict.reason, metAt: new Date().toISOString(), turns: mission.iterations + 1 }
+        const outcome: MissionOutcome = { reason: verdict.reason, metAt: new Date().toISOString(), turns: mission.iterations }
         mission.met = true
         mission.closed = 'met'
         mission.outcome = outcome
@@ -499,7 +499,6 @@ export function setActiveMission(
         return { hold: false, note: idleNote() }
       }
       claimContinuation(processMainOwner(), turnBoundaryIndex(messages), messages.length)
-      mission.iterations += 1
       mission.lastReason = `not yet met (check ${mission.iterations}) — ${verdict.reason}`
       persistCard(sessionId, mission, 'armed')
       return { hold: true, words: holdWords(mission, verdict) }

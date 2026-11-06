@@ -5,13 +5,6 @@ export interface GoalStatement {
   constraints: string[]
 }
 
-export type GoalFeasibility = 'attainable' | 'unattainable-now'
-
-export interface GoalContract {
-  feasibility: GoalFeasibility
-  evidence?: string
-}
-
 const SEGMENT_BREAK = /\s*(?:\n|;|\s[—–]\s|\s--\s)\s*/
 const TRAILING_CONSTRAINT = /,\s+((?:without|while|never|but|keeping|only|not)\b.*)$/i
 
@@ -62,15 +55,4 @@ export function readItemisedClose(closing: string, goal: GoalStatement): CloseRe
     if (!found.has(n)) return { met: false, reason: `criterion ${n} has no line in the close (${criteria[n - 1]})` }
   }
   return { met: true }
-}
-
-export function goalContract(condition: string): GoalContract {
-  const text = condition.trim()
-  if (/\bno observable\b|\bwithout (any )?observable\b|\bcannot be (checked|observed|verified)\b/i.test(text)) {
-    return { feasibility: 'unattainable-now', evidence: 'the goal declares itself unobservable' }
-  }
-  if (/simultaneously[^.]*\b(enabled and disabled|disabled and enabled|on and off|true and false|present and absent)\b/i.test(text)) {
-    return { feasibility: 'unattainable-now', evidence: 'the goal demands mutually exclusive states at once' }
-  }
-  return { feasibility: 'attainable' }
 }

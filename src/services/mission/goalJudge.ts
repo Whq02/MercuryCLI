@@ -24,7 +24,9 @@ export const MISSION_JUDGE_MARK = "You judge whether a session's standing missio
 const CLOSING_CLIP = 4000
 
 export type GoalVerdictKind = 'met' | 'not yet' | 'impossible'
-export type GoalJudgeRoad = 'model' | 'jev' | 'claim' | 'compile'
+export type GoalJudgeRoad = 'model' | 'jev' | 'claim'
+export const JUDGE_UNREADABLE = 'the judge gave no readable verdict'
+export const JUDGE_UNREACHABLE = 'the judge could not be reached'
 
 export interface GoalEvidence {
   closing: string
@@ -35,6 +37,12 @@ export interface GoalEvidence {
   toolNames: string[]
   verification: { state: string; detail: string } | null
   checks: number
+}
+
+export function toolTally(names: readonly string[]): string {
+  const counts = new Map<string, number>()
+  for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1)
+  return [...counts].map(([name, count]) => (count === 1 ? name : `${name} ×${count}`)).join(', ')
 }
 
 export interface GoalVerdict {
@@ -54,7 +62,7 @@ const GOAL_QUESTION: JevChoiceQuestion = {
     met: 'the evidence shows the end state holds within the constraints',
     open: 'the end state does not hold yet, and the work can go on from here',
     ambiguous: 'the goal admits more than one reading, or names no state the evidence could show, so whether it is met cannot be judged',
-    unattainable: "the end state cannot be reached from here without the operator: a contradiction, something outside the session's reach, or turns that change nothing",
+    unattainable: "the end state cannot be reached from here without the operator: a contradiction, or something outside the session's reach",
   },
 }
 
@@ -77,7 +85,7 @@ function verificationWords(evidence: GoalEvidence): string {
 
 function toolWords(evidence: GoalEvidence): string {
   if (evidence.toolCalls === 0) return 'no tool call this turn'
-  return `${evidence.toolCalls} tool call(s) this turn: ${evidence.toolNames.join(', ')}`
+  return `${evidence.toolCalls} tool call(s) this turn: ${toolTally(evidence.toolNames)}`
 }
 
 function clippedClosing(evidence: GoalEvidence): string {
@@ -110,23 +118,27 @@ export function judgePrompt(goal: GoalStatement, evidence: GoalEvidence): { syst
 }
 
 export function readJudgeAnswer(text: string): { kind: GoalVerdictKind; reason: string } | null {
-  const start = text.indexOf('{')
-  const end = text.lastIndexOf('}')
-  if (start === -1 || end <= start) return null
   let parsed: unknown
   try {
-    parsed = JSON.parse(text.slice(start, end + 1))
+    parsed = JSON.parse(text.trim())
   } catch {
     return null
   }
-  if (typeof parsed !== 'object' || parsed === null) return null
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
   const verdict = (parsed as { verdict?: unknown }).verdict
   const reason = (parsed as { reason?: unknown }).reason
   if (verdict !== 'met' && verdict !== 'not yet' && verdict !== 'impossible') return null
-  return { kind: verdict, reason: typeof reason === 'string' && reason.trim() !== '' ? reason.trim().split('\n')[0]! : 'no reason given' }
+  if (typeof reason !== 'string' || reason.trim() === '' || reason.includes('\n')) return null
+  return { kind: verdict, reason: reason.trim() }
 }
 
-function modelRoadOpen(model: string): boolean {
+export function verdictOfAnswer(text: string): GoalVerdict {
+  const answer = readJudgeAnswer(text)
+  if (answer === null) return { kind: 'not yet', confidence: 0, reason: JUDGE_UNREADABLE, road: 'model' }
+  return { kind: answer.kind, confidence: 1, reason: answer.reason, road: 'model' }
+}
+
+export function modelRoadOpen(model: string): boolean {
   const route = declaredRouteOf(model)
   return route !== null && route !== 'anthropic' ? true : hasFirstPartyCredential()
 }
@@ -165,14 +177,12 @@ export const judgeWithModel: GoalJudge = async (goal, evidence, signal) => {
     })
     if (settled.isApiErrorMessage === true) {
       logForDebugging(`[mission] the judge call failed: ${assistantText(settled.message.content).slice(0, 200)}`)
-      return null
+      return { kind: 'not yet', confidence: 0, reason: JUDGE_UNREACHABLE, road: 'model' }
     }
-    const answer = readJudgeAnswer(assistantText(settled.message.content))
-    if (answer === null) return { kind: 'not yet', confidence: 0, reason: 'the judge gave no readable verdict', road: 'model' }
-    return { kind: answer.kind, confidence: 1, reason: answer.reason, road: 'model' }
+    return verdictOfAnswer(assistantText(settled.message.content))
   } catch (error) {
     logForDebugging(`[mission] the judge call threw: ${error instanceof Error ? error.message : String(error)}`)
-    return null
+    return { kind: 'not yet', confidence: 0, reason: JUDGE_UNREACHABLE, road: 'model' }
   } finally {
     combined.cleanup()
   }

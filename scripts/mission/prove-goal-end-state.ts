@@ -129,7 +129,7 @@ section("§3 a met end state ends on the judge's verdict over an itemised close,
   const live = getActiveMission(S)
   const card = readMissionCard(S)
   check('the mission reads met with the verdict as its reason', live?.met === true && (live?.lastReason ?? '').includes('the evidence shows the suite green'), j(live))
-  check('the card settled met at check 0', card?.state === 'met' && card?.iterations === 0 && card?.nextStep === null, j(card))
+  check('the card settled met at the first judged end: one counter of judged ends, the met end included, and the outcome names one turn', card?.state === 'met' && card?.iterations === 1 && card?.outcome?.turns === 1 && card?.nextStep === null, j(card))
   clearActiveMission(S)
   arm(S, GOAL, async () => verdict('met', 0.92, 'the evidence shows the suite green'))
   const unclosed = await stop(S, [user(`/goal ${GOAL}`), asst('the suite is green now; moving on')])
@@ -143,7 +143,7 @@ section("§3 a met end state ends on the judge's verdict over an itemised close,
   const file = join(dir, 'hello.txt')
   write(file, 'goodbye\n')
   const GOAL = `the file ${file} exists and contains the word hello`
-  check('the compile probe never meets a mission: a goal naming a file that already exists compiles as attainable', j(goalModule?.goalContract(GOAL)) === j({ feasibility: 'attainable' }), j(goalModule?.goalContract(GOAL)))
+  check('no compile probe stands: the goal module exports no contract, and a goal naming a file that already exists is judged like any other', goalModule !== null && !('goalContract' in goalModule), j(Object.keys(goalModule ?? {})))
   arm(S, GOAL, null)
   check('the card is armed at arming, not met, though the file stands with the wrong content', readMissionCard(S)?.state === 'armed' && getActiveMission(S)?.met !== true, j(readMissionCard(S)))
   const held = await stop(S, [user(`/goal ${GOAL}`), asst('the file is there already.')])
@@ -195,7 +195,7 @@ section("§3 a met end state ends on the judge's verdict over an itemised close,
     idle.push(meta('(hold)'), asst(`still thinking (${i})`))
   }
   const idleNotes = takeTurnNotes(S)
-  check(`the only brake is Claude Code's: ${IDLE} consecutive turn ends without a tool call pause the mission — ${IDLE - 1} holds, then paused, the goal still armed, the judge called at every end`, IDLE === 3 && trail.length === IDLE && trail.slice(0, IDLE - 1).every(line => line.startsWith(`Mission not completed: ${GOAL} — two proofs still red`)) && trail[IDLE - 1] === 'pass' && judged === IDLE && readMissionCard(S)?.state === 'paused' && (readMissionCard(S)?.nextStep ?? '').includes(`${IDLE} turns without a tool call`) && guardsEngaged(S).turn.some(id => id.startsWith('mission-')), j({ trail, judged, card: readMissionCard(S) }))
+  check(`The only brake on the loop: ${IDLE} consecutive turn ends without a tool call pause the goal — ${IDLE - 1} holds, then paused, the goal still armed, the judge called at every end, the card counting ${IDLE} judged ends`, IDLE === 3 && trail.length === IDLE && trail.slice(0, IDLE - 1).every(line => line.startsWith(`Mission not completed: ${GOAL} — two proofs still red`)) && trail[IDLE - 1] === 'pass' && judged === IDLE && readMissionCard(S)?.state === 'paused' && readMissionCard(S)?.iterations === IDLE && (readMissionCard(S)?.nextStep ?? '').includes(`${IDLE} turns without a tool call`) && guardsEngaged(S).turn.some(id => id.startsWith('mission-')), j({ trail, judged, card: readMissionCard(S) }))
   check('the idle pause note says what happened and what resumes it', idleNotes.some(note => note.text === `mission paused after ${IDLE} turns without a tool call — your next message resumes it`), j(idleNotes))
   _resetContinuationLatchesForTesting()
   const resumedIdle = await stop(S, [...idle, user('go on'), asst('looking again')])
@@ -212,6 +212,29 @@ section("§3 a met end state ends on the judge's verdict over an itemised close,
   }
   check('a turn with any tool call never triggers the brake: six ends that each read a file are six holds, never a pause', workingHolds === 6 && readMissionCard(S)?.state === 'armed' && getActiveMission(S)?.paused === undefined, j({ workingHolds, card: readMissionCard(S) }))
   clearActiveMission(S)
+  arm(S, GOAL, async () => verdict('not yet', 0.8, 'two proofs still red'))
+  const mixed: unknown[] = [user(`/goal ${GOAL}`)]
+  const mixedTrail: boolean[] = []
+  const withTool = [false, false, true, false, false, false]
+  for (const tool of withTool) {
+    mixed.push(...(tool ? [asstTool('reading the red proof'), toolResult()] : []), asst('still thinking'))
+    const result = await stop(S, mixed)
+    mixedTrail.push(result.allowed)
+    if (result.allowed) break
+    mixed.push(meta(`Mission not completed: ${GOAL} — two proofs still red. Continue.`))
+  }
+  check('a tool call resets the count: tool-less, tool-less, Read, tool-less, tool-less, tool-less is five holds and then the pause', j(mixedTrail) === j([false, false, false, false, false, true]) && readMissionCard(S)?.state === 'paused', j({ mixedTrail, card: readMissionCard(S) }))
+  clearActiveMission(S)
+  const window = mission.toolCallsSinceLastStop([
+    user(`/goal ${GOAL}`),
+    asst('first'),
+    meta(`Mission not completed: ${GOAL} — two proofs still red. Continue.`),
+    asstTool('reading'),
+    toolResult(),
+    meta('(a correction the turn machine wrote after the tool result)'),
+    asst('done reading'),
+  ] as never)
+  check('the idle window is bounded by the previous judged stop, never by a meta row the turn machine wrote: [hold, Read + result, meta correction, text] counts one tool call', j(window) === j(['Read']), j(window))
 }
 
 section('§4 the Jev road: the verdict rides the existing judge road, counted in the ledger; closed, the claim stands')
@@ -352,11 +375,14 @@ section('§5 the pause: an impossible verdict pauses the mission with its reason
 }
 {
   const S = 'goal-contradiction'
-  const GOAL = 'ensure X is simultaneously enabled and disabled'
-  arm(S, GOAL, async () => verdict('not yet'))
+  const GOAL = 'ensure X is simultaneously enabled and disabled, with no observable regression'
+  let asked = 0
+  arm(S, GOAL, async () => {
+    asked += 1
+    return verdict('not yet', 0.9, 'nothing was changed yet')
+  })
   const first = await stop(S, [user(`/goal ${GOAL}`), asst('trying')])
-  const second = await stop(S, [user(`/goal ${GOAL}`), asst('trying'), meta('(a carried notice)'), asst('still trying')])
-  check('a goal that contradicts itself at compile is impossible: the first stop pauses with the compile reason, the same turn stays paused', first.allowed && (readMissionCard(S)?.nextStep ?? '').includes('the goal demands mutually exclusive states at once') && second.allowed && readMissionCard(S)?.state === 'paused', j({ first, second, card: readMissionCard(S) }))
+  check('no regex rules a goal impossible: contradiction or "observable" words in the goal change nothing, the judge is called and its verdict holds the turn', first.allowed === false && asked === 1 && first.words === `Mission not completed: ${GOAL} — nothing was changed yet. Continue.` && readMissionCard(S)?.state === 'armed', j({ first, asked, card: readMissionCard(S) }))
   clearActiveMission(S)
 }
 {
@@ -490,6 +516,28 @@ section('§8 the concourse paints no marker: the live tile\'s last line and the 
   writeFileSync(path, onlyMarker.map(e => JSON.stringify(entryToRecord(e as never, ctx as never))).join('\n') + '\n', 'utf8')
   const earlier = tailActivity({ sessionId: SID, workspaceId: WS })
   check('a text block that is only the completion line yields to the words before it', earlier?.kind === 'text' && earlier.label === 'all green, pushed.', j(earlier))
+}
+
+section("§9 the judge's answer is read strictly: one JSON object, a known verdict, a one-line reason — anything else is not yet")
+{
+  const read = judgeModule?.readJudgeAnswer
+  const verdictOf = judgeModule?.verdictOfAnswer
+  check('the judge module exposes the reader and the mapping', typeof read === 'function' && typeof verdictOf === 'function')
+  if (read !== undefined && verdictOf !== undefined) {
+    check('the three well-formed verdicts read as themselves with their reasons', j(read('{"verdict":"met","reason":"hello.txt holds hello"}')) === j({ kind: 'met', reason: 'hello.txt holds hello' }) && j(read(' {"verdict":"not yet","reason":"no file yet"} \n')) === j({ kind: 'not yet', reason: 'no file yet' }) && j(read('{"reason":"needs the operator","verdict":"impossible"}')) === j({ kind: 'impossible', reason: 'needs the operator' }))
+    const prose = 'Looks done. {"verdict":"met","reason":"all good"}'
+    const noReason = '{"verdict":"met"}'
+    const emptyReason = '{"verdict":"met","reason":"  "}'
+    const twoLines = '{"verdict":"met","reason":"first line\\nsecond line"}'
+    const unknown = '{"verdict":"maybe","reason":"who knows"}'
+    const notJson = 'met — the file is there'
+    const list = '[{"verdict":"met","reason":"x"}]'
+    check('a prose-wrapped object, a missing or empty reason, a two-line reason, an unknown verdict, plain prose and a list are unreadable', [prose, noReason, emptyReason, twoLines, unknown, notJson, list].every(text => read(text) === null), j([prose, noReason, emptyReason, twoLines, unknown, notJson, list].map(text => read(text))))
+    check("an unreadable answer maps to not yet with the reason 'the judge gave no readable verdict', never to met and never with an invented reason", [prose, noReason, unknown, notJson].every(text => j(verdictOf(text)) === j({ kind: 'not yet', confidence: 0, reason: judgeModule?.JUDGE_UNREADABLE, road: 'model' })) && verdictOf('{"verdict":"met","reason":"all criteria shown"}').kind === 'met', j(verdictOf(prose)))
+    const { readFileSync: readSource } = await import('node:fs')
+    const judge = readSource(join(import.meta.dir, '..', '..', 'src/services/mission/goalJudge.ts'), 'utf8')
+    check("an API error, a thrown call or the timeout is not the claim road: judgeWithModel answers not yet with 'the judge could not be reached', and null only when no model call can be made", (judge.match(/reason: JUDGE_UNREACHABLE/g) ?? []).length === 2 && /if \(!modelRoadOpen\(call\.model\)\) return null/.test(judge) && !/return null\n\s+\}\n\s+return verdictOfAnswer/.test(judge))
+  }
 }
 await standin.close()
 console.log('\n' + '═'.repeat(76))
