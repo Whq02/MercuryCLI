@@ -165,7 +165,7 @@ section('§2b the helper is its own process beside the session\'s server, starte
   const started: Array<Record<string, unknown>> = []
   const stopped: string[] = []
   let helperRecord: { repo: string; name: string; port: number; window: number; pid: number; startedAt: string } | undefined
-  helper.__pinHelperServeSeamForTest(async () => ({
+  helper.__pinHelperServeSeamForTest(() => ({
     start: async request => {
       started.push({ ...request })
       helperRecord = { repo: request.repo, name: request.name ?? 'x', port: helper2b.port, window: request.window, pid: 777, startedAt: '2026-11-05T00:00:01.000Z' }
@@ -206,10 +206,10 @@ section('§2b the helper is its own process beside the session\'s server, starte
   const request = started[0]
   check('the helper started once, with role helper, its own name, window, port and prompt cache', started.length === 1 && request?.role === 'helper' && request.name === 'qwen3.5-2b' && request.repo === helper.HELPER_2B_REPO && request.window === 32768 && request.promptCacheGib === 1 && typeof request.port === 'number', JSON.stringify(request))
   check('the session\'s 27B record is untouched (never stopped)', stopped.length === 0 && sessionRecord.port === session27b.port)
-  check('the helper\'s served record is its own', (await helper.helperServedRecord())?.name === 'qwen3.5-2b' && (await helper.helperServedRecord())?.port === helper2b.port)
+  check('the helper\'s served record is its own', helper.helperServedRecord()?.name === 'qwen3.5-2b' && helper.helperServedRecord()?.port === helper2b.port)
   check('after the start the helper answers the local seat\'s small jobs', hosts.helperModelState().port === helper2b.port && utility.utilityCallFor('local/qwen3.8-27b').model === 'local/qwen3.5-2b')
   await helper.stopHelperServing()
-  check('stopping the helper stops only the helper\'s name through its role', JSON.stringify(stopped) === JSON.stringify(['qwen3.5-2b']) && (await helper.helperServedRecord()) === undefined)
+  check('stopping the helper stops only the helper\'s name through its role', JSON.stringify(stopped) === JSON.stringify(['qwen3.5-2b']) && helper.helperServedRecord() === undefined)
   hosts.forgetTensorFoldPort(helper2b.port)
   await discovery.refreshLocalDiscovery({ force: true })
   process.env.MERCURY_MODEL = 'claude-opus-5-5'
@@ -271,7 +271,7 @@ const selectedLabel = (m: Mounted): string => ((m.lines().find(line => line.incl
 section('§3 the /config rows at 120x40: off → 2B → off, and the compaction row; stepping the row writes the setting and starts nothing')
 {
   const started: Array<Record<string, unknown>> = []
-  helper.__pinHelperServeSeamForTest(async () => ({
+  helper.__pinHelperServeSeamForTest(() => ({
     start: async request => {
       started.push({ ...request })
       return { repo: request.repo, name: request.name ?? 'x', port: helper2b.port, window: request.window, pid: 777, startedAt: '2026-11-05T00:00:01.000Z' }

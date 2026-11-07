@@ -119,7 +119,7 @@ section('§2 the seam: the helper a session starts ends when that session\'s own
   const started: Array<Record<string, unknown>> = []
   const stopped: string[] = []
   let record: { repo: string; name: string; port: number; window: number; pid: number; startedAt: string } | undefined
-  helper.__pinHelperServeSeamForTest(async () => ({
+  helper.__pinHelperServeSeamForTest(() => ({
     start: async request => {
       started.push({ ...request })
       record = { repo: request.repo, name: request.name ?? 'x', port: helper2b.port, window: request.window, pid: 777, startedAt: '2026-11-07T00:00:01.000Z' }
@@ -134,12 +134,12 @@ section('§2 the seam: the helper a session starts ends when that session\'s own
   helper.writeHelperModelSetting({ size: '2b' })
   await helper.ensureHelperServing()
   check('the helper started once through the seam: role helper, the 2B by name', started.length === 1 && started[0]?.role === 'helper' && started[0].name === 'qwen3.5-2b', JSON.stringify(started))
-  check('its own process is known by its port', helper.readHelperModelState().port === helper2b.port && (await helper.helperServedRecord())?.port === helper2b.port, JSON.stringify(helper.readHelperModelState()))
+  check('its own process is known by its port', helper.readHelperModelState().port === helper2b.port && helper.helperServedRecord()?.port === helper2b.port, JSON.stringify(helper.readHelperModelState()))
   await lifecycle.disposeOwner(owner)
   await quiet(100)
   check('disposing the owner stops the helper: the seam\'s stop called once with the helper\'s name (red on the base: nothing stops)', JSON.stringify(stopped) === JSON.stringify(['qwen3.5-2b']), JSON.stringify(stopped))
   await discovery.refreshLocalDiscovery({ force: true })
-  check('helperProcess is cleared: no port in the state, no served record', helper.readHelperModelState().port === undefined && (await helper.helperServedRecord()) === undefined, JSON.stringify(helper.readHelperModelState()))
+  check('helperProcess is cleared: no port in the state, no served record', helper.readHelperModelState().port === undefined && helper.helperServedRecord() === undefined, JSON.stringify(helper.readHelperModelState()))
   check('the session role saw no stop', !stopped.some(name => name === 'qwen3.8-27b'))
   helper.__pinHelperServeSeamForTest(undefined)
   helper.writeHelperModelSetting({ size: 'off' })
@@ -163,6 +163,56 @@ section('§3 the service manager: a session-lifecycle helper owned by the sessio
   await manager.stopService(HOME, 'tensorfold-helper')
   await manager.stopService(HOME, 'tensorfold')
   check('the main slot stops only when asked', !alive(mainPid) && manager.readRecord(HOME, 'tensorfold')?.state === 'stopped')
+}
+
+section('§4 the hosts file is never written for the helper: a start leaves local-setup/tensorfold-hosts.json byte-identical, discovery probes the helper\'s port from its own record, a second session finds it there, a stop removes nothing because nothing was added')
+{
+  helper.__resetHelperForTest()
+  const started: Array<Record<string, unknown>> = []
+  const stopped: string[] = []
+  let record: { repo: string; name: string; port: number; window: number; pid: number; startedAt: string } | undefined
+  helper.__pinHelperServeSeamForTest(() => ({
+    start: async request => {
+      started.push({ ...request })
+      record = { repo: request.repo, name: request.name ?? 'x', port: helper2b.port, window: request.window, pid: 777, startedAt: '2026-11-07T00:00:02.000Z' }
+      return record
+    },
+    stop: async name => {
+      stopped.push(name)
+      record = undefined
+    },
+    served: () => (record === undefined ? [] : [record]),
+  }))
+  hosts.forgetTensorFoldPort(helper2b.port)
+  hosts.rememberTensorFoldPort(session27b.port)
+  await discovery.refreshLocalDiscovery({ force: true })
+  const hostsFile = join(HOME, 'local-setup', 'tensorfold-hosts.json')
+  const before = readFileSync(hostsFile, 'utf8')
+  check('the owner\'s hosts file remembers the session server\'s port and nothing of the helper', JSON.stringify(hosts.tensorFoldPorts()) === JSON.stringify([session27b.port]) && !before.includes(String(helper2b.port)), before)
+  helper.writeHelperModelSetting({ size: '2b' })
+  await helper.ensureHelperServing()
+  check('the helper started once through the seam', started.length === 1 && helper.readHelperModelState().port === helper2b.port, JSON.stringify(started))
+  check('the hosts file is byte-identical after the start (red on the base: the helper\'s port is appended to ports)', readFileSync(hostsFile, 'utf8') === before, readFileSync(hostsFile, 'utf8'))
+  check('discovery probes the helper\'s port from the helper\'s own record, beside the remembered ports', discovery.localProbeTargets().some(target => target.kind === 'tensorfold' && target.root === helper2b.root) && discovery.localProbeTargets().some(target => target.root === session27b.root), JSON.stringify(discovery.localProbeTargets()))
+  check('the helper\'s model is in the catalogue on its own port', discovery.cachedLocalModels().some(model => model.id === 'qwen3.5-2b' && model.baseUrl === `${helper2b.root}/v1`), JSON.stringify(discovery.cachedLocalModels().map(model => [model.id, model.baseUrl])))
+  await helper.stopHelperServing()
+  check('the owning session\'s stop goes through the seam once', JSON.stringify(stopped) === JSON.stringify(['qwen3.5-2b']), JSON.stringify(stopped))
+  check('a stop removes nothing from the hosts file because nothing was added', readFileSync(hostsFile, 'utf8') === before && JSON.stringify(hosts.tensorFoldPorts()) === JSON.stringify([session27b.port]), readFileSync(hostsFile, 'utf8'))
+  await discovery.refreshLocalDiscovery({ force: true })
+  check('with the record gone discovery no longer probes the helper\'s port', !discovery.localProbeTargets().some(target => target.root === helper2b.root) && helper.readHelperModelState().port === undefined, JSON.stringify(discovery.localProbeTargets()))
+  await helper.ensureHelperServing()
+  check('the next job\'s ensureHelperServing starts it again', started.length === 2 && helper.readHelperModelState().port === helper2b.port, JSON.stringify(started))
+  helper.__resetHelperForTest()
+  await discovery.refreshLocalDiscovery({ force: true })
+  const readPort = typeof helper.readHelperPort === 'function' ? helper.readHelperPort() : undefined
+  const hostsPort = typeof hosts.helperPort === 'function' ? hosts.helperPort() : undefined
+  check('a second session with the setting on finds the helper through the record, no process of its own in hand: readHelperPort and the hosts seam read its port, discovery lists it', readPort === helper2b.port && hostsPort === helper2b.port && discovery.localProbeTargets().some(target => target.root === helper2b.root), JSON.stringify({ readPort, hostsPort }))
+  await helper.ensureHelperServing()
+  check('that session uses the serving helper: no third start, its port known, its model in the catalogue', started.length === 2 && helper.readHelperModelState().port === helper2b.port && discovery.cachedLocalModels().some(model => model.id === 'qwen3.5-2b' && model.baseUrl === `${helper2b.root}/v1`), JSON.stringify(started))
+  check('the hosts file is still byte-identical', readFileSync(hostsFile, 'utf8') === before)
+  helper.__pinHelperServeSeamForTest(undefined)
+  helper.__resetHelperForTest()
+  helper.writeHelperModelSetting({ size: 'off' })
 }
 
 for (const s of [helper2b.server, session27b.server]) s.close()

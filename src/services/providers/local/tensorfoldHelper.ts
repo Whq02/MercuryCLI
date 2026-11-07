@@ -15,7 +15,6 @@ import { LOCAL_MODEL_PREFIX, localRecordFor, localServerName } from './localCata
 import { cachedLocalModels, refreshLocalDiscovery, type LocalModelRecord } from './localDiscovery.js'
 import { ADAPTER_ENGINE_WORDS } from '../../tensorfold/adapter/identity.js'
 import { QWEN_2B_GGUF } from '../../tensorfold/adapter/models.js'
-import { forgetTensorFoldPort, rememberTensorFoldPort } from './tensorfoldHosts.js'
 
 export type HelperModelSetting = 'off' | HelperModelSize
 
@@ -291,20 +290,24 @@ export type HelperServeSeam = {
 
 export const HELPER_ROLE: TensorFoldServeRole = 'helper'
 
-async function defaultServeSeam(): Promise<HelperServeSeam> {
-  const serve = await import('../../tensorfold/serve.js')
-  const roleIo = { role: HELPER_ROLE } as unknown as Parameters<typeof serve.stopTensorFold>[1] & Parameters<typeof serve.servedTensorFold>[0]
+function defaultServeSeam(): HelperServeSeam {
+  const serve = require('../../tensorfold/serve.js') as typeof import('../../tensorfold/serve.js')
+  const roleIo = { role: HELPER_ROLE, forgetPort: () => undefined }
   return {
-    start: request => serve.startTensorFold(request, { owner: processMainOwner() }),
+    start: request => serve.startTensorFold(request, { owner: processMainOwner(), rememberPort: () => undefined }),
     stop: name => serve.stopTensorFold(name, roleIo),
     served: () => serve.servedTensorFold(roleIo),
   }
 }
 
-let serveSeam: (() => Promise<HelperServeSeam>) | undefined
+let serveSeam: (() => HelperServeSeam) | undefined
 
-export function __pinHelperServeSeamForTest(seam: (() => Promise<HelperServeSeam>) | undefined): void {
+export function __pinHelperServeSeamForTest(seam: (() => HelperServeSeam) | undefined): void {
   serveSeam = seam
+}
+
+function helperSeam(): HelperServeSeam {
+  return (serveSeam ?? defaultServeSeam)()
 }
 
 export function helper2bRequest(port: number): TensorFoldServeRequest {
@@ -312,20 +315,24 @@ export function helper2bRequest(port: number): TensorFoldServeRequest {
 }
 
 async function start2b(): Promise<void> {
-  const seam = await (serveSeam ?? defaultServeSeam)()
+  const seam = helperSeam()
   const port = await freePort()
   const served = await seam.start(helper2bRequest(port))
-  rememberTensorFoldPort(served.port)
   helperProcess = { size: '2b', port: served.port, modelId: `${LOCAL_MODEL_PREFIX}${served.name}` }
 }
 
-export async function helperServedRecord(): Promise<TensorFoldServed | undefined> {
+export function helperServedRecord(): TensorFoldServed | undefined {
   try {
-    const seam = await (serveSeam ?? defaultServeSeam)()
-    return seam.served().find(record => record.name === HELPER_2B_NAME)
+    return helperSeam().served().find(record => record.name === HELPER_2B_NAME)
   } catch {
     return undefined
   }
+}
+
+export function readHelperPort(): number | undefined {
+  if (helperProcess !== undefined) return helperProcess.size === '2b' ? helperProcess.port : undefined
+  if (readHelperModelSetting().size !== '2b') return undefined
+  return helperServedRecord()?.port
 }
 
 async function start4b(): Promise<void> {
@@ -368,11 +375,7 @@ export async function stopHelperServing(): Promise<void> {
   helperProcess = undefined
   if (running === undefined) return
   if (running.stop !== undefined) await running.stop().catch(() => undefined)
-  else {
-    const seam = await (serveSeam ?? defaultServeSeam)()
-    await seam.stop(HELPER_2B_NAME).catch(() => undefined)
-  }
-  forgetTensorFoldPort(running.port)
+  else await helperSeam().stop(HELPER_2B_NAME).catch(() => undefined)
 }
 
 export function __resetHelperForTest(): void {
