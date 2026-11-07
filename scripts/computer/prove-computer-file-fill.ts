@@ -45,6 +45,10 @@ const call = async (input: Record<string, unknown>) => resultOf(await ComputerTo
 const validate = async (input: Record<string, unknown>) => ComputerTool.validateInput!(input as never, context)
 const acts = (from: number) => driver.acts.slice(from).filter(a => a.act !== 'accessibilityTree' && a.act !== 'capture' && a.act !== 'releaseAll').map(a => a.act === 'keyTap' ? `keyTap ${[...(a.detail.modifiers as string[]), a.detail.key].join('+')}` : a.act)
 const upload = { role: 'AXButton', name: 'Upload File' }
+const hostPlatform = process.platform
+const asPlatform = (platform: NodeJS.Platform) => Object.defineProperty(process, 'platform', { value: platform, configurable: true })
+const goToChord = (platform: string) => (platform === 'darwin' ? 'keyTap super+shift+g,' : platform === 'win32' ? '' : 'keyTap control+l,')
+const selectAllChord = (platform: string) => (platform === 'darwin' ? 'keyTap super+a' : 'keyTap control+a')
 
 section('§1 file: one step through the native dialog, with words when the dialog never opened')
 {
@@ -75,9 +79,21 @@ section('§1 file: one step through the native dialog, with words when the dialo
     return { ...answer, value: { ...answer.value, elements: [...answer.value.elements, sheet] } }
   }
   let from = driver.acts.length
-  const uploaded = await call({ action: 'file', target: upload, path: resume, capture: false })
-  check('the upload goes click → dialog → go-to-folder chord → the path → Enter → Enter → dialog gone', uploaded.outcome === 'succeeded' && uploaded.result.includes('the dialog opened and closed') && uploaded.result.includes('resume.pdf') && acts(from).join(',') === 'click,keyTap super+shift+g,typeText,keyTap enter,keyTap enter', `${uploaded.result}\n${acts(from).join(',')}`)
-  check('the typed text is the path and nothing else', driver.acts.slice(from).filter(a => a.act === 'typeText').map(a => a.detail.text).join('|') === resume)
+  for (const platform of ['darwin', 'linux', 'win32'] as const) {
+    asPlatform(platform)
+    dialog = 'opens'
+    driver.acts.length = 0
+    from = driver.acts.length
+    const uploaded = await call({ action: 'file', target: upload, path: resume, capture: false })
+    check(`${platform}: the upload goes click → dialog → the platform's road to the path → Enter → Enter → dialog gone`, uploaded.outcome === 'succeeded' && uploaded.result.includes('the dialog opened and closed') && uploaded.result.includes('resume.pdf') && acts(from).join(',') === `click,${goToChord(platform)}typeText,keyTap enter,keyTap enter`, `${uploaded.result}\n${acts(from).join(',')}`)
+    check(`${platform}: the typed text is the path and nothing else`, driver.acts.slice(from).filter(a => a.act === 'typeText').map(a => a.detail.text).join('|') === resume)
+    dialog = 'one-enter'
+    driver.acts.length = 0
+    from = driver.acts.length
+    const oneEnter = await call({ action: 'file', target: upload, path: resume, capture: false })
+    check(`${platform}: a dialog that closes on the first Enter gets exactly one Enter, so no key lands on the page behind`, oneEnter.outcome === 'succeeded' && acts(from).join(',') === `click,${goToChord(platform)}typeText,keyTap enter`, `${oneEnter.result}\n${acts(from).join(',')}`)
+  }
+  asPlatform(hostPlatform)
   driver.acts.length = 0
   dialog = 'never'
   from = driver.acts.length
@@ -91,11 +107,6 @@ section('§1 file: one step through the native dialog, with words when the dialo
   from = driver.acts.length
   const stuck = await call({ action: 'file', target: upload, path: resume, capture: false })
   check('a dialog that stays open after the path fails with words naming it', stuck.outcome === 'failed' && stuck.result.includes('still open') && stuck.result.includes('resume.pdf'), stuck.result)
-  driver.acts.length = 0
-  dialog = 'one-enter'
-  from = driver.acts.length
-  const oneEnter = await call({ action: 'file', target: upload, path: resume, capture: false })
-  check('a dialog that closes on the first Enter gets exactly one Enter, so no key lands on the page behind', oneEnter.outcome === 'succeeded' && acts(from).join(',') === 'click,keyTap super+shift+g,typeText,keyTap enter', `${oneEnter.result}\n${acts(from).join(',')}`)
   driver.acts.length = 0
   dialog = 'unreadable'
   from = driver.acts.length
@@ -127,9 +138,13 @@ section('§2 fill: the value set through the accessibility API, keystrokes when 
   check('a text field takes its value without a click or a keystroke and reads it back', filled.outcome === 'succeeded' && filled.result.includes('value "Jane"') && acts(from).join(',') === 'setValue', `${filled.result}\n${acts(from).join(',')}`)
   const replaced = await call({ action: 'fill', target: { role: 'AXTextArea', name: 'Why us' }, text: 'A long answer\nwith two lines', capture: false })
   check('a text area is replaced, not appended to', replaced.outcome === 'succeeded' && replaced.result.includes('value "A long answer\\nwith two lines"'), replaced.result)
-  from = driver.acts.length
-  const typed = await call({ action: 'fill', target: { role: 'AXTextField', name: 'Legacy' }, text: 'typed in', capture: false })
-  check('an element that refuses a value is clicked, selected and typed into, and says so', typed.outcome === 'succeeded' && typed.result.includes('by keystrokes') && acts(from).join(',') === 'setValue,click,keyTap super+a,typeText', `${typed.result}\n${acts(from).join(',')}`)
+  for (const platform of ['darwin', 'linux'] as const) {
+    asPlatform(platform)
+    from = driver.acts.length
+    const typed = await call({ action: 'fill', target: { role: 'AXTextField', name: 'Legacy' }, text: `typed on ${platform}`, capture: false })
+    check(`${platform}: an element that refuses a value is clicked, selected with the platform's chord and typed into, says so and reads the typed value back`, typed.outcome === 'succeeded' && typed.result.includes('by keystrokes') && typed.result.includes(`value "typed on ${platform}"`) && acts(from).join(',') === `setValue,click,${selectAllChord(platform)},typeText`, `${typed.result}\n${acts(from).join(',')}`)
+  }
+  asPlatform(hostPlatform)
   const secret = await call({ action: 'fill', target: { role: 'AXSecureTextField', name: 'Password' }, text: 'hunter2', capture: false })
   check('a secure field is set and never read back', secret.outcome === 'succeeded' && secret.result.includes('value not read back') && secret.result.includes('secure field') && !secret.result.includes('hunter2'), secret.result)
   from = driver.acts.length
@@ -137,9 +152,13 @@ section('§2 fill: the value set through the accessibility API, keystrokes when 
   check('an edge-clamped field is refused with the scroll sentence before anything is set', clamped.outcome === 'failed' && clamped.result.includes('scroll it into view first') && acts(from).length === 0, clamped.result)
   const setValue = driver.setValue
   driver.setValue = undefined as never
-  from = driver.acts.length
-  const without = await call({ action: 'fill', target: { role: 'AXTextField', name: 'First Name' }, text: 'Janet', capture: false })
-  check('a driver without setValue takes the keystroke road and reads the value back', without.outcome === 'succeeded' && without.result.includes('by keystrokes') && without.result.includes('value "Jane"') && acts(from).join(',') === 'click,keyTap super+a,typeText', `${without.result}\n${acts(from).join(',')}`)
+  for (const platform of ['darwin', 'linux'] as const) {
+    asPlatform(platform)
+    from = driver.acts.length
+    const without = await call({ action: 'fill', target: { role: 'AXTextField', name: 'First Name' }, text: 'Janet', capture: false })
+    check(`${platform}: a driver without setValue takes the keystroke road with the platform's chord and reads the value back`, without.outcome === 'succeeded' && without.result.includes('by keystrokes') && without.result.includes('value "Janet"') && acts(from).join(',') === `click,${selectAllChord(platform)},typeText`, `${without.result}\n${acts(from).join(',')}`)
+  }
+  asPlatform(hostPlatform)
   driver.setValue = setValue
 }
 
@@ -148,8 +167,8 @@ section('§3 fields: the controls of a form with role, name and value, sized for
   const read = await call({ action: 'fields' })
   const rows = read.result.split('\n').filter(line => /^\[\d+\]/.test(line))
   check('fields lists every control once, flat, with its value', read.outcome === 'succeeded' && read.result.includes('fields: Browser — 7 controls') && rows.length === 7, read.result)
-  check('a text field carries the value fill set', rows.some(row => /^\[\d+\] AXTextField "First Name" "Jane"$/.test(row)), read.result)
-  check('an empty field reads as an empty value, not as missing', rows.some(row => /^\[\d+\] AXTextField "Legacy" ""$/.test(row)) && rows.some(row => /^\[\d+\] AXTextArea "Below the fold" ""$/.test(row)), read.result)
+  check('a text field carries the value fill set last, by keystrokes or by the API', rows.some(row => /^\[\d+\] AXTextField "First Name" "Janet"$/.test(row)) && rows.some(row => /^\[\d+\] AXTextField "Legacy" "typed on linux"$/.test(row)), read.result)
+  check('an empty field reads as an empty value, not as missing', rows.some(row => /^\[\d+\] AXTextArea "Below the fold" ""$/.test(row)), read.result)
   check('a secure field shows no value', rows.some(row => /^\[\d+\] AXSecureTextField "Password" \(secure\)$/.test(row)) && !read.result.includes('hunter2'), read.result)
   check('choice controls carry their state', rows.some(row => /^\[\d+\] AXCheckBox "Agree" "0"$/.test(row)) && rows.some(row => /^\[\d+\] AXPopUpButton "Country" "United Kingdom"$/.test(row)), read.result)
   check('buttons, static text and groups are not controls of the form', !read.result.includes('Upload File') && !read.result.includes('Tell us') && !read.result.includes('AXGroup'), read.result)

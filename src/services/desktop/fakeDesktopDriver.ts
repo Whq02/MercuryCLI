@@ -471,6 +471,7 @@ const pointError = (point: DesktopPoint): DesktopError | null =>
   isRecord(point) && finiteNumber(point.x) && finiteNumber(point.y) ? null : inputError(`a point needs finite x and y, not ${JSON.stringify(point)}`)
 const buttonError = (button: DesktopButton): DesktopError | null => (BUTTONS.includes(button) ? null : inputError(`no such button: ${String(button)}`))
 const keyError = (key: string): DesktopError | null => (isDesktopKey(key) ? null : inputError(`no such key: ${key}`))
+const selectAllModifier = (): DesktopModifier => (process.platform === 'darwin' ? 'super' : 'control')
 
 export class FakeDesktopDriver implements DesktopDriver {
   readonly kind = 'fake' as const
@@ -482,6 +483,8 @@ export class FakeDesktopDriver implements DesktopDriver {
   private captures = 0
   private heldButtons: DesktopButton[] = []
   private heldKeys: string[] = []
+  private typingInto: FakeTreeNode | null = null
+  private selectedAll = false
   private closed = false
 
   constructor(scene: FakeScene, log: string | null) {
@@ -711,6 +714,8 @@ export class FakeDesktopDriver implements DesktopDriver {
     if (count !== 1 && count !== 2 && count !== 3) return refusal(inputError(`a click count is 1, 2 or 3, not ${String(count)}`))
     return this.act('click', { at: { ...at }, button, count }, signal, () => {
       this.cursorAt = { ...at }
+      this.typingInto = sceneNodes(this.scene.tree).find(node => /^AX(TextField|TextArea|SearchField|ComboBox|SecureTextField)/.test(node.role) && node.frame !== undefined && node.frame !== null && inside(at, node.frame)) ?? null
+      this.selectedAll = false
       return { act: 'click', at: { ...at }, completedAt: Date.now() }
     })
   }
@@ -749,7 +754,10 @@ export class FakeDesktopDriver implements DesktopDriver {
     const problem = keyError(key)
     if (problem !== null) return refusal(problem)
     for (const modifier of modifiers) if (!MODIFIERS.includes(modifier)) return refusal(inputError(`no such modifier: ${String(modifier)}`))
-    return this.act('keyTap', { key, modifiers: [...modifiers] }, signal, () => ({ act: 'keyTap', at: null, completedAt: Date.now() }))
+    return this.act('keyTap', { key, modifiers: [...modifiers] }, signal, () => {
+      if (this.typingInto !== null && key === 'a' && modifiers.length === 1 && modifiers[0] === selectAllModifier()) this.selectedAll = true
+      return { act: 'keyTap', at: null, completedAt: Date.now() }
+    })
   }
 
   async keyDown(key: string, signal: AbortSignal): Promise<DesktopAnswer<DesktopActReceipt>> {
@@ -777,7 +785,13 @@ export class FakeDesktopDriver implements DesktopDriver {
       return answer(receipt)
     }
     const gapMs = options.gapMs ?? TYPE_GAP_DEFAULT_MS
-    return this.act('typeText', { text, gapMs }, signal, () => ({ act: 'type', at: null, completedAt: Date.now() }))
+    return this.act('typeText', { text, gapMs }, signal, () => {
+      if (this.typingInto !== null) {
+        this.typingInto.value = this.selectedAll ? text : `${isText(this.typingInto.value) ? this.typingInto.value : ''}${text}`
+        this.selectedAll = false
+      }
+      return { act: 'type', at: null, completedAt: Date.now() }
+    })
   }
 
   async held(): Promise<DesktopAnswer<DesktopHeld>> {
