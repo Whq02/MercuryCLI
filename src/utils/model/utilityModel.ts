@@ -29,7 +29,7 @@ function servingLocalHelper(): string | undefined {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { helperModelId } = require('../../services/providers/local/tensorfoldHelper.js') as typeof import('../../services/providers/local/tensorfoldHelper.js')
-    return helperModelId({ start: false })
+    return helperModelId()
   } catch {
     return undefined
   }
