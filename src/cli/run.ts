@@ -1351,6 +1351,7 @@ export async function runHeadless(
           ...(batchTail.length > 0 ? { batchTail } : {}),
           ...(initialNotices.length > 0 ? { initialNotices } : {}),
           isMeta: command.isMeta,
+          operatorPrompt: command.mode === 'prompt' && command.isMeta !== true,
           ...(command.origin !== undefined ? { origin: command.origin } : {}),
           ...(command.skipSlashCommands === true ? { skipSlashCommands: true } : {}),
           ...(command.mode === 'bash' ? { promptMode: 'bash' as const } : {}),

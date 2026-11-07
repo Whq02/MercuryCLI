@@ -71,6 +71,7 @@ type ProcessUserInputOptions = {
   skipSlashCommands?: boolean
   bridgeOrigin?: boolean
   isMeta?: boolean
+  operatorPrompt?: boolean
   origin?: MessageOrigin
   skipAttachments?: boolean
   isAlreadyProcessing?: boolean
@@ -343,7 +344,7 @@ async function processUserInputBase(
         [],
         messages,
         querySource,
-        { localSubmission: mode !== 'prompt', operatorPrompt: mode === 'prompt' },
+        { localSubmission: mode !== 'prompt', operatorPrompt: options.operatorPrompt === true },
       )) {
         attachmentMessages.push(attachment)
       }

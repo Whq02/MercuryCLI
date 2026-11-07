@@ -10,10 +10,11 @@ The model makes one only when you ask to see something ("show me",
 never on its own, never as a hedge, never to decorate an answer. Each sample is
 kept per session, versioned, and opens again whenever you like. Samples are off
 by default: the Boot Menu's `Samples` row or `MERCURY_SAMPLES=1` turns them on
-for new sessions ([the switch](#the-switch)). A message you send that says
-"sample" or "samples" reminds the model of this road and whether it is on in
-the session, so with Samples on the word reaches `sample()` and not a
-hand-written page.
+for new sessions ([the switch](#the-switch)). The first message you send in a
+session that says "sample" or "samples" reminds the model of this road and
+whether it is on, so with Samples on the word reaches `sample()` and not a
+hand-written page (once more after a compaction; a message typed while a
+turn runs waits for the next).
 
 ## Where a sample comes from
 

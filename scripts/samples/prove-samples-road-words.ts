@@ -79,7 +79,7 @@ console.log('[3] the Eval tool\'s roster words name the samples road when Sample
 console.log('[4] the docs and the Boot Menu row say what the word does, on and off')
 {
   const doc = readFileSync(join(ROOT, 'docs', 'SAMPLES.md'), 'utf8')
-  check('docs/SAMPLES.md says a message you send saying "sample" or "samples" reminds the model of the road and its state, and that with Samples on the word reaches sample()', doc.includes('A message you send that says\n"sample" or "samples" reminds the model of this road and whether it is on in\nthe session, so with Samples on the word reaches `sample()`'), doc.slice(0, 1200))
+  check('docs/SAMPLES.md says a message you send saying "sample" or "samples" reminds the model of the road and its state, and that with Samples on the word reaches sample()', doc.includes('The first message you send in a\nsession that says "sample" or "samples" reminds the model of this road and\nwhether it is on, so with Samples on the word reaches `sample()`'), doc.slice(0, 1200))
   check('the switch section says what off still does: the one note to the model', doc.includes('a message that says "sample" only tells the model\nthe switch is off and how it turns on'), doc.slice(doc.indexOf('## The switch'), doc.indexOf('## The switch') + 700))
   const menu = readFileSync(join(ROOT, 'src', 'substrate', 'startupMenu.ts'), 'utf8')
   check("the Boot Menu row's off words carry the one exception to 'identical to a build without samples'", menu.includes('identical to a build without samples, but for one note to the model, when a message says "sample", that Samples is off and how it turns on'), menu.slice(menu.indexOf('identical to a build'), menu.indexOf('identical to a build') + 200))
@@ -103,8 +103,10 @@ console.log('[5] through the real orchestrator: the operator\'s own prompt raise
   check('a skill or prompt-command expansion (no operatorPrompt mark) carries none', kinds(expansion).length === 0, JSON.stringify(expansion.map(row => row.type)))
   const again = await getAttachments(ASK, context, [], [createUserMessage({ content: ASK }), ...prompt.filter(row => row.type === 'samples_road').map(createAttachmentMessage)], undefined, { localSubmission: false, operatorPrompt: true })
   check('the next prompt with the word, with the reminder in the history, carries none', kinds(again).length === 0, JSON.stringify(again.map(row => row.type)))
+  const runner = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf8')
+  check("the runner marks the operator's own words — a prompt-mode command that is not meta — and nothing else (task notifications, the crew-board nudge and channel messages carry no mark)", runner.includes("operatorPrompt: command.mode === 'prompt' && command.isMeta !== true"))
   const source = readFileSync(join(ROOT, 'src', 'utils', 'processUserInput', 'processUserInput.ts'), 'utf8')
-  check('processUserInput marks its prompt-mode submissions as the operator\'s', source.includes("operatorPrompt: mode === 'prompt'"))
+  check('processUserInput passes the mark through to the attachments, never deriving it from the mode', source.includes('operatorPrompt: options.operatorPrompt === true') && !source.includes("operatorPrompt: mode === 'prompt'"))
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAIL`)

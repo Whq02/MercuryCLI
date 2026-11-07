@@ -146,6 +146,7 @@ export type ConversationConfig = {
 export type TurnOptions = {
   uuid?: string
   isMeta?: boolean
+  operatorPrompt?: boolean
   mode?: 'prompt' | 'bash'
   batchUuids?: string[]
   batchTail?: BatchedPrompt[]
@@ -613,6 +614,7 @@ export class Conversation {
       ...(options?.batchUuids !== undefined ? { batchUuids: options.batchUuids } : {}),
       ...(options?.batchTail !== undefined ? { batchTail: options.batchTail } : {}),
       isMeta: options?.isMeta,
+      ...(options?.operatorPrompt !== undefined ? { operatorPrompt: options.operatorPrompt } : {}),
       ...(options?.origin !== undefined ? { origin: options.origin } : {}),
       ...(options?.skipSlashCommands === true ? { skipSlashCommands: true } : {}),
       querySource: 'sdk',
@@ -1207,6 +1209,7 @@ export type AskOptions = Omit<ConversationConfig, 'readFileState' | 'initialMess
   batchTail?: BatchedPrompt[]
   initialNotices?: QueuedCommand[]
   promptMode?: 'prompt' | 'bash'
+  operatorPrompt?: boolean
   turn?: number
   mutableMessages?: Message[]
   getReadFileCache: () => FileStateCache
@@ -1214,7 +1217,7 @@ export type AskOptions = Omit<ConversationConfig, 'readFileState' | 'initialMess
 }
 
 export async function* ask(options: AskOptions): AsyncGenerator<RowDraft, void, unknown> {
-  const { prompt, promptUuid, isMeta, origin, skipSlashCommands, syntaxInput, batchUuids, batchTail, initialNotices, promptMode, turn, mutableMessages = [], getReadFileCache, setReadFileCache, ...config } = options
+  const { prompt, promptUuid, isMeta, operatorPrompt, origin, skipSlashCommands, syntaxInput, batchUuids, batchTail, initialNotices, promptMode, turn, mutableMessages = [], getReadFileCache, setReadFileCache, ...config } = options
   const conversation = new Conversation({
     ...config,
     initialMessages: mutableMessages,
@@ -1226,6 +1229,7 @@ export async function* ask(options: AskOptions): AsyncGenerator<RowDraft, void, 
       syntaxInput,
       uuid: promptUuid,
       isMeta,
+      ...(operatorPrompt !== undefined ? { operatorPrompt } : {}),
       ...(origin !== undefined ? { origin } : {}),
       ...(skipSlashCommands === true ? { skipSlashCommands: true } : {}),
       ...(promptMode !== undefined ? { mode: promptMode } : {}),
