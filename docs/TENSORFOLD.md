@@ -33,8 +33,9 @@ puts `TensorFold` first (`TensorFold — run <model> on this Mac, no account (/t
 or `TensorFold — install and run <model> on this Mac, no account (/tensorfold)`).
 In the panel that row opens, the first `↵` on a model row serves nothing and
 asks once (`first run: ↵ again downloads <size> and loads <model> (<size>)
-into memory · esc leaves this machine as it is`), so a keypress that lands
-before the list is read never starts a download; the second `↵` serves.
+into memory · esc leaves this machine as it is`), so one keypress that lands
+before the list is read starts nothing; the second `↵` serves, and the ask is
+gone once that panel closes or another sign-in is picked.
 Once you pick another provider, `/model` returns to recency order.
 
 When a cloud model is current, both groups open folded in `/model`:

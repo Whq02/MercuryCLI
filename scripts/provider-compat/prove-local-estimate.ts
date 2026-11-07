@@ -298,7 +298,7 @@ section('§3 the unreadable machine (red on the base): with no memory truth the 
   const bare = { ...r, modelMaxContext: undefined, contextWindow: undefined }
   const small = w.chooseLocalWindow(bare as never, 15_000, undefined, null)
   const big = w.chooseLocalWindow(bare as never, 100_000, undefined, null)
-  check('neither stated: twice the request rounded up to 16k, never under 64k — 15k ⇒ 65536 (the base floors at 32k), 100k ⇒ 212992', small.window === 65536 && big.window === 212992 && small.reason === 'req' && big.reason === 'req', `${small.window} · ${big.window}`)
+  check('neither stated: twice the request rounded up to 16k, never under 64k — 15k ⇒ 65536 (the base floors at 32k); 100k would double to 212992 and the ceiling gives 131072 (reason cap)', small.window === 65536 && big.window === 131072 && small.reason === 'req' && big.reason === 'cap', `${small.window} · ${big.window}`)
   check('the pure arithmetic: doubledRequestWindow(1k) = 65536, (62k) = 131072, (62k, max 32k) = 32768', w.doubledRequestWindow(1_000) === 65536 && w.doubledRequestWindow(62_000) === 131072 && w.doubledRequestWindow(62_000, 32768) === 32768)
   check('a user setting still wins over every fallback: 64k set ⇒ 64k', w.chooseLocalWindow(bare as never, 100_000, 65536, null).window === 65536)
 }

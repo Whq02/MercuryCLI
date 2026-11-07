@@ -42,9 +42,11 @@ async function waitFor(pred: () => boolean, ms: number, step = 25): Promise<bool
 const MODEL = FAKE_OLLAMA_MODEL
 const SECOND = 'qwen3.5:9b-q4_K_M'
 const THIRD = 'qwen3.5:4b-q4_K_M'
+const FOURTH = 'qwen3.5:2b-q4_K_M'
 const PERSISTED = `local/${MODEL}`
 const PERSISTED_SECOND = `local/${SECOND}`
 const PERSISTED_THIRD = `local/${THIRD}`
+const PERSISTED_FOURTH = `local/${FOURTH}`
 const TRAINED_MAX = 262_144
 const SERVER_KEEP_ALIVE_MS = 5 * 60_000
 
@@ -179,7 +181,7 @@ function wrapFixture(base: FakeOllama): FakeOllama {
   }
 }
 
-const fixture = wrapFixture(createFakeOllama({ pulled: [MODEL, SECOND, THIRD] }))
+const fixture = wrapFixture(createFakeOllama({ pulled: [MODEL, SECOND, THIRD, FOURTH] }))
 const served = await serveFakeOllama(fixture, 0)
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${served.root}`
 
@@ -450,7 +452,19 @@ section('8 · a conversation that already carries rows: a switch to a model that
   check('the switch back to the model that served this conversation skipped the warm (one debug line) and sent no chat', skipped && chats().length === chatsBeforeBack, `skipped ${String(warmModule?.localWarmFacts().skipped)}, chats +${chats().length - chatsBeforeBack}`)
   check('the keep-alive clock follows the served model regardless', warmModule?.localWarmFacts().clock === `ollama/${MODEL}`, String(warmModule?.localWarmFacts().clock))
   check('pure: a meta user row alone is not a conversation; a user or assistant row is', warmModule !== null && warmModule.conversationHasRows([createUserMessage({ content: 'x', isMeta: true }) as never]) === false && warmModule.conversationHasRows([createUserMessage({ content: 'x' }) as never]) === true)
+  const { compatDispatchModelId } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
+  const fourthId = compatDispatchModelId(PERSISTED_FOURTH)
+  history.push({ type: 'assistant', uuid: '00000000-0000-4000-8000-00000000a560', timestamp: new Date().toISOString(), message: { id: 'm2', type: 'message', role: 'assistant', model: fourthId, content: [{ type: 'text', text: 'an earlier answer from the fourth model, in a process that has since restarted', citations: null }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } })
+  check('pure: a conversation is served by the model whose assistant rows it carries, by the wire id the compat road writes', (warmModule as { conversationServedBy?: (rows: unknown, id: string) => boolean } | null)?.conversationServedBy?.(history, fourthId) === true && (warmModule as { conversationServedBy?: (rows: unknown, id: string) => boolean } | null)?.conversationServedBy?.(history, compatDispatchModelId(PERSISTED_THIRD)) === false, fourthId)
+  const skippedBeforeFourth = warmModule?.localWarmFacts().skipped ?? 0
+  const chatsBeforeFourth = chats().length
+  setEngineModelOverride(PERSISTED_FOURTH)
+  const skippedFourth = await waitFor(() => (warmModule?.localWarmFacts().skipped ?? 0) > skippedBeforeFourth, 3_000)
+  await sleep(300)
+  check('a resumed conversation (the served set of this process is empty, the rows name the model) gets NO warm on a switch to that model: its cache on the server stays whole', skippedFourth && chats().length === chatsBeforeFourth && !(warmModule?.localWarmFacts().served ?? []).includes(`ollama/${FOURTH}`), `skipped ${String(warmModule?.localWarmFacts().skipped)}, chats +${chats().length - chatsBeforeFourth}`)
   history.length = 0
+  setEngineModelOverride(PERSISTED)
+  await waitFor(() => warmModule?.localWarmFacts().clock === `ollama/${MODEL}`, 2_000)
 }
 
 section('9 · a warm that fails says nothing: the server goes away, the warm fails quietly, no touch follows')

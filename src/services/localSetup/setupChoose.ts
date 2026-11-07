@@ -2,6 +2,7 @@ import { isLocalModelId, localWireId } from '../providers/local/localCatalogue.j
 import { gbWords, gibWords, tokensWords, type KvGeometry } from '../localServer/localServerMemory.js'
 import { parseOllamaTags, type LocalServerTruth } from '../localServer/localServerTruth.js'
 import { fitLocalWindowOn } from '../localServer/localWindowFit.js'
+import { cappedLocalWindowFit } from '../providers/local/localWindow.js'
 import { num, readJson, rec, resolveSetupIo, str } from './setupIo.js'
 import { SETUP_CHOOSE_KEYS, SETUP_CURRENT_WORDS, SETUP_MODEL_LIBRARY, SETUP_MODEL_TAG, SETUP_SHOW_BOUND, SETUP_TESTED_WORDS, type DetectedServer, type SetupIo, type SetupModelChoice, type SetupModelRow, type SetupPullCandidate } from './setupTypes.js'
 
@@ -62,7 +63,7 @@ export function pullCandidateRows(truth: LocalServerTruth, listed: ReadonlySet<s
   const rows: SetupModelRow[] = []
   for (const candidate of candidates) {
     if (listed.has(candidate.tag)) continue
-    const fit = fitLocalWindowOn(truth, { name: candidate.tag, weightsBytes: candidate.sizeBytes, geometry: candidate.geometry, trainedMax: candidate.trainedMax }, slots, cacheType)
+    const fit = cappedLocalWindowFit(fitLocalWindowOn(truth, { name: candidate.tag, weightsBytes: candidate.sizeBytes, geometry: candidate.geometry, trainedMax: candidate.trainedMax }, slots, cacheType))
     const summary = { window: fit.window, fits: fit.fits }
     rows.push({ tag: candidate.tag, on: 'pull', words: pullRowWords(candidate, summary), sizeBytes: candidate.sizeBytes, trainedMax: candidate.trainedMax, fit: summary, ...(candidate.tested === true ? { tested: true } : {}) })
   }

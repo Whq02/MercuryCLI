@@ -43,7 +43,7 @@ import { refreshLocalDiscovery } from '../../services/providers/local/localDisco
 import { localServerProbingOff } from '../../services/localServer/localServerTruth.js'
 import { TENSORFOLD_WORDS as W } from './words.js'
 import { consumeFirstRunServeAsk } from '../../substrate/splashHandover.js'
-import { gibWords } from '../../services/localServer/localServerMemory.js'
+import { bytesWords } from '../../services/host/bank.js'
 
 export const TENSORFOLD_REFRESH_MS = 1_000
 
@@ -90,6 +90,7 @@ export function TensorFoldPanel({ onDone, io = {}, repo }: { onDone: (words?: st
   React.useEffect(() => {
     if (repo !== undefined && repo !== '') void readOtherCheckpoint(repo, io.road)
   }, [repo, io.road])
+  React.useEffect(() => () => void consumeFirstRunServeAsk(), [])
   const picker = React.useMemo(() => (facts === null ? null : { ...pickerFactsOf(facts), announced: tensorFoldAnnouncementsNow(facts.hosts) }), [facts, announcedStamp])
   if (facts === null || picker === null) return null
   const doors = { close: onDone, read: () => read(true) }
@@ -151,7 +152,7 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
       const row = inventoryRow(act.row.repo)
       if (row === undefined) return
       if (consumeFirstRunServeAsk()) {
-        setTensorFoldNotice(W.firstRunAsk(row.label, row.state === 'on-disk' ? null : gibWords(row.checkpoint.downloadBytes), gibWords(row.checkpoint.weightsBytes)))
+        setTensorFoldNotice(W.firstRunAsk(W.firstRunServe(row.label, row.state, row.downloadBytes === undefined ? undefined : bytesWords(row.downloadBytes), bytesWords(row.checkpoint.weightsBytes), facts.engine === null || facts.install?.kind === 'llamacpp')))
         return
       }
       if (facts.engine === null || facts.install?.kind === 'llamacpp') {

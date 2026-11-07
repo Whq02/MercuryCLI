@@ -111,8 +111,16 @@ const UNREAD_MACHINE = "the machine's memory was not read, so the window comes o
 const AUTO_CEILING_RULE = 'pin trained max or a number in /config for more'
 
 function doubledDecision(record: LocalWindowFitRecord, estTokens: number, why: string): LocalWindowDecision {
-  const window = doubledRequestWindow(estTokens, record.modelMaxContext)
+  const doubled = doubledRequestWindow(estTokens, record.modelMaxContext)
+  const asked = Math.ceil(Math.max(0, Math.ceil(estTokens)) / LOCAL_WINDOW_STEP) * LOCAL_WINDOW_STEP
+  const window = Math.min(doubled, Math.max(LOCAL_WINDOW_AUTO_CEILING, asked))
+  if (window < doubled) return { window, reason: 'cap', words: `${fmt(window)} · the automatic ceiling (${DOUBLING_RULE} would be ${fmt(doubled)}; ≈${Math.round(estTokens / 1000)}k asked) — ${why}; ${AUTO_CEILING_RULE}` }
   return { window, reason: 'req', words: `${fmt(window)} · ${DOUBLING_RULE} (≈${Math.round(estTokens / 1000)}k asked) — ${why}` }
+}
+
+export function cappedLocalWindowFit(fit: LocalWindowFit): LocalWindowFit {
+  const auto = autoWindowOfFit(fit)
+  return { ...fit, window: auto.window, fits: auto.rung.fits, cacheBytes: auto.rung.cacheBytes, totalBytes: auto.rung.totalBytes, atMax: auto.reason === 'max', words: auto.words }
 }
 
 export type LocalWindowUnreadRecord = LocalWindowFitRecord & Partial<Pick<LocalModelRecord, 'contextWindow'>>

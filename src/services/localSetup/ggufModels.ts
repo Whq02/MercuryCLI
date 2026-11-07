@@ -7,6 +7,7 @@ import { hubFileUrl, parseGgufHeader, readGgufHeader } from '../host/ggufHeader.
 import { HOST_RECIPES, type HostRecipe } from '../host/recipes.js'
 import { hostRecipeSchema, hostWeightManifestSchema } from '../host/recipesFile.js'
 import { fitLocalWindow, type LocalWindowFit } from '../localServer/localWindowFit.js'
+import { cappedLocalWindowFit } from '../providers/local/localWindow.js'
 import { gibWords, kvGeometryOf, tokensWords } from '../localServer/localServerMemory.js'
 import { defaultMachineTruth } from '../localServer/localServerTruth.js'
 
@@ -23,7 +24,7 @@ function ggufFit(recipe: HostRecipe, header: GgufHeader, machineBytes: number, p
   }
   const trainedMax = Number(header.kv[header.architecture + '.context_length'])
   if (!geometry || !Number.isSafeInteger(trainedMax) || trainedMax <= 0) return undefined
-  return fitLocalWindow({ name: ggufModelName(recipe), weightsBytes: recipe.weightsGb * 1e9, geometry, trainedMax, machineBytes, usableBytes: defaultMachineTruth(platform, machineBytes).usableMemoryBytes, cacheType: 'f16', slots: 1 })
+  return cappedLocalWindowFit(fitLocalWindow({ name: ggufModelName(recipe), weightsBytes: recipe.weightsGb * 1e9, geometry, trainedMax, machineBytes, usableBytes: defaultMachineTruth(platform, machineBytes).usableMemoryBytes, cacheType: 'f16', slots: 1 }))
 }
 export function ggufModelRow(recipe: HostRecipe, header: GgufHeader | undefined, machineBytes: number, platform: NodeJS.Platform, error?: string): GgufModel {
   const fit = header && ggufFit(recipe, header, machineBytes, platform)

@@ -116,7 +116,9 @@ if (!dnssd) {
       return false
     }
   }
-  check('stop ends the leash with the announcer', !alive(leashPid) && !alive(live.announcer?.pid))
+  check('stop ends the leash with the announcer', leashPid !== undefined && !alive(leashPid) && !alive(live.announcer?.pid))
+  const leash = announcer.announcerLeashCommand(4242, 4343)
+  check('the leash is one shell line of pids only, and it watches both the parent and the announcer, so it ends with whichever goes first', leash.file === 'sh' && leash.args[1] === 'while kill -0 4343 2>/dev/null && kill -0 4242 2>/dev/null; do sleep 2; done; kill 4242 2>/dev/null', leash.args[1])
 
   section('§4 a Mercury process cut without warning (SIGKILL: a crash, a pool cut) leaves no announcement behind: the leash ends it')
   const ORPHAN = `Mercury proof ${randomBytes(3).toString('hex')}`
@@ -137,6 +139,12 @@ if (!dnssd) {
   const deadline = Date.now() + 6_000
   while (alive(pids.pid ?? undefined) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 250))
   check('within seconds of the SIGKILL the announcer and its leash are both gone (an exit handler never runs on a kill; the base leaves dns-sd advertising under pid 1)', !alive(pids.pid ?? undefined) && !alive(pids.leash ?? undefined), `announcer alive ${String(alive(pids.pid ?? undefined))}, leash alive ${String(alive(pids.leash ?? undefined))}`)
+  const own = announcer.startAnnouncer({ name: `Mercury proof ${randomBytes(3).toString('hex')}`, port: 8096, txt: { model: 'y' } })
+  if (own?.pid !== undefined) try { process.kill(own.pid, 'SIGTERM') } catch {}
+  const leashDeadline = Date.now() + 6_000
+  while (alive(own?.leashPid) && Date.now() < leashDeadline) await new Promise(resolve => setTimeout(resolve, 250))
+  check('an announcer that ends on its own takes its leash with it within seconds (no leash polls for the rest of the session)', own !== undefined && !alive(own.pid) && !alive(own.leashPid), `announcer alive ${String(alive(own?.pid))}, leash alive ${String(alive(own?.leashPid))}`)
+  own?.stop()
   if (alive(pids.pid ?? undefined)) try { process.kill(pids.pid!, 'SIGTERM') } catch {}
   if (alive(pids.leash ?? undefined)) try { process.kill(pids.leash!, 'SIGTERM') } catch {}
 }
