@@ -41,14 +41,17 @@ async function waitFor(pred: () => boolean, ms: number, step = 25): Promise<bool
 
 const MODEL = FAKE_OLLAMA_MODEL
 const SECOND = 'qwen3.5:9b-q4_K_M'
+const THIRD = 'qwen3.5:4b-q4_K_M'
 const PERSISTED = `local/${MODEL}`
 const PERSISTED_SECOND = `local/${SECOND}`
+const PERSISTED_THIRD = `local/${THIRD}`
 const TRAINED_MAX = 262_144
 const SERVER_KEEP_ALIVE_MS = 5 * 60_000
 
 type Hit = { at: number; method: string; path: string; body: Record<string, unknown> | undefined; raw: string; expiryBefore?: string; expiryAfter?: string }
 const hits: Hit[] = []
-const fixtureNow = (): number => 1_800_000_000_000
+let fixtureClockMs = 1_800_000_000_000
+const fixtureNow = (): number => fixtureClockMs
 const fixtureKnobs = { chatDelayMs: 0, serverKeepAliveMs: SERVER_KEEP_ALIVE_MS }
 let reloads = 0
 const promptCache = new Map<string, string>()
@@ -176,7 +179,7 @@ function wrapFixture(base: FakeOllama): FakeOllama {
   }
 }
 
-const fixture = wrapFixture(createFakeOllama({ pulled: [MODEL, SECOND] }))
+const fixture = wrapFixture(createFakeOllama({ pulled: [MODEL, SECOND, THIRD] }))
 const served = await serveFakeOllama(fixture, 0)
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${served.root}`
 
@@ -427,20 +430,27 @@ section('7 · a second switch cancels the first: the in-flight warm is aborted a
   check('the newest model\'s warm settled; the fixture saw both requests in order, the last for the newest model', settled && chats()[before]?.body?.model === SECOND && chats().at(-1)?.body?.model === MODEL, shape(chats().slice(before)))
 }
 
-section('8 · a conversation that already carries rows gets NO warm (a prefix-only request would truncate the cache the server may hold for it); the clock still runs')
+section('8 · a conversation that already carries rows: a switch to a model that has not served it is warmed (nothing of this conversation lives in that model\'s cache); a switch back to the model that served it gets NO warm (a prefix-only request would truncate the cache the server may hold for it); the clock follows either way')
 {
   const skippedBefore = warmModule?.localWarmFacts().skipped ?? 0
   const chatsAt = chats().length
   history.push(createUserMessage({ content: 'earlier question' }), { type: 'assistant', uuid: '00000000-0000-4000-8000-00000000a55f', timestamp: new Date().toISOString(), message: { id: 'm1', type: 'message', role: 'assistant', model: MODEL, content: [{ type: 'text', text: 'earlier answer', citations: null }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } })
-  setEngineModelOverride(PERSISTED_SECOND)
+  setEngineModelOverride(PERSISTED_THIRD)
+  const warmedThird = await waitFor(() => warmModule?.localWarmFacts().warmed.includes(`ollama/${THIRD}`) ?? false, 4_000)
+  const thirdChat = chats().at(-1)
+  const thirdBody = JSON.stringify(thirdChat?.body ?? {})
+  check('the switch to a model that has not served this conversation sent its warm (one chat for that model) and skipped nothing', warmedThird && chats().length === chatsAt + 1 && thirdChat?.body?.model === THIRD && (warmModule?.localWarmFacts().skipped ?? 0) === skippedBefore, `warmed ${String(warmedThird)}, chats +${chats().length - chatsAt}, model ${String(thirdChat?.body?.model)}, skipped ${String(warmModule?.localWarmFacts().skipped)}`)
+  check('that warm carried the prefix only: none of the conversation\'s rows rode it', !thirdBody.includes('earlier question') && !thirdBody.includes('earlier answer'), thirdBody.slice(0, 200))
+  check('the model that served the first real turn is on the served list; the third is not', (warmModule?.localWarmFacts().served ?? []).includes(`ollama/${MODEL}`) && !(warmModule?.localWarmFacts().served ?? []).includes(`ollama/${THIRD}`), JSON.stringify(warmModule?.localWarmFacts().served))
+  fixtureClockMs += 61_000
+  const chatsBeforeBack = chats().length
+  setEngineModelOverride(PERSISTED)
   const skipped = await waitFor(() => (warmModule?.localWarmFacts().skipped ?? 0) > skippedBefore, 3_000)
   await sleep(300)
-  check('the switch on a conversation with rows skipped the warm (one debug line) and sent no chat', skipped && chats().length === chatsAt, `skipped ${String(warmModule?.localWarmFacts().skipped)}, chats +${chats().length - chatsAt}`)
-  check('the keep-alive clock follows the new model regardless', warmModule?.localWarmFacts().clock === `ollama/${SECOND}`, String(warmModule?.localWarmFacts().clock))
+  check('the switch back to the model that served this conversation skipped the warm (one debug line) and sent no chat', skipped && chats().length === chatsBeforeBack, `skipped ${String(warmModule?.localWarmFacts().skipped)}, chats +${chats().length - chatsBeforeBack}`)
+  check('the keep-alive clock follows the served model regardless', warmModule?.localWarmFacts().clock === `ollama/${MODEL}`, String(warmModule?.localWarmFacts().clock))
   check('pure: a meta user row alone is not a conversation; a user or assistant row is', warmModule !== null && warmModule.conversationHasRows([createUserMessage({ content: 'x', isMeta: true }) as never]) === false && warmModule.conversationHasRows([createUserMessage({ content: 'x' }) as never]) === true)
   history.length = 0
-  setEngineModelOverride(PERSISTED)
-  await waitFor(() => warmModule?.localWarmFacts().clock === `ollama/${MODEL}`, 2_000)
 }
 
 section('9 · a warm that fails says nothing: the server goes away, the warm fails quietly, no touch follows')

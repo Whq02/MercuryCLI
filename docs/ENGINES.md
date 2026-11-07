@@ -800,7 +800,12 @@ honoured, and a smaller stale runner is reloaded once, up to the full window),
 and the row names it as the server's; LM Studio takes it
 when the model is loaded (`POST /api/v1/models/load {model, context_length}`);
 vLLM and llama.cpp fix their window at server start, so the row shows the
-served figure and reads as not applicable. `/localsetup` pulls a GGUF from
+served figure and reads as not applicable. The pre-warm sends the first
+turn's prefix for one token when a chat opens on an Ollama model and when
+`/model` switches to an Ollama model that has not yet served the conversation,
+so the weights are loaded while nobody is waiting; a model that has served the
+conversation is not pre-warmed again, and the cache the server holds for it
+stays whole. `/localsetup` pulls a GGUF from
 Hugging Face into the Bank or starts one already in the Bank on `llama-server`
 (`127.0.0.1:8080`, registered as `local/<name>`, passing `--spec-type
 draft-mtp` when the model carries NextN/MTP tensors), or when no local server

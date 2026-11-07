@@ -67,6 +67,7 @@ export interface LocalWarmFacts {
   clock: string | null
   inFlight: string | null
   warmed: string[]
+  served: string[]
   cancelled: number
   failed: number
   skipped: number
@@ -93,6 +94,7 @@ interface WarmState {
   inFlight: InFlightWarm | null
   sent: Map<string, LocalWarmKnobs>
   warmed: Set<string>
+  served: Set<string>
   recent: { key: string; at: number } | null
   cancelled: number
   failed: number
@@ -114,6 +116,7 @@ const state: WarmState = {
   inFlight: null,
   sent: new Map(),
   warmed: new Set(),
+  served: new Set(),
   recent: null,
   cancelled: 0,
   failed: 0,
@@ -168,12 +171,12 @@ export function conversationHasRows(messages: readonly Message[]): boolean {
   return messages.some(message => message.type === 'assistant' || (message.type === 'user' && message.isMeta !== true))
 }
 
-export async function composeLocalWarm(record: LocalModelRecord, model: string, context: CacheSafeParams): Promise<LocalWarmBody | { skipped: string }> {
+export async function composeLocalWarm(record: LocalModelRecord, model: string, context: CacheSafeParams, served = false): Promise<LocalWarmBody | { skipped: string }> {
   const modelId = compatDispatchModelId(model)
   const toolUseContext = context.toolUseContext
   const tools: Tools = toolUseContext.options.tools
   const history: Message[] = context.forkContextMessages
-  if (conversationHasRows(history)) return { skipped: 'the conversation already carries rows; a prefix-only warm would truncate a cache the server may hold for it, so only a fresh session is warmed' }
+  if (served && conversationHasRows(history)) return { skipped: 'the model has served this conversation; a prefix-only warm would truncate the cache the server may hold for it' }
   const appState = toolUseContext.getAppState()
   const getToolPermissionContext = async () => toolUseContext.getAppState().toolPermissionContext
   const agents = toolUseContext.options.agentDefinitions.activeAgents
@@ -256,6 +259,7 @@ export function noteLocalTurn(record: LocalModelRecord | undefined): void {
   cancelInFlight('a real turn takes the server')
   if (record === undefined || record.server !== 'ollama') return
   const key = keyOf(record)
+  state.served.add(key)
   if (state.recent !== null && state.recent.key !== key) state.recent = null
   const knobs = heldKnobsFor(record)
   if (knobs !== undefined) state.sent.set(key, knobs)
@@ -284,7 +288,7 @@ async function warm(record: LocalModelRecord, model: string): Promise<void> {
   try {
     const context = await provider()
     if (controller.signal.aborted) return
-    const body = await composeLocalWarm(record, model, context)
+    const body = await composeLocalWarm(record, model, context, state.served.has(key))
     if (controller.signal.aborted) return
     if ('skipped' in body) {
       state.skipped += 1
@@ -496,6 +500,7 @@ export function localWarmFacts(): LocalWarmFacts {
     clock: state.clock?.key ?? null,
     inFlight: state.inFlight?.wireModel ?? null,
     warmed: [...state.warmed],
+    served: [...state.served],
     cancelled: state.cancelled,
     failed: state.failed,
     skipped: state.skipped,
@@ -511,6 +516,7 @@ export function __resetLocalWarmForTest(): void {
   state.io = {}
   state.sent.clear()
   state.warmed.clear()
+  state.served.clear()
   state.recent = null
   state.cancelled = 0
   state.failed = 0
