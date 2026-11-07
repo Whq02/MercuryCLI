@@ -67,7 +67,7 @@ export async function getAttachments(
   queuedCommands: QueuedCommand[],
   messages?: Message[],
   querySource?: QuerySource,
-  options?: { localSubmission?: boolean },
+  options?: { localSubmission?: boolean; operatorPrompt?: boolean },
 ): Promise<Attachment[]> {
   messages ??= toolUseContext.messages
   if (isEnvTruthy(process.env.MERCURY_BARE)) {
@@ -102,7 +102,7 @@ export async function getAttachments(
           () => processMcpResourceAttachments(input, context),
           { inputScoped: true },
         ),
-        maybe('samples_road', () => Promise.resolve(samplesRoadAttachment(input)), { inputScoped: true }),
+        maybe('samples_road', () => Promise.resolve(options?.operatorPrompt ? samplesRoadAttachment(input, messages) : []), { inputScoped: true }),
         maybe(
           'agent_mentions',
           () =>
@@ -398,7 +398,7 @@ export async function* getAttachmentMessages(
   queuedCommands: QueuedCommand[],
   messages?: Message[],
   querySource?: QuerySource,
-  options?: { localSubmission?: boolean },
+  options?: { localSubmission?: boolean; operatorPrompt?: boolean },
 ): AsyncGenerator<AttachmentMessage, void> {
   const attachments = await getAttachments(
     input,

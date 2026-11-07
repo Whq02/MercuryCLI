@@ -147,6 +147,7 @@ const ATTACHMENTS: Record<string, Fixture> = {
   mcp_resource: { good: { server: 's', uri: 'u', name: 'n', content: { contents: [] } }, bad: [{ label: 'content is text', field: 'content', fields: { server: 's', uri: 'u', name: 'n', content: 'c' } }] },
   command_permissions: { good: { allowedTools: ['Bash(ls *)'] }, bad: [{ label: 'allowedTools carries a number', field: 'allowedTools', fields: { allowedTools: [1] } }] },
   agent_mention: { good: { agentType: 'scout' }, bad: [{ label: 'agentType is missing', field: 'agentType', fields: {} }] },
+  samples_road: { good: { on: true }, bad: [{ label: 'on is missing', field: 'on', fields: {} }] },
   budget_usd: { good: { used: 0.5, total: 1, remaining: 0.5 }, bad: [{ label: 'total is null', field: 'total', fields: { used: 0.5, total: null, remaining: 0.5 } }] },
   output_token_usage: { good: { turn: 1, session: 2, budget: null }, bad: [{ label: 'budget is text', field: 'budget', fields: { turn: 1, session: 2, budget: 'many' } }] },
   usage_limit_notice: { good: { key: 'k', provider: 'p', window: 'w', pct: 80, text: 't' }, bad: [{ label: 'pct is text', field: 'pct', fields: { key: 'k', provider: 'p', window: 'w', pct: '80', text: 't' } }] },

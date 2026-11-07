@@ -10,9 +10,10 @@ The model makes one only when you ask to see something ("show me",
 never on its own, never as a hedge, never to decorate an answer. Each sample is
 kept per session, versioned, and opens again whenever you like. Samples are off
 by default: the Boot Menu's `Samples` row or `MERCURY_SAMPLES=1` turns them on
-for new sessions ([the switch](#the-switch)). A message of yours that says
+for new sessions ([the switch](#the-switch)). A message you send that says
 "sample" or "samples" reminds the model of this road and whether it is on in
-the session, so the word reaches `sample()` and not a hand-written page.
+the session, so with Samples on the word reaches `sample()` and not a
+hand-written page.
 
 ## Where a sample comes from
 
@@ -144,7 +145,8 @@ Samples are off by default. Turn the Boot Menu's `Samples` row on (the
 change reaches new sessions) or set `MERCURY_SAMPLES=1` in the environment
 before the session starts. Off, `sample()` in an Eval cell refuses, no
 listener starts and `/samples` is unavailable; the Eval tool's prompt has no
-line about samples, and nothing else changes. Typed while off, `/samples`
+line about samples, and a message that says "sample" only tells the model
+the switch is off and how it turns on. Typed while off, `/samples`
 answers one line (`/samples is off — MERCURY_SAMPLES=1 turns it on (the
 Boot Menu's Samples row saves it for new sessions)`) and starts nothing.
 `mercury health` and `/health` carry a `Samples` row that says which way

@@ -21,6 +21,10 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 const { samplesRoadAttachment, samplesRoadText } = await import('../../src/utils/attachments/samplesRoad.js')
+const { getAttachments, createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.js')
+const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.js')
+const { createUserMessage } = await import('../../src/utils/messages.js')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.js')
 const { buildEvalPrompt } = await import('../../src/tools/EvalTool/prompt.js')
 const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.js')
@@ -38,8 +42,14 @@ console.log('[1] the operator\'s word "sample" or "samples" raises the samples r
   check('"sampling" and "examples" do not', samplesRoadAttachment('the sampling rate of the audio').length === 0 && samplesRoadAttachment('give me a few examples').length === 0)
   check('the attachment is hidden from the transcript view like an agent mention', (NULL_RENDERING_ATTACHMENT_TYPES as readonly string[]).includes('samples_road'))
   const words = textOf(normalizeAttachmentForAPI(on[0]!))
-  check('its words say Samples is on, name sample({ name, title?, doc, ask? }), the local URL, /samples and the Eval manual, and say the road is not a hand-written file', words.includes('Samples is on in this session') && words.includes('`sample({ name, title?, doc, ask? })`') && words.includes('/samples') && words.includes("Eval tool's manual") && words.includes('not a hand-written file') && words.includes('<system-reminder>'), words)
-  check('the words name the asks that mean this road: a sample, page, mockup or report', words.includes('asking to see a sample, page, mockup or report'), words)
+  check('its words say Samples is on, name sample({ name, title?, doc, ask? }), the local URL, /samples and the Eval manual after the first cell, and say the road is not a hand-written file', words.includes('Samples is on in this session') && words.includes('`sample({ name, title?, doc, ask? })`') && words.includes('/samples') && words.includes("the nine parts arrive with the Eval tool's manual after the first cell") && words.includes('not a hand-written file') && words.includes('<system-reminder>'), words)
+  check('the words name the asks that mean this road, a sample, page, mockup or report, and leave a named file or a data sample alone', words.includes('asking to see a sample, page, mockup or report') && words.includes('unless they name a file to write or mean a data or code sample'), words)
+  const once = samplesRoadAttachment(ASK, [createUserMessage({ content: ASK }), createAttachmentMessage(on[0]!)])
+  check('announced once: a later message with the word raises nothing while the reminder for this state is in the history', once.length === 0, JSON.stringify(once))
+  const flipped = samplesRoadAttachment(ASK, [createAttachmentMessage({ type: 'samples_road', on: false })])
+  check('a changed state is announced again', flipped.length === 1 && flipped[0]!.type === 'samples_road' && flipped[0]!.on === true, JSON.stringify(flipped))
+  const compacted = samplesRoadAttachment(ASK, [createAttachmentMessage(on[0]!), { type: 'system', subtype: 'compact_boundary', content: '', isMeta: true, timestamp: '', uuid: 'b', level: 'info' } as never])
+  check('after a compaction the reminder is raised again', compacted.length === 1, JSON.stringify(compacted))
 }
 
 console.log('[2] with Samples off, the same word says so and how it turns on, before any page is built by hand')
@@ -48,7 +58,7 @@ console.log('[2] with Samples off, the same word says so and how it turns on, be
   const off = samplesRoadAttachment(ASK)
   check('one samples_road attachment, off', off.length === 1 && off[0]!.type === 'samples_road' && off[0]!.on === false, JSON.stringify(off))
   const words = textOf(normalizeAttachmentForAPI(off[0]!))
-  check('its words say off, that sample() refuses, the Boot Menu row and MERCURY_SAMPLES=1, and to say so before building a page by hand', words.includes('is off in this session') && words.includes('`sample()` refuses') && words.includes("Boot Menu's Samples row") && words.includes('MERCURY_SAMPLES=1') && words.includes('say so before building any page by hand'), words)
+  check('its words say off, that sample() refuses, the Boot Menu row and MERCURY_SAMPLES=1, and to say so before building a page by hand when one of these pages was asked for', words.includes('is off in this session') && words.includes('`sample()` refuses') && words.includes("Boot Menu's Samples row") && words.includes('MERCURY_SAMPLES=1') && words.includes('if the operator asked for one of these pages, say so before building any page by hand'), words)
   check('the two texts differ only in state: both name /samples and an Eval cell', samplesRoadText(true) !== samplesRoadText(false) && [true, false].every(on => samplesRoadText(on).includes('/samples') && samplesRoadText(on).includes('Eval cell')))
 }
 
@@ -66,10 +76,35 @@ console.log('[3] the Eval tool\'s roster words name the samples road when Sample
   check('the clause costs nothing when off: the off description is the on description without it', onWire.replace(/ With Samples on in this session[^\n]*\./, '') === offWire, JSON.stringify({ onWire, offWire }))
 }
 
-console.log('[4] the docs say the word reaches the road')
+console.log('[4] the docs and the Boot Menu row say what the word does, on and off')
 {
   const doc = readFileSync(join(ROOT, 'docs', 'SAMPLES.md'), 'utf8')
-  check('docs/SAMPLES.md says a message saying "sample" or "samples" reminds the model of the road and its state', doc.includes('A message of yours that says\n"sample" or "samples" reminds the model of this road and whether it is on in\nthe session'), doc.slice(0, 1200))
+  check('docs/SAMPLES.md says a message you send saying "sample" or "samples" reminds the model of the road and its state, and that with Samples on the word reaches sample()', doc.includes('A message you send that says\n"sample" or "samples" reminds the model of this road and whether it is on in\nthe session, so with Samples on the word reaches `sample()`'), doc.slice(0, 1200))
+  check('the switch section says what off still does: the one note to the model', doc.includes('a message that says "sample" only tells the model\nthe switch is off and how it turns on'), doc.slice(doc.indexOf('## The switch'), doc.indexOf('## The switch') + 700))
+  const menu = readFileSync(join(ROOT, 'src', 'substrate', 'startupMenu.ts'), 'utf8')
+  check("the Boot Menu row's off words carry the one exception to 'identical to a build without samples'", menu.includes('identical to a build without samples, but for one note to the model, when a message says "sample", that Samples is off and how it turns on'), menu.slice(menu.indexOf('identical to a build'), menu.indexOf('identical to a build') + 200))
+}
+
+console.log('[5] through the real orchestrator: the operator\'s own prompt raises it; a bash-mode line and a skill expansion do not')
+{
+  process.env.MERCURY_SAMPLES = '1'
+  let state = getDefaultAppState()
+  const context = {
+    options: { commands: [], tools: [EvalTool], engineModel: 'claude-fable-5-1', mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [] } },
+    getAppState: () => state, setAppState: (fn: (s: typeof state) => typeof state) => { state = fn(state) }, abortController: new AbortController(),
+    messages: [] as never[], readFileState: createFileStateCacheWithSizeLimit(100), loadedNestedMemoryPaths: new Set<string>(), nestedMemoryAttachmentTriggers: new Set<string>(),
+  } as never
+  const kinds = (rows: Awaited<ReturnType<typeof getAttachments>>): string[] => rows.flatMap(row => row.type === 'samples_road' ? [`samples_road:${row.on}`] : [])
+  const prompt = await getAttachments(ASK, context, [], [], undefined, { localSubmission: false, operatorPrompt: true })
+  check('a prompt-mode submission with the word carries one samples_road, on', kinds(prompt).join(',') === 'samples_road:true', JSON.stringify(prompt.map(row => row.type)))
+  const bash = await getAttachments('ls samples/', context, [], [], undefined, { localSubmission: true })
+  check('a bash-mode line with the word carries none', kinds(bash).length === 0, JSON.stringify(bash.map(row => row.type)))
+  const expansion = await getAttachments('check samples against source pages', context, [])
+  check('a skill or prompt-command expansion (no operatorPrompt mark) carries none', kinds(expansion).length === 0, JSON.stringify(expansion.map(row => row.type)))
+  const again = await getAttachments(ASK, context, [], [createUserMessage({ content: ASK }), ...prompt.filter(row => row.type === 'samples_road').map(createAttachmentMessage)], undefined, { localSubmission: false, operatorPrompt: true })
+  check('the next prompt with the word, with the reminder in the history, carries none', kinds(again).length === 0, JSON.stringify(again.map(row => row.type)))
+  const source = readFileSync(join(ROOT, 'src', 'utils', 'processUserInput', 'processUserInput.ts'), 'utf8')
+  check('processUserInput marks its prompt-mode submissions as the operator\'s', source.includes("operatorPrompt: mode === 'prompt'"))
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAIL`)

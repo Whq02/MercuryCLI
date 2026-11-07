@@ -31,7 +31,7 @@ const expected = {
 }
 const options = { tools: [EvalTool, { name: 'Inspect' }] as never, agents: [], getToolPermissionContext: async () => getEmptyToolPermissionContext() }
 for (const [enabled, hash, manualBytes, bytes] of [
-  ['1', '87372947bdccf36adc9a64083524280e7e18431e03073bf862c98049a7675d52', 6503, 1217],
+  ['1', '87372947bdccf36adc9a64083524280e7e18431e03073bf862c98049a7675d52', 6503, 1421],
   ['0', '2589897829f454e597585b3804ec74be7e6ae33a97b1a191b310d8916778bd7f', 4469, 1217],
 ] as const) {
   process.env.MERCURY_SAMPLES = enabled

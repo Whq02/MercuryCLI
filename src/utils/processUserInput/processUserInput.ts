@@ -343,7 +343,7 @@ async function processUserInputBase(
         [],
         messages,
         querySource,
-        { localSubmission: mode !== 'prompt' },
+        { localSubmission: mode !== 'prompt', operatorPrompt: mode === 'prompt' },
       )) {
         attachmentMessages.push(attachment)
       }
