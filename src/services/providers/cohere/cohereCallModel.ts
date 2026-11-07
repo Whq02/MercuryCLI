@@ -15,7 +15,7 @@ export function buildCohereExtras(args: LaneExtrasArgs, outputFormat?: CallModel
   const facts = cohereModelFacts(args.wireModel)
   return {
     ...(outputFormat ? { response_format: { type: 'json_object', schema: outputFormat.schema } } : {}),
-    ...(facts.reasoning === true ? { reasoning_effort: args.thinkingEnabled ? 'high' : 'none' } : {}),
+    ...(facts.reasoning === true ? { reasoning_effort: args.thinkingEnabled && args.effortValue !== 'none' ? 'high' : 'none' } : {}),
     ...(args.maxOutputTokensOverride !== undefined ? { max_tokens: args.maxOutputTokensOverride } : {}),
   }
 }

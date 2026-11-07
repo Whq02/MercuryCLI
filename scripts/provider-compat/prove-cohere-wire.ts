@@ -114,6 +114,11 @@ try {
   check("thinking off sends reasoning_effort 'none' and the reply carries no thinking block", captures.at(-1)?.body.reasoning_effort === 'none' && thinkingOf(off) === '' && textOf(off) === 'COHERE-FIXTURE-SETTLED')
   await run(params('north-mini-code-1-0', 'low', true))
   check("every thinking-on effort rung is the same vendor word on a two-word dial — 'low' and 'medium' are never sent (the vendor answers them with HTTP 400)", captures.at(-1)?.body.reasoning_effort === 'high' && captures.at(-1)?.body.model === 'north-mini-code-1-0')
+  const side = params('command-a-plus-05-2026', 'max', true)
+  ;(side.options as { effortPinned?: true }).effortPinned = true
+  delete (side.options as { effortValue?: string }).effortValue
+  await run(side)
+  check("a side job at the floor (effort pinned, none asked) sends reasoning_effort 'none' with thinking on: the dial's cheaper word, the floor of a none/high list", captures.at(-1)?.body.reasoning_effort === 'none' && captures.at(-1)?.body.model === 'command-a-plus-05-2026')
   await run(params('command-a-03-2025', 'max', true))
   check('a row the vendor lists without reasoning sends no reasoning_effort at all', !('reasoning_effort' in captures.at(-1)!.body) && captures.at(-1)?.body.model === 'command-a-03-2025')
   await run(params('Command-A-Plus-05-2026', 'high', true))

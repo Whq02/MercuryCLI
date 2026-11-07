@@ -413,8 +413,9 @@ The wire is Mistral's near-twin: streaming, function tools, `max_tokens` on an
 explicit ceiling, structured output as `response_format: { type:
 'json_object', schema }`, and on the reasoning rows (Command A+, North Mini
 Code, Command A Reasoning) a two-word `reasoning_effort` dial: `high` with
-thinking on, `none` with it off, because the compatibility endpoint accepts
-no other value (`low` and `medium` answer HTTP 400). `parallel_tool_calls`
+thinking on, `none` with it off or for a side job at the floor (`none` is the
+floor of a `none`/`high` list), because the compatibility endpoint accepts no
+other value (`low` and `medium` answer HTTP 400). `parallel_tool_calls`
 is never sent (the vendor lists it unsupported). The meter is the session's
 spend at the recorded prices; a standard key reads no usage endpoint, and the
 dashboard shows the account's spend.
