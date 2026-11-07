@@ -80,6 +80,7 @@ export function armTensorFoldDeepLink(): void {
   requestCommandDispatch(TENSORFOLD_DEEP_LINK)
 }
 export function disarmTensorFoldDeepLink(): void {
+  firstRunServeAsk = false
   if (!tensorFoldDeepLinkArmed) return
   tensorFoldDeepLinkArmed = false
   if (pendingBootSurfaceIntent === 'repl') pendingBootSurfaceIntent = null

@@ -1,7 +1,7 @@
 import { kvGeometryOf, type KvGeometry } from '../localServer/localServerMemory.js'
 import { parseOllamaTags } from '../localServer/localServerTruth.js'
 import { fitLocalWindow, fitLocalWindowOn, localWindowFitWords, type LocalWindowFit } from '../localServer/localWindowFit.js'
-import { autoWindowOfFit } from '../providers/local/localWindow.js'
+import { cappedLocalWindowFit } from '../providers/local/localWindow.js'
 import { num, readJson, rec, resolveSetupIo, str } from './setupIo.js'
 import type { SetupIo, WindowChoice } from './setupTypes.js'
 
@@ -11,7 +11,7 @@ export function windowWords(choice: Omit<LocalWindowFit, 'words'>): string {
 
 export function chooseWindowFrom(args: { tag: string; weightsBytes: number; geometry: KvGeometry; trainedMax?: number; machineBytes: number; usableBytes: number; usableSource?: string; slots: number; cacheType?: string }): WindowChoice {
   const { tag, ...input } = args
-  return { ...fitLocalWindow({ name: tag, ...input }), tag }
+  return { ...cappedLocalWindowFit(fitLocalWindow({ name: tag, ...input })), tag }
 }
 
 export async function chooseWindow(root: string, tag: string, seam: SetupIo = {}): Promise<WindowChoice> {
@@ -28,8 +28,7 @@ export async function chooseWindow(root: string, tag: string, seam: SetupIo = {}
   const trainedMax = (arch ? num(info[`${arch}.context_length`]) : undefined) ?? listed.trainedContext
   const truth = await io.readTruth()
   const fit = fitLocalWindowOn(truth, { name: tag, weightsBytes: listed.sizeBytes, geometry, ...(trainedMax !== undefined ? { trainedMax } : {}) }, io.parallelSlots, io.cacheType)
-  const auto = autoWindowOfFit(fit)
-  const choice: WindowChoice = { ...fit, window: auto.window, fits: auto.rung.fits, cacheBytes: auto.rung.cacheBytes, totalBytes: auto.rung.totalBytes, atMax: auto.reason === 'max', words: auto.words, tag }
+  const choice: WindowChoice = { ...cappedLocalWindowFit(fit), tag }
   io.writeWindow(tag, choice.window)
   return choice
 }

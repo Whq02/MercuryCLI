@@ -1,5 +1,6 @@
 export const TENSORFOLD_WORDS = {
-  firstRunAsk: (label: string, download: string | null, load: string) => `first run: ↵ again ${download === null ? '' : `downloads ${download} and `}loads ${label} (${load}) into memory · esc leaves this machine as it is`,
+  firstRunAsk: (what: string) => `first run: ↵ again ${what} · esc leaves this machine as it is`,
+  firstRunServe: (label: string, state: string, download: string | undefined, load: string, installFirst: boolean) => `${installFirst ? 'installs TensorFold, then ' : ''}${state === 'serving' || state === 'loading' ? `restarts ${label}` : `${state === 'on-disk' || download === undefined ? '' : `downloads ${download} and `}loads ${label} (${load}) into memory`}`,
   description: 'Serve a local model with TensorFold: install, pull, serve, stop, switch',
   view: 'tensorfold',
   group: 'TENSORFOLD',

@@ -69,9 +69,9 @@ Choose **Ollama / running server** to use the existing server setup:
   commands needing administrator access say so.
 - Choose an installed model or a listed Ollama pull. Sizes and memory fit are
   shown before the pull; its progress updates in the dialog.
-- Set the chosen model's window from its cache geometry and available model memory
-(requesting the model's trained context when the loaded window is smaller), then
-select it and request a short reply.
+- Set the chosen model's window from its cache geometry and available model memory,
+  the largest of 32k, 64k and 128k that fits (256k only when you pin it in
+  `/config`), then select it and request a short reply.
 
 The window setting is the same one used by `/config` → Local model window and
 the model picker's `w` key. Ollama retains its own model store and server

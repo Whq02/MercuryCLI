@@ -28,7 +28,7 @@ export interface AnnouncerHandle {
 }
 
 export function announcerLeashCommand(announcerPid: number, parentPid: number): { file: string; args: string[] } {
-  return { file: 'sh', args: ['-c', `while kill -0 ${parentPid} 2>/dev/null; do sleep 2; done; kill ${announcerPid} 2>/dev/null`] }
+  return { file: 'sh', args: ['-c', `while kill -0 ${parentPid} 2>/dev/null && kill -0 ${announcerPid} 2>/dev/null; do sleep 2; done; kill ${announcerPid} 2>/dev/null`] }
 }
 
 export interface AnnouncerIo {

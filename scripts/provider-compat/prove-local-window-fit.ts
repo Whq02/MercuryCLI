@@ -231,7 +231,7 @@ section('4 · the fallbacks, said in the words: with no geometry or no memory tr
   const served = w.chooseLocalWindow({ ...unstated, contextWindow: { tokens: 131072, source: 'served' as const } }, 15_000, undefined, null)
   check('no trained max, a served 128k: the served window, reason srv', served.window === 131072 && served.reason === 'srv' && served.words.startsWith('128k · the served window'), served.words)
   const neither = w.chooseLocalWindow(unstated, 73_000, undefined, null)
-  check('no trained max and no served window: twice the request (144k), reason req, the words say why', neither.window === 147456 && neither.reason === 'req' && neither.words.startsWith('144k · twice the first request, rounded up to 16k, never under 64k (≈73k asked)') && neither.words.includes('no trained max stated and no served window'), neither.words)
+  check('no trained max and no served window: twice the request would be 144k, the ceiling gives 128k, reason cap, the words say why', neither.window === 131072 && neither.reason === 'cap' && neither.words.startsWith('128k · the automatic ceiling (twice the first request, rounded up to 16k, never under 64k would be 144k; ≈73k asked)') && neither.words.includes('no trained max stated and no served window') && neither.words.endsWith('pin trained max or a number in /config for more'), neither.words)
   check('the Linux fallback is available memory; the darwin rule is three quarters of unified memory', defaultMachineTruth('linux', 16 * GIB, 6 * GIB).usableMemoryBytes === 6 * GIB && defaultMachineTruth('darwin', 16 * GIB).usableMemoryBytes === 12 * GIB && defaultMachineTruth('darwin', 16 * GIB).usableSource.startsWith('about three quarters'))
   check('with no truth cached the sync decision falls back the same way (the automatic ceiling over the trained max)', w.localWindowTruth() === null && w.decideLocalWindow(bare, 73_000, undefined).reason === 'cap' && w.decideLocalWindow(bare, 73_000, undefined).window === 131072)
   w.__resetLocalWindowsForTest()
@@ -272,6 +272,7 @@ section("6 · the words: the picker's w row, the /config row, the rail's reason 
   w.__resetLocalWindowsForTest()
   const record = localRecordFor(`local/${MODEL_27}`)!
   check('before any send the w row already says what auto will pick, the ceiling included: auto → 128k cap', w.localWindowChoiceLine(record, { wide: true }) === 'window · not loaded · max 256k · [auto → 128k cap] · server · 32k · 64k · 128k · max · number · ctrl+w cycles', w.localWindowChoiceLine(record, { wide: true }))
+  check('before any send the /config row predicts the same ceiling: auto → 128k (the automatic ceiling) · num_ctx on every request', w.localWindowValueWords(record, undefined) === 'auto → 128k (the automatic ceiling) · num_ctx on every request', w.localWindowValueWords(record, undefined))
   w.decideLocalWindow(record, 73_000, undefined)
   check('after the send it says held with the reason: auto → 128k cap held', w.localWindowChoiceLine(record, { wide: true }).includes('[auto → 128k cap held]'), w.localWindowChoiceLine(record, { wide: true }))
   check('the /config value words: auto → 128k held this session (the automatic ceiling) · num_ctx on every request', w.localWindowValueWords(record, undefined) === 'auto → 128k held this session (the automatic ceiling) · num_ctx on every request', w.localWindowValueWords(record, undefined))
@@ -289,7 +290,7 @@ section("6 · the words: the picker's w row, the /config row, the rail's reason 
   w.writeLocalWindowSetting(nine, 200_000)
   check('a typed number is projected too, spelled as typed: [200000 — 12.2 GiB does not fit 12.0 GiB usable · 128k fits]', w.localWindowChoiceLine(nine, { wide: true }).includes('[200000 — 12.2 GiB does not fit 12.0 GiB usable · 128k fits]'), w.localWindowChoiceLine(nine, { wide: true }))
   const row = localModelWindowRow(nine, 'local')
-  check('the /config row on that setting: the value carries the refusal in the same words, overFit marks the failure ink, the note explains the rule and the refusal', row.overFit && row.valueText.startsWith('200000 — 12.2 GiB does not fit 12.0 GiB usable · 128k fits') && row.note.includes('auto = the biggest of 32k · 64k · 128k · 256k whose projected load') && row.note.includes('The setting is saved but does not fit: 12.2 GiB does not fit 12.0 GiB usable · 128k fits.'), `${row.valueText} || ${row.note}`)
+  check('the /config row on that setting: the value carries the refusal in the same words, overFit marks the failure ink, the note explains the rule and the refusal', row.overFit && row.valueText.startsWith('200000 — 12.2 GiB does not fit 12.0 GiB usable · 128k fits') && row.note.includes('auto = the biggest of 32k · 64k · 128k whose projected load') && row.note.includes('256k only when you choose trained max or a number yourself') && row.note.includes('The setting is saved but does not fit: 12.2 GiB does not fit 12.0 GiB usable · 128k fits.'), `${row.valueText} || ${row.note}`)
   w.writeLocalWindowSetting(nine, undefined)
   const auto = localModelWindowRow(nine, 'local')
   check('under auto the /config row predicts the fit rung and is not in the failure ink', !auto.overFit && auto.valueText.startsWith('auto → 128k (the biggest rung that fits)'), auto.valueText)
@@ -314,7 +315,7 @@ section("7 · step 5 of /localsetup on the same owner: the ceiling from the trut
   const setup = await import('../../src/services/localSetup/index.ts')
   const g9 = memory.kvGeometryOf(INFO_9)!
   const pure = setup.chooseWindowFrom({ tag: MODEL_9, weightsBytes: WEIGHTS_9, geometry: g9, trainedMax: 262144, machineBytes: 48 * GIB, usableBytes: Math.round(36.9 * GIB), slots: 1, cacheType: 'q8_0' })
-  check("chooseWindowFrom is the owner's answer with the tag beside it", pure.tag === MODEL_9 && pure.window === 262144 && pure.words === '256k · 6.1 GiB weights + 4.3 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot' && setup.windowWords(pure) === pure.words, pure.words)
+  check("chooseWindowFrom is the owner's answer with the tag beside it, the ceiling applied: 128k, the 256k that fits named", pure.tag === MODEL_9 && pure.window === 131072 && pure.words === '128k · the automatic ceiling (256k fits: 6.1 GiB weights + 4.3 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot) · pin trained max or a number in /config for more' && setup.windowWords(pure).startsWith('128k · 6.1 GiB weights + ') && setup.windowWords(pure).endsWith(' of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot'), `${pure.words} || ${setup.windowWords(pure)}`)
   const written: Array<[string, number]> = []
   const io = { env: { MERCURY_LOCAL_PROBE_TARGETS: `ollama=${ollama.root}` }, platform: 'darwin' as const, home: '/fixture/home', fetchImpl: globalThis.fetch, timeoutMs: 400, totalMemoryBytes: 48 * GIB, readTruth: async () => OWNER_BOX, writeWindow: (tag: string, window: number) => void written.push([tag, window]) }
   const chosen = await setup.chooseWindow(ollama.root, MODEL_9, io)
