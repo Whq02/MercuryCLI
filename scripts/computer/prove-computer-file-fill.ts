@@ -29,7 +29,8 @@ writeFileSync(scene, JSON.stringify({
       control('AXCheckBox', 'Agree', 540, { value: '0' }),
       control('AXPopUpButton', 'Country', 600, { value: 'United Kingdom' }),
       { role: 'AXGroup', title: 'Resume', frame: { x: 400, y: 660, width: 500, height: 80 }, children: [control('AXButton', 'Upload File', 680)] },
-      control('AXTextArea', 'Below the fold', 985, { frame: { x: 400, y: 985, width: 500, height: 1 } }),
+      control('AXTextArea', 'Below the fold', 985, { frame: { x: 400, y: 985, width: 500, height: 1 }, visibleFrame: { x: 400, y: 760, width: 500, height: 32 } }),
+      control('AXTextArea', 'Collapsed', 985, { frame: { x: 400, y: 985, width: 500, height: 1 } }),
     ] },
   ] }],
 }))
@@ -148,8 +149,11 @@ section('§2 fill: the value set through the accessibility API, keystrokes when 
   const secret = await call({ action: 'fill', target: { role: 'AXSecureTextField', name: 'Password' }, text: 'hunter2', capture: false })
   check('a secure field is set and never read back', secret.outcome === 'succeeded' && secret.result.includes('value not read back') && secret.result.includes('secure field') && !secret.result.includes('hunter2'), secret.result)
   from = driver.acts.length
-  const clamped = await call({ action: 'fill', target: { role: 'AXTextArea', name: 'Below the fold' }, text: 'never', capture: false })
-  check('an edge-clamped field is refused with the scroll sentence before anything is set', clamped.outcome === 'failed' && clamped.result.includes('scroll it into view first') && acts(from).length === 0, clamped.result)
+  const clamped = await call({ action: 'fill', target: { role: 'AXTextArea', name: 'Below the fold' }, text: 'scrolled in', capture: false })
+  check('an edge-clamped field is scrolled into view and filled in one act, and the words say so', clamped.outcome === 'succeeded' && clamped.result.includes('value "scrolled in"') && acts(from).join(',') === 'scrollToVisible,setValue', `${clamped.result} · ${acts(from).join(',')}`)
+  from = driver.acts.length
+  const collapsed = await call({ action: 'fill', target: { role: 'AXTextArea', name: 'Collapsed' }, text: 'never', capture: false })
+  check('a field that stays a strip after the scroll is refused honestly before anything is set', collapsed.outcome === 'failed' && collapsed.result.includes('still clipped') && collapsed.result.includes('collapsed or covered') && acts(from).join(',') === 'scrollToVisible', `${collapsed.result} · ${acts(from).join(',')}`)
   const setValue = driver.setValue
   driver.setValue = undefined as never
   for (const platform of ['darwin', 'linux'] as const) {
@@ -166,9 +170,9 @@ section('§3 fields: the controls of a form with role, name and value, sized for
 {
   const read = await call({ action: 'fields' })
   const rows = read.result.split('\n').filter(line => /^\[\d+\]/.test(line))
-  check('fields lists every control once, flat, with its value', read.outcome === 'succeeded' && read.result.includes('fields: Browser — 7 controls') && rows.length === 7, read.result)
+  check('fields lists every control once, flat, with its value', read.outcome === 'succeeded' && read.result.includes('fields: Browser — 8 controls') && rows.length === 8, read.result)
   check('a text field carries the value fill set last, by keystrokes or by the API', rows.some(row => /^\[\d+\] AXTextField "First Name" "Janet"$/.test(row)) && rows.some(row => /^\[\d+\] AXTextField "Legacy" "typed on linux"$/.test(row)), read.result)
-  check('an empty field reads as an empty value, not as missing', rows.some(row => /^\[\d+\] AXTextArea "Below the fold" ""$/.test(row)), read.result)
+  check('an empty field reads as an empty value, not as missing', rows.some(row => /^\[\d+\] AXTextArea "Collapsed" ""$/.test(row)), read.result)
   check('a secure field shows no value', rows.some(row => /^\[\d+\] AXSecureTextField "Password" \(secure\)$/.test(row)) && !read.result.includes('hunter2'), read.result)
   check('choice controls carry their state', rows.some(row => /^\[\d+\] AXCheckBox "Agree" "0"$/.test(row)) && rows.some(row => /^\[\d+\] AXPopUpButton "Country" "United Kingdom"$/.test(row)), read.result)
   check('buttons, static text and groups are not controls of the form', !read.result.includes('Upload File') && !read.result.includes('Tell us') && !read.result.includes('AXGroup'), read.result)

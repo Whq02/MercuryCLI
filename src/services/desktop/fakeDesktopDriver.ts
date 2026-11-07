@@ -43,6 +43,7 @@ interface FakeTreeNode {
   actions?: string[]
   settable?: boolean
   wheel?: boolean
+  visibleFrame?: DesktopBounds
 }
 
 interface FakeSceneSwitch {
@@ -641,6 +642,7 @@ export class FakeDesktopDriver implements DesktopDriver {
       }
       if (below) node.frame = { ...node.frame, y: Math.round(viewport.y + (viewport.height - node.frame.height) / 2) }
       if (beside) node.frame = { ...node.frame, x: Math.round(viewport.x + (viewport.width - node.frame.width) / 2) }
+      if (node.visibleFrame && (below || beside)) node.frame = { ...node.visibleFrame }
     }
     this.sceneActs += 1
     this.record('scrollToVisible', 'done', { ...detail, scrolled: true, road, frame: node.frame ?? null, ...(at ? { at } : {}) })
@@ -673,8 +675,9 @@ export class FakeDesktopDriver implements DesktopDriver {
     if ((await this.hold(signal)) === 'aborted') return desktopAbortedAnswer()
     const window = this.scene.tree.find(node => node.role === 'AXWindow' && node.focused === true) ?? this.scene.tree.find(node => node.role === 'AXWindow' && node.title === app.title)
     const matches = sceneNodes(window ? [window] : this.scene.tree).filter(node => node.role === element.role && titleOf(node) === element.title && JSON.stringify(node.frame ?? null) === JSON.stringify(element.frame))
-    if (matches.length !== 1) return refusal(inputError(ELEMENT_NOT_UNIQUE))
-    return answer({ node: matches[0]!, window })
+    const chosen = element.nth !== undefined ? matches[element.nth] : matches.length === 1 ? matches[0] : undefined
+    if (chosen === undefined) return refusal(inputError(ELEMENT_NOT_UNIQUE))
+    return answer({ node: chosen, window })
   }
 
   async cursor(): Promise<DesktopAnswer<DesktopCursor>> {

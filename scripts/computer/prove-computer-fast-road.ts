@@ -224,10 +224,10 @@ check('a new whole-tool deny is checked even when the application has a grant', 
 driver.click = originalClick
 session.forgetDesktopOwner(owner)
 
-section('an edge-clamped target is refused with words, never clicked (a browser reports an element below the fold as a 1 pt strip: frame y 985, height 1, centre 985.5 inside the window)')
+section('a clamped target is scrolled into view and acted on in one act; one that will not come into view is refused with honest words (a browser reports an element below the fold as a 1 pt strip: frame y 985, height 1)')
 {
   const chrome = { identity: 'com.example.Browser', name: 'Browser', pid: 4242, windowId: 'careers', title: 'Careers — Example', bounds: { x: 0, y: 30, width: 1920, height: 956 } }
-  const area = (role: string, title: string, frame: { x: number; y: number; width: number; height: number }, focused = false) => ({ role, title, frame, ...(focused ? { focused } : {}) })
+  const area = (role: string, title: string, frame: { x: number; y: number; width: number; height: number }, extra: Record<string, unknown> = {}) => ({ role, title, frame, ...extra })
   const far = join(scratch, 'far.json')
   writeFileSync(far, JSON.stringify({
     displays: [{ index: 0, id: 'careers', originX: 0, originY: 0, width: 1920, height: 1080, scale: 2, primary: true }],
@@ -237,12 +237,18 @@ section('an edge-clamped target is refused with words, never clicked (a browser 
     tree: [{ role: 'AXWindow', title: chrome.title, focused: true, frame: chrome.bounds, children: [
       { role: 'AXWebArea', title: 'Careers', frame: { x: 0, y: 120, width: 1920, height: 866 }, children: [
         area('AXTextArea', 'AF7', { x: 742, y: 300, width: 721, height: 120 }),
-        area('AXTextArea', 'AF8', { x: 742, y: 600, width: 721, height: 120 }, true),
-        area('AXTextArea', 'AF10', { x: 742, y: 985, width: 721, height: 1 }),
-        area('AXLink', 'Edit about', { x: 1000, y: 985, width: 265, height: 1 }),
+        area('AXTextArea', 'AF8', { x: 742, y: 600, width: 721, height: 120 }, { focused: true }),
+        area('AXTextArea', 'AF10', { x: 742, y: 985, width: 721, height: 1 }, { visibleFrame: { x: 742, y: 700, width: 721, height: 120 } }),
+        area('AXLink', 'Edit about', { x: 1000, y: 985, width: 265, height: 1 }, { visibleFrame: { x: 1000, y: 840, width: 265, height: 20 } }),
         area('AXTextArea', 'Tall', { x: 20, y: 100, width: 600, height: 900 }),
         area('AXButton', 'Footer', { x: 742, y: 966, width: 100, height: 20 }),
         area('AXButton', 'Header', { x: 742, y: 120, width: 100, height: 1 }),
+        area('AXButton', 'Stuck', { x: 742, y: 985, width: 100, height: 1 }, { actions: [], wheel: false }),
+        { role: 'AXGroup', title: 'Studio', frame: { x: 1700, y: 400, width: 200, height: 500 }, children: [
+          area('AXButton', 'Review', { x: 1750, y: 420, width: 80, height: 24 }),
+          area('AXButton', 'Review', { x: 1750, y: 899, width: 80, height: 1 }, { visibleFrame: { x: 1750, y: 600, width: 80, height: 24 } }),
+          area('AXButton', 'Review', { x: 1750, y: 899, width: 80, height: 1 }, { visibleFrame: { x: 1750, y: 640, width: 80, height: 24 } }),
+        ] },
       ] },
     ] }],
   }))
@@ -254,25 +260,35 @@ section('an edge-clamped target is refused with words, never clicked (a browser 
   context = toolContext()
   session.forgetDesktopOwner(ownerOf(context))
   const clicks = () => chromeDriver.acts.filter(a => a.act === 'click').map(a => JSON.stringify(a.detail.at))
+  const scrolls = () => chromeDriver.acts.filter(a => a.act === 'scrollToVisible').length
   const clamped = await call({ action: 'click', target: { role: 'AXTextArea', name: 'AF10' }, capture: false })
-  check('the clamped text area is refused with the scroll sentence', clamped.outcome === 'failed' && clamped.result.includes('AF10') && clamped.result.includes("below the web area's edge") && clamped.result.includes('1 pt visible') && clamped.result.includes('scroll it into view first'), clamped.result)
-  check('no click reached the driver for the clamped target', clicks().length === 0, clicks().join(','))
+  check('a 1 pt strip is scrolled into view and clicked at the frame it then has, and the words say so', clamped.outcome === 'succeeded' && clamped.result.includes('AF10') && clamped.result.includes('scrolled into view first (action)') && clicks().at(-1) === JSON.stringify({ x: 1102.5, y: 760 }) && scrolls() === 1, clamped.result)
   const found = await call({ action: 'find', target: { role: 'AXLink', name: 'Edit about' } })
   const ref = Number(/\[(\d+)\] AXLink "Edit about"/.exec(found.result)?.[1])
   const byRef = await call({ action: 'click', ref, capture: false })
-  check('the ref road refuses the same clamped frame', found.outcome === 'succeeded' && byRef.outcome === 'failed' && byRef.result.includes(`ref:${ref}`) && byRef.result.includes('scroll it into view first') && clicks().length === 0, byRef.result)
-  const dragged = await call({ action: 'drag', target: { role: 'AXTextArea', name: 'AF7' }, toTarget: { role: 'AXTextArea', name: 'AF10' }, capture: false })
-  check('a drag whose destination is clamped is refused before any input', dragged.outcome === 'failed' && dragged.result.includes('scroll it into view first') && !chromeDriver.acts.some(a => a.act === 'drag'), dragged.result)
+  check('the ref road scrolls the same way and clicks the visible frame', found.outcome === 'succeeded' && byRef.outcome === 'succeeded' && byRef.result.includes('scrolled into view first (action)') && clicks().at(-1) === JSON.stringify({ x: 1132.5, y: 850 }), byRef.result)
   const header = await call({ action: 'click', target: { role: 'AXButton', name: 'Header' }, capture: false })
-  check('a strip clamped at the top edge is refused as above it', header.outcome === 'failed' && header.result.includes("above the web area's edge"), header.result)
+  check('a strip that stays a strip after the scroll is refused honestly, with the next move named, and never clicked', header.outcome === 'failed' && header.result.includes('squashed to a strip 1 pt tall') && header.result.includes('was scrolled (action) and is still clipped') && header.result.includes('collapsed or covered: take a screenshot') && clicks().length === 2, header.result)
+  const stuck = await call({ action: 'click', target: { role: 'AXButton', name: 'Stuck' }, capture: false })
+  check('a pane with no scroll action whose wheel moves nothing is refused as not scrolled, never clicked', stuck.outcome === 'failed' && stuck.result.includes('did not scroll into view') && stuck.result.includes('collapsed or covered') && clicks().length === 2, stuck.result)
+  const dragged = await call({ action: 'drag', target: { role: 'AXTextArea', name: 'AF7' }, toTarget: { role: 'AXButton', name: 'Header' }, capture: false })
+  check('a drag whose destination will not come into view is refused before any input', dragged.outcome === 'failed' && dragged.result.includes('still clipped') && !chromeDriver.acts.some(a => a.act === 'drag'), dragged.result)
   const tall = await call({ action: 'click', target: { role: 'AXTextArea', name: 'Tall' }, capture: false })
-  check('an element clipped at both edges still clicks its centre', tall.outcome === 'succeeded' && clicks().at(-1) === JSON.stringify({ x: 320, y: 550 }), tall.result)
+  check('an element clipped at both edges still clicks its centre without a scroll', tall.outcome === 'succeeded' && !tall.result.includes('scrolled into view') && clicks().at(-1) === JSON.stringify({ x: 320, y: 550 }), tall.result)
   const footer = await call({ action: 'click', target: { role: 'AXButton', name: 'Footer' }, capture: false })
-  check('a 20-pt control touching the bottom edge still clicks', footer.outcome === 'succeeded' && clicks().at(-1) === JSON.stringify({ x: 792, y: 976 }), footer.result)
+  check('a 20-pt control touching the bottom edge still clicks without a scroll', footer.outcome === 'succeeded' && !footer.result.includes('scrolled into view') && clicks().at(-1) === JSON.stringify({ x: 792, y: 976 }), footer.result)
   const rooted = await call({ action: 'tree', root: { role: 'AXTextArea', name: 'AF10' } })
   check('the tree-root road is untouched by the edge rule', rooted.outcome === 'succeeded' && rooted.result.includes('AXTextArea "AF10"'), rooted.result)
   const read = await call({ action: 'read', target: { role: 'AXTextArea', name: 'AF10' } })
   check('read is untouched by the edge rule', read.outcome === 'succeeded', read.result)
+  const reviews = await call({ action: 'find', target: { role: 'AXButton', name: 'Review' } })
+  const refs = [...reviews.result.matchAll(/\[(\d+)\] AXButton "Review"/g)].map(m => Number(m[1]))
+  check('three identical siblings, two of them squashed to the same strip, get three refs', reviews.outcome === 'succeeded' && refs.length === 3 && new Set(refs).size === 3, reviews.result)
+  const second = await call({ action: 'click', ref: refs[1]!, capture: false })
+  check('a ref to one of two identical strips resolves to that one alone, is scrolled into view and clicked at its own visible frame', second.outcome === 'succeeded' && !second.result.includes('match it now') && second.result.includes('scrolled into view first') && clicks().at(-1) === JSON.stringify({ x: 1790, y: 612 }), second.result)
+  const nothing = await call({ action: 'find', target: { role: 'AXButton', name: 'No Such Button' } })
+  const afterEmpty = await call({ action: 'click', ref: refs[0]!, capture: false })
+  check('a find that matched nothing keeps the refs the model holds', nothing.outcome === 'succeeded' && nothing.result.includes('0 elements') && afterEmpty.outcome === 'succeeded' && clicks().at(-1) === JSON.stringify({ x: 1790, y: 432 }), JSON.stringify({ nothing: nothing.outcome + ' ' + nothing.result.slice(0, 200), afterEmpty: afterEmpty.outcome + ' ' + afterEmpty.result.slice(0, 300) }))
   session.forgetDesktopOwner(ownerOf(context))
 }
 finish('prove-computer-fast-road')

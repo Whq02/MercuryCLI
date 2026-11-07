@@ -26,7 +26,7 @@ export function targetMatches(tree: DesktopTree, target: ElementTarget): Desktop
   )
 }
 
-function candidateWords(elements: DesktopTreeElement[], map: ScreenMap | null): string {
+export function candidateWords(elements: DesktopTreeElement[], map: ScreenMap | null): string {
   return elements.map((element, index) => {
     const frame = element.frame
     const point = frame ? { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 } : null
@@ -104,9 +104,31 @@ function viewportOf(tree: DesktopTree, element: DesktopTreeElement, bounds: Desk
   return frame === null || frame.width <= 0 || frame.height <= 0 ? null : { frame, name }
 }
 
+const STRIP_ROLES = /Separator|Splitter|Divider|ScrollBar|Progress|Slider|ValueIndicator/
+
+export function withOrdinal(tree: DesktopTree, element: DesktopTreeElement): DesktopTreeElement {
+  const source = (element as { sourceIndices?: number[] }).sourceIndices?.[0] ?? tree.elements.indexOf(element)
+  if (source < 0) return element
+  const windowAt = tree.elements.findIndex(row => row.depth === 1)
+  const start = windowAt < 0 ? 0 : windowAt
+  let end = tree.elements.length
+  for (let index = start + 1; index < tree.elements.length; index++) if (tree.elements[index]!.depth <= 1) { end = index; break }
+  if (source < start || source >= end) return element
+  const shape = (row: DesktopTreeElement): string => JSON.stringify([row.role, row.title, row.frame])
+  const wanted = shape(element)
+  let nth = 0
+  for (let index = start; index < source; index++) if (shape(tree.elements[index]!) === wanted) nth++
+  const { sourceIndices: _sourceIndices, ref: _ref, ...plain } = element as DesktopTreeElement & { sourceIndices?: number[]; ref?: number }
+  return { ...plain, nth }
+}
+
 export function clippedWords(tree: DesktopTree, element: DesktopTreeElement, bounds: DesktopBounds | null): string | null {
   const frame = element.frame
   if (!usableFrame(frame)) return null
+  if (!STRIP_ROLES.test(element.role) && (frame.height <= EDGE_MARGIN_PT || frame.width <= EDGE_MARGIN_PT)) {
+    const squashed = frame.height <= EDGE_MARGIN_PT ? `${Math.round(frame.height * 10) / 10} pt tall` : `${Math.round(frame.width * 10) / 10} pt wide`
+    return `the target is squashed to a strip ${squashed} at the edge of its pane (scrolled out of view) — scroll it into view first`
+  }
   const viewport = viewportOf(tree, element, bounds)
   if (viewport === null) return null
   const edge = viewport.frame

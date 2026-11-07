@@ -605,7 +605,7 @@ unsafe fn tree_element(element: CFTypeRef, depth: u32, focused: CFTypeRef) -> Tr
     }
     let title = ax_string(element, "AXTitle").or_else(|| ax_string(element, "AXDescription")).map(|text| clipped(text, TREE_VALUE_CHARS));
     let value = ax_string(element, "AXValue").map(|text| clipped(text, TREE_VALUE_CHARS));
-    TreeElement { depth, role, title, value, frame: ax_frame(element), focused: if focused.is_null() { None } else { Some(CFEqual(element, focused) != 0) } }
+    TreeElement { depth, role, title, value, frame: ax_frame(element), focused: if focused.is_null() { None } else { Some(CFEqual(element, focused) != 0) }, nth: None }
 }
 
 pub fn focused_text(pid: i32) -> Result<Option<FocusedText>, String> {
@@ -1221,12 +1221,18 @@ unsafe fn unique_element(pid: i32, wanted: &TreeElement, started: std::time::Ins
         CFRelease(element);
     }
     for (rest, _) in stack { CFRelease(rest); }
-    if !complete || matches.len() != 1 {
+    let chosen = match wanted.nth {
+        Some(nth) if complete => matches.get(nth as usize).copied(),
+        None if complete && matches.len() == 1 => Some(matches[0]),
+        _ => None,
+    };
+    let Some(selected) = chosen else {
         for matched in matches { CFRelease(matched); }
         CFRelease(window);
         return Err(ELEMENT_NOT_UNIQUE.to_string());
-    }
-    Ok((window, matches[0]))
+    };
+    for matched in matches { if matched != selected { CFRelease(matched); } }
+    Ok((window, selected))
 }
 
 pub fn read_element(pid: i32, wanted: &TreeElement) -> Result<Option<crate::ElementText>, String> {
@@ -1429,7 +1435,7 @@ mod read_element_tests {
 
     #[test]
     fn a_value_change_does_not_change_the_addressed_control() {
-        let original = TreeElement { depth: 1, role: "AXTextField".into(), title: Some("URL".into()), value: Some("old".into()), frame: None, focused: None };
+        let original = TreeElement { depth: 1, role: "AXTextField".into(), title: Some("URL".into()), value: Some("old".into()), frame: None, focused: None, nth: None };
         let mut current = original.clone();
         current.value = Some("new".into());
         assert!(matching_element(&current, &original));
@@ -1439,7 +1445,7 @@ mod read_element_tests {
 
     #[test]
     fn a_moved_control_is_not_the_old_target() {
-        let original = TreeElement { depth: 1, role: "AXTextField".into(), title: Some("URL".into()), value: None, frame: Some(BoundsRecord { x: 10.0, y: 20.0, width: 40.0, height: 30.0 }), focused: None };
+        let original = TreeElement { depth: 1, role: "AXTextField".into(), title: Some("URL".into()), value: None, frame: Some(BoundsRecord { x: 10.0, y: 20.0, width: 40.0, height: 30.0 }), focused: None, nth: None };
         let mut current = original.clone();
         current.frame.as_mut().unwrap().x += 1.0;
         assert!(!matching_element(&current, &original));

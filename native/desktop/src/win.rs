@@ -333,7 +333,7 @@ fn tree_row(element: &IUIAutomationElement, depth: u32) -> TreeElement {
     let (title, value) = if role == "AXStaticText" && value.is_none() { (None, name) } else { (name, value) };
     let frame = unsafe { element.CachedBoundingRectangle() }.ok().and_then(rect_frame);
     let focused = unsafe { element.CachedHasKeyboardFocus() }.ok().map(|flag| flag.as_bool());
-    TreeElement { depth, role, title: title.map(|text| clipped(text, TREE_VALUE_CHARS)), value: value.map(|text| clipped(text, TREE_VALUE_CHARS)), frame, focused }
+    TreeElement { depth, role, title: title.map(|text| clipped(text, TREE_VALUE_CHARS)), value: value.map(|text| clipped(text, TREE_VALUE_CHARS)), frame, focused, nth: None }
 }
 
 fn matching_element(candidate: &TreeElement, wanted: &TreeElement) -> bool {
@@ -368,10 +368,14 @@ fn unique_element(pid: i32, wanted: &TreeElement) -> Result<(IUIAutomation, IUIA
             matches.push(element);
         }
     }
-    if matches.len() != 1 {
+    let index = match wanted.nth {
+        Some(nth) => (nth as usize) < matches.len(),
+        None => matches.len() == 1,
+    };
+    if !index {
         return Err(ELEMENT_NOT_UNIQUE.to_string());
     }
-    Ok((automation, window, matches.remove(0)))
+    Ok((automation, window, matches.remove(wanted.nth.unwrap_or(0) as usize)))
 }
 
 struct TreeWalk<'a> {

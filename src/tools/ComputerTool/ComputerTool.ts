@@ -80,7 +80,7 @@ import {
 } from './screenMap.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './UI.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import { STATE_LINE, clippedWords, regionRefusal, sameWindow, settledCapture, stateWord, windowOnDisplay, targetMatches, targetElement, targetPoint, targetWords, readObservation, settledObservation, observationChanged, treeObservation, verificationWords, pageContentNote, type CaptureRegion, type DesktopObservation } from './fastRoad.js'
+import { STATE_LINE, candidateWords, clippedWords, regionRefusal, withOrdinal, sameWindow, settledCapture, stateWord, windowOnDisplay, targetMatches, targetElement, targetPoint, targetWords, readObservation, settledObservation, observationChanged, treeObservation, verificationWords, pageContentNote, type CaptureRegion, type DesktopObservation } from './fastRoad.js'
 import { CAPTCHA_ASK_UNAVAILABLE, CAPTCHA_OPERATOR_COMPLETES, CAPTCHA_QUESTION, captchaNote, titleSight, treeSight, type CaptchaSight } from './captcha.js'
 import { OPERATOR_TYPING_REFUSAL, operatorIsTyping, waitForOperatorPause } from './operatorPause.js'
 
@@ -446,6 +446,26 @@ interface ActPlan {
   observe?: DesktopBounds
   captcha?: CaptchaSight
   element?: DesktopTreeElement
+  scrolled?: 'action' | 'wheel'
+}
+
+function scrolledWords(plan: ActPlan): string {
+  return plan.scrolled ? ` · scrolled into view first (${plan.scrolled})` : ''
+}
+
+const UNSCROLLED = 'the pane has no scroll action and the wheel moved nothing'
+
+async function scrollIntoView(driver: DesktopDriver, front: DesktopApplication, tree: DesktopTree, element: DesktopTreeElement, clipped: string, signal: AbortSignal): Promise<{ element: DesktopTreeElement; road: 'action' | 'wheel' } | { refusal: string }> {
+  if (driver.scrollToVisible === undefined) return { refusal: clipped }
+  const source = (element as { sourceIndices?: number[] }).sourceIndices?.[0]
+  const answer = await driver.scrollToVisible(front, withOrdinal(tree, source === undefined ? element : tree.elements[source] ?? element), signal)
+  if (!answer.ok) return { refusal: `${clipped}; scrolling it into view failed: ${answer.error.note}` }
+  const receipt = answer.value
+  if (!receipt.scrolled || receipt.road === null) return { refusal: `${clipped}; it did not scroll into view (${receipt.note ?? UNSCROLLED}) — it may be collapsed or covered: take a screenshot` }
+  const moved = receipt.frame ? { ...element, frame: receipt.frame } : element
+  const still = clippedWords(tree, moved, front.bounds)
+  if (still !== null) return { refusal: `${clipped}; it was scrolled (${receipt.road}) and is still clipped: ${still.replace(' — scroll it into view first', '')} — it may be collapsed or covered: take a screenshot` }
+  return { element: moved, road: receipt.road }
 }
 
 type Framed = { ok: true; point: DesktopPoint } | { ok: false; text: string }
@@ -504,21 +524,35 @@ async function resolveActTargets(driver: DesktopDriver, input: Input, front: Des
   plan.beforeTree = tree.value
   if (input.ref !== undefined) {
     const elements = resolveTreeRef(owner, front, tree.value, input.ref)
-    const point = targetPoint({ ...tree.value, elements }, {})
+    if (elements.length !== 1) return `${input.action} refused: ref:${input.ref}: ${elements.length === 0 ? 'no element of the latest tree matches it now' : `${elements.length} elements match it now`} — read the tree or find again${elements.length ? `\n${candidateWords(elements, map)}` : ''}`
+    let element = elements[0]!
+    const clipped = clippedWords(tree.value, element, front.bounds)
+    if (clipped !== null) {
+      const scrolled = await scrollIntoView(driver, front, tree.value, element, clipped, signal)
+      if ('refusal' in scrolled) return `${input.action} refused: ref:${input.ref}: ${scrolled.refusal}`
+      element = scrolled.element
+      plan.scrolled = scrolled.road
+    }
+    const point = targetPoint({ ...tree.value, elements: [element] }, {}, map)
     if ('refusal' in point) return `${input.action} refused: ref:${input.ref}${point.refusal}`
-    const clipped = elements[0] ? clippedWords(tree.value, elements[0], front.bounds) : null
-    if (clipped !== null) return `${input.action} refused: ref:${input.ref}: ${clipped}`
     plan.point = point
-    plan.element = elements[0]
-    if (elements[0]?.frame) plan.observe = elements[0].frame
+    plan.element = element
+    if (element.frame) plan.observe = element.frame
   }
   for (const [selector, field] of [[input.target, 'point'], [input.toTarget, 'target']] as const) {
     if (selector === undefined) continue
-    const point = targetPoint(tree.value, selector, map)
+    let point = targetPoint(tree.value, selector, map)
     if ('refusal' in point) return `${input.action} refused: ${point.refusal}${pageContentNote(tree.value) ? `; ${pageContentNote(tree.value)}` : ''}`
-    const element = targetElement(tree.value, selector, map)
+    let element = targetElement(tree.value, selector, map)
     const clipped = 'refusal' in element ? null : clippedWords(tree.value, element, front.bounds)
-    if (clipped !== null) return `${input.action} refused: ${targetWords(selector)}: ${clipped}`
+    if (clipped !== null && !('refusal' in element)) {
+      const scrolled = await scrollIntoView(driver, front, tree.value, element, clipped, signal)
+      if ('refusal' in scrolled) return `${input.action} refused: ${targetWords(selector)}: ${scrolled.refusal}`
+      element = scrolled.element
+      plan.scrolled = scrolled.road
+      const frame = scrolled.element.frame!
+      point = { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 }
+    }
     plan[field] = point
     const frame = 'refusal' in element ? undefined : element.frame
     if (field === 'point' && !('refusal' in element)) plan.element = element
@@ -793,7 +827,7 @@ async function performFile(driver: DesktopDriver, input: Input, plan: ActPlan, s
   const gone = await awaitDialog(driver, signal, false, closed)
   if (gone === 'unread') return { ok: false, aborted: signal.aborted, text: `file failed: the window's tree could not be read after ${path}, so whether the dialog closed is unknown — take a screenshot` }
   if (gone === 'unmet') return { ok: false, aborted: signal.aborted, text: `file failed: the file dialog is still open after ${path} — it may not accept that path; take a screenshot` }
-  return { ok: true, words: `file ${startWords(input)} ← ${basename(path)} → ${pointWords(plan.point!)} · the dialog opened and closed` }
+  return { ok: true, words: `file ${startWords(input)} ← ${basename(path)} → ${pointWords(plan.point!)}${scrolledWords(plan)} · the dialog opened and closed` }
 }
 
 function valueWords(value: string | null): string {
@@ -802,7 +836,7 @@ function valueWords(value: string | null): string {
 
 async function performFill(driver: DesktopDriver, input: Input, plan: ActPlan, front: DesktopApplication, signal: AbortSignal): Promise<ActWords> {
   const run = new ActRun(driver, 'fill', signal)
-  const element = plan.element!
+  const element = plan.beforeTree ? withOrdinal(plan.beforeTree, plan.element!) : plan.element!
   const text = input.text!
   if (driver.setValue) {
     const set = await run.step(driver.setValue(front, element, text, signal))
@@ -838,11 +872,11 @@ async function performAct(driver: DesktopDriver, input: Input, plan: ActPlan, fr
       const count = input.action === 'doubleClick' ? 2 : input.action === 'click' ? (input.count ?? 1) as 1 | 2 | 3 : 1
       if ((await run.step(driver.click(plan.point!, button, count, signal))) === null) return run.failed()
       if (!(await run.up(plan.modifiers))) return run.failed()
-      return { ok: true, words: `${input.action} ${startWords(input)}${input.count && input.count > 1 ? ` ×${input.count}` : ''}${modifierWords(input.modifiers)} → ${pointWords(plan.point!)}` }
+      return { ok: true, words: `${input.action} ${startWords(input)}${input.count && input.count > 1 ? ` ×${input.count}` : ''}${modifierWords(input.modifiers)} → ${pointWords(plan.point!)}${scrolledWords(plan)}` }
     }
     case 'move': {
       if ((await run.step(driver.mouseMove(plan.point!, signal))) === null) return run.failed()
-      return { ok: true, words: `move ${startWords(input)} → ${pointWords(plan.point!)}` }
+      return { ok: true, words: `move ${startWords(input)} → ${pointWords(plan.point!)}${scrolledWords(plan)}` }
     }
     case 'drag': {
       if (!(await run.down(plan.modifiers))) return run.failed()
@@ -850,7 +884,7 @@ async function performAct(driver: DesktopDriver, input: Input, plan: ActPlan, fr
       if (!(await run.up(plan.modifiers))) return run.failed()
       return {
         ok: true,
-        words: `drag ${startWords(input)} → ${endWords(input)}${modifierWords(input.modifiers)} · ${pointWords(plan.point!)} → ${pointWords(plan.target!)}`,
+        words: `drag ${startWords(input)} → ${endWords(input)}${modifierWords(input.modifiers)} · ${pointWords(plan.point!)} → ${pointWords(plan.target!)}${scrolledWords(plan)}`,
       }
     }
     case 'scroll': {
@@ -1765,7 +1799,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
               }
             }
             value = failure ? { ok: false, error: failure } : { ok: true, value: { text: texts.join(' '), title: element.title, role: element.role, truncated } }
-          } else value = await driver.readElement(app, element, signal)
+          } else value = await driver.readElement(app, withOrdinal(tree.value, element), signal)
           if (!value.ok) { result = faultText('read', value.error); break }
           const after = await driver.frontmostApplication()
           if (signal.aborted) { result = interruptedText('read'); break }

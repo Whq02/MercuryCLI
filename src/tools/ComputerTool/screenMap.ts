@@ -154,11 +154,16 @@ export function outlineRowWords(element: OutlineElement, map: ScreenMap | null =
 }
 
 function elementPaths(tree: DesktopTree): string[] {
-  const ancestors: Array<{ depth: number; key: string }> = []
+  const ancestors: Array<{ depth: number; key: string; seen: Map<string, number> }> = []
   return tree.elements.map(element => {
     while (ancestors.length && ancestors.at(-1)!.depth >= element.depth) ancestors.pop()
-    const path = createHash('sha256').update(JSON.stringify([ancestors.at(-1)?.key, element.role, element.title, element.frame])).digest('hex')
-    ancestors.push({ depth: element.depth, key: path })
+    const parent = ancestors.at(-1)
+    const shape = JSON.stringify([element.role, element.title, element.frame])
+    const seen = parent?.seen ?? new Map<string, number>()
+    const ordinal = seen.get(shape) ?? 0
+    seen.set(shape, ordinal + 1)
+    const path = createHash('sha256').update(JSON.stringify([parent?.key, element.role, element.title, element.frame, ordinal])).digest('hex')
+    ancestors.push({ depth: element.depth, key: path, seen: new Map() })
     return path
   })
 }
@@ -176,6 +181,7 @@ function windowKey(app: DesktopApplication): string {
 
 export function rememberTreeRefs(owner: OwnerKey, app: DesktopApplication, tree: DesktopTree, outline: DesktopOutline): void {
   const state = treeRefs.get(owner)
+  if (outline.elements.length === 0 && state.window === windowKey(app)) return
   state.window = windowKey(app)
   state.refs.clear()
   const paths = elementPaths(tree)

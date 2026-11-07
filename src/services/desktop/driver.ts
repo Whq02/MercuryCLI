@@ -92,6 +92,7 @@ export interface DesktopTreeElement {
   value: string | null
   frame: DesktopBounds | null
   focused?: boolean
+  nth?: number
 }
 
 export interface DesktopFocusedText {

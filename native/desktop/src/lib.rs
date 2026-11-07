@@ -141,6 +141,7 @@ pub struct TreeElement {
     pub value: Option<String>,
     pub frame: Option<BoundsRecord>,
     pub focused: Option<bool>,
+    pub nth: Option<u32>,
 }
 
 #[napi(object)]
