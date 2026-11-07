@@ -34,7 +34,7 @@ function stripEnginePrefix(line: string): string {
   return line.replace(ENGINE_PREFIX, '').trim()
 }
 
-const GIBS = /(\d+(?:\.\d+)?)\s*GiB/g
+const GIBS = /(?<!\d)(\d+(?:\.\d+)?)\s*GiB/g
 
 function gibsOf(line: string): number[] {
   return [...line.matchAll(GIBS)].map(match => Number(match[1]))
@@ -53,9 +53,9 @@ export function readTensorFoldRefusal(stderr: string, context: { window?: number
   if (memory) {
     const gibs = gibsOf(line)
     const needGib = gibs[0]
-    const remains = /(\d+(?:\.\d+)?) GiB remains beside the weights/.exec(line)
+    const remains = /(?<!\d)(\d+(?:\.\d+)?) GiB remains beside the weights/.exec(line)
     const leftGib = remains !== null ? Number(remains[1]) : gibs.length > 1 ? gibs[1] : undefined
-    const window = Number(/(\d+)-token/.exec(line)?.[1]) || context.window
+    const window = Number(/(?<!\d)(\d+)-token/.exec(line)?.[1]) || context.window
     const next = nextWindowUnder(context.ladder, context.window, leftGib)
     const base: TensorFoldRefusal = {
       kind: 'memory',

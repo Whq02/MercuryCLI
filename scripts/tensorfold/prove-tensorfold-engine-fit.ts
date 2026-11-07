@@ -162,6 +162,8 @@ section('the refusal reader: the last stderr line, AddressInUse, the memory line
   check('its next step names the window ↵ serves at', refusal.refusalNextStep(memory) === '↵ serves it at 64k')
   const family = refusal.readTensorFoldRefusal('tensorfold: nemotron_h: one stream at a 262144-token window takes 1.50 GiB, more than the 0.80 GiB left under the load limit; lower --context', { window: 262_144, ladder: fit.tensorFoldLadder(starting.NEMOTRON_LIGHTNING, MAC_48) })
   check('the shared Metal refusal reads the same way', family.kind === 'memory' && family.needGib === 1.5 && family.leftGib === 0.8 && family.nextWindow === 131_072, JSON.stringify(family))
+  const digits = refusal.readTensorFoldRefusal(`tensorfold: does not fit ${'1'.repeat(3000)}X`, { window: 4096 })
+  check('a memory line that is one long digit run names no need, no room and the context window', digits.kind === 'memory' && digits.needGib === undefined && digits.leftGib === undefined && digits.window === 4096, JSON.stringify({ ...digits, line: digits.line.length }))
   const q27 = refusal.readTensorFoldRefusal('tensorfold: --parallel 1 needs 8.00 GiB for its streams and 8-row prompt scratch at a 131072-token context; 5.12 GiB remains beside the weights and an 8 GiB margin: lower --parallel or --context', { window: 131_072, ladder })
   check("the 27B's own refusal: the room is what remains beside the weights", q27.kind === 'memory' && q27.needGib === 8 && q27.leftGib === 5.12 && q27.nextWindow === 65_536, JSON.stringify(q27))
   const need = fit.tensorFoldProjectedBytes(starting.QWEN_27B, 32_768)
