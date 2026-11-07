@@ -80,8 +80,8 @@ and may carry:
 
 - `shell`: `bash` (the default) or `powershell`; `run` only.
 - `model`: the model a `question` or `crewmate` hook runs on; without it,
-  the session's own model answers a question and runs a crewmate, at the
-  lowest effort tier it serves; a named model runs at its lowest tier too,
+  the session's own model answers a question and runs a crewmate, at `low`
+  effort; a named model runs at the same `low` floor,
   after a bounded read of its road's model list (when the list cannot be read
   in time, a question rides the road's default effort and a crewmate the
   session's dial).

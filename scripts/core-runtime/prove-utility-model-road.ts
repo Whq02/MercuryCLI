@@ -40,7 +40,7 @@ watchdog.unref?.()
 
 const { startOverflowFixture } = await import('../compact/overflowFixture.ts')
 type Captured = Awaited<ReturnType<typeof startOverflowFixture>>['captured'][number]
-const SOL_LIST = { models: [{ slug: 'gpt-5.6-sol', display_name: 'GPT-5.6-Sol', supported_reasoning_levels: [{ effort: 'low', description: 'low' }, { effort: 'high', description: 'high' }], default_reasoning_level: 'high', visibility: 'list', priority: 1, context_window: 272_000, input_modalities: ['text', 'image'], supported_in_api: true }] }
+const SOL_LIST = { models: [{ slug: 'gpt-5.6-sol', display_name: 'GPT-5.6-Sol', supported_reasoning_levels: [{ effort: 'none', description: 'none' }, { effort: 'minimal', description: 'minimal' }, { effort: 'low', description: 'low' }, { effort: 'high', description: 'high' }], default_reasoning_level: 'high', visibility: 'list', priority: 1, context_window: 272_000, input_modalities: ['text', 'image'], supported_in_api: true }] }
 const probeAnswer = (request: Captured, response: import('node:http').ServerResponse): boolean => {
   if (request.dialect !== 'anthropic' || request.body.stream === true) return false
   response.writeHead(200, { 'content-type': 'application/json' })
@@ -84,7 +84,7 @@ const ROADS = [
   { road: 'openai', model: 'gpt-5.6-sol', floor: 'low', serves: 'the live list serves low and high, default high' },
   { road: 'gemini', model: 'gemini-3-pro', floor: undefined, serves: 'no effort control' },
   { road: 'local', model: 'local/fixture-local', floor: undefined, serves: 'no effort control' },
-  { road: 'zai', model: 'glm-5.2', floor: 'none', serves: 'GLM-5.2 serves none … max' },
+  { road: 'zai', model: 'glm-5.2', floor: 'low', serves: 'GLM-5.2 serves none … max; the floor is low, never none' },
 ] as const
 
 const wireModelOf = (entry: Captured): string | undefined => {
@@ -201,17 +201,17 @@ section('the cold list: a GPT utility call and a GPT-named hook carry the floor 
   check('cold list · the crewmate hook rides the named model at low (the list read before the floor was noted as the child\'s own word)', crew[0] !== undefined && wireModelOf(crew[0]) === 'gpt-5.6-sol' && wireEffortOf(crew[0]) === 'low', j({ model: crew[0] && wireModelOf(crew[0]), effort: crew[0] && wireEffortOf(crew[0]) }))
 }
 
-section('the cold compat list: a question hook naming a list-only Melious model on an Anthropic seat rides its lowest served word, not the row\'s default')
+section('the cold compat list: a question hook naming a list-only Melious model on an Anthropic seat rides low, not the row\'s default')
 {
   process.env.MERCURY_MODEL = 'claude-fable-5-1'
   const before = meliousLane.requests.length
   const answered = await hookQuestion(new AbortController().signal, 'melious/orion-2')
   const request = meliousLane.requests[before]
   check('cold compat · the hook answered through one request on the Melious chat wire', (answered as { kind?: string }).kind === 'answered' && meliousLane.requests.length === before + 1, j({ answered, requests: meliousLane.requests.length - before }))
-  check('cold compat · the request names orion-2 at reasoning_effort none (the lowest word the admitted row serves; the row default is medium)', request?.model === 'orion-2' && request.reasoning_effort === 'none', j({ model: request?.model, reasoning_effort: request?.reasoning_effort }))
+  check('cold compat · the request names orion-2 at reasoning_effort low (the floor; the admitted row serves none too, and its default is medium)', request?.model === 'orion-2' && request.reasoning_effort === 'low', j({ model: request?.model, reasoning_effort: request?.reasoning_effort }))
 }
 
-section('the cold OpenRouter list: a question hook naming an openrouter/ reasoning model on an Anthropic seat reads the list first and rides its lowest word (the row default is medium)')
+section('the cold OpenRouter list: a question hook naming an openrouter/ reasoning model on an Anthropic seat reads the list first and rides low (the row default is medium)')
 {
   process.env.MERCURY_MODEL = 'claude-fable-5-1'
   const before = openrouterLane.requests.length
@@ -222,7 +222,7 @@ section('the cold OpenRouter list: a question hook naming an openrouter/ reasoni
 }
 
 for (const { road, model, floor, serves } of ROADS) {
-  section(`${road}: the main seat is ${model}; every utility call rides it at the lowest effort the road serves (${serves})`)
+  section(`${road}: the main seat is ${model}; every utility call rides it at the floor, low (${serves})`)
   process.env.MERCURY_MODEL = model
   check(`${road}: the engine model is ${model}`, getEngineModel() === model, getEngineModel())
   const referenceAt = fixture.captured.length
@@ -243,9 +243,9 @@ for (const { road, model, floor, serves } of ROADS) {
   const seatModel = wireModelOf(reference)
   const seatEffort = wireEffortOf(reference)
   const lowest: string | undefined = floor
-  console.log(`  the seat's wire: ${reference.dialect} ${reference.path} model=${seatModel} effort=${seatEffort ?? 'none'}; the lowest tier the road serves: ${lowest ?? 'none (no effort control)'}; the ladder words the road selects from: ${j(resolveEffortTruth(model, undefined).selectable)}`)
+  console.log(`  the seat's wire: ${reference.dialect} ${reference.path} model=${seatModel} effort=${seatEffort ?? 'none'}; the floor: ${lowest ?? 'none (no effort control)'}; the ladder words the road selects from: ${j(resolveEffortTruth(model, undefined).selectable)}`)
   check(`${road}: the seat's wire names its model`, typeof seatModel === 'string' && seatModel !== '', j(reference.body))
-  if (lowest !== undefined) check(`${road}: the session dial (max) rides the turn above the lowest tier, so a utility call at the lowest tier is told apart`, seatEffort !== undefined && seatEffort !== lowest, j({ seatEffort, lowest }))
+  if (lowest !== undefined) check(`${road}: the session dial (max) rides the turn above the floor, so a utility call at the floor is told apart`, seatEffort !== undefined && seatEffort !== lowest, j({ seatEffort, lowest }))
   for (const site of SITES) {
     const from = fixture.captured.length
     fixture.script(() => ({ text: site.reply }))
@@ -263,7 +263,7 @@ for (const { road, model, floor, serves } of ROADS) {
     if (request === undefined) continue
     check(`${road} · ${site.name}: requests the main seat's model (${seatModel})`, wireModelOf(request) === seatModel, j({ requested: wireModelOf(request), seat: seatModel }))
     if (site.name === 'hook question') check(`${road} · ${site.name}: the answer shape rides the wire without a $schema meta-reference`, !JSON.stringify(request.body).includes('"$schema"'), JSON.stringify(request.body).slice(0, 300))
-    check(`${road} · ${site.name}: at the lowest tier the road serves (${lowest ?? 'none'})`, wireEffortOf(request) === lowest, j({ requested: wireEffortOf(request) ?? null, lowest: lowest ?? null, seat: seatEffort ?? null }))
+    check(`${road} · ${site.name}: at the floor (${lowest ?? 'none'})`, wireEffortOf(request) === lowest, j({ requested: wireEffortOf(request) ?? null, lowest: lowest ?? null, seat: seatEffort ?? null }))
   }
 }
 
@@ -297,7 +297,7 @@ section('the two Anthropic-wire probes: the seat\'s model at its floor on an Ant
   check('openai seat · the count create probe answers null off its road and sends nothing', offRoad === null && fixture.captured.length === from, j({ offRoad, sent: fixture.captured.length - from }))
 }
 
-section('the helper: the main seat\'s model at the lowest tier, read directly')
+section('the helper: the main seat\'s model at low, read directly')
 {
   const helper = await import('../../src/utils/model/utilityModel.ts').catch((error: unknown) => ({ error }))
   check('src/utils/model/utilityModel.ts exists and loads', !('error' in helper), 'error' in helper ? String(helper.error) : '')

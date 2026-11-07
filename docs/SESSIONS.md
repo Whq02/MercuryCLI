@@ -103,8 +103,8 @@ one-line mission status rides each turn beside the other attachments, so a bare
 current status read from the session's card, `/goal clear` clears it, and a
 newer `/goal` replaces an older one; a set goal is in force until it is met or
 you clear it, and nothing else ends it. At the end of every turn while the goal
-stands, a judge reads it: one bounded call on the session's own model at the
-lowest effort tier that model serves (thinking off on the Anthropic road; a
+stands, a judge reads it: one bounded call on the session's own model at `low`
+effort (thinking off on the Anthropic road; a
 model without effort control ignores it; with `Helper model` on, the small
 helper, as for every side job: the first job starts it when nothing serves it
 yet and runs on the session's model meanwhile, and it ends with the session

@@ -90,7 +90,7 @@ async function main(): Promise<void> {
     check('a model without effort control carries no floor', utilityCallFor('local/llama-3.3-70b').effortValue === undefined)
   }
 
-  section('§1b the floor is low — the lowest served word at or above it, never minimal or none — and the light chooser stays pure for the refusal hint')
+  section('§1b the floor is low — the lowest served word at or above it; below low only when nothing at or above it is served — and the light chooser stays pure for the refusal hint')
   {
     check('low when the list serves it, whatever the order', floorEffort(['high', 'low', 'medium']) === 'low' && floorEffort(['max', 'low']) === 'low')
     check('the words below the ladder (minimal, none) never become the floor when low is served', floorEffort(['low', 'minimal']) === 'low' && floorEffort(['none', 'low']) === 'low' && floorEffort(['max', 'xhigh', 'high', 'medium', 'low', 'minimal', 'none']) === 'low')
@@ -210,7 +210,7 @@ async function main(): Promise<void> {
     console.log(`❌ ${failures} CHECK(S) FAILED`)
     process.exit(1)
   }
-  console.log('✅ EVERY UTILITY CALL RIDES THE MAIN SEAT AT ITS LOWEST TIER')
+  console.log('✅ EVERY UTILITY CALL RIDES THE MAIN SEAT AT LOW')
 }
 
 void main()

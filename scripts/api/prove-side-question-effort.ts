@@ -109,7 +109,7 @@ section('§2 a side question (queryWithModel: no tools, no thinking) carries no 
   check('the reply\'s effort stamp says nothing was asked and nothing rode', effortStampLine(reply.effort) === 'effort asked none · applied none · wire none', effortStampLine(reply.effort))
 }
 
-section('§3 a utility call rides the same road on the main seat\'s model, pinned at the lowest tier whatever the dial says')
+section('§3 a utility call rides the same road on the main seat\'s model, pinned at low whatever the dial says')
 {
   process.env.MERCURY_MODEL = MODEL
   const from = fixture.captured.length
@@ -123,7 +123,7 @@ section('§3 a utility call rides the same road on the main seat\'s model, pinne
   const body = lastAnthropicBody(from)
   check('the utility question reached the wire', body !== null, j(fixture.captured.slice(from).map(entry => entry.dialect)))
   check("it names the main seat's model, no second id", body?.model === MODEL, j(body?.model))
-  check('it carries output_config.effort low (the lowest tier the road serves) under MERCURY_EFFORT_LEVEL=max', body !== null && effortOf(body) === 'low', j(body?.output_config))
+  check('it carries output_config.effort low (the floor) under MERCURY_EFFORT_LEVEL=max', body !== null && effortOf(body) === 'low', j(body?.output_config))
   check('it carries no thinking parameter', body !== null && body.thinking === undefined, j(body?.thinking))
   check('the answer comes back as text', extractTextContent(reply.message.content) === 'the utility answer', j(reply.message.content))
   check("the reply's effort stamp records the pinned low on the wire", effortStampLine(reply.effort) === 'effort asked low · applied low · wire output_config.effort=low', effortStampLine(reply.effort))

@@ -733,8 +733,9 @@ summaries, the state read, the feedback card, a hook's default model, the
 date parser and the fetch tool's summary) ride the main seat's own model at
 `low` effort: `low` wherever the road serves it (the Anthropic ladder, a GPT
 session's live list, GLM, a road that grades its thinking), the lowest word
-above `low` on a list without it (never `minimal` or `none`), and no effort
-word on a road without effort control. No second model id is ever asked for, and the
+above `low` on a list without it, a word below `low` only when the list
+serves nothing at or above it (`minimal` before `none`), and no effort word
+on a road without effort control. No second model id is ever asked for, and the
 session's effort dial (`/effort`, `MERCURY_EFFORT_LEVEL`) governs the turn,
 never a side job (the one case below excepted). A hook that names its own model runs that model at the
 same `low` floor: the hook reads that road's model list first, within a bounded
@@ -784,9 +785,12 @@ runner; when the machine's memory cannot be read because the server states no
 geometry or the read fails, the window comes out larger: the
 trained maximum when the model states one, else the served window, else twice
 the first request rounded up to 16k and never under 64k, and the words say so).
-The automatic choice tops out at 128k (`cap`; the doubling road alone goes past
-it, to the request, when one request is itself larger): a 27B whose 256k
-fits the arithmetic crawled at it on a 48 GiB Mac and ran at 128k; `trained
+The automatic choice tops out at 128k (`cap`) wherever a trained maximum or the
+memory fit decides it; it passes 128k only for a request that is itself larger,
+for a served window already covering twice the request when no trained maximum
+is stated, or for a larger window the server already holds (adopted, so the
+runner is not reloaded): a 27B whose 256k fits the arithmetic crawled at it on
+a 48 GiB Mac and ran at 128k; `trained
 max` or a number in `/config` pins a larger window, and the words say what
 fits. The rail's ctx row names the reason (`max` · `fit` · `cap` · `set` · `srv`), the context
 gauge and the model gauge read the loaded server window while the request
