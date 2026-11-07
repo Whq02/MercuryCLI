@@ -85,6 +85,7 @@ const ready = mods ?? (await finish())
 check('the helper module imports', true)
 const { helper, hosts, utility, discovery, catalogue, config } = ready
 config.enableConfigs()
+helper.__pinHelperServeIoForTest({ binary: join(HOME, 'no-such-tensorfold'), app: async () => ({ running: false }) })
 hosts.rememberTensorFoldPort(helper2b.port)
 await discovery.refreshLocalDiscovery({ force: true })
 const GIB = 1024 ** 3
@@ -158,14 +159,14 @@ section('§2 the setting: off by default; on, the helper\'s own process answers 
   check('opt-in with the helper off: the seated model folds, no reason', foldModelFor(short, 'claude-opus-5-5', { forced: false }).reason === undefined)
 }
 
-section('§2b the helper is its own process beside the session\'s server, started by the product when a local session opens with the slot set: role helper, the 27B\'s record untouched')
+section('§2b the helper is its own process beside the session\'s server, started by the product when a session opens with the slot set or with the first small job: role helper, the 27B\'s record untouched')
 {
   helper.__resetHelperForTest()
   const sessionRecord = { repo: 'TensorFold/Qwen3.8-27B-MLX-4bit', name: 'qwen3.8-27b', port: session27b.port, window: 131072, pid: 4242, startedAt: '2026-11-05T00:00:00.000Z' }
   const started: Array<Record<string, unknown>> = []
   const stopped: string[] = []
   let helperRecord: { repo: string; name: string; port: number; window: number; pid: number; startedAt: string } | undefined
-  helper.__pinHelperServeSeamForTest(async () => ({
+  helper.__pinHelperServeSeamForTest(() => ({
     start: async request => {
       started.push({ ...request })
       helperRecord = { repo: request.repo, name: request.name ?? 'x', port: helper2b.port, window: request.window, pid: 777, startedAt: '2026-11-05T00:00:01.000Z' }
@@ -180,12 +181,13 @@ section('§2b the helper is its own process beside the session\'s server, starte
   hosts.forgetTensorFoldPort(helper2b.port)
   await discovery.refreshLocalDiscovery({ force: true })
   helper.writeHelperModelSetting({ size: '2b' })
-  check('before the start the helper is not serving and nothing routes to it', utility.utilityCallFor('local/qwen3.8-27b').model !== 'local/qwen3.5-2b')
+  check('before the start the helper is not serving and a named model never consults it', hosts.helperModelState().port === undefined && utility.utilityCallFor('local/qwen3.8-27b', { named: true }).model === 'local/qwen3.8-27b')
   const quiet = async (ms: number): Promise<void> => { await new Promise(resolve => setTimeout(resolve, ms)) }
+  const until = async (done: () => boolean, ms = 5_000): Promise<void> => {
+    const begun = Date.now()
+    while (!done() && Date.now() - begun < ms) await quiet(25)
+  }
   process.env.MERCURY_MODEL = 'local/qwen3.8-27b'
-  utility.utilityCallFor()
-  await quiet(500)
-  check('a utility call never starts the helper (500 ms of quiet after the call, the seam saw no start)', started.length === 0, JSON.stringify(started))
   const { armLocalWarm, disarmLocalWarm } = await import('../../src/services/providers/local/localWarm.js')
   helper.__pinHelperReadsForTest({ engineFound: true, twoBOnDisk: false })
   armLocalWarm(() => ({ messages: [], systemPrompt: [], tools: [] } as never), { io: { settleMs: 0 } })
@@ -195,20 +197,20 @@ section('§2b the helper is its own process beside the session\'s server, starte
   helper.__pinHelperReadsForTest({ engineFound: true, twoBOnDisk: true })
   armLocalWarm(() => ({ messages: [], systemPrompt: [], tools: [] } as never), { io: { settleMs: 0 } })
   const startedBy = Date.now()
-  while (started.length === 0 && Date.now() - startedBy < 5_000) await new Promise(resolve => setTimeout(resolve, 25))
+  await until(() => started.length > 0)
   disarmLocalWarm()
   delete process.env.MERCURY_MODEL
-  check('a local session opening with the slot set starts the helper itself: no start after the utility call and the unavailable open, one start after the warm-up settle armed with the 2B available (the trigger is the settle)', started.length === 1, JSON.stringify(started))
+  check('a local session opening with the slot set starts the helper itself: no start after the unavailable open, one start after the warm-up settle armed with the 2B available (the trigger is the settle)', started.length === 1, JSON.stringify(started))
   console.log(`  the start the seam saw: role=${started[0]?.role} name=${started[0]?.name} · recorded after armLocalWarm on the 27B seat, ${Date.now() - startedBy} ms after arming`)
   const config = readFileSync(join(REPO, 'src/components/Settings/Config.tsx'), 'utf8')
-  check('/config starts the helper when the row is set to 2B or 4B', /writeHelperModelSetting\(\{ size: next \}, writeGlobal\)\n\s*if \(next === '2b' \|\| next === '4b'\) void ensureHelperServing\(\)/.test(config))
+  check('/config\'s row only writes the setting, records it and bumps: no start on the row', /writeHelperModelSetting\(\{ size: next \}, writeGlobal\)\n\s*recordSet\('helperModel'/.test(config) && !config.includes('ensureHelperServing'))
   const request = started[0]
   check('the helper started once, with role helper, its own name, window, port and prompt cache', started.length === 1 && request?.role === 'helper' && request.name === 'qwen3.5-2b' && request.repo === helper.HELPER_2B_REPO && request.window === 32768 && request.promptCacheGib === 1 && typeof request.port === 'number', JSON.stringify(request))
   check('the session\'s 27B record is untouched (never stopped)', stopped.length === 0 && sessionRecord.port === session27b.port)
-  check('the helper\'s served record is its own', (await helper.helperServedRecord())?.name === 'qwen3.5-2b' && (await helper.helperServedRecord())?.port === helper2b.port)
+  check('the helper\'s served record is its own', helper.helperServedRecord()?.name === 'qwen3.5-2b' && helper.helperServedRecord()?.port === helper2b.port)
   check('after the start the helper answers the local seat\'s small jobs', hosts.helperModelState().port === helper2b.port && utility.utilityCallFor('local/qwen3.8-27b').model === 'local/qwen3.5-2b')
   await helper.stopHelperServing()
-  check('stopping the helper stops only the helper\'s name through its role', JSON.stringify(stopped) === JSON.stringify(['qwen3.5-2b']) && (await helper.helperServedRecord()) === undefined)
+  check('stopping the helper stops only the helper\'s name through its role', JSON.stringify(stopped) === JSON.stringify(['qwen3.5-2b']) && helper.helperServedRecord() === undefined)
   hosts.forgetTensorFoldPort(helper2b.port)
   await discovery.refreshLocalDiscovery({ force: true })
   process.env.MERCURY_MODEL = 'claude-opus-5-5'
@@ -219,9 +221,23 @@ section('§2b the helper is its own process beside the session\'s server, starte
   delete process.env.MERCURY_MODEL
   check('a cloud session opening with the slot set starts the helper too: the setting is the user\'s choice on every road', started.length === 2 && started[1]?.role === 'helper' && started[1].name === 'qwen3.5-2b', JSON.stringify(started))
   await helper.stopHelperServing()
+  hosts.forgetTensorFoldPort(helper2b.port)
+  await discovery.refreshLocalDiscovery({ force: true })
+  check('the helper stopped and nothing is serving before the first small job', hosts.helperModelState().port === undefined && started.length === 2)
+  process.env.MERCURY_MODEL = 'claude-opus-5-5'
+  const firstJob = utility.utilityCallFor()
+  check('the first small job with the setting on and nothing serving runs on the seat\'s model (never blocked on a model load)', firstJob.model === 'claude-opus-5-5', JSON.stringify(firstJob))
+  await until(() => started.length > 2)
+  check('that job fired the start once: role helper, the 2B by name', started.length === 3 && started[2]?.role === 'helper' && started[2].name === 'qwen3.5-2b', JSON.stringify(started))
+  await until(() => hosts.helperModelState().port === helper2b.port)
+  const secondJob = utility.utilityCallFor()
+  await quiet(300)
+  check('the next small job rides the helper, and no second start fired', secondJob.model === 'local/qwen3.5-2b' && started.length === 3, JSON.stringify({ secondJob, started }))
+  delete process.env.MERCURY_MODEL
+  await helper.stopHelperServing()
   helper.__pinHelperServeSeamForTest(undefined)
   helper.writeHelperModelSetting({ size: 'off', compaction: false })
-  hosts.rememberTensorFoldPort(helper2b.port)
+  hosts.forgetTensorFoldPort(helper2b.port)
   await discovery.refreshLocalDiscovery({ force: true })
 }
 
@@ -253,8 +269,17 @@ const rowOf = (m: Mounted, label: string): string => m.lines().find(line => line
 const flatScreen = (m: Mounted): string => m.lines().map(line => line.replace(/^\s*│\s?/, '').replace(/\s*│\s*$/, '').trim()).filter(line => line !== '').join(' ')
 const selectedLabel = (m: Mounted): string => ((m.lines().find(line => line.includes(`${CONFIG_ROW_MARK} `)) ?? '').split(`${CONFIG_ROW_MARK} `)[1] ?? '').split(/\s{2,}/)[0]?.trim() ?? ''
 
-section('§3 the /config rows at 120x40: off → 2B → off, and the compaction row')
+section('§3 the /config rows at 120x40: off → 2B → off, and the compaction row; stepping the row writes the setting and starts nothing')
 {
+  const started: Array<Record<string, unknown>> = []
+  helper.__pinHelperServeSeamForTest(() => ({
+    start: async request => {
+      started.push({ ...request })
+      return { repo: request.repo, name: request.name ?? 'x', port: helper2b.port, window: request.window, pid: 777, startedAt: '2026-11-05T00:00:01.000Z' }
+    },
+    stop: async () => undefined,
+    served: () => [],
+  }))
   const m = await mount(120, 40)
   m.push('helper model')
   await settle(200)
@@ -265,10 +290,11 @@ section('§3 the /config rows at 120x40: off → 2B → off, and the compaction 
   check('the compaction row stands beside with its reason', rowOf(m, 'Helper model for compaction').includes('off · a small model can drop details'), rowOf(m, 'Helper model for compaction'))
   save('config-helper-model-off-120x40', m)
   m.push(KEY.right)
-  await settle(300)
+  await settle(500)
   check('→ chooses 2B (TensorFold) with its memory', rowOf(m, 'Helper model ').includes('2B (TensorFold) · ~5.0 GiB · an estimate'), rowOf(m, 'Helper model '))
-  check('the jobs words stand under the row', flatScreen(m).includes('titles and summaries ✓ · the judge ✓ · compaction ✗ · a small model can drop details'), flatScreen(m).slice(0, 600))
+  check('the line under the row says when the helper starts and what it costs, then the jobs words', flatScreen(m).includes('starts with the next small job · ~5.0 GiB · an estimate · titles and summaries ✓ · the judge ✓ · compaction ✗ · a small model can drop details'), flatScreen(m).slice(0, 600))
   check('the setting is written', helper.readHelperModelSetting().size === '2b')
+  check('stepping the row to 2B starts nothing: the seam saw no start', started.length === 0, JSON.stringify(started))
   save('config-helper-model-2b-120x40', m)
   m.push(KEY.right)
   await settle(300)
@@ -282,6 +308,9 @@ section('§3 the /config rows at 120x40: off → 2B → off, and the compaction 
   m.push(KEY.esc)
   await settle(100)
   m.unmount()
+  check('the whole visit started nothing', started.length === 0, JSON.stringify(started))
+  helper.__pinHelperServeSeamForTest(undefined)
+  helper.__resetHelperForTest()
 }
 
 for (const s of [helper2b.server, session27b.server]) s.close()

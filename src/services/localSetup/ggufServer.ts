@@ -8,12 +8,13 @@ import { gibWords } from '../localServer/localServerMemory.js'
 import { startService, stopService, waitForReady } from '../projectServices/serviceManager.js'
 import type { ServiceSpec } from '../projectServices/contracts.js'
 import { probeLlamaCpp } from '../providers/local/localDiscovery.js'
+import type { OwnerKey } from '../run/ownerKey.js'
 import { ggufModelName, type GgufModel } from './ggufModels.js'
 import { forgetGgufServer, rememberGgufServer } from './ggufServers.js'
 import { resolveSetupIo } from './setupIo.js'
 import type { SetupIo } from './setupTypes.js'
 
-export interface GgufServerIo extends SetupIo { cwd?: string; port?: number; serverCommand?: string; serverArgs?: string[]; availableMemory?: () => Promise<number> }
+export interface GgufServerIo extends SetupIo { cwd?: string; port?: number; owner?: OwnerKey; serverCommand?: string; serverArgs?: string[]; availableMemory?: () => Promise<number> }
 async function llamaBinary(seam: GgufServerIo = {}): Promise<string> {
   if (seam.serverCommand) return seam.serverCommand
   const io = resolveSetupIo(seam)
@@ -58,7 +59,7 @@ export async function startGgufServer(model: GgufModel, spec: ServiceSpec, seam:
   const port = Number(spec.args[spec.args.indexOf('--port') + 1])
   await requireFreePort(port)
   io.signal?.throwIfAborted()
-  const started = await startService({ spec, sessionId: getSessionId() })
+  const started = await startService({ spec, sessionId: getSessionId(), ...(seam.owner !== undefined ? { owner: seam.owner } : {}) })
   if ('error' in started) throw new Error(started.error)
   const root = 'http://127.0.0.1:' + port
   const stop = async (): Promise<void> => {

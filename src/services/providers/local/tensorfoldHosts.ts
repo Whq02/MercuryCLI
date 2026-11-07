@@ -153,3 +153,8 @@ export function helperModelState(): HelperModelState {
   const { readHelperModelState } = require('./tensorfoldHelper.js') as typeof import('./tensorfoldHelper.js')
   return readHelperModelState()
 }
+
+export function helperPort(): number | undefined {
+  const { readHelperPort } = require('./tensorfoldHelper.js') as typeof import('./tensorfoldHelper.js')
+  return readHelperPort()
+}

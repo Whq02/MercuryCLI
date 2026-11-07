@@ -398,12 +398,12 @@ cold-starts a helper server.
   `~5.0 GiB · an estimate`): serves `mlx-community/Qwen3.5-2B-MLX-4bit`
   (`local/qwen3.5-2b`, mapped to `unsloth/Qwen3.5-2B-GGUF` on the Windows
   adapter) at a `32k` window with `--prompt-cache-gib 1` as a separate
-  `tensorfold-helper` project service on its own free loopback port. Requires
+  `tensorfold-helper` session service on its own free loopback port. Requires
   TensorFold installed (`install TensorFold`) and the 2B checkpoint on disk
   (`pull the 2B in /tensorfold`).
 - **`4B (llama.cpp)`** (`~8.0 GiB · an estimate`): serves a banked Qwen3.5 4B
-  GGUF checkpoint on `llama-server` as the `mercury-helper` service on its own
-  free port (`pull it first · /localsetup` when not in the Bank).
+  GGUF checkpoint on `llama-server` as the `mercury-helper` session service on
+  its own free port (`pull it first · /localsetup` when not in the Bank).
 - **`the session's local model`**: reuses the session's active local model when
   that model's prompt cache has multiple slots. When the session is on
   `qwen3.8-27b` on TensorFold (whose prompt cache holds a single conversation),
@@ -411,6 +411,26 @@ cold-starts a helper server.
   `its prompt cache holds one conversation · a helper request would evict this session's`;
   `2B (TensorFold)` and `4B (llama.cpp)` run on a separate server process so
   helper calls never evict the main session's prompt cache.
+
+Choosing a size in `/config` only writes the setting; until the helper serves,
+the line under the row reads `starts with the next small job · ~5.0 GiB · an
+estimate` ahead of the jobs line. The helper starts when a session opens with
+the setting on, or with the first small job that selects it (that job runs on
+the session's own model while the helper loads; the next one rides the helper).
+Before any start, a session reads the helper's own record: a helper already
+serving there is adopted and used, and a start happens only when nothing live
+serves the helper name, so two sessions never restart it over each other. It is
+a session-lifecycle service owned by the session that started it and ends with
+that session when it ends in order (`/exit`, the window closing, Ctrl-C, the
+daemon ending the session) on every platform; a session that adopted a helper
+it did not start leaves it serving. A session cut off outright (a kill, a
+crash, the power) leaves its helper serving until a later session's small job
+adopts it or, once it has stopped, starts it again; such a helper, like one left
+by an earlier release, is adopted but owned by no session, so it ends only when
+stopped by hand (the `Service` tool's `stop` of `tensorfold-helper` in that
+project, or the process itself). The helper never writes
+`local-setup/tensorfold-hosts.json`: discovery probes its port from the helper's
+own record, so nothing of it is remembered on the machine.
 
 When a helper model is enabled, the `TENSORFOLD` group heading appends
 `· helper 2B` (or `4B`, or the session model name) and `/health` adds a

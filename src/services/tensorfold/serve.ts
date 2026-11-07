@@ -11,6 +11,7 @@ import { startPairingServer } from '../lan/pairing.js'
 import { gibWords } from '../localServer/localServerMemory.js'
 import type { ServiceRecord, ServiceSpec } from '../projectServices/contracts.js'
 import { readRecord, reconcileRecord, startService, stopService, waitForReady } from '../projectServices/serviceManager.js'
+import type { OwnerKey } from '../run/ownerKey.js'
 import { detectTensorFoldApp, refuseSecondCopy, type TensorFoldAppState } from '../providers/local/tensorfoldApp.js'
 import { forgetTensorFoldHost, forgetTensorFoldPort, rememberTensorFoldHost, rememberTensorFoldPort } from '../providers/local/tensorfoldHosts.js'
 import { writeTensorFoldKeyFile } from '../providers/local/tensorfoldKeyFile.js'
@@ -47,6 +48,7 @@ export type ServeIo = EngineIo & {
   binary?: string
   cwd?: string
   sessionId?: string
+  owner?: OwnerKey
   role?: TensorFoldServeRole
   startWaitMs?: number
   signal?: AbortSignal
@@ -258,7 +260,7 @@ export function tensorFoldServiceSpec(binary: string, point: Pick<TensorFoldChec
     readiness: [{ kind: 'http', url: `http://${TENSORFOLD_HOST}:${port}/health` }],
     readinessMode: 'all',
     restart: 'never',
-    lifecycle: 'project',
+    lifecycle: role === 'helper' ? 'session' : 'project',
   }
 }
 
@@ -320,7 +322,7 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
     await (io.rememberHost ?? rememberTensorFoldHost)({ name: sharedAs, baseUrl: `http://${TENSORFOLD_HOST}:${pick.port}`, origin: 'shared', key: key.key, serving: name, window: request.window })
   }
   const spec = tensorFoldServiceSpec(binary, point, request.window, pick.port, cwd, name, io.serviceEnv ?? {}, key !== undefined ? { keyFile: key.path } : undefined, role)
-  const started = await startService({ spec, sessionId })
+  const started = await startService({ spec, sessionId, ...(io.owner !== undefined ? { owner: io.owner } : {}) })
   if ('error' in started) {
     await forgetShared(sharedAs, io)
     throw new TensorFoldStartError(started.error, null)

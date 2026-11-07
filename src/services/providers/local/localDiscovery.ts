@@ -8,7 +8,7 @@ import { kvGeometryOf, type KvGeometry } from '../../localServer/localServerMemo
 import { resolveLocalApiKeyFor } from './localAccounts.js'
 import { ggufServerRoots } from '../../localSetup/ggufServers.js'
 import { tensorFoldEngineLabel } from '../../tensorfold/adapter/identity.js'
-import { tensorFoldHostRecords, tensorFoldPorts } from './tensorfoldHosts.js'
+import { helperPort, tensorFoldHostRecords, tensorFoldPorts } from './tensorfoldHosts.js'
 
 export type { LocalServerKind }
 
@@ -95,6 +95,8 @@ export function rememberedTensorFoldTargets(): { kind: 'tensorfold'; root: strin
   const targets: { kind: 'tensorfold'; root: string }[] = []
   try {
     for (const port of tensorFoldPorts()) targets.push({ kind: 'tensorfold', root: `http://127.0.0.1:${port}` })
+    const helper = helperPort()
+    if (helper !== undefined && !targets.some(target => target.root === `http://127.0.0.1:${helper}`)) targets.push({ kind: 'tensorfold', root: `http://127.0.0.1:${helper}` })
     for (const host of tensorFoldHostRecords()) if (!targets.some(target => target.root === host.baseUrl)) targets.push({ kind: 'tensorfold', root: host.baseUrl })
   } catch {
     return targets
