@@ -153,7 +153,7 @@ export function outlineRowWords(element: OutlineElement, map: ScreenMap | null =
   return `${'  '.repeat(element.depth)}${parts.join(' ')}`
 }
 
-function elementPaths(tree: DesktopTree): string[] {
+function elementPaths(tree: DesktopTree): Array<{ path: string; siblings: () => number }> {
   const ancestors: Array<{ depth: number; key: string; seen: Map<string, number> }> = []
   return tree.elements.map(element => {
     while (ancestors.length && ancestors.at(-1)!.depth >= element.depth) ancestors.pop()
@@ -164,11 +164,11 @@ function elementPaths(tree: DesktopTree): string[] {
     seen.set(shape, ordinal + 1)
     const path = createHash('sha256').update(JSON.stringify([parent?.key, element.role, element.title, element.frame, ordinal])).digest('hex')
     ancestors.push({ depth: element.depth, key: path, seen: new Map() })
-    return path
+    return { path, siblings: () => seen.get(shape) ?? 1 }
   })
 }
 
-const treeRefs = new OwnerScopedStore<{ next: number; window: string; refs: Map<number, string[]> }>({
+const treeRefs = new OwnerScopedStore<{ next: number; window: string; refs: Map<number, Array<{ key: string; siblings: number }>> }>({
   name: 'computer-tree-refs',
   create: () => ({ next: 1, window: '', refs: new Map() }),
   dispose: state => { state.refs.clear() },
@@ -187,7 +187,7 @@ export function rememberTreeRefs(owner: OwnerKey, app: DesktopApplication, tree:
   const paths = elementPaths(tree)
   for (const element of outline.elements) {
     element.ref = state.next++
-    state.refs.set(element.ref, element.sourceIndices.map(index => paths[index]!))
+    state.refs.set(element.ref, element.sourceIndices.map(index => ({ key: paths[index]!.path, siblings: paths[index]!.siblings() })))
   }
 }
 
@@ -196,7 +196,7 @@ export function resolveTreeRef(owner: OwnerKey, app: DesktopApplication, tree: D
   const keys = state?.window === windowKey(app) ? state.refs.get(ref) : undefined
   if (!keys?.length) return []
   const paths = elementPaths(tree)
-  const matches = keys.map(key => paths.flatMap((path, index) => path === key ? [index] : []))
+  const matches = keys.map(entry => paths.flatMap((row, index) => row.path === entry.key && row.siblings() === entry.siblings ? [index] : []))
   if (keys.length === 1) return matches[0]!.map(index => tree.elements[index]!)
   if (matches.some(indices => indices.length !== 1)) return []
   const sourceIndices = matches.map(indices => indices[0]!)

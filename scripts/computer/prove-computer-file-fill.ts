@@ -150,7 +150,7 @@ section('§2 fill: the value set through the accessibility API, keystrokes when 
   check('a secure field is set and never read back', secret.outcome === 'succeeded' && secret.result.includes('value not read back') && secret.result.includes('secure field') && !secret.result.includes('hunter2'), secret.result)
   from = driver.acts.length
   const clamped = await call({ action: 'fill', target: { role: 'AXTextArea', name: 'Below the fold' }, text: 'scrolled in', capture: false })
-  check('an edge-clamped field is scrolled into view and filled in one act, and the words say so', clamped.outcome === 'succeeded' && clamped.result.includes('value "scrolled in"') && acts(from).join(',') === 'scrollToVisible,setValue', `${clamped.result} · ${acts(from).join(',')}`)
+  check('an edge-clamped field is scrolled into view and filled in one act, and the words say so', clamped.outcome === 'succeeded' && clamped.result.includes('value "scrolled in"') && clamped.result.includes('scrolled into view first (action)') && acts(from).join(',') === 'scrollToVisible,setValue', `${clamped.result} · ${acts(from).join(',')}`)
   from = driver.acts.length
   const collapsed = await call({ action: 'fill', target: { role: 'AXTextArea', name: 'Collapsed' }, text: 'never', capture: false })
   check('a field that stays a strip after the scroll is refused honestly before anything is set', collapsed.outcome === 'failed' && collapsed.result.includes('still clipped') && collapsed.result.includes('collapsed or covered') && acts(from).join(',') === 'scrollToVisible', `${collapsed.result} · ${acts(from).join(',')}`)

@@ -7,6 +7,8 @@ import type { DesktopDriver } from '../../src/services/desktop/driver.ts'
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
 const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
 const session = await import('../../src/services/desktop/desktopSession.ts')
+const claim = await import('../../src/services/desktop/desktopClaim.ts')
+const { acquirePidLock, releasePidLock } = await import('../../src/substrate/pidLock.ts')
 const scratch = scratchDir('fast-road')
 const app = { identity: 'com.example.Editor', name: 'Editor', pid: 123, windowId: 'editor', title: 'Document', bounds: { x: 0, y: 0, width: 400, height: 300 } }
 const scene = join(scratch, 'scene.json')
@@ -266,6 +268,7 @@ section('a clamped target is scrolled into view and acted on in one act; one tha
         area('AXTextArea', 'AF8', { x: 742, y: 600, width: 721, height: 120 }, { focused: true }),
         area('AXTextArea', 'AF10', { x: 742, y: 985, width: 721, height: 1 }, { visibleFrame: { x: 742, y: 700, width: 721, height: 120 } }),
         area('AXLink', 'Edit about', { x: 1000, y: 985, width: 265, height: 1 }, { visibleFrame: { x: 1000, y: 840, width: 265, height: 20 } }),
+        area('AXTextArea', 'AF11', { x: 742, y: 985, width: 100, height: 1 }, { visibleFrame: { x: 742, y: 500, width: 100, height: 40 } }),
         area('AXTextArea', 'Tall', { x: 20, y: 100, width: 600, height: 900 }),
         area('AXButton', 'Footer', { x: 742, y: 966, width: 100, height: 20 }),
         area('AXButton', 'Header', { x: 742, y: 120, width: 100, height: 1 }),
@@ -314,9 +317,19 @@ section('a clamped target is scrolled into view and acted on in one act; one tha
   check('three identical siblings, two of them squashed to the same strip, get three refs', reviews.outcome === 'succeeded' && refs.length === 3 && new Set(refs).size === 3, reviews.result)
   const second = await call({ action: 'click', ref: refs[1]!, capture: false })
   check('a ref to one of two identical strips resolves to that one alone, is scrolled into view and clicked at its own visible frame', second.outcome === 'succeeded' && !second.result.includes('match it now') && second.result.includes('scrolled into view first') && clicks().at(-1) === JSON.stringify({ x: 1790, y: 612 }), second.result)
+  const stale = await call({ action: 'click', ref: refs[2]!, capture: false })
+  check('after one strip was scrolled into view the list changed, so a ref to a remaining strip asks for a fresh find instead of acting on a shifted neighbour', stale.outcome === 'failed' && stale.result.includes('no element of the latest tree matches it now') && stale.result.includes('find again'), stale.result)
+  const again = await call({ action: 'find', target: { role: 'AXButton', name: 'Review' } })
+  const freshRefs = [...again.result.matchAll(/\[(\d+)\] AXButton "Review"/g)].map(m => Number(m[1]))
+  const third = await call({ action: 'click', ref: freshRefs[2]!, capture: false })
+  check('a fresh find gives the remaining strip its own ref, which scrolls and clicks its own visible frame', freshRefs.length === 3 && third.outcome === 'succeeded' && clicks().at(-1) === JSON.stringify({ x: 1790, y: 652 }), third.result)
   const nothing = await call({ action: 'find', target: { role: 'AXButton', name: 'No Such Button' } })
-  const afterEmpty = await call({ action: 'click', ref: refs[0]!, capture: false })
+  const afterEmpty = await call({ action: 'click', ref: freshRefs[0]!, capture: false })
   check('a find that matched nothing keeps the refs the model holds', nothing.outcome === 'succeeded' && nothing.result.includes('0 elements') && afterEmpty.outcome === 'succeeded' && clicks().at(-1) === JSON.stringify({ x: 1790, y: 432 }), JSON.stringify({ nothing: nothing.outcome + ' ' + nothing.result.slice(0, 200), afterEmpty: afterEmpty.outcome + ' ' + afterEmpty.result.slice(0, 300) }))
+  const noop = await call({ action: 'click', target: { role: 'AXTextArea', name: 'AF11' }, capture: false })
+  check('the state line is read after the scroll, so a scrolled click that changed nothing reads unchanged', noop.outcome === 'succeeded' && /^unchanged · now:/m.test(noop.result) && noop.result.includes('scrolled into view first'), noop.result)
+  const wheel = await call({ action: 'scroll', target: { role: 'AXButton', name: 'Header' }, dy: 3, capture: false })
+  check('a scroll act at a clipped target wheels where it was asked and never scrolls it into view first', wheel.outcome === 'succeeded' && !wheel.result.includes('scrolled into view') && !chromeDriver.acts.slice(-3).some(a => a.act === 'scrollToVisible'), wheel.result)
   const asSwitch = await call({ action: 'find', target: { role: 'AXSwitch' } })
   const asCheckBox = await call({ action: 'find', target: { role: 'AXCheckBox' } })
   check('a role with a subrole, "AXCheckBox (AXSwitch)", is found by either word', asSwitch.result.includes('AXCheckBox (AXSwitch) "Review producer notes"') && asCheckBox.result.includes('AXCheckBox (AXSwitch) "Review producer notes"'), `${asSwitch.result}\n${asCheckBox.result}`)
@@ -332,6 +345,35 @@ section('a clamped target is scrolled into view and acted on in one act; one tha
   check('focusApp with capture brings the application forward and returns a screenshot after it settles', focusedShot.outcome === 'succeeded' && focusedShot.result.includes('focusApp: ') && !!focusedShot.imagePath, focusedShot.result)
   chromeDriver.findApplication = findApplication
   chromeDriver.activateApplication = activateApplication
+  const scrollsBefore = () => chromeDriver.acts.filter(a => a.act === 'scrollToVisible').length
+  await claim.releaseDesktopClaim()
+  const lockPath = claim.desktopClaimPath()
+  const foreign = await acquirePidLock(lockPath, 'other-session:proof', { liveness: 'assume-dead' })
+  const before = scrollsBefore()
+  const held = await call({ action: 'click', target: { role: 'AXTextArea', name: 'AF10' }, capture: false })
+  check("another session's claim refuses the act before any scroll", foreign.held && held.outcome === 'failed' && held.result.includes('another session is driving the desktop') && scrollsBefore() === before, `${held.result} · scrolls ${before} → ${scrollsBefore()}`)
+  await releasePidLock(lockPath, 'other-session:proof')
+  const denied = toolContext({ deny: ['Computer(captcha)'] })
+  session.forgetDesktopOwner(ownerOf(denied))
+  const robotScene = join(scratch, 'robot.json')
+  writeFileSync(robotScene, JSON.stringify({
+    displays: [{ index: 0, id: 'careers', originX: 0, originY: 0, width: 1920, height: 1080, scale: 2, primary: true }],
+    frontmost: chrome, cursor: { x: 50, y: 50 }, lines: ['Careers'],
+    tree: [{ role: 'AXWindow', title: chrome.title, focused: true, frame: chrome.bounds, children: [{ role: 'AXWebArea', title: 'Careers', frame: { x: 0, y: 120, width: 1920, height: 866 }, children: [
+      area('AXTextArea', 'Comments', { x: 742, y: 300, width: 721, height: 120 }),
+      area('AXCheckBox', "I'm not a robot", { x: 742, y: 985, width: 304, height: 1 }, { visibleFrame: { x: 742, y: 700, width: 304, height: 78 } }),
+    ] }] }],
+  }))
+  process.env.MERCURY_DESKTOP_FAKE_SCENE = robotScene
+  resetDesktopDriverForTest()
+  const robotPage = resolveDesktopDriver()
+  if (robotPage.state !== 'ok') throw new Error(robotPage.note)
+  const robotDriver = robotPage.driver as DesktopDriver & { acts: { act: string; detail: Record<string, unknown> }[] }
+  const robot = resultOf(await ComputerTool.call({ action: 'click', target: { role: 'AXCheckBox', name: "I'm not a robot" }, capture: false } as never, denied, allowEverything, toolUseTurn('fast-robot', 'Computer', {})))
+  check('a challenge checkbox squashed below the fold is a challenge: the deny rule refuses it before any scroll or click', robot.outcome === 'failed' && robot.result.includes('Computer(captcha)') && !robotDriver.acts.some(a => a.act === 'scrollToVisible' || a.act === 'click'), `${robot.result} · acts ${robotDriver.acts.map(a => a.act).join(',')}`)
+  session.forgetDesktopOwner(ownerOf(denied))
+  process.env.MERCURY_DESKTOP_FAKE_SCENE = far
+  resetDesktopDriverForTest()
   const prompt = await ComputerTool.prompt()
   check('the tool\'s words teach fill and fields', prompt.includes('fill (target/ref) sets the value and reads it back') && prompt.includes('fields lists the controls') && JSON.stringify(ComputerTool.inputJSONSchema).includes('type or fill:'), prompt)
   session.forgetDesktopOwner(ownerOf(context))

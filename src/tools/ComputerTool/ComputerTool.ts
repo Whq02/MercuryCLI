@@ -238,7 +238,7 @@ const modelInputSchema = lazySchema(() => {
     depth: f.depth.describe(`Tree depth; default ${TREE_DEPTH_DEFAULT}, clamped at ${TREE_DEPTH_CAP}. Targets use the cap by default.`),
     limit: f.limit.describe(`Tree rows; default ${TREE_LIMIT_DEFAULT}, clamped at ${TREE_LIMIT_CAP}. Targets use the cap by default.`),
     target: f.target.describe('Accessibility target: exact role/name, substring text; nth selects a 1-based match.'),
-    ref: f.ref.describe('Node number from the latest tree; valid until the next tree read. Choose ref, target or x/y.'),
+    ref: f.ref.describe('Node number from the latest tree or find; stale once the list changes. Choose ref, target or x/y.'),
     root: f.root.describe('Tree root: node number or accessibility target.'),
     all: f.all.describe('Include hidden tree nodes.'),
     points: f.points.describe('Include tree-node pixel positions.'),
@@ -448,6 +448,7 @@ interface ActPlan {
   captcha?: CaptchaSight
   element?: DesktopTreeElement
   scrolled?: 'action' | 'wheel'
+  clipped?: Array<{ field: 'point' | 'target'; element: DesktopTreeElement; words: string; label: string }>
 }
 
 function scrolledWords(plan: ActPlan): string {
@@ -456,17 +457,48 @@ function scrolledWords(plan: ActPlan): string {
 
 const UNSCROLLED = 'the pane has no scroll action and the wheel moved nothing'
 
-async function scrollIntoView(driver: DesktopDriver, front: DesktopApplication, tree: DesktopTree, element: DesktopTreeElement, clipped: string, signal: AbortSignal): Promise<{ element: DesktopTreeElement; road: 'action' | 'wheel' } | { refusal: string }> {
-  if (driver.scrollToVisible === undefined) return { refusal: clipped }
+const sameFrame = (a: DesktopBounds | null, b: DesktopBounds | null): boolean => JSON.stringify(a) === JSON.stringify(b)
+
+async function scrollIntoView(driver: DesktopDriver, front: DesktopApplication, tree: DesktopTree, element: DesktopTreeElement, clipped: string, signal: AbortSignal): Promise<{ element: DesktopTreeElement; road: 'action' | 'wheel' } | { refusal: string; aborted?: boolean }> {
+  const where = clipped.replace(' — scroll it into view first', '')
+  if (driver.scrollToVisible === undefined) return { refusal: `${where} — scroll it into view first (this desktop driver cannot scroll an element into view)` }
   const source = (element as { sourceIndices?: number[] }).sourceIndices?.[0]
   const answer = await driver.scrollToVisible(front, withOrdinal(tree, source === undefined ? element : tree.elements[source] ?? element), signal)
-  if (!answer.ok) return { refusal: `${clipped}; scrolling it into view failed: ${answer.error.note}` }
+  if (!answer.ok) return answer.error.kind === 'aborted' ? { refusal: interruptedText('scroll'), aborted: true } : { refusal: `${where}; scrolling it into view failed: ${answer.error.note}` }
   const receipt = answer.value
-  if (!receipt.scrolled || receipt.road === null) return { refusal: `${clipped}; it did not scroll into view (${receipt.note ?? UNSCROLLED}) — it may be collapsed or covered: take a screenshot` }
-  const moved = receipt.frame ? { ...element, frame: receipt.frame } : element
+  const wheeledNothing = receipt.road === 'wheel' && receipt.note === null && sameFrame(receipt.frame, element.frame)
+  if (!receipt.scrolled || receipt.road === null || wheeledNothing) return { refusal: `${where}; it did not scroll into view (${receipt.note ?? UNSCROLLED}) — it may be collapsed or covered: take a screenshot` }
+  if (receipt.frame === null) return { refusal: `${where}; it was scrolled (${receipt.road}) but its frame could not be read afterwards — take a screenshot and use its pixels` }
+  const moved = { ...element, frame: receipt.frame }
   const still = clippedWords(tree, moved, front.bounds)
-  if (still !== null) return { refusal: `${clipped}; it was scrolled (${receipt.road}) and is still clipped: ${still.replace(' — scroll it into view first', '')} — it may be collapsed or covered: take a screenshot` }
+  if (still !== null) return { refusal: `${where}; it was scrolled (${receipt.road}) and is still clipped: ${still.replace(' — scroll it into view first', '')} — it may be collapsed or covered: take a screenshot` }
   return { element: moved, road: receipt.road }
+}
+
+async function scrollClippedEnds(driver: DesktopDriver, input: Input, plan: ActPlan, front: DesktopApplication, signal: AbortSignal): Promise<string | null> {
+  const ends = plan.clipped ?? []
+  if (ends.length === 0 || plan.beforeTree === undefined) return null
+  let tree = plan.beforeTree
+  for (const end of ends) {
+    const scrolled = await scrollIntoView(driver, front, tree, end.element, end.words, signal)
+    if ('refusal' in scrolled) return scrolled.aborted ? scrolled.refusal : `${input.action} refused: ${end.label}: ${scrolled.refusal}`
+    plan.scrolled = scrolled.road
+    const fresh = await driver.accessibilityTree(front, { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP }, signal)
+    if (fresh.ok) tree = fresh.value
+    const settled = fresh.ok ? tree.elements.find(row => row.role === scrolled.element.role && row.title === scrolled.element.title && sameFrame(row.frame, scrolled.element.frame)) ?? scrolled.element : scrolled.element
+    const frame = settled.frame!
+    plan[end.field] = { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 }
+    if (end.field === 'point') { plan.element = settled; plan.observe = frame }
+  }
+  plan.beforeTree = tree
+  if (input.action === 'drag' && plan.element) {
+    const other = ends.length === 1 ? (ends[0]!.field === 'point' ? plan.target : plan.point) : null
+    if (other !== null && other !== undefined) {
+      const stale = tree.elements.find(row => row.frame && clippedWords(tree, row, front.bounds) !== null && Math.abs(row.frame.x + row.frame.width / 2 - other.x) < 1 && Math.abs(row.frame.y + row.frame.height / 2 - other.y) < 1)
+      if (stale) return `drag refused: the two ends are not in view together after scrolling — scroll first or drag in steps`
+    }
+  }
+  return null
 }
 
 type Framed = { ok: true; point: DesktopPoint } | { ok: false; text: string }
@@ -523,36 +555,31 @@ async function resolveActTargets(driver: DesktopDriver, input: Input, front: Des
   const seen = treeSight(tree.value, front.bounds)
   plan.captcha = titled === 'challenge' || seen === 'challenge' ? 'challenge' : seen ?? titled
   plan.beforeTree = tree.value
+  const scrollsInto = input.action !== 'scroll'
   if (input.ref !== undefined) {
     const elements = resolveTreeRef(owner, front, tree.value, input.ref)
     if (elements.length !== 1) return `${input.action} refused: ref:${input.ref}: ${elements.length === 0 ? 'no element of the latest tree matches it now' : `${elements.length} elements match it now`} — read the tree or find again${elements.length ? `\n${candidateWords(elements, map)}` : ''}`
-    let element = elements[0]!
-    const clipped = clippedWords(tree.value, element, front.bounds)
-    if (clipped !== null) {
-      const scrolled = await scrollIntoView(driver, front, tree.value, element, clipped, signal)
-      if ('refusal' in scrolled) return `${input.action} refused: ref:${input.ref}: ${scrolled.refusal}`
-      element = scrolled.element
-      plan.scrolled = scrolled.road
-    }
+    const element = elements[0]!
     const point = targetPoint({ ...tree.value, elements: [element] }, {}, map)
     if ('refusal' in point) return `${input.action} refused: ref:${input.ref}${point.refusal}`
+    const clipped = scrollsInto ? clippedWords(tree.value, element, front.bounds) : null
+    if (clipped !== null) {
+      if (titleSight(`${element.role} ${element.title ?? ''} ${element.value ?? ''}`) === 'challenge') plan.captcha = 'challenge'
+      plan.clipped = [...(plan.clipped ?? []), { field: 'point', element, words: clipped, label: `ref:${input.ref}` }]
+    }
     plan.point = point
     plan.element = element
     if (element.frame) plan.observe = element.frame
   }
   for (const [selector, field] of [[input.target, 'point'], [input.toTarget, 'target']] as const) {
     if (selector === undefined) continue
-    let point = targetPoint(tree.value, selector, map)
+    const point = targetPoint(tree.value, selector, map)
     if ('refusal' in point) return `${input.action} refused: ${point.refusal}${pageContentNote(tree.value) ? `; ${pageContentNote(tree.value)}` : ''}`
-    let element = targetElement(tree.value, selector, map)
-    const clipped = 'refusal' in element ? null : clippedWords(tree.value, element, front.bounds)
+    const element = targetElement(tree.value, selector, map)
+    const clipped = 'refusal' in element || !scrollsInto ? null : clippedWords(tree.value, element, front.bounds)
     if (clipped !== null && !('refusal' in element)) {
-      const scrolled = await scrollIntoView(driver, front, tree.value, element, clipped, signal)
-      if ('refusal' in scrolled) return `${input.action} refused: ${targetWords(selector)}: ${scrolled.refusal}`
-      element = scrolled.element
-      plan.scrolled = scrolled.road
-      const frame = scrolled.element.frame!
-      point = { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 }
+      if (titleSight(`${element.role} ${element.title ?? ''} ${element.value ?? ''}`) === 'challenge') plan.captcha = 'challenge'
+      plan.clipped = [...(plan.clipped ?? []), { field, element, words: clipped, label: targetWords(selector) }]
     }
     plan[field] = point
     const frame = 'refusal' in element ? undefined : element.frame
@@ -842,7 +869,7 @@ async function performFill(driver: DesktopDriver, input: Input, plan: ActPlan, f
   if (driver.setValue) {
     const set = await run.step(driver.setValue(front, element, text, signal))
     if (set === null) return run.failed()
-    if (set.set) return { ok: true, words: `fill ${startWords(input)} ← ${text.length} chars → ${valueWords(set.value)}${set.note ? ` · ${set.note}` : ''}` }
+    if (set.set) return { ok: true, words: `fill ${startWords(input)} ← ${text.length} chars → ${valueWords(set.value)}${set.note ? ` · ${set.note}` : ''}${scrolledWords(plan)}` }
   }
   if ((await run.step(driver.click(plan.point!, 'left', 1, signal))) === null) return run.failed()
   const all = parseKeyChord(process.platform === 'darwin' ? 'cmd+a' : 'ctrl+a')
@@ -854,7 +881,7 @@ async function performFill(driver: DesktopDriver, input: Input, plan: ActPlan, f
     const read = await driver.readElement(front, element, signal)
     if (read.ok && read.value) value = read.value.text
   }
-  return { ok: true, words: `fill ${startWords(input)} ← ${text.length} chars by keystrokes → ${valueWords(value)}` }
+  return { ok: true, words: `fill ${startWords(input)} ← ${text.length} chars by keystrokes → ${valueWords(value)}${scrolledWords(plan)}` }
 }
 
 async function performAct(driver: DesktopDriver, input: Input, plan: ActPlan, front: DesktopApplication, signal: AbortSignal): Promise<ActWords> {
@@ -894,7 +921,7 @@ async function performAct(driver: DesktopDriver, input: Input, plan: ActPlan, fr
       if (!(await run.up(plan.modifiers))) return run.failed()
       return {
         ok: true,
-        words: `scroll ${startWords(input)} by ${input.dx ?? 0}, ${input.dy ?? 0}${modifierWords(input.modifiers)} → ${pointWords(plan.point!)}`,
+        words: `scroll ${startWords(input)} by ${input.dx ?? 0}, ${input.dy ?? 0}${modifierWords(input.modifiers)} → ${pointWords(plan.point!)}${scrolledWords(plan)}`,
       }
     }
     case 'type': {
@@ -1599,6 +1626,13 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           return finish()
         }
         setDrivingApp(live)
+        const unscrolled = await scrollClippedEnds(driver, input, plan, ready.value, signal)
+        if (unscrolled !== null) {
+          await driver.releaseAll()
+          result = unscrolled
+          outcome = 'failed'
+          return finish()
+        }
         let act: ActWords
         try {
           act = await performAct(driver, input, plan, ready.value, signal)

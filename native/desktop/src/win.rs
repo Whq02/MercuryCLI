@@ -512,7 +512,7 @@ pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str,
         return TreeAnswer::refused("the application answered no accessibility element (no such process, or it is not responding)");
     }
     let name = process_image(pid as u32).map(|image| identity_of(&image).1);
-    let mut walk = TreeWalk { walker: &walker, cache: &cache, started, budget, max_depth, max_count: max_count as usize, depth_truncates: true, elements: vec![TreeElement { depth: 0, role: "AXApplication".to_string(), title: name, value: None, frame: None, focused: None }], truncated: false, timed_out: false };
+    let mut walk = TreeWalk { walker: &walker, cache: &cache, started, budget, max_depth, max_count: max_count as usize, depth_truncates: true, elements: vec![TreeElement { depth: 0, role: "AXApplication".to_string(), title: name, value: None, frame: None, focused: None, nth: None }], truncated: false, timed_out: false };
     for window in windows {
         if walk.truncated {
             break;
