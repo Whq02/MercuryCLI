@@ -150,6 +150,13 @@ section('the panel through the harness: the two groups, TENSORFOLD unfolded, the
   road.__resetTensorFoldRoadForTest()
   const refuseIo = { ...io.road, serve: { ...(io.road.serve as object), serviceEnv: { ...world.serviceEnv, FAKE_TENSORFOLD_SERVE: 'refuse-memory' } } }
   const fresh = await scene.readTensorFoldPanelFacts(io.facts, road.tensorFoldRoadState())
+  const handover = await import('../../src/substrate/splashHandover.ts')
+  handover.armFirstRunServeAsk()
+  const seenBeforeAsk = seen.length
+  await panel.onTensorFoldAct({ kind: 'serve', row: fresh.rows.find(candidate => candidate.repo === QWEN_2B_REPO)!, window: 262_144 }, fresh, refuseIo as never)
+  const asked = await scene.readTensorFoldPanelFacts(io.facts, road.tensorFoldRoadState())
+  check('first run (the sign-in list sent the user here): the first ↵ on a model row serves nothing and asks for a second — the notice names the download, the load into memory and esc', road.tensorFoldRoadState().notice === 'first run: ↵ again loads Qwen3.5 2B (1.6 GiB) into memory · esc leaves this machine as it is' && asked.acts[QWEN_2B_REPO] === undefined && seen.length === seenBeforeAsk, `${String(road.tensorFoldRoadState().notice)} · acts ${JSON.stringify(asked.acts[QWEN_2B_REPO] ?? null)} · receipts +${seen.length - seenBeforeAsk}`)
+  check('the ask is spent by that one ↵: nothing is armed for the next', handover.consumeFirstRunServeAsk() === false)
   await panel.onTensorFoldAct({ kind: 'serve', row: fresh.rows.find(candidate => candidate.repo === QWEN_2B_REPO)!, window: 262_144 }, fresh, refuseIo as never)
   const refused = await scene.readTensorFoldPanelFacts(io.facts, road.tensorFoldRoadState())
   const warning = seen.find(r => r.level === 'warning')
