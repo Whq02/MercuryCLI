@@ -171,12 +171,16 @@ export function conversationHasRows(messages: readonly Message[]): boolean {
   return messages.some(message => message.type === 'assistant' || (message.type === 'user' && message.isMeta !== true))
 }
 
+export function conversationServedBy(messages: readonly Message[], modelId: string): boolean {
+  return messages.some(message => message.type === 'assistant' && message.message.model === modelId)
+}
+
 export async function composeLocalWarm(record: LocalModelRecord, model: string, context: CacheSafeParams, served = false): Promise<LocalWarmBody | { skipped: string }> {
   const modelId = compatDispatchModelId(model)
   const toolUseContext = context.toolUseContext
   const tools: Tools = toolUseContext.options.tools
   const history: Message[] = context.forkContextMessages
-  if (served && conversationHasRows(history)) return { skipped: 'the model has served this conversation; a prefix-only warm would truncate the cache the server may hold for it' }
+  if (conversationHasRows(history) && (served || conversationServedBy(history, modelId))) return { skipped: 'the model has served this conversation; a prefix-only warm would truncate the cache the server may hold for it' }
   const appState = toolUseContext.getAppState()
   const getToolPermissionContext = async () => toolUseContext.getAppState().toolPermissionContext
   const agents = toolUseContext.options.agentDefinitions.activeAgents
