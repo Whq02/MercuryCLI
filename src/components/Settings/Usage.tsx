@@ -64,9 +64,8 @@ import { resolveHuggingfaceAccount } from '../../services/providers/huggingface/
 import { getHuggingfaceAvailability } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { getCachedLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
 import { resolveLocalAccount } from '../../services/providers/local/localAccounts.js'
-import { localRecordFor, localServerName } from '../../services/providers/local/localCatalogue.js'
-import { tensorFoldUsageLines } from '../../services/providers/local/tensorfoldUsage.js'
-import { localServerKind } from '../../constants/localPromptProfile.js'
+import { localServerName } from '../../services/providers/local/localCatalogue.js'
+import { TENSORFOLD_USAGE_SLOT, tensorFoldServing, tensorFoldServingLine, tensorFoldUsageLines } from '../../services/providers/local/tensorfoldUsage.js'
 import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js'
 import { formatLaneSpend } from '../../cost-tracker.js'
 import { hostRentalUsage } from '../../services/host/costs.js'
@@ -771,7 +770,8 @@ function LocalUsageSection(): React.ReactNode {
   const snapshot = getCachedLocalDiscovery()
   const spend = providerSessionSpend('local')
   const served = useFocusedServedModel()
-  const tensorFoldLines = localRecordFor(served ?? getEngineModel())?.server === 'tensorfold' || localServerKind(served ?? getEngineModel()) === 'tensorfold' ? tensorFoldUsageLines() : []
+  const tensorFold = tensorFoldServing(served ?? getEngineModel())
+  const tensorFoldLines = tensorFold === undefined ? [] : [tensorFoldServingLine(tensorFold), ...tensorFoldUsageLines()]
   return (
     <Box flexDirection="column">
       <Text bold>Local models usage</Text>
@@ -788,12 +788,17 @@ function LocalUsageSection(): React.ReactNode {
               </Text>
             ))}
             <SlotSpend active route="local" spend={spend} withCost={false} />
-            {tensorFoldLines.map((line, index) => <Text key={`tensorfold-${index}`} dimColor>{line}</Text>)}
           </Box>
         ) : (
           <Text dimColor>{absentSlotLine(ENGINE_USAGE_PRESENTATION.local!.connect)}</Text>
         )}
       </Box>
+      {tensorFoldLines.length > 0 ? (
+        <Box flexDirection="column" marginTop={1}>
+          <SlotHeading text={TENSORFOLD_USAGE_SLOT} />
+          {tensorFoldLines.map((line, index) => <Text key={`tensorfold-${index}`} dimColor>{line}</Text>)}
+        </Box>
+      ) : null}
       <Text dimColor>
         {account
           ? `${usage.absence ?? 'local · no metering'} — ${account.kind === 'keyless' ? 'keyless' : `key (${account.keySource})`}.`
@@ -1376,6 +1381,12 @@ export type UsageCompactReads = {
   anthropicPools: () => UsageWindowView[]
   openaiWindows: () => UsageWindowView[]
   jev: () => string | undefined
+  tensorFold?: () => string | undefined
+}
+
+function liveTensorFoldLine(): string | undefined {
+  const serving = tensorFoldServing(focusedSessionModelFacts()?.effective ?? getEngineModel())
+  return serving === undefined ? undefined : tensorFoldServingLine(serving)
 }
 
 function compactWindowLine(w: UsageWindowView, title: string): string | undefined {
@@ -1407,6 +1418,10 @@ export function usageCompactLines(
     const identity = endpoint ? resolveCompatAccount(process.env, endpoint.name)?.label ?? reads.identity(section.id) : reads.identity(section.id)
     lines.push({ text: `${section.title} · ${identity}`, heading: true })
     if (!section.family.credentialed) continue
+    if (section.id === 'local') {
+      const tensorFold = (reads.tensorFold ?? liveTensorFoldLine)()
+      if (tensorFold !== undefined) lines.push({ text: `  ${tensorFold}`, heading: false })
+    }
     const usage = reads.usage(section.id)
     const windows: string[] = []
     if (section.id === 'anthropic') {

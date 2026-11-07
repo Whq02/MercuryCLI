@@ -1,5 +1,9 @@
+import { gibWords, tokensWords } from '../../localServer/localServerMemory.js'
+import type { TensorFoldHost, TensorFoldServed } from '../../tensorfold/contracts.js'
 import type { CompatRuntimeReading, CompatUsage } from '../openaicompat/compatChatClient.js'
-import { tensorFoldHostAddress } from './tensorfoldHosts.js'
+import { localWireId } from './localCatalogue.js'
+import { getCachedLocalDiscovery, type LocalDiscoverySnapshot } from './localDiscovery.js'
+import { tensorFoldHostAddress, tensorFoldHosts } from './tensorfoldHosts.js'
 
 interface TensorFoldTurnReading {
   at: number
@@ -85,6 +89,82 @@ export function tensorFoldUsageLines(readings: readonly TensorFoldTurnReading[] 
     lines.push(`this session · ${parts.join(' · ')}`)
   }
   return lines
+}
+
+export type TensorFoldServingState = 'serving' | 'draining' | 'loading' | 'absent'
+
+export interface TensorFoldServing {
+  model: string
+  state: TensorFoldServingState
+  address?: string
+  window?: number
+  inUseBytes?: number
+}
+
+export interface TensorFoldServingReads {
+  snapshot?: () => LocalDiscoverySnapshot | null
+  served?: () => readonly TensorFoldServed[]
+  hosts?: () => readonly TensorFoldHost[]
+  turns?: () => readonly TensorFoldTurnReading[]
+}
+
+function readServed(): readonly TensorFoldServed[] {
+  try {
+    const { servedTensorFold } = require('../../tensorfold/serve.js') as typeof import('../../tensorfold/serve.js')
+    return servedTensorFold()
+  } catch {
+    return []
+  }
+}
+
+function readHosts(): readonly TensorFoldHost[] {
+  try {
+    return tensorFoldHosts()
+  } catch {
+    return []
+  }
+}
+
+function sameModel(served: string, name: string): boolean {
+  const lower = served.toLowerCase()
+  return lower === name || lower.endsWith(`/${name}`)
+}
+
+export function tensorFoldServing(model: string, reads: TensorFoldServingReads = {}): TensorFoldServing | undefined {
+  const wire = localWireId(model)
+  const name = wire.toLowerCase()
+  if (name === '') return undefined
+  for (const server of (reads.snapshot ?? getCachedLocalDiscovery)()?.servers ?? []) {
+    if (server.kind !== 'tensorfold') continue
+    const listed = server.models.find(candidate => sameModel(candidate.id, name))
+    if (listed === undefined) continue
+    const inUseBytes = server.engine?.inUseBytes ?? listed.servedBytes
+    return {
+      model: listed.id,
+      state: server.engine?.draining ? 'draining' : 'serving',
+      address: tensorFoldHostAddress(server.root),
+      ...(listed.contextWindow !== undefined ? { window: listed.contextWindow.tokens } : {}),
+      ...(inUseBytes !== undefined ? { inUseBytes } : {}),
+    }
+  }
+  const started = (reads.served ?? readServed)().find(row => sameModel(row.name, name) || sameModel(row.repo, name))
+  if (started !== undefined) return { model: started.name, state: 'loading', address: `127.0.0.1:${started.port}`, window: started.window }
+  const host = (reads.hosts ?? readHosts)().find(row => row.serving !== undefined && sameModel(row.serving, name))
+  const turn = (reads.turns ?? tensorFoldTurnReadings)().findLast(row => sameModel(row.model, name))
+  if (host === undefined && turn === undefined && !model.trim().toLowerCase().startsWith('local/tensorfold/')) return undefined
+  return { model: host?.serving ?? turn?.model ?? wire, state: 'absent', ...(host !== undefined ? { address: tensorFoldHostAddress(host.baseUrl) } : turn !== undefined ? { address: turn.address } : {}) }
+}
+
+export const TENSORFOLD_USAGE_SLOT = 'TensorFold'
+
+export function tensorFoldServingLine(serving: TensorFoldServing, readings: readonly TensorFoldTurnReading[] = turns): string {
+  if (serving.state === 'absent') return `${serving.model} is not served · /tensorfold serves it`
+  const parts = [`${serving.state} ${serving.model}${serving.address !== undefined ? ` on ${serving.address}` : ''}`]
+  if (serving.window !== undefined) parts.push(`${tokensWords(serving.window)} ctx`)
+  if (serving.inUseBytes !== undefined) parts.push(`${gibWords(serving.inUseBytes)} in use`)
+  const answered = readings.some(turn => sameModel(turn.model, serving.model.toLowerCase()) && (serving.address === undefined || turn.address === serving.address))
+  if (serving.state !== 'loading' && !answered) parts.push('idle')
+  return parts.join(' · ')
 }
 
 export function __resetTensorFoldUsageForTest(): void {

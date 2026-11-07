@@ -460,17 +460,39 @@ TensorFold reports the level it applied in `tensorfold.reasoning_effort`; when
 a checkpoint's template maps the requested effort to a nearest supported level,
 Mercury's effort stamp shows the applied level.
 
-## `/usage` per turn
+## `/usage`: the served model and its turns
+
+When the session's model is on TensorFold, the **Local models usage** block of
+`/usage` carries a **TensorFold** slot under its **Servers** slot. Its first
+row names the model the engine has loaded, where it serves, the served window
+and the memory it holds, read from the engine's own `/v1/models` and `/health`
+answers and from the served record Mercury keeps:
+
+```text
+TensorFold
+serving qwen3.8-27b on 127.0.0.1:8080 · 128k ctx · 17.2 GiB in use · idle
+```
+
+`idle` means no turn has gone through it in this session yet; it drops off
+with the first turn. The row reads `draining` while the engine drains before a
+stop, `loading <model> on <address> · <window> ctx` while a model Mercury
+started is still loading, and `<model> is not served · /tensorfold serves it`
+when the session's model is a TensorFold one that no server answers for any
+more. A server that answers with a key states the model and window from
+`/v1/models` and no memory figure. The row carries no price: a local road is
+not metered. The **Servers** slot above keeps the session's token tally
+(`This session: <input> input · <output> output tokens`, one row per model),
+and a session on another local server shows no TensorFold slot at all. The
+compact listing on a short terminal shows the same serving row under the
+local heading.
 
 Every streaming request to TensorFold includes `stream_options.include_usage: true`.
 TensorFold's final usage chunk and `tensorfold` runtime block return prompt and
 completion token counts, cached input tokens, reasoning tokens, decode rate
 (`tokens_per_second`), decode duration, time to first token, prefill duration,
 applied `reasoning_effort`, and speculative draft acceptance
-(`draft_acceptance`).
-
-When the session's model is on TensorFold, `/usage` shows a `last turn` line
-under **Local models usage**:
+(`draft_acceptance`). After the first turn the slot adds a `last turn` line
+under the serving row:
 
 ```text
 last turn · qwen3.8-27b · ~78 tok/s · first token in 72 ms · prefill 160 ms · 4,570 in (4,180 cached) · 312 out (140 thinking) · effort medium · drafts 26% accepted
