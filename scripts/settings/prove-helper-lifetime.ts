@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createServer as listenTcp } from 'node:net'
 import { join } from 'node:path'
 import { pinScratchHome, releaseScratchHome } from '../lib/settingsPopupHarness.ts'
 import { FAKE_BIN, GIB, MAC_48, fakeWorld } from '../tensorfold/fixtures/world.ts'
@@ -28,6 +29,14 @@ async function finish(): Promise<never> {
   process.exit(failures === 0 ? 0 : 1)
 }
 const quiet = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+const freePort = (): Promise<number> => new Promise((resolve, reject) => {
+  const probe = listenTcp()
+  probe.once('error', reject)
+  probe.listen(0, '127.0.0.1', () => {
+    const address = probe.address()
+    probe.close(() => resolve(typeof address === 'object' && address !== null ? address.port : 0))
+  })
+})
 const alive = (pid: number | null | undefined): boolean => {
   if (!pid) return false
   try {
@@ -157,9 +166,15 @@ section('§2 the seam: the helper a session starts ends when that session\'s own
   check('the starter\'s end leaves a helper another session restarted since: the record names another port, the seam saw no second stop, helperProcess is cleared', stopped.length === 1 && helper.readHelperModelState().port === undefined, JSON.stringify({ stopped, state: helper.readHelperModelState() }))
   record = undefined
   const stops: string[] = []
-  if (typeof helper.__pinHelperProcessForTest === 'function') helper.__pinHelperProcessForTest({ size: '4b', port: 4242, modelId: 'local/qwen3.5-4b', stop: async () => { stops.push('4b') } })
+  const fourB = await manager.startService({ spec: { name: 'mercury-helper', command: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], cwd: HOME, readiness: [], readinessMode: 'all', restart: 'never', lifecycle: 'session' }, sessionId: 'proof' })
+  const fourBPid = 'record' in fourB ? fourB.record.pid : null
+  if (typeof helper.__pinHelperProcessForTest === 'function') helper.__pinHelperProcessForTest({ size: '4b', port: 4242, modelId: 'local/qwen3.5-4b', pid: 4242, stop: async () => { stops.push('stale') } })
   await lifecycle.disposeOwner(owner)
-  check('a 4B this session started ends at the owner\'s dispose through its own stop, helperProcess cleared', JSON.stringify(stops) === JSON.stringify(['4b']) && helper.readHelperModelState().port === undefined, JSON.stringify({ stops, state: helper.readHelperModelState() }))
+  check('a 4B this process no longer holds (its pid is not our child) is left alone at the owner\'s dispose: its stop is not called, helperProcess cleared', stops.length === 0 && helper.readHelperModelState().port === undefined, JSON.stringify({ stops, state: helper.readHelperModelState() }))
+  if (typeof helper.__pinHelperProcessForTest === 'function' && fourBPid !== null) helper.__pinHelperProcessForTest({ size: '4b', port: 4243, modelId: 'local/qwen3.5-4b', pid: fourBPid, stop: async () => { stops.push('own'); await manager.stopService(HOME, 'mercury-helper') } })
+  await lifecycle.disposeOwner(owner)
+  check('a 4B this process started and still holds ends at the owner\'s dispose through its own stop: the child gone, helperProcess cleared', JSON.stringify(stops) === JSON.stringify(['own']) && !alive(fourBPid) && helper.readHelperModelState().port === undefined, JSON.stringify({ stops, alive: alive(fourBPid), state: helper.readHelperModelState() }))
+  await manager.stopService(HOME, 'mercury-helper')
   helper.__pinHelperServeSeamForTest(undefined)
   helper.writeHelperModelSetting({ size: 'off' })
 }
@@ -190,9 +205,11 @@ section('§4 the hosts file is never written for the helper: a start leaves loca
   const started: Array<Record<string, unknown>> = []
   const stopped: string[] = []
   let record: { repo: string; name: string; port: number; window: number; pid: number; startedAt: string } | undefined
+  let startFails = false
   helper.__pinHelperServeSeamForTest(() => ({
     start: async request => {
       started.push({ ...request })
+      if (startFails) throw new Error('the fake start refused')
       record = { repo: request.repo, name: request.name ?? 'x', port: helper2b.port, window: request.window, pid: 777, startedAt: '2026-11-07T00:00:02.000Z' }
       return record
     },
@@ -245,8 +262,12 @@ section('§4 the hosts file is never written for the helper: a start leaves loca
   check('the adopter\'s end leaves the helper it did not start: the seam saw no stop, the record stands', stopped.length === 1 && helper.helperServedRecord()?.port === helper2bAgain.port, JSON.stringify(stopped))
   record = undefined
   await probeOnly27b()
+  startFails = true
   await helper.ensureHelperServing()
-  check('with no live record, the stale own port is forgotten and a start happens', started.length === 4 && helper.readHelperModelState().port === helper2b.port, JSON.stringify(started))
+  check('with no live record and a start that fails, the stale own port was forgotten before the start: no port in hand, the failure recorded', started.length === 4 && helper.readHelperModelState().port === undefined && helper.helperFailureWords() === 'the fake start refused', JSON.stringify({ started: started.length, state: helper.readHelperModelState(), failure: helper.helperFailureWords() }))
+  startFails = false
+  await helper.ensureHelperServing()
+  check('the next job\'s start happens and is held', started.length === 5 && helper.readHelperModelState().port === helper2b.port && helper.helperFailureWords() === undefined, JSON.stringify(started))
   helper.__pinHelperServeSeamForTest(undefined)
   helper.__resetHelperForTest()
   helper.writeHelperModelSetting({ size: 'off' })
@@ -265,7 +286,8 @@ section('§5 the real road: the helper\'s own seam drives serve.startTensorFold 
     const realPath = process.env.PATH
     process.env.PATH = world.env.PATH
     engine.__pinTensorFoldMachineForTest(MAC_48)
-    helper.__pinHelperServeIoForTest({ binary: `${FAKE_BIN}/tensorfold`, cwd: world.cwd, sessionId: 'proof', env: world.env, serviceEnv: world.serviceEnv, servedFile: join(world.home, 'served.json'), machine: MAC_48, app: async () => ({ running: false }), freeMemoryBytes: async () => 40 * GIB, startWaitMs: 30_000 })
+    const serveIo = { binary: `${FAKE_BIN}/tensorfold`, cwd: world.cwd, sessionId: 'proof', env: world.env, serviceEnv: world.serviceEnv, servedFile: join(world.home, 'served.json'), machine: MAC_48, app: async () => ({ running: false }), freeMemoryBytes: async () => 40 * GIB, startWaitMs: 30_000 }
+    helper.__pinHelperServeIoForTest(serveIo)
     helper.writeHelperModelSetting({ size: '2b' })
     await probeOnly27b()
     await helper.ensureHelperServing()
@@ -280,14 +302,31 @@ section('§5 the real road: the helper\'s own seam drives serve.startTensorFold 
     await helper.ensureHelperServing()
     check('a second session adopts the real record: the same pid serves, no second service, helperProcess names the record\'s port', manager.readRecord(world.cwd, 'tensorfold-helper')?.pid === service?.pid && record !== undefined && helper.readHelperModelState().port === record.port, JSON.stringify({ pid: manager.readRecord(world.cwd, 'tensorfold-helper')?.pid, state: helper.readHelperModelState() }))
     check('adoption registers no end-of-session stop: the owner\'s disposers are as before, the process still serves', lifecycle.ownerLifecycleCounts().adhoc === disposers && service !== null && alive(service.pid), JSON.stringify({ before: disposers, after: lifecycle.ownerLifecycleCounts().adhoc }))
+    const otherCwd = join(world.root, 'other-project')
+    mkdirSync(otherCwd, { recursive: true })
+    const overlapping = await serve.startTensorFold(helper.helper2bRequest(await freePort()), { ...serveIo, cwd: otherCwd, owner, rememberPort: () => undefined }).then(served => served, error => ({ error: String(error) }))
+    check('a second session\'s start arriving while a live helper record exists adopts it in serve.startTensorFold itself: the live record\'s facts come back, the first process still serves, no second service was spawned, no stop was issued', 'port' in overlapping && record !== undefined && service !== null && overlapping.port === record.port && overlapping.pid === service.pid && alive(service.pid) && manager.readRecord(world.cwd, 'tensorfold-helper')?.pid === service.pid && manager.readRecord(otherCwd, 'tensorfold-helper') === null, JSON.stringify({ overlapping, firstAlive: alive(service?.pid), other: manager.readRecord(otherCwd, 'tensorfold-helper')?.state }))
+    await manager.stopService(otherCwd, 'tensorfold-helper')
+    const helperFile = join(world.home, 'helper.json')
+    const liveRecordText = readFileSync(helperFile, 'utf8')
+    writeFileSync(helperFile, 'null\n')
+    let restored = false
+    const failing = await serve.startTensorFold(helper.helper2bRequest(await freePort()), { ...serveIo, cwd: otherCwd, owner, rememberPort: () => undefined, serviceEnv: { ...world.serviceEnv, FAKE_TENSORFOLD_SERVE: 'exit-9', FAKE_TENSORFOLD_LOAD_MS: '1500' }, onLoading: () => { if (!restored) { writeFileSync(helperFile, liveRecordText); restored = true } } }).then(() => 'started', error => String(error))
+    check('a helper start that fails while another session\'s live record was written meanwhile never blanks that record: the first helper is still the record', failing !== 'started' && restored && readFileSync(helperFile, 'utf8') === liveRecordText && record !== undefined && helper.helperServedRecord()?.port === record.port, JSON.stringify({ failing, restored, file: readFileSync(helperFile, 'utf8') }))
+    await manager.stopService(otherCwd, 'tensorfold-helper')
     if (typeof helper.__pinHelperProcessForTest === 'function' && record !== undefined) helper.__pinHelperProcessForTest({ size: '2b', port: record.port, modelId: 'local/qwen3.5-2b' })
     check('the starter holds one end-of-session stop', lifecycle.ownerLifecycleCounts().adhoc === disposers + 1)
+    if (record !== undefined) hosts.rememberTensorFoldPort(record.port)
+    const seeded = readFileSync(hostsFile, 'utf8')
+    check('for the stop, the owner remembers a server on the helper\'s own number', record !== undefined && seeded !== before && hosts.tensorFoldPorts().includes(record.port))
     await lifecycle.disposeOwner(owner)
     await quiet(200)
-    check('the starter\'s end stops the real helper: process gone, service record stopped, served record cleared', service !== null && !alive(service.pid) && manager.readRecord(world.cwd, 'tensorfold-helper')?.state === 'stopped' && helper.helperServedRecord() === undefined, JSON.stringify({ alive: alive(service?.pid), state: manager.readRecord(world.cwd, 'tensorfold-helper')?.state }))
-    check('the hosts file is byte-identical after the real stop (the no-op forgetPort hook)', readFileSync(hostsFile, 'utf8') === before, readFileSync(hostsFile, 'utf8'))
+    check('the starter\'s end stops the real helper through stopHelperServing: process gone, service record stopped, helper.json written null (only the seam\'s stop writes that)', service !== null && !alive(service.pid) && manager.readRecord(world.cwd, 'tensorfold-helper')?.state === 'stopped' && readFileSync(helperFile, 'utf8').trim() === 'null' && helper.helperServedRecord() === undefined, JSON.stringify({ alive: alive(service?.pid), state: manager.readRecord(world.cwd, 'tensorfold-helper')?.state, file: readFileSync(helperFile, 'utf8') }))
+    check('the real stop leaves the owner\'s remembered port on the helper\'s number alone (red with the no-op forgetPort hook removed from the seam)', readFileSync(hostsFile, 'utf8') === seeded, readFileSync(hostsFile, 'utf8'))
+    if (record !== undefined) hosts.forgetTensorFoldPort(record.port)
+    check('the hosts file is back to its bytes before the real road', readFileSync(hostsFile, 'utf8') === before)
     await discovery.refreshLocalDiscovery({ force: true })
-    check('nothing of the helper is listed once it is gone', !discovery.cachedLocalModels().some(model => model.id === 'qwen3.5-2b'))
+    check('nothing of the helper is listed or held once it is gone: helperProcess cleared, no port in the state', !discovery.cachedLocalModels().some(model => model.id === 'qwen3.5-2b') && helper.readHelperModelState().port === undefined, JSON.stringify(helper.readHelperModelState()))
     helper.__pinHelperServeIoForTest(undefined)
     engine.__pinTensorFoldMachineForTest(null)
     process.env.PATH = realPath

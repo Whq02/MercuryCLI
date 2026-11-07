@@ -210,7 +210,7 @@ export function helperJobsWords(compaction: boolean): string {
   return `${HELPER_JOB_WORDS.titles} ✓ · ${HELPER_JOB_WORDS.judge} ✓ · ${HELPER_JOB_WORDS.compaction} ${compaction ? '✓' : `✗ · ${HELPER_JOB_WORDS.compactionReason}`}`
 }
 
-let helperProcess: { size: HelperModelSize; port: number; modelId: string; stop?: () => Promise<void> } | undefined
+let helperProcess: { size: HelperModelSize; port: number; modelId: string; pid?: number; stop?: () => Promise<void> } | undefined
 let helperStarting: Promise<void> | undefined
 let helperFailure: string | undefined
 
@@ -363,7 +363,8 @@ async function start4b(): Promise<void> {
   const port = await freePort()
   const spec: ServiceSpec = { ...(await ggufServerPlan(model, folder, { port })), name: HELPER_SERVICE_NAME, lifecycle: 'session' }
   const started = await startGgufServer(model, spec, { port, owner: processMainOwner() })
-  helperProcess = { size: '4b', port, modelId: `${LOCAL_MODEL_PREFIX}${ggufModelName(model.recipe)}`, stop: started.stop }
+  const pid = (await import('../../projectServices/serviceManager.js')).readRecord(spec.cwd, HELPER_SERVICE_NAME)?.pid
+  helperProcess = { size: '4b', port, modelId: `${LOCAL_MODEL_PREFIX}${ggufModelName(model.recipe)}`, ...(typeof pid === 'number' ? { pid } : {}), stop: started.stop }
 }
 
 export async function ensureHelperServing(): Promise<void> {
@@ -394,8 +395,10 @@ export async function stopHelperServing(): Promise<void> {
   const running = helperProcess
   helperProcess = undefined
   if (running === undefined) return
-  if (running.stop !== undefined) await running.stop().catch(() => undefined)
-  else if (helperServedRecord()?.port === running.port) await helperSeam().stop(HELPER_2B_NAME).catch(() => undefined)
+  if (running.stop !== undefined) {
+    const { liveServiceChildren } = await import('../../projectServices/serviceManager.js')
+    if (liveServiceChildren().some(child => child.pid === running.pid)) await running.stop().catch(() => undefined)
+  } else if (helperServedRecord()?.port === running.port) await helperSeam().stop(HELPER_2B_NAME).catch(() => undefined)
 }
 
 export function __pinHelperProcessForTest(started: typeof helperProcess): void {

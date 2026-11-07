@@ -747,9 +747,9 @@ needs-you judge and the mission judge to a local 2B or 4B model (or the
 session's own local model) on every road, and
 `Helper model for compaction`, when on, folds session compaction on the helper
 as that page describes. The helper starts when a session opens with the setting
-on or with the first small job that selects it (that job runs on the session's
-model while the helper loads), ends with the session that started it, and never
-writes the hosts file.
+on or with the first small job that selects it (jobs run on the session's model
+while the helper loads), ends with the session that started it when that
+session ends in order, and never writes `local-setup/tensorfold-hosts.json`.
 
 Each wire carries its provider's documented quirks, the same pins the wire
 sends from: reasoning-effort vocabularies, sampling restrictions

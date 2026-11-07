@@ -108,7 +108,8 @@ lowest effort tier that model serves (thinking off on the Anthropic road; a
 model without effort control ignores it; with `Helper model` on, the small
 helper, as for every side job: the first job starts it when nothing serves it
 yet and runs on the session's model meanwhile, and it ends with the session
-that started it), given the goal and its criteria, the
+that started it when that session ends in order), given the goal and its
+criteria, the
 turn's closing words, an itemised completion among them when the model wrote
 one (one numbered line per criterion naming its evidence, then the
 `<<<GOAL-MET>>>` line, elided on screen in the chat and concourse live tiles

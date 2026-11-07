@@ -302,6 +302,10 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
   }
   const existing = servedTensorFoldRecord(scoped)
   const live = existing !== null && LIVE_STATES.includes(existing.service.state) ? existing : null
+  if (live !== null && role === 'helper') {
+    const { project: _project, busy: _busy, sharedAs: _sharedAs, service: liveService, ...served } = live
+    return { ...served, pid: liveService.pid ?? served.pid }
+  }
   const full = checkpointFor(request.repo, adapter)
   if (full !== undefined) {
     const needBytes = tensorFoldProjectedBytes({ ...full, ...(request.promptCacheGib !== undefined ? { promptCacheGib: request.promptCacheGib } : {}) }, request.window)
@@ -355,7 +359,7 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
     const state = ready.record?.state
     if (ready.record === null || state === 'failed' || state === 'stopped') {
       const tail = logTail(ready.record)
-      writeServedRecord(null, scoped)
+      if (role === 'session' || readServedRecord(scoped)?.port === pick.port) writeServedRecord(null, scoped)
       await forgetShared(sharedAs, io)
       const exit = { code: ready.record?.lastExitCode ?? null, signal: ready.record?.lastExitCode === -1 ? 'SIGKILL' : null }
       const refusal = readTensorFoldRefusal(tail, { window: request.window, machine, ...(full !== undefined ? { needBytes: tensorFoldProjectedBytes(full, request.window), ladder: tensorFoldLadder(full, machine) } : {}), exit })
