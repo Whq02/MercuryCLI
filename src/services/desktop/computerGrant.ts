@@ -85,7 +85,7 @@ export function computerGrantWords(record: ComputerGrantRecord, now: number = Da
   return `granted for ${span} · ${left >= 90 ? `${Math.round(left / 60)}h` : `${left}m`} left`
 }
 
-export interface ChallengeGrant { window: string; seen: boolean; until: number }
+interface ChallengeGrant { window: string; seen: boolean; until: number }
 
 type ChallengeWindow = Pick<DesktopApplication, 'identity' | 'windowId' | 'title'>
 

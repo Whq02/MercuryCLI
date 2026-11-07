@@ -3,9 +3,9 @@ import { clippedWords } from './fastRoad.js'
 
 export type CaptchaSight = 'challenge' | 'widget' | null
 
-export const CAPTCHA_WIDGET_NOTE = 'note: the page carries a captcha widget; a badge is not a challenge and never stops an act'
-export const CAPTCHA_CHALLENGE_NOTE = 'a human-verification challenge is on screen: the next act asks the operator to complete it themselves or to let you try it; captcha: true on the act asks at once'
-export const CAPTCHA_GRANTED_NOTE = 'a human-verification challenge is on screen; the operator allowed you to try it in this window'
+const CAPTCHA_WIDGET_NOTE = 'note: the page carries a captcha widget; a badge is not a challenge and never stops an act'
+const CAPTCHA_CHALLENGE_NOTE = 'a human-verification challenge is on screen: the next act asks the operator to complete it themselves or to let you try it; captcha: true on the act asks at once'
+const CAPTCHA_GRANTED_NOTE = 'a human-verification challenge is on screen; the operator allowed you to try it in this window'
 export const CAPTCHA_OPERATOR_COMPLETES = 'a human-verification challenge is on screen and the operator will complete it themselves — wait until it is gone, then re-issue'
 export const CAPTCHA_ASK_UNAVAILABLE = 'a human-verification challenge is on screen and no permission host can ask the operator — re-issue with captcha: true once one can, or let the operator complete it, then re-issue'
 export const CAPTCHA_QUESTION = 'a human-verification challenge is on screen: complete it yourself and Mercury carries on, or allow Mercury to try it in this window until the challenge is gone'
