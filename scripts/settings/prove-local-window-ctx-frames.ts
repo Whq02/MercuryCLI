@@ -171,7 +171,7 @@ console.log("\n── the owner's box: the hybrid 27B (one head_count_kv for 65 
   check('178x51 rail: the ctx row reads ctx 46% · 131k cap (the window label is the rail\'s own /1000 spelling; the reason is the fit owner\'s)', ctxRow(rail) === 'ctx 46% · 131k cap' && inBounds(rail, 178, 51), ctxRow(rail))
   const deck = await paintDeck(178, 51)
   save('deck-ctx-rule-178x51', deck)
-  check("178x51 deck: the ctx row carries the full rule in step 5's words — the ceiling, then the hybrid sum that fits", ctxRow(deck).includes('60k/131k · 128k · the automatic ceiling (256k fits: 16.5 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot)') && inBounds(deck, 178, 51), ctxRow(deck))
+  check("178x51 deck: the ctx row opens with the rule's head in step 5's words — the ceiling, then the hybrid sum that fits (the row truncates at the deck's edge; the remedy rides the /config row whole)", ctxRow(deck).includes('60k/131k · 128k · the automatic ceiling (256k fits: 16.5 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot)') && inBounds(deck, 178, 51), ctxRow(deck))
   const narrow = await paintDeck(80, 21)
   save('deck-ctx-80x21', narrow)
   check('80x21 deck: the compact strip folds ctx into its first row and stays in bounds (the rule rides the wide row only)', inBounds(narrow, 80, 21) && ctxRow(narrow) === '', ctxRow(narrow))

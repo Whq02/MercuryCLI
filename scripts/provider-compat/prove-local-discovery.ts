@@ -225,7 +225,7 @@ section('5 · the picker rows')
   check('every row is selectable (the dispatch refuses typed)', rows.every(r => r.unavailable === undefined))
 }
 
-section('6 · the capability edge: the window is the one Mercury will send — under the server-default setting the server\'s stated figure, under auto the decision (the trained max on an unread machine)')
+section('6 · the capability edge: the window is the one Mercury will send — under the server-default setting the server\'s stated figure, under auto the decision (the automatic ceiling on an unread machine whose trained max is above it)')
 {
   const w = await import('../../src/services/providers/local/localWindow.ts')
   w.__resetLocalWindowsForTest()
@@ -424,7 +424,7 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
   const pastCeiling = localLaneProfileFor(llava).requestFitRefusal?.({ requestBytes: 800_000, estTokens: 200_000, toolCount: 202, wireModel: 'llava:latest' })
   check('an unstated window: a 200k request past the ceiling is refused before the send, naming the choice and the setting that lifts it', (pastCeiling ?? '').includes('131072 tokens — chosen by Mercury for this session (auto) — /config → Local model window'), String(pastCeiling))
   const trainedOnly = { ...llava, contextWindow: { tokens: 32768, source: 'model-max' as const } }
-  check('a trained maximum the server merely lists (model-max 32768) never guards by itself — only served/modelfile do; the guard is the window the request will send (131072), so a 100k request is not refused', localLaneProfileFor(trainedOnly).requestFitRefusal?.({ requestBytes: 400_000, estTokens: 100_000, toolCount: 202, wireModel: 'llava:latest' }) === undefined)
+  check('a trained maximum the server merely lists (model-max 32768) never guards by itself — only served/modelfile do: a 100k request past that listing is not refused (the guard is the window the request will send, pinned above)', localLaneProfileFor(trainedOnly).requestFitRefusal?.({ requestBytes: 400_000, estTokens: 100_000, toolCount: 202, wireModel: 'llava:latest' }) === undefined)
 
   windows.writeLocalWindowSetting({ id: 'qwen3:8b' }, 'server')
   const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
