@@ -93,12 +93,12 @@ function pickRichTasks(state: unknown): Map<string, RichTaskFact> {
 export function pickRunFacts(snap: RunSnapshot | null): RunFacts | null {
   if (!snap) return null
   const facts: RunFacts = {}
-  const s = snap as unknown as Record<string, unknown>
+  const s = snap
   if (typeof s.objective === 'string') facts.objective = s.objective
   if (typeof s.lifecycle === 'string') facts.lifecycle = s.lifecycle
   if (typeof s.phase === 'string') facts.phase = s.phase
   if (typeof s.nextAction === 'string') facts.nextAction = s.nextAction
-  const blocker = s.blocker as { description?: unknown; ownedBy?: unknown } | null | undefined
+  const blocker = s.blocker
   if (blocker && typeof blocker.description === 'string') {
     facts.blocker =
       typeof blocker.ownedBy === 'string'
@@ -109,7 +109,7 @@ export function pickRunFacts(snap: RunSnapshot | null): RunFacts | null {
     facts.changedPaths = s.changedPaths.filter((p): p is string => typeof p === 'string')
   }
   if (typeof s.totalChangedPaths === 'number') facts.totalChangedPaths = s.totalChangedPaths
-  const verification = s.verification as { state?: unknown } | undefined
+  const verification = s.verification
   if (verification && typeof verification.state === 'string') {
     facts.verificationState = verification.state
   }
