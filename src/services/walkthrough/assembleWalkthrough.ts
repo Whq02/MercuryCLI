@@ -198,7 +198,7 @@ function gatherWalkthroughInputs(args: {
 }): WalkthroughInputs {
   const cwd = args.cwd ?? getCwd()
   const run = getRunSnapshot(args.owner)
-  const runFacts = run as unknown as Record<string, unknown> | null
+  const runFacts = run
 
   const receipts: WalkthroughReceiptFact[] = receiptsFor(args.owner)
     .slice(-RECEIPTS_MAX)
