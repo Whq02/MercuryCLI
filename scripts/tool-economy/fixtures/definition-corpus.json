@@ -1,5 +1,5 @@
 {
-  "base": "b730629c2a5fc8cbd0baaac0d9900fcfeda681c7",
+  "base": "4a060a631c80dadfe05cbb7598939f1fece32dc6",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -3092,7 +3092,7 @@
     },
     {
       "name": "Computer",
-      "description": "Operate the desktop by screenshot coordinates or accessibility targets. Coordinates are pixels of its last screenshot; refresh after frame changes. Returns screen observations and action results; trees use [n] role \"title\" value rows. Terminal captures return accessibility text by default.\n\nThe first act in an application asks; tree/find/read/wait-until share its grant. Other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input. Screenshots remain in saved history.\n\nAfter the same act twice with an unchanged result, read the screen before acting again.",
+      "description": "Operate the desktop by screenshot coordinates or accessibility targets. Coordinates are pixels of its last screenshot; refresh after frame changes. Returns screen observations and action results; trees use [n] role \"title\" value rows. Terminal captures return accessibility text by default.\n\nThe first act in an application asks; tree/find/read/wait-until share its grant. Other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input. Screenshots remain in saved history.\n\nAfter a click whose effect you assume (a dialog, a focus change, a page), wait with until; a sequence stops at its timeout. After the same act twice with an unchanged result, read the screen before acting again.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -3117,7 +3117,10 @@
               "find",
               "sequence",
               "read",
-              "focusApp"
+              "focusApp",
+              "file",
+              "fill",
+              "fields"
             ]
           },
           "x": {
@@ -3310,7 +3313,7 @@
             "additionalProperties": false
           },
           "until": {
-            "description": "wait: text/title/URL substring or role/name; gone waits for removal.",
+            "description": "wait: text/title/URL substring, role/name, dialog: true or focus (a role); gone waits for removal. Put it after a click whose effect you assume.",
             "type": "object",
             "properties": {
               "role": {
@@ -3326,6 +3329,12 @@
                 "type": "string"
               },
               "url": {
+                "type": "string"
+              },
+              "dialog": {
+                "type": "boolean"
+              },
+              "focus": {
                 "type": "string"
               },
               "gone": {
@@ -3376,11 +3385,15 @@
             "type": "boolean"
           },
           "captcha": {
-            "description": "Hand a captcha to the operator.",
+            "description": "Ask the operator before acting on a visible challenge.",
             "type": "boolean"
           },
+          "path": {
+            "description": "file: absolute path of the file to upload through the native dialog.",
+            "type": "string"
+          },
           "steps": {
-            "description": "Non-nested sequence; stops at first failure. Capture, region, scale and settleMs belong on the sequence. Step fields have the same meanings as the top-level fields.",
+            "description": "Non-nested sequence; stops at first failure, a wait-until timeout included. Capture, region, scale and settleMs belong on the sequence. Step fields have the same meanings as the top-level fields.",
             "type": "array",
             "items": {
               "type": "object",
@@ -3405,7 +3418,10 @@
                     "tree",
                     "find",
                     "read",
-                    "focusApp"
+                    "focusApp",
+                    "file",
+                    "fill",
+                    "fields"
                   ]
                 },
                 "x": {
@@ -3590,6 +3606,12 @@
                     "url": {
                       "type": "string"
                     },
+                    "dialog": {
+                      "type": "boolean"
+                    },
+                    "focus": {
+                      "type": "string"
+                    },
                     "gone": {
                       "type": "boolean"
                     }
@@ -3635,6 +3657,9 @@
                 },
                 "captcha": {
                   "type": "boolean"
+                },
+                "path": {
+                  "type": "string"
                 }
               },
               "required": [
