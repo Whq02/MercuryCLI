@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: 'craft-proof' }
@@ -23,7 +25,7 @@ assert.match(skill.description, /Not for PhotoCraft.*LightCraft/)
 const prompt = (await skill.getPromptForCommand('Cut the open FilmCraft sequence at one second')).map((p: any) => p.text).join('\n')
 assert(prompt.includes('Cut the open FilmCraft sequence at one second'))
 assert(prompt.includes('sequence.addEdit') && prompt.includes('ui_screenshot') && prompt.includes('file.exportMedia'))
-assert(prompt.includes('FilmCraft 0.17.1') && prompt.includes('FILMCRAFT_CONTROL_TOKEN') && prompt.includes('tokenFile') && prompt.includes('254016000000'))
+assert(prompt.includes('FilmCraft 0.18.0') && prompt.includes('FILMCRAFT_CONTROL_TOKEN') && prompt.includes('tokenFile') && prompt.includes('254016000000'))
 assert(prompt.includes('timeline.move') && prompt.includes('lastPath'), 'The skill carries the 0.17.1 words: a move takes time objects, an image sequence names its first and last stills')
 assert(!prompt.includes('craft_status') && !prompt.includes('craft_install'), 'Onboarding belongs to the server instructions, not the skill')
 assert(readFileSync(join(ext.root, 'skills/filmcraft/SKILL.md')).byteLength <= 1700)
@@ -64,13 +66,21 @@ if (connection.type === 'connected') {
     const context: any = { abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: permission }), options: {} }
     const { decision } = await decideToolPermission(install, {}, context)
     assert.equal(decision.behavior, 'ask')
-    assert.match((decision as any).message, /Install FilmCraft 0\.17\.1 \([\d,]+ bytes\)/)
+    assert.match((decision as any).message, /Install FilmCraft 0\.18\.0 \([\d,]+ bytes\)/)
     assert(!JSON.stringify(decision).includes('_mercuryInstallGrant'))
     console.log('PASS: real Mercury MCP client and tool pool ask once with a private install handoff')
   } finally { await connection.client.close() }
 }
 const pins = ['filmcraft.lock.json', 'filmcraft-cli.lock.json'].map(name => JSON.parse(readFileSync(join(ext.root, 'server', name), 'utf8')))
 assert.equal(pins[0].version, pins[1].version)
-assert.equal(pins[0].platforms['darwin-arm64'].bytes + pins[1].platforms['darwin-arm64'].bytes, 210355047)
-assert.equal(pins[0].platforms['win-x64'].bytes, 109020901)
+assert.equal(pins[0].platforms['darwin-arm64'].bytes + pins[1].platforms['darwin-arm64'].bytes, 211365743)
+assert.equal(pins[0].platforms['win-x64'].bytes, 109616261)
 console.log('PASS: delivered Mac/Windows release pins and matching versions')
+const { adapter } = await import(pathToFileURL(join(ext.root, 'server/install.mjs')).href)
+const { planInstall } = await import(pathToFileURL(join(ext.root, 'shared/install.mjs')).href)
+const dataDir = join(tmpdir(), 'filmcraft-plan')
+assert.equal(planInstall(adapter, { dataDir, platform: 'darwin-arm64' }).payloads.length, 2, 'macOS installs the DMG and the separately pinned filmcraft-cli zip')
+for (const platform of ['win-x64', 'linux-x64']) assert.deepEqual(planInstall(adapter, { dataDir, platform }).payloads.map((p: { archive: string }) => p.archive), [pins[0].platforms[platform].archive], `${platform}: the one app archive carries filmcraft-cli; upstream ships no separate CLI archive there`)
+const doubled = { ...adapter, pins: [pins[0], { ...pins[1], platforms: { ...pins[1].platforms, 'win-x64': pins[0].platforms['win-x64'] } }] }
+assert.equal(planInstall(doubled, { dataDir, platform: 'win-x64' }).payloads.length, 2, 'a Windows row on the CLI lock would fetch the portable zip twice and leave resolveBinaries two filmcraft-cli.exe')
+console.log('PASS: one pinned archive per platform on Windows and Linux, two on macOS')

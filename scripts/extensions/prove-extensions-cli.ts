@@ -49,6 +49,19 @@ console.log('[1] the verb walk: add → sources → list → install(--yes) → 
 {
   const empty = run(['extensions', 'list'])
   check('list on a fresh home exits 0 with the three bundled Craft rows and nothing else', empty.code === 0 && ['filmcraft', 'lightcraft', 'photocraft'].every(name => empty.stdout.includes(name)) && empty.stdout.split('\n').filter(line => line.includes('● on')).length === 3 && !empty.stdout.includes('no extensions yet'), empty.stdout.slice(0, 200))
+  const CRAFT_PINS: Record<string, string> = { filmcraft: '0.18.0', lightcraft: '0.19.0', photocraft: '0.21.0' }
+  for (const [name, version] of Object.entries(CRAFT_PINS)) {
+    const line = empty.stdout.split('\n').find(l => l.includes(` ${name} `)) ?? ''
+    check(`the ${name} row reads the pinned app release ${version}, not the manifest's own number`, new RegExp(`\\b${name}\\s+${version.replaceAll('.', '\\.')}\\s`).test(line), line.trim() || '(no row)')
+  }
+  const craftRows = json<{ extensions: Array<{ name: string; version: string }> }>(run(['extensions', 'list', '--json']).stdout).extensions
+  check('list --json carries the same pinned release as each Craft row\'s version', Object.entries(CRAFT_PINS).every(([name, version]) => craftRows.find(e => e.name === name)?.version === version), JSON.stringify(craftRows.filter(e => e.name in CRAFT_PINS).map(e => [e.name, e.version])))
+  const extensionsDoc = readFileSync(join(ROOT, 'docs', 'EXTENSIONS.md'), 'utf8')
+  check('docs/EXTENSIONS.md names each Craft row\'s pinned release as it stands', Object.entries(CRAFT_PINS).every(([name, version]) => extensionsDoc.includes(`\`${name} ${version}\``)), Object.entries(CRAFT_PINS).filter(([name, version]) => !extensionsDoc.includes(`\`${name} ${version}\``)).map(([name]) => name).join(','))
+  const titles: Record<string, string> = { filmcraft: 'FilmCraft', lightcraft: 'LightCraft', photocraft: 'PhotoCraft' }
+  const cliLocks = Object.fromEntries(Object.keys(CRAFT_PINS).map(name => [name, existsSync(join(ROOT, 'src', 'extensions', 'bundled', name, 'server', `${name}-cli.lock.json`))]))
+  const addsCli = /on macOS ([A-Za-z, ]+?) add the separately\s+pinned CLI zip/.exec(extensionsDoc)?.[1] ?? ''
+  check('docs/EXTENSIONS.md says per app where the macOS command-line tool comes from, as the CLI locks stand', Object.entries(cliLocks).every(([name, hasCli]) => hasCli ? addsCli.includes(titles[name]!) : extensionsDoc.includes(`${titles[name]}'s disk image carries its own`)), JSON.stringify({ cliLocks, addsCli }))
   const emptySources = run(['extensions', 'sources'])
   check('sources on a fresh home names the add act', emptySources.code === 0 && emptySources.stdout.includes('add'), emptySources.stdout.slice(0, 160))
 

@@ -3,6 +3,7 @@ import { cp, lstat, mkdir, mkdtemp, readFile, readdir, symlink, writeFile } from
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
+import { gzipSync } from 'node:zlib'
 import { zipSync, strToU8 } from 'fflate'
 import { z } from 'zod'
 import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.ts'
@@ -111,7 +112,7 @@ try {
   await check('ordinary mode asks once with app, version, exact size and destination', async () => {
     const { decision } = await decideToolPermission(tool, {}, context('default'))
     assert.equal(decision.behavior, 'ask')
-    assert.match(decision.message, /FilmCraft 0\.17\.1/); assert.match(decision.message, /bytes/); assert(decision.message.includes(missingData))
+    assert.match(decision.message, /FilmCraft 0\.18\.0/); assert.match(decision.message, /bytes/); assert(decision.message.includes(missingData))
     assert(await absent(missingData))
   })
   await check('sovereign passes the same installation without an ask', async () => {
@@ -194,6 +195,23 @@ try {
       try { await assert.rejects(refused.request('refuse'), /^Error: control authentication failed; closing the connection$/) } finally { refused.close() }
       assert.equal(lines.length, 3, 'A refusal must never replay the request')
     } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
+  })
+  await check('a GNU tar long-name entry (type L) names the member that follows, as the FilmCraft Linux tarball\'s icon attributions do', async () => {
+    const header = (name: string, type: string, size: number) => { const h = Buffer.alloc(512); h.write(name, 0, 100, 'utf8'); h.write('0000644\0', 100); h.write(size.toString(8).padStart(11, '0') + '\0', 124); h.write(type, 156); h.write('ustar\x0000', 257); return h }
+    const block = (content: Buffer) => Buffer.concat([content, Buffer.alloc(Math.ceil(content.length / 512) * 512 - content.length)])
+    const longPath = 'fixture-1.0.0-linux-x86_64/share/icons/hicolor/128x128/apps/ai.storyteller.fixture-long-name.png.attribution'
+    assert(longPath.length > 100)
+    const tar = Buffer.concat([header('fixture-1.0.0-linux-x86_64/', '5', 0), header('././@LongLink', 'L', longPath.length + 1), block(Buffer.from(longPath + '\0')), header(longPath.slice(0, 100), '0', 9), block(Buffer.from('long name')), header('fixture-1.0.0-linux-x86_64/short.txt', '0', 5), block(Buffer.from('short')), Buffer.alloc(1024)])
+    const archive = join(temp, 'long-names-1.0.0.tar.gz'), unpack = join(temp, 'long-names')
+    await writeFile(archive, gzipSync(tar)); await mkdir(unpack)
+    await shared.extractArchive(archive, unpack)
+    assert.equal(await readFile(join(unpack, longPath), 'utf8'), 'long name')
+    assert.equal(await readFile(join(unpack, 'fixture-1.0.0-linux-x86_64/short.txt'), 'utf8'), 'short')
+    assert.deepEqual((await shared.treeRecord(unpack)).entries.map((e: { path: string }) => e.path), [longPath, 'fixture-1.0.0-linux-x86_64/short.txt'])
+    const escaping = Buffer.concat([header('././@LongLink', 'L', 14), block(Buffer.from('../escape.txt\0')), header('escape.txt', '0', 3), block(Buffer.from('out')), Buffer.alloc(1024)])
+    await writeFile(join(temp, 'escape-1.0.0.tar.gz'), gzipSync(escaping)); await mkdir(join(temp, 'escape'))
+    await assert.rejects(shared.extractArchive(join(temp, 'escape-1.0.0.tar.gz'), join(temp, 'escape')), /Unsafe archive path: "\.\.\/escape\.txt"/)
+    assert(await absent(join(temp, 'escape.txt')))
   })
   console.log(`Craft shared: ${passed} checks passed`)
 } finally { removeScratch(temp) }

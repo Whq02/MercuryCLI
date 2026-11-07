@@ -19,6 +19,7 @@ const delivered = join(scratch, 'delivered')
 cpSync(extension, delivered, { recursive: true })
 cpSync(join(root, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
 const { adapter, endpointPort, verifyListener, readLibrary, privateEnvironment } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
+const { planInstall } = await import(pathToFileURL(join(delivered, 'shared/install.mjs')).href)
 let passed = 0
 function check(name: string, fn: () => unknown) { fn(); passed++; console.log(`PASS ${name}`) }
 async function checkAsync(name: string, fn: () => Promise<unknown>) { await fn(); passed++; console.log(`PASS ${name}`) }
@@ -31,7 +32,7 @@ try {
     assert.equal(manifest.needs.binaries, undefined)
   })
   check('matched version/tag and fixed URL/hash/size payloads', () => {
-    assert.equal(adapter.version, '0.18.1')
+    assert.equal(adapter.version, '0.19.0')
     for (const pin of adapter.pins) {
       assert.equal(pin.version, adapter.version)
       assert.equal(pin.tag, `v${pin.version}`)
@@ -41,10 +42,17 @@ try {
         assert.ok(payload.bytes > 0)
       }
     }
-    assert.equal(adapter.pins[0].platforms['darwin-arm64'].sha256, '055348c8098e6244e43cbc2526e9158726746d467f919dae336848db7bb6dbf9')
-    assert.equal(adapter.pins[0].platforms['darwin-arm64'].bytes, 124709302)
-    assert.equal(adapter.pins[1].platforms['darwin-arm64'].sha256, '519b9dcaef272a0472604f333acb40a4380df731ef810e738e42f099e3a868b9')
-    assert.equal(adapter.pins[1].platforms['darwin-arm64'].bytes, 118815295)
+    assert.equal(adapter.pins[0].platforms['darwin-arm64'].sha256, 'c997734f8b736518520ef3a4b319ad25c40cf03a0747b9e3dab6ef1017a9699a')
+    assert.equal(adapter.pins[0].platforms['darwin-arm64'].bytes, 126506663)
+    assert.equal(adapter.pins[1].platforms['darwin-arm64'].sha256, '2d6cb1b8f267e96e1544d4c2fe46808cfe1ca7f2153772a73cc62dff9f0030a1')
+    assert.equal(adapter.pins[1].platforms['darwin-arm64'].bytes, 120745586)
+  })
+  check('one pinned archive per platform on Windows and Linux carries the app and lightcraft-cli; macOS adds the pinned CLI zip', () => {
+    const dataDir = join(scratch, 'plan')
+    assert.equal(planInstall(adapter, { dataDir, platform: 'darwin-arm64' }).payloads.length, 2)
+    for (const platform of ['win-x64', 'linux-x64']) assert.deepEqual(planInstall(adapter, { dataDir, platform }).payloads.map((p: { archive: string }) => p.archive), [adapter.pins[0].platforms[platform].archive])
+    const doubled = { ...adapter, pins: [adapter.pins[0], { ...adapter.pins[1], platforms: { ...adapter.pins[1].platforms, 'win-x64': adapter.pins[0].platforms['win-x64'] } }] }
+    assert.equal(planInstall(doubled, { dataDir, platform: 'win-x64' }).payloads.length, 2)
   })
   check('only literal IPv4 loopback endpoints accepted', () => {
     assert.equal(endpointPort('127.0.0.1:7980'), 7980)
@@ -80,7 +88,7 @@ try {
     const address = server.address() as { port: number }
     try {
       const hash = createHash('sha256').update(readFileSync(process.execPath)).digest('hex')
-      await assert.rejects(verifyListener({ endpoint: `127.0.0.1:${address.port}`, installation: { gui: process.execPath, cli: process.execPath, manifest: { version: '0.18.1', guiSha256: hash, cliSha256: hash } } }), /does not match|identify|listener/)
+      await assert.rejects(verifyListener({ endpoint: `127.0.0.1:${address.port}`, installation: { gui: process.execPath, cli: process.execPath, manifest: { version: '0.19.0', guiSha256: hash, cliSha256: hash } } }), /does not match|identify|listener/)
       assert.equal(bytes, 0)
     } finally { await new Promise<void>(resolveClose => server.close(() => resolveClose())) }
   })
@@ -143,7 +151,7 @@ try {
   check('the skill keeps the library, selection, window and persistence truths at the pin without the onboarding the server carries', () => {
     const skill = readFileSync(join(extension, 'skills/lightcraft/SKILL.md'), 'utf8')
     assert.ok(Buffer.byteLength(skill) <= 3400, `skill is ${Buffer.byteLength(skill)} bytes`)
-    for (const fact of [/discovery wins/, /persistent `path`/, /Photo IDs are local to one library/, /replace the selection with that photo/, /`get_develop \{id\}` and `render_photo \{id\}` leave it alone/, /Auto Sync on, `set_develop` changes every selected photo/, /`develop\.autoSync \{\}` toggles the mode and never reads it/, /`move` deletes originals once catalogued/, /normalized `\[x0,y0,x1,y1\]`/, /developed pixels, not the window/, /rendering headlessly/, /never proves a visible window/, /3000 px long edge/, /connect-mode and batch exports answer only when finished/, /Since 0\.18\.1 the first launch with a library offers the lensfun lens database/, /`dialog:window` with `button:dialogOk` \(Download\) and `button:dialogCancel` \(Not Now, as is `press_key \{key: "Escape"\}`\)/, /`lens\.databaseStatus` reports the database in use, `lens\.downloadDatabase` fetches it only when asked, and `library\.refreshLensProfiles` looks raws up again/, /LightCraft 0\.18\.1 has no automation roots and no control-port authentication/, /Apple Photos or iCloud/, /never replay it/, /saved in memory but not written to disk/]) assert.match(skill, fact)
+    for (const fact of [/discovery wins/, /persistent `path`/, /Photo IDs are local to one library/, /replace the selection with that photo/, /`get_develop \{id\}` and `render_photo \{id\}` leave it alone/, /Auto Sync on, `set_develop` changes every selected photo/, /`develop\.autoSync \{\}` toggles the mode and never reads it/, /`move` deletes originals once catalogued/, /normalized `\[x0,y0,x1,y1\]`/, /developed pixels, not the window/, /rendering headlessly/, /never proves a visible window/, /3000 px long edge/, /connect-mode and batch exports answer only when finished/, /Since 0\.18\.1 the first launch with a library offers the lensfun lens database/, /`dialog:window` with `button:dialogOk` \(Download\) and `button:dialogCancel` \(Not Now, as is `press_key \{key: "Escape"\}`\)/, /`lens\.databaseStatus` reports the database in use, `lens\.downloadDatabase` fetches it only when asked, and `library\.refreshLensProfiles` looks raws up again/, /LightCraft 0\.19\.0 has no automation roots and no control-port authentication/, /Apple Photos or iCloud/, /never replay it/, /saved in memory but not written to disk/]) assert.match(skill, fact)
     for (const gone of [/craft_status/, /craft_install/, /--control 7980/, /mcp --connect/, /^\d+\. /m]) assert.doesNotMatch(skill, gone)
     for (const name of ['command_run', 'command_list', 'import', 'set_develop', 'get_develop', 'crop', 'export', 'list_controls', 'render_photo', 'render_preview', 'ui_screenshot', 'list_widgets', 'press_key']) assert.match(skill, new RegExp(`\`${name}\\b`), name)
   })

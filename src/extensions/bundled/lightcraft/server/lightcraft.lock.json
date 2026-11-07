@@ -1,7 +1,7 @@
 {
   "name": "lightcraft",
-  "version": "0.18.1",
-  "tag": "v0.18.1",
+  "version": "0.19.0",
+  "tag": "v0.19.0",
   "repository": "https://github.com/storytold/lightcraft",
   "license": "MIT OR Apache-2.0",
   "licenseFiles": [
@@ -12,28 +12,28 @@
   "platforms": {
     "darwin-arm64": {
       "target": "universal-apple-darwin",
-      "archive": "lightcraft-0.18.1-macos-universal.dmg",
-      "url": "https://github.com/storytold/lightcraft/releases/download/v0.18.1/lightcraft-0.18.1-macos-universal.dmg",
-      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.18.1/SHA256SUMS.txt",
-      "sha256": "055348c8098e6244e43cbc2526e9158726746d467f919dae336848db7bb6dbf9",
-      "bytes": 124709302
+      "archive": "lightcraft-0.19.0-macos-universal.dmg",
+      "url": "https://github.com/storytold/lightcraft/releases/download/v0.19.0/lightcraft-0.19.0-macos-universal.dmg",
+      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.19.0/SHA256SUMS.txt",
+      "sha256": "c997734f8b736518520ef3a4b319ad25c40cf03a0747b9e3dab6ef1017a9699a",
+      "bytes": 126506663
     },
     "win-x64": {
       "target": "x86_64-pc-windows-msvc",
-      "archive": "lightcraft-0.18.1-windows-x64-portable.zip",
-      "url": "https://github.com/storytold/lightcraft/releases/download/v0.18.1/lightcraft-0.18.1-windows-x64-portable.zip",
-      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.18.1/SHA256SUMS.txt",
-      "sha256": "ade473a721cdce23b50e8052c5b4b874f6ac11b54073186d49098ac20c9f346b",
-      "bytes": 120652191
+      "archive": "lightcraft-0.19.0-windows-x64-portable.zip",
+      "url": "https://github.com/storytold/lightcraft/releases/download/v0.19.0/lightcraft-0.19.0-windows-x64-portable.zip",
+      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.19.0/SHA256SUMS.txt",
+      "sha256": "db123c053b3cff4ca5e4a31c373655aebc94207457ec88f839c54429f67c586c",
+      "bytes": 122363256
     },
     "linux-x64": {
       "target": "x86_64-unknown-linux-gnu",
-      "archive": "lightcraft-0.18.1-linux-x86_64.tar.gz",
-      "url": "https://github.com/storytold/lightcraft/releases/download/v0.18.1/lightcraft-0.18.1-linux-x86_64.tar.gz",
-      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.18.1/SHA256SUMS.txt",
-      "sha256": "078f8e4fef6ca88afa257a70228630b14e21380cea58031fbb5c5a1942b406f0",
-      "bytes": 120263802
+      "archive": "lightcraft-0.19.0-linux-x86_64.tar.gz",
+      "url": "https://github.com/storytold/lightcraft/releases/download/v0.19.0/lightcraft-0.19.0-linux-x86_64.tar.gz",
+      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.19.0/SHA256SUMS.txt",
+      "sha256": "9485d64bdbe98c6dafbad0ea7aac0fa49430d0a008b9a66ba43dfe77b7555289",
+      "bytes": 122057295
     }
   },
-  "notes": "Runtime pin read by server/install.mjs (desktop.version) and the shared installer. Pinned 2026-11-05 to the v0.18.1 release (published 2026-11-05). Digests computed from the downloaded archives and matched against the release's SHA256SUMS.txt; bytes from GitHub asset metadata, matched against the downloads. The DMG holds only LightCraft.app, so macOS also installs the separately pinned lightcraft-cli payload from the same release; the Windows portable ZIP and the Linux tarball carry lightcraft-cli themselves. Licences: the app bundle carries LICENSE-MIT, LICENSE-APACHE and NOTICE under Contents/Resources/Licenses, and the ZIP and tarball carry them at their roots, so no supplemental notice is needed. The control port is still unauthenticated at 0.18.1: the adapter verifies the listening process against the installed release before any request. Since 0.18.1 a desktop launch with a library offers the lensfun lens database download once, in a dialog with Download and Not Now; a headless session reads the database the desktop downloaded and never fetches it. Exercised at this pin by scripts/extensions/prove-lightcraft-drive.ts on darwin-arm64: clean download, size and SHA-256 check, offline tree validation, codesign, headless import/develop/export and a live window. Download only this URL; never select latest at install time."
+  "notes": "Runtime pin read by server/install.mjs (desktop.version) and the shared installer. Pinned 2026-11-06 to the v0.19.0 release (published 2026-11-06). Digests computed from the downloaded archives and matched against the release's SHA256SUMS.txt; bytes from GitHub asset metadata, matched against the downloads. SHA256SUMS.txt's detached signature (SHA256SUMS.txt.asc) verified with the release-signing-key.asc asset shipped in the same release: ed25519 primary key 2B76741B414AAD6CD33E631213A005C0B9D7C3ED (certify) with signing subkey 568DC1F68F8FAECC797F3C7B006DAF6BB0EF334E (the one SHA256SUMS.txt.asc is made with), asset sha256 8e6925a173d6a7134118da099948de4d9eeec7c1c0770998aec33c9d3f484740, the same bytes the v0.17.1/v0.18.1/v0.20.2 releases shipped; a re-pin compares the key against these values. The installer trusts only this lock's sha256 and bytes. The DMG holds only LightCraft.app, so macOS also installs the separately pinned lightcraft-cli payload from the same release; the Windows portable ZIP and the Linux tarball carry lightcraft-cli themselves, so the CLI lock has no row for them and upstream ships no separate CLI archive for those platforms. Licences: the app bundle carries LICENSE-MIT, LICENSE-APACHE and NOTICE under Contents/Resources/Licenses, and the ZIP and tarball carry them at their roots, so no supplemental notice is needed. The control port is still unauthenticated at 0.19.0: the adapter verifies the listening process against the installed release before any request. Since 0.18.1 a desktop launch with a library offers the lensfun lens database download once, in a dialog with Download and Not Now; a headless session reads the database the desktop downloaded and never fetches it. Exercised at this pin by scripts/extensions/prove-lightcraft-drive.ts on darwin-arm64: clean download, size and SHA-256 check, offline tree validation, codesign, headless import/develop/export; the drive's window leg (--gui) did not run at this pin. Download only this URL; never select latest at install time."
 }

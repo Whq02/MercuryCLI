@@ -35,6 +35,8 @@ const payloads: Record<string, Record<string, Payload>> = {}
 for (const name of ['filmcraft', 'photocraft', 'lightcraft']) {
   if (!existsSync(join(root, name, 'mercury-extension.json'))) continue
   const lock = JSON.parse(readFileSync(join(root, name, 'server', `${name}.lock.json`), 'utf8'))
+  const manifestVersion = JSON.parse(readFileSync(join(root, name, 'mercury-extension.json'), 'utf8')).version
+  if (manifestVersion !== lock.version) throw new Error(`${name}: mercury-extension.json says ${manifestVersion} but ${name}.lock.json pins ${lock.version}; the bundled row shows the pinned app release, so the two must agree`)
   const bootstrap = bootstrapManifest({ id: name, title: name[0]!.toUpperCase() + name.slice(1).replace('craft', 'Craft'), version: lock.version })
   payloads[name] = { ...textTree(join(root, name)), ...Object.fromEntries(Object.entries(shared).map(([path, text]) => [`shared/${path}`, text])), 'server/bootstrap.json': JSON.stringify(bootstrap, null, 2) + '\n' }
 }
