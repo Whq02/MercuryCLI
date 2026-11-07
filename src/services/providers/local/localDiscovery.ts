@@ -93,14 +93,19 @@ function isKind(v: string): v is LocalServerKind {
 
 export function rememberedTensorFoldTargets(): { kind: 'tensorfold'; root: string }[] {
   const targets: { kind: 'tensorfold'; root: string }[] = []
-  try {
-    for (const port of tensorFoldPorts()) targets.push({ kind: 'tensorfold', root: `http://127.0.0.1:${port}` })
-    const helper = helperPort()
-    if (helper !== undefined && !targets.some(target => target.root === `http://127.0.0.1:${helper}`)) targets.push({ kind: 'tensorfold', root: `http://127.0.0.1:${helper}` })
-    for (const host of tensorFoldHostRecords()) if (!targets.some(target => target.root === host.baseUrl)) targets.push({ kind: 'tensorfold', root: host.baseUrl })
-  } catch {
-    return targets
+  const add = (root: string): void => {
+    if (!targets.some(target => target.root === root)) targets.push({ kind: 'tensorfold', root })
   }
+  try {
+    for (const port of tensorFoldPorts()) add(`http://127.0.0.1:${port}`)
+  } catch {}
+  try {
+    const helper = helperPort()
+    if (helper !== undefined) add(`http://127.0.0.1:${helper}`)
+  } catch {}
+  try {
+    for (const host of tensorFoldHostRecords()) add(host.baseUrl)
+  } catch {}
   return targets
 }
 
