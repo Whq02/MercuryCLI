@@ -1,5 +1,7 @@
 import { join } from 'node:path'
-import { execFile } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
+import { readdirSync, readFileSync } from 'node:fs'
+import { getProjectsDir } from '../../utils/sessionStorage/paths.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -77,6 +79,10 @@ const DESKTOP_TYPE_GAP_CAP_MS = 1_000
 const ABORTED_PREFIX = 'aborted'
 const TREE_SUBPROCESS_TIMEOUT_MS = 12_000
 const TREE_SUBPROCESS_BUFFER = 16 * 1024 * 1024
+const CAPTURE_CHILD_TIMEOUT_MS = 2_500
+const CAPTURE_CHILD_RETRY_WAIT_MS: readonly [number, number] = [200, 800]
+const CAPTURE_CHILD_BUFFER = 64 * 1024 * 1024
+const CAPTURE_CHILD_SCRIPT = 'const a=require(process.argv[1]);const q=JSON.parse(require("node:fs").readFileSync(0,"utf8"));(q.region?a.captureRegion(q.display,q.region):a.capture(q.display)).then(c=>{const png=Buffer.from(c.png.buffer,c.png.byteOffset,c.png.byteLength);process.stdout.write(Buffer.concat([Buffer.from(JSON.stringify({width:c.width,height:c.height,scale:c.scale,display:c.display,displayId:c.displayId,originX:c.originX,originY:c.originY,png:png.length})+"\\n"),png]),()=>process.exit(0))},e=>{process.stdout.write(JSON.stringify({error:e instanceof Error?e.message:String(e)})+"\\n",()=>process.exit(1))})'
 type DesktopQuery = 'readElement' | 'readClipboard' | 'findApplication' | 'activateApplication' | 'scrollToVisible' | 'setValue'
 const QUERY_PLATFORMS: Record<DesktopQuery, readonly string[]> = {
   readElement: ['darwin'],
@@ -189,6 +195,69 @@ function readerExitWords(error: { killed?: boolean; code?: string | number | nul
   if (error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') return `the native reader answered more than ${TREE_SUBPROCESS_BUFFER / (1024 * 1024)} MiB`
   if (error.killed) return `no answer within ${TREE_SUBPROCESS_TIMEOUT_MS / 1000} seconds (the application may not be responding)`
   return 'the native reader exited without an answer'
+}
+
+type CaptureChildOutcome = { kind: 'captured'; raw: DesktopAddonCapture } | { kind: 'deadline' } | { kind: 'failed'; note: string }
+
+function captureChildAnswer(stdout: Buffer): { raw: DesktopAddonCapture } | { error: string } | null {
+  const newline = stdout.indexOf(0x0a)
+  if (newline < 0) return null
+  let head: unknown
+  try {
+    head = JSON.parse(stdout.subarray(0, newline).toString('utf8'))
+  } catch {
+    return null
+  }
+  if (head === null || typeof head !== 'object') return null
+  const record = head as Record<string, unknown>
+  if (typeof record.error === 'string') return { error: record.error }
+  if (typeof record.png !== 'number' || stdout.length - newline - 1 !== record.png) return null
+  const png = stdout.subarray(newline + 1)
+  return { raw: { ...(record as unknown as Omit<DesktopAddonCapture, 'png'>), png, capturedAt: Date.now() } }
+}
+
+function sessionsOnThisBinary(): string {
+  if (process.platform !== 'darwin') return ''
+  let listing = ''
+  try {
+    listing = execFileSync('/bin/ps', ['-axo', 'pid=,comm='], { encoding: 'utf8', timeout: 1_500, maxBuffer: 4 * 1024 * 1024 })
+  } catch {
+    return ''
+  }
+  const peers: number[] = []
+  for (const line of listing.split('\n')) {
+    const text = line.trim()
+    const gap = text.indexOf(' ')
+    if (gap < 0) continue
+    const pid = Number(text.slice(0, gap))
+    if (Number.isInteger(pid) && pid !== process.pid && text.slice(gap + 1).trim() === process.execPath) peers.push(pid)
+  }
+  if (peers.length === 0) return ''
+  const sessions = new Map<number, string>()
+  try {
+    const projects = getProjectsDir()
+    for (const project of readdirSync(projects)) {
+      let names: string[]
+      try {
+        names = readdirSync(join(projects, project))
+      } catch {
+        continue
+      }
+      for (const name of names) {
+        if (!name.endsWith('.writer.lock')) continue
+        try {
+          const lock = JSON.parse(readFileSync(join(projects, project, name), 'utf8')) as { pid?: unknown }
+          if (typeof lock.pid === 'number' && peers.includes(lock.pid)) sessions.set(lock.pid, name.slice(0, 8))
+        } catch {}
+      }
+    }
+  } catch {}
+  return peers.slice(0, 3).map(pid => (sessions.has(pid) ? `pid ${pid}, session ${sessions.get(pid)}…` : `pid ${pid}`)).join('; ') + (peers.length > 3 ? ` and ${peers.length - 3} more` : '')
+}
+
+function captureHeldNote(): string {
+  const peers = sessionsOnThisBinary()
+  return `macOS cancelled the screen-capture connection because another process running the same Mercury node binary holds it${peers ? ` (${peers})` : ''}; Screen Recording is granted — end that process or wait for it to finish, give macOS about fifteen seconds, then retry`
 }
 
 type DesktopQueryAnswer = { value: unknown } | { error: string }
@@ -342,10 +411,16 @@ class NativeDesktopDriver implements DesktopDriver {
     const refusal = captureRefusal(permissions.value)
     if (refusal !== null) return this.refuseAndRequestGrants(refusal)
     let raw: DesktopAddonCapture
-    try {
-      raw = await this.withCancel(signal, () => region ? this.addon.captureRegion!(display, region) : this.addon.capture(display))
-    } catch (error) {
-      return fail(classifyThrown(error))
+    if (process.platform === 'darwin') {
+      const captured = await this.captureThroughChild(display, region, signal)
+      if (!captured.ok) return captured
+      raw = captured.value
+    } else {
+      try {
+        raw = await this.withCancel(signal, () => region ? this.addon.captureRegion!(display, region) : this.addon.capture(display))
+      } catch (error) {
+        return fail(classifyThrown(error))
+      }
     }
     if (signal.aborted) return desktopAbortedAnswer()
     if (!pngSigned(raw.png)) return fail({ kind: 'defect', note: `the desktop addon answered a capture that is not a PNG — rebuild it: ${DESKTOP_BUILD_COMMAND}` })
@@ -366,6 +441,40 @@ class NativeDesktopDriver implements DesktopDriver {
         capturedAt: Date.now(),
       },
     }
+  }
+
+  private captureInChild(display: number, region: DesktopBounds | undefined, signal: AbortSignal): Promise<CaptureChildOutcome> {
+    return new Promise(resolve => {
+      const child = execFile(process.execPath, ['-e', CAPTURE_CHILD_SCRIPT, this.addonPath], { timeout: CAPTURE_CHILD_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: CAPTURE_CHILD_BUFFER, encoding: 'buffer' }, (error, stdout) => {
+        signal.removeEventListener('abort', onAbort)
+        if (signal.aborted) return resolve({ kind: 'failed', note: ABORTED_PREFIX })
+        const answer = captureChildAnswer(Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout))
+        if (answer !== null && 'raw' in answer) return resolve({ kind: 'captured', raw: answer.raw })
+        if (error?.killed) return resolve({ kind: 'deadline' })
+        if (answer !== null) return resolve({ kind: 'failed', note: answer.error })
+        resolve({ kind: 'failed', note: error ? `the capture child exited without an image: ${error.message}` : 'the capture child answered an unreadable record' })
+      })
+      child.stdin?.on('error', () => {})
+      child.stdin?.end(JSON.stringify({ display, ...(region ? { region } : {}) }))
+      const onAbort = () => { child.kill('SIGKILL') }
+      signal.addEventListener('abort', onAbort, { once: true })
+      if (signal.aborted) onAbort()
+    })
+  }
+
+  private async captureThroughChild(display: number, region: DesktopBounds | undefined, signal: AbortSignal): Promise<DesktopAnswer<DesktopAddonCapture>> {
+    const first = await this.captureInChild(display, region, signal)
+    if (signal.aborted) return desktopAbortedAnswer()
+    if (first.kind === 'captured') return { ok: true, value: first.raw }
+    if (first.kind === 'failed') return fail(classifyThrown(new Error(first.note)))
+    const wait = CAPTURE_CHILD_RETRY_WAIT_MS[0] + Math.floor(Math.random() * (CAPTURE_CHILD_RETRY_WAIT_MS[1] - CAPTURE_CHILD_RETRY_WAIT_MS[0]))
+    await new Promise<void>(resolve => { const timer = setTimeout(done, wait); function done() { clearTimeout(timer); signal.removeEventListener('abort', done); resolve() } signal.addEventListener('abort', done, { once: true }) })
+    if (signal.aborted) return desktopAbortedAnswer()
+    const second = await this.captureInChild(display, region, signal)
+    if (signal.aborted) return desktopAbortedAnswer()
+    if (second.kind === 'captured') return { ok: true, value: second.raw }
+    if (second.kind === 'failed') return fail(classifyThrown(new Error(second.note)))
+    return fail({ kind: 'busy', note: captureHeldNote() })
   }
 
   async frontmostApplication(): Promise<DesktopAnswer<DesktopApplication>> {
