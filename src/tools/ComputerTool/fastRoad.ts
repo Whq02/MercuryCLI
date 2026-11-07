@@ -18,10 +18,17 @@ export function targetWords(target: ElementTarget): string {
   return [target.role, target.name === undefined ? undefined : JSON.stringify(target.name), target.text === undefined ? undefined : `text=${JSON.stringify(target.text)}`, target.nth === undefined ? undefined : `nth=${target.nth}`].filter(Boolean).join(' ')
 }
 
+function roleMatches(role: string, wanted: string): boolean {
+  const asked = normalized(wanted)
+  if (normalized(role) === asked) return true
+  const subrole = /^(\S+) \((\S+)\)$/.exec(role)
+  return subrole !== null && (normalized(subrole[1]!) === asked || normalized(subrole[2]!) === asked)
+}
+
 export function targetMatches(tree: DesktopTree, target: ElementTarget): DesktopTreeElement[] {
   return tree.elements.filter(element =>
-    (target.role === undefined || normalized(element.role) === normalized(target.role)) &&
-    (target.name === undefined || normalized(element.title ?? '') === normalized(target.name)) &&
+    (target.role === undefined || roleMatches(element.role, target.role)) &&
+    (target.name === undefined || normalized((element.title ?? element.value) ?? '') === normalized(target.name)) &&
     (target.text === undefined || normalized(`${element.title ?? ''} ${element.value ?? ''}`).includes(normalized(target.text))),
   )
 }

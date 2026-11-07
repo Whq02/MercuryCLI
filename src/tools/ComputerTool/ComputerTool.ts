@@ -225,7 +225,7 @@ const modelInputSchema = lazySchema(() => {
     toY: f.toY.describe('drag: destination y coordinate.'),
     dx: f.dx.describe('scroll: horizontal notches, positive right.'),
     dy: f.dy.describe('scroll: vertical notches, positive down.'),
-    text: f.text.describe(`type: at most ${TYPE_TEXT_CAP} characters; only newline and tab control characters.`),
+    text: f.text.describe(`type or fill: at most ${TYPE_TEXT_CAP} characters; only newline and tab control characters.`),
     key: f.key.describe(`Key chord: ${KEY_CHORD_VOCABULARY}.`),
     durationMs: f.durationMs.describe(`hold: ${HOLD_MIN_MS}–${HOLD_CAP_MS} ms; wait: default ${WAIT_DEFAULT_MS}, ${UNTIL_DEFAULT_MS} with until, maximum ${WAIT_CAP_MS} ms.`),
     display: f.display.describe('Display number; omitted, the front window. Also applies to acts with capture:true.'),
@@ -243,7 +243,7 @@ const modelInputSchema = lazySchema(() => {
     all: f.all.describe('Include hidden tree nodes.'),
     points: f.points.describe('Include tree-node pixel positions.'),
     clipboard: f.clipboard.describe('read: use clipboard text with separate consent instead of target/ref.'),
-    focusApp: f.focusApp.describe('Bring a running application forward by name or bundle id.'),
+    focusApp: f.focusApp.describe('Bring a running application forward by name or bundle id; capture screenshots after.'),
     toTarget: f.toTarget.describe('drag: destination accessibility target instead of toX/toY.'),
     until: f.until.describe('wait: text/title/URL substring, role/name, dialog: true or focus (a role); gone waits for removal. Put it after a click whose effect you assume.'),
     count: f.count.describe('click: number of clicks, 1–3.'),
@@ -284,7 +284,7 @@ const ACTION_FIELDS: Readonly<Record<ComputerAction, readonly string[]>> = {
   displays: [],
   frontmost: [],
   read: ['target', 'ref', 'clipboard', 'depth', 'limit'],
-  focusApp: ['focusApp'],
+  focusApp: ['focusApp', 'capture', 'settleMs', 'label'],
   tree: ['depth', 'limit', 'scope', 'pixels', 'root', 'all', 'points'],
   find: ['target', 'depth', 'limit', 'scope', 'root', 'all', 'points'],
   sequence: ['steps', 'settleMs', 'capture', 'region', 'scale', 'label'],
@@ -1201,9 +1201,9 @@ export const ComputerTool = buildTool({
     return "Drive the operator's screen: screenshot, click, type, press keys, scroll and drag in the application in front, on every model route that receives images"
   },
   async prompt() {
-    return `Operate the desktop by screenshot coordinates or accessibility targets. Coordinates are pixels of its last screenshot; refresh after frame changes. Returns screen observations and action results; trees use [n] role "title" value rows. Terminal captures return accessibility text by default.
+    return `Operate the desktop by screenshot coordinates or accessibility targets. Coordinates are pixels of its last screenshot; refresh after frame changes. Trees use [n] role "title" value rows. Terminal captures return accessibility text by default. Text fields: fill (target/ref) sets the value and reads it back; fields lists the controls.
 
-The first act in an application asks; tree/find/read/wait-until share its grant. Other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input. Screenshots remain in saved history.
+The first act in an application asks; tree/find/read/wait-until share its grant. Other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input.
 
 After a click whose effect you assume (a dialog, a focus change, a page), wait with until; a sequence stops at its timeout. After the same act twice with an unchanged result, read the screen before acting again.`
   },
@@ -1424,7 +1424,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
             completed++
             continue
           }
-          const answer = await ComputerTool.call(ACT_ACTIONS.has(step.action) ? { ...step, capture: false, settleMs: last ? input.settleMs : 0 } : step.action === 'wait' ? { ...step, capture: false } : step, context, canUseTool, parentAssistantMessage)
+          const answer = await ComputerTool.call(ACT_ACTIONS.has(step.action) ? { ...step, capture: false, settleMs: last ? input.settleMs : 0 } : step.action === 'wait' || step.action === 'focusApp' ? { ...step, capture: false } : step, context, canUseTool, parentAssistantMessage)
           const stepLines = answer.data.result.split('\n').filter(line => line !== WEB_CONTENT_NOTICE)
           contentShown ||= stepLines.length !== answer.data.result.split('\n').length
           afterState = stepLines.find(line => STATE_LINE.test(line)) ?? ''
@@ -1508,6 +1508,12 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
         }
         if (!checked?.viaGrant) approveApp(owner, target.value)
         result = `focusApp: ${applicationWords(after.value)}`
+        if (input.capture === true) {
+          const settleMs = clamp(input.settleMs ?? SETTLE_DEFAULT_MS, 0, SETTLE_CAP_MS)
+          if (settleMs > 0) await sleep(settleMs, signal)
+          const shot = await takeShot(undefined, input.label)
+          if (shot.ok) { adoptShot(shot); result += `\n${shot.line}` } else result += `\n${shot.aborted ? interruptedAfterActText('focusApp') : shot.text}`
+        }
         outcome = 'succeeded'
         return finish()
       }

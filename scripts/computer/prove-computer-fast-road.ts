@@ -270,6 +270,8 @@ section('a clamped target is scrolled into view and acted on in one act; one tha
         area('AXButton', 'Footer', { x: 742, y: 966, width: 100, height: 20 }),
         area('AXButton', 'Header', { x: 742, y: 120, width: 100, height: 1 }),
         area('AXButton', 'Stuck', { x: 742, y: 985, width: 100, height: 1 }, { actions: [], wheel: false }),
+        { role: 'AXCheckBox (AXSwitch)', title: 'Review producer notes', frame: { x: 1500, y: 300, width: 40, height: 24 } },
+        { role: 'AXStaticText', value: 'Studio', frame: { x: 1700, y: 360, width: 60, height: 20 } },
         { role: 'AXGroup', title: 'Studio', frame: { x: 1700, y: 400, width: 200, height: 500 }, children: [
           area('AXButton', 'Review', { x: 1750, y: 420, width: 80, height: 24 }),
           area('AXButton', 'Review', { x: 1750, y: 899, width: 80, height: 1 }, { visibleFrame: { x: 1750, y: 600, width: 80, height: 24 } }),
@@ -315,6 +317,23 @@ section('a clamped target is scrolled into view and acted on in one act; one tha
   const nothing = await call({ action: 'find', target: { role: 'AXButton', name: 'No Such Button' } })
   const afterEmpty = await call({ action: 'click', ref: refs[0]!, capture: false })
   check('a find that matched nothing keeps the refs the model holds', nothing.outcome === 'succeeded' && nothing.result.includes('0 elements') && afterEmpty.outcome === 'succeeded' && clicks().at(-1) === JSON.stringify({ x: 1790, y: 432 }), JSON.stringify({ nothing: nothing.outcome + ' ' + nothing.result.slice(0, 200), afterEmpty: afterEmpty.outcome + ' ' + afterEmpty.result.slice(0, 300) }))
+  const asSwitch = await call({ action: 'find', target: { role: 'AXSwitch' } })
+  const asCheckBox = await call({ action: 'find', target: { role: 'AXCheckBox' } })
+  check('a role with a subrole, "AXCheckBox (AXSwitch)", is found by either word', asSwitch.result.includes('AXCheckBox (AXSwitch) "Review producer notes"') && asCheckBox.result.includes('AXCheckBox (AXSwitch) "Review producer notes"'), `${asSwitch.result}\n${asCheckBox.result}`)
+  const staticText = await call({ action: 'click', target: { role: 'AXStaticText', name: 'Studio' }, capture: false })
+  check('a static text with no title is named by its value, as the candidate lines print it', staticText.outcome === 'succeeded' && clicks().at(-1) === JSON.stringify({ x: 1730, y: 370 }), staticText.result)
+  const findApplication = chromeDriver.findApplication
+  const activateApplication = chromeDriver.activateApplication
+  chromeDriver.findApplication = async () => ({ ok: true, value: chrome })
+  chromeDriver.activateApplication = async () => ({ ok: true, value: chrome })
+  const focusedPlain = await call({ action: 'focusApp', focusApp: { name: 'Browser' } })
+  check('focusApp without capture answers one line and no image', focusedPlain.outcome === 'succeeded' && focusedPlain.result.startsWith('focusApp: ') && !focusedPlain.result.includes('\n') && !focusedPlain.imagePath, focusedPlain.result)
+  const focusedShot = await call({ action: 'focusApp', focusApp: { name: 'Browser' }, capture: true, settleMs: 10 })
+  check('focusApp with capture brings the application forward and returns a screenshot after it settles', focusedShot.outcome === 'succeeded' && focusedShot.result.includes('focusApp: ') && !!focusedShot.imagePath, focusedShot.result)
+  chromeDriver.findApplication = findApplication
+  chromeDriver.activateApplication = activateApplication
+  const prompt = await ComputerTool.prompt()
+  check('the tool\'s words teach fill and fields', prompt.includes('fill (target/ref) sets the value and reads it back') && prompt.includes('fields lists the controls') && JSON.stringify(ComputerTool.inputJSONSchema).includes('type or fill:'), prompt)
   session.forgetDesktopOwner(ownerOf(context))
 }
 finish('prove-computer-fast-road')

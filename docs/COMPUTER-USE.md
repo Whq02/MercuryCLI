@@ -12,8 +12,11 @@ the rest of Mercury does not depend on it.
 
 Read `tree` when a control's name answers the question; use a screenshot when
 pixels matter. Mouse actions accept `target: { role, name, text }` instead of
-`x` and `y`: role and name match exactly, ignoring case and repeated whitespace;
-text matches a substring of the title or value. Supply only the fields needed
+`x` and `y`: role and name match exactly, ignoring case and repeated whitespace
+(a role shown with its subrole, `AXCheckBox (AXSwitch)`, answers to either
+word; an element with no title, a web page's static text, is named by its
+value, as the candidate lines print it); text matches a substring of the title
+or value. Supply only the fields needed
 to identify one element. An ambiguous match lists up to eight numbered
 candidates and `nth: 2` on the target picks the second of them; a missing match
 names the three nearest by text; a truncated match or an element without
@@ -123,8 +126,9 @@ opened and says so, typing nothing: drive the dialog with `key` and `type`.
 copied last, under its own permission card. A failure inside the native reader
 is reported as one sentence with its reason, never as a command line.
 `focusApp: { name }` brings a
-running application to the front by name or bundle id. Both are macOS reads
-today; on other platforms they say so.
+running application to the front by name or bundle id; with `capture: true`
+it returns a screenshot after the switch settles (`settleMs`, default 300 ms).
+Both are macOS reads today; on other platforms they say so.
 
 A screenshot, or the screenshot after an act, can take
 `region: { x, y, width, height }` in pixels of the last screenshot. The saved
