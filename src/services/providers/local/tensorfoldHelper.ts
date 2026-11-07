@@ -7,6 +7,9 @@ import { getEngineModel } from '../../../utils/model/model.js'
 import { bankedHostRecipes, bankFolder } from '../../host/bank.js'
 import { gibWords } from '../../localServer/localServerMemory.js'
 import { defaultMachineTruth } from '../../localServer/localServerTruth.js'
+import type { ServiceSpec } from '../../projectServices/contracts.js'
+import { registerOwnerDisposer } from '../../run/ownerLifecycle.js'
+import { processMainOwner } from '../../run/resolveOwner.js'
 import type { HelperModelSize, HelperModelState, TensorFoldServeRequest, TensorFoldServeRole, TensorFoldServed } from '../../tensorfold/contracts.js'
 import { LOCAL_MODEL_PREFIX, localRecordFor, localServerName } from './localCatalogue.js'
 import { cachedLocalModels, refreshLocalDiscovery, type LocalModelRecord } from './localDiscovery.js'
@@ -292,7 +295,7 @@ async function defaultServeSeam(): Promise<HelperServeSeam> {
   const serve = await import('../../tensorfold/serve.js')
   const roleIo = { role: HELPER_ROLE } as unknown as Parameters<typeof serve.stopTensorFold>[1] & Parameters<typeof serve.servedTensorFold>[0]
   return {
-    start: request => serve.startTensorFold(request),
+    start: request => serve.startTensorFold(request, { owner: processMainOwner() }),
     stop: name => serve.stopTensorFold(name, roleIo),
     served: () => serve.servedTensorFold(roleIo),
   }
@@ -333,8 +336,8 @@ async function start4b(): Promise<void> {
   const { ggufServerPlan, startGgufServer } = await import('../../localSetup/ggufServer.js')
   const model = await bankGgufModel(recipe, folder, totalmem(), process.platform)
   const port = await freePort()
-  const spec = { ...(await ggufServerPlan(model, folder, { port })), name: HELPER_SERVICE_NAME }
-  const started = await startGgufServer(model, spec, { port })
+  const spec: ServiceSpec = { ...(await ggufServerPlan(model, folder, { port })), name: HELPER_SERVICE_NAME, lifecycle: 'session' }
+  const started = await startGgufServer(model, spec, { port, owner: processMainOwner() })
   helperProcess = { size: '4b', port, modelId: `${LOCAL_MODEL_PREFIX}${ggufModelName(model.recipe)}`, stop: started.stop }
 }
 
@@ -347,6 +350,7 @@ export async function ensureHelperServing(): Promise<void> {
     try {
       if (setting.size === '2b') await start2b()
       else await start4b()
+      registerOwnerDisposer(processMainOwner(), HELPER_SERVICE_NAME, stopHelperServing)
       helperFailure = undefined
       await refreshLocalDiscovery({ force: true })
     } catch (error) {
