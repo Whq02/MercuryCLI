@@ -34,6 +34,8 @@ export function seatWaitWords(facts: SeatWaitFacts): string {
 }
 
 export function splitWaitSentence(sentence: string): { gate: string; holders: string } {
-  const m = /^(.*\bheld) \((.*)\)$/.exec(sentence)
-  return m === null ? { gate: sentence, holders: '' } : { gate: m[1]!, holders: m[2]! }
+  if (!sentence.endsWith(')') || /[\n\r\u2028\u2029]/.test(sentence)) return { gate: sentence, holders: '' }
+  let at = sentence.lastIndexOf('held (', sentence.length - 7)
+  while (at > 0 && /\w/.test(sentence[at - 1]!)) at = sentence.lastIndexOf('held (', at - 1)
+  return at < 0 ? { gate: sentence, holders: '' } : { gate: sentence.slice(0, at + 4), holders: sentence.slice(at + 6, -1) }
 }

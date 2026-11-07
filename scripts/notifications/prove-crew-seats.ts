@@ -63,6 +63,14 @@ t.section('S2 — the seat sentence')
   t.check('the workflows board reads CREW_ASK_WAIT_WORDS for a waiting ask', board.includes('{CREW_ASK_WAIT_WORDS}') && !/asks?' : ''\} waiting — a answers/.test(board))
   const foreign = words.splitWaitSentence('waiting for the provider')
   t.check('a sentence that is not a seat wait is all gate', foreign.gate === 'waiting for the provider' && foreign.holders === '', JSON.stringify(foreign))
+  const edges = [
+    ['waiting for a seat — 2 of 2 held (a (b), c)', 'waiting for a seat — 2 of 2 held', 'a (b), c'],
+    ['x held (a) upheld (b)', 'x held', 'a) upheld (b'],
+    ['upheld (a)', 'upheld (a)', ''],
+    ['held ()', 'held', ''],
+    ['waiting for a seat — 1 of 1 held (a\nb)', 'waiting for a seat — 1 of 1 held (a\nb)', ''],
+  ].map(([sentence, gate, holders]) => [sentence, words.splitWaitSentence(sentence!), gate, holders] as const)
+  t.check('the splitter takes the last whole-word "held (" and keeps parentheses inside the holders; a line break or no such word is all gate', edges.every(([, split, gate, holders]) => split.gate === gate && split.holders === holders), JSON.stringify(edges))
   const solo = words.seatWaitWords({ width: 1, holders: ['agent-a'], narrowing: { by: 'profile', band: 1, profileId: 'openai-default' } })
   t.check('a solo profile narrowing names the profile and the band', solo === 'waiting for a lane — delegation narrowed to 1 lane by the solo profile openai-default (its delegation width, band 1) — 1 of 1 held (agent-a)', solo)
   const op = words.seatWaitWords({ width: 1, holders: ['agent-a'], narrowing: { by: 'operator', lanes: 1 } })
