@@ -780,8 +780,11 @@ thread, crewmates and workflow crewmates alike, so a crewmate never reloads the
 runner; when the machine's memory cannot be read because the server states no
 geometry or the read fails, the window comes out larger: the
 trained maximum when the model states one, else the served window, else twice
-the first request rounded up to 16k and never under 64k, and the words say so);
-the rail's ctx row names the reason (`max` · `fit` · `set` · `srv`), the context
+the first request rounded up to 16k and never under 64k, and the words say so).
+The automatic choice tops out at 128k on either road (`cap`): a 27B whose 256k
+fits the arithmetic crawled at it on a 48 GiB Mac and ran at 128k; `trained
+max` or a number in `/config` pins a larger window, and the words say what
+fits. The rail's ctx row names the reason (`max` · `fit` · `cap` · `set` · `srv`), the context
 gauge and the model gauge read the loaded server window while the request
 budgets the requested one, and the deck's ctx row carries the figures; `server default` leaves the choice to the
 server (Ollama loads the model and `/api/ps` states the figure); `32k` · `64k`

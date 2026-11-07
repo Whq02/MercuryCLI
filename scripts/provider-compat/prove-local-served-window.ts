@@ -156,7 +156,7 @@ function resetWorld(opts: { loaded: boolean; serverDefault?: number; statesMax?:
 }
 const record = (): NonNullable<ReturnType<typeof localRecordFor>> => localRecordFor(PERSISTED)!
 const EST_62K = localPreComposeEstimate(paramsFor(248_000, {}) as never)
-const AUTO_62K = 262144
+const AUTO_62K = 131072
 
 section('1 · discovery with nothing loaded: the window is ABSENT, the trained maximum beside it, nothing invented')
 {
@@ -164,9 +164,9 @@ section('1 · discovery with nothing loaded: the window is ABSENT, the trained m
   await refreshLocalDiscovery({ force: true })
   check('the record exists with the trained maximum and no served window', record().contextWindow === undefined && record().modelMaxContext === 262144 && record().loaded === false, JSON.stringify(record().contextWindow))
   const budget = resolveContextWindow(PERSISTED)
-  check('the budget is the window the first send will carry — auto on an unread machine: the trained max 262144, live-current, the note naming the choice (never 4096, never a fallback the request would not send)', budget.effectiveWindow === 262144 && budget.source === 'live-current' && (budget.fallbackReason ?? '').includes('chosen by Mercury for this session (auto)'), JSON.stringify(budget))
+  check('the budget is the window the first send will carry — auto on an unread machine: 131072, the automatic ceiling over the trained max 262144, live-current, the note naming the choice (never 4096, never a fallback the request would not send)', budget.effectiveWindow === AUTO_62K && budget.source === 'live-current' && (budget.fallbackReason ?? '').includes('chosen by Mercury for this session (auto)'), JSON.stringify(budget))
   check('no load was sent by discovery (a probe never loads a model)', !state.hits.some(h => h.url === '/api/generate' || h.url === '/api/chat'), shape(state.hits))
-  check('this fixture states no KV geometry and the machine is not read, so auto is the trained max the model states: 256k for the ≈62k request (never twice the estimate — the window comes out bigger, not smaller)', record().geometry === undefined && windowModule.chooseLocalWindow(record(), EST_62K, undefined, null).window === AUTO_62K && windowModule.chooseLocalWindow(record(), EST_62K, undefined, null).reason === 'max' && autoLocalWindow(EST_62K, 262144) === 131072, `${EST_62K} → ${windowModule.chooseLocalWindow(record(), EST_62K, undefined, null).window}`)
+  check('this fixture states no KV geometry and the machine is not read, so auto is the automatic ceiling over the trained max the model states: 128k for the ≈62k request, reason cap, the words naming the 256k trained max — never the doubling rule (reason req), whose 128k here only coincides', record().geometry === undefined && windowModule.chooseLocalWindow(record(), EST_62K, undefined, null).window === AUTO_62K && windowModule.chooseLocalWindow(record(), EST_62K, undefined, null).reason === 'cap' && windowModule.chooseLocalWindow(record(), EST_62K, undefined, null).words === "128k · the automatic ceiling (256k trained) — no KV geometry read for qwen3.5:9b-q4_K_M; the machine's memory was not read, so the window comes out bigger, not smaller; pin trained max or a number in /config for more" && autoLocalWindow(EST_62K, 262144) === 131072, `${EST_62K} → ${windowModule.chooseLocalWindow(record(), EST_62K, undefined, null).window} · ${windowModule.chooseLocalWindow(record(), EST_62K, undefined, null).reason}`)
 }
 
 section('2 · first send under the auto default (nothing set): the request rides /api/chat with the chosen num_ctx, is SENT, and /api/ps confirms the served figure')
@@ -178,12 +178,12 @@ section('2 · first send under the auto default (nothing set): the request rides
   const chat = hits.find(h => h.url === '/api/chat')
   const ps = hits.find(h => h.url === '/api/ps')
   check('no pre-load rode the wire (the chat request itself loads the model with its window)', !hits.some(h => h.url === '/api/generate'), shape(hits))
-  check('the chat request carries options.num_ctx = the chosen window (256k, the trained max on an unread machine), num_batch 2048 and truncate:false', chat !== undefined && numCtxOf(chat) === AUTO_62K && (chat.body.options as { num_batch?: number }).num_batch === 2048 && chat.body.truncate === false && chat.body.stream === true, JSON.stringify(chat?.body.options))
+  check('the chat request carries options.num_ctx = the chosen window (128k, the automatic ceiling over the trained max on an unread machine), num_batch 2048 and truncate:false', chat !== undefined && numCtxOf(chat) === AUTO_62K && (chat.body.options as { num_batch?: number }).num_batch === 2048 && chat.body.truncate === false && chat.body.stream === true, JSON.stringify(chat?.body.options))
   check('the ≈62k-token request was SENT — no refusal, the reply settled', outcome.error === undefined && outcome.texts.some(t => t.includes('pong')), outcome.error ?? outcome.texts.join('|'))
   const psAfter = hits.slice(chat === undefined ? 0 : hits.indexOf(chat) + 1).find(h => h.url === '/api/ps')
   check('the unknown served figure was read before the chat (/api/ps: nothing resident — no load rides, the chat loads with the held num_ctx) and confirmed from /api/ps after it', chat !== undefined && ps !== undefined && hits.includes(ps) && hits.includes(chat) && hits.indexOf(ps) < hits.indexOf(chat) && psAfter !== undefined, shape(road(hits)))
-  check('the record holds the SERVED figure the server stated for that load (262144, served, loaded) and the measured size /api/ps reported beside it (11.4 GB — the figure the fit trusts over the formula)', record().contextWindow?.tokens === AUTO_62K && record().contextWindow?.source === 'served' && record().loaded === true && record().servedBytes === 11400000000, JSON.stringify({ window: record().contextWindow, bytes: record().servedBytes }))
-  check('the window is HELD for the session (auto → 256k)', heldLocalWindow(record())?.window === AUTO_62K && heldLocalWindow(record())?.setting === undefined)
+  check('the record holds the SERVED figure the server stated for that load (131072, served, loaded) and the measured size /api/ps reported beside it (11.4 GB — the figure the fit trusts over the formula)', record().contextWindow?.tokens === AUTO_62K && record().contextWindow?.source === 'served' && record().loaded === true && record().servedBytes === 11400000000, JSON.stringify({ window: record().contextWindow, bytes: record().servedBytes }))
+  check('the window is HELD for the session (auto → 128k, reason cap)', heldLocalWindow(record())?.window === AUTO_62K && heldLocalWindow(record())?.reason === 'cap' && heldLocalWindow(record())?.setting === undefined)
   check('the catalogue epoch bumped (surfaces re-derive the window)', catalogueEpoch() > epochBefore)
   check('the budget now reads the served figure live-current', resolveContextWindow(PERSISTED).effectiveWindow === AUTO_62K && resolveContextWindow(PERSISTED).source === 'live-current', JSON.stringify(resolveContextWindow(PERSISTED)))
 }
@@ -270,7 +270,7 @@ section('9 · the second face under auto: the model unloads (keep-alive expiry, 
   const past = Date.now() - LOCAL_DISCOVERY_TTL_MS - 60_000
   await refreshLocalDiscovery({ force: true, now: () => past })
   await send('local')
-  check('after the first send the record is served 262144 (auto → the trained max on an unread machine)', record().contextWindow?.tokens === AUTO_62K)
+  check('after the first send the record is served 131072 (auto → the automatic ceiling over the trained max on an unread machine)', record().contextWindow?.tokens === AUTO_62K)
   state.loaded = false
   state.loadedCtx = undefined
   record().servedReadAtMs = past
@@ -278,7 +278,7 @@ section('9 · the second face under auto: the model unloads (keep-alive expiry, 
   const outcome = await send('local', {}, 8_000)
   const hits = road(hitsSince(from))
   check('the stale record was read first (/api/ps: the runner is gone), the chat request carried the held num_ctx and loaded the model (no pre-load), and ps after it confirmed the served figure', hits[0]?.url === '/api/ps' && hits[1]?.url === '/api/chat' && numCtxOf(hits[1]) === AUTO_62K && hits[2]?.url === '/api/ps' && !hits.some(h => h.url === '/api/generate') && outcome.error === undefined, shape(hits))
-  check('the record states served 262144 and loaded again', record().contextWindow?.tokens === AUTO_62K && record().loaded === true)
+  check('the record states served 131072 and loaded again', record().contextWindow?.tokens === AUTO_62K && record().loaded === true)
   const fresh = state.hits.length
   await send('local', {}, 8_000)
   check('a current record inside the TTL rides the chat request alone (the window it carries is the one held)', hitsSince(fresh).length === 1 && hitsSince(fresh)[0]!.url === '/api/chat', shape(hitsSince(fresh)))

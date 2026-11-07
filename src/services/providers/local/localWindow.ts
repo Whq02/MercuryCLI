@@ -10,6 +10,7 @@ export type LocalWindowSetting = 'server' | 'max' | number
 export const LOCAL_WINDOW_FLOOR = 65_536
 export const LOCAL_WINDOW_STEP = 16_384
 export const LOCAL_WINDOW_CHOICES: readonly LocalWindowSetting[] = ['server', 32_768, 65_536, 131_072, 'max']
+export const LOCAL_WINDOW_AUTO_CEILING = 131_072
 
 export function localWindowSettingKey(record: Pick<LocalModelRecord, 'id'>): string {
   return `${LOCAL_MODEL_PREFIX}${record.id}`
@@ -78,7 +79,7 @@ export function doubledRequestWindow(estTokens: number, modelMax?: number): numb
   return modelMax !== undefined && modelMax > 0 ? Math.min(modelMax, floored) : floored
 }
 
-export type LocalWindowReason = 'max' | 'fit' | 'set' | 'srv' | 'req'
+export type LocalWindowReason = 'max' | 'fit' | 'cap' | 'set' | 'srv' | 'req'
 
 export interface LocalWindowDecision {
   window: number | undefined
@@ -107,6 +108,7 @@ export function localWindowFitOf(record: LocalWindowFitRecord, truth: LocalServe
 const fmt = (n: number): string => (n >= 1024 && n % 1024 === 0 ? `${n / 1024}k` : String(n))
 const DOUBLING_RULE = 'twice the first request, rounded up to 16k, never under 64k'
 const UNREAD_MACHINE = "the machine's memory was not read, so the window comes out bigger, not smaller"
+const AUTO_CEILING_RULE = 'pin trained max or a number in /config for more'
 
 function doubledDecision(record: LocalWindowFitRecord, estTokens: number, why: string): LocalWindowDecision {
   const window = doubledRequestWindow(estTokens, record.modelMaxContext)
@@ -117,7 +119,10 @@ export type LocalWindowUnreadRecord = LocalWindowFitRecord & Partial<Pick<LocalM
 
 export function unreadMachineDecision(record: LocalWindowUnreadRecord, estTokens: number, why: string): LocalWindowDecision {
   const max = record.modelMaxContext
-  if (max !== undefined && max > 0) return { window: max, reason: 'max', words: `${fmt(max)} · the trained max — ${why}; ${UNREAD_MACHINE}` }
+  if (max !== undefined && max > 0) {
+    if (max > LOCAL_WINDOW_AUTO_CEILING) return { window: LOCAL_WINDOW_AUTO_CEILING, reason: 'cap', words: `${fmt(LOCAL_WINDOW_AUTO_CEILING)} · the automatic ceiling (${fmt(max)} trained) — ${why}; ${UNREAD_MACHINE}; ${AUTO_CEILING_RULE}` }
+    return { window: max, reason: 'max', words: `${fmt(max)} · the trained max — ${why}; ${UNREAD_MACHINE}` }
+  }
   const served = record.contextWindow?.source === 'served' ? record.contextWindow.tokens : undefined
   const doubled = doubledRequestWindow(estTokens)
   if (served !== undefined && served >= doubled) return { window: served, reason: 'srv', words: `${fmt(served)} · the served window — ${why}; no trained max stated; ${UNREAD_MACHINE}` }
@@ -139,7 +144,11 @@ export function chooseLocalWindow(record: LocalWindowUnreadRecord, estTokens: nu
     return { window, reason: 'set', words: `${fmt(window)} · your setting${refusal !== undefined ? ` — ${refusal}` : ''}`, ...(fit !== undefined ? { fit } : {}) }
   }
   const fit = localWindowFitOf(record, truth)
-  if (fit !== undefined) return { window: fit.window, reason: fit.atMax ? 'max' : 'fit', words: fit.words, fit }
+  if (fit !== undefined) {
+    const capped = fit.ladder.filter(rung => rung.fits && rung.window <= LOCAL_WINDOW_AUTO_CEILING).at(-1)
+    if (fit.window > LOCAL_WINDOW_AUTO_CEILING && capped !== undefined) return { window: capped.window, reason: 'cap', words: `${fmt(capped.window)} · the automatic ceiling (${fmt(fit.window)} fits: ${fit.words.slice(fit.words.indexOf('· ') + 2)}) · ${AUTO_CEILING_RULE}`, fit }
+    return { window: fit.window, reason: fit.atMax ? 'max' : 'fit', words: fit.words, fit }
+  }
   if (record.geometry === undefined || record.weightsBytes === undefined) return unreadMachineDecision(record, estTokens, `no KV geometry read for ${record.id}`)
   return unreadMachineDecision(record, estTokens, 'no memory truth read')
 }
@@ -282,6 +291,7 @@ export function localWindowSettingWords(setting: LocalWindowSetting | undefined)
 export const LOCAL_WINDOW_REASON_WORDS: Readonly<Record<LocalWindowReason, string>> = {
   max: 'the trained max',
   fit: 'the biggest rung that fits',
+  cap: 'the automatic ceiling',
   set: 'your setting',
   srv: 'the window the server holds it at',
   req: 'twice the request',

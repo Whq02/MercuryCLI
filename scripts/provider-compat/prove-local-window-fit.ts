@@ -120,16 +120,19 @@ await refreshLocalDiscovery({ force: true })
 const qwen27 = localRecordFor(`local/${MODEL_27}`)!
 const qwen9 = localRecordFor(`local/${MODEL_9}`)!
 
-section("1 · the seam (red on the base): auto is the biggest window that fits this machine's memory, not twice the first request")
+section("1 · the seam (red on the base): auto is the biggest window that fits this machine's memory, never twice the first request, and tops out at the 128k automatic ceiling")
 {
   check('the discovery record carries the weights and the KV geometry from /api/tags and /api/show', qwen27.weightsBytes === WEIGHTS_27 && qwen27.geometry?.kvHeads === 64 && qwen27.geometry.attentionLayers === 16 && qwen9.weightsBytes === WEIGHTS_9 && qwen9.geometry?.kvHeads === 32, j({ weights: qwen27.weightsBytes, geometry: qwen27.geometry }))
   __pinLocalServerTruthForTest(OWNER_BOX)
   w.__resetLocalWindowsForTest()
   const decided = w.decideLocalWindow(qwen27, 73_000, undefined)
-  check("the 27B on the owner's box (48 GiB, 36.9 GiB usable, q8_0, 1 slot): a ≈73k first request gets 256k — the trained max fits — never 147k", decided.window === 262144, String(decided.window))
-  check("the decision says why: 256k · 16.2 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot, reason max", decided.reason === 'max' && decided.words === '256k · 16.2 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot', `${decided.reason} · ${decided.words}`)
+  check("the 27B on the owner's box (48 GiB, 36.9 GiB usable, q8_0, 1 slot): a ≈73k first request gets 128k — the automatic ceiling, though the trained max fits — never 147k, never 256k", decided.window === 131072, String(decided.window))
+  check("the decision says why: 128k · the automatic ceiling (256k fits: 16.2 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot) · pin trained max or a number in /config for more, reason cap, the 256k fit carried beneath", decided.reason === 'cap' && decided.words === '128k · the automatic ceiling (256k fits: 16.2 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot) · pin trained max or a number in /config for more' && decided.fit?.window === 262144 && decided.fit.atMax === true, `${decided.reason} · ${decided.words}`)
+  const pinnedMax = w.chooseLocalWindow(qwen27, 73_000, 'max', OWNER_BOX)
+  const pinnedNumber = w.chooseLocalWindow(qwen27, 73_000, 262144, OWNER_BOX)
+  check('the rule: LOCAL_WINDOW_AUTO_CEILING is 128k — a fit whose rung is 256k gives auto 128k (reason cap) while the max setting still gives 256k (reason max, no refusal), as does a pinned 256k (reason set)', w.LOCAL_WINDOW_AUTO_CEILING === 131072 && decided.window === w.LOCAL_WINDOW_AUTO_CEILING && pinnedMax.window === 262144 && pinnedMax.reason === 'max' && pinnedMax.words === '256k · the trained max — your setting' && pinnedNumber.window === 262144 && pinnedNumber.reason === 'set' && pinnedNumber.words === '256k · your setting', j([pinnedMax.words, pinnedNumber.words]))
   const nine = w.decideLocalWindow(qwen9, 73_000, undefined)
-  check("the 9B on the owner's box: 256k (6.1 GiB weights + 4.3 GiB cache)", nine.window === 262144 && nine.reason === 'max' && nine.words === '256k · 6.1 GiB weights + 4.3 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot', nine.words)
+  check("the 9B on the owner's box: 128k, the automatic ceiling (256k fits: 6.1 GiB weights + 4.3 GiB cache)", nine.window === 131072 && nine.reason === 'cap' && nine.words === '128k · the automatic ceiling (256k fits: 6.1 GiB weights + 4.3 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot) · pin trained max or a number in /config for more', nine.words)
 }
 
 section('2 · the one owner: fitLocalWindow — the biggest ladder rung ≤ the trained max whose projected load fits the usable ceiling')
@@ -210,28 +213,31 @@ section('3 · auto = the fit rung; the hold is one window per model per process,
   w.__resetLocalWindowsForTest()
 }
 
-section('4 · the fallbacks, said in the words: with no geometry or no memory truth the machine was not read, so the window comes out bigger, not smaller — the trained max when stated, else the served window, else twice the request and never under 64k')
+section('4 · the fallbacks, said in the words: with no geometry or no memory truth the machine was not read, so the window comes out bigger, not smaller — the trained max when stated (capped at the 128k automatic ceiling), else the served window, else twice the request and never under 64k')
 {
   __pinLocalServerTruthForTest(null)
   __resetLocalServerTruthForTest()
   w.__resetLocalWindowsForTest()
   const bare = { id: 'mystery:latest', server: 'ollama' as const, modelMaxContext: 262144 }
   const noGeometry = w.chooseLocalWindow(bare, 73_000, undefined, OWNER_BOX)
-  check('no geometry, the trained max stated: 262144, reason max, the words name the missing geometry and the unread machine', noGeometry.window === 262144 && noGeometry.reason === 'max' && noGeometry.words === "256k · the trained max — no KV geometry read for mystery:latest; the machine's memory was not read, so the window comes out bigger, not smaller", noGeometry.words)
+  check('no geometry, the trained max stated: 131072, reason cap, the words name the ceiling over the 256k trained max, the missing geometry, the unread machine and the way to more', noGeometry.window === 131072 && noGeometry.reason === 'cap' && noGeometry.words === "128k · the automatic ceiling (256k trained) — no KV geometry read for mystery:latest; the machine's memory was not read, so the window comes out bigger, not smaller; pin trained max or a number in /config for more", noGeometry.words)
+  const trained32 = w.chooseLocalWindow({ ...bare, modelMaxContext: 32768 }, 73_000, undefined, null)
+  const trained128 = w.chooseLocalWindow({ ...bare, modelMaxContext: 131072 }, 73_000, undefined, null)
+  check('the rule on the unread road: a 256k-trained model is capped at 128k (reason cap) while a 32k-trained model keeps 32k and a 128k-trained one keeps 128k (reason max, the trained-max words)', w.chooseLocalWindow(bare, 73_000, undefined, null).window === 131072 && w.chooseLocalWindow(bare, 73_000, undefined, null).reason === 'cap' && trained32.window === 32768 && trained32.reason === 'max' && trained32.words === "32k · the trained max — no KV geometry read for mystery:latest; the machine's memory was not read, so the window comes out bigger, not smaller" && trained128.window === 131072 && trained128.reason === 'max' && trained128.words === "128k · the trained max — no KV geometry read for mystery:latest; the machine's memory was not read, so the window comes out bigger, not smaller", j([trained32.words, trained128.words]))
   check('the doubling arithmetic: 62k ⇒ 128k · 20k ⇒ the 64k floor · 1k ⇒ the 64k floor · a 32k-trained model ⇒ 32k · no max ⇒ the rule alone', w.doubledRequestWindow(62_000, 262144) === 131072 && w.doubledRequestWindow(20_000, 262144) === 65536 && w.doubledRequestWindow(1_000, 262144) === 65536 && w.doubledRequestWindow(62_000, 32768) === 32768 && w.doubledRequestWindow(62_000) === 131072)
   const noTruth = w.chooseLocalWindow(qwen27, 73_000, undefined, null)
-  check('no memory truth, the 27B with its geometry: the trained max (256k, reason max) — never a fraction-rule guess, never twice the request — the words say no truth was read', noTruth.window === 262144 && noTruth.reason === 'max' && noTruth.words === "256k · the trained max — no memory truth read; the machine's memory was not read, so the window comes out bigger, not smaller", noTruth.words)
+  check('no memory truth, the 27B with its geometry: the automatic ceiling over the trained max (128k, reason cap) — never a fraction-rule guess, never twice the request — the words say no truth was read', noTruth.window === 131072 && noTruth.reason === 'cap' && noTruth.words === "128k · the automatic ceiling (256k trained) — no memory truth read; the machine's memory was not read, so the window comes out bigger, not smaller; pin trained max or a number in /config for more", noTruth.words)
   const unstated = { id: 'mystery:latest', server: 'ollama' as const, modelMaxContext: undefined }
   const served = w.chooseLocalWindow({ ...unstated, contextWindow: { tokens: 131072, source: 'served' as const } }, 15_000, undefined, null)
   check('no trained max, a served 128k: the served window, reason srv', served.window === 131072 && served.reason === 'srv' && served.words.startsWith('128k · the served window'), served.words)
   const neither = w.chooseLocalWindow(unstated, 73_000, undefined, null)
   check('no trained max and no served window: twice the request (144k), reason req, the words say why', neither.window === 147456 && neither.reason === 'req' && neither.words.startsWith('144k · twice the first request, rounded up to 16k, never under 64k (≈73k asked)') && neither.words.includes('no trained max stated and no served window'), neither.words)
   check('the Linux fallback is available memory; the darwin rule is three quarters of unified memory', defaultMachineTruth('linux', 16 * GIB, 6 * GIB).usableMemoryBytes === 6 * GIB && defaultMachineTruth('darwin', 16 * GIB).usableMemoryBytes === 12 * GIB && defaultMachineTruth('darwin', 16 * GIB).usableSource.startsWith('about three quarters'))
-  check('with no truth cached the sync decision falls back the same way (the trained max)', w.localWindowTruth() === null && w.decideLocalWindow(bare, 73_000, undefined).reason === 'max')
+  check('with no truth cached the sync decision falls back the same way (the automatic ceiling over the trained max)', w.localWindowTruth() === null && w.decideLocalWindow(bare, 73_000, undefined).reason === 'cap' && w.decideLocalWindow(bare, 73_000, undefined).window === 131072)
   w.__resetLocalWindowsForTest()
 }
 
-section('5 · the dispatch road: the first send under auto reads the machine truth (the pin here) and rides /api/chat with the fit rung as num_ctx; the crewmate reuses it')
+section('5 · the dispatch road: the first send under auto reads the machine truth (the pin here) and rides /api/chat with the fit rung, capped at the automatic ceiling, as num_ctx; the crewmate reuses it')
 {
   __pinLocalServerTruthForTest(OWNER_BOX)
   w.__resetLocalWindowsForTest()
@@ -250,12 +256,12 @@ section('5 · the dispatch road: the first send under auto reads the machine tru
   const yielded: Array<{ type?: string; isApiErrorMessage?: boolean }> = []
   for await (const item of localCallModel(params(292_000, {}) as never)) yielded.push(item as never)
   const chat = hits.slice(from).find(h => h.url === '/api/chat')
-  check('the ≈73k first request rode /api/chat with num_ctx 262144 — the fit rung, not 147k — and settled', chat !== undefined && (chat.body.options as { num_ctx?: number }).num_ctx === 262144 && !yielded.some(m => m.isApiErrorMessage === true), j(chat?.body.options))
+  check('the ≈73k first request rode /api/chat with num_ctx 131072 — the automatic ceiling over the 256k fit rung, not 147k, not 256k — and settled', chat !== undefined && (chat.body.options as { num_ctx?: number }).num_ctx === 131072 && !yielded.some(m => m.isApiErrorMessage === true), j(chat?.body.options))
   const again = hits.length
   for await (const item of localCallModel(params(20_000, { agentId: 'agent-000001', querySource: 'agent:builtin:mercury-crew' }) as never)) yielded.push(item as never)
   const crew = hits.slice(again).find(h => h.url === '/api/chat')
-  check('a crewmate\'s smaller request carries the SAME held num_ctx', crew !== undefined && (crew.body.options as { num_ctx?: number }).num_ctx === 262144)
-  check('the held decision carries its reason and words for the rail and the deck', w.heldLocalWindow(localRecordFor(`local/${MODEL_27}`)!)?.reason === 'max' && w.heldLocalWindow(localRecordFor(`local/${MODEL_27}`)!)?.words.startsWith('256k · 16.2 GiB weights') === true)
+  check('a crewmate\'s smaller request carries the SAME held num_ctx', crew !== undefined && (crew.body.options as { num_ctx?: number }).num_ctx === 131072)
+  check('the held decision carries its reason and words for the rail and the deck', w.heldLocalWindow(localRecordFor(`local/${MODEL_27}`)!)?.reason === 'cap' && w.heldLocalWindow(localRecordFor(`local/${MODEL_27}`)!)?.words.startsWith('128k · the automatic ceiling (256k fits: 16.2 GiB weights') === true)
   check('nothing but tags/version/ps/show/chat reached the server — never a load, never a generation', hits.every(h => /^\/api\/(tags|version|ps|show|chat)$/.test(h.url)), hits.map(h => h.url).join(','))
 }
 
@@ -267,11 +273,11 @@ section("6 · the words: the picker's w row, the /config row, the rail's reason 
   const record = localRecordFor(`local/${MODEL_27}`)!
   check('before any send the w row already says what auto will pick: auto → 256k max', w.localWindowChoiceLine(record, { wide: true }) === 'window · not loaded · max 256k · [auto → 256k max] · server · 32k · 64k · 128k · max · number · ctrl+w cycles', w.localWindowChoiceLine(record, { wide: true }))
   w.decideLocalWindow(record, 73_000, undefined)
-  check('after the send it says held with the reason: auto → 256k max held', w.localWindowChoiceLine(record, { wide: true }).includes('[auto → 256k max held]'), w.localWindowChoiceLine(record, { wide: true }))
-  check('the /config value words: auto → 256k held this session (the trained max) · num_ctx on every request', w.localWindowValueWords(record, undefined) === 'auto → 256k held this session (the trained max) · num_ctx on every request', w.localWindowValueWords(record, undefined))
-  const tag = w.localWindowReasonTag(`local/${MODEL_27}`, 262144)
-  check("the rail's tag for the held window is max; a window the hold does not explain gets no tag", tag === 'max' && w.localWindowReasonTag(`local/${MODEL_27}`, 131072) === undefined && w.localWindowReasonTag('claude-fable-5-1', 262144) === undefined)
-  check("the deck's rule sentence is the hold's words", w.localWindowRuleWords(`local/${MODEL_27}`, 262144) === '256k · 16.2 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot' && w.localWindowRuleWords(`local/${MODEL_27}`, 131072) === undefined)
+  check('after the send it says held with the reason: auto → 128k cap held', w.localWindowChoiceLine(record, { wide: true }).includes('[auto → 128k cap held]'), w.localWindowChoiceLine(record, { wide: true }))
+  check('the /config value words: auto → 128k held this session (the automatic ceiling) · num_ctx on every request', w.localWindowValueWords(record, undefined) === 'auto → 128k held this session (the automatic ceiling) · num_ctx on every request', w.localWindowValueWords(record, undefined))
+  const tag = w.localWindowReasonTag(`local/${MODEL_27}`, 131072)
+  check("the rail's tag for the held window is cap; a window the hold does not explain (the 256k that fits) gets no tag", tag === 'cap' && w.localWindowReasonTag(`local/${MODEL_27}`, 262144) === undefined && w.localWindowReasonTag('claude-fable-5-1', 131072) === undefined)
+  check("the deck's rule sentence is the hold's words", w.localWindowRuleWords(`local/${MODEL_27}`, 131072) === '128k · the automatic ceiling (256k fits: 16.2 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot) · pin trained max or a number in /config for more' && w.localWindowRuleWords(`local/${MODEL_27}`, 262144) === undefined)
   __pinLocalServerTruthForTest(SMALL_BOX)
   w.__resetLocalWindowsForTest()
   const nine = localRecordFor(`local/${MODEL_9}`)!
@@ -317,7 +323,8 @@ section("7 · step 5 of /localsetup on the same owner: the ceiling from the trut
   check('on a 16 GiB box with 4 slots asked: 32k, the words say 4 slots and that 64k does not fit', small.window === 32768 && small.words === '32k · 6.1 GiB weights + 4.0 GiB cache of 12.0 GiB usable (16.0 GiB box) · f16 · 4 slots · 64k does not fit (14.1 GiB)', small.words)
   const typed = await setup.chooseWindow(ollama.root, MODEL_9, { ...io, readTruth: async () => SMALL_BOX, cacheType: 'q8_0' })
   check('a cache type given through the seam outranks the truth', typed.window === 262144 && typed.cacheType === 'q8_0', typed.words)
-  check('the same rule, the same figures: step 5 and auto agree on the owner\'s box', chosen.window === w.chooseLocalWindow(localRecordFor(`local/${MODEL_9}`)!, 73_000, undefined, OWNER_BOX).window && chosen.words === w.chooseLocalWindow(localRecordFor(`local/${MODEL_9}`)!, 73_000, undefined, OWNER_BOX).words)
+  const auto = w.chooseLocalWindow(localRecordFor(`local/${MODEL_9}`)!, 73_000, undefined, OWNER_BOX)
+  check("the same rule, the same figures: step 5 writes the 256k fit rung as the setting; auto on the owner's box holds 128k, reason cap, over that same fit and names step 5's figures as what fits", chosen.window === 262144 && auto.window === 131072 && auto.reason === 'cap' && auto.fit?.words === chosen.words && auto.words === '128k · the automatic ceiling (256k fits: 6.1 GiB weights + 4.3 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot) · pin trained max or a number in /config for more', `${chosen.words} || ${auto.words}`)
 }
 
 section(`8 · the hybrid law (red on the base): ${HYBRID_27} states one head_count_kv for 65 blocks with full_attention_interval 4 — 16 layers keep a cache, not 65; a loaded model's measured size outranks the formula`)
@@ -337,16 +344,18 @@ section(`8 · the hybrid law (red on the base): ${HYBRID_27} states one head_cou
   check('the discovery record carries the hybrid geometry with its interval and the weights from /api/tags', h27.weightsBytes === WEIGHTS_H27 && h27.geometry?.attentionLayers === 16 && h27.geometry.kvHeads === 64 && h27.geometry.interval === 4 && h27.modelMaxContext === 262144 && h27.contextWindow === undefined && h27.servedBytes === undefined, j({ weights: h27.weightsBytes, geometry: h27.geometry, window: h27.contextWindow }))
   __pinLocalServerTruthForTest(OWNER_BOX)
   w.__resetLocalWindowsForTest()
+  const FORMULA_WORDS = '256k · 16.5 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot'
+  const CAPPED_WORDS = '128k · the automatic ceiling (256k fits: 16.5 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot) · pin trained max or a number in /config for more'
   const auto = w.decideLocalWindow(h27, 73_000, undefined)
-  check("auto on the owner's box (48 GiB, 36.9 GiB usable, q8_0, 1 slot): 256k, reason max — 16.5 GiB weights + 8.5 GiB cache = 25.0 GiB; never 128k on a 51.1 GiB sum", auto.window === 262144 && auto.reason === 'max' && auto.words === '256k · 16.5 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot' && memory.gibWords(auto.fit?.totalBytes ?? 0) === '25.0 GiB', `${auto.window} · ${auto.reason} · ${auto.words}`)
+  check("auto on the owner's box (48 GiB, 36.9 GiB usable, q8_0, 1 slot): 128k, reason cap, over a 256k fit at 25.0 GiB (16.5 GiB weights + 8.5 GiB cache) — the ceiling, never a refusal on a 51.1 GiB sum", auto.window === 131072 && auto.reason === 'cap' && auto.words === CAPPED_WORDS && auto.fit?.words === FORMULA_WORDS && auto.fit.window === 262144 && auto.fit.atMax === true && memory.gibWords(auto.fit.totalBytes) === '25.0 GiB', `${auto.window} · ${auto.reason} · ${auto.words}`)
   check('every rung fits: 32k 17.6 · 64k 18.6 · 128k 20.8 · 256k 25.0 GiB', auto.fit?.ladder.map(r => `${memory.tokensWords(r.window)} ${memory.gibWords(r.totalBytes)} ${r.fits}`).join(' | ') === '32k 17.6 GiB true | 64k 18.6 GiB true | 128k 20.8 GiB true | 256k 25.0 GiB true', j(auto.fit?.ladder))
   const decisionLine = typeof w.localWindowDecisionLine === 'function' ? w.localWindowDecisionLine(h27, auto) : undefined
-  check(`the send writes the decision to the debug log: [local-window] ${HYBRID_27}: 262144 · max — the rule's words`, decisionLine === `[local-window] ${HYBRID_27}: 262144 · max — 256k · 16.5 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot`, String(decisionLine))
+  check(`the send writes the decision to the debug log: [local-window] ${HYBRID_27}: 131072 · cap — the rule's words`, decisionLine === `[local-window] ${HYBRID_27}: 131072 · cap — ${CAPPED_WORDS}`, String(decisionLine))
   const byHand = w.chooseLocalWindow(h27, 73_000, 'max', OWNER_BOX)
   check("the trained max picked by hand is accepted: 256k · the trained max — your setting, no refusal", byHand.window === 262144 && byHand.reason === 'max' && byHand.words === '256k · the trained max — your setting' && w.localWindowRefusalWords(h27, 'max', OWNER_BOX) === undefined && w.localWindowRefusalWords(h27, 262144, OWNER_BOX) === undefined, byHand.words)
-  check("the picker's w row shows [max] with no refusal beside the held auto → 256k max", w.localWindowChoiceLine(h27, { wide: true, setting: 'max', truth: OWNER_BOX }) === 'window · not loaded · max 256k · auto → 256k max held · server · 32k · 64k · 128k · [max] · number · ctrl+w cycles', w.localWindowChoiceLine(h27, { wide: true, setting: 'max', truth: OWNER_BOX }))
+  check("the picker's w row shows [max] with no refusal beside the held auto → 128k cap", w.localWindowChoiceLine(h27, { wide: true, setting: 'max', truth: OWNER_BOX }) === 'window · not loaded · max 256k · auto → 128k cap held · server · 32k · 64k · 128k · [max] · number · ctrl+w cycles', w.localWindowChoiceLine(h27, { wide: true, setting: 'max', truth: OWNER_BOX }))
   const nine = w.decideLocalWindow(localRecordFor(`local/${MODEL_9}`)!, 73_000, undefined)
-  check(`${MODEL_9} on the same box: 256k max (6.1 GiB weights + 4.3 GiB cache)`, nine.window === 262144 && nine.reason === 'max' && nine.words === '256k · 6.1 GiB weights + 4.3 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot', nine.words)
+  check(`${MODEL_9} on the same box: 128k cap (256k fits: 6.1 GiB weights + 4.3 GiB cache)`, nine.window === 131072 && nine.reason === 'cap' && nine.words === '128k · the automatic ceiling (256k fits: 6.1 GiB weights + 4.3 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot) · pin trained max or a number in /config for more', nine.words)
   const mH27 = { name: HYBRID_27, weightsBytes: WEIGHTS_H27, geometry: gH27!, trainedMax: 262144 }
   const loadedBox = { ...OWNER_BOX, loaded: [{ name: HYBRID_27, sizeBytes: RESIDENT_H27_128K, sizeVramBytes: RESIDENT_H27_128K, contextLength: 131072 }] }
   const measuredArm = typeof serverMeasuredOf === 'function' && typeof localWindowResident === 'function' && typeof w.localWindowMeasuredOf === 'function'
@@ -363,7 +372,7 @@ section(`8 · the hybrid law (red on the base): ${HYBRID_27} states one head_cou
     const down = fitLocalWindow({ ...mH27, machineBytes: 48 * GIB, usableBytes: Math.round(17 * GIB), slots: 1, cacheType: 'q8_0', measured: { bytes: RESIDENT_H27_128K, window: 131072 } })
     check('a smaller window subtracts: 64k · 17.8 GiB measured at 128k − 2.1 GiB less cache = 15.7 GiB of 17.0 GiB usable (48.0 GiB box) · q8_0 · 1 slot · 128k does not fit (17.8 GiB)', down.window === 65536 && down.words === '64k · 17.8 GiB measured at 128k − 2.1 GiB less cache = 15.7 GiB of 17.0 GiB usable (48.0 GiB box) · q8_0 · 1 slot · 128k does not fit (17.8 GiB)', down.words)
     const suspect = fitLocalWindowOn({ ...loadedBox, loaded: [{ name: HYBRID_27, sizeBytes: 1_000_000, contextLength: 131072 }] }, mH27)
-    check('a measurement smaller than its own cache is not trusted: the formula stands and the words are the formula words', suspect.words === auto.words && localWindowResident(suspect).measured === undefined && suspect.measured?.bytes === 1_000_000, suspect.words)
+    check('a measurement smaller than its own cache is not trusted: the formula stands and the words are the formula words', suspect.words === FORMULA_WORDS && localWindowResident(suspect).measured === undefined && suspect.measured?.bytes === 1_000_000, suspect.words)
     const fourSlots = fitLocalWindowOn({ ...loadedBox, runners: [{ command: 'llama-server -np 4 --cache-type-k q8_0', slots: 4, cacheTypeK: 'q8_0' }] }, mH27)
     check('the slots ride with the measurement: a 4-slot runner measured at 128k holds 17.0 GiB of cache, so the fixed part is 0.8 GiB and 256k with 4 slots (34.8 GiB) fits — 256k max', fourSlots.slots === 4 && fourSlots.measured?.slots === 4 && memory.gibWords(localWindowResident(fourSlots).bytes) === '0.8 GiB' && fourSlots.window === 262144 && memory.gibWords(fourSlots.totalBytes) === '34.8 GiB', `${fourSlots.window} · ${memory.gibWords(fourSlots.totalBytes)} · ${fourSlots.words}`)
   }
@@ -374,8 +383,9 @@ section(`8 · the hybrid law (red on the base): ${HYBRID_27} states one head_cou
   check('the discovery record reads the loaded size beside the served window from /api/ps: 19.1 GB at 128k', loadedRecord.contextWindow?.source === 'served' && loadedRecord.contextWindow.tokens === 131072 && loadedRecord.servedBytes === RESIDENT_H27_128K && loadedRecord.loaded === true && (measuredArm ? j(w.localWindowMeasuredOf(loadedRecord)) === j({ bytes: RESIDENT_H27_128K, window: 131072 }) : false), j({ window: loadedRecord.contextWindow, bytes: loadedRecord.servedBytes }))
   w.__resetLocalWindowsForTest()
   const decided = w.decideLocalWindow(loadedRecord, 73_000, undefined)
-  check('auto on the loaded record takes the measured arm: 256k max with the measured words', decided.window === 262144 && decided.reason === 'max' && decided.words === MEASURED_WORDS && decided.fit?.measured?.bytes === RESIDENT_H27_128K, `${decided.window} · ${decided.words}`)
-  check("the picker's w row on the loaded record: served 128k, auto → 256k max held", w.localWindowChoiceLine(loadedRecord, { wide: true, truth: OWNER_BOX }) === 'window · served 128k · [auto → 256k max held] · server · 32k · 64k · 128k · max · number · ctrl+w cycles', w.localWindowChoiceLine(loadedRecord, { wide: true, truth: OWNER_BOX }))
+  const CAPPED_MEASURED_WORDS = '128k · the automatic ceiling (256k fits: 17.8 GiB measured at 128k + 4.3 GiB more cache = 22.0 GiB of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot) · pin trained max or a number in /config for more'
+  check('auto on the loaded record takes the measured arm beneath the ceiling: 128k cap, the words naming the measured 256k fit, the fit carrying the measurement', decided.window === 131072 && decided.reason === 'cap' && decided.words === CAPPED_MEASURED_WORDS && decided.fit?.words === MEASURED_WORDS && decided.fit.measured?.bytes === RESIDENT_H27_128K, `${decided.window} · ${decided.words}`)
+  check("the picker's w row on the loaded record: served 128k, auto → 128k cap held", w.localWindowChoiceLine(loadedRecord, { wide: true, truth: OWNER_BOX }) === 'window · served 128k · [auto → 128k cap held] · server · 32k · 64k · 128k · max · number · ctrl+w cycles', w.localWindowChoiceLine(loadedRecord, { wide: true, truth: OWNER_BOX }))
   const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
   const from = hits.length
   const yielded: Array<{ isApiErrorMessage?: boolean }> = []
@@ -389,7 +399,7 @@ section(`8 · the hybrid law (red on the base): ${HYBRID_27} states one head_cou
   }
   for await (const item of localCallModel(params as never)) yielded.push(item as never)
   const chat = hits.slice(from).find(h => h.url === '/api/chat')
-  check(`the ≈73k first request to ${HYBRID_27} rides /api/chat with num_ctx 262144 — the trained max, not 131072 — and settles`, chat !== undefined && (chat.body.options as { num_ctx?: number }).num_ctx === 262144 && !yielded.some(m => m.isApiErrorMessage === true), j(chat?.body.options))
+  check(`the ≈73k first request to ${HYBRID_27} rides /api/chat with num_ctx 131072 — the automatic ceiling, not the 262144 trained max — and settles`, chat !== undefined && (chat.body.options as { num_ctx?: number }).num_ctx === 131072 && !yielded.some(m => m.isApiErrorMessage === true), j(chat?.body.options))
   check('still nothing but tags/version/ps/show/chat reached the server', hits.every(h => /^\/api\/(tags|version|ps|show|chat)$/.test(h.url)), hits.map(h => h.url).join(','))
   psModels.length = 0
   __resetLocalDiscoveryForTest()
