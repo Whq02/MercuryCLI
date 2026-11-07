@@ -81,7 +81,7 @@ const { z } = await import('zod/v4')
 
 const ROADS = [
   { road: 'anthropic', model: 'claude-fable-5-1', floor: 'low', serves: 'the first-party ladder low … max' },
-  { road: 'openai', model: 'gpt-5.6-sol', floor: 'low', serves: 'the live list serves low and high, default high' },
+  { road: 'openai', model: 'gpt-5.6-sol', floor: 'low', serves: 'the live list serves none, minimal, low and high, default high; the floor is low' },
   { road: 'gemini', model: 'gemini-3-pro', floor: undefined, serves: 'no effort control' },
   { road: 'local', model: 'local/fixture-local', floor: undefined, serves: 'no effort control' },
   { road: 'zai', model: 'glm-5.2', floor: 'low', serves: 'GLM-5.2 serves none … max; the floor is low, never none' },
@@ -222,7 +222,7 @@ section('the cold OpenRouter list: a question hook naming an openrouter/ reasoni
 }
 
 for (const { road, model, floor, serves } of ROADS) {
-  section(`${road}: the main seat is ${model}; every utility call rides it at the floor, low (${serves})`)
+  section(`${road}: the main seat is ${model}; every utility call rides it ${floor === undefined ? 'with no effort word' : `at the floor, ${floor}`} (${serves})`)
   process.env.MERCURY_MODEL = model
   check(`${road}: the engine model is ${model}`, getEngineModel() === model, getEngineModel())
   const referenceAt = fixture.captured.length

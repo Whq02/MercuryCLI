@@ -82,7 +82,7 @@ const TREE_SUBPROCESS_BUFFER = 16 * 1024 * 1024
 const CAPTURE_CHILD_TIMEOUT_MS = 2_500
 const CAPTURE_CHILD_RETRY_WAIT_MS: readonly [number, number] = [200, 800]
 const CAPTURE_CHILD_BUFFER = 64 * 1024 * 1024
-const CAPTURE_CHILD_SCRIPT = 'const a=require(process.argv[1]);const q=JSON.parse(require("node:fs").readFileSync(0,"utf8"));(q.region?a.captureRegion(q.display,q.region):a.capture(q.display)).then(c=>{const png=Buffer.from(c.png.buffer,c.png.byteOffset,c.png.byteLength);process.stdout.write(Buffer.concat([Buffer.from(JSON.stringify({width:c.width,height:c.height,scale:c.scale,display:c.display,displayId:c.displayId,originX:c.originX,originY:c.originY,png:png.length})+"\\n"),png]),()=>process.exit(0))},e=>{process.stdout.write(JSON.stringify({error:e instanceof Error?e.message:String(e)})+"\\n",()=>process.exit(1))})'
+const CAPTURE_CHILD_SCRIPT = 'const a=require(process.argv[1]);const q=JSON.parse(require("node:fs").readFileSync(0,"utf8"));new Promise(r=>r(q.region?a.captureRegion(q.display,q.region):a.capture(q.display))).then(c=>{const png=Buffer.from(c.png.buffer,c.png.byteOffset,c.png.byteLength);process.stdout.write(Buffer.concat([Buffer.from(JSON.stringify({width:c.width,height:c.height,scale:c.scale,display:c.display,displayId:c.displayId,originX:c.originX,originY:c.originY,png:png.length})+"\\n"),png]),()=>process.exit(0))},e=>{process.stdout.write(JSON.stringify({error:e instanceof Error?e.message:String(e)})+"\\n",()=>process.exit(1))})'
 type DesktopQuery = 'readElement' | 'readClipboard' | 'findApplication' | 'activateApplication' | 'scrollToVisible' | 'setValue'
 const QUERY_PLATFORMS: Record<DesktopQuery, readonly string[]> = {
   readElement: ['darwin'],
@@ -220,17 +220,15 @@ function sessionsOnThisBinary(): string {
   if (process.platform !== 'darwin') return ''
   let listing = ''
   try {
-    listing = execFileSync('/bin/ps', ['-axo', 'pid=,comm='], { encoding: 'utf8', timeout: 1_500, maxBuffer: 4 * 1024 * 1024 })
-  } catch {
-    return ''
+    listing = execFileSync('/usr/sbin/lsof', ['-t', '--', process.execPath], { encoding: 'utf8', timeout: 2_000, maxBuffer: 1024 * 1024, windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] })
+  } catch (error) {
+    const stdout = (error as { stdout?: unknown }).stdout
+    listing = typeof stdout === 'string' ? stdout : ''
   }
   const peers: number[] = []
   for (const line of listing.split('\n')) {
-    const text = line.trim()
-    const gap = text.indexOf(' ')
-    if (gap < 0) continue
-    const pid = Number(text.slice(0, gap))
-    if (Number.isInteger(pid) && pid !== process.pid && text.slice(gap + 1).trim() === process.execPath) peers.push(pid)
+    const pid = Number(line.trim())
+    if (Number.isInteger(pid) && pid > 0 && pid !== process.pid && !peers.includes(pid)) peers.push(pid)
   }
   if (peers.length === 0) return ''
   const sessions = new Map<number, string>()
@@ -252,12 +250,14 @@ function sessionsOnThisBinary(): string {
       }
     }
   } catch {}
-  return peers.slice(0, 3).map(pid => (sessions.has(pid) ? `pid ${pid}, session ${sessions.get(pid)}…` : `pid ${pid}`)).join('; ') + (peers.length > 3 ? ` and ${peers.length - 3} more` : '')
+  const named = peers.filter(pid => sessions.has(pid)).map(pid => `session ${sessions.get(pid)}… (pid ${pid})`)
+  return named.slice(0, 3).join('; ') + (named.length > 3 ? ` and ${named.length - 3} more` : '')
 }
 
 function captureHeldNote(): string {
-  const peers = sessionsOnThisBinary()
-  return `macOS cancelled the screen-capture connection because another process running the same Mercury node binary holds it${peers ? ` (${peers})` : ''}; Screen Recording is granted — end that process or wait for it to finish, give macOS about fifteen seconds, then retry`
+  const sessions = sessionsOnThisBinary()
+  const remedy = sessions ? 'end that session or wait for it to finish' : 'end the other Mercury process that took a screenshot or wait for it to finish'
+  return `macOS cancelled the screen-capture connection because another process running the same Mercury node binary holds it${sessions ? ` (${sessions})` : ''}; Screen Recording is granted — ${remedy}, give macOS about fifteen seconds, then retry`
 }
 
 type DesktopQueryAnswer = { value: unknown } | { error: string }
@@ -452,7 +452,7 @@ class NativeDesktopDriver implements DesktopDriver {
         if (answer !== null && 'raw' in answer) return resolve({ kind: 'captured', raw: answer.raw })
         if (error?.killed) return resolve({ kind: 'deadline' })
         if (answer !== null) return resolve({ kind: 'failed', note: answer.error })
-        resolve({ kind: 'failed', note: error ? `the capture child exited without an image: ${error.message}` : 'the capture child answered an unreadable record' })
+        resolve({ kind: 'failed', note: error ? 'the capture child exited without an image' : 'the capture child answered an unreadable record' })
       })
       child.stdin?.on('error', () => {})
       child.stdin?.end(JSON.stringify({ display, ...(region ? { region } : {}) }))

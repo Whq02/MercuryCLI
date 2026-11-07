@@ -140,7 +140,7 @@ if (DARWIN) {
     check('two children took part, the first killed at the deadline (the whole call stays under about 4 s: 2.5 s + a 200–800 ms wait + the retry)', seen.length === 2 && seen[0]!.pid !== seen[1]!.pid && elapsed >= 2_600 && elapsed < 5_500, `${elapsed} ms · ${JSON.stringify(seen)}`)
   }
 
-  console.log('[3] a second miss names the condition and the peer, never "no display 0 image could be created"')
+  console.log('[3] a second miss names the condition (and a session holding this binary when one is found), never "no display 0 image could be created"')
   {
     plan(['hang', 'hang', 'ok'])
     const started = Date.now()
@@ -149,7 +149,7 @@ if (DARWIN) {
     const seen = events()
     check('the answer is a busy refusal', !answer.ok && answer.error.kind === 'busy', JSON.stringify(answer))
     const note = answer.ok ? '' : answer.error.note
-    check('its words name the cancelled connection, the same binary, the granted permission and the remedy', note.startsWith('macOS cancelled the screen-capture connection because another process running the same Mercury node binary holds it') && note.includes('Screen Recording is granted') && note.endsWith('end that process or wait for it to finish, give macOS about fifteen seconds, then retry'), note)
+    check('its words name the cancelled connection, the same binary, the granted permission and the remedy', note.startsWith('macOS cancelled the screen-capture connection because another process running the same Mercury node binary holds it') && note.includes('Screen Recording is granted') && / — end (that session|the other Mercury process that took a screenshot) or wait for it to finish, give macOS about fifteen seconds, then retry$/.test(note), note)
     check('the old sentences are gone from this road', !note.includes('no display') && !note.includes('has no image'), note)
     check('exactly two children were started and both ended at the deadline (no third attempt; about 5–7 s in all)', seen.length === 2 && elapsed >= 5_000 && elapsed < 8_000, `${elapsed} ms · ${JSON.stringify(seen)}`)
   }

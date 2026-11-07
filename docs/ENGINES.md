@@ -788,8 +788,8 @@ the first request rounded up to 16k and never under 64k, and the words say so).
 The automatic choice tops out at 128k (`cap`) wherever a trained maximum or the
 memory fit decides it; it passes 128k only for a request that is itself larger,
 for a served window already covering twice the request when no trained maximum
-is stated, or for a larger window the server already holds (adopted, so the
-runner is not reloaded): a 27B whose 256k fits the arithmetic crawled at it on
+is stated, or for a larger window the server already holds (adopted on Ollama, so the
+runner is not reloaded; LM Studio reloads to the chosen window): a 27B whose 256k fits the arithmetic crawled at it on
 a 48 GiB Mac and ran at 128k; `trained
 max` or a number in `/config` pins a larger window, and the words say what
 fits. The rail's ctx row names the reason (`max` · `fit` · `cap` · `set` · `srv`), the context
