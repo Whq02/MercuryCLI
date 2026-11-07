@@ -5,6 +5,7 @@ import type { NormalizedMessage } from '../../types/message.js'
 export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'command_permissions',
   'agent_mention',
+  'samples_road',
   'budget_usd',
   'critical_system_reminder',
   'edited_image_file',

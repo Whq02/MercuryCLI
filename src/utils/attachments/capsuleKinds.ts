@@ -12,6 +12,7 @@ const capsuleKinds = {
   compact_file_reference: { section: 'Files', cadence: 'event' },
   directory: { section: 'Mentions', cadence: 'event' },
   agent_mention: { section: 'Mentions', cadence: 'event' },
+  samples_road: { section: 'Mentions', cadence: 'event' },
   mcp_resource: { section: 'Mentions', cadence: 'event' },
   nested_memory: { section: 'Instructions', cadence: 'state' },
   skill_listing: { section: 'Skills', cadence: 'state' },

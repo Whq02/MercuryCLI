@@ -69,6 +69,7 @@ type ContextBodies = {
 
 type CapabilityBodies = {
   agent_mention: { agentType: string }
+  samples_road: { on: boolean }
   agent_roster: { rows: AgentRosterRow[] }
   dynamic_skill: { skillDir: string; skillNames: string[]; displayPath: string }
   invoked_skills: { skills: Array<{ name: string; path: string; content: string }> }

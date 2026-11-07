@@ -126,7 +126,8 @@ const evalToolDef = buildTool({
   },
   wireDescription(fullPrompt: string) {
     const languages = fullPrompt.split('Languages in this session:\n')[1]?.split('\n\n')[0] ?? ''
-    return `Runs one code cell in a retained Python or JavaScript runtime and returns its value, output and errors. State is kept per agent, language and working directory, and reaped after ${EVAL_IDLE_TTL_MS / 60_000} minutes idle; cells in one message run in order. Helpers inside a cell call session tools, launch a crewmate, run a model completion, read and write files and display rich output; their signatures arrive on first use.
+    const samples = fullPrompt.includes('`sample({name') ? ' With Samples on in this session, `sample()` in a cell publishes a versioned page to the operator\'s browser, listed under /samples: the road when the operator asks to see a sample, page, mockup or report.' : ''
+    return `Runs one code cell in a retained Python or JavaScript runtime and returns its value, output and errors. State is kept per agent, language and working directory, and reaped after ${EVAL_IDLE_TTL_MS / 60_000} minutes idle; cells in one message run in order. Helpers inside a cell call session tools, launch a crewmate, run a model completion, read and write files and display rich output; their signatures arrive on first use.${samples}
 ${languages}`
   },
   getActivityDescription(input?: Partial<EvalToolInput>) {

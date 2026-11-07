@@ -21,6 +21,7 @@ import { isTaskToolsEnabled } from '../tasks.js'
 import { createUserMessage } from './factories.js'
 import { isAdvisorOrigin } from './noticeRows.js'
 import { wrapCommandText, wrapInSystemReminder, wrapMessagesInSystemReminder } from './text.js'
+import { samplesRoadText } from '../attachments/samplesRoad.js'
 
 type Kind = Attachment['type']
 type Of<K extends Kind> = Extract<Attachment, { type: K }>
@@ -199,6 +200,7 @@ const renderers: Renderers = {
   task_reminder: taskRows,
   agent_roster: rosterRows,
   agent_mention: item => reminders(`The user's message names the agent "${item.agentType}" — invoke that agent for this work, passing it the context it needs.`),
+  samples_road: item => reminders(samplesRoadText(item.on)),
   invoked_skills: item => item.skills.length ? reminders('These skills were invoked earlier in the session and still bind — keep following them:\n\n' + item.skills.map(skill => `### ${skill.name} (${skill.path})\n\n${skill.content}`).join('\n\n---\n\n')) : [],
   skill_listing: skillListing,
   nested_memory: item => reminders(`Instruction file ${item.content.path} (it governs its folder):\n\n${item.content.content}`),

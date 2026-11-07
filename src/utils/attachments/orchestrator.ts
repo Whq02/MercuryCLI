@@ -59,6 +59,7 @@ import { getUserContextAttachment } from './userContext.js'
 import { firstTurnUserContext } from '../api.js'
 import { getSystemContext, getUserContext } from '../../context.js'
 import { getToolManualAttachments } from './toolManuals.js'
+import { samplesRoadAttachment } from './samplesRoad.js'
 
 export async function getAttachments(
   input: string | null,
@@ -101,6 +102,7 @@ export async function getAttachments(
           () => processMcpResourceAttachments(input, context),
           { inputScoped: true },
         ),
+        maybe('samples_road', () => Promise.resolve(samplesRoadAttachment(input)), { inputScoped: true }),
         maybe(
           'agent_mentions',
           () =>
