@@ -780,8 +780,11 @@ thread, crewmates and workflow crewmates alike, so a crewmate never reloads the
 runner; when the machine's memory cannot be read because the server states no
 geometry or the read fails, the window comes out larger: the
 trained maximum when the model states one, else the served window, else twice
-the first request rounded up to 16k and never under 64k, and the words say so);
-the rail's ctx row names the reason (`max` · `fit` · `set` · `srv`), the context
+the first request rounded up to 16k and never under 64k, and the words say so).
+The automatic choice tops out at 128k on either road (`cap`): a 27B whose 256k
+fits the arithmetic crawled at it on a 48 GiB Mac and ran at 128k; `trained
+max` or a number in `/config` pins a larger window, and the words say what
+fits. The rail's ctx row names the reason (`max` · `fit` · `cap` · `set` · `srv`), the context
 gauge and the model gauge read the loaded server window while the request
 budgets the requested one, and the deck's ctx row carries the figures; `server default` leaves the choice to the
 server (Ollama loads the model and `/api/ps` states the figure); `32k` · `64k`
@@ -800,7 +803,12 @@ honoured, and a smaller stale runner is reloaded once, up to the full window),
 and the row names it as the server's; LM Studio takes it
 when the model is loaded (`POST /api/v1/models/load {model, context_length}`);
 vLLM and llama.cpp fix their window at server start, so the row shows the
-served figure and reads as not applicable. `/localsetup` pulls a GGUF from
+served figure and reads as not applicable. The pre-warm sends the first
+turn's prefix for one token when a chat opens on an Ollama model and when
+`/model` switches to an Ollama model that has not yet served the conversation,
+so the weights are loaded while nobody is waiting; a model that has served the
+conversation is not pre-warmed again, and the cache the server holds for it
+stays whole. `/localsetup` pulls a GGUF from
 Hugging Face into the Bank or starts one already in the Bank on `llama-server`
 (`127.0.0.1:8080`, registered as `local/<name>`, passing `--spec-type
 draft-mtp` when the model carries NextN/MTP tensors), or when no local server

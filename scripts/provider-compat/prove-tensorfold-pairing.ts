@@ -101,10 +101,44 @@ if (!dnssd) {
   check('a loopback Bonjour browse lists the announcement by name', mine !== undefined, `found ${found.length}: ${found.map(row => row.name).join(', ')}`)
   check('the browse resolves the pairing port and the TXT facts', mine !== undefined && mine.port === live.port && mine.txt.model === 'qwen3.8-27b' && mine.txt.window === '131072' && mine.txt.version === '1.2.2' && mine.txt.engine === '8099' && mine.txt.pair === String(live.port) && mine.txt.keyed === '1', JSON.stringify(mine?.txt))
   check('the resolved host is a .local name, never printed here', mine !== undefined && /\.local$/.test(mine.host))
+  const leashPid = live.announcer?.leashPid
+  check('a leash runs beside the announcer: a shell that ends the announcement once this process is gone, a child of this process', leashPid !== undefined && Number(execFileSync('ps', ['-o', 'ppid=', '-p', String(leashPid)], { encoding: 'utf8' }).trim()) === process.pid, String(leashPid))
   await live.stop()
   await new Promise(resolve => setTimeout(resolve, 500))
   const gone = await announcer.browseAnnouncements({ browseMs: 1500, lookupMs: 1000 })
   check('after stop the announcement is gone', !gone.some(row => row.name === NAME))
+  const alive = (pid: number | undefined): boolean => {
+    if (pid === undefined) return false
+    try {
+      process.kill(pid, 0)
+      return true
+    } catch {
+      return false
+    }
+  }
+  check('stop ends the leash with the announcer', !alive(leashPid) && !alive(live.announcer?.pid))
+
+  section('§4 a Mercury process cut without warning (SIGKILL: a crash, a pool cut) leaves no announcement behind: the leash ends it')
+  const ORPHAN = `Mercury proof ${randomBytes(3).toString('hex')}`
+  const { spawn } = await import('node:child_process')
+  const script = `const a = await import(${JSON.stringify(join(process.cwd(), 'src/services/lan/announcer.ts'))}); const h = a.startAnnouncer({ name: ${JSON.stringify(ORPHAN)}, port: 8097, txt: { model: 'x' } }); console.log(JSON.stringify({ pid: h?.pid ?? null, leash: h?.leashPid ?? null })); setInterval(() => {}, 1000)`
+  const cut = spawn(process.execPath, ['-e', script], { cwd: process.cwd(), env: { ...process.env }, stdio: ['ignore', 'pipe', 'inherit'] })
+  const pids = await new Promise<{ pid: number | null; leash: number | null }>(resolve => {
+    let out = ''
+    cut.stdout.on('data', chunk => {
+      out += String(chunk)
+      const line = out.split('\n').find(row => row.startsWith('{'))
+      if (line !== undefined) resolve(JSON.parse(line) as { pid: number | null; leash: number | null })
+    })
+    setTimeout(() => resolve({ pid: null, leash: null }), 8_000)
+  })
+  check('the cut process announced (its announcer and leash have pids)', pids.pid !== null && pids.leash !== null, JSON.stringify(pids))
+  cut.kill('SIGKILL')
+  const deadline = Date.now() + 6_000
+  while (alive(pids.pid ?? undefined) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 250))
+  check('within seconds of the SIGKILL the announcer and its leash are both gone (an exit handler never runs on a kill; the base leaves dns-sd advertising under pid 1)', !alive(pids.pid ?? undefined) && !alive(pids.leash ?? undefined), `announcer alive ${String(alive(pids.pid ?? undefined))}, leash alive ${String(alive(pids.leash ?? undefined))}`)
+  if (alive(pids.pid ?? undefined)) try { process.kill(pids.pid!, 'SIGTERM') } catch {}
+  if (alive(pids.leash ?? undefined)) try { process.kill(pids.leash!, 'SIGTERM') } catch {}
 }
 
 console.log(`\nprove-tensorfold-pairing: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)

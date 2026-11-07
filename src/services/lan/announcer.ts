@@ -22,8 +22,13 @@ export interface Announcement {
 
 export interface AnnouncerHandle {
   pid: number | undefined
+  leashPid: number | undefined
   command: string
   stop(): void
+}
+
+export function announcerLeashCommand(announcerPid: number, parentPid: number): { file: string; args: string[] } {
+  return { file: 'sh', args: ['-c', `while kill -0 ${parentPid} 2>/dev/null; do sleep 2; done; kill ${announcerPid} 2>/dev/null`] }
 }
 
 export interface AnnouncerIo {
@@ -65,15 +70,31 @@ export function startAnnouncer(announcement: Announcement, io: AnnouncerIo = {})
   }
   child.on('error', () => {})
   child.unref?.()
+  let leash: ChildProcess | undefined
+  if (child.pid !== undefined) {
+    const held = announcerLeashCommand(child.pid, process.pid)
+    try {
+      leash = spawnImpl(held.file, held.args, { env: subprocessEnv(), stdio: ['ignore', 'ignore', 'ignore'], windowsHide: true })
+      leash.on('error', () => {})
+      leash.unref?.()
+    } catch {
+      leash = undefined
+    }
+  }
   const stopOnExit = (): void => {
     try {
       child.kill('SIGTERM')
+    } catch {
+    }
+    try {
+      leash?.kill('SIGTERM')
     } catch {
     }
   }
   process.once('exit', stopOnExit)
   return {
     pid: child.pid,
+    leashPid: leash?.pid,
     command: [command.file, ...command.args].join(' '),
     stop: () => {
       process.off('exit', stopOnExit)

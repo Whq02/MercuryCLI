@@ -1,4 +1,5 @@
 export const TENSORFOLD_WORDS = {
+  firstRunAsk: (label: string, download: string | null, load: string) => `first run: ↵ again ${download === null ? '' : `downloads ${download} and `}loads ${label} (${load}) into memory · esc leaves this machine as it is`,
   description: 'Serve a local model with TensorFold: install, pull, serve, stop, switch',
   view: 'tensorfold',
   group: 'TENSORFOLD',

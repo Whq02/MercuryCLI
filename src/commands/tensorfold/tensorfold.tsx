@@ -42,6 +42,8 @@ import { loopbackPortOf, readTensorFoldPanelFacts, servedAddress, type FactsIo, 
 import { refreshLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
 import { localServerProbingOff } from '../../services/localServer/localServerTruth.js'
 import { TENSORFOLD_WORDS as W } from './words.js'
+import { consumeFirstRunServeAsk } from '../../substrate/splashHandover.js'
+import { gibWords } from '../../services/localServer/localServerMemory.js'
 
 export const TENSORFOLD_REFRESH_MS = 1_000
 
@@ -148,6 +150,10 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
     case 'serve': {
       const row = inventoryRow(act.row.repo)
       if (row === undefined) return
+      if (consumeFirstRunServeAsk()) {
+        setTensorFoldNotice(W.firstRunAsk(row.label, row.state === 'on-disk' ? null : gibWords(row.checkpoint.downloadBytes), gibWords(row.checkpoint.weightsBytes)))
+        return
+      }
       if (facts.engine === null || facts.install?.kind === 'llamacpp') {
         if (facts.install === null || (facts.install.kind !== 'brew' && facts.install.kind !== 'archive' && facts.install.kind !== 'llamacpp')) return
         const installed = await installTensorFoldThen(facts.install, io)

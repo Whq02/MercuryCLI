@@ -32,6 +32,7 @@ guard.unref?.()
 const MODEL = 'qwen3.5:9b-q4_K_M'
 const PERSISTED = `local/${MODEL}`
 const MODEL_MAX = 262144
+const AUTO_CEILING = 131072
 const WIRE_BYTES_PER_TOKEN = 3.9
 const OWNER_BYTES_PER_TOKEN = 4.1
 const OLLAMA_OVER_WINDOW = 'the prompt is longer than the context length currently available to the model; shorten the prompt, adjust the context length in settings, or use a model with a longer context length'
@@ -275,20 +276,20 @@ section('§2 generous: a request that fits is never refused; the refusal fires o
   __resetLocalDiscoveryForTest()
   await refreshLocalDiscovery({ force: true })
   check('L4 stands: with no held window, no served window and no trained max stated the guard is absent and nothing is refused, however large', callModel.localGuardWindow({ ...record(), modelMaxContext: undefined }) === undefined && callModel.localLaneProfileFor({ ...record(), modelMaxContext: undefined }).requestFitRefusal?.({ requestBytes: 4_000_000, estTokens: 1_000_000, toolCount: 78, wireModel: MODEL }) === undefined)
-  check('with the trained max stated and the model unloaded the guard reads the window the first send will carry (262144, chosen by Mercury) — a request past it refuses before the send, as the send itself would', callModel.localGuardWindow(record())?.tokens === MODEL_MAX && (callModel.localGuardWindow(record())?.sourceWords ?? '').includes('auto') && (callModel.localLaneProfileFor(record()).requestFitRefusal?.({ requestBytes: 4_000_000, estTokens: 1_000_000, toolCount: 78, wireModel: MODEL }) ?? '').includes(`${MODEL_MAX} tokens — chosen by Mercury`), j(callModel.localGuardWindow(record())))
+  check('with the trained max stated and the model unloaded the guard reads the window the first send will carry (131072, the automatic ceiling, chosen by Mercury) — a request past it refuses before the send, as the send itself would', callModel.localGuardWindow(record())?.tokens === AUTO_CEILING && (callModel.localGuardWindow(record())?.sourceWords ?? '').includes('auto') && (callModel.localLaneProfileFor(record()).requestFitRefusal?.({ requestBytes: 4_000_000, estTokens: 1_000_000, toolCount: 78, wireModel: MODEL }) ?? '').includes(`${AUTO_CEILING} tokens — chosen by Mercury`), j(callModel.localGuardWindow(record())))
 }
 
-section('§3 the unreadable machine (red on the base): with no memory truth the window comes out bigger, not smaller — the trained max, else the served window, else twice the request and never under 64k')
+section('§3 the unreadable machine (red on the base): with no memory truth the window comes out bigger, not smaller — the trained max capped at the 128k automatic ceiling, else the served window, else twice the request and never under 64k')
 {
   reset(undefined)
   const r = record()
   const params = paramsFor(fresh('say pong'))
   const estimate = await estimateOf(params)
   const decided = w.chooseLocalWindow(r, estimate, undefined, null)
-  check(`no truth, no geometry, the trained max stated: auto = 262144 (reason max), never twice the guess (the base: ${w.doubledRequestWindow(estimate, MODEL_MAX)} from a ${fmt(estimate)}-token guess)`, decided.window === MODEL_MAX && decided.reason === 'max', `${decided.window} · ${decided.reason} · ${decided.words}`)
-  check('the words say why: the trained max, the machine not read', decided.words.includes('trained max') && /not read|no memory truth/.test(decided.words), decided.words)
+  check(`no truth, no geometry, the trained max stated: auto = 131072 (reason cap, the automatic ceiling over the 262144 trained max), never twice the guess (the base: ${w.doubledRequestWindow(estimate, MODEL_MAX)} from a ${fmt(estimate)}-token guess)`, decided.window === AUTO_CEILING && decided.reason === 'cap', `${decided.window} · ${decided.reason} · ${decided.words}`)
+  check('the words say why: the ceiling over the trained max, the machine not read, the way to more', decided.words === "128k · the automatic ceiling (256k trained) — no KV geometry read for qwen3.5:9b-q4_K_M; the machine's memory was not read, so the window comes out bigger, not smaller; pin trained max or a number in /config for more", decided.words)
   const sent = await drive(params)
-  check('the first send rides /api/chat with num_ctx 262144 and the hold reads max', sent.chat !== undefined && sent.error === undefined && (sent.chat.body.options as { num_ctx?: number }).num_ctx === MODEL_MAX && w.heldLocalWindow(r)?.reason === 'max', j(sent.chat?.body.options))
+  check('the first send rides /api/chat with num_ctx 131072 and the hold reads cap', sent.chat !== undefined && sent.error === undefined && (sent.chat.body.options as { num_ctx?: number }).num_ctx === AUTO_CEILING && w.heldLocalWindow(r)?.reason === 'cap', j(sent.chat?.body.options))
   const servedOnly = { ...r, modelMaxContext: undefined, contextWindow: { tokens: 131072, source: 'served' as const } }
   const served = w.chooseLocalWindow(servedOnly as never, 15_000, undefined, null)
   check('no trained max, a served window of 128k: auto = the served window', served.window === 131072, `${served.window} · ${served.reason} · ${served.words}`)
@@ -319,7 +320,7 @@ section('§4 the warm follows: its estimate is the same rule and reads the roste
   const warmReal = composed === undefined ? 0 : Buffer.byteLength(JSON.stringify(composed.request), 'utf8') / WIRE_BYTES_PER_TOKEN
   check('the warm composes its prefix (not skipped)', composed !== undefined, 'skipped' in body ? body.skipped : '')
   check(`the warm's estimate is within 10% of its own request's bytes/${WIRE_BYTES_PER_TOKEN} (${composed?.toolCount ?? 0} schemas)`, composed !== undefined && within(composed.estTokens, warmReal, 0.1), composed === undefined ? 'no body' : `estimate ${fmt(composed.estTokens)} vs real ${fmt(warmReal)}`)
-  check('the warm\'s window is the same fallback the turn takes: num_ctx 262144 on the unread machine', composed !== undefined && composed.knobs.numCtx === MODEL_MAX, j(composed?.knobs))
+  check('the warm\'s window is the same fallback the turn takes: num_ctx 131072, the automatic ceiling, on the unread machine', composed !== undefined && composed.knobs.numCtx === AUTO_CEILING, j(composed?.knobs))
   const messages = fresh('say pong')
   const guess = callModel.localToolWireGuess(pool, messages, PERSISTED)
   const planned = await tip.localToolWireOf!(paramsFor(messages))

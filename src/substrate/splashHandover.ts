@@ -64,8 +64,18 @@ export function _setBootSurfaceIntentForTesting(v: BootSurfaceIntent | null): vo
 
 export const TENSORFOLD_DEEP_LINK = '/tensorfold'
 let tensorFoldDeepLinkArmed = false
+let firstRunServeAsk = false
+export function armFirstRunServeAsk(): void {
+  firstRunServeAsk = true
+}
+export function consumeFirstRunServeAsk(): boolean {
+  const asked = firstRunServeAsk
+  firstRunServeAsk = false
+  return asked
+}
 export function armTensorFoldDeepLink(): void {
   tensorFoldDeepLinkArmed = true
+  armFirstRunServeAsk()
   pendingBootSurfaceIntent = 'repl'
   requestCommandDispatch(TENSORFOLD_DEEP_LINK)
 }
