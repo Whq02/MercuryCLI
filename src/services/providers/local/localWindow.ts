@@ -1,5 +1,5 @@
 import { getGlobalConfig, saveGlobalConfig } from '../../../utils/config/globalConfig.js'
-import { fitLocalWindowOn, localWindowRefusal, localWindowRoomWarning, type LocalWindowFit, type LocalWindowMeasured } from '../../localServer/localWindowFit.js'
+import { fitLocalWindowOn, localWindowRefusal, localWindowRoomWarning, type LocalWindowFit, type LocalWindowFitRung, type LocalWindowMeasured } from '../../localServer/localWindowFit.js'
 import { cachedLocalMachineTruth, refreshLocalMachineTruth, type LocalServerTruth } from '../../localServer/localServerTruth.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import type { LocalContextSource, LocalModelRecord } from './localDiscovery.js'
@@ -144,13 +144,23 @@ export function chooseLocalWindow(record: LocalWindowUnreadRecord, estTokens: nu
     return { window, reason: 'set', words: `${fmt(window)} · your setting${refusal !== undefined ? ` — ${refusal}` : ''}`, ...(fit !== undefined ? { fit } : {}) }
   }
   const fit = localWindowFitOf(record, truth)
-  if (fit !== undefined) {
-    const capped = fit.ladder.filter(rung => rung.fits && rung.window <= LOCAL_WINDOW_AUTO_CEILING).at(-1)
-    if (fit.window > LOCAL_WINDOW_AUTO_CEILING && capped !== undefined) return { window: capped.window, reason: 'cap', words: `${fmt(capped.window)} · the automatic ceiling (${fmt(fit.window)} fits: ${fit.words.slice(fit.words.indexOf('· ') + 2)}) · ${AUTO_CEILING_RULE}`, fit }
-    return { window: fit.window, reason: fit.atMax ? 'max' : 'fit', words: fit.words, fit }
-  }
+  if (fit !== undefined) return { ...autoWindowOfFit(fit), fit }
   if (record.geometry === undefined || record.weightsBytes === undefined) return unreadMachineDecision(record, estTokens, `no KV geometry read for ${record.id}`)
   return unreadMachineDecision(record, estTokens, 'no memory truth read')
+}
+
+export interface LocalWindowAuto {
+  window: number
+  reason: LocalWindowReason
+  words: string
+  rung: LocalWindowFitRung
+}
+
+export function autoWindowOfFit(fit: LocalWindowFit): LocalWindowAuto {
+  const chosen = fit.ladder.find(rung => rung.window === fit.window) ?? fit.ladder[0]!
+  const capped = fit.ladder.filter(rung => rung.fits && rung.window <= LOCAL_WINDOW_AUTO_CEILING).at(-1)
+  if (fit.window > LOCAL_WINDOW_AUTO_CEILING && capped !== undefined) return { window: capped.window, reason: 'cap', words: `${fmt(capped.window)} · the automatic ceiling (${fmt(fit.window)} fits: ${fit.words.slice(fit.words.indexOf('· ') + 2)}) · ${AUTO_CEILING_RULE}`, rung: capped }
+  return { window: fit.window, reason: fit.atMax ? 'max' : 'fit', words: fit.words, rung: chosen }
 }
 
 export type LocalWindowApplication = 'request' | 'load' | 'server-start' | 'none'
@@ -328,11 +338,12 @@ export function localWindowValueWords(record: LocalWindowWordsRecord, setting: L
   const refusal = localWindowRefusalWords(record, setting, truth)
   const refused = refusal !== undefined ? ` — ${refusal}` : ''
   const fit = setting === undefined && (hold === undefined || hold.setting !== undefined) ? localWindowFitOf(record, truth) : undefined
+  const auto = fit === undefined ? undefined : autoWindowOfFit(fit)
   const chosen =
     hold !== undefined && hold.setting === setting && hold.window !== undefined
       ? ` → ${fmt(hold.window)} held this session (${LOCAL_WINDOW_REASON_WORDS[hold.reason]})`
-      : fit !== undefined
-        ? ` → ${fmt(fit.window)} (${fit.atMax ? LOCAL_WINDOW_REASON_WORDS.max : LOCAL_WINDOW_REASON_WORDS.fit})`
+      : auto !== undefined
+        ? ` → ${fmt(auto.window)} (${LOCAL_WINDOW_REASON_WORDS[auto.reason]})`
         : ''
   const road = application === 'request' ? 'num_ctx on every request' : 'applied at load'
   return `${localWindowSettingWords(setting)}${refused}${chosen}${served} · ${road}`
@@ -381,11 +392,12 @@ export function localWindowChoiceLine(record: LocalWindowWordsRecord, opts: { wi
         : 'not loaded'
   const trained = opts.wide && record.contextWindow === undefined && record.modelMaxContext !== undefined ? ` · max ${fmt(record.modelMaxContext)}` : ''
   const fit = hold === undefined || hold.setting !== undefined ? localWindowFitOf(record, truth) : undefined
+  const predicted = fit === undefined ? undefined : autoWindowOfFit(fit)
   const auto =
     hold !== undefined && hold.setting === undefined && hold.window !== undefined
       ? `auto → ${fmt(hold.window)} ${hold.reason} held`
-      : fit !== undefined
-        ? `auto → ${fmt(fit.window)} ${fit.atMax ? 'max' : 'fit'}`
+      : predicted !== undefined
+        ? `auto → ${fmt(predicted.window)} ${predicted.reason}`
         : 'auto'
   const number = rung === 'number' && typeof setting === 'number' ? fmt(setting) : 'number'
   const notice = localWindowRefusalWords(record, setting, truth) ?? localWindowRoomWords(record, setting, truth)
