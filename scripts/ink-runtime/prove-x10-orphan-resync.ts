@@ -16,4 +16,6 @@ for (const [tail, typed] of [['12;3', ''], ['<12', ''], ['1;2M', ''], [';;', '']
   assert.equal(decode(['[<0;1;1M' + tail])[0]?.kind, 'mouse')
   expectText(`SGR orphan then ${JSON.stringify(tail)}`, ['[<0;1;1M' + tail], typed)
 }
+expectText('a bare SGR triple inside typed text is dropped, the text around it types', ['abc 12;3;4M def'], 'abc  def')
+expectText('a bare SGR triple whose digits start mid-run is dropped whole', ['12345;3;4Mx'], 'x')
 console.log('X10 ORPHAN RESYNC HOLDS')
