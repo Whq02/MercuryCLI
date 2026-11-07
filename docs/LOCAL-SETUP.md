@@ -18,8 +18,9 @@ You can also open the file list directly with `/localsetup author/model-GGUF`.
 
 The list shows each complete GGUF quantisation, its download size and the
 projected memory for its context window. Split GGUF files appear as one choice.
-The window is the largest fitting 32k, 64k, 128k or 256k rung or the model's
-exact trained maximum, never above the model's trained maximum. The calculation uses the GGUF header's attention
+The window is the largest fitting 32k, 64k or 128k rung, never above the
+model's trained maximum; 256k only when you pin it in `/config`. The
+calculation uses the GGUF header's attention
 geometry and includes the vision projector's weights. A file without enough
 header information to calculate memory cannot be started through this dialog.
 
