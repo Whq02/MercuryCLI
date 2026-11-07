@@ -66,6 +66,7 @@ import { getCachedLocalDiscovery } from '../../services/providers/local/localDis
 import { resolveLocalAccount } from '../../services/providers/local/localAccounts.js'
 import { localServerName } from '../../services/providers/local/localCatalogue.js'
 import { TENSORFOLD_USAGE_SLOT, tensorFoldServing, tensorFoldServingLine, tensorFoldUsageLines } from '../../services/providers/local/tensorfoldUsage.js'
+import { localServerKind } from '../../constants/localPromptProfile.js'
 import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js'
 import { formatLaneSpend } from '../../cost-tracker.js'
 import { hostRentalUsage } from '../../services/host/costs.js'
@@ -771,7 +772,7 @@ function LocalUsageSection(): React.ReactNode {
   const spend = providerSessionSpend('local')
   const served = useFocusedServedModel()
   const tensorFold = tensorFoldServing(served ?? getEngineModel())
-  const tensorFoldLines = tensorFold === undefined ? [] : [tensorFoldServingLine(tensorFold), ...tensorFoldUsageLines()]
+  const tensorFoldLines = tensorFold !== undefined ? [tensorFoldServingLine(tensorFold), ...tensorFoldUsageLines()] : localServerKind(served ?? getEngineModel()) === 'tensorfold' ? tensorFoldUsageLines() : []
   return (
     <Box flexDirection="column">
       <Text bold>Local models usage</Text>

@@ -1,7 +1,7 @@
 import { gibWords, tokensWords } from '../../localServer/localServerMemory.js'
 import type { TensorFoldHost, TensorFoldServed } from '../../tensorfold/contracts.js'
 import type { CompatRuntimeReading, CompatUsage } from '../openaicompat/compatChatClient.js'
-import { localWireId } from './localCatalogue.js'
+import { localRecordFor, localWireId } from './localCatalogue.js'
 import { getCachedLocalDiscovery, type LocalDiscoverySnapshot } from './localDiscovery.js'
 import { tensorFoldHostAddress, tensorFoldHosts } from './tensorfoldHosts.js'
 
@@ -131,6 +131,8 @@ function sameModel(served: string, name: string): boolean {
 }
 
 export function tensorFoldServing(model: string, reads: TensorFoldServingReads = {}): TensorFoldServing | undefined {
+  const record = localRecordFor(model)
+  if (record !== undefined && record.server !== 'tensorfold') return undefined
   const wire = localWireId(model)
   const name = wire.toLowerCase()
   if (name === '') return undefined
