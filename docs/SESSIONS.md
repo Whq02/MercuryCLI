@@ -278,7 +278,7 @@ because there is nothing to resume.
 A session's name updates in three stages: when created, `"new session ·
 <project> · ready"`; at your first message, the first line of
 the prompt; and once its second reply lands, a short generated title (the
-session's own model, at its lowest effort tier, writes one once per session, and only when no custom title is set,
+session's own model, at `low` effort, writes one once per session, and only when no custom title is set,
 so a title you typed is never overwritten and title generation never runs twice; if
 generation cannot run offline or is refused, the existing title stays). A name
 never regresses to an earlier stage. `/title <words>` names the focused

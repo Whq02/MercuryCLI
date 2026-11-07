@@ -88,7 +88,7 @@ import { describeWireEffortProbeWindow, noteWireEffortAccepted, recordLiveQualif
 import { clearOpenaiUsageLimit, noteOpenaiSourceIdentity, openaiLimitWindow, recordOpenaiUsageLimit } from './openaiLimitState.js'
 import { refreshProviderUsage } from '../providerUsage.js'
 import { resolveEffortTruth, resolveWireRequestedEffort, type EffortAdjustedV1, type EffortValue } from '../../../utils/effort.js'
-import { lowestServedEffort } from '../../../utils/model/utilityModel.js'
+import { floorEffort } from '../../../utils/model/utilityModel.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
 import { streamOpenaiResponses, streamOpenaiResponsesRoad, type OpenaiLiveModel } from './openaiClient.js'
@@ -799,7 +799,7 @@ async function* openaiTurn(
   const effortContext = { agentId: options.agentId, pinned: options.effortPinned === true }
   const servedEfforts = candidate?.live.supportedReasoningEfforts ?? remembered?.vocabulary ?? []
   const floorWanted = options.effortPinned === true && options.effortValue === undefined && servedEfforts.length > 0
-  const effortValue = floorWanted ? (lowestServedEffort(servedEfforts) as EffortValue | undefined) : options.effortValue
+  const effortValue = floorWanted ? (floorEffort(servedEfforts) as EffortValue | undefined) : options.effortValue
   const requestedEffort = resolveWireRequestedEffort(modelId, effortValue, effortContext)
   const effortTruth = resolveEffortTruth(modelId, effortValue, effortContext)
   let profile: GptReasoningProfile = candidate

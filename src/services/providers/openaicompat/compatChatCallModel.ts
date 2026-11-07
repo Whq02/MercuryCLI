@@ -52,7 +52,7 @@ import {
   normalizeContentFromAPI,
 } from '../../../utils/messages.js'
 import { resolveEffortTruth, resolveWireRequestedEffort, type EffortValue } from '../../../utils/effort.js'
-import { lowestServedEffort } from '../../../utils/model/utilityModel.js'
+import { floorEffort } from '../../../utils/model/utilityModel.js'
 import { EFFORT_STAMP_NONE, EFFORT_STAMP_THINKING_OFF, effortStampOf, type EffortStampV1, type EffortWireFact } from '../../../utils/effortStamp.js'
 import { compatEffortWireFact, thinkingOffWireEffort } from './compatWire.js'
 import { isKimiK3WireModel, kimiReplayProjection, replayKimiHistory } from './kimiReplay.js'
@@ -533,7 +533,7 @@ export async function* compatChatCallModel(
   const effortView = effortVocabularyFor(modelId)
   const servedEfforts = effortView.kind === 'ladder' || effortView.kind === 'provider' ? effortView.vocabulary : []
   const floorWanted = options.effortPinned === true && options.effortValue === undefined && servedEfforts.length > 0
-  const askedEffort = floorWanted ? (lowestServedEffort(servedEfforts) as EffortValue | undefined) : options.effortValue
+  const askedEffort = floorWanted ? (floorEffort(servedEfforts) as EffortValue | undefined) : options.effortValue
   const effortContext = { agentId: options.agentId, pinned: options.effortPinned === true }
   const effortValue = resolveWireRequestedEffort(modelId, askedEffort, effortContext)
   const effortTruth = resolveEffortTruth(modelId, askedEffort, effortContext)

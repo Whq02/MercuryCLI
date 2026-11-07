@@ -731,13 +731,13 @@ resumes it.
 A session's side jobs (the chat's title, the away summary, the tool-use
 summaries, the state read, the feedback card, a hook's default model, the
 date parser and the fetch tool's summary) ride the main seat's own model at
-the lowest effort tier that model serves: `low` on the Anthropic ladder, the
-lowest word the account's live list serves on a GPT session, the smallest
-level on a road that grades its thinking, and no effort word on a road
-without effort control. No second model id is ever asked for, and the
+`low` effort: `low` wherever the road serves it (the Anthropic ladder, a GPT
+session's live list, GLM, a road that grades its thinking), the lowest word
+above `low` on a list without it (never `minimal` or `none`), and no effort
+word on a road without effort control. No second model id is ever asked for, and the
 session's effort dial (`/effort`, `MERCURY_EFFORT_LEVEL`) governs the turn,
-never a side job (the one case below excepted). A hook that names its own model runs that model at its
-lowest tier: the hook reads that road's model list first, within a bounded
+never a side job (the one case below excepted). A hook that names its own model runs that model at the
+same `low` floor: the hook reads that road's model list first, within a bounded
 wait, and when the list cannot be read in time a question rides the road's own
 default effort and a crewmate runs at the session's dial. The one exception is the
 helper you choose yourself: `Helper model` in `/config`
@@ -784,7 +784,8 @@ runner; when the machine's memory cannot be read because the server states no
 geometry or the read fails, the window comes out larger: the
 trained maximum when the model states one, else the served window, else twice
 the first request rounded up to 16k and never under 64k, and the words say so).
-The automatic choice tops out at 128k on either road (`cap`): a 27B whose 256k
+The automatic choice tops out at 128k (`cap`; the doubling road alone goes past
+it, to the request, when one request is itself larger): a 27B whose 256k
 fits the arithmetic crawled at it on a 48 GiB Mac and ran at 128k; `trained
 max` or a number in `/config` pins a larger window, and the words say what
 fits. The rail's ctx row names the reason (`max` · `fit` · `cap` · `set` · `srv`), the context

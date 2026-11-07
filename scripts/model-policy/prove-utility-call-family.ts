@@ -22,13 +22,13 @@ const srcText = (...p: string[]): string => readFileSync(join(ROOT, 'src', ...p)
 
 async function main(): Promise<void> {
   console.log('============================================================')
-  console.log(' every utility call rides the main seat at its lowest tier — proof')
+  console.log(' every utility call rides the main seat at low — proof')
   console.log('============================================================')
 
   delete process.env.MERCURY_MODEL
   delete process.env.MERCURY_EFFORT_LEVEL
 
-  const { lowestServedEffort, utilityCallFor } = await import('../../src/utils/model/utilityModel.js')
+  const { floorEffort, utilityCallFor } = await import('../../src/utils/model/utilityModel.js')
   const { openaiLightChoice } = await import('../../src/utils/model/providerFrontier.js')
   const { __resetOpenaiCatalogueForTest, refreshOpenaiCatalogue } = await import('../../src/services/providers/openai/openaiCatalogue.js')
   const { parseGptModelId } = await import('../../src/services/providers/openai/gptPins.js')
@@ -90,11 +90,15 @@ async function main(): Promise<void> {
     check('a model without effort control carries no floor', utilityCallFor('local/llama-3.3-70b').effortValue === undefined)
   }
 
-  section('§1b the floor is the lowest served word, and the light chooser stays pure for the refusal hint')
+  section('§1b the floor is low — the lowest served word at or above it, never minimal or none — and the light chooser stays pure for the refusal hint')
   {
-    check('the lowest served word by wire rank', lowestServedEffort(['high', 'low', 'medium']) === 'low' && lowestServedEffort(['xhigh', 'max']) === 'xhigh')
-    check('a served word below the ladder (minimal, none) outranks low', lowestServedEffort(['low', 'minimal']) === 'minimal' && lowestServedEffort(['none', 'low']) === 'none')
-    check('an empty vocabulary has no floor', lowestServedEffort([]) === undefined)
+    check('low when the list serves it, whatever the order', floorEffort(['high', 'low', 'medium']) === 'low' && floorEffort(['max', 'low']) === 'low')
+    check('the words below the ladder (minimal, none) never become the floor when low is served', floorEffort(['low', 'minimal']) === 'low' && floorEffort(['none', 'low']) === 'low' && floorEffort(['max', 'xhigh', 'high', 'medium', 'low', 'minimal', 'none']) === 'low')
+    check('a list without low takes the lowest word above it, never one below', floorEffort(['xhigh', 'max']) === 'xhigh' && floorEffort(['none', 'minimal', 'medium', 'high']) === 'medium')
+    check('a list with nothing at or above low takes the word nearest low from below (a model that barely reasons), its only word when there is one', floorEffort(['none']) === 'none' && floorEffort(['minimal', 'none']) === 'minimal' && floorEffort(['none', 'minimal']) === 'minimal')
+    check('an empty vocabulary has no floor', floorEffort([]) === undefined)
+    const glm = utilityCallFor('glm-5.2')
+    check('a GLM-5.2 seat (none … max served) rides at low, never none', glm.model === 'glm-5.2' && glm.effortValue === 'low', JSON.stringify(glm))
     const ceiling = parseGptModelId('gpt-6-astra')
     check('the light tier: the newest served plain row below the frontier', openaiLightChoice(['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.5', 'gpt-5.4'], ceiling) === 'gpt-5.5')
     check('the light tier falls to the next served plain row when gpt-5.5 is not served', openaiLightChoice(['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.4'], ceiling) === 'gpt-5.4')
@@ -134,9 +138,9 @@ async function main(): Promise<void> {
     const webFetch = srcText('tools', 'WebFetchTool', 'utils.ts')
     check('the WebFetch fallback leg rides the fallback model as itself at its own floor, pinned through the helper, never the slot', webFetch.includes('utilityCallFor(fallbackModel, { named: true })') && webFetch.includes('options: { ...baseOptions, ...call }'))
     const openaiTurn = srcText('services', 'providers', 'openai', 'openaiCallModel.ts')
-    check('the OpenAI road derives a wanted-but-unknown floor from the admitted list before the wire (a pinned value is never lowered)', openaiTurn.includes("const floorWanted = options.effortPinned === true && options.effortValue === undefined && servedEfforts.length > 0") && openaiTurn.includes('lowestServedEffort(servedEfforts)'))
+    check('the OpenAI road derives a wanted-but-unknown floor from the admitted list before the wire (a pinned value is never lowered)', openaiTurn.includes("const floorWanted = options.effortPinned === true && options.effortValue === undefined && servedEfforts.length > 0") && openaiTurn.includes('floorEffort(servedEfforts)'))
     const compatChat = srcText('services', 'providers', 'openaicompat', 'compatChatCallModel.ts')
-    check('the shared compat road derives a wanted-but-unknown floor from the vocabulary admitted before its resolution (the lanes that read their list before the request: Melious, xAI, Mistral, Gemini\'s plan road, local and the others that qualify first; OpenRouter, Nous and Gemini\'s key roads read nothing there, so a hook reads their list up front)', compatChat.includes("const floorWanted = options.effortPinned === true && options.effortValue === undefined && servedEfforts.length > 0") && compatChat.includes('lowestServedEffort(servedEfforts)') && compatChat.includes('const floorWanted') && compatChat.includes('resolveWireRequestedEffort(modelId, askedEffort') && compatChat.indexOf('const floorWanted') < compatChat.indexOf('resolveWireRequestedEffort(modelId, askedEffort'))
+    check('the shared compat road derives a wanted-but-unknown floor from the vocabulary admitted before its resolution (the lanes that read their list before the request: Melious, xAI, Mistral, Gemini\'s plan road, local and the others that qualify first; OpenRouter, Nous and Gemini\'s key roads read nothing there, so a hook reads their list up front)', compatChat.includes("const floorWanted = options.effortPinned === true && options.effortValue === undefined && servedEfforts.length > 0") && compatChat.includes('floorEffort(servedEfforts)') && compatChat.includes('const floorWanted') && compatChat.includes('resolveWireRequestedEffort(modelId, askedEffort') && compatChat.indexOf('const floorWanted') < compatChat.indexOf('resolveWireRequestedEffort(modelId, askedEffort'))
     check('the crewmate hook reads the named road\'s catalogue before noting the floor as the child\'s own word', crewmateRunner.includes('await readCatalogueIfPending(declaredRouteOf(run.model ?? getEngineModel())') && crewmateRunner.includes('readCatalogueIfPending(') && crewmateRunner.includes('utilityCallFor(run.model, { named: true })') && crewmateRunner.indexOf('readCatalogueIfPending(') < crewmateRunner.indexOf('utilityCallFor(run.model, { named: true })'))
     check('the hook answer schema is emitted as draft-07, the dialect the verdict tool\'s engine compiles, and carries no $schema meta-reference onto any wire', questionRunner.includes("target: 'draft-07'") && questionRunner.includes('const { $schema: _dialect, ...shape } = toJSONSchema('))
     check('the question hook reads the named road\'s catalogue before computing the floor (a bounded read; OpenRouter, Nous and Gemini\'s key roads read nothing before the request themselves)', questionRunner.includes('await readCatalogueIfPending(declaredRouteOf(run.model ?? getEngineModel())') && questionRunner.includes('readCatalogueIfPending(') && questionRunner.includes('utilityCallFor(run.model, { named: true })') && questionRunner.indexOf('readCatalogueIfPending(') < questionRunner.indexOf('utilityCallFor(run.model, { named: true })'))

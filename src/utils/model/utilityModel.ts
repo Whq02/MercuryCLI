@@ -20,9 +20,9 @@ function effortRank(word: string): number {
   return ladder === -1 ? Number.POSITIVE_INFINITY : ladder + WIRE_EFFORT_RANK.low!
 }
 
-export function lowestServedEffort(vocabulary: readonly string[]): string | undefined {
+export function floorEffort(vocabulary: readonly string[]): string | undefined {
   const ranked = vocabulary.filter(word => Number.isFinite(effortRank(word))).sort((a, b) => effortRank(a) - effortRank(b))
-  return ranked[0] ?? vocabulary[0]
+  return ranked.find(word => effortRank(word) >= WIRE_EFFORT_RANK.low!) ?? ranked.at(-1) ?? vocabulary[0]
 }
 
 function servingLocalHelper(): string | undefined {
@@ -39,7 +39,7 @@ export function utilityCallFor(seatModel: string = getEngineModel(), reads: { na
   const model = reads.named !== true ? (servingLocalHelper() ?? seatModel) : seatModel
   const route = declaredRouteOf(model)
   const view = effortVocabularyFor(model)
-  const floor = view.kind === 'ladder' || view.kind === 'provider' ? lowestServedEffort(view.vocabulary) : undefined
+  const floor = view.kind === 'ladder' || view.kind === 'provider' ? floorEffort(view.vocabulary) : undefined
   const thinkingConfig: ThinkingConfig = route === null || route === 'anthropic' ? { type: 'disabled' } : { type: 'adaptive' }
   return {
     model,
