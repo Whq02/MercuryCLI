@@ -102,6 +102,19 @@ export interface DesktopFocusedText {
   truncated?: boolean
 }
 
+export interface DesktopScrollReceipt {
+  scrolled: boolean
+  road: 'action' | 'wheel' | null
+  frame: DesktopBounds | null
+  note: string | null
+}
+
+export interface DesktopValueReceipt {
+  set: boolean
+  value: string | null
+  note: string | null
+}
+
 export interface DesktopTree {
   elements: DesktopTreeElement[]
   focused?: DesktopTreeElement | null
@@ -177,6 +190,8 @@ export interface DesktopDriver {
   captureRegion?(display: number, bounds: DesktopBounds, signal: AbortSignal): Promise<DesktopAnswer<DesktopCapture>>
   focusedText?(app: DesktopApplication, signal: AbortSignal): Promise<DesktopAnswer<DesktopFocusedText | null>>
   readElement?(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopFocusedText | null>>
+  scrollToVisible?(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopScrollReceipt>>
+  setValue?(app: DesktopApplication, element: DesktopTreeElement, text: string, signal: AbortSignal): Promise<DesktopAnswer<DesktopValueReceipt>>
   readClipboard?(signal: AbortSignal): Promise<DesktopAnswer<string>>
   findApplication?(name: string): Promise<DesktopAnswer<DesktopApplication>>
   activateApplication?(app: DesktopApplication, signal: AbortSignal): Promise<DesktopAnswer<DesktopApplication>>

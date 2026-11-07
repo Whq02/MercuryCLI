@@ -47,6 +47,18 @@ pub const TYPE_GAP_CAP_MS: u32 = 1000;
 pub const ABORTED: &str = "aborted";
 pub const TREE_BUDGET_MS: u64 = 6000;
 pub const TREE_VALUE_CHARS: usize = 300;
+pub const ELEMENT_NOT_UNIQUE: &str = "the element is no longer unique in a complete window tree — read tree again";
+pub const SCROLL_UNSUPPORTED: &str = "the element does not scroll into view through the accessibility API — scroll with the wheel instead";
+pub const VALUE_UNSUPPORTED: &str = "the element does not accept a value through the accessibility API — type into it instead";
+pub const SECURE_NOT_READ_BACK: &str = "a secure field is not read back";
+pub const WHEEL_FAILED: &str = "the element has no scroll-into-view action and the wheel did not bring it into view";
+pub const NOT_IN_FRONT: &str = "the application is not in front — focus it first";
+pub const ROAD_ACTION: &str = "action";
+pub const ROAD_WHEEL: &str = "wheel";
+pub const SCROLL_SETTLE_MS: u64 = 60;
+pub const SCROLL_SETTLE_READS: u32 = 5;
+pub const SCROLL_WHEEL_STEPS: u32 = 24;
+pub const SCROLL_WHEEL_LINES: i32 = 5;
 
 #[napi(object)]
 #[derive(Clone)]
@@ -145,6 +157,188 @@ pub struct TreeAnswer {
 impl TreeAnswer {
     pub fn refused(reason: &str) -> TreeAnswer {
         TreeAnswer { elements: Vec::new(), focused: None, truncated: false, reason: Some(reason.to_string()), scope: None, web_content: None, web_accessibility: None }
+    }
+}
+
+pub fn clipped(text: String, cap: usize) -> String {
+    if text.chars().count() <= cap {
+        return text;
+    }
+    let mut kept: String = text.chars().take(cap).collect();
+    kept.push('…');
+    kept
+}
+
+pub fn same_frame(a: &Option<BoundsRecord>, b: &Option<BoundsRecord>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => a.x == b.x && a.y == b.y && a.width == b.width && a.height == b.height,
+        _ => false,
+    }
+}
+
+fn hidden_along(start: f64, length: f64, from: f64, extent: f64) -> i32 {
+    let end = start + length;
+    let far = from + extent;
+    if length <= 1.0 {
+        if end >= far - 1.0 { 1 } else if start <= from + 1.0 { -1 } else { 0 }
+    } else if length >= extent {
+        if start > far - 1.0 { 1 } else if end < from + 1.0 { -1 } else { 0 }
+    } else if end > far - 1.0 {
+        1
+    } else if start < from + 1.0 {
+        -1
+    } else {
+        0
+    }
+}
+
+pub fn hidden_by(frame: &BoundsRecord, viewport: &BoundsRecord) -> (i32, i32) {
+    (hidden_along(frame.x, frame.width, viewport.x, viewport.width), hidden_along(frame.y, frame.height, viewport.y, viewport.height))
+}
+
+pub fn wheel_words(x: f64, y: f64) -> String {
+    format!("scrolled with the wheel at ({x:.0}, {y:.0}) — the cursor moved")
+}
+
+pub fn covered_words(x: f64, y: f64) -> String {
+    format!("the wheel stopped: the window under the cursor at ({x:.0}, {y:.0}) belongs to another application — bring the application in front")
+}
+
+pub fn number_words(number: f64) -> String {
+    if number.fract() == 0.0 && number.abs() < 1e15 { format!("{}", number as i64) } else { format!("{number}") }
+}
+
+pub const WEB_FRAMEWORKS: [&str; 2] = ["Chrome", "Gecko"];
+
+pub fn windows_control_type(kind: i32) -> &'static str {
+    match kind {
+        50000 => "Button",
+        50001 => "Calendar",
+        50002 => "CheckBox",
+        50003 => "ComboBox",
+        50004 => "Edit",
+        50005 => "Hyperlink",
+        50006 => "Image",
+        50007 => "ListItem",
+        50008 => "List",
+        50009 => "Menu",
+        50010 => "MenuBar",
+        50011 => "MenuItem",
+        50012 => "ProgressBar",
+        50013 => "RadioButton",
+        50014 => "ScrollBar",
+        50015 => "Slider",
+        50016 => "Spinner",
+        50017 => "StatusBar",
+        50018 => "Tab",
+        50019 => "TabItem",
+        50020 => "Text",
+        50021 => "ToolBar",
+        50022 => "ToolTip",
+        50023 => "Tree",
+        50024 => "TreeItem",
+        50025 => "Custom",
+        50026 => "Group",
+        50027 => "Thumb",
+        50028 => "DataGrid",
+        50029 => "DataItem",
+        50030 => "Document",
+        50031 => "SplitButton",
+        50032 => "Window",
+        50033 => "Pane",
+        50034 => "Header",
+        50035 => "HeaderItem",
+        50036 => "Table",
+        50037 => "TitleBar",
+        50038 => "Separator",
+        50039 => "SemanticZoom",
+        50040 => "AppBar",
+        _ => "Unknown",
+    }
+}
+
+pub fn windows_role(kind: i32, framework: &str, password: bool, scrolls: bool, dialog: bool) -> String {
+    let word = match kind {
+        50000 => "AXButton",
+        50002 => "AXCheckBox",
+        50003 => "AXComboBox",
+        50004 => "AXTextField",
+        50005 => "AXLink",
+        50006 => "AXImage",
+        50007 | 50024 | 50029 => "AXRow",
+        50008 => "AXList",
+        50009 => "AXMenu",
+        50010 => "AXMenuBar",
+        50011 => "AXMenuItem",
+        50012 => "AXProgressIndicator",
+        50013 => "AXRadioButton",
+        50014 => "AXScrollBar",
+        50015 => "AXSlider",
+        50016 => "AXIncrementor",
+        50018 => "AXTabGroup",
+        50020 => "AXStaticText",
+        50021 => "AXToolbar",
+        50022 => "AXHelpTag",
+        50023 => "AXOutline",
+        50025 | 50026 | 50033 => "AXGroup",
+        50028 | 50036 => "AXTable",
+        50030 => if WEB_FRAMEWORKS.contains(&framework) { "AXWebArea" } else { "AXTextArea" },
+        50031 => "AXMenuButton",
+        50032 => "AXWindow",
+        50038 => "AXSplitter",
+        _ => windows_control_type(kind),
+    };
+    match (word, password, scrolls, dialog) {
+        ("AXTextField", true, _, _) => "AXTextField (AXSecureTextField)".to_string(),
+        ("AXGroup", _, true, false) => "AXScrollArea".to_string(),
+        ("AXWindow", _, _, true) => "AXWindow (AXDialog)".to_string(),
+        (_, _, _, true) => format!("{word} (AXApplicationDialog)"),
+        _ => word.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod windows_role_tests {
+    use super::windows_role;
+    #[test]
+    fn control_types_map_onto_the_tool_s_role_words_where_one_exists() {
+        assert_eq!(windows_role(50000, "Win32", false, false, false), "AXButton");
+        assert_eq!(windows_role(50004, "Chrome", false, false, false), "AXTextField");
+        assert_eq!(windows_role(50004, "Chrome", true, false, false), "AXTextField (AXSecureTextField)");
+        assert_eq!(windows_role(50020, "Chrome", false, false, false), "AXStaticText");
+        assert_eq!(windows_role(50030, "Chrome", false, true, false), "AXWebArea");
+        assert_eq!(windows_role(50030, "Gecko", false, false, false), "AXWebArea");
+        assert_eq!(windows_role(50030, "Win32", false, true, false), "AXTextArea");
+        assert_eq!(windows_role(50033, "Win32", false, true, false), "AXScrollArea");
+        assert_eq!(windows_role(50033, "Win32", false, false, false), "AXGroup");
+        assert_eq!(windows_role(50032, "Win32", false, false, true), "AXWindow (AXDialog)");
+        assert_eq!(windows_role(50025, "Chrome", false, false, true), "AXGroup (AXApplicationDialog)");
+        assert_eq!(windows_role(50019, "XAML", false, false, false), "TabItem");
+        assert_eq!(windows_role(0, "", false, false, false), "Unknown");
+    }
+}
+
+#[cfg(test)]
+mod scroll_tests {
+    use super::{hidden_by, same_frame, BoundsRecord};
+    #[test]
+    fn an_edge_clamped_strip_scrolls_down_and_a_frame_above_scrolls_up() {
+        let viewport = BoundsRecord { x: 0.0, y: 30.0, width: 1440.0, height: 956.0 };
+        assert_eq!(hidden_by(&BoundsRecord { x: 1050.0, y: 985.0, width: 105.0, height: 1.0 }, &viewport), (0, 1));
+        assert_eq!(hidden_by(&BoundsRecord { x: 1050.0, y: 30.0, width: 105.0, height: 1.0 }, &viewport), (0, -1));
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 400.0, width: 300.0, height: 1.0 }, &viewport), (0, 0));
+        assert_eq!(hidden_by(&BoundsRecord { x: 1439.0, y: 400.0, width: 1.0, height: 40.0 }, &viewport), (1, 0));
+        assert_eq!(hidden_by(&BoundsRecord { x: 0.0, y: 400.0, width: 1.0, height: 40.0 }, &viewport), (-1, 0));
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 1200.0, width: 300.0, height: 20.0 }, &viewport), (0, 1));
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 10.0, width: 300.0, height: 20.0 }, &viewport), (0, -1));
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 400.0, width: 300.0, height: 20.0 }, &viewport), (0, 0));
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 100.0, width: 300.0, height: 3000.0 }, &viewport), (0, 0));
+        assert_eq!(hidden_by(&BoundsRecord { x: 100.0, y: 2000.0, width: 300.0, height: 3000.0 }, &viewport), (0, 1));
+        assert_eq!(hidden_by(&BoundsRecord { x: 1500.0, y: 400.0, width: 300.0, height: 20.0 }, &viewport), (1, 0));
+        assert!(same_frame(&None, &None) && !same_frame(&None, &Some(viewport.clone())));
+        assert_eq!(super::number_words(1.0), "1");
+        assert_eq!(super::number_words(0.5), "0.5");
     }
 }
 
@@ -422,8 +616,8 @@ pub fn accessibility_tree(pid: u32, max_depth: u32, max_count: u32, scope: Optio
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = (scope, request_web_accessibility, observation);
-        imp::accessibility_tree(pid as i32, max_depth, max_count)
+        let _ = request_web_accessibility;
+        imp::accessibility_tree(pid as i32, max_depth, max_count, scope.as_deref().unwrap_or("app"), observation.unwrap_or(false))
     }
 }
 
@@ -440,6 +634,33 @@ pub struct ElementText {
 pub fn read_element(pid: u32, element: TreeElement) -> Result<Option<ElementText>> {
     input_preflight().map_err(reason)?;
     imp::read_element(pid as i32, &element).map_err(reason)
+}
+
+#[napi(object)]
+pub struct ScrollAnswer {
+    pub scrolled: bool,
+    pub road: Option<String>,
+    pub frame: Option<BoundsRecord>,
+    pub reason: Option<String>,
+}
+
+#[napi(object)]
+pub struct ValueAnswer {
+    pub set: bool,
+    pub value: Option<String>,
+    pub reason: Option<String>,
+}
+
+#[napi]
+pub fn scroll_to_visible(pid: u32, element: TreeElement, wheel: Option<bool>) -> Result<ScrollAnswer> {
+    input_preflight().map_err(reason)?;
+    imp::scroll_to_visible(pid as i32, &element, wheel.unwrap_or(false)).map_err(reason)
+}
+
+#[napi]
+pub fn set_value(pid: u32, element: TreeElement, text: String) -> Result<ValueAnswer> {
+    input_preflight().map_err(reason)?;
+    imp::set_value(pid as i32, &element, &text).map_err(reason)
 }
 
 #[cfg(target_os = "macos")]

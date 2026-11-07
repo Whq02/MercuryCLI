@@ -24,11 +24,13 @@ import {
   type DesktopModifier,
   type DesktopPermissions,
   type DesktopPoint,
+  type DesktopScrollReceipt,
   type DesktopSessionKind,
   type DesktopTree,
   type DesktopTreeElement,
   type DesktopTreeLimits,
   type DesktopTypeOptions,
+  type DesktopValueReceipt,
 } from './driver.js'
 
 interface FakeTreeNode {
@@ -38,6 +40,9 @@ interface FakeTreeNode {
   frame?: DesktopBounds | null
   children?: FakeTreeNode[]
   focused?: boolean
+  actions?: string[]
+  settable?: boolean
+  wheel?: boolean
 }
 
 interface FakeSceneSwitch {
@@ -97,6 +102,8 @@ type FakeActKind =
   | 'keyDown'
   | 'keyUp'
   | 'typeText'
+  | 'scrollToVisible'
+  | 'setValue'
   | 'releaseAll'
 
 type FakeActOutcome = 'done' | 'aborted'
@@ -116,8 +123,15 @@ const SESSION_KINDS: readonly DesktopSessionKind[] = ['desktop', 'no-display', '
 const GRANTS: readonly DesktopGrant[] = ['granted', 'denied', 'not-required', 'unknown']
 const BUTTONS: readonly DesktopButton[] = ['left', 'right', 'middle']
 const MODIFIERS: readonly DesktopModifier[] = ['shift', 'control', 'alt', 'super']
-const SCENE_ACTS: ReadonlySet<FakeActKind> = new Set(['mouseMove', 'mouseDown', 'mouseUp', 'click', 'drag', 'scroll', 'keyTap', 'keyDown', 'keyUp', 'typeText'])
+const SCENE_ACTS: ReadonlySet<FakeActKind> = new Set(['mouseMove', 'mouseDown', 'mouseUp', 'click', 'drag', 'scroll', 'keyTap', 'keyDown', 'keyUp', 'typeText', 'scrollToVisible', 'setValue'])
 const GRANT_REMEDY = 'the fake driver reads its grants from the scene: set permissions.screenCapture and permissions.input to granted and permissions.session to desktop'
+const ELEMENT_NOT_UNIQUE = 'the element is no longer unique in a complete window tree — read tree again'
+const WHEEL_FAILED = 'the element has no scroll-into-view action and the wheel did not bring it into view'
+const VALUE_UNSUPPORTED = 'the element does not accept a value through the accessibility API — type into it instead'
+const SECURE_NOT_READ_BACK = 'a secure field is not read back'
+const wheelWords = (x: number, y: number): string => `scrolled with the wheel at (${x}, ${y}) — the cursor moved`
+const SCROLL_ACTION = 'AXScrollToVisible'
+const VALUE_ROLES = /^AX(TextField|TextArea|SearchField|ComboBox)/
 const CANVAS_BACKGROUND = Buffer.from([30, 30, 30, 255])
 const TYPE_GAP_DEFAULT_MS = 4
 
@@ -170,6 +184,9 @@ function treeProblem(value: unknown, at: string): string | null {
     if (!(node.value === null || node.value === undefined || isText(node.value))) return `${at}[${i}].value must be a string or null`
     const frame = boundsProblem(node.frame ?? null, `${at}[${i}].frame`)
     if (frame !== null) return frame
+    if (node.actions !== undefined && !(Array.isArray(node.actions) && node.actions.every(isText))) return `${at}[${i}].actions must be a list of action names`
+    if (node.settable !== undefined && typeof node.settable !== 'boolean') return `${at}[${i}].settable must be true or false`
+    if (node.wheel !== undefined && typeof node.wheel !== 'boolean') return `${at}[${i}].wheel must be true or false`
     if (node.children !== undefined) {
       const problem = treeProblem(node.children, `${at}[${i}].children`)
       if (problem !== null) return problem
@@ -444,6 +461,8 @@ function composeCapture(text: string, width: number, height: number, scale: numb
 
 const answer = <T>(value: T): DesktopAnswer<T> => ({ ok: true, value })
 const refusal = <T>(error: DesktopError): DesktopAnswer<T> => ({ ok: false, error })
+const titleOf = (node: FakeTreeNode): string | null => (isText(node.title) && node.title !== '' ? node.title : null)
+const sceneNodes = (nodes: FakeTreeNode[]): FakeTreeNode[] => nodes.flatMap(node => [node, ...sceneNodes(node.children ?? [])])
 const inputError = (note: string): DesktopError => ({ kind: 'input', note })
 const grantHolds = (grant: DesktopGrant): boolean => grant === 'granted' || grant === 'not-required'
 const inside = (point: DesktopPoint, bounds: DesktopBounds): boolean =>
@@ -585,7 +604,7 @@ export class FakeDesktopDriver implements DesktopDriver {
     const tree = await this.accessibilityTree(app, { depth: 32, count: 2000, scope: 'window' }, signal)
     if (!tree.ok) return tree
     const matches = tree.value.elements.filter(row => row.role === element.role && row.title === element.title && JSON.stringify(row.frame) === JSON.stringify(element.frame))
-    if (tree.value.truncated || matches.length !== 1) return refusal(inputError('the element is no longer unique in a complete window tree — read tree again'))
+    if (tree.value.truncated || matches.length !== 1) return refusal(inputError(ELEMENT_NOT_UNIQUE))
     const selected = matches[0]!
     if (selected.role.includes('Secure')) return refusal(inputError('secure fields cannot be read'))
     let text = selected.value ?? ''
@@ -596,6 +615,63 @@ export class FakeDesktopDriver implements DesktopDriver {
       text = tree.value.elements.slice(start, end).filter(row => !row.role.includes('Secure')).map(row => row.title && row.value && row.title !== row.value ? `${row.title}: ${row.value}` : row.value ?? row.title ?? '').filter(Boolean).join('\n')
     }
     return answer({ text: text.slice(0, 20000), role: selected.role, title: selected.title, truncated: text.length > 20000 })
+  }
+
+  async scrollToVisible(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopScrollReceipt>> {
+    const located = await this.locate(app, element, signal)
+    if (!located.ok) return located
+    const { node, window } = located.value
+    const detail = { app: app.identity, role: node.role, title: titleOf(node) }
+    const road = node.actions === undefined || node.actions.includes(SCROLL_ACTION) ? 'action' : 'wheel'
+    const viewport = window?.frame ?? app.bounds
+    if (road === 'wheel' && node.wheel === false) {
+      this.record('scrollToVisible', 'done', { ...detail, scrolled: false, road })
+      return answer({ scrolled: false, road: null, frame: node.frame ? { ...node.frame } : null, note: WHEEL_FAILED })
+    }
+    let at: DesktopPoint | null = null
+    if (node.frame && viewport) {
+      const below = node.frame.y < viewport.y || node.frame.y + node.frame.height > viewport.y + viewport.height || node.frame.height <= 1
+      const beside = node.frame.x < viewport.x || node.frame.x + node.frame.width > viewport.x + viewport.width
+      if (road === 'wheel' && (below || beside)) {
+        at = { x: Math.round(Math.min(Math.max(node.frame.x + node.frame.width / 2, viewport.x + 2), viewport.x + viewport.width - 2)), y: Math.round(viewport.y + viewport.height / 2) }
+        this.cursorAt = { ...at }
+      }
+      if (below) node.frame = { ...node.frame, y: Math.round(viewport.y + (viewport.height - node.frame.height) / 2) }
+      if (beside) node.frame = { ...node.frame, x: Math.round(viewport.x + (viewport.width - node.frame.width) / 2) }
+    }
+    this.sceneActs += 1
+    this.record('scrollToVisible', 'done', { ...detail, scrolled: true, road, frame: node.frame ?? null, ...(at ? { at } : {}) })
+    return answer({ scrolled: true, road, frame: node.frame ? { ...node.frame } : null, note: at ? wheelWords(at.x, at.y) : null })
+  }
+
+  async setValue(app: DesktopApplication, element: DesktopTreeElement, text: string, signal: AbortSignal): Promise<DesktopAnswer<DesktopValueReceipt>> {
+    if (!isText(text)) return refusal(inputError('the value to set must be a string'))
+    const located = await this.locate(app, element, signal)
+    if (!located.ok) return located
+    const { node } = located.value
+    const detail = { app: app.identity, role: node.role, title: titleOf(node), chars: text.length }
+    const secure = node.role.includes('Secure')
+    if (!(node.settable ?? VALUE_ROLES.test(node.role))) {
+      this.record('setValue', 'done', { ...detail, set: false })
+      return answer({ set: false, value: !secure && isText(node.value) && node.value !== '' ? node.value : null, note: VALUE_UNSUPPORTED })
+    }
+    node.value = text
+    this.sceneActs += 1
+    this.record('setValue', 'done', { ...detail, set: true })
+    if (secure) return answer({ set: true, value: null, note: SECURE_NOT_READ_BACK })
+    return answer({ set: true, value: text === '' ? null : text, note: null })
+  }
+
+  private async locate(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<{ node: FakeTreeNode; window: FakeTreeNode | undefined }>> {
+    const gate = this.actGate()
+    if (gate !== null) return refusal(gate)
+    const front = await this.frontmostApplication()
+    if (!front.ok || front.value.identity !== app.identity) return refusal({ kind: 'display', note: `${app.name} is not the application in front of the fake scene` })
+    if ((await this.hold(signal)) === 'aborted') return desktopAbortedAnswer()
+    const window = this.scene.tree.find(node => node.role === 'AXWindow' && node.focused === true) ?? this.scene.tree.find(node => node.role === 'AXWindow' && node.title === app.title)
+    const matches = sceneNodes(window ? [window] : this.scene.tree).filter(node => node.role === element.role && titleOf(node) === element.title && JSON.stringify(node.frame ?? null) === JSON.stringify(element.frame))
+    if (matches.length !== 1) return refusal(inputError(ELEMENT_NOT_UNIQUE))
+    return answer({ node: matches[0]!, window })
   }
 
   async cursor(): Promise<DesktopAnswer<DesktopCursor>> {

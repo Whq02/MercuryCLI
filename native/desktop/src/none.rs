@@ -1,5 +1,5 @@
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{ApplicationAnswer, DisplayRecord, PermissionsAnswer, TreeAnswer};
+use crate::{ApplicationAnswer, DisplayRecord, PermissionsAnswer, ScrollAnswer, TreeAnswer, TreeElement, ValueAnswer};
 
 const UNSUPPORTED: &str = "unsupported";
 
@@ -28,8 +28,16 @@ pub fn own_terminal_application() -> ApplicationAnswer {
     ApplicationAnswer::refused(UNSUPPORTED)
 }
 
-pub fn accessibility_tree(_pid: i32, _max_depth: u32, _max_count: u32) -> TreeAnswer {
+pub fn accessibility_tree(_pid: i32, _max_depth: u32, _max_count: u32, _scope: &str, _observation: bool) -> TreeAnswer {
     TreeAnswer::refused("the accessibility tree is read through the macOS Accessibility API; this platform has no tree reader in this release")
+}
+
+pub fn scroll_to_visible(_pid: i32, _wanted: &TreeElement, _wheel: bool) -> Result<ScrollAnswer, String> {
+    Err("scrolling an element into view is unsupported on this platform (no accessibility actions in this release)".to_string())
+}
+
+pub fn set_value(_pid: i32, _wanted: &TreeElement, _text: &str) -> Result<ValueAnswer, String> {
+    Err("setting an element's value is unsupported on this platform (no accessibility actions in this release)".to_string())
 }
 
 pub fn cursor() -> Result<(f64, f64), String> {

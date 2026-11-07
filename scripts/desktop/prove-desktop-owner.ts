@@ -77,6 +77,8 @@ function stubSource(answers: StubAnswers, exports: readonly string[]): string {
     "  held: () => { count('held'); return { buttons: [], keys: [] } },",
     "  releaseAll: () => { count('releaseAll'); return { buttons: [], keys: [] } },",
     "  cancel: () => { count('cancel') },",
+    "  scrollToVisible: () => { count('scrollToVisible'); return { scrolled: false, frame: null, reason: 'fixture: no scroll' } },",
+    "  setValue: () => { count('setValue'); return { set: false, value: null, reason: 'fixture: no value' } },",
     '}',
     'module.exports = {}',
     `for (const name of ${JSON.stringify(exports)}) module.exports[name] = answers[name]`,

@@ -1,7 +1,9 @@
 use std::ffi::c_void;
 use std::mem::size_of;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 
-use windows::core::PWSTR;
+use windows::core::{Interface, BSTR, PWSTR};
 use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND, LPARAM, POINT, RECT};
 use windows::Win32::Graphics::Gdi::{
     BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, EnumDisplayMonitors, GetDC, GetDIBits, GetMonitorInfoW, ReleaseDC, SelectObject,
@@ -9,9 +11,16 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
 use windows::Win32::System::Console::GetConsoleWindow;
+use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED};
 use windows::Win32::System::RemoteDesktop::ProcessIdToSessionId;
 use windows::Win32::System::StationsAndDesktops::{CloseDesktop, GetUserObjectInformationW, OpenInputDesktop, DESKTOP_CONTROL_FLAGS, DESKTOP_READOBJECTS, UOI_NAME};
 use windows::Win32::System::Threading::{GetCurrentProcess, GetCurrentProcessId, OpenProcess, OpenProcessToken, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION};
+use windows::Win32::UI::Accessibility::{
+    CUIAutomation, IUIAutomation, IUIAutomationCacheRequest, IUIAutomationElement, IUIAutomationElement9, IUIAutomationRangeValuePattern, IUIAutomationScrollItemPattern, IUIAutomationScrollPattern, IUIAutomationSelectionItemPattern,
+    IUIAutomationTogglePattern, IUIAutomationTreeWalker, IUIAutomationValuePattern, ToggleState_On, TreeScope_Children, TreeScope_Subtree, UIA_BoundingRectanglePropertyId, UIA_ControlTypePropertyId, UIA_FrameworkIdPropertyId,
+    UIA_HasKeyboardFocusPropertyId, UIA_IsDialogPropertyId, UIA_IsPasswordPropertyId, UIA_NamePropertyId, UIA_NativeWindowHandlePropertyId, UIA_ProcessIdPropertyId, UIA_RangeValuePatternId, UIA_ScrollItemPatternId, UIA_ScrollPatternId,
+    UIA_SelectionItemPatternId, UIA_TogglePatternId, UIA_ValuePatternId, UIA_CONTROLTYPE_ID,
+};
 use windows::Win32::UI::HiDpi::{SetThreadDpiAwarenessContext, DPI_AWARENESS_CONTEXT, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     SendInput, VkKeyScanW, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL,
@@ -20,12 +29,15 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     VK_PRIOR, VK_RETURN, VK_RIGHT, VK_SHIFT, VK_SPACE, VK_TAB, VK_UP,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetCursorPos, GetForegroundWindow, GetSystemMetrics, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN,
+    GetCursorPos, GetForegroundWindow, GetSystemMetrics, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, WindowFromPoint, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN,
     SM_YVIRTUALSCREEN, WHEEL_DELTA, MONITORINFOF_PRIMARY,
 };
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, TreeAnswer};
+use crate::{clipped, covered_words, hidden_by, number_words, same_frame, wheel_words, windows_role, ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, ScrollAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, ROAD_ACTION, ROAD_WHEEL, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED, WHEEL_FAILED};
+
+const OBSERVATION_DEPTH: u32 = 3;
+const OBSERVATION_COUNT: u32 = 200;
 
 struct DpiScope {
     previous: DPI_AWARENESS_CONTEXT,
@@ -264,8 +276,356 @@ pub fn own_terminal_application() -> ApplicationAnswer {
     application_of(console)
 }
 
-pub fn accessibility_tree(_pid: i32, _max_depth: u32, _max_count: u32) -> TreeAnswer {
-    TreeAnswer::refused("the accessibility tree is read through the macOS Accessibility API; this platform has no tree reader in this release")
+fn automation() -> Result<IUIAutomation, String> {
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).map_err(|e| format!("UI Automation is unavailable: {}", e.message()))
+    }
+}
+
+fn rect_frame(r: RECT) -> Option<BoundsRecord> {
+    if r.right <= r.left || r.bottom <= r.top {
+        return None;
+    }
+    Some(BoundsRecord { x: r.left as f64, y: r.top as f64, width: (r.right - r.left) as f64, height: (r.bottom - r.top) as f64 })
+}
+
+fn element_frame(element: &IUIAutomationElement) -> Option<BoundsRecord> {
+    rect_frame(unsafe { element.CurrentBoundingRectangle() }.ok()?)
+}
+
+fn tree_cache(automation: &IUIAutomation) -> Result<IUIAutomationCacheRequest, String> {
+    let cache = unsafe { automation.CreateCacheRequest() }.map_err(|e| format!("UI Automation refused a cache request: {}", e.message()))?;
+    for property in [UIA_NamePropertyId, UIA_ControlTypePropertyId, UIA_BoundingRectanglePropertyId, UIA_HasKeyboardFocusPropertyId, UIA_IsPasswordPropertyId, UIA_FrameworkIdPropertyId, UIA_ProcessIdPropertyId, UIA_NativeWindowHandlePropertyId, UIA_IsDialogPropertyId] {
+        let _ = unsafe { cache.AddProperty(property) };
+    }
+    for pattern in [UIA_ValuePatternId, UIA_ScrollPatternId, UIA_TogglePatternId, UIA_RangeValuePatternId, UIA_SelectionItemPatternId] {
+        let _ = unsafe { cache.AddPattern(pattern) };
+    }
+    Ok(cache)
+}
+
+fn cached_value(element: &IUIAutomationElement) -> Option<String> {
+    if let Ok(pattern) = unsafe { element.GetCachedPatternAs::<IUIAutomationValuePattern>(UIA_ValuePatternId) } {
+        return unsafe { pattern.CachedValue() }.ok().map(|value| value.to_string()).filter(|value| !value.is_empty());
+    }
+    if let Ok(pattern) = unsafe { element.GetCachedPatternAs::<IUIAutomationTogglePattern>(UIA_TogglePatternId) } {
+        return unsafe { pattern.CachedToggleState() }.ok().map(|state| if state == ToggleState_On { "1".to_string() } else { number_words(state.0 as f64) });
+    }
+    if let Ok(pattern) = unsafe { element.GetCachedPatternAs::<IUIAutomationRangeValuePattern>(UIA_RangeValuePatternId) } {
+        return unsafe { pattern.CachedValue() }.ok().map(number_words);
+    }
+    if let Ok(pattern) = unsafe { element.GetCachedPatternAs::<IUIAutomationSelectionItemPattern>(UIA_SelectionItemPatternId) } {
+        return unsafe { pattern.CachedIsSelected() }.ok().map(|flag| if flag.as_bool() { "1".to_string() } else { "0".to_string() });
+    }
+    None
+}
+
+fn tree_row(element: &IUIAutomationElement, depth: u32) -> TreeElement {
+    let kind = unsafe { element.CachedControlType() }.unwrap_or(UIA_CONTROLTYPE_ID(0));
+    let name = unsafe { element.CachedName() }.ok().map(|name| name.to_string()).filter(|name| !name.is_empty());
+    let framework = unsafe { element.CachedFrameworkId() }.ok().map(|id| id.to_string()).unwrap_or_default();
+    let password = unsafe { element.CachedIsPassword() }.map(|flag| flag.as_bool()).unwrap_or(false);
+    let scrolls = unsafe { element.GetCachedPatternAs::<IUIAutomationScrollPattern>(UIA_ScrollPatternId) }.is_ok();
+    let dialog = element.cast::<IUIAutomationElement9>().ok().and_then(|newer| unsafe { newer.CachedIsDialog() }.ok()).map(|flag| flag.as_bool()).unwrap_or(false);
+    let value = cached_value(element);
+    let role = windows_role(kind.0, &framework, password, scrolls, dialog);
+    let (title, value) = if role == "AXStaticText" && value.is_none() { (None, name) } else { (name, value) };
+    let frame = unsafe { element.CachedBoundingRectangle() }.ok().and_then(rect_frame);
+    let focused = unsafe { element.CachedHasKeyboardFocus() }.ok().map(|flag| flag.as_bool());
+    TreeElement { depth, role, title: title.map(|text| clipped(text, TREE_VALUE_CHARS)), value: value.map(|text| clipped(text, TREE_VALUE_CHARS)), frame, focused }
+}
+
+fn matching_element(candidate: &TreeElement, wanted: &TreeElement) -> bool {
+    candidate.role == wanted.role && candidate.title == wanted.title && same_frame(&candidate.frame, &wanted.frame)
+}
+
+fn foreground_of(pid: i32) -> Result<HWND, String> {
+    let front = unsafe { GetForegroundWindow() };
+    if front.0.is_null() {
+        return Err("the focused window is unavailable".to_string());
+    }
+    let mut owner = 0u32;
+    unsafe { GetWindowThreadProcessId(front, Some(&mut owner)) };
+    if owner as i32 != pid {
+        return Err("the focused window is unavailable".to_string());
+    }
+    Ok(front)
+}
+
+fn unique_element(pid: i32, wanted: &TreeElement) -> Result<(IUIAutomation, IUIAutomationElement, IUIAutomationElement), String> {
+    let automation = automation()?;
+    let cache = tree_cache(&automation)?;
+    let front = foreground_of(pid)?;
+    let window = unsafe { automation.ElementFromHandleBuildCache(front, &cache) }.map_err(|e| format!("the focused window has no automation element: {}", e.message()))?;
+    let condition = unsafe { automation.CreateTrueCondition() }.map_err(|e| format!("UI Automation refused a condition: {}", e.message()))?;
+    let found = unsafe { window.FindAllBuildCache(TreeScope_Subtree, &condition, &cache) }.map_err(|e| format!("the window tree could not be read: {}", e.message()))?;
+    let count = unsafe { found.Length() }.unwrap_or(0);
+    let mut matches: Vec<IUIAutomationElement> = Vec::new();
+    for index in 0..count {
+        let Ok(element) = (unsafe { found.GetElement(index) }) else { continue };
+        if matching_element(&tree_row(&element, 0), wanted) {
+            matches.push(element);
+        }
+    }
+    if matches.len() != 1 {
+        return Err(ELEMENT_NOT_UNIQUE.to_string());
+    }
+    Ok((automation, window, matches.remove(0)))
+}
+
+struct TreeWalk<'a> {
+    walker: &'a IUIAutomationTreeWalker,
+    cache: &'a IUIAutomationCacheRequest,
+    started: Instant,
+    budget: Duration,
+    max_depth: u32,
+    max_count: usize,
+    depth_truncates: bool,
+    elements: Vec<TreeElement>,
+    truncated: bool,
+    timed_out: bool,
+}
+
+impl TreeWalk<'_> {
+    fn children_of(&self, element: &IUIAutomationElement) -> Vec<IUIAutomationElement> {
+        let mut list: Vec<IUIAutomationElement> = Vec::new();
+        let mut next = unsafe { self.walker.GetFirstChildElementBuildCache(element, self.cache) }.ok();
+        while let Some(child) = next {
+            next = unsafe { self.walker.GetNextSiblingElementBuildCache(&child, self.cache) }.ok();
+            list.push(child);
+        }
+        list
+    }
+
+    fn visit(&mut self, root: IUIAutomationElement, depth: u32) {
+        let mut stack: Vec<(IUIAutomationElement, u32)> = vec![(root, depth)];
+        while let Some((element, depth)) = stack.pop() {
+            if self.elements.len() >= self.max_count || self.started.elapsed() > self.budget {
+                self.truncated = true;
+                self.timed_out |= self.started.elapsed() > self.budget;
+                return;
+            }
+            self.elements.push(tree_row(&element, depth));
+            if depth < self.max_depth {
+                for child in self.children_of(&element).into_iter().rev() {
+                    stack.push((child, depth + 1));
+                }
+            } else if self.depth_truncates && unsafe { self.walker.GetFirstChildElement(&element) }.is_ok() {
+                self.truncated = true;
+            }
+        }
+    }
+}
+
+fn top_level_windows(automation: &IUIAutomation, cache: &IUIAutomationCacheRequest, pid: i32) -> Result<Vec<IUIAutomationElement>, String> {
+    let root = unsafe { automation.GetRootElement() }.map_err(|e| format!("the desktop has no automation element: {}", e.message()))?;
+    let condition = unsafe { automation.CreateTrueCondition() }.map_err(|e| format!("UI Automation refused a condition: {}", e.message()))?;
+    let found = unsafe { root.FindAllBuildCache(TreeScope_Children, &condition, cache) }.map_err(|e| format!("the desktop's windows could not be read: {}", e.message()))?;
+    let front = unsafe { GetForegroundWindow() };
+    let mut windows: Vec<IUIAutomationElement> = Vec::new();
+    for index in 0..unsafe { found.Length() }.unwrap_or(0) {
+        let Ok(element) = (unsafe { found.GetElement(index) }) else { continue };
+        if unsafe { element.CachedProcessId() }.ok() != Some(pid) {
+            continue;
+        }
+        if unsafe { element.CachedNativeWindowHandle() }.ok() == Some(front) {
+            windows.insert(0, element);
+        } else {
+            windows.push(element);
+        }
+    }
+    Ok(windows)
+}
+
+fn focused_row(automation: &IUIAutomation, walker: &IUIAutomationTreeWalker, cache: &IUIAutomationCacheRequest, pid: i32, within: Option<&IUIAutomationElement>) -> Option<TreeElement> {
+    let focused = unsafe { automation.GetFocusedElementBuildCache(cache) }.ok()?;
+    if unsafe { focused.CachedProcessId() }.ok() != Some(pid) {
+        return None;
+    }
+    if let Some(window) = within {
+        let mut cursor = Some(focused.clone());
+        let mut inside = false;
+        for _ in 0..64 {
+            let Some(current) = cursor else { break };
+            if unsafe { automation.CompareElements(&current, window) }.map(|flag| flag.as_bool()).unwrap_or(false) {
+                inside = true;
+                break;
+            }
+            cursor = unsafe { walker.GetParentElement(&current) }.ok();
+        }
+        if !inside {
+            return None;
+        }
+    }
+    Some(tree_row(&focused, 0))
+}
+
+fn tree_answer(walk: TreeWalk, focused: Option<TreeElement>, scope: &str, observation: bool) -> TreeAnswer {
+    let web_content = if observation { None } else if walk.elements.iter().any(|element| element.role.starts_with("AXWebArea")) { Some("available") } else if walk.truncated { None } else { Some("absent") };
+    let reason = if walk.timed_out { Some(format!("the walk stopped after {} ms", TREE_BUDGET_MS)) } else { None };
+    TreeAnswer { elements: walk.elements, focused, truncated: walk.truncated, reason, scope: Some(scope.to_string()), web_content: web_content.map(str::to_string), web_accessibility: None }
+}
+
+pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str, observation: bool) -> TreeAnswer {
+    let _dpi = DpiScope::enter();
+    let automation = match automation() {
+        Ok(automation) => automation,
+        Err(text) => return TreeAnswer::refused(&text),
+    };
+    let cache = match tree_cache(&automation) {
+        Ok(cache) => cache,
+        Err(text) => return TreeAnswer::refused(&text),
+    };
+    let walker = match unsafe { automation.ControlViewWalker() } {
+        Ok(walker) => walker,
+        Err(error) => return TreeAnswer::refused(&format!("UI Automation refused a tree walker: {}", error.message())),
+    };
+    let started = Instant::now();
+    let budget = Duration::from_millis(TREE_BUDGET_MS);
+    let front = foreground_of(pid).ok().and_then(|handle| unsafe { automation.ElementFromHandleBuildCache(handle, &cache) }.ok());
+    if observation {
+        let Some(window) = front else {
+            return TreeAnswer::refused("the focused window is unavailable");
+        };
+        let mut walk = TreeWalk { walker: &walker, cache: &cache, started, budget, max_depth: OBSERVATION_DEPTH, max_count: OBSERVATION_COUNT as usize, depth_truncates: false, elements: Vec::new(), truncated: false, timed_out: false };
+        walk.visit(window.clone(), 0);
+        let focused = focused_row(&automation, &walker, &cache, pid, Some(&window));
+        return tree_answer(walk, focused, "window", true);
+    }
+    let windows = if scope == "window" {
+        let Some(window) = front else {
+            return TreeAnswer::refused("the focused window is unavailable — use scope:app to read the application's tree or take a screenshot");
+        };
+        vec![window]
+    } else {
+        match top_level_windows(&automation, &cache, pid) {
+            Ok(windows) => windows,
+            Err(text) => return TreeAnswer::refused(&text),
+        }
+    };
+    if windows.is_empty() {
+        return TreeAnswer::refused("the application answered no accessibility element (no such process, or it is not responding)");
+    }
+    let name = process_image(pid as u32).map(|image| identity_of(&image).1);
+    let mut walk = TreeWalk { walker: &walker, cache: &cache, started, budget, max_depth, max_count: max_count as usize, depth_truncates: true, elements: vec![TreeElement { depth: 0, role: "AXApplication".to_string(), title: name, value: None, frame: None, focused: None }], truncated: false, timed_out: false };
+    for window in windows {
+        if walk.truncated {
+            break;
+        }
+        if max_depth < 1 {
+            walk.truncated = true;
+            break;
+        }
+        walk.visit(window, 1);
+    }
+    let focused = focused_row(&automation, &walker, &cache, pid, None);
+    tree_answer(walk, focused, scope, false)
+}
+
+fn settled_frame(element: &IUIAutomationElement, before: Option<BoundsRecord>) -> Option<BoundsRecord> {
+    let mut frame = before;
+    let mut moved = false;
+    for _ in 0..SCROLL_SETTLE_READS {
+        sleep(Duration::from_millis(SCROLL_SETTLE_MS));
+        let next = element_frame(element);
+        let changed = !same_frame(&next, &frame);
+        frame = next;
+        if moved && !changed {
+            break;
+        }
+        moved |= changed;
+    }
+    frame
+}
+
+fn pid_under(x: f64, y: f64) -> Option<i32> {
+    let window = unsafe { WindowFromPoint(POINT { x: x.round() as i32, y: y.round() as i32 }) };
+    if window.0.is_null() {
+        return None;
+    }
+    let mut owner = 0u32;
+    unsafe { GetWindowThreadProcessId(window, Some(&mut owner)) };
+    if owner == 0 { None } else { Some(owner as i32) }
+}
+
+fn wheel_into_view(pid: i32, window: &IUIAutomationElement, element: &IUIAutomationElement, started: Instant, budget: Duration) -> ScrollAnswer {
+    let Some(viewport) = element_frame(window) else {
+        return ScrollAnswer { scrolled: false, road: None, frame: element_frame(element), reason: Some(format!("{WHEEL_FAILED}: the window's frame is unavailable")) };
+    };
+    let mut frame = element_frame(element);
+    let mut at: Option<(f64, f64)> = None;
+    for _ in 0..SCROLL_WHEEL_STEPS {
+        let Some(current) = frame.as_ref() else { break };
+        let (dx, dy) = hidden_by(current, &viewport);
+        if dx == 0 && dy == 0 {
+            return ScrollAnswer { scrolled: true, road: Some(ROAD_WHEEL.to_string()), frame, reason: at.map(|(x, y)| wheel_words(x, y)) };
+        }
+        if started.elapsed() > budget {
+            break;
+        }
+        let x = (current.x + current.width / 2.0).clamp(viewport.x + 2.0, viewport.x + viewport.width - 2.0);
+        let y = viewport.y + viewport.height / 2.0;
+        if pid_under(x, y).is_some_and(|owner| owner != pid) {
+            return ScrollAnswer { scrolled: false, road: None, frame, reason: Some(covered_words(x, y)) };
+        }
+        if mouse_move(x, y).and_then(|_| scroll(dx * SCROLL_WHEEL_LINES, dy * SCROLL_WHEEL_LINES)).is_err() {
+            break;
+        }
+        at = Some((x, y));
+        frame = settled_frame(element, frame);
+    }
+    ScrollAnswer { scrolled: false, road: None, frame, reason: Some(WHEEL_FAILED.to_string()) }
+}
+
+pub fn scroll_to_visible(pid: i32, wanted: &TreeElement, wheel: bool) -> Result<ScrollAnswer, String> {
+    let _dpi = DpiScope::enter();
+    let started = Instant::now();
+    let budget = Duration::from_millis(TREE_BUDGET_MS);
+    let (_automation, window, element) = unique_element(pid, wanted)?;
+    let pattern: Option<IUIAutomationScrollItemPattern> = unsafe { element.GetCurrentPatternAs(UIA_ScrollItemPatternId) }.ok();
+    Ok(match pattern {
+        Some(pattern) => {
+            let before = element_frame(&element);
+            match unsafe { pattern.ScrollIntoView() } {
+                Ok(()) => ScrollAnswer { scrolled: true, road: Some(ROAD_ACTION.to_string()), frame: settled_frame(&element, before), reason: None },
+                Err(error) => ScrollAnswer { scrolled: false, road: None, frame: before, reason: Some(format!("{SCROLL_UNSUPPORTED}; the pattern answered {}", error.message())) },
+            }
+        }
+        None if wheel => wheel_into_view(pid, &window, &element, started, budget),
+        None => ScrollAnswer { scrolled: false, road: None, frame: element_frame(&element), reason: Some(SCROLL_UNSUPPORTED.to_string()) },
+    })
+}
+
+pub fn set_value(pid: i32, wanted: &TreeElement, text: &str) -> Result<ValueAnswer, String> {
+    let _dpi = DpiScope::enter();
+    let (_automation, _window, element) = unique_element(pid, wanted)?;
+    let secure = wanted.role.contains("Secure") || unsafe { element.CurrentIsPassword() }.map(|flag| flag.as_bool()).unwrap_or(false);
+    let pattern: Option<IUIAutomationValuePattern> = unsafe { element.GetCurrentPatternAs(UIA_ValuePatternId) }.ok();
+    let Some(pattern) = pattern else {
+        return Ok(ValueAnswer { set: false, value: None, reason: Some(VALUE_UNSUPPORTED.to_string()) });
+    };
+    let read = || unsafe { pattern.CurrentValue() }.ok().map(|value| value.to_string()).filter(|value| !value.is_empty());
+    let current = || if secure { None } else { read() };
+    if unsafe { pattern.CurrentIsReadOnly() }.map(|flag| flag.as_bool()).unwrap_or(true) {
+        return Ok(ValueAnswer { set: false, value: current(), reason: Some(VALUE_UNSUPPORTED.to_string()) });
+    }
+    if let Err(error) = unsafe { pattern.SetValue(&BSTR::from(text)) } {
+        return Ok(ValueAnswer { set: false, value: current(), reason: Some(format!("{VALUE_UNSUPPORTED}; the pattern answered {}", error.message())) });
+    }
+    if secure {
+        return Ok(ValueAnswer { set: true, value: None, reason: Some(SECURE_NOT_READ_BACK.to_string()) });
+    }
+    let wanted_value = if text.is_empty() { None } else { Some(text.to_string()) };
+    let mut value = read();
+    for _ in 0..SCROLL_SETTLE_READS {
+        if value == wanted_value {
+            break;
+        }
+        sleep(Duration::from_millis(SCROLL_SETTLE_MS));
+        value = read();
+    }
+    Ok(ValueAnswer { set: true, value, reason: None })
 }
 
 pub fn cursor() -> Result<(f64, f64), String> {
