@@ -413,13 +413,20 @@ the line under the row reads `starts with the next small job · ~5.0 GiB · an
 estimate` ahead of the jobs line. The helper starts when a session opens with
 the setting on, or with the first small job that selects it (that job runs on
 the session's own model while the helper loads; the next one rides the helper).
-It is a session-lifecycle service owned by the session that started it and ends
-with that session (`/exit`, the window closing, Ctrl-C, the daemon ending the
-session) on every platform. A second session that needs it finds it serving
-through its record and uses it, and starts its own once the owner has ended.
-The helper never writes `local-setup/tensorfold-hosts.json`: discovery probes
-its port from the helper's own record, so nothing of it is remembered on the
-machine.
+Before any start, a session reads the helper's own record: a helper already
+serving there is adopted and used, and a start happens only when nothing live
+serves the helper name, so two sessions never restart it over each other. It is
+a session-lifecycle service owned by the session that started it and ends with
+that session when it ends in order (`/exit`, the window closing, Ctrl-C, the
+daemon ending the session) on every platform; a session that adopted a helper
+it did not start leaves it serving. A session cut off outright (a kill, a
+crash, the power) leaves its helper serving until a later session's small job
+adopts it or, once it has stopped, starts it again; such a helper, like one left
+by an earlier release, is adopted but owned by no session, so it ends only when
+stopped by hand (the `Service` tool's `stop` of `tensorfold-helper` in that
+project, or the process itself). The helper never writes
+`local-setup/tensorfold-hosts.json`: discovery probes its port from the helper's
+own record, so nothing of it is remembered on the machine.
 
 When a helper model is enabled, the `TENSORFOLD` group heading appends
 `· helper 2B` (or `4B`, or the session model name) and `/health` adds a
