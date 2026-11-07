@@ -220,7 +220,7 @@ function sessionsOnThisBinary(): string {
   if (process.platform !== 'darwin') return ''
   let listing = ''
   try {
-    listing = execFileSync('/usr/sbin/lsof', ['-t', '--', process.execPath], { encoding: 'utf8', timeout: 2_000, maxBuffer: 1024 * 1024, windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] })
+    listing = execFileSync('/usr/sbin/lsof', ['-t', '--', process.execPath], { encoding: 'utf8', timeout: 2_000, maxBuffer: 1024 * 1024, windowsHide: true, env: subprocessEnv(), stdio: ['ignore', 'pipe', 'ignore'] })
   } catch (error) {
     const stdout = (error as { stdout?: unknown }).stdout
     listing = typeof stdout === 'string' ? stdout : ''
