@@ -1,5 +1,5 @@
-import { writeFileSync, readFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { writeFileSync, readFileSync, statSync } from 'node:fs'
+import { basename, dirname, isAbsolute } from 'node:path'
 import { z } from 'zod/v4'
 import { buildTool, type ToolEffect, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
@@ -9,6 +9,8 @@ import { imageDimensionsFromHeader } from '../FileReadTool/imageProcessorJs.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import { getImageProcessor } from '../FileReadTool/imageProcessor.js'
 import { isTerminalApplication, readTerminalText } from './terminalText.js'
+import { WEB_CONTENT_NOTICE } from '../BashTool/webContent.js'
+import { DENIAL_WORKAROUND_GUIDANCE } from '../../utils/messages/rejectionText.js'
 import { modelReceivesImageBlocks } from '../../utils/model/capabilities.js'
 import { compatImageRefusalWords, compatModelImageReading, refreshCompatModelImageReading } from '../../services/providers/openaicompat/compatProbe.js'
 import { getEngineModel, normalizeModelStringForAPI } from '../../utils/model/model.js'
@@ -43,6 +45,7 @@ import {
   noteCheckedActApp,
   noteScreenshot,
   noteTurnHome,
+  peekCheckedActApp,
   pruneDesktopShots,
   screenOf,
   screenshotPath,
@@ -53,7 +56,7 @@ import {
 } from '../../services/desktop/desktopSession.js'
 import { claimDesktop, desktopClaimBusyNote, renewDesktopClaim } from '../../services/desktop/desktopClaim.js'
 import { screenshotVisibleInContext } from '../../services/desktop/screenshotRetention.js'
-import { readComputerGrant } from '../../services/desktop/computerGrant.js'
+import { challengeGranted, grantChallenge, readComputerGrant, settleChallenge } from '../../services/desktop/computerGrant.js'
 import { computerAccessPinnedToAsk, savedComputerAccess } from '../../services/desktop/computerAccess.js'
 import { resolveComputerAccess } from '../../substrate/startupMenu.js'
 import { postureBypassesAsks } from '../../utils/permissions/decision/engine.js'
@@ -77,8 +80,8 @@ import {
 } from './screenMap.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './UI.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import { regionRefusal, sameWindow, settledCapture, windowOnDisplay, targetMatches, targetElement, targetPoint, targetWords, readObservation, settledObservation, observationChanged, treeObservation, verificationWords, pageContentNote, type CaptureRegion, type DesktopObservation } from './fastRoad.js'
-import { CAPTCHA_HANDOFF, namesCaptcha, treeNamesCaptcha } from './captcha.js'
+import { STATE_LINE, clippedWords, regionRefusal, sameWindow, settledCapture, stateWord, windowOnDisplay, targetMatches, targetElement, targetPoint, targetWords, readObservation, settledObservation, observationChanged, treeObservation, verificationWords, pageContentNote, type CaptureRegion, type DesktopObservation } from './fastRoad.js'
+import { CAPTCHA_ASK_UNAVAILABLE, CAPTCHA_OPERATOR_COMPLETES, CAPTCHA_QUESTION, captchaNote, titleSight, treeSight, type CaptchaSight } from './captcha.js'
 import { OPERATOR_TYPING_REFUSAL, operatorIsTyping, waitForOperatorPause } from './operatorPause.js'
 
 import { waitConditionPassed, waitConditionRefusal, waitConditionWords } from './waitCondition.js'
@@ -105,6 +108,9 @@ const ACTIONS = [
   'sequence',
   'read',
   'focusApp',
+  'file',
+  'fill',
+  'fields',
 ] as const
 type ComputerAction = (typeof ACTIONS)[number]
 
@@ -118,11 +124,20 @@ const ACT_ACTIONS: ReadonlySet<string> = new Set([
   'type',
   'key',
   'hold',
+  'file',
+  'fill',
 ])
 const ASK_ACTIONS: ReadonlySet<string> = new Set([...ACT_ACTIONS, 'tree', 'focusApp'])
-const POINT_ACTIONS: ReadonlySet<string> = new Set(['click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll'])
+const POINT_ACTIONS: ReadonlySet<string> = new Set(['click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll', 'file'])
 const READ_ACTIONS: ReadonlySet<string> = new Set(['screenshot', 'wait', 'cursor', 'displays', 'frontmost', 'tree'])
 const FACT_ACTIONS: ReadonlySet<string> = new Set(['cursor', 'displays', 'frontmost'])
+const CONTENT_ACTIONS: ReadonlySet<string> = new Set(['screenshot', 'tree', 'find', 'read', 'fields'])
+const TREE_READS: ReadonlySet<string> = new Set(['tree', 'find', 'fields'])
+const FIELD_ROLES = /^(AX)?(TextField|TextArea|SearchField|SecureTextField|ComboBox|PopUpButton|MenuButton|CheckBox|RadioButton|Slider|DateField|TimeField|Incrementor|ToggleButton)(?:$| \()/i
+
+function carriesScreenContent(input: Input, image: boolean): boolean {
+  return image || CONTENT_ACTIONS.has(input.action) || (input.action === 'sequence' && (input.steps ?? []).some(step => CONTENT_ACTIONS.has(step.action)))
+}
 
 const MODIFIERS = ['Shift', 'Control', 'Alt', 'Meta'] as const
 type ModelModifier = (typeof MODIFIERS)[number]
@@ -137,6 +152,10 @@ const SETTLE_DEFAULT_MS = 300
 const SETTLE_CAP_MS = 5_000
 const WAIT_DEFAULT_MS = 1_000
 const WAIT_CAP_MS = 10_000
+const FILE_DIALOG_MS = 3_000
+const FILE_CLOSE_MS = 8_000
+const FILE_KEY_GAP_MS = 400
+const FIELD_VALUE_CHARS = 300
 const HOLD_MIN_MS = 50
 export const HOLD_CAP_MS = 5_000
 export const TYPE_TEXT_CAP = 4_000
@@ -181,12 +200,13 @@ const baseSchema = lazySchema(() =>
     clipboard: z.boolean().optional(),
     focusApp: z.strictObject({ name: z.string() }).optional(),
     toTarget: targetSchema().optional(),
-    until: z.strictObject({ role: z.string().optional(), name: z.string().optional(), text: z.string().optional(), title: z.string().optional(), url: z.string().optional(), gone: z.boolean().optional() }).optional(),
+    until: z.strictObject({ role: z.string().optional(), name: z.string().optional(), text: z.string().optional(), title: z.string().optional(), url: z.string().optional(), dialog: z.boolean().optional(), focus: z.string().optional(), gone: z.boolean().optional() }).optional(),
     count: z.number().optional(),
     region: z.strictObject({ x: z.number(), y: z.number(), width: z.number(), height: z.number() }).optional(),
     scope: z.enum(['window', 'app']).optional(),
     verify: z.boolean().optional(),
     captcha: z.boolean().optional(),
+    path: z.string().optional(),
   }),
 )
 
@@ -224,13 +244,14 @@ const modelInputSchema = lazySchema(() => {
     clipboard: f.clipboard.describe('read: use clipboard text with separate consent instead of target/ref.'),
     focusApp: f.focusApp.describe('Bring a running application forward by name or bundle id.'),
     toTarget: f.toTarget.describe('drag: destination accessibility target instead of toX/toY.'),
-    until: f.until.describe('wait: text/title/URL substring or role/name; gone waits for removal.'),
+    until: f.until.describe('wait: text/title/URL substring, role/name, dialog: true or focus (a role); gone waits for removal. Put it after a click whose effect you assume.'),
     count: f.count.describe('click: number of clicks, 1–3.'),
     region: f.region.describe('Capture box in last-screenshot pixels.'),
     scope: f.scope.describe('Tree scope: window by default; app includes menus and windows.'),
     verify: f.verify.describe('Compare trees after acting; reports change, not task success.'),
-    captcha: f.captcha.describe('Hand a captcha to the operator.'),
-    steps: z.array(step).optional().describe('Non-nested sequence; stops at first failure. Capture, region, scale and settleMs belong on the sequence. Step fields have the same meanings as the top-level fields.'),
+    captcha: f.captcha.describe('Ask the operator before acting on a visible challenge.'),
+    path: f.path.describe('file: absolute path of the file to upload through the native dialog.'),
+    steps: z.array(step).optional().describe('Non-nested sequence; stops at first failure, a wait-until timeout included. Capture, region, scale and settleMs belong on the sequence. Step fields have the same meanings as the top-level fields.'),
   })
 })
 
@@ -257,7 +278,7 @@ const ACTION_FIELDS: Readonly<Record<ComputerAction, readonly string[]>> = {
   type: ['text', ...ACT_FIELDS],
   key: ['key', ...ACT_FIELDS],
   hold: ['key', 'durationMs', ...ACT_FIELDS],
-  wait: ['durationMs', 'until', 'depth', 'limit', 'scope', 'capture', 'region', 'scale'],
+  wait: ['durationMs', 'until', 'depth', 'limit', 'scope', 'capture', 'region', 'scale', 'label'],
   cursor: [],
   displays: [],
   frontmost: [],
@@ -265,16 +286,25 @@ const ACTION_FIELDS: Readonly<Record<ComputerAction, readonly string[]>> = {
   focusApp: ['focusApp'],
   tree: ['depth', 'limit', 'scope', 'pixels', 'root', 'all', 'points'],
   find: ['target', 'depth', 'limit', 'scope', 'root', 'all', 'points'],
-  sequence: ['steps', 'settleMs', 'capture', 'region', 'scale'],
+  sequence: ['steps', 'settleMs', 'capture', 'region', 'scale', 'label'],
+  file: ['x', 'y', 'path', 'durationMs', ...TARGET_FIELDS, ...ACT_FIELDS],
+  fill: ['text', ...TARGET_FIELDS, ...ACT_FIELDS],
+  fields: ['depth', 'limit', 'scope', 'root', 'all', 'points'],
 }
 
 function permissionAction(input: Input): ComputerAction {
-  return input.action === 'read' || input.action === 'find' || (input.action === 'wait' && input.until !== undefined) ? 'tree' : input.action
+  return input.action === 'read' || input.action === 'find' || input.action === 'fields' || (input.action === 'wait' && input.until !== undefined) ? 'tree' : input.action
+}
+
+function typesKeys(input: Input, plan: ActPlan): boolean {
+  return input.action === 'type' || input.action === 'hold' || input.action === 'fill' || input.action === 'file' || (input.action === 'key' && !(plan.chord !== null && isAppSwitchChord(plan.chord)))
 }
 
 const NO_SCREENSHOT = 'no screenshot yet — coordinates are pixels of the last screenshot; take one first'
 const SCREENSHOT_GONE =
   'the last screenshot is no longer in the conversation — coordinates are pixels of a screenshot you can see; take a new one first'
+const SCREENSHOT_UNSEEN =
+  'the last screenshot was taken in this same message — you have not seen it; take the screenshot alone, then the region or the act'
 
 function refuse(message: string): { result: false; message: string; errorCode: number } {
   return { result: false, message, errorCode: 1 }
@@ -308,11 +338,10 @@ function fieldRefusal(input: Input): string | null {
 }
 
 function tableRefusal(input: Input): string | null {
-  if (input.captcha === true) return CAPTCHA_HANDOFF
   const stray = fieldRefusal(input)
   if (stray !== null) return stray
   const action = input.action
-  if (action !== 'tree' && action !== 'find' && action !== 'read' && input.target === undefined && input.ref === undefined && input.toTarget === undefined && input.until === undefined) {
+  if (!TREE_READS.has(action) && action !== 'read' && input.target === undefined && input.ref === undefined && input.toTarget === undefined && input.until === undefined) {
     for (const field of ['depth', 'limit'] as const) if (input[field] !== undefined) return `${action} does not take ${field}`
   }
   if (input.until !== undefined) {
@@ -335,12 +364,17 @@ function tableRefusal(input: Input): string | null {
   if (action === 'find' && input.target === undefined) return 'find requires target (role, name or text)'
   if (input.count !== undefined && ![1, 2, 3].includes(input.count)) return 'click count must be 1, 2 or 3'
   if (input.region !== undefined && input.display !== undefined) return 'region uses the last screenshot display — omit display'
+  if (input.label !== undefined) {
+    if (action === 'wait' && !(input.capture === true || (input.until !== undefined && input.capture !== false))) return 'wait takes label only with a capture'
+    if (action === 'sequence' && (input.capture === false || input.steps?.at(-1)?.action === 'screenshot')) return 'sequence takes label only for its final capture — put the label on the screenshot step, or drop capture: false'
+  }
   if (action === 'sequence') {
     if (!input.steps?.length) return 'sequence requires nonempty steps'
     for (const [index, step] of input.steps.entries()) {
       const parsed = inputSchema().safeParse(step)
-      if (!parsed.success || (!ACT_ACTIONS.has(parsed.data.action) && !['tree', 'find', 'wait', 'screenshot', 'read', 'focusApp'].includes(parsed.data.action))) return `sequence step ${index + 1} must be an act, tree, find, wait, screenshot, read or focusApp; no nested sequence`
+      if (!parsed.success || (!ACT_ACTIONS.has(parsed.data.action) && !['tree', 'find', 'fields', 'wait', 'screenshot', 'read', 'focusApp'].includes(parsed.data.action))) return `sequence step ${index + 1} must be an act, tree, find, fields, wait, screenshot, read or focusApp; no nested sequence`
       if (parsed.data.action !== 'screenshot' && (parsed.data.capture !== undefined || parsed.data.region !== undefined || parsed.data.settleMs !== undefined || parsed.data.scale !== undefined)) return `sequence step ${index + 1}: put capture, region, scale and settleMs on the sequence`
+      if (parsed.data.action === 'wait' && parsed.data.label !== undefined) return `sequence step ${index + 1}: a wait step captures nothing — put the label on the sequence`
       const refusal = tableRefusal(parsed.data)
       if (refusal !== null) return `sequence step ${index + 1}: ${refusal}`
     }
@@ -354,13 +388,21 @@ function tableRefusal(input: Input): string | null {
   if (action === 'scroll' && !(isNumber(input.dx) || isNumber(input.dy))) {
     return 'scroll requires dx or dy (wheel notches)'
   }
-  if (action === 'type') {
-    if (typeof input.text !== 'string' || input.text.length === 0) return 'type requires text (the characters to type)'
+  if (action === 'type' || action === 'fill') {
+    if (typeof input.text !== 'string' || input.text.length === 0) return `${action} requires text (the characters to ${action === 'fill' ? 'set' : 'type'})`
     if (input.text.length > TYPE_TEXT_CAP) {
-      return `type takes up to ${TYPE_TEXT_CAP} characters — this text is ${input.text.length}; split it`
+      return `${action} takes up to ${TYPE_TEXT_CAP} characters — this text is ${input.text.length}; split it`
     }
     const control = controlCharacterOf(input.text)
-    if (control !== null) return `type refuses the control character ${control} — newline and tab are the only control characters typed`
+    if (control !== null) return `${action} refuses the control character ${control} — newline and tab are the only control characters typed`
+  }
+  if (action === 'fill' && input.target === undefined && input.ref === undefined) return 'fill requires target or ref from tree (the text field to set)'
+  if (action === 'file') {
+    if (typeof input.path !== 'string' || !isAbsolute(input.path)) return 'file requires path: the absolute path of the file to upload'
+    let stat: ReturnType<typeof statSync> | null = null
+    try { stat = statSync(input.path) } catch { stat = null }
+    if (stat === null || !stat.isFile()) return `file: ${input.path} is not a file on this machine`
+    if (input.durationMs !== undefined && !(isNumber(input.durationMs) && input.durationMs >= 0 && input.durationMs <= WAIT_CAP_MS)) return `file takes durationMs as the milliseconds to wait for the dialog, up to ${WAIT_CAP_MS}`
   }
   if (action === 'key' || action === 'hold') {
     if (typeof input.key !== 'string') return `${action} requires key (one chord)`
@@ -384,7 +426,7 @@ function tableRefusal(input: Input): string | null {
   if (input.settleMs !== undefined && !(isNumber(input.settleMs) && input.settleMs >= 0)) {
     return `${action} takes settleMs as a number of milliseconds`
   }
-  if (action === 'tree' || action === 'find' || action === 'read' || input.ref !== undefined || input.target !== undefined || input.toTarget !== undefined || input.until !== undefined) {
+  if (TREE_READS.has(action) || action === 'read' || input.ref !== undefined || input.target !== undefined || input.toTarget !== undefined || input.until !== undefined) {
     if (input.depth !== undefined && !(Number.isInteger(input.depth) && input.depth >= 0)) {
       return `tree takes depth as a whole number from 0 to ${TREE_DEPTH_CAP} — ${String(input.depth)} is outside`
     }
@@ -402,13 +444,15 @@ interface ActPlan {
   modifiers: DesktopModifier[]
   beforeTree?: DesktopTree
   observe?: DesktopBounds
+  captcha?: CaptchaSight
+  element?: DesktopTreeElement
 }
 
 type Framed = { ok: true; point: DesktopPoint } | { ok: false; text: string }
 
-function framePixel(map: ScreenMap | null, messages: readonly Message[], x: number, y: number): Framed {
+function framePixel(map: ScreenMap | null, messages: readonly Message[], x: number, y: number, sameMessage: ReadonlySet<string> = new Set()): Framed {
   if (map === null) return { ok: false, text: NO_SCREENSHOT }
-  if (map.toolUseId !== '' && !screenshotVisibleInContext(messages, map.toolUseId)) return { ok: false, text: SCREENSHOT_GONE }
+  if (map.toolUseId !== '' && !screenshotVisibleInContext(messages, map.toolUseId)) return { ok: false, text: sameMessage.has(map.toolUseId) ? SCREENSHOT_UNSEEN : SCREENSHOT_GONE }
   const point = pointOfPixel(map, x, y)
   if (isPixelOutside(point)) {
     return {
@@ -419,19 +463,19 @@ function framePixel(map: ScreenMap | null, messages: readonly Message[], x: numb
   return { ok: true, point }
 }
 
-function planOf(owner: OwnerKey, context: ToolUseContext, input: Input): ActPlan | { refusal: string } {
+function planOf(owner: OwnerKey, context: ToolUseContext, input: Input, sameMessage: ReadonlySet<string> = new Set()): ActPlan | { refusal: string } {
   const map = screenOf(owner)
   const messages: readonly Message[] = context.messages ?? []
   let point: DesktopPoint | null = null
   let target: DesktopPoint | null = null
   if (POINT_ACTIONS.has(input.action)) {
     if (input.target === undefined && input.ref === undefined) {
-      const framed = framePixel(map, messages, input.x!, input.y!)
+      const framed = framePixel(map, messages, input.x!, input.y!, sameMessage)
       if (!framed.ok) return { refusal: `${input.action} refused: ${framed.text}` }
       point = framed.point
     }
     if (input.action === 'drag' && input.toTarget === undefined) {
-      const end = framePixel(map, messages, input.toX!, input.toY!)
+      const end = framePixel(map, messages, input.toX!, input.toY!, sameMessage)
       if (!end.ok) return { refusal: `drag refused: ${end.text}` }
       target = end.point
     }
@@ -447,26 +491,37 @@ function planOf(owner: OwnerKey, context: ToolUseContext, input: Input): ActPlan
 }
 
 async function resolveActTargets(driver: DesktopDriver, input: Input, front: DesktopApplication, plan: ActPlan, signal: AbortSignal, owner: OwnerKey, map: ScreenMap | null): Promise<string | null> {
-  if (namesCaptcha(front.title ?? '')) return CAPTCHA_HANDOFF
   if (plan.chord !== null && isAppSwitchChord(plan.chord)) return null
+  const titled = titleSight(front.title ?? '')
+  plan.captcha = titled
   const fullReach = input.ref !== undefined || input.target !== undefined || input.toTarget !== undefined || input.verify === true
-  const tree = await driver.accessibilityTree(front, { depth: Math.min(input.depth ?? (fullReach ? TREE_DEPTH_CAP : TREE_DEPTH_DEFAULT), TREE_DEPTH_CAP), count: Math.min(input.limit ?? (fullReach ? TREE_LIMIT_CAP : TREE_LIMIT_DEFAULT), TREE_LIMIT_CAP), scope: 'window' }, signal)
+  const limitsOf = (reach: boolean): DesktopTreeLimits => ({ depth: Math.min(input.depth ?? (reach ? TREE_DEPTH_CAP : TREE_DEPTH_DEFAULT), TREE_DEPTH_CAP), count: Math.min(input.limit ?? (reach ? TREE_LIMIT_CAP : TREE_LIMIT_DEFAULT), TREE_LIMIT_CAP), scope: 'window' })
+  let tree = await driver.accessibilityTree(front, limitsOf(fullReach), signal)
+  if (tree.ok && !fullReach && treeSight(tree.value, front.bounds) === 'widget') tree = await driver.accessibilityTree(front, limitsOf(true), signal)
   if (!tree.ok) return input.ref !== undefined || input.target !== undefined || input.toTarget !== undefined ? faultText(input.action, tree.error) : null
-  if (treeNamesCaptcha(tree.value)) return CAPTCHA_HANDOFF
+  const seen = treeSight(tree.value, front.bounds)
+  plan.captcha = titled === 'challenge' || seen === 'challenge' ? 'challenge' : seen ?? titled
   plan.beforeTree = tree.value
   if (input.ref !== undefined) {
     const elements = resolveTreeRef(owner, front, tree.value, input.ref)
     const point = targetPoint({ ...tree.value, elements }, {})
     if ('refusal' in point) return `${input.action} refused: ref:${input.ref}${point.refusal}`
+    const clipped = elements[0] ? clippedWords(tree.value, elements[0], front.bounds) : null
+    if (clipped !== null) return `${input.action} refused: ref:${input.ref}: ${clipped}`
     plan.point = point
+    plan.element = elements[0]
     if (elements[0]?.frame) plan.observe = elements[0].frame
   }
   for (const [selector, field] of [[input.target, 'point'], [input.toTarget, 'target']] as const) {
     if (selector === undefined) continue
     const point = targetPoint(tree.value, selector, map)
     if ('refusal' in point) return `${input.action} refused: ${point.refusal}${pageContentNote(tree.value) ? `; ${pageContentNote(tree.value)}` : ''}`
+    const element = targetElement(tree.value, selector, map)
+    const clipped = 'refusal' in element ? null : clippedWords(tree.value, element, front.bounds)
+    if (clipped !== null) return `${input.action} refused: ${targetWords(selector)}: ${clipped}`
     plan[field] = point
-    const frame = targetMatches(tree.value, selector)[(selector.nth ?? 1) - 1]?.frame
+    const frame = 'refusal' in element ? undefined : element.frame
+    if (field === 'point' && !('refusal' in element)) plan.element = element
     if (field === 'point' && frame) plan.observe = frame
   }
   return null
@@ -474,6 +529,56 @@ async function resolveActTargets(driver: DesktopDriver, input: Input, front: Des
 
 function isPlanRefusal(plan: ActPlan | { refusal: string }): plan is { refusal: string } {
   return 'refusal' in plan
+}
+
+type ChallengeVerdict = { verdict: 'deny'; text: string } | { verdict: 'allow' } | { verdict: 'ask'; decision: PermissionDecision }
+
+function challengeVerdict(input: Input, front: DesktopApplication, context: ToolUseContext): ChallengeVerdict {
+  const permissionContext = context.getAppState?.()?.toolPermissionContext as ToolPermissionContext | undefined
+  const rule = ruleFor(permissionContext, 'captcha')
+  if (rule?.ruleBehavior === 'deny') return { verdict: 'deny', text: `${ruleSentence('Trying a human-verification challenge', 'deny', rule)} The operator completes it — wait until it is gone, then re-issue` }
+  if (challengeGranted(String(getSessionId()), front) !== null || rule?.ruleBehavior === 'allow' || (permissionContext !== undefined && postureBypassesAsks(permissionContext))) return { verdict: 'allow' }
+  return {
+    verdict: 'ask',
+    decision: {
+      behavior: 'ask',
+      message: `Computer ${input.action}${actDetail(input)} in ${front.name} (${front.identity}) — ${CAPTCHA_QUESTION}`,
+      decisionReason: { type: 'safetyCheck', reason: `${front.name} shows a human-verification challenge; whether Mercury may try it is the operator's own call`, operatorOnly: true },
+      suggestions: suggestionForExactCommand(COMPUTER_TOOL_NAME, 'captcha'),
+    },
+  }
+}
+
+function challengeAction(action: string): string {
+  return `${action} captcha`
+}
+
+async function challengeRoad(input: Input, plan: ActPlan, front: DesktopApplication, context: ToolUseContext, canUseTool: CanUseToolFn | undefined, parent: AssistantMessage | undefined, toolUseId: string, answered: boolean): Promise<string | 'asked' | null> {
+  const sessionId = String(getSessionId())
+  const seen = plan.captcha === 'challenge'
+  settleChallenge(sessionId, front, seen)
+  if (!seen && input.captcha !== true) return null
+  const verdict = challengeVerdict(input, front, context)
+  if (verdict.verdict === 'deny') return `${input.action} not done: ${verdict.text}`
+  if (verdict.verdict === 'allow' || answered) {
+    grantChallenge(sessionId, front, seen)
+    return null
+  }
+  if (!canUseTool || !parent) return `${input.action} not done: ${CAPTCHA_ASK_UNAVAILABLE}`
+  const decision = await canUseTool(ComputerTool, { ...input, captcha: true }, context, parent, toolUseId, verdict.decision)
+  if (decision.behavior === 'allow') {
+    grantChallenge(sessionId, front, seen)
+    return 'asked'
+  }
+  const message = 'message' in decision && typeof decision.message === 'string' ? decision.message : ''
+  if (message.includes(CAPTCHA_OPERATOR_COMPLETES)) return `${input.action} not done: ${CAPTCHA_OPERATOR_COMPLETES}`
+  const cause = decision.behavior === 'ask' ? '' : message.replace(DENIAL_WORKAROUND_GUIDANCE, '').replace(/\s+/g, ' ').trim()
+  return `${input.action} not done: ${cause || 'no one answered the challenge question'} — a Computer(captcha) allow rule in guardrails.allow answers it without a card`
+}
+
+function captchaLine(tree: DesktopTree, app: DesktopApplication): string {
+  const note = captchaNote(treeSight(tree, app.bounds), challengeGranted(String(getSessionId()), app) !== null)
+  return note ? `\n${note}` : ''
 }
 
 function insideBounds(point: DesktopPoint, bounds: { x: number; y: number; width: number; height: number }): boolean {
@@ -494,7 +599,7 @@ async function ownTerminalRefusal(
   const own = await driver.ownTerminalApplication(front)
   const action = input.action
   if (!own.ok || own.value === null) {
-    if (action === 'type' || action === 'hold' || (action === 'key' && !(plan.chord !== null && isAppSwitchChord(plan.chord)))) return `${action} refused: the terminal running this session could not be identified — keep the cockpit attached in a supported terminal before sending keystrokes`
+    if (typesKeys(input, plan)) return `${action} refused: the terminal running this session could not be identified — keep the cockpit attached in a supported terminal before sending keystrokes`
     return null
   }
   if (own.value.identity !== front.identity) return null
@@ -515,10 +620,10 @@ async function ownTerminalRefusal(
   }
   const windowCheck = windowKnown && own.value.tty ? '\nWindow ownership checked by tty.' : ''
   const unknownWindow = 'the terminal application running this session is in front, but its window identity is unknown — all windows of this application remain protected; switch to another application first'
-  if (!windowKnown && (action === 'type' || action === 'hold' || (action === 'key' && !(plan.chord !== null && isAppSwitchChord(plan.chord))))) {
+  if (!windowKnown && typesKeys(input, plan)) {
     return `${action} refused: ${unknownWindow}`
   }
-  if (action === 'type' || action === 'hold') {
+  if (action === 'type' || action === 'hold' || action === 'fill' || action === 'file') {
     return `${action} refused: the application in front is the terminal running this session — a keystroke there would land in this conversation; switch to the target application first${windowCheck}`
   }
   if (action === 'key') {
@@ -572,6 +677,10 @@ function actDetail(input: Input): string {
       return ` ${input.focusApp?.name ?? ''}`
     case 'type':
       return ` ${(input.text ?? '').length} chars`
+    case 'fill':
+      return ` ${startWords(input)} ${(input.text ?? '').length} chars`
+    case 'file':
+      return ` ${startWords(input)} ← ${basename(input.path ?? '')}`
     case 'key':
     case 'hold':
       return ` ${input.key ?? ''}`
@@ -580,8 +689,17 @@ function actDetail(input: Input): string {
   }
 }
 
+function faultNote(note: string): string {
+  if (!note.includes('\n') && !note.includes('Command failed:')) return note
+  const lines = note.split('\n').map(line => line.trim())
+  const head = lines[0]!.replace(/:?\s*Command failed:.*$/, '').trim()
+  const reason = lines.find(line => /^[A-Za-z]*Error:\s/.test(line))?.replace(/^[A-Za-z]*Error:\s*/, '').replace(/\/[^\s'"`)]+/g, '<path>')
+  const code = /\bcode:\s*'([^']+)'/.exec(note)?.[1]
+  return `${head || 'the native reader failed'}${reason ? ` — ${reason}` : ''}${code ? ` (${code})` : ''}`.slice(0, 300)
+}
+
 function faultText(action: string, error: DesktopError): string {
-  return `${action} failed: ${error.note}${error.remedy ? ` — ${error.remedy}` : ''}`
+  return `${action} failed: ${faultNote(error.note)}${error.remedy ? ` — ${error.remedy}` : ''}`
 }
 
 type ActWords = { ok: true; words: string } | { ok: false; aborted: boolean; text: string }
@@ -627,10 +745,91 @@ function pointWords(point: DesktopPoint): string {
   return `(${point.x}, ${point.y}) pt`
 }
 
-async function performAct(driver: DesktopDriver, input: Input, plan: ActPlan, signal: AbortSignal): Promise<ActWords> {
+function fileDialogKeys(path: string): Array<{ key: string } | { text: string }> {
+  if (process.platform === 'win32') return [{ text: path }, { key: 'Enter' }]
+  return [{ key: process.platform === 'darwin' ? 'cmd+shift+g' : 'ctrl+l' }, { text: path }, { key: 'Enter' }]
+}
+
+async function dialogOpen(driver: DesktopDriver, signal: AbortSignal): Promise<boolean | null> {
+  const front = await driver.frontmostApplication()
+  if (!front.ok) return null
+  const tree = await driver.accessibilityTree(front.value, { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP, scope: 'window' }, signal)
+  if (!tree.ok) return null
+  return waitConditionPassed({ dialog: true }, front.value, tree.value)
+}
+
+async function awaitDialog(driver: DesktopDriver, signal: AbortSignal, open: boolean, deadline: number): Promise<'met' | 'unmet' | 'unread'> {
+  let read = false
+  for (;;) {
+    const state = await dialogOpen(driver, signal)
+    read ||= state !== null
+    if (state === open) return 'met'
+    if (signal.aborted || Date.now() >= deadline) return read ? 'unmet' : 'unread'
+    await sleep(Math.min(100, Math.max(0, deadline - Date.now())), signal)
+  }
+}
+
+async function performFile(driver: DesktopDriver, input: Input, plan: ActPlan, signal: AbortSignal): Promise<ActWords> {
+  const run = new ActRun(driver, 'file', signal)
+  const path = input.path!
+  if ((await run.step(driver.click(plan.point!, 'left', 1, signal))) === null) return run.failed()
+  const pause = clamp(input.durationMs ?? FILE_DIALOG_MS, 0, WAIT_CAP_MS)
+  const opened = await awaitDialog(driver, signal, true, Date.now() + pause)
+  if (opened === 'unread') return { ok: false, aborted: signal.aborted, text: `file failed: the window's tree could not be read, so whether ${startWords(input)} opened a file dialog is unknown — nothing typed; take a screenshot and drive the dialog with key and type` }
+  if (opened === 'unmet') return { ok: false, aborted: signal.aborted, text: `file failed: ${startWords(input)} opened no file dialog within ${pause}ms — nothing typed; take a screenshot and re-issue` }
+  for (const step of fileDialogKeys(path)) {
+    await sleep(FILE_KEY_GAP_MS, signal)
+    if ('key' in step) {
+      const chord = parseKeyChord(step.key)
+      if (isKeyChordRefusal(chord)) return { ok: false, aborted: false, text: `file failed: ${chord.reason}` }
+      if ((await run.step(driver.keyTap(chord.key, chord.modifiers, signal))) === null) return run.failed()
+    } else if ((await run.step(driver.typeText(step.text, {}, signal))) === null) return run.failed()
+  }
+  const closed = Date.now() + FILE_CLOSE_MS
+  if ((await awaitDialog(driver, signal, false, Date.now() + FILE_KEY_GAP_MS * 2)) !== 'met') {
+    const enter = parseKeyChord('Enter')
+    if (!isKeyChordRefusal(enter) && (await run.step(driver.keyTap(enter.key, enter.modifiers, signal))) === null) return run.failed()
+  }
+  const gone = await awaitDialog(driver, signal, false, closed)
+  if (gone === 'unread') return { ok: false, aborted: signal.aborted, text: `file failed: the window's tree could not be read after ${path}, so whether the dialog closed is unknown — take a screenshot` }
+  if (gone === 'unmet') return { ok: false, aborted: signal.aborted, text: `file failed: the file dialog is still open after ${path} — it may not accept that path; take a screenshot` }
+  return { ok: true, words: `file ${startWords(input)} ← ${basename(path)} → ${pointWords(plan.point!)} · the dialog opened and closed` }
+}
+
+function valueWords(value: string | null): string {
+  return value === null ? 'value not read back' : `value ${JSON.stringify(value.length > FIELD_VALUE_CHARS ? `${value.slice(0, FIELD_VALUE_CHARS)}…` : value)}`
+}
+
+async function performFill(driver: DesktopDriver, input: Input, plan: ActPlan, front: DesktopApplication, signal: AbortSignal): Promise<ActWords> {
+  const run = new ActRun(driver, 'fill', signal)
+  const element = plan.element!
+  const text = input.text!
+  if (driver.setValue) {
+    const set = await run.step(driver.setValue(front, element, text, signal))
+    if (set === null) return run.failed()
+    if (set.set) return { ok: true, words: `fill ${startWords(input)} ← ${text.length} chars → ${valueWords(set.value)}${set.note ? ` · ${set.note}` : ''}` }
+  }
+  if ((await run.step(driver.click(plan.point!, 'left', 1, signal))) === null) return run.failed()
+  const all = parseKeyChord(process.platform === 'darwin' ? 'cmd+a' : 'ctrl+a')
+  if (isKeyChordRefusal(all)) return { ok: false, aborted: false, text: `fill failed: ${all.reason}` }
+  if ((await run.step(driver.keyTap(all.key, all.modifiers, signal))) === null) return run.failed()
+  if ((await run.step(driver.typeText(text, {}, signal))) === null) return run.failed()
+  let value: string | null = null
+  if (driver.readElement) {
+    const read = await driver.readElement(front, element, signal)
+    if (read.ok && read.value) value = read.value.text
+  }
+  return { ok: true, words: `fill ${startWords(input)} ← ${text.length} chars by keystrokes → ${valueWords(value)}` }
+}
+
+async function performAct(driver: DesktopDriver, input: Input, plan: ActPlan, front: DesktopApplication, signal: AbortSignal): Promise<ActWords> {
   const run = new ActRun(driver, input.action, signal)
   if (signal.aborted) return { ok: false, aborted: true, text: '' }
   switch (input.action) {
+    case 'file':
+      return performFile(driver, input, plan, signal)
+    case 'fill':
+      return performFill(driver, input, plan, front, signal)
     case 'click':
     case 'doubleClick':
     case 'rightClick': {
@@ -727,7 +926,7 @@ function readWords(label: string, text: string, truncated = false): string {
 }
 
 function treeLimitsOf(input: Input): DesktopTreeLimits {
-  if (input.action === 'tree' || input.action === 'find') return { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP, scope: input.scope ?? 'window' }
+  if (TREE_READS.has(input.action)) return { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP, scope: input.scope ?? 'window' }
   const targeted = input.action === 'read' || input.until !== undefined
   return { depth: Math.min(input.depth ?? (targeted ? TREE_DEPTH_CAP : TREE_DEPTH_DEFAULT), TREE_DEPTH_CAP), count: Math.min(input.limit ?? (targeted ? TREE_LIMIT_CAP : TREE_LIMIT_DEFAULT), TREE_LIMIT_CAP), scope: input.scope ?? 'window' }
 }
@@ -747,6 +946,24 @@ function treeWords(app: DesktopApplication, tree: DesktopOutline, limits: { dept
   return lines.join('\n')
 }
 
+function fieldsWords(app: DesktopApplication, tree: DesktopOutline, limits: { count: number }, map: ScreenMap | null, points: boolean): string {
+  const rows = tree.elements.map(element => {
+    const secure = element.role.includes('Secure')
+    const value = element.value ?? ''
+    const parts = [`[${element.ref}]`, element.role]
+    if (element.title !== null && element.title.trim() !== '') parts.push(JSON.stringify(element.title))
+    parts.push(secure ? '(secure)' : JSON.stringify(value.length > FIELD_VALUE_CHARS ? `${value.slice(0, FIELD_VALUE_CHARS)}…` : value))
+    if (points && element.frame && map) {
+      const pixel = pixelOfPoint(map, { x: element.frame.x + element.frame.width / 2, y: element.frame.y + element.frame.height / 2 })
+      if (pixelOnScreen(map, pixel)) parts.push(`(${pixel.x},${pixel.y})px`)
+    }
+    return parts.join(' ')
+  })
+  const lines = [`fields: ${app.name} — ${rows.length} control${rows.length === 1 ? '' : 's'}`, ...rows]
+  if (tree.truncated) lines.push(`truncated: more controls past ${tree.reason ?? `the limit of ${limits.count} controls`} — raise limit, or narrow with root`)
+  return lines.join('\n')
+}
+
 async function factsLine(driver: DesktopDriver, map: ScreenMap | null): Promise<string> {
   return `${await cursorWords(driver, map)} · ${await frontmostWords(driver)}`
 }
@@ -755,14 +972,17 @@ type Shot =
   | { ok: true; line: string; imagePath: string; inlinePath?: string; inlineMediaType?: string; screen: ScreenMap }
   | { ok: false; aborted: boolean; text: string }
 
-function toolUseIdOfParent(parent: AssistantMessage | undefined): string | null {
+function toolUseIdsOfParent(parent: AssistantMessage | undefined): string[] {
   const content = (parent as { message?: { content?: unknown } } | undefined)?.message?.content
-  if (!Array.isArray(content)) return null
-  for (const block of [...content].reverse()) {
+  if (!Array.isArray(content)) return []
+  return content.flatMap(block => {
     const typed = block as { type?: unknown; name?: unknown; id?: unknown }
-    if (typed.type === 'tool_use' && typed.name === COMPUTER_TOOL_NAME && typeof typed.id === 'string') return typed.id
-  }
-  return null
+    return typed.type === 'tool_use' && typed.name === COMPUTER_TOOL_NAME && typeof typed.id === 'string' ? [typed.id] : []
+  })
+}
+
+function toolUseIdOfParent(parent: AssistantMessage | undefined): string | null {
+  return toolUseIdsOfParent(parent).at(-1) ?? null
 }
 
 async function takeScreenshot(
@@ -779,6 +999,7 @@ async function takeScreenshot(
   full = false,
   requestedScale?: number,
   publish = true,
+  sameMessage: ReadonlySet<string> = new Set(),
 ): Promise<Shot> {
   const displays = await driver.displays()
   if (!displays.ok) return { ok: false, aborted: false, text: faultText('screenshot', displays.error) }
@@ -788,7 +1009,7 @@ async function takeScreenshot(
   if (region !== undefined) {
     const refusal = regionRefusal(region, map)
     if (refusal !== null) return { ok: false, aborted: false, text: refusal }
-    const frame = framePixel(map, context.messages ?? [], region.x, region.y)
+    const frame = framePixel(map, context.messages ?? [], region.x, region.y, sameMessage)
     if (!frame.ok) return { ok: false, aborted: false, text: frame.text }
   }
   const front = region === undefined && wanted === undefined && !full ? await driver.frontmostApplication() : null
@@ -949,7 +1170,7 @@ export const ComputerTool = buildTool({
 
 The first act in an application asks; tree/find/read/wait-until share its grant. Other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input. Screenshots remain in saved history.
 
-After the same act twice with an unchanged result, read the screen before acting again.`
+After a click whose effect you assume (a dialog, a focus change, a page), wait with until; a sequence stops at its timeout. After the same act twice with an unchanged result, read the screen before acting again.`
   },
   userFacingName,
   shouldDefer: true,
@@ -994,7 +1215,6 @@ After the same act twice with an unchanged result, read the screen before acting
   async checkPermissions(input: Input, context: ToolUseContext) {
     const posture = desktopPostureRefusal(context)
     if (posture !== null && !context.agentId) return denied(posture, 'desktop session policy')
-    if (input.captcha === true) return denied(CAPTCHA_HANDOFF, 'captcha handoff')
     if (input.action === 'read' && input.clipboard === true) {
       const permissionContext = context.getAppState?.()?.toolPermissionContext as ToolPermissionContext | undefined
       const rule = ruleFor(permissionContext, 'clipboard')
@@ -1034,14 +1254,19 @@ After the same act twice with an unchanged result, read the screen before acting
       return denied(ruleSentence(`Driving ${app.name} (${app.identity})`, 'deny', ruleFor(permissionContext, content)!), `${content} carries a deny rule`)
     }
     noteCheckedActApp(owner, input.action, { identity: app.identity, name: app.name })
-    if (ruled === 'allow' || (ruled === null && appApproved(owner, app.identity))) {
-      return { behavior: 'allow' as const, updatedInput: input }
+    const challenge = (viaGrant: boolean): PermissionDecision => {
+      if (input.captcha !== true || !ACT_ACTIONS.has(input.action)) return { behavior: 'allow' as const, updatedInput: input }
+      const verdict = challengeVerdict(input, app, context)
+      if (verdict.verdict === 'deny') return denied(`Computer ${input.action} not done: ${verdict.text}`, 'captcha carries a deny rule')
+      noteCheckedActApp(owner, challengeAction(input.action), { identity: app.identity, name: app.name }, viaGrant)
+      return verdict.verdict === 'allow' ? { behavior: 'allow' as const, updatedInput: input } : verdict.decision
     }
+    if (ruled === 'allow' || (ruled === null && appApproved(owner, app.identity))) return challenge(false)
     const access = resolveComputerAccess(savedComputerAccess(), permissionContext !== undefined && postureBypassesAsks(permissionContext))
     const opened = access.value === 'full' || (access.value === 'permissive' && home.identity === app.identity)
     if (ruled === null && (opened || readComputerGrant(String(getSessionId())) !== null)) {
       noteCheckedActApp(owner, input.action, { identity: app.identity, name: app.name }, true)
-      return { behavior: 'allow' as const, updatedInput: input }
+      return challenge(true)
     }
     return {
       behavior: 'ask' as const,
@@ -1059,6 +1284,7 @@ After the same act twice with an unchanged result, read the screen before acting
     const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
     const signal = context.abortController?.signal ?? new AbortController().signal
     const toolUseId = context.toolUseId ?? toolUseIdOfParent(parentAssistantMessage) ?? ''
+    const sameMessage: ReadonlySet<string> = new Set(toolUseIdsOfParent(parentAssistantMessage))
     let result: string
     let outcome: ToolEffectOutcome = 'no-change'
     let imagePath: string | undefined
@@ -1066,6 +1292,7 @@ After the same act twice with an unchanged result, read the screen before acting
     let inlineMediaType: string | undefined
     let screen: ScreenMap | undefined
     let claimedForAct = false
+    let contentShown = false
     const posture = desktopPostureRefusal(context)
     if (posture !== null) {
       result = `policy denial: ${posture}`
@@ -1082,7 +1309,7 @@ After the same act twice with an unchanged result, read the screen before acting
     const permissions = await driver.permissions()
     if (permissions.ok) rememberDesktopPermissions(permissions.value)
     const takeShot = (wanted: number | undefined, label: string | undefined, settleMs = 0, observe?: DesktopBounds): Promise<Shot> =>
-      takeScreenshot(owner, driver, context, toolUseId, wanted, label, signal, input.region, settleMs, observe, input.full, input.scale)
+      takeScreenshot(owner, driver, context, toolUseId, wanted, label, signal, input.region, settleMs, observe, input.full, input.scale, true, sameMessage)
     const adoptShot = (shot: Extract<Shot, { ok: true }>): void => {
       imagePath = shot.imagePath
       inlinePath = shot.inlinePath
@@ -1104,6 +1331,7 @@ After the same act twice with an unchanged result, read the screen before acting
         let afterState = ''
         let lastBefore: DesktopObservation = {}
         let lastMayRead = false
+        const readable = new Set<string>()
         for (const step of steps) {
           if (signal.aborted) {
             await driver.releaseAll()
@@ -1125,18 +1353,21 @@ After the same act twice with an unchanged result, read the screen before acting
             outcome = 'failed'
             return finish()
           }
+          const judged = peekCheckedActApp(owner)
+          const reads = ACT_ACTIONS.has(step.action) || permissionAction(step) === 'tree'
           const last = completed === steps.length - 1
           if (step.action === 'screenshot') {
             if (input.capture !== false) {
               const front = await driver.frontmostApplication()
               if (front.ok && isTerminalApplication(front.value) && !step.pixels && !(step.full ?? input.full) && step.display === undefined && (step.region ?? input.region) === undefined) {
                 lines.push(await readTerminalText(driver, front.value, signal))
+                contentShown = true
                 imagePath = inlinePath = inlineMediaType = undefined
                 screen = undefined
                 completed++
                 continue
               }
-              const shot = await takeScreenshot(owner, driver, context, toolUseId, step.display, step.label, signal, step.region ?? input.region, 0, undefined, step.full ?? input.full, step.scale ?? input.scale, false)
+              const shot = await takeScreenshot(owner, driver, context, toolUseId, step.display, step.label, signal, step.region ?? input.region, 0, undefined, step.full ?? input.full, step.scale ?? input.scale, false, sameMessage)
               if (!shot.ok) {
                 result = `sequence ${completed}/${steps.length} completed\n${lines.join('\n')}\n${shot.aborted ? interruptedText('screenshot') : shot.text}`
                 outcome = 'failed'
@@ -1144,6 +1375,7 @@ After the same act twice with an unchanged result, read the screen before acting
               }
               adoptShot(shot)
               lines.push(shot.line)
+              contentShown = true
             }
             completed++
             continue
@@ -1151,25 +1383,27 @@ After the same act twice with an unchanged result, read the screen before acting
           if (last) {
             const front = await driver.frontmostApplication()
             lastBefore = front.ok ? { app: front.value } : {}
-            lastMayRead = ACT_ACTIONS.has(step.action) || permissionAction(step) === 'tree' || (front.ok && appApproved(owner, front.value.identity))
+            lastMayRead = reads || (front.ok && (appApproved(owner, front.value.identity) || readable.has(front.value.identity)))
             if (!ACT_ACTIONS.has(step.action) && lastMayRead) lastBefore = await readObservation(driver, signal, false, lastBefore.app?.identity)
           }
           const answer = await ComputerTool.call(ACT_ACTIONS.has(step.action) ? { ...step, capture: false, settleMs: last ? input.settleMs : 0 } : step.action === 'wait' ? { ...step, capture: false } : step, context, canUseTool, parentAssistantMessage)
-          const stepLines = answer.data.result.split('\n')
-          afterState = stepLines.find(line => /^(?:changed|unchanged) · now:/.test(line)) ?? ''
-          lines.push(stepLines.filter(line => !/^(?:changed|unchanged) · now:/.test(line)).join('\n'))
+          const stepLines = answer.data.result.split('\n').filter(line => line !== WEB_CONTENT_NOTICE)
+          contentShown ||= stepLines.length !== answer.data.result.split('\n').length
+          afterState = stepLines.find(line => STATE_LINE.test(line)) ?? ''
+          lines.push(stepLines.filter(line => !STATE_LINE.test(line)).join('\n'))
           if (answer.data.outcome !== 'succeeded') {
             result = `sequence ${completed}/${steps.length} completed\n${lines.join('\n')}`
             outcome = 'failed'
             return finish()
           }
+          if (reads && judged !== null && judged.action === step.action) readable.add(judged.app.identity)
           completed++
         }
         outcome = 'succeeded'
         if (input.capture !== false && steps.at(-1)?.action !== 'screenshot') {
           imagePath = inlinePath = inlineMediaType = undefined
           screen = undefined
-          const shot = await takeShot(undefined, undefined)
+          const shot = await takeShot(undefined, input.label)
           if (shot.ok) {
             adoptShot(shot)
             lines.push(shot.line)
@@ -1181,7 +1415,7 @@ After the same act twice with an unchanged result, read the screen before acting
         if (!signal.aborted && (input.capture !== false || !afterState)) {
           const front = await driver.frontmostApplication()
           const after = lastMayRead ? await readObservation(driver, signal, false, lastBefore.app?.identity) : front.ok ? { app: front.value } : {}
-          afterState = `${afterState.startsWith('changed · ') || observationChanged(lastBefore, after) ? 'changed' : 'unchanged'} · ${treeObservation(after)}`
+          afterState = `${stateWord(lastBefore, after, afterState.startsWith('changed · ') || observationChanged(lastBefore, after))} · ${treeObservation(after)}`
         }
         if (signal.aborted) {
           await driver.releaseAll()
@@ -1243,13 +1477,14 @@ After the same act twice with an unchanged result, read the screen before acting
           outcome = 'failed'
           return finish()
         }
-        const plan = planOf(owner, context, input)
+        const plan = planOf(owner, context, input, sameMessage)
         if (isPlanRefusal(plan)) {
           result = plan.refusal
           outcome = 'failed'
           return finish()
         }
-        const checked = consumeCheckedAct(owner, input.action)
+        const challengeAnswered = peekCheckedActApp(owner)?.action === challengeAction(input.action)
+        const checked = consumeCheckedAct(owner, challengeAnswered ? challengeAction(input.action) : input.action)
         const judged: DesktopJudgedApp | null = checked?.app ?? null
         const viaGrant = checked?.viaGrant === true
         const front = await driver.frontmostApplication()
@@ -1270,24 +1505,34 @@ After the same act twice with an unchanged result, read the screen before acting
           outcome = 'failed'
           return finish()
         }
-        const atAct = await driver.frontmostApplication()
-        if (!atAct.ok || atAct.value.identity !== front.value.identity || atAct.value.windowId !== front.value.windowId || JSON.stringify(atAct.value.bounds) !== JSON.stringify(front.value.bounds)) {
-          result = `${input.action} refused: the front window changed before the act — nothing done; take a screenshot and re-issue`
-          outcome = 'failed'
-          return finish()
-        }
-        if (!(await waitForOperatorPause(driver, signal))) {
-          if (signal.aborted) await driver.releaseAll()
-          result = signal.aborted ? interruptedText(input.action) : `${input.action} refused: ${OPERATOR_TYPING_REFUSAL}`
-          outcome = 'failed'
-          return finish()
-        }
-        const targeting = await resolveActTargets(driver, input, front.value, plan, signal, owner, screenOf(owner))
-        const resolvedTerminal = targeting === null ? await ownTerminalRefusal(driver, input, front.value, plan) : null
-        if (targeting !== null || resolvedTerminal !== null) {
-          result = targeting ?? resolvedTerminal!
-          outcome = 'failed'
-          return finish()
+        for (let pass = 0; ; pass++) {
+          const atAct = await driver.frontmostApplication()
+          if (!atAct.ok || atAct.value.identity !== front.value.identity || atAct.value.windowId !== front.value.windowId || JSON.stringify(atAct.value.bounds) !== JSON.stringify(front.value.bounds)) {
+            result = `${input.action} refused: the front window changed before the act — nothing done; take a screenshot and re-issue`
+            outcome = 'failed'
+            return finish()
+          }
+          if (!(await waitForOperatorPause(driver, signal))) {
+            if (signal.aborted) await driver.releaseAll()
+            result = signal.aborted ? interruptedText(input.action) : `${input.action} refused: ${OPERATOR_TYPING_REFUSAL}`
+            outcome = 'failed'
+            return finish()
+          }
+          const targeting = await resolveActTargets(driver, input, front.value, plan, signal, owner, screenOf(owner))
+          const resolvedTerminal = targeting === null ? await ownTerminalRefusal(driver, input, front.value, plan) : null
+          if (targeting !== null || resolvedTerminal !== null) {
+            result = targeting ?? resolvedTerminal!
+            outcome = 'failed'
+            return finish()
+          }
+          const challenge = await challengeRoad(input, plan, front.value, context, canUseTool, parentAssistantMessage, toolUseId, challengeAnswered || pass > 0)
+          if (challenge === 'asked') continue
+          if (challenge !== null) {
+            result = challenge
+            outcome = 'failed'
+            return finish()
+          }
+          break
         }
         if (await operatorIsTyping(driver)) {
           result = `${input.action} refused: ${OPERATOR_TYPING_REFUSAL}`
@@ -1310,7 +1555,7 @@ After the same act twice with an unchanged result, read the screen before acting
         setDrivingApp(live)
         let act: ActWords
         try {
-          act = await performAct(driver, input, plan, signal)
+          act = await performAct(driver, input, plan, ready.value, signal)
         } catch (err) {
           await driver.releaseAll()
           throw err
@@ -1338,7 +1583,7 @@ After the same act twice with an unchanged result, read the screen before acting
           outcome = 'failed'
           return finish()
         }
-        result = `${act.words} · ${shot ? shot.ok ? shot.line : shot.text : await factsLine(driver, screenOf(owner))}\n${changed ? 'changed' : 'unchanged'} · ${treeObservation(after)}`
+        result = `${act.words} · ${shot ? shot.ok ? shot.line : shot.text : await factsLine(driver, screenOf(owner))}\n${stateWord({ app: ready.value, tree: plan.beforeTree }, after, changed)} · ${treeObservation(after)}`
         if (input.verify) {
           result += `\n${after.app && sameWindow(after.app, front.value) ? verificationWords(plan.beforeTree, after.tree) : 'verification: front window changed — read tree in the application now in front'}`
         }
@@ -1366,6 +1611,7 @@ After the same act twice with an unchanged result, read the screen before acting
         }
         case 'wait': {
           const pause = clamp(input.durationMs ?? WAIT_DEFAULT_MS, 0, WAIT_CAP_MS)
+          let waitNote = ''
           if (input.until !== undefined) {
             const checked = consumeCheckedAct(owner, 'wait')
             if (!turnFront.ok || (checked !== null && checked.app.identity !== turnFront.value.identity)) {
@@ -1378,6 +1624,7 @@ After the same act twice with an unchanged result, read the screen before acting
             const waitingSignal = AbortSignal.any([signal, AbortSignal.timeout(Math.ceil(pause))])
             let matched = false
             let lastSize: number | null = null
+            let lastTree: DesktopTree | null = null
             while (!waitingSignal.aborted) {
               const before = await driver.frontmostApplication()
               if (!before.ok || !sameWindow(before.value, app)) {
@@ -1396,24 +1643,21 @@ After the same act twice with an unchanged result, read the screen before acting
                 return finish()
               }
               if (checked?.viaGrant !== true) approveApp(owner, { identity: app.identity, name: app.name })
-              if (treeNamesCaptcha(tree.value)) {
-                result = CAPTCHA_HANDOFF
-                outcome = 'failed'
-                return finish()
-              }
+              lastTree = tree.value
               lastSize = tree.value.elements.length
               if (waitConditionPassed(input.until, after.value, tree.value)) { matched = true; break }
               if (Date.now() >= deadline) break
               await sleep(Math.min(100, Math.max(0, deadline - Date.now())), signal)
             }
             if (!matched) {
-              result = signal.aborted ? interruptedText('wait') : `wait timed out after ${pause}ms: ${waitConditionWords(input.until)} · last tree: ${lastSize === null ? 'unavailable' : `${lastSize} elements`}`
+              result = signal.aborted ? interruptedText('wait') : `wait timed out after ${pause}ms: ${waitConditionWords(input.until)} · last tree: ${lastSize === null ? 'unavailable' : `${lastSize} elements`}${lastTree ? captchaLine(lastTree, app) : ''}`
               outcome = 'failed'
               break
             }
+            waitNote = lastTree ? captchaLine(lastTree, app) : ''
           } else await sleep(pause, signal)
           if ((input.capture === false || (input.capture !== true && input.until === undefined)) && !signal.aborted) {
-            result = `wait ${input.until ? waitConditionWords(input.until) : `${pause}ms`} · ${await factsLine(driver, screenOf(owner))}`
+            result = `wait ${input.until ? waitConditionWords(input.until) : `${pause}ms`} · ${await factsLine(driver, screenOf(owner))}${waitNote}`
             outcome = 'succeeded'
             break
           }
@@ -1422,14 +1666,14 @@ After the same act twice with an unchanged result, read the screen before acting
             outcome = 'failed'
             break
           }
-          const shot = await takeShot(undefined, undefined)
+          const shot = await takeShot(undefined, input.label)
           if (!shot.ok) {
             result = shot.aborted ? interruptedText('wait') : `wait ${input.until ? waitConditionWords(input.until) : `${pause}ms`} · ${shot.text}`
             outcome = 'failed'
             break
           }
           adoptShot(shot)
-          result = `wait ${input.until ? waitConditionWords(input.until) : `${pause}ms`} · ${shot.line}`
+          result = `wait ${input.until ? waitConditionWords(input.until) : `${pause}ms`} · ${shot.line}${waitNote}`
           outcome = 'succeeded'
           break
         }
@@ -1499,7 +1743,6 @@ After the same act twice with an unchanged result, read the screen before acting
           if (!driver.readElement) { result = 'read is unavailable in this desktop driver'; break }
           const tree = await driver.accessibilityTree(app, treeLimitsOf(input), signal)
           if (!tree.ok) { result = faultText('read', tree.error); break }
-          if (treeNamesCaptcha(tree.value)) { result = CAPTCHA_HANDOFF; break }
           const element = input.ref !== undefined ? readRefElement(owner, app, tree.value, input.ref, screenOf(owner)) : targetElement(tree.value, input.target!, screenOf(owner))
           if ('refusal' in element) { result = `read refused: ${element.refusal}`; break }
           const before = await driver.frontmostApplication()
@@ -1529,11 +1772,12 @@ After the same act twice with an unchanged result, read the screen before acting
           if (!after.ok || !sameWindow(after.value, app)) { result = 'read refused: the front window changed while reading — re-issue'; break }
           if (value.value === null) { result = 'read failed: the element has no readable text or value'; break }
           if (!checked?.viaGrant) approveApp(owner, app)
-          result = readWords(JSON.stringify(value.value.title ?? element.title ?? value.value.role), value.value.text, value.value.truncated)
+          result = readWords(JSON.stringify(value.value.title ?? element.title ?? value.value.role), value.value.text, value.value.truncated) + captchaLine(tree.value, app)
           outcome = 'succeeded'
           break
         }
         case 'find':
+        case 'fields':
         case 'tree': {
           const checked = consumeCheckedAct(owner, input.action)
           const judged: DesktopJudgedApp | null = checked?.app ?? null
@@ -1565,25 +1809,26 @@ After the same act twice with an unchanged result, read the screen before acting
           const keptLimits = { depth: input.depth ?? TREE_DEPTH_DEFAULT, count: input.limit ?? TREE_LIMIT_DEFAULT }
           let root: DesktopTree['elements'][number] | undefined
           if (input.root !== undefined) {
-            const matches = typeof input.root === 'number' ? resolveTreeRef(owner, app, tree.value, input.root) : targetMatches(tree.value, input.root)
-            const point = targetPoint({ ...tree.value, elements: matches }, {})
-            if ('refusal' in point && (matches.length !== 1 || tree.value.truncated)) {
-              result = `${input.action} refused: ${typeof input.root === 'number' ? `ref:${input.root}` : targetWords(input.root)}${point.refusal}`
+            const selected = typeof input.root === 'number' ? targetElement({ ...tree.value, elements: resolveTreeRef(owner, app, tree.value, input.root) }, {}) : targetMatches(tree.value, input.root).length === 0 ? { refusal: `${targetWords(input.root)}: 0 matches — read tree or take a screenshot${pageContentNote(tree.value) ? `; ${pageContentNote(tree.value)}` : ''}` } : targetElement(tree.value, input.root, screenOf(owner))
+            if ('refusal' in selected) {
+              result = `${input.action} refused: ${typeof input.root === 'number' ? `ref:${input.root}` : ''}${selected.refusal}`
               outcome = 'failed'
               break
             }
-            root = matches[0]
+            root = selected
           }
-          const outlined = outlineTree(tree.value, app.bounds, { all: input.all, root, ...(input.action === 'find' ? { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP } : keptLimits) })
+          const outlined = outlineTree(tree.value, app.bounds, { all: input.all, root, ...(input.action === 'tree' ? keptLimits : { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP }) })
           let shown = outlined
-          if (input.action === 'find') {
-            const matches = targetMatches(outlined, input.target!) as DesktopOutline['elements']
-            const elements = matches.filter(element => element.depth <= keptLimits.depth).slice(0, keptLimits.count)
-            shown = { ...outlined, elements, truncated: outlined.truncated || elements.length !== matches.length, reason: elements.length !== matches.length ? `the limit of ${keptLimits.count} elements or depth ${keptLimits.depth}` : outlined.reason }
+          if (input.action !== 'tree') {
+            const matches = (input.action === 'find' ? targetMatches(outlined, input.target!) : outlined.elements.filter(element => FIELD_ROLES.test(element.role))) as DesktopOutline['elements']
+            const depth = input.action === 'find' ? keptLimits.depth : (input.depth ?? TREE_DEPTH_CAP)
+            const elements = matches.filter(element => element.depth <= depth).slice(0, keptLimits.count)
+            shown = { ...outlined, elements, truncated: outlined.truncated || elements.length !== matches.length, reason: elements.length !== matches.length ? `the limit of ${keptLimits.count} elements or depth ${depth}` : outlined.reason }
           }
           rememberTreeRefs(owner, app, tree.value, shown)
-          result = input.action === 'tree' && !input.pixels && input.root === undefined && input.scope !== 'app' && isTerminalApplication(app) ? await readTerminalText(driver, app, signal, tree.value) : treeWords(app, shown, keptLimits, screenOf(owner), input.points === true)
-          if (treeNamesCaptcha(tree.value)) result += `\n${CAPTCHA_HANDOFF}`
+          result = input.action === 'tree' && !input.pixels && input.root === undefined && input.scope !== 'app' && isTerminalApplication(app) ? await readTerminalText(driver, app, signal, tree.value) : input.action === 'fields' ? fieldsWords(app, shown, keptLimits, screenOf(owner), input.points === true) : treeWords(app, shown, keptLimits, screenOf(owner), input.points === true)
+          settleChallenge(String(getSessionId()), app, treeSight(tree.value, app.bounds) === 'challenge')
+          result += captchaLine(tree.value, app)
           outcome = 'succeeded'
           break
         }
@@ -1594,7 +1839,7 @@ After the same act twice with an unchanged result, read the screen before acting
       }
     } catch (err) {
       const e = err as Error
-      result = e.name === 'AbortError' || signal.aborted ? interruptedText(input.action) : `${input.action} failed: ${e.message}`
+      result = e.name === 'AbortError' || signal.aborted ? interruptedText(input.action) : `${input.action} failed: ${faultNote(e.message)}`
       outcome = 'failed'
     }
     return finish()
@@ -1603,9 +1848,11 @@ After the same act twice with an unchanged result, read the screen before acting
       if (imagePath && screen) setScreen(owner, screen)
       if (claimedForAct && !signal.aborted) renewDesktopClaim()
       const clamps = ([['depth', TREE_DEPTH_CAP], ['limit', TREE_LIMIT_CAP]] as const).filter(([field, cap]) => (input[field] ?? 0) > cap).map(([field, cap]) => `${field} ${input[field]} → ${cap}`)
+      const text = result! + (clamps.length && outcome === 'succeeded' ? `\nclamped: ${clamps.join('; ')}` : '')
+      const noted = imagePath !== undefined || contentShown || (outcome === 'succeeded' && carriesScreenContent(input, false))
       const output: Output = {
         action: input.action,
-        result: result! + (clamps.length && outcome === 'succeeded' ? `\nclamped: ${clamps.join('; ')}` : ''),
+        result: noted ? `${WEB_CONTENT_NOTICE}\n${text}` : text,
         outcome,
         ...(imagePath !== undefined && { imagePath }),
         ...(inlinePath !== undefined && { inlinePath }),
@@ -1618,7 +1865,7 @@ After the same act twice with an unchanged result, read the screen before acting
           outcome,
           operation: `computer.${input.action}`,
           changedPaths: imagePath ? [imagePath] : [],
-          evidence: output.result.split('\n')[0]?.slice(0, 160) ?? '',
+          evidence: text.split('\n')[0]?.slice(0, 160) ?? '',
           startedAt,
           completedAt: Date.now(),
         },

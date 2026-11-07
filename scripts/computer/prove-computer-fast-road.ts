@@ -223,4 +223,56 @@ const genericDenied = await call({ action: 'sequence', steps: inputs[4]!.steps, 
 check('a new whole-tool deny is checked even when the application has a grant', genericDenied.outcome === 'failed' && genericDenied.result.includes('1/3'), genericDenied.result)
 driver.click = originalClick
 session.forgetDesktopOwner(owner)
+
+section('an edge-clamped target is refused with words, never clicked (a browser reports an element below the fold as a 1 pt strip: frame y 985, height 1, centre 985.5 inside the window)')
+{
+  const chrome = { identity: 'com.example.Browser', name: 'Browser', pid: 4242, windowId: 'careers', title: 'Careers — Example', bounds: { x: 0, y: 30, width: 1920, height: 956 } }
+  const area = (role: string, title: string, frame: { x: number; y: number; width: number; height: number }, focused = false) => ({ role, title, frame, ...(focused ? { focused } : {}) })
+  const far = join(scratch, 'far.json')
+  writeFileSync(far, JSON.stringify({
+    displays: [{ index: 0, id: 'careers', originX: 0, originY: 0, width: 1920, height: 1080, scale: 2, primary: true }],
+    frontmost: chrome,
+    cursor: { x: 50, y: 50 },
+    lines: ['Careers'],
+    tree: [{ role: 'AXWindow', title: chrome.title, focused: true, frame: chrome.bounds, children: [
+      { role: 'AXWebArea', title: 'Careers', frame: { x: 0, y: 120, width: 1920, height: 866 }, children: [
+        area('AXTextArea', 'AF7', { x: 742, y: 300, width: 721, height: 120 }),
+        area('AXTextArea', 'AF8', { x: 742, y: 600, width: 721, height: 120 }, true),
+        area('AXTextArea', 'AF10', { x: 742, y: 985, width: 721, height: 1 }),
+        area('AXLink', 'Edit about', { x: 1000, y: 985, width: 265, height: 1 }),
+        area('AXTextArea', 'Tall', { x: 20, y: 100, width: 600, height: 900 }),
+        area('AXButton', 'Footer', { x: 742, y: 966, width: 100, height: 20 }),
+        area('AXButton', 'Header', { x: 742, y: 120, width: 100, height: 1 }),
+      ] },
+    ] }],
+  }))
+  process.env.MERCURY_DESKTOP_FAKE_SCENE = far
+  resetDesktopDriverForTest()
+  const page = resolveDesktopDriver()
+  if (page.state !== 'ok') throw new Error(page.note)
+  const chromeDriver = page.driver as DesktopDriver & { acts: { act: string; detail: Record<string, unknown> }[] }
+  context = toolContext()
+  session.forgetDesktopOwner(ownerOf(context))
+  const clicks = () => chromeDriver.acts.filter(a => a.act === 'click').map(a => JSON.stringify(a.detail.at))
+  const clamped = await call({ action: 'click', target: { role: 'AXTextArea', name: 'AF10' }, capture: false })
+  check('the clamped text area is refused with the scroll sentence', clamped.outcome === 'failed' && clamped.result.includes('AF10') && clamped.result.includes("below the web area's edge") && clamped.result.includes('1 pt visible') && clamped.result.includes('scroll it into view first'), clamped.result)
+  check('no click reached the driver for the clamped target', clicks().length === 0, clicks().join(','))
+  const found = await call({ action: 'find', target: { role: 'AXLink', name: 'Edit about' } })
+  const ref = Number(/\[(\d+)\] AXLink "Edit about"/.exec(found.result)?.[1])
+  const byRef = await call({ action: 'click', ref, capture: false })
+  check('the ref road refuses the same clamped frame', found.outcome === 'succeeded' && byRef.outcome === 'failed' && byRef.result.includes(`ref:${ref}`) && byRef.result.includes('scroll it into view first') && clicks().length === 0, byRef.result)
+  const dragged = await call({ action: 'drag', target: { role: 'AXTextArea', name: 'AF7' }, toTarget: { role: 'AXTextArea', name: 'AF10' }, capture: false })
+  check('a drag whose destination is clamped is refused before any input', dragged.outcome === 'failed' && dragged.result.includes('scroll it into view first') && !chromeDriver.acts.some(a => a.act === 'drag'), dragged.result)
+  const header = await call({ action: 'click', target: { role: 'AXButton', name: 'Header' }, capture: false })
+  check('a strip clamped at the top edge is refused as above it', header.outcome === 'failed' && header.result.includes("above the web area's edge"), header.result)
+  const tall = await call({ action: 'click', target: { role: 'AXTextArea', name: 'Tall' }, capture: false })
+  check('an element clipped at both edges still clicks its centre', tall.outcome === 'succeeded' && clicks().at(-1) === JSON.stringify({ x: 320, y: 550 }), tall.result)
+  const footer = await call({ action: 'click', target: { role: 'AXButton', name: 'Footer' }, capture: false })
+  check('a 20-pt control touching the bottom edge still clicks', footer.outcome === 'succeeded' && clicks().at(-1) === JSON.stringify({ x: 792, y: 976 }), footer.result)
+  const rooted = await call({ action: 'tree', root: { role: 'AXTextArea', name: 'AF10' } })
+  check('the tree-root road is untouched by the edge rule', rooted.outcome === 'succeeded' && rooted.result.includes('AXTextArea "AF10"'), rooted.result)
+  const read = await call({ action: 'read', target: { role: 'AXTextArea', name: 'AF10' } })
+  check('read is untouched by the edge rule', read.outcome === 'succeeded', read.result)
+  session.forgetDesktopOwner(ownerOf(context))
+}
 finish('prove-computer-fast-road')

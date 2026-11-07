@@ -156,5 +156,33 @@ section('§6 only the card grants: the tool never writes one, and a headless sea
   session.forgetDesktopOwner(owner)
 }
 
+
+section('§7 the challenge grant: per window, until the tree no longer shows the challenge, an hour at most, never written to disk')
+{
+  const browser = { identity: 'com.example.Browser', windowId: 'careers', title: 'Careers' }
+  grants.clearChallengeGrants()
+  check('no grant before the operator answers', grants.challengeGranted(SESSION, browser, NOW) === null)
+  const seen = grants.grantChallenge(SESSION, browser, true, NOW)
+  check('a yes on a challenge the tree showed holds for that window and is bounded by the hour', grants.challengeGranted(SESSION, browser, NOW) === seen && seen.until === NOW + grants.HOUR_MS && grants.challengeGranted(SESSION, browser, NOW + grants.HOUR_MS) === null)
+  grants.grantChallenge(SESSION, browser, true, NOW)
+  check('another window of the same application has no grant', grants.challengeGranted(SESSION, { ...browser, windowId: 'other' }, NOW) === null)
+  check('another session has no grant', grants.challengeGranted('other-session', browser, NOW) === null)
+  grants.settleChallenge(SESSION, browser, true, NOW)
+  check('the grant stays while the tree still shows the challenge', grants.challengeGranted(SESSION, browser, NOW) !== null)
+  grants.settleChallenge(SESSION, browser, false, NOW)
+  check('the grant ends when the tree no longer shows the challenge', grants.challengeGranted(SESSION, browser, NOW) === null)
+  const pixels = grants.grantChallenge(SESSION, browser, false, NOW)
+  grants.settleChallenge(SESSION, browser, false, NOW)
+  check('a yes on a challenge seen only in pixels is not ended by a tree that never showed it', grants.challengeGranted(SESSION, browser, NOW) === pixels)
+  const untitled = grants.grantChallenge(SESSION, { identity: browser.identity, windowId: null, title: 'Sign in' }, false, NOW)
+  check('a window with no id is keyed by its title', grants.challengeGranted(SESSION, { identity: browser.identity, windowId: null, title: 'Sign in' }, NOW) === untitled && grants.challengeGranted(SESSION, { identity: browser.identity, windowId: null, title: 'Other' }, NOW) === null)
+  grants.clearChallengeGrants(SESSION)
+  check('clearing the session leaves nothing', grants.challengeGranted(SESSION, browser, NOW) === null && grants.challengeGranted(SESSION, { identity: browser.identity, windowId: null, title: 'Sign in' }, NOW) === null)
+  const file = existsSync(grants.computerGrantPath(SESSION))
+  grants.grantChallenge(SESSION, browser, true, NOW)
+  check('the challenge grant lives in memory: granting one writes no grant file', existsSync(grants.computerGrantPath(SESSION)) === file)
+  grants.clearChallengeGrants()
+  check('the card writes no timed grant for a yes on a challenge', applyComputerAskChoice('yes', SESSION, NOW).grant === null)
+}
 useScene('default', null)
 finish('prove-computer-grants')

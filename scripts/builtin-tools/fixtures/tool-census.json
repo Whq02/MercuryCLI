@@ -436,7 +436,10 @@
         "find",
         "sequence",
         "read",
-        "focusApp"
+        "focusApp",
+        "file",
+        "fill",
+        "fields"
       ],
       "units": [
         "desktop-drive"
@@ -472,7 +475,10 @@
           "find",
           "sequence",
           "read",
-          "focusApp"
+          "focusApp",
+          "file",
+          "fill",
+          "fields"
         ],
         "execution": {
           "kind": "desktop-session",

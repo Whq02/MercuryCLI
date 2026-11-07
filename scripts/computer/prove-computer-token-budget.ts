@@ -109,6 +109,7 @@ for (const identity of ['com.apple.Terminal', 'com.googlecode.iterm2', 'com.mitc
 driver.focusedText = async () => ({ ok: true, value: { role: 'AXTextArea', title: 'shell', text: 'hidden scrollback\nVISIBLE\nnext', visibleRange: { location: 'hidden scrollback\n'.length, length: 7 } } })
 const visible = await call({ action: 'screenshot' })
 check('native focused-text visible range excludes scrollback', visible.result.endsWith('VISIBLE') && visible.result.includes('visible range') && !visible.result.includes('hidden scrollback'), visible.result)
+check('a terminal-text screenshot says the terminal is frontmost and names the road to the application meant', visible.result.includes('is frontmost — activate the application you mean (focusApp)'), visible.result)
 driver.focusedText = async () => ({ ok: true, value: { role: 'AXTextArea', title: 'shell', text: '', visibleRange: { location: 0, length: 0 } } })
 const empty = await call({ action: 'screenshot' })
 check('empty visible terminal is an empty text reading, not a pixel fallback', !empty.imagePath && empty.result.includes('terminal text:') && empty.result.includes('visible range'), empty.result)

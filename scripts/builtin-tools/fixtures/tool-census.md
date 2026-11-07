@@ -6,11 +6,11 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 72 built-in production tools · 201 operations · 72 with a declared capability contract.
+Census version 1 — 72 built-in production tools · 204 operations · 72 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 41 available · 18 conditional · 0 degraded · 13 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- support (at generation time): 41 available · 19 conditional · 0 degraded · 12 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
 - class: 22 observation · 29 mutation · 10 execution · 11 coordination · 0 unclassified
 - integrations: 14 declare transactions · 12 declare executions · 33 declare mercury:// outputs · 50 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · video-generation · web-access
@@ -30,7 +30,7 @@ Census version 1 — 72 built-in production tools · 201 operations · 72 with a
 | Browser | execution | browser-drive | 18 | cancel | yes | — | browser-session (child-execution) | — | scripts/browser/prove-browser-drive.ts |
 | ChangeSet | mutation | text-mutation | 4 | block | yes | file +receipts | — | mercury://file, mercury://receipt | scripts/changesets/run-all.sh |
 | Checkpoint | mutation | task-coordination | — | block | yes | — | — | — | scripts/run-recovery/run-all.sh |
-| Computer | execution | desktop-drive | 19 | cancel | yes | — | desktop-session (child-execution) | — | scripts/computer/prove-computer-asks.ts |
+| Computer | execution | desktop-drive | 22 | cancel | yes | — | desktop-session (child-execution) | — | scripts/computer/prove-computer-asks.ts |
 | ContextLeft | observation | resource-inspection | — | block | yes | — | — | — | scripts/tools/prove-context-left-tool.ts |
 | Correct | mutation | memory | 3 | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |
 | CrewBoard | coordination | task-coordination | 4 | block | yes | — | — | — | scripts/crew/prove-swarm-board.ts |

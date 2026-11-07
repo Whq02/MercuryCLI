@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { renameWithWin32RetrySync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import type { DesktopApplication } from './driver.js'
 
 const COMPUTER_GRANT_FILE = 'computer-grant.json'
 const COMPUTER_GRANT_HOURS = [1, 24] as const
@@ -82,4 +83,47 @@ export function computerGrantWords(record: ComputerGrantRecord, now: number = Da
   const left = Math.ceil(computerGrantRemainingMs(record, now) / 60_000)
   const span = record.hours === 1 ? '1 hour' : '24 hours'
   return `granted for ${span} · ${left >= 90 ? `${Math.round(left / 60)}h` : `${left}m`} left`
+}
+
+export interface ChallengeGrant { window: string; seen: boolean; until: number }
+
+type ChallengeWindow = Pick<DesktopApplication, 'identity' | 'windowId' | 'title'>
+
+const challengeGrants = new Map<string, ChallengeGrant>()
+
+function challengeWindow(app: ChallengeWindow): string {
+  return `${app.identity}\n${app.windowId ?? app.title ?? ''}`
+}
+
+function challengeKey(sessionId: string, app: ChallengeWindow): string {
+  return `${sessionId}\n${challengeWindow(app)}`
+}
+
+export function grantChallenge(sessionId: string, app: ChallengeWindow, seen: boolean, now: number = Date.now()): ChallengeGrant {
+  const grant: ChallengeGrant = { window: challengeWindow(app), seen, until: now + HOUR_MS }
+  challengeGrants.set(challengeKey(sessionId, app), grant)
+  return grant
+}
+
+export function challengeGranted(sessionId: string, app: ChallengeWindow, now: number = Date.now()): ChallengeGrant | null {
+  const key = challengeKey(sessionId, app)
+  const grant = challengeGrants.get(key) ?? null
+  if (grant !== null && grant.until <= now) {
+    challengeGrants.delete(key)
+    return null
+  }
+  return grant
+}
+
+export function settleChallenge(sessionId: string, app: ChallengeWindow, visible: boolean, now: number = Date.now()): void {
+  const grant = challengeGranted(sessionId, app, now)
+  if (grant !== null && grant.seen && !visible) challengeGrants.delete(challengeKey(sessionId, app))
+}
+
+export function clearChallengeGrants(sessionId?: string): void {
+  if (sessionId === undefined) {
+    challengeGrants.clear()
+    return
+  }
+  for (const key of [...challengeGrants.keys()]) if (key.startsWith(`${sessionId}\n`)) challengeGrants.delete(key)
 }

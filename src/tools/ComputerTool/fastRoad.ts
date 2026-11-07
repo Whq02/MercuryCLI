@@ -78,6 +78,46 @@ export function targetPoint(tree: DesktopTree, target: ElementTarget, map: Scree
   return { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 }
 }
 
+const EDGE_MARGIN_PT = 2
+
+function usableFrame(frame: DesktopBounds | null): frame is DesktopBounds {
+  return frame !== null && [frame.x, frame.y, frame.width, frame.height].every(Number.isFinite) && frame.width > 0 && frame.height > 0
+}
+
+function viewportOf(tree: DesktopTree, element: DesktopTreeElement, bounds: DesktopBounds | null): { frame: DesktopBounds; name: string } | null {
+  let frame = bounds
+  let name = 'window'
+  let depth = element.depth
+  for (let index = ((element as { sourceIndices?: number[] }).sourceIndices?.[0] ?? tree.elements.indexOf(element)) - 1; index >= 0 && depth > 0; index--) {
+    const ancestor = tree.elements[index]!
+    if (ancestor.depth >= depth) continue
+    depth = ancestor.depth
+    if (!/^AX(?:ScrollArea|WebArea)\b/.test(ancestor.role) || !usableFrame(ancestor.frame)) continue
+    const inner = ancestor.frame
+    name = ancestor.role.startsWith('AXWebArea') ? 'web area' : 'scroll area'
+    if (frame === null) { frame = inner; break }
+    const x = Math.max(frame.x, inner.x)
+    const y = Math.max(frame.y, inner.y)
+    frame = { x, y, width: Math.min(frame.x + frame.width, inner.x + inner.width) - x, height: Math.min(frame.y + frame.height, inner.y + inner.height) - y }
+    break
+  }
+  return frame === null || frame.width <= 0 || frame.height <= 0 ? null : { frame, name }
+}
+
+export function clippedWords(tree: DesktopTree, element: DesktopTreeElement, bounds: DesktopBounds | null): string | null {
+  const frame = element.frame
+  if (!usableFrame(frame)) return null
+  const viewport = viewportOf(tree, element, bounds)
+  if (viewport === null) return null
+  const edge = viewport.frame
+  const centre = { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 }
+  const side = centre.y > edge.y + edge.height - EDGE_MARGIN_PT ? 'below' : centre.y < edge.y + EDGE_MARGIN_PT ? 'above' : centre.x > edge.x + edge.width - EDGE_MARGIN_PT ? 'right of' : centre.x < edge.x + EDGE_MARGIN_PT ? 'left of' : null
+  if (side === null) return null
+  const overlap = (start: number, length: number, from: number, span: number) => Math.max(0, Math.min(start + length, from + span) - Math.max(start, from))
+  const visible = side === 'below' || side === 'above' ? overlap(frame.y, frame.height, edge.y, edge.height) : overlap(frame.x, frame.width, edge.x, edge.width)
+  return `the target is ${side} the ${viewport.name}'s edge (${Math.round(visible)} pt visible) — scroll it into view first`
+}
+
 export function pageContentNote(tree?: DesktopTree): string {
   if (tree?.webContent === 'absent') return 'this application exposes no page content to the tree — use a screenshot; a missing page element is not a confirmed absence'
   if (tree?.webContent === 'pending') return 'web accessibility requested; page content is still starting — wait until the element appears with durationMs:5000, or take a screenshot'
@@ -152,12 +192,20 @@ export async function settledObservation(driver: DesktopDriver, before: DesktopO
   }
 }
 
+export const STATE_LINE = /^(?:changed|unchanged|title unchanged, focus not read|not compared) · now:/
+
+export function stateWord(before: DesktopObservation, after: DesktopObservation, changed: boolean): string {
+  if (changed) return 'changed'
+  if (before.tree !== undefined && after.tree !== undefined) return 'unchanged'
+  return windowTitle(before) !== null && windowTitle(after) !== null ? 'title unchanged, focus not read' : 'not compared'
+}
+
 export function treeObservation({ app, tree }: DesktopObservation): string {
   const title = windowTitle({ app, tree })
   const dialog = tree?.elements.find(element => /\b(?:AXApplicationDialog|AXSheet)\b/.test(element.role))
   const focused = focusedElement(tree)
   const url = browserAddress(app, tree)
-  return `now: window ${title ? JSON.stringify(title) : 'unknown'}${dialog ? ` · dialog ${dialog.title ? JSON.stringify(dialog.title) : 'unknown'}` : ''} · focus ${focused ? `${focused.role}${focused.title ? ` ${JSON.stringify(focused.title)}` : ''}` : 'unknown'}${url ? ` · url ${url}` : ''}`
+  return `now: window ${title ? JSON.stringify(title) : 'unknown'}${dialog ? ` · dialog ${dialog.title ? JSON.stringify(dialog.title) : 'unknown'}` : ''} · focus ${focused ? `${focused.role}${focused.title ? ` ${JSON.stringify(focused.title)}` : ''}` : tree ? 'none' : 'not read'}${url ? ` · url ${url}` : ''}`
 }
 
 export function verificationWords(before?: DesktopTree, after?: DesktopTree): string {

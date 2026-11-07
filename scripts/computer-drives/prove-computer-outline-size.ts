@@ -7,6 +7,7 @@ import type { DesktopBounds, DesktopTree, DesktopTreeElement } from '../../src/s
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
 const { resetDesktopDriverForTest, resolveDesktopDriver } = await import('../../src/services/desktop/resolveDriver.ts')
 const { outlineTree, interactiveRole } = await import('../../src/tools/ComputerTool/screenMap.ts')
+const { WEB_CONTENT_NOTICE } = await import('../../src/tools/BashTool/webContent.ts')
 const fixtures: Array<{ name: string; rows: string[]; scope: 'window' | 'app'; truncated: boolean; reason: string | null }> = JSON.parse(readFileSync(new URL('fixtures/outline-trees.json', import.meta.url), 'utf8'))
 function parseRow(line: string): DesktopTreeElement {
   const match = /^( *)(AX\w+(?: \([^)]+\))?)(.*)$/.exec(line)
@@ -39,7 +40,7 @@ for (const [index, fixture] of fixtures.entries()) {
   const result = await call({ action: 'tree', scope: tree.scope })
   const rawBytes = Buffer.byteLength(fixture.rows.join('\n'))
   check(`${fixture.name}: raw row count and byte baseline are pinned`, fixture.rows.length === recordedSizes[index]?.[0] && rawBytes === recordedSizes[index]?.[1])
-  const outlineBytes = Buffer.byteLength(result.result)
+  const outlineBytes = Buffer.byteLength(result.result.replace(`${WEB_CONTENT_NOTICE}\n`, ''))
   ratios.push({ name: fixture.name, rawBytes, outlineBytes, ratio: outlineBytes / rawBytes })
   check(`${fixture.name}: outline is under 33% of recorded raw row bytes`, result.outcome === 'succeeded' && outlineBytes / rawBytes < 0.33, JSON.stringify(ratios.at(-1)))
   check(`${fixture.name}: original truncation is preserved without another cut`, result.result.includes('truncated:') === fixture.truncated && (!fixture.truncated || result.result.includes(fixture.reason!)), result.result.slice(-300))

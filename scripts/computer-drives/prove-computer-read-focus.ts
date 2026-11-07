@@ -3,6 +3,7 @@ import { ownerOf, resultOf, toolContext } from '../computer/computerToolKit.ts'
 import type { DesktopApplication, DesktopDriver, DesktopFocusedText, DesktopAnswer, DesktopTreeElement } from '../../src/services/desktop/driver.ts'
 
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
+const { WEB_CONTENT_NOTICE } = await import('../../src/tools/BashTool/webContent.ts')
 const { resolveDesktopDriver } = await import('../../src/services/desktop/resolveDriver.ts')
 const session = await import('../../src/services/desktop/desktopSession.ts')
 const resolved = resolveDesktopDriver()
@@ -34,7 +35,7 @@ const input = { action: 'read', target: { name: 'Webhook URL' } }
 const permission = await ComputerTool.checkPermissions(input as never, context)
 check('read asks for the application before reading', permission.behavior === 'ask' && reads === 0, JSON.stringify(permission))
 const read = await call(input)
-check('labelled read returns text beyond tree clipping', read.outcome === 'succeeded' && read.result === `read "Webhook URL": ${JSON.stringify(long)}` && !read.imagePath, read.result)
+check('labelled read returns text beyond tree clipping', read.outcome === 'succeeded' && read.result === `${WEB_CONTENT_NOTICE}\nread "Webhook URL": ${JSON.stringify(long)}` && !read.imagePath, read.result)
 const refApi = await import('../../src/tools/ComputerTool/screenMap.ts') as unknown as { outlineTree?: Function; rememberTreeRefs?: Function }
 if (refApi.outlineTree && refApi.rememberTreeRefs) {
   const tree = { elements: [element], truncated: false, reason: null }
@@ -64,7 +65,7 @@ check('an app grant does not cover the clipboard', clipPermission.behavior === '
 const clipDenied = await ComputerTool.checkPermissions({ action: 'read', clipboard: true } as never, toolContext({ deny: ['Computer(clipboard)'] }))
 check('clipboard deny wins before any text is read', clipDenied.behavior === 'deny' && clipReads === 0, JSON.stringify(clipDenied))
 const clipboard = await call({ action: 'read', clipboard: true })
-check('clipboard is read only when explicitly selected', clipboard.outcome === 'succeeded' && clipboard.result === 'read clipboard: "copied value"' && clipReads === 1, clipboard.result)
+check('clipboard is read only when explicitly selected', clipboard.outcome === 'succeeded' && clipboard.result === `${WEB_CONTENT_NOTICE}\nread clipboard: "copied value"` && clipReads === 1, clipboard.result)
 const wrong = await ComputerTool.validateInput!({ ...input, clipboard: true } as never, context)
 check('clipboard and element are mutually exclusive', !wrong.result, JSON.stringify(wrong))
 const originalRead = driver.readElement
@@ -73,7 +74,7 @@ const capped = await call(input)
 check('long reads name their cut and keep 20000 characters', capped.outcome === 'succeeded' && capped.result.includes('x'.repeat(20000)) && !capped.result.includes('x'.repeat(20001)) && capped.result.endsWith('truncated: read stops at 20000 characters'), capped.result.slice(-100))
 driver.readElement = async () => ({ ok: true, value: { text: '', title: 'Webhook URL', role: 'AXTextField' } })
 const empty = await call(input)
-check('an empty field is an empty value, not missing', empty.outcome === 'succeeded' && empty.result === 'read "Webhook URL": ""', empty.result)
+check('an empty field is an empty value, not missing', empty.outcome === 'succeeded' && empty.result === `${WEB_CONTENT_NOTICE}\nread "Webhook URL": ""`, empty.result)
 driver.readElement = async (...args) => { const answer = await originalRead(...args); front = { ...app, windowId: 'other' }; return answer }
 const moved = await call(input)
 check('window change discards the value', moved.outcome === 'failed' && !moved.result.includes(long) && moved.result.includes('window changed'), moved.result)

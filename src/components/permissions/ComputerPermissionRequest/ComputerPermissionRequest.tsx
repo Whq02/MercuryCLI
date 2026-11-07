@@ -4,6 +4,7 @@ import { Box, Text } from '../../../ink.js'
 import { Select } from '../../CustomSelect/select.js'
 import { COMPUTER_TOOL_NAME, peekCheckedActApp, type DesktopJudgedApp } from '../../../services/desktop/desktopSession.js'
 import { timedComputerGrant, writeComputerGrant, type ComputerGrantRecord } from '../../../services/desktop/computerGrant.js'
+import { CAPTCHA_OPERATOR_COMPLETES } from '../../../tools/ComputerTool/captcha.js'
 import { conversationIdHere } from '../../../services/engine-connector/focusedConnector.js'
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
 import { useAppState } from '../../../state/AppState.js'
@@ -33,16 +34,32 @@ export function computerAskChoicesFor(sovereignOn: boolean): ReadonlyArray<{ val
   return sovereignOn ? COMPUTER_ASK_CHOICES.filter(choice => choice.value !== 'sovereign') : COMPUTER_ASK_CHOICES
 }
 
+export const COMPUTER_CHALLENGE_CHOICES: ReadonlyArray<{ value: ComputerAskChoice; label: string }> = [
+  { value: 'yes', label: 'Yes — let Mercury try it in this window until the challenge is gone, at most an hour' },
+  { value: 'no', label: 'No — I will complete it myself; Mercury waits and re-issues (esc)' },
+]
+
 const COMPUTER_ASK_FIRST_ACT = 'first act in this application this session'
 const COMPUTER_ASK_QUESTION = 'Do you want to allow Mercury to drive your mouse and keyboard here, and for how long?'
+export const COMPUTER_CHALLENGE_QUESTION = 'A human-verification challenge is on screen. Complete it yourself and Mercury carries on, or let Mercury try it?'
 export const COMPUTER_ASK_NOTE = 'A timed grant covers every application and asks again when it runs out; sovereign mode is saved in the Boot Menu and no permission is asked after it, computer use included.'
+export const COMPUTER_CHALLENGE_NOTE = 'A Computer(captcha) allow rule in your settings answers yes without asking; a deny rule answers no.'
 
 export function computerAskAppLine(app: DesktopJudgedApp | null): string {
   const where = app === null ? 'the application in front' : `${app.name} (${app.identity})`
   return `in ${where} — ${COMPUTER_ASK_FIRST_ACT}`
 }
 
+export function computerChallengeAppLine(app: DesktopJudgedApp | null): string {
+  const where = app === null ? 'the application in front' : `${app.name} (${app.identity})`
+  return `${where} shows a human-verification challenge`
+}
+
 type AskSuggestion = { type?: string; rules?: Array<{ toolName?: string; ruleContent?: string }> }
+
+export function challengeAsk(suggestions: ReadonlyArray<AskSuggestion> | undefined): boolean {
+  return (suggestions ?? []).some(suggestion => (suggestion.rules ?? []).some(rule => rule.toolName === COMPUTER_TOOL_NAME && rule.ruleContent === 'captcha'))
+}
 
 export function judgedAppFromAsk(message: string, suggestions: ReadonlyArray<AskSuggestion> | undefined, reason = ''): DesktopJudgedApp | null {
   let identity: string | null = null
@@ -116,14 +133,16 @@ export function ComputerPermissionRequest({
 
   const input = toolUseConfirm.input as { action?: string; clipboard?: boolean }
   const clipboard = input.action === 'read' && input.clipboard === true
+  const challenge = challengeAsk((toolUseConfirm.permissionResult as { suggestions?: AskSuggestion[] }).suggestions)
   const mode = useAppState(state => state.toolPermissionContext.mode)
   const bypassAvailable = useAppState(state => state.toolPermissionContext.isBypassPermissionsModeAvailable)
-  const options = computerAskChoicesFor(postureBypassesAsks({ mode, isBypassPermissionsModeAvailable: bypassAvailable })).filter(choice => !clipboard || choice.value === 'yes' || choice.value === 'no' || choice.value === 'sovereign').map(choice => ({ label: choice.label, value: choice.value }))
+  const options = (challenge ? COMPUTER_CHALLENGE_CHOICES : computerAskChoicesFor(postureBypassesAsks({ mode, isBypassPermissionsModeAvailable: bypassAvailable })).filter(choice => !clipboard || choice.value === 'yes' || choice.value === 'no' || choice.value === 'sovereign')).map(choice => ({ label: choice.label, value: choice.value }))
 
   function handleChange(value: ComputerAskChoice): void {
     const effect = applyComputerAskChoice(value, conversationIdHere())
     if (!effect.allow) {
-      toolUseConfirm.onReject()
+      if (challenge) toolUseConfirm.onReject(CAPTCHA_OPERATOR_COMPLETES)
+      else toolUseConfirm.onReject()
       onReject()
       onDone()
       return
@@ -145,10 +164,12 @@ export function ComputerPermissionRequest({
         ) : (
           <Text>{useMessage}</Text>
         )}
-        {!clipboard && <Text>{computerAskAppLine(judged)}</Text>}
-        {!clipboard && <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />}
-        {!clipboard && <Text dimColor>{COMPUTER_ASK_NOTE}</Text>}
-        <Text bold>{clipboard ? 'Allow Mercury to read the clipboard text?' : COMPUTER_ASK_QUESTION}</Text>
+        {!clipboard && !challenge && <Text>{computerAskAppLine(judged)}</Text>}
+        {!clipboard && !challenge && <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />}
+        {!clipboard && !challenge && <Text dimColor>{COMPUTER_ASK_NOTE}</Text>}
+        {challenge && <Text>{computerChallengeAppLine(judged)}</Text>}
+        {challenge && <Text dimColor>{COMPUTER_CHALLENGE_NOTE}</Text>}
+        <Text bold>{clipboard ? 'Allow Mercury to read the clipboard text?' : challenge ? COMPUTER_CHALLENGE_QUESTION : COMPUTER_ASK_QUESTION}</Text>
         <Select options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
       </Box>
     </PermissionDialog>

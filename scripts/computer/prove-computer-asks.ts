@@ -174,6 +174,12 @@ section('§7 the terminal running this session: keystrokes never land in it')
   check('type refuses naming the terminal running this session', typed !== null && typed.includes('terminal running this session'), typed ?? 'allowed')
   const held = await refusalOf({ action: 'hold', key: 'shift', durationMs: 100, capture: false }, context)
   check('hold refuses the same way', held !== null && held.includes('terminal running this session'), held ?? 'allowed')
+  const filled = await refusalOf({ action: 'fill', target: { role: 'AXTextArea', name: 'shell' }, text: 'hello', capture: false }, context)
+  check('fill refuses the same way: it carries keystrokes', filled !== null && filled.includes('terminal running this session'), filled ?? 'allowed')
+  const uploadPath = join(scratch, 'upload.txt')
+  writeFileSync(uploadPath, 'x')
+  const uploaded = await refusalOf({ action: 'file', x: insidePixel.x, y: insidePixel.y, path: uploadPath, capture: false }, context)
+  check('file refuses the same way: it types a path', uploaded !== null && uploaded.includes('terminal running this session'), uploaded ?? 'allowed')
   const enter = await refusalOf({ action: 'key', key: 'Enter', capture: false }, context)
   check('key Enter refuses naming the switch chord as the one allowed', enter !== null && enter.includes('terminal running this session') && enter.includes('application switch chord'), enter ?? 'allowed')
   const switchChord = process.platform === 'darwin' ? 'cmd+tab' : 'alt+tab'
@@ -437,5 +443,22 @@ section('§13 the card offers four answers while sovereign mode is already on, f
   check('the card reads the posture through the one predicate every ask road reads', card.includes('postureBypassesAsks(') && card.includes('computerAskChoicesFor('))
 }
 
+
+section('§14 the challenge card: two plain answers, the question in the owner\'s words, the application named')
+{
+  const { COMPUTER_CHALLENGE_CHOICES, COMPUTER_CHALLENGE_QUESTION, COMPUTER_CHALLENGE_NOTE, computerChallengeAppLine, judgedAppFromAsk } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
+  const { CAPTCHA_QUESTION } = await import('../../src/tools/ComputerTool/captcha.ts')
+  check('the challenge card offers Yes and No only, in that order', COMPUTER_CHALLENGE_CHOICES.map(c => c.value).join(',') === 'yes,no')
+  check('Yes says exactly what it grants: this window, until the challenge is gone, at most an hour', COMPUTER_CHALLENGE_CHOICES[0]!.label === 'Yes — let Mercury try it in this window until the challenge is gone, at most an hour')
+  check('No says the operator completes it and Mercury waits and re-issues', COMPUTER_CHALLENGE_CHOICES[1]!.label === 'No — I will complete it myself; Mercury waits and re-issues (esc)')
+  check('the question offers both roads in plain words', COMPUTER_CHALLENGE_QUESTION === 'A human-verification challenge is on screen. Complete it yourself and Mercury carries on, or let Mercury try it?' && /complete it yourself/i.test(CAPTCHA_QUESTION) && /try/i.test(CAPTCHA_QUESTION))
+  check('the note names the pre-given rule', COMPUTER_CHALLENGE_NOTE.includes('Computer(captcha)'))
+  const judged = judgedAppFromAsk(`Computer click (325, 143) in ${TEXTEDIT.name} (${TEXTEDIT.identity}) — ${CAPTCHA_QUESTION}`, [{ type: 'addRules', rules: [{ toolName: 'Computer', ruleContent: 'captcha' }] }])
+  check('the card names the application from the ask without mistaking the captcha rule for an application', computerChallengeAppLine(judged) === `${TEXTEDIT.name} (${TEXTEDIT.identity}) shows a human-verification challenge`, computerChallengeAppLine(judged))
+  const card = sourceText('src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
+  const { challengeAsk } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
+  check('the card takes the challenge shape from the Computer(captcha) suggestion the harness attaches, never from the input, and hides the timed grants there', !card.includes('input.captcha') && card.includes('challengeAsk(') && card.includes('challenge ? COMPUTER_CHALLENGE_CHOICES') && challengeAsk([{ type: 'addRules', rules: [{ toolName: 'Computer', ruleContent: 'captcha' }] }]) === true && challengeAsk([{ type: 'addRules', rules: [{ toolName: 'Computer', ruleContent: `app:${TEXTEDIT.identity}` }] }]) === false)
+  check('No on the challenge card rejects with the resume sentence as feedback, never the feedback-less reject that ends the turn', card.includes('toolUseConfirm.onReject(CAPTCHA_OPERATOR_COMPLETES)'))
+}
 useScene('default', null)
 finish('prove-computer-asks')

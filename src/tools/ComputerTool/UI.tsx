@@ -60,6 +60,12 @@ export function renderToolUseMessage(input: Partial<Input>, _opts: { verbose: bo
     case 'sequence':
       parts.push(`${input.steps?.length ?? 0} acts`)
       break
+    case 'file':
+      parts.push(`${input.target ? targetWords(input.target) : input.ref !== undefined ? `ref ${input.ref}` : `(${input.x}, ${input.y})`} ← ${clip((input.path ?? '').split(/[\\/]/).pop() ?? '', 30)}`)
+      break
+    case 'fill':
+      parts.push(`${input.target ? targetWords(input.target) : input.ref !== undefined ? `ref ${input.ref}` : ''} (${input.text?.length ?? 0} chars)`)
+      break
     default:
       break
   }

@@ -9,10 +9,10 @@ import type { Message } from '../../src/types/message.ts'
 setIsInteractive(true)
 
 const PROOF_MODEL = 'claude-opus-5'
-export const COMPUTER_ACTIONS = ['screenshot', 'click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll', 'type', 'key', 'hold', 'wait', 'cursor', 'displays', 'frontmost', 'tree', 'find', 'sequence', 'read', 'focusApp'] as const
+export const COMPUTER_ACTIONS = ['screenshot', 'click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll', 'type', 'key', 'hold', 'wait', 'cursor', 'displays', 'frontmost', 'tree', 'find', 'sequence', 'read', 'focusApp', 'file', 'fill', 'fields'] as const
 export const COMPUTER_READS = ['screenshot', 'wait', 'cursor', 'displays', 'frontmost'] as const
-export const COMPUTER_READ_ONLY = [...COMPUTER_READS, 'tree', 'find', 'read'] as const
-export const COMPUTER_ACTS = ['click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll', 'type', 'key', 'hold'] as const
+export const COMPUTER_READ_ONLY = [...COMPUTER_READS, 'tree', 'find', 'read', 'fields'] as const
+export const COMPUTER_ACTS = ['click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll', 'type', 'key', 'hold', 'file', 'fill'] as const
 
 interface ContextOptions {
   agentId?: string

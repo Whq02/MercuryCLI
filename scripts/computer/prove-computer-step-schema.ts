@@ -14,7 +14,7 @@ const { codeAssistSchema } = await import('../../src/services/providers/gemini/g
 const { mapToolsToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
 const { toolContext } = await import('./computerToolKit.ts')
 
-const actions = ['screenshot', 'click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll', 'type', 'key', 'hold', 'wait', 'cursor', 'displays', 'frontmost', 'tree', 'find', 'read', 'focusApp']
+const actions = ['screenshot', 'click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll', 'type', 'key', 'hold', 'wait', 'cursor', 'displays', 'frontmost', 'tree', 'find', 'read', 'focusApp', 'file', 'fill', 'fields']
 const stripDescriptions = (node: any): any => Array.isArray(node) ? node.map(stripDescriptions) : node && typeof node === 'object' ? Object.fromEntries(Object.entries(node).filter(([key]) => key !== 'description').map(([key, value]) => [key, stripDescriptions(value)])) : node
 const options = { tools: [ComputerTool], agents: [], getToolPermissionContext: async () => getEmptyToolPermissionContext() }
 for (const [lane, model] of [
@@ -39,7 +39,7 @@ for (const [lane, model] of [
   assert.notEqual(compiled.check({ action: 'sequence', steps: [{ action: 'sequence' }] }).length, 0)
   assert.notEqual(compiled.check({ action: 'sequence', steps: [{ action: 'click', steps: [] }] }).length, 0)
   assert.notEqual(compiled.check({ action: 'sequence', steps: [{ action: 'click', x: 'bad' }] }).length, 0)
-  assert.ok(Buffer.byteLength(JSON.stringify(schema)) <= 7700)
+  assert.ok(Buffer.byteLength(JSON.stringify(schema)) <= 8150)
   assert.deepEqual((mapToolsToZai([definition])[0]!.function.parameters as any).properties.steps.items.properties.action.enum, actions)
   const responses = mapToolsToOpenai([definition])[0]!.parameters as any
   const responseSteps = responses.properties.steps

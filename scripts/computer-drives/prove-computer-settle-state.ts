@@ -76,6 +76,30 @@ reset('same')
 const captured = await call({ action: 'key', key: 'Tab', capture: true, settleMs: 100 })
 check('capture keeps the image but removes old settle prose', captured.outcome === 'succeeded' && !!captured.imagePath && captured.result.includes('unchanged · now:') && !/settle cap reached|screen stable|target region stable|window stable/.test(captured.result), captured.result)
 
+section('a trailing wait under a session grant still reads the observation (the grant road never approves the application, so the last step alone could not read)')
+{
+  const { writeComputerGrant, timedComputerGrant, clearComputerGrant } = await import('../../src/services/desktop/computerGrant.ts')
+  const { getSessionId } = await import('../../src/bootstrap/state.ts')
+  const session = await import('../../src/services/desktop/desktopSession.ts')
+  const { ownerOf } = await import('../computer/computerToolKit.ts')
+  const owner = ownerOf(context)
+  const sessionId = String(getSessionId())
+  for (const capture of [false, true]) {
+    reset('title')
+    session.forgetDesktopOwner(owner)
+    writeComputerGrant(sessionId, timedComputerGrant(1))
+    const granted = await call({ action: 'sequence', steps: [{ action: 'key', key: 'Tab' }, { action: 'wait', durationMs: 0 }], capture, settleMs: 0 })
+    check(`capture ${capture}: the grant road allowed every step without approving the application`, granted.outcome === 'succeeded' && granted.result.includes('2/2') && !session.appApproved(owner, app.identity), granted.result)
+    check(`capture ${capture}: the final state line names the focused control after the trailing wait`, (granted.result.match(/now:/g)?.length ?? 0) === 1 && granted.result.includes('now: window "New Bot - Grok"') && granted.result.includes('focus AXTextField "First"') && !granted.result.includes('focus unknown'), granted.result)
+  }
+  reset('title')
+  session.forgetDesktopOwner(owner)
+  const lone = await call({ action: 'sequence', steps: [{ action: 'wait', durationMs: 0 }], capture: false, settleMs: 0 })
+  check('a sequence of one plain wait in an application no step was allowed in reads no tree, and says so instead of a bare unchanged', lone.outcome === 'succeeded' && lone.result.includes('title unchanged, focus not read · now: window "Document" · focus not read') && !/\bunchanged · now/.test(lone.result) && !lone.result.includes('focus unknown'), lone.result)
+  clearComputerGrant(sessionId)
+  session.forgetDesktopOwner(owner)
+}
+
 section('a native-shaped fixture exposes focus beyond the shallow walk')
 const { FakeDesktopDriver, FAKE_SCENE_DEFAULT } = await import('../../src/services/desktop/fakeDesktopDriver.ts')
 type FakeNode = typeof FAKE_SCENE_DEFAULT.tree[number]

@@ -13,7 +13,7 @@ function terminalTextWords(app: DesktopApplication, value: DesktopFocusedText): 
   const selected = visible ? value.text.slice(range.location, range.location + range.length) : value.text
   const text = selected.split('\n').map(line => line.trimEnd()).join('\n').replace(/^(?:[ \t]*\r?\n)+/, '').trimEnd()
   const cut = text.length > 15_000
-  return `terminal text: ${app.name} (${app.identity}) — ${visible ? 'visible range' : 'whole AX value; visible range unavailable'}; no image\nfocus: ${value.role}${value.title ? ` ${JSON.stringify(value.title)}` : ''}\n${text.slice(0, 15_000)}${cut ? '\n[cut at 15000 chars]' : ''}`
+  return `terminal text: ${app.name} (${app.identity}) — ${visible ? 'visible range' : 'whole AX value; visible range unavailable'}; no image · ${app.name} is frontmost — activate the application you mean (focusApp) before a screenshot of it\nfocus: ${value.role}${value.title ? ` ${JSON.stringify(value.title)}` : ''}\n${text.slice(0, 15_000)}${cut ? '\n[cut at 15000 chars]' : ''}`
 }
 
 export async function readTerminalText(driver: DesktopDriver, app: DesktopApplication, signal: AbortSignal, tree?: DesktopTree): Promise<string> {

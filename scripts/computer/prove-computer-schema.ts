@@ -11,8 +11,8 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
 
 const DESCRIPTION_BUDGET = 160
-const PROMPT_BUDGET = 650
-const SCHEMA_BUDGET = 2_600
+const PROMPT_BUDGET = 720
+const SCHEMA_BUDGET = 2_700
 const NEEDLES = ['anthropic', 'claude', 'openai', 'gpt', 'gemini', 'google', 'deepseek', 'moonshot', 'kimi', 'z.ai', 'zhipu', 'hugging', 'openrouter', 'ollama', 'compat']
 
 resetDesktopDriverForTest()
@@ -94,7 +94,7 @@ section('§3 the byte budgets and the needles')
   check('the loop breaker stays verbatim', prompt.includes('After the same act twice with an unchanged result, read the screen before acting again.'))
   check('the description has no other tool or action dictionary', !/Eval|click\(x|type\(text|sequence\(steps\)/.test(prompt))
   const wire = ComputerTool.inputJSONSchema as any
-  check('the model schema keeps every inline field within its measured ceiling', bytes(JSON.stringify(wire)) <= 7700)
+  check('the model schema keeps every inline field within its measured ceiling', bytes(JSON.stringify(wire)) <= 8150)
   check('the step action enum excludes sequence while the top-level enum retains it', wire.properties.action.enum.includes('sequence') && !wire.properties.steps.items.properties.action.enum.includes('sequence'))
   check('field semantics are on the top-level fields, not repeated on steps', wire.properties.key.description.includes('cmd/ctrl/alt/shift') && wire.properties.verify.description.includes('not task success') && wire.properties.steps.items.properties.key.description === undefined)
 }

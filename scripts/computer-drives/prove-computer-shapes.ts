@@ -65,6 +65,15 @@ const checkpoint = await call({ action: 'sequence', steps: [{ action: 'screensho
 const expected = pointOfPixelOn(opening.screen, 500, 400)
 const click = driver.acts.filter(act => act.act === 'click').at(-1)
 check('an intermediate screenshot never silently remaps unseen pixels', checkpoint.outcome === 'succeeded' && JSON.stringify(click?.detail.at) === JSON.stringify(expected), `${checkpoint.result}; ${JSON.stringify(click)}`)
+const { createAssistantMessage } = await import('../../src/utils/messages.ts')
+const unseenShot = await withScreenshot(ComputerTool as never, toolContext(), 'shapes-unseen-shot')
+const sameMessage = createAssistantMessage({ content: [{ type: 'tool_use', id: unseenShot.toolUseId, name: 'Computer', input: { action: 'screenshot', full: true } }, { type: 'tool_use', id: 'shapes-unseen-act', name: 'Computer', input: { action: 'click', x: 10, y: 10 } }] as never })
+const unseen = resultOf(await ComputerTool.call({ action: 'click', x: 10, y: 10, capture: false } as never, toolContext(), allowEverything, sameMessage as never))
+check('a screenshot taken in this same message is not yet seen: the act is refused with the words that name the road', unseen.outcome === 'failed' && unseen.result.includes('taken in this same message — you have not seen it; take the screenshot alone, then the region or the act'), unseen.result)
+const unseenRegion = resultOf(await ComputerTool.call({ action: 'screenshot', region: { x: 0, y: 0, width: 20, height: 20 } } as never, toolContext(), allowEverything, sameMessage as never))
+check('a region of that unseen screenshot is refused with the same words', unseenRegion.outcome === 'failed' && unseenRegion.result.includes('taken in this same message'), unseenRegion.result)
+const elsewhere = resultOf(await ComputerTool.call({ action: 'click', x: 10, y: 10, capture: false } as never, toolContext(), allowEverything, toolUseTurn('shapes-later-act', 'Computer', { action: 'click', x: 10, y: 10 }) as never))
+check('a screenshot that left the conversation keeps its own words', elsewhere.outcome === 'failed' && elsewhere.result.includes('no longer in the conversation') && !elsewhere.result.includes('same message'), elsewhere.result)
 if (process.platform === 'darwin') {
   const frontmost = driver.frontmostApplication.bind(driver)
   driver.frontmostApplication = async () => { const front = await frontmost(); return front.ok ? { ok: true, value: { ...front.value, identity: 'com.apple.Terminal' } } : front }
