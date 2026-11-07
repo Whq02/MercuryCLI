@@ -227,11 +227,7 @@ class SidecarState {
   }
 
   changeDoc(file: string, text: string): void {
-    this.docVersionCounter++
-    this.openDocs.set(this.normalize(file), {
-      text,
-      version: this.docVersionCounter,
-    })
+    this.openDoc(file, text)
   }
 
   closeDoc(file: string): void {
