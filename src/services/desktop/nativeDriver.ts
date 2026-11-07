@@ -256,8 +256,8 @@ function sessionsOnThisBinary(): string {
 
 function captureHeldNote(): string {
   const sessions = sessionsOnThisBinary()
-  const remedy = sessions ? 'end that session or wait for it to finish' : 'end the other Mercury process that took a screenshot or wait for it to finish'
-  return `macOS cancelled the screen-capture connection because another process running the same Mercury node binary holds it${sessions ? ` (${sessions})` : ''}; Screen Recording is granted — ${remedy}, give macOS about fifteen seconds, then retry`
+  const others = sessions ? `the other Mercury sessions on this binary: ${sessions}` : 'no other Mercury session is on this binary'
+  return `macOS cancelled the screen-capture connection twice: another process on this Mercury node binary was capturing at the same moment, or macOS is still settling after an earlier clash (${others}); Screen Recording is granted — wait about fifteen seconds and retry${sessions ? '; a session whose screenshots keep clashing with this one can be ended' : ''}`
 }
 
 type DesktopQueryAnswer = { value: unknown } | { error: string }
@@ -452,6 +452,7 @@ class NativeDesktopDriver implements DesktopDriver {
         if (answer !== null && 'raw' in answer) return resolve({ kind: 'captured', raw: answer.raw })
         if (error?.killed) return resolve({ kind: 'deadline' })
         if (answer !== null) return resolve({ kind: 'failed', note: answer.error })
+        if (error?.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') return resolve({ kind: 'failed', note: `the capture child answered more than ${CAPTURE_CHILD_BUFFER / (1024 * 1024)} MiB` })
         resolve({ kind: 'failed', note: error ? 'the capture child exited without an image' : 'the capture child answered an unreadable record' })
       })
       child.stdin?.on('error', () => {})
