@@ -85,6 +85,7 @@ const ready = mods ?? (await finish())
 check('the helper module imports', true)
 const { helper, hosts, utility, discovery, catalogue, config } = ready
 config.enableConfigs()
+helper.__pinHelperServeIoForTest({ binary: join(HOME, 'no-such-tensorfold'), app: async () => ({ running: false }) })
 hosts.rememberTensorFoldPort(helper2b.port)
 await discovery.refreshLocalDiscovery({ force: true })
 const GIB = 1024 ** 3

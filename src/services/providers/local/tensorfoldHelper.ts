@@ -8,9 +8,10 @@ import { bankedHostRecipes, bankFolder } from '../../host/bank.js'
 import { gibWords } from '../../localServer/localServerMemory.js'
 import { defaultMachineTruth } from '../../localServer/localServerTruth.js'
 import type { ServiceSpec } from '../../projectServices/contracts.js'
-import { registerOwnerDisposer } from '../../run/ownerLifecycle.js'
+import { registerOwnerDisposer, unregisterOwnerDisposer } from '../../run/ownerLifecycle.js'
 import { processMainOwner } from '../../run/resolveOwner.js'
 import type { HelperModelSize, HelperModelState, TensorFoldServeRequest, TensorFoldServeRole, TensorFoldServed } from '../../tensorfold/contracts.js'
+import type { ServeIo } from '../../tensorfold/serve.js'
 import { LOCAL_MODEL_PREFIX, localRecordFor, localServerName } from './localCatalogue.js'
 import { cachedLocalModels, refreshLocalDiscovery, type LocalModelRecord } from './localDiscovery.js'
 import { ADAPTER_ENGINE_WORDS } from '../../tensorfold/adapter/identity.js'
@@ -290,11 +291,17 @@ export type HelperServeSeam = {
 
 export const HELPER_ROLE: TensorFoldServeRole = 'helper'
 
+let serveIo: ServeIo | undefined
+
+export function __pinHelperServeIoForTest(io: ServeIo | undefined): void {
+  serveIo = io
+}
+
 function defaultServeSeam(): HelperServeSeam {
   const serve = require('../../tensorfold/serve.js') as typeof import('../../tensorfold/serve.js')
-  const roleIo = { role: HELPER_ROLE, forgetPort: () => undefined }
+  const roleIo = { ...serveIo, role: HELPER_ROLE, forgetPort: () => undefined }
   return {
-    start: request => serve.startTensorFold(request, { owner: processMainOwner(), rememberPort: () => undefined }),
+    start: request => serve.startTensorFold(request, { ...serveIo, owner: processMainOwner(), rememberPort: () => undefined }),
     stop: name => serve.stopTensorFold(name, roleIo),
     served: () => serve.servedTensorFold(roleIo),
   }
@@ -329,10 +336,21 @@ export function helperServedRecord(): TensorFoldServed | undefined {
   }
 }
 
+function adopt2b(): boolean {
+  const record = helperServedRecord()
+  if (record === undefined) {
+    if (helperProcess?.size === '2b') helperProcess = undefined
+    return false
+  }
+  if (helperProcess?.port === record.port) return true
+  helperProcess = { size: '2b', port: record.port, modelId: `${LOCAL_MODEL_PREFIX}${record.name}` }
+  unregisterOwnerDisposer(processMainOwner(), HELPER_SERVICE_NAME)
+  return true
+}
+
 export function readHelperPort(): number | undefined {
-  if (helperProcess !== undefined) return helperProcess.size === '2b' ? helperProcess.port : undefined
-  if (readHelperModelSetting().size !== '2b') return undefined
-  return helperServedRecord()?.port
+  if (helperProcess?.size !== '2b' && readHelperModelSetting().size !== '2b') return undefined
+  return helperServedRecord()?.port ?? (helperProcess?.size === '2b' ? helperProcess.port : undefined)
 }
 
 async function start4b(): Promise<void> {
@@ -355,9 +373,11 @@ export async function ensureHelperServing(): Promise<void> {
   if (helperStarting !== undefined) return helperStarting
   helperStarting = (async () => {
     try {
-      if (setting.size === '2b') await start2b()
-      else await start4b()
-      registerOwnerDisposer(processMainOwner(), HELPER_SERVICE_NAME, stopHelperServing)
+      if (setting.size === '4b' || !adopt2b()) {
+        if (setting.size === '2b') await start2b()
+        else await start4b()
+        registerOwnerDisposer(processMainOwner(), HELPER_SERVICE_NAME, stopHelperServing)
+      }
       helperFailure = undefined
       await refreshLocalDiscovery({ force: true })
     } catch (error) {
@@ -375,11 +395,17 @@ export async function stopHelperServing(): Promise<void> {
   helperProcess = undefined
   if (running === undefined) return
   if (running.stop !== undefined) await running.stop().catch(() => undefined)
-  else await helperSeam().stop(HELPER_2B_NAME).catch(() => undefined)
+  else if (helperServedRecord()?.port === running.port) await helperSeam().stop(HELPER_2B_NAME).catch(() => undefined)
+}
+
+export function __pinHelperProcessForTest(started: typeof helperProcess): void {
+  helperProcess = started
+  if (started !== undefined) registerOwnerDisposer(processMainOwner(), HELPER_SERVICE_NAME, stopHelperServing)
 }
 
 export function __resetHelperForTest(): void {
   helperProcess = undefined
   helperStarting = undefined
   helperFailure = undefined
+  unregisterOwnerDisposer(processMainOwner(), HELPER_SERVICE_NAME)
 }
