@@ -96,7 +96,7 @@ const { refreshLocalDiscovery, readServedWindow, ensureServedWindow, __resetLoca
 const catalogue = await import('../../src/services/providers/local/localCatalogue.ts')
 const { getLocalModelOptions, localRecordFor, localWindowWords } = catalogue
 const { localLaneProfileFor, localGuardWindow, localModelAcceptsEffort } = await import('../../src/services/providers/local/localCallModel.ts')
-const { localWindowApplication, localWindowValueWords, __resetLocalWindowsForTest, writeLocalWindowSetting } = await import('../../src/services/providers/local/localWindow.ts')
+const { LOCAL_WINDOW_AUTO_CEILING, localWindowApplication, localWindowValueWords, __resetLocalWindowsForTest, writeLocalWindowSetting } = await import('../../src/services/providers/local/localWindow.ts')
 const { buildLocalExtras } = await import('../../src/services/providers/openaicompat/compatWire.ts')
 const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
 type CompatStreamEvent = import('../../src/services/providers/openaicompat/compatChatClient.ts').CompatStreamEvent
@@ -135,7 +135,7 @@ section('2 · the window law on LM Studio is `load`: the served-window road read
   check('the record follows the reloaded instance (131072, served, loaded)', changed.contextWindow?.tokens === 131072 && changed.contextWindow.source === 'served' && changed.loaded === true, JSON.stringify(changed.contextWindow))
   await ensureServedWindow(record, {}, { numCtx: SERVED })
   __resetLocalWindowsForTest()
-  check('under auto with nothing held the silent-truncation guard reads the window the first send will load (the trained max 262144 on an unread machine), naming the choice', localGuardWindow(record)?.tokens === TRAINED && (localGuardWindow(record)?.sourceWords ?? '').includes('chosen by Mercury for this session (auto)'), JSON.stringify(localGuardWindow(record)))
+  check('under auto with nothing held the silent-truncation guard reads the window the first send will load (the automatic ceiling 131072 on an unread machine: the trained max 262144 is above it), naming the choice', localGuardWindow(record)?.tokens === LOCAL_WINDOW_AUTO_CEILING && LOCAL_WINDOW_AUTO_CEILING < TRAINED && (localGuardWindow(record)?.sourceWords ?? '').includes('chosen by Mercury for this session (auto)'), JSON.stringify(localGuardWindow(record)))
   writeLocalWindowSetting(record, 'server')
   check('under the server default the guard reads the served figure and the source words', localGuardWindow(record)?.tokens === SERVED && localGuardWindow(record)?.sourceWords === 'served', JSON.stringify(localGuardWindow(record)))
   const profile = localLaneProfileFor(record)

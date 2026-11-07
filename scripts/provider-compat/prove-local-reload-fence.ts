@@ -295,15 +295,16 @@ section('3 · every seat of the session sends the held set: the main thread, a c
   check('the touch would carry that same set (the hold is the single source: heldLocalKnobs)', knobs !== undefined && JSON.stringify(knobs) === JSON.stringify({ numCtx: heldLocalWindow(record())?.window, numBatch: MERCURY_BATCH }), knobs === undefined ? 'no heldLocalKnobs seam' : JSON.stringify(knobs))
 }
 
-section('4 · a second session on the box (L26): the model is already resident at a window another session chose — under `server` a resident window that fits is adopted and never reloaded; under auto a resident window smaller than the session\'s own choice is reloaded once, up to the full window; an outgrown adoption is re-decided')
+section('4 · a second session on the box (L26): the model is already resident at a window another session chose — under `server` a resident window that fits is adopted and never reloaded; under auto a resident window smaller than the session\'s own choice is reloaded once, up to that choice (the automatic ceiling on an unread machine); an outgrown adoption is re-decided')
 {
-  const foreign = { numCtx: 131072, numBatch: MERCURY_BATCH }
-  await resetWorld(undefined, { resident: foreign })
-  check('discovery saw the model loaded at 131072 (served) by the other session', record().contextWindow?.tokens === 131072 && record().contextWindow?.source === 'served' && record().loaded === true, JSON.stringify(record().contextWindow))
+  const smaller = { numCtx: 65536, numBatch: MERCURY_BATCH }
+  await resetWorld(undefined, { resident: smaller })
+  check('discovery saw the model loaded at 65536 (served) by the other session', record().contextWindow?.tokens === 65536 && record().contextWindow?.source === 'served' && record().loaded === true, JSON.stringify(record().contextWindow))
   const autoFrom = state.hits.length
   const auto = await send([userRow('w'.repeat(40_000))])
   const autoChat = hitsSince(autoFrom).find(h => h.url === '/api/chat')
-  check('under auto on an unread machine the session\'s own choice is the trained max (262144): the smaller resident window is NOT adopted — the chat carried 262144 and the runner restarted once, so auto still lands at the full window', auto.error === undefined && autoChat !== undefined && rec(autoChat.body.options)?.num_ctx === TRAINED_MAX && state.starts.length === 1 && heldLocalWindow(record())?.adopted === undefined && heldLocalWindow(record())?.reason === 'max', `${shape(hitsSince(autoFrom))} — ${state.starts.length} start(s) — ${JSON.stringify(heldLocalWindow(record()))}`)
+  check('under auto on an unread machine the session\'s own choice is the automatic ceiling (131072; the trained 262144 is above it): the smaller resident window is NOT adopted — the chat carried 131072 and the runner restarted once, so auto still lands at its own choice', auto.error === undefined && autoChat !== undefined && rec(autoChat.body.options)?.num_ctx === windowModule.LOCAL_WINDOW_AUTO_CEILING && windowModule.LOCAL_WINDOW_AUTO_CEILING < TRAINED_MAX && state.starts.length === 1 && heldLocalWindow(record())?.adopted === undefined && heldLocalWindow(record())?.reason === 'cap', `${shape(hitsSince(autoFrom))} — ${state.starts.length} start(s) — ${JSON.stringify(heldLocalWindow(record()))}`)
+  const foreign = { numCtx: 131072, numBatch: MERCURY_BATCH }
   await resetWorld('server', { resident: foreign })
   const from = state.hits.length
   const outcome = await send([userRow('w'.repeat(40_000))])

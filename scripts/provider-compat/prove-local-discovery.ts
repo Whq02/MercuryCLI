@@ -240,7 +240,7 @@ section('6 · the capability edge: the window is the one Mercury will send — u
   check('server default on an unstated window: the LABELLED conservative default, naming the state (not loaded · trained maximum · read at first send)', dflt.effectiveWindow === 200_000 && dflt.source === 'fallback' && (dflt.fallbackReason ?? '').includes('not loaded') && (dflt.fallbackReason ?? '').includes('trained maximum 262k') && (dflt.fallbackReason ?? '').includes('read at first send'), JSON.stringify(dflt))
   w.writeLocalWindowSetting({ id: 'llava:latest' }, undefined)
   const dfltAuto = resolveContextWindow('local/llava:latest')
-  check('auto on an unstated window with a trained maximum: the budget is that maximum (262,144), the window Mercury sends on an unread machine', dfltAuto.effectiveWindow === 262144 && dfltAuto.source === 'live-current' && (dfltAuto.fallbackReason ?? '').includes('chosen by Mercury'), JSON.stringify(dfltAuto))
+  check('auto on an unstated window with a trained maximum above the ceiling: the budget is the automatic ceiling (131,072, the trained 262,144 above it), the window Mercury sends on an unread machine', dfltAuto.effectiveWindow === w.LOCAL_WINDOW_AUTO_CEILING && dfltAuto.effectiveWindow === 131072 && dfltAuto.source === 'live-current' && (dfltAuto.fallbackReason ?? '').includes('chosen by Mercury'), JSON.stringify(dfltAuto))
   w.writeLocalWindowSetting({ id: 'meta-llama-3.1-8b-instruct' }, 'server')
   const modelMax = resolveContextWindow('local/meta-llama-3.1-8b-instruct')
   check('server default: a model-max window is labelled as the server-set size', modelMax.effectiveWindow === 131072 && (modelMax.fallbackReason ?? '').includes('model max'), JSON.stringify(modelMax))
@@ -420,9 +420,11 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
   check('under auto the guard reads the window the request will send (the trained max 40,960 on an unread machine) and names the choice', (autoRefusal ?? '').includes('40960 tokens — chosen by Mercury for this session (auto) — /config → Local model window'), String(autoRefusal))
   check('under auto a Modelfile num_ctx below the trained max no longer guards: the request sends num_ctx 131072 and the 31k request fits it', localLaneProfileFor(llama).requestFitRefusal?.({ requestBytes: 120_000, estTokens: 30_000, toolCount: 55, wireModel: 'llama3.2:latest' }) === undefined)
   const llava = localRecordFor('local/llava:latest')!
-  check('an unstated window (unloaded, no num_ctx) never refuses', llava.contextWindow === undefined && localLaneProfileFor(llava).requestFitRefusal?.({ requestBytes: 800_000, estTokens: 200_000, toolCount: 202, wireModel: 'llava:latest' }) === undefined, JSON.stringify(llava.contextWindow))
-  const trainedOnly = { ...llava, contextWindow: { tokens: 131072, source: 'model-max' as const } }
-  check('a trained maximum the server merely lists (model-max) never refuses — only served/modelfile do', localLaneProfileFor(trainedOnly).requestFitRefusal?.({ requestBytes: 800_000, estTokens: 200_000, toolCount: 202, wireModel: 'llava:latest' }) === undefined)
+  check('an unstated window (unloaded, no num_ctx) guards only by the window the request will send — the automatic ceiling 131072 under auto: a 100k request is not refused', llava.contextWindow === undefined && localLaneProfileFor(llava).requestFitRefusal?.({ requestBytes: 400_000, estTokens: 100_000, toolCount: 202, wireModel: 'llava:latest' }) === undefined, JSON.stringify(llava.contextWindow))
+  const pastCeiling = localLaneProfileFor(llava).requestFitRefusal?.({ requestBytes: 800_000, estTokens: 200_000, toolCount: 202, wireModel: 'llava:latest' })
+  check('an unstated window: a 200k request past the ceiling is refused before the send, naming the choice and the setting that lifts it', (pastCeiling ?? '').includes('131072 tokens — chosen by Mercury for this session (auto) — /config → Local model window'), String(pastCeiling))
+  const trainedOnly = { ...llava, contextWindow: { tokens: 32768, source: 'model-max' as const } }
+  check('a trained maximum the server merely lists (model-max 32768) never guards by itself — only served/modelfile do; the guard is the window the request will send (131072), so a 100k request is not refused', localLaneProfileFor(trainedOnly).requestFitRefusal?.({ requestBytes: 400_000, estTokens: 100_000, toolCount: 202, wireModel: 'llava:latest' }) === undefined)
 
   windows.writeLocalWindowSetting({ id: 'qwen3:8b' }, 'server')
   const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')

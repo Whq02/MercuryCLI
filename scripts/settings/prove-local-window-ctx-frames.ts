@@ -158,20 +158,20 @@ check('the fixture records carry geometry and the served window (262144)', qwen2
 
 const publish = (usedTokens: number, window: number): void => publishContextUsage(Math.round((usedTokens / window) * 100), window, 80, undefined, { usedTokens, fillSource: 'usage', windowSource: 'live-current', windowPinned: false })
 
-console.log("\n── the owner's box: the hybrid 27B (one head_count_kv for 65 blocks, interval 4) under auto — the rail says max, the deck says the rule")
+console.log("\n── the owner's box: the hybrid 27B (one head_count_kv for 65 blocks, interval 4) under auto — 256k fits the arithmetic and ran at a crawl, so the rail says cap, the deck says the rule and what fits")
 {
   __pinLocalServerTruthForTest(truthOf(48, 36.9, 'q8_0'))
   w.__resetLocalWindowsForTest()
   focusedModel = `local/${MODEL_27}`
   const held = w.decideLocalWindow(qwen27, 73_000, undefined)
-  check('auto on the hybrid 27B is the trained max: 16 of 65 layers keep a cache, 8.5 GiB at 256k, never a 51.1 GiB sum', held.window === 262144 && held.reason === 'max' && qwen27.geometry?.attentionLayers === 16, `${held.window} · ${held.reason} · ${held.words}`)
-  publish(120_000, 262144)
+  check('auto on the hybrid 27B is the automatic ceiling, not the trained max: 16 of 65 layers keep a cache, 8.5 GiB at 256k fits (never a 51.1 GiB sum), and the window still stops at 128k', held.window === 131072 && held.reason === 'cap' && qwen27.geometry?.attentionLayers === 16 && held.words.includes('256k fits: 16.5 GiB weights + 8.5 GiB cache'), `${held.window} · ${held.reason} · ${held.words}`)
+  publish(60_000, 131072)
   const rail = await paintRail()
-  save('rail-ctx-max-178x51', rail)
-  check('178x51 rail: the ctx row reads ctx 46% · 262k max (the window label is the rail\'s own /1000 spelling; the reason is the fit owner\'s)', ctxRow(rail) === 'ctx 46% · 262k max' && inBounds(rail, 178, 51), ctxRow(rail))
+  save('rail-ctx-cap-178x51', rail)
+  check('178x51 rail: the ctx row reads ctx 46% · 131k cap (the window label is the rail\'s own /1000 spelling; the reason is the fit owner\'s)', ctxRow(rail) === 'ctx 46% · 131k cap' && inBounds(rail, 178, 51), ctxRow(rail))
   const deck = await paintDeck(178, 51)
   save('deck-ctx-rule-178x51', deck)
-  check("178x51 deck: the ctx row carries the full rule in step 5's words with the hybrid sum", ctxRow(deck).includes('120k/262k · 256k · 16.5 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot') && inBounds(deck, 178, 51), ctxRow(deck))
+  check("178x51 deck: the ctx row carries the full rule in step 5's words — the ceiling, then the hybrid sum that fits", ctxRow(deck).includes('60k/131k · 128k · the automatic ceiling (256k fits: 16.5 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot)') && inBounds(deck, 178, 51), ctxRow(deck))
   const narrow = await paintDeck(80, 21)
   save('deck-ctx-80x21', narrow)
   check('80x21 deck: the compact strip folds ctx into its first row and stays in bounds (the rule rides the wide row only)', inBounds(narrow, 80, 21) && ctxRow(narrow) === '', ctxRow(narrow))
