@@ -138,10 +138,7 @@ export function buildCompatSlotExtras(args: LaneExtrasArgs): Record<string, unkn
 }
 
 export function buildHuggingfaceExtras(args: LaneExtrasArgs): Record<string, unknown> {
-  return {
-    stream_options: { include_usage: true },
-    ...(args.maxOutputTokensOverride !== undefined ? { max_tokens: args.maxOutputTokensOverride } : {}),
-  }
+  return buildCompatSlotExtras(args)
 }
 
 export type LocalServerKind = 'ollama' | 'lmstudio' | 'vllm' | 'llamacpp' | 'tensorfold' | 'openai-compatible'
