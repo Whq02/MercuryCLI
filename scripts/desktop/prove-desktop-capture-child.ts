@@ -47,6 +47,7 @@ const stub = [
   "  const step = Array.isArray(plan.steps) ? plan.steps[seq] ?? plan.steps[plan.steps.length - 1] : 'ok'",
   "  if (step === 'hang') await sleep(8000)",
   "  if (step === 'null') throw new Error(kind === 'region' ? 'the capture region has no image' : `no display ${display} image could be created`)",
+  "  if (step === 'huge') return { ...image(), png: Buffer.concat([Buffer.from(" + JSON.stringify(PNG) + ", 'base64'), Buffer.alloc(65 * 1024 * 1024)]) }",
   '  return image()',
   '}',
   "const sync = display => { const plan = control(); const seq = (() => { try { return fs.readFileSync(EVENTS, 'utf8').split('\\n').filter(Boolean).length } catch { return 0 } })(); if ((Array.isArray(plan.steps) ? plan.steps[seq] : undefined) === 'throw') { fs.appendFileSync(EVENTS, JSON.stringify({ seq, kind: 'sync-throw', display, region: null, pid: process.pid, inChild: process.argv[1] === __filename, at: Date.now() }) + '\\n'); throw new Error(`no display ${display} image could be created`) } }",
@@ -151,7 +152,7 @@ if (DARWIN) {
     const seen = events()
     check('the answer is a busy refusal', !answer.ok && answer.error.kind === 'busy', JSON.stringify(answer))
     const note = answer.ok ? '' : answer.error.note
-    check('its words name the cancelled connection, the same binary, the granted permission and the remedy, and claim no holder', note.startsWith('macOS cancelled the screen-capture connection twice: another process on this Mercury node binary was capturing at the same moment, or macOS is still settling after an earlier clash (no other Mercury session is on this binary)') && note.includes('Screen Recording is granted — wait about fifteen seconds and retry') && !note.includes('holds it'), note)
+    check('its words name the cancelled connection, the same binary, the granted permission and the remedy, and claim no holder', note.startsWith('macOS cancelled the screen-capture connection twice: another process on this Mercury node binary was capturing at the same moment, or macOS is still settling after an earlier clash (no other Mercury session was found on this binary)') && note.includes('Screen Recording is granted — wait about fifteen seconds and retry') && !note.includes('holds it'), note)
     check('the old sentences are gone from this road', !note.includes('no display') && !note.includes('has no image'), note)
     check('exactly two children were started and both ended at the deadline (no third attempt; about 5–7 s in all)', seen.length === 2 && elapsed >= 5_000 && elapsed < 8_000, `${elapsed} ms · ${JSON.stringify(seen)}`)
   }
@@ -184,6 +185,13 @@ if (DARWIN) {
     const thrown = await driver.capture(0, signal())
     const thrownSeen = events()
     check('an addon that throws synchronously inside the child (no such display) answers its own words as a display refusal, never a command line', !thrown.ok && thrown.error.kind === 'display' && thrown.error.note === 'no display 0 image could be created' && thrownSeen.length === 1 && thrownSeen[0]!.kind === 'sync-throw' && thrownSeen[0]!.inChild === true, JSON.stringify({ thrown, thrownSeen }))
+  }
+
+  console.log('[4b] a capture larger than the child\'s 64 MiB answer names that cause')
+  {
+    plan(['huge'])
+    const answer = await driver.capture(0, signal())
+    check('the words name the buffer, not a bare exit', !answer.ok && answer.error.note === 'the capture child answered more than 64 MiB', JSON.stringify(answer))
   }
 
   console.log('[5] an interrupted capture ends its child at once')

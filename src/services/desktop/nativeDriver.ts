@@ -216,21 +216,24 @@ function captureChildAnswer(stdout: Buffer): { raw: DesktopAddonCapture } | { er
   return { raw: { ...(record as unknown as Omit<DesktopAddonCapture, 'png'>), png, capturedAt: Date.now() } }
 }
 
-function sessionsOnThisBinary(): string {
-  if (process.platform !== 'darwin') return ''
+function sessionsOnThisBinary(): { read: boolean; named: string } {
+  if (process.platform !== 'darwin') return { read: false, named: '' }
   let listing = ''
+  let read = true
   try {
     listing = execFileSync('/usr/sbin/lsof', ['-t', '--', process.execPath], { encoding: 'utf8', timeout: 2_000, maxBuffer: 1024 * 1024, windowsHide: true, env: subprocessEnv(), stdio: ['ignore', 'pipe', 'ignore'] })
   } catch (error) {
     const stdout = (error as { stdout?: unknown }).stdout
+    const killed = (error as { killed?: unknown }).killed === true || (error as { code?: unknown }).code === 'ENOENT'
     listing = typeof stdout === 'string' ? stdout : ''
+    read = !killed && listing !== ''
   }
   const peers: number[] = []
   for (const line of listing.split('\n')) {
     const pid = Number(line.trim())
     if (Number.isInteger(pid) && pid > 0 && pid !== process.pid && !peers.includes(pid)) peers.push(pid)
   }
-  if (peers.length === 0) return ''
+  if (peers.length === 0) return { read, named: '' }
   const sessions = new Map<number, string>()
   try {
     const projects = getProjectsDir()
@@ -251,13 +254,13 @@ function sessionsOnThisBinary(): string {
     }
   } catch {}
   const named = peers.filter(pid => sessions.has(pid)).map(pid => `session ${sessions.get(pid)}… (pid ${pid})`)
-  return named.slice(0, 3).join('; ') + (named.length > 3 ? ` and ${named.length - 3} more` : '')
+  return { read, named: named.slice(0, 3).join('; ') + (named.length > 3 ? ` and ${named.length - 3} more` : '') }
 }
 
 function captureHeldNote(): string {
   const sessions = sessionsOnThisBinary()
-  const others = sessions ? `the other Mercury sessions on this binary: ${sessions}` : 'no other Mercury session is on this binary'
-  return `macOS cancelled the screen-capture connection twice: another process on this Mercury node binary was capturing at the same moment, or macOS is still settling after an earlier clash (${others}); Screen Recording is granted — wait about fifteen seconds and retry${sessions ? '; a session whose screenshots keep clashing with this one can be ended' : ''}`
+  const others = sessions.named ? `the other Mercury sessions on this binary: ${sessions.named}` : sessions.read ? 'no other Mercury session was found on this binary' : 'the processes on this binary could not be listed'
+  return `macOS cancelled the screen-capture connection twice: another process on this Mercury node binary was capturing at the same moment, or macOS is still settling after an earlier clash (${others}); Screen Recording is granted — wait about fifteen seconds and retry${sessions.named ? '; a session whose screenshots keep clashing with this one can be ended' : ''}`
 }
 
 type DesktopQueryAnswer = { value: unknown } | { error: string }
