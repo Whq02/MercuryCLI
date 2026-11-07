@@ -264,6 +264,10 @@ static text as AXStaticText), titles are the controls' names, values come from
 the Value, Toggle, RangeValue and SelectionItem patterns, frames are physical
 pixels, and a check box or heading reads as a control where the control does
 not say which it is; `read` of an element's long text stays macOS-only.
+Microsoft Edge (151 on Windows 10, read on the field laptop) hands no page
+content to UI Automation, so its tree carries the browser's own controls and
+no web area: a page in Edge is driven by screenshot and coordinates, a page
+in Chrome by target as on macOS.
 Because it reads what an application shows (its controls and
 their text), the first tree in an application asks by the application's
 name like a first act, and the grant it leaves is the same one: later trees
