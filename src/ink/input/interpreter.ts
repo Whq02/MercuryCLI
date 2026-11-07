@@ -422,7 +422,7 @@ const ORPHAN_MOUSE_PROBE_RE =
   /^\[(?:<\d+;\d+;\d+[Mm]|M[\x20-\x7f][\x20-￿]{2})|\d+;\d+;\d+[Mm]/
 const ORPHAN_MOUSE_EVENT_RE =
   /\[<\d+;\d+;\d+[Mm]|\[M[\x20-\x7f][\x20-￿]{2}|\[?<?\d+;\d+;\d+[Mm]/g
-const MOUSE_FRAGMENT_RE = /^(?:<?\d*;?\d*;?\d*[Mm]?|<\d*)$/
+const MOUSE_FRAGMENT_RE = /^<?\d*(?:;\d*){0,2}[Mm]?$/
 
 export function hasOrphanMouseBytes(text: string): boolean {
   return ORPHAN_MOUSE_PROBE_RE.test(text)

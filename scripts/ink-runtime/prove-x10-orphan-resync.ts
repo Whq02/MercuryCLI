@@ -12,4 +12,8 @@ for (const [name, button] of [['press', ' '], ['release', '#'], ['motion', 'C'],
 }
 expectText('non-report typed bracket remains text', ['[menu'], '[menu')
 expectText('report-shaped bracketed paste stays literal', ['\x1b[200~[M )4\x1b[201~'], '[M )4')
+for (const [tail, typed] of [['12;3', ''], ['<12', ''], ['1;2M', ''], [';;', ''], ['M', ''], ['12;3;4;5', '12;3;4;5'], [';;;', ';;;'], ['mX', 'mX'], ['<<', '<<'], ['ok', 'ok']] as const) {
+  assert.equal(decode(['[<0;1;1M' + tail])[0]?.kind, 'mouse')
+  expectText(`SGR orphan then ${JSON.stringify(tail)}`, ['[<0;1;1M' + tail], typed)
+}
 console.log('X10 ORPHAN RESYNC HOLDS')
