@@ -22,7 +22,10 @@ function effortRank(word: string): number {
 
 export function floorEffort(vocabulary: readonly string[]): string | undefined {
   const ranked = vocabulary.filter(word => Number.isFinite(effortRank(word))).sort((a, b) => effortRank(a) - effortRank(b))
-  return ranked.find(word => effortRank(word) >= WIRE_EFFORT_RANK.low!) ?? ranked.at(-1) ?? vocabulary[0]
+  const distance = (word: string): number => Math.abs(effortRank(word) - WIRE_EFFORT_RANK.low!)
+  let floor: string | undefined
+  for (const word of ranked) if (floor === undefined || distance(word) < distance(floor)) floor = word
+  return floor ?? vocabulary[0]
 }
 
 function servingLocalHelper(): string | undefined {

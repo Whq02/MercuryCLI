@@ -732,10 +732,11 @@ A session's side jobs (the chat's title, the away summary, the tool-use
 summaries, the state read, the feedback card, a hook's default model, the
 date parser and the fetch tool's summary) ride the main seat's own model at
 `low` effort: `low` wherever the road serves it (the Anthropic ladder, a GPT
-session's live list, GLM, a road that grades its thinking), the lowest word
-above `low` on a list without it, a word below `low` only when the list
-serves nothing at or above it (`minimal` before `none`), and no effort word
-on a road without effort control. No second model id is ever asked for, and the
+session's live list, GLM, a road that grades its thinking), otherwise the
+served word nearest to `low`, the cheaper one when two are equally near
+(`medium` on a `none`/`medium`/`high` list; `none` on a `none`/`high` list,
+Mistral Medium 3.5's and Cohere Command A+'s shape), and no effort word on a
+road without effort control. No second model id is ever asked for, and the
 session's effort dial (`/effort`, `MERCURY_EFFORT_LEVEL`) governs the turn,
 never a side job (the one case below excepted). A hook that names its own model runs that model at the
 same `low` floor: the hook reads that road's model list first, within a bounded
