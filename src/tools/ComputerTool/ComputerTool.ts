@@ -151,6 +151,7 @@ const MODIFIER_KEYS: Readonly<Record<ModelModifier, DesktopModifier>> = {
 const SETTLE_DEFAULT_MS = 300
 const SETTLE_CAP_MS = 5_000
 const WAIT_DEFAULT_MS = 1_000
+const UNTIL_DEFAULT_MS = 5_000
 const WAIT_CAP_MS = 10_000
 const FILE_DIALOG_MS = 3_000
 const FILE_CLOSE_MS = 8_000
@@ -226,7 +227,7 @@ const modelInputSchema = lazySchema(() => {
     dy: f.dy.describe('scroll: vertical notches, positive down.'),
     text: f.text.describe(`type: at most ${TYPE_TEXT_CAP} characters; only newline and tab control characters.`),
     key: f.key.describe(`Key chord: ${KEY_CHORD_VOCABULARY}.`),
-    durationMs: f.durationMs.describe(`hold: ${HOLD_MIN_MS}–${HOLD_CAP_MS} ms; wait: default ${WAIT_DEFAULT_MS}, maximum ${WAIT_CAP_MS} ms.`),
+    durationMs: f.durationMs.describe(`hold: ${HOLD_MIN_MS}–${HOLD_CAP_MS} ms; wait: default ${WAIT_DEFAULT_MS}, ${UNTIL_DEFAULT_MS} with until, maximum ${WAIT_CAP_MS} ms.`),
     display: f.display.describe('Display number; omitted, the front window. Also applies to acts with capture:true.'),
     settleMs: f.settleMs.describe(`Post-action delay in ms, default ${SETTLE_DEFAULT_MS}, capped at ${SETTLE_CAP_MS}; not a readiness check.`),
     capture: f.capture.describe('Return an image after an act. A sequence returns one final image; screenshot steps capture in place. wait-until captures on a match. false suppresses images.'),
@@ -1363,8 +1364,9 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
         const lines: string[] = []
         let completed = 0
         let afterState = ''
-        let lastBefore: DesktopObservation = {}
-        let lastMayRead = false
+        let anyChanged = false
+        let firstBefore: DesktopObservation | null = null
+        let mayRead = false
         const readable = new Set<string>()
         for (const step of steps) {
           if (signal.aborted) {
@@ -1390,6 +1392,14 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           const judged = peekCheckedActApp(owner)
           const reads = ACT_ACTIONS.has(step.action) || permissionAction(step) === 'tree'
           const last = completed === steps.length - 1
+          if (firstBefore === null) {
+            const front = await driver.frontmostApplication()
+            mayRead = reads || (front.ok && (appApproved(owner, front.value.identity) || readable.has(front.value.identity)))
+            firstBefore = front.ok ? { app: front.value } : {}
+            if (mayRead && front.ok) firstBefore = await readObservation(driver, signal, false, front.value.identity)
+          } else if (!mayRead && reads) {
+            mayRead = true
+          }
           if (step.action === 'screenshot') {
             if (input.capture !== false) {
               const front = await driver.frontmostApplication()
@@ -1414,16 +1424,11 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
             completed++
             continue
           }
-          if (last) {
-            const front = await driver.frontmostApplication()
-            lastBefore = front.ok ? { app: front.value } : {}
-            lastMayRead = reads || (front.ok && (appApproved(owner, front.value.identity) || readable.has(front.value.identity)))
-            if (!ACT_ACTIONS.has(step.action) && lastMayRead) lastBefore = await readObservation(driver, signal, false, lastBefore.app?.identity)
-          }
           const answer = await ComputerTool.call(ACT_ACTIONS.has(step.action) ? { ...step, capture: false, settleMs: last ? input.settleMs : 0 } : step.action === 'wait' ? { ...step, capture: false } : step, context, canUseTool, parentAssistantMessage)
           const stepLines = answer.data.result.split('\n').filter(line => line !== WEB_CONTENT_NOTICE)
           contentShown ||= stepLines.length !== answer.data.result.split('\n').length
           afterState = stepLines.find(line => STATE_LINE.test(line)) ?? ''
+          anyChanged ||= afterState.startsWith('changed · ')
           lines.push(stepLines.filter(line => !STATE_LINE.test(line)).join('\n'))
           if (answer.data.outcome !== 'succeeded') {
             result = `sequence ${completed}/${steps.length} completed\n${lines.join('\n')}`
@@ -1446,10 +1451,11 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
             if (shot.aborted) outcome = 'failed'
           }
         }
-        if (!signal.aborted && (input.capture !== false || !afterState)) {
+        if (!signal.aborted) {
+          const before = firstBefore ?? {}
           const front = await driver.frontmostApplication()
-          const after = lastMayRead ? await readObservation(driver, signal, false, lastBefore.app?.identity) : front.ok ? { app: front.value } : {}
-          afterState = `${stateWord(lastBefore, after, afterState.startsWith('changed · ') || observationChanged(lastBefore, after))} · ${treeObservation(after)}`
+          const after = mayRead && front.ok ? await readObservation(driver, signal, false, before.app?.identity ?? front.value.identity) : front.ok ? { app: front.value } : {}
+          afterState = `${stateWord(before, after, anyChanged || observationChanged(before, after))} · ${treeObservation(after)}`
         }
         if (signal.aborted) {
           await driver.releaseAll()
@@ -1644,7 +1650,8 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           break
         }
         case 'wait': {
-          const pause = clamp(input.durationMs ?? WAIT_DEFAULT_MS, 0, WAIT_CAP_MS)
+          const pause = clamp(input.durationMs ?? (input.until !== undefined ? UNTIL_DEFAULT_MS : WAIT_DEFAULT_MS), 0, WAIT_CAP_MS)
+          const waitStarted = Date.now()
           let waitNote = ''
           if (input.until !== undefined) {
             const checked = consumeCheckedAct(owner, 'wait')
@@ -1691,7 +1698,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
             waitNote = lastTree ? captchaLine(lastTree, app) : ''
           } else await sleep(pause, signal)
           if ((input.capture === false || (input.capture !== true && input.until === undefined)) && !signal.aborted) {
-            result = `wait ${input.until ? waitConditionWords(input.until) : `${pause}ms`} · ${await factsLine(driver, screenOf(owner))}${waitNote}`
+            result = `wait ${input.until ? `${waitConditionWords(input.until)} · met after ${Date.now() - waitStarted}ms of ${pause}` : `${pause}ms`} · ${await factsLine(driver, screenOf(owner))}${waitNote}`
             outcome = 'succeeded'
             break
           }
@@ -1707,7 +1714,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
             break
           }
           adoptShot(shot)
-          result = `wait ${input.until ? waitConditionWords(input.until) : `${pause}ms`} · ${shot.line}${waitNote}`
+          result = `wait ${input.until ? `${waitConditionWords(input.until)} · met after ${Date.now() - waitStarted}ms of ${pause}` : `${pause}ms`} · ${shot.line}${waitNote}`
           outcome = 'succeeded'
           break
         }

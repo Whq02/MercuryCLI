@@ -104,6 +104,10 @@ driver.accessibilityTree = async (...args) => {
   return tree
 }
 const waited = await call(waiting)
+const defaulted = await call({ action: 'wait', until: target, capture: false })
+check('wait with until waits up to 5 s by default and says how long the condition took', defaulted.outcome === 'succeeded' && /met after \d+ms of 5000/.test(defaulted.result), defaulted.result)
+const plain = await call({ action: 'wait', capture: false })
+check('a plain wait keeps its 1 s default', plain.outcome === 'succeeded' && plain.result.startsWith('wait 1000ms'), plain.result)
 check('wait-until polls until the named element appears', waited.outcome === 'succeeded' && reads >= 3 && !waited.imagePath, waited.result)
 driver.accessibilityTree = originalTree
 const timeout = await call({ action: 'wait', until: { name: 'Absent' }, durationMs: 20, capture: false })
@@ -163,6 +167,28 @@ check('changing application asks afresh and refusal stops the sequence', stopped
 driver.frontmostApplication = originalFront
 driver.click = originalClick
 session.forgetDesktopOwner(owner)
+
+section('the sequence state line compares the screen before the first step with the screen after the last, whatever the last step is')
+{
+  const originalFrontS = driver.frontmostApplication.bind(driver)
+  const originalClickS = driver.click.bind(driver)
+  let clicked = false
+  driver.click = async (...args) => { const answer = await originalClickS(...args); clicked = true; return answer }
+  driver.frontmostApplication = async () => { const front = await originalFrontS(); return clicked && front.ok ? { ok: true, value: { ...front.value, windowId: 'editor-renamed', title: 'Renamed' } } : front }
+  const trailingWait = await call({ action: 'sequence', steps: [{ action: 'click', target }, { action: 'wait', durationMs: 10 }], capture: false })
+  check('a click that changed the window followed by a wait reads changed, not unchanged', trailingWait.outcome === 'succeeded' && /^changed · now:/m.test(trailingWait.result), trailingWait.result)
+  clicked = false
+  const trailingShot = await call({ action: 'sequence', steps: [{ action: 'click', target }, { action: 'screenshot' }] })
+  check('a sequence ending in a screenshot is compared and its focus read, never "not compared · focus not read"', trailingShot.outcome === 'succeeded' && /^changed · now:/m.test(trailingShot.result) && !trailingShot.result.includes('not compared') && !trailingShot.result.includes('focus not read'), trailingShot.result)
+  clicked = false
+  const trailingFind = await call({ action: 'sequence', steps: [{ action: 'click', target }, { action: 'find', target }], capture: false })
+  check('a click followed by a find reads changed too', trailingFind.outcome === 'succeeded' && /^changed · now:/m.test(trailingFind.result), trailingFind.result)
+  driver.click = originalClickS
+  driver.frontmostApplication = originalFrontS
+  const waits = await call({ action: 'sequence', steps: [{ action: 'wait', durationMs: 10 }, { action: 'wait', durationMs: 10 }], capture: false })
+  check('two waits that changed nothing read unchanged with the focus named', waits.outcome === 'succeeded' && /^unchanged · now:.*focus /m.test(waits.result), waits.result)
+  session.forgetDesktopOwner(owner)
+}
 
 section('new forms retain terminal, bounds, window and permission guards')
 context = toolContext()

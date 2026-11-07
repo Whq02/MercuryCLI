@@ -83,8 +83,10 @@ for the window title, `{ url }` for the address a browser window shows,
 `{ dialog: true }` for a dialog or sheet in the window, `{ focus: "AXTextField" }`
 for the role of the focused control, or `gone: true` beside an element or
 `dialog: true` to wait for it to leave, bounded by
-`durationMs` (default 1000 ms, cap 10000 ms). The result names the condition
-that passed, or that the time ran out with the size of the last tree read; if
+`durationMs` (default 5000 ms with `until` — a large page's tree takes about a
+second to read — 1000 ms for a plain pause, cap 10000 ms). The result names
+the condition that passed and how long it took, or that the time ran out with
+the size of the last tree read; if
 the front window changes the call reports that instead of succeeding.
 `capture: false` makes this an image-free check. Put a `wait` with `until`
 after a click whose effect you assume (a dialog opening, focus moving, a page
