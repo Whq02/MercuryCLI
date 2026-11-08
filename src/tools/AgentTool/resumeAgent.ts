@@ -5,6 +5,7 @@ import { stat, utimes } from 'node:fs/promises'
 import { getEngineModel } from '../../utils/model/model.js'
 import { getAgentModel } from '../../utils/model/agent.js'
 import { crewmateModelOverride } from '../../utils/crew/crewmateModelWord.js'
+import { recordAfterResume } from '../../utils/crew/crewmateRecord.js'
 import type { Message } from '../../types/message.js'
 import type { AgentId } from '../../types/ids.js'
 import type { ToolUseContext } from '../../Tool.js'
@@ -293,22 +294,25 @@ export async function resumeAgentBackground(args: {
     settleSwarmAgent(agentId)
     throw error
   }
-  await writeAgentMetadata(agentId as AgentId, {
-    agentType: definition.agentType,
-    swarm: meta?.swarm === true,
-    ...(worktreePath ? { worktreePath } : {}),
-    ...(cwdPath ? { cwd: cwdPath } : {}),
-    description,
-    ...(launchName ? { name: launchName } : {}),
-    ...(launchedAt !== undefined ? { launchedAt } : {}),
-    ...(restoredModel ? { model: restoredModel } : {}),
-    ...(restoredEffort ? { effortOverride: restoredEffort } : {}),
-    ...(meta?.thinkingConfig ? { thinkingConfig: meta.thinkingConfig } : {}),
-    ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
-    ...(instructionProfileOverride
-      ? { instructionProfile: instructionProfileOverride }
-      : {}),
-  }).catch(() => {})
+  const latest = await readAgentMetadata(agentId as AgentId).catch(() => null)
+  await writeAgentMetadata(agentId as AgentId, recordAfterResume(meta, latest, {
+    fresh: {
+      agentType: definition.agentType,
+      swarm: meta?.swarm === true,
+      ...(worktreePath ? { worktreePath } : {}),
+      ...(cwdPath ? { cwd: cwdPath } : {}),
+      description,
+      ...(launchName ? { name: launchName } : {}),
+      ...(launchedAt !== undefined ? { launchedAt } : {}),
+      ...(meta?.thinkingConfig ? { thinkingConfig: meta.thinkingConfig } : {}),
+      ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
+      ...(instructionProfileOverride
+        ? { instructionProfile: instructionProfileOverride }
+        : {}),
+    },
+    model: restoredModel,
+    effortOverride: restoredEffort,
+  })).catch(() => {})
 
   const querySource = getQuerySourceForAgent(
     definition.agentType,

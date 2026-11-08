@@ -97,12 +97,14 @@ import {
   clearAgentTranscriptSubdir,
   flushSessionStorage,
   getAgentTranscriptPath,
+  readAgentMetadata,
   recordSidechainTranscript,
   registerAgentTranscriptDestination,
   setAgentTranscriptSubdir,
   writeAgentMetadata,
   writtenChainTail,
 } from '../../utils/sessionStorage.js'
+import { recordAtRunStart } from '../../utils/crew/crewmateRecord.js'
 import { settledSidechainMessages } from '../../utils/sessionStorage/settledSidechainMessages.js'
 import { latchSwarmAgent, settleSwarmAgent, swarmBrief } from '../../services/crewBoard/seam.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
@@ -1097,29 +1099,32 @@ export async function* runAgent(
     }
     await landAgentTranscriptRows(messages, agentId)
 
-    await writeAgentMetadata(agentId, {
-      agentType: agentDefinition.agentType,
-      swarm,
-      ...(worktreePath ? { worktreePath } : {}),
-      ...(cwd ? { cwd } : {}),
-      ...(description ? { description } : {}),
-      ...(name ? { name } : {}),
-      ...(launchedAt !== undefined ? { launchedAt } : {}),
-      ...(swarmWords !== null ? { swarmBrief: swarmWords } : {}),
+    const latestRecord = await readAgentMetadata(agentId).catch(() => null)
+    await writeAgentMetadata(agentId, recordAtRunStart(latestRecord, { model, effortOverride }, {
+      fresh: {
+        agentType: agentDefinition.agentType,
+        swarm,
+        ...(worktreePath ? { worktreePath } : {}),
+        ...(cwd ? { cwd } : {}),
+        ...(description ? { description } : {}),
+        ...(name ? { name } : {}),
+        ...(launchedAt !== undefined ? { launchedAt } : {}),
+        ...(swarmWords !== null ? { swarmBrief: swarmWords } : {}),
+        thinkingConfig: thinkingOverride.thinkingConfig,
+        ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
+        ...(instructionCapture
+          ? {
+              instructionProfile: instructionCapture.profile,
+              ...(instructionCapture.digest
+                ? { instructionDigest: instructionCapture.digest }
+                : {}),
+            }
+          : {}),
+      },
       model: resolvedAgentModel,
-      thinkingConfig: thinkingOverride.thinkingConfig,
-      ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
-      ...(effortOverride !== undefined && { effortOverride }),
-      ...(resolvedEffort !== undefined ? { effort: String(resolvedEffort) } : {}),
-      ...(instructionCapture
-        ? {
-            instructionProfile: instructionCapture.profile,
-            ...(instructionCapture.digest
-              ? { instructionDigest: instructionCapture.digest }
-              : {}),
-          }
-        : {}),
-    }).catch(() => {})
+      effortOverride,
+      effort: resolvedEffort !== undefined ? String(resolvedEffort) : undefined,
+    })).catch(() => {})
 
     let lastRecordedUuid: string | undefined = writtenChainTail(messages)
     const effectiveMaxTurns = maxTurns ?? agentDefinition.maxTurns
