@@ -9,7 +9,7 @@ const FINDER = 'com.apple.finder'
 const DISTANCES = [110, 314]
 const GRIP_BELOW_TOP = 5
 const TITLE_BAR = 28
-const TOLERANCE = 1
+const TOLERANCE = 0.5
 
 if (process.platform !== 'darwin' || !process.argv.includes('--live')) {
   console.log('SKIP: pass --live on macOS, on an idle screen with a Finder window open, to drag it by its title bar and read where it lands')

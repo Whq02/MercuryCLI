@@ -137,6 +137,7 @@ section('a url wait reads the address the browser shows, with or without its sch
   check('a file page shown as a bare path matches a url wait', shown('/Users/someone/Desktop/parity108.html', 'parity108'))
   check('a search typed into the omnibox is not an address, so it never matches', !shown('how to drag a window', 'drag') && !shown('slider', 'slider'))
   check("a url given with its scheme matches Chrome's schemeless value, and the state line's own file:// words match a file page", shown('w3.org/WAI/ARIA/apg/patterns/slider/', 'https://w3.org/WAI') && shown('/Users/someone/Desktop/parity108.html', 'file:///Users/someone/Desktop/parity108.html'))
+  check("a url given with http:// or www. matches the address Chrome shows without them (a localhost dev server, a www host)", shown('localhost:3000/dashboard', 'http://localhost:3000/dashboard') && shown('example.com/docs', 'www.example.com/docs') && shown('example.com/docs', 'http://www.example.com/docs'))
   const typing = (value: string, url: string) => waitConditionPassed({ url }, chrome as never, { elements: [{ ...omnibox(value).elements[0], focused: true }], truncated: false, reason: null } as never)
   check('an address field being typed into is skipped: a dotted word typed as a search, or an address before Enter, never passes', !typing('slider.js', 'slider.js') && !typing('w3.org/WAI/ARIA/apg/patterns/slider/', 'slider'))
   check('shownAddress parses the three shapes and refuses the search', shownAddress('w3.org/x')?.host === 'w3.org' && shownAddress('https://example.com/a')?.pathname === '/a' && shownAddress('/tmp/page.html')?.protocol === 'file:' && shownAddress('how to drag') === null && shownAddress('') === null)
@@ -181,6 +182,29 @@ section('a pixel step after a screenshot step in the same sequence is refused as
   const seenY = Number(reopenedAgain.screen.originY) + 20 * ratio
   const afterwards = await call({ action: 'click', x: 20, y: 20, capture: false })
   check("a top-level click after the refused sequence maps through the opening screenshot, the one the model has seen", afterwards.outcome === 'succeeded' && afterwards.result.includes(`→ (${seenX}, ${seenY}) pt`), `${afterwards.result.slice(0, 200)} · expected (${seenX}, ${seenY}) pt`)
+  {
+    const TERMINAL_LINE = 'screenshot: build/ui-check.png written by the test runner'
+    const NOT_RETURNED = "screenshot taken by the step but not returned: a failed answer carries no image, so the previous screenshot's coordinates still apply — take the screenshot alone to see it"
+    const editorFront = await driver.frontmostApplication()
+    if (!editorFront.ok) throw new Error('the fake has no front window')
+    const editor = editorFront.value
+    const terminal = { identity: 'com.apple.Terminal', name: 'Terminal', pid: 321, windowId: 'term', title: 'build — zsh', bounds: { x: 0, y: 0, width: 400, height: 300 } }
+    let front: typeof editor = terminal
+    const bouncing = driver as DesktopDriver & { findApplication?: unknown; activateApplication?: unknown }
+    const frontBefore = driver.frontmostApplication.bind(driver)
+    const treeBefore = driver.accessibilityTree.bind(driver)
+    driver.frontmostApplication = async () => ({ ok: true, value: { ...front } })
+    driver.accessibilityTree = async (app, ...rest) => (app.identity === terminal.identity ? { ok: true, value: { elements: [{ depth: 1, role: 'AXTextArea', title: 'shell', value: `$ make ui-check\n${TERMINAL_LINE}\nok`, frame: { x: 0, y: 20, width: 400, height: 280 }, focused: true }], truncated: false, reason: null } } : treeBefore(app, ...rest))
+    bouncing.findApplication = async () => ({ ok: true, value: { ...editor } })
+    bouncing.activateApplication = async () => { front = editor; return { ok: true, value: { ...editor } } }
+    const mixed = await call({ action: 'sequence', steps: [{ action: 'screenshot' }, { action: 'focusApp', focusApp: { name: editor.name } }, { action: 'screenshot' }, { action: 'click', x: 20, y: 20 }] })
+    const lines = mixed.result.split('\n')
+    check("a failed sequence that read terminal text raw and then took an image keeps the terminal's own line that begins 'screenshot: ' and replaces only the image step's line", mixed.outcome === 'failed' && mixed.imagePath === undefined && lines.includes(TERMINAL_LINE) && lines.filter(line => line === NOT_RETURNED).length === 1 && !lines.some(line => /^screenshot: \/.*\.png — display/.test(line)), mixed.result)
+    driver.frontmostApplication = frontBefore
+    driver.accessibilityTree = treeBefore
+    delete bouncing.findApplication
+    delete bouncing.activateApplication
+  }
 }
 
 section('sequences check every act and stop at the first refusal')

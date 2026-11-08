@@ -10,6 +10,15 @@ type Env = ();
 trait Task { type Output; type JsValue; fn compute(&mut self) -> Result<Self::Output>; fn resolve(&mut self, env: Env, output: Self::Output) -> Result<Self::JsValue>; }
 fn reason(text: String) -> String { text }
 fn begin_act() -> Result<()> { Ok(()) }
+#[derive(Clone)]
+struct DisplayRecord { index: u32, origin_x: f64, origin_y: f64, width: f64, height: f64 }
+static DISPLAYS: Mutex<Vec<DisplayRecord>> = Mutex::new(Vec::new());
+fn display_list() -> std::result::Result<Vec<DisplayRecord>, String> {
+    let listed = DISPLAYS.lock().unwrap().clone();
+    if listed.is_empty() { return Ok(vec![DisplayRecord { index: 0, origin_x: 0.0, origin_y: 0.0, width: 1920.0, height: 1080.0 }]); }
+    Ok(listed)
+}
+fn set_displays(displays: Vec<DisplayRecord>) { *DISPLAYS.lock().unwrap() = displays; }
 mod imp {
     use super::*;
     static EVENTS: OnceLock<Mutex<Vec<(String, Instant)>>> = OnceLock::new();
@@ -146,4 +155,20 @@ fn a_drag_from_the_corner_never_nudges_off_the_display() {
     let mut task = DragTask { from: (0.0, 0.0), to: (20.0, 20.0), button: Button::Left };
     task.compute().unwrap();
     assert_eq!(imp::event_list()[2], "drag:0:0");
+}
+#[test]
+fn a_drag_on_a_display_left_of_and_above_the_main_one_nudges_within_that_display() {
+    reset();
+    set_displays(vec![
+        DisplayRecord { index: 0, origin_x: 0.0, origin_y: 0.0, width: 1920.0, height: 1080.0 },
+        DisplayRecord { index: 1, origin_x: -2560.0, origin_y: -400.0, width: 2560.0, height: 1440.0 },
+    ]);
+    let mut task = DragTask { from: (-1000.0, 300.0), to: (-900.0, 300.0), button: Button::Left };
+    task.compute().unwrap();
+    assert_eq!(imp::event_list()[2], "drag:-1000.05:299.95");
+    reset();
+    let mut corner = DragTask { from: (-2560.0, -400.0), to: (-2540.0, -380.0), button: Button::Left };
+    corner.compute().unwrap();
+    assert_eq!(imp::event_list()[2], "drag:-2560:-400");
+    set_displays(Vec::new());
 }

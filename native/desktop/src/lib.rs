@@ -472,12 +472,9 @@ fn display_list() -> std::result::Result<Vec<DisplayRecord>, String> {
 }
 
 fn display_at(x: f64, y: f64) -> Option<u32> {
-    display_list()
-        .ok()?
-        .into_iter()
-        .find(|d| x >= d.origin_x && x < d.origin_x + d.width && y >= d.origin_y && y < d.origin_y + d.height)
-        .map(|d| d.index)
+    display_holding(x, y).map(|d| d.index)
 }
+
 
 #[napi]
 pub fn keyboard_idle_ms() -> Option<f64> {
@@ -768,6 +765,18 @@ pub fn click(x: f64, y: f64, button: String, count: u32) -> Result<()> {
     Ok(())
 }
 
+fn display_holding(x: f64, y: f64) -> Option<DisplayRecord> {
+    display_list()
+        .ok()?
+        .into_iter()
+        .find(|d| x >= d.origin_x && x < d.origin_x + d.width && y >= d.origin_y && y < d.origin_y + d.height)
+}
+
+fn nudge_toward_origin(x: f64, y: f64) -> (f64, f64) {
+    let (left, top) = display_holding(x, y).map_or((0.0, 0.0), |d| (d.origin_x, d.origin_y));
+    ((x - DRAG_NUDGE_PT).max(left), (y - DRAG_NUDGE_PT).max(top))
+}
+
 pub struct DragTask {
     from: (f64, f64),
     to: (f64, f64),
@@ -801,7 +810,8 @@ impl Task for DragTask {
             if CANCEL.load(Ordering::SeqCst) {
                 return Err(ABORTED.to_string());
             }
-            imp::mouse_drag(button, (from_x - DRAG_NUDGE_PT).max(0.0), (from_y - DRAG_NUDGE_PT).max(0.0))?;
+            let (nudge_x, nudge_y) = nudge_toward_origin(from_x, from_y);
+            imp::mouse_drag(button, nudge_x, nudge_y)?;
             sleep(Duration::from_millis(DRAG_STEP_MS));
             let mut last = (from_x, from_y);
             for step in 1..=DRAG_STEPS {

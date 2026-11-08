@@ -46,7 +46,8 @@ export function waitConditionPassed(until: WaitCondition, app: DesktopApplicatio
     return tree.elements.some(element => {
       if (!/^(AX)?(TextField|ComboBox|SearchField)$/i.test(element.role) || !/address|location|url|search/i.test(element.title ?? '') || element.focused === true) return false
       const url = shownAddress(element.value)
-      return url !== null && [element.value ?? '', url.href, addressWords(url)].some(form => includes(form, until.url!))
+      const bare = (text: string) => text.replace(/^https?:\/\//i, '').replace(/^www\./i, '')
+      return url !== null && [element.value ?? '', url.href, addressWords(url)].some(form => includes(bare(form), bare(until.url!)))
     })
   }
   if (until.dialog === true) {
