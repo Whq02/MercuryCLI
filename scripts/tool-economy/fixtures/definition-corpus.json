@@ -1,5 +1,5 @@
 {
-  "base": "4a060a631c80dadfe05cbb7598939f1fece32dc6",
+  "base": "95ec2752629e13bdb3b1030bb26c997d461fe258",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -3092,7 +3092,7 @@
     },
     {
       "name": "Computer",
-      "description": "Operate the desktop by screenshot coordinates or accessibility targets. Coordinates are pixels of its last screenshot; refresh after frame changes. Returns screen observations and action results; trees use [n] role \"title\" value rows. Terminal captures return accessibility text by default.\n\nThe first act in an application asks; tree/find/read/wait-until share its grant. Other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input. Screenshots remain in saved history.\n\nAfter a click whose effect you assume (a dialog, a focus change, a page), wait with until; a sequence stops at its timeout. After the same act twice with an unchanged result, read the screen before acting again.",
+      "description": "Operate the desktop by screenshot coordinates or accessibility targets. Coordinates are pixels of its last screenshot; refresh after frame changes. Trees use [n] role \"title\" value rows. Terminal captures return accessibility text by default. Text fields: fill (target/ref) sets the value and reads it back; fields lists the controls.\n\nThe first act in an application asks; tree/find/read/wait-until share its grant. Other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input.\n\nAfter a click whose effect you assume (a dialog, a focus change, a page), wait with until; a sequence stops at its timeout. After the same act twice with an unchanged result, read the screen before acting again.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -3148,7 +3148,7 @@
             "type": "number"
           },
           "text": {
-            "description": "type: at most 4000 characters; only newline and tab control characters.",
+            "description": "type or fill: at most 4000 characters; only newline and tab control characters.",
             "type": "string"
           },
           "key": {
@@ -3168,7 +3168,7 @@
             }
           },
           "durationMs": {
-            "description": "hold: 50–5000 ms; wait: default 1000, maximum 10000 ms.",
+            "description": "hold: 50–5000 ms; wait: default 1000, 5000 with until, maximum 10000 ms.",
             "type": "number"
           },
           "display": {
@@ -3231,7 +3231,7 @@
             "additionalProperties": false
           },
           "ref": {
-            "description": "Node number from the latest tree; valid until the next tree read. Choose ref, target or x/y.",
+            "description": "Node number from the latest tree or find; stale once the list changes. Choose ref, target or x/y.",
             "type": "integer",
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991
@@ -3279,7 +3279,7 @@
             "type": "boolean"
           },
           "focusApp": {
-            "description": "Bring a running application forward by name or bundle id.",
+            "description": "Bring a running application forward by name or bundle id; capture screenshots after.",
             "type": "object",
             "properties": {
               "name": {
