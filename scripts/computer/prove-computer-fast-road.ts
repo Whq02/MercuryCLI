@@ -155,7 +155,11 @@ section('a pixel step after a screenshot step in the same sequence is refused as
   const dragged = await call({ action: 'sequence', steps: [{ action: 'screenshot', region: inner }, { action: 'drag', target: { role: 'AXButton', name: 'Save' }, toX: 50, toY: 50 }] })
   check('a drag to pixel coordinates after an in-sequence screenshot is refused the same way, before any permission ask', dragged.outcome === 'failed' && dragged.result.includes('drag refused: the last screenshot was taken in this same message'), dragged.result.slice(0, 300))
   check('it is refused for the reason the model can act on: the screenshot was taken in this same message and has not been seen — take it alone, then act', inSequence.result.includes('click refused: the last screenshot was taken in this same message — you have not seen it; take the screenshot alone, then the region or the act; nothing further done'), inSequence.result.slice(0, 300))
-  check("the in-sequence screenshot's own line is kept in the answer and says the coordinates now refer to the region", inSequence.result.includes('coordinates now refer to this region'), inSequence.result.slice(0, 400))
+  check("the failed answer carries no image and publishes no map: the step's screenshot line is replaced by the not-returned words", inSequence.imagePath === undefined && inSequence.screen === undefined && !inSequence.result.includes('coordinates now refer to this region') && inSequence.result.includes("screenshot taken by the step but not returned: a failed answer carries no image, so the previous screenshot's coordinates still apply — take the screenshot alone to see it"), inSequence.result.slice(0, 400))
+  const seenX = Number(reopenedAgain.screen.originX) + 20 * ratio
+  const seenY = Number(reopenedAgain.screen.originY) + 20 * ratio
+  const afterwards = await call({ action: 'click', x: 20, y: 20, capture: false })
+  check("a top-level click after the refused sequence maps through the opening screenshot, the one the model has seen", afterwards.outcome === 'succeeded' && afterwards.result.includes(`→ (${seenX}, ${seenY}) pt`), `${afterwards.result.slice(0, 200)} · expected (${seenX}, ${seenY}) pt`)
 }
 
 section('sequences check every act and stop at the first refusal')

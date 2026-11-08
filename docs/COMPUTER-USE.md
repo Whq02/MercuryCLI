@@ -184,7 +184,10 @@ Use the roles and names your tree actually returned; the example's `cmd+a` is
 the macOS select-all chord (`ctrl+a` on other platforms). Each step goes through
 the same permission and safety checks as an individual call, including each read.
 A refusal, timeout or interruption stops the sequence and reports how many steps
-completed; completed acts are not undone. One screenshot follows the final step
+completed; completed acts are not undone. A failed answer travels to the model
+as text alone, so a screenshot a step took before the stop is not returned: its
+line says so and the previous screenshot's coordinates still apply (take the
+screenshot alone to see it). One screenshot follows the final step
 unless that step is a screenshot, and the after-state line of the last step
 closes the result. When the last step is a `wait`, the observation is read
 before and after it in any application an earlier step of the sequence was
