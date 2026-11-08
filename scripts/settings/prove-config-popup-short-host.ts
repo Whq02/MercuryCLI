@@ -115,10 +115,11 @@ for (const scene of SCENES) {
     const total = markerOf(opening)?.split(' of ')[1]
     check(`${label(scene)} compact: the body is setting rows alone, one per line, filling the ${geometry.rowBudget}-row body, with the marker at 1 of the whole list`, bodyRows.length === geometry.rowBudget && bodyRows.every(row => row !== '') && !opening.some(line => line.includes(CONFIG_SEARCH_PLACEHOLDER) || /↓ \d+ more/.test(line) || line.includes('set by you')) && /^1 of \d\d$/.test(markerOf(opening) ?? ''), `${markerOf(opening)} · ${bodyRows.join(' | ')}`)
     for (let step = 0; step < geometry.rowBudget; step++) m.push(KEY.down)
-    await settle(200)
+    await waitFor(() => markerOf(m.lines()) === `${geometry.rowBudget + 1} of ${total}`, 4000)
     check(`${label(scene)} compact: arrows scroll the rows and the marker follows`, markerOf(m.lines()) === `${geometry.rowBudget + 1} of ${total}` && m.lines().some(line => line.includes(`${CONFIG_ROW_MARK} `)), markerOf(m.lines()))
     for (let step = 0; step < geometry.rowBudget; step++) m.push(KEY.up)
-    await settle(200)
+    await waitFor(() => markerOf(m.lines()) === `1 of ${total}`, 4000)
+    check(`${label(scene)} compact: the same arrows back land before the search is typed, the marker at 1 of the whole list again`, markerOf(m.lines()) === `1 of ${total}`, markerOf(m.lines()))
   }
   m.push(ROW)
   await settle(120)
