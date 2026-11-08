@@ -1,5 +1,5 @@
 {
-  "base": "95ec2752629e13bdb3b1030bb26c997d461fe258",
+  "base": "3c1a2aba224b9c8bdccf5304b3561da8b5e1fb6e",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -3092,7 +3092,7 @@
     },
     {
       "name": "Computer",
-      "description": "Operate the desktop by screenshot coordinates or accessibility targets. Coordinates are pixels of its last screenshot; refresh after frame changes. Trees use [n] role \"title\" value rows. Terminal captures return accessibility text by default. Text fields: fill (target/ref) sets the value and reads it back; fields lists the controls.\n\nThe first act in an application asks; tree/find/read/wait-until share its grant. Other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input.\n\nAfter a click whose effect you assume (a dialog, a focus change, a page), wait with until; a sequence stops at its timeout. After the same act twice with an unchanged result, read the screen before acting again.",
+      "description": "Operate the desktop by screenshot coordinates or accessibility targets. Coordinates are pixels of its last screenshot; refresh after frame changes. Trees use [n] role \"title\" value rows. Terminal captures return accessibility text by default. Text fields: fill (target/ref) sets the value and reads it back; fields lists the controls.\n\nThe first act of a session asks once; tree/find/read/wait-until share its grant. Other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input.\n\nAfter a click whose effect you assume (a dialog, a focus change, a page), wait with until; a sequence stops at its timeout. After the same act twice with an unchanged result, read the screen before acting again.",
       "input_schema": {
         "type": "object",
         "properties": {
