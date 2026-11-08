@@ -1464,6 +1464,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
         let completed = 0
         let afterState = ''
         let anyChanged = false
+        let anyScrolled = false
         let firstBefore: DesktopObservation | null = null
         let mayRead = false
         const readable = new Set<string>()
@@ -1528,10 +1529,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           contentShown ||= stepLines.length !== answer.data.result.split('\n').length
           afterState = stepLines.find(line => STATE_LINE.test(line)) ?? ''
           anyChanged ||= afterState.startsWith('changed · ')
-          if (!anyChanged && stepLines.some(line => line.includes('scrolled into view first')) && mayRead) {
-            const front = await driver.frontmostApplication()
-            if (front.ok) firstBefore = await readObservation(driver, signal, false, front.value.identity)
-          }
+          anyScrolled ||= stepLines.some(line => line.includes('scrolled into view first'))
           lines.push(stepLines.filter(line => !STATE_LINE.test(line)).join('\n'))
           if (answer.data.outcome !== 'succeeded') {
             result = `sequence ${completed}/${steps.length} completed\n${lines.join('\n')}`
@@ -1558,7 +1556,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           const before = firstBefore ?? {}
           const front = await driver.frontmostApplication()
           const after = mayRead && front.ok ? await readObservation(driver, signal, false, before.app?.identity ?? front.value.identity) : front.ok ? { app: front.value } : {}
-          afterState = `${stateWord(before, after, anyChanged || observationChanged(before, after))} · ${treeObservation(after)}`
+          afterState = `${stateWord(before, after, anyChanged || observationChanged(before, after, !anyScrolled))} · ${treeObservation(after)}`
         }
         if (signal.aborted) {
           await driver.releaseAll()

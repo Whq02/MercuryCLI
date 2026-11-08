@@ -47,6 +47,7 @@ interface FakeTreeNode {
   visibleFrame?: DesktopBounds
   offscreen?: boolean
   clickablePoint?: DesktopPoint | null
+  focusOnClick?: boolean
 }
 
 interface FakeSceneSwitch {
@@ -198,6 +199,7 @@ function treeProblem(value: unknown, at: string): string | null {
     if (node.settable !== undefined && typeof node.settable !== 'boolean') return `${at}[${i}].settable must be true or false`
     if (node.wheel !== undefined && typeof node.wheel !== 'boolean') return `${at}[${i}].wheel must be true or false`
     if (node.offscreen !== undefined && typeof node.offscreen !== 'boolean') return `${at}[${i}].offscreen must be true or false`
+    if (node.focusOnClick !== undefined && typeof node.focusOnClick !== 'boolean') return `${at}[${i}].focusOnClick must be true or false`
     if (node.clickablePoint !== undefined && node.clickablePoint !== null && !(isRecord(node.clickablePoint) && finiteNumber(node.clickablePoint.x) && finiteNumber(node.clickablePoint.y))) return `${at}[${i}].clickablePoint must be null or a point with x and y`
     if (node.children !== undefined) {
       const problem = treeProblem(node.children, `${at}[${i}].children`)
@@ -741,6 +743,11 @@ export class FakeDesktopDriver implements DesktopDriver {
     if (count !== 1 && count !== 2 && count !== 3) return refusal(inputError(`a click count is 1, 2 or 3, not ${String(count)}`))
     return this.act('click', { at: { ...at }, button, count }, signal, () => {
       this.cursorAt = { ...at }
+      const taker = sceneNodes(this.scene.tree).find(node => node.focusOnClick === true && node.frame && at.x >= node.frame.x && at.x <= node.frame.x + node.frame.width && at.y >= node.frame.y && at.y <= node.frame.y + node.frame.height)
+      if (taker) {
+        for (const node of sceneNodes(this.scene.tree)) if (!node.role.includes('Window') && node.focused) node.focused = false
+        taker.focused = true
+      }
       this.typingInto = sceneNodes(this.scene.tree).find(node => /^AX(TextField|TextArea|SearchField|ComboBox|SecureTextField)/.test(node.role) && node.frame !== undefined && node.frame !== null && inside(at, node.frame)) ?? null
       this.selectedAll = false
       return { act: 'click', at: { ...at }, completedAt: Date.now() }

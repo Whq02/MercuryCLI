@@ -425,6 +425,14 @@ section('a ref remembers its place in the list, one level up too; a one-step seq
   check("after the first row disappeared, the second row's ref is refused (its place in the list moved one level up), never clicking the row now in its place", stale.outcome === 'failed' && stale.result.includes('find again') && !rowsDriver.acts.some(a => a.act === 'click'), `${stale.result} · acts ${rowsDriver.acts.map(a => a.act).join(',')}`)
   const sequence = await call({ action: 'sequence', steps: [{ action: 'click', target: { role: 'AXTextArea', name: 'AF13' } }], capture: false })
   check('a one-step sequence whose click scrolled its target into view and changed nothing else reads unchanged', sequence.outcome === 'succeeded' && /^unchanged · now:/m.test(sequence.result) && sequence.result.includes('scrolled into view first'), sequence.result)
+  writeFileSync(rowsFile, JSON.stringify({ ...rowsScene(2), tree: [{ role: 'AXWindow', title: chrome.title, focused: true, frame: chrome.bounds, children: [{ role: 'AXWebArea', title: 'Rows', frame: { x: 0, y: 120, width: 1920, height: 866 }, focused: true, children: [
+    { role: 'AXButton', title: 'Count', frame: { x: 742, y: 985, width: 100, height: 1 }, visibleFrame: { x: 742, y: 700, width: 100, height: 40 }, focusOnClick: true },
+  ] }] }] }))
+  resetDesktopDriverForTest()
+  const focusing = resolveDesktopDriver()
+  if (focusing.state !== 'ok') throw new Error(focusing.note)
+  const focusSequence = await call({ action: 'sequence', steps: [{ action: 'click', target: { role: 'AXButton', name: 'Count' } }, { action: 'wait', durationMs: 50 }], capture: false })
+  check('a sequence whose scrolled click moved the focus to the button reads changed (the scroll alone is not the change, the focus is)', focusSequence.outcome === 'succeeded' && /^changed · now:/m.test(focusSequence.result) && focusSequence.result.includes('scrolled into view first'), focusSequence.result)
   session.forgetDesktopOwner(ownerOf(context))
 }
 section("a Windows-shaped tree: the window's own off-screen report is the clipped signal; a frame inside the window but past the display's edge is refused, never clicked")

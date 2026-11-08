@@ -244,7 +244,7 @@ function focusedElement(tree?: DesktopTree): DesktopTreeElement | null {
   return focused && !focused.role.includes('Window') ? focused : null
 }
 
-export function observationChanged(before: DesktopObservation, after: DesktopObservation): boolean {
+export function observationChanged(before: DesktopObservation, after: DesktopObservation, framesMatter = true): boolean {
   if (before.app && after.app && (before.app.identity !== after.app.identity || before.app.windowId !== after.app.windowId)) return true
   const beforeTitle = windowTitle(before)
   const afterTitle = windowTitle(after)
@@ -252,7 +252,7 @@ export function observationChanged(before: DesktopObservation, after: DesktopObs
   const focusKey = (tree?: DesktopTree): string | undefined => {
     const focused = focusedElement(tree)
     if (!tree || (tree.focused === undefined && !focused && tree.truncated)) return undefined
-    return JSON.stringify(focused && [focused.role, focused.title, focused.frame])
+    return JSON.stringify(focused && (framesMatter ? [focused.role, focused.title, focused.frame] : [focused.role, focused.title]))
   }
   const beforeFocus = focusKey(before.tree)
   const afterFocus = focusKey(after.tree)
