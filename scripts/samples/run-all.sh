@@ -9,6 +9,8 @@
 # gate-watch: src/services/run/ownerLifecycle.ts src/tools/FileEditTool/FileEditTool.ts
 # gate-watch: src/tools/FileReadTool/FileReadTool.ts src/utils/messageQueueManager.ts
 # gate-watch: src/rows/* src/runner/wire/*
+# gate-watch: src/components/messages/nullRenderingAttachments.ts src/state/AppStateStore.ts src/substrate/startupMenu.ts src/utils/attachments/orchestrator.ts
+# gate-watch: src/utils/attachments/samplesRoad.ts src/utils/fileStateCache.ts src/utils/messages.ts src/utils/messages/attachmentText.ts src/utils/processUserInput/processUserInput.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

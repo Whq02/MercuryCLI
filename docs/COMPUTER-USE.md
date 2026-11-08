@@ -43,34 +43,34 @@ pane whose frame stays its unclipped layout rectangle, listed by `find` and
 `tree` as “scrolled out of view”); and a centre past the edge of the screen's
 working area (on Windows, outside the taskbar, unless the window covers its
 whole display; elsewhere the display itself) when the window extends beyond the
-screen — a window spanning two displays is on view on both where windows span
-displays, and on the display holding most of it where they do not (macOS with
-Displays have separate Spaces). A mouse act or `fill` on such a target (not
+screen (a window spanning two displays is on view on both where windows span
+displays, and on the display holding most of it where they do not, as on macOS
+with Displays have separate Spaces). A mouse act or `fill` on such a target (not
 `scroll`, which wheels where you point it) first scrolls it into view through
 the accessibility scroll action (a wheel at the window's middle when the element
 has no such action), after the session's claim and the challenge check and
 before the act, acts on the frame it then has, and says `scrolled into view
 first (action)`; when the element is still clipped after the scroll it is
-refused: “it was scrolled (action) and is still clipped … — it may be collapsed
-or covered: take a screenshot” (or “did not move” when its frame stayed), a pane
-that will not scroll says so, a target that stays past the display's edge asks
-you to move or resize the window, and a target the window's tree no longer holds
-after the scroll asks for a screenshot rather than a click at a stale point.
-`scroll` pointed past the screen wheels at the window's nearest point on it and
-says so. On Windows a mouse act on a target lands at the element's clickable
-point when the window reports one off the frame's centre (a row cut by its
-pane's bottom edge), or at the first point of its frame that hits it (a row cut
-by the top edge); an element with neither is clicked at its centre. Separators,
-splitters, scroll bars, sliders and progress bars are exempt from the strip
-rule. A human-verification checkbox below the fold is a challenge like a visible
-one: the captcha rule applies before any scroll. `tree`, `find` and `read`
-address such an element without scrolling. Two identical siblings (two “Review”
-buttons squashed to the same strip) keep separate `ref`s; once the list has
-changed — a row scrolled into view, a row added or removed anywhere above it — a
-`ref` asks for a fresh `find` instead of acting on whatever moved into its
-place; a `find` that matches nothing leaves the refs you hold in place. A `drag`
-names both ends as targets when either is scrolled out of view; a pixel end
-would be stale after the scroll.
+refused with the words “it was scrolled (action) and is still clipped” (or “did
+not move” when its frame stayed) and the next move named (“it may be collapsed
+or covered: take a screenshot”), a pane that will not scroll says so, a target
+that stays past the display's edge asks you to move or resize the window, and a
+target the window's tree no longer holds after the scroll asks for a screenshot
+instead of a click at a stale point. `scroll` pointed past the screen wheels at
+the window's nearest point on it and says so. On Windows a mouse act on a target
+lands at the element's clickable point when the window reports one off the
+frame's centre (a row cut by its pane's bottom edge), or at the first point of
+its frame that hits it (a row cut by the top edge); an element with neither is
+clicked at its centre. Separators, splitters, scroll bars, sliders and progress
+bars are exempt from the strip rule. A human-verification checkbox below the
+fold is a challenge like a visible one: the captcha rule applies before any
+scroll. `tree`, `find` and `read` address such an element without scrolling. Two
+identical siblings (two “Review” buttons squashed to the same strip) keep
+separate `ref`s; once the list has changed (a row scrolled into view, a row
+added or removed anywhere above it) a `ref` asks for a fresh `find` instead of
+acting on whatever moved into its place; a `find` that matches nothing leaves
+the refs you hold in place. A `drag` names both ends as targets when either is
+scrolled out of view; a pixel end would be stale after the scroll.
 
 On macOS, `tree`, `find` and `wait` with `until` use the focused window by
 default. `scope: "app"` includes the other windows, with the focused window
@@ -110,8 +110,8 @@ for the window title, `{ url }` for the address a browser window shows,
 `{ dialog: true }` for a dialog or sheet in the window, `{ focus: "AXTextField" }`
 for the role of the focused control, or `gone: true` beside an element or
 `dialog: true` to wait for it to leave, bounded by
-`durationMs` (default 5000 ms with `until` — a large page's tree takes about a
-second to read — 1000 ms for a plain pause, cap 10000 ms). The result names
+`durationMs` (default 5000 ms with `until`, since a large page's tree takes
+about a second to read; 1000 ms for a plain pause; cap 10000 ms). The result names
 the condition that passed and how long it took, or that the time ran out with
 the size of the last tree read; if
 the front window changes the call reports that instead of succeeding.
