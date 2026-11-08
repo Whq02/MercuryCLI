@@ -259,13 +259,14 @@ the fix beside it.
 
 Screenshots and the other reads (the cursor, the displays, the application
 in front, a timed wait) never ask. With the access type at `asks` (the
-default), the first act in each application (a click, a drag, a scroll,
-typed text, a key) asks by the application's name and identity, the card
-names the act, and it asks how long you want to allow. Five answers, in
-this order:
+default), the first act of the session (a click, a drag, a scroll, typed
+text, a key) asks once: the card names the application in front by its name
+and identity, names the act, and asks how long you want to allow. Five
+answers, in this order:
 
-- **Yes** allows this act and every later act in this application for the
-  rest of the session.
+- **Yes, for this session (every application)** allows this act and every
+  later act in every application for the rest of the session; a resume
+  keeps it, a new session asks again.
 - **No, and tell Mercury what to do differently** refuses the act and hands
   the composer back to you.
 - **Yes, for 1 hour (every application)** allows every act in every
@@ -277,16 +278,18 @@ this order:
   mode` row, so no later session asks either, for anything, until you
   turn the row off. Under sovereign mode the card never appears.
 
-A timed grant lives with the session: a resume inside its span keeps it, a
-new session never inherits it, and it is never written into your settings.
-When it runs out, the next first act asks again; nothing timed is
-permanent, and acts made under it leave no per-application grant behind.
-An act that lands in another application asks for that one before the next
-act there. An application that moved in front between the ask and the act
-is not driven: the act is refused and the model takes a new screenshot. No
-classifier answers this ask: because the foreground window determines the target application,
-the consent is yours alone, and sovereign mode is the one posture that
-answers it automatically, whatever the access type below saves.
+A grant lives with the session: a resume keeps it, a new session never
+inherits it, and it is never written into your settings. When a timed grant
+runs out, the next act asks again; nothing timed is permanent. A
+`Computer(app:<identity>)` allow rule in your settings answers for that one
+application without a card. An application that moved in front between the
+ask and the act is not driven: the act is refused and the model takes a new
+screenshot. Your own terminal is the one exception: answering the card
+brings it forward, so Mercury brings the application back in front and the
+act runs, and its receipt says so. No classifier answers this ask: because the
+foreground window determines the target application, the consent is yours
+alone, and sovereign mode is the one posture that answers it automatically,
+whatever the access type below saves.
 
 One read asks like an act: `tree`, the accessibility tree of the
 application in front. It answers an outline, `[n] role "title" value`, indented
@@ -320,8 +323,8 @@ this release reads no tree there.
 ## The access type
 
 Under the Boot Menu's `Computer use` row sits `Access type`, with three
-values. `asks`, the default, is the card above: the first act in each
-application asks, a Yes covers that application for the session, and the
+values. `asks`, the default, is the card above: the first act of the
+session asks, a Yes covers every application for the session, and the
 timed grants cover every application for their span. `permissive` takes
 the application in front at the turn's first Computer call (the
 screenshot the model takes before it acts counts, because that is the
@@ -364,8 +367,8 @@ combo) turns it on for new sessions and shows a small amber warning line
 under it while it is on; the ask card's last answer turns it on for the
 running session and saves the same row; `shift+tab` reaches it in a
 session launched with the bypass flag. Computer use follows it whatever the
-`Access type` row saves: under sovereign mode the first act in an
-application never asks, and the row's saved value applies when sovereign
+`Access type` row saves: under sovereign mode the first act of a session
+never asks, and the row's saved value applies when sovereign
 mode is off. What stays under sovereign mode is what was never a question: a
 `guardrails.deny` rule refuses its application before any act, the
 terminal running Mercury is never typed into, and an application that

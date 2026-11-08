@@ -93,7 +93,7 @@ starting folder.
   permission rule already allows them.
 - **Sovereign mode** asks nothing: not one permission card of any kind,
   including for a file's location, a command, a remote path on Windows, a
-  hook's ask, the first act in an application, or changing or removing a pinned
+  hook's ask, the first act of a session on your screen, or changing or removing a pinned
   memory rule you asked for (which `/memory` records as changed under
   sovereign). You accept every risk; Flow mode is where
   the guardrails live. Capability gates, explicit deny rules and built-in command safety rules still

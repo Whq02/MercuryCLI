@@ -104,7 +104,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     detail: {
       controls: "Interactive boots start in sovereign mode (as if --sovereign was passed) with no permission prompts for files, commands, or computer use. Saving this row is standing consent; the launch confirmation dialog, root notice, settings deny rules, and computer-use terminal/focus guards still apply. Headless runs (run) and daemon workers do not inherit it. The computer ask card's last option also turns this row on and saves it here.",
       on: ["interactive boots start in sovereign mode (the crimson banner): no permission question is asked, computer use included", "the launch consent dialog still confirms once", "headless runs and daemon workers are unaffected"],
-      off: ["every permission question is asked — files, commands, and the first act in each application for computer use; the CLI flag still works when passed by hand"],
+      off: ["every permission question is asked — files, commands, and the first act of the session for computer use; the CLI flag still works when passed by hand"],
     },
   },
   {
@@ -117,7 +117,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     summary: 'the model sees the screen and drives the mouse and keyboard in the application in front, on a machine that has the desktop driver — off removes the Computer tool from new sessions',
     detail: {
       controls: "Whether new sessions carry the Computer tool: screenshots, clicks, typed text, key chords, scrolls and drags in the application in front, on every model route that receives images. On is the default wherever the desktop driver resolves; a machine without the driver never sees the tool. How consent works is the Access type row below: asks, permissive or full, its default following Sovereign mode. Off removes the tool before any driver is touched — the rest of Mercury does not depend on it.",
-      on: ['the Computer tool is in the catalog when the desktop driver resolves', 'consent follows the Access type row below: the first act in each application asks by name, or the application in front when the turn began never asks, or nothing asks; under Sovereign mode nothing asks', 'esc or ctrl+c ends the act in flight and the turn; one session drives at a time'],
+      on: ['the Computer tool is in the catalog when the desktop driver resolves', 'consent follows the Access type row below: the first act of the session asks by the application\'s name, or the application in front when the turn began never asks, or nothing asks; under Sovereign mode nothing asks', 'esc or ctrl+c ends the act in flight and the turn; one session drives at a time'],
       off: ['the Computer tool is absent from new sessions — identical to a build without it', 'no desktop driver is loaded'],
     },
   },
@@ -129,10 +129,10 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     options: COMPUTER_ACCESS_VALUES,
     defaultLabel: 'asks',
     defaultFollows: { env: 'MERCURY_SKIP_PERMISSIONS', value: '1', label: computerAccessDefaultLabel(true) },
-    summary: 'asks: the first act in each application asks · permissive: the application in front when the turn began never asks, any other asks once · full: nothing asks',
+    summary: 'asks: the first act of the session asks · permissive: the application in front when the turn began never asks, any other asks once · full: nothing asks',
     detail: {
-      controls: "How the Computer tool gets your consent. asks (the default): the first act in each application this session shows the card, which names the application and the act; a Yes covers that application for the session, and the timed grants cover every application for their span. permissive: the application in front at the turn's first Computer call — a screenshot counts — is the turn's home application, and acts in it never ask; an act that lands in any other application asks once, the same card, a Yes covering it for the session; a new turn records a new home application. full: nothing asks. With Sovereign mode on nothing asks whatever is saved here; the saved value applies when Sovereign mode is off. Whatever the value, a deny rule in a settings file refuses its application, the terminal running Mercury is never typed into, an application that moved in front between the check and the act is refused, and one session drives at a time.",
-      on: ['asks: the first act in each application asks by name (never under Sovereign mode, where nothing asks)', 'permissive: acts in the application in front when the turn began never ask; any other application asks once (never under Sovereign mode)', 'full: no act asks, in any application'],
+      controls: "How the Computer tool gets your consent. asks (the default): the first act of the session shows the card, which names the application in front and the act; a Yes covers every application for the session, and the timed grants cover every application for their span. permissive: the application in front at the turn's first Computer call — a screenshot counts — is the turn's home application, and acts in it never ask; an act that lands in any other application asks once, the same card, a Yes covering it for the session; a new turn records a new home application. full: nothing asks. With Sovereign mode on nothing asks whatever is saved here; the saved value applies when Sovereign mode is off. Whatever the value, a deny rule in a settings file refuses its application, the terminal running Mercury is never typed into, an application that moved in front between the check and the act is refused, and one session drives at a time.",
+      on: ['asks: the first act of the session asks by the application\'s name (never under Sovereign mode, where nothing asks)', 'permissive: acts in the application in front when the turn began never ask; any other application asks once (never under Sovereign mode)', 'full: no act asks, in any application'],
       off: ['the default follows Sovereign mode: asks with it off, full with it on', 'a deny rule in a settings file still refuses; the terminal running Mercury and an application that moved in front are still refused'],
     },
   },

@@ -71,7 +71,7 @@ section('§2 the first act asks by the application\'s name, the second rides the
   const expected = pointOfPixelOn(screen, 812, 300)
   const first = await permission({ action: 'click', x: 812, y: 300 }, context)
   check('the first click asks', first.behavior === 'ask', JSON.stringify(first))
-  check('the message names the act, the point and the application, and says it is the first act', (first.message ?? '').includes('Computer click (812, 300)') && (first.message ?? '').includes('first act in this application'), first.message)
+  check('the message names the act, the point and the application, and says it is the first act', (first.message ?? '').includes('Computer click (812, 300)') && (first.message ?? '').includes('the first act this session'), first.message)
   check('the message shows the name with the identity', (first.message ?? '').includes(`in ${TEXTEDIT.name} (${TEXTEDIT.identity})`), first.message)
   check('the reason is a safety check the operator alone answers', first.decisionReason?.type === 'safetyCheck' && first.decisionReason.operatorOnly === true, JSON.stringify(first.decisionReason))
   check('the suggestion is the exact-command rule Computer(app:<identity>)', JSON.stringify(first.suggestions) === JSON.stringify(suggestionForExactCommand('Computer', `app:${TEXTEDIT.identity}`)), JSON.stringify(first.suggestions))
@@ -94,7 +94,7 @@ section('§2 the first act asks by the application\'s name, the second rides the
   check('forgetDesktopOwner wipes the grant', session.appApproved(owner, TEXTEDIT.identity) === false && session.approvedAppList(owner).length === 0)
 }
 
-section('§3 a switch to another application re-asks')
+section('§3 a switch to another application asks again only while no session grant stands: the card\'s Yes covers every application')
 {
   const { context, owner } = await fresh('switch', { switches: [{ afterActs: 1, frontmost: FINDER }] })
   const acted = resultOf(await ComputerTool.call({ action: 'click', x: 812, y: 300, capture: false } as never, context, allowEverything, toolUseTurn('toolu_switch_click', 'Computer', { action: 'click', x: 812, y: 300, capture: false })))
@@ -102,7 +102,16 @@ section('§3 a switch to another application re-asks')
   const front = await fakeDriver().frontmostApplication()
   check('Finder is now in front', front.ok && front.value.name === 'Finder')
   const next = await permission({ action: 'click', x: 100, y: 100 }, context)
-  check('the next click asks for Finder', next.behavior === 'ask' && (next.message ?? '').includes('Finder (com.example.Finder)') && !(next.message ?? '').includes('TextEdit'), JSON.stringify(next))
+  check('with no card answered (the proof\'s consent stub wrote no grant), the next click asks for Finder', next.behavior === 'ask' && (next.message ?? '').includes('Finder (com.example.Finder)') && !(next.message ?? '').includes('TextEdit'), JSON.stringify(next))
+  const { applyComputerAskChoice } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
+  const { getSessionId } = await import('../../src/bootstrap/state.ts')
+  const grants = await import('../../src/services/desktop/computerGrant.ts')
+  const yes = applyComputerAskChoice('yes', String(getSessionId()))
+  check('the card\'s Yes writes a session grant at once, before any act succeeds', yes.allow && yes.grant?.kind === 'session' && grants.readComputerGrant(String(getSessionId()))?.kind === 'session', JSON.stringify(yes))
+  const covered = await permission({ action: 'click', x: 100, y: 100 }, context)
+  check('after the Yes the click in Finder is allowed without a second card: one ask per session', covered.behavior === 'allow', JSON.stringify(covered))
+  check('the grant rides as a grant, not as a per-application approval', session.peekCheckedActApp(owner)?.viaGrant === true && session.appApproved(owner, 'com.example.Finder') === false)
+  grants.clearComputerGrant(String(getSessionId()))
   session.forgetDesktopOwner(owner)
 }
 
@@ -116,6 +125,25 @@ section('§4 the judged application travels from the check to the act and refuse
   check('no click reached the driver', fakeDriver().acts.filter(a => a.act === 'click').length === 0 && fakeDriver().acts.length === before)
   check('nothing was granted', session.appApproved(owner, 'com.example.Finder') === false && session.appApproved(owner, TEXTEDIT.identity) === false)
   check('the carry was consumed by the refusal', session.consumeCheckedActApp(owner, 'click') === null)
+  session.forgetDesktopOwner(owner)
+}
+
+section('§4b the terminal that asked is not a drift: the answered card brought it forward, the act brings the application back and runs')
+{
+  const { context, owner } = await fresh('terminal-front-after-card', { frontmost: TERMINAL, ownTerminal: TERMINAL })
+  const driver = fakeDriver() as unknown as { findApplication?: unknown; activateApplication?: unknown; frontmostApplication: () => Promise<unknown> }
+  const textedit = { ...TEXTEDIT, pid: 4200, title: 'Untitled', windowId: '7', bounds: { x: 100, y: 100, width: 800, height: 600 } }
+  let activated = 0
+  const frontmostBefore = driver.frontmostApplication.bind(driver)
+  driver.findApplication = async (name: string) => (name === TEXTEDIT.name ? { ok: true, value: textedit } : { ok: false, error: { kind: 'unavailable', note: 'no such application' } })
+  driver.activateApplication = async () => { activated += 1; driver.frontmostApplication = async () => ({ ok: true, value: textedit }); return { ok: true, value: textedit } }
+  session.noteCheckedActApp(owner, 'click', TEXTEDIT)
+  const landed = resultOf(await ComputerTool.call({ action: 'click', x: 100, y: 100, capture: false } as never, context, allowEverything, toolUseTurn('toolu_back_click', 'Computer', { action: 'click', x: 100, y: 100, capture: false })))
+  check('the act brings TextEdit back in front and runs, and its receipt says so', landed.outcome === 'succeeded' && activated === 1 && landed.result.includes('TextEdit brought back in front (the terminal that asked had taken it)'), landed.result)
+  check('the click reached the driver once', fakeDriver().acts.filter(a => a.act === 'click').length === 1)
+  driver.frontmostApplication = frontmostBefore
+  delete driver.findApplication
+  delete driver.activateApplication
   session.forgetDesktopOwner(owner)
 }
 
@@ -264,12 +292,12 @@ section('§8 the relayed ask keeps the application name and its rule identity di
 {
   const { judgedAppFromAsk, computerAskAppLine } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
   const suggestions = suggestionForExactCommand('Computer', `app:${TEXTEDIT.identity}`)
-  const direct = judgedAppFromAsk(`Computer click (812, 300) in ${TEXTEDIT.name} (${TEXTEDIT.identity}) — first act in this application this session`, suggestions)
+  const direct = judgedAppFromAsk(`Computer click (812, 300) in ${TEXTEDIT.name} (${TEXTEDIT.identity}) — the first act this session`, suggestions)
   check('a local ask keeps its application name and identity', JSON.stringify(direct) === JSON.stringify(TEXTEDIT), JSON.stringify(direct))
   const reason = `${TEXTEDIT.name} (${TEXTEDIT.identity}) is in front of the operator's screen; the first act there needs the operator's own consent`
   const relayed = judgedAppFromAsk('', suggestions, reason)
   check('a relayed ask without a message reads the display name from its safety reason', JSON.stringify(relayed) === JSON.stringify(TEXTEDIT), JSON.stringify(relayed))
-  check('the card names TextEdit once beside its identity, never uses the identity as the name', computerAskAppLine(relayed) === `in TextEdit (${TEXTEDIT.identity}) — first act in this application this session`, computerAskAppLine(relayed))
+  check('the card names TextEdit once beside its identity, never uses the identity as the name', computerAskAppLine(relayed) === `in TextEdit (${TEXTEDIT.identity}) — the first act this session`, computerAskAppLine(relayed))
   const named = judgedAppFromAsk('', suggestions, `Document Editor (Preview) (${TEXTEDIT.identity}) is in front of the operator's screen; the first act there needs the operator's own consent`)
   check('spaces and parentheses in an application name survive the relay', named?.name === 'Document Editor (Preview)' && named.identity === TEXTEDIT.identity, JSON.stringify(named))
   const mismatch = judgedAppFromAsk('', suggestions, `${FINDER.name} (${FINDER.identity}) is in front of the operator's screen; the first act there needs the operator's own consent`)
@@ -292,9 +320,9 @@ for (const [mode, bypassAvailable, asks] of [['default', true, true], ['implemen
   permissionContext.isBypassPermissionsModeAvailable = bypassAvailable
   const first = await decideToolPermission(ComputerTool, { action: 'click', x: 812, y: 300 }, context)
   if (asks) {
-    check(`${tag}: the first act in an application asks (the safety-check road, never bypass-immune while the access type is unset)`, first.decision.behavior === 'ask' && first.trace.decidedBy === 'safetyCheckAsk', JSON.stringify(first.decision))
+    check(`${tag}: the first act of the session asks (the safety-check road, never bypass-immune while the access type is unset)`, first.decision.behavior === 'ask' && first.trace.decidedBy === 'safetyCheckAsk', JSON.stringify(first.decision))
   } else {
-    check(`${tag}: the first act in an application is allowed without an ask — the access reads full by the posture and the check itself allows`, first.decision.behavior === 'allow' && first.trace.decidedBy === 'bypassPosture', JSON.stringify(first.decision))
+    check(`${tag}: the first act of the session is allowed without an ask — the access reads full by the posture and the check itself allows`, first.decision.behavior === 'allow' && first.trace.decidedBy === 'bypassPosture', JSON.stringify(first.decision))
     check(`${tag}: the allowance names the posture`, first.decision.behavior === 'allow' && first.decision.decisionReason?.type === 'mode' && (first.decision.decisionReason as { mode?: string }).mode === mode, JSON.stringify(first.decision))
     check(`${tag}: the check alone wrote no session grant`, session.appApproved(owner, TEXTEDIT.identity) === false)
     check(`${tag}: the judged application still travels to the act, marked as opened by the access (the moved-in-front refusal keeps its frame, no per-application grant follows)`, session.peekCheckedActApp(owner)?.app.identity === TEXTEDIT.identity && session.peekCheckedActApp(owner)?.viaGrant === true)

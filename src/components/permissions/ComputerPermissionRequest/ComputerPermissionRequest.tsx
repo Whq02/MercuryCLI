@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { Box, Text } from '../../../ink.js'
 import { Select } from '../../CustomSelect/select.js'
 import { COMPUTER_TOOL_NAME, peekCheckedActApp, type DesktopJudgedApp } from '../../../services/desktop/desktopSession.js'
-import { timedComputerGrant, writeComputerGrant, type ComputerGrantRecord } from '../../../services/desktop/computerGrant.js'
+import { sessionComputerGrant, timedComputerGrant, writeComputerGrant, type ComputerGrantRecord } from '../../../services/desktop/computerGrant.js'
 import { CAPTCHA_OPERATOR_COMPLETES } from '../../../tools/ComputerTool/captcha.js'
 import { conversationIdHere } from '../../../services/engine-connector/focusedConnector.js'
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
@@ -23,7 +23,7 @@ import type { PermissionRequestProps } from '../PermissionRequest.js'
 type ComputerAskChoice = 'yes' | 'no' | 'hour' | 'day' | 'sovereign'
 
 export const COMPUTER_ASK_CHOICES: ReadonlyArray<{ value: ComputerAskChoice; label: string }> = [
-  { value: 'yes', label: 'Yes' },
+  { value: 'yes', label: 'Yes, for this session — every application' },
   { value: 'no', label: 'No, and tell Mercury what to do differently (esc)' },
   { value: 'hour', label: 'Yes, for 1 hour — every application' },
   { value: 'day', label: 'Yes, for 24 hours — every application' },
@@ -39,8 +39,8 @@ export const COMPUTER_CHALLENGE_CHOICES: ReadonlyArray<{ value: ComputerAskChoic
   { value: 'no', label: 'No — I will complete it myself; Mercury waits and re-issues (esc)' },
 ]
 
-const COMPUTER_ASK_FIRST_ACT = 'first act in this application this session'
-const COMPUTER_ASK_QUESTION = 'Do you want to allow Mercury to drive your mouse and keyboard here, and for how long?'
+const COMPUTER_ASK_FIRST_ACT = 'the first act this session'
+const COMPUTER_ASK_QUESTION = 'Do you want to allow Mercury to drive your mouse and keyboard, and for how long?'
 export const COMPUTER_CHALLENGE_QUESTION = 'A human-verification challenge is on screen. Complete it yourself and Mercury carries on, or let Mercury try it?'
 export const COMPUTER_ASK_NOTE = 'A timed grant covers every application and asks again when it runs out; sovereign mode is saved in the Boot Menu and no permission is asked after it, computer use included.'
 export const COMPUTER_CHALLENGE_NOTE = 'A Computer(captcha) allow rule in your settings answers yes without asking; a deny rule answers no.'
@@ -85,10 +85,14 @@ const NO_UPDATES: PermissionUpdate[] = []
 
 const SOVEREIGN_MODE_DISABLED = 'Sovereign Mode is disabled by settings or organisation policy.'
 
-export function applyComputerAskChoice(choice: ComputerAskChoice, sessionId: string, now: number = Date.now()): ComputerAskEffect {
+export function applyComputerAskChoice(choice: ComputerAskChoice, sessionId: string, now: number = Date.now(), challenge = false): ComputerAskEffect {
   switch (choice) {
-    case 'yes':
-      return { allow: true, grant: null, saved: null, savedError: null, permissionUpdates: NO_UPDATES }
+    case 'yes': {
+      if (challenge) return { allow: true, grant: null, saved: null, savedError: null, permissionUpdates: NO_UPDATES }
+      const grant = sessionComputerGrant(now)
+      writeComputerGrant(sessionId, grant)
+      return { allow: true, grant, saved: null, savedError: null, permissionUpdates: NO_UPDATES }
+    }
     case 'no':
       return { allow: false, grant: null, saved: null, savedError: null, permissionUpdates: NO_UPDATES }
     case 'hour':
@@ -139,7 +143,7 @@ export function ComputerPermissionRequest({
   const options = (challenge ? COMPUTER_CHALLENGE_CHOICES : computerAskChoicesFor(postureBypassesAsks({ mode, isBypassPermissionsModeAvailable: bypassAvailable })).filter(choice => !clipboard || choice.value === 'yes' || choice.value === 'no' || choice.value === 'sovereign')).map(choice => ({ label: choice.label, value: choice.value }))
 
   function handleChange(value: ComputerAskChoice): void {
-    const effect = applyComputerAskChoice(value, conversationIdHere())
+    const effect = applyComputerAskChoice(value, conversationIdHere(), Date.now(), challenge)
     if (!effect.allow) {
       if (challenge) toolUseConfirm.onReject(CAPTCHA_OPERATOR_COMPLETES)
       else toolUseConfirm.onReject()

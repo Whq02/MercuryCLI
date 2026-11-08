@@ -2129,7 +2129,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const { isEnvTruthy } = await import('./envUtils.js')
             const posture = getCurrentProjectConfig().permissionPosture
             const envArmedNow = isEnvTruthy(flagEnv('MERCURY_SKIP_PERMISSIONS'))
-            const OFF = 'sovereign mode off — every permission question is asked (files, commands, the first act in each application for computer use)'
+            const OFF = 'sovereign mode off — every permission question is asked (files, commands, the first act of the session for computer use)'
             if (!posture) {
               if (envArmedNow) {
                 return {

@@ -90,7 +90,7 @@ section('§3 the byte budgets and the needles')
   const corpus = `${description}\n${prompt}\n${schemaText}`.toLowerCase()
   const found = NEEDLES.filter(needle => corpus.includes(needle))
   check('no vendor or route word appears in the description, the prompt or the schema', found.length === 0, found.join(', '))
-  check('the prompt teaches the coordinate rule, the ask rule and the stop key', prompt.includes('pixels of its last screenshot') && prompt.includes('first act in an application') && prompt.includes('esc'))
+  check('the prompt teaches the coordinate rule, the ask rule and the stop key', prompt.includes('pixels of its last screenshot') && prompt.includes('first act of a session asks once') && prompt.includes('esc'))
   check('the loop breaker stays verbatim', prompt.includes('After the same act twice with an unchanged result, read the screen before acting again.'))
   check('the description has no other tool or action dictionary', !/Eval|click\(x|type\(text|sequence\(steps\)/.test(prompt))
   const wire = ComputerTool.inputJSONSchema as any

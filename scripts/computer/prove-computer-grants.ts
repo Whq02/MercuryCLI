@@ -68,9 +68,11 @@ section('§1 the store: a per-session file, kept while it runs, gone when it exp
 section('§2 the five choices and what each does')
 {
   check('the card offers Yes, No, 1 hour, 24 hours, sovereign mode — in that order', COMPUTER_ASK_CHOICES.map(c => c.value).join(',') === 'yes,no,hour,day,sovereign')
-  check('the labels say what each grants', COMPUTER_ASK_CHOICES[2]!.label === 'Yes, for 1 hour — every application' && COMPUTER_ASK_CHOICES[3]!.label === 'Yes, for 24 hours — every application' && COMPUTER_ASK_CHOICES[4]!.label === 'Enable sovereign mode to avoid further permissions by default')
+  check('the labels say what each grants', COMPUTER_ASK_CHOICES[0]!.label === 'Yes, for this session — every application' && COMPUTER_ASK_CHOICES[2]!.label === 'Yes, for 1 hour — every application' && COMPUTER_ASK_CHOICES[3]!.label === 'Yes, for 24 hours — every application' && COMPUTER_ASK_CHOICES[4]!.label === 'Enable sovereign mode to avoid further permissions by default')
   const yes = applyComputerAskChoice('yes', SESSION, NOW)
-  check('Yes allows and grants nothing beyond this application', yes.allow && yes.grant === null && yes.saved === null && grants.readComputerGrant(SESSION, NOW) === null)
+  check('Yes allows and writes a session grant for every application, at once', yes.allow && yes.grant?.kind === 'session' && yes.saved === null && grants.readComputerGrant(SESSION, NOW)?.kind === 'session')
+  check('a session grant does not run out: it reads back a day later and its words say the session', grants.readComputerGrant(SESSION, NOW + 48 * grants.HOUR_MS)?.kind === 'session' && grants.computerGrantWords(yes.grant!, NOW) === 'granted for this session · every application', grants.computerGrantWords(yes.grant!, NOW))
+  grants.clearComputerGrant(SESSION)
   const no = applyComputerAskChoice('no', SESSION, NOW)
   check('No refuses and grants nothing', !no.allow && no.grant === null && grants.readComputerGrant(SESSION, NOW) === null)
   const hour = applyComputerAskChoice('hour', SESSION, NOW)
@@ -182,7 +184,7 @@ section('§7 the challenge grant: per window, until the tree no longer shows the
   grants.grantChallenge(SESSION, browser, true, NOW)
   check('the challenge grant lives in memory: granting one writes no grant file', existsSync(grants.computerGrantPath(SESSION)) === file)
   grants.clearChallengeGrants()
-  check('the card writes no timed grant for a yes on a challenge', applyComputerAskChoice('yes', SESSION, NOW).grant === null)
+  check('the card writes no grant for a yes on a challenge (the challenge road, not the session road)', applyComputerAskChoice('yes', SESSION, NOW, true).grant === null && grants.readComputerGrant(SESSION, NOW) === null)
 }
 useScene('default', null)
 finish('prove-computer-grants')

@@ -10,7 +10,9 @@ const COMPUTER_GRANT_HOURS = [1, 24] as const
 type ComputerGrantHours = (typeof COMPUTER_GRANT_HOURS)[number]
 export const HOUR_MS = 3_600_000
 
-export type ComputerGrantRecord = { version: 1; kind: 'timed'; hours: ComputerGrantHours; grantedAt: number; until: number }
+export type ComputerGrantRecord =
+  | { version: 1; kind: 'timed'; hours: ComputerGrantHours; grantedAt: number; until: number }
+  | { version: 1; kind: 'session'; grantedAt: number }
 
 function sessionSegment(sessionId: string): string {
   return sessionId.replace(/[^A-Za-z0-9_.:-]+/g, '-') || 'session'
@@ -22,6 +24,10 @@ export function computerGrantPath(sessionId: string, home: string = getMercuryHo
 
 export function timedComputerGrant(hours: ComputerGrantHours, now: number = Date.now()): ComputerGrantRecord {
   return { version: 1, kind: 'timed', hours, grantedAt: now, until: now + hours * HOUR_MS }
+}
+
+export function sessionComputerGrant(now: number = Date.now()): ComputerGrantRecord {
+  return { version: 1, kind: 'session', grantedAt: now }
 }
 
 export function writeComputerGrant(sessionId: string, record: ComputerGrantRecord, home: string = getMercuryHome()): void {
@@ -53,6 +59,7 @@ function recordOf(raw: string): ComputerGrantRecord | null {
   if (o.kind === 'timed' && typeof o.until === 'number' && (o.hours === 1 || o.hours === 24)) {
     return { version: 1, kind: 'timed', hours: o.hours, grantedAt: o.grantedAt, until: o.until }
   }
+  if (o.kind === 'session') return { version: 1, kind: 'session', grantedAt: o.grantedAt }
   return null
 }
 
@@ -68,18 +75,19 @@ export function readComputerGrant(sessionId: string, now: number = Date.now(), h
     logForDebugging(`computer grant: ${computerGrantPath(sessionId, home)} is not a grant record — ignored`)
     return null
   }
-  if (record.until <= now) {
+  if (record.kind === 'timed' && record.until <= now) {
     clearComputerGrant(sessionId, home)
     return null
   }
   return record
 }
 
-function computerGrantRemainingMs(record: ComputerGrantRecord, now: number = Date.now()): number {
+function computerGrantRemainingMs(record: Extract<ComputerGrantRecord, { kind: 'timed' }>, now: number = Date.now()): number {
   return Math.max(0, record.until - now)
 }
 
 export function computerGrantWords(record: ComputerGrantRecord, now: number = Date.now()): string {
+  if (record.kind === 'session') return 'granted for this session · every application'
   const left = Math.ceil(computerGrantRemainingMs(record, now) / 60_000)
   const span = record.hours === 1 ? '1 hour' : '24 hours'
   return `granted for ${span} · ${left >= 90 ? `${Math.round(left / 60)}h` : `${left}m`} left`

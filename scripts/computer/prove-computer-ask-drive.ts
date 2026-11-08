@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { actLog, check, drive, endLeg, finish, joined, netlines, nonLoopback, OPENING, optionsRow, printFrame, requireCaptureDriver, rowsHaving, section, sessionFiles, SIZES, startLeg } from './computerDriveKit.ts'
 
 const driver = requireCaptureDriver('computer-drives')
-const CARD_NEEDLE = 'first act in this application'
+const CARD_NEEDLE = 'the first act this session'
 const FOOTER = '● hands off — Mercury is driving TextEdit · esc stops it'
 
 for (const size of SIZES) {
@@ -30,9 +30,9 @@ for (const size of SIZES) {
   const card = res.marks.card ?? []
   printFrame(`${size.cols}×${size.rows} the card`, card)
   check(`${size.cols}: the card title names the Computer tool`, rowsHaving(card, 'Computer'))
-  check(`${size.cols}: the body names the act in TextEdit as the first act in this application`, joined(card).includes('in TextEdit') && joined(card).includes(CARD_NEEDLE) && joined(card).includes('click (400, 200)'), joined(card).slice(0, 400))
+  check(`${size.cols}: the body names the act in TextEdit as the first act this session`, joined(card).includes('in TextEdit') && joined(card).includes(CARD_NEEDLE) && joined(card).includes('click (400, 200)'), joined(card).slice(0, 400))
   check(`${size.cols}: the options row is ON the frame`, optionsRow(card), card.filter(r => /\d\./.test(r)).join(' · '))
-  check(`${size.cols}: the five choices in order — Yes, No, 1 hour, 24 hours, sovereign mode`, ['1. Yes', '2. No, and tell Mercury', '3. Yes, for 1 hour', '4. Yes, for 24 hours', '5. Enable sovereign mode'].every(needle => card.some(r => r.includes(needle))), card.filter(r => /\d\. /.test(r)).join(' · '))
+  check(`${size.cols}: the five choices in order — Yes, No, 1 hour, 24 hours, sovereign mode`, ['1. Yes, for this session', '2. No, and tell Mercury', '3. Yes, for 1 hour', '4. Yes, for 24 hours', '5. Enable sovereign mode'].every(needle => card.some(r => r.includes(needle))), card.filter(r => /\d\. /.test(r)).join(' · '))
   check(`${size.cols}: the card asks how long`, joined(card.map(r => r.replace(/[│╭╮╰╯─]/g, ' '))).includes('and for how long?'), joined(card).slice(0, 400))
   const driving = res.marks.driving ?? []
   printFrame(`${size.cols}×${size.rows} driving`, driving)

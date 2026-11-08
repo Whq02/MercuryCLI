@@ -451,10 +451,23 @@ interface ActPlan {
   clipped?: Array<{ field: 'point' | 'target'; element: DesktopTreeElement; words: string; label: string }>
   screens?: ScreenFacts
   aimed?: string
+  returned?: string
+}
+
+async function backFromOwnTerminal(driver: DesktopDriver, judged: DesktopJudgedApp, front: DesktopApplication, signal: AbortSignal): Promise<DesktopApplication | null> {
+  if (driver.findApplication === undefined || driver.activateApplication === undefined) return null
+  const own = await driver.ownTerminalApplication(front)
+  if (!own.ok || own.value === null || own.value.identity !== front.identity) return null
+  const target = await driver.findApplication(judged.name)
+  if (!target.ok || target.value.identity !== judged.identity) return null
+  const activated = await driver.activateApplication(target.value, signal)
+  if (!activated.ok) return null
+  const after = await driver.frontmostApplication()
+  return after.ok && after.value.identity === judged.identity ? after.value : null
 }
 
 function scrolledWords(plan: ActPlan): string {
-  return `${plan.scrolled ? ` · scrolled into view first (${plan.scrolled})` : ''}${plan.aimed ? ` · ${plan.aimed}` : ''}`
+  return `${plan.scrolled ? ` · scrolled into view first (${plan.scrolled})` : ''}${plan.aimed ? ` · ${plan.aimed}` : ''}${plan.returned ? ` · ${plan.returned}` : ''}`
 }
 
 const AIMED_ACTS = new Set(['click', 'doubleClick', 'rightClick', 'move', 'drag', 'file'])
@@ -1302,7 +1315,7 @@ export const ComputerTool = buildTool({
   async prompt() {
     return `Operate the desktop by screenshot coordinates or accessibility targets. Coordinates are pixels of its last screenshot; refresh after frame changes. Trees use [n] role "title" value rows. Terminal captures return accessibility text by default. Text fields: fill (target/ref) sets the value and reads it back; fields lists the controls.
 
-The first act in an application asks; tree/find/read/wait-until share its grant. Other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input.
+The first act of a session asks once; tree/find/read/wait-until share its grant. Other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input.
 
 After a click whose effect you assume (a dialog, a focus change, a page), wait with until; a sequence stops at its timeout. After the same act twice with an unchanged result, read the screen before acting again.`
   },
@@ -1404,10 +1417,10 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
     }
     return {
       behavior: 'ask' as const,
-      message: `Computer ${input.action}${actDetail(input)} in ${app.name} (${app.identity}) — first act in this application this session (${permissionAction(input) === 'tree' ? 'reads its accessibility tree: the controls with their titles, values and frames' : input.action === 'focusApp' ? 'brings this application to the front' : 'drives your mouse and keyboard'})`,
+      message: `Computer ${input.action}${actDetail(input)} in ${app.name} (${app.identity}) — the first act this session (${permissionAction(input) === 'tree' ? 'reads its accessibility tree: the controls with their titles, values and frames' : input.action === 'focusApp' ? 'brings this application to the front' : 'drives your mouse and keyboard'})`,
       decisionReason: {
         type: 'safetyCheck' as const,
-        reason: `${app.name} (${app.identity}) is in front of the operator's screen; the first act there needs the operator's own consent`,
+        reason: `${app.name} (${app.identity}) is in front of the operator's screen; the first act of the session needs the operator's own consent`,
         operatorOnly: true,
       },
       suggestions: suggestionForExactCommand(COMPUTER_TOOL_NAME, content),
@@ -1641,17 +1654,23 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
         const checked = consumeCheckedAct(owner, challengeAnswered ? challengeAction(input.action) : input.action)
         const judged: DesktopJudgedApp | null = checked?.app ?? null
         const viaGrant = checked?.viaGrant === true
-        const front = await driver.frontmostApplication()
+        let front = await driver.frontmostApplication()
         if (!front.ok) {
           result = faultText(input.action, front.error)
           outcome = 'failed'
           return finish()
         }
-        const live: DesktopJudgedApp = { identity: front.value.identity, name: front.value.name }
+        let live: DesktopJudgedApp = { identity: front.value.identity, name: front.value.name }
         if (judged !== null && judged.identity !== live.identity) {
-          result = `${input.action} refused: the screen moved from ${judged.name} (${judged.identity}) to ${live.name} (${live.identity}) between the permission check and the act — nothing done; take a screenshot and re-issue`
-          outcome = 'failed'
-          return finish()
+          const back = checked?.viaGrant === false ? await backFromOwnTerminal(driver, judged, front.value, signal) : null
+          if (back === null) {
+            result = `${input.action} refused: the screen moved from ${judged.name} (${judged.identity}) to ${live.name} (${live.identity}) between the permission check and the act — nothing done; take a screenshot and re-issue`
+            outcome = 'failed'
+            return finish()
+          }
+          front = { ok: true, value: back }
+          live = { identity: back.identity, name: back.name }
+          plan.returned = `${judged.name} brought back in front (the terminal that asked had taken it)`
         }
         const terminal = await ownTerminalRefusal(driver, input, front.value, plan)
         if (terminal !== null) {

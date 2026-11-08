@@ -60,7 +60,7 @@ section('registry floor — rows ⊆ FLAG_REGISTRY, sane choices')
     accessAt === computerAt + 1 && access !== undefined && access.group === STARTUP_MENU[computerAt]!.group && access.label === 'Access type' && access.kind === 'enum' && access.defaultLabel === 'asks' && access.options.join(',') === 'asks,permissive,full')
   check('both computer rows reach new sessions (no live class)', STARTUP_MENU[computerAt]!.applicationClass === undefined && access?.applicationClass === undefined)
   check('the access-type foot line says what each value does',
-    access?.summary === 'asks: the first act in each application asks · permissive: the application in front when the turn began never asks, any other asks once · full: nothing asks', access?.summary)
+    access?.summary === 'asks: the first act of the session asks · permissive: the application in front when the turn began never asks, any other asks once · full: nothing asks', access?.summary)
   check('its detail says the same in full and that under Sovereign mode nothing asks whatever is saved',
     /asks \(the default\)/.test(access?.detail?.controls ?? '') && /permissive:/.test(access?.detail?.controls ?? '') && /full: nothing asks/.test(access?.detail?.controls ?? '') && (access?.detail?.controls ?? '').includes('With Sovereign mode on nothing asks whatever is saved here; the saved value applies when Sovereign mode is off'))
   check("its unset default follows the Sovereign mode row's on value, with the resolver's own label",
