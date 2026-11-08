@@ -2,7 +2,7 @@
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::sleep;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 mod keys;
 use keys::{Button, KeyName, Modifier};
 type Result<T> = std::result::Result<T, String>;
@@ -12,27 +12,29 @@ fn reason(text: String) -> String { text }
 fn begin_act() -> Result<()> { Ok(()) }
 mod imp {
     use super::*;
-    static EVENTS: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
+    static EVENTS: OnceLock<Mutex<Vec<(String, Instant)>>> = OnceLock::new();
     static FAIL_UP: AtomicBool = AtomicBool::new(false);
     static FAIL_DOWN: AtomicBool = AtomicBool::new(false);
     static CANCEL_ON_MOVE: AtomicBool = AtomicBool::new(false);
-    fn events() -> MutexGuard<'static, Vec<String>> { EVENTS.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap() }
+    fn events() -> MutexGuard<'static, Vec<(String, Instant)>> { EVENTS.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap() }
+    fn record(event: String) { events().push((event, Instant::now())); }
     pub fn reset() { events().clear(); FAIL_UP.store(false, Ordering::SeqCst); FAIL_DOWN.store(false, Ordering::SeqCst); CANCEL_ON_MOVE.store(false, Ordering::SeqCst); }
     pub fn fail_up() { FAIL_UP.store(true, Ordering::SeqCst); }
     pub fn fail_down() { FAIL_DOWN.store(true, Ordering::SeqCst); }
     pub fn cancel_on_move() { CANCEL_ON_MOVE.store(true, Ordering::SeqCst); }
-    pub fn event_list() -> Vec<String> { events().clone() }
-    pub fn mouse_move(_: f64, _: f64) -> Result<()> { events().push("move".into()); if CANCEL_ON_MOVE.load(Ordering::SeqCst) { CANCEL.store(true, Ordering::SeqCst); } Ok(()) }
-    pub fn mouse_drag(_: Button, _: f64, _: f64) -> Result<()> { events().push("drag".into()); Ok(()) }
+    pub fn event_list() -> Vec<String> { events().iter().map(|(event, _)| event.clone()).collect() }
+    pub fn event_instants() -> Vec<Instant> { events().iter().map(|(_, at)| *at).collect() }
+    pub fn mouse_move(_: f64, _: f64) -> Result<()> { record("move".into()); if CANCEL_ON_MOVE.load(Ordering::SeqCst) { CANCEL.store(true, Ordering::SeqCst); } Ok(()) }
+    pub fn mouse_drag(_: Button, x: f64, y: f64) -> Result<()> { record(format!("drag:{x}:{y}")); Ok(()) }
     pub fn cursor() -> Result<(f64, f64)> { Ok((20.0, 20.0)) }
     pub fn mouse_button(button: Button, down: bool, _: f64, _: f64, _: u32) -> Result<()> {
-        events().push(format!("mouse:{}:{}", button.name(), down));
+        record(format!("mouse:{}:{}", button.name(), down));
         if !down && FAIL_UP.swap(false, Ordering::SeqCst) { return Err("fixture button release failure".into()); }
         if down && FAIL_DOWN.swap(false, Ordering::SeqCst) { return Err("fixture button press failure".into()); }
         Ok(())
     }
     pub fn key(key: KeyName, down: bool, _: bool, active: &[Modifier]) -> Result<()> {
-        events().push(format!("key:{}:{}:{:?}", key.name(), down, active));
+        record(format!("key:{}:{}:{:?}", key.name(), down, active));
         if !down && FAIL_UP.swap(false, Ordering::SeqCst) { return Err("fixture key release failure".into()); }
         if down && FAIL_DOWN.swap(false, Ordering::SeqCst) { return Err("fixture key press failure".into()); }
         Ok(())
@@ -121,5 +123,21 @@ fn successful_clicks_and_drag_leave_nothing_held() {
     assert_eq!(imp::event_list().iter().filter(|e| *e == "mouse:left:true").count(), 2);
     let mut task = DragTask { from: (0.0, 0.0), to: (20.0, 20.0), button: Button::Left };
     task.compute().unwrap();
+    assert!(held().buttons.is_empty());
+}
+#[test]
+fn a_drag_holds_at_the_press_and_its_first_drag_event_is_there_before_the_steps() {
+    reset();
+    let mut task = DragTask { from: (0.0, 0.0), to: (20.0, 20.0), button: Button::Left };
+    task.compute().unwrap();
+    let events = imp::event_list();
+    assert_eq!(&events[..3], ["move", "mouse:left:true", "drag:0:0"]);
+    let drags: Vec<&String> = events.iter().filter(|e| e.starts_with("drag:")).collect();
+    assert_eq!(drags.len(), DRAG_STEPS as usize + 1);
+    assert_eq!(drags[drags.len() - 1], "drag:20:20");
+    assert_eq!(events[events.len() - 1], "mouse:left:false");
+    let at = imp::event_instants();
+    assert!(at[2] - at[1] >= Duration::from_millis(60), "the pointer holds at the press before its first drag event: {:?}", at[2] - at[1]);
+    assert!(at[3] - at[2] >= Duration::from_millis(60), "and holds again before the first step: {:?}", at[3] - at[2]);
     assert!(held().buttons.is_empty());
 }

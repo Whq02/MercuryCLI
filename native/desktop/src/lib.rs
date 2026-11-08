@@ -42,6 +42,7 @@ use keys::{Button, KeyName, Modifier};
 
 pub const DRAG_STEPS: u32 = 16;
 pub const DRAG_STEP_MS: u64 = 8;
+pub const DRAG_HOLD_MS: u64 = 60;
 pub const TYPE_GAP_DEFAULT_MS: u32 = 4;
 pub const TYPE_GAP_CAP_MS: u32 = 1000;
 pub const ABORTED: &str = "aborted";
@@ -795,6 +796,12 @@ impl Task for DragTask {
         }
         let stepped = (|| -> std::result::Result<(f64, f64), String> {
             imp::mouse_button(button, true, from_x, from_y, 1)?;
+            sleep(Duration::from_millis(DRAG_HOLD_MS));
+            if CANCEL.load(Ordering::SeqCst) {
+                return Err(ABORTED.to_string());
+            }
+            imp::mouse_drag(button, from_x, from_y)?;
+            sleep(Duration::from_millis(DRAG_HOLD_MS));
             let mut last = (from_x, from_y);
             for step in 1..=DRAG_STEPS {
                 if CANCEL.load(Ordering::SeqCst) {
