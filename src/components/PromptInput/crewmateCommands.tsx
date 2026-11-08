@@ -6,7 +6,7 @@ import { ModalContext } from '../../context/modalContext.js'
 import type { Notification } from '../../context/notifications.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import type { AppState } from '../../state/AppState.js'
-import { durableAtomicPublish } from '../../substrate/durablePublish.js'
+import { publishAtomic } from '../../substrate/fileStore.js'
 import { isLocalAgentTask, requestAgentCompaction } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { MERCURY_CREW_AGENT_TYPE } from '../../tools/AgentTool/constants.js'
 import {
@@ -31,8 +31,11 @@ import { EFFORT_LEVELS, normalizeEffortLevelString, resolveStampedEffortTruth, s
 import { errorMessage } from '../../utils/errors.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import { parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
+import { MODEL_PICKER_PANEL } from '../../utils/model/modelPickerGroups.js'
 import type { AgentMetadata } from '../../utils/sessionStorage/paths.js'
 import { formatSessionCost } from '../../utils/spendSpelling.js'
+import { panelWidth } from '../mercury-ui/geometry.js'
+import { POPUP_GUTTER } from '../PopupGutter.js'
 import { crewmateMetadataFile } from '../tasks/useCrewmateModel.js'
 import { crewmateLive, type CrewmateInView } from '../tasks/useCrewmateView.js'
 
@@ -84,7 +87,7 @@ async function readRecord(file: string): Promise<AgentMetadata | null> {
 }
 
 async function writeRecord(file: string, meta: AgentMetadata): Promise<void> {
-  await durableAtomicPublish(file, JSON.stringify(meta))
+  await publishAtomic(file, JSON.stringify(meta))
 }
 
 async function latestRecord(seat: CrewmateSeat): Promise<AgentMetadata> {
@@ -132,14 +135,14 @@ async function openCrewmateModelPicker(seat: CrewmateSeat): Promise<void> {
   const hint = `↵ picks · esc keeps ${label}`
   openSettingsPopup({
     view: 'model',
-    width: hostColumns => Math.min(120, hostColumns),
+    width: available => panelWidth(available, { ...MODEL_PICKER_PANEL, reserve: 0 }),
     rows: MODEL_PICKER_ROWS,
     line,
     hint,
     bodyOwnsEscape: true,
     bodyOwnsFrame: true,
     body: geometry => (
-      <ModalContext.Provider value={{ rows: geometry.rowBudget, columns: geometry.inner, scrollRef: null }}>
+      <ModalContext.Provider value={{ rows: geometry.rowBudget, columns: geometry.width + 2 * POPUP_GUTTER, scrollRef: null }}>
         <MercuryModelChoicePicker
           current={modelChoiceRow(seat.model)}
           line={line}

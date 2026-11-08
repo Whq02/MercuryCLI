@@ -82,6 +82,7 @@ const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocu
 const { getProjectDir, getAgentMetadataPath, writeAgentMetadata } = await import('../../src/utils/sessionStorage/paths.ts')
 const { asAgentId } = await import('../../src/types/ids.ts')
 const { renderModelChip } = await import('../../src/utils/model/model.ts')
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const { default: instances } = await import('../../src/ink/instances.ts')
 type AppState = import('../../src/state/AppState.tsx').AppState
 type WorkRow = import('../../src/services/engine-connector/types.ts').WorkRowV1
@@ -90,6 +91,7 @@ const leadModel = 'claude-fable-5-1'
 const agentModel = 'gpt-6-astra'
 const leadLabel = renderModelChip(leadModel)
 const agentLabel = renderModelChip(agentModel)
+const chordDelta = stringWidth(keyHintLabel('⇧← back')) - stringWidth('⇧← back')
 const taskId = 'chip-agent'
 const localAgentId = asAgentId('chip-local-agent')
 const now = Date.now()
@@ -196,7 +198,7 @@ for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
   focusedId = 'chip-other-parent'
   for (const listener of listeners) listener()
   enterCrewmateView(taskId, store!.setState)
-  check(`${size}: a reused task id in another focused session reads that session's launch metadata as the chip's next-turn words (a narrow row cuts the model's name)`, await until(() => (strip().includes(`→ ${leadLabel}`) || strip().includes(`→ ${leadLabel.slice(0, 7)}…`)) && /\blow\b/.test(strip())), strip())
+  check(`${size}: a reused task id in another focused session reads that session's launch metadata as the chip's next-turn words (a narrow row cuts the model's name)`, await until(() => (strip().includes(`→ ${leadLabel}`) || strip().includes(`→ ${leadLabel.slice(0, 7 - chordDelta)}…`)) && /\blow\b/.test(strip())), strip())
   snapshot('other-parent')
   exitCrewmateView(store!.setState)
   await until(() => /\bhigh\b/.test(strip()))
