@@ -350,10 +350,14 @@ pub fn capture(display: &DisplayRecord) -> Result<(u32, u32, Vec<u8>), String> {
     }
 }
 
+fn capture_rect(display: &DisplayRecord, bounds: &BoundsRecord) -> CGRect {
+    rect(bounds.x - display.origin_x, bounds.y - display.origin_y, bounds.width, bounds.height)
+}
+
 pub fn capture_region(display: &DisplayRecord, bounds: &BoundsRecord) -> Result<(u32, u32, Vec<u8>), String> {
     let id: u32 = display.id.parse().map_err(|_| format!("no display {}", display.index))?;
     unsafe {
-        let image = CGDisplayCreateImageForRect(id, rect((bounds.x - display.origin_x) * display.scale, (bounds.y - display.origin_y) * display.scale, bounds.width * display.scale, bounds.height * display.scale));
+        let image = CGDisplayCreateImageForRect(id, capture_rect(display, bounds));
         if image.is_null() { return Err("the capture region has no image".to_string()); }
         let result = image_rgba(image);
         CGImageRelease(image);
@@ -1427,6 +1431,22 @@ pub fn set_value(pid: i32, wanted: &TreeElement, text: &str) -> Result<ValueAnsw
         CFRelease(selected);
         Ok(ValueAnswer { set: true, value: read_back, reason: if secure { Some(SECURE_NOT_READ_BACK.to_string()) } else { None } })
     })
+}
+
+#[cfg(test)]
+mod capture_rect_tests {
+    use super::{capture_rect, BoundsRecord, DisplayRecord};
+
+    #[test]
+    fn the_region_rect_is_in_display_points_whatever_the_scale() {
+        let retina = DisplayRecord { index: 0, id: "1".into(), origin_x: 0.0, origin_y: 0.0, width: 1440.0, height: 900.0, scale: 2.0, primary: true, work: None };
+        let window = BoundsRecord { x: 0.0, y: 122.0, width: 1440.0, height: 778.0 };
+        let r = capture_rect(&retina, &window);
+        assert_eq!((r.origin.x, r.origin.y, r.size.width, r.size.height), (0.0, 122.0, 1440.0, 778.0));
+        let second = DisplayRecord { index: 1, id: "2".into(), origin_x: 1440.0, origin_y: -200.0, width: 2560.0, height: 1440.0, scale: 2.0, primary: false, work: None };
+        let r = capture_rect(&second, &BoundsRecord { x: 1540.0, y: 100.0, width: 800.0, height: 600.0 });
+        assert_eq!((r.origin.x, r.origin.y, r.size.width, r.size.height), (100.0, 300.0, 800.0, 600.0));
+    }
 }
 
 #[cfg(test)]
