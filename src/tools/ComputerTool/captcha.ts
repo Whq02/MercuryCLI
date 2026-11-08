@@ -29,7 +29,7 @@ export function treeSight(tree: DesktopTree, bounds: DesktopBounds | null = null
   for (const element of tree.elements) {
     const text = `${element.role} ${element.title ?? ''} ${element.value ?? ''}`
     if (CHALLENGE.test(text) && shown(tree, element, bounds)) return 'challenge'
-    if (sight === null && BRAND.test(text)) sight = 'widget'
+    if (sight === null && element.role !== 'AXRadioButton (AXTabButton)' && BRAND.test(text)) sight = 'widget'
   }
   return sight
 }

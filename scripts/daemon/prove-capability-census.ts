@@ -12,6 +12,7 @@ mkdirSync(work, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+process.env.MERCURY_CONCOURSE_WORKER = '1'
 delete process.env.MERCURY_EVAL_PYTHON
 
 let failures = 0
@@ -39,6 +40,12 @@ const src = (p: string): string => readFileSync(join(REPO, p), 'utf8')
 
 console.log('capability census — what a runner still holds that a park would lose')
 try {
+  console.log('C0 every tool has a declared and classified capability')
+  const toolCensus = (await import('../../src/utils/capability/census.ts')).buildToolCensus()
+  const undeclared = toolCensus.rows.filter(row => row.declared === null).map(row => row.name)
+  const unclassified = toolCensus.summary.unclassified
+  check('the capability census has no undeclared and no unclassified tool', undeclared.length === 0 && unclassified.length === 0, `UNDECLARED: ${undeclared.join(', ') || 'none'} · UNCLASSIFIED: ${unclassified.join(', ') || 'none'}`)
+
   console.log('C1 an idle runner holds nothing')
   const idle = census.runnerCapabilityHolds({ pendingControlRequestCount: () => 0 })
   check('no kernel, browser, service, debug session or pending control request ⇒ no hold', idle.length === 0 && census.capabilityHoldWords(idle) === null, JSON.stringify(idle))

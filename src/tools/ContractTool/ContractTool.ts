@@ -66,6 +66,19 @@ const NO_CONTRACT =
 export const ContractTool = buildTool({
   name: CONTRACT_TOOL_NAME,
   searchHint: 'contract / the session work agreement: read, acknowledge, check in, sufficiency, propose amendment, close against',
+  capability: {
+    intents: [
+      'read and acknowledge the session work agreement',
+      'check work against the session contract',
+      'file the closing contract receipt',
+    ],
+    units: ['task-coordination'],
+    class: 'coordination',
+    operations: ['read', 'acknowledge', 'check-in', 'sufficiency', 'propose-amend', 'close-against'],
+    cancellation: 'not-applicable',
+    latency: 'fast',
+    gate: 'MERCURY_CONCOURSE_WORKER',
+  },
   maxResultSizeChars: 50_000,
   userFacingName: () => 'Contract',
   get inputSchema(): InputSchema {
