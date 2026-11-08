@@ -269,6 +269,8 @@ section('a clamped target is scrolled into view and acted on in one act; one tha
         area('AXTextArea', 'AF10', { x: 742, y: 985, width: 721, height: 1 }, { visibleFrame: { x: 742, y: 700, width: 721, height: 120 } }),
         area('AXLink', 'Edit about', { x: 1000, y: 985, width: 265, height: 1 }, { visibleFrame: { x: 1000, y: 840, width: 265, height: 20 } }),
         area('AXTextArea', 'AF11', { x: 742, y: 985, width: 100, height: 1 }, { visibleFrame: { x: 742, y: 500, width: 100, height: 40 } }),
+        area('AXTextArea', 'AF12', { x: 742, y: 985, width: 100, height: 1 }, { visibleFrame: { x: 742, y: 560, width: 100, height: 40 } }),
+        area('AXTextArea', 'DragEnd', { x: 742, y: 985, width: 100, height: 1 }, { visibleFrame: { x: 742, y: 620, width: 100, height: 40 } }),
         area('AXTextArea', 'Tall', { x: 20, y: 100, width: 600, height: 900 }),
         area('AXButton', 'Footer', { x: 742, y: 966, width: 100, height: 20 }),
         area('AXButton', 'Header', { x: 742, y: 120, width: 100, height: 1 }),
@@ -328,6 +330,11 @@ section('a clamped target is scrolled into view and acted on in one act; one tha
   check('a find that matched nothing keeps the refs the model holds', nothing.outcome === 'succeeded' && nothing.result.includes('0 elements') && afterEmpty.outcome === 'succeeded' && clicks().at(-1) === JSON.stringify({ x: 1790, y: 432 }), JSON.stringify({ nothing: nothing.outcome + ' ' + nothing.result.slice(0, 200), afterEmpty: afterEmpty.outcome + ' ' + afterEmpty.result.slice(0, 300) }))
   const noop = await call({ action: 'click', target: { role: 'AXTextArea', name: 'AF11' }, capture: false })
   check('the state line is read after the scroll, so a scrolled click that changed nothing reads unchanged', noop.outcome === 'succeeded' && /^unchanged · now:/m.test(noop.result) && noop.result.includes('scrolled into view first'), noop.result)
+  const verified = await call({ action: 'click', target: { role: 'AXTextArea', name: 'AF12' }, verify: true, capture: false })
+  check('verify after a scroll compares window trees: a no-op click reads no observed change', verified.outcome === 'succeeded' && verified.result.includes('scrolled into view first') && verified.result.includes('no observed change in the tree'), verified.result)
+  const dragScrolled = await call({ action: 'drag', target: { role: 'AXTextArea', name: 'AF7' }, toTarget: { role: 'AXTextArea', name: 'DragEnd' }, capture: false })
+  const lastDrag = chromeDriver.acts.filter(a => a.act === 'drag').at(-1)
+  check('a drag whose destination was scrolled into view re-resolves both ends on the post-scroll tree and drags to the visible frame', dragScrolled.outcome === 'succeeded' && dragScrolled.result.includes('scrolled into view first') && JSON.stringify(lastDrag?.detail.to) === JSON.stringify({ x: 792, y: 640 }), `${dragScrolled.result} · ${JSON.stringify(lastDrag?.detail)}`)
   const wheel = await call({ action: 'scroll', target: { role: 'AXButton', name: 'Header' }, dy: 3, capture: false })
   check('a scroll act at a clipped target wheels where it was asked and never scrolls it into view first', wheel.outcome === 'succeeded' && !wheel.result.includes('scrolled into view') && !chromeDriver.acts.slice(-3).some(a => a.act === 'scrollToVisible'), wheel.result)
   const asSwitch = await call({ action: 'find', target: { role: 'AXSwitch' } })
@@ -372,10 +379,52 @@ section('a clamped target is scrolled into view and acted on in one act; one tha
   const robot = resultOf(await ComputerTool.call({ action: 'click', target: { role: 'AXCheckBox', name: "I'm not a robot" }, capture: false } as never, denied, allowEverything, toolUseTurn('fast-robot', 'Computer', {})))
   check('a challenge checkbox squashed below the fold is a challenge: the deny rule refuses it before any scroll or click', robot.outcome === 'failed' && robot.result.includes('Computer(captcha)') && !robotDriver.acts.some(a => a.act === 'scrollToVisible' || a.act === 'click'), `${robot.result} · acts ${robotDriver.acts.map(a => a.act).join(',')}`)
   session.forgetDesktopOwner(ownerOf(denied))
+  const allowing = toolContext()
+  session.forgetDesktopOwner(ownerOf(allowing))
+  resetDesktopDriverForTest()
+  const allowedPage = resolveDesktopDriver()
+  if (allowedPage.state !== 'ok') throw new Error(allowedPage.note)
+  const allowedDriver = allowedPage.driver as DesktopDriver & { acts: { act: string; detail: Record<string, unknown> }[] }
+  const allowed = resultOf(await ComputerTool.call({ action: 'click', target: { role: 'AXCheckBox', name: "I'm not a robot" }, capture: false } as never, allowing, allowEverything, toolUseTurn('fast-robot-allowed', 'Computer', {})))
+  check('a clipped challenge the operator allows is scrolled into view once and clicked', allowed.outcome === 'succeeded' && allowed.result.includes('scrolled into view first') && allowedDriver.acts.filter(a => a.act === 'scrollToVisible').length === 1 && allowedDriver.acts.some(a => a.act === 'click'), `${allowed.result} · acts ${allowedDriver.acts.map(a => a.act).join(',')}`)
+  session.forgetDesktopOwner(ownerOf(allowing))
   process.env.MERCURY_DESKTOP_FAKE_SCENE = far
   resetDesktopDriverForTest()
   const prompt = await ComputerTool.prompt()
   check('the tool\'s words teach fill and fields', prompt.includes('fill (target/ref) sets the value and reads it back') && prompt.includes('fields lists the controls') && JSON.stringify(ComputerTool.inputJSONSchema).includes('type or fill:'), prompt)
+  session.forgetDesktopOwner(ownerOf(context))
+}
+section('a ref remembers its place in the list, one level up too; a one-step sequence over a scrolled no-op reads unchanged')
+{
+  const chrome = { identity: 'com.example.Browser', name: 'Browser', pid: 4242, windowId: 'rows', title: 'Rows — Example', bounds: { x: 0, y: 30, width: 1920, height: 956 } }
+  const rowsScene = (rows: number) => ({
+    displays: [{ index: 0, id: 'rows', originX: 0, originY: 0, width: 1920, height: 1080, scale: 2, primary: true }],
+    frontmost: chrome, cursor: { x: 50, y: 50 }, lines: ['Rows'],
+    tree: [{ role: 'AXWindow', title: chrome.title, focused: true, frame: chrome.bounds, children: [{ role: 'AXWebArea', title: 'Rows', frame: { x: 0, y: 120, width: 1920, height: 866 }, children: [
+      ...Array.from({ length: rows }, (_, index) => ({ role: 'AXGroup', frame: { x: 100, y: 200 + index * 60, width: 800, height: 50 }, children: [{ role: 'AXButton', title: 'Delete', frame: { x: 800, y: 210 + index * 60, width: 80, height: 30 } }] })),
+      { role: 'AXTextArea', title: 'AF13', frame: { x: 742, y: 985, width: 100, height: 1 }, visibleFrame: { x: 742, y: 700, width: 100, height: 40 } },
+    ] }] }],
+  })
+  const rowsFile = join(scratch, 'rows.json')
+  writeFileSync(rowsFile, JSON.stringify(rowsScene(3)))
+  process.env.MERCURY_DESKTOP_FAKE_SCENE = rowsFile
+  resetDesktopDriverForTest()
+  const page = resolveDesktopDriver()
+  if (page.state !== 'ok') throw new Error(page.note)
+  context = toolContext()
+  session.forgetDesktopOwner(ownerOf(context))
+  const found = await call({ action: 'find', target: { role: 'AXButton', name: 'Delete' } })
+  const refs = [...found.result.matchAll(/\[(\d+)\] AXButton "Delete"/g)].map(m => Number(m[1]))
+  check('three Delete buttons in three untitled rows get three refs', found.outcome === 'succeeded' && refs.length === 3, found.result)
+  writeFileSync(rowsFile, JSON.stringify(rowsScene(2)))
+  resetDesktopDriverForTest()
+  const shifted = resolveDesktopDriver()
+  if (shifted.state !== 'ok') throw new Error(shifted.note)
+  const rowsDriver = shifted.driver as DesktopDriver & { acts: { act: string; detail: Record<string, unknown> }[] }
+  const stale = await call({ action: 'click', ref: refs[1]!, capture: false })
+  check("after the first row disappeared, the second row's ref is refused (its place in the list moved one level up), never clicking the row now in its place", stale.outcome === 'failed' && stale.result.includes('find again') && !rowsDriver.acts.some(a => a.act === 'click'), `${stale.result} · acts ${rowsDriver.acts.map(a => a.act).join(',')}`)
+  const sequence = await call({ action: 'sequence', steps: [{ action: 'click', target: { role: 'AXTextArea', name: 'AF13' } }], capture: false })
+  check('a one-step sequence whose click scrolled its target into view and changed nothing else reads unchanged', sequence.outcome === 'succeeded' && /^unchanged · now:/m.test(sequence.result) && sequence.result.includes('scrolled into view first'), sequence.result)
   session.forgetDesktopOwner(ownerOf(context))
 }
 finish('prove-computer-fast-road')

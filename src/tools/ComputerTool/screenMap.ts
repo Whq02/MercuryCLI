@@ -153,22 +153,26 @@ export function outlineRowWords(element: OutlineElement, map: ScreenMap | null =
   return `${'  '.repeat(element.depth)}${parts.join(' ')}`
 }
 
-function elementPaths(tree: DesktopTree): Array<{ path: string; siblings: () => number }> {
-  const ancestors: Array<{ depth: number; key: string; seen: Map<string, number> }> = []
+function elementPaths(tree: DesktopTree): Array<{ path: string; counts: () => number[] }> {
+  const ancestors: Array<{ depth: number; key: string; seen: Map<string, number>; children: { n: number }; counts: () => number[] }> = []
+  const root = { seen: new Map<string, number>(), children: { n: 0 } }
   return tree.elements.map(element => {
     while (ancestors.length && ancestors.at(-1)!.depth >= element.depth) ancestors.pop()
     const parent = ancestors.at(-1)
     const shape = JSON.stringify([element.role, element.title, element.frame])
-    const seen = parent?.seen ?? new Map<string, number>()
+    const seen = parent?.seen ?? root.seen
+    const siblings = parent?.children ?? root.children
+    siblings.n += 1
     const ordinal = seen.get(shape) ?? 0
     seen.set(shape, ordinal + 1)
     const path = createHash('sha256').update(JSON.stringify([parent?.key, element.role, element.title, element.frame, ordinal])).digest('hex')
-    ancestors.push({ depth: element.depth, key: path, seen: new Map() })
-    return { path, siblings: () => seen.get(shape) ?? 1 }
+    const counts = (): number[] => [seen.get(shape) ?? 1, siblings.n, ...(parent?.counts() ?? [])]
+    ancestors.push({ depth: element.depth, key: path, seen: new Map(), children: { n: 0 }, counts })
+    return { path, counts }
   })
 }
 
-const treeRefs = new OwnerScopedStore<{ next: number; window: string; refs: Map<number, Array<{ key: string; siblings: number }>> }>({
+const treeRefs = new OwnerScopedStore<{ next: number; window: string; refs: Map<number, Array<{ key: string; counts: number[] }>> }>({
   name: 'computer-tree-refs',
   create: () => ({ next: 1, window: '', refs: new Map() }),
   dispose: state => { state.refs.clear() },
@@ -187,7 +191,7 @@ export function rememberTreeRefs(owner: OwnerKey, app: DesktopApplication, tree:
   const paths = elementPaths(tree)
   for (const element of outline.elements) {
     element.ref = state.next++
-    state.refs.set(element.ref, element.sourceIndices.map(index => ({ key: paths[index]!.path, siblings: paths[index]!.siblings() })))
+    state.refs.set(element.ref, element.sourceIndices.map(index => ({ key: paths[index]!.path, counts: paths[index]!.counts() })))
   }
 }
 
@@ -196,7 +200,7 @@ export function resolveTreeRef(owner: OwnerKey, app: DesktopApplication, tree: D
   const keys = state?.window === windowKey(app) ? state.refs.get(ref) : undefined
   if (!keys?.length) return []
   const paths = elementPaths(tree)
-  const matches = keys.map(entry => paths.flatMap((row, index) => row.path === entry.key && row.siblings() === entry.siblings ? [index] : []))
+  const matches = keys.map(entry => paths.flatMap((row, index) => row.path === entry.key && row.counts().join(',') === entry.counts.join(',') ? [index] : []))
   if (keys.length === 1) return matches[0]!.map(index => tree.elements[index]!)
   if (matches.some(indices => indices.length !== 1)) return []
   const sourceIndices = matches.map(indices => indices[0]!)

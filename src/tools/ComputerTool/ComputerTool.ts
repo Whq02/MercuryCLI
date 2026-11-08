@@ -475,15 +475,17 @@ async function scrollIntoView(driver: DesktopDriver, front: DesktopApplication, 
   return { element: moved, road: receipt.road }
 }
 
-async function scrollClippedEnds(driver: DesktopDriver, input: Input, plan: ActPlan, front: DesktopApplication, signal: AbortSignal): Promise<string | null> {
+async function scrollClippedEnds(driver: DesktopDriver, input: Input, plan: ActPlan, front: DesktopApplication, signal: AbortSignal, map: ScreenMap | null): Promise<string | null> {
   const ends = plan.clipped ?? []
   if (ends.length === 0 || plan.beforeTree === undefined) return null
   let tree = plan.beforeTree
+  const scrolledEnds: string[] = []
   for (const end of ends) {
     const scrolled = await scrollIntoView(driver, front, tree, end.element, end.words, signal)
-    if ('refusal' in scrolled) return scrolled.aborted ? scrolled.refusal : `${input.action} refused: ${end.label}: ${scrolled.refusal}`
+    if ('refusal' in scrolled) return scrolled.aborted ? scrolled.refusal : `${input.action} refused: ${end.label}: ${scrolled.refusal}${scrolledEnds.length ? ` (${scrolledEnds.join(', ')} was scrolled into view first)` : ''}`
     plan.scrolled = scrolled.road
-    const fresh = await driver.accessibilityTree(front, { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP }, signal)
+    scrolledEnds.push(end.label)
+    const fresh = await driver.accessibilityTree(front, { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP, scope: 'window' }, signal)
     if (fresh.ok) tree = fresh.value
     const settled = fresh.ok ? tree.elements.find(row => row.role === scrolled.element.role && row.title === scrolled.element.title && sameFrame(row.frame, scrolled.element.frame)) ?? scrolled.element : scrolled.element
     const frame = settled.frame!
@@ -491,11 +493,16 @@ async function scrollClippedEnds(driver: DesktopDriver, input: Input, plan: ActP
     if (end.field === 'point') { plan.element = settled; plan.observe = frame }
   }
   plan.beforeTree = tree
-  if (input.action === 'drag' && plan.element) {
-    const other = ends.length === 1 ? (ends[0]!.field === 'point' ? plan.target : plan.point) : null
-    if (other !== null && other !== undefined) {
-      const stale = tree.elements.find(row => row.frame && clippedWords(tree, row, front.bounds) !== null && Math.abs(row.frame.x + row.frame.width / 2 - other.x) < 1 && Math.abs(row.frame.y + row.frame.height / 2 - other.y) < 1)
-      if (stale) return `drag refused: the two ends are not in view together after scrolling — scroll first or drag in steps`
+  if (input.action === 'drag') {
+    if (input.target === undefined || input.toTarget === undefined) return `drag refused: ${scrolledEnds.join(' and ')} was scrolled into view, so the drag's pixel end is stale — take a screenshot and re-issue, or name both ends as targets`
+    for (const [selector, field] of [[input.target, 'point'], [input.toTarget, 'target']] as const) {
+      const point = targetPoint(tree, selector, map)
+      if ('refusal' in point) return `drag refused after the scroll: ${point.refusal}`
+      const element = targetElement(tree, selector, map)
+      const still = 'refusal' in element ? null : clippedWords(tree, element, front.bounds)
+      if (still !== null) return `drag refused: the two ends are not in view together after scrolling (${targetWords(selector)}: ${still.replace(' — scroll it into view first', '')}) — scroll first or drag in steps`
+      plan[field] = point
+      if (field === 'point' && !('refusal' in element)) { plan.element = element; if (element.frame) plan.observe = element.frame }
     }
   }
   return null
@@ -556,6 +563,7 @@ async function resolveActTargets(driver: DesktopDriver, input: Input, front: Des
   plan.captcha = titled === 'challenge' || seen === 'challenge' ? 'challenge' : seen ?? titled
   plan.beforeTree = tree.value
   const scrollsInto = input.action !== 'scroll'
+  plan.clipped = []
   if (input.ref !== undefined) {
     const elements = resolveTreeRef(owner, front, tree.value, input.ref)
     if (elements.length !== 1) return `${input.action} refused: ref:${input.ref}: ${elements.length === 0 ? 'no element of the latest tree matches it now' : `${elements.length} elements match it now`} — read the tree or find again${elements.length ? `\n${candidateWords(elements, map)}` : ''}`
@@ -1456,6 +1464,10 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           contentShown ||= stepLines.length !== answer.data.result.split('\n').length
           afterState = stepLines.find(line => STATE_LINE.test(line)) ?? ''
           anyChanged ||= afterState.startsWith('changed · ')
+          if (!anyChanged && stepLines.some(line => line.includes('scrolled into view first')) && mayRead) {
+            const front = await driver.frontmostApplication()
+            if (front.ok) firstBefore = await readObservation(driver, signal, false, front.value.identity)
+          }
           lines.push(stepLines.filter(line => !STATE_LINE.test(line)).join('\n'))
           if (answer.data.outcome !== 'succeeded') {
             result = `sequence ${completed}/${steps.length} completed\n${lines.join('\n')}`
@@ -1626,7 +1638,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           return finish()
         }
         setDrivingApp(live)
-        const unscrolled = await scrollClippedEnds(driver, input, plan, ready.value, signal)
+        const unscrolled = await scrollClippedEnds(driver, input, plan, ready.value, signal, screenOf(owner))
         if (unscrolled !== null) {
           await driver.releaseAll()
           result = unscrolled
@@ -1692,6 +1704,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
         case 'wait': {
           const pause = clamp(input.durationMs ?? (input.until !== undefined ? UNTIL_DEFAULT_MS : WAIT_DEFAULT_MS), 0, WAIT_CAP_MS)
           const waitStarted = Date.now()
+          let metAfterMs = 0
           let waitNote = ''
           if (input.until !== undefined) {
             const checked = consumeCheckedAct(owner, 'wait')
@@ -1730,6 +1743,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
               if (Date.now() >= deadline) break
               await sleep(Math.min(100, Math.max(0, deadline - Date.now())), signal)
             }
+            metAfterMs = Date.now() - waitStarted
             if (!matched) {
               result = signal.aborted ? interruptedText('wait') : `wait timed out after ${pause}ms: ${waitConditionWords(input.until)} · last tree: ${lastSize === null ? 'unavailable' : `${lastSize} elements`}${lastTree ? captchaLine(lastTree, app) : ''}`
               outcome = 'failed'
@@ -1738,7 +1752,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
             waitNote = lastTree ? captchaLine(lastTree, app) : ''
           } else await sleep(pause, signal)
           if ((input.capture === false || (input.capture !== true && input.until === undefined)) && !signal.aborted) {
-            result = `wait ${input.until ? `${waitConditionWords(input.until)} · met after ${Date.now() - waitStarted}ms of ${pause}` : `${pause}ms`} · ${await factsLine(driver, screenOf(owner))}${waitNote}`
+            result = `wait ${input.until ? `${waitConditionWords(input.until)} · met after ${metAfterMs}ms of ${pause}` : `${pause}ms`} · ${await factsLine(driver, screenOf(owner))}${waitNote}`
             outcome = 'succeeded'
             break
           }
@@ -1754,7 +1768,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
             break
           }
           adoptShot(shot)
-          result = `wait ${input.until ? `${waitConditionWords(input.until)} · met after ${Date.now() - waitStarted}ms of ${pause}` : `${pause}ms`} · ${shot.line}${waitNote}`
+          result = `wait ${input.until ? `${waitConditionWords(input.until)} · met after ${metAfterMs}ms of ${pause}` : `${pause}ms`} · ${shot.line}${waitNote}`
           outcome = 'succeeded'
           break
         }
