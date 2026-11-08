@@ -360,7 +360,7 @@ const statusRowOf = (lines: string[]): string => {
   return row < 0 ? '' : lines[row]!.trim()
 }
 const statusOf = (lines: string[], railCols: number): string => (lines.find(line => line.includes('← back')) ?? '').trim()
-const viewedName = (lines: string[], railCols: number): string => (/viewing (.+?) · composer|main chat: (.+?) · /.exec(statusOf(lines, railCols)) ?? [])[1] ?? (/main chat: (.+?) · /.exec(statusOf(lines, railCols)) ?? [])[1] ?? ''
+const viewedName = (lines: string[], railCols: number): string => (/viewing (.+?) · (?:commands|composer)|main chat: (.+?) · /.exec(statusOf(lines, railCols)) ?? [])[1] ?? (/main chat: (.+?) · /.exec(statusOf(lines, railCols)) ?? [])[1] ?? ''
 const centreOf = (lines: string[], railCols: number): string[] => lines.map(line => cells(line).slice(railCols, -railCols).join(''))
 const save = (name: string, cols: number, rows: number, lines: string[]): void => {
   if (frameDir === undefined) return
@@ -481,7 +481,7 @@ async function run(cols: number, rows: number): Promise<void> {
     check('the footer says esc interrupts Lane birch — the VIEWED crewmate, the one the key cuts', /esc interrupts? Lane birch/.test(footer) && !/esc interrupts? Lane atlas/.test(footer), footer.slice(0, 260))
     const status = statusRowOf(frame)
     console.log(`the status row: "${status}"`)
-    check('the status row names the composer\'s target: atlas, the main chat — never "composer → Lane birch"', /Lane atlas/.test(status) && !/composer → Lane birch/.test(status), `the status row reads "${status}"`)
+    check('the status row names the commands target (birch, the viewed one) ahead of the composer\'s (atlas, the main chat; a narrow row cuts that half) — never "composer → Lane birch"', /commands → Lane birch · composer → L/.test(status) && !/composer → Lane birch/.test(status) && (!/\(the main chat\)/.test(status) || /composer → Lane atlas \(the main chat\)/.test(status)), `the status row reads "${status}"`)
     const TO_PIN = 'to the pin'
     await typeWords(scene, TO_PIN)
     scene.push(ENTER)
