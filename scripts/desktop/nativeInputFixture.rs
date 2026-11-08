@@ -170,5 +170,9 @@ fn a_drag_on_a_display_left_of_and_above_the_main_one_nudges_within_that_display
     let mut corner = DragTask { from: (-2560.0, -400.0), to: (-2540.0, -380.0), button: Button::Left };
     corner.compute().unwrap();
     assert_eq!(imp::event_list()[2], "drag:-2560:-400");
+    reset();
+    let mut gap = DragTask { from: (-1000.0, 100.0), to: (-900.0, 100.0), button: Button::Left };
+    gap.compute().unwrap();
+    assert_eq!(imp::event_list()[2], "drag:-1000.05:99.95");
     set_displays(Vec::new());
 }

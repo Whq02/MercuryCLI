@@ -773,7 +773,7 @@ fn display_holding(x: f64, y: f64) -> Option<DisplayRecord> {
 }
 
 fn nudge_toward_origin(x: f64, y: f64) -> (f64, f64) {
-    let (left, top) = display_holding(x, y).map_or((0.0, 0.0), |d| (d.origin_x, d.origin_y));
+    let (left, top) = display_holding(x, y).map_or((f64::NEG_INFINITY, f64::NEG_INFINITY), |d| (d.origin_x, d.origin_y));
     ((x - DRAG_NUDGE_PT).max(left), (y - DRAG_NUDGE_PT).max(top))
 }
 
