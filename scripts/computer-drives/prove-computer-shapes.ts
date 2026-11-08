@@ -1,5 +1,5 @@
 import { check, finish, section } from '../computer/computerProofKit.ts'
-import { allowEverything, pointOfPixelOn, resultOf, toolContext, toolUseTurn, withScreenshot } from '../computer/computerToolKit.ts'
+import { allowEverything, resultOf, toolContext, toolUseTurn, withScreenshot } from '../computer/computerToolKit.ts'
 import type { DesktopDriver } from '../../src/services/desktop/driver.ts'
 
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
@@ -59,13 +59,11 @@ const captured = await call({ action: 'sequence', steps: [{ action: 'screenshot'
 check('screenshot steps run in order with one result image', captured.outcome === 'succeeded' && captured.result.includes('3/3') && captured.imagePath !== undefined, captured.result)
 const imageFree = await call({ action: 'sequence', steps: [{ action: 'screenshot' }, { action: 'key', key: 'Enter' }], capture: false })
 check('sequence capture:false still overrides screenshots', imageFree.outcome === 'succeeded' && !imageFree.imagePath, imageFree.result)
-const opening = await withScreenshot(ComputerTool as never, context, 'sequence-visible-frame')
-context = opening.context
+context = (await withScreenshot(ComputerTool as never, context, 'sequence-visible-frame')).context
 const clicksBefore = driver.acts.filter(act => act.act === 'click').length
 const checkpoint = await call({ action: 'sequence', steps: [{ action: 'screenshot', scale: 0.25 }, { action: 'click', x: 500, y: 400 }], settleMs: 0 })
 const clicksAfter = driver.acts.filter(act => act.act === 'click').length
 check('an intermediate screenshot never lends unseen pixels: a pixel step after it is refused with the reason and nothing is clicked', checkpoint.outcome === 'failed' && checkpoint.result.includes('click refused: the last screenshot was taken in this same message — you have not seen it; take the screenshot alone, then the region or the act') && checkpoint.result.includes('screenshot:') && clicksAfter === clicksBefore, `${checkpoint.result}; clicks ${clicksBefore} → ${clicksAfter}`)
-void opening
 const { createAssistantMessage } = await import('../../src/utils/messages.ts')
 const unseenShot = await withScreenshot(ComputerTool as never, toolContext(), 'shapes-unseen-shot')
 const sameMessage = createAssistantMessage({ content: [{ type: 'tool_use', id: unseenShot.toolUseId, name: 'Computer', input: { action: 'screenshot', full: true } }, { type: 'tool_use', id: 'shapes-unseen-act', name: 'Computer', input: { action: 'click', x: 10, y: 10 } }] as never })

@@ -196,8 +196,8 @@ sequence stops there;
 take the screenshot alone, read it, then act. Targets and refs stay fine after
 a screenshot step. Set `capture: false` on the sequence to keep the interaction
 image-free. Set
-`capture`, `region` and `settleMs` on the sequence itself; steps other than
-`screenshot` do not take them.
+`capture`, `region` and `settleMs` on the sequence itself; steps do not take
+them, except that a `screenshot` step takes its own `region` and `scale`.
 Nested sequences are refused.
 
 `find`, `read` and `wait` with `until` read the tree and therefore ask like `tree`.
