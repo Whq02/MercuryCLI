@@ -4,6 +4,7 @@ import type { Command } from '../../commands.js'
 import { getCommandName } from '../../commands.js'
 import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../constants/xml.js'
 import { ModalContext } from '../../context/modalContext.js'
+import type { Notification } from '../../context/notifications.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import type { AppState } from '../../state/AppState.js'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
@@ -44,6 +45,11 @@ const MODEL_PICKER_ROWS = 29
 export type CrewmateCommandIo = {
   setAppState: (f: (prev: AppState) => AppState) => void
   receipt: (text: string, color?: 'warning') => void
+}
+
+export function crewmateCommandReceipt(addNotification: (notification: Notification) => void): CrewmateCommandIo['receipt'] {
+  return (text, color) =>
+    addNotification({ key: CREWMATE_COMMAND_RECEIPT_KEY, text, priority: 'medium', timeoutMs: 8000, ...(color !== undefined ? { color } : {}), fold: (_accumulated, incoming) => incoming })
 }
 
 const word = (value: unknown): string | null => (typeof value === 'string' && value.trim() !== '' ? value.trim() : null)
@@ -103,20 +109,37 @@ async function recordModel(seat: CrewmateSeat, model: string): Promise<void> {
   seat.io.receipt(crewmateModelSwitchWords(seat.name, label, seat.running))
 }
 
+function contextPercentOf(crewmate: CrewmateInView, model: string): number | null {
+  const context = crewmate.facts?.tokens?.context ?? null
+  if (context === null) return null
+  try {
+    const window = getContextWindowForModel(crewmate.facts?.model ?? model)
+    return window > 0 ? Math.round((context / window) * 100) : null
+  } catch {
+    return null
+  }
+}
+
 async function openCrewmateModelPicker(seat: CrewmateSeat): Promise<void> {
   const { MercuryModelChoicePicker, modelChoiceRow } = await import('../../commands/model/mercuryModel.js')
   const label = renderModelName(seat.model)
+  const line = crewmateModelPickerLine(seat.name, seat.running)
+  const hint = `↵ picks · esc keeps ${label}`
   openSettingsPopup({
     view: 'model',
     width: hostColumns => Math.min(120, hostColumns),
     rows: MODEL_PICKER_ROWS,
-    line: crewmateModelPickerLine(seat.name, seat.running),
-    hint: `↵ picks · esc keeps ${label}`,
+    line,
+    hint,
     bodyOwnsEscape: true,
+    bodyOwnsFrame: true,
     body: geometry => (
       <ModalContext.Provider value={{ rows: geometry.rowBudget, columns: geometry.inner, scrollRef: null }}>
         <MercuryModelChoicePicker
           current={modelChoiceRow(seat.model)}
+          line={line}
+          hint={hint}
+          ctxPct={contextPercentOf(seat.crewmate, seat.model)}
           onSelect={id => {
             closeSettingsPopup()
             void recordModel(seat, parseUserSpecifiedModel(id)).catch(error => seat.io.receipt(errorMessage(error), 'warning'))
@@ -181,7 +204,7 @@ async function runEffort(seat: CrewmateSeat, args: string): Promise<void> {
     seat.io.receipt(crewmateEffortRefusedWords(seat.name, level, renderModelName(seat.model), selectable), 'warning')
     return
   }
-  await writeRecord(seat.file, { ...(seat.meta ?? { agentType: agentTypeOf(seat.crewmate, null) }), effort: level, effortOverride: level })
+  await writeRecord(seat.file, { ...(seat.meta ?? { agentType: agentTypeOf(seat.crewmate, null) }), effortOverride: level })
   seat.io.receipt(crewmateEffortSwitchWords(seat.name, level, seat.running))
 }
 
@@ -232,16 +255,30 @@ function runUsage(seat: CrewmateSeat): void {
   }))
 }
 
+async function seatOf(crewmate: CrewmateInView, io: CrewmateCommandIo): Promise<CrewmateSeat | null> {
+  const file = crewmateMetadataFile(crewmate)
+  if (file === null) return null
+  const meta = await readRecord(file)
+  const model = word(meta?.model) ?? runningModelOf(crewmate) ?? getFocusedSessionConnector().modelFacts().effective
+  return { crewmate, name: crewmate.name, running: crewmateRuns(crewmate), file, meta, model, io }
+}
+
+export async function openCrewmateModelPickerFor(crewmate: CrewmateInView, io: CrewmateCommandIo): Promise<void> {
+  const seat = await seatOf(crewmate, io)
+  if (seat === null) {
+    io.receipt(crewmateCommandUnreachableWords(crewmate.name, 'model'), 'warning')
+    return
+  }
+  await openCrewmateModelPicker(seat)
+}
+
 export async function runCrewmateCommand(command: Command, line: string, crewmate: CrewmateInView, io: CrewmateCommandIo): Promise<void> {
   const name = getCommandName(command)
-  const file = crewmateMetadataFile(crewmate)
-  if (file === null) {
+  const seat = await seatOf(crewmate, io)
+  if (seat === null) {
     io.receipt(crewmateCommandUnreachableWords(crewmate.name, name), 'warning')
     return
   }
-  const meta = await readRecord(file)
-  const model = word(meta?.model) ?? runningModelOf(crewmate) ?? getFocusedSessionConnector().modelFacts().effective
-  const seat: CrewmateSeat = { crewmate, name: crewmate.name, running: crewmateRuns(crewmate), file, meta, model, io }
   const args = argsOf(line)
   try {
     switch (command.name) {

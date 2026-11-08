@@ -50,14 +50,31 @@ export function crewmateStatusWords(viewed: CrewmateViewedState, target: Crewmat
   const tail = ` · ${running} crewmate${running === 1 ? '' : 's'} running`
   if (viewed === null || viewed.name === target.name) {
     return target.pinned
-      ? `${MAIN_CHAT_WORD}: ${target.name} · ${LEAD_ROW_NAME} waits in the rail${tail}`
+      ? `${MAIN_CHAT_WORD}: ${target.name} · commands → ${target.name} · ${LEAD_ROW_NAME} waits in the rail${tail}`
       : `${VIEWING_WORD} ${target.name} · composer → ${target.name} · commands → ${target.name}${tail}`
   }
-  return `${VIEWING_WORD} ${viewed.name} · composer → ${target.name} (the ${MAIN_CHAT_WORD})${tail}`
+  return `${VIEWING_WORD} ${viewed.name} · composer → ${target.name} (the ${MAIN_CHAT_WORD}) · commands → ${viewed.name}${tail}`
+}
+
+export function crewmateNextTurnWords(model: string | null, effort: string | null): string {
+  const words = [model, effort].filter((part): part is string => part !== null && part !== '')
+  return words.length === 0 ? '' : ` → ${words.join(' · ')} next turn`
 }
 
 export function crewmateGlobalCommandWords(command: string, name: string): string {
   return `/${command} runs for this session, not ${name}`
+}
+
+export function crewmateUnknownCommandWords(bareName: string, name: string, literal: string): string {
+  return `Unknown command: /${bareName} — commands run for ${name} or for this session; ${literal} sends the line to the agent as text`
+}
+
+export function crewmateThinkingKeyWords(name: string, key: string): string {
+  return `thinking is set per crewmate: /effort at ${name}; ${key} is ${LEAD_ROW_NAME}'s — press it from the Lead`
+}
+
+export function crewmateCompactNothingWords(name: string, line: string): string {
+  return `${name} — the crew view's /compact folded nothing: ${line}`
 }
 
 export function crewmateModelSwitchWords(name: string, label: string, running: boolean): string {

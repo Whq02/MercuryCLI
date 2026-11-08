@@ -40,7 +40,7 @@ import { focusedEffortLabelOf } from './mercury-ui/EffortChip.js'
 import { modelSupportsEffort } from '../utils/effort.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
 import { crewmateLive, useComposerCrewmate, useViewedCrewmate } from './tasks/useCrewmateView.js'
-import { crewmateStatusRightHint, crewmateStatusWords } from '../utils/cockpit/crewmateWords.js'
+import { crewmateNextTurnWords, crewmateStatusRightHint, crewmateStatusWords } from '../utils/cockpit/crewmateWords.js'
 import { daemonBuildStatusWords, lastDaemonHandshake, subscribeDaemonHandshake } from '../daemon/handshake.js'
 
 const focusedDaemonBuildWords = (): string => daemonBuildStatusWords(lastDaemonHandshake())
@@ -346,7 +346,9 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const effortLabel = modelSupportsEffort(effectiveModel) ? focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false) : null
   const shownModel = crewmate !== null && crewmateModel !== null ? (crewmateModel.model === null ? 'model unreported' : renderModelChip(crewmateModel.model)) : modelName
   const shownEffort = crewmate !== null && crewmateModel !== null ? crewmateModel.effort : effortLabel
-  const modelWords = [modelStatusWords(shownModel, shownEffort), daemonBuild].filter(Boolean).join(' · ')
+  const next = crewmate !== null && crewmateModel !== null && crewmateModel.next !== null ? crewmateModel.next : null
+  const nextWords = next === null ? '' : crewmateNextTurnWords(renderModelChip(next.model ?? crewmateModel!.model ?? ''), next.effort ?? crewmateModel!.effort)
+  const modelWords = [`${modelStatusWords(shownModel, shownEffort)}${nextWords}`, daemonBuild].filter(Boolean).join(' · ')
   lastRowFit = { columns, head: [modelWords, motionWords].filter(Boolean).join(' · '), samples, folder, branch, backHint }
   const held = receipt !== '' && !statusRowWarns(live, status) ? receipt : null
   const resting = daemonBuild === '' && held === null && line === 'ready'

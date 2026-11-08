@@ -18,6 +18,9 @@ import { saveGlobalConfig } from '../../utils/config.js'
 import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js'
 import type { OverlaySurface } from './composerOverlay.js'
 import type { ComposerAttachments } from './useComposerAttachments.js'
+import type { useComposerCrewmate } from '../tasks/useCrewmateView.js'
+import { crewmateThinkingKeyWords } from '../../utils/cockpit/crewmateWords.js'
+import { crewmateCommandReceipt, openCrewmateModelPickerFor } from './crewmateCommands.js'
 
 type ComposerKeybindingsInput = {
   buffer: ReturnType<typeof useInputBuffer>
@@ -51,6 +54,7 @@ type ComposerKeybindingsInput = {
   setShowCommandPalette: React.Dispatch<React.SetStateAction<boolean>>
   setShowFileOpen: React.Dispatch<React.SetStateAction<boolean>>
   setShowContentSearch: React.Dispatch<React.SetStateAction<boolean>>
+  commandCrewmateRef: React.MutableRefObject<ReturnType<typeof useComposerCrewmate>>
 }
 
 type ComposerKeybindings = {
@@ -87,6 +91,7 @@ export function useComposerKeybindings({
   setShowCommandPalette,
   setShowFileOpen,
   setShowContentSearch,
+  commandCrewmateRef,
 }: ComposerKeybindingsInput): ComposerKeybindings {
   const performUndo = useCallback((): void => {
     const entry = buffer.undo({ text: pendingInput.text(), cursorOffset, pastedContents: pendingInput.pastedContents() })
@@ -190,12 +195,22 @@ export function useComposerKeybindings({
         performStash()
       },
       'chat:modelPicker': () => {
-        setOverlay(current => (current === 'model-picker' ? null : 'model-picker'))
         setHelpOpen(false)
+        const crewmate = commandCrewmateRef.current
+        if (crewmate !== null) {
+          void openCrewmateModelPickerFor(crewmate, { setAppState, receipt: crewmateCommandReceipt(addNotification) })
+          return
+        }
+        setOverlay(current => (current === 'model-picker' ? null : 'model-picker'))
       },
       'chat:thinkingToggle': () => {
-        setOverlay(current => (current === 'thinking-toggle' ? null : 'thinking-toggle'))
         setHelpOpen(false)
+        const crewmate = commandCrewmateRef.current
+        if (crewmate !== null) {
+          addNotification({ key: 'crewmate-thinking-key', text: crewmateThinkingKeyWords(crewmate.name, getShortcutDisplay('chat:thinkingToggle', 'Chat', 'meta+t')), priority: 'medium', timeoutMs: 8000 })
+          return
+        }
+        setOverlay(current => (current === 'thinking-toggle' ? null : 'thinking-toggle'))
       },
       'chat:cycleMode': () => {
         cyclePermission()

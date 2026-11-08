@@ -69,6 +69,7 @@ export type SettingsPopupRequest = {
   line: string
   hint: string
   bodyOwnsEscape?: boolean
+  bodyOwnsFrame?: boolean
   scrollRef?: React.RefObject<ScrollBoxHandle | null>
   body: (geometry: SettingsPopupGeometry) => React.ReactNode
 }

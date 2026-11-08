@@ -8,10 +8,10 @@ import * as pendingInput from '../../input-core/pending-input.js'
 import type { AppState } from '../../state/AppState.js'
 import type { AppStateStore } from '../../state/AppStateStore.js'
 import { composerTargetTaskId } from '../../state/selectors.js'
-import { CREWMATE_BETWEEN_TURNS_DETAIL, LEAD_ROW_NAME, crewmateCommandUnreachableWords, crewmateGlobalCommandWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
+import { CREWMATE_BETWEEN_TURNS_DETAIL, LEAD_ROW_NAME, crewmateCommandUnreachableWords, crewmateGlobalCommandWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, crewmateUnknownCommandWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
 import { queueCrewmateLine, refuseCrewmateLine } from '../tasks/crewmateQueue.js'
 import { classifyAgentViewSubmission } from './promptIntent.js'
-import { CREWMATE_COMMAND_RECEIPT_KEY, runCrewmateCommand } from './crewmateCommands.js'
+import { crewmateCommandReceipt, runCrewmateCommand } from './crewmateCommands.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
 import { appendMessageToLocalAgent, isLocalAgentTask, queueOperatorMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
@@ -56,6 +56,7 @@ type ComposerSubmitInput = {
   addNotification: (notification: Notification) => void
   removeNotification: (key: string) => void
   composerCrewmateRef: React.MutableRefObject<ReturnType<typeof useComposerCrewmate>>
+  commandCrewmateRef: React.MutableRefObject<ReturnType<typeof useComposerCrewmate>>
   suggestionsMirrorRef: React.MutableRefObject<SuggestionsState>
   writeDraft: (text: string) => void
 }
@@ -75,6 +76,7 @@ export function useComposerSubmit({
   addNotification,
   removeNotification,
   composerCrewmateRef,
+  commandCrewmateRef,
   suggestionsMirrorRef,
   writeDraft,
 }: ComposerSubmitInput): ComposerSubmit {
@@ -207,6 +209,8 @@ export function useComposerSubmit({
           commands,
         )
         const targetName = composerCrewmateRef.current?.taskId === targetId ? composerCrewmateRef.current.name : targetId
+        const commandCrewmate = commandCrewmateRef.current
+        const commandName = commandCrewmate?.name ?? targetName
         const sendReceipt = (text: string, color?: 'warning'): void =>
           addNotification({ key: 'crewmate-send', text, priority: 'medium', timeoutMs: 6000, ...(color !== undefined ? { color } : {}), fold: (_accumulated, incoming) => incoming })
         const pastes = pendingInput.pastedContents()
@@ -260,27 +264,25 @@ export function useComposerSubmit({
         }
         switch (intent.kind) {
           case 'session-command':
-            addNotification({ key: 'crewmate-command-global', text: crewmateGlobalCommandWords(getCommandName(intent.command), targetName), priority: 'medium', timeoutMs: 6000 })
+            addNotification({ key: 'crewmate-command-global', text: crewmateGlobalCommandWords(getCommandName(intent.command), commandName), priority: 'medium', timeoutMs: 6000 })
             await onSubmit(submitted, helpers, undefined, {
               fromKeybinding: options.fromKeybinding === true,
             })
             return
           case 'agent-command': {
             takeLine()
-            const crewmate = composerCrewmateRef.current
-            const receipt = (text: string, color?: 'warning'): void =>
-              addNotification({ key: CREWMATE_COMMAND_RECEIPT_KEY, text, priority: 'medium', timeoutMs: 8000, ...(color !== undefined ? { color } : {}), fold: (_accumulated, incoming) => incoming })
-            if (crewmate === null || crewmate.taskId !== targetId) {
+            const receipt = crewmateCommandReceipt(addNotification)
+            if (commandCrewmate === null) {
               receipt(crewmateCommandUnreachableWords(targetName, getCommandName(intent.command)), 'warning')
               return
             }
-            await runCrewmateCommand(intent.command, submitted, crewmate, { setAppState, receipt })
+            await runCrewmateCommand(intent.command, submitted, commandCrewmate, { setAppState, receipt })
             return
           }
           case 'unknown-command':
             addNotification({
               key: 'agent-view-unknown-command',
-              text: `Unknown command: /${intent.bareName} — commands run in this session; ${DOUBLED_SLASH} sends the line to the agent as text`,
+              text: crewmateUnknownCommandWords(intent.bareName, commandName, DOUBLED_SLASH),
               priority: 'medium',
               timeoutMs: 6000,
             })

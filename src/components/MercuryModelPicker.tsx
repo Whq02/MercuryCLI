@@ -158,6 +158,7 @@ type Props = {
   onTensorFold?: (act: TensorFoldAct) => void
   recentAt?: (group: string) => number | undefined
   tensorFoldFirst?: boolean
+  hint?: string
 }
 
 const cell = (text: string, width: number): string => (width <= 2 ? '' : `${padTo(text, width - 2)}  `)
@@ -176,7 +177,7 @@ function placeTensorFoldGroups(groups: PickerGroup<ModelChoice>[], opts: { top?:
   return host === undefined || at < 0 ? ordered : [...rest.slice(0, at + 1), host, ...rest.slice(at + 1)]
 }
 
-export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, headings: givenHeadings, topGroup, expandRows, initialFilter, view = 'model', live, tensorfold, onTensorFold, recentAt, tensorFoldFirst = false }: Props): React.ReactNode {
+export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, headings: givenHeadings, topGroup, expandRows, initialFilter, view = 'model', live, tensorfold, onTensorFold, recentAt, tensorFoldFirst = false, hint }: Props): React.ReactNode {
   const surfaceRef = useElevatedSurface()
   React.useEffect(() => {
     markTransitionEnd('picker-open')
@@ -912,8 +913,8 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
           </Text>
         )
       })}
-      <Text color={FAINT} wrap="truncate-end">{footer}</Text>
-      {shedPageHint ? null : <Text color={FAINT} wrap="truncate-end">pgup/pgdn page</Text>}
+      <Text color={FAINT} wrap="truncate-end">{hint ?? footer}</Text>
+      {shedPageHint || hint !== undefined ? null : <Text color={FAINT} wrap="truncate-end">pgup/pgdn page</Text>}
     </Box>
     </Box>
   )

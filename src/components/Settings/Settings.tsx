@@ -116,6 +116,17 @@ export function Settings({
   const hintLines = wrapSettingsPopupHint(hintText, Math.max(1, inner + 1))
   const hintRows = compact ? 0 : Math.min(Math.max(1, geometry.rowBudget), hintLines.length)
   const bodyBudget = Math.max(1, geometry.rowBudget - Math.max(0, hintRows - 1))
+  if (request.bodyOwnsFrame === true) {
+    return (
+      <Box ref={surfaceRef} flexDirection="column" width={geometry.width} {...(fixed ? { height: geometry.rows as number } : {})} flexShrink={0} overflow="hidden">
+        <SettingsPopupFrameContext.Provider value={frame}>
+          <PopupCompactContext.Provider value={compactFrame}>
+            <Suspense fallback={null}>{request.body({ ...geometry, inner: Math.max(0, geometry.width - 2), rowBudget: fixed ? Math.max(1, (geometry.rows as number) - 2) : geometry.rowBudget, compact })}</Suspense>
+          </PopupCompactContext.Provider>
+        </SettingsPopupFrameContext.Provider>
+      </Box>
+    )
+  }
   return (
     <Box
       ref={surfaceRef}

@@ -68,6 +68,7 @@ import { MercuryCommandPalette } from '../MercuryCommandPalette.js'
 import { MercuryFileOpen } from '../MercuryFileOpen.js'
 import type { OverlaySurface } from './composerOverlay.js'
 import { useComposerModelDoors } from './useComposerModelDoors.js'
+import { crewmateCommandReceipt, openCrewmateModelPickerFor } from './crewmateCommands.js'
 import { useComposerSubmit } from './useComposerSubmit.js'
 import { useComposerRawKeys } from './useComposerRawKeys.js'
 import { useComposerAttachments } from './useComposerAttachments.js'
@@ -370,6 +371,9 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const viewedCrewmate = useViewedCrewmate()
   const viewedCrewmateRef = useRef(viewedCrewmate)
   viewedCrewmateRef.current = viewedCrewmate
+  const commandCrewmate = viewedCrewmate ?? composerCrewmate
+  const commandCrewmateRef = useRef(commandCrewmate)
+  commandCrewmateRef.current = commandCrewmate
   const viewedAgentName =
     composerCrewmate?.name ??
     (viewedTask !== undefined && isLocalAgentTask(viewedTask)
@@ -551,6 +555,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     addNotification,
     removeNotification,
     composerCrewmateRef,
+    commandCrewmateRef,
     suggestionsMirrorRef,
     writeDraft,
   })
@@ -632,6 +637,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     setShowCommandPalette,
     setShowFileOpen,
     setShowContentSearch,
+    commandCrewmateRef,
   })
 
   useComposerRawKeys({
@@ -847,6 +853,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             context: 'Chat',
             run: () => {
               setShowCommandPalette(false)
+              const crewmate = commandCrewmateRef.current
+              if (crewmate !== null) {
+                void openCrewmateModelPickerFor(crewmate, { setAppState, receipt: crewmateCommandReceipt(addNotification) })
+                return
+              }
               setOverlay('model-picker')
             },
           },

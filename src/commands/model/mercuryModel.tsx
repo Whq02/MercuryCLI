@@ -1608,12 +1608,15 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
   )
 }
 
-export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn, onClose }: {
+export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn, onClose, line, hint, ctxPct = null }: {
   leading?: ModelChoice[]
   current: string
   onSelect: (id: string) => void
   onSignIn?: (id: string) => void
   onClose: () => void
+  line?: string
+  hint?: string
+  ctxPct?: number | null
 }): React.ReactNode {
   useCatalogueEpoch()
   const [notice, setNotice] = React.useState<string | undefined>(undefined)
@@ -1649,10 +1652,11 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
     <MercuryModelPicker
       models={models}
       current={current}
-      ctxPct={null}
-      notice={notice}
+      ctxPct={ctxPct}
+      notice={notice ?? line}
       headings={providerHeadingsOf(0)}
       {...(topGroup !== undefined ? { topGroup } : {})}
+      {...(hint !== undefined ? { hint } : {})}
       expandRows={group => expandRowsOf(group, betas)}
       onSelect={id => {
         if (isCatalogueDoorRow(id)) return
