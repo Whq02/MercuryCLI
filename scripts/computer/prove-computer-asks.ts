@@ -470,7 +470,7 @@ for (const value of ['asks', 'permissive', 'full'] as const) {
       check(`${tag}: an act that lands in another application asks for it by name, at the bypass-immune road`, other.decision.behavior === 'ask' && other.trace.decidedBy === 'userInteractionAsk' && (other.decision.message ?? '').includes('Finder (com.example.Finder)'), JSON.stringify({ decidedBy: other.trace.decidedBy, decision: other.decision }))
       session.approveApp(owner, { identity: FINDER.identity, name: FINDER.name })
       const covered = await decideToolPermission(ComputerTool, { action: 'click', x: 100, y: 100 }, context)
-      check(`${tag}: a Yes covers every application for the session`, covered.decision.behavior === 'allow', JSON.stringify(covered.decision))
+      check(`${tag}: an act approved in that application covers it for the session (the scene approves Finder; no session grant is written)`, covered.decision.behavior === 'allow', JSON.stringify(covered.decision))
     }
     permissionContext.alwaysDenyRules = { localSettings: [`Computer(app:${FINDER.identity})`] }
     const denied = await decideToolPermission(ComputerTool, { action: 'click', x: 100, y: 100 }, context)

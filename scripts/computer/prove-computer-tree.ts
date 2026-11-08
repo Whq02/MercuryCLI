@@ -65,7 +65,7 @@ function wide(windows: number, groupsPerWindow: number, buttonsPerGroup: number)
   return tree
 }
 
-section('§1 tree is a read-only action that asks like an act, under the same session grant')
+section('§1 tree is a read-only action that asks like an act, on the same ask road (the first ask of the session; the act that follows rides its approval)')
 {
   const { context, owner, screen } = await fresh('default', null)
   check('tree is read-only to the batcher and never concurrency-safe (it goes through an ask)', ComputerTool.isReadOnly({ action: 'tree' } as never) === true && ComputerTool.isConcurrencySafe({ action: 'tree' } as never) === false)
