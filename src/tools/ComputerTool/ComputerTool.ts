@@ -492,7 +492,7 @@ async function settleActPoints(driver: DesktopDriver, input: Input, plan: ActPla
     if (Math.abs(point.x - centre.x) < 1 && Math.abs(point.y - centre.y) < 1) continue
     plan[end.field] = point
     if (end.field === 'point') plan.observe = { x: point.x - 24, y: point.y - 24, width: 48, height: 48 }
-    plan.aimed = `aimed at ${end.label} clickable point (${answer.value.road === 'hit-test' ? 'the first point of its frame that hits it' : "the window's own"}, inside the part on view)`
+    plan.aimed = `aimed at ${end.label} clickable point (${answer.value.road === 'hit-test' ? 'the middle of the run of its frame that hits it' : "the window's own"}, inside the part on view)`
   }
   return null
 }
