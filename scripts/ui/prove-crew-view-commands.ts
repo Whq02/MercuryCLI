@@ -497,7 +497,7 @@ section('§3 a running in-process crewmate: /compact flags its task for the next
   await leave(scene)
 }
 
-section('§4 esc back to Mercury Lead: the commands return to the main seat')
+section("§4 back to Mercury Lead (the view's exit, as the rail's Lead row takes it): the commands return to the main seat")
 {
   check('the view is back on the lead', scene.state().viewingAgentTaskId === undefined && !/viewing Lane/.test(statusRowOf(scene)), statusRowOf(scene))
   const atlasBefore = JSON.stringify(readRecord(hostedRecord(ATLAS.id)))
