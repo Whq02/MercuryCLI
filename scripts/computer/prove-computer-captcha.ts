@@ -40,7 +40,7 @@ async function scene(name: string, tree: unknown, title = chrome.title) {
 let serial = 0
 const call = async (context: ReturnType<typeof toolContext>, input: Record<string, unknown>, consent: unknown = allowEverything) => resultOf(await ComputerTool.call(input as never, context, (consent === null ? undefined : consent) as never, toolUseTurn(`captcha-act-${++serial}`, 'Computer', input) as never))
 const firstName = { x: 325, y: 143 }
-const { CAPTCHA_OPERATOR_COMPLETES } = await import('../../src/tools/ComputerTool/captcha.ts')
+const { CAPTCHA_OPERATOR_COMPLETES, treeSight } = await import('../../src/tools/ComputerTool/captcha.ts')
 const { REJECT_MESSAGE_WITH_REASON_PREFIX } = await import('../../src/utils/messages/rejectionText.ts')
 const grants = await import('../../src/services/desktop/computerGrant.ts')
 const { unansweredAskRefusal } = await import('../../src/utils/permissions/askClock.ts')
@@ -70,6 +70,15 @@ section('§1 a brand word alone never refuses: a reCAPTCHA group without its att
   const waited = await call(context, { action: 'wait', until: { role: 'AXTextField', name: 'Email' }, durationMs: 300, capture: false })
   check('wait-until is never refused for a brand word', waited.outcome === 'succeeded', waited.result)
   for (const [label, out] of [['click', clicked], ['tree', tree], ['read', read], ['wait', waited]] as const) check(`${label}: no result tells the model not to try`, !DO_NOT_TRY.test(out.result), out.result)
+}
+
+section('§1b a Chrome tab-strip tab title is not a captcha widget in the page')
+{
+  const tab = { depth: 0, role: 'AXRadioButton (AXTabButton)', title: 'ReCAPTCHA demo', value: 'false', frame: { x: 100, y: 30, width: 180, height: 28 } }
+  const tabResult = treeSight({ elements: [tab], truncated: false, reason: null })
+  check('a tree whose only brand word is on a tab button has no captcha sight', tabResult === null, String(tabResult))
+  const web = { depth: 1, role: 'AXStaticText', title: 'reCAPTCHA', value: null, frame: { x: 100, y: 300, width: 180, height: 28 } }
+  check('the same brand word in a web element is still a widget sight', treeSight({ elements: [web], truncated: false, reason: null }) === 'widget', 'web element')
 }
 
 section('§2 the attributed badge and other brand words behave the same')
