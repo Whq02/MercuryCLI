@@ -628,14 +628,24 @@ pub fn clickable_point(pid: i32, wanted: &TreeElement) -> Result<ClickablePointA
         return Ok(ClickablePointAnswer { x: None, y: None, road: None, reason: Some("no clickable point and no frame".to_string()) });
     };
     let rows = ((frame.height / CLICKABLE_SCAN_STEP).ceil() as i32).clamp(1, CLICKABLE_SCAN_ROWS);
+    let row_y = |row: i32| (frame.y + (row as f64) * frame.height / (rows as f64)).min(frame.y + frame.height - 1.0).max(frame.y).round() as i32;
+    let hits = |x: i32, y: i32| -> bool {
+        let Ok(hit) = (unsafe { automation.ElementFromPoint(POINT { x, y }) }) else { return false };
+        unsafe { automation.CompareElements(&hit, &element) }.map(|flag| flag.as_bool()).unwrap_or(false)
+    };
     for row in 0..=rows {
-        let y = (frame.y + (row as f64) * frame.height / (rows as f64)).min(frame.y + frame.height - 1.0).max(frame.y);
+        let y = row_y(row);
         for column in [0.5, 0.25, 0.75] {
-            let probe = POINT { x: (frame.x + frame.width * column).round() as i32, y: y.round() as i32 };
-            let Ok(hit) = (unsafe { automation.ElementFromPoint(probe) }) else { continue };
-            if unsafe { automation.CompareElements(&hit, &element) }.map(|flag| flag.as_bool()).unwrap_or(false) {
-                return Ok(ClickablePointAnswer { x: Some(probe.x as f64), y: Some(probe.y as f64), road: Some("hit-test".to_string()), reason: None });
+            let x = (frame.x + frame.width * column).round() as i32;
+            if !hits(x, y) {
+                continue;
             }
+            let mut last = row;
+            while last < rows && hits(x, row_y(last + 1)) {
+                last += 1;
+            }
+            let middle = row_y((row + last) / 2);
+            return Ok(ClickablePointAnswer { x: Some(x as f64), y: Some(middle as f64), road: Some("hit-test".to_string()), reason: None });
         }
     }
     Ok(ClickablePointAnswer { x: None, y: None, road: None, reason: Some("UI Automation reports no clickable point for it and no point of its frame hits it (covered, or scrolled out of its pane)".to_string()) })
