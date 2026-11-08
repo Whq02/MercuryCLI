@@ -347,13 +347,13 @@ section('§8 the relayed ask keeps the application name and its rule identity di
   const suggestions = suggestionForExactCommand('Computer', `app:${TEXTEDIT.identity}`)
   const direct = judgedAppFromAsk(`Computer click (812, 300) in ${TEXTEDIT.name} (${TEXTEDIT.identity}) — the first act this session`, suggestions)
   check('a local ask keeps its application name and identity', JSON.stringify(direct) === JSON.stringify(TEXTEDIT), JSON.stringify(direct))
-  const reason = `${TEXTEDIT.name} (${TEXTEDIT.identity}) is in front of the operator's screen; the first act there needs the operator's own consent`
+  const reason = `${TEXTEDIT.name} (${TEXTEDIT.identity}) is in front of the operator's screen; the first act of the session needs the operator's own consent`
   const relayed = judgedAppFromAsk('', suggestions, reason)
   check('a relayed ask without a message reads the display name from its safety reason', JSON.stringify(relayed) === JSON.stringify(TEXTEDIT), JSON.stringify(relayed))
   check('the card names TextEdit once beside its identity, never uses the identity as the name', computerAskAppLine(relayed) === `in TextEdit (${TEXTEDIT.identity}) — the first act this session`, computerAskAppLine(relayed))
-  const named = judgedAppFromAsk('', suggestions, `Document Editor (Preview) (${TEXTEDIT.identity}) is in front of the operator's screen; the first act there needs the operator's own consent`)
+  const named = judgedAppFromAsk('', suggestions, `Document Editor (Preview) (${TEXTEDIT.identity}) is in front of the operator's screen; the first act of the session needs the operator's own consent`)
   check('spaces and parentheses in an application name survive the relay', named?.name === 'Document Editor (Preview)' && named.identity === TEXTEDIT.identity, JSON.stringify(named))
-  const mismatch = judgedAppFromAsk('', suggestions, `${FINDER.name} (${FINDER.identity}) is in front of the operator's screen; the first act there needs the operator's own consent`)
+  const mismatch = judgedAppFromAsk('', suggestions, `${FINDER.name} (${FINDER.identity}) is in front of the operator's screen; the first act of the session needs the operator's own consent`)
   check('a reason naming a different identity cannot rename the granted application', mismatch?.identity === TEXTEDIT.identity && mismatch.name === TEXTEDIT.identity, JSON.stringify(mismatch))
   const foreign = judgedAppFromAsk('', [{ type: 'addRules', rules: [{ toolName: 'Browser', ruleContent: `app:${TEXTEDIT.identity}` }] }])
   check("another tool's suggestion supplies no Computer application grant", foreign === null, JSON.stringify(foreign))
@@ -457,7 +457,7 @@ for (const value of ['asks', 'permissive', 'full'] as const) {
       check(`${tag}: an act that lands in another application asks for it by name, at the bypass-immune road`, other.decision.behavior === 'ask' && other.trace.decidedBy === 'userInteractionAsk' && (other.decision.message ?? '').includes('Finder (com.example.Finder)'), JSON.stringify({ decidedBy: other.trace.decidedBy, decision: other.decision }))
       session.approveApp(owner, { identity: FINDER.identity, name: FINDER.name })
       const covered = await decideToolPermission(ComputerTool, { action: 'click', x: 100, y: 100 }, context)
-      check(`${tag}: a Yes covers that application for the session`, covered.decision.behavior === 'allow', JSON.stringify(covered.decision))
+      check(`${tag}: a Yes covers every application for the session`, covered.decision.behavior === 'allow', JSON.stringify(covered.decision))
     }
     permissionContext.alwaysDenyRules = { localSettings: [`Computer(app:${FINDER.identity})`] }
     const denied = await decideToolPermission(ComputerTool, { action: 'click', x: 100, y: 100 }, context)

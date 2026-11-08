@@ -318,9 +318,9 @@ content to UI Automation, so its tree carries the browser's own controls and
 no web area: a page in Edge is driven by screenshot and coordinates, a page
 in Chrome by target as on macOS.
 Because it reads what an application shows (its controls and
-their text), the first tree in an application asks by the application's
-name like a first act, and the grant it leaves is the same one: later trees
-and acts in that application ride it. On Linux the action says plainly that
+their text), a first tree of the session asks like a first act, naming the
+application in front, and the grant it leaves is the same one: later trees
+and acts ride it. On Linux the action says plainly that
 this release reads no tree there.
 
 ## The access type
@@ -334,12 +334,12 @@ screenshot the model takes before it acts counts, because that is the
 moment the task began, before the model could have moved anything) as
 the turn's home application: acts in it never ask, and an act that lands
 in any other application asks once, with the same card, a Yes covering
-that application for the session. A new turn records a new home
+every application for the session. A new turn records a new home
 application, and an act in the home application leaves no grant behind, so
-an application that was home in one turn asks in the next unless you said
-Yes to it. If the home application is the terminal running Mercury, the
-terminal refusal stands and the first act elsewhere asks. `full` never
-asks.
+an application that was home in one turn asks in the next unless a Yes
+already stands for the session. If the home application is the terminal
+running Mercury, the terminal refusal stands and the first act elsewhere
+asks. `full` never asks.
 
 Unset, the row follows sovereign mode: with the `Sovereign mode` row on the
 default is `full`, and the row's value reads `default (full · sovereign

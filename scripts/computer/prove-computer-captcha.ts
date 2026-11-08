@@ -229,7 +229,7 @@ section('§4d the challenge is its own permission subject: checkPermissions answ
   const { context, clicks } = await scene('subject', page(badge(true), checkbox()))
   const owner = ownerOf(context)
   const first = await ComputerTool.checkPermissions({ action: 'click', ...firstName, captcha: true, capture: false } as never, context)
-  check('a first act in an application with captcha: true gets the application question, not the challenge card', first.behavior === 'ask' && JSON.stringify(first.suggestions ?? []).includes('app:') && !JSON.stringify(first.suggestions ?? []).includes('"captcha"'), JSON.stringify(first))
+  check('a first act of the session with captcha: true gets the application question, not the challenge card', first.behavior === 'ask' && JSON.stringify(first.suggestions ?? []).includes('app:') && !JSON.stringify(first.suggestions ?? []).includes('"captcha"'), JSON.stringify(first))
   session.approveApp(owner, { identity: 'com.example.Browser', name: 'Browser' })
   const subject = await ComputerTool.checkPermissions({ action: 'click', ...firstName, captcha: true, capture: false } as never, context)
   check('once the application is approved, captcha: true gets the challenge question from the engine itself', subject.behavior === 'ask' && JSON.stringify(subject.suggestions ?? []).includes('"captcha"') && subject.decisionReason?.type === 'safetyCheck' && subject.decisionReason.operatorOnly === true && /complete it yourself/.test('message' in subject ? subject.message : ''), JSON.stringify(subject))

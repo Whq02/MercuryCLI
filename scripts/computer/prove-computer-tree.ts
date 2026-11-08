@@ -65,13 +65,13 @@ function wide(windows: number, groupsPerWindow: number, buttonsPerGroup: number)
   return tree
 }
 
-section('§1 tree is a read-only action that asks like an act, under the same per-application grant')
+section('§1 tree is a read-only action that asks like an act, under the same session grant')
 {
   const { context, owner, screen } = await fresh('default', null)
   check('tree is read-only to the batcher and never concurrency-safe (it goes through an ask)', ComputerTool.isReadOnly({ action: 'tree' } as never) === true && ComputerTool.isConcurrencySafe({ action: 'tree' } as never) === false)
   check('tree is not among the never-ask reads', !(COMPUTER_READS as readonly string[]).includes('tree'))
   const first = await permission({ action: 'tree' }, context)
-  check('the first tree in an application asks', first.behavior === 'ask', JSON.stringify(first))
+  check('the first tree of the session asks', first.behavior === 'ask', JSON.stringify(first))
   check('the ask names the action, the application and what the read is', (first.message ?? '') === `Computer tree in ${TEXTEDIT.name} (${TEXTEDIT.identity}) — the first act this session (reads its accessibility tree: the controls with their titles, values and frames)`, first.message)
   check('the reason is a safety check the operator alone answers', first.decisionReason?.type === 'safetyCheck' && first.decisionReason.operatorOnly === true, JSON.stringify(first.decisionReason))
   check('the suggestion is the same per-application rule the acts offer', JSON.stringify(first.suggestions) === JSON.stringify(suggestionForExactCommand('Computer', `app:${TEXTEDIT.identity}`)), JSON.stringify(first.suggestions))
