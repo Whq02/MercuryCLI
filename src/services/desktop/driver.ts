@@ -93,6 +93,7 @@ export interface DesktopTreeElement {
   frame: DesktopBounds | null
   focused?: boolean
   nth?: number
+  offscreen?: boolean
 }
 
 export interface DesktopFocusedText {

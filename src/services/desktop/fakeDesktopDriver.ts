@@ -44,6 +44,7 @@ interface FakeTreeNode {
   settable?: boolean
   wheel?: boolean
   visibleFrame?: DesktopBounds
+  offscreen?: boolean
 }
 
 interface FakeSceneSwitch {
@@ -188,6 +189,7 @@ function treeProblem(value: unknown, at: string): string | null {
     if (node.actions !== undefined && !(Array.isArray(node.actions) && node.actions.every(isText))) return `${at}[${i}].actions must be a list of action names`
     if (node.settable !== undefined && typeof node.settable !== 'boolean') return `${at}[${i}].settable must be true or false`
     if (node.wheel !== undefined && typeof node.wheel !== 'boolean') return `${at}[${i}].wheel must be true or false`
+    if (node.offscreen !== undefined && typeof node.offscreen !== 'boolean') return `${at}[${i}].offscreen must be true or false`
     if (node.children !== undefined) {
       const problem = treeProblem(node.children, `${at}[${i}].children`)
       if (problem !== null) return problem
@@ -315,7 +317,7 @@ function flattenTree(root: FakeTreeNode, limits: DesktopTreeLimits): DesktopTree
       break
     }
     const frame = node.frame ?? null
-    elements.push({ depth, role: node.role, title: isText(node.title) && node.title !== '' ? node.title : null, value: isText(node.value) && node.value !== '' ? node.value : null, frame: frame ? { ...frame } : null, ...(typeof node.focused === 'boolean' ? { focused: node.focused } : {}) })
+    elements.push({ depth, role: node.role, title: isText(node.title) && node.title !== '' ? node.title : null, value: isText(node.value) && node.value !== '' ? node.value : null, frame: frame ? { ...frame } : null, ...(typeof node.focused === 'boolean' ? { focused: node.focused } : {}), ...(typeof node.offscreen === 'boolean' ? { offscreen: node.offscreen } : {}) })
     const children = node.children ?? []
     if (depth < limits.depth) {
       for (let i = children.length - 1; i >= 0; i--) stack.push({ node: children[i]!, depth: depth + 1 })
@@ -642,8 +644,9 @@ export class FakeDesktopDriver implements DesktopDriver {
       }
       if (below) node.frame = { ...node.frame, y: Math.round(viewport.y + (viewport.height - node.frame.height) / 2) }
       if (beside) node.frame = { ...node.frame, x: Math.round(viewport.x + (viewport.width - node.frame.width) / 2) }
-      if (node.visibleFrame && (below || beside)) node.frame = { ...node.visibleFrame }
+      if (node.visibleFrame && (below || beside || node.offscreen === true)) node.frame = { ...node.visibleFrame }
     }
+    if (node.offscreen === true && node.visibleFrame) node.offscreen = false
     this.sceneActs += 1
     this.record('scrollToVisible', 'done', { ...detail, scrolled: true, road, frame: node.frame ?? null, ...(at ? { at } : {}) })
     return answer({ scrolled: true, road, frame: node.frame ? { ...node.frame } : null, note: at ? wheelWords(at.x, at.y) : null })

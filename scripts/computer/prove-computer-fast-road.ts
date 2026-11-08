@@ -301,11 +301,11 @@ section('a clamped target is scrolled into view and acted on in one act; one tha
   const byRef = await call({ action: 'click', ref, capture: false })
   check('the ref road scrolls the same way and clicks the visible frame', found.outcome === 'succeeded' && byRef.outcome === 'succeeded' && byRef.result.includes('scrolled into view first (action)') && clicks().at(-1) === JSON.stringify({ x: 1132.5, y: 850 }), byRef.result)
   const header = await call({ action: 'click', target: { role: 'AXButton', name: 'Header' }, capture: false })
-  check('a strip that stays a strip after the scroll is refused honestly, with the next move named, and never clicked', header.outcome === 'failed' && header.result.includes('squashed to a strip 1 pt tall') && header.result.includes('was scrolled (action) and is still clipped') && header.result.includes('collapsed or covered: take a screenshot') && clicks().length === 2, header.result)
+  check('a strip that stays a strip after the scroll is refused honestly, with the next move named, and never clicked', header.outcome === 'failed' && header.result.includes('squashed to a strip 1 pt tall') && header.result.includes('was scrolled (action) and is unchanged') && header.result.includes('collapsed or covered: take a screenshot') && clicks().length === 2, header.result)
   const stuck = await call({ action: 'click', target: { role: 'AXButton', name: 'Stuck' }, capture: false })
   check('a pane with no scroll action whose wheel moves nothing is refused as not scrolled, never clicked', stuck.outcome === 'failed' && stuck.result.includes('did not scroll into view') && stuck.result.includes('collapsed or covered') && clicks().length === 2, stuck.result)
   const dragged = await call({ action: 'drag', target: { role: 'AXTextArea', name: 'AF7' }, toTarget: { role: 'AXButton', name: 'Header' }, capture: false })
-  check('a drag whose destination will not come into view is refused before any input', dragged.outcome === 'failed' && dragged.result.includes('still clipped') && !chromeDriver.acts.some(a => a.act === 'drag'), dragged.result)
+  check('a drag whose destination will not come into view is refused before any input', dragged.outcome === 'failed' && dragged.result.includes('was scrolled (action) and is unchanged') && !chromeDriver.acts.some(a => a.act === 'drag'), dragged.result)
   const tall = await call({ action: 'click', target: { role: 'AXTextArea', name: 'Tall' }, capture: false })
   check('an element clipped at both edges still clicks its centre without a scroll', tall.outcome === 'succeeded' && !tall.result.includes('scrolled into view') && clicks().at(-1) === JSON.stringify({ x: 320, y: 550 }), tall.result)
   const footer = await call({ action: 'click', target: { role: 'AXButton', name: 'Footer' }, capture: false })
@@ -425,6 +425,46 @@ section('a ref remembers its place in the list, one level up too; a one-step seq
   check("after the first row disappeared, the second row's ref is refused (its place in the list moved one level up), never clicking the row now in its place", stale.outcome === 'failed' && stale.result.includes('find again') && !rowsDriver.acts.some(a => a.act === 'click'), `${stale.result} · acts ${rowsDriver.acts.map(a => a.act).join(',')}`)
   const sequence = await call({ action: 'sequence', steps: [{ action: 'click', target: { role: 'AXTextArea', name: 'AF13' } }], capture: false })
   check('a one-step sequence whose click scrolled its target into view and changed nothing else reads unchanged', sequence.outcome === 'succeeded' && /^unchanged · now:/m.test(sequence.result) && sequence.result.includes('scrolled into view first'), sequence.result)
+  session.forgetDesktopOwner(ownerOf(context))
+}
+section("a Windows-shaped tree: the window's own off-screen report is the clipped signal; a frame inside the window but past the display's edge is refused, never clicked")
+{
+  const chrome = { identity: 'chrome.exe', name: 'chrome', pid: 4343, windowId: 'parity', title: 'Parity — Chrome', bounds: { x: 0, y: 75, width: 1750, height: 1102 } }
+  const paneScene = {
+    displays: [{ index: 0, id: 'box', originX: 0, originY: 0, width: 1920, height: 1080, scale: 1, primary: true }],
+    frontmost: chrome, cursor: { x: 50, y: 50 }, lines: ['Parity'],
+    tree: [{ role: 'AXWindow', title: chrome.title, focused: true, frame: chrome.bounds, children: [{ role: 'AXWebArea', title: 'Parity', frame: { x: 0, y: 195, width: 1750, height: 982 }, children: [
+      { role: 'AXStaticText', title: 'Row 1 of the long list', frame: { x: 300, y: 300, width: 187, height: 28 } },
+      { role: 'AXButton', title: 'Copy', frame: { x: 900, y: 300, width: 60, height: 28 } },
+      { role: 'AXStaticText', title: 'Row 9 of the long list', frame: { x: 300, y: 738, width: 187, height: 28 }, offscreen: true, visibleFrame: { x: 300, y: 420, width: 187, height: 28 } },
+      { role: 'AXButton', title: 'Copy', frame: { x: 900, y: 738, width: 60, height: 28 }, offscreen: true },
+      { role: 'AXStaticText', title: 'Row 40 of the long list', frame: { x: 300, y: 800, width: 187, height: 28 }, offscreen: true },
+      { role: 'AXButton', title: 'Copy', frame: { x: 900, y: 800, width: 60, height: 28 }, offscreen: true },
+      { role: 'AXButton', title: 'Open below', frame: { x: 546, y: 1200, width: 81, height: 42 }, visibleFrame: { x: 546, y: 1084, width: 81, height: 42 } },
+      { role: 'AXButton', title: 'Open low', frame: { x: 546, y: 1105, width: 81, height: 42 } },
+    ] }] }],
+  }
+  const paneFile = join(scratch, 'pane.json')
+  writeFileSync(paneFile, JSON.stringify(paneScene))
+  process.env.MERCURY_DESKTOP_FAKE_SCENE = paneFile
+  resetDesktopDriverForTest()
+  const page = resolveDesktopDriver()
+  if (page.state !== 'ok') throw new Error(page.note)
+  const paneDriver = page.driver as DesktopDriver & { acts: { act: string; detail: Record<string, unknown> }[] }
+  context = toolContext()
+  session.forgetDesktopOwner(ownerOf(context))
+  const listed = await call({ action: 'find', target: { role: 'AXStaticText', text: 'Row 9 of the long list' } })
+  check('a find names the row the window reports off screen', listed.outcome === 'succeeded' && /AXStaticText "Row 9 of the long list" \(scrolled out of view\)/.test(listed.result), listed.result)
+  const row = await call({ action: 'click', target: { role: 'AXStaticText', text: 'Row 9 of the long list' }, capture: false })
+  const rowClick = paneDriver.acts.filter(a => a.act === 'click').at(-1)
+  check('a row with an unclipped frame inside the window that its window reports off screen is scrolled into view and clicked where it lands', row.outcome === 'succeeded' && row.result.includes('scrolled into view first (action)') && JSON.stringify(rowClick?.detail.at ?? { x: rowClick?.detail.x, y: rowClick?.detail.y }).includes('434'), `${row.result} · ${JSON.stringify(rowClick?.detail)}`)
+  const clicksBefore = paneDriver.acts.filter(a => a.act === 'click').length
+  const stuck = await call({ action: 'click', target: { role: 'AXStaticText', text: 'Row 40 of the long list' }, capture: false })
+  check('a row still reported off screen after the scroll is refused with the next move named, nothing clicked', stuck.outcome === 'failed' && stuck.result.includes('the target is scrolled out of view (its window reports it off screen); it was scrolled (action) and is unchanged') && stuck.result.includes('take a screenshot') && paneDriver.acts.filter(a => a.act === 'click').length === clicksBefore, stuck.result)
+  const below = await call({ action: 'click', target: { role: 'AXButton', name: 'Open below' }, capture: false })
+  check("a target scrolled to a frame inside the window but below the display's edge is refused with the window named, nothing clicked", below.outcome === 'failed' && below.result.includes("below the display's edge") && below.result.includes('move or resize the window so the target lies on the screen') && paneDriver.acts.filter(a => a.act === 'click').length === clicksBefore, below.result)
+  const low = await call({ action: 'click', target: { role: 'AXButton', name: 'Open low' }, capture: false })
+  check("a target already inside the window but off the display is refused before any click", low.outcome === 'failed' && low.result.includes("below the display's edge (0 pt visible; the window extends past the screen); it was scrolled (action) and is unchanged") && paneDriver.acts.filter(a => a.act === 'click').length === clicksBefore, low.result)
   session.forgetDesktopOwner(ownerOf(context))
 }
 finish('prove-computer-fast-road')

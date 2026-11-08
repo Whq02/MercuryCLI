@@ -150,6 +150,7 @@ export function outlineRowWords(element: OutlineElement, map: ScreenMap | null =
     const pixel = pixelOfPoint(map, { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 })
     if (pixelOnScreen(map, pixel)) parts.push(`(${pixel.x},${pixel.y})px`)
   }
+  if (element.offscreen === true) parts.push('(scrolled out of view)')
   return `${'  '.repeat(element.depth)}${parts.join(' ')}`
 }
 

@@ -129,22 +129,40 @@ export function withOrdinal(tree: DesktopTree, element: DesktopTreeElement): Des
   return { ...plain, nth }
 }
 
-export function clippedWords(tree: DesktopTree, element: DesktopTreeElement, bounds: DesktopBounds | null): string | null {
+export function clippedWords(tree: DesktopTree, element: DesktopTreeElement, bounds: DesktopBounds | null, displays?: readonly DesktopDisplay[]): string | null {
   const frame = element.frame
   if (!usableFrame(frame)) return null
+  if (element.offscreen === true) return 'the target is scrolled out of view (its window reports it off screen) — scroll it into view first'
   if (!STRIP_ROLES.test(element.role) && (frame.height <= EDGE_MARGIN_PT || frame.width <= EDGE_MARGIN_PT)) {
     const squashed = frame.height <= EDGE_MARGIN_PT ? `${Math.round(frame.height * 10) / 10} pt tall` : `${Math.round(frame.width * 10) / 10} pt wide`
     return `the target is squashed to a strip ${squashed} at the edge of its pane (scrolled out of view) — scroll it into view first`
   }
-  const viewport = viewportOf(tree, element, bounds)
-  if (viewport === null) return null
-  const edge = viewport.frame
   const centre = { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 }
-  const side = centre.y > edge.y + edge.height - EDGE_MARGIN_PT ? 'below' : centre.y < edge.y + EDGE_MARGIN_PT ? 'above' : centre.x > edge.x + edge.width - EDGE_MARGIN_PT ? 'right of' : centre.x < edge.x + EDGE_MARGIN_PT ? 'left of' : null
-  if (side === null) return null
+  const sideOf = (edge: DesktopBounds): string | null => centre.y > edge.y + edge.height - EDGE_MARGIN_PT ? 'below' : centre.y < edge.y + EDGE_MARGIN_PT ? 'above' : centre.x > edge.x + edge.width - EDGE_MARGIN_PT ? 'right of' : centre.x < edge.x + EDGE_MARGIN_PT ? 'left of' : null
   const overlap = (start: number, length: number, from: number, span: number) => Math.max(0, Math.min(start + length, from + span) - Math.max(start, from))
-  const visible = side === 'below' || side === 'above' ? overlap(frame.y, frame.height, edge.y, edge.height) : overlap(frame.x, frame.width, edge.x, edge.width)
-  return `the target is ${side} the ${viewport.name}'s edge (${Math.round(visible)} pt visible) — scroll it into view first`
+  const visibleAlong = (edge: DesktopBounds, side: string) => Math.round(side === 'below' || side === 'above' ? overlap(frame.y, frame.height, edge.y, edge.height) : overlap(frame.x, frame.width, edge.x, edge.width))
+  const viewport = viewportOf(tree, element, bounds)
+  if (viewport !== null) {
+    const side = sideOf(viewport.frame)
+    if (side !== null) return `the target is ${side} the ${viewport.name}'s edge (${visibleAlong(viewport.frame, side)} pt visible) — scroll it into view first`
+  }
+  const screen = displays?.length ? displayUnder(displays, bounds ?? frame) : null
+  if (screen !== null) {
+    const side = sideOf(screen)
+    if (side !== null) return `the target is ${side} the display's edge (${visibleAlong(screen, side)} pt visible; the window extends past the screen) — scroll it into view first`
+  }
+  return null
+}
+
+function displayUnder(displays: readonly DesktopDisplay[], bounds: DesktopBounds): DesktopBounds | null {
+  let best: { area: number; frame: DesktopBounds } | null = null
+  for (const display of displays) {
+    const frame = { x: display.originX, y: display.originY, width: display.width, height: display.height }
+    const shown = windowOnDisplay(bounds, display)
+    const area = shown ? shown.width * shown.height : 0
+    if (best === null || area > best.area) best = { area, frame }
+  }
+  return best?.frame ?? null
 }
 
 export function pageContentNote(tree?: DesktopTree): string {

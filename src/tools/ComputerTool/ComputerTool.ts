@@ -26,6 +26,7 @@ import { rememberDesktopPermissions, resolveDesktopDriver } from '../../services
 import type {
   DesktopAnswer,
   DesktopApplication,
+  DesktopDisplay,
   DesktopDriver,
   DesktopError,
   DesktopModifier,
@@ -449,6 +450,7 @@ interface ActPlan {
   element?: DesktopTreeElement
   scrolled?: 'action' | 'wheel'
   clipped?: Array<{ field: 'point' | 'target'; element: DesktopTreeElement; words: string; label: string }>
+  displays?: DesktopDisplay[]
 }
 
 function scrolledWords(plan: ActPlan): string {
@@ -457,9 +459,15 @@ function scrolledWords(plan: ActPlan): string {
 
 const UNSCROLLED = 'the pane has no scroll action and the wheel moved nothing'
 
+const stillClipped = (where: string, road: string, still: string): string => {
+  const now = still.replace(' — scroll it into view first', '')
+  const advice = still.includes("display's edge") ? 'move or resize the window so the target lies on the screen, or scroll the page further, then re-issue' : 'it may be collapsed or covered: take a screenshot'
+  return `${where}; it was scrolled (${road}) and ${now === where ? 'is unchanged' : `is still clipped: ${now}`} — ${advice}`
+}
+
 const sameFrame = (a: DesktopBounds | null, b: DesktopBounds | null): boolean => JSON.stringify(a) === JSON.stringify(b)
 
-async function scrollIntoView(driver: DesktopDriver, front: DesktopApplication, tree: DesktopTree, element: DesktopTreeElement, clipped: string, signal: AbortSignal): Promise<{ element: DesktopTreeElement; road: 'action' | 'wheel' } | { refusal: string; aborted?: boolean }> {
+async function scrollIntoView(driver: DesktopDriver, front: DesktopApplication, tree: DesktopTree, element: DesktopTreeElement, clipped: string, signal: AbortSignal, displays: DesktopDisplay[] | undefined): Promise<{ element: DesktopTreeElement; road: 'action' | 'wheel' } | { refusal: string; aborted?: boolean }> {
   const where = clipped.replace(' — scroll it into view first', '')
   if (driver.scrollToVisible === undefined) return { refusal: `${where} — scroll it into view first (this desktop driver cannot scroll an element into view)` }
   const source = (element as { sourceIndices?: number[] }).sourceIndices?.[0]
@@ -469,9 +477,10 @@ async function scrollIntoView(driver: DesktopDriver, front: DesktopApplication, 
   const wheeledNothing = receipt.road === 'wheel' && receipt.note === null && sameFrame(receipt.frame, element.frame)
   if (!receipt.scrolled || receipt.road === null || wheeledNothing) return { refusal: `${where}; it did not scroll into view (${receipt.note ?? UNSCROLLED}) — it may be collapsed or covered: take a screenshot` }
   if (receipt.frame === null) return { refusal: `${where}; it was scrolled (${receipt.road}) but its frame could not be read afterwards — take a screenshot and use its pixels` }
-  const moved = { ...element, frame: receipt.frame }
-  const still = clippedWords(tree, moved, front.bounds)
-  if (still !== null) return { refusal: `${where}; it was scrolled (${receipt.road}) and is still clipped: ${still.replace(' — scroll it into view first', '')} — it may be collapsed or covered: take a screenshot` }
+  const { offscreen: _before, ...rest } = element
+  const moved: DesktopTreeElement = { ...rest, frame: receipt.frame }
+  const still = clippedWords(tree, moved, front.bounds, displays)
+  if (still !== null) return { refusal: stillClipped(where, receipt.road, still) }
   return { element: moved, road: receipt.road }
 }
 
@@ -481,13 +490,15 @@ async function scrollClippedEnds(driver: DesktopDriver, input: Input, plan: ActP
   let tree = plan.beforeTree
   const scrolledEnds: string[] = []
   for (const end of ends) {
-    const scrolled = await scrollIntoView(driver, front, tree, end.element, end.words, signal)
+    const scrolled = await scrollIntoView(driver, front, tree, end.element, end.words, signal, plan.displays)
     if ('refusal' in scrolled) return scrolled.aborted ? scrolled.refusal : `${input.action} refused: ${end.label}: ${scrolled.refusal}${scrolledEnds.length ? ` (${scrolledEnds.join(', ')} was scrolled into view first)` : ''}`
     plan.scrolled = scrolled.road
     scrolledEnds.push(end.label)
     const fresh = await driver.accessibilityTree(front, { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP, scope: 'window' }, signal)
     if (fresh.ok) tree = fresh.value
     const settled = fresh.ok ? tree.elements.find(row => row.role === scrolled.element.role && row.title === scrolled.element.title && sameFrame(row.frame, scrolled.element.frame)) ?? scrolled.element : scrolled.element
+    const still = settled === scrolled.element ? null : clippedWords(tree, settled, front.bounds, plan.displays)
+    if (still !== null) return `${input.action} refused: ${end.label}: ${stillClipped(end.words.replace(' — scroll it into view first', ''), scrolled.road, still)}`
     const frame = settled.frame!
     plan[end.field] = { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 }
     if (end.field === 'point') { plan.element = settled; plan.observe = frame }
@@ -499,7 +510,7 @@ async function scrollClippedEnds(driver: DesktopDriver, input: Input, plan: ActP
       const point = targetPoint(tree, selector, map)
       if ('refusal' in point) return `drag refused after the scroll: ${point.refusal}`
       const element = targetElement(tree, selector, map)
-      const still = 'refusal' in element ? null : clippedWords(tree, element, front.bounds)
+      const still = 'refusal' in element ? null : clippedWords(tree, element, front.bounds, plan.displays)
       if (still !== null) return `drag refused: the two ends are not in view together after scrolling (${targetWords(selector)}: ${still.replace(' — scroll it into view first', '')}) — scroll first or drag in steps`
       plan[field] = point
       if (field === 'point' && !('refusal' in element)) { plan.element = element; if (element.frame) plan.observe = element.frame }
@@ -564,13 +575,15 @@ async function resolveActTargets(driver: DesktopDriver, input: Input, front: Des
   plan.beforeTree = tree.value
   const scrollsInto = input.action !== 'scroll'
   plan.clipped = []
+  const displays = await driver.displays()
+  plan.displays = displays.ok ? displays.value.displays : undefined
   if (input.ref !== undefined) {
     const elements = resolveTreeRef(owner, front, tree.value, input.ref)
     if (elements.length !== 1) return `${input.action} refused: ref:${input.ref}: ${elements.length === 0 ? 'no element of the latest tree matches it now' : `${elements.length} elements match it now`} — read the tree or find again${elements.length ? `\n${candidateWords(elements, map)}` : ''}`
     const element = elements[0]!
     const point = targetPoint({ ...tree.value, elements: [element] }, {}, map)
     if ('refusal' in point) return `${input.action} refused: ref:${input.ref}${point.refusal}`
-    const clipped = scrollsInto ? clippedWords(tree.value, element, front.bounds) : null
+    const clipped = scrollsInto ? clippedWords(tree.value, element, front.bounds, plan.displays) : null
     if (clipped !== null) {
       if (titleSight(`${element.role} ${element.title ?? ''} ${element.value ?? ''}`) === 'challenge') plan.captcha = 'challenge'
       plan.clipped = [...(plan.clipped ?? []), { field: 'point', element, words: clipped, label: `ref:${input.ref}` }]
@@ -584,7 +597,7 @@ async function resolveActTargets(driver: DesktopDriver, input: Input, front: Des
     const point = targetPoint(tree.value, selector, map)
     if ('refusal' in point) return `${input.action} refused: ${point.refusal}${pageContentNote(tree.value) ? `; ${pageContentNote(tree.value)}` : ''}`
     const element = targetElement(tree.value, selector, map)
-    const clipped = 'refusal' in element || !scrollsInto ? null : clippedWords(tree.value, element, front.bounds)
+    const clipped = 'refusal' in element || !scrollsInto ? null : clippedWords(tree.value, element, front.bounds, plan.displays)
     if (clipped !== null && !('refusal' in element)) {
       if (titleSight(`${element.role} ${element.title ?? ''} ${element.value ?? ''}`) === 'challenge') plan.captcha = 'challenge'
       plan.clipped = [...(plan.clipped ?? []), { field, element, words: clipped, label: targetWords(selector) }]

@@ -142,6 +142,7 @@ pub struct TreeElement {
     pub frame: Option<BoundsRecord>,
     pub focused: Option<bool>,
     pub nth: Option<u32>,
+    pub offscreen: Option<bool>,
 }
 
 #[napi(object)]
@@ -259,7 +260,7 @@ pub fn windows_control_type(kind: i32) -> &'static str {
     }
 }
 
-pub fn windows_role(kind: i32, framework: &str, password: bool, scrolls: bool, dialog: bool) -> String {
+pub fn windows_role(kind: i32, framework: &str, password: bool, scrolls: bool, dialog: bool, switch: bool) -> String {
     let word = match kind {
         50000 => "AXButton",
         50002 => "AXCheckBox",
@@ -291,6 +292,7 @@ pub fn windows_role(kind: i32, framework: &str, password: bool, scrolls: bool, d
         _ => windows_control_type(kind),
     };
     match (word, password, scrolls, dialog) {
+        ("AXButton", _, _, false) if switch => "AXCheckBox (AXSwitch)".to_string(),
         ("AXTextField", true, _, _) => "AXTextField (AXSecureTextField)".to_string(),
         ("AXGroup", _, true, false) => "AXScrollArea".to_string(),
         ("AXWindow", _, _, true) => "AXWindow (AXDialog)".to_string(),
@@ -304,19 +306,22 @@ mod windows_role_tests {
     use super::windows_role;
     #[test]
     fn control_types_map_onto_the_tool_s_role_words_where_one_exists() {
-        assert_eq!(windows_role(50000, "Win32", false, false, false), "AXButton");
-        assert_eq!(windows_role(50004, "Chrome", false, false, false), "AXTextField");
-        assert_eq!(windows_role(50004, "Chrome", true, false, false), "AXTextField (AXSecureTextField)");
-        assert_eq!(windows_role(50020, "Chrome", false, false, false), "AXStaticText");
-        assert_eq!(windows_role(50030, "Chrome", false, true, false), "AXWebArea");
-        assert_eq!(windows_role(50030, "Gecko", false, false, false), "AXWebArea");
-        assert_eq!(windows_role(50030, "Win32", false, true, false), "AXTextArea");
-        assert_eq!(windows_role(50033, "Win32", false, true, false), "AXScrollArea");
-        assert_eq!(windows_role(50033, "Win32", false, false, false), "AXGroup");
-        assert_eq!(windows_role(50032, "Win32", false, false, true), "AXWindow (AXDialog)");
-        assert_eq!(windows_role(50025, "Chrome", false, false, true), "AXGroup (AXApplicationDialog)");
-        assert_eq!(windows_role(50019, "XAML", false, false, false), "TabItem");
-        assert_eq!(windows_role(0, "", false, false, false), "Unknown");
+        assert_eq!(windows_role(50000, "Win32", false, false, false, false), "AXButton");
+        assert_eq!(windows_role(50000, "Chrome", false, false, false, true), "AXCheckBox (AXSwitch)");
+        assert_eq!(windows_role(50000, "Chrome", false, false, true, true), "AXButton (AXApplicationDialog)");
+        assert_eq!(windows_role(50002, "Chrome", false, false, false, true), "AXCheckBox");
+        assert_eq!(windows_role(50004, "Chrome", false, false, false, false), "AXTextField");
+        assert_eq!(windows_role(50004, "Chrome", true, false, false, false), "AXTextField (AXSecureTextField)");
+        assert_eq!(windows_role(50020, "Chrome", false, false, false, false), "AXStaticText");
+        assert_eq!(windows_role(50030, "Chrome", false, true, false, false), "AXWebArea");
+        assert_eq!(windows_role(50030, "Gecko", false, false, false, false), "AXWebArea");
+        assert_eq!(windows_role(50030, "Win32", false, true, false, false), "AXTextArea");
+        assert_eq!(windows_role(50033, "Win32", false, true, false, false), "AXScrollArea");
+        assert_eq!(windows_role(50033, "Win32", false, false, false, false), "AXGroup");
+        assert_eq!(windows_role(50032, "Win32", false, false, true, false), "AXWindow (AXDialog)");
+        assert_eq!(windows_role(50025, "Chrome", false, false, true, false), "AXGroup (AXApplicationDialog)");
+        assert_eq!(windows_role(50019, "XAML", false, false, false, false), "TabItem");
+        assert_eq!(windows_role(0, "", false, false, false, false), "Unknown");
     }
 }
 

@@ -234,6 +234,7 @@ interface DesktopAddonTreeElement {
   value?: string | null
   frame?: DesktopAddonBounds | null
   focused?: boolean | null
+  offscreen?: boolean | null
 }
 
 export interface DesktopAddonTree {

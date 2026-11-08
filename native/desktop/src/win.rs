@@ -18,8 +18,9 @@ use windows::Win32::System::Threading::{GetCurrentProcess, GetCurrentProcessId, 
 use windows::Win32::UI::Accessibility::{
     CUIAutomation, IUIAutomation, IUIAutomationCacheRequest, IUIAutomationElement, IUIAutomationElement9, IUIAutomationRangeValuePattern, IUIAutomationScrollItemPattern, IUIAutomationScrollPattern, IUIAutomationSelectionItemPattern,
     IUIAutomationTogglePattern, IUIAutomationTreeWalker, IUIAutomationValuePattern, ToggleState_On, TreeScope_Children, TreeScope_Subtree, UIA_BoundingRectanglePropertyId, UIA_ControlTypePropertyId, UIA_FrameworkIdPropertyId,
-    UIA_HasKeyboardFocusPropertyId, UIA_IsDialogPropertyId, UIA_IsPasswordPropertyId, UIA_NamePropertyId, UIA_NativeWindowHandlePropertyId, UIA_ProcessIdPropertyId, UIA_RangeValuePatternId, UIA_ScrollItemPatternId, UIA_ScrollPatternId,
-    UIA_SelectionItemPatternId, UIA_TogglePatternId, UIA_ValuePatternId, UIA_CONTROLTYPE_ID,
+    UIA_HasKeyboardFocusPropertyId, UIA_IsDialogPropertyId, UIA_IsOffscreenPropertyId, UIA_IsPasswordPropertyId, UIA_LocalizedControlTypePropertyId, UIA_NamePropertyId, UIA_NativeWindowHandlePropertyId, UIA_ProcessIdPropertyId,
+    UIA_RangeValuePatternId, UIA_RangeValueValuePropertyId, UIA_ScrollItemPatternId, UIA_ScrollPatternId, UIA_SelectionItemIsSelectedPropertyId, UIA_SelectionItemPatternId, UIA_TogglePatternId, UIA_ToggleToggleStatePropertyId, UIA_ValuePatternId,
+    UIA_ValueValuePropertyId, UIA_CONTROLTYPE_ID,
 };
 use windows::Win32::UI::HiDpi::{SetThreadDpiAwarenessContext, DPI_AWARENESS_CONTEXT, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
@@ -296,7 +297,13 @@ fn element_frame(element: &IUIAutomationElement) -> Option<BoundsRecord> {
 
 fn tree_cache(automation: &IUIAutomation) -> Result<IUIAutomationCacheRequest, String> {
     let cache = unsafe { automation.CreateCacheRequest() }.map_err(|e| format!("UI Automation refused a cache request: {}", e.message()))?;
-    for property in [UIA_NamePropertyId, UIA_ControlTypePropertyId, UIA_BoundingRectanglePropertyId, UIA_HasKeyboardFocusPropertyId, UIA_IsPasswordPropertyId, UIA_FrameworkIdPropertyId, UIA_ProcessIdPropertyId, UIA_NativeWindowHandlePropertyId, UIA_IsDialogPropertyId] {
+    for property in [
+        UIA_NamePropertyId, UIA_ControlTypePropertyId, UIA_LocalizedControlTypePropertyId, UIA_BoundingRectanglePropertyId, UIA_IsOffscreenPropertyId, UIA_HasKeyboardFocusPropertyId, UIA_IsPasswordPropertyId, UIA_FrameworkIdPropertyId, UIA_ProcessIdPropertyId,
+        UIA_NativeWindowHandlePropertyId, UIA_IsDialogPropertyId,
+    ] {
+        let _ = unsafe { cache.AddProperty(property) };
+    }
+    for property in [UIA_ValueValuePropertyId, UIA_ToggleToggleStatePropertyId, UIA_RangeValueValuePropertyId, UIA_SelectionItemIsSelectedPropertyId] {
         let _ = unsafe { cache.AddProperty(property) };
     }
     for pattern in [UIA_ValuePatternId, UIA_ScrollPatternId, UIA_TogglePatternId, UIA_RangeValuePatternId, UIA_SelectionItemPatternId] {
@@ -329,11 +336,13 @@ fn tree_row(element: &IUIAutomationElement, depth: u32) -> TreeElement {
     let scrolls = unsafe { element.GetCachedPatternAs::<IUIAutomationScrollPattern>(UIA_ScrollPatternId) }.is_ok();
     let dialog = element.cast::<IUIAutomationElement9>().ok().and_then(|newer| unsafe { newer.CachedIsDialog() }.ok()).map(|flag| flag.as_bool()).unwrap_or(false);
     let value = cached_value(element);
-    let role = windows_role(kind.0, &framework, password, scrolls, dialog);
+    let switch = unsafe { element.CachedLocalizedControlType() }.ok().is_some_and(|text| text.to_string().to_ascii_lowercase().contains("switch"));
+    let role = windows_role(kind.0, &framework, password, scrolls, dialog, switch);
     let (title, value) = if role == "AXStaticText" && value.is_none() { (None, name) } else { (name, value) };
     let frame = unsafe { element.CachedBoundingRectangle() }.ok().and_then(rect_frame);
     let focused = unsafe { element.CachedHasKeyboardFocus() }.ok().map(|flag| flag.as_bool());
-    TreeElement { depth, role, title: title.map(|text| clipped(text, TREE_VALUE_CHARS)), value: value.map(|text| clipped(text, TREE_VALUE_CHARS)), frame, focused, nth: None }
+    let offscreen = unsafe { element.CachedIsOffscreen() }.ok().map(|flag| flag.as_bool());
+    TreeElement { depth, role, title: title.map(|text| clipped(text, TREE_VALUE_CHARS)), value: value.map(|text| clipped(text, TREE_VALUE_CHARS)), frame, focused, nth: None, offscreen }
 }
 
 fn matching_element(candidate: &TreeElement, wanted: &TreeElement) -> bool {
@@ -512,7 +521,7 @@ pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str,
         return TreeAnswer::refused("the application answered no accessibility element (no such process, or it is not responding)");
     }
     let name = process_image(pid as u32).map(|image| identity_of(&image).1);
-    let mut walk = TreeWalk { walker: &walker, cache: &cache, started, budget, max_depth, max_count: max_count as usize, depth_truncates: true, elements: vec![TreeElement { depth: 0, role: "AXApplication".to_string(), title: name, value: None, frame: None, focused: None, nth: None }], truncated: false, timed_out: false };
+    let mut walk = TreeWalk { walker: &walker, cache: &cache, started, budget, max_depth, max_count: max_count as usize, depth_truncates: true, elements: vec![TreeElement { depth: 0, role: "AXApplication".to_string(), title: name, value: None, frame: None, focused: None, nth: None, offscreen: None }], truncated: false, timed_out: false };
     for window in windows {
         if walk.truncated {
             break;

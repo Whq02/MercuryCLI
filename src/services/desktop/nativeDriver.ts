@@ -719,7 +719,7 @@ class NativeDesktopDriver implements DesktopDriver {
       if (typeof e.role !== 'string' || typeof e.depth !== 'number' || !Number.isInteger(e.depth)) return fail(contractDefect('element', JSON.stringify(e)))
       const f = e.frame
       const frame: DesktopBounds | null = f && [f.x, f.y, f.width, f.height].every(n => Number.isFinite(n)) ? { x: f.x, y: f.y, width: f.width, height: f.height } : null
-      elements.push({ depth: e.depth, role: e.role, title: typeof e.title === 'string' && e.title !== '' ? e.title : null, value: typeof e.value === 'string' && e.value !== '' ? e.value : null, frame, ...(typeof e.focused === 'boolean' ? { focused: e.focused } : {}) })
+      elements.push({ depth: e.depth, role: e.role, title: typeof e.title === 'string' && e.title !== '' ? e.title : null, value: typeof e.value === 'string' && e.value !== '' ? e.value : null, frame, ...(typeof e.focused === 'boolean' ? { focused: e.focused } : {}), ...(typeof e.offscreen === 'boolean' ? { offscreen: e.offscreen } : {}) })
     }
     const webContent = raw.webContent === 'absent' && Date.now() - (this.webRequests.get(requestKey) ?? 0) < 2000 ? 'pending' : raw.webContent
     return { ok: true, value: {
