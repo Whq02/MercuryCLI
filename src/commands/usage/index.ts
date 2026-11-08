@@ -6,6 +6,7 @@ export default {
   seat: 'screen',
   userPrivate: true,
   supportsNonInteractive: false,
+  scope: 'agent',
   description: 'Show usage per provider — every family, honest absence included',
   load: () => import('./usage.js'),
 } satisfies Command

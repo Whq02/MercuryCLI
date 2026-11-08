@@ -51,9 +51,69 @@ export function crewmateStatusWords(viewed: CrewmateViewedState, target: Crewmat
   if (viewed === null || viewed.name === target.name) {
     return target.pinned
       ? `${MAIN_CHAT_WORD}: ${target.name} · ${LEAD_ROW_NAME} waits in the rail${tail}`
-      : `${VIEWING_WORD} ${target.name} · composer → ${target.name}${tail}`
+      : `${VIEWING_WORD} ${target.name} · composer → ${target.name} · commands → ${target.name}${tail}`
   }
   return `${VIEWING_WORD} ${viewed.name} · composer → ${target.name} (the ${MAIN_CHAT_WORD})${tail}`
+}
+
+export function crewmateGlobalCommandWords(command: string, name: string): string {
+  return `/${command} runs for this session, not ${name}`
+}
+
+export function crewmateModelSwitchWords(name: string, label: string, running: boolean): string {
+  return running ? `${name} switches to ${label} at its next turn` : `${label} recorded for ${name}'s next resume`
+}
+
+export function crewmateModelKeptWords(name: string, label: string): string {
+  return `${name} stays on ${label}`
+}
+
+export function crewmateModelCurrentWords(name: string, label: string, next: string | null): string {
+  return next === null ? `${name} runs ${label}` : `${name} runs ${label} · switches to ${next} at its next turn`
+}
+
+export function crewmateModelPickerLine(name: string, running: boolean): string {
+  return running ? `${name} — a pick switches it at its next turn` : `${name} — a pick is recorded for its next resume`
+}
+
+export function crewmateEffortSwitchWords(name: string, level: string, running: boolean): string {
+  return running ? `${name} runs ${level} from its next turn` : `effort ${level} recorded for ${name}'s next resume`
+}
+
+export function crewmateEffortClearedWords(name: string, running: boolean): string {
+  return running ? `${name} runs its model's default effort from its next turn` : `${name}'s effort returns to its model's default at its next resume`
+}
+
+export function crewmateEffortCurrentWords(name: string, level: string | null, model: string, levels: readonly string[]): string {
+  const choice = levels.length > 0 ? ` — /effort ${levels.join('|')} sets it` : ''
+  return level === null ? `${name} runs ${model}'s default effort${choice}` : `${name} runs ${level} on ${model}${choice}`
+}
+
+export function crewmateEffortRefusedWords(name: string, level: string, model: string, levels: readonly string[]): string {
+  return `${name}'s ${model} does not serve ${level} — ${levels.length > 0 ? `it takes ${levels.join(' | ')}` : 'it takes no effort setting'}; nothing was recorded`
+}
+
+export function crewmateCompactWords(name: string, running: boolean): string {
+  return running ? `${name} compacts at its next turn` : `${name} compacts when it resumes`
+}
+
+export function crewmateNumbersUnreportedWords(name: string): string {
+  return `${name} has not reported its numbers yet — no request of its own has settled`
+}
+
+export function crewmateContextWords(name: string, model: string, context: string, window: string | null, pct: number | null): string {
+  const fill = window === null ? `${context} tokens of context` : `context ${context} of ${window}${pct === null ? '' : ` (${pct}%)`}`
+  return `${name} · ${model} · ${fill}`
+}
+
+export function crewmateUsageWords(name: string, model: string, facts: { input: string; output: string; cached: string | null; cost: string; toolUses: number | null; elapsed: string }): string {
+  const tokens = [`${facts.input} in`, `${facts.output} out`, ...(facts.cached === null ? [] : [`${facts.cached} cached`])].join(' · ')
+  const tools = facts.toolUses === null ? '' : ` · ${facts.toolUses} tool use${facts.toolUses === 1 ? '' : 's'}`
+  return `${name} · ${model} · ${tokens} · ${facts.cost}${tools} · ${facts.elapsed}`
+}
+
+export function crewmateCommandUnreachableWords(name: string, command: string): string {
+  return `/${command} could not reach ${name}'s record — nothing changed`
 }
 
 export function crewmateSendClause(target: CrewmateWordsState): string {

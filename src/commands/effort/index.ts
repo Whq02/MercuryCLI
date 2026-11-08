@@ -16,6 +16,7 @@ export default {
     return resolveStampedEffortTruth(facts.effective, parseEffortValue(facts.effort)).label
   },
   argumentHint: `[${EFFORT_LEVELS.join('|')}|auto]`,
+  scope: 'agent',
   get immediate() {
     return shouldInferenceConfigCommandBeImmediate()
   },

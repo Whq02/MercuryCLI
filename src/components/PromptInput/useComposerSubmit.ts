@@ -2,15 +2,16 @@ import type React from 'react'
 import { useCallback, useRef } from 'react'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { imageBlocksOf } from '../../services/engine-connector/daemonConnector.js'
-import type { Command } from '../../commands.js'
+import { getCommandName, type Command } from '../../commands.js'
 import type { Notification } from '../../context/notifications.js'
 import * as pendingInput from '../../input-core/pending-input.js'
 import type { AppState } from '../../state/AppState.js'
 import type { AppStateStore } from '../../state/AppStateStore.js'
 import { composerTargetTaskId } from '../../state/selectors.js'
-import { CREWMATE_BETWEEN_TURNS_DETAIL, LEAD_ROW_NAME, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
+import { CREWMATE_BETWEEN_TURNS_DETAIL, LEAD_ROW_NAME, crewmateCommandUnreachableWords, crewmateGlobalCommandWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
 import { queueCrewmateLine, refuseCrewmateLine } from '../tasks/crewmateQueue.js'
 import { classifyAgentViewSubmission } from './promptIntent.js'
+import { CREWMATE_COMMAND_RECEIPT_KEY, runCrewmateCommand } from './crewmateCommands.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
 import { appendMessageToLocalAgent, isLocalAgentTask, queueOperatorMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
@@ -259,10 +260,23 @@ export function useComposerSubmit({
         }
         switch (intent.kind) {
           case 'session-command':
+            addNotification({ key: 'crewmate-command-global', text: crewmateGlobalCommandWords(getCommandName(intent.command), targetName), priority: 'medium', timeoutMs: 6000 })
             await onSubmit(submitted, helpers, undefined, {
               fromKeybinding: options.fromKeybinding === true,
             })
             return
+          case 'agent-command': {
+            takeLine()
+            const crewmate = composerCrewmateRef.current
+            const receipt = (text: string, color?: 'warning'): void =>
+              addNotification({ key: CREWMATE_COMMAND_RECEIPT_KEY, text, priority: 'medium', timeoutMs: 8000, ...(color !== undefined ? { color } : {}), fold: (_accumulated, incoming) => incoming })
+            if (crewmate === null || crewmate.taskId !== targetId) {
+              receipt(crewmateCommandUnreachableWords(targetName, getCommandName(intent.command)), 'warning')
+              return
+            }
+            await runCrewmateCommand(intent.command, submitted, crewmate, { setAppState, receipt })
+            return
+          }
           case 'unknown-command':
             addNotification({
               key: 'agent-view-unknown-command',
@@ -272,7 +286,6 @@ export function useComposerSubmit({
             })
             return
           case 'agent-literal':
-          case 'agent-command':
           case 'agent-guidance': {
             takeLine()
             if (!(await deliver(intent.kind === 'agent-literal' ? intent.text : submitted))) handBack()

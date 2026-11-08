@@ -6,6 +6,7 @@ export const context = {
   name: 'context',
   description: 'Chart the context window — a colored cell map of what fills it',
   isEnabled: () => !getIsNonInteractiveSession(),
+  scope: 'agent',
   load: () => import('./context.js'),
 } satisfies Command
 
@@ -18,5 +19,6 @@ export const contextNonInteractive = {
     return !getIsNonInteractiveSession()
   },
   supportsNonInteractive: true,
+  scope: 'agent',
   load: () => import('./context-noninteractive.js'),
 } satisfies Command

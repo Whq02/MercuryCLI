@@ -8,6 +8,7 @@ const compact = {
   argumentHint: '[instructions for summarization]',
   isEnabled: () => flagEnabled('MERCURY_COMPACT'),
   supportsNonInteractive: true,
+  scope: 'agent',
   load: () => import('./compact.js'),
 } satisfies Command
 

@@ -41,6 +41,7 @@ t.section('§1 generated registry matrix: every command classifies to its declar
   let agentCount = 0
   let disabledHonest = 0
   const misrouted: string[] = []
+  const agentScoped = new Set<string>()
   let total = 0
   for (const c of all) {
     for (const name of [c.name, ...(c.aliases ?? [])]) {
@@ -49,8 +50,10 @@ t.section('§1 generated registry matrix: every command classifies to its declar
         const intent = classifyAgentViewSubmission(`/${name}`, fromKeybinding, roster)
         const expectCommand = rosterNames.has(name)
         if (expectCommand && intent.kind === 'session-command') sessionCount++
-        else if (expectCommand && intent.kind === 'agent-command') agentCount++
-        else if (!expectCommand && intent.kind === 'unknown-command') disabledHonest++
+        else if (expectCommand && intent.kind === 'agent-command') {
+          agentCount++
+          agentScoped.add(intent.command.name)
+        } else if (!expectCommand && intent.kind === 'unknown-command') disabledHonest++
         else {
           misrouted.push(`/${name} (inRoster=${expectCommand}, kb=${fromKeybinding}) -> ${intent.kind}`)
         }
@@ -63,17 +66,18 @@ t.section('§1 generated registry matrix: every command classifies to its declar
     misrouted.slice(0, 6).join(' · ') ||
       `${sessionCount} session / ${agentCount} agent / ${disabledHonest} disabled-honest`,
   )
+  const CREWMATE_SCOPED = ['compact', 'context', 'effort', 'model', 'usage']
   t.check(
-    'the roster declares no agent-scoped command today (new ones must opt in explicitly)',
-    agentCount === 0,
-    `${agentCount}`,
+    `the roster's agent-scoped commands are exactly the five that act on a selected crewmate (${CREWMATE_SCOPED.join(', ')}); a new one must opt in explicitly`,
+    [...agentScoped].sort().join(',') === CREWMATE_SCOPED.join(','),
+    [...agentScoped].sort().join(','),
   )
   const aliasDrift = roster
     .filter(c => c.aliases?.length)
     .flatMap(c =>
       (c.aliases ?? []).filter(a => {
         const viaAlias = classifyAgentViewSubmission(`/${a}`, false, roster)
-        return !(viaAlias.kind === 'session-command' && viaAlias.command.name === c.name)
+        return !((viaAlias.kind === 'session-command' || viaAlias.kind === 'agent-command') && viaAlias.command.name === c.name)
       }),
     )
   t.check('every roster alias resolves to its owner command', aliasDrift.length === 0, aliasDrift.join(','))

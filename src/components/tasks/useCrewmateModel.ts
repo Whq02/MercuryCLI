@@ -8,7 +8,7 @@ import type { CrewmateInView } from './useCrewmateView.js'
 type CrewmateModel = { model: string | null; effort: string | null }
 const word = (value: unknown): string | null => typeof value === 'string' && value.trim() !== '' ? value.trim() : null
 
-function metadataFile(crewmate: CrewmateInView | null): string | null {
+export function crewmateMetadataFile(crewmate: Pick<CrewmateInView, 'taskId' | 'local' | 'facts'> | null): string | null {
   if (crewmate === null) return null
   const connector = getFocusedSessionConnector()
   const workspace = connector.workspace()
@@ -16,7 +16,7 @@ function metadataFile(crewmate: CrewmateInView | null): string | null {
 }
 
 export function useCrewmateModel(crewmate: CrewmateInView | null): CrewmateModel | null {
-  const file = metadataFile(crewmate)
+  const file = crewmateMetadataFile(crewmate)
   const startedAt = crewmate?.facts?.startedAt
   const [recorded, setRecorded] = useState<{ file: string; identity: CrewmateModel } | null>(null)
   useEffect(() => {

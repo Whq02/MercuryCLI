@@ -13,6 +13,7 @@ export default {
     return facts === null ? undefined : renderModelName(facts.effective)
   },
   argumentHint: '[model]',
+  scope: 'agent',
   get immediate() {
     return shouldInferenceConfigCommandBeImmediate()
   },
