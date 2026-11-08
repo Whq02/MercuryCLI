@@ -224,15 +224,21 @@ export async function readObservation(driver: DesktopDriver, signal: AbortSignal
   return { app: current.value, ...(tree.ok ? { tree: tree.value } : {}) }
 }
 
-function browserAddress(app: DesktopApplication | undefined, tree: DesktopTree | undefined): string | null {
-  if (!app || !/(?:chrome|chromium|firefox|safari|brave|vivaldi|msedge|microsoftedge|opera|orion|arc)(?:[.\s-]|$)/i.test(`${app.identity} ${app.name}`)) return null
-  const address = tree?.elements.find(element => /^AX(?:TextField|ComboBox)$/.test(element.role) && /^(?:address(?: and search)?(?: bar)?|location|url|search or enter (?:website name|address))$/i.test(element.title ?? ''))?.value?.trim()
+export function shownAddress(value: string | null | undefined): URL | null {
+  const address = value?.trim()
   if (!address || /\s/.test(address)) return null
   try {
-    const url = new URL(address.includes('://') ? address : `https://${address}`)
+    const url = new URL(address.startsWith('/') ? `file://${address}` : address.includes('://') ? address : `https://${address}`)
+    if (url.protocol === 'file:') return url
     if (!['https:', 'http:'].includes(url.protocol) || (!url.hostname.includes('.') && url.hostname !== 'localhost' && !url.hostname.startsWith('['))) return null
-    return `${url.host}${url.pathname}`
+    return url
   } catch { return null }
+}
+
+function browserAddress(app: DesktopApplication | undefined, tree: DesktopTree | undefined): string | null {
+  if (!app || !/(?:chrome|chromium|firefox|safari|brave|vivaldi|msedge|microsoftedge|opera|orion|arc)(?:[.\s-]|$)/i.test(`${app.identity} ${app.name}`)) return null
+  const url = shownAddress(tree?.elements.find(element => /^AX(?:TextField|ComboBox)$/.test(element.role) && /^(?:address(?: and search)?(?: bar)?|location|url|search or enter (?:website name|address))$/i.test(element.title ?? ''))?.value)
+  return url === null ? null : url.protocol === 'file:' ? `file://${url.pathname}` : `${url.host}${url.pathname}`
 }
 
 function windowTitle({ app, tree }: DesktopObservation): string | null {

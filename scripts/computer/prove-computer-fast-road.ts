@@ -125,6 +125,24 @@ const slow = await call({ action: 'wait', until: target, durationMs: 20, capture
 check('the deadline cancels a slow tree read and is not called an operator interruption', readCancelled && slow.outcome === 'failed' && slow.result.includes('timed out') && !slow.result.includes('interrupted by the operator'), slow.result)
 driver.accessibilityTree = originalTree
 
+section('a url wait reads the address the browser shows, with or without its scheme, and the state line agrees')
+{
+  const { waitConditionPassed } = await import('../../src/tools/ComputerTool/waitCondition.ts')
+  const { shownAddress, treeObservation } = await import('../../src/tools/ComputerTool/fastRoad.ts')
+  const chrome = { identity: 'com.google.Chrome', name: 'Google Chrome', pid: 9, title: 'Slider - Google Chrome', bounds: { x: 0, y: 0, width: 900, height: 600 } }
+  const omnibox = (value: string) => ({ elements: [{ depth: 1, role: 'AXTextField', title: 'Address and search bar', value, frame: { x: 10, y: 10, width: 500, height: 24 } }], truncated: false, reason: null })
+  const shown = (value: string, url: string) => waitConditionPassed({ url }, chrome as never, omnibox(value) as never)
+  check("Chrome's omnibox value carries no scheme: the https page's address matches a url wait", shown('w3.org/WAI/ARIA/apg/patterns/slider/examples/slider-color-viewer/', 'slider-color-viewer'))
+  check('an address with its scheme matches as before', shown('https://example.com/docs/page', 'example.com/docs'))
+  check('a file page shown as a bare path matches a url wait', shown('/Users/someone/Desktop/parity108.html', 'parity108'))
+  check('a search typed into the omnibox is not an address, so it never matches', !shown('how to drag a window', 'drag') && !shown('slider', 'slider'))
+  check('shownAddress parses the three shapes and refuses the search', shownAddress('w3.org/x')?.host === 'w3.org' && shownAddress('https://example.com/a')?.pathname === '/a' && shownAddress('/tmp/page.html')?.protocol === 'file:' && shownAddress('how to drag') === null && shownAddress('') === null)
+  const line = treeObservation({ app: chrome as never, tree: omnibox('w3.org/WAI/ARIA/apg/patterns/slider/') as never })
+  check("the state line's url reads the same schemeless address", line.endsWith(' · url w3.org/WAI/ARIA/apg/patterns/slider/'), line)
+  const fileLine = treeObservation({ app: chrome as never, tree: omnibox('/Users/someone/Desktop/parity108.html') as never })
+  check("the state line names a file page's address as a file url", fileLine.endsWith(' · url file:///Users/someone/Desktop/parity108.html'), fileLine)
+}
+
 section('region captures preserve the global point mapping')
 const opening = await withScreenshot(ComputerTool as never, context, 'region-opening')
 context = opening.context
