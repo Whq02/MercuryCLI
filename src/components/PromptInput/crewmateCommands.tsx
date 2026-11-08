@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { readFile } from 'node:fs/promises'
 import type { Command } from '../../commands.js'
 import { getCommandName } from '../../commands.js'
@@ -37,12 +36,12 @@ import { formatSessionCost } from '../../utils/spendSpelling.js'
 import { crewmateMetadataFile } from '../tasks/useCrewmateModel.js'
 import { crewmateLive, type CrewmateInView } from '../tasks/useCrewmateView.js'
 
-export const CREWMATE_COMMAND_RECEIPT_KEY = 'crewmate-command'
-export const CREWMATE_COMPACT_INSTRUCTIONS_NOTE = 'the instructions are not carried; a crewmate compacts with the standard summary'
+const CREWMATE_COMMAND_RECEIPT_KEY = 'crewmate-command'
+const CREWMATE_COMPACT_INSTRUCTIONS_NOTE = 'the instructions are not carried; a crewmate compacts with the standard summary'
 const EFFORT_OPTIONS = `${EFFORT_LEVELS.join('|')}|auto`
 const MODEL_PICKER_ROWS = 29
 
-export type CrewmateCommandIo = {
+type CrewmateCommandIo = {
   setAppState: (f: (prev: AppState) => AppState) => void
   receipt: (text: string, color?: 'warning') => void
 }

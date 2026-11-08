@@ -162,7 +162,7 @@ export function clippedWords(tree: DesktopTree, element: DesktopTreeElement, bou
   return null
 }
 
-export function screenOf(display: DesktopDisplay, window: DesktopBounds | null = null): DesktopBounds {
+function screenOf(display: DesktopDisplay, window: DesktopBounds | null = null): DesktopBounds {
   const whole = { x: display.originX, y: display.originY, width: display.width, height: display.height }
   if (display.work === undefined || window === null) return display.work ?? whole
   const covers = window.x <= whole.x + 1 && window.y <= whole.y + 1 && window.x + window.width >= whole.x + whole.width - 1 && window.y + window.height >= whole.y + whole.height - 1
@@ -176,7 +176,7 @@ function onView(screens: ScreenFacts, window: DesktopBounds): DesktopBounds[] {
 
 const contains = (frame: DesktopBounds, point: { x: number; y: number }): boolean => point.x >= frame.x && point.x < frame.x + frame.width && point.y >= frame.y && point.y < frame.y + frame.height
 
-export function screenUnder(screens: ScreenFacts, bounds: DesktopBounds): DesktopBounds {
+function screenUnder(screens: ScreenFacts, bounds: DesktopBounds): DesktopBounds {
   let best: { area: number; frame: DesktopBounds } | null = null
   for (const display of screens.displays) {
     const frame = screenOf(display, bounds)

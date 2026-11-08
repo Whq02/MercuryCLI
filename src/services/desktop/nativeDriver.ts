@@ -191,7 +191,7 @@ function displaysSpan(): boolean {
   if (process.platform !== 'darwin') return true
   if (spansRead === undefined) {
     try {
-      spansRead = execFileSync('/usr/bin/defaults', ['read', 'com.apple.spaces', 'spans-displays'], { encoding: 'utf8', timeout: 2_000, stdio: ['ignore', 'pipe', 'ignore'] }).trim() === '1'
+      spansRead = execFileSync('/usr/bin/defaults', ['read', 'com.apple.spaces', 'spans-displays'], { encoding: 'utf8', timeout: 2_000, windowsHide: true, env: subprocessEnv(), stdio: ['ignore', 'pipe', 'ignore'] }).trim() === '1'
     } catch {
       spansRead = false
     }

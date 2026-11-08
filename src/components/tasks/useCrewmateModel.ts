@@ -9,7 +9,7 @@ type CrewmateModel = { model: string | null; effort: string | null; next: { mode
 type CrewmateRecord = { model: string | null; effort: string | null; effortOverride: string | null }
 const word = (value: unknown): string | null => typeof value === 'string' && value.trim() !== '' ? value.trim() : null
 
-export function crewmateModelOf(record: CrewmateRecord | null, running: { model: string | null; effort: string | null }): CrewmateModel {
+function crewmateModelOf(record: CrewmateRecord | null, running: { model: string | null; effort: string | null }): CrewmateModel {
   const model = running.model ?? record?.model ?? null
   const effort = record?.effort ?? running.effort ?? null
   const nextModel = record !== null && record.model !== null && record.model !== model ? record.model : null

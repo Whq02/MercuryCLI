@@ -182,7 +182,7 @@ for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
   geometry('viewing')
   setMainChat(taskId, store!.setState)
   exitCrewmateView(store!.setState)
-  check(`${size}: returning to the lead restores its model and effort even while the crewmate stays pinned`, await until(() => lines().some(line => line.includes('[Mercury] the lead transcript')) && strip().includes(leadLabel) && /\bhigh\b/.test(strip())) && store!.getState().mainChatTaskId === taskId && !strip().includes(agentLabel), strip())
+  check(`${size}: returning to the lead while the crewmate stays pinned keeps the pinned crewmate's model and effort in the chip (the composer sends to it) and names it as the main chat`, await until(() => lines().some(line => line.includes('[Mercury] the lead transcript')) && strip().includes(agentLabel) && /\bmax\b/.test(strip()) && /main chat: atlas/.test(strip())) && store!.getState().mainChatTaskId === taskId, strip())
   snapshot('returned-lead')
   geometry('returned-lead')
 
@@ -196,7 +196,7 @@ for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
   focusedId = 'chip-other-parent'
   for (const listener of listeners) listener()
   enterCrewmateView(taskId, store!.setState)
-  check(`${size}: a reused task id in another focused session reads that session's launch metadata`, await until(() => strip().includes(leadLabel) && /\blow\b/.test(strip())), strip())
+  check(`${size}: a reused task id in another focused session reads that session's launch metadata as the chip's next-turn words (a narrow row cuts the model's name)`, await until(() => (strip().includes(`→ ${leadLabel}`) || strip().includes(`→ ${leadLabel.slice(0, 7)}…`)) && /\blow\b/.test(strip())), strip())
   snapshot('other-parent')
   exitCrewmateView(store!.setState)
   await until(() => /\bhigh\b/.test(strip()))

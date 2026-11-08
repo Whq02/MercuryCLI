@@ -49,7 +49,7 @@ check('the row names the daemon build instead of hiding behind ready', statusWor
 const matched = hs.decideHandshake({kind: 'hello', reply: {...reply, buildTree: client.buildTree}}, client)
 check('matching builds owe no mismatch clause', statusWords?.(matched) === '' && statusWords?.(null) === '')
 const row = readFileSync(join(import.meta.dir, '../../src/components/SwitchboardTagBar.tsx'), 'utf8')
-check('the real status row subscribes to the handshake and keeps the mismatch beside the model, after it', row.includes('useSyncExternalStore(subscribeDaemonHandshake, focusedDaemonBuildWords, focusedDaemonBuildWords)') && row.includes('[modelStatusWords(shownModel, shownEffort), daemonBuild]') && row.includes("daemonBuild === '' && held === null && line === 'ready'"))
+check('the real status row subscribes to the handshake and keeps the mismatch beside the model, after it', row.includes('useSyncExternalStore(subscribeDaemonHandshake, focusedDaemonBuildWords, focusedDaemonBuildWords)') && row.includes('[`${modelStatusWords(shownModel, shownEffort)}${nextWords}`, daemonBuild]') && row.includes("daemonBuild === '' && held === null && line === 'ready'"))
 console.log(`prove-build-order-visible: ${failed ? `${failed} RED` : 'GREEN'}`)
 process.exitCode = failed ? 1 : 0
 } finally {
