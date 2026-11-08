@@ -19,8 +19,8 @@ returns to the list first. The same rule closes the `/runs` board. Closing a
 view never stops its work.
 
 With a crewmate opened in its view, the slash commands that are about one
-agent act on that crewmate — and when none is opened but one is pinned as the
-main chat, on the pinned one; the status row says `commands → <name>` either
+agent act on that crewmate (when none is opened but one is pinned as the
+main chat, on the pinned one); the status row says `commands → <name>` either
 way. `/model` and `/effort` show and change its model and effort (a running
 crewmate switches at its next turn, a finished one at its next resume; the
 status row's chip keeps the running model and effort and appends
