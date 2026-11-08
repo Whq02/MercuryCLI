@@ -658,6 +658,14 @@ pub struct ValueAnswer {
     pub reason: Option<String>,
 }
 
+#[napi(object)]
+pub struct ClickablePointAnswer {
+    pub x: Option<f64>,
+    pub y: Option<f64>,
+    pub road: Option<String>,
+    pub reason: Option<String>,
+}
+
 #[napi]
 pub fn scroll_to_visible(pid: u32, element: TreeElement, wheel: Option<bool>) -> Result<ScrollAnswer> {
     input_preflight().map_err(reason)?;
@@ -668,6 +676,11 @@ pub fn scroll_to_visible(pid: u32, element: TreeElement, wheel: Option<bool>) ->
 pub fn set_value(pid: u32, element: TreeElement, text: String) -> Result<ValueAnswer> {
     input_preflight().map_err(reason)?;
     imp::set_value(pid as i32, &element, &text).map_err(reason)
+}
+
+#[napi]
+pub fn clickable_point(pid: u32, element: TreeElement) -> Result<ClickablePointAnswer> {
+    imp::clickable_point(pid as i32, &element).map_err(reason)
 }
 
 #[cfg(target_os = "macos")]

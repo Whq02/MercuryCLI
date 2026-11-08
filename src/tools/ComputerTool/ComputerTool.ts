@@ -457,12 +457,42 @@ function scrolledWords(plan: ActPlan): string {
   return `${plan.scrolled ? ` · scrolled into view first (${plan.scrolled})` : ''}${plan.aimed ? ` · ${plan.aimed}` : ''}`
 }
 
-async function settleActPoints(input: Input, plan: ActPlan, front: DesktopApplication): Promise<string | null> {
-  if (input.action !== 'scroll' || plan.point === null || plan.screens === undefined) return null
-  const moved = nearestOnScreen(plan.screens, plan.point, front.bounds)
-  if (moved !== null) {
-    plan.point = moved
-    plan.aimed = `wheeled at ${pointWords(moved)}, the nearest point of the window on the screen (the target lies past the screen's edge)`
+const AIMED_ACTS = new Set(['click', 'doubleClick', 'rightClick', 'move', 'drag', 'file'])
+
+async function settleActPoints(driver: DesktopDriver, input: Input, plan: ActPlan, front: DesktopApplication, signal: AbortSignal, map: ScreenMap | null): Promise<string | null> {
+  if (input.action === 'scroll') {
+    if (plan.point === null || plan.screens === undefined) return null
+    const moved = nearestOnScreen(plan.screens, plan.point, front.bounds)
+    if (moved !== null) {
+      plan.point = moved
+      plan.aimed = `wheeled at ${pointWords(moved)}, the nearest point of the window on the screen (the target lies past the screen's edge)`
+    }
+    return null
+  }
+  if (!AIMED_ACTS.has(input.action) || driver.clickablePoint === undefined) return null
+  const ends: Array<{ field: 'point' | 'target'; element: DesktopTreeElement; label: string }> = []
+  if (plan.element && plan.point !== null && (input.target !== undefined || input.ref !== undefined)) ends.push({ field: 'point', element: plan.element, label: 'its' })
+  if (input.action === 'drag' && input.toTarget !== undefined && plan.beforeTree) {
+    const other = targetElement(plan.beforeTree, input.toTarget, map)
+    if (!('refusal' in other)) ends.push({ field: 'target', element: other, label: `${targetWords(input.toTarget)}'s` })
+  }
+  for (const end of ends) {
+    const frame = end.element.frame
+    if (!frame) continue
+    const answer = await driver.clickablePoint(front, withOrdinal(plan.beforeTree ?? { elements: [end.element], truncated: false, reason: null }, end.element), signal)
+    if (!answer.ok) {
+      if (answer.error.kind === 'aborted') return interruptedText(input.action)
+      continue
+    }
+    const point = answer.value.point
+    if (point === null) continue
+    const inside = point.x >= frame.x && point.x <= frame.x + frame.width && point.y >= frame.y && point.y <= frame.y + frame.height
+    if (!inside) continue
+    const centre = { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 }
+    if (Math.abs(point.x - centre.x) < 1 && Math.abs(point.y - centre.y) < 1) continue
+    plan[end.field] = point
+    if (end.field === 'point') plan.observe = { x: point.x - 24, y: point.y - 24, width: 48, height: 48 }
+    plan.aimed = `aimed at ${end.label} clickable point (${answer.value.road === 'hit-test' ? 'the first point of its frame that hits it' : "the window's own"}, inside the part on view)`
   }
   return null
 }
@@ -1672,7 +1702,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           return finish()
         }
         setDrivingApp(live)
-        const unscrolled = (await scrollClippedEnds(driver, input, plan, ready.value, signal, screenOf(owner))) ?? (await settleActPoints(input, plan, ready.value))
+        const unscrolled = (await scrollClippedEnds(driver, input, plan, ready.value, signal, screenOf(owner))) ?? (await settleActPoints(driver, input, plan, ready.value, signal, screenOf(owner)))
         if (unscrolled !== null) {
           await driver.releaseAll()
           result = unscrolled

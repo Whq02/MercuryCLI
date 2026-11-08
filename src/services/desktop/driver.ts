@@ -113,6 +113,12 @@ export interface DesktopScrollReceipt {
   note: string | null
 }
 
+export interface DesktopClickablePoint {
+  point: DesktopPoint | null
+  road: 'native' | 'hit-test' | null
+  note: string | null
+}
+
 export interface DesktopValueReceipt {
   set: boolean
   value: string | null
@@ -196,6 +202,7 @@ export interface DesktopDriver {
   readElement?(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopFocusedText | null>>
   scrollToVisible?(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopScrollReceipt>>
   setValue?(app: DesktopApplication, element: DesktopTreeElement, text: string, signal: AbortSignal): Promise<DesktopAnswer<DesktopValueReceipt>>
+  clickablePoint?(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopClickablePoint>>
   readClipboard?(signal: AbortSignal): Promise<DesktopAnswer<string>>
   findApplication?(name: string): Promise<DesktopAnswer<DesktopApplication>>
   activateApplication?(app: DesktopApplication, signal: AbortSignal): Promise<DesktopAnswer<DesktopApplication>>

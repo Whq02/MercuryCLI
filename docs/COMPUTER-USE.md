@@ -57,16 +57,20 @@ that will not scroll says so, a target that stays past the display's edge asks
 you to move or resize the window, and a target the window's tree no longer holds
 after the scroll asks for a screenshot rather than a click at a stale point.
 `scroll` pointed past the screen wheels at the window's nearest point on it and
-says so. Separators, splitters, scroll bars, sliders and progress bars are
-exempt from the strip rule. A human-verification checkbox below the fold is a
-challenge like a visible one: the captcha rule applies before any scroll.
-`tree`, `find` and `read` address such an element without scrolling. Two
-identical siblings (two “Review” buttons squashed to the same strip) keep
-separate `ref`s; once the list has changed — a row scrolled into view, a row
-added or removed anywhere above it — a `ref` asks for a fresh `find` instead of
-acting on whatever moved into its place; a `find` that matches nothing leaves
-the refs you hold in place. A `drag` names both ends as targets when either is
-scrolled out of view; a pixel end would be stale after the scroll.
+says so. On Windows a mouse act on a target lands at the element's clickable
+point when the window reports one off the frame's centre (a row cut by its
+pane's bottom edge), or at the first point of its frame that hits it (a row cut
+by the top edge); an element with neither is clicked at its centre. Separators,
+splitters, scroll bars, sliders and progress bars are exempt from the strip
+rule. A human-verification checkbox below the fold is a challenge like a visible
+one: the captcha rule applies before any scroll. `tree`, `find` and `read`
+address such an element without scrolling. Two identical siblings (two “Review”
+buttons squashed to the same strip) keep separate `ref`s; once the list has
+changed — a row scrolled into view, a row added or removed anywhere above it — a
+`ref` asks for a fresh `find` instead of acting on whatever moved into its
+place; a `find` that matches nothing leaves the refs you hold in place. A `drag`
+names both ends as targets when either is scrolled out of view; a pixel end
+would be stale after the scroll.
 
 On macOS, `tree`, `find` and `wait` with `until` use the focused window by
 default. `scope: "app"` includes the other windows, with the focused window

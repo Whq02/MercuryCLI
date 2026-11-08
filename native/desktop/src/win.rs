@@ -35,9 +35,11 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{clipped, covered_words, hidden_by, number_words, same_frame, wheel_words, windows_role, ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, ScrollAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, ROAD_ACTION, ROAD_WHEEL, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED, WHEEL_FAILED};
+use crate::{ClickablePointAnswer, clipped, covered_words, hidden_by, number_words, same_frame, wheel_words, windows_role, ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, ScrollAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, ROAD_ACTION, ROAD_WHEEL, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED, WHEEL_FAILED};
 
 const OBSERVATION_DEPTH: u32 = 3;
+const CLICKABLE_SCAN_STEP: f64 = 2.0;
+const CLICKABLE_SCAN_ROWS: i32 = 40;
 const OBSERVATION_COUNT: u32 = 200;
 
 struct DpiScope {
@@ -611,6 +613,32 @@ pub fn scroll_to_visible(pid: i32, wanted: &TreeElement, wheel: bool) -> Result<
         None if wheel => wheel_into_view(pid, &window, &element, started, budget),
         None => ScrollAnswer { scrolled: false, road: None, frame: element_frame(&element), reason: Some(SCROLL_UNSUPPORTED.to_string()) },
     })
+}
+
+pub fn clickable_point(pid: i32, wanted: &TreeElement) -> Result<ClickablePointAnswer, String> {
+    let _dpi = DpiScope::enter();
+    let (automation, _window, element) = unique_element(pid, wanted)?;
+    let mut point = POINT::default();
+    match unsafe { element.GetClickablePoint(&mut point) } {
+        Ok(got) if got.as_bool() => return Ok(ClickablePointAnswer { x: Some(point.x as f64), y: Some(point.y as f64), road: Some("native".to_string()), reason: None }),
+        Ok(_) => {}
+        Err(error) => return Ok(ClickablePointAnswer { x: None, y: None, road: None, reason: Some(format!("the clickable point could not be read: {}", error.message())) }),
+    }
+    let Some(frame) = element_frame(&element) else {
+        return Ok(ClickablePointAnswer { x: None, y: None, road: None, reason: Some("no clickable point and no frame".to_string()) });
+    };
+    let rows = ((frame.height / CLICKABLE_SCAN_STEP).ceil() as i32).clamp(1, CLICKABLE_SCAN_ROWS);
+    for row in 0..=rows {
+        let y = (frame.y + (row as f64) * frame.height / (rows as f64)).min(frame.y + frame.height - 1.0).max(frame.y);
+        for column in [0.5, 0.25, 0.75] {
+            let probe = POINT { x: (frame.x + frame.width * column).round() as i32, y: y.round() as i32 };
+            let Ok(hit) = (unsafe { automation.ElementFromPoint(probe) }) else { continue };
+            if unsafe { automation.CompareElements(&hit, &element) }.map(|flag| flag.as_bool()).unwrap_or(false) {
+                return Ok(ClickablePointAnswer { x: Some(probe.x as f64), y: Some(probe.y as f64), road: Some("hit-test".to_string()), reason: None });
+            }
+        }
+    }
+    Ok(ClickablePointAnswer { x: None, y: None, road: None, reason: Some("UI Automation reports no clickable point for it and no point of its frame hits it (covered, or scrolled out of its pane)".to_string()) })
 }
 
 pub fn set_value(pid: i32, wanted: &TreeElement, text: &str) -> Result<ValueAnswer, String> {

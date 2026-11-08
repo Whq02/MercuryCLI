@@ -467,7 +467,7 @@ section("a Windows-shaped tree: the window's own off-screen report is the clippe
   check("a target already inside the window but off the display is refused before any click", low.outcome === 'failed' && low.result.includes("below the display's edge (0 pt visible; the window extends past the screen); it was scrolled (action) and did not move") && paneDriver.acts.filter(a => a.act === 'click').length === clicksBefore, low.result)
   session.forgetDesktopOwner(ownerOf(context))
 }
-section("two displays and a work area: a target on the second screen is clicked where windows span displays and refused where they do not; one over the taskbar strip is refused unless the window covers its display; a scroll past the screen wheels at the window's nearest point on it")
+section("two displays and a work area: a target on the second screen is clicked where windows span displays and refused where they do not; one over the taskbar strip is refused unless the window covers its display; a scroll past the screen wheels at the window's nearest point on it; the window's clickable point aims the click")
 {
   const chrome = { identity: 'chrome.exe', name: 'chrome', pid: 4444, windowId: 'wide', title: 'Wide — Chrome', bounds: { x: 500, y: 75, width: 2000, height: 1000 } }
   const wideScene = {
@@ -480,6 +480,8 @@ section("two displays and a work area: a target on the second screen is clicked 
       { role: 'AXButton', title: 'Far right', frame: { x: 2300, y: 300, width: 100, height: 40 } },
       { role: 'AXButton', title: 'Under the taskbar', frame: { x: 1200, y: 1035, width: 100, height: 40 } },
       { role: 'AXStaticText', title: 'Row under the taskbar', frame: { x: 1200, y: 1040, width: 300, height: 28 } },
+      { role: 'AXButton', title: 'Aimed', frame: { x: 1300, y: 400, width: 200, height: 40 }, clickablePoint: { x: 1320, y: 435 } },
+      { role: 'AXButton', title: 'Pointless', frame: { x: 1300, y: 500, width: 200, height: 40 }, clickablePoint: null },
     ] }] }],
   }
   const wideFile = join(scratch, 'wide.json')
@@ -499,6 +501,12 @@ section("two displays and a work area: a target on the second screen is clicked 
   const wheel = await call({ action: 'scroll', target: { role: 'AXStaticText', text: 'Row under the taskbar' }, dy: 3, capture: false })
   const lastWheel = wideDriver.acts.filter(a => a.act === 'scroll').at(-1)
   check("a scroll pointed past the screen's edge wheels at the window's nearest point on the screen and says so", wheel.outcome === 'succeeded' && wheel.result.includes('wheeled at (1350, 1028) pt, the nearest point of the window on the screen') && (lastWheel?.detail.at as { y?: number } | undefined)?.y === 1028, `${wheel.result} · ${JSON.stringify(lastWheel?.detail)}`)
+  const aimed = await call({ action: 'click', target: { role: 'AXButton', name: 'Aimed' }, capture: false })
+  const aimedClick = clicks().at(-1)
+  check("a click lands at the element's own clickable point when the window reports one off the frame's centre, and says so", aimed.outcome === 'succeeded' && aimed.result.includes('aimed at its clickable point') && JSON.stringify(aimedClick?.detail.at) === JSON.stringify({ x: 1320, y: 435 }), `${aimed.result} · ${JSON.stringify(aimedClick?.detail)}`)
+  const pointless = await call({ action: 'click', target: { role: 'AXButton', name: 'Pointless' }, capture: false })
+  const pointlessClick = clicks().at(-1)
+  check("an element the window reports no clickable point for is clicked at its centre, with no aim words", pointless.outcome === 'succeeded' && !pointless.result.includes('aimed at') && JSON.stringify(pointlessClick?.detail.at) === JSON.stringify({ x: 1400, y: 520 }), `${pointless.result} · ${JSON.stringify(pointlessClick?.detail)}`)
   writeFileSync(wideFile, JSON.stringify({ ...wideScene, spanning: false }))
   resetDesktopDriverForTest()
   const oneAtATime = resolveDesktopDriver()
