@@ -508,14 +508,15 @@ export default class App extends PureComponent<Props, State> {
     this.inputDrain = null
     while (this.inputBatchIndex < this.inputBatches.length) {
       const batch = this.inputBatches[this.inputBatchIndex++]!
-      if (this.inputBatchIndex === this.inputBatches.length) {
+      const last = this.inputBatchIndex === this.inputBatches.length
+      if (last) {
         this.inputBatches.length = 0
         this.inputBatchIndex = 0
       }
       this.inputDrain = setImmediate(this.drainInput)
       try {
         this.dispatchDiscrete(batch.atoms)
-        if (batch.flush) reconciler.flushSyncWork()
+        if (batch.flush || !last) reconciler.flushSyncWork()
       } catch (error) {
         logError(error)
       }
