@@ -68,7 +68,7 @@ console.log('[3] the Eval tool\'s roster words name the samples road when Sample
   const onPrompt = await buildEvalPrompt([])
   const onWire = EvalTool.wireDescription!(onPrompt)
   check('on: the full prompt carries the sample() helper and the roster description names sample(), /samples and the asks', onPrompt.includes('`sample({name') && onWire.includes('`sample()` in a cell publishes a versioned page') && onWire.includes('/samples') && onWire.includes('asks to see a sample, page, mockup or report'), onWire)
-  check('on: the clause rides after the helpers sentence and before the languages', onWire.indexOf('their signatures arrive on first use.') < onWire.indexOf('With Samples on') && onWire.indexOf('With Samples on') < onWire.indexOf('- `'), onWire)
+  check('on: the clause rides after the helpers sentence and before the languages', onWire.includes('their signatures arrive on first use.') && onWire.includes('With Samples on') && onWire.indexOf('their signatures arrive on first use.') < onWire.indexOf('With Samples on') && onWire.indexOf('With Samples on') < onWire.indexOf('- `'), onWire)
   delete process.env.MERCURY_SAMPLES
   const offPrompt = await buildEvalPrompt([])
   const offWire = EvalTool.wireDescription!(offPrompt)
