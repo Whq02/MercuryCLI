@@ -481,7 +481,9 @@ async function run(cols: number, rows: number): Promise<void> {
     check('the footer says esc interrupts Lane birch — the VIEWED crewmate, the one the key cuts', /esc interrupts? Lane birch/.test(footer) && !/esc interrupts? Lane atlas/.test(footer), footer.slice(0, 260))
     const status = statusRowOf(frame)
     console.log(`the status row: "${status}"`)
-    check('the status row names the commands target (birch, the viewed one) ahead of the composer\'s (atlas, the main chat; a narrow row cuts that half) — never "composer → Lane birch"', /commands → Lane birch · composer → L/.test(status) && !/composer → Lane birch/.test(status) && (!/\(the main chat\)/.test(status) || /composer → Lane atlas \(the main chat\)/.test(status)), `the status row reads "${status}"`)
+    const painted = /viewing .*?(?=…|\s{2,}|$)/.exec(status)?.[0] ?? ''
+    const whole = `viewing ${BIRCH.name} · commands → ${BIRCH.name} · composer → ${ATLAS.name} (the main chat) · 2 crewmates running`
+    check('the status row names the commands target (birch, the viewed one) whole and ahead of the composer\'s (atlas, the main chat; a narrow row cuts that half) — never "composer → Lane birch"', painted.includes(`commands → ${BIRCH.name}`) && whole.startsWith(painted) && !/composer → Lane birch/.test(status), `the status row reads "${status}"`)
     const TO_PIN = 'to the pin'
     await typeWords(scene, TO_PIN)
     scene.push(ENTER)
