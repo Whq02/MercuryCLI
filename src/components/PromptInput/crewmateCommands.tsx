@@ -6,7 +6,7 @@ import { ModalContext } from '../../context/modalContext.js'
 import type { Notification } from '../../context/notifications.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import type { AppState } from '../../state/AppState.js'
-import { durableAtomicPublish } from '../../substrate/durablePublish.js'
+import { publishAtomic } from '../../substrate/fileStore.js'
 import { isLocalAgentTask, requestAgentCompaction } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { MERCURY_CREW_AGENT_TYPE } from '../../tools/AgentTool/constants.js'
 import {
@@ -84,7 +84,7 @@ async function readRecord(file: string): Promise<AgentMetadata | null> {
 }
 
 async function writeRecord(file: string, meta: AgentMetadata): Promise<void> {
-  await durableAtomicPublish(file, JSON.stringify(meta))
+  await publishAtomic(file, JSON.stringify(meta))
 }
 
 async function latestRecord(seat: CrewmateSeat): Promise<AgentMetadata> {
