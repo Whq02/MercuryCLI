@@ -235,10 +235,14 @@ export function shownAddress(value: string | null | undefined): URL | null {
   } catch { return null }
 }
 
+export function addressWords(url: URL): string {
+  return url.protocol === 'file:' ? `file://${url.pathname}` : `${url.host}${url.pathname}`
+}
+
 function browserAddress(app: DesktopApplication | undefined, tree: DesktopTree | undefined): string | null {
   if (!app || !/(?:chrome|chromium|firefox|safari|brave|vivaldi|msedge|microsoftedge|opera|orion|arc)(?:[.\s-]|$)/i.test(`${app.identity} ${app.name}`)) return null
   const url = shownAddress(tree?.elements.find(element => /^AX(?:TextField|ComboBox)$/.test(element.role) && /^(?:address(?: and search)?(?: bar)?|location|url|search or enter (?:website name|address))$/i.test(element.title ?? ''))?.value)
-  return url === null ? null : url.protocol === 'file:' ? `file://${url.pathname}` : `${url.host}${url.pathname}`
+  return url === null ? null : addressWords(url)
 }
 
 function windowTitle({ app, tree }: DesktopObservation): string | null {

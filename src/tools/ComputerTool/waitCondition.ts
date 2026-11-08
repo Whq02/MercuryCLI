@@ -1,5 +1,5 @@
 import type { DesktopApplication, DesktopTree } from '../../services/desktop/driver.js'
-import { shownAddress, targetMatches, targetWords } from './fastRoad.js'
+import { addressWords, shownAddress, targetMatches, targetWords } from './fastRoad.js'
 
 interface WaitCondition {
   role?: string
@@ -42,7 +42,13 @@ function settledAbsence(tree: DesktopTree): boolean {
 export function waitConditionPassed(until: WaitCondition, app: DesktopApplication, tree: DesktopTree): boolean {
   const includes = (value: string, expected: string) => value.replace(/\s+/g, ' ').toLowerCase().includes(expected.replace(/\s+/g, ' ').toLowerCase())
   if (until.title !== undefined) return includes(app.title ?? '', until.title)
-  if (until.url !== undefined) return tree.elements.some(element => /^(AX)?(TextField|ComboBox|SearchField)$/i.test(element.role) && /address|location|url|search/i.test(element.title ?? '') && shownAddress(element.value) !== null && includes(element.value ?? '', until.url!))
+  if (until.url !== undefined) {
+    return tree.elements.some(element => {
+      if (!/^(AX)?(TextField|ComboBox|SearchField)$/i.test(element.role) || !/address|location|url|search/i.test(element.title ?? '') || element.focused === true) return false
+      const url = shownAddress(element.value)
+      return url !== null && [element.value ?? '', url.href, addressWords(url)].some(form => includes(form, until.url!))
+    })
+  }
   if (until.dialog === true) {
     const open = tree.elements.some(element => DIALOG_ROLE.test(element.role)) || (tree.focused != null && DIALOG_ROLE.test(tree.focused.role))
     return until.gone ? !open && settledAbsence(tree) : open
