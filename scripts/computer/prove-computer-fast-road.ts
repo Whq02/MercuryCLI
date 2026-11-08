@@ -138,6 +138,20 @@ check('pixel fallback acts against the cropped screenshot', regionClick.outcome 
 const invalid = await call({ action: 'screenshot', region: { x: 110, y: 0, width: 30, height: 20 } })
 check('a crop outside the visible image refuses', invalid.outcome === 'failed' && invalid.result.includes('outside'), invalid.result)
 
+section('a screenshot step inside a sequence sets the coordinates for the steps after it, so a pixel act there is refused as unseen')
+{
+  const reopened = await withScreenshot(ComputerTool as never, context, 'sequence-opening')
+  context = reopened.context
+  const inner = { x: 100, y: 80, width: 120, height: 60 }
+  const ratio = Number(reopened.screen.pointWidth) / Number(reopened.screen.imageWidth)
+  const staleX = Number(reopened.screen.originX) + 20 * ratio
+  const staleY = Number(reopened.screen.originY) + 20 * ratio
+  const inSequence = await call({ action: 'sequence', steps: [{ action: 'screenshot', region: inner }, { action: 'click', x: 20, y: 20 }] })
+  check('the click after an in-sequence screenshot does not act through the previous top-level map', inSequence.outcome === 'failed' && inSequence.result.includes('sequence 1/2 completed') && !inSequence.result.includes(`→ (${staleX}, ${staleY}) pt`), inSequence.result.slice(0, 300))
+  check('it is refused for the reason the model can act on: the screenshot was taken in this same message and has not been seen — take it alone, then act', inSequence.result.includes('click refused: the last screenshot was taken in this same message — you have not seen it; take the screenshot alone, then the region or the act; nothing further done'), inSequence.result.slice(0, 300))
+  check("the in-sequence screenshot's own line is kept in the answer and says the coordinates now refer to the region", inSequence.result.includes('coordinates now refer to this region'), inSequence.result.slice(0, 400))
+}
+
 section('sequences check every act and stop at the first refusal')
 session.forgetDesktopOwner(owner)
 const decisions: string[] = []

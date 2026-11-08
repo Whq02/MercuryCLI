@@ -1467,11 +1467,17 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
         let anyScrolled = false
         let firstBefore: DesktopObservation | null = null
         let mayRead = false
+        let shotInSequence = false
         const readable = new Set<string>()
         for (const step of steps) {
           if (signal.aborted) {
             await driver.releaseAll()
             result = `sequence ${completed}/${steps.length} completed · ${interruptedText('sequence')}`
+            outcome = 'failed'
+            return finish()
+          }
+          if (shotInSequence && ((step.x !== undefined && step.y !== undefined) || step.region !== undefined)) {
+            result = `sequence ${completed}/${steps.length} completed · ${step.action} refused: ${SCREENSHOT_UNSEEN}; nothing further done\n${lines.join('\n')}`
             outcome = 'failed'
             return finish()
           }
@@ -1485,7 +1491,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
             decision = await canUseTool(ComputerTool, step, context, parentAssistantMessage, toolUseId)
           }
           if (decision.behavior !== 'allow') {
-            result = `sequence ${completed}/${steps.length} completed · ${'message' in decision ? decision.message : 'permission not granted'}; nothing further done`
+            result = `sequence ${completed}/${steps.length} completed · ${'message' in decision ? decision.message : 'permission not granted'}; nothing further done${lines.length ? `\n${lines.join('\n')}` : ''}`
             outcome = 'failed'
             return finish()
           }
@@ -1518,6 +1524,8 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
                 return finish()
               }
               adoptShot(shot)
+              setScreen(owner, shot.screen)
+              shotInSequence = true
               lines.push(shot.line)
               contentShown = true
             }
