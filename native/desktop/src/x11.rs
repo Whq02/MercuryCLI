@@ -5,7 +5,7 @@ use x11rb::protocol::xtest::ConnectionExt as XtestConnectionExt;
 use x11rb::rust_connection::RustConnection;
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{ClickablePointAnswer, ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, ScrollAnswer, TreeAnswer, TreeElement, ValueAnswer};
+use crate::{ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, ScrollAnswer, TreeAnswer, TreeElement, ValueAnswer};
 
 const CURRENT_TIME: u32 = 0;
 const NO_DEVICE: u8 = 0;
@@ -202,10 +202,6 @@ pub fn accessibility_tree(_pid: i32, _max_depth: u32, _max_count: u32, _scope: &
 
 pub fn scroll_to_visible(_pid: i32, _wanted: &TreeElement, _wheel: bool) -> Result<ScrollAnswer, String> {
     Err("scrolling an element into view is unsupported on this platform (no accessibility actions in this release)".to_string())
-}
-
-pub fn clickable_point(_pid: i32, _wanted: &TreeElement) -> Result<ClickablePointAnswer, String> {
-    Ok(ClickablePointAnswer { x: None, y: None, reason: Some("the clickable point is read on Windows only".to_string()) })
 }
 
 pub fn set_value(_pid: i32, _wanted: &TreeElement, _text: &str) -> Result<ValueAnswer, String> {

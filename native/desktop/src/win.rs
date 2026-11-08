@@ -35,7 +35,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{ClickablePointAnswer, clipped, covered_words, hidden_by, number_words, same_frame, wheel_words, windows_role, ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, ScrollAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, ROAD_ACTION, ROAD_WHEEL, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED, WHEEL_FAILED};
+use crate::{clipped, covered_words, hidden_by, number_words, same_frame, wheel_words, windows_role, ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, ScrollAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, ROAD_ACTION, ROAD_WHEEL, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED, WHEEL_FAILED};
 
 const OBSERVATION_DEPTH: u32 = 3;
 const OBSERVATION_COUNT: u32 = 200;
@@ -611,17 +611,6 @@ pub fn scroll_to_visible(pid: i32, wanted: &TreeElement, wheel: bool) -> Result<
         None if wheel => wheel_into_view(pid, &window, &element, started, budget),
         None => ScrollAnswer { scrolled: false, road: None, frame: element_frame(&element), reason: Some(SCROLL_UNSUPPORTED.to_string()) },
     })
-}
-
-pub fn clickable_point(pid: i32, wanted: &TreeElement) -> Result<ClickablePointAnswer, String> {
-    let _dpi = DpiScope::enter();
-    let (_automation, _window, element) = unique_element(pid, wanted)?;
-    let mut point = POINT::default();
-    match unsafe { element.GetClickablePoint(&mut point) } {
-        Ok(got) if got.as_bool() => Ok(ClickablePointAnswer { x: Some(point.x as f64), y: Some(point.y as f64), reason: None }),
-        Ok(_) => Ok(ClickablePointAnswer { x: None, y: None, reason: Some("UI Automation reports no clickable point for it (covered, or scrolled out of its pane)".to_string()) }),
-        Err(error) => Ok(ClickablePointAnswer { x: None, y: None, reason: Some(format!("the clickable point could not be read: {}", error.message())) }),
-    }
 }
 
 pub fn set_value(pid: i32, wanted: &TreeElement, text: &str) -> Result<ValueAnswer, String> {

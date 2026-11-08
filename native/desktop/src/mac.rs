@@ -8,7 +8,7 @@ use objc2_core_foundation::{CGPoint, CGRect, CGSize};
 use objc2_foundation::NSString;
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{ClickablePointAnswer, clipped, covered_words, hidden_by, same_frame, tree_child_order, wheel_words, ApplicationAnswer, BoundsRecord, DisplayRecord, FocusedText, ScrollAnswer, TextRange, PermissionsAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, NOT_IN_FRONT, ROAD_ACTION, ROAD_WHEEL, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED, WHEEL_FAILED};
+use crate::{clipped, covered_words, hidden_by, same_frame, tree_child_order, wheel_words, ApplicationAnswer, BoundsRecord, DisplayRecord, FocusedText, ScrollAnswer, TextRange, PermissionsAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, NOT_IN_FRONT, ROAD_ACTION, ROAD_WHEEL, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED, WHEEL_FAILED};
 
 type CFTypeRef = *const c_void;
 type CGEventRef = *mut c_void;
@@ -1399,10 +1399,6 @@ pub fn scroll_to_visible(pid: i32, wanted: &TreeElement, wheel: bool) -> Result<
         CFRelease(window);
         Ok(answer)
     })
-}
-
-pub fn clickable_point(_pid: i32, _wanted: &TreeElement) -> Result<ClickablePointAnswer, String> {
-    Ok(ClickablePointAnswer { x: None, y: None, reason: Some("the clickable point is read on Windows only".to_string()) })
 }
 
 pub fn set_value(pid: i32, wanted: &TreeElement, text: &str) -> Result<ValueAnswer, String> {

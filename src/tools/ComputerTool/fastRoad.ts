@@ -129,7 +129,12 @@ export function withOrdinal(tree: DesktopTree, element: DesktopTreeElement): Des
   return { ...plain, nth }
 }
 
-export function clippedWords(tree: DesktopTree, element: DesktopTreeElement, bounds: DesktopBounds | null, displays?: readonly DesktopDisplay[]): string | null {
+export interface ScreenFacts {
+  displays: readonly DesktopDisplay[]
+  spanning: boolean
+}
+
+export function clippedWords(tree: DesktopTree, element: DesktopTreeElement, bounds: DesktopBounds | null, screens?: ScreenFacts): string | null {
   const frame = element.frame
   if (!usableFrame(frame)) return null
   if (element.offscreen === true) return 'the target is scrolled out of view (its window reports it off screen) — scroll it into view first'
@@ -146,24 +151,35 @@ export function clippedWords(tree: DesktopTree, element: DesktopTreeElement, bou
     const side = sideOf(viewport.frame)
     if (side !== null) return `the target is ${side} the ${viewport.name}'s edge (${visibleAlong(viewport.frame, side)} pt visible) — scroll it into view first`
   }
-  if (displays?.length && !displays.some(display => contains(screenOf(display), centre))) {
-    const screen = screenUnder(displays, bounds ?? frame)
-    const side = sideOf(screen) ?? 'past'
-    return `the target is ${side} the display's edge (${visibleAlong(screen, side)} pt visible; the window extends past the screen) — scroll it into view first`
+  if (screens?.displays.length) {
+    const shown = onView(screens, bounds ?? frame)
+    if (!shown.some(screen => contains(screen, centre))) {
+      const screen = screenUnder(screens, bounds ?? frame)
+      const side = sideOf(screen) ?? 'past'
+      return `the target is ${side} the display's edge (${visibleAlong(screen, side)} pt visible; the window extends past the screen) — scroll it into view first`
+    }
   }
   return null
 }
 
-export function screenOf(display: DesktopDisplay): DesktopBounds {
-  return display.work ?? { x: display.originX, y: display.originY, width: display.width, height: display.height }
+export function screenOf(display: DesktopDisplay, window: DesktopBounds | null = null): DesktopBounds {
+  const whole = { x: display.originX, y: display.originY, width: display.width, height: display.height }
+  if (display.work === undefined || window === null) return display.work ?? whole
+  const covers = window.x <= whole.x + 1 && window.y <= whole.y + 1 && window.x + window.width >= whole.x + whole.width - 1 && window.y + window.height >= whole.y + whole.height - 1
+  return covers ? whole : display.work
+}
+
+function onView(screens: ScreenFacts, window: DesktopBounds): DesktopBounds[] {
+  if (screens.spanning) return screens.displays.map(display => screenOf(display, window))
+  return [screenUnder(screens, window)]
 }
 
 const contains = (frame: DesktopBounds, point: { x: number; y: number }): boolean => point.x >= frame.x && point.x < frame.x + frame.width && point.y >= frame.y && point.y < frame.y + frame.height
 
-export function screenUnder(displays: readonly DesktopDisplay[], bounds: DesktopBounds): DesktopBounds {
+export function screenUnder(screens: ScreenFacts, bounds: DesktopBounds): DesktopBounds {
   let best: { area: number; frame: DesktopBounds } | null = null
-  for (const display of displays) {
-    const frame = screenOf(display)
+  for (const display of screens.displays) {
+    const frame = screenOf(display, bounds)
     const shown = windowOnDisplay(bounds, { ...display, originX: frame.x, originY: frame.y, width: frame.width, height: frame.height })
     const area = shown ? shown.width * shown.height : 0
     if (best === null || area > best.area) best = { area, frame }
@@ -171,11 +187,11 @@ export function screenUnder(displays: readonly DesktopDisplay[], bounds: Desktop
   return best!.frame
 }
 
-export function nearestOnScreen(displays: readonly DesktopDisplay[], point: { x: number; y: number }, within: DesktopBounds | null): { x: number; y: number } | null {
-  if (displays.some(display => contains(screenOf(display), point))) return null
+export function nearestOnScreen(screens: ScreenFacts, point: { x: number; y: number }, within: DesktopBounds | null): { x: number; y: number } | null {
+  const shown = within === null ? screens.displays.map(display => screenOf(display)) : onView(screens, within)
+  if (shown.some(screen => contains(screen, point))) return null
   let best: { distance: number; point: { x: number; y: number } } | null = null
-  for (const display of displays) {
-    const screen = screenOf(display)
+  for (const screen of shown) {
     const box = within === null ? screen : { x: Math.max(screen.x, within.x), y: Math.max(screen.y, within.y), width: Math.min(screen.x + screen.width, within.x + within.width) - Math.max(screen.x, within.x), height: Math.min(screen.y + screen.height, within.y + within.height) - Math.max(screen.y, within.y) }
     if (box.width <= 2 * EDGE_MARGIN_PT || box.height <= 2 * EDGE_MARGIN_PT) continue
     const clamped = { x: Math.min(Math.max(point.x, box.x + EDGE_MARGIN_PT), box.x + box.width - EDGE_MARGIN_PT), y: Math.min(Math.max(point.y, box.y + EDGE_MARGIN_PT), box.y + box.height - EDGE_MARGIN_PT) }

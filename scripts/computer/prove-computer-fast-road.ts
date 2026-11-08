@@ -467,21 +467,19 @@ section("a Windows-shaped tree: the window's own off-screen report is the clippe
   check("a target already inside the window but off the display is refused before any click", low.outcome === 'failed' && low.result.includes("below the display's edge (0 pt visible; the window extends past the screen); it was scrolled (action) and did not move") && paneDriver.acts.filter(a => a.act === 'click').length === clicksBefore, low.result)
   session.forgetDesktopOwner(ownerOf(context))
 }
-section("two displays and a work area: a target on the second screen is clicked; one over the taskbar strip is refused; a scroll past the screen wheels at the window's nearest point on it; Windows' clickable point aims the click")
+section("two displays and a work area: a target on the second screen is clicked where windows span displays and refused where they do not; one over the taskbar strip is refused unless the window covers its display; a scroll past the screen wheels at the window's nearest point on it")
 {
-  const chrome = { identity: 'chrome.exe', name: 'chrome', pid: 4444, windowId: 'wide', title: 'Wide — Chrome', bounds: { x: 1000, y: 75, width: 2000, height: 1000 } }
+  const chrome = { identity: 'chrome.exe', name: 'chrome', pid: 4444, windowId: 'wide', title: 'Wide — Chrome', bounds: { x: 500, y: 75, width: 2000, height: 1000 } }
   const wideScene = {
     displays: [
       { index: 0, id: 'left', originX: 0, originY: 0, width: 1920, height: 1080, scale: 1, primary: true, work: { x: 0, y: 0, width: 1920, height: 1030 } },
       { index: 1, id: 'right', originX: 1920, originY: 0, width: 1920, height: 1080, scale: 1, primary: false, work: { x: 1920, y: 0, width: 1920, height: 1030 } },
     ],
     frontmost: chrome, cursor: { x: 50, y: 50 }, lines: ['Wide'],
-    tree: [{ role: 'AXWindow', title: chrome.title, focused: true, frame: chrome.bounds, children: [{ role: 'AXWebArea', title: 'Wide', frame: { x: 1000, y: 195, width: 2000, height: 880 }, children: [
-      { role: 'AXButton', title: 'Far right', frame: { x: 2500, y: 300, width: 100, height: 40 } },
+    tree: [{ role: 'AXWindow', title: chrome.title, focused: true, frame: chrome.bounds, children: [{ role: 'AXWebArea', title: 'Wide', frame: { x: 500, y: 195, width: 2000, height: 880 }, children: [
+      { role: 'AXButton', title: 'Far right', frame: { x: 2300, y: 300, width: 100, height: 40 } },
       { role: 'AXButton', title: 'Under the taskbar', frame: { x: 1200, y: 1035, width: 100, height: 40 } },
       { role: 'AXStaticText', title: 'Row under the taskbar', frame: { x: 1200, y: 1040, width: 300, height: 28 } },
-      { role: 'AXButton', title: 'Aimed', frame: { x: 1300, y: 400, width: 200, height: 40 }, clickablePoint: { x: 1320, y: 435 } },
-      { role: 'AXButton', title: 'Pointless', frame: { x: 1300, y: 500, width: 200, height: 40 }, clickablePoint: null },
     ] }] }],
   }
   const wideFile = join(scratch, 'wide.json')
@@ -501,12 +499,31 @@ section("two displays and a work area: a target on the second screen is clicked;
   const wheel = await call({ action: 'scroll', target: { role: 'AXStaticText', text: 'Row under the taskbar' }, dy: 3, capture: false })
   const lastWheel = wideDriver.acts.filter(a => a.act === 'scroll').at(-1)
   check("a scroll pointed past the screen's edge wheels at the window's nearest point on the screen and says so", wheel.outcome === 'succeeded' && wheel.result.includes('wheeled at (1350, 1028) pt, the nearest point of the window on the screen') && (lastWheel?.detail.at as { y?: number } | undefined)?.y === 1028, `${wheel.result} · ${JSON.stringify(lastWheel?.detail)}`)
-  const aimed = await call({ action: 'click', target: { role: 'AXButton', name: 'Aimed' }, capture: false })
-  const aimedClick = clicks().at(-1)
-  check("a click on Windows lands at the element's own clickable point when it differs from the frame's centre, and says so", aimed.outcome === 'succeeded' && aimed.result.includes('aimed at its clickable point') && JSON.stringify(aimedClick?.detail.at) === JSON.stringify({ x: 1320, y: 435 }), `${aimed.result} · ${JSON.stringify(aimedClick?.detail)}`)
-  const before = clicks().length
-  const pointless = await call({ action: 'click', target: { role: 'AXButton', name: 'Pointless' }, capture: false })
-  check("an element Windows reports no clickable point for is refused before any click", pointless.outcome === 'failed' && pointless.result.includes('no clickable point') && clicks().length === before, pointless.result)
+  writeFileSync(wideFile, JSON.stringify({ ...wideScene, spanning: false }))
+  resetDesktopDriverForTest()
+  const oneAtATime = resolveDesktopDriver()
+  if (oneAtATime.state !== 'ok') throw new Error(oneAtATime.note)
+  const oneDriver = oneAtATime.driver as DesktopDriver & { acts: { act: string; detail: Record<string, unknown> }[] }
+  const cut = await call({ action: 'click', target: { role: 'AXButton', name: 'Far right' }, capture: false })
+  check("when windows show on one display at a time (macOS with separate Spaces), the target on the second display is refused as past the display's edge, nothing clicked", cut.outcome === 'failed' && cut.result.includes("the display's edge") && !oneDriver.acts.some(a => a.act === 'click'), cut.result)
+  const full = { identity: 'chrome.exe', name: 'chrome', pid: 4445, windowId: 'full', title: 'Full — Chrome', bounds: { x: 0, y: 0, width: 1920, height: 1080 } }
+  const fullScene = {
+    displays: [{ index: 0, id: 'only', originX: 0, originY: 0, width: 1920, height: 1080, scale: 1, primary: true, work: { x: 0, y: 0, width: 1920, height: 1030 } }],
+    frontmost: full, cursor: { x: 50, y: 50 }, lines: ['Full'],
+    tree: [{ role: 'AXWindow', title: full.title, focused: true, frame: full.bounds, children: [{ role: 'AXWebArea', title: 'Full', frame: full.bounds, children: [
+      { role: 'AXButton', title: 'Play', frame: { x: 900, y: 1040, width: 120, height: 36 } },
+    ] }] }],
+  }
+  const fullFile = join(scratch, 'full.json')
+  writeFileSync(fullFile, JSON.stringify(fullScene))
+  process.env.MERCURY_DESKTOP_FAKE_SCENE = fullFile
+  resetDesktopDriverForTest()
+  const fullPage = resolveDesktopDriver()
+  if (fullPage.state !== 'ok') throw new Error(fullPage.note)
+  const fullDriver = fullPage.driver as DesktopDriver & { acts: { act: string; detail: Record<string, unknown> }[] }
+  session.forgetDesktopOwner(ownerOf(context))
+  const play = await call({ action: 'click', target: { role: 'AXButton', name: 'Play' }, capture: false })
+  check("a window covering its whole display draws over the taskbar, so a control in that strip is clicked", play.outcome === 'succeeded' && fullDriver.acts.some(a => a.act === 'click'), `${play.result} · ${fullDriver.acts.map(a => a.act).join(',')}`)
   session.forgetDesktopOwner(ownerOf(context))
 }
 finish('prove-computer-fast-road')

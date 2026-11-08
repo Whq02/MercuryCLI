@@ -26,7 +26,6 @@ import { rememberDesktopPermissions, resolveDesktopDriver } from '../../services
 import type {
   DesktopAnswer,
   DesktopApplication,
-  DesktopDisplay,
   DesktopDriver,
   DesktopError,
   DesktopModifier,
@@ -81,7 +80,7 @@ import {
 } from './screenMap.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './UI.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import { STATE_LINE, candidateWords, clippedWords, nearestOnScreen, regionRefusal, withOrdinal, sameWindow, settledCapture, stateWord, windowOnDisplay, targetMatches, targetElement, targetPoint, targetWords, readObservation, settledObservation, observationChanged, treeObservation, verificationWords, pageContentNote, type CaptureRegion, type DesktopObservation } from './fastRoad.js'
+import { type ScreenFacts, STATE_LINE, candidateWords, clippedWords, nearestOnScreen, regionRefusal, withOrdinal, sameWindow, settledCapture, stateWord, windowOnDisplay, targetMatches, targetElement, targetPoint, targetWords, readObservation, settledObservation, observationChanged, treeObservation, verificationWords, pageContentNote, type CaptureRegion, type DesktopObservation } from './fastRoad.js'
 import { CAPTCHA_ASK_UNAVAILABLE, CAPTCHA_OPERATOR_COMPLETES, CAPTCHA_QUESTION, captchaNote, titleSight, treeSight, type CaptchaSight } from './captcha.js'
 import { OPERATOR_TYPING_REFUSAL, operatorIsTyping, waitForOperatorPause } from './operatorPause.js'
 
@@ -450,7 +449,7 @@ interface ActPlan {
   element?: DesktopTreeElement
   scrolled?: 'action' | 'wheel'
   clipped?: Array<{ field: 'point' | 'target'; element: DesktopTreeElement; words: string; label: string }>
-  displays?: DesktopDisplay[]
+  screens?: ScreenFacts
   aimed?: string
 }
 
@@ -458,42 +457,12 @@ function scrolledWords(plan: ActPlan): string {
   return `${plan.scrolled ? ` · scrolled into view first (${plan.scrolled})` : ''}${plan.aimed ? ` · ${plan.aimed}` : ''}`
 }
 
-const AIMED_ACTS = new Set(['click', 'doubleClick', 'rightClick', 'move', 'drag', 'file'])
-
-async function settleActPoints(driver: DesktopDriver, input: Input, plan: ActPlan, front: DesktopApplication, signal: AbortSignal, map: ScreenMap | null): Promise<string | null> {
-  const displays = plan.displays ?? []
-  if (input.action === 'scroll' && plan.point !== null && displays.length) {
-    const moved = nearestOnScreen(displays, plan.point, front.bounds)
-    if (moved !== null) {
-      plan.point = moved
-      plan.aimed = `wheeled at ${pointWords(moved)}, the nearest point of the window on the screen (the target lies past the screen's edge)`
-    }
-    return null
-  }
-  if (!AIMED_ACTS.has(input.action) || driver.clickablePoint === undefined) return null
-  const ends: Array<{ field: 'point' | 'target'; element: DesktopTreeElement; label: string }> = []
-  if (plan.element && plan.point !== null && (input.target !== undefined || input.ref !== undefined)) ends.push({ field: 'point', element: plan.element, label: input.target !== undefined ? targetWords(input.target) : `ref:${input.ref}` })
-  if (input.action === 'drag' && input.toTarget !== undefined && plan.beforeTree) {
-    const other = targetElement(plan.beforeTree, input.toTarget, map)
-    if (!('refusal' in other)) ends.push({ field: 'target', element: other, label: targetWords(input.toTarget) })
-  }
-  for (const end of ends) {
-    const frame = end.element.frame
-    if (!frame) continue
-    const answer = await driver.clickablePoint(front, withOrdinal(plan.beforeTree ?? { elements: [end.element], truncated: false, reason: null }, end.element), signal)
-    if (!answer.ok) {
-      if (answer.error.kind === 'aborted') return interruptedText(input.action)
-      continue
-    }
-    const point = answer.value.point
-    if (point === null) return `${input.action} refused: ${end.label}: ${answer.value.note ?? 'the window reports no clickable point for it'} — scroll it into view or take a screenshot`
-    const inside = point.x >= frame.x && point.x <= frame.x + frame.width && point.y >= frame.y && point.y <= frame.y + frame.height
-    if (!inside) continue
-    const centre = { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 }
-    if (Math.abs(point.x - centre.x) < 1 && Math.abs(point.y - centre.y) < 1) continue
-    plan[end.field] = point
-    if (end.field === 'point') plan.observe = { x: point.x - 24, y: point.y - 24, width: 48, height: 48 }
-    plan.aimed = `aimed at ${end.field === 'target' ? `${end.label}'s` : 'its'} clickable point (the window's own, inside the part on view)`
+async function settleActPoints(input: Input, plan: ActPlan, front: DesktopApplication): Promise<string | null> {
+  if (input.action !== 'scroll' || plan.point === null || plan.screens === undefined) return null
+  const moved = nearestOnScreen(plan.screens, plan.point, front.bounds)
+  if (moved !== null) {
+    plan.point = moved
+    plan.aimed = `wheeled at ${pointWords(moved)}, the nearest point of the window on the screen (the target lies past the screen's edge)`
   }
   return null
 }
@@ -507,9 +476,10 @@ const stillClipped = (where: string, road: string, still: string, moved: boolean
 }
 
 const sameFrame = (a: DesktopBounds | null, b: DesktopBounds | null): boolean => JSON.stringify(a) === JSON.stringify(b)
+const EDGE_REACH_PT = 2
 const usableRowFrame = (row: DesktopTreeElement): boolean => row.frame !== null && [row.frame.x, row.frame.y, row.frame.width, row.frame.height].every(Number.isFinite) && row.frame.width > 0 && row.frame.height > 0
 
-async function scrollIntoView(driver: DesktopDriver, front: DesktopApplication, tree: DesktopTree, element: DesktopTreeElement, clipped: string, signal: AbortSignal, displays: DesktopDisplay[] | undefined): Promise<{ element: DesktopTreeElement; road: 'action' | 'wheel' } | { refusal: string; aborted?: boolean }> {
+async function scrollIntoView(driver: DesktopDriver, front: DesktopApplication, tree: DesktopTree, element: DesktopTreeElement, clipped: string, signal: AbortSignal, screens: ScreenFacts | undefined): Promise<{ element: DesktopTreeElement; road: 'action' | 'wheel' } | { refusal: string; aborted?: boolean }> {
   const where = clipped.replace(' — scroll it into view first', '')
   if (driver.scrollToVisible === undefined) return { refusal: `${where} — scroll it into view first (this desktop driver cannot scroll an element into view)` }
   const source = (element as { sourceIndices?: number[] }).sourceIndices?.[0]
@@ -521,7 +491,7 @@ async function scrollIntoView(driver: DesktopDriver, front: DesktopApplication, 
   if (receipt.frame === null) return { refusal: `${where}; it was scrolled (${receipt.road}) but its frame could not be read afterwards — take a screenshot and use its pixels` }
   const { offscreen: _before, ...rest } = element
   const moved: DesktopTreeElement = { ...rest, frame: receipt.frame }
-  const still = clippedWords(tree, moved, front.bounds, displays)
+  const still = clippedWords(tree, moved, front.bounds, screens)
   if (still !== null) return { refusal: stillClipped(where, receipt.road, still, !sameFrame(element.frame, receipt.frame)) }
   return { element: moved, road: receipt.road }
 }
@@ -532,7 +502,7 @@ async function scrollClippedEnds(driver: DesktopDriver, input: Input, plan: ActP
   let tree = plan.beforeTree
   const scrolledEnds: string[] = []
   for (const end of ends) {
-    const scrolled = await scrollIntoView(driver, front, tree, end.element, end.words, signal, plan.displays)
+    const scrolled = await scrollIntoView(driver, front, tree, end.element, end.words, signal, plan.screens)
     if ('refusal' in scrolled) return scrolled.aborted ? scrolled.refusal : `${input.action} refused: ${end.label}: ${scrolled.refusal}${scrolledEnds.length ? ` (${scrolledEnds.join(', ')} was scrolled into view first)` : ''}`
     plan.scrolled = scrolled.road
     scrolledEnds.push(end.label)
@@ -540,12 +510,14 @@ async function scrollClippedEnds(driver: DesktopDriver, input: Input, plan: ActP
     if (fresh.ok) tree = fresh.value
     let settled: DesktopTreeElement | undefined = scrolled.element
     if (fresh.ok) {
-      const same = tree.elements.filter(row => row.role === scrolled.element.role && row.title === scrolled.element.title && usableRowFrame(row))
+      const same = tree.elements.filter(row => row.role === scrolled.element.role && row.title === scrolled.element.title && row.value === scrolled.element.value && usableRowFrame(row))
       const centre = (row: DesktopTreeElement) => ({ x: row.frame!.x + row.frame!.width / 2, y: row.frame!.y + row.frame!.height / 2 })
       const wanted = centre(scrolled.element)
-      settled = same.find(row => sameFrame(row.frame, scrolled.element.frame)) ?? same.sort((a, b) => Math.hypot(centre(a).x - wanted.x, centre(a).y - wanted.y) - Math.hypot(centre(b).x - wanted.x, centre(b).y - wanted.y))[0]
-      if (settled === undefined) return `${input.action} refused: ${end.label}: ${end.words.replace(' — scroll it into view first', '')}; it was scrolled (${scrolled.road}) but it is not in the window's tree afterwards — take a screenshot and use its pixels`
-      const still = clippedWords(tree, settled, front.bounds, plan.displays)
+      const reach = { x: scrolled.element.frame!.width / 2 + EDGE_REACH_PT, y: scrolled.element.frame!.height / 2 + EDGE_REACH_PT }
+      const near = same.filter(row => Math.abs(centre(row).x - wanted.x) <= reach.x && Math.abs(centre(row).y - wanted.y) <= reach.y)
+      settled = near.find(row => sameFrame(row.frame, scrolled.element.frame)) ?? near.sort((a, b) => Math.hypot(centre(a).x - wanted.x, centre(a).y - wanted.y) - Math.hypot(centre(b).x - wanted.x, centre(b).y - wanted.y))[0]
+      if (settled === undefined) return `${input.action} refused: ${end.label}: ${end.words.replace(' — scroll it into view first', '')}; it was scrolled (${scrolled.road}) but it is not where the window's tree shows it afterwards — take a screenshot and use its pixels`
+      const still = clippedWords(tree, settled, front.bounds, plan.screens)
       if (still !== null) return `${input.action} refused: ${end.label}: ${stillClipped(end.words.replace(' — scroll it into view first', ''), scrolled.road, still, !sameFrame(end.element.frame, settled.frame))}`
     }
     const frame = settled.frame!
@@ -559,7 +531,7 @@ async function scrollClippedEnds(driver: DesktopDriver, input: Input, plan: ActP
       const point = targetPoint(tree, selector, map)
       if ('refusal' in point) return `drag refused after the scroll: ${point.refusal}`
       const element = targetElement(tree, selector, map)
-      const still = 'refusal' in element ? null : clippedWords(tree, element, front.bounds, plan.displays)
+      const still = 'refusal' in element ? null : clippedWords(tree, element, front.bounds, plan.screens)
       if (still !== null) return `drag refused: the two ends are not in view together after scrolling (${targetWords(selector)}: ${still.replace(' — scroll it into view first', '')}) — scroll first or drag in steps`
       plan[field] = point
       if (field === 'point' && !('refusal' in element)) { plan.element = element; if (element.frame) plan.observe = element.frame }
@@ -625,14 +597,14 @@ async function resolveActTargets(driver: DesktopDriver, input: Input, front: Des
   const scrollsInto = input.action !== 'scroll'
   plan.clipped = []
   const displays = await driver.displays()
-  plan.displays = displays.ok ? displays.value.displays : undefined
+  plan.screens = displays.ok ? { displays: displays.value.displays, spanning: displays.value.spanning ?? true } : undefined
   if (input.ref !== undefined) {
     const elements = resolveTreeRef(owner, front, tree.value, input.ref)
     if (elements.length !== 1) return `${input.action} refused: ref:${input.ref}: ${elements.length === 0 ? 'no element of the latest tree matches it now' : `${elements.length} elements match it now`} — read the tree or find again${elements.length ? `\n${candidateWords(elements, map)}` : ''}`
     const element = elements[0]!
     const point = targetPoint({ ...tree.value, elements: [element] }, {}, map)
     if ('refusal' in point) return `${input.action} refused: ref:${input.ref}${point.refusal}`
-    const clipped = scrollsInto ? clippedWords(tree.value, element, front.bounds, plan.displays) : null
+    const clipped = scrollsInto ? clippedWords(tree.value, element, front.bounds, plan.screens) : null
     if (clipped !== null) {
       if (titleSight(`${element.role} ${element.title ?? ''} ${element.value ?? ''}`) === 'challenge') plan.captcha = 'challenge'
       plan.clipped = [...(plan.clipped ?? []), { field: 'point', element, words: clipped, label: `ref:${input.ref}` }]
@@ -646,7 +618,7 @@ async function resolveActTargets(driver: DesktopDriver, input: Input, front: Des
     const point = targetPoint(tree.value, selector, map)
     if ('refusal' in point) return `${input.action} refused: ${point.refusal}${pageContentNote(tree.value) ? `; ${pageContentNote(tree.value)}` : ''}`
     const element = targetElement(tree.value, selector, map)
-    const clipped = 'refusal' in element || !scrollsInto ? null : clippedWords(tree.value, element, front.bounds, plan.displays)
+    const clipped = 'refusal' in element || !scrollsInto ? null : clippedWords(tree.value, element, front.bounds, plan.screens)
     if (clipped !== null && !('refusal' in element)) {
       if (titleSight(`${element.role} ${element.title ?? ''} ${element.value ?? ''}`) === 'challenge') plan.captcha = 'challenge'
       plan.clipped = [...(plan.clipped ?? []), { field, element, words: clipped, label: targetWords(selector) }]
@@ -1700,7 +1672,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           return finish()
         }
         setDrivingApp(live)
-        const unscrolled = (await scrollClippedEnds(driver, input, plan, ready.value, signal, screenOf(owner))) ?? (await settleActPoints(driver, input, plan, ready.value, signal, screenOf(owner)))
+        const unscrolled = (await scrollClippedEnds(driver, input, plan, ready.value, signal, screenOf(owner))) ?? (await settleActPoints(input, plan, ready.value))
         if (unscrolled !== null) {
           await driver.releaseAll()
           result = unscrolled

@@ -31,7 +31,6 @@ import {
   type DesktopTreeLimits,
   type DesktopTypeOptions,
   type DesktopValueReceipt,
-  type DesktopClickablePoint,
 } from './driver.js'
 
 interface FakeTreeNode {
@@ -46,7 +45,6 @@ interface FakeTreeNode {
   wheel?: boolean
   visibleFrame?: DesktopBounds
   offscreen?: boolean
-  clickablePoint?: DesktopPoint | null
 }
 
 interface FakeSceneSwitch {
@@ -56,6 +54,7 @@ interface FakeSceneSwitch {
 
 export interface FakeScene {
   displays: DesktopDisplay[]
+  spanning?: boolean
   frontmost: DesktopApplication
   focusedWindow?: DesktopApplication
   cursor: DesktopPoint
@@ -108,7 +107,6 @@ type FakeActKind =
   | 'typeText'
   | 'scrollToVisible'
   | 'setValue'
-  | 'clickablePoint'
   | 'releaseAll'
 
 type FakeActOutcome = 'done' | 'aborted'
@@ -197,7 +195,6 @@ function treeProblem(value: unknown, at: string): string | null {
     if (node.settable !== undefined && typeof node.settable !== 'boolean') return `${at}[${i}].settable must be true or false`
     if (node.wheel !== undefined && typeof node.wheel !== 'boolean') return `${at}[${i}].wheel must be true or false`
     if (node.offscreen !== undefined && typeof node.offscreen !== 'boolean') return `${at}[${i}].offscreen must be true or false`
-    if (node.clickablePoint !== undefined && node.clickablePoint !== null && !(isRecord(node.clickablePoint) && finiteNumber(node.clickablePoint.x) && finiteNumber(node.clickablePoint.y))) return `${at}[${i}].clickablePoint must be null or a point with x and y`
     if (node.children !== undefined) {
       const problem = treeProblem(node.children, `${at}[${i}].children`)
       if (problem !== null) return problem
@@ -234,6 +231,7 @@ function fakeSceneProblem(value: unknown): string | null {
     if (!Array.isArray(value.lines) || !value.lines.every(isText)) return 'lines must be a list of strings'
   }
   if (value.noise !== undefined && typeof value.noise !== 'boolean') return 'noise must be true or false'
+  if (value.spanning !== undefined && typeof value.spanning !== 'boolean') return 'spanning must be true or false'
   if (value.switches !== undefined) {
     if (!Array.isArray(value.switches)) return 'switches must be a list'
     for (let i = 0; i < value.switches.length; i++) {
@@ -297,6 +295,7 @@ function sceneFrom(value: Record<string, unknown>): FakeScene {
   if (isRecord(value.cursor)) base.cursor = { x: value.cursor.x as number, y: value.cursor.y as number }
   if (Array.isArray(value.lines)) base.lines = [...(value.lines as string[])]
   if (typeof value.noise === 'boolean') base.noise = value.noise
+  if (typeof value.spanning === 'boolean') base.spanning = value.spanning
   if (Array.isArray(value.switches)) {
     base.switches = (value.switches as Array<Record<string, unknown>>).map(s => ({ afterActs: s.afterActs as number, frontmost: applicationFrom(s.frontmost as Record<string, unknown>) }))
   }
@@ -526,7 +525,7 @@ export class FakeDesktopDriver implements DesktopDriver {
 
   async displays(): Promise<DesktopAnswer<DesktopDisplays>> {
     const displays = this.scene.displays.map(d => ({ ...d }))
-    return answer({ displays, fingerprint: displaysFingerprint(displays) })
+    return answer({ displays, fingerprint: displaysFingerprint(displays), spanning: this.scene.spanning ?? true })
   }
 
   async capture(display: number, signal: AbortSignal): Promise<DesktopAnswer<DesktopCapture>> {
@@ -659,15 +658,6 @@ export class FakeDesktopDriver implements DesktopDriver {
     this.sceneActs += 1
     this.record('scrollToVisible', 'done', { ...detail, scrolled: true, road, frame: node.frame ?? null, ...(at ? { at } : {}) })
     return answer({ scrolled: true, road, frame: node.frame ? { ...node.frame } : null, note: at ? wheelWords(at.x, at.y) : null })
-  }
-
-  async clickablePoint(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopClickablePoint>> {
-    const located = await this.locate(app, element, signal)
-    if (!located.ok) return located
-    const { node } = located.value
-    if (node.clickablePoint === undefined) return refusal({ kind: 'unavailable', note: 'the scene names no clickable point for it' })
-    this.record('clickablePoint', 'done', { app: app.identity, role: node.role, title: titleOf(node), point: node.clickablePoint })
-    return answer(node.clickablePoint === null ? { point: null, note: 'UI Automation reports no clickable point for it (covered, or scrolled out of its pane)' } : { point: { ...node.clickablePoint }, note: null })
   }
 
   async setValue(app: DesktopApplication, element: DesktopTreeElement, text: string, signal: AbortSignal): Promise<DesktopAnswer<DesktopValueReceipt>> {

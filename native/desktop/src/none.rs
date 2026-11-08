@@ -1,5 +1,5 @@
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{ClickablePointAnswer, ApplicationAnswer, DisplayRecord, PermissionsAnswer, ScrollAnswer, TreeAnswer, TreeElement, ValueAnswer};
+use crate::{ApplicationAnswer, DisplayRecord, PermissionsAnswer, ScrollAnswer, TreeAnswer, TreeElement, ValueAnswer};
 
 const UNSUPPORTED: &str = "unsupported";
 
@@ -34,10 +34,6 @@ pub fn accessibility_tree(_pid: i32, _max_depth: u32, _max_count: u32, _scope: &
 
 pub fn scroll_to_visible(_pid: i32, _wanted: &TreeElement, _wheel: bool) -> Result<ScrollAnswer, String> {
     Err("scrolling an element into view is unsupported on this platform (no accessibility actions in this release)".to_string())
-}
-
-pub fn clickable_point(_pid: i32, _wanted: &TreeElement) -> Result<ClickablePointAnswer, String> {
-    Ok(ClickablePointAnswer { x: None, y: None, reason: Some("no desktop driver on this platform".to_string()) })
 }
 
 pub fn set_value(_pid: i32, _wanted: &TreeElement, _text: &str) -> Result<ValueAnswer, String> {

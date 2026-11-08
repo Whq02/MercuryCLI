@@ -37,7 +37,6 @@ import {
   type DesktopTreeLimits,
   type DesktopTypeOptions,
   type DesktopValueReceipt,
-  type DesktopClickablePoint,
 } from './driver.js'
 import {
   DESKTOP_BUILD_COMMAND,
@@ -53,7 +52,6 @@ import {
   type DesktopAddonScroll,
   type DesktopAddonTree,
   type DesktopAddonValue,
-  type DesktopAddonClickablePoint,
 } from './pack.js'
 
 type DesktopDriverLoad =
@@ -85,7 +83,7 @@ const CAPTURE_CHILD_TIMEOUT_MS = 2_500
 const CAPTURE_CHILD_RETRY_WAIT_MS: readonly [number, number] = [200, 800]
 const CAPTURE_CHILD_BUFFER = 64 * 1024 * 1024
 const CAPTURE_CHILD_SCRIPT = 'const a=require(process.argv[1]);const q=JSON.parse(require("node:fs").readFileSync(0,"utf8"));new Promise(r=>r(q.region?a.captureRegion(q.display,q.region):a.capture(q.display))).then(c=>{const png=Buffer.from(c.png.buffer,c.png.byteOffset,c.png.byteLength);process.stdout.write(Buffer.concat([Buffer.from(JSON.stringify({width:c.width,height:c.height,scale:c.scale,display:c.display,displayId:c.displayId,originX:c.originX,originY:c.originY,png:png.length})+"\\n"),png]),()=>process.exit(0))},e=>{process.stdout.write(JSON.stringify({error:e instanceof Error?e.message:String(e)})+"\\n",()=>process.exit(1))})'
-type DesktopQuery = 'readElement' | 'readClipboard' | 'findApplication' | 'activateApplication' | 'scrollToVisible' | 'setValue' | 'clickablePoint'
+type DesktopQuery = 'readElement' | 'readClipboard' | 'findApplication' | 'activateApplication' | 'scrollToVisible' | 'setValue'
 const QUERY_PLATFORMS: Record<DesktopQuery, readonly string[]> = {
   readElement: ['darwin'],
   readClipboard: ['darwin'],
@@ -93,7 +91,6 @@ const QUERY_PLATFORMS: Record<DesktopQuery, readonly string[]> = {
   activateApplication: ['darwin'],
   scrollToVisible: ['darwin', 'win32'],
   setValue: ['darwin', 'win32'],
-  clickablePoint: ['win32'],
 }
 
 export function desktopGrantWords(platform: string = process.platform): string {
@@ -184,6 +181,19 @@ function pngSigned(png: unknown): png is Uint8Array {
 
 function bridgedElement(element: DesktopTreeElement): Record<string, unknown> {
   return Object.fromEntries(Object.entries(element).filter(([, value]) => value !== null))
+}
+
+let spansRead: boolean | undefined
+function displaysSpan(): boolean {
+  if (process.platform !== 'darwin') return true
+  if (spansRead === undefined) {
+    try {
+      spansRead = execFileSync('/usr/bin/defaults', ['read', 'com.apple.spaces', 'spans-displays'], { encoding: 'utf8', timeout: 2_000, stdio: ['ignore', 'pipe', 'ignore'] }).trim() === '1'
+    } catch {
+      spansRead = false
+    }
+  }
+  return spansRead
 }
 
 function boundsOf(raw: unknown): DesktopBounds | null {
@@ -402,7 +412,7 @@ class NativeDesktopDriver implements DesktopDriver {
         const work = boundsOf(d.work)
         displays.push({ index: d.index, id: d.id, originX: d.originX, originY: d.originY, width: d.width, height: d.height, scale: d.scale, primary: d.primary === true, ...(work ? { work } : {}) })
       }
-      return { ok: true, value: { displays, fingerprint: displaysFingerprint(displays) } }
+      return { ok: true, value: { displays, fingerprint: displaysFingerprint(displays), spanning: displaysSpan() } }
     } catch (error) {
       return fail(classifyThrown(error))
     }
@@ -645,16 +655,6 @@ class NativeDesktopDriver implements DesktopDriver {
     const raw = answer.value
     if (!raw || typeof raw.set !== 'boolean') return fail(contractDefect('value', JSON.stringify(raw)))
     return { ok: true, value: { set: raw.set, value: typeof raw.value === 'string' && raw.value !== '' ? raw.value : null, note: noteOf(raw.reason) } }
-  }
-
-  async clickablePoint(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopClickablePoint>> {
-    if (!app.pid || !Number.isInteger(app.pid)) return fail({ kind: 'input', note: `${app.name} has no process id` })
-    const answer = await this.queryDesktop<DesktopAddonClickablePoint | null>('clickablePoint', [app.pid, bridgedElement(element)], signal, false)
-    if (!answer.ok) return answer
-    const raw = answer.value
-    if (!raw || typeof raw !== 'object') return fail(contractDefect('clickablePoint', JSON.stringify(raw)))
-    const point = typeof raw.x === 'number' && typeof raw.y === 'number' && Number.isFinite(raw.x) && Number.isFinite(raw.y) ? { x: raw.x, y: raw.y } : null
-    return { ok: true, value: { point, note: noteOf(raw.reason) } }
   }
 
   async readClipboard(signal: AbortSignal): Promise<DesktopAnswer<string>> {
