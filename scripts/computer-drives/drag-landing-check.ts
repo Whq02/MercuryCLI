@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
-const FINDER = 'com.apple.Finder'
+const FINDER = 'com.apple.finder'
 const DISTANCES = [110, 314]
 const GRIP_BELOW_TOP = 5
 const TITLE_BAR = 28

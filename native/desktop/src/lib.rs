@@ -43,6 +43,7 @@ use keys::{Button, KeyName, Modifier};
 pub const DRAG_STEPS: u32 = 16;
 pub const DRAG_STEP_MS: u64 = 8;
 pub const DRAG_HOLD_MS: u64 = 60;
+pub const DRAG_NUDGE_PT: f64 = 0.05;
 pub const TYPE_GAP_DEFAULT_MS: u32 = 4;
 pub const TYPE_GAP_CAP_MS: u32 = 1000;
 pub const ABORTED: &str = "aborted";
@@ -800,8 +801,8 @@ impl Task for DragTask {
             if CANCEL.load(Ordering::SeqCst) {
                 return Err(ABORTED.to_string());
             }
-            imp::mouse_drag(button, from_x, from_y)?;
-            sleep(Duration::from_millis(DRAG_HOLD_MS));
+            imp::mouse_drag(button, (from_x - DRAG_NUDGE_PT).max(0.0), (from_y - DRAG_NUDGE_PT).max(0.0))?;
+            sleep(Duration::from_millis(DRAG_STEP_MS));
             let mut last = (from_x, from_y);
             for step in 1..=DRAG_STEPS {
                 if CANCEL.load(Ordering::SeqCst) {

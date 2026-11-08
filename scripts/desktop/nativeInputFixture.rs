@@ -126,18 +126,24 @@ fn successful_clicks_and_drag_leave_nothing_held() {
     assert!(held().buttons.is_empty());
 }
 #[test]
-fn a_drag_holds_at_the_press_and_its_first_drag_event_is_there_before_the_steps() {
+fn a_drag_holds_at_the_press_then_nudges_a_twentieth_of_a_point_toward_the_origin_before_the_steps() {
+    reset();
+    let mut task = DragTask { from: (10.0, 10.0), to: (30.0, 30.0), button: Button::Left };
+    task.compute().unwrap();
+    let events = imp::event_list();
+    assert_eq!(&events[..3], ["move", "mouse:left:true", "drag:9.95:9.95"]);
+    let drags: Vec<&String> = events.iter().filter(|e| e.starts_with("drag:")).collect();
+    assert_eq!(drags.len(), DRAG_STEPS as usize + 1);
+    assert_eq!(drags[drags.len() - 1], "drag:30:30");
+    assert_eq!(events[events.len() - 1], "mouse:left:false");
+    let at = imp::event_instants();
+    assert!(at[2] - at[1] >= Duration::from_millis(60), "the pointer holds at the press before the nudge: {:?}", at[2] - at[1]);
+    assert!(held().buttons.is_empty());
+}
+#[test]
+fn a_drag_from_the_corner_never_nudges_off_the_display() {
     reset();
     let mut task = DragTask { from: (0.0, 0.0), to: (20.0, 20.0), button: Button::Left };
     task.compute().unwrap();
-    let events = imp::event_list();
-    assert_eq!(&events[..3], ["move", "mouse:left:true", "drag:0:0"]);
-    let drags: Vec<&String> = events.iter().filter(|e| e.starts_with("drag:")).collect();
-    assert_eq!(drags.len(), DRAG_STEPS as usize + 1);
-    assert_eq!(drags[drags.len() - 1], "drag:20:20");
-    assert_eq!(events[events.len() - 1], "mouse:left:false");
-    let at = imp::event_instants();
-    assert!(at[2] - at[1] >= Duration::from_millis(60), "the pointer holds at the press before its first drag event: {:?}", at[2] - at[1]);
-    assert!(at[3] - at[2] >= Duration::from_millis(60), "and holds again before the first step: {:?}", at[3] - at[2]);
-    assert!(held().buttons.is_empty());
+    assert_eq!(imp::event_list()[2], "drag:0:0");
 }
