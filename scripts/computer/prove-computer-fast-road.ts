@@ -200,7 +200,9 @@ section('a pixel step after a screenshot step in the same sequence is refused as
     bouncing.activateApplication = async () => { front = editor; return { ok: true, value: { ...editor } } }
     const mixed = await call({ action: 'sequence', steps: [{ action: 'screenshot' }, { action: 'focusApp', focusApp: { name: editor.name } }, { action: 'screenshot' }, { action: 'click', x: 20, y: 20 }] })
     const lines = mixed.result.split('\n')
-    check("a failed sequence that read terminal text raw and then took an image keeps the terminal's own line that begins 'screenshot: ' and replaces only the image step's line", mixed.outcome === 'failed' && mixed.imagePath === undefined && lines.includes(TERMINAL_LINE) && lines.filter(line => line === NOT_RETURNED).length === 1 && !lines.some(line => /^screenshot: \/.*\.png — display/.test(line)), mixed.result)
+    const terminalRoad = process.platform === 'darwin'
+    const notReturned = lines.filter(line => line === NOT_RETURNED).length
+    check(terminalRoad ? "a failed sequence that read terminal text raw and then took an image keeps the terminal's own line that begins 'screenshot: ' and replaces only the image step's line" : "off macOS a terminal has no text road: both screenshot steps took images, so a failed sequence replaces both their lines and keeps no raw terminal line", mixed.outcome === 'failed' && mixed.imagePath === undefined && (terminalRoad ? lines.includes(TERMINAL_LINE) && notReturned === 1 : !lines.includes(TERMINAL_LINE) && notReturned === 2) && !lines.some(line => /^screenshot: \/.*\.png — display/.test(line)), mixed.result)
     driver.frontmostApplication = frontBefore
     driver.accessibilityTree = treeBefore
     delete bouncing.findApplication
