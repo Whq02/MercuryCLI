@@ -35,9 +35,14 @@ import {
   type CompactionResult,
   ERROR_MESSAGE_USER_ABORT,
   foldRemedyIsHeadless,
+  isRefold,
+  manualFoldHasNothingToFold,
+  nothingToCompactLine,
+  projectManualFold,
   type RecompactionInfo,
   withFoldStatus,
 } from './compact.js'
+import { crewmateCompactNothingWords } from '../../utils/cockpit/crewmateWords.js'
 import { estimateMessageTokens } from './microCompact.js'
 import { isMaintenanceLadderEnabled, runMaintenanceLadder } from './maintenanceLadder.js'
 import { runPostCompactCleanup } from './postCompactCleanup.js'
@@ -65,13 +70,19 @@ const WARNING_MIN_CEILING_DENOMINATOR = 5
 
 export const COMPACTION_PAUSED_KEY = 'automatic compaction failed'
 
-type CompactableTask = { type?: string; compactRequested?: boolean }
+type CompactableTask = { type?: string; compactRequested?: boolean; description?: string }
 
 export function operatorCompactionAsked(toolUseContext: Pick<ToolUseContext, 'agentId' | 'getAppState'>): boolean {
   const agentId = toolUseContext.agentId
   if (agentId === undefined) return false
   const task = toolUseContext.getAppState().tasks?.[agentId] as CompactableTask | undefined
   return task?.type === 'local_agent' && task.compactRequested === true
+}
+
+function askingCrewmateName(toolUseContext: Pick<ToolUseContext, 'agentId' | 'getAppState'>): string {
+  const agentId = toolUseContext.agentId
+  const task = agentId === undefined ? undefined : (toolUseContext.getAppState().tasks?.[agentId] as CompactableTask | undefined)
+  return task?.description !== undefined && task.description !== '' ? task.description : String(agentId ?? 'the crewmate')
 }
 
 export function takeOperatorCompactionAsk(toolUseContext: Pick<ToolUseContext, 'agentId' | 'setAppState' | 'setAppStateForTasks'>): void {
@@ -393,6 +404,7 @@ export async function autoCompactIfNeeded(
   measuredRawTokenCount?: number | null
   refusal?: string
   paused?: true
+  declined?: true
 }> {
   const notCompacted = { wasCompacted: false as const, consecutiveFailures: tracking?.consecutiveFailures }
   const forced = overflowSignal !== undefined
@@ -423,10 +435,18 @@ export async function autoCompactIfNeeded(
     slot.noted = true
     logForDebugging(message)
   }
-  const asked = !forced && operatorCompactionAsked(toolUseContext)
-  if (asked) {
+  const askedByOperator = operatorCompactionAsked(toolUseContext)
+  if (askedByOperator) {
     takeOperatorCompactionAsk(toolUseContext)
-    logForDebugging(`autoCompact: crewmate ${String(toolUseContext.agentId)} folds now — the operator asked for it from the crew view`)
+    logForDebugging(`autoCompact: crewmate ${String(toolUseContext.agentId)} folds now — the operator asked for it from the crew view${forced ? ' (the overflow fold at this boundary is the one fold)' : ''}`)
+  }
+  const asked = askedByOperator && !forced
+  if (asked) {
+    const projection = await projectManualFold(messages, toolUseContext, cacheSafeParams, getAutoCompactThreshold(model))
+    const refold = isRefold(messages)
+    if (projection !== null && (refold ? manualFoldHasNothingToFold(projection) : projection.after >= projection.before)) {
+      return { ...notCompacted, refusal: crewmateCompactNothingWords(askingCrewmateName(toolUseContext), nothingToCompactLine(projection.context, refold)), declined: true }
+    }
   }
   let compact: boolean
   if (forced) {

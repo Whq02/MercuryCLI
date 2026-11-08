@@ -11,6 +11,8 @@ import {
   type CompactionResult,
   isRefold,
   manualFoldHasNothingToFold,
+  NOTHING_TO_COMPACT_KEY,
+  nothingToCompactLine,
   projectManualFold,
   withFoldStatus,
   ERROR_MESSAGE_USER_ABORT,
@@ -35,14 +37,9 @@ import { formatTokens } from '../../utils/format.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { logError } from '../../utils/log.js'
 
+export { NOTHING_TO_COMPACT_KEY, nothingToCompactLine } from '../../services/compact/compact.js'
+
 const reactiveCompact: typeof import('../../services/compact/reactiveCompact.js') | null = null
-
-export const NOTHING_TO_COMPACT_KEY = 'Nothing to compact: '
-
-export function nothingToCompactLine(contextTokens: number, refold = true): string {
-  if (!refold) return `${NOTHING_TO_COMPACT_KEY}${formatTokens(contextTokens)} tokens (${ERROR_MESSAGE_NOT_ENOUGH_MESSAGES})`
-  return `${NOTHING_TO_COMPACT_KEY}the last fold already holds this conversation (${formatTokens(contextTokens)} tokens)`
-}
 
 async function buildCompactCacheSafeParams(
   messages: Message[],

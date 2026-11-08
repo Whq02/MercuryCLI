@@ -1207,6 +1207,7 @@ async function* runEventMachine(
       measuredRawTokenCount,
       refusal: compactionRefusal,
       paused: compactionPaused,
+      declined: compactionDeclined,
     } = pendingOverflow?.rung === 'prune' ? { wasCompacted: false } as Awaited<ReturnType<typeof deps.autocompact>> : await deps.autocompact(
       foldSplit.head,
       toolUseContext,
@@ -1269,7 +1270,7 @@ async function* runEventMachine(
       return terminal
     }
 
-    if (forcedFold === undefined && compactionPaused === true && compactionRefusal !== undefined) {
+    if (forcedFold === undefined && (compactionPaused === true || compactionDeclined === true) && compactionRefusal !== undefined) {
       yield emit({ kind: 'notice', message: createSystemMessage(compactionRefusal, 'warning') })
     }
 

@@ -1,4 +1,5 @@
 import { canAnswerAsks, getInvokedSkillsForAgent } from '../../bootstrap/state.js'
+import { formatTokens } from '../../utils/format.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { NonNullableUsage } from '../api/emptyUsage.js'
@@ -108,6 +109,13 @@ export const POST_COMPACT_MAX_TOKENS_PER_SKILL = 5_000
 export const POST_COMPACT_SKILLS_TOKEN_BUDGET = 25_000
 
 export const ERROR_MESSAGE_NOT_ENOUGH_MESSAGES = 'Not enough messages to compact.'
+export const NOTHING_TO_COMPACT_KEY = 'Nothing to compact: '
+
+export function nothingToCompactLine(contextTokens: number, refold = true): string {
+  if (!refold) return `${NOTHING_TO_COMPACT_KEY}${formatTokens(contextTokens)} tokens (${ERROR_MESSAGE_NOT_ENOUGH_MESSAGES})`
+  return `${NOTHING_TO_COMPACT_KEY}the last fold already holds this conversation (${formatTokens(contextTokens)} tokens)`
+}
+
 export const ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD = 'Compaction cannot bring the context under its threshold'
 export const ERROR_MESSAGE_PROMPT_TOO_LONG =
   'This conversation could not be compacted: too much context. Start fresh with /clear, or choose a larger context window and run /compact again.'
