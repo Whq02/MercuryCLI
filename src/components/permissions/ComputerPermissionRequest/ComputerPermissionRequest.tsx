@@ -39,6 +39,16 @@ export const COMPUTER_CHALLENGE_CHOICES: ReadonlyArray<{ value: ComputerAskChoic
   { value: 'no', label: 'No — I will complete it myself; Mercury waits and re-issues (esc)' },
 ]
 
+export const COMPUTER_CLIPBOARD_CHOICES: ReadonlyArray<{ value: ComputerAskChoice; label: string }> = [
+  { value: 'yes', label: 'Yes' },
+  COMPUTER_ASK_CHOICES[1]!,
+  COMPUTER_ASK_CHOICES[4]!,
+]
+
+export function computerClipboardChoicesFor(sovereignOn: boolean): ReadonlyArray<{ value: ComputerAskChoice; label: string }> {
+  return sovereignOn ? COMPUTER_CLIPBOARD_CHOICES.filter(choice => choice.value !== 'sovereign') : COMPUTER_CLIPBOARD_CHOICES
+}
+
 const COMPUTER_ASK_FIRST_ACT = 'the first act this session'
 const COMPUTER_ASK_QUESTION = 'Do you want to allow Mercury to drive your mouse and keyboard, and for how long?'
 export const COMPUTER_CHALLENGE_QUESTION = 'A human-verification challenge is on screen. Complete it yourself and Mercury carries on, or let Mercury try it?'
@@ -85,10 +95,10 @@ const NO_UPDATES: PermissionUpdate[] = []
 
 const SOVEREIGN_MODE_DISABLED = 'Sovereign Mode is disabled by settings or organisation policy.'
 
-export function applyComputerAskChoice(choice: ComputerAskChoice, sessionId: string, now: number = Date.now(), challenge = false): ComputerAskEffect {
+export function applyComputerAskChoice(choice: ComputerAskChoice, sessionId: string, now: number = Date.now(), once = false): ComputerAskEffect {
   switch (choice) {
     case 'yes': {
-      if (challenge) return { allow: true, grant: null, saved: null, savedError: null, permissionUpdates: NO_UPDATES }
+      if (once) return { allow: true, grant: null, saved: null, savedError: null, permissionUpdates: NO_UPDATES }
       const grant = sessionComputerGrant(now)
       writeComputerGrant(sessionId, grant)
       return { allow: true, grant, saved: null, savedError: null, permissionUpdates: NO_UPDATES }
@@ -140,10 +150,11 @@ export function ComputerPermissionRequest({
   const challenge = challengeAsk((toolUseConfirm.permissionResult as { suggestions?: AskSuggestion[] }).suggestions)
   const mode = useAppState(state => state.toolPermissionContext.mode)
   const bypassAvailable = useAppState(state => state.toolPermissionContext.isBypassPermissionsModeAvailable)
-  const options = (challenge ? COMPUTER_CHALLENGE_CHOICES : computerAskChoicesFor(postureBypassesAsks({ mode, isBypassPermissionsModeAvailable: bypassAvailable })).filter(choice => !clipboard || choice.value === 'yes' || choice.value === 'no' || choice.value === 'sovereign')).map(choice => ({ label: choice.label, value: choice.value }))
+  const sovereignOn = postureBypassesAsks({ mode, isBypassPermissionsModeAvailable: bypassAvailable })
+  const options = (challenge ? COMPUTER_CHALLENGE_CHOICES : clipboard ? computerClipboardChoicesFor(sovereignOn) : computerAskChoicesFor(sovereignOn)).map(choice => ({ label: choice.label, value: choice.value }))
 
   function handleChange(value: ComputerAskChoice): void {
-    const effect = applyComputerAskChoice(value, conversationIdHere(), Date.now(), challenge)
+    const effect = applyComputerAskChoice(value, conversationIdHere(), Date.now(), challenge || clipboard)
     if (!effect.allow) {
       if (challenge) toolUseConfirm.onReject(CAPTCHA_OPERATOR_COMPLETES)
       else toolUseConfirm.onReject()

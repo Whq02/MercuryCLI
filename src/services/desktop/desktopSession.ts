@@ -36,6 +36,7 @@ interface DesktopCheckedAct {
   action: string
   app: DesktopJudgedApp
   viaGrant: boolean
+  asked: boolean
 }
 
 interface DesktopTurnHome {
@@ -76,7 +77,12 @@ export function approvedAppList(owner: OwnerKey): string[] {
 }
 
 export function noteCheckedActApp(owner: OwnerKey, action: string, app: DesktopJudgedApp, viaGrant = false): void {
-  ownerStates.get(owner).checkedActApp = { action, app: { identity: app.identity, name: app.name }, viaGrant }
+  ownerStates.get(owner).checkedActApp = { action, app: { identity: app.identity, name: app.name }, viaGrant, asked: false }
+}
+
+export function markCheckedActAsked(owner: OwnerKey): void {
+  const held = ownerStates.peek(owner)?.checkedActApp
+  if (held) held.asked = true
 }
 
 export function consumeCheckedAct(owner: OwnerKey, action: string): DesktopCheckedAct | null {

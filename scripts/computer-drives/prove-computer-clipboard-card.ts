@@ -12,8 +12,8 @@ for (const size of SIZES) {
   const text = joined(rows)
   printFrame(`clipboard ${size.cols}`, rows)
   check(`${size.cols}: clipboard consent appears in the real terminal`, result.status === 0 && text.includes('Allow Mercury to read the clipboard text?') && text.includes('read clipboard'), `${result.endReason}: ${result.stderr.slice(-300)}`)
-  check(`${size.cols}: an app grant is not presented as clipboard consent`, !text.includes('first act in this application') && !text.includes('for 1 hour') && !text.includes('for 24 hours') && !text.includes('drive your mouse') && !text.includes('needs separate consent'), text)
-  check(`${size.cols}: Yes, No and sovereign remain available`, text.includes('1. Yes') && text.includes('2. No, and tell Mercury') && text.includes('3. Enable sovereign mode'), text)
+  check(`${size.cols}: an app grant is not presented as clipboard consent`, !text.includes('the first act this session') && !text.includes('for this session') && !text.includes('for 1 hour') && !text.includes('for 24 hours') && !text.includes('drive your mouse') && !text.includes('needs separate consent'), text)
+  check(`${size.cols}: a plain Yes, No and sovereign remain available`, text.includes('1. Yes') && !text.includes('1. Yes,') && text.includes('2. No, and tell Mercury') && text.includes('3. Enable sovereign mode'), text)
   if (rows.length) {
     const image = join(scratch, `clipboard-${size.cols}.png`)
     writeFileSync(image, ansiToPng(rows.join('\n')))

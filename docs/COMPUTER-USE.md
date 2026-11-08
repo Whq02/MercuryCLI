@@ -284,9 +284,12 @@ runs out, the next act asks again; nothing timed is permanent. A
 `Computer(app:<identity>)` allow rule in your settings answers for that one
 application without a card. An application that moved in front between the
 ask and the act is not driven: the act is refused and the model takes a new
-screenshot. Your own terminal is the one exception: answering the card
-brings it forward, so Mercury brings the application back in front and the
-act runs, and its receipt says so. No classifier answers this ask: because the
+screenshot. Your own terminal is the one exception, on macOS: answering the
+card can bring it forward, so Mercury brings the application back in front
+and the act, or the read that asked, runs, and its receipt says so. A check
+answered without a card (a rule, an earlier act in that application, a
+standing grant) brought nothing forward, so the terminal in front is then a
+move like any other. No classifier answers this ask: because the
 foreground window determines the target application, the consent is yours
 alone, and sovereign mode is the one posture that answers it automatically,
 whatever the access type below saves.

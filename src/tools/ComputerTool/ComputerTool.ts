@@ -42,6 +42,7 @@ import {
   consumeCheckedAct,
   desktopPostureRefusal,
   imageRefusedFor,
+  markCheckedActAsked,
   noteCheckedActApp,
   noteScreenshot,
   noteTurnHome,
@@ -464,6 +465,12 @@ async function backFromOwnTerminal(driver: DesktopDriver, judged: DesktopJudgedA
   if (!activated.ok) return null
   const after = await driver.frontmostApplication()
   return after.ok && after.value.identity === judged.identity ? after.value : null
+}
+
+async function frontAfterCard(driver: DesktopDriver, checked: { app: DesktopJudgedApp; asked: boolean } | null, front: DesktopApplication, signal: AbortSignal): Promise<{ front: DesktopApplication; returned: string } | null> {
+  if (checked === null || !checked.asked || checked.app.identity === front.identity) return null
+  const back = await backFromOwnTerminal(driver, checked.app, front, signal)
+  return back === null ? null : { front: back, returned: `${checked.app.name} brought back in front (the terminal that asked had taken it)` }
 }
 
 function scrolledWords(plan: ActPlan): string {
@@ -1401,12 +1408,16 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
       return denied(ruleSentence(`Driving ${app.name} (${app.identity})`, 'deny', ruleFor(permissionContext, content)!), `${content} carries a deny rule`)
     }
     noteCheckedActApp(owner, input.action, { identity: app.identity, name: app.name })
+    const asked = (decision: PermissionDecision): PermissionDecision => {
+      if (decision.behavior === 'ask') markCheckedActAsked(owner)
+      return decision
+    }
     const challenge = (viaGrant: boolean): PermissionDecision => {
       if (input.captcha !== true || !ACT_ACTIONS.has(input.action)) return { behavior: 'allow' as const, updatedInput: input }
       const verdict = challengeVerdict(input, app, context)
       if (verdict.verdict === 'deny') return denied(`Computer ${input.action} not done: ${verdict.text}`, 'captcha carries a deny rule')
       noteCheckedActApp(owner, challengeAction(input.action), { identity: app.identity, name: app.name }, viaGrant)
-      return verdict.verdict === 'allow' ? { behavior: 'allow' as const, updatedInput: input } : verdict.decision
+      return verdict.verdict === 'allow' ? { behavior: 'allow' as const, updatedInput: input } : asked(verdict.decision)
     }
     if (ruled === 'allow' || (ruled === null && appApproved(owner, app.identity))) return challenge(false)
     const access = resolveComputerAccess(savedComputerAccess(), permissionContext !== undefined && postureBypassesAsks(permissionContext))
@@ -1415,7 +1426,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
       noteCheckedActApp(owner, input.action, { identity: app.identity, name: app.name }, true)
       return challenge(true)
     }
-    return {
+    return asked({
       behavior: 'ask' as const,
       message: `Computer ${input.action}${actDetail(input)} in ${app.name} (${app.identity}) — the first act this session (${permissionAction(input) === 'tree' ? 'reads its accessibility tree: the controls with their titles, values and frames' : input.action === 'focusApp' ? 'brings this application to the front' : 'drives your mouse and keyboard'})`,
       decisionReason: {
@@ -1424,7 +1435,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
         operatorOnly: true,
       },
       suggestions: suggestionForExactCommand(COMPUTER_TOOL_NAME, content),
-    }
+    })
   },
   async call(input: Input, context: ToolUseContext, canUseTool?: CanUseToolFn, parentAssistantMessage?: AssistantMessage): Promise<{ data: Output; effect: ToolEffect }> {
     const startedAt = Date.now()
@@ -1512,7 +1523,12 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           const reads = ACT_ACTIONS.has(step.action) || permissionAction(step) === 'tree'
           const last = completed === steps.length - 1
           if (firstBefore === null) {
-            const front = await driver.frontmostApplication()
+            let front = await driver.frontmostApplication()
+            const back = front.ok && reads && judged !== null && judged.action === step.action ? await frontAfterCard(driver, judged, front.value, signal) : null
+            if (back !== null) {
+              front = { ok: true, value: back.front }
+              lines.push(back.returned)
+            }
             mayRead = reads || (front.ok && (appApproved(owner, front.value.identity) || readable.has(front.value.identity)))
             firstBefore = front.ok ? { app: front.value } : {}
             if (mayRead && front.ok) firstBefore = await readObservation(driver, signal, false, front.value.identity)
@@ -1662,15 +1678,15 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
         }
         let live: DesktopJudgedApp = { identity: front.value.identity, name: front.value.name }
         if (judged !== null && judged.identity !== live.identity) {
-          const back = checked?.viaGrant === false ? await backFromOwnTerminal(driver, judged, front.value, signal) : null
+          const back = await frontAfterCard(driver, checked, front.value, signal)
           if (back === null) {
             result = `${input.action} refused: the screen moved from ${judged.name} (${judged.identity}) to ${live.name} (${live.identity}) between the permission check and the act — nothing done; take a screenshot and re-issue`
             outcome = 'failed'
             return finish()
           }
-          front = { ok: true, value: back }
-          live = { identity: back.identity, name: back.name }
-          plan.returned = `${judged.name} brought back in front (the terminal that asked had taken it)`
+          front = { ok: true, value: back.front }
+          live = { identity: back.front.identity, name: back.front.name }
+          plan.returned = back.returned
         }
         const terminal = await ownTerminalRefusal(driver, input, front.value, plan)
         if (terminal !== null) {
@@ -1796,12 +1812,14 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           let waitNote = ''
           if (input.until !== undefined) {
             const checked = consumeCheckedAct(owner, 'wait')
-            if (!turnFront.ok || (checked !== null && checked.app.identity !== turnFront.value.identity)) {
+            const back = turnFront.ok ? await frontAfterCard(driver, checked, turnFront.value, signal) : null
+            if (!turnFront.ok || (back === null && checked !== null && checked.app.identity !== turnFront.value.identity)) {
               result = 'wait refused: the application changed since the permission check — re-issue for the application in front'
               outcome = 'failed'
               break
             }
-            const app = turnFront.value
+            const app = back?.front ?? turnFront.value
+            const returned = back ? ` · ${back.returned}` : ''
             const deadline = Date.now() + pause
             const waitingSignal = AbortSignal.any([signal, AbortSignal.timeout(Math.ceil(pause))])
             let matched = false
@@ -1833,11 +1851,11 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
             }
             metAfterMs = Date.now() - waitStarted
             if (!matched) {
-              result = signal.aborted ? interruptedText('wait') : `wait timed out after ${pause}ms: ${waitConditionWords(input.until)} · last tree: ${lastSize === null ? 'unavailable' : `${lastSize} elements`}${lastTree ? captchaLine(lastTree, app) : ''}`
+              result = signal.aborted ? interruptedText('wait') : `wait timed out after ${pause}ms: ${waitConditionWords(input.until)} · last tree: ${lastSize === null ? 'unavailable' : `${lastSize} elements`}${returned}${lastTree ? captchaLine(lastTree, app) : ''}`
               outcome = 'failed'
               break
             }
-            waitNote = lastTree ? captchaLine(lastTree, app) : ''
+            waitNote = `${returned}${lastTree ? captchaLine(lastTree, app) : ''}`
           } else await sleep(pause, signal)
           if ((input.capture === false || (input.capture !== true && input.until === undefined)) && !signal.aborted) {
             result = `wait ${input.until ? `${waitConditionWords(input.until)} · met after ${metAfterMs}ms of ${pause}` : `${pause}ms`} · ${await factsLine(driver, screenOf(owner))}${waitNote}`
@@ -1921,8 +1939,9 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           }
           const checked = consumeCheckedAct(owner, input.action)
           if (!turnFront.ok) { result = faultText('read', turnFront.error); break }
-          const app = turnFront.value
-          if (checked && checked.app.identity !== app.identity) { result = 'read refused: the application changed since the permission check — re-issue'; break }
+          const back = await frontAfterCard(driver, checked, turnFront.value, signal)
+          const app = back?.front ?? turnFront.value
+          if (back === null && checked && checked.app.identity !== app.identity) { result = 'read refused: the application changed since the permission check — re-issue'; break }
           if (!driver.readElement) { result = 'read is unavailable in this desktop driver'; break }
           const tree = await driver.accessibilityTree(app, treeLimitsOf(input), signal)
           if (!tree.ok) { result = faultText('read', tree.error); break }
@@ -1955,7 +1974,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           if (!after.ok || !sameWindow(after.value, app)) { result = 'read refused: the front window changed while reading — re-issue'; break }
           if (value.value === null) { result = 'read failed: the element has no readable text or value'; break }
           if (!checked?.viaGrant) approveApp(owner, app)
-          result = readWords(JSON.stringify(value.value.title ?? element.title ?? value.value.role), value.value.text, value.value.truncated) + captchaLine(tree.value, app)
+          result = `${readWords(JSON.stringify(value.value.title ?? element.title ?? value.value.role), value.value.text, value.value.truncated)}${back ? `\n${back.returned}` : ''}${captchaLine(tree.value, app)}`
           outcome = 'succeeded'
           break
         }
@@ -1969,8 +1988,9 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
             outcome = 'failed'
             break
           }
-          const app = turnFront.value
-          if (judged !== null && judged.identity !== app.identity) {
+          const back = await frontAfterCard(driver, checked, turnFront.value, signal)
+          const app = back?.front ?? turnFront.value
+          if (back === null && judged !== null && judged.identity !== app.identity) {
             result = `tree refused: the screen moved from ${judged.name} (${judged.identity}) to ${app.name} (${app.identity}) between the permission check and the read — nothing read; re-issue`
             outcome = 'failed'
             break
@@ -2011,7 +2031,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           rememberTreeRefs(owner, app, tree.value, shown)
           result = input.action === 'tree' && !input.pixels && input.root === undefined && input.scope !== 'app' && isTerminalApplication(app) ? await readTerminalText(driver, app, signal, tree.value) : input.action === 'fields' ? fieldsWords(app, shown, keptLimits, screenOf(owner), input.points === true) : treeWords(app, shown, keptLimits, screenOf(owner), input.points === true)
           settleChallenge(String(getSessionId()), app, treeSight(tree.value, app.bounds) === 'challenge')
-          result += captchaLine(tree.value, app)
+          result += `${back ? `\n${back.returned}` : ''}${captchaLine(tree.value, app)}`
           outcome = 'succeeded'
           break
         }

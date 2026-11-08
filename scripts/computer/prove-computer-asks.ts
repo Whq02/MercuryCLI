@@ -130,21 +130,74 @@ section('§4 the judged application travels from the check to the act and refuse
 
 section('§4b the terminal that asked is not a drift: the answered card brought it forward, the act brings the application back and runs')
 {
-  const { context, owner } = await fresh('terminal-front-after-card', { frontmost: TERMINAL, ownTerminal: TERMINAL })
-  const driver = fakeDriver() as unknown as { findApplication?: unknown; activateApplication?: unknown; frontmostApplication: () => Promise<unknown> }
+  const BACK = 'TextEdit brought back in front (the terminal that asked had taken it)'
   const textedit = { ...TEXTEDIT, pid: 4200, title: 'Untitled', windowId: '7', bounds: { x: 100, y: 100, width: 800, height: 600 } }
-  let activated = 0
-  const frontmostBefore = driver.frontmostApplication.bind(driver)
-  driver.findApplication = async (name: string) => (name === TEXTEDIT.name ? { ok: true, value: textedit } : { ok: false, error: { kind: 'unavailable', note: 'no such application' } })
-  driver.activateApplication = async () => { activated += 1; driver.frontmostApplication = async () => ({ ok: true, value: textedit }); return { ok: true, value: textedit } }
-  session.noteCheckedActApp(owner, 'click', TEXTEDIT)
-  const landed = resultOf(await ComputerTool.call({ action: 'click', x: 100, y: 100, capture: false } as never, context, allowEverything, toolUseTurn('toolu_back_click', 'Computer', { action: 'click', x: 100, y: 100, capture: false })))
-  check('the act brings TextEdit back in front and runs, and its receipt says so', landed.outcome === 'succeeded' && activated === 1 && landed.result.includes('TextEdit brought back in front (the terminal that asked had taken it)'), landed.result)
-  check('the click reached the driver once', fakeDriver().acts.filter(a => a.act === 'click').length === 1)
-  driver.frontmostApplication = frontmostBefore
-  delete driver.findApplication
-  delete driver.activateApplication
-  session.forgetDesktopOwner(owner)
+  type Bouncing = { findApplication?: unknown; activateApplication?: unknown; frontmostApplication: () => Promise<unknown> }
+  async function terminalTakes(name: string, options: Parameters<typeof toolContext>[0] = {}): Promise<{ context: ToolUseContext; owner: ReturnType<typeof ownerOf>; driver: Bouncing; activations: () => number; restore: () => void }> {
+    const { context, owner } = await fresh(name, { ownTerminal: TERMINAL }, options)
+    const driver = fakeDriver() as unknown as Bouncing
+    const frontmostBefore = driver.frontmostApplication.bind(driver)
+    let activated = 0
+    driver.findApplication = async (wanted: string) => (wanted === TEXTEDIT.name ? { ok: true, value: textedit } : { ok: false, error: { kind: 'unavailable', note: 'no such application' } })
+    driver.activateApplication = async () => { activated += 1; driver.frontmostApplication = async () => ({ ok: true, value: textedit }); return { ok: true, value: textedit } }
+    return {
+      context,
+      owner,
+      driver,
+      activations: () => activated,
+      restore: () => { driver.frontmostApplication = frontmostBefore; delete driver.findApplication; delete driver.activateApplication; session.forgetDesktopOwner(owner) },
+    }
+  }
+  const terminalInFront = (driver: Bouncing): void => { driver.frontmostApplication = async () => ({ ok: true, value: TERMINAL }) }
+  const clicks = (): number => fakeDriver().acts.filter(a => a.act === 'click').length
+
+  {
+    const scene = await terminalTakes('card-then-terminal')
+    const asked = await permission({ action: 'click', x: 100, y: 100 }, scene.context)
+    check('the check asks (the card is shown) and the carry says so', asked.behavior === 'ask' && session.peekCheckedActApp(scene.owner)?.asked === true, JSON.stringify(asked))
+    terminalInFront(scene.driver)
+    const landed = resultOf(await ComputerTool.call({ action: 'click', x: 100, y: 100, capture: false } as never, scene.context, allowEverything, toolUseTurn('toolu_back_click', 'Computer', { action: 'click', x: 100, y: 100, capture: false })))
+    check('the act brings TextEdit back in front and runs, and its receipt says so', landed.outcome === 'succeeded' && scene.activations() === 1 && landed.result.includes(BACK), landed.result)
+    check('the click reached the driver once', clicks() === 1)
+    scene.restore()
+  }
+  {
+    const scene = await terminalTakes('approval-then-terminal')
+    session.approveApp(scene.owner, TEXTEDIT)
+    const allowed = await permission({ action: 'click', x: 100, y: 100 }, scene.context)
+    check('a per-application approval allows with no card and the carry says no card was shown', allowed.behavior === 'allow' && session.peekCheckedActApp(scene.owner)?.asked === false, JSON.stringify(allowed))
+    terminalInFront(scene.driver)
+    const refused = resultOf(await ComputerTool.call({ action: 'click', x: 100, y: 100, capture: false } as never, scene.context, allowEverything, toolUseTurn('toolu_approval_click', 'Computer', { action: 'click', x: 100, y: 100, capture: false })))
+    check('with no card shown, the terminal in front is a drift: refused as moved, nothing activated, nothing clicked', refused.outcome === 'failed' && refused.result.includes('moved from TextEdit (com.example.TextEdit) to Terminal (com.example.Terminal)') && scene.activations() === 0 && clicks() === 0, refused.result)
+    scene.restore()
+  }
+  {
+    const scene = await terminalTakes('rule-then-terminal', { allow: [`Computer(app:${TEXTEDIT.identity})`] })
+    const allowed = await permission({ action: 'click', x: 100, y: 100 }, scene.context)
+    check('an app: allow rule allows with no card', allowed.behavior === 'allow' && session.peekCheckedActApp(scene.owner)?.asked === false, JSON.stringify(allowed))
+    terminalInFront(scene.driver)
+    const refused = resultOf(await ComputerTool.call({ action: 'click', x: 100, y: 100, capture: false } as never, scene.context, allowEverything, toolUseTurn('toolu_rule_click', 'Computer', { action: 'click', x: 100, y: 100, capture: false })))
+    check('under the rule the terminal in front is a drift too: refused as moved, nothing activated, nothing clicked', refused.outcome === 'failed' && refused.result.includes('moved from TextEdit') && scene.activations() === 0 && clicks() === 0, refused.result)
+    scene.restore()
+  }
+  {
+    const scene = await terminalTakes('card-then-terminal-find')
+    const asked = await permission({ action: 'find', target: { role: 'AXButton' } }, scene.context)
+    check('a find as the first ask of the session asks', asked.behavior === 'ask' && session.peekCheckedActApp(scene.owner)?.asked === true, JSON.stringify(asked))
+    terminalInFront(scene.driver)
+    const found = resultOf(await ComputerTool.call({ action: 'find', target: { role: 'AXButton' } } as never, scene.context, allowEverything, toolUseTurn('toolu_back_find', 'Computer', { action: 'find', target: { role: 'AXButton' } })))
+    check('the read brings TextEdit back in front and reads it, never the terminal; its receipt says so', found.outcome === 'succeeded' && scene.activations() === 1 && found.result.includes(BACK) && !found.result.includes('Terminal'), found.result)
+    scene.restore()
+  }
+  {
+    const scene = await terminalTakes('card-then-terminal-sequence')
+    let cards = 0
+    const cardInTerminal = (async () => { cards += 1; terminalInFront(scene.driver); return { behavior: 'allow' as const } }) as never
+    const ran = resultOf(await ComputerTool.call({ action: 'sequence', steps: [{ action: 'click', x: 100, y: 100 }], capture: false } as never, scene.context, cardInTerminal, toolUseTurn('toolu_back_sequence', 'Computer', { action: 'sequence', steps: [{ action: 'click', x: 100, y: 100 }], capture: false })))
+    check('the first step asked once through the host', cards === 1 && ran.outcome === 'succeeded', ran.result)
+    check('a one-step sequence after the card brings TextEdit back before its first observation: the state line reads unchanged, as the single click does', scene.activations() === 1 && /\nunchanged · now: window "Untitled"/.test(ran.result) && ran.result.includes(BACK), ran.result)
+    scene.restore()
+  }
 }
 
 section('§5 rules: a deny rule refuses before any ask, an allow rule allows without a grant')
