@@ -146,23 +146,43 @@ export function clippedWords(tree: DesktopTree, element: DesktopTreeElement, bou
     const side = sideOf(viewport.frame)
     if (side !== null) return `the target is ${side} the ${viewport.name}'s edge (${visibleAlong(viewport.frame, side)} pt visible) — scroll it into view first`
   }
-  const screen = displays?.length ? displayUnder(displays, bounds ?? frame) : null
-  if (screen !== null) {
-    const side = sideOf(screen)
-    if (side !== null) return `the target is ${side} the display's edge (${visibleAlong(screen, side)} pt visible; the window extends past the screen) — scroll it into view first`
+  if (displays?.length && !displays.some(display => contains(screenOf(display), centre))) {
+    const screen = screenUnder(displays, bounds ?? frame)
+    const side = sideOf(screen) ?? 'past'
+    return `the target is ${side} the display's edge (${visibleAlong(screen, side)} pt visible; the window extends past the screen) — scroll it into view first`
   }
   return null
 }
 
-function displayUnder(displays: readonly DesktopDisplay[], bounds: DesktopBounds): DesktopBounds | null {
+export function screenOf(display: DesktopDisplay): DesktopBounds {
+  return display.work ?? { x: display.originX, y: display.originY, width: display.width, height: display.height }
+}
+
+const contains = (frame: DesktopBounds, point: { x: number; y: number }): boolean => point.x >= frame.x && point.x < frame.x + frame.width && point.y >= frame.y && point.y < frame.y + frame.height
+
+export function screenUnder(displays: readonly DesktopDisplay[], bounds: DesktopBounds): DesktopBounds {
   let best: { area: number; frame: DesktopBounds } | null = null
   for (const display of displays) {
-    const frame = { x: display.originX, y: display.originY, width: display.width, height: display.height }
-    const shown = windowOnDisplay(bounds, display)
+    const frame = screenOf(display)
+    const shown = windowOnDisplay(bounds, { ...display, originX: frame.x, originY: frame.y, width: frame.width, height: frame.height })
     const area = shown ? shown.width * shown.height : 0
     if (best === null || area > best.area) best = { area, frame }
   }
-  return best?.frame ?? null
+  return best!.frame
+}
+
+export function nearestOnScreen(displays: readonly DesktopDisplay[], point: { x: number; y: number }, within: DesktopBounds | null): { x: number; y: number } | null {
+  if (displays.some(display => contains(screenOf(display), point))) return null
+  let best: { distance: number; point: { x: number; y: number } } | null = null
+  for (const display of displays) {
+    const screen = screenOf(display)
+    const box = within === null ? screen : { x: Math.max(screen.x, within.x), y: Math.max(screen.y, within.y), width: Math.min(screen.x + screen.width, within.x + within.width) - Math.max(screen.x, within.x), height: Math.min(screen.y + screen.height, within.y + within.height) - Math.max(screen.y, within.y) }
+    if (box.width <= 2 * EDGE_MARGIN_PT || box.height <= 2 * EDGE_MARGIN_PT) continue
+    const clamped = { x: Math.min(Math.max(point.x, box.x + EDGE_MARGIN_PT), box.x + box.width - EDGE_MARGIN_PT), y: Math.min(Math.max(point.y, box.y + EDGE_MARGIN_PT), box.y + box.height - EDGE_MARGIN_PT) }
+    const distance = Math.hypot(clamped.x - point.x, clamped.y - point.y)
+    if (best === null || distance < best.distance) best = { distance, point: clamped }
+  }
+  return best?.point ?? null
 }
 
 export function pageContentNote(tree?: DesktopTree): string {

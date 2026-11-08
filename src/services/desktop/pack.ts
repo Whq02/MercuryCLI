@@ -178,6 +178,7 @@ interface DesktopAddonDisplay {
   height: number
   scale: number
   primary: boolean
+  work?: DesktopAddonBounds | null
 }
 
 interface DesktopAddonDisplays {
@@ -260,6 +261,12 @@ export interface DesktopAddonValue {
   reason?: string | null
 }
 
+export interface DesktopAddonClickablePoint {
+  x?: number | null
+  y?: number | null
+  reason?: string | null
+}
+
 export interface DesktopAddon {
   packVersion(): string
   recogniseText?(bytes: Buffer, page?: number): Promise<string>
@@ -274,6 +281,7 @@ export interface DesktopAddon {
   readElement?(pid: number, element: DesktopTreeElement): DesktopFocusedText | null
   scrollToVisible(pid: number, element: Partial<DesktopTreeElement>, wheel?: boolean): DesktopAddonScroll
   setValue(pid: number, element: Partial<DesktopTreeElement>, text: string): DesktopAddonValue
+  clickablePoint?(pid: number, element: Partial<DesktopTreeElement>): DesktopAddonClickablePoint
   readClipboard?(): string
   findApplication?(name: string): DesktopAddonApplication
   activateApplication?(pid: number, identity: string): void

@@ -31,6 +31,7 @@ import {
   type DesktopTreeLimits,
   type DesktopTypeOptions,
   type DesktopValueReceipt,
+  type DesktopClickablePoint,
 } from './driver.js'
 
 interface FakeTreeNode {
@@ -45,6 +46,7 @@ interface FakeTreeNode {
   wheel?: boolean
   visibleFrame?: DesktopBounds
   offscreen?: boolean
+  clickablePoint?: DesktopPoint | null
 }
 
 interface FakeSceneSwitch {
@@ -106,6 +108,7 @@ type FakeActKind =
   | 'typeText'
   | 'scrollToVisible'
   | 'setValue'
+  | 'clickablePoint'
   | 'releaseAll'
 
 type FakeActOutcome = 'done' | 'aborted'
@@ -173,6 +176,10 @@ function displayProblem(value: unknown, at: string, position: number): string | 
     if (!finiteNumber(number) || number <= 0) return `${at}.${field} must be a positive number`
   }
   if (typeof value.primary !== 'boolean') return `${at}.primary must be true or false`
+  if (value.work !== undefined) {
+    const problem = boundsProblem(value.work, `${at}.work`)
+    if (problem !== null) return problem
+  }
   return null
 }
 
@@ -190,6 +197,7 @@ function treeProblem(value: unknown, at: string): string | null {
     if (node.settable !== undefined && typeof node.settable !== 'boolean') return `${at}[${i}].settable must be true or false`
     if (node.wheel !== undefined && typeof node.wheel !== 'boolean') return `${at}[${i}].wheel must be true or false`
     if (node.offscreen !== undefined && typeof node.offscreen !== 'boolean') return `${at}[${i}].offscreen must be true or false`
+    if (node.clickablePoint !== undefined && node.clickablePoint !== null && !(isRecord(node.clickablePoint) && finiteNumber(node.clickablePoint.x) && finiteNumber(node.clickablePoint.y))) return `${at}[${i}].clickablePoint must be null or a point with x and y`
     if (node.children !== undefined) {
       const problem = treeProblem(node.children, `${at}[${i}].children`)
       if (problem !== null) return problem
@@ -281,6 +289,7 @@ function sceneFrom(value: Record<string, unknown>): FakeScene {
       height: d.height as number,
       scale: d.scale as number,
       primary: d.primary as boolean,
+      ...(isRecord(d.work) ? { work: { x: d.work.x as number, y: d.work.y as number, width: d.work.width as number, height: d.work.height as number } } : {}),
     }))
   }
   if (isRecord(value.frontmost)) base.frontmost = applicationFrom(value.frontmost)
@@ -650,6 +659,15 @@ export class FakeDesktopDriver implements DesktopDriver {
     this.sceneActs += 1
     this.record('scrollToVisible', 'done', { ...detail, scrolled: true, road, frame: node.frame ?? null, ...(at ? { at } : {}) })
     return answer({ scrolled: true, road, frame: node.frame ? { ...node.frame } : null, note: at ? wheelWords(at.x, at.y) : null })
+  }
+
+  async clickablePoint(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopClickablePoint>> {
+    const located = await this.locate(app, element, signal)
+    if (!located.ok) return located
+    const { node } = located.value
+    if (node.clickablePoint === undefined) return refusal({ kind: 'unavailable', note: 'the scene names no clickable point for it' })
+    this.record('clickablePoint', 'done', { app: app.identity, role: node.role, title: titleOf(node), point: node.clickablePoint })
+    return answer(node.clickablePoint === null ? { point: null, note: 'UI Automation reports no clickable point for it (covered, or scrolled out of its pane)' } : { point: { ...node.clickablePoint }, note: null })
   }
 
   async setValue(app: DesktopApplication, element: DesktopTreeElement, text: string, signal: AbortSignal): Promise<DesktopAnswer<DesktopValueReceipt>> {

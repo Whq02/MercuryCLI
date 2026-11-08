@@ -153,7 +153,7 @@ section('§2 fill: the value set through the accessibility API, keystrokes when 
   check('an edge-clamped field is scrolled into view and filled in one act, and the words say so', clamped.outcome === 'succeeded' && clamped.result.includes('value "scrolled in"') && clamped.result.includes('scrolled into view first (action)') && acts(from).join(',') === 'scrollToVisible,setValue', `${clamped.result} · ${acts(from).join(',')}`)
   from = driver.acts.length
   const collapsed = await call({ action: 'fill', target: { role: 'AXTextArea', name: 'Collapsed' }, text: 'never', capture: false })
-  check('a field that stays a strip after the scroll is refused honestly before anything is set', collapsed.outcome === 'failed' && collapsed.result.includes('was scrolled (action) and is unchanged') && collapsed.result.includes('collapsed or covered') && acts(from).join(',') === 'scrollToVisible', `${collapsed.result} · ${acts(from).join(',')}`)
+  check('a field that stays a strip after the scroll is refused honestly before anything is set', collapsed.outcome === 'failed' && collapsed.result.includes('was scrolled (action) and is still clipped: the target is squashed to a strip') && collapsed.result.includes('collapsed or covered') && acts(from).join(',') === 'scrollToVisible', `${collapsed.result} · ${acts(from).join(',')}`)
   const setValue = driver.setValue
   driver.setValue = undefined as never
   for (const platform of ['darwin', 'linux'] as const) {

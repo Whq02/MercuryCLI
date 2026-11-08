@@ -40,17 +40,24 @@ of 2 pt or less, or whose centre lies within 2 pt of the edge of its window, web
 area or scroll area (the shape macOS reports for a clipped element); the
 window's own off-screen report (what Windows reports for a row scrolled out of a
 pane whose frame stays its unclipped layout rectangle, listed by `find` and
-`tree` as “scrolled out of view”); and a centre past the display's edge when the
-window extends beyond the screen. A mouse act or `fill` on such a target (not
-`scroll`, which wheels where you point it) first scrolls it into view through
-the accessibility scroll action (a wheel at the window's middle when the element
-has no such action), after the session's claim and the challenge check and
-before the act, acts on the frame it then has, and says `scrolled into view
-first (action)`; when the element is still clipped after the scroll it is
-refused: “it was scrolled (action) and is still clipped … — it may be collapsed
-or covered: take a screenshot” (or “is unchanged” when nothing moved), a pane
-that will not scroll says so, and a target that stays past the display's edge
-asks you to move or resize the window. Separators, splitters, scroll bars,
+`tree` as “scrolled out of view”); and a centre past the edge of every screen's
+working area (outside the menu bar, Dock or taskbar) when the window extends
+beyond the screens — a window spanning two displays is on view on both. A mouse
+act or `fill` on such a target (not `scroll`, which wheels where you point it)
+first scrolls it into view through the accessibility scroll action (a wheel at
+the window's middle when the element has no such action), after the session's
+claim and the challenge check and before the act, acts on the frame it then has,
+and says `scrolled into view first (action)`; when the element is still clipped
+after the scroll it is refused: “it was scrolled (action) and is still clipped …
+— it may be collapsed or covered: take a screenshot” (or “is unchanged” when
+nothing moved), a pane that will not scroll says so, a target that stays past
+the display's edge asks you to move or resize the window, and a target the
+window's tree no longer holds after the scroll asks for a screenshot rather than
+a click at a stale point. `scroll` pointed past the screen wheels at the
+window's nearest point on it and says so. On Windows a mouse act on a target
+lands at the element's own clickable point when the window reports one off the
+frame's centre (a row half under its pane's edge), and an element the window
+reports no clickable point for is refused. Separators, splitters, scroll bars,
 sliders and progress bars are exempt from the strip rule. A human-verification
 checkbox below the fold is a challenge like a visible one: the captcha rule
 applies before any scroll. `tree`, `find` and `read` address such an element
