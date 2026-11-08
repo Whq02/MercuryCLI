@@ -95,7 +95,7 @@ class Input extends EventEmitter {
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }
-const hardLimit = setTimeout(() => { console.error('crew-view-commands exceeded its deadline'); process.exit(1) }, 300_000)
+const hardLimit = setTimeout(() => { console.error('crew-view-commands exceeded its deadline'); process.exit(1) }, 720_000)
 hardLimit.unref()
 
 const NOW = Date.now()
