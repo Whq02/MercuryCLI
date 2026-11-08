@@ -315,7 +315,9 @@ fn tree_cache(automation: &IUIAutomation) -> Result<IUIAutomationCacheRequest, S
 
 fn cached_value(element: &IUIAutomationElement) -> Option<String> {
     if let Ok(pattern) = unsafe { element.GetCachedPatternAs::<IUIAutomationValuePattern>(UIA_ValuePatternId) } {
-        return unsafe { pattern.CachedValue() }.ok().map(|value| value.to_string()).filter(|value| !value.is_empty());
+        if let Some(value) = unsafe { pattern.CachedValue() }.ok().map(|value| value.to_string()).filter(|value| !value.is_empty()) {
+            return Some(value);
+        }
     }
     if let Ok(pattern) = unsafe { element.GetCachedPatternAs::<IUIAutomationTogglePattern>(UIA_TogglePatternId) } {
         return unsafe { pattern.CachedToggleState() }.ok().map(|state| if state == ToggleState_On { "1".to_string() } else { number_words(state.0 as f64) });
