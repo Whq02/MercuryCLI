@@ -181,6 +181,19 @@ section('§4b the terminal that asked is not a drift: the answered card brought 
     scene.restore()
   }
   {
+    const scene = await terminalTakes('grant-then-terminal')
+    const { getSessionId } = await import('../../src/bootstrap/state.ts')
+    const grants = await import('../../src/services/desktop/computerGrant.ts')
+    grants.writeComputerGrant(String(getSessionId()), grants.sessionComputerGrant(Date.now()))
+    const allowed = await permission({ action: 'click', x: 100, y: 100 }, scene.context)
+    check('a standing session grant allows with no card, as a grant', allowed.behavior === 'allow' && session.peekCheckedActApp(scene.owner)?.viaGrant === true && session.peekCheckedActApp(scene.owner)?.asked === false, JSON.stringify(allowed))
+    terminalInFront(scene.driver)
+    const refused = resultOf(await ComputerTool.call({ action: 'click', x: 100, y: 100, capture: false } as never, scene.context, allowEverything, toolUseTurn('toolu_grant_click', 'Computer', { action: 'click', x: 100, y: 100, capture: false })))
+    check('under the grant the terminal in front is a drift too: refused as moved, nothing activated, nothing clicked', refused.outcome === 'failed' && refused.result.includes('moved from TextEdit') && scene.activations() === 0 && clicks() === 0, refused.result)
+    grants.clearComputerGrant(String(getSessionId()))
+    scene.restore()
+  }
+  {
     const scene = await terminalTakes('card-then-terminal-find')
     const asked = await permission({ action: 'find', target: { role: 'AXButton' } }, scene.context)
     check('a find as the first ask of the session asks', asked.behavior === 'ask' && session.peekCheckedActApp(scene.owner)?.asked === true, JSON.stringify(asked))

@@ -224,6 +224,29 @@ section("§4c the card's answer: the typing check and the targets run again afte
   check('No on the card answers with the resume sentence as feedback and leaves the turn running', !askContext.abortController.signal.aborted && decision.behavior === 'ask' && 'message' in decision && decision.message.includes(CAPTCHA_OPERATOR_COMPLETES), JSON.stringify(decision))
 }
 
+section("§4c' the challenge card answered in the operator's own terminal: the act brings the page back in front and runs, as the first-act card does")
+{
+  const { context, clicks, driver } = await scene('card-in-terminal', page(badge(true), checkbox()))
+  const terminal = { identity: 'com.example.Terminal', name: 'Terminal', pid: 4100, title: 'mercury', windowId: '101', bounds: { x: 0, y: 700, width: 1440, height: 200 } }
+  const window = await driver.frontmostApplication()
+  if (!window.ok) throw new Error('the scene has no front window')
+  const bouncing = driver as DesktopDriver & { findApplication?: unknown; activateApplication?: unknown }
+  const frontmostBefore = driver.frontmostApplication.bind(driver)
+  const ownTerminalBefore = driver.ownTerminalApplication.bind(driver)
+  let activated = 0
+  driver.ownTerminalApplication = async () => ({ ok: true, value: terminal })
+  bouncing.findApplication = async (name: string) => (name === chrome.name ? { ok: true, value: window.value } : { ok: false, error: { kind: 'unavailable', note: 'no such application' } })
+  bouncing.activateApplication = async () => { activated += 1; driver.frontmostApplication = async () => window; return window }
+  const asks: PermissionDecision[] = []
+  const host = hostOf(asks, () => 'allow', () => { driver.frontmostApplication = async () => ({ ok: true, value: terminal }) })
+  const answered = await call(context, { action: 'click', ...firstName, capture: false }, host)
+  check('the card was asked once, the terminal took the front, the page was brought back and the click ran', asks.length === 1 && activated === 1 && answered.outcome === 'succeeded' && clicks() === 1 && answered.result.includes(`${chrome.name} brought back in front (the terminal that asked had taken it)`), answered.result)
+  driver.frontmostApplication = frontmostBefore
+  driver.ownTerminalApplication = ownTerminalBefore
+  delete bouncing.findApplication
+  delete bouncing.activateApplication
+}
+
 section('§4d the challenge is its own permission subject: checkPermissions answers it after the application, and the card is keyed on the harness, not the input')
 {
   const { context, clicks } = await scene('subject', page(badge(true), checkbox()))

@@ -1697,7 +1697,12 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           return finish()
         }
         for (let pass = 0; ; pass++) {
-          const atAct = await driver.frontmostApplication()
+          let atAct = await driver.frontmostApplication()
+          const afterCard = pass > 0 && atAct.ok ? await frontAfterCard(driver, { app: live, asked: true }, atAct.value, signal) : null
+          if (afterCard !== null) {
+            atAct = { ok: true, value: afterCard.front }
+            plan.returned = afterCard.returned
+          }
           if (!atAct.ok || atAct.value.identity !== front.value.identity || atAct.value.windowId !== front.value.windowId || JSON.stringify(atAct.value.bounds) !== JSON.stringify(front.value.bounds)) {
             result = `${input.action} refused: the front window changed before the act — nothing done; take a screenshot and re-issue`
             outcome = 'failed'
