@@ -7,7 +7,7 @@ import { check, drive, endLeg, finish, joined, netlines, nonLoopback, OPENING, p
 const persistedText = (home: string): string => sessionFiles(join(home, 'projects')).map(f => readFileSync(f, 'utf8')).join('\n')
 
 const driver = requireCaptureDriver('computer-drives')
-const CARD_NEEDLE = 'first act in this application'
+const CARD_NEEDLE = 'the first act this session'
 const TURNS = [
   { kind: 'tool_use' as const, preText: 'Looking at the screen.\n', name: 'Computer', input: { action: 'screenshot' } },
   { kind: 'text' as const, text: 'Done.' },

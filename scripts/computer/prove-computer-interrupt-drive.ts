@@ -2,7 +2,7 @@
 import { actLog, check, drive, endLeg, finish, joined, netlines, nonLoopback, OPENING, printFrame, requireCaptureDriver, rowsHaving, section, SIZES, startLeg } from './computerDriveKit.ts'
 
 const driver = requireCaptureDriver('computer-drives')
-const CARD_NEEDLE = 'first act in this application'
+const CARD_NEEDLE = 'the first act this session'
 
 for (const size of SIZES) {
   section(`the interrupt drive at ${size.cols}×${size.rows}`)
@@ -19,7 +19,7 @@ for (const size of SIZES) {
   )
   const res = await drive(driver, leg, size, [
     ...OPENING('click and type'),
-    { requireAwait: true, awaitText: 'first act', awaitStableTicks: 2, mark: 'card', data: '\r' },
+    { requireAwait: true, awaitText: CARD_NEEDLE, awaitStableTicks: 2, mark: 'card', data: '\r' },
     { requireAwait: true, awaitText: 'hands off', awaitStableTicks: 1, mark: 'driving', data: '\x1b' },
     { requireAwait: true, awaitText: 'interrupted', awaitStableTicks: 3, mark: 'interrupted', data: 'z' },
     { afterPrevTicks: 4, mark: 'typed', data: '' },
