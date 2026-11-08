@@ -397,6 +397,9 @@ section('§1 a running hosted crewmate in the view: the per-agent commands act o
   check("(a) the receipt names the crewmate and says it switches at its next turn", screenWords(scene).includes('Lane atlas switches to Haiku 5.5 at its next turn'), screenWords(scene).slice(-400))
   mainSeatUntouched(scene, '(a)', submitsBefore)
   check('(a) the composer is empty after the command', pending.text() === '', JSON.stringify(pending.text()))
+  const chipShown = await until(() => scene.lines().some(line => /Fable 5\.1 · high → Haiku 5\.5 · high next turn/.test(line)), 6000)
+  save('01-chip-after-model', scene.lines())
+  check("(a) the status row's chip keeps the running model and effort and appends the recorded next-turn model", chipShown, (scene.lines().find(line => /Fable 5\.1|Haiku 5\.5/.test(line) && / · (high|low)/.test(line)) ?? '').trim().slice(0, 200))
 
   submitsBefore = submits.length
   const opened = await command(scene, '/model', () => isSettingsPopupOpen() && settingsPopupRequest()?.view === 'model')
@@ -405,6 +408,9 @@ section('§1 a running hosted crewmate in the view: the per-agent commands act o
   const words = screenWords(scene)
   check('(a) /model with no argument opens the picker for the crewmate — its line names the crewmate and the next-turn rule', opened && words.includes('Lane atlas — a pick switches it at its next turn'), words.slice(0, 600))
   check('(a) the picker shows the crewmate\'s recorded model as its current row', scene.lines().some(line => /Haiku 5\.5\s+claude-haiku-5-5\s+current/.test(line)), scene.lines().filter(line => line.includes('current')).join(' | ').slice(0, 400))
+  const headers = scene.lines().filter(line => line.includes('Mercury · model')).length
+  check('(a) the picker is one frame with one header and the one hint line — no frame around a frame, no second footer', headers === 1 && scene.lines().some(line => line.includes('↵ picks · esc keeps Haiku 5.5')) && !words.includes('↵ switch ·') && !words.includes('pgup/pgdn page'), `${headers} headers · ${words.slice(0, 400)}`)
+  check("(a) the picker's context gauge shows the crewmate's fill, not the main seat's", scene.lines().some(line => /│ context [█░]+ \d+%/.test(line)), (scene.lines().find(line => /│ context /.test(line)) ?? '').trim().slice(0, 120))
   scene.push(ESC)
   const closed = await until(() => !isSettingsPopupOpen(), 4000)
   await sleep(300)
@@ -412,11 +418,29 @@ section('§1 a running hosted crewmate in the view: the per-agent commands act o
   mainSeatUntouched(scene, '(a, picker)', submitsBefore)
 
   submitsBefore = submits.length
+  const pickerAgain = await command(scene, '/model', () => isSettingsPopupOpen() && settingsPopupRequest()?.view === 'model')
+  await sleep(500)
+  const recordBeforePick = readRecord(hostedRecord(ATLAS.id))?.model
+  scene.push('\x1b[B')
+  await sleep(250)
+  scene.push(ENTER)
+  const picked = await until(() => readRecord(hostedRecord(ATLAS.id))?.model !== recordBeforePick, 6000)
+  await sleep(400)
+  save('01-model-picked-at-atlas', scene.lines())
+  const pickedModel = readRecord(hostedRecord(ATLAS.id))?.model
+  check('(a) a pick inside the crewmate\'s picker (↓ then ↵) records the picked row on the crewmate and closes the picker', pickerAgain && picked && typeof pickedModel === 'string' && pickedModel !== HAIKU && !isSettingsPopupOpen(), `record ${String(pickedModel)} · open ${String(isSettingsPopupOpen())}`)
+  check('(a) the pick\'s receipt names the crewmate and its next turn', /Lane atlas switches to .+ at its next turn/.test(screenWords(scene)), screenWords(scene).slice(-300))
+  mainSeatUntouched(scene, '(a, pick)', submitsBefore)
+  await command(scene, `/model ${HAIKU}`, () => readRecord(hostedRecord(ATLAS.id))?.model === HAIKU)
+
+  submitsBefore = submits.length
   const effortLanded = await command(scene, '/effort low', () => readRecord(hostedRecord(ATLAS.id))?.effortOverride === 'low')
   save('01-effort-at-atlas', scene.lines())
   const record = readRecord(hostedRecord(ATLAS.id))
-  check('(b) /effort low at the selected crewmate records low on its own record and keeps the model it had', effortLanded && record?.effortOverride === 'low' && record.effort === 'low' && record.model === HAIKU, JSON.stringify(record))
+  check('(b) /effort low at the selected crewmate records low as its next effort, keeps the running effort the runner wrote, and keeps the model it had', effortLanded && record?.effortOverride === 'low' && record.effort === 'high' && record.model === HAIKU, JSON.stringify(record))
   check('(b) the receipt says the crewmate runs low from its next turn', screenWords(scene).includes('Lane atlas runs low from its next turn'), screenWords(scene).slice(-300))
+  const chipEffort = await until(() => scene.lines().some(line => /Fable 5\.1 · high → Haiku 5\.5 · low next turn/.test(line)), 6000)
+  check("(b) the status row's chip now names the next-turn effort beside the next-turn model", chipEffort, (scene.lines().find(line => /next turn/.test(line)) ?? '').trim().slice(0, 200))
   check("(b) the user's saved effort and the main seat's effort value did not move", JSON.stringify(getInitialSettings().engine ?? {}) === settingsBefore && scene.state().effortValue === effortBefore, `${JSON.stringify(getInitialSettings().engine)} · ${String(scene.state().effortValue)}`)
   mainSeatUntouched(scene, '(b)', submitsBefore)
 
@@ -447,7 +471,42 @@ section('§1 a running hosted crewmate in the view: the per-agent commands act o
   check('(e) …and the receipt says it ran for this session, not the crewmate', screenWords(scene).includes('/help runs for this session, not Lane atlas'), screenWords(scene).slice(-300))
   const crewRan = await command(scene, '/crewmates', () => submits.length > submitsBefore + 1)
   check('(e) /crewmates at a crewmate runs for the session with the same line', crewRan && submits[submits.length - 1] === '/crewmates' && screenWords(scene).includes('/crewmates runs for this session, not Lane atlas'), `${JSON.stringify(submits.slice(submitsBefore))} · ${screenWords(scene).slice(-200)}`)
-  check('(e) the global commands left the crewmate\'s record alone', JSON.stringify(readRecord(hostedRecord(ATLAS.id))) === JSON.stringify({ agentType: 'mercury-crew', model: HAIKU, effort: 'low', effortOverride: 'low', compactOnResume: true }), JSON.stringify(readRecord(hostedRecord(ATLAS.id))))
+  check('(e) the global commands left the crewmate\'s record alone', JSON.stringify(readRecord(hostedRecord(ATLAS.id))) === JSON.stringify({ agentType: 'mercury-crew', model: HAIKU, effort: 'high', effortOverride: 'low', compactOnResume: true }), JSON.stringify(readRecord(hostedRecord(ATLAS.id))))
+  await clearNotices(scene)
+  await command(scene, '/frobnicate', () => screenWords(scene).includes('Unknown command: /frobnicate'))
+  check('the unknown-command line says commands run for the crewmate or for this session', screenWords(scene).includes('Unknown command: /frobnicate — commands run for Lane atlas or for this session; // sends the line to the agent as text'), screenWords(scene).slice(-300))
+
+  submitsBefore = submits.length
+  const modelCallsBefore = callsOf('setModel').length
+  const settingsBeforeKeys = JSON.stringify(getInitialSettings())
+  await clearNotices(scene)
+  const keyRecordBefore = readRecord(hostedRecord(ATLAS.id))?.model
+  scene.push(`${ESC}p`)
+  const keyPicker = await until(() => isSettingsPopupOpen() && settingsPopupRequest()?.view === 'model', 5000)
+  await sleep(400)
+  save('k1-meta-p-at-atlas', scene.lines())
+  check('(k1) meta+p at the selected crewmate opens the crewmate\'s own picker, not the main seat\'s', keyPicker && screenWords(scene).includes('Lane atlas — a pick switches it at its next turn') && !screenWords(scene).includes('Select model'), screenWords(scene).slice(0, 400))
+  scene.push('\x1b[B')
+  await sleep(250)
+  scene.push(ENTER)
+  const keyPicked = await until(() => readRecord(hostedRecord(ATLAS.id))?.model !== keyRecordBefore, 6000)
+  await sleep(400)
+  save('k2-meta-p-picked-at-atlas', scene.lines())
+  const keyState = scene.state()
+  check('(k2) the pick after meta+p records the crewmate\'s model and leaves the main seat: no connector setModel, no pending switch, no session override, the saved settings as they were', keyPicked && callsOf('setModel').length === modelCallsBefore && keyState.pendingModelSwitch === null && keyState.engineModelForSession === null && JSON.stringify(getInitialSettings()) === settingsBeforeKeys && submits.length === submitsBefore, `record ${String(readRecord(hostedRecord(ATLAS.id))?.model)} · setModel ${callsOf('setModel').length - modelCallsBefore} · pending ${JSON.stringify(keyState.pendingModelSwitch)}`)
+  await command(scene, `/model ${HAIKU}`, () => readRecord(hostedRecord(ATLAS.id))?.model === HAIKU)
+  await clearNotices(scene)
+  const thinkingBefore = scene.state().thinkingEnabled
+  scene.push(`${ESC}t`)
+  const thinkingSaid = await until(() => screenWords(scene).includes('thinking is set per crewmate'), 5000)
+  await sleep(400)
+  save('k3-meta-t-at-atlas', scene.lines())
+  check("(k3) meta+t at the selected crewmate says thinking is set per crewmate through /effort and that the key is Mercury Lead's", thinkingSaid && /thinking is set per crewmate: \/effort at Lane atlas; (meta|opt|alt)\+t is Mercury Lead's — press it from the Lead/.test(screenWords(scene)), screenWords(scene).slice(-300))
+  scene.push('\x1b[B')
+  await sleep(200)
+  scene.push(ENTER)
+  await sleep(500)
+  check("(k4) …and changes nothing: the main seat's thinking is as it was, no toggle card opened", scene.state().thinkingEnabled === thinkingBefore && !/Thinking (on|off)/.test(screenWords(scene)), `thinkingEnabled ${String(thinkingBefore)} → ${String(scene.state().thinkingEnabled)}`)
   await leave(scene)
 }
 
@@ -466,6 +525,41 @@ section('§2 a finished hosted crewmate in the view: the same commands are recor
   mainSeatUntouched(scene, '§2', submitsBefore)
   check("the running crewmate's record did not move while the finished one was addressed", readRecord(hostedRecord(ATLAS.id))?.model === HAIKU, JSON.stringify(readRecord(hostedRecord(ATLAS.id))))
   await leave(scene)
+}
+
+section('§2b a crewmate pinned as the main chat: the commands follow the pinned one, then the opened one when another is in view')
+{
+  resetRecords()
+  crewmateView.setMainChat(CEDAR.id, scene.setState as never)
+  await until(() => scene.state().mainChatTaskId === CEDAR.id, 4000)
+  await sleep(400)
+  const pinnedRow = (scene.lines().find(line => /main chat: Lane cedar/.test(line)) ?? '').trim()
+  check('(p1) pinned, nothing opened: the status row says the commands go to the pinned crewmate', /main chat: Lane cedar · commands → Lane cedar/.test(pinnedRow), pinnedRow.slice(0, 200))
+  const before = submits.length
+  const pinnedLanded = await command(scene, `/model ${HAIKU}`, () => readRecord(hostedRecord(CEDAR.id))?.model === HAIKU)
+  save('p1-model-pinned-cedar', scene.lines())
+  check(`(p1) /model ${HAIKU} with cedar pinned and nothing opened records on cedar`, pinnedLanded && readRecord(hostedRecord(CEDAR.id))?.model === HAIKU && readRecord(hostedRecord(ATLAS.id))?.model === CREW_MODEL, `cedar ${JSON.stringify(readRecord(hostedRecord(CEDAR.id)))} · atlas ${JSON.stringify(readRecord(hostedRecord(ATLAS.id)))}`)
+  mainSeatUntouched(scene, '(p1)', before)
+  await view(scene, ATLAS.id, 'ATLAS-ROW')
+  const row = (scene.lines().find(line => /viewing Lane atlas/.test(line)) ?? '').trim()
+  check('(p2) atlas opened with cedar pinned: the row says the composer goes to the pinned main chat and stays within its width', /viewing Lane atlas · composer → Lane cedar/.test(row) && [...row].length <= COLS, row.slice(0, 240))
+  if (COLS >= WIDE_ENOUGH_FOR_THE_WHOLE_ROW) check('(p2) …and that the commands go to the opened crewmate (the row has the room here)', /composer → Lane cedar \(the main chat\) · commands → Lane atlas · 1 crewmate running/.test(row), row.slice(0, 240))
+  const before2 = submits.length
+  const viewedLanded = await command(scene, `/model ${SONNET}`, () => readRecord(hostedRecord(ATLAS.id))?.model === SONNET)
+  save('p2-model-viewing-atlas-cedar-pinned', scene.lines())
+  check(`(p2) /model ${SONNET} records on the opened Lane atlas, not the pinned cedar`, viewedLanded && readRecord(hostedRecord(ATLAS.id))?.model === SONNET && readRecord(hostedRecord(CEDAR.id))?.model === HAIKU, `atlas ${JSON.stringify(readRecord(hostedRecord(ATLAS.id)))} · cedar ${JSON.stringify(readRecord(hostedRecord(CEDAR.id)))}`)
+  check('(p2) the receipt names the opened crewmate', screenWords(scene).includes('Lane atlas switches to Sonnet 5.5 at its next turn'), screenWords(scene).slice(-300))
+  mainSeatUntouched(scene, '(p2)', before2)
+  const TEXT = 'a line for the pin'
+  await typeWords(scene, TEXT)
+  const resumesBefore = callsOf('resume').length
+  scene.push(ENTER)
+  await until(() => callsOf('resume').length > resumesBefore, 4000)
+  const sent = callsOf('resume').slice(resumesBefore)
+  check('(p2) typed text still goes to the pinned main chat (the composer target is unchanged)', sent.length === 1 && sent[0]!.args[0] === CEDAR.id && sent[0]!.args[1] === TEXT, JSON.stringify(sent))
+  crewmateView.clearMainChat(scene.setState as never)
+  await leave(scene)
+  resetRecords()
 }
 
 section('§3 a running in-process crewmate: /compact flags its task for the next turn boundary; /model lands on its record')
@@ -516,6 +610,7 @@ await scene.close()
 
 for (const [cols, rows] of SIZES) await drive(cols, rows)
 
+let nothingToFold = false
 section("§5 the crewmate's own compaction: the flag on its task makes its query fold at the next request boundary, once")
 {
   await stub('../../src/services/compact/compact.ts', () => ({
@@ -524,6 +619,7 @@ section("§5 the crewmate's own compaction: the flag on its task makes its query
       const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.ts')
       return { boundaryMarker: createCompactBoundaryMessage(isAutoCompact ? 'auto' : 'manual', 1234), summaryMessages: [], attachments: [], hookResults: [], preCompactTokenCount: 1234, postCompactTokenCount: 10 }
     },
+    projectManualFold: async () => (nothingToFold ? { before: 960, after: 960, folds: 0, workingRoundsFolded: 0, context: 960 } : { before: 1234, after: 300, folds: 3, workingRoundsFolded: 2, context: 1234 }),
   }))
   await stub('../../src/services/compact/sessionMemoryCompact.ts', () => ({
     shouldUseSessionMemoryCompaction: () => false,
@@ -532,7 +628,7 @@ section("§5 the crewmate's own compaction: the flag on its task makes its query
   const { autoCompactIfNeeded } = await import('../../src/services/compact/autoCompact.ts')
   const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
   const tasks: Record<string, Record<string, unknown>> = {
-    [LOCAL_ID]: { id: LOCAL_ID, type: 'local_agent', agentId: LOCAL_ID, status: 'running', compactRequested: true },
+    [LOCAL_ID]: { id: LOCAL_ID, type: 'local_agent', agentId: LOCAL_ID, description: LOCAL_NAME, status: 'running', compactRequested: true },
   }
   let appState: Record<string, unknown> = { tasks, toolPermissionContext: getDefaultAppState().toolPermissionContext }
   const setAppState = (updater: (prev: Record<string, unknown>) => Record<string, unknown>): void => {
@@ -548,6 +644,9 @@ section("§5 the crewmate's own compaction: the flag on its task makes its query
     readFileState: new Map(),
     messages: [],
   }
+  const askAgain = (): void => {
+    appState = { ...appState, tasks: { ...(appState.tasks as Record<string, Record<string, unknown>>), [LOCAL_ID]: { ...(appState.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]!, compactRequested: true } } }
+  }
   const messages = [createUserMessage({ content: 'count to three' }), createAssistantMessage({ content: 'one' }), createUserMessage({ content: 'and then?' }), createAssistantMessage({ content: 'two' })]
   const cacheSafe = { systemPrompt: ['a crewmate'], userContext: {}, systemContext: {}, toolUseContext: context as never, forkContextMessages: messages }
   const folded = await autoCompactIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew')
@@ -558,6 +657,16 @@ section("§5 the crewmate's own compaction: the flag on its task makes its query
   const again = await autoCompactIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew')
   check('the next boundary folds nothing — one ask, one fold', again.wasCompacted === false && callsOf('compactConversation').length === 1, JSON.stringify({ wasCompacted: again.wasCompacted, refusal: again.refusal, calls: callsOf('compactConversation').length }))
   check("a crewmate whose task does not ask is left to the threshold", (await autoCompactIfNeeded(messages as never, { ...context, agentId: 'a-other' } as never, cacheSafe as never, 'agent:builtin:mercury-crew')).wasCompacted === false)
+  askAgain()
+  const overflow = { source: 'provider', family: 'anthropic', shape: 'prompt_too_long', actualTokens: 250_000, limitTokens: 200_000 }
+  const forcedFold = await autoCompactIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew', undefined, 0, overflow as never)
+  check('an overflow fold at the same boundary takes the ask with it — one fold, the flag gone', forcedFold.wasCompacted === true && callsOf('compactConversation').length === 2 && (appState.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]!.compactRequested === undefined, JSON.stringify({ wasCompacted: forcedFold.wasCompacted, calls: callsOf('compactConversation').length, task: (appState.tasks as Record<string, unknown>)[LOCAL_ID] }))
+  check('…and the boundary after the overflow folds nothing more', (await autoCompactIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew')).wasCompacted === false && callsOf('compactConversation').length === 2, String(callsOf('compactConversation').length))
+  nothingToFold = true
+  askAgain()
+  const declined = await autoCompactIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew')
+  check('an asked fold that would save nothing is refused with the main /compact\'s words, the crewmate named, and no summariser call', declined.wasCompacted === false && declined.declined === true && declined.refusal === "Lane local — the crew view's /compact folded nothing: Nothing to compact: 960 tokens (Not enough messages to compact.)" && callsOf('compactConversation').length === 2 && (appState.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]!.compactRequested === undefined, JSON.stringify({ wasCompacted: declined.wasCompacted, declined: declined.declined, refusal: declined.refusal, calls: callsOf('compactConversation').length }))
+  nothingToFold = false
 }
 
 section("§6 the resume: a finished crewmate's recorded compaction reaches the task that runs its next turn")
@@ -572,8 +681,21 @@ section("§6 the resume: a finished crewmate's recorded compaction reaches the t
   check('a task registered for a resume with the flag asks for the fold', compactionRequestedOf(registered) && compactionRequestedOf((appState.tasks as Record<string, unknown>)['a-resumed']))
   const plain = registerAsyncAgent({ agentId: 'a-plain', description: 'Lane plain', prompt: 'carry on', setAppState: setAppState as never, model: CREW_MODEL })
   check('a task registered without it does not', !compactionRequestedOf(plain))
-  const resume = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'AgentTool', 'resumeAgent.ts'), 'utf8')
-  check("the resume reads the record's compactOnResume (and a running task's own flag) into the task it registers, and its metadata rewrite drops the flag", /const compactRequested = meta\?\.compactOnResume === true \|\| \(isLocalAgentTask\(previousTask\) && previousTask\.compactRequested === true\)/.test(resume) && /\.\.\.\(compactRequested \? \{ compactRequested: true \} : \{\}\),\n  \}\)/.test(resume) && !/compactOnResume: /.test(resume.slice(resume.indexOf('await writeAgentMetadata'))))
+  const { recordAfterResume, recordAtRunStart } = await import('../../src/utils/crew/crewmateRecord.ts')
+  const fresh = { agentType: 'mercury-crew', swarm: false, description: 'Lane resumed' }
+  const first = { agentType: 'mercury-crew', model: CREW_MODEL, effort: 'high', compactOnResume: true }
+  const consumed = recordAfterResume(first, first, { fresh, model: CREW_MODEL, effortOverride: 'high' })
+  check("the resume's record write drops the compactOnResume it carried into the task (a spread that kept the flag would fold twice)", consumed.compactOnResume === undefined && consumed.model === CREW_MODEL && consumed.effortOverride === 'high', JSON.stringify(consumed))
+  const inWindow = recordAfterResume(first, { ...first, compactOnResume: undefined, model: HAIKU, effortOverride: 'low' }, { fresh, model: CREW_MODEL, effortOverride: 'high' })
+  check('a model and an effort written while the resume was setting up are kept on the record (the run itself stays on what it resolved)', inWindow.model === HAIKU && inWindow.effortOverride === 'low' && inWindow.compactOnResume === undefined, JSON.stringify(inWindow))
+  const flagInWindow = recordAfterResume({ agentType: 'mercury-crew', model: CREW_MODEL }, { agentType: 'mercury-crew', model: CREW_MODEL, compactOnResume: true }, { fresh, model: CREW_MODEL, effortOverride: undefined })
+  check('a compactOnResume written in that window is kept for the next resume, not dropped', flagInWindow.compactOnResume === true && flagInWindow.effortOverride === undefined, JSON.stringify(flagInWindow))
+  const runStart = recordAtRunStart({ agentType: 'mercury-crew', model: CREW_MODEL, effortOverride: 'high', compactOnResume: true }, { model: CREW_MODEL, effortOverride: 'high' }, { fresh, model: CREW_MODEL, effortOverride: 'high', effort: 'high' })
+  check("the run-start write keeps a compactOnResume the record holds and writes the run's resolved model and effort", runStart.compactOnResume === true && runStart.model === CREW_MODEL && runStart.effort === 'high' && runStart.effortOverride === 'high', JSON.stringify(runStart))
+  const runStartWindow = recordAtRunStart({ agentType: 'mercury-crew', model: HAIKU, effortOverride: 'low' }, { model: CREW_MODEL, effortOverride: 'high' }, { fresh, model: CREW_MODEL, effortOverride: 'high', effort: 'high' })
+  check('a model and an effort written between the resume\'s write and the run start are kept, while the running effort is the resolved one', runStartWindow.model === HAIKU && runStartWindow.effortOverride === 'low' && runStartWindow.effort === 'high', JSON.stringify(runStartWindow))
+  const spawn = recordAtRunStart(null, { model: 'opus', effortOverride: undefined }, { fresh, model: 'claude-opus-5-5', effortOverride: undefined, effort: 'high' })
+  check('a fresh spawn with no record writes the resolved model and effort and no flag', spawn.model === 'claude-opus-5-5' && spawn.effort === 'high' && spawn.effortOverride === undefined && spawn.compactOnResume === undefined, JSON.stringify(spawn))
 }
 
 console.error = originalError
