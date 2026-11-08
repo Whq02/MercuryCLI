@@ -4,6 +4,7 @@ import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import { stat, utimes } from 'node:fs/promises'
 import { getEngineModel } from '../../utils/model/model.js'
 import { getAgentModel } from '../../utils/model/agent.js'
+import { crewmateModelOverride } from '../../utils/crew/crewmateModelWord.js'
 import type { Message } from '../../types/message.js'
 import type { AgentId } from '../../types/ids.js'
 import type { ToolUseContext } from '../../Tool.js'
@@ -57,25 +58,6 @@ import { isBuiltInAgent } from './loadAgentsDir.js'
 import { runAgent } from './runAgent.js'
 import { continuationDirectoryNote } from './continuationNote.js'
 import { EFFORT_LEVELS, isEffortLevel, resolveStampedEffortTruth, type EffortLevel } from '../../utils/effort.js'
-import { matchReachableModelName, modelNameHeadlessRefusal } from '../../utils/model/modelNameRoad.js'
-import { MODEL_LOOKUP_LADDER } from '../../utils/model/modelLookup.js'
-import { resolveEngineDispatch, unrecognisedModelWordRefusal } from '../../utils/crew/engineDispatch.js'
-
-async function resumedModelOverride(model: string | undefined, parent: string): Promise<string | undefined> {
-  if (model === undefined) return undefined
-  if (model.trim() === '') throw new Error('Model is empty. Read mercury://models and name a model id.')
-  const matched = matchReachableModelName(model, 'pass')
-  if (matched !== null && (matched.kind === 'none' || matched.kind === 'ambiguous')) {
-    throw new Error(modelNameHeadlessRefusal(matched, 'model') + ' ' + MODEL_LOOKUP_LADDER)
-  }
-  const word = matched !== null && (matched.kind === 'match' || matched.kind === 'exact') ? matched.id : model
-  const resolved = getAgentModel(undefined, parent, word)
-  const dispatch = await resolveEngineDispatch(resolved)
-  if (dispatch !== null) return dispatch.model
-  const refusal = unrecognisedModelWordRefusal(word)
-  if (refusal !== null) throw new Error(refusal)
-  return resolved
-}
 
 type ResumeAgentResult = {
   agentId: string
@@ -157,7 +139,7 @@ export async function resumeAgentBackground(args: {
   }
   const definitions = await getAgentDefinitionsWithOverrides(getCwdState())
   const definition: AgentDefinition = definitionForStoredType(meta?.agentType, definitions.activeAgents)
-  const restoredModel = (await resumedModelOverride(args.model, toolUseContext.options.engineModel)) ?? meta?.model
+  const restoredModel = (await crewmateModelOverride(args.model, toolUseContext.options.engineModel)) ?? meta?.model
   const lifecycleModel = getAgentModel(restoredModel ?? definition.model, getEngineModel())
   const restoredEffort = args.effort ?? meta?.effortOverride ?? meta?.effort
   if (args.effort !== undefined) {
