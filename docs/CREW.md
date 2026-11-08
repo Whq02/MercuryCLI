@@ -19,14 +19,22 @@ returns to the list first. The same rule closes the `/runs` board. Closing a
 view never stops its work.
 
 With a crewmate opened in its view, the slash commands that are about one
-agent act on that crewmate: `/model` and `/effort` show and change its model
-and effort (a running crewmate switches at its next turn, a finished one at
-its next resume), `/compact` compacts its transcript (at its next turn, or when
-it resumes), and `/context` and `/usage` show its numbers; the main chat's
-model, effort and transcript do not move. Every other command (`/help`,
-`/crewmates`, `/config`, `/exit` and the rest) runs for the whole session as
-before and its receipt says so; Esc back to Mercury Lead returns the commands
-to the main chat.
+agent act on that crewmate — and when none is opened but one is pinned as the
+main chat, on the pinned one; the status row says `commands → <name>` either
+way. `/model` and `/effort` show and change its model and effort (a running
+crewmate switches at its next turn, a finished one at its next resume; the
+status row's chip keeps the running model and effort and appends
+`→ <model> · <effort> next turn` while a change waits), `/compact` compacts
+its transcript (at its next turn, or when it resumes), and `/context` and
+`/usage` show its numbers; the model-picker key and the command palette's
+model row open that crewmate's picker too, and the thinking key says thinking
+is set per crewmate through `/effort`. The main chat's model, effort and
+transcript do not move; a `/model` typed in the instant a crewmate's resume
+starts applies after that run. Every other command (`/help`, `/crewmates`,
+`/config`, `/exit` and the rest) runs for the whole session as before and its
+receipt says so. Mercury Lead in the rail (Tab from an empty prompt, then `↵`,
+or a click on the row) returns the commands to the main chat; Esc interrupts a
+running crewmate and returns from an idle one.
 
 ## The two spawn switches
 
