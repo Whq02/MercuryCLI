@@ -285,6 +285,8 @@ export async function resumeAgentBackground(args: {
   }
   const previousTask = tasksNow?.[agentId]
   const replyTarget = args.replyTarget ?? (args.automatic === true && isLocalAgentTask(previousTask) ? previousTask.replyTarget : undefined) ?? 'parent'
+  const compactRequested = meta?.compactOnResume === true || (isLocalAgentTask(previousTask) && previousTask.compactRequested === true)
+  if (compactRequested) logForDebugging(`resumeAgent: crewmate ${agentId} compacts first — the operator asked for it from the crew view`)
   const task = registerAsyncAgent({
     agentId,
     description,
@@ -294,6 +296,7 @@ export async function resumeAgentBackground(args: {
     model: lifecycleModel,
     toolUseId: toolUseContext.toolUseId,
     replyTarget,
+    ...(compactRequested ? { compactRequested: true } : {}),
   })
   let tools: ReturnType<typeof resolveWorkerTools>
   try {

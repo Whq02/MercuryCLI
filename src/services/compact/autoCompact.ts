@@ -14,6 +14,7 @@ import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
 import { readRequestGauge } from '../run/requestGauge.js'
 import { ownerFromToolUseContext } from '../run/resolveOwner.js'
+import { updateTaskState } from '../../utils/task/framework.js'
 import { setLastSummarizedMessageId } from '../SessionMemory/sessionMemoryUtils.js'
 import type { OverflowSignal } from '../api/overflowSignal.js'
 import { notifyCompaction } from '../api/promptCacheBreakDetection.js'
@@ -63,6 +64,25 @@ const WARNING_MIN_CEILING_NUMERATOR = 4
 const WARNING_MIN_CEILING_DENOMINATOR = 5
 
 export const COMPACTION_PAUSED_KEY = 'automatic compaction failed'
+
+type CompactableTask = { type?: string; compactRequested?: boolean }
+
+export function operatorCompactionAsked(toolUseContext: Pick<ToolUseContext, 'agentId' | 'getAppState'>): boolean {
+  const agentId = toolUseContext.agentId
+  if (agentId === undefined) return false
+  const task = toolUseContext.getAppState().tasks?.[agentId] as CompactableTask | undefined
+  return task?.type === 'local_agent' && task.compactRequested === true
+}
+
+export function takeOperatorCompactionAsk(toolUseContext: Pick<ToolUseContext, 'agentId' | 'setAppState' | 'setAppStateForTasks'>): void {
+  const agentId = toolUseContext.agentId
+  if (agentId === undefined) return
+  updateTaskState(agentId, toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState, task => {
+    if ((task as CompactableTask).compactRequested !== true) return task
+    const { compactRequested: _taken, ...rest } = task as typeof task & CompactableTask
+    return rest as typeof task
+  })
+}
 
 export function compactionBreakerText(opts: { nonInteractive: boolean }): string {
   const byHand = opts.nonInteractive ? 'The' : '/compact folds the conversation by hand; the'
@@ -403,6 +423,11 @@ export async function autoCompactIfNeeded(
     slot.noted = true
     logForDebugging(message)
   }
+  const asked = !forced && operatorCompactionAsked(toolUseContext)
+  if (asked) {
+    takeOperatorCompactionAsk(toolUseContext)
+    logForDebugging(`autoCompact: crewmate ${String(toolUseContext.agentId)} folds now — the operator asked for it from the crew view`)
+  }
   let compact: boolean
   if (forced) {
     if (querySource === 'session_memory' || querySource === 'compact') {
@@ -412,6 +437,8 @@ export async function autoCompactIfNeeded(
       `autoCompact: overflow fold forced (${overflowSignal.source} · ${overflowSignal.family} · ${overflowSignal.shape}${overflowSignal.actualTokens !== undefined && overflowSignal.limitTokens !== undefined ? ` · ${overflowSignal.actualTokens} > ${overflowSignal.limitTokens}` : ''})`,
     )
     compact = true
+  } else if (asked) {
+    compact = messages.length > 0
   } else {
     compact = await shouldAutoCompact([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model, querySource, snipTokensFreed, raw => {
       measuredRawTokenCount = raw
@@ -461,7 +488,7 @@ export async function autoCompactIfNeeded(
   const overflow = detectFixedPrefixOverflow(messages, model, snipTokensFreed, fixedTokens)
   if (overflow !== null) {
     const message = `autoCompact: fixed prefix (~${overflow.prefixTokens} tokens) exceeds the threshold (${overflow.thresholdTokens}); compaction cannot help`
-    if (!forced && !thresholdOverridden()) {
+    if (!forced && !asked && !thresholdOverridden()) {
       noteFixedSkip(`autoCompact: skipping — fixed prefix (~${overflow.prefixTokens} tokens) exceeds the threshold (${overflow.thresholdTokens}); compaction cannot help`)
       return { ...notCompacted, measuredRawTokenCount }
     }
@@ -536,7 +563,7 @@ export async function autoCompactIfNeeded(
       cacheSafeParams,
       true,
       undefined,
-      true,
+      !asked,
       recompactionInfo,
       overflowSignal,
       foldModel.model,
@@ -550,7 +577,7 @@ export async function autoCompactIfNeeded(
       consecutiveRapidRefills: refills,
       ...breaker,
     }
-    }, { trigger: 'auto', sessionMemory: sessionMemoryArmed, microcompaction: false })
+    }, { trigger: asked ? 'manual' : 'auto', sessionMemory: sessionMemoryArmed, microcompaction: false })
   } catch (err) {
     if (err instanceof APIUserAbortError) {
       return forced ? { ...notCompacted, refusal: ERROR_MESSAGE_USER_ABORT } : notCompacted

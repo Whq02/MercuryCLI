@@ -306,6 +306,7 @@ export type LocalAgentTaskState = ReturnType<typeof createTaskStateBase> & {
   handoverReason?: BackgroundHandoverReason
   pendingMessages?: string[]
   operatorMessages?: string[]
+  compactRequested?: true
   replyTarget?: 'parent' | 'operator'
   retain?: boolean
   diskLoaded?: boolean
@@ -559,6 +560,7 @@ export function registerAsyncAgent(args: {
   model?: string
   toolUseId?: string
   replyTarget?: 'parent' | 'operator'
+  compactRequested?: true
 }): LocalAgentTaskState {
   const taskId = args.agentId
   void initTaskOutputAsSymlink(taskId, getAgentTranscriptPath(taskId as AgentId))
@@ -581,6 +583,7 @@ export function registerAsyncAgent(args: {
     isBackgrounded: true,
     replyTarget: args.replyTarget ?? 'parent',
     retain: false,
+    ...(args.compactRequested === true ? { compactRequested: true as const } : {}),
   }
   registrationReplyTargets.set(abortController, state.replyTarget!)
   registerTask(state, args.setAppState)
@@ -980,6 +983,16 @@ export function queueOperatorMessage(
 
 export function peekOperatorMessages(task: unknown): string[] {
   return isLocalAgentTask(task) ? [...(task.operatorMessages ?? [])] : []
+}
+
+export function requestAgentCompaction(taskId: string, setAppState: SetAppState): boolean {
+  let asked = false
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (!isLocalAgentTask(task) || task.status !== 'running') return task
+    asked = true
+    return task.compactRequested === true ? task : { ...task, compactRequested: true }
+  })
+  return asked
 }
 
 export function takeOperatorMessages(

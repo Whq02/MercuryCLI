@@ -90,6 +90,7 @@ export type AgentMetadata = {
   thinkingConfig?: import('../thinking.js').ThinkingConfig
   structuredOutputSpec?: { schema: Record<string, unknown>; mode: 'permissive' | 'strict'; source: 'dispatch' | 'agent-definition' }
   launchedAt?: number
+  compactOnResume?: boolean
 } & Partial<Record<
   'worktreePath' | 'cwd' | 'description' | 'effort' |
   'instructionProfile' | 'instructionDigest' | 'name' | 'swarmBrief', string
