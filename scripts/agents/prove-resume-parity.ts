@@ -21,6 +21,7 @@ const src = (...p: string[]) => readFileSync(join(ROOT, 'src', ...p), 'utf-8')
 
 const storage = (await import('../../src/utils/sessionStorage.js')) as typeof import('../../src/utils/sessionStorage.js')
 const agent = (await import('../../src/utils/model/agent.js')) as typeof import('../../src/utils/model/agent.js')
+const record = (await import('../../src/utils/crew/crewmateRecord.js')) as typeof import('../../src/utils/crew/crewmateRecord.js')
 
 console.log('============================================================')
 console.log(' Launch parity across resume — proof')
@@ -74,12 +75,23 @@ section('§3 seam ratchets — the consumers actually carry the field')
   )
   check(
     'the spawn write persists the DISPATCHED model (runAgent)',
-    /writeAgentMetadata\(agentId, \{[\s\S]{0,400}?model: resolvedAgentModel/.test(runAgentSrc),
+    /writeAgentMetadata\(agentId, recordAtRunStart\(latestRecord, \{ model, effortOverride \}, \{[\s\S]{0,1200}?\n\s*\},\n\s*model: resolvedAgentModel,/.test(runAgentSrc),
   )
   check(
     'the spawn write persists the effort override when present (runAgent)',
-    /effortOverride !== undefined && \{ effortOverride \}/.test(runAgentSrc),
+    /\n\s*model: resolvedAgentModel,\n\s*effortOverride,\n\s*effort: resolvedEffort !== undefined \? String\(resolvedEffort\) : undefined,\n\s*\}\)\)\.catch/.test(runAgentSrc),
   )
+  {
+    const fresh = { agentType: 'mercury-crew', swarm: false }
+    const withOverride = record.recordAtRunStart(null, { model: 'sonnet', effortOverride: 'high' }, { fresh, model: 'claude-sonnet-5', effortOverride: 'high', effort: 'high' })
+    const without = record.recordAtRunStart(null, { model: undefined, effortOverride: undefined }, { fresh, model: 'claude-sonnet-5', effortOverride: undefined, effort: undefined })
+    check(
+      'the run-start merge writes the dispatched model and the effort override the run resolved, and no effortOverride key when none was given (crewmateRecord)',
+      withOverride.model === 'claude-sonnet-5' && withOverride.effortOverride === 'high' && withOverride.effort === 'high'
+        && without.model === 'claude-sonnet-5' && !('effortOverride' in without) && !('effort' in without),
+      JSON.stringify({ withOverride, without }),
+    )
+  }
   check(
     "no clear-write exists any more: a crewmate's end never rewrites its sidecar (the worktree path stays — nothing is deleted automatically)",
     !toolSrc.includes("receipt.outcome === 'settled'") && !toolSrc.includes('delete kept.worktreePath') && !toolSrc.includes('settleAgentWorktree('),
@@ -90,7 +102,8 @@ section('§3 seam ratchets — the consumers actually carry the field')
   )
   check(
     'resume THREADS the persisted model into runAgent (resumeAgent)',
-    /restoredModel = \(await resumedModelOverride\(args\.model, toolUseContext\.options\.engineModel\)\) \?\? meta\?\.model/.test(resumeSrc) && /model: restoredModel/.test(resumeSrc),
+    /restoredModel = \(await crewmateModelOverride\(args\.model, toolUseContext\.options\.engineModel\)\) \?\? meta\?\.model/.test(resumeSrc)
+      && /runAgent\(\{[\s\S]{0,1200}?\n\s*model: restoredModel,/.test(resumeSrc),
   )
   check(
     'resume threads the persisted effort override or the resolved launch effort (resumeAgent)',
