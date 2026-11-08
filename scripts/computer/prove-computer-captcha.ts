@@ -77,6 +77,8 @@ section('§1b a Chrome tab-strip tab title is not a captcha widget in the page')
   const tab = { depth: 0, role: 'AXRadioButton (AXTabButton)', title: 'ReCAPTCHA demo', value: 'false', frame: { x: 100, y: 30, width: 180, height: 28 } }
   const tabResult = treeSight({ elements: [tab], truncated: false, reason: null })
   check('a tree whose only brand word is on a tab button has no captcha sight', tabResult === null, String(tabResult))
+  const windowsTab = { depth: 0, role: 'TabItem', title: 'ReCAPTCHA demo', value: 'false', frame: { x: 100, y: 30, width: 180, height: 28 } }
+  check("a Windows tab (UI Automation's TabItem) in the strip raises no widget sight either", treeSight({ elements: [windowsTab], truncated: false, reason: null }) === null, 'TabItem')
   const web = { depth: 1, role: 'AXStaticText', title: 'reCAPTCHA', value: null, frame: { x: 100, y: 300, width: 180, height: 28 } }
   check('the same brand word in a web element is still a widget sight', treeSight({ elements: [web], truncated: false, reason: null }) === 'widget', 'web element')
 }

@@ -228,7 +228,7 @@ export function shownAddress(value: string | null | undefined): URL | null {
   const address = value?.trim()
   if (!address || /\s/.test(address)) return null
   try {
-    const url = new URL(address.startsWith('/') ? `file://${address}` : address.includes('://') ? address : `https://${address}`)
+    const url = new URL(address.startsWith('/') ? `file://${address}` : /^[a-z]:[\\/]/i.test(address) ? `file:///${address.replace(/\\/g, '/')}` : address.includes('://') ? address : `https://${address}`)
     if (url.protocol === 'file:') return url
     if (!['https:', 'http:'].includes(url.protocol) || (!url.hostname.includes('.') && url.hostname !== 'localhost' && !url.hostname.startsWith('['))) return null
     return url

@@ -12,6 +12,7 @@ export const CAPTCHA_QUESTION = 'a human-verification challenge is on screen: co
 
 const CHALLENGE = /verify\s+(?:that\s+)?you\s+are\s+(?:a\s+)?human|verify\s+you\s+are\s+not\s+a\s+robot|i(?:['’]m|\s+am)\s+not\s+a\s+robot|i\s+am\s+human|are\s+you\s+a\s+robot|select\s+all\s+(?:the\s+)?(?:images|squares)/i
 const BRAND = /\b(?:re[ -]?captcha|h[ -]?captcha|turnstile|captcha)\b/i
+const TAB_STRIP_TAB = /^(?:AXRadioButton \(AXTabButton\)|TabItem)$/
 
 export function titleSight(title: string): CaptchaSight {
   return CHALLENGE.test(title) ? 'challenge' : BRAND.test(title) ? 'widget' : null
@@ -29,7 +30,7 @@ export function treeSight(tree: DesktopTree, bounds: DesktopBounds | null = null
   for (const element of tree.elements) {
     const text = `${element.role} ${element.title ?? ''} ${element.value ?? ''}`
     if (CHALLENGE.test(text) && shown(tree, element, bounds)) return 'challenge'
-    if (sight === null && element.role !== 'AXRadioButton (AXTabButton)' && BRAND.test(text)) sight = 'widget'
+    if (sight === null && !TAB_STRIP_TAB.test(element.role) && BRAND.test(text)) sight = 'widget'
   }
   return sight
 }
