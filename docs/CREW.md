@@ -18,6 +18,16 @@ click on the chat outside the Crew view closes it; from an opened row, either
 returns to the list first. The same rule closes the `/runs` board. Closing a
 view never stops its work.
 
+With a crewmate opened in its view, the slash commands that are about one
+agent act on that crewmate: `/model` and `/effort` show and change its model
+and effort (a running crewmate switches at its next turn, a finished one at
+its next resume), `/compact` compacts its transcript (at its next turn, or when
+it resumes), and `/context` and `/usage` show its numbers; the main chat's
+model, effort and transcript do not move. Every other command (`/help`,
+`/crewmates`, `/config`, `/exit` and the rest) runs for the whole session as
+before and its receipt says so; Esc back to Mercury Lead returns the commands
+to the main chat.
+
 ## The two spawn switches
 
 Every session carries two switches, Crewmates and Workflows, set in the boot
