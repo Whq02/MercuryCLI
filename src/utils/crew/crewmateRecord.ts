@@ -29,8 +29,8 @@ export function recordAtRunStart(
   given: { model: string | undefined; effortOverride: string | undefined },
   run: { fresh: RecordRun; model: string; effortOverride: string | undefined; effort: string | undefined },
 ): AgentMetadata {
-  const modelInWindow = latest?.model !== undefined && given.model !== undefined && latest.model !== given.model
-  const effortInWindow = latest?.effortOverride !== undefined && latest.effortOverride !== given.effortOverride
+  const modelInWindow = latest?.model !== undefined && latest.model !== given.model
+  const effortInWindow = latest !== null && latest.effortOverride !== given.effortOverride
   let record: AgentMetadata = { ...(latest ?? {}), ...run.fresh }
   record = withField(record, 'model', modelInWindow ? latest?.model : run.model)
   record = withField(record, 'effortOverride', effortInWindow ? latest?.effortOverride : run.effortOverride)

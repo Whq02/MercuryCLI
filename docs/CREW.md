@@ -27,8 +27,9 @@ status row's chip keeps the running model and effort and appends
 `→ <model> · <effort> next turn` while a change waits), `/compact` compacts
 its transcript (at its next turn, or when it resumes), and `/context` and
 `/usage` show its numbers; the model-picker key and the command palette's
-model row open that crewmate's picker too, and the thinking key says thinking
-is set per crewmate through `/effort`. The main chat's model, effort and
+model row open that crewmate's picker too, and the thinking key changes nothing
+there: a crewmate's thinking stays as it was spawned, `/effort` sets its effort,
+and the key is Mercury Lead's. The main chat's model, effort and
 transcript do not move; a `/model` typed in the instant a crewmate's resume
 starts applies after that run. Every other command (`/help`, `/crewmates`,
 `/config`, `/exit` and the rest) runs for the whole session as before and its

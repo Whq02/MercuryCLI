@@ -498,10 +498,10 @@ section('§1 a running hosted crewmate in the view: the per-agent commands act o
   await clearNotices(scene)
   const thinkingBefore = scene.state().thinkingEnabled
   scene.push(`${ESC}t`)
-  const thinkingSaid = await until(() => screenWords(scene).includes('thinking is set per crewmate'), 5000)
+  const thinkingSaid = await until(() => screenWords(scene).includes('thinking stays as Lane atlas was spawned'), 5000)
   await sleep(400)
   save('k3-meta-t-at-atlas', scene.lines())
-  check("(k3) meta+t at the selected crewmate says thinking is set per crewmate through /effort and that the key is Mercury Lead's", thinkingSaid && /thinking is set per crewmate: \/effort at Lane atlas; (meta|opt|alt)\+t is Mercury Lead's — press it from the Lead/.test(screenWords(scene)), screenWords(scene).slice(-300))
+  check("(k3) meta+t at the selected crewmate says its thinking stays as spawned, /effort sets its effort and the key is Mercury Lead's", thinkingSaid && /thinking stays as Lane atlas was spawned; \/effort at Lane atlas sets its effort; (meta|opt|alt)\+t is Mercury Lead's — press it from the Lead/.test(screenWords(scene)), screenWords(scene).slice(-300))
   scene.push('\x1b[B')
   await sleep(200)
   scene.push(ENTER)
@@ -542,8 +542,8 @@ section('§2b a crewmate pinned as the main chat: the commands follow the pinned
   mainSeatUntouched(scene, '(p1)', before)
   await view(scene, ATLAS.id, 'ATLAS-ROW')
   const row = (scene.lines().find(line => /viewing Lane atlas/.test(line)) ?? '').trim()
-  check('(p2) atlas opened with cedar pinned: the row says the composer goes to the pinned main chat and stays within its width', /viewing Lane atlas · composer → Lane cedar/.test(row) && [...row].length <= COLS, row.slice(0, 240))
-  if (COLS >= WIDE_ENOUGH_FOR_THE_WHOLE_ROW) check('(p2) …and that the commands go to the opened crewmate (the row has the room here)', /composer → Lane cedar \(the main chat\) · commands → Lane atlas · 1 crewmate running/.test(row), row.slice(0, 240))
+  check('(p2) atlas opened with cedar pinned: the row names the commands target first (a narrow row cuts the composer half, never this one) and stays within its width', /viewing Lane atlas · commands → Lane atlas/.test(row) && [...row].length <= COLS, row.slice(0, 240))
+  if (COLS >= WIDE_ENOUGH_FOR_THE_WHOLE_ROW) check('(p2) …and the whole row where it has the room', /commands → Lane atlas · composer → Lane cedar \(the main chat\) · 1 crewmate running/.test(row), row.slice(0, 240))
   const before2 = submits.length
   const viewedLanded = await command(scene, `/model ${SONNET}`, () => readRecord(hostedRecord(ATLAS.id))?.model === SONNET)
   save('p2-model-viewing-atlas-cedar-pinned', scene.lines())

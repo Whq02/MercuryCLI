@@ -53,7 +53,7 @@ export function crewmateStatusWords(viewed: CrewmateViewedState, target: Crewmat
       ? `${MAIN_CHAT_WORD}: ${target.name} · commands → ${target.name} · ${LEAD_ROW_NAME} waits in the rail${tail}`
       : `${VIEWING_WORD} ${target.name} · composer → ${target.name} · commands → ${target.name}${tail}`
   }
-  return `${VIEWING_WORD} ${viewed.name} · composer → ${target.name} (the ${MAIN_CHAT_WORD}) · commands → ${viewed.name}${tail}`
+  return `${VIEWING_WORD} ${viewed.name} · commands → ${viewed.name} · composer → ${target.name} (the ${MAIN_CHAT_WORD})${tail}`
 }
 
 export function crewmateNextTurnWords(model: string | null, effort: string | null): string {
@@ -70,7 +70,7 @@ export function crewmateUnknownCommandWords(bareName: string, name: string, lite
 }
 
 export function crewmateThinkingKeyWords(name: string, key: string): string {
-  return `thinking is set per crewmate: /effort at ${name}; ${key} is ${LEAD_ROW_NAME}'s — press it from the Lead`
+  return `thinking stays as ${name} was spawned; /effort at ${name} sets its effort; ${key} is ${LEAD_ROW_NAME}'s — press it from the Lead`
 }
 
 export function crewmateCompactNothingWords(name: string, line: string): string {

@@ -88,6 +88,12 @@ async function writeRecord(file: string, meta: AgentMetadata): Promise<void> {
   await durableAtomicPublish(file, JSON.stringify(meta))
 }
 
+async function latestRecord(seat: CrewmateSeat): Promise<AgentMetadata> {
+  const latest = await readRecord(seat.file)
+  seat.meta = latest ?? seat.meta
+  return latest ?? seat.meta ?? { agentType: agentTypeOf(seat.crewmate, null) }
+}
+
 type CrewmateSeat = {
   crewmate: CrewmateInView
   name: string
@@ -105,7 +111,7 @@ async function recordModel(seat: CrewmateSeat, model: string): Promise<void> {
     seat.io.receipt(crewmateModelCurrentWords(seat.name, label, null))
     return
   }
-  await writeRecord(seat.file, { ...(seat.meta ?? { agentType: agentTypeOf(seat.crewmate, null) }), model })
+  await writeRecord(seat.file, { ...(await latestRecord(seat)), model })
   seat.io.receipt(crewmateModelSwitchWords(seat.name, label, seat.running))
 }
 
@@ -189,7 +195,7 @@ async function runEffort(seat: CrewmateSeat, args: string): Promise<void> {
     return
   }
   if (token === 'auto' || token === 'unset') {
-    const { effort: _effort, effortOverride: _override, ...rest } = seat.meta ?? { agentType: agentTypeOf(seat.crewmate, null) }
+    const { effortOverride: _override, ...rest } = await latestRecord(seat)
     await writeRecord(seat.file, rest)
     seat.io.receipt(crewmateEffortClearedWords(seat.name, seat.running))
     return
@@ -204,7 +210,7 @@ async function runEffort(seat: CrewmateSeat, args: string): Promise<void> {
     seat.io.receipt(crewmateEffortRefusedWords(seat.name, level, renderModelName(seat.model), selectable), 'warning')
     return
   }
-  await writeRecord(seat.file, { ...(seat.meta ?? { agentType: agentTypeOf(seat.crewmate, null) }), effortOverride: level })
+  await writeRecord(seat.file, { ...(await latestRecord(seat)), effortOverride: level })
   seat.io.receipt(crewmateEffortSwitchWords(seat.name, level, seat.running))
 }
 
@@ -215,7 +221,7 @@ async function runCompact(seat: CrewmateSeat, args: string): Promise<void> {
     seat.io.receipt(`${crewmateCompactWords(seat.name, true)}${note}`)
     return
   }
-  await writeRecord(seat.file, { ...(seat.meta ?? { agentType: agentTypeOf(seat.crewmate, null) }), compactOnResume: true })
+  await writeRecord(seat.file, { ...(await latestRecord(seat)), compactOnResume: true })
   seat.io.receipt(`${crewmateCompactWords(seat.name, false)}${note}`)
 }
 

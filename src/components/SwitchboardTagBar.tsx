@@ -325,7 +325,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const daemonBuild = useSyncExternalStore(subscribeDaemonHandshake, focusedDaemonBuildWords, focusedDaemonBuildWords)
   const crewmate = useViewedCrewmate()
   const composerCrewmate = useComposerCrewmate()
-  const crewmateModel = useCrewmateModel(crewmate)
+  const crewmateModel = useCrewmateModel(crewmate ?? composerCrewmate)
   const { folder, branch } = useFocusedWorkspaceBranch()
   const signedOutWords = signedOutStatusWords(useSessionSignInGate(effectiveModel))
   const painting = hasSeatLive(c)
@@ -344,9 +344,10 @@ export function FocusedSessionStatusRow(): React.ReactNode {
       ? `${crewmateStatusRightHint(false, crewmateLive(crewmate))} · ${keyHintLabel('⇧← back')}`
       : escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false, sendNow)
   const effortLabel = modelSupportsEffort(effectiveModel) ? focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false) : null
-  const shownModel = crewmate !== null && crewmateModel !== null ? (crewmateModel.model === null ? 'model unreported' : renderModelChip(crewmateModel.model)) : modelName
-  const shownEffort = crewmate !== null && crewmateModel !== null ? crewmateModel.effort : effortLabel
-  const next = crewmate !== null && crewmateModel !== null && crewmateModel.next !== null ? crewmateModel.next : null
+  const chipCrewmate = crewmate ?? composerCrewmate
+  const shownModel = chipCrewmate !== null && crewmateModel !== null ? (crewmateModel.model === null ? 'model unreported' : renderModelChip(crewmateModel.model)) : modelName
+  const shownEffort = chipCrewmate !== null && crewmateModel !== null ? crewmateModel.effort : effortLabel
+  const next = chipCrewmate !== null && crewmateModel !== null && crewmateModel.next !== null ? crewmateModel.next : null
   const nextWords = next === null ? '' : crewmateNextTurnWords(renderModelChip(next.model ?? crewmateModel!.model ?? ''), next.effort ?? crewmateModel!.effort)
   const modelWords = [`${modelStatusWords(shownModel, shownEffort)}${nextWords}`, daemonBuild].filter(Boolean).join(' · ')
   lastRowFit = { columns, head: [modelWords, motionWords].filter(Boolean).join(' · '), samples, folder, branch, backHint }
