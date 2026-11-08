@@ -1476,7 +1476,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
             outcome = 'failed'
             return finish()
           }
-          if (shotInSequence && ((step.x !== undefined && step.y !== undefined) || step.region !== undefined)) {
+          if (shotInSequence && ((step.x !== undefined && step.y !== undefined) || (step.toX !== undefined && step.toY !== undefined) || step.region !== undefined)) {
             result = `sequence ${completed}/${steps.length} completed · ${step.action} refused: ${SCREENSHOT_UNSEEN}; nothing further done\n${lines.join('\n')}`
             outcome = 'failed'
             return finish()
@@ -1524,7 +1524,6 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
                 return finish()
               }
               adoptShot(shot)
-              setScreen(owner, shot.screen)
               shotInSequence = true
               lines.push(shot.line)
               contentShown = true

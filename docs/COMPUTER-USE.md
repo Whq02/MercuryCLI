@@ -191,11 +191,13 @@ before and after it in any application an earlier step of the sequence was
 allowed in, so that line names the focused control instead of `focus unknown`.
 A `screenshot` step inside a sequence is an image the model has not seen when
 the next step runs, so a step after it that takes pixel coordinates (`x` and
-`y`, or a `region`) is refused with that reason and the sequence stops there;
+`y`, `toX` and `toY`, or a `region`) is refused with that reason and the
+sequence stops there;
 take the screenshot alone, read it, then act. Targets and refs stay fine after
 a screenshot step. Set `capture: false` on the sequence to keep the interaction
 image-free. Set
-`capture`, `region` and `settleMs` on the sequence itself; steps do not take them.
+`capture`, `region` and `settleMs` on the sequence itself; steps other than
+`screenshot` do not take them.
 Nested sequences are refused.
 
 `find`, `read` and `wait` with `until` read the tree and therefore ask like `tree`.
