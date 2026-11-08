@@ -1470,11 +1470,13 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
     if (permissions.ok) rememberDesktopPermissions(permissions.value)
     const takeShot = (wanted: number | undefined, label: string | undefined, settleMs = 0, observe?: DesktopBounds): Promise<Shot> =>
       takeScreenshot(owner, driver, context, toolUseId, wanted, label, signal, input.region, settleMs, observe, input.full, input.scale, true, sameMessage)
+    const shotLines = new Set<string>()
     const adoptShot = (shot: Extract<Shot, { ok: true }>): void => {
       imagePath = shot.imagePath
       inlinePath = shot.inlinePath
       inlineMediaType = shot.inlineMediaType
       screen = shot.screen
+      shotLines.add(shot.line)
     }
     try {
       const invalid = tableRefusal(input)
@@ -2056,7 +2058,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
 
     function finish() {
       if (outcome === 'failed' && imagePath !== undefined) {
-        result = result!.split('\n').map(line => (line.startsWith('screenshot: ') ? SCREENSHOT_NOT_RETURNED : line)).join('\n')
+        result = result!.split('\n').map(line => (shotLines.has(line) ? SCREENSHOT_NOT_RETURNED : line)).join('\n')
         imagePath = inlinePath = inlineMediaType = undefined
         screen = undefined
       }
