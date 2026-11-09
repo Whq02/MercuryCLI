@@ -2,11 +2,13 @@
 
 Computer use is the Computer tool: the model takes a screenshot of your
 screen, decides, then clicks, types, presses keys, scrolls or drags in the
-application in front, and sees a fresh screenshot after every act. Mercury
-checks the application's identity and your permission rules, grants and
-access setting before acting. When approval is needed, it asks by the
-application's name. It is on by default when the desktop driver is available;
-the rest of Mercury does not depend on it.
+application in front. An act answers in words: what it did, then a state
+line naming the window and focus after it; `capture: true` adds a screenshot
+after the act, and `screenshot` takes one on its own. Mercury checks the
+application's identity and your permission rules, grants and access setting
+before acting. When approval is needed, it asks by the application's name.
+It is on by default when the desktop driver is available; the rest of
+Mercury does not depend on it.
 
 ## Targeting controls and taking fewer screenshots
 
