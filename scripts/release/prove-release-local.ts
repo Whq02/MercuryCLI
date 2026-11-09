@@ -39,6 +39,24 @@ if (!existsSync(join(ROOT, ENGINE))) finish()
 for (const tool of ['bash', 'bun', 'node', 'tar', 'git']) check(`${tool} is on PATH`, spawnSync(tool, ['--version'], { stdio: 'ignore' }).status === 0)
 if (failures > 0) finish()
 
+{
+  const engine = readFileSync(join(ROOT, ENGINE), 'utf8')
+  const wf = readFileSync(join(ROOT, '.github', 'workflows', 'private-release.yml'), 'utf8')
+  const start = wf.indexOf('\n  package:\n')
+  const body = wf.slice(start + 1)
+  const end = body.slice(1).search(/\n  [a-z-]+:\n/)
+  const job = end === -1 ? body : body.slice(0, end + 1)
+  const hostedBeforeBuild = job.slice(0, job.indexOf('bun run build.ts --target'))
+  const fetchers = [...new Set([...hostedBeforeBuild.matchAll(/bun run (scripts\/vendor\/fetch-[a-z-]+\.ts)/g)].map(m => m[1]!))]
+  const localBeforeBuild = engine.slice(0, engine.indexOf('\nstep build '))
+  const missing = fetchers.filter(f => !localBeforeBuild.includes(`bun run ${f}`))
+  check(`every fetcher the hosted package job runs before its native build runs in ${ENGINE} before step build (${fetchers.length} fetchers)`, start !== -1 && fetchers.length > 0 && missing.length === 0, missing.length > 0 ? `missing: ${missing.join(', ')}` : `${fetchers.length} fetchers read from the workflow`)
+  const fetchStep = engine.split('\n').find(line => line.startsWith('step fetch 0 ')) ?? ''
+  const order = [...fetchStep.matchAll(/scripts\/vendor\/fetch-[a-z-]+\.ts/g)].map(m => m[0])
+  check("the fetch step (the one --skip fetch leaves out) runs fetch-pdfjs.ts first, as package.json's setup does: the build refuses without the pack", order[0] === 'scripts/vendor/fetch-pdfjs.ts', order.join(' ') || 'no step fetch line')
+  if (failures > 0) finish()
+}
+
 const sha256File = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex')
 const walk = (dir: string, base = ''): Record<string, string> => {
   const out: Record<string, string> = {}
