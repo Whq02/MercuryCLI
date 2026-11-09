@@ -71,7 +71,7 @@ const sends = [
   { requireAwait: true, awaitText: 'Set model to', awaitSettleTicks: 2, data: '', mark: 'confirm' },
   { requireAwait: true, awaitText: 'ready · ', awaitSettleTicks: 4, data: 'pick up from gpt pls\r', mark: 'pickup-send' },
   { requireAwait: true, awaitText: 'fable picked up the handoff', awaitSettleTicks: 4, data: '', mark: 'pickup' },
-  { requireAwait: true, awaitText: 'Fable 5.1 ·', awaitSettleTicks: 4, data: '', mark: 'settled' },
+  { requireAwait: true, awaitText: 'Fable 5.2 ·', awaitSettleTicks: 4, data: '', mark: 'settled' },
   { requireAwait: true, awaitText: 'ready · ', awaitSettleTicks: 4, data: '/model sonnet\r', mark: 'model-send' },
   { requireAwait: true, awaitText: 'Sonnet 5.5 ·', awaitSettleTicks: 2, data: '', mark: 'sonnet-confirm' },
   { requireAwait: true, awaitText: 'Sonnet 5.5 ·', awaitSettleTicks: 4, data: '', mark: 'sonnet' },
@@ -109,23 +109,23 @@ function check(label: string, yes: boolean): void {
 }
 check('every send reached its product gate', payload.sendReceipts?.length === sends.length && result.status === 0)
 check('the offer stood and its lossless handoff settled directly', frame('offer').includes('OpenAI usage window') && frame('confirm').includes('Set model to') && !frame('confirm').includes('Model switch preview'))
-const ack = events.findIndex(event => event.event === 'model-ack' && event.response?.at === 'now' && event.response.model === 'claude-fable-5-1')
+const ack = events.findIndex(event => event.event === 'model-ack' && event.response?.at === 'now' && event.response.model === 'claude-fable-5-2')
 check('the runner acknowledged the failover model applied now', ack >= 0)
 const release = events.findIndex(event => event.event === 'facts-release')
 const readAfter = events.findIndex((event, index) => index > ack && event.event === 'read-after-ack')
 if (controlled) {
   const held = events.filter(event => event.event === 'facts-answer' && event.held)
-  check('fresh answers were withheld after acknowledgement', ack >= 0 && held.length > 0 && held.every(event => event.model?.setting === 'claude-fable-5-1'))
+  check('fresh answers were withheld after acknowledgement', ack >= 0 && held.length > 0 && held.every(event => event.model?.setting === 'claude-fable-5-2'))
   check('the cockpit read a real publication before the fresh answers were released', readAfter > ack && release > readAfter && events.some(event => event.event === 'facts-write' && event.sid === events[readAfter]!.sid && event.atMs === events[readAfter]!.atMs))
   check('product facts and the pickup released the window, not the watchdog', release >= 0 && events[release]!.reason === 'facts-read-and-pickup' && events[release]!.count === held.length)
   const forwarded = events.filter(event => event.event === 'facts-forward')
   check('every withheld answer was forwarded byte-for-byte in order', held.length > 0 && held.length === forwarded.length && held.every((event, index) => event.requestId === forwarded[index]!.requestId && event.hash === forwarded[index]!.hash))
 }
-check('the cockpit eventually read the fresh Fable model with no pending switch', events.some((event, index) => index > (controlled ? release : ack) && event.event === 'facts-read' && event.model?.setting === 'claude-fable-5-1' && event.pendingModel === null))
-check('Anthropic received the pickup with the exact switched model and history', wire.some(row => row.kind === 'anthropic' && row.body?.model === 'claude-fable-5-1' && JSON.stringify(row.body).includes('pick up from gpt pls') && JSON.stringify(row.body).includes('hello sol')))
+check('the cockpit eventually read the fresh Fable model with no pending switch', events.some((event, index) => index > (controlled ? release : ack) && event.event === 'facts-read' && event.model?.setting === 'claude-fable-5-2' && event.pendingModel === null))
+check('Anthropic received the pickup with the exact switched model and history', wire.some(row => row.kind === 'anthropic' && row.body?.model === 'claude-fable-5-2' && JSON.stringify(row.body).includes('pick up from gpt pls') && JSON.stringify(row.body).includes('hello sol')))
 check('the switched reply painted', frame('pickup').includes('fable picked up the handoff'))
-check('the settled failover sentence remains', frame('settled').includes('on the anthropic failover lane · Fable 5.1'))
-check('the settled status row keeps the switched model in view (the sessions box that wore the failover mark left the cockpit; the sentence above carries the lane)', /ready · Fable 5\.1/.test(frame('settled')))
+check('the settled failover sentence remains', frame('settled').includes('on the anthropic failover lane · Fable 5.2'))
+check('the settled status row keeps the switched model in view (the sessions box that wore the failover mark left the cockpit; the sentence above carries the lane)', /ready · Fable 5\.2/.test(frame('settled')))
 check('the later model switch retains the note', frame('sonnet').includes('failover lane · Sonnet 5.5') && /ready · Sonnet 5\.5/.test(frame('sonnet')))
 for (const event of events) console.log(`[record] ${JSON.stringify(event)}`)
 console.log(`${checks} checks, ${failures} failures; endReason=${payload.endReason}`)

@@ -30,7 +30,7 @@ const FIXTURE_API_KEY = 'fixture-key-000'
 const FIRST = 'claude-sonnet-5'
 const FIRST_PROBE_MARK = 'sonnet'
 const SECOND = 'fable'
-const SECOND_LABEL = 'Fable 5.1'
+const SECOND_LABEL = 'Fable 5.2'
 const PROBE_HOLD_MS = 3_000
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`

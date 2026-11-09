@@ -45,7 +45,7 @@ const GPT_REPLY = 'sol answers from the fixture'
 const GPT_REPLY_AGAIN = 'sol answers again from the fixture'
 const ZAI_ROW = 'glm-5.3'
 const DEEPSEEK_ROW = 'deepseek-v4-pro'
-const FABLE_51 = 'claude-fable-5-1'
+const FABLE_52 = 'claude-fable-5-2'
 const OPENAI_OFFER_TITLE = 'OpenAI usage window'
 const ANTHROPIC_OFFER_TITLE = 'Anthropic usage window'
 
@@ -241,7 +241,7 @@ const list = ONLY.has('list') ? drive(
   'list',
   listWorld,
   listEnv,
-  FABLE_51,
+  FABLE_52,
   [
     { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: 'hello fable\r', mark: 'ready' },
@@ -279,7 +279,7 @@ if (list !== null) {
   check('three rows: Z.AI, DeepSeek and Anthropic', zaiLine !== undefined && deepseekLine !== undefined && anthropicLine !== undefined, tail(listGrid))
   const order = ['Z.AI', 'DeepSeek', 'Anthropic'].map(f => lines(listGrid).findIndex(l => l.includes(` ${f} ⇄ `)))
   check('the rows keep the sign-in order with the at-cap lane LAST', order[0] < order[1] && order[1] < order[2], JSON.stringify(order))
-  check(`each row names the exact landing row (${ZAI_ROW} · ${DEEPSEEK_ROW} · ${FABLE_51})`, (zaiLine ?? '').includes(ZAI_ROW) && (deepseekLine ?? '').includes(DEEPSEEK_ROW) && (anthropicLine ?? '').includes(FABLE_51))
+  check(`each row names the exact landing row (${ZAI_ROW} · ${DEEPSEEK_ROW} · ${FABLE_52})`, (zaiLine ?? '').includes(ZAI_ROW) && (deepseekLine ?? '').includes(DEEPSEEK_ROW) && (anthropicLine ?? '').includes(FABLE_52))
   check("the key lanes report no usage ('no usage read'); the capped lane is marked at its cap", (zaiLine ?? '').includes('no usage read') && (deepseekLine ?? '').includes('no usage read') && (anthropicLine ?? '').includes('at its cap'))
   check('the default highlight is the first row (Z.AI), the subtitle its landing row', (zaiLine ?? '').includes('▸') && !(deepseekLine ?? '').includes('▸') && listGrid.includes(`⇄ ${ZAI_ROW}`))
   check('the guide says ↑↓ choose beside the one true enter line', listGrid.includes('↑↓ choose') && listGrid.includes('enter opens the transition preview'))
@@ -332,7 +332,7 @@ const pool = ONLY.has('pool') ? drive(
   'pool',
   poolWorld,
   poolEnv,
-  FABLE_51,
+  FABLE_52,
   [
     { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: 'hello fable\r', mark: 'observed' },
@@ -414,7 +414,7 @@ const wire = wireWorld !== null && ONLY.has('wire')
       'wire',
       wireWorld,
       wireEnv(wireWorld.home),
-      FABLE_51,
+      FABLE_52,
       [
         ...wireSends('← back'),
         { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 6, awaitSettleTicks: 4, data: '\x1b', mark: 'home-offer' },
@@ -518,7 +518,7 @@ if (FRAMES !== undefined && wireWorld !== null) {
       `frames-${tag}`,
       wireWorld,
       wireEnv(wireWorld.home),
-      FABLE_51,
+      FABLE_52,
       [
         ...wireSends(cockpit ? '← back' : 'Type a prompt'),
         { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 6, awaitSettleTicks: 4, data: '', mark: 'home-offer' },

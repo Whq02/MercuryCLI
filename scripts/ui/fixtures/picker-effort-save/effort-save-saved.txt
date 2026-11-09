@@ -5,15 +5,16 @@
 ╰───────────────────────────╯│ │ Mercury · model                                                                                │ ││   API key · …-key         │
 ╭───────────────────────────╮│ │ / type to search by name or id                                                                 │ ││   spend none yet          │
 │ ▸ NEXT                    ││ │                                                                                                │ ││   credits not reported    │
-│   · /workflows…           ││ │ ▾ ANTHROPIC · API key · …-key · 12 live                                                        │ │╰───────────────────────────╯
-│   · /health — health cert ││ │ ╭────────────────────────────────────────────────────────────────────────────────────────────╮ │ │╭───────────────────────────╮
-│   · /memory — memory      ││ │ │ Fable 5.1             claude-fable-5-1              current      1M ctx                    │ │ ││ ⤳ WORKFLOW                │
-│   · /mission — set a…     ││ │ ╰────────────────────────────────────────────────────────────────────────────────────────────╯ │ ││   idle                    │
-╰───────────────────────────╯│ │   Fable 5               claude-fable-5                             1M ctx                      │ │╰───────────────────────────╯
-╭───────────────────────────╮│ │   Sonnet 5.5            claude-sonnet-5-5                          1M ctx                      │ │╭───────────────────────────╮
-│ ▤ FILES · project         ││ │   Sonnet 5              claude-sonnet-5                            1M ctx                      │ ││ ✓ HEALTH                  │
-│   ↵ or click · browse     ││ │   Sonnet 4.6            claude-sonnet-4-6                          1M ctx                      │ ││   ◌ no cert · /health     │
-╰───────────────────────────╯│ │   Opus 5.5              claude-opus-5-5                            1M ctx                      │ │╰───────────────────────────╯
+│   · /workflows…           ││ │ ▾ ANTHROPIC · API key · …-key · 13 live                                                        │ │╰───────────────────────────╯
+│   · /health — health cert ││ │   Fable 5.2             claude-fable-5-2                           1M ctx                      │ │╭───────────────────────────╮
+│   · /memory — memory      ││ │ ╭────────────────────────────────────────────────────────────────────────────────────────────╮ │ ││ ⤳ WORKFLOW                │
+│   · /mission — set a…     ││ │ │ Fable 5.1             claude-fable-5-1              current      1M ctx                    │ │ ││   idle                    │
+╰───────────────────────────╯│ │ ╰────────────────────────────────────────────────────────────────────────────────────────────╯ │ │╰───────────────────────────╯
+╭───────────────────────────╮│ │   Fable 5               claude-fable-5                             1M ctx                      │ │╭───────────────────────────╮
+│ ▤ FILES · project         ││ │   Sonnet 5.5            claude-sonnet-5-5                          1M ctx                      │ ││ ✓ HEALTH                  │
+│   ↵ or click · browse     ││ │   Sonnet 5              claude-sonnet-5                            1M ctx                      │ ││   ◌ no cert · /health     │
+╰───────────────────────────╯│ │   Sonnet 4.6            claude-sonnet-4-6                          1M ctx                      │ │╰───────────────────────────╯
+                             │ │   Opus 5.5              claude-opus-5-5                            1M ctx                      │ │
                              │ │   Opus 5                claude-opus-5                              1M ctx                      │ │
                              │ │   Opus 4.8              claude-opus-4-8                            1M ctx                      │ │
                              │ │   Opus 4.7              claude-opus-4-7                            1M ctx                      │ │
@@ -29,8 +30,7 @@
                              │ │ ▾ HUGGING FACE · connect Hugging Face to browse its models — /logins connects (or HF_TOKEN)    │ │
                              │ │   Hugging Face — sign in                                                                       │ │
                              │ │ ▾ Z.AI · no Z.AI API key — /logins zai (or ZAI_API_KEY)                                        │ │
-                             │ │   Z.AI — attach a key                                                                          │ │
-                             │ │   ↓ 69 more                                                                                    │ │
+                             │ │   ↓ 70 more                                                                                    │ │
                              │ │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                                     │ │
                              │ │                                                                                                │ │
                              │ │ context —  · tier API billing                                                                  │ │

@@ -31,11 +31,11 @@ if (!existsSync(DIST)) {
 const GPT_REPLY = 'sol answers from the fixture'
 const GPT_REPLY_AGAIN = 'sol answers again from the fixture'
 const FABLE_REPLY = 'fable picked up the handoff'
-const TARGET_ID = 'claude-fable-5-1'
-const TARGET_CHIP = 'Fable 5.1 ·'
+const TARGET_ID = 'claude-fable-5-2'
+const TARGET_CHIP = 'Fable 5.2 ·'
 const HOME_CHIP = 'GPT-5.6 Sol ·'
 const OFFER_TITLE = 'OpenAI usage window'
-const LANE_LINE = /on the anthropic failover lane · (Fable 5\.1|Sonnet 5\.5) · OpenAI window resets [^·]+ · \/model to return/
+const LANE_LINE = /on the anthropic failover lane · (Fable 5\.2|Sonnet 5\.5) · OpenAI window resets [^·]+ · \/model to return/
 const LANE_LINE_MS = 4000
 const LANE_LINE_TICKS = 30
 
@@ -266,7 +266,7 @@ const legSettle = drive(
   const t0Tick = receiptTick(p, 3)
   check('the refusal-only history settles without a needless preview: the seat is on the target the moment the offer is answered', t0Tick > 0 && t0.includes(TARGET_CHIP) && !t0.includes('Model switch preview'), t0 === '' ? `(no frame; line-t0 at tick ${t0Tick}; endReason=${p?.endReason ?? '?'})` : t0.split('\n').slice(-14).join('\n'))
   const settledGrid = markGrid(p, 'settled')
-  check('the settlement receipt names the chosen target (Set model to Fable 5.1)', settledGrid.includes('Set model to Fable 5.1') && !settledGrid.includes('Model switch preview'), settledGrid.split('\n').slice(-6).join('\n'))
+  check('the settlement receipt names the chosen target (Set model to Fable 5.2)', settledGrid.includes('Set model to Fable 5.2') && !settledGrid.includes('Model switch preview'), settledGrid.split('\n').slice(-6).join('\n'))
   check('the offer card is gone after its selection settles', !t0.includes(OFFER_TITLE) && !settledGrid.includes(OFFER_TITLE))
 
   section('L4 — the seat switched on the real bundle: the next turn dispatches to the Anthropic wire')
@@ -291,12 +291,12 @@ const legSettle = drive(
 
   section("L7 — the failover lane's sentence stands its window after the switch, then the strip's mark carries the fact; a change of state brings the sentence back")
   const lineRow = (grid: string): string => grid.split('\n').find(l => l.includes('failover lane')) ?? ''
-  check('at the switch the sentence stands above the composer, in its own words (the lane, the served model, the home window\'s stated reset, the way home)', t0Tick > 0 && LANE_LINE.test(lineRow(t0)) && lineRow(t0).includes('Fable 5.1'), lineRow(t0) || `(no sentence; line-t0 at tick ${t0Tick}; endReason=${p?.endReason ?? '?'})`)
-  check('the status row keeps the served model in view while the session runs on the lane (the sessions box that wore the failover mark left the cockpit)', /ready · Fable 5\.1/.test(t0), t0.split('\n').filter(l => l.includes('Fable 5.1')).join(' | '))
+  check('at the switch the sentence stands above the composer, in its own words (the lane, the served model, the home window\'s stated reset, the way home)', t0Tick > 0 && LANE_LINE.test(lineRow(t0)) && lineRow(t0).includes('Fable 5.2'), lineRow(t0) || `(no sentence; line-t0 at tick ${t0Tick}; endReason=${p?.endReason ?? '?'})`)
+  check('the status row keeps the served model in view while the session runs on the lane (the sessions box that wore the failover mark left the cockpit)', /ready · Fable 5\.2/.test(t0), t0.split('\n').filter(l => l.includes('Fable 5.2')).join(' | '))
   const later = markGrid(p, 'line-later')
   const laterTick = receiptTick(p, 5)
   check(`past its window (${LANE_LINE_MS} ms here; two minutes unset) the sentence has left the composer`, laterTick >= t0Tick + LANE_LINE_TICKS - 1 && !later.includes('failover lane'), lineRow(later) || `(line-later at tick ${laterTick})`)
-  check('…and the status row still names the served model (Fable 5.1)', /ready · Fable 5\.1/.test(later), later.split('\n').filter(l => l.includes('Fable 5.1')).join(' | '))
+  check('…and the status row still names the served model (Fable 5.2)', /ready · Fable 5\.2/.test(later), later.split('\n').filter(l => l.includes('Fable 5.2')).join(' | '))
   const sonnetGrid = markGrid(p, 'sonnet-switch')
   check('a lossless switch on the lane (/model sonnet) settles at once too: the chip flips with no preview card', receiptTick(p, 8) > 0 && sonnetGrid.includes('Sonnet 5.5 ·') && !sonnetGrid.includes('Model switch preview'), sonnetGrid === '' ? `(no frame; endReason=${p?.endReason ?? '?'})` : sonnetGrid.split('\n').filter(l => l.includes('Sonnet 5') || l.includes('Model switch')).join(' | '))
   const again = markGrid(p, 'line-again')
@@ -335,7 +335,7 @@ const legEsc = drive(
   const retryAt = finalGrid.indexOf('[sam] ❯ again please')
   const retryRows = retryAt < 0 ? '' : finalGrid.slice(retryAt)
   check('the explicit retry reaches its provider and paints the typed refusal with its words and retry clock, never a fabricated successful reply', retryCall !== undefined && (retryCall.call ?? 0) > 1 && retryAt >= 0 && retryRows.includes('API Error: the ChatGPT plus subscription request was refused') && retryRows.includes('openai-usage_limit_reached') && retryRows.includes('the provider asks for 1 h 0 min') && retryRows.includes('5h usage limit has been reached') && !finalGrid.includes(GPT_REPLY_AGAIN), retryRows || finalGrid.split('\n').slice(-12).join('\n'))
-  check('the session stayed on its GPT seat', finalGrid.includes(HOME_CHIP) && !finalGrid.includes('Fable 5.1'), finalGrid.split('\n').filter(l => l.includes('·')).slice(-3).join('\n'))
+  check('the session stayed on its GPT seat', finalGrid.includes(HOME_CHIP) && !finalGrid.includes('Fable 5.2'), finalGrid.split('\n').filter(l => l.includes('·')).slice(-3).join('\n'))
   check('no offer card on the final screen', !finalGrid.includes(OFFER_TITLE))
   check('at home the strip carries no failover mark and no sentence stands', !finalGrid.includes('· failover') && !finalGrid.includes('failover lane') && !markGrid(p, 'again').includes('· failover'), finalGrid.split('\n').filter(l => l.includes('failover')).join(' | '))
   if (failures > 0) forensics('esc', p, ['esc', 'again', 'probe'])

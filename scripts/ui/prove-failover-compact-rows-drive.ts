@@ -173,7 +173,7 @@ printFrame('settled')
 const sentence = frame('settled').find(row => row.includes('failover lane'))
 check('the failover sentence stands above the composer at 80×21', sentence !== undefined, frame('settled').join(' | ').slice(0, 300))
 check('the sentence keeps its /model to return tail at the row\'s end', sentence !== undefined && sentence.endsWith(TAIL) && stringWidth(sentence) <= COLS, sentence)
-check('the sentence is cut to what fits, an ellipsis closing the cut, and begins as before', sentence !== undefined && sentence.includes('…') && sentence.trimStart().startsWith('on the anthropic failover lane · Fable 5.1'), sentence)
+check('the sentence is cut to what fits, an ellipsis closing the cut, and begins as before', sentence !== undefined && sentence.includes('…') && sentence.trimStart().startsWith('on the anthropic failover lane · Fable 5.2'), sentence)
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} failover-compact-rows-drive: ${checks} checks, ${failures} failed · frames under ${RUN_HOME}`)
 fixture.kill()
