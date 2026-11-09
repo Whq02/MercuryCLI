@@ -201,7 +201,14 @@ export function nearestOnScreen(screens: ScreenFacts, point: { x: number; y: num
   return best?.point ?? null
 }
 
-export function pageContentNote(tree?: DesktopTree): string {
+const BROWSERS = /(?:chrome|chromium|firefox|safari|brave|vivaldi|msedge|microsoftedge|opera|orion|arc)(?:[.\s-]|$)/i
+
+export function isBrowserApplication(app: DesktopApplication): boolean {
+  return BROWSERS.test(`${app.identity} ${app.name}`)
+}
+
+export function pageContentNote(app: DesktopApplication, tree?: DesktopTree): string {
+  if (!isBrowserApplication(app)) return ''
   if (tree?.webContent === 'absent') return 'this application exposes no page content to the tree — use a screenshot; a missing page element is not a confirmed absence'
   if (tree?.webContent === 'pending') return 'web accessibility requested; page content is still starting — wait until the element appears with durationMs:5000, or take a screenshot'
   return ''
@@ -240,7 +247,7 @@ export function addressWords(url: URL): string {
 }
 
 function browserAddress(app: DesktopApplication | undefined, tree: DesktopTree | undefined): string | null {
-  if (!app || !/(?:chrome|chromium|firefox|safari|brave|vivaldi|msedge|microsoftedge|opera|orion|arc)(?:[.\s-]|$)/i.test(`${app.identity} ${app.name}`)) return null
+  if (!app || !isBrowserApplication(app)) return null
   const url = shownAddress(tree?.elements.find(element => /^AX(?:TextField|ComboBox)$/.test(element.role) && /^(?:address(?: and search)?(?: bar)?|location|url|search or enter (?:website name|address))$/i.test(element.title ?? ''))?.value)
   return url === null ? null : addressWords(url)
 }

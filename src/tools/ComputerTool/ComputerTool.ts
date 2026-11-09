@@ -668,7 +668,7 @@ async function resolveActTargets(driver: DesktopDriver, input: Input, front: Des
   for (const [selector, field] of [[input.target, 'point'], [input.toTarget, 'target']] as const) {
     if (selector === undefined) continue
     const point = targetPoint(tree.value, selector, map)
-    if ('refusal' in point) return `${input.action} refused: ${point.refusal}${pageContentNote(tree.value) ? `; ${pageContentNote(tree.value)}` : ''}`
+    if ('refusal' in point) return `${input.action} refused: ${point.refusal}${pageContentNote(front, tree.value) ? `\n${pageContentNote(front, tree.value)}` : ''}`
     const element = targetElement(tree.value, selector, map)
     const clipped = 'refusal' in element || !scrollsInto ? null : clippedWords(tree.value, element, front.bounds, plan.screens)
     if (clipped !== null && !('refusal' in element)) {
@@ -1094,7 +1094,7 @@ function treeWords(app: DesktopApplication, tree: DesktopOutline, limits: { dept
     ...tree.elements.map(element => outlineRowWords(element, map, points)),
   ]
   lines.push(tree.scope === undefined ? 'scope not reported by this driver' : `scope ${tree.scope}`)
-  const pageNote = pageContentNote(tree)
+  const pageNote = pageContentNote(app, tree)
   if (pageNote) lines.push(pageNote)
   if (tree.truncated) {
     lines.push(`truncated: the tree goes on past ${tree.reason !== null ? tree.reason : `the limit of ${limits.count} elements or depth ${limits.depth}`} — narrow with root or find, raise limit or depth to read more, or act on what is shown`)
@@ -2021,7 +2021,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           const keptLimits = { depth: input.depth ?? TREE_DEPTH_DEFAULT, count: input.limit ?? TREE_LIMIT_DEFAULT }
           let root: DesktopTree['elements'][number] | undefined
           if (input.root !== undefined) {
-            const selected = typeof input.root === 'number' ? targetElement({ ...tree.value, elements: resolveTreeRef(owner, app, tree.value, input.root) }, {}) : targetMatches(tree.value, input.root).length === 0 ? { refusal: `${targetWords(input.root)}: 0 matches — read tree or take a screenshot${pageContentNote(tree.value) ? `; ${pageContentNote(tree.value)}` : ''}` } : targetElement(tree.value, input.root, screenOf(owner))
+            const selected = typeof input.root === 'number' ? targetElement({ ...tree.value, elements: resolveTreeRef(owner, app, tree.value, input.root) }, {}) : targetMatches(tree.value, input.root).length === 0 ? { refusal: `${targetWords(input.root)}: 0 matches — read tree or take a screenshot${pageContentNote(app, tree.value) ? `\n${pageContentNote(app, tree.value)}` : ''}` } : targetElement(tree.value, input.root, screenOf(owner))
             if ('refusal' in selected) {
               result = `${input.action} refused: ${typeof input.root === 'number' ? `ref:${input.root}` : ''}${selected.refusal}`
               outcome = 'failed'
