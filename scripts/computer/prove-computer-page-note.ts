@@ -46,9 +46,9 @@ driver.accessibilityTree = async (...args) => {
 section("the fast road's browser list decides which windows are browsers")
 {
   const isBrowser = (fastRoad as { isBrowserApplication?: (app: DesktopApplication) => boolean }).isBrowserApplication
-  const browsers = [chrome, { ...finder, identity: 'com.apple.Safari', name: 'Safari' }, { ...finder, identity: 'org.mozilla.firefox', name: 'Firefox' }, { ...finder, identity: 'company.thebrowser.Browser', name: 'Arc' }, { ...finder, identity: 'chrome.exe', name: 'chrome' }, { ...finder, identity: 'msedge.exe', name: 'msedge' }]
+  const browsers = [chrome, { ...finder, identity: 'com.microsoft.edgemac', name: 'Microsoft Edge' }, { ...finder, identity: 'com.apple.Safari', name: 'Safari' }, { ...finder, identity: 'org.mozilla.firefox', name: 'Firefox' }, { ...finder, identity: 'company.thebrowser.Browser', name: 'Arc' }, { ...finder, identity: 'chrome.exe', name: 'chrome' }, { ...finder, identity: 'msedge.exe', name: 'msedge' }]
   const desktops = [finder, { ...finder, identity: 'com.apple.TextEdit', name: 'TextEdit' }, { ...finder, identity: 'com.apple.Terminal', name: 'Terminal' }, { ...finder, identity: 'com.example.Editor', name: 'Editor' }]
-  check('isBrowserApplication says yes to Chrome, Safari, Firefox, Arc and the Windows browsers, no to Finder, TextEdit, Terminal and a plain editor', typeof isBrowser === 'function' && browsers.every(app => isBrowser(app)) && desktops.every(app => !isBrowser(app)), typeof isBrowser === 'function' ? JSON.stringify([browsers.map(app => isBrowser(app)), desktops.map(app => isBrowser(app))]) : 'fastRoad exports no isBrowserApplication')
+  check('isBrowserApplication says yes to Chrome, Edge on macOS, Safari, Firefox, Arc and the Windows browsers, no to Finder, TextEdit, Terminal and a plain editor', typeof isBrowser === 'function' && browsers.every(app => isBrowser(app)) && desktops.every(app => !isBrowser(app)), typeof isBrowser === 'function' ? JSON.stringify([browsers.map(app => isBrowser(app)), desktops.map(app => isBrowser(app))]) : 'fastRoad exports no isBrowserApplication')
 }
 
 section('a Finder-shaped window: the tree is the truth there, so no page-content note from tree, find or a refusal')

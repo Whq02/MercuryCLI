@@ -201,7 +201,7 @@ export function nearestOnScreen(screens: ScreenFacts, point: { x: number; y: num
   return best?.point ?? null
 }
 
-const BROWSERS = /(?:chrome|chromium|firefox|safari|brave|vivaldi|msedge|microsoftedge|opera|orion|arc)(?:[.\s-]|$)/i
+const BROWSERS = /(?:chrome|chromium|firefox|safari|brave|vivaldi|msedge|microsoftedge|edgemac|opera|orion|arc)(?:[.\s-]|$)/i
 
 export function isBrowserApplication(app: DesktopApplication): boolean {
   return BROWSERS.test(`${app.identity} ${app.name}`)
