@@ -10,7 +10,7 @@ const ASSET = {
   assets: 'scripts/ui/fixtures/model-picker-typed/*.txt',
   generator: 'bun scripts/ui/prove-model-picker-typed-letters.ts --write',
   check: 'bun scripts/ui/prove-model-picker-typed-letters.ts',
-  sources: 'scripts/ui/prove-model-picker-typed-letters.ts src/components/MercuryModelPicker.tsx src/utils/model/modelPickerGroups.ts src/utils/model/modelPickerFooter.ts src/commands/model/mercuryModel.tsx src/commands/localsetup/words.ts',
+  sources: 'scripts/ui/prove-model-picker-typed-letters.ts src/components/MercuryModelPicker.tsx src/utils/model/modelPickerGroups.ts src/utils/model/modelPickerFooter.ts src/commands/model/mercuryModel.tsx src/commands/localsetup/words.ts src/components/ModelPickerPopupSlot.tsx src/components/PopupGutter.tsx src/components/FullscreenLayout.tsx',
 }
 if (registerOnlyRequested(ASSET)) process.exit(0)
 const sourceRef = pinSourceRef()

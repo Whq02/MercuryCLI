@@ -106,7 +106,7 @@ console.log('§4 no daemon record: the prune keeps only current, previous and th
   check('both superseded versions go', report.removed.length === 2 && report.kept.length === 2 && report.left.length === 0, describe(report))
 }
 
-console.log('§5 a removal that fails is left in place and named — in the layout\'s report and in the update\'s outcome')
+console.log('§5 a removal that fails is named as not removed whole — in the layout\'s report, in the update\'s outcome and on the verbs\' screen')
 {
   const roots = layoutFor('left')
   daemonRecord(null)
