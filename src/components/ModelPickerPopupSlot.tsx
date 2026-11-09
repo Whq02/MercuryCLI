@@ -8,7 +8,7 @@ import { claimModelPickerPopup, releaseModelPickerPopup } from '../utils/cockpit
 import { MODEL_PICKER_PANEL } from '../utils/model/modelPickerGroups.js'
 import { panelWidth } from './mercury-ui/geometry.js'
 import { modelPickerCentred } from './MercuryModelPicker.js'
-import { PopupGutter, popupCoverTop, popupGeometry, type PopupBand } from './PopupGutter.js'
+import { PopupGutter, popupCover, popupGeometry, type PopupBand } from './PopupGutter.js'
 
 const MODEL_PICKER_POPUP_MIN_ROWS = 10
 const MODEL_PICKER_POPUP_SPARE_ROWS = 7
@@ -74,7 +74,7 @@ export function ModelPickerPopupSlot({
   if (host === null) return null
   const geometry = modelPickerPopupGeometry(host, terminalRows, modelPickerCentred())
   return (
-    <PopupGutter {...geometry} coverTop={popupCoverTop(host, geometry, band)}>
+    <PopupGutter {...geometry} cover={popupCover(host, geometry, band)}>
       <ModalContext.Provider value={{ rows: geometry.rows, columns: geometry.columns, scrollRef }}>
         {children}
       </ModalContext.Provider>

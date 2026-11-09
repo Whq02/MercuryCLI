@@ -6,7 +6,7 @@ import { ModalContext } from '../context/modalContext.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { releaseCommandPopup, type CommandPopupShape } from '../utils/cockpit/commandPopup.js'
 import { modelPickerPopupHost, popupBandBounds, type ModelPickerPopupHost } from './ModelPickerPopupSlot.js'
-import { POPUP_GUTTER, PopupGutter, popupCoverTop, popupGeometry, type PopupBand } from './PopupGutter.js'
+import { POPUP_GUTTER, PopupGutter, popupCover, popupGeometry, type PopupBand } from './PopupGutter.js'
 
 type CommandPopupGeometry = { left: number; top: number; width: number; rows: number }
 
@@ -49,7 +49,7 @@ export function CommandPopupSlot({
   if (host === null) return null
   const geometry = commandPopupGeometry(host, terminalRows, shape)
   return (
-    <PopupGutter {...geometry} coverTop={popupCoverTop(host, geometry, band)}>
+    <PopupGutter {...geometry} cover={popupCover(host, geometry, band)}>
       <ModalContext.Provider value={{ rows: geometry.rows, columns: geometry.width, scrollRef }}>
         {children}
       </ModalContext.Provider>

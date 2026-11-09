@@ -21,28 +21,32 @@ export function popupGeometry(host: PopupBounds, requested: PopupSize, preferred
 }
 
 export type PopupBand = { top: number; rows: number }
+export type PopupCover = { left: number; top: number; width: number }
+const POPUP_COVER_SLACK = 8
 
-export function popupCoverTop(host: PopupBounds, popup: { left: number; top: number; width: number }, band: PopupBand | null): number | undefined {
+export function popupCover(host: PopupBounds, popup: { left: number; top: number; width: number }, band: PopupBand | null): PopupCover | undefined {
   if (band === null || band.rows <= 0) return undefined
   const coveredTop = popup.top - POPUP_GUTTER
-  const spansHost = popup.left - POPUP_GUTTER <= host.left && popup.left + popup.width + POPUP_GUTTER >= host.left + host.columns
-  if (!spansHost || coveredTop <= band.top || coveredTop >= band.top + band.rows) return undefined
-  return Math.max(host.top, band.top)
+  const slack = host.columns - (popup.width + 2 * POPUP_GUTTER)
+  if (slack > POPUP_COVER_SLACK || coveredTop <= band.top || coveredTop >= band.top + band.rows) return undefined
+  return { left: host.left, top: Math.max(host.top, band.top), width: host.columns }
 }
 
-export function PopupGutter({ left, top, width, rows, coverTop, contentRef, children }: PopupSize & {
+export function PopupGutter({ left, top, width, rows, cover, contentRef, children }: PopupSize & {
   left: number
   top: number
-  coverTop?: number
+  cover?: PopupCover
   contentRef?: React.Ref<DOMElement>
   children: React.ReactNode
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const ground = estateGroundBg(tokens)
   if (width < 2 || rows < 2) return null
-  const groundTop = coverTop !== undefined && coverTop < top - POPUP_GUTTER ? coverTop : top - POPUP_GUTTER
+  const groundLeft = cover !== undefined ? Math.min(cover.left, left - POPUP_GUTTER) : left - POPUP_GUTTER
+  const groundTop = cover !== undefined ? Math.min(cover.top, top - POPUP_GUTTER) : top - POPUP_GUTTER
+  const groundWidth = cover !== undefined ? Math.max(cover.left + cover.width, left + width + POPUP_GUTTER) - groundLeft : width + 2 * POPUP_GUTTER
   return (
-    <Box position="absolute" left={left - POPUP_GUTTER} top={groundTop} width={width + 2 * POPUP_GUTTER} padding={POPUP_GUTTER} paddingTop={top - groundTop} flexDirection="column" flexShrink={0} opaque overflow="hidden" {...(ground !== undefined ? { backgroundColor: ground } : {})}>
+    <Box position="absolute" left={groundLeft} top={groundTop} width={groundWidth} padding={POPUP_GUTTER} paddingTop={top - groundTop} paddingLeft={left - groundLeft} paddingRight={groundLeft + groundWidth - (left + width)} flexDirection="column" flexShrink={0} opaque overflow="hidden" {...(ground !== undefined ? { backgroundColor: ground } : {})}>
       <Box ref={contentRef} width={width} maxHeight={rows} flexDirection="column" flexShrink={0} overflow="hidden">
         <PopupFrameContext.Provider value={{ width, rows }}>{children}</PopupFrameContext.Provider>
       </Box>

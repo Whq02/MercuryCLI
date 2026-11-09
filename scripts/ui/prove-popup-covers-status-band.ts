@@ -21,7 +21,7 @@ for (const key of ['MERCURY_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'Z
 const arg = (key: string): string | undefined => process.argv.includes(key) ? process.argv[process.argv.indexOf(key) + 1] : undefined
 const frameDir = arg('--frames')
 if (frameDir) mkdirSync(frameDir, { recursive: true })
-const SIZES: Array<[number, number]> = (arg('--sizes')?.split(',') ?? ['100x30', '120x44', '160x50', '200x60']).map(size => size.split('x').map(Number) as [number, number])
+const SIZES: Array<[number, number]> = (arg('--sizes')?.split(',') ?? ['100x30', '120x44', '160x50', '165x50', '200x60']).map(size => size.split('x').map(Number) as [number, number])
 
 let checks = 0
 let failures = 0
@@ -163,12 +163,13 @@ for (const [columns, rows] of SIZES) {
       const host = hostOf(screen, panel)
       check(`${surface.name} ${columns}x${rows}: the centre box's frame is read from the painted view`, host !== null, `row ${panel.top + 1}: ${screen[panel.top + 1]!.join('').trimEnd()}`)
       if (host === null) continue
-      const spans = panel.left - 1 === host.left && panel.right + 1 === host.right
+      const slack = (host.right - host.left + 1) - (panel.right - panel.left + 1 + 2)
+      const spans = slack <= 8
       const band = bandAbove(screen, host, panel)
       const pasted = band.rows.map((row, i) => `row ${host.top + i}: ${row.trimEnd()}`).join('\n')
-      console.log(`${surface.name} ${columns}x${rows}: popup at columns ${panel.left}..${panel.right}, rows ${panel.top}..${panel.bottom}; centre pane ${host.left}..${host.right} from row ${host.top}; the popup ${spans ? 'spans the pane' : 'floats inside the pane'}; the band above it is ${band.state}`)
+      console.log(`${surface.name} ${columns}x${rows}: popup at columns ${panel.left}..${panel.right}, rows ${panel.top}..${panel.bottom}; centre pane ${host.left}..${host.right} from row ${host.top}; the popup ${spans ? `spans the pane (${slack} column${slack === 1 ? '' : 's'} of slack)` : 'floats inside the pane'}; the band above it is ${band.state}`)
       if (spans) {
-        check(`${surface.name} ${columns}x${rows}: the rows between the pane's top and the popup carry the status band whole or nothing of it — never its top border alone`, band.state !== 'torn', `the band is ${band.state}:\n${pasted}`)
+        check(`${surface.name} ${columns}x${rows}: the rows between the pane's top and the popup carry the status band whole or nothing of it — never its top border alone (nor a few columns of it)`, band.state !== 'torn', `the band is ${band.state}:\n${pasted}`)
       } else {
         const lidRow = band.rows.find(row => row.trimStart().startsWith('╭'))
         check(`${surface.name} ${columns}x${rows}: a popup narrower than the pane floats over the band and leaves its top border intact`, lidRow !== undefined && lidRow.trimEnd().endsWith('╮'), pasted)

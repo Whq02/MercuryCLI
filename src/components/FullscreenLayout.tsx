@@ -701,7 +701,7 @@ export function FullscreenLayout({
                     </TerminalSizeContext.Provider>
                   </TerminalSizeContext.Provider>
                   <FilesMenuSlot hostRef={centreBoxRef} framed={centerFrame} />
-                  <CrewViewSlot hostRef={centreBoxRef} framed={centerFrame} />
+                  <CrewViewSlot hostRef={centreBoxRef} bandRef={statusBandRef} framed={centerFrame} />
                 </Box>
                 {}
                 <Box ref={vitalsBoxRef} flexDirection="column" overflow="hidden" flexShrink={0} width={cockpit && plan.vitals ? plan.vitalsW : 0}>
