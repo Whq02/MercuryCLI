@@ -481,6 +481,7 @@ export function FullscreenLayout({
   const lanesBoxRef = useRef<DOMElement | null>(null)
   const vitalsBoxRef = useRef<DOMElement | null>(null)
   const centreBoxRef = useRef<DOMElement | null>(null)
+  const statusBandRef = useRef<DOMElement | null>(null)
   const [lanesRows, setLanesRows] = useState<number | undefined>(undefined)
   const [vitalsRows, setVitalsRows] = useState<number | undefined>(
     undefined,
@@ -587,13 +588,13 @@ export function FullscreenLayout({
   const motionParked = modalUp && modalPeek === 0
   const modalPane = popupUp ? (
     <MotionParkContext.Provider value={false}>
-      <ModelPickerPopupSlot hostRef={centreBoxRef} framed={centerFrame} scrollRef={modalScrollRef ?? null}>
+      <ModelPickerPopupSlot hostRef={centreBoxRef} bandRef={statusBandRef} framed={centerFrame} scrollRef={modalScrollRef ?? null}>
         {modal}
       </ModelPickerPopupSlot>
     </MotionParkContext.Provider>
   ) : commandPopupUp ? (
     <MotionParkContext.Provider value={false}>
-      <CommandPopupSlot hostRef={centreBoxRef} framed={centerFrame} scrollRef={modalScrollRef ?? null} shape={commandPopup.shape}>
+      <CommandPopupSlot hostRef={centreBoxRef} bandRef={statusBandRef} framed={centerFrame} scrollRef={modalScrollRef ?? null} shape={commandPopup.shape}>
         {modal}
       </CommandPopupSlot>
     </MotionParkContext.Provider>
@@ -659,6 +660,7 @@ export function FullscreenLayout({
                     {isCompact ? <CompactIdentityBand /> : null}
                     {centerFrame && statusBand ? (
                       <Box
+                        ref={statusBandRef}
                         flexDirection="row"
                         flexShrink={0}
                         width={sizeVal.columns}

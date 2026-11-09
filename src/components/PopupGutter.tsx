@@ -20,17 +20,29 @@ export function popupGeometry(host: PopupBounds, requested: PopupSize, preferred
   return { left, top, width, rows }
 }
 
-export function PopupGutter({ left, top, width, rows, contentRef, children }: PopupSize & {
+export type PopupBand = { top: number; rows: number }
+
+export function popupCoverTop(host: PopupBounds, popup: { left: number; top: number; width: number }, band: PopupBand | null): number | undefined {
+  if (band === null || band.rows <= 0) return undefined
+  const coveredTop = popup.top - POPUP_GUTTER
+  const spansHost = popup.left - POPUP_GUTTER <= host.left && popup.left + popup.width + POPUP_GUTTER >= host.left + host.columns
+  if (!spansHost || coveredTop <= band.top || coveredTop >= band.top + band.rows) return undefined
+  return Math.max(host.top, band.top)
+}
+
+export function PopupGutter({ left, top, width, rows, coverTop, contentRef, children }: PopupSize & {
   left: number
   top: number
+  coverTop?: number
   contentRef?: React.Ref<DOMElement>
   children: React.ReactNode
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const ground = estateGroundBg(tokens)
   if (width < 2 || rows < 2) return null
+  const groundTop = coverTop !== undefined && coverTop < top - POPUP_GUTTER ? coverTop : top - POPUP_GUTTER
   return (
-    <Box position="absolute" left={left - POPUP_GUTTER} top={top - POPUP_GUTTER} width={width + 2 * POPUP_GUTTER} padding={POPUP_GUTTER} flexDirection="column" flexShrink={0} opaque overflow="hidden" {...(ground !== undefined ? { backgroundColor: ground } : {})}>
+    <Box position="absolute" left={left - POPUP_GUTTER} top={groundTop} width={width + 2 * POPUP_GUTTER} padding={POPUP_GUTTER} paddingTop={top - groundTop} flexDirection="column" flexShrink={0} opaque overflow="hidden" {...(ground !== undefined ? { backgroundColor: ground } : {})}>
       <Box ref={contentRef} width={width} maxHeight={rows} flexDirection="column" flexShrink={0} overflow="hidden">
         <PopupFrameContext.Provider value={{ width, rows }}>{children}</PopupFrameContext.Provider>
       </Box>

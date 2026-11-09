@@ -5,8 +5,8 @@ import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { ModalContext } from '../context/modalContext.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { releaseCommandPopup, type CommandPopupShape } from '../utils/cockpit/commandPopup.js'
-import { modelPickerPopupHost, type ModelPickerPopupHost } from './ModelPickerPopupSlot.js'
-import { POPUP_GUTTER, PopupGutter, popupGeometry } from './PopupGutter.js'
+import { modelPickerPopupHost, popupBandBounds, type ModelPickerPopupHost } from './ModelPickerPopupSlot.js'
+import { POPUP_GUTTER, PopupGutter, popupCoverTop, popupGeometry, type PopupBand } from './PopupGutter.js'
 
 type CommandPopupGeometry = { left: number; top: number; width: number; rows: number }
 
@@ -23,12 +23,14 @@ export function CommandPopupLease({ token, children }: { token: number; children
 
 export function CommandPopupSlot({
   hostRef,
+  bandRef,
   framed,
   scrollRef,
   shape,
   children,
 }: {
   hostRef: React.RefObject<DOMElement | null>
+  bandRef?: React.RefObject<DOMElement | null>
   framed: boolean
   scrollRef: React.RefObject<ScrollBoxHandle | null> | null
   shape: CommandPopupShape
@@ -36,15 +38,18 @@ export function CommandPopupSlot({
 }): React.ReactNode {
   const { columns, rows: terminalRows } = useTerminalSize()
   const [host, setHost] = useState<ModelPickerPopupHost | null>(null)
+  const [band, setBand] = useState<PopupBand | null>(null)
   useLayoutEffect(() => {
     const element = hostRef.current
     const next = (element ? modelPickerPopupHost(element, framed) : null) ?? { left: 0, top: 0, columns, rows: terminalRows }
     if (host === null || host.left !== next.left || host.top !== next.top || host.columns !== next.columns || host.rows !== next.rows) setHost(next)
+    const nextBand = popupBandBounds(bandRef?.current ?? null)
+    if ((band === null) !== (nextBand === null) || (band !== null && nextBand !== null && (band.top !== nextBand.top || band.rows !== nextBand.rows))) setBand(nextBand)
   })
   if (host === null) return null
   const geometry = commandPopupGeometry(host, terminalRows, shape)
   return (
-    <PopupGutter {...geometry}>
+    <PopupGutter {...geometry} coverTop={popupCoverTop(host, geometry, band)}>
       <ModalContext.Provider value={{ rows: geometry.rows, columns: geometry.width, scrollRef }}>
         {children}
       </ModalContext.Provider>
