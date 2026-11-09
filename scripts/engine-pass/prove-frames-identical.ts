@@ -181,7 +181,7 @@ for (const family of selected) {
   rmSync(dir, { recursive: true, force: true })
   mkdirSync(dir, { recursive: true })
   const run = spawnSync(process.execPath, [join(ROOT, family.script), ...family.args.map(arg => arg === '$OUT' ? dir : arg)], {
-    cwd: ROOT, env: process.env, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, timeout: 900_000,
+    cwd: ROOT, env: { ...process.env, TZ: 'UTC' }, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, timeout: 900_000,
   })
   writeFileSync(join(work, `${family.id}.log`), run.stdout + '\n' + run.stderr)
   if (run.status !== 0) {
