@@ -30,15 +30,6 @@ const finish = (scratch?: string): never => {
 
 console.log(`release-local — the release workflow's package job on a machine of our own: ${TARGET}, a throwaway Ed25519 key`)
 
-if (process.platform !== 'darwin' || process.arch !== 'arm64') {
-  console.log(`  [SKIP] ${TARGET} is built natively on an Apple silicon Mac (host ${process.platform}/${process.arch})`)
-  process.exit(0)
-}
-check(`${ENGINE} exists at this tree`, existsSync(join(ROOT, ENGINE)))
-if (!existsSync(join(ROOT, ENGINE))) finish()
-for (const tool of ['bash', 'bun', 'node', 'tar', 'git']) check(`${tool} is on PATH`, spawnSync(tool, ['--version'], { stdio: 'ignore' }).status === 0)
-if (failures > 0) finish()
-
 {
   const engine = readFileSync(join(ROOT, ENGINE), 'utf8')
   const wf = readFileSync(join(ROOT, '.github', 'workflows', 'private-release.yml'), 'utf8')
@@ -56,6 +47,15 @@ if (failures > 0) finish()
   check("the fetch step (the one --skip fetch leaves out) runs fetch-pdfjs.ts first, as package.json's setup does: the build refuses without the pack", order[0] === 'scripts/vendor/fetch-pdfjs.ts', order.join(' ') || 'no step fetch line')
   if (failures > 0) finish()
 }
+
+if (process.platform !== 'darwin' || process.arch !== 'arm64') {
+  console.log(`  [SKIP] ${TARGET} is built natively on an Apple silicon Mac (host ${process.platform}/${process.arch})`)
+  process.exit(0)
+}
+check(`${ENGINE} exists at this tree`, existsSync(join(ROOT, ENGINE)))
+if (!existsSync(join(ROOT, ENGINE))) finish()
+for (const tool of ['bash', 'bun', 'node', 'tar', 'git']) check(`${tool} is on PATH`, spawnSync(tool, ['--version'], { stdio: 'ignore' }).status === 0)
+if (failures > 0) finish()
 
 const sha256File = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex')
 const walk = (dir: string, base = ''): Record<string, string> => {
