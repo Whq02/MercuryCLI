@@ -3,7 +3,9 @@ import { createHash } from 'node:crypto'
 import { logForDebugging } from '../../utils/debug.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { readDaemonState } from '../../daemon/controlSocket.js'
+import { isProcessAlive } from '../../daemon/ownerWatch.js'
 import {
   CHECKSUM_MANIFEST_NAME,
   formatPrivateVersion,
@@ -117,6 +119,16 @@ export async function channelStatus(roots: LayoutRoots): Promise<ChannelStatus> 
 
 export const statusRuntimeLine = (status: Pick<ChannelStatus, 'runtime'>): string => runtimeLine(status.runtime)
 
+export async function livePayloadDirs(roots: LayoutRoots): Promise<string[]> {
+  const live = [runningPayloadDir()]
+  const daemon = await readDaemonState()
+  if (daemon !== null && isProcessAlive(daemon.pid)) {
+    live.push(join(roots.versionsDir, daemon.version))
+    if (daemon.script) live.push(dirname(daemon.script))
+  }
+  return live
+}
+
 
 export type CheckOutcome =
   | {
@@ -201,6 +213,7 @@ type UpdateOutcome =
       to: string
       previousKept: boolean
       pruned: string[]
+      left: string[]
       shim: ShimOutcome
       road: ChannelRoadName
       signature: SignatureVerdict['state']
@@ -473,7 +486,7 @@ async function acquireAndActivate(
       }
     }
     const shim = writeShim(roots)
-    const pruned = pruneSupersededVersions(roots).removed
+    const { removed: pruned, left } = pruneSupersededVersions(roots, await livePayloadDirs(roots))
     progress('complete', check.version)
     return {
       state: 'updated',
@@ -481,6 +494,7 @@ async function acquireAndActivate(
       to: check.version,
       previousKept: previous !== null && versionDirIntact(roots, previous),
       pruned,
+      left,
       shim,
       road: check.road,
       signature: provenance.verdict.state,
@@ -551,6 +565,7 @@ type InstallVerbOutcome =
       changed: boolean
       activated: boolean
       pruned: string[]
+      left: string[]
       shim: ReturnType<typeof writeShim>
       binDirOnPath: boolean
       path: PathEntryOutcome
@@ -630,7 +645,7 @@ async function performInstallTransaction(roots: LayoutRoots, progress: Progress,
       return { state: 'refused', reason: `post-activation smoke failed: ${post.note}`, remedy: 'the previous pointer was restored' }
     }
     const shim = writeShim(roots, { force: opts.force })
-    const pruned = pruneSupersededVersions(roots).removed
+    const { removed: pruned, left } = pruneSupersededVersions(roots, await livePayloadDirs(roots))
     const binDirOnPath = (process.env.PATH ?? '')
       .split(roots.isWindows ? ';' : ':')
       .some(p => pathEntryEquals(p, roots.binDir, roots.isWindows))
@@ -647,6 +662,7 @@ async function performInstallTransaction(roots: LayoutRoots, progress: Progress,
       changed: installed.changed,
       activated: true,
       pruned,
+      left,
       shim,
       binDirOnPath,
       path,

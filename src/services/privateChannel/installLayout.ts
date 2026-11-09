@@ -532,25 +532,22 @@ export interface PruneReport {
   left: string[]
 }
 
-export function pruneSupersededVersions(roots: LayoutRoots, running: string = runningPayloadDir()): PruneReport {
+export function pruneSupersededVersions(roots: LayoutRoots, live: string | readonly string[] = runningPayloadDir()): PruneReport {
   const keep = new Set<string>()
   for (const pointer of [readCurrentVersion(roots), readPreviousVersion(roots)]) if (pointer !== null) keep.add(pointer)
-  const runningResolved = (() => {
+  const realDir = (dir: string): string => {
     try {
-      return realpathSync.native(running)
+      return realpathSync.native(dir)
     } catch {
-      return running
+      return dir
     }
-  })()
+  }
+  const liveResolved = (typeof live === 'string' ? [live] : live).map(realDir)
   const report: PruneReport = { removed: [], kept: [], left: [] }
   for (const version of listInstalledVersions(roots)) {
     const dir = join(roots.versionsDir, version)
-    let resolved = dir
-    try {
-      resolved = realpathSync.native(dir)
-    } catch {
-    }
-    const isRunning = roots.isWindows ? resolved.toLowerCase() === runningResolved.toLowerCase() : resolved === runningResolved
+    const resolved = realDir(dir)
+    const isRunning = liveResolved.some(running => (roots.isWindows ? resolved.toLowerCase() === running.toLowerCase() : resolved === running))
     if (keep.has(version) || isRunning) {
       report.kept.push(version)
       continue
