@@ -411,10 +411,6 @@ export function isDefaultOpusNatively1M(): boolean {
   return getContextWindowForModel(normalizeModelStringForAPI(getDefaultOpusModel())) >= 1_000_000
 }
 
-export function isDefaultFableNatively1M(): boolean {
-  return getContextWindowForModel(normalizeModelStringForAPI(getDefaultFableModel())) >= 1_000_000
-}
-
 export function isOpus1mMergeEnabled(): boolean {
   return false
 }

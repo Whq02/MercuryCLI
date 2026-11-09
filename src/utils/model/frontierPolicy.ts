@@ -4,16 +4,18 @@ import {
   isClaudeAISubscriber,
   isMaxSubscriber,
 } from '../auth.js'
-import { is1mContextDisabled } from './capabilities.js'
+import { getContextWindowForModel, is1mContextDisabled } from './capabilities.js'
+import { previousGenerationKeys } from './configs.js'
 import { isModelAllowed } from './modelAllowlist.js'
+import { getModelStrings } from './modelStrings.js'
 import { getInitialSettings } from '../settings/settings.js'
 
 import {
   getDefaultFableModel,
   getDefaultOpusModel,
-  isDefaultFableNatively1M,
   isDefaultOpusNatively1M,
   isOpus1mMergeEnabled,
+  normalizeModelStringForAPI,
 } from './model.js'
 
 export const FRONTIER_MAX_20X_TIER = 'default_claude_max_20x'
@@ -138,13 +140,25 @@ function allowedUnderAllowlist(id: string): boolean {
   }
 }
 
+function newestPermittedFable(head: string): string {
+  if (allowedUnderAllowlist(head)) return head
+  const strings = getModelStrings()
+  for (const key of previousGenerationKeys('fable')) {
+    if (allowedUnderAllowlist(strings[key])) return strings[key]
+  }
+  return head
+}
+
 export function gatherFrontierFacts(): FrontierFacts {
   const settings = getInitialSettings() || {}
   const allowlist = settings.engine?.roster
+  const fableEnvPin = !!process.env.MERCURY_DEFAULT_FABLE_MODEL
+  const head = getDefaultFableModel()
+  const fableId = fableEnvPin || allowlist === undefined ? head : newestPermittedFable(head)
   return {
-    fableEnvPin: !!process.env.MERCURY_DEFAULT_FABLE_MODEL,
-    fableId: getDefaultFableModel(),
-    fableNatively1M: isDefaultFableNatively1M(),
+    fableEnvPin,
+    fableId,
+    fableNatively1M: getContextWindowForModel(normalizeModelStringForAPI(fableId)) >= 1_000_000,
     allowlistPresent: allowlist !== undefined,
     allowlistNamesFable:
       !!allowlist &&
