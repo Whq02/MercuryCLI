@@ -1560,7 +1560,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
               shotInSequence = true
               lines.push(shot.line)
               contentShown = true
-            }
+            } else lines.push('screenshot step skipped (capture: false)')
             completed++
             continue
           }
