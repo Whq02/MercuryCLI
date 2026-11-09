@@ -49,6 +49,9 @@ const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await impo
 const { getEngineModel } = await import('../../src/utils/model/model.ts')
 const effortCommand = await import('../../src/commands/effort/effort.tsx')
 const modelCommand = await import('../../src/commands/model/mercuryModel.tsx')
+const certificate = await import('../../src/commands/health/HealthCertificate.tsx')
+const { CommandPopupLease } = await import('../../src/components/CommandPopupSlot.tsx')
+const { claimCommandPopup } = await import('../../src/utils/cockpit/commandPopup.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
@@ -56,6 +59,25 @@ saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
 const SOLID = 'T'
 const BAND = 'B'
 const model = getEngineModel()
+
+type ReportFixture = Parameters<typeof certificate.MercuryHealthCertificate>[0]['report']
+const fixtureReport: ReportFixture = async () => ({
+  verdict: 'certified' as const,
+  ranAt: new Date().toISOString(),
+  head: { sha: 'abc1234def', branch: 'lane/fixture', dirty: false },
+  version: '1.0.0',
+  durationMs: 12,
+  depth: 'fast' as const,
+  sections: [
+    { id: 'processes', title: 'PROCESSES', checks: [
+      { id: 'boots', label: 'Boots complete', status: 'ok' as const, evidence: 'no pending attempts' },
+      { id: 'sweep', label: 'Mercury processes', status: 'ok' as const, evidence: 'none stale' },
+    ] },
+    { id: 'git', title: 'GIT', checks: [
+      { id: 'tree', label: 'Working tree', status: 'ok' as const, evidence: 'clean' },
+    ] },
+  ],
+}) as never
 
 type Surface = { name: string; title: string; painted: (frame: string) => boolean; open: () => Promise<React.ReactNode> }
 const surfaces: Surface[] = [
@@ -70,6 +92,12 @@ const surfaces: Surface[] = [
     title: 'Mercury · effort',
     painted: frame => frame.includes('Mercury · effort'),
     open: () => effortCommand.call(() => {}, { messages: [], options: { engineModel: model }, getAppState: () => getDefaultAppState(), setAppState: () => {} } as never, ''),
+  },
+  {
+    name: 'health',
+    title: 'Mercury · health',
+    painted: frame => frame.includes('Mercury · health') && frame.includes('PROCESSES'),
+    open: async () => h(CommandPopupLease, { token: claimCommandPopup(certificate.healthPopupShape()), children: h(certificate.MercuryHealthCertificate, { onClose: () => {}, report: fixtureReport }) }),
   },
 ]
 
@@ -133,7 +161,7 @@ function hostOf(screen: string[][], panel: Panel): Host | null {
 const BORDER = new Set(['╭', '╮', '╰', '╯', '│', '─'])
 type BandState = 'whole' | 'absent' | 'torn'
 function bandAbove(screen: string[][], host: Host, panel: Panel): { state: BandState; rows: string[] } {
-  const rows = Array.from({ length: Math.max(0, panel.top - 1 - host.top) }, (_, i) => screen[host.top + i]!.slice(host.left, host.right + 1).join(''))
+  const rows = Array.from({ length: Math.max(0, panel.top - host.top) }, (_, i) => screen[host.top + i]!.slice(host.left, host.right + 1).join(''))
   const painted = rows.filter(row => row.trim().length > 0)
   if (painted.length === 0) return { state: 'absent', rows }
   const lid = rows.findIndex(row => row.trimStart().startsWith('╭'))
@@ -171,8 +199,9 @@ for (const [columns, rows] of SIZES) {
       if (spans) {
         check(`${surface.name} ${columns}x${rows}: the rows between the pane's top and the popup carry the status band whole or nothing of it — never its top border alone (nor a few columns of it)`, band.state !== 'torn', `the band is ${band.state}:\n${pasted}`)
       } else {
-        const lidRow = band.rows.find(row => row.trimStart().startsWith('╭'))
-        check(`${surface.name} ${columns}x${rows}: a popup narrower than the pane floats over the band and leaves its top border intact`, lidRow !== undefined && lidRow.trimEnd().endsWith('╮'), pasted)
+        const above = Array.from({ length: Math.max(0, panel.top - host.top) }, (_, i) => screen[host.top + i]!.slice(host.left, host.right + 1).join(''))
+        const lidRow = above.find(row => row.trimStart().startsWith('╭'))
+        check(`${surface.name} ${columns}x${rows}: a popup narrower than the pane floats over the band and leaves its top border's corners in place`, lidRow !== undefined && lidRow.trimEnd().endsWith('╮'), above.map((row, i) => `row ${host.top + i}: ${row.trimEnd()}`).join('\n'))
       }
     } finally {
       scene.unmount()

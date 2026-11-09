@@ -28,7 +28,7 @@ export function popupCover(host: PopupBounds, popup: { left: number; top: number
   if (band === null || band.rows <= 0) return undefined
   const coveredTop = popup.top - POPUP_GUTTER
   const slack = host.columns - (popup.width + 2 * POPUP_GUTTER)
-  if (slack > POPUP_COVER_SLACK || coveredTop <= band.top || coveredTop >= band.top + band.rows) return undefined
+  if (slack > POPUP_COVER_SLACK || coveredTop < band.top || coveredTop >= band.top + band.rows) return undefined
   return { left: host.left, top: Math.max(host.top, band.top), width: host.columns }
 }
 
