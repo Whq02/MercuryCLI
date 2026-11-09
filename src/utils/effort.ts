@@ -551,6 +551,7 @@ const LAUNCH_FAMILIES: Array<{ substring: string; flag: LaunchFamily; launchDefa
   { substring: 'opus-4-7', flag: 'opus47', launchDefault: 'xhigh' },
   { substring: 'opus-4-8', flag: 'opus48', launchDefault: 'high' },
   { substring: 'fable-5-2', flag: 'fable52', launchDefault: 'high' },
+  { substring: 'mythos-5-2', flag: 'fable52', launchDefault: 'high' },
   { substring: 'fable-5-1', flag: 'fable51', launchDefault: 'high' },
   { substring: 'fable', flag: 'fable5', launchDefault: 'high' },
   { substring: 'sonnet-5-5', flag: 'sonnet55', launchDefault: 'high' },
