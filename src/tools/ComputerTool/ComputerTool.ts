@@ -1237,7 +1237,7 @@ async function takeScreenshot(
   const frameWords = `${scale}${changedFrame ? '; frame changed: display, region or route image limits changed — previous coordinates do not apply' : ''}${region || window ? `; coordinates now refer to this ${region ? 'region' : 'window'} (origin ${screen.originX},${screen.originY} pt); full:true takes a full screenshot of the display` : ''}`
   if (publish) setScreen(owner, screen)
   noteScreenshot(owner, screen.toolUseId, file)
-  const line = `screenshot: ${file} — display ${display.index} (${screenMapSizeWords(screen)}) · ${frameWords} · ${await factsLine(driver, screen)}`
+  const line = `screenshot: ${file} — display ${display.index} (${screenMapSizeWords(screen)}) at scale ${factor} · ${frameWords} · ${await factsLine(driver, screen)}`
   return {
     ok: true,
     line,

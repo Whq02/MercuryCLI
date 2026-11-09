@@ -79,6 +79,7 @@ const scaledHeader = scaled.imagePath ? imageDimensionsFromHeader(readFileSync(s
 check('scale is honoured in the image header and px/pt words', scaledHeader?.width === 200 && scaledHeader.height === 150 && scaled.screen?.imageWidth === 200 && scaled.result.includes('scale 0.500 px/pt'), scaled.result)
 const region = await call({ action: 'screenshot', region: { x: 10, y: 20, width: 40, height: 30 } })
 check('region keeps its origin and defaults to native pixels', region.screen?.originX === 120 && region.screen.originY === 120 && region.screen.pointWidth === 80 && region.screen.pointHeight === 60 && region.screen.imageWidth === 160 && region.screen.imageHeight === 120, region.result)
+check('each capture line says its scale by the parameter\'s name — the window shot "at scale 0.5", the region cut from it "at scale 1", an asked-for 0.25 "at scale 0.25" — so a region at twice the window shot\'s density is explained', window.result.includes(' pt) at scale 0.5 · ') && region.result.includes(' pt) at scale 1 · ') && scaled.result.includes(' pt) at scale 0.25 · '), `${window.result}\n${scaled.result}\n${region.result}`)
 const full = await call({ action: 'screenshot', full: true })
 check('full:true restores the display frame', full.screen?.originX === -100 && full.screen.pointWidth === 1000, full.result)
 for (const scale of [0, 0.24, 1.01, Number.NaN]) {
