@@ -68,7 +68,7 @@ const anthropicLogin: ModelChoice[] = [
   row('claude-opus-5', 'Opus 5', '1M ctx', ANTHROPIC, { door: LOGIN }),
   row('claude-sonnet-5', 'Sonnet 5', '1M ctx', ANTHROPIC, { door: LOGIN }),
   row('claude-haiku-4-5-20251001', 'Haiku 4.5', '200k ctx', ANTHROPIC, { door: LOGIN }),
-  row('claude-fable-5-2-preview', 'claude-fable-5-2-preview', '1M ctx', ANTHROPIC, { door: LOGIN, tag: 'live · unknown to mercury' }),
+  row('claude-fable-5-7-preview', 'claude-fable-5-7-preview', '1M ctx', ANTHROPIC, { door: LOGIN, tag: 'live · unknown to mercury' }),
 ]
 const anthropicKey: ModelChoice[] = [
   row('claude-opus-5-5', 'Opus 5.5', '1M ctx', ANTHROPIC, { door: KEY }),
@@ -238,10 +238,10 @@ section('§1 the home state at 178x51: header · groups · doors · rows · orde
   const fable5 = rowOf(lines, 'claude-fable-5 ')
   check('every other row\'s state column is empty (no "switch")', /Fable 5\s+claude-fable-5\s+1M ctx/.test(fable5) && !frame.includes('switch  '), fable5)
   check('no ○ / ● glyph in front of any row', !frame.includes('○') && !frame.includes('●'))
-  const preview = rowOf(lines, 'claude-fable-5-2-preview')
-  check('an id Mercury has no alias for lands under its raw id with "new · no alias"', /—\s+claude-fable-5-2-preview\s+1M ctx\s+new · no alias/.test(preview), preview)
+  const preview = rowOf(lines, 'claude-fable-5-7-preview')
+  check('an id Mercury has no alias for lands under its raw id with "new · no alias"', /—\s+claude-fable-5-7-preview\s+1M ctx\s+new · no alias/.test(preview), preview)
   check('a model both doors list is one row under each door', rowOf(lines, 'claude-opus-5-5', `${LOGIN} · ${EMAIL}`) !== '' && rowOf(lines, 'claude-opus-5-5', `${KEY} · …6f2a`) !== '')
-  check('a provider with more than twelve rows opens folded: heading only, ▸', inner(lineWith(lines, 'GEMINI')).trim().startsWith('▸ GEMINI') && !frame.includes('gemini-3.0-pro') && inner(lineWith(lines, 'OPENROUTER')).trim().startsWith('▸ OPENROUTER') && !frame.includes('deepseek/deepseek-v4.1-flash'), inner(lineWith(lines, 'GEMINI')).trim())
+  check('a provider with more than thirteen rows opens folded: heading only, ▸', inner(lineWith(lines, 'GEMINI')).trim().startsWith('▸ GEMINI') && !frame.includes('gemini-3.0-pro') && inner(lineWith(lines, 'OPENROUTER')).trim().startsWith('▸ OPENROUTER') && !frame.includes('deepseek/deepseek-v4.1-flash'), inner(lineWith(lines, 'GEMINI')).trim())
   check('the door row itself is not a row any more', !frame.includes('OpenRouter — 459 models live'))
   const gated = rowOf(lines, 'glm-5.3-vision')
   check('a gated row says unavailable in the state column', /GLM 5\.3 Vision\s+glm-5\.3-vision\s+unavailable\s+64k ctx/.test(gated), gated)
@@ -380,7 +380,13 @@ section('§8 the pure composition (the module the picker derives its lines from)
     const ordered = pure.orderPickerGroups(groups, { top: ANTHROPIC, recentAt: group => ({ [MOONSHOT]: 300, [OPENROUTER]: 200, [OPENAI]: 100 } as Record<string, number>)[group] })
     check('the order rule: the seat first, then most recent use, then today\'s order', ordered.map(group => group.group).join(' > ') === [ANTHROPIC, MOONSHOT, OPENROUTER, OPENAI, GEMINI, ZAI, DEEPSEEK, XAI, META].join(' > '), ordered.map(group => group.group).join(' > '))
     const folds = pure.initialPickerFolds(ordered, ANTHROPIC, 'claude-fable-5-1@' + LOGIN)
-    check('the fold rule: over twelve rows opens folded unless top; the rest open', folds[GEMINI] === 'folded' && folds[ANTHROPIC] === 'top' && folds[OPENROUTER] === 'folded' && folds[OPENAI] === 'top', JSON.stringify(folds))
+    check('the fold rule: over thirteen rows opens folded unless top; the rest open', folds[GEMINI] === 'folded' && folds[ANTHROPIC] === 'top' && folds[OPENROUTER] === 'folded' && folds[OPENAI] === 'top', JSON.stringify(folds))
+    const boundary = [12, 13, 14].map(count => {
+      const sized = pure.groupPickerRows(Array.from({ length: count }, (_, k) => row(`gemini-9.${k}`, `Gemini 9.${k}`, '1M ctx', GEMINI)))
+      const painted = pure.composePickerLines(sized, pure.initialPickerFolds(sized, GEMINI), '', () => undefined)
+      return { count, below: pure.initialPickerFolds(sized, ANTHROPIC)[GEMINI], rows: painted.filter(line => line.kind === 'row').length, more: painted.flatMap(line => (line.kind === 'more' ? [line.hidden] : []))[0] ?? 0 }
+    })
+    check('one row over the bound, a group opens below the top and paints whole at the top (a marker naming one hidden row would take that row\'s line); two over, it folds below the top and the top list names the rest', JSON.stringify(boundary) === JSON.stringify([{ count: 12, below: 'top', rows: 12, more: 0 }, { count: 13, below: 'top', rows: 13, more: 0 }, { count: 14, below: 'folded', rows: 12, more: 2 }]), JSON.stringify(boundary))
     const lineupGroups = pure.groupPickerRows([...openai.slice(0, 2), ...Array.from({ length: 13 }, (_, k) => row(`gpt-7.${k}`, `GPT-7.${k}`, '400k ctx', OPENAI, { gated: true, gatedReason: 'not served by the connected ChatGPT subscription' })), ...gemini.map(model => ({ ...model, gated: true, gatedReason: 'no API key attached' }))])
     const lineupFolds = pure.initialPickerFolds(lineupGroups, ANTHROPIC)
     const liveSize = typeof pure.groupLiveSize === 'function' ? pure.groupLiveSize(lineupGroups[0]!) : undefined

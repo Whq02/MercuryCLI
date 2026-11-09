@@ -151,7 +151,7 @@ export function initialPickerFolds<T extends PickerRow>(groups: readonly PickerG
   const folds: Record<string, FoldState> = {}
   for (const group of groups) {
     const isTop = group.group === top
-    folds[group.group] = folded.includes(group.group) ? 'folded' : isTop || groupLiveSize(group) <= PICKER_FOLD_BOUND ? 'top' : 'folded'
+    folds[group.group] = folded.includes(group.group) ? 'folded' : isTop || groupLiveSize(group) <= PICKER_FOLD_BOUND + 1 ? 'top' : 'folded'
     if (currentKey !== undefined) {
       const index = group.rows.findIndex(row => rowKey(row) === currentKey)
       if (index >= 0) folds[group.group] = group.rows[index]!.rest === true || (group.rows[index]!.rest === undefined && index >= PICKER_TOP_ROWS) ? 'full' : 'top'
@@ -180,6 +180,7 @@ function doorLines<T extends PickerRow>(group: PickerGroup<T>, rows: readonly T[
 }
 
 function topRows<T extends PickerRow>(group: PickerGroup<T>, listed: readonly T[]): T[] {
+  if (groupSize(group) <= PICKER_TOP_ROWS + 1) return [...listed]
   if (group.doors.length < 2) return listed.slice(0, PICKER_TOP_ROWS)
   const ids: string[] = []
   for (const row of listed) if (!ids.includes(row.id)) ids.push(row.id)
