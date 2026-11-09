@@ -21,7 +21,7 @@ export function popupGeometry(host: PopupBounds, requested: PopupSize, preferred
 }
 
 export type PopupBand = { top: number; rows: number }
-export type PopupCover = { left: number; top: number; width: number }
+type PopupCover = { left: number; top: number; width: number }
 const POPUP_COVER_SLACK = 8
 
 export function popupCover(host: PopupBounds, popup: { left: number; top: number; width: number }, band: PopupBand | null): PopupCover | undefined {

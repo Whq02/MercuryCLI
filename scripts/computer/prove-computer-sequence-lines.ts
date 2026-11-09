@@ -76,7 +76,9 @@ if (process.platform === 'darwin') {
   const imageLines = (text: string) => text.split('\n').filter(line => /^screenshot: \/.*\.png — display/.test(line))
   const good = await call({ action: 'sequence', steps: [{ action: 'screenshot' }, { action: 'focusApp', focusApp: { name: 'Terminal' } }, { action: 'screenshot' }] })
   check('a succeeded sequence attaches no image after the terminal text replaced it, and no line names a saved image', good.outcome === 'succeeded' && good.imagePath === undefined && imageLines(good.result).length === 0, good.result)
-  check("the earlier image step's line says the terminal text superseded it, and the terminal text follows", good.result.split('\n').includes(SUPERSEDED) && good.result.includes('terminal text') && good.result.indexOf(SUPERSEDED) < good.result.indexOf('terminal text'), good.result)
+  const supersededAt = good.result.indexOf(SUPERSEDED)
+  const terminalAt = good.result.indexOf('terminal text')
+  check("the earlier image step's line says the terminal text superseded it, and the terminal text follows", good.result.split('\n').includes(SUPERSEDED) && supersededAt >= 0 && terminalAt >= 0 && supersededAt < terminalAt, good.result)
   front = app
   const bad = await call({ action: 'sequence', steps: [{ action: 'screenshot' }, { action: 'focusApp', focusApp: { name: 'Terminal' } }, { action: 'screenshot' }, { action: 'click', x: 20, y: 20 }] })
   check('a failed sequence of the same shape names no saved image either', bad.outcome === 'failed' && bad.imagePath === undefined && imageLines(bad.result).length === 0, bad.result)
