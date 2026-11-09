@@ -42,6 +42,7 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-count-busy-retry.t
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-opus-55-row.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-opus-55-row.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-sonnet-55-row.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-sonnet-55-row.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-haiku-55-row.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-haiku-55-row.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-fable-52-row.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-fable-52-row.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-picker-one-row-per-model.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-picker-one-row-per-model.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-canonical-fold.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-canonical-fold.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-picker-live-rows.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-picker-live-rows.ts "$__t" "$__rc"

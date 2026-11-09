@@ -25,6 +25,7 @@ const { ALL_MODEL_CONFIGS } = await import('../../src/utils/model/configs.ts')
 const { previewForSelection } = await import('../../src/services/providers/transitionPreview.ts')
 const { settleModelSelection } = await import('../../src/utils/model/modelTransition.ts')
 
+const FABLE_52 = ALL_MODEL_CONFIGS.fable52.firstParty
 const FABLE_51 = ALL_MODEL_CONFIGS.fable51.firstParty
 const FABLE_5 = ALL_MODEL_CONFIGS.fable5.firstParty
 
@@ -92,7 +93,7 @@ section('§A the armed-state owner — an answered offer survives the state/rese
 section('§B the target is the exact newest frontier MEMBER, never the collapsed base id')
 {
   cap._resetOfferMemoriesForTesting()
-  check('the config table names the two fable members distinctly', FABLE_51 === 'claude-fable-5-1' && FABLE_5 === 'claude-fable-5' && FABLE_51 !== FABLE_5)
+  check('the config table names the three fable members distinctly', FABLE_52 === 'claude-fable-5-2' && FABLE_51 === 'claude-fable-5-1' && FABLE_5 === 'claude-fable-5' && new Set([FABLE_52, FABLE_51, FABLE_5]).size === 3)
 
   const usability = {
     anthropic: { usable: true, blockers: [] as string[] },
@@ -106,12 +107,12 @@ section('§B the target is the exact newest frontier MEMBER, never the collapsed
   const anthropicCandidate = derived.candidates.find(c => c.route === 'anthropic')
   check('the anthropic lane is a candidate when openai is home (the neutral law)', anthropicCandidate !== undefined)
   check(
-    'the handoff target is the exact newest frontier member (claude-fable-5-1)',
-    anthropicCandidate?.model === FABLE_51,
+    'the handoff target is the exact newest frontier member (claude-fable-5-2)',
+    anthropicCandidate?.model === FABLE_52,
     `got ${anthropicCandidate?.model}`,
   )
   check('the handoff target is NOT the collapsed base id (claude-fable-5)', anthropicCandidate?.model !== FABLE_5)
-  check('the handoff target is a real id, never a display name or a bare alias', anthropicCandidate?.model !== 'Fable 5.1' && anthropicCandidate?.model !== 'fable' && anthropicCandidate?.model !== 'fable51')
+  check('the handoff target is a real id, never a display name or a bare alias, and never an older member', anthropicCandidate?.model !== 'Fable 5.2' && anthropicCandidate?.model !== 'fable' && anthropicCandidate?.model !== 'fable52' && anthropicCandidate?.model !== FABLE_51)
 
   const plan = previewForSelection([], 'gpt-5.6-sol', FABLE_51)
   check('the transition plan carries the exact target id', plan.to === FABLE_51)

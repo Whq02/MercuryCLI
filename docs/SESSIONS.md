@@ -180,6 +180,8 @@ choice (`/model` and `/effort` both save the pick as your default and say
 so) and, with nothing saved, on the family default. A saved family word
 follows its family's newest row (`sonnet` runs Sonnet 5.5 as `opus` runs Opus
 5.5) while a saved full id such as `claude-sonnet-5` stays on that generation.
+`fable` follows the same law: it runs Fable 5.2, and a saved
+`claude-fable-5-1` stays on Fable 5.1.
 A saved choice whose
 family cannot serve it (no sign-in for that family here, or a sign-in whose
 catalogue refused it; a catalogue not fetched yet is not a refusal, so

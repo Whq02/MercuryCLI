@@ -59,7 +59,7 @@ const GEMINI = 'Mercury — Gemini models'
 const LOGIN = 'Claude Max login'
 const KEY = 'API key'
 const EMAIL40 = 'a-forty-character-email-address@example.com'
-const PREVIEW = 'claude-fable-5-2-preview'
+const PREVIEW = 'claude-fable-5-7-preview'
 const row = (id: string, name: string, ctx: string, group: string, extra: Partial<ModelChoice> = {}): ModelChoice => ({ id, name, tag: '', ctx, group, ...extra })
 const anthropic: ModelChoice[] = [
   row('claude-fable-5-1', 'Fable 5.1', '1M ctx', ANTHROPIC, { door: LOGIN }),
@@ -142,7 +142,7 @@ const lineWith = (lines: string[], needle: string): string => lines.find(line =>
 const cursorLine = (lines: string[]): string => inner(lines.find(line => line.includes('│ │ ') || line.includes('❯ ')) ?? '').trim()
 const cells = (line: string): string[] => bare(line).split(/\s{2,}/)
 const tailCell = (line: string): string => cells(line).at(-1) ?? ''
-const PREVIEW_NEEDLE = 'claude-fable-5-2'
+const PREVIEW_NEEDLE = 'claude-fable-5-7'
 const boxLines = (lines: string[]): string[] => {
   const top = lines.findIndex(line => line.includes('╭'))
   const bottom = lines.findIndex((line, index) => index > top && /^\s*╰/.test(line))

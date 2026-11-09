@@ -102,6 +102,9 @@ export function describeInputTransformations(list: readonly InputTransformation[
   if (reasons.size === 1 && reasons.has('model_binding_mismatch')) {
     return `Preserved thinking: the API dropped ${count} ${noun} written by another model (the conversation switched models); the model re-plans without them this turn.`
   }
+  if (reasons.size === 1 && reasons.has('organization_binding_mismatch')) {
+    return `Preserved thinking: the API dropped ${count} ${noun} written under another account (this model's thinking stays with the account that wrote it); the model re-plans without them this turn.`
+  }
   return `Preserved thinking: the API dropped ${count} ${noun} (${[...reasons].join(', ')}; first at ${first.path}); the model re-plans without that reasoning this turn.`
 }
 
@@ -109,6 +112,7 @@ export function describeInputTransformations(list: readonly InputTransformation[
 type LawfulPrefixChange =
   | 'compaction'
   | 'model-switch'
+  | 'account-switch'
   | 'operator-setting'
   | 'declared'
   | 'roster-switch'
@@ -328,6 +332,7 @@ export function classifyThinkingDrops(
   }
   const reasons = new Set(dropped.map(entry => entry.reason))
   if (reasons.size === 1 && reasons.has('model_binding_mismatch')) lawful = 'model-switch'
+  if (reasons.size === 1 && reasons.has('organization_binding_mismatch')) lawful = 'account-switch'
   if (lawful === null && opts?.byteMoved !== true) {
     if (mark.contextEditActive) lawful = 'context-edited'
     else if (mark.thinkingClearActive) lawful = 'thinking-cleared'
@@ -452,6 +457,7 @@ export function describeThinkingDrops(
       if (outcome.lawful === 'context-edited') {
         return `Preserved thinking: the API dropped ${count} ${noun} — Mercury pruned superseded tool results to fit the context window, and the reasoning bound to them was cleared with them, so the model re-plans without it; later requests carry it no more (expected once).`
       }
+      if (outcome.lawful === 'account-switch') return describeInputTransformations(list)
       if (outcome.reason === 'model_binding_mismatch') return describeInputTransformations(list)
       return `Preserved thinking: the API dropped ${count} ${noun} after the model switch — the history before ${path} moved with it; the model re-plans without that reasoning this turn (expected once).`
     case 'first':
@@ -809,7 +815,9 @@ function preservedThinkingFreshHealth(ledger: ThinkingDropLedger, sessionId: str
                 ? "Mercury's idle-hour thinking clear (its own context edit)"
                 : last.lawful === 'context-edited'
                   ? "Mercury's tool-result prune (its own context edit)"
-                  : 'a model switch'
+                  : last.lawful === 'account-switch'
+                    ? 'a switch to another account'
+                    : 'a model switch'
     return {
       status: 'info',
       evidence: `last drop ${last.at}: ${blocks} after ${cause} (${where}, model ${last.model}) — expected once${session}`,

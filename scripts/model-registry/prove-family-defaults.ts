@@ -64,11 +64,11 @@ section('§1 the one owner: the family head of an undeclared generation, null fo
 const heads: Array<[string, string, string]> = [
   ['claude-opus-5-7', 'opus', model.getDefaultOpusModel()],
   ['claude-sonnet-5-7', 'sonnet', model.getDefaultSonnetModel()],
-  ['claude-fable-5-2', 'fable', model.getDefaultFableModel()],
+  ['claude-fable-5-7', 'fable', model.getDefaultFableModel()],
   ['claude-haiku-5', 'haiku', model.getDefaultHaikuModel()],
   ['claude-opus-6', 'opus', model.getDefaultOpusModel()],
   ['claude-opus-4-9', 'opus', model.getDefaultOpusModel()],
-  ['claude-mythos-5-2', 'fable', model.getDefaultFableModel()],
+  ['claude-mythos-5-7', 'fable', model.getDefaultFableModel()],
 ]
 for (const [id, family, head] of heads) {
   const key = familyHeadOf(id)

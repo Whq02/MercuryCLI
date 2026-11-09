@@ -132,6 +132,8 @@ function parseUserSpecifiedModelCore(input: string, catalogueFold: boolean): str
       return reattach(getDefaultFableModel())
     case 'fable51':
       return reattach(firstPartyString('fable51'))
+    case 'fable52':
+      return reattach(firstPartyString('fable52'))
     case 'mythos':
       return reattach(firstPartyString('mythos5'))
     case 'sonnet5':
@@ -236,11 +238,12 @@ export function firstPartyNameToCanonical(name: string): string {
 }
 
 
-const ONE_M_TWIN_KEYS = new Set(['fable5', 'fable51', 'mythos5', 'opus55', 'opus5', 'opus48', 'opus47', 'opus46', 'sonnet55', 'sonnet5', 'sonnet46', 'sonnet45', 'sonnet40', 'haiku55'])
+const ONE_M_TWIN_KEYS = new Set(['fable5', 'fable51', 'fable52', 'mythos5', 'opus55', 'opus5', 'opus48', 'opus47', 'opus46', 'sonnet55', 'sonnet5', 'sonnet46', 'sonnet45', 'sonnet40', 'haiku55'])
 
 const DISPLAY_NAMES: Record<string, string> = {
   fable5: 'Fable 5',
   fable51: 'Fable 5.1',
+  fable52: 'Fable 5.2',
   mythos5: 'Mythos 5',
   opus55: 'Opus 5.5',
   opus5: 'Opus 5',

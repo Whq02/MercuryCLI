@@ -196,7 +196,7 @@ section('§2 the chat picker at 120x40: a typed name searches, saves nothing and
   await typeSlowly(scene.m, 'claude')
   const typed = await waitFor(() => boxText(scene.m) === '/ claude', 6000)
   check('typing claude from the rows searches: its c and e are letters, not keys', typed && !scene.m.screen().includes('not a toggle') && effortRow(scene.m) === effortBefore && JSON.stringify(engineOf()) === before, `${boxText(scene.m)} · ${effortRow(scene.m)} · ${JSON.stringify(engineOf())}`)
-  check('every Anthropic row matches claude', /Mercury · model · 12 of \d+ match/.test(scene.m.screen()), rowOf(scene.m, TITLE).trim())
+  check('every Anthropic row matches claude', /Mercury · model · 13 of \d+ match/.test(scene.m.screen()), rowOf(scene.m, TITLE).trim())
   scene.m.push(KEY.esc)
   await waitFor(() => !/ of \d+ match/.test(scene.m.screen()), 4000)
   scene.m.push(KEY.esc)

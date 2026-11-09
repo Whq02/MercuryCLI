@@ -132,6 +132,8 @@ section('§1 the classifier')
   check('a drop after a new model-transition row is a lawful model switch', transition.kind === 'lawful' && transition.lawful === 'model-switch', j(transition))
   const modelBound = classifyThinkingDrops('main', [DROP('messages.1.content.0', 'model_binding_mismatch')], mark({ model: 'claude-opus-5', modelTransition: 'mt-1' }))
   check('a model-binding drop is a model switch by the API\'s reading, whatever the marks', modelBound.kind === 'lawful' && modelBound.lawful === 'model-switch' && modelBound.reason === 'model_binding_mismatch', j(modelBound))
+  const accountBound = classifyThinkingDrops('main', [DROP('messages.1.content.0', 'organization_binding_mismatch')], mark({ model: 'claude-opus-5', modelTransition: 'mt-1' }))
+  check('an account-binding drop is an account switch by the API\'s reading, whatever the marks: lawful, so it never opens a run', accountBound.kind === 'lawful' && accountBound.lawful === 'account-switch' && accountBound.reason === 'organization_binding_mismatch' && accountBound.consecutive === 1, j(accountBound))
 
   resetThinkingDropStates()
   classifyThinkingDrops('main', [DROP('messages.1.content.0')], mark())
@@ -322,6 +324,11 @@ section('§2 the words')
   const bound = [DROP('messages.1.content.0', 'model_binding_mismatch')]
   const boundWords = describeThinkingDrops(bound, classifyThinkingDrops('w', bound, mark({ model: 'claude-opus-5' }))) ?? ''
   check('a model-binding drop keeps the original switched-models sentence', boundWords === binding.describeInputTransformations(bound) && boundWords.includes('switched models'), boundWords)
+  const otherAccount = [DROP('messages.1.content.0', 'organization_binding_mismatch'), DROP('messages.3.content.0', 'organization_binding_mismatch')]
+  const otherAccountWords = describeThinkingDrops(otherAccount, classifyThinkingDrops('w', otherAccount, mark({ model: 'claude-opus-5' }))) ?? ''
+  check('an account-binding drop says the blocks were written under another account and names no client-side edit', otherAccountWords === binding.describeInputTransformations(otherAccount) && otherAccountWords.includes('dropped 2 thinking blocks written under another account') && !otherAccountWords.includes('client-side edit'), otherAccountWords)
+  const otherAccountHealth = binding.preservedThinkingHealth({ last: { at: new Date().toISOString(), kind: 'lawful', lawful: 'account-switch', reason: 'organization_binding_mismatch', path: 'messages.1.content.0', count: 2, consecutive: 1, model: 'claude-fable-5-2' }, longestRun: 0 })
+  check('…and its health row is info and names the cause: a switch to another account', otherAccountHealth.status === 'info' && otherAccountHealth.evidence.includes('after a switch to another account') && otherAccountHealth.evidence.includes('expected once'), j(otherAccountHealth))
   check('nothing dropped ⇒ nothing said', describeThinkingDrops([], classifyThinkingDrops('w', [], mark())) === null)
 }
 

@@ -78,6 +78,9 @@ export const ALL_MODEL_CONFIGS = {
   fable51: {
     firstParty: 'claude-fable-5-1',
   },
+  fable52: {
+    firstParty: 'claude-fable-5-2',
+  },
   mythos5: {
     firstParty: 'claude-mythos-5',
     canonical: 'claude-fable-5',
@@ -88,12 +91,18 @@ export const ALL_MODEL_CONFIGS = {
     observedAt: '2026-10-25',
     source: 'https://platform.claude.com/docs/en/models/mythos-5-1/overview',
   },
+  mythos52: {
+    firstParty: 'claude-mythos-5-2',
+    canonical: 'claude-fable-5-2',
+    observedAt: '2026-11-09',
+    source: 'https://platform.claude.com/docs/en/models/mythos-5-2/overview',
+  },
 } as const satisfies Record<string, ModelConfig>
 
 export type ModelKey = keyof typeof ALL_MODEL_CONFIGS
 
 export const FAMILY_GENERATIONS = {
-  fable: ['fable51', 'fable5'],
+  fable: ['fable52', 'fable51', 'fable5'],
   opus: ['opus55', 'opus5', 'opus48', 'opus47', 'opus46'],
   sonnet: ['sonnet55', 'sonnet5', 'sonnet46'],
   haiku: ['haiku55', 'haiku45'],

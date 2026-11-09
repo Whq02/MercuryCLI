@@ -236,6 +236,7 @@ type ModelChoices = {
     opus48?: boolean
     fable5?: boolean
     fable51?: boolean
+    fable52?: boolean
     opus55?: boolean
     sonnet55?: boolean
   }

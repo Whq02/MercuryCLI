@@ -69,7 +69,7 @@ const row = (id: string, name: string, ctx: string, group: string, extra: Partia
 const anthropic: ModelChoice[] = [
   row('claude-fable-5-1', 'Fable 5.1', '1M ctx', ANTHROPIC, { door: LOGIN }),
   row('claude-opus-5-5', 'Opus 5.5', '1M ctx', ANTHROPIC, { door: LOGIN }),
-  row('claude-fable-5-2-preview', 'claude-fable-5-2-preview', '1M ctx', ANTHROPIC, { door: LOGIN, tag: 'live · unknown to mercury' }),
+  row('claude-fable-5-7-preview', 'claude-fable-5-7-preview', '1M ctx', ANTHROPIC, { door: LOGIN, tag: 'live · unknown to mercury' }),
   row('claude-opus-5-5', 'Opus 5.5', '1M ctx', ANTHROPIC, { door: KEY }),
 ]
 const openrouterListed: ModelChoice[] = [

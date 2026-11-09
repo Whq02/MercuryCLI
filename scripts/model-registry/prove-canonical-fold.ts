@@ -4,7 +4,7 @@ import '../lib/hermetic.ts'
 const { ALL_MODEL_CONFIGS } = await import('../../src/utils/model/configs.ts')
 const existing = Object.entries(ALL_MODEL_CONFIGS)
 const table = ALL_MODEL_CONFIGS as Record<string, { firstParty: string; canonical?: string }>
-const future = 'claude-fable-5-2'
+const future = 'claude-fable-5-7'
 table.futureFixture = { firstParty: future }
 const { getCanonicalName, getPublicModelDisplayName } = await import('../../src/utils/model/model.ts')
 const { MODEL_COSTS } = await import('../../src/utils/modelCost.ts')
@@ -23,7 +23,7 @@ const folds: Record<string, string> = {
   haiku35: 'claude-3-5-haiku', haiku45: 'claude-haiku-4-5',
   sonnet35: 'claude-3-5-sonnet', sonnet37: 'claude-3-7-sonnet', sonnet40: 'claude-sonnet-4', sonnet45: 'claude-sonnet-4-5',
   opus40: 'claude-opus-4', opus41: 'claude-opus-4-1', opus45: 'claude-opus-4-5', opus47: 'claude-opus-4-6', opus48: 'claude-opus-4-6',
-  mythos5: 'claude-fable-5', mythos51: 'claude-fable-5-1',
+  mythos5: 'claude-fable-5', mythos51: 'claude-fable-5-1', mythos52: 'claude-fable-5-2',
 }
 for (const [key, row] of existing) {
   const expected = folds[key] ?? row.firstParty
@@ -39,7 +39,7 @@ for (const [key, row] of existing) {
   const unpinned = [ALL_MODEL_CONFIGS.opus46.firstParty, ALL_MODEL_CONFIGS.sonnet46.firstParty, ALL_MODEL_CONFIGS.haiku55.firstParty] as string[]
   check(`${key}: an own-canonical row has a launch decision`, unpinned.includes(row.firstParty) ? !isLaunchEffortPinned(row.firstParty) && getLaunchDefaultEffort(row.firstParty) === 'high' : isLaunchEffortPinned(row.firstParty))
 }
-check('the existing mirror point-release alias keeps its specific fold', getCanonicalName('claude-mythos-5-1') === 'claude-fable-5-1')
+check('the existing mirror point-release aliases keep their specific folds', getCanonicalName('claude-mythos-5-1') === 'claude-fable-5-1' && getCanonicalName('claude-mythos-5-2') === 'claude-fable-5-2')
 check('a newly declared point release is its own canonical without another substring arm', getCanonicalName(future) === future, getCanonicalName(future))
 check('the synthetic point release still needs its own cost and display declarations', !Object.hasOwn(MODEL_COSTS, future) && getPublicModelDisplayName(future) === null)
 const undeclared: Array<[string, string]> = [
@@ -51,7 +51,7 @@ const undeclared: Array<[string, string]> = [
   ['claude-opus-4-9', 'claude-opus-4-9'],
   ['claude-sonnet-4-7', 'claude-sonnet-4-7'],
   ['claude-haiku-4-6', 'claude-haiku-4-6'],
-  ['claude-mythos-5-2', 'claude-fable-5-2'],
+  ['claude-mythos-5-7', 'claude-fable-5-7'],
   ['claude-opus-5-7-20270101', 'claude-opus-5-7'],
   ['CLAUDE-OPUS-5-7[1m]', 'claude-opus-5-7'],
 ]
@@ -64,6 +64,8 @@ const dated: Array<[string, string]> = [
   ['claude-sonnet-5-20260401', 'claude-sonnet-5'],
   ['claude-sonnet-5-5-20260401', 'claude-sonnet-5-5'],
   ['claude-fable-5-1-20260401', 'claude-fable-5-1'],
+  ['claude-fable-5-2-20261109', 'claude-fable-5-2'],
+  ['claude-mythos-5-2-20261109', 'claude-fable-5-2'],
   ['claude-opus-4-5-20260101', 'claude-opus-4-5'],
   ['claude-opus-4-8-20260101', 'claude-opus-4-6'],
   ['claude-opus-4-20990101', 'claude-opus-4'],

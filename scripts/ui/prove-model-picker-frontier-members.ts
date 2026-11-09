@@ -66,7 +66,7 @@ section('the rows: the alias row and the previous generation\'s literal row are 
   check('the family full-id row is present', family >= 0)
   check("the previous generation's literal row is present", member >= 0)
   check('the previous row sits immediately after the family row', member === family + 1, `${family} / ${member}`)
-  check("the one display owner labels them through the table ('Fable 5.1' / 'Fable 5')", rows[family]?.label === renderModelName(newestId) && rows[family]?.label === 'Fable 5.1' && rows[member]?.label === renderModelName(previousId) && rows[member]?.label === 'Fable 5', `${rows[family]?.label} / ${rows[member]?.label}`)
+  check("the one display owner labels them through the table ('Fable 5.2' / 'Fable 5.1')", rows[family]?.label === renderModelName(newestId) && rows[family]?.label === 'Fable 5.2' && rows[member]?.label === renderModelName(previousId) && rows[member]?.label === 'Fable 5.1', `${rows[family]?.label} / ${rows[member]?.label}`)
   check('both rows carry an empty description (the neutrality ruling)', rows[family]?.description === '' && rows[member]?.description === '')
   check('neither row is refused for a credentialed account', rows[family]?.unavailable === undefined && rows[member]?.unavailable === undefined)
 }
@@ -95,11 +95,11 @@ if (driver.kind !== 'posix-pty') {
         { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true, awaitSettleTicks: 2 },
         { afterPrevTicks: 4, data: '\r' },
         { requireAwait: true, awaitText: 'Mercury · model', awaitSettleTicks: 3, data: '\u001b[H' },
-        { requireAwait: true, awaitText: 'Fable 5.1', awaitStableTicks: 3, mark: 'picker', data: '' },
+        { requireAwait: true, awaitText: 'Fable 5.2', awaitStableTicks: 3, mark: 'picker', data: '' },
         { afterPrevTicks: 2, data: '\x1b' },
-        { afterPrevTicks: 4, data: '/model fable51', awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2 },
+        { afterPrevTicks: 4, data: '/model fable52', awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2 },
         { afterPrevTicks: 3, data: '\r' },
-        { requireAwait: true, awaitText: 'Model set to Fable 5.1', awaitStableTicks: 2, mark: 'set', data: '' },
+        { requireAwait: true, awaitText: 'Model set to Fable 5.2', awaitStableTicks: 2, mark: 'set', data: '' },
         { afterPrevTicks: 3, data: '/model', awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2 },
         { afterPrevTicks: 3, data: '\r' },
         { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'reopened', data: '' },
@@ -156,20 +156,20 @@ if (driver.kind !== 'posix-pty') {
     check('the picker moment was observed', picker !== undefined)
     check('the set moment was observed', set !== undefined)
     check('the reopened moment was observed', reopened !== undefined)
-    const newestRow = (ls: string[]): number => ls.findIndex(l => /\bFable 5\.1 {2,}/.test(l) && !l.includes('frontier:'))
-    const previousRow = (ls: string[]): number => ls.findIndex(l => /\bFable 5 {2,}/.test(l) && !l.includes('frontier:'))
+    const newestRow = (ls: string[]): number => ls.findIndex(l => /\bFable 5\.2 {2,}/.test(l) && !l.includes('frontier:'))
+    const previousRow = (ls: string[]): number => ls.findIndex(l => /\bFable 5\.1 {2,}/.test(l) && !l.includes('frontier:'))
     if (picker) {
       const ls = lines(picker.grid)
       const n = newestRow(ls)
       const p = previousRow(ls)
       check('picker: the family row and the previous row are both painted', n >= 0 && p >= 0, `${n} / ${p}`)
       check('picker: the previous row sits directly under the family row', p === n + 1, `${n} / ${p}`)
-      check("picker: neither row reads 'current' yet (the state column is calm)", !/\bcurrent\b/.test(ls[n] ?? '') && !/\bcurrent\b/.test(ls[p] ?? '') && /\bFable 5\.1 {2,}claude-fable-5-1 {2,}/.test(ls[n] ?? ''), `${(ls[n] ?? '').trim()} | ${(ls[p] ?? '').trim()}`)
+      check("picker: neither row reads 'current' yet (the state column is calm)", !/\bcurrent\b/.test(ls[n] ?? '') && !/\bcurrent\b/.test(ls[p] ?? '') && /\bFable 5\.2 {2,}claude-fable-5-2 {2,}/.test(ls[n] ?? ''), `${(ls[n] ?? '').trim()} | ${(ls[p] ?? '').trim()}`)
       check('picker: the newest row carries its 1M ctx column', /1M ctx/.test(ls[n] ?? ''), (ls[n] ?? '').trim())
     }
     if (set) {
       const text = lines(set.grid).join('\n')
-      check("set: the inline door answered 'Model set to Fable 5.1'", text.includes('Model set to Fable 5.1'))
+      check("set: the inline door answered 'Model set to Fable 5.2'", text.includes('Model set to Fable 5.2'))
     }
     if (reopened) {
       const ls = lines(reopened.grid)

@@ -19,7 +19,7 @@ arm.
 
 | Family | Id space | Display name |
 | --- | --- | --- |
-| `anthropic` | `claude-*` ids (the mark anywhere in the id, gateway spellings included), the setting aliases (`opus` · `sonnet` · `haiku` · `fable` · `fable51` · `mythos` · `best`), the `ANTHROPIC_*` model env pins and `MERCURY_CUSTOM_MODEL_OPTION`; see [Dispatch](#dispatch) for unrecognised model ids | Anthropic |
+| `anthropic` | `claude-*` ids (the mark anywhere in the id, gateway spellings included), the setting aliases (`opus` · `sonnet` · `haiku` · `fable` · `fable51` · `fable52` · `mythos` · `best`), the `ANTHROPIC_*` model env pins and `MERCURY_CUSTOM_MODEL_OPTION`; see [Dispatch](#dispatch) for unrecognised model ids | Anthropic |
 | `openai` | `gpt-*`, alias `gpt` | OpenAI |
 | `zai` | `glm-*`, alias `glm` | Z.AI |
 | `moonshot` | `kimi-*`, `moonshot-*`, alias `kimi` | Moonshot |
@@ -79,6 +79,27 @@ in the picker; Sonnet 5.5 takes the two wire laws Opus 5.5 takes: thinking is
 always on (a request with thinking off carries no thinking parameter and
 adaptive thinking runs) and a forced tool choice becomes `auto`, the prompt
 naming the tool.
+
+`fable` means Fable 5.2 (`claude-fable-5-2`); `fable52` names that generation
+explicitly and `fable51` still names Fable 5.1. Fable 5.1 and Fable 5 keep
+their own picker rows, and a saved full id stays on that generation. Fable 5.2
+has a native 1M context window, 128K output and adaptive thinking that is
+always on, with `low`, `medium`, `high`, `xhigh` and `max` effort; without an
+effort choice it uses the documented `high` default. A forced tool choice
+becomes `auto`, the prompt naming the tool. Prices per million tokens are $8
+input and $40 output, $10 for a five-minute cache write, $16 for a one-hour
+cache write and $0.20 for a cache read. Its thinking blocks are read by Fable
+5.2 and Mythos 5.2 alone: after a switch to another model they stay out of
+that model's requests and it re-plans without them, as another model's
+thinking stays out of the requests to Fable 5.2. They stay with the account
+that wrote them too: after a switch to another account the provider drops
+them and the transcript says so once. `claude-mythos-5-2`
+resolves as Fable 5.2's counterpart for verified organisations, with the same
+facts and prices. These are the
+[model facts](https://platform.claude.com/docs/en/models/fable-5-2/overview),
+[changes from Fable 5.1](https://platform.claude.com/docs/en/models/fable-5-2/whats-new-fable-5-2)
+and [prices](https://platform.claude.com/docs/en/about-claude/pricing)
+read on 2026-11-09.
 
 `haiku` means Haiku 5.5 (`claude-haiku-5-5`); `haiku55` names that generation
 explicitly. Haiku 4.5 keeps its own picker row, and a saved full id stays on

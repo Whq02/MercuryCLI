@@ -62,7 +62,7 @@ const show = (v: unknown): string => JSON.stringify(v)
 
 section('§1 forced tool_choice folds to auto exactly where the model rejects it')
 {
-  const rejecting = ['claude-fable-5-1', 'claude-fable-5-1[1m]', 'claude-mythos-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-sonnet-5-5[1m]']
+  const rejecting = ['claude-fable-5-2', 'claude-fable-5-2[1m]', 'claude-mythos-5-2', 'claude-fable-5-1', 'claude-fable-5-1[1m]', 'claude-mythos-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-sonnet-5-5[1m]']
   const accepting = [
     'claude-fable-5',
     'claude-fable-5[1m]',
@@ -192,7 +192,7 @@ section('§3 both Anthropic wire builders ride the one fold and the one thinking
   )
 }
 
-section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family word resolves to the generation table\'s newest')
+section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family word resolves to the generation table\'s newest, which is Fable 5.2')
 {
   const ID = 'claude-fable-5-1'
   const FAMILY = 'claude-fable-5'
@@ -202,7 +202,7 @@ section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family
   check('Mythos 5 still folds onto Fable 5 (the previous generation keeps its own canonical)', getCanonicalName('claude-mythos-5') === FAMILY)
   check("the one display owner names it 'Fable 5.1'", renderModelName(ID) === 'Fable 5.1', renderModelName(ID))
   check("the exact-generation alias 'fable51' resolves to the bare id", parseUserSpecifiedModel('fable51') === ID, parseUserSpecifiedModel('fable51'))
-  check("the family alias 'fable' resolves to the generation table's newest row — this member", getCanonicalName(parseUserSpecifiedModel('fable')) === ID, parseUserSpecifiedModel('fable'))
+  check("the family alias 'fable' resolves to the generation table's newest row — Fable 5.2 now, this member being the previous generation", getCanonicalName(parseUserSpecifiedModel('fable')) === 'claude-fable-5-2' && getCanonicalName(parseUserSpecifiedModel('fable')) !== ID, parseUserSpecifiedModel('fable'))
   check("the router classifies it 'fable'", classOfModel(ID) === 'fable', String(classOfModel(ID)))
   check('no seat family allowlist stands beside the worker registry', !('SEAT_ALLOWED_FAMILIES' in seatSlots) && !('validateSeatModel' in seatSlots))
   check('natively 1M on the bare id', getContextWindowForModel(ID) === 1_000_000, String(getContextWindowForModel(ID)))
@@ -220,7 +220,7 @@ section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family
   check("the launch default follows the family table ('high', Fable 5's own)", getLaunchDefaultEffort(ID) === 'high' && getLaunchDefaultEffort(FAMILY) === 'high')
 
   check("the subagent dispatch vocabulary and the settings alias list carry 'fable51'", (AGENT_DISPATCH_MODELS as readonly string[]).includes('fable51') && (MODEL_ALIASES as readonly string[]).includes('fable51'))
-  check("a crew record's legacy keys fold to it: fable51 and the family word land on the same newest row", foldLegacyWorkerModelKey('fable51') === ID && foldLegacyWorkerModelKey('fable') === ID)
+  check("a crew record's legacy keys: fable51 stays on this member, the family word lands on the newest row", foldLegacyWorkerModelKey('fable51') === ID && foldLegacyWorkerModelKey('fable') === 'claude-fable-5-2', `${foldLegacyWorkerModelKey('fable51')} / ${foldLegacyWorkerModelKey('fable')}`)
 }
 
 section('§5 Claude Sonnet 5.5 answers both laws as recorded on the wire: the disabled shape and a forced choice are refused, the omitted parameter and auto are served')

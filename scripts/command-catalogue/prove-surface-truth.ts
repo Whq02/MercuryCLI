@@ -164,7 +164,7 @@ check('the family defaults derive from the table heads (no env pins set)',
   model.getDefaultFableModel() === head('fable') && model.getDefaultOpusModel() === head('opus') && model.getDefaultSonnetModel() === head('sonnet') && model.getDefaultHaikuModel() === head('haiku'),
   [model.getDefaultFableModel(), model.getDefaultOpusModel(), model.getDefaultSonnetModel(), model.getDefaultHaikuModel()].join(','))
 check('the family words resolve to the table heads', model.parseUserSpecifiedModel('fable') === head('fable') && model.parseUserSpecifiedModel('opus') === head('opus') && model.parseUserSpecifiedModel('sonnet') === head('sonnet') && model.parseUserSpecifiedModel('haiku') === head('haiku'))
-check('the frontier family\'s newest is the 5.1 row (the operator\'s word: the catalogue names the newest)', head('fable') === strings.fable51, head('fable'))
+check('the frontier family\'s newest is the 5.2 row (the catalogue names the newest: the vendor released it on 2026-11-09)', head('fable') === strings.fable52, head('fable'))
 const facts = frontier.gatherFrontierFacts()
 check('the frontier candidate is the table head', facts.fableId === head('fable'), facts.fableId)
 const eligible = { ...facts, fableEnvPin: false, allowlistPresent: false, allowlistNamesFable: false, claudeAiSubscriber: true, maxSubscriber: true, rateLimitTier: frontier.FRONTIER_MAX_20X_TIER, oneMDisabled: false }
@@ -172,7 +172,7 @@ const decision = frontier.evaluateFrontierDecision(eligible)
 check("a natively-1M frontier head wins as its bare id (no '[1m]' rider)", decision.source === 'frontier' && decision.setting === head('fable') && facts.fableNatively1M === true, `${decision.setting} natively1M=${String(facts.fableNatively1M)}`)
 const suffixRow = frontier.evaluateFrontierDecision({ ...eligible, fableNatively1M: false })
 check("a suffix-1M row would keep its '[1m]' rider (parity for the older shape)", suffixRow.setting === `${head('fable')}[1m]`, suffixRow.setting)
-check("a crew record's legacy keys fold: the family word to the head; the exact-generation key to the same row while newest", foldLegacyWorkerModelKey('fable') === head('fable') && foldLegacyWorkerModelKey('opus') === head('opus') && foldLegacyWorkerModelKey('sonnet') === head('sonnet') && foldLegacyWorkerModelKey('fable51') === foldLegacyWorkerModelKey('fable'))
+check("a crew record's legacy keys fold: the family word to the head; the exact-generation key stays on its own generation once a newer row leads", foldLegacyWorkerModelKey('fable') === head('fable') && foldLegacyWorkerModelKey('opus') === head('opus') && foldLegacyWorkerModelKey('sonnet') === head('sonnet') && foldLegacyWorkerModelKey('fable51') === strings.fable51 && foldLegacyWorkerModelKey('fable51') !== foldLegacyWorkerModelKey('fable'), `${foldLegacyWorkerModelKey('fable51')} / ${foldLegacyWorkerModelKey('fable')}`)
 const routed = resolveAnthropicModel('fable')
 check("the router's fable class runs the head in its seat form (bare when natively 1M)", routed !== null && routed.model === (getContextWindowForModel(head('fable')) >= 1_000_000 ? head('fable') : `${head('fable')}[1m]`), String(routed?.model))
 const options = getModelOptions()

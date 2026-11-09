@@ -489,7 +489,7 @@ const FAMILY_PROBES: Array<{ display: string; probes: string[] }> = [
   { display: 'Opus 4.7+', probes: ['claude-opus-4-7'] },
   { display: 'Sonnet 4.6+', probes: ['claude-sonnet-4-6'] },
   { display: 'Sonnet 5', probes: ['claude-sonnet-5'] },
-  { display: 'Fable', probes: ['claude-fable-5', 'claude-fable-5-1'] },
+  { display: 'Fable', probes: ['claude-fable-5', 'claude-fable-5-1', 'claude-fable-5-2'] },
   { display: 'GPT', probes: ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'] },
 ]
 
@@ -545,11 +545,12 @@ function getOpusDefaultEffortConfig(): OpusDefaultEffortConfig {
 }
 
 
-type LaunchFamily = 'opus47' | 'opus48' | 'fable5' | 'fable51' | 'sonnet55' | 'sonnet5' | 'opus55' | 'opus5'
+type LaunchFamily = 'opus47' | 'opus48' | 'fable5' | 'fable51' | 'fable52' | 'sonnet55' | 'sonnet5' | 'opus55' | 'opus5'
 
 const LAUNCH_FAMILIES: Array<{ substring: string; flag: LaunchFamily; launchDefault: EffortLevel }> = [
   { substring: 'opus-4-7', flag: 'opus47', launchDefault: 'xhigh' },
   { substring: 'opus-4-8', flag: 'opus48', launchDefault: 'high' },
+  { substring: 'fable-5-2', flag: 'fable52', launchDefault: 'high' },
   { substring: 'fable-5-1', flag: 'fable51', launchDefault: 'high' },
   { substring: 'fable', flag: 'fable5', launchDefault: 'high' },
   { substring: 'sonnet-5-5', flag: 'sonnet55', launchDefault: 'high' },
@@ -568,8 +569,12 @@ export function allLaunchEffortUnpinned(): boolean {
   return LAUNCH_FAMILIES.every(family => unpins[family.flag] === true)
 }
 
+function launchFamilySpelling(model: string): string {
+  return familyDefaultsModel(model).toLowerCase().replace(/-\d{8}(?!\d)/, '')
+}
+
 export function isLaunchEffortPinned(model: string): boolean {
-  const lowered = familyDefaultsModel(model).toLowerCase()
+  const lowered = launchFamilySpelling(model)
   const unpins = readUnpins()
   for (const family of LAUNCH_FAMILIES) {
     if (lowered.includes(family.substring)) {
@@ -583,12 +588,12 @@ export function unpinAllLaunchEffort(): void {
   if (allLaunchEffortUnpinned()) return
   saveGlobalConfig(current => ({
     ...current,
-    launchEffortUnpins: { opus47: true, opus48: true, fable5: true, fable51: true, sonnet55: true, sonnet5: true, opus55: true, opus5: true },
+    launchEffortUnpins: { opus47: true, opus48: true, fable5: true, fable51: true, fable52: true, sonnet55: true, sonnet5: true, opus55: true, opus5: true },
   }))
 }
 
 export function getLaunchDefaultEffort(model: string): EffortLevel {
-  const lowered = familyDefaultsModel(model).toLowerCase()
+  const lowered = launchFamilySpelling(model)
   for (const family of LAUNCH_FAMILIES) {
     if (lowered.includes(family.substring)) return family.launchDefault
   }

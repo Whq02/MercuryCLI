@@ -184,13 +184,14 @@ export function modelThinkingAlwaysOn(model: string): boolean {
 
 export function modelNarratesInThinkingBlocks(model: string): boolean {
   if (isCarrierShapedId(model)) return false
-  return getCanonicalName(familyDefaultsModel(model)) === 'claude-opus-5-5'
+  const canonical = getCanonicalName(familyDefaultsModel(model))
+  return canonical === 'claude-opus-5-5' || canonical === 'claude-fable-5-2'
 }
 
 export function modelSupportsForcedToolChoice(model: string): boolean {
   if (isCarrierShapedId(model)) return true
   const canonical = getCanonicalName(familyDefaultsModel(model))
-  return canonical !== 'claude-fable-5-1' && canonical !== 'claude-opus-5-5' && canonical !== 'claude-sonnet-5-5'
+  return canonical !== 'claude-fable-5-2' && canonical !== 'claude-fable-5-1' && canonical !== 'claude-opus-5-5' && canonical !== 'claude-sonnet-5-5'
 }
 
 export function foldToolChoiceForModel<T extends { type: string }>(
@@ -711,7 +712,8 @@ function baseResolveContextWindow(
     (firstPartyCanonical === 'claude-haiku-5-5' ||
       firstPartyCanonical.includes('sonnet-5') ||
       firstPartyCanonical.includes('opus-5') ||
-      firstPartyCanonical === 'claude-fable-5-1')
+      firstPartyCanonical === 'claude-fable-5-1' ||
+      firstPartyCanonical === 'claude-fable-5-2')
   ) {
     if (is1mContextDisabled()) {
       return finish({
@@ -1124,6 +1126,9 @@ export function getModelKnowledgeCutoff(modelId: string): string | null {
   }
   if (modelId.includes('claude-opus-4-8')) {
     return 'January 2026'
+  }
+  if (getCanonicalName(modelId) === 'claude-fable-5-2') {
+    return 'June 2026'
   }
   if (modelId.includes('claude-fable-5-1') || modelId.includes('claude-mythos-5-1')) {
     return 'June 2026'

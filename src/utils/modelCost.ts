@@ -60,6 +60,10 @@ export const COST_FABLE_5_1: ModelCosts = {
   ...COST_TIER_10_50,
   promptCacheReadTokens: 0.25,
 }
+const COST_FABLE_5_2: ModelCosts = {
+  ...tierFromInputOutput(8, 40),
+  promptCacheReadTokens: 0.2,
+}
 export const COST_OPUS_5_5: ModelCosts = {
   ...tierFromInputOutput(4, 20),
   promptCacheReadTokens: 0.2,
@@ -108,6 +112,7 @@ export const MODEL_COSTS: Record<ModelShortName, ModelCosts> = {
   'claude-opus-5-5': COST_OPUS_5_5,
   'claude-fable-5': COST_TIER_10_50,
   'claude-fable-5-1': COST_FABLE_5_1,
+  'claude-fable-5-2': COST_FABLE_5_2,
 }
 
 export const ANTHROPIC_PRICING_PAGE = 'https://platform.claude.com/docs/en/about-claude/pricing'
@@ -129,6 +134,7 @@ export const ANTHROPIC_PRICE_OBSERVED_AT: Readonly<Partial<Record<ModelShortName
   'claude-opus-5-5': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
   'claude-fable-5': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
   'claude-fable-5-1': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
+  'claude-fable-5-2': { observedAt: '2026-11-09', source: ANTHROPIC_PRICING_PAGE },
 }
 
 type UsageLike = {

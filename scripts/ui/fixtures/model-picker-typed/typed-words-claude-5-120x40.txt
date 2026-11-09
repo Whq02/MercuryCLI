@@ -2,19 +2,20 @@
 WORKBENCH               │                                                                                              │
   no prompts sent yet   │                                                                                              │
                         │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-NEXT                    │ │ Mercury · model · 11 of 23 match                                                         │ │
+NEXT                    │ │ Mercury · model · 12 of 24 match                                                         │ │
   · /workflows…         │ │ / claude 5                                                                               │ │
   · /health — health…   │ │                                                                                          │ │
-  · /memory — memory    │ │ ▾ ANTHROPIC · API key · …-key · 8 of 12                                                  │ │
-  · /mission — set a…   │ │   Fable 5.1           claude-fable-5-1                       1M ctx                      │ │
-                        │ │   Fable 5             claude-fable-5                         1M ctx                      │ │
-FILES · project         │ │   Sonnet 5.5          claude-sonnet-5-5                      1M ctx                      │ │
-  ↵ or click · browse   │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
-                        │ │ ╭──────────────────────────────────────────────────────────────────────────────────────╮ │ │
-VITALS                  │ │ │ Opus 5.5            claude-opus-5-5           current      1M ctx                    │ │ │
-  · spend —             │ │ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │ │
-  · ctx — · —           │ │   Opus 5              claude-opus-5                          1M ctx                      │ │
-  · health — run /health│ │   Haiku 5.5           claude-haiku-5-5                       1M ctx                      │ │
+  · /memory — memory    │ │ ▾ ANTHROPIC · API key · …-key · 9 of 13                                                  │ │
+  · /mission — set a…   │ │   Fable 5.2           claude-fable-5-2                       1M ctx                      │ │
+                        │ │   Fable 5.1           claude-fable-5-1                       1M ctx                      │ │
+FILES · project         │ │   Fable 5             claude-fable-5                         1M ctx                      │ │
+  ↵ or click · browse   │ │   Sonnet 5.5          claude-sonnet-5-5                      1M ctx                      │ │
+                        │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
+VITALS                  │ │ ╭──────────────────────────────────────────────────────────────────────────────────────╮ │ │
+  · spend —             │ │ │ Opus 5.5            claude-opus-5-5           current      1M ctx                    │ │ │
+  · ctx — · —           │ │ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │ │
+  · health — run /health│ │   Opus 5              claude-opus-5                          1M ctx                      │ │
+                        │ │   Haiku 5.5           claude-haiku-5-5                       1M ctx                      │ │
                         │ │   Haiku 4.5           claude-haiku-4-5-202510…               200k ctx                    │ │
                         │ │ ▾ Z.AI · no Z.AI API key — /logins zai (or ZAI_API_KEY) · 3 of 3                         │ │
                         │ │   GLM-5.3             glm-5.3                   unavailable  1M ctx                      │ │
@@ -22,8 +23,7 @@ VITALS                  │ │ │ Opus 5.5            claude-opus-5-5         
                         │ │   GLM-5.2             glm-5.2                   unavailable  1M ctx                      │ │
                         │ │ ▾ RUN A MODEL · 0 of 0                                                                   │ │
                         │ │   Beam 1.0 501B-A23B                                                                     │ │
-                        │ │   GLM-5.3                                                                                │ │
-                        │ │   ↓ 9 more                                                                               │ │
+                        │ │   ↓ 10 more                                                                              │ │
                         │ │                                                                                          │ │
                         │ │ context —  · tier API billing                                                            │ │
                         │ │ effort  low [medium] high xhigh max · ctrl+e changes it                                  │ │

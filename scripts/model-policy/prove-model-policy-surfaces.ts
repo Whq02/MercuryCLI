@@ -104,16 +104,16 @@ console.log('\n§4 picker: pin row + fallback row + dedup law')
     !options.includes("value: 'claude-fable-5'"),
   )
   const rows: ModelOption[] = [
-    { value: 'fable[1m]', label: 'Fable 5.1', description: 'x' },
+    { value: 'fable[1m]', label: 'Fable 5.2', description: 'x' },
     { value: 'opus[1m]', label: 'Opus', description: 'x' },
   ]
   check(
-    "dedup: a resumed literal 'claude-fable-5-1[1m]' resolves to the existing fable[1m] row",
-    resolvesToExistingOption(rows, 'claude-fable-5-1[1m]') === true,
+    "dedup: a resumed literal 'claude-fable-5-2[1m]' resolves to the existing fable[1m] row",
+    resolvesToExistingOption(rows, 'claude-fable-5-2[1m]') === true,
   )
   check(
-    "dedup: the previous generation's literal 'claude-fable-5[1m]' is NOT folded into the fable[1m] row",
-    resolvesToExistingOption(rows, 'claude-fable-5[1m]') === false,
+    "dedup: the previous generations' literals 'claude-fable-5-1[1m]' and 'claude-fable-5[1m]' are NOT folded into the fable[1m] row",
+    resolvesToExistingOption(rows, 'claude-fable-5-1[1m]') === false && resolvesToExistingOption(rows, 'claude-fable-5[1m]') === false,
   )
   check(
     'dedup: a distinct model is NOT deduped',
