@@ -1500,7 +1500,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
         for (const step of steps) {
           if (signal.aborted) {
             await driver.releaseAll()
-            result = `sequence ${completed}/${steps.length} completed · ${interruptedText('sequence')}`
+            result = `sequence ${completed}/${steps.length} completed · ${interruptedText('sequence')}${lines.length ? `\n${lines.join('\n')}` : ''}`
             outcome = 'failed'
             return finish()
           }

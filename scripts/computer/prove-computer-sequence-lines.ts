@@ -40,5 +40,24 @@ section('a screenshot step under the sequence\'s capture: false leaves a line sa
   check('with capture on, the step takes its screenshot and no skipped line appears', taken.outcome === 'succeeded' && taken.imagePath !== undefined && !taken.result.includes(SKIPPED) && taken.result.includes('screenshot: '), taken.result)
 }
 
+section("the operator's interrupt met between two steps keeps the lines of the steps that ran")
+{
+  let cursorReads = 0
+  const originalCursor = driver.cursor.bind(driver)
+  driver.cursor = async () => {
+    const answer = await originalCursor()
+    if (++cursorReads === 2) controller.abort()
+    return answer
+  }
+  const keysBefore = keyTaps()
+  const interrupted = await call({ action: 'sequence', steps: [{ action: 'click', target }, { action: 'wait', durationMs: 10 }, { action: 'key', key: 'Enter' }], capture: false })
+  driver.cursor = originalCursor
+  const lines = interrupted.result.split('\n')
+  check('an interrupt met at the head of step 3 refuses with the interruption words after "2/3 completed", and the third step never runs', interrupted.outcome === 'failed' && interrupted.result.startsWith('sequence 2/3 completed · sequence interrupted by the operator') && keyTaps() === keysBefore && cursorReads === 2, `${interrupted.result} · cursor reads ${cursorReads}`)
+  check("the lines of the two steps that ran stay in the answer: the click's and the wait's", lines.some(line => line.startsWith('click AXButton "Save"')) && lines.some(line => line.startsWith('wait 10ms')), interrupted.result)
+  controller = new AbortController()
+  context = toolContext({ controller })
+}
+
 session.forgetDesktopOwner(ownerOf(context))
 finish('prove-computer-sequence-lines')
