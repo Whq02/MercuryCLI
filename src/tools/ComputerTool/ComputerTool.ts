@@ -309,6 +309,8 @@ const SCREENSHOT_UNSEEN =
   'the last screenshot was taken in this same message — you have not seen it; take the screenshot alone, then the region or the act'
 const SCREENSHOT_NOT_RETURNED =
   "screenshot taken by the step but not returned: a failed answer carries no image, so the previous screenshot's coordinates still apply — take the screenshot alone to see it"
+const SCREENSHOT_SUPERSEDED =
+  "screenshot taken by an earlier step but not returned: the terminal text below is this answer's content, so the previous screenshot's coordinates still apply — take the screenshot alone to see it"
 
 function refuse(message: string): { result: false; message: string; errorCode: number } {
   return { result: false, message, errorCode: 1 }
@@ -1543,6 +1545,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
             if (input.capture !== false) {
               const front = await driver.frontmostApplication()
               if (front.ok && isTerminalApplication(front.value) && !step.pixels && !(step.full ?? input.full) && step.display === undefined && (step.region ?? input.region) === undefined) {
+                for (let at = 0; at < lines.length; at++) if (shotLines.has(lines[at]!)) lines[at] = SCREENSHOT_SUPERSEDED
                 lines.push(await readTerminalText(driver, front.value, signal))
                 contentShown = true
                 imagePath = inlinePath = inlineMediaType = undefined

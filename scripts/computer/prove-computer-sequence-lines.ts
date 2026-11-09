@@ -59,5 +59,32 @@ section("the operator's interrupt met between two steps keeps the lines of the s
   context = toolContext({ controller })
 }
 
+if (process.platform === 'darwin') {
+  section('an image step followed by a terminal-text step: the image never travels, so its line says so instead of naming a saved file')
+  const terminal = { identity: 'com.apple.Terminal', name: 'Terminal', pid: 321, windowId: 'term', title: 'build — zsh', bounds: { x: 0, y: 0, width: 400, height: 300 } }
+  const SUPERSEDED = "screenshot taken by an earlier step but not returned: the terminal text below is this answer's content, so the previous screenshot's coordinates still apply — take the screenshot alone to see it"
+  let front: typeof app | typeof terminal = app
+  const treeBefore = driver.accessibilityTree.bind(driver)
+  const frontBefore = driver.frontmostApplication.bind(driver)
+  const mutable = driver as unknown as Record<string, unknown>
+  const findBefore = mutable.findApplication
+  const activateBefore = mutable.activateApplication
+  driver.frontmostApplication = async () => ({ ok: true, value: { ...front } })
+  driver.accessibilityTree = async (...args: Parameters<typeof treeBefore>) => (args[0].identity === terminal.identity ? { ok: true, value: { elements: [{ depth: 1, role: 'AXTextArea', title: 'shell', value: '$ make ui-check\nall green\n', frame: { x: 0, y: 20, width: 400, height: 280 }, focused: true }], truncated: false, root: { role: 'AXWindow', title: terminal.title }, webContent: 'absent' } } as never : treeBefore(...args))
+  mutable.findApplication = async () => ({ ok: true, value: { ...terminal } })
+  mutable.activateApplication = async () => { front = terminal; return { ok: true, value: { ...terminal } } }
+  const imageLines = (text: string) => text.split('\n').filter(line => /^screenshot: \/.*\.png — display/.test(line))
+  const good = await call({ action: 'sequence', steps: [{ action: 'screenshot' }, { action: 'focusApp', focusApp: { name: 'Terminal' } }, { action: 'screenshot' }] })
+  check('a succeeded sequence attaches no image after the terminal text replaced it, and no line names a saved image', good.outcome === 'succeeded' && good.imagePath === undefined && imageLines(good.result).length === 0, good.result)
+  check("the earlier image step's line says the terminal text superseded it, and the terminal text follows", good.result.split('\n').includes(SUPERSEDED) && good.result.includes('terminal text') && good.result.indexOf(SUPERSEDED) < good.result.indexOf('terminal text'), good.result)
+  front = app
+  const bad = await call({ action: 'sequence', steps: [{ action: 'screenshot' }, { action: 'focusApp', focusApp: { name: 'Terminal' } }, { action: 'screenshot' }, { action: 'click', x: 20, y: 20 }] })
+  check('a failed sequence of the same shape names no saved image either', bad.outcome === 'failed' && bad.imagePath === undefined && imageLines(bad.result).length === 0, bad.result)
+  driver.frontmostApplication = frontBefore
+  driver.accessibilityTree = treeBefore
+  mutable.findApplication = findBefore
+  mutable.activateApplication = activateBefore
+}
+
 session.forgetDesktopOwner(ownerOf(context))
 finish('prove-computer-sequence-lines')
