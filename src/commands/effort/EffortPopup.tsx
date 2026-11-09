@@ -131,7 +131,7 @@ export function EffortPopup({ onDone }: { onDone: (message: string) => void }): 
   const { columns: termColumns, rows: termRows } = useTerminalSize()
   const slot = useModalOrTerminalSize({ rows: termRows, columns: termColumns })
   const frame = React.useContext(PopupFrameContext)
-  const width = Math.min(frame?.width ?? slot.columns, panelWidth(slot.columns, MODEL_PICKER_PANEL))
+  const width = frame?.width ?? panelWidth(slot.columns, MODEL_PICKER_PANEL)
   const frameRows = frame?.rows ?? slot.rows
   const inner = Math.max(8, width - 4)
 
