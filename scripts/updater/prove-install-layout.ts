@@ -562,7 +562,7 @@ console.log('── §13b f08: superseded versions are pruned — the current, t
   delete process.env.MERCURY_UPDATE_FAULT
   check('f08: a removal that fails is reported as left, never thrown — an update is never failed by its pruning', faulted.left.join() === '9.9.0-beta.1' && faulted.removed.length === 0 && existsSync(join(pRoots.versionsDir, '9.9.0-beta.1', 'mercury.mjs')))
   const svc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'privateChannel', 'updateService.ts'), 'utf8')
-  check('f08: the update and the install transactions prune after the stable command is written, and the outcome carries what went', svc.split('pruneSupersededVersions(roots).removed').length === 3 && svc.indexOf('const shim = writeShim(roots)\n    const pruned = pruneSupersededVersions') !== -1 && svc.includes('pruned: string[]'))
+  check('f08: the update and the install transactions prune after the stable command is written, with the live payload directories kept, and the outcome carries what went and what was left', svc.split('pruneSupersededVersions(roots, await livePayloadDirs(roots))').length === 3 && svc.indexOf('const shim = writeShim(roots)\n    const { removed: pruned, left } = pruneSupersededVersions') !== -1 && svc.includes('pruned: string[]') && svc.includes('left: string[]'))
   rmSync(pruneScratch, { recursive: true, force: true })
 }
 

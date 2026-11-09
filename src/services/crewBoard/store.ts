@@ -64,12 +64,14 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
       for (const column of columns) if (present.has(column)) db.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`)
     }
   }
-  const prior = db.prepare('SELECT session, wave FROM identity').get()
-  if (prior != null && prior.session !== sessionId) { db.close(); throw new Error('This board belongs to another session.') }
-  if (prior == null) {
-    if (readOnly) { db.close(); throw new Error('This board has no session.') }
-    db.prepare('INSERT INTO identity VALUES (?, ?)').run(sessionId, randomUUID())
+  const identity = () => db.prepare('SELECT session, wave FROM identity').get()
+  let prior = identity()
+  if (prior == null && !readOnly) {
+    db.exec('BEGIN IMMEDIATE')
+    try { db.prepare('INSERT OR IGNORE INTO identity SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM identity)').run(sessionId, randomUUID()); prior = identity(); db.exec('COMMIT') } catch (error) { db.exec('ROLLBACK'); throw error }
   }
+  if (prior == null) { db.close(); throw new Error('This board has no session.') }
+  if (prior.session !== sessionId) { db.close(); throw new Error('This board belongs to another session.') }
   if (!readOnly) {
     db.exec('INSERT OR IGNORE INTO chat_state (id) VALUES (1); INSERT OR IGNORE INTO seat_state (agent, joined, cursor) SELECT agent, 0, 0 FROM members WHERE enrolled = 1;')
   }
