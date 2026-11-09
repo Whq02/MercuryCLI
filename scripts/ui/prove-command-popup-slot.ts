@@ -70,7 +70,7 @@ console.log('§3 FullscreenLayout mounts the slot beside the model picker\'s, on
   check('the layout reads the claim through useSyncExternalStore like the picker\'s', layout.includes('useSyncExternalStore(subscribeCommandPopup, commandPopupClaim, commandPopupClaim)'))
   check('the slot hosts the modal only while a modal is mounted', layout.includes('const commandPopupUp = commandPopup !== null && modalMounted'))
   const slotSrc = readFileSync(join(ROOT, 'src/components/CommandPopupSlot.tsx'), 'utf8')
-  check('the slot measures its host with the model picker slot\'s own measurer and frames with PopupGutter', slotSrc.includes('modelPickerPopupHost(element, framed)') && slotSrc.includes('<PopupGutter {...geometry}>'))
+  check('the slot measures its host with the model picker slot\'s own measurer and frames with PopupGutter', slotSrc.includes('modelPickerPopupHost(element, framed)') && slotSrc.includes('<PopupGutter {...geometry} coverTop={popupCoverTop(host, geometry, band)}>'))
   check('the slot re-measures on every layout pass (a resize re-fits the popup)', /useLayoutEffect\(\(\) => \{\n\s+const element = hostRef\.current/.test(slotSrc) && !/useLayoutEffect\([\s\S]*?\}, \[/.test(slotSrc))
 }
 
