@@ -668,7 +668,7 @@ async function resolveActTargets(driver: DesktopDriver, input: Input, front: Des
   for (const [selector, field] of [[input.target, 'point'], [input.toTarget, 'target']] as const) {
     if (selector === undefined) continue
     const point = targetPoint(tree.value, selector, map)
-    if ('refusal' in point) return `${input.action} refused: ${point.refusal}${pageContentNote(tree.value) ? `; ${pageContentNote(tree.value)}` : ''}`
+    if ('refusal' in point) return `${input.action} refused: ${point.refusal}${pageContentNote(front, tree.value) ? `\n${pageContentNote(front, tree.value)}` : ''}`
     const element = targetElement(tree.value, selector, map)
     const clipped = 'refusal' in element || !scrollsInto ? null : clippedWords(tree.value, element, front.bounds, plan.screens)
     if (clipped !== null && !('refusal' in element)) {
@@ -1094,7 +1094,7 @@ function treeWords(app: DesktopApplication, tree: DesktopOutline, limits: { dept
     ...tree.elements.map(element => outlineRowWords(element, map, points)),
   ]
   lines.push(tree.scope === undefined ? 'scope not reported by this driver' : `scope ${tree.scope}`)
-  const pageNote = pageContentNote(tree)
+  const pageNote = pageContentNote(app, tree)
   if (pageNote) lines.push(pageNote)
   if (tree.truncated) {
     lines.push(`truncated: the tree goes on past ${tree.reason !== null ? tree.reason : `the limit of ${limits.count} elements or depth ${limits.depth}`} — narrow with root or find, raise limit or depth to read more, or act on what is shown`)
@@ -1237,7 +1237,7 @@ async function takeScreenshot(
   const frameWords = `${scale}${changedFrame ? '; frame changed: display, region or route image limits changed — previous coordinates do not apply' : ''}${region || window ? `; coordinates now refer to this ${region ? 'region' : 'window'} (origin ${screen.originX},${screen.originY} pt); full:true takes a full screenshot of the display` : ''}`
   if (publish) setScreen(owner, screen)
   noteScreenshot(owner, screen.toolUseId, file)
-  const line = `screenshot: ${file} — display ${display.index} (${screenMapSizeWords(screen)}) · ${frameWords} · ${await factsLine(driver, screen)}`
+  const line = `screenshot: ${file} — display ${display.index} (${screenMapSizeWords(screen)}) at scale ${factor} · ${frameWords} · ${await factsLine(driver, screen)}`
   return {
     ok: true,
     line,
@@ -1500,7 +1500,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
         for (const step of steps) {
           if (signal.aborted) {
             await driver.releaseAll()
-            result = `sequence ${completed}/${steps.length} completed · ${interruptedText('sequence')}`
+            result = `sequence ${completed}/${steps.length} completed · ${interruptedText('sequence')}${lines.length ? `\n${lines.join('\n')}` : ''}`
             outcome = 'failed'
             return finish()
           }
@@ -1560,7 +1560,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
               shotInSequence = true
               lines.push(shot.line)
               contentShown = true
-            }
+            } else lines.push('screenshot step skipped (capture: false)')
             completed++
             continue
           }
@@ -2021,7 +2021,7 @@ After a click whose effect you assume (a dialog, a focus change, a page), wait w
           const keptLimits = { depth: input.depth ?? TREE_DEPTH_DEFAULT, count: input.limit ?? TREE_LIMIT_DEFAULT }
           let root: DesktopTree['elements'][number] | undefined
           if (input.root !== undefined) {
-            const selected = typeof input.root === 'number' ? targetElement({ ...tree.value, elements: resolveTreeRef(owner, app, tree.value, input.root) }, {}) : targetMatches(tree.value, input.root).length === 0 ? { refusal: `${targetWords(input.root)}: 0 matches — read tree or take a screenshot${pageContentNote(tree.value) ? `; ${pageContentNote(tree.value)}` : ''}` } : targetElement(tree.value, input.root, screenOf(owner))
+            const selected = typeof input.root === 'number' ? targetElement({ ...tree.value, elements: resolveTreeRef(owner, app, tree.value, input.root) }, {}) : targetMatches(tree.value, input.root).length === 0 ? { refusal: `${targetWords(input.root)}: 0 matches — read tree or take a screenshot${pageContentNote(app, tree.value) ? `\n${pageContentNote(app, tree.value)}` : ''}` } : targetElement(tree.value, input.root, screenOf(owner))
             if ('refusal' in selected) {
               result = `${input.action} refused: ${typeof input.root === 'number' ? `ref:${input.root}` : ''}${selected.refusal}`
               outcome = 'failed'

@@ -9,7 +9,7 @@ const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
 const { toOpenaiStrictToolSchema } = await import('../../src/utils/messages/toolSchemaDialect.ts')
 const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
 const session = await import('../../src/services/desktop/desktopSession.ts')
-const app = { identity: 'com.example.Browser', name: 'Browser', pid: 123, windowId: 'front', title: 'Front', bounds: { x: 0, y: 0, width: 400, height: 300 } }
+const app = { identity: 'com.google.Chrome', name: 'Browser', pid: 123, windowId: 'front', title: 'Front', bounds: { x: 0, y: 0, width: 400, height: 300 } }
 const button = { role: 'AXButton', title: 'Save', frame: { x: 180, y: 150, width: 40, height: 20 } }
 let deep: object = button
 for (let n = 0; n < 10; n++) deep = { role: 'AXGroup', children: [deep] }
