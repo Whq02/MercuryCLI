@@ -123,8 +123,8 @@ export async function livePayloadDirs(roots: LayoutRoots): Promise<string[]> {
   const live = [runningPayloadDir()]
   const daemon = await readDaemonState()
   if (daemon !== null && isProcessAlive(daemon.pid)) {
-    live.push(join(roots.versionsDir, daemon.version))
-    if (daemon.script) live.push(dirname(daemon.script))
+    if (typeof daemon.version === 'string' && daemon.version.length > 0) live.push(join(roots.versionsDir, daemon.version))
+    if (typeof daemon.script === 'string' && daemon.script.length > 0) live.push(dirname(daemon.script))
   }
   return live
 }

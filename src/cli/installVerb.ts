@@ -97,7 +97,7 @@ export async function installVerb(options: InstallCliOptions = {}): Promise<neve
       `installed: ${result.version} → ${result.versionDir}${result.changed ? '' : ' (already present — no bytes changed)'}`,
       `active version: ${result.version} (pointer: ${roots.versionsDir})`,
       ...(result.pruned.length > 0 ? [`removed older versions: ${result.pruned.join(', ')}`] : []),
-      ...(result.left.length > 0 ? [`older versions left in place (a file in them is still in use, or could not be deleted; the next install tries again): ${result.left.join(', ')}`] : []),
+      ...(result.left.length > 0 ? [`older versions not removed whole (a file in them is still in use, or could not be deleted; the next install tries again): ${result.left.join(', ')}`] : []),
       `signature: ${result.signature}${result.unsignedOverride ? ' (accepted by explicit --allow-unsigned)' : ''}`,
       ...(result.receiptPath ? [`receipt: ${result.receiptPath}`] : []),
     ]

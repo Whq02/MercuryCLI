@@ -122,7 +122,7 @@ console.log('§5 a removal that fails is left in place and named — in the layo
   const returned = (svc.match(/\n {6}pruned,\n {6}left,\n/g) ?? []).length
   check('both transactions return what was left beside what went', returned === 2, `${returned} return(s) carry left`)
   const verbs = ['update.ts', 'installVerb.ts'].map(name => readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', name), 'utf8'))
-  check('the update and the install verbs print what was left in place, and why, right after what was removed', verbs.every(verb => verb.includes("result.left.length > 0 ? ") && verb.includes('older versions left in place (a file in them is still in use, or could not be deleted; the next ') && verb.indexOf('older versions left in place') > verb.indexOf('removed older versions:')), `${verbs.filter(verb => verb.includes('older versions left in place')).length} verb(s) print it`)
+  check('the update and the install verbs print what was not removed whole, and why, right after what was removed', verbs.every(verb => verb.includes("result.left.length > 0 ? ") && verb.includes('older versions not removed whole (a file in them is still in use, or could not be deleted; the next ') && verb.indexOf('older versions not removed whole') > verb.indexOf('removed older versions:')), `${verbs.filter(verb => verb.includes('older versions left in place')).length} verb(s) print it`)
 }
 
 process.kill = realKill as typeof process.kill
