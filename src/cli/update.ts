@@ -366,8 +366,9 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
       const shellLines = shellCommand ? commandOnPathWarning(roots, shellCommand, 'the updated one') : null
       const shellWords = shellLines ? `\n  ${shellLines[0]}\n  ${shellLines[1]}` : ''
       const prunedLine = result.pruned.length > 0 ? `\n  removed older versions: ${result.pruned.join(', ')}` : ''
+      const leftLine = result.left.length > 0 ? `\n  older versions left in place (a file in them is still in use, or could not be deleted; the next update tries again): ${result.left.join(', ')}` : ''
       return cliOk(
-        `updated: ${result.from} → ${result.to} (${describeChannelRoad(result.road)})\n  signature: ${result.signature}${result.unsignedOverride ? ' (accepted by explicit --allow-unsigned)' : ''}\n  ${result.previousKept ? 'previous version kept — \`mercury update --rollback\` returns to it' : 'no earlier version was installed, so there is nothing to roll back to'}${prunedLine}${shimLine}${shellWords}${daemonLine}${openWindowsLineText}`,
+        `updated: ${result.from} → ${result.to} (${describeChannelRoad(result.road)})\n  signature: ${result.signature}${result.unsignedOverride ? ' (accepted by explicit --allow-unsigned)' : ''}\n  ${result.previousKept ? 'previous version kept — \`mercury update --rollback\` returns to it' : 'no earlier version was installed, so there is nothing to roll back to'}${prunedLine}${leftLine}${shimLine}${shellWords}${daemonLine}${openWindowsLineText}`,
       )
     }
     case 'no-update':
