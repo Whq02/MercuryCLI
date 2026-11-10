@@ -88,7 +88,7 @@ const TAG = keyHintLabel('⇧← back')
 const FROM_P = `✦ from ${basename(CWD)}`
 const LINE_P = `running in ${basename(CWD)}`
 const LINE_Q = `running in ${basename(OTHER)}`
-const lineRe = (count: number | null, project: string): RegExp => new RegExp(`${count === null ? '\\d+' : String(count)} running in …?${basename(project)}\\b`)
+const lineRe = (count: number | null, project: string): RegExp => new RegExp(`${count === null ? '\\d+' : String(count)} running in [^│\\n]*?${basename(project)}\\b`)
 const DOOR = 'switch to see them'
 const GROUP = 'OTHER PROJECTS'
 const SHIFT_LEFT = '\x1b[1;2D'
@@ -240,7 +240,7 @@ console.log('D1 — X and Y born in P (Y focused); pick Q: Y ★ from P, "1 runn
       g(READY_LINE, ''),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
-      g('SESSIONS', '\t', { awaitSettleTicks: 3 }),
+      g('SESSIONS', '', { awaitSettleTicks: 3 }),
       { afterPrevTicks: 4, data: 'n' },
       { afterPrevTicks: 6, data: ESC },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4, mark: 'p-board-before-pick' }),
@@ -260,9 +260,9 @@ console.log('D1 — X and Y born in P (Y focused); pick Q: Y ★ from P, "1 runn
   const handedBack = markText(c, 'q-board-handed-back')
   check('D1 the pick landed Q\'s board', isBoard(carried), firstRows(carried))
   check(`D1 the focused chat (Y, of P) rides Q's board with the star (the glyph leads; the row names its home)`, carried.split('\n').some(l => l.includes('✦') && l.includes('proj-p')), rowsWith(carried, '✦'))
-  check(`D1 P's other session is a LINE, not a row: "1 ${LINE_P} · ${DOOR}" under ${GROUP}`, carried.includes(GROUP) && lineRe(1, CWD).test(carried) && carried.includes(DOOR), rowsWith(carried, 'running in'))
+  check(`D1 P's other session is a LINE, not a row: "1 ${LINE_P}" under ${GROUP} (its "${DOOR}" rides the NOW column, which a 120-column list does not paint)`, carried.includes(GROUP) && lineRe(1, CWD).test(carried), rowsWith(carried, 'running in'))
   check('D1 Q\'s old chat is a parked row of Q (the current project\'s chats)', carried.includes('PARKED') && carried.split('\n').some(l => l.includes('an old chat i') && l.includes(basename(OTHER))), rowsWith(carried, 'an old chat'))
-  check('D1 after n births Z in Q, Y is HANDED BACK — no star on Q\'s board, no notice', isBoard(handedBack) && !handedBack.includes('✦') && !handedBack.includes('NEEDS YOU'), rowsWith(handedBack, '✦'))
+  check('D1 after n births Z in Q, Y is HANDED BACK — no star on Q\'s board, no notice', isBoard(handedBack) && !handedBack.includes('✦') && !/NEEDS YOU · [1-9]/.test(handedBack), rowsWith(handedBack, '✦'))
   check(`D1 P's line now counts both: "2 ${LINE_P}"`, lineRe(2, CWD).test(handedBack), rowsWith(handedBack, 'running in'))
   const live = liveRecords(home)
   const homes = Object.values(live).map(r => r.workspaceId)
@@ -280,7 +280,7 @@ console.log('D2 — ↵ on P\'s line switches the view to P (X, Y plain; Z ★ f
       g(READY_LINE, ''),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
-      g('SESSIONS', '\t', { awaitSettleTicks: 3 }),
+      g('SESSIONS', '', { awaitSettleTicks: 3 }),
       { afterPrevTicks: 4, data: 'n' },
       { afterPrevTicks: 6, data: ESC },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
@@ -288,8 +288,7 @@ console.log('D2 — ↵ on P\'s line switches the view to P (X, Y plain; Z ★ f
       { afterPrevTicks: 20, data: 'n' },
       { afterPrevTicks: 6, data: ESC },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
-      { afterPrevTicks: 6, data: '\t' },
-      { afterPrevTicks: 6, data: DOWN, mark: 'q-board' },
+      { afterPrevTicks: 12, data: DOWN, mark: 'q-board' },
       { afterPrevTicks: 4, data: '\r' },
       { afterPrevTicks: 20, data: SHIFT_LEFT, mark: 'p-board-via-door' },
       { afterPrevTicks: 10, data: '', mark: 'face' },
