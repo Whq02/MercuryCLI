@@ -63,11 +63,12 @@ try {
   const options = { apiBaseUrl: rp.baseUrl, runner: ssh.runner, sessionId: 'fast-load-proof', pauseMs: 5, readyTimeoutMs: 3000, startJob: (record: any) => { jobs.push(runHostJob(record.id, record.generation, { runner: ssh!.runner, pauseMs: 20, timeoutMs: 3000, keepAlive: false })) } }
   const road = createHostRoad(options)
   const table = currentHostRecipes()
-  check('every shipped recipe has exact on-disk bytes from its pinned HF files', table.every(row => weightManifest(row).files.reduce((sum, file) => sum + file.size, 0) === Math.round(row.weightsGb * 1e9)))
+  const mirrored = table.filter(row => row.engine !== 'tensorfold')
+  check('every shipped recipe whose engine can use a kept disk has exact on-disk bytes from its pinned HF files', mirrored.length === 78 && mirrored.every(row => weightManifest(row).files.reduce((sum, file) => sum + file.size, 0) === Math.round(row.weightsGb * 1e9)))
   check('catalogue has one row for each model and weight variant, not duplicate GPU rows', fastLoadRecipes().length === new Set(table.map(volumes.volumeModel)).size)
   let catalogue: any
   await road(async q => { if (q.step === 'door-models') return 'other'; if (q.step === 'where') return 'fast-load'; if (q.step === 'door-bank-folder') return bankHome; catalogue = q; return null }, () => {}, signal)
-  check('the Bank lists every known model with its size and no volume', catalogue.step === 'door-bank' && fastLoadRecipes().every(recipe => catalogue.rows.some((row: any) => row.value === recipe.id && row.label.includes(sizeWords(recipe.weightsGb)) && /—\s*$/.test(row.label))))
+  check('the Bank lists every known model with its size and names engines that cannot use a volume', catalogue.step === 'door-bank' && fastLoadRecipes().every(recipe => catalogue.rows.some((row: any) => row.value === recipe.id && row.label.includes(sizeWords(recipe.weightsGb)) && (recipe.engine === 'tensorfold' ? row.label.endsWith('— not supported') : /—\s*$/.test(row.label)))))
   check('opening or cancelling catalogue creates no disk and rents no pod', rp.state.volumeCreates === 0 && rp.state.creates === 0)
   rp.state.customGpus = [
     { id: 'NVIDIA RTX PRO 6000 Blackwell Server Edition', name: 'RTX PRO 6000', memory: 96, secure: true, price: { secure: 2.49 }, maxCount: { secure: 8 }, availability: 'LOW', dataCenters: [{ id: 'EU-NL-1', availability: 'LOW' }] },
