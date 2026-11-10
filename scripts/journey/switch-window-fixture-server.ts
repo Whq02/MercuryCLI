@@ -5,13 +5,15 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 
 const captureFile = process.argv[2]
 if (!captureFile) {
-  console.error('usage: switch-window-fixture-server.ts <captureFile> [window] [ceiling] [replyChars] [charsPerToken]')
+  console.error('usage: switch-window-fixture-server.ts <captureFile> [window] [ceiling] [replyChars] [charsPerToken] [heldAsk] [holdMs]')
   process.exit(2)
 }
 const WINDOW = Number.parseInt(process.argv[3] ?? '20000', 10)
 const CEILING = Number.parseInt(process.argv[4] ?? '0', 10)
 const REPLY_CHARS = Number.parseInt(process.argv[5] ?? '120000', 10)
 const CHARS_PER_TOKEN = Number.parseFloat(process.argv[6] ?? '4')
+const HELD_ASK = process.argv[7] ?? ''
+const HOLD_MS = Number.parseInt(process.argv[8] ?? '0', 10)
 
 const BIG_ASK = 'write the long design note'
 const BIG_REPLY_TAIL = 'the long design note ends here'
@@ -20,6 +22,8 @@ const GPT_REPLY = 'sol carries on from the note'
 const GPT_SUMMARY = 'SUMMARY BY SOL: the note was written.'
 const OPUS_SUMMARY = 'SUMMARY BY OPUS: the long design note was written and the operator asked to carry on.'
 const OVERFLOW_SENTENCE = 'Your input exceeds the context window of this model. Please adjust your input and try again.'
+const HELD_OPENING = 'the held reply begins here'
+const HELD_REPLY_TAIL = 'the held reply ends here'
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 const evt = (name: string, obj: unknown): string => `event: ${name}\n${sse(obj)}`
@@ -48,6 +52,18 @@ function anthropicText(body: Record<string, unknown>): string {
   return texts.join('\n')
 }
 
+function lastAnthropicAsk(body: Record<string, unknown>): string {
+  const messages = Array.isArray(body.messages) ? (body.messages as Array<{ role?: string; content?: unknown }>) : []
+  for (let at = messages.length - 1; at >= 0; at--) {
+    const m = messages[at]!
+    if (m.role !== 'user') continue
+    const c = m.content
+    if (typeof c === 'string') return c
+    if (Array.isArray(c)) return (c as Array<{ type?: string; text?: string }>).filter(b => b.type === 'text' && typeof b.text === 'string').map(b => b.text ?? '').join('\n')
+  }
+  return ''
+}
+
 function responsesInputText(body: Record<string, unknown>): string {
   const input = Array.isArray(body.input) ? (body.input as Array<Record<string, unknown>>) : []
   const texts: string[] = []
@@ -61,15 +77,23 @@ function responsesInputText(body: Record<string, unknown>): string {
 
 const isSummaryRequest = (text: string): boolean => text.includes('Produce the summary now')
 
-function anthropicReply(res: ServerResponse, text: string, usage: { input: number; output: number }, n: number): void {
+function anthropicReply(res: ServerResponse, text: string, usage: { input: number; output: number }, n: number, heldOpening?: string): void {
   const usageBlock = { input_tokens: usage.input, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: usage.output }
   res.writeHead(200, { 'content-type': 'text/event-stream' })
   res.write(evt('message_start', { type: 'message_start', message: { id: `msg_fx_${n}`, type: 'message', role: 'assistant', model: 'claude-opus-4-8', content: [], stop_reason: null, stop_sequence: null, usage: { ...usageBlock, output_tokens: 1 } } }))
   res.write(evt('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }))
-  res.write(evt('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }))
-  res.write(evt('content_block_stop', { type: 'content_block_stop', index: 0 }))
-  res.write(evt('message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: usageBlock }))
-  res.end(evt('message_stop', { type: 'message_stop' }))
+  const finish = (): void => {
+    res.write(evt('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }))
+    res.write(evt('content_block_stop', { type: 'content_block_stop', index: 0 }))
+    res.write(evt('message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: usageBlock }))
+    res.end(evt('message_stop', { type: 'message_stop' }))
+  }
+  if (heldOpening === undefined) return finish()
+  res.write(evt('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: heldOpening } }))
+  setTimeout(() => {
+    record({ kind: 'released', n, at: Date.now() })
+    finish()
+  }, HOLD_MS)
 }
 
 function responsesReply(res: ServerResponse, text: string, inputTokens: number, n: number): void {
@@ -137,9 +161,11 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const text = anthropicText(body)
       const count = Math.round(raw.length / CHARS_PER_TOKEN)
       const summary = isSummaryRequest(text)
-      const big = text.includes(BIG_ASK) && !summary && !text.includes(BIG_REPLY_TAIL)
-      record({ kind: 'anthropic', n, url, at: Date.now(), model: body.model, count, summary, big, tools: Array.isArray(body.tools) ? body.tools.length : 0, ask: text.slice(-80) })
+      const held = !summary && HELD_ASK !== '' && HOLD_MS > 0 && Array.isArray(body.tools) && body.tools.length > 0 && lastAnthropicAsk(body).includes(HELD_ASK)
+      const big = text.includes(BIG_ASK) && !summary && !held && !text.includes(BIG_REPLY_TAIL)
+      record({ kind: 'anthropic', n, url, at: Date.now(), model: body.model, count, summary, big, ...(held ? { held } : {}), tools: Array.isArray(body.tools) ? body.tools.length : 0, ask: text.slice(-80) })
       if (summary) return anthropicReply(res, OPUS_SUMMARY, { input: count, output: 20 }, n)
+      if (held) return anthropicReply(res, HELD_REPLY_TAIL, { input: count, output: 12 }, n, `${HELD_OPENING}\n\n`)
       if (big) {
         const reply = bigReplyText()
         return anthropicReply(res, reply, { input: count, output: Math.round(reply.length / CHARS_PER_TOKEN) }, n)

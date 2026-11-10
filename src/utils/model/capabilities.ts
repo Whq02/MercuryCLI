@@ -714,8 +714,7 @@ function baseResolveContextWindow(
     (firstPartyCanonical === 'claude-haiku-5-5' ||
       firstPartyCanonical.includes('sonnet-5') ||
       firstPartyCanonical.includes('opus-5') ||
-      firstPartyCanonical === 'claude-fable-5-1' ||
-      firstPartyCanonical === 'claude-fable-5-2')
+      firstPartyCanonical.includes('fable-5'))
   ) {
     if (is1mContextDisabled()) {
       return finish({
