@@ -25,6 +25,7 @@ import {
   isToolUseResultMessage,
   isTurnCutText,
   NO_RESPONSE_REQUESTED,
+  normalizeAttachmentForAPI,
   normalizeMessages,
   SYNTHETIC_MESSAGES,
 } from './messages.js'
@@ -141,6 +142,20 @@ function isSyntheticApiErrorAssistant(message: Message): boolean {
   return message.type === 'assistant' && Boolean((message as { isApiErrorMessage?: boolean }).isApiErrorMessage)
 }
 
+function asksNoReply(message: Message): boolean {
+  if (message.type === 'attachment') return normalizeAttachmentForAPI(message.attachment).length === 0
+  return message.type === 'system' || message.type === 'progress' || isSyntheticApiErrorAssistant(message)
+}
+
+function trailsReply(messages: Message[], index: number): boolean {
+  for (let i = index; i >= 0; i--) {
+    const candidate = messages[i] as Message
+    if (asksNoReply(candidate)) continue
+    return candidate.type === 'assistant'
+  }
+  return false
+}
+
 function detectInterruption(messages: Message[]): InternalInterruptionState {
   if (messages.length === 0) return { kind: 'none' }
   let index = messages.length - 1
@@ -164,7 +179,7 @@ function detectInterruption(messages: Message[]): InternalInterruptionState {
     return { kind: 'interrupted_prompt', message: last as NormalizedUserMessage }
   }
   if (last.type === 'attachment') {
-    return { kind: 'interrupted_turn' }
+    return trailsReply(messages, index) ? { kind: 'none' } : { kind: 'interrupted_turn' }
   }
   return { kind: 'none' }
 }
