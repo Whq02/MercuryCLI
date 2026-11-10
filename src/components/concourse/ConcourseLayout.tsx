@@ -16,6 +16,7 @@ import { EFFORT_HIGH } from '../../constants/figures.js'
 import { isEffortLevel } from '../../utils/effort.js'
 import { chatPresent, subscribeSurfaceRoute, surfaceRouteVersion } from '../../context/surfaceRoute.js'
 import { landingInFlight } from '../../services/engine-connector/focusedConnector.js'
+import { PARK_REFUSED_NOW_LEAD } from '../../services/concourse/concourseSnapshot.js'
 import { useSyncExternalStore } from 'react'
 import { LiveNowCell } from './LiveNowCell.js'
 import { useLiveTilesDegraded } from './liveTiles.js'
@@ -40,6 +41,11 @@ export function newSessionDoorTail(door: { modelLabel: string; effortLevel: stri
 
 export function newSessionLineShown(facts: { newSession: boolean; sessionRows: number; filterText: string }): boolean {
   return facts.newSession && facts.sessionRows > 0 && facts.filterText.trim().length === 0
+}
+
+export function rowNeedsOperator(row: { state: string; nowLabel?: string | null }, ask?: string): boolean {
+  const now = row.nowLabel ?? ''
+  return (ask !== undefined && ask.length > 0) || (row.state === 'needs-you' && now.length > 0) || now.startsWith(PARK_REFUSED_NOW_LEAD)
 }
 
 export const CONCOURSE_TWO_PANE_MIN_COLS = 100
@@ -624,6 +630,8 @@ export function ConcourseLayout({
             const base = STATE_GLYPH[r.state] ?? { glyph: GLYPH.read, color: 'textMuted' as const }
             const sg = r.state === 'working' && isSel ? { glyph: GLYPH.ok, color: 'info' as const } : r.finishedUnseen === true ? { glyph: base.glyph, color: 'warning' as const } : base
             const ageBlock = padStartTo(r.state === 'queued' ? 'waits' : (r.ageLabel ?? '—'), 5)
+            const ask = askBySession.get(r.sessionId)
+            const operatorCell = nowWidth === 0 && rowNeedsOperator(r, ask)
             out.push(
               <Box key={r.sessionId} flexShrink={0} paddingX={1}>
                 <InteractiveRow
@@ -667,22 +675,30 @@ export function ConcourseLayout({
                       ) : null}
                     </Text>
                   </Box>
-                  <Box width={colProject} flexShrink={0} paddingRight={1}>
-                    {}
-                    <Text wrap="truncate-end">
-                      {r.worktreeBranch !== undefined ? <Text color={t.info}>{branchChip('')}</Text> : null}
-                      <Text color={t.textSecondary}>{r.projectLabel}</Text>
-                    </Text>
-                  </Box>
-                  {nowWidth > 0 ? (
-                    <Box width={nowWidth} flexShrink={0} paddingRight={1}>
-                      {}
-                      <LiveNowCell row={r} ask={askBySession.get(r.sessionId)} />
+                  {operatorCell ? (
+                    <Box width={colProject + colAge} flexShrink={0}>
+                      <LiveNowCell row={r} ask={ask} brief />
                     </Box>
-                  ) : null}
-                  <Box width={colAge} justifyContent="flex-end" flexShrink={0}>
-                    <Text color={t.textInstruction}>{ageBlock}</Text>
-                  </Box>
+                  ) : (
+                    <>
+                      <Box width={colProject} flexShrink={0} paddingRight={1}>
+                        {}
+                        <Text wrap="truncate-end">
+                          {r.worktreeBranch !== undefined ? <Text color={t.info}>{branchChip('')}</Text> : null}
+                          <Text color={t.textSecondary}>{r.projectLabel}</Text>
+                        </Text>
+                      </Box>
+                      {nowWidth > 0 ? (
+                        <Box width={nowWidth} flexShrink={0} paddingRight={1}>
+                          {}
+                          <LiveNowCell row={r} ask={ask} />
+                        </Box>
+                      ) : null}
+                      <Box width={colAge} justifyContent="flex-end" flexShrink={0}>
+                        <Text color={t.textInstruction}>{ageBlock}</Text>
+                      </Box>
+                    </>
+                  )}
                 </InteractiveRow>
               </Box>,
             )

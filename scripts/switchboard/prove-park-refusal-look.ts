@@ -125,15 +125,18 @@ function capture(cols: number, rows: number): string[] {
 }
 let laterLines: string[] = []
 
-for (const [cols, rows] of [[120, 40], [80, 30]] as const) {
+for (const [cols, rows] of [[214, 50], [120, 40], [80, 30]] as const) {
   console.log(`the board at ${cols}x${rows}`)
   const lines = capture(cols, rows)
   const has = (needle: string): boolean => lines.some(l => l.includes(needle))
   const oauth = lines.find(l => /[◒◐◓◑] .*Fix OAuth/.test(l)) ?? lines.find(l => l.includes('Fix OAuth')) ?? ''
   const parser = lines.find(l => /[◒◐◓◑] .*Refactor pars/.test(l)) ?? lines.find(l => l.includes('Refactor pars')) ?? ''
-  if (cols >= 100) {
-    check(`the refused row's NOW cell leads with 'park refused' inside the column at ${cols} columns`, /park refused — a\S*/.test(oauth), oauth)
+  if (cols >= 214) {
+    check(`the refused row's NOW cell leads with 'park refused' inside the column at ${cols} columns`, /park refused — a\S*/.test(oauth) && oauth.includes('07m'), oauth)
     check(`the parking row's NOW cell leads with 'parking' and the asker at ${cols} columns`, /parking — operator\S*/.test(parser), parser)
+  } else if (cols >= 100) {
+    check(`a list too narrow for the NOW column still says the refusal: the refused row reads 'park refused' where its project and age stood at ${cols} columns`, /park refused — a/.test(oauth) && !oauth.includes('07m'), oauth)
+    check(`…and a park in flight, which asks nothing of the operator, stays off the row: the parking row keeps its project and age at ${cols} columns`, !parser.includes('parking') && parser.includes('18m'), parser)
   }
   check(`both rows stay in the live group under WORKING (never parked, never needs-you) at ${cols} columns`, !oauth.includes('parked ·') && !parser.includes('parked ·') && !oauth.includes('needs you') && !parser.includes('needs you') && /[◒◐◓◑]/.test(oauth) && /[◒◐◓◑]/.test(parser), `${oauth} | ${parser}`)
   if (cols < 100) {

@@ -17,6 +17,7 @@
 # gate-watch: src/utils/sessionStorage/rowGraph.ts src/utils/sessionStorage/chain.ts src/utils/sessionStorage/transcriptReader.ts src/utils/sessionStorage/writer.ts src/utils/sessionStorage/loading.ts src/services/engine-connector/daemonConnector.ts src/commands/restart/restart.ts
 # gate-watch: scripts/ui/gridToPng.ts scripts/ui/replay-tee-grid.py src/services/crewBoard/** src/utils/cockpit/turnReceipt.ts src/components/messages/CrewChatRow.tsx src/components/Messages.tsx src/ink.ts src/ink/** src/types/message.ts
 # gate-watch: docs/AUTOMATION.md
+# gate-watch: scripts/notifications/concourseReferenceSeed.ts src/components/design-system/ThemeProvider.tsx src/state/AppState.tsx
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
