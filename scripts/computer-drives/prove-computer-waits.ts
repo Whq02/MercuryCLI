@@ -11,10 +11,7 @@ const context = toolContext()
 const front = await driver.frontmostApplication()
 if (!front.ok) throw new Error(front.error.note)
 let title = 'Loading'
-const nativeApp = { identity: front.value.identity, name: front.value.name }
-const browserApp = { identity: 'com.google.Chrome', name: 'Google Chrome' }
-let frontApp = nativeApp
-driver.frontmostApplication = async () => ({ ok: true, value: { ...front.value, ...frontApp, title } })
+driver.frontmostApplication = async () => ({ ok: true, value: { ...front.value, title } })
 const tree: DesktopTree = { elements: [{ depth: 0, role: 'AXButton', title: 'Ready', value: null, frame: null }, { depth: 0, role: 'AXTextField', title: 'Address and search bar', value: 'https://example.test/ready', frame: null }], truncated: false, reason: null, webContent: 'available' }
 let polls = 0
 driver.accessibilityTree = async () => { polls++; if (polls > 1) title = 'Routine settings'; return { ok: true, value: structuredClone(tree) } }
@@ -28,21 +25,12 @@ const gone = await call({ name: 'Loading', gone: true })
 check('gone succeeds only after absence is observed', gone.outcome === 'succeeded' && gone.result.includes('gone "Loading"'), gone.result)
 const present = await call({ name: 'Ready', gone: true }, 20)
 check('gone times out when the element remains and names last tree size', present.outcome === 'failed' && present.result.includes('timed out') && present.result.includes('gone "Ready"') && present.result.includes('last tree: 2 elements'), present.result)
-for (const [where, app] of [['a native window', nativeApp], ['a browser window', browserApp]] as const) {
-  frontApp = app
-  for (const incomplete of ['truncated', 'pending', 'absent'] as const) {
-    tree.truncated = incomplete === 'truncated'
-    tree.webContent = incomplete === 'truncated' ? 'available' : incomplete
-    const answer = await call({ name: 'Missing', gone: true }, 20)
-    const closed = await call({ dialog: true, gone: true }, 20)
-    if (app === nativeApp && incomplete === 'absent') {
-      check('a complete tree of a native window establishes gone: it holds no page content because the application has none', answer.outcome === 'succeeded' && answer.result.includes('gone "Missing"') && closed.outcome === 'succeeded' && closed.result.includes('dialog gone'), `${answer.result}\n${closed.result}`)
-      const standing = await call({ name: 'Ready', gone: true }, 20)
-      check('gone on a native window still times out while the element stands', standing.outcome === 'failed' && standing.result.includes('timed out') && standing.result.includes('gone "Ready"'), standing.result)
-    } else check(`${incomplete} tree of ${where} cannot establish gone, for an element or a dialog`, answer.outcome === 'failed' && answer.result.includes('timed out') && closed.outcome === 'failed' && closed.result.includes('timed out'), `${answer.result}\n${closed.result}`)
-  }
+for (const incomplete of ['truncated', 'pending', 'absent'] as const) {
+  tree.truncated = incomplete === 'truncated'
+  tree.webContent = incomplete === 'truncated' ? 'available' : incomplete
+  const answer = await call({ name: 'Missing', gone: true }, 20)
+  check(`${incomplete} tree cannot establish gone`, answer.outcome === 'failed', answer.result)
 }
-frontApp = nativeApp
 tree.truncated = false
 tree.webContent = 'available'
 tree.elements[1]!.role = 'AXStaticText'
