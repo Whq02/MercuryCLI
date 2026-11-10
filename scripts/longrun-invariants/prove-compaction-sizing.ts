@@ -20,8 +20,8 @@ function section(t: string): void {
 
 section('§A the derivation: child threshold ≠ parent threshold when windows differ')
 {
-  const parent = 'claude-fable-5[1m]'
-  const childOverride = 'claude-fable-5'
+  const parent = 'claude-opus-4-6[1m]'
+  const childOverride = 'claude-opus-4-6'
   const effective = getAgentModel(undefined, parent, childOverride as never)
   check('the chokepoint resolves the OVERRIDE, not the parent', effective === childOverride, effective)
   const parentThreshold = getAutoCompactThreshold(parent)

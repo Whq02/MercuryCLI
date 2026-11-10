@@ -29,7 +29,7 @@ import {
 import { LOCAL_MODEL_GROUP, getLocalModelOptions } from '../../services/providers/local/localCatalogue.js'
 import { kickMoonshotCatalogue } from '../../services/providers/moonshot/moonshotCatalogue.js'
 import { kickDeepseekCatalogue } from '../../services/providers/deepseek/deepseekCatalogue.js'
-import { getContextWindowForModel, modelSupports1M } from './capabilities.js'
+import { getContextWindowForModel } from './capabilities.js'
 import { operatorModelFacts } from './modelOverrides.js'
 import { isProviderDisabled } from '../../services/providers/disabledProviders.js'
 import { declaredRouteOf } from '../../services/providers/routeLaw.js'
@@ -1227,13 +1227,7 @@ export function focusedOptionSupports1m(value: string): boolean {
 
   const resolved = parseUserSpecifiedModelRaw(stripContext1m(value))
   const canonical = getCanonicalName(familyDefaultsModel(resolved))
-  if (canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
-    return false
-  }
-  const UNCONDITIONAL_1M = new Set(['claude-opus-4-6', 'claude-sonnet-4-6'])
-  if (UNCONDITIONAL_1M.has(canonical)) return true
-  if (canonical === 'claude-fable-5') return modelSupports1M(resolved)
-  return false
+  return canonical === 'claude-opus-4-6' || canonical === 'claude-sonnet-4-6'
 }
 
 void getBestModel
