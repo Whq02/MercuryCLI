@@ -17,7 +17,7 @@ import {
   type CompatCallModelParams,
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
-import { buildLocalExtras, LOCAL_SERVER_EFFORTS, localThinkingOff } from '../openaicompat/compatWire.js'
+import { buildLocalExtras, LOCAL_SERVER_EFFORTS, localThinkingOff, tensorFoldRefusesEffort } from '../openaicompat/compatWire.js'
 import { getMaxOutputTokensForModel } from '../anthropic/streamCore.js'
 import { EFFORT_STAMP_THINKING_OFF, EFFORT_STAMP_THINKING_ON, type EffortWireFact } from '../../../utils/effortStamp.js'
 import { planToolPayload, toolsOnTheWire } from '../toolEconomy.js'
@@ -222,6 +222,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
     toolDeclarationRow: toolDeclarationRowInResult,
     ...(record.server === 'tensorfold'
       ? {
+          refusesEffort: (wireEffort: string) => tensorFoldRefusesEffort(wireEffort, record.thinkingSwitch),
           outputCeiling: () => tensorFoldOutputCeiling(record),
           noteRuntime: (reading: { runtime: Parameters<typeof noteTensorFoldTurn>[0]['runtime']; usage: Parameters<typeof noteTensorFoldTurn>[0]['usage']; served: string | undefined }) => {
             noteTensorFoldTurn({ model: reading.served ?? record.id, baseUrl: record.baseUrl, usage: reading.usage, runtime: reading.runtime })

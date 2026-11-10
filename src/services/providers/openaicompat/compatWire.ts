@@ -192,8 +192,14 @@ export function tensorFoldThinkingBudget(asked: string, maxOutputTokens: number 
   return room > 0 ? Math.min(budget, room) : undefined
 }
 
+const TENSORFOLD_OFF_EFFORT = 'none'
+
+export function tensorFoldRefusesEffort(wireEffort: string, thinkingSwitch: boolean | undefined): boolean {
+  return thinkingSwitch === false && wireEffort === TENSORFOLD_OFF_EFFORT
+}
+
 export function tensorFoldEffortWire(args: { effortValue: string | undefined; thinkingEnabled: boolean; maxOutputTokensOverride?: number | undefined; thinkingSwitch?: boolean }): { reasoning_effort: string; thinking_budget?: number } | undefined {
-  const off = args.thinkingSwitch === false ? undefined : { reasoning_effort: 'none' }
+  const off = args.thinkingSwitch === false ? undefined : { reasoning_effort: TENSORFOLD_OFF_EFFORT }
   if (!args.thinkingEnabled) return off
   const asked = args.effortValue
   if (asked === undefined) return undefined
