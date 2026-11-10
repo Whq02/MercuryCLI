@@ -487,7 +487,7 @@ fn tree_answer(walk: TreeWalk, focused: Option<TreeElement>, scope: &str, observ
     let web_content = if observation { None } else if walk.elements.iter().any(|element| element.role.starts_with("AXWebArea")) { Some("available") } else if walk.truncated { None } else { Some("absent") };
     let reason = if walk.timed_out { Some(format!("the walk stopped after {} ms", TREE_BUDGET_MS)) } else { None };
     let web_surface = if walk.web_surface && !observation { Some(true) } else { None };
-    TreeAnswer { elements: walk.elements, focused, truncated: walk.truncated, reason, scope: Some(scope.to_string()), web_content: web_content.map(str::to_string), web_accessibility: None, web_surface, window_id }
+    TreeAnswer { elements: walk.elements, focused, truncated: walk.truncated, reason, scope: Some(scope.to_string()), web_content: web_content.map(str::to_string), web_accessibility: if observation { None } else { Some(true) }, web_surface, window_id }
 }
 
 pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str, observation: bool) -> TreeAnswer {
