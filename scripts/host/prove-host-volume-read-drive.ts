@@ -60,7 +60,7 @@ try {
       const row = question!.rows!.find(row => row.value === value)
       assert.ok(row, value)
       const title = row.label.split('\n').at(-1)!.slice(0, 20)
-      for (const key of [KEY.down, KEY.up]) for (let i = 0; i < 20 && !selected().includes(title); i++) { const before = selected(); mounted!.push(key); if (!await waitFor(() => selected() !== before, 500)) break }
+      for (const key of [KEY.down, KEY.up]) for (let i = 0; i < question!.rows!.length && !selected().includes(title); i++) { const before = selected(); mounted!.push(key); if (!await waitFor(() => selected() !== before, 500)) break }
       assert.ok(selected().includes(title), value + '\n' + screen())
       mounted!.push(KEY.enter)
     }
