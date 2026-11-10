@@ -116,11 +116,15 @@ export class TaskOutput {
     return lines === '' ? this.liveNotice : `${this.liveNotice}\n${lines}`
   }
 
+  private linesSoFar(): number {
+    return this.atLineStart ? this.lineCount : this.lineCount + 1
+  }
+
   emitLiveView(): void {
     this.onProgress?.(
       this.viewOf(RECENT_VIEW_LINES),
       this.viewOf(FULL_VIEW_LINES),
-      this.lineCount,
+      this.linesSoFar(),
       this.byteTotal,
       this.spilled,
     )
@@ -154,10 +158,11 @@ export class TaskOutput {
       cursor = newline
     }
 
+    const lines = content.endsWith('\n') ? count - 1 : count
     const sampledWholeFile = sample.bytesRead === sample.bytesTotal
     const totalLines = sampledWholeFile
-      ? count
-      : Math.max(Math.round(count * (sample.bytesTotal / sample.bytesRead)), this.lineCount)
+      ? lines
+      : Math.max(Math.round(lines * (sample.bytesTotal / sample.bytesRead)), this.lineCount)
     this.lineCount = totalLines
     this.byteTotal = sample.bytesTotal
     onProgress(
@@ -184,7 +189,7 @@ export class TaskOutput {
       this.onProgress(
         this.viewOf(RECENT_VIEW_LINES),
         this.viewOf(FULL_VIEW_LINES),
-        this.lineCount,
+        this.linesSoFar(),
         this.byteTotal,
         this.spilled,
       )
@@ -353,7 +358,7 @@ export class TaskOutput {
   }
 
   get totalLines(): number {
-    return this.lineCount
+    return this.linesSoFar()
   }
 
   get totalBytes(): number {
