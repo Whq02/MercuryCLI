@@ -38,6 +38,23 @@ section('§1 the card stands whole in seven rows — both faces')
   check('from the floor up neither face needs more rows than the pane hands it', STACKED_COLS.every(c => Array.from({ length: 34 }, (_, i) => i + FLOOR).every(rows => askRows(rows, textColumnsAt(c)) <= rows && fieldRows(rows, textColumnsAt(c)) <= rows)))
 }
 
+section('§1b a blurb the pane caps says it goes on')
+if (typeof card.cappedBlurb !== 'function') check('the card exports the one cap its blurbs are painted through', false)
+else {
+  const whole = (text: string, columns: number): string[] => wrapText(text, columns, 'wrap').split('\n')
+  const flat = (text: string): string => text.replace(/\s+/g, ' ')
+  const capped = (text: string, columns: number, rows: number | null): string[] => card.cappedBlurb(text, columns, rows).split('\n')
+  check('a blurb with room for every line is the blurb itself, on both faces', [39, 41, 68, 70, 110].every(c => card.cappedBlurb(card.CONTRACT_ASK_BLURB, c, null) === card.CONTRACT_ASK_BLURB && card.cappedBlurb(card.CONTRACT_ASK_BLURB, c, whole(card.CONTRACT_ASK_BLURB, c).length) === card.CONTRACT_ASK_BLURB && card.cappedBlurb(card.CONTRACT_FIELD_BLURB, c, null) === card.CONTRACT_FIELD_BLURB))
+  const cases: Array<[string, number, number]> = []
+  for (const c of [39, 41, 68, 70]) for (const text of [card.CONTRACT_ASK_BLURB, card.CONTRACT_FIELD_BLURB]) for (let rows = 1; rows < whole(text, c).length; rows++) cases.push([text, c, rows])
+  check('a capped blurb keeps exactly its rows, each inside the column, and its last row ends with an ellipsis', cases.length > 12 && cases.every(([text, c, rows]) => { const lines = capped(text, c, rows); return lines.length === rows && lines.every(l => l.length <= c) && lines[rows - 1]!.endsWith('…') }), String(cases.length))
+  check('…and what it keeps is the head of the blurb, word for word', cases.every(([text, c, rows]) => flat(text).startsWith(flat(capped(text, c, rows).join(' ').slice(0, -1)).trimEnd())))
+  const at82 = capped(card.CONTRACT_ASK_BLURB, textColumnsAt(82), card.contractCardFit(11, textColumnsAt(82)).askBlurbRows)
+  check('82×17 (eleven rows, two blurb lines): the second line ends "Yes opens a field…"', at82.length === 2 && at82[1] === 'agent acknowledges it without being blocked by it. Yes opens a field…', JSON.stringify(at82))
+  const source = read('src/components/concourse/ContractOfferCard.tsx')
+  check('both faces paint their blurb through the one cap', source.includes('{cappedBlurb(CONTRACT_ASK_BLURB, textColumns, fit.askBlurbRows)}') && source.includes('{cappedBlurb(CONTRACT_FIELD_BLURB, textColumns, fit.fieldBlurbRows)}'))
+}
+
 section('§2 the stacked board yields to one frame while the card stands and its mirror is under the floor')
 {
   const facts = (sessionCount: number, newSessionDoor = true, composerBand = 1): { sessionCount: number; newSessionDoor: boolean; composerBand: number } => ({ sessionCount, newSessionDoor, composerBand })
@@ -76,6 +93,36 @@ section('§2 the stacked board yields to one frame while the card stands and its
   check('under 60 columns or 16 rows the board is one frame either way', JSON.stringify(board.compactConcourseGeometry(50, 20, facts(3))) === JSON.stringify(board.compactConcourseGeometry(50, 20, { ...facts(3), cardRows: FLOOR })) && JSON.stringify(board.compactConcourseGeometry(80, 14, facts(3))) === JSON.stringify(board.compactConcourseGeometry(80, 14, { ...facts(3), cardRows: FLOOR })))
 }
 
+section('§2b one frame too short for the card beside its composer: the composer yields, then the foot')
+{
+  const facts = (composerBand: number): { sessionCount: number; newSessionDoor: boolean; composerBand: number } => ({ sessionCount: 2, newSessionDoor: true, composerBand })
+  const plain = (c: number, r: number, band = 1): ReturnType<typeof board.compactConcourseGeometry> => board.compactConcourseGeometry(c, r, facts(band))
+  const carded = (c: number, r: number, band = 1): ReturnType<typeof board.compactConcourseGeometry> => board.compactConcourseGeometry(c, r, { ...facts(band), cardRows: FLOOR })
+  check('80×11: the mirror already hands the floor beside the composer — nothing yields', plain(80, 11).mirrorRows === FLOOR && JSON.stringify(plain(80, 11)) === JSON.stringify(carded(80, 11)))
+  check('80×10: six rows beside the composer; with the card the composer yields and the mirror hands seven, the foot row kept', plain(80, 10).mirrorRows === 6 && plain(80, 10).composerRows === 1 && carded(80, 10).mirrorRows === FLOOR && carded(80, 10).composerRows === 0 && carded(80, 10).liveFootRows === 1, JSON.stringify([plain(80, 10), carded(80, 10)]))
+  check('80×9: the composer and then the foot yield — seven rows', carded(80, 9).mirrorRows === FLOOR && carded(80, 9).composerRows === 0 && carded(80, 9).liveFootRows === 0 && plain(80, 9).liveFootRows === 1, JSON.stringify(carded(80, 9)))
+  check('80×12 with a three-line draft: the composer would leave six rows, so it yields while the card stands', plain(80, 12, 3).mirrorRows === 6 && carded(80, 12, 3).mirrorRows === 9 && carded(80, 12, 3).composerRows === 0, JSON.stringify([plain(80, 12, 3).mirrorRows, carded(80, 12, 3).mirrorRows]))
+  check('80×8 and under: the frame itself is shorter than the card — the geometry hands every inner row and nothing more', carded(80, 8).mirrorRows === 6 && carded(80, 8).composerRows === 0 && carded(80, 8).liveFootRows === 0 && carded(80, 5).mirrorRows === 3)
+  const torn: string[] = []
+  const moved: string[] = []
+  for (const c of [40, 59, 60, 80, 120, 200]) {
+    for (let r = 3; r <= 40; r++) {
+      for (let n = 0; n <= 14; n += 7) {
+        for (const band of [1, 2, 3]) {
+          const without = board.compactConcourseGeometry(c, r, { sessionCount: n, newSessionDoor: true, composerBand: band })
+          const zero = board.compactConcourseGeometry(c, r, { sessionCount: n, newSessionDoor: true, composerBand: band, cardRows: 0 })
+          const withCard = board.compactConcourseGeometry(c, r, { sessionCount: n, newSessionDoor: true, composerBand: band, cardRows: FLOOR })
+          if (r >= 9 && withCard.mirrorRows < FLOOR) torn.push(`${c}x${r}/${n}/${band}:${withCard.mirrorRows}`)
+          if (JSON.stringify(without) !== JSON.stringify(zero)) moved.push(`${c}x${r}/${n}/${band}`)
+          if (without.mirrorRows >= FLOOR && JSON.stringify(without) !== JSON.stringify(withCard)) moved.push(`${c}x${r}/${n}/${band}:card`)
+        }
+      }
+    }
+  }
+  check('from nine rows up, at every width and draft height, the card is handed its floor', torn.length === 0, `${torn.length} torn · ${torn.slice(0, 6).join(' ')}`)
+  check('with no card standing, or a mirror that already holds the floor, no size from 3 to 40 rows moves', moved.length === 0, `${moved.length} moved · ${moved.slice(0, 6).join(' ')}`)
+}
+
 section('§3 the screen hands the floor only while the card stands; the painter and the wheel read the one geometry')
 {
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
@@ -83,6 +130,7 @@ section('§3 the screen hands the floor only while the card stands; the painter 
   check('the floor rides while the contract card stands and is zero otherwise', screen.includes('const compactCardRows = contractAsk ? CONTRACT_CARD_MIN_ROWS : 0') && screen.includes('cardRows: compactCardRows,') && screen.includes('cardRows={compactCardRows}'))
   check('the compact painter takes its profile from the geometry it lays out with (no second owner)', compact.includes("if (geo.profile === 'single') {") && !/\bprofile: CompactConcourseProfile\b/.test(compact) && compact.includes('    cardRows,\n  })'))
   check('the wheel reads the list from the same geometry', screen.includes("const compactListPainted = compactGeo?.profile === 'split' || (compactGeo?.profile === 'single' && region === 'list' && !contractAskRef.current)"))
+  check('the live frame\'s foot keeps its notes and drops its own key hints while the card stands, in both profiles', compact.includes("<FootRow text={cardRows > 0 ? '' : compactOpenedFoot({ reduced, verbsFire, draftHeld: liveDraftHeld })} note={note}") && compact.includes("<FootRow text={cardRows > 0 ? '' : compactLiveFoot({ verbsFire })} note={note}"))
 }
 
 console.log(failures === 0 ? '\nprove-compact-card-floor: ALL LAWS HOLD' : `\nprove-compact-card-floor: ${failures} FAILURE(S)`)

@@ -54,11 +54,16 @@ type CompactConcourseFacts = { sessionCount: number; newSessionDoor: boolean; co
 export function compactConcourseGeometry(cols: number, rows: number, facts: CompactConcourseFacts): CompactConcourseGeometry {
   const width = Math.max(0, Math.floor(cols))
   const height = Math.max(0, Math.floor(rows))
-  const sized = compactGeometryAs(compactConcourseProfileOf(width, height), width, height, facts)
-  return sized.profile === 'split' && (facts.cardRows ?? 0) > sized.mirrorRows ? compactGeometryAs('single', width, height, facts) : sized
+  const card = facts.cardRows ?? 0
+  const sized = compactGeometryAs(compactConcourseProfileOf(width, height), width, height, facts, true)
+  if (card <= sized.mirrorRows) return sized
+  const whole = sized.profile === 'split' ? compactGeometryAs('single', width, height, facts, true) : sized
+  if (card <= whole.mirrorRows) return whole
+  const bare = compactGeometryAs('single', width, height, { ...facts, composerBand: 0 }, true)
+  return card <= bare.mirrorRows ? bare : compactGeometryAs('single', width, height, { ...facts, composerBand: 0 }, false)
 }
 
-function compactGeometryAs(profile: CompactConcourseProfile, width: number, height: number, facts: CompactConcourseFacts): CompactConcourseGeometry {
+function compactGeometryAs(profile: CompactConcourseProfile, width: number, height: number, facts: CompactConcourseFacts, liveFoot: boolean): CompactConcourseGeometry {
   const framed = height >= COMPACT_FRAME_MIN_ROWS && width >= COMPACT_FRAME_MIN_ROWS
   const inner = framed ? height - 2 : height
   const listWant = 2 + Math.max(1, facts.sessionCount) + (facts.newSessionDoor ? 2 : 0) + 1
@@ -73,7 +78,7 @@ function compactGeometryAs(profile: CompactConcourseProfile, width: number, heig
   const spare = listBudget - Math.max(1, facts.sessionCount)
   const newSessionRows: 0 | 1 | 2 = !facts.newSessionDoor ? 0 : spare >= 2 ? 2 : spare >= 1 ? 1 : 0
   const listWindowRows = Math.max(0, listBudget - newSessionRows)
-  const liveFootRows: 0 | 1 = framed && live.innerRows >= 2 ? 1 : 0
+  const liveFootRows: 0 | 1 = liveFoot && framed && live.innerRows >= 2 ? 1 : 0
   const available = live.innerRows - liveFootRows
   const borderRows = composerBorderStyle(height) !== undefined ? 2 : 0
   let composerRows = 0
