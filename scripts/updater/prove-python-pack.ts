@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { rulesIgnore } from '../lib/treeIgnore.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'python-pack '))
 process.env.HOME = join(scratch, 'home')
@@ -148,7 +149,7 @@ section('§3 the fetch — the owner imported, one tar invocation, --check, the 
   check('an unpublished host is an honest exit 0, never a silent success', fetcher.includes('publishes no interpreter archive') && fetcher.includes('process.exit(0)'))
   check('the cache layout: archive/ + extracted/<platform>/ + the vendor manifest', fetcher.includes("join(CACHE_DIR, 'archive')") && fetcher.includes("join(CACHE_DIR, 'extracted')") && fetcher.includes('.vendor-manifest.json'))
   check('the fetch is chained into `bun run setup` beside the node fetch', (JSON.parse(read('package.json')) as { scripts: Record<string, string> }).scripts.setup.includes('bun run scripts/vendor/fetch-node.ts && bun run scripts/vendor/fetch-python.ts'))
-  check('the vendor cache is ignored like the other packs', read('.gitignore').split('\n').includes('vendor/python/'))
+  check('the vendor cache is ignored like the other packs', rulesIgnore(join(ROOT, '.gitignore'), ['vendor/python'])[0] === true)
   check('the licence texts are excluded from line-end conversion like the document licences (a CRLF checkout keeps the bytes the lock names)', read('.gitattributes').split('\n').includes('vendor/python-licences/** -text'))
   const host = pythonPackPlatform(process.platform, process.arch)
   const extracted = host ? join(ROOT, 'vendor', 'python', 'extracted', host) : null

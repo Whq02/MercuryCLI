@@ -3,6 +3,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { hermeticGitEnv } from '../lib/treeIgnore.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const rules = readFileSync(join(root, '.gitignore'), 'utf8').split('\n').map(line => line.trim())
@@ -17,18 +18,19 @@ function check(label: string, ok: boolean, detail = ''): void {
 const scratch = mkdtempSync(join(tmpdir(), 'packs-ignored-'))
 const repo = join(scratch, 'checkout')
 const elsewhere = join(scratch, 'elsewhere')
-const git = (...args: string[]): string => execFileSync('git', ['-C', repo, '-c', 'user.name=proof', '-c', 'user.email=proof@example.invalid', ...args], { encoding: 'utf8' }).trim()
-const ignored = (path: string): boolean => spawnSync('git', ['-C', repo, 'check-ignore', '-q', '--', path]).status === 0
+const gitEnv = hermeticGitEnv(scratch)
+const git = (...args: string[]): string => execFileSync('git', ['-C', repo, '-c', 'user.name=proof', '-c', 'user.email=proof@example.invalid', ...args], { encoding: 'utf8', env: gitEnv }).trim()
+const ignored = (path: string): boolean => spawnSync('git', ['-C', repo, 'check-ignore', '-q', '--', path], { env: gitEnv }).status === 0
 const stamp = (): string => {
   const index = join(scratch, `index-${Math.random().toString(36).slice(2)}`)
-  const env = { ...process.env, GIT_INDEX_FILE: index }
+  const env = { ...gitEnv, GIT_INDEX_FILE: index }
   execFileSync('git', ['-C', repo, 'read-tree', 'HEAD'], { env })
   execFileSync('git', ['-C', repo, 'add', '--all'], { env })
   return execFileSync('git', ['-C', repo, 'write-tree'], { env, encoding: 'utf8' }).trim()
 }
 try {
   mkdirSync(repo, { recursive: true })
-  execFileSync('git', ['init', '-q', repo])
+  execFileSync('git', ['init', '-q', repo], { env: gitEnv })
   copyFileSync(join(root, '.gitignore'), join(repo, '.gitignore'))
   git('add', '.gitignore')
   git('commit', '-q', '-m', 'the ignore rules')

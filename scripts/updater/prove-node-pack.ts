@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { rulesIgnore } from '../lib/treeIgnore.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'node-pack '))
 process.env.HOME = join(scratch, 'home')
@@ -155,7 +156,7 @@ section('§3 the fetch — one tar invocation, the zip ladder, --check, the owne
   check('an unpublished host is an honest exit 0, never a silent success', fetcher.includes('publishes no runtime archive') && fetcher.includes('process.exit(0)'))
   check('the cache layout: archive/ + extracted/<platform>/ + the vendor manifest', fetcher.includes("join(CACHE_DIR, 'archive')") && fetcher.includes("join(CACHE_DIR, 'extracted')") && fetcher.includes(".vendor-manifest.json"))
   check('the fetch is chained into `bun run setup`', (JSON.parse(read('package.json')) as { scripts: Record<string, string> }).scripts.setup.includes('bun run scripts/vendor/fetch-node.ts'))
-  check('the vendor cache is ignored like the other four', read('.gitignore').split('\n').includes('vendor/node/'))
+  check('the vendor cache is ignored like the other four', rulesIgnore(join(ROOT, '.gitignore'), ['vendor/node'])[0] === true)
 }
 
 section('§4 the build row — fixed path, staleness guard, manifest record, degraded label')
