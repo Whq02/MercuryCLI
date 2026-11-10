@@ -23,6 +23,7 @@ import {
   CellWidth,
   createScreen,
   HyperlinkPool,
+  inkFlanksCellAt,
   isEmptyCellAt,
   migrateScreenPools,
   StylePool,
@@ -1669,8 +1670,15 @@ export default class Ink {
 
   dispatchClick(col: number, row: number): boolean {
     if (!this.altScreenActive) return false
-    const blank = isEmptyCellAt(this.frontFrame.screen, col, row)
-    return dispatchClickInTree(this.rootNode, col, row, blank)
+    return dispatchClickInTree(this.rootNode, col, row, this.pointerOnBlank(col, row))
+  }
+
+  private pointerOnBlank(col: number, row: number): boolean {
+    const screen = this.frontFrame.screen
+    if (!isEmptyCellAt(screen, col, row)) return false
+    const hit = hitTest(this.rootNode, col, row)
+    const box = hit === null ? undefined : nodeCache.get(hit)
+    return box === undefined || !inkFlanksCellAt(screen, col, row, Math.floor(box.x), Math.floor(box.x + box.width))
   }
 
   dispatchHover(col: number, row: number): void {

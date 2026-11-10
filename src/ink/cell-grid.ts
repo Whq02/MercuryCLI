@@ -433,6 +433,19 @@ export function isEmptyCellAt(grid: Screen, column: number, row: number): boolea
   return outside(grid, column, row) || emptyAt(grid, row * grid.width + column)
 }
 
+export function inkFlanksCellAt(grid: Screen, column: number, row: number, left: number, right: number): boolean {
+  if (outside(grid, column, row)) return false
+  const rowStart = row * grid.width
+  const from = Math.max(0, left)
+  const to = Math.min(grid.width, right)
+  let before = column - 1
+  while (before >= from && emptyAt(grid, rowStart + before)) before--
+  if (before < from) return false
+  let after = column + 1
+  while (after < to && emptyAt(grid, rowStart + after)) after++
+  return after < to
+}
+
 function blankCell(grid: Screen, at: number): void {
   grid.cells[at] = BLANK_GLYPH
   grid.cells[at + 1] = packWord(grid.emptyStyleId, 0, CellWidth.Narrow)
