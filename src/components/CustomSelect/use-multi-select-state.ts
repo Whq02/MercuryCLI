@@ -37,6 +37,7 @@ type UseMultiSelectStateProps<T> = {
   onEmptyInputSubmit?: (value: T) => void
   onTabOut?: (direction: 'next' | 'previous') => void
   onSubmitFocusChange?: (focused: boolean) => void
+  scrollMovesFocus?: boolean
 }
 
 type MultiSelectState<T> = SelectNavigation<T> & {
@@ -67,9 +68,10 @@ export function useMultiSelectState<T>({
   onEmptyInputSubmit,
   onTabOut,
   onSubmitFocusChange,
+  scrollMovesFocus = true,
 }: UseMultiSelectStateProps<T>): MultiSelectState<T> {
-  usePopupPageOwner(!isDisabled)
-  useRegisterOverlay('multi-select', true, { ownsPageKeys: !isDisabled })
+  usePopupPageOwner(!isDisabled && scrollMovesFocus)
+  useRegisterOverlay('multi-select', true, { ownsPageKeys: !isDisabled && scrollMovesFocus })
 
   const lastOption = options[options.length - 1]
   const navigation = useSelectNavigation({
@@ -183,6 +185,7 @@ export function useMultiSelectState<T>({
 
   useInput(
     (input, key, event) => {
+      if (!scrollMovesFocus && (key.wheelUp || key.wheelDown || key.pageUp || key.pageDown)) return
       if (navigation.isInInput && !isSubmitFocused) {
         const allowed =
           key.upArrow ||

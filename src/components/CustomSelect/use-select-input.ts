@@ -42,6 +42,7 @@ type UseSelectProps<T> = {
   submitInputOption?: (option: OptionWithDescription<T>) => void
   tryEnterImageSelectionMode?: () => boolean
   isImageSelectionModeActive?: boolean
+  scrollMovesFocus?: boolean
 }
 
 export function useSelectInput<T>({
@@ -57,9 +58,10 @@ export function useSelectInput<T>({
   submitInputOption,
   tryEnterImageSelectionMode,
   isImageSelectionModeActive = false,
+  scrollMovesFocus = true,
 }: UseSelectProps<T>): void {
-  usePopupPageOwner(!isDisabled)
-  const overlayToken = useRegisterOverlay('select', Boolean(onCancel), { ownsPageKeys: !isDisabled })
+  usePopupPageOwner(!isDisabled && scrollMovesFocus)
+  const overlayToken = useRegisterOverlay('select', Boolean(onCancel), { ownsPageKeys: !isDisabled && scrollMovesFocus })
   const tokenRef = useRef(overlayToken)
   tokenRef.current = overlayToken
 
@@ -85,9 +87,18 @@ export function useSelectInput<T>({
     [isDisabled, declineRow],
   )
 
+  const wheelStep = useRef(false)
+  useInput(
+    (_input, key) => {
+      wheelStep.current = key.wheelUp || key.wheelDown
+    },
+    { isActive: !isDisabled && !scrollMovesFocus },
+  )
+
   useKeybindings(
     {
       'select:next': () => {
+        if (wheelStep.current) return false
         if (onDownFromLastItem && isOnLastOption) {
           onDownFromLastItem()
           return
@@ -95,6 +106,7 @@ export function useSelectInput<T>({
         state.focusNextOption()
       },
       'select:previous': () => {
+        if (wheelStep.current) return false
         if (onUpFromFirstItem && isWindowAtTop && isOnFirstOption) {
           onUpFromFirstItem()
           return
@@ -134,6 +146,7 @@ export function useSelectInput<T>({
       const focusedOption =
         state.focusedIndex > 0 ? state.options[state.focusedIndex - 1] : undefined
 
+      if (!scrollMovesFocus && (key.wheelUp || key.wheelDown || key.pageDown || key.pageUp)) return
       if (key.pageDown || key.pageUp) {
         if (!pagesHostBody(key.pageDown)) {
           if (key.pageDown) state.focusNextPage()

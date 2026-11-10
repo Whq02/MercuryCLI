@@ -168,6 +168,7 @@ export function PermissionPrompt<T extends string>({
         question
       )}
       <Select
+        scrollMovesFocus={false}
         options={selectOptions}
         inlineDescriptions
         isDisabled={isDisabled}

@@ -100,7 +100,7 @@ export function WebFetchPermissionRequest({
           permissionResult={toolUseConfirm.permissionResult}
         />
         <Text bold>Do you want to allow Mercury to fetch this content?</Text>
-        <Select options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
+        <Select scrollMovesFocus={false} options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
       </Box>
     </PermissionDialog>
   )
