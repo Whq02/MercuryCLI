@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpath
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { afterBootFace } from '../lib/bootFace.ts'
 import { posixPtyDriverOrSkip, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -49,11 +50,11 @@ const drive = join(home, 'drive.jsonl')
 const nodeBin = nodeBinPath()
 
 const sends = [
-  'after:↑↓ choose:1500:\r',
-  'after:↑↓ choose:4500:hello plain world',
-  'after:↑↓ choose:5700:\r',
-  'after:↑↓ choose:10500:/crew',
-  'after:↑↓ choose:11700:\r',
+  afterBootFace(1500, '\r'),
+  afterBootFace(4500, 'hello plain world'),
+  afterBootFace(5700, '\r'),
+  afterBootFace(10500, '/crew'),
+  afterBootFace(11700, '\r'),
 ]
 const WALL_S = driveWallSeconds(sends)
 const child = spawn(

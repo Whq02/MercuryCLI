@@ -65,7 +65,7 @@ try {
       ['backticks', 'agent-`touch M2`.md'],
       ['a double quote and semicolons', 'a";touch M3;".md'],
       ['a double quote, spaces and &&', 'a" && touch M4 && ".md'],
-      ['a variable', 'cost-$HOME.md'],
+      ['a variable', 'cost-$STANDIN_NOTE.md'],
       ['a single quote and spaces', "it's a note.md"],
       ['a newline', 'line\nbreak.md'],
       ['a backslash before a quote', 'tail\\".md'],

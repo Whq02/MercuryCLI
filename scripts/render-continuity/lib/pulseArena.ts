@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../../lib/fixtureApi.ts'
+import { arenaBootFacePass, sendsByAuthor, type SendAuthor } from '../../lib/bootFace.ts'
 import { nodeBinPath } from '../../lib/nodeBin.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -29,13 +30,12 @@ interface TeeWrite {
   content?: string
 }
 
-const FACE_READY_NEEDLE = '↑↓ choose'
-
 interface SendRecord {
   sent: number
   atMs: number
   b64: string
   after?: string
+  by: SendAuthor
   step?: number
   awaitText?: string | string[]
   targetText?: string
@@ -57,7 +57,9 @@ interface ObservedSend {
 interface PulseRun {
   fixture: FixtureApi
   teeLines: TeeWrite[]
+  sends: SendRecord[]
   sendLog: SendRecord[]
+  sent: { drive: number; arena: number }
   driverOut: string
   anchorShiftMs: number
   paths: { home: string; cwd: string; drive: string; tee: string }
@@ -135,7 +137,7 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
   const drive = join(home, 'drive.jsonl')
 
   const sendArgs: string[] = []
-  sendArgs.push('--send', `after:${FACE_READY_NEEDLE}:900:\\r`)
+  sendArgs.push(...arenaBootFacePass())
   for (const s of opts.sends) if (typeof s === 'string') sendArgs.push('--send', s)
   const observed = opts.sends.filter((s): s is ObservedSend => typeof s !== 'string')
   if (observed.length > 0) {
@@ -212,10 +214,10 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
       ? (row as TeeWrite)
       : null,
   )
-  const sendLog = readJsonl<SendRecord>(drive, row =>
-    row && typeof row === 'object' && typeof (row as SendRecord).sent === 'number' && (row as { after?: string }).after !== FACE_READY_NEEDLE
-      ? (row as SendRecord)
-      : null,
+  const { sends, sendLog, sent } = sendsByAuthor(
+    readJsonl<Omit<SendRecord, 'by'> & { by?: string }>(drive, row =>
+      row && typeof row === 'object' && typeof (row as SendRecord).sent === 'number' ? (row as Omit<SendRecord, 'by'> & { by?: string }) : null,
+    ),
   )
   const anchorShiftMs =
     readJsonl<{ shiftMs: number }>(drive, row =>
@@ -234,7 +236,9 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
   return {
     fixture,
     teeLines,
+    sends,
     sendLog,
+    sent,
     driverOut,
     anchorShiftMs,
     paths: { home, cwd, drive, tee },

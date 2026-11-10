@@ -147,11 +147,19 @@ function createHostCanUseTool(channel: AskChannel): CanUseToolFn {
 
       const reason = serializeDecisionReason(askResult.decisionReason)
       const reasonDetail = encodeDecisionReasonForWire(askResult.decisionReason)
+      const description = tool.isMcp === true
+        ? await tool.description(input, {
+            isNonInteractiveSession: toolUseContext.options.isNonInteractiveSession,
+            toolPermissionContext: toolUseContext.getAppState().toolPermissionContext,
+            tools: toolUseContext.options.tools,
+          })
+        : undefined
       const params: ToolAskParams = {
         kind: 'tool',
         tool_use_id: toolUseID,
         tool_name: tool.name,
         title: describeToolAction(tool as Tool, input),
+        ...(description !== undefined ? { description } : {}),
         input,
         ...(askResult.suggestions !== undefined && askResult.suggestions.length > 0 ? { suggestions: askResult.suggestions } : {}),
         ...(askResult.blockedPath !== undefined ? { blocked_path: askResult.blockedPath } : {}),

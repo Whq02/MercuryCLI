@@ -57,6 +57,22 @@ check('an old read cannot silently retarget a number from a new read', expired.o
 const appRef = Number(/\[(\d+)\] AXButton "Save"/.exec(all.result)?.[1])
 const appClicked = await call({ action: 'click', ref: appRef })
 check('a row numbered by an app-scope read is acted on like a row of a window read', appRef !== ref && appClicked.outcome === 'succeeded' && appClicked.result.includes(`click ref:${appRef} → (240, 212) pt`), appClicked.result)
+const resolution = resolveDesktopDriver()
+if (resolution.state !== 'ok') throw new Error('fixture driver unavailable')
+const driver = resolution.driver
+const originalTree = driver.accessibilityTree.bind(driver)
+driver.accessibilityTree = async (...args) => {
+  const answer = await originalTree(...args)
+  if (!answer.ok) return answer
+  const at = answer.value.elements.findIndex(element => element.title === 'Save')
+  const save = answer.value.elements[at]
+  if (!save?.frame) return answer
+  return { ...answer, value: { ...answer.value, elements: [...answer.value.elements.slice(0, at + 1), { ...save, title: 'Save As', frame: { ...save.frame, x: save.frame.x + 100 } }, ...answer.value.elements.slice(at + 1)] } }
+}
+const crowded = await call({ action: 'click', ref: appRef })
+driver.accessibilityTree = originalTree
+const alone = await call({ action: 'click', ref: appRef })
+check('…and only the level the scope lists is exempt: a button that appears beside it, sixteen levels down, retires the number, and without that button the number acts again', crowded.outcome === 'failed' && crowded.result.includes(`ref:${appRef}: no element of the latest tree matches it now`) && alone.outcome === 'succeeded' && alone.result.includes(`click ref:${appRef} → (240, 212) pt`), `${crowded.result} · ${alone.result}`)
 const root = Number(/\[(\d+)\] AXApplicationDialog "Routine"/.exec(all.result)?.[1])
 const scoped = await call({ action: 'tree', root })
 check('root:n starts with the dialog at kept depth zero', /\n\[\d+\] AXApplicationDialog "Routine"\n  \[\d+\] AXButton "Save"/.test(scoped.result) && !scoped.result.includes('AXWindow'), scoped.result)
@@ -65,10 +81,6 @@ check('root selector budgets depth from the dialog', named.outcome === 'succeede
 const found = await call({ action: 'find', target: { role: 'AXButton', name: 'Save' } })
 check('find retains the compacted depth, not the raw wrapper indentation', /\n      \[\d+\] AXButton "Save"/.test(found.result) && !found.result.includes('        ['), found.result)
 const liveRef = Number(/\[(\d+)\] AXButton "Save"/.exec(found.result)?.[1])
-const resolution = resolveDesktopDriver()
-if (resolution.state !== 'ok') throw new Error('fixture driver unavailable')
-const driver = resolution.driver
-const originalTree = driver.accessibilityTree.bind(driver)
 driver.accessibilityTree = async (...args) => {
   const answer = await originalTree(...args)
   return answer.ok ? { ...answer, value: { ...answer.value, elements: answer.value.elements.filter(element => element.title !== 'Save') } } : answer

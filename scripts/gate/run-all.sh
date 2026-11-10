@@ -51,6 +51,7 @@ run_proof "$here/prove-hermetic-shard.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$her
 run_proof "$here/prove-skip-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-skip-census.ts" || fail=1
 run_proof "$here/prove-comment-anchor-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-comment-anchor-census.ts" || fail=1
 run_proof "$here/prove-drive-wait-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-drive-wait-census.ts" || fail=1
+run_proof "$here/prove-harness-sends.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-harness-sends.ts" || fail=1
 run_proof "$here/prove-proof-readings-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-readings-census.ts" || fail=1
 run_proof "$here/prove-proof-account-home.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-account-home.ts" || fail=1
 run_proof "$here/prove-proof-home-discipline.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-home-discipline.ts" || fail=1

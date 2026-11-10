@@ -144,7 +144,6 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
   const run = await runPulseArena({
     turns,
     sends: [
-      'after:↑↓ choose:900:\\r',
       '7400:spawn the probe\\r',
       `after:${CHILD_RAIL_ROW}:1000:${sgrClick(10, 4)}`,
       `after:${CARD_KEYS}:2000:${sgrClick(10, 3)}`,

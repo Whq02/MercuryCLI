@@ -1671,7 +1671,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       (row.decisionReason !== undefined ? { type: 'other' as const, reason: row.decisionReason } : undefined)
     const permissionResult = {
       behavior: 'ask' as const,
-      message: row.description ?? `${row.toolName} asks to run`,
+      message: `${row.toolName} asks to run`,
       ...(row.suggestions !== undefined ? { suggestions: row.suggestions } : {}),
       ...(row.blockedPath !== undefined ? { blockedPath: row.blockedPath } : {}),
       ...(decisionReason !== undefined ? { decisionReason } : {}),
@@ -1707,6 +1707,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       },
       recheckPermission: async () => {},
     }
+    if (row.description !== undefined) return confirm
     void Promise.resolve(
       tool.description(row.input as never, {
         isNonInteractiveSession: false,
