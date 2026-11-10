@@ -23,8 +23,9 @@ const MODEL_TITLE = 'Mercury · model'
 const FILES_TITLE = 'Mercury · files'
 const USAGE_TITLE = 'Mercury · usage'
 const CONFIG_TITLE = 'Mercury · config'
-const USAGE_HINT = '↑↓ scroll · pgup/pgdn page · esc or click outside closes'
+const USAGE_RECEIPT = String.raw`atlas · [^\n]* in · [^\n]* out|atlas has not reported its numbers yet`
 const CONFIG_HINT = '←/→ change'
+const CREWMATE_PICKER_HINT = '↵ picks · esc keeps'
 const LEAD_ROW = '✶ Mercury Lead'
 const HARBOUR_RUNNING = '◐ harbo'
 const ATLAS_RUNNING = '◐ atlas'
@@ -326,9 +327,11 @@ async function leg(cols: number, rows: number): Promise<void> {
     see('its turn ended', 'harbour-ended', 8),
     clickOn(ATLAS_RUNNING),
     see('ledger row 80', 'view-atlas', 8),
-    ...popup('/usage', USAGE_HINT, 'usage'),
+    type('/usage', 3),
+    type('\r', 3),
+    see('atlas', 'usage-receipt', 4, { awaitPattern: USAGE_RECEIPT }),
     ...popup('/config', CONFIG_HINT, 'config'),
-    ...popup('/model', '↑↓ select · ↵ switch', 'model'),
+    ...popup('/model', CREWMATE_PICKER_HINT, 'model'),
     ...(cols >= 178 ? [clickOn('FILES ·')] : [clickOn('or click · browse'), { data: CLICK, targetText: 'or click · browse', afterPrevTicks: 4 }]),
     seePopup(FILES_TITLE, '↑↓ move · ↵ open', 'files-open'),
     type(ESC, 3),
@@ -337,7 +340,7 @@ async function leg(cols: number, rows: number): Promise<void> {
     type(PAGE_UP, 3),
     type(PAGE_UP, 3),
     later(3, 'atlas-scrolled'),
-    ...popup('/usage', USAGE_HINT, 'usage-scrolled', 1),
+    ...popup('/config', CONFIG_HINT, 'config-scrolled', 1),
     clickOn(FJORD_RUNNING),
     see('[fjord]', 'view-fjord', 6),
     type(PAGE_UP, 3),
@@ -354,7 +357,7 @@ async function leg(cols: number, rows: number): Promise<void> {
     seePopup(CREW_TITLE, 'm main chat', 'crew-over-lead'),
     type('m', 3),
     see('THE MAIN CHAT', 'pinned', 6),
-    ...popup('/usage', USAGE_HINT, 'usage-pinned'),
+    ...popup('/config', CONFIG_HINT, 'config-pinned'),
     ...popup('/crewmates', CREW_TITLE, 'crew-pinned'),
     clickOn(LEAD_ROW),
     later(8, 'lead-pinned'),
@@ -421,14 +424,17 @@ async function leg(cols: number, rows: number): Promise<void> {
     console.log(`  the wide Bash result in atlas's transcript: ${wide === undefined ? 'not painted (the runner\'s record carries no toolUseResult)' : `${wideRows(centreOf(wide.rows, cockpit)).length} rows`}`)
     if (wide !== undefined) check(`${tag}: the wide Bash result stays inside the view`, pastCentre(wide.rows, cockpit, 'c0').length === 0 && integrity(wide.rows).length === 0, integrity(wide.rows).slice(0, 3).join(' · '))
     const atlasNeedles = ['never breaks on its own', 'ledger row', '[you → atlas]']
-    for (const [tagName, title, door] of [['usage', USAGE_TITLE, '/usage'], ['config', CONFIG_TITLE, '/config'], ['model', MODEL_TITLE, '/model'], ['files', FILES_TITLE, 'the files menu'], ['crew', CREW_TITLE, '/crew']] as const) {
+    const receipt = marks['usage-receipt']
+    check(`${tag}: /usage at a viewed crewmate answers in one line with atlas's own numbers and opens no pop-up (the command is the crewmate's since the crew view took the agent's commands)`, receipt !== undefined && new RegExp(USAGE_RECEIPT).test(receipt.rows.join('\n')) && !receipt.rows.some(line => line.includes(USAGE_TITLE)) && viewedName(receipt.rows) === 'atlas', receipt === undefined ? 'no frame' : receipt.rows.filter(line => /atlas/.test(line)).map(flat).join(' | ').slice(0, 300))
+    if (receipt !== undefined && atlas !== undefined) check(`${tag}: the answer leaves atlas's transcript where it stood and every border whole`, transcriptRows(receipt.rows, cockpit).join('\n') === transcriptRows(atlas.rows, cockpit).join('\n') && integrity(receipt.rows).length === 0, firstDiff(transcriptRows(atlas.rows, cockpit), transcriptRows(receipt.rows, cockpit)) || integrity(receipt.rows).slice(0, 3).join(' · '))
+    for (const [tagName, title, door] of [['config', CONFIG_TITLE, '/config'], ['model', MODEL_TITLE, "atlas's own /model picker"], ['files', FILES_TITLE, 'the files menu'], ['crew', CREW_TITLE, '/crew']] as const) {
       popupPins(`${tag}: ${door} over atlas`, marks[`${tagName}-open`], title, cockpit, atlasNeedles, atlas)
       returnPins(`${tag}: ${door} closed`, atlas, marks[`${tagName}-closed`], cockpit, 'atlas')
     }
     const scrolled = marks['atlas-scrolled']
     check(`${tag}: PgUp scrolls atlas's transcript (the rows moved, the pill stands)`, scrolled !== undefined && atlas !== undefined && transcriptRows(scrolled.rows, cockpit).join('\n') !== transcriptRows(atlas.rows, cockpit).join('\n') && scrolled.rows.some(line => line.includes(PILL)), scrolled === undefined ? 'no frame' : transcriptRows(scrolled.rows, cockpit).slice(0, 3).map(flat).join(' | '))
-    popupPins(`${tag}: /usage over the scrolled atlas`, marks['usage-scrolled-open'], USAGE_TITLE, cockpit, atlasNeedles, scrolled)
-    returnPins(`${tag}: /usage closed over the scrolled atlas`, scrolled, marks['usage-scrolled-closed'], cockpit, 'atlas')
+    popupPins(`${tag}: /config over the scrolled atlas`, marks['config-scrolled-open'], CONFIG_TITLE, cockpit, atlasNeedles, scrolled)
+    returnPins(`${tag}: /config closed over the scrolled atlas`, scrolled, marks['config-scrolled-closed'], cockpit, 'atlas')
     const fjord = marks['view-fjord']
     check(`${tag}: the swap to fjord from the scrolled atlas paints fjord's rows alone (no atlas row left over)`, fjord !== undefined && viewedName(fjord.rows) === 'fjord' && viewing(fjord.rows, 'fjord') && transcriptRows(fjord.rows, cockpit).some(line => line.includes('[fjord]')) && !transcriptRows(fjord.rows, cockpit).some(line => line.includes('[atlas]') || line.includes('ledger row')), fjord === undefined ? 'no frame' : transcriptRows(fjord.rows, cockpit).map(flat).filter(Boolean).slice(0, 6).join(' | ').slice(0, 300))
     if (fjord !== undefined) {
@@ -453,12 +459,12 @@ async function leg(cols: number, rows: number): Promise<void> {
     check(`${tag}: m on the selected crewmate pins it — ★ in the rail, the status row says main chat, the card says THE MAIN CHAT, the pop-up gone`, pinned !== undefined && pinnedName !== '' && railRow(pinned.rows, cockpit, '★') !== undefined && railRow(pinned.rows, cockpit, '★')!.includes(pinnedName.slice(0, 5)) && cardRows(pinned.rows, cockpit).includes('THE MAIN CHAT') && !pinned.rows.some(line => line.includes(CREW_TITLE)), pinned === undefined ? 'no frame' : `${statusOf(pinned.rows)} · ${railRow(pinned.rows, cockpit, '★') ?? 'no ★ row'}`)
     if (pinned !== undefined) check(`${tag}: the pinned view paints whole`, integrity(pinned.rows).length === 0, integrity(pinned.rows).slice(0, 3).join(' · '))
     const pinnedNeedles = ['the second crewmate says', 'never breaks on its own', 'ledger row', 'its turn ended']
-    popupPins(`${tag}: /usage over the pinned ${pinnedName}`, marks['usage-pinned-open'], USAGE_TITLE, cockpit, pinnedNeedles, pinned)
-    returnPins(`${tag}: /usage closed over the pinned ${pinnedName}`, pinned, marks['usage-pinned-closed'], cockpit, pinnedName)
+    popupPins(`${tag}: /config over the pinned ${pinnedName}`, marks['config-pinned-open'], CONFIG_TITLE, cockpit, pinnedNeedles, pinned)
+    returnPins(`${tag}: /config closed over the pinned ${pinnedName}`, pinned, marks['config-pinned-closed'], cockpit, pinnedName)
     popupPins(`${tag}: the crew pop-up over the pinned ${pinnedName}`, marks['crew-pinned-open'], CREW_TITLE, cockpit, pinnedNeedles, pinned)
     returnPins(`${tag}: the crew pop-up closed over the pinned ${pinnedName}`, pinned, marks['crew-pinned-closed'], cockpit, pinnedName)
     const leadPinned = marks['lead-pinned']
-    check(`${tag}: Mercury Lead in the rail goes back while ${pinnedName} stays the main chat (the status row says the main chat waits for the lead in the rail, ★ kept, the composer still addresses it)`, leadPinned !== undefined && !/viewing/.test(statusOf(leadPinned.rows)) && (statusOf(leadPinned.rows).includes(`main chat: ${pinnedName} · Mercury Lead waits in the rail`) || !/main chat/.test(statusOf(leadPinned.rows))) && railRow(leadPinned.rows, cockpit, '★') !== undefined && (composerRow(leadPinned.rows) ?? '').includes(`message ${pinnedName}`) && transcriptRows(leadPinned.rows, cockpit).some(line => line.includes('[Mercury]') || line.includes('[sam]')), leadPinned === undefined ? 'no frame' : `${statusOf(leadPinned.rows)} · ${railRow(leadPinned.rows, cockpit, '★') ?? 'no ★'} · ${flat(composerRow(leadPinned.rows) ?? '')}`)
+    check(`${tag}: Mercury Lead in the rail goes back while ${pinnedName} stays the main chat (the status row names the main chat, where commands go and the lead waiting in the rail — cut to 'Mercury Lead w…' where 120 columns end, ★ kept, the composer still addresses it)`, leadPinned !== undefined && !/viewing/.test(statusOf(leadPinned.rows)) && (new RegExp(`main chat: ${pinnedName} · commands → ${pinnedName} · Mercury Lead(?: waits in the rail|[ a-z]*…)`).test(statusOf(leadPinned.rows)) || !/main chat/.test(statusOf(leadPinned.rows))) && railRow(leadPinned.rows, cockpit, '★') !== undefined && (composerRow(leadPinned.rows) ?? '').includes(`message ${pinnedName}`) && transcriptRows(leadPinned.rows, cockpit).some(line => line.includes('[Mercury]') || line.includes('[sam]')), leadPinned === undefined ? 'no frame' : `${statusOf(leadPinned.rows)} · ${railRow(leadPinned.rows, cockpit, '★') ?? 'no ★'} · ${flat(composerRow(leadPinned.rows) ?? '')}`)
     if (leadPinned !== undefined) check(`${tag}: the lead's view under a pinned crewmate paints whole`, integrity(leadPinned.rows).length === 0, integrity(leadPinned.rows).slice(0, 3).join(' · '))
     const railTop = marks['rail-top']
     console.log(`  the rail's cursor after Tab and ↑×12: "${flat(railRow(railTop?.rows ?? [], cockpit, '❯') ?? 'no ❯ row')}"`)
