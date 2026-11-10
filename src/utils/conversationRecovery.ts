@@ -223,7 +223,8 @@ function detectInterruption(messages: Message[], stops: ReadonlyMap<string, stri
       if (isLoopGuardStop(candidate)) return { kind: 'none' }
       if (saysRunEndedTurn(candidate)) ended = true
       if (asksNoReply(candidate)) continue
-      return candidate.type === 'assistant' ? turnOfLastReply(candidate, stops, ended, true) : { kind: 'interrupted_turn' }
+      if (candidate.type === 'assistant') return turnOfLastReply(candidate, stops, ended, true)
+      return candidate.type === 'user' && isRunsOwnCutResult(candidate) ? { kind: 'none' } : { kind: 'interrupted_turn' }
     }
     return { kind: 'interrupted_turn' }
   }

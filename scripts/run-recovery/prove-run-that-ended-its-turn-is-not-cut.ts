@@ -57,11 +57,12 @@ const MODEL = 'claude-opus-4-8'
 const SYSTEM_PATH = process.platform === 'win32' ? (process.env.PATH ?? '') : '/usr/bin:/bin'
 
 type Arena = { home: string; cwd: string; env: Record<string, string> }
-function makeArena(name: string, fixture: FixtureApi): Arena {
+function makeArena(name: string, fixture: FixtureApi, settings?: Record<string, unknown>): Arena {
   const home = join(scratch, name, 'home')
   const cwd = join(scratch, name, 'cwd')
   mkdirSync(join(home, '.mercury'), { recursive: true })
   mkdirSync(cwd, { recursive: true })
+  if (settings !== undefined) writeFileSync(join(home, '.mercury', 'settings.json'), JSON.stringify(settings))
   return {
     home,
     cwd,
@@ -215,6 +216,38 @@ try {
       check('G2 control: …and a result that is not an error and merely begins with the same words (a tool\'s own output) reads as cut', lookalike.state === 'interrupted_prompt' && lookalike.saysContinuation === 1, j(lookalike))
       const unanswered = await resumedFrom(record.slice(0, at), SID)
       check('G2 control: …and the record stopped before that result (the call left with no answer) is answered by the ended-run sentence and reads as cut', unanswered.state === 'interrupted_prompt' && unanswered.saysContinuation === 1, j(unanswered))
+    } finally {
+      await fixture.close()
+    }
+  }
+
+  section('G2 — the same turn-limit ending with a turn.end hook that leaves its notice row behind the run\'s own result; a second process resumes')
+  {
+    const SID = 'facef00d-0000-4000-8000-00000000a251'
+    const first: ScriptedTurn = { kind: 'tool_use', name: 'Read', id: 'toolu_g2h_first', input: {} }
+    const closing: ScriptedTurn = { kind: 'tool_use', name: 'Read', id: 'toolu_g2h_closing', input: {} }
+    const fixture = await startFixtureApi([handoffTurn(), first, closing, { kind: 'text', text: 'G2H-SECOND-REPLY.' }])
+    const arena = makeArena('g2h', fixture, { events: { hooks: { 'turn.end': [{ name: 'end note', run: `echo '${JSON.stringify({ notice: 'the end hook spoke' })}'` }] } } })
+    const note = join(arena.cwd, 'note.txt')
+    writeFileSync(note, 'G2H-NOTE-CONTENT\n')
+    ;(first as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: note }
+    ;(closing as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: note }
+    try {
+      const firstRun = await run(arena, ['run', 'G2H first prompt.', '--model', MODEL, '--session-id', SID, '--max-turns', '1', '--mode', 'implement', '--format', 'rows'])
+      const outcome = rowsOf(firstRun.stdout).findLast(row => row.type === 'outcome')
+      const record = await recordOf(transcriptOf(arena, SID))
+      const kinds = record.map(kindOf)
+      const lastTalk = record.findLast(row => row.type === 'user' || row.type === 'assistant')
+      const cut = resultsOfRow(lastTalk)[0]
+      check('G2: with the hook the record ends on the hook\'s row, behind the result the run wrote for the call it did not run', outcome?.status === 'turn_limit' && kinds.at(-1) === 'attachment:hook' && cut?.tool_use_id === 'toolu_g2h_closing' && resultTextOf(cut) === 'Cut off: the turn budget was spent', `exit=${firstRun.exit} ${j({ status: outcome?.status, tail: kinds.slice(-4), cut })} ${firstRun.stderr.slice(-200)}`)
+      const loaded = await resumedFrom(record, SID)
+      check('G2: the loader still does not read the turn as cut from outside — no cut-off sentence', loaded.state === 'none' && loaded.saysContinuation === 0, j(loaded))
+      const second = await run(arena, ['run', 'G2H second prompt.', '--model', MODEL, '--resume', SID, '--mode', 'implement', '--format', 'rows'])
+      const wire = lastRequest(fixture)
+      check('G2: the second process answered, and its request carries no cut-off sentence', second.exit === 0 && second.stdout.includes('G2H-SECOND-REPLY.') && says(wire, CONTINUATION) === 0 && says(wire, 'Cut off: the turn budget was spent') === 1 && wireTexts(wire).at(-1) === 'G2H second prompt.', `exit=${second.exit} ${shapeOf(wire)}`)
+      const at = record.indexOf(lastTalk!)
+      const failed = await resumedFrom(record.map((row, i) => (i === at ? withResult(row, { content: '<tool_use_error>File does not exist.</tool_use_error>' }) : row)), SID)
+      check('G2 control: the same record with a result the tool itself gave in that place, the hook\'s row behind it, reads as cut — the sentence once', failed.state === 'interrupted_prompt' && failed.saysContinuation === 1, j(failed))
     } finally {
       await fixture.close()
     }
