@@ -515,14 +515,10 @@ export function useVirtualScroll(
   useLayoutEffect(() => {
     const handle = scrollRef.current
     if (!handle) return
-    if (sticky) {
-      handle.setClampBounds(undefined, undefined)
-      return
-    }
     const origin = listOriginRef.current
     const min = effectiveStart === 0 ? 0 : topSpacer + origin
-    if (effectiveEnd >= itemCount) {
-      handle.setClampBounds(min, undefined)
+    if (sticky || effectiveEnd >= itemCount) {
+      handle.setClampBounds(min, Number.MAX_SAFE_INTEGER)
       return
     }
     const max =

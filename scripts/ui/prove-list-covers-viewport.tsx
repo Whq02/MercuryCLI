@@ -365,6 +365,8 @@ const cases: Case[] = [
   { name: 'the row under the message cursor expanded by its key from below the pane', world: { ...TALL, tallAt: 110, cursorOnTall: true }, startOpen: false, top: { row: 35, inner: 0 }, act: live => live.set(true), lands: { row: 110, inner: 1 } },
   { name: 'the row under the message cursor expanded by its key inside the pane', world: { ...TALL, cursorOnTall: true }, startOpen: false, top: { row: 35, inner: 0 }, act: live => live.set(true), lands: { row: 35, inner: 0 }, headAt: 5 },
   { name: 'the row under the message cursor collapsed by its key inside the pane', world: { ...TALL, cursorOnTall: true }, startOpen: true, top: { row: 35, inner: 0 }, act: live => live.set(false), lands: { row: 35, inner: 0 }, headAt: 5 },
+  { name: 'a jump to the head from the tail', world: TALL, startOpen: false, top: 'tail', act: live => live.scroll.current!.scrollTo(0), lands: { row: 0, inner: 0 } },
+  { name: 'a jump to the head from a page above the tail', world: TALL, startOpen: false, top: { row: 85, inner: 0 }, act: live => live.scroll.current!.scrollTo(0), lands: { row: 0, inner: 0 } },
   { name: 'the last row grows ten times through the list under the pane\'s top', world: { ...TALL, tallAt: 119 }, startOpen: true, top: { row: 119, inner: 150 }, act: grownTenTimes, lands: { row: 119, inner: 150 }, listRenders: 10, outOfSight: true },
   { name: 'the last row grows ten times by its own state under the pane\'s top', world: { ...OWN, tallAt: 119 }, startOpen: true, top: { row: 119, inner: 150 }, act: grownTenTimes, lands: { row: 119, inner: 150 }, listRenders: 0, outOfSight: true },
   { name: 'a re-wrap off the tail', world: { ...TALL, wide: true }, startOpen: false, top: { row: 37, inner: 0 }, act: live => live.wrap(40) },
