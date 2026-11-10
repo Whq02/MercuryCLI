@@ -32,11 +32,30 @@ export class EarlyStarts {
   private controllers = new Map<string, AbortController>()
   private queue: Promise<void> = Promise.resolve()
   private generation = 0
+  private retired = new WeakSet<AbortController>()
+  private declined = false
 
   constructor(
     private readonly context: ToolUseContext,
     private readonly canUseTool: CanUseToolFn,
   ) {}
+
+  private readonly gate: CanUseToolFn = async (tool, input, context, assistantMessage, toolUseID, forceDecision) => {
+    const decision = await this.canUseTool(tool, input, context, assistantMessage, toolUseID, forceDecision)
+    if (decision.behavior !== 'allow' && context.abortController.signal.aborted && !this.retired.has(context.abortController) && !this.context.abortController.signal.aborted) this.decline(toolUseID)
+    return decision
+  }
+
+  private decline(toolUseID: string): void {
+    this.declined = true
+    for (const [id, controller] of this.controllers) {
+      if (id === toolUseID) continue
+      this.retired.add(controller)
+      controller.abort('retry')
+      this.controllers.delete(id)
+      this.started.delete(id)
+    }
+  }
 
   offer(block: ToolUseBlock, parent: AssistantMessage, ordinal: number): void {
     const generation = this.generation
@@ -45,7 +64,7 @@ export class EarlyStarts {
         const claim = await batchClaimOf(block, this.context)
         if (generation !== this.generation) return
         const launchesCrewmate = findToolByName(this.context.options.tools, block.name)?.name === AGENT_TOOL_NAME
-        const admitted = !launchesCrewmate && (claim.kind === 'free' || claim.kind === 'reads') && this.claims.every(held => claimsCompatible(held, claim))
+        const admitted = !this.declined && !launchesCrewmate && (claim.kind === 'free' || claim.kind === 'reads') && this.claims.every(held => claimsCompatible(held, claim))
         this.claims.push(claim)
         if (admitted) this.start(block, parent, ordinal)
       } catch (error) {
@@ -63,7 +82,7 @@ export class EarlyStarts {
       try {
         await parkBeforeTool(context, block.name)
         openResultRoomForRound(roundID, [parent], this.context)
-        for await (const update of runToolUse(block, parent, this.canUseTool, context, { id: roundID, ordinal })) updates.enqueue(update)
+        for await (const update of runToolUse(block, parent, this.gate, context, { id: roundID, ordinal })) updates.enqueue(update)
         updates.done()
       } catch (error) {
         updates.error(error)
@@ -75,6 +94,7 @@ export class EarlyStarts {
 
   async ready(): Promise<void> {
     await this.queue
+    if (this.declined) this.context.abortController.abort()
   }
 
   take(toolUseID: string): EarlyCall | undefined {
@@ -87,10 +107,14 @@ export class EarlyStarts {
 
   reset(): void {
     this.generation++
-    for (const controller of this.controllers.values()) controller.abort(this.context.abortController.signal.reason ?? 'retry')
+    for (const controller of this.controllers.values()) {
+      this.retired.add(controller)
+      controller.abort(this.context.abortController.signal.reason ?? 'retry')
+    }
     this.claims = []
     this.started = new Map()
     this.controllers = new Map()
+    this.declined = false
     this.roundID = `round:${randomUUID()}`
   }
 }
