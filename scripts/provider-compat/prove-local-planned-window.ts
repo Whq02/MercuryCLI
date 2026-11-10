@@ -52,18 +52,19 @@ function serve(route: (req: IncomingMessage, body: Record<string, unknown>, res:
 
 const CODER = 'qwen2.5-coder:3b'
 const BARE = 'bare-no-max:latest'
+const TAGGED = 'coder-8k:latest'
 const VLLM_MODEL = 'Qwen/Qwen3-32B'
 const ollamaHits: Hit[] = []
 const vllmHits: Hit[] = []
 const loaded = new Map<string, number>([[CODER, 4096], [BARE, 4096]])
 const ollama = await serve((req, body, res) => {
   const url = req.url ?? ''
-  if (url === '/api/tags') return json(res, 200, { models: [CODER, BARE].map(name => ({ name, model: name, size: 1_900_000_000, details: { family: 'qwen2' } })) }), true
+  if (url === '/api/tags') return json(res, 200, { models: [CODER, BARE, TAGGED].map(name => ({ name, model: name, size: 1_900_000_000, details: { family: 'qwen2' } })) }), true
   if (url === '/api/version') return json(res, 200, { version: '0.34.4' }), true
   if (url === '/api/ps') return json(res, 200, { models: [...loaded.entries()].map(([name, ctx]) => ({ name, model: name, size: 1_900_000_000, context_length: ctx })) }), true
   if (url === '/api/show') {
     const id = String(body.model ?? '')
-    return json(res, 200, { parameters: 'num_ctx                        4096', model_info: id === BARE ? { 'general.architecture': 'qwen2' } : { 'general.architecture': 'qwen2', 'qwen2.context_length': 32768 }, capabilities: ['completion', 'tools'] }), true
+    return json(res, 200, { parameters: id === TAGGED ? 'num_ctx                        8192' : '', model_info: id === BARE ? { 'general.architecture': 'qwen2' } : { 'general.architecture': 'qwen2', 'qwen2.context_length': 32768 }, capabilities: ['completion', 'tools'] }), true
   }
   if (url === '/api/generate' && req.method === 'POST') {
     const options = body.options as { num_ctx?: number } | undefined
@@ -106,7 +107,7 @@ const plan = (record: typeof coder, setting: Parameters<typeof w.localPlannedWin
 section('1 · the planned window (pure): what Mercury will send — a setting clamps to the trained max, max is the trained max, server is the served figure, auto on an unread machine is the trained max; a model stating no trained max follows the request, so it plans nothing')
 {
   w.__resetLocalWindowsForTest()
-  check('the fixture: served 4,096 (num_ctx 4096 in the Modelfile too), trained max 32,768; the bare model states no trained max', coder.contextWindow?.tokens === 4096 && coder.contextWindow.source === 'served' && coder.modelMaxContext === 32768 && bare.modelMaxContext === undefined && bare.contextWindow?.tokens === 4096, j({ coder: coder.contextWindow, bare: bare.contextWindow }))
+  check('the fixture: served 4,096 (no num_ctx in either Modelfile), trained max 32,768; the bare model states no trained max', coder.contextWindow?.tokens === 4096 && coder.contextWindow.source === 'served' && coder.modelMaxContext === 32768 && bare.modelMaxContext === undefined && bare.contextWindow?.tokens === 4096, j({ coder: coder.contextWindow, bare: bare.contextWindow }))
   check('32k set ⇒ 32,768 · setting · your setting — /config → Local model window', j(plan(coder, 32768)) === j({ tokens: 32768, source: 'setting', reason: 'set', sourceWords: w.LOCAL_WINDOW_SETTING_WORDS }), j(plan(coder, 32768)))
   check('64k set on a 32k-max model ⇒ 32,768 (the setting clamps to the trained max, as the request does)', plan(coder, 65536)?.tokens === 32768 && plan(coder, 65536)?.reason === 'set', j(plan(coder, 65536)))
   check("'max' ⇒ the trained max 32,768 · reason max", plan(coder, 'max')?.tokens === 32768 && plan(coder, 'max')?.reason === 'max', j(plan(coder, 'max')))
@@ -208,6 +209,43 @@ section('6 · the pre-flight seam: a prompt the chosen window cannot hold refuse
   check('a prompt whose fixed part fits the window refuses nothing here, whatever the history (the fold may still help)', localPromptFitRefusal(`local/${CODER}`, { ...small, messages: [userMessage('x'.repeat(40_000))] as never }) === undefined)
   check('an undiscovered local id refuses nothing', localPromptFitRefusal('local/nobody:latest', params) === undefined)
   w.writeLocalWindowSetting(coder, undefined)
+  w.__resetLocalWindowsForTest()
+}
+
+section("7 · a Modelfile's num_ctx is the plan under auto (red on the base: the trained max 32,768): the tag's own 8,192, named num_ctx, kept beside whatever the server holds, never raised by adoption; a number or trained max in /config still overrides it")
+{
+  w.__resetLocalWindowsForTest()
+  const tagged = localRecordFor(`local/${TAGGED}`)!
+  check('discovery keeps the Modelfile figure beside the stated window: 8,192 · modelfile, trained max 32,768, not loaded', tagged.modelfileContext === 8192 && j(tagged.contextWindow) === j({ tokens: 8192, source: 'modelfile' }) && tagged.modelMaxContext === 32768 && tagged.loaded === false, j(tagged))
+  check('auto ⇒ 8,192 · auto · set · num_ctx', j(plan(tagged, undefined)) === j({ tokens: 8192, source: 'auto', reason: 'set', sourceWords: 'num_ctx' }), j(plan(tagged, undefined)))
+  check("the decision's words name the Modelfile: 8k · the Modelfile's num_ctx", j(w.chooseLocalWindow(tagged, 5_000, undefined, null)) === j({ window: 8192, reason: 'set', words: "8k · the Modelfile's num_ctx" }), j(w.chooseLocalWindow(tagged, 5_000, undefined, null)))
+  check("16k set ⇒ 16,384 · your setting; 'max' ⇒ the trained max 32,768; 'server' ⇒ the Modelfile's own 8,192 as the server will load it", plan(tagged, 16384)?.tokens === 16384 && plan(tagged, 16384)?.sourceWords === w.LOCAL_WINDOW_SETTING_WORDS && plan(tagged, 'max')?.tokens === 32768 && j(plan(tagged, 'server')) === j({ tokens: 8192, source: 'modelfile', sourceWords: 'num_ctx' }), j([plan(tagged, 16384), plan(tagged, 'max'), plan(tagged, 'server')]))
+  check('the guard and the context window read 8,192 before any request, and the rail tag on that figure is set', localGuardWindow(tagged)?.tokens === 8192 && localGuardWindow(tagged)?.sourceWords === 'num_ctx' && getContextWindowForModel(`local/${TAGGED}`) === 8192 && w.localWindowReasonTag(`local/${TAGGED}`, 8192) === 'set', j([localGuardWindow(tagged), getContextWindowForModel(`local/${TAGGED}`)]))
+  check("the /config value words and the picker's row say one figure: auto → 8k (the Modelfile's num_ctx) · [auto → 8k set]", w.localWindowValueWords(tagged, undefined, null) === "auto → 8k (the Modelfile's num_ctx) · num_ctx on every request" && w.localWindowChoiceLine(tagged, { wide: true, setting: undefined, truth: null }) === 'window · 8k num_ctx · [auto → 8k set] · server · 32k · 64k · 128k · max · number · ctrl+w cycles', `${w.localWindowValueWords(tagged, undefined, null)} || ${w.localWindowChoiceLine(tagged, { wide: true, setting: undefined, truth: null })}`)
+  loaded.set(TAGGED, 32768)
+  await refreshLocalDiscovery({ force: true })
+  const resident = localRecordFor(`local/${TAGGED}`)!
+  check('another client holds the tag at 32,768: discovery reads served 32,768 and still carries the Modelfile 8,192; the plan stays 8,192', j(resident.contextWindow) === j({ tokens: 32768, source: 'served' }) && resident.modelfileContext === 8192 && plan(resident, undefined)?.tokens === 8192, j([resident.contextWindow, plan(resident, undefined)]))
+  const before = ollamaHits.length
+  const errors: string[] = []
+  for await (const item of localCallModel({
+    messages: [userMessage('hello')] as never,
+    systemPrompt: ['fixture'] as never,
+    thinkingConfig: { type: 'disabled' } as never,
+    tools: [] as never,
+    signal: new AbortController().signal,
+    options: { model: `local/${TAGGED}`, querySource: 'user', getToolPermissionContext: async () => ({ mode: 'default' }) as never } as never,
+  })) {
+    const row = item as { isApiErrorMessage?: boolean }
+    if (row.isApiErrorMessage === true) errors.push(j(item))
+  }
+  const chat = ollamaHits.slice(before).find(h => h.url === '/api/chat')
+  const hold = w.heldLocalWindow(resident)
+  check('the request carried num_ctx 8192 — the larger resident window is not adopted over the Modelfile — and settled', (chat?.body.options as { num_ctx?: number } | undefined)?.num_ctx === 8192 && errors.length === 0 && hold?.window === 8192 && hold.reason === 'set' && hold.adopted === undefined, j({ options: chat?.body.options, hold, errors }))
+  check('held, the plan and the guard keep the Modelfile words (8,192 · held · set · num_ctx)', j(w.localPlannedWindow(resident)) === j({ tokens: 8192, source: 'held', reason: 'set', sourceWords: 'num_ctx' }) && j(localGuardWindow(resident, hold)) === j({ tokens: 8192, sourceWords: 'num_ctx' }) && w.localWindowValueWords(resident).startsWith("auto → 8k held this session (the Modelfile's num_ctx)"), j([w.localPlannedWindow(resident), w.localWindowValueWords(resident)]))
+  const bigSystem = ['the system prompt of this session. '.repeat(1_573)]
+  const refusal = localPromptFitRefusal(`local/${TAGGED}`, { messages: [userMessage('hello')] as never, systemPrompt: bigSystem as never, tools: [] as never })
+  check('a 13.7k-token system prompt against the 8k tag refuses with the Modelfile figure and its source', (refusal ?? '').includes("cannot fit 'coder-8k:latest's served context window (8192 tokens — num_ctx)"), refusal ?? 'undefined')
   w.__resetLocalWindowsForTest()
 }
 
