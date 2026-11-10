@@ -167,7 +167,7 @@ try {
   const ARMED = 'armed — ↵ again enters'
   const CHAT = '? for shortcuts'
   const screen1 = runScreen('beta-screen', ground, [
-    { awaitText: 'beta probe', requireAwait: true, minTick: 5, awaitSettleTicks: 3, data: '\t', mark: 'boot' },
+    { awaitText: 'beta probe', requireAwait: true, minTick: 5, awaitSettleTicks: 3, data: '', mark: 'boot' },
     { awaitText: LIST_FOCUSED, requireAwait: true, awaitSettleTicks: 3, data: '\r', mark: 'list' },
     { awaitText: ARMED, requireAwait: true, awaitSettleTicks: 3, data: '\r', mark: 'armed' },
     { awaitText: CHAT, requireAwait: true, awaitSettleTicks: 2, data: '', mark: 'chat-b' },
@@ -177,7 +177,7 @@ try {
     { awaitText: 'Spare', requireAwait: true, awaitSettleTicks: 10, data: '', mark: 'end' },
   ], 400, 'Spare')
   const screen2 = runScreen('alpha-screen', sandbox, [
-    { awaitText: 'alpha probe', requireAwait: true, minTick: 5, awaitSettleTicks: 3, data: '\t', mark: 'boot' },
+    { awaitText: 'alpha probe', requireAwait: true, minTick: 5, awaitSettleTicks: 3, data: '', mark: 'boot' },
     { awaitText: LIST_FOCUSED, requireAwait: true, awaitSettleTicks: 3, data: '\r', mark: 'list' },
     { awaitText: ARMED, requireAwait: true, awaitSettleTicks: 3, data: '\r', mark: 'armed' },
     { awaitText: CHAT, requireAwait: true, awaitSettleTicks: 2, data: '/compact', mark: 'chat-a' },
