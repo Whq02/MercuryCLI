@@ -150,7 +150,7 @@ function shortHash(text: string): string {
   return createHash('sha256').update(text).digest('hex').slice(0, 16)
 }
 
-function toolCallKey(toolName: string, args: unknown): string {
+export function toolCallKey(toolName: string, args: unknown): string {
   return `${toolName}${KEY_SEPARATOR}${shortHash(canonicalArguments(args))}`
 }
 

@@ -99,6 +99,7 @@ export async function* runTools(
   let context = toolUseContext
   await early?.ready()
   const roundID = early?.roundID ?? `round:${randomUUID()}`
+  const gate = early?.gate ?? canUseTool
   openResultRoomForRound(roundID, assistantMessages, toolUseContext)
 
   const batches: Array<{ concurrent: boolean; blocks: ToolUseBlock[]; claims: BatchClaim[] }> = []
@@ -124,7 +125,7 @@ export async function* runTools(
           try {
             const taken = early?.take(block.id)
             if (taken === undefined) await parkBeforeBlock(block, currentContext)
-            for await (const update of taken?.updates ?? runToolUse(block, parent, canUseTool, currentContext, { id: roundID, ordinal: toolUseBlocks.indexOf(block) })) {
+            for await (const update of taken?.updates ?? runToolUse(block, parent, gate, currentContext, { id: roundID, ordinal: toolUseBlocks.indexOf(block) })) {
               if (update.contextModifier) {
                 const queue = queuedModifiers.get(update.contextModifier.toolUseID) ?? []
                 queue.push(update.contextModifier.modifier)
@@ -155,7 +156,7 @@ export async function* runTools(
         try {
           const taken = early?.take(block.id)
           if (taken === undefined) await parkBeforeBlock(block, context)
-          for await (const update of taken?.updates ?? runToolUse(block, parent, canUseTool, context, { id: roundID, ordinal: toolUseBlocks.indexOf(block) })) {
+          for await (const update of taken?.updates ?? runToolUse(block, parent, gate, context, { id: roundID, ordinal: toolUseBlocks.indexOf(block) })) {
             if (update.contextModifier) {
               try {
                 context = update.contextModifier.modifier(context)
