@@ -236,7 +236,7 @@ console.log('\n[B] the build seam')
     check("the vendor build's --check is honest about a missing pack without cargo", buildCheck.status === 0 || buildCheck.status === 2, `rc=${String(buildCheck.status)}`)
   }
   const gitignore = readFileSync(join(ROOT, '.gitignore'), 'utf8')
-  check('the pack and the model weights stay out of the tree (.gitignore names them)', /vendor\/embed\//.test(gitignore) && /vendor\/embed-models\//.test(gitignore) && /native\/embed\/target\//.test(gitignore))
+  check('the pack and the model weights stay out of the tree (.gitignore names them)', /^vendor\/embed$/m.test(gitignore) && /^vendor\/embed-models$/m.test(gitignore) && /native\/embed\/target\//.test(gitignore))
   const lockTracked = spawnSync('git', ['-C', ROOT, 'ls-files', '--error-unmatch', models.EMBED_MODELS_LOCK_PATH], { encoding: 'utf8' })
   const lockOnDisk = existsSync(join(ROOT, models.EMBED_MODELS_LOCK_PATH))
   check('the lock is on disk to be tracked; the weights never are', lockOnDisk && !spawnSync('git', ['-C', ROOT, 'ls-files', 'vendor/embed-models'], { encoding: 'utf8' }).stdout.trim().split('\n').some(f => f.endsWith('.gguf')) && (lockTracked.status !== 0 || lockTracked.stdout.trim() === models.EMBED_MODELS_LOCK_PATH))

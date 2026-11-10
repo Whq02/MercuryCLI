@@ -55,7 +55,7 @@ try {
         if (!line.includes('prover_mark ') || line.includes('prover_mark()')) continue
         assert(/"\$[^"\s]+"\s+"\$__rc"/.test(line), `${suite.path}: mark does not receive the captured code`)
       }
-    } else if (/^\s*(?:"\$[bB][uU][nN]"|"\$\{BUN).*\b(?:run\s+)?[^\n]*prove-/m.test(suite.text)) {
+    } else if (/^\s*(?:exec\s+)?(?:"\$[bB][uU][nN]"|"\$\{BUN|bun\s).*\b(?:run\s+)?[^\n]*prove-/m.test(suite.text)) {
       assert(suite.text.includes('run_proof '), `${suite.path}: named proofs have no result marks`)
     }
   }
@@ -81,6 +81,11 @@ try {
       check(`${name}: aggregate result is unchanged for code ${code}`, result.status === (code === 0 ? 0 : 1))
     }
     check(`${name}: a red proof hides no later one — ${marked[1]} marks with every proof red, ${marked[0]} with every proof green`, marked[0] === marked[1])
+  }
+  for (const code of [0, 7]) {
+    const result = spawnSync('bash', [join(root, 'scripts/outcome-pack/run-all.sh')], { cwd: root, env: env(code), encoding: 'utf8', timeout: 10000 })
+    const rows = marks(result.stdout)
+    check(`outcome-pack: a runner whose one command is its proof marks it with code ${code} and exits with it`, rows.length === 1 && rows[0]!.code === code && result.status === code)
   }
   const channels = spawnSync('bash', [join(root, 'scripts/channels/run-all.sh')], { cwd: root, env: env(23), encoding: 'utf8', timeout: 10000 })
   check('a failed first command in a chained condition keeps its original code', marks(channels.stdout).length === 2 && marks(channels.stdout).every(row => row.code === 23))
