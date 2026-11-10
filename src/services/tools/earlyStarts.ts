@@ -34,6 +34,7 @@ export class EarlyStarts {
   private generation = 0
   private retired = new WeakSet<AbortController>()
   private declined = false
+  private roundOpen = false
 
   constructor(
     private readonly context: ToolUseContext,
@@ -55,6 +56,7 @@ export class EarlyStarts {
       this.controllers.delete(id)
       this.started.delete(id)
     }
+    if (this.roundOpen) this.context.abortController.abort()
   }
 
   offer(block: ToolUseBlock, parent: AssistantMessage, ordinal: number): void {
@@ -94,6 +96,7 @@ export class EarlyStarts {
 
   async ready(): Promise<void> {
     await this.queue
+    this.roundOpen = true
     if (this.declined) this.context.abortController.abort()
   }
 
@@ -115,6 +118,7 @@ export class EarlyStarts {
     this.started = new Map()
     this.controllers = new Map()
     this.declined = false
+    this.roundOpen = false
     this.roundID = `round:${randomUUID()}`
   }
 }

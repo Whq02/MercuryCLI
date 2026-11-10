@@ -73,6 +73,7 @@ const TOOLS = [makeTool('Read', true), makeTool('Edit', false)]
 type Answer = 'allow' | 'decline' | 'decline with words'
 interface Scene {
   calls: Array<{ name: string; input: Record<string, unknown>; answer: Answer }>
+  answersAfterReply?: boolean
 }
 interface Run {
   requests: number
@@ -105,9 +106,15 @@ async function run(scene: Scene, label: string): Promise<Run> {
   const answers = new Map(scene.calls.map((call, index) => [ids[index]!, call.answer]))
   let settledAsks = 0
   let wake: (() => void) | null = null
+  let replyEnded = false
   const canUseTool = async (tool: never, input: Record<string, unknown>, toolUseContext: never, assistantMessage: never, toolUseID: string) => {
     asked.push(toolUseID)
     const answer = answers.get(toolUseID)
+    if (scene.answersAfterReply) {
+      const deadline = Date.now() + 1500
+      while (!replyEnded && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10))
+      await new Promise(resolve => setTimeout(resolve, 120))
+    }
     const permission = createPermissionContext(tool, input, toolUseContext, assistantMessage, toolUseID, () => {})
     const decision = answer === 'allow' ? permission.buildAllow(input) : permission.cancelAndAbort(answer === 'decline with words' ? 'read the other file' : undefined, false)
     settledAsks++
@@ -129,7 +136,7 @@ async function run(scene: Scene, label: string): Promise<Run> {
       block.message.stop_reason = null
       yield block as never
     }
-    const early = scene.calls.filter(call => call.name === 'Read').length
+    const early = scene.answersAfterReply ? 0 : scene.calls.filter(call => call.name === 'Read').length
     const deadline = Date.now() + 1500
     while (settledAsks < Math.min(early, 1) && Date.now() < deadline) await new Promise<void>(resolve => { wake = resolve; setTimeout(resolve, 25) })
     await new Promise(resolve => setTimeout(resolve, 60))
@@ -137,6 +144,7 @@ async function run(scene: Scene, label: string): Promise<Run> {
     tail.message.id = `msg_${label}`
     tail.message.stop_reason = 'tool_use'
     yield tail as never
+    replyEnded = true
   }
   const turn = query({
     messages: [createUserMessage({ content: 'please do the thing' })] as never,
@@ -178,6 +186,10 @@ check('the model is sent no further request', early.requests === 1, brief(early)
 check('the turn is stopped', early.turnAborted, brief(early))
 check('the call is answered by the declination itself, which says it was not run', (early.results.get(early.ids[0]!) ?? '').includes(REJECT_MESSAGE) && early.ran.length === 0, brief(early))
 check('the turn closes with the same line as on the settled road', early.texts.includes(INTERRUPT_MESSAGE_FOR_TOOL_USE), brief(early))
+
+section('the same read declined after the whole reply has arrived, the card still standing: the same stop')
+const late = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'decline' }], answersAfterReply: true }, 'late')
+check('no further request, the turn stopped, the declination as the answer, the settled road\'s closing line', late.requests === 1 && late.turnAborted && (late.results.get(late.ids[0]!) ?? '').includes(REJECT_MESSAGE) && late.ran.length === 0 && late.texts.includes(INTERRUPT_MESSAGE_FOR_TOOL_USE), brief(late))
 
 section('two reads in one reply, the first declined: the second is not put to the operator')
 const pair = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'decline' }, { name: 'Read', input: { file_path: '/tmp/declined/b.txt' }, answer: 'allow' }] }, 'pair')
