@@ -81,9 +81,14 @@ try {
   await runHostJob(queued.id, queued.generation!, { runner, pauseMs: 5, timeoutMs: 120, keepAlive: false })
   const guarded = readHostRecord(queued.id)!
   check('never-running endpoint pauses without deletion', guarded.jobState === 'paused' && guarded.status !== 'TERMINATED' && hf.state.deletes === deletesBeforeSetup && hf.state.pods.has('hf-never-ready'))
-  check('paused endpoint keeps its billing and recovery choices', guarded.error?.includes('/hr still billing') && guarded.error.includes('Resume or Terminate in /llmhost'))
+  check('a provisioning endpoint names Terminate rather than an unavailable Resume', guarded.status === 'PROVISIONING' && guarded.error?.includes('/hr still billing') && guarded.error.includes('Terminate in /llmhost') && !guarded.error.includes('Resume'))
   const notices = readdirSync(join(f.home, 'host/notices')).map(name => JSON.parse(readFileSync(join(f.home, 'host/notices', name), 'utf8'))).filter(row => row.sessionId === 'hf-never-ready')
   check('never-ready guard publishes exactly one final notice', notices.length === 1 && !JSON.stringify(notices).includes(hf.key))
+  const pausedEndpoint = await api.stop(stuck.id)
+  const pausedSetup = queueHostSetup({ ...guarded, status: pausedEndpoint.status })
+  await runHostJob(pausedSetup.id, pausedSetup.generation!, { runner, pauseMs: 5, timeoutMs: 120, keepAlive: false })
+  const pausedRecord = readHostRecord(pausedSetup.id)!
+  check('a paused managed endpoint keeps Resume but claims neither a disk nor compute billing', pausedRecord.status === 'EXITED' && pausedRecord.error?.includes('Paused · no compute bills') && pausedRecord.error.includes('Resume or Terminate') && !pausedRecord.error.includes('disk still bills') && !pausedRecord.error.includes('/hr still billing'))
   hf.state.neverReady = false
   await api.terminate(stuck.id)
   removeHostRecord(stuck.id)

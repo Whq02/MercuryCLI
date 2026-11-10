@@ -40,7 +40,7 @@ const price = (amount: number): string => '$' + amount.toFixed(2) + '/hr'
 const shape = hostShape
 const modelTitle = (recipe: HostRecipe): string => recipe.label.split(' · ')[0]!
 const verifiedRank = (recipe: HostRecipe): number => ['measured', 'documented', 'community', 'unverified'].indexOf(hostRecipeVerificationWord(recipe))
-const keepWords = (pod: HostPod, vendor: HostVendorId): string => pod.id + ' · ' + (vendor === 'huggingface' ? 'HF endpoint · ' + (pod.status === 'EXITED' ? 'Paused · no compute bills' : 'running · ' + price(pod.cost) + ' until Pause or Terminate') + ' · /llmhost → Machines I’m paying for' : pod.family ? 'cluster still billable · /llmhost → Machines I’m paying for → Terminate' : pod.status === 'EXITED' ? words.stoppedDisk : 'machine still running · /llmhost → Machines I’m paying for → ' + (vendor === 'lambda' ? 'Terminate (Lambda has no Stop)' : 'Stop or Terminate'))
+const keepWords = (pod: HostPod, vendor: HostVendorId): string => pod.id + ' · ' + (vendor === 'huggingface' ? 'HF endpoint · ' + (pod.status === 'EXITED' ? 'Paused · no compute bills' : pod.status === 'RUNNING' ? 'running · ' + price(pod.cost) + ' until Pause or Terminate' : pod.status + ' · may still bill') + ' · /llmhost → Machines I’m paying for' : pod.family ? 'cluster still billable · /llmhost → Machines I’m paying for → Terminate' : pod.status === 'EXITED' ? words.stoppedDisk : pod.status !== 'RUNNING' ? pod.status + ' · may still bill · /llmhost → Machines I’m paying for → Terminate' : 'machine still running · /llmhost → Machines I’m paying for → ' + (vendor === 'lambda' ? 'Terminate (Lambda has no Stop)' : 'Stop or Terminate'))
 
 async function forgetEndedPods(live: readonly HostPod[]): Promise<string[]> {
   const { configuredCompatEndpoints } = await import('../providers/openaicompat/compatAccounts.js')
@@ -221,22 +221,30 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       const count = pods.filter(row => row.vendor === id).length
       return label + ': ' + (listErrors.includes(label) ? 'unread' : count ? count + (id === 'huggingface' ? ' endpoints' : id === 'runpod' ? ' pods' : ' instances') : id === 'vast' || id === 'lambda' ? 'no instances' : id === 'huggingface' ? 'no endpoints' : 'none')
     }).join(' · ') || 'No vendors connected; connect a vendor to read its account.'
+    const canResume = (): boolean => Boolean(api?.capabilities.managed && pod?.status === 'EXITED' || record && !record.externalJob && !hostJobRunning(record) && pod?.status === 'RUNNING')
+    const refreshRecord = (): void => {
+      if (!pod) return
+      const previous = record
+      record = readHostRecord(pod.id)
+      if (record && (record.status !== previous?.status || record.generation !== previous?.generation)) pod = { ...pod, status: record.status }
+    }
     const mark = (): void => {
       if (!pod) return
-      emit({ title: words.manage, words: record?.error ?? '', host: { id: pod.id, managed: api?.capabilities.managed, price: pod.cost, startedAt: pod.startedAt ?? pod.createdAt, status: record?.status ?? pod.status, canResume: Boolean(api?.capabilities.managed && pod.status === 'EXITED' || record && !record.externalJob && !hostJobRunning(record) && record.status === 'RUNNING'), canTune: Boolean(vendor === 'runpod' && record?.provider && record.target && record.status === 'RUNNING' && !pod.family), step: record?.jobState === 'paused' ? 'paused · Resume or Terminate' : record?.step === 'ready' ? 'ready' : record && ['queued', 'starting', 'running'].includes(record.jobState ?? '') ? record.step : undefined } })
+      const resume = canResume()
+      emit({ title: words.manage, words: record?.error ?? '', host: { id: pod.id, managed: api?.capabilities.managed, price: pod.cost, startedAt: pod.startedAt ?? pod.createdAt, status: pod.status, canResume: resume, canTune: Boolean(vendor === 'runpod' && record?.provider && record.target && pod.status === 'RUNNING' && !pod.family), step: record?.jobState === 'paused' ? resume ? 'paused · Resume or Terminate' : 'paused · Terminate' : record?.step === 'ready' ? 'ready' : record && ['queued', 'starting', 'running'].includes(record.jobState ?? '') ? record.step : undefined } })
     }
     const finish = async (): Promise<LlmHostResult> => {
       if (!pod || !api) return saved ?? stopped()
       for (;;) {
-        record = readHostRecord(pod.id)
+        refreshRecord()
         if (record?.status === 'TERMINATED') return { ok: false, words: record.error ?? 'Instance terminated.' }
         if (record?.retuning) { const { reconcileHostTune } = await import('./tune.js'); record = await reconcileHostTune(pod.id, runner, signal) }
         mark()
-        const refresh = setInterval(() => { if (pod) { record = readHostRecord(pod.id); mark() } }, 1000)
+        const refresh = setInterval(() => { refreshRecord(); mark() }, 1000)
         let action: string | null
-        try { action = await question({ step: 'pod-controls', title: words.manage, found: api.label + ' · ' + pod.name + ' · ' + pod.id + ' · ' + price(pod.cost), willRun: pod.family ? 'Cluster nodes and disks bill until Terminate.' : '', rows: [...(vendor === 'runpod' && record?.provider && record.target && pod.status === 'RUNNING' && !pod.family ? [{ value: 'tune', label: 'Tune · quality, conversations × context, thinking' }] : []), ...(api.capabilities.managed && pod.status === 'EXITED' || record && !record.externalJob && !hostJobRunning(record) && pod.status === 'RUNNING' ? [{ value: 'resume', label: api.capabilities.managed ? 'Resume endpoint' : 'Resume setup' }] : []), ...(!api.capabilities.stop || pod.family || pod.status === 'EXITED' ? [] : [{ value: 'stop', label: api.capabilities.managed ? 'Pause · end compute billing' : words.stopPod }]), { value: 'logs', label: 'Logs' }, { value: 'terminate', label: api.capabilities.managed ? 'Terminate · delete the endpoint' : words.terminatePod }, { value: 'close', label: pod.status === 'EXITED' ? api.capabilities.managed ? 'Close · keep the paused endpoint' : words.closePod : words.keepPod }] }) } finally { clearInterval(refresh) }
-        const latest = readHostRecord(pod.id)
-        if (latest?.status === 'TERMINATED') return { ok: false, words: latest.error ?? 'Instance terminated.' }
+        try { action = await question({ step: 'pod-controls', title: words.manage, found: api.label + ' · ' + pod.name + ' · ' + pod.id + ' · ' + price(pod.cost), willRun: pod.family ? 'Cluster nodes and disks bill until Terminate.' : '', rows: [...(vendor === 'runpod' && record?.provider && record.target && pod.status === 'RUNNING' && !pod.family ? [{ value: 'tune', label: 'Tune · quality, conversations × context, thinking' }] : []), ...(canResume() ? [{ value: 'resume', label: api.capabilities.managed ? 'Resume endpoint' : 'Resume setup' }] : []), ...(!api.capabilities.stop || pod.family || pod.status === 'EXITED' ? [] : [{ value: 'stop', label: api.capabilities.managed ? 'Pause · end compute billing' : words.stopPod }]), { value: 'logs', label: 'Logs' }, { value: 'terminate', label: api.capabilities.managed ? 'Terminate · delete the endpoint' : words.terminatePod }, { value: 'close', label: pod.status === 'EXITED' ? api.capabilities.managed ? 'Close · keep the paused endpoint' : words.closePod : pod.status === 'RUNNING' ? words.keepPod : 'Close' }] }) } finally { clearInterval(refresh) }
+        refreshRecord()
+        if (record?.status === 'TERMINATED') return { ok: false, words: record.error ?? 'Instance terminated.' }
         if (!action || action === 'close') return { ...(saved ?? { ok: true }), words: keepWords(pod, vendor) }
         if (action === 'logs') {
           const engineLog = record ? hostLogTail(record) : ''
@@ -251,6 +259,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           continue
         }
         if (action === 'resume') {
+          if (!canResume()) continue
           if (api.capabilities.managed && api.resume && pod.status === 'EXITED') {
             const confirmed = await question({ step: 'hf-resume', title: 'Resume HF endpoint', found: pod.name, willRun: 'HF resumes compute billing at the current hardware rate. No new endpoint is created.', rows: [{ value: 'resume', label: 'Confirm resume' }, { value: 'cancel', label: words.cancel }] })
             if (confirmed !== 'resume') continue
@@ -323,7 +332,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       vendor = rented.vendor ?? 'runpod'
       if (!vendorKey(vendor)) return { ok: true, words: rented.id + ' · rented by the stock watch on ' + vendorLabel(vendor) + ' · /llmhost → Machines I’m paying for' }
       key = vendorKey(vendor); api = clientFor(vendor)
-      pod = await getHostResource(api, rented.id, signal); record = rented
+      pod = await getHostResource(api, rented.id, signal); record = readHostRecord(rented.id)
       return finish()
     }
     const cancelWatch = async (watchId: string): Promise<LlmHostResult> => {

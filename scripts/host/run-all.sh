@@ -123,5 +123,6 @@ run_proof "$ROOT/scripts/host/prove-host-job-drive.ts" bun "$ROOT/scripts/host/p
 run_proof "$ROOT/scripts/host/prove-rental-selected-shape.ts" bun "$ROOT/scripts/host/prove-rental-selected-shape.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-tensorfold-bank-safety.ts" bun "$ROOT/scripts/host/prove-tensorfold-bank-safety.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-vast-log-location.ts" bun "$ROOT/scripts/host/prove-vast-log-location.ts" || fail=1
+run_proof "$ROOT/scripts/host/prove-host-terminal-state.ts" bun "$ROOT/scripts/host/prove-host-terminal-state.ts" || fail=1
 if [ "$fail" = "0" ]; then echo "✅ host suite GREEN"; else echo "❌ host suite RED"; fi
 exit "$fail"
