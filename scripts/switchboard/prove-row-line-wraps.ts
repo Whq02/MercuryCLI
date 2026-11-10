@@ -103,8 +103,8 @@ const ESC = String.fromCharCode(27)
 const DOWN = `${ESC}[B`
 const CTRL_X = String.fromCharCode(24)
 
-const selects = (title: string): string => `▸ [^│\\n]*${title}`
-const selectsWithout = (title: string, gone: string): string => `(?s)\\A(?!.*${gone}).*▸ [^│\\n]*${title}`
+const selects = (title: string): string => `▸ [^│\\n]*${title.slice(0, 12)}`
+const selectsWithout = (title: string, gone: string): string => `(?s)\\A(?!.*${gone}).*${selects(title)}`
 
 function capture(cols: number, rows: number): Map<string, string[]> {
   const out = join(OUT_DIR, `row-line-${cols}x${rows}.json`)
