@@ -568,6 +568,7 @@ export function deriveCapFailoverCandidates(
   targetModelOf: (route: string) => string | undefined,
   signInAt: (family: string) => number | undefined = () => undefined,
   windowOf?: (route: string, model: string) => FamilyWindowFact,
+  permits?: (model: string) => boolean,
 ): CapFailoverCandidateSet {
   const candidates: CapFailoverCandidate[] = []
   const excluded: CapFailoverExclusion[] = []
@@ -585,6 +586,10 @@ export function deriveCapFailoverCandidates(
     }
     const model = targetModelOf(route)
     const hasModel = model !== undefined && model.trim() !== ''
+    if (hasModel && permits !== undefined && !permits(model)) {
+      excluded.push({ route, why: `the roster excludes ${model}` })
+      continue
+    }
     const window = hasModel && windowOf !== undefined ? windowOf(route, model) : null
     const atCap = window !== null && window.state === 'rejected'
     if (atCap && hasModel && lane.credential !== 'none') {
@@ -664,6 +669,12 @@ export function liveCapFailoverCandidates(home: string | null): CapFailoverCandi
     require('../utils/model/providerFrontier.js') as typeof import('../utils/model/providerFrontier.js')
   const { readSignInLedger } =
     require('../utils/accounts/signInLedger.js') as typeof import('../utils/accounts/signInLedger.js')
+  const { getInitialSettings } =
+    require('../utils/settings/settings.js') as typeof import('../utils/settings/settings.js')
+  const { isModelAllowed } =
+    require('../utils/model/modelAllowlist.js') as typeof import('../utils/model/modelAllowlist.js')
+  const { newestPermittedGeneration } =
+    require('../utils/model/frontierPolicy.js') as typeof import('../utils/model/frontierPolicy.js')
   const ledger = ((): Record<string, { at: number }> => {
     try {
       return readSignInLedger()
@@ -671,15 +682,17 @@ export function liveCapFailoverCandidates(home: string | null): CapFailoverCandi
       return {}
     }
   })()
+  const rostered = getInitialSettings().engine?.roster !== undefined
   const targetOf = (route: string): string | undefined => {
     if (route === 'openai') {
       const seat = getGptSeatAvailability()
       return seat.state === 'ready' ? seat.ids[0] : undefined
     }
     const fact = providerFrontierFact(route as Parameters<typeof providerFrontierFact>[0])?.modelId
-    return route === 'anthropic' && fact !== undefined
+    const target = route === 'anthropic' && fact !== undefined
       ? newestFirstPartyFrontierMember(fact)
       : fact
+    return rostered && route === 'anthropic' && target !== undefined ? (newestPermittedGeneration('fable', target) ?? target) : target
   }
   return deriveCapFailoverCandidates(
     home,
@@ -687,6 +700,7 @@ export function liveCapFailoverCandidates(home: string | null): CapFailoverCandi
     targetOf,
     family => ledger[family]?.at,
     (route, model) => observedFamilyWindow(route, undefined, { model }),
+    rostered ? isModelAllowed : undefined,
   )
 }
 
