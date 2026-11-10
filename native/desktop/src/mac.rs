@@ -8,7 +8,7 @@ use objc2_core_foundation::{CGPoint, CGRect, CGSize};
 use objc2_foundation::NSString;
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{ClickablePointAnswer, clipped, covered_words, hidden_by, same_frame, tree_child_order, wheel_words, ApplicationAnswer, BoundsRecord, DisplayRecord, FocusedText, ScrollAnswer, TextRange, PermissionsAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, NOT_IN_FRONT, ROAD_ACTION, ROAD_WHEEL, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED, WHEEL_FAILED};
+use crate::{ax_children_unanswered, ClickablePointAnswer, clipped, covered_words, hidden_by, same_frame, tree_child_order, wheel_words, ApplicationAnswer, BoundsRecord, DisplayRecord, FocusedText, ScrollAnswer, TextRange, PermissionsAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, NOT_IN_FRONT, ROAD_ACTION, ROAD_WHEEL, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, UNANSWERED_REASON, VALUE_UNSUPPORTED, WHEEL_FAILED};
 
 type CFTypeRef = *const c_void;
 type CGEventRef = *mut c_void;
@@ -586,11 +586,14 @@ unsafe fn ax_frame(element: CFTypeRef) -> Option<BoundsRecord> {
     frame
 }
 
-unsafe fn ax_children(element: CFTypeRef) -> Vec<CFTypeRef> {
-    let children = ax_attribute(element, "AXChildren");
+unsafe fn ax_children_read(element: CFTypeRef) -> (Vec<CFTypeRef>, bool) {
+    let key = cf_string("AXChildren");
+    let mut children: CFTypeRef = ptr::null();
+    let status = AXUIElementCopyAttributeValue(element, key, &mut children);
+    CFRelease(key);
     let mut list: Vec<CFTypeRef> = Vec::new();
-    if children.is_null() {
-        return list;
+    if status != 0 || children.is_null() {
+        return (list, ax_children_unanswered(status));
     }
     if CFGetTypeID(children) == CFArrayGetTypeID() {
         let count = CFArrayGetCount(children);
@@ -602,15 +605,19 @@ unsafe fn ax_children(element: CFTypeRef) -> Vec<CFTypeRef> {
         }
     }
     CFRelease(children);
-    list
+    (list, false)
 }
 
-unsafe fn ax_child_count(element: CFTypeRef) -> isize {
+unsafe fn ax_children(element: CFTypeRef) -> Vec<CFTypeRef> {
+    ax_children_read(element).0
+}
+
+unsafe fn ax_children_stand(element: CFTypeRef) -> bool {
     let key = cf_string("AXChildren");
     let mut count: isize = 0;
     let status = AXUIElementGetAttributeValueCount(element, key, &mut count);
     CFRelease(key);
-    if status == 0 { count } else { 0 }
+    if status == 0 { count > 0 } else { ax_children_unanswered(status) }
 }
 
 unsafe fn tree_element(element: CFTypeRef, depth: u32, focused: CFTypeRef) -> TreeElement {
@@ -689,8 +696,8 @@ pub fn accessibility_observation(pid: i32) -> TreeAnswer {
             }
         }
         for ancestor in ancestors { CFRelease(ancestor); }
-        let mut stack: Vec<(CFTypeRef, u32)> = ax_children(window).into_iter().rev().map(|child| (child, 1)).collect();
-        let mut truncated = false;
+        let (first, mut truncated) = ax_children_read(window);
+        let mut stack: Vec<(CFTypeRef, u32)> = first.into_iter().rev().map(|child| (child, 1)).collect();
         while let Some((element, depth)) = stack.pop() {
             if elements.len() >= 200 || started.elapsed() >= budget {
                 CFRelease(element);
@@ -700,7 +707,9 @@ pub fn accessibility_observation(pid: i32) -> TreeAnswer {
             }
             elements.push(tree_element(element, depth, focused));
             if depth < 3 {
-                for child in ax_children(element).into_iter().rev() { stack.push((child, depth + 1)); }
+                let (children, unanswered) = ax_children_read(element);
+                truncated |= unanswered;
+                for child in children.into_iter().rev() { stack.push((child, depth + 1)); }
             }
             CFRelease(element);
         }
@@ -762,7 +771,11 @@ pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str,
             }
             elements.push(tree_element(element, depth, focused));
             if depth < max_depth {
-                let mut children = ax_children(element);
+                let (mut children, unanswered) = ax_children_read(element);
+                if unanswered {
+                    truncated = true;
+                    reason.get_or_insert_with(|| UNANSWERED_REASON.to_string());
+                }
                 if depth == 0 {
                     if !window.is_null() && !children.iter().any(|child| CFEqual(*child, window) != 0) {
                         children.push(CFRetain(window));
@@ -776,7 +789,7 @@ pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str,
                 for child in children.into_iter().rev() {
                     stack.push((child, depth + 1));
                 }
-            } else if ax_child_count(element) > 0 {
+            } else if ax_children_stand(element) {
                 truncated = true;
             }
             CFRelease(element);
@@ -1232,8 +1245,10 @@ unsafe fn unique_element(pid: i32, wanted: &TreeElement, started: std::time::Ins
         let row = tree_element(element, depth, ptr::null());
         if matching_element(&row, wanted) { matches.push(CFRetain(element)); }
         if depth < 32 {
-            for child in ax_children(element).into_iter().rev() { stack.push((child, depth + 1)); }
-        } else if ax_child_count(element) > 0 { complete = false; }
+            let (children, unanswered) = ax_children_read(element);
+            if unanswered { complete = false; }
+            for child in children.into_iter().rev() { stack.push((child, depth + 1)); }
+        } else if ax_children_stand(element) { complete = false; }
         CFRelease(element);
     }
     for (rest, _) in stack { CFRelease(rest); }
@@ -1286,7 +1301,7 @@ pub fn read_element(pid: i32, wanted: &TreeElement) -> Result<Option<crate::Elem
                     if !line.trim().is_empty() { if !text.is_empty() { text.push('\n'); } text.push_str(&line); }
                     if depth < 32 {
                         for child in ax_children(element).into_iter().rev() { pending.push((child, depth + 1)); }
-                    } else if ax_child_count(element) > 0 { truncated = true; }
+                    } else if ax_children_stand(element) { truncated = true; }
                 }
                 CFRelease(element);
             }

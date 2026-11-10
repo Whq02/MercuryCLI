@@ -371,6 +371,32 @@ mod tree_order_tests {
         assert!(tree_child_order(&[(false, false)], true).is_empty());
     }
 }
+
+pub const UNANSWERED_REASON: &str = "an element whose children could not be read (its application did not answer)";
+
+pub fn ax_children_unanswered(status: i32) -> bool {
+    status == -25204
+}
+
+pub fn uia_children_unanswered(hresult: i32) -> bool {
+    hresult as u32 == 0x8013_1505
+}
+
+#[cfg(test)]
+mod unanswered_tests {
+    use super::{ax_children_unanswered, uia_children_unanswered};
+    #[test]
+    fn only_a_message_that_failed_leaves_a_child_list_unread() {
+        assert!(ax_children_unanswered(-25204));
+        for status in [0, -25200, -25201, -25202, -25205, -25208, -25211, -25212] {
+            assert!(!ax_children_unanswered(status));
+        }
+        assert!(uia_children_unanswered(0x8013_1505u32 as i32));
+        for hresult in [0u32, 0x8004_0201, 0x8004_0204, 0x8013_1509, 0x8000_4005] {
+            assert!(!uia_children_unanswered(hresult as i32));
+        }
+    }
+}
 #[napi(object)]
 pub struct CursorAnswer {
     pub x: Option<f64>,

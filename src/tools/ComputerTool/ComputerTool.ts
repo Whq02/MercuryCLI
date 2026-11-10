@@ -23,6 +23,7 @@ import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import type { PermissionDecision, PermissionRule, ToolPermissionContext } from '../../types/permissions.js'
 import { classifyModelRoute, providerDisplayName } from '../../services/providers/routeLaw.js'
 import { rememberDesktopPermissions, resolveDesktopDriver } from '../../services/desktop/resolveDriver.js'
+import { TREE_UNANSWERED_REASON } from '../../services/desktop/driver.js'
 import type {
   DesktopAnswer,
   DesktopApplication,
@@ -1099,7 +1100,7 @@ function treeWords(app: DesktopApplication, tree: DesktopOutline, limits: { dept
   const pageNote = pageContentNote(app, tree)
   if (pageNote) lines.push(pageNote)
   if (tree.truncated) {
-    lines.push(`truncated: the tree goes on past ${tree.reason !== null ? tree.reason : `the limit of ${limits.count} elements or depth ${limits.depth}`} — narrow with root or find, raise limit or depth to read more, or act on what is shown`)
+    lines.push(`truncated: the tree goes on past ${tree.reason !== null ? tree.reason : `the limit of ${limits.count} elements or depth ${limits.depth}`} — ${tree.reason === TREE_UNANSWERED_REASON ? 'read again, narrow with root or find, or act on what is shown' : 'narrow with root or find, raise limit or depth to read more, or act on what is shown'}`)
   }
   return lines.join('\n')
 }
@@ -1118,7 +1119,7 @@ function fieldsWords(app: DesktopApplication, tree: DesktopOutline, limits: { co
     return parts.join(' ')
   })
   const lines = [`fields: ${app.name} — ${rows.length} control${rows.length === 1 ? '' : 's'}`, ...rows]
-  if (tree.truncated) lines.push(`truncated: more controls past ${tree.reason ?? `the limit of ${limits.count} controls`} — raise limit, or narrow with root`)
+  if (tree.truncated) lines.push(`truncated: more controls past ${tree.reason ?? `the limit of ${limits.count} controls`} — ${tree.reason === TREE_UNANSWERED_REASON ? 'read again, or narrow with root' : 'raise limit, or narrow with root'}`)
   return lines.join('\n')
 }
 

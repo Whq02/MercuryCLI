@@ -53,7 +53,7 @@ if (compiler === null) {
   check('the real native ordering code compiles without desktop APIs', built.status === 0, `${built.error?.message ?? ''} ${built.stderr ?? ''} status=${built.status} signal=${built.signal}`)
   if (built.status === 0) {
     const tested = spawnSync(binary, ['--test-threads=1'], { encoding: 'utf8', env: process.env })
-    check('focused-window ordering and unknown-window refusal pass in Rust', tested.status === 0 && tested.stdout.includes('1 passed'), tested.stdout + tested.stderr)
+    check('focused-window ordering, and which answers leave a child list unread, pass in Rust', tested.status === 0 && tested.stdout.includes('2 passed'), tested.stdout + tested.stderr)
   }
 }
 

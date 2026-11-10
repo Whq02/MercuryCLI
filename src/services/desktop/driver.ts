@@ -136,6 +136,8 @@ export interface DesktopTree {
   webSurface?: boolean
 }
 
+export const TREE_UNANSWERED_REASON = 'an element whose children could not be read (its application did not answer)'
+
 export interface DesktopTreeLimits {
   depth: number
   count: number

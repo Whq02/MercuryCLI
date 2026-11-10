@@ -4,6 +4,7 @@ import { deflateSync, inflateSync } from 'node:zlib'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { ansiToPng } from '../../utils/ansiToPng.js'
 import {
+  TREE_UNANSWERED_REASON,
   desktopAbortedAnswer,
   displaysFingerprint,
   isDesktopKey,
@@ -49,6 +50,7 @@ interface FakeTreeNode {
   offscreen?: boolean
   clickablePoint?: DesktopPoint | null
   focusOnClick?: boolean
+  unanswered?: boolean
 }
 
 interface FakeSceneSwitch {
@@ -202,6 +204,7 @@ function treeProblem(value: unknown, at: string): string | null {
     if (node.wheel !== undefined && typeof node.wheel !== 'boolean') return `${at}[${i}].wheel must be true or false`
     if (node.offscreen !== undefined && typeof node.offscreen !== 'boolean') return `${at}[${i}].offscreen must be true or false`
     if (node.focusOnClick !== undefined && typeof node.focusOnClick !== 'boolean') return `${at}[${i}].focusOnClick must be true or false`
+    if (node.unanswered !== undefined && typeof node.unanswered !== 'boolean') return `${at}[${i}].unanswered must be true or false`
     if (node.clickablePoint !== undefined && node.clickablePoint !== null && !(isRecord(node.clickablePoint) && finiteNumber(node.clickablePoint.x) && finiteNumber(node.clickablePoint.y))) return `${at}[${i}].clickablePoint must be null or a point with x and y`
     if (node.children !== undefined) {
       const problem = treeProblem(node.children, `${at}[${i}].children`)
@@ -327,6 +330,7 @@ function sceneFrom(value: Record<string, unknown>): FakeScene {
 function flattenTree(root: FakeTreeNode, limits: DesktopTreeLimits): DesktopTree {
   const elements: DesktopTreeElement[] = []
   let truncated = false
+  let unanswered = false
   const stack: Array<{ node: FakeTreeNode; depth: number }> = [{ node: root, depth: 0 }]
   while (stack.length > 0) {
     const { node, depth } = stack.pop()!
@@ -337,13 +341,16 @@ function flattenTree(root: FakeTreeNode, limits: DesktopTreeLimits): DesktopTree
     const frame = node.frame ?? null
     elements.push({ depth, role: node.role, title: isText(node.title) && node.title !== '' ? node.title : null, value: isText(node.value) && node.value !== '' ? node.value : null, frame: frame ? { ...frame } : null, ...(typeof node.focused === 'boolean' ? { focused: node.focused } : {}), ...(typeof node.offscreen === 'boolean' ? { offscreen: node.offscreen } : {}) })
     const children = node.children ?? []
-    if (depth < limits.depth) {
+    if (node.unanswered === true) {
+      truncated = true
+      unanswered ||= depth < limits.depth
+    } else if (depth < limits.depth) {
       for (let i = children.length - 1; i >= 0; i--) stack.push({ node: children[i]!, depth: depth + 1 })
     } else if (children.length > 0) {
       truncated = true
     }
   }
-  return { elements, truncated, reason: null }
+  return { elements, truncated, reason: unanswered ? TREE_UNANSWERED_REASON : null }
 }
 
 export function readFakeScene(path: string): FakeSceneRead {
