@@ -1691,6 +1691,48 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'session-scratch',
+          label: 'Session scratchpads',
+          run: async () => {
+            const { idleScratchpads, scratchpadFootprint, sweepIdleScratchpads, SCRATCHPAD_WALK_ENTRIES } = await import('./scratchpadRetention.js')
+            const { retentionCutoffMs, retentionWindowDays } = await import('./cleanup.js')
+            const { formatFileSize } = await import('./format.js')
+            const none = 'only running sessions hold scratch'
+            const idle = await idleScratchpads()
+            let bytes = 0
+            let unread = 0
+            for (const dir of idle) {
+              const seen = await scratchpadFootprint(dir, SCRATCHPAD_WALK_ENTRIES)
+              bytes += seen.bytes
+              if (!seen.whole) unread++
+            }
+            if (bytes === 0 && unread === 0) return { status: 'ok', evidence: none }
+            const one = idle.length === 1
+            const held = `${unread > 0 ? 'at least ' : ''}${formatFileSize(bytes)}`
+            const aged = retentionCutoffMs() === null || unread === idle.length ? '' : ` · removed ${retentionWindowDays()} days after ${one ? 'its' : 'their'} last write`
+            const large = unread === 0 ? '' : ` · ${unread} too large to scan ${unread === 1 ? 'stays' : 'stay'} until removed here`
+            const evidence = `${one ? '1 session that is not running holds' : `${idle.length} sessions that are not running hold`} ${held} of scratch${aged}${large}`
+            if (bytes < 1024 ** 3 && unread === 0) return { status: 'info', evidence }
+            return {
+              status: 'warn',
+              evidence,
+              fix: `Remove them (the chats stay resumable, their scratch files are deleted): press f here, or run \`${binaryName()} health --fix --only session-scratch --yes\`.`,
+              remedy: {
+                plan: `remove the ${one ? 'scratchpad of 1 session that is' : `scratchpads of ${idle.length} sessions that are`} not running (${held}); ${one ? 'its chat stays' : 'their chats stay'} resumable`,
+                class: 'destructive' as const,
+                apply: async () => {
+                  const { swept, kept } = await sweepIdleScratchpads()
+                  return { ok: kept.length === 0, note: `removed ${swept.length} scratchpad${swept.length === 1 ? '' : 's'}${kept.length === 0 ? '' : ` · ${kept.length} could not be removed`}` }
+                },
+                verify: async () => {
+                  const left = (await idleScratchpads()).length
+                  return { ok: left === 0, note: left === 0 ? none : `${left} still held` }
+                },
+              },
+            }
+          },
+        },
+        {
           id: 'isolation',
           label: 'Store isolation',
           run: async () => {

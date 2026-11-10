@@ -1,20 +1,74 @@
-import { mkdirSync, readdirSync, rmdirSync, rmSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, readdirSync, rmdirSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { registerCleanup } from './cleanupRegistry.js'
+import { getMercuryHome } from './envUtils.js'
 import { getMercuryTempDir, getScratchpadDir, scratchpadDirFor } from './permissions/filesystem.js'
 
 export { scratchpadDirFor }
 
 const SCRATCHPAD_SEGMENT = 'scratchpad'
+const OWNERS_SEGMENT = 'scratchpad-owners'
+
+export interface ScratchpadOwner {
+  home: string
+  dir: string
+  pid: number
+  procStart?: string
+}
+
+export function scratchpadOwnersDir(): string {
+  return join(getMercuryTempDir(), OWNERS_SEGMENT)
+}
+
+export function scratchpadOwnerRecord(scratchpadDir: string): string {
+  return join(scratchpadOwnersDir(), `${createHash('sha256').update(scratchpadDir).digest('hex').slice(0, 24)}.json`)
+}
+
+export function isSessionScratchpad(dir: string): boolean {
+  const root = getMercuryTempDir()
+  return basename(dir) === SCRATCHPAD_SEGMENT && join(dirname(dirname(dirname(dir))), '/') === join(root, '/') && dirname(dirname(dir)) !== scratchpadOwnersDir()
+}
+
+let ownerRecordedFor: string | null = null
+let ownProcStart: string | undefined
+
+function writeOwnerRecord(scratchpadDir: string): void {
+  const owner: ScratchpadOwner = { home: getMercuryHome(), dir: scratchpadDir, pid: process.pid, ...(ownProcStart ? { procStart: ownProcStart } : {}) }
+  try {
+    mkdirSync(scratchpadOwnersDir(), { recursive: true })
+    writeFileSync(scratchpadOwnerRecord(scratchpadDir), JSON.stringify(owner))
+  } catch {
+    return
+  }
+}
+
+function recordOwner(): void {
+  const scratchpadDir = getScratchpadDir()
+  if (ownerRecordedFor === scratchpadDir) return
+  ownerRecordedFor = scratchpadDir
+  writeOwnerRecord(scratchpadDir)
+  if (ownProcStart !== undefined) return
+  void import('../daemon/ownerWatch.js')
+    .then(({ getProcessStartTokenAsync }) => getProcessStartTokenAsync(process.pid))
+    .then(procStart => {
+      if (!procStart) return
+      ownProcStart = procStart
+      if (ownerRecordedFor !== null && existsSync(ownerRecordedFor)) writeOwnerRecord(ownerRecordedFor)
+    })
+    .catch(() => {})
+}
 
 export function ensureScratchpadDir(agentId?: string): string {
   const dir = getScratchpadDir(agentId)
   try {
-    mkdirSync(dir, { recursive: true })
+    const made = mkdirSync(dir, { recursive: true })
+    if (made !== undefined && getScratchpadDir().startsWith(made)) ownerRecordedFor = null
   } catch {
     return dir
   }
+  recordOwner()
   return dir
 }
 
@@ -41,6 +95,17 @@ function removeEmptyAncestors(scratchpadDir: string): void {
   removeEmptyDirectory(projectDir)
 }
 
+export function forgetSweptScratchpad(dir: string): void {
+  if (ownerRecordedFor === dir) ownerRecordedFor = null
+  try {
+    rmSync(scratchpadOwnerRecord(dir), { force: true })
+  } catch {
+    return
+  }
+  removeEmptyDirectory(scratchpadOwnersDir())
+  removeEmptyAncestors(dir)
+}
+
 export function sweepScratchpadDir(dir: string): ScratchpadSweep {
   const root = getMercuryTempDir()
   if (!dir.startsWith(root) || dir.length <= root.length) {
@@ -54,7 +119,7 @@ export function sweepScratchpadDir(dir: string): ScratchpadSweep {
   } catch (error) {
     return { swept: false, dir, refusal: `the sweep failed: ${error instanceof Error ? error.message : String(error)}` }
   }
-  removeEmptyAncestors(dir)
+  forgetSweptScratchpad(dir)
   return { swept: true, dir }
 }
 
@@ -73,7 +138,8 @@ function directoriesIn(dir: string): string[] {
 function removeOwnEmptyTempDirectories(): void {
   const scratchpadDir = getScratchpadDir()
   for (const dir of directoriesIn(dirname(scratchpadDir))) removeEmptyDirectory(dir)
-  removeEmptyAncestors(scratchpadDir)
+  if (existsSync(scratchpadDir)) removeEmptyAncestors(scratchpadDir)
+  else forgetSweptScratchpad(scratchpadDir)
 }
 
 let armed = false
