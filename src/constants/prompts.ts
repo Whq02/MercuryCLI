@@ -40,6 +40,7 @@ import { RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
 import { getRuntimePostureSection, isUnattendedRun } from '../utils/cockpit/runtimePosture.js'
 import { listCapabilityKills } from '../utils/permissions/capabilityGate.js'
 import { isMcpPolicyActive } from '../services/mcp/toolPolicy.js'
+import { isAutoCompactEnabled } from '../services/compact/autoCompact.js'
 import {
   LOCAL_CREWMATE_NOTES,
   LOCAL_POSTURE_WORDS,
@@ -173,6 +174,16 @@ function projectEstateSection(toolNames: ReadonlySet<string>): string {
   return `# The project estate\n\n${prependBullets(items).join('\n')}`
 }
 
+const CREWMATE_FOLD_NOTE = 'Your context is folded automatically when it nears its window and the turn goes on after the fold: a context near full is no reason to end your turn.'
+
+function foldIsAutomatic(): boolean {
+  try {
+    return isAutoCompactEnabled()
+  } catch {
+    return false
+  }
+}
+
 const BATCHING_INSTRUCTION = 'Default to batching: when the next step needs several independent reads, searches or checks, issue them in one response so they can run concurrently. Call dependent tools sequentially; wait for each prerequisite before starting the next call.'
 
 export async function enhanceSystemPromptWithEnvDetails(
@@ -195,6 +206,7 @@ export async function enhanceSystemPromptWithEnvDetails(
     ...prependBullets([
       BATCHING_INSTRUCTION,
       `In a crewmate thread the ${BASH_TOOL_NAME} tool's working directory does not survive between calls: pass absolute paths.`,
+      ...(foldIsAutomatic() ? [CREWMATE_FOLD_NOTE] : []),
       'In your final response, name the file paths that matter, always absolute. Quote code only where the literal characters carry the point — a defect you located, a signature the caller asked to see — never as a retelling of code you simply read.',
       'Do not use emoji.',
       'Do not write a colon before a tool call: "Let me read the file:" followed by a read becomes "Let me read the file." with a period.',

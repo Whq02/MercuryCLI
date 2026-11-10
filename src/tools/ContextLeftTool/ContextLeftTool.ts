@@ -77,7 +77,7 @@ export function contextLeftText(view: ContextFillView): string {
   if (left === null || view.leftUntilCompactPct === null) {
     lines.push(CONTEXT_LEFT_NO_FOLD_LINE)
   } else {
-    lines.push(`Left until the fold (autocompact): ${count(left)} tokens (${view.leftUntilCompactPct}% of the window), ${source}.`)
+    lines.push(`Left until the fold (autocompact): ${count(left)} tokens (${view.leftUntilCompactPct}% of the window), ${source} — the fold runs by itself at that line and the turn goes on after it.`)
   }
   return lines.join('\n')
 }

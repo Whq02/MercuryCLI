@@ -19,6 +19,8 @@ process.env.MERCURY_DESKTOP_DRIVER = 'none'
 
 const TOOL_NAME = 'ContextLeft'
 const TOOL_FILE = 'src/tools/ContextLeftTool/ContextLeftTool.ts'
+const FOLD_CLAUSE = 'the fold runs by itself at that line and the turn goes on after it'
+const FOLD_NOTE = 'Your context is folded automatically when it nears its window and the turn goes on after the fold: a context near full is no reason to end your turn.'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -137,6 +139,7 @@ section('§3 wire usage: tokens, percent and the left-until-fold figure equal th
   check('the text names the used count and the window', out.text.includes(`Context: ${count(view.usedTokens!)} of ${count(view.window)} tokens used (${view.usedPct}%)`), out.text)
   check('the text says the count is measured on the wire', out.text.includes('measured on the wire') && !out.text.includes('estimated'), out.text)
   check('the text names the left-until-fold figure with the view’s percent', out.text.includes(`Left until the fold (autocompact): ${count(out.leftUntilCompactTokens!)} tokens (${view.leftUntilCompactPct}% of the window)`), out.text)
+  check('the fold line states that the fold runs by itself and the turn goes on, as its last words', out.text.split('\n').some(line => line === `Left until the fold (autocompact): ${count(out.leftUntilCompactTokens!)} tokens (${view.leftUntilCompactPct}% of the window), measured on the wire — ${FOLD_CLAUSE}.`), out.text)
   check('the wire content is the same text', subject.mapToolResultToToolResultBlockParam(out, 'toolu_1').content === out.text)
   console.log('    sample:\n      ' + out.text.split('\n').join('\n      '))
 }
@@ -159,6 +162,7 @@ section('§5 autocompact off: the fold line is absent and the answer says so')
   check('the view reads no fold point with autocompact off', view.compactAtPct === null && view.leftUntilCompactPct === null, JSON.stringify(view))
   check('the answer has no left-until-fold figure', out.leftUntilCompactTokens === null && out.leftUntilCompactPct === null && !out.text.includes('Left until the fold'), out.text)
   check('and says autocompact is off', out.text.includes(mod.CONTEXT_LEFT_NO_FOLD_LINE), out.text)
+  check('with autocompact off nothing says the fold runs by itself', !out.text.includes(FOLD_CLAUSE) && !out.text.includes('runs by itself'), out.text)
   check('the used count is still reported', out.usedTokens === view.usedTokens && out.text.includes(`${count(view.usedTokens!)} of`), out.text)
   console.log('    sample:\n      ' + out.text.split('\n').join('\n      '))
 }
@@ -206,6 +210,26 @@ section('§9 every roster that counts tools by name carries it')
   check('the glyph registry gives it a family', TOOL_FAMILY_BY_NAME[TOOL_NAME] !== undefined, JSON.stringify(TOOL_FAMILY_BY_NAME[TOOL_NAME]))
   check('no agent is barred from it — a background sub-agent asks about its own window through the one filter', !ALL_AGENT_DISALLOWED_TOOLS.has(TOOL_NAME))
   check('its result is indexed for transcript search (extractSearchText)', typeof subject.extractSearchText === 'function' && subject.extractSearchText({ text: 'Context: x' } as never) === 'Context: x')
+}
+
+section("a crewmate's standing notes say the same fact once, only while the fold is automatic")
+{
+  const prompts = await import('../../src/constants/prompts.ts')
+  const local = await import('../../src/constants/localPromptProfile.ts')
+  const notesOf = async (): Promise<string[]> => {
+    const blocks = await prompts.enhanceSystemPromptWithEnvDetails(['Crewmate instructions.'], STATED, undefined, 'a1fold0note')
+    return (blocks.find(block => block.startsWith('Notes:')) ?? '').split('\n')
+  }
+  const on = await notesOf()
+  process.env.MERCURY_AUTO_COMPACT = '0'
+  const off = await notesOf()
+  delete process.env.MERCURY_AUTO_COMPACT
+  const at = on.findIndex(line => line.includes(FOLD_NOTE))
+  check('with autocompact on the list carries the sentence, word for word, as one bullet', at > 0 && on[at]!.replace(/^\s*-\s*/, '') === FOLD_NOTE, on.join(' | '))
+  check('it stands right after the note on the shell tool, so the lines before it keep their bytes', at > 0 && on[at - 1]!.includes('working directory does not survive between calls'), on.slice(0, at + 1).join(' | '))
+  check('with autocompact off the sentence is absent', off.length > 0 && !off.some(line => line.includes('folded automatically')), off.join(' | '))
+  check('and the list is otherwise the same list, line for line', JSON.stringify(on.filter((_, index) => index !== at)) === JSON.stringify(off), `${on.length} lines on, ${off.length} off`)
+  check("the short list of a local model's crewmate is untouched", local.LOCAL_CREWMATE_NOTES.length === 3 && !local.LOCAL_CREWMATE_NOTES.some(line => /fold/i.test(line)), JSON.stringify(local.LOCAL_CREWMATE_NOTES))
 }
 
 console.log('\n' + (failures === 0 ? `${TOOL_NAME}: ALL CHECKS PASSED` : `${TOOL_NAME}: ${failures} CHECK(S) FAILED`))
