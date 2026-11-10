@@ -1,5 +1,5 @@
-import { mkdirSync, rmSync } from 'node:fs'
-import { basename } from 'node:path'
+import { mkdirSync, readdirSync, rmdirSync, rmSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { registerCleanup } from './cleanupRegistry.js'
 import { getMercuryTempDir, getScratchpadDir, scratchpadDirFor } from './permissions/filesystem.js'
@@ -24,6 +24,23 @@ export function scratchpadPromptLine(dir: string, owner: 'session' | 'crewmate' 
 
 type ScratchpadSweep = { swept: true; dir: string } | { swept: false; dir: string; refusal: string }
 
+function removeEmptyDirectory(dir: string): void {
+  try {
+    rmdirSync(dir)
+  } catch {
+    return
+  }
+}
+
+function removeEmptyAncestors(scratchpadDir: string): void {
+  const root = getMercuryTempDir()
+  const sessionDir = dirname(scratchpadDir)
+  const projectDir = dirname(sessionDir)
+  if (!projectDir.startsWith(root) || projectDir.length <= root.length) return
+  removeEmptyDirectory(sessionDir)
+  removeEmptyDirectory(projectDir)
+}
+
 export function sweepScratchpadDir(dir: string): ScratchpadSweep {
   const root = getMercuryTempDir()
   if (!dir.startsWith(root) || dir.length <= root.length) {
@@ -34,14 +51,29 @@ export function sweepScratchpadDir(dir: string): ScratchpadSweep {
   }
   try {
     rmSync(dir, { recursive: true, force: true })
-    return { swept: true, dir }
   } catch (error) {
     return { swept: false, dir, refusal: `the sweep failed: ${error instanceof Error ? error.message : String(error)}` }
   }
+  removeEmptyAncestors(dir)
+  return { swept: true, dir }
 }
 
 export function sweepOwnScratchpad(): ScratchpadSweep {
   return sweepScratchpadDir(getScratchpadDir())
+}
+
+function directoriesIn(dir: string): string[] {
+  try {
+    return readdirSync(dir, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => join(dir, entry.name))
+  } catch {
+    return []
+  }
+}
+
+function removeOwnEmptyTempDirectories(): void {
+  const scratchpadDir = getScratchpadDir()
+  for (const dir of directoriesIn(dirname(scratchpadDir))) removeEmptyDirectory(dir)
+  removeEmptyAncestors(scratchpadDir)
 }
 
 let armed = false
@@ -56,6 +88,7 @@ export function armScratchpadSweep(): boolean {
   registerCleanup(async () => {
     sweepOwnScratchpad()
   })
+  process.once('exit', removeOwnEmptyTempDirectories)
   return true
 }
 
