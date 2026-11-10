@@ -27,8 +27,9 @@ function keepProofScratch(folder) {
     if (Buffer.from(candidate).equals(Buffer.from(folder))) folders.delete(candidate)
   }
 }
-function runRootBase(inherited) {
+function runRootBase(inherited, ownHome) {
   if (process.platform === 'win32') return ''
+  const home = ownHome ? 'mercury-proof-home-XXXXXX' : 'config-home'
   let bound = NaN
   try {
     bound = Number(/^suite_socket_bound=(\d+)$/m.exec(fs.readFileSync(path.join(__dirname, 'suite-env.sh'), 'utf8'))?.[1])
@@ -37,7 +38,7 @@ function runRootBase(inherited) {
   for (const candidate of [inherited, '/tmp']) {
     try {
       const canon = fs.realpathSync(candidate)
-      if (Buffer.byteLength(`${canon}/${RUN_ROOT_PREFIX}XXXXXX/config-home/daemon/control.sock`) <= bound) return canon
+      if (Buffer.byteLength(`${canon}/${RUN_ROOT_PREFIX}XXXXXX/${home}/daemon/control.sock`) <= bound) return canon
     } catch {}
   }
   return ''
@@ -95,7 +96,7 @@ function writeLedgerEntry(ledger) {
     fs.writeFileSync(path.join(ledger, `${process.pid}.entry`), [process.pid, process.env.MERCURY_SUITE_RUNNER_PID || process.ppid, processStartedAt(), processFolder(), process.execPath].join('\t') + '\n')
   } catch {}
 }
-function installProofScratch() {
+function installProofScratch(options = {}) {
   if (installed) return
   installed = true
   const runRoot = process.env.MERCURY_SUITE_TMPDIR
@@ -112,7 +113,7 @@ function installProofScratch() {
   if (adopted) {
     ownRoot = inherited
   } else if (!guest) {
-    const base = runRootBase(inherited)
+    const base = runRootBase(inherited, options.ownHome === true)
     if (base) {
       try {
         ownRoot = sync(path.join(base, RUN_ROOT_PREFIX))

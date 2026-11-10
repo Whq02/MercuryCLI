@@ -142,6 +142,23 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
         check("single bare: nothing was made under the account's own home, and the scratch home left with the run root", !existsSync(join(account, '.mercury')) && readdirSync(account).length === 0 && readdirSync(temp).length === 0, `account=${JSON.stringify(readdirSync(account))} temp=${JSON.stringify(readdirSync(temp))}`)
       }
       {
+        const bound = Number(/^suite_socket_bound=(\d+)$/m.exec(readFileSync(join(root, 'scripts/lib/suite-env.sh'), 'utf8'))?.[1])
+        const temp = join(short, 'b'.repeat(40 - short.length - 1))
+        const account = join(short, 'account-b')
+        mkdirSync(account)
+        const bare = await drive('bound-bare', 'natural', temp, undefined, [], env => {
+          const { MERCURY_CONFIG_DIR: _home, MERCURY_HOME: _other, ...rest } = env
+          return { ...rest, HOME: account }
+        })
+        const home = bare.facts?.own.home ?? ''
+        const socket = `${home}/daemon/control.sock`
+        check(`single bare, a temp dir of ${Buffer.byteLength(temp)} bytes: the scratch home's daemon socket path is within the ${bound}-byte bound, the run root having moved under /tmp to keep it there`, bare.code === 0 && home !== '' && Buffer.byteLength(socket) <= bound && isRunRoot(dirname(home), realpathSync('/tmp')), `rc=${bare.code} ${socket} (${Buffer.byteLength(socket)} bytes)`)
+        const moved = bare.made[0]
+        if (moved && isRunRoot(moved, realpathSync('/tmp'))) rmSync(moved, { recursive: true, force: true })
+        const given = await drive('bound-given', 'natural', temp)
+        check('single with a home of its own, the same temp dir: the run root stays where the caller asked', given.code === 0 && given.made[0] !== undefined && isRunRoot(given.made[0], temp), `rc=${given.code} ${given.made[0]}`)
+      }
+      {
         const temp = join(short, 'nest')
         const run = await drive('nest', 'nest', temp)
         const runRoot = run.made[0]

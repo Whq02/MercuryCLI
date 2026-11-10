@@ -134,10 +134,10 @@ symlinkSync(foreign, root)
 if (mode === 'roots') {
   const home = join(world, 'stand-in-home')
   const cache = join(world, 'stand-in-cache')
-  const tempRoot = join(tmpdir(), `mercury-${process.getuid!()}`)
+  const tempRoot = join(world, 'tmp', `mercury-${process.getuid!()}`)
   mkdirSync(join(home, '.mercury', 'sessions'), { recursive: true })
   mkdirSync(join(cache, 'mercury-nodejs', `mercury-${process.getuid!()}`), { recursive: true })
-  if (!inside(home) || !inside(cache) || !realpathSync(tmpdir()).startsWith(realpathSync(world) + sep)) process.exit(64)
+  if (!inside(home) || !inside(cache) || !inside(join(world, 'tmp'))) process.exit(64)
   const allowed: Tried[] = []
   const allow = (shape: string, call: () => unknown): Promise<void> => attempt(allowed, shape, call, stands)
   await allow("a stand-in home's config folder removed", () => rmSync(join(home, '.mercury'), whole))
