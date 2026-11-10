@@ -125,9 +125,9 @@ section('2 · the hold wins while its setting is the current one; a hold left by
   check('a 32k hold under a 32k setting is the plan: 32,768 · held · set', decided.window === 32768 && j(plan(coder, 32768)) === j({ tokens: 32768, source: 'held', reason: 'set', sourceWords: w.LOCAL_WINDOW_SETTING_WORDS }), j(plan(coder, 32768)))
   check('the setting moves to 16k: the 32k hold is stale, the plan is 16,384 from the setting', plan(coder, 16384)?.tokens === 16384 && plan(coder, 16384)?.source === 'setting', j(plan(coder, 16384)))
   check("the setting moves to 'server': the plan is the served 4,096", plan(coder, 'server')?.tokens === 4096 && plan(coder, 'server')?.source === 'served', j(plan(coder, 'server')))
-  const adopted = w.adoptLocalWindow(coder, w.decideLocalWindow(coder, 5_000, undefined, null), 8192)
-  check('an adopted window (the server already held the model at 8,192, auto) is the plan: 8,192 · held · srv', adopted.adopted === true && j(plan(coder, undefined)) === j({ tokens: 8192, source: 'held', reason: 'srv', sourceWords: w.LOCAL_WINDOW_HELD_WORDS }), j(plan(coder, undefined)))
-  check('the request outgrows the adopted window: it is released and the plan is the auto decision again (32,768)', w.releaseOutgrownLocalWindow(coder, 20_000) === true && plan(coder, undefined)?.tokens === 32768 && plan(coder, undefined)?.source === 'auto', j(plan(coder, undefined)))
+  const adopted = w.adoptLocalWindow(coder, w.decideLocalWindow(coder, 5_000, 'server', null), 8192)
+  check("an adopted window (server default, the server already held the model at 8,192) is the plan: 8,192 · held · srv", adopted.adopted === true && j(plan(coder, 'server')) === j({ tokens: 8192, source: 'held', reason: 'srv', sourceWords: w.LOCAL_WINDOW_SETTING_WORDS }), j(plan(coder, 'server')))
+  check("the request outgrows the adopted window: it is released and the plan is the server's own figure again (the served 4,096)", w.releaseOutgrownLocalWindow(coder, 20_000) === true && plan(coder, 'server')?.tokens === 4096 && plan(coder, 'server')?.source === 'served', j(plan(coder, 'server')))
   w.__resetLocalWindowsForTest()
 }
 
