@@ -27,9 +27,10 @@ const WHEEL_UP = `${ESC}[<64;40;20M`
 const COLS = 120
 const ROWS = 40
 const KEEP = process.env.LIST_KEYS_KEEP === '1'
-
+let checks = 0
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
+  checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
 }
@@ -162,6 +163,8 @@ const pickerWindow = (lines: string[]): string[] => {
   return left < 0 || right < 0 ? lines : lines.map(l => l.slice(left, right + 1))
 }
 const focusBoxRow = (lines: string[]): number => pickerWindow(lines).findIndex(l => l.includes('│ │ '))
+const modelId = (line: string): string => /\bclaude-[\w.-]+(?=\s)/.exec(line)?.[0] ?? ''
+const focusedModelId = (lines: string[]): string => modelId(pickerWindow(lines)[focusBoxRow(lines)] ?? '')
 const outsideOf = (lines: string[], left: number): string => lines.map(l => l.slice(0, left)).join('\n')
 
 if (CASE === undefined || CASE === 'picker') {
@@ -191,14 +194,17 @@ if (CASE === undefined || CASE === 'picker') {
   check('the picker opened with a focus box', picker.some(l => l.includes('Mercury · model')) && focusBoxRow(picker) >= 0, picker.slice(2, 8).join(' | '))
   const left = Math.max(0, pickerLeft(picker))
   const r0 = focusBoxRow(picker)
-  const r1 = focusBoxRow(wheeled)
-  const r2 = focusBoxRow(back)
-  console.log(`  [record] focus box row: opened ${r0} · after two wheel notches down ${r1} · after one notch up ${r2} · End ${focusBoxRow(end)} · Home ${focusBoxRow(homeF)}`)
+  const models = pickerWindow(picker).map(modelId).filter(id => id !== '')
+  const opened = focusedModelId(picker)
+  const moved = focusedModelId(wheeled)
+  const returned = focusedModelId(back)
+  const first = models.indexOf(opened)
+  console.log(`  [record] focused model: opened ${opened} · after two wheel notches down ${moved} · after one notch up ${returned}`)
   const moreAbove = (lines: string[]): boolean => lines.some(l => /↑ \d+ more/.test(l))
   const moreBelow = (lines: string[]): boolean => lines.some(l => /↓ \d+ more/.test(l))
   check('the picker opened with rows past the window (the seat\'s group leads, the rest fold below)', moreBelow(picker), 'no fold marker below')
-  check('two wheel notches down move the highlight two rows down the picker, one row a notch', r0 >= 0 && r1 === r0 + 2, `row ${r0} → ${r1}`)
-  check('one notch up brings it back up one row', r1 >= 0 && r2 === r1 - 1, `row ${r1} → ${r2}`)
+  check('two wheel notches down move the highlight two models down the picker, one model a notch', first >= 0 && models[first + 2] !== undefined && moved === models[first + 2], `${opened} → ${moved}; expected ${models[first + 2]}`)
+  check('one notch up brings it back up one model', first >= 0 && models[first + 1] !== undefined && returned === models[first + 1], `${moved} → ${returned}; expected ${models[first + 1]}`)
   check('the columns left of the picker (the chat beneath) are unchanged by the wheel', outsideOf(picker, left) === outsideOf(wheeled, left))
   check('End moves the highlight to the last row (the window at the tail, nothing folded below)', focusBoxRow(end) > r0 && !moreBelow(end), `row ${focusBoxRow(end)}; folded below: ${moreBelow(end)}`)
   check('Home returns the highlight to the first stop, the top provider heading (the window at the head, nothing folded above)', homeF.some(l => /│ ❯ [A-Z.]+ · /.test(l)) && !moreAbove(homeF), `heading ${homeF.find(l => l.includes('❯')) ?? '(none)'}; folded above: ${moreAbove(homeF)}`)
@@ -243,5 +249,5 @@ if (CASE === undefined || CASE === 'help') {
 
 if (!KEEP) rmSync(ROOT, { recursive: true, force: true })
 else console.log(`  kept: ${ROOT}`)
-console.log(failures === 0 ? '\n✅ Home, End and the wheel act in the lists on the built product' : `\n❌ ${failures} check(s) failed`)
+console.log(`\nlist-home-end-wheel: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)
