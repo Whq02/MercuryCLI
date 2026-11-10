@@ -167,8 +167,15 @@ function replyStops(messages: Message[]): Map<string, string> {
   return stops
 }
 
-function turnOfLastReply(reply: AssistantMessage, stops: ReadonlyMap<string, string>, failed: boolean, trailed: boolean): InternalInterruptionState {
-  if (failed) return { kind: 'none' }
+const RUN_ENDS_ITS_TURN = 'the turn ends here'
+
+function saysRunEndedTurn(message: Message): boolean {
+  if (isSyntheticApiErrorAssistant(message)) return true
+  return message.type === 'system' && message.subtype === 'informational' && message.content.includes(RUN_ENDS_ITS_TURN)
+}
+
+function turnOfLastReply(reply: AssistantMessage, stops: ReadonlyMap<string, string>, ended: boolean, trailed: boolean): InternalInterruptionState {
+  if (ended) return { kind: 'none' }
   const stop = stops.get(reply.message.id) ?? reply.message.stop_reason
   if (stop === undefined) return trailed ? { kind: 'interrupted_turn' } : { kind: 'none' }
   return stop !== null && stopEndsTurn(stop, reply.message.model) ? { kind: 'none' } : { kind: 'interrupted_turn' }
@@ -177,19 +184,19 @@ function turnOfLastReply(reply: AssistantMessage, stops: ReadonlyMap<string, str
 function detectInterruption(messages: Message[], stops: ReadonlyMap<string, string>): InternalInterruptionState {
   if (messages.length === 0) return { kind: 'none' }
   let index = messages.length - 1
-  let failed = false
+  let ended = false
   while (index >= 0) {
     const candidate = messages[index] as Message
     if (candidate.type !== 'system' && candidate.type !== 'progress' && !isSyntheticApiErrorAssistant(candidate)) {
       break
     }
-    if (candidate.type === 'assistant') failed = true
+    if (saysRunEndedTurn(candidate)) ended = true
     index--
   }
   if (index < 0) return { kind: 'none' }
   const last = messages[index] as Message
   if (last.type === 'assistant') {
-    return turnOfLastReply(last, stops, failed, false)
+    return turnOfLastReply(last, stops, ended, false)
   }
   if (last.type === 'user') {
     if (last.isMeta || last.isCompactSummary) return { kind: 'none' }
@@ -201,9 +208,9 @@ function detectInterruption(messages: Message[], stops: ReadonlyMap<string, stri
   if (last.type === 'attachment') {
     for (let i = index; i >= 0; i--) {
       const candidate = messages[i] as Message
-      if (isSyntheticApiErrorAssistant(candidate)) failed = true
+      if (saysRunEndedTurn(candidate)) ended = true
       if (asksNoReply(candidate)) continue
-      return candidate.type === 'assistant' ? turnOfLastReply(candidate, stops, failed, true) : { kind: 'interrupted_turn' }
+      return candidate.type === 'assistant' ? turnOfLastReply(candidate, stops, ended, true) : { kind: 'interrupted_turn' }
     }
     return { kind: 'interrupted_turn' }
   }

@@ -70,6 +70,7 @@ function makeArena(name: string, fixture: FixtureApi, settings?: Record<string, 
       PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
       TERM: 'dumb',
       MERCURY_CONFIG_DIR: join(home, '.mercury'),
+      MERCURY_TMPDIR: join(scratch, name, 'tmp'),
       ANTHROPIC_BASE_URL: fixture.url,
       ANTHROPIC_API_KEY: 'fixture-key-000',
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
@@ -430,6 +431,126 @@ try {
     const later = await loadConversationForResume(SID8, file)
     const laterTalk = ((later?.messages ?? []) as Message[]).filter(row => row.type === 'user' || row.type === 'assistant')
     check('F8: the same record after 1.0.8 resumed it once (its own cut-off sentence and stand-in reply are rows of the record) and finished a second turn — finished, nothing added to what the record holds', later?.turnInterruptionState.kind === 'none' && laterTalk.length === 6 && laterTalk.filter(row => j(row.type === 'user' || row.type === 'assistant' ? row.message.content : null).includes(CONTINUATION)).length === 1, j({ state: later?.turnInterruptionState.kind, talk: laterTalk.length }))
+  }
+
+  const stopOf = (row: StoredRow | undefined): unknown => (row?.message as { stop_reason?: unknown } | undefined)?.stop_reason ?? null
+  const noticeSays = (row: StoredRow, words: string): boolean => row.type === 'system' && String(row.content ?? '').includes(words)
+  async function stoppedOnceRecorded(arena: Arena, args: string[], sessionId: string, recorded: (rows: StoredRow[]) => boolean, inFlight: Promise<unknown>): Promise<StoredRow[]> {
+    const child = spawn(nodeBin!, [DIST, ...args], { cwd: arena.cwd, env: arena.env })
+    child.stdout.on('data', () => {})
+    child.stderr.on('data', () => {})
+    const exited = new Promise<number | null>(resolve => child.on('close', code => resolve(code)))
+    await Promise.race([inFlight, exited, new Promise(resolve => setTimeout(resolve, 30_000))])
+    const until = Date.now() + 12_000
+    while (Date.now() < until) {
+      const file = transcriptOf(arena, sessionId)
+      if (file !== '' && recorded(await recordOf(file))) break
+      await new Promise(tick => setTimeout(tick, 100))
+    }
+    child.kill('SIGKILL')
+    await exited
+    const file = transcriptOf(arena, sessionId)
+    return file === '' ? [] : await recordOf(file)
+  }
+
+  section('F9 — the built bundle at its own pause limit: the provider pauses nine replies in a row, the run sends eight back and then ends the turn itself; a second process resumes')
+  {
+    const SID9 = 'facef00d-0000-4000-8000-0000000f9a01'
+    const paused = (n: number): ScriptedTurn => ({ kind: 'text', text: `F9-PAUSED-INSTALMENT-${n}.`, stopReason: 'pause_turn' })
+    const fixture = await startFixtureApi([handoffTurn(), ...Array.from({ length: 9 }, (_, n) => paused(n + 1)), { kind: 'text', text: 'F9-SECOND-REPLY.' }])
+    const arena = makeArena('f9', fixture)
+    try {
+      const first = await run(arena, ['run', 'F9 first prompt.', '--model', MODEL, '--session-id', SID9, '--format', 'rows'])
+      const file = transcriptOf(arena, SID9)
+      const record = file === '' ? [] : await recordOf(file)
+      const replies = record.filter(row => row.type === 'assistant')
+      const lastReply = replies.at(-1)
+      const behind = lastReply === undefined ? [] : record.slice(record.indexOf(lastReply) + 1)
+      const decision = behind.find(row => noticeSays(row, 'paused the turn 8 times in a row'))
+      check('F9: the run ended its turn by its own rule (exit 0, completed) on the ninth paused reply, and the record holds that reply stamped pause_turn with the notice of the decision behind it', first.exit === 0 && first.stdout.includes('"status":"completed"') && replies.length === 9 && stopOf(lastReply) === 'pause_turn' && decision !== undefined && noticeSays(decision, 'the turn ends here'), `exit=${first.exit} ${j({ kinds: record.map(kindOf).slice(-6), stop: stopOf(lastReply), behind: behind.map(row => String(row.content ?? kindOf(row)).slice(0, 120)) })} ${first.stderr.slice(-200)}`)
+      const loaded = await resumedFrom(record, SID9)
+      check('F9: the loader reads the turn as finished — the run ended it, nothing stopped it from outside: no cut-off sentence, no stand-in reply', loaded.state === 'none' && loaded.saysContinuation === 0 && loaded.saysSentinel === 0, j({ state: loaded.state, continuation: loaded.saysContinuation, sentinel: loaded.saysSentinel, last: loaded.lastTalk }))
+      const second = await run(arena, ['run', 'F9 second prompt.', '--model', MODEL, '--resume', SID9, '--format', 'rows'])
+      const resumedWire = wireOf(fixture.messageRequests().filter(request => !isHandoffRequest(request)).at(-1))
+      check('F9: the second process answered, and its request holds the nine instalments and then the second prompt, with no cut-off sentence and no stand-in reply between them', second.exit === 0 && second.stdout.includes('F9-SECOND-REPLY.') && says(resumedWire, CONTINUATION) === 0 && says(resumedWire, NO_RESPONSE_REQUESTED) === 0 && says(resumedWire, 'F9-PAUSED-INSTALMENT-9.') === 1 && resumedWire.at(-1)?.role === 'user' && resumedWire.at(-1)?.texts.at(-1) === 'F9 second prompt.', `exit=${second.exit} ${j(resumedWire.map(message => [message.role, message.texts.map(text => text.slice(0, 80))]))}`)
+      const beforeDecision = decision === undefined ? [] : record.slice(0, record.indexOf(decision))
+      const undecided = await resumedFrom(beforeDecision, SID9)
+      check('F9 control: the same record stopped one row earlier — the ninth pause on record, the run\'s decision not — reads as cut: the sentence once', beforeDecision.at(-1) === lastReply && undecided.state === 'interrupted_prompt' && undecided.saysContinuation === 1, j({ last: beforeDecision.at(-1) === undefined ? null : kindOf(beforeDecision.at(-1)!), state: undecided.state, continuation: undecided.saysContinuation }))
+      const sentBack = decision === undefined ? [] : record.map(row => (row === decision ? ({ ...decision, level: 'suggestion', content: 'the provider paused the turn mid-work — sending it back to continue (8 of 8); it counts as a turn' } as StoredRow) : row))
+      const stillGoing = await resumedFrom(sentBack, SID9)
+      check('F9 control: with a notice behind the paused reply that says the turn goes on (the line a continuation leaves) the turn reads as cut — a row behind the reply is not the decision, its words are', stillGoing.state === 'interrupted_prompt' && stillGoing.saysContinuation === 1, j({ state: stillGoing.state, continuation: stillGoing.saysContinuation }))
+    } finally {
+      await fixture.close()
+    }
+  }
+
+  section('F9 — the built bundle stopped hard in mid-work: the provider pauses the first reply, the run sends it back, and signal 9 arrives while that continuation is in flight; a second process resumes')
+  {
+    const SID9K = 'facef00d-0000-4000-8000-0000000f9b01'
+    const fixture = await startFixtureApi([handoffTurn(), { kind: 'text', text: 'F9K-PAUSED-REPLY, the work still going.', stopReason: 'pause_turn' }, { kind: 'hang', deltas: ['thinking'] }, { kind: 'text', text: 'F9K-RESUMED-REPLY.' }])
+    const arena = makeArena('f9k', fixture)
+    try {
+      const record = await stoppedOnceRecorded(arena, ['run', 'F9K first prompt.', '--model', MODEL, '--session-id', SID9K, '--format', 'rows'], SID9K, rows => rows.some(row => row.type === 'assistant' && stopOf(row) === 'pause_turn'), fixture.messageRequestStarted(2))
+      const reply = record.findLast(row => row.type === 'assistant')
+      const behind = reply === undefined ? [] : record.slice(record.indexOf(reply) + 1)
+      check('F9: the record holds the paused reply stamped pause_turn, and nothing behind it says the turn ends', stopOf(reply) === 'pause_turn' && j(reply?.message).includes('F9K-PAUSED-REPLY') && !behind.some(row => noticeSays(row, 'the turn ends here')), j({ kinds: record.map(kindOf), stop: stopOf(reply), behind: behind.map(row => String(row.content ?? kindOf(row)).slice(0, 120)) }))
+      const loaded = await resumedFrom(record, SID9K)
+      check('F9: the loader reads the turn as cut — the sentence once (a pause in mid-work is not a finished turn)', loaded.state === 'interrupted_prompt' && loaded.saysContinuation === 1, j({ state: loaded.state, continuation: loaded.saysContinuation, last: loaded.lastTalk }))
+      const second = await run(arena, ['run', 'F9K second prompt.', '--model', MODEL, '--resume', SID9K, '--format', 'rows'])
+      const resumedWire = wireOf(fixture.messageRequests().filter(request => !isHandoffRequest(request)).at(-1))
+      const replyAt = resumedWire.findIndex(message => message.role === 'assistant' && message.texts.some(text => text.includes('F9K-PAUSED-REPLY')))
+      check('F9: the second process answered, and its request tells the model, right after the paused reply, that the previous run ended before its turn finished', second.exit === 0 && second.stdout.includes('F9K-RESUMED-REPLY.') && replyAt !== -1 && says(resumedWire, CONTINUATION) === 1 && resumedWire[replyAt + 1]?.texts.some(text => text.includes(CONTINUATION)) === true, `exit=${second.exit} ${j(resumedWire.map(message => [message.role, message.texts.map(text => text.slice(0, 80))]))}`)
+    } finally {
+      await fixture.close()
+    }
+  }
+
+  section('F10 — the built bundle at the output ceiling on the road that asks again: the reply is cut at the cap, the run asks the model to go on, the continuation repeats what stood and the run ends the turn itself; a second process resumes')
+  {
+    const SID10 = 'facef00d-0000-4000-8000-0000000fa001'
+    const capped: ScriptedTurn = { kind: 'text', text: 'F10-CAPPED-REPLY that ran into the output ceiling', stopReason: 'max_tokens' }
+    const fixture = await startFixtureApi([handoffTurn(), capped, capped, { kind: 'text', text: 'F10-SECOND-REPLY.' }])
+    const arena = makeArena('f10', fixture)
+    try {
+      const first = await run(arena, ['run', 'F10 first prompt.', '--model', MODEL, '--session-id', SID10, '--format', 'rows'])
+      const asked = fixture.messageRequests().filter(request => !isHandoffRequest(request)).length
+      const file = transcriptOf(arena, SID10)
+      const record = file === '' ? [] : await recordOf(file)
+      const replies = record.filter(row => row.type === 'assistant' && row.isApiErrorMessage !== true)
+      const lastReply = replies.at(-1)
+      const behind = lastReply === undefined ? [] : record.slice(record.indexOf(lastReply) + 1)
+      check('F10: the run asked twice, ended the turn itself and said so (its outcome row: failed, stop max_tokens); the record holds the capped reply stamped max_tokens, and behind it the notice that the turn ends here and the output-cap error row', asked === 2 && first.stdout.includes('"status":"failed"') && first.stdout.includes('"stop":"max_tokens"') && stopOf(lastReply) === 'max_tokens' && behind.some(row => noticeSays(row, 'the turn ends here')) && behind.some(row => row.type === 'assistant' && row.isApiErrorMessage === true), `exit=${first.exit} asked=${asked} ${j({ kinds: record.map(kindOf), stop: stopOf(lastReply), behind: behind.map(row => (row.type === 'assistant' ? `error-row:${String(row.apiError ?? row.error)}` : String(row.content ?? kindOf(row)).slice(0, 120))) })} ${first.stdout.slice(-300)}`)
+      const loaded = await resumedFrom(record, SID10)
+      check('F10: the loader reads the turn as finished — the record says how it ended: no cut-off sentence', loaded.state === 'none' && loaded.saysContinuation === 0, j({ state: loaded.state, continuation: loaded.saysContinuation, last: loaded.lastTalk }))
+      const errorRows = behind.filter(row => row.type === 'assistant' && row.isApiErrorMessage === true)
+      const noErrorRow = await resumedFrom(record.slice(0, record.length - (record.at(-1) !== undefined && errorRows.includes(record.at(-1)!) ? 1 : 0)), SID10)
+      check('F10: the same record without the error row (the notice of the decision is the last row on record) still reads as finished', errorRows.length === 1 && record.at(-1) === errorRows[0] && noErrorRow.state === 'none' && noErrorRow.saysContinuation === 0, j({ tail: record.map(kindOf).slice(-3), state: noErrorRow.state, continuation: noErrorRow.saysContinuation }))
+      const second = await run(arena, ['run', 'F10 second prompt.', '--model', MODEL, '--resume', SID10, '--format', 'rows'])
+      const resumedWire = wireOf(fixture.messageRequests().filter(request => !isHandoffRequest(request)).at(-1))
+      check('F10: the second process answered, and its request carries no cut-off sentence', second.exit === 0 && second.stdout.includes('F10-SECOND-REPLY.') && says(resumedWire, CONTINUATION) === 0 && resumedWire.at(-1)?.texts.at(-1) === 'F10 second prompt.', `exit=${second.exit} ${j(resumedWire.map(message => [message.role, message.texts.map(text => text.slice(0, 80))]))}`)
+    } finally {
+      await fixture.close()
+    }
+  }
+
+  section('F10 — the built bundle stopped hard while it asks again after the output ceiling: signal 9 with the continuation in flight; a second process resumes')
+  {
+    const SID10K = 'facef00d-0000-4000-8000-0000000fb001'
+    const fixture = await startFixtureApi([handoffTurn(), { kind: 'text', text: 'F10K-CAPPED-REPLY that ran into the output ceiling', stopReason: 'max_tokens' }, { kind: 'hang', deltas: ['thinking'] }, { kind: 'text', text: 'F10K-RESUMED-REPLY.' }])
+    const arena = makeArena('f10k', fixture)
+    try {
+      const record = await stoppedOnceRecorded(arena, ['run', 'F10K first prompt.', '--model', MODEL, '--session-id', SID10K, '--format', 'rows'], SID10K, rows => rows.some(row => row.type === 'assistant' && stopOf(row) === 'max_tokens'), fixture.messageRequestStarted(2))
+      const reply = record.findLast(row => row.type === 'assistant')
+      const behind = reply === undefined ? [] : record.slice(record.indexOf(reply) + 1)
+      check('F10: the record holds the capped reply stamped max_tokens, with no error row and no notice that the turn ends behind it', stopOf(reply) === 'max_tokens' && reply?.isApiErrorMessage !== true && !behind.some(row => noticeSays(row, 'the turn ends here') || row.type === 'assistant'), j({ kinds: record.map(kindOf), stop: stopOf(reply), behind: behind.map(row => String(row.content ?? kindOf(row)).slice(0, 120)) }))
+      const loaded = await resumedFrom(record, SID10K)
+      check('F10: the loader reads the turn as cut — the sentence once', loaded.state === 'interrupted_prompt' && loaded.saysContinuation === 1, j({ state: loaded.state, continuation: loaded.saysContinuation, last: loaded.lastTalk }))
+      const second = await run(arena, ['run', 'F10K second prompt.', '--model', MODEL, '--resume', SID10K, '--format', 'rows'])
+      const resumedWire = wireOf(fixture.messageRequests().filter(request => !isHandoffRequest(request)).at(-1))
+      check('F10: the second process answered, and its request tells the model once that the previous run ended before its turn finished', second.exit === 0 && second.stdout.includes('F10K-RESUMED-REPLY.') && says(resumedWire, CONTINUATION) === 1, `exit=${second.exit} ${j(resumedWire.map(message => [message.role, message.texts.map(text => text.slice(0, 80))]))}`)
+    } finally {
+      await fixture.close()
+    }
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
