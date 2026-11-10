@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import { spawn, type ChildProcess } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 import { DIST, MODEL, NODE, childEnv, makeTally, sleep } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type ScriptedRequest, type WireBlock } from '../lib/scriptedTurn.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -21,7 +21,7 @@ const ANSWER = `${ANSWER_HEAD}\n${Array.from({ length: 6_000 }, (_, i) => create
 const STALL_MS = 5_000
 
 type Frame = Record<string, unknown>
-type Run = { frames: Frame[]; bytes: number; exit: number | null; signal: string | null; stderr: string; aliveAfterStall: boolean; exitedAtMs: number | null; resumedAtMs: number; t0: number; readerLog: string }
+type Run = { frames: Frame[]; bytes: number; exit: number | null; signal: string | null; stderr: string; aliveAfterStall: boolean; exitedAtMs: number | null; resumedAtMs: number; t0: number; readerLog: string; home: string }
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'rows-stalled-reader-')))
 let homes = 0
@@ -69,7 +69,7 @@ writeFileSync(
   ].join('\n') + '\n',
 )
 
-async function runWithReader(mode: 'stall-then-read' | 'close' | 'slow' | 'leave-at-once'): Promise<Run> {
+async function runWithReader(mode: 'stall-then-read' | 'close' | 'slow' | 'leave-at-once', flags: string[] = []): Promise<Run> {
   const runHome = join(scratch, `home-${++homes}`)
   const cwd = join(runHome, 'work')
   const fixture = await startScriptedFixture((req: ScriptedRequest): WireBlock[] => {
@@ -78,7 +78,7 @@ async function runWithReader(mode: 'stall-then-read' | 'close' | 'slow' | 'leave
   })
   seedScratchHome(runHome, cwd)
   const port = Number(new URL(fixture.base).port)
-  const reader: ChildProcess = spawn(NODE, [READER, mode, String(STALL_MS), String(vshotBudgetMs(60_000)), cwd, NODE, DIST, 'run', '--format', 'rows', '--mode', 'sovereign', '--model', MODEL, '--', ASK], {
+  const reader: ChildProcess = spawn(NODE, [READER, mode, String(STALL_MS), String(vshotBudgetMs(60_000)), cwd, NODE, DIST, 'run', '--format', 'rows', '--mode', 'sovereign', '--model', MODEL, ...flags, '--', ASK], {
     cwd,
     env: childEnv(runHome, port) as Record<string, string | undefined>,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -94,8 +94,8 @@ async function runWithReader(mode: 'stall-then-read' | 'close' | 'slow' | 'leave
   await new Promise<void>(resolve => reader.on('close', () => resolve()))
   await fixture.close()
   const line = out.split('\n').find(l => l.trim().startsWith('{'))
-  if (line === undefined) return { frames: [], bytes: 0, exit: null, signal: null, stderr: '', aliveAfterStall: false, exitedAtMs: null, resumedAtMs: 0, t0: 0, readerLog }
-  return { ...(JSON.parse(line) as Omit<Run, 'readerLog'>), readerLog }
+  if (line === undefined) return { frames: [], bytes: 0, exit: null, signal: null, stderr: '', aliveAfterStall: false, exitedAtMs: null, resumedAtMs: 0, t0: 0, readerLog, home: runHome }
+  return { ...(JSON.parse(line) as Omit<Run, 'readerLog' | 'home'>), readerLog, home: runHome }
 }
 
 const seconds = (ms: number | null, t0: number): string => (ms === null || ms === 0 ? 'never' : `${((ms - t0) / 1000).toFixed(2)}s`)
@@ -151,6 +151,27 @@ tally.section('a reader that leaves at the first bytes, nothing queued behind it
   tally.check('the process ended within a few seconds of the reader leaving', run.exitedAtMs !== null && run.exitedAtMs - run.resumedAtMs < vshotBudgetMs(10_000), `exit ${seconds(run.exitedAtMs, run.t0)} · left ${seconds(run.resumedAtMs, run.t0)}`)
   tally.check('a dead reader ends loudly with exit 1', run.exit === 1, `exit ${run.exit}`)
   tally.check('stderr states the broken-stdout reason', run.stderr.includes("stdout closed before the run's output was delivered (broken pipe)"), run.stderr.slice(0, 200))
+}
+
+tally.section('the line promises a transcript only where one was kept: an --ephemeral run says it kept none')
+{
+  const transcripts = (home: string): string[] => {
+    const found: string[] = []
+    const visit = (folder: string): void => { for (const entry of readdirSync(folder, { withFileTypes: true })) { const path = join(folder, entry.name); if (entry.isDirectory()) visit(path); else if (entry.name.endsWith('.jsonl') && path.includes(`${sep}projects${sep}`)) found.push(path) } }
+    if (existsSync(home)) visit(home)
+    return found
+  }
+  const kept = await runWithReader('leave-at-once')
+  const ephemeral = await runWithReader('leave-at-once', ['--ephemeral'])
+  const lineOf = (run: Run): string => run.stderr.split('\n').find(line => line.includes('(broken pipe)')) ?? ''
+  console.log(`  kept: ${lineOf(kept)}`)
+  console.log(`  ephemeral: ${lineOf(ephemeral)}`)
+  console.log(`  transcripts kept: ${transcripts(kept.home).map(path => path.slice(kept.home.length + 1)).join(' · ')}`)
+  tally.check('control: a run that keeps its record says the session transcript is intact, and one stands under its home', kept.exit === 1 && lineOf(kept).endsWith('; the session transcript is intact') && transcripts(kept.home).length >= 1, `exit ${kept.exit} · ${lineOf(kept)} · ${transcripts(kept.home).length} transcript file(s)`)
+  tally.check('the --ephemeral run ends the same way, exit 1, and kept no transcript', ephemeral.exit === 1 && transcripts(ephemeral.home).length === 0, `exit ${ephemeral.exit} · ${transcripts(ephemeral.home).join(' ')}`)
+  tally.check('its line states the same loss and promises no transcript', lineOf(ephemeral).startsWith("stdout closed before the run's output was delivered (broken pipe) — the undelivered output is lost") && !ephemeral.stderr.includes('transcript is intact'), lineOf(ephemeral) || ephemeral.stderr.slice(0, 200))
+  tally.check('…it says the run was --ephemeral and kept none', lineOf(ephemeral).endsWith(', and --ephemeral kept no transcript of the run'), lineOf(ephemeral))
+  tally.check('the line is written once on either run', kept.stderr.split('(broken pipe)').length === 2 && ephemeral.stderr.split('(broken pipe)').length === 2)
 }
 
 tally.section('a file target is unchanged: every row through the step and the outcome lands on disk with exit 0')

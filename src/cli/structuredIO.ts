@@ -1,5 +1,6 @@
 
 import { writeSync } from 'node:fs'
+import { isSessionPersistenceDisabled } from '../bootstrap/state.js'
 import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
 import { createRowStamper, type RowDraft } from '../rows/project.js'
 import { InputRowSchema, type InputRow, type PromptRow, type Row } from '../rows/vocabulary.js'
@@ -19,8 +20,9 @@ function fatalProtocolError(reason: string): never {
   process.exit(1)
 }
 
-export const BROKEN_STDOUT_LINE =
-  "stdout closed before the run's output was delivered (broken pipe) — the undelivered output is lost; the session transcript is intact"
+const BROKEN_STDOUT_HEAD = "stdout closed before the run's output was delivered (broken pipe) — the undelivered output is lost"
+export const BROKEN_STDOUT_LINE = `${BROKEN_STDOUT_HEAD}; the session transcript is intact`
+const BROKEN_STDOUT_EPHEMERAL_LINE = `${BROKEN_STDOUT_HEAD}, and --ephemeral kept no transcript of the run`
 
 export function isBrokenPipeError(error: unknown): boolean {
   const code = (error as NodeJS.ErrnoException | null)?.code
@@ -175,7 +177,7 @@ export class StructuredIO {
     this.stdoutPipeBroken = true
     process.exitCode = 1
     try {
-      process.stderr.write(`${BROKEN_STDOUT_LINE}\n`)
+      process.stderr.write(`${isSessionPersistenceDisabled() ? BROKEN_STDOUT_EPHEMERAL_LINE : BROKEN_STDOUT_LINE}\n`)
     } catch {
     }
   }

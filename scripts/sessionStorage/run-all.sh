@@ -16,6 +16,7 @@
 # gate-watch: src/utils/attachments/orchestrator.ts src/tasks.ts src/utils/messages/factories.ts
 # gate-watch: scripts/lib/removeScratch.ts
 # gate-watch: src/services/ide/pythonTests.ts
+# gate-watch: src/services/compact/compact.ts src/utils/messages/systemMessages.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -42,6 +43,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-history-flus
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-first-prompt-extractor.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-first-prompt-extractor.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-writer-hardening.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-writer-hardening.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-record-branch-pruning.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-record-branch-pruning.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-session-rows-read-across-a-fold.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-session-rows-read-across-a-fold.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-field-e004-parallel-batch-resume.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-field-e004-parallel-batch-resume.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-torn-tail-heal.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-torn-tail-heal.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-store-not-cross-adopted.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-store-not-cross-adopted.ts" "$__t" "$__rc"
