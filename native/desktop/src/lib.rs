@@ -122,16 +122,17 @@ pub struct ApplicationAnswer {
     pub bounds: Option<BoundsRecord>,
     pub window_id: Option<String>,
     pub tty: Option<String>,
+    pub bundle_path: Option<String>,
     pub reason: Option<String>,
 }
 
 impl ApplicationAnswer {
     pub fn refused(reason: &str) -> ApplicationAnswer {
-        ApplicationAnswer { identity: None, name: None, pid: None, title: None, bounds: None, window_id: None, tty: None, reason: Some(reason.to_string()) }
+        ApplicationAnswer { identity: None, name: None, pid: None, title: None, bounds: None, window_id: None, tty: None, bundle_path: None, reason: Some(reason.to_string()) }
     }
 
     pub fn found(identity: String, name: Option<String>, pid: Option<u32>, title: Option<String>, bounds: Option<BoundsRecord>) -> ApplicationAnswer {
-        ApplicationAnswer { identity: Some(identity), name, pid, title, bounds, window_id: None, tty: None, reason: None }
+        ApplicationAnswer { identity: Some(identity), name, pid, title, bounds, window_id: None, tty: None, bundle_path: None, reason: None }
     }
 }
 
@@ -157,11 +158,13 @@ pub struct TreeAnswer {
     pub scope: Option<String>,
     pub web_content: Option<String>,
     pub web_accessibility: Option<bool>,
+    pub web_surface: Option<bool>,
+    pub window_id: Option<String>,
 }
 
 impl TreeAnswer {
     pub fn refused(reason: &str) -> TreeAnswer {
-        TreeAnswer { elements: Vec::new(), focused: None, truncated: false, reason: Some(reason.to_string()), scope: None, web_content: None, web_accessibility: None }
+        TreeAnswer { elements: Vec::new(), focused: None, truncated: false, reason: Some(reason.to_string()), scope: None, web_content: None, web_accessibility: None, web_surface: None, window_id: None }
     }
 }
 
@@ -366,6 +369,32 @@ mod tree_order_tests {
         assert_eq!(tree_child_order(&children, false), vec![2, 1, 3, 0]);
         assert_eq!(tree_child_order(&children, true), vec![2]);
         assert!(tree_child_order(&[(false, false)], true).is_empty());
+    }
+}
+
+pub const UNANSWERED_REASON: &str = "an element whose children could not be read (its application did not answer)";
+
+pub fn ax_children_unanswered(status: i32) -> bool {
+    status == -25204
+}
+
+pub fn uia_children_unanswered(hresult: i32) -> bool {
+    hresult as u32 == 0x8013_1505
+}
+
+#[cfg(test)]
+mod unanswered_tests {
+    use super::{ax_children_unanswered, uia_children_unanswered};
+    #[test]
+    fn only_a_message_that_failed_leaves_a_child_list_unread() {
+        assert!(ax_children_unanswered(-25204));
+        for status in [0, -25200, -25201, -25202, -25205, -25208, -25211, -25212] {
+            assert!(!ax_children_unanswered(status));
+        }
+        assert!(uia_children_unanswered(0x8013_1505u32 as i32));
+        for hresult in [0u32, 0x8004_0201, 0x8004_0204, 0x8013_1509, 0x8000_4005] {
+            assert!(!uia_children_unanswered(hresult as i32));
+        }
     }
 }
 #[napi(object)]

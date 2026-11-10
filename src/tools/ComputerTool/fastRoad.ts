@@ -1,4 +1,5 @@
 import type { DesktopApplication, DesktopBounds, DesktopCapture, DesktopDisplay, DesktopDriver, DesktopTree, DesktopTreeElement } from '../../services/desktop/driver.js'
+import { TREE_UNANSWERED_REASON } from '../../services/desktop/driver.js'
 import { getImageProcessor } from '../FileReadTool/imageProcessor.js'
 import { sleep } from '../../utils/sleep.js'
 import { boundsOfPixels, pixelOfPoint, type ScreenMap } from './screenMap.js'
@@ -71,7 +72,7 @@ export function targetElement(tree: DesktopTree, target: ElementTarget, map: Scr
     }).sort((a, b) => a.distance - b.distance).slice(0, 3).map(item => item.element)
     return { refusal: `${targetWords(target)}: 0 matches${tree.truncated ? ' in a truncated tree' : ''}${nearby.length ? ` — nearest ${nearby.length} by text\n${candidateWords(nearby, map)}` : ' — read tree or take a screenshot'}` }
   }
-  if (tree.truncated) return { refusal: `${targetWords(target)}: the tree is truncated, so uniqueness is unknown — raise depth/limit or use screenshot pixels` }
+  if (tree.truncated) return { refusal: `${targetWords(target)}: the tree is truncated, so uniqueness is unknown — ${tree.reason === TREE_UNANSWERED_REASON ? 'read the tree again' : 'raise depth/limit'} or use screenshot pixels` }
   return selected
 }
 
@@ -207,10 +208,15 @@ export function isBrowserApplication(app: DesktopApplication): boolean {
   return BROWSERS.test(`${app.identity} ${app.name}`)
 }
 
+export function bearsPage(app: DesktopApplication, tree: DesktopTree): boolean | undefined {
+  if (app.webEngine === true || tree.webSurface === true) return true
+  return app.webEngine === false ? false : undefined
+}
+
 export function pageContentNote(app: DesktopApplication, tree?: DesktopTree): string {
-  if (!isBrowserApplication(app)) return ''
-  if (tree?.webContent === 'absent') return 'this application exposes no page content to the tree — use a screenshot; a missing page element is not a confirmed absence'
-  if (tree?.webContent === 'pending') return 'web accessibility requested; page content is still starting — wait until the element appears with durationMs:5000, or take a screenshot'
+  if (!tree || bearsPage(app, tree) === false) return ''
+  if (tree.webContent === 'absent') return 'this application exposes no page content to the tree — use a screenshot; a missing page element is not a confirmed absence'
+  if (tree.webContent === 'pending') return 'web accessibility requested; page content is still starting — wait until the element appears with durationMs:5000, or take a screenshot'
   return ''
 }
 

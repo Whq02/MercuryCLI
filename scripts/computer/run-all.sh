@@ -5,6 +5,7 @@
 # gate-watch: src/utils/sessionStorage/writer* src/services/providers/anthropic/media* src/services/providers/anthropic/streamCore* src/services/providers/openai/responsesBridge* src/services/providers/openai/openaiCallModel*
 # gate-watch: src/services/providers/zai/zaiCodec* src/utils/model/capabilities* src/tools/AgentTool/agentToolUtils* src/entrypoints/mcp* src/tools.ts scripts/computer/**
 # gate-watch: native/desktop/src/mac.rs scripts/builtin-tools/fixtures/tool-census.json
+# gate-watch: native/desktop/src/win.rs
 # gate-watch: scripts/builtin-tools/fixtures/tool-census.md scripts/core-runtime/prove-state-contract.ts
 # gate-watch: scripts/gate/duration-seed.tsv scripts/lib/hermetic.ts src/Tool.ts src/bootstrap/state.ts
 # gate-watch: src/constants/tools.ts src/services/compact/compact.ts

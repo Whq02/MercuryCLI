@@ -8,7 +8,7 @@ use objc2_core_foundation::{CGPoint, CGRect, CGSize};
 use objc2_foundation::NSString;
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{ClickablePointAnswer, clipped, covered_words, hidden_by, same_frame, tree_child_order, wheel_words, ApplicationAnswer, BoundsRecord, DisplayRecord, FocusedText, ScrollAnswer, TextRange, PermissionsAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, NOT_IN_FRONT, ROAD_ACTION, ROAD_WHEEL, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED, WHEEL_FAILED};
+use crate::{ax_children_unanswered, ClickablePointAnswer, clipped, covered_words, hidden_by, same_frame, tree_child_order, wheel_words, ApplicationAnswer, BoundsRecord, DisplayRecord, FocusedText, ScrollAnswer, TextRange, PermissionsAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, NOT_IN_FRONT, ROAD_ACTION, ROAD_WHEEL, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, UNANSWERED_REASON, VALUE_UNSUPPORTED, WHEEL_FAILED};
 
 type CFTypeRef = *const c_void;
 type CGEventRef = *mut c_void;
@@ -374,6 +374,12 @@ unsafe fn app_facts(app: &AnyObject) -> (Option<String>, Option<String>, i32, is
     (identity.map(|s| s.to_string()), name.map(|s| s.to_string()), pid, policy)
 }
 
+unsafe fn bundle_path(app: &AnyObject) -> Option<String> {
+    let url: Option<Retained<AnyObject>> = msg_send![app, bundleURL];
+    let path: Option<Retained<NSString>> = msg_send![&*url?, path];
+    path.map(|s| s.to_string())
+}
+
 unsafe fn window_facts(pid: i32, wanted: Option<u32>, exact: Option<&BoundsRecord>) -> (Option<String>, Option<BoundsRecord>) {
     let options = if wanted.is_some() { WINDOW_LIST_EXCLUDE_DESKTOP_ELEMENTS } else { WINDOW_LIST_OPTION_ON_SCREEN_ONLY | WINDOW_LIST_EXCLUDE_DESKTOP_ELEMENTS };
     let list = CGWindowListCopyWindowInfo(options, NULL_WINDOW_ID);
@@ -466,6 +472,14 @@ unsafe fn ax_attribute(element: CFTypeRef, name: &str) -> CFTypeRef {
     if status == 0 { value } else { ptr::null() }
 }
 
+unsafe fn ax_window_number(window: CFTypeRef) -> Option<u32> {
+    let symbol = libc::dlsym(libc::RTLD_DEFAULT, c"_AXUIElementGetWindow".as_ptr());
+    if symbol.is_null() { return None; }
+    let get_window: unsafe extern "C" fn(CFTypeRef, *mut u32) -> i32 = std::mem::transmute(symbol);
+    let mut number = 0u32;
+    if get_window(window, &mut number) == 0 && number != 0 { Some(number) } else { None }
+}
+
 unsafe fn focused_window_facts(pid: i32) -> (Option<String>, Option<BoundsRecord>, Option<String>) {
     if !AXIsProcessTrusted() { return (None, None, None); }
     let app = AXUIElementCreateApplication(pid);
@@ -476,12 +490,7 @@ unsafe fn focused_window_facts(pid: i32) -> (Option<String>, Option<BoundsRecord
     CFRelease(app);
     if focused.is_null() { return (None, None, None); }
     let title = ax_string(focused, "AXTitle");
-    let symbol = libc::dlsym(libc::RTLD_DEFAULT, c"_AXUIElementGetWindow".as_ptr());
-    let mut window_id = 0u32;
-    let private_id = if !symbol.is_null() {
-        let get_window: unsafe extern "C" fn(CFTypeRef, *mut u32) -> i32 = std::mem::transmute(symbol);
-        if get_window(focused, &mut window_id) == 0 && window_id != 0 { Some(window_id) } else { None }
-    } else { None };
+    let private_id = ax_window_number(focused);
     let position = ax_attribute(focused, "AXPosition");
     let size = ax_attribute(focused, "AXSize");
     let mut p = point(0.0, 0.0);
@@ -523,6 +532,7 @@ pub fn frontmost_application() -> ApplicationAnswer {
         let (window_id, bounds, title) = focused_window_facts(pid);
         let mut answer = ApplicationAnswer::found(identity, name, Some(pid as u32), title, bounds);
         answer.window_id = window_id;
+        answer.bundle_path = bundle_path(&*app);
         answer
     })
 }
@@ -576,11 +586,14 @@ unsafe fn ax_frame(element: CFTypeRef) -> Option<BoundsRecord> {
     frame
 }
 
-unsafe fn ax_children(element: CFTypeRef) -> Vec<CFTypeRef> {
-    let children = ax_attribute(element, "AXChildren");
+unsafe fn ax_children_read(element: CFTypeRef) -> (Vec<CFTypeRef>, bool) {
+    let key = cf_string("AXChildren");
+    let mut children: CFTypeRef = ptr::null();
+    let status = AXUIElementCopyAttributeValue(element, key, &mut children);
+    CFRelease(key);
     let mut list: Vec<CFTypeRef> = Vec::new();
-    if children.is_null() {
-        return list;
+    if status != 0 || children.is_null() {
+        return (list, ax_children_unanswered(status));
     }
     if CFGetTypeID(children) == CFArrayGetTypeID() {
         let count = CFArrayGetCount(children);
@@ -592,15 +605,19 @@ unsafe fn ax_children(element: CFTypeRef) -> Vec<CFTypeRef> {
         }
     }
     CFRelease(children);
-    list
+    (list, false)
 }
 
-unsafe fn ax_child_count(element: CFTypeRef) -> isize {
+unsafe fn ax_children(element: CFTypeRef) -> Vec<CFTypeRef> {
+    ax_children_read(element).0
+}
+
+unsafe fn ax_children_stand(element: CFTypeRef) -> bool {
     let key = cf_string("AXChildren");
     let mut count: isize = 0;
     let status = AXUIElementGetAttributeValueCount(element, key, &mut count);
     CFRelease(key);
-    if status == 0 { count } else { 0 }
+    if status == 0 { count > 0 } else { ax_children_unanswered(status) }
 }
 
 unsafe fn tree_element(element: CFTypeRef, depth: u32, focused: CFTypeRef) -> TreeElement {
@@ -679,8 +696,8 @@ pub fn accessibility_observation(pid: i32) -> TreeAnswer {
             }
         }
         for ancestor in ancestors { CFRelease(ancestor); }
-        let mut stack: Vec<(CFTypeRef, u32)> = ax_children(window).into_iter().rev().map(|child| (child, 1)).collect();
-        let mut truncated = false;
+        let (first, mut truncated) = ax_children_read(window);
+        let mut stack: Vec<(CFTypeRef, u32)> = first.into_iter().rev().map(|child| (child, 1)).collect();
         while let Some((element, depth)) = stack.pop() {
             if elements.len() >= 200 || started.elapsed() >= budget {
                 CFRelease(element);
@@ -690,14 +707,16 @@ pub fn accessibility_observation(pid: i32) -> TreeAnswer {
             }
             elements.push(tree_element(element, depth, focused));
             if depth < 3 {
-                for child in ax_children(element).into_iter().rev() { stack.push((child, depth + 1)); }
+                let (children, unanswered) = ax_children_read(element);
+                truncated |= unanswered;
+                for child in children.into_iter().rev() { stack.push((child, depth + 1)); }
             }
             CFRelease(element);
         }
         let focused_element = if inside && !focused.is_null() { Some(tree_element(focused, 0, focused)) } else { None };
         if !focused.is_null() { CFRelease(focused); }
         CFRelease(window);
-        TreeAnswer { elements, focused: focused_element, truncated, reason: None, scope: Some("window".to_string()), web_content: None, web_accessibility: None }
+        TreeAnswer { elements, focused: focused_element, truncated, reason: None, scope: Some("window".to_string()), web_content: None, web_accessibility: None, web_surface: None, window_id: None }
     })
 }
 
@@ -752,7 +771,11 @@ pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str,
             }
             elements.push(tree_element(element, depth, focused));
             if depth < max_depth {
-                let mut children = ax_children(element);
+                let (mut children, unanswered) = ax_children_read(element);
+                if unanswered {
+                    truncated = true;
+                    reason.get_or_insert_with(|| UNANSWERED_REASON.to_string());
+                }
                 if depth == 0 {
                     if !window.is_null() && !children.iter().any(|child| CFEqual(*child, window) != 0) {
                         children.push(CFRetain(window));
@@ -766,16 +789,17 @@ pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str,
                 for child in children.into_iter().rev() {
                     stack.push((child, depth + 1));
                 }
-            } else if ax_child_count(element) > 0 {
+            } else if ax_children_stand(element) {
                 truncated = true;
             }
             CFRelease(element);
         }
         let focused_element = if focused.is_null() { None } else { Some(tree_element(focused, 0, focused)) };
+        let window_id = if scope == "window" && !window.is_null() { ax_window_number(window).map(|number| number.to_string()) } else { None };
         if !focused.is_null() { CFRelease(focused); }
         if !window.is_null() { CFRelease(window); }
         let web_content = if elements.iter().any(|element| element.role.starts_with("AXWebArea")) { Some("available") } else if requested { Some("pending") } else if truncated { None } else { Some("absent") };
-        TreeAnswer { elements, focused: focused_element, truncated, reason, scope: Some(scope.to_string()), web_content: web_content.map(str::to_string), web_accessibility: Some(requested) }
+        TreeAnswer { elements, focused: focused_element, truncated, reason, scope: Some(scope.to_string()), web_content: web_content.map(str::to_string), web_accessibility: Some(requested), web_surface: None, window_id }
     })
 }
 
@@ -1221,8 +1245,10 @@ unsafe fn unique_element(pid: i32, wanted: &TreeElement, started: std::time::Ins
         let row = tree_element(element, depth, ptr::null());
         if matching_element(&row, wanted) { matches.push(CFRetain(element)); }
         if depth < 32 {
-            for child in ax_children(element).into_iter().rev() { stack.push((child, depth + 1)); }
-        } else if ax_child_count(element) > 0 { complete = false; }
+            let (children, unanswered) = ax_children_read(element);
+            if unanswered { complete = false; }
+            for child in children.into_iter().rev() { stack.push((child, depth + 1)); }
+        } else if ax_children_stand(element) { complete = false; }
         CFRelease(element);
     }
     for (rest, _) in stack { CFRelease(rest); }
@@ -1275,7 +1301,7 @@ pub fn read_element(pid: i32, wanted: &TreeElement) -> Result<Option<crate::Elem
                     if !line.trim().is_empty() { if !text.is_empty() { text.push('\n'); } text.push_str(&line); }
                     if depth < 32 {
                         for child in ax_children(element).into_iter().rev() { pending.push((child, depth + 1)); }
-                    } else if ax_child_count(element) > 0 { truncated = true; }
+                    } else if ax_children_stand(element) { truncated = true; }
                 }
                 CFRelease(element);
             }

@@ -12,8 +12,12 @@ const session = await import('../../src/services/desktop/desktopSession.ts')
 
 const ABSENT = 'this application exposes no page content to the tree — use a screenshot; a missing page element is not a confirmed absence'
 const PENDING = 'web accessibility requested; page content is still starting — wait until the element appears with durationMs:5000, or take a screenshot'
-const finder: DesktopApplication = { identity: 'com.apple.finder', name: 'Finder', pid: 77, windowId: 'downloads', title: 'Downloads', bounds: { x: 0, y: 0, width: 400, height: 300 } }
-const chrome: DesktopApplication = { identity: 'com.google.Chrome', name: 'Google Chrome', pid: 78, windowId: 'careers', title: 'Careers — Example', bounds: { x: 0, y: 0, width: 400, height: 300 } }
+const finder: DesktopApplication = { identity: 'com.apple.finder', name: 'Finder', pid: 77, windowId: 'downloads', title: 'Downloads', bounds: { x: 0, y: 0, width: 400, height: 300 }, webEngine: false }
+const chrome: DesktopApplication = { identity: 'com.google.Chrome', name: 'Google Chrome', pid: 78, windowId: 'careers', title: 'Careers — Example', bounds: { x: 0, y: 0, width: 400, height: 300 }, webEngine: true }
+const slate: DesktopApplication = { ...finder, identity: 'com.example.slate', name: 'Slate', pid: 79, webEngine: true }
+const reader: DesktopApplication = { ...finder, identity: 'com.example.reader', name: 'Reader', pid: 80, webEngine: false }
+const safari: DesktopApplication = { ...finder, identity: 'com.apple.Safari', name: 'Safari', pid: 81, webEngine: false }
+const { webEngine: _unread, ...unread } = { ...finder, identity: 'com.example.unread', name: 'Unread', pid: 82 }
 const scene = join(scratchDir('page-note'), 'scene.json')
 writeFileSync(scene, JSON.stringify({ displays: [{ index: 0, id: 'proof', originX: 0, originY: 0, width: 400, height: 300, scale: 1, primary: true }], frontmost: finder, cursor: { x: 10, y: 10 }, tree: [
   { role: 'AXWindow', title: 'Downloads', focused: true, frame: finder.bounds, children: [
@@ -35,15 +39,16 @@ const linesOf = (result: string): string[] => result.split('\n')
 
 let front: DesktopApplication = finder
 let webContent: DesktopTree['webContent'] = 'absent'
+let webSurface = false
 const originalFront = driver.frontmostApplication.bind(driver)
 const originalTree = driver.accessibilityTree.bind(driver)
 driver.frontmostApplication = async () => ({ ok: true, value: { ...front } })
 driver.accessibilityTree = async (...args) => {
   const tree = await originalTree(...args)
-  return tree.ok ? { ok: true, value: { ...tree.value, webContent } } : tree
+  return tree.ok ? { ok: true, value: { ...tree.value, webContent, ...(webSurface ? { webSurface } : {}) } } : tree
 }
 
-section("the fast road's browser list decides which windows are browsers")
+section("the fast road's browser list decides which windows show an address")
 {
   const isBrowser = (fastRoad as { isBrowserApplication?: (app: DesktopApplication) => boolean }).isBrowserApplication
   const browsers = [chrome, { ...finder, identity: 'com.microsoft.edgemac', name: 'Microsoft Edge' }, { ...finder, identity: 'com.apple.Safari', name: 'Safari' }, { ...finder, identity: 'org.mozilla.firefox', name: 'Firefox' }, { ...finder, identity: 'company.thebrowser.Browser', name: 'Arc' }, { ...finder, identity: 'chrome.exe', name: 'chrome' }, { ...finder, identity: 'msedge.exe', name: 'msedge' }]
@@ -51,7 +56,7 @@ section("the fast road's browser list decides which windows are browsers")
   check('isBrowserApplication says yes to Chrome, Edge on macOS, Safari, Firefox, Arc and the Windows browsers, no to Finder, TextEdit, Terminal and a plain editor', typeof isBrowser === 'function' && browsers.every(app => isBrowser(app)) && desktops.every(app => !isBrowser(app)), typeof isBrowser === 'function' ? JSON.stringify([browsers.map(app => isBrowser(app)), desktops.map(app => isBrowser(app))]) : 'fastRoad exports no isBrowserApplication')
 }
 
-section('a Finder-shaped window: the tree is the truth there, so no page-content note from tree, find or a refusal')
+section('a Finder-shaped window, no engine in its bundle: the tree is the truth there, so no page-content note from tree, find or a refusal')
 {
   const found = await call({ action: 'find', target: { text: 'Nowhere' } })
   check('a find that matches nothing on Finder ends without the browser note', found.outcome === 'succeeded' && found.result.includes('0 elements') && !found.result.includes(ABSENT), found.result)
@@ -64,7 +69,7 @@ section('a Finder-shaped window: the tree is the truth there, so no page-content
   check('a tree whose root is missing on Finder is refused without the note', rooted.outcome === 'failed' && rooted.result.includes('0 matches') && !rooted.result.includes(ABSENT), rooted.result)
   webContent = 'pending'
   const pending = await call({ action: 'find', target: { text: 'Nowhere' } })
-  check('the starting-page note is a browser note too: Finder never gets it', pending.outcome === 'succeeded' && !pending.result.includes(PENDING), pending.result)
+  check('the starting-page note is for a window that bears a page: Finder never gets it', pending.outcome === 'succeeded' && !pending.result.includes(PENDING), pending.result)
   webContent = 'absent'
 }
 
@@ -86,6 +91,43 @@ section('a Chrome-shaped window whose page content is absent keeps the note, and
   webContent = 'available'
   const available = await call({ action: 'find', target: { text: 'Nowhere' } })
   check('Chrome with page content available gets no note', available.outcome === 'succeeded' && !available.result.includes(ABSENT) && !available.result.includes(PENDING), available.result)
+}
+
+section('a Chromium-shell application no list names carries an engine in its bundle: it gets the same two notes')
+{
+  front = slate
+  webContent = 'absent'
+  const found = await call({ action: 'find', target: { text: 'Nowhere' } })
+  check('a find on the shell with no page content ends with the note, on its own line', found.outcome === 'succeeded' && linesOf(found.result).includes(ABSENT), found.result)
+  const missing = await call({ action: 'click', target: { name: 'Nowhere' }, capture: false })
+  check('a missing-target refusal on the shell puts the note on its own line', missing.outcome === 'failed' && linesOf(missing.result).includes(ABSENT), missing.result)
+  webContent = 'pending'
+  const pending = await call({ action: 'find', target: { text: 'Nowhere' } })
+  check('the shell with page content still starting gets the starting-page note', pending.outcome === 'succeeded' && linesOf(pending.result).includes(PENDING), pending.result)
+  webContent = 'available'
+  const available = await call({ action: 'find', target: { text: 'Nowhere' } })
+  check('the shell with page content available gets no note', available.outcome === 'succeeded' && !available.result.includes(ABSENT) && !available.result.includes(PENDING), available.result)
+}
+
+section("what the window's own tree has shown, and a bundle with no engine under a browser's name")
+{
+  front = reader
+  webContent = 'absent'
+  const plain = await call({ action: 'find', target: { text: 'Nowhere' } })
+  check('a native shell whose window has shown no page surface gets no note', plain.outcome === 'succeeded' && !plain.result.includes(ABSENT), plain.result)
+  webSurface = true
+  const dropped = await call({ action: 'find', target: { text: 'Nowhere' } })
+  check('the same shell once its window has shown a page surface gets the note while the tree carries no page', dropped.outcome === 'succeeded' && linesOf(dropped.result).includes(ABSENT), dropped.result)
+  webSurface = false
+  front = safari
+  const startPage = await call({ action: 'find', target: { text: 'Nowhere' } })
+  webContent = 'pending'
+  const starting = await call({ action: 'find', target: { text: 'Nowhere' } })
+  check('a browser whose bundle carries no engine and whose window shows no page gets neither note: its page, when it has one, is in the tree', startPage.outcome === 'succeeded' && !startPage.result.includes(ABSENT) && starting.outcome === 'succeeded' && !starting.result.includes(PENDING), `${startPage.result}\n${starting.result}`)
+  front = unread as DesktopApplication
+  webContent = 'absent'
+  const unknown = await call({ action: 'find', target: { text: 'Nowhere' } })
+  check('an application whose bundle the driver could not read keeps the caution: a missing element is not a confirmed absence there', unknown.outcome === 'succeeded' && linesOf(unknown.result).includes(ABSENT), unknown.result)
 }
 
 driver.frontmostApplication = originalFront

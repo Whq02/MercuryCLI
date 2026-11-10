@@ -79,6 +79,7 @@ export interface DesktopApplication {
   bounds: DesktopBounds | null
   windowId?: string | null
   tty?: string | null
+  webEngine?: boolean
 }
 
 export interface DesktopCursor {
@@ -132,7 +133,10 @@ export interface DesktopTree {
   reason: string | null
   scope?: 'window' | 'app'
   webContent?: 'available' | 'absent' | 'pending'
+  webSurface?: boolean
 }
+
+export const TREE_UNANSWERED_REASON = 'an element whose children could not be read (its application did not answer)'
 
 export interface DesktopTreeLimits {
   depth: number
