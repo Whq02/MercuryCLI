@@ -4,6 +4,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { acquirePidLock, noteLockRelease, releasePidLock } from '../../substrate/pidLock.js'
 import { z } from 'zod/v4'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
+import { errorMessage } from '../../utils/errors.js'
 import { hostDirectory } from './store.js'
 import type { HostRecipe } from './recipes.js'
 import { hostRecipeSchema } from './recipesFile.js'
@@ -24,8 +25,15 @@ const directory = (): string => { const path = join(hostDirectory(), 'volumes');
 const pathOf = (id: string): string => { if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new Error('Invalid volume id'); return join(directory(), id + '.json') }
 export const volumeModel = (recipe: HostRecipe): string => recipe.model + '\n' + (recipe.include ?? '')
 export const matchesVolume = (volume: KeptVolume, recipe: HostRecipe): boolean => volume.model === recipe.model && volume.include === (recipe.include ?? '')
-export function keptVolumes(): KeptVolume[] { return readdirSync(directory()).filter(name => name.endsWith('.json')).map(name => volumeRecordSchema.parse(JSON.parse(readFileSync(join(directory(), name), 'utf8')))) }
-export function readKeptVolume(id: string): KeptVolume | undefined { try { return volumeRecordSchema.parse(JSON.parse(readFileSync(pathOf(id), 'utf8'))) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error } }
+function readRecord(path: string): KeptVolume {
+  const text = readFileSync(path, 'utf8')
+  try { return volumeRecordSchema.parse(JSON.parse(text)) } catch (error) {
+    const reason = error instanceof z.ZodError ? error.issues.map(issue => (issue.path.join('.') || 'record') + ': ' + issue.message).join('; ') : errorMessage(error)
+    throw new Error('The weights disk record ' + path + ' cannot be read (' + reason + '); repair or move that file, then try again.', { cause: error })
+  }
+}
+export function keptVolumes(): KeptVolume[] { return readdirSync(directory()).filter(name => name.endsWith('.json')).map(name => readRecord(join(directory(), name))) }
+export function readKeptVolume(id: string): KeptVolume | undefined { try { return readRecord(pathOf(id)) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error } }
 export function writeKeptVolume(record: KeptVolume): void { publishAtomicSync(pathOf(record.id), JSON.stringify(volumeRecordSchema.parse(record)) + '\n', { mode: 0o600 }) }
 const removeRecord = (id: string): void => { try { unlinkSync(pathOf(id)) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error } }
 export const removeKeptVolumeRecord = removeRecord
