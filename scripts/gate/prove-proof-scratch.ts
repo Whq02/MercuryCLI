@@ -111,7 +111,7 @@ process.exit(process.argv[3] === 'red' ? 1 : 0);
     type Stood = { productTmp: string; tmp: string; stood: boolean }
     const asWin32 = (runtime: string, name: string, mode: string, extra: Record<string, string> = {}): { code: number | null; facts: Stood | undefined; said: string } => {
       const receipt = join(dir, `${basename(runtime)}-${name}.json`)
-      const run = spawnSync(runtime, [standIn, receipt, mode], { cwd: dir, env: { ...plain, TMPDIR: dir, ...extra }, encoding: 'utf8' })
+      const run = spawnSync(runtime, [standIn, receipt, mode], { cwd: dir, env: { ...plain, TMPDIR: dir, TEMP: dir, TMP: dir, ...extra }, encoding: 'utf8' })
       return { code: run.status, facts: existsSync(receipt) ? (JSON.parse(readFileSync(receipt, 'utf8')) as Stood) : undefined, said: `${run.stdout}${run.stderr}` }
     }
     const inTempDir = (path: string): boolean => dirname(path) === dir && basename(path).startsWith('mercury-proof-run.')
