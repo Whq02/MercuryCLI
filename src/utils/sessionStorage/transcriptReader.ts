@@ -5,7 +5,6 @@ import { decodeTranscriptBuffer, type DecodedTranscript, type InvalidShape, type
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import type { Entry, SerializedMessage, TranscriptMessage } from '../../types/logs.js'
 import { logForDebugging } from '../debug.js'
-import { parseJSONL } from '../json.js'
 import { logError } from '../log.js'
 import {
   readTranscriptForLoad,
@@ -470,7 +469,7 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
       state.pruned = buf !== before
     }
     if (metadataLines && metadataLines.length > 0) {
-      const metaEntries = parseJSONL<Entry>(Buffer.from(metadataLines.join('\n')))
+      const metaEntries = decodeTranscriptBuffer<Entry>(Buffer.from(metadataLines.join('\n'))).entries
       for (const entry of metaEntries) {
         if (PRE_BOUNDARY_METADATA_KINDS.has(entry.type)) applyTranscriptEntry(state.fold, entry)
       }
