@@ -12,7 +12,7 @@ export function qwenTemplateEffort(effort: string): string | undefined {
   return QWEN_TEMPLATE_EFFORTS.includes(word) ? word : undefined
 }
 
-const GENERATION_RE = /(?:^|[^a-z0-9])qwen([0-9])(?:\.([0-9]+))?(?=[-:_.]|$)/
+const GENERATION_RE = /(?:^|[^a-z0-9])qwen[-_ ]?([0-9])(?:[._]([0-9]+))?(?=[-:_. ]|$)/
 
 export function qwenTemplateReadsEffort(id: string): boolean {
   const generation = GENERATION_RE.exec(id.toLowerCase())
