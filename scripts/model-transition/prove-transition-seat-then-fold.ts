@@ -26,7 +26,8 @@ delete process.env.NODE_ENV
 for (const ambient of ['ANTHROPIC_API_KEY', 'MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_OVERFLOW_RECOVERY', 'MERCURY_BLOCKING_LIMIT_OVERRIDE', 'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_COMPACT_KEEP_TAIL', 'MERCURY_CONCOURSE_WORKER', 'MERCURY_LOCAL_API_KEY', 'MERCURY_LOCAL_BASE_URL']) delete process.env[ambient]
 const HOME = mkdtempSync(join(tmpdir(), 'seat-then-fold-'))
 process.env.MERCURY_CONFIG_DIR = HOME
-process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'seat-then-fold-daemon-'))
+process.env.MERCURY_DAEMON_DIR = join(HOME, 'daemon')
+mkdirSync(process.env.MERCURY_DAEMON_DIR)
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.BROWSER = '/usr/bin/true'
 
