@@ -1068,23 +1068,26 @@ async function* queryModel(
       noteTransportActivity = null
       streamIdleWatchdog.stop()
     }
-    function settledTailStands(): boolean {
-      if (!partialMessage || newMessages.length === 0 || stopReason !== null || streamedToolUse) return false
+    function settledTailType(): string | null {
+      if (!partialMessage || newMessages.length === 0 || stopReason !== null) return null
       let last: (typeof contentBlocks)[number] | undefined
       for (let i = 0; i < contentBlocks.length; i++) {
         const block = contentBlocks[i]
         if (block === undefined) continue
-        if (!stoppedBlockIndices.has(i)) return false
+        if (!stoppedBlockIndices.has(i)) return null
         last = block
       }
-      return last !== undefined && last.type === 'text'
+      return last?.type ?? null
     }
-    function* settleTypedEnd(end: StreamEndV1) {
+    function settledTailStands(): boolean {
+      return !streamedToolUse && settledTailType() === 'text'
+    }
+    function* settleTypedEnd(end: StreamEndV1, reason: 'end_turn' | 'tool_use' = 'end_turn') {
       const lastMsg = newMessages.at(-1)
       if (!lastMsg) return
-      stopReason = 'end_turn'
+      stopReason = reason
       lastMsg.message.usage = usage as AssistantMessage['message']['usage']
-      lastMsg.message.stop_reason = 'end_turn'
+      lastMsg.message.stop_reason = reason
       lastMsg.streamEnd = end
       void settleTranscriptMessage(lastMsg)
       logForDebugging(streamEndReceiptLine(end), { level: 'warn' })
@@ -1092,7 +1095,7 @@ async function* queryModel(
         type: 'stream_event' as const,
         event: {
           type: 'message_delta',
-          delta: { stop_reason: 'end_turn', stop_sequence: null },
+          delta: { stop_reason: reason, stop_sequence: null },
           usage,
         } as unknown as BetaRawMessageStreamEvent,
       }
@@ -1374,8 +1377,18 @@ async function* queryModel(
         )
         throw new Error(NO_EVENTS_MESSAGE)
       }
-      if (stopReason === null && settledTailStands()) {
-        yield* settleTypedEnd({ reason: 'closed-after-last-item', provider: 'Anthropic' })
+      if (stopReason === null) {
+        if (settledTailStands()) {
+          yield* settleTypedEnd({ reason: 'closed-after-last-item', provider: 'Anthropic' })
+        } else if (settledTailType() === 'tool_use') {
+          yield* settleTypedEnd({ reason: 'closed-after-last-item', provider: 'Anthropic' }, 'tool_use')
+        } else {
+          logForDebugging(
+            'stream closed with no stop_reason and a block still open, or a settled tail that is neither text nor a tool call — routing to the non-streaming fallback',
+            { level: 'error' },
+          )
+          throw new Error(NO_EVENTS_MESSAGE)
+        }
       }
 
       if (stallCount > 0) {
