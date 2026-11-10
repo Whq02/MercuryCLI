@@ -50,6 +50,10 @@ import { mcpGauge } from './cockpit/mcpGauge.js'
 import { whichSync } from './which.js'
 import { withheldTools } from './withheldTools.js'
 
+function flagAsSet(env: string): string {
+  return `${env}=${flagEnv(env)?.trim() || '0'}`
+}
+
 
 type ReadinessState =
   | 'ready'
@@ -209,7 +213,7 @@ function computerToolRecord(): ReadinessRecord {
     lastCheckedAt: Date.now(),
   }
   if (!flagEnabled('MERCURY_COMPUTER_USE')) {
-    return { ...base, state: 'disabled', detail: 'MERCURY_COMPUTER_USE=0 — Computer tool absent from the catalog; no desktop driver is touched' }
+    return { ...base, state: 'disabled', detail: `${flagAsSet('MERCURY_COMPUTER_USE')} — Computer tool absent from the catalog; no desktop driver is touched` }
   }
   const t0 = Date.now()
   const resolution = resolveDesktopDriver()
@@ -385,7 +389,7 @@ function lspLaneRecords(): ReadinessRecord[] {
       kind: 'lane',
       label: 'LSP bridge',
       state: 'disabled',
-      detail: 'MERCURY_LSP=0 — the IDE-hands bridge is off',
+      detail: `${flagAsSet('MERCURY_LSP')} — the IDE-hands bridge is off`,
       remedy: 'unset MERCURY_LSP (default-on) and relaunch',
       source: 'LSP manager',
       lastCheckedAt: Date.now(),
@@ -519,7 +523,7 @@ function pythonLaneRecord(): ReadinessRecord {
     )
     parts.push(ruff?.available ? `ruff ${ruff.version ?? 'ok'}` : 'ruff ABSENT')
   } else {
-    parts.push('python LSP lanes off (MERCURY_LSP_PYTHON=0)')
+    parts.push(`python LSP lanes off (${flagAsSet(mercuryLspEnabled() ? 'MERCURY_LSP_PYTHON' : 'MERCURY_LSP')})`)
   }
   const remedies: string[] = []
   if (pythonLspOn && pyright !== null && !pyright.available && pyright.reason !== undefined) {
@@ -556,7 +560,7 @@ function cppLaneRecord(): ReadinessRecord {
     return {
       ...base,
       state: 'disabled',
-      detail: mercuryLspEnabled() ? 'MERCURY_LSP_CPP=0 — clangd lane off' : 'MERCURY_LSP=0 — the IDE-hands bridge is off',
+      detail: mercuryLspEnabled() ? `${flagAsSet('MERCURY_LSP_CPP')} — clangd lane off` : `${flagAsSet('MERCURY_LSP')} — the IDE-hands bridge is off`,
     }
   }
   const t0 = Date.now()
@@ -588,7 +592,7 @@ function dapLaneRecords(): ReadinessRecord[] {
       kind: 'lane',
       label: 'DAP debug lane',
       state: 'disabled',
-      detail: 'MERCURY_DAP=0 — Debug tool absent from the catalog',
+      detail: `${flagAsSet('MERCURY_DAP')} — Debug tool absent from the catalog`,
       source: 'debugpy resolver',
       lastCheckedAt: Date.now(),
     })
@@ -834,7 +838,7 @@ function browserLaneRecord(): ReadinessRecord {
     lastCheckedAt: Date.now(),
   }
   if (!flagEnabled('MERCURY_BROWSER')) {
-    return { ...base, state: 'disabled', detail: 'MERCURY_BROWSER=0 — Browser tool absent from the catalog' }
+    return { ...base, state: 'disabled', detail: `${flagAsSet('MERCURY_BROWSER')} — Browser tool absent from the catalog` }
   }
   const t0 = Date.now()
   const resolution = resolveBrowser()
@@ -892,7 +896,7 @@ function idePlaneRecord(): ReadinessRecord {
     return {
       ...base,
       state: 'disabled',
-      detail: 'MERCURY_IDE_LOOP=0 — Transaction tool absent, no records written',
+      detail: `${flagAsSet('MERCURY_IDE_LOOP')} — Transaction tool absent, no records written`,
     }
   }
   const parts: string[] = ['closed-loop transaction plane armed']
@@ -943,7 +947,7 @@ function workflowsRecord(): ReadinessRecord {
   return {
     ...base,
     state: 'disabled',
-    detail: 'MERCURY_WORKFLOWS=0 — operator opt-out',
+    detail: `${flagAsSet('MERCURY_WORKFLOWS')} — operator opt-out`,
     remedy: 'unset MERCURY_WORKFLOWS (default-on)',
   }
 }
