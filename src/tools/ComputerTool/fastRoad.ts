@@ -213,9 +213,9 @@ export function bearsPage(app: DesktopApplication, tree: DesktopTree): boolean |
 }
 
 export function pageContentNote(app: DesktopApplication, tree?: DesktopTree): string {
-  if (!isBrowserApplication(app)) return ''
-  if (tree?.webContent === 'absent') return 'this application exposes no page content to the tree — use a screenshot; a missing page element is not a confirmed absence'
-  if (tree?.webContent === 'pending') return 'web accessibility requested; page content is still starting — wait until the element appears with durationMs:5000, or take a screenshot'
+  if (!tree || bearsPage(app, tree) === false) return ''
+  if (tree.webContent === 'absent') return 'this application exposes no page content to the tree — use a screenshot; a missing page element is not a confirmed absence'
+  if (tree.webContent === 'pending') return 'web accessibility requested; page content is still starting — wait until the element appears with durationMs:5000, or take a screenshot'
   return ''
 }
 
