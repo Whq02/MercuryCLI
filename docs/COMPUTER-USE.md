@@ -112,7 +112,9 @@ retries an act automatically.
 for the window title, `{ url }` for the address a browser window shows,
 `{ dialog: true }` for a dialog or sheet in the window, `{ focus: "AXTextField" }`
 for the role of the focused control, or `gone: true` beside an element or
-`dialog: true` to wait for it to leave, bounded by
+`dialog: true` to wait for it to leave (a cut tree, a page still starting and
+a browser page the tree does not expose never establish that; a native
+window's complete tree does), bounded by
 `durationMs` (default 5000 ms with `until`, since a large page's tree takes
 about a second to read; 1000 ms for a plain pause; cap 10000 ms). The result names
 the condition that passed and how long it took, or that the time ran out with
