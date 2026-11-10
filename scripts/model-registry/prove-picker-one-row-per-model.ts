@@ -90,7 +90,9 @@ const anthropicRows = (options: ModelOption[]): ModelOption[] =>
   modelRows(options).filter(o => o.group === undefined || o.group === ANTHROPIC_MODEL_GROUP)
 const resolvedIdOf = (value: string): string => stripContext1m(parseUserSpecifiedModel(stripContext1m(value)))
 const strings = getModelStrings()
-const SUFFIX_1M_GENERATIONS = ['opus48', 'opus47', 'opus46'] as const
+const PREVIOUS_OPUS_GENERATIONS = ['opus48', 'opus47', 'opus46'] as const
+const SWITCHED_GENERATIONS = ['opus46', 'sonnet46'] as const
+const OWN_1M_GENERATIONS = ['opus48', 'opus47'] as const
 
 function pinOneRowPerModel(tag: string, options: ModelOption[]): void {
   const rows = modelRows(options)
@@ -101,7 +103,7 @@ function pinOneRowPerModel(tag: string, options: ModelOption[]): void {
   check(`[${tag}] the Anthropic group lists each model once`, ids.length > 0 && new Set(ids).size === ids.length, ids.join(','))
   const labels = anthropicRows(options).map(o => o.label)
   check(`[${tag}] no display name repeats in the Anthropic group`, labels.length > 0 && new Set(labels).size === labels.length, labels.join(' · '))
-  for (const key of SUFFIX_1M_GENERATIONS) {
+  for (const key of PREVIOUS_OPUS_GENERATIONS) {
     const id = strings[key]
     check(`[${tag}] ${renderModelName(id)} is one row, on its bare id ${id}`, values.filter(v => v === id).length === 1 && !values.includes(`${id}[1m]`), values.join(','))
   }
@@ -115,8 +117,13 @@ for (const credentialed of [true, false]) {
   pinOneRowPerModel(tag, getModelOptions({ anthropicCredentialed: () => credentialed }))
 }
 
-section('§2 the window is the toggle: each previous generation with a suffix window offers both states on its one row')
-for (const key of SUFFIX_1M_GENERATIONS) {
+section('§2 the window is the toggle: each previous generation with a suffix window offers both states on its one row; a generation that reads 1M as its id stands offers none')
+for (const key of OWN_1M_GENERATIONS) {
+  const id = strings[key]
+  check(`${renderModelName(id)}: the row has one window, 1M as the id stands, and no c toggle`, !focusedOptionSupports1m(id) && getContextWindowForModel(id) === 1_000_000, `${focusedOptionSupports1m(id)} · ${getContextWindowForModel(id)}`)
+  check(`${renderModelName(id)}: a saved [1m] id still resolves as a value, with its rider`, parseUserSpecifiedModel(`${id}[1m]`) === `${id}[1m]` && renderModelName(`${id}[1m]`).endsWith('(1M context)') && getContextWindowForModel(`${id}[1m]`) === 1_000_000, parseUserSpecifiedModel(`${id}[1m]`))
+}
+for (const key of SWITCHED_GENERATIONS) {
   const id = strings[key]
   check(`${renderModelName(id)}: the row offers the c toggle`, focusedOptionSupports1m(id))
   check(`${renderModelName(id)}: the two windows the toggle switches between resolve as 200k and 1M`, getContextWindowForModel(id) === 200_000 && getContextWindowForModel(withContext1m(id)) === 1_000_000, `${getContextWindowForModel(id)} / ${getContextWindowForModel(withContext1m(id))}`)
