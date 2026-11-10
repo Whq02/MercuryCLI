@@ -83,3 +83,4 @@ prove-code-gutter-holds.ts
 prove-popup-panel-fills-frame.ts
 prove-stale-dist-guard.ts
 prove-paint-whole-frame.ts
+prove-scroll-clip-paints.ts

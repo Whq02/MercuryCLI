@@ -507,7 +507,8 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
   const prevScreen = placement.prevScreen
   const boxCached = nodeCache.get(node)
   const paddingTop = layoutNode.getComputedPadding(LayoutEdge.Top)
-  const innerHeight = Math.max(0, (y2 ?? y + height) - (y1 ?? y) - paddingTop - layoutNode.getComputedPadding(LayoutEdge.Bottom))
+  const paddingBottom = layoutNode.getComputedPadding(LayoutEdge.Bottom)
+  const innerHeight = Math.max(0, (y2 ?? y + height) - (y1 ?? y) - paddingTop - paddingBottom)
   const content = node.childNodes.find(c => (c as FrameNode).layoutNode) as FrameNode | undefined
   const contentYoga = content?.layoutNode
   const scroll = (node.scroll ??= {})
@@ -588,25 +589,27 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
   if (!content || !contentYoga) return
   const contentLeft = x + contentYoga.getComputedLeft()
   const contentTop = y + contentYoga.getComputedTop() - paintTop
+  const bandTop = paintTop - paddingTop
+  const bandBottom = paintTop + innerHeight + paddingBottom
 
   const contentWas = nodeCache.get(content)
   let regionHint: ScrollHint | null = null
   let rectShift: RectShift | null = null
   if (contentWas && contentWas.y !== contentTop) {
     const delta = contentWas.y - contentTop
-    const viewportTop = Math.floor(y + contentYoga.getComputedTop())
-    const viewportBottom = viewportTop + innerHeight - 1
-    signals.scrollTranslation = { delta, viewportTop, viewportBottom }
+    const regionTop = Math.floor(y + contentYoga.getComputedTop() - paddingTop)
+    const regionBottom = regionTop + paddingTop + innerHeight + paddingBottom - 1
+    signals.scrollTranslation = { delta, viewportTop: regionTop, viewportBottom: regionBottom }
     if (delta > 0) fluxMark('scroll:follow', innerHeight)
-    fluxMark('scroll:xlate', viewportTop * 1000 + delta + 500)
+    fluxMark('scroll:xlate', regionTop * 1000 + delta + 500)
     if (rowSampler === undefined) {
       const spansFullWidth = Math.floor(x) <= 0 && Math.ceil(x + width) >= buffer.width
       const stableForShift = boxCached?.y === y && boxCached.height === height && innerHeight > 0 && Math.abs(delta) < innerHeight
       if (stableForShift && spansFullWidth && walk.regionScrollUsable) {
-        regionHint = { top: viewportTop, bottom: viewportBottom, delta }
+        regionHint = { top: regionTop, bottom: regionBottom, delta }
         signals.scrollHint = regionHint
       } else if (stableForShift) {
-        rectShift = { top: viewportTop, bottom: viewportBottom, delta, x0: Math.floor(x), x1: Math.floor(x) + Math.floor(width) }
+        rectShift = { top: regionTop, bottom: regionBottom, delta, x0: Math.floor(x), x1: Math.floor(x) + Math.floor(width) }
       } else {
         signals.markLayoutShift(() => `scroll-no-hint:${node.nodeName}`)
       }
@@ -640,8 +643,7 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
     composeScrolledChildren(content, walk, contentLeft, contentTop, hasRemovedChild, undefined, incomingTop - contentTop, incomingBottom + 1 - contentTop, boxBackgroundColor, true)
     buffer.unclip()
     if (dirtyChildren !== null) {
-      const viewportFloor = Math.floor((y1 ?? y) + paddingTop + innerHeight)
-      repairStableRows(content, walk, dirtyChildren, contentLeft, contentTop, delta, paintTop, innerHeight, incomingTop, incomingBottom, viewportFloor, Math.floor(x), columns, boxBackgroundColor)
+      repairStableRows(content, walk, dirtyChildren, contentLeft, contentTop, delta, bandTop, bandBottom, incomingTop, incomingBottom, bottom + 1, Math.floor(x), columns, boxBackgroundColor)
     }
     for (const rect of walk.prevAbsoluteRects) {
       if (rect.y >= bottom + 1 || rect.y + rect.height <= top) continue
@@ -664,13 +666,13 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
       buffer.write(Math.floor(x), Math.floor(y1), groundRows(Math.floor(width), Math.floor(y2 - y1), boxBackgroundColor))
     }
     const boxMoved = boxCached !== undefined && (boxCached.x !== x || boxCached.y !== y || boxCached.width !== width || boxCached.height !== height)
-    composeScrolledChildren(content, walk, contentLeft, contentTop, hasRemovedChild, rowSampler !== undefined || scrolled || boxMoved ? undefined : prevScreen, paintTop, paintTop + innerHeight, boxBackgroundColor, false, rowSampler)
+    composeScrolledChildren(content, walk, contentLeft, contentTop, hasRemovedChild, rowSampler !== undefined || scrolled || boxMoved ? undefined : prevScreen, bandTop, bandBottom, boxBackgroundColor, false, rowSampler)
   }
   nodeCache.set(content, { x: contentLeft, y: contentTop, width: contentYoga.getComputedWidth(), height: contentYoga.getComputedHeight() })
   settle(content)
 }
 
-function repairStableRows(content: FrameNode, walk: Walk, dirtyChildren: Set<FrameNode['childNodes'][number]>, contentLeft: number, contentTop: number, delta: number, paintTop: number, innerHeight: number, incomingTop: number, incomingBottom: number, viewportFloor: number, left: number, columns: number, boxBackgroundColor: Color | undefined): void {
+function repairStableRows(content: FrameNode, walk: Walk, dirtyChildren: Set<FrameNode['childNodes'][number]>, contentLeft: number, contentTop: number, delta: number, bandTop: number, bandBottom: number, incomingTop: number, incomingBottom: number, regionFloor: number, left: number, columns: number, boxBackgroundColor: Color | undefined): void {
   const { buffer } = walk
   let cumulativeGrowth = 0
   for (const entry of content.childNodes) {
@@ -682,13 +684,13 @@ function repairStableRows(content: FrameNode, walk: Walk, dirtyChildren: Set<Fra
     const childHeight = layout.getComputedHeight()
     const childBottom = childTop + childHeight
     if (isDirty) cumulativeGrowth += childHeight - (nodeCache.get(child)?.height ?? 0)
-    const offscreen = childBottom <= paintTop || childTop >= paintTop + innerHeight
+    const offscreen = childBottom <= bandTop || childTop >= bandBottom
     const insideIncoming = childTop >= incomingTop - contentTop && childBottom <= incomingBottom + 1 - contentTop
     if (offscreen || insideIncoming) continue
     const screenTop = Math.floor(contentTop + childTop)
     const childWas = isDirty ? undefined : nodeCache.get(child)
     if (childWas && Math.floor(childWas.y) - delta === screenTop) continue
-    const screenBottom = Math.min(Math.floor(contentTop + childBottom), viewportFloor)
+    const screenBottom = Math.min(Math.floor(contentTop + childBottom), regionFloor)
     if (screenTop < screenBottom) {
       buffer.write(left, screenTop, groundRows(columns, screenBottom - screenTop, boxBackgroundColor))
       buffer.clip({ x1: undefined, x2: undefined, y1: screenTop, y2: screenBottom })
