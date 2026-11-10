@@ -87,3 +87,4 @@ prove-list-covers-viewport.tsx
 prove-picker-narrow-columns.ts
 prove-scroll-clip-paints.ts
 prove-list-click-on-space.tsx
+prove-host-list-pages.ts
