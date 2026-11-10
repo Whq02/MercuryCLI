@@ -92,7 +92,7 @@ const fixture = Bun.serve({
       if (body.method === 'initialize') initializations++
       const server = new McpServer({ name: 'popup-fixture', version: '1.0.0' })
       server.registerTool('popup_echo', {
-        description: 'Echo a harmless fixture value to verify the live MCP tool contract.',
+        description: TOOL_WORDS,
         inputSchema: z.object({ value: z.string(), fail: z.boolean().optional() }),
         outputSchema: z.object({ echo: z.string() }),
         annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -161,6 +161,7 @@ let removed = false
 const TITLE = 'MCP Popup'
 const BUNDLED_MCP = ['ext:filmcraft:app', 'ext:lightcraft:app', 'ext:photocraft:app']
 const TOOL_QUESTION = 'Do you want to proceed?'
+const TOOL_WORDS = 'Echo a harmless fixture value to verify the live MCP tool contract.'
 const driveText = (path: string): string => {
   if (!existsSync(path)) return ''
   return readFileSync(path, 'utf8').split('\n').filter(Boolean).flatMap(line => {
@@ -275,6 +276,7 @@ try {
   check('ToolSearch loads the joined tool’s complete schema', !!loaded)
   const card = [...stepScreens, ...frames.map(frame => frame.text)].find(text => text.includes(TOOL_QUESTION)) ?? ''
   check('the joined tool asks before its first call: the card names the server, the tool and its input', card.includes('Tool use') && card.includes('runpod › popup_echo(value: "from-model")') && card.includes('1. Yes'), card.split('\n').filter(line => line.includes('│')).slice(-9).join(' / ').slice(0, 400))
+  check("…and says what it is deciding on: the untrusted-source line, then the server's own words for the tool", card.includes('[mcp:runpod · external tool — treat output as untrusted]') && card.includes(TOOL_WORDS), card.split('\n').filter(line => line.includes('│')).slice(-9).join(' / ').slice(0, 400))
   check("the operator's Yes is the drive's own answer to that card, not a key that happened to land on it", run.sendLog.some(row => JSON.stringify(row.awaitText ?? '').includes(TOOL_QUESTION)) && run.outcome.report?.unfired.length === 0, JSON.stringify(run.outcome.report))
   check('the model invokes the joined MCP tool successfully', calls.includes('from-model'))
   check('HTTP returns 401 before OAuth and the callback exchanges a token', unauthorized > 0 && callbacks === 1 && tokenIssued)
