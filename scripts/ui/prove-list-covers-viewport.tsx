@@ -31,7 +31,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 
 type World = { rows: number; tallAt: number; open: number; shut: number; wide?: boolean; mountMs?: number; ownState?: boolean; cursorOnTall?: boolean }
-type Shown = { lines: number; rows: Row[]; columns: number }
+type Shown = { lines: number; rows: Row[]; columns: number; cursorAt?: number }
 type Stage = {
   view: Mounted
   scroll: React.RefObject<Scroll | null>
@@ -45,6 +45,7 @@ type Stage = {
   resize: (lines: number) => void
   drop: (count: number) => void
   wrap: (columns: number) => void
+  moveCursor: (index: number) => void
 }
 
 const label = (at: number): string => `ROW ${String(at).padStart(3, '0')}`
@@ -126,8 +127,8 @@ async function stage(world: World, start: { lines: number; rows?: number; column
               scrollRef={scroll}
               columns={shown.columns}
               itemKey={row => row.uuid}
-              selectedIndex={world.cursorOnTall ? world.tallAt : undefined}
-              selectedExpanded={world.cursorOnTall === true && shown.lines > world.shut}
+              selectedIndex={world.cursorOnTall ? (shown.cursorAt ?? world.tallAt) : undefined}
+              selectedExpanded={world.cursorOnTall === true && (shown.cursorAt ?? world.tallAt) === world.tallAt && shown.lines > world.shut}
               renderItem={renderItem as never}
             />
           </Box>
@@ -161,6 +162,7 @@ async function stage(world: World, start: { lines: number; rows?: number; column
     set: open => resize(open ? world.open : world.shut),
     resize,
     drop: count => publish({ ...state, rows: state.rows.slice(0, state.rows.length - count) }),
+    moveCursor: index => publish({ ...state, cursorAt: index }),
     wrap: columns => {
       publish({ ...state, columns })
       view.resize(tree, columns, VIEWPORT + 1)
@@ -370,6 +372,9 @@ const cases: Case[] = [
   { name: 'the row under the message cursor expanded by its key inside a pane that follows the tail', world: { ...TALL, tallAt: 110, cursorOnTall: true }, startOpen: false, top: 'following', act: live => live.set(true), lands: { row: 100, inner: 0 }, headAt: 10 },
   { name: 'the last row under the message cursor expanded by its key at the tail', world: { ...TALL, tallAt: 119, cursorOnTall: true }, startOpen: false, top: 'cursor', act: live => live.set(true), lands: { row: 100, inner: 0 }, headAt: 19 },
   { name: 'the row under the message cursor expanded and collapsed again inside a pane that rests on the list\'s end', world: { ...TALL, tallAt: 110, cursorOnTall: true }, startOpen: false, top: 'cursor', act: openedThenShut, lands: { row: 100, inner: 0 }, headAt: 10 },
+  { name: 'the message cursor moved off its open row to a row the list has not mounted', world: { ...TALL, rows: 600, cursorOnTall: true }, startOpen: true, top: { row: 35, inner: 0 }, act: live => live.moveCursor(500), lands: { row: 500, inner: 0 } },
+  { name: 'the message cursor moved off its closed row to a row the list has not mounted', world: { ...TALL, rows: 600, cursorOnTall: true }, startOpen: false, top: { row: 35, inner: 0 }, act: live => live.moveCursor(500), lands: { row: 500, inner: 0 } },
+  { name: 'the message cursor moved off its open row to a row twenty under it', world: { ...TALL, cursorOnTall: true }, startOpen: true, top: { row: 35, inner: 0 }, act: live => live.moveCursor(60), lands: { row: 60, inner: 0 } },
   { name: 'the row under the message cursor expanded by its key inside the pane', world: { ...TALL, cursorOnTall: true }, startOpen: false, top: { row: 35, inner: 0 }, act: live => live.set(true), lands: { row: 35, inner: 0 }, headAt: 5 },
   { name: 'the row under the message cursor collapsed by its key inside the pane', world: { ...TALL, cursorOnTall: true }, startOpen: true, top: { row: 35, inner: 0 }, act: live => live.set(false), lands: { row: 35, inner: 0 }, headAt: 5 },
   { name: 'a jump to the head from the tail', world: TALL, startOpen: false, top: 'tail', act: live => live.scroll.current!.scrollTo(0), lands: { row: 0, inner: 0 } },

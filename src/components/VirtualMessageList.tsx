@@ -333,11 +333,12 @@ export function VirtualMessageList({
     else vsRef.current.scrollToIndex(selectedIndex)
   }, [selectedIndex, scrollRef])
 
-  const selectedExpandedWasRef = useRef(selectedExpanded)
+  const flipWasRef = useRef({ index: selectedIndex, expanded: selectedExpanded })
   const alignWhenMountedRef = useRef<{ index: number; renders: number } | null>(null)
   useLayoutEffect(() => {
-    if (selectedExpandedWasRef.current === selectedExpanded) return
-    selectedExpandedWasRef.current = selectedExpanded
+    const was = flipWasRef.current
+    flipWasRef.current = { index: selectedIndex, expanded: selectedExpanded }
+    if (was.index !== selectedIndex || was.expanded === selectedExpanded) return
     if (selectedIndex === undefined) return
     const handle = scrollRef.current
     if (!handle) return
