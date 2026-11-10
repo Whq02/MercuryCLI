@@ -291,10 +291,56 @@ function normalizeEndpointWindow(
   return { utilization, resets_at: resetsAt }
 }
 
+function scopedWeeklyPools(limits: unknown): Partial<Record<WeeklyPoolClaim, RawWindow>> {
+  const pools: Partial<Record<WeeklyPoolClaim, RawWindow>> = {}
+  if (!Array.isArray(limits)) return pools
+  for (const row of limits) {
+    if (typeof row !== 'object' || row === null) continue
+    const r = row as { kind?: unknown; percent?: unknown; resets_at?: unknown; scope?: { model?: { display_name?: unknown } | null } | null }
+    const name = r.scope?.model?.display_name
+    if (r.kind !== 'weekly_scoped' || typeof name !== 'string') continue
+    const claim = weeklyPoolClaimForModel(name)
+    if (claim === undefined || pools[claim] !== undefined) continue
+    const window = normalizeEndpointWindow({
+      utilization: typeof r.percent === 'number' ? r.percent : null,
+      resets_at: typeof r.resets_at === 'string' ? r.resets_at : null,
+    })
+    if (window) pools[claim] = window
+  }
+  return pools
+}
+
+export function usagePayloadShapeWords(payload: unknown): string {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) return 'no object'
+  const body = payload as Record<string, unknown>
+  const keys = Object.keys(body).sort()
+  const stated = keys.filter(key => body[key] !== null && body[key] !== undefined)
+  const empty = keys.filter(key => body[key] === null || body[key] === undefined)
+  const scopeName = (scope: unknown): string | undefined => {
+    const name = typeof scope === 'object' && scope !== null ? (scope as { display_name?: unknown }).display_name : undefined
+    return typeof name === 'string' ? name.slice(0, 40) : undefined
+  }
+  const rows = Array.isArray(body.limits)
+    ? body.limits.map(row => {
+        const r = (typeof row === 'object' && row !== null ? row : {}) as { kind?: unknown; group?: unknown; scope?: { model?: unknown; surface?: unknown } | null }
+        const model = scopeName(r.scope?.model)
+        const surface = scopeName(r.scope?.surface)
+        const scope = model !== undefined ? ` model ${model}` : surface !== undefined ? ` surface ${surface}` : ''
+        return `${typeof r.kind === 'string' ? r.kind : '?'}/${typeof r.group === 'string' ? r.group : '?'}${scope}`
+      })
+    : undefined
+  return [
+    `stated ${stated.length > 0 ? stated.join(', ') : 'nothing'}`,
+    ...(empty.length > 0 ? [`null ${empty.join(', ')}`] : []),
+    ...(rows !== undefined ? [`limits ${rows.length > 0 ? rows.join(', ') : 'none'}`] : []),
+  ].join(' · ')
+}
+
 export function foldUtilizationFromEndpoint(
   u: {
     five_hour?: { utilization: number | null; resets_at: string | null } | null
     seven_day?: { utilization: number | null; resets_at: string | null } | null
+    limits?: unknown
     extra_usage?: unknown
     spend?: unknown
   } & Partial<Record<WeeklyPoolClaim, { utilization: number | null; resets_at: string | null } | null>>,
@@ -308,8 +354,9 @@ export function foldUtilizationFromEndpoint(
   const sevenDay = normalizeEndpointWindow(u.seven_day)
   if (fiveHour) next.five_hour = stamp(fiveHour)
   if (sevenDay) next.seven_day = stamp(sevenDay)
+  const scoped = scopedWeeklyPools(u.limits)
   for (const claim of WEEKLY_POOL_CLAIMS) {
-    const pool = normalizeEndpointWindow(u[claim])
+    const pool = normalizeEndpointWindow(u[claim]) ?? scoped[claim]
     if (pool) next[claim] = stamp(pool)
   }
   endpointUtilization = next

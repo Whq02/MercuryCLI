@@ -11,7 +11,7 @@ import {
 import { logForDebugging } from '../../../utils/debug.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { fetchUtilization, usageEndpointBase } from '../../api/usage.js'
-import { noteUsageRecordChanged, resetLimitsForCredentialSwitch } from '../../anthropicLimits.js'
+import { noteUsageRecordChanged, resetLimitsForCredentialSwitch, usagePayloadShapeWords } from '../../anthropicLimits.js'
 import { isOAuthTokenExpired } from '../../oauth/client.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { formatUsageAge, formatUsageAgeShort, usagePollTtlMs } from '../usageFreshness.js'
@@ -392,6 +392,7 @@ export function refreshAnthropicUsage(opts?: { reason?: 'open' | 'operator' | 's
         )
       } else {
         trace('ok')
+        logForDebugging(`[usage] read #${request} payload shape · ${usagePayloadShapeWords(answer)}`)
         noteAnswer(now())
       }
     } catch (error) {
