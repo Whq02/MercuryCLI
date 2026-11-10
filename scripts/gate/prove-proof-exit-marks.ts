@@ -3,7 +3,7 @@ import { strict as assert } from 'node:assert'
 import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve, sep } from 'node:path'
+import { join, relative, resolve, sep } from 'node:path'
 
 const root = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'proof-exits-'))
@@ -55,18 +55,37 @@ try {
         if (!line.includes('prover_mark ') || line.includes('prover_mark()')) continue
         assert(/"\$[^"\s]+"\s+"\$__rc"/.test(line), `${suite.path}: mark does not receive the captured code`)
       }
-    } else if (/^\s*(?:"\$[bB][uU][nN]"|"\$\{BUN).*\b(?:run\s+)?[^\n]*prove-/m.test(suite.text)) {
+    } else if (/^\s*(?:exec\s+)?(?:"\$[bB][uU][nN]"|"\$\{BUN|bun\s).*\b(?:run\s+)?[^\n]*prove-/m.test(suite.text)) {
       assert(suite.text.includes('run_proof '), `${suite.path}: named proofs have no result marks`)
     }
   }
   check('every suite parses and every existing timed mark receives an explicit exit code', suites.length > 100)
-  for (const name of ['daemon', 'engine-connector', 'model-registry', 'navigation', 'wallet', 'distribution', 'winreg', 'default-provider', 'usage-warning', 'idiom']) {
+  const namedProof = /prove-[\w.*-]+\.(?:ts|tsx|sh|py|mjs)\b/g
+  const endsOnARed = suites.flatMap(suite => {
+    const body = suite.text.split('\n').filter(line => !/^\s*#/.test(line))
+    const names = new Set(body.flatMap(line => line.match(namedProof) ?? []))
+    if (names.size < 2 && ![...names].some(name => name.includes('*'))) return []
+    const errexit = body.some(line => /^\s*set\s+(?:-[A-Za-z]*e[A-Za-z]*(?:\s|$)|-o\s+errexit\b)/.test(line))
+    const unguarded = (line: string): boolean => /^\s*(?:exec\s+)?(?:"\$[^"]*"|bun|node|bash|python3?|\/\S+)\s/.test(line) && !/\|\||&&/.test(line)
+    const exitsFromItsOr = (line: string): boolean => line.match(namedProof) !== null && !/^\s*(?:\[\[?|test)\s/.test(line) && /\|\|\s*(?:\{[^}]*\bexit\b|exit\b)/.test(line)
+    return body.filter(line => exitsFromItsOr(line) || (errexit && unguarded(line))).map(line => `${relative(root, suite.path)}: ${line.trim().slice(0, 72)}`)
+  })
+  check(`no runner that names more than one proof ends on a proof's red, where every proof after it would go unread: under errexit no command stands unguarded, and no line that runs a named proof exits from its own || (${suites.length} runners read)${endsOnARed.length > 0 ? ` — ${endsOnARed.length} line(s), the first: ${endsOnARed[0]}` : ''}`, endsOnARed.length === 0)
+  for (const name of ['daemon', 'engine-connector', 'model-registry', 'navigation', 'wallet', 'distribution', 'winreg', 'default-provider', 'usage-warning', 'idiom', 'host']) {
+    const marked: number[] = []
     for (const code of [0, 7]) {
       const result = spawnSync('bash', [join(root, 'scripts', name, 'run-all.sh')], { cwd: root, env: env(code), encoding: 'utf8', timeout: 10000 })
       const rows = marks(result.stdout)
+      marked.push(rows.length)
       check(`${name}: code ${code} is preserved in every mark`, rows.length > 0 && rows.every(row => row.code === code))
       check(`${name}: aggregate result is unchanged for code ${code}`, result.status === (code === 0 ? 0 : 1))
     }
+    check(`${name}: a red proof hides no later one — ${marked[1]} marks with every proof red, ${marked[0]} with every proof green`, marked[0] === marked[1])
+  }
+  for (const code of [0, 7]) {
+    const result = spawnSync('bash', [join(root, 'scripts/outcome-pack/run-all.sh')], { cwd: root, env: env(code), encoding: 'utf8', timeout: 10000 })
+    const rows = marks(result.stdout)
+    check(`outcome-pack: a runner whose one command is its proof marks it with code ${code} and exits with it`, rows.length === 1 && rows[0]!.code === code && result.status === code)
   }
   const channels = spawnSync('bash', [join(root, 'scripts/channels/run-all.sh')], { cwd: root, env: env(23), encoding: 'utf8', timeout: 10000 })
   check('a failed first command in a chained condition keeps its original code', marks(channels.stdout).length === 2 && marks(channels.stdout).every(row => row.code === 23))

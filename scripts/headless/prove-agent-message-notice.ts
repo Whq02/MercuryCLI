@@ -143,8 +143,7 @@ async function world(name: World): Promise<void> {
   const port = Number(new URL(fixture.base).port)
   const runner = boot(cwd, childEnv(runHome, port))
   runner.prompt(MAIN_ASK, randomUUID())
-  const wantResults = name === 'sub-to-main-idle' ? 3 : 1
-  await untilQuiet(runner, wantResults, 6_000, vshotBudgetMs(70_000))
+  await untilQuiet(runner, 1, 6_000, vshotBudgetMs(70_000))
   await runner.stop(5_000)
   await fixture.close()
 

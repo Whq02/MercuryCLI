@@ -80,6 +80,17 @@ try {
   check('the line counts the five changed paths and says they are no inputs', outside.line.includes('the 5 changed paths') && outside.line.includes("none of the build's inputs"), outside.line)
   restore()
 
+  section('§2b the tree\'s ignore rules changed after the build move no build input: the build reads none of them')
+  write('.gitignore', 'dist/\nnode_modules\n')
+  write('src/.gitignore', 'scratch/\n')
+  const ignores = distBuildInputs(SCRATCH)
+  check('not stale: neither ignore file is an input of the bundle', !ignores.stale && ignores.line.includes('the 2 changed paths') && ignores.line.includes("none of the build's inputs"), ignores.line)
+  write('src/a.ts', 'export const a = 3\n')
+  const withSource = distBuildInputs(SCRATCH)
+  check('stale again when a source file moves beside them, and only the source is named', withSource.stale && withSource.line.includes('1 build input changed since: src/a.ts') && !withSource.line.includes('.gitignore'), withSource.line)
+  g(['checkout', '-q', '--', '.'])
+  rmSync(join(SCRATCH, 'src/.gitignore'), { force: true })
+
   section('§3 a source file edited after the build makes the bundle another build')
   write('src/a.ts', 'export const a = 2\n')
   const edited = distBuildInputs(SCRATCH)

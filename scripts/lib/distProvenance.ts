@@ -73,7 +73,7 @@ export function distProvenanceLine(p: DistProvenance): string {
   }
 }
 
-const NOT_A_BUILD_INPUT = /^(docs\/|design-system\/|scripts\/(?!vendor\/)|field\/|\.claude\/|\.mercury\/|\.github\/|[^/]+\.md$)/
+const NOT_A_BUILD_INPUT = /^(docs\/|design-system\/|scripts\/(?!vendor\/)|field\/|\.claude\/|\.mercury\/|\.github\/|[^/]+\.md$|(?:.+\/)?\.gitignore$)/
 
 export function distBuildInputs(root: string): { stale: boolean; line: string } {
   const p = distProvenance(root)
@@ -94,7 +94,7 @@ export function distBuildInputs(root: string): { stale: boolean; line: string } 
       if (diff.state !== 'ok') return { stale: true, line: `dist/mercury.mjs was built from a tree this repository cannot compare with the checkout (${trees}; ${gitMiss(diff)})` }
       const changed = diff.stdout.split('\n').filter(Boolean)
       const inputs = changed.filter(path => !NOT_A_BUILD_INPUT.test(path))
-      if (inputs.length === 0) return { stale: false, line: `dist/mercury.mjs was built from another tree (${trees}); the ${changed.length} changed path${changed.length === 1 ? '' : 's'} are none of the build's inputs (docs, proofs, stored frames, root notes)` }
+      if (inputs.length === 0) return { stale: false, line: `dist/mercury.mjs was built from another tree (${trees}); the ${changed.length} changed path${changed.length === 1 ? ' is' : 's are'} none of the build's inputs (docs, proofs, stored frames, root notes, ignore rules)` }
       return { stale: true, line: `dist/mercury.mjs was built from another tree (${trees}); ${inputs.length} build input${inputs.length === 1 ? '' : 's'} changed since: ${inputs.slice(0, 5).join(', ')}${inputs.length > 5 ? ', …' : ''}` }
     }
   }

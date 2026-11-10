@@ -18,6 +18,7 @@
 # gate-watch: build.ts scripts/vendor/fetch-python.ts vendor/python.lock.json
 # gate-watch: scripts/lib/removeScratch.ts scripts/lib/platformPath.ts
 # gate-watch: src/daemon/ownerWatch.ts src/daemon/processSweep.ts src/daemon/processSweepRun.ts src/daemon/processSweepPosix.ts src/daemon/processSweepWindows.ts
+# gate-watch: .gitignore scripts/lib/treeIgnore.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

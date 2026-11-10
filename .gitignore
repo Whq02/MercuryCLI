@@ -1,4 +1,4 @@
-node_modules/
+node_modules
 dist/
 *.log
 .DS_Store
@@ -13,36 +13,39 @@ dist/
 
 # Vendored third-party caches: the checked-in truth is the vendor/*.lock.json
 # receipt; the payloads are reproduced from it (hash-verified) and never tracked.
-vendor/debugpy/
-vendor/pyright/
-vendor/pdfjs/
-vendor/grammars/
-vendor/js-debug/
-vendor/node/
-vendor/python/
+# Each name stands without a trailing slash, as node_modules does above: a
+# pack is ignored as a folder and as a link to one, so a checkout that links
+# its packs has nothing to add and a build stamps it as the tree it is.
+vendor/debugpy
+vendor/pyright
+vendor/pdfjs
+vendor/grammars
+vendor/js-debug
+vendor/node
+vendor/python
 # The shell engine pack is FETCHED as an upstream release binary (brush),
 # never tracked: the binary and its licences land here per platform.
-vendor/brush/
+vendor/brush
 # The voice capture pack is BUILT from native/voice (cargo), never fetched
 # and never tracked: the addon and its licences land here per platform.
-vendor/voice/
+vendor/voice
 native/voice/target/
 # The on-device transcriber pack is BUILT from native/whisper (cargo and
 # cmake), never fetched and never tracked; its speech models are fetched
 # into vendor/whisper-models/ for the provers only (a release install
 # downloads its model into the config home) and never tracked.
-vendor/whisper/
-vendor/whisper-models/
+vendor/whisper
+vendor/whisper-models
 native/whisper/target/
-vendor/desktop/
+vendor/desktop
 native/desktop/target/
-vendor/embed/
-vendor/embed-models/
+vendor/embed
+vendor/embed-models
 native/embed/target/
 # A cross build's target platform packages (the search binary and the image
 # processor of another platform than the host's), reproduced from bun.lock's
 # pins by scripts/vendor/fetch-platform-packages.ts; never tracked.
-vendor/platform-packages/
+vendor/platform-packages
 release-out/
 
 # Gate shard artifacts from local runs.
