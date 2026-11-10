@@ -26,12 +26,12 @@ export const vastVolumeFor = (recipe: HostRecipe): KeptVolume | undefined => vas
 const vastMachineWords = (volume: Pick<KeptVolume, 'machineId'>): string => 'Vast.ai machine ' + (volume.machineId ?? 'unknown')
 const vastVolumeSizeGb = (bytes: number): number => Math.ceil(bytes / 1e9 * 1.05) + 20
 export const vastBootMinutes = (recipe: HostRecipe, volume: KeptVolume): string => /~(\d+) min total/.exec(hostSetupEstimate(recipe, { check: volume.verifiedSums?.sampleManifestSha256 ? 'sampled check' : 'full check ' + fullCheckMinutes(recipe.weightsGb) }))?.[1] ?? '?'
-export const vastBootsFromVolume = (recipe: HostRecipe, machineId?: number): boolean => { const volume = vastVolumeFor(recipe); return volume?.state === 'kept' && machineId !== undefined && volume.machineId === machineId }
+export const vastBootsFromVolume = (recipe: HostRecipe, machineId?: number): boolean => { const volume = vastVolumeFor(recipe); return recipe.engine !== 'tensorfold' && volume?.state === 'kept' && machineId !== undefined && volume.machineId === machineId }
 export function vastVolumeState(recipe: HostRecipe, volume = vastVolumeFor(recipe) ?? vastKeptVolumes().find(row => matchesVolume(row, recipe))): string {
   if (!volume) return 'not kept on Vast.ai'
   if (volume.state === 'gone') return 'not kept on Vast.ai · ' + (volume.error ?? 'volume gone')
   if (volume.state === 'creating') return 'preparing · create answer unclear; the Vast.ai volume may exist and bill · check Storage in the Vast.ai console'
-  if (volume.state === 'kept') return 'weights kept on ' + vastMachineWords(volume) + ' (' + volume.size + ' GB, ' + vastVolumeBilling(volume) + ') · a rental on that machine boots in ~' + vastBootMinutes(recipe, volume) + ' min · other machines download'
+  if (volume.state === 'kept') return 'weights kept on ' + vastMachineWords(volume) + ' (' + volume.size + ' GB, ' + vastVolumeBilling(volume) + ')' + (recipe.engine === 'tensorfold' ? '' : ' · a rental on that machine boots in ~' + vastBootMinutes(recipe, volume) + ' min · other machines download')
   if (volume.state === 'failed') return 'failed · ' + vastMachineWords(volume) + ' · ' + keptDiskPrice(volume) + (volume.error ? ' · ' + volume.error : '') + ' · the next rental on that machine downloads again'
   return 'preparing on ' + vastMachineWords(volume) + ' · ' + vastVolumeBilling(volume) + (volume.preparingPod ? ' · on instance ' + volume.preparingPod : ' · filled by the next rental on that machine')
 }
@@ -56,7 +56,7 @@ export async function reconcileVastVolumes(api: VastClient, signal?: AbortSignal
 }
 const removeVastRecord = (id: string): void => removeKeptVolumeRecord(id)
 export async function vastRentalVolume(api: VastClient, recipe: HostRecipe, offer: HostOffer, signal?: AbortSignal): Promise<HostVolumeMount | undefined> {
-  if (!vastVolumeFor(recipe)) return
+  if (recipe.engine === 'tensorfold' || !vastVolumeFor(recipe)) return
   try { await reconcileVastVolumes(api, signal) } catch (error) { throw new Error('The Vast.ai volume for this model cannot be confirmed while Vast.ai’s volume list is unavailable; no instance was created. ' + String(error)) }
   const rows = vastKeptVolumes().filter(row => matchesVolume(row, recipe) && row.state !== 'gone')
   if (rows.length > 1) throw new Error('Several Vast.ai volumes keep this model; open /llmhost → Bank before renting.')

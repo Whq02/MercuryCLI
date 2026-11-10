@@ -48,6 +48,7 @@ function runpodFastLoadState(recipe: HostRecipe, row: KeptVolume): string {
   return 'preparing · ' + row.id + ' in ' + row.dataCenter + ' · ' + volumePrice(row) + (row.preparingPod ? ' · on pod ' + row.preparingPod : '')
 }
 export const volumeFitsOffer = (offer: HostOffer): boolean => {
+  if (offer.recipe.engine === 'tensorfold') return true
   const volume = runpodKeptVolumes().find(row => matchesVolume(row, offer.recipe) && row.state !== 'gone')
   return !volume || volume.kind === 'global' || !offer.dataCenter || volume.dataCenter === offer.dataCenter
 }

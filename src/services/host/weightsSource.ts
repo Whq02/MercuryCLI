@@ -55,7 +55,7 @@ function neededFiles(recipe: HostRecipe): { paths: { path: string; size?: number
   }
   return { paths: [{ path: 'config.json' }], words: 'config.json and the safetensors shards' }
 }
-export const weightsSourceDefault = (context: Pick<WeightsSourceContext, 'recipe' | 'vendor' | 'volume' | 'managed'>): WeightsSource => context.volume ? { kind: 'volume', volumeId: context.volume.id } : !context.managed && (context.vendor === 'vast' || context.vendor === 'lambda') && bankUploadPreference(context.recipe) ? { kind: 'bank', folder: bankUploadPreference(context.recipe)!.folder } : { kind: 'huggingface' }
+export const weightsSourceDefault = (context: Pick<WeightsSourceContext, 'recipe' | 'vendor' | 'volume' | 'managed'>): WeightsSource => context.recipe.engine === 'tensorfold' ? { kind: 'huggingface' } : context.volume ? { kind: 'volume', volumeId: context.volume.id } : !context.managed && (context.vendor === 'vast' || context.vendor === 'lambda') && bankUploadPreference(context.recipe) ? { kind: 'bank', folder: bankUploadPreference(context.recipe)!.folder } : { kind: 'huggingface' }
 export function weightsSourceWords(source: WeightsSource, recipe: HostRecipe, volume = source.kind === 'volume' ? readKeptVolume(source.volumeId) : undefined): string {
   if (source.kind === 'huggingface') return 'Hugging Face · ' + sizeWords(recipe.weightsGb) + ' · ~' + bootMinutes(recipe) + ' min'
   if (source.kind === 'private-repo') return source.repo + (source.bytes ? ' · ' + sizeWords(source.bytes / 1e9) : '') + ' · private'
@@ -69,6 +69,10 @@ function weightsSourceChoices(context: WeightsSourceContext): WeightsSourceChoic
   const token = context.token ?? huggingFaceToken()
   const unavailable = (value: WeightsSourceKind, label: string, reason: string): WeightsSourceChoice => ({ value, label: label + ' · unavailable · ' + reason, reason })
   const huggingface: WeightsSourceChoice = { value: 'huggingface', source: { kind: 'huggingface' }, label: 'Hugging Face · ' + recipe.model + ' · ' + sizeWords(recipe.weightsGb) }
+  if (recipe.engine === 'tensorfold') {
+    const reason = 'TensorFold pulls weights from Hugging Face'
+    return [huggingface, unavailable('private-repo', 'Private repository', reason), unavailable('bank', 'This computer’s Bank', reason), unavailable('volume', 'Kept volume', reason)]
+  }
   const privateRepo: WeightsSourceChoice = managed ? unavailable('private-repo', 'Private repository', 'use the endpoint’s repository')
     : !token ? unavailable('private-repo', 'Private repository', '/logins huggingface')
     : { value: 'private-repo', label: 'Private repository' + (context.remembered ? ' · ' + context.remembered : '') }

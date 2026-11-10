@@ -250,6 +250,7 @@ export function folderBytes(path: string): number {
 }
 export const bootMinutes = (recipe: HostRecipe, volume?: KeptVolume): string => /~(\d+) min total/.exec(volume?.state === 'kept' ? fastLoadEstimate(recipe, volume) : hostSetupEstimate(recipe))?.[1] ?? '?'
 export const bootsFromVolume = (recipe: HostRecipe, dataCenter?: string): boolean => {
+  if (recipe.engine === 'tensorfold') return false
   const volume = keptVolumes().find(row => row.kind !== 'vast' && matchesVolume(row, recipe) && row.state !== 'gone')
   return volume?.state === 'kept' && (volume.kind === 'global' || !dataCenter || volume.dataCenter === dataCenter)
 }

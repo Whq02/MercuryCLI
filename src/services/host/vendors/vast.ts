@@ -211,7 +211,7 @@ export class VastClient implements HostVendor {
     const kept = this.keptMachine(recipe)
     return (await this.search(siblings.length ? siblings : [recipe], signal)).offers.filter(row => row.price <= maxPrice && (kept === undefined || row.machineId === kept)).sort((a, b) => Number(b.recipe.id === recipe.id) - Number(a.recipe.id === recipe.id) || sortOffers(a, b))[0]
   }
-  keptMachine: (recipe: HostRecipe) => number | undefined = recipe => keptVolumes().find(row => row.kind === 'vast' && row.state === 'kept' && matchesVolume(row, recipe))?.machineId
+  keptMachine: (recipe: HostRecipe) => number | undefined = recipe => recipe.engine === 'tensorfold' ? undefined : keptVolumes().find(row => row.kind === 'vast' && row.state === 'kept' && matchesVolume(row, recipe))?.machineId
   private pod(row: z.infer<typeof instanceSchema>): HostPod {
     const host = row.public_ipaddr?.trim()
     const port = directPort(row.ports)

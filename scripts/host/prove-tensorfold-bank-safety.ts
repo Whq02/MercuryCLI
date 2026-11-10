@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const { llmhostFixture } = await import('../providers/lib/llmhostFixture.ts')
-const { runpodFixture, fakeSshRunner } = await import('./runpodFixture.mjs')
+const { runpodFixture, fakeSshRunner, liveCatalogue } = await import('./runpodFixture.mjs')
 const f = await llmhostFixture()
 const rp = await runpodFixture()
 process.env.HOME = f.home
@@ -36,7 +36,8 @@ try {
     'tokenizer.json': Buffer.from('{"fixture":true}'),
   }
   const bytes = Object.values(files).reduce((n, data) => n + data.length, 0)
-  const recipe = { ...shipped[0], id: 'tensorfold-bank-fixture', weightsGb: bytes / 1e9 }
+  const recipe = { ...shipped.find(row => row.id === 'tensorfold-qwen35-2b-rtx-3090')!, id: 'tensorfold-bank-fixture', weightsGb: bytes / 1e9 }
+  rp.state.customGpus = liveCatalogue.gpus.filter((row: any) => row.id === 'NVIDIA GeForce RTX 3090').map((row: any) => ({ ...row, availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', availability: 'HIGH' }] }))
   const folder = rememberBankFolder(join(f.home, 'bank'))
   const path = bankModelFolder(folder, recipe)
   mkdirSync(join(path, '.cache/huggingface/download'), { recursive: true })
@@ -78,6 +79,56 @@ try {
   const volume = { id: 'old-tensorfold-volume', name: 'old-tensorfold-volume', kind: 'network' as const, model: recipe.model, include: '', dataCenter: 'EU-NL-1', size: 80, price: 5.6, state: 'kept' as const, createdAt: new Date().toISOString(), recipeRow: recipe }
   writeKeptVolume(volume)
   rp.state.volumes.set(volume.id, { id: volume.id, name: volume.name, kind: 'network', size: 80, dataCenter: 'EU-NL-1', type: 'STANDARD' })
+  const { chooseWeightsSource } = await import('../../src/services/host/weightsSource.ts')
+  const { volumeFitsOffer } = await import('../../src/services/host/fastLoad.ts')
+  const { bootsFromVolume } = await import('../../src/services/host/bank.ts')
+  for (const choice of ['bank', 'private-repo', 'volume'] as const) {
+    const before = rp.requests.length
+    let asks = 0
+    const refused: string[] = []
+    const selected = await chooseWeightsSource({ recipe, vendor: 'runpod', managed: false, volume, token: 'fixture-token' }, undefined, async q => { assert.equal(q.step, 'weights-source'); return asks++ === 0 ? choice : 'back' }, event => refused.push(event.words), new AbortController().signal)
+    assert.ok(selected === undefined && rp.requests.length === before && refused.length === 1 && refused[0]!.includes('TensorFold pulls weights from Hugging Face'), choice + ' is refused before any vendor request')
+  }
+  assert.ok(volumeFitsOffer({ recipe, gpuId: 'fixture', price: 1, dataCenter: 'OTHER-DC' }) && !bootsFromVolume(recipe, volume.dataCenter), 'an unusable old disk neither hides other data centres nor promises a fast boot')
+  const client = new RunpodClient(rp.key, rp.baseUrl)
+  const offer = (await client.offers(new AbortController().signal)).find(row => row.recipe.engine === 'tensorfold' && row.recipe.model === recipe.model && row.dataCenter === volume.dataCenter)!
+  assert.ok(offer, 'the old disk has a matching TensorFold rental in its data centre')
+  const queued: import('../../src/services/host/store.ts').HostRecord[] = []
+  const rental = createHostRoad({ ...options, startJob: record => { queued.push(record) } })
+  let sourceRow = ''
+  await rental(async q => {
+    if (q.step === 'door-models') return 'other'
+    if (q.step === 'where') return 'rent'
+    if (q.step === 'rental-vendor') return 'runpod'
+    if (q.step === 'budget') return ''
+    if (q.step === 'models') return offer.recipe.label.split(' · ')[0]!
+    if (q.step === 'offers') return '0'
+    if (q.step === 'rent-confirm') { sourceRow = q.rows!.find(row => row.value === 'weights-source')!.label; return 'rent' }
+    return null
+  }, () => {}, new AbortController().signal)
+  const bought = queued[0]
+  const createBody = rp.state.createBodies.at(-1)
+  console.log('LEGACY_DISK_RENTAL', JSON.stringify({ sourceRow, volumeId: bought?.volumeId, source: bought?.weightsSource, mounts: createBody?.mounts }))
+  assert.ok(bought && bought.weightsSource?.kind === 'huggingface' && !bought.volumeId && !createBody?.mounts?.network && sourceRow.includes('Hugging Face'), 'a new TensorFold rental ignores the old disk and confirms Hugging Face before creation')
+  await client.terminate(bought.id)
+  const { removeHostRecord } = await import('../../src/services/host/store.ts')
+  removeHostRecord(bought.id)
+  const { vastFixture } = await import('./vastFixture.mjs')
+  const { VastClient } = await import('../../src/services/host/vendors/vast.ts')
+  const { vastRentalVolume } = await import('../../src/services/host/vastVolumes.ts')
+  const vast = await vastFixture()
+  try {
+    const old = { ...volume, id: '20118480', kind: 'vast' as const, machineId: 9102 }
+    writeKeptVolume(old)
+    vast.state.volumes.set(20118480, { id: 20118480, label: old.name, status: 'active', machine_id: 9102, disk_space: 80, storage_cost: 0.1, start_date: 1792490400 })
+    const api = new VastClient(vast.key, vast.baseUrl)
+    const shape = { ...offer, recipe, machineId: 9102 }
+    assert.equal(await vastRentalVolume(api, recipe, shape), undefined, 'a TensorFold rental never attaches an older Vast volume')
+    assert.equal(vast.requests.length, 0, 'an unsupported Vast disk does not trigger a rental volume read')
+    assert.equal(api.keptMachine(recipe), undefined, 'an old TensorFold disk does not constrain the stock watch to its machine')
+    const supported = { ...recipe, engine: 'vllm' as const }
+    assert.equal((await vastRentalVolume(api, supported, { ...shape, recipe: supported }))?.id, old.id, 'a supported engine still attaches its same-machine Vast disk')
+  } finally { await vast.close() }
   const road = createHostRoad({ ...options })
   let paid = false
   const removed = await road(async (q: any) => {
@@ -89,5 +140,5 @@ try {
   assert.ok(paid && removed.ok && !rp.state.volumes.has(volume.id) && readKeptVolume(volume.id)?.state === 'gone', 'an older billed TensorFold volume stays listed and is deleted through Machines I’m paying for')
   assert.ok(bankState(recipe).banked, 'deleting the old volume leaves the local bank intact')
   assert.deepEqual(escaped, [], 'no request left the loopback fixtures')
-  console.log('TENSORFOLD BANK SAFETY GREEN — 10 checks; vendor requests 0 before legacy-volume cleanup')
+  console.log('TENSORFOLD BANK SAFETY GREEN — 20 checks; vendor requests 0 on refused source and mirror roads')
 } finally { ssh?.close(); await rp.close(); f.close(); globalThis.fetch = nativeFetch }
