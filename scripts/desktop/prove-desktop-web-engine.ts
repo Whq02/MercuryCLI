@@ -68,7 +68,7 @@ console.log("\nan image's folder: the same reading where an application is a fol
   check('an engine, or the loader of the system web view, beside the image is read', reads(carrying) === '', reads(carrying))
   const without: Array<[string, string, boolean | undefined]> = [
     ['an executable and its own library', bundle('notepad', ['Notepad.exe', 'Notepad.dll']), false],
-    ['a version folder that holds no engine', bundle('updater', ['App.exe', '1.2.3/plugin.dll']), false],
+    ['a version folder that holds no engine', bundle('updater', ['App.exe', '1.2.3/helper.dll']), false],
     ['packs in a folder that is no version folder', bundle('game', ['Game.exe', 'data/icudtl.dat', 'data/resources.pak']), false],
   ]
   check('a folder that carries none is read as holding no engine', reads(without) === '', reads(without))
