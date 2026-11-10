@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
 import { spawn, type ChildProcess } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
@@ -104,6 +104,32 @@ console.log('R2 the daemon runs it as it takes the home, before it answers anyon
   const at = main.indexOf('await endRunnersLeftWithoutHost(')
   check('after the handover is known and before the control server starts', at !== -1 && main.indexOf('handover = handoverState(') < at && at < main.indexOf('controlServer = await startControlServer('))
   check("a runner the roster holds or a living predecessor hosts is not its to end", main.includes("endRunnersLeftWithoutHost(short => (rosterRef?.has(short).present ?? false) || (handoverRef?.holds(short) ?? false))"))
+}
+
+console.log("R3 a process under the runner that outlives the ask is ended with it, and nothing outside the runner's tree is touched")
+{
+  const pidFile = join(SCRATCH, 'under-the-runner.pid')
+  const script = join(SCRATCH, 'left-runner.sh')
+  writeFileSync(script, `sh -c 'trap "" TERM; while :; do sleep 1; done' &\necho $! > "$1"\nwait\n`)
+  const runner = spawn('sh', [script, pidFile], { detached: true, stdio: 'ignore' })
+  children.push(runner)
+  const bystander = standIn()
+  const staged = await until(() => existsSync(pidFile) && readFileSync(pidFile, 'utf8').trim() !== '', 3_000)
+  const under = staged ? Number(readFileSync(pidFile, 'utf8').trim()) : -1
+  const underBirth = staged ? await getProcessStartTokenAsync(under) : null
+  await new Promise(resolve => setTimeout(resolve, 150))
+  const runnerId = await seed('8', runner.pid!)
+  const ended = sweep === undefined ? [] : await sweep(id => id !== runnerId, dir, { graceMs: 400 })
+  check('the scene stood: a runner that leads its own group, with a process under it that ignores the ask', staged && under > 1 && typeof underBirth === 'string' && underBirth !== '', j({ staged, under, underBirth }))
+  check('the runner left at the ask and is listed as ended', (await until(() => !isProcessAlive(runner.pid!), 2_000)) && ended.map(e => e.runnerId).join(',') === runnerId, j(ended))
+  const underGone = await until(() => !isProcessAlive(under), 2_000)
+  check('the process under it that ignored the ask is gone too (red before: it ran on with nothing left to end it)', underGone, `pid ${under} is still alive`)
+  check('a process that was never under the runner is alive', isProcessAlive(bystander))
+  if (!underGone && typeof underBirth === 'string' && underBirth !== '' && (await getProcessStartTokenAsync(under)) === underBirth) {
+    try {
+      process.kill(under, 'SIGKILL')
+    } catch {}
+  }
 }
 
 for (const child of children) {

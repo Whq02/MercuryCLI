@@ -442,7 +442,8 @@ function buildTreeFields(): { buildTree?: string } {
 }
 
 import { workerPidAlive } from './workerIdentity.js'
-import { tokenBinding } from './processSweep.js'
+import { parseProcessStartToken, tokenBinding } from './processSweep.js'
+import { readProcessTreeUnder } from './processTree.js'
 import { endProcessTree } from '../utils/processGroup.js'
 export { workerPidAlive } from './workerIdentity.js'
 
@@ -2703,10 +2704,17 @@ export async function endRunnersLeftWithoutHost(
     const pid = rec.pid
     if (rec.endedAt !== undefined || rec.attachedAt !== undefined || pid === undefined || rec.procStart === undefined) continue
     if (hosted(rec.runnerId) || !isProcessAlive(pid)) continue
+    const listedAt = Date.now()
+    const under = await readProcessTreeUnder(pid)
     if (tokenBinding(rec.procStart, await getProcessStartTokenAsync(pid, rec.procStart)) !== 'bound') continue
+    const tree: Array<{ pid: number; birth: string }> = []
+    for (const member of under) {
+      const birth = await getProcessStartInstantAsync(member)
+      if (typeof birth === 'string' && parseProcessStartToken(birth) <= listedAt) tree.push({ pid: member, birth })
+    }
     await endProcessTree(pid, 'SIGTERM')
     const deadline = Date.now() + (opts?.graceMs ?? HOSTLESS_RUNNER_GRACE_MS)
-    while (isProcessAlive(pid) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50))
+    while ((isProcessAlive(pid) || tree.some(member => isProcessAlive(member.pid))) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50))
     let gone = !isProcessAlive(pid)
     if (!gone) {
       const still = tokenBinding(rec.procStart, await getProcessStartTokenAsync(pid, rec.procStart))
@@ -2716,6 +2724,10 @@ export async function endRunnersLeftWithoutHost(
       } else {
         gone = still === 'stranger'
       }
+    }
+    for (const member of tree) {
+      if (!isProcessAlive(member.pid)) continue
+      if (tokenBinding(member.birth, await getProcessStartInstantAsync(member.pid)) === 'bound') await endProcessTree(member.pid, 'SIGKILL')
     }
     if (gone) ended.push({ runnerId: rec.runnerId, pid })
   }
