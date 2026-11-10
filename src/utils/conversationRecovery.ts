@@ -147,11 +147,11 @@ function asksNoReply(message: Message): boolean {
   return message.type === 'system' || message.type === 'progress' || isSyntheticApiErrorAssistant(message)
 }
 
-function trailsReply(messages: Message[], index: number): boolean {
+function trailsEndedReply(messages: Message[], index: number): boolean {
   for (let i = index; i >= 0; i--) {
     const candidate = messages[i] as Message
     if (asksNoReply(candidate)) continue
-    return candidate.type === 'assistant'
+    return candidate.type === 'assistant' && candidate.message.stop_reason != null
   }
   return false
 }
@@ -179,7 +179,7 @@ function detectInterruption(messages: Message[]): InternalInterruptionState {
     return { kind: 'interrupted_prompt', message: last as NormalizedUserMessage }
   }
   if (last.type === 'attachment') {
-    return trailsReply(messages, index) ? { kind: 'none' } : { kind: 'interrupted_turn' }
+    return trailsEndedReply(messages, index) ? { kind: 'none' } : { kind: 'interrupted_turn' }
   }
   return { kind: 'none' }
 }

@@ -250,6 +250,45 @@ try {
       await fixture.close()
     }
   }
+
+  section('F5 — the built bundle stopped hard inside its first reply: one text block settled, the stream still open, then signal 9; a second process resumes')
+  {
+    const SID5 = 'facef00d-0000-4000-8000-0000000f5a01'
+    const fixture = await startFixtureApi([handoffTurn(), { kind: 'die', settled: ['F5-SETTLED-BLOCK of a reply that never ended.'], deltas: ['half', ' of a', ' second block'], gapMs: 4000 }, { kind: 'text', text: 'F5-RESUMED-REPLY.' }])
+    const arena = makeArena('f5', fixture)
+    try {
+      const child = spawn(nodeBin!, [DIST, 'run', 'F5 first prompt.', '--model', MODEL, '--session-id', SID5, '--format', 'rows'], { cwd: arena.cwd, env: arena.env })
+      child.stdout.on('data', () => {})
+      child.stderr.on('data', () => {})
+      const exited = new Promise<number | null>(resolve => child.on('close', code => resolve(code)))
+      let file = ''
+      let kinds: string[] = []
+      const until = Date.now() + 12_000
+      while (Date.now() < until) {
+        file = file === '' ? transcriptOf(arena, SID5) : file
+        kinds = file === '' ? [] : (await recordOf(file)).map(kindOf)
+        const blockAt = kinds.lastIndexOf('assistant(text)')
+        if (blockAt !== -1 && blockAt < kinds.length - 1) break
+        await new Promise(tick => setTimeout(tick, 100))
+      }
+      child.kill('SIGKILL')
+      await exited
+      const record = file === '' ? [] : await recordOf(file)
+      kinds = record.map(kindOf)
+      const blockAt = kinds.lastIndexOf('assistant(text)')
+      const block = record[blockAt]
+      const stopReason = (block?.message as { stop_reason?: unknown } | undefined)?.stop_reason ?? null
+      check('F5: the record holds the settled block with no stop reason (its reply never ended) and ends on a row the block left behind it', block !== undefined && stopReason === null && blockAt < kinds.length - 1 && kinds.slice(blockAt + 1).every(kind => kind.startsWith('attachment:')), j({ kinds, stopReason }))
+      const loaded = await resumedFrom(record, SID5)
+      check('F5: the loader reads the turn as cut — the sentence once (rows after a reply that never ended do not make it a finished turn)', loaded.state === 'interrupted_prompt' && loaded.saysContinuation === 1, j({ state: loaded.state, continuation: loaded.saysContinuation, last: loaded.lastTalk }))
+      const second = await run(arena, ['run', 'F5 second prompt.', '--model', MODEL, '--resume', SID5, '--format', 'rows'])
+      const requests = fixture.messageRequests().filter(request => !isHandoffRequest(request))
+      const resumedWire = wireOf(requests.at(-1))
+      check('F5: the second process answered, and its request tells the model the previous run ended before its turn finished, once', second.exit === 0 && second.stdout.includes('F5-RESUMED-REPLY.') && says(resumedWire, CONTINUATION) === 1, `exit=${second.exit} ${j(resumedWire.map(message => [message.role, message.texts.map(text => text.slice(0, 80))]))}`)
+    } finally {
+      await fixture.close()
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
