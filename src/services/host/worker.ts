@@ -344,6 +344,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (!recipe) throw new Error('The saved host recipe is unavailable.')
     const tensorfold = isTensorFoldRecipe(recipe) ? tensorFoldPodKey(id) : undefined
     const api = vendorClient(initial, { key })
+    const failureLog = (read: typeof readOnly): Promise<string> => read('log', readSignal => api.logs(id, readSignal)).catch(error => { signal.throwIfAborted(); return hostReadFailureWords(error) ?? (error instanceof Error ? error.message : String(error)) })
     let endpointBase: string | undefined
     let loadedWeights: string | undefined
     if (api.capabilities.managed) {
@@ -351,7 +352,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       while (!signal.aborted && Date.now() + pause < deadline) {
         const observed = await readOnly('endpoint', readSignal => api.managedEndpoint!(id, readSignal)).catch(error => { if (notFound(error)) throw new HostPodMissing('the vendor no longer lists pod ' + id); throw error })
         patchHostRecord(id, { status: observed.pod.status })
-        if (observed.pod.status === 'ERROR') throw new Error('HF endpoint failed to start. ' + await readOnly('log', readSignal => api.logs(id, readSignal)))
+        if (observed.pod.status === 'ERROR') throw new Error('HF endpoint failed to start. ' + await failureLog(readOnly))
         if (observed.pod.status === 'RUNNING' && observed.baseUrl) { endpointBase = observed.baseUrl; break }
         mark('HF endpoint · starting · ' + Math.floor((Date.now() - (initial.jobStartedAt ?? Date.now())) / 60_000) + ' min')
         await delay(Math.min(pause, Math.max(1, deadline - Date.now())), undefined, { signal })
@@ -368,9 +369,12 @@ export async function runHostJob(id: string, generation: string, options: { runn
     for (;;) {
       while (!signal.aborted && Date.now() < sshDeadline) {
         const pod = await sshRead('pod', readSignal => api.get(id, readSignal)).catch(error => { if (notFound(error)) throw new HostPodMissing('the vendor no longer lists pod ' + id); if (hostReadFailureWords(error) && Date.now() >= sshDeadline - pause) throw new Error(last); throw error })
+        const current = readHostRecord(id)
+        if (!current || current.generation !== generation || current.jobState === 'stopped' || current.status === 'TERMINATED') return
+        patchHostRecord(id, { status: pod.status })
         const direct = pod.ssh?.direct
         keyRefused = false
-        if (pod.status === 'EXITED' || pod.status === 'ERROR') throw new Error('Pod is ' + pod.status + '. ' + await sshRead('log', readSignal => api.logs(id, readSignal)))
+        if (pod.status === 'EXITED' || pod.status === 'ERROR') throw new Error('Pod is ' + pod.status + '. ' + await failureLog(sshRead))
         if (direct && pod.status === 'RUNNING') {
           const candidate = { host: direct.host, port: direct.port, user: direct.username, key: initial.sshKey ?? initial.target?.key }
           try { await runner.run('ssh', [...sshArguments(candidate), vendor === 'lambda' ? 'cloud-init status --wait >/dev/null && test -w /workspace && command -v setsid >/dev/null && command -v curl >/dev/null' : api.capabilities.vm ? 'test -r /workspace/.mercury-vm-ready && test -w /workspace && command -v setsid >/dev/null && command -v curl >/dev/null' : 'true'], signal); target = candidate; break } catch (error) {
@@ -586,8 +590,9 @@ export async function runHostJob(id: string, generation: string, options: { runn
         return
       }
       const machine = initial.cluster ? 'Runpod cluster ' + id + ' (' + (initial.nodes?.length ?? initial.cluster.compute.podCount) + ' nodes)' : hostMachineName(vendor, id)
-      const billing = /^Pod is EXITED\b/.test(detail) ? machine + ' · stopped; disk still bills until Terminate' : machine + ' · $' + failedSetup.price.toFixed(2) + '/hr still billing'
-      const words = 'setup paused · ' + detail + ' · ' + billing + (disk ? ' · ' + disk : '') + ' · Resume or Terminate in /llmhost'
+      const billing = failedSetup.status === 'EXITED' ? machine + (vendor === 'huggingface' ? ' · Paused · no compute bills' : ' · stopped; disk still bills until Terminate') : failedSetup.status === 'ERROR' ? machine + ' · may still bill' : machine + ' · $' + failedSetup.price.toFixed(2) + '/hr still billing'
+      const resume = failedSetup.status === 'RUNNING' || vendor === 'huggingface' && failedSetup.status === 'EXITED'
+      const words = 'setup paused · ' + detail + ' · ' + billing + (disk ? ' · ' + disk : '') + (resume ? ' · Resume or Terminate in /llmhost' : ' · Terminate in /llmhost')
       log(words)
       const at = Date.now()
       const step = 'paused at ' + (failedSetup.step ?? 'setup').replace(/ · retrying until it does$/, '')

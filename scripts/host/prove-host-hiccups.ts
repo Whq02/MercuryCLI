@@ -64,7 +64,7 @@ try {
     rp.state.failNext = { route: 'GET /v2/pods/' + stopped.id, status, times: 10 }
     const failed = (await run(queue(stopped)))!
     const pausesUp = status !== 404
-    check(status + (pausesUp ? ' pauses the setup on the first read without retry words, the pod left up and billing' : ' stops the setup on the first read without retry words'), failed.jobState === (pausesUp ? 'paused' : 'failed') && podReads(stopped.id).length === 1 && !failed.steps?.some(row => row.step.includes('retrying')) && (!pausesUp || String(failed.error).includes('/hr still billing') && String(failed.error).includes('Resume or Terminate in /llmhost')) && rp.state.deletes === 0)
+    check(status + (pausesUp ? ' pauses the setup on the first read without retry words or an unavailable Resume, the pod still billable' : ' stops the setup on the first read without retry words'), failed.jobState === (pausesUp ? 'paused' : 'failed') && podReads(stopped.id).length === 1 && !failed.steps?.some(row => row.step.includes('retrying')) && (!pausesUp || failed.status === stopped.status && String(failed.error).includes('/hr still billing') && String(failed.error).includes('Terminate in /llmhost') && !String(failed.error).includes('Resume')) && rp.state.deletes === 0)
   }
   const failing = await api.create(offer, 'ssh-ed25519 fixture', 'budget-reading')
   rp.state.failNext = { route: 'GET /v2/pods/' + failing.id, status: 503, times: 1000 }
@@ -72,8 +72,8 @@ try {
   const paused = (await run(queue(failing), 350))!
   const count = podReads(failing.id).length
   const counted = 'paused at Runpod read failed (HTTP 503) · retrying in 1 s · attempt ' + count
-  const billing = failing.id + ' · $' + paused.price.toFixed(2) + '/hr still billing · Resume or Terminate in /llmhost'
-  check('the read spends its budget, then pauses with the exact failed-read count on the step and says the pod stays up and bills', Date.now() - beforeBudget >= 350 && count > 1 && paused.jobState === 'paused' && String(paused.error).startsWith('setup paused · ') && String(paused.error).includes(billing) && paused.step === counted && paused.price > 0 && rp.state.deletes === 0)
+  const billing = failing.id + ' · $' + paused.price.toFixed(2) + '/hr still billing · Terminate in /llmhost'
+  check('the read spends its budget, then pauses with the exact failed-read count and the last-known state, without an unavailable Resume', Date.now() - beforeBudget >= 350 && count > 1 && paused.jobState === 'paused' && paused.status === failing.status && String(paused.error).startsWith('setup paused · ') && String(paused.error).includes(billing) && !String(paused.error).includes('Resume') && paused.step === counted && paused.price > 0 && rp.state.deletes === 0)
   check('one pause notice, no early stall notice', notices().filter(words => words.includes('budget-reading')).length === 1 && notices().some(words => words.includes(billing)))
   const original = new RunpodHttpError('original vendor error', 503, 'fixture')
   await assert.rejects(readOnly(100)('pod', async () => { throw original }), error => error === original && Boolean(hostReadFailureWords(error)))

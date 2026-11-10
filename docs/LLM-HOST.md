@@ -299,10 +299,14 @@ longer `Retry-After`. If the vendor still does not answer within the 4-minute
 read budget, setup pauses without terminating the machine.
 
 No setup check ever terminates a rented machine on its own. When setup trips
-on a confirmed fault, Mercury pauses the setup, leaves the machine running,
-closes its tunnel, and posts one notice naming the cause, the machine, the
-hourly rate it still bills, and the two choices:
+on a confirmed fault, Mercury pauses the setup, keeps the rented machine,
+closes its tunnel, and posts one notice naming the cause and the machine.
+For a running machine the notice names its hourly rate and the two choices:
 `setup paused · <cause> · <Vendor> pod <id> · $<rate>/hr still billing · Resume or Terminate in /llmhost`.
+A stopped pod (`EXITED`) says `stopped; disk still bills until Terminate`;
+an `ERROR` state says `may still bill`. The vendor's status remains in the
+cause even when its log cannot be read. Resume is named only when its control
+is available; otherwise the paused line names Terminate alone.
 **Resume setup** under **Machines I’m paying for** starts the setup again on
 the same machine (a download continues from what already arrived; a running
 engine is reused); **Terminate** deletes it. The row shows `paused`; open it
