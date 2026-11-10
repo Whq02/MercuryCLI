@@ -82,6 +82,49 @@ console.log('G4 the deny leg')
   check('the pending ask settled', listPendingPermissionAsks().every(a => a.requestId !== minted.requestId))
 }
 
+console.log('G5 an answer for a git offer the daemon does not hold')
+{
+  const { upsertObligation, obligationOf } = await import('../../src/services/crew/obligations.js')
+  const statusSoon = async (obligationId: string, want: string): Promise<string> => {
+    let status = 'unknown'
+    for (let i = 0; i < 40; i++) {
+      status = (await obligationOf(obligationId, { scope: 'switchboard' }))?.status ?? 'unknown'
+      if (status === want) break
+      await new Promise(r => setTimeout(r, 50))
+    }
+    return status
+  }
+  const unheld = await upsertObligation({
+    ref: 'permission:git-init:deadbeef0001',
+    sessionId: `folder:${folderB}-unheld`,
+    question: `this folder has no git — start one in ${folderB}-unheld so sessions can fork it?`,
+    owner: 'operator',
+    scope: 'switchboard',
+  })
+  const refused = answerPermissionAsk('git-init:deadbeef0001', false, 'prover')
+  check('the daemon refuses it: it holds no such ask', refused.outcome === 'refused' && /unknown or already-answered/.test(refused.detail ?? ''), JSON.stringify(refused))
+  check('the obligation behind the card is withdrawn, so the card that can never be answered leaves the board', (await statusSoon(unheld.obligationId, 'withdrawn')) === 'withdrawn', (await obligationOf(unheld.obligationId, { scope: 'switchboard' }))?.status ?? '(no row)')
+  const held = mintGitInitAsk(folderB)
+  let heldRow: Awaited<ReturnType<typeof openObligations>>[number] | undefined
+  for (let i = 0; i < 40 && heldRow === undefined; i++) {
+    heldRow = (await openObligations({ scope: 'switchboard' })).find(r => r.ref === `permission:${held.requestId}`)
+    if (heldRow === undefined) await new Promise(r => setTimeout(r, 50))
+  }
+  answerPermissionAsk('git-init:deadbeef0002', false, 'prover')
+  await new Promise(r => setTimeout(r, 300))
+  check('a held offer is untouched by an answer aimed at another reference', heldRow !== undefined && (await obligationOf(heldRow.obligationId, { scope: 'switchboard' }))?.status === 'open' && listPendingPermissionAsks().some(a => a.requestId === held.requestId))
+  const runnerAsk = await upsertObligation({
+    ref: 'permission:0d0f6c0e-0000-4000-8000-00000000beef',
+    sessionId: 'session-of-a-runner',
+    question: '"probe" asked to run Bash',
+    owner: 'operator',
+    scope: 'switchboard',
+  })
+  const runnerRefused = answerPermissionAsk('0d0f6c0e-0000-4000-8000-00000000beef', true, 'prover')
+  await new Promise(r => setTimeout(r, 300))
+  check("a runner's ask this daemon does not hold is refused and its row stays (the board's own sweep retires it with its session)", runnerRefused.outcome === 'refused' && (await obligationOf(runnerAsk.obligationId, { scope: 'switchboard' }))?.status === 'open')
+}
+
 console.log('T1 trust ledger')
 {
   const fresh = mkdtempSync(join(tmpdir(), 'concflow-trust-'))

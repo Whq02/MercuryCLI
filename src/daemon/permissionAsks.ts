@@ -7,7 +7,7 @@ import { noteSessionAsking } from './sessionStateHooks.js'
 import { armInactivityDeadline, formatLimit, type InactivityDeadline } from '../utils/deadline.js'
 import { askExpiredCause, askLimitMs, isAskExpiredCause, unansweredAskRefusal } from '../utils/permissions/askClock.js'
 import { askBoardQuestion } from '../utils/permissions/askWords.js'
-import { recordSettledObligation, upsertObligation } from '../services/crew/obligations.js'
+import { recordSettledObligation, resolveObligationByRef, upsertObligation } from '../services/crew/obligations.js'
 import {
   publishSessionAsks,
   type SessionAskProjectionV1,
@@ -379,6 +379,14 @@ export function mintGitRefusedReceipt(clientMessageId: string, folder: string, r
   }).catch(err => logForDebugging(`[daemon] git-refused receipt write failed: ${err}`))
 }
 
+function withdrawUnheldGitOffer(requestId: string): void {
+  void resolveObligationByRef(`permission:${requestId}`, {
+    kind: 'withdrawn',
+    by: 'daemon: no git offer is held under this reference',
+    scope: 'switchboard',
+  }).catch(err => logForDebugging(`[daemon] unheld git offer ${requestId} obligation settle failed: ${err}`))
+}
+
 export function onWorkerAskWithdrawn(requestId: string, dir?: string, cause?: string): void {
   const ask = pending.get(requestId)
   if (!ask || ask.local !== undefined) return
@@ -419,7 +427,10 @@ export function answerPermissionAsk(
       pending.set(requestId, ask)
     }
   }
-  if (!ask) return { outcome: 'refused', detail: retired.get(requestId) ?? 'unknown or already-answered permission request' }
+  if (!ask) {
+    if (requestId.startsWith('git-init:')) withdrawUnheldGitOffer(requestId)
+    return { outcome: 'refused', detail: retired.get(requestId) ?? 'unknown or already-answered permission request' }
+  }
   if (ask.local === 'git-init') {
     const settleObligation = (): void => settleAskObligation(ask, { kind: 'answered', by })
     const dropSidecar = (): void => {
