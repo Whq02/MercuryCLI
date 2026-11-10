@@ -548,6 +548,8 @@ export async function loadConversationForResume(
         agentName: log.agentName,
         agentColor: log.agentColor,
         agentSetting: log.agentSetting,
+        brief: log.brief,
+        briefAdd: log.briefAdd,
         customTitle: log.customTitle,
         tag: log.tag,
         mode: log.mode,

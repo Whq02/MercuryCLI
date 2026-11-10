@@ -34,6 +34,8 @@ type StoragePayloads = {
   'agent-name': SessionField<'agentName', string>
   'agent-color': SessionField<'agentColor', string>
   'agent-setting': SessionField<'agentSetting', string>
+  'session-brief': SessionField<'brief', string>
+  'session-brief-add': SessionField<'briefAdd', string>
   'pr-link': {
     sessionId: UUID
     prNumber: number
@@ -106,6 +108,8 @@ export const STORAGE_ROWS = {
   'agent-name': { write: 'append', fold: 'metadata' },
   'agent-color': { write: 'append', fold: 'metadata' },
   'agent-setting': { write: 'append', fold: 'metadata' },
+  'session-brief': { write: 'append', fold: 'metadata' },
+  'session-brief-add': { write: 'append', fold: 'metadata' },
   'pr-link': { write: 'append', fold: 'metadata' },
   mode: { write: 'append', fold: 'metadata' },
   'advisor-switch': { write: 'append', fold: 'metadata' },

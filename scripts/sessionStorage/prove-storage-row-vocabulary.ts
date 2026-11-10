@@ -4,7 +4,7 @@ import { isChainParticipant, isEphemeralToolProgress, isTranscriptMessage } from
 import { applyTranscriptEntry, emptyFoldState } from '../../src/utils/sessionStorage/fold.js'
 
 const messages = ['user', 'assistant', 'system', 'attachment']
-const metadata = ['summary', 'custom-title', 'ai-title', 'last-prompt', 'task-summary', 'tag', 'agent-name', 'agent-color', 'agent-setting', 'pr-link', 'mode', 'advisor-switch', 'swarm-switch', 'model', 'worktree-state', 'file-history-snapshot', 'attribution-snapshot', 'speculation-accept', 'context-collapse-commit', 'context-collapse-snapshot', 'queue-operation']
+const metadata = ['summary', 'custom-title', 'ai-title', 'last-prompt', 'task-summary', 'tag', 'agent-name', 'agent-color', 'agent-setting', 'session-brief', 'session-brief-add', 'pr-link', 'mode', 'advisor-switch', 'swarm-switch', 'model', 'worktree-state', 'file-history-snapshot', 'attribution-snapshot', 'speculation-accept', 'context-collapse-commit', 'context-collapse-snapshot', 'queue-operation']
 assert.deepEqual(Object.keys(STORAGE_ROWS).sort(), [...messages, ...metadata, 'progress', 'content-replacement'].sort())
 for (const type of messages) {
   assert.equal(storageRowPolicy(type)?.write, 'message')

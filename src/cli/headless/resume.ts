@@ -21,6 +21,7 @@ import { restoreSessionStateFromLog } from 'src/utils/sessionRestore.js'
 import { runSessionStartHooks } from 'src/utils/sessionStart.js'
 import { consumeSessionHomePin } from 'src/utils/sessionStorage/sessionHomePin.js'
 import {
+  carrySessionBriefs,
   resetSessionFilePointer,
   restoreSessionMetadata,
 } from 'src/utils/sessionStorage.js'
@@ -63,6 +64,8 @@ type LoadInitialMessagesResult = {
   contentReplacements?: ContentReplacementRecord[]
   turnInterruptionState?: TurnInterruptionState
   agentSetting?: string
+  brief?: string
+  briefAdd?: string
   model?: string
 }
 
@@ -99,6 +102,7 @@ export async function loadInitialMessages(
         ? { ...result, worktreeSession: undefined }
         : result,
     )
+    if (options.forkSession) carrySessionBriefs()
     if (options.forkSession && persistSession && result.contentReplacements?.length) {
       await recordContentReplacement(result.contentReplacements)
     }
@@ -108,6 +112,8 @@ export async function loadInitialMessages(
       contentReplacements: result.contentReplacements,
       turnInterruptionState: result.turnInterruptionState,
       agentSetting: result.agentSetting,
+      brief: result.brief,
+      briefAdd: result.briefAdd,
       model: result.model,
     }
   }

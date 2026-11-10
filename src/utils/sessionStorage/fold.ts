@@ -23,6 +23,8 @@ export type TranscriptFoldState = {
   agentNames: Map<UUID, string>
   agentColors: Map<UUID, string>
   agentSettings: Map<UUID, string>
+  sessionBriefs: Map<UUID, string>
+  sessionBriefAdds: Map<UUID, string>
   prNumbers: Map<UUID, number>
   prUrls: Map<UUID, string>
   prRepositories: Map<UUID, string>
@@ -49,6 +51,8 @@ export function emptyFoldState(): TranscriptFoldState {
     agentNames: new Map(),
     agentColors: new Map(),
     agentSettings: new Map(),
+    sessionBriefs: new Map(),
+    sessionBriefAdds: new Map(),
     prNumbers: new Map(),
     prUrls: new Map(),
     prRepositories: new Map(),
@@ -97,6 +101,8 @@ const foldRows = {
   'agent-name': (state, row) => { if (row.sessionId) state.agentNames.set(row.sessionId, row.agentName) },
   'agent-color': (state, row) => { if (row.sessionId) state.agentColors.set(row.sessionId, row.agentColor) },
   'agent-setting': (state, row) => { if (row.sessionId) state.agentSettings.set(row.sessionId, row.agentSetting) },
+  'session-brief': (state, row) => { if (row.sessionId && typeof row.brief === 'string') state.sessionBriefs.set(row.sessionId, row.brief) },
+  'session-brief-add': (state, row) => { if (row.sessionId && typeof row.briefAdd === 'string') state.sessionBriefAdds.set(row.sessionId, row.briefAdd) },
   mode: (state, row) => { if (row.sessionId) state.modes.set(row.sessionId, row.mode) },
   'advisor-switch': (state, row) => { if (row.sessionId) state.advisorSwitches.set(row.sessionId, row.on === true) },
   'swarm-switch': (state, row) => { if (row.sessionId) state.swarmSwitches.set(row.sessionId, row.on === true) },

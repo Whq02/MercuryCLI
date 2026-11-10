@@ -224,6 +224,7 @@ export function clearSessionMetadata(): void {
 }
 
 export function reAppendSessionMetadata(): void {
+  getProject().metadata.oweBriefs()
   getProject().reAppendSessionMetadata()
 }
 
@@ -249,6 +250,14 @@ export async function saveAgentColor(
 
 export function saveAgentSetting(agentSetting: string): void {
   getProject().currentSessionAgentSetting = agentSetting
+}
+
+export function saveSessionBrief(field: 'brief' | 'briefAdd', text: string): void {
+  getProject().metadata.setBrief(field, text)
+}
+
+export function carrySessionBriefs(): void {
+  getProject().metadata.oweBriefs()
 }
 
 export function cacheSessionTitle(customTitle: string): void {
@@ -385,6 +394,8 @@ export type ResumeFacts = Pick<
   | 'agentName'
   | 'agentColor'
   | 'agentSetting'
+  | 'brief'
+  | 'briefAdd'
   | 'customTitle'
   | 'tag'
   | 'mode'
@@ -412,6 +423,8 @@ export function resumeFactsOf(
     agentName: fold.agentNames.get(sessionId),
     agentColor: fold.agentColors.get(sessionId),
     agentSetting: fold.agentSettings.get(sessionId),
+    brief: fold.sessionBriefs.get(sessionId),
+    briefAdd: fold.sessionBriefAdds.get(sessionId),
     customTitle: fold.customTitles.get(sessionId),
     tag: fold.tags.get(sessionId),
     mode: fold.modes.get(sessionId) as SessionListing['mode'],

@@ -42,6 +42,8 @@ type ListingLabels = Partial<{
   agentName: string
   agentColor: string
   agentSetting: string
+  brief: string
+  briefAdd: string
 }>
 type ListingPlace = Partial<{
   gitBranch: string
