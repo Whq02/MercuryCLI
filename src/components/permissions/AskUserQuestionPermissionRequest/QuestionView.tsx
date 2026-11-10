@@ -1,5 +1,6 @@
 import figures from 'figures'
-import React, { useCallback, useRef, useState } from 'react'
+import React, { useCallback, useContext, useRef, useState } from 'react'
+import { CockpitActiveContext } from '../../../context/cockpitActiveContext.js'
 import type { KeyboardEvent } from '../../../ink/events/keyboard-event.js'
 import { Box, Text, useInput } from '../../../ink.js'
 import { useAppState } from '../../../state/AppState.js'
@@ -84,6 +85,7 @@ export function QuestionView(props: Props): React.ReactNode {
   } = props
   const permissionMode = useAppState((s: AppState) => s.toolPermissionContext.mode)
   const isApolloPoll = permissionMode === 'apollo'
+  const paneBordered = useContext(CockpitActiveContext)
   const [isFooterFocused, setIsFooterFocused] = useState(false)
   const [isOtherFocused, setIsOtherFocused] = useState(false)
   const [showEmptyOtherHint, setShowEmptyOtherHint] = useState(false)
@@ -264,7 +266,7 @@ export function QuestionView(props: Props): React.ReactNode {
 
   return (
     <Box flexDirection="column" marginTop={0} tabIndex={0} autoFocus onKeyDown={handleKeyDown}>
-      <Box marginTop={-1}>
+      <Box marginTop={paneBordered ? -1 : 0}>
         <Divider color="inactive" />
       </Box>
       <Box flexDirection="column" paddingTop={0}>
