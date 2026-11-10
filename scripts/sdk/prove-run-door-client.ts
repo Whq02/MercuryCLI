@@ -321,6 +321,28 @@ section('C5 the argv builder spells only options the door declares, with the val
   check('a bare run spells run --format rows -- <prompt>, the stdin marker included', bare.command === '/x/mercury' && bare.args.join(' ') === 'run --format rows -- -')
 }
 
+section('C6 a budget met by a reply that asks for a tool, through the package: the call the limit left unrun arrives as a typed tool_result row with status aborted, then the budget_limit outcome')
+{
+  const door = await openDoor([
+    { kind: 'tool_use', name: 'Bash', input: { command: 'echo sdk-door-never-run > sdk-door-ran.txt' }, usage: { input_tokens: 2000, output_tokens: 1000 } },
+    { kind: 'text', text: 'Unreached.' },
+  ])
+  try {
+    const run = sdk.run({ prompt: 'run the command', mercury, cwd: door.home, env: door.env, mode: 'sovereign', budgetUsd: 0.000001 })
+    const outcome = await withTimeout(run.outcome, 60_000, 'the outcome')
+    const exit = await run.exit
+    const callAt = run.rows.findIndex(row => row.type === 'tool_call')
+    const resultAt = run.rows.findIndex(row => row.type === 'tool_result')
+    const call = run.rows[callAt]
+    const result = run.rows[resultAt]
+    check('the run ended budget_limit with the status\'s exit code, and every row parsed through the package', outcome.status === 'budget_limit' && exit.code === sdk.OUTCOME_EXIT_CODES[outcome.status] && run.error === null, j({ exit, status: outcome.status, error: String(run.error) }))
+    check('the unrun call has its typed tool_result row on the same call id — status aborted, "Cut off: " and the outcome\'s own sentence — between the call and the outcome, as a turn limit leaves it', call?.type === 'tool_call' && result?.type === 'tool_result' && result.call_id === call.call_id && result.status === 'aborted' && result.output === `Cut off: ${outcome.error?.message}` && resultAt > callAt && run.rows.at(-1) === outcome, j({ callAt, resultAt, result: result ?? null, error: outcome.error ?? null }))
+    check('the command was never run: the file it would have written is not there', !existsSync(join(door.home, 'sdk-door-ran.txt')))
+  } finally {
+    await door.close()
+  }
+}
+
 console.log(`\n${'═'.repeat(76)}`)
 if (failures > 0) {
   console.log(`❌ prove-run-door-client: ${failures} failure(s)`)

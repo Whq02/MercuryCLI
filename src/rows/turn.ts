@@ -47,9 +47,10 @@ import { getInMemoryErrors, logError, withoutStackFrames } from '../utils/log.js
 import { isClaudeAISubscriber } from '../utils/auth.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { normalizeMessages } from '../utils/messages.js'
+import { createUserMessage } from '../utils/messages/factories.js'
 import { isNotEmptyMessage } from '../utils/messages/text.js'
 import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
-import { turnCutOf } from '../utils/messages/turnCut.js'
+import { turnCutOf, turnCutResultText } from '../utils/messages/turnCut.js'
 import { fireHooks } from '../utils/hooks/fire.js'
 import type { HookAttachment } from '../utils/attachments/types.js'
 import { hookRowsOfResult } from '../utils/hooks/rows.js'
@@ -846,6 +847,22 @@ export class Conversation {
     }
     const maxTimeReached = (): boolean => config.maxTime !== undefined && Date.now() >= config.maxTime.at
     const timeLimitFacts = (): Partial<OutcomeFacts> => ({ error: { message: OUTCOME_SENTENCES.time_limit({ maxTimeMs: config.maxTime?.limitMs }), class: 'time_limit' } })
+    const cutOpenCalls = async function* (limit: string): AsyncGenerator<RowDraft> {
+      const words = turnCutResultText({ kind: 'cut', detail: limit })
+      for (const reply of [...turnMessages]) {
+        if (reply.type !== 'assistant') continue
+        for (const block of reply.message.content) {
+          if (block.type !== 'tool_use' || !openCalls.has(block.id)) continue
+          toolOutcomes.set(block.id, 'aborted')
+          const result = createUserMessage({ content: [{ type: 'tool_result', content: words, is_error: true, tool_use_id: block.id }], toolUseResult: words, sourceToolAssistantUUID: reply.uuid })
+          messages.push(result)
+          turnMessages.push(result)
+          await recordDelta()
+          for (const row of trackCalls(rowsOfMessage(result, undefined))) yield row
+        }
+      }
+      if (!persistenceDisabled) await flushSessionStorage().catch(() => {})
+    }
     if (maxTimeReached()) {
       yield* endTurn('time_limit', timeLimitFacts())
       return
@@ -1090,6 +1107,7 @@ export class Conversation {
           if (eagerFlush) await flushSessionStorage()
           const open = steps.flush()
           if (open !== null) yield open
+          yield* cutOpenCalls(OUTCOME_SENTENCES.budget_limit({ maxBudgetUsd: config.maxBudgetUsd }))
           yield* endTurn('budget_limit', { error: { message: OUTCOME_SENTENCES.budget_limit({ maxBudgetUsd: config.maxBudgetUsd }), class: 'budget_limit' } })
           return
         }
@@ -1098,6 +1116,7 @@ export class Conversation {
           if (eagerFlush) await flushSessionStorage()
           const open = steps.flush()
           if (open !== null) yield open
+          yield* cutOpenCalls(OUTCOME_SENTENCES.time_limit({ maxTimeMs: config.maxTime?.limitMs }))
           yield* endTurn('time_limit', timeLimitFacts())
           return
         }
