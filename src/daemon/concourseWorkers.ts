@@ -174,6 +174,7 @@ export interface ConcourseWorkerRecordV1 {
     lastTurnAt: number | null
   }
   bornBlankAt?: number
+  resumedAtRestAt?: number
   birthKey?: string
   settingsSnapshot?: import('../substrate/startupMenu.js').SessionEffectiveSettingsSnapshotV1
   branchName?: string
@@ -899,6 +900,7 @@ export interface ConcourseAdmitRequest {
   permissionMode?: PermissionMode
   runnerArgv?: string[]
   bornBlank?: boolean
+  resumedAtRest?: true
   vacatingSessionId?: string
   birthKey?: string
   kit?: SessionKitV1
@@ -1195,6 +1197,7 @@ export function makeConcourseAdmitHandler(
             workspaceKind: workspaceKindOf(workspaceId),
             ...(req.title !== undefined ? { title: partiallySanitizeUnicode(req.title) } : {}),
             ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
+            ...(req.resumedAtRest === true ? { resumedAtRestAt: Date.now() } : {}),
             ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
             ...kitStampOf(kit),
             permissionMode: claimPosture,
@@ -1366,6 +1369,7 @@ export function makeConcourseAdmitHandler(
         ...(req.title !== undefined ? { title: partiallySanitizeUnicode(req.title) } : {}),
         ...(runnerArgv !== undefined && runnerArgv.length > 0 ? { runnerArgv: [...runnerArgv] } : {}),
         ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
+        ...(req.resumedAtRest === true ? { resumedAtRestAt: Date.now() } : {}),
         ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
         ...spawnPostureOf(spec),
         ...kitStampOf(kit),
@@ -2960,13 +2964,13 @@ export function countLiveConcourseWorkers(dir?: string): number {
 }
 
 export function concourseRecordState(
-  rec: Pick<ConcourseWorkerRecordV1, 'pausedAt' | 'lastDeliveryAt' | 'lastTurnSettledAt' | 'attachedAt' | 'stoppedAt' | 'crash' | 'parkedAt' | 'bornBlankAt' | 'pid'>,
+  rec: Pick<ConcourseWorkerRecordV1, 'pausedAt' | 'lastDeliveryAt' | 'lastTurnSettledAt' | 'attachedAt' | 'stoppedAt' | 'crash' | 'parkedAt' | 'bornBlankAt' | 'resumedAtRestAt' | 'pid'>,
   liveness: { needsYou: boolean; alive: boolean },
 ): ConcourseRowV1['state'] {
   const turnSettled =
     rec.lastTurnSettledAt !== undefined &&
     (rec.lastDeliveryAt === undefined || rec.lastTurnSettledAt >= rec.lastDeliveryAt)
-  const wordlessNewborn = rec.bornBlankAt !== undefined && rec.lastDeliveryAt === undefined
+  const admittedAtRest = (rec.bornBlankAt !== undefined || rec.resumedAtRestAt !== undefined) && rec.lastDeliveryAt === undefined
   return rec.attachedAt !== undefined
     ? 'attached'
     : rec.parkedAt !== undefined
@@ -2980,7 +2984,7 @@ export function concourseRecordState(
             : liveness.needsYou
               ? 'needs-you'
               : liveness.alive
-                ? turnSettled || wordlessNewborn
+                ? turnSettled || admittedAtRest
                   ? 'ready-to-review'
                   : 'working'
                 : rec.pid !== undefined
