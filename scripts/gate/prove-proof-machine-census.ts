@@ -210,7 +210,7 @@ section('every proof child boots with the local-server probe off')
   const guard = read('scripts/lib/suite-env.sh')
   check(/export MERCURY_LOCAL_PROBE_TARGETS="\$\{MERCURY_LOCAL_PROBE_TARGETS:-none\}"/.test(guard), 'scripts/lib/suite-env.sh exports the probe off for every suite it guards')
   check(/MERCURY_LOCAL_PROBE_TARGETS\) \[ "\$\{MERCURY_LOCAL_PROBE_TARGETS:-\}" = none \] && continue ;;/.test(guard), "scripts/lib/suite-env.sh admits the value 'none' alone as not foreign")
-  check(/preload = \["\.\/scripts\/lib\/proofHomePreload\.ts"\]/.test(read('bunfig.toml')), 'bunfig.toml names the proof-home preload')
+  check(/preload = \["\.\/scripts\/lib\/proofGuard\.cjs", "\.\/scripts\/lib\/proofHomePreload\.ts"\]/.test(read('bunfig.toml')), 'bunfig.toml names the proof guard first, then the proof-home preload')
 }
 
 section("the roads at run time: the launcher's own pin, the operator's settings line, a suite")

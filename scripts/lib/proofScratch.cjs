@@ -2,6 +2,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { fileURLToPath } = require('node:url')
 const { syncBuiltinESMExports } = require('node:module')
+if (fs.existsSync(path.join(__dirname, 'proofGuard.cjs'))) require('./proofGuard.cjs')
 
 const RUN_ROOT_PREFIX = 'mercury-proof-run.'
 const SINGLE_RUN_OWNER = 'MERCURY_SUITE_OF_ONE'
