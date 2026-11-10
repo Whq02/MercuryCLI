@@ -55,7 +55,8 @@ async function capture(cols: number, rows: number): Promise<{ marks: Map<string,
 
 console.log(`contract card artifacts: ${scratch} (dist: ${DIST})`)
 
-for (const [cols, rows] of [[80, 14], [82, 17], [80, 21]] as const) {
+const SEVEN_ROW_SIZES = new Set(['80x11', '80x19'])
+for (const [cols, rows] of [[80, 11], [80, 14], [82, 17], [80, 19], [80, 21]] as const) {
   const tag = `${cols}x${rows}`
   const run = await capture(cols, rows)
   try {
@@ -75,7 +76,8 @@ for (const [cols, rows] of [[80, 14], [82, 17], [80, 21]] as const) {
       check(`${tag} offer: the keys row stands under the Yes/No rows`, keys > no, JSON.stringify({ no, keys }))
       const bottom = text.findIndex((r, i) => i > keys && r.includes('╰') && r.includes('╯') && !r.includes('╭'))
       check(`${tag} offer: the card closes with its own frame above the composer`, keys > 0 && bottom > keys && bottom <= keys + 2 && (composer < 0 || bottom < composer), JSON.stringify({ keys, bottom, composer }))
-      check(`${tag} offer: the gap above the keys stands`, keys === no + 2, JSON.stringify({ no, keys }))
+      if (SEVEN_ROW_SIZES.has(tag)) check(`${tag} offer: the keys row stands right under the Yes/No rows — at seven rows the gap yields`, keys === no + 1, JSON.stringify({ no, keys }))
+      else check(`${tag} offer: the gap above the keys stands`, keys === no + 2, JSON.stringify({ no, keys }))
     }
     if (field !== undefined) {
       const text = textRows(field.grid)
