@@ -434,6 +434,38 @@ async function collectBashAuditLedger(budget: LifecycleBudget): Promise<Lifecycl
   return receipt
 }
 
+async function collectIdleScratchpads(budget: LifecycleBudget): Promise<LifecycleClassReceipt> {
+  const receipt = emptyReceipt('session-scratchpads')
+  const { readScratchpadCensus, forgetStaleOwnerRecords, scratchpadFootprint, SCRATCHPAD_WALK_ENTRIES } = await import('../utils/scratchpadRetention.js')
+  const { forgetSweptScratchpad, isSessionScratchpad } = await import('../utils/scratchpad.js')
+  const { retentionCutoffMs } = await import('../utils/cleanup.js')
+  const { getMercuryTempDir } = await import('../utils/permissions/filesystem.js')
+  const cutoff = retentionCutoffMs()
+  if (cutoff === null) {
+    receipt.done = true
+    return receipt
+  }
+  const census = await readScratchpadCensus()
+  await forgetStaleOwnerRecords(census.staleOwnerRecords)
+  for (const dir of census.idle) {
+    if (overBudget(budget)) {
+      receipt.done = receipt.removed === 0
+      return receipt
+    }
+    receipt.visited++
+    const seen = await scratchpadFootprint(dir, SCRATCHPAD_WALK_ENTRIES, read => read.newestMs > cutoff || budget.now() >= budget.deadlineMs)
+    if (!seen.whole || seen.newestMs > cutoff || !isSessionScratchpad(dir)) {
+      receipt.retained++
+      continue
+    }
+    const removedBefore = receipt.removed
+    await removePath(getMercuryTempDir(), dir, 'dir', receipt, budget)
+    if (receipt.removed > removedBefore) forgetSweptScratchpad(dir)
+  }
+  receipt.done = true
+  return receipt
+}
+
 
 export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
   {
@@ -649,6 +681,22 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
     action: 'remove',
     prover: 'scripts/substrate/prove-lifecycle-collector.ts',
     collect: collectCrewSkeletons,
+  },
+  {
+    id: 'session-scratchpads',
+    lane: 'semantic-state',
+    owner: 'src/utils/scratchpad.ts · src/utils/scratchpadRetention.ts',
+    root: '<temp root>/<project>/<session>/scratchpad/ · <temp root>/scratchpad-owners/<digest>.json',
+    kind: 'temp',
+    liveReference:
+      "a recorded owner of this config home is running (the owner record's pid under its recorded start time, or the session's worker record), or an entry in the scratchpad was written within records.retentionDays",
+    terminal:
+      'every recorded owner is gone and no entry in it was written within records.retentionDays; a scratchpad with no readable owner, of another config home, or too large to read whole within the pass is never collected here',
+    retention:
+      "swept at the session's own exit and at the worker record's settle; the scratchpad of a closed, stopped or killed session goes at the retention cutoff (default 30 days after its last write), or on `mercury health --fix`",
+    action: 'remove',
+    prover: 'scripts/health/prove-session-scratch-retention.ts',
+    collect: collectIdleScratchpads,
   },
   {
     id: 'review-artifacts',

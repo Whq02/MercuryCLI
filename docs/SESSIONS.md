@@ -1183,4 +1183,8 @@ a message does not end a task.
   temporary helper scripts, intermediate results, and captures. Because it sits
   outside the project tree, `git status` is unaffected, the turn receipt counts
   writes there as scratchpad edits (separate from project file edits), and the
-  directory is cleaned up when the session ends.
+  directory is cleaned up when the session ends. A session that was closed,
+  stopped or killed keeps its scratchpad until `records.retentionDays` (30 by
+  default) after the last write to it, when the cleanup removes it;
+  `mercury health` states what such scratchpads hold and, once they pass a
+  gibibyte, offers to remove them.

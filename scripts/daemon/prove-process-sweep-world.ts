@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, readlinkSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { connect } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -296,13 +296,33 @@ function cliProcesses(endStale: boolean): { code: number; report: Record<string,
   }
 }
 
-async function cleanup(): Promise<void> {
-  for (const dir of Object.values(dirs)) {
-    if (existsSync(join(dir, 'control.sock'))) await rawRpc(dir, { op: 'shutdown', reapWorkers: true }, 3000).catch(() => undefined)
+function pidsWorkingIn(dir: string): number[] {
+  if (process.platform === 'linux') {
+    return readdirSync('/proc').filter(name => /^\d+$/.test(name)).map(Number).filter(pid => {
+      try {
+        return readlinkSync(`/proc/${pid}/cwd`).startsWith(dir)
+      } catch {
+        return false
+      }
+    })
   }
-  await sleep(500)
-  const pids = new Set<number>()
-  for (const child of spawned) if (typeof child.pid === 'number') pids.add(child.pid)
+  let listing = ''
+  try {
+    listing = execFileSync('lsof', ['-a', '-d', 'cwd', '-Fpn'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+  } catch (error) {
+    listing = String((error as { stdout?: unknown }).stdout ?? '')
+  }
+  const found: number[] = []
+  let pid = 0
+  for (const line of listing.split('\n')) {
+    if (line.startsWith('p')) pid = Number(line.slice(1))
+    else if (line.startsWith('n') && line.slice(1).startsWith(dir) && pid > 1) found.push(pid)
+  }
+  return found
+}
+
+function worldPids(): Set<number> {
+  const pids = new Set<number>(pidsWorkingIn(SCRATCH))
   try {
     const out = execFileSync('ps', ['-Aww', '-o', 'pid=,args='], { encoding: 'utf8' })
     for (const line of out.split('\n')) {
@@ -312,6 +332,17 @@ async function cleanup(): Promise<void> {
   } catch {
     console.log('  … the cleanup census could not be read')
   }
+  pids.delete(process.pid)
+  return pids
+}
+
+async function cleanup(): Promise<void> {
+  for (const dir of Object.values(dirs)) {
+    if (existsSync(join(dir, 'control.sock'))) await rawRpc(dir, { op: 'shutdown', reapWorkers: true }, 3000).catch(() => undefined)
+  }
+  await sleep(500)
+  const pids = worldPids()
+  for (const child of spawned) if (typeof child.pid === 'number') pids.add(child.pid)
   for (const pid of pids) {
     try {
       process.kill(requirePositivePid(pid), 'SIGCONT')
@@ -325,8 +356,8 @@ async function cleanup(): Promise<void> {
     }
   }
   await sleep(300)
-  const left = [...pids].filter(alive)
-  console.log(`cleanup: ${pids.size} world pid(s) signalled, ${left.length} still present (${left.join(', ') || 'none'})`)
+  const left = [...new Set([...pids, ...worldPids()])].filter(alive)
+  check(`the world leaves no process behind: ${pids.size} signalled, none still runs from its folders or names them`, left.length === 0, left.map(pid => `${pid} ${psRow(pid)?.stat ?? ''}`).join(', '))
   await api.close().catch(() => undefined)
   if (!process.argv.includes('--keep')) rmSync(SCRATCH, { recursive: true, force: true })
   else console.log(`world kept at ${SCRATCH}`)

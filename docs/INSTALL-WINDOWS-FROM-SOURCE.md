@@ -216,8 +216,8 @@ one command, run:
 bun run setup
 ```
 
-`bun run setup` runs `bun install`, downloads the five fetched packs in step 7,
-and builds the native addons (`native/voice`, `native/whisper`,
+`bun run setup` runs `bun install`, downloads the PDF library and the five
+fetched packs in step 7, and builds the native addons (`native/voice`, `native/whisper`,
 `native/desktop` and `native/embed`) plus the default embedding model whenever
 Rust (`cargo`, and `cmake` for `native/whisper`) is installed, skipping any
 pack whose toolchain is absent. On Windows, compile the `brush` shell engine
@@ -243,6 +243,14 @@ Expect `True`.
 If it fails with a network error, run the same command again to resume.
 If it fails with anything about `lockfile`, you are on the wrong bun version;
 go back to step 4.
+
+Then fetch the pinned PDF library. Unlike the packs in step 7 it is not
+optional: the build in step 8 reads it and stops with a missing
+`vendor\pdfjs\extracted\.vendor-manifest.json` until this has run.
+
+```powershell
+bun run scripts/vendor/fetch-pdfjs.ts
+```
 
 ---
 
@@ -492,6 +500,7 @@ Common cases:
 |---|---|---|
 | `'bun' is not recognized` | terminal opened before bun was installed | close the terminal, open a new one |
 | `The engine "node" is incompatible` or a Node version error | wrong Node major | step 3 (must be 24.x) |
+| `bun run build.ts` stops with `ENOENT` naming `vendor\pdfjs\extracted\.vendor-manifest.json` | the PDF library was not fetched | run `bun run scripts/vendor/fetch-pdfjs.ts` (step 6), then build again |
 | `dist\manifest.json` lists names under `degraded` | a vendor fetch was skipped or failed (the build itself still succeeds and prints `BUILD OK`) | re-run `bun run setup` or the fetch it names (step 7), then build again |
 | compact controls or clipped detail | the window has little space | enlarge it to show more; the input and exit keys remain available |
 | an immediate exit that names `mercury run` | stdout is not a terminal (piped or redirected), which Mercury reads as a headless run | run from an interactive Windows Terminal window, or pass a prompt for a headless run |

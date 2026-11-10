@@ -43,6 +43,12 @@ function computeCutoffDate(): Date {
   return new Date(Number.isFinite(cutoff) && Math.abs(cutoff) <= 8_640_000_000_000_000 ? cutoff : -8_640_000_000_000_000)
 }
 
+export function retentionCutoffMs(): number | null {
+  const { errors: settingsErrors } = getSettingsWithAllErrors()
+  if (settingsErrors.length > 0 && rawSettingsContainsKey('records.retentionDays')) return null
+  return computeCutoffDate().getTime()
+}
+
 async function cleanupOldMessageFiles(): Promise<CleanupResult> {
   const result: CleanupResult = { messages: 0, errors: 0 }
   const fs = getFsImplementation()
@@ -432,8 +438,7 @@ async function recallablePasteHashes(): Promise<Set<string>> {
 }
 
 export async function cleanupOldMessageFilesInBackground(): Promise<CleanupResult> {
-  const { errors: settingsErrors } = getSettingsWithAllErrors()
-  if (settingsErrors.length > 0 && rawSettingsContainsKey('records.retentionDays')) {
+  if (retentionCutoffMs() === null) {
     logForDebugging(
       'cleanup: skipped — settings have validation errors and records.retentionDays is (or may be) configured',
     )

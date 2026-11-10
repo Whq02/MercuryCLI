@@ -144,7 +144,7 @@ async function runningBundleDirs(): Promise<string[]> {
       if (typeof window.bundle !== 'string') continue
       const holder = running.find(entry => entry.process.pid === window.pid)
       if (holder === undefined || !processNamesMercury(holder.process.args) || tokenBinding(window.startToken, holder.startToken) === 'stranger') continue
-      dirs.push(dirname(window.bundle))
+      dirs.push(bundleDirOf(window.bundle))
     }
     return dirs
   } catch {
