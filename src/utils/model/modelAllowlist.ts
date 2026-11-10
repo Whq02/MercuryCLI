@@ -75,3 +75,10 @@ export function isModelAllowed(model: string): boolean {
 
   return false
 }
+
+export function rosterRefusal(model: string): string | null {
+  if (getInitialSettings().engine?.roster === undefined || isModelAllowed(model)) return null
+  const candidate = normalize(resolveOverriddenModel(model))
+  if (isModelFromDisabledProvider(resolvedOf(candidate)) || isModelFromDisabledProvider(candidate)) return null
+  return `'${model.trim()}' is outside this organization's engine.roster. Refused before any request — the /model picker lists the models the roster permits.`
+}

@@ -35,6 +35,7 @@ import { anthropicCatalogueRefusal } from './catalogueAdmission.js'
 import { readStoredImageRefsForRequest } from '../../utils/imageStore.js'
 import { withBackupVote } from '../api/backupEngines.js'
 import { CHOOSE_A_MODEL_DOOR, isChooseAModel } from '../../utils/model/computedDefault.js'
+import { rosterRefusal } from '../../utils/model/modelAllowlist.js'
 
 export {
   classifyModelRoute,
@@ -100,8 +101,14 @@ async function classifyAfterLiveLists(model: string): Promise<ModelRouteVerdict>
   return classifyModelRoute(model)
 }
 
+function rosterRefusalOf(model: string): string | null {
+  return classifyModelRoute(model).kind === 'absence' ? null : rosterRefusal(model)
+}
+
 export async function modelRefusalBeforeAnyRequest(model: string): Promise<string | null> {
   if (isChooseAModel(model)) return null
+  const outside = rosterRefusalOf(model)
+  if (outside !== null) return outside
   const verdict = await classifyAfterLiveLists(model)
   if (verdict.kind === 'absence') return null
   if (verdict.kind === 'unrecognised' || verdict.route === 'anthropic') return homeLaneAdmissionRefusal(model)
@@ -115,6 +122,11 @@ export async function* routedCallModel(params: CallModelParams): CallModelStream
 async function* dispatchRoute(params: CallModelParams): CallModelStream {
   if (isChooseAModel(params.options.model)) {
     yield createAssistantAPIErrorMessage({ content: CHOOSE_A_MODEL_DOOR, error: 'authentication_failed' })
+    return
+  }
+  const outside = rosterRefusalOf(params.options.model)
+  if (outside !== null) {
+    yield createAssistantAPIErrorMessage({ content: `${API_ERROR_MESSAGE_PREFIX}: ${outside}`, error: 'invalid_request' })
     return
   }
   const verdict = await classifyAfterLiveLists(params.options.model)
