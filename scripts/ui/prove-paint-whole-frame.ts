@@ -32,7 +32,7 @@ const ERASE_ROADS: Record<string, { count: number; road: string }> = {
   'components/AlternateScreen.tsx': { count: 2, road: 'the first entry into a fresh alternate buffer, written bare or riding the first frame' },
   'root/screen-session.ts': { count: 3, road: 'the screen handed to an external editor, the return from it off the alternate screen, and the re-entry bytes of SIGCONT and the wake' },
   'ink.tsx': { count: 2, road: 'forceRedraw on the main screen, which has no frame the size of the page; and the reader of the clearTerminal patch' },
-  'frame-writer.ts': { count: 2, road: 'the clearTerminal patch of a frame whose viewport differs from its base (applySize arms the overwrite first, so no painter road reaches it), and the erase below the clip of a resize hold' },
+  'frame-writer.ts': { count: 2, road: "the clearTerminal patch renderAlt returns for a viewport that differs from its base's ('resize': applySize arms the overwrite first) or a screen shorter than its base's ('offscreen': the renderer's frame for a root with no layout, section 9), and the erase below the clip of a resize hold" },
   'frame.ts': { count: 1, road: 'the clearTerminal patch kind' },
   'session/capabilities.ts': { count: 3, road: 'the bytes of the clearTerminal patch' },
   'session/delivery.ts': { count: 2, road: 'the serializer of the clearTerminal patch' },
@@ -132,20 +132,25 @@ class Keyboard extends EventEmitter {
   }
 }
 
-function Scene({ tick }: { tick: number }): React.ReactNode {
+function Scene({ tick, short = false }: { tick: number; short?: boolean }): React.ReactNode {
   useInput(() => {})
+  const tail = short
+    ? []
+    : [
+        h(Box, { flexGrow: 1 }),
+        h(Box, { backgroundColor: 'rgb(13,24,27)', width: 30 }, h(Text, null, 'a row on its own ground')),
+        h(Text, { dimColor: true }, 'foot row that never changes'),
+      ]
   return h(
     AlternateScreen,
     { mouseTracking: false },
     h(
       Box,
-      { flexDirection: 'column', width: COLS, height: ROWS },
+      { flexDirection: 'column', width: COLS, ...(short ? {} : { height: ROWS }) },
       h(Text, null, 'head row that never changes'),
       h(Box, { height: 1 }),
       h(Text, { color: 'rgb(40,200,120)' }, `tick ${tick}`),
-      h(Box, { flexGrow: 1 }),
-      h(Box, { backgroundColor: 'rgb(13,24,27)', width: 30 }, h(Text, null, 'a row on its own ground')),
-      h(Text, { dimColor: true }, 'foot row that never changes'),
+      ...tail,
     ),
   )
 }
@@ -314,6 +319,28 @@ section('8. the roads under src/ink that still erase the display, each named')
   }
   const unnamed = [...found.keys()].filter(name => !(name in ERASE_ROADS))
   check('no other file under src/ink names an erase of the display', unnamed.length === 0, unnamed.join(', '))
+}
+
+section('9. the clearTerminal patch: the two frames that still return it, and a shorter alternate screen is not one of them')
+{
+  const w = await world()
+  const mark = w.screen.mark()
+  w.ink.render(h(Scene, { tick: 1, short: true }))
+  await settle()
+  const bytes = w.screen.since(mark)
+  check('a shorter tree on the alternate screen is diffed in place: its old rows leave and nothing erases the display', erases(bytes) === 0 && !w.screen.text().includes('foot row that never changes') && !w.screen.text().includes('a row on its own ground') && w.screen.text().includes('head row that never changes'), `${JSON.stringify(bytes.slice(0, 120))}\n${w.screen.text()}`)
+  await w.end()
+  const { FrameWriter } = await import('../../src/ink/frame-writer.ts')
+  const { createScreen, StylePool, CharPool, HyperlinkPool } = await import('../../src/ink/cell-grid.ts')
+  const styles = new StylePool()
+  const glyphs = new CharPool()
+  const links = new HyperlinkPool()
+  const writer = new FrameWriter({ isTTY: true, stylePool: styles })
+  const frame = (screenRows: number, viewportRows: number): unknown => ({ screen: createScreen(COLS, screenRows, styles, glyphs, links), viewport: { width: COLS, height: viewportRows }, cursor: { x: 0, y: 0, visible: false } })
+  const clears = (base: unknown, next: unknown): string[] => writer.render(base as never, next as never, true).flatMap(patch => (patch.type === 'clearTerminal' ? [patch.reason] : []))
+  check('a frame the size of its base returns no clearTerminal patch', clears(frame(ROWS, ROWS), frame(ROWS, ROWS)).length === 0)
+  check("a frame whose viewport differs from its base's returns it as 'resize'", JSON.stringify(clears(frame(ROWS, ROWS), frame(ROWS + 1, ROWS + 1))) === '["resize"]', JSON.stringify(clears(frame(ROWS, ROWS), frame(ROWS + 1, ROWS + 1))))
+  check("a frame whose screen is shorter than its base's returns it as 'offscreen': only a root with no layout composes one, the alternate screen's own frame is always the terminal's rows", JSON.stringify(clears(frame(ROWS, ROWS), frame(0, ROWS))) === '["offscreen"]', JSON.stringify(clears(frame(ROWS, ROWS), frame(0, ROWS))))
 }
 
 console.log(`\npaint-whole-frame: ${checks} checks, ${failures} failed`)
