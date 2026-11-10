@@ -52,6 +52,13 @@ function sweepOwnRoot(outside) {
     if (!held.some(folder => folder === entry || folder.startsWith(entry + path.sep))) removeScratchFolder(entry)
   }
 }
+function holdsNothingToRead() {
+  try {
+    return fs.readdirSync(ownRoot).every(name => name.startsWith('mercury-proof-home-') && !kept.has(path.join(ownRoot, name)))
+  } catch {
+    return false
+  }
+}
 function insideRunRoot(value, root) {
   const spellings = [root, `/private${root}`, root.startsWith('/private/') ? root.slice('/private'.length) : root]
   return spellings.some(spelling => value.startsWith(spelling + path.sep))
@@ -159,7 +166,12 @@ function installProofScratch(options = {}) {
   }
   process.on('exit', code => {
     if (guest) return
-    if ((code !== 0 && !stopped) || keepAsked()) return
+    if ((code !== 0 && !stopped) || keepAsked()) {
+      if (ownRoot && !kept.has(ownRoot) && holdsNothingToRead()) {
+        try { removeScratchFolder(ownRoot) } catch {}
+      }
+      return
+    }
     for (const folder of [...folders].reverse()) {
       try { removeScratchFolder(folder) } catch (error) {
         process.stderr.write(`proof scratch cleanup failed: ${folder}: ${error.message}\n`)

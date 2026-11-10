@@ -202,6 +202,19 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
         check(`single ${name}: ${ending === 0 ? 'a proof run with --keep' : 'a proof that ends red'} keeps its whole run root for reading`, run.code === ending && runRoot !== undefined && made.length === 3 && made.every(p => existsSync(p)), `rc=${run.code} ${JSON.stringify(made.map(p => existsSync(p)))} ${run.output}`)
       }
       {
+        const temp = join(short, 'failclean')
+        const run = await drive('failclean', 'failclean', temp)
+        check('single red, nothing left to read: a proof that ends red after removing what it made leaves no empty run root behind', run.code === 1 && run.made.length === 4 && readdirSync(temp).length === 0, `rc=${run.code} left=${JSON.stringify(readdirSync(temp))} ${run.output}`)
+        const bareTemp = join(short, 'fb')
+        const account = join(short, 'account-c')
+        mkdirSync(account)
+        const bare = await drive('failclean-bare', 'failclean', bareTemp, undefined, [], env => {
+          const { MERCURY_CONFIG_DIR: _home, MERCURY_HOME: _other, ...rest } = env
+          return { ...rest, HOME: account }
+        })
+        check('single red, nothing left to read, its own scratch home inside the root: the root goes, the home with it', bare.code === 1 && bare.made[0] !== undefined && isRunRoot(bare.made[0], bareTemp) && readdirSync(bareTemp).length === 0 && readdirSync(account).length === 0, `rc=${bare.code} root=${bare.made[0]} left=${JSON.stringify(readdirSync(bareTemp))} ${bare.output}`)
+      }
+      {
         const temp = join(short, 'term')
         const run = await drive('term', 'wait', temp, 'SIGTERM')
         check('single TERM: the proof ends 143 through its sweep and leaves nothing', run.code === 143 && readdirSync(temp).length === 0, `rc=${run.code} signal=${run.signal} left=${JSON.stringify(readdirSync(temp))} ${run.output}`)

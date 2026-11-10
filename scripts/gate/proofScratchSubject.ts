@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { keepProofScratch } from '../lib/proofScratch.cjs'
@@ -37,6 +37,10 @@ writeFileSync(`${receipt}.facts`, JSON.stringify(facts))
 if (mode === 'keep') keepProofScratch(named)
 if (mode === 'exit') process.exit(0)
 if (mode === 'fail') process.exit(1)
+if (mode === 'failclean') {
+  for (const made of [named, plain, ...readFileSync(receipt, 'utf8').trim().split('\n').slice(3), (facts.child as { made: string }).made]) rmSync(made, { recursive: true, force: true })
+  process.exit(1)
+}
 if (mode === 'failing') process.exitCode = 1
 if (mode === 'wait') {
   writeFileSync(`${receipt}.ready`, '')
