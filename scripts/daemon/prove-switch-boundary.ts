@@ -503,7 +503,7 @@ if (ONLY === undefined || ONLY === 'D') {
     tally.check('DB4 the agent wait ends into the completion hold (the state word clears while the turn is still held open)', hold !== null && hold.busy === true, JSON.stringify({ hold, tail: tail(), busy: facts()?.busy }))
     tally.check("DB5 a switch sent inside the hold is applied at once — the receipt is 'applied', not 'queued'", switchedBack.ok === true && switchedBack.outcome === 'applied', JSON.stringify(switchedBack))
     tally.check('DB6 the words are sent inside the hold', sentB)
-    tally.check('DB7 the completion turn and the words settle', await untilAsync(() => transcript().includes('the second words.'), bound(60_000)), describeRequests(api))
+    tally.check('DB7 the completion turn and the words settle', await untilAsync(() => transcript().includes('the second words.') && firstRequestWith(api, NOTIFICATION) !== undefined, bound(60_000)), describeRequests(api))
     const notificationB = firstRequestWith(api, NOTIFICATION)
     const wordsB = firstRequestWith(api, 'say more again')
     tally.check(`DB8 the completion turn runs on the model applied in the hold (${OLD_SEAT_MODEL})`, notificationB !== undefined && bodyOf(notificationB).model === OLD_SEAT_MODEL, describeRequests(api))
