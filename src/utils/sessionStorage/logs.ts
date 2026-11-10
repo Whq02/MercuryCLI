@@ -446,9 +446,7 @@ export async function lastSession(
   const fold = await loadSessionFile(sessionId)
   const { messages, summaries } = fold
   if (messages.size === 0) return null
-  const parents = new Set<UUID>()
-  for (const row of messages.values()) if (!row.isSidechain && row.parentUuid) parents.add(row.parentUuid)
-  const leaf = findLatestMessage(messages.values(), m => !m.isSidechain && !parents.has(m.uuid)) ?? findLatestMessage(messages.values(), m => !m.isSidechain)
+  const leaf = resumeLeafOf(messages)
   if (!leaf) return null
   const chain = buildConversationChain(messages, leaf)
   return {
@@ -456,6 +454,12 @@ export async function lastSession(
     summary: summaries.get(leaf.uuid),
     ...resumeFactsOf(fold, sessionId, chain),
   }
+}
+
+export function resumeLeafOf(messages: Map<UUID, TranscriptMessage>): TranscriptMessage | undefined {
+  const parents = new Set<UUID>()
+  for (const row of messages.values()) if (!row.isSidechain && row.parentUuid) parents.add(row.parentUuid)
+  return findLatestMessage(messages.values(), m => !m.isSidechain && !parents.has(m.uuid)) ?? findLatestMessage(messages.values(), m => !m.isSidechain)
 }
 
 export async function listProjectSessions(limit?: number): Promise<SessionListing[]> {

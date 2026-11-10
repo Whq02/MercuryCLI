@@ -1,5 +1,5 @@
 
-import { randomUUID } from 'node:crypto'
+import { randomUUID, type UUID } from 'node:crypto'
 import { Readable, Writable } from 'node:stream'
 import {
   agent,
@@ -24,6 +24,9 @@ import { getCwd } from '../../utils/cwd.js'
 import { listSessionsImpl } from '../../utils/listSessionsImpl.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
 import { loadTranscriptFile } from '../../utils/sessionStorage/loading.js'
+import { buildConversationChain } from '../../utils/sessionStorage/chain.js'
+import { resumeLeafOf } from '../../utils/sessionStorage/logs.js'
+import type { TranscriptMessage } from '../../types/logs.js'
 import { withoutRetractedReplies } from '../engine-connector/midTurnText.js'
 import { defineStore } from '../../substrate/fileStore.js'
 import { join } from 'node:path'
@@ -436,10 +439,16 @@ export function editorContextResource(
 }
 
 
+function sessionLineOf(messages: Map<UUID, TranscriptMessage>): TranscriptMessage[] {
+  const leaf = resumeLeafOf(messages)
+  return leaf === undefined ? [] : buildConversationChain(messages, leaf)
+}
+
 export function replayUpdatesOf(
   messages: Iterable<Record<string, unknown>>,
 ): Array<Record<string, unknown>> {
   const updates: Array<Record<string, unknown>> = []
+  const announced = new Set<string>()
   for (const m of messages) {
     if (m.isMeta === true || m.isSidechain === true) continue
     const message = m.message as { content?: unknown } | undefined
@@ -453,7 +462,7 @@ export function replayUpdatesOf(
       for (const block of content as Array<Record<string, unknown>>) {
         if (block.type === 'text' && typeof block.text === 'string' && block.text !== '') {
           updates.push({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text: block.text } })
-        } else if (block.type === 'tool_result' && typeof block.tool_use_id === 'string') {
+        } else if (block.type === 'tool_result' && typeof block.tool_use_id === 'string' && announced.has(block.tool_use_id)) {
           const text = toolResultText(block.content)
           const output = toolOutputContentOf(text)
           updates.push({
@@ -475,6 +484,7 @@ export function replayUpdatesOf(
           updates.push({ sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: block.thinking } })
         } else if (block.type === 'tool_use' && typeof block.id === 'string') {
           const name = String(block.name ?? 'tool')
+          announced.add(block.id)
           updates.push({
             sessionUpdate: 'tool_call',
             toolCallId: block.id,
@@ -1169,7 +1179,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           mcpServers: ctx.params.mcpServers,
         })
         try {
-          for (const update of replayUpdatesOf(withoutRetractedReplies([...messages.values()]) as unknown as Iterable<Record<string, unknown>>)) {
+          for (const update of replayUpdatesOf(withoutRetractedReplies(sessionLineOf(messages)) as unknown as Iterable<Record<string, unknown>>)) {
             await ctx.client.notify(methods.client.session.update, {
               sessionId: requested,
               update: update as never,
