@@ -29,6 +29,17 @@ first() { sed -n 1p "$scratch/out"; }
 under_temp() { case "$1" in "$scratch/tmp/"*) return 0 ;; *) return 1 ;; esac; }
 under_own() { case "$1" in "$scratch/home/.mercury"|"$scratch/home/.mercury/"*) return 0 ;; *) return 1 ;; esac; }
 own_empty() { [ -z "$(ls -A "$scratch/home/.mercury")" ]; }
+real_tmp="$(cd "$scratch/tmp" && pwd -P)"
+system_tmp="$(cd /tmp && pwd -P)"
+scratch_home() {
+  case "$1" in
+    "$scratch/tmp"/mercury-proof-home-* | "$real_tmp"/mercury-proof-home-*) return 0 ;;
+    "$scratch/tmp"/mercury-proof-run.??????/mercury-proof-home-* | "$real_tmp"/mercury-proof-run.??????/mercury-proof-home-*) return 0 ;;
+    "$system_tmp"/mercury-proof-run.??????/mercury-proof-home-*) return 0 ;;
+  esac
+  return 1
+}
+run_root_gone() { case "$1" in */mercury-proof-run.??????/mercury-proof-home-*) [ ! -e "${1%/*}" ] ;; *) return 0 ;; esac; }
 temp_empty() { [ -z "$(ls -A "$scratch/tmp")" ]; }
 wards="$root/scripts/wards/run-all.sh"
 
@@ -132,11 +143,12 @@ check "bunfig.toml names the proof-home preload" "$(grep -qx 'preload = \["./scr
 from_root() { (cd "$root" && clean "$@" >"$scratch/out" 2>"$scratch/err"); }
 from_root "$bun" scripts/lib/proofHomePreload.ts; rc=$?
 home="$(first)"
-check "a scripts/ entry with no home pinned sees a scratch home under the temp root" "$([ "$rc" = 0 ] && under_temp "$home" && echo 0 || echo 1)" "rc=$rc home=$home $(tr '\n' ' ' <"$scratch/err")"
+check "a scripts/ entry with no home pinned sees a scratch home under the temp root (or in a run root under the system temp root, where the caller's root is too long for the daemon socket)" "$([ "$rc" = 0 ] && scratch_home "$home" && echo 0 || echo 1)" "rc=$rc home=$home $(tr '\n' ' ' <"$scratch/err")"
 check "…removed at exit" "$([ -n "$home" ] && [ ! -e "$home" ] && echo 0 || echo 1)"
+check "…and the run root it stood in goes with it" "$(run_root_gone "$home" && echo 0 || echo 1)" "home=$home"
 from_root MERCURY_CONFIG_DIR="$scratch/home/.mercury" "$bun" scripts/lib/proofHomePreload.ts; rc=$?
 home="$(first)"
-check "a scripts/ entry pinned to the operator's own home is moved to a scratch home" "$([ "$rc" = 0 ] && under_temp "$home" && ! under_own "$home" && echo 0 || echo 1)" "rc=$rc home=$home"
+check "a scripts/ entry pinned to the operator's own home is moved to a scratch home" "$([ "$rc" = 0 ] && scratch_home "$home" && ! under_own "$home" && echo 0 || echo 1)" "rc=$rc home=$home"
 from_root MERCURY_CONFIG_DIR="$scratch/pinned" "$bun" scripts/lib/proofHomePreload.ts; rc=$?
 check "a scripts/ entry pinned to a scratch home keeps it" "$([ "$rc" = 0 ] && [ "$(first)" = "$scratch/pinned" ] && echo 0 || echo 1)" "rc=$rc home=$(first)"
 printf "console.log(process.env.MERCURY_CONFIG_DIR ?? '')\n" >"$scratch/outside.ts"
