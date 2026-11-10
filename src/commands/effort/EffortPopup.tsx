@@ -26,6 +26,7 @@ import type { CommandPopupShape } from '../../utils/cockpit/commandPopup.js'
 import { estateGroundBg } from '../../utils/mercuryTokens.js'
 import { renderModelName } from '../../utils/model/model.js'
 import { MODEL_PICKER_CURRENT, MODEL_PICKER_PANEL } from '../../utils/model/modelPickerGroups.js'
+import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
 import {
   convertEffortValueToLevel,
   describeEffortEnvOverride,
@@ -97,14 +98,18 @@ export function effortPopupOpeningRow(
   return at >= 0 ? at : 0
 }
 
+function effortPopupThinkingNote(model: string): string | null {
+  const record = localRecordFor(model)
+  return record?.server === 'tensorfold' && record.thinkingSwitch === false ? 'thinking stays on for this model' : null
+}
 const EFFORT_POPUP_FIXED_ROWS = 5
 
-function effortPopupLayout(frameRows: number, rowCount: number, envLine: boolean): { blanks: boolean; modelLine: boolean; envLine: boolean; listRows: number } {
-  const fixed = EFFORT_POPUP_FIXED_ROWS + (envLine ? 1 : 0)
+function effortPopupLayout(frameRows: number, rowCount: number, envLine: boolean, thinkingNote: boolean): { blanks: boolean; modelLine: boolean; envLine: boolean; listRows: number } {
+  const fixed = EFFORT_POPUP_FIXED_ROWS + (envLine ? 1 : 0) + (thinkingNote ? 1 : 0)
   if (fixed + 2 + rowCount <= frameRows) return { blanks: true, modelLine: true, envLine, listRows: rowCount }
   if (fixed + rowCount <= frameRows) return { blanks: false, modelLine: true, envLine, listRows: rowCount }
   if (fixed + 1 <= frameRows) return { blanks: false, modelLine: true, envLine, listRows: Math.max(1, frameRows - fixed) }
-  const bare = EFFORT_POPUP_FIXED_ROWS - 1
+  const bare = EFFORT_POPUP_FIXED_ROWS - 1 + (thinkingNote ? 1 : 0)
   return { blanks: false, modelLine: false, envLine: false, listRows: Math.max(1, frameRows - bare) }
 }
 
@@ -114,7 +119,7 @@ export function effortPopupShape(model: string): CommandPopupShape {
   return {
     view: EFFORT_POPUP_VIEW,
     width: columns => panelWidth(columns, MODEL_PICKER_PANEL),
-    rows: () => EFFORT_POPUP_FIXED_ROWS + (envLine ? 1 : 0) + 2 + rowCount,
+    rows: () => EFFORT_POPUP_FIXED_ROWS + (envLine ? 1 : 0) + (effortPopupThinkingNote(model) !== null ? 1 : 0) + 2 + rowCount,
   }
 }
 
@@ -144,7 +149,8 @@ export function EffortPopup({ onDone }: { onDone: (message: string) => void }): 
   const [cursor, setCursor] = useState(() => currentLevel === EFFORT_POPUP_AUTO ? 0 : effortPopupOpeningRow(model, sessionEffortValue, undefined, seatEffort, sentEffort))
   const cursorIndex = Math.min(cursor, Math.max(0, rows.length - 1))
   const envLine = effortPopupEnvLine()
-  const layout = effortPopupLayout(frameRows, rows.length, envLine !== null)
+  const thinkingNote = effortPopupThinkingNote(model)
+  const layout = effortPopupLayout(frameRows, rows.length, envLine !== null, thinkingNote !== null)
   const win = popupListWindow(rows.length, cursorIndex, layout.listRows)
   const listWidth = inner - (win.above > 0 || win.below > 0 ? 1 : 0)
   const ground = estateGroundBg(tok)
@@ -222,6 +228,7 @@ export function EffortPopup({ onDone }: { onDone: (message: string) => void }): 
           <Text color={tok.textMuted} wrap="truncate-end">{modelLine}</Text>
         </Box>
       ) : null}
+      {thinkingNote !== null ? <Box height={1}><Text color={tok.textMuted} wrap="truncate-end">{thinkingNote}</Text></Box> : null}
       {layout.envLine && envLine !== null ? (
         <Box height={1}>
           <Text color={tok.warning} wrap="truncate-end">{envLine}</Text>
