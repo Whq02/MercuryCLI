@@ -85,7 +85,7 @@ export interface BoardStore {
   wakePacket(principal: BoardPrincipal, claim: BoardWakeClaim): { text: string; eventIds: string[] } | null
   admitWake(principal: BoardPrincipal, claim: BoardWakeClaim): void
   holdWake(principal: BoardPrincipal, claim: BoardWakeClaim, reason: string, problem?: BoardWakeProblem): boolean
-  reserveEnrollment(principal: BoardPrincipal, seat: Omit<BoardSeat, 'captain'> & { captain?: boolean }): void
+  reserveEnrollment(principal: BoardPrincipal, seat: Omit<BoardSeat, 'captain'> & { captain?: boolean; named?: boolean }): void
   cancelEnrollment(principal: BoardPrincipal, agent: string): void
   enroll(principal: BoardPrincipal): void
   member(agentId: string): boolean
