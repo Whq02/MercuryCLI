@@ -114,7 +114,10 @@ const DRIVE_ONLY_ESTATES: Record<string, string> = {
 }
 const classCensus = census(ROOT)
 const driven = new Set(classCensus.suites.flatMap(s => s.drivers))
-const bootsBundle = (rel: string): boolean => readFileSync(join(ROOT, rel), 'utf8').split('\n').some(l => !/^\s*(?:\/\/|\*|\/\*)/.test(l) && /--dist\b/.test(l))
+const NAMES_THE_FLAG_ONLY: Record<string, string> = {
+  'scripts/ui/prove-stale-dist-guard.ts': 'hands the flag with an empty scratch bundle to a child of the render scenarios and reads the stale-bundle guard\'s verdicts; the product is never booted',
+}
+const bootsBundle = (rel: string): boolean => !(rel in NAMES_THE_FLAG_ONLY) && readFileSync(join(ROOT, rel), 'utf8').split('\n').some(l => !/^\s*(?:\/\/|\*|\/\*)/.test(l) && /--dist\b/.test(l))
 const estateOf = (rel: string): string | undefined => Object.keys(DRIVE_ONLY_ESTATES).find(e => rel.startsWith(`scripts/${e}/prove-`))
 const pureInPty: string[] = []
 const heavyInRelease: string[] = []
@@ -138,6 +141,8 @@ check(
 )
 check('no terminal drive or bundle boot sits in a release-class shard of a drive-only estate', heavyInRelease.length === 0, heavyInRelease.join(' · '))
 check('the drive-only estate rows all point at existing suites', missingEstates.length === 0, missingEstates.join(', '))
+const missingNamers = Object.keys(NAMES_THE_FLAG_ONLY).filter(rel => !existsSync(join(ROOT, rel)))
+check('the rows of proofs that name the bundle flag without booting the product all point at existing files', missingNamers.length === 0, missingNamers.join(', '))
 check('every member list ends with a newline (a complement runner cats the sibling lists in sequence: a last row without one glues to the next list and both names escape their lists)', unterminated.length === 0, unterminated.join(', '))
 
 const vacuous: string[] = []
