@@ -16,6 +16,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-laws.ts
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-query-laws.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-query-laws.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-ptl-recovery.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-ptl-recovery.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-cap-vocabulary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-turn-cap-vocabulary.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-stream-end-without-terminal.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-stream-end-without-terminal.ts" "$__t" "$__rc"
 "${BUN:-$HOME/.bun/bin/bun}" -e "
 await import('$here/../../src/query.ts')
 await import('$here/../../src/rows/turn.ts')
