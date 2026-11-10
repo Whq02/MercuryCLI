@@ -486,6 +486,8 @@ export function FullscreenLayout({
   const [vitalsRows, setVitalsRows] = useState<number | undefined>(
     undefined,
   )
+  const [centreRows, setCentreRows] = useState<number | undefined>(undefined)
+  const [statusBandRows, setStatusBandRows] = useState<number | undefined>(undefined)
   useLayoutEffect(() => {
     if (lanesBoxRef.current) {
       const { height } = measureElement(lanesBoxRef.current)
@@ -495,7 +497,16 @@ export function FullscreenLayout({
       const { height } = measureElement(vitalsBoxRef.current)
       if (height > 0 && height !== vitalsRows) setVitalsRows(height)
     }
+    if (centreBoxRef.current) {
+      const { height } = measureElement(centreBoxRef.current)
+      if (height > 0 && height !== centreRows) setCentreRows(height)
+    }
+    if (statusBandRef.current) {
+      const { height } = measureElement(statusBandRef.current)
+      if (height > 0 && height !== statusBandRows) setStatusBandRows(height)
+    }
   })
+  const bandFits = centreRows === undefined || statusBandRows === undefined || centreRows - 2 >= statusBandRows
 
   const elevatedRef = useElevatedSurface()
   const viewedCrewmate = useViewedCrewmate()
@@ -661,6 +672,7 @@ export function FullscreenLayout({
                     {centerFrame && statusBand ? (
                       <Box
                         ref={statusBandRef}
+                        display={bandFits ? 'flex' : 'none'}
                         flexDirection="row"
                         flexShrink={0}
                         width={sizeVal.columns}
