@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { arenaBootFacePass, sendsByAuthor, type SendAuthor } from '../lib/bootFace.ts'
 import { ptyDriverPython, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 
@@ -59,6 +60,7 @@ interface SendRecord {
   atMs: number
   b64: string
   after?: string
+  by: SendAuthor
   paintAt?: number
   settledAt?: number
   stillMs?: number
@@ -79,8 +81,6 @@ interface ProbeDump {
   epochMinusPerfNow: number
 }
 
-const FACE_READY_NEEDLE = '↑↓ choose'
-
 interface ArenaOutcome {
   exitCode: number | null
   signal: NodeJS.Signals | null
@@ -96,6 +96,7 @@ interface DriverReport {
   raw_reads: number
   sends: number
   unfired: string[]
+  skipped: string[]
   ended: 'deadline' | 'eof' | 'read-error'
   elapsed_ms: number
 }
@@ -103,7 +104,9 @@ interface DriverReport {
 export interface ArenaRun {
   fixture: FixtureApi
   teeLines: TeeWrite[]
+  sends: SendRecord[]
   sendLog: SendRecord[]
+  sent: { drive: number; arena: number }
   ptyReads: PtyRead[]
   outcome: ArenaOutcome
   probe: ProbeDump | null
@@ -127,6 +130,7 @@ export interface ArenaOpts {
   distPath?: string
   extraEnv?: Record<string, string>
   anchor?: { needle: string; atMs: number } | null
+  passBootFace?: boolean
 }
 
 export function requireDist(): void {
@@ -175,7 +179,7 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
   const probeTee = join(home, 'flux-probe.json')
 
   const sendArgs: string[] = []
-  sendArgs.push('--send', `after:${FACE_READY_NEEDLE}:900:\\r`)
+  if (opts.passBootFace !== false) sendArgs.push(...arenaBootFacePass())
   const anchor = opts.anchor === undefined ? { needle: COMPOSER_READY_NEEDLE, atMs: COMPOSER_NOMINAL_MS } : opts.anchor
   if (anchor !== null) sendArgs.push('--anchor', `${anchor.needle}:${anchor.atMs}`)
   for (const s of opts.sends) if (typeof s === 'string') sendArgs.push('--send', s)
@@ -262,15 +266,13 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
         })
         .filter((x): x is TeeWrite => x !== null)
     : []
-  const driveRows: Array<Partial<SendRecord> & { anchor?: number; shiftMs?: number }> = existsSync(drive)
+  const driveRows: Array<Partial<Omit<SendRecord, 'by'>> & { by?: string; anchor?: number; shiftMs?: number }> = existsSync(drive)
     ? readFileSync(drive, 'utf8')
         .split('\n')
         .filter(Boolean)
-        .map(l => JSON.parse(l) as Partial<SendRecord> & { anchor?: number; shiftMs?: number })
+        .map(l => JSON.parse(l) as Partial<Omit<SendRecord, 'by'>> & { by?: string; anchor?: number; shiftMs?: number })
     : []
-  const sendLog: SendRecord[] = driveRows.filter(
-    (r): r is SendRecord => r.sent !== undefined && (r as { after?: string }).after !== FACE_READY_NEEDLE,
-  )
+  const { sends, sendLog, sent } = sendsByAuthor(driveRows.filter((r): r is Omit<SendRecord, 'by'> & { by?: string } => r.sent !== undefined))
   const ptyReads: PtyRead[] = driveRows
     .filter((r): r is { ts: number; b64: string } => typeof (r as { ts?: unknown }).ts === 'number' && typeof (r as { b64?: unknown }).b64 === 'string')
     .map(r => ({ ts: r.ts, text: Buffer.from(r.b64, 'base64').toString('utf8') }))
@@ -295,7 +297,9 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
   return {
     fixture,
     teeLines,
+    sends,
     sendLog,
+    sent,
     ptyReads,
     outcome,
     probe,
@@ -326,6 +330,7 @@ export function driverOutcome(input: {
           raw_reads: typeof rec.raw_reads === 'number' ? rec.raw_reads : 0,
           sends: typeof rec.sends === 'number' ? rec.sends : 0,
           unfired: rec.unfired as string[],
+          skipped: Array.isArray(rec.skipped) ? (rec.skipped as string[]) : [],
           ended: rec.ended === 'eof' || rec.ended === 'read-error' ? rec.ended : 'deadline',
           elapsed_ms: typeof rec.elapsed_ms === 'number' ? rec.elapsed_ms : input.elapsedMs,
         }

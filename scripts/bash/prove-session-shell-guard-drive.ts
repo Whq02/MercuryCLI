@@ -3,6 +3,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { afterBootFace } from '../lib/bootFace.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
@@ -98,7 +99,7 @@ const outcome = await new Promise<{ exit: number | null; out: string }>(resolveR
       '--rows', '40',
       '--seconds', String(seconds),
       '--out', driveLog,
-      '--send', 'after:↑↓ choose:900:\\r',
+      '--send', afterBootFace(900, '\\r'),
       '--send', 'after:Type a prompt:800:run the guard probe',
       '--send', 'after:run the guard probe:600:\\r',
       '--', nodeBin, dist, '--sovereign', '--model', MODEL,
