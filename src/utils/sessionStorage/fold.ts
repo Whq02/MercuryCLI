@@ -8,6 +8,7 @@ import type {
   FileHistorySnapshotEntry,
   PersistedWorktreeSession,
   TranscriptMessage,
+  TurnEnded,
 } from '../../types/logs.js'
 import type { StorageRowKind, StorageRowOf } from '../../rows/storage.js'
 import { isCompactBoundaryMessage } from '../messages.js'
@@ -39,6 +40,7 @@ export type TranscriptFoldState = {
   agentContentReplacements: Map<AgentId, ContentReplacementRecord[]>
   contextCollapseCommits: ContextCollapseCommitEntry[]
   contextCollapseSnapshot: ContextCollapseSnapshotEntry | undefined
+  turnEnds: Map<UUID, TurnEnded>
   progressBridge: Map<UUID, UUID | null>
 }
 
@@ -67,12 +69,21 @@ export function emptyFoldState(): TranscriptFoldState {
     agentContentReplacements: new Map(),
     contextCollapseCommits: [],
     contextCollapseSnapshot: undefined,
+    turnEnds: new Map(),
     progressBridge: new Map(),
   }
 }
 
+function noteRowBehindTurnEnd(state: TranscriptFoldState, row: TranscriptMessage): void {
+  const ended = state.turnEnds.get(row.sessionId)
+  if (ended === undefined || row.isSidechain || state.messages.has(row.uuid)) return
+  if (row.type === 'attachment') ended.trailing.push(row.uuid)
+  else if (row.type === 'user' || (row.type === 'assistant' && row.isApiErrorMessage !== true)) state.turnEnds.delete(row.sessionId)
+}
+
 function messageRow(state: TranscriptFoldState, row: TranscriptMessage): void {
   if (row.parentUuid && state.progressBridge.has(row.parentUuid)) row.parentUuid = state.progressBridge.get(row.parentUuid) ?? null
+  noteRowBehindTurnEnd(state, row)
   transcriptRows(state.messages).set(row.uuid, row)
   if (isCompactBoundaryMessage(row)) {
     state.contextCollapseCommits.length = 0
@@ -124,6 +135,7 @@ const foldRows = {
   'context-collapse-snapshot': (state, row) => { state.contextCollapseSnapshot = row },
   'speculation-accept': () => {},
   'queue-operation': () => {},
+  'turn-end': (state, row) => { if (row.sessionId) state.turnEnds.set(row.sessionId, { turnId: row.turnId, status: row.status, trailing: [] }) },
 } satisfies { [K in StorageRowKind]: (state: TranscriptFoldState, row: StorageRowOf<K>) => void }
 
 export function applyTranscriptEntry(st: TranscriptFoldState, entry: Entry): void {

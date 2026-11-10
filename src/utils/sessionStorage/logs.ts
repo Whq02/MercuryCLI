@@ -406,6 +406,7 @@ export type ResumeFacts = Pick<
   | 'prNumber'
   | 'prUrl'
   | 'prRepository'
+  | 'turnEnd'
 >
 
 export function resumeFactsOf(
@@ -435,6 +436,7 @@ export function resumeFactsOf(
     prNumber: fold.prNumbers.get(sessionId),
     prUrl: fold.prUrls.get(sessionId),
     prRepository: fold.prRepositories.get(sessionId),
+    turnEnd: fold.turnEnds.get(sessionId),
   }
 }
 

@@ -53,7 +53,8 @@ type ListingPlace = Partial<{
   prRepository: string
   worktreeSession: PersistedWorktreeSession | null
 }>
-type ListingRun = { endedOnError?: boolean; mode?: 'coordinator' | 'normal'; advisor?: boolean; swarm?: boolean; model?: string }
+export type TurnEnded = { turnId: string; status: string; trailing: UUID[] }
+type ListingRun = { endedOnError?: boolean; mode?: 'coordinator' | 'normal'; advisor?: boolean; swarm?: boolean; model?: string; turnEnd?: TurnEnded }
 type ListingRecords = Partial<{
   fileHistorySnapshots: FileHistorySnapshot[]
   attributionSnapshots: AttributionSnapshotEntry[]
