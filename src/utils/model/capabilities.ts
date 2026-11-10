@@ -185,8 +185,10 @@ export function modelThinkingAlwaysOn(model: string): boolean {
 
 export function modelNarratesInThinkingBlocks(model: string): boolean {
   if (isCarrierShapedId(model)) return false
-  const canonical = getCanonicalName(familyDefaultsModel(model))
-  return canonical === 'claude-opus-5-5' || canonical === 'claude-fable-5-2'
+  const firstParty = familyDefaultsModel(model).toLowerCase()
+  const canonical = getCanonicalName(firstParty)
+  if (canonical === 'claude-fable-5') return !firstParty.includes('mythos')
+  return canonical === 'claude-opus-5-5' || canonical === 'claude-sonnet-5-5' || canonical === 'claude-fable-5-2' || canonical === 'claude-fable-5-1'
 }
 
 export function modelSupportsForcedToolChoice(model: string): boolean {

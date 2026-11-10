@@ -59,4 +59,5 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-first-party-window
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-table-window-above-served.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-table-window-above-served.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-context-1m-header.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-context-1m-header.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-mirror-launch-effort.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-mirror-launch-effort.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-progress-updates-gate.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-progress-updates-gate.ts "$__t" "$__rc"
 exit "$fail"

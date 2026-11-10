@@ -5,9 +5,9 @@ import { join } from 'node:path'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const [arm, list, effortValue] = process.argv.slice(2) as [string, string, string | undefined]
+const [arm, list, effortValue, thinkingAsked] = process.argv.slice(2) as [string, string, string | undefined, string | undefined]
 const models = list.split(',')
-const KEPT = new Set(['MERCURY_CONFIG_DIR', 'MERCURY_CREDENTIAL_STORE', 'MERCURY_TMPDIR', 'MERCURY_DISABLE_1M_CONTEXT', 'MERCURY_EFFORT_LEVEL', 'MERCURY_SUITE_OF_ONE'])
+const KEPT = new Set(['MERCURY_CONFIG_DIR', 'MERCURY_CREDENTIAL_STORE', 'MERCURY_TMPDIR', 'MERCURY_DISABLE_1M_CONTEXT', 'MERCURY_EFFORT_LEVEL', 'MERCURY_THINKING_DISPLAY', 'MERCURY_SUITE_OF_ONE'])
 for (const name of Object.keys(process.env)) {
   if (/^(ANTHROPIC_|MERCURY_)/.test(name) && !KEPT.has(name)) delete process.env[name]
 }
@@ -37,7 +37,7 @@ const loopbackFetch: typeof fetch = (input, init) => {
 globalThis.fetch = loopbackFetch
 
 let failed = ''
-const rows: Array<{ asked: string; sent: unknown; beta: string; bearer: boolean; window: number; effort: unknown; error: string }> = []
+const rows: Array<{ asked: string; sent: unknown; beta: string; bearer: boolean; window: number; effort: unknown; thinking: unknown; error: string }> = []
 let subscriber = false
 try {
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
@@ -57,12 +57,12 @@ try {
     for await (const event of routedCallModel({
       messages: [createUserMessage({ content: probe })],
       systemPrompt: asSystemPrompt(['You answer in one word.']),
-      thinkingConfig: { type: 'disabled' }, tools: [], signal: new AbortController().signal,
+      thinkingConfig: { type: thinkingAsked === 'thinking' ? 'enabled' : 'disabled' }, tools: [], signal: new AbortController().signal,
       options: {
         model, querySource: 'sdk', isNonInteractiveSession: true,
         getToolPermissionContext: async () => getEmptyToolPermissionContext(),
         agents: [], mcpTools: [], hasAppendSystemPrompt: false, enablePromptCaching: true, fetchOverride: loopbackFetch,
-        ...(effortValue === undefined ? {} : { effortValue }),
+        ...(effortValue === undefined || effortValue === '' ? {} : { effortValue }),
       },
     } as never)) {
       const row = event as { type?: string; isApiErrorMessage?: boolean; message?: { content?: Array<{ type: string; text?: string }> } }
@@ -76,6 +76,7 @@ try {
       bearer: typeof request?.headers.authorization === 'string' && request.headers.authorization.startsWith('Bearer '),
       window: getContextWindowForModel(model),
       effort: (request?.body as { output_config?: { effort?: unknown } } | undefined)?.output_config?.effort ?? null,
+      thinking: (request?.body as { thinking?: unknown } | undefined)?.thinking ?? null,
       error,
     })
   }

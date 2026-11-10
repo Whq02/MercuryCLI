@@ -215,7 +215,7 @@ section('§4 thinking.display and its beta ride only when explicitly requested')
   const HEADER = 'thinking-display-updates-2026-08-18'
 
   check('the beta token is the vendor\'s', THINKING_DISPLAY_UPDATES_BETA_HEADER === HEADER)
-  check('the row narrates in thinking blocks; Opus 5, Fable 5.1 and a carrier row do not (their rows are not this change)', caps.modelNarratesInThinkingBlocks(ID) && caps.modelNarratesInThinkingBlocks(`${ID}[1m]`) && !caps.modelNarratesInThinkingBlocks(PREVIOUS) && !caps.modelNarratesInThinkingBlocks('claude-fable-5-1') && !caps.modelNarratesInThinkingBlocks('openrouter/anthropic/claude-opus-5-5'))
+  check('the row narrates in thinking blocks, as Fable 5.1 does (the vendor names both among the seven that write progress updates); Opus 5 and a carrier row do not', caps.modelNarratesInThinkingBlocks(ID) && caps.modelNarratesInThinkingBlocks(`${ID}[1m]`) && !caps.modelNarratesInThinkingBlocks(PREVIOUS) && caps.modelNarratesInThinkingBlocks('claude-fable-5-1') && !caps.modelNarratesInThinkingBlocks('openrouter/anthropic/claude-opus-5-5'))
   check('unset and blank omit the field; explicit updates and the existing off/unknown spellings keep their behavior', [undefined, '', '  '].every(raw => show(resolveThinkingDisplaySetting(raw)) === show({ display: null, explicit: false })) && show(resolveThinkingDisplaySetting('updates')) === show({ display: 'updates', explicit: true }) && resolveThinkingDisplaySetting('off').display === null && resolveThinkingDisplaySetting('0').display === null && resolveThinkingDisplaySetting('omitted').display === null && show(resolveThinkingDisplaySetting('purple')) === show({ display: 'updates', explicit: true }))
   const adaptive = { type: 'adaptive' as const }
   const firstParty = { firstParty: () => true, env: undefined }
@@ -233,7 +233,7 @@ section('§4 thinking.display and its beta ride only when explicitly requested')
   betas = []
   check('explicit updates emits the field and header on the first-party host', show(applyThinkingDisplay(ID, adaptive, betas, firstPartyUpdates)) === show({ type: 'adaptive', display: 'updates' }) && betas.includes(HEADER))
   betas = []
-  check('Opus 5 and Fable 5.1 still omit the field under explicit updates', applyThinkingDisplay(PREVIOUS, adaptive, betas, firstPartyUpdates) === adaptive && applyThinkingDisplay('claude-fable-5-1', adaptive, betas, firstPartyUpdates) === adaptive && betas.length === 0)
+  check('Opus 5 still omits the field under explicit updates', applyThinkingDisplay(PREVIOUS, adaptive, betas, firstPartyUpdates) === adaptive && betas.length === 0)
   betas = []
   check('absent or disabled thinking emits no display field under explicit updates', applyThinkingDisplay(ID, undefined, betas, firstPartyUpdates) === undefined && show(applyThinkingDisplay(ID, { type: 'disabled' }, betas, firstPartyUpdates)) === show({ type: 'disabled' }) && betas.length === 0)
   betas = [HEADER]
