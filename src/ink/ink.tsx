@@ -82,6 +82,7 @@ import reconciler, {
 } from './reconciler.js'
 import { scanPositions, type MatchPosition } from './render-to-screen.js'
 import createRenderer, { type Renderer, type RenderResult } from './renderer.js'
+import { holdConsoleRead } from './root/console-read.js'
 import { refreshConsoleSize } from './root/console-size.js'
 import { planCursor, type CursorPoint } from './root/cursor-park.js'
 import { FrameLedger } from './root/frame-ledger.js'
@@ -295,6 +296,7 @@ export default class Ink {
 
   private storedReadableListeners: Array<(...args: unknown[]) => void> | null = null
   private wasRawMode = false
+  private consoleReadHeld = false
   private stdinRecoveryArmed = false
   private rawModeOffForStop = false
   private stopListenersAttached = false
@@ -1732,6 +1734,7 @@ export default class Ink {
       `suspendStdin: removed ${listeners.length} readable listener(s), raw=${rawWasOn}`,
     )
     if (rawWasOn) {
+      this.consoleReadHeld = holdConsoleRead(stdin)
       stdin.setRawMode(false)
       this.wasRawMode = true
     }
@@ -1757,6 +1760,10 @@ export default class Ink {
     if (this.wasRawMode) {
       stdin.setRawMode(true)
       this.wasRawMode = false;
+    }
+    if (this.consoleReadHeld) {
+      this.consoleReadHeld = false
+      stdin.read(0)
     }
     this.reconcileSize();
     this.armScreenWatchdog();
