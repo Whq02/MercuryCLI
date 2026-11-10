@@ -881,6 +881,14 @@ export class Conversation {
         const withdrawn = (event.message as AssistantMessage).message.id
         if (config.partialRows && typeof withdrawn === 'string') yield retractedRow(scope, withdrawn)
         if (!persistenceDisabled) await settleTranscriptMessage({ ...(event.message as AssistantMessage), retracted: true })
+        const withdrawnUuid = (event.message as AssistantMessage).uuid
+        const held = this.mutableMessages.findIndex(row => row.uuid === withdrawnUuid)
+        if (held !== -1) this.mutableMessages.splice(held, 1)
+        const inTurn = turnMessages.findIndex(row => row.uuid === withdrawnUuid)
+        if (inTurn !== -1) {
+          turnMessages.splice(inTurn, 1)
+          if (inTurn < this.recordCursor) this.recordCursor--
+        }
         continue
       }
 

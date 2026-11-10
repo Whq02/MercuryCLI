@@ -6,6 +6,7 @@ import { relative } from 'node:path'
 
 import { addInvokedSkill, getEngineModelOverride } from '../bootstrap/state.js'
 import { rehydrateScreenshots } from '../services/desktop/screenshotRetention.js'
+import { withoutRetractedReplies } from '../services/engine-connector/midTurnText.js'
 import { restoreBoundPrefixFromMessages } from '../services/providers/anthropic/boundPrefixRecord.js'
 import type { AttachmentMessage, Message, NormalizedUserMessage, UserMessage } from '../types/message.js'
 import type { SessionListing, SerializedMessage, TranscriptMessage } from '../types/logs.js'
@@ -171,7 +172,7 @@ function detectInterruption(messages: Message[]): InternalInterruptionState {
 
 function deserializeMessagesWithInterruptDetection(serialized: Message[]): DeserializeResult {
   try {
-    let messages = rehydrateScreenshots(serialized.map(migrateLegacyAttachment).map(scrubPermissionMode))
+    let messages = withoutRetractedReplies(rehydrateScreenshots(serialized.map(migrateLegacyAttachment).map(scrubPermissionMode)))
     messages = filterUnresolvedToolUses(messages)
     messages = filterOrphanedThinkingOnlyMessages(messages)
     messages = filterWhitespaceOnlyAssistantMessages(messages)
