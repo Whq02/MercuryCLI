@@ -6,7 +6,7 @@ import type { Message } from '../../types/message.js'
 import type { AppState } from '../../state/AppState.js'
 import type { AppStateStore } from '../../state/AppStateStore.js'
 import type { Notification } from '../../context/notifications.js'
-import { crossProviderNote, providerFamilyOfSetting, settleModelSelection, type TransitionPlan } from '../../utils/model/modelTransition.js'
+import { crossProviderNote, providerFamilyOfSetting, seatThenFold, settleModelSelection, type SeatReceiptState, type TransitionPlan } from '../../utils/model/modelTransition.js'
 import {
   previewForSelection,
   reconfirmTransitionPlan,
@@ -151,7 +151,7 @@ export function useComposerModelDoors({
   useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)
   useSyncExternalStore(subscribeCapHandoff, getCapHandoffVersion, getCapHandoffVersion)
 
-  const applyModelSelection = (value: string | null, persist = false): void => {
+  const applyModelSelection = (value: string | null, persist = false, seated?: (state: SeatReceiptState) => void): void => {
     const focused = getFocusedSessionConnector()
     if (focused.carrier === 'daemon') {
       const label = value === null ? 'Default' : renderModelName(value)
@@ -189,6 +189,7 @@ export function useComposerModelDoors({
                 timeoutMs: 3000,
               },
         )
+        seated?.(receipt.state)
       })
       return
     }
@@ -479,12 +480,8 @@ export function useComposerModelDoors({
             }
             setTransitionConfirm(null)
             if (held.plan.window?.fits === false) {
-              const foldingSession = getFocusedSessionConnector()
-              if (foldingSession.carrier === 'daemon') {
-                void foldingSession.sendWords('/compact').then(() => applyModelSelection(held.value, held.persist))
-                return
-              }
-              requestCommandDispatch('/compact')
+              seatThenFold(getFocusedSessionConnector(), seated => applyModelSelection(held.value, held.persist, seated), requestCommandDispatch)
+              return
             }
             applyModelSelection(held.value, held.persist)
           }}

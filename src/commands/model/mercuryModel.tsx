@@ -16,7 +16,7 @@ import type { Message } from '../../types/message.js'
 import { getContextWindowForModel } from '../../utils/context.js'
 import { contextFillView } from '../../utils/contextFill.js'
 import { getDefaultEngineModel, getEngineModel, normalizeModelStringForAPI, parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
-import { crossProviderNote, providerFamilyOfSetting, settleModelSelection } from '../../utils/model/modelTransition.js'
+import { crossProviderNote, providerFamilyOfSetting, seatThenFold, settleModelSelection, type SeatReceiptState } from '../../utils/model/modelTransition.js'
 import { focusedSessionModelFacts, getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import { previewDaemonModelSelection } from './model.js'
 import {
@@ -1257,7 +1257,7 @@ function MercuryModelWrapper({
     applySelection(value, id, pick)
   }
 
-  function applySelection(value: string, id: string, pick: PickRoad = { flip: false }): void {
+  function applySelection(value: string, id: string, pick: PickRoad = { flip: false }, seated?: (state: SeatReceiptState) => void): void {
     const focused = getFocusedSessionConnector()
     if (focused.carrier === 'daemon') {
       const label = labelOf(id)
@@ -1285,6 +1285,7 @@ function MercuryModelWrapper({
             ? `Model switch queued: ${label}${saved} — applies when this session's turn settles (the running turn keeps its model)${doorCross}${lossNote}${slotNote}`
             : `Set model to ${label}${saved} — this session's next message runs it${receipt.note !== undefined ? ` (${receipt.note})` : ''}${doorCross}${lossNote}${slotNote}`,
         )
+        seated?.(receipt.state)
       })
       return
     }
@@ -1340,12 +1341,8 @@ function MercuryModelWrapper({
           }
           setTransitionConfirm(null)
           if (held.plan.window?.fits === false) {
-            const foldingSession = getFocusedSessionConnector()
-            if (foldingSession.carrier === 'daemon') {
-              void foldingSession.sendWords('/compact').then(() => applySelection(held.value, held.id, held.pick))
-              return
-            }
-            requestCommandDispatch('/compact')
+            seatThenFold(getFocusedSessionConnector(), seated => applySelection(held.value, held.id, held.pick, seated), requestCommandDispatch)
+            return
           }
           applySelection(held.value, held.id, held.pick)
         }}

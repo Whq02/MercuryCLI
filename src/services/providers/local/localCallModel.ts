@@ -320,5 +320,6 @@ export async function settleOllamaWindow(record: LocalModelRecord, decided: Held
   await ensureServedWindow(record, io, hold.window === undefined ? heldLocalKnobs(record) : { probeOnly: true })
   const resident = residentServedWindow(record)
   if (adoptableLocalWindow(hold, resident, estTokens)) hold = adoptLocalWindow(record, hold, resident)
+  else if (hold.window !== undefined && resident !== undefined && resident !== hold.window) logForDebugging(`[local-window] ${record.id}: the server holds it at ${resident}, this session's window is ${hold.window} — the request reloads the runner at ${hold.window}`)
   return hold.window === undefined || resident !== hold.window
 }

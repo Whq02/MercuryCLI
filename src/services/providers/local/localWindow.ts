@@ -223,9 +223,8 @@ function setHeld(record: Pick<LocalModelRecord, 'id' | 'server'>, hold: HeldLoca
   if (before?.window !== hold?.window || before?.setting !== hold?.setting) bumpCatalogueEpoch()
 }
 
-export function adoptableLocalWindow(hold: Pick<HeldLocalWindow, 'window' | 'setting'> & Partial<Pick<HeldLocalWindow, 'reason'>>, resident: number | undefined, estTokens: number): resident is number {
-  if (resident === undefined || resident === hold.window) return false
-  if (hold.reason === 'set' || (hold.setting !== undefined && hold.setting !== 'server')) return false
+export function adoptableLocalWindow(hold: Pick<HeldLocalWindow, 'window' | 'setting'>, resident: number | undefined, estTokens: number): resident is number {
+  if (resident === undefined || resident === hold.window || hold.setting !== 'server') return false
   if (hold.window !== undefined && resident < hold.window) return false
   return localWindowFits(resident, estTokens)
 }

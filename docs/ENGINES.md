@@ -816,10 +816,11 @@ window the server already holds); a number or `trained max` in `/config`
 overrides it.
 The automatic choice tops out at 128k (`cap`) wherever a trained maximum or the
 memory fit decides it; it passes 128k only for a request that is itself larger,
-for a served window already covering twice the request when no trained maximum
-is stated, or for a larger window the server already holds (adopted on Ollama, so the
-runner is not reloaded; LM Studio reloads to the chosen window): a 27B whose 256k fits the arithmetic crawled at it on
-a 48 GiB Mac and ran at 128k; `trained
+or for a served window already covering twice the request when no trained maximum
+is stated: a 27B whose 256k fits the arithmetic crawled at it on
+a 48 GiB Mac and ran at 128k, so a runner another client left at 256k is
+reloaded once at the session's own window (Ollama on the next request, LM
+Studio at the load); `trained
 max` or a number in `/config` pins a larger window, and the words say what
 fits. The rail's ctx row names the reason (`max` · `fit` · `cap` · `set` · `srv`), the context
 gauge and the model gauge read the loaded server window while the request
@@ -833,12 +834,11 @@ prompt is refused by the server instead of truncated), and every request the
 session sends that model (the chat, the pre-warm, the keep-alive touch, the
 served-window load and every crewmate or workflow seat) carries the same
 `num_ctx` and `num_batch`, so the scheduler keeps one runner and its prompt
-cache for the whole session; a runner the server already holds at a window
-that fits the turn and is no smaller than the session's own choice is adopted
-without reloading (under `auto` and `server default`; a window you set or the
-Modelfile states is honoured, and a smaller stale runner is reloaded once, up
-to the full window),
-and the row names it as the server's; LM Studio takes it
+cache for the whole session; under `server default` a runner the server
+already holds at a window that fits the turn is adopted without reloading,
+and the row names it as the server's; under `auto`, a number or the
+Modelfile's figure the session's own window is honoured, and a runner held
+at a smaller or a larger window is reloaded once at it; LM Studio takes it
 when the model is loaded (`POST /api/v1/models/load {model, context_length}`);
 vLLM and llama.cpp fix their window at server start, so the row shows the
 served figure and reads as not applicable. The pre-warm sends the first
