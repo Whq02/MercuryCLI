@@ -75,7 +75,7 @@ try {
   let listed = false
   await bankDoor(async (q: any) => { if (q.step === 'door-bank') listed = q.rows.some((row: any) => row.value === recipe.id && row.label.endsWith('— not supported')); return null }, () => {}, new AbortController().signal, { ...bankOptions, refreshVolumes: async () => {} })
   assert.ok(listed, 'the banked TensorFold row discloses unsupported kept disks')
-  const volume = { id: 'old-tensorfold-volume', name: 'old-tensorfold-volume', kind: 'network', model: recipe.model, include: '', dataCenter: 'EU-NL-1', size: 80, price: 5.6, state: 'kept', createdAt: new Date().toISOString(), recipeRow: recipe }
+  const volume = { id: 'old-tensorfold-volume', name: 'old-tensorfold-volume', kind: 'network' as const, model: recipe.model, include: '', dataCenter: 'EU-NL-1', size: 80, price: 5.6, state: 'kept' as const, createdAt: new Date().toISOString(), recipeRow: recipe }
   writeKeptVolume(volume)
   rp.state.volumes.set(volume.id, { id: volume.id, name: volume.name, kind: 'network', size: 80, dataCenter: 'EU-NL-1', type: 'STANDARD' })
   const road = createHostRoad({ ...options })
