@@ -37,7 +37,7 @@ const loopbackFetch: typeof fetch = (input, init) => {
 globalThis.fetch = loopbackFetch
 
 let failed = ''
-const rows: Array<{ asked: string; sent: unknown; beta: string; bearer: boolean; window: number; effort: unknown; thinking: unknown; error: string }> = []
+const rows: Array<{ asked: string; sent: unknown; beta: string; bearer: boolean; window: number; fold: number; gauge: string; reason: string; name: string; effort: unknown; thinking: unknown; error: string }> = []
 let subscriber = false
 try {
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
@@ -49,6 +49,9 @@ try {
   const { isClaudeAISubscriber } = await import('../../src/utils/auth.ts')
   const { getContextWindowForModel, filterAllowedSdkBetas } = await import('../../src/utils/model/capabilities.ts')
   const { setSdkBetas } = await import('../../src/bootstrap/state.ts')
+  const { getAutoCompactThreshold } = await import('../../src/services/compact/autoCompact.ts')
+  const { contextFillView, contextWindowLabel } = await import('../../src/utils/contextFill.ts')
+  const { getPublicModelDisplayName, getMarketingNameForModel } = await import('../../src/utils/model/model.ts')
   subscriber = isClaudeAISubscriber()
   if (arm === 'key-preview') setSdkBetas(filterAllowedSdkBetas(['context-1m-2025-08-07']))
   for (const model of models) {
@@ -69,12 +72,17 @@ try {
       if (row.type === 'assistant' && row.isApiErrorMessage) error = (row.message?.content ?? []).map(block => block.text ?? '').join('')
     }
     const request = fixture.messageRequests().filter(r => JSON.stringify(r.body).includes(probe)).at(-1)
+    const view = contextFillView([], model)
     rows.push({
       asked: model,
       sent: (request?.body as { model?: unknown } | undefined)?.model ?? null,
       beta: request?.headers['anthropic-beta'] ?? '',
       bearer: typeof request?.headers.authorization === 'string' && request.headers.authorization.startsWith('Bearer '),
       window: getContextWindowForModel(model),
+      fold: getAutoCompactThreshold(model),
+      gauge: contextWindowLabel(view.window, view.windowSource, view.windowPinned),
+      reason: view.windowReason ?? '',
+      name: `${getPublicModelDisplayName(model) ?? ''} · ${getMarketingNameForModel(model) ?? ''}`,
       effort: (request?.body as { output_config?: { effort?: unknown } } | undefined)?.output_config?.effort ?? null,
       thinking: (request?.body as { thinking?: unknown } | undefined)?.thinking ?? null,
       error,

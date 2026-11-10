@@ -73,7 +73,7 @@ section("§1 the vendor's table: which first-party ids read 1M with no suffix (p
   const SWITCHED = ['claude-opus-4-6', 'claude-sonnet-4-6']
   check('Opus 4.6 and Sonnet 4.6 keep their two positions: 200k as the id stands, 1M with [1m]', SWITCHED.every(id => caps.getContextWindowForModel(id) === 200_000 && window(`${id}[1m]`) === `${MILLION}/suffix-1m` && caps.modelSupports1M(id)), SWITCHED.map(id => `${id}=${window(id)} ${id}[1m]=${window(`${id}[1m]`)}`).join(' '))
   const KEPT = ['claude-sonnet-4-5[1m]', 'claude-sonnet-4[1m]']
-  check('Sonnet 4.5 and Sonnet 4 keep the [1m] position the vendor\'s client gives them', KEPT.every(id => window(id) === `${MILLION}/suffix-1m`), KEPT.map(id => `${id}=${window(id)}`).join(' '))
+  check('with an API key Sonnet 4.5 and Sonnet 4 keep the [1m] position the vendor\'s client gives them under its 1M header (a subscription sends none and reads the base id: prove-context-1m-header §2)', KEPT.every(id => window(id) === `${MILLION}/suffix-1m`), KEPT.map(id => `${id}=${window(id)}`).join(' '))
   const NO_POSITION = ['claude-opus-4-5[1m]', 'claude-opus-4-1[1m]', 'claude-opus-4[1m]', 'claude-haiku-4-5[1m]', 'claude-3-7-sonnet[1m]']
   const ignored = NO_POSITION.map(id => caps.resolveContextWindow(id))
   check('[1m] on a first-party id with no 1M position resolves as the base id: 200,000, and the resolution says the suffix was ignored', ignored.every(r => r.effectiveWindow === 200_000 && r.source !== 'suffix-1m' && r.activation.kind === 'unavailable' && r.fallbackReason === 'unverified [1m] suffix ignored; resolved as the base id'), ignored.map(r => `${r.model}=${r.effectiveWindow}/${r.source}/${r.fallbackReason ?? ''}`).join(' '))

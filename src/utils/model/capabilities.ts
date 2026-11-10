@@ -584,6 +584,15 @@ function modelIsNatively1M(model: string): boolean {
   )
 }
 
+function modelNeeds1MHeader(model: string): boolean {
+  const canonical = getCanonicalName(familyDefaultsModel(model))
+  return canonical === 'claude-sonnet-4-5' || canonical === 'claude-sonnet-4'
+}
+
+export function context1mNeedsUnsentHeader(model: string): boolean {
+  return modelNeeds1MHeader(model.replace(/\[1m\]/i, '')) && isClaudeAISubscriber()
+}
+
 export function modelSupports1M(model: string): boolean {
   if (is1mContextDisabled()) {
     return false
@@ -677,7 +686,7 @@ function baseResolveContextWindow(
       }
     }
     const unsuffixed = model.replace(/\[1m\]/i, '')
-    if (modelSupports1M(unsuffixed)) {
+    if (modelSupports1M(unsuffixed) && !context1mNeedsUnsentHeader(unsuffixed)) {
       return finish({ effectiveWindow: 1_000_000, source: 'suffix-1m' })
     }
     const base = resolveContextWindow(unsuffixed, betas, requestedMode)
