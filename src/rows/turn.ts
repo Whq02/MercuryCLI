@@ -900,6 +900,10 @@ export class Conversation {
 
         switch (kind) {
           case 'stream_request_start':
+            if (!persistenceDisabled && !isBareMode()) {
+              await recordDelta()
+              await flushSessionStorage()
+            }
             break
           case 'stream_event': {
             const raw = projected as { type: 'stream_event'; event?: ApiStreamEvent }
@@ -1064,6 +1068,7 @@ export class Conversation {
             void recordDelta()
           } else {
             await recordDelta()
+            if (!persistenceDisabled) await flushSessionStorage()
           }
         }
         if (kind === 'assistant') {
