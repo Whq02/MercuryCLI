@@ -287,7 +287,7 @@ for (const road of roads) {
     const card = await waitFor(() => mounted.screen().includes('Model switch preview'), 8000)
     const words = mounted.screen().replace(/[│\s]+/g, ' ')
     const asked = card && words.includes('confirm folds the conversation') && calls.length === 0
-    if (!asked) check(`${road.name}, ${scene.kind}: the preview asks before anything is sent`, false, `calls=${calls.join(',')} done=${JSON.stringify(done)} · ${mounted.lines().filter(line => line.trim() !== '').slice(0, 24).join(' ⏎ ')}`)
+    if (!asked) check(`${road.name}, ${scene.kind}: the preview asks before anything is sent`, false, `calls=${calls.join(',')} done=${JSON.stringify(done)} · ${mounted.lines().filter(line => line.trim() !== '').slice(0, 24).join(' | ')}`)
     mounted.push('y')
     await waitFor(() => calls.join(',') === scene.want && done.length > 0, 6000)
     await settle(250)
