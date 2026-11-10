@@ -552,6 +552,57 @@ try {
       await fixture.close()
     }
   }
+
+  section('F11 — the built bundle, a reply that repeats itself to the output ceiling, twice: the loop guard asks once for something new, the second reply repeats again, the run lets it stand and ends the turn; a second process resumes')
+  {
+    const SID11 = 'facef00d-0000-4000-8000-0000000fc001'
+    const chanted: ScriptedTurn = { kind: 'text', text: 'F11 will now go through the list again from the first item. '.repeat(14), stopReason: 'max_tokens' }
+    const fixture = await startFixtureApi([handoffTurn(), chanted, chanted, { kind: 'text', text: 'F11-SECOND-REPLY.' }])
+    const arena = makeArena('f11', fixture)
+    try {
+      const first = await run(arena, ['run', 'F11 first prompt.', '--model', MODEL, '--session-id', SID11, '--format', 'rows'])
+      const asked = fixture.messageRequests().filter(request => !isHandoffRequest(request)).length
+      const file = transcriptOf(arena, SID11)
+      const record = file === '' ? [] : await recordOf(file)
+      const standing = record.filter(row => row.type === 'assistant' && row.isApiErrorMessage !== true && row.retracted !== true)
+      const lastReply = standing.at(-1)
+      const behind = lastReply === undefined ? [] : record.slice(record.indexOf(lastReply) + 1)
+      check('F11: the run asked twice and ended the turn itself (its outcome row: failed, stop max_tokens); the record holds the second reply stamped max_tokens and, behind it, the guard\'s line that the reply stands', asked === 2 && first.stdout.includes('"status":"failed"') && first.stdout.includes('"stop":"max_tokens"') && stopOf(lastReply) === 'max_tokens' && behind.some(row => noticeSays(row, 'the reply stands')), `exit=${first.exit} asked=${asked} ${j({ stop: stopOf(lastReply), behind: behind.map(row => (row.type === 'assistant' ? `assistant${row.isApiErrorMessage === true ? ':error-row' : ''}${row.retracted === true ? ':withdrawn' : ''}` : String(row.content ?? kindOf(row)).slice(0, 160))) })}`)
+      const second = await run(arena, ['run', 'F11 second prompt.', '--model', MODEL, '--resume', SID11, '--format', 'rows'])
+      const resumedWire = wireOf(fixture.messageRequests().filter(request => !isHandoffRequest(request)).at(-1))
+      check('F11: the second process answered, and its request carries no cut-off sentence and no stand-in reply', second.exit === 0 && second.stdout.includes('F11-SECOND-REPLY.') && says(resumedWire, CONTINUATION) === 0 && says(resumedWire, NO_RESPONSE_REQUESTED) === 0 && resumedWire.at(-1)?.texts.at(-1) === 'F11 second prompt.', `exit=${second.exit} ${j(resumedWire.slice(-3).map(message => [message.role, message.texts.map(text => text.slice(0, 80))]))}`)
+    } finally {
+      await fixture.close()
+    }
+  }
+
+  section('F12 — the built bundle, a reply the loop guard cuts in mid-stream, twice: the run asks once again, cuts the second stream too, lets the reply stand and completes the turn (exit 0); a second process resumes')
+  {
+    const SID12 = 'facef00d-0000-4000-8000-0000000fd001'
+    const streamed: ScriptedTurn = { kind: 'stream', blocks: [{ type: 'text', deltas: Array.from({ length: 230 }, () => 'F12 the same line of text over and over again, as before\n') }], gapMs: 1 }
+    const fixture = await startFixtureApi([handoffTurn(), streamed, streamed, { kind: 'text', text: 'F12-SECOND-REPLY.' }])
+    const arena = makeArena('f12', fixture)
+    try {
+      const first = await run(arena, ['run', 'F12 first prompt.', '--model', MODEL, '--session-id', SID12, '--format', 'rows'])
+      const file = transcriptOf(arena, SID12)
+      const record = file === '' ? [] : await recordOf(file)
+      const standing = record.filter(row => row.type === 'assistant' && row.isApiErrorMessage !== true && row.retracted !== true)
+      const lastReply = standing.at(-1)
+      const behind = lastReply === undefined ? [] : record.slice(record.indexOf(lastReply) + 1)
+      const closing = behind.find(row => noticeSays(row, 'the reply stands'))
+      check('F12: the run completed (exit 0, completed); the record holds the cut reply with no stop reason (its stream never ended) and, behind it, the guard\'s line that the reply stands', first.exit === 0 && first.stdout.includes('"status":"completed"') && stopOf(lastReply) === null && closing !== undefined, `exit=${first.exit} ${j({ stop: stopOf(lastReply), tail: record.slice(-5).map(row => (row.type === 'system' ? String(row.content ?? '').slice(0, 150) : kindOf(row))) })} ${first.stdout.slice(-200)}`)
+      const loaded = await resumedFrom(record, SID12)
+      check('F12: the loader reads the turn as finished — no cut-off sentence, no stand-in reply', loaded.state === 'none' && loaded.saysContinuation === 0 && loaded.saysSentinel === 0, j({ state: loaded.state, continuation: loaded.saysContinuation, sentinel: loaded.saysSentinel, last: loaded.lastTalk.slice(0, 80) }))
+      const second = await run(arena, ['run', 'F12 second prompt.', '--model', MODEL, '--resume', SID12, '--format', 'rows'])
+      const resumedWire = wireOf(fixture.messageRequests().filter(request => !isHandoffRequest(request)).at(-1))
+      check('F12: the second process answered, and its request carries no cut-off sentence and no stand-in reply', second.exit === 0 && second.stdout.includes('F12-SECOND-REPLY.') && says(resumedWire, CONTINUATION) === 0 && says(resumedWire, NO_RESPONSE_REQUESTED) === 0 && resumedWire.at(-1)?.texts.at(-1) === 'F12 second prompt.', `exit=${second.exit} ${j(resumedWire.slice(-3).map(message => [message.role, message.texts.map(text => text.slice(0, 80))]))}`)
+      const beforeClosing = closing === undefined ? [] : record.slice(0, record.indexOf(closing))
+      const undecided = await resumedFrom(beforeClosing, SID12)
+      check('F12 control: the same record stopped before the guard\'s closing line (the cut reply on record, the run\'s decision not) reads as cut — the sentence once', beforeClosing.length > 0 && undecided.state === 'interrupted_prompt' && undecided.saysContinuation === 1, j({ last: beforeClosing.at(-1) === undefined ? null : kindOf(beforeClosing.at(-1)!), state: undecided.state, continuation: undecided.saysContinuation }))
+    } finally {
+      await fixture.close()
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

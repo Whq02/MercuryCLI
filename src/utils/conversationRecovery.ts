@@ -168,11 +168,11 @@ function replyStops(messages: Message[]): Map<string, string> {
   return stops
 }
 
-const RUN_ENDS_ITS_TURN = 'the turn ends here'
+const RUN_ENDS_ITS_TURN = ['the turn ends here', 'the reply stands']
 
 function saysRunEndedTurn(message: Message): boolean {
   if (isSyntheticApiErrorAssistant(message)) return true
-  return message.type === 'system' && message.subtype === 'informational' && message.content.includes(RUN_ENDS_ITS_TURN)
+  return message.type === 'system' && message.subtype === 'informational' && RUN_ENDS_ITS_TURN.some(words => message.content.includes(words))
 }
 
 function isLoopGuardStop(message: Message): boolean {
