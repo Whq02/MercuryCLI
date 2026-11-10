@@ -1,4 +1,4 @@
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { SLEEP_PHASES, SWAY_PHASES } from './critterData.js'
 
 
@@ -13,7 +13,7 @@ export const IDLE_TICK_MS = 80
 export const BREATH_TICK_MS = 120
 
 export function critterIdleEnabled(): boolean {
-  return flagEnv('MERCURY_CRITTER_IDLE') === '0' ? false : true
+  return flagEnabled('MERCURY_CRITTER_IDLE')
 }
 
 export function critterIdleTickMs(level: 'full' | 'reduced' | 'off', asleep: boolean): number | null {

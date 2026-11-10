@@ -2,7 +2,7 @@ import type { Tool, ToolPermissionContext, Tools } from './Tool.js'
 import { swarmTools } from './services/crewBoard/seam.js'
 import { withBundledAppInstallConsent } from './extensions/installConsent.js'
 import { isEnvTruthy } from './utils/envUtils.js'
-import { flagEnv } from './substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from './substrate/flagRegistry.js'
 import { getDenyRuleForTool } from './utils/permissions/permissions.js'
 import type { PermissionRule } from './types/permissions.js'
 import { searchToolsAvailability } from './utils/ripgrep.js'
@@ -138,7 +138,7 @@ function cycleTolerant<T>(get: () => T): T | undefined {
 const SCHEDULING_ENABLED_AT_LOAD = !isEnvTruthy(flagEnv('MERCURY_SATURN_DISABLE'))
 
 function checkpointRewindEnabled(): boolean {
-  return flagEnv('MERCURY_CHECKPOINT_REWIND') !== '0'
+  return flagEnabled('MERCURY_CHECKPOINT_REWIND')
 }
 
 const WORKFLOW_TOOL = cycleTolerant(() => WorkflowTool)

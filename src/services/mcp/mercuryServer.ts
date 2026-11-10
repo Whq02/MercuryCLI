@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { serveStdio, type CallToolResult, type Transport } from './sdk.js'
 import { z } from 'zod/v4'
 import { errorMessage } from '../../utils/errors.js'
@@ -24,8 +24,7 @@ export const MERCURY_SERVER_NAME = 'mercury'
 const MERCURY_SERVER_ENV = 'MERCURY_COORDINATION_MCP'
 
 export function isMercuryServerEnabled(): boolean {
-  if (flagEnv(MERCURY_SERVER_ENV) === '0') return false
-  return true
+  return flagEnabled(MERCURY_SERVER_ENV)
 }
 
 export function isMercuryServer(name: string): boolean {

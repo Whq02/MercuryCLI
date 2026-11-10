@@ -166,7 +166,7 @@ section('§S the swap: every membership road answers the process kit through the
 
   const owner = readFileSync(join(REPO, 'src', 'services', 'mcp', 'membership.ts'), 'utf8')
   const organ = readFileSync(join(REPO, 'src', 'services', 'mcp', 'mercuryServer.ts'), 'utf8')
-  t('S9 the organ spelling is pinned equal to its owner (server name + env + the =0-only off-switch)', owner.includes("MERCURY_ORGAN_NAME = 'mercury'") && organ.includes("MERCURY_SERVER_NAME = 'mercury'") && organ.includes("'MERCURY_COORDINATION_MCP'") && organ.includes("=== '0'") && owner.includes("flagEnv('MERCURY_COORDINATION_MCP') !== '0'"))
+  t('S9 the organ spelling is pinned equal to its owner (server name + env + the shared off rule)', owner.includes("MERCURY_ORGAN_NAME = 'mercury'") && organ.includes("MERCURY_SERVER_NAME = 'mercury'") && organ.includes("'MERCURY_COORDINATION_MCP'") && organ.includes('flagEnabled(MERCURY_SERVER_ENV)') && owner.includes("flagEnabled('MERCURY_COORDINATION_MCP')"))
   const kitFiles = ['src/services/mcp/sessionKitPin.ts', 'src/services/mcp/membership.ts', 'src/skills/kitGovernance.ts']
   const worldDirty = kitFiles.filter(f => /chatOnlyBoot|chatBoot\(|MERCURY_SPLASH_CHAT/.test(readFileSync(join(REPO, f), 'utf8')))
   t('S10 no world check anywhere in the kit path (the L24(6-SUPERSEDED) law): the kit modules read no world predicate', worldDirty.length === 0, worldDirty.join(','))

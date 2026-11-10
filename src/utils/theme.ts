@@ -1,6 +1,6 @@
 
 import { colorize } from '../ink/colorize.js'
-import { flagEnv } from '../substrate/flagRegistry.js'
+import { flagEnabled } from '../substrate/flagRegistry.js'
 import { getSessionAccent } from '../components/mercury-ui/sessionAccent.js'
 import {
   AMBER,
@@ -256,7 +256,7 @@ function mercuryWarmInkOverlay(base: Theme, themeName: string): Theme {
 export function getTheme(themeName: ThemeName): Theme {
   const base = BASE_PALETTES[themeName] ?? DARK
   try {
-    if (flagEnv('MERCURY_WARM_INK') === '0') return base
+    if (!flagEnabled('MERCURY_WARM_INK')) return base
     return mercuryWarmInkOverlay(base, themeName)
   } catch {
     return base

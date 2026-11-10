@@ -1,9 +1,9 @@
 
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 
 export function mercuryLspEnabled(): boolean {
   
-  return flagEnv('MERCURY_LSP') !== '0'
+  return flagEnabled('MERCURY_LSP')
 }
 
 export function isLspToolCatalogEnabled(): boolean {

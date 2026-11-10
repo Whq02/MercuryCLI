@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { flagEnv } from '../substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
 import { resolveEffectiveSettingsSnapshot } from '../substrate/startupMenu.js'
 import { minutesKnobToMs } from '../utils/deadline.js'
 import { getMercuryHome } from '../utils/envUtils.js'
@@ -31,7 +31,7 @@ export function warmRunnerIdleRetireMs(): number {
 }
 
 export function warmRunnerPoolEnabled(): boolean {
-  return flagEnv('MERCURY_WARM_RUNNER') !== '0'
+  return flagEnabled('MERCURY_WARM_RUNNER')
 }
 
 const CLAIM_ANSWER_DEADLINE_MS = 10_000

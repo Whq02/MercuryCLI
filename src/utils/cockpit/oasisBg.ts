@@ -5,7 +5,7 @@ import { getGlobalConfig } from '../config.js'
 import { isDarkThemeFamily } from '../mercuryTokens.js'
 import { DEFAULT_THEME_SETTING, resolveThemeSetting } from '../systemTheme.js'
 import type { ThemeName } from '../theme.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { shouldHonorNoColor, truecolorFingerprint } from '../../ink/colorize.js'
 import { parseOscColor } from '../../ink/termio/osc.js'
 import { isEnvTruthy } from '../envUtils.js'
@@ -22,7 +22,7 @@ export function oasisBgEnabled(
   isTTY: boolean = Boolean(process.stdout.isTTY),
   theme: ThemeName = concreteTheme(),
 ): boolean {
-  if (flagEnv('MERCURY_OASIS_BG') === '0') return false
+  if (!flagEnabled('MERCURY_OASIS_BG')) return false
   if (!isTTY || shouldHonorNoColor()) return false
   if (/^(dumb|linux)$/.test(process.env.TERM || '')) return false
   if (!isDarkThemeFamily(theme)) return false
@@ -162,7 +162,7 @@ export function exitOasisBg(write?: (s: string) => void): void {
 }
 
 function splashCouldHaveRecoloured(): boolean {
-  if (flagEnv('MERCURY_OASIS_BG') === '0') return false
+  if (!flagEnabled('MERCURY_OASIS_BG')) return false
   const depth = flagEnv('MERCURY_TRUECOLOR')
   if (depth === '0') return false
   if (/^(dumb|linux)$/.test(process.env.TERM || '')) return false

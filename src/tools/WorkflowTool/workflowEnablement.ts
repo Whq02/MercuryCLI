@@ -1,6 +1,6 @@
 
 import { getSettingsForSource } from '../../utils/settings/settings.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 
 interface WorkflowManagedSettings {
   disableWorkflows?: boolean
@@ -16,8 +16,7 @@ export function workflowsManagedDisabled(): boolean {
 
 export function dynamicWorkflowsEnabled(): boolean {
   if (workflowsManagedDisabled()) return false
-  if (flagEnv('MERCURY_WORKFLOWS') === '0') return false
-  return true
+  return flagEnabled('MERCURY_WORKFLOWS')
 }
 
 export function workflowsDisabled(): boolean {

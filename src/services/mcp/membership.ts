@@ -1,5 +1,5 @@
 import type { SessionKitV1 } from '../../daemon/sessionKit.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { isMcpServerDisabled } from './config.js'
 import { sessionKitOf } from './sessionKitPin.js'
 import type { ScopedMcpServerConfig } from './types.js'
@@ -7,7 +7,7 @@ import type { ScopedMcpServerConfig } from './types.js'
 const MERCURY_ORGAN_NAME = 'mercury'
 
 export function isMcpOrgan(name: string): boolean {
-  return name === MERCURY_ORGAN_NAME && flagEnv('MERCURY_COORDINATION_MCP') !== '0'
+  return name === MERCURY_ORGAN_NAME && flagEnabled('MERCURY_COORDINATION_MCP')
 }
 
 function recordMembership(name: string): boolean {

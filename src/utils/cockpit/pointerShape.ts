@@ -1,11 +1,10 @@
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 
 
 type PointerShape = 'text' | 'default'
 
 function pointerShapeEnabled(): boolean {
-  if (flagEnv('MERCURY_POINTER_SHAPE') === '0') return false
-  return true
+  return flagEnabled('MERCURY_POINTER_SHAPE')
 }
 
 let lastShape: PointerShape | null = null

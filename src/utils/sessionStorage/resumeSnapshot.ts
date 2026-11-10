@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import { emptyFoldState, type TranscriptFoldState } from './fold.js'
 import { createTranscriptRows, transcriptRowOrder } from './rowGraph.js'
@@ -12,7 +12,7 @@ const DIGEST_TAIL_BYTES = 4096
 export const SNAPSHOT_MIN_BYTES = 256 * 1024
 
 export function resumeSnapshotEnabled(): boolean {
-  return flagEnv('MERCURY_RESUME_SNAPSHOT') !== '0'
+  return flagEnabled('MERCURY_RESUME_SNAPSHOT')
 }
 
 export const snapshotPathFor = (transcriptPath: string): string =>

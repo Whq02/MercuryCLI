@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
-import { flagEnv } from '../substrate/flagRegistry.js'
+import { flagEnabled } from '../substrate/flagRegistry.js'
 import {
   MERCURY_CONSTITUTION,
   MERCURY_COORDINATOR_CONTRACT,
@@ -29,7 +29,7 @@ export function lastPreflightPath(): string {
 
 export function mercuryBootPreflightEnabled(): boolean {
   
-  return flagEnv('MERCURY_BOOT_PREFLIGHT') !== '0'
+  return flagEnabled('MERCURY_BOOT_PREFLIGHT')
 }
 
 type PreflightCheck = { id: string; status: HealthStatus; evidence: string }

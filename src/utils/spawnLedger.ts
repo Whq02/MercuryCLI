@@ -1,15 +1,15 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { flagEnv } from '../substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
 
 export const SPAWNED_BY_ENV = 'MERCURY_SPAWNED_BY'
 
 export function isSpawnLedgerEnabled(): boolean {
-  return flagEnv('MERCURY_SPAWN_LEDGER') !== '0'
+  return flagEnabled('MERCURY_SPAWN_LEDGER')
 }
 
 export function isSpawnAuditEnabled(): boolean {
-  return flagEnv('MERCURY_SPAWN_AUDIT') !== '0'
+  return flagEnabled('MERCURY_SPAWN_AUDIT')
 }
 
 export function spawnedByStamp(kind: string, id: string): string {

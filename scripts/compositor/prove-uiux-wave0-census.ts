@@ -80,7 +80,7 @@ section('BM-19 — splash OSC 11 ground write, emitted bytes under the one spell
   check(
     'UI-017 parity: the splash and the runtime owner read the ONE opt-out spelling (MERCURY_OASIS_BG in the asset; the registry row for oasisBg)',
     src('assets/splash/mercury-splash.mjs').includes("process.env.MERCURY_OASIS_BG !== '0'") &&
-      src('src/utils/cockpit/oasisBg.ts').includes("flagEnv('MERCURY_OASIS_BG')"),
+      src('src/utils/cockpit/oasisBg.ts').includes("flagEnabled('MERCURY_OASIS_BG')"),
   )
 }
 

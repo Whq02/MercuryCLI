@@ -163,7 +163,7 @@ export function wardsEnabled(): boolean {
 export function deleteWardActive(): boolean {
   return (
     flagEnv('MERCURY_SPAWNED_BY') !== undefined &&
-    flagEnv('MERCURY_DELETE_WARD') !== '0'
+    flagEnabled('MERCURY_DELETE_WARD')
   )
 }
 

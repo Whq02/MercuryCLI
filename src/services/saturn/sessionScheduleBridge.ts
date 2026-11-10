@@ -1,4 +1,4 @@
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 import type { SaturnFactsRowV1, ScheduleOpRequestV1 } from '../../daemon/saturn.js'
 import type { LocalWakeFacts } from '../../tools/ScheduleWakeupTool/localWake.js'
 
@@ -104,7 +104,7 @@ export function armLocalWake(delaySeconds: number, prompt: string, facts?: Local
 export const WAKE_REASON_ENV_FLAG = 'MERCURY_WAKE_REASON'
 
 export function wakeReasonEnabled(): boolean {
-  return flagEnv(WAKE_REASON_ENV_FLAG) !== '0'
+  return flagEnabled(WAKE_REASON_ENV_FLAG)
 }
 
 export function applyWakeReason(prompt: string, reason: string | undefined): string {
