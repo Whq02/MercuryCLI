@@ -37,8 +37,8 @@ type Stage = {
   scroll: React.RefObject<Scroll | null>
   writes: string[]
   shown: () => Shown
-  listRenders: () => number
-  listRendersAtOwnCommit: () => number
+  armOwnCommit: () => number
+  listRendersAtOwnCommit: () => number | null
   poke: () => void
   set: (open: boolean) => void
   drop: (count: number) => void
@@ -87,9 +87,9 @@ async function stage(world: World, start: { open: boolean; rows?: number; column
     setOwn = set
   }
   let listRenders = 0
-  let listRendersAtOwnCommit = 0
+  let listRendersAtOwnCommit: number | null = null
   const committed = (): void => {
-    listRendersAtOwnCommit = listRenders
+    listRendersAtOwnCommit ??= listRenders
   }
   function Pane(): React.ReactNode {
     const shown = React.useSyncExternalStore(
@@ -142,7 +142,10 @@ async function stage(world: World, start: { open: boolean; rows?: number; column
     scroll,
     writes: stdout.writes,
     shown: () => state,
-    listRenders: () => listRenders,
+    armOwnCommit: () => {
+      listRendersAtOwnCommit = null
+      return listRenders
+    },
     listRendersAtOwnCommit: () => listRendersAtOwnCommit,
     poke: () => publish({ ...state }),
     set: open => {
@@ -224,6 +227,7 @@ type Case = {
   top: Spot | 'tail'
   act: (live: Stage) => void | Promise<void>
   busyMs?: number
+  lands?: Spot
 }
 
 const OWN: World = { rows: 120, tallAt: 40, open: 240, shut: 1, ownState: true }
@@ -251,7 +255,7 @@ async function run(scene: Case): Promise<void> {
     show(`${scene.name} before`, placed)
     const mark = live.writes.length
     const columnsBefore = live.shown().columns
-    const rendersBefore = live.listRenders()
+    const rendersBefore = live.armOwnCommit()
     await scene.act(live)
     if (scene.busyMs !== undefined) {
       const until = Date.now() + scene.busyMs
@@ -265,7 +269,11 @@ async function run(scene: Case): Promise<void> {
     }
     const settled = await rest(live.view)
     if (scene.world.ownState) {
-      check(`${scene.name}: the row committed its new height by its own state, with no render of the list`, live.listRendersAtOwnCommit() === rendersBefore, `the list rendered the row ${rendersBefore} times before the change and ${live.listRendersAtOwnCommit()} by the row's own commit`)
+      check(`${scene.name}: the row committed its new height by its own state, with no render of the list`, live.listRendersAtOwnCommit() === rendersBefore, `the list had rendered the row ${rendersBefore} times before the change and ${live.listRendersAtOwnCommit()} times by the row's own commit`)
+    }
+    if (scene.lands !== undefined) {
+      const landed = spotOf(settled[0] ?? '', scene.world)
+      check(`${scene.name}: the pane's first line is the row's line ${scene.lands.inner}`, landed !== null && landed.row === scene.lands.row && landed.inner === scene.lands.inner, `the pane opens on ${settled[0] === '' ? '(blank)' : settled[0]}`)
     }
     const columns = live.shown().columns
     const frames = framesFrom(live.writes, columns === columnsBefore ? mark : 0, columns)
@@ -297,6 +305,11 @@ async function run(scene: Case): Promise<void> {
 }
 
 const TALL: World = { rows: 120, tallAt: 40, open: 240, shut: 1 }
+const reopened = async (live: Stage): Promise<void> => {
+  live.set(false)
+  await rest(live.view)
+  live.set(true)
+}
 const cases: Case[] = [
   { name: 'a tall row collapsed off the tail, its head in view', world: TALL, startOpen: true, top: { row: 37, inner: 0 }, act: live => live.set(false) },
   { name: 'a tall row collapsed off the tail from inside it', world: TALL, startOpen: true, top: { row: 40, inner: 150 }, act: live => live.set(false) },
@@ -311,6 +324,8 @@ const cases: Case[] = [
   { name: 'a tall row collapsed by its own state at the tail', world: { ...OWN, tallAt: 110 }, startOpen: true, top: 'tail', act: live => live.set(false) },
   { name: 'a row expanded by its own state off the tail', world: OWN, startOpen: false, top: { row: 37, inner: 0 }, act: live => live.set(true) },
   { name: 'a row expanded by its own state at the tail', world: { ...OWN, tallAt: 110 }, startOpen: false, top: 'tail', act: live => live.set(true) },
+  { name: 'a tall row collapsed from inside it and expanded again', world: TALL, startOpen: true, top: { row: 40, inner: 150 }, act: reopened, lands: { row: 40, inner: 0 } },
+  { name: 'a tall row collapsed by its own state from inside it and expanded again', world: OWN, startOpen: true, top: { row: 40, inner: 150 }, act: reopened, lands: { row: 40, inner: 0 } },
   { name: 'a re-wrap off the tail', world: { ...TALL, wide: true }, startOpen: false, top: { row: 37, inner: 0 }, act: live => live.wrap(40) },
   { name: 'a re-wrap at the tail', world: { ...TALL, wide: true }, startOpen: false, top: 'tail', act: live => live.wrap(40) },
 ]

@@ -319,6 +319,7 @@ export function useVirtualScroll(
           } else {
             const h = cache.get(itemKeys[idx]!) ?? UNMEASURED_ESTIMATE_ROWS
             const inner = Math.min(pin.inner, Math.max(0, h - 1))
+            if (inner !== pin.inner && !reflowHoldRef.current) contentPinRef.current = { key: pin.key, inner }
             const target = Math.max(0, Math.floor(origin + offs[idx]! + inner))
             if (target !== committedTop && pendingDelta === 0) {
               pinTrace({ act: 'write', committed: committedTop, target, origin, idx, off: offs[idx], inner, h, vp: viewportHeight, hold: reflowHoldRef.current, out: outOfLayoutRef.current })
