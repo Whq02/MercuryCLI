@@ -11,6 +11,7 @@ import { isProcessAlive } from './ownerWatch.js'
 import { decideTransition, type ConcourseSessionState } from './concourseLifecycle.js'
 import {
   canonicalWorkspaceId,
+  operatorTookSessionBack,
   resolveDefaultedAdmission,
   readSessionWorkers,
   recordCollisionEvidence,
@@ -767,6 +768,7 @@ export function makeConcourseDispatchHandler(
       }
     }
     publishDispatches(dispatches, deps.dir)
+    if (!report && (rec.by === 'operator' || rec.by?.startsWith('operator:') === true)) operatorTookSessionBack(target, deps.dir)
     const delivered = await deps.deliver(
       targetRec.runnerId,
       await buildConcoursePromptRow(prompt, { ...extras, identity: rec.clientMessageId }),

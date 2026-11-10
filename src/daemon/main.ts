@@ -30,6 +30,7 @@ import {
   attachYieldConcourseSession,
   blurConcourseSession,
   completeRequestedPark,
+  retireRequestedPark,
   detachRespawnConcourseSession,
   focusConcourseSession,
   grantConcourseWorkflows,
@@ -455,9 +456,17 @@ async function daemonRun(args: string[]): Promise<void> {
         },
         onIdle: short => {
           if (short.startsWith('concourse-w') && roster !== null) {
+            const parkedWords = `[daemon] ${short} finished its turn and parked (a park was requested while it worked)`
             if (completeRequestedPark(short, roster)) {
               // eslint-disable-next-line no-console
-              console.error(`[daemon] ${short} finished its turn and parked (a park was requested while it worked)`)
+              console.error(parkedWords)
+            } else {
+              void retireRequestedPark(short, roster)
+                .then(parked => {
+                  // eslint-disable-next-line no-console
+                  if (parked) console.error(parkedWords)
+                })
+                .catch(e => logForDebugging(`[daemon] ${short}: the requested park's retirement threw (ignored): ${e}`))
             }
             onSeatIdle(short, roster)
           }

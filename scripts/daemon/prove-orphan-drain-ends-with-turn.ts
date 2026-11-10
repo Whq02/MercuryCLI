@@ -1,13 +1,25 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
+const SCENE = process.env.ORPHAN_DRAIN_SCENE
+if (SCENE === undefined) {
+  let red = 0
+  for (const scene of ['one-turn', 'owed-turn']) {
+    const run = spawnSync(process.execPath, [import.meta.path], { encoding: 'utf8', timeout: 240_000, env: { ...process.env, ORPHAN_DRAIN_SCENE: scene } })
+    process.stdout.write(`${run.stdout ?? ''}${run.stderr ?? ''}`)
+    if (run.status !== 0) red++
+  }
+  console.log(red === 0 ? '\nprove-orphan-drain-ends-with-turn: all green' : `\nprove-orphan-drain-ends-with-turn: ${red} SCENE(S) RED`)
+  process.exit(red === 0 ? 0 : 1)
+}
+const OWED_TURN = SCENE === 'owed-turn'
 const DIST = join(REPO, 'dist', 'mercury.mjs')
 if (!existsSync(DIST)) {
   console.error('dist/mercury.mjs missing — run `bun run build.ts` first')
@@ -40,6 +52,7 @@ const alive = (pid: number | undefined): boolean => {
 }
 
 const PROBE = 'drain-probe:'
+const FOLLOW_UP = `${PROBE} and then this, once the first answer stands`
 const PARK_BOUND_MS = 6_000
 const LEAVE_BOUND_MS = 20_000
 const DRAIN_CEILING_MINUTES = '2'
@@ -82,10 +95,18 @@ const textOf = (content: unknown): string =>
       : ''
 let seatStreams = 0
 let seatStreamsEnded = 0
-let releaseSeat: () => void = () => {}
-const released = new Promise<void>(resolve => {
-  releaseSeat = resolve
-})
+const gates: Array<{ open: () => void; opened: Promise<void> }> = []
+const gate = (nth: number): { open: () => void; opened: Promise<void> } => {
+  while (gates.length < nth) {
+    let open: () => void = () => {}
+    const opened = new Promise<void>(resolve => {
+      open = resolve
+    })
+    gates.push({ open, opened })
+  }
+  return gates[nth - 1]!
+}
+const releaseSeat = (nth: number): void => gate(nth).open()
 const fixture = createServer((req: IncomingMessage, res: ServerResponse) => {
   const chunks: Buffer[] = []
   req.on('data', c => chunks.push(c as Buffer))
@@ -121,7 +142,7 @@ const fixture = createServer((req: IncomingMessage, res: ServerResponse) => {
       return
     }
     seatStreams++
-    void released.then(() => {
+    void gate(seatStreams).opened.then(() => {
       res.write(sse('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: ' — done' } }))
       finish()
       seatStreamsEnded++
@@ -153,7 +174,7 @@ const logFd = openSync(daemonLogPath, 'a')
 const daemon = spawn('node', [DIST, 'daemon', 'run', work], { cwd: work, env: daemonEnv as NodeJS.ProcessEnv, stdio: ['ignore', logFd, logFd] })
 const daemonGone = (): boolean => daemon.exitCode !== null || daemon.signalCode !== null
 const cleanup = async (): Promise<void> => {
-  releaseSeat()
+  for (let nth = 1; nth <= 4; nth++) releaseSeat(nth)
   try {
     owner.kill('SIGKILL')
   } catch {}
@@ -172,7 +193,9 @@ const cleanup = async (): Promise<void> => {
   else console.log(`[forensics] world kept: ${SCRATCH}`)
 }
 
-console.log("an orphaned daemon leaves when its last turn ends: a park asked for while a turn runs completes at that turn's own end, never at the drain ceiling")
+console.log(OWED_TURN
+  ? "a park asked for while a turn runs waits for the turn the runner still owes: a follow-up it already holds runs to its end, then the session parks and the daemon leaves"
+  : "an orphaned daemon leaves when its last turn ends: a park asked for while a turn runs completes at that turn's own end, never at the drain ceiling")
 try {
   check('the daemon serves under an owner', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
   const dispatched = (await daemonControlRpc({
@@ -191,28 +214,41 @@ try {
   const before = readRec(sid)
   const pid = before?.pid
   check('the record is live and mid-turn, no park asked for yet', before !== undefined && alive(pid) && sup.turnInFlightOf(before as never) && before.parkRequestedAt === undefined && before.parkedAt === undefined, JSON.stringify(before))
+  if (OWED_TURN) {
+    const followed = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'orphan-drain-follow-up', prompt: FOLLOW_UP, workspaceDir: '', targetSessionId: sid, by: 'operator' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; state?: string }
+    check('a follow-up sent while the turn runs is taken: the runner holds it for its next turn', followed.ok === true && seatStreams === 1, JSON.stringify(followed))
+  }
 
   owner.kill('SIGKILL')
   check('the daemon notices its owner is gone and asks every session to park: the one mid-turn drains', await untilAsync(() => /the screen is gone — parking every active session: parked 0, draining 1 /.test(daemonLog()), 45_000), logTail())
   const draining = readRec(sid)
   check('the park is asked for, not applied: the runner finishes its own turn and the daemon waits for it', draining?.parkRequestedAt !== undefined && draining.parkedAt === undefined && alive(pid) && !daemonGone(), JSON.stringify(draining))
 
-  releaseSeat()
+  releaseSeat(1)
   check('the turn ends on the wire and in the record', await untilAsync(() => {
     const r = readRec(sid)
-    return seatStreamsEnded >= 1 && r !== undefined && !sup.turnInFlightOf(r as never)
+    return seatStreamsEnded >= 1 && r !== undefined && (OWED_TURN || !sup.turnInFlightOf(r as never))
   }, 30_000), JSON.stringify(readRec(sid)))
+  if (OWED_TURN) {
+    check('the follow-up reaches the model: the runner starts the turn it owed', await untilAsync(() => seatStreams >= 2, 30_000), `seat streams ${seatStreams}`)
+    await sleep(2_500)
+    const owing = readRec(sid)
+    check('while that turn runs the session is not parked, its runner lives and the daemon waits (red when the park completes at the first turn end: the follow-up cut mid-reply)', owing?.parkedAt === undefined && owing?.parkRequestedAt !== undefined && alive(pid) && !daemonGone() && seatStreamsEnded === 1, JSON.stringify({ parkedAt: owing?.parkedAt, parkRequestedAt: owing?.parkRequestedAt, runnerAlive: alive(pid), daemonGone: daemonGone(), ended: seatStreamsEnded }))
+    releaseSeat(2)
+    check("the follow-up's reply ends on the wire", await untilAsync(() => seatStreamsEnded >= 2, 30_000), `ended ${seatStreamsEnded}`)
+  }
   const settledAt = Date.now()
   const parkedInTime = await untilAsync(() => readRec(sid)?.parkedAt !== undefined, PARK_BOUND_MS)
   const parked = readRec(sid)
-  check(`the session parks at its turn's end, within ${PARK_BOUND_MS / 1000} s (red on the base: the request still stands and the daemon waits for the ceiling)`, parkedInTime && parked?.parkRequestedAt === undefined, JSON.stringify(parked))
+  check(`the session parks at its ${OWED_TURN ? 'last' : ''} turn's end, within ${PARK_BOUND_MS / 1000} s (red on the base: the request still stands and the daemon waits for the ceiling)`, parkedInTime && parked?.parkRequestedAt === undefined, JSON.stringify(parked))
   check('…parked as asked, not as a turn cut at the drain ceiling', parked?.parkedAt !== undefined && parked.parkReason !== sup.PARK_DRAIN_CUT_REASON, String(parked?.parkReason))
   check('the runner is gone', await untilAsync(() => !alive(pid), 10_000), `pid ${pid} alive=${alive(pid)}`)
   const left = await untilAsync(daemonGone, Math.max(1_000, LEAVE_BOUND_MS - (Date.now() - settledAt)))
   check(`the daemon leaves with its last turn, within ${LEAVE_BOUND_MS / 1000} s of the turn's end and far inside the ${DRAIN_CEILING_MINUTES}-minute ceiling`, left, `still up ${Math.round((Date.now() - settledAt) / 1000)} s after the turn ended · ${logTail()}`)
   check('the daemon log tells it that way: the turn finished and the session parked, and nothing was cut', /finished its turn and parked \(a park was requested while it worked\)/.test(daemonLog()) && !/drain ceiling/.test(daemonLog()), logTail())
+  check(`the model was asked ${OWED_TURN ? 'twice' : 'once'} and every reply ran to its end`, seatStreams === (OWED_TURN ? 2 : 1) && seatStreamsEnded === seatStreams, `streams ${seatStreams}, ended ${seatStreamsEnded}`)
 } finally {
   await cleanup()
 }
-console.log(failures === 0 ? '\nprove-orphan-drain-ends-with-turn: all green' : `\nprove-orphan-drain-ends-with-turn: ${failures} FAILURE(S)`)
+console.log(failures === 0 ? `  scene ${SCENE}: green` : `  scene ${SCENE}: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
