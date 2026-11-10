@@ -80,13 +80,32 @@ async function processFolderStands(): Promise<boolean> {
 
 async function ownProcessFolder(): Promise<string> {
   const root = getBundledSkillsRoot()
-  await mkdir(root, { recursive: true, mode: 0o700 })
-  const real = await realpath(root)
-  if (!(await standsAsFolder(root)) || (processFolderReal !== undefined && real !== processFolderReal)) {
+  if (processFolderReal === undefined) {
+    await mkdir(root, { recursive: true, mode: 0o700 })
+    if (!(await standsAsFolder(root))) {
+      throw new Error(`the bundled-skills folder ${root} is not a directory of its own`)
+    }
+    processFolderReal = await realpath(root)
+    return processFolderReal
+  }
+  const missing: string[] = []
+  let standing = processFolderReal
+  while (!(await lstat(standing).then(() => true, () => false))) {
+    missing.unshift(standing)
+    const parent = dirname(standing)
+    if (parent === standing) break
+    standing = parent
+  }
+  if (!(await standsAsFolder(standing)) || (await realpath(standing)) !== standing) {
+    throw new Error(`${standing} is no longer the directory the bundled-skills folder of this process was made under`)
+  }
+  for (const folder of missing) {
+    await mkdir(folder, { mode: 0o700 })
+  }
+  if (!(await processFolderStands())) {
     throw new Error(`the bundled-skills folder ${root} is not the directory this process made`)
   }
-  processFolderReal = real
-  return real
+  return processFolderReal
 }
 
 async function skillFolderStandsWhole(baseDir: string, targets: readonly SkillFileTarget[]): Promise<boolean> {
@@ -102,9 +121,9 @@ async function extractSkillFiles(skillName: string, files: Record<string, string
   const targets = skillFileTargets(baseDir, files)
   for (const folder of foldersUnder(baseDir, targets)) {
     await mkdir(folder, { mode: 0o700 })
-  }
-  if ((await realpath(baseDir)) !== join(processFolder, basename(baseDir))) {
-    throw new Error(`the bundled skill folder ${baseDir} is not under the directory this process made`)
+    if (folder === baseDir && (await realpath(baseDir)) !== join(processFolder, basename(baseDir))) {
+      throw new Error(`the bundled skill folder ${baseDir} is not under the directory this process made`)
+    }
   }
   await Promise.all(
     targets.map(async ({ path, content }) => {
