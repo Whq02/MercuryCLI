@@ -259,7 +259,7 @@ rents a cloud CUDA pod for TensorFold:
 
 ```text
 pod       RTX 5090 32 GB · $0.89/h on Runpod or Vast.ai · billing starts when it boots
-serves    Qwen3.8 27B at 128k with TensorFold 1.2.2 for CUDA
+serves    Qwen3.8 27B at 128k with TensorFold 1.2.5 for CUDA
 through   /llmhost rents it, installs TensorFold, pulls, serves, then this session switches · s stops the pod and its billing
 ```
 
@@ -271,7 +271,7 @@ and in `/llmhost`.
   `RTX PRO 6000` (96 GB), `GB10` (128 GB), `A100` (80 GB), `RTX A6000` (48 GB)
   and `RTX 3090` (24 GB), and lists `RTX 4090` (24 GB), `L40S` (48 GB) and `L4`
   (24 GB) as `ships · unqualified by TensorFold`. `H100`, `H200`, `B200`,
-  `B300` and `GB300` are refused before renting (`the 1.2.2 archive holds no sm_90 machine code and no PTX`).
+  `B300` and `GB300` are refused before renting (`the 1.2.5 archive holds no sm_90 machine code and no PTX`).
   On the rented pod, setup checks for NVIDIA driver R580 or newer (CUDA 13.0),
   downloads the release archive into `/workspace/mercury-host/<recipe-id>`,
   verifies both its SHA-256 checksum and its Ed25519 signature, sets
@@ -292,7 +292,7 @@ and in `/llmhost`.
   `TENSORFOLD`), and the `TENSORFOLD HOST` heading names the live hosts and
   counts the rest:
   - `setting up`: the card shows `pod       <gpu> · $<price>/h on <Runpod|Vast.ai> · <elapsed> · ~$<spend> so far · s stops the pod and its billing` and the current provisioning step (`now       <step>`).
-  - `serving` (or `current`): ready for turns as `compat/pod-<id>/<model>`. Its card shows `host      <gpu> · TensorFold 1.2.2 · keyed`, `pod       $<price>/h on <Runpod|Vast.ai> · <elapsed> · ~$<spend> so far · s stops the pod and its billing`, `serving   ~<N> tok/s on its last reply` once a turn has completed, and `window    <N>k · set when the pod was rented`.
+  - `serving` (or `current`): ready for turns as `compat/pod-<id>/<model>`. Its card shows `host      <gpu> · TensorFold 1.2.5 · keyed`, `pod       $<price>/h on <Runpod|Vast.ai> · <elapsed> · ~$<spend> so far · s stops the pod and its billing`, `serving   ~<N> tok/s on its last reply` once a turn has completed, and `window    <N>k · set when the pod was rented`.
   - `paused` or `failed`: shows the cause and `next      Resume or Terminate in /llmhost`.
   - `stopping` and `stopped`: pressing `s` (`s stops the pod`) on a billing pod requests the stop at once. If the vendor confirms within the short wait, the row settles to `stopped` (`<machine> stopped · compute billing ended · ~$<spend> so far · the disk bills until you terminate it · t terminates`); if the vendor has not confirmed yet, the row reads `stopping` (`<machine> · stop requested · the row reads stopping until <Vendor> confirms, then compute billing ends · the disk bills until you terminate it · t terminates`) with the spend preserved, and the panel polls and settles it to `stopped` (or removes it if the vendor reports it gone) once confirmed. Stopping the pod from `/llmhost` also forgets its live `TENSORFOLD HOST` server entry so the row shows as `stopped`.
   While a pod is `stopped`, its container or volume disk continues to bill at

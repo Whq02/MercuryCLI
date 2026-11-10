@@ -55,7 +55,7 @@ try {
   rp.state.customGpus = liveCatalogue.gpus.map((gpu: { id: string }) => gpu.id === 'NVIDIA GeForce RTX 5090' ? { ...gpu, availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', name: 'EU-NL-1', availability: 'HIGH' }] } : gpu)
   const api = vendorClient('runpod', { key: rp.key, apiBaseUrl: rp.baseUrl })
   ssh = fakeSshRunner(engineBase, hostRunner, { window: 131072, slots: 1 }, { enginePort: 8080 })
-  ssh.state.log = 'MERCURY_STEP checking the NVIDIA driver\nMERCURY_STEP driver 580.95.05 · compute capability 12.0\nMERCURY_STEP downloading TensorFold 1.2.2 for linux-x86_64\nMERCURY_STEP TensorFold 1.2.2 installed\nMERCURY_STEP pulling TensorFold/Qwen3.8-27B-MLX-4bit\nMERCURY_STEP starting engine\n'
+  ssh.state.log = 'MERCURY_STEP checking the NVIDIA driver\nMERCURY_STEP driver 580.95.05 · compute capability 12.0\nMERCURY_STEP downloading TensorFold 1.2.5 for linux-x86_64\nMERCURY_STEP TensorFold 1.2.5 installed\nMERCURY_STEP pulling TensorFold/Qwen3.8-27B-MLX-4bit\nMERCURY_STEP starting engine\n'
   podKey = () => ssh!.state.keyFile.split(': ')[1]?.trim()
   const offers = await api.offers(new AbortController().signal)
   const tensorfold = offers.filter(row => row.recipe.engine === 'tensorfold' && row.gpuId === 'NVIDIA GeForce RTX 5090')
