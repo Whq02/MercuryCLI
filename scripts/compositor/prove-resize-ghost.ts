@@ -105,11 +105,13 @@ try {
   const bytesIn = (from: number, to: number | null): string =>
     Buffer.concat(frames.filter(f => f.tick >= from && (to === null || f.tick < to)).map(f => f.bytes)).toString('latin1')
   const countOf = (hay: string, needle: string): number => hay.split(needle).length - 1
+  const WHOLE_FRAME_HEAD = '\x1b[H\x1b[0m'
   const erasesAfterFirstResize = countOf(bytesIn(changeTicks[0] ?? 45, null), '\x1b[2J')
+  const wholeFramesAfterFirstResize = countOf(bytesIn(changeTicks[0] ?? 45, null), WHOLE_FRAME_HEAD)
   check(
-    'G3 every geometry change repaints THROUGH the clear law (erases ≥ settled changes)',
-    erasesAfterFirstResize >= SETTLED_CHANGES + 1,
-    `${erasesAfterFirstResize} erases for ${SETTLED_CHANGES} settled changes + one burst`,
+    'G3 every geometry change repaints THROUGH the overwrite law (whole frames ≥ settled changes, no erase of the display)',
+    wholeFramesAfterFirstResize >= SETTLED_CHANGES + 1 && erasesAfterFirstResize === 0,
+    `${wholeFramesAfterFirstResize} whole frames and ${erasesAfterFirstResize} erases for ${SETTLED_CHANGES} settled changes + one burst`,
   )
 
   check('G2 stage snapshots recorded for every geometry', stages.length === cfg.resizes.length, `${stages.length}`)
@@ -135,7 +137,7 @@ try {
   if (burstStart !== undefined) windows.push(['the burst', burstStart, null])
   for (const [label, from, to] of windows) {
     const bytes = bytesIn(from, to)
-    check(`G5 ${label}: exactly ONE contained erase in its window`, countOf(bytes, '\x1b[2J') === 1, `${countOf(bytes, '\x1b[2J')} erases`)
+    check(`G5 ${label}: exactly ONE whole-frame overwrite in its window and no erase of the display`, countOf(bytes, WHOLE_FRAME_HEAD) === 1 && countOf(bytes, '\x1b[2J') === 0, `${countOf(bytes, WHOLE_FRAME_HEAD)} whole frames, ${countOf(bytes, '\x1b[2J')} erases`)
   }
   if (burstStart !== undefined) {
     const burst = bytesIn(burstStart, null)

@@ -31,6 +31,7 @@ const TO_CONCOURSE = stage === 'chat' ? SHIFT_LEFT : SHIFT_RIGHT
 const FROM_CONCOURSE = stage === 'chat' ? SHIFT_RIGHT : SHIFT_LEFT
 const concourseReadyAt = (cols: number, rows: number): string => cols < 100 || rows < 26 ? 'live view' : 'coordinator'
 const ERASE_SCREEN = '\x1b[2J'
+const WHOLE_FRAME_HEAD = '\x1b[H\x1b[0m'
 const ERASE_SCROLLBACK = '\x1b[3J'
 const ALT_ENTER = '\x1b[?1049h'
 const ALT_LEAVE = '\x1b[?1049l'
@@ -73,14 +74,14 @@ function textOffsetOf(bytes: string, needle: string): number {
   return at < 0 ? -1 : origin[at]!
 }
 
-function eraseSharesSynchronizedPaint(bytes: string): boolean {
-  const erase = bytes.indexOf(ERASE_SCREEN)
-  if (erase < 0) return false
-  const begin = bytes.lastIndexOf('\x1b[?2026h', erase)
-  const previousEnd = bytes.lastIndexOf('\x1b[?2026l', erase)
-  const end = bytes.indexOf('\x1b[?2026l', erase)
-  return begin > previousEnd && end > erase &&
-    bytes.slice(erase + ERASE_SCREEN.length, end).replace(CONTROL_SEQUENCE, '').trim().length > 0
+function wholeFrameSharesSynchronizedPaint(bytes: string): boolean {
+  const head = bytes.indexOf(WHOLE_FRAME_HEAD)
+  if (head < 0) return false
+  const begin = bytes.lastIndexOf('\x1b[?2026h', head)
+  const previousEnd = bytes.lastIndexOf('\x1b[?2026l', head)
+  const end = bytes.indexOf('\x1b[?2026l', head)
+  return begin > previousEnd && end > head &&
+    bytes.slice(head + WHOLE_FRAME_HEAD.length, end).replace(CONTROL_SEQUENCE, '').trim().length > 0
 }
 
 function afterFirstPaintOf(bytes: string, needle: string): string | null {
@@ -242,8 +243,8 @@ for (const journey of journeys) {
       const routeWindow = window.event.startsWith('shift-')
       check(`${tag} ${window.event}: no frame addresses a row below the terminal's last row (${window.rows})`, counts.tallestRow <= window.rows, describe(counts))
       if (resizeWindow || routeWindow) {
-        check(`${tag} ${window.event}: exactly one contained erase, no scrollback erase, no alternate-screen switch`, counts.erase === 1 && counts.scrollback === 0 && counts.altEnter === 0 && counts.altLeave === 0, describe(counts))
-        check(`${tag} ${window.event}: the erase and repaint share one synchronized frame`, eraseSharesSynchronizedPaint(window.bytes))
+        check(`${tag} ${window.event}: no erase of the display, no scrollback erase, no alternate-screen switch`, counts.erase === 0 && counts.scrollback === 0 && counts.altEnter === 0 && counts.altLeave === 0, describe(counts))
+        check(`${tag} ${window.event}: the repaint is a whole frame written in place inside one synchronized write`, wholeFrameSharesSynchronizedPaint(window.bytes))
       } else {
         const allowedErases = window.event.startsWith('splash to card') && probeFired ? probeErasures : 0
         const note = allowedErases > 0 ? ' — the width probe alt-screen cleanup erases allowed' : ''

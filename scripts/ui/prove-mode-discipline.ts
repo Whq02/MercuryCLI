@@ -74,7 +74,8 @@ check('pane-cycle pty captured', res2.status === 0 && existsSync(tee2), res2.std
 if (res2.status === 0 && existsSync(tee2)) {
   const raw2 = readFileSync(tee2, 'latin1')
   const clears = raw2.split('[2J').length - 1
-  check('pane really cycled (≥3 clear bursts: boot + pane open + pane close)', clears >= 3, `clears=${clears}`)
+  const wholeFrames = raw2.split('\x1b[H\x1b[0m').length - 1
+  check('pane really cycled (≥3 repaint bursts: the boot clear, then a whole-frame overwrite for the pane open and for the pane close)', clears >= 1 && clears + wholeFrames >= 3, `clears=${clears} whole frames=${wholeFrames}`)
   const panes: Array<[number, string]> = [
     [1049, 'alt screen'],
     [1000, 'mouse normal'],

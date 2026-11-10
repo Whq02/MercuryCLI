@@ -78,8 +78,8 @@ for (const [columns, rows] of [[120, 40], [80, 24]]) {
       check(`${columns}x${rows} ${step.name}: a paint followed the route`, run.frames.length > before)
       check(`${columns}x${rows} ${step.name}: all terminal cells equal the new model`, glass.lines().join('\n') === expected.join('\n'), glass.lines().slice(-2).join('|'))
       check(`${columns}x${rows} ${step.name}: stale cells unchanged in both models were erased`, !glass.lines().some(line => line.includes('RESIDUE')))
-      const clearWrites = run.stdout.writes.slice(writeStart).filter(write => write.includes('\x1b[2J'))
-      check(`${columns}x${rows} ${step.name}: one contained clear shares the frame write`, clearWrites.length === 1 && stripAnsi(clearWrites[0]!).includes('row'))
+      const wholeWrites = run.stdout.writes.slice(writeStart).filter(write => write.includes('\x1b[H\x1b[0m'))
+      check(`${columns}x${rows} ${step.name}: one write overwrites the whole frame in place and nothing erases the display`, wholeWrites.length === 1 && stripAnsi(wholeWrites[0]!).includes('row') && !/\x1b\[[0-3]?J/.test(bytes))
       check(`${columns}x${rows} ${step.name}: no scrollback clear or alternate-screen switch`, !/\x1b\[3J|\x1b\[\?(?:47|1049)[hl]/.test(bytes))
     }
   } finally {
@@ -130,8 +130,8 @@ for (const [columns, rows] of [[120, 40], [80, 24]]) {
       check(`${columns}x${rows} ${name}: a paint followed the prop change`, run.frames.length > before)
       check(`${columns}x${rows} ${name}: all terminal cells equal the new model`, glass.lines().join('\n') === expected.join('\n'), glass.lines().slice(-2).join('|'))
       check(`${columns}x${rows} ${name}: stale unchanged cells were erased`, !glass.lines().some(line => line.includes('RESIDUE')))
-      const clearWrites = run.stdout.writes.slice(writeStart).filter(write => write.includes('\x1b[2J'))
-      check(`${columns}x${rows} ${name}: one contained clear shares the frame write`, clearWrites.length === 1 && stripAnsi(clearWrites[0]!).includes('row'))
+      const wholeWrites = run.stdout.writes.slice(writeStart).filter(write => write.includes('\x1b[H\x1b[0m'))
+      check(`${columns}x${rows} ${name}: one write overwrites the whole frame in place and nothing erases the display`, wholeWrites.length === 1 && stripAnsi(wholeWrites[0]!).includes('row') && !/\x1b\[[0-3]?J/.test(bytes))
       check(`${columns}x${rows} ${name}: no scrollback clear or alternate-screen switch`, !/\x1b\[3J|\x1b\[\?(?:47|1049)[hl]/.test(bytes))
     }
   } finally {
