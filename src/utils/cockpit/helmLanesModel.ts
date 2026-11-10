@@ -642,6 +642,16 @@ export function buildLanesModel(input: LanesInput): LanesModel {
     spent -= costOf(s)
   }
   const sections = built.filter(s => !shedSet.has(s.key))
+  if (boxed) {
+    let paintedRows = 1
+    const firstClipped = sections.findIndex(section => {
+      const cost = costOf(section)
+      if (paintedRows + cost > shedCeiling) return true
+      paintedRows += cost
+      return false
+    })
+    if (firstClipped >= 0) sections.splice(firstClipped)
+  }
   const rows: HelmRow[] = []
   for (const s of sections) for (const r of s.rows) if (r.kind !== 'text' && r.row !== undefined) rows.push(r.row)
   const shed = [...shedSet]
@@ -652,7 +662,7 @@ export function buildLanesModel(input: LanesInput): LanesModel {
     density,
     sections,
     shed,
-    pointer: shed.length > 0 ? shedPointerOf(shed) : null,
+    pointer: shed.length > 0 && (!boxed || spent < shedCeiling) ? shedPointerOf(shed) : null,
     rows,
     runsLive,
   }

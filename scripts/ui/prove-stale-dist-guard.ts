@@ -7,7 +7,7 @@ import { delimiter, join } from 'node:path'
 const ROOT = join(import.meta.dir, '..', '..')
 const BUILT_TREE = '1'.repeat(40)
 const WORKING_TREE = '2'.repeat(40)
-const BUNDLE_FLAG = ['--', 'dist'].join('')
+const BUNDLE_FLAG = '--dist'
 
 let checks = 0
 let failures = 0

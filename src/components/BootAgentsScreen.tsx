@@ -408,7 +408,7 @@ export function BootAgentsScreen({
 
   const [form, setForm] = useState<{ machine: StudioEditorMachine; mode: 'create' | 'edit' } | null>(null);
   const [formSnap, setFormSnap] = useState<StudioEditorSnapshot | null>(null);
-  const [formPrompt, setFormPrompt] = useState<'destination' | FieldId | null>(null);
+  const [formPrompt, setFormPrompt] = useState<'destination' | 'describe' | FieldId | null>(null);
   const [formPick, setFormPick] = useState<{ field: FieldId; options: string[]; toggles?: boolean; modelRows?: AgentModelPickerRow[] } | null>(null);
   const formRef = useRef(form);
   formRef.current = form;
@@ -739,7 +739,7 @@ export function BootAgentsScreen({
         hint: 'generate',
         run: () => {
           formRef.current?.machine.setTextBuffer('');
-          setFormPrompt('describe' as never);
+          setFormPrompt('describe');
           return null;
         },
       },
@@ -825,7 +825,7 @@ export function BootAgentsScreen({
       }
       if (key.return) {
         const draft = snap.textBuffer;
-        if ((promptField as string) === 'describe') {
+        if (promptField === 'describe') {
           if (draft.trim() !== '') f.machine.guidedDescribe(draft.trim());
         } else if (promptField === 'body') {
           f.machine.commit({ body: draft.trim() === '' ? '' : draft.trim() + '\n' });
