@@ -33,8 +33,10 @@ run_proof "$here/prove-suite-grants.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/
 run_proof "$here/prove-drive-ceilings-measured.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-drive-ceilings-measured.ts" || fail=1
 run_proof "$here/prove-gate-scheduler.sh" bash "$here/prove-gate-scheduler.sh" || fail=1
 run_proof "$here/prove-dead-letter-orphan.sh" bash "$here/prove-dead-letter-orphan.sh" || fail=1
+run_proof "$here/prove-shard-stop-ends-suite.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shard-stop-ends-suite.ts" || fail=1
 run_proof "$here/prove-dist-cache.sh" bash "$here/prove-dist-cache.sh" || fail=1
 run_proof "$here/prove-dist-readonly.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-dist-readonly.ts" || fail=1
+run_proof "$here/prove-dist-build-inputs.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-dist-build-inputs.ts" || fail=1
 run_proof "$here/prove-node-resolver.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-node-resolver.ts" || fail=1
 run_proof "$here/prove-bundle-ready.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-bundle-ready.ts" || fail=1
 run_proof "$here/prove-ci-verdict.sh" bash "$here/prove-ci-verdict.sh" || fail=1

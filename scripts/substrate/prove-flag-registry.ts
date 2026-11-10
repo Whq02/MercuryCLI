@@ -103,6 +103,25 @@ check(
   dead.map(d => d.env).slice(0, 5).join(', '),
 )
 
+section('§2b every row names a consumer that exists and holds the flag')
+const CONSUMER_PATH = /(?:src|scripts|assets)\/[A-Za-z0-9_@./-]+/g
+const consumerPaths = (f: (typeof FLAG_REGISTRY)[number]): string[] =>
+  ((f as { consumer?: string }).consumer?.match(CONSUMER_PATH) ?? []).map(path => path.replace(/\.+$/, ''))
+const absentConsumers = FLAG_REGISTRY.flatMap(f => consumerPaths(f).filter(path => !existsSync(join(root, path))).map(path => `${f.env}→${path}`))
+check('every consumer path a row names exists', absentConsumers.length === 0, absentConsumers.slice(0, 6).join(', '))
+const strayConsumers = FLAG_REGISTRY.filter(f => !consumerPaths(f).some(path => {
+  try {
+    return readFileSync(join(root, path), 'utf8').includes(f.env)
+  } catch {
+    return false
+  }
+}))
+check(
+  `all ${FLAG_REGISTRY.length} rows name a consumer file that holds the flag's name`,
+  strayConsumers.length === 0,
+  strayConsumers.map(f => `${f.env}→${(f as { consumer?: string }).consumer}`).slice(0, 6).join(', '),
+)
+
 section('§3 gate behavior matrix under stamp-sim (LIVE env re-reads)')
 const optOutSample = ['MERCURY_DAEMON_CATCHUP', 'MERCURY_MISSION']
 for (const env of optOutSample) {

@@ -3,15 +3,49 @@ const path = require('node:path')
 const { fileURLToPath } = require('node:url')
 const { syncBuiltinESMExports } = require('node:module')
 
+const RUN_ROOT_PREFIX = 'mercury-proof-run.'
+const SIGNAL_EXITS = [['SIGTERM', 143], ['SIGINT', 130], ['SIGHUP', 129]]
 const folders = new Set()
+const kept = new Set()
 let installed = false
+let ownRoot = ''
+let stopped = false
+function keepAsked() {
+  if (process.argv.some(word => word === '--keep' || word.startsWith('--keep-') || word.startsWith('--keep='))) return true
+  return Object.entries(process.env).some(([name, value]) => /(?:^|_)KEEP(?:_FIXTURE|_SCRATCH)?$/.test(name) && value !== undefined && value !== '' && value !== '0' && value !== 'false')
+}
 function registerProofScratch(folder) {
   folders.add(folder)
   return folder
 }
 function keepProofScratch(folder) {
+  kept.add(String(folder))
   for (const candidate of folders) {
     if (Buffer.from(candidate).equals(Buffer.from(folder))) folders.delete(candidate)
+  }
+}
+function runRootBase(inherited) {
+  if (process.platform === 'win32') return ''
+  let bound = NaN
+  try {
+    bound = Number(/^suite_socket_bound=(\d+)$/m.exec(fs.readFileSync(path.join(__dirname, 'suite-env.sh'), 'utf8'))?.[1])
+  } catch {}
+  if (!Number.isInteger(bound)) return ''
+  for (const candidate of [inherited, '/tmp']) {
+    try {
+      const canon = fs.realpathSync(candidate)
+      if (Buffer.byteLength(`${canon}/${RUN_ROOT_PREFIX}XXXXXX/config-home/daemon/control.sock`) <= bound) return canon
+    } catch {}
+  }
+  return ''
+}
+function sweepOwnRoot(inherited) {
+  if (process.env.TMPDIR === ownRoot) process.env.TMPDIR = inherited
+  const held = [...kept].filter(folder => folder === ownRoot || folder.startsWith(ownRoot + path.sep))
+  if (held.length === 0) return removeScratchFolder(ownRoot)
+  for (const name of fs.readdirSync(ownRoot)) {
+    const entry = path.join(ownRoot, name)
+    if (!held.some(folder => folder === entry || folder.startsWith(entry + path.sep))) removeScratchFolder(entry)
   }
 }
 function insideRunRoot(value, root) {
@@ -67,6 +101,19 @@ function installProofScratch() {
   const sync = fs.mkdtempSync
   const callback = fs.mkdtemp
   const promise = fs.promises.mkdtemp
+  const inherited = require('node:os').tmpdir()
+  const guest = Boolean(runRoot) || path.basename(inherited).startsWith(RUN_ROOT_PREFIX)
+  if (!guest) {
+    const base = runRootBase(inherited)
+    if (base) {
+      try {
+        ownRoot = sync(path.join(base, RUN_ROOT_PREFIX))
+        process.env.TMPDIR = ownRoot
+      } catch {
+        ownRoot = ''
+      }
+    }
+  }
   fs.mkdtempSync = function(prefix, options) {
     return registerProofScratch(sync.call(this, scratchPrefix(prefix), options))
   }
@@ -85,18 +132,32 @@ function installProofScratch() {
   if (!process.env.MERCURY_SUITE_BROWSER_CLEANER) {
     try {
       require('./proofBrowser.cjs').installProofBrowser(profile => {
-        const root = process.env.MERCURY_SUITE_TMPDIR
+        const root = process.env.MERCURY_SUITE_TMPDIR || ownRoot
         return folders.has(profile) || Boolean(root && path.resolve(profile).startsWith(path.resolve(root) + path.sep))
       })
     } catch {}
   }
-  process.on('exit', () => {
-    if (runRoot) return
+  if (ownRoot) {
+    for (const [signal, code] of SIGNAL_EXITS) {
+      process.on(signal, () => {
+        if (process.listenerCount(signal) !== 1) return
+        stopped = true
+        process.exit(code)
+      })
+    }
+  }
+  process.on('exit', code => {
+    if (guest) return
+    if ((code !== 0 && !stopped) || keepAsked()) return
     for (const folder of [...folders].reverse()) {
       try { removeScratchFolder(folder) } catch (error) {
         process.stderr.write(`proof scratch cleanup failed: ${folder}: ${error.message}\n`)
         process.exitCode = process.exitCode || 1
       }
+    }
+    if (!ownRoot) return
+    try { sweepOwnRoot(inherited) } catch (error) {
+      process.stderr.write(`proof scratch left behind: ${ownRoot}: ${error.message}\n`)
     }
   })
 }

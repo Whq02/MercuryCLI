@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 
@@ -84,6 +84,83 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
       check(`${label} boots unchanged under the preload`, summary(loaded) === summary(bare), `preload ${summary(loaded)} vs bare ${summary(bare)}`)
       const entry = entryOf(loaded.pid)
       check(`${label} still registers in the process ledger`, loaded.status !== 0 || (entry.length === 5 && entry[0] === String(loaded.pid) && entry.every(field => field !== '')), `entry ${JSON.stringify(entry)}`)
+    }
+  }
+  if (process.platform === 'win32') {
+    console.log('single proof runs: the run root is POSIX only, nothing driven here')
+  } else {
+    const short = mkdtempSync(join(realpathSync('/tmp'), 'psp-'))
+    try {
+      const subject = join(root, 'scripts/gate/proofScratchSubject.ts')
+      const singleEnv = (temp: string): Record<string, string> => ({
+        ...Object.fromEntries(Object.entries(bareEnv).filter(([name]) => !name.startsWith('BASH_FUNC_') && name !== 'MERCURY_TMPDIR')),
+        TMPDIR: temp,
+      })
+      const drive = async (name: string, mode: string, temp: string, signal?: NodeJS.Signals, words: string[] = []): Promise<{ code: number | null; signal: NodeJS.Signals | null; made: string[]; output: string }> => {
+        mkdirSync(temp, { recursive: true })
+        const receipt = join(world, `single-${name}`)
+        const child = spawn(process.execPath, [subject, receipt, mode, ...words], { cwd: root, env: singleEnv(temp), stdio: ['ignore', 'pipe', 'pipe'] })
+        let output = ''
+        child.stdout.on('data', b => { output += b })
+        child.stderr.on('data', b => { output += b })
+        const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(r => child.on('exit', (code, sig) => r({ code, signal: sig })))
+        if (signal) {
+          const until = Date.now() + 20_000
+          while (!existsSync(`${receipt}.ready`) && child.exitCode === null && Date.now() < until) await new Promise(r => setTimeout(r, 25))
+          child.kill(signal)
+        }
+        return { ...(await exited), made: paths(receipt), output }
+      }
+      const isRunRoot = (path: string, base: string): boolean => dirname(path) === base && basename(path).startsWith('mercury-proof-run.')
+      for (const mode of ['natural', 'exit'] as const) {
+        const temp = join(short, mode)
+        const run = await drive(mode, mode, temp)
+        const [runRoot, ...made] = run.made
+        check(`single ${mode}: the proof's temp dir is one run root under the inherited one`, runRoot !== undefined && isRunRoot(runRoot, temp), `${runRoot} under ${temp}`)
+        check(`single ${mode}: a named mkdtempSync import, a plain mkdir and a shell mktemp all land inside it`, made.length === 3 && made.every(p => dirname(p) === runRoot), JSON.stringify(made))
+        check(`single ${mode}: nothing is left when the proof ends`, run.code === 0 && readdirSync(temp).length === 0, `rc=${run.code} left=${JSON.stringify(readdirSync(temp))} ${run.output}`)
+      }
+      {
+        const temp = join(short, 'keep')
+        const run = await drive('keep', 'keep', temp)
+        const [runRoot, named] = run.made
+        const left = runRoot && existsSync(runRoot) ? readdirSync(runRoot) : []
+        check('single keep: a folder the proof asked to keep stays, its siblings go', run.code === 0 && named !== undefined && left.length === 1 && left[0] === basename(named), `rc=${run.code} left=${JSON.stringify(left)} ${run.output}`)
+      }
+      for (const [name, mode, words, ending] of [['fail', 'fail', [], 1], ['failing', 'failing', [], 1], ['asked', 'natural', ['--keep'], 0]] as const) {
+        const temp = join(short, name)
+        const run = await drive(name, mode, temp, undefined, [...words])
+        const [runRoot, ...made] = run.made
+        check(`single ${name}: ${ending === 0 ? 'a proof run with --keep' : 'a proof that ends red'} keeps its whole run root for reading`, run.code === ending && runRoot !== undefined && made.length === 3 && made.every(p => existsSync(p)), `rc=${run.code} ${JSON.stringify(made.map(p => existsSync(p)))} ${run.output}`)
+      }
+      {
+        const temp = join(short, 'term')
+        const run = await drive('term', 'wait', temp, 'SIGTERM')
+        check('single TERM: the proof ends 143 through its sweep and leaves nothing', run.code === 143 && readdirSync(temp).length === 0, `rc=${run.code} signal=${run.signal} left=${JSON.stringify(readdirSync(temp))} ${run.output}`)
+      }
+      {
+        const temp = join(short, 'kill')
+        const run = await drive('kill', 'wait', temp, 'SIGKILL')
+        const left = readdirSync(temp)
+        check('single KILL: no sweep can run — one run root is what a killed proof leaves', run.signal === 'SIGKILL' && left.length === 1 && left[0]!.startsWith('mercury-proof-run.'), `rc=${run.code} signal=${run.signal} left=${JSON.stringify(left)}`)
+      }
+      {
+        const temp = join(short, 'l'.repeat(70))
+        const run = await drive('long', 'natural', temp)
+        const runRoot = run.made[0]
+        check('single long temp dir: the run root moves under /tmp so the daemon socket stays within the bound', runRoot !== undefined && isRunRoot(runRoot, realpathSync('/tmp')), `${runRoot}`)
+        check('single long temp dir: that root is removed too', run.code === 0 && runRoot !== undefined && !existsSync(runRoot) && readdirSync(temp).length === 0, `rc=${run.code} ${run.output}`)
+        if (runRoot && isRunRoot(runRoot, realpathSync('/tmp'))) rmSync(runRoot, { recursive: true, force: true })
+      }
+      {
+        const temp = join(short, 'mercury-proof-run.guest')
+        const run = await drive('guest', 'natural', temp)
+        const [seen, named] = run.made
+        check('single guest: a temp dir that is already a run root is used as it stands', seen === temp, `${seen}`)
+        check("single guest: its folders are the owner's to remove", run.code === 0 && named !== undefined && existsSync(named), `rc=${run.code} ${run.output}`)
+      }
+    } finally {
+      rmSync(short, { recursive: true, force: true })
     }
   }
 } finally {

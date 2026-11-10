@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
+import { distBuildInputs } from '../lib/distProvenance.ts'
 import { firstDivergence, neutralizeGrid, type StoredGrid } from '../ui/visualBaseline.ts'
 import { ROOT, argument, git, scratch } from './support.ts'
 
@@ -168,6 +169,14 @@ if (argument('--only') === 'historical') {
   console.log(`[PASS] ${historical.size} historical declarations verified; current-frame renders not run`)
   process.exit(0)
 }
+if (process.env.MERCURY_GATE_PREBUILT !== '1' && process.env.MERCURY_STALE_DIST_OK !== '1') {
+  const bundle = distBuildInputs(ROOT)
+  console.log(`BUNDLE ${bundle.line}`)
+  if (bundle.stale) {
+    console.log('[FAIL] frame identity not read: the writers would paint another build than the tree under proof — rebuild (bun run build.ts), or set MERCURY_STALE_DIST_OK=1 to read an older bundle on purpose')
+    process.exit(1)
+  }
+}
 const hashes = new Map([...currentFrames, ...historical].map(path => [path, createHash('sha256').update(readFileSync(join(ROOT, path))).digest('hex')]))
 const only = argument('--only')
 const selected = families.filter(family => only === undefined || only.split(',').includes(family.id))
@@ -181,7 +190,7 @@ for (const family of selected) {
   rmSync(dir, { recursive: true, force: true })
   mkdirSync(dir, { recursive: true })
   const run = spawnSync(process.execPath, [join(ROOT, family.script), ...family.args.map(arg => arg === '$OUT' ? dir : arg)], {
-    cwd: ROOT, env: process.env, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, timeout: 900_000,
+    cwd: ROOT, env: { ...process.env, TZ: 'UTC' }, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, timeout: 900_000,
   })
   writeFileSync(join(work, `${family.id}.log`), run.stdout + '\n' + run.stderr)
   if (run.status !== 0) {
