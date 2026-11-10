@@ -86,17 +86,17 @@ const port = await new Promise<number>((resolve, reject) => {
 const base = `http://127.0.0.1:${port}`
 
 const out = path.join(RUN_HOME, 'grid.json')
-const noteSends = NOTE_WORDS.slice(1, NOTES).map((word, index) => ({ atTick: 140 + index * 60, minTick: 10, awaitText: `design note ${index + 1} ends here`, awaitSettleTicks: 3, data: `write design note ${word}\r` }))
+const noteSends = NOTE_WORDS.slice(1, NOTES).map((word, index) => ({ atTick: 140 + index * 60, minTick: 10, requireAwait: true, awaitText: `design note ${index + 1} ends here`, awaitSettleTicks: 3, data: `write design note ${word}\r` }))
 const cfg = {
   argv: ['node', DIST, '--model', 'claude-opus-4-8'],
   cwd: FIXTURE_CWD,
   sends: [
-    { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-    { atTick: 80, minTick: 20, awaitText: '? for shortcuts', data: `write design note ${NOTE_WORDS[0]}\r` },
+    { atTick: 40, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { atTick: 80, minTick: 20, requireAwait: true, awaitText: '? for shortcuts', data: `write design note ${NOTE_WORDS[0]}\r` },
     ...noteSends,
-    { atTick: 140 + NOTES * 60, minTick: 10, awaitText: `design note ${NOTES} ends here`, awaitSettleTicks: 3, data: `/model local/${LOCAL_TAG}\r`, mark: 'switch-sent' },
-    { atTick: 200 + NOTES * 60, minTick: 8, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'card' },
-    { atTick: 420 + NOTES * 60, minTick: 10, awaitText: 'Compacted —', awaitStableTicks: 15, data: `${PICKUP_ASK}\r`, mark: 'pickup-sent' },
+    { atTick: 140 + NOTES * 60, minTick: 10, requireAwait: true, awaitText: `design note ${NOTES} ends here`, awaitSettleTicks: 3, data: `/model local/${LOCAL_TAG}\r`, mark: 'switch-sent' },
+    { atTick: 200 + NOTES * 60, minTick: 8, requireAwait: true, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'card' },
+    { atTick: 420 + NOTES * 60, minTick: 10, requireAwait: true, awaitText: 'Compacted —', awaitStableTicks: 15, data: `${PICKUP_ASK}\r`, mark: 'pickup-sent' },
   ],
   readyText: [LOCAL_REPLY],
   readySettleTicks: 6,
@@ -194,7 +194,7 @@ const folds = boundaries(RUN_HOME)
 const wireWords = wire.filter(w => w.kind === 'anthropic' || w.kind === 'local').map(w => `${w.kind}${w.summary ? '/summary' : w.note ? '/note' : ''}:${w.count ?? '?'}`).join(' → ')
 console.log(`  [record] wire: ${wireWords}`)
 console.log(`  [record] folds in the session's record: ${JSON.stringify(folds)}`)
-console.log(`  [record] vshot rc=${res.status} end=${payload?.endReason ?? '?'}`)
+console.log(`  [record] vshot rc=${res.status} end=${payload?.endReason ?? '?'}${res.status === 0 ? '' : ` — ${String(res.stderr ?? '').trim().slice(-800)}`}`)
 check(`the ${NOTES} notes rode the Anthropic leg`, notesWritten.length === NOTES, wireWords)
 check("the preview names Mercury's count, the local model's window and the fold on the cloud model before the first local request", card.includes("by Mercury's count") && card.includes('65,536') && card.includes('folds') && card.includes('Opus'), tail(card, 12))
 check('the switch landed and the local reply painted', finalText.includes(`ready · local/${LOCAL_TAG}`) && painted.includes(LOCAL_REPLY) && firstLocal !== undefined, tail(finalText, 12))
