@@ -446,7 +446,9 @@ export async function lastSession(
   const fold = await loadSessionFile(sessionId)
   const { messages, summaries } = fold
   if (messages.size === 0) return null
-  const leaf = findLatestMessage(messages.values(), m => !m.isSidechain)
+  const parents = new Set<UUID>()
+  for (const row of messages.values()) if (!row.isSidechain && row.parentUuid) parents.add(row.parentUuid)
+  const leaf = findLatestMessage(messages.values(), m => !m.isSidechain && !parents.has(m.uuid)) ?? findLatestMessage(messages.values(), m => !m.isSidechain)
   if (!leaf) return null
   const chain = buildConversationChain(messages, leaf)
   return {

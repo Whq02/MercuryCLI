@@ -475,7 +475,7 @@ async function walkTranscriptFile(path: string): Promise<WalkedTranscript> {
   const messages = loaded.messages
   const referencedParents = new Set<string>()
   for (const message of messages.values()) {
-    if (message.parentUuid) referencedParents.add(message.parentUuid)
+    if (message.parentUuid && !message.isSidechain) referencedParents.add(message.parentUuid)
   }
   let best: TranscriptMessage | null = null
   let bestTime = 0
