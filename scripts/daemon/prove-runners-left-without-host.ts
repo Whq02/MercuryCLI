@@ -132,6 +132,19 @@ console.log("R3 a process under the runner that outlives the ask is ended with i
   }
 }
 
+console.log('R4 what stands under a runner: its descendants at any depth, and its group only when it leads one')
+{
+  const tree = (await import('../../src/daemon/processTree.ts').catch(() => null)) as null | typeof import('../../src/daemon/processTree.ts')
+  const table = ['   10     1    10', '   11    10    10', '   12    11    12', '   13     1    10', '   14     1    14', '   20     1     7', '   21    20     7', '   22     1     7', '    1     0     1', 'not a row of the table'].join('\n')
+  const rows = tree === null ? [] : tree.parseProcessTreeRows(table)
+  const under = (pid: number, more: typeof rows = []): number[] => (tree === null ? [-1] : tree.processTreeUnder([...rows, ...more], pid).sort((a, b) => a - b))
+  check('the table is read row by row, and a line that is no row is skipped', rows.length === 9, j(rows.length))
+  check('a runner that leads its group: its child, its grandchild in a group of its own, and a member of its group that init has adopted — never itself', j(under(10)) === j([11, 12, 13]), j(under(10)))
+  check("a runner that does not lead its group takes its descendants only: the rest of that group is not its to end", j(under(20)) === j([21]), j(under(20)))
+  check('a pid the table does not hold has nothing under it', under(99).length === 0, j(under(99)))
+  check('this process and pid 1 are never listed, whatever the table says of them', j(under(10, [{ pid: process.pid, ppid: 10, pgid: 10 }, { pid: 1, ppid: 0, pgid: 10 }])) === j([11, 12, 13]), j(under(10, [{ pid: process.pid, ppid: 10, pgid: 10 }])))
+}
+
 for (const child of children) {
   try {
     child.kill('SIGKILL')

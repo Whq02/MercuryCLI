@@ -1,11 +1,7 @@
 import { execFile } from 'node:child_process'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 
-export interface ProcessTreeRow {
-  pid: number
-  ppid: number
-  pgid: number
-}
+type ProcessTreeRow = { pid: number; ppid: number; pgid: number }
 
 export function parseProcessTreeRows(text: string): ProcessTreeRow[] {
   const rows: ProcessTreeRow[] = []
