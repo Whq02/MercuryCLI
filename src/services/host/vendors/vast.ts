@@ -328,10 +328,14 @@ export class VastClient implements HostVendor {
       const deadline = AbortSignal.timeout(10000)
       const signal = jobSignal ? AbortSignal.any([jobSignal, deadline]) : deadline
       const result = await this.api.request('/api/v0/instances/request_logs/' + id + '/', z.object({ success: z.literal(true), result_url: z.string() }), 'PUT', { tail: '12' }, signal)
-      const url = new URL(result.result_url)
+      let url: URL
+      try { url = new URL(result.result_url) } catch { throw new Error('unexpected log URL · invalid URL') }
       const fixture = new URL(this.api.base)
       const allowed = !url.username && !url.password && !url.hash && (url.protocol === 'https:' && url.hostname === 's3.amazonaws.com' && url.pathname.startsWith('/vast.ai/instance_logs/') || fixture.protocol === 'http:' && url.origin === fixture.origin && url.pathname.startsWith('/fixture-logs/'))
-      if (!allowed) throw new Error('unexpected log URL')
+      if (!allowed) {
+        const path = url.pathname.split('/').map(part => !part || part === 'vast.ai' || part === 'instance_logs' ? part : /\.(log|txt|gz|json)$/i.test(part) ? ':file.' + part.split('.').at(-1)!.toLowerCase() : ':segment').join('/')
+        throw new Error('unexpected log URL · ' + this.api.redact(url.origin + path))
+      }
       for (;;) {
         const response = await fetch(url, { redirect: 'error', signal })
         if (response.ok) {
