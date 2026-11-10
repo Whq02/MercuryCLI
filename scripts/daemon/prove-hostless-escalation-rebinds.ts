@@ -35,6 +35,8 @@ type Member =
   | 'its birth cannot be read after the grace'
   | 'its birth cannot be read before the ask'
   | 'born after the tree was listed'
+  | 'the runner is replaced while its tree is read'
+  | 'the runner cannot be read after its tree is read'
 let afterTerm: AfterTerm = 'gone'
 let birth: string | null = BORN
 let alive = true
@@ -46,29 +48,37 @@ let memberBirth: string | null = null
 let memberProbes = 0
 
 const ownerWatch = await import('../../src/daemon/ownerWatch.ts')
+const real = { isProcessAlive: ownerWatch.isProcessAlive, getProcessStartTokenAsync: ownerWatch.getProcessStartTokenAsync, getProcessStartInstantAsync: ownerWatch.getProcessStartInstantAsync }
 mock.module('../../src/daemon/ownerWatch.ts', () => ({
   ...ownerWatch,
-  isProcessAlive: (pid: number) => (pid === STAND_IN_PID ? alive : pid === MEMBER_PID ? memberAlive : ownerWatch.isProcessAlive(pid)),
+  isProcessAlive: (pid: number) => (pid === STAND_IN_PID ? alive : pid === MEMBER_PID ? memberAlive : real.isProcessAlive(pid)),
   getProcessStartTokenAsync: async (pid: number, like?: string | null) => {
-    if (pid !== STAND_IN_PID) return ownerWatch.getProcessStartTokenAsync(pid, like)
+    if (pid !== STAND_IN_PID) return real.getProcessStartTokenAsync(pid, like)
     probes.push(birth)
     return birth
   },
   getProcessStartInstantAsync: async (pid: number) => {
-    if (pid !== MEMBER_PID) return ownerWatch.getProcessStartInstantAsync(pid)
+    if (pid !== MEMBER_PID) return real.getProcessStartInstantAsync(pid)
     memberProbes++
+    if (member === 'the runner is replaced while its tree is read') birth = ANOTHER_BIRTH
+    if (member === 'the runner cannot be read after its tree is read') birth = null
     return memberBirth
   },
 }))
+let treeListings: number[] = []
 mock.module('../../src/daemon/processTree.ts', () => ({
-  readProcessTreeUnder: async (pid: number) => (pid === STAND_IN_PID && member !== 'none' ? [MEMBER_PID] : []),
+  readProcessTreeUnder: async (pid: number) => {
+    treeListings.push(pid)
+    return member !== 'none' ? [MEMBER_PID] : []
+  },
 }))
 const processGroup = await import('../../src/utils/processGroup.ts')
 mock.module('../../src/utils/processGroup.ts', () => ({
   ...processGroup,
   endProcessTree: async (pid: number, signal: string) => {
-    if (pid !== STAND_IN_PID && pid !== MEMBER_PID) throw new Error(`this proof signals no real process, and was asked to end ${pid}`)
-    signals.push({ signal, birth: pid === STAND_IN_PID ? birth : memberBirth, pid })
+    if (pid !== STAND_IN_PID && pid !== MEMBER_PID && pid !== process.pid) throw new Error(`this proof signals no real process, and was asked to end ${pid}`)
+    signals.push({ signal, birth: pid === STAND_IN_PID ? birth : pid === MEMBER_PID ? memberBirth : null, pid })
+    if (pid === process.pid) return { ended: 0, survivors: [] }
     if (pid === MEMBER_PID) {
       memberAlive = false
       return { ended: 1, survivors: [] }
@@ -161,6 +171,35 @@ console.log('E4 a process under the runner is struck only as the process it was 
   const newcomer = await sweepWhen('gone', 12, 'born after the tree was listed')
   check('a birth later than the listing cannot be a process that was on it: never bound, never struck', newcomer.toMember.length === 0 && newcomer.memberAlive, j(newcomer))
   check('the runner is listed as ended in all four: its own process is gone', j([recycled.ended, lost.ended, unreadable.ended, newcomer.ended]) === j([['concourse-w9'], ['concourse-w10'], ['concourse-w11'], ['concourse-w12']]))
+}
+
+console.log('E6 the runner is bound again after its tree has been read and before the ask: a pid that changed hands meanwhile is not asked to leave')
+{
+  const replaced = await sweepWhen('the same process, still alive', 13, 'the runner is replaced while its tree is read')
+  check('the pid went to another process while the births under it were read: no signal at all, to it or to what stood under it (red before: the ask went to the process born later)', replaced.signals.length === 0 && replaced.toMember.length === 0 && replaced.probes === 2 && replaced.memberAlive && replaced.ended.length === 0, j(replaced))
+  const unreadable = await sweepWhen('the same process, still alive', 14, 'the runner cannot be read after its tree is read')
+  check('its birth cannot be read before the ask: no signal at all, nothing claimed', unreadable.signals.length === 0 && unreadable.toMember.length === 0 && unreadable.probes === 2 && unreadable.memberAlive && unreadable.ended.length === 0, j(unreadable))
+  const steady = await sweepWhen('gone', 15, 'outlives the ask')
+  check('a runner that is still itself is read twice before the ask, and with nothing under it once', steady.probes === 2 && (await sweepWhen('gone', 16)).probes === 1, j(steady))
+}
+
+console.log('E5 a record that names this process or pid 1 is no runner to end: its tree is never listed and nothing is signalled')
+{
+  const ownBirth = await real.getProcessStartTokenAsync(process.pid)
+  for (const [pid, procStart] of [[process.pid, ownBirth ?? BORN], [1, BORN], [0, BORN]] as Array<[number, string]>) {
+    member = 'outlives the ask'
+    memberAlive = true
+    memberBirth = instant(Date.now() - 120_000)
+    memberProbes = 0
+    signals = []
+    treeListings = []
+    sup.updateConcourseWorkers(workers => {
+      for (const id of Object.keys(workers)) delete workers[id]
+      workers['concourse-w20'] = { schema: 1, runnerId: 'concourse-w20', sessionId: '00000000-dddd-4000-8000-000000000020', workspaceId: SCRATCH, isolation: 'exclusive', modelKey: 'claude-sonnet-5', spawnedAt: now - 60_000, lastLiveAt: now - 1_000, pid, procStart } as ConcourseWorkerRecordV1
+    }, dir)
+    const ended = await sup.endRunnersLeftWithoutHost(() => false, dir, { graceMs: 0 })
+    check(`a record whose pid is ${pid === process.pid ? 'this process' : pid}: no listing, no probe of what stands under it, no signal, nothing claimed (red before for this process: its own child was killed)`, treeListings.length === 0 && memberProbes === 0 && signals.length === 0 && memberAlive && ended.length === 0, j({ treeListings, memberProbes, signals, ended }))
+  }
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

@@ -143,6 +143,18 @@ console.log('R4 what stands under a runner: its descendants at any depth, and it
   check("a runner that does not lead its group takes its descendants only: the rest of that group is not its to end", j(under(20)) === j([21]), j(under(20)))
   check('a pid the table does not hold has nothing under it', under(99).length === 0, j(under(99)))
   check('this process and pid 1 are never listed, whatever the table says of them', j(under(10, [{ pid: process.pid, ppid: 10, pgid: 10 }, { pid: 1, ppid: 0, pgid: 10 }])) === j([11, 12, 13]), j(under(10, [{ pid: process.pid, ppid: 10, pgid: 10 }])))
+  const mine = [{ pid: process.pid, ppid: 11, pgid: 12 }, { pid: 40, ppid: process.pid, pgid: 40 }, { pid: 41, ppid: 40, pgid: 10 }]
+  check('nothing this process started is ever listed, and neither is the leader of the group it stands in: a runner above this process takes the rest of its own tree only', j(under(10, mine)) === j([11, 13]), j(under(10, mine)))
+  check('this process and pid 1 have no tree to end, whatever stands under them', under(process.pid, mine).length === 0 && under(1).length === 0 && under(0).length === 0, j([under(process.pid, mine), under(1), under(0)]))
+}
+
+console.log('R5 a record that names this process is no runner left without a host: nothing it started is touched')
+{
+  const child = standIn()
+  await new Promise(resolve => setTimeout(resolve, 150))
+  const selfId = await seed('9', process.pid)
+  const ended = sweep === undefined ? [] : await sweep(id => id !== selfId, dir, { graceMs: 300 })
+  check('the sweep lists nothing and the process this proof started is alive (red before: killed as a process under a runner)', ended.length === 0 && isProcessAlive(child), j({ ended, childAlive: isProcessAlive(child) }))
 }
 
 for (const child of children) {

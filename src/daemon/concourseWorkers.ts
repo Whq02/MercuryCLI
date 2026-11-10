@@ -2714,6 +2714,7 @@ export async function endRunnersLeftWithoutHost(
   for (const rec of Object.values(readSessionWorkers(dir))) {
     const pid = rec.pid
     if (rec.endedAt !== undefined || rec.attachedAt !== undefined || pid === undefined || rec.procStart === undefined) continue
+    if (pid <= 1 || pid === process.pid) continue
     if (hosted(rec.runnerId) || !isProcessAlive(pid)) continue
     const listedAt = Date.now()
     const under = await readProcessTreeUnder(pid)
@@ -2723,6 +2724,7 @@ export async function endRunnersLeftWithoutHost(
       const birth = await getProcessStartInstantAsync(member)
       if (typeof birth === 'string' && parseProcessStartToken(birth) <= listedAt) tree.push({ pid: member, birth })
     }
+    if (under.length > 0 && tokenBinding(rec.procStart, await getProcessStartTokenAsync(pid, rec.procStart)) !== 'bound') continue
     await endProcessTree(pid, 'SIGTERM')
     const deadline = Date.now() + (opts?.graceMs ?? HOSTLESS_RUNNER_GRACE_MS)
     while ((isProcessAlive(pid) || tree.some(member => isProcessAlive(member.pid))) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50))

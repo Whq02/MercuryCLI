@@ -13,24 +13,33 @@ export function parseProcessTreeRows(text: string): ProcessTreeRow[] {
 }
 
 export function processTreeUnder(rows: readonly ProcessTreeRow[], rootPid: number): number[] {
+  const self = process.pid
+  if (rootPid <= 1 || rootPid === self) return []
   const byParent = new Map<number, number[]>()
   for (const row of rows) byParent.set(row.ppid, [...(byParent.get(row.ppid) ?? []), row.pid])
-  const members = new Set<number>()
-  const queue = [...(byParent.get(rootPid) ?? [])]
-  while (queue.length > 0) {
-    const pid = queue.pop()!
-    if (pid === rootPid || members.has(pid)) continue
-    members.add(pid)
-    queue.push(...(byParent.get(pid) ?? []))
+  const descendantsOf = (root: number): Set<number> => {
+    const found = new Set<number>()
+    const queue = [...(byParent.get(root) ?? [])]
+    while (queue.length > 0) {
+      const pid = queue.pop()!
+      if (pid === root || found.has(pid)) continue
+      found.add(pid)
+      queue.push(...(byParent.get(pid) ?? []))
+    }
+    return found
   }
+  const members = descendantsOf(rootPid)
   if (rows.some(row => row.pid === rootPid && row.pgid === rootPid)) {
     for (const row of rows) if (row.pgid === rootPid && row.pid !== rootPid) members.add(row.pid)
   }
-  return [...members].filter(pid => pid > 1 && pid !== process.pid)
+  const standsUnder = members.has(self)
+  const own = standsUnder ? descendantsOf(self) : new Set<number>()
+  const ownGroup = standsUnder ? rows.find(row => row.pid === self)?.pgid : undefined
+  return [...members].filter(pid => pid > 1 && pid !== self && pid !== ownGroup && !own.has(pid))
 }
 
 export function readProcessTreeUnder(rootPid: number): Promise<number[]> {
-  if (process.platform === 'win32') return Promise.resolve([])
+  if (process.platform === 'win32' || rootPid <= 1 || rootPid === process.pid) return Promise.resolve([])
   return new Promise(resolve => {
     execFile(
       'ps',
