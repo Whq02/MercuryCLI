@@ -78,7 +78,15 @@ export async function generateMediaTestImage(model: string, context: LocalJSXCom
   const image = Array.isArray(content) ? content.find(part => part.type === 'image' && part.mimeType === 'image/png' && typeof part.data === 'string') : undefined
   const text = Array.isArray(content) ? content.find(part => part.type === 'text')?.text : undefined
   if (!image?.data) throw new Error(text ?? 'No image returned.')
-  const facts = text ? JSON.parse(text) as { path?: string } : {}
+  const facts = text ? imageFacts(text) : {}
   if (!facts.path) throw new Error('Image output path is missing.')
   return { path: facts.path, png: Buffer.from(image.data, 'base64') }
+}
+
+function imageFacts(text: string): { path?: string } {
+  try {
+    return JSON.parse(text) as { path?: string }
+  } catch {
+    throw new Error(`image_generate answered text that is not JSON: ${text.slice(0, 200)}`)
+  }
 }
