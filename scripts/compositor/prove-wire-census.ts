@@ -437,25 +437,60 @@ if (ONLY.has('3')) {
   const srt = (xs: number[]): number[] => [...xs].sort((a, b) => a - b)
   const pct = (xs: number[], q: number): number => (xs.length === 0 ? -1 : srt(xs)[Math.min(xs.length - 1, Math.floor(q * xs.length))]!)
 
-  async function capture(cols: number, rows: number, kind: 'hang' | 'paced'): Promise<{ frames: Composed[]; ready: number; submit: number; complete: boolean; reason: string | null; emission: { start: number; end: number } | null; writes: Array<{ ts: number; content: string; len: number }> }> {
+  const BOOT_WORDS = ['scanning…', 'the runner is starting']
+  const reads = (frame: Composed, test: (row: string) => boolean): boolean => (frame.rows ?? []).some(test)
+  const bootSettled = (frame: Composed): boolean => reads(frame, row => /(?:^|\s)ready ·/.test(row)) && !reads(frame, row => BOOT_WORDS.some(word => row.includes(word)))
+  function settledSince(frames: Composed[], before: number): number | null {
+    let since: number | null = null
+    for (const frame of frames) {
+      if ((frame.ts ?? 0) >= before) break
+      since = bootSettled(frame) ? (since ?? frame.ts ?? null) : null
+    }
+    return since
+  }
+  type Delivery = { ts: number; content: string; len: number }
+  const SETTLE_TAIL_MS = 500
+  function idleReading(frames: Composed[], writes: Delivery[], firstKey: number): { settled: number | null; idleFrom: number; idle: Delivery[] } {
+    const settled = settledSince(frames, firstKey)
+    const idleFrom = settled === null ? firstKey : (writes.find(w => w.ts >= settled)?.ts ?? settled) + SETTLE_TAIL_MS
+    return { settled, idleFrom, idle: writes.filter(w => w.ts > idleFrom && w.ts < firstKey) }
+  }
+  {
+    const booting: Composed = { f: 1, ts: 1000, rows: ['  ◌ RECENT', '    scanning…', ' ready · Opus'] }
+    const starting: Composed = { f: 2, ts: 1400, rows: ['  ❯ WORKBENCH', ' the runner is starting · 1s'] }
+    const ready: Composed = { f: 3, ts: 2000, rows: ['  ❯ WORKBENCH', ' ready · Opus 5.5 · high'] }
+    const still: Composed = { f: 4, ts: 2600, rows: ['  ❯ WORKBENCH', ' ready · Opus 5.5 · high'] }
+    const paint = (ts: number): Delivery => ({ ts, content: 'x', len: 1 })
+    const quiet = idleReading([booting, starting, ready, still], [paint(1001), paint(1402), paint(2003), paint(2020)], 4000)
+    const painting = idleReading([booting, starting, ready, still], [paint(1001), paint(1402), paint(2003), paint(2604)], 4000)
+    const relapsed = idleReading([booting, ready, starting, still], [paint(1001), paint(2003), paint(2100), paint(2604)], 4000)
+    const never = idleReading([booting, starting], [paint(1001), paint(1402)], 4000)
+    check('the idle reading: the boot\'s own deliveries are not idle paint — the one that settles it, and what the seat\'s ready carries to the rails in the half second behind it', quiet.settled === 2000 && quiet.idleFrom === 2503 && quiet.idle.length === 0, JSON.stringify(quiet))
+    check('the idle reading: one delivery past that half second is counted', painting.idle.length === 1 && painting.idle[0]!.ts === 2604, JSON.stringify(painting))
+    check('the idle reading: a screen that leaves ready again settles at its last return', relapsed.settled === 2600 && relapsed.idleFrom === 3104 && relapsed.idle.length === 0, JSON.stringify(relapsed))
+    check('the idle reading: a boot that never settles is said as that', never.settled === null && never.idleFrom === 4000, JSON.stringify(never))
+  }
+
+  async function capture(cols: number, rows: number, kind: 'hang' | 'paced'): Promise<{ frames: Composed[]; firstKey: number; submit: number; complete: boolean; reason: string | null; emission: { start: number; end: number } | null; writes: Delivery[] }> {
     const tee = join(mkdtempSync(join(SCRATCH, 'pty-')), 'composed.jsonl')
     const turn = kind === 'hang'
       ? { kind: 'hang' as const, deltas: [], whenModel: 'opus' }
       : { kind: 'paced' as const, whenModel: 'opus', deltas: Array.from({ length: 160 }, (_, i) => (i % 25 === 24 ? 'lattice.\n' : `word${i} `)), gapMs: 40 }
-    const run = await runArtifactArena({ turns: [turn], sends: ['4500:hello', '5300:\\r'], seconds: kind === 'hang' ? 12 : 14, cols, rows, distPath: DIST, anchor: { needle: 'Type a prompt', atMs: 3000 }, extraEnv: { COLORTERM: 'truecolor', INK_COMPOSED_TEE: tee } })
+    const run = await runArtifactArena({ turns: [turn], sends: ['6500:hello', '7300:\\r'], seconds: kind === 'hang' ? 14 : 16, cols, rows, distPath: DIST, anchor: { needle: 'Type a prompt', atMs: 3000 }, extraEnv: { COLORTERM: 'truecolor', INK_COMPOSED_TEE: tee } })
     const frames: Composed[] = existsSync(tee) ? readFileSync(tee, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l) as Composed).filter(r => typeof r.f === 'number') : []
     const emits = run.fixture.pacedEmits
     const emission = emits.length > 0 ? { start: Math.min(...emits.map(e => e.at)), end: Math.max(...emits.map(e => e.at)) } : null
     const writes = run.teeLines.filter(w => typeof w.ts === 'number').map(w => ({ ts: w.ts, content: w.content ?? '', len: w.len ?? 0 }))
-    return { frames, ready: run.sendLog[0]?.sent ?? 0, submit: run.sendLog.at(-1)?.sent ?? 0, complete: run.outcome.complete, reason: run.outcome.reason, emission, writes }
+    return { frames, firstKey: run.sendLog[0]?.sent ?? 0, submit: run.sendLog.at(-1)?.sent ?? 0, complete: run.outcome.complete, reason: run.outcome.reason, emission, writes }
   }
 
   for (const [cols, rows] of [[269, 70], [178, 51]] as const) {
     console.log(`  ${cols}x${rows}, truecolor ground, a hung turn (the spinner ticks)`)
-    const { frames, ready, submit, complete, reason, writes } = await capture(cols, rows, 'hang')
+    const { frames, firstKey, submit, complete, reason, writes } = await capture(cols, rows, 'hang')
     check(`${cols}: the capture completed`, complete, reason ?? '')
-    const idle = writes.filter(w => w.ts >= ready - 1500 && w.ts < ready)
-    check(`${cols}: the settled composer delivers nothing while idle (${idle.length} deliveries, ${idle.reduce((n, w) => n + wireCells(w.content), 0)} cells in the 1.5 s before the first key)`, idle.reduce((n, w) => n + wireCells(w.content), 0) === 0)
+    const { settled, idleFrom, idle } = idleReading(frames, writes, firstKey)
+    check(`${cols}: the boot has settled, with its half second of tail, half a second or more before the first key — the status row reads ready, the rail's scan has left (${settled === null ? 'never settled' : `${firstKey - idleFrom} ms of idle screen`})`, settled !== null && firstKey - idleFrom >= 500, frames.filter(r => (r.ts ?? 0) < firstKey).slice(-3).map(r => `${(r.ts ?? 0) - firstKey} ms: ${(r.rows ?? []).filter(row => /ready|scanning|starting/.test(row)).map(row => row.trim().slice(0, 60)).join(' | ')}`).join(' ‖ '))
+    check(`${cols}: the settled screen delivers nothing until the first key (${idle.length} deliveries, ${idle.reduce((n, w) => n + wireCells(w.content), 0)} cells in ${firstKey - idleFrom} ms)`, idle.reduce((n, w) => n + wireCells(w.content), 0) === 0, idle.map(w => `${w.ts - firstKey} ms ${w.len} B`).join(', '))
     const steady = frames.filter(r => (r.ts ?? 0) >= submit + 1500)
     const deliveries = writes.filter(w => w.ts >= submit + 1500)
     check(`${cols}: enough steady frames (${steady.length}) and deliveries (${deliveries.length})`, steady.length >= 20 && deliveries.length >= 10)
