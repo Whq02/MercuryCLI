@@ -74,9 +74,10 @@ const TOOLS = [makeTool('Read', true), makeTool('Edit', false)]
 
 type Answer = 'allow' | 'decline' | 'decline with words' | 'declined in the window' | 'stopped by the host'
 interface Scene {
-  calls: Array<{ name: string; input: Record<string, unknown>; answer: Answer }>
+  calls: Array<{ name: string; input: Record<string, unknown>; answer: Answer; afterMs?: number }>
   answersAfterReply?: boolean
   interruptAfterAnswer?: boolean
+  replyWaitsForEveryAnswer?: boolean
 }
 interface Run {
   requests: number
@@ -113,6 +114,8 @@ async function run(scene: Scene, label: string): Promise<Run> {
   const canUseTool = async (tool: never, input: Record<string, unknown>, toolUseContext: never, assistantMessage: never, toolUseID: string) => {
     asked.push(toolUseID)
     const answer = answers.get(toolUseID)
+    const afterMs = scene.calls[ids.indexOf(toolUseID)]?.afterMs
+    if (afterMs !== undefined) await new Promise(resolve => setTimeout(resolve, afterMs))
     if (scene.answersAfterReply) {
       const deadline = Date.now() + 1500
       while (!replyEnded && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10))
@@ -143,7 +146,7 @@ async function run(scene: Scene, label: string): Promise<Run> {
     }
     const early = scene.answersAfterReply ? 0 : scene.calls.filter(call => call.name === 'Read').length
     const deadline = Date.now() + 1500
-    while (settledAsks < Math.min(early, 1) && Date.now() < deadline) await new Promise<void>(resolve => { wake = resolve; setTimeout(resolve, 25) })
+    while (settledAsks < (scene.replyWaitsForEveryAnswer ? early : Math.min(early, 1)) && Date.now() < deadline) await new Promise<void>(resolve => { wake = resolve; setTimeout(resolve, 25) })
     await new Promise(resolve => setTimeout(resolve, 60))
     if (scene.interruptAfterAnswer) {
       abortController.abort()
@@ -238,6 +241,20 @@ section("the runner's road: an answer that carries the stop (a host's, a permiss
   check('answered after the whole reply has arrived: the same', late.requests === 1 && late.turnAborted && late.ran.length === 0, brief(late))
   const pair = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'stopped by the host' }, { name: 'Read', input: { file_path: '/tmp/declined/b.txt' }, answer: 'allow' }] }, 'stop-pair')
   check('two reads, the first stopped: the second does not run and the turn stops', pair.requests === 1 && pair.turnAborted && pair.ran.length === 0, brief(pair))
+}
+
+section('a read that has already run keeps its result when the read beside it is stopped')
+{
+  const pair = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'allow' }, { name: 'Read', input: { file_path: '/tmp/declined/b.txt' }, answer: 'stopped by the host', afterMs: 200 }], replyWaitsForEveryAnswer: true }, 'ran-then-stop')
+  check('the first read ran, once, and the turn stops on the second', pair.requests === 1 && pair.turnAborted && pair.ran.length === 1 && pair.ran[0] === pair.ids[0], brief(pair))
+  check('its answer is its result, not "stopped before it ran"', (pair.results.get(pair.ids[0]!) ?? '').includes('Read ran') && !(pair.results.get(pair.ids[0]!) ?? '').includes(CANCEL_MESSAGE), brief(pair))
+  check('the stopped read is answered by the stop', (pair.results.get(pair.ids[1]!) ?? '').includes(HOST_STOP_WORDS), brief(pair))
+  const hook = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'allow' }, { name: 'Read', input: { file_path: '/tmp/declined/b.txt' }, answer: 'decline', afterMs: 200 }], replyWaitsForEveryAnswer: true }, 'ran-then-no')
+  const later = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'allow' }, { name: 'Read', input: { file_path: '/tmp/declined/b.txt' }, answer: 'stopped by the host', afterMs: 200 }] }, 'ran-then-stop-later')
+  check('and the same pair when the stop comes after the reply has ended: the result as before', later.ran.length === 1 && (later.results.get(later.ids[0]!) ?? '').includes('Read ran') && later.turnAborted, brief(later))
+  check('the same when the stop is a wordless No on the in-process road', hook.ran.length === 1 && (hook.results.get(hook.ids[0]!) ?? '').includes('Read ran') && (hook.results.get(hook.ids[1]!) ?? '').includes(REJECT_MESSAGE) && hook.turnAborted, brief(hook))
+  const pending = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'stopped by the host' }, { name: 'Read', input: { file_path: '/tmp/declined/b.txt' }, answer: 'allow', afterMs: 400 }], replyWaitsForEveryAnswer: true }, 'stop-then-pending')
+  check('a read still waiting for its answer when the stop comes does not run and gets the stopped line', pending.ran.length === 0 && (pending.results.get(pending.ids[1]!) ?? '').includes(CANCEL_MESSAGE) && pending.turnAborted, brief(pending))
 }
 
 console.log(`\nprove-early-read-declined: ${checks} checks, ${failures} failed`)

@@ -17,6 +17,7 @@ import { openResultRoomForRound } from './toolOrchestration.js'
 type EarlyCall = {
   updates: Stream<MessageUpdateLazy>
   settled: Promise<void>
+  finished: boolean
 }
 
 type Ask = {
@@ -88,7 +89,7 @@ export class EarlyStarts {
     const kept = toolUseID === undefined ? undefined : this.controllers.get(toolUseID)
     for (const ask of this.asked.values()) if (ask.controller !== kept) this.withdraw(ask)
     for (const [id, controller] of this.controllers) {
-      if (id === toolUseID) continue
+      if (id === toolUseID || this.started.get(id)?.finished) continue
       controller.abort('retry')
       this.controllers.delete(id)
       this.started.delete(id)
@@ -125,18 +126,20 @@ export class EarlyStarts {
     const context: ToolUseContext = { ...this.context, abortController: controller }
     const updates = new Stream<MessageUpdateLazy>()
     const roundID = this.roundID
-    const settled = (async () => {
+    const call: EarlyCall = { updates, settled: Promise.resolve(), finished: false }
+    call.settled = (async () => {
       try {
         await parkBeforeTool(context, block.name)
         openResultRoomForRound(roundID, [parent], this.context)
         for await (const update of runToolUse(block, parent, this.gate, context, { id: roundID, ordinal })) updates.enqueue(update)
+        call.finished = true
         updates.done()
       } catch (error) {
         updates.error(error)
       }
     })()
     this.controllers.set(block.id, controller)
-    this.started.set(block.id, { updates, settled })
+    this.started.set(block.id, call)
   }
 
   async ready(): Promise<void> {
