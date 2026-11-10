@@ -58,6 +58,7 @@ run_proof "$here/prove-gate-watch-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$
 run_proof "$here/prove-vocabulary-seal.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-vocabulary-seal.ts" || fail=1
 run_proof "$here/prove-seal-in-gate.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-seal-in-gate.ts" || fail=1
 run_proof "$here/../typecheck/prove-warm-replay.sh" bash "$here/../typecheck/prove-warm-replay.sh" || fail=1
+run_proof "$here/prove-shard-compile-cache-removed.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shard-compile-cache-removed.ts" || fail=1
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ GATE MACHINERY PASS"; else echo "# ❌ GATE MACHINERY FAILED"; fi
 echo "############################################################"
