@@ -65,7 +65,7 @@ export function readTensorFoldRefusal(stderr: string, context: { window?: number
       ...(window !== undefined ? { window } : {}),
       ...(next !== undefined ? { nextWindow: next.window, cacheGibAt: next.cacheGib } : {}),
     }
-    const wired = wiredReading(context, NO_RAISE_FITS.test(line))
+    const wired = wiredReading(context, line)
     return wired === undefined ? base : { ...base, kind: 'gpu-limit', wired }
   }
   const spoken = ENGINE_PREFIX.test(raw) ? line : ''
@@ -101,11 +101,14 @@ function nextWindowUnder(ladder: readonly TensorFoldLadderRung[] | undefined, wi
 
 const NO_RAISE_FITS = /no wired-limit raise (?:fits|is known to fit) one stream/
 
-function wiredReading(context: { needBytes?: number; machine?: TensorFoldMachineTruth }, raiseRuledOut: boolean): TensorFoldRefusal['wired'] | undefined {
+function wiredReading(context: { needBytes?: number; machine?: TensorFoldMachineTruth }, line: string): TensorFoldRefusal['wired'] | undefined {
   const machine = context.machine
   if (machine === undefined || machine.platform !== 'darwin' || context.needBytes === undefined) return undefined
   if (context.needBytes <= machine.usableBytes) return undefined
-  return { usableGib: gibOf(machine.usableBytes), ramGib: gibOf(machine.ramBytes), limitMib: machine.wiredLimitMib ?? 0, needGib: gibOf(context.needBytes), offer: raiseRuledOut ? null : wiredLimitOfferFor(context.needBytes, machine) }
+  const named = /sudo sysctl iogpu\.wired_limit_mb=(\d+) raises that limit enough for one stream/.exec(line)
+  const namedLimitMib = named ? Number(named[1]) : undefined
+  const offer = NO_RAISE_FITS.test(line) || namedLimitMib !== undefined && namedLimitMib * 1024 * 1024 <= machine.usableBytes ? null : wiredLimitOfferFor(context.needBytes, machine, namedLimitMib)
+  return { usableGib: gibOf(machine.usableBytes), ramGib: gibOf(machine.ramBytes), limitMib: machine.wiredLimitMib ?? 0, needGib: gibOf(context.needBytes), offer }
 }
 
 const gib1 = (value: number): string => value.toFixed(1)

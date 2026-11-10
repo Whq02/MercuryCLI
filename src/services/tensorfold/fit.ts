@@ -131,9 +131,9 @@ function fitPartsOf(point: TensorFoldCheckpoint, window: number): TensorFoldFitP
 
 export type WiredLimitOffer = { limitMib: number; leavesBytes: number; tight: boolean }
 
-export function wiredLimitOfferFor(neededBytes: number, machine: Pick<TensorFoldMachineTruth, 'ramBytes' | 'platform'>): WiredLimitOffer | null {
-  if (machine.platform !== 'darwin') return null
-  const limit = neededBytes + WIRED_LIMIT_MARGIN_BYTES
+export function wiredLimitOfferFor(neededBytes: number, machine: Pick<TensorFoldMachineTruth, 'ramBytes' | 'platform'>, namedLimitMib?: number): WiredLimitOffer | null {
+  if (machine.platform !== 'darwin' || namedLimitMib !== undefined && (!Number.isSafeInteger(namedLimitMib) || namedLimitMib <= 0)) return null
+  const limit = namedLimitMib === undefined ? neededBytes + WIRED_LIMIT_MARGIN_BYTES : namedLimitMib * 1024 * 1024
   const leavesBytes = machine.ramBytes - limit
   if (leavesBytes < WIRED_LIMIT_OS_FLOOR_BYTES) return null
   return { limitMib: Math.ceil(limit / (1024 * 1024)), leavesBytes, tight: leavesBytes < WIRED_LIMIT_TIGHT_BYTES }
