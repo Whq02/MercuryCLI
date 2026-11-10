@@ -289,6 +289,148 @@ try {
       await fixture.close()
     }
   }
+
+  section('F6 — the built bundle stopped hard inside a LATER reply: a finished first run, then a second process stopped by signal 9 after one block of its reply settled; nothing stands behind that block; a third process resumes')
+  {
+    const SID6 = 'facef00d-0000-4000-8000-0000000f6a01'
+    const fixture = await startFixtureApi([handoffTurn(), { kind: 'text', text: 'F6-FIRST-REPLY.' }, { kind: 'die', settled: ['F6-SETTLED-BLOCK of a later reply that never ended.'], deltas: ['half', ' of a', ' second block'], gapMs: 4000 }, { kind: 'text', text: 'F6-RESUMED-REPLY.' }])
+    const arena = makeArena('f6', fixture)
+    try {
+      const first = await run(arena, ['run', 'F6 first prompt.', '--model', MODEL, '--session-id', SID6, '--format', 'rows'])
+      const child = spawn(nodeBin!, [DIST, 'run', 'F6 second prompt.', '--model', MODEL, '--resume', SID6, '--format', 'rows'], { cwd: arena.cwd, env: arena.env })
+      child.stdout.on('data', () => {})
+      child.stderr.on('data', () => {})
+      const exited = new Promise<number | null>(resolve => child.on('close', code => resolve(code)))
+      const file = transcriptOf(arena, SID6)
+      const until = Date.now() + 12_000
+      while (Date.now() < until) {
+        if (file !== '' && recordSays(await recordOf(file), 'F6-SETTLED-BLOCK') > 0) break
+        await new Promise(tick => setTimeout(tick, 100))
+      }
+      await new Promise(tick => setTimeout(tick, 400))
+      child.kill('SIGKILL')
+      await exited
+      const record = file === '' ? [] : await recordOf(file)
+      const kinds = record.map(kindOf)
+      const block = record.at(-1)
+      const stopReason = (block?.message as { stop_reason?: unknown } | undefined)?.stop_reason ?? null
+      check('F6: the first run completed, and the record ends on the settled block itself, with no stop reason and no row behind it', first.exit === 0 && kinds.at(-1) === 'assistant(text)' && j(block?.message).includes('F6-SETTLED-BLOCK') && stopReason === null, j({ exit: first.exit, tail: kinds.slice(-4), stopReason }))
+      const loaded = await resumedFrom(record, SID6)
+      check('F6: the loader reads the turn as cut — the sentence once, after the block', loaded.state === 'interrupted_prompt' && loaded.saysContinuation === 1, j({ state: loaded.state, continuation: loaded.saysContinuation, last: loaded.lastTalk }))
+      const third = await run(arena, ['run', 'F6 third prompt.', '--model', MODEL, '--resume', SID6, '--format', 'rows'])
+      const resumedWire = wireOf(fixture.messageRequests().filter(request => !isHandoffRequest(request)).at(-1))
+      const blockAt = resumedWire.findIndex(message => message.role === 'assistant' && message.texts.some(text => text.includes('F6-SETTLED-BLOCK')))
+      check('F6: the third process answered, and its request tells the model, right after the block, that the previous run ended before its turn finished', third.exit === 0 && third.stdout.includes('F6-RESUMED-REPLY.') && blockAt !== -1 && says(resumedWire, CONTINUATION) === 1 && resumedWire[blockAt + 1]?.texts.some(text => text.includes(CONTINUATION)) === true, `exit=${third.exit} ${j(resumedWire.map(message => [message.role, message.texts.map(text => text.slice(0, 80))]))}`)
+
+      const whole = firstRecord.findLast(row => kindOf(row) === 'assistant(text)')!
+      const upTo = firstRecord.slice(0, firstRecord.indexOf(whole))
+      const after = (row: StoredRow, n: number, patch: Record<string, unknown>): StoredRow => ({ ...row, uuid: `00000000-0000-4000-8000-0000000f6c${String(n).padStart(2, '0')}`, parentUuid: row.uuid, timestamp: new Date(Date.parse(String(row.timestamp)) + n * 1000).toISOString(), ...patch }) as StoredRow
+      const messageOf = (row: StoredRow): Record<string, unknown> => row.message as Record<string, unknown>
+      const ended = await resumedFrom([...upTo, whole], SID1)
+      check('F6 control: a record that ends on a whole reply (its stop reason on the row) reads as finished', (messageOf(whole).stop_reason ?? null) !== null && ended.state === 'none' && ended.saysContinuation === 0, j({ stop: messageOf(whole).stop_reason, state: ended.state }))
+      const head = { ...whole, message: { ...messageOf(whole), stop_reason: null } } as StoredRow
+      const blankTail = after(head, 1, { message: { ...messageOf(whole), content: [{ type: 'text', text: '\n\n' }] } })
+      const filtered = await resumedFrom([...upTo, head, blankTail], SID1)
+      check('F6 control: a whole reply whose last block the load drops (whitespace only) is judged by its reply, not by the block left standing — finished', filtered.state === 'none' && filtered.saysContinuation === 0 && !filtered.messages.some(row => row.uuid === blankTail.uuid), j({ state: filtered.state, continuation: filtered.saysContinuation, dropped: !filtered.messages.some(row => row.uuid === blankTail.uuid) }))
+      const errorRow = (parent: StoredRow, n: number, cause: string, words: string): StoredRow => ({ ...whole, uuid: `00000000-0000-4000-8000-0000000f6e${String(n).padStart(2, '0')}`, parentUuid: parent.uuid, timestamp: new Date(Date.parse(String(parent.timestamp)) + n * 1000).toISOString(), isApiErrorMessage: true, apiError: cause, error: cause, message: { ...messageOf(whole), id: `msg_f6_error_${n}`, model: '<synthetic>', stop_reason: 'stop_sequence', content: [{ type: 'text', text: words }] } }) as StoredRow
+      const failed = await resumedFrom([...upTo, head, errorRow(head, 2, 'unknown', 'API Error: the fixture refused the request.')], SID1)
+      check('F6 control: a reply with no stop reason followed by the error row its turn ended on is not read as stopped from outside — no sentence', failed.state === 'none' && failed.saysContinuation === 0, j({ state: failed.state, continuation: failed.saysContinuation, last: failed.lastTalk }))
+      const trailing = firstRecord.slice(firstRecord.indexOf(whole) + 1)
+      const stamped = (stop: string): StoredRow => ({ ...whole, message: { ...messageOf(whole), stop_reason: stop } }) as StoredRow
+      const verdicts: Record<string, string> = {}
+      for (const stop of ['end_turn', 'stop_sequence', 'refusal', 'pause_turn', 'max_tokens']) verdicts[stop] = (await resumedFrom([...upTo, stamped(stop), ...trailing], SID1)).state
+      check('F6 control: with rows behind it, a reply reads as a finished turn only on a stop reason that ends a turn (end_turn, stop_sequence, refusal) — one the run goes on after (pause_turn, max_tokens) reads as cut, as before', trailing.length > 0 && j(verdicts) === j({ end_turn: 'none', stop_sequence: 'none', refusal: 'none', pause_turn: 'interrupted_prompt', max_tokens: 'interrupted_prompt' }), j(verdicts))
+      const alone: Record<string, string> = {}
+      for (const stop of ['end_turn', 'stop_sequence', 'refusal', 'pause_turn', 'max_tokens']) alone[stop] = (await resumedFrom([...upTo, stamped(stop)], SID1)).state
+      check('F6: with nothing behind it the same rule — a reply the provider paused (pause_turn) or cut at the output cap on the road that asks again (max_tokens) was still in its turn when the record stops, and reads as cut', j(alone) === j({ end_turn: 'none', stop_sequence: 'none', refusal: 'none', pause_turn: 'interrupted_prompt', max_tokens: 'interrupted_prompt' }), j(alone))
+      const capError = (parent: StoredRow): StoredRow => errorRow(parent, 3, 'max_output_tokens', 'API Error: the response exceeded the output token maximum.')
+      const cappedForGood = await resumedFrom([...upTo, stamped('max_tokens'), capError(stamped('max_tokens'))], SID1)
+      const cappedForGoodTrailed = await resumedFrom([...upTo, stamped('max_tokens'), ...trailing, capError(trailing.at(-1)!)], SID1)
+      check('F6 control: the same capped reply with the output-cap error row its turn ended on — finished, with or without rows between them', cappedForGood.state === 'none' && cappedForGoodTrailed.state === 'none' && cappedForGood.saysContinuation === 0 && cappedForGoodTrailed.saysContinuation === 0, j({ alone: cappedForGood.state, trailed: cappedForGoodTrailed.state }))
+      const otherRoads: Record<string, string> = {}
+      for (const model of ['gpt-5.6-sol', 'local/qwen3.8-27b-32k:latest']) {
+        const capped = { ...whole, message: { ...messageOf(whole), model, stop_reason: 'max_tokens' } } as StoredRow
+        otherRoads[model] = `${(await resumedFrom([...upTo, capped], SID1)).state}/${(await resumedFrom([...upTo, capped, ...trailing], SID1)).state}`
+      }
+      check('F6 control: on a road where the output cap ends the turn (nothing asks again there) a capped reply reads as finished, alone and with rows behind it', j(otherRoads) === j({ 'gpt-5.6-sol': 'none/none', 'local/qwen3.8-27b-32k:latest': 'none/none' }), j(otherRoads))
+      const seated: Record<string, string> = {}
+      for (const [written, session] of [['gpt-5.6-sol', MODEL], [MODEL, 'gpt-5.6-sol']] as const) {
+        bootstrap.setEngineModelOverride(session)
+        try {
+          seated[`${written} read under ${session}`] = (await resumedFrom([...upTo, { ...whole, message: { ...messageOf(whole), model: written, stop_reason: 'max_tokens' } } as StoredRow], SID1)).state
+        } finally {
+          bootstrap.setEngineModelOverride(undefined)
+        }
+      }
+      check('F6 control: the capped reply is judged by the model stamped on its own row, not by the model the session is seated on when it resumes', j(seated) === j({ [`gpt-5.6-sol read under ${MODEL}`]: 'none', [`${MODEL} read under gpt-5.6-sol`]: 'interrupted_prompt' }), j(seated))
+      const failedTrailed = await resumedFrom([...upTo, head, ...trailing.map((row, i) => (i === 0 ? { ...row, parentUuid: head.uuid } : row) as StoredRow), errorRow(trailing.at(-1)!, 4, 'unknown', 'API Error: the fixture refused the request.')], SID1)
+      check('F6 control: a reply with no stop reason, its trailing rows, then the error row its turn ended on — no sentence (the record says how the turn ended)', failedTrailed.state === 'none' && failedTrailed.saysContinuation === 0, j({ state: failedTrailed.state, continuation: failedTrailed.saysContinuation }))
+      const blankBeforeTrail = await resumedFrom([...upTo, head, blankTail, ...trailing.map((row, i) => (i === 0 ? { ...row, parentUuid: blankTail.uuid } : row) as StoredRow)], SID1)
+      check('F6 control: the same blank last block with the reply\'s trailing rows behind it — finished', blankBeforeTrail.state === 'none' && blankBeforeTrail.saysContinuation === 0, j({ state: blankBeforeTrail.state, continuation: blankBeforeTrail.saysContinuation }))
+      const { stop_reason: _unstated, ...unstatedMessage } = messageOf(whole)
+      const unstated = await resumedFrom([...upTo, { ...whole, message: unstatedMessage } as StoredRow], SID1)
+      check('F6 control: a reply row that states no stop reason at all (a record another writer made) reads as before — finished', unstated.state === 'none' && unstated.saysContinuation === 0, j({ state: unstated.state, continuation: unstated.saysContinuation }))
+    } finally {
+      await fixture.close()
+    }
+  }
+
+  section('F7 — the built bundle, a whole reply whose last block is blank: two text blocks, the second only spaces, then the stream ends as usual; a second process resumes')
+  {
+    const SID7 = 'facef00d-0000-4000-8000-0000000f7a01'
+    const fixture = await startFixtureApi([handoffTurn(), { kind: 'stream', blocks: [{ type: 'text', deltas: ['F7-FIRST-BLOCK of a whole reply.'] }, { type: 'text', deltas: ['   '] }], gapMs: 5 }, { kind: 'text', text: 'F7-SECOND-REPLY.' }])
+    const arena = makeArena('f7', fixture)
+    try {
+      const first = await run(arena, ['run', 'F7 first prompt.', '--model', MODEL, '--session-id', SID7, '--format', 'rows'])
+      const file = transcriptOf(arena, SID7)
+      const record = file === '' ? [] : await recordOf(file)
+      const replies = record.filter(row => row.type === 'assistant')
+      const stops = replies.map(row => (row.message as { stop_reason?: unknown }).stop_reason ?? null)
+      check('F7: the run completed and its record holds the reply as two rows — the words with no stop reason, the blank block with the stop reason', first.exit === 0 && first.stdout.includes('"status":"completed"') && replies.length === 2 && j(stops) === j([null, 'end_turn']) && j(replies[1]?.message).includes('"   "'), `exit=${first.exit} ${j({ kinds: record.map(kindOf), stops })}`)
+      const loaded = await resumedFrom(record, SID7)
+      check('F7: the loader reads the turn as finished (the reply ended, though the row that says so is dropped as blank) and does not bring the blank block back', loaded.state === 'none' && loaded.saysContinuation === 0 && loaded.saysSentinel === 0 && loaded.messages.filter(row => row.type === 'assistant').length === 1, j({ state: loaded.state, continuation: loaded.saysContinuation, sentinel: loaded.saysSentinel, replies: loaded.messages.filter(row => row.type === 'assistant').length }))
+      const second = await run(arena, ['run', 'F7 second prompt.', '--model', MODEL, '--resume', SID7, '--format', 'rows'])
+      const resumedWire = wireOf(fixture.messageRequests().filter(request => !isHandoffRequest(request)).at(-1))
+      check('F7: the second process answered, and its request is the first prompt, the reply\'s words, the second prompt — no cut-off sentence, no stand-in reply', second.exit === 0 && second.stdout.includes('F7-SECOND-REPLY.') && j(resumedWire.map(message => message.role)) === j(['user', 'assistant', 'user']) && says(resumedWire, CONTINUATION) === 0 && says(resumedWire, NO_RESPONSE_REQUESTED) === 0, `exit=${second.exit} ${j(resumedWire.map(message => [message.role, message.texts.map(text => text.slice(0, 80))]))}`)
+    } finally {
+      await fixture.close()
+    }
+  }
+
+  section('F8 — a record the shipped 1.0.8 left for a finished turn, in its on-disk form: the reply\'s row written with no stop reason while it streamed, then the line that settles the same row with end_turn; the bound-prefix record behind it')
+  {
+    const SID8 = 'facef00d-0000-4000-8000-0000000f8a01'
+    const dir = join(scratch, 'old-build')
+    mkdirSync(dir, { recursive: true })
+    const file = join(dir, `${SID8}.jsonl`)
+    let clock = Date.parse('2026-11-09T09:00:00.000Z')
+    let parent: string | null = null
+    const uid = (n: number): string => `00000000-0000-4000-8000-${String(108000000000 + n).slice(0, 12)}`
+    const chained = (row: Record<string, unknown>): Record<string, unknown> => {
+      const out = { parentUuid: parent, isSidechain: false, cwd: dir, sessionId: SID8, version: '1.0.8', gitBranch: 'main', timestamp: new Date((clock += 1000)).toISOString(), ...row }
+      parent = row.uuid as string
+      return out
+    }
+    const replyRow = (uuid: string, id: string, text: string, stop: string | null): Record<string, unknown> => ({ uuid, type: 'assistant', requestId: `req_${id}`, message: { id, type: 'message', role: 'assistant', model: MODEL, stop_reason: stop, stop_sequence: null, content: [{ type: 'text', text }] } })
+    const settledReply = (uuid: string, id: string, text: string): string => {
+      const streamed = chained(replyRow(uuid, id, text, null))
+      const published = encodeTranscriptLine(file, streamed)
+      return published.line + encodeTranscriptLine(file, { ...streamed, ...replyRow(uuid, id, text, 'end_turn') }, { settleCreationOrdinal: String(published.record.creationOrdinal) }).line
+    }
+    const plain = (row: Record<string, unknown>): string => encodeTranscriptLine(file, chained(row)).line
+    const firstTurn = plain({ uuid: uid(1), type: 'user', message: { role: 'user', content: 'F8 first prompt.' } }) + settledReply(uid(2), 'msg_f8_1', 'F8-FIRST-REPLY.') + plain({ uuid: uid(3), type: 'attachment', attachment: { type: 'bound_prefix', boundKey: 'f8', rosterEnabled: false, roster: [], sections: [], systemContext: {} } })
+    writeFileSync(file, firstTurn)
+    const onDisk = firstTurn.split('\n').filter(Boolean).map(line => JSON.parse(line) as { recordId?: string; updates?: string; payload?: { kind?: string; outcome?: { stopReason?: unknown } } }).filter(record => record.payload?.kind === 'output')
+    check('F8: the file holds the reply as two lines of one record — published with no stop reason, then updated with end_turn', onDisk.length === 2 && onDisk[0]!.recordId === onDisk[1]!.recordId && onDisk[1]!.updates === onDisk[0]!.recordId && (onDisk[0]!.payload?.outcome?.stopReason ?? null) === null && onDisk[1]!.payload?.outcome?.stopReason === 'end_turn', j(onDisk.map(record => [record.updates ?? null, record.payload?.outcome ?? null])))
+    const loaded = await loadConversationForResume(SID8, file)
+    const talk = ((loaded?.messages ?? []) as Message[]).filter(row => row.type === 'user' || row.type === 'assistant')
+    check('F8: the loader reads it as a finished turn — the prompt and the reply, no cut-off sentence, no stand-in reply', loaded?.turnInterruptionState.kind === 'none' && talk.length === 2 && !j(talk.map(row => (row.type === 'user' || row.type === 'assistant' ? row.message.content : null))).includes(CONTINUATION), j({ state: loaded?.turnInterruptionState.kind, talk: talk.length }))
+    const secondTurn = plain({ uuid: uid(4), type: 'user', isMeta: true, message: { role: 'user', content: [{ type: 'text', text: CONTINUATION }] } }) + settledReply(uid(5), 'msg_f8_sentinel', NO_RESPONSE_REQUESTED) + plain({ uuid: uid(6), type: 'user', message: { role: 'user', content: 'F8 second prompt.' } }) + settledReply(uid(7), 'msg_f8_2', 'F8-SECOND-REPLY.')
+    writeFileSync(file, firstTurn + secondTurn)
+    const later = await loadConversationForResume(SID8, file)
+    const laterTalk = ((later?.messages ?? []) as Message[]).filter(row => row.type === 'user' || row.type === 'assistant')
+    check('F8: the same record after 1.0.8 resumed it once (its own cut-off sentence and stand-in reply are rows of the record) and finished a second turn — finished, nothing added to what the record holds', later?.turnInterruptionState.kind === 'none' && laterTalk.length === 6 && laterTalk.filter(row => j(row.type === 'user' || row.type === 'assistant' ? row.message.content : null).includes(CONTINUATION)).length === 1, j({ state: later?.turnInterruptionState.kind, talk: laterTalk.length }))
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

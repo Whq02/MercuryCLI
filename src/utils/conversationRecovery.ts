@@ -8,7 +8,8 @@ import { addInvokedSkill, getEngineModelOverride } from '../bootstrap/state.js'
 import { rehydrateScreenshots } from '../services/desktop/screenshotRetention.js'
 import { withoutRetractedReplies } from '../services/engine-connector/midTurnText.js'
 import { restoreBoundPrefixFromMessages } from '../services/providers/anthropic/boundPrefixRecord.js'
-import type { AttachmentMessage, Message, NormalizedUserMessage, UserMessage } from '../types/message.js'
+import { declaredRouteOf } from '../services/providers/routeLaw.js'
+import type { AssistantMessage, AttachmentMessage, Message, NormalizedUserMessage, UserMessage } from '../types/message.js'
 import type { SessionListing, SerializedMessage, TranscriptMessage } from '../types/logs.js'
 import { PERMISSION_MODES } from '../types/permissions.js'
 import { suppressNextSkillListing } from './attachments/skillListing.js'
@@ -147,29 +148,48 @@ function asksNoReply(message: Message): boolean {
   return message.type === 'system' || message.type === 'progress' || isSyntheticApiErrorAssistant(message)
 }
 
-function trailsEndedReply(messages: Message[], index: number): boolean {
-  for (let i = index; i >= 0; i--) {
-    const candidate = messages[i] as Message
-    if (asksNoReply(candidate)) continue
-    return candidate.type === 'assistant' && candidate.message.stop_reason != null
-  }
-  return false
+const TURN_ENDING_STOPS: ReadonlySet<string> = new Set(['end_turn', 'stop_sequence', 'refusal'])
+
+function outputCapIsAskedAgain(model: string): boolean {
+  const route = declaredRouteOf(model)
+  return route === null || route === 'anthropic'
 }
 
-function detectInterruption(messages: Message[]): InternalInterruptionState {
+function stopEndsTurn(stop: string, model: string): boolean {
+  return TURN_ENDING_STOPS.has(stop) || (stop === 'max_tokens' && !outputCapIsAskedAgain(model))
+}
+
+function replyStops(messages: Message[]): Map<string, string> {
+  const stops = new Map<string, string>()
+  for (const message of messages) {
+    if (message.type === 'assistant' && message.message.stop_reason != null) stops.set(message.message.id, message.message.stop_reason)
+  }
+  return stops
+}
+
+function turnOfLastReply(reply: AssistantMessage, stops: ReadonlyMap<string, string>, failed: boolean, trailed: boolean): InternalInterruptionState {
+  if (failed) return { kind: 'none' }
+  const stop = stops.get(reply.message.id) ?? reply.message.stop_reason
+  if (stop === undefined) return trailed ? { kind: 'interrupted_turn' } : { kind: 'none' }
+  return stop !== null && stopEndsTurn(stop, reply.message.model) ? { kind: 'none' } : { kind: 'interrupted_turn' }
+}
+
+function detectInterruption(messages: Message[], stops: ReadonlyMap<string, string>): InternalInterruptionState {
   if (messages.length === 0) return { kind: 'none' }
   let index = messages.length - 1
+  let failed = false
   while (index >= 0) {
     const candidate = messages[index] as Message
     if (candidate.type !== 'system' && candidate.type !== 'progress' && !isSyntheticApiErrorAssistant(candidate)) {
       break
     }
+    if (candidate.type === 'assistant') failed = true
     index--
   }
   if (index < 0) return { kind: 'none' }
   const last = messages[index] as Message
   if (last.type === 'assistant') {
-    return { kind: 'none' }
+    return turnOfLastReply(last, stops, failed, false)
   }
   if (last.type === 'user') {
     if (last.isMeta || last.isCompactSummary) return { kind: 'none' }
@@ -179,7 +199,13 @@ function detectInterruption(messages: Message[]): InternalInterruptionState {
     return { kind: 'interrupted_prompt', message: last as NormalizedUserMessage }
   }
   if (last.type === 'attachment') {
-    return trailsEndedReply(messages, index) ? { kind: 'none' } : { kind: 'interrupted_turn' }
+    for (let i = index; i >= 0; i--) {
+      const candidate = messages[i] as Message
+      if (isSyntheticApiErrorAssistant(candidate)) failed = true
+      if (asksNoReply(candidate)) continue
+      return candidate.type === 'assistant' ? turnOfLastReply(candidate, stops, failed, true) : { kind: 'interrupted_turn' }
+    }
+    return { kind: 'interrupted_turn' }
   }
   return { kind: 'none' }
 }
@@ -188,12 +214,13 @@ function detectInterruption(messages: Message[]): InternalInterruptionState {
 function deserializeMessagesWithInterruptDetection(serialized: Message[]): DeserializeResult {
   try {
     let messages = withoutRetractedReplies(rehydrateScreenshots(serialized.map(migrateLegacyAttachment).map(scrubPermissionMode)))
+    const stops = replyStops(messages)
     messages = settleToolUsesOfEndedRun(messages)
     messages = filterOrphanedThinkingOnlyMessages(messages)
     messages = filterWhitespaceOnlyAssistantMessages(messages)
 
     let interruption: TurnInterruptionState = { kind: 'none' }
-    const detected = detectInterruption(messages)
+    const detected = detectInterruption(messages, stops)
     if (detected.kind === 'interrupted_turn') {
       const continuation = normalizeMessages([
         createUserMessage({ content: getResumePrompt(), isMeta: true }),
