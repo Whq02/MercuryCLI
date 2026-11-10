@@ -95,6 +95,10 @@ export function turnCutResultText(cut: TurnCut, toolName?: string): string {
   return cut.kind === 'idle-timeout' ? `Cut off by ${why}` : `Cut off: ${why}`
 }
 
+export function isCutResultText(text: string): boolean {
+  return text.startsWith('Cut off: ') || text.startsWith('Cut off by ')
+}
+
 export function turnCutOfText(text: string): TurnCut | null {
   if (text === INTERRUPT_MESSAGE || text === INTERRUPT_MESSAGE_FOR_TOOL_USE) return { kind: 'operator' }
   const match = /^\[Request cut off(?: during tool use)?(?: by (.+)|: (.+))\]$/s.exec(text)

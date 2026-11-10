@@ -89,9 +89,9 @@ function think(text: string): Block {
   thinkingBlocks.set(text, block)
   return block
 }
-function assistant(id: string, block: Block): Record<string, unknown> {
+function assistant(id: string, block: Block, stop: string | null = null): Record<string, unknown> {
   return {
-    message: { id, type: 'message', role: 'assistant', model: MODEL, content: [block], stop_reason: null, stop_sequence: null, usage: USAGE, context_management: null },
+    message: { id, type: 'message', role: 'assistant', model: MODEL, content: [block], stop_reason: stop, stop_sequence: null, usage: USAGE, context_management: null },
     requestId: `req_${id}`,
     type: 'assistant',
     uuid: uuidOf(),
@@ -125,7 +125,7 @@ const live: Record<string, unknown>[] = [
   shotUse,
   result(shotUse, { tool_use_id: 'toolu_04', type: 'tool_result', content: [{ type: 'text', text: `screenshot: ${SHOT} — display 1 (1920×1080) · in front: Godot` }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: PNG } }] }, { result: `screenshot: ${SHOT} — display 1`, imagePath: SHOT }),
   assistant('msg_05', think('all done')),
-  assistant('msg_05', { type: 'text', text: 'Done — the greeting is fixed and the editor shows it.', citations: undefined }),
+  assistant('msg_05', { type: 'text', text: 'Done — the greeting is fixed and the editor shows it.', citations: undefined }, 'end_turn'),
 ]
 
 interface Wire { rows: unknown[]; ids: Array<string | null> }

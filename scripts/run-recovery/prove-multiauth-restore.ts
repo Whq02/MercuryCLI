@@ -81,7 +81,7 @@ const asst = (
     type: 'message',
     role: 'assistant',
     model,
-    stop_reason: null,
+    stop_reason: (content.at(-1) as { type?: string } | undefined)?.type === 'tool_use' ? 'tool_use' : 'end_turn',
     stop_sequence: null,
     container: null,
     context_management: null,

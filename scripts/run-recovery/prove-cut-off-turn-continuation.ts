@@ -42,7 +42,8 @@ function chainRows(sessionId: string, rows: Row[]): Row[] {
   })
 }
 const prompt = (text: string): Row => ({ uuid: uid(), type: 'user', message: { role: 'user', content: text } })
-const reply = (content: unknown[]): Row => ({ uuid: uid(), type: 'assistant', requestId: `req_${uuidCounter}`, message: { id: `msg_${uuidCounter}`, type: 'message', role: 'assistant', model: 'claude-fable-5-1', stop_reason: null, stop_sequence: null, container: null, context_management: null, content } })
+const wholeReplyStop = (content: unknown[]): string => ((content.at(-1) as { type?: string } | undefined)?.type === 'tool_use' ? 'tool_use' : 'end_turn')
+const reply = (content: unknown[], stop: string | null = wholeReplyStop(content)): Row => ({ uuid: uid(), type: 'assistant', requestId: `req_${uuidCounter}`, message: { id: `msg_${uuidCounter}`, type: 'message', role: 'assistant', model: 'claude-fable-5-1', stop_reason: stop, stop_sequence: null, container: null, context_management: null, content } })
 const toolResult = (toolUseId: string, text: string): Row => ({ uuid: uid(), type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseId, content: text }] }, toolUseResult: { stdout: text, stderr: '', interrupted: false, isImage: false, noOutputExpected: false } })
 
 async function resume(name: string, rows: Row[]) {
@@ -86,7 +87,15 @@ console.log('§2 the controls: a finished turn gets no sentence; a prompt with n
     prompt('say hello'),
     reply([{ type: 'text', text: 'Hello.' }]),
   ])
-  check('a transcript ending on a completed reply reads as none, with no synthetic row', finished.turnInterruptionState.kind === 'none' && !userTexts(finished.messages).includes(SENTENCE) && finished.messages.length === 2, JSON.stringify({ kind: finished.turnInterruptionState.kind, rows: finished.messages.length }))
+  check('a transcript ending on a completed reply (its last row carries the stop reason every road stamps on a whole reply) reads as none, with no synthetic row', finished.turnInterruptionState.kind === 'none' && !userTexts(finished.messages).includes(SENTENCE) && finished.messages.length === 2, JSON.stringify({ kind: finished.turnInterruptionState.kind, rows: finished.messages.length }))
+  const cutReply = await resume('cutreply1', [
+    prompt('say hello'),
+    reply([{ type: 'text', text: 'Hello.' }]),
+    prompt('and now a long story'),
+    reply([{ type: 'text', text: 'Once upon a time' }], null),
+  ])
+  const cutTexts = userTexts(cutReply.messages)
+  check('a transcript ending on a block of a reply that never ended (no stop reason: the run was stopped while the reply streamed) reads as cut — the sentence once, after the block, and the prompt is not asked again', cutReply.turnInterruptionState.kind === 'interrupted_prompt' && textOf(cutReply.turnInterruptionState.message) === SENTENCE && cutTexts.filter(t => t === SENTENCE).length === 1 && cutTexts.filter(t => t === 'and now a long story').length === 1 && cutTexts[cutTexts.length - 1] === SENTENCE, JSON.stringify({ kind: cutReply.turnInterruptionState.kind, texts: cutTexts }))
   const unanswered = await resume('unanswer1', [
     prompt('say hello'),
     reply([{ type: 'text', text: 'Hello.' }]),
