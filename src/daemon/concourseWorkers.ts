@@ -1109,6 +1109,7 @@ export function makeConcourseAdmitHandler(
             by: 'operator',
             kind,
             ...(req.restartReason === 'update' ? { restartReason: 'update' as const } : {}),
+            ...(req.resumedAtRest === true ? { atRest: true as const } : {}),
           },
           others,
           deps,
@@ -2072,6 +2073,13 @@ export function reviveConcourseWorker(
 }
 
 
+function stampTakenBackAtRest(rec: ConcourseWorkerRecordV1): void {
+  rec.resumedAtRestAt = Date.now()
+  if (!turnInFlightOf(rec)) return
+  rec.lastTurnSettledAt = rec.lastDeliveryAt
+  rec.activity = sessionActivityOf(false, [], 0, rec.lastTurnSettledAt ?? null)
+}
+
 function clearReactivatedFields(rec: ConcourseWorkerRecordV1): void {
   clearParkedFields(rec)
   delete rec.stoppedAt
@@ -2117,6 +2125,7 @@ export async function reactivateConcourseSession(
     by: string
     kind?: SessionKind
     restartReason?: 'update'
+    atRest?: true
   },
   live: ReadonlyArray<{ workspaceId: string; isolation?: WorkspaceIsolation }>,
   deps: ConcourseAdmitDeps,
@@ -2202,6 +2211,7 @@ export async function reactivateConcourseSession(
         }
         if (isolationDrift) next.isolation = claimIsolation
         clearReactivatedFields(next)
+        if (args.atRest === true) stampTakenBackAtRest(next)
         Object.assign(next, buildTreeFields())
         restampSessionKit(next, kit, kitSource, args.by)
         stampSpawnPosture(next, { permissionMode: claimPosture, ...(args.bypassConsent === true ? { bypassConsent: true as const } : {}), kind })
@@ -2273,6 +2283,7 @@ export async function reactivateConcourseSession(
       const w = workers[rec.runnerId]
       if (!w || w.endedAt !== undefined) return
       restampSessionKit(w, kit, kitSource, args.by)
+      if (args.atRest === true) stampTakenBackAtRest(w)
     }, deps.dir)
   }
   const pid = revived.outcome === 'applied' ? revived.pid : rec.pid
