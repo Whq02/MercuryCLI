@@ -13,6 +13,7 @@ import {
 } from '../../utils/permissions/PermissionMode.js'
 import type { Theme } from '../../utils/theme.js'
 import { buildTool } from '../../Tool.js'
+import { REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX, SUBAGENT_REJECT_MESSAGE, SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX, unwrapToolUseError } from '../../utils/messages/rejectionText.js'
 import {
   ASK_USER_QUESTION_TOOL_CHIP_WIDTH,
   ASK_USER_QUESTION_TOOL_NAME,
@@ -22,6 +23,12 @@ import {
 } from './prompt.js'
 
 const RESULT_SIZE_CAP = 100_000
+
+function operatorDeclined(error: unknown): boolean {
+  if (typeof error !== 'string') return false
+  const text = unwrapToolUseError(error)
+  return [REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX, SUBAGENT_REJECT_MESSAGE, SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX].some(words => text.startsWith(words))
+}
 
 
 const questionOptionSchema = z.object({
@@ -319,6 +326,9 @@ export const AskUserQuestionTool = buildTool({
   },
   renderToolUseRejectedMessage(): React.ReactNode {
     return <Text dimColor>User declined to answer</Text>
+  },
+  renderToolUseErrorMessage(error: unknown): React.ReactNode {
+    return operatorDeclined(error) ? <Text dimColor>User declined to answer</Text> : null
   },
 })
 
