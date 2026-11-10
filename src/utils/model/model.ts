@@ -258,6 +258,8 @@ const DISPLAY_NAMES: Record<string, string> = {
   fable51: 'Fable 5.1',
   fable52: 'Fable 5.2',
   mythos5: 'Mythos 5',
+  mythos51: 'Mythos 5.1',
+  mythos52: 'Mythos 5.2',
   opus55: 'Opus 5.5',
   opus5: 'Opus 5',
   opus48: 'Opus 4.8',

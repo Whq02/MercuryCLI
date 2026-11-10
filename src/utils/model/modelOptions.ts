@@ -43,7 +43,7 @@ import {
   renderModelName,
 } from './model.js'
 import { getModelStrings } from './modelStrings.js'
-import { CANONICAL_ID_TO_KEY, DECLARED_GENERATION_STEMS, familyDefaultsModel, parseFirstPartyGeneration, previousGenerationKeys } from './configs.js'
+import { CANONICAL_ID_TO_KEY, DECLARED_GENERATION_STEMS, familyDefaultsModel, mirrorTwinOf, parseFirstPartyGeneration, previousGenerationKeys } from './configs.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import { isClaudeAISubscriber, isMaxSubscriber, isCrewPremiumSubscriber } from '../auth.js'
 import { modelRefusalWords } from '../../services/providers/anthropic/modelRefusal.js'
@@ -109,31 +109,38 @@ function liveRowDescription(row: AnthropicLiveRow, family: string | undefined): 
   return `${row.id} — listed live by the ${doors}${name}; not in the built-in table, so it is ${defaults}.`
 }
 
+function mirrorRowDescription(row: AnthropicLiveRow, twin: string): string {
+  const doors = row.doors.join(' and ')
+  const name = row.displayName !== undefined ? ` (the vendor names it "${row.displayName}")` : ''
+  return `${row.id} — listed live by the ${doors}${name}; the built-in table declares it as the counterpart of ${twin}, with that model's window, effort levels and prices.`
+}
+
 function mergeAnthropicLiveRows(options: ModelOption[], live: readonly AnthropicLiveRow[]): ModelOption[] {
   if (live.length === 0) return options
   const merged = [...options]
   const isAnthropicModelRow = (option: ModelOption): boolean => option.group === undefined && !isSentinelValue(option.value)
-  const listed = new Set(
-    merged.filter(isAnthropicModelRow).map(option => resolveWithSuffix(stripContext1m(option.value)).toLowerCase()),
-  )
+  const resolvedOf = (option: ModelOption): string => resolveWithSuffix(stripContext1m(option.value)).toLowerCase()
+  const listed = new Set(merged.filter(isAnthropicModelRow).map(resolvedOf))
   for (const row of live) {
     const id = row.id.trim()
     const key = id.toLowerCase()
-    if (recognizeModelId(id).kind !== 'first-party' || tableKnows(key) || listed.has(key)) continue
+    if (recognizeModelId(id).kind !== 'first-party' || listed.has(key)) continue
+    const twin = mirrorTwinOf(key)
+    if (twin === undefined && tableKnows(key)) continue
     listed.add(key)
     const family = parseFirstPartyGeneration(key)?.family
-    let at = -1
-    for (let index = 0; index < merged.length; index++) {
-      const option = merged[index]!
-      if (!isAnthropicModelRow(option)) continue
-      if (family === undefined || anthropicFamilyOf(option.value) === family) at = index
+    let at = twin === undefined ? -1 : merged.findIndex(option => isAnthropicModelRow(option) && resolvedOf(option) === twin)
+    if (at < 0) {
+      for (let index = 0; index < merged.length; index++) {
+        const option = merged[index]!
+        if (!isAnthropicModelRow(option)) continue
+        if (family === undefined || anthropicFamilyOf(option.value) === family) at = index
+      }
     }
-    const raw: ModelOption = {
-      value: id,
-      label: id,
-      description: '',
-      descriptionForModel: liveRowDescription(row, family),
-    }
+    const raw: ModelOption =
+      twin === undefined
+        ? { value: id, label: id, description: '', descriptionForModel: liveRowDescription(row, family) }
+        : { value: key, label: renderModelName(key), description: '', descriptionForModel: mirrorRowDescription(row, twin) }
     merged.splice(at + 1, 0, raw)
   }
   return merged
