@@ -12,7 +12,9 @@ import { getInitialSettings } from '../settings/settings.js'
 
 import {
   getDefaultFableModel,
+  getDefaultHaikuModel,
   getDefaultOpusModel,
+  getDefaultSonnetModel,
   isDefaultOpusNatively1M,
   isOpus1mMergeEnabled,
   normalizeModelStringForAPI,
@@ -140,13 +142,21 @@ function allowedUnderAllowlist(id: string): boolean {
   }
 }
 
-function newestPermittedFable(head: string): string {
+export function newestPermittedGeneration(family: Parameters<typeof previousGenerationKeys>[0], head: string): string | null {
   if (allowedUnderAllowlist(head)) return head
   const strings = getModelStrings()
-  for (const key of previousGenerationKeys('fable')) {
+  for (const key of previousGenerationKeys(family)) {
     if (allowedUnderAllowlist(strings[key])) return strings[key]
   }
-  return head
+  return null
+}
+
+function permittedFallback(): string | null {
+  return (
+    newestPermittedGeneration('opus', getDefaultOpusModel()) ??
+    newestPermittedGeneration('sonnet', getDefaultSonnetModel()) ??
+    newestPermittedGeneration('haiku', getDefaultHaikuModel())
+  )
 }
 
 export function gatherFrontierFacts(): FrontierFacts {
@@ -154,7 +164,8 @@ export function gatherFrontierFacts(): FrontierFacts {
   const allowlist = settings.engine?.roster
   const fableEnvPin = !!process.env.MERCURY_DEFAULT_FABLE_MODEL
   const head = getDefaultFableModel()
-  const fableId = fableEnvPin || allowlist === undefined ? head : newestPermittedFable(head)
+  const fableId = fableEnvPin || allowlist === undefined ? head : (newestPermittedGeneration('fable', head) ?? head)
+  const opusFallback = getDefaultOpusModel() + (isOpus1mMergeEnabled() && !isDefaultOpusNatively1M() ? '[1m]' : '')
   return {
     fableEnvPin,
     fableId,
@@ -169,9 +180,7 @@ export function gatherFrontierFacts(): FrontierFacts {
     maxSubscriber: isMaxSubscriber(),
     rateLimitTier: getRateLimitTier(),
     oneMDisabled: is1mContextDisabled(),
-    opusFallbackSetting:
-      getDefaultOpusModel() +
-      (isOpus1mMergeEnabled() && !isDefaultOpusNatively1M() ? '[1m]' : ''),
+    opusFallbackSetting: allowlist === undefined ? opusFallback : (permittedFallback() ?? opusFallback),
   }
 }
 

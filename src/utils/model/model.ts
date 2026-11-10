@@ -2,7 +2,7 @@ import {
   getEngineModelOverride,
 } from '../../bootstrap/state.js'
 import { getInitialSettings } from '../settings/settings.js'
-import { frontierOperatorDecision } from './frontierPolicy.js'
+import { frontierOperatorDecision, newestPermittedGeneration } from './frontierPolicy.js'
 import {
   CHOOSE_A_MODEL_ID,
   CHOOSE_A_MODEL_WORDS,
@@ -72,6 +72,11 @@ export function getDefaultFableModel(): string {
   return firstPartyString(newestGenerationKey('fable'))
 }
 
+function rosterFamilyModel(family: Parameters<typeof newestPermittedGeneration>[0], head: string, pin: string | undefined): string {
+  if (pin || getInitialSettings().engine?.roster === undefined) return head
+  return newestPermittedGeneration(family, head) ?? head
+}
+
 export function isFableAvailable(): boolean {
   return frontierOperatorDecision().source === 'frontier'
 }
@@ -121,15 +126,15 @@ function parseUserSpecifiedModelCore(input: string, catalogueFold: boolean): str
 
   switch (lowered) {
     case 'sonnet':
-      return reattach(getDefaultSonnetModel())
+      return reattach(rosterFamilyModel('sonnet', getDefaultSonnetModel(), process.env.MERCURY_DEFAULT_SONNET_MODEL))
     case 'opus':
-      return reattach(getDefaultOpusModel())
+      return reattach(rosterFamilyModel('opus', getDefaultOpusModel(), process.env.MERCURY_DEFAULT_OPUS_MODEL))
     case 'haiku':
-      return reattach(getDefaultHaikuModel())
+      return reattach(rosterFamilyModel('haiku', getDefaultHaikuModel(), process.env.MERCURY_DEFAULT_HAIKU_MODEL))
     case 'haiku55':
       return reattach(firstPartyString('haiku55'))
     case 'fable':
-      return reattach(getDefaultFableModel())
+      return reattach(rosterFamilyModel('fable', getDefaultFableModel(), process.env.MERCURY_DEFAULT_FABLE_MODEL))
     case 'fable51':
       return reattach(firstPartyString('fable51'))
     case 'fable52':
