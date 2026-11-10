@@ -25,6 +25,7 @@ type Ask = {
   state: 'open' | 'answered' | 'withdrawn'
   superseded: boolean
   stops: boolean
+  heir?: string
 }
 
 function childAbortController(parent: AbortController): AbortController {
@@ -59,8 +60,10 @@ export class EarlyStarts {
     if (key === undefined || forceDecision !== undefined || context.abortController.signal.aborted) return this.canUseTool(tool, input, context, assistantMessage, toolUseID, forceDecision)
     const earlier = this.adopted.get(toolUseID)
     if (earlier !== undefined) {
-      this.adopted.delete(toolUseID)
+      const generation = this.generation
       const decision = await earlier.decision
+      if (generation !== this.generation) return decision
+      this.adopted.delete(toolUseID)
       if (earlier.state === 'answered') {
         this.asked.set(key, earlier)
         if (earlier.stops) this.decline(toolUseID)
@@ -73,16 +76,16 @@ export class EarlyStarts {
       if (ask.state === 'open') ask.state = this.context.abortController.signal.aborted ? 'withdrawn' : 'answered'
       ask.stops = ask.state === 'answered' && decision.behavior !== 'allow' && ask.controller.signal.aborted
       if (ask.superseded) ask.controller.abort('retry')
-      else if (ask.stops) this.decline(toolUseID)
+      if (ask.stops) this.decline(ask.superseded ? ask.heir : toolUseID)
       return decision
     })
     this.asked.set(key, ask)
     return ask.decision
   }
 
-  private decline(toolUseID: string): void {
+  private decline(toolUseID: string | undefined): void {
     this.declined = true
-    const kept = this.controllers.get(toolUseID)
+    const kept = toolUseID === undefined ? undefined : this.controllers.get(toolUseID)
     for (const ask of this.asked.values()) if (ask.controller !== kept) this.withdraw(ask)
     for (const [id, controller] of this.controllers) {
       if (id === toolUseID) continue
@@ -98,13 +101,17 @@ export class EarlyStarts {
     const key = toolCallKey(block.name, block.input)
     this.callKeys.set(block.id, key)
     const earlier = this.kept.get(key)?.shift()
-    if (earlier !== undefined) this.adopted.set(block.id, earlier)
+    if (earlier !== undefined) {
+      earlier.heir = block.id
+      this.adopted.set(block.id, earlier)
+    }
     this.queue = this.queue.then(async () => {
       try {
         const claim = await batchClaimOf(block, this.context)
         if (generation !== this.generation) return
         const launchesCrewmate = findToolByName(this.context.options.tools, block.name)?.name === AGENT_TOOL_NAME
-        const admitted = !this.declined && !launchesCrewmate && (claim.kind === 'free' || claim.kind === 'reads') && this.claims.every(held => claimsCompatible(held, claim))
+        const answersStop = this.adopted.get(block.id)?.stops === true
+        const admitted = (!this.declined || answersStop) && !launchesCrewmate && (claim.kind === 'free' || claim.kind === 'reads') && this.claims.every(held => claimsCompatible(held, claim))
         this.claims.push(claim)
         if (admitted) this.start(block, parent, ordinal)
       } catch (error) {
@@ -164,6 +171,7 @@ export class EarlyStarts {
     for (const [key, ask] of this.asked) keep(key, ask)
     for (const [toolUseID, ask] of this.adopted) keep(this.callKeys.get(toolUseID), ask)
     this.clear(controller => !waiting.has(controller))
+    this.declined = [...this.kept.values()].flat().some(ask => ask.stops)
   }
 
   reset(): void {

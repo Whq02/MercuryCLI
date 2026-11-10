@@ -23,7 +23,7 @@ const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { createPermissionContext } = await import('../../src/hooks/toolPermission/PermissionContext.ts')
-const { REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX } = await import('../../src/utils/messages/rejectionText.ts')
+const { CANCEL_MESSAGE, REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX } = await import('../../src/utils/messages/rejectionText.ts')
 const { INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/utils/messages/turnCut.ts')
 
 let failures = 0
@@ -80,7 +80,8 @@ type Answer = 'allow' | 'decline' | 'decline with words'
 interface Scene {
   first: Call
   answerFirst: Answer
-  when: 'before the cut' | 'after the retried reply'
+  when: 'before the cut' | 'during the retry' | 'after the retried reply'
+  between?: Call[]
   retried: Call[]
   answerRest?: Answer
 }
@@ -158,6 +159,20 @@ async function run(scene: Scene): Promise<Run> {
       await pause(40)
     }
     request.options.onStreamingFallback?.()
+    if (scene.when === 'during the retry') {
+      cards.get(OLD)?.(scene.answerFirst)
+      await pause(40)
+    }
+    if (scene.between !== undefined) {
+      for (const [index, call] of scene.between.entries()) {
+        const block = createAssistantMessage({ content: [{ type: 'tool_use', id: `tu_between_${index + 1}`, name: call.name, input: call.input }] as never })
+        block.message.id = 'msg_between'
+        block.message.stop_reason = null
+        yield block as never
+      }
+      await pause(40)
+      request.options.onStreamingFallback?.()
+    }
     for (const [index, call] of scene.retried.entries()) {
       const block = createAssistantMessage({ content: [{ type: 'tool_use', id: idOf(index), name: call.name, input: call.input }] as never })
       block.message.id = 'msg_retried'
@@ -240,6 +255,35 @@ section('the retried reply puts a shell command before the same read, so the rea
 {
   const settled = await run({ first: READ_A, answerFirst: 'allow', when: 'before the cut', retried: [SHELL, READ_A] })
   check('the read is not asked again on the settled road either', settled.asked.filter(id => id === idOf(1)).length === 0 && settled.asked.includes(B) && settled.ran.includes(idOf(1)) && (settled.results.get(idOf(1)) ?? '').includes(`Read ran for ${idOf(1)}`), brief(settled))
+}
+
+section('a plain No is a stop: it stands through the retry, and the retried reply puts nothing to the operator and runs nothing')
+{
+  const stopped = (r: Run): boolean => r.asked.length === 1 && r.asked[0] === OLD && r.ran.length === 0 && r.requests === 1 && r.turnAborted && r.texts.includes(INTERRUPT_MESSAGE_FOR_TOOL_USE)
+  const other = await run({ first: READ_A, answerFirst: 'decline', when: 'before the cut', retried: [READ_B] })
+  check('declined before the cut, the retried reply asks for another read: no second card, nothing run, the turn stopped, that read answered by the line a stopped action gets', stopped(other) && (other.results.get(B) ?? '').includes(CANCEL_MESSAGE), brief(other))
+  const same = await run({ first: READ_A, answerFirst: 'decline', when: 'before the cut', retried: [READ_A] })
+  check('the retried reply asks for the declined read again: it is answered by the declination and the turn stops', stopped(same) && (same.results.get(B) ?? '').includes(REJECT_MESSAGE), brief(same))
+  const both = await run({ first: READ_A, answerFirst: 'decline', when: 'before the cut', retried: [READ_B, READ_A] })
+  check('another read before the declined one: the first gets the stopped line, the second the declination, neither a card', stopped(both) && (both.results.get(B) ?? '').includes(CANCEL_MESSAGE) && (both.results.get(idOf(1)) ?? '').includes(REJECT_MESSAGE), brief(both))
+  const shell = await run({ first: READ_A, answerFirst: 'decline', when: 'before the cut', retried: [SHELL, READ_A] })
+  check('a shell command before the declined read: neither is put to the operator or run, and both get the stopped line', stopped(shell) && (shell.results.get(B) ?? '').includes(CANCEL_MESSAGE) && (shell.results.get(idOf(1)) ?? '').includes(CANCEL_MESSAGE), brief(shell))
+  const during = await run({ first: READ_A, answerFirst: 'decline', when: 'during the retry', retried: [READ_B] })
+  check('the No lands on the kept card while the reply is being asked for again, before another read arrives: that read gets no card and does not run', stopped(during) && (during.results.get(B) ?? '').includes(CANCEL_MESSAGE), brief(during))
+  const duringSame = await run({ first: READ_A, answerFirst: 'decline', when: 'during the retry', retried: [READ_A] })
+  check('the same, and the retried reply asks for the declined read: the declination answers it', stopped(duringSame) && (duringSame.results.get(B) ?? '').includes(REJECT_MESSAGE), brief(duringSame))
+  const worded = await run({ first: READ_A, answerFirst: 'decline with words', when: 'before the cut', retried: [READ_B] })
+  check('a declination with words is no stop: another read in the retried reply is asked and runs, and the turn goes on', worded.asked.length === 2 && worded.ran.includes(B) && worded.requests === 2 && !worded.turnAborted, brief(worded))
+}
+
+section('the reply is cut a second time with the card still open: one card through both retries')
+{
+  const twice = await run({ first: READ_A, answerFirst: 'allow', when: 'after the retried reply', between: [READ_A], retried: [READ_A] })
+  check('one card, never withdrawn, and the read runs once for the last reply\'s call', twice.asked.length === 1 && twice.withdrawn.length === 0 && twice.ran.length === 1 && twice.ran[0] === B && !twice.results.has(OLD) && !twice.results.has('tu_between_1'), brief(twice))
+  const twiceNo = await run({ first: READ_A, answerFirst: 'decline', when: 'after the retried reply', between: [READ_A], retried: [READ_A] })
+  check('a No on that card declines the last reply\'s call and stops the turn', twiceNo.asked.length === 1 && twiceNo.ran.length === 0 && twiceNo.requests === 1 && twiceNo.turnAborted && (twiceNo.results.get(B) ?? '').includes(REJECT_MESSAGE), brief(twiceNo))
+  const answered = await run({ first: READ_A, answerFirst: 'allow', when: 'before the cut', between: [READ_A], retried: [READ_A] })
+  check('an answer given before the first cut serves the last reply\'s call: one card', answered.asked.length === 1 && answered.ran.includes(B) && answered.requests === 2, brief(answered))
 }
 
 console.log(`\nprove-early-read-ask-kept: ${checks} checks, ${failures} failed`)
