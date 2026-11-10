@@ -26,6 +26,7 @@ const { isSaturnSelfWake } = await import('../../src/daemon/saturn.ts')
 const { tickSaturnOnce } = await import('../../src/daemon/saturnTicker.ts')
 const { wakeDelaySpelling } = await import('../../src/utils/messages/noticeRows.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const snapshot = await import('../../src/services/concourse/concourseSnapshot.ts')
 enableConfigs()
 
 const dir = process.env.MERCURY_DAEMON_DIR!
@@ -342,6 +343,41 @@ console.log('P8 what the session armed for itself comes back for it: a wake and 
   check('at their minute the ticker fires both into the parked session by the door that re-opens it (parked: true), nothing held and nothing missed', report.fired === 2 && report.held === 0 && report.missed === 0 && reopened.length === 2 && reopened.every(d => d.sessionId === sid('11') && d.parked === true) && reopened.map(d => d.prompt).join('|') === 'carry on with the next unit|the standing beat', j({ report, reopened }))
   const daemon = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'main.ts'), 'utf8')
   check("the daemon's delivery turns that into the session's own resume", daemon.includes('...(d.parked ? { resumeSessionId: d.sessionId } : { targetSessionId: d.sessionId }),'))
+  killed.length = 0
+}
+
+console.log('P9 a crewmate waiting to retry by itself is work still owed: the quit does not park the session over it, the park door says why, and a stop is never refused')
+{
+  const WAITING = '1 crewmate is waiting to retry by itself'
+  const quit = seedMidTurn('18')
+  seat(quit)
+  quitWhileItWorks(quit)
+  owes.set(quit, WAITING)
+  turnEnds(quit)
+  const early = await idleEdge(quit)
+  const standing = rec(quit)!
+  check('at the turn end the runner refuses with it: not parked, the request stands, and the row carries no words about it (a live row, as before)', !early && standing.parkedAt === undefined && standing.parkRequestedAt !== undefined && standing.parkRefused === undefined && !String(snapshot.concourseNowLabel(standing, { needsYou: false, alive: true }, Date.now())).includes('park refused'), j({ early, label: snapshot.concourseNowLabel(standing, { needsYou: false, alive: true }, Date.now()) }))
+  owes.delete(quit)
+  check('once nothing waits the same request parks it at the next turn end', (await idleEdge(quit)) && rec(quit)?.parkedAt !== undefined)
+
+  const idle = seedMidTurn('19')
+  seat(idle)
+  turnEnds(idle)
+  owes.set(idle, WAITING)
+  const door = await sup.retireConcourseSession(sid('19'), THIS_WINDOW, roster, dir, { exitWaitMs: 2_000 })
+  const refusedRow = rec(idle)!
+  check("the park door on an idle row is refused, and the row's cell says it in the ruled words", door.outcome === 'refused' && door.reason === WAITING && refusedRow.parkedAt === undefined && snapshot.concourseNowLabel(refusedRow, { needsYou: false, alive: true }, Date.now()) === `park refused — ${WAITING}`, j({ door, label: snapshot.concourseNowLabel(refusedRow, { needsYou: false, alive: true }, Date.now()) }))
+  killed.length = 0
+  const asksBefore = askedOf(idle)
+  const stop = sup.stopConcourseSession(sid('19'), 'operator', roster, dir)
+  runnerLeft(idle)
+  const stopped = sup.completeRequestedStop(idle, dir)
+  const parkedAfterStop = sup.parkConcourseSession(sid('19'), THIS_WINDOW, roster, dir)
+  check('a stop is taken all the same, and the stopped session parks with no fence asked: the refusal is never a dead end', stop.outcome === 'applied' && stopped && parkedAfterStop.outcome === 'applied' && rec(idle)?.parkedAt !== undefined && askedOf(idle) === asksBefore, j({ stop, stopped, parkedAfterStop, asked: askedOf(idle) }))
+  const daemon = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'main.ts'), 'utf8')
+  const parkArm = daemon.slice(daemon.indexOf("if (action === 'park') {"), daemon.indexOf("if (action === 'park') {") + 700)
+  check("the daemon's park door asks the fence only of a live runner that is between turns; every other row parks by its record", parkArm.includes('!turnInFlightOf(rec) && workerPidAlive(rec)') && parkArm.includes('await retireConcourseSession(sessionId, by, roster)') && parkArm.includes('parkConcourseSession(sessionId, by, roster ?? undefined)'))
+  owes.delete(idle)
   killed.length = 0
 }
 
