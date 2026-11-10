@@ -294,14 +294,6 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
           },
         ]),
   ]
-  let paintedRows = 1
-  const firstClipped = sections.findIndex(section => {
-    const cost = sectionRows(section.rows.length)
-    if (paintedRows + cost > shedCeiling) return true
-    paintedRows += cost
-    return false
-  })
-  if (firstClipped >= 0) sections.splice(firstClipped)
   const rows: HelmRow[] = []
   for (const s of sections) for (const r of s.rows) if ('row' in r && r.row !== undefined) rows.push(r.row)
   return {

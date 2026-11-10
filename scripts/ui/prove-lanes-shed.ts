@@ -73,7 +73,7 @@ t('solo order: work · recent · mission · workbench · next · files · saturn
 t('busy order: crew · work · runs · workbench · files · saturn · vitals', /: \[crewSection\(\), workSection\(\), runsSection\(\), workbenchSection\(\), filesSection\(\), saturnSection\(\), glanceSection\(\)\]/.test(model))
 t('an empty section is never painted (recent and next answer null without rows)', (model.match(/if \(rows\.length === 0\) return null/g) ?? []).length >= 2)
 
-t('shed pointer is display-only (no row-model entry)', /pointer: shed\.length > 0 && \(!boxed \|\| spent < shedCeiling\) \? shedPointerOf\(shed\) : null/.test(model) && /\{model\.pointer !== null \? \(/.test(rail) && !/pointer[^\n]*row:/.test(model))
+t('shed pointer is display-only (no row-model entry)', /pointer: shed\.length > 0 \? shedPointerOf\(shed\) : null/.test(model) && /\{model\.pointer !== null \? \(/.test(rail) && !/pointer[^\n]*row:/.test(model))
 
 t('FullscreenLayout measures the lanes wrapper itself', /const \[lanesRows, setLanesRows\] = useState<number \| undefined>\(undefined\)/.test(fsl) && /if \(height > 0 && height !== lanesRows\) setLanesRows\(height\)/.test(fsl) && /availRows=\{lanesRows\}/.test(fsl))
 
