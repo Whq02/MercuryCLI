@@ -72,3 +72,30 @@ export function distProvenanceLine(p: DistProvenance): string {
       return `[SKIP] dist/mercury.mjs was built from another tree (dist ${p.buildTree.slice(0, 12)} · checkout ${p.contentTree.slice(0, 12)}${p.committed ? '' : ', uncommitted changes'}) — stale build; dist pins skipped (rebuild or run in the pool for the strict leg)`
   }
 }
+
+const NOT_A_BUILD_INPUT = /^(docs\/|design-system\/|scripts\/(?!vendor\/)|field\/|\.claude\/|\.mercury\/|\.github\/|[^/]+\.md$)/
+
+export function distBuildInputs(root: string): { stale: boolean; line: string } {
+  const p = distProvenance(root)
+  switch (p.kind) {
+    case 'own':
+      return { stale: false, line: `dist/mercury.mjs is this checkout's build (tree ${p.tree.slice(0, 12)}, ${p.committed ? 'the committed tree' : 'uncommitted content'})` }
+    case 'absent':
+      return { stale: false, line: 'dist/mercury.mjs is not built — a writer that drives the bundle says so itself' }
+    case 'no-manifest':
+      return { stale: false, line: "dist/manifest.json is missing or unreadable — the bundle's tree is unknown and cannot be compared with the checkout" }
+    case 'no-build-tree':
+      return { stale: false, line: 'dist/manifest.json carries no buildTree (a build outside git) — the bundle cannot be compared with the checkout' }
+    case 'no-git':
+      return { stale: false, line: `the checkout's tree could not be read (${p.detail}) — the bundle cannot be compared with it` }
+    case 'other-tree': {
+      const trees = `dist ${p.buildTree.slice(0, 12)} · checkout ${p.contentTree.slice(0, 12)}${p.committed ? '' : ', uncommitted changes'}`
+      const diff = runGit(['diff-tree', '-r', '--name-only', p.buildTree, p.contentTree], { cwd: root, timeoutMs: GIT_TIMEOUT_MS })
+      if (diff.state !== 'ok') return { stale: true, line: `dist/mercury.mjs was built from a tree this repository cannot compare with the checkout (${trees}; ${gitMiss(diff)})` }
+      const changed = diff.stdout.split('\n').filter(Boolean)
+      const inputs = changed.filter(path => !NOT_A_BUILD_INPUT.test(path))
+      if (inputs.length === 0) return { stale: false, line: `dist/mercury.mjs was built from another tree (${trees}); the ${changed.length} changed path${changed.length === 1 ? '' : 's'} are none of the build's inputs (docs, proofs, stored frames, root notes)` }
+      return { stale: true, line: `dist/mercury.mjs was built from another tree (${trees}); ${inputs.length} build input${inputs.length === 1 ? '' : 's'} changed since: ${inputs.slice(0, 5).join(', ')}${inputs.length > 5 ? ', …' : ''}` }
+    }
+  }
+}

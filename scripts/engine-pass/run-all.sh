@@ -3,7 +3,7 @@
 # gate-watch: src/ink/** src/ink.ts
 # gate-watch: src/utils/staticRender.tsx src/components/mercury-ui/** assets/splash/**
 # gate-watch: scripts/ui/** scripts/critters/fixtures/** scripts/critters/zzzFrames.ts scripts/engine-connector/fixtures/**
-# gate-watch: design-system/live/** scripts/lib/ptyRecorder.ts scripts/lib/firstRunSeed.ts
+# gate-watch: design-system/live/** scripts/lib/ptyRecorder.ts scripts/lib/firstRunSeed.ts scripts/lib/distProvenance.ts
 # gate-watch: scripts/engine-connector/prove-crew-token-rows.ts scripts/critters/prove-critter-sleep.ts scripts/visual-contract/baseline-capture.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

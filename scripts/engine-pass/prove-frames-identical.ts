@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
+import { distBuildInputs } from '../lib/distProvenance.ts'
 import { firstDivergence, neutralizeGrid, type StoredGrid } from '../ui/visualBaseline.ts'
 import { ROOT, argument, git, scratch } from './support.ts'
 
@@ -167,6 +168,14 @@ for (const path of fixtureJson) {
 if (argument('--only') === 'historical') {
   console.log(`[PASS] ${historical.size} historical declarations verified; current-frame renders not run`)
   process.exit(0)
+}
+if (process.env.MERCURY_GATE_PREBUILT !== '1' && process.env.MERCURY_STALE_DIST_OK !== '1') {
+  const bundle = distBuildInputs(ROOT)
+  console.log(`BUNDLE ${bundle.line}`)
+  if (bundle.stale) {
+    console.log('[FAIL] frame identity not read: the writers would paint another build than the tree under proof — rebuild (bun run build.ts), or set MERCURY_STALE_DIST_OK=1 to read an older bundle on purpose')
+    process.exit(1)
+  }
 }
 const hashes = new Map([...currentFrames, ...historical].map(path => [path, createHash('sha256').update(readFileSync(join(ROOT, path))).digest('hex')]))
 const only = argument('--only')
