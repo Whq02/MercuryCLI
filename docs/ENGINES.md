@@ -836,9 +836,10 @@ served-window load and every crewmate or workflow seat) carries the same
 `num_ctx` and `num_batch`, so the scheduler keeps one runner and its prompt
 cache for the whole session; under `server default` a runner the server
 already holds at a window that fits the turn is adopted without reloading,
-and the row names it as the server's; under `auto`, a number or the
-Modelfile's figure the session's own window is honoured, and a runner held
-at a smaller or a larger window is reloaded once at it; LM Studio takes it
+and the row names it as the server's; when the window is `auto`, a number
+you set or the Modelfile's own figure, the request carries the session's
+window, and a runner held at a smaller or a larger one is reloaded once;
+LM Studio takes it
 when the model is loaded (`POST /api/v1/models/load {model, context_length}`);
 vLLM and llama.cpp fix their window at server start, so the row shows the
 served figure and reads as not applicable. The pre-warm sends the first

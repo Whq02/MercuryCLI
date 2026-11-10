@@ -164,23 +164,6 @@ export function settlePendingAtBoundary(
   }
 }
 
-export type SeatReceiptState = 'applied' | 'queued' | 'no-op' | 'refused'
-
-export function seatThenFold(
-  session: { carrier: 'in-process' | 'daemon'; sendWords: (text: string) => Promise<unknown> },
-  seat: (settled?: (state: SeatReceiptState) => void) => void,
-  park: (command: string) => void,
-): void {
-  if (session.carrier === 'daemon') {
-    seat(state => {
-      if (state === 'applied') void session.sendWords('/compact')
-    })
-    return
-  }
-  park('/compact')
-  seat()
-}
-
 export function crossProviderNote(next: string | null): string {
   const family = providerFamilyOfSetting(next)
   if (family === 'openai') {
