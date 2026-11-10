@@ -887,16 +887,12 @@ export async function runHeadless(
       activeAgents: agents,
       allAgents: agents,
     })
-    if (restored.agentType && restored.agentDefinition) {
-      if (
-        !isBuiltInAgent(restored.agentDefinition) &&
-        options.systemPrompt === undefined
-      ) {
-        const agentPrompt = restored.agentDefinition.getSystemPrompt()
-        if (agentPrompt) options.systemPrompt = agentPrompt
-      }
-      saveAgentSetting(restored.agentType)
-    }
+    if (restored.agentType && restored.agentDefinition) saveAgentSetting(restored.agentType)
+  }
+  const mainAgent = agents.find(agent => agent.agentType === getMainThreadAgentType())
+  if (mainAgent !== undefined && !isBuiltInAgent(mainAgent) && options.systemPrompt === undefined) {
+    const agentPrompt = mainAgent.getSystemPrompt()
+    if (agentPrompt) options.systemPrompt = agentPrompt
   }
   if (options.advise === true) saveAdvisorSwitch(true)
 
