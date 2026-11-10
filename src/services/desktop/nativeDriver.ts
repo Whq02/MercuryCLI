@@ -7,6 +7,7 @@ import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { voiceCheckoutRoot } from '../voice/voicePack.js'
 import { computerAccessWords } from './computerAccess.js'
+import { bundleWebEngine } from './webEngine.js'
 import {
   desktopAbortedAnswer,
   displaysFingerprint,
@@ -166,6 +167,7 @@ function application(raw: DesktopAddonApplication, identity: string): DesktopApp
   const b = raw.bounds
   const bounds: DesktopBounds | null =
     b && [b.x, b.y, b.width, b.height].every(n => Number.isFinite(n)) ? { x: b.x, y: b.y, width: b.width, height: b.height } : null
+  const webEngine = typeof raw.bundlePath === 'string' && raw.bundlePath !== '' ? bundleWebEngine(raw.bundlePath) : undefined
   return {
     identity,
     name: typeof raw.name === 'string' && raw.name !== '' ? raw.name : identity,
@@ -174,6 +176,7 @@ function application(raw: DesktopAddonApplication, identity: string): DesktopApp
     bounds,
     windowId: typeof raw.windowId === 'string' && raw.windowId !== '' ? raw.windowId : null,
     tty: typeof raw.tty === 'string' && raw.tty !== '' ? raw.tty : null,
+    ...(webEngine !== undefined ? { webEngine } : {}),
   }
 }
 
@@ -298,6 +301,7 @@ class NativeDesktopDriver implements DesktopDriver {
   private closed = false
   private grantsRequested = false
   private readonly webRequests = new Map<string, number>()
+  private readonly pageWindows = new Set<string>()
 
   readonly captureRegion?: DesktopDriver['captureRegion']
 
@@ -749,10 +753,13 @@ class NativeDesktopDriver implements DesktopDriver {
       elements.push({ depth: e.depth, role: e.role, title: typeof e.title === 'string' && e.title !== '' ? e.title : null, value: typeof e.value === 'string' && e.value !== '' ? e.value : null, frame, ...(typeof e.focused === 'boolean' ? { focused: e.focused } : {}), ...(typeof e.offscreen === 'boolean' ? { offscreen: e.offscreen } : {}) })
     }
     const webContent = raw.webContent === 'absent' && Date.now() - (this.webRequests.get(requestKey) ?? 0) < 2000 ? 'pending' : raw.webContent
+    const windowKey = `${requestKey}:${app.windowId ?? ''}`
+    if (webContent === 'available') this.pageWindows.add(windowKey)
     return { ok: true, value: {
       elements, ...(raw.focused !== undefined ? { focused: raw.focused ? elements.pop()! : null } : {}), truncated: raw.truncated === true, reason: typeof raw.reason === 'string' && raw.reason !== '' ? raw.reason : null,
       ...(raw.scope === 'window' || raw.scope === 'app' ? { scope: raw.scope } : {}),
       ...(webContent === 'available' || webContent === 'absent' || webContent === 'pending' ? { webContent } : {}),
+      ...(raw.webSurface === true || this.pageWindows.has(windowKey) ? { webSurface: true } : {}),
     } }
   }
 

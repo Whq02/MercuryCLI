@@ -33,6 +33,7 @@ import {
   type DesktopValueReceipt,
   type DesktopClickablePoint,
 } from './driver.js'
+import { bundleWebEngine } from './webEngine.js'
 
 interface FakeTreeNode {
   role: string
@@ -163,6 +164,7 @@ function applicationProblem(value: unknown, at: string): string | null {
   if (!(value.title === null || value.title === undefined || isText(value.title))) return `${at}.title must be a string or null`
   if (!(value.windowId === null || value.windowId === undefined || (isText(value.windowId) && value.windowId !== ''))) return `${at}.windowId must be a non-empty string or null`
   if (!(value.tty === null || value.tty === undefined || (isText(value.tty) && value.tty !== ''))) return `${at}.tty must be a non-empty string or null`
+  if (!(value.bundlePath === null || value.bundlePath === undefined || (isText(value.bundlePath) && value.bundlePath !== ''))) return `${at}.bundlePath must be a non-empty string or null`
   return boundsProblem(value.bounds ?? null, `${at}.bounds`)
 }
 
@@ -270,6 +272,7 @@ function fakeSceneProblem(value: unknown): string | null {
 
 function applicationFrom(value: Record<string, unknown>): DesktopApplication {
   const bounds = value.bounds
+  const webEngine = isText(value.bundlePath) && value.bundlePath !== '' ? bundleWebEngine(value.bundlePath) : undefined
   return {
     identity: value.identity as string,
     name: value.name as string,
@@ -278,6 +281,7 @@ function applicationFrom(value: Record<string, unknown>): DesktopApplication {
     bounds: isRecord(bounds) ? { x: bounds.x as number, y: bounds.y as number, width: bounds.width as number, height: bounds.height as number } : null,
     windowId: isText(value.windowId) && value.windowId !== '' ? value.windowId : null,
     tty: isText(value.tty) && value.tty !== '' ? value.tty : null,
+    ...(webEngine !== undefined ? { webEngine } : {}),
   }
 }
 

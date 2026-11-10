@@ -207,6 +207,11 @@ export function isBrowserApplication(app: DesktopApplication): boolean {
   return BROWSERS.test(`${app.identity} ${app.name}`)
 }
 
+export function bearsPage(app: DesktopApplication, tree: DesktopTree): boolean | undefined {
+  if (app.webEngine === true || tree.webSurface === true) return true
+  return app.webEngine === false ? false : undefined
+}
+
 export function pageContentNote(app: DesktopApplication, tree?: DesktopTree): string {
   if (!isBrowserApplication(app)) return ''
   if (tree?.webContent === 'absent') return 'this application exposes no page content to the tree — use a screenshot; a missing page element is not a confirmed absence'

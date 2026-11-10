@@ -35,7 +35,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{ClickablePointAnswer, clipped, covered_words, hidden_by, number_words, same_frame, wheel_words, windows_role, ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, ScrollAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, ROAD_ACTION, ROAD_WHEEL, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED, WHEEL_FAILED};
+use crate::{ClickablePointAnswer, clipped, covered_words, hidden_by, number_words, same_frame, wheel_words, windows_role, ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, ScrollAnswer, TreeAnswer, TreeElement, ValueAnswer, ELEMENT_NOT_UNIQUE, ROAD_ACTION, ROAD_WHEEL, SCROLL_SETTLE_MS, SCROLL_SETTLE_READS, SCROLL_UNSUPPORTED, SCROLL_WHEEL_LINES, SCROLL_WHEEL_STEPS, SECURE_NOT_READ_BACK, TREE_BUDGET_MS, TREE_VALUE_CHARS, VALUE_UNSUPPORTED, WEB_FRAMEWORKS, WHEEL_FAILED};
 
 const OBSERVATION_DEPTH: u32 = 3;
 const CLICKABLE_SCAN_STEP: f64 = 2.0;
@@ -258,7 +258,9 @@ fn application_of(window: HWND) -> ApplicationAnswer {
         return ApplicationAnswer::refused("the frontmost window's owner process could not be read");
     };
     let (identity, name) = identity_of(&image);
-    ApplicationAnswer::found(identity, Some(name), Some(pid), window_title(window), window_bounds(window))
+    let mut answer = ApplicationAnswer::found(identity, Some(name), Some(pid), window_title(window), window_bounds(window));
+    answer.bundle_path = image.rsplit_once(['\\', '/']).map(|(folder, _)| folder.to_string());
+    answer
 }
 
 pub fn frontmost_application() -> ApplicationAnswer {
@@ -403,6 +405,7 @@ struct TreeWalk<'a> {
     elements: Vec<TreeElement>,
     truncated: bool,
     timed_out: bool,
+    web_surface: bool,
 }
 
 impl TreeWalk<'_> {
@@ -425,6 +428,7 @@ impl TreeWalk<'_> {
                 return;
             }
             self.elements.push(tree_row(&element, depth));
+            self.web_surface |= unsafe { element.CachedFrameworkId() }.ok().is_some_and(|id| WEB_FRAMEWORKS.contains(&id.to_string().as_str()));
             if depth < self.max_depth {
                 for child in self.children_of(&element).into_iter().rev() {
                     stack.push((child, depth + 1));
@@ -482,7 +486,8 @@ fn focused_row(automation: &IUIAutomation, walker: &IUIAutomationTreeWalker, cac
 fn tree_answer(walk: TreeWalk, focused: Option<TreeElement>, scope: &str, observation: bool) -> TreeAnswer {
     let web_content = if observation { None } else if walk.elements.iter().any(|element| element.role.starts_with("AXWebArea")) { Some("available") } else if walk.truncated { None } else { Some("absent") };
     let reason = if walk.timed_out { Some(format!("the walk stopped after {} ms", TREE_BUDGET_MS)) } else { None };
-    TreeAnswer { elements: walk.elements, focused, truncated: walk.truncated, reason, scope: Some(scope.to_string()), web_content: web_content.map(str::to_string), web_accessibility: None }
+    let web_surface = if walk.web_surface && !observation { Some(true) } else { None };
+    TreeAnswer { elements: walk.elements, focused, truncated: walk.truncated, reason, scope: Some(scope.to_string()), web_content: web_content.map(str::to_string), web_accessibility: None, web_surface }
 }
 
 pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str, observation: bool) -> TreeAnswer {
@@ -506,7 +511,7 @@ pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str,
         let Some(window) = front else {
             return TreeAnswer::refused("the focused window is unavailable");
         };
-        let mut walk = TreeWalk { walker: &walker, cache: &cache, started, budget, max_depth: OBSERVATION_DEPTH, max_count: OBSERVATION_COUNT as usize, depth_truncates: false, elements: Vec::new(), truncated: false, timed_out: false };
+        let mut walk = TreeWalk { walker: &walker, cache: &cache, started, budget, max_depth: OBSERVATION_DEPTH, max_count: OBSERVATION_COUNT as usize, depth_truncates: false, elements: Vec::new(), truncated: false, timed_out: false, web_surface: false };
         walk.visit(window.clone(), 0);
         let focused = focused_row(&automation, &walker, &cache, pid, Some(&window));
         return tree_answer(walk, focused, "window", true);
@@ -526,7 +531,7 @@ pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str,
         return TreeAnswer::refused("the application answered no accessibility element (no such process, or it is not responding)");
     }
     let name = process_image(pid as u32).map(|image| identity_of(&image).1);
-    let mut walk = TreeWalk { walker: &walker, cache: &cache, started, budget, max_depth, max_count: max_count as usize, depth_truncates: true, elements: vec![TreeElement { depth: 0, role: "AXApplication".to_string(), title: name, value: None, frame: None, focused: None, nth: None, offscreen: None }], truncated: false, timed_out: false };
+    let mut walk = TreeWalk { walker: &walker, cache: &cache, started, budget, max_depth, max_count: max_count as usize, depth_truncates: true, elements: vec![TreeElement { depth: 0, role: "AXApplication".to_string(), title: name, value: None, frame: None, focused: None, nth: None, offscreen: None }], truncated: false, timed_out: false, web_surface: false };
     for window in windows {
         if walk.truncated {
             break;

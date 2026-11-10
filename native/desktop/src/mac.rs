@@ -374,6 +374,12 @@ unsafe fn app_facts(app: &AnyObject) -> (Option<String>, Option<String>, i32, is
     (identity.map(|s| s.to_string()), name.map(|s| s.to_string()), pid, policy)
 }
 
+unsafe fn bundle_path(app: &AnyObject) -> Option<String> {
+    let url: Option<Retained<AnyObject>> = msg_send![app, bundleURL];
+    let path: Option<Retained<NSString>> = msg_send![&*url?, path];
+    path.map(|s| s.to_string())
+}
+
 unsafe fn window_facts(pid: i32, wanted: Option<u32>, exact: Option<&BoundsRecord>) -> (Option<String>, Option<BoundsRecord>) {
     let options = if wanted.is_some() { WINDOW_LIST_EXCLUDE_DESKTOP_ELEMENTS } else { WINDOW_LIST_OPTION_ON_SCREEN_ONLY | WINDOW_LIST_EXCLUDE_DESKTOP_ELEMENTS };
     let list = CGWindowListCopyWindowInfo(options, NULL_WINDOW_ID);
@@ -523,6 +529,7 @@ pub fn frontmost_application() -> ApplicationAnswer {
         let (window_id, bounds, title) = focused_window_facts(pid);
         let mut answer = ApplicationAnswer::found(identity, name, Some(pid as u32), title, bounds);
         answer.window_id = window_id;
+        answer.bundle_path = bundle_path(&*app);
         answer
     })
 }
@@ -697,7 +704,7 @@ pub fn accessibility_observation(pid: i32) -> TreeAnswer {
         let focused_element = if inside && !focused.is_null() { Some(tree_element(focused, 0, focused)) } else { None };
         if !focused.is_null() { CFRelease(focused); }
         CFRelease(window);
-        TreeAnswer { elements, focused: focused_element, truncated, reason: None, scope: Some("window".to_string()), web_content: None, web_accessibility: None }
+        TreeAnswer { elements, focused: focused_element, truncated, reason: None, scope: Some("window".to_string()), web_content: None, web_accessibility: None, web_surface: None }
     })
 }
 
@@ -775,7 +782,7 @@ pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str,
         if !focused.is_null() { CFRelease(focused); }
         if !window.is_null() { CFRelease(window); }
         let web_content = if elements.iter().any(|element| element.role.starts_with("AXWebArea")) { Some("available") } else if requested { Some("pending") } else if truncated { None } else { Some("absent") };
-        TreeAnswer { elements, focused: focused_element, truncated, reason, scope: Some(scope.to_string()), web_content: web_content.map(str::to_string), web_accessibility: Some(requested) }
+        TreeAnswer { elements, focused: focused_element, truncated, reason, scope: Some(scope.to_string()), web_content: web_content.map(str::to_string), web_accessibility: Some(requested), web_surface: None }
     })
 }
 

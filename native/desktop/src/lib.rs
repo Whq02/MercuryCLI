@@ -122,16 +122,17 @@ pub struct ApplicationAnswer {
     pub bounds: Option<BoundsRecord>,
     pub window_id: Option<String>,
     pub tty: Option<String>,
+    pub bundle_path: Option<String>,
     pub reason: Option<String>,
 }
 
 impl ApplicationAnswer {
     pub fn refused(reason: &str) -> ApplicationAnswer {
-        ApplicationAnswer { identity: None, name: None, pid: None, title: None, bounds: None, window_id: None, tty: None, reason: Some(reason.to_string()) }
+        ApplicationAnswer { identity: None, name: None, pid: None, title: None, bounds: None, window_id: None, tty: None, bundle_path: None, reason: Some(reason.to_string()) }
     }
 
     pub fn found(identity: String, name: Option<String>, pid: Option<u32>, title: Option<String>, bounds: Option<BoundsRecord>) -> ApplicationAnswer {
-        ApplicationAnswer { identity: Some(identity), name, pid, title, bounds, window_id: None, tty: None, reason: None }
+        ApplicationAnswer { identity: Some(identity), name, pid, title, bounds, window_id: None, tty: None, bundle_path: None, reason: None }
     }
 }
 
@@ -157,11 +158,12 @@ pub struct TreeAnswer {
     pub scope: Option<String>,
     pub web_content: Option<String>,
     pub web_accessibility: Option<bool>,
+    pub web_surface: Option<bool>,
 }
 
 impl TreeAnswer {
     pub fn refused(reason: &str) -> TreeAnswer {
-        TreeAnswer { elements: Vec::new(), focused: None, truncated: false, reason: Some(reason.to_string()), scope: None, web_content: None, web_accessibility: None }
+        TreeAnswer { elements: Vec::new(), focused: None, truncated: false, reason: Some(reason.to_string()), scope: None, web_content: None, web_accessibility: None, web_surface: None }
     }
 }
 

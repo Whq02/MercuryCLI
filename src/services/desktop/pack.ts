@@ -213,6 +213,7 @@ export interface DesktopAddonApplication {
   bounds?: DesktopAddonBounds | null
   windowId?: string | null
   tty?: string | null
+  bundlePath?: string | null
   reason?: string | null
 }
 
@@ -246,6 +247,7 @@ export interface DesktopAddonTree {
   scope?: string | null
   webContent?: string | null
   webAccessibility?: boolean | null
+  webSurface?: boolean | null
 }
 
 export interface DesktopAddonScroll {
