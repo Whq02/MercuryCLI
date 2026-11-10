@@ -96,10 +96,12 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
         ...Object.fromEntries(Object.entries(bareEnv).filter(([name]) => !name.startsWith('BASH_FUNC_') && name !== 'MERCURY_TMPDIR')),
         TMPDIR: temp,
       })
-      const drive = async (name: string, mode: string, temp: string, signal?: NodeJS.Signals, words: string[] = []): Promise<{ code: number | null; signal: NodeJS.Signals | null; made: string[]; output: string }> => {
+      type Seen = { tmp: string; productTmp: string; home: string; probe: string; colour: string; made: string }
+      type Facts = { pid: number; owner: string; own: { tmp: string; productTmp: string; home: string }; child: Seen; nested?: { tmp: string; namedStood: boolean } }
+      const drive = async (name: string, mode: string, temp: string, signal?: NodeJS.Signals, words: string[] = [], alter: (env: Record<string, string>) => Record<string, string> = env => env): Promise<{ code: number | null; signal: NodeJS.Signals | null; made: string[]; output: string; pid: number | undefined; facts: Facts | undefined }> => {
         mkdirSync(temp, { recursive: true })
         const receipt = join(world, `single-${name}`)
-        const child = spawn(process.execPath, [subject, receipt, mode, ...words], { cwd: root, env: singleEnv(temp), stdio: ['ignore', 'pipe', 'pipe'] })
+        const child = spawn(process.execPath, [subject, receipt, mode, ...words], { cwd: root, env: alter(singleEnv(temp)), stdio: ['ignore', 'pipe', 'pipe'] })
         let output = ''
         child.stdout.on('data', b => { output += b })
         child.stderr.on('data', b => { output += b })
@@ -109,7 +111,9 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
           while (!existsSync(`${receipt}.ready`) && child.exitCode === null && Date.now() < until) await new Promise(r => setTimeout(r, 25))
           child.kill(signal)
         }
-        return { ...(await exited), made: paths(receipt), output }
+        const ended = await exited
+        const facts = existsSync(`${receipt}.facts`) ? JSON.parse(readFileSync(`${receipt}.facts`, 'utf8')) as Facts : undefined
+        return { ...ended, made: paths(receipt), output, pid: child.pid, facts }
       }
       const isRunRoot = (path: string, base: string): boolean => dirname(path) === base && basename(path).startsWith('mercury-proof-run.')
       for (const mode of ['natural', 'exit'] as const) {
@@ -119,6 +123,36 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
         check(`single ${mode}: the proof's temp dir is one run root under the inherited one`, runRoot !== undefined && isRunRoot(runRoot, temp), `${runRoot} under ${temp}`)
         check(`single ${mode}: a named mkdtempSync import, a plain mkdir and a shell mktemp all land inside it`, made.length === 3 && made.every(p => dirname(p) === runRoot), JSON.stringify(made))
         check(`single ${mode}: nothing is left when the proof ends`, run.code === 0 && readdirSync(temp).length === 0, `rc=${run.code} left=${JSON.stringify(readdirSync(temp))} ${run.output}`)
+        check(`single ${mode}: the proof ran in the process its caller started, as the owner of its run root`, run.facts !== undefined && run.facts.pid === run.pid && run.facts.owner === String(run.pid), `started ${run.pid}, ran as ${run.facts?.pid}, owner ${JSON.stringify(run.facts?.owner)}`)
+        check(`single ${mode}: a child started with no env option reads the run root as its temp dir and as the product's temp root, as the proof does`, run.facts !== undefined && runRoot !== undefined && run.facts.child.tmp === runRoot && run.facts.child.productTmp === runRoot && run.facts.own.productTmp === runRoot, JSON.stringify(run.facts))
+        check(`single ${mode}: a folder that child made lies in the run root and leaves with it`, run.facts !== undefined && runRoot !== undefined && dirname(run.facts.child.made) === runRoot && !existsSync(run.facts.child.made), `${run.facts?.child.made}`)
+      }
+      {
+        const temp = join(short, 'bare')
+        const account = join(short, 'account')
+        mkdirSync(account)
+        const run = await drive('bare', 'natural', temp, undefined, [], env => {
+          const { MERCURY_CONFIG_DIR: _home, MERCURY_HOME: _other, MERCURY_LOCAL_PROBE_TARGETS: _probe, ...rest } = env
+          return { ...rest, HOME: account, NO_COLOR: '1' }
+        })
+        const runRoot = run.made[0]
+        const own = run.facts?.own.home ?? ''
+        check('single bare: with no config home given, the proof and a child started with no env option read one scratch home inside the run root', run.code === 0 && runRoot !== undefined && own !== '' && dirname(own) === runRoot && basename(own).startsWith('mercury-proof-home-') && run.facts?.child.home === own, `rc=${run.code} ${JSON.stringify(run.facts)} ${run.output}`)
+        check("single bare: that child reads no local-server probe target and none of the caller's colour switches", run.facts?.child.probe === 'none' && run.facts?.child.colour === '', JSON.stringify(run.facts?.child))
+        check("single bare: nothing was made under the account's own home, and the scratch home left with the run root", !existsSync(join(account, '.mercury')) && readdirSync(account).length === 0 && readdirSync(temp).length === 0, `account=${JSON.stringify(readdirSync(account))} temp=${JSON.stringify(readdirSync(temp))}`)
+      }
+      {
+        const temp = join(short, 'nest')
+        const run = await drive('nest', 'nest', temp)
+        const runRoot = run.made[0]
+        check('single nest: a proof started by the proof with no env option is a guest of the same run root, and its folders are the owner\'s to remove', run.code === 0 && runRoot !== undefined && run.facts?.nested?.tmp === runRoot && run.facts.nested.namedStood === true && readdirSync(temp).length === 0, `rc=${run.code} ${JSON.stringify(run.facts?.nested)} left=${JSON.stringify(readdirSync(temp))} ${run.output}`)
+      }
+      {
+        const temp = join(short, 'held')
+        const run = await drive('held', 'natural', temp, undefined, [], env => ({ ...env, MERCURY_SUITE_OF_ONE: 'held' }))
+        const [runRoot, ...made] = run.made
+        check('single held: asked to keep its first process image, the proof keeps it, still gets one run root as its own temp dir and the product\'s, lands its own folders there and removes it', run.code === 0 && run.facts?.owner === 'held' && run.facts.pid === run.pid && runRoot !== undefined && isRunRoot(runRoot, temp) && run.facts.own.productTmp === runRoot && made.length === 3 && made.every(p => dirname(p) === runRoot) && !existsSync(runRoot), `rc=${run.code} ${JSON.stringify(run.facts)} ${JSON.stringify(run.made)} ${run.output}`)
+        console.log(`     on that road a child started with no env option read ${run.facts?.child.tmp === runRoot ? 'the run root too' : `its temp dir as ${run.facts?.child.tmp}`}: what this runtime hands such a child is why the first image is replaced`)
       }
       {
         const temp = join(short, 'keep')
