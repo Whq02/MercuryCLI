@@ -224,6 +224,30 @@ await check('started-again-by-id', () => world('by-id', w => {
   assert.throws(() => w.run(old, 'old-3'), RUNNING('reviewer'), 'a retired seat is not started under a name a launch in flight has taken')
 }))
 
+await check('the-boards-own-addresses-name-no-seat', () => world('reserved', w => {
+  const peer = w.launch('peer', 'peer')
+  const refusals: Record<string, string> = {}
+  for (const [id, name, named] of [['a', 'main', true], ['b', 'Main', false], ['c', 'all', true], ['d', ' ALL ', false]] as const) {
+    try {
+      w.board.reserveEnrollment(w.main, { agent: id, name, named })
+      const seat: BoardPrincipal = { author: { sessionId: 'reserved', agentId: id, executionId: `${id}-1` }, name }
+      w.board.enroll(seat)
+      w.park(seat)
+      refusals[name] = ''
+    } catch (error) { refusals[name] = (error as Error).message }
+  }
+  w.say(peer, '@main the sha is ready')
+  w.say(peer, '@all the fold is published')
+  assert.deepEqual(w.woken(), [], 'no seat carries an address of the board, so a post to the lead or to the whole crew wakes no parked seat by its name')
+  assert.deepEqual(refusals, { main: 'Main is reserved for the lead.', Main: 'Main is reserved for the lead.', all: 'All is reserved for the whole crew.', ' ALL ': 'All is reserved for the whole crew.' })
+  assert.deepEqual(w.roster(), ['peer=peer:running'])
+  assert.throws(() => w.board.enroll({ author: { sessionId: 'reserved', agentId: 'e', executionId: 'e-1' }, name: 'main' }), { message: 'Main is reserved for the lead.' })
+  assert.throws(() => w.board.enroll({ author: { sessionId: 'reserved', agentId: 'all', executionId: 'f-1' }, name: 'anything' }), { message: 'All is reserved for the whole crew.' })
+  assert.throws(() => w.board.reserveEnrollment(w.main, { agent: 'g', name: 'owner', named: true }), { message: 'Owner is reserved for the operator.' })
+  w.board.enroll({ ...w.main, author: { ...w.main.author, executionId: 'lead-again' } })
+  assert.equal(w.board.seats().find(seat => seat.agent === 'main')?.name, 'main', 'the lead itself still enrolls under its own address')
+}))
+
 await check('the-launch-and-resume-roads', async () => {
   const bootstrap = await import('../../src/bootstrap/state.ts')
   bootstrap.setOriginalCwd(home); bootstrap.setCwdState(home); bootstrap.setProjectRoot(home)

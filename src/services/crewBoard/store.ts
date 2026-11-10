@@ -330,6 +330,8 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
         checkPrincipal(p)
         if (p.author.agentId !== 'main') throw new Error('Only the lead launches board seats.')
         if (!seat.agent || !seat.name.trim() || seat.agent.toLowerCase() === 'owner' || seat.name.trim().toLowerCase() === 'owner') throw new Error('Owner is reserved for the operator.')
+        if (seat.name.trim().toLowerCase() === 'main') throw new Error('Main is reserved for the lead.')
+        if (seat.agent.toLowerCase() === 'all' || seat.name.trim().toLowerCase() === 'all') throw new Error('All is reserved for the whole crew.')
         if (member(seat.agent)) throw new Error('This seat is already enrolled; use swarm_captain to appoint it.')
         if (seat.captain && !seat.team) throw new Error('A captain launch needs name and team.')
         const team = seat.team === undefined ? undefined : canonicalTeam(seat.team)
@@ -353,6 +355,8 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
     enroll(p) {
       if (p.author.sessionId !== sessionId) throw new Error('A board cannot enroll another session.')
       if (p.author.agentId.toLowerCase() === 'owner' || p.name.trim().toLowerCase() === 'owner') throw new Error('Owner is reserved for the operator.')
+      if (p.author.agentId !== 'main' && p.name.trim().toLowerCase() === 'main') throw new Error('Main is reserved for the lead.')
+      if (p.author.agentId.toLowerCase() === 'all' || p.name.trim().toLowerCase() === 'all') throw new Error('All is reserved for the whole crew.')
       transaction(() => {
         if (p.author.agentId === 'main') {
           const stored = db.prepare('SELECT execution FROM members WHERE agent = ?').get('main')?.execution
