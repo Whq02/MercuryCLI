@@ -1772,11 +1772,11 @@ export default class Ink {
     markConsoleReturned()
     if (this.wasRawMode) {
       stdin.setRawMode(true)
+      if (this.consoleReadHeld) {
+        this.consoleReadHeld = false
+        stdin.read(0)
+      }
       this.wasRawMode = false;
-    }
-    if (this.consoleReadHeld) {
-      this.consoleReadHeld = false
-      stdin.read(0)
     }
     this.reconcileSize();
     this.armScreenWatchdog();
@@ -1807,6 +1807,7 @@ export default class Ink {
       ;(this.options as { stdin: NodeJS.ReadStream }).stdin = fresh
       this.storedReadableListeners = null
       this.wasRawMode = false
+      this.consoleReadHeld = false
       markConsoleLent()
       try {
         if (this.currentTree !== null) this.render(this.currentTree)
