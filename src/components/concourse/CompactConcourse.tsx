@@ -25,7 +25,6 @@ import {
   compactLiveFoot,
   compactLiveTitle,
   compactOpenedFoot,
-  type CompactConcourseProfile,
   type CompactFrameSpan,
 } from './compactBoard.js'
 
@@ -149,9 +148,9 @@ function stateGlyphOf(row: ConcourseRowV1, ink: string): React.ReactNode {
 }
 
 export function CompactConcourse({
-  profile,
   cols,
   rows,
+  cardRows,
   region,
   sessionRows,
   selectedId,
@@ -169,9 +168,9 @@ export function CompactConcourse({
   liveComposerNode,
   wiring,
 }: {
-  profile: CompactConcourseProfile
   cols: number
   rows: number
+  cardRows: number
   region: 'list' | 'live'
   sessionRows: ConcourseRowV1[]
   selectedId: string | null
@@ -194,6 +193,7 @@ export function CompactConcourse({
     sessionCount: sessionRows.length,
     newSessionDoor: wiring.newSession !== undefined,
     composerBand: reduced || liveComposerNode === undefined ? 0 : Math.max(1, liveDraftRows),
+    cardRows,
   })
   const selectedIndex = Math.max(0, sessionRows.findIndex(r => r.sessionId === selectedId))
   const selected = sessionRows[selectedIndex]
@@ -326,7 +326,7 @@ export function CompactConcourse({
 
   const liveTitle = compactLiveTitle(selected !== undefined ? { title: selected.title, stateWord: stateWordOf(selected), ageLabel: selected.ageLabel } : undefined)
 
-  if (profile === 'single') {
+  if (geo.profile === 'single') {
     if (showLive) {
       return (
         <Box flexDirection="column" width={cols} height={rows} overflow="hidden">
