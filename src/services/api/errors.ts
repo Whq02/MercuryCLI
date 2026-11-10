@@ -17,7 +17,7 @@ import { clientContractGateText, modelRefusalFromError, noteModelRefusal, type M
 import { classifyCredentialWall, credentialWallLine, isRevokedSignInText, type WireCredentialKind } from '../providers/credentialWall.js'
 import { classifyOverflowFault, type OverflowFamily } from './overflowSignal.js'
 import type { AnthropicLimits, OverageDisabledReason, QuotaStatus } from '../anthropicLimits.js'
-import { getRateLimitErrorMessage } from '../anthropicLimits.js'
+import { getRateLimitErrorMessage, rateLimitTypeOfClaim } from '../anthropicLimits.js'
 import { composeAnthropicWallRemedies } from '../rateLimitMessages.js'
 import { shouldProcessRateLimits } from '../rateLimitMocking.js'
 import {
@@ -478,7 +478,7 @@ function composeAssistantMessageFromError(
           ? { overageResetsAt: Number(overageReset) }
           : {}),
         ...(claim !== undefined && claim !== ''
-          ? { rateLimitType: claim as AnthropicLimits['rateLimitType'] }
+          ? { rateLimitType: rateLimitTypeOfClaim(claim) }
           : {}),
         ...(overageStatus !== undefined && overageStatus !== ''
           ? { overageStatus: overageStatus as QuotaStatus }

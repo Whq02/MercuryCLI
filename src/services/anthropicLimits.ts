@@ -88,6 +88,10 @@ export function getRateLimitDisplayName(type: string): string {
   return DISPLAY_NAMES[type] ?? type
 }
 
+export function rateLimitTypeOfClaim(claim: string): RateLimitType {
+  return claim === 'seven_day_overage_included' ? 'seven_day_fable' : (claim as RateLimitType)
+}
+
 
 type RawWindow = { utilization: number; resets_at: number; source?: UsageFeed; observedAtMs?: number }
 export type WeeklyPoolClaim = 'seven_day_fable' | 'seven_day_opus' | 'seven_day_sonnet'
@@ -471,7 +475,7 @@ export function computeNewLimitsFromHeaders(headers: Headers): AnthropicLimits {
     resetsAt,
     isUsingOverage,
   }
-  if (claim !== undefined && claim !== '') record.rateLimitType = claim as RateLimitType
+  if (claim !== undefined && claim !== '') record.rateLimitType = rateLimitTypeOfClaim(claim)
   if (overageStatus !== undefined && overageStatus !== '') record.overageStatus = overageStatus as QuotaStatus
   if (overageDisabledReason !== undefined && overageDisabledReason !== '') {
     record.overageDisabledReason = overageDisabledReason as OverageDisabledReason
@@ -620,7 +624,7 @@ export function adoptAnthropicWindowFact(fact: unknown): boolean {
     ...(onExtraUsage ? { overageStatus: 'allowed' as const } : {}),
   }
   const claim = (fact as { claim?: unknown }).claim
-  if (typeof claim === 'string' && claim !== '') next.rateLimitType = claim as RateLimitType
+  if (typeof claim === 'string' && claim !== '') next.rateLimitType = rateLimitTypeOfClaim(claim)
   windowObserved = true
   verdictOwner = f.owner
   verdictObservedAtMs = f.observedAtMs

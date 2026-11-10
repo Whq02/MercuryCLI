@@ -244,6 +244,42 @@ section("§9 the runner's reading reaches the window process: the relay carries 
   check('the field is optional on the V1 fact, and nothing but that declaration names it in the wire types', (types.match(/sevenDayFable/g) ?? []).length === 1 && types.includes('  sevenDayFable?: AnthropicObservedWindowV1\n'))
 }
 
+section("§10 the refusal: the provider's claim for that week is seven_day_overage_included, and it reads as the Fable limit it is")
+{
+  const { APIError } = await import('../../src/services/api/sdkErrors.js')
+  const { getRateLimitErrorMessage } = await import('../../src/services/rateLimitMessages.ts')
+  const { fullWindowLine } = await import('../../src/components/Settings/Usage.tsx')
+  const refused = (shape: Record<string, string>): InstanceType<typeof APIError> =>
+    new APIError(429, { type: 'error', error: { type: 'rate_limit_error', message: 'Rate limit exceeded' } }, undefined, headersOf(shape) as never)
+  check("the client's claim vocabulary has no seven_day_fable: the week it names 'Fable limit' is claimed as seven_day_overage_included", windows.refusal['anthropic-ratelimit-unified-representative-claim'] === 'seven_day_overage_included' && !JSON.stringify(windows).includes('seven_day_fable'))
+  limits.resetLimitsForCredentialSwitch()
+  limits.extractQuotaStatusFromError(refused(windows.refusal))
+  const limited = usage.anthropicLimitedWindow(undefined, Date.now())
+  check('the closed window is the Fable limit, with the reply\'s reset', limited !== undefined && limited.claim === 'seven_day_fable' && limited.windowName === 'Fable limit' && limited.resetsAtMs === (nowSeconds + 529200) * 1000, show(limited))
+  check('no raw wire word reaches a window name', !show(limited).includes('overage_included') && !show(limits.currentLimits).includes('overage_included'), `${show(limited)} ${show(limits.currentLimits)}`)
+  const wall = getRateLimitErrorMessage(limits.currentLimits, FABLE) ?? ''
+  check("the refusal row reads the existing pool sentence: …this account's Fable limit is reached on Fable 5.2 · resets … · the other Claude model pools are separate", wall.startsWith("Anthropic says this account's Fable limit is reached on Fable 5.2 · resets ") && wall.endsWith('the other Claude model pools are separate — /model switches inside this account'), wall)
+  const { getAssistantMessageFromError } = await import('../../src/services/api/errors.ts')
+  const row = getAssistantMessageFromError(refused(windows.refusal), FABLE)
+  const rowText = (Array.isArray(row.message.content) ? row.message.content : []).map(block => (block.type === 'text' ? block.text : '')).join('')
+  check("the transcript's own refusal row, composed from the error's headers, opens with that sentence", rowText.split('\n')[0]!.startsWith("Anthropic says this account's Fable limit is reached on Fable 5.2 · resets ") && rowText.split('\n')[0]!.endsWith('the other Claude model pools are separate — /model switches inside this account') && row.error === 'rate_limit', rowText.slice(0, 300))
+  check('the window binds the Fable and Mythos models and no other', limits.windowClaimBindsModel(limits.currentLimits.rateLimitType, FABLE) && limits.windowClaimBindsModel(limits.currentLimits.rateLimitType, 'claude-mythos-5-2') && !limits.windowClaimBindsModel(limits.currentLimits.rateLimitType, 'claude-opus-5-5') && !limits.windowClaimBindsModel(limits.currentLimits.rateLimitType, 'claude-sonnet-5-5'))
+  const view = usage.usageForProvider('anthropic')
+  const fableLine = fullWindowLine(view, FABLE) ?? ''
+  const opusLine = fullWindowLine(view, 'claude-opus-5-5') ?? ''
+  check('the usage screen says whom it binds: the Fable session, and for an Opus session "binds the Fable models, not claude-opus-5-5"', fableLine.startsWith('The Fable limit is reached — resets ') && fableLine.includes(` · binds ${FABLE}`) && opusLine.includes('binds the Fable models, not claude-opus-5-5'), `${fableLine} | ${opusLine}`)
+  check('the same reply\'s 7d_oi window stands full on the rail beside 5h and 7d', poolsNow() === 'seven_day_fable:Fable:100:headers' && railMeters().length === 3, poolsNow())
+  const relayed = limits.anthropicWindowFact()
+  limits.resetLimitsForCredentialSwitch()
+  const adopted = relayed !== undefined && limits.adoptAnthropicWindowFact({ ...relayed, claim: 'seven_day_overage_included', observedAtMs: Date.now() + 5 })
+  check('a window that adopts the verdict from a runner still speaking the wire word reads the same limit', adopted && usage.anthropicLimitedWindow(undefined, Date.now())?.windowName === 'Fable limit' && limits.currentLimits.rateLimitType === 'seven_day_fable', show(limits.currentLimits))
+  limits.resetLimitsForCredentialSwitch()
+  limits.extractQuotaStatusFromError(refused({ ...windows.refusal, 'anthropic-ratelimit-unified-representative-claim': 'seven_day_fable' }))
+  check("Mercury's own word for the claim reads as it did", usage.anthropicLimitedWindow(undefined, Date.now())?.windowName === 'Fable limit')
+  limits.resetLimitsForCredentialSwitch()
+  limits.extractQuotaStatusFromError(refused({ ...windows.refusal, 'anthropic-ratelimit-unified-representative-claim': 'seven_day' }))
+  check('the all-models week is untouched: weekly limit, binding every model', usage.anthropicLimitedWindow(undefined, Date.now())?.windowName === 'weekly limit' && limits.windowClaimBindsModel(limits.currentLimits.rateLimitType, 'claude-opus-5-5'))
+}
 limits.__setAnthropicOwnerResolverForTest(null)
 delete process.env.MERCURY_MOCK_USAGE_PAYLOAD
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`}`)
