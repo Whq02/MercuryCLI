@@ -188,14 +188,15 @@ try {
     const LADDER = [400, 800, 1200, 1600, 2200, 3000, 4200, 6000, 8000, 10_000]
     const NONBLANK = 200
     const BACK = keyHintLabel('⇧← back').replace(/\s+/g, '')
+    const BOARD = 'STATUS&TITLE'
     const isChat = (s: string): boolean => s.includes(BACK) || s.includes('Typeaprompt')
     const stations: Array<{ from: number; ready: (s: string) => boolean }> = [
-      { from: 0, ready: s => s.includes('SESSIONCONCOURSE') },
-      { from: sentRel(B_AT), ready: s => isChat(s) && !s.includes('SESSIONCONCOURSE') },
-      { from: sentRel(LEFT_AT), ready: s => s.includes('SESSIONCONCOURSE') },
-      { from: sentRel(RIGHT_AT), ready: s => isChat(s) && !s.includes('SESSIONCONCOURSE') },
-      { from: sentRel(CMD_SUBMIT_AT), ready: s => s.includes('SESSIONCONCOURSE') },
-      { from: sentRel(ESC3_AT), ready: s => !s.includes('SESSIONCONCOURSE') && s.length >= NONBLANK },
+      { from: 0, ready: s => s.includes(BOARD) },
+      { from: sentRel(B_AT), ready: s => isChat(s) && !s.includes(BOARD) },
+      { from: sentRel(LEFT_AT), ready: s => s.includes(BOARD) },
+      { from: sentRel(RIGHT_AT), ready: s => isChat(s) && !s.includes(BOARD) },
+      { from: sentRel(CMD_SUBMIT_AT), ready: s => s.includes(BOARD) },
+      { from: sentRel(ESC3_AT), ready: s => !s.includes(BOARD) && s.length >= NONBLANK },
     ]
     const offsets = stations.flatMap(st => LADDER.map(d => Math.round(st.from + d)))
     const byAt = new Map(grabScreens(crun, 142, 38, offsets).map(g => [g.atMs, squash(g)]))
@@ -204,12 +205,12 @@ try {
       return mine.find(st.ready) ?? mine[mine.length - 1]!
     })
     const [boot, afterB, afterLeft, afterRight, afterCmd, final] = picked
-    t.check("the boot LANDED on the concourse ('always' + registration ordering)", boot!.includes('SESSIONCONCOURSE'), boot!.slice(0, 160) || '(blank)')
-    t.check('⇧← opened the Boot face over it and the arena\'s ↵ on New Session birthed and entered the chat (the strip\'s left stop, then the one birth door)', isChat(afterB!) && !afterB!.includes('SESSIONCONCOURSE'), afterB!.slice(0, 160) || '(blank)')
-    t.check('⇧← from the chat is the concourse (the strip\'s own move — no return token)', afterLeft!.includes('SESSIONCONCOURSE') && !isChat(afterLeft!), afterLeft!.slice(0, 160) || '(blank)')
-    t.check('⇧→ from the concourse re-enters the focused chat (the stop the birth created; a bare board would not move)', isChat(afterRight!) && !afterRight!.includes('SESSIONCONCOURSE'), afterRight!.slice(0, 160) || '(blank)')
-    t.check('/concourse ↵ re-entered the surface (the command entry)', afterCmd!.includes('SESSIONCONCOURSE'))
-    t.check('the final esc restored the chat again (home is the focused chat; repeat cycles hold)', !final!.includes('SESSIONCONCOURSE'))
+    t.check("the boot LANDED on the concourse ('always' + registration ordering)", boot!.includes(BOARD), boot!.slice(0, 160) || '(blank)')
+    t.check('⇧← opened the Boot face over it and the arena\'s ↵ on New Session birthed and entered the chat (the strip\'s left stop, then the one birth door)', isChat(afterB!) && !afterB!.includes(BOARD), afterB!.slice(0, 160) || '(blank)')
+    t.check('⇧← from the chat is the concourse (the strip\'s own move — no return token)', afterLeft!.includes(BOARD) && !isChat(afterLeft!), afterLeft!.slice(0, 160) || '(blank)')
+    t.check('⇧→ from the concourse re-enters the focused chat (the stop the birth created; a bare board would not move)', isChat(afterRight!) && !afterRight!.includes(BOARD), afterRight!.slice(0, 160) || '(blank)')
+    t.check('/concourse ↵ re-entered the surface (the command entry)', afterCmd!.includes(BOARD))
+    t.check('the final esc restored the chat again (home is the focused chat; repeat cycles hold)', !final!.includes(BOARD))
   }
 
   t.section('§4 — zero standing DEC/OSC across the WHOLE multi-swap window')
