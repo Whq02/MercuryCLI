@@ -1,5 +1,6 @@
 
 import { useEffect, useRef } from 'react'
+import type { InputEvent, Key } from '../../ink/events/input-event.js'
 import useInput from '../../ink/hooks/use-input.js'
 import {
   isTopOverlayNow,
@@ -27,6 +28,10 @@ export function letterOrdinalOf(option: {
   if (label === undefined) return undefined
   const core = label.endsWith('.') ? label.slice(0, -1) : label
   return /^[A-Z]$/.test(core) ? core : undefined
+}
+
+export function isWheelReport(key: Key, event: InputEvent): boolean {
+  return (key.wheelUp || key.wheelDown) && event.keypress.x !== undefined && event.keypress.y !== undefined
 }
 
 type UseSelectProps<T> = {
@@ -87,10 +92,10 @@ export function useSelectInput<T>({
     [isDisabled, declineRow],
   )
 
-  const wheelStep = useRef(false)
+  const wheelReport = useRef(false)
   useInput(
-    (_input, key) => {
-      wheelStep.current = key.wheelUp || key.wheelDown
+    (_input, key, event) => {
+      wheelReport.current = isWheelReport(key, event)
     },
     { isActive: !isDisabled && !scrollMovesFocus },
   )
@@ -98,7 +103,7 @@ export function useSelectInput<T>({
   useKeybindings(
     {
       'select:next': () => {
-        if (wheelStep.current) return false
+        if (wheelReport.current) return false
         if (onDownFromLastItem && isOnLastOption) {
           onDownFromLastItem()
           return
@@ -106,7 +111,7 @@ export function useSelectInput<T>({
         state.focusNextOption()
       },
       'select:previous': () => {
-        if (wheelStep.current) return false
+        if (wheelReport.current) return false
         if (onUpFromFirstItem && isWindowAtTop && isOnFirstOption) {
           onUpFromFirstItem()
           return
@@ -146,7 +151,7 @@ export function useSelectInput<T>({
       const focusedOption =
         state.focusedIndex > 0 ? state.options[state.focusedIndex - 1] : undefined
 
-      if (!scrollMovesFocus && (key.wheelUp || key.wheelDown || key.pageDown || key.pageUp)) return
+      if (!scrollMovesFocus && (isWheelReport(key, event) || key.pageDown || key.pageUp)) return
       if (key.pageDown || key.pageUp) {
         if (!pagesHostBody(key.pageDown)) {
           if (key.pageDown) state.focusNextPage()

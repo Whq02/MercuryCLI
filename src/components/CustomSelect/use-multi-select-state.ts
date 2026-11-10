@@ -16,7 +16,7 @@ import {
   useSelectNavigation,
   type SelectNavigation,
 } from './use-select-navigation.js'
-import { letterOrdinalOf } from './use-select-input.js'
+import { isWheelReport, letterOrdinalOf } from './use-select-input.js'
 import { usePopupPageOwner } from './popup-list.js'
 
 type UseMultiSelectStateProps<T> = {
@@ -185,7 +185,7 @@ export function useMultiSelectState<T>({
 
   useInput(
     (input, key, event) => {
-      if (!scrollMovesFocus && (key.wheelUp || key.wheelDown || key.pageUp || key.pageDown)) return
+      if (!scrollMovesFocus && (isWheelReport(key, event) || key.pageUp || key.pageDown)) return
       if (navigation.isInInput && !isSubmitFocused) {
         const allowed =
           key.upArrow ||

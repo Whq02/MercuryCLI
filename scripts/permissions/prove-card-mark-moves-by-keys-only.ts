@@ -28,6 +28,9 @@ const { SelectMulti } = await import('../../src/components/CustomSelect/SelectMu
 const { decodeDomNavKey } = await import('../../src/components/mercury-ui/navSemantics.ts')
 const { KeyboardEvent } = await import('../../src/ink/events/keyboard-event.ts')
 const { PermissionPrompt } = await import('../../src/components/permissions/PermissionPrompt.tsx')
+const { InputEvent } = await import('../../src/ink/events/input-event.ts')
+const { INITIAL_STATE, parseMultipleKeypresses } = await import('../../src/ink/input/input-decoder.ts')
+const { resolveAlternateScrollIntent } = await import('../../src/ink/termio/alternateScrollPolicy.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 
@@ -39,8 +42,10 @@ const PAGE_DOWN = '\x1b[6~'
 const TAB = '\t'
 
 const through = { wheel: 0, page: 0 }
+let keys: { emit: (name: string, event: unknown) => boolean } | null = null
 function Behind(): React.ReactNode {
   const { internal_eventEmitter } = useStdin()
+  keys = internal_eventEmitter
   React.useEffect(() => {
     const onWheel = (): void => { through.wheel++ }
     internal_eventEmitter.on('wheel', onWheel)
@@ -54,6 +59,8 @@ function Behind(): React.ReactNode {
 
 const mount = (element: React.ReactNode): Promise<Mounted> =>
   mountOffscreen(h(AppStateProvider, null, h(ThemeProvider, null, h(KeybindingSetup, null, h(Box, { width: 100, height: 24, flexDirection: 'column' }, element, h(Behind))))), 100, 24, { mouseTracking: true })
+const mountWithoutMouse = (element: React.ReactNode): Promise<Mounted> =>
+  mountOffscreen(h(AppStateProvider, null, h(ThemeProvider, null, h(KeybindingSetup, null, h(Box, { width: 100, height: 24, flexDirection: 'column' }, element, h(Behind))))), 100, 24)
 const markOf = (view: Mounted): string => view.lines().find(line => /❯ \d\. /.test(line))?.trim().replace(/\s+/g, ' ').slice(0, 44) ?? '(no mark)'
 async function press(view: Mounted, data: string): Promise<string> {
   view.push(data)
@@ -61,6 +68,16 @@ async function press(view: Mounted, data: string): Promise<string> {
   return markOf(view)
 }
 const OPTIONS = [{ label: 'one', value: 'one' }, { label: 'two', value: 'two' }, { label: 'three', value: 'three' }]
+const WINDOWS_BEFORE_A_WHEEL_REPORT = { altScreenActive: true, mouseTrackingEnabled: true, elevatedSurfaceActive: false, platform: 'win32', wheelReportingConfirmed: false, scrollableTranscript: true }
+async function pressAsWindowsReadsIt(view: Mounted, arrow: string): Promise<string> {
+  const [typed] = parseMultipleKeypresses(INITIAL_STATE, arrow)
+  const [read] = resolveAlternateScrollIntent(typed, WINDOWS_BEFORE_A_WHEEL_REPORT)
+  const event = new InputEvent(read as never, true)
+  keys?.emit('input', event)
+  if (!event.didStopImmediatePropagation()) keys?.emit('wheel', event)
+  await settle(120)
+  return markOf(view)
+}
 
 section('a list that is no card: the wheel and the page keys move its mark, as before')
 {
@@ -170,6 +187,62 @@ section('the question card: its lists follow the same rule')
   const named = new KeyboardEvent(wheelAtom as never).key
   const preview = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'permissions', 'AskUserQuestionPermissionRequest', 'PreviewQuestionView.tsx'), 'utf8')
   check('the question with previews moves by named keys, and a notch or a page key is none of them', named === 'wheelup' && decodeDomNavKey({ key: named }, { orientation: 'vertical' }) === null && decodeDomNavKey({ key: 'pageup' }, { orientation: 'vertical' }) === null && decodeDomNavKey({ key: 'up' }, { orientation: 'vertical' }) === 'movePrevious' && /decodeDomNavKey\(e, \{ orientation: 'vertical' \}\)/.test(preview) && !/<Select/.test(preview), `a notch is named ${named}`)
+}
+
+section('where the terminal sends the wheel as arrows, an arrow is read as a wheel step: it still moves a card\'s mark')
+{
+  through.wheel = 0
+  const chosen: string[] = []
+  const view = await mountWithoutMouse(h(Select, { options: OPTIONS, scrollMovesFocus: false, onChange: (value: string) => { chosen.push(value) }, onCancel: () => {} } as never))
+  try {
+    await waitFor(() => markOf(view).startsWith('❯ 1.'), 5_000)
+    const down = await press(view, KEY.down)
+    const downAgain = await press(view, KEY.down)
+    const up = await press(view, KEY.up)
+    check('mouse tracking off, a card\'s list: ↓ ↓ ↑ walks the mark to the second, the third and back to the second row', down.startsWith('❯ 2. two') && downAgain.startsWith('❯ 3. three') && up.startsWith('❯ 2. two'), `${down} · ${downAgain} · ${up}`)
+    await press(view, KEY.enter)
+    check('…and ↵ takes the row the arrows left the mark on, not the first', chosen.length === 1 && chosen[0] === 'two', JSON.stringify(chosen))
+  } finally {
+    view.unmount()
+  }
+  const answers: string[] = []
+  const options = [
+    { value: 'yes', label: 'Yes' },
+    { value: 'yes-dont-ask-again', label: "Yes, and don't ask again for this command" },
+    { value: 'no', label: 'No', feedbackConfig: { type: 'reject' as const } },
+  ]
+  const card = await mountWithoutMouse(h(PermissionPrompt, { options, onSelect: (value: string) => { answers.push(value) }, onCancel: () => { answers.push('cancelled') } } as never))
+  try {
+    await waitFor(() => markOf(card).startsWith('❯ 1.'), 5_000)
+    const one = await press(card, KEY.down)
+    const two = await press(card, KEY.down)
+    check('mouse tracking off, the permission card: ↓ ↓ walks the mark from Yes to No', one.startsWith('❯ 2.') && two.startsWith('❯ 3.'), `${markOf(card)} after ${one} · ${two}`)
+    await press(card, KEY.enter)
+    check('…and ↵ there does not answer Yes', answers.length === 1 && answers[0] === 'no', JSON.stringify(answers))
+  } finally {
+    card.unmount()
+  }
+  const windows = await mount(h(Select, { options: OPTIONS, scrollMovesFocus: false, onChange: () => {}, onCancel: () => {} } as never))
+  try {
+    await waitFor(() => markOf(windows).startsWith('❯ 1.'), 5_000)
+    through.wheel = 0
+    const down = await pressAsWindowsReadsIt(windows, KEY.down)
+    const up = await pressAsWindowsReadsIt(windows, KEY.up)
+    check('Windows before its first wheel report, a card\'s list: ↓ moves the mark down and ↑ back, and the list keeps the key', down.startsWith('❯ 2. two') && up.startsWith('❯ 1. one') && through.wheel === 0, `${down} · ${up} · passed on ${through.wheel}`)
+    through.wheel = 0
+    const notch = await press(windows, WHEEL_DOWN)
+    check('a wheel the terminal reports as a wheel is still passed on, the mark where it was', notch === up && through.wheel === 1, `${notch} · passed on ${through.wheel}`)
+  } finally {
+    windows.unmount()
+  }
+  const several = await mount(h(SelectMulti, { options: OPTIONS, scrollMovesFocus: false, onChange: () => {}, onCancel: () => {} } as never))
+  try {
+    await waitFor(() => markOf(several).startsWith('❯ 1.'), 5_000)
+    const down = await pressAsWindowsReadsIt(several, KEY.down)
+    check('Windows before its first wheel report, a list of several answers: ↓ moves the mark down', down.startsWith('❯ 2.'), down)
+  } finally {
+    several.unmount()
+  }
 }
 
 section('every card whose ↵ answers passes it: no list of a card takes the wheel')
