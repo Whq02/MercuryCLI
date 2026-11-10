@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { getMercuryHome } from './envUtils.js'
 import {
   forgetSweptScratchpad,
+  hasSessionScratchpadPath,
   isSessionScratchpad,
   scratchpadDirFor,
   scratchpadOwnerRecord,
@@ -32,9 +33,9 @@ async function recordedOwners(): Promise<{ owners: ScratchpadOwner[]; stale: str
       continue
     }
     if (record === null || typeof record !== 'object') continue
-    if (typeof record.dir !== 'string' || typeof record.pid !== 'number' || !isSessionScratchpad(record.dir) || scratchpadOwnerRecord(record.dir) !== path) continue
+    if (typeof record.dir !== 'string' || typeof record.pid !== 'number' || !hasSessionScratchpadPath(record.dir) || scratchpadOwnerRecord(record.dir) !== path) continue
     if (!existsSync(record.dir)) stale.push(path)
-    else if (record.home === home) owners.push({ home, dir: record.dir, pid: record.pid, ...(typeof record.procStart === 'string' ? { procStart: record.procStart } : {}) })
+    else if (record.home === home && isSessionScratchpad(record.dir)) owners.push({ home, dir: record.dir, pid: record.pid, ...(typeof record.procStart === 'string' ? { procStart: record.procStart } : {}) })
   }
   return { owners, stale }
 }

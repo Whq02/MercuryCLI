@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readdirSync, rmdirSync, rmSync, writeFileSync } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
+import { existsSync, mkdirSync, readdirSync, realpathSync, rmdirSync, rmSync, writeFileSync } from 'node:fs'
+import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { registerCleanup } from './cleanupRegistry.js'
 import { getMercuryHome } from './envUtils.js'
@@ -26,9 +26,29 @@ export function scratchpadOwnerRecord(scratchpadDir: string): string {
   return join(scratchpadOwnersDir(), `${createHash('sha256').update(scratchpadDir).digest('hex').slice(0, 24)}.json`)
 }
 
-export function isSessionScratchpad(dir: string): boolean {
+function scratchpadSegments(dir: string): [string, string] | null {
   const root = getMercuryTempDir()
-  return basename(dir) === SCRATCHPAD_SEGMENT && join(dirname(dirname(dirname(dir))), '/') === join(root, '/') && dirname(dirname(dir)) !== scratchpadOwnersDir()
+  if (!isAbsolute(dir)) return null
+  const parts = relative(root, dir).split(sep)
+  if (parts.length !== 3 || parts[2] !== SCRATCHPAD_SEGMENT || parts[0] === OWNERS_SEGMENT) return null
+  if (parts.some(part => part === '' || part === '.' || part === '..') || join(root, parts[0]!, parts[1]!, SCRATCHPAD_SEGMENT) !== dir) return null
+  return [parts[0]!, parts[1]!]
+}
+
+export function hasSessionScratchpadPath(dir: string): boolean {
+  return scratchpadSegments(dir) !== null
+}
+
+export function isSessionScratchpad(dir: string): boolean {
+  const segments = scratchpadSegments(dir)
+  if (segments === null) return false
+  try {
+    const real = realpathSync.native(dir)
+    const expected = join(realpathSync.native(getMercuryTempDir()), segments[0], segments[1], SCRATCHPAD_SEGMENT)
+    return process.platform === 'win32' ? real.toLowerCase() === expected.toLowerCase() : real === expected
+  } catch {
+    return false
+  }
 }
 
 let ownerRecordedFor: string | null = null
@@ -87,10 +107,9 @@ function removeEmptyDirectory(dir: string): void {
 }
 
 function removeEmptyAncestors(scratchpadDir: string): void {
-  const root = getMercuryTempDir()
+  if (!hasSessionScratchpadPath(scratchpadDir)) return
   const sessionDir = dirname(scratchpadDir)
   const projectDir = dirname(sessionDir)
-  if (!projectDir.startsWith(root) || projectDir.length <= root.length) return
   removeEmptyDirectory(sessionDir)
   removeEmptyDirectory(projectDir)
 }

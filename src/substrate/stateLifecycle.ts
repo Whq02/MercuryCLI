@@ -437,7 +437,7 @@ async function collectBashAuditLedger(budget: LifecycleBudget): Promise<Lifecycl
 async function collectIdleScratchpads(budget: LifecycleBudget): Promise<LifecycleClassReceipt> {
   const receipt = emptyReceipt('session-scratchpads')
   const { readScratchpadCensus, forgetStaleOwnerRecords, scratchpadFootprint, SCRATCHPAD_WALK_ENTRIES } = await import('../utils/scratchpadRetention.js')
-  const { forgetSweptScratchpad } = await import('../utils/scratchpad.js')
+  const { forgetSweptScratchpad, isSessionScratchpad } = await import('../utils/scratchpad.js')
   const { retentionCutoffMs } = await import('../utils/cleanup.js')
   const { getMercuryTempDir } = await import('../utils/permissions/filesystem.js')
   const cutoff = retentionCutoffMs()
@@ -454,7 +454,7 @@ async function collectIdleScratchpads(budget: LifecycleBudget): Promise<Lifecycl
     }
     receipt.visited++
     const seen = await scratchpadFootprint(dir, SCRATCHPAD_WALK_ENTRIES, read => read.newestMs > cutoff || budget.now() >= budget.deadlineMs)
-    if (!seen.whole || seen.newestMs > cutoff) {
+    if (!seen.whole || seen.newestMs > cutoff || !isSessionScratchpad(dir)) {
       receipt.retained++
       continue
     }

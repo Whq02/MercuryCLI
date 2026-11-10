@@ -176,10 +176,24 @@ writeFileSync(scratchpad.scratchpadOwnerRecord(resumedElsewhere), JSON.stringify
 const strayDir = scratchpad.scratchpadDirFor(workspace('never-made'), randomUUID())
 const strayRecord = scratchpad.scratchpadOwnerRecord(strayDir)
 writeFileSync(strayRecord, JSON.stringify({ home: join(work, 'another-home'), dir: strayDir, pid: GONE_PID }))
+const besideRoot = join(temp, 'victim', 'scratchpad')
+const behindLink = join(outside, 'linked-project', 'sess-2', 'scratchpad')
+for (const dir of [besideRoot, behindLink]) {
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, 'kept.txt'), 'outside the temp root\n')
+  backdate(join(dir, 'kept.txt'), 45)
+  backdate(dir, 45)
+}
+symlinkSync(join(outside, 'linked-project'), join(ROOT, 'linkproj'))
+const dotted = `${ROOT}../victim/scratchpad`
+const throughLink = join(ROOT, 'linkproj', 'sess-2', 'scratchpad')
+for (const dir of [dotted, throughLink]) writeFileSync(scratchpad.scratchpadOwnerRecord(dir), JSON.stringify({ home: HOME, dir, pid: GONE_PID }))
+const outsideStands = (): boolean => [besideRoot, behindLink].every(dir => existsSync(join(dir, 'kept.txt')) && readFileSync(join(dir, 'kept.txt'), 'utf8') === 'outside the temp root\n')
 {
   const census = await retention.readScratchpadCensus()
   check('idle: a dead owner record, a parked and an operator-stopped worker record with a dead pid, and a pid that now belongs to a process born at another time', names(census.idle) === 'dead-old dead-young linked-old parked-old reused-pid-old stopped-old stopped-young', names(census.idle))
   check('not idle: a pid alive under its recorded start time, a live pid with no recorded start time, a live worker, a worker record parked while another process has since taken the session, another config home, no owner record, an unreadable one', !['live-old', 'live-untimed-old', 'worker-live-old', 'parked-then-resumed-old', 'other-home-old', 'unowned-old', 'unreadable-young', 'unreadable-old'].some(name => census.idle.includes(planted.get(name)!)))
+  check('a record naming a path that leaves the temp root through .. or through a linked project folder names no scratchpad: neither is idle, for a dead owner 45 days gone', !scratchpad.isSessionScratchpad(dotted) && !scratchpad.isSessionScratchpad(throughLink) && !census.idle.includes(dotted) && !census.idle.includes(throughLink), JSON.stringify(census.idle.filter(dir => dir === dotted || dir === throughLink)))
   check('a record whose scratchpad no longer exists is named as stale, and reading the census removes nothing', census.staleOwnerRecords.length === 1 && census.staleOwnerRecords[0] === strayRecord && existsSync(strayRecord), JSON.stringify(census.staleOwnerRecords))
 }
 
@@ -220,6 +234,7 @@ section('§5 the cycle: only a scratchpad proven idle and unwritten for the whol
   check('kept: an owner that cannot be proven gone — alive under its start time, alive with no start time recorded, a live worker, a session another process has taken', ['live-old', 'live-untimed-old', 'worker-live-old', 'parked-then-resumed-old'].every(stands))
   check('kept: another config home, no owner record, an unreadable owner record (young and old alike)', ['other-home-old', 'unowned-old', 'unreadable-young', 'unreadable-old'].every(stands))
   check('what the links pointed to outside the temp root stands whole', readFileSync(join(outside, 'kept.txt'), 'utf8') === 'outside the temp root\n' && readFileSync(join(outside, 'kept-folder', 'inner.txt'), 'utf8') === 'outside the temp root\n')
+  check('the two folders outside the temp root that records pointed at stand whole after the cycle', outsideStands())
   check('the stale record went with the cycle; the temp root and the owners folder stand', !existsSync(strayRecord) && existsSync(ROOT) && existsSync(OWNERS))
   const again = child(['--cycle'])
   check('a second cycle removes nothing more', again.complete === true && again.scratch?.removed === 0 && again.scratch.visited === 2, JSON.stringify(again))
@@ -253,6 +268,7 @@ section('§7 past a gibibyte the row warns and offers the removal; the removal n
   check('without --yes the remedy is skipped and nothing is removed', warned.fixed?.fixes?.length === 0 && String(warned.fixed?.skipped?.[0]?.reason).includes('requires --yes') && stands('large-dead') && stands('dead-young'), JSON.stringify(warned.fixed))
   const fixed = child(['--health', '--fix', '--yes'])
   check('with --yes the three idle scratchpads go and the remedy verifies', fixed.fixed?.fixes?.[0]?.applied?.ok === true && fixed.fixed.fixes[0].applied.note === 'removed 3 scratchpads' && fixed.fixed.fixes[0].verified?.ok === true && gone('large-dead') && gone('dead-young') && gone('stopped-young'), JSON.stringify(fixed.fixed))
+  check('the remedy took nothing outside the temp root: the folder reached through .. and the one behind the linked project folder stand whole', outsideStands())
   check('every scratchpad whose owner is not proven gone still stands', ['live-old', 'live-untimed-old', 'worker-live-old', 'parked-then-resumed-old', 'other-home-old', 'unowned-old', 'unreadable-young', 'unreadable-old'].every(stands))
   const after = child(['--health'])
   check('the row then reads ok', after.row?.status === 'ok' && after.row.evidence === 'only running sessions hold scratch' && fixed.fixed.fixes[0].verified.note === 'only running sessions hold scratch', JSON.stringify(after.row))
