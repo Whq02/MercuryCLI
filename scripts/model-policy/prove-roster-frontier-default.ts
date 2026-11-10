@@ -91,9 +91,10 @@ section('§2 a roster of only claude-fable-5-1 and nothing saved: the default is
   check('the request model the live chain resolves is claude-fable-5-1', r.sent === PREVIOUS, show(r))
   check('the roster permits what the default sends', r.allowed, show(r))
   check("the decision is the frontier's, on the roster's own word (eligible-allowlist), with one candidate", r.source === 'frontier' && r.code === 'eligible-allowlist' && r.candidates.join(',') === PREVIOUS, show(r))
-  check('the setting carries no [1m] rider: the chosen generation is natively 1M, and the rider follows the chosen id', r.setting === PREVIOUS, show(r))
+  check('the setting is the bare id (Fable 5.1 states a 1M window as the head does, so no [1m] rider is at stake in this case)', r.setting === PREVIOUS, show(r))
   check("the default row and its reason name Fable 5.1 as the allowlist's row", r.row === 'Fable 5.1' && r.why.includes('the model allowlist names it'), show(r))
-  check('the frontier fact the picker and the cap handoff read is the same id', r.frontierFact === PREVIOUS, show(r))
+  check("the frontier fact's own id is the chosen generation", r.frontierFact === PREVIOUS, show(r))
+  check("the alias 'best' follows the same decision under that roster", model.parseUserSpecifiedModel('best') === PREVIOUS, model.parseUserSpecifiedModel('best'))
 }
 
 section('§3 the same answer for the other spellings of that roster')
