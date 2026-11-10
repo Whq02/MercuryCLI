@@ -798,7 +798,8 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
     const on = idx === i
     if (m.tensorfold !== undefined) {
       const choice = m.tensorfold
-      const cells = pickerCellColumns(inner - (compact && narrowId ? 5 : 4))
+      const cells = pickerCellColumns(inner - 4)
+      if (compact && narrowId) cells.id = Math.max(0, cells.id - 1)
       const ink = (tone: Parameters<typeof tensorFoldInk>[0]): string => tensorFoldInk(tone, tokens, TERRA)
       return (
         <InteractiveRow key={line.key} id={`model:row:${line.key}`} selected={on} onSelect={() => selectRow(idx)} onActivate={commitCurrent} flexDirection="column" selectionBand={compact}>

@@ -45,12 +45,13 @@ const models = [
 ]
 const columnsFor = (width: number): number => Object.values(pickerColumns(width)).reduce((sum, column) => sum + column, 0)
 for (const width of [49, 50, 55, 56, 64, 80, 92]) check(`the column plan fits ${width} cells`, columnsFor(width) <= width, String(columnsFor(width)))
-for (const [columns, rows] of [[60, 20], [66, 20], [70, 20], [80, 24], [120, 40], [177, 49], [213, 60]]) {
+for (const [columns, rows] of [[60, 20], [63, 20], [66, 20], [70, 20], [80, 24], [120, 40], [177, 49], [213, 60]]) {
   resetChromeModeLatchForTests()
   resetOverlayStackForTests()
   initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   claimModelPickerPopup()
-  const modal = h(ModelPickerPopupLease, null, h(MercuryModelPicker, { models, current: models[0]!.id, ctxPct: null, topGroup: group, onClose: () => {} }))
+  const choices = columns === 63 ? models.map((model, index) => ({ ...model, name: index === 0 ? 'Model Alpha' : 'Model Beta', tensorfold: { keys: {}, card: () => [], state: { text: 'current', tone: 'faint' as const } } })) : models
+  const modal = h(ModelPickerPopupLease, null, h(MercuryModelPicker, { models: choices, current: models[0]!.id, ctxPct: null, topGroup: group, onClose: () => {} }))
   const tree = h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined, children: h(KeybindingSetup, null, h(FullscreenLayout, { scrollable: h(Text, null, 'the conversation'), bottom: h(Box, { height: 4 }, h(Text, null, 'the composer')), modal })) })
   const scene = await mountOffscreen(tree, columns!, rows!)
   try {
@@ -62,6 +63,7 @@ for (const [columns, rows] of [[60, 20], [66, 20], [70, 20], [80, 24], [120, 40]
     check(`${columns}x${rows}: the alias and current state stay whole`, first.includes('Model A') && first.includes('current') && second.includes('Model B'), first)
     check(`${columns}x${rows}: the context cells stay whole`, first.includes('1.31M ctx') && second.includes('200k ctx'), `${first}\n${second}`)
     if (columns === 60) check('60x20: clipped ids keep distinct model tails', first.includes('…') && first.includes('alpha') && second.includes('…') && second.includes('beta'), `${first}\n${second}`)
+    if (columns === 63) check('63x20: TensorFold keeps the original alias budget at its rounding boundary', first.includes('Model Alpha') && second.includes('Model Beta'), `${first}\n${second}`)
   } finally { scene.unmount() }
 }
 console.log(`picker-narrow-columns: ${checks} checks, ${failures} failed`)
