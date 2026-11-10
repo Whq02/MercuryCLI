@@ -814,7 +814,7 @@ export async function* runAgent(
       runDeadlineTimer = setTimeout(cut, deadline.at - Date.now())
       runDeadlineTimer.unref?.()
     }
-    swarm = await latchSwarmAgent(agentId, name ?? description ?? agentId, agentKind === 'workflow', params.resumed === true, params.team)
+    swarm = await latchSwarmAgent(agentId, name ?? description ?? agentId, agentKind === 'workflow', params.resumed === true, params.team, abortController.signal)
     let userContext = override?.userContext ?? (await getUserContext())
     const systemContext = { ...(override?.systemContext ?? (await getSystemContext())) }
 

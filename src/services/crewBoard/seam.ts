@@ -22,7 +22,7 @@ const requireOptional = createRequire(import.meta.url)
 let implementation: BoardModule | undefined
 let boardTool: Tool | undefined
 const sessions = new Map<string, { store: BoardStore; execution: string }>()
-const roads = new Map<string, { on: boolean; execution: string; name: string; active: boolean; brief?: string }>()
+const roads = new Map<string, { on: boolean; execution: string; name: string; active: boolean; brief?: string; signal?: AbortSignal }>()
 const leadChecks = new Set<() => void>()
 const pendingLaunches = new Set<string>()
 const key = (agent: string): string => `${getSessionId()}:${agent}`
@@ -85,7 +85,10 @@ export function swarmStore(create = true): BoardStore | null {
   if (!create && !existsSync(path)) return null
   const module = create ? loadSwarm() : implementationModule()
   if (module === null) return null
-  const store = module.open(path, sessionId)
+  const store = module.open(path, sessionId, undefined, false, agent => {
+    const road = roads.get(`${sessionId}:${agent}`)
+    return road?.active === true && road.signal?.aborted !== true
+  })
   const execution = randomUUID()
   sessions.set(sessionId, { store, execution })
   store.enroll({ author: { sessionId, agentId: 'main', executionId: execution }, name: 'main' })
@@ -216,7 +219,7 @@ export function swarmOwnerPost(input: OwnerPostInput): OwnerPostReceipt {
   const store = swarmStore(), principal = swarmPrincipal()
   return store && principal ? store.postOwner(principal, input) : { ok: false, reason: 'No live wave; /swarm on opens it.' }
 }
-export async function latchSwarmAgent(agentId: string, name: string, workflow = false, resumed = false, team?: string): Promise<boolean> {
+export async function latchSwarmAgent(agentId: string, name: string, workflow = false, resumed = false, team?: string, signal?: AbortSignal): Promise<boolean> {
   if (!roads.has(key(agentId))) {
     const saved = await readAgentMetadata(agentId as AgentId)
     const on = !workflow && (saved === null ? pendingLaunches.has(key(agentId)) || !resumed && swarmSessionEnabled() : saved.swarm === true)
@@ -225,6 +228,7 @@ export async function latchSwarmAgent(agentId: string, name: string, workflow = 
   const road = roads.get(key(agentId))!
   if (!road.active) road.execution = randomUUID()
   road.active = true
+  road.signal = signal
   if (road.on && swarmMasterEnabled()) swarmStore()?.enroll({ author: { sessionId: String(getSessionId()), agentId, executionId: road.execution }, name, team })
   return road.on
 }

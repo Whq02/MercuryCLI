@@ -283,7 +283,7 @@ export async function resumeAgentBackground(args: {
   })
   let tools: ReturnType<typeof resolveWorkerTools>
   try {
-    await latchSwarmAgent(agentId, meta?.name ?? description, false, true)
+    await latchSwarmAgent(agentId, meta?.name ?? description, false, true, undefined, task.abortController?.signal)
     tools = resolveWorkerTools(definition, workerPermissionMode, assembleToolPool(
       { ...toolUseContext.getAppState().toolPermissionContext, mode: workerPermissionMode as never },
       toolUseContext.getAppState().mcp?.tools ?? [],

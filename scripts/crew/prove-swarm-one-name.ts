@@ -31,9 +31,9 @@ type World = {
   roster: () => string[]
   woken: () => string[]
 }
-async function world(name: string, run: (w: World) => void | Promise<void>): Promise<void> {
+async function world(name: string, run: (w: World) => void | Promise<void>, live?: (agent: string) => boolean): Promise<void> {
   let now = 0, serial = 0
-  const board = open(join(home, `${name}.sqlite`), name, () => (now += 15000))
+  const board = open(join(home, `${name}.sqlite`), name, () => (now += 15000), false, live)
   const principal = (id: string, display: string, execution: string, team?: string): BoardPrincipal => ({ author: { sessionId: name, agentId: id, executionId: execution }, name: display, ...(team ? { team } : {}) })
   const main = principal('main', 'main', 'lead')
   board.enroll(main)
@@ -224,6 +224,34 @@ await check('started-again-by-id', () => world('by-id', w => {
   assert.throws(() => w.run(old, 'old-3'), RUNNING('reviewer'), 'a retired seat is not started under a name a launch in flight has taken')
 }))
 
+await check('a-run-that-is-over-holds-no-name', () => {
+  const alive = new Set(['old', 'peer', 'fresh'])
+  return world('run-over', w => {
+    const old = w.launch('old', 'reviewer', { team: 'review', captain: true })
+    const peer = w.launch('peer', 'peer')
+    assert(w.say(peer, '@main wake me when seat reviewer posts', 'ask').ok)
+    w.park(peer)
+    assert.throws(() => w.board.reserveEnrollment(w.main, { agent: 'fresh', name: 'reviewer', team: 'review', named: true }), RUNNING('reviewer'), 'refused while the holder\'s run is alive')
+    alive.delete('old')
+    assert.deepEqual(w.roster(), ['reviewer=old:running', 'peer=peer:parked'], 'the board still has the seat as running: its run was stopped, or ended with its process, and nothing settled it')
+    w.board.reserveEnrollment(w.main, { agent: 'fresh', name: 'reviewer', team: 'review', named: true })
+    assert.deepEqual(w.roster(), ['peer=peer:parked'], 'a launch takes the name of a seat whose run is over')
+    w.board.cancelEnrollment(w.main, 'fresh')
+    assert.deepEqual(w.roster(), ['reviewer=old:parked', 'peer=peer:parked'], 'a launch that fails puts the seat back parked, as a run that is over leaves it')
+    assert.equal(w.board.captain('review')?.agent, 'old')
+    w.launch('fresh', 'reviewer', { team: 'review' })
+    assert.deepEqual(w.roster(), ['peer=peer:parked', 'reviewer=fresh:running'])
+    assert.equal(w.board.member('old'), false)
+    assert.equal(w.board.captain('review')?.agent, 'fresh')
+    assert.deepEqual(w.board.seats().find(seat => seat.agent === 'peer')?.wait?.predicate, { kind: 'seat', agent: 'fresh', name: 'reviewer' })
+    assert.throws(() => w.run(old, 'old-2'), RUNNING('reviewer'), 'the seat it took the name from is refused while the new holder\'s run is alive')
+    alive.delete('fresh')
+    w.run(old, 'old-2')
+    assert.deepEqual(w.roster(), ['reviewer=old:running', 'peer=peer:parked'], 'and takes the name back once that run is over, settled or not')
+    assert.equal(w.board.captain('review')?.agent, 'old')
+  }, agent => alive.has(agent))
+})
+
 await check('the-boards-own-addresses-name-no-seat', () => world('reserved', w => {
   const peer = w.launch('peer', 'peer')
   const refusals: Record<string, string> = {}
@@ -283,7 +311,23 @@ await check('the-launch-and-resume-roads', async () => {
   await seam.latchSwarmAgent('fifth', 'solo')
   release()
   assert.deepEqual(names(), ['solo=first:running', 'other=third:running', 'solo=fifth:running'], 'a launch that gives no name is not refused and takes none')
-  for (const id of ['first', 'third', 'fifth']) seam.settleSwarmAgent(id)
+  const lead = seam.swarmPrincipal()!
+  board.reserveEnrollment(lead, { agent: 'adrift', name: 'watch', named: true })
+  board.enroll({ author: { ...lead.author, agentId: 'adrift', executionId: 'adrift-1' }, name: 'watch' })
+  assert.deepEqual(names().slice(-1), ['watch=adrift:running'])
+  await launch('heir', { name: 'watch', description: 'after the process that ran it ended' })
+  assert.deepEqual(names().slice(-1), ['watch=heir:running'], 'a seat this process holds no run of — it was running when an earlier process ended — gives up its name to a launch')
+  assert.equal(board.member('adrift'), false)
+  const stop = new AbortController()
+  const held = seam.reserveSwarmLaunch('sixth', { name: 'relay', description: 'a seat that is stopped' })
+  try { await seam.latchSwarmAgent('sixth', 'relay', false, false, undefined, stop.signal) } finally { held() }
+  assert.throws(() => seam.reserveSwarmLaunch('seventh', { name: 'relay', description: 'while it runs' }), RUNNING('relay'))
+  stop.abort()
+  await launch('seventh', { name: 'relay', description: 'after the stop' })
+  assert.deepEqual(names().slice(-1), ['relay=seventh:running'], 'a seat whose run was told to stop gives up its name before that run has ended')
+  assert.equal(board.member('sixth'), false)
+  assert.doesNotThrow(() => seam.settleSwarmAgent('sixth'), 'the stopped run settles afterwards without a word from the board')
+  for (const id of ['first', 'third', 'fifth', 'heir', 'seventh']) seam.settleSwarmAgent(id)
   runSwarmCommand('off')
 })
 

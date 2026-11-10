@@ -31,7 +31,7 @@ const normalize = (input: BoardPost) => ({
 const feeds = new Map<string, Set<() => void>>()
 const validTeam = (team: string): boolean => /^[\p{L}\p{N}_][\p{L}\p{N}_.-]{0,79}$/u.test(team) && !['all', 'general'].includes(team.toLowerCase())
 
-export function open(path: string, sessionId: string, now: () => number = Date.now, readOnly = false): BoardStore {
+export function open(path: string, sessionId: string, now: () => number = Date.now, readOnly = false, live: (agent: string) => boolean = () => true): BoardStore {
   if (!readOnly) mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
   const sqlite = requireRuntime(process.versions.bun ? 'bun:sqlite' : 'node:sqlite')
   const db: Database = process.versions.bun
@@ -171,8 +171,10 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
     const carries = (other: unknown): boolean => String(other).toLowerCase() === name.toLowerCase()
     const holders = roster().filter(row => row.agent !== 'main' && row.agent !== agent && carries(row.name)).map(row => String(row.agent))
     const launching = db.prepare('SELECT agent, name FROM enrollments').all().some(row => row.agent !== agent && carries(row.name))
-    if (launching || holders.some(holder => wakes.state(holder) === 'running')) throw new Error(`A seat named ${name} is running on this board; stop it, or launch this one under another name.`)
+    if (launching || holders.some(holder => wakes.state(holder) === 'running' && live(holder))) throw new Error(`A seat named ${name} is running on this board; stop it, or launch this one under another name.`)
     for (const holder of holders) {
+      db.prepare('UPDATE seat_state SET active = 0 WHERE agent = ?').run(holder)
+      wakes.settle(holder, String(db.prepare('SELECT execution FROM members WHERE agent = ?').get(holder)!.execution), latest())
       db.prepare('UPDATE members SET enrolled = 0 WHERE agent = ?').run(holder)
       db.prepare('INSERT INTO retirements VALUES (?, ?) ON CONFLICT(agent) DO UPDATE SET successor = excluded.successor').run(holder, agent)
     }
