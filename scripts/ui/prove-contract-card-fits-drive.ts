@@ -75,8 +75,7 @@ for (const [cols, rows] of [[80, 14], [82, 17], [80, 21]] as const) {
       check(`${tag} offer: the keys row stands under the Yes/No rows`, keys > no, JSON.stringify({ no, keys }))
       const bottom = text.findIndex((r, i) => i > keys && r.includes('╰') && r.includes('╯') && !r.includes('╭'))
       check(`${tag} offer: the card closes with its own frame above the composer`, keys > 0 && bottom > keys && bottom <= keys + 2 && (composer < 0 || bottom < composer), JSON.stringify({ keys, bottom, composer }))
-      if (cols === 80 && rows === 14) check(`${tag} offer: the keys row stands right under the Yes/No rows — the gap yielded`, keys === no + 1, JSON.stringify({ no, keys }))
-      else check(`${tag} offer: the gap above the keys stands`, keys === no + 2, JSON.stringify({ no, keys }))
+      check(`${tag} offer: the gap above the keys stands`, keys === no + 2, JSON.stringify({ no, keys }))
     }
     if (field !== undefined) {
       const text = textRows(field.grid)
