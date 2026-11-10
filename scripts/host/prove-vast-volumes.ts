@@ -22,6 +22,10 @@ const signal = () => AbortSignal.timeout(10000)
 const key = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFixtureFixtureFixtureFixtureFixtureFixtureFixture mercury'
 try {
   const client = new VastClient(fixture.key, fixture.baseUrl, { readyTimeoutMs: 300, pollMs: 5 })
+  const redirected = await fetch(fixture.baseUrl + '/volumes?owner=me&type=local_volume', { headers: { Authorization: 'Bearer ' + fixture.key }, redirect: 'manual' })
+  check('the old list route redirects to the same query on its canonical trailing-slash path', redirected.status === 301 && redirected.headers.get('location') === fixture.baseUrl + '/volumes/?owner=me&type=local_volume')
+  await redirected.body?.cancel()
+  check('the client reads the canonical volume list directly without following that redirect', (await client.volumes(signal())).length === 0 && fixture.requests.filter(row => row.path === '/api/v0/volumes' && row.method === 'GET').length === 1)
   const offers = await client.volumeOffers(556, undefined, signal())
   const search = fixture.state.volumeSearches.at(-1)
   check('volume offers come from POST /api/v0/volumes/search/ with the documented filter grammar (verified, external=false, disk_space ≥ the size, allocated_storage for pricing) and are read by machine, size and $/GB-month', fixture.requests.some(row => row.path === '/api/v0/volumes/search/' && row.method === 'POST') && search.verified.eq === true && search.external.eq === false && search.disk_space.gte === 556 && search.allocated_storage === 556 && offers.length === 3 && offers[0]!.machineId === 9102 && offers[0]!.storageCost === 0.1 && offers[0]!.hostingType === 'community host' && offers[1]!.machineId === 9103 && offers[1]!.storageCost === 0.2 && offers[1]!.hostingType === 'datacenter' && offers[1]!.diskGb === 2000 && offers[1]!.geolocation === 'NL')
@@ -36,8 +40,8 @@ try {
   const created = await client.createVolume(onMachine[0]!, 556, 'mercury_weights_abc123', signal())
   const put = fixture.requests.find(row => row.path === '/api/v0/volumes/' && row.method === 'PUT')
   check('create is PUT /api/v0/volumes/ with {id: the volume offer, size: integer GB, name}; the answer names the volume (V.<id>) and Mercury finds it in the list by the name it gave', put && put.body.id === 701 && put.body.size === 556 && put.body.name === 'mercury_weights_abc123' && created.id === 20118481 && created.name === 'mercury_weights_abc123' && created.machineId === 9103 && created.diskGb === 556 && created.status === 'active' && fixture.state.volumeCreates === 1)
-  const list = fixture.requests.filter(row => row.path === '/api/v0/volumes' && row.method === 'GET').at(-1)
-  check('the list is GET /api/v0/volumes?owner=me&type=local_volume, the CLI’s exact query', list && list.query.owner === 'me' && list.query.type === 'local_volume')
+  const list = fixture.requests.filter(row => row.path === '/api/v0/volumes/' && row.method === 'GET').at(-1)
+  check('the list is GET /api/v0/volumes/?owner=me&type=local_volume, the canonical route with the CLI’s query', list && list.query.owner === 'me' && list.query.type === 'local_volume')
   for (const shape of ['array', 'data', 'volumes'] as const) {
     fixture.state.volumeListShape = shape
     const rows = await client.volumes(signal())
@@ -59,7 +63,7 @@ try {
   const cut = [...fixture.state.volumes.values()].find(row => row.label === 'mercury_weights_cut')!
   await client.deleteVolume(cut.id)
   const del = fixture.requests.filter(row => row.path === '/api/v0/volumes/' && row.method === 'DELETE').at(-1)
-  check('delete sends the id both ways Vast documents (?id= as the CLI, {id} in the body as the API reference) and is verified absent by re-listing', del && del.query.id === String(cut.id) && del.body.id === cut.id && !fixture.state.volumes.has(cut.id) && fixture.requests.filter(row => row.path === '/api/v0/volumes' && row.method === 'GET').length > 0)
+  check('delete sends the id both ways Vast documents (?id= as the CLI, {id} in the body as the API reference) and is verified absent by re-listing', del && del.query.id === String(cut.id) && del.body.id === cut.id && !fixture.state.volumes.has(cut.id) && fixture.requests.filter(row => row.path === '/api/v0/volumes/' && row.method === 'GET').length > 0)
   await client.deleteVolume(cut.id)
   check('deleting an already absent volume is a 404 read as gone, verified by the list', fixture.state.volumeDeletes === 2)
   fixture.state.holdVolumeDelete = true

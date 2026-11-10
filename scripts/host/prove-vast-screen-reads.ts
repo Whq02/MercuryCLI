@@ -24,7 +24,7 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   const request = new Request(input, init)
   const url = new URL(request.url)
   if (url.hostname !== '127.0.0.1' && url.hostname !== '[::1]') { escaped.push(url.origin); throw new Error('Only loopback fixtures are allowed') }
-  if (url.pathname === '/api/v0/volumes') {
+  if (url.pathname === '/api/v0/volumes/') {
     volumeAttempts.push(Date.now())
     if (injectedLeft-- > 0) throw injected
   }
@@ -49,7 +49,7 @@ try {
   writeKeptVolume(disk)
   vast.state.volumes.set(20118481, { id: 20118481, label: disk.name, status: 'active', machine_id: 9103, disk_space: 100, storage_cost: 0.2, start_date: 1792490400 })
   writeHostRecord({ id: '7001', name: 'Fixture model', vendor: 'vast', recipe: offer.recipe.id, status: 'RUNNING', jobState: 'ready', price: 2.1, startedAt: new Date().toISOString() })
-  const route = 'GET /api/v0/volumes'
+  const route = 'GET /api/v0/volumes/'
   const volumeReads = () => volumeAttempts
   const fail = (status: string | number, times = 1000) => { vast.state.failNext = { route, status, times } }
   const road = (sessionId: string): LlmHostRoad => createHostRoad({ vendorApiBaseUrls: { vast: vast.baseUrl }, sessionId, rental: { client, offer } })
@@ -64,7 +64,7 @@ try {
     const { paid, detail } = await plans('failure-' + status)
     check(status + ': instances remain listed independently', paid?.rows?.some(row => row.value === 'vast:7001') && paid.found.includes('Vast.ai: 1 instances'))
     check(status + ': only the weights disks are unread', paid?.found.includes('Vast.ai: weights disks unread; storage may still bill') && !paid.found.includes('Vast.ai: could not be read'))
-    check(status + ': the detail names the exact request and cause', detail?.found.includes('Vast.ai GET /api/v0/volumes') && (typeof status === 'number' ? detail.found.includes('HTTP ' + status) : status === 'disconnect' ? /ECONNRESET|UND_ERR_SOCKET|socket|connection/i.test(detail.found) : detail.found.includes('timed out after 0.08 s (TimeoutError)')))
+    check(status + ': the detail names the exact request and cause', detail?.found.includes('Vast.ai GET /api/v0/volumes/') && (typeof status === 'number' ? detail.found.includes('HTTP ' + status) : status === 'disconnect' ? /ECONNRESET|UND_ERR_SOCKET|socket|connection/i.test(detail.found) : detail.found.includes('timed out after 0.08 s (TimeoutError)')))
     check(status + ': no absent-disk or ended-machine inference', readKeptVolume(disk.id)?.state === 'kept' && Boolean(readHostRecord('7001')))
     check(status + ': bounded transient retries, not permission retries (observed ' + (volumeReads().length - before) + ')', volumeReads().length - before === (typeof status === 'number' ? 1 : 6))
     if (typeof status !== 'number') check(status + ': Retry is offered', detail?.rows?.some(row => row.value === 'retry'))

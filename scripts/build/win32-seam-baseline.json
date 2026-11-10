@@ -14,6 +14,7 @@
  "src/services/host/keepSafe.ts :: split-slash": 1,
  "src/services/host/recipesFile.ts :: split-slash": 1,
  "src/services/host/vendors/huggingface.ts :: split-slash": 1,
+ "src/services/host/vendors/vast.ts :: split-slash": 1,
  "src/services/ide/pythonTests.ts :: split-slash": 1,
  "src/services/mcp/automationBridge.ts :: split-slash": 1,
  "src/services/mcp/client.ts :: split-slash": 1,

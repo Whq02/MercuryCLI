@@ -165,7 +165,7 @@ export class VastClient implements HostVendor {
     return found.filter(row => row.disk_space >= minGb && (row.verification ?? 'verified') === 'verified' && (machineId === undefined || row.machine_id === machineId)).map(row => ({ id: row.id, machineId: row.machine_id, hostId: row.host_id ?? undefined, diskGb: row.disk_space, storageCost: row.storage_cost ?? (row.storage_total_cost != null && minGb > 0 ? row.storage_total_cost * 720 / minGb : 0), verification: row.verification ?? 'verified', reliability: row.reliability2 ?? row.reliability ?? 0, geolocation: row.geolocation ?? undefined, hostingType: hostingType(row.datacenter), cudaMaxGood: row.cuda_max_good ?? undefined })).sort((a, b) => a.storageCost - b.storageCost || a.machineId - b.machineId)
   }
   async volumes(signal?: AbortSignal): Promise<VastVolume[]> {
-    const rows = await this.api.request('/api/v0/volumes?owner=me&type=local_volume', volumeListSchema, 'GET', undefined, signal)
+    const rows = await this.api.request('/api/v0/volumes/?owner=me&type=local_volume', volumeListSchema, 'GET', undefined, signal)
     return rows.filter(row => !row.deleted_at).map(row => ({ id: row.id, name: this.api.redact(row.label ?? row.name ?? 'V.' + row.id), status: row.status ?? 'unknown', machineId: row.machine_id ?? undefined, diskGb: row.disk_space ?? undefined, hourly: row.storage_total_cost ?? undefined, instances: instanceIds(row.instances), createdAt: row.start_date != null && row.start_date > 0 ? new Date(row.start_date * 1000).toISOString() : '' }))
   }
   async createVolume(offer: VastVolumeOffer, sizeGb: number, name: string, signal?: AbortSignal): Promise<VastVolume> {
@@ -211,7 +211,7 @@ export class VastClient implements HostVendor {
     const kept = this.keptMachine(recipe)
     return (await this.search(siblings.length ? siblings : [recipe], signal)).offers.filter(row => row.price <= maxPrice && (kept === undefined || row.machineId === kept)).sort((a, b) => Number(b.recipe.id === recipe.id) - Number(a.recipe.id === recipe.id) || sortOffers(a, b))[0]
   }
-  keptMachine: (recipe: HostRecipe) => number | undefined = recipe => keptVolumes().find(row => row.kind === 'vast' && row.state === 'kept' && matchesVolume(row, recipe))?.machineId
+  keptMachine: (recipe: HostRecipe) => number | undefined = recipe => recipe.engine === 'tensorfold' ? undefined : keptVolumes().find(row => row.kind === 'vast' && row.state === 'kept' && matchesVolume(row, recipe))?.machineId
   private pod(row: z.infer<typeof instanceSchema>): HostPod {
     const host = row.public_ipaddr?.trim()
     const port = directPort(row.ports)
@@ -328,10 +328,14 @@ export class VastClient implements HostVendor {
       const deadline = AbortSignal.timeout(10000)
       const signal = jobSignal ? AbortSignal.any([jobSignal, deadline]) : deadline
       const result = await this.api.request('/api/v0/instances/request_logs/' + id + '/', z.object({ success: z.literal(true), result_url: z.string() }), 'PUT', { tail: '12' }, signal)
-      const url = new URL(result.result_url)
+      let url: URL
+      try { url = new URL(result.result_url) } catch { throw new Error('unexpected log URL · invalid URL') }
       const fixture = new URL(this.api.base)
       const allowed = !url.username && !url.password && !url.hash && (url.protocol === 'https:' && url.hostname === 's3.amazonaws.com' && url.pathname.startsWith('/vast.ai/instance_logs/') || fixture.protocol === 'http:' && url.origin === fixture.origin && url.pathname.startsWith('/fixture-logs/'))
-      if (!allowed) throw new Error('unexpected log URL')
+      if (!allowed) {
+        const path = url.pathname.split('/').map(part => !part || part === 'vast.ai' || part === 'instance_logs' ? part : /\.(log|txt|gz|json)$/i.test(part) ? ':file.' + part.split('.').at(-1)!.toLowerCase() : ':segment').join('/')
+        throw new Error('unexpected log URL · ' + this.api.redact(url.origin + path))
+      }
       for (;;) {
         const response = await fetch(url, { redirect: 'error', signal })
         if (response.ok) {

@@ -137,13 +137,13 @@ export function tunedRecipe(recipe: HostRecipe, prefs: HostTunePreferences): Hos
   return { ...recipe, flags, context: prefs.contextPerConversation, contextPerSlot: prefs.contextPerConversation }
 }
 
-export async function runTune(modelTitle: string, options: { recipes: readonly HostRecipe[]; offers?: readonly HostOffer[]; pod?: HostRecord; runner?: HostRunner; signal?: AbortSignal; pauseMs?: number; timeoutMs?: number; engineGraceMs?: number }, ask: Ask, emit: Emit): Promise<HostTunePreferences | undefined> {
+export async function runTune(modelTitle: string, options: { recipes: readonly HostRecipe[]; offers?: readonly HostOffer[]; initial?: HostTunePreferences; pod?: HostRecord; runner?: HostRunner; signal?: AbortSignal; pauseMs?: number; timeoutMs?: number; engineGraceMs?: number }, ask: Ask, emit: Emit): Promise<HostTunePreferences | undefined> {
   if (options.pod?.vendor && options.pod.vendor !== 'runpod') { emit({ title: 'Tune', words: 'Tune reload is Runpod-only. Nothing was changed on this instance.' }); return }
   const recipes = options.recipes.filter(row => titleOf(row) === modelTitle)
   if (!recipes.length) throw new Error('No recipes for ' + modelTitle)
   const signal = options.signal ?? new AbortController().signal
   const pod = options.pod ? await reconcileHostTune(options.pod.id, options.runner ?? hostRunner, signal) ?? options.pod : undefined
-  const saved = pod?.tune ?? readTunePreferences(modelTitle)
+  const saved = pod?.tune ?? options.initial ?? readTunePreferences(modelTitle)
   let recipe = recipes.find(row => row.id === saved?.quality) ?? recipes[0]!
   const question: Ask = plan => signal.aborted ? Promise.resolve(null) : ask(plan)
   const summary = (row: HostRecipe): string => tuneBudget(row, row.vramGb, row.count, options.offers).words
@@ -186,8 +186,13 @@ interface RentalDecor { titleSuffix?: string; willRun?: string; lines?: string[]
 export async function confirmTunedRental(initial: HostOffer, offers: readonly HostOffer[], budget: number | undefined, ask: Ask, emit: Emit, signal: AbortSignal, decorate?: (offer: HostOffer) => Promise<RentalDecor>): Promise<HostOffer | undefined> {
   const title = titleOf(initial.recipe)
   let offer = initial
+  const previous = readTunePreferences(title)
+  let preferences = previous ? { ...previous, quality: initial.recipe.id } : undefined
+  if (preferences && previous?.quality !== initial.recipe.id) {
+    try { tunedRecipe(initial.recipe, preferences) } catch { preferences = undefined }
+  }
   for (;;) {
-    const saved = readTunePreferences(title)
+    const saved = preferences
     if (saved) {
       const preferred = (offer.recipe.id === saved.quality ? offer : undefined) ?? offers.find(row => row.recipe.id === saved.quality && row.dataCenter === offer.dataCenter && row.hostingType === offer.hostingType) ?? offers.find(row => row.recipe.id === saved.quality)
       if (!preferred) { emit({ title: 'Tune', words: 'Saved quality has no stock. Choose another quality in Tune; no pod created.' }) }
@@ -201,7 +206,7 @@ export async function confirmTunedRental(initial: HostOffer, offers: readonly Ho
     const decor = decorate ? await decorate(offer) : {}
     const confirm = await ask({ step: 'rent-confirm', ...(decor.lines ? { lines: decor.lines } : {}), title: words.rentalConfirm, found: recipe.label + ' · ' + hostShape(recipe) + ' · ' + rate(offer.price) + (offer.dataCenter ? ' · ' + offer.dataCenter : '') + (offer.hostingType ? ' · ' + offer.hostingType : '') + (budget ? ' · ~' + (budget / offer.price).toFixed(1) + 'h for $' + budget : ''), willRun: refusal || (decor.willRun ?? (context ? context.toLocaleString('en-US') + ' context · ' : '') + recipe.diskGb + ' GB disk (extra). Billing starts now.'), rows: [{ value: 'tune', label: 'Tune: ' + tuneSummary(prefs, recipe) + ' — change' }, ...(decor.rows ?? []), ...(refusal ? [] : [{ value: 'rent', label: decor.confirmLabel ?? 'Confirm ' + rate(offer.price) + ' + storage · create this pod' }]), { value: 'cancel', label: words.cancel }] })
     if (signal.aborted) return
-    if (confirm === 'tune') { await runTune(title, { recipes: [recipe, ...currentHostRecipes().filter(row => row.id !== recipe.id)], offers, signal }, ask, emit); continue }
+    if (confirm === 'tune') { preferences = await runTune(title, { recipes: [recipe, ...currentHostRecipes().filter(row => row.id !== recipe.id)], offers, initial: prefs, signal }, ask, emit) ?? preferences; continue }
     if (confirm && decor.rows?.some(row => row.value === confirm)) { await decor.choose?.(confirm); if (signal.aborted) return; continue }
     if (confirm !== 'rent') return
     if (refusal) continue

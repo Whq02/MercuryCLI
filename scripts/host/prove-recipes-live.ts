@@ -297,11 +297,12 @@ try {
   writeFileSync(overridePath, JSON.stringify(fileOf(1, [overrideRow])))
   process.env.MERCURY_HOST_RECIPES_FILE = overridePath
   const overrideOffers = await new RunpodClient(rp.key, rp.baseUrl).offers(new AbortController().signal)
-  check('MERCURY_HOST_RECIPES_FILE replaces the fetched, shipped and built-in rows, may add a recipe and change its commands', ids(currentHostRecipes()) === overrideRow.id && overrideOffers.length > 0 && overrideOffers.every(offer => offer.recipe.id === overrideRow.id))
+  const overrideOffer = overrideOffers.find(offer => offer.recipe.id === overrideRow.id)
+  check('MERCURY_HOST_RECIPES_FILE puts private rows before the shipped catalogue, may add a recipe and change its commands, and keeps both available to rent', canonical(currentHostRecipes()) === canonical([overrideRow, ...shippedRows]) && canonical(overrideOffer?.recipe) === canonical(overrideRow) && overrideOffers.some(offer => offer.recipe.id === qwenRtx.id))
   writeStoredRunpodApiKey(rp.key)
   const sshKey = await ensureHostKey(ssh.runner, new AbortController().signal)
-  const pod = await new RunpodClient(rp.key, rp.baseUrl).create(overrideOffers[0]!, sshKey.publicKey, 'mercury-recipes-proof')
-  const queued = queueHostSetup({ id: pod.id, name: pod.name, recipe: overrideRow.id, price: overrideOffers[0]!.price, startedAt: pod.startedAt ?? pod.createdAt, status: pod.status, sessionId: 'recipes-proof', workspace: f.home, sshKey: sshKey.path, apiBaseUrl: rp.baseUrl })
+  const pod = await new RunpodClient(rp.key, rp.baseUrl).create(overrideOffer!, sshKey.publicKey, 'mercury-recipes-proof')
+  const queued = queueHostSetup({ id: pod.id, name: pod.name, recipe: overrideRow.id, price: overrideOffer!.price, startedAt: pod.startedAt ?? pod.createdAt, status: pod.status, sessionId: 'recipes-proof', workspace: f.home, sshKey: sshKey.path, apiBaseUrl: rp.baseUrl })
   delete process.env.MERCURY_HOST_RECIPES_FILE
   const { pinnedWeightManifest } = await import('../../src/services/host/keptWeights.ts')
   const weightManifest = pinnedWeightManifest(overrideRow)

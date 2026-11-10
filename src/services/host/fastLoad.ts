@@ -19,6 +19,7 @@ import { BANK_DOOR, bankCandidateWords, bankCandidates, bankFolder, bankFree, ba
 
 export { BANK_DOOR }
 const FAST_LOAD_DOOR = 'Fast-load volume'
+const TENSORFOLD_MIRROR_UNSUPPORTED = 'TensorFold pulls weights from Hugging Face · kept weights disks are not supported. No volume or pod was created.'
 type Ask = Parameters<LlmHostRoad>[0]
 type Emit = Parameters<LlmHostRoad>[1]
 interface FastLoadOptions { runner: HostRunner; sessionId: string; apiBaseUrl?: string; vastApiBaseUrl?: string; startJob?: (record: HostRecord) => void; vast?: () => VastClient | undefined }
@@ -47,6 +48,7 @@ function runpodFastLoadState(recipe: HostRecipe, row: KeptVolume): string {
   return 'preparing · ' + row.id + ' in ' + row.dataCenter + ' · ' + volumePrice(row) + (row.preparingPod ? ' · on pod ' + row.preparingPod : '')
 }
 export const volumeFitsOffer = (offer: HostOffer): boolean => {
+  if (offer.recipe.engine === 'tensorfold') return true
   const volume = runpodKeptVolumes().find(row => matchesVolume(row, offer.recipe) && row.state !== 'gone')
   return !volume || volume.kind === 'global' || !offer.dataCenter || volume.dataCenter === offer.dataCenter
 }
@@ -96,6 +98,7 @@ async function prepareVolume(api: RunpodClient, recipe: HostRecipe, volume: Kept
   }
 }
 export async function mirrorToVolume(api: RunpodClient | undefined, recipe: HostRecipe, ask: Ask, emit: Emit, signal: AbortSignal, options: FastLoadOptions): Promise<LlmHostResult | undefined> {
+  if (recipe.engine === 'tensorfold') { emit({ title: modelTitle(recipe), words: TENSORFOLD_MIRROR_UNSUPPORTED }); return }
   const manifest = pinnedWeightManifest(recipe)
   if (!manifest) {
     emit({ title: modelTitle(recipe), words: 'This recipe cannot be mirrored without a trusted file manifest: ' + weightManifestWords(recipe) + '. No volume or pod was created.' })
@@ -162,9 +165,10 @@ export async function mirrorToVolume(api: RunpodClient | undefined, recipe: Host
 function volumeCell(recipe: HostRecipe, banked: boolean): string {
   const volume = keptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone')
   const where = volume ? (volume.kind === 'vast' ? 'Vast.ai machine ' + volume.machineId : volume.dataCenter) : ''
-  if (volume?.state === 'kept') return '✓ ' + where + ' · boots ~' + bootMinutes(recipe, volume) + ' min'
+  if (volume?.state === 'kept') return '✓ ' + where + (recipe.engine === 'tensorfold' ? '' : ' · boots ~' + bootMinutes(recipe, volume) + ' min')
   if (volume?.state === 'preparing' || volume?.state === 'creating') return '… preparing in ' + where
   if (volume?.state === 'failed') return '✗ failed in ' + where + ' · d to drop'
+  if (recipe.engine === 'tensorfold') return '— not supported'
   return banked ? pinnedWeightManifest(recipe) ? '— m to mirror' : '— cannot mirror · Enter says why' : '—'
 }
 const bankDrive = (folder: string): string => shortFolder(basename(folder) === 'mercury-model-bank' ? dirname(folder) : folder)
@@ -184,6 +188,7 @@ export async function ensureBankFolder(ask: Ask, change = false): Promise<string
   return rememberBankFolder(named)
 }
 export async function bankAction(recipe: HostRecipe, action: BankActionKind, folder: string, ask: Ask, emit: Emit, signal: AbortSignal, options: BankDoorOptions): Promise<LlmHostResult | undefined> {
+  if (action === 'mirror' && recipe.engine === 'tensorfold') { emit({ title: modelTitle(recipe), words: TENSORFOLD_MIRROR_UNSUPPORTED }); return }
   const state = bankState(recipe, folder)
   if (action === 'keep-safe') return keepSafeDoor(recipe, folder, ask, emit, signal, () => bankAction(recipe, 'mirror', folder, ask, emit, signal, options))
   const job = activeHostBanks().find(row => bankJobModel(row) === volumeModel(recipe))

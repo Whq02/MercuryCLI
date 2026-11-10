@@ -66,7 +66,7 @@ export async function reconcileVolumes(api: RunpodClient, signal?: AbortSignal):
   return live
 }
 export async function rentalVolume(api: RunpodClient, recipe: HostRecipe, signal?: AbortSignal): Promise<KeptVolume | undefined> {
-  if (!runpodKeptVolumes().some(row => matchesVolume(row, recipe) && row.state !== 'gone')) return
+  if (recipe.engine === 'tensorfold' || !runpodKeptVolumes().some(row => matchesVolume(row, recipe) && row.state !== 'gone')) return
   try { await reconcileVolumes(api, signal) } catch (error) { throw new Error('The weights disk for this model cannot be confirmed while Runpod’s volume list is unavailable; no pod was created. ' + String(error)) }
   const rows = runpodKeptVolumes().filter(row => matchesVolume(row, recipe) && row.state !== 'gone')
   if (rows.length > 1) throw new Error('Multiple weights disks for this model; open /llmhost → Bank before renting.')
