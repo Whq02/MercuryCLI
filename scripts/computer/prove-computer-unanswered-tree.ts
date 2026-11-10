@@ -63,7 +63,7 @@ section('an element whose children could not be read leaves the tree incomplete,
   const dialog = await call({ action: 'wait', until: { dialog: true, gone: true }, durationMs: 200, capture: false })
   check('a dialog-gone wait is not met on it either', dialog.outcome === 'failed' && dialog.result.includes('timed out'), dialog.result)
   const clicked = await call({ action: 'click', target: { name: 'Share' }, capture: false })
-  check('an act by target is refused there as on every incomplete tree, which is why only a message that failed counts', clicked.outcome === 'failed' && clicked.result.includes('the tree is truncated, so uniqueness is unknown'), clicked.result)
+  check('an act by target is refused there as on every incomplete tree, which is why only a message that failed counts, and the refusal sends the model to a call that can help', clicked.outcome === 'failed' && clicked.result.includes('"Share": the tree is truncated, so uniqueness is unknown — read the tree again or use screenshot pixels'), clicked.result)
 }
 
 section('the same window once the element answers: the tree is whole and the wait is met')
@@ -84,6 +84,15 @@ section('every other incomplete tree keeps its sentence byte for byte')
   check('a tree cut at its limit says so with the tail it had', tree.outcome === 'succeeded' && tree.result.split('\n').includes('truncated: the tree goes on past the limit of 2 elements or depth 12 — narrow with root or find, raise limit or depth to read more, or act on what is shown'), tree.result)
   const fields = await call({ action: 'fields', limit: 1 })
   check('a fields read cut at its limit says so with the tail it had', fields.outcome === 'succeeded' && fields.result.split('\n').some(line => line.startsWith('truncated: more controls past the limit of 1 ') && line.endsWith(' — raise limit, or narrow with root')), fields.result)
+  const resolution = resolveDesktopDriver()
+  if (resolution.state !== 'ok') throw new Error(resolution.note)
+  const whole = resolution.driver.accessibilityTree.bind(resolution.driver)
+  resolution.driver.accessibilityTree = async (...args) => {
+    const tree = await whole(...args)
+    return tree.ok ? { ok: true, value: { ...tree.value, truncated: true } } : tree
+  }
+  const clicked = await call({ action: 'click', target: { name: 'Share' }, capture: false })
+  check('an act by target on a tree cut for any other reason is refused with the tail it had', clicked.outcome === 'failed' && clicked.result.includes('"Share": the tree is truncated, so uniqueness is unknown — raise depth/limit or use screenshot pixels'), clicked.result)
 }
 
 section('the scene, the reason and both native walks')
