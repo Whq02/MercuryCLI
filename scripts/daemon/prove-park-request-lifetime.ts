@@ -22,6 +22,11 @@ function check(label: string, cond: boolean, detail = ''): void {
 const sup = await import('../../src/daemon/concourseWorkers.ts')
 const { makeConcourseDispatchHandler } = await import('../../src/daemon/concourseDispatch.ts')
 const { retiringRunners } = await import('./retiring-runners.ts')
+const { isSaturnSelfWake } = await import('../../src/daemon/saturn.ts')
+const { tickSaturnOnce } = await import('../../src/daemon/saturnTicker.ts')
+const { wakeDelaySpelling } = await import('../../src/utils/messages/noticeRows.ts')
+const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+enableConfigs()
 
 const dir = process.env.MERCURY_DAEMON_DIR!
 const DEAD_PID = 2_147_000_000
@@ -300,6 +305,44 @@ console.log('P7 a runner that is already gone parks at once')
   runnerLeft(w)
   killed.length = 0
   check('no retirement to ask for: the record parks under the name that asked, and the roster drops any pending respawn', sup.completeRequestedPark(w, roster, dir) && rec(w)?.parkedAt !== undefined && rec(w)?.parkedBy === GONE_WINDOW && killed.join(',') === w, j({ killed, rec: rec(w) }))
+}
+
+console.log('P8 what the session armed for itself comes back for it: a wake and a recurrence set during the turn outlive the park, and each re-opens the parked session when it is due')
+{
+  const w = seedMidTurn('11')
+  seat(w)
+  quitWhileItWorks(w)
+  const due = Math.ceil(Date.now() / 60_000) * 60_000 + 60_000
+  const account = { family: 'anthropic', source: 'oauth' as const, scopeDir: join(SCRATCH, 'scope'), identity: 'operator@example.com', knownExpiresAt: due + 86_400_000, refreshable: true }
+  const armedBy = `model:${sid('11')}`
+  sup.updateConcourseWorkers(workers => {
+    workers[w]!.schedules = [
+      { schema: 1, id: 'wake0001', account, modelKey: 'claude-sonnet-5', createdAt: due - 15 * 60_000, when: { kind: 'at', atMs: due, spelling: wakeDelaySpelling(900) }, action: { kind: 'fire', prompt: 'carry on with the next unit', onParked: 'wake' }, createdBy: armedBy },
+      { schema: 1, id: 'beat0001', account, modelKey: 'claude-sonnet-5', createdAt: due - 30_000, when: { kind: 'every', cron: '* * * * *', spelling: 'every minute' }, action: { kind: 'fire', prompt: 'the standing beat' }, createdBy: armedBy },
+    ] as never
+  }, dir)
+  turnEnds(w)
+  const parked = await idleEdge(w)
+  const kept = (rec(w)?.schedules ?? []) as Array<{ id: string }>
+  check('the session parks at its turn end by its own retirement, and both rows stand on the parked record', parked && askedOf(w) === 'prepare,commit' && rec(w)?.parkedAt !== undefined && kept.map(s => s.id).join(',') === 'wake0001,beat0001' && isSaturnSelfWake(kept[0] as never), j({ parked, asked: askedOf(w), kept }))
+  const reopened: Array<{ sessionId: string; parked: boolean; prompt: string }> = []
+  const report = await tickSaturnOnce({
+    now: () => due,
+    records: () => Object.values(sup.readSessionWorkers(dir)).filter(r => r.sessionId === sid('11')),
+    deriveAccount: () => ({ ok: true as const, account: { ...account } }),
+    liveFacts: () => ({ credentialed: true, stranded: false, expiresAt: null, refreshable: false }),
+    deliver: async (d: { sessionId: string; parked: boolean; prompt: string }) => {
+      reopened.push({ sessionId: d.sessionId, parked: d.parked, prompt: d.prompt })
+      return { ok: true }
+    },
+    birth: async () => ({ ok: false, detail: 'this scene bears no session' }),
+    screenOpen: () => true,
+    dir,
+  } as never)
+  check('at their minute the ticker fires both into the parked session by the door that re-opens it (parked: true), nothing held and nothing missed', report.fired === 2 && report.held === 0 && report.missed === 0 && reopened.length === 2 && reopened.every(d => d.sessionId === sid('11') && d.parked === true) && reopened.map(d => d.prompt).join('|') === 'carry on with the next unit|the standing beat', j({ report, reopened }))
+  const daemon = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'main.ts'), 'utf8')
+  check("the daemon's delivery turns that into the session's own resume", daemon.includes('...(d.parked ? { resumeSessionId: d.sessionId } : { targetSessionId: d.sessionId }),'))
+  killed.length = 0
 }
 
 close()
