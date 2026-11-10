@@ -82,6 +82,9 @@ The output row types, by their `type` field:
   have is answered like any failed call: a `tool_call` row with the arguments
   as delivered (`{}` when they were not an object) and a `tool_result` row
   with status `error` whose `output` says what was wrong; the call never ran.
+  A call a limit leaves unanswered (the turn limit, `--budget`, or `--max-time`
+  met between steps) gets a `tool_result` row with status `aborted` whose
+  `output` begins `Cut off: ` and names the limit.
   A call that cannot be paired at all (no call id, a reused id, no tool name,
   or a function call the provider itself could not parse) gets a `tool_result`
   row with status `refused` whose `output` is the reason, and the correction

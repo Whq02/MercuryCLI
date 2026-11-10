@@ -95,6 +95,8 @@ async function runAsk(opts: {
   customSystemPrompt?: string
   maxTurns?: number
   maxBudgetUsd?: number
+  maxTime?: { limitMs: number; at: number }
+  onRow?: (row: SdkMsg) => void
   abortAfterFirstRequest?: boolean
   mutableMessages?: import('../../src/types/message.ts').Message[]
 }): Promise<{ api: FixtureApi; out: SdkMsg[]; cacheWrittenBack: unknown }> {
@@ -126,10 +128,12 @@ async function runAsk(opts: {
       customSystemPrompt: opts.customSystemPrompt,
       maxTurns: opts.maxTurns,
       maxBudgetUsd: opts.maxBudgetUsd,
+      ...(opts.maxTime !== undefined ? { maxTime: opts.maxTime } : {}),
       abortController,
       ...(opts.mutableMessages !== undefined ? { mutableMessages: opts.mutableMessages } : {}),
     })) {
       out.push(msg as SdkMsg)
+      opts.onRow?.(msg as SdkMsg)
     }
   } finally {
     await api.close()
@@ -289,6 +293,58 @@ section('Q5 — a met budget ceiling settles the turn as budget_limit')
   const result = out.at(-1) as SdkMsg & { error?: { message?: string; class?: string } }
   check('the outcome is budget_limit', result?.type === 'outcome' && result?.status === 'budget_limit', j({ t: result?.type, s: result?.status }))
   check('the error names the budget in its own class', result?.error?.class === 'budget_limit' && String(result?.error?.message).includes('maximum budget'), j(result?.error))
+}
+
+section('Q6 — a budget met by the reply that asks for a tool: the run answers the call it leaves unrun, then settles budget_limit')
+{
+  let ran = 0
+  const tool = { ...makeFakeTool(), isConcurrencySafe: () => false, isReadOnly: () => false, call: async () => ({ data: `probe tool ran ${++ran}` }) }
+  const { api, out } = await runAsk({
+    turns: [
+      { kind: 'tool_use', name: 'QeProbeTool', input: {}, id: 'toolu_qe_budget', usage: { input_tokens: 2000, output_tokens: 1000 } },
+      { kind: 'text', text: 'Q6 unreached.' },
+    ],
+    tools: [tool],
+    maxBudgetUsd: bootstrap.getTotalCostUSD() + 1e-9,
+  })
+  const result = out.at(-1) as SdkMsg & { error?: { message?: string; class?: string } }
+  const callAt = out.findIndex(m => m.type === 'tool_call' && m.call_id === 'toolu_qe_budget')
+  const answerAt = out.findIndex(m => m.type === 'tool_result' && m.call_id === 'toolu_qe_budget')
+  check('the outcome is budget_limit after one model call, and the tool did not run', result?.type === 'outcome' && result?.status === 'budget_limit' && api.messageRequests().length === 1 && ran === 0, j({ s: result?.status, requests: api.messageRequests().length, ran }))
+  check('the call it left unrun has a tool_result row between the call and the outcome: status aborted, "Cut off: " and the outcome\u2019s own sentence', callAt !== -1 && answerAt > callAt && answerAt < out.length - 1 && out[answerAt]?.status === 'aborted' && out[answerAt]?.output === `Cut off: ${String(result?.error?.message)}`, j({ callAt, answerAt, row: out[answerAt] ?? null, types: out.map(m => m.type) }))
+}
+
+section('Q7 — the time limit met between steps (the reply asked for a tool and the deadline has passed): the same answer, then time_limit')
+{
+  let ran = 0
+  const tool = { ...makeFakeTool(), isConcurrencySafe: () => false, isReadOnly: () => false, call: async () => ({ data: `probe tool ran ${++ran}` }) }
+  const realNow = Date.now
+  const limitMs = 3_600_000
+  let moved = false
+  let ask7: Awaited<ReturnType<typeof runAsk>>
+  try {
+    ask7 = await runAsk({
+      turns: [
+        { kind: 'tool_use', name: 'QeProbeTool', input: {}, id: 'toolu_qe_time' },
+        { kind: 'text', text: 'Q7 unreached.' },
+      ],
+      tools: [tool],
+      maxTime: { limitMs, at: realNow() + limitMs },
+      onRow: row => {
+        if (row.type !== 'tool_call' || moved) return
+        moved = true
+        Date.now = () => realNow() + limitMs + 1000
+      },
+    })
+  } finally {
+    Date.now = realNow
+  }
+  const out = ask7.out
+  const result = out.at(-1) as SdkMsg & { error?: { message?: string; class?: string } }
+  const callAt = out.findIndex(m => m.type === 'tool_call' && m.call_id === 'toolu_qe_time')
+  const answerAt = out.findIndex(m => m.type === 'tool_result' && m.call_id === 'toolu_qe_time')
+  check('the clock passed the deadline as the call was announced, the outcome is time_limit after one model call, and the tool did not run', moved && result?.type === 'outcome' && result?.status === 'time_limit' && ask7.api.messageRequests().length === 1 && ran === 0, j({ moved, s: result?.status, requests: ask7.api.messageRequests().length, ran }))
+  check('the call it left unrun has a tool_result row between the call and the outcome: status aborted, "Cut off: " and the outcome\u2019s own sentence', callAt !== -1 && answerAt > callAt && answerAt < out.length - 1 && out[answerAt]?.status === 'aborted' && out[answerAt]?.output === `Cut off: ${String(result?.error?.message)}` && String(result?.error?.message).startsWith('Reached the maximum run time'), j({ callAt, answerAt, row: out[answerAt] ?? null, error: result?.error ?? null }))
 }
 
 console.log('\n============================================================')

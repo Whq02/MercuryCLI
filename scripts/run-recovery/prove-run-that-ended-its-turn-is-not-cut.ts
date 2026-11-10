@@ -252,6 +252,38 @@ try {
       await fixture.close()
     }
   }
+
+  section('G3 — the budget ends the turn on a reply that asks for a tool: the run answers the call it leaves unrun, in the turn limit\'s form with the budget\'s own sentence; a second process resumes')
+  {
+    const SID = 'facef00d-0000-4000-8000-00000000a301'
+    const asking: ScriptedTurn = { kind: 'tool_use', name: 'Read', id: 'toolu_g3_read', input: {}, usage: { input_tokens: 2000, output_tokens: 1000 } }
+    const fixture = await startFixtureApi([handoffTurn(), asking, { kind: 'text', text: 'G3-SECOND-REPLY.' }])
+    const arena = makeArena('g3', fixture)
+    const note = join(arena.cwd, 'note.txt')
+    writeFileSync(note, 'G3-NOTE-CONTENT\n')
+    ;(asking as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: note }
+    try {
+      const firstRun = await run(arena, ['run', 'G3 first prompt.', '--model', MODEL, '--session-id', SID, '--budget', '0.000001', '--mode', 'implement', '--format', 'rows'])
+      const rows = rowsOf(firstRun.stdout)
+      const outcome = rows.findLast(row => row.type === 'outcome') as (Record<string, unknown> & { error?: { message?: string } }) | undefined
+      const sentence = String(outcome?.error?.message ?? '')
+      const callAt = rows.findIndex(row => row.type === 'tool_call' && row.call_id === 'toolu_g3_read')
+      const resultAt = rows.findIndex(row => row.type === 'tool_result' && row.call_id === 'toolu_g3_read')
+      check('G3: the run ended its own turn (its outcome row: budget_limit, "Reached the maximum budget of $0.000001") after one request', outcome?.status === 'budget_limit' && sentence === 'Reached the maximum budget of $0.000001' && fixture.messageRequests().filter(request => !isHandoffRequest(request)).length === 1, `exit=${firstRun.exit} ${j({ status: outcome?.status, sentence })} ${firstRun.stderr.slice(-200)}`)
+      check('G3: its rows hold a tool_result for the call it left unrun — status aborted, "Cut off: " and the outcome\'s own sentence — between the call and the outcome', callAt !== -1 && resultAt > callAt && resultAt < rows.length - 1 && rows[resultAt]?.status === 'aborted' && rows[resultAt]?.output === `Cut off: ${sentence}`, j({ callAt, resultAt, row: rows[resultAt] ?? null, types: rows.map(row => row.type) }))
+      const record = await recordOf(transcriptOf(arena, SID))
+      const lastTalk = record.findLast(row => row.type === 'user' || row.type === 'assistant')
+      const cut = resultsOfRow(lastTalk)[0]
+      check('G3: the record ends on that result (an error result on the call\'s id), and holds no result of the tool\'s own', cut?.tool_use_id === 'toolu_g3_read' && cut.is_error === true && resultTextOf(cut) === `Cut off: ${sentence}` && !j(record).includes('G3-NOTE-CONTENT'), j({ tail: record.map(kindOf).slice(-4), cut }))
+      const loaded = await resumedFrom(record, SID)
+      check('G3: the loader does not read the turn as cut from outside — no cut-off sentence', loaded.state === 'none' && loaded.saysContinuation === 0, j(loaded))
+      const second = await run(arena, ['run', 'G3 second prompt.', '--model', MODEL, '--resume', SID, '--mode', 'implement', '--format', 'rows'])
+      const wire = lastRequest(fixture)
+      check('G3: the second process answered, and its request carries the call, the run\'s own result once and the second prompt — no cut-off sentence, and nowhere that the call\'s outcome is not known', second.exit === 0 && second.stdout.includes('G3-SECOND-REPLY.') && says(wire, CONTINUATION) === 0 && says(wire, ENDED_RUN_TOOL_RESULT) === 0 && says(wire, `Cut off: ${sentence}`) === 1 && wireTexts(wire).at(-1) === 'G3 second prompt.', `exit=${second.exit} ${shapeOf(wire)}`)
+    } finally {
+      await fixture.close()
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
