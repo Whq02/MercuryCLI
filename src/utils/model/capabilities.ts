@@ -455,9 +455,9 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
   if (model.trim().toLowerCase().startsWith('local/')) {
     const { localRecordFor } =
       require('../../services/providers/local/localCatalogue.js') as typeof import('../../services/providers/local/localCatalogue.js')
-    const { localModelAcceptsEffort } =
+    const { localModelAcceptsEffort, localServedEfforts } =
       require('../../services/providers/local/localCallModel.js') as typeof import('../../services/providers/local/localCallModel.js')
-    const { LOCAL_SERVER_EFFORTS, LOCAL_SERVER_STATES_THINKING, TENSORFOLD_DIAL, localThinkingOffWireEffort } =
+    const { LOCAL_SERVER_STATES_THINKING, TENSORFOLD_DIAL, localThinkingOffWireEffort } =
       require('../../services/providers/openaicompat/compatWire.js') as typeof import('../../services/providers/openaicompat/compatWire.js')
     const record = localRecordFor(model)
     if (record?.server === 'tensorfold') {
@@ -471,10 +471,11 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
         ? { kind: 'provider', source: 'local', vocabulary, thinkingGated: false, ...(typeof record.thinking.default === 'string' ? { defaultEffort: record.thinking.default } : {}) }
         : { kind: 'none', source: 'local' }
     }
-    const vocabulary = record && localModelAcceptsEffort(record) ? LOCAL_SERVER_EFFORTS[record.server] : []
+    const served = record && localModelAcceptsEffort(record) ? localServedEfforts(record) : undefined
+    const vocabulary = served?.vocabulary ?? []
     const thinkingOffWire = record ? localThinkingOffWireEffort(record.server) : undefined
     return record && vocabulary.length > 0
-      ? { kind: 'provider', source: 'local', vocabulary, thinkingGated: LOCAL_SERVER_STATES_THINKING[record.server], ...(thinkingOffWire !== undefined ? { thinkingOffWire } : {}) }
+      ? { kind: 'provider', source: 'local', vocabulary, thinkingGated: LOCAL_SERVER_STATES_THINKING[record.server], ...(thinkingOffWire !== undefined ? { thinkingOffWire } : {}), ...(served?.steps !== undefined ? { steps: served.steps } : {}) }
       : { kind: 'none', source: 'local' }
   }
   if (isCarrierShapedId(model)) return { kind: 'none', source: 'carrier' }
