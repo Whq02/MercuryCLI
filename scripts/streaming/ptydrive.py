@@ -10,12 +10,38 @@ def unescape(s: str) -> bytes:
     return s.encode("utf-8").decode("unicode_escape").encode("latin-1", "backslashreplace")
 
 
+def emulated_screen(cols, rows, required):
+    import subprocess
+    lib = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
+    engine = os.path.join(lib, "..", "ui", "vshot.py")
+    preflight = subprocess.run([sys.executable, engine, "--preflight"], capture_output=True, text=True)
+    prefix = "ok " + sys.executable + " "
+    if preflight.returncode != 0 or not preflight.stdout.startswith(prefix):
+        if not required:
+            return None, None
+        if preflight.returncode != 0:
+            sys.stderr.write(preflight.stderr)
+            sys.exit(preflight.returncode)
+        raise RuntimeError("capture preflight returned an invalid emulator receipt")
+    sys.path.insert(0, os.path.dirname(preflight.stdout[len(prefix):].strip()))
+    import pyte
+    screen = pyte.Screen(cols, rows)
+    return screen, pyte.ByteStream(screen)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--cols", type=int, default=120)
     ap.add_argument("--rows", type=int, default=40)
     ap.add_argument("--seconds", type=float, default=20.0)
-    ap.add_argument("--send", action="append", default=[])
+    ap.add_argument("--send", action="append", default=[],
+                    help="ms:text, or after:needle:delayMs:text; a needle that begins with ~ is a "
+                         "regular expression that must match one row of the emulated screen "
+                         "(the tail of the byte stream where there is no emulator)")
+    ap.add_argument("--arena-send", action="append", default=[],
+                    help="after:needle:delayMs:text — a send the harness adds on its own: "
+                         "marked \"by\": \"arena\" in --out, and skipped, not unfired, "
+                         "when its needle never paints")
     ap.add_argument("--resize", action="append", default=[],
                     help="ms:cols:rows — TIOCSWINSZ + SIGWINCH at the offset")
     ap.add_argument("--anchor",
@@ -49,10 +75,15 @@ def main() -> None:
 
     sends = []
     afters = []
-    for spec in a.send:
+    for spec in a.arena_send:
+        if not spec.startswith("after:"):
+            print("ptydrive: --arena-send takes after:needle:delayMs:text", file=sys.stderr)
+            sys.exit(2)
+    for spec, by in [(spec, None) for spec in a.send] + [(spec, "arena") for spec in a.arena_send]:
         if spec.startswith("after:"):
             _, needle, delay_s, text = spec.split(":", 3)
             afters.append({"needle": needle.encode(), "delay": float(delay_s) * scale,
+                           "pattern": re.compile(needle[1:]) if needle.startswith("~") else None, "by": by,
                            "payload": unescape(text), "seen_ms": None, "armed_ms": None,
                            "still_ms": None, "ceiling": False, "fired": False})
             continue
@@ -74,23 +105,12 @@ def main() -> None:
             if "awaitText" not in row:
                 sends.append((float(row["atMs"]) * scale, unescape(row["text"])))
         if steps:
-            import subprocess
-            lib = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
-            sys.path.insert(0, lib)
+            sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib"))
             from observed_walk import ObservedWalk
-            engine = os.path.join(lib, "..", "ui", "vshot.py")
-            preflight = subprocess.run([sys.executable, engine, "--preflight"], capture_output=True, text=True)
-            if preflight.returncode != 0:
-                sys.stderr.write(preflight.stderr)
-                sys.exit(preflight.returncode)
-            prefix = "ok " + sys.executable + " "
-            if not preflight.stdout.startswith(prefix):
-                raise RuntimeError("capture preflight returned an invalid emulator receipt")
-            sys.path.insert(0, os.path.dirname(preflight.stdout[len(prefix):].strip()))
-            import pyte
-            screen = pyte.Screen(a.cols, a.rows)
-            walk_stream = pyte.ByteStream(screen)
+            screen, walk_stream = emulated_screen(a.cols, a.rows, True)
             walk = ObservedWalk(steps, scale)
+    if screen is None and any(af["pattern"] is not None for af in afters):
+        screen, walk_stream = emulated_screen(a.cols, a.rows, False)
     sends.sort(key=lambda x: x[0])
     anchor = None
     if a.anchor:
@@ -182,6 +202,7 @@ def main() -> None:
                                               "settledAt": round(af["armed_ms"], 1),
                                               "stillMs": round(af["still_ms"], 1),
                                               "ceiling": af["ceiling"],
+                                              **({"by": af["by"]} if af["by"] is not None else {}),
                                               "b64": base64.b64encode(af["payload"]).decode()}) + "\n")
                         out.flush()
                     af["fired"] = True
@@ -215,8 +236,17 @@ def main() -> None:
             if afters or anchor:
                 raw_tail = (raw_tail + data)[-16384:]
                 tail = ANSI_RE.sub(b"", raw_tail)[-8192:]
+                shown = None
                 for af in afters:
-                    if af["seen_ms"] is None and af["needle"] in tail:
+                    if af["seen_ms"] is not None:
+                        continue
+                    if af["pattern"] is None:
+                        painted = af["needle"] in tail
+                    else:
+                        if shown is None:
+                            shown = screen.display if screen is not None else [tail.decode("utf-8", "replace")]
+                        painted = any(af["pattern"].search(row) is not None for row in shown)
+                    if painted:
                         af["seen_ms"] = last_read_ms
                 if anchor and anchor["seen_ms"] is None and anchor["needle"] in tail:
                     anchor["seen_ms"] = last_read_ms
@@ -288,20 +318,22 @@ def main() -> None:
         except ChildProcessError:
             trace("waitpid: ChildProcessError")
     unfired = walk.pending() if walk is not None else []
+    skipped = []
     for af in afters:
         if not af["fired"]:
             state = ("never painted" if af["seen_ms"] is None
                      else "painted at %dms, never held still for %dms" % (af["seen_ms"], still_ms) if af["armed_ms"] is None
                      else "settled at %dms, delay %dms unreached" % (af["armed_ms"], af["delay"]))
-            unfired.append("after %r (+%dms): %s" % (af["needle"].decode("utf-8", "replace"), af["delay"], state))
+            (unfired if af["by"] is None else skipped).append("after %r (+%dms): %s" % (af["needle"].decode("utf-8", "replace"), af["delay"], state))
     for atms, _payload in sends[si:]:
         unfired.append("at %dms: never reached" % atms)
     if unfired:
         sys.stderr.write("[ptydrive] UNFIRED-SENDS: %d of %d sends never became due — %s\n"
-                         % (len(unfired), len(sends) + len(afters) + (len(walk.steps) if walk is not None else 0), " · ".join(unfired)))
+                         % (len(unfired), len(sends) + sum(1 for af in afters if af["by"] is None) + (len(walk.steps) if walk is not None else 0), " · ".join(unfired)))
     print(json.dumps({"raw_bytes": nbytes, "raw_reads": nreads,
                       "sends": si + sum(1 for af in afters if af["fired"]) + (walk.index if walk is not None else 0),
-                      "unfired": unfired, "ended": ended,
+                      "arena_sends": sum(1 for af in afters if af["fired"] and af["by"] is not None),
+                      "unfired": unfired, "skipped": skipped, "ended": ended,
                       "elapsed_ms": int((time.time() - t0) * 1000),
                       "probe_targets": {"value": probe_targets if probe_targets is not None else "none",
                                         "defaulted": probe_targets is None,
