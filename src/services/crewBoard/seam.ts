@@ -201,7 +201,7 @@ export function reserveSwarmLaunch(agentId: string, input: { name?: string; desc
   const store = swarmStore()!
   const principal = swarmPrincipal(sender)
   if (!principal) throw new Error('This seat is not on the live crew board.')
-  store.reserveEnrollment(principal, { agent: agentId, name: input.name ?? input.description, team: input.team, captain: input.captain })
+  store.reserveEnrollment(principal, { agent: agentId, name: input.name ?? input.description, team: input.team, captain: input.captain, named: input.name !== undefined })
   const id = key(agentId)
   pendingLaunches.add(id)
   return () => {
@@ -303,7 +303,7 @@ export function swarmPeerMessage(context: ToolUseContext, recipient: string, tex
   const board = swarmStore()
   if (board === null) return { handled: true, result: { success: false, message: 'The board is unavailable; nothing was sent.' } }
   const principal = swarmPrincipal(sender) ?? { author: { sessionId: String(getSessionId()), agentId: sender, executionId: context.toolUseId ?? sender }, name: sender }
-  const onBoard = recipient === 'main' || swarmRoad(recipient)
+  const onBoard = recipient === 'main' || (swarmRoad(recipient) && board.member(recipient))
   const op = context.toolUseId ?? randomUUID()
   const result = board.post(principal, { clientOpId: `message:${op}`, kind: 'message', text, taskId: recipient, mentions: onBoard ? [recipient] : [] }, onBoard ? undefined : 'mirror')
   if (!result.ok) return { handled: true, result: { success: false, message: result.reason } }
@@ -382,7 +382,7 @@ export function settleSwarmAgent(agentId: string): void {
   const road = roads.get(key(agentId))
   if (road) {
     const state = isReadOnlyDiagnostic() ? undefined : sessions.get(String(getSessionId()))
-    if (road.on && state) state.store.settle({ author: { sessionId: String(getSessionId()), agentId, executionId: road.execution }, name: road.name })
+    if (road.on && state && state.store.member(agentId)) state.store.settle({ author: { sessionId: String(getSessionId()), agentId, executionId: road.execution }, name: road.name })
     road.active = false
   }
   closeIdleSwarm()
