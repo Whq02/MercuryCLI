@@ -17,6 +17,7 @@ import { isEffortLevel } from '../../utils/effort.js'
 import { chatPresent, subscribeSurfaceRoute, surfaceRouteVersion } from '../../context/surfaceRoute.js'
 import { landingInFlight } from '../../services/engine-connector/focusedConnector.js'
 import { PARK_REFUSED_NOW_LEAD } from '../../services/concourse/concourseSnapshot.js'
+import { listColumns } from './rowLine.js'
 import { useSyncExternalStore } from 'react'
 import { LiveNowCell } from './LiveNowCell.js'
 import { useLiveTilesDegraded } from './liveTiles.js'
@@ -398,10 +399,7 @@ export function ConcourseLayout({
     }
   }
 
-  const colProject = listInner >= 66 ? 12 : 9
-  const colAge = 9
-  const nowWidth = listInner >= 72 ? Math.max(12, Math.floor(listInner * 0.3)) : 0
-  const stateCellShown = listInner >= 48
+  const { colProject, colAge, nowWidth, stateCellShown } = listColumns(listInner)
 
   const groupRole = (id: string): string =>
     id === 'needs-you' || id === 'stalled'
