@@ -388,7 +388,7 @@ Les options d'exécution sont définies dans `src/substrate/flagRegistry.ts`, ex
 
 ## Commandes slash
 
-`/help` liste les commandes interactives disponibles. Utilisez `/palette` pour une recherche floue de commandes. Le tableau ci-dessous regroupe les commandes intégrées activées par défaut selon les catégories utilisées dans `/help` ; la liste en direct inclut aussi `/samples` sous `current work` lorsque Samples est activé (`MERCURY_SAMPLES=1` ou la ligne Samples du Boot Menu), `/showcase` lorsque `MERCURY_DEV_SURFACES=1` est défini, ainsi que les skills et les commandes d'extension.
+`/help` liste les commandes interactives disponibles. Utilisez `/palette` pour une recherche floue de commandes. Le tableau ci-dessous regroupe les commandes intégrées activées par défaut selon les catégories utilisées dans `/help` ; la liste en direct inclut aussi `/samples` sous `current work` lorsque Samples est activé (`MERCURY_SAMPLES=1` ou la ligne Samples du Boot Menu), ainsi que les skills et les commandes d'extension.
 
 | Domaine | Commandes |
 | --- | --- |

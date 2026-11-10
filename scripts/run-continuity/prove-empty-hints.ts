@@ -25,25 +25,5 @@ console.log('empty-state hint honesty (hints-fire law) ──')
     s.includes("results.length > 0 ? '↑↓ select · ↵ run · type to filter'"),
   )
 }
-{
-  const s = src('src/components/MercuryQuickOpen.tsx')
-  check(
-    'MercuryQuickOpen: footer composes from filtered.length',
-    s.includes("filtered.length > 0 ? 'type · ↑↓ move · ↵ open'"),
-  )
-}
-{
-  const s = src('src/components/MercurySearch.tsx')
-  check(
-    'MercurySearch: footer composes from filtered.length',
-    s.includes("filtered.length > 0 ? 'type · ↑↓ move · ↵ open'"),
-  )
-}
-{
-  const s = src('src/components/MercuryResume.tsx')
-  const emptyBranch = s.slice(s.indexOf('no resumable sessions') - 400, s.indexOf('no resumable sessions'))
-  check('MercuryResume empty branch stays footer-less', !emptyBranch.includes('footer='))
-}
-
 console.log(failures === 0 ? '\nALL GREEN' : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

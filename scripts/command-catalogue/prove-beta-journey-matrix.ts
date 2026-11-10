@@ -102,17 +102,10 @@ const byName = new Map(surfaces.map(s => [s.name, s]))
   const noSurface = ['party', 'multiplayer', 'rooms', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say', 'doctor'].filter(n => byName.has(n) || surfaces.some(s => s.aliases.includes(n)))
   check('the old multiplayer names and the old health alias are no surface, by name or alias', noSurface.length === 0, noSurface.join(', '))
 
-  const showcase = byName.get('showcase')
-  check('/showcase is dev-visibility + DISABLED unarmed', showcase?.visibility === 'dev' && showcase.enabled === false)
-
   const unclassified = surfaces.filter(
-    s => !s.name || !s.kind || !s.category || !['normal', 'hidden', 'dev'].includes(s.visibility) || typeof s.enabled !== 'boolean',
+    s => !s.name || !s.kind || !s.category || !['normal', 'hidden'].includes(s.visibility) || typeof s.enabled !== 'boolean',
   )
   check('every surface row is fully classified', unclassified.length === 0, unclassified.map(s => s.name).join(', '))
-
-  const armed = dumpArtifact({ MERCURY_DEV_SURFACES: '1' })
-  const armedShowcase = armed.find(s => s.name === 'showcase')
-  check('MERCURY_DEV_SURFACES=1 arms /showcase in the artifact', armedShowcase?.enabled === true)
 
   console.log(`  ·  artifact surfaces: ${surfaces.length} (${surfaces.filter(s => s.visibility === 'normal' && s.enabled).length} normal+enabled)`)
 }

@@ -80,7 +80,7 @@ See [docs/README.md](docs/README.md) for the full documentation catalogue ([docs
 
 ## Slash commands
 
-`/help` lists the available interactive commands and `/palette` searches them (`MERCURY_SAMPLES=1` adds `/samples` under `current work`, `MERCURY_DEV_SURFACES=1` adds `/showcase`):
+`/help` lists the available interactive commands and `/palette` searches them (`MERCURY_SAMPLES=1` adds `/samples` under `current work`):
 
 | Domain | Commands |
 | --- | --- |

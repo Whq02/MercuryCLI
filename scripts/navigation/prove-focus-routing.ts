@@ -61,8 +61,6 @@ console.log('== membership + consumption + editor-ownership source pins ==')
   const panes = read('src/components/mercury-ui/useNavigablePanes.ts')
   const flat = read('src/components/mercury-ui/useFlatList.ts')
   const picker = read('src/components/MercuryModelPicker.tsx')
-  const resume = read('src/components/MercuryResume.tsx')
-  const config = read('src/components/MercuryConfig.tsx')
   const consoleSrc = read('src/commands/console/console.tsx')
   const promptsPanel = read('src/components/prompts-panel/PromptsPanel.tsx')
   const logsel = read('src/components/LogSelector.tsx')
@@ -70,14 +68,10 @@ console.log('== membership + consumption + editor-ownership source pins ==')
   check('kit lists register as overlays (pre-existing)', list.includes("useRegisterOverlay('list'"))
   check('boards register as overlays', panes.includes("useRegisterOverlay('board'"))
   check('model picker registers', picker.includes("useRegisterOverlay('model-picker'"))
-  check('resume registers', resume.includes("useRegisterOverlay('resume'"))
-  check('config registers', config.includes("useRegisterOverlay('config'"))
   check('console registers', consoleSrc.includes("useRegisterOverlay('console'"))
   for (const [name, src] of [
     ['boards', panes],
     ['model picker', picker],
-    ['resume', resume],
-    ['config', config],
     ['console', consoleSrc],
   ] as const) {
     check(`${name}: esc guarded by isTopOverlayNow`, src.includes('isTopOverlayNow(overlayToken)'))
@@ -102,15 +96,11 @@ console.log('== membership + consumption + editor-ownership source pins ==')
 
   const pal = read('src/components/MercuryCommandPalette.tsx')
   const fo = read('src/components/MercuryFileOpen.tsx')
-  const qo = read('src/components/MercuryQuickOpen.tsx')
   const cs = read('src/components/MercuryContentSearch.tsx')
-  const hs = read('src/components/MercurySearch.tsx')
   for (const [name, src] of [
     ['palette', pal],
     ['file-open', fo],
-    ['quick-open', qo],
     ['content-search', cs],
-    ['search', hs],
   ] as const) {
     check(`${name}: the query rides the ONE editor (TextInput)`, src.includes('<TextInput') && src.includes('onChangeCursorOffset'))
     check(`${name}: the append-only query branch is DEAD`, !src.includes('setQuery(q => q + input)') && !src.includes('[...q].slice(0, -1)'))
@@ -123,7 +113,6 @@ console.log('== membership + consumption + editor-ownership source pins ==')
   }
   check('palette pages by the REAL viewport (the window span — LUSTRE L4)', pal.includes("pageKeys: true") && pal.includes('pageSize: listRows'))
   check('palette declares page-key ownership on its overlay', pal.includes('ownsPageKeys: true'))
-  check('search windows the FULL set and pages by its viewport', hs.includes('pageSize: MAX_ROWS') && hs.includes('ownsPageKeys: true'))
   const scroll = read('src/components/ScrollKeybindingHandler.tsx')
   check('the transcript scroller YIELDS page keys to a declared overlay pager (all 6 scroll handlers)', (scroll.match(/if \(topOverlayOwnsPageKeys\(\)\) return false/g) ?? []).length === 6)
   const uti = read('src/hooks/useTextInput.ts')

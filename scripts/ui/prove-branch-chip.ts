@@ -36,7 +36,7 @@ section('§2 the census: one owner spells the chip')
       const full = join(dir, name)
       return statSync(full).isDirectory() ? walk(full) : /\.(ts|tsx)$/.test(name) ? [full] : []
     })
-  const EXEMPT = new Set(['src/components/mercury-ui/glyphs.ts', 'src/components/MercuryPrBadge.tsx'])
+  const EXEMPT = new Set(['src/components/mercury-ui/glyphs.ts'])
   const spellers = walk(join(ROOT, 'src'))
     .map(f => f.slice(ROOT.length + 1))
     .filter(f => !EXEMPT.has(f) && /GLYPH\.branch\b/.test(readFileSync(join(ROOT, f), 'utf8')))

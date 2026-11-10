@@ -86,7 +86,6 @@ t.section('§4 — the product lockup stays the true crab')
   for (const f of [
     'src/components/MercurySetupFrame.tsx',
     'src/components/mercury-ui/components.tsx',
-    'src/components/MercuryWelcome.tsx',
   ]) {
     const src = readFileSync(f, 'utf8')
     t.check(`${f.split('/').pop()} keeps the crab lockup`, /<Crab\s*\/>/.test(src), 'product mark')

@@ -388,7 +388,7 @@ docker run --rm mercury --version
 
 ## 斜線指令
 
-`/help` 會列出可用的互動式指令。使用 `/palette` 進行模糊指令搜尋。下表依 `/help` 所用的分類，將預設啟用的內建指令分組；即時清單還會包含 `/samples`（位於 `current work` 下，當透過 `MERCURY_SAMPLES=1` 或 Boot Menu 的 Samples 列啟用 Samples 時）、`/showcase`（當設定 `MERCURY_DEV_SURFACES=1` 時），以及所有技能與擴充功能的指令。
+`/help` 會列出可用的互動式指令。使用 `/palette` 進行模糊指令搜尋。下表依 `/help` 所用的分類，將預設啟用的內建指令分組；即時清單還會包含 `/samples`（位於 `current work` 下，當透過 `MERCURY_SAMPLES=1` 或 Boot Menu 的 Samples 列啟用 Samples 時），以及所有技能與擴充功能的指令。
 
 | 類別 | 指令 |
 | --- | --- |

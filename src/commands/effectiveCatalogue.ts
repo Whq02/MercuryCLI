@@ -2,15 +2,10 @@ import {
   COMMAND_DOMAINS,
   FALLBACK_DOMAIN_LABEL,
 } from '../components/HelpV2/commandDomains.js'
-import { flagEnabled } from '../substrate/flagRegistry.js'
 import { type Command, getCommandName } from '../types/command.js'
 import { isCommandEnabled } from './enablement.js'
 
-export function devSurfacesEnabled(): boolean {
-  return flagEnabled('MERCURY_DEV_SURFACES')
-}
-
-type SurfaceVisibility = 'normal' | 'hidden' | 'dev'
+type SurfaceVisibility = 'normal' | 'hidden'
 
 type EffectiveSurface = {
   name: string
@@ -36,7 +31,6 @@ const domainByName: Map<string, { key: string; label: string }> = (() => {
 })()
 
 function visibilityOf(cmd: Command): SurfaceVisibility {
-  if (cmd.devOnly) return 'dev'
   if (cmd.isHidden) return 'hidden'
   return 'normal'
 }
@@ -71,12 +65,10 @@ export function normalSurfaces(): EffectiveSurface[] {
 
 export function surfaceDumpDocument(): {
   generatedBy: string
-  devSurfacesArmed: boolean
   surfaces: EffectiveSurface[]
 } {
   return {
     generatedBy: 'effectiveCatalogue',
-    devSurfacesArmed: devSurfacesEnabled(),
     surfaces: effectiveCatalogue(),
   }
 }

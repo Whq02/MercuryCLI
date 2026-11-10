@@ -2,15 +2,13 @@
 # gate-class: pty
 # gate-watch: src/commands/run/run.tsx
 # gate-watch: src/components/mercury-ui/PaletteView.tsx
-# gate-watch: src/components/MercuryQuickOpen.tsx
-# gate-watch: src/components/MercurySearch.tsx
 # gate-watch: src/components/prompts-panel/**
 # gate-watch: src/services/workbench/**
 # gate-watch: src/components/diff/**
 # gate-watch: src/components/messages/AssistantTextMessage.tsx
 # gate-watch: src/utils/messages/lookups.ts
 # gate-watch: src/services/api/errors.ts
-# gate-watch: scripts/ui/render-tui.ts src/rows/turn.ts src/components/MercuryResume.tsx
+# gate-watch: scripts/ui/render-tui.ts src/rows/turn.ts
 # gate-watch: src/components/Message.tsx src/components/mercury-ui/components.tsx
 # gate-watch: src/components/messages/SystemTextMessage.tsx src/run-core/turn-machine.ts
 # gate-watch: src/utils/messages/normalize.ts src/utils/messages/systemMessages.ts

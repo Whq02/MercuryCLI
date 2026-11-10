@@ -388,7 +388,7 @@ docker run --rm mercury --version
 
 ## 슬래시 명령
 
-`/help`는 사용할 수 있는 대화형 명령을 나열합니다. 퍼지 명령 검색에는 `/palette`를 사용합니다. 아래 표는 `/help`에서 쓰는 범주에 따라 기본으로 켜진 내장 명령을 묶습니다. 실시간 목록에는 `/samples`(`current work` 아래에 표시되며, `MERCURY_SAMPLES=1` 또는 Boot Menu의 Samples 행으로 Samples가 켜져 있을 때), `/showcase`(`MERCURY_DEV_SURFACES=1`이 설정되어 있을 때), 그리고 모든 스킬 또는 확장 명령도 포함됩니다.
+`/help`는 사용할 수 있는 대화형 명령을 나열합니다. 퍼지 명령 검색에는 `/palette`를 사용합니다. 아래 표는 `/help`에서 쓰는 범주에 따라 기본으로 켜진 내장 명령을 묶습니다. 실시간 목록에는 `/samples`(`current work` 아래에 표시되며, `MERCURY_SAMPLES=1` 또는 Boot Menu의 Samples 행으로 Samples가 켜져 있을 때), 그리고 모든 스킬 또는 확장 명령도 포함됩니다.
 
 | 영역 | 명령 |
 | --- | --- |

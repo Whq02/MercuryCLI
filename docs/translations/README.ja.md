@@ -388,7 +388,7 @@ docker run --rm mercury --version
 
 ## スラッシュコマンド
 
-`/help` は利用可能な対話型コマンドを一覧表示します。曖昧一致でコマンドを検索するには `/palette` を使います。下の表は、既定で有効な組み込みコマンドを `/help` で使われているカテゴリーごとにまとめたものです。ライブの一覧には、`/samples`（`current work` の下に表示。Samples が `MERCURY_SAMPLES=1` または Boot Menu の Samples 行で有効な場合）や、`/showcase`（`MERCURY_DEV_SURFACES=1` が設定されている場合）、さらにスキルや拡張機能のコマンドも含まれます。
+`/help` は利用可能な対話型コマンドを一覧表示します。曖昧一致でコマンドを検索するには `/palette` を使います。下の表は、既定で有効な組み込みコマンドを `/help` で使われているカテゴリーごとにまとめたものです。ライブの一覧には、`/samples`（`current work` の下に表示。Samples が `MERCURY_SAMPLES=1` または Boot Menu の Samples 行で有効な場合）、さらにスキルや拡張機能のコマンドも含まれます。
 
 | 分類 | コマンド |
 | --- | --- |

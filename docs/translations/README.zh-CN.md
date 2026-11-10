@@ -388,7 +388,7 @@ docker run --rm mercury --version
 
 ## 斜杠命令
 
-`/help` 会列出可用的交互式命令。使用 `/palette` 进行模糊命令搜索。下表按 `/help` 所用的分类，将默认启用的内置命令分组；实时列表还会包含 `/samples`（位于 `current work` 下，当通过 `MERCURY_SAMPLES=1` 或 Boot Menu 中的 Samples 一行启用 Samples 时）、`/showcase`（当设置了 `MERCURY_DEV_SURFACES=1` 时），以及所有技能或扩展命令。
+`/help` 会列出可用的交互式命令。使用 `/palette` 进行模糊命令搜索。下表按 `/help` 所用的分类，将默认启用的内置命令分组；实时列表还会包含 `/samples`（位于 `current work` 下，当通过 `MERCURY_SAMPLES=1` 或 Boot Menu 中的 Samples 一行启用 Samples 时），以及所有技能或扩展命令。
 
 | 类别 | 命令 |
 | --- | --- |

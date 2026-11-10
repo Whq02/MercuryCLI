@@ -388,7 +388,7 @@ Flagi uruchomieniowe są zdefiniowane w `src/substrate/flagRegistry.ts`, udostę
 
 ## Polecenia slash
 
-`/help` wyświetla dostępne polecenia interaktywne. Użyj `/palette`, aby wyszukać polecenie rozmytym dopasowaniem. Poniższa tabela grupuje domyślnie włączone wbudowane polecenia według kategorii używanych w `/help`; lista na żywo zawiera też `/samples` w sekcji `current work`, gdy Samples jest włączone (`MERCURY_SAMPLES=1` albo wiersz Samples w Boot Menu), `/showcase`, gdy ustawiono `MERCURY_DEV_SURFACES=1`, oraz wszystkie skille i polecenia rozszerzeń.
+`/help` wyświetla dostępne polecenia interaktywne. Użyj `/palette`, aby wyszukać polecenie rozmytym dopasowaniem. Poniższa tabela grupuje domyślnie włączone wbudowane polecenia według kategorii używanych w `/help`; lista na żywo zawiera też `/samples` w sekcji `current work`, gdy Samples jest włączone (`MERCURY_SAMPLES=1` albo wiersz Samples w Boot Menu), oraz wszystkie skille i polecenia rozszerzeń.
 
 | Obszar | Polecenia |
 | --- | --- |

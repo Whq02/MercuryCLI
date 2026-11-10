@@ -49,7 +49,6 @@ t.section('§1 — the branch glyph is vocabulary (D13)')
     'src/components/MercuryHome.tsx',
     'src/components/mercury-ui/parity/RealmsView.tsx',
     'src/components/DeckPane.tsx',
-    'src/components/MercuryPromptFooter.tsx',
     'src/components/BootSettingsScreen.tsx',
   ]
   const missing = promoted.filter(p => !readFileSync(join(ROOT, p), 'utf8').includes('branchChip('))

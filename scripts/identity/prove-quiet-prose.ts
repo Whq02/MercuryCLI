@@ -31,7 +31,6 @@ const SURFACES: readonly string[] = [
   'src/components/BootLoginsScreen.tsx',
   'src/components/LoginAccountCard.tsx',
   'src/components/ApproveApiKey.tsx',
-  'src/components/MercuryApiKey.tsx',
   'src/components/geminiConnectGuide.ts',
   'src/components/CompatConnect.tsx',
   'src/components/OpenaiConnect.tsx',

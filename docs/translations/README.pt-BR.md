@@ -388,7 +388,7 @@ As flags de execução são definidas em `src/substrate/flagRegistry.ts`, expost
 
 ## Comandos slash
 
-`/help` lista os comandos interativos disponíveis. Use `/palette` para a busca aproximada de comandos. A tabela abaixo agrupa os comandos integrados ativados por padrão segundo as categorias usadas em `/help`; a lista ao vivo também inclui `/samples` em `current work` quando Samples está ativado (`MERCURY_SAMPLES=1` ou a linha Samples do Boot Menu), `/showcase` quando `MERCURY_DEV_SURFACES=1` está definido, e quaisquer skills ou comandos de extensão.
+`/help` lista os comandos interativos disponíveis. Use `/palette` para a busca aproximada de comandos. A tabela abaixo agrupa os comandos integrados ativados por padrão segundo as categorias usadas em `/help`; a lista ao vivo também inclui `/samples` em `current work` quando Samples está ativado (`MERCURY_SAMPLES=1` ou a linha Samples do Boot Menu), e quaisquer skills ou comandos de extensão.
 
 | Categoria | Comandos |
 | --- | --- |
