@@ -379,13 +379,12 @@ export function mintGitRefusedReceipt(clientMessageId: string, folder: string, r
   }).catch(err => logForDebugging(`[daemon] git-refused receipt write failed: ${err}`))
 }
 
-function withdrawUnheldGitOffer(requestId: string): void {
+function settleGitOfferByReference(requestId: string, outcome: { kind: 'withdrawn' | 'answered'; by: string }): void {
   void resolveObligationByRef(`permission:${requestId}`, {
-    kind: 'withdrawn',
-    by: 'daemon: no git offer is held under this reference',
+    ...outcome,
     scope: 'switchboard',
     stillDue: () => !pending.has(requestId),
-  }).catch(err => logForDebugging(`[daemon] unheld git offer ${requestId} obligation settle failed: ${err}`))
+  }).catch(err => logForDebugging(`[daemon] git offer ${requestId} obligation settle failed: ${err}`))
 }
 
 export function onWorkerAskWithdrawn(requestId: string, dir?: string, cause?: string): void {
@@ -429,11 +428,14 @@ export function answerPermissionAsk(
     }
   }
   if (!ask) {
-    if (requestId.startsWith('git-init:')) withdrawUnheldGitOffer(requestId)
+    if (requestId.startsWith('git-init:')) settleGitOfferByReference(requestId, { kind: 'withdrawn', by: 'daemon: no git offer is held under this reference' })
     return { outcome: 'refused', detail: retired.get(requestId) ?? 'unknown or already-answered permission request' }
   }
   if (ask.local === 'git-init') {
-    const settleObligation = (): void => settleAskObligation(ask, { kind: 'answered', by }, () => !pending.has(requestId))
+    const settleObligation = (): void =>
+      ask.obligationLanded === undefined
+        ? settleGitOfferByReference(requestId, { kind: 'answered', by })
+        : settleAskObligation(ask, { kind: 'answered', by }, () => !pending.has(requestId))
     const dropSidecar = (): void => {
       const map = readGitInitAsks()
       if (map[requestId] !== undefined) {
