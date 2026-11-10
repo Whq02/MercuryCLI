@@ -192,10 +192,13 @@ completed; completed acts are not undone. A failed answer travels to the model
 as text alone, so a screenshot a step took before the stop is not returned: its
 line says so and the previous screenshot's coordinates still apply (take the
 screenshot alone to see it). One screenshot follows the final step
-unless that step is a screenshot, and the after-state line of the last step
-closes the result. When the last step is a `wait`, the observation is read
-before and after it in any application an earlier step of the sequence was
-allowed in, so that line names the focused control instead of `focus unknown`.
+unless that step is a screenshot. The state line is the answer's second line,
+under `sequence N/M completed` and above the steps' own lines: it compares the
+screen before the first step with the screen after the last, whatever the last
+step is, and reads `changed` when any step changed the window title or the
+focus. When the last step is a `wait`, the observation is still read in any
+application an earlier step of the sequence was allowed in, so that line names
+the focused control instead of `focus not read`.
 A `screenshot` step inside a sequence is an image the model has not seen when
 the next step runs, so a step after it that takes pixel coordinates (`x` and
 `y`, `toX` and `toY`, or a `region`) is refused with that reason and the
