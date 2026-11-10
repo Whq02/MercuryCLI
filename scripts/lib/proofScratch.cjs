@@ -4,11 +4,13 @@ const { fileURLToPath } = require('node:url')
 const { syncBuiltinESMExports } = require('node:module')
 
 const RUN_ROOT_PREFIX = 'mercury-proof-run.'
+const SINGLE_RUN_OWNER = 'MERCURY_SUITE_OF_ONE'
 const SIGNAL_EXITS = [['SIGTERM', 143], ['SIGINT', 130], ['SIGHUP', 129]]
 const folders = new Set()
 const kept = new Set()
 let installed = false
 let ownRoot = ''
+let madeRoot = false
 let stopped = false
 function keepAsked() {
   if (process.argv.some(word => word === '--keep' || word.startsWith('--keep-') || word.startsWith('--keep='))) return true
@@ -39,8 +41,8 @@ function runRootBase(inherited) {
   }
   return ''
 }
-function sweepOwnRoot(inherited) {
-  if (process.env.TMPDIR === ownRoot) process.env.TMPDIR = inherited
+function sweepOwnRoot(outside) {
+  if (process.env.TMPDIR === ownRoot) process.env.TMPDIR = outside
   const held = [...kept].filter(folder => folder === ownRoot || folder.startsWith(ownRoot + path.sep))
   if (held.length === 0) return removeScratchFolder(ownRoot)
   for (const name of fs.readdirSync(ownRoot)) {
@@ -102,13 +104,20 @@ function installProofScratch() {
   const callback = fs.mkdtemp
   const promise = fs.promises.mkdtemp
   const inherited = require('node:os').tmpdir()
-  const guest = Boolean(runRoot) || path.basename(inherited).startsWith(RUN_ROOT_PREFIX)
-  if (!guest) {
+  const inRunRoot = path.basename(inherited).startsWith(RUN_ROOT_PREFIX)
+  const adopted = !runRoot && inRunRoot && process.env[SINGLE_RUN_OWNER] === String(process.pid)
+  const guest = !adopted && (Boolean(runRoot) || inRunRoot)
+  const outside = adopted ? path.dirname(inherited) : inherited
+  if (adopted) {
+    ownRoot = inherited
+  } else if (!guest) {
     const base = runRootBase(inherited)
     if (base) {
       try {
         ownRoot = sync(path.join(base, RUN_ROOT_PREFIX))
+        madeRoot = true
         process.env.TMPDIR = ownRoot
+        process.env.MERCURY_TMPDIR = ownRoot
       } catch {
         ownRoot = ''
       }
@@ -156,7 +165,7 @@ function installProofScratch() {
       }
     }
     if (!ownRoot) return
-    try { sweepOwnRoot(inherited) } catch (error) {
+    try { sweepOwnRoot(outside) } catch (error) {
       process.stderr.write(`proof scratch left behind: ${ownRoot}: ${error.message}\n`)
     }
   })
@@ -181,7 +190,10 @@ function removeScratchFolder(folder, maxRetries = 10, retryDelayMs = 100) {
     }
   }
 }
-module.exports = { installProofScratch, registerProofScratch, keepProofScratch, removeScratchFolder }
+function singleRunRootMadeHere() {
+  return madeRoot ? ownRoot : ''
+}
+module.exports = { installProofScratch, registerProofScratch, keepProofScratch, removeScratchFolder, singleRunRootMadeHere, SINGLE_RUN_OWNER }
 if (process.env.MERCURY_SUITE_TMPDIR) {
   try {
     installProofScratch()
