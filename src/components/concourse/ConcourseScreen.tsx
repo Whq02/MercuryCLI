@@ -49,7 +49,7 @@ import { deriveGitOffer, GitOfferCard, gitOfferDescription, gitOfferFolderHeld, 
 import { needsSeatOverloadAsk, SeatOverloadCard } from './SeatOverloadCard.js';
 import { WorktreeLaunchCard } from './WorktreeLaunchCard.js';
 import { ManagerAskCard, ManagerPlanCard, ManagerSeatAskCard } from './ManagerCards.js';
-import { ContractOfferCard } from './ContractOfferCard.js';
+import { CONTRACT_CARD_MIN_ROWS, ContractOfferCard } from './ContractOfferCard.js';
 import { RowPickModal } from './RowPickModal.js';
 import { MercuryModelDefaultPicker, MercurySessionModelPicker } from '../../commands/model/mercuryModel.js';
 import { ModalContext } from '../../context/modalContext.js';
@@ -1071,6 +1071,7 @@ export function ConcourseScreen({
   const [contractAsk, setContractAsk] = useState(false)
   const contractAskRef = useRef(contractAsk)
   contractAskRef.current = contractAsk
+  const compactCardRows = contractAsk ? CONTRACT_CARD_MIN_ROWS : 0
   const armContractAsk = (): void => {
     if (seatAskRef.current !== null || forkAskRef.current !== null) return
     setContractAsk(true)
@@ -1358,8 +1359,9 @@ export function ConcourseScreen({
             sessionCount: sessionRows.length,
             newSessionDoor: !reducedStage && callbacks.newSession !== undefined,
             composerBand: reducedStage ? 0 : Math.max(1, liveDraftDesired),
+            cardRows: compactCardRows,
           }),
-    [compactProfile, termCols, termRows, sessionRows.length, reducedStage, callbacks.newSession, liveDraftDesired],
+    [compactProfile, termCols, termRows, sessionRows.length, reducedStage, callbacks.newSession, liveDraftDesired, compactCardRows],
   )
 
   const regionsInOrder = useMemo<ConcourseRegion[]>(() => {
@@ -1524,7 +1526,7 @@ export function ConcourseScreen({
     }
     if (key.wheelUp || key.wheelDown) {
       const kp = event.keypress as { x?: number; y?: number }
-      const compactListPainted = compactProfile === 'split' || (compactProfile === 'single' && region === 'list' && !contractAskRef.current)
+      const compactListPainted = compactGeo?.profile === 'split' || (compactGeo?.profile === 'single' && region === 'list' && !contractAskRef.current)
       const overList =
         kp.x !== undefined && kp.y !== undefined
           ? compactGeo !== null
@@ -2522,9 +2524,9 @@ export function ConcourseScreen({
   const boardTree =
     compactProfile !== null ? (
       <CompactConcourse
-        profile={compactProfile}
         cols={termCols}
         rows={termRows}
+        cardRows={compactCardRows}
         region={region === 'live' ? 'live' : 'list'}
         sessionRows={sessionRows}
         selectedId={boardSel}
