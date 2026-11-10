@@ -54,7 +54,8 @@ export async function vastFixture() {
       const offers = (state.volumeOffers ?? defaultVolumeOffers).filter(row => (body.disk_space === undefined || row.disk_space >= body.disk_space.gte) && (body.machine_id === undefined || row.machine_id === body.machine_id.eq) && (body.verified === undefined || body.verified.eq === (row.verification === 'verified')))
       json({ offers: offers.map(row => ({ ...row, storage_total_cost: row.storage_cost * (body.allocated_storage ?? 1) / 720, external: false })) }); return
     }
-    if (url.pathname === '/api/v0/volumes' && req.method === 'GET') {
+    if (url.pathname === '/api/v0/volumes' && req.method === 'GET') { res.writeHead(301, { location: origin + '/api/v0/volumes/' + url.search }); res.end(); return }
+    if (url.pathname === '/api/v0/volumes/' && req.method === 'GET') {
       if (url.searchParams.get('owner') !== 'me' || !['local_volume', 'all_volume', 'network_volume'].includes(url.searchParams.get('type'))) { fail(400, 'Invalid volume query'); return }
       const rows = url.searchParams.get('type') === 'network_volume' ? [] : [...state.volumes.values()].map(volumeRow)
       if (state.volumeListShape === 'array') { json(rows); return }

@@ -165,7 +165,7 @@ export class VastClient implements HostVendor {
     return found.filter(row => row.disk_space >= minGb && (row.verification ?? 'verified') === 'verified' && (machineId === undefined || row.machine_id === machineId)).map(row => ({ id: row.id, machineId: row.machine_id, hostId: row.host_id ?? undefined, diskGb: row.disk_space, storageCost: row.storage_cost ?? (row.storage_total_cost != null && minGb > 0 ? row.storage_total_cost * 720 / minGb : 0), verification: row.verification ?? 'verified', reliability: row.reliability2 ?? row.reliability ?? 0, geolocation: row.geolocation ?? undefined, hostingType: hostingType(row.datacenter), cudaMaxGood: row.cuda_max_good ?? undefined })).sort((a, b) => a.storageCost - b.storageCost || a.machineId - b.machineId)
   }
   async volumes(signal?: AbortSignal): Promise<VastVolume[]> {
-    const rows = await this.api.request('/api/v0/volumes?owner=me&type=local_volume', volumeListSchema, 'GET', undefined, signal)
+    const rows = await this.api.request('/api/v0/volumes/?owner=me&type=local_volume', volumeListSchema, 'GET', undefined, signal)
     return rows.filter(row => !row.deleted_at).map(row => ({ id: row.id, name: this.api.redact(row.label ?? row.name ?? 'V.' + row.id), status: row.status ?? 'unknown', machineId: row.machine_id ?? undefined, diskGb: row.disk_space ?? undefined, hourly: row.storage_total_cost ?? undefined, instances: instanceIds(row.instances), createdAt: row.start_date != null && row.start_date > 0 ? new Date(row.start_date * 1000).toISOString() : '' }))
   }
   async createVolume(offer: VastVolumeOffer, sizeGb: number, name: string, signal?: AbortSignal): Promise<VastVolume> {
