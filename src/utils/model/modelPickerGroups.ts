@@ -342,7 +342,8 @@ export function pickerColumns(rowWidth: number): PickerColumns {
   const ctx = 11
   const tailTarget = 14
   const alias = Math.max(12, Math.min(22, Math.round(rowWidth * 0.24)))
-  const id = Math.max(20, Math.min(32, rowWidth - alias - state - ctx - tailTarget))
+  const idRoom = Math.max(0, rowWidth - alias - state - ctx)
+  const id = Math.min(idRoom, Math.max(20, Math.min(32, idRoom - tailTarget)))
   const tail = Math.max(0, rowWidth - alias - id - state - ctx)
   return { alias, id, state, ctx, tail }
 }
