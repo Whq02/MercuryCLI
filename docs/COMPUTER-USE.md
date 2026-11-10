@@ -118,6 +118,13 @@ about a second to read; 1000 ms for a plain pause; cap 10000 ms). The result nam
 the condition that passed and how long it took, or that the time ran out with
 the size of the last tree read; if
 the front window changes the call reports that instead of succeeding.
+A `gone` wait is met only by a tree that could have shown the element: a whole
+tree, with its page content read where the window bears a page, of a window
+that exposes something besides its frame. The accessibility tree is the only
+witness for a native window. An application that draws its own canvas and
+exposes nothing lets the wait run to its timeout; one that exposes a toolbar
+around such a canvas never had the canvas's text in its tree, so a `gone` wait
+on that text is met at once: check such a window with a screenshot.
 `capture: false` makes this an image-free check. Put a `wait` with `until`
 after a click whose effect you assume (a dialog opening, focus moving, a page
 changing): inside a sequence the timeout stops the sequence there, so the keys
