@@ -130,6 +130,13 @@ function installProofScratch(options = {}) {
       } catch {
         ownRoot = ''
       }
+    } else if (process.platform === 'win32' && !process.env.MERCURY_TMPDIR) {
+      try {
+        ownRoot = sync(path.join(inherited, RUN_ROOT_PREFIX))
+        process.env.MERCURY_TMPDIR = ownRoot
+      } catch {
+        ownRoot = ''
+      }
     }
   }
   fs.mkdtempSync = function(prefix, options) {

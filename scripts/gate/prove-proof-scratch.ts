@@ -96,8 +96,40 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
       check(`${label} still registers in the process ledger`, loaded.status !== 0 || (named && entry.length === 5 && entry.every(field => field !== '')), `entry ${JSON.stringify(entry)} in ${JSON.stringify(written)}`)
     }
   }
+  {
+    const dir = realpathSync(mkdtempSync(join(world, 'as-win32-')))
+    const standIn = join(dir, 'stand-in.cjs')
+    writeFileSync(standIn, `const fs = require('node:fs'); const os = require('node:os'); const path = require('node:path');
+Object.defineProperty(process, 'platform', { value: 'win32' });
+require(${JSON.stringify(join(root, 'scripts/lib/proofScratch.cjs'))}).installProofScratch();
+const made = process.env.MERCURY_TMPDIR || '';
+if (process.argv[3] !== 'empty' && made !== '') fs.mkdirSync(path.join(made, 'mercury', 'session'), { recursive: true });
+fs.writeFileSync(process.argv[2], JSON.stringify({ productTmp: made, tmp: os.tmpdir(), stood: made !== '' && fs.existsSync(made) }));
+process.exit(process.argv[3] === 'red' ? 1 : 0);
+`)
+    const { MERCURY_TMPDIR: _productTmp, MERCURY_SUITE_OF_ONE: _owner, ...plain } = bareEnv
+    type Stood = { productTmp: string; tmp: string; stood: boolean }
+    const asWin32 = (runtime: string, name: string, mode: string, extra: Record<string, string> = {}): { code: number | null; facts: Stood | undefined; said: string } => {
+      const receipt = join(dir, `${basename(runtime)}-${name}.json`)
+      const run = spawnSync(runtime, [standIn, receipt, mode], { cwd: dir, env: { ...plain, TMPDIR: dir, ...extra }, encoding: 'utf8' })
+      return { code: run.status, facts: existsSync(receipt) ? (JSON.parse(readFileSync(receipt, 'utf8')) as Stood) : undefined, said: `${run.stdout}${run.stderr}` }
+    }
+    const inTempDir = (path: string): boolean => dirname(path) === dir && basename(path).startsWith('mercury-proof-run.')
+    for (const runtime of [Bun.which('node') ?? 'node', process.execPath]) {
+      const label = `${basename(runtime)} as win32`
+      const green = asWin32(runtime, 'green', 'green')
+      check(`${label}: a proof process given no product temp root gets one of its own, a run root under the temp dir, and the temp dir itself is left where it was`, green.code === 0 && green.facts !== undefined && inTempDir(green.facts.productTmp) && green.facts.stood && realpathSync(green.facts.tmp) === dir, `rc=${green.code} ${JSON.stringify(green.facts)} ${green.said}`)
+      check(`${label}: that root goes with what the product wrote into it when the proof ends green`, green.facts !== undefined && green.facts.productTmp !== '' && !existsSync(green.facts.productTmp), `${green.facts?.productTmp}`)
+      const red = asWin32(runtime, 'red', 'red')
+      check(`${label}: it stays for reading when the proof ends red`, red.code === 1 && red.facts !== undefined && inTempDir(red.facts.productTmp) && existsSync(join(red.facts.productTmp, 'mercury', 'session')), `rc=${red.code} ${JSON.stringify(red.facts)}`)
+      for (const name of readdirSync(dir).filter(name => name.startsWith('mercury-proof-run.'))) rmSync(join(dir, name), { recursive: true, force: true })
+      const given = join(dir, `given-${basename(runtime)}`)
+      const kept = asWin32(runtime, 'given', 'empty', { MERCURY_TMPDIR: given })
+      check(`${label}: a process that was given a product temp root keeps it and makes none`, kept.code === 0 && kept.facts?.productTmp === given && !readdirSync(dir).some(name => name.startsWith('mercury-proof-run.')), `rc=${kept.code} ${JSON.stringify(kept.facts)} ${JSON.stringify(readdirSync(dir))}`)
+    }
+  }
   if (process.platform === 'win32') {
-    console.log('single proof runs: the run root is POSIX only, nothing driven here')
+    console.log('single proof runs: the run root that moves the temp dir is POSIX only, nothing more driven here')
   } else {
     const short = mkdtempSync(join(realpathSync('/tmp'), 'psp-'))
     try {
