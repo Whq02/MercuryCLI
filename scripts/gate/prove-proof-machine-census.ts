@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { execSync, spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve, sep } from 'node:path'
@@ -19,7 +19,7 @@ function section(title: string): void {
 }
 
 const tracked = (patterns: string[]): string[] =>
-  execSync(`git ls-files ${patterns.map(p => `'${p}'`).join(' ')}`, { cwd: ROOT, encoding: 'utf8' })
+  execFileSync('git', ['ls-files', '--', ...patterns], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
     .split('\n')
     .filter(Boolean)
 
@@ -238,6 +238,7 @@ try {
   const clean = (extra: Record<string, string>): NodeJS.ProcessEnv => ({
     PATH: process.env.PATH ?? '',
     HOME: home,
+    USERPROFILE: home,
     TMPDIR: scratch,
     ...extra,
   })
