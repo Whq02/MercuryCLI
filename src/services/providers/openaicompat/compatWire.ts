@@ -192,11 +192,12 @@ export function tensorFoldThinkingBudget(asked: string, maxOutputTokens: number 
   return room > 0 ? Math.min(budget, room) : undefined
 }
 
-export function tensorFoldEffortWire(args: { effortValue: string | undefined; thinkingEnabled: boolean; maxOutputTokensOverride?: number | undefined }): { reasoning_effort: string; thinking_budget?: number } | undefined {
-  if (!args.thinkingEnabled) return { reasoning_effort: 'none' }
+export function tensorFoldEffortWire(args: { effortValue: string | undefined; thinkingEnabled: boolean; maxOutputTokensOverride?: number | undefined; thinkingSwitch?: boolean }): { reasoning_effort: string; thinking_budget?: number } | undefined {
+  const off = args.thinkingSwitch === false ? undefined : { reasoning_effort: 'none' }
+  if (!args.thinkingEnabled) return off
   const asked = args.effortValue
   if (asked === undefined) return undefined
-  if (TENSORFOLD_THINKING_OFF_LEVELS.includes(asked)) return { reasoning_effort: 'none' }
+  if (TENSORFOLD_THINKING_OFF_LEVELS.includes(asked)) return off
   const wire = LOCAL_SERVER_EFFORTS.tensorfold.includes(asked) ? asked : nearestSupportedWireEffort(asked, LOCAL_SERVER_EFFORTS.tensorfold)
   if (wire === undefined) return undefined
   const budget = tensorFoldThinkingBudget(asked, args.maxOutputTokensOverride)
@@ -204,7 +205,7 @@ export function tensorFoldEffortWire(args: { effortValue: string | undefined; th
 }
 
 export function buildLocalExtras(
-  args: LaneExtrasArgs & { server: LocalServerKind | 'sglang'; acceptsEffort: boolean; idSlot?: number },
+  args: LaneExtrasArgs & { server: LocalServerKind | 'sglang'; acceptsEffort: boolean; idSlot?: number; thinkingSwitch?: boolean },
 ): Record<string, unknown> {
   if (args.server === 'tensorfold') {
     const effort = args.acceptsEffort ? tensorFoldEffortWire(args) : undefined

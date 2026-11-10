@@ -117,7 +117,8 @@ will run  tensorfold pull TensorFold/Qwen3.8-27B-MLX-4bit
 ```
 
 Pressing `↵` runs the needed steps in sequence, waits for `/health` and
-`/v1/models`, verifies a short reply with thinking off, and switches the
+`/v1/models`, verifies a short reply with thinking off (at the model's default
+where the engine states it cannot turn thinking off), and switches the
 session to `local/<name>` (`● TensorFold serves <name> · <window> on 127.0.0.1:<port> · this session's model`).
 While a checkpoint is pulling, the row shows `pulling <N>%` and the live footer
 shows downloaded gigabytes, transfer rate in `MB/s` and remaining minutes, read
@@ -450,7 +451,11 @@ Mercury's effort dial (`/effort`, or `ctrl+e` in `/model`: `low`, `medium`,
 the server card.
 
 - Turning thinking off (`⌥T`) or setting effort to `low` sends
-  `reasoning_effort: "none"`.
+  `reasoning_effort: "none"`. A model whose engine states that its chat
+  template cannot turn thinking off (`capabilities.thinking_switch` is `false`
+  in `/v1/models`, TensorFold `1.2.5` and later, which answers the off word
+  with HTTP 400) is sent no off word and thinks at its template's default; the
+  effort stamp then reads `applied none · wire none`.
 - Setting effort to `medium`, `high`, `xhigh` or `max` with thinking on sends
   `reasoning_effort` at that level along with `thinking_budget` (`4096` tokens
   at `medium`, `16384` at `high`, `32768` at `xhigh`, `65536` at `max`,

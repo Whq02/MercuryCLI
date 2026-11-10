@@ -26,8 +26,8 @@ export function proveRecordFor(tag: string, root: string | undefined, server: Lo
   return localModelRecord(tag)
 }
 
-export function proveRequestOf(record: Pick<LocalModelRecord, 'id'> & Partial<Pick<LocalModelRecord, 'server'>>, thinkingOff = false): CompatChatRequest {
-  const quiet = thinkingOff || record.server === 'tensorfold' ? { reasoning_effort: 'none', chat_template_kwargs: { enable_thinking: false } } : {}
+export function proveRequestOf(record: Pick<LocalModelRecord, 'id'> & Partial<Pick<LocalModelRecord, 'server' | 'thinkingSwitch'>>, thinkingOff = false): CompatChatRequest {
+  const quiet = (thinkingOff || record.server === 'tensorfold') && record.thinkingSwitch !== false ? { reasoning_effort: 'none', chat_template_kwargs: { enable_thinking: false } } : {}
   return { model: record.id, messages: [{ role: 'user', content: SETUP_PROVE_PROMPT }], extra: { max_tokens: SETUP_PROVE_MAX_TOKENS, ...quiet } }
 }
 
