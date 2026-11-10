@@ -52,7 +52,7 @@ function seedMidTurn(n: string): string {
 const rec = (runnerId: string): ConcourseWorkerRecordV1 | undefined => sup.readSessionWorkers(dir)[runnerId]
 const j = (value: unknown): string => JSON.stringify(value)
 
-const { killed, owes, seat, askedOf, roster, leave: runnerLeft, close } = retiringRunners(sup, dir, DEAD_PID)
+const { killed, owes, held, dying, preparing, seat, askedOf, roster, leave: runnerLeft, close } = retiringRunners(sup, dir, DEAD_PID)
 const quitWhileItWorks = (runnerId: string, by = GONE_WINDOW): void => {
   const receipt = sup.parkAllConcourseSessions(by, roster, dir, { exceptFocusedByLiveTerminal: true })
   if (!receipt.draining.includes(runnerId)) throw new Error(`the scene did not stage: ${runnerId} is not draining — ${j(receipt)}`)
@@ -109,6 +109,141 @@ console.log('P3 the operator comes back into the chat: the wish of the window th
   turnEnds(w)
   const parked = await idleEdge(w)
   check('the turn ends under the operator and the session stays: no retirement asked, no kill, not parked', !parked && askedOf(w) === '' && killed.length === 0 && rec(w)?.parkedAt === undefined && rec(w)?.focusedBy === THIS_WINDOW, j({ parked, asked: askedOf(w), killed, parkedAt: rec(w)?.parkedAt }))
+  killed.length = 0
+}
+
+console.log('P3b the operator comes back while the runner is still answering the retirement: it is called off before the commit')
+{
+  const w = seedMidTurn('9')
+  seat(w)
+  quitWhileItWorks(w)
+  turnEnds(w)
+  held.add(w)
+  const edge = idleEdge(w)
+  const answerPrepare = await preparing(w)
+  const focus = sup.focusConcourseSession(sid('9'), THIS_WINDOW, dir)
+  check('the focus lands while prepare is outstanding and withdraws the request', focus.outcome === 'applied' && askedOf(w) === 'prepare' && rec(w)?.parkRequestedAt === undefined, j({ focus, asked: askedOf(w), rec: rec(w) }))
+  answerPrepare()
+  const parked = await edge
+  check('the runner prepared, and the retirement is cancelled instead of committed: not parked, the runner lives, the session is still under the operator', !parked && askedOf(w) === 'prepare,cancel' && killed.length === 0 && rec(w)?.parkedAt === undefined && rec(w)?.parkIntent === undefined && rec(w)?.pid === process.pid && rec(w)?.focusedBy === THIS_WINDOW, j({ parked, asked: askedOf(w), killed, rec: rec(w) }))
+  check('nothing is left fenced: the next retirement of this session is asked afresh', !sup.retirementFenced(w))
+  held.delete(w)
+  killed.length = 0
+}
+
+console.log('P3c a stop taken while the runner is still answering the retirement: the row ends stopped, never parked')
+{
+  const w = seedMidTurn('10')
+  seat(w)
+  quitWhileItWorks(w)
+  turnEnds(w)
+  held.add(w)
+  const edge = idleEdge(w)
+  const answerPrepare = await preparing(w)
+  const stop = sup.stopConcourseSession(sid('10'), 'operator', roster, dir)
+  check('the stop is taken while prepare is outstanding', stop.outcome === 'applied' && rec(w)?.stopRequestedAt !== undefined, j(stop))
+  answerPrepare()
+  const parked = await edge
+  check('the retirement is cancelled, not committed, and the row is not parked', !parked && askedOf(w) === 'prepare,cancel' && rec(w)?.parkedAt === undefined && rec(w)?.parkIntent === undefined, j({ parked, asked: askedOf(w), rec: rec(w) }))
+  runnerLeft(w)
+  check('the runner gone, the row reads stopped', sup.completeRequestedStop(w, dir) && rec(w)?.stoppedAt !== undefined && rec(w)?.parkedAt === undefined, j(rec(w)))
+  held.delete(w)
+  killed.length = 0
+}
+
+console.log("P3d the operator's message arrives while the runner is still answering the retirement: it reaches the live session and the retirement is called off; a wake's fire is held for the park as before")
+{
+  let delivered = 0
+  const handler = makeConcourseDispatchHandler({
+    admit: async (): Promise<ConcourseAdmitResult> => ({ ok: false, code: 'runtime-ceiling', error: 'this scene admits nothing' }),
+    deliver: async () => (delivered++, true),
+    dir,
+  })
+  const spoken = seedMidTurn('12')
+  seat(spoken)
+  quitWhileItWorks(spoken)
+  turnEnds(spoken)
+  held.add(spoken)
+  const edge = idleEdge(spoken)
+  const answerPrepare = await preparing(spoken)
+  const said = await handler({ clientMessageId: 'park-lifetime-said-while-preparing', prompt: 'and now this', workspaceDir: '', targetSessionId: sid('12'), by: 'operator' })
+  check('the message is delivered at once, not held for a park nobody wants any more, and the request is withdrawn', said.ok === true && said.heldReason === undefined && delivered === 1 && rec(spoken)?.parkRequestedAt === undefined, j({ said, delivered, rec: rec(spoken) }))
+  answerPrepare()
+  const parked = await edge
+  check('the retirement is cancelled instead of committed: not parked, the runner lives', !parked && askedOf(spoken) === 'prepare,cancel' && killed.length === 0 && rec(spoken)?.parkedAt === undefined && rec(spoken)?.parkIntent === undefined && rec(spoken)?.pid === process.pid, j({ parked, asked: askedOf(spoken), rec: rec(spoken) }))
+  held.delete(spoken)
+
+  const woken = seedMidTurn('13')
+  seat(woken)
+  quitWhileItWorks(woken)
+  turnEnds(woken)
+  held.add(woken)
+  const wokenEdge = idleEdge(woken)
+  const answerWoken = await preparing(woken)
+  const deliveredBefore = delivered
+  const wake = await handler({ clientMessageId: 'park-lifetime-wake-while-preparing', prompt: 'a scheduled wake', workspaceDir: '', targetSessionId: sid('13'), by: 'saturn:nightly' })
+  check('a fire that is not the operator is held for the park and leaves the request standing', wake.ok === false && wake.heldReason === 'session-retiring' && delivered === deliveredBefore && rec(woken)?.parkRequestedAt !== undefined, j({ wake, delivered, rec: rec(woken) }))
+  answerWoken()
+  check('…and the session parks', (await wokenEdge) && askedOf(woken) === 'prepare,commit' && rec(woken)?.parkedAt !== undefined, j({ asked: askedOf(woken), rec: rec(woken) }))
+  held.delete(woken)
+  killed.length = 0
+}
+
+console.log('P3e a retirement the runner never took leaves nothing fenced: the door gone, or the runner dead while it prepared, and the next turn end asks afresh')
+{
+  const doorless = seedMidTurn('14')
+  quitWhileItWorks(doorless)
+  turnEnds(doorless)
+  const early = await idleEdge(doorless)
+  check('with no door to the runner the session is not parked, the request stands and the session is not fenced', !early && rec(doorless)?.parkedAt === undefined && rec(doorless)?.parkRequestedAt !== undefined && !sup.retirementFenced(doorless), j({ early, fenced: sup.retirementFenced(doorless), rec: rec(doorless) }))
+  seat(doorless)
+  const late = await idleEdge(doorless)
+  check('the door back, the next edge retires the runner and parks', late && askedOf(doorless) === 'prepare,commit' && rec(doorless)?.parkedAt !== undefined, j({ late, asked: askedOf(doorless), fenced: sup.retirementFenced(doorless) }))
+
+  const died = seedMidTurn('15')
+  seat(died)
+  quitWhileItWorks(died)
+  turnEnds(died)
+  dying.add(died)
+  const atDeath = await idleEdge(died)
+  check('the runner dies while it prepares: not parked by that edge, the request stands, nothing fenced', !atDeath && rec(died)?.parkedAt === undefined && rec(died)?.parkRequestedAt !== undefined && !sup.retirementFenced(died), j({ atDeath, fenced: sup.retirementFenced(died), asked: askedOf(died) }))
+  dying.delete(died)
+  seat(died)
+  let delivered = 0
+  const handler = makeConcourseDispatchHandler({
+    admit: async (): Promise<ConcourseAdmitResult> => ({ ok: false, code: 'runtime-ceiling', error: 'this scene admits nothing' }),
+    deliver: async () => (delivered++, true),
+    dir,
+  })
+  const said = await handler({ clientMessageId: 'park-lifetime-after-death', prompt: 'and now this', workspaceDir: '', targetSessionId: sid('15'), by: 'saturn:nightly' })
+  check("a fire for it is delivered to its successor, not held as 'the session is parking'", said.ok === true && said.heldReason === undefined && delivered === 1, j({ said, delivered }))
+  turnEnds(died)
+  const after = await idleEdge(died)
+  check('the successor is asked afresh at its turn end and parks', after && rec(died)?.parkedAt !== undefined && !sup.retirementFenced(died), j({ after, asked: askedOf(died), rec: rec(died) }))
+  killed.length = 0
+}
+
+console.log('P3f two turn-end edges in one beat ask the runner once; an explicit park that meets the retirement joins it')
+{
+  const twice = seedMidTurn('16')
+  seat(twice)
+  quitWhileItWorks(twice)
+  turnEnds(twice)
+  const both = await Promise.all([idleEdge(twice), idleEdge(twice)])
+  check('one prepare, one commit, parked once, nothing fenced', both[0] && both[1] && askedOf(twice) === 'prepare,commit' && rec(twice)?.parkedAt !== undefined && !sup.retirementFenced(twice), j({ both, asked: askedOf(twice), fenced: sup.retirementFenced(twice) }))
+
+  const joined = seedMidTurn('17')
+  seat(joined)
+  quitWhileItWorks(joined)
+  turnEnds(joined)
+  held.add(joined)
+  const edge = idleEdge(joined)
+  const answerPrepare = await preparing(joined)
+  const explicit = sup.retireConcourseSession(sid('17'), THIS_WINDOW, roster, dir, { exitWaitMs: 2_000 })
+  answerPrepare()
+  const [byEdge, byDoor] = await Promise.all([edge, explicit])
+  check('the park door answers parked from the retirement already under way: one prepare, one commit, under the name that asked first', byEdge && byDoor.outcome === 'parked' && askedOf(joined) === 'prepare,commit' && rec(joined)?.parkedBy === GONE_WINDOW && rec(joined)?.parkRefused === undefined, j({ byEdge, byDoor, asked: askedOf(joined), rec: rec(joined) }))
+  held.delete(joined)
   killed.length = 0
 }
 

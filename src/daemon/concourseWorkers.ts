@@ -2508,6 +2508,12 @@ export async function retireConcourseSession(
   dir?: string,
   opts?: { reason?: string; exitWaitMs?: number; requestStands?: true },
 ): Promise<ConcourseRetireOutcome> {
+  const { quiesceSessionRunner } = await import('./sessionSeat.js')
+  if (opts?.requestStands !== true) {
+    const asked = Object.values(readSessionWorkers(dir)).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+    const requested = asked === undefined ? undefined : requestedRetirements.get(asked.runnerId)
+    if (asked !== undefined && requested !== undefined && (await requested)) return { outcome: 'parked', runnerId: asked.runnerId }
+  }
   const rec = Object.values(readSessionWorkers(dir)).find(r => r.sessionId === sessionId && r.endedAt === undefined)
   if (!rec) return { outcome: 'refused', reason: 'unknown-session', fenced: false }
   const runnerId = rec.runnerId
@@ -2516,13 +2522,18 @@ export async function retireConcourseSession(
     const result = await standing.demand()
     return result.outcome === 'parked' ? { outcome: 'parked', runnerId } : { outcome: 'refused', runnerId, reason: result.reason, fenced: result.fenced }
   }
-  const { quiesceSessionRunner } = await import('./sessionSeat.js')
   const current = (): ConcourseWorkerRecordV1 | undefined => readSessionWorkers(dir)[runnerId]
+  const requestedAt = rec.parkRequestedAt
   const fence = new RetirementFence({
     request: request => quiesceSessionRunner(runnerId, request, roster),
     refusal: () => {
       const now = current()
-      return now === undefined ? 'the record vanished' : retirementRefusal(now)
+      if (now === undefined) return 'the record vanished'
+      if (opts?.requestStands === true) {
+        if (now.parkRequestedAt === undefined || now.parkRequestedAt !== requestedAt) return 'the park request was withdrawn'
+        if (stopOutranksPark(now)) return 'a stop is in progress'
+      }
+      return retirementRefusal(now)
     },
     persistIntent: token => {
       const now = current()
@@ -2621,7 +2632,24 @@ function stopOutranksPark(rec: Pick<ConcourseWorkerRecordV1, 'stopRequestedAt' |
   return rec.stopRequestedAt !== undefined || rec.stoppedAt !== undefined
 }
 
-export async function retireRequestedPark(
+const requestedRetirements = new Map<string, Promise<boolean>>()
+
+export function retireRequestedPark(
+  runnerId: string,
+  roster: Parameters<typeof retireConcourseSession>[2],
+  dir?: string,
+  opts?: { exitWaitMs?: number },
+): Promise<boolean> {
+  const standing = requestedRetirements.get(runnerId)
+  if (standing !== undefined) return standing
+  const retirement: Promise<boolean> = retireForRequest(runnerId, roster, dir, opts).finally(() => {
+    if (requestedRetirements.get(runnerId) === retirement) requestedRetirements.delete(runnerId)
+  })
+  requestedRetirements.set(runnerId, retirement)
+  return retirement
+}
+
+async function retireForRequest(
   runnerId: string,
   roster: Parameters<typeof retireConcourseSession>[2],
   dir?: string,

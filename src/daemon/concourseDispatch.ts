@@ -658,6 +658,7 @@ export function makeConcourseDispatchHandler(
     const workers = readSessionWorkers(deps.dir)
     let targetRec = Object.values(workers).find(w => w.sessionId === target && w.endedAt === undefined)
     const report = isOutsideReportOrigin(extras?.origin)
+    const operatorSpoke = !report && (rec.by === 'operator' || rec.by?.startsWith('operator:') === true)
     if (!report && targetRec && (targetRec.attachedAt !== undefined || targetRec.attachRequestedAt !== undefined)) {
       rec.heldReason = 'session-with-you'
       rec.sessionId = target
@@ -693,7 +694,9 @@ export function makeConcourseDispatchHandler(
         moves: [{ verb: 'retry', label: 'resume the session — the message delivers on its own' }],
       }
     }
-    if (targetRec && (targetRec.parkIntent !== undefined || retirementFenced(targetRec.runnerId))) {
+    const retiring = targetRec !== undefined && (targetRec.parkIntent !== undefined || retirementFenced(targetRec.runnerId))
+    const calledOff = retiring && operatorSpoke && targetRec?.parkIntent === undefined && operatorTookSessionBack(target, deps.dir)
+    if (targetRec && retiring && !calledOff) {
       rec.heldReason = 'session-retiring'
       rec.sessionId = target
       rec.workerId = targetRec.runnerId
@@ -768,7 +771,7 @@ export function makeConcourseDispatchHandler(
       }
     }
     publishDispatches(dispatches, deps.dir)
-    if (!report && (rec.by === 'operator' || rec.by?.startsWith('operator:') === true)) operatorTookSessionBack(target, deps.dir)
+    if (operatorSpoke) operatorTookSessionBack(target, deps.dir)
     const delivered = await deps.deliver(
       targetRec.runnerId,
       await buildConcoursePromptRow(prompt, { ...extras, identity: rec.clientMessageId }),
