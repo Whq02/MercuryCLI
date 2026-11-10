@@ -5,6 +5,7 @@ import {
   type Cell,
   CellWidth,
   cellAt,
+  cellAtIndex,
   diffEach,
   type Hyperlink,
   isEmptyCellAt,
@@ -36,6 +37,7 @@ type Options = {
 
 const CARRIAGE_RETURN = { type: 'carriageReturn' } as const
 const NEWLINE = { type: 'stdout', content: '\n' } as const
+const SGR_RESET = '\x1b[0m'
 const BRIDGED_GAP = 4
 
 let openRun: { type: 'stdout'; content: string } | null = null
@@ -407,6 +409,36 @@ export class FrameWriter {
     if (nextHeight > prevHeight) {
       attrs.resetAll(out)
       paintRows(out, cursor, attrs, next, prevHeight, nextHeight, true)
+    }
+    attrs.resetAll(out)
+    return out
+  }
+
+  overwriteAlt(next: Frame): Diff {
+    next = terminalBidiFrame(next)
+    const { screen, viewport } = next
+    const columns = Math.min(screen.width, viewport.width)
+    const out: Diff = [{ type: 'styleStr', str: SGR_RESET }]
+    const cursor = new CursorModel({ x: 0, y: 0 }, viewport.width, true)
+    const attrs = new AttributeCursor(this.options.stylePool)
+    for (let y = 0; y < viewport.height; y++) {
+      let inked = y < screen.height ? columns : 0
+      while (inked > 0 && isEmptyCellAt(screen, inked - 1, y)) inked--
+      cursor.moveTo(out, 0, y)
+      for (let x = 0; x < inked; x++) {
+        const cell = cellAtIndex(screen, y * screen.width + x)
+        if (cell.width === CellWidth.SpacerTail) continue
+        cursor.anchorTo(out, x, y)
+        if (cell.width !== CellWidth.SpacerHead && emitCell(out, cursor, attrs, cell, viewport.width)) continue
+        attrs.resetAll(out)
+        appendText(out, ' ')
+        cursor.wrote(1, true)
+      }
+      if (inked < viewport.width) {
+        attrs.resetAll(out)
+        cursor.anchorTo(out, inked, y)
+        out.push({ type: 'stdout', content: eraseToEndOfLine() })
+      }
     }
     attrs.resetAll(out)
     return out

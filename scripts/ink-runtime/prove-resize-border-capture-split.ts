@@ -137,7 +137,7 @@ const frame = finalWrites.find(bytes => bytes.includes('\x1b[28;1H╭') && bytes
 
 console.log('\n§1 the renderer: the settled 110x32 frame after the round trip')
 check('the composed composer top border runs to the last column (column 110 is written)', want[27] === `╭${'─'.repeat(108)}╮`, JSON.stringify(want[27]))
-check('the settled repaint is one write that erases the screen before its first border glyph', frame !== '' && frame.indexOf('\x1b[2J') !== -1 && frame.indexOf('\x1b[2J') < frame.indexOf('╭'), JSON.stringify(frame.slice(0, 60)))
+check('the settled repaint is one write that overwrites in place: it opens at the home and carries no erase of the display', frame !== '' && frame.startsWith('\x1b[H') && !frame.includes('\x1b[2J'), JSON.stringify(frame.slice(0, 60)))
 check('no write of the session carries CR or LF (every row is entered by an absolute cursor position; the alternate screen never scrolls)', stdout.writes.every(bytes => !/[\r\n]/.test(bytes)), JSON.stringify(stdout.writes.find(bytes => /[\r\n]/.test(bytes))?.slice(0, 80)))
 check('no write of the session carries U+FFFD', stdout.writes.every(bytes => !bytes.includes(REPLACEMENT)))
 check('a strict replay (any print past the last column fails) of the whole session equals the composed 110x32 frame', JSON.stringify(terminal.lines()) === JSON.stringify(want), differing(terminal.lines(), want))

@@ -31,8 +31,8 @@ check(
   /reassertScreenState\(reason: string[\s\S]{0,700}if \(this\.altScreenActive\) \{\s*\n\s*termWrite\(this\.options\.stdout, ENTER_ALT_SCREEN, 'mode'\);/.test(ink),
 );
 check(
-  '…with the frame reset + atomic first-paint erase',
-  /termWrite\(this\.options\.stdout, ENTER_ALT_SCREEN, 'mode'\);\s*\n\s*this\.resetFramesForAltScreen\(\);\s*\n\s*this\.needsEraseBeforePaint = true;/.test(ink),
+  '…with the frame reset and the whole-frame overwrite',
+  /termWrite\(this\.options\.stdout, ENTER_ALT_SCREEN, 'mode'\);\s*\n\s*this\.resetFramesForAltScreen\(\);\s*\n\s*this\.wholeFrameDue = true;/.test(ink),
 );
 check(
   '…and the ledger contaminate (full recompose, never a blit of the stale model)',

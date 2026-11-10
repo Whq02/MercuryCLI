@@ -31,8 +31,8 @@ check(
     alt.includes("writeRaw(ENTER_ALT_SCREEN + RESET_SCROLL_REGION + '\\x1b[2J\\x1b[H' + armBytes)"),
 )
 check(
-  'the deferred seam folds the erase into the frame write',
-  /repaintAfterNestedAltScreenClose\(\): void \{[\s\S]{0,400}needsEraseBeforePaint = true/.test(ink),
+  'the deferred seam arms the whole-frame overwrite',
+  /repaintAfterNestedAltScreenClose\(\): void \{[\s\S]{0,400}wholeFrameDue = true/.test(ink),
 )
 
 console.log('── b. editor return paints with the composed repaint ──')
@@ -47,8 +47,8 @@ check(
   sess.includes("(opts.altActive ? '' : ERASE_SCREEN + CURSOR_HOME)"),
 )
 check(
-  'fullscreen return arms erase-with-first-paint',
-  /if \(this\.altScreenActive\) \{\s*\n\s*this\.resetFramesForAltScreen\(\);[\s\S]{0,400}needsEraseBeforePaint = true;/.test(exitFn),
+  'fullscreen return arms the whole-frame overwrite',
+  /if \(this\.altScreenActive\) \{\s*\n\s*this\.resetFramesForAltScreen\(\);[\s\S]{0,400}wholeFrameDue = true;/.test(exitFn),
 )
 check(
   'non-fullscreen return still clears the abandoned alt buffer (unchanged)',
