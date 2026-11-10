@@ -188,6 +188,7 @@ export interface CompatLaneProfile {
     cacheDomainKey?: string
     crewmate?: boolean
   }): Record<string, unknown>
+  refusesEffort?(wireEffort: string): boolean
   keepsReasoningHistory?(wireModel: string, thinkingEnabled?: boolean): boolean
   keepsReasoningOnContinuations?(wireModel: string): boolean
   noteServedModel?(requested: string, served: string, credential: CompatCredential): void
@@ -605,7 +606,7 @@ export async function* compatChatCallModel(
       crewmate: options.agentId !== undefined,
     })
     const extra = {
-      ...(profile.lane !== 'openai-compat' && operatorEffort !== undefined && builtExtras.reasoning_effort === undefined && builtExtras.reasoning === undefined
+      ...(profile.lane !== 'openai-compat' && operatorEffort !== undefined && profile.refusesEffort?.(operatorEffort) !== true && builtExtras.reasoning_effort === undefined && builtExtras.reasoning === undefined
         ? { ...builtExtras, reasoning_effort: operatorEffort }
         : builtExtras),
       ...(profile.lane === 'openai-compat' || profile.lane === 'openrouter' ? { prompt_cache_key: cacheDomainKey } : {}),

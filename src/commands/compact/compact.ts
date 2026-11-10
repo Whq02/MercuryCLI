@@ -18,6 +18,8 @@ import {
   ERROR_MESSAGE_USER_ABORT,
 } from '../../services/compact/compact.js'
 import { foldModelFor, getAutoCompactThreshold } from '../../services/compact/autoCompact.js'
+import { awaitContextWindowSource } from '../../utils/model/contextWindowWarmup.js'
+import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { suppressCompactWarning } from '../../services/compact/compactWarningState.js'
 import { runPostCompactCleanup } from '../../services/compact/postCompactCleanup.js'
@@ -176,6 +178,7 @@ async function callUnderFoldStatus(
     }
 
     const summaryInput = projected
+    await awaitContextWindowSource(context.options.engineModel, { estTokens: tokenCountWithEstimation(summaryInput, context.options.engineModel) })
     const cacheSafeParams = await buildCompactCacheSafeParams(summaryInput, context)
     const refold = isRefold(summaryInput)
     const projection = await projectManualFold(summaryInput, context, cacheSafeParams, getAutoCompactThreshold(context.options.engineModel))

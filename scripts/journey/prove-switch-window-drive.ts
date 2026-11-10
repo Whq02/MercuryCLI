@@ -188,6 +188,29 @@ function recordLines(home: string, needle: string): string[] {
   return out
 }
 
+type Fold = { trigger?: string; preTokens?: number; postTokens?: number }
+function foldRecord(home: string): { folds: Fold[]; foldRow: number; seatRows: number[] } {
+  const read = { folds: [] as Fold[], foldRow: -1, seatRows: [] as number[] }
+  const projects = path.join(home, 'projects')
+  if (!existsSync(projects)) return read
+  for (const project of readdirSync(projects)) {
+    const dir = path.join(projects, project)
+    if (!statSync(dir).isDirectory()) continue
+    for (const name of readdirSync(dir)) {
+      if (!name.endsWith('.jsonl')) continue
+      readFileSync(path.join(dir, name), 'utf8').split('\n').forEach((line, row) => {
+        if (line.includes('"boundaryKind":"compact"')) {
+          const meta = (JSON.parse(line) as { payload?: { fields?: { compactMetadata?: Fold } } }).payload?.fields?.compactMetadata
+          read.folds.push({ trigger: meta?.trigger, preTokens: meta?.preTokens, postTokens: meta?.postTokens })
+          if (read.foldRow < 0) read.foldRow = row
+        }
+        if (line.includes('<command-name>/model</command-name>')) read.seatRows.push(row)
+      })
+    }
+  }
+  return read
+}
+
 const markText = (payload: Payload | null, label: string): string => {
   const mark = payload?.marks?.find(m => m.label === label)
   return mark === undefined ? '' : gridText(mark.grid)
@@ -219,6 +242,13 @@ if (ARM === 'flat' || ARM === 'both') {
   check("the first request on the target rode the folded history (the source's summary) under the window", firstOpenai !== undefined && firstOpenai.refused !== true && (firstOpenai.count ?? Number.POSITIVE_INFINITY) <= WINDOW, JSON.stringify(firstOpenai))
   check('the switched reply painted', painted.includes(GPT_REPLY), tail(finalText(r.payload), 12))
   check('no overflow notice was needed', !painted.includes('context overflowed'), tail(finalText(r.payload), 12))
+  const record = foldRecord(r.home)
+  const fold = record.folds[0]
+  const previewCount = Number((/about ([\d,]+) tokens by Mercury's count/.exec(card.replace(/[│\s]+/g, ' ')) ?? [])[1]?.replace(/,/g, ''))
+  console.log(`  [record] the session's record: ${JSON.stringify(record)} · the preview counted ${previewCount} · summary requests ${JSON.stringify(summaries.map(s => [s.kind, s.model, s.count]))}`)
+  check("the session's record holds ONE fold, the manual one the preview started, and it stands before the seat's own /model row: the conversation was folded while the session was still on the source model", record.folds.length === 1 && fold?.trigger === 'manual' && record.seatRows.length === 1 && record.foldRow >= 0 && record.foldRow < record.seatRows[0]!, JSON.stringify(record))
+  check(`that fold measured the history the preview counted, nothing added to it — its count before is the preview's own figure, above the target's ${WINDOW.toLocaleString('en-US')} — and it lands under that window`, fold?.preTokens !== undefined && fold.preTokens === previewCount && previewCount > WINDOW && fold.postTokens !== undefined && fold.postTokens < WINDOW, `fold ${JSON.stringify(fold)} · preview ${previewCount}`)
+  check("the one summary request went to the source model at a size the target's window could not have held", summaries.length === 1 && summaries[0]!.kind === 'anthropic' && summaries[0]!.model === 'claude-opus-4-8' && (summaries[0]!.count ?? 0) > WINDOW, JSON.stringify(summaries.map(s => [s.kind, s.model, s.count])))
   if (failures > 0) kept.push(r.home)
   else rmSync(r.home, { recursive: true, force: true })
 }
