@@ -1,5 +1,5 @@
 import { constants as fsConstants } from 'node:fs'
-import { chmod, mkdir, writeFile } from 'node:fs/promises'
+import { chmod, lstat, mkdir, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, normalize, sep } from 'node:path'
 import type { Command, PromptCommand } from '../types/command.js'
 import type { ToolUseContext } from '../Tool.js'
@@ -37,9 +37,11 @@ export function getBundledSkillExtractDir(skillName: string): string {
   return join(getBundledSkillsRoot(), skillName)
 }
 
-async function extractSkillFiles(skillName: string, files: Record<string, string>): Promise<string> {
+type SkillFileTarget = { path: string; content: string }
+
+function skillFileTargets(skillName: string, files: Record<string, string>): SkillFileTarget[] {
   const baseDir = getBundledSkillExtractDir(skillName)
-  const targets: Array<{ path: string; content: string }> = []
+  const targets: SkillFileTarget[] = []
   for (const [key, content] of Object.entries(files)) {
     const normalized = normalize(key)
     if (
@@ -52,6 +54,10 @@ async function extractSkillFiles(skillName: string, files: Record<string, string
     if (typeof content !== 'string') continue
     targets.push({ path: join(baseDir, normalized), content })
   }
+  return targets
+}
+
+async function writeSkillFiles(targets: readonly SkillFileTarget[]): Promise<void> {
   const dirs = new Set(targets.map(target => dirname(target.path)))
   for (const dir of dirs) {
     await mkdir(dir, { recursive: true, mode: 0o700 })
@@ -72,16 +78,40 @@ async function extractSkillFiles(skillName: string, files: Record<string, string
       }
     }),
   )
-  return baseDir
+}
+
+async function extractSkillFiles(skillName: string, files: Record<string, string>): Promise<string> {
+  await writeSkillFiles(skillFileTargets(skillName, files))
+  return getBundledSkillExtractDir(skillName)
+}
+
+async function restoreSkillFiles(skillName: string, files: Record<string, string>): Promise<string> {
+  const targets = skillFileTargets(skillName, files)
+  const stands = await Promise.all(
+    targets.map(target =>
+      lstat(target.path).then(
+        () => true,
+        (error: NodeJS.ErrnoException) => {
+          if (error.code === 'ENOENT') return false
+          throw error
+        },
+      ),
+    ),
+  )
+  await writeSkillFiles(targets.filter((_, index) => !stands[index]))
+  return getBundledSkillExtractDir(skillName)
 }
 
 const extractionPromises = new Map<string, Promise<string | null>>()
 
-function extractOnce(definition: BundledSkillDefinition): Promise<string | null> {
-  const existing = extractionPromises.get(definition.name)
-  if (existing) return existing
-  const files = typeof definition.files === 'function' ? definition.files() : definition.files
-  const promise = extractSkillFiles(definition.name, files ?? {}).catch(error => {
+function extractedSkillDir(definition: BundledSkillDefinition): Promise<string | null> {
+  const earlier = extractionPromises.get(definition.name)
+  const skillFiles = (): Record<string, string> => (typeof definition.files === 'function' ? definition.files() : definition.files) ?? {}
+  const promise = (
+    earlier === undefined
+      ? extractSkillFiles(definition.name, skillFiles())
+      : earlier.then(baseDir => (baseDir === null ? null : restoreSkillFiles(definition.name, skillFiles())))
+  ).catch(error => {
     logForDebugging(
       `bundled skill ${definition.name}: reference-file extraction into ${getBundledSkillExtractDir(definition.name)} failed: ${String(error)}`,
     )
@@ -100,7 +130,7 @@ export function registerBundledSkill(definition: BundledSkillDefinition): void {
 
   const getPromptForCommand: PromptCommand['getPromptForCommand'] = hasFiles
     ? async (args, context) => {
-        const baseDir = await extractOnce(definition)
+        const baseDir = await extractedSkillDir(definition)
         const blocks = await definition.getPromptForCommand(args, context)
         if (baseDir === null) return blocks
         const [first, ...rest] = blocks
