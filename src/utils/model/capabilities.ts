@@ -61,6 +61,7 @@ import { cerebrasContextWindowFor, cerebrasOutputMaxFor } from '../../services/p
 import { isFireworksModelId, fireworksDisplayPin, fireworksEffortVocabulary } from '../../services/providers/fireworks/fireworksPins.js'
 import { fireworksContextWindowFor, fireworksOutputMaxFor } from '../../services/providers/fireworks/fireworksCatalogue.js'
 import { isQwenModelId, qwenDisplayPin } from '../../services/providers/qwen/qwenPins.js'
+import { QWEN_TEMPLATE_EFFORT_STEPS } from '../../services/providers/qwen/qwenTemplate.js'
 import { qwenModelFacts } from '../../services/providers/qwen/qwenCatalogue.js'
 import {
   deepseekDisplayPin,
@@ -420,7 +421,7 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
   if (isQwenModelId(model) || route === 'qwen') {
     const vocabulary = qwenModelFacts(model).efforts
     return vocabulary.length > 0
-      ? { kind: 'provider', source: 'qwen', vocabulary, defaultEffort: 'xhigh', thinkingGated: true }
+      ? { kind: 'provider', source: 'qwen', vocabulary, defaultEffort: 'xhigh', thinkingGated: true, steps: QWEN_TEMPLATE_EFFORT_STEPS }
       : { kind: 'none', source: 'qwen' }
   }
   if (route === 'openrouter') {

@@ -10,7 +10,8 @@ import { toolDeclarationRowInResult } from '../zai/zaiCodec.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { QWEN_BASE_OVERRIDE_ENV, QWEN_CONSOLES, QWEN_ENV_KEY, qwenBoundBase, qwenBoundConsole, qwenChatCompletionsUrl, qwenConsolePage, qwenConsoleWords, qwenEndpointWhere, rememberQwenBoundBase, resolveQwenAccount, resolveQwenCredential } from './qwenAccounts.js'
 import { getCachedQwenCatalogue, newestQwenModel, qwenListedModel, qwenModelFacts, qwenPinScope, qwenWireId } from './qwenCatalogue.js'
-import { isQwenTextModelId, qwenDisplayPin, qwenPinsFor, qwenPreservesThinking, qwenWireEffort } from './qwenPins.js'
+import { isQwenTextModelId, qwenDisplayPin, qwenPinsFor, qwenPreservesThinking } from './qwenPins.js'
+import { qwenTemplateEffort } from './qwenTemplate.js'
 import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
 
 const QWEN_KEY_PAGE = 'qwencloud.com (API Keys) or modelstudio.alibabacloud.com (API-KEY)'
@@ -19,7 +20,7 @@ export function buildQwenExtras(args: LaneExtrasArgs): Record<string, unknown> {
   const facts = qwenModelFacts(args.wireModel)
   const thinks = facts.thinking === 'hybrid' && args.thinkingEnabled
   const budget = thinks ? operatorModelFacts(args.wireModel)?.thinkingBudget : undefined
-  const effort = thinks && budget === undefined && facts.efforts.length > 0 && args.effortValue !== undefined ? qwenWireEffort(args.effortValue) : undefined
+  const effort = thinks && budget === undefined && facts.efforts.length > 0 && args.effortValue !== undefined ? qwenTemplateEffort(args.effortValue) : undefined
   return {
     stream_options: { include_usage: true },
     ...(facts.thinking === 'hybrid' ? { enable_thinking: args.thinkingEnabled } : {}),

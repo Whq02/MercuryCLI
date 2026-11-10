@@ -180,7 +180,16 @@ try {
   await run(params('qwen3.8-max', 'high'))
   const highBody = captures.at(-1)!.body
   check("the operator's dial rides in Qwen's vocabulary and never below it: low → low, medium → medium, high → xhigh (Qwen has no high rung)", lowBody.reasoning_effort === 'low' && mediumBody.reasoning_effort === 'medium' && highBody.reasoning_effort === 'xhigh')
-  check('the picker offers the qwen3.8 rows their own three rungs and the other rows no dial', JSON.stringify(effortVocabularyFor('qwen3.8-max')) === JSON.stringify({ kind: 'provider', source: 'qwen', vocabulary: ['low', 'medium', 'xhigh'], defaultEffort: 'xhigh', thinkingGated: true }) && effortVocabularyFor('qwen3.7-plus').kind === 'none' && effortVocabularyFor('qwen3-coder-flash').kind === 'none')
+  check('the picker offers the qwen3.8 rows their own three rungs with the word map the wire uses, and the other rows no dial', JSON.stringify(effortVocabularyFor('qwen3.8-max')) === JSON.stringify({ kind: 'provider', source: 'qwen', vocabulary: ['low', 'medium', 'xhigh'], defaultEffort: 'xhigh', thinkingGated: true, steps: { none: 'low', minimal: 'low', high: 'xhigh', max: 'xhigh' } }) && effortVocabularyFor('qwen3.7-plus').kind === 'none' && effortVocabularyFor('qwen3-coder-flash').kind === 'none')
+  const { resolveEffortTruth } = await import('../../src/utils/effort.ts')
+  const { QWEN_TEMPLATE_EFFORTS, QWEN_TEMPLATE_EFFORT_STEPS, qwenTemplateEffort } = await import('../../src/services/providers/qwen/qwenTemplate.ts')
+  const told: Array<{ asked: string; label: string | undefined; sent: unknown }> = []
+  for (const asked of ['minimal', 'low', 'medium', 'high', 'xhigh', 'max']) {
+    await run(params('qwen3.8-max', asked))
+    told.push({ asked, label: resolveEffortTruth('qwen3.8-max', asked, { thinkingEnabled: true }).wire, sent: captures.at(-1)!.body.reasoning_effort })
+  }
+  check('one rule for the label and the wire: for every asked word the effort truth names the word the request carries (red on the base: asked high, the label said medium while the request carried xhigh)', told.every(row => row.label === row.sent) && JSON.stringify(told.map(row => row.sent)) === JSON.stringify(['low', 'low', 'medium', 'xhigh', 'xhigh', 'xhigh']))
+  check('the pinned rows, an unpinned dial row and the wire builder read the one word list and map', QWEN_DISPLAY_PINS.filter(pin => pin.efforts.length > 0).every(pin => pin.efforts === QWEN_TEMPLATE_EFFORTS) && (effortVocabularyFor('qwen3.8-27b') as { vocabulary?: readonly string[]; steps?: unknown }).vocabulary === QWEN_TEMPLATE_EFFORTS && (effortVocabularyFor('qwen3.8-27b') as { steps?: unknown }).steps === QWEN_TEMPLATE_EFFORT_STEPS && Object.keys(QWEN_TEMPLATE_EFFORT_STEPS).every(word => !QWEN_TEMPLATE_EFFORTS.includes(word) && QWEN_TEMPLATE_EFFORTS.includes(QWEN_TEMPLATE_EFFORT_STEPS[word]!)) && qwenTemplateEffort('ultra') === undefined)
   stateFacts({ 'qwen3.8-max': { thinkingBudget: 2048 } })
   await run(params('qwen3.8-max', 'max'))
   const budgeted = captures.at(-1)!.body

@@ -1,5 +1,6 @@
+import { QWEN_TEMPLATE_EFFORTS } from './qwenTemplate.js'
+
 export const QWEN_OBSERVED_AT = '2026-10-18'
-const QWEN_EFFORTS: readonly string[] = ['low', 'medium', 'xhigh']
 
 export type QwenThinkingDial = 'hybrid' | 'none'
 
@@ -31,11 +32,11 @@ const flagship = { contextWindow: 1_000_000, outputMax: 131_072, thinking: 'hybr
 const QWEN_CODING_PLAN_ROUTER_ID = 'qwen-auto'
 
 export const QWEN_DISPLAY_PINS: readonly QwenDisplayPin[] = [
-  { ...flagship, id: 'qwen3.8-max', displayName: 'Qwen3.8 Max', efforts: QWEN_EFFORTS, costInPerMtok: 2, costOutPerMtok: 6, cachedInPerMtok: 0.25, cacheWritePerMtok: 2.5, codingPlan: true },
+  { ...flagship, id: 'qwen3.8-max', displayName: 'Qwen3.8 Max', efforts: QWEN_TEMPLATE_EFFORTS, costInPerMtok: 2, costOutPerMtok: 6, cachedInPerMtok: 0.25, cacheWritePerMtok: 2.5, codingPlan: true },
   { ...flagship, id: 'qwen3.7-max', displayName: 'Qwen3.7 Max', images: false, costInPerMtok: 2.5, costOutPerMtok: 7.5, cachedInPerMtok: 0.25, cacheWritePerMtok: 3.125, codingPlan: true },
   { ...flagship, id: 'qwen3.7-plus', displayName: 'Qwen3.7 Plus', observedAt: '2026-10-25', source: 'https://www.alibabacloud.com/help/en/model-studio/model-pricing', costInPerMtok: 0.4, costOutPerMtok: 1.6, cachedInPerMtok: 0.08, cacheWritePerMtok: 0.5, codingPlan: true, longPrompt: [{ aboveInputTokens: 256_000, costInPerMtok: 1.2, costOutPerMtok: 4.8, cachedInPerMtok: 0.24, cacheWritePerMtok: 1.5 }] },
-  { ...flagship, id: 'qwen3.8-flash', displayName: 'Qwen3.8 Flash', efforts: QWEN_EFFORTS, costInPerMtok: 0.15, costOutPerMtok: 0.47, cachedInPerMtok: 0.016, cacheWritePerMtok: 0.2, codingPlan: true },
-  { ...flagship, id: 'qwen3.8-omni-flash', displayName: 'Qwen3.8 Omni Flash', efforts: QWEN_EFFORTS, costInPerMtok: 0.15, costOutPerMtok: 0.47, cachedInPerMtok: 0.016 },
+  { ...flagship, id: 'qwen3.8-flash', displayName: 'Qwen3.8 Flash', efforts: QWEN_TEMPLATE_EFFORTS, costInPerMtok: 0.15, costOutPerMtok: 0.47, cachedInPerMtok: 0.016, cacheWritePerMtok: 0.2, codingPlan: true },
+  { ...flagship, id: 'qwen3.8-omni-flash', displayName: 'Qwen3.8 Omni Flash', efforts: QWEN_TEMPLATE_EFFORTS, costInPerMtok: 0.15, costOutPerMtok: 0.47, cachedInPerMtok: 0.016 },
   { ...flagship, id: 'qwen3.7-flash', displayName: 'Qwen3.7 Flash', observedAt: '2026-10-25', source: 'https://www.alibabacloud.com/help/en/model-studio/model-pricing', costInPerMtok: 0.03, costOutPerMtok: 0.13, cachedInPerMtok: 0.006, cacheWritePerMtok: 0.0375, longPrompt: [{ aboveInputTokens: 256_000, costInPerMtok: 0.2, costOutPerMtok: 0.8, cachedInPerMtok: 0.04, cacheWritePerMtok: 0.25 }, { aboveInputTokens: 32_000, costInPerMtok: 0.1, costOutPerMtok: 0.4, cachedInPerMtok: 0.02, cacheWritePerMtok: 0.125 }] },
   { ...flagship, id: 'qwen3.6-flash', displayName: 'Qwen3.6 Flash', observedAt: '2026-10-25', source: 'https://www.alibabacloud.com/help/en/model-studio/model-pricing', outputMax: 65_536, preservesThinking: false, costInPerMtok: 0.25, costOutPerMtok: 1.5, cachedInPerMtok: 0.025, cacheWritePerMtok: 0.3125, codingPlan: true, longPrompt: [{ aboveInputTokens: 256_000, costInPerMtok: 1, costOutPerMtok: 4, cachedInPerMtok: 0.1, cacheWritePerMtok: 1.25 }] },
   { id: 'qwen3-coder-flash', displayName: 'Qwen3 Coder Flash', observedAt: '2026-10-25', source: 'https://www.alibabacloud.com/help/en/model-studio/text-generation-model', contextWindow: 1_000_000, outputMax: 65_536, costInPerMtok: 0.3, costOutPerMtok: 1.5, cachedInPerMtok: 0.06, cacheWritePerMtok: 0.375, thinking: 'hybrid', preservesThinking: false, efforts: [], images: false },
@@ -102,22 +103,5 @@ export function qwenEffortVocabulary(id: string): readonly string[] {
   const pin = qwenDisplayPin(id)
   if (pin) return pin.efforts
   const bare = bareId(id)
-  return EFFORT_DIAL_RE.test(bare) || QWEN4_RE.test(bare) ? QWEN_EFFORTS : []
-}
-
-export function qwenWireEffort(effort: string): string | undefined {
-  switch (effort) {
-    case 'none':
-    case 'minimal':
-    case 'low':
-      return 'low'
-    case 'medium':
-      return 'medium'
-    case 'high':
-    case 'xhigh':
-    case 'max':
-      return 'xhigh'
-    default:
-      return undefined
-  }
+  return EFFORT_DIAL_RE.test(bare) || QWEN4_RE.test(bare) ? QWEN_TEMPLATE_EFFORTS : []
 }
