@@ -181,6 +181,26 @@ export function useVirtualScroll(
     return heightCacheRef.current.get(itemKeys[index]!) ?? PESSIMISTIC_ROWS
   }
 
+  function mountedCoversPane(first: number, last: number): boolean {
+    const handle = scrollRef.current
+    const pane = handle?.getViewportHeight() ?? 0
+    if (!handle || pane <= 0) return true
+    const count = itemKeys.length
+    const fresh = ensureOffsets()
+    const total = fresh[count]!
+    if (handle.isSticky()) {
+      return first === 0 || total - fresh[first]! >= pane + SCROLL_BIN_ROWS
+    }
+    const committed = handle.getScrollTop() - listOriginRef.current
+    const target = committed + handle.getPendingDelta()
+    const top = Math.max(0, Math.min(committed, target, total - pane))
+    const bottom = Math.min(total, Math.max(committed, target) + pane)
+    return (
+      (first === 0 || fresh[first]! <= Math.max(0, top - SCROLL_BIN_ROWS)) &&
+      (last >= count || fresh[last]! >= Math.min(total, bottom + SCROLL_BIN_ROWS))
+    )
+  }
+
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
       const box = scrollRef.current
@@ -403,8 +423,12 @@ export function useVirtualScroll(
   if (inverted || sticky) {
     effectiveStart = immediateRange[0]
     effectiveEnd = immediateRange[1]
-  } else if (pendingDelta > 0 || movedDown) {
-    effectiveEnd = immediateRange[1]
+  } else {
+    if (pendingDelta > 0 || movedDown) effectiveEnd = immediateRange[1]
+    if (pendingDelta === 0 && !mountedCoversPane(effectiveStart, effectiveEnd)) {
+      effectiveStart = immediateRange[0]
+      effectiveEnd = immediateRange[1]
+    }
   }
 
   if (effectiveEnd - effectiveStart > MAX_MOUNTED_ITEMS) {
@@ -504,18 +528,20 @@ export function useVirtualScroll(
         }
       }
     }
-    if (offsetsVersionRef.current !== offsetsBuiltVersionRef.current) {
+    const heightsMoved = offsetsVersionRef.current !== offsetsBuiltVersionRef.current
+    if (heightsMoved) {
       const changedFrom = minChangedIndexRef.current
       if (contentPinRef.current && Number.isFinite(changedFrom)) {
         const pinIdx = indexByKey(prevItemKeysRef.current, contentPinRef.current.key)
-        if (pinIdx === undefined || changedFrom < pinIdx) forceResolve()
+        if (pinIdx === undefined || changedFrom <= pinIdx) forceResolve()
       }
+      if (!mountedCoversPane(effectiveStart, effectiveEnd)) forceResolve()
     }
     minChangedIndexRef.current = Number.POSITIVE_INFINITY
     if (reflowHoldRef.current) {
       if (freezeRendersRef.current > 0) {
         forceResolve()
-      } else if (offsetsVersionRef.current !== offsetsBuiltVersionRef.current) {
+      } else if (heightsMoved) {
         forceResolve()
       } else if (outOfLayoutRef.current) {
       } else {
