@@ -73,6 +73,10 @@ export class CharPool implements Interning<string> {
   get(slot: number): string {
     return this.glyphs[slot] ?? ' '
   }
+
+  size(): number {
+    return this.glyphs.length
+  }
 }
 
 export class HyperlinkPool implements Interning<string | undefined> {
