@@ -17,16 +17,17 @@ import {
   type CompatCallModelParams,
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
-import { buildLocalExtras, localThinkingOff } from '../openaicompat/compatWire.js'
+import { buildLocalExtras, LOCAL_SERVER_EFFORTS, localThinkingOff } from '../openaicompat/compatWire.js'
 import { getMaxOutputTokensForModel } from '../anthropic/streamCore.js'
 import { EFFORT_STAMP_THINKING_OFF, EFFORT_STAMP_THINKING_ON, type EffortWireFact } from '../../../utils/effortStamp.js'
 import { planToolPayload, toolsOnTheWire } from '../toolEconomy.js'
 import { mapToolsToZai, toolDeclarationRowInResult, type ApiShapedTool } from '../zai/zaiCodec.js'
+import { QWEN_TEMPLATE_EFFORTS, QWEN_TEMPLATE_EFFORT_STEPS, qwenTemplateEffort, qwenTemplateReadsEffort } from '../qwen/qwenTemplate.js'
 import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKeyFor } from './localAccounts.js'
 import { configuredProviderKeyCommand, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { localContextSourceWords, localFitRefusalSentence, localRecordFor, localServerName, localWireId } from './localCatalogue.js'
 import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, residentServedWindow, type LocalDiscoveryIo, type LocalModelRecord } from './localDiscovery.js'
-import { adoptableLocalWindow, adoptLocalWindow, decideLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, LOCAL_WINDOW_HELD_WORDS, LOCAL_WINDOW_SETTING_WORDS, localPlannedWindow, localWindowApplication, localWindowDecisionLine, localWindowFits, localWindowSettingOf, releaseOutgrownLocalWindow, type HeldLocalWindow } from './localWindow.js'
+import { adoptableLocalWindow, adoptLocalWindow, decideLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, localPlannedWindow, localWindowApplication, localWindowDecisionLine, localWindowFits, localWindowSettingOf, localWindowSourceWords, releaseOutgrownLocalWindow, type HeldLocalWindow } from './localWindow.js'
 import { noteLocalTurn } from './localWarm.js'
 import { ollamaChatTransport, ollamaChatUrl } from './ollamaChatTransport.js'
 import { noteTensorFoldTurn } from './tensorfoldUsage.js'
@@ -37,6 +38,14 @@ import { estimateRequestTokens } from '../../tokenEstimation.js'
 export function localModelAcceptsEffort(record: LocalModelRecord): boolean {
   if (record.server === 'ollama' || record.server === 'lmstudio' || record.server === 'tensorfold') return record.thinkingDeclared === true
   return record.server === 'vllm' || record.server === 'llamacpp'
+}
+
+function servesQwenTemplate(record: LocalModelRecord): boolean {
+  return (record.server === 'vllm' || record.server === 'llamacpp') && qwenTemplateReadsEffort(record.id)
+}
+
+export function localServedEfforts(record: LocalModelRecord): { vocabulary: readonly string[]; steps?: Readonly<Record<string, string>> } {
+  return servesQwenTemplate(record) ? { vocabulary: QWEN_TEMPLATE_EFFORTS, steps: QWEN_TEMPLATE_EFFORT_STEPS } : { vocabulary: LOCAL_SERVER_EFFORTS[record.server] }
 }
 
 export const TENSORFOLD_OUTPUT_CEILING = 32768
@@ -50,7 +59,7 @@ export function localGuardWindow(record: LocalModelRecord, hold?: HeldLocalWindo
   if (hold !== undefined) {
     const application = localWindowApplication(record)
     if ((application === 'request' || application === 'load') && hold.window !== undefined) {
-      return { tokens: hold.window, sourceWords: hold.setting === undefined ? LOCAL_WINDOW_HELD_WORDS : LOCAL_WINDOW_SETTING_WORDS }
+      return { tokens: hold.window, sourceWords: localWindowSourceWords(hold) }
     }
     const stated = record.contextWindow
     if (stated === undefined || (stated.source !== 'served' && stated.source !== 'modelfile')) return undefined
@@ -205,7 +214,8 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
     wireModelId: () => record.id,
     buildExtras: args => {
       think = ollamaThinkingValue(record, args.effortValue, args.thinkingEnabled)
-      return buildLocalExtras({ ...args, server: record.server, acceptsEffort: localModelAcceptsEffort(record) })
+      const effortValue = args.effortValue !== undefined && servesQwenTemplate(record) ? qwenTemplateEffort(args.effortValue) : args.effortValue
+      return buildLocalExtras({ ...args, effortValue, server: record.server, acceptsEffort: localModelAcceptsEffort(record) })
     },
     omitsToolChoice: record.server === 'ollama',
     keepsReasoningOnContinuations: () => true,

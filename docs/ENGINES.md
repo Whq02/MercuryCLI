@@ -565,7 +565,9 @@ and `/usage` rows name the plan. The family word `qwen` runs Qwen3.8 Max
 wherever it is a row. Requests carry Qwen's own `enable_thinking` switch and
 `preserve_thinking` on the rows that take them, the effort dial as
 `reasoning_effort` in Qwen's vocabulary (`low`, `medium`, `xhigh`) on the Qwen3.8
-rows that document it, a stated `models.<id>.thinkingBudget` as `thinking_budget`
+rows that document it and all three on a Qwen 4 id of a known tier (`qwen4-max`,
+`-plus`, `-flash`, `-omni-flash`, `-<n>b`) before this build pins one, a stated
+`models.<id>.thinkingBudget` as `thinking_budget`
 in place of the effort word, the system prompt in `messages[0]` alone, and tool
 calls on the shared wire. A 401 from the bound endpoint names the region and the
 re-bind road. `/usage` shows session spend; neither console exposes a usage or
@@ -808,6 +810,10 @@ runner; when the machine's memory cannot be read because the server states no
 geometry or the read fails, the window comes out larger: the
 trained maximum when the model states one, else the served window, else twice
 the first request rounded up to 16k and never under 64k, and the words say so).
+A model whose Ollama Modelfile states `num_ctx` keeps that figure under `auto`
+(`set`, the Modelfile's own number: never raised, and never replaced by a
+window the server already holds); a number or `trained max` in `/config`
+overrides it.
 The automatic choice tops out at 128k (`cap`) wherever a trained maximum or the
 memory fit decides it; it passes 128k only for a request that is itself larger,
 for a served window already covering twice the request when no trained maximum
@@ -829,8 +835,9 @@ served-window load and every crewmate or workflow seat) carries the same
 `num_ctx` and `num_batch`, so the scheduler keeps one runner and its prompt
 cache for the whole session; a runner the server already holds at a window
 that fits the turn and is no smaller than the session's own choice is adopted
-without reloading (under `auto` and `server default`; a window you set is
-honoured, and a smaller stale runner is reloaded once, up to the full window),
+without reloading (under `auto` and `server default`; a window you set or the
+Modelfile states is honoured, and a smaller stale runner is reloaded once, up
+to the full window),
 and the row names it as the server's; LM Studio takes it
 when the model is loaded (`POST /api/v1/models/load {model, context_length}`);
 vLLM and llama.cpp fix their window at server start, so the row shows the

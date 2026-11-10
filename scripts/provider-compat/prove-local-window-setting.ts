@@ -384,6 +384,75 @@ section("10 · the small-machine warning on the two pick surfaces (red on the ba
   w.__resetLocalWindowsForTest()
 }
 
+section("11 · a Modelfile's num_ctx is the window under auto (red on the base: 131072, the automatic ceiling over a 256k fit): the tag's own 32768 rides the request, the rows say the same figure, and /config still overrides it")
+{
+  const memory = await import('../../src/services/localServer/localServerMemory.ts')
+  const truthModule = await import('../../src/services/localServer/localServerTruth.ts')
+  const TAG = 'qwen3.8-27b-32k:latest'
+  const GIB = 1024 ** 3
+  const kvHeads = (blocks: number): number[] => Array.from({ length: blocks }, (_, i) => ((i + 1) % 4 === 0 ? 4 : 0))
+  const info = { 'general.architecture': 'qwen35', 'qwen35.attention.head_count': 24, 'qwen35.attention.head_count_kv': kvHeads(64), 'qwen35.attention.key_length': 256, 'qwen35.attention.value_length': 256, 'qwen35.block_count': 64, 'qwen35.context_length': 262144, 'qwen35.embedding_length': 5120, 'qwen35.full_attention_interval': 4 }
+  const tagHits: Hit[] = []
+  const tagState = { loadedCtx: undefined as number | undefined }
+  const tagged = await serve((req, body, res) => {
+    const url = req.url ?? ''
+    if (url === '/api/tags') return json(res, 200, { models: [{ name: TAG, model: TAG, size: 17741872134, details: { family: 'qwen35', parameter_size: '27.3B', quantization_level: 'Q4_K_M' } }] }), true
+    if (url === '/api/version') return json(res, 200, { version: '0.40.5' }), true
+    if (url === '/api/ps') return json(res, 200, { models: tagState.loadedCtx !== undefined ? [{ name: TAG, model: TAG, context_length: tagState.loadedCtx }] : [] }), true
+    if (url === '/api/show') return json(res, 200, { parameters: 'presence_penalty               0\ntemperature                    1\ntop_k                          20\nnum_ctx                        32768', model_info: info, capabilities: ['completion', 'vision', 'tools', 'thinking'], thinking: { values: [false, 'low', 'medium', 'xhigh'], default: 'medium' } }), true
+    if (url === '/api/chat' && req.method === 'POST') {
+      const options = body.options as { num_ctx?: number } | undefined
+      tagState.loadedCtx = options?.num_ctx ?? 32768
+      res.writeHead(200, { 'content-type': 'application/x-ndjson' })
+      res.write(JSON.stringify({ model: TAG, created_at: '2026-01-01T00:00:00Z', message: { role: 'assistant', content: 'ok.' }, done: false }) + '\n')
+      res.write(JSON.stringify({ model: TAG, created_at: '2026-01-01T00:00:00Z', message: { role: 'assistant', content: '' }, done: true, done_reason: 'stop', prompt_eval_count: 40, eval_count: 2 }) + '\n')
+      res.end()
+      return true
+    }
+    return false
+  }, tagHits)
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${tagged.root}`
+  __resetLocalDiscoveryForTest()
+  await refreshLocalDiscovery({ force: true })
+  w.__resetLocalWindowsForTest()
+  const truth = { server: { kind: 'ollama' as const, root: tagged.root, version: '0.40.5', label: 'Ollama 0.40.5' }, loaded: [], listed: [], runners: [], launchForm: { kind: 'unknown' as const, note: 'fixture' }, machine: truthModule.defaultMachineTruth('darwin', 48 * GIB), readAtMs: Date.now() }
+  truthModule.__pinLocalServerTruthForTest(truth)
+  const tag = localRecordFor(`local/${TAG}`)!
+  const fit = w.localWindowFitOf(tag, truth)
+  check('the fixture is the tag as its server states it: num_ctx 32768 in the Modelfile, trained 262144, the 27B geometry, nothing loaded — and on a 48 GiB box the memory fit alone says 256k (the old automatic choice: 128k cap)', tag.modelfileContext === 32768 && j(tag.contextWindow) === j({ tokens: 32768, source: 'modelfile' }) && tag.modelMaxContext === 262144 && tag.geometry !== undefined && fit?.window === 262144 && w.autoWindowOfFit(fit).window === 131072 && memory.gibWords(truth.machine.usableMemoryBytes) === '36.0 GiB', j({ record: { window: tag.contextWindow, modelfile: tag.modelfileContext }, fit: fit?.window }))
+  const choice = w.chooseLocalWindow(tag, 62_000, undefined, truth)
+  check("auto resolves to 32768 · set · 32k · the Modelfile's num_ctx", choice.window === 32768 && choice.reason === 'set' && choice.words === "32k · the Modelfile's num_ctx", j({ window: choice.window, reason: choice.reason, words: choice.words }))
+  check('with the machine unread it is the same 32768 (never the automatic ceiling)', w.chooseLocalWindow(tag, 62_000, undefined, null).window === 32768 && w.chooseLocalWindow(tag, 62_000, undefined, null).reason === 'set')
+  check("the rows say the figure the request will carry: /config auto → 32k (the Modelfile's num_ctx) · the picker [auto → 32k set]", localModelWindowRow(tag, 'local').valueText === `auto → 32k (the Modelfile's num_ctx) · num_ctx on every request · ${TAG}` && w.localWindowChoiceLine(tag, { wide: true }) === 'window · 32k num_ctx · [auto → 32k set] · server · 32k · 64k · 128k · max · number · ctrl+w cycles', `${localModelWindowRow(tag, 'local').valueText} || ${w.localWindowChoiceLine(tag, { wide: true })}`)
+  const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
+  const sendTag = async (): Promise<{ numCtx: number | undefined; errors: number }> => {
+    const before = tagHits.length
+    let errors = 0
+    for await (const item of localCallModel({
+      messages: [{ type: 'user', message: { role: 'user', content: 'hello' }, uuid: '00000000-0000-4000-8000-000000000011', timestamp: new Date().toISOString() }] as never,
+      systemPrompt: ['fixture'] as never,
+      thinkingConfig: { type: 'disabled' } as never,
+      tools: [] as never,
+      signal: new AbortController().signal,
+      options: { model: `local/${TAG}`, querySource: 'user', getToolPermissionContext: async () => ({ mode: 'default' }) as never } as never,
+    })) if ((item as { isApiErrorMessage?: boolean }).isApiErrorMessage === true) errors++
+    const chat = tagHits.slice(before).find(h => h.url === '/api/chat')
+    return { numCtx: (chat?.body.options as { num_ctx?: number } | undefined)?.num_ctx, errors }
+  }
+  const first = await sendTag()
+  check('the first chat under auto carried options.num_ctx 32768 and settled; the hold is 32768 · set', first.numCtx === 32768 && first.errors === 0 && w.heldLocalWindow(tag)?.window === 32768 && w.heldLocalWindow(tag)?.reason === 'set', j({ first, hold: w.heldLocalWindow(tag) }))
+  w.writeLocalWindowSetting(tag, 65536)
+  const set = await sendTag()
+  check('a number in /config overrides the Modelfile on the next request (65536), and trained max would send 262144', set.numCtx === 65536 && w.chooseLocalWindow(tag, 62_000, 'max', truth).window === 262144, j(set))
+  w.writeLocalWindowSetting(tag, undefined)
+  const back = await sendTag()
+  check('back on auto the request carries 32768 again though the runner is resident at 65536 — a Modelfile figure is never raised by adoption', back.numCtx === 32768 && w.heldLocalWindow(tag)?.adopted === undefined && w.adoptableLocalWindow({ window: 32768, setting: undefined, reason: 'set' }, 65536, 10_000) === false, j({ back, hold: w.heldLocalWindow(tag) }))
+  truthModule.__pinLocalServerTruthForTest(null)
+  truthModule.__resetLocalServerTruthForTest()
+  w.__resetLocalWindowsForTest()
+  tagged.server.close()
+}
+
 ollama.server.close()
 lmstudio.server.close()
 console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)
