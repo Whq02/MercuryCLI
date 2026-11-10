@@ -43,13 +43,13 @@ check(
   );
 }
 check(
-  'takeover arms the atomic first-frame erase',
+  'takeover arms the whole-frame overwrite',
   alt.includes('if (launcherHolds) ink?.armAltScreenTakeover();'),
 );
 const ink = readFileSync('src/ink/ink.tsx', 'utf8');
 check(
-  'armAltScreenTakeover rides the SAME atomic seam as resize (needsEraseBeforePaint)',
-  /armAltScreenTakeover\(\): void \{\s*\n\s*this\.needsEraseBeforePaint = true;/.test(ink),
+  'armAltScreenTakeover rides the SAME atomic seam as resize (wholeFrameDue)',
+  /armAltScreenTakeover\(\): void \{\s*\n\s*this\.wholeFrameDue = true;/.test(ink),
 );
 
 const out = execFileSync(

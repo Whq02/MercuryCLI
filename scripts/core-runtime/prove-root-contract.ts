@@ -378,16 +378,16 @@ process.exit(0)
   rig.stdout.emit('resize')
   await rig.settle()
   const realWrites = rig.stdout.writes.slice(mReal)
-  const eraseFrames = realWrites.filter(w => isFrameWrite(w) && w.includes(`${ESC}[2J`))
-  check('resize: the whole storm settles to exactly one erase-carrying frame',
-    eraseFrames.length === 1, String(eraseFrames.length))
-  const rf = eraseFrames[0] ?? ''
+  const reassertIdx = realWrites.findIndex(w => !isFrameWrite(w) && w.includes('1007h'))
+  const settledFrames = reassertIdx === -1 ? [] : realWrites.slice(reassertIdx + 1).filter(isFrameWrite)
+  check('resize: the whole storm settles to exactly one frame and nothing erases the display',
+    settledFrames.length === 1 && !realWrites.some(w => w.includes(`${ESC}[2J`)), String(settledFrames.length))
+  const rf = settledFrames[0] ?? ''
   // eslint-disable-next-line no-control-regex
   const cups = [...rf.matchAll(/\u001b\[\d+;\d+H/g)]
   check('resize: the park CUP uses the settled rows', cups.length > 0 && cups[cups.length - 1]![0] === `${ESC}[${NEW_ROWS};1H`,
     JSON.stringify(cups[cups.length - 1]?.[0]))
-  const frameIdx = realWrites.findIndex(w => isFrameWrite(w) && w.includes(`${ESC}[2J`))
-  const reassertIdx = realWrites.findIndex(w => !isFrameWrite(w) && w.includes('1007h'))
+  const frameIdx = rf === '' ? -1 : realWrites.indexOf(rf)
   check('resize: mode re-assert precedes the settled frame', reassertIdx !== -1 && reassertIdx < frameIdx,
     JSON.stringify({ reassertIdx, frameIdx }))
   const emu = new AnsiEmulator(50, NEW_ROWS, true)
@@ -947,7 +947,6 @@ process.exit(0)
   const PARK: Patch = { type: 'stdout', content: `${ESC}[10;1H` }
   const base = {
     hasDiff: true,
-    needsErase: false,
     parkPatch: PARK,
     target: null as { x: number; y: number } | null,
     parked: null as { x: number; y: number } | null,
@@ -960,10 +959,7 @@ process.exit(0)
 
   const alt1 = planCursor({ ...base, altScreen: true })
   check('cursor-plan: alt diff opens home, parks last',
-    bytes(alt1.prelude) === `${ESC}[H` && bytes(alt1.postlude) === `${ESC}[10;1H` && !alt1.consumedErase)
-  const alt2 = planCursor({ ...base, altScreen: true, needsErase: true })
-  check('cursor-plan: the erase arm folds into the sandwich and is consumed',
-    bytes(alt2.prelude) === `${ESC}[2J${ESC}[H` && alt2.consumedErase)
+    bytes(alt1.prelude) === `${ESC}[H` && bytes(alt1.postlude) === `${ESC}[10;1H`)
   const alt3 = planCursor({ ...base, altScreen: true, target: { x: 50, y: 20 } })
   check('cursor-plan: alt declared CUP lands after the park, clamped',
     bytes(alt3.postlude) === `${ESC}[10;1H|${ESC}[10;40H` && alt3.nextParked?.x === 50)

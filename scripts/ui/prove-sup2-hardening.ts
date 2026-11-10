@@ -407,7 +407,7 @@ console.log('§25 stall wake — paired re-entry, repaint scheduled')
   const reassert = ink.slice(ink.indexOf('reassertTerminalModes(includeAltScreen'), ink.indexOf('repaintAfterNestedAltScreenClose'))
   check('poison gone: the stall path no longer calls the bare re-enter', !reassert.includes('this.reenterAltScreen()'))
   check('the stall path rides the paired composite', reassert.includes('wakeReenterAltBytes(this.mouseTracking)'))
-  check('the erased screen earns a SCHEDULED repaint', reassert.includes('this.needsEraseBeforePaint = true') && reassert.includes('this.scheduleRender()'))
+  check('the erased screen earns a SCHEDULED repaint', reassert.includes('this.wholeFrameDue = true') && reassert.includes('this.scheduleRender()'))
   check('the SIGCONT resume keeps its plain fresh enter (the shell exited alt there)', ink.includes('this.reenterAltScreen();\n      this.armScreenWatchdog();'))
 }
 

@@ -129,6 +129,7 @@ export function renderFaultRecoveryPlan(streak: number, budget: number = RENDER_
 const POOL_RESET_INTERVAL_MS = 5 * 60_000
 const WATCHDOG_COMMIT_BUDGET = 12
 const STDIN_REARM_DELAY_MS = 50
+const OVERWRITE_MIN_GAP_MS = 250
 const STDIN_REARM_ATTEMPTS = 8
 
 function rawModeOn(stdin: NodeJS.ReadStream): boolean {
@@ -274,7 +275,9 @@ export default class Ink {
   private wheelReportingConfirmed = false
   private transcriptScrollTarget: (() => boolean) | null = null
   private displayCursor: CursorPoint | null = null
-  private needsEraseBeforePaint = false
+  private wholeFrameDue = false
+  private wholeFrameAt = -Infinity
+  private overwriteTimer: ReturnType<typeof setTimeout> | null = null
   private resizeSettleTimer: ReturnType<typeof setTimeout> | null = null
   private watchdogCommitsRemaining = 0
   private zeroByteRenderStreak = 0
@@ -344,6 +347,7 @@ export default class Ink {
 
     if (this.isTTY) {
       options.stdout.on('resize', this.handleResize)
+      process.on('SIGWINCH', this.handleWinch)
       process.on('SIGCONT', this.resumeAfterContinue)
       this.attachStopListeners()
       const win32SizeTimer: ReturnType<typeof setInterval> | null =
@@ -354,6 +358,7 @@ export default class Ink {
       if (options.stdin.isTTY) setStdinRecovery(this.recoverStdin)
       this.removeTtySubscriptions = () => {
         options.stdout.off('resize', this.handleResize)
+        process.off('SIGWINCH', this.handleWinch)
         process.off('SIGCONT', this.resumeAfterContinue)
         this.detachStopListeners()
         if (win32SizeTimer !== null) clearInterval(win32SizeTimer)
@@ -514,8 +519,15 @@ export default class Ink {
     this.resizeSettleTimer = setTimeout(this.applySettledResize, RESIZE_SETTLE_MS)
   }
 
+  private handleWinch = (): void => {
+    refreshConsoleSize(this.options.stdout)
+    if (this.resizeSettleTimer !== null || this.engine?.inResizeStorm()) return
+    const { columns, rows } = this.liveSize()
+    if (columns === this.cachedColumns && rows === this.cachedRows) this.overwriteScreen()
+  }
+
   private paintResizeHold(columns: number, rows: number): void {
-    if (!this.altScreenActive || this.isPaused || !this.isTTY) return
+    if (!this.altScreenActive || this.isPaused || !this.isTTY || this.wholeFrameDue) return
     const patches = this.writer.holdingClipPaint(this.frontFrame, columns, rows)
     if (patches.length === 0) return
     writeDiffToTerminal(
@@ -541,7 +553,7 @@ export default class Ink {
     if (this.altScreenActive && !this.isPaused && this.isTTY) {
       termWrite(this.options.stdout, resizeReassertBytes(this.mouseTracking), 'mode')
       this.resetFramesForAltScreen()
-      this.needsEraseBeforePaint = true
+      this.wholeFrameDue = true
     }
   }
 
@@ -687,7 +699,7 @@ export default class Ink {
     logError(error instanceof Error ? error : new Error(message))
     if (this.altScreenActive) {
       this.resetFramesForAltScreen()
-      this.needsEraseBeforePaint = true
+      this.wholeFrameDue = true
     }
     this.ledger.contaminate('self-heal')
     this.scheduleRender()
@@ -707,7 +719,7 @@ export default class Ink {
       now - this.lastRenderTime > 30_000
     ) {
       this.resetFramesForAltScreen()
-      this.needsEraseBeforePaint = true
+      this.wholeFrameDue = true
       this.ledger.contaminate('self-heal');
     }
     this.lastRenderTime = now
@@ -800,7 +812,14 @@ export default class Ink {
     if (WRITE_TEE_PATH) this.teeBeforeDiff(baseFrame, frame)
 
     const diffStart = performance.now()
-    const patches = this.writer.render(baseFrame, frame, this.altScreenActive, regionScrollUsable)
+    const whole = this.wholeFrameDue && this.altScreenActive
+    const patches = whole
+      ? this.writer.overwriteAlt(frame)
+      : this.writer.render(baseFrame, frame, this.altScreenActive, regionScrollUsable)
+    if (whole) {
+      this.wholeFrameDue = false
+      this.wholeFrameAt = performance.now()
+    }
     const diffMs = performance.now() - diffStart
     if (!this.firstFrameStamped) {
       this.firstFrameStamped = true
@@ -844,7 +863,6 @@ export default class Ink {
     const plan = planCursor({
       altScreen: this.altScreenActive,
       hasDiff,
-      needsErase: this.needsEraseBeforePaint,
       parkPatch: this.parkPatch,
       target: this.resolveCursorTarget(),
       parked: this.displayCursor,
@@ -853,7 +871,6 @@ export default class Ink {
       rows,
       cols: columns,
     })
-    if (plan.consumedErase) this.needsEraseBeforePaint = false
     this.displayCursor = plan.nextParked
     const finalPatches = [...plan.prelude, ...optimized, ...plan.postlude]
     if (this.pendingAltEntry !== null && this.altScreenActive && hasDiff) {
@@ -870,6 +887,16 @@ export default class Ink {
     const writeMs = performance.now() - writeStart
     if (WRITE_TEE_PATH) this.teeAfterDiff(finalPatches)
 
+    this.ledger.settle(delivered, null)
+
+    if (!delivered) {
+      logForDebugging(
+        'Frame write was not fully delivered; the next frame will fully re-emit',
+        { level: 'warn' },
+      )
+      if (this.altScreenActive) this.wholeFrameDue = true
+    }
+
     if (this.watchdogCommitsRemaining > 0) {
       this.watchdogCommitsRemaining -= 1;
       if (this.altScreenActive && !hasDiff) {
@@ -878,20 +905,11 @@ export default class Ink {
           this.zeroByteRenderStreak = 0;
           this.watchdogCommitsRemaining = 0;
           this.reassertScreenState('zero-byte-watchdog', { repaint: false })
+          queueMicrotask(this.onRender)
         }
       } else {
         this.zeroByteRenderStreak = 0;
       }
-    }
-
-    this.ledger.settle(delivered, null)
-
-    if (!delivered) {
-      logForDebugging(
-        'Frame write was not fully delivered; the next frame will fully re-emit',
-        { level: 'warn' },
-      )
-      if (this.altScreenActive) this.needsEraseBeforePaint = true
     }
 
     if (frame.scrollDrainPending) this.scheduler.requestDrain()
@@ -1162,7 +1180,7 @@ export default class Ink {
     this.resumeStdin()
     if (this.altScreenActive) {
       this.resetFramesForAltScreen();
-      this.needsEraseBeforePaint = true;
+      this.wholeFrameDue = true;
     } else {
       this.repaintMainScreen()
       this.ledger.contaminate('blank-reset')
@@ -1180,7 +1198,7 @@ export default class Ink {
     if (this.altScreenActive) {
       termWrite(this.options.stdout, ENTER_ALT_SCREEN, 'mode');
       this.resetFramesForAltScreen();
-      this.needsEraseBeforePaint = true;
+      this.wholeFrameDue = true;
     }
     this.ledger.contaminate('self-heal');
     if (opts.repaint !== false) this.repaint();
@@ -1262,7 +1280,7 @@ export default class Ink {
     if (this.altScreenActive) {
       this.reenterAltScreen();
       this.armScreenWatchdog();
-      this.needsEraseBeforePaint = true
+      this.wholeFrameDue = true
       this.scheduleRender()
       return
     }
@@ -1303,7 +1321,7 @@ export default class Ink {
     if (includeAltScreen && this.altScreenActive) {
       termWrite(this.options.stdout, wakeReenterAltBytes(this.mouseTracking), 'mode')
       this.resetFramesForAltScreen()
-      this.needsEraseBeforePaint = true
+      this.wholeFrameDue = true
       this.scheduleRender()
     }
   }
@@ -1311,12 +1329,12 @@ export default class Ink {
   repaintAfterNestedAltScreenClose(): void {
     if (!this.altScreenActive) return
     this.resetFramesForAltScreen()
-    this.needsEraseBeforePaint = true
+    this.wholeFrameDue = true
     this.scheduleRender()
   }
 
   armAltScreenTakeover(): void {
-    this.needsEraseBeforePaint = true;
+    this.wholeFrameDue = true;
     this.ledger.contaminate('takeover')
   }
 
@@ -1331,14 +1349,14 @@ export default class Ink {
 
   forceRedraw(): void {
     if (!this.isTTY || this.isUnmounted || this.isPaused) return
-    termWrite(this.options.stdout, ERASE_SCREEN + CURSOR_HOME, 'mode')
     if (this.altScreenActive) {
       this.resetFramesForAltScreen()
-      this.ledger.contaminate('force-redraw')
+      this.wholeFrameDue = true
     } else {
+      termWrite(this.options.stdout, ERASE_SCREEN + CURSOR_HOME, 'mode')
       this.repaintMainScreen()
-      this.ledger.contaminate('force-redraw')
     }
+    this.ledger.contaminate('force-redraw')
     this.onRender()
   }
 
@@ -1349,8 +1367,23 @@ export default class Ink {
       return
     }
     this.resetFramesForAltScreen()
-    this.ledger.contaminate('blank-reset')
+    this.wholeFrameDue = true
     this.onRender()
+  }
+
+  overwriteScreen(): void {
+    if (!this.altScreenActive || this.isUnmounted || this.overwriteTimer !== null) return
+    const wait = OVERWRITE_MIN_GAP_MS - (performance.now() - this.wholeFrameAt)
+    if (wait > 0) {
+      this.overwriteTimer = setTimeout(() => {
+        this.overwriteTimer = null
+        this.overwriteScreen()
+      }, wait)
+      this.overwriteTimer.unref?.()
+      return
+    }
+    this.wholeFrameDue = true
+    this.scheduleRender()
   }
 
   invalidatePrevFrame(): void {

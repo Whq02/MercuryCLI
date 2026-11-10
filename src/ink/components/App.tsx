@@ -616,6 +616,7 @@ export default class App extends PureComponent<Props, State> {
       if (atom.sequence === FOCUS_IN) {
         this.gesture.refocusedAt = Date.now()
         setTerminalFocused(true)
+        instance?.overwriteScreen()
         this.internal_eventEmitter.emit('terminalfocus', new TerminalFocusEvent('terminalfocus'))
         continue
       }
