@@ -1,6 +1,7 @@
+import { randomBytes } from 'node:crypto'
 import { constants as fsConstants } from 'node:fs'
-import { chmod, mkdir, writeFile } from 'node:fs/promises'
-import { dirname, isAbsolute, join, normalize, sep } from 'node:path'
+import { chmod, lstat, mkdir, realpath, writeFile } from 'node:fs/promises'
+import { basename, dirname, isAbsolute, join, normalize, sep } from 'node:path'
 import type { Command, PromptCommand } from '../types/command.js'
 import type { ToolUseContext } from '../Tool.js'
 import type { ContentBlockParam } from '../types/wire.js'
@@ -33,13 +34,16 @@ type BundledSkillDefinition = {
   ) => Promise<ContentBlockParam[]>
 }
 
+const skillFolders = new Map<string, string>()
+
 export function getBundledSkillExtractDir(skillName: string): string {
-  return join(getBundledSkillsRoot(), skillName)
+  return skillFolders.get(skillName) ?? join(getBundledSkillsRoot(), skillName)
 }
 
-async function extractSkillFiles(skillName: string, files: Record<string, string>): Promise<string> {
-  const baseDir = getBundledSkillExtractDir(skillName)
-  const targets: Array<{ path: string; content: string }> = []
+type SkillFileTarget = { path: string; content: string }
+
+function skillFileTargets(baseDir: string, files: Record<string, string>): SkillFileTarget[] {
+  const targets: SkillFileTarget[] = []
   for (const [key, content] of Object.entries(files)) {
     const normalized = normalize(key)
     if (
@@ -52,9 +56,74 @@ async function extractSkillFiles(skillName: string, files: Record<string, string
     if (typeof content !== 'string') continue
     targets.push({ path: join(baseDir, normalized), content })
   }
-  const dirs = new Set(targets.map(target => dirname(target.path)))
-  for (const dir of dirs) {
-    await mkdir(dir, { recursive: true, mode: 0o700 })
+  return targets
+}
+
+function foldersUnder(baseDir: string, targets: readonly SkillFileTarget[]): string[] {
+  const folders = new Set<string>([baseDir])
+  for (const target of targets) {
+    for (let dir = dirname(target.path); dir.length > baseDir.length; dir = dirname(dir)) folders.add(dir)
+  }
+  return [...folders].sort((a, b) => a.length - b.length)
+}
+
+const standsAsFolder = (path: string): Promise<boolean> => lstat(path).then(info => info.isDirectory(), () => false)
+const standsAsFile = (path: string): Promise<boolean> => lstat(path).then(info => info.isFile(), () => false)
+
+let processFolderReal: string | undefined
+
+async function processFolderStands(): Promise<boolean> {
+  if (processFolderReal === undefined) return false
+  const root = getBundledSkillsRoot()
+  return (await standsAsFolder(root)) && (await realpath(root).catch(() => undefined)) === processFolderReal
+}
+
+async function ownProcessFolder(): Promise<string> {
+  const root = getBundledSkillsRoot()
+  if (processFolderReal === undefined) {
+    await mkdir(root, { recursive: true, mode: 0o700 })
+    if (!(await standsAsFolder(root))) {
+      throw new Error(`the bundled-skills folder ${root} is not a directory of its own`)
+    }
+    processFolderReal = await realpath(root)
+    return processFolderReal
+  }
+  const missing: string[] = []
+  let standing = processFolderReal
+  while (!(await lstat(standing).then(() => true, () => false))) {
+    missing.unshift(standing)
+    const parent = dirname(standing)
+    if (parent === standing) break
+    standing = parent
+  }
+  if (!(await standsAsFolder(standing)) || (await realpath(standing)) !== standing) {
+    throw new Error(`${standing} is no longer the directory the bundled-skills folder of this process was made under`)
+  }
+  for (const folder of missing) {
+    await mkdir(folder, { mode: 0o700 })
+  }
+  if (!(await processFolderStands())) {
+    throw new Error(`the bundled-skills folder ${root} is not the directory this process made`)
+  }
+  return processFolderReal
+}
+
+async function skillFolderStandsWhole(baseDir: string, targets: readonly SkillFileTarget[]): Promise<boolean> {
+  if (!(await processFolderStands())) return false
+  for (const folder of foldersUnder(baseDir, targets)) {
+    if (!(await standsAsFolder(folder))) return false
+  }
+  return (await Promise.all(targets.map(target => standsAsFile(target.path)))).every(Boolean)
+}
+
+async function extractSkillFiles(skillName: string, files: Record<string, string>, baseDir: string): Promise<string> {
+  const processFolder = await ownProcessFolder()
+  const targets = skillFileTargets(baseDir, files)
+  for (const folder of foldersUnder(baseDir, targets)) {
+    await mkdir(folder, { mode: 0o700 })
+    if (folder === baseDir && (await realpath(baseDir)) !== join(processFolder, basename(baseDir))) {
+      throw new Error(`the bundled skill folder ${baseDir} is not under the directory this process made`)
+    }
   }
   await Promise.all(
     targets.map(async ({ path, content }) => {
@@ -72,21 +141,27 @@ async function extractSkillFiles(skillName: string, files: Record<string, string
       }
     }),
   )
+  skillFolders.set(skillName, baseDir)
   return baseDir
 }
 
 const extractionPromises = new Map<string, Promise<string | null>>()
 
-function extractOnce(definition: BundledSkillDefinition): Promise<string | null> {
-  const existing = extractionPromises.get(definition.name)
-  if (existing) return existing
-  const files = typeof definition.files === 'function' ? definition.files() : definition.files
-  const promise = extractSkillFiles(definition.name, files ?? {}).catch(error => {
-    logForDebugging(
-      `bundled skill ${definition.name}: reference-file extraction into ${getBundledSkillExtractDir(definition.name)} failed: ${String(error)}`,
-    )
-    return null
-  })
+function extractedSkillDir(definition: BundledSkillDefinition): Promise<string | null> {
+  const earlier = extractionPromises.get(definition.name)
+  const promise = (earlier ?? Promise.resolve(undefined))
+    .then(async standing => {
+      const files = (typeof definition.files === 'function' ? definition.files() : definition.files) ?? {}
+      if (typeof standing === 'string' && (await skillFolderStandsWhole(standing, skillFileTargets(standing, files)))) return standing
+      const folderName = earlier === undefined ? definition.name : `${definition.name}-${randomBytes(8).toString('hex')}`
+      return extractSkillFiles(definition.name, files, join(getBundledSkillsRoot(), folderName))
+    })
+    .catch(error => {
+      logForDebugging(
+        `bundled skill ${definition.name}: reference-file extraction under ${getBundledSkillsRoot()} failed: ${String(error)}`,
+      )
+      return null
+    })
   extractionPromises.set(definition.name, promise)
   return promise
 }
@@ -100,7 +175,7 @@ export function registerBundledSkill(definition: BundledSkillDefinition): void {
 
   const getPromptForCommand: PromptCommand['getPromptForCommand'] = hasFiles
     ? async (args, context) => {
-        const baseDir = await extractOnce(definition)
+        const baseDir = await extractedSkillDir(definition)
         const blocks = await definition.getPromptForCommand(args, context)
         if (baseDir === null) return blocks
         const [first, ...rest] = blocks
