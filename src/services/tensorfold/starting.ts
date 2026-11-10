@@ -1,4 +1,4 @@
-export const TENSORFOLD_RELEASE = '1.2.2'
+export const TENSORFOLD_RELEASE = '1.2.5'
 export const TENSORFOLD_BREW_FORMULA = 'ashhart/tensorfold/tensorfold'
 export const TENSORFOLD_RELEASE_BASE = `https://github.com/ashhart/TensorFold/releases/download/v${TENSORFOLD_RELEASE}`
 export const TENSORFOLD_AGENT_FLOOR = 65_536

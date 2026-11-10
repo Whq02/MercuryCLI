@@ -158,8 +158,8 @@ const EXPECT: Record<string, Expect> = {
   ],
   't02-installing-macos': run => [
     ['the install row reads ◐ installing', has(run, 'install TensorFold') && has(run, '◐ installing'), framedRow(run)],
-    ['its card shows the brew line', hasRun(run, 'brew ==> Downloading https://github.com/ashhart/TensorFold/releases/download/v1.2.2/tensorfold-1.2.2-macos-arm64.tar.gz') || hasRun(run, 'brew ==> Downloading'), card(run).join(' / ')],
-    ['the footer: installing TensorFold 1.2.2 with Homebrew', has(run, 'installing TensorFold 1.2.2 with Homebrew')],
+    ['its card shows the brew line', hasRun(run, 'brew ==> Downloading https://github.com/ashhart/TensorFold/releases/download/v1.2.5/tensorfold-1.2.5-macos-arm64.tar.gz') || hasRun(run, 'brew ==> Downloading'), card(run).join(' / ')],
+    ['the footer: installing TensorFold 1.2.5 with Homebrew', has(run, 'installing TensorFold 1.2.5 with Homebrew')],
     ['the legend: esc closes, it keeps installing', legend(run).includes('esc closes, it keeps installing'), legend(run)],
   ],
   't03-no-homebrew-macos': run => [
@@ -176,7 +176,7 @@ const EXPECT: Record<string, Expect> = {
     ['the CUDA rows: Lightning 256k 20.8 GiB (best fit) first, the 27B 32k 22.5 GiB, the 2B', cells(run, 'Nemotron Lightning', 'local/nemotron-lightning', '↓ 19 GB', '256k ctx', '20.8 GiB') && cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', '↓ 20 GB', '32k ctx', '22.5 GiB') && cells(run, 'Qwen3.5 2B', 'local/qwen3.5-2b', '↓ 1.7 GB', '256k ctx') && flat(run).findIndex(l => l.includes('Nemotron Lightning')) < flat(run).findIndex(l => l.includes('Qwen3.8 27B')), flat(run).filter(l => /Qwen|Nemotron/.test(l)).join(' | ')],
     ['the footer: not installed · NVIDIA driver 580.95 (CUDA 13)', has(run, 'not installed · NVIDIA driver 580.95 (CUDA 13)')],
     ['the legend: ↵ install', legend(run).includes('↑↓ select · ↵ install'), legend(run)],
-    ...(wide ? [['the archive lines name the 1.2.2 Linux archive and its .sha256 sidecar', hasRun(run, 'sha256sum -c tensorfold-1.2.2-linux-') && hasRun(run, '.tar.gz.sha256'), card(run).join(' / ')] as [string, boolean, string]] : []),
+    ...(wide ? [['the archive lines name the 1.2.5 Linux archive and its .sha256 sidecar', hasRun(run, 'sha256sum -c tensorfold-1.2.5-linux-') && hasRun(run, '.tar.gz.sha256'), card(run).join(' / ')] as [string, boolean, string]] : []),
   ],
   't05-windows': run => [
     ["heading ▾ TENSORFOLD · served by Mercury's engine until TensorFold ships for Windows, whole at every width, unfolded", has(run, "▾ TENSORFOLD · served by Mercury's engine until TensorFold ships for Windows"), flat(run).filter(l => l.includes('TENSORFOLD')).join(' | ')],

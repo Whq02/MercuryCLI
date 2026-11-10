@@ -7,7 +7,7 @@ endpoints, and never changes model weights. On Windows, until a native Windows
 TensorFold binary is installed, Mercury serves the `TENSORFOLD` group on CPU
 through its own `llama.cpp` adapter (`served by Mercury's engine until TensorFold ships for Windows`; see [Windows](#windows)).
 
-Mercury ships three qualified starting points for TensorFold `1.2.2`, each
+Mercury ships three qualified starting points for TensorFold `1.2.5`, each
 trained to a `256k` (`262,144`-token) context window:
 
 - **`Nemotron Lightning`** (`TensorFold/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-MLX-4bit`, served as `local/nemotron-lightning`): ordered first on Macs with under 64 GiB of memory (including 48 GB Macs) and on pre-M5 Apple silicon.
@@ -96,7 +96,7 @@ installed, the card shows `needs     Homebrew · brew.sh installs it, then /tens
 
 On Linux with an NVIDIA GPU and driver R580 or newer (CUDA 13), `install TensorFold`
 (`release archive · checksum verified`) downloads
-`tensorfold-1.2.2-linux-x86_64.tar.gz` (or `tensorfold-1.2.2-linux-aarch64.tar.gz`)
+`tensorfold-1.2.5-linux-x86_64.tar.gz` (or `tensorfold-1.2.5-linux-aarch64.tar.gz`)
 and its `.sha256` file into `~/.local/share/mercury-host/runtime/tensorfold`,
 checks `sha256sum -c`, extracts the archive with `--strip-components=1`, and
 removes the archive files. If no NVIDIA GPU is found or the driver is older
