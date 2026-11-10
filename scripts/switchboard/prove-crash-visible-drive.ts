@@ -202,11 +202,11 @@ await killLeg
   check('the board painted after the kill', late.length >= 2, `frames: ${late.map(g => g.atMs).join(',')}`)
   const bothRows = (g: { rows: string[] }): boolean => text(g).includes('Alpha count') && text(g).includes('Beta count')
   check('NO VANISH — both rows stand in every post-kill frame (poison: the silent removal)', late.every(bothRows), late.map(g => `${g.atMs}:${bothRows(g)}`).join(' '))
-  const needsYou = late.filter(g => /NEEDS YOU/.test(text(g)) && ['Alpha count', 'Beta count'].every(title => g.rows.some(row => row.includes(title) && row.includes('crashed'))))
+  const needsYou = late.filter(g => /NEEDS YOU · 2/.test(text(g)) && ['Alpha count', 'Beta count'].every(title => g.rows.some(row => row.includes(title) && /headless · crash/.test(row))))
   const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const crashRecords = Object.values(readSessionWorkers(daemonDir)).filter(row => row.sessionId === alphaId || row.sessionId === betaId)
   check('both persisted rows carry the complete mid-run crash reason', crashRecords.length === 2 && crashRecords.every(row => /crashed mid-run/.test(row.crash?.reason ?? '')), JSON.stringify(crashRecords.map(row => row.crash)))
-  check('the pair paints NEEDS YOU and a crash reason in both narrow row cells', needsYou.length >= 1, `frames: ${needsYou.map(g => g.atMs).join(',') || 'none'}`)
+  check('the pair stands under NEEDS YOU · 2 and each row says why in its own cell (the kind, then the head of the crash reason: headless · crashe…)', needsYou.length >= 1, `frames: ${needsYou.map(g => g.atMs).join(',') || 'none'}`)
   const reviewLie = late.filter(g => {
     const alphaRow = g.rows.find(r => r.includes('Alpha count')) ?? ''
     const betaRow = g.rows.find(r => r.includes('Beta count')) ?? ''
