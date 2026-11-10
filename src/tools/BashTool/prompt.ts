@@ -4,7 +4,6 @@ import { PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { resolveShellEngine, resolveEngineSessionCeiling } from '../../utils/shell/engineSession.js'
 import { windowsBashAbsent } from '../../utils/shell/windowsShellRoad.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
-import { hasEmbeddedSearchTools } from '../../utils/embeddedTools.js'
 import { ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
 
 
@@ -41,7 +40,6 @@ const EDITOR_TERMINAL_PARAGRAPH =
 
 export function getSimplePrompt(offered: ReadonlySet<string> | null = null): string {
   void offered
-  const embedded = hasEmbeddedSearchTools()
   const brush = resolveShellEngine(getInitialSettings().shell?.engine).engine === 'brush'
   const sections: string[] = []
   sections.push(
@@ -57,11 +55,6 @@ export function getSimplePrompt(offered: ReadonlySet<string> | null = null): str
     )
   }
   if (ideTerminalAvailable()) sections.push(EDITOR_TERMINAL_PARAGRAPH)
-  if (embedded) {
-    sections.push(
-      "The embedded `find` implementation's `-regex` alternation is leftmost-first, not leftmost-longest: list the longest alternative first.",
-    )
-  }
   return sections.join('\n\n')
 }
 

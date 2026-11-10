@@ -17,7 +17,6 @@ delete process.env.MERCURY_SHELL_ENGINE
 delete process.env.MERCURY_SHELL_TIMEOUT_MS
 delete process.env.MERCURY_SHELL_MAX_TIMEOUT_MS
 delete process.env.MERCURY_SHELL_MAX_OUTPUT
-delete process.env.MERCURY_EMBEDDED_SEARCH
 
 let failures = 0
 let checks = 0

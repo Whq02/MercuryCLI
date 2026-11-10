@@ -5,7 +5,6 @@ import { join } from 'node:path'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { getCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
-import { embeddedSearchToolsBinaryPath, hasEmbeddedSearchTools } from '../embeddedTools.js'
 import { getMercuryHome } from '../envUtils.js'
 import { errorMessage } from '../errors.js'
 import { pathExists } from '../file.js'
@@ -197,44 +196,15 @@ function createRipgrepShellIntegration(): RipgrepShellIntegration {
   return { type: 'function', snippet: createResilientRgFunction(rgCommand) }
 }
 
-function createFindGrepShellIntegration(): string | null {
-  if (!hasEmbeddedSearchTools()) return null
-  const binaryPath = embeddedSearchToolsBinaryPath()
-  const findFunction = buildArgv0Function('find', 'bfs', binaryPath, [
-    '-regextype',
-    'findutils-default',
-  ])
-  const grepFunction = buildArgv0Function('grep', 'ugrep', binaryPath, [
-    '-G',
-    '--ignore-files',
-    '--hidden',
-    '-I',
-    '--exclude-dir=.git',
-    '--exclude-dir=.svn',
-    '--exclude-dir=.hg',
-    '--exclude-dir=.bzr',
-    '--exclude-dir=.jj',
-    '--exclude-dir=.sl',
-  ])
-  return `unalias find 2>/dev/null || true
-unalias grep 2>/dev/null || true
-${findFunction}
-${grepFunction}`
-}
-
 async function getMercurySnapshotContent(binShell: string): Promise<string> {
   const pathValue = await resolveSnapshotPathValue(binShell)
   const rgIntegration = createRipgrepShellIntegration()
-  const findGrep = createFindGrepShellIntegration()
 
   const sections: string[] = []
   sections.push('# Mercury search tools')
   sections.push(`if ! (unalias rg 2>/dev/null; command -v rg >/dev/null 2>&1); then
 ${rgIntegration.snippet}
 fi`)
-  if (findGrep !== null) {
-    sections.push(findGrep)
-  }
   sections.push('# Mercury PATH')
   sections.push(`export PATH=${quote([pathValue])}`)
   return sections.join('\n')
