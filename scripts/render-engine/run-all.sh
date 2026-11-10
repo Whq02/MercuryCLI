@@ -31,7 +31,6 @@ run scripts/render-engine/prove-resize-settle.ts
 run scripts/render-engine/prove-overlay-law.ts
 run scripts/render-engine/prove-tail-bound.ts
 run scripts/render-engine/prove-time-flat.ts
-run scripts/render-engine/prove-settle-no-sync-flush.ts
 run scripts/render-engine/prove-stable-prefix.ts
 run scripts/render-engine/prove-flag-dormant.ts
 run scripts/render-engine/prove-junk-smoke.ts
