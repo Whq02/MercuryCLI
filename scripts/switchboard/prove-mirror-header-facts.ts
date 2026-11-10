@@ -29,7 +29,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const j = (value: unknown): string => JSON.stringify(value)
 
-const { stringWidth } = await import('../../src/ink/stringWidth.ts')
+const cells = (text: string): number => [...text].length
 const { truncateToWidth } = await import('../../src/components/mercury-ui/glyphs.ts')
 const header = (await import('../../src/components/concourse/mirrorHeader.ts').catch(() => null)) as null | typeof import('../../src/components/concourse/mirrorHeader.ts')
 
@@ -40,17 +40,17 @@ type Shape = { title: string; facts: readonly string[]; paneWidth: number; nowWo
 
 function before(shape: Shape): { titleShown: string; factsShown: string; nowText: string | null; held: boolean } {
   const nowText = shape.nowWords === null ? null : truncateToWidth(shape.nowWords, Math.max(8, Math.floor(shape.paneWidth / 3)))
-  const cluster = stringWidth(HINT) + (nowText !== null ? stringWidth(nowText) + 3 : 0)
+  const cluster = cells(HINT) + (nowText !== null ? cells(nowText) + 3 : 0)
   const titleBudget = Math.max(8, shape.paneWidth - Math.min(cluster, Math.max(10, Math.floor(shape.paneWidth / 2))) - 2)
   const factsText = shape.facts.length > 0 ? ` · ${shape.facts.join(' · ')}` : ''
   const titleShown = truncateToWidth(shape.title, titleBudget)
-  const factsShown = factsText.length > 0 ? truncateToWidth(factsText, Math.max(0, titleBudget - stringWidth(titleShown))) : ''
-  return { titleShown, factsShown, nowText, held: factsShown === factsText && stringWidth(titleShown) + stringWidth(factsShown) + cluster <= shape.paneWidth - 2 }
+  const factsShown = factsText.length > 0 ? truncateToWidth(factsText, Math.max(0, titleBudget - cells(titleShown))) : ''
+  return { titleShown, factsShown, nowText, held: factsShown === factsText && cells(titleShown) + cells(factsShown) + cluster <= shape.paneWidth - 2 }
 }
 const now = (shape: Shape): { titleShown: string; factsShown: string; nowText: string | null; clusterReserve: number } | null => {
   if (header === null) return null
   const was = before(shape)
-  const fit = header.mirrorHeaderFit({ titleShown: was.titleShown, facts: shape.facts, paneWidth: shape.paneWidth, hintWidth: stringWidth(HINT), noteReserve: null, nowWords: shape.nowWords, nowText: was.nowText })
+  const fit = header.mirrorHeaderFit({ titleShown: was.titleShown, facts: shape.facts, paneWidth: shape.paneWidth, hintWidth: cells(HINT), noteReserve: null, nowWords: shape.nowWords, nowText: was.nowText })
   return { titleShown: was.titleShown, factsShown: fit.factsShown, nowText: fit.nowText, clusterReserve: fit.cluster }
 }
 const wholeFacts = (facts: readonly string[], shown: string): boolean => facts.some((_, n) => shown === facts.slice(0, n + 1).map(f => ` · ${f}`).join('')) || shown === ''
@@ -76,9 +76,9 @@ console.log("H1 the preview's header: the session's facts are shown whole or not
           if (got === null) continue
           const say = `${paneWidth} "${title.slice(0, 14)}" ${facts.length} fact(s) ${nowWords === null ? 'at rest' : `"${nowWords.slice(0, 10)}"`} → ${j(got)}`
           if (!wholeFacts(facts, got.factsShown)) cut.push(say)
-          if (stringWidth(got.titleShown) + stringWidth(got.factsShown) + got.clusterReserve > paneWidth - 2) overflow.push(say)
+          if (cells(got.titleShown) + cells(got.factsShown) + got.clusterReserve > paneWidth - 2) overflow.push(say)
           if (nowWords !== null && got.nowText !== null && got.factsShown !== facts.map(f => ` · ${f}`).join('')) factBeforeWords.push(say)
-          if (nowWords === null && (got.nowText !== null || got.clusterReserve !== stringWidth(HINT))) restWords.push(say)
+          if (nowWords === null && (got.nowText !== null || got.clusterReserve !== cells(HINT))) restWords.push(say)
           const was = before(shape)
           if (was.held && (was.titleShown !== got.titleShown || was.factsShown !== got.factsShown || was.nowText !== got.nowText)) moved.push(`${say} · was ${j(was)}`)
         }
@@ -91,9 +91,9 @@ console.log("H1 the preview's header: the session's facts are shown whole or not
   check('a session at rest has no words there, and the way in keeps its cells', header !== null && restWords.length === 0, `${restWords.length}: ${restWords[0]}`)
   check('where the header already held its facts whole and nothing was squeezed, it is to the cell what it was', header !== null && moved.length === 0, `${moved.length}: ${moved[0]}`)
   const squeezed = now({ title: 'T01 ask part 1', facts: FACTS, paneWidth: 68, nowWords: OLD_REPLY })
-  check('the header of a 120-column board, a session whose row says working: the model with its version and the effort are whole, and the words are the part that is shorter (red before: `· Opus 4` with the old reply beside it)', squeezed !== null && squeezed.titleShown + squeezed.factsShown === 'T01 ask part 1 · proj · Opus 4.8 · high' && squeezed.nowText !== null && stringWidth(squeezed.nowText) < stringWidth(before({ title: 'T01 ask part 1', facts: FACTS, paneWidth: 68, nowWords: OLD_REPLY }).nowText ?? ''), j(squeezed))
+  check('the header of a 120-column board, a session whose row says working: the model with its version and the effort are whole, and the words are the part that is shorter (red before: `· Opus 4` with the old reply beside it)', squeezed !== null && squeezed.titleShown + squeezed.factsShown === 'T01 ask part 1 · proj · Opus 4.8 · high' && squeezed.nowText !== null && cells(squeezed.nowText) < cells(before({ title: 'T01 ask part 1', facts: FACTS, paneWidth: 68, nowWords: OLD_REPLY }).nowText ?? ''), j(squeezed))
   const narrow = now({ title: 'T01 ask part 1', facts: FACTS, paneWidth: 48, nowWords: OLD_REPLY })
-  check('on a 100-column board there is no room for both: the words go, the working mark and the way in stay', narrow !== null && narrow.nowText === null && narrow.clusterReserve === stringWidth(HINT) + 2 && wholeFacts(FACTS, narrow.factsShown) && narrow.factsShown !== '', j(narrow))
+  check('on a 100-column board there is no room for both: the words go, the working mark and the way in stay', narrow !== null && narrow.nowText === null && narrow.clusterReserve === cells(HINT) + 2 && wholeFacts(FACTS, narrow.factsShown) && narrow.factsShown !== '', j(narrow))
   const mirror = readFileSync(join(REPO, 'src', 'components', 'concourse', 'SessionMirror.tsx'), 'utf8')
   check('the preview fits its facts and its words by that one rule and cuts no fact itself; the title keeps the lines it had', mirror.includes('mirrorHeaderFit({') && !mirror.includes('truncateToWidth(factsText') && mirror.includes('const titleShown = truncateToWidth(title, titleBudget)') && mirror.includes('{nowShown}'))
 }
