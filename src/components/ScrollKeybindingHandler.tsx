@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef } from 'react'
 import { WHEEL_ROWS_PER_NOTCH } from './mercury-ui/composerFloor.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { InkInstanceContext } from '../ink/components/InkInstanceContext.js'
+import { isMessageCursorActive } from './messageCursorStore.js'
 import { getHelmFocus } from '../utils/cockpit/helmFocus.js'
 import { settingsPopupRequest } from '../utils/cockpit/settingsPopup.js'
 import { isCrewViewOpen } from '../utils/cockpit/crewView.js'
@@ -252,6 +253,7 @@ export function ScrollKeybindingHandler({
     const handle = scrollRef.current
     return handle !== null && handle.getScrollHeight() > handle.getViewportHeight()
   }), [ink, isActive, isModal, modalUp, scrollRef])
+  useEffect(() => ink?.registerArrowKeyOwner(isMessageCursorActive), [ink])
   const selection = useSelection()
   const { addNotification } = useNotifications()
   const wheelState = useRef<WheelAccelState | null>(null)

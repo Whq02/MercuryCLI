@@ -582,6 +582,7 @@ export default class App extends PureComponent<Props, State> {
           wheelReportingConfirmed: instance.isWheelReportingConfirmed(),
           scrollableTranscript: instance.hasScrollableTranscriptTarget(),
           elevatedSurfaceActive: hasElevatedSurface(),
+          arrowKeysOwned: instance.arrowKeysOwned(),
         })
       : rawAtoms
 

@@ -274,6 +274,7 @@ export default class Ink {
   private mouseTrackingPref: boolean
   private wheelReportingConfirmed = false
   private transcriptScrollTarget: (() => boolean) | null = null
+  private readonly arrowKeyOwners = new Set<() => boolean>()
   private displayCursor: CursorPoint | null = null
   private wholeFrameDue = false
   private wholeFrameAt = -Infinity
@@ -1118,6 +1119,18 @@ export default class Ink {
 
   hasScrollableTranscriptTarget(): boolean {
     return this.transcriptScrollTarget?.() === true
+  }
+
+  registerArrowKeyOwner(owns: () => boolean): () => void {
+    this.arrowKeyOwners.add(owns)
+    return () => {
+      this.arrowKeyOwners.delete(owns)
+    }
+  }
+
+  arrowKeysOwned(): boolean {
+    for (const owns of this.arrowKeyOwners) if (owns()) return true
+    return false
   }
 
   isMouseTrackingPreferred(): boolean {

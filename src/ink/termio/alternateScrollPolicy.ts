@@ -7,6 +7,7 @@ interface AlternateScrollState {
   altScreenActive: boolean
   mouseTrackingEnabled: boolean
   elevatedSurfaceActive: boolean
+  arrowKeysOwned?: boolean
   platform?: string
   wheelReportingConfirmed?: boolean
   scrollableTranscript?: boolean
@@ -31,7 +32,7 @@ export function resolveAlternateScrollIntent(
     (state.platform ?? process.platform) === 'win32' &&
     !state.wheelReportingConfirmed && state.scrollableTranscript === true
   const engaged =
-    state.altScreenActive && !state.elevatedSurfaceActive &&
+    state.altScreenActive && !state.elevatedSurfaceActive && state.arrowKeysOwned !== true &&
     (!state.mouseTrackingEnabled || unconfirmedWindowsWheel)
   if (!engaged) return [...items]
   return items.map(i =>
