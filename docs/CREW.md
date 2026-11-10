@@ -226,8 +226,6 @@ The lead can give a Crewmate launch a `team` label or assign one later with Crew
 
 The lead names a captain for a team of five or more crewmates. A smaller team has one when you ask, or when a crewmate asks and the lead agrees. Captains gather their team's work and report it to the lead.
 
-The board holds one seat under a name. A launch that names its seat takes that name from a parked crewmate that carries it: the parked crewmate leaves the board with its own wait, and the waits other crewmates declared on it and its captaincy pass to the new seat. While the crewmate that carries the name is running, the launch is refused. A crewmate that left the board this way and is resumed by its id takes the name back by the same rule. A launch that names no seat takes no name. `main` and `all` are the board's own addresses: no seat is launched under either.
-
 `/general <text>` posts to every crewmate. `/team <name> <text>` posts to that team's captain, or all its members when it has none. `/whisper <name> <text>` posts to one crewmate. Names complete as you type. Your posts carry your own label and colour and reach the lead too. Every board post remains readable by the crew. Ordinary prompts go only to the lead.
 
 Crewmates can park with a declared wait for another crewmate's post, a file or subject, a message kind, or their team's traffic. A matching message or a post addressed to them can resume their conversation. Broadcasts do not resume parked crewmates. The status shows what each waiting crewmate needs. If its worktree is unavailable, it stays parked and the lead receives the path.

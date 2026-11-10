@@ -51,7 +51,6 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
     CREATE TABLE IF NOT EXISTS members (agent TEXT PRIMARY KEY, name TEXT NOT NULL, execution TEXT NOT NULL, enrolled INTEGER NOT NULL DEFAULT 1);
     CREATE TABLE IF NOT EXISTS captains (team TEXT PRIMARY KEY, agent TEXT NOT NULL UNIQUE);
     CREATE TABLE IF NOT EXISTS enrollments (agent TEXT PRIMARY KEY, name TEXT NOT NULL, team TEXT, captain INTEGER NOT NULL);
-    CREATE TABLE IF NOT EXISTS retirements (agent TEXT PRIMARY KEY, successor TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS roster_changes (id TEXT NOT NULL, recipient TEXT NOT NULL, record TEXT NOT NULL, PRIMARY KEY(id, recipient));
     CREATE TABLE IF NOT EXISTS read_events (packet TEXT NOT NULL, recipient TEXT NOT NULL, event TEXT NOT NULL, PRIMARY KEY(packet, event));
     CREATE TABLE IF NOT EXISTS interests (agent TEXT NOT NULL, kind TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(agent, kind, value));
@@ -86,7 +85,7 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
   const feedKey = resolve(path)
   let watcher: FSWatcher | undefined
   let closed = false
-  const version = (): string => JSON.stringify([db.prepare('SELECT MAX(seq) AS seq FROM events').get()!.seq, db.prepare("SELECT agent, value FROM interests WHERE kind = 'membership' ORDER BY agent").all(), hasCaptains ? db.prepare('SELECT team, agent FROM captains ORDER BY team').all() : [], wakes.version(), db.prepare('SELECT agent FROM members WHERE enrolled = 1 ORDER BY agent').all()])
+  const version = (): string => JSON.stringify([db.prepare('SELECT MAX(seq) AS seq FROM events').get()!.seq, db.prepare("SELECT agent, value FROM interests WHERE kind = 'membership' ORDER BY agent").all(), hasCaptains ? db.prepare('SELECT team, agent FROM captains ORDER BY team').all() : [], wakes.version()])
   let observed = version()
   const emit = (): void => {
     if (closed) return
@@ -166,33 +165,6 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
     const record = JSON.stringify({ team, captain: seat.agent, name: boardSeatName(seat) })
     const id = `roster:${randomUUID()}`
     for (const member of roster()) db.prepare('INSERT INTO roster_changes VALUES (?, ?, ?)').run(id, String(member.agent), record)
-  }
-  const takeName = (name: string, agent: string): boolean => {
-    const carries = (other: unknown): boolean => String(other).toLowerCase() === name.toLowerCase()
-    const holders = roster().filter(row => row.agent !== 'main' && row.agent !== agent && carries(row.name)).map(row => String(row.agent))
-    const launching = db.prepare('SELECT agent, name FROM enrollments').all().some(row => row.agent !== agent && carries(row.name))
-    if (launching || holders.some(holder => wakes.state(holder) === 'running')) throw new Error(`A seat named ${name} is running on this board; stop it, or launch this one under another name.`)
-    for (const holder of holders) {
-      db.prepare('UPDATE members SET enrolled = 0 WHERE agent = ?').run(holder)
-      db.prepare('INSERT INTO retirements VALUES (?, ?) ON CONFLICT(agent) DO UPDATE SET successor = excluded.successor').run(holder, agent)
-    }
-    return holders.length > 0
-  }
-  const reinstate = (launches: string, ...agents: string[]): boolean => {
-    const back = db.prepare(`SELECT agent FROM retirements WHERE successor IN (${launches})`).all(...agents)
-    for (const row of back) db.prepare('UPDATE members SET enrolled = 1 WHERE agent = ?').run(String(row.agent))
-    db.prepare(`DELETE FROM retirements WHERE successor IN (${launches})`).run(...agents)
-    return back.length > 0
-  }
-  const succeed = (agent: string, team: string | undefined): void => {
-    for (const row of db.prepare('SELECT agent FROM retirements WHERE successor = ?').all(agent)) {
-      const retired = String(row.agent)
-      wakes.retire(retired, agent)
-      for (const led of db.prepare('SELECT team, agent FROM captains ORDER BY rowid').all().filter(captaincy => captaincy.agent === retired)) {
-        if (team !== undefined && boardLabelKey(String(led.team)) === boardLabelKey(team)) appoint(team, agent)
-        else db.prepare('DELETE FROM captains WHERE agent = ?').run(retired)
-      }
-    }
   }
   const appendEvent = (event: BoardEvent): void => {
     db.prepare('INSERT INTO events (id, author, op, digest, thread, record) VALUES (?, ?, ?, ?, ?, ?)').run(event.eventId, event.author.agentId, event.clientOpId, event.payloadDigest, event.threadId, '{}')
@@ -289,12 +261,12 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
       transaction(() => { checkPrincipal(p); wakes.admit(p.author.agentId) })
       publish()
     },
-    pendingWakes() { return wakes.pending().filter(wake => member(wake.agent)) },
+    pendingWakes() { return wakes.pending() },
     claimWake(p, wake) {
       const claim = transaction(() => {
         checkPrincipal(p)
         if (p.author.agentId !== 'main') throw new Error('Only the lead runner dispatches board wakes.')
-        return member(wake.agent) ? wakes.claim(wake) : null
+        return wakes.claim(wake)
       })
       if (claim) publish()
       return claim
@@ -326,64 +298,44 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
       return held
     },
     reserveEnrollment(p, seat) {
-      const retired = transaction(() => {
+      transaction(() => {
         checkPrincipal(p)
         if (p.author.agentId !== 'main') throw new Error('Only the lead launches board seats.')
         if (!seat.agent || !seat.name.trim() || seat.agent.toLowerCase() === 'owner' || seat.name.trim().toLowerCase() === 'owner') throw new Error('Owner is reserved for the operator.')
-        if (seat.name.trim().toLowerCase() === 'main') throw new Error('Main is reserved for the lead.')
-        if (seat.agent.toLowerCase() === 'all' || seat.name.trim().toLowerCase() === 'all') throw new Error('All is reserved for the whole crew.')
         if (member(seat.agent)) throw new Error('This seat is already enrolled; use swarm_captain to appoint it.')
         if (seat.captain && !seat.team) throw new Error('A captain launch needs name and team.')
         const team = seat.team === undefined ? undefined : canonicalTeam(seat.team)
-        const took = seat.named === true && takeName(seat.name, seat.agent)
         checkEnrollment(seat.agent, team, seat.captain)
         db.prepare('INSERT INTO enrollments (agent, name, team, captain) VALUES (?, ?, ?, ?)').run(seat.agent, seat.name, team ?? '', seat.captain ? 1 : 0)
-        return took
       })
-      if (retired) publish()
     },
     cancelEnrollment(p, agent) {
-      const back = transaction(() => {
+      transaction(() => {
         checkPrincipal(p)
         if (p.author.agentId !== 'main') throw new Error('Only the lead cancels a launch.')
-        const reinstated = reinstate('SELECT agent FROM enrollments WHERE agent = ?', agent)
         db.prepare('DELETE FROM enrollments WHERE agent = ?').run(agent)
-        return reinstated
       })
-      if (back) publish()
     },
     enroll(p) {
       if (p.author.sessionId !== sessionId) throw new Error('A board cannot enroll another session.')
       if (p.author.agentId.toLowerCase() === 'owner' || p.name.trim().toLowerCase() === 'owner') throw new Error('Owner is reserved for the operator.')
-      if (p.author.agentId !== 'main' && p.name.trim().toLowerCase() === 'main') throw new Error('Main is reserved for the lead.')
-      if (p.author.agentId.toLowerCase() === 'all' || p.name.trim().toLowerCase() === 'all') throw new Error('All is reserved for the whole crew.')
       transaction(() => {
         if (p.author.agentId === 'main') {
           const stored = db.prepare('SELECT execution FROM members WHERE agent = ?').get('main')?.execution
-          if (stored !== undefined && stored !== p.author.executionId) {
-            reinstate('SELECT agent FROM enrollments')
-            db.prepare('DELETE FROM enrollments').run()
-          }
+          if (stored !== undefined && stored !== p.author.executionId) db.prepare('DELETE FROM enrollments').run()
         }
         const reservation = db.prepare('SELECT name, team, captain FROM enrollments WHERE agent = ?').get(p.author.agentId)
         const assigned = teamOf(p.author.agentId) ?? (reservation ? String(reservation.team) || undefined : p.team)
         const team = assigned === undefined ? undefined : canonicalTeam(assigned)
         const fresh = !member(p.author.agentId)
-        const returning = db.prepare('SELECT agent FROM retirements WHERE agent = ?').get(p.author.agentId) != null
-        if (returning) takeName(p.name, p.author.agentId)
         if (!reservation && (fresh || teamOf(p.author.agentId) !== team)) checkEnrollment(p.author.agentId, team)
         db.prepare('INSERT INTO members (agent, name, execution) VALUES (?, ?, ?) ON CONFLICT(agent) DO UPDATE SET name = excluded.name, execution = excluded.execution').run(p.author.agentId, p.name, p.author.executionId)
-        if (returning) {
-          db.prepare('UPDATE members SET enrolled = 1 WHERE agent = ?').run(p.author.agentId)
-          db.prepare('DELETE FROM retirements WHERE agent = ?').run(p.author.agentId)
-        }
         db.prepare('INSERT INTO seat_state (agent, joined, cursor) VALUES (?, ?, ?) ON CONFLICT(agent) DO UPDATE SET active = 1').run(p.author.agentId, latest(), latest())
         wakes.enroll(p.author.agentId, p.author.executionId)
         if (team !== undefined && teamOf(p.author.agentId) === undefined) db.prepare("INSERT INTO interests VALUES (?, 'membership', ?)").run(p.author.agentId, team)
         if (reservation?.captain === 1 && team !== undefined) appoint(team, p.author.agentId)
-        succeed(p.author.agentId, team)
         db.prepare('DELETE FROM enrollments WHERE agent = ?').run(p.author.agentId)
-        if (fresh && !returning) lifecycleEvent(p, p.author.agentId === 'main' ? { kind: 'launched' } : { kind: 'joined' }, p.author.agentId === 'main' ? 'Swarm launched' : 'Joined')
+        if (fresh) lifecycleEvent(p, p.author.agentId === 'main' ? { kind: 'launched' } : { kind: 'joined' }, p.author.agentId === 'main' ? 'Swarm launched' : 'Joined')
       })
       publish()
     },

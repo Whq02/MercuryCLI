@@ -58,12 +58,6 @@ export function createWakeState(db: Database, readOnly: boolean) {
       db.prepare("DELETE FROM wake_claims WHERE agent = ? AND state = 'held'").run(agent)
       db.prepare('DELETE FROM wake_problems WHERE agent = ?').run(agent)
     },
-    retire(agent: string, successor: string): void {
-      db.prepare('DELETE FROM wake_events WHERE agent = ?').run(agent)
-      db.prepare('DELETE FROM wake_claims WHERE agent = ?').run(agent)
-      db.prepare('UPDATE wake_waits SET armed = 0 WHERE agent = ?').run(agent)
-      db.prepare("UPDATE wake_waits SET predicate = json_set(predicate, '$.agent', ?) WHERE json_extract(predicate, '$.kind') = 'seat' AND json_extract(predicate, '$.agent') = ?").run(successor, agent)
-    },
     settle(agent: string, execution: string, seq: number): void {
       db.prepare("UPDATE wake_seats SET state = 'parked', parked_seq = ? WHERE agent = ? AND execution = ? AND state = 'running'").run(seq, agent, execution)
     },

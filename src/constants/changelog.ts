@@ -15,7 +15,6 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed Claude Fable 5, Mythos 5, Opus 4.8 and Opus 4.7 to use their 1M window by their plain id.
 - Changed the Computer tool: a gone wait is met when the text leaves, a page that is still starting is waited for, and an incomplete tree says so.
 - Changed the Computer tool's words: the page-content note, the skipped-step and interrupt lines, and a scale on every capture line.
-- Changed the crew board so that one name belongs to one crewmate; main and all are reserved.
 - Changed the /model picker: no group spends a line on one hidden row, and a narrow window keeps the context cell whole.
 - Changed the contract card to stand whole on a short board.
 - Changed the status band to give up its row under a tall card.
