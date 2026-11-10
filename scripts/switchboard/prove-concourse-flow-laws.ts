@@ -191,6 +191,20 @@ console.log('G6 a settlement never takes the row of an offer raised again for th
   await new Promise(r => setTimeout(r, 700))
   const twiceAfter = twiceRow !== undefined ? await obligationOf(twiceRow.obligationId, { scope: 'switchboard' }) : null
   check("a held offer answered twice in one breath ends answered by the operator: the second answer's withdrawal never wins", firstSay.outcome === 'applied' && secondSay.outcome === 'refused' && twiceAfter?.status === 'answered' && twiceAfter.settlement?.by === 'operator', JSON.stringify({ status: twiceAfter?.status, by: twiceAfter?.settlement?.by }))
+  check('…and no withdrawal was even tried on it: an offer this daemon answered is not an unheld offer', twiceAfter?.settlementAttempts.length === 1 && twiceAfter.settlementAttempts[0]?.kind === 'answered', JSON.stringify(twiceAfter?.settlementAttempts))
+
+  const folderG = mkdtempSync(join(tmpdir(), 'concflow-folder-g-'))
+  const gone = mintGitInitAsk(folderG) as { requestId: string }
+  await openSoon(gone.requestId)
+  answerPermissionAsk(gone.requestId, false, 'prover')
+  await new Promise(r => setTimeout(r, 700))
+  const orphan = await upsertObligation({ ref: `permission:${gone.requestId}`, sessionId: `folder:${folderG}`, question: 'this folder has no git — start one?', owner: 'operator', scope: 'switchboard' })
+  const unheldSay = answerPermissionAsk(gone.requestId, false, 'the-old-answer')
+  const cycled = mintGitInitAsk(folderG) as { requestId: string }
+  const cycledSay = answerPermissionAsk(cycled.requestId, false, 'the-new-answer')
+  await new Promise(r => setTimeout(r, 700))
+  const cycledRow = await obligationOf(orphan.obligationId, { scope: 'switchboard' })
+  check("unheld, raised again, then answered, all in one breath: the row carries the new offer's answer — the withdrawal decided for the offer before it settles nothing of the next one", unheldSay.outcome === 'refused' && cycledSay.outcome === 'applied' && cycledRow?.status === 'answered' && cycledRow.settlement?.by === 'the-new-answer', JSON.stringify({ status: cycledRow?.status, by: cycledRow?.settlement?.by, attempts: cycledRow?.settlementAttempts.map(a => `${a.kind}/${a.applied ? 'applied' : 'not-applied'}/${a.by}`) }))
 }
 
 console.log('T1 trust ledger')
