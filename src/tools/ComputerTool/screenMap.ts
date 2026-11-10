@@ -167,7 +167,8 @@ function elementPaths(tree: DesktopTree): Array<{ path: string; counts: () => nu
     const ordinal = seen.get(shape) ?? 0
     seen.set(shape, ordinal + 1)
     const path = createHash('sha256').update(JSON.stringify([parent?.key, element.role, element.title, element.frame, ordinal])).digest('hex')
-    const counts = (): number[] => [seen.get(shape) ?? 1, siblings.n, ...(parent?.counts() ?? [])]
+    const listedByScope = ancestors.length === 1
+    const counts = (): number[] => [...(listedByScope ? [] : [seen.get(shape) ?? 1, siblings.n]), ...(parent?.counts() ?? [])]
     ancestors.push({ depth: element.depth, key: path, seen: new Map(), children: { n: 0 }, counts })
     return { path, counts }
   })

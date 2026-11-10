@@ -53,7 +53,10 @@ const all = await call({ action: 'tree', all: true, scope: 'app' })
 check('all:true retains hidden and outside controls but not menu history', all.result.includes('Hidden') && all.result.includes('Outside') && !all.result.includes('History placeholder'), all.result)
 check('all:true restores the duplicate static-text row', all.result.includes('AXStaticText "Repeated text"') && all.result.split('Repeated text').length === 3, all.result)
 const expired = await call({ action: 'click', ref })
-check('an old read cannot silently retarget a number from a new read', expired.outcome === 'failed' && expired.result.includes('0 matches'), expired.result)
+check('an old read cannot silently retarget a number from a new read', expired.outcome === 'failed' && expired.result.includes(`ref:${ref}: no element of the latest tree matches it now`) && expired.result.includes('read the tree or find again'), expired.result)
+const appRef = Number(/\[(\d+)\] AXButton "Save"/.exec(all.result)?.[1])
+const appClicked = await call({ action: 'click', ref: appRef })
+check('a row numbered by an app-scope read is acted on like a row of a window read', appRef !== ref && appClicked.outcome === 'succeeded' && appClicked.result.includes(`click ref:${appRef} → (240, 212) pt`), appClicked.result)
 const root = Number(/\[(\d+)\] AXApplicationDialog "Routine"/.exec(all.result)?.[1])
 const scoped = await call({ action: 'tree', root })
 check('root:n starts with the dialog at kept depth zero', /\n\[\d+\] AXApplicationDialog "Routine"\n  \[\d+\] AXButton "Save"/.test(scoped.result) && !scoped.result.includes('AXWindow'), scoped.result)
@@ -71,7 +74,7 @@ driver.accessibilityTree = async (...args) => {
   return answer.ok ? { ...answer, value: { ...answer.value, elements: answer.value.elements.filter(element => element.title !== 'Save') } } : answer
 }
 const gone = await call({ action: 'click', ref: liveRef })
-check('a vanished ref refuses with the existing not-found remedy', gone.outcome === 'failed' && gone.result.includes('0 matches') && gone.result.includes('read tree'), gone.result)
+check('a vanished ref refuses and names the next read', gone.outcome === 'failed' && gone.result.includes(`ref:${liveRef}: no element of the latest tree matches it now`) && gone.result.includes('read the tree or find again'), gone.result)
 const text = 'visible text '.repeat(4000)
 const image = { type: 'image' as const, source: { type: 'base64' as const, media_type: 'image/png' as const, data: 'fixture-image' } }
 const capped = await processPreMappedToolResultBlock({ type: 'tool_result', tool_use_id: 'outline-image-cap', content: [{ type: 'text', text }, image] }, 'Computer', 20_000)

@@ -160,6 +160,7 @@ let projectStayedOff = false
 let removed = false
 const TITLE = 'MCP Popup'
 const BUNDLED_MCP = ['ext:filmcraft:app', 'ext:lightcraft:app', 'ext:photocraft:app']
+const TOOL_QUESTION = 'Do you want to proceed?'
 const driveText = (path: string): string => {
   if (!existsSync(path)) return ''
   return readFileSync(path, 'utf8').split('\n').filter(Boolean).flatMap(line => {
@@ -185,6 +186,7 @@ try {
       { awaitText: 'Type a prompt', afterPrevMs: 500, text: '/mcp\r' },
       { awaitText: ['runpod', 'connected'], afterPrevMs: 500, text: '\x1b[<0;2;2M\x1b[<0;2;2m', arrivedAbsent: '↑↓ move · ↵ act' },
       { awaitText: 'Type a prompt', afterPrevMs: 700, text: 'call popup fixture\r' },
+      { awaitText: ['runpod › popup_echo', TOOL_QUESTION], afterPrevMs: 500, text: '\r' },
     ],
     extraEnv: environment,
     seedHome: async (home, cwd) => {
@@ -271,6 +273,9 @@ try {
   check('the next model request announces the joined server as a deferred tool', !!next && JSON.stringify(next.body).includes('mcp__runpod__popup_echo') && !next.tools.some(name => name.includes('popup_echo')))
   const loaded = modelRequests.find(request => (request.body.tools as Array<{ name?: string; parameters?: { required?: string[] } }> | undefined)?.some(tool => tool.name?.includes('popup_echo') && tool.parameters?.required?.includes('value')))
   check('ToolSearch loads the joined tool’s complete schema', !!loaded)
+  const card = [...stepScreens, ...frames.map(frame => frame.text)].find(text => text.includes(TOOL_QUESTION)) ?? ''
+  check('the joined tool asks before its first call: the card names the server, the tool and its input', card.includes('Tool use') && card.includes('runpod › popup_echo(value: "from-model")') && card.includes('1. Yes'), card.split('\n').filter(line => line.includes('│')).slice(-9).join(' / ').slice(0, 400))
+  check("the operator's Yes is the drive's own answer to that card, not a key that happened to land on it", run.sendLog.some(row => JSON.stringify(row.awaitText ?? '').includes(TOOL_QUESTION)) && run.outcome.report?.unfired.length === 0, JSON.stringify(run.outcome.report))
   check('the model invokes the joined MCP tool successfully', calls.includes('from-model'))
   check('HTTP returns 401 before OAuth and the callback exchanges a token', unauthorized > 0 && callbacks === 1 && tokenIssued)
   const receipt = join(getProjectDir(workspace), `${sessionId}.receipts.jsonl`)

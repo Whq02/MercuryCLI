@@ -33,5 +33,12 @@ try {
   controller.abort()
   await assert.rejects(generateMediaTestImage('image-one', context, controller))
   assert.equal(calls, 1)
-  console.log('media test image: permission denial prevents generation; allowed call returns inline PNG and path; cancellation prevents a call')
+  const prose = `the sampler fell back to euler ${'x'.repeat(400)}`
+  const loose: any = { options: { tools: [{ ...tool, call: async () => ({ data: [{ type: 'text', text: prose }, { type: 'image', mimeType: 'image/png', data: png.toString('base64') }] }) }] }, canUseTool: async () => ({ behavior: 'allow' }) }
+  await assert.rejects(generateMediaTestImage('image-one', loose, new AbortController()), (error: Error) => {
+    assert.equal(error.name, 'Error')
+    assert.equal(error.message, `image_generate answered text that is not JSON: ${prose.slice(0, 200)}`)
+    return true
+  })
+  console.log('media test image: permission denial prevents generation; allowed call returns inline PNG and path; cancellation prevents a call; text beside the image that is not JSON is refused by its source with a bounded head, never a bare parse error')
 } finally { removeProofHome() }
