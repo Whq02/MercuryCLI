@@ -24,7 +24,7 @@ const { createAssistantMessage, createUserMessage } = await import('../../src/ut
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { createPermissionContext } = await import('../../src/hooks/toolPermission/PermissionContext.ts')
 const { CANCEL_MESSAGE, REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX } = await import('../../src/utils/messages/rejectionText.ts')
-const { INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/utils/messages/turnCut.ts')
+const { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, isInterruptedResultText } = await import('../../src/utils/messages/turnCut.ts')
 
 let failures = 0
 let checks = 0
@@ -74,6 +74,7 @@ type Answer = 'allow' | 'decline' | 'decline with words'
 interface Scene {
   calls: Array<{ name: string; input: Record<string, unknown>; answer: Answer }>
   answersAfterReply?: boolean
+  interruptAfterAnswer?: boolean
 }
 interface Run {
   requests: number
@@ -140,6 +141,10 @@ async function run(scene: Scene, label: string): Promise<Run> {
     const deadline = Date.now() + 1500
     while (settledAsks < Math.min(early, 1) && Date.now() < deadline) await new Promise<void>(resolve => { wake = resolve; setTimeout(resolve, 25) })
     await new Promise(resolve => setTimeout(resolve, 60))
+    if (scene.interruptAfterAnswer) {
+      abortController.abort()
+      return
+    }
     const tail = createAssistantMessage({ content: 'and that is the reply' })
     tail.message.id = `msg_${label}`
     tail.message.stop_reason = 'tool_use'
@@ -190,6 +195,10 @@ check('the turn closes with the same line as on the settled road', early.texts.i
 section('the same read declined after the whole reply has arrived, the card still standing: the same stop')
 const late = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'decline' }], answersAfterReply: true }, 'late')
 check('no further request, the turn stopped, the declination as the answer, the settled road\'s closing line', late.requests === 1 && late.turnAborted && (late.results.get(late.ids[0]!) ?? '').includes(REJECT_MESSAGE) && late.ran.length === 0 && late.texts.includes(INTERRUPT_MESSAGE_FOR_TOOL_USE), brief(late))
+
+section("the operator's interrupt after the No, the reply still arriving: the turn ends at once by the interrupt's own road")
+const interrupted = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'decline' }], interruptAfterAnswer: true }, 'interrupted')
+check('the turn ends with the stream, sends no further request, and closes with the interrupt\'s line and the interrupted call\'s words', interrupted.requests === 1 && interrupted.turnAborted && interrupted.texts.includes(INTERRUPT_MESSAGE) && !interrupted.texts.includes(INTERRUPT_MESSAGE_FOR_TOOL_USE) && isInterruptedResultText(interrupted.results.get(interrupted.ids[0]!) ?? ''), brief(interrupted))
 
 section('two reads in one reply, the first declined: the second is not put to the operator')
 const pair = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'decline' }, { name: 'Read', input: { file_path: '/tmp/declined/b.txt' }, answer: 'allow' }] }, 'pair')
