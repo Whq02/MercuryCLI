@@ -49,14 +49,16 @@ function spanOf(x0: number, x1: number, y0: number, y1: number, framed: boolean)
   return { x0, x1, inner: Math.max(0, x1 - x0 + 1 - 2), y0, y1, innerRows: framed ? Math.max(0, height - 2) : height }
 }
 
-export function compactConcourseGeometry(
-  cols: number,
-  rows: number,
-  facts: { sessionCount: number; newSessionDoor: boolean; composerBand: number },
-): CompactConcourseGeometry {
+type CompactConcourseFacts = { sessionCount: number; newSessionDoor: boolean; composerBand: number; cardRows?: number }
+
+export function compactConcourseGeometry(cols: number, rows: number, facts: CompactConcourseFacts): CompactConcourseGeometry {
   const width = Math.max(0, Math.floor(cols))
   const height = Math.max(0, Math.floor(rows))
-  const profile = compactConcourseProfileOf(width, height)
+  const sized = compactGeometryAs(compactConcourseProfileOf(width, height), width, height, facts)
+  return sized.profile === 'split' && (facts.cardRows ?? 0) > sized.mirrorRows ? compactGeometryAs('single', width, height, facts) : sized
+}
+
+function compactGeometryAs(profile: CompactConcourseProfile, width: number, height: number, facts: CompactConcourseFacts): CompactConcourseGeometry {
   const framed = height >= COMPACT_FRAME_MIN_ROWS && width >= COMPACT_FRAME_MIN_ROWS
   const inner = framed ? height - 2 : height
   const listWant = 2 + Math.max(1, facts.sessionCount) + (facts.newSessionDoor ? 2 : 0) + 1

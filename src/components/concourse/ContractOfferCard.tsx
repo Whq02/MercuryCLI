@@ -15,6 +15,7 @@ export const CONTRACT_FIELD_BLURB = `the session's advisory work agreement in yo
 const CONTRACT_ASK_KEYS = '↑↓ choose · ↵ confirm · esc starts it plain'
 const CONTRACT_ASK_CHROME_ROWS = 9
 const CONTRACT_FIELD_CHROME_ROWS = 9
+export const CONTRACT_CARD_MIN_ROWS = 7
 
 type ContractCardFitV1 = {
   askBlurbRows: number | null
@@ -23,6 +24,7 @@ type ContractCardFitV1 = {
   fieldBlurbRows: number | null
   fieldLines: number
   fieldGaps: boolean
+  fieldLift: boolean
 }
 
 export function contractCardTextColumns(width: number): number {
@@ -45,7 +47,8 @@ export function contractCardFit(rows: number, textColumns: number): ContractCard
   const fieldLines = Math.max(1, Math.min(visibleLines, rows - chrome - blurbShown))
   const liftMargin = askBlurbRows === 0 && askChrome > rows
   const askGap = !(askBlurbRows === 0 && askChrome - (liftMargin ? 1 : 0) > rows)
-  return { askBlurbRows, liftMargin, askGap, fieldBlurbRows, fieldLines, fieldGaps }
+  const fieldLift = chrome + blurbShown + fieldLines > rows
+  return { askBlurbRows, liftMargin, askGap, fieldBlurbRows, fieldLines, fieldGaps, fieldLift }
 }
 
 export function ContractOfferCard({
@@ -83,7 +86,7 @@ export function ContractOfferCard({
   }
 
   return (
-    <Box flexDirection="column" flexShrink={0} marginTop={face === 'ask' && fit.liftMargin ? -1 : 0}>
+    <Box flexDirection="column" flexShrink={0} marginTop={(face === 'ask' ? fit.liftMargin : fit.fieldLift) ? -1 : 0}>
       <PermissionDialog title="Start with a contract?">
         <Box flexDirection="column" flexShrink={0}>
           {face === 'ask' ? (

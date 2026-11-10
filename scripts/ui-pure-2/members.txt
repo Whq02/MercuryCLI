@@ -79,3 +79,4 @@ prove-visual-baseline-timing.ts
 prove-frame-replacement.ts
 prove-popup-covers-status-band.ts
 prove-popup-panel-fills-frame.ts
+prove-stale-dist-guard.ts
