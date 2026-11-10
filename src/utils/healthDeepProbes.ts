@@ -606,7 +606,7 @@ export async function probeChangeTransaction(): Promise<CheckResult> {
     '../services/changeTransaction/contracts.js'
   )
   if (!changeTransactionEnabled()) {
-    return { status: 'off', evidence: 'change transactions disabled (MERCURY_CHANGE_RECEIPTS=0)' }
+    return { status: 'off', evidence: `change transactions disabled (MERCURY_CHANGE_RECEIPTS=${flagEnv('MERCURY_CHANGE_RECEIPTS')?.trim() || '0'})` }
   }
   const { mintFileAnchor, checkAnchor } = await import(
     '../services/changeTransaction/snapshotAnchor.js'
@@ -665,7 +665,7 @@ export async function probeChangeTransaction(): Promise<CheckResult> {
 export async function probeServiceLifecycle(): Promise<CheckResult> {
   const { servicesEnabled } = await import('../services/projectServices/contracts.js')
   if (!servicesEnabled()) {
-    return { status: 'off', evidence: 'project services disabled (MERCURY_SERVICES=0)' }
+    return { status: 'off', evidence: `project services disabled (MERCURY_SERVICES=${flagEnv('MERCURY_SERVICES')?.trim() || '0'})` }
   }
   const { startService, waitForReady, readLogs, stopService } = await import(
     '../services/projectServices/serviceManager.js'

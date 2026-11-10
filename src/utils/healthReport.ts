@@ -523,6 +523,10 @@ export interface RunHealthReportOptions {
 
 const HEALTH_CONCURRENCY = 4
 
+function flagAsSet(env: string): string {
+  return `${env}=${flagEnv(env)?.trim() || '0'}`
+}
+
 
 const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string }> = {
   anthropic: { label: 'Anthropic', signIn: 'Run /logins (or export ANTHROPIC_API_KEY)' },
@@ -2350,7 +2354,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Workflows',
           run: async () => {
             if (!flagEnabled('MERCURY_WORKFLOWS')) {
-              return { status: 'off', evidence: 'MERCURY_WORKFLOWS=0 — the workflow engine is disabled' }
+              return { status: 'off', evidence: `${flagAsSet('MERCURY_WORKFLOWS')} — the workflow engine is disabled` }
             }
             const { rows: runs, unreadable } = await listWorkflowRunsDetailed(cwd)
             if (runs.length === 0) {
@@ -2932,7 +2936,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const { wardsEnabled, loadProjectWardsWithReport } = await import('../guards/wardsGuard.js')
             const { BUILTIN_WARDS } = await import('./wards/wards.js')
             if (!wardsEnabled()) {
-              return { status: 'off', evidence: 'MERCURY_WARDS=0 set — content wards off for this session' }
+              return { status: 'off', evidence: `${flagAsSet('MERCURY_WARDS')} set — content wards off for this session` }
             }
             const report = loadProjectWardsWithReport(getCwd())
             const evidence = `builtin ${BUILTIN_WARDS.length} · project ${report.rules.length} rule(s)${
@@ -3252,7 +3256,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const { primeEvalAvailability } = await import('../services/eval/interpreters.js')
             const { getCwd } = await import('./cwd.js')
             if (!evalEnabled()) {
-              return { status: 'off', evidence: 'MERCURY_EVAL=0 — the Eval tool is out of the catalogue' }
+              return { status: 'off', evidence: `${flagAsSet('MERCURY_EVAL')} — the Eval tool is out of the catalogue` }
             }
             const rows = await primeEvalAvailability(getCwd())
             const evidence = rows
@@ -3451,7 +3455,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             if (!mercuryLspEnabled()) {
               return {
                 status: 'off',
-                evidence: 'MERCURY_LSP=0 — IDE-hands bridge disabled by flag',
+                evidence: `${flagAsSet('MERCURY_LSP')} — IDE-hands bridge disabled by flag`,
               }
             }
             const probe = probeBuiltinTsServer()
@@ -3460,7 +3464,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               : 'no workspace typescript'
             const laneSegments: string[] = []
             if (!mercuryLspCppEnabled()) {
-              laneSegments.push('cpp lane off (MERCURY_LSP_CPP=0)')
+              laneSegments.push(`cpp lane off (${flagAsSet('MERCURY_LSP_CPP')})`)
             } else {
               const cpp = probeBuiltinClangd()
               if (!cpp.available || !cpp.clangdPath) {
@@ -3927,7 +3931,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               '../services/changeTransaction/contracts.js'
             )
             if (!changeTransactionEnabled()) {
-              return { status: 'off' as const, evidence: 'MERCURY_CHANGE_RECEIPTS=0' }
+              return { status: 'off' as const, evidence: flagAsSet('MERCURY_CHANGE_RECEIPTS') }
             }
             const { _toolTerminalSubscriberCountForTesting } = await import(
               '../services/run/effectObserver.js'
@@ -3945,7 +3949,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           run: async () => {
             const { mercuryRefsEnabled } = await import('../services/resources/contracts.js')
             if (!mercuryRefsEnabled()) {
-              return { status: 'off' as const, evidence: 'MERCURY_REFS=0' }
+              return { status: 'off' as const, evidence: flagAsSet('MERCURY_REFS') }
             }
             const { resourceAdapterKinds } = await import('../services/resources/registry.js')
             const kinds = resourceAdapterKinds()
@@ -4028,12 +4032,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const ghOnPath = whichSync('gh') !== null
             const repoLine = repoHostEnabled()
               ? `repo host: ${ghOnPath ? 'gh on PATH (mercury://repo live)' : 'gh ABSENT — context unavailable (remedy: install gh + gh auth login)'}`
-              : 'repo host: OFF (MERCURY_REPO_HOST=0)'
-            const { structurePolyglotEnabled } = await import('../services/structure/contracts.js')
+              : `repo host: OFF (${flagAsSet('MERCURY_REPO_HOST')})`
+            const { structureEnabled, structurePolyglotEnabled } = await import('../services/structure/contracts.js')
             const { resolveGrammarEngineDir, POLYGLOT_LANGUAGES } = await import('../services/structure/grammarFacility.js')
             let engineLine: string
             if (!structurePolyglotEnabled()) {
-              engineLine = 'AstSearch and AstEdit: OFF (MERCURY_STRUCTURE_POLYGLOT=0)'
+              engineLine = `AstSearch and AstEdit: OFF (${flagAsSet(structureEnabled() ? 'MERCURY_STRUCTURE_POLYGLOT' : 'MERCURY_STRUCTURE')})`
             } else {
               const engine = resolveGrammarEngineDir()
               if (engine.state === 'ok') {
@@ -4067,7 +4071,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           run: async () => {
             const { servicesEnabled } = await import('../services/projectServices/contracts.js')
             if (!servicesEnabled()) {
-              return { status: 'off' as const, evidence: 'MERCURY_SERVICES=0' }
+              return { status: 'off' as const, evidence: flagAsSet('MERCURY_SERVICES') }
             }
             const { reconcileAll } = await import('../services/projectServices/serviceManager.js')
             const { getOriginalCwd } = await import('../bootstrap/state.js')
