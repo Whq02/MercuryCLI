@@ -69,6 +69,7 @@ type VirtualMessageListProps = {
   extractFacets?: (msg: RenderableMessage) => TranscriptFacets
   trackStickyPrompt?: boolean
   selectedIndex: number | undefined
+  selectedExpanded?: boolean
   cursorNavRef?: React.Ref<MessageActionsNav | null>
   setCursor?: (cursor: MessageActionsState | null) => void
   jumpRef?: React.Ref<JumpHandle | null>
@@ -180,6 +181,7 @@ export function VirtualMessageList({
   extractFacets,
   trackStickyPrompt = false,
   selectedIndex,
+  selectedExpanded = false,
   cursorNavRef,
   setCursor,
   jumpRef,
@@ -329,6 +331,20 @@ export function VirtualMessageList({
     if (el) scrollRef.current?.scrollToElement(el, 1)
     else vsRef.current.scrollToIndex(selectedIndex)
   }, [selectedIndex, scrollRef])
+
+  const selectedExpandedWasRef = useRef(selectedExpanded)
+  useLayoutEffect(() => {
+    if (selectedExpandedWasRef.current === selectedExpanded) return
+    selectedExpandedWasRef.current = selectedExpanded
+    if (selectedIndex === undefined) return
+    const handle = scrollRef.current
+    const el = vsRef.current.getItemElement(selectedIndex)
+    if (!handle || !el) return
+    const top = handle.getElementTop(el)
+    if (top === undefined) return
+    const viewTop = handle.getScrollTop()
+    if (top < viewTop || top >= viewTop + handle.getViewportHeight()) handle.scrollToElement(el, 1)
+  }, [selectedExpanded, selectedIndex, scrollRef])
 
   const engineRef = useRef<SearchEngineState>(newEngineState())
   const onMatchChangeRef = useRef(onSearchMatchesChange)

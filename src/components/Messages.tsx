@@ -926,6 +926,7 @@ function MessagesInner({
                 ? visible.findIndex(message => message.uuid === cursor.uuid)
                 : undefined
             }
+            selectedExpanded={Boolean((cursor as { expanded?: boolean } | null)?.expanded)}
             cursorNavRef={cursorNavRef}
             setCursor={setCursor}
             jumpRef={jumpRef}

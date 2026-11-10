@@ -30,7 +30,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
 }
 
-type World = { rows: number; tallAt: number; open: number; shut: number; wide?: boolean; mountMs?: number; ownState?: boolean }
+type World = { rows: number; tallAt: number; open: number; shut: number; wide?: boolean; mountMs?: number; ownState?: boolean; cursorOnTall?: boolean }
 type Shown = { lines: number; rows: Row[]; columns: number }
 type Stage = {
   view: Mounted
@@ -126,7 +126,8 @@ async function stage(world: World, start: { lines: number; rows?: number; column
               scrollRef={scroll}
               columns={shown.columns}
               itemKey={row => row.uuid}
-              selectedIndex={undefined}
+              selectedIndex={world.cursorOnTall ? world.tallAt : undefined}
+              selectedExpanded={world.cursorOnTall === true && shown.lines > world.shut}
               renderItem={renderItem as never}
             />
           </Box>
@@ -229,10 +230,11 @@ type Case = {
   name: string
   world: World
   startOpen: boolean
-  top: Spot | 'tail'
+  top: Spot | 'tail' | 'cursor'
   act: (live: Stage) => void | Promise<void>
   busyMs?: number
   lands?: Spot
+  headAt?: number
   listRenders?: number
   outOfSight?: true
 }
@@ -244,7 +246,7 @@ const show = (title: string, frame: readonly string[]): void => {
 }
 
 async function place(live: Stage, world: World, top: Case['top']): Promise<boolean> {
-  return top === 'tail' ? true : seat(live, world, top)
+  return top === 'tail' || top === 'cursor' ? true : seat(live, world, top)
 }
 
 async function run(scene: Case): Promise<void> {
@@ -285,6 +287,10 @@ async function run(scene: Case): Promise<void> {
       const landed = spotOf(settled[0] ?? '', scene.world)
       check(`${scene.name}: the pane's first line is the row's line ${scene.lands.inner}`, landed !== null && landed.row === scene.lands.row && landed.inner === scene.lands.inner, `the pane opens on ${settled[0] === '' ? '(blank)' : settled[0]}`)
     }
+    if (scene.headAt !== undefined) {
+      const head = settled.findIndex(line => /^GROUP (?:open|shut) 000$/.test(line))
+      check(`${scene.name}: the row's head stands on pane row ${scene.headAt}`, head === scene.headAt, `the head stands on pane row ${head}; the pane opens on ${settled[0]}`)
+    }
     const columns = live.shown().columns
     const frames = framesFrom(live.writes, columns === columnsBefore ? mark : 0, columns)
     const torn = frames.map((frame, at) => ({ at, rows: holes(frame, scene.world, lastRow()) })).filter(entry => entry.rows.length > 0)
@@ -320,6 +326,16 @@ const reopened = async (live: Stage): Promise<void> => {
   await rest(live.view)
   live.set(true)
 }
+const openedThenShut = async (live: Stage): Promise<void> => {
+  live.set(true)
+  await rest(live.view)
+  live.set(false)
+}
+const reopenedThenRendered = async (live: Stage): Promise<void> => {
+  await reopened(live)
+  await rest(live.view)
+  live.poke()
+}
 const grownTenTimes = async (live: Stage): Promise<void> => {
   for (let step = 0; step < 10; step++) {
     live.resize(live.shown().lines + 1)
@@ -340,8 +356,15 @@ const cases: Case[] = [
   { name: 'a tall row collapsed by its own state at the tail', world: { ...OWN, tallAt: 110 }, startOpen: true, top: 'tail', act: live => live.set(false) },
   { name: 'a row expanded by its own state off the tail', world: OWN, startOpen: false, top: { row: 37, inner: 0 }, act: live => live.set(true) },
   { name: 'a row expanded by its own state at the tail', world: { ...OWN, tallAt: 110 }, startOpen: false, top: 'tail', act: live => live.set(true) },
+  { name: 'a row expanded off the tail where it stands and collapsed again', world: TALL, startOpen: false, top: { row: 37, inner: 0 }, act: openedThenShut },
   { name: 'a tall row collapsed from inside it and expanded again', world: TALL, startOpen: true, top: { row: 40, inner: 150 }, act: reopened, lands: { row: 40, inner: 0 } },
   { name: 'a tall row collapsed by its own state from inside it and expanded again', world: OWN, startOpen: true, top: { row: 40, inner: 150 }, act: reopened, lands: { row: 40, inner: 0 } },
+  { name: 'a tall row collapsed from inside it, expanded again, and the list rendered once more', world: TALL, startOpen: true, top: { row: 40, inner: 150 }, act: reopenedThenRendered, lands: { row: 40, inner: 0 } },
+  { name: 'the row under the message cursor expanded by its key from above the pane', world: { ...TALL, cursorOnTall: true }, startOpen: false, top: 'cursor', act: live => live.set(true), lands: { row: 40, inner: 1 } },
+  { name: 'the row under the message cursor collapsed by its key from above the pane', world: { ...TALL, cursorOnTall: true }, startOpen: true, top: 'cursor', act: live => live.set(false), lands: { row: 41, inner: 0 } },
+  { name: 'the row under the message cursor expanded by its key from below the pane', world: { ...TALL, tallAt: 110, cursorOnTall: true }, startOpen: false, top: { row: 35, inner: 0 }, act: live => live.set(true), lands: { row: 110, inner: 1 } },
+  { name: 'the row under the message cursor expanded by its key inside the pane', world: { ...TALL, cursorOnTall: true }, startOpen: false, top: { row: 35, inner: 0 }, act: live => live.set(true), lands: { row: 35, inner: 0 }, headAt: 5 },
+  { name: 'the row under the message cursor collapsed by its key inside the pane', world: { ...TALL, cursorOnTall: true }, startOpen: true, top: { row: 35, inner: 0 }, act: live => live.set(false), lands: { row: 35, inner: 0 }, headAt: 5 },
   { name: 'the last row grows ten times through the list under the pane\'s top', world: { ...TALL, tallAt: 119 }, startOpen: true, top: { row: 119, inner: 150 }, act: grownTenTimes, lands: { row: 119, inner: 150 }, listRenders: 10, outOfSight: true },
   { name: 'the last row grows ten times by its own state under the pane\'s top', world: { ...OWN, tallAt: 119 }, startOpen: true, top: { row: 119, inner: 150 }, act: grownTenTimes, lands: { row: 119, inner: 150 }, listRenders: 0, outOfSight: true },
   { name: 'a re-wrap off the tail', world: { ...TALL, wide: true }, startOpen: false, top: { row: 37, inner: 0 }, act: live => live.wrap(40) },
