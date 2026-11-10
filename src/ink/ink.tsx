@@ -289,6 +289,7 @@ export default class Ink {
   private readonly hoveredNodes = new Set<DOMElement>()
   private cursorDeclaration: CursorDeclaration | null = null
   private readonly frameListeners = new Set<() => void>()
+  private readonly layoutListeners = new Set<() => void>()
   onHyperlinkClick: ((url: string) => void) | undefined
 
   private storedReadableListeners: Array<(...args: unknown[]) => void> | null = null
@@ -357,7 +358,7 @@ export default class Ink {
     this.renderer = createRenderer(this.rootNode, this.stylePool)
     this.rootNode.onRender = this.scheduleRender
     this.rootNode.onImmediateRender = this.onRender
-    this.rootNode.onComputeLayout = this.calculateLayout
+    this.rootNode.onComputeLayout = this.layoutAfterCommit
 
     this.container = reconciler.createContainer(
       this.rootNode,
@@ -563,6 +564,25 @@ export default class Ink {
     this.layoutCounters = getCellLayoutCounters()
     noteSlowLayout(elapsed, this.layoutCounters)
     if (COMMIT_TEE_PATH) this.teeCommitGeometry(elapsed)
+  }
+
+  private layoutAfterCommit = (): void => {
+    if (this.isUnmounted) return
+    this.calculateLayout()
+    for (const listener of this.layoutListeners) {
+      try {
+        listener()
+      } catch (error) {
+        logForDebugging(`layout listener threw (ignored): ${error}`, { level: 'warn' })
+      }
+    }
+  }
+
+  subscribeLayout(listener: () => void): () => void {
+    this.layoutListeners.add(listener)
+    return () => {
+      this.layoutListeners.delete(listener)
+    }
   }
 
   private teeCommitGeometry(layoutMs: number): void {
