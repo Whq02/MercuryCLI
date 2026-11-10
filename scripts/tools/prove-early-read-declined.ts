@@ -23,6 +23,8 @@ const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { createPermissionContext } = await import('../../src/hooks/toolPermission/PermissionContext.ts')
+const { decisionOfAnswer } = await import('../../src/cli/headless/runnerAsks.ts')
+const HOST_STOP_WORDS = 'stopped by the host'
 const { CANCEL_MESSAGE, REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX } = await import('../../src/utils/messages/rejectionText.ts')
 const { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, isInterruptedResultText } = await import('../../src/utils/messages/turnCut.ts')
 
@@ -70,7 +72,7 @@ function makeTool(name: string, readOnly: boolean): never {
 }
 const TOOLS = [makeTool('Read', true), makeTool('Edit', false)]
 
-type Answer = 'allow' | 'decline' | 'decline with words'
+type Answer = 'allow' | 'decline' | 'decline with words' | 'declined in the window' | 'stopped by the host'
 interface Scene {
   calls: Array<{ name: string; input: Record<string, unknown>; answer: Answer }>
   answersAfterReply?: boolean
@@ -117,7 +119,9 @@ async function run(scene: Scene, label: string): Promise<Run> {
       await new Promise(resolve => setTimeout(resolve, 120))
     }
     const permission = createPermissionContext(tool, input, toolUseContext, assistantMessage, toolUseID, () => {})
-    const decision = answer === 'allow' ? permission.buildAllow(input) : permission.cancelAndAbort(answer === 'decline with words' ? 'read the other file' : undefined, false)
+    const decision = answer === 'declined in the window' || answer === 'stopped by the host'
+      ? decisionOfAnswer({ outcome: 'deny', message: answer === 'stopped by the host' ? HOST_STOP_WORDS : REJECT_MESSAGE, ...(answer === 'stopped by the host' ? { stop: true } : {}) } as never, tool, input, toolUseContext)
+      : answer === 'allow' ? permission.buildAllow(input) : permission.cancelAndAbort(answer === 'decline with words' ? 'read the other file' : undefined, false)
     settledAsks++
     wake?.()
     return decision
@@ -213,6 +217,28 @@ check('the model gets the operator\'s words and another request, and the turn is
 section('a read the operator allows runs and the turn goes on')
 const allowed = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'allow' }] }, 'allowed')
 check('the read runs once, its result reaches the next request, nothing is stopped', allowed.requests === 2 && !allowed.turnAborted && allowed.ran.length === 1 && (allowed.results.get(allowed.ids[0]!) ?? '').includes('Read ran'), brief(allowed))
+
+section("the runner's road, where a card in the window answers: a decline carries no stop, the model is told and the turn goes on")
+{
+  const write = await run({ calls: [{ name: 'Edit', input: { file_path: '/tmp/declined/a.txt' }, answer: 'declined in the window' }] }, 'window-write')
+  check('a writing call: not run, the declination reaches the next request, the turn is not stopped', write.requests === 2 && !write.turnAborted && write.ran.length === 0 && (write.results.get(write.ids[0]!) ?? '').includes(REJECT_MESSAGE), brief(write))
+  const read = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'declined in the window' }] }, 'window-read')
+  check('a read that started early: the same', read.requests === 2 && !read.turnAborted && read.ran.length === 0 && (read.results.get(read.ids[0]!) ?? '').includes(REJECT_MESSAGE), brief(read))
+  const pair = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'declined in the window' }, { name: 'Read', input: { file_path: '/tmp/declined/b.txt' }, answer: 'allow' }] }, 'window-pair')
+  check('two reads, the first declined: the second is still asked and runs, and the turn goes on', pair.requests === 2 && !pair.turnAborted && pair.asked.length === 2 && pair.ran.length === 1 && (pair.results.get(pair.ids[1]!) ?? '').includes('Read ran'), brief(pair))
+}
+
+section("the runner's road: an answer that carries the stop (a host's, a permission hook's) stops the turn, for an early read as for any call")
+{
+  const write = await run({ calls: [{ name: 'Edit', input: { file_path: '/tmp/declined/a.txt' }, answer: 'stopped by the host' }] }, 'stop-write')
+  check('a writing call: one request, nothing run, the turn stopped', write.requests === 1 && write.turnAborted && write.ran.length === 0, brief(write))
+  const read = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'stopped by the host' }] }, 'stop-read')
+  check('a read that started early: the same stop, no further request', read.requests === 1 && read.turnAborted && read.ran.length === 0, brief(read))
+  const late = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'stopped by the host' }], answersAfterReply: true }, 'stop-late')
+  check('answered after the whole reply has arrived: the same', late.requests === 1 && late.turnAborted && late.ran.length === 0, brief(late))
+  const pair = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'stopped by the host' }, { name: 'Read', input: { file_path: '/tmp/declined/b.txt' }, answer: 'allow' }] }, 'stop-pair')
+  check('two reads, the first stopped: the second does not run and the turn stops', pair.requests === 1 && pair.turnAborted && pair.ran.length === 0, brief(pair))
+}
 
 console.log(`\nprove-early-read-declined: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)
