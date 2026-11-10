@@ -62,25 +62,26 @@ const window = (id: string): string => {
 
 section("§1 the vendor's table: which first-party ids read 1M with no suffix (platform.claude.com/docs/en/build-with-claude/context-windows and the vendor client's own model rows, read 10 Nov 2026)")
 {
-  const NATIVE = ['claude-fable-5', 'claude-mythos-5']
+  const NATIVE = ['claude-fable-5', 'claude-mythos-5', 'claude-opus-4-8', 'claude-opus-4-7']
   for (const id of NATIVE) {
     check(`${id} reads 1M from the first-party pin with no suffix`, window(id) === `${MILLION}/static-pin`, window(id))
   }
   check('a dated snapshot and a case-changed spelling of Fable 5 read the same row', window('claude-fable-5-20260115') === `${MILLION}/static-pin` && window('Claude-Fable-5') === `${MILLION}/static-pin`, `${window('claude-fable-5-20260115')} · ${window('Claude-Fable-5')}`)
+  check('a dated snapshot of Opus 4.8 and a case-changed spelling of Opus 4.7 read their own rows, not the Opus 4.6 row whose capabilities they share', window('claude-opus-4-8-20260115') === `${MILLION}/static-pin` && window('Claude-Opus-4-7') === `${MILLION}/static-pin`, `${window('claude-opus-4-8-20260115')} · ${window('Claude-Opus-4-7')}`)
   const ALREADY = ['claude-fable-5-2', 'claude-fable-5-1', 'claude-mythos-5-2', 'claude-mythos-5-1', 'claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5-5', 'claude-sonnet-5', 'claude-haiku-5-5']
   check('the rows that already read 1M keep it', ALREADY.every(id => window(id) === `${MILLION}/static-pin`), ALREADY.map(id => `${id}=${window(id)}`).join(' '))
   const SWITCHED = ['claude-opus-4-6', 'claude-sonnet-4-6']
   check('Opus 4.6 and Sonnet 4.6 keep their two positions: 200k as the id stands, 1M with [1m]', SWITCHED.every(id => caps.getContextWindowForModel(id) === 200_000 && window(`${id}[1m]`) === `${MILLION}/suffix-1m` && caps.modelSupports1M(id)), SWITCHED.map(id => `${id}=${window(id)} ${id}[1m]=${window(`${id}[1m]`)}`).join(' '))
   const SMALL = ['claude-sonnet-4-5', 'claude-opus-4-5', 'claude-haiku-4-5']
   check('the 200k rows stay 200k', SMALL.every(id => caps.getContextWindowForModel(id) === 200_000), SMALL.map(id => `${id}=${window(id)}`).join(' '))
-  check('a carrier-shaped spelling of Fable 5 never takes the first-party pin', caps.resolveContextWindow('openrouter/anthropic/claude-fable-5').source !== 'static-pin', window('openrouter/anthropic/claude-fable-5'))
+  check('a carrier-shaped spelling of Fable 5 or Opus 4.8 never takes the first-party pin', caps.resolveContextWindow('openrouter/anthropic/claude-fable-5').source !== 'static-pin' && caps.resolveContextWindow('openrouter/anthropic/claude-opus-4-8').source !== 'static-pin', `${window('openrouter/anthropic/claude-fable-5')} · ${window('openrouter/anthropic/claude-opus-4-8')}`)
   process.env.MERCURY_DISABLE_1M_CONTEXT = '1'
   const clamped = caps.resolveContextWindow('claude-fable-5')
   delete process.env.MERCURY_DISABLE_1M_CONTEXT
   check('MERCURY_DISABLE_1M_CONTEXT clamps the row to 200k and says why', clamped.effectiveWindow === 200_000 && clamped.fallbackReason === 'clamped by the 1M kill-switch', JSON.stringify(clamped))
 }
 
-section('§2 what a session on Fable 5 does with it: the fold point and the request')
+section('§2 what a session on one of these rows does with it: the fold point and the request')
 {
   const plain = getAutoCompactThreshold('claude-fable-5')
   const suffixed = getAutoCompactThreshold('claude-fable-5[1m]')
@@ -90,6 +91,10 @@ section('§2 what a session on Fable 5 does with it: the fold point and the requ
 
   const betas = caps.getAllModelBetas('claude-fable-5')
   check('a request on the id as it stands names no 1M header: the window is the model\'s own', !betas.includes(HEADER), JSON.stringify(betas))
+  const opus = ['claude-opus-4-8', 'claude-opus-4-7'].map(id => `${id} ${getAutoCompactThreshold(id)} ${getAutoCompactThreshold(`${id}[1m]`)} ${caps.getAllModelBetas(id).includes(HEADER)}`)
+  console.log(`  [record] auto-compact threshold, the id as it stands and its [1m] spelling, and whether the plain id's request names the header: ${opus.join(' · ')}`)
+  check('a session on Opus 4.8 or Opus 4.7 folds where its [1m] spelling folds, and its request names no 1M header', opus.every(row => /^\S+ (\d+) \1 false$/.test(row) && Number(row.split(' ')[1]) > 900_000), opus.join(' · '))
+  check('Opus 4.6 and Sonnet 4.6 still fold at their 200k position as the id stands', getAutoCompactThreshold('claude-opus-4-6') < 200_000 && getAutoCompactThreshold('claude-sonnet-4-6') < 200_000, `${getAutoCompactThreshold('claude-opus-4-6')} · ${getAutoCompactThreshold('claude-sonnet-4-6')}`)
 }
 
 const React = await import('react')
@@ -226,7 +231,7 @@ async function pick(id: string, flips: number): Promise<{ rest: string; flipped:
   return { rest, flipped, notice, seated, said }
 }
 
-section('§3 the picker at 120x40: the Fable 5 row has one window and no switch; the Opus 4.6 and Sonnet 4.6 rows keep their switch, its default and what each position seats')
+section('§3 the picker at 120x40: the Fable 5, Opus 4.8 and Opus 4.7 rows have one window and no switch; the Opus 4.6 and Sonnet 4.6 rows keep their switch, its default and what each position seats')
 {
   const fable = await pick('claude-fable-5', 1)
   console.log(`  [record] Fable 5: rest "${fable.rest}" · after ctrl+w "${fable.flipped}" · notice "${fable.notice}" · seated ${JSON.stringify(fable.seated)} · said "${fable.said}"`)
@@ -235,7 +240,14 @@ section('§3 the picker at 120x40: the Fable 5 row has one window and no switch;
   const atRest = await pick('claude-fable-5', 0)
   check('enter on the row seats the id as it stands, at rest and after the chord: no [1m] spelling is made for it', atRest.seated === 'claude-fable-5' && fable.seated === 'claude-fable-5', `at rest ${JSON.stringify(atRest.seated)} · after ctrl+w ${JSON.stringify(fable.seated)} · ${atRest.said}`)
   const offered = ['claude-fable-5-2', 'claude-fable-5-1', 'claude-fable-5', 'claude-mythos-5', 'claude-opus-5-5', 'claude-opus-5', 'claude-opus-4-8', 'claude-opus-4-7', 'claude-opus-4-6', 'claude-opus-4-5', 'claude-sonnet-5-5', 'claude-sonnet-5', 'claude-sonnet-4-6', 'claude-sonnet-4-5', 'claude-haiku-5-5', 'claude-haiku-4-5'].filter(id => focusedOptionSupports1m(id))
-  check('the switch leaves the Fable 5 and Mythos 5 rows and stays on Opus 4.6 and Sonnet 4.6', !offered.includes('claude-fable-5') && !offered.includes('claude-mythos-5') && offered.includes('claude-opus-4-6') && offered.includes('claude-sonnet-4-6'), JSON.stringify(offered))
+  check('the switch is offered on Opus 4.6 and Sonnet 4.6 alone', JSON.stringify(offered) === JSON.stringify(['claude-opus-4-6', 'claude-sonnet-4-6']), JSON.stringify(offered))
+  for (const [id, name] of [['claude-opus-4-8', 'Opus 4.8'], ['claude-opus-4-7', 'Opus 4.7']] as const) {
+    const chord = await pick(id, 1)
+    const rest = await pick(id, 0)
+    console.log(`  [record] ${name}: rest "${rest.rest}" seats ${JSON.stringify(rest.seated)} · after ctrl+w "${chord.flipped}" · notice "${chord.notice}" seats ${JSON.stringify(chord.seated)}`)
+    check(`${name}: the row reads 1M ctx, ctrl+w answers that it has no other window and the row does not move`, rest.rest === `${name} ${id} 1M ctx` && chord.flipped === rest.rest && chord.notice.includes('1M ctx · no alternate window'), `${rest.rest} · ${chord.flipped} · ${chord.notice}`)
+    check(`${name}: enter seats ${id} as it stands, at rest and after the chord`, rest.seated === id && chord.seated === id, `at rest ${JSON.stringify(rest.seated)} · after ctrl+w ${JSON.stringify(chord.seated)}`)
+  }
   for (const [id, name] of [['claude-opus-4-6', 'Opus 4.6'], ['claude-sonnet-4-6', 'Sonnet 4.6']] as const) {
     const on = await pick(id, 0)
     const off = await pick(id, 1)

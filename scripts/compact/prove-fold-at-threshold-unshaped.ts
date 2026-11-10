@@ -55,7 +55,7 @@ const { compactConversation, shouldRideCacheSharingFork, PROSE_SKIPPED_KEY } = a
 
 const GEMINI = 'gemini-3-pro'
 const GEMINI_WINDOW = 1_048_576
-const OPUS = 'claude-opus-4-8'
+const OPUS = 'claude-opus-4-6'
 const fetchImpl: typeof fetch = async () =>
   new Response(JSON.stringify({ models: [{ name: `models/${GEMINI}`, displayName: 'fixture', inputTokenLimit: GEMINI_WINDOW, outputTokenLimit: 65_536, supportedGenerationMethods: ['generateContent'], thinking: true }] }), { status: 200, headers: { 'content-type': 'application/json' } })
 await refreshGeminiCatalogue('api-key', { force: true, fetchImpl })
@@ -163,7 +163,7 @@ async function atThreshold(label: string, model: string, family: string, resultC
   check(`${label}: the post-fold context is under the threshold with a verbatim tail kept`, result !== undefined && result.truePostCompactTokenCount < threshold && (result.messagesToKeep?.length ?? 0) > 0, `${result?.truePostCompactTokenCount} / ${result?.messagesToKeep?.length}`)
 }
 
-check('claude-opus-4-8 resolves a 200,000-token window', getContextWindowForModel(OPUS) === 200_000, String(getContextWindowForModel(OPUS)))
+check('claude-opus-4-6 resolves a 200,000-token window', getContextWindowForModel(OPUS) === 200_000, String(getContextWindowForModel(OPUS)))
 check('gemini-3-pro resolves the 1,048,576-token window from the catalogue', getContextWindowForModel(GEMINI) === GEMINI_WINDOW, String(getContextWindowForModel(GEMINI)))
 try {
   await atThreshold('T1 a normal automatic fold AT the threshold on a 200,000 window (Anthropic, the fork lane)', OPUS, 'anthropic', 24_000, 20_000, 1, { type: 'adaptive' })
