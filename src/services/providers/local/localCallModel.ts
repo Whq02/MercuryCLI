@@ -26,7 +26,7 @@ import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKeyFor } from './localAccount
 import { configuredProviderKeyCommand, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { localContextSourceWords, localFitRefusalSentence, localRecordFor, localServerName, localWireId } from './localCatalogue.js'
 import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, residentServedWindow, type LocalDiscoveryIo, type LocalModelRecord } from './localDiscovery.js'
-import { adoptableLocalWindow, adoptLocalWindow, decideLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, LOCAL_WINDOW_HELD_WORDS, LOCAL_WINDOW_SETTING_WORDS, localPlannedWindow, localWindowApplication, localWindowDecisionLine, localWindowFits, localWindowSettingOf, releaseOutgrownLocalWindow, type HeldLocalWindow } from './localWindow.js'
+import { adoptableLocalWindow, adoptLocalWindow, decideLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, localPlannedWindow, localWindowApplication, localWindowDecisionLine, localWindowFits, localWindowSettingOf, localWindowSourceWords, releaseOutgrownLocalWindow, type HeldLocalWindow } from './localWindow.js'
 import { noteLocalTurn } from './localWarm.js'
 import { ollamaChatTransport, ollamaChatUrl } from './ollamaChatTransport.js'
 import { noteTensorFoldTurn } from './tensorfoldUsage.js'
@@ -50,7 +50,7 @@ export function localGuardWindow(record: LocalModelRecord, hold?: HeldLocalWindo
   if (hold !== undefined) {
     const application = localWindowApplication(record)
     if ((application === 'request' || application === 'load') && hold.window !== undefined) {
-      return { tokens: hold.window, sourceWords: hold.setting === undefined ? LOCAL_WINDOW_HELD_WORDS : LOCAL_WINDOW_SETTING_WORDS }
+      return { tokens: hold.window, sourceWords: localWindowSourceWords(hold) }
     }
     const stated = record.contextWindow
     if (stated === undefined || (stated.source !== 'served' && stated.source !== 'modelfile')) return undefined

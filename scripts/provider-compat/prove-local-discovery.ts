@@ -418,7 +418,8 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
   windows.writeLocalWindowSetting({ id: 'llama3.2:latest' }, undefined)
   const autoRefusal = profile.requestFitRefusal?.({ requestBytes: 240_000, estTokens: 60_000, toolCount: 63, wireModel: 'qwen3:8b' })
   check('under auto the guard reads the window the request will send (the trained max 40,960 on an unread machine) and names the choice', (autoRefusal ?? '').includes('40960 tokens — chosen by Mercury for this session (auto) — /config → Local model window'), String(autoRefusal))
-  check('under auto a Modelfile num_ctx below the trained max no longer guards: the request sends num_ctx 131072 and the 31k request fits it', localLaneProfileFor(llama).requestFitRefusal?.({ requestBytes: 120_000, estTokens: 30_000, toolCount: 55, wireModel: 'llama3.2:latest' }) === undefined)
+  const autoNumCtxRefusal = localLaneProfileFor(llama).requestFitRefusal?.({ requestBytes: 120_000, estTokens: 30_000, toolCount: 55, wireModel: 'llama3.2:latest' })
+  check("under auto a Modelfile num_ctx is the window the request sends (16384, never the trained 131072): the 31k request refuses with its number and source, as under server default", llama.modelfileContext === 16384 && (autoNumCtxRefusal ?? '').includes('16384 tokens — num_ctx)'), String(autoNumCtxRefusal))
   const llava = localRecordFor('local/llava:latest')!
   check('an unstated window (unloaded, no num_ctx) guards only by the window the request will send — the automatic ceiling 131072 under auto: a 100k request is not refused', llava.contextWindow === undefined && localLaneProfileFor(llava).requestFitRefusal?.({ requestBytes: 400_000, estTokens: 100_000, toolCount: 202, wireModel: 'llava:latest' }) === undefined, JSON.stringify(llava.contextWindow))
   const pastCeiling = localLaneProfileFor(llava).requestFitRefusal?.({ requestBytes: 800_000, estTokens: 200_000, toolCount: 202, wireModel: 'llava:latest' })

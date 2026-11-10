@@ -31,6 +31,7 @@ export interface LocalModelRecord {
   server: LocalServerKind
   baseUrl: string
   contextWindow?: { tokens: number; source: LocalContextSource }
+  modelfileContext?: number
   modelMaxContext?: number
   toolsDeclared?: boolean
   thinkingDeclared?: boolean
@@ -254,6 +255,7 @@ export async function probeOllama(root: string, io: LocalDiscoveryIo): Promise<L
           ? { kind: 'remote', ...(str(m.remote_model) ? { remoteModel: str(m.remote_model)! } : {}), ...(str(m.remote_host) ? { remoteHost: str(m.remote_host)! } : {}) }
           : { kind: 'local' },
         ...(contextWindow !== undefined ? { contextWindow } : {}),
+        ...(numCtx !== undefined ? { modelfileContext: numCtx } : {}),
         ...(servedCtx?.bytes !== undefined ? { servedBytes: servedCtx.bytes } : {}),
         ...(modelMax !== undefined ? { modelMaxContext: modelMax } : {}),
         ...(weightsBytes !== undefined ? { weightsBytes } : {}),

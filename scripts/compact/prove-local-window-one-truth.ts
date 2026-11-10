@@ -40,6 +40,8 @@ watchdog.unref?.()
 
 const CODER = 'qwen2.5-coder:3b'
 const TINY = 'tiny-4k:latest'
+const TAGGED = 'coder-8k:latest'
+const TAGGED_NUM_CTX = 8192
 const SERVED_DEFAULT = 4096
 const CODER_TRAINED_MAX = 131072
 const loaded = new Map<string, number>([[CODER, SERVED_DEFAULT], [TINY, SERVED_DEFAULT]])
@@ -62,13 +64,13 @@ const ollama = await new Promise<{ server: Server; root: string }>(resolve => {
       } catch {
         body = {}
       }
-      if (url === '/api/tags') return json(res, 200, { models: [CODER, TINY].map(name => ({ name, model: name, size: 1_900_000_000, details: { family: 'qwen2', parameter_size: '3B', quantization_level: 'Q4_K_M' } })) })
+      if (url === '/api/tags') return json(res, 200, { models: [CODER, TINY, TAGGED].map(name => ({ name, model: name, size: 1_900_000_000, details: { family: 'qwen2', parameter_size: '3B', quantization_level: 'Q4_K_M' } })) })
       if (url === '/api/version') return json(res, 200, { version: '0.34.4' })
       if (url === '/api/ps') return json(res, 200, { models: [...loaded.entries()].map(([name, ctx]) => ({ name, model: name, size: 1_900_000_000, context_length: ctx, expires_at: '2026-01-01T00:00:00Z' })) })
       if (url === '/api/show') {
         const id = String(body.model ?? '')
         const max = id === TINY ? SERVED_DEFAULT : CODER_TRAINED_MAX
-        return json(res, 200, { modelfile: '', parameters: `num_ctx                        ${SERVED_DEFAULT}`, details: {}, model_info: { 'general.architecture': 'qwen2', 'qwen2.context_length': max }, capabilities: ['completion', 'tools'] })
+        return json(res, 200, { modelfile: '', parameters: id === TAGGED ? `num_ctx                        ${TAGGED_NUM_CTX}` : '', details: {}, model_info: { 'general.architecture': 'qwen2', 'qwen2.context_length': max }, capabilities: ['completion', 'tools'] })
       }
       if (url === '/api/generate') {
         const options = body.options as { num_ctx?: number } | undefined
@@ -191,6 +193,22 @@ section('§3 a setting changes the next request without a restart; the gauge cha
   check('auto with no setting: the limit reads the decision Mercury will make (the trained max 131,072 on an unread machine), named as chosen by Mercury', auto.effectiveWindow === CODER_TRAINED_MAX && (auto.fallbackReason ?? '').includes('chosen by Mercury for this session (auto)') && getBlockingLimit(CODER_MODEL) === limitOn(CODER_MODEL, CODER_TRAINED_MAX), JSON.stringify(auto))
   const sentAuto = await sendOne(CODER_MODEL, 'and again')
   check('the auto request carried num_ctx 131072 — the same window the limit read', sentAuto.numCtx === CODER_TRAINED_MAX && w.heldLocalWindow(coder)?.window === CODER_TRAINED_MAX && getBlockingLimit(CODER_MODEL) === limitOn(CODER_MODEL, CODER_TRAINED_MAX), JSON.stringify(sentAuto))
+}
+
+section("§3b a Modelfile's num_ctx under auto: the limit, the guard and the request read the tag's own 8,192, never the trained 131,072 (red on the base: 131,072 on all three)")
+{
+  const tagged = localRecordFor(`local/${TAGGED}`)!
+  const TAGGED_MODEL = `local/${TAGGED}`
+  check('discovery keeps the Modelfile figure (8,192 · num_ctx) beside the trained maximum (131,072), nothing loaded, no setting', tagged.modelfileContext === TAGGED_NUM_CTX && tagged.contextWindow?.source === 'modelfile' && tagged.modelMaxContext === CODER_TRAINED_MAX && w.localWindowSettingOf(tagged) === undefined, JSON.stringify({ window: tagged.contextWindow, modelfile: tagged.modelfileContext, max: tagged.modelMaxContext }))
+  const planned = resolveContextWindow(TAGGED_MODEL)
+  check('the context window is 8,192, the note naming num_ctx, and the blocking limit is that window\'s own arithmetic', planned.effectiveWindow === TAGGED_NUM_CTX && planned.fallbackReason === 'local server context: num_ctx' && getBlockingLimit(TAGGED_MODEL) === limitOn(TAGGED_MODEL, TAGGED_NUM_CTX), JSON.stringify(planned))
+  const sent = await sendOne(TAGGED_MODEL, 'hello')
+  check('the auto request carried num_ctx 8192 and was answered', sent.numCtx === TAGGED_NUM_CTX && sent.errors.length === 0, JSON.stringify(sent))
+  check("the hold is 8,192 · set · the Modelfile's num_ctx, the server now serves the tag at it, and the limit still agrees", w.heldLocalWindow(tagged)?.window === TAGGED_NUM_CTX && w.heldLocalWindow(tagged)?.reason === 'set' && w.heldLocalWindow(tagged)?.words === "8k · the Modelfile's num_ctx" && tagged.contextWindow?.tokens === TAGGED_NUM_CTX && tagged.contextWindow.source === 'served' && getBlockingLimit(TAGGED_MODEL) === limitOn(TAGGED_MODEL, TAGGED_NUM_CTX), JSON.stringify({ hold: w.heldLocalWindow(tagged), served: tagged.contextWindow }))
+  w.writeLocalWindowSetting(tagged, 32768)
+  check('a number in /config overrides the Modelfile: the limit reads 32,768 at once', resolveContextWindow(TAGGED_MODEL).effectiveWindow === 32768 && getBlockingLimit(TAGGED_MODEL) === limitOn(TAGGED_MODEL, 32768), JSON.stringify(resolveContextWindow(TAGGED_MODEL)))
+  w.writeLocalWindowSetting(tagged, undefined)
+  check('back on auto the limit reads the Modelfile figure again', resolveContextWindow(TAGGED_MODEL).effectiveWindow === TAGGED_NUM_CTX, JSON.stringify(resolveContextWindow(TAGGED_MODEL)))
 }
 
 section('§4 a 13,761-token system prompt against a true 4,096 model: the turn refuses with the real numbers (the prompt\'s estimate against the chosen window) and the window remedy, never "1,904 > 72"')
