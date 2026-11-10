@@ -31,16 +31,18 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 
 type World = { rows: number; tallAt: number; open: number; shut: number; wide?: boolean; mountMs?: number; ownState?: boolean }
-type Shown = { open: boolean; rows: Row[]; columns: number }
+type Shown = { lines: number; rows: Row[]; columns: number }
 type Stage = {
   view: Mounted
   scroll: React.RefObject<Scroll | null>
   writes: string[]
   shown: () => Shown
+  listRenders: () => number
   armOwnCommit: () => number
   listRendersAtOwnCommit: () => number | null
   poke: () => void
   set: (open: boolean) => void
+  resize: (lines: number) => void
   drop: (count: number) => void
   wrap: (columns: number) => void
 }
@@ -55,36 +57,42 @@ const Line = React.memo(function Line({ words, mountMs }: { words: string; mount
   return <Text>{words}</Text>
 })
 
-function Group({ open, world }: { open: boolean; world: World }): React.ReactNode {
+function Group({ lines, world }: { lines: number; world: World }): React.ReactNode {
+  const word = lines > world.shut ? 'open' : 'shut'
   return (
     <Box flexDirection="column">
-      {Array.from({ length: open ? world.open : world.shut }, (_, k) => (
-        <Text key={k}>{`GROUP ${open ? 'open' : 'shut'} ${String(k).padStart(3, '0')}`}</Text>
+      {Array.from({ length: lines }, (_, k) => (
+        <Text key={k}>{`GROUP ${word} ${String(k).padStart(3, '0')}`}</Text>
       ))}
     </Box>
   )
 }
 
-function SelfSizedGroup({ startOpen, world, hand, committed }: { startOpen: boolean; world: World; hand: (set: (open: boolean) => void) => void; committed: () => void }): React.ReactNode {
-  const [open, setOpen] = React.useState(startOpen)
-  React.useLayoutEffect(() => hand(setOpen), [hand])
-  React.useLayoutEffect(committed, [open, committed])
-  return <Group open={open} world={world} />
+function SelfSizedGroup({ startLines, world, hand, committed }: { startLines: number; world: World; hand: (set: (lines: number) => void) => void; committed: () => void }): React.ReactNode {
+  const [lines, setLines] = React.useState(startLines)
+  React.useLayoutEffect(() => hand(setLines), [hand])
+  React.useLayoutEffect(committed, [lines, committed])
+  return <Group lines={lines} world={world} />
 }
 
-async function stage(world: World, start: { open: boolean; rows?: number; columns: number }): Promise<Stage> {
+async function stage(world: World, start: { lines: number; rows?: number; columns: number }): Promise<Stage> {
   const scroll = React.createRef<Scroll>()
   const all: Row[] = Array.from({ length: world.rows }, (_, i) => createUserMessage({ content: `row ${i}` }))
   const indexOf = new Map(all.map((row, i) => [row.uuid, i]))
   const listeners = new Set<() => void>()
-  let state: Shown = { open: start.open, rows: all.slice(0, start.rows ?? world.rows), columns: start.columns }
+  let state: Shown = { lines: start.lines, rows: all.slice(0, start.rows ?? world.rows), columns: start.columns }
   const publish = (next: Shown): void => {
     state = next
     for (const listener of listeners) listener()
   }
-  let setOwn: (open: boolean) => void = () => {}
-  const hand = (set: (open: boolean) => void): void => {
+  let setOwn: (lines: number) => void = () => {}
+  const hand = (set: (lines: number) => void): void => {
     setOwn = set
+  }
+  const resize = (lines: number): void => {
+    if (!world.ownState) return publish({ ...state, lines })
+    state = { ...state, lines }
+    setOwn(lines)
   }
   let listRenders = 0
   let listRendersAtOwnCommit: number | null = null
@@ -99,15 +107,15 @@ async function stage(world: World, start: { open: boolean; rows?: number; column
       },
       () => state,
     )
-    const listedOpen = world.ownState ? start.open : shown.open
+    const listedLines = world.ownState ? start.lines : shown.lines
     const renderItem = React.useCallback(
       (row: Row): React.ReactNode => {
         const at = indexOf.get(row.uuid)!
         if (at !== world.tallAt) return <Line words={world.wide ? `${label(at)}${FILL}` : label(at)} mountMs={world.mountMs ?? 0} />
         listRenders++
-        return world.ownState ? <SelfSizedGroup startOpen={listedOpen} world={world} hand={hand} committed={committed} /> : <Group open={listedOpen} world={world} />
+        return world.ownState ? <SelfSizedGroup startLines={listedLines} world={world} hand={hand} committed={committed} /> : <Group lines={listedLines} world={world} />
       },
-      [listedOpen],
+      [listedLines],
     )
     return (
       <Box width={shown.columns} height={VIEWPORT + 1} flexDirection="column">
@@ -142,17 +150,15 @@ async function stage(world: World, start: { open: boolean; rows?: number; column
     scroll,
     writes: stdout.writes,
     shown: () => state,
+    listRenders: () => listRenders,
     armOwnCommit: () => {
       listRendersAtOwnCommit = null
       return listRenders
     },
     listRendersAtOwnCommit: () => listRendersAtOwnCommit,
     poke: () => publish({ ...state }),
-    set: open => {
-      if (!world.ownState) return publish({ ...state, open })
-      state = { ...state, open }
-      setOwn(open)
-    },
+    set: open => resize(open ? world.open : world.shut),
+    resize,
     drop: count => publish({ ...state, rows: state.rows.slice(0, state.rows.length - count) }),
     wrap: columns => {
       publish({ ...state, columns })
@@ -202,9 +208,8 @@ async function rest(view: Mounted): Promise<string[]> {
   return pane(view)
 }
 
-function rowsBetween(from: Spot, to: Spot, world: World, open: boolean): number {
-  const tall = open ? world.open : world.shut
-  const depth = (spot: Spot): number => spot.row + (spot.row > world.tallAt ? tall - 1 : 0) + spot.inner
+function rowsBetween(from: Spot, to: Spot, world: World, lines: number): number {
+  const depth = (spot: Spot): number => spot.row + (spot.row > world.tallAt ? lines - 1 : 0) + spot.inner
   return depth(to) - depth(from)
 }
 
@@ -213,7 +218,7 @@ async function seat(live: Stage, world: World, want: Spot): Promise<boolean> {
     const seen = spotOf(pane(live.view)[0] ?? '', world)
     if (seen && seen.row === want.row && seen.inner === want.inner) return true
     const scroll = live.scroll.current!
-    const step = seen ? rowsBetween(seen, want, world, live.shown().open) : -VIEWPORT
+    const step = seen ? rowsBetween(seen, want, world, live.shown().lines) : -VIEWPORT
     scroll.scrollTo(Math.max(0, scroll.getScrollTop() + (step === 0 ? -1 : step)))
     await rest(live.view)
   }
@@ -228,6 +233,8 @@ type Case = {
   act: (live: Stage) => void | Promise<void>
   busyMs?: number
   lands?: Spot
+  listRenders?: number
+  outOfSight?: true
 }
 
 const OWN: World = { rows: 120, tallAt: 40, open: 240, shut: 1, ownState: true }
@@ -241,7 +248,7 @@ async function place(live: Stage, world: World, top: Case['top']): Promise<boole
 }
 
 async function run(scene: Case): Promise<void> {
-  const live = await stage(scene.world, { open: scene.startOpen, columns: 80 })
+  const live = await stage(scene.world, { lines: scene.startOpen ? scene.world.open : scene.world.shut, columns: 80 })
   let fresh: Stage | null = null
   const lastRow = (): number => live.shown().rows.length - 1
   try {
@@ -271,6 +278,9 @@ async function run(scene: Case): Promise<void> {
     if (scene.world.ownState) {
       check(`${scene.name}: the row committed its new height by its own state, with no render of the list`, live.listRendersAtOwnCommit() === rendersBefore, `the list had rendered the row ${rendersBefore} times before the change and ${live.listRendersAtOwnCommit()} times by the row's own commit`)
     }
+    if (scene.listRenders !== undefined) {
+      check(`${scene.name}: the list rendered ${scene.listRenders} times for it`, live.listRenders() - rendersBefore === scene.listRenders, `${live.listRenders() - rendersBefore} renders of the list`)
+    }
     if (scene.lands !== undefined) {
       const landed = spotOf(settled[0] ?? '', scene.world)
       check(`${scene.name}: the pane's first line is the row's line ${scene.lands.inner}`, landed !== null && landed.row === scene.lands.row && landed.inner === scene.lands.inner, `the pane opens on ${settled[0] === '' ? '(blank)' : settled[0]}`)
@@ -280,13 +290,13 @@ async function run(scene: Case): Promise<void> {
     const torn = frames.map((frame, at) => ({ at, rows: holes(frame, scene.world, lastRow()) })).filter(entry => entry.rows.length > 0)
     check(
       `${scene.name}: every frame painted after the change shows a row on every row of the pane above the list's end`,
-      frames.length > 0 && torn.length === 0,
+      (frames.length > 0 || scene.outOfSight === true) && torn.length === 0,
       frames.length === 0 ? 'no frame was painted' : `${torn.length} of ${frames.length} frames torn; frame ${(torn[0]?.at ?? 0) + 1} has ${torn[0]?.rows.length} blank rows from pane row ${torn[0]?.rows[0]}`,
     )
     frames.forEach((frame, at) => show(`${scene.name} frame ${at + 1}/${frames.length}`, frame))
     const sticky = live.scroll.current!.isSticky()
     const topSpot = spotOf(settled[0] ?? '', scene.world)
-    fresh = await stage(scene.world, { open: live.shown().open, rows: live.shown().rows.length, columns })
+    fresh = await stage(scene.world, { lines: live.shown().lines, rows: live.shown().rows.length, columns })
     await waitFor(() => pane(fresh!.view).some(line => spotOf(line, scene.world) !== null), 3000)
     await rest(fresh.view)
     const reseated = sticky ? true : topSpot !== null && (await seat(fresh, scene.world, topSpot))
@@ -310,6 +320,12 @@ const reopened = async (live: Stage): Promise<void> => {
   await rest(live.view)
   live.set(true)
 }
+const grownTenTimes = async (live: Stage): Promise<void> => {
+  for (let step = 0; step < 10; step++) {
+    live.resize(live.shown().lines + 1)
+    await settle(30)
+  }
+}
 const cases: Case[] = [
   { name: 'a tall row collapsed off the tail, its head in view', world: TALL, startOpen: true, top: { row: 37, inner: 0 }, act: live => live.set(false) },
   { name: 'a tall row collapsed off the tail from inside it', world: TALL, startOpen: true, top: { row: 40, inner: 150 }, act: live => live.set(false) },
@@ -326,6 +342,8 @@ const cases: Case[] = [
   { name: 'a row expanded by its own state at the tail', world: { ...OWN, tallAt: 110 }, startOpen: false, top: 'tail', act: live => live.set(true) },
   { name: 'a tall row collapsed from inside it and expanded again', world: TALL, startOpen: true, top: { row: 40, inner: 150 }, act: reopened, lands: { row: 40, inner: 0 } },
   { name: 'a tall row collapsed by its own state from inside it and expanded again', world: OWN, startOpen: true, top: { row: 40, inner: 150 }, act: reopened, lands: { row: 40, inner: 0 } },
+  { name: 'the last row grows ten times through the list under the pane\'s top', world: { ...TALL, tallAt: 119 }, startOpen: true, top: { row: 119, inner: 150 }, act: grownTenTimes, lands: { row: 119, inner: 150 }, listRenders: 10, outOfSight: true },
+  { name: 'the last row grows ten times by its own state under the pane\'s top', world: { ...OWN, tallAt: 119 }, startOpen: true, top: { row: 119, inner: 150 }, act: grownTenTimes, lands: { row: 119, inner: 150 }, listRenders: 0, outOfSight: true },
   { name: 'a re-wrap off the tail', world: { ...TALL, wide: true }, startOpen: false, top: { row: 37, inner: 0 }, act: live => live.wrap(40) },
   { name: 'a re-wrap at the tail', world: { ...TALL, wide: true }, startOpen: false, top: 'tail', act: live => live.wrap(40) },
 ]

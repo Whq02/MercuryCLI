@@ -233,9 +233,11 @@ export function useVirtualScroll(
     const heightsMoved = offsetsVersionRef.current !== offsetsBuiltVersionRef.current
     if (heightsMoved) {
       const changedFrom = minChangedIndexRef.current
-      if (contentPinRef.current && Number.isFinite(changedFrom)) {
-        const pinIdx = indexByKey(prevItemKeysRef.current, contentPinRef.current.key)
-        if (pinIdx === undefined || changedFrom <= pinIdx) forceResolve()
+      const pin = contentPinRef.current
+      if (pin && Number.isFinite(changedFrom)) {
+        const pinIdx = indexByKey(prevItemKeysRef.current, pin.key)
+        const pinnedLineGone = pin.inner >= (heightCacheRef.current.get(pin.key) ?? 0)
+        if (pinIdx === undefined || changedFrom < pinIdx || (changedFrom === pinIdx && pinnedLineGone)) forceResolve()
       }
       if (!mountedCoversPane(first, last)) forceResolve()
     }
