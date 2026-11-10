@@ -35,6 +35,7 @@ import { isProviderDisabled } from '../../services/providers/disabledProviders.j
 import { declaredRouteOf } from '../../services/providers/routeLaw.js'
 import {
   getBestModel,
+  getCanonicalName,
   getMarketingNameForModel,
   normalizeModelStringForAPI,
   parseUserSpecifiedModel,
@@ -1225,8 +1226,8 @@ export function focusedOptionSupports1m(value: string): boolean {
   if (isCarrierShapedId(value)) return false
 
   const resolved = parseUserSpecifiedModelRaw(stripContext1m(value))
-  const generation = parseFirstPartyGeneration(familyDefaultsModel(resolved))?.stem
-  return generation === 'claude-opus-4-6' || generation === 'claude-sonnet-4-6'
+  const canonical = getCanonicalName(familyDefaultsModel(resolved))
+  return canonical === 'claude-opus-4-6' || canonical === 'claude-sonnet-4-6'
 }
 
 void getBestModel

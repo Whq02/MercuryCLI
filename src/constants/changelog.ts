@@ -12,7 +12,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed local Qwen serving: a Modelfile's num_ctx is honoured and only the effort words the template accepts are sent.
 - Changed every default-on switch to turn off on 0, false, no and off; MERCURY_WIN32_UTF8 still reads 0 only.
 - Changed the configuration surface: MERCURY_GROUP_COMMIT, MERCURY_COMPACT_LADDER, MERCURY_EMBEDDED_SEARCH_TOOLS, MERCURY_RENDER_ENGINE, MERCURY_ENGINE_ASSERT and MERCURY_DEV_SURFACES with /showcase are gone.
-- Changed Claude Fable 5, Mythos 5, Opus 4.8 and Opus 4.7 to use their 1M window by their plain id.
+- Changed Claude Fable 5 and Mythos 5 to use their 1M window by their plain id.
 - Changed the Computer tool: a gone wait is met when the text leaves, a page that is still starting is waited for, and an incomplete tree says so.
 - Changed the Computer tool's words: the page-content note, the skipped-step and interrupt lines, and a scale on every capture line.
 - Changed the /model picker: no group spends a line on one hidden row, and a narrow window keeps the context cell whole.

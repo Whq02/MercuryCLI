@@ -23,7 +23,6 @@
 # gate-watch: docs/ENGINES.md docs/SESSIONS.md src/components/agents/ModelSelector.tsx src/keybindings/KeybindingProviderSetup.tsx
 # gate-watch: src/context/overlayStack.ts src/context/surfaceRoute.ts src/hooks/useLayoutTier.ts src/services/compact/autoCompact.ts
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/state/AppStateStore.ts
-# gate-watch: scripts/compact/overflowFixture.ts src/query.ts src/query/deps.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -55,5 +54,4 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-picker-current-mar
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-picker-anthropic-section.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-picker-anthropic-section.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-picker-composes-without-itself.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-picker-composes-without-itself.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-first-party-windows.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-first-party-windows.ts "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-table-window-above-served.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-table-window-above-served.ts "$__t" "$__rc"
 exit "$fail"

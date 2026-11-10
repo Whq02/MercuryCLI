@@ -443,9 +443,9 @@ section('§4 TWO CLOCKS: the advisor context compacts on ITS gauge (the advisor 
   const readBack = advisor.parseAdvisorContextLines('agent-fold', readFileSync(advisor.advisorContextPath('agent-fold', DIR), 'utf8'))
   check('a fresh read applies the fold: the summary stands first for the two oldest rows, the six kept rows follow verbatim', readBack.length === 7 && readBack[0]!.kind === 'summary' && readBack[0]!.folded === 2 && readBack[1]!.text === context.rows[1]!.text && readBack[6]!.text === 'note 3', j(readBack.map(r => r.kind)))
   check('the cursor survives the fold on the kept rows', context.cursor === uuidAt(103))
-  const small = getEffectiveContextWindowSize('claude-opus-4-6')
-  const large = getEffectiveContextWindowSize('claude-opus-4-6[1m]')
-  const gauge = await advisor.advisorWindowOf('claude-opus-4-6[1m]')
+  const small = getEffectiveContextWindowSize(ADVISOR_MODEL)
+  const large = getEffectiveContextWindowSize(`${ADVISOR_MODEL}[1m]`)
+  const gauge = await advisor.advisorWindowOf(`${ADVISOR_MODEL}[1m]`)
   check("the live gauge is the ADVISOR model's effective window: a 1M advisor over a 200k agent keeps the longer memory", gauge === large && large > small && small > 100_000, j({ small, large, gauge }))
   const refusing = async (): Promise<string> => {
     throw new Error('the summary road is down')
