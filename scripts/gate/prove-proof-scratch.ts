@@ -14,7 +14,11 @@ const paths = (file: string): string[] => existsSync(file) ? readFileSync(file, 
 const legacyRoot = ['/private/tmp/mw', '/tmp/mw'].find(candidate => existsSync(candidate))
 const runEnv = { ...process.env, ...(legacyRoot ? { TMPDIR: legacyRoot } : {}) }
 try {
-  for (const mode of ['normal', 'wall', 'term', 'direct'] as const) {
+  const bash = Bun.which('bash')
+  if (bash === null) check('the suite road is driven through bash, and none is on PATH: nothing of it was read (on Windows start this proof from Git Bash)', false)
+  if (process.platform === 'win32') console.log('     the TERM leg is POSIX only: Windows ends a process without running its traps')
+  const suiteLegs = (['normal', 'wall', 'term', 'direct'] as const).filter(mode => bash !== null && (mode !== 'term' || process.platform !== 'win32'))
+  for (const mode of suiteLegs) {
     const dir = join(world, mode)
     mkdirSync(dir)
     const receipt = join(dir, 'paths')
@@ -38,11 +42,14 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
 `)
     const runner = join(dir, 'run-all.sh')
     writeFileSync(runner, `#!/usr/bin/env bash\n# gate-class: pure\nset -eu\n. ${JSON.stringify(join(root, 'scripts/lib/suite-env.sh'))}\nsuite_env_guard "$0"\nnode ${JSON.stringify(fixture)}\n"${process.execPath}" ${JSON.stringify(fixture)}\nmissing=0\nwhile IFS= read -r path; do [ -d "$path" ] || missing=1; done < ${JSON.stringify(receipt)}\n[ "$missing" = 1 ] || touch ${JSON.stringify(join(dir, 'handoff'))}\nmktemp -d "\${TMPDIR%/}/shell.XXXXXX" >> ${JSON.stringify(receipt)}\nmkdir -p "\${TMPDIR%/}/nest"\ninner=$(mktemp -d "\${TMPDIR%/}/nest/shell-inner.XXXXXX")\nprintf '%s\\n' "$inner" >> ${JSON.stringify(receipt)}\nprintf '%s\\n' "$inner" >> ${JSON.stringify(nested)}\nif [ -d /private/tmp/mw ]; then mktemp -d /private/tmp/mw/legacy-shell.XXXXXX >> ${JSON.stringify(receipt)}; fi\n${mode === 'wall' || mode === 'term' ? `touch ${JSON.stringify(join(dir, 'ready'))}\nsleep 600 &\nwait` : 'exit 0'}\n`)
-    const child = spawn('bash', mode === 'direct' ? [runner] : [join(root, 'scripts/gate/run-suite.sh'), runner, mode === 'wall' ? '4' : '30', dir], { cwd: root, env: runEnv, stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(bash!, mode === 'direct' ? [runner] : [join(root, 'scripts/gate/run-suite.sh'), runner, mode === 'wall' ? '4' : '30', dir], { cwd: root, env: runEnv, stdio: ['ignore', 'pipe', 'pipe'] })
     let output = ''
     child.stdout.on('data', b => { output += b })
     child.stderr.on('data', b => { output += b })
-    const exited = new Promise<number | null>(r => child.on('exit', r))
+    const exited = new Promise<number | null>(r => {
+      child.on('exit', r)
+      child.on('error', () => r(null))
+    })
     if (mode === 'term') {
       const until = Date.now() + 20_000
       while (!existsSync(join(dir, 'ready')) && child.exitCode === null && Date.now() < until) await new Promise(r => setTimeout(r, 25))
@@ -65,9 +72,9 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
   mkdirSync(emptyBin, { recursive: true })
   const ledger = join(boots, 'ledger')
   const { NODE_OPTIONS: _options, BUN_OPTIONS: _bunOptions, MERCURY_SUITE_TMPDIR: _root, MERCURY_PROCESS_LEDGER_DIR: _ledger, MERCURY_SUITE_RUNNER_PID: _runner, MERCURY_SUITE_SCRIPT: _script, ...bareEnv } = process.env as Record<string, string>
-  const preloadEnv = { ...bareEnv, MERCURY_SUITE_TMPDIR: boots, MERCURY_PROCESS_LEDGER_DIR: ledger, MERCURY_SUITE_RUNNER_PID: String(process.pid), NODE_OPTIONS: `--require=${JSON.stringify(join(root, 'scripts/lib/proofScratch.cjs'))}`, BUN_OPTIONS: `"--preload=${join(root, 'scripts/lib/proofScratch.cjs')}"` }
+  const preloadEnv = { ...bareEnv, MERCURY_SUITE_TMPDIR: boots, MERCURY_PROCESS_LEDGER_DIR: ledger, MERCURY_SUITE_RUNNER_PID: String(process.pid), NODE_OPTIONS: `--require=${JSON.stringify(join(root, 'scripts/lib/proofScratch.cjs'))}`, BUN_OPTIONS: `"--preload=${join(root, 'scripts/lib/proofScratch.cjs').replaceAll('\\', '/')}"` }
   const summary = (r: ReturnType<typeof spawnSync>) => JSON.stringify({ status: r.status, signal: r.signal, stdout: String(r.stdout), stderr: String(r.stderr) })
-  const entryOf = (pid: number | undefined) => (pid && existsSync(join(ledger, `${pid}.entry`)) ? readFileSync(join(ledger, `${pid}.entry`), 'utf8').trimEnd().split('\t') : [])
+  const entries = (): string[] => (existsSync(ledger) ? readdirSync(ledger).filter(name => name.endsWith('.entry')) : [])
   const shapes = {
     'a fresh process whose PATH carries no ps': (runtime: string, env: Record<string, string>) => spawnSync(runtime, ['-e', 'console.log("alive")'], { cwd: root, env: { ...env, PATH: emptyBin }, encoding: 'utf8' }),
     'a process whose folder was deleted': (runtime: string, env: Record<string, string>) => {
@@ -77,13 +84,16 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
     },
   }
   for (const runtime of [Bun.which('node') ?? 'node', process.execPath]) {
-    for (const [shape, boot] of Object.entries(shapes)) {
+    for (const [shape, boot] of Object.entries(shapes).filter(([shape]) => bash !== null || !shape.includes('folder was deleted'))) {
       const bare = boot(runtime, bareEnv)
+      const stood = new Set(entries())
       const loaded = boot(runtime, preloadEnv)
+      const written = entries().filter(name => !stood.has(name))
       const label = `${basename(runtime)}: ${shape}`
       check(`${label} boots unchanged under the preload`, summary(loaded) === summary(bare), `preload ${summary(loaded)} vs bare ${summary(bare)}`)
-      const entry = entryOf(loaded.pid)
-      check(`${label} still registers in the process ledger`, loaded.status !== 0 || (entry.length === 5 && entry[0] === String(loaded.pid) && entry.every(field => field !== '')), `entry ${JSON.stringify(entry)}`)
+      const entry = written.length === 1 ? readFileSync(join(ledger, written[0]!), 'utf8').trimEnd().split('\t') : []
+      const named = written.length === 1 && entry[0] === basename(written[0]!, '.entry') && (process.platform === 'win32' || entry[0] === String(loaded.pid))
+      check(`${label} still registers in the process ledger`, loaded.status !== 0 || (named && entry.length === 5 && entry.every(field => field !== '')), `entry ${JSON.stringify(entry)} in ${JSON.stringify(written)}`)
     }
   }
   if (process.platform === 'win32') {
