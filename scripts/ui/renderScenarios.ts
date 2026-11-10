@@ -1278,19 +1278,22 @@ function cleanupExternalWorkflowFixtures(): void {
   }
 }
 
-let distFreshnessChecked = false
+let staleDist: Error | null | undefined
 function assertFreshDist(): void {
-  if (distFreshnessChecked) return
-  distFreshnessChecked = true
-  if (process.env.MERCURY_GATE_PREBUILT === '1' || process.env.MERCURY_STALE_DIST_OK === '1') return
+  if (staleDist === undefined) staleDist = staleDistVerdict()
+  if (staleDist !== null) throw staleDist
+}
+
+function staleDistVerdict(): Error | null {
+  if (process.env.MERCURY_GATE_PREBUILT === '1' || process.env.MERCURY_STALE_DIST_OK === '1') return null
   let declared: string | undefined
   try {
     declared = (JSON.parse(readFileSync(join(dirname(BIN), 'manifest.json'), 'utf8')) as { buildTree?: string })
       .buildTree
   } catch {
-    return
+    return null
   }
-  if (!declared) return
+  if (!declared) return null
   let now = ''
   const idxDir = mkdtempSync(join(tmpdir(), 'dist-fresh-'))
   try {
@@ -1299,7 +1302,7 @@ function assertFreshDist(): void {
     execSync('git add -A', { cwd: REPO, env, stdio: 'pipe' })
     now = execSync('git write-tree', { cwd: REPO, env, stdio: 'pipe' }).toString().trim()
   } catch {
-    return
+    return null
   } finally {
     rmSync(idxDir, { recursive: true, force: true })
   }
@@ -1314,8 +1317,8 @@ function assertFreshDist(): void {
     } catch {
       changed = null
     }
-    if (changed !== null && changed.length > 0 && changed.every(p => SAFE_DELTA.test(p))) return
-    throw new Error(
+    if (changed !== null && changed.length > 0 && changed.every(p => SAFE_DELTA.test(p))) return null
+    return new Error(
       `STALE DIST: ${BIN} was built from tree ${declared.slice(0, 12)} but the working tree is now ${now.slice(0, 12)}` +
         (changed !== null && changed.length > 0
           ? ` (build-input delta: ${changed.filter(p => !SAFE_DELTA.test(p)).slice(0, 5).join(', ')})`
@@ -1324,6 +1327,7 @@ function assertFreshDist(): void {
         'Rebuild (`bun run build.ts`), or set MERCURY_STALE_DIST_OK=1 to bind a historical dist deliberately.',
     )
   }
+  return null
 }
 
 const accountsBoardStash = new Map<string, string | null>()
