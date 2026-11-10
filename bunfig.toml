@@ -1,1 +1,1 @@
-preload = ["./scripts/lib/proofHomePreload.ts"]
+preload = ["./scripts/lib/proofGuard.cjs", "./scripts/lib/proofHomePreload.ts"]

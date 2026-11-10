@@ -1307,7 +1307,7 @@ function staleDistVerdict(): Error | null {
     rmSync(idxDir, { recursive: true, force: true })
   }
   if (now && declared !== now) {
-    const SAFE_DELTA = /^(docs\/|scripts\/|field\/|\.claude\/|\.mercury\/|\.github\/|[^/]+\.md$)/
+    const SAFE_DELTA = /^(docs\/|scripts\/|field\/|\.claude\/|\.mercury\/|\.github\/|[^/]+\.md$|(?:.+\/)?\.gitignore$)/
     let changed: string[] | null = null
     try {
       changed = execSync(`git diff-tree -r --name-only ${declared} ${now}`, { cwd: REPO, stdio: 'pipe' })
