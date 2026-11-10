@@ -1,8 +1,11 @@
 #!/usr/bin/env bun
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { LayoutRoots, PruneReport } from '../../src/services/privateChannel/installLayout.ts'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'update-prune-live-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -14,6 +17,7 @@ delete process.env.MERCURY_UPDATE_FAULT
 
 const { pruneSupersededVersions } = await import('../../src/services/privateChannel/installLayout.ts')
 const service = (await import('../../src/services/privateChannel/updateService.ts')) as { livePayloadDirs?: (roots: LayoutRoots) => Promise<string[]> }
+const { getProcessStartTokenAsync } = await import('../../src/daemon/ownerWatch.ts')
 
 const IS_WINDOWS = process.platform === 'win32'
 const DEAD = 4242421
@@ -67,6 +71,36 @@ const pruneAsTheUpdateDoes = async (roots: LayoutRoots): Promise<PruneReport> =>
   return live === null ? pruneSupersededVersions(roots) : pruneSupersededVersions(roots, live)
 }
 const intact = (roots: LayoutRoots, version: string): boolean => existsSync(join(roots.versionsDir, version, 'mercury.mjs')) && existsSync(join(roots.versionsDir, version, 'manifest.json'))
+const whole = (roots: LayoutRoots, version: string): boolean => intact(roots, version) && existsSync(join(roots.versionsDir, version, 'vendor', 'ripgrep', 'stub', 'rg')) && existsSync(join(roots.versionsDir, version, 'mercury'))
+
+const NODE = nodeBinPath()
+const WINDOW_BODY = "process.title = 'mercury'\nconsole.log('ready')\nsetInterval(() => {}, 1000)\n"
+const STAYING_BODY = "console.log('ready')\nsetInterval(() => {}, 1000)\n"
+const started: ChildProcess[] = []
+const startFrom = (script: string, body: string, args: string[] = []): Promise<ChildProcess> =>
+  new Promise((resolve, reject) => {
+    mkdirSync(dirname(script), { recursive: true })
+    writeFileSync(script, body)
+    const child = spawn(NODE, [script, ...args], { stdio: ['ignore', 'pipe', 'ignore'] })
+    started.push(child)
+    child.once('error', reject)
+    child.once('exit', code => reject(new Error(`${script} ended with ${code} before it was ready`)))
+    child.stdout!.once('data', () => resolve(child))
+  })
+const end = (child: ChildProcess): Promise<void> =>
+  new Promise(resolve => {
+    if (child.exitCode !== null || child.signalCode !== null) return resolve()
+    child.once('exit', () => resolve())
+    child.kill('SIGKILL')
+  })
+const commandLineOf = (pid: number): string => spawnSync('ps', ['-ww', '-o', 'args=', '-p', String(pid)], { encoding: 'utf8' }).stdout.trim()
+const processesDir = (): string => join(process.env.MERCURY_CONFIG_DIR!, 'processes')
+const register = (pid: number, bundle: string, startToken: string | null): void => {
+  const id = randomUUID()
+  mkdirSync(processesDir(), { recursive: true })
+  writeFileSync(join(processesDir(), `cockpit-${pid}-${id}.json`), JSON.stringify({ schema: 1, id, pid, startToken, exe: NODE, bundle, configHome: process.env.MERCURY_CONFIG_DIR, daemonDir: join(process.env.MERCURY_CONFIG_DIR!, 'daemon'), terminal: null, bornAt: Date.now(), heartbeatAt: Date.now() }, null, 2))
+}
+const forgetWindows = (): void => rmSync(processesDir(), { recursive: true, force: true })
 
 console.log('============================================================')
 console.log(' the update prune and the version a live Mercury runs from')
@@ -125,6 +159,72 @@ console.log('§5 a removal that fails is named as not removed whole — in the l
   check('the update and the install verbs print what was not removed whole, and why, right after what was removed', verbs.every(verb => verb.includes("result.left.length > 0 ? ") && verb.includes('older versions not removed whole (a file in them is still in use, or could not be deleted; the next ') && verb.indexOf('removed older versions:') >= 0 && verb.indexOf('older versions not removed whole') > verb.indexOf('removed older versions:')), `${verbs.filter(verb => verb.includes('older versions not removed whole')).length} verb(s) print it`)
 }
 
+console.log('§6 a window opened on a version that is neither current nor previous: its registration names the bundle it runs from')
+{
+  const roots = layoutFor('live-window')
+  daemonRecord(null)
+  const bundle = join(roots.versionsDir, DAEMON_VERSION, 'mercury.mjs')
+  const window = await startFrom(bundle, WINDOW_BODY)
+  register(window.pid!, bundle, await getProcessStartTokenAsync(window.pid!))
+  if (!IS_WINDOWS) check("the window's command line reads mercury: only its registration names the bundle", commandLineOf(window.pid!) === 'mercury', commandLineOf(window.pid!))
+  const report = await pruneAsTheUpdateDoes(roots)
+  check('the version the open window runs from is kept whole: bundle, manifest, launcher and vendored search binary', report.kept.includes(DAEMON_VERSION) && !report.removed.includes(DAEMON_VERSION) && whole(roots, DAEMON_VERSION), describe(report))
+  check('the superseded version nobody runs from still goes', report.removed.includes(SUPERSEDED) && !existsSync(join(roots.versionsDir, SUPERSEDED)), describe(report))
+  await end(window)
+  const later = await pruneAsTheUpdateDoes(roots)
+  check('once the window has closed its registration pins nothing: the next prune takes the version', later.removed.includes(DAEMON_VERSION) && !existsSync(join(roots.versionsDir, DAEMON_VERSION)), describe(later))
+  forgetWindows()
+}
+
+console.log('§7 a registration never pins for a process that is not its window')
+if (IS_WINDOWS) console.log('  [SKIP] a Windows command line always names the bundle, so no registration decides there')
+else {
+  const unnamed = layoutFor('recorded-pid-not-mercury')
+  daemonRecord(null)
+  const stranger = await startFrom(join(SCRATCH, 'another-program.mjs'), STAYING_BODY)
+  register(stranger.pid!, join(unnamed.versionsDir, DAEMON_VERSION, 'mercury.mjs'), await getProcessStartTokenAsync(stranger.pid!))
+  const first = await pruneAsTheUpdateDoes(unnamed)
+  check('a live process on the recorded pid and start time whose command line does not name Mercury pins nothing', first.removed.includes(DAEMON_VERSION) && first.removed.includes(SUPERSEDED), describe(first))
+  await end(stranger)
+  forgetWindows()
+
+  const reborn = layoutFor('recorded-pid-reused')
+  const newer = await startFrom(join(reborn.versionsDir, CURRENT, 'mercury.mjs'), WINDOW_BODY)
+  register(newer.pid!, join(reborn.versionsDir, DAEMON_VERSION, 'mercury.mjs'), await getProcessStartTokenAsync(process.pid))
+  const second = await pruneAsTheUpdateDoes(reborn)
+  check('another Mercury born at another time on the recorded pid pins nothing for the window that is gone', second.removed.includes(DAEMON_VERSION) && second.kept.includes(CURRENT), describe(second))
+  await end(newer)
+  forgetWindows()
+}
+
+console.log('§8 a daemon that kept its sessions at a handover: the record names its successor, its own command line names the older bundle')
+{
+  const roots = layoutFor('predecessor-daemon')
+  daemonRecord({ pid: process.pid, version: CURRENT, script: join(roots.versionsDir, CURRENT, 'mercury.mjs') })
+  const predecessor = await startFrom(join(roots.versionsDir, DAEMON_VERSION, 'mercury.mjs'), STAYING_BODY, ['daemon', 'run', SCRATCH])
+  const report = await pruneAsTheUpdateDoes(roots)
+  check('the version the predecessor still runs from is kept whole', report.kept.includes(DAEMON_VERSION) && !report.removed.includes(DAEMON_VERSION) && whole(roots, DAEMON_VERSION), describe(report))
+  check('the superseded version nobody runs from still goes', report.removed.includes(SUPERSEDED) && !existsSync(join(roots.versionsDir, SUPERSEDED)), describe(report))
+  await end(predecessor)
+  const later = await pruneAsTheUpdateDoes(roots)
+  check('once the predecessor has gone the next prune takes its version', later.removed.includes(DAEMON_VERSION) && !existsSync(join(roots.versionsDir, DAEMON_VERSION)), describe(later))
+  daemonRecord(null)
+}
+
+console.log('§9 the process table cannot be read: the prune runs on what the records prove, as it did before')
+if (IS_WINDOWS) console.log('  [SKIP] the scene hides ps from the search path; Windows reads its table another way')
+else {
+  const roots = layoutFor('unread-table')
+  daemonRecord({ pid: process.pid, version: DAEMON_VERSION, script: join(roots.versionsDir, DAEMON_VERSION, 'mercury.mjs') })
+  const searchPath = process.env.PATH
+  process.env.PATH = join(SCRATCH, 'no-programs-here')
+  const blind = await pruneAsTheUpdateDoes(roots)
+  process.env.PATH = searchPath
+  check("the recorded live daemon's version is kept, the version nobody is recorded on goes, and nothing is left or thrown", blind.kept.includes(DAEMON_VERSION) && whole(roots, DAEMON_VERSION) && blind.removed.length === 1 && blind.removed[0] === SUPERSEDED && blind.left.length === 0, describe(blind))
+  daemonRecord(null)
+}
+
+for (const child of started) await end(child)
 process.kill = realKill as typeof process.kill
 try {
   rmSync(SCRATCH, { recursive: true, force: true, maxRetries: 3 })

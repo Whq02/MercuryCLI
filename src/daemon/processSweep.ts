@@ -199,6 +199,7 @@ export interface ProcessSweepRegistration {
   terminal: string | null
   bornAt: number
   heartbeatAt: number
+  bundle?: string | null
 }
 
 export interface ProcessSweepPlane {

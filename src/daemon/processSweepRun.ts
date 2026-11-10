@@ -137,7 +137,7 @@ export async function readCockpitRegistrations(home: string = getMercuryHome()):
     if (!/^cockpit-\d+-[0-9a-f-]+\.json$/.test(name)) continue
     try {
       const path = join(processRecordsDir(home), name)
-      const raw = JSON.parse(await readFile(path, 'utf8')) as Partial<ProcessSweepRegistration> & { schema?: number }
+      const raw = JSON.parse(await readFile(path, 'utf8')) as Partial<Omit<ProcessSweepRegistration, 'bundle'>> & { schema?: number; bundle?: unknown }
       if (raw.schema !== REGISTRATION_SCHEMA || typeof raw.id !== 'string' || typeof raw.pid !== 'number' || typeof raw.configHome !== 'string' || typeof raw.daemonDir !== 'string' || typeof raw.heartbeatAt !== 'number') continue
       const touched = (await stat(path)).mtimeMs
       out.push({
@@ -149,6 +149,7 @@ export async function readCockpitRegistrations(home: string = getMercuryHome()):
         terminal: typeof raw.terminal === 'string' ? raw.terminal : null,
         bornAt: typeof raw.bornAt === 'number' ? raw.bornAt : raw.heartbeatAt,
         heartbeatAt: Math.max(raw.heartbeatAt, Number.isFinite(touched) ? touched : raw.heartbeatAt),
+        bundle: typeof raw.bundle === 'string' && raw.bundle !== '' ? raw.bundle : null,
       })
     } catch {
       continue
