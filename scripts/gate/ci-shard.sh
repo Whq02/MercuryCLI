@@ -183,7 +183,8 @@ export MERCURY_CONFIG_DIR="$ambient_home"
 dead_letter_dir=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/mercury-dead-letter.XXXXXX")
 /usr/bin/python3 scripts/gate/dead-letter.py "$dead_letter_dir/port" &
 dead_letter_pid=$!
-trap 'kill "$dead_letter_pid" 2>/dev/null; rm -rf "$dead_letter_dir"' EXIT
+shard_compile_cache=""
+trap 'kill "$dead_letter_pid" 2>/dev/null; rm -rf "$dead_letter_dir" ${shard_compile_cache:+"$shard_compile_cache"}' EXIT
 for _tick in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
   [ -s "$dead_letter_dir/port" ] && break
   sleep 0.5
@@ -218,7 +219,10 @@ stuck_note() { # $1=captured output → the capture driver's first stuck-send re
 FAILED=0
 echo "shard $IDX/$TOTAL ($CLASS): ${#MINE[@]} suites — ${MINE[*]:-none}"
 printf '  box: %s · %s cores\n' "$(uname -sm 2>/dev/null || echo unknown)" "$( (getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo '?') | head -1)"
-export NODE_COMPILE_CACHE="${NODE_COMPILE_CACHE:-$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/mercury-node-compile-cache.XXXXXX")}"
+if [ -z "${NODE_COMPILE_CACHE:-}" ]; then
+  shard_compile_cache=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/mercury-node-compile-cache.XXXXXX")
+  export NODE_COMPILE_CACHE="$shard_compile_cache"
+fi
 [ -f dist/mercury.mjs ] && node dist/mercury.mjs --version >/dev/null 2>&1 || true
 box_line() {
   local mem='' procs

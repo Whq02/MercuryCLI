@@ -126,7 +126,30 @@ export async function livePayloadDirs(roots: LayoutRoots): Promise<string[]> {
     if (typeof daemon.version === 'string' && daemon.version.length > 0) live.push(join(roots.versionsDir, daemon.version))
     if (typeof daemon.script === 'string' && daemon.script.length > 0) live.push(dirname(daemon.script))
   }
+  live.push(...(await runningBundleDirs()))
   return live
+}
+
+async function runningBundleDirs(): Promise<string[]> {
+  try {
+    const { readCockpitRegistrations, readMercuryProcesses } = await import('../../daemon/processSweepRun.js')
+    const { bundleArgOf, bundleDirOf, processNamesMercury, tokenBinding } = await import('../../daemon/processSweep.js')
+    const census = await readMercuryProcesses({ rpc: async () => ({ ok: false, code: 'ENOTSUP', error: 'the update reads command lines only' }) })
+    const running = census.entries.filter(entry => !entry.state.startsWith('Z'))
+    const dirs = running.flatMap(entry => {
+      const bundle = bundleArgOf(entry.process.args)
+      return bundle === null ? [] : [bundleDirOf(bundle)]
+    })
+    for (const window of (await readCockpitRegistrations()) ?? []) {
+      if (typeof window.bundle !== 'string') continue
+      const holder = running.find(entry => entry.process.pid === window.pid)
+      if (holder === undefined || !processNamesMercury(holder.process.args) || tokenBinding(window.startToken, holder.startToken) === 'stranger') continue
+      dirs.push(dirname(window.bundle))
+    }
+    return dirs
+  } catch {
+    return []
+  }
 }
 
 
