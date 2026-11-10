@@ -2703,8 +2703,17 @@ export async function endRunnersLeftWithoutHost(
     await endProcessTree(pid, 'SIGTERM')
     const deadline = Date.now() + (opts?.graceMs ?? HOSTLESS_RUNNER_GRACE_MS)
     while (isProcessAlive(pid) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50))
-    if (isProcessAlive(pid)) await endProcessTree(pid, 'SIGKILL')
-    if (!isProcessAlive(pid)) ended.push({ runnerId: rec.runnerId, pid })
+    let gone = !isProcessAlive(pid)
+    if (!gone) {
+      const still = tokenBinding(rec.procStart, await getProcessStartTokenAsync(pid, rec.procStart))
+      if (still === 'bound') {
+        await endProcessTree(pid, 'SIGKILL')
+        gone = !isProcessAlive(pid)
+      } else {
+        gone = still === 'stranger'
+      }
+    }
+    if (gone) ended.push({ runnerId: rec.runnerId, pid })
   }
   return ended
 }
