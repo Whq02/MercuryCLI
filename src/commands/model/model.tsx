@@ -15,9 +15,7 @@ import {
 import {
   crossProviderNote,
   providerFamilyOfSetting,
-  seatThenFold,
   settleModelSelection,
-  type SeatReceiptState,
   type SettledSelection,
   type TransitionPlan,
 } from '../../utils/model/modelTransition.js'
@@ -169,7 +167,7 @@ function ModelSet({
     return `Model set to ${label}${saved}${cross}${lossNote}`
   }
 
-  const applyNow = async (plan: TransitionPlan | null, seated?: (state: SeatReceiptState) => void): Promise<void> => {
+  const applyNow = async (plan: TransitionPlan | null): Promise<void> => {
     const focused = getFocusedSessionConnector()
     if (focused.carrier === 'daemon') {
       const factsBefore = focused.modelFacts()
@@ -184,7 +182,6 @@ function ModelSet({
       const lossNote = plan && receipt.state !== 'no-op' && receipt.state !== 'refused' ? transitionPlanSummary(plan) : ''
       const saved = receipt.state === 'refused' ? '' : choice.sentence
       onDone(`${focusedSwitchSentence(receipt, target, saved)}${doorCross}${lossNote}`)
-      seated?.(receipt.state)
       return
     }
     let landed = {
@@ -318,8 +315,12 @@ function ModelSet({
           }
           setHeld(null)
           if (held.plan.window?.fits === false) {
-            seatThenFold(getFocusedSessionConnector(), seated => void applyNow(held.plan, seated), requestCommandDispatch)
-            return
+            const foldingSession = getFocusedSessionConnector()
+            if (foldingSession.carrier === 'daemon') {
+              void foldingSession.sendWords('/compact').then(() => applyNow(held.plan))
+              return
+            }
+            requestCommandDispatch('/compact')
           }
           void applyNow(held.plan)
         }}
