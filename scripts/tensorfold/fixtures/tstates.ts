@@ -133,7 +133,7 @@ export async function tStates(): Promise<TState[]> {
   const serving: TStateOptions = { served: [SERVED_2B], current: 'local/qwen3.5-2b', outside: [SERVED_2B_RECORD], turn: SERVED_2B_TURN }
   return [
     { frame: 't01-not-installed-macos', facts: await tStateFacts('t01', { engine: null }) },
-    { frame: 't02-installing-macos', facts: await tStateFacts('t02', { engine: null, state: { acts: { install: { kind: 'installing', line: '==> Downloading https://github.com/ashhart/TensorFold/releases/download/v1.2.2/tensorfold-1.2.2-macos-arm64.tar.gz' } } } }), land: 'install TensorFold' },
+    { frame: 't02-installing-macos', facts: await tStateFacts('t02', { engine: null, state: { acts: { install: { kind: 'installing', line: '==> Downloading https://github.com/ashhart/TensorFold/releases/download/v1.2.5/tensorfold-1.2.5-macos-arm64.tar.gz' } } } }), land: 'install TensorFold' },
     { frame: 't03-no-homebrew-macos', facts: await tStateFacts('t03', { engine: null, brew: false }), land: 'install TensorFold' },
     { frame: 't04-not-installed-linux', facts: await tStateFacts('t04', { engine: null, machine: RTX_4090, seeds: [] }), land: 'install TensorFold' },
     { frame: 't05-windows', facts: await tStateFacts('t05', { engine: await adapterEngineFound(), platform: 'win32', machine: WIN_16, seeds: [], ggufSeeds: [QWEN_2B_GGUF_SEED] }) },

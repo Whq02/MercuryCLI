@@ -65,7 +65,7 @@ export function readTensorFoldRefusal(stderr: string, context: { window?: number
       ...(window !== undefined ? { window } : {}),
       ...(next !== undefined ? { nextWindow: next.window, cacheGibAt: next.cacheGib } : {}),
     }
-    const wired = wiredReading(context)
+    const wired = wiredReading(context, NO_RAISE_FITS.test(line))
     return wired === undefined ? base : { ...base, kind: 'gpu-limit', wired }
   }
   const spoken = ENGINE_PREFIX.test(raw) ? line : ''
@@ -99,11 +99,13 @@ function nextWindowUnder(ladder: readonly TensorFoldLadderRung[] | undefined, wi
   return pick === undefined ? undefined : { window: pick.window, cacheGib: pick.fit.parts!.cacheGib }
 }
 
-function wiredReading(context: { needBytes?: number; machine?: TensorFoldMachineTruth }): TensorFoldRefusal['wired'] | undefined {
+const NO_RAISE_FITS = /no wired-limit raise (?:fits|is known to fit) one stream/
+
+function wiredReading(context: { needBytes?: number; machine?: TensorFoldMachineTruth }, raiseRuledOut: boolean): TensorFoldRefusal['wired'] | undefined {
   const machine = context.machine
   if (machine === undefined || machine.platform !== 'darwin' || context.needBytes === undefined) return undefined
   if (context.needBytes <= machine.usableBytes) return undefined
-  return { usableGib: gibOf(machine.usableBytes), ramGib: gibOf(machine.ramBytes), limitMib: machine.wiredLimitMib ?? 0, needGib: gibOf(context.needBytes), offer: wiredLimitOfferFor(context.needBytes, machine) }
+  return { usableGib: gibOf(machine.usableBytes), ramGib: gibOf(machine.ramBytes), limitMib: machine.wiredLimitMib ?? 0, needGib: gibOf(context.needBytes), offer: raiseRuledOut ? null : wiredLimitOfferFor(context.needBytes, machine) }
 }
 
 const gib1 = (value: number): string => value.toFixed(1)

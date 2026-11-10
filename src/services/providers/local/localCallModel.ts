@@ -215,7 +215,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
     buildExtras: args => {
       think = ollamaThinkingValue(record, args.effortValue, args.thinkingEnabled)
       const effortValue = args.effortValue !== undefined && servesQwenTemplate(record) ? qwenTemplateEffort(args.effortValue) : args.effortValue
-      return buildLocalExtras({ ...args, effortValue, server: record.server, acceptsEffort: localModelAcceptsEffort(record) })
+      return buildLocalExtras({ ...args, effortValue, server: record.server, acceptsEffort: localModelAcceptsEffort(record), ...(record.thinkingSwitch !== undefined ? { thinkingSwitch: record.thinkingSwitch } : {}) })
     },
     omitsToolChoice: record.server === 'ollama',
     keepsReasoningOnContinuations: () => true,

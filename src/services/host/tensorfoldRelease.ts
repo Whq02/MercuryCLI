@@ -1,14 +1,15 @@
+import { TENSORFOLD_RELEASE, TENSORFOLD_RELEASE_BASE } from '../tensorfold/starting.js'
 import type { HostRecipe } from './recipes.js'
 
-export const TENSORFOLD_HOST_VERSION = '1.2.2'
+export const TENSORFOLD_HOST_VERSION = TENSORFOLD_RELEASE
+const TENSORFOLD_CARDS_VERIFIED_WITH = '1.2.2'
 export const TENSORFOLD_HOST_IMAGE = 'nvidia/cuda:13.0.3-base-ubuntu24.04@sha256:7c7413a56200486f71f181cad9310f6fd31b6bb21816ade15fc9c1e1e927a5c1'
 const TENSORFOLD_HOST_IMAGE_SOURCE = 'https://hub.docker.com/layers/nvidia/cuda/13.0.3-base-ubuntu24.04/images/sha256-7c7413a56200486f71f181cad9310f6fd31b6bb21816ade15fc9c1e1e927a5c1'
-const TENSORFOLD_RELEASE_BASE = 'https://github.com/ashhart/TensorFold/releases/download/v' + TENSORFOLD_HOST_VERSION + '/'
 export const TENSORFOLD_RELEASE_PUBLIC_KEY = 'MCowBQYDK2VwAyEA80FFo6a9/NXHNX9zBV3/2tM9AbC//mShbseG74mkkGw='
 export const TENSORFOLD_RELEASE_SIGNED_PREFIX = 'tensorfold-native-checksum-v1\n'
 export const TENSORFOLD_RELEASE_ARCHIVES = {
-  x86_64: { platform: 'linux-x86_64', sha256: '976c39d01ce0e165d67b7b3ede6e6ff5dad037823b35d1539752707c9a238be5', bytes: 46281309 },
-  aarch64: { platform: 'linux-aarch64', sha256: '17632c30f761e7f9051255744a17fc36f0b9c0d46343d47617bb34e7ec4e4128', bytes: 45836984 },
+  x86_64: { platform: 'linux-x86_64', sha256: '09da791e0eacca392c3398a280b13d4340575a8aa5cd973435baec6a4556f93b', bytes: 49307512 },
+  aarch64: { platform: 'linux-aarch64', sha256: '1a0192b28d6ab6ec2749f3ff25515379dba4895171e781b30f810afc971ae4f8', bytes: 48839854 },
 } as const
 export const TENSORFOLD_HOST_PORT = 8080
 const TENSORFOLD_HOST_VOLUME = '/workspace'
@@ -30,11 +31,11 @@ export const TENSORFOLD_CARDS: readonly TensorFoldCard[] = [
   { gpu: 'RTX 4090', vramGb: 24, capability: '8.9', class: 'unqualified', evidence: 'sm_89 kernels ship; unqualified by TensorFold' },
   { gpu: 'L40S', vramGb: 48, capability: '8.9', class: 'unqualified', evidence: 'sm_89 kernels ship; unqualified by TensorFold' },
   { gpu: 'L4', vramGb: 24, capability: '8.9', class: 'unqualified', evidence: 'sm_89 kernels ship; unqualified by TensorFold' },
-  { gpu: 'H100', vramGb: 80, capability: '9.0', class: 'refused', evidence: 'the 1.2.2 archive holds no sm_90 machine code and no PTX' },
-  { gpu: 'H200', vramGb: 141, capability: '9.0', class: 'refused', evidence: 'the 1.2.2 archive holds no sm_90 machine code and no PTX' },
-  { gpu: 'B200', vramGb: 180, capability: '10.0', class: 'refused', evidence: 'the 1.2.2 archive holds no sm_100 machine code and no PTX' },
-  { gpu: 'B300', vramGb: 288, capability: '10.3', class: 'refused', evidence: 'the 1.2.2 archive holds no sm_103 machine code and no PTX' },
-  { gpu: 'GB300', vramGb: 288, capability: '10.3', class: 'refused', evidence: 'the 1.2.2 archive holds no sm_103 machine code and no PTX' },
+  { gpu: 'H100', vramGb: 80, capability: '9.0', class: 'refused', evidence: 'the ' + TENSORFOLD_HOST_VERSION + ' archive holds no sm_90 machine code and no PTX' },
+  { gpu: 'H200', vramGb: 141, capability: '9.0', class: 'refused', evidence: 'the ' + TENSORFOLD_HOST_VERSION + ' archive holds no sm_90 machine code and no PTX' },
+  { gpu: 'B200', vramGb: 180, capability: '10.0', class: 'refused', evidence: 'the ' + TENSORFOLD_HOST_VERSION + ' archive holds no sm_100 machine code and no PTX' },
+  { gpu: 'B300', vramGb: 288, capability: '10.3', class: 'refused', evidence: 'the ' + TENSORFOLD_HOST_VERSION + ' archive holds no sm_103 machine code and no PTX' },
+  { gpu: 'GB300', vramGb: 288, capability: '10.3', class: 'refused', evidence: 'the ' + TENSORFOLD_HOST_VERSION + ' archive holds no sm_103 machine code and no PTX' },
 ]
 
 interface TensorFoldStartingPoint { title: string; repo: string; name: string; revision?: string; drafter?: string; promptCacheGib?: number; downloadGb: number; weightsGib: number; drafterGib?: number; cacheKibPerToken: number; runtimeGib: number; maxWindow: number; source: string; variant: string }
@@ -65,7 +66,7 @@ export function tensorFoldHostRecipes(): HostRecipe[] {
       const window = tensorFoldWindowFor(point, card)
       if (!window) continue
       const memory = tensorFoldMemoryGib(point, window)
-      const words = (card.class === 'supported' ? 'TensorFold ' + TENSORFOLD_HOST_VERSION + ' for CUDA' : tensorFoldClassWords(card)) + ' · ' + card.gpu + ' · ' + tensorFoldWindowWords(window) + ' window · ~' + memory.toFixed(1) + ' GiB of ' + card.vramGb + ' (an estimate) · ' + card.evidence
+      const words = (card.class === 'supported' ? 'TensorFold ' + TENSORFOLD_CARDS_VERIFIED_WITH + ' for CUDA' : tensorFoldClassWords(card)) + ' · ' + card.gpu + ' · ' + tensorFoldWindowWords(window) + ' window · ~' + memory.toFixed(1) + ' GiB of ' + card.vramGb + ' (an estimate) · ' + card.evidence
       rows.push({
         id: tensorFoldRecipeId(point, card), label: tensorFoldTitle(point) + ' · ' + point.variant, model: point.repo, weightsGb: point.downloadGb, gpu: card.gpu, count: 1, vramGb: card.vramGb, diskGb: 80,
         engine: 'tensorfold', image: TENSORFOLD_HOST_IMAGE, imageSource: TENSORFOLD_HOST_IMAGE_SOURCE, cuda: '13.0', source: point.source, verification: words,
@@ -101,7 +102,7 @@ export function tensorFoldEngineScript(recipe: HostRecipe, dir: string, options:
   const point = tensorFoldStartingPoint(recipe)
   if (!point) throw new Error('This recipe is not a TensorFold starting point: ' + recipe.id)
   const volume = options.volume ?? TENSORFOLD_HOST_VOLUME
-  const base = options.releaseBase ?? TENSORFOLD_RELEASE_BASE
+  const base = options.releaseBase ?? TENSORFOLD_RELEASE_BASE + '/'
   const archives = options.archives ?? TENSORFOLD_RELEASE_ARCHIVES
   const pulls = [point.repo + (point.revision ? '@' + point.revision : ''), ...(point.drafter ? [point.drafter] : [])]
   const serve = ['tensorfold-native', 'serve', point.repo, ...recipe.flags, '--host', '0.0.0.0', '--port', String(TENSORFOLD_HOST_PORT), '--api-key-file'].map(quote).join(' ') + ' "$keydir/api-key"'

@@ -30,9 +30,10 @@ try {
   const point27 = TENSORFOLD_STARTING_POINTS.find(point => point.name === 'qwen3.8-27b')!
   check('windows come from the card memory: the 27B lands at 128k on a 32 GB RTX 5090 (~28.6 GiB), 256k on 48 GB and above, and is not offered on the 24 GB cards (its 32k fit is a row that refuses in use — the lead\'s fold row; the floor is 64k); Lightning and the 2B at 256k everywhere', recipe.context === 131072 && Math.abs(tensorFoldMemoryGib(point27, 131072) - 28.56) < 0.1 && tensorFoldWindowFor(point27, { vramGb: 48 }) === 262144 && tensorFoldWindowFor(point27, { vramGb: 24 }) === undefined && !rows.some(row => row.model === point27.repo && row.vramGb === 24) && rows.filter(row => row.model !== point27.repo).every(row => row.context === 262144))
   check('every verification line is an estimate with the window, the memory and the evidence', rows.every(row => row.verification.includes('(an estimate)') && row.verification.includes(' window') && row.verification.includes(' GiB of ')))
+  check('the verification words keep the release the cards were verified with (1.2.2, read 2026-11-04) while the script installs the pinned ' + TENSORFOLD_HOST_VERSION, TENSORFOLD_HOST_VERSION === '1.2.5' && rows.filter(row => row.verified.by === 'documented').length === 17 && rows.filter(row => row.verified.by === 'documented').every(row => row.verification.startsWith('TensorFold 1.2.2 for CUDA · ') && row.verified.note === row.verification) && rows.every(row => row.verified.on === '2026-11-04' && !row.verification.includes(TENSORFOLD_HOST_VERSION)))
   check('the serve flags carry the pinned short name, the window, the 27B drafter and the 2B prompt cache; the host, port and key file ride the script, not the recipe', recipe.flags.join(' ') === '--name qwen3.8-27b --context 131072 --drafter z-lab/Qwen3.8-27B-DFlash2' && rows.find(row => row.id === 'tensorfold-qwen35-2b-rtx-5090')!.flags.join(' ') === '--name qwen3.5-2b --context 262144 --prompt-cache-gib 1' && rows.every(row => !row.flags.includes('--host') && !row.flags.includes('--port') && !row.flags.includes('--api-key-file') && !row.flags.includes('--enable-cache-report')))
   check('the effort ladder is Mercury’s five levels (none rides ⌥T off on the wire)', rows.every(row => row.efforts?.levels.join(' ') === 'low medium high xhigh max'))
-  check('the setup estimate says engine ~1 min for the 46 MB archive', hostSetupEstimate(recipe).startsWith('engine ~1 min · downloads 19.93 GB'))
+  check('the setup estimate says engine ~1 min for the 49 MB archive', hostSetupEstimate(recipe).startsWith('engine ~1 min · downloads 19.93 GB'))
 
   const dir = '/workspace/mercury-host/' + recipe.id
   const script = tensorFoldEngineScript(recipe, dir)
@@ -89,7 +90,7 @@ try {
     return { status: result.status, log: result.stdout + result.stderr }
   }
   const refusedDriver = run({ FIXTURE_DRIVER: '550.54.15' })
-  check('an R550 driver is refused before any download: the log names R580 and nothing was fetched', refusedDriver.status === 1 && refusedDriver.log.includes('NVIDIA driver 550.54.15 is older than R580 (CUDA 13.0), which TensorFold 1.2.2 needs') && !existsSync(join(sandbox, 'curl.log')))
+  check('an R550 driver is refused before any download: the log names R580 and nothing was fetched', refusedDriver.status === 1 && refusedDriver.log.includes('NVIDIA driver 550.54.15 is older than R580 (CUDA 13.0), which TensorFold 1.2.5 needs') && !existsSync(join(sandbox, 'curl.log')))
   const refusedCapability = run({ FIXTURE_CAPABILITY: '9.0' })
   check('an sm_90 card is refused before any download with the SASS-only reason', refusedCapability.status === 1 && refusedCapability.log.includes('ships no CUDA kernels for compute capability 9.0') && refusedCapability.log.includes('no PTX') && !existsSync(join(sandbox, 'curl.log')))
   const goodSignature = readFileSync(join(release, archiveName + '.sha256.sig'))
@@ -115,7 +116,7 @@ try {
   chmodSync(join(podDir, 'api-key'), 0o644)
   const again = run()
   check('a second run keeps the installed runtime (no fetch) and restores the key file to 0600 before serving', again.status === 0 && readFileSync(join(sandbox, 'curl.log'), 'utf8').trim().split('\n').length === 3 && (statSync(join(podDir, 'api-key')).mode & 0o777) === 0o600 && !again.log.includes('MERCURY_STEP downloading'))
-  console.log('TENSORFOLD RECIPE SCRIPT GREEN · ' + checks + ' checks · real tar, sha256sum and openssl; curl, nvidia-smi and the engine are fixtures; the release signatures are his published 1.2.2 assets')
+  console.log('TENSORFOLD RECIPE SCRIPT GREEN · ' + checks + ' checks · real tar, sha256sum and openssl; curl, nvidia-smi and the engine are fixtures; the release signatures are his published 1.2.5 assets')
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

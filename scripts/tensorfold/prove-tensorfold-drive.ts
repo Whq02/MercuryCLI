@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, watch, writeFileSync, type FSWatcher } from 'node:fs'
 import { createServer } from 'node:net'
 import { homedir, tmpdir, userInfo } from 'node:os'
@@ -16,6 +16,7 @@ const BIN = resolve(argAfter('--dist') ?? join(REPO, 'dist', 'mercury.mjs'))
 const FRAMES = argAfter('--frames')
 const SIZE = argAfter('--size') ?? '160x48'
 const ONLY = argAfter('--only')
+const ENGINE = argAfter('--engine')
 const VSHOT = join(REPO, 'scripts', 'ui', 'vshot.py')
 const KEY = 'proof-key-ci-gate-not-a-real-key'
 const DEAD = 'http://127.0.0.1:1'
@@ -49,11 +50,17 @@ if (driver.kind !== 'posix-pty') {
 const PYTHON = driver.python
 const VENDORED_NODE = join(dirname(BIN), 'vendor', 'node', 'bin', 'node')
 const NODE = existsSync(VENDORED_NODE) ? VENDORED_NODE : (Bun.which('node') ?? 'node')
-const TENSORFOLD = Bun.which('tensorfold', { PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin' }) ?? Bun.which('tensorfold')
+const TENSORFOLD = ENGINE !== undefined ? (existsSync(ENGINE) ? resolve(ENGINE) : null) : (Bun.which('tensorfold', { PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin' }) ?? Bun.which('tensorfold'))
 if (TENSORFOLD === null || TENSORFOLD === undefined) {
-  console.error('  tensorfold is not on this Mac (brew install ashhart/tensorfold/tensorfold) — the live drive needs the real engine')
+  console.error(ENGINE !== undefined ? `  no engine binary at ${ENGINE} (--engine names tensorfold-native or tensorfold)` : '  tensorfold is not on this Mac (brew install ashhart/tensorfold/tensorfold) — the live drive needs the real engine')
   process.exit(1)
 }
+const ENGINE_VERSION = /\b(\d+\.\d+\.\d+)\b/.exec(spawnSync(TENSORFOLD, ['--version'], { encoding: 'utf8' }).stdout ?? '')?.[1]
+if (ENGINE_VERSION === undefined) {
+  console.error(`  ${TENSORFOLD} --version named no release`)
+  process.exit(1)
+}
+const HEADING = new RegExp(`TENSORFOLD · ${ENGINE_VERSION.replaceAll('.', '\\.')} · Apple .* · \\d+(\\.\\d+)? GiB usable · nothing served`)
 if (!existsSync(join(REAL_CACHE, 'models--mlx-community--Qwen3.5-2B-MLX-4bit', 'refs', 'main'))) {
   console.error(`  the 2B is not in the Hugging Face cache (${REAL_CACHE}) — tensorfold pull ${REPO_2B} first`)
   process.exit(1)
@@ -276,7 +283,7 @@ if (launch.status !== 0) {
   console.log(`  [record] the last frame:\n${launch.lines.map(l => '    │' + scrub(l)).filter(l => l.trim() !== '│').slice(-Math.min(launchWorld.rows, 34)).join('\n')}`)
 }
 const launchPanel = launch.marks.get('launch-panel') ?? []
-check(`${launchWorld.tag} leg A: mercury /tensorfold at launch opened the panel straight away (no boot face stop) — the TENSORFOLD group with its version, chip and usable memory, the HOST group beneath, the live footer`, launchPanel.some(l => /TENSORFOLD · 1\.2\.2 · Apple .* · \d+(\.\d+)? GiB usable · nothing served/.test(l)) && launchPanel.some(l => l.includes('TENSORFOLD HOST')) && launchPanel.some(l => l.includes('nothing served · Metal')), launchPanel.filter(l => l.includes('TENSORFOLD') || l.includes('nothing served')).map(l => l.trim()).join(' | '))
+check(`${launchWorld.tag} leg A: mercury /tensorfold at launch opened the panel straight away (no boot face stop) — the TENSORFOLD group with the engine's own version (${ENGINE_VERSION}), chip and usable memory, the HOST group beneath, the live footer`, launchPanel.some(l => HEADING.test(l)) && launchPanel.some(l => l.includes('TENSORFOLD HOST')) && launchPanel.some(l => l.includes('nothing served · Metal')), launchPanel.filter(l => l.includes('TENSORFOLD') || l.includes('nothing served')).map(l => l.trim()).join(' | '))
 check(`${launchWorld.tag} leg A: the three starting points are listed with the 2B on disk, and the one framed is this Mac's default starting point (a starting point, not the 2B on disk)`, launchPanel.some(l => l.includes('Qwen3.8 27B')) && launchPanel.some(l => l.includes('Nemotron Lightning')) && launchPanel.some(l => l.includes('Qwen3.5 2B') && l.includes('on disk')) && launchPanel.some((l, at) => l.includes('╭') && /Nemotron Lightning|Qwen3\.8 27B/.test(launchPanel[at + 1] ?? '')), launchPanel.filter(l => l.includes('Qwen') || l.includes('Nemotron')).map(l => l.trim()).join(' | '))
 const launchServed = launch.marks.get('launch-served') ?? []
 check(`${launchWorld.tag} leg A: ↵ on the 2B served it on the seeded port from the launch panel; the row reads current`, launchServed.some(l => l.includes(`serving ${NAME_2B} on 127.0.0.1:${launchWorld.port}`)) && launchServed.some(l => l.includes('· 1 serving')), launchServed.filter(l => l.includes('serving') || l.includes('Qwen3.5 2B')).map(l => l.trim()).join(' | '))
@@ -324,7 +331,7 @@ if (c.status !== 0) {
   console.log(`  [record] the last frame:\n${c.lines.map(l => '    │' + scrub(l)).filter(l => l.trim() !== '│').slice(-Math.min(world.rows, 34)).join('\n')}`)
 }
 const panel = c.marks.get('panel') ?? []
-check(`${world.tag} panel: /tensorfold typed in the session opens the panel with the live footer`, panel.some(l => /TENSORFOLD · 1\.2\.2 · Apple .* · \d+(\.\d+)? GiB usable · nothing served/.test(l)) && panel.some(l => l.includes('nothing served · Metal')), panel.filter(l => l.includes('TENSORFOLD') || l.includes('nothing served')).map(l => l.trim()).join(' | '))
+check(`${world.tag} panel: /tensorfold typed in the session opens the panel with the live footer`, panel.some(l => HEADING.test(l)) && panel.some(l => l.includes('nothing served · Metal')), panel.filter(l => l.includes('TENSORFOLD') || l.includes('nothing served')).map(l => l.trim()).join(' | '))
 const framed = c.marks.get('framed-2b') ?? []
 check(`${world.tag} framed-2b: the 2B's card shows the exact serve it will run on the remembered port (the line wraps inside the card at this width)`, cardWords(framed).includes(`tensorfold serve ${REPO_2B} --name ${NAME_2B} --context 262144 --prompt-cache-gib 1 --port ${world.port}`), framed.filter(l => l.includes('tensorfold serve') || l.includes('--port')).map(l => l.trim()).join(' | '))
 const served = c.marks.get('served') ?? []

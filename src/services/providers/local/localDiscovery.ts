@@ -35,6 +35,7 @@ export interface LocalModelRecord {
   modelMaxContext?: number
   toolsDeclared?: boolean
   thinkingDeclared?: boolean
+  thinkingSwitch?: boolean
   thinking?: { values: Array<boolean | string>; default: boolean | string }
   executionOrigin?: { kind: 'local' } | { kind: 'remote'; remoteModel?: string; remoteHost?: string }
   visionDeclared?: boolean
@@ -405,12 +406,14 @@ function tensorFoldModelRecord(m: Record<string, unknown>, baseUrl: string): Loc
   const reasoning = rec(m.reasoning)
   const listed = strList(reasoning?.supported_efforts)
   const servedBy = str(m.served_by)
+  const thinkingSwitch = rec(m.capabilities)?.thinking_switch
   return {
     id,
     server: 'tensorfold',
     baseUrl,
     ...(window ? { contextWindow: { tokens: window, source: 'served' } } : {}),
     thinkingDeclared: reasoning !== undefined,
+    ...(typeof thinkingSwitch === 'boolean' ? { thinkingSwitch } : {}),
     ...(reasoning !== undefined ? { efforts: listed !== undefined && listed.length > 0 ? listed : [] } : {}),
     loaded: true,
     ...(servedBy !== undefined ? { servedBy } : {}),
