@@ -24,6 +24,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { listSessionsImpl } from '../../utils/listSessionsImpl.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
 import { loadTranscriptFile } from '../../utils/sessionStorage/loading.js'
+import { withoutRetractedReplies } from '../engine-connector/midTurnText.js'
 import { defineStore } from '../../substrate/fileStore.js'
 import { join } from 'node:path'
 import { MERCURY_VERSION } from '../../constants/product.js'
@@ -1168,7 +1169,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           mcpServers: ctx.params.mcpServers,
         })
         try {
-          for (const update of replayUpdatesOf(messages.values() as unknown as Iterable<Record<string, unknown>>)) {
+          for (const update of replayUpdatesOf(withoutRetractedReplies([...messages.values()]) as unknown as Iterable<Record<string, unknown>>)) {
             await ctx.client.notify(methods.client.session.update, {
               sessionId: requested,
               update: update as never,
