@@ -108,7 +108,7 @@ import type { ModelChoice } from '../MercuryModelPicker.js'
 import { LOCAL_PULL_RECOMMENDATION } from '../../services/providers/local/localAccounts.js'
 import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js'
 import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
-import { heldLocalWindow, localWindowApplication, localWindowRefusalWords, localWindowRoomWords, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
+import { heldLocalWindow, localWindowApplication, localWindowModelfileAutoWords, localWindowRefusalWords, localWindowRoomWords, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
 import { HELPER_JOB_WORDS, helperChoiceWords, helperJobsWords, helperModelChoices, nextHelperModelSetting, readHelperModelSetting, readHelperModelState, writeHelperModelSetting } from '../../services/providers/local/tensorfoldHelper.js'
 import { LOCAL_SERVER_APPLY_MENU, LocalServerApplyDialog, localServerConfigItems, useLocalServerConfig } from './LocalServer.js'
 import { advisorConfigItems } from './Advisor.js'
@@ -299,7 +299,7 @@ export function localModelWindowRow(
       ? `${record.id}: this server fixes its window when it starts; Mercury shows the served figure and cannot change it here.`
       : application === 'none'
         ? `${record.id}: an unknown server kind — the setting does not apply.`
-        : `${record.id}: auto = the biggest of 32k · 64k · 128k whose projected load (weights + the KV cache of the layers that keep one, at the server's cache type and slots; the server's measured size once the model is loaded) fits the memory usable for models, never above the trained max; 256k only when you choose trained max or a number yourself — the rule /localsetup's step 5 uses; held for the session; a change reloads the model on the next send (the ingested prompt is read again).${refusal !== undefined ? ` The setting is saved but does not fit: ${refusal}.` : room !== undefined ? ` The setting fits this small box but leaves little room: ${room}.` : ''}${rule} ${application === 'request' ? 'Ollama takes it as num_ctx on every request.' : 'LM Studio takes it when the model is loaded.'}`
+        : `${record.id}: auto = ${localWindowModelfileAutoWords(record) ?? "the biggest of 32k · 64k · 128k whose projected load (weights + the KV cache of the layers that keep one, at the server's cache type and slots; the server's measured size once the model is loaded) fits the memory usable for models, never above the trained max; 256k only when you choose trained max or a number yourself — the rule /localsetup's step 5 uses"}; held for the session; a change reloads the model on the next send (the ingested prompt is read again).${refusal !== undefined ? ` The setting is saved but does not fit: ${refusal}.` : room !== undefined ? ` The setting fits this small box but leaves little room: ${room}.` : ''}${rule} ${application === 'request' ? 'Ollama takes it as num_ctx on every request.' : 'LM Studio takes it when the model is loaded.'}`
   return { applies, valueText: `${localWindowValueWords(record, setting)} · ${record.id}`, note, setByYou: applies && setting !== undefined, overFit: refusal !== undefined, tight: room !== undefined }
 }
 

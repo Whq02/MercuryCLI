@@ -138,6 +138,11 @@ export function unreadMachineDecision(record: LocalWindowUnreadRecord, estTokens
   return doubledDecision(record, estTokens, `${why}; no trained max stated${served !== undefined ? ` and the served ${fmt(served)} is under the request` : ' and no served window'}; ${UNREAD_MACHINE}`)
 }
 
+export function localWindowModelfileAutoWords(record: LocalWindowUnreadRecord, truth: LocalServerTruth | null = localWindowTruth()): string | undefined {
+  const auto = chooseLocalWindow(record, 0, undefined, truth)
+  return auto.reason === 'set' ? `${MODELFILE_RULE}, never raised; trained max or a number of yours replaces it` : undefined
+}
+
 export function chooseLocalWindow(record: LocalWindowUnreadRecord, estTokens: number, setting: LocalWindowSetting | undefined, truth: LocalServerTruth | null = localWindowTruth()): LocalWindowDecision {
   const max = record.modelMaxContext
   if (setting === 'server') return { window: undefined, reason: 'srv', words: 'server default — the server chooses the window' }
