@@ -44,7 +44,6 @@ import {
 } from './compact.js'
 import { crewmateCompactNothingWords } from '../../utils/cockpit/crewmateWords.js'
 import { estimateMessageTokens } from './microCompact.js'
-import { isMaintenanceLadderEnabled, runMaintenanceLadder } from './maintenanceLadder.js'
 import { runPostCompactCleanup } from './postCompactCleanup.js'
 import { trySessionMemoryCompaction, shouldUseSessionMemoryCompaction } from './sessionMemoryCompact.js'
 import { APIUserAbortError } from '../api/sdkErrors.js'
@@ -538,37 +537,6 @@ export async function autoCompactIfNeeded(
   }
   try {
     return await withFoldStatus(toolUseContext, async scoped => {
-    if (isMaintenanceLadderEnabled()) {
-      const walked = await runMaintenanceLadder({
-        messages,
-        toolUseContext: scoped,
-        cacheSafeParams,
-        querySource,
-        recompactionInfo,
-        overflow: overflow !== null,
-      })
-      logForDebugging(
-        `maintenance ladder: ${walked.steps
-          .map(s => (s.outcome === 'advanced' ? `${s.method}: ${s.reason}` : `${s.method}: APPLIED`))
-          .join(' | ')}`,
-      )
-      if (walked.outcome === 'applied') {
-        setLastSummarizedMessageId(undefined)
-        runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId }, buildPostCompactMessages(walked.result))
-        if (walked.method === 'notes') {
-          return { wasCompacted: true, compactionResult: walked.result, consecutiveRapidRefills: refills, ...breaker }
-        }
-        return {
-          wasCompacted: true,
-          compactionResult: walked.result,
-          consecutiveFailures: 0,
-          consecutiveRapidRefills: refills,
-          ...breaker,
-        }
-      }
-      return { ...notCompacted, ...breaker }
-    }
-
     if (sessionMemoryArmed) scoped.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
     const viaMemory = await trySessionMemoryCompaction(messages, scoped.agentId, threshold, scoped)
     if (viaMemory !== null) {
