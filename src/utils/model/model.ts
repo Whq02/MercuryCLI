@@ -77,6 +77,14 @@ function rosterFamilyModel(family: Parameters<typeof newestPermittedGeneration>[
   return newestPermittedGeneration(family, head) ?? head
 }
 
+export function newestPermittedFallback(): string | null {
+  return (
+    newestPermittedGeneration('opus', getDefaultOpusModel()) ??
+    newestPermittedGeneration('sonnet', getDefaultSonnetModel()) ??
+    newestPermittedGeneration('haiku', getDefaultHaikuModel())
+  )
+}
+
 export function isFableAvailable(): boolean {
   return frontierOperatorDecision().source === 'frontier'
 }

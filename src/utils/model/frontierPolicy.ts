@@ -12,11 +12,10 @@ import { getInitialSettings } from '../settings/settings.js'
 
 import {
   getDefaultFableModel,
-  getDefaultHaikuModel,
   getDefaultOpusModel,
-  getDefaultSonnetModel,
   isDefaultOpusNatively1M,
   isOpus1mMergeEnabled,
+  newestPermittedFallback,
   normalizeModelStringForAPI,
 } from './model.js'
 
@@ -151,14 +150,6 @@ export function newestPermittedGeneration(family: Parameters<typeof previousGene
   return null
 }
 
-function permittedFallback(): string | null {
-  return (
-    newestPermittedGeneration('opus', getDefaultOpusModel()) ??
-    newestPermittedGeneration('sonnet', getDefaultSonnetModel()) ??
-    newestPermittedGeneration('haiku', getDefaultHaikuModel())
-  )
-}
-
 export function gatherFrontierFacts(): FrontierFacts {
   const settings = getInitialSettings() || {}
   const allowlist = settings.engine?.roster
@@ -180,7 +171,7 @@ export function gatherFrontierFacts(): FrontierFacts {
     maxSubscriber: isMaxSubscriber(),
     rateLimitTier: getRateLimitTier(),
     oneMDisabled: is1mContextDisabled(),
-    opusFallbackSetting: allowlist === undefined ? opusFallback : (permittedFallback() ?? opusFallback),
+    opusFallbackSetting: allowlist === undefined ? opusFallback : (newestPermittedFallback() ?? opusFallback),
   }
 }
 
