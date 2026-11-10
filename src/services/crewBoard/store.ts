@@ -579,7 +579,7 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
         if (!feed) { feed = new Set(); feeds.set(feedKey, feed) }
         feed.add(emit)
         watcher = watch(resolveWatchRoot(dirname(path)), { persistent: false }, (_event, file) => {
-          if (file === null || [basename(path), `${basename(path)}-wal`, `${basename(path)}.notify`].includes(String(file))) emit()
+          if (file === null || [basename(path), `${basename(path)}-wal`].includes(String(file)) || (String(file).startsWith(`${basename(path)}.`) && String(file).endsWith('.notify'))) emit()
         })
       }
       return () => {
