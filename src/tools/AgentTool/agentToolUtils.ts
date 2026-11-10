@@ -835,13 +835,14 @@ export function armBudgetCutResume(args: {
       resumed = await resume({
         agentId: args.taskId,
         prompt: accountChanged ? CREW_ACCOUNT_RESUME_NOTE : (args.prompt ?? AGENT_BUDGET_RESUME_NOTE),
-        toolUseContext: args.toolUseContext,
+        toolUseContext: { ...args.toolUseContext, abortController: new AbortController() },
         canUseTool: args.canUseTool,
         invokingRequestId: args.invokingRequestId,
         automatic: true,
       })
     } catch (error) {
       logForDebugging(`agent lifecycle: the automatic resume of ${args.taskId} did not start: ${errorMessage(error)}`)
+      unpauseAgentTask(args.taskId, args.rootSetAppState, args.registration)
       return
     }
     enqueueAgentReceiptRow({
@@ -1001,7 +1002,7 @@ export function armOverloadProbe(args: {
       const resumed = await resume({
         agentId: args.taskId,
         prompt: AGENT_OVERLOAD_RESUME_NOTE,
-        toolUseContext: args.toolUseContext,
+        toolUseContext: { ...args.toolUseContext, abortController: new AbortController() },
         canUseTool: args.canUseTool,
         invokingRequestId: args.invokingRequestId,
         automatic: true,
