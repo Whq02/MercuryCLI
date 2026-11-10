@@ -100,6 +100,11 @@ export type SessionFactsResult = {
         resetsAt: number
         observedAtMs: number
       }
+      sevenDayFable?: {
+        utilization: number
+        resetsAt: number
+        observedAtMs: number
+      }
     }
     openai_window?: {
       source: 'chatgpt-subscription' | 'api-key'
