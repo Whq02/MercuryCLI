@@ -123,7 +123,7 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
         check(`single ${mode}: the proof's temp dir is one run root under the inherited one`, runRoot !== undefined && isRunRoot(runRoot, temp), `${runRoot} under ${temp}`)
         check(`single ${mode}: a named mkdtempSync import, a plain mkdir and a shell mktemp all land inside it`, made.length === 3 && made.every(p => dirname(p) === runRoot), JSON.stringify(made))
         check(`single ${mode}: nothing is left when the proof ends`, run.code === 0 && readdirSync(temp).length === 0, `rc=${run.code} left=${JSON.stringify(readdirSync(temp))} ${run.output}`)
-        check(`single ${mode}: the proof ran in the process its caller started, as the owner of its run root`, run.facts !== undefined && run.facts.pid === run.pid && run.facts.owner === String(run.pid), `started ${run.pid}, ran as ${run.facts?.pid}, owner ${JSON.stringify(run.facts?.owner)}`)
+        check(`single ${mode}: the proof ran in the process its caller started, as the owner of its run root, with no word about its start`, run.facts !== undefined && run.facts.pid === run.pid && run.facts.owner === String(run.pid) && !run.output.includes('could not be started again'), `started ${run.pid}, ran as ${run.facts?.pid}, owner ${JSON.stringify(run.facts?.owner)} ${run.output}`)
         check(`single ${mode}: a child started with no env option reads the run root as its temp dir and as the product's temp root, as the proof does`, run.facts !== undefined && runRoot !== undefined && run.facts.child.tmp === runRoot && run.facts.child.productTmp === runRoot && run.facts.own.productTmp === runRoot, JSON.stringify(run.facts))
         check(`single ${mode}: a folder that child made lies in the run root and leaves with it`, run.facts !== undefined && runRoot !== undefined && dirname(run.facts.child.made) === runRoot && !existsSync(run.facts.child.made), `${run.facts?.child.made}`)
       }
@@ -153,6 +153,13 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
         const [runRoot, ...made] = run.made
         check('single held: asked to keep its first process image, the proof keeps it, still gets one run root as its own temp dir and the product\'s, lands its own folders there and removes it', run.code === 0 && run.facts?.owner === 'held' && run.facts.pid === run.pid && runRoot !== undefined && isRunRoot(runRoot, temp) && run.facts.own.productTmp === runRoot && made.length === 3 && made.every(p => dirname(p) === runRoot) && !existsSync(runRoot), `rc=${run.code} ${JSON.stringify(run.facts)} ${JSON.stringify(run.made)} ${run.output}`)
         console.log(`     on that road a child started with no env option read ${run.facts?.child.tmp === runRoot ? 'the run root too' : `its temp dir as ${run.facts?.child.tmp}`}: what this runtime hands such a child is why the first image is replaced`)
+      }
+      {
+        const temp = join(short, 'nolib')
+        const run = await drive('nolib', 'natural', temp, undefined, [], env => ({ ...env, MERCURY_SUITE_LIBC: join(short, 'no-such-library') }))
+        const runRoot = run.made[0]
+        check('single nolib: a proof that cannot be started again says so on stderr, with what its children will read and what to put in front of the run', run.output.includes('could not be started again on its scratch environment') && run.output.includes('no-such-library did not open') && run.output.includes("reads the caller's temp dir and config home") && run.output.includes('MERCURY_TMPDIR and MERCURY_CONFIG_DIR'), run.output.slice(0, 400))
+        check('single nolib: it still runs to its end on one run root of its own, the product\'s temp root with it, and removes the root', run.code === 0 && run.facts?.pid === run.pid && runRoot !== undefined && isRunRoot(runRoot, temp) && run.facts.own.productTmp === runRoot && !existsSync(runRoot), `rc=${run.code} ${JSON.stringify(run.facts?.own)} ${runRoot}`)
       }
       {
         const temp = join(short, 'keep')
