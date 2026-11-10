@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { check, finish, scratchDir, section, sourceText } from './computerProofKit.ts'
 
@@ -9,7 +9,7 @@ const scratch = scratchDir('browser-tree')
 const trace = join(scratch, 'trace.jsonl')
 const addon = join(scratch, 'fixture.cjs')
 const app = { identity: 'com.google.Chrome', name: 'Chrome', pid: 2468, title: 'Page', windowId: 'front', bounds: { x: 0, y: 0, width: 800, height: 600 } }
-writeFileSync(addon, `const fs=require('node:fs'); const trace=${JSON.stringify(trace)}; const out={}; for(const key of ${JSON.stringify(DESKTOP_ADDON_EXPORTS)}) out[key]=()=>{throw new Error('unexpected live-shaped call '+key)}; out.packVersion=()=>'fixture'; out.permissions=()=>({session:'desktop',screenCapture:'granted',input:'granted'}); out.accessibilityTree=(pid,depth,count,scope,request)=>{ fs.appendFileSync(trace,JSON.stringify({pid,depth,count,scope,request})+'\\n'); return {elements:[{depth:0,role:'AXTextField',title:'Search',value:'ready',frame:{x:1,y:2,width:80,height:20},focused:true}],truncated:false,scope:scope||null,webContent:request?'pending':'available',webAccessibility:request===true}; }; module.exports=out;`)
+writeFileSync(addon, `const fs=require('node:fs'); const trace=${JSON.stringify(trace)}; const staged=${JSON.stringify(scratch)}; const out={}; for(const key of ${JSON.stringify(DESKTOP_ADDON_EXPORTS)}) out[key]=()=>{throw new Error('unexpected live-shaped call '+key)}; out.packVersion=()=>'fixture'; out.permissions=()=>({session:'desktop',screenCapture:'granted',input:'granted'}); out.frontmostApplication=()=>JSON.parse(fs.readFileSync(staged+'/front.json','utf8')); out.accessibilityTree=(pid,depth,count,scope,request)=>{ const page=staged+'/page-'+pid; if(fs.existsSync(page)){ const [webContent,surface]=fs.readFileSync(page,'utf8').split(','); return {elements:[{depth:0,role:'AXWindow',title:'Draft'}],truncated:false,scope:scope||null,webContent,webSurface:surface==='surface'}; } fs.appendFileSync(trace,JSON.stringify({pid,depth,count,scope,request})+'\\n'); return {elements:[{depth:0,role:'AXTextField',title:'Search',value:'ready',frame:{x:1,y:2,width:80,height:20},focused:true}],truncated:false,scope:scope||null,webContent:request?'pending':'available',webAccessibility:request===true}; }; module.exports=out;`)
 writeFileSync(join(scratch, '.vendor-manifest.json'), JSON.stringify({ name: 'mercury-desktop', version: 'fixture', platform: `${process.platform}-${process.arch}`, addon: 'fixture.cjs', addonSha256: '0'.repeat(64), sourceTreeDigest: '0'.repeat(64), treeDigest: '0'.repeat(64), fileCount: 1, cargo: '', crates: [] }))
 process.env.MERCURY_DESKTOP_PACK_DIR = scratch
 resetNativeDesktopDriverForTest()
@@ -54,6 +54,44 @@ if (compiler === null) {
     const tested = spawnSync(binary, ['--test-threads=1'], { encoding: 'utf8', env: process.env })
     check('focused-window ordering and unknown-window refusal pass in Rust', tested.status === 0 && tested.stdout.includes('1 passed'), tested.stdout + tested.stderr)
   }
+}
+
+section("the adapter states what the application's bundle carries and what the window's tree has shown")
+{
+  const bundle = (name: string, files: string[]): string => {
+    for (const file of files) {
+      mkdirSync(dirname(join(scratch, name, file)), { recursive: true })
+      writeFileSync(join(scratch, name, file), '')
+    }
+    return join(scratch, name)
+  }
+  const carrying = bundle('Shell.app', ['Contents/MacOS/Shell', 'Contents/Frameworks/Shell Framework.framework/Resources/icudtl.dat', 'Contents/Frameworks/Shell Framework.framework/Resources/resources.pak'])
+  const plain = bundle('Notes.app', ['Contents/MacOS/Notes'])
+  const frontOf = async (record: Record<string, unknown>) => {
+    writeFileSync(join(scratch, 'front.json'), JSON.stringify({ ...app, ...record }))
+    return driver.frontmostApplication()
+  }
+  const shell = await frontOf({ identity: 'com.example.shell', name: 'Shell', bundlePath: carrying })
+  const notes = await frontOf({ identity: 'com.example.notes', name: 'Notes', bundlePath: plain })
+  const bare = await frontOf({ identity: 'com.example.bare', name: 'Bare' })
+  const lost = await frontOf({ identity: 'com.example.lost', name: 'Lost', bundlePath: join(scratch, 'Lost.app') })
+  check('an engine in the bundle, none in it, no bundle stated and a bundle that cannot be read reach the tool as true, false and unstated', shell.ok && shell.value.webEngine === true && notes.ok && notes.value.webEngine === false && bare.ok && !('webEngine' in bare.value) && lost.ok && !('webEngine' in lost.value), JSON.stringify([shell, notes, bare, lost]))
+  const page = (pid: number, state: string): void => writeFileSync(join(scratch, `page-${pid}`), state)
+  const read = async (pid: number, windowId: string) => {
+    const tree = await driver.accessibilityTree({ ...app, identity: 'com.example.reader', pid, windowId }, { depth: 32, count: 2000, scope: 'window' } as never, new AbortController().signal)
+    return tree.ok ? tree.value : null
+  }
+  page(3001, 'absent')
+  const before = await read(3001, 'w1')
+  page(3001, 'available')
+  const carried = await read(3001, 'w1')
+  page(3001, 'absent')
+  const dropped = await read(3001, 'w1')
+  const other = await read(3001, 'w2')
+  check('a window whose tree has carried a web area is stated as one that has shown a page surface from then on, and only that window', before?.webContent === 'absent' && before.webSurface === undefined && carried?.webContent === 'available' && carried.webSurface === true && dropped?.webContent === 'absent' && dropped.webSurface === true && other?.webContent === 'absent' && other.webSurface === undefined, JSON.stringify([before, carried, dropped, other]))
+  page(3002, 'absent,surface')
+  const surfaced = await read(3002, 'w1')
+  check("an engine's element the native walk reports reaches the tool on a tree that carries no page", surfaced?.webContent === 'absent' && surfaced.webSurface === true, JSON.stringify(surfaced))
 }
 delete process.env.MERCURY_DESKTOP_PACK_DIR
 resetNativeDesktopDriverForTest()
