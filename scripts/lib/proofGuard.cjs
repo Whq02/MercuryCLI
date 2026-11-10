@@ -105,15 +105,11 @@ function folded(name) {
   return NAMES_FOLD ? name.normalize('NFC').toLowerCase() : name
 }
 function landing(target) {
-  let whole
-  try {
-    whole = path.resolve(target)
-  } catch {
-    return null
-  }
-  const folder = seen(path.dirname(whole), true)
+  const last = path.basename(target)
+  if (last === '' || last === '.' || last === '..') return null
+  const folder = seen(path.dirname(target), true)
   if (folder === null || folder.key === '') return null
-  const name = folded(path.basename(whole))
+  const name = folded(last)
   for (const root of roots) {
     if (folded(root.name) !== name) continue
     if (seen(root.folder, true)?.key === folder.key) return { how: 'is', root }

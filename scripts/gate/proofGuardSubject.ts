@@ -83,6 +83,11 @@ if (mode === 'shapes') {
   await refuse('symlinkSync there, spelled with a trailing separator', () => symlinkSync(foreign, missing + sep))
   await refuse('linkSync there', () => linkSync(join(foreign, 'file'), missing))
   await refuse('renameSync, a folder moved there', () => renameSync(spare, missing))
+  const throughLink = `${join(world, 'to-root')}${sep}..${sep}missing`
+  await refuse('rmSync, the root spelled through one of its own folders and .., as written', () => rmSync(`${root}${sep}session${sep}..`, whole))
+  await refuse('symlinkSync where a root would stand, spelled through a link to the root and ..', () => symlinkSync(foreign, throughLink))
+  await refuse('linkSync there, spelled the same way', () => linkSync(join(foreign, 'file'), throughLink))
+  await refuse('renameSync, a folder moved there, spelled the same way', () => renameSync(spare, throughLink))
   facts.refused = refused
 
   const allowed: Tried[] = []
