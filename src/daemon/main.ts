@@ -98,6 +98,8 @@ import {
   parseOwnerPid,
   parseOwnerFd,
   isProcessAlive,
+  getProcessStartInstant,
+  getProcessStartInstantAsync,
   getProcessStartToken,
   getProcessStartTokenAsync,
   armOwnerPipe,
@@ -219,7 +221,7 @@ async function daemonStopCmd(): Promise<void> {
       // eslint-disable-next-line no-console
       console.error(`[daemon] no running daemon to stop — swept the stale record of pid ${stale.pid} (control socket unreachable, process gone)`)
     } else if (stale) {
-      const verdict = daemonRecordIdentity(stale, getProcessStartToken(stale.pid))
+      const verdict = daemonRecordIdentity(stale, stale.startToken ? getProcessStartToken(stale.pid, stale.startToken) : getProcessStartInstant(stale.pid))
       if (verdict === 'not-recorded-process') {
         await clearDeadDaemonRecords()
         // eslint-disable-next-line no-console
@@ -540,6 +542,7 @@ async function daemonRun(args: string[]): Promise<void> {
         return asked
       }
       const bootStartToken = await getProcessStartTokenAsync(process.pid)
+      const bootStartInstant = process.platform === 'win32' ? await getProcessStartInstantAsync(process.pid) : bootStartToken
       const persistDaemonRecord = (owner: number | null): Promise<void> =>
         writeDaemonState({
           pid: process.pid,
@@ -554,6 +557,7 @@ async function daemonRun(args: string[]): Promise<void> {
           ownerPid: owner,
           foreground,
           startToken: bootStartToken,
+          ...(bootStartInstant && bootStartInstant !== bootStartToken ? { startInstant: bootStartInstant } : {}),
           persist,
         })
       if (handoverPredecessor !== null) {
@@ -1062,7 +1066,7 @@ async function daemonRun(args: string[]): Promise<void> {
           const expected = request.expected
           if (expected === undefined) return refuse('no reviewed identity was given', 'none')
           if (expected.kind === 'daemon') {
-            if (expected.process.pid !== process.pid || tokenBinding(bootStartToken, expected.startToken) !== 'bound') return refuse('the reviewed identity is not this daemon', 'none')
+            if (expected.process.pid !== process.pid || tokenBinding(bootStartInstant, expected.startToken) !== 'bound') return refuse('the reviewed identity is not this daemon', 'none')
             if (persist || currentOwnerPid === null) return refuse('this daemon persists by its own posture')
             if (isProcessAlive(currentOwnerPid)) return refuse(`the owner pid ${currentOwnerPid} is alive`)
             const { live: liveNow, liveSessions } = liveWorkers()

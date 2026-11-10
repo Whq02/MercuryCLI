@@ -71,7 +71,7 @@ function recordOwner(): void {
   writeOwnerRecord(scratchpadDir)
   if (ownProcStart !== undefined) return
   void import('../daemon/ownerWatch.js')
-    .then(({ getProcessStartTokenAsync }) => getProcessStartTokenAsync(process.pid))
+    .then(({ getProcessStartInstantAsync }) => getProcessStartInstantAsync(process.pid))
     .then(procStart => {
       if (!procStart) return
       ownProcStart = procStart
