@@ -212,6 +212,7 @@ export type AnthropicObservedUsageV1 = {
   owner: string
   fiveHour?: AnthropicObservedWindowV1
   sevenDay?: AnthropicObservedWindowV1
+  sevenDayFable?: AnthropicObservedWindowV1
 }
 
 export type OpenaiWindowFactV1 = {

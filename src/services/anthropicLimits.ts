@@ -172,6 +172,7 @@ function recomputeRawUtilization(headers: Headers): void {
   for (const [key, abbrev] of [
     ['five_hour', '5h'],
     ['seven_day', '7d'],
+    ['seven_day_fable', '7d_oi'],
   ] as const) {
     const utilizationRaw = headers.get(`anthropic-ratelimit-unified-${abbrev}-utilization`)
     const resetRaw = headers.get(`anthropic-ratelimit-unified-${abbrev}-reset`)
@@ -379,13 +380,10 @@ export function getRawUtilization(): RawUtilization {
     if (polled === undefined || header.observedAtMs === undefined) return header
     return (polled.observedAtMs ?? -1) > header.observedAtMs ? polled : header
   }
-  copy.five_hour = fresher(live.five_hour, endpoint.five_hour)
-  copy.seven_day = fresher(live.seven_day, endpoint.seven_day)
-  if (copy.five_hour === undefined) delete copy.five_hour
-  if (copy.seven_day === undefined) delete copy.seven_day
-  for (const claim of WEEKLY_POOL_CLAIMS) {
-    const pool = endpoint[claim]
-    if (pool !== undefined) copy[claim] = pool
+  for (const key of ['five_hour', 'seven_day', ...WEEKLY_POOL_CLAIMS] as const) {
+    const window = fresher(live[key], endpoint[key])
+    if (window === undefined) delete copy[key]
+    else copy[key] = window
   }
   if (seed === undefined) return copy
   for (const entry of seed.split(',')) {
@@ -636,6 +634,7 @@ export function adoptAnthropicWindowFact(fact: unknown): boolean {
 const OBSERVED_WINDOW_KEYS = [
   ['fiveHour', 'five_hour'],
   ['sevenDay', 'seven_day'],
+  ['sevenDayFable', 'seven_day_fable'],
 ] as const
 
 function observedWindowOf(window: unknown): { utilization: number; resetsAt: number; observedAtMs: number } | undefined {

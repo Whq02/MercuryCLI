@@ -158,6 +158,92 @@ section("§5 the reader states the reply's shape once in the debug log: keys and
   check('the usage reader logs it after an answered read, once', (reader.match(/usagePayloadShapeWords\(/g) ?? []).length === 1 && reader.includes('[usage] read #${request} payload shape · '))
 }
 
+const windows = JSON.parse(readFileSync(join(ROOT, 'scripts/providers/fixtures/anthropic-unified-windows-2026-11-09.json'), 'utf8')) as {
+  read: string
+  windows: Array<[string, string]>
+  fields: string[]
+  claimNames: Record<string, string>
+  reply: Record<string, string>
+  refusal: Record<string, string>
+}
+const nowSeconds = Math.floor(NOW / 1000)
+function headersOf(shape: Record<string, string>, over: Record<string, string | null> = {}): Headers {
+  const headers = new Headers()
+  for (const [name, value] of Object.entries({ ...shape, ...over })) {
+    if (value === null) continue
+    headers.set(name, value.startsWith('+') ? String(nowSeconds + Number(value.slice(1))) : value)
+  }
+  return headers
+}
+const POOL_HEADERS = ['anthropic-ratelimit-unified-7d_oi-utilization', 'anthropic-ratelimit-unified-7d_oi-reset', 'anthropic-ratelimit-unified-7d_oi-status']
+const withoutPool = Object.fromEntries(POOL_HEADERS.map(name => [name, null]))
+const { providerLimitWarning } = await import('../../src/services/providers/limitWarning.ts')
+
+section(`§6 the reply headers (scripts/providers/fixtures/anthropic-unified-windows-2026-11-09.json, the provider's published client read ${windows.read} — its code, not a documented API): the 7d_oi window is the Fable week`)
+{
+  check("the client pairs the window it names 'Fable limit' with the abbreviation 7d_oi, beside 5h and 7d", windows.windows.map(w => w.join(':')).join(' ') === 'five_hour:5h seven_day:7d seven_day_overage_included:7d_oi overage:overage' && windows.claimNames.seven_day_overage_included === 'Fable limit' && windows.fields.includes('utilization') && windows.fields.includes('reset'))
+  limits.resetLimitsForCredentialSwitch()
+  delete process.env.MERCURY_MOCK_USAGE_PAYLOAD
+  limits.extractQuotaStatusFromHeaders(headersOf(windows.reply), Date.now())
+  check('a reply that carries the window gives the pool view: Fable at 61%, fed by the headers, with the window\'s reset', poolsNow() === 'seven_day_fable:Fable:61:headers' && usage.anthropicPoolWindowViews()[0]?.resetsAtMs === (nowSeconds + 529200) * 1000, poolsNow())
+  const meters = railMeters()
+  check('the USAGE rail paints 5h, 7d and Fable from that one reply', meters.length === 3 && meters[0]!.startsWith('5h 36%') && meters[1]!.startsWith('7d 44%') && /^Fable 61% 6d/.test(meters[2]!), show(meters))
+  limits.extractQuotaStatusFromHeaders(headersOf(windows.reply, withoutPool), Date.now() + 1)
+  check('the next reply without the window takes the row away (no figure outlives the reply that stated it)', poolsNow() === '' && railMeters().length === 2, `${poolsNow()} | ${show(railMeters())}`)
+  limits.extractQuotaStatusFromHeaders(headersOf(windows.reply, { 'anthropic-ratelimit-unified-7d_oi-reset': null }), Date.now() + 2)
+  check('a window with a figure and no reset is not painted', poolsNow() === '', poolsNow())
+}
+
+section('§7 one row a pool: the fresher of the reply and the endpoint, as 5h and 7d already choose')
+{
+  await readEndpoint(liveBody())
+  limits.extractQuotaStatusFromHeaders(headersOf(windows.reply), Date.now() + 5)
+  check('a reply read after the endpoint: its figure is the row (61%, headers)', poolsNow() === 'seven_day_fable:Fable:61:headers', poolsNow())
+  limits.foldUtilizationFromEndpoint(liveBody(), undefined, Date.now() + 60_000)
+  check('an endpoint read after that reply: its figure is the row (42%, endpoint)', poolsNow() === 'seven_day_fable:Fable:42:endpoint', poolsNow())
+  limits.extractQuotaStatusFromHeaders(headersOf(windows.reply, withoutPool), Date.now() + 120_000)
+  check('a later reply that states no pool leaves the endpoint\'s reading standing, with its own age', poolsNow() === 'seven_day_fable:Fable:42:endpoint', poolsNow())
+}
+
+section('§8 the pool binds the Fable session alone, and its warning is the existing pool sentence')
+{
+  limits.resetLimitsForCredentialSwitch()
+  limits.extractQuotaStatusFromHeaders(headersOf(windows.reply, { 'anthropic-ratelimit-unified-7d_oi-utilization': '0.92' }), Date.now())
+  const fable = providerLimitWarning({ model: FABLE })
+  check("a Fable session at 92% of the pool reads 'Anthropic: 92% of the Fable limit used · resets …'", fable !== null && /^Anthropic: 92% of the Fable limit used · resets /.test(fable.text), show(fable))
+  const opus = providerLimitWarning({ model: 'claude-opus-5-5' })
+  check('an Opus session beside it is not warned (its own windows read 36% and 44%)', opus === null, show(opus))
+  check('the Mythos mirror is the same pool', usage.bindingWindowFor('claude-mythos-5-2')?.window.key === 'seven_day_fable', show(usage.bindingWindowFor('claude-mythos-5-2')))
+}
+
+section("§9 the runner's reading reaches the window process: the relay carries the pool beside 5h and 7d")
+{
+  limits.resetLimitsForCredentialSwitch()
+  limits.extractQuotaStatusFromHeaders(headersOf(windows.reply), Date.now())
+  const fact = limits.anthropicObservedUsage() as (Record<string, unknown> & { owner: string }) | undefined
+  check('the relayed fact carries sevenDayFable (utilization, resetsAt, observedAtMs) beside fiveHour and sevenDay', fact !== undefined && typeof fact.fiveHour === 'object' && typeof fact.sevenDay === 'object' && show(Object.keys((fact.sevenDayFable ?? {}) as object).sort()) === show(['observedAtMs', 'resetsAt', 'utilization']) && (fact.sevenDayFable as { utilization: number }).utilization === 0.61, show(fact))
+  const at = Date.now() + 10
+  const written = {
+    owner: OWNER,
+    fiveHour: { utilization: 0.36, resetsAt: nowSeconds + 7800, observedAtMs: at },
+    sevenDay: { utilization: 0.44, resetsAt: nowSeconds + 529200, observedAtMs: at },
+    sevenDayFable: { utilization: 0.61, resetsAt: nowSeconds + 529200, observedAtMs: at },
+  }
+  const firstTwo = (): string => railMeters().slice(0, 2).map(m => m.split(' ').slice(0, 2).join(' ')).join(' · ')
+  limits.resetLimitsForCredentialSwitch()
+  const whole = limits.adoptAnthropicObservedUsage(written)
+  check('a V1 record written with the field is adopted, and its 5h and 7d paint (what a window on an older build reads from a newer runner)', whole && firstTwo() === '5h 36% · 7d 44%', `${whole} ${firstTwo()}`)
+  check('…and a window on this build paints the pool from it: the same three rows the runner read', poolsNow() === 'seven_day_fable:Fable:61:headers' && railMeters().length === 3, poolsNow())
+  limits.resetLimitsForCredentialSwitch()
+  const { sevenDayFable: _left, ...older } = written
+  const bare = limits.adoptAnthropicObservedUsage(older)
+  check('a V1 record without the field (an older runner) is adopted as before: 5h and 7d, no pool', bare && firstTwo() === '5h 36% · 7d 44%' && poolsNow() === '' && railMeters().length === 2, `${bare} ${poolsNow()}`)
+  limits.resetLimitsForCredentialSwitch()
+  check('a malformed pool beside whole windows drops the pool alone', limits.adoptAnthropicObservedUsage({ ...written, sevenDayFable: { utilization: 'much', resetsAt: nowSeconds + 60, observedAtMs: at } }) && poolsNow() === '' && firstTwo() === '5h 36% · 7d 44%', poolsNow())
+  const types = readFileSync(join(ROOT, 'src/services/engine-connector/types.ts'), 'utf8')
+  check('the field is optional on the V1 fact, and nothing but that declaration names it in the wire types', (types.match(/sevenDayFable/g) ?? []).length === 1 && types.includes('  sevenDayFable?: AnthropicObservedWindowV1\n'))
+}
+
 limits.__setAnthropicOwnerResolverForTest(null)
 delete process.env.MERCURY_MOCK_USAGE_PAYLOAD
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`}`)
