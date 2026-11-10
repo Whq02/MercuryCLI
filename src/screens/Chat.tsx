@@ -1117,14 +1117,14 @@ export function Chat({
     if (next === undefined) return;
     void onSubmitRef.current(next.input, INERT_PROMPT_HELPERS, undefined, { rearmed: true, submittedAt: next.submittedAt });
   }, []);
-  const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: { fromKeybinding?: boolean; rearmed?: boolean; submittedAt?: string }): Promise<void> => {
+  const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: { fromKeybinding?: boolean; rearmed?: boolean; submittedAt?: string; pastedContents?: Record<number, PastedContent> }): Promise<void> => {
     const submittedAt = options?.submittedAt ?? new Date().toISOString();
     const text = input.trim();
     if (text === '') return;
     submitTrace('repl-onSubmit', input, { fromKeybinding: options?.fromKeybinding === true, speculation: false, guardActive: isLoadingRef.current });
     const focusedNow = getFocusedSessionConnector();
     const seatMode = pendingInput.mode();
-    const seatPastes = pendingInput.pastedContents();
+    const seatPastes = options?.pastedContents ?? pendingInput.pastedContents();
     const seatCommand = text.startsWith('/') && seatMode !== 'bash' ? resolveSlashCommand(text, commandsRef.current) : undefined;
     const seat = seatCommand === undefined ? 'session' : commandSeat(seatCommand);
     const takeComposer = (): void => {
@@ -1163,6 +1163,7 @@ export function Chat({
           initialMessage: {
             message: createUserMessage({ content: text }),
             ...(seatMode === 'bash' ? { bashMode: true } : {}),
+            pastedContents: seatPastes,
             armedAtLanding: true,
           },
         }));
@@ -1365,7 +1366,7 @@ export function Chat({
     if (text === '') return;
     void (async () => {
       if (armedMessage.bashMode) pendingInput.setMode('bash');
-      await onSubmitRef.current(text, INERT_PROMPT_HELPERS, undefined, armedMessage.armedAtLanding ? { rearmed: true } : undefined);
+      await onSubmitRef.current(text, INERT_PROMPT_HELPERS, undefined, armedMessage.armedAtLanding ? { rearmed: true, pastedContents: armedMessage.pastedContents ?? {} } : undefined);
     })();
   }, [armedMessage, landing, setAppState]);
 

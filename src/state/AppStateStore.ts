@@ -8,6 +8,7 @@ import type { MCPServerConnection } from '../services/mcp/types.js'
 import type { Tool } from '../Tool.js'
 import type { Command } from '../types/command.js'
 import type { Message, UserMessage } from '../types/message.js'
+import type { PastedContent } from '../utils/config/schema.js'
 import type { ModelTransitionReceipt } from '../utils/model/modelTransition.js'
 import type { EffortValue } from '../utils/effort.js'
 import type { FileHistoryState } from '../utils/fileHistory.js'
@@ -208,6 +209,7 @@ type AppStateMutableHalf = {
     message: UserMessage
     bashMode?: boolean
     armedAtLanding?: boolean
+    pastedContents?: Record<number, PastedContent>
   } | null
   thinkingEnabled: boolean
   channelPermissionCallbacks?: Record<string, (result: unknown) => void>
