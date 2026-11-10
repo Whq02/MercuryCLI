@@ -304,7 +304,8 @@ try {
       `${count(raw, '\x1b[?1049l')} exits`,
     )
     const erases = count(raw, '\x1b[2J')
-    check('L4 the erase fired for takeover AND nested swap (≥3 incl. the fixture 2J)', erases >= 3, `${erases} erases`)
+    const wholeFrames = count(raw, '\x1b[H\x1b[0m')
+    check('L4 the takeover AND the nested swap each repaint the whole frame in place (≥2 whole frames; the fixture 2J is the only erase)', wholeFrames >= 2 && erases === 1, `${wholeFrames} whole frames, ${erases} erases`)
     check('L4 no stale hold text in the final cockpit', !text.some(l => l.includes('starting…')))
   }
 } finally {

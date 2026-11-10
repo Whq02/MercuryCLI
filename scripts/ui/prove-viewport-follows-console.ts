@@ -35,7 +35,7 @@ function whole(label: string, frame: string[] | undefined, columns: number, rows
 }
 
 function settledRoad(label: string, bytes: string, writes: string[], flickers: number): void {
-  check(`${label}: one contained erase, inside the frame's own write`, bytes.split('\x1b[2J').length === 2 && writes.some(write => write.includes('\x1b[2J') && stripAnsi(write).includes('COMPOSER')), `${bytes.split('\x1b[2J').length - 1} erases`)
+  check(`${label}: the settled frame is written whole in place by one write, and nothing erases the display`, !/\x1b\[[0-3]?J/.test(bytes) && writes.filter(write => write.includes('\x1b[H\x1b[0m') && stripAnsi(write).includes('COMPOSER')).length === 1, `${(bytes.match(/\x1b\[[0-3]?J/g) ?? []).length} erases, ${writes.filter(write => write.includes('\x1b[H\x1b[0m')).length} whole frames`)
   check(`${label}: no scrollback erase`, !bytes.includes('\x1b[3J'))
   check(`${label}: no alternate-screen switch`, !/\x1b\[\?(?:47|1049)[hl]/.test(bytes))
   check(`${label}: the modes are re-asserted as after a settled resize`, bytes.includes(ENABLE_ALTERNATE_SCROLL))
