@@ -180,6 +180,11 @@ function application(raw: DesktopAddonApplication, identity: string): DesktopApp
   }
 }
 
+function pageStillEmpty(elements: readonly { depth: number; role: string }[], depthLimit: number): boolean {
+  const areas = elements.flatMap((element, index) => (element.role.startsWith('AXWebArea') ? [index] : []))
+  return areas.length > 0 && areas.every(index => elements[index]!.depth < depthLimit && (elements[index + 1]?.depth ?? -1) <= elements[index]!.depth)
+}
+
 function pngSigned(png: unknown): png is Uint8Array {
   if (!(png instanceof Uint8Array) || png.length < 8) return false
   return png[0] === 0x89 && png[1] === 0x50 && png[2] === 0x4e && png[3] === 0x47
@@ -753,7 +758,8 @@ class NativeDesktopDriver implements DesktopDriver {
       const frame: DesktopBounds | null = f && [f.x, f.y, f.width, f.height].every(n => Number.isFinite(n)) ? { x: f.x, y: f.y, width: f.width, height: f.height } : null
       elements.push({ depth: e.depth, role: e.role, title: typeof e.title === 'string' && e.title !== '' ? e.title : null, value: typeof e.value === 'string' && e.value !== '' ? e.value : null, frame, ...(typeof e.focused === 'boolean' ? { focused: e.focused } : {}), ...(typeof e.offscreen === 'boolean' ? { offscreen: e.offscreen } : {}) })
     }
-    const webContent = raw.webContent === 'absent' && Date.now() - (this.webRequests.get(requestKey) ?? 0) < 2000 ? 'pending' : raw.webContent
+    const stated = raw.webContent === 'available' && pageStillEmpty(raw.elements, limits.depth) ? 'pending' : raw.webContent
+    const webContent = stated === 'absent' && Date.now() - (this.webRequests.get(requestKey) ?? 0) < 2000 ? 'pending' : stated
     const windowKey = raw.scope === 'window' && typeof raw.windowId === 'string' && raw.windowId !== '' ? `${requestKey}:${raw.windowId}` : null
     if (webContent === 'available' && (raw.scope === 'window' || raw.scope === 'app')) {
       this.pageApplications.add(requestKey)

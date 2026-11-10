@@ -142,6 +142,30 @@ for (const [index, window] of windows.entries()) {
   check(`${window.label}: gone is met, and only after the text left`, waited.outcome === 'succeeded' && answeredMs >= window.leavesAtMs, `${waited.outcome} after ${answeredMs} ms; the text left at ${window.leavesAtMs} ms · ${waited.result}`)
 }
 
+section('through the native adapter over a stand-in for the pack: a web area that arrives with no row under it is a page still starting')
+{
+  const { DESKTOP_ADDON_EXPORTS } = await import('../../src/services/desktop/pack.ts')
+  const { resolveNativeDesktopDriver, resetNativeDesktopDriverForTest } = await import('../../src/services/desktop/nativeDriver.ts')
+  const pack = join(scratch, 'pack')
+  const clock = join(pack, 'started')
+  mkdirSync(pack, { recursive: true })
+  writeFileSync(join(pack, 'fixture.cjs'), `const fs=require('node:fs'); const out={}; for(const key of ${JSON.stringify(DESKTOP_ADDON_EXPORTS)}) out[key]=()=>{throw new Error('unexpected desktop call '+key)}; out.packVersion=()=>'fixture'; out.permissions=()=>({session:'desktop',screenCapture:'granted',input:'granted'}); out.accessibilityTree=(pid,depth,count,scope,request)=>{ const ms=Date.now()-Number(fs.readFileSync(${JSON.stringify(clock)},'utf8')); const row=(depth,role,title,value)=>({depth,role,title:title||null,value:value||null,frame:{x:20,y:20+depth*24,width:240,height:20}}); const elements=[row(0,'AXApplication','Slate'),row(1,'AXWindow','Draft'),row(2,'AXButton','Share')]; if(ms>=200) elements.push(row(2,'AXWebArea','Draft')); if(ms>=350) elements.push(row(3,'AXLink','Home')); if(ms>=350&&ms<600) elements.push(row(3,'AXStaticText',null,${JSON.stringify(TEXT)})); return {elements,truncated:false,scope:scope||null,webContent:ms>=200?'available':request?'pending':'absent',webAccessibility:request===true,windowId:'draft'}; }; module.exports=out;`)
+  writeFileSync(join(pack, '.vendor-manifest.json'), JSON.stringify({ name: 'mercury-desktop', version: 'fixture', platform: `${process.platform}-${process.arch}`, addon: 'fixture.cjs', addonSha256: '0'.repeat(64), sourceTreeDigest: '0'.repeat(64), treeDigest: '0'.repeat(64), fileCount: 1, cargo: '', crates: [] }))
+  process.env.MERCURY_DESKTOP_PACK_DIR = pack
+  resetNativeDesktopDriverForTest()
+  const native = resolveNativeDesktopDriver()
+  if (native.state !== 'ok') throw new Error(native.note)
+  const { driver, context } = await stage(windows[2]!, windows.length + 1)
+  driver.accessibilityTree = (app, limits, signal) => native.driver.accessibilityTree(app, limits, signal)
+  const started = Date.now()
+  writeFileSync(clock, String(started))
+  const waited = resultOf(await ComputerTool.call({ action: 'wait', until: { text: TEXT, gone: true }, durationMs: 3000, capture: false } as never, context))
+  const answeredMs = Date.now() - started
+  check('a Chromium shell whose web area stands empty from 200 ms and carries its page from 350: gone is met, and only after the text left at 600', waited.outcome === 'succeeded' && answeredMs >= 600, `${waited.outcome} after ${answeredMs} ms; the text left at 600 ms · ${waited.result}`)
+  delete process.env.MERCURY_DESKTOP_PACK_DIR
+  resetNativeDesktopDriverForTest()
+}
+
 section('a text that stays keeps the wait waiting, on the native window too')
 {
   const native = windows[0]!
