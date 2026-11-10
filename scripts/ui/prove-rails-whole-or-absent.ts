@@ -21,7 +21,7 @@ const arg = (key: string): string | undefined => process.argv.includes(key) ? pr
 const frameDir = arg('--frames')
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 const SIZES: Array<[number, number]> = (arg('--sizes')?.split(',') ?? ['100x30', '120x40', '160x50', '177x49', '213x60']).map(size => size.split('x').map(Number) as [number, number])
-const PANE_ROWS = [4, 5, 6, 7, 9, 12, 20] as const
+const PANE_ROWS = [4, 5, 6, 7, 8, 9, 10, 12, 20] as const
 
 let checks = 0
 let failures = 0
@@ -92,9 +92,15 @@ for (const [columns, rows] of SIZES) {
       if (frameDir) writeFileSync(join(frameDir, `${columns}x${rows}-pane-${paneRows}.txt`), lines.join('\n') + '\n')
       const torn = tornRailBoxes(lines, columns, paneRows)
       check(`${columns}x${rows}, pane ${paneRows}: every rail box closes`, torn.length === 0, torn.join('; '))
-      if (paneRows === 6) {
+      if (paneRows === 6 && columns >= 160) {
         check(`${columns}x${rows}: only the whole workbench row is published on the left`, getHelmRows('lanes').length === 1, JSON.stringify(getHelmRows('lanes')))
         if (columns >= 160) check(`${columns}x${rows}: no clipped usage row is published on the right`, getHelmRows('vitals').length === 0, JSON.stringify(getHelmRows('vitals')))
+      }
+      if (columns < 160) {
+        const left = lines.slice(0, paneRows).map(line => line.slice(0, (lines[0] ?? '').indexOf('╭'))).join('\n')
+        if (paneRows === 6) check(`${columns}x${rows}: the unboxed FILES section keeps its last visible row`, left.includes('FILES') && left.includes('or click'), left)
+        if (paneRows === 9) check(`${columns}x${rows}: the unboxed VITALS head and spend remain visible`, left.includes('VITALS') && left.includes('spend'), left)
+        if (paneRows === 12) check(`${columns}x${rows}: the unboxed pointer keeps the last available row`, left.includes('more: /help'), left)
       }
     }
     scene.resize(wrap(h(Harness, { columns, cardRows: 3 })), columns, rows)
