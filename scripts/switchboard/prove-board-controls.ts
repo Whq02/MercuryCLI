@@ -186,14 +186,21 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
     'B5 the retired peek note keys are gone — the receipts paint where the operator looks',
     !route.includes("'peek:pause-after-turn'") && !route.includes("'peek:resume'"),
   )
+  const rowLineAt = screen.indexOf('const selectedRowLineOf = (nowCellWidth: number)')
+  const rowLineEnd = rowLineAt === -1 ? -1 : screen.indexOf('const olderRows = ', rowLineAt)
+  const rowLineBody = rowLineAt !== -1 && rowLineEnd > rowLineAt ? screen.slice(rowLineAt, rowLineEnd) : ''
+  const receiptArm = rowLineBody.indexOf('if (rowControlNote !== undefined) {')
+  const chipArm = rowLineBody.indexOf("if (chipLine !== null) return { glyph: GLYPH.ok, words: chipLine, tone: 'warning' }")
   check(
     'B6 the receipt line rides the selected row (the chip slot), keyed BY ROW so it never follows the cursor; it outranks the chip for its beat',
     screen.includes("controlNotes?.[`board:row-control:${peekSelRow?.sessionId ?? 'none'}`]") &&
       route.includes('noteControl(`board:row-control:${sessionId}`,') &&
-      screen.includes('const receiptNode = (() => {') &&
-      screen.includes(
-        "!rowPeekOpen && (chipLine !== null || rowControlNote !== undefined || boardArmed === peekSelRow?.sessionId || closeChordHint !== null) ? 1 : 0",
-      ),
+      receiptArm !== -1 &&
+      chipArm !== -1 &&
+      receiptArm < chipArm &&
+      screen.includes('const selectedRowLine = selectedRowLineOf(listPane.nowCellWidth)') &&
+      screen.includes('const chipRows = !rowPeekOpen && selectedRowLine !== null ? rowLineRows(selectedRowLine.words, rowLineWidth) : 0'),
+    `the receipt's arm at ${receiptArm}, the chip's at ${chipArm} of the line's ${rowLineBody.length} characters`,
   )
   check(
     'B5 a parked model switch stays the daemon’s HELD truth on the row (queued → held, the daemon’s own sentence)',

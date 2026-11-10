@@ -35,12 +35,11 @@ export function rowLineRows(words: string, cellWidth: number): number {
   return Math.max(1, rowLineLines(words, cellWidth).length)
 }
 
-export function listColumns(listInner: number): { colProject: number; colAge: number; nowWidth: number; stateCellShown: boolean } {
+export function listColumns(listInner: number): { colProject: number; colAge: number; nowWidth: number } {
   return {
     colProject: listInner >= 66 ? 12 : 9,
     colAge: 9,
     nowWidth: listInner >= 72 ? Math.max(12, Math.floor(listInner * 0.3)) : 0,
-    stateCellShown: listInner >= 48,
   }
 }
 

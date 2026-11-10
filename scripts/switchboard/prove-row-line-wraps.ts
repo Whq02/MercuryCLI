@@ -58,7 +58,7 @@ console.log('W1 a line under the selected row breaks after a separator when a cl
   check('a hint with clauses breaks after its separator, never inside a clause that fits', j(armsAt37) === j([`${ARMS.split(' · ')[0]} ·`, ARMS.split(' · ')[1]]) && j(armedAt37) === j(['armed — ↵ again enters ·', 'tab to message · esc disarms']) && j(armedAt50) === j(['armed — ↵ again enters · tab to message ·', 'esc disarms']), j({ armsAt37, armedAt37, armedAt50 }))
   check('at 69 cells (a 213-column board) every chord hint is one row, as before', rowLine !== null && [ARCHIVES, DELETES, ARMS].every(words => rowLine.rowLineRows(words, 69) === 1))
   check('at 37 cells (100 and 120 columns) each takes two rows', rowLine !== null && [ARCHIVES, DELETES, ARMS, ARMED[0]!, REFUSAL].every(words => rowLine.rowLineRows(words, 37) === 2), j(rowLine === null ? null : [ARCHIVES, DELETES, ARMS, ARMED[0]!, REFUSAL].map(words => rowLine.rowLineRows(words, 37))))
-  check("the list's columns are the ones it had: project, age, the NOW column from 72 cells, the state word from 48", rowLine !== null && j([39, 52, 71, 72].map(inner => rowLine.listColumns(inner))) === j([{ colProject: 9, colAge: 9, nowWidth: 0, stateCellShown: false }, { colProject: 9, colAge: 9, nowWidth: 0, stateCellShown: true }, { colProject: 12, colAge: 9, nowWidth: 0, stateCellShown: true }, { colProject: 12, colAge: 9, nowWidth: 21, stateCellShown: true }]) && rowLine.rowNowCellWidth(39) === 18 && rowLine.rowNowCellWidth(72) === 20, rowLine === null ? 'no rowLine module' : j([39, 52, 71, 72].map(inner => rowLine.listColumns(inner))))
+  check("the list's columns are the ones it had: project 9 cells and 12 from 66, age 9, the NOW column from 72", rowLine !== null && j([39, 65, 66, 71, 72].map(inner => rowLine.listColumns(inner))) === j([{ colProject: 9, colAge: 9, nowWidth: 0 }, { colProject: 9, colAge: 9, nowWidth: 0 }, { colProject: 12, colAge: 9, nowWidth: 0 }, { colProject: 12, colAge: 9, nowWidth: 0 }, { colProject: 12, colAge: 9, nowWidth: 21 }]) && rowLine.rowNowCellWidth(39) === 18 && rowLine.rowNowCellWidth(72) === 20, rowLine === null ? 'no rowLine module' : j([39, 65, 66, 71, 72].map(inner => rowLine.listColumns(inner))))
 }
 
 const scratch = join(tmpdir(), `row-line-wraps-${process.pid}-home`)
@@ -103,6 +103,9 @@ const ESC = String.fromCharCode(27)
 const DOWN = `${ESC}[B`
 const CTRL_X = String.fromCharCode(24)
 
+const selects = (title: string): string => `▸ [^│\\n]*${title}`
+const selectsWithout = (title: string, gone: string): string => `(?s)\\A(?!.*${gone}).*▸ [^│\\n]*${title}`
+
 function capture(cols: number, rows: number): Map<string, string[]> {
   const out = join(OUT_DIR, `row-line-${cols}x${rows}.json`)
   const cfgPath = join(scratch, `vshot-${cols}.json`)
@@ -111,18 +114,17 @@ function capture(cols: number, rows: number): Map<string, string[]> {
     cwd: REPO,
     sends: [
       { data: '', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 4, mark: 'refused' },
-      { afterPrevTicks: 3, data: DOWN },
-      { afterPrevTicks: 3, data: '\r' },
+      { afterPrevTicks: 3, data: DOWN, awaitPattern: selects(TITLES.refused) },
+      { afterPrevTicks: 3, data: '\r', awaitPattern: selects(TITLES.live) },
       { data: '', awaitText: 'armed —', requireAwait: true, awaitSettleTicks: 3, mark: 'armed' },
-      { afterPrevTicks: 2, data: ESC },
-      { afterPrevTicks: 4, data: DOWN },
-      { afterPrevTicks: 3, data: CTRL_X },
+      { data: ESC, awaitText: 'armed —', requireAwait: true, awaitSettleTicks: 2 },
+      { afterPrevTicks: 4, data: DOWN, awaitPattern: selectsWithout(TITLES.live, 'armed —') },
+      { afterPrevTicks: 3, data: CTRL_X, awaitPattern: selects(TITLES.stopped) },
       { data: '', awaitText: 'again arch', requireAwait: true, awaitSettleTicks: 3, mark: 'archives' },
-      { afterPrevTicks: 2, data: ESC },
-      { afterPrevTicks: 4, data: DOWN },
-      { afterPrevTicks: 3, data: CTRL_X },
+      { data: ESC, awaitText: 'again arch', requireAwait: true, awaitSettleTicks: 2 },
+      { afterPrevTicks: 4, data: DOWN, awaitPattern: selectsWithout(TITLES.stopped, 'again arch') },
+      { afterPrevTicks: 3, data: CTRL_X, awaitPattern: selects(TITLES.parked) },
       { data: '', awaitText: 'again arms', requireAwait: true, awaitSettleTicks: 3, mark: 'arms' },
-      { afterPrevTicks: 2, data: ESC },
     ],
     total: 170,
     cols,

@@ -399,7 +399,8 @@ export function ConcourseLayout({
     }
   }
 
-  const { colProject, colAge, nowWidth, stateCellShown } = listColumns(listInner)
+  const { colProject, colAge, nowWidth } = listColumns(listInner)
+  const stateCellShown = listInner >= 48
 
   const groupRole = (id: string): string =>
     id === 'needs-you' || id === 'stalled'

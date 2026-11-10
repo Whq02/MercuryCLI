@@ -1331,7 +1331,8 @@ export function ConcourseScreen({
     return hint === null ? null : keyHintLabel(hint)
   })()
   const selectedRowLineOf = (nowCellWidth: number): { glyph: string; words: string; tone: 'info' | 'success' | 'instruction' | 'warning' | 'failure' } | null => {
-    if (peekSelRow === undefined) return null
+    const sel = peekSelRow
+    if (sel === undefined) return null
     if (closeChordHint !== null) return { glyph: GLYPH.handoff, words: closeChordHint, tone: 'info' }
     if (rowControlNote !== undefined) {
       const n = controlNoteOf(rowControlNote)
@@ -1341,12 +1342,14 @@ export function ConcourseScreen({
         tone: n.state === 'applied' ? 'success' : n.state === 'pending' ? 'instruction' : n.state === 'held' ? 'warning' : 'failure',
       }
     }
-    if (boardArmed === peekSelRow.sessionId) {
-      const drafted = liveDraft.text.trim().length > 0
-      const toMessage = !drafted && liveComposerGate(peekSelRow).ok && broadcastFaceOf(markedRows.length) === null
-      return { glyph: GLYPH.handoff, words: `${drafted ? 'armed — ↵ sends the draft · → enters' : 'armed — ↵ again enters'}${toMessage ? ' · tab to message' : ''} · esc disarms`, tone: 'info' }
+    if (boardArmed === sel.sessionId) {
+      return {
+        glyph: GLYPH.handoff,
+        words: `${liveDraft.text.trim().length > 0 ? 'armed — ↵ sends the draft · → enters' : 'armed — ↵ again enters'}${liveDraft.text.trim().length === 0 && liveComposerGate(sel).ok && broadcastFaceOf(markedRows.length) === null ? ' · tab to message' : ''} · esc disarms`,
+        tone: 'info',
+      }
     }
-    const refusal = peekSelRow.nowLabel ?? ''
+    const refusal = sel.nowLabel ?? ''
     if (refusal.startsWith(PARK_REFUSED_NOW_LEAD) && stringWidth(refusal) > nowCellWidth) return { glyph: GLYPH.fail, words: refusal, tone: 'failure' }
     if (chipLine !== null) return { glyph: GLYPH.ok, words: chipLine, tone: 'warning' }
     return null
