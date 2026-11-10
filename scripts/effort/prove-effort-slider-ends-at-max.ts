@@ -94,6 +94,7 @@ if (!existsSync(DIST)) {
       PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
       TERM: 'dumb',
       MERCURY_CONFIG_DIR: join(scratch, 'door-home'),
+      MERCURY_TMPDIR: join(scratch, 'temp'),
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
       ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
