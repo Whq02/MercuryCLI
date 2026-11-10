@@ -56,4 +56,5 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-picker-anthropic-s
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-picker-composes-without-itself.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-picker-composes-without-itself.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-first-party-windows.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-first-party-windows.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-table-window-above-served.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-table-window-above-served.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-context-1m-header.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-context-1m-header.ts "$__t" "$__rc"
 exit "$fail"

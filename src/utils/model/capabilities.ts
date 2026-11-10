@@ -568,6 +568,20 @@ export function has1mContext(model: string): boolean {
   return /\[1m\]/i.test(model)
 }
 
+function modelIsNatively1M(model: string): boolean {
+  if (isCarrierShapedId(model)) return false
+  const firstParty = familyDefaultsModel(model).toLowerCase()
+  const canonical = getCanonicalName(firstParty)
+  return (
+    canonical === 'claude-haiku-5-5' ||
+    canonical.includes('sonnet-5') ||
+    canonical.includes('opus-5') ||
+    canonical.includes('fable-5') ||
+    firstParty.includes('opus-4-7') ||
+    firstParty.includes('opus-4-8')
+  )
+}
+
 export function modelSupports1M(model: string): boolean {
   if (is1mContextDisabled()) {
     return false
@@ -708,17 +722,7 @@ function baseResolveContextWindow(
     })
   }
 
-  const firstParty = familyDefaultsModel(model).toLowerCase()
-  const firstPartyCanonical = getCanonicalName(firstParty)
-  if (
-    !isCarrierShapedId(model) &&
-    (firstPartyCanonical === 'claude-haiku-5-5' ||
-      firstPartyCanonical.includes('sonnet-5') ||
-      firstPartyCanonical.includes('opus-5') ||
-      firstPartyCanonical.includes('fable-5') ||
-      firstParty.includes('opus-4-7') ||
-      firstParty.includes('opus-4-8'))
-  ) {
+  if (modelIsNatively1M(model)) {
     if (is1mContextDisabled()) {
       return finish({
         effectiveWindow: MODEL_CONTEXT_WINDOW_DEFAULT,
@@ -1083,7 +1087,7 @@ export const getAllModelBetas = memoize((model: string): string[] => {
   if (isClaudeAISubscriber()) {
     betaHeaders.push(OAUTH_BETA_HEADER)
   }
-  if (has1mContext(model)) {
+  if (has1mContext(model) && !modelIsNatively1M(model) && !isClaudeAISubscriber()) {
     betaHeaders.push(CONTEXT_1M_BETA_HEADER)
   }
 
