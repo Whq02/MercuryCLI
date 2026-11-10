@@ -616,7 +616,10 @@ new chats; the transcripts already on disk stay.
 Every live row is a tile: the NOW cell (painted when the session list is wide
 enough for it) streams what the session is doing right now (the reply's last
 line, or the tool it is running), and `→` opens a preview of the selected row
-in place. When a runner crashes, its row
+in place. On a list too narrow for that column a row carries the cell only
+when it needs you — the head of a crash reason, a waiting ask or a refused
+park — where its project and last-used cells stand; the live line stays off
+there. When a runner crashes, its row
 shows NEEDS YOU with the exit code and the last error or stderr line;
 the row stays across reconciles until you act on the session or release the row.
 The daemon's log records the same line for every crash. `ctrl+x ctrl+x` stops the selected

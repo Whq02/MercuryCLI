@@ -3,6 +3,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { enqueuePendingNotification, subscribeQueueConsumption } from '../../input-core/command-queue.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { errorMessage } from '../../utils/errors.js'
 import { escapeXml } from '../../utils/xml.js'
 import { hostDirectory, type HostRecord } from './store.js'
 
@@ -17,6 +19,7 @@ export function hostNotice(record: HostRecord, kind: string, words: string): voi
   if (!existsSync(path)) publishAtomicSync(path, JSON.stringify({ id, sessionId: record.sessionId, words: notice }), { mode: 0o600 })
 }
 const queuedNotices = new Map<string, string>()
+const damagedNotices = new Set<string>()
 let observingConsumption = false
 
 export function deliverHostNotices(sessionId: string): void {
@@ -37,10 +40,21 @@ export function deliverHostNotices(sessionId: string): void {
   if (!existsSync(dir)) return
   for (const name of readdirSync(dir).filter(name => name.endsWith('.json'))) {
     const path = join(dir, name)
-    const row = JSON.parse(readFileSync(path, 'utf8')) as { sessionId: string; words: string; id: string }
-    if (row.sessionId !== sessionId || existsSync(path + '.delivered') || queuedNotices.has(path)) continue
+    const row = readNotice(path)
+    if (row === undefined || row.sessionId !== sessionId || existsSync(path + '.delivered') || queuedNotices.has(path)) continue
     queuedNotices.set(path, row.words)
     enqueuePendingNotification({ value: row.words, mode: 'task-notification', priority: 'next' })
+  }
+}
+function readNotice(path: string): { sessionId: string; words: string } | undefined {
+  try {
+    const row: unknown = JSON.parse(readFileSync(path, 'utf8'))
+    if (typeof row === 'object' && row !== null && 'sessionId' in row && typeof row.sessionId === 'string' && 'words' in row && typeof row.words === 'string') return { sessionId: row.sessionId, words: row.words }
+    throw new Error('not a notice record')
+  } catch (error) {
+    if (!damagedNotices.has(path)) logForDebugging('Host notice ' + path + ' skipped: ' + errorMessage(error))
+    damagedNotices.add(path)
+    return undefined
   }
 }
 export function watchHostNotices(sessionId: () => string): () => void {

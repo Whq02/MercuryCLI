@@ -97,6 +97,7 @@ export interface BoardStore {
   postOwner(principal: BoardPrincipal, post: OwnerPostInput): OwnerPostReceipt
   read(principal: BoardPrincipal, input: BoardRead): BoardPacket
   leadMention(): BoardEvent | null
+  leadMentionNewest(): BoardEvent | null
   leadPosts(since: number): BoardEvent[]
   leadPainted(): number
   markLeadPainted(seq: number): void

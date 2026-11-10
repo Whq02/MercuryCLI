@@ -6,6 +6,7 @@ import { keyHintLabel } from '../mercury-ui/keyHintLabel.js'
 import { PermissionDialog } from '../permissions/PermissionDialog.js'
 import { PermissionPrompt, type PermissionPromptOption } from '../permissions/PermissionPrompt.js'
 import wrapText from '../../ink/wrap-text.js'
+import { truncateToWidth } from '../../utils/truncate.js'
 
 
 type ContractOfferAnswer = 'yes' | 'no'
@@ -29,6 +30,14 @@ type ContractCardFitV1 = {
 
 export function contractCardTextColumns(width: number): number {
   return Math.max(8, width - 8)
+}
+
+export function cappedBlurb(text: string, textColumns: number, rows: number | null): string {
+  const lines = wrapText(text, textColumns, 'wrap').split('\n')
+  if (rows === null || rows <= 0 || rows >= lines.length) return text
+  const kept = lines.slice(0, rows)
+  const last = (kept.pop() ?? '').trimEnd()
+  return [...kept, truncateToWidth(`${last}…`, textColumns)].join('\n')
 }
 
 export function contractCardFit(rows: number, textColumns: number): ContractCardFitV1 {
@@ -73,7 +82,8 @@ export function ContractOfferCard({
     [],
   )
   const columns = Math.max(16, width - 6)
-  const fit = contractCardFit(rows, contractCardTextColumns(width))
+  const textColumns = contractCardTextColumns(width)
+  const fit = contractCardFit(rows, textColumns)
   const visibleLines = fit.fieldLines
 
   const submit = (raw: string): void => {
@@ -93,7 +103,7 @@ export function ContractOfferCard({
             <>
               {fit.askBlurbRows === 0 ? null : (
                 <Box flexShrink={0} {...(fit.askBlurbRows === null ? {} : { height: fit.askBlurbRows, overflow: 'hidden' as const })}>
-                  <Text dimColor wrap="wrap">{CONTRACT_ASK_BLURB}</Text>
+                  <Text dimColor wrap="wrap">{cappedBlurb(CONTRACT_ASK_BLURB, textColumns, fit.askBlurbRows)}</Text>
                 </Box>
               )}
               <PermissionPrompt
@@ -113,7 +123,7 @@ export function ContractOfferCard({
               </Box>
               {fit.fieldBlurbRows === 0 ? null : (
                 <Box flexShrink={0} {...(fit.fieldBlurbRows === null ? {} : { height: fit.fieldBlurbRows, overflow: 'hidden' as const })}>
-                  <Text dimColor wrap="wrap">{CONTRACT_FIELD_BLURB}</Text>
+                  <Text dimColor wrap="wrap">{cappedBlurb(CONTRACT_FIELD_BLURB, textColumns, fit.fieldBlurbRows)}</Text>
                 </Box>
               )}
               <Box flexDirection="column" flexShrink={0} marginTop={fit.fieldGaps ? 1 : 0}>

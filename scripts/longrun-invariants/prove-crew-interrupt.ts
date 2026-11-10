@@ -276,7 +276,7 @@ section('§K4 the resume road — one owner behind every door')
   const methods = src('src/runner/wire/methods.ts')
   check("the door's method table carries agent/resume", methods.includes("'agent/resume': method({"))
   const run = src('src/tools/AgentTool/runAgent.ts')
-  check('the run loop seeds its chain parent from the seed messages\' leaf — a resume replays the prompt', run.includes('let lastRecordedUuid: string | undefined = messages[messages.length - 1]?.uuid'))
+  check('the run loop seeds its chain parent from the seed messages\' written tail — a resume replays the prompt', run.includes('let lastRecordedUuid: string | undefined = writtenChainTail(messages)'))
 }
 
 section('§K10 the wait tells its truth — the phase fold, the one spelling, every surface')

@@ -55,7 +55,7 @@ section('§1 the pure legend law — one resolver, every list state')
   check('…nor while a composer, the rail or the split pane holds focus (n is a letter there, or nothing)', ['live', 'coordinator', 'rail', 'chat'].every(r => newSessionTabLabel({ region: r, filtering: false }) === '+ new session'))
   const { newSessionDoorWords, NEW_SESSION_DOOR_WORDS } = await import('../../src/components/concourse/ConcourseLayout.js')
   check("the New Session line's words say where n fires: on the rows, 'n starts a blank session in this project'", newSessionDoorWords({ region: 'list', filtering: false }) === NEW_SESSION_DOOR_WORDS && NEW_SESSION_DOOR_WORDS === 'n starts a blank session in this project')
-  check("…and from a focused composer (the board's arrival focus), the rail, the split pane or under the filter: 'tab to the list, then n …' — never a key that types into a draft (the Air's 7R-05/8R-05)", ['live', 'coordinator', 'rail', 'chat'].every(r => newSessionDoorWords({ region: r, filtering: false }) === `tab to the list, then ${NEW_SESSION_DOOR_WORDS}`) && newSessionDoorWords({ region: 'list', filtering: true }) === `tab to the list, then ${NEW_SESSION_DOOR_WORDS}`)
+  check("…and from a focused composer, the rail, the split pane or under the filter: 'tab to the list, then n …' — never a key that types into a draft (the Air's 7R-05/8R-05)", ['live', 'coordinator', 'rail', 'chat'].every(r => newSessionDoorWords({ region: r, filtering: false }) === `tab to the list, then ${NEW_SESSION_DOOR_WORDS}`) && newSessionDoorWords({ region: 'list', filtering: true }) === `tab to the list, then ${NEW_SESSION_DOOR_WORDS}`)
   check('the atlas key fires from the rows, the rail and the split pane whatever the drafts hold', ['list', 'rail', 'chat'].every(r => helpKeyFiresFor(r, false) && helpKeyFiresFor(r, true)))
   check('…and from a composer only while its draft is empty', helpKeyFiresFor('live', true) && !helpKeyFiresFor('live', false) && helpKeyFiresFor('coordinator', true) && !helpKeyFiresFor('coordinator', false))
 }
@@ -120,12 +120,10 @@ const sends = [
   after(3600, 'stream slowly'),
   after(4400, '\r'),
   after(6500, `${ESC}[1;2D`),
-  after(7500, '\t'),
   after(8300, '\r'),
   after(9100, 'n'),
   after(10600, ESC),
   after(14000, `${ESC}[1;2D`),
-  after(15000, '\t'),
   after(15800, '\r'),
   after(16600, '\t'),
   ...[...'is it done'].map((ch, i) => after(17300 + i * 80, ch)),
@@ -186,7 +184,7 @@ const sendRecs = recs.filter(r => r.sent !== undefined)
 const at = (i: number): number => Math.round((sendRecs[i]?.sent ?? firstOut) - firstOut)
 check('every send fired (the face, the chat, the board, the card and the composer all painted)', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`)
 if (sendRecs.length === sends.length) {
-  const res = spawnSync(driver.python, [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', String(at(5) + 400), String(at(6) + 800), String(at(TYPED_LAST) + 700), '-1'], { encoding: 'utf8', timeout: vshotBudgetMs(120_000), maxBuffer: 256 * 1024 * 1024 })
+  const res = spawnSync(driver.python, [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', String(at(4) + 400), String(at(5) + 800), String(at(TYPED_LAST) + 700), '-1'], { encoding: 'utf8', timeout: vshotBudgetMs(120_000), maxBuffer: 256 * 1024 * 1024 })
   if (res.status !== 0) {
     console.error(`screengrab failed: ${res.stderr}`)
     process.exit(1)

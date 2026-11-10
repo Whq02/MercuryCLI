@@ -333,7 +333,7 @@ export function CompactConcourse({
           <Frame span={geo.live} rows={rows} inner={geo.inner} title={liveTitle} focused={region === 'live'} onFocus={wiring.focusLive} id="concourse:compact:live-title">
             {liveBody()}
             {geo.liveFootRows > 0 ? (
-              <FootRow text={compactOpenedFoot({ reduced, verbsFire, draftHeld: liveDraftHeld })} note={note} filtering={false} filterText="" filterCaret={0} />
+              <FootRow text={cardRows > 0 ? '' : compactOpenedFoot({ reduced, verbsFire, draftHeld: liveDraftHeld })} note={note} filtering={false} filterText="" filterCaret={0} />
             ) : null}
           </Frame>
         </Box>
@@ -362,7 +362,7 @@ export function CompactConcourse({
       <Frame span={geo.live} rows={geo.live.y1 - geo.live.y0 + 1} inner={geo.live.innerRows} title={liveTitle} focused={region === 'live'} onFocus={wiring.focusLive} id="concourse:compact:live-title">
         {liveBody()}
         {geo.liveFootRows > 0 ? (
-          <FootRow text={compactLiveFoot({ verbsFire })} note={note} filtering={false} filterText="" filterCaret={0} />
+          <FootRow text={cardRows > 0 ? '' : compactLiveFoot({ verbsFire })} note={note} filtering={false} filterText="" filterCaret={0} />
         ) : null}
       </Frame>
       <Frame span={geo.list} rows={geo.list.y1 - geo.list.y0 + 1} inner={geo.list.innerRows} title={compactListTitle(sessionRows.length, filterText)} focused={region === 'list'} onFocus={wiring.focusList} id="concourse:compact:list-title">

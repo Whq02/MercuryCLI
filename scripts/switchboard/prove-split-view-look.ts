@@ -65,10 +65,9 @@ const env = {
 
 {
   const sends: Send[] = [
-    { data: '\t', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 2 },
-    { data: 's', afterPrevTicks: 2 },
+    { data: 's', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 2 },
     { data: '', awaitText: 'tab chat pane', requireAwait: true, awaitSettleTicks: 2, mark: 'split-on' },
-    { data: '\t\t', afterPrevTicks: 2 },
+    { data: '\t', afterPrevTicks: 2 },
     { data: '', awaitText: 'tab board · s full board', requireAwait: true, awaitSettleTicks: 2, mark: 'chat-focused' },
     { data: 's', afterPrevTicks: 2 },
     { data: '', afterPrevTicks: 4, mark: 'split-off' },
@@ -105,13 +104,12 @@ const env = {
 
 {
   const sends: Send[] = [
-    { data: '\t', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 2 },
-    { data: 's', afterPrevTicks: 2 },
-    { data: '', awaitText: 'split needs 121 columns', requireAwait: true, awaitSettleTicks: 1, mark: 'too-narrow' },
+    { data: 's', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 2 },
+    { data: '', awaitText: 'split needs 121', requireAwait: true, awaitSettleTicks: 1, mark: 'too-narrow' },
   ]
   const out = join(OUT_DIR, 'split-view-100x30.json')
   const cfgPath = join(scratch, 'vshot-narrow.json')
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 900, readyText: 'split needs 121 columns', stableTicks: 3, cols: 100, rows: 30, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 900, readyText: 'split needs 121', stableTicks: 3, cols: 100, rows: 30, out }))
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })
   if (res.status !== 0) {
     console.error(`✗ vshot (100×30) failed: ${(res.stderr ?? '').slice(-600)}`)
@@ -122,7 +120,7 @@ const env = {
   writeFileSync(join(OUT_DIR, 'mark-too-narrow.txt'), lines.join('\n') + '\n')
   const has = (needle: string): boolean => lines.some(l => l.includes(needle))
   console.log('L4 — the honest refusal under the threshold')
-  check('the one width line names the needed columns', has('split needs 121 columns'))
+  check('the one width line names the needed columns', has('split needs 121'))
   check('nothing split — no chat pane column appeared', !has('tab chat pane') && !has('tab board · s full board'))
 }
 

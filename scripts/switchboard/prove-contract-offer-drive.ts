@@ -54,7 +54,6 @@ const sends = [
   after(3600, 'first words here'),
   after(4200, '\r'),
   after(7000, `${ESC}[1;2D`),
-  after(8000, '\t'),
   after(8800, 'n'),
   after(10200, ESC),
   after(13600, `${ESC}[1;2D`),
@@ -127,11 +126,11 @@ if (sendRecs.length === sends.length) {
       '120',
       '40',
       String(at(2) + 3000),
-      String(at(5) + 900),
-      String(at(6) + 2500),
+      String(at(4) + 900),
+      String(at(5) + 2500),
+      String(at(8) + 900),
       String(at(9) + 900),
-      String(at(10) + 900),
-      String(at(11) + 2500),
+      String(at(10) + 2500),
       '-1',
     ],
     { encoding: 'utf8', timeout: vshotBudgetMs(60_000), maxBuffer: 64 * 1024 * 1024 },
@@ -153,7 +152,7 @@ if (sendRecs.length === sends.length) {
   check('§4e the field advertises its keys truthfully (↵ starts · esc plain)', /↵ starts the session under it/.test(typedFrame!) && /esc starts it plain/.test(typedFrame!))
   check('§5 ↵ births under the words — the NEW blank chat is focused (the status row ready, the empty composer, no title row)', !/✶ VIEW/.test(afterBirth!) && /Type a prompt/.test(afterBirth!) && /ready · [^\n]*← back/.test(afterBirth!), (afterBirth ?? '').split('\n').find(r => /← back|new session/.test(r))?.trim().slice(0, 110) ?? '')
   check('§5b POISON: the birth never lands the OLD chat', !/first words here/.test(afterBirth!) && !TRANSCRIPT_TAIL.test(afterBirth!))
-  check('§2b/§5c the rows join the board (the final frame after returning to it)', /SESSIONS/.test(fin!) && /3 live/.test(fin!))
+  check('§2b/§5c the rows join the board (the final frame after returning to it: three rows under one heading, three seats taken)', /SESSIONS/.test(fin!) && /READY TO REVIEW · 3/.test(fin!) && /3\/5 seats/.test(fin!), fin!.split('\n').filter(r => /READY TO REVIEW|seats/.test(r)).map(r => r.trim().slice(-48)).join(' | '))
   const workers = existsSync(join(daemonDir, 'concourse-workers.json')) ? (JSON.parse(readFileSync(join(daemonDir, 'concourse-workers.json'), 'utf8')) as { workers?: Record<string, { sessionId?: string; endedAt?: number; contract?: { text?: string; status?: string } }> }) : { workers: {} }
   const all = Object.values(workers.workers ?? {})
   const born = new Set(all.map(w => w.sessionId))

@@ -123,6 +123,10 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
     return Math.max(current, next)
   }
   const events = (rows: Record<string, unknown>[]): BoardEvent[] => rows.map(row => JSON.parse(String(row.record)) as BoardEvent)
+  const leadPending = (order: 'ASC' | 'DESC'): BoardEvent | null => {
+    const row = db.prepare(`SELECT e.record FROM deliveries d JOIN events e ON e.id = d.event WHERE d.recipient = 'main' AND d.mode = 'mention-wake-body' AND d.state = 'pending' AND NOT EXISTS (SELECT 1 FROM seen_events WHERE agent = d.recipient AND event = d.event) ORDER BY e.seq ${order} LIMIT 1`).get()
+    return row ? JSON.parse(String(row.record)) as BoardEvent : null
+  }
   const latest = (): number => Number(db.prepare('SELECT COALESCE(MAX(seq), 0) AS seq FROM events').get()!.seq)
   const packetText = (e: BoardEvent): string => {
     const owner = e.authorRole === 'owner'
@@ -514,8 +518,10 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
       db.prepare("INSERT INTO lead_paint (recipient, seq) VALUES ('main', ?) ON CONFLICT(recipient) DO UPDATE SET seq = MAX(seq, excluded.seq)").run(seq)
     },
     leadMention() {
-      const row = db.prepare("SELECT e.record FROM deliveries d JOIN events e ON e.id = d.event WHERE d.recipient = 'main' AND d.mode = 'mention-wake-body' AND d.state = 'pending' AND NOT EXISTS (SELECT 1 FROM seen_events WHERE agent = d.recipient AND event = d.event) ORDER BY e.seq LIMIT 1").get()
-      return row ? JSON.parse(String(row.record)) as BoardEvent : null
+      return leadPending('ASC')
+    },
+    leadMentionNewest() {
+      return leadPending('DESC')
     },
     boundary(p, seen) {
       return transaction(() => {

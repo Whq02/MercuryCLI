@@ -94,10 +94,10 @@ export function swarmStore(create = true): BoardStore | null {
 }
 
 export function watchSwarmLead(idle: () => boolean, wake: () => void, paint: (event: BoardEvent) => void): { check: () => void; stop: () => void } {
-  const notified = new Map<string, string>()
+  const woken = new Map<string, { oldest: string; newest: string; out: boolean }>()
   const painted = new Map<string, number>()
   const leadContext = AsyncLocalStorage.snapshot()
-  const check = (): void => leadContext(() => {
+  const look = (settled: boolean): void => leadContext(() => {
     if (isReadOnlyDiagnostic() || !swarmSessionEnabled()) return
     const session = String(getSessionId())
     const store = sessions.get(session)?.store
@@ -107,16 +107,25 @@ export function watchSwarmLead(idle: () => boolean, wake: () => void, paint: (ev
       store.markLeadPainted(event.seq)
       paint(event)
     }
+    const last = woken.get(session)
+    if (last !== undefined && settled) last.out = false
     if (operatorPauseGate.holds('main') || !idle()) return
-    const event = store.leadMention()
-    if (!event || notified.get(session) === event.eventId) return
-    notified.set(session, event.eventId)
+    const oldest = store.leadMention()
+    const newest = store.leadMentionNewest()
+    if (!oldest || !newest) {
+      if (last !== undefined) last.out = false
+      return
+    }
+    if (last !== undefined && last.oldest !== oldest.eventId) last.out = false
+    if (last !== undefined && (last.out || last.newest === newest.eventId)) return
+    woken.set(session, { oldest: oldest.eventId, newest: newest.eventId, out: true })
     wake()
   })
+  const check = (): void => look(false)
   leadChecks.add(check)
   const resume = operatorPauseGate.subscribe(check)
   check()
-  return { check, stop: () => { leadChecks.delete(check); resume() } }
+  return { check: () => look(true), stop: () => { leadChecks.delete(check); resume() } }
 }
 
 export function watchSwarmBoard(check: () => void): () => void {

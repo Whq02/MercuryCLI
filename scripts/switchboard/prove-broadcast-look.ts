@@ -74,8 +74,7 @@ const env = {
 {
   const DOWN = String.fromCharCode(27) + '[B'
   const sends: Send[] = [
-    { data: '\t', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 2 },
-    { data: ' ', afterPrevTicks: 2 },
+    { data: ' ', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 2 },
     { data: DOWN, afterPrevTicks: 1 },
     { data: ' ', afterPrevTicks: 1 },
     { data: '', awaitText: 'message 2 sessions', requireAwait: true, awaitSettleTicks: 2, mark: 'two-marked' },
@@ -124,8 +123,8 @@ const env = {
   console.log('L4 — the honest partial send')
   check('the summary is the ruled arithmetic', has(mk('sent'), 'sent to 2 of 3 · 1 skipped'))
   check(
-    'the skipped queued row keeps its own cell, never a sent mark',
-    mk('sent').some(l => l.includes('Trace reconnect r') && l.includes('waits for a seat')),
+    'the skipped queued row keeps its own cell (waits, where a session shows its age), never a sent mark',
+    mk('sent').some(l => l.includes('Trace reconnect r') && /\bwaits\b/.test(l) && !l.includes('sent')),
   )
   check('the marks survive the send (esc is the clear gesture)', mk('sent').some(l => l.includes('✓') && l.includes('Fix OAuth callback')))
   check('the composer is empty again — the broadcast face placeholder returned', has(mk('sent'), 'message 3 sessions · ↵↵ sends to all marked'))
