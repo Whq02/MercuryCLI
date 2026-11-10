@@ -2,6 +2,7 @@
 import {
   useCallback,
   useDeferredValue,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useReducer,
@@ -99,6 +100,8 @@ export function useVirtualScroll(
   const reflowHoldRef = useRef(false)
   const outOfLayoutRef = useRef(false)
   const laidOutRef = useRef(false)
+  const listCommittingRef = useRef(false)
+  const afterLayoutRef = useRef<() => void>(() => {})
   const [, forceResolve] = useReducer((n: number) => n + 1, 0)
 
   function indexByKey(keys: readonly string[], key: string): number | undefined {
@@ -199,6 +202,45 @@ export function useVirtualScroll(
       (first === 0 || fresh[first]! <= Math.max(0, top - SCROLL_BIN_ROWS)) &&
       (last >= count || fresh[last]! >= Math.min(total, bottom + SCROLL_BIN_ROWS))
     )
+  }
+
+  function recordMountedHeights(): void {
+    const cache = heightCacheRef.current
+    for (const [key, element] of elementsRef.current) {
+      const layout = element.layoutNode
+      if (!layout) continue
+      const height = layout.getComputedHeight()
+      const width = layout.getComputedWidth()
+      if (height > 0) {
+        if (cache.get(key) !== height) {
+          cache.set(key, height)
+          offsetsVersionRef.current += 1
+          const idx = indexByKey(prevItemKeysRef.current, key)
+          minChangedIndexRef.current = Math.min(minChangedIndexRef.current, idx ?? 0)
+        }
+      } else if (width > 0) {
+        if (cache.get(key) !== 0) {
+          cache.set(key, 0)
+          offsetsVersionRef.current += 1
+          const idx = indexByKey(prevItemKeysRef.current, key)
+          minChangedIndexRef.current = Math.min(minChangedIndexRef.current, idx ?? 0)
+        }
+      }
+    }
+  }
+
+  function renderIfHeightsMovedThePane(first: number, last: number): boolean {
+    const heightsMoved = offsetsVersionRef.current !== offsetsBuiltVersionRef.current
+    if (heightsMoved) {
+      const changedFrom = minChangedIndexRef.current
+      if (contentPinRef.current && Number.isFinite(changedFrom)) {
+        const pinIdx = indexByKey(prevItemKeysRef.current, contentPinRef.current.key)
+        if (pinIdx === undefined || changedFrom <= pinIdx) forceResolve()
+      }
+      if (!mountedCoversPane(first, last)) forceResolve()
+    }
+    minChangedIndexRef.current = Number.POSITIVE_INFINITY
+    return heightsMoved
   }
 
   const subscribe = useCallback(
@@ -506,38 +548,8 @@ export function useVirtualScroll(
       if (reflowHoldRef.current) forceResolve()
       return
     }
-    const cache = heightCacheRef.current
-    for (const [key, element] of elementsRef.current) {
-      const layout = element.layoutNode
-      if (!layout) continue
-      const height = layout.getComputedHeight()
-      const width = layout.getComputedWidth()
-      if (height > 0) {
-        if (cache.get(key) !== height) {
-          cache.set(key, height)
-          offsetsVersionRef.current += 1
-          const idx = indexByKey(prevItemKeysRef.current, key)
-          minChangedIndexRef.current = Math.min(minChangedIndexRef.current, idx ?? 0)
-        }
-      } else if (width > 0) {
-        if (cache.get(key) !== 0) {
-          cache.set(key, 0)
-          offsetsVersionRef.current += 1
-          const idx = indexByKey(prevItemKeysRef.current, key)
-          minChangedIndexRef.current = Math.min(minChangedIndexRef.current, idx ?? 0)
-        }
-      }
-    }
-    const heightsMoved = offsetsVersionRef.current !== offsetsBuiltVersionRef.current
-    if (heightsMoved) {
-      const changedFrom = minChangedIndexRef.current
-      if (contentPinRef.current && Number.isFinite(changedFrom)) {
-        const pinIdx = indexByKey(prevItemKeysRef.current, contentPinRef.current.key)
-        if (pinIdx === undefined || changedFrom <= pinIdx) forceResolve()
-      }
-      if (!mountedCoversPane(effectiveStart, effectiveEnd)) forceResolve()
-    }
-    minChangedIndexRef.current = Number.POSITIVE_INFINITY
+    recordMountedHeights()
+    const heightsMoved = renderIfHeightsMovedThePane(effectiveStart, effectiveEnd)
     if (reflowHoldRef.current) {
       if (freezeRendersRef.current > 0) {
         forceResolve()
@@ -549,6 +561,21 @@ export function useVirtualScroll(
       }
     }
   })
+
+  useLayoutEffect(() => {
+    listCommittingRef.current = false
+    afterLayoutRef.current = (): void => {
+      if (listCommittingRef.current || measurementSkipRef.current) return
+      if (freezeRendersRef.current > 0 || reflowHoldRef.current) return
+      recordMountedHeights()
+      renderIfHeightsMovedThePane(effectiveStart, effectiveEnd)
+    }
+    return () => {
+      listCommittingRef.current = true
+    }
+  })
+
+  useEffect(() => scrollRef.current?.subscribeLayout(() => afterLayoutRef.current()), [scrollRef])
 
   const measureRef = useCallback(
     (key: string): ((el: DOMElement | null) => void) => {

@@ -3,6 +3,7 @@ import React, {
   forwardRef,
   type PropsWithChildren,
   useCallback,
+  useContext,
   useImperativeHandle,
   useEffect,
   useMemo,
@@ -18,6 +19,7 @@ import { fluxMark } from '../../utils/flux/fluxProbe.js'
 import useStdin from '../hooks/use-stdin.js'
 import type { InputEvent } from '../events/input-event.js'
 import { elevatedSurfaceOwnsNode } from '../recessLayer.js'
+import { InkInstanceContext } from './InkInstanceContext.js'
 
 function markUnstick(scroll: { stickyScroll?: boolean }): void {
   if (scroll.stickyScroll !== false) fluxMark('scroll:unstick')
@@ -44,6 +46,7 @@ export type ScrollBoxHandle = {
   getElementTop: (el: DOMElement) => number | undefined
   isSticky: () => boolean
   subscribe: (listener: () => void) => () => void
+  subscribeLayout: (listener: () => void) => () => void
   setClampBounds: (min: number | undefined, max: number | undefined) => void
   pinScrollTop: (y: number) => void
 }
@@ -56,6 +59,7 @@ const ScrollBox = forwardRef<ScrollBoxHandle, ScrollBoxProps>(function ScrollBox
   const contentRef = useRef<DOMElement | null>(null)
   const listeners = useRef(new Set<() => void>())
   const renderQueued = useRef(false)
+  const ink = useRef(useContext(InkInstanceContext))
 
   const notify = (): void => {
     for (const listener of listeners.current) listener()
@@ -155,6 +159,7 @@ const ScrollBox = forwardRef<ScrollBoxHandle, ScrollBoxProps>(function ScrollBox
           listeners.current.delete(listener)
         }
       },
+      subscribeLayout: listener => ink.current?.subscribeLayout(listener) ?? (() => {}),
       setClampBounds(min, max) {
         const node = nodeRef.current
         if (!node) return
