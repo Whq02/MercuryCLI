@@ -69,8 +69,8 @@ function check(name: string, ok: boolean, detail?: string): void {
     s.includes('probeBuiltinTsServer()'),
   )
   check(
-    "healthReport: off state names the registered flag ('MERCURY_LSP=0')",
-    s.includes('MERCURY_LSP=0'),
+    "healthReport: off state names the registered flag as it was set (flagAsSet('MERCURY_LSP'))",
+    s.includes("flagAsSet('MERCURY_LSP')} — IDE-hands bridge disabled by flag"),
   )
 }
 
