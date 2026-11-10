@@ -754,10 +754,26 @@ export function windowPauseResumeDelayMs(resumesAtMs: number, nowMs: number = Da
 }
 
 const pendingAutomaticResumes = new Map<string, ReturnType<typeof setTimeout>>()
+const automaticResumesFiring = new Set<string>()
 const cutsAlreadyResumed = new WeakSet<AbortController>()
 
 export function automaticResumePending(taskId: string): boolean {
   return pendingAutomaticResumes.has(taskId)
+}
+
+export function armedAutomaticResumeCount(): number {
+  let firing = 0
+  for (const taskId of automaticResumesFiring) if (!pendingAutomaticResumes.has(taskId)) firing++
+  return pendingAutomaticResumes.size + firing
+}
+
+async function whileFiring(taskId: string, fire: () => Promise<void>): Promise<void> {
+  automaticResumesFiring.add(taskId)
+  try {
+    await fire()
+  } finally {
+    automaticResumesFiring.delete(taskId)
+  }
 }
 
 export function cancelAutomaticResume(taskId: string): boolean {
@@ -796,7 +812,7 @@ export function armBudgetCutResume(args: {
   if (cutsAlreadyResumed.has(args.registration)) return null
   if (args.pause !== undefined) pauseAgentTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
   let unsubscribeAccount: (() => void) | undefined
-  const fire = async (accountChanged = false): Promise<void> => {
+  const resumeNow = async (accountChanged: boolean): Promise<void> => {
     unsubscribeAccount?.()
     unsubscribeAccount = undefined
     const armed = pendingAutomaticResumes.get(args.taskId)
@@ -837,6 +853,7 @@ export function armBudgetCutResume(args: {
           `Crewmate "${args.description}" resumed by itself — the recovery budget's allowance is back after it was spent waiting on the provider; its partial work carried forward`) + (resumed?.note ?? ''),
     })
   }
+  const fire = (accountChanged = false): Promise<void> => whileFiring(args.taskId, () => resumeNow(accountChanged))
   const timer = setTimeout(() => {
     void runWithCwdOverride(getCwdState(), () => fire())
   }, args.delayMs ?? recoveryBudgetMs())
@@ -959,7 +976,7 @@ export function armOverloadProbe(args: {
     const row = tasksNow?.[args.taskId]
     return isLocalAgentTask(row) && row.status === 'failed' && row.registration === args.registration && row.paused !== undefined
   }
-  const fire = async (): Promise<void> => {
+  const probeNow = async (): Promise<void> => {
     pendingAutomaticResumes.delete(args.taskId)
     if (!stillThisRow()) return
     episode.probes += 1
@@ -993,6 +1010,7 @@ export function armOverloadProbe(args: {
       closeOverloadEpisode(args.taskId)
     }
   }
+  const fire = (): Promise<void> => whileFiring(args.taskId, probeNow)
   const timer = setTimeout(() => {
     void runWithCwdOverride(getCwdState(), fire)
   }, delayMs)
