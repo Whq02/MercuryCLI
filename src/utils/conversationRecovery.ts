@@ -21,7 +21,6 @@ import {
   createAssistantMessage,
   createUserMessage,
   filterOrphanedThinkingOnlyMessages,
-  filterUnresolvedToolUses,
   filterWhitespaceOnlyAssistantMessages,
   isToolUseResultMessage,
   isTurnCutText,
@@ -29,6 +28,7 @@ import {
   normalizeMessages,
   SYNTHETIC_MESSAGES,
 } from './messages.js'
+import { settleToolUsesOfEndedRun } from './messages/apiFilters.js'
 import {
   accumulateOpenToolUses,
   cloneOpenToolUses,
@@ -173,7 +173,7 @@ function detectInterruption(messages: Message[]): InternalInterruptionState {
 function deserializeMessagesWithInterruptDetection(serialized: Message[]): DeserializeResult {
   try {
     let messages = withoutRetractedReplies(rehydrateScreenshots(serialized.map(migrateLegacyAttachment).map(scrubPermissionMode)))
-    messages = filterUnresolvedToolUses(messages)
+    messages = settleToolUsesOfEndedRun(messages)
     messages = filterOrphanedThinkingOnlyMessages(messages)
     messages = filterWhitespaceOnlyAssistantMessages(messages)
 
