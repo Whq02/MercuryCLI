@@ -67,10 +67,10 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   if (!accepted || boundRefusesChat || mode === 'auth') return refuse(401, 'invalid_api_key', 'Incorrect API key provided. ')
   for (const forbidden of ['max_completion_tokens', 'reasoning', 'thinking', 'temperature', 'top_p']) if (forbidden in body) return refuse(400, 'invalid_parameter', `unsupported parameter ${forbidden}`)
   if ('reasoning_effort' in body && 'thinking_budget' in body) return refuse(400, 'invalid_parameter', 'reasoning_effort and thinking_budget cannot be set at the same time')
-  if ('reasoning_effort' in body && (!/^qwen3\.8-(?:max|flash|omni-flash|2\.4t-a95b|27b)/.test(body.model) || !['low', 'medium', 'xhigh'].includes(body.reasoning_effort))) return refuse(400, 'invalid_parameter', `reasoning_effort ${body.reasoning_effort} on ${body.model}`)
+  if ('reasoning_effort' in body && (!/^(?:qwen3\.8-(?:max|flash|omni-flash|2\.4t-a95b|27b)|qwen4(?:\.[0-9]+)?-(?:max|plus|flash|omni-flash|[0-9]+b))/.test(body.model) || !['low', 'medium', 'xhigh'].includes(body.reasoning_effort))) return refuse(400, 'invalid_parameter', `reasoning_effort ${body.reasoning_effort} on ${body.model}`)
   if ('thinking_budget' in body && !(Number.isInteger(body.thinking_budget) && body.thinking_budget > 0)) return refuse(400, 'invalid_parameter', 'thinking_budget')
   if (body.messages.some((row: any, index: number) => row.role === 'system' && index !== 0)) return refuse(400, 'invalid_parameter', 'only messages[0] takes the system role')
-  if (/^qwen3-coder-plus/.test(body.model) && ('enable_thinking' in body || 'preserve_thinking' in body)) return refuse(400, 'invalid_parameter', 'thinking knobs on a non-thinking model')
+  if (/^(?:qwen3-coder-plus|qwen40)/.test(body.model) && ('enable_thinking' in body || 'preserve_thinking' in body)) return refuse(400, 'invalid_parameter', 'thinking knobs on a non-thinking model')
   if (body.model === 'qwen-plus' && 'preserve_thinking' in body) return refuse(400, 'invalid_parameter', 'preserve_thinking on a row that does not take it')
   if (mode === 'billing') return refuse(400, 'Arrearage', 'Access denied, please make sure your account is in good standing.')
   if (mode === 'rate') return refuse(429, 'rate_limit_exceeded', 'Requests rate limit exceeded, please try again later.', { 'retry-after': '3600' })
@@ -228,6 +228,34 @@ try {
   check('Agent exact dispatch keeps a pinned id and admits a live-only id', (await resolveEngineDispatch('qwen3.7-plus'))?.model === 'qwen3.7-plus' && (await resolveEngineDispatch('qwen3-coder-plus'))?.backend === 'qwen')
   const meter = usageForProvider('qwen')
   check('/usage says plainly that no endpoint states usage or balance to an API key, naming the console and the credential checked', meter.sourceKind === 'api-key' && meter.windows.length === 0 && meter.credits?.state === 'unreported' && (meter.absence ?? '').includes('no usage, balance or quota endpoint') && (meter.absence ?? '').includes('the key was the one credential checked') && (meter.absence ?? '').includes('International (Singapore)'))
+
+  section('Qwen 4 before any pin: a live qwen4 id takes Qwen\'s thinking switch, preserved thinking and effort dial; an id that only begins with the same letters does not')
+  const { qwenThinkingDial, qwenPreservesThinking, qwenEffortVocabulary } = await import('../../src/services/providers/qwen/qwenPins.ts')
+  const QWEN4_IDS = ['qwen4-max', 'qwen4-plus', 'qwen4-flash', 'qwen4-omni-flash', 'qwen4-27b', 'qwen4.5-max', 'qwen4-max-2026-11-20', 'Qwen4-Max']
+  const QWEN4_DECOYS = ['qwen40', 'qwen45-turbo', 'qwen4max', 'qwen4', 'qwen4-turbo', 'qwen4-tts-flash']
+  check('the three controls on every Qwen 4 id of a known tier, dated and versioned spellings included (red on the base: none · false · no dial)', QWEN4_IDS.every(id => qwenThinkingDial(id) === 'hybrid' && qwenPreservesThinking(id) && JSON.stringify(qwenEffortVocabulary(id)) === '["low","medium","xhigh"]'))
+  check('none on qwen40, qwen45-turbo, a glued tier, the bare generation or an unknown tier', QWEN4_DECOYS.every(id => qwenThinkingDial(id) === 'none' && !qwenPreservesThinking(id) && qwenEffortVocabulary(id).length === 0))
+  check('the Qwen 3 rows keep the facts they had: the 3.8 dial rows, 3.7 without a dial, qwen-plus hybrid alone, Coder Plus none', JSON.stringify(['qwen3.8-27b', 'qwen3.8-2.4t-a95b', 'qwen3.7-flash', 'qwen3.6-plus', 'qwen-plus', 'qwen3-coder-plus'].map(id => [qwenThinkingDial(id), qwenPreservesThinking(id), qwenEffortVocabulary(id).length])) === JSON.stringify([['hybrid', false, 3], ['none', false, 3], ['hybrid', true, 0], ['hybrid', true, 0], ['hybrid', false, 0], ['none', false, 0]]))
+  modelList = liveRows([...TEXT_IDS, 'qwen4-max', 'qwen4-27b', 'qwen40', ...OTHER_IDS]); await refreshQwenCatalogue({ force: true })
+  const qwen4Rows = qwenCatalogueRows().rows
+  check('a live qwen4-max is a row after every pin, named by its id, with no window of its own; the family word stays on the pinned head', qwen4Rows.find(item => item.id === 'qwen4-max')?.listedLive === true && qwen4Rows.find(item => item.id === 'qwen4-max')?.contextWindow === undefined && qwen4Rows.findIndex(item => item.id === 'qwen4-max') > qwen4Rows.findIndex(item => item.id === 'qwen3-coder-flash') && qwen4Rows.findIndex(item => item.id === 'qwen3-coder-flash') >= 0 && bareFamilyWordOf('qwen')?.headRow()?.id === 'qwen3.8-max')
+  check('the picker offers the Qwen 4 row the three rungs with xhigh as the default, thinking on the switch; the decoy has neither', JSON.stringify(effortVocabularyFor('qwen4-max')).startsWith('{"kind":"provider","source":"qwen","vocabulary":["low","medium","xhigh"],"defaultEffort":"xhigh","thinkingGated":true') && modelSupportsThinking('qwen4-max') && effortVocabularyFor('qwen40').kind === 'none' && !modelSupportsThinking('qwen40'))
+  const qwen4First = await run(params('qwen4-max', 'high'))
+  const qwen4Body = captures.at(-1)!.body
+  check('qwen4-max asked high rides as listed with enable_thinking true, preserve_thinking true and reasoning_effort xhigh, and the reply carries its thinking (red on the base: the stream knobs alone)', qwen4Body.model === 'qwen4-max' && qwen4Body.enable_thinking === true && qwen4Body.preserve_thinking === true && qwen4Body.reasoning_effort === 'xhigh' && !('thinking_budget' in qwen4Body) && thinkingOf(qwen4First) === 'Weighing the fixture carefully.' && textOf(qwen4First) === 'QWEN-FIXTURE-SETTLED')
+  await run(params('qwen4-max', 'max', false))
+  check('with thinking off it sends enable_thinking false, keeps preserve_thinking and sends no effort word', captures.at(-1)?.body.enable_thinking === false && captures.at(-1)?.body.preserve_thinking === true && !('reasoning_effort' in captures.at(-1)!.body))
+  await run(params('qwen4-27b', 'minimal'))
+  check('qwen4-27b asked minimal rides at low with both switches', captures.at(-1)?.body.model === 'qwen4-27b' && captures.at(-1)?.body.reasoning_effort === 'low' && captures.at(-1)?.body.enable_thinking === true && captures.at(-1)?.body.preserve_thinking === true)
+  mode = 'tools'
+  const qwen4Tools = await run(params('qwen4-max', 'medium'))
+  mode = 'text'
+  await run(params('qwen4-max', 'medium', true, [...qwen4Tools, createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'call_qwen_fixture_1', content: 'echo:hello' }] })]))
+  check('its reasoning rides back on the history: the assistant call replays with reasoning_content beside the tool result (red on the base: dropped)', captures.at(-1)!.body.messages.some((item: any) => item.role === 'assistant' && item.tool_calls?.[0]?.id === 'call_qwen_fixture_1' && item.reasoning_content === 'Calling the fixture tool.') && captures.at(-1)!.body.messages.some((item: any) => item.role === 'tool' && item.tool_call_id === 'call_qwen_fixture_1'))
+  const decoy = await run(params('qwen40', 'high'))
+  check('qwen40 rides as listed with the stream knobs alone and settles', captures.at(-1)?.body.model === 'qwen40' && !('enable_thinking' in captures.at(-1)!.body) && !('preserve_thinking' in captures.at(-1)!.body) && !('reasoning_effort' in captures.at(-1)!.body) && textOf(decoy) === 'QWEN-FIXTURE-SETTLED')
+  check('the knob builder for an unpinned Qwen 4 id at max', JSON.stringify(buildQwenExtras({ wireModel: 'qwen4-max', effortValue: 'max', thinkingEnabled: true, maxOutputTokensOverride: undefined })) === '{"stream_options":{"include_usage":true},"enable_thinking":true,"preserve_thinking":true,"reasoning_effort":"xhigh"}')
+  modelList = fixtures; await refreshQwenCatalogue({ force: true })
 
   section('the sign-in: the region and plan probe')
   const row = loginFamilyRows({ engineLegs: true }).find(item => item.value === 'qwen')

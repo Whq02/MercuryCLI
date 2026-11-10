@@ -82,23 +82,27 @@ export function qwenDisplayName(id: string): string {
 const HYBRID_THINKING_RE = /^(?:qwen3(?:\.[0-9]+)?-(?:max|plus|flash|omni-flash)|qwen3(?:\.[0-9]+)?-[0-9]+b|qwen-(?:plus|flash))(?:-|$)/
 const PRESERVES_THINKING_RE = /^(?:qwen3\.8-(?:max|flash|omni-flash)|qwen3\.7-(?:max|plus|flash)|qwen3\.6-plus)(?:-|$)/
 const EFFORT_DIAL_RE = /^qwen3\.8-(?:max|flash|omni-flash|2\.4t-a95b|27b)(?:-|$)/
+const QWEN4_RE = /^qwen4(?:\.[0-9]+)?-(?:max|plus|flash|omni-flash|[0-9]+b)(?:-|$)/
 
 export function qwenThinkingDial(id: string): QwenThinkingDial {
   const pin = qwenDisplayPin(id)
   if (pin) return pin.thinking
-  return HYBRID_THINKING_RE.test(bareId(id)) ? 'hybrid' : 'none'
+  const bare = bareId(id)
+  return HYBRID_THINKING_RE.test(bare) || QWEN4_RE.test(bare) ? 'hybrid' : 'none'
 }
 
 export function qwenPreservesThinking(id: string): boolean {
   const pin = qwenDisplayPin(id)
   if (pin) return pin.preservesThinking
-  return PRESERVES_THINKING_RE.test(bareId(id))
+  const bare = bareId(id)
+  return PRESERVES_THINKING_RE.test(bare) || QWEN4_RE.test(bare)
 }
 
 export function qwenEffortVocabulary(id: string): readonly string[] {
   const pin = qwenDisplayPin(id)
   if (pin) return pin.efforts
-  return EFFORT_DIAL_RE.test(bareId(id)) ? QWEN_EFFORTS : []
+  const bare = bareId(id)
+  return EFFORT_DIAL_RE.test(bare) || QWEN4_RE.test(bare) ? QWEN_EFFORTS : []
 }
 
 export function qwenWireEffort(effort: string): string | undefined {

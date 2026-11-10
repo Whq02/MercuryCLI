@@ -565,7 +565,9 @@ and `/usage` rows name the plan. The family word `qwen` runs Qwen3.8 Max
 wherever it is a row. Requests carry Qwen's own `enable_thinking` switch and
 `preserve_thinking` on the rows that take them, the effort dial as
 `reasoning_effort` in Qwen's vocabulary (`low`, `medium`, `xhigh`) on the Qwen3.8
-rows that document it, a stated `models.<id>.thinkingBudget` as `thinking_budget`
+rows that document it and all three on a Qwen 4 id of a known tier (`qwen4-max`,
+`-plus`, `-flash`, `-omni-flash`, `-<n>b`) before this build pins one, a stated
+`models.<id>.thinkingBudget` as `thinking_budget`
 in place of the effort word, the system prompt in `messages[0]` alone, and tool
 calls on the shared wire. A 401 from the bound endpoint names the region and the
 re-bind road. `/usage` shows session spend; neither console exposes a usage or
