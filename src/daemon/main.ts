@@ -30,6 +30,7 @@ import {
   attachYieldConcourseSession,
   blurConcourseSession,
   completeRequestedPark,
+  endRunnersLeftWithoutHost,
   retireRequestedPark,
   detachRespawnConcourseSession,
   focusConcourseSession,
@@ -576,6 +577,19 @@ async function daemonRun(args: string[]): Promise<void> {
         console.error(`[daemon] handover from pid ${handoverPredecessor}: took the plane (v${currentVersion()} proto ${MERCURY_DAEMON_PROTO}); its socket ${moved ? `serves on at ${handover.sockPath}` : 'was not on the path'}; ${held > 0 ? `it keeps ${held} live session(s) until they finish` : 'it holds no live session — it leaves on its own, or is asked to once it reads idle'}`)
       }
       const handoverRef = handover
+      {
+        const rosterRef = roster
+        const left = await endRunnersLeftWithoutHost(short => (rosterRef?.has(short).present ?? false) || (handoverRef?.holds(short) ?? false))
+        if (left.length > 0) {
+          // eslint-disable-next-line no-console
+          console.error(`[daemon] ${left.length} runner${left.length === 1 ? '' : 's'} left by a daemon that died ${left.length === 1 ? 'was' : 'were'} ended: ${left.map(r => `${r.runnerId} (pid ${r.pid})`).join(', ')}; each session answers its next message on a fresh runner`)
+          try {
+            reconcileWorkingDispatches()
+          } catch (e) {
+            logForDebugging(`[daemon] working-dispatch reconcile after the left runners failed (non-fatal): ${e}`)
+          }
+        }
+      }
       const countBirth = async <T>(door: () => Promise<T>): Promise<T> => {
         birthsInFlight++
         try {

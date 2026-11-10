@@ -13,7 +13,7 @@ import { lockSync } from '../utils/lockfile.js'
 import { daemonHomeStands, publishInDaemonHome, publishTransientInDaemonHome } from './daemonHome.js'
 import { flagSpellings } from '../substrate/flagRegistry.js'
 import { resolveEffectiveSettingsSnapshot } from '../substrate/startupMenu.js'
-import { getProcessStartInstant, getProcessStartInstantAsync, getProcessStartInstantCachedOrRefresh, isProcessAlive } from './ownerWatch.js'
+import { getProcessStartInstant, getProcessStartInstantAsync, getProcessStartInstantCachedOrRefresh, getProcessStartTokenAsync, isProcessAlive } from './ownerWatch.js'
 import { observeSessionStates } from './sessionStateHooks.js'
 import { daemonDir } from './controlSocket.js'
 import { decideTransition, type ConcourseSessionState } from './concourseLifecycle.js'
@@ -441,6 +441,8 @@ function buildTreeFields(): { buildTree?: string } {
 }
 
 import { workerPidAlive } from './workerIdentity.js'
+import { tokenBinding } from './processSweep.js'
+import { endProcessTree } from '../utils/processGroup.js'
 export { workerPidAlive } from './workerIdentity.js'
 
 export function markConcourseWorkerRespawn(runnerId: string, pid: number, dir?: string): void {
@@ -2683,6 +2685,28 @@ export function operatorTookSessionBack(sessionId: string, dir?: string): boolea
     if (rec) withdrawn = withdrawTerminalParkRequest(rec)
   }, dir)
   return withdrawn
+}
+
+export const HOSTLESS_RUNNER_GRACE_MS = 3_000
+
+export async function endRunnersLeftWithoutHost(
+  hosted: (runnerId: string) => boolean,
+  dir?: string,
+  opts?: { graceMs?: number },
+): Promise<Array<{ runnerId: string; pid: number }>> {
+  const ended: Array<{ runnerId: string; pid: number }> = []
+  for (const rec of Object.values(readSessionWorkers(dir))) {
+    const pid = rec.pid
+    if (rec.endedAt !== undefined || rec.attachedAt !== undefined || pid === undefined || rec.procStart === undefined) continue
+    if (hosted(rec.runnerId) || !isProcessAlive(pid)) continue
+    if (tokenBinding(rec.procStart, await getProcessStartTokenAsync(pid, rec.procStart)) !== 'bound') continue
+    await endProcessTree(pid, 'SIGTERM')
+    const deadline = Date.now() + (opts?.graceMs ?? HOSTLESS_RUNNER_GRACE_MS)
+    while (isProcessAlive(pid) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50))
+    if (isProcessAlive(pid)) await endProcessTree(pid, 'SIGKILL')
+    if (!isProcessAlive(pid)) ended.push({ runnerId: rec.runnerId, pid })
+  }
+  return ended
 }
 
 export function pendingParkRequests(dir?: string): string[] {
