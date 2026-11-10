@@ -184,7 +184,16 @@ dead_letter_dir=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/mercury-dead-letter
 /usr/bin/python3 scripts/gate/dead-letter.py "$dead_letter_dir/port" &
 dead_letter_pid=$!
 shard_compile_cache=""
-trap 'kill "$dead_letter_pid" 2>/dev/null; rm -rf "$dead_letter_dir" ${shard_compile_cache:+"$shard_compile_cache"}' EXIT
+end_suite_in_flight() {
+  local child n
+  for child in $(pgrep -P $$ 2>/dev/null); do
+    [ "$child" = "$dead_letter_pid" ] && continue
+    kill -TERM "$child" 2>/dev/null || continue
+    n=0
+    while kill -0 "$child" 2>/dev/null && [ "$n" -lt 100 ]; do sleep 0.1; n=$((n + 1)); done
+  done
+}
+trap 'end_suite_in_flight; kill "$dead_letter_pid" 2>/dev/null; rm -rf "$dead_letter_dir" ${shard_compile_cache:+"$shard_compile_cache"}' EXIT
 for _tick in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
   [ -s "$dead_letter_dir/port" ] && break
   sleep 0.5

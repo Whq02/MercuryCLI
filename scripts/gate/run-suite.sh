@@ -85,6 +85,13 @@ export MERCURY_VSHOT_BUDGET_SCALE="$scale"
 run_checked_suite >>"$out" 2>&1 &
 pid=$!
 runner=$$
+launcher=$PPID
+launcher_gone() {
+  [ "$launcher" -gt 1 ] || return 1
+  kill -0 "$launcher" 2>/dev/null && return 1
+  ps -p "$launcher" >/dev/null 2>&1 && return 1
+  return 0
+}
 end_suite_tree() {
   MERCURY_SUITE_BROWSER_CLEANER=1 "${MERCURY_NODE:-node}" "$repo_root/scripts/lib/proofBrowser.cjs" --quiesce "$pid" "$MERCURY_SUITE_TMPDIR" >>"$out" 2>&1
   kill_tree "$pid"
@@ -106,6 +113,7 @@ suite_tree_cpu() {
     sleep 1; n=$((n + 1))
     kill -0 "$pid" 2>/dev/null || exit 0
     kill -0 "$runner" 2>/dev/null || { printf '\n__SUITE_RUNNER_GONE (tree-killed)__\n' >>"$out"; end_suite_tree; exit 0; }
+    if launcher_gone; then printf '\n__SUITE_LAUNCHER_GONE (tree-killed)__\n' >>"$out"; end_suite_tree; exit 0; fi
     if [ "$((n % 10))" -eq 0 ]; then
       size=$(wc -c <"$out")
       if cpu_times=$(suite_tree_cpu "$pid"); then
