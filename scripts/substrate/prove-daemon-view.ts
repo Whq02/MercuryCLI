@@ -178,7 +178,7 @@ section('anti-fabrication: the rewritten view carries NO mockup literals')
 section('the /daemon command is stamp-gated (byte-identical OFF)')
 {
   const idx = readFileSync(join(import.meta.dir, '..', '..', 'src', 'commands', 'daemon', 'index.ts'), 'utf-8')
-  check('isEnabled: MERCURY_DAEMON_UI=0 is the only off-switch (alias-read)', /isEnabled:\s*\(\)\s*=>\s*\(flagEnv\('MERCURY_DAEMON_UI'\) === '0' \? false : true\)/.test(idx))
+  check('isEnabled: MERCURY_DAEMON_UI turns the route off by the shared off rule (flagEnabled: 0, false, no, off)', /isEnabled:\s*\(\)\s*=>\s*flagEnabled\('MERCURY_DAEMON_UI'\),/.test(idx))
   check('no longer the unconditional () => true', !/isEnabled:\s*\(\)\s*=>\s*true/.test(idx))
 }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execSync, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve, sep } from 'node:path'
 
@@ -215,6 +215,20 @@ section('every proof child boots with the local-server probe off')
 
 section("the roads at run time: the launcher's own pin, the operator's settings line, a suite")
 const scratch = mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'proof-machine-census-'))
+const realPath = (path: string): string => {
+  try {
+    return realpathSync(path)
+  } catch {
+    return path
+  }
+}
+const OWN_HOME = /^mercury-proof-home-[^/\\]+$/
+const HOME_IN_RUN_ROOT = /^mercury-proof-run\.[^/\\]{6}[/\\]mercury-proof-home-[^/\\]+$/
+function scratchHome(candidate: string, tempRoot: string): boolean {
+  const stands = (base: string, shape: RegExp): boolean => candidate.startsWith(base + sep) && shape.test(candidate.slice(base.length + 1))
+  if ([tempRoot, realPath(tempRoot)].some(base => stands(base, OWN_HOME) || stands(base, HOME_IN_RUN_ROOT))) return true
+  return process.platform !== 'win32' && stands(realPath('/tmp'), HOME_IN_RUN_ROOT)
+}
 try {
   const home = join(scratch, 'home')
   mkdirSync(join(home, '.mercury'), { recursive: true })
@@ -232,7 +246,7 @@ try {
     encoding: 'utf8',
   })
   const [pinnedHome = '', probe = ''] = preload.stdout.split('\n')
-  check(preload.status === 0 && pinnedHome !== '' && !pinnedHome.startsWith(home) && pinnedHome.startsWith(scratch), "a scripts/ entry launched with MERCURY_CONFIG_DIR at the operator's own $HOME/.mercury runs on a scratch home", `rc=${preload.status} home=${pinnedHome} ${preload.stderr.trim()}`)
+  check(preload.status === 0 && pinnedHome !== '' && !pinnedHome.startsWith(home) && scratchHome(pinnedHome, scratch), "a scripts/ entry launched with MERCURY_CONFIG_DIR at the operator's own $HOME/.mercury runs on a scratch home", `rc=${preload.status} home=${pinnedHome} ${preload.stderr.trim()}`)
   check(probe === 'none', 'that entry runs with the local-server probe off', `probe=${JSON.stringify(probe)}`)
   check(readdirSync(join(home, '.mercury')).sort().join(',') === before, "the operator's own .mercury is untouched (no seed, no write)", readdirSync(join(home, '.mercury')).join(','))
   check(JSON.parse(readFileSync(join(home, '.mercury', 'settings.json'), 'utf8')).engine?.model === OWNER_MODEL, 'its settings.json still carries the model line, unread and unwritten')

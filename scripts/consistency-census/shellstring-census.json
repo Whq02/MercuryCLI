@@ -836,6 +836,13 @@
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
+      "file": "scripts/gate/prove-proof-scratch.ts",
+      "mechanism": "hardcoded-tmp",
+      "excerpt": "const short = mkdtempSync(join(realpathSync('/tmp'), 'psp-'))",
+      "cls": "platform-owner",
+      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
+    },
+    {
       "file": "scripts/gate/prove-skip-census.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const PYTHON = '/usr/bin/python3'",
@@ -2036,6 +2043,13 @@
       "file": "scripts/substrate/prove-flag-registry.ts",
       "mechanism": "execSync-string",
       "excerpt": "return execSync(`grep -rEoh ${extraArgs} ${JSON.stringify(pattern)} src`, {",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/substrate/prove-flag-registry.ts",
+      "mechanism": "execSync-string",
+      "excerpt": "const srcFiles = execSync('git ls-files -z src', { cwd: root, maxBuffer: 64 * 1024 * 1024 })",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
