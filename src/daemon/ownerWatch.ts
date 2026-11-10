@@ -204,13 +204,14 @@ function startTokenOfAsync(pid: number, form: StartForm): Promise<string | null>
 }
 
 const START_FORMS: readonly StartForm[] = ['token', 'instant']
-const startTokenCache: Record<StartForm, Map<number, { token: string; at: number }>> = { token: new Map(), instant: new Map() }
-const startTokenInflight: Record<StartForm, Map<number, Promise<string | null>>> = { token: new Map(), instant: new Map() }
+const startTokenCache = new Map<string, { token: string; at: number }>()
+const startTokenInflight = new Map<string, Promise<string | null>>()
+const startKey = (form: StartForm, pid: number): string => `${form}:${pid}`
 
 function forgetStartTokens(pid: number): void {
   for (const form of START_FORMS) {
-    startTokenCache[form].delete(pid)
-    startTokenInflight[form].delete(pid)
+    startTokenCache.delete(startKey(form, pid))
+    startTokenInflight.delete(startKey(form, pid))
   }
 }
 
@@ -330,12 +331,12 @@ async function startTokensOf(holders: readonly { pid: number; procStart?: string
       continue
     }
     const form = asked ?? ([...tokens].some(token => startFormLike(token) === 'instant') ? 'instant' : 'token')
-    const hit = startTokenCache[form].get(pid)
+    const hit = startTokenCache.get(startKey(form, pid))
     if (hit && Date.now() - hit.at < maxAgeMs && [...tokens].every(token => token === hit.token)) {
       result.set(pid, hit.token)
       continue
     }
-    const inflight = startTokenInflight[form].get(pid)
+    const inflight = startTokenInflight.get(startKey(form, pid))
     if (inflight) wait(pid, inflight)
     else missing[form].push(pid)
   }
@@ -344,14 +345,14 @@ async function startTokensOf(holders: readonly { pid: number; procStart?: string
     const batch = probeStartTokens(missing[form], form)
     for (const pid of missing[form]) {
       const probe = batch.then(tokens => tokens.get(pid) ?? null, () => null).then(token => {
-        if (startTokenInflight[form].get(pid) === probe) {
-          startTokenInflight[form].delete(pid)
-          if (token) startTokenCache[form].set(pid, { token, at: Date.now() })
-          else startTokenCache[form].delete(pid)
+        if (startTokenInflight.get(startKey(form, pid)) === probe) {
+          startTokenInflight.delete(startKey(form, pid))
+          if (token) startTokenCache.set(startKey(form, pid), { token, at: Date.now() })
+          else startTokenCache.delete(startKey(form, pid))
         }
         return token
       })
-      startTokenInflight[form].set(pid, probe)
+      startTokenInflight.set(startKey(form, pid), probe)
       wait(pid, probe)
     }
   }
@@ -372,7 +373,7 @@ function startTokenCachedOrRefresh(pid: number, maxAgeMs: number, form: StartFor
     forgetStartTokens(pid)
     return ''
   }
-  const hit = startTokenCache[form].get(pid)
+  const hit = startTokenCache.get(startKey(form, pid))
   if (hit && Date.now() - hit.at < maxAgeMs) return hit.token
   void startTokensOf([{ pid }], maxAgeMs, form)
   return hit ? hit.token : null
