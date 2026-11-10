@@ -1,4 +1,4 @@
-import { termWrite } from '../../render-engine/cockpit/terminalOut.js'
+import { termWrite } from '../terminalOut.js'
 import { env } from '../../utils/env.js'
 import { BEL } from './ansi.js'
 import { osc, OSC, wrapForMultiplexer } from './osc.js'
@@ -29,7 +29,7 @@ export function postTerminalNotification(
   const method = opts.method ?? defaultPingMethod()
   const write =
     opts.write ??
-    ((data: string) => termWrite(process.stdout, data, 'bell'))
+    ((data: string) => termWrite(process.stdout, data))
   if (method === 'osc9') {
     write(buildOsc9Notification(message))
     return method

@@ -99,41 +99,6 @@
       "reason": "The notice-slot owner: build.ts imports it dynamically at stamp time (stampNoticeOnSource/hasCurrentNoticeStamp) and the notices generator + prove-notice-stamp.ts consume CURRENT_NOTICE_SLOTS. A build-time owner is correctly outside the runtime import graph."
     },
     {
-      "file": "src/render-engine/ansiText.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "The render engine core's ANSI tokenizer + row clamp (the width law every composed row rides), landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine) ahead of the cockpit mount; reached from the engine core and the proofs alone until the mount takes the core."
-    },
-    {
-      "file": "src/render-engine/capabilities.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "The render engine core's terminal-capability probe (what the engine's write door may emit), landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine) ahead of the cockpit mount; reached from the engine's one-import surface and the proofs alone until the mount takes the core."
-    },
-    {
-      "file": "src/render-engine/compose.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "The render engine core's tail-block composer, landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine) ahead of the cockpit mount; reached from the engine core and the proofs alone until the mount takes the core."
-    },
-    {
-      "file": "src/render-engine/engine.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "The render engine core (the settled-row ledger + the one write door + cost/drain scheduling), landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine) ahead of the cockpit mount; engineMount.ts takes it when the mount lands. Reached from the proofs alone until then."
-    },
-    {
-      "file": "src/render-engine/index.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "The render engine core's one-import surface (E1–E11: the settled-row ledger, the flat projection, the inline tail painter, the ANSI row clamp, the capabilities probe), landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine, fourteen provers) ahead of the cockpit mount: render-engine/cockpit/engineMount.ts mounts the ledger, the fold and the terminal door today and takes the core when the mount lands. Reached from the proofs alone until then."
-    },
-    {
-      "file": "src/render-engine/inlinePainter.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "The render engine core's inline tail painter (the in-place streaming paint the engine's write door drives), landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine) ahead of the cockpit mount; reached from the engine core and the proofs alone until the mount takes the core."
-    },
-    {
-      "file": "src/render-engine/projection.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "The render engine core's flat projection (the record → row projection the ledger settles), landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine) ahead of the cockpit mount; reached from the proofs alone until the mount takes the core."
-    },
-    {
       "file": "src/services/channel/frame.ts",
       "class": "living-specimen",
       "reason": "The multiplayer wire kept deliberately at the /say retirement (operator-ruled: \"Retire /say but keep the wire so that it stays for the agents\"); the extracted channel home is maintained estate awaiting the post-release multiplayer consumer."

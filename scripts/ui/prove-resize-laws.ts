@@ -311,7 +311,6 @@ console.log('§16 — a resize storm paints its hold once, on entry')
   const hold = ink.indexOf('this.paintResizeHold(columns, rows)', entry)
   check('the holding paint sits inside the storm-entry branch', entry >= 0 && hold > entry && hold < elseAt)
   check('a later event only re-arms the timer (no hold after the re-arm)', rearm > elseAt && ink.indexOf('this.paintResizeHold(columns, rows)', rearm) === -1)
-  check('the engine path keeps its one hold on storm entry', ink.includes('onStormEntered: () => {') && ink.includes('this.paintResizeHold(columns, rows)\n      },'))
 }
 
 console.log('§17 — the virtual list holds its pin across an out-of-layout window')

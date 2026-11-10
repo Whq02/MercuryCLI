@@ -1,4 +1,3 @@
-import { CHOKE_RETRY_MS, cockpitEngine } from '../../render-engine/cockpit/engineMount.js'
 import { FRAME_INTERVAL_MS } from '../constants.js'
 
 export type SchedulerClock = {
@@ -52,18 +51,7 @@ export class RenderScheduler {
   private everInvoked = false
   private probeHoldSpentMs = 0
   private probeHoldTimer: ReturnType<typeof setTimeout> | null = null
-  private chokeTimer: ReturnType<typeof setTimeout> | null = null
   private queuedPaint: object | null = null
-
-  private engine(): ReturnType<typeof cockpitEngine> {
-    return cockpitEngine()
-  }
-
-  private windowMs(inputPriority: boolean): number {
-    const engine = this.engine()
-    if (engine === null || inputPriority) return FRAME_INTERVAL_MS
-    return engine.floorMs()
-  }
 
   private invoke = (): void => {
     if (
@@ -80,16 +68,6 @@ export class RenderScheduler {
       }
       return
     }
-    const engine = this.engine()
-    if (engine?.choked() && this.chokeTimer === null) {
-      engine.noteDeferral('choke')
-      this.chokeTimer = this.clock.setTimeout(() => {
-        this.chokeTimer = null
-        this.invoke()
-      }, CHOKE_RETRY_MS)
-      return
-    }
-    if (this.chokeTimer !== null) return
     if (this.queuedPaint !== null) return
     if (this.bootTimer !== null) {
       this.clock.clearTimeout(this.bootTimer)
@@ -141,11 +119,8 @@ export class RenderScheduler {
       }
       return
     }
-    const engine = this.engine()
-    const inputPriority = engine?.consumeInputPriority() ?? false
     if (this.queuedPaint !== null) return
-    const windowMs = this.windowMs(inputPriority)
-    if (now - this.windowOpenedAt >= windowMs) {
+    if (now - this.windowOpenedAt >= FRAME_INTERVAL_MS) {
       if (this.trailingTimer !== null) {
         this.clock.clearTimeout(this.trailingTimer)
         this.trailingTimer = null
@@ -153,14 +128,7 @@ export class RenderScheduler {
       this.invoke()
       return
     }
-    if (engine !== null && !inputPriority && windowMs > FRAME_INTERVAL_MS) {
-      engine.noteDeferral('floor')
-    }
-    const dueAt = this.windowOpenedAt + windowMs
-    if (this.trailingTimer !== null && inputPriority) {
-      this.clock.clearTimeout(this.trailingTimer)
-      this.trailingTimer = null
-    }
+    const dueAt = this.windowOpenedAt + FRAME_INTERVAL_MS
     if (this.trailingTimer === null) {
       this.trailingTimer = this.clock.setTimeout(() => {
         this.trailingTimer = null
@@ -193,10 +161,6 @@ export class RenderScheduler {
     if (this.probeHoldTimer !== null) {
       this.clock.clearTimeout(this.probeHoldTimer)
       this.probeHoldTimer = null
-    }
-    if (this.chokeTimer !== null) {
-      this.clock.clearTimeout(this.chokeTimer)
-      this.chokeTimer = null
     }
     this.settleHeld = false
     this.pendingWhileHeld = false

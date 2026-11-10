@@ -73,7 +73,6 @@ import {
   isNullRenderingAttachment,
   isNullRenderingSystemRow,
 } from './messages/nullRenderingAttachments.js'
-import { cockpitEngine } from '../render-engine/cockpit/engineMount.js'
 
 
 export type UnseenDivider = { firstUnseenUuid: string; count: number }
@@ -429,10 +428,6 @@ export function FullscreenLayout({
   useInsertionEffect(() => {
     if (fullscreen && !covered) ink?.repaintAfterNestedAltScreenClose()
   }, [ink, fullscreen, covered, modalUp])
-
-  useEffect(() => {
-    cockpitEngine()?.noteOverlay(modalUp, false)
-  }, [modalUp])
 
   useEffect(() => {
     const reachable = cockpit && !modalUp

@@ -36,8 +36,7 @@ switchboard-6	1200
 # same movie-scaled profile): ui was tree-killed at the 900 s default with 63
 # of 202 provers still to run (the slice's authored wall is 900 s local, so
 # the hosted stretch needs ~3×); ui-4 at 900 s with 12 of 16 unrun
-# (prove-catalogue-expand alone 557 s); render-migration at 900 s inside
-# prove-look-parity's second geometry; pings at 900 s with journey-calm-idle
+# (prove-catalogue-expand alone 557 s); pings at 900 s with journey-calm-idle
 # alone at 450 s (two 60 s byte-still windows stretched by the scale) and
 # journey-sheet-captures half-way; render-continuity at 1200 s with nine
 # provers unrun; interaction at 1200 s with four unrun; switchboard-3 at
@@ -45,7 +44,6 @@ switchboard-6	1200
 # stretch the unrun tail needs, with the diffws-class slack.
 ui	2400
 ui-4	2400
-render-migration	1500
 pings	1800
 render-continuity	1800
 interaction	2400

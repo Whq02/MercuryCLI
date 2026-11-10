@@ -46,7 +46,7 @@ import { applyGrouping } from '../utils/groupToolUses.js'
 import { collapseReadSearchGroups } from '../utils/collapseReadSearch.js'
 import { RowErrorBoundary } from './RowErrorBoundary.js'
 import { collapseBackgroundBashNotifications } from '../utils/collapseBackgroundBashNotifications.js'
-import { hasActivity, injectTurnReceipts, isTurnBoundary } from '../utils/cockpit/turnReceipt.js'
+import { hasActivity, injectTurnReceipts } from '../utils/cockpit/turnReceipt.js'
 import { getMercuryTempDir } from '../utils/permissions/filesystem.js'
 import { hasRealConversation as computeHasRealConversation } from '../utils/cockpit/realConversation.js'
 import {
@@ -58,7 +58,6 @@ import {
   isNullRenderingAttachment,
   isNullRenderingSystemRow,
 } from './messages/nullRenderingAttachments.js'
-import { cockpitEngine } from '../render-engine/cockpit/engineMount.js'
 import { isFullscreenActive, isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js'
 import { getGlobalConfig } from '../utils/config.js'
@@ -464,21 +463,6 @@ function MessagesInner({
     () => withheldThinkingDisclosure([...collapsed, ...afterRows]),
     [collapsed, afterRows],
   )
-
-  const engineForLedger = cockpitEngine()
-  useEffect(() => {
-    if (engineForLedger === null) return
-    engineForLedger.ledger.feed(
-      [...collapsed, ...afterRows].map(message => ({
-        uuid: message.uuid,
-        kind: message.type,
-        turnHead: isTurnBoundary(message as Parameters<typeof isTurnBoundary>[0]),
-        text: renderableSearchText(
-          message as Parameters<typeof renderableSearchText>[0],
-        ),
-      })),
-    )
-  }, [engineForLedger, collapsed, afterRows])
 
   const anchorRef = transcriptMemoryOf(conversationId).anchor
   const { visible, liveReceipt } = useMemo(() => {

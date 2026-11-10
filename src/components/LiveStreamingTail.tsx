@@ -8,7 +8,6 @@ import type { StreamingTailStore } from '../utils/messages/streamingTailStore.js
 import { StreamingMarkdown } from './Markdown.js'
 import { MercuryStreamingNameplate } from './messages/ChatLine.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
-import { cockpitEngine } from '../render-engine/cockpit/engineMount.js'
 
 export function openFenceOf(prefix: string): string | null {
   const open = foldFenceRange(prefix, 0, prefix.length, null)
@@ -143,8 +142,6 @@ export function LiveStreamingTail({
   const phases = store.readPhases()
   const phase = rawText === null ? null : published !== null ? phases.current : phases.settled
   const ink = phase === 'commentary' ? 'subtle' : undefined
-  const engine = cockpitEngine()
-  if (engine && rawText) engine.streamBody.update(rawText, Math.max(20, columns - 4))
   const bounded =
     rawText && !isFullscreenActive()
       ? boundTailForInline(rawText, rows, columns)

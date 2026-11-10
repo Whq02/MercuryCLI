@@ -1,4 +1,4 @@
-import { termWrite } from '../../render-engine/cockpit/terminalOut.js'
+import { termWrite } from '../terminalOut.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { TerminalResponse } from '../input/input-decoder.js'
 import { csi } from '../termio/csi.js'
@@ -171,7 +171,7 @@ export class TerminalQuerier {
       this.batches.push({ queries: [], sentinel: null, flushedAt: 0 })
       const bytes = this.pendingRequests + SENTINEL
       this.pendingRequests = ''
-      termWrite(this.stdout, bytes, 'probe')
+      termWrite(this.stdout, bytes)
     })
   }
 

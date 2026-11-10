@@ -242,7 +242,6 @@ section('W8 through the seam: the terminal road with a kernel that takes the byt
     }
     return { drains, bytes, accepted }
   }
-  delete process.env.MERCURY_RENDER_ENGINE
   delete process.env.INK_WRITE_TEE
   reset()
   _resetFrameTraceForTesting()
