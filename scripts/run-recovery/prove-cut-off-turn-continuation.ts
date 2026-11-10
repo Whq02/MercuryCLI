@@ -98,7 +98,21 @@ console.log('§2 the controls: a finished turn gets no sentence; a prompt with n
     prompt('run the build'),
     reply([{ type: 'tool_use', id: 'tu9', name: 'Bash', input: { command: 'npm run build' } }]),
   ])
-  check('a run killed while its tool ran drops the unresolved tool use and re-asks the prompt', midTool.turnInterruptionState.kind === 'interrupted_prompt' && textOf(midTool.turnInterruptionState.message) === 'run the build' && !userTexts(midTool.messages).includes(SENTENCE), JSON.stringify(midTool.turnInterruptionState).slice(0, 200))
+  const ENDED_RUN = 'The previous run ended before this call returned a result; whether the call started or finished is not known.'
+  const midBlocks = midTool.messages.flatMap(m => {
+    const content = (m as { message?: { content?: unknown } }).message?.content
+    return Array.isArray(content) ? (content as Array<{ type?: string; id?: string; tool_use_id?: string; content?: unknown; is_error?: boolean }>) : []
+  })
+  check(
+    'a run killed while its tool ran keeps the call, answered by the sentence that says the run ended before it returned, and continues with the cut-off sentence — the prompt is not asked again, because the command may already have run',
+    midTool.turnInterruptionState.kind === 'interrupted_prompt' &&
+      textOf(midTool.turnInterruptionState.message) === SENTENCE &&
+      midBlocks.some(b => b.type === 'tool_use' && b.id === 'tu9') &&
+      midBlocks.filter(b => b.type === 'tool_result' && b.tool_use_id === 'tu9' && b.is_error === true && b.content === ENDED_RUN).length === 1 &&
+      userTexts(midTool.messages).filter(t => t === 'run the build').length === 1 &&
+      userTexts(midTool.messages).filter(t => t === SENTENCE).length === 1,
+    JSON.stringify({ state: midTool.turnInterruptionState.kind === 'interrupted_prompt' ? textOf(midTool.turnInterruptionState.message) : midTool.turnInterruptionState.kind, blocks: midBlocks }).slice(0, 400),
+  )
 }
 
 console.log(failures === 0 ? '\nprove-cut-off-turn-continuation: ALL PASS' : '\nprove-cut-off-turn-continuation: FAIL')

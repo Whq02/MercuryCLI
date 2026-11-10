@@ -3,7 +3,9 @@ import type { AssistantMessage, Message, UserMessage } from '../../types/message
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
 import { DEAD_THINKING_PLACEHOLDER } from '../../services/providers/anthropic/deadThinkingPlaceholder.js'
 import { clientCallItemsOf, contentItemsOf, isReasoningContent, resultItemsOf } from '../../rows/content.js'
+import { createUserMessage } from './factories.js'
 import { mergeUserMessages } from './merge.js'
+import { ENDED_RUN_TOOL_RESULT } from './rejectionText.js'
 
 type ThinkingBlockType = ThinkingBlock | RedactedThinkingBlock | ThinkingBlockParam | RedactedThinkingBlockParam
 type ConversationRow = UserMessage | AssistantMessage
@@ -165,6 +167,33 @@ export function filterUnresolvedToolUses(messages: Message[]): Message[] {
     const ids = calls.get(row)
     return row.type !== 'assistant' || !ids?.length || ids.some(id => answered.has(id))
   })
+}
+
+export function settleToolUsesOfEndedRun(messages: Message[]): Message[] {
+  const answered = new Set<string>()
+  for (const row of messages) {
+    if ((row.type !== 'user' && row.type !== 'assistant') || !Array.isArray(row.message.content)) continue
+    for (const item of resultItemsOf(row.message.content)) answered.add(item.call_id)
+  }
+  const settled: UserMessage[] = []
+  let reply: string | undefined
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const row = messages[index]!
+    if (row.type === 'user') {
+      if (!Array.isArray(row.message.content) || resultItemsOf(row.message.content).length === 0) break
+      continue
+    }
+    if (row.type !== 'assistant') continue
+    if (reply !== undefined && row.message.id !== reply) break
+    reply = row.message.id
+    const open = clientCallItemsOf(row.message.content).filter(item => !answered.has(item.call_id))
+    settled.unshift(...open.map(item => createUserMessage({
+      content: [{ type: 'tool_result', tool_use_id: item.call_id, content: ENDED_RUN_TOOL_RESULT, is_error: true }],
+      toolUseResult: ENDED_RUN_TOOL_RESULT,
+      sourceToolAssistantUUID: row.uuid,
+    })))
+  }
+  return filterUnresolvedToolUses(settled.length === 0 ? messages : [...messages, ...settled])
 }
 
 const isMixedErrorResult = (block: ContentBlockParam): block is ToolResultBlockParam =>

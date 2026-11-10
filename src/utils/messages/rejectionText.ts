@@ -89,4 +89,7 @@ export const NO_RESPONSE_REQUESTED = 'No response requested.'
 export const SYNTHETIC_TOOL_RESULT_PLACEHOLDER =
   'No result was recorded for this tool call. It is unknown whether it started or completed. Retry only if it is read-only or idempotent; if it may have side effects, first verify external state or ask the user. Do not retry blindly.'
 
+export const ENDED_RUN_TOOL_RESULT =
+  'The previous run ended before this call returned a result; whether the call started or finished is not known.'
+
 
