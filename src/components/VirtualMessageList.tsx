@@ -79,6 +79,7 @@ type VirtualMessageListProps = {
 }
 
 let instanceCounter = 0
+const ALIGN_WHEN_MOUNTED_RENDERS = 4
 
 
 function VirtualItem({
@@ -333,18 +334,33 @@ export function VirtualMessageList({
   }, [selectedIndex, scrollRef])
 
   const selectedExpandedWasRef = useRef(selectedExpanded)
+  const alignWhenMountedRef = useRef<{ index: number; renders: number } | null>(null)
   useLayoutEffect(() => {
     if (selectedExpandedWasRef.current === selectedExpanded) return
     selectedExpandedWasRef.current = selectedExpanded
     if (selectedIndex === undefined) return
     const handle = scrollRef.current
+    if (!handle) return
     const el = vsRef.current.getItemElement(selectedIndex)
-    if (!handle || !el) return
+    if (!el) {
+      alignWhenMountedRef.current = { index: selectedIndex, renders: ALIGN_WHEN_MOUNTED_RENDERS }
+      vsRef.current.scrollToIndex(selectedIndex)
+      return
+    }
     const top = handle.getElementTop(el)
     if (top === undefined) return
     const viewTop = handle.getScrollTop()
     if (top < viewTop || top >= viewTop + handle.getViewportHeight()) handle.scrollToElement(el, 1)
   }, [selectedExpanded, selectedIndex, scrollRef])
+
+  useLayoutEffect(() => {
+    const waiting = alignWhenMountedRef.current
+    if (waiting === null) return
+    const el = waiting.index === selectedIndex ? vsRef.current.getItemElement(waiting.index) : null
+    if (el) scrollRef.current?.scrollToElement(el, 1)
+    waiting.renders -= 1
+    if (el || waiting.index !== selectedIndex || waiting.renders <= 0) alignWhenMountedRef.current = null
+  })
 
   const engineRef = useRef<SearchEngineState>(newEngineState())
   const onMatchChangeRef = useRef(onSearchMatchesChange)
