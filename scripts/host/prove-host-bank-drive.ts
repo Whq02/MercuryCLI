@@ -79,7 +79,9 @@ try {
   const volumes = await import('../../src/services/host/volumes.ts')
   const recipes = currentHostRecipes()
   assert.ok(bank.bankCandidates().length > 0 && bank.bankCandidates().every(path => normalPath(path).startsWith(normalPath(f.home) + '/')) && bank.bankFolder() === undefined, 'the proof looks for a bank only inside its scratch home: ' + bank.bankCandidates().join(', '))
-  check('the fixture recipes replace the shipped list and carry pinned manifests', recipes.length === 2 && recipes.every(recipe => bank.bankFiles(recipe, '/none').pinned))
+  const shippedIds = new Set(shipped.recipes.map(row => row.id as string))
+  check('the fixture recipes join the shipped list as its first two rows and carry pinned manifests', recipes.length === shipped.recipes.length + 2 && recipes[0]!.id === 'tiny-a-rtx-pro-6000' && recipes[1]!.id === 'tiny-b-rtx-pro-6000' && recipes.slice(2).every(recipe => shippedIds.has(recipe.id)) && recipes.slice(0, 2).every(recipe => bank.bankFiles(recipe, '/none').pinned))
+  const models = new Set(recipes.map(recipe => recipe.model + '\n' + (recipe.include ?? ''))).size
   const hfToken = hf.key
   ssh = fakeSshRunner(f.baseUrl, hostRunner)
   const downloads: { model: string; revision?: string; include: string[]; localDir: string; token?: string }[] = []
@@ -115,7 +117,7 @@ try {
   const heading = async (needle: string) => assert.ok(await waitFor(() => mounted!.lines().slice(0, 4).join(' ').includes(needle), 20000), 'question reaches ' + needle + '\n' + screen())
   const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''
   const select = async (needle: string) => {
-    for (let n = 0; n < 40; n++) {
+    for (let n = 0; n < models + 8; n++) {
       const before = selected()
       if (before.includes(needle)) return
       mounted!.push(KEY.down)
@@ -161,7 +163,7 @@ try {
   check('the Bank asks for a folder and suggests ' + shortBankFolder, screen().includes('Where should the bank live?') && screen().includes(shortBankFolder))
   mounted!.push(KEY.enter); await heading('Bank')
   check('the named folder is created and remembered in bank.json', bank.bankFolder() === bankFolder && JSON.parse(readFileSync(join(f.home, 'host', 'bank.json'), 'utf8')).folder === bankFolder)
-  check('the Bank table has the header, one row per model, both unbanked, and the totals', ['MODEL', 'BANKED', 'CHECK', 'VOLUME'].every(word => screen().includes(word)) && row('Tiny-A').includes('— b to bank') && row('Tiny-B').includes('— b to bank') && screen().includes('Banked: 0 of 2 models'))
+  check('the Bank table has the header, one row per model, both unbanked, and the totals', ['MODEL', 'BANKED', 'CHECK', 'VOLUME'].every(word => screen().includes(word)) && row('Tiny-A').includes('— b to bank') && row('Tiny-B').includes('— b to bank') && mounted!.lines().findIndex(line => line.includes('Tiny-A')) + 1 === mounted!.lines().findIndex(line => line.includes('Tiny-B')) && screen().includes('Banked: 0 of ' + models + ' models'))
   check('the hint names the five keys on one line at 120 columns', screen().includes('b bank · v verify · m mirror · d drop · k keep safe · esc closes'))
   await capture('120-bank-empty')
   await close()
@@ -170,7 +172,7 @@ try {
   writeFileSync(join(folderA, 'SHA256SUMS'), Object.entries(hub['fixture/tiny-a']!).map(([path, data]) => sha256(data) + '  ' + path).join('\n') + '\n')
   check('a folder holding every pinned file and a SHA256SUMS counts as banked before any verification', bank.bankState(tinyA).banked && !bank.bankState(tinyA).verifiedAt && !bank.bankState(tinyB).banked)
   await openBank(); await heading('Bank')
-  check('the banked row shows the folder, no verification date and m to mirror', row('Tiny-A').includes('✓ ~ ') && row('Tiny-A').includes('— m to mirror') && !row('Tiny-A').includes('✓ 2026') && screen().includes('Banked: 1 of 2 models'))
+  check('the banked row shows the folder, no verification date and m to mirror', row('Tiny-A').includes('✓ ~ ') && row('Tiny-A').includes('— m to mirror') && !row('Tiny-A').includes('✓ 2026') && screen().includes('Banked: 1 of ' + models + ' models'))
   await capture('120-bank-one-banked')
   await press('Tiny-A', 'v')
   await until('Checking ')
