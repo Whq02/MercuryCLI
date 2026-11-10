@@ -1,6 +1,6 @@
 
 import { getSessionId } from '../../bootstrap/state.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 import {
   type AgentStateVerdict,
   agentNeedsYouEnabled,
@@ -25,7 +25,7 @@ export function agentStateSnapshot(): Snapshot<{ data: AgentStateData }> {
     return withState(
       'off',
       EMPTY,
-      flagEnv('MERCURY_AGENT_NEEDS_YOU') === '0'
+      !flagEnabled('MERCURY_AGENT_NEEDS_YOU')
         ? 'MERCURY_AGENT_NEEDS_YOU=0 (opted out)'
         : 'needs-you off',
       'agentNeedsYou',

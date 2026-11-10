@@ -48,7 +48,6 @@ check('substrateSnapshot uses isMcpPolicyActive() — the canonical bug line is 
 
 section('panels color/warn off the boolean, NOT the displayed === \'high\' string')
 for (const [name, p] of [
-  ['MercuryMcpList', ['components', 'MercuryMcpList.tsx']],
   ['healthReport', ['utils', 'healthReport.ts']],
 ] as const) {
   check(`${name} keys off mcpPolicyActive`, /mcpPolicyActive/.test(src(...p)))

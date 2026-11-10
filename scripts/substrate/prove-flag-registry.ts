@@ -122,6 +122,69 @@ check(
   strayConsumers.map(f => `${f.env}→${(f as { consumer?: string }).consumer}`).slice(0, 6).join(', '),
 )
 
+section('§2c a default-on switch has one off rule: no reader compares its value with the bare string 0')
+const PRE_BOOT_BARE = new Map<string, string>([
+  ['MERCURY_WIN32_UTF8', 'read at the entry seam before the registry loads, in a decision that takes its env as a parameter, and beside the Windows launcher'],
+])
+const defaultOn = new Set(FLAG_REGISTRY.filter(f => f.kind === 'default-on').map(f => f.env))
+const bareReads: string[] = []
+const srcFiles = execSync('git ls-files -z src', { cwd: root, maxBuffer: 64 * 1024 * 1024 })
+  .toString('utf8')
+  .split('\0')
+  .filter(f => /\.(ts|tsx)$/.test(f) && existsSync(join(root, f)))
+for (const file of srcFiles) {
+  const text = readFileSync(join(root, file), 'utf8')
+  const named = new Map<string, string>()
+  for (const m of text.matchAll(/\bconst (\w+)(?::\s*string)? = '(MERCURY_[A-Z_0-9]+)'/g)) named.set(m[1]!, m[2]!)
+  const note = (env: string | undefined): void => {
+    if (env !== undefined && defaultOn.has(env) && !PRE_BOOT_BARE.has(env)) bareReads.push(`${env} @ ${file}`)
+  }
+  for (const m of text.matchAll(/(?:flagEnv(?:Loose)?\(\s*(?:'(MERCURY_[A-Z_0-9]+)'|(\w+))\s*\)|\benv\.(MERCURY_[A-Z_0-9]+))\s*[!=]==\s*'0'/g)) note(m[1] ?? m[3] ?? named.get(m[2] ?? ''))
+  for (const m of text.matchAll(/\bconst (\w+) = flagEnv\(\s*'(MERCURY_[A-Z_0-9]+)'\s*\)/g)) {
+    if (new RegExp(`\\b${m[1]} [!=]== '0'`).test(text.slice(m.index!, m.index! + 240))) note(m[2])
+  }
+}
+check(
+  'no default-on switch is turned off by the bare string alone (0, false, no and off all turn it off through flagEnabled)',
+  bareReads.length === 0,
+  `${new Set(bareReads.map(r => r.split(' @ ')[0])).size} switches: ${bareReads.slice(0, 8).join(', ')}`,
+)
+check('the switches still read bare are named pre-boot rows, each a default-on row', [...PRE_BOOT_BARE.keys()].every(env => defaultOn.has(env)), [...PRE_BOOT_BARE.keys()].join(', '))
+const OFF_RULE_READERS: Array<[env: string, file: string, reader: string]> = [
+  ['MERCURY_CRITTER_GAZE', 'utils/cockpit/critterGaze.ts', 'critterGazeEnabled'],
+  ['MERCURY_CRITTER_IDLE', 'utils/cockpit/critterIdle.ts', 'critterIdleEnabled'],
+  ['MERCURY_LIVE_GLYPHS', 'utils/cockpit/liveGlyphs.ts', 'liveGlyphsEnabled'],
+  ['MERCURY_TURN_RECEIPT', 'utils/cockpit/turnReceipt.ts', 'isTurnReceiptEnabled'],
+  ['MERCURY_HELM_CONSOLE', 'utils/cockpit/helmConsole.ts', 'consoleEnabled'],
+  ['MERCURY_CTX_FORECAST', 'utils/cockpit/ctxForecast.ts', 'ctxForecastEnabled'],
+  ['MERCURY_RUNTIME_POSTURE', 'utils/cockpit/runtimePosture.ts', 'runtimePostureEnabled'],
+  ['MERCURY_LSP', 'services/lsp/mercuryLsp.ts', 'mercuryLspEnabled'],
+  ['MERCURY_MC_DIGEST', 'services/compact/microCompactDigest.ts', 'isMicroCompactDigestEnabled'],
+  ['MERCURY_RESUME_SNAPSHOT', 'utils/sessionStorage/resumeSnapshot.ts', 'resumeSnapshotEnabled'],
+  ['MERCURY_SPAWN_LEDGER', 'utils/spawnLedger.ts', 'isSpawnLedgerEnabled'],
+  ['MERCURY_SPAWN_AUDIT', 'utils/spawnLedger.ts', 'isSpawnAuditEnabled'],
+  ['MERCURY_HEALTH_FIX', 'utils/healthFix.ts', 'healthFixEnabled'],
+  ['MERCURY_BOOT_PREFLIGHT', 'utils/healthPreflight.ts', 'mercuryBootPreflightEnabled'],
+  ['MERCURY_AGENT_NEEDS_YOU', 'services/agentStateHeuristic.ts', 'agentNeedsYouEnabled'],
+  ['MERCURY_COORDINATION_MCP', 'services/mcp/mercuryServer.ts', 'isMercuryServerEnabled'],
+  ['MERCURY_WORKFLOWS', 'tools/WorkflowTool/workflowEnablement.ts', 'dynamicWorkflowsEnabled'],
+]
+for (const [env, file, reader] of OFF_RULE_READERS) {
+  const held = process.env[env]
+  const module = (await import(`../../src/${file}`)) as Record<string, () => boolean>
+  const read = (value: string | undefined): boolean => {
+    if (value === undefined) delete process.env[env]
+    else process.env[env] = value
+    return module[reader]!()
+  }
+  const unset = read(undefined)
+  const one = read('1')
+  const offs = ['0', 'false', 'no', 'off'].map(read)
+  if (held === undefined) delete process.env[env]
+  else process.env[env] = held
+  check(`${env} through ${reader}: unset and 1 leave it on, and 0, false, no and off each turn it off`, unset && one && offs.every(answer => answer === false), JSON.stringify({ unset, one, offs }))
+}
+
 section('§3 gate behavior matrix under stamp-sim (LIVE env re-reads)')
 const optOutSample = ['MERCURY_DAEMON_CATCHUP', 'MERCURY_MISSION']
 for (const env of optOutSample) {

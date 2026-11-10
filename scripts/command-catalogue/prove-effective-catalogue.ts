@@ -10,7 +10,6 @@ const repo = path.resolve(import.meta.dir, '../..')
 const scratchHome = mkdtempSync(path.join(tmpdir(), 'mercury-verity-cat-'))
 process.env.MERCURY_CONFIG_DIR = scratchHome
 process.env.NODE_ENV = 'test'
-delete process.env.MERCURY_DEV_SURFACES
 process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? 'sk-ant-verity-shape-probe'
 
 let failures = 0
@@ -34,24 +33,9 @@ check('registry loads (the excised roster, >70 built-ins)', registry.length > 70
 check('catalogue rows = registry rows', catalogue.length === registry.length)
 
 {
-  const devRows = catalogue.filter(s => s.visibility === 'dev')
-  check('at least one dev fixture route exists (/showcase)', devRows.some(s => s.name === 'showcase'))
-  const enabledUnarmed = devRows.filter(s => s.enabled)
-  check(
-    'unarmed: every devOnly route is DISABLED (absent from the roster)',
-    enabledUnarmed.length === 0,
-    enabledUnarmed.map(s => s.name).join(', '),
-  )
-  process.env.MERCURY_DEV_SURFACES = '1'
-  const armed = effectiveCatalogue().filter(s => s.visibility === 'dev')
-  check(
-    'armed (MERCURY_DEV_SURFACES=1): the dev routes enable (live gate re-read)',
-    armed.length > 0 && armed.every(s => s.enabled),
-    armed.map(s => `${s.name}:${s.enabled}`).join(', '),
-  )
-  delete process.env.MERCURY_DEV_SURFACES
+  check('every route is a normal or a hidden route (no development-only class stands behind a flag)', catalogue.every(s => s.visibility === 'normal' || s.visibility === 'hidden'), catalogue.filter(s => s.visibility !== 'normal' && s.visibility !== 'hidden').map(s => s.name).join(', '))
   const normal = normalSurfaces()
-  check('normalSurfaces() never contains a dev route', normal.every(s => s.visibility === 'normal'))
+  check('normalSurfaces() holds enabled normal routes only', normal.every(s => s.visibility === 'normal' && s.enabled))
 }
 
 {
@@ -136,7 +120,6 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
 
   const MARKERS: Array<[string, RegExp]> = [
     ['specimen CommandCenter', /<CommandCenter\s+specimen/],
-    ['SpecimenGallery mount', /<SpecimenGallery/],
     ['illustrative fixed-data banner', /illustrative/i],
     ['dead-end “would …” action note', /return\s+[`'"](?:gated · |unavailable · )?would /],
     ['not-a-live-tally banner', /NOT a live/],

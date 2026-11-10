@@ -388,7 +388,7 @@ Các cờ runtime được định nghĩa trong `src/substrate/flagRegistry.ts`,
 
 ## Lệnh slash
 
-`/help` liệt kê các lệnh tương tác có sẵn. Dùng `/palette` để tìm lệnh theo kiểu mờ. Bảng dưới đây nhóm các lệnh tích hợp được bật mặc định theo các danh mục dùng trong `/help`; danh sách trực tiếp còn bao gồm `/samples` dưới `current work` khi Samples được bật (`MERCURY_SAMPLES=1` hoặc hàng Samples trong Boot Menu), `/showcase` khi `MERCURY_DEV_SURFACES=1` được đặt, và mọi lệnh skill hoặc extension.
+`/help` liệt kê các lệnh tương tác có sẵn. Dùng `/palette` để tìm lệnh theo kiểu mờ. Bảng dưới đây nhóm các lệnh tích hợp được bật mặc định theo các danh mục dùng trong `/help`; danh sách trực tiếp còn bao gồm `/samples` dưới `current work` khi Samples được bật (`MERCURY_SAMPLES=1` hoặc hàng Samples trong Boot Menu), và mọi lệnh skill hoặc extension.
 
 | Nhóm | Lệnh |
 | --- | --- |

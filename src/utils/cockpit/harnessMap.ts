@@ -7,10 +7,10 @@ import { mercuryAsepriteEnabled } from '../../services/aseprite/asepriteApp.js'
 import { getVulcanHarnessMapLine } from '../vulcan/vulcanGates.js'
 import { isSessionMarkedNonInteractive } from './runtimePosture.js'
 import { healthCertEnabled } from '../healthReport.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 
 export function harnessMapEnabled(): boolean {
-  if (flagEnv('MERCURY_HARNESS_MAP') === '0') return false
+  if (!flagEnabled('MERCURY_HARNESS_MAP')) return false
   if (isSessionMarkedNonInteractive()) return false
   return true
 }

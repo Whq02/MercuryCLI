@@ -195,8 +195,6 @@ check("the OpenAI family's newest derives live (no GPT id literal in the seat ro
 
 section('§6 THE STALE CLAIMS — the frontier row named through the table')
 const headName = model.renderModelName(head('fable'))
-check('the statusline preview names the frontier row through the catalogue', has('src/components/MercuryStatusline.tsx', "parseUserSpecifiedModel('fable')") && !has('src/components/MercuryStatusline.tsx', "Fable 5"))
-check('the agents preview names its tiers through the catalogue', has('src/components/MercuryAgents.tsx', "tier('fable')") && !has('src/components/MercuryAgents.tsx', "'Fable 5'"))
 for (const doc of ['src/skills/bundled/provider-apis/references/models.md', 'mercury-skills/provider-apis/references/models.md']) {
   check(`${doc}: the skill carries no model inventory — no frontier row, no first-party display name (${headName} lives in the catalogue alone)`, has(doc, 'carries no model inventory') && !has(doc, 'the frontier row') && !has(doc, headName) && !has(doc, 'Fable 5'))
 }

@@ -47,7 +47,6 @@ type CommandDoors = Partial<{
   kitSkillState: 'invocable'
   availability: CommandAvailability[]
   needsConcourse: boolean
-  devOnly: boolean
 }>
 
 type CommandOrigin = Partial<{

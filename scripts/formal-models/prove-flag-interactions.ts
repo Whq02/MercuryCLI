@@ -24,7 +24,6 @@ const { getDefaultBashTimeoutMs, getMaxBashTimeoutMs } = await import('../../src
 const byEnv = new Map(FLAG_REGISTRY.map(f => [f.env, f]))
 
 const DOMAINS: Record<string, string[]> = {
-  MERCURY_GROUP_COMMIT: ['', '0'],
   MERCURY_DURABLE_FSYNC: ['', '0'],
   MERCURY_CHANGESET: ['', '0'],
   MERCURY_CHANGE_RECEIPTS: ['', '0'],
@@ -116,7 +115,7 @@ const DOMAINS: Record<string, string[]> = {
 }
 
 const CLUSTERS: Record<string, string[]> = {
-  'durable-kernel': ['MERCURY_GROUP_COMMIT', 'MERCURY_DURABLE_FSYNC'],
+  'durable-kernel': ['MERCURY_DURABLE_FSYNC', 'MERCURY_FAULT_INJECT'],
   changeset: ['MERCURY_CHANGESET', 'MERCURY_CHANGE_RECEIPTS', 'MERCURY_EDIT_HUNKS', 'MERCURY_LSP'],
   continuum: ['MERCURY_CONTEXT_SELECTION', 'MERCURY_SELECTION_BUDGET', 'MERCURY_CAP_FAILOVER', 'MERCURY_MOCK_LIMITS', 'MERCURY_SCRIPTED_STREAM'],
   'terminal-appearance': ['MERCURY_THEME_PIN', 'MERCURY_OASIS_BG', 'MERCURY_LIVE_GLYPHS', 'MERCURY_CRITTER_GAZE'],

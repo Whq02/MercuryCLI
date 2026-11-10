@@ -388,7 +388,7 @@ docker run --rm mercury --version
 
 ## คำสั่ง slash
 
-`/help` แสดงรายการคำสั่งโต้ตอบที่ใช้ได้ ใช้ `/palette` สำหรับการค้นหาคำสั่งแบบ fuzzy ตารางด้านล่างจัดกลุ่มคำสั่งในตัวที่เปิดใช้งานโดยค่าเริ่มต้นตามหมวดหมู่ที่ `/help` ใช้ ส่วนรายการสดยังรวม `/samples` ภายใต้ `current work` เมื่อเปิด Samples (`MERCURY_SAMPLES=1` หรือแถว Samples ของ Boot Menu), `/showcase` เมื่อตั้ง `MERCURY_DEV_SURFACES=1` และคำสั่งจาก skill หรือ extension ใด ๆ ด้วย
+`/help` แสดงรายการคำสั่งโต้ตอบที่ใช้ได้ ใช้ `/palette` สำหรับการค้นหาคำสั่งแบบ fuzzy ตารางด้านล่างจัดกลุ่มคำสั่งในตัวที่เปิดใช้งานโดยค่าเริ่มต้นตามหมวดหมู่ที่ `/help` ใช้ ส่วนรายการสดยังรวม `/samples` ภายใต้ `current work` เมื่อเปิด Samples (`MERCURY_SAMPLES=1` หรือแถว Samples ของ Boot Menu) และคำสั่งจาก skill หรือ extension ใด ๆ ด้วย
 
 | หมวด | คำสั่ง |
 | --- | --- |

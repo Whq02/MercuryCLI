@@ -388,7 +388,7 @@ Laufzeit-Flags sind in `src/substrate/flagRegistry.ts` definiert, werden als `ME
 
 ## Slash-Befehle
 
-`/help` listet die verfügbaren interaktiven Befehle auf. Verwenden Sie `/palette` für die Fuzzy-Suche nach Befehlen. Die Tabelle unten gruppiert die standardmäßig aktivierten eingebauten Befehle nach den Kategorien, die in `/help` verwendet werden; die aktuelle Liste enthält außerdem `/samples` unter `current work`, wenn Samples aktiviert ist (`MERCURY_SAMPLES=1` oder die Zeile Samples im Boot Menu), `/showcase`, wenn `MERCURY_DEV_SURFACES=1` gesetzt ist, sowie alle Befehle aus Skills oder Erweiterungen.
+`/help` listet die verfügbaren interaktiven Befehle auf. Verwenden Sie `/palette` für die Fuzzy-Suche nach Befehlen. Die Tabelle unten gruppiert die standardmäßig aktivierten eingebauten Befehle nach den Kategorien, die in `/help` verwendet werden; die aktuelle Liste enthält außerdem `/samples` unter `current work`, wenn Samples aktiviert ist (`MERCURY_SAMPLES=1` oder die Zeile Samples im Boot Menu), sowie alle Befehle aus Skills oder Erweiterungen.
 
 | Bereich | Befehle |
 | --- | --- |

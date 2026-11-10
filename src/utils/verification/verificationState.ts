@@ -15,7 +15,7 @@ import type { OwnerKey } from '../../services/run/ownerKey.js'
 import { registerOwnerScopedStore } from '../../services/run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../../services/run/ownerScopedStore.js'
 import { processMainOwner } from '../../services/run/resolveOwner.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { isReadOnlyDiagnostic } from '../diagnosticReadOnly.js'
 import { loadDeclaredGates, matchDeclaredGate } from './projectGates.js'
 import { scanCeiling } from './scanCeiling.js'
@@ -782,7 +782,7 @@ export function markMutation(
 }
 
 export function verifyEvidenceEnabled(): boolean {
-  return flagEnv('MERCURY_VERIFY_EVIDENCE') !== '0'
+  return flagEnabled('MERCURY_VERIFY_EVIDENCE')
 }
 
 export function observeCompletedToolCall(

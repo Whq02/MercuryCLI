@@ -65,10 +65,6 @@ const ROLE_BY_FILE: Record<string, { role: string; why: string }> = {
     role: 'product-identity-header',
     why: '/model header — routes through the shared ProductLockup (UN-23)',
   },
-  'src/components/MercuryWelcome.tsx': {
-    role: 'mission-focal-title',
-    why: 'first-run welcome — focal mission surface (big wordmark art)',
-  },
   'src/components/MercurySetupFrame.tsx': {
     role: 'mission-focal-title',
     why: 'setup/onboarding frame — focal mission surface',
@@ -88,10 +84,6 @@ const ROLE_BY_FILE: Record<string, { role: string; why: string }> = {
   'src/components/MercuryExitConfirm.tsx': {
     role: 'compact-status-inline',
     why: 'exit confirm row — quiet inline mention',
-  },
-  'src/components/MercuryKeybindings.tsx': {
-    role: 'product-identity-header',
-    why: 'keybindings command-center surface (shared shell)',
   },
   'src/components/LogSelector.tsx': {
     role: 'product-identity-header',
@@ -125,17 +117,9 @@ const ROLE_BY_FILE: Record<string, { role: string; why: string }> = {
     role: 'session-identity',
     why: 'the transcript nameplate — critter accent IS session identity',
   },
-  'src/components/MercuryStatusline.tsx': {
-    role: 'product-identity-header',
-    why: 'statusline PREVIEW lockup — migrated to the shared Crab primitive in W4 (a preview drawn with different code than the live frame was the imitation class)',
-  },
   'src/components/Onboarding.tsx': {
     role: 'compact-status-inline',
     why: 'onboarding prose mention — flat by design',
-  },
-  'src/components/MercuryTrust.tsx': {
-    role: 'compact-status-inline',
-    why: 'trust prompt prose — flat by design',
   },
   'src/components/DeckPane.tsx': {
     role: 'compact-status-inline',

@@ -1,5 +1,5 @@
 
-import { flagEnv } from '../substrate/flagRegistry.js'
+import { flagEnabled } from '../substrate/flagRegistry.js'
 import {
   isFixable,
   remedyPermitted,
@@ -10,7 +10,7 @@ import {
 } from './healthCertCore.js'
 
 export function healthFixEnabled(): boolean {
-  return flagEnv('MERCURY_HEALTH_FIX') !== '0'
+  return flagEnabled('MERCURY_HEALTH_FIX')
 }
 
 export interface AppliedFix {

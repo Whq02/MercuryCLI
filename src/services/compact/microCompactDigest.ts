@@ -1,5 +1,5 @@
 import type { ToolResultBlockParam } from '../../types/wire.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 
 
 export const MC_CLEARED_PLACEHOLDER = '[stale tool result pruned — content cleared]'
@@ -19,8 +19,7 @@ type ContentClass =
 type DigestableContent = ToolResultBlockParam['content'] | undefined
 
 export function isMicroCompactDigestEnabled(): boolean {
-  if (flagEnv('MERCURY_MC_DIGEST') === '0') return false
-  return true
+  return flagEnabled('MERCURY_MC_DIGEST')
 }
 
 export function isClearedOrDigested(content: DigestableContent): boolean {

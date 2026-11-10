@@ -451,7 +451,7 @@ const anthropicRuntime = readFileSync(join(repoRoot, 'src/services/providers/ant
   const shellSrc = readFileSync(join(repoRoot, 'src/utils/cache/cacheClock.ts'), 'utf8')
   check(
     'shell gate: MERCURY_CACHE_CLOCK ≠ 0 (live alias read; unconditional)',
-    shellSrc.includes("flagEnv('MERCURY_CACHE_CLOCK') !== '0'"),
+    shellSrc.includes("flagEnabled('MERCURY_CACHE_CLOCK')"),
   )
   check(
     'decision path is fail-open (catch ⇒ logError ⇒ null)',

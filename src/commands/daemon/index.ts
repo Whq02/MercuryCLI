@@ -1,5 +1,5 @@
 import type { Command } from '../../commands.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 
 const command = {
   type: 'local-jsx',
@@ -7,7 +7,7 @@ const command = {
   description: 'The daemon and its workers · `restart` re-runs it as the deployed build · `halt` hard-stops every daemon and crewmate',
   argumentHint: '[restart | halt]',
   headlessVerbs: ['halt'],
-  isEnabled: () => (flagEnv('MERCURY_DAEMON_UI') === '0' ? false : true),
+  isEnabled: () => flagEnabled('MERCURY_DAEMON_UI'),
   isHidden: false,
   load: () => import('./daemon.js'),
 } satisfies Command

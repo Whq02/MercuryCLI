@@ -531,7 +531,7 @@ function installRootsHandler(client: Client): void {
       const uri = pathToFileURL(stripped || p).href
       if (!roots.includes(uri)) roots.push(uri)
     }
-    if (flagEnv('MERCURY_MCP_ROOTS_WIDE') !== '0') {
+    if (flagEnabled('MERCURY_MCP_ROOTS_WIDE')) {
       add(getCwd())
       add(tmpdir())
       if (process.platform !== 'win32') {

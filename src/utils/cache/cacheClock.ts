@@ -8,7 +8,7 @@ import { logError } from '../log.js'
 import { logForDebugging } from '../debug.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import {
   type CacheClockClass,
   type CadencePrior,
@@ -85,7 +85,7 @@ function freshState(): ClockState {
 }
 
 function clockEnabled(): boolean {
-  return flagEnv('MERCURY_CACHE_CLOCK') !== '0'
+  return flagEnabled('MERCURY_CACHE_CLOCK')
 }
 
 function resolvePin(): TtlChoice | null {

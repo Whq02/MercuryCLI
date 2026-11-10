@@ -388,7 +388,7 @@ Kullanılabilir komutlar şunları içerir:
 
 ## Slash komutları
 
-`/help`, kullanılabilir etkileşimli komutları listeler. Bulanık komut araması için `/palette` kullanın. Aşağıdaki tablo, varsayılan olarak etkin gelen yerleşik komutları `/help` içinde kullanılan kategorilere göre gruplar; canlı liste ayrıca `/samples` komutunu (`current work` altında, Samples etkinleştirildiğinde: `MERCURY_SAMPLES=1` veya Boot Menu'nün Samples satırı), `/showcase` komutunu (`MERCURY_DEV_SURFACES=1` ayarlandığında) ve tüm skill veya uzantı komutlarını içerir.
+`/help`, kullanılabilir etkileşimli komutları listeler. Bulanık komut araması için `/palette` kullanın. Aşağıdaki tablo, varsayılan olarak etkin gelen yerleşik komutları `/help` içinde kullanılan kategorilere göre gruplar; canlı liste ayrıca `/samples` komutunu (`current work` altında, Samples etkinleştirildiğinde: `MERCURY_SAMPLES=1` veya Boot Menu'nün Samples satırı) ve tüm skill veya uzantı komutlarını içerir.
 
 | Alan | Komutlar |
 | --- | --- |

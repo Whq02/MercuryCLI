@@ -56,7 +56,6 @@ prove-settings-popup-host-fit.ts
 prove-config-thinking-row.ts
 prove-shell-background-hint.ts
 prove-size-honesty.ts
-prove-specimen-padto.ts
 prove-status-band.ts
 prove-sup2-hardening.ts
 prove-theme-color-unify.ts

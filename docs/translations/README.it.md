@@ -388,7 +388,7 @@ I flag di runtime sono definiti in `src/substrate/flagRegistry.ts`, esposti come
 
 ## Comandi slash
 
-`/help` elenca i comandi interattivi disponibili. Usa `/palette` per la ricerca fuzzy dei comandi. La tabella seguente raggruppa i comandi integrati attivi per impostazione predefinita secondo le categorie usate da `/help`; l'elenco in tempo reale include anche `/samples` sotto `current work` quando Samples è abilitato (`MERCURY_SAMPLES=1` o la riga Samples del Boot Menu), `/showcase` quando è impostato `MERCURY_DEV_SURFACES=1`, e qualsiasi skill o comando di estensione.
+`/help` elenca i comandi interattivi disponibili. Usa `/palette` per la ricerca fuzzy dei comandi. La tabella seguente raggruppa i comandi integrati attivi per impostazione predefinita secondo le categorie usate da `/help`; l'elenco in tempo reale include anche `/samples` sotto `current work` quando Samples è abilitato (`MERCURY_SAMPLES=1` o la riga Samples del Boot Menu), e qualsiasi skill o comando di estensione.
 
 | Categoria | Comandi |
 | --- | --- |

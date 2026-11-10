@@ -3,7 +3,7 @@ import { Box, Text, useInput } from '../../../ink.js'
 import { usePopupListNavigation } from '../../CustomSelect/popup-list.js'
 import { formatFreshness } from '../../../utils/cockpit/freshness.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
-import { flagEnv } from '../../../substrate/flagRegistry.js'
+import { flagEnabled } from '../../../substrate/flagRegistry.js'
 import {
   CommandCenter,
   EmptyState,
@@ -52,7 +52,7 @@ export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNod
   const dirBudget = Math.max(40, termCols - 22)
   const accent = useSessionAccent().accent
   const pollEnabled = React.useMemo(
-    () => (flagEnv('MERCURY_DAEMON_COCKPIT_POLL') === '0' ? false : true),
+    () => flagEnabled('MERCURY_DAEMON_COCKPIT_POLL'),
     [],
   )
   const sync = React.useMemo<{ state: string; reason?: string }>(() => {

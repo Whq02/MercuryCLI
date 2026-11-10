@@ -388,7 +388,7 @@ Los indicadores de ejecución se definen en `src/substrate/flagRegistry.ts`, se 
 
 ## Comandos slash
 
-`/help` lista los comandos interactivos disponibles. Use `/palette` para la búsqueda aproximada de comandos. La tabla siguiente agrupa los comandos integrados activados por defecto según las categorías que usa `/help`; la lista en vivo incluye además `/samples` en `current work` cuando Samples está activado (`MERCURY_SAMPLES=1` o la fila Samples del Boot Menu), `/showcase` cuando se define `MERCURY_DEV_SURFACES=1`, y cualquier skill o comando de extensión.
+`/help` lista los comandos interactivos disponibles. Use `/palette` para la búsqueda aproximada de comandos. La tabla siguiente agrupa los comandos integrados activados por defecto según las categorías que usa `/help`; la lista en vivo incluye además `/samples` en `current work` cuando Samples está activado (`MERCURY_SAMPLES=1` o la fila Samples del Boot Menu), y cualquier skill o comando de extensión.
 
 | Categoría | Comandos |
 | --- | --- |

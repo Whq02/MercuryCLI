@@ -1,6 +1,6 @@
 
 import { truecolorActive } from '../ink/colorize.js'
-import { flagEnv } from '../substrate/flagRegistry.js'
+import { flagEnabled } from '../substrate/flagRegistry.js'
 import {
   AMBER,
   BELLY,
@@ -143,7 +143,7 @@ function spectraMix(from: string, to: string, t: number): string {
 }
 
 export function estateGroundBg(t: MercuryThemeTokens): string | undefined {
-  return t.spectraGround !== undefined && truecolorActive() && flagEnv('MERCURY_SPECTRA_GROUND') !== '0'
+  return t.spectraGround !== undefined && truecolorActive() && flagEnabled('MERCURY_SPECTRA_GROUND')
     ? t.canvas
     : undefined
 }

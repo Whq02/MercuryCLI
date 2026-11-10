@@ -388,7 +388,7 @@ Runtime-flaggene er definert i `src/substrate/flagRegistry.ts`, eksponeres som `
 
 ## Slash-kommandoer
 
-`/help` lister de tilgjengelige interaktive kommandoene. Bruk `/palette` for fuzzy-søk etter kommandoer. Tabellen under grupperer de standard aktiverte innebygde kommandoene etter kategoriene som brukes i `/help`; den gjeldende listen inkluderer også `/samples` under `current work` når Samples er aktivert (`MERCURY_SAMPLES=1` eller raden Samples i Boot Menu), `/showcase` når `MERCURY_DEV_SURFACES=1` er satt, og eventuelle skills- eller utvidelseskommandoer.
+`/help` lister de tilgjengelige interaktive kommandoene. Bruk `/palette` for fuzzy-søk etter kommandoer. Tabellen under grupperer de standard aktiverte innebygde kommandoene etter kategoriene som brukes i `/help`; den gjeldende listen inkluderer også `/samples` under `current work` når Samples er aktivert (`MERCURY_SAMPLES=1` eller raden Samples i Boot Menu), og eventuelle skills- eller utvidelseskommandoer.
 
 | Område | Kommandoer |
 | --- | --- |

@@ -1,9 +1,9 @@
 
 import { errorMessage } from '../errors.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 
 export function consoleEnabled(): boolean {
-  return flagEnv('MERCURY_HELM_CONSOLE') !== '0'
+  return flagEnabled('MERCURY_HELM_CONSOLE')
 }
 
 

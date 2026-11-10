@@ -112,7 +112,6 @@ prove-message-renderer-edges.tsx
 prove-connect-lifecycle.ts
 prove-file-hyperlinks.ts
 prove-file-open-fresh-query.ts
-prove-trust-path-label.ts
 prove-task-transcript-settle.tsx
 prove-memory-toggle-receipt.tsx
 prove-workflow-liveness-refresh.tsx

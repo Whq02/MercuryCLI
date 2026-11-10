@@ -1,4 +1,4 @@
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 
 
 export const WORK_FRAMES = ['◐', '◓', '◑', '◒'] as const
@@ -52,7 +52,7 @@ export function attentionBucket(time: number): number {
 }
 
 export function liveGlyphsEnabled(): boolean {
-  return flagEnv('MERCURY_LIVE_GLYPHS') === '0' ? false : true
+  return flagEnabled('MERCURY_LIVE_GLYPHS')
 }
 
 export const REDUCED_TICK_MS = 250

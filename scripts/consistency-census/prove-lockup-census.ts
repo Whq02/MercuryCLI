@@ -70,8 +70,6 @@ check(
   glyphHits.length === 0,
   glyphHits.map(h => `${h.file}:${h.line}`).join(', '),
 )
-const statusline = readFileSync(join(ROOT, 'src/components/MercuryStatusline.tsx'), 'utf8')
-check('§C the statusline preview renders the REAL SessionMark', statusline.includes('<SessionMark />') && !statusline.includes("color={TERRA} bold>Mercury"))
 
 const roles = new Set(census.sites.map(s => s.role))
 check(

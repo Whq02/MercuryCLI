@@ -145,7 +145,7 @@ for (const f of FAMILIES) {
   check('the 131k carrier at 120,000 tokens DOES compact (the fallback window would have let it overflow)', fired131 === true)
 }
 
-section('T3 · settings override clamps; the warning ladder, blocking limit, overflow diagnostic and maintenance ladder read the same numbers')
+section('T3 · settings override clamps; the warning ladder, blocking limit, overflow diagnostic and the fold read the same numbers')
 {
   const low = compact.resolveAutoCompactWindow('openrouter/stealth/ox-alpha', 50_000)
   check('autoCompactWindow 50,000 rises to the 100,000 floor (configured 100,000; window 100,000)', low.configured === 100_000 && low.window === 100_000 && low.source === 'settings')
@@ -170,7 +170,7 @@ section('T3 · settings override clamps; the warning ladder, blocking limit, ove
   const overflow = compact.detectFixedPrefixOverflow(transcriptAt(threshold + 50_000) as never, model)
   check('the fixed-prefix overflow diagnostic reads the same threshold', overflow !== null && overflow.thresholdTokens === threshold && overflow.prefixTokens <= effective, JSON.stringify(overflow))
   const source = src('src/services/compact/autoCompact.ts')
-  check('the maintenance ladder receives the trigger\'s fixed-aware threshold (recompactionInfo.autoCompactThreshold)', /const threshold = getAutoCompactThresholdWithFixed\(model, fixedTokens\)[\s\S]{0,400}autoCompactThreshold: threshold/.test(source))
+  check('the fold receives the trigger\'s fixed-aware threshold (recompactionInfo.autoCompactThreshold)', /const threshold = getAutoCompactThresholdWithFixed\(model, fixedTokens\)[\s\S]{0,400}autoCompactThreshold: threshold/.test(source))
   check('the trigger awaits the window source before deciding', /const known = await awaitContextWindowSource\(model, \{ estTokens: tokenCount \+ snipTokensFreed \}\)/.test(source) && /if \(!known\) \{[\s\S]{0,200}return false/.test(source))
 }
 

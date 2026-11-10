@@ -388,7 +388,7 @@ Zastavice izvršavanja definisane su u `src/substrate/flagRegistry.ts`, izlažu 
 
 ## Slash naredbe
 
-`/help` navodi dostupne interaktivne naredbe. Koristite `/palette` za pretragu naredbi po fuzzy principu. Tabela ispod grupiše podrazumijevano uključene ugrađene naredbe prema kategorijama koje koristi `/help`; živa lista takođe uključuje `/samples` pod `current work` kada je Samples uključen (`MERCURY_SAMPLES=1` ili red Samples u Boot Menu-ju), `/showcase` kada je postavljeno `MERCURY_DEV_SURFACES=1`, te sve skille i naredbe ekstenzija.
+`/help` navodi dostupne interaktivne naredbe. Koristite `/palette` za pretragu naredbi po fuzzy principu. Tabela ispod grupiše podrazumijevano uključene ugrađene naredbe prema kategorijama koje koristi `/help`; živa lista takođe uključuje `/samples` pod `current work` kada je Samples uključen (`MERCURY_SAMPLES=1` ili red Samples u Boot Menu-ju), te sve skille i naredbe ekstenzija.
 
 | Oblast | Naredbe |
 | --- | --- |

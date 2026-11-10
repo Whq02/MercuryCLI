@@ -69,7 +69,6 @@ import tasks from './commands/tasks/index.js'
 import appearance from './commands/appearance/index.js'
 import workflows from './commands/workflows/index.js'
 import mouse from './commands/mouse/index.js'
-import showcase from './commands/showcase/index.js'
 import capabilities from './commands/capabilities/index.js'
 import workbench from './commands/workbench/index.js'
 import daemon from './commands/daemon/index.js'
@@ -206,7 +205,6 @@ const COMMANDS = memoize((): Command[] => [
   appearance,
   workflows,
   mouse,
-  showcase,
   capabilities,
   caching,
   workbench,

@@ -73,7 +73,7 @@ const TEXT_ROUTES = ['contract', 'mission', 'copy']
 const MARK: Readonly<Record<string, string>> = {
   defaultprovider: 'Default provider', hooks: 'configured hook', permissions: 'Permissions:', export: 'Export conversation', saturn: 'saturn scheduler',
   keys: 'input atlas', workbench: 'Mercury — prompts', console: 'Mercury — console', sessions: 'Mercury · resume', mcp: 'Mercury · mcp', mission: 'Mission',
-  context: 'Mercury — context', feedback: 'Feedback — which kind', samples: 'SAMPLES · this session', showcase: 'Mercury — showcase',
+  context: 'Mercury — context', feedback: 'Feedback — which kind', samples: 'SAMPLES · this session',
 }
 const markOf = (name: string): RegExp => {
   const word = MARK[name]
@@ -152,13 +152,12 @@ const save = (name: string, lines: string[]): void => {
 
 setIsInteractive(true)
 process.env.MERCURY_SAMPLES = '1'
-process.env.MERCURY_DEV_SURFACES = '1'
 delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
 const commands = await getCommands(process.cwd())
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 const routes = commands.filter(command => command.type === 'local-jsx' && !NOT_A_VIEW.has(command.name) && (onlyRoute === undefined || command.name === onlyRoute))
 console.log(`routes: ${routes.map(command => command.name).join(' ')}`)
-const expectedRoutes = ['agents', 'appearance', 'caching', 'capabilities', 'console', 'context', 'critter', 'daemon', 'defaultprovider', 'diff', 'effort', 'export', 'extensions', 'feedback', 'health', 'help', 'hooks', 'keys', 'logins', 'mcp', 'memory', 'model', 'palette', 'permissions', 'realms', 'run', 'runs', 'samples', 'saturn', 'sessions', 'showcase', 'skills', 'submodels', 'trace', 'workbench', 'workflows']
+const expectedRoutes = ['agents', 'appearance', 'caching', 'capabilities', 'console', 'context', 'critter', 'daemon', 'defaultprovider', 'diff', 'effort', 'export', 'extensions', 'feedback', 'health', 'help', 'hooks', 'keys', 'logins', 'mcp', 'memory', 'model', 'palette', 'permissions', 'realms', 'run', 'runs', 'samples', 'saturn', 'sessions', 'skills', 'submodels', 'trace', 'workbench', 'workflows']
 if (onlyRoute === undefined) check('every view route the compositor census knows is in the walk (the nine that never paint a view are named)', expectedRoutes.every(name => routes.some(command => command.name === name)), expectedRoutes.filter(name => !routes.some(command => command.name === name)).join(' '))
 
 const sessionFile = workerTranscriptPath({ sessionId: SEED_SESSION, workspaceId: process.cwd() })
@@ -302,7 +301,7 @@ const boxedMarker = (lines: string[]): boolean => {
   const rows = region(lines)
   return rows.some((line, index) => /^│\s*╭─+╮\s*│/.test(line) && /^│\s*│ \S/.test(rows[index + 1] ?? ''))
 }
-const MARKER_ALWAYS = new Set(['accounts', 'appearance', 'caching', 'capabilities', 'console', 'critter', 'defaultprovider', 'effort', 'export', 'feedback', 'health', 'hooks', 'keys', 'logins', 'memory', 'model', 'palette', 'samples', 'sessions', 'showcase', 'submodels', 'tensorfold'])
+const MARKER_ALWAYS = new Set(['accounts', 'appearance', 'caching', 'capabilities', 'console', 'critter', 'defaultprovider', 'effort', 'export', 'feedback', 'health', 'hooks', 'keys', 'logins', 'memory', 'model', 'palette', 'samples', 'sessions', 'submodels', 'tensorfold'])
 const MARKER_AFTER_WALK = new Set(['permissions'])
 const MARKER_WIDE_NAV = new Set(['extensions', 'workbench'])
 const diffListsFiles = (lines: string[]): boolean => region(lines).some(line => /Mercury — diff · \d+ files? /.test(line))

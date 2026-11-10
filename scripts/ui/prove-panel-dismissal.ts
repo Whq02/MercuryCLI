@@ -24,11 +24,7 @@ const panels: Record<string, [string, string]> = {
   'model-picker': ['MercuryModelPicker.tsx', 'own surface'],
   'compact-work': ['tasks/BackgroundTasksDialog.tsx', 'own elevated CommandCenter; shell CommandCenter and workflow Panel cards'],
   'input-atlas': ['MercuryInputAtlas.tsx', 'elevated CommandCenter'],
-  'config': ['MercuryConfig.tsx', 'elevated CommandCenter'],
-  'quick-open': ['MercuryQuickOpen.tsx', 'showcase specimen inside the modal slot'],
   'settings': ['Settings/Settings.tsx', 'own surface'],
-  'search': ['MercurySearch.tsx', 'elevated CommandCenter'],
-  'resume': ['MercuryResume.tsx', 'elevated CommandCenter'],
   'center:${view}': ['mercury-ui/components.tsx', 'elevated CommandCenter or modal slot'],
   'file-open': ['MercuryFileOpen.tsx', 'elevated CommandCenter'],
   'board': ['mercury-ui/useNavigablePanes.ts', 'hosted navigation, modal slot or route'],
@@ -79,9 +75,6 @@ for (const file of ['FullscreenLayout.tsx', 'FilesMenuSlot.tsx', 'MercuryModelPi
 }
 const ownFrames = [
   ['src/components/mercury-ui/screens/CrewView.tsx', 'CommandCenter'],
-  ['src/components/MercuryConfig.tsx', 'CommandCenter'],
-  ['src/components/MercurySearch.tsx', 'CommandCenter'],
-  ['src/components/MercuryResume.tsx', 'CommandCenter'],
   ['src/components/MercuryInputAtlas.tsx', 'CommandCenter'],
   ['src/components/tasks/BackgroundTasksDialog.tsx', 'CommandCenter'],
   ['src/components/tasks/ShellDetailDialog.tsx', 'CommandCenter'],
