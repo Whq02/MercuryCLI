@@ -31,6 +31,7 @@ import {
   SYNTHETIC_MESSAGES,
 } from './messages.js'
 import { settleToolUsesOfEndedRun } from './messages/apiFilters.js'
+import { isCutResultText } from './messages/turnCut.js'
 import {
   accumulateOpenToolUses,
   cloneOpenToolUses,
@@ -174,6 +175,17 @@ function saysRunEndedTurn(message: Message): boolean {
   return message.type === 'system' && message.subtype === 'informational' && message.content.includes(RUN_ENDS_ITS_TURN)
 }
 
+function isLoopGuardStop(message: Message): boolean {
+  return message.type === 'attachment' && message.attachment.type === 'loop_stopped'
+}
+
+function isRunsOwnCutResult(message: UserMessage): boolean {
+  const content = message.message.content
+  if (!Array.isArray(content)) return false
+  const result = content[0]
+  return result !== undefined && result.type === 'tool_result' && result.is_error === true && typeof result.content === 'string' && isCutResultText(result.content)
+}
+
 function turnOfLastReply(reply: AssistantMessage, stops: ReadonlyMap<string, string>, ended: boolean, trailed: boolean): InternalInterruptionState {
   if (ended) return { kind: 'none' }
   const stop = stops.get(reply.message.id) ?? reply.message.stop_reason
@@ -201,13 +213,14 @@ function detectInterruption(messages: Message[], stops: ReadonlyMap<string, stri
   if (last.type === 'user') {
     if (last.isMeta || last.isCompactSummary) return { kind: 'none' }
     if (isToolUseResultMessage(last)) {
-      return isTurnTerminatingToolResult(messages, index) ? { kind: 'none' } : { kind: 'interrupted_turn' }
+      return isTurnTerminatingToolResult(messages, index) || isRunsOwnCutResult(last) ? { kind: 'none' } : { kind: 'interrupted_turn' }
     }
     return { kind: 'interrupted_prompt', message: last as NormalizedUserMessage }
   }
   if (last.type === 'attachment') {
     for (let i = index; i >= 0; i--) {
       const candidate = messages[i] as Message
+      if (isLoopGuardStop(candidate)) return { kind: 'none' }
       if (saysRunEndedTurn(candidate)) ended = true
       if (asksNoReply(candidate)) continue
       return candidate.type === 'assistant' ? turnOfLastReply(candidate, stops, ended, true) : { kind: 'interrupted_turn' }
