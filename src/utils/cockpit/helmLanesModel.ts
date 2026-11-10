@@ -16,7 +16,7 @@ import { formatSessionCost } from '../../cost-tracker.js'
 import { contextPercentLabel, contextWindowLabel } from '../contextFill.js'
 import type { LiveContextUsage } from './contextUsageLive.js'
 import type { ComposedCertChip } from '../healthCertCore.js'
-import { formatCountdown } from './quota.js'
+import { formatCountdown, formatCountdownCoarse } from './quota.js'
 import { saturnWakeGlanceWords, type SaturnWakeGlanceV1 } from '../../daemon/saturn.js'
 import { helmRowSig, type HelmRow } from './helmFocus.js'
 import { densityPlan, hintBudget, HELM_DENSITY_FLOOR, type DensityPlan } from '../helmDensity.js'
@@ -249,11 +249,12 @@ function glanceLabelsOf(reads: GlanceReads, tok: MercuryThemeTokens): {
   healthGlyph: string
 } {
   const { usage, focusedSpendUSD, focusedUnpriced, ctx, chip, nowMs } = reads
-  const lead = usage.windows.find(w => w.state === 'live' && w.usedPct != null)
+  const bindingPool = usage.pools.find(pool => pool.state === 'live' && pool.usedPct != null && pool.key === usage.binding?.window.key)
+  const lead = bindingPool ?? usage.windows.find(w => w.state === 'live' && w.usedPct != null)
   const leadAge = lead !== undefined ? usageAgeTail(lead, nowMs) : undefined
   const usageLabel =
     usage.rental ? `spend $${usage.rental.spendUSD.toFixed(2)} · $${usage.rental.price.toFixed(2)}/hr` : lead !== undefined
-      ? `${lead.label} ${Math.round(lead.usedPct!)}%${lead.resetsAtMs != null ? ` · ${formatCountdown(lead.resetsAtMs - nowMs)}` : ''}${leadAge !== undefined ? ` · ${leadAge}` : ''}`
+      ? `${lead.label} ${Math.round(lead.usedPct!)}%${lead.resetsAtMs != null ? ` · ${(bindingPool !== undefined ? formatCountdownCoarse : formatCountdown)(lead.resetsAtMs - nowMs)}` : ''}${leadAge !== undefined ? ` · ${leadAge}` : ''}`
       : usage.shape === 'api-spend'
         ? `spend ${focusedUnpriced > 0 ? formatSessionCost(focusedSpendUSD, focusedUnpriced) : focusedSpendUSD > 0 ? `$${focusedSpendUSD.toFixed(2)}` : '—'}`
         : 'usage — after first reply'
