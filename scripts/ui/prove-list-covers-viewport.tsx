@@ -230,7 +230,7 @@ type Case = {
   name: string
   world: World
   startOpen: boolean
-  top: Spot | 'tail' | 'cursor'
+  top: Spot | 'tail' | 'cursor' | 'following'
   act: (live: Stage) => void | Promise<void>
   busyMs?: number
   lands?: Spot
@@ -246,7 +246,8 @@ const show = (title: string, frame: readonly string[]): void => {
 }
 
 async function place(live: Stage, world: World, top: Case['top']): Promise<boolean> {
-  return top === 'tail' || top === 'cursor' ? true : seat(live, world, top)
+  if (top === 'following') live.scroll.current!.scrollToBottom()
+  return typeof top === 'string' ? true : seat(live, world, top)
 }
 
 async function run(scene: Case): Promise<void> {
@@ -365,6 +366,10 @@ const cases: Case[] = [
   { name: 'the row under the message cursor expanded by its key from below the pane', world: { ...TALL, tallAt: 110, cursorOnTall: true }, startOpen: false, top: { row: 35, inner: 0 }, act: live => live.set(true), lands: { row: 110, inner: 1 } },
   { name: 'the row under the message cursor expanded by its key while it is not mounted', world: { ...TALL, rows: 600, tallAt: 400, cursorOnTall: true }, startOpen: false, top: { row: 35, inner: 0 }, act: live => live.set(true), lands: { row: 400, inner: 1 } },
   { name: 'the row under the message cursor collapsed by its key while it is not mounted', world: { ...TALL, rows: 600, tallAt: 400, cursorOnTall: true }, startOpen: true, top: { row: 35, inner: 0 }, act: live => live.set(false), lands: { row: 401, inner: 0 } },
+  { name: 'the row under the message cursor expanded by its key inside a pane that rests on the list\'s end', world: { ...TALL, tallAt: 110, cursorOnTall: true }, startOpen: false, top: 'cursor', act: live => live.set(true), lands: { row: 100, inner: 0 }, headAt: 10 },
+  { name: 'the row under the message cursor expanded by its key inside a pane that follows the tail', world: { ...TALL, tallAt: 110, cursorOnTall: true }, startOpen: false, top: 'following', act: live => live.set(true), lands: { row: 100, inner: 0 }, headAt: 10 },
+  { name: 'the last row under the message cursor expanded by its key at the tail', world: { ...TALL, tallAt: 119, cursorOnTall: true }, startOpen: false, top: 'cursor', act: live => live.set(true), lands: { row: 100, inner: 0 }, headAt: 19 },
+  { name: 'the row under the message cursor expanded and collapsed again inside a pane that rests on the list\'s end', world: { ...TALL, tallAt: 110, cursorOnTall: true }, startOpen: false, top: 'cursor', act: openedThenShut, lands: { row: 100, inner: 0 }, headAt: 10 },
   { name: 'the row under the message cursor expanded by its key inside the pane', world: { ...TALL, cursorOnTall: true }, startOpen: false, top: { row: 35, inner: 0 }, act: live => live.set(true), lands: { row: 35, inner: 0 }, headAt: 5 },
   { name: 'the row under the message cursor collapsed by its key inside the pane', world: { ...TALL, cursorOnTall: true }, startOpen: true, top: { row: 35, inner: 0 }, act: live => live.set(false), lands: { row: 35, inner: 0 }, headAt: 5 },
   { name: 'a jump to the head from the tail', world: TALL, startOpen: false, top: 'tail', act: live => live.scroll.current!.scrollTo(0), lands: { row: 0, inner: 0 } },

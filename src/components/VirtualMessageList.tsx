@@ -350,7 +350,9 @@ export function VirtualMessageList({
     const top = handle.getElementTop(el)
     if (top === undefined) return
     const viewTop = handle.getScrollTop()
-    if (top < viewTop || top >= viewTop + handle.getViewportHeight()) handle.scrollToElement(el, 1)
+    const viewBottom = viewTop + handle.getViewportHeight()
+    if (top < viewTop || top >= viewBottom) handle.scrollToElement(el, 1)
+    else if (selectedExpanded && (handle.isSticky() || viewBottom >= handle.getScrollHeight())) handle.scrollToElement(el, viewTop - top)
   }, [selectedExpanded, selectedIndex, scrollRef])
 
   useLayoutEffect(() => {

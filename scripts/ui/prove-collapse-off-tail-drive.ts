@@ -22,6 +22,7 @@ const DEAD = 'http://127.0.0.1:9'
 const ESC = '\x1b'
 const PGUP = `${ESC}[5~`
 const SHIFT_UP = `${ESC}[1;2A`
+const UP = `${ESC}[A`
 const DOWN = `${ESC}[B`
 const ENTER = '\r'
 const CLICK = `${ESC}[<0;{X};{Y}M${ESC}[<0;{X};{Y}m`
@@ -200,7 +201,7 @@ function under(frame: readonly string[], t: number): string[] | null {
 function judge(label: string, frame: readonly string[], t: number): void {
   const shown = under(frame, t)
   const blankRun = (shown ?? []).reduce((run, row) => (row.trim() === '' ? { now: run.now + 1, most: Math.max(run.most, run.now + 1) } : { now: 0, most: run.most }), { now: 0, most: 0 }).most
-  const wanted = [`${turn(t)} closing: all`, `${turn(t)} closing second paragraph`, `${turn(t + 1)} ask:`]
+  const wanted = [`${turn(t)} closing: all`, `${turn(t)} closing second paragraph`, ...(t < TURNS ? [`${turn(t + 1)} ask:`] : [])]
   const found = wanted.filter(words => (shown ?? []).some(row => row.includes(words)))
   const fits = Math.min(wanted.length, Math.floor((shown ?? []).length / 2))
   check(
@@ -271,6 +272,39 @@ for (const size of [WIDE, SMALL]) {
     `${at}: after Enter the expanded group's head is in the pane with its first output under it`,
     head >= 0 && open.slice(head + 1, head + 4).some(line => line.includes(outputLine(t, 1, 1))) && !open.some(line => line.includes(closing(t))),
     open.slice(4, 16).join('\n'),
+  )
+  judge(`${at}: after the second Enter`, c.marks.get('collapsed') ?? [], t)
+}
+
+const TAIL_ROADS: Array<{ size: Size; t: number; step: string; over: string }> = [
+  { size: WIDE, t: TURNS - 1, step: UP, over: 'the turn before the last' },
+  { size: WIDE, t: TURNS, step: DOWN, over: 'the last turn' },
+  { size: SMALL, t: TURNS, step: DOWN, over: 'the last turn' },
+]
+for (const { size, t, step, over } of TAIL_ROADS) {
+  const at = `${size.cols}x${size.rows}, ${over}`
+  if (CASE !== undefined && CASE !== 'tail') continue
+  section(`by the key at the tail at ${at}: the message cursor on the group, Enter expands it, Enter collapses it`)
+  const id = `tail-${turn(t)}-${size.cols}x${size.rows}`
+  const c = capture(id, seededHome(id), [
+    { ...settledTail, data: SHIFT_UP, mark: 'rest' },
+    { requireAwait: true, awaitText: 'navigate', awaitSettleTicks: 2, data: step },
+    { requireAwait: true, awaitText: 'c copy', awaitPattern: NO_EDIT_ROW, awaitSettleTicks: 2, data: step },
+    { requireAwait: true, awaitText: 'enter expand', awaitSettleTicks: 3, data: ENTER, mark: 'on-the-group' },
+    { requireAwait: true, awaitText: 'enter collapse', awaitSettleTicks: 4, data: ENTER, mark: 'expanded' },
+    { requireAwait: true, awaitText: 'enter expand', awaitSettleTicks: 3, data: '', mark: 'collapsed' },
+  ], 300, size)
+  check(`${at}: the drive delivered every send`, c.status === 0 && c.marks.has('collapsed'), `exit ${c.status}, marks ${[...c.marks.keys()].join(',')}`)
+  const shut = c.marks.get('on-the-group') ?? []
+  const closingRow = shut.findIndex(line => line.includes(`${turn(t)} closing: all`))
+  const shutRow = shut.slice(0, Math.max(0, closingRow)).findLastIndex(line => line.includes(HEAD_SHUT))
+  check(`${at}: the cursor's group stands inside a pane that shows the conversation's end`, shutRow >= 0 && shut.some(line => line.includes(`${turn(TURNS)} closing second paragraph`)), shut.slice(4, 34).join('\n'))
+  const open = c.marks.get('expanded') ?? []
+  const openRow = open.findIndex(line => line.includes(HEAD_OPEN))
+  check(
+    `${at}: after Enter the expanded group's head keeps its screen row with its first output under it`,
+    shutRow >= 0 && openRow === shutRow && open.slice(openRow + 1, openRow + 4).some(line => line.includes(outputLine(t, 1, 1))),
+    `the collapsed line stood on screen row ${shutRow}, the expanded head stands on ${openRow}\n${open.slice(4, 16).join('\n')}`,
   )
   judge(`${at}: after the second Enter`, c.marks.get('collapsed') ?? [], t)
 }
