@@ -947,6 +947,7 @@ export function armOverloadProbe(args: {
   model: string
   pause: AgentPauseV1
   afterDeath: boolean
+  recorded?: boolean
   probe?: (model: string) => Promise<boolean>
   resume?: (resumeArgs: {
     agentId: string
@@ -964,6 +965,7 @@ export function armOverloadProbe(args: {
   if (delayMs === null) {
     unpauseAgentTask(args.taskId, args.rootSetAppState, args.registration)
     closeOverloadEpisode(args.taskId)
+    void clearAgentPauseRecord(args.taskId).catch(() => undefined)
     return null
   }
   pauseAgentTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
@@ -983,9 +985,10 @@ export function armOverloadProbe(args: {
     const answered = await (args.probe ?? probeProviderAnswers)(args.model)
     if (!stillThisRow()) return
     if (!answered) {
-      armOverloadProbe({ ...args, afterDeath: false })
+      armOverloadProbe({ ...args, afterDeath: false, recorded: true })
       return
     }
+    void clearAgentPauseRecord(args.taskId).catch(() => undefined)
     const { liveAgentOwner, resumeAgentBackground } = await import('./resumeAgent.js')
     let tasksNow: Record<string, unknown> | undefined
     args.rootSetAppState(prev => {
@@ -1016,6 +1019,12 @@ export function armOverloadProbe(args: {
   }, delayMs)
   timer.unref?.()
   pendingAutomaticResumes.set(args.taskId, timer)
+  if (args.recorded !== true) {
+    const toolUseId = args.toolUseContext.toolUseId
+    void writeAgentPauseRecord(args.taskId, { pause: { why: 'provider overloaded', words: args.pause.words }, model: args.model, description: args.description, armedAt: nowMs, ...(toolUseId !== undefined && toolUseId !== '' ? { toolUseId } : {}) }).catch((error: unknown) => {
+      logForDebugging(`agent lifecycle: the pause of ${args.taskId} could not be recorded: ${errorMessage(error)}`)
+    })
+  }
   return timer
 }
 
