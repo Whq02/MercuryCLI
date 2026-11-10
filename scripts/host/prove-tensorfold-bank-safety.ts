@@ -91,6 +91,10 @@ try {
   }
   assert.ok(volumeFitsOffer({ recipe, gpuId: 'fixture', price: 1, dataCenter: 'OTHER-DC' }) && !bootsFromVolume(recipe, volume.dataCenter), 'an unusable old disk neither hides other data centres nor promises a fast boot')
   const client = new RunpodClient(rp.key, rp.baseUrl)
+  const { rentalVolume } = await import('../../src/services/host/volumes.ts')
+  const beforeVolumeRead = rp.requests.length
+  assert.equal(await rentalVolume(client, recipe), undefined, 'the stock-watch rental reader refuses the old TensorFold disk')
+  assert.equal(rp.requests.length, beforeVolumeRead, 'the unsupported Runpod disk triggers no rental volume request')
   const offer = (await client.offers(new AbortController().signal)).find(row => row.recipe.engine === 'tensorfold' && row.recipe.model === recipe.model && row.dataCenter === volume.dataCenter)!
   assert.ok(offer, 'the old disk has a matching TensorFold rental in its data centre')
   const queued: import('../../src/services/host/store.ts').HostRecord[] = []
@@ -128,6 +132,24 @@ try {
     assert.equal(api.keptMachine(recipe), undefined, 'an old TensorFold disk does not constrain the stock watch to its machine')
     const supported = { ...recipe, engine: 'vllm' as const }
     assert.equal((await vastRentalVolume(api, supported, { ...shape, recipe: supported }))?.id, old.id, 'a supported engine still attaches its same-machine Vast disk')
+    const { saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
+    saveVendorKey('vast', vast.key)
+    vast.state.customOffers = [{ id: 102, gpu_name: 'RTX 3090', gpu_ram: 24 * 1024, num_gpus: 1, dph_total: 0.5, machine_id: 9102, verification: 'verified', reliability2: 0.999, reliability: 0.999, direct_port_count: 1, rentable: true, rented: false, cuda_max_good: 13, disk_space: 2000 }]
+    let shapeWords = ''
+    let detailWords = ''
+    const vastRoad = createHostRoad({ ...options, vendorApiBaseUrls: { vast: vast.baseUrl } })
+    await vastRoad(async q => {
+      if (q.step === 'door-models') return 'other'
+      if (q.step === 'where') return 'rent'
+      if (q.step === 'rental-vendor') return 'vast'
+      if (q.step === 'budget') return ''
+      if (q.step === 'models') return recipe.label.split(' · ')[0]!
+      if (q.step === 'offers') { shapeWords = q.rows!.filter(row => row.label.includes('machine 9102')).map(row => row.label).join('\n'); return '0' }
+      if (q.step === 'rent-confirm') { detailWords = [...(q.lines ?? []), q.found].join('\n'); return 'cancel' }
+      return null
+    }, () => {}, new AbortController().signal)
+    assert.ok(shapeWords.includes('machine 9102') && !shapeWords.includes('boots from your volume') && detailWords.includes('RTX 3090') && !detailWords.includes('not this one'), 'a Vast TensorFold shape and confirmation make no unusable-disk boot or wrong-machine claim')
+    saveVendorKey('vast', null)
   } finally { await vast.close() }
   const road = createHostRoad({ ...options })
   let paid = false
@@ -140,5 +162,5 @@ try {
   assert.ok(paid && removed.ok && !rp.state.volumes.has(volume.id) && readKeptVolume(volume.id)?.state === 'gone', 'an older billed TensorFold volume stays listed and is deleted through Machines I’m paying for')
   assert.ok(bankState(recipe).banked, 'deleting the old volume leaves the local bank intact')
   assert.deepEqual(escaped, [], 'no request left the loopback fixtures')
-  console.log('TENSORFOLD BANK SAFETY GREEN — 20 checks; vendor requests 0 on refused source and mirror roads')
+  console.log('TENSORFOLD BANK SAFETY GREEN — 23 checks; vendor requests 0 on refused source and mirror roads')
 } finally { ssh?.close(); await rp.close(); f.close(); globalThis.fetch = nativeFetch }
