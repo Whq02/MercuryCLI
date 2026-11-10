@@ -796,7 +796,7 @@
     {
       "file": "scripts/gate/prove-node-preload-path.ts",
       "mechanism": "shell-dash-c",
-      "excerpt": "const run = spawnSync('bash', ['-c', '. \"$1\"; suite_scratch_init \"$2\" >/dev/null 2>&1; printf \"%s\\\\n%s\\\\n%s\\\\n%s\" \"$NODE_OPTIONS\" \"$BUN_OPTI",
+      "excerpt": "const run = spawnSync('bash', ['-c', '. \"$1\"; suite_scratch_init \"$2\" >/dev/null 2>&1; printf \"%s\\\\n%s\\\\n%s\\\\n%s\\\\n%s\\\\n%s\" \"$NODE_OPTIONS\" ",
       "cls": "intentional-shell",
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
