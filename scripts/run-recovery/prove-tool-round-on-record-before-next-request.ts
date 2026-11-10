@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, join } from 'node:path'
 import { handoffTurn, isHandoffRequest, startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
@@ -239,6 +239,43 @@ try {
       })
       const resumedWire = wireBlocks(fixture.messageRequests().filter(request => !isHandoffRequest(request)).at(-1))
       check('D3: a process that resumes the session answers, and its request still carries the second prompt, once', second.exit === 0 && second.stdout.includes('D3-RESUMED-REPLY.') && textsOf(resumedWire).split('D3 second prompt.').length - 1 === 1, `exit=${second.exit} ${textsOf(resumedWire).slice(0, 400)}`)
+    } finally {
+      await fixture.close()
+    }
+  }
+
+  section('D4 — the store stops taking writes while a tool runs: the turn still reaches its reply, and a failing store stays the writer\'s to report')
+  {
+    const SID4 = 'facef00d-0000-4000-8000-0000000d4a01'
+    const fixture = await startFixtureApi([handoffTurn(), { kind: 'tool_use', name: 'Bash', id: 'toolu_d4_shell', input: { command: 'node d4-work.mjs', description: 'Does the slow work' } }, { kind: 'text', text: 'D4-REPLY-AFTER-THE-TOOL.' }])
+    const arena = makeArena('d4', fixture)
+    writeFileSync(join(arena.cwd, 'd4-work.mjs'), "setTimeout(() => console.log('D4-WORK-DONE'), 1500)\n")
+    try {
+      const child = spawn(nodeBin!, [DIST, 'run', 'D4 do the work.', '--model', MODEL, '--session-id', SID4, '--mode', 'sovereign', '--format', 'rows'], { cwd: arena.cwd, env: arena.env })
+      let stdout = ''
+      child.stdout.on('data', chunk => (stdout += String(chunk)))
+      child.stderr.on('data', () => {})
+      const exited = new Promise<number | null>(resolve => child.on('close', code => resolve(code)))
+      await Promise.race([fixture.messageRequestStarted(1), exited])
+      await new Promise(tick => setTimeout(tick, 500))
+      const file = transcriptOf(arena, SID4)
+      const heldBefore = file === '' ? [] : (await recordOf(file)).map(row => row.type)
+      const swapped = file !== '' && !stdout.includes('"type":"tool_result"')
+      if (swapped) {
+        renameSync(file, `${file}.aside`)
+        mkdirSync(file)
+      }
+      const killer = setTimeout(() => child.kill('SIGKILL'), 60_000)
+      const exit = await exited
+      clearTimeout(killer)
+      if (swapped) {
+        rmSync(file, { recursive: true, force: true })
+        renameSync(`${file}.aside`, file)
+      }
+      const asked = fixture.messageRequests().filter(request => !isHandoffRequest(request))
+      check('D4: the record held the prompt and the call, and its file was swapped for a folder while the command still ran — every write from there fails', swapped && heldBefore.includes('user') && heldBefore.includes('assistant'), j({ swapped, heldBefore }))
+      const carried = resultsOf(wireBlocks(asked[1]), 'toolu_d4_shell')[0]
+      check('D4: the turn went on — the tool\'s result rode a second request and the reply reached the caller', asked.length === 2 && j(carried?.content).includes('D4-WORK-DONE') && stdout.includes('D4-REPLY-AFTER-THE-TOOL.'), `exit=${exit} requests=${asked.length} ${stdout.slice(-300)}`)
     } finally {
       await fixture.close()
     }

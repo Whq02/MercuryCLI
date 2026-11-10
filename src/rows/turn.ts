@@ -902,7 +902,7 @@ export class Conversation {
           case 'stream_request_start':
             if (!persistenceDisabled && !isBareMode()) {
               await recordDelta()
-              await flushSessionStorage()
+              await flushSessionStorage().catch(() => {})
             }
             break
           case 'stream_event': {
@@ -1068,7 +1068,7 @@ export class Conversation {
             void recordDelta()
           } else {
             await recordDelta()
-            if (!persistenceDisabled) await flushSessionStorage()
+            if (!persistenceDisabled) await flushSessionStorage().catch(() => {})
           }
         }
         if (kind === 'assistant') {
