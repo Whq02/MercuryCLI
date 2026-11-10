@@ -754,10 +754,26 @@ export function windowPauseResumeDelayMs(resumesAtMs: number, nowMs: number = Da
 }
 
 const pendingAutomaticResumes = new Map<string, ReturnType<typeof setTimeout>>()
+const automaticResumesFiring = new Set<string>()
 const cutsAlreadyResumed = new WeakSet<AbortController>()
 
 export function automaticResumePending(taskId: string): boolean {
   return pendingAutomaticResumes.has(taskId)
+}
+
+export function armedAutomaticResumeCount(): number {
+  let firing = 0
+  for (const taskId of automaticResumesFiring) if (!pendingAutomaticResumes.has(taskId)) firing++
+  return pendingAutomaticResumes.size + firing
+}
+
+async function whileFiring(taskId: string, fire: () => Promise<void>): Promise<void> {
+  automaticResumesFiring.add(taskId)
+  try {
+    await fire()
+  } finally {
+    automaticResumesFiring.delete(taskId)
+  }
 }
 
 export function cancelAutomaticResume(taskId: string): boolean {
@@ -796,7 +812,7 @@ export function armBudgetCutResume(args: {
   if (cutsAlreadyResumed.has(args.registration)) return null
   if (args.pause !== undefined) pauseAgentTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
   let unsubscribeAccount: (() => void) | undefined
-  const fire = async (accountChanged = false): Promise<void> => {
+  const resumeNow = async (accountChanged: boolean): Promise<void> => {
     unsubscribeAccount?.()
     unsubscribeAccount = undefined
     const armed = pendingAutomaticResumes.get(args.taskId)
@@ -837,6 +853,7 @@ export function armBudgetCutResume(args: {
           `Crewmate "${args.description}" resumed by itself — the recovery budget's allowance is back after it was spent waiting on the provider; its partial work carried forward`) + (resumed?.note ?? ''),
     })
   }
+  const fire = (accountChanged = false): Promise<void> => whileFiring(args.taskId, () => resumeNow(accountChanged))
   const timer = setTimeout(() => {
     void runWithCwdOverride(getCwdState(), () => fire())
   }, args.delayMs ?? recoveryBudgetMs())
@@ -930,6 +947,7 @@ export function armOverloadProbe(args: {
   model: string
   pause: AgentPauseV1
   afterDeath: boolean
+  recorded?: boolean
   probe?: (model: string) => Promise<boolean>
   resume?: (resumeArgs: {
     agentId: string
@@ -947,6 +965,7 @@ export function armOverloadProbe(args: {
   if (delayMs === null) {
     unpauseAgentTask(args.taskId, args.rootSetAppState, args.registration)
     closeOverloadEpisode(args.taskId)
+    void clearAgentPauseRecord(args.taskId).catch(() => undefined)
     return null
   }
   pauseAgentTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
@@ -959,16 +978,17 @@ export function armOverloadProbe(args: {
     const row = tasksNow?.[args.taskId]
     return isLocalAgentTask(row) && row.status === 'failed' && row.registration === args.registration && row.paused !== undefined
   }
-  const fire = async (): Promise<void> => {
+  const probeNow = async (): Promise<void> => {
     pendingAutomaticResumes.delete(args.taskId)
     if (!stillThisRow()) return
     episode.probes += 1
     const answered = await (args.probe ?? probeProviderAnswers)(args.model)
     if (!stillThisRow()) return
     if (!answered) {
-      armOverloadProbe({ ...args, afterDeath: false })
+      armOverloadProbe({ ...args, afterDeath: false, recorded: true })
       return
     }
+    void clearAgentPauseRecord(args.taskId).catch(() => undefined)
     const { liveAgentOwner, resumeAgentBackground } = await import('./resumeAgent.js')
     let tasksNow: Record<string, unknown> | undefined
     args.rootSetAppState(prev => {
@@ -993,11 +1013,18 @@ export function armOverloadProbe(args: {
       closeOverloadEpisode(args.taskId)
     }
   }
+  const fire = (): Promise<void> => whileFiring(args.taskId, probeNow)
   const timer = setTimeout(() => {
     void runWithCwdOverride(getCwdState(), fire)
   }, delayMs)
   timer.unref?.()
   pendingAutomaticResumes.set(args.taskId, timer)
+  if (args.recorded !== true) {
+    const toolUseId = args.toolUseContext.toolUseId
+    void writeAgentPauseRecord(args.taskId, { pause: { why: 'provider overloaded', words: args.pause.words }, model: args.model, description: args.description, armedAt: nowMs, ...(toolUseId !== undefined && toolUseId !== '' ? { toolUseId } : {}) }).catch((error: unknown) => {
+      logForDebugging(`agent lifecycle: the pause of ${args.taskId} could not be recorded: ${errorMessage(error)}`)
+    })
+  }
   return timer
 }
 

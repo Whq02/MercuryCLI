@@ -185,7 +185,7 @@ section('the rule state by state: what the application carries, what its window 
       const wrong: string[] = []
       for (const webContent of states) {
         for (const truncated of [false, true]) {
-          const plain: DesktopTree = { elements: [row(0, 'AXWindow', 'Draft')], truncated, reason: null, ...(webContent ? { webContent } : {}), ...(webSurface ? { webSurface } : {}) }
+          const plain: DesktopTree = { elements: [row(0, 'AXWindow', 'Draft'), row(1, 'AXButton', 'Share')], truncated, reason: null, ...(webContent ? { webContent } : {}), ...(webSurface ? { webSurface } : {}) }
           const expected = !truncated && (webContent === undefined || webContent === 'available' || (webContent === 'absent' && webEngine === false && webSurface !== true))
           const gone = waitConditionPassed({ text: TEXT, gone: true }, app, plain)
           const dialogGone = waitConditionPassed({ dialog: true, gone: true }, app, plain)
@@ -195,6 +195,27 @@ section('the rule state by state: what the application carries, what its window 
       check(`${words}, ${webSurface ? 'a window that has shown a page surface' : 'a window that has shown none'}: a tree establishes absence only when it is whole and carries the page, or is past its starting state with nothing saying the window bears one`, wrong.length === 0, wrong.join(' · '))
     }
   }
+}
+
+section('a window that exposes nothing besides its frame establishes no absence of an element named by text')
+{
+  const canvas: DesktopApplication = { identity: 'com.example.canvas', name: 'Canvas', pid: 910, title: 'Scene', bounds: BOUNDS, webEngine: false }
+  const whole = (elements: DesktopTreeElement[]): DesktopTree => ({ elements, truncated: false, reason: null, scope: 'window', webContent: 'absent' })
+  const frame = [row(0, 'AXApplication', 'Canvas'), row(1, 'AXWindow (AXStandardWindow)', 'Scene'), row(2, 'AXButton (AXCloseButton)', null), row(2, 'AXButton (AXMinimizeButton)', null), row(2, 'AXButton (AXFullScreenButton)', null), row(2, 'AXStaticText', null, 'Scene')]
+  const bare = whole([...frame, row(2, 'AXGroup', null), row(2, 'AXScrollArea', null), row(3, 'AXScrollBar', null, '0'), row(4, 'AXValueIndicator', null, '0'), row(4, 'AXButton (AXIncrementPage)', null)])
+  const titleBar = whole([row(0, 'AXApplication', 'Canvas'), row(1, 'AXWindow', 'Scene'), row(2, 'TitleBar', null), row(3, 'AXMenuBar', 'System'), row(4, 'AXMenuItem', 'System'), row(3, 'AXButton', 'Minimize'), row(3, 'AXButton', 'Maximize'), row(3, 'AXButton', 'Close'), row(2, 'AXGroup', null)])
+  const emptyDocument = whole([...frame, row(2, 'AXScrollArea', null), row(3, 'AXTextArea', null)])
+  const toolbar = whole([...frame, row(2, 'AXToolbar', null), row(3, 'AXButton', 'Share'), row(2, 'AXGroup', null)])
+  const label = whole([...frame, row(2, 'AXStaticText', null, 'Ready')])
+  const read = (tree: DesktopTree) => [waitConditionPassed({ text: TEXT, gone: true }, canvas, tree), waitConditionPassed({ name: TEXT, gone: true }, canvas, tree), waitConditionPassed({ role: 'AXSheet', gone: true }, canvas, tree), waitConditionPassed({ dialog: true, gone: true }, canvas, tree)]
+  check('a frame, its title and an untitled canvas: a text or a name is not established as gone; a role alone and dialog gone are answered as before', JSON.stringify(read(bare)) === JSON.stringify([false, false, true, true]), JSON.stringify(read(bare)))
+  check('the same on the other frame shape, a title bar with its system menu and three buttons', JSON.stringify(read(titleBar)) === JSON.stringify([false, false, true, true]), JSON.stringify(read(titleBar)))
+  check('an empty document can carry text, so its tree establishes absence', JSON.stringify(read(emptyDocument)) === JSON.stringify([true, true, true, true]), JSON.stringify(read(emptyDocument)))
+  check('a toolbar button or a label that is not the window title is content', JSON.stringify([...read(toolbar), ...read(label)]) === JSON.stringify([true, true, true, true, true, true, true, true]), JSON.stringify([read(toolbar), read(label)]))
+  const { driver, context } = await stage({ label: 'canvas', identity: canvas.identity, name: canvas.name, bundlePath: bundle('Canvas.app', ['Contents/MacOS/Canvas']), engine: false, leavesAtMs: 0, read: () => ({ page: 'none', webContent: 'absent' }) }, windows.length + 2)
+  driver.accessibilityTree = async () => ({ ok: true, value: structuredClone(bare) })
+  const waited = resultOf(await ComputerTool.call({ action: 'wait', until: { text: TEXT, gone: true }, durationMs: 250, capture: false } as never, context))
+  check('through the tool the wait on such a window runs to its timeout', waited.outcome === 'failed' && waited.result.includes('timed out') && waited.result.includes('gone'), waited.result)
 }
 
 finish('prove-computer-gone-windows')

@@ -15,12 +15,15 @@ import { notifyTasksUpdated } from '../../utils/tasks.js'
 import { decodeAgentPause, type AgentPauseV1 } from './agentPause.js'
 import { AGENT_WINDOW_RESUME_NOTE, isLocalAgentTask, type LocalAgentTaskState } from './LocalAgentTask.js'
 
-type AgentPauseRecordV1 = {
-  pause: AgentPauseV1 & { resumesAtMs: number }
+type AgentPauseRecordFacts = {
   description: string
   armedAt: number
   toolUseId?: string
 }
+
+type AgentPauseRecordV1 =
+  | (AgentPauseRecordFacts & { pause: AgentPauseV1 & { resumesAtMs: number } })
+  | (AgentPauseRecordFacts & { pause: { why: 'provider overloaded'; words: string }; model: string })
 
 export function agentPauseRecordPath(agentId: string): string {
   return getAgentMetadataPath(asAgentId(agentId)).replace(/\.meta\.json$/, '.pause.json')
@@ -52,13 +55,15 @@ function decodeAgentPauseRecord(raw: unknown): AgentPauseRecordV1 | null {
   if (raw === null || typeof raw !== 'object') return null
   const record = raw as Record<string, unknown>
   const pause = decodeAgentPause(record.pause)
-  if (pause === null || pause.resumesAtMs === undefined || typeof record.description !== 'string' || typeof record.armedAt !== 'number' || !Number.isFinite(record.armedAt)) return null
-  return {
-    pause: { ...pause, resumesAtMs: pause.resumesAtMs },
+  if (pause === null || typeof record.description !== 'string' || typeof record.armedAt !== 'number' || !Number.isFinite(record.armedAt)) return null
+  const facts: AgentPauseRecordFacts = {
     description: record.description,
     armedAt: record.armedAt,
     ...(typeof record.toolUseId === 'string' && record.toolUseId !== '' ? { toolUseId: record.toolUseId } : {}),
   }
+  if (pause.resumesAtMs !== undefined) return { ...facts, pause: { ...pause, resumesAtMs: pause.resumesAtMs } }
+  if (pause.why !== 'provider overloaded' || typeof record.model !== 'string' || record.model === '') return null
+  return { ...facts, pause: { why: pause.why, words: pause.words }, model: record.model }
 }
 
 export async function readAgentPauseRecord(agentId: string): Promise<AgentPauseRecordV1 | null> {
@@ -108,7 +113,7 @@ export async function carryPausedCrewmatesOnResume(ports: PauseCarryPorts): Prom
   const records = await listAgentPauseRecords()
   if (records.length === 0) return []
   const now = ports.now ?? Date.now()
-  const { armBudgetCutResume, windowPauseResumeDelayMs } = await import('../../tools/AgentTool/agentToolUtils.js')
+  const { armBudgetCutResume, armOverloadProbe, windowPauseResumeDelayMs } = await import('../../tools/AgentTool/agentToolUtils.js')
   const carried: string[] = []
   let context: ToolUseContext | undefined
   for (const { agentId, record } of records) {
@@ -147,6 +152,11 @@ export async function carryPausedCrewmatesOnResume(ports: PauseCarryPorts): Prom
     })
     try {
       context ??= await ports.relaunchContext()
+      if ('model' in record) {
+        const probing = armOverloadProbe({ taskId: agentId, description: record.description, registration, toolUseContext: { ...context, abortController: registration }, rootSetAppState: ports.setAppState, canUseTool: ports.canUseTool, model: record.model, pause: record.pause, afterDeath: true, recorded: true })
+        if (probing !== null) carried.push(agentId)
+        continue
+      }
       const armed = armBudgetCutResume({
         taskId: agentId,
         description: record.description,

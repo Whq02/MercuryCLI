@@ -1,5 +1,6 @@
 import type { DesktopApplication, DesktopTree } from '../../services/desktop/driver.js'
 import { addressWords, bearsPage, shownAddress, targetMatches, targetWords } from './fastRoad.js'
+import { interactiveRole } from './screenMap.js'
 
 interface WaitCondition {
   role?: string
@@ -13,6 +14,9 @@ interface WaitCondition {
 }
 
 const DIALOG_ROLE = /\b(?:AXApplicationDialog|AXSystemDialog|AXSheet|AXDialog)\b/
+const FRAME_ROW = /^AX(?:Application|Window|GrowArea)\b|\(AX(?:Close|Minimize|Zoom|FullScreen|Toolbar)Button\)$/
+const FRAME_SUBTREE = /^(?:AXMenuBar|AXScrollBar|TitleBar)\b/
+const TEXT_ROLE = /^AX(?:StaticText|WebArea|Heading|Table|Outline|List|Browser)\b/
 
 export function waitConditionRefusal(until: WaitCondition): string | null {
   const fields = [until.role, until.name, until.text, until.title, until.url, until.focus].filter(value => value !== undefined)
@@ -33,6 +37,20 @@ export function waitConditionWords(until: WaitCondition): string {
   if (until.dialog === true) return until.gone ? 'dialog gone' : 'dialog open'
   if (until.focus !== undefined) return `focus ${until.focus}`
   return `${until.gone ? 'gone' : 'found'} ${targetWords(until)}`
+}
+
+function exposesContent(app: DesktopApplication, tree: DesktopTree): boolean {
+  const titles = new Set([app.title, ...tree.elements.filter(element => /^AXWindow\b/.test(element.role)).map(element => element.title)].filter(title => title !== null && title !== undefined))
+  let frameDepth: number | null = null
+  for (const element of tree.elements) {
+    if (frameDepth !== null && element.depth > frameDepth) continue
+    frameDepth = FRAME_SUBTREE.test(element.role) ? element.depth : null
+    if (frameDepth !== null || FRAME_ROW.test(element.role)) continue
+    const words = [element.title, element.value].filter((text): text is string => text !== null && text.trim() !== '')
+    if (words.some(text => !titles.has(text))) return true
+    if (words.length === 0 && (interactiveRole(element.role) || TEXT_ROLE.test(element.role))) return true
+  }
+  return false
 }
 
 function settledAbsence(app: DesktopApplication, tree: DesktopTree): boolean {
@@ -60,5 +78,7 @@ export function waitConditionPassed(until: WaitCondition, app: DesktopApplicatio
     return focused != null && focused.role.replace(/\s+/g, ' ').trim().toLowerCase() === until.focus.replace(/\s+/g, ' ').trim().toLowerCase()
   }
   const found = targetMatches(tree, until).length > 0
-  return until.gone ? !found && settledAbsence(app, tree) : found
+  if (!until.gone) return found
+  const namedByText = until.name !== undefined || until.text !== undefined
+  return !found && settledAbsence(app, tree) && (!namedByText || exposesContent(app, tree))
 }
