@@ -125,6 +125,74 @@ console.log('G5 an answer for a git offer the daemon does not hold')
   check("a runner's ask this daemon does not hold is refused and its row stays (the board's own sweep retires it with its session)", runnerRefused.outcome === 'refused' && (await obligationOf(runnerAsk.obligationId, { scope: 'switchboard' }))?.status === 'open')
 }
 
+console.log('G6 a settlement never takes the row of an offer raised again for the same folder')
+{
+  const { upsertObligation, obligationOf } = await import('../../src/services/crew/obligations.js')
+  const openFor = async (requestId: string): Promise<Awaited<ReturnType<typeof openObligations>>> =>
+    (await openObligations({ scope: 'switchboard' })).filter(r => r.ref === `permission:${requestId}`)
+  const openSoon = async (requestId: string): Promise<boolean> => {
+    for (let i = 0; i < 40; i++) {
+      if ((await openFor(requestId)).length > 0) return true
+      await new Promise(r => setTimeout(r, 50))
+    }
+    return false
+  }
+  const settledSoon = async (obligationId: string): Promise<string> => {
+    let status = 'open'
+    for (let i = 0; i < 40 && status === 'open'; i++) {
+      status = (await obligationOf(obligationId, { scope: 'switchboard' }))?.status ?? 'unknown'
+      if (status === 'open') await new Promise(r => setTimeout(r, 50))
+    }
+    return status
+  }
+  const heldNow = (requestId: string): boolean => listPendingPermissionAsks().some(a => a.requestId === requestId)
+
+  const folderC = mkdtempSync(join(tmpdir(), 'concflow-folder-c-'))
+  const first = mintGitInitAsk(folderC) as { requestId: string }
+  await openSoon(first.requestId)
+  const firstRow = (await openFor(first.requestId))[0]
+  answerPermissionAsk(first.requestId, false, 'prover')
+  check('the scene: the first offer for the folder is answered and its row settles', firstRow !== undefined && (await settledSoon(firstRow.obligationId)) === 'answered')
+  await upsertObligation({ ref: `permission:${first.requestId}`, sessionId: `folder:${folderC}`, question: 'this folder has no git — start one?', owner: 'operator', scope: 'switchboard' })
+  const unheldAnswer = answerPermissionAsk(first.requestId, false, 'prover')
+  const raisedAgain = mintGitInitAsk(folderC) as { requestId: string }
+  await new Promise(r => setTimeout(r, 700))
+  check('an unheld offer is refused, and the offer raised again in the same breath keeps its one card (the withdrawal decides inside the store, on an offer still unheld)', unheldAnswer.outcome === 'refused' && raisedAgain.requestId === first.requestId && heldNow(first.requestId) && (await openFor(first.requestId)).length === 1, JSON.stringify({ held: heldNow(first.requestId), open: (await openFor(first.requestId)).length }))
+
+  const folderD = mkdtempSync(join(tmpdir(), 'concflow-folder-d-'))
+  const offer = mintGitInitAsk(folderD) as { requestId: string }
+  await openSoon(offer.requestId)
+  const said = answerPermissionAsk(offer.requestId, false, 'prover')
+  const offeredAgain = mintGitInitAsk(folderD) as { requestId: string }
+  await new Promise(r => setTimeout(r, 700))
+  check('a held offer answered No, and the offer raised again in the same breath keeps its one card (the answer settles its own offer, never the next one)', said.outcome === 'applied' && offeredAgain.requestId === offer.requestId && heldNow(offer.requestId) && (await openFor(offer.requestId)).length === 1, JSON.stringify({ held: heldNow(offer.requestId), open: (await openFor(offer.requestId)).length }))
+  answerPermissionAsk(offer.requestId, false, 'prover')
+  await new Promise(r => setTimeout(r, 700))
+  check('…and with nothing raised after it, the answer settles the row as before', !heldNow(offer.requestId) && (await openFor(offer.requestId)).length === 0, JSON.stringify({ open: (await openFor(offer.requestId)).length }))
+
+  const folderE = mkdtempSync(join(tmpdir(), 'concflow-folder-e-'))
+  const early = mintGitInitAsk(folderE) as { requestId: string }
+  await openSoon(early.requestId)
+  answerPermissionAsk(early.requestId, false, 'prover')
+  await new Promise(r => setTimeout(r, 700))
+  const stale = await upsertObligation({ ref: `permission:${early.requestId}`, sessionId: `folder:${folderE}`, question: 'this folder has no git — start one?', owner: 'operator', scope: 'switchboard' })
+  answerPermissionAsk(early.requestId, false, 'prover')
+  const staleStatus = await settledSoon(stale.obligationId)
+  const later = mintGitInitAsk(folderE) as { requestId: string }
+  const fresh = (await openSoon(later.requestId)) ? (await openFor(later.requestId))[0] : undefined
+  check('an unheld offer answered with nothing raised beside it is withdrawn, and the offer raised after that gets a fresh card', staleStatus === 'withdrawn' && heldNow(later.requestId) && fresh !== undefined && fresh.obligationId !== stale.obligationId, JSON.stringify({ staleStatus, fresh: fresh?.obligationId, stale: stale.obligationId }))
+
+  const folderF = mkdtempSync(join(tmpdir(), 'concflow-folder-f-'))
+  const twice = mintGitInitAsk(folderF) as { requestId: string }
+  await openSoon(twice.requestId)
+  const twiceRow = (await openFor(twice.requestId))[0]
+  const firstSay = answerPermissionAsk(twice.requestId, false, 'operator')
+  const secondSay = answerPermissionAsk(twice.requestId, false, 'operator')
+  await new Promise(r => setTimeout(r, 700))
+  const twiceAfter = twiceRow !== undefined ? await obligationOf(twiceRow.obligationId, { scope: 'switchboard' }) : null
+  check("a held offer answered twice in one breath ends answered by the operator: the second answer's withdrawal never wins", firstSay.outcome === 'applied' && secondSay.outcome === 'refused' && twiceAfter?.status === 'answered' && twiceAfter.settlement?.by === 'operator', JSON.stringify({ status: twiceAfter?.status, by: twiceAfter?.settlement?.by }))
+}
+
 console.log('T1 trust ledger')
 {
   const fresh = mkdtempSync(join(tmpdir(), 'concflow-trust-'))

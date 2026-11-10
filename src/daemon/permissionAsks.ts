@@ -149,13 +149,13 @@ export function retireWorkerAsks(short: string, cause: string, dir?: string): st
   return retiredIds
 }
 
-function settleAskObligation(ask: PendingAsk, outcome: { kind: 'withdrawn' | 'answered'; by: string }): void {
+function settleAskObligation(ask: PendingAsk, outcome: { kind: 'withdrawn' | 'answered'; by: string }, stillDue?: () => boolean): void {
   const landed = ask.obligationLanded ?? Promise.resolve(ask.obligationId)
   void landed
     .then(async obligationId => {
       if (obligationId === undefined) return
       const o = await import('../services/crew/obligations.js')
-      await o.resolveObligation(obligationId, { ...outcome, scope: 'switchboard' } as Parameters<typeof o.resolveObligation>[1])
+      await o.resolveObligation(obligationId, { ...outcome, scope: 'switchboard', ...(stillDue !== undefined ? { stillDue } : {}) } as Parameters<typeof o.resolveObligation>[1])
     })
     .catch(err => logForDebugging(`[daemon] permission-ask obligation settle failed: ${err}`))
 }
@@ -384,6 +384,7 @@ function withdrawUnheldGitOffer(requestId: string): void {
     kind: 'withdrawn',
     by: 'daemon: no git offer is held under this reference',
     scope: 'switchboard',
+    stillDue: () => !pending.has(requestId),
   }).catch(err => logForDebugging(`[daemon] unheld git offer ${requestId} obligation settle failed: ${err}`))
 }
 
@@ -432,7 +433,7 @@ export function answerPermissionAsk(
     return { outcome: 'refused', detail: retired.get(requestId) ?? 'unknown or already-answered permission request' }
   }
   if (ask.local === 'git-init') {
-    const settleObligation = (): void => settleAskObligation(ask, { kind: 'answered', by })
+    const settleObligation = (): void => settleAskObligation(ask, { kind: 'answered', by }, () => !pending.has(requestId))
     const dropSidecar = (): void => {
       const map = readGitInitAsks()
       if (map[requestId] !== undefined) {
