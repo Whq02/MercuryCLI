@@ -617,9 +617,9 @@ Every live row is a tile: the NOW cell (painted when the session list is wide
 enough for it) streams what the session is doing right now (the reply's last
 line, or the tool it is running), and `→` opens a preview of the selected row
 in place. On a list too narrow for that column a row carries the cell only
-when it needs you — the head of a crash reason, a waiting ask or a refused
-park — where its project and last-used cells stand; the live line stays off
-there. When a runner crashes, its row
+when it needs you: the head of a crash reason, a waiting ask or a refused
+park stands where its project and last-used cells were, and the live line
+stays off there. When a runner crashes, its row
 shows NEEDS YOU with the exit code and the last error or stderr line;
 the row stays across reconciles until you act on the session or release the row.
 The daemon's log records the same line for every crash. `ctrl+x ctrl+x` stops the selected
@@ -1190,4 +1190,4 @@ a message does not end a task.
   stopped or killed keeps its scratchpad until `records.retentionDays` (30 by
   default) after the last write to it, when the cleanup removes it;
   `mercury health` states what such scratchpads hold and, once they pass a
-  gibibyte, offers to remove them.
+  gibibyte, warns and can remove them.
