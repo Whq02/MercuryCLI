@@ -83,8 +83,6 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_MODEL_LANES: ['', '2'],
   MERCURY_ANCHOR_PATCH: ['', '1', '0'],
   MERCURY_EDIT_STALE_RECOVERY: ['', '0'],
-  MERCURY_ENGINE_ASSERT: ['', '1', '0'],
-  MERCURY_RENDER_ENGINE: ['', '1', '0'],
   MERCURY_EVAL: ['', '0'],
   MERCURY_EVAL_PY: ['', '0'],
   MERCURY_EVAL_JS: ['', '0'],

@@ -6,7 +6,7 @@ import type { DOMElement as FrameNode } from './dom.js'
 import getMaxWidth from './get-max-width.js'
 import type { Rectangle } from './layout/geometry.js'
 import { LayoutDisplay, LayoutEdge, type LayoutNode } from './layout/node.js'
-import { type CachedLayout, nodeCache, pendingClears } from './node-cache.js'
+import { type CachedLayout, consumeChildRemoved, nodeCache, pendingClears } from './node-cache.js'
 import type ComposeBuffer from './compose-buffer.js'
 import renderBorder from './render-border.js'
 import type { Screen } from './cell-grid.js'
@@ -271,7 +271,9 @@ type RowGround = (row: number) => Color | undefined
 
 type Walk = { buffer: ComposeBuffer; signals: ComposeSignals; prevAbsoluteRects: readonly Rectangle[]; regionScrollUsable: boolean }
 
-type Placement = { offsetX?: number; offsetY?: number; prevScreen: Screen | undefined; skipSelfBlit?: boolean; inheritedBackgroundColor?: Color; inheritedRowBg?: RowGround }
+type Own = { left: number; top: number; right: number; bottom: number }
+
+type Placement = { offsetX?: number; offsetY?: number; prevScreen: Screen | undefined; skipSelfBlit?: boolean; inheritedBackgroundColor?: Color; inheritedRowBg?: RowGround; own?: Own }
 
 type ComposeOptions = { offsetX?: number; offsetY?: number; prevScreen: Screen | undefined; signals?: ComposeSignals; prevAbsoluteRects?: readonly Rectangle[]; regionScrollUsable?: boolean }
 
@@ -302,17 +304,16 @@ function clearHidden(hidden: FrameNode, walk: Walk): void {
 
 function placeNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placement: Placement): void {
   const x = (placement.offsetX ?? 0) + layoutNode.getComputedLeft()
-  const yogaTop = layoutNode.getComputedTop()
   const floating = node.style.position === 'absolute'
-  const unclampedY = (placement.offsetY ?? 0) + yogaTop
+  const unclampedY = (placement.offsetY ?? 0) + layoutNode.getComputedTop()
   const y = unclampedY < 0 && floating ? 0 : unclampedY
   const width = layoutNode.getComputedWidth()
   const height = layoutNode.getComputedHeight()
   const held = nodeCache.get(node)
   const rectHeld = held !== undefined && held.x === x && held.y === y && held.width === width && held.height === height
-  const reusable = !node.dirty && !placement.skipSelfBlit && node.scroll?.pendingScrollDelta === undefined && rectHeld && placement.prevScreen !== undefined
+  const reusable = !node.dirty && !placement.skipSelfBlit && node.scroll?.pendingScrollDelta === undefined && rectHeld && placement.prevScreen !== undefined && held!.reach === undefined && (floating || insideOwn(placement.own, x, y, width, height))
   if (reusable) reuseNode(node, held!, walk, placement.prevScreen!, floating, x, y, width, height)
-  else repaintNode(node, layoutNode, walk, placement, held, rectHeld, floating, x, y, yogaTop, width, height)
+  else repaintNode(node, layoutNode, walk, placement, held, rectHeld, floating, x, y, width, height)
 }
 
 function reuseNode(node: FrameNode, cached: CachedLayout, walk: Walk, prevScreen: Screen, floating: boolean, x: number, y: number, width: number, height: number): void {
@@ -341,7 +342,7 @@ function movedForensics(node: FrameNode, cached: CachedLayout, x: number, y: num
 const firstDivergentRow = (cached: CachedLayout, y: number, height: number): number =>
   cached.y !== y ? Math.floor(Math.min(cached.y, y)) : cached.height !== height ? Math.floor(y + Math.min(cached.height, height)) : Math.floor(y)
 
-function repaintNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placement: Placement, cached: CachedLayout | undefined, rectHeld: boolean, floating: boolean, x: number, y: number, yogaTop: number, width: number, height: number): void {
+function repaintNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placement: Placement, cached: CachedLayout | undefined, rectHeld: boolean, floating: boolean, x: number, y: number, width: number, height: number): void {
   const { buffer, signals } = walk
   const moved = cached !== undefined && !rectHeld
   if (moved) signals.markLayoutShift(() => movedForensics(node, cached, x, y, width, height), firstDivergentRow(cached, y, height))
@@ -352,17 +353,65 @@ function repaintNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placem
     signals.markLayoutShift(() => `removed-child:${node.nodeName}`, vacated.length > 0 ? Math.min(...vacated.map(rect => Math.floor(rect.y))) : undefined)
     for (const rect of vacated) buffer.clear(floorRect(rect))
   }
-  const placed: CachedLayout = { x, y, width, height, top: yogaTop }
+  const placed: CachedLayout = { x, y, width, height }
   if (height === 0 && siblingSharesY(node, layoutNode)) {
     nodeCache.set(node, placed)
     forgetSubtree(node)
   } else {
     paintNode(node, layoutNode, walk, placement, x, y, width, height, hasRemovedChild)
+    const reach = reachBeyond(node, x, y, width, height)
+    if (reach !== undefined) placed.reach = reach
     nodeCache.set(node, placed)
     if (floating) signals.absoluteRectsCur.push(placed)
   }
   settle(node)
 }
+
+const insideOwn = (own: Own | undefined, x: number, y: number, width: number, height: number): boolean =>
+  own === undefined || (x >= own.left && y >= own.top && x + width <= own.right && y + height <= own.bottom)
+
+function ownWithin(own: Own | undefined, clipsAcross: boolean, clipsDown: boolean, x: number, y: number, width: number, height: number): Own {
+  const outerLeft = own?.left ?? -Infinity
+  const outerTop = own?.top ?? -Infinity
+  const outerRight = own?.right ?? Infinity
+  const outerBottom = own?.bottom ?? Infinity
+  const heldAcross = x >= outerLeft && x + width <= outerRight
+  const heldDown = y >= outerTop && y + height <= outerBottom
+  return {
+    left: clipsAcross ? (heldAcross ? -Infinity : Infinity) : Math.max(outerLeft, x),
+    right: clipsAcross ? (heldAcross ? Infinity : -Infinity) : Math.min(outerRight, x + width),
+    top: clipsDown ? (heldDown ? -Infinity : Infinity) : Math.max(outerTop, y),
+    bottom: clipsDown ? (heldDown ? Infinity : -Infinity) : Math.min(outerBottom, y + height),
+  }
+}
+
+function reachBeyond(node: FrameNode, x: number, y: number, width: number, height: number): Rectangle | undefined {
+  if (node.nodeName !== 'ink-box') return undefined
+  const clipsAcross = clipping(node.style.overflowX ?? node.style.overflow)
+  const clipsDown = clipping(node.style.overflowY ?? node.style.overflow)
+  if (clipsAcross && clipsDown) return undefined
+  let left = x
+  let top = y
+  let right = x + width
+  let bottom = y + height
+  for (const child of node.childNodes as FrameNode[]) {
+    if (child.style.position === 'absolute') continue
+    const held = nodeCache.get(child)
+    if (held === undefined) continue
+    const painted = held.reach ?? held
+    if (!clipsAcross) {
+      left = Math.min(left, painted.x)
+      right = Math.max(right, painted.x + painted.width)
+    }
+    if (!clipsDown) {
+      top = Math.min(top, painted.y)
+      bottom = Math.max(bottom, painted.y + painted.height)
+    }
+  }
+  return left < x || top < y || right > x + width || bottom > y + height ? { x: left, y: top, width: right - left, height: bottom - top } : undefined
+}
+
+const reachMoves = (child: FrameNode): boolean => child.dirty && child.style.position !== 'absolute' && nodeCache.get(child)?.reach !== undefined
 
 function vacatedRects(parent: FrameNode): readonly Rectangle[] | undefined {
   const rects = pendingClears.get(parent)
@@ -384,7 +433,7 @@ function paintNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placemen
   } else if (kind === 'ink-box') {
     composeBox(node, walk, placement, x, y, width, height, layoutNode, hasRemovedChild)
   } else if (kind === 'ink-root') {
-    composeChildren(node, walk, x, y, hasRemovedChild, placement.prevScreen, placement.inheritedBackgroundColor, placement.inheritedRowBg)
+    composeChildren(node, walk, x, y, hasRemovedChild, placement.prevScreen, placement.inheritedBackgroundColor, placement.inheritedRowBg, undefined)
   }
 }
 
@@ -468,7 +517,7 @@ function composeBox(node: FrameNode, walk: Walk, placement: Placement, x: number
     buffer.clip({ x1: clipLeft, x2: clipRight, y1: clipTop, y2: clipBottom })
   }
   if (down === 'scroll') {
-    composeScrollBox(node, walk, placement, x, y, width, height, layoutNode, clipTop, clipBottom, hasRemovedChild, boxBackgroundColor, rowSampler)
+    composeScrollBox(node, walk, placement, x, y, width, height, layoutNode, clipTop, clipBottom, hasRemovedChild, boxBackgroundColor, ownWithin(placement.own, clipsAcross, clipsDown, x, y, width, height), rowSampler)
   } else {
     const memo = node as unknown as FillMemo
     const fillRemoved = (memo.__prevOwnBg !== undefined && ownGround === undefined) || (memo.__prevOpaque === true && node.style.opaque !== true) || (memo.__prevOwnRowBg === true && ownRowBg === undefined)
@@ -477,7 +526,7 @@ function composeBox(node: FrameNode, walk: Walk, placement: Placement, x: number
     memo.__prevOwnRowBg = ownRowBg !== undefined
     const fills = Boolean(ownGround || node.style.opaque || ownRowBg !== undefined || fillRemoved)
     if (fills) fillInterior(walk, layoutNode, x, y, width, height, ownGround, rowSampler, placement.inheritedBackgroundColor)
-    composeChildren(node, walk, x, y, hasRemovedChild, fills ? undefined : placement.prevScreen, boxBackgroundColor, rowSampler)
+    composeChildren(node, walk, x, y, hasRemovedChild, fills ? undefined : placement.prevScreen, boxBackgroundColor, rowSampler, ownWithin(placement.own, clipsAcross, clipsDown, x, y, width, height))
   }
   if (clips) buffer.unclip()
   renderBorder(x, y, node, buffer as never, boxBackgroundColor)
@@ -502,12 +551,13 @@ function fillInterior(walk: Walk, layoutNode: LayoutNode, x: number, y: number, 
 
 type RectShift = { top: number; bottom: number; delta: number; x0: number; x1: number }
 
-function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: number, y: number, width: number, height: number, layoutNode: LayoutNode, y1: number | undefined, y2: number | undefined, hasRemovedChild: boolean, boxBackgroundColor: Color | undefined, rowSampler?: RowGround): void {
+function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: number, y: number, width: number, height: number, layoutNode: LayoutNode, y1: number | undefined, y2: number | undefined, hasRemovedChild: boolean, boxBackgroundColor: Color | undefined, own: Own, rowSampler?: RowGround): void {
   const { buffer, signals } = walk
   const prevScreen = placement.prevScreen
   const boxCached = nodeCache.get(node)
   const paddingTop = layoutNode.getComputedPadding(LayoutEdge.Top)
-  const innerHeight = Math.max(0, (y2 ?? y + height) - (y1 ?? y) - paddingTop - layoutNode.getComputedPadding(LayoutEdge.Bottom))
+  const paddingBottom = layoutNode.getComputedPadding(LayoutEdge.Bottom)
+  const innerHeight = Math.max(0, (y2 ?? y + height) - (y1 ?? y) - paddingTop - paddingBottom)
   const content = node.childNodes.find(c => (c as FrameNode).layoutNode) as FrameNode | undefined
   const contentYoga = content?.layoutNode
   const scroll = (node.scroll ??= {})
@@ -586,27 +636,32 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
   const paintTop = clamped
 
   if (!content || !contentYoga) return
+  const contentVacated = vacatedRects(content)
+  if (contentVacated !== undefined) for (const rect of contentVacated) buffer.clear(floorRect(rect))
+  const childRemoved = consumeChildRemoved(content) || hasRemovedChild || contentVacated !== undefined
   const contentLeft = x + contentYoga.getComputedLeft()
   const contentTop = y + contentYoga.getComputedTop() - paintTop
+  const bandTop = paintTop - paddingTop
+  const bandBottom = paintTop + innerHeight + paddingBottom
 
   const contentWas = nodeCache.get(content)
   let regionHint: ScrollHint | null = null
   let rectShift: RectShift | null = null
   if (contentWas && contentWas.y !== contentTop) {
     const delta = contentWas.y - contentTop
-    const viewportTop = Math.floor(y + contentYoga.getComputedTop())
-    const viewportBottom = viewportTop + innerHeight - 1
-    signals.scrollTranslation = { delta, viewportTop, viewportBottom }
+    const regionTop = Math.floor(y + contentYoga.getComputedTop() - paddingTop)
+    const regionBottom = regionTop + paddingTop + innerHeight + paddingBottom - 1
+    signals.scrollTranslation = { delta, viewportTop: regionTop, viewportBottom: regionBottom }
     if (delta > 0) fluxMark('scroll:follow', innerHeight)
-    fluxMark('scroll:xlate', viewportTop * 1000 + delta + 500)
+    fluxMark('scroll:xlate', regionTop * 1000 + delta + 500)
     if (rowSampler === undefined) {
       const spansFullWidth = Math.floor(x) <= 0 && Math.ceil(x + width) >= buffer.width
       const stableForShift = boxCached?.y === y && boxCached.height === height && innerHeight > 0 && Math.abs(delta) < innerHeight
       if (stableForShift && spansFullWidth && walk.regionScrollUsable) {
-        regionHint = { top: viewportTop, bottom: viewportBottom, delta }
+        regionHint = { top: regionTop, bottom: regionBottom, delta }
         signals.scrollHint = regionHint
       } else if (stableForShift) {
-        rectShift = { top: viewportTop, bottom: viewportBottom, delta, x0: Math.floor(x), x1: Math.floor(x) + Math.floor(width) }
+        rectShift = { top: regionTop, bottom: regionBottom, delta, x0: Math.floor(x), x1: Math.floor(x) + Math.floor(width) }
       } else {
         signals.markLayoutShift(() => `scroll-no-hint:${node.nodeName}`)
       }
@@ -616,7 +671,7 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
   const contentHeightWas = contentWas?.height ?? contentHeight
   const heightDelta = contentHeight - contentHeightWas
   const shiftPlan = regionHint ?? rectShift
-  const safeForFastPath = !shiftPlan || heightDelta === 0 || (shiftPlan.delta > 0 && heightDelta === shiftPlan.delta)
+  const safeForFastPath = !shiftPlan || (!childRemoved && (heightDelta === 0 || (shiftPlan.delta > 0 && heightDelta === shiftPlan.delta)))
   if (!safeForFastPath) {
     signals.scrollHint = null
     if (rectShift) {
@@ -637,11 +692,10 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
     if (boxBackgroundColor && incomingBottom >= incomingTop) buffer.write(Math.floor(x), incomingTop, groundRows(columns, incomingBottom - incomingTop + 1, boxBackgroundColor))
     buffer.clip({ x1: undefined, x2: undefined, y1: incomingTop, y2: incomingBottom + 1 })
     const dirtyChildren = content.dirty ? new Set(content.childNodes.filter(c => (c as FrameNode).dirty)) : null
-    composeScrolledChildren(content, walk, contentLeft, contentTop, hasRemovedChild, undefined, incomingTop - contentTop, incomingBottom + 1 - contentTop, boxBackgroundColor, true)
+    composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, undefined, incomingTop - contentTop, incomingBottom + 1 - contentTop, boxBackgroundColor, true)
     buffer.unclip()
     if (dirtyChildren !== null) {
-      const viewportFloor = Math.floor((y1 ?? y) + paddingTop + innerHeight)
-      repairStableRows(content, walk, dirtyChildren, contentLeft, contentTop, delta, paintTop, innerHeight, incomingTop, incomingBottom, viewportFloor, Math.floor(x), columns, boxBackgroundColor)
+      repairStableRows(content, walk, dirtyChildren, contentLeft, contentTop, delta, bandTop, bandBottom, incomingTop, incomingBottom, bottom + 1, Math.floor(x), columns, boxBackgroundColor)
     }
     for (const rect of walk.prevAbsoluteRects) {
       if (rect.y >= bottom + 1 || rect.y + rect.height <= top) continue
@@ -650,7 +704,7 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
       if (shiftedTop >= shiftedBottom || (shiftedTop >= incomingTop && shiftedBottom <= incomingBottom + 1)) continue
       buffer.write(Math.floor(x), shiftedTop, groundRows(columns, shiftedBottom - shiftedTop, boxBackgroundColor))
       buffer.clip({ x1: undefined, x2: undefined, y1: shiftedTop, y2: shiftedBottom })
-      composeScrolledChildren(content, walk, contentLeft, contentTop, hasRemovedChild, undefined, shiftedTop - contentTop, shiftedBottom - contentTop, boxBackgroundColor, true)
+      composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, undefined, shiftedTop - contentTop, shiftedBottom - contentTop, boxBackgroundColor, true)
       buffer.unclip()
     }
   } else {
@@ -664,13 +718,13 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
       buffer.write(Math.floor(x), Math.floor(y1), groundRows(Math.floor(width), Math.floor(y2 - y1), boxBackgroundColor))
     }
     const boxMoved = boxCached !== undefined && (boxCached.x !== x || boxCached.y !== y || boxCached.width !== width || boxCached.height !== height)
-    composeScrolledChildren(content, walk, contentLeft, contentTop, hasRemovedChild, rowSampler !== undefined || scrolled || boxMoved ? undefined : prevScreen, paintTop, paintTop + innerHeight, boxBackgroundColor, false, rowSampler)
+    composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, rowSampler !== undefined || scrolled || boxMoved ? undefined : prevScreen, bandTop, bandBottom, boxBackgroundColor, false, rowSampler, own)
   }
   nodeCache.set(content, { x: contentLeft, y: contentTop, width: contentYoga.getComputedWidth(), height: contentYoga.getComputedHeight() })
   settle(content)
 }
 
-function repairStableRows(content: FrameNode, walk: Walk, dirtyChildren: Set<FrameNode['childNodes'][number]>, contentLeft: number, contentTop: number, delta: number, paintTop: number, innerHeight: number, incomingTop: number, incomingBottom: number, viewportFloor: number, left: number, columns: number, boxBackgroundColor: Color | undefined): void {
+function repairStableRows(content: FrameNode, walk: Walk, dirtyChildren: Set<FrameNode['childNodes'][number]>, contentLeft: number, contentTop: number, delta: number, bandTop: number, bandBottom: number, incomingTop: number, incomingBottom: number, regionFloor: number, left: number, columns: number, boxBackgroundColor: Color | undefined): void {
   const { buffer } = walk
   let cumulativeGrowth = 0
   for (const entry of content.childNodes) {
@@ -682,13 +736,13 @@ function repairStableRows(content: FrameNode, walk: Walk, dirtyChildren: Set<Fra
     const childHeight = layout.getComputedHeight()
     const childBottom = childTop + childHeight
     if (isDirty) cumulativeGrowth += childHeight - (nodeCache.get(child)?.height ?? 0)
-    const offscreen = childBottom <= paintTop || childTop >= paintTop + innerHeight
+    const offscreen = childBottom <= bandTop || childTop >= bandBottom
     const insideIncoming = childTop >= incomingTop - contentTop && childBottom <= incomingBottom + 1 - contentTop
     if (offscreen || insideIncoming) continue
     const screenTop = Math.floor(contentTop + childTop)
     const childWas = isDirty ? undefined : nodeCache.get(child)
     if (childWas && Math.floor(childWas.y) - delta === screenTop) continue
-    const screenBottom = Math.min(Math.floor(contentTop + childBottom), viewportFloor)
+    const screenBottom = Math.min(Math.floor(contentTop + childBottom), regionFloor)
     if (screenTop < screenBottom) {
       buffer.write(left, screenTop, groundRows(columns, screenBottom - screenTop, boxBackgroundColor))
       buffer.clip({ x1: undefined, x2: undefined, y1: screenTop, y2: screenBottom })
@@ -700,13 +754,14 @@ function repairStableRows(content: FrameNode, walk: Walk, dirtyChildren: Set<Fra
 
 type ScreenOffer = 'open' | 'clipped' | 'closed'
 
-function composeChildren(node: FrameNode, walk: Walk, offsetX: number, offsetY: number, hasRemovedChild: boolean, prevScreen: Screen | undefined, inheritedBackgroundColor: Color | undefined, inheritedRowBg?: RowGround): void {
-  let offer: ScreenOffer = hasRemovedChild ? 'closed' : 'open'
-  for (const child of node.childNodes as FrameNode[]) {
+function composeChildren(node: FrameNode, walk: Walk, offsetX: number, offsetY: number, hasRemovedChild: boolean, prevScreen: Screen | undefined, inheritedBackgroundColor: Color | undefined, inheritedRowBg: RowGround | undefined, own: Own | undefined): void {
+  const children = node.childNodes as FrameNode[]
+  let offer: ScreenOffer = hasRemovedChild || children.some(reachMoves) ? 'closed' : 'open'
+  for (const child of children) {
     const wasDirty = child.dirty
     const floating = child.style.position === 'absolute'
     const seeThrough = floating && !child.style.opaque && child.style.backgroundColor === undefined
-    composeNode(child, walk, { offsetX, offsetY, prevScreen: offer === 'closed' ? undefined : prevScreen, skipSelfBlit: offer === 'clipped' && seeThrough, inheritedBackgroundColor, inheritedRowBg })
+    composeNode(child, walk, { offsetX, offsetY, prevScreen: offer === 'closed' ? undefined : prevScreen, skipSelfBlit: offer === 'clipped' && seeThrough, inheritedBackgroundColor, inheritedRowBg, own: floating ? undefined : own })
     if (wasDirty && offer !== 'closed') offer = !floating && clipsBothAxes(child) ? 'clipped' : 'closed'
   }
 }
@@ -757,38 +812,17 @@ function blitEscapingAbsoluteDescendants(node: FrameNode, walk: Walk, prevScreen
   }
 }
 
-type Band = { top: number; height: number; grewBy: number }
+const outsideBand = (layout: LayoutNode, bandTop: number, bandBottom: number): boolean => layout.getComputedTop() + layout.getComputedHeight() <= bandTop || layout.getComputedTop() >= bandBottom
 
-const measured: Band = { top: 0, height: 0, grewBy: 0 }
-
-function measureScrolledChild(child: FrameNode, layout: LayoutNode, cached: CachedLayout | undefined, shiftAbove: number): Band {
-  if (cached?.top !== undefined && !child.dirty && shiftAbove === 0) {
-    measured.top = cached.top
-    measured.height = cached.height
-    measured.grewBy = 0
-    return measured
-  }
-  measured.top = layout.getComputedTop()
-  measured.height = layout.getComputedHeight()
-  measured.grewBy = child.dirty ? measured.height - (cached?.height ?? 0) : 0
-  if (cached) cached.top = measured.top
-  return measured
-}
-
-const outsideBand = (band: Band, bandTop: number, bandBottom: number): boolean => band.top + band.height <= bandTop || band.top >= bandBottom
-
-function composeScrolledChildren(node: FrameNode, walk: Walk, offsetX: number, offsetY: number, hasRemovedChild: boolean, prevScreen: Screen | undefined, scrollTopY: number, scrollBottomY: number, inheritedBackgroundColor: Color | undefined, preserveCulledCache = false, inheritedRowBg?: RowGround): void {
+function composeScrolledChildren(node: FrameNode, walk: Walk, offsetX: number, offsetY: number, hasRemovedChild: boolean, prevScreen: Screen | undefined, scrollTopY: number, scrollBottomY: number, inheritedBackgroundColor: Color | undefined, preserveCulledCache = false, inheritedRowBg?: RowGround, own?: Own): void {
   let offerOpen = !hasRemovedChild
-  let growthAbove = 0
   for (const child of node.childNodes as FrameNode[]) {
     const layout = child.layoutNode
-    const band = layout ? measureScrolledChild(child, layout, nodeCache.get(child), growthAbove) : null
-    if (band) growthAbove += band.grewBy
-    const culled = band !== null && outsideBand(band, scrollTopY, scrollBottomY)
+    const culled = layout !== undefined && outsideBand(layout, scrollTopY, scrollBottomY)
     if (culled && !preserveCulledCache) forgetSubtree(child)
     if (culled) continue
     const wasDirty = child.dirty
-    composeNode(child, walk, { offsetX, offsetY, prevScreen: offerOpen ? prevScreen : undefined, inheritedBackgroundColor, inheritedRowBg })
+    composeNode(child, walk, { offsetX, offsetY, prevScreen: offerOpen ? prevScreen : undefined, inheritedBackgroundColor, inheritedRowBg, own })
     if (wasDirty) offerOpen = false
   }
 }

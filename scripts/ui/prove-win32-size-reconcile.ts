@@ -2,11 +2,13 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { EventEmitter } from 'node:events'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'win32-size-reconcile-home-'))
+const startedIn = process.cwd()
+const stoodThere = readdirSync(startedIn).sort().join('\n')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -98,6 +100,8 @@ section('§2 the renderer under a forced win32 platform')
   const React = await import('react')
   const { default: Ink } = await import('../../src/ink/ink.js')
   const { Box, Text } = await import('../../src/ink.js')
+  const { getMercuryHome } = await import('../../src/utils/envUtils.js')
+  const home = getMercuryHome()
   const desc = Object.getOwnPropertyDescriptor(process, 'platform')!
   const stdout = new FakeConsole()
   Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
@@ -120,6 +124,9 @@ section('§2 the renderer under a forced win32 platform')
   } finally {
     Object.defineProperty(process, 'platform', desc)
   }
+  check('the session home read before the platform was forced is the home the forced run used', getMercuryHome() === home && home === process.env.MERCURY_CONFIG_DIR, `${getMercuryHome()} against ${home}`)
+  const gained = readdirSync(startedIn).filter(name => !stoodThere.split('\n').includes(name))
+  check('the folder the proof started in gained no entry: nothing was written under a home spelled for another platform', gained.length === 0, JSON.stringify(gained))
 }
 
 if (failures > 0) {

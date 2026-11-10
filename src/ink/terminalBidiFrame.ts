@@ -3,23 +3,36 @@ import { cellAt, CellWidth, setCellAt, type CharPool, type Screen } from './cell
 import type { Frame } from './frame.js'
 import { terminalTextCells } from './session/terminalTextCells.js'
 
-const rtlGlyphs = new WeakMap<CharPool, boolean[]>()
+type RtlGlyphs = { flags: boolean[]; any: boolean }
+
+const rtlGlyphs = new WeakMap<CharPool, RtlGlyphs>()
+
+function rtlGlyphsOf(pool: CharPool): RtlGlyphs {
+  let known = rtlGlyphs.get(pool)
+  if (!known) {
+    known = { flags: [], any: false }
+    rtlGlyphs.set(pool, known)
+  }
+  for (let id = known.flags.length; id < pool.size(); id++) {
+    const rtl = containsRtl(pool.get(id))
+    known.flags.push(rtl)
+    if (rtl) known.any = true
+  }
+  return known
+}
 
 export function terminalBidiFrame(frame: Frame): Frame {
   if (!terminalTextCells().shapeRtl) return frame
   const source = frame.screen
-  let glyphs = rtlGlyphs.get(source.charPool)
-  if (!glyphs) {
-    glyphs = []
-    rtlGlyphs.set(source.charPool, glyphs)
-  }
+  const known = rtlGlyphsOf(source.charPool)
+  if (!known.any) return frame
+  const glyphs = known.flags
   let projected: Screen | undefined
   for (let y = 0; y < source.height; y++) {
     let needsShaping = false
     const end = (y + 1) * source.width * 2
     for (let at = y * source.width * 2; at < end; at += 2) {
-      const id = source.cells[at]!
-      if (glyphs[id] ?? (glyphs[id] = containsRtl(source.charPool.get(id)))) {
+      if (glyphs[source.cells[at]!]) {
         needsShaping = true
         break
       }

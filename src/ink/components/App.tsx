@@ -63,8 +63,7 @@ import { getTerminalFocused, setTerminalFocused } from '../session/focus-store.j
 import { decrqm, kittyKeyboard, oscColor, TerminalQuerier, terminalQuerySettleMs, xtversion } from '../session/querier.js'
 import { resolveTerminalExperience } from '../session/terminalExperience.js'
 import { queueTerminalWidthProbe } from '../session/widthProbe.js'
-import { cockpitEngine } from '../../render-engine/cockpit/engineMount.js'
-import { termWrite } from '../../render-engine/cockpit/terminalOut.js'
+import { termWrite } from '../terminalOut.js'
 import { resolveAlternateScrollIntent } from '../termio/alternateScrollPolicy.js'
 import { FOCUS_IN, FOCUS_OUT } from '../termio/csi.js'
 import { HIDE_CURSOR, SHOW_CURSOR } from '../termio/dec.js'
@@ -235,7 +234,7 @@ export default class App extends PureComponent<Props, State> {
       this.props.stdout.isTTY &&
       !resolveTerminalExperience().accessibility.effective
     ) {
-      termWrite(this.props.stdout, HIDE_CURSOR, 'mode')
+      termWrite(this.props.stdout, HIDE_CURSOR)
       noteModeAcquired(CURSOR_LEDGER_OWNER, 'cursor-hidden')
     }
   }
@@ -254,7 +253,7 @@ export default class App extends PureComponent<Props, State> {
 
   override componentWillUnmount(): void {
     if (this.props.stdout.isTTY) {
-      termWrite(this.props.stdout, SHOW_CURSOR, 'mode')
+      termWrite(this.props.stdout, SHOW_CURSOR)
       noteModeReleased(CURSOR_LEDGER_OWNER, 'cursor-hidden')
     }
     if (this.inputDrain) clearImmediate(this.inputDrain)
@@ -343,7 +342,7 @@ export default class App extends PureComponent<Props, State> {
         stdin.addListener('readable', this.handleReadable)
         signalInputLive();
         const extendedKeys = extendedKeysSupportedNow()
-        termWrite(this.props.stdout, rawModeArmBytes(extendedKeys), 'mode')
+        termWrite(this.props.stdout, rawModeArmBytes(extendedKeys))
         noteModeAcquired(RAW_MODE_LEDGER_OWNER, 'bracketed-paste')
         noteModeAcquired(RAW_MODE_LEDGER_OWNER, 'focus-events')
         if (extendedKeys) noteModeAcquired(RAW_MODE_LEDGER_OWNER, 'kitty-kbd')
@@ -357,7 +356,7 @@ export default class App extends PureComponent<Props, State> {
     }
 
     if (--this.rawModeEnabledCount === 0) {
-      termWrite(this.props.stdout, rawModeDisarmBytes(), 'mode')
+      termWrite(this.props.stdout, rawModeDisarmBytes())
       noteModeReleased(RAW_MODE_LEDGER_OWNER, 'kitty-kbd')
       noteModeReleased(RAW_MODE_LEDGER_OWNER, 'focus-events')
       noteModeReleased(RAW_MODE_LEDGER_OWNER, 'bracketed-paste')
@@ -416,7 +415,7 @@ export default class App extends PureComponent<Props, State> {
         const wasActive = extendedKeysSupportedNow()
         upgradeExtendedKeysSupport()
         if (!wasActive && this.rawModeEnabledCount > 0) {
-          termWrite(this.props.stdout, extendedKeysReenable(true), 'mode')
+          termWrite(this.props.stdout, extendedKeysReenable(true))
           noteModeAcquired(RAW_MODE_LEDGER_OWNER, 'kitty-kbd')
         }
         logForDebugging(
@@ -462,7 +461,6 @@ export default class App extends PureComponent<Props, State> {
 
   private handleInput(chunk: string | Buffer | null): void {
     if (chunk !== null) this.loneEscapeGraceUsed = 0
-    if (chunk !== null) cockpitEngine()?.noteKeystroke()
 
     const [atoms, nextState] = parseMultipleKeypresses(this.keyParseState, chunk)
     this.keyParseState = nextState
@@ -584,6 +582,7 @@ export default class App extends PureComponent<Props, State> {
           wheelReportingConfirmed: instance.isWheelReportingConfirmed(),
           scrollableTranscript: instance.hasScrollableTranscriptTarget(),
           elevatedSurfaceActive: hasElevatedSurface(),
+          arrowKeysOwned: instance.arrowKeysOwned(),
         })
       : rawAtoms
 

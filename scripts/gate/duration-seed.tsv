@@ -41,7 +41,6 @@ interaction-pure	1
 cockpit-interaction	274
 diffws	287
 prompts-panel	144
-render-migration	466
 engine-pass	602
 # The journey estate on the hosted runner, one row per split suite: the
 # measured hosted wall where a run measured it, else the members' whole
@@ -104,7 +103,6 @@ memory	15
 primitives-kernel	27
 eval	77
 editor-bridge	276
-render-engine	31
 default-provider	22
 default-model	3
 language-sidecars	17

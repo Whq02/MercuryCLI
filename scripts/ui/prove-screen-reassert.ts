@@ -28,11 +28,11 @@ check(
 console.log('— 2. the reassert (field-proven cure) —');
 check(
   '?1049h re-emits ONLY under believed-alt',
-  /reassertScreenState\(reason: string[\s\S]{0,700}if \(this\.altScreenActive\) \{\s*\n\s*termWrite\(this\.options\.stdout, ENTER_ALT_SCREEN, 'mode'\);/.test(ink),
+  /reassertScreenState\(reason: string[\s\S]{0,700}if \(this\.altScreenActive\) \{\s*\n\s*termWrite\(this\.options\.stdout, ENTER_ALT_SCREEN\);/.test(ink),
 );
 check(
   '…with the frame reset and the whole-frame overwrite',
-  /termWrite\(this\.options\.stdout, ENTER_ALT_SCREEN, 'mode'\);\s*\n\s*this\.resetFramesForAltScreen\(\);\s*\n\s*this\.wholeFrameDue = true;/.test(ink),
+  /termWrite\(this\.options\.stdout, ENTER_ALT_SCREEN\);\s*\n\s*this\.resetFramesForAltScreen\(\);\s*\n\s*this\.wholeFrameDue = true;/.test(ink),
 );
 check(
   '…and the ledger contaminate (full recompose, never a blit of the stale model)',

@@ -1802,55 +1802,6 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
-      "file": "scripts/render-engine/prove-door-law.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "return execSync(`grep -rln ${JSON.stringify(pattern)} src/render-engine`, {",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/render-engine/prove-flag-dormant.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "referers = execSync(",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/render-engine/prove-flag-dormant.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const body = execSync(`cat ${JSON.stringify(file)}`, { encoding: 'utf8', cwd: root, maxBuffer: 16 * 1024 * 1024 })",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/render-engine/prove-junk-smoke.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "'/usr/bin/python3',",
-      "cls": "platform-owner",
-      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
-    },
-    {
-      "file": "scripts/render-migration/measure-numbers.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const PY = '/usr/bin/python3'",
-      "cls": "platform-owner",
-      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
-    },
-    {
-      "file": "scripts/render-migration/prove-engine-cockpit-smoke.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnCaptureSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
-      "cls": "platform-owner",
-      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
-    },
-    {
-      "file": "scripts/render-migration/prove-look-parity.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnCaptureSync('/usr/bin/python3', [VSHOT, vshotCfg], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
-      "cls": "platform-owner",
-      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
-    },
-    {
       "file": "scripts/repetition-guard/render-nochange-cards.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",

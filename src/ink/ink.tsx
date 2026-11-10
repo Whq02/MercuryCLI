@@ -23,6 +23,7 @@ import {
   CellWidth,
   createScreen,
   HyperlinkPool,
+  inkFlanksCellAt,
   isEmptyCellAt,
   migrateScreenPools,
   StylePool,
@@ -81,6 +82,7 @@ import reconciler, {
 } from './reconciler.js'
 import { scanPositions, type MatchPosition } from './render-to-screen.js'
 import createRenderer, { type Renderer, type RenderResult } from './renderer.js'
+import { holdConsoleRead } from './root/console-read.js'
 import { refreshConsoleSize } from './root/console-size.js'
 import { planCursor, type CursorPoint } from './root/cursor-park.js'
 import { FrameLedger } from './root/frame-ledger.js'
@@ -96,8 +98,7 @@ import {
   wakeReenterAltBytes,
   resizeReassertBytes,
 } from './root/screen-session.js'
-import { mountCockpitEngine, type CockpitEngine } from '../render-engine/cockpit/engineMount.js'
-import { flushDoorSync, termWrite } from '../render-engine/cockpit/terminalOut.js'
+import { termWrite } from './terminalOut.js'
 import { RESIZE_SETTLE_MS } from './constants.js'
 import { runTeardownSuite, type TeardownHost } from './root/teardown.js'
 import {
@@ -252,7 +253,6 @@ export default class Ink {
   private readonly container: unknown
   private readonly writer: FrameWriter
   private readonly scheduler: RenderScheduler
-  private readonly engine: CockpitEngine | null
   private readonly ledger = new FrameLedger()
   private lastAssignedWidth: number | null = null
   private lastAssignedMaxHeight: number | null = null
@@ -274,6 +274,7 @@ export default class Ink {
   private mouseTrackingPref: boolean
   private wheelReportingConfirmed = false
   private transcriptScrollTarget: (() => boolean) | null = null
+  private readonly arrowKeyOwners = new Set<() => boolean>()
   private displayCursor: CursorPoint | null = null
   private wholeFrameDue = false
   private wholeFrameAt = -Infinity
@@ -291,10 +292,12 @@ export default class Ink {
   private readonly hoveredNodes = new Set<DOMElement>()
   private cursorDeclaration: CursorDeclaration | null = null
   private readonly frameListeners = new Set<() => void>()
+  private readonly layoutListeners = new Set<() => void>()
   onHyperlinkClick: ((url: string) => void) | undefined
 
   private storedReadableListeners: Array<(...args: unknown[]) => void> | null = null
   private wasRawMode = false
+  private consoleReadHeld = false
   private stdinRecoveryArmed = false
   private rawModeOffForStop = false
   private stopListenersAttached = false
@@ -328,21 +331,6 @@ export default class Ink {
       undefined,
       shouldHoldFirstPaintForSyncProbe,
     )
-    this.engine = mountCockpitEngine({
-      stdout: options.stdout as Parameters<typeof mountCockpitEngine>[0]['stdout'],
-      columns: this.cachedColumns,
-      syncOutputNow: syncOutputSupportedNow,
-    })
-    this.engine?.armResize({
-      onStormEntered: () => {
-        this.scheduler.holdForSettle()
-        const { columns, rows } = this.liveSize()
-        this.paintResizeHold(columns, rows)
-      },
-      onSettle: () => {
-        this.applySettledResize()
-      },
-    })
     this.unsubscribeExit = onExit(this.unmount)
 
     if (this.isTTY) {
@@ -374,7 +362,7 @@ export default class Ink {
     this.renderer = createRenderer(this.rootNode, this.stylePool)
     this.rootNode.onRender = this.scheduleRender
     this.rootNode.onImmediateRender = this.onRender
-    this.rootNode.onComputeLayout = this.calculateLayout
+    this.rootNode.onComputeLayout = this.layoutAfterCommit
 
     this.container = reconciler.createContainer(
       this.rootNode,
@@ -498,17 +486,6 @@ export default class Ink {
   private handleResize = (): void => {
     if (this.isRendering) return
     const { columns, rows } = this.liveSize()
-    if (this.engine !== null) {
-      if (
-        !this.engine.inResizeStorm() &&
-        columns === this.cachedColumns &&
-        rows === this.cachedRows
-      ) {
-        return
-      }
-      this.engine.winch(columns, rows)
-      return
-    }
     if (this.resizeSettleTimer === null) {
       if (columns === this.cachedColumns && rows === this.cachedRows) return
       this.scheduler.holdForSettle()
@@ -521,7 +498,7 @@ export default class Ink {
 
   private handleWinch = (): void => {
     refreshConsoleSize(this.options.stdout)
-    if (this.resizeSettleTimer !== null || this.engine?.inResizeStorm()) return
+    if (this.resizeSettleTimer !== null) return
     const { columns, rows } = this.liveSize()
     if (columns === this.cachedColumns && rows === this.cachedRows) this.overwriteScreen()
   }
@@ -551,7 +528,7 @@ export default class Ink {
     this.cachedRows = rows
     this.parkPatch = this.buildParkPatch()
     if (this.altScreenActive && !this.isPaused && this.isTTY) {
-      termWrite(this.options.stdout, resizeReassertBytes(this.mouseTracking), 'mode')
+      termWrite(this.options.stdout, resizeReassertBytes(this.mouseTracking))
       this.resetFramesForAltScreen()
       this.wholeFrameDue = true
     }
@@ -591,6 +568,25 @@ export default class Ink {
     this.layoutCounters = getCellLayoutCounters()
     noteSlowLayout(elapsed, this.layoutCounters)
     if (COMMIT_TEE_PATH) this.teeCommitGeometry(elapsed)
+  }
+
+  private layoutAfterCommit = (): void => {
+    if (this.isUnmounted) return
+    this.calculateLayout()
+    for (const listener of this.layoutListeners) {
+      try {
+        listener()
+      } catch (error) {
+        logForDebugging(`layout listener threw (ignored): ${error}`, { level: 'warn' })
+      }
+    }
+  }
+
+  subscribeLayout(listener: () => void): () => void {
+    this.layoutListeners.add(listener)
+    return () => {
+      this.layoutListeners.delete(listener)
+    }
   }
 
   private teeCommitGeometry(layoutMs: number): void {
@@ -665,7 +661,7 @@ export default class Ink {
 
   onRender = (): void => {
     if (this.isUnmounted || this.isPaused || this.isRendering) return
-    if (this.resizeSettleTimer !== null || this.engine?.inResizeStorm()) return
+    if (this.resizeSettleTimer !== null) return
     this.isRendering = true
     try {
       if (this.isTTY && process.platform === 'win32') refreshConsoleSize(this.options.stdout)
@@ -915,7 +911,6 @@ export default class Ink {
     if (frame.scrollDrainPending) this.scheduler.requestDrain()
 
     const durationMs = performance.now() - frameStart
-    this.engine?.notePaintCost(durationMs, 'normal')
     fluxFrame(durationMs, patches.length)
     const commitMs = getLastCommitMs()
     const yogaMs = getLastYogaMs()
@@ -1097,7 +1092,7 @@ export default class Ink {
       this.resetFramesForAltScreen()
     } else {
       this.pendingAltEntry = null
-      resetPointerShape(s => termWrite(this.options.stdout, s, 'mode'))
+      resetPointerShape(s => termWrite(this.options.stdout, s))
       this.repaintMainScreen()
       this.ledger.contaminate('blank-reset')
     }
@@ -1126,6 +1121,18 @@ export default class Ink {
     return this.transcriptScrollTarget?.() === true
   }
 
+  registerArrowKeyOwner(owns: () => boolean): () => void {
+    this.arrowKeyOwners.add(owns)
+    return () => {
+      this.arrowKeyOwners.delete(owns)
+    }
+  }
+
+  arrowKeysOwned(): boolean {
+    for (const owns of this.arrowKeyOwners) if (owns()) return true
+    return false
+  }
+
   isMouseTrackingPreferred(): boolean {
     return this.mouseTrackingPref
   }
@@ -1136,8 +1143,8 @@ export default class Ink {
     this.mouseTracking = on
     this.wheelReportingConfirmed = false
     if (!this.altScreenActive) return
-    if (!on) resetPointerShape(s => termWrite(this.options.stdout, s, 'mode'))
-    termWrite(this.options.stdout, on ? ENABLE_MOUSE_TRACKING : DISABLE_MOUSE_TRACKING, 'mode')
+    if (!on) resetPointerShape(s => termWrite(this.options.stdout, s))
+    termWrite(this.options.stdout, on ? ENABLE_MOUSE_TRACKING : DISABLE_MOUSE_TRACKING)
     if (on) noteModeAcquired(ALT_SCREEN_SESSION_OWNER, 'mouse-tracking')
     else noteModeReleased(ALT_SCREEN_SESSION_OWNER, 'mouse-tracking')
   }
@@ -1158,11 +1165,9 @@ export default class Ink {
     this.pause()
     this.suspendStdin()
     this.editorHandoverDepth += 1;
-    this.engine?.noteOverlay(true, true)
     termWrite(
       this.options.stdout,
       enterEditorBytes({ altActive: this.altScreenActive, mouseTracking: this.mouseTracking }),
-      'mode',
     )
   }
 
@@ -1175,7 +1180,6 @@ export default class Ink {
     termWrite(
       this.options.stdout,
       exitEditorBytes({ altActive: this.altScreenActive, mouseTracking: this.mouseTracking }),
-      'mode',
     )
     this.resumeStdin()
     if (this.altScreenActive) {
@@ -1186,7 +1190,7 @@ export default class Ink {
       this.ledger.contaminate('blank-reset')
     }
     this.resume()
-    termWrite(this.options.stdout, exitEditorRearmBytes(extendedKeysSupportedNow()), 'mode')
+    termWrite(this.options.stdout, exitEditorRearmBytes(extendedKeysSupportedNow()))
   }
 
   reassertScreenState(reason: string, opts: { repaint?: boolean } = {}): void {
@@ -1196,7 +1200,7 @@ export default class Ink {
       `Screen-state re-assert (${reason}): belief=${this.altScreenActive ? 'alt-screen' : 'main-screen'}`,
     )
     if (this.altScreenActive) {
-      termWrite(this.options.stdout, ENTER_ALT_SCREEN, 'mode');
+      termWrite(this.options.stdout, ENTER_ALT_SCREEN);
       this.resetFramesForAltScreen();
       this.wholeFrameDue = true;
     }
@@ -1210,7 +1214,7 @@ export default class Ink {
   }
 
   private reenterAltScreen(): void {
-    termWrite(this.options.stdout, reenterAltBytes(this.mouseTracking), 'mode')
+    termWrite(this.options.stdout, reenterAltBytes(this.mouseTracking))
     this.resetFramesForAltScreen()
   }
 
@@ -1242,7 +1246,6 @@ export default class Ink {
     if (!isStopSignal(signal)) return
     this.detachStopListeners()
     if (this.isTTY && !this.isUnmounted) {
-      flushDoorSync()
       const receipt = restoreTerminalForStop(signal, this.teardownHost(), this.options.stdin)
       this.rawModeOffForStop = receipt.rawModeOff
     }
@@ -1271,10 +1274,9 @@ export default class Ink {
           altActive: this.altScreenActive,
           mouseTracking: this.mouseTracking,
         }),
-        'mode',
       )
       if (shutdownReleaseObligations().includes('cursor-hidden')) {
-        termWrite(this.options.stdout, HIDE_CURSOR, 'mode')
+        termWrite(this.options.stdout, HIDE_CURSOR)
       }
     }
     if (this.altScreenActive) {
@@ -1316,10 +1318,9 @@ export default class Ink {
         altActive: this.altScreenActive,
         mouseTracking: this.mouseTracking,
       }),
-      'mode',
     )
     if (includeAltScreen && this.altScreenActive) {
-      termWrite(this.options.stdout, wakeReenterAltBytes(this.mouseTracking), 'mode')
+      termWrite(this.options.stdout, wakeReenterAltBytes(this.mouseTracking))
       this.resetFramesForAltScreen()
       this.wholeFrameDue = true
       this.scheduleRender()
@@ -1353,7 +1354,7 @@ export default class Ink {
       this.resetFramesForAltScreen()
       this.wholeFrameDue = true
     } else {
-      termWrite(this.options.stdout, ERASE_SCREEN + CURSOR_HOME, 'mode')
+      termWrite(this.options.stdout, ERASE_SCREEN + CURSOR_HOME)
       this.repaintMainScreen()
     }
     this.ledger.contaminate('force-redraw')
@@ -1587,7 +1588,7 @@ export default class Ink {
     if (text) {
       void setClipboard(text)
         .then(sequence => {
-          if (sequence) termWrite(this.options.stdout, sequence, 'mode')
+          if (sequence) termWrite(this.options.stdout, sequence)
         })
         .catch(logError)
     }
@@ -1606,7 +1607,7 @@ export default class Ink {
     if (!text) return
     void setClipboard(text)
       .then(sequence => {
-        if (sequence) termWrite(this.options.stdout, sequence, 'mode')
+        if (sequence) termWrite(this.options.stdout, sequence)
       })
       .catch(logError)
   }
@@ -1684,8 +1685,15 @@ export default class Ink {
 
   dispatchClick(col: number, row: number): boolean {
     if (!this.altScreenActive) return false
-    const blank = isEmptyCellAt(this.frontFrame.screen, col, row)
-    return dispatchClickInTree(this.rootNode, col, row, blank)
+    return dispatchClickInTree(this.rootNode, col, row, this.pointerOnBlank(col, row))
+  }
+
+  private pointerOnBlank(col: number, row: number): boolean {
+    const screen = this.frontFrame.screen
+    if (!isEmptyCellAt(screen, col, row)) return false
+    const hit = hitTest(this.rootNode, col, row)
+    const box = hit === null ? undefined : nodeCache.get(hit)
+    return box === undefined || !inkFlanksCellAt(screen, col, row, Math.floor(box.x), Math.floor(box.x + box.width))
   }
 
   dispatchHover(col: number, row: number): void {
@@ -1698,7 +1706,7 @@ export default class Ink {
       row < screen.height &&
       screen.noSelect[row * screen.width + col] !== 1 &&
       !isEmptyCellAt(screen, col, row)
-    applyPointerShape(selectable, s => termWrite(this.options.stdout, s, 'mode'))
+    applyPointerShape(selectable, s => termWrite(this.options.stdout, s))
     dispatchHoverInTree(this.rootNode, col, row, this.hoveredNodes)
   }
 
@@ -1739,6 +1747,7 @@ export default class Ink {
       `suspendStdin: removed ${listeners.length} readable listener(s), raw=${rawWasOn}`,
     )
     if (rawWasOn) {
+      this.consoleReadHeld = holdConsoleRead(stdin)
       stdin.setRawMode(false)
       this.wasRawMode = true
     }
@@ -1763,6 +1772,10 @@ export default class Ink {
     markConsoleReturned()
     if (this.wasRawMode) {
       stdin.setRawMode(true)
+      if (this.consoleReadHeld) {
+        this.consoleReadHeld = false
+        stdin.read(0)
+      }
       this.wasRawMode = false;
     }
     this.reconcileSize();
@@ -1794,6 +1807,7 @@ export default class Ink {
       ;(this.options as { stdin: NodeJS.ReadStream }).stdin = fresh
       this.storedReadableListeners = null
       this.wasRawMode = false
+      this.consoleReadHeld = false
       markConsoleLent()
       try {
         if (this.currentTree !== null) this.render(this.currentTree)
@@ -1907,7 +1921,7 @@ export default class Ink {
 
 
   private writeRaw = (data: string): void => {
-    termWrite(this.options.stdout, data, 'mode')
+    termWrite(this.options.stdout, data)
   }
 
   render(node: ReactNode): void {
@@ -1968,14 +1982,12 @@ export default class Ink {
     )
 
     if (this.isTTY) {
-      flushDoorSync()
       runTeardownSuite(this.teardownHost())
     }
 
     this.isUnmounted = true
     this.clearResizeSettle()
     this.scheduler.cancel()
-    this.engine?.detach()
     reconciler.updateContainerSync(null, this.container, null, null)
     reconciler.flushSyncWork()
     if (instances.get(this.options.stdout) === this) instances.delete(this.options.stdout)

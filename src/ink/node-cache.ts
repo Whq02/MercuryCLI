@@ -6,7 +6,7 @@ export type CachedLayout = {
   y: number
   width: number
   height: number
-  top?: number
+  reach?: { x: number; y: number; width: number; height: number }
 }
 
 export const nodeCache = new WeakMap<DOMElement, CachedLayout>()
@@ -28,6 +28,16 @@ export function addPendingClear(
     while (root.parentNode) root = root.parentNode
     absoluteRemovedRoots.add(root)
   }
+}
+
+const parentsThatLostAChild = new WeakSet<DOMElement>()
+
+export function noteChildRemoved(parent: DOMElement): void {
+  parentsThatLostAChild.add(parent)
+}
+
+export function consumeChildRemoved(parent: DOMElement): boolean {
+  return parentsThatLostAChild.delete(parent)
 }
 
 export function consumeAbsoluteRemovedFlag(root: DOMElement): boolean {

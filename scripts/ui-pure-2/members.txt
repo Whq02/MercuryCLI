@@ -86,3 +86,4 @@ prove-paint-whole-frame.ts
 prove-list-covers-viewport.tsx
 prove-picker-narrow-columns.ts
 prove-rails-whole-or-absent.ts
+prove-scroll-clip-paints.ts

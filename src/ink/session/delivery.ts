@@ -1,6 +1,5 @@
 import { appendFileSync, writeSync } from 'node:fs'
 import type { Writable } from 'stream'
-import { terminalDoor } from '../../render-engine/cockpit/terminalOut.js'
 import { getClearTerminalSequence } from './capabilities.js'
 import type { Diff } from '../frame.js'
 import { cursorMove, cursorTo, eraseLines } from '../termio/csi.js'
@@ -131,12 +130,9 @@ export function writeDiffToTerminal(
   const out = terminal.stdout as Writable & { isTTY?: boolean; fd?: number }
   const useFd = out.isTTY === true && typeof out.fd === 'number'
   let delivered = true
-  const door = terminalDoor()
   const record: FrameDelivery = { seq: ++deliverySeq, bytes: Buffer.byteLength(buffer, 'utf8'), writtenAt: performance.now(), drainedAt: null }
   lastDelivery = record
-  if (door !== null && useFd) {
-    door.enqueue({ kind: 'frame', bytes: buffer })
-  } else if (useFd) {
+  if (useFd) {
     delivered = writeAllSync(out.fd!, Buffer.from(buffer, 'utf8'), syscalls)
     record.drainedAt = performance.now()
   } else {
