@@ -1,0 +1,55 @@
+{
+  "read": "2026-11-09",
+  "source": "the provider's published client: npm @anthropic-ai/claude-code-darwin-arm64 2.1.321, its strings read and the program never run. This is that client's own reader, not a documented API. Its header reader pairs each window with one abbreviation and reads four fields under it; its limit names give the claim of the overage-included week the words 'Fable limit'.",
+  "windows": [
+    ["five_hour", "5h"],
+    ["seven_day", "7d"],
+    ["seven_day_overage_included", "7d_oi"],
+    ["overage", "overage"]
+  ],
+  "fields": ["utilization", "reset", "surpassed-threshold", "status"],
+  "claims": ["five_hour", "seven_day", "seven_day_opus", "seven_day_sonnet", "seven_day_overage_included", "overage"],
+  "claimNames": {
+    "five_hour": "5-hour limit",
+    "seven_day": "weekly limit",
+    "seven_day_opus": "Opus limit",
+    "seven_day_sonnet": "Sonnet limit",
+    "seven_day_overage_included": "Fable limit",
+    "overage": "usage credit limit"
+  },
+  "replyBasis": "the header set of a first-party reply recorded on 2026-09-30 (scripts/model-registry/fixtures/sonnet-55-count-thinking-probe.json), a Sonnet request: it carries the 5h and 7d windows and no 7d_oi window. The three 7d_oi lines below are composed from the client's reader, never captured.",
+  "reply": {
+    "anthropic-ratelimit-unified-5h-reset": "+7800",
+    "anthropic-ratelimit-unified-5h-status": "allowed",
+    "anthropic-ratelimit-unified-5h-utilization": "0.36",
+    "anthropic-ratelimit-unified-7d-reset": "+529200",
+    "anthropic-ratelimit-unified-7d-status": "allowed",
+    "anthropic-ratelimit-unified-7d-utilization": "0.44",
+    "anthropic-ratelimit-unified-7d_oi-reset": "+529200",
+    "anthropic-ratelimit-unified-7d_oi-status": "allowed",
+    "anthropic-ratelimit-unified-7d_oi-utilization": "0.61",
+    "anthropic-ratelimit-unified-fallback-percentage": "0.5",
+    "anthropic-ratelimit-unified-overage-disabled-reason": "org_level_disabled",
+    "anthropic-ratelimit-unified-overage-status": "rejected",
+    "anthropic-ratelimit-unified-representative-claim": "five_hour",
+    "anthropic-ratelimit-unified-reset": "+7800",
+    "anthropic-ratelimit-unified-status": "allowed"
+  },
+  "refusal": {
+    "anthropic-ratelimit-unified-5h-reset": "+7800",
+    "anthropic-ratelimit-unified-5h-status": "allowed",
+    "anthropic-ratelimit-unified-5h-utilization": "0.36",
+    "anthropic-ratelimit-unified-7d-reset": "+529200",
+    "anthropic-ratelimit-unified-7d-status": "allowed",
+    "anthropic-ratelimit-unified-7d-utilization": "0.44",
+    "anthropic-ratelimit-unified-7d_oi-reset": "+529200",
+    "anthropic-ratelimit-unified-7d_oi-status": "rejected",
+    "anthropic-ratelimit-unified-7d_oi-utilization": "1",
+    "anthropic-ratelimit-unified-overage-disabled-reason": "org_level_disabled",
+    "anthropic-ratelimit-unified-overage-status": "rejected",
+    "anthropic-ratelimit-unified-representative-claim": "seven_day_overage_included",
+    "anthropic-ratelimit-unified-reset": "+529200",
+    "anthropic-ratelimit-unified-status": "rejected"
+  },
+  "resetNote": "a reset written +N is N seconds after the reading proof's clock; on the wire it is epoch seconds"
+}

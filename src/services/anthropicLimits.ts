@@ -88,6 +88,10 @@ export function getRateLimitDisplayName(type: string): string {
   return DISPLAY_NAMES[type] ?? type
 }
 
+export function rateLimitTypeOfClaim(claim: string): RateLimitType {
+  return claim === 'seven_day_overage_included' ? 'seven_day_fable' : (claim as RateLimitType)
+}
+
 
 type RawWindow = { utilization: number; resets_at: number; source?: UsageFeed; observedAtMs?: number }
 export type WeeklyPoolClaim = 'seven_day_fable' | 'seven_day_opus' | 'seven_day_sonnet'
@@ -172,6 +176,7 @@ function recomputeRawUtilization(headers: Headers): void {
   for (const [key, abbrev] of [
     ['five_hour', '5h'],
     ['seven_day', '7d'],
+    ['seven_day_fable', '7d_oi'],
   ] as const) {
     const utilizationRaw = headers.get(`anthropic-ratelimit-unified-${abbrev}-utilization`)
     const resetRaw = headers.get(`anthropic-ratelimit-unified-${abbrev}-reset`)
@@ -291,10 +296,56 @@ function normalizeEndpointWindow(
   return { utilization, resets_at: resetsAt }
 }
 
+function scopedWeeklyPools(limits: unknown): Partial<Record<WeeklyPoolClaim, RawWindow>> {
+  const pools: Partial<Record<WeeklyPoolClaim, RawWindow>> = {}
+  if (!Array.isArray(limits)) return pools
+  for (const row of limits) {
+    if (typeof row !== 'object' || row === null) continue
+    const r = row as { kind?: unknown; percent?: unknown; resets_at?: unknown; scope?: { model?: { display_name?: unknown } | null } | null }
+    const name = r.scope?.model?.display_name
+    if (r.kind !== 'weekly_scoped' || typeof name !== 'string') continue
+    const claim = weeklyPoolClaimForModel(name)
+    if (claim === undefined || pools[claim] !== undefined) continue
+    const window = normalizeEndpointWindow({
+      utilization: typeof r.percent === 'number' ? r.percent : null,
+      resets_at: typeof r.resets_at === 'string' ? r.resets_at : null,
+    })
+    if (window) pools[claim] = window
+  }
+  return pools
+}
+
+export function usagePayloadShapeWords(payload: unknown): string {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) return 'no object'
+  const body = payload as Record<string, unknown>
+  const keys = Object.keys(body).sort()
+  const stated = keys.filter(key => body[key] !== null && body[key] !== undefined)
+  const empty = keys.filter(key => body[key] === null || body[key] === undefined)
+  const scopeName = (scope: unknown): string | undefined => {
+    const name = typeof scope === 'object' && scope !== null ? (scope as { display_name?: unknown }).display_name : undefined
+    return typeof name === 'string' ? name.slice(0, 40) : undefined
+  }
+  const rows = Array.isArray(body.limits)
+    ? body.limits.map(row => {
+        const r = (typeof row === 'object' && row !== null ? row : {}) as { kind?: unknown; group?: unknown; scope?: { model?: unknown; surface?: unknown } | null }
+        const model = scopeName(r.scope?.model)
+        const surface = scopeName(r.scope?.surface)
+        const scope = model !== undefined ? ` model ${model}` : surface !== undefined ? ` surface ${surface}` : ''
+        return `${typeof r.kind === 'string' ? r.kind : '?'}/${typeof r.group === 'string' ? r.group : '?'}${scope}`
+      })
+    : undefined
+  return [
+    `stated ${stated.length > 0 ? stated.join(', ') : 'nothing'}`,
+    ...(empty.length > 0 ? [`null ${empty.join(', ')}`] : []),
+    ...(rows !== undefined ? [`limits ${rows.length > 0 ? rows.join(', ') : 'none'}`] : []),
+  ].join(' · ')
+}
+
 export function foldUtilizationFromEndpoint(
   u: {
     five_hour?: { utilization: number | null; resets_at: string | null } | null
     seven_day?: { utilization: number | null; resets_at: string | null } | null
+    limits?: unknown
     extra_usage?: unknown
     spend?: unknown
   } & Partial<Record<WeeklyPoolClaim, { utilization: number | null; resets_at: string | null } | null>>,
@@ -308,8 +359,9 @@ export function foldUtilizationFromEndpoint(
   const sevenDay = normalizeEndpointWindow(u.seven_day)
   if (fiveHour) next.five_hour = stamp(fiveHour)
   if (sevenDay) next.seven_day = stamp(sevenDay)
+  const scoped = scopedWeeklyPools(u.limits)
   for (const claim of WEEKLY_POOL_CLAIMS) {
-    const pool = normalizeEndpointWindow(u[claim])
+    const pool = normalizeEndpointWindow(u[claim]) ?? scoped[claim]
     if (pool) next[claim] = stamp(pool)
   }
   endpointUtilization = next
@@ -332,13 +384,10 @@ export function getRawUtilization(): RawUtilization {
     if (polled === undefined || header.observedAtMs === undefined) return header
     return (polled.observedAtMs ?? -1) > header.observedAtMs ? polled : header
   }
-  copy.five_hour = fresher(live.five_hour, endpoint.five_hour)
-  copy.seven_day = fresher(live.seven_day, endpoint.seven_day)
-  if (copy.five_hour === undefined) delete copy.five_hour
-  if (copy.seven_day === undefined) delete copy.seven_day
-  for (const claim of WEEKLY_POOL_CLAIMS) {
-    const pool = endpoint[claim]
-    if (pool !== undefined) copy[claim] = pool
+  for (const key of ['five_hour', 'seven_day', ...WEEKLY_POOL_CLAIMS] as const) {
+    const window = fresher(live[key], endpoint[key])
+    if (window === undefined) delete copy[key]
+    else copy[key] = window
   }
   if (seed === undefined) return copy
   for (const entry of seed.split(',')) {
@@ -426,7 +475,7 @@ export function computeNewLimitsFromHeaders(headers: Headers): AnthropicLimits {
     resetsAt,
     isUsingOverage,
   }
-  if (claim !== undefined && claim !== '') record.rateLimitType = claim as RateLimitType
+  if (claim !== undefined && claim !== '') record.rateLimitType = rateLimitTypeOfClaim(claim)
   if (overageStatus !== undefined && overageStatus !== '') record.overageStatus = overageStatus as QuotaStatus
   if (overageDisabledReason !== undefined && overageDisabledReason !== '') {
     record.overageDisabledReason = overageDisabledReason as OverageDisabledReason
@@ -575,7 +624,7 @@ export function adoptAnthropicWindowFact(fact: unknown): boolean {
     ...(onExtraUsage ? { overageStatus: 'allowed' as const } : {}),
   }
   const claim = (fact as { claim?: unknown }).claim
-  if (typeof claim === 'string' && claim !== '') next.rateLimitType = claim as RateLimitType
+  if (typeof claim === 'string' && claim !== '') next.rateLimitType = rateLimitTypeOfClaim(claim)
   windowObserved = true
   verdictOwner = f.owner
   verdictObservedAtMs = f.observedAtMs
@@ -589,6 +638,7 @@ export function adoptAnthropicWindowFact(fact: unknown): boolean {
 const OBSERVED_WINDOW_KEYS = [
   ['fiveHour', 'five_hour'],
   ['sevenDay', 'seven_day'],
+  ['sevenDayFable', 'seven_day_fable'],
 ] as const
 
 function observedWindowOf(window: unknown): { utilization: number; resetsAt: number; observedAtMs: number } | undefined {

@@ -39,6 +39,7 @@ import {
   getMarketingNameForModel,
   normalizeModelStringForAPI,
   parseUserSpecifiedModel,
+  parseUserSpecifiedModelRaw,
   renderModelName,
 } from './model.js'
 import { getModelStrings } from './modelStrings.js'
@@ -171,7 +172,7 @@ export function stripContext1m(value: string): string {
 
 
 function aliasRow(alias: string, description: string): ModelOption {
-  const id = parseUserSpecifiedModel(alias)
+  const id = parseUserSpecifiedModelRaw(alias)
   return { value: id, label: renderModelName(id), description }
 }
 
@@ -195,7 +196,7 @@ function getOpusFrontierFallbackOption(): ModelOption {
 function previousGenerationLargeRows(): ModelOption[] {
   const rows: ModelOption[] = []
   const strings = getModelStrings()
-  const currentLarge = normalizeModelStringForAPI(parseUserSpecifiedModel('opus'))
+  const currentLarge = normalizeModelStringForAPI(parseUserSpecifiedModelRaw('opus'))
   for (const key of previousGenerationKeys('opus')) {
     const id = strings[key]
     if (normalizeModelStringForAPI(id) === currentLarge) continue
@@ -207,7 +208,7 @@ function previousGenerationLargeRows(): ModelOption[] {
 function previousGenerationMidRows(): ModelOption[] {
   const rows: ModelOption[] = []
   const strings = getModelStrings()
-  const currentMid = normalizeModelStringForAPI(parseUserSpecifiedModel('sonnet'))
+  const currentMid = normalizeModelStringForAPI(parseUserSpecifiedModelRaw('sonnet'))
   for (const key of previousGenerationKeys('sonnet')) {
     const id = strings[key]
     if (normalizeModelStringForAPI(id) === currentMid) continue
@@ -218,7 +219,7 @@ function previousGenerationMidRows(): ModelOption[] {
 
 function previousGenerationSmallRows(): ModelOption[] {
   const strings = getModelStrings()
-  const currentSmall = normalizeModelStringForAPI(parseUserSpecifiedModel('haiku'))
+  const currentSmall = normalizeModelStringForAPI(parseUserSpecifiedModelRaw('haiku'))
   return previousGenerationKeys('haiku')
     .map(key => strings[key])
     .filter(id => normalizeModelStringForAPI(id) !== currentSmall)
@@ -271,15 +272,15 @@ function isSentinelValue(v: string): boolean {
   return v.startsWith('__') || v.includes(':')
 }
 
-function resolveWithSuffix(value: string): string {
+function resolveWithSuffix(value: string, parse: (input: string) => string = parseUserSpecifiedModelRaw): string {
   const suffix = TRAILING_1M_RE.test(value) ? '[1m]' : ''
-  const resolved = parseUserSpecifiedModel(stripContext1m(value))
+  const resolved = parse(stripContext1m(value))
   return TRAILING_1M_RE.test(resolved) ? resolved : `${resolved}${suffix}`
 }
 
 export function resolvesToExistingOption(options: ModelOption[], candidate: string): boolean {
   if (isSentinelValue(candidate)) return false
-  const candidateResolved = resolveWithSuffix(candidate)
+  const candidateResolved = resolveWithSuffix(candidate, parseUserSpecifiedModel)
   for (const option of options) {
     const value = option.value
     if (isSentinelValue(value)) continue
@@ -295,7 +296,7 @@ function dedupOneModelOneRow(options: ModelOption[]): ModelOption[] {
     const value = option.value
     if (isSentinelValue(value)) return true
     const bare = stripContext1m(value)
-    const resolved = parseUserSpecifiedModel(bare)
+    const resolved = parseUserSpecifiedModelRaw(bare)
     if (resolved === bare) return true
     return !collected.has(resolved)
   })
@@ -1224,7 +1225,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
 export function focusedOptionSupports1m(value: string): boolean {
   if (isCarrierShapedId(value)) return false
 
-  const resolved = parseUserSpecifiedModel(stripContext1m(value))
+  const resolved = parseUserSpecifiedModelRaw(stripContext1m(value))
   const canonical = getCanonicalName(familyDefaultsModel(resolved))
   if (canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
     return false
