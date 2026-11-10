@@ -674,17 +674,17 @@ function baseResolveContextWindow(
         fallbackReason: 'unverified [1m] suffix ignored; resolved as the base id',
       }
     }
-    const gptBase = model.replace(/\[1m\]/i, '')
-    if (!parseGptModelId(gptBase)) {
+    const unsuffixed = model.replace(/\[1m\]/i, '')
+    if (modelSupports1M(unsuffixed)) {
       return finish({ effectiveWindow: 1_000_000, source: 'suffix-1m' })
     }
-    const base = resolveContextWindow(gptBase, betas, requestedMode)
+    const base = resolveContextWindow(unsuffixed, betas, requestedMode)
     return {
       ...base,
       model,
       activation: {
         kind: 'unavailable',
-        reason: '[1m] is not a provider-verified activation path for GPT engine ids (CX-14)',
+        reason: parseGptModelId(unsuffixed) ? '[1m] is not a provider-verified activation path for GPT engine ids (CX-14)' : '[1m] is not a provider-verified activation path for this model',
       },
       fallbackReason: 'unverified [1m] suffix ignored; resolved as the base id',
     }
@@ -1087,7 +1087,7 @@ export const getAllModelBetas = memoize((model: string): string[] => {
   if (isClaudeAISubscriber()) {
     betaHeaders.push(OAUTH_BETA_HEADER)
   }
-  if (has1mContext(model) && !modelIsNatively1M(model) && !isClaudeAISubscriber()) {
+  if (has1mContext(model) && modelSupports1M(model) && !modelIsNatively1M(model) && !isClaudeAISubscriber()) {
     betaHeaders.push(CONTEXT_1M_BETA_HEADER)
   }
 

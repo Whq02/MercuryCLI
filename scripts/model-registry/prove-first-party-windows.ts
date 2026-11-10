@@ -72,6 +72,13 @@ section("§1 the vendor's table: which first-party ids read 1M with no suffix (p
   check('the rows that already read 1M keep it', ALREADY.every(id => window(id) === `${MILLION}/static-pin`), ALREADY.map(id => `${id}=${window(id)}`).join(' '))
   const SWITCHED = ['claude-opus-4-6', 'claude-sonnet-4-6']
   check('Opus 4.6 and Sonnet 4.6 keep their two positions: 200k as the id stands, 1M with [1m]', SWITCHED.every(id => caps.getContextWindowForModel(id) === 200_000 && window(`${id}[1m]`) === `${MILLION}/suffix-1m` && caps.modelSupports1M(id)), SWITCHED.map(id => `${id}=${window(id)} ${id}[1m]=${window(`${id}[1m]`)}`).join(' '))
+  const KEPT = ['claude-sonnet-4-5[1m]', 'claude-sonnet-4[1m]']
+  check('Sonnet 4.5 and Sonnet 4 keep the [1m] position the vendor\'s client gives them', KEPT.every(id => window(id) === `${MILLION}/suffix-1m`), KEPT.map(id => `${id}=${window(id)}`).join(' '))
+  const NO_POSITION = ['claude-opus-4-5[1m]', 'claude-opus-4-1[1m]', 'claude-opus-4[1m]', 'claude-haiku-4-5[1m]', 'claude-3-7-sonnet[1m]']
+  const ignored = NO_POSITION.map(id => caps.resolveContextWindow(id))
+  check('[1m] on a first-party id with no 1M position resolves as the base id: 200,000, and the resolution says the suffix was ignored', ignored.every(r => r.effectiveWindow === 200_000 && r.source !== 'suffix-1m' && r.activation.kind === 'unavailable' && r.fallbackReason === 'unverified [1m] suffix ignored; resolved as the base id'), ignored.map(r => `${r.model}=${r.effectiveWindow}/${r.source}/${r.fallbackReason ?? ''}`).join(' '))
+  const OTHERS = ['glm-5.3[1m]', 'kimi-k3[1m]', 'deepseek-v4-pro[1m]', 'an-unlisted-model[1m]']
+  check('another family\'s id and an unlisted id take no window from the suffix: each resolves as its base id', OTHERS.every(id => caps.resolveContextWindow(id).source !== 'suffix-1m' && caps.getContextWindowForModel(id) === caps.getContextWindowForModel(id.replace('[1m]', ''))), OTHERS.map(id => `${id}=${window(id)} base=${window(id.replace('[1m]', ''))}`).join(' '))
   const SMALL = ['claude-sonnet-4-5', 'claude-opus-4-5', 'claude-haiku-4-5']
   check('the 200k rows stay 200k', SMALL.every(id => caps.getContextWindowForModel(id) === 200_000), SMALL.map(id => `${id}=${window(id)}`).join(' '))
   check('a carrier-shaped spelling of Fable 5 or Opus 4.8 never takes the first-party pin', caps.resolveContextWindow('openrouter/anthropic/claude-fable-5').source !== 'static-pin' && caps.resolveContextWindow('openrouter/anthropic/claude-opus-4-8').source !== 'static-pin', `${window('openrouter/anthropic/claude-fable-5')} · ${window('openrouter/anthropic/claude-opus-4-8')}`)
