@@ -9,7 +9,7 @@ const scratch = scratchDir('browser-tree')
 const trace = join(scratch, 'trace.jsonl')
 const addon = join(scratch, 'fixture.cjs')
 const app = { identity: 'com.google.Chrome', name: 'Chrome', pid: 2468, title: 'Page', windowId: 'front', bounds: { x: 0, y: 0, width: 800, height: 600 } }
-writeFileSync(addon, `const fs=require('node:fs'); const trace=${JSON.stringify(trace)}; const staged=${JSON.stringify(scratch)}; const out={}; for(const key of ${JSON.stringify(DESKTOP_ADDON_EXPORTS)}) out[key]=()=>{throw new Error('unexpected live-shaped call '+key)}; out.packVersion=()=>'fixture'; out.permissions=()=>({session:'desktop',screenCapture:'granted',input:'granted'}); out.frontmostApplication=()=>JSON.parse(fs.readFileSync(staged+'/front.json','utf8')); out.accessibilityTree=(pid,depth,count,scope,request)=>{ const page=staged+'/page-'+pid; if(fs.existsSync(page)){ const [webContent,surface]=fs.readFileSync(page,'utf8').split(','); return {elements:[{depth:0,role:'AXWindow',title:'Draft'}],truncated:false,scope:scope||null,webContent,webSurface:surface==='surface'}; } fs.appendFileSync(trace,JSON.stringify({pid,depth,count,scope,request})+'\\n'); return {elements:[{depth:0,role:'AXTextField',title:'Search',value:'ready',frame:{x:1,y:2,width:80,height:20},focused:true}],truncated:false,scope:scope||null,webContent:request?'pending':'available',webAccessibility:request===true}; }; module.exports=out;`)
+writeFileSync(addon, `const fs=require('node:fs'); const trace=${JSON.stringify(trace)}; const staged=${JSON.stringify(scratch)}; const out={}; for(const key of ${JSON.stringify(DESKTOP_ADDON_EXPORTS)}) out[key]=()=>{throw new Error('unexpected live-shaped call '+key)}; out.packVersion=()=>'fixture'; out.permissions=()=>({session:'desktop',screenCapture:'granted',input:'granted'}); out.frontmostApplication=()=>JSON.parse(fs.readFileSync(staged+'/front.json','utf8')); out.accessibilityTree=(pid,depth,count,scope,request)=>{ const page=staged+'/page-'+pid; if(fs.existsSync(page)){ const [webContent,surface,accepts]=fs.readFileSync(page,'utf8').split(','); return {elements:[{depth:0,role:'AXWindow',title:'Draft'}],truncated:false,scope:scope||null,webContent,webSurface:surface==='surface',webAccessibility:accepts==='accepts'&&request===true}; } fs.appendFileSync(trace,JSON.stringify({pid,depth,count,scope,request})+'\\n'); return {elements:[{depth:0,role:'AXTextField',title:'Search',value:'ready',frame:{x:1,y:2,width:80,height:20},focused:true}],truncated:false,scope:scope||null,webContent:request?'pending':'available',webAccessibility:request===true}; }; module.exports=out;`)
 writeFileSync(join(scratch, '.vendor-manifest.json'), JSON.stringify({ name: 'mercury-desktop', version: 'fixture', platform: `${process.platform}-${process.arch}`, addon: 'fixture.cjs', addonSha256: '0'.repeat(64), sourceTreeDigest: '0'.repeat(64), treeDigest: '0'.repeat(64), fileCount: 1, cargo: '', crates: [] }))
 process.env.MERCURY_DESKTOP_PACK_DIR = scratch
 resetNativeDesktopDriverForTest()
@@ -92,6 +92,16 @@ section("the adapter states what the application's bundle carries and what the w
   page(3002, 'absent,surface')
   const surfaced = await read(3002, 'w1')
   check("an engine's element the native walk reports reaches the tool on a tree that carries no page", surfaced?.webContent === 'absent' && surfaced.webSurface === true, JSON.stringify(surfaced))
+  page(3003, 'absent,,accepts')
+  const asked = await read(3003, 'w1')
+  const within = await read(3003, 'w1')
+  const clock = Date.now
+  Date.now = () => clock() + 2001
+  const after = await read(3003, 'w1')
+  Date.now = clock
+  page(3004, 'absent')
+  const unasked = await read(3004, 'w1')
+  check('a tree with no page reads as still starting for the two seconds after its application accepted the web accessibility request, as absent after them, and as absent at once where no request was accepted', asked?.webContent === 'pending' && within?.webContent === 'pending' && after?.webContent === 'absent' && unasked?.webContent === 'absent', JSON.stringify([asked?.webContent, within?.webContent, after?.webContent, unasked?.webContent]))
 }
 delete process.env.MERCURY_DESKTOP_PACK_DIR
 resetNativeDesktopDriverForTest()

@@ -88,6 +88,15 @@ const windows: Window[] = [
     leavesAtMs: 400,
     read: ms => (ms < 200 ? { page: 'unread', webContent: 'absent', webSurface: true } : { page: 'read', webContent: 'available', webSurface: true }),
   },
+  {
+    label: 'a native shell whose system web view has shown no page yet, its first read still starting',
+    identity: 'com.example.reader.cold',
+    name: 'Reader',
+    bundlePath: bundle('Cold Reader.app', ['Contents/MacOS/Reader']),
+    engine: false,
+    leavesAtMs: 700,
+    read: ms => (ms < 300 ? { page: 'unread', webContent: 'pending' } : { page: 'read', webContent: 'available', webSurface: true }),
+  },
 ]
 
 const row = (depth: number, role: string, title: string | null, value: string | null = null): DesktopTreeElement => ({ depth, role, title, value, frame: { x: 20, y: 20 + depth * 24, width: 240, height: 20 } })
@@ -121,7 +130,7 @@ async function stage(window: Window, index: number) {
   return { driver: resolution.driver, context }
 }
 
-section("five windows, each with a text that leaves after a delay: the wait is met only once it has left")
+section("six windows, each with a text that leaves after a delay: the wait is met only once it has left")
 for (const [index, window] of windows.entries()) {
   const { driver, context } = await stage(window, index)
   const front = await driver.frontmostApplication()
@@ -153,13 +162,13 @@ section('the rule state by state: what the application carries, what its window 
       for (const webContent of states) {
         for (const truncated of [false, true]) {
           const plain: DesktopTree = { elements: [row(0, 'AXWindow', 'Draft')], truncated, reason: null, ...(webContent ? { webContent } : {}), ...(webSurface ? { webSurface } : {}) }
-          const expected = !truncated && (webContent === undefined || webContent === 'available' || (webEngine === false && webSurface !== true))
+          const expected = !truncated && (webContent === undefined || webContent === 'available' || (webContent === 'absent' && webEngine === false && webSurface !== true))
           const gone = waitConditionPassed({ text: TEXT, gone: true }, app, plain)
           const dialogGone = waitConditionPassed({ dialog: true, gone: true }, app, plain)
           if (gone !== expected || dialogGone !== expected) wrong.push(`${webContent ?? 'unstated'}${truncated ? ' truncated' : ''}: gone ${gone}, dialog gone ${dialogGone}, expected ${expected}`)
         }
       }
-      check(`${words}, ${webSurface ? 'a window that has shown a page surface' : 'a window that has shown none'}: a tree establishes absence only when it is whole and carries the page, or nothing says the window bears one`, wrong.length === 0, wrong.join(' · '))
+      check(`${words}, ${webSurface ? 'a window that has shown a page surface' : 'a window that has shown none'}: a tree establishes absence only when it is whole and carries the page, or is past its starting state with nothing saying the window bears one`, wrong.length === 0, wrong.join(' · '))
     }
   }
 }

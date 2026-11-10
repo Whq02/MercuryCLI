@@ -36,8 +36,8 @@ export function waitConditionWords(until: WaitCondition): string {
 }
 
 function settledAbsence(app: DesktopApplication, tree: DesktopTree): boolean {
-  if (tree.truncated) return false
-  return (tree.webContent !== 'pending' && tree.webContent !== 'absent') || bearsPage(app, tree) === false
+  if (tree.truncated || tree.webContent === 'pending') return false
+  return tree.webContent !== 'absent' || bearsPage(app, tree) === false
 }
 
 export function waitConditionPassed(until: WaitCondition, app: DesktopApplication, tree: DesktopTree): boolean {
