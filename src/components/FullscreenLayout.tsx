@@ -286,19 +286,26 @@ function JumpPill({
 }): React.ReactNode {
   const visible = React.useSyncExternalStore(
     useCallback(
-      (listener: () => void) =>
-        scrollRef.current ? scrollRef.current.subscribe(listener) : () => {},
+      (listener: () => void) => {
+        const handle = scrollRef.current
+        if (!handle) return () => {}
+        const offScroll = handle.subscribe(listener)
+        const offLayout = handle.subscribeLayout(listener)
+        return () => {
+          offScroll()
+          offLayout()
+        }
+      },
       [scrollRef],
     ),
     () => {
       const handle = scrollRef.current
-      const y = dividerYRef.current
-      if (!handle || y === null) return false
+      if (!handle || dividerYRef.current === null || handle.isSticky()) return false
       return (
         handle.getScrollTop() +
           handle.getPendingDelta() +
           handle.getViewportHeight() <
-        y
+        handle.getFreshScrollHeight()
       )
     },
     () => false,
