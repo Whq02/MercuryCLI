@@ -1,6 +1,6 @@
 
 import measureText from './measure-text.js'
-import { addPendingClear, nodeCache } from './node-cache.js'
+import { addPendingClear, nodeCache, noteChildRemoved } from './node-cache.js'
 import { createLayoutNode } from './layout/engine.js'
 import { LayoutMeasureMode, type LayoutNode } from './layout/node.js'
 import type { FocusManager } from './focus.js'
@@ -203,6 +203,7 @@ export function removeChildNode(parent: DOMElement, node: DOMNode): void {
   collectRemovalRects(parent, node, false)
   if (isElement(node) && node.layoutNode && parent.layoutNode) {
     parent.layoutNode.removeChild(node.layoutNode)
+    noteChildRemoved(parent)
   }
   node.parentNode = undefined
   const index = parent.childNodes.indexOf(node)

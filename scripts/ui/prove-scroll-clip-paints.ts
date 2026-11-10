@@ -14,7 +14,9 @@ const { default: instances } = await import('../../src/ink/instances.ts')
 const { Box, Text } = await import('../../src/ink.ts')
 const { default: ScrollBox } = await import('../../src/ink/components/ScrollBox.tsx')
 const { AlternateScreen } = await import('../../src/ink/components/AlternateScreen.tsx')
+const { pendingClears } = await import('../../src/ink/node-cache.ts')
 type Handle = import('../../src/ink/components/ScrollBox.tsx').ScrollBoxHandle
+type Node = import('../../src/ink/dom.ts').DOMElement
 
 const SRC = join(import.meta.dir, '..', '..', 'src')
 const COLS = 40
@@ -101,9 +103,11 @@ const rowWords = (row: number, tick: number): string => {
   return item === TICK_ITEM && row % ITEM_ROWS === 1 ? `row ${String(row).padStart(2, '0')} tick ${tick}` : `row ${String(row).padStart(2, '0')} of item ${item}`
 }
 
-function Scene({ variant, tick, rows, handle }: { variant: Variant; tick: number; rows: number; handle: { current: Handle | null } }): React.ReactNode {
-  const items = Array.from({ length: ITEMS }, (_, item) =>
-    h(Box, { key: item, flexDirection: 'column', flexShrink: 0 }, ...Array.from({ length: ITEM_ROWS }, (_, k) => h(Text, { key: k }, rowWords(item * ITEM_ROWS + k, tick)))),
+const NONE: ReadonlySet<number> = new Set()
+
+function Scene({ variant, tick, rows, handle, gone, tail }: { variant: Variant; tick: number; rows: number; handle: { current: Handle | null }; gone: ReadonlySet<number>; tail: { current: Node | null } }): React.ReactNode {
+  const items = Array.from({ length: ITEMS }, (_, item) => item).filter(item => !gone.has(item)).map(item =>
+    h(Box, { key: item, flexDirection: 'column', flexShrink: 0, ...(item === ITEMS - 1 ? { ref: tail } : {}) }, ...Array.from({ length: ITEM_ROWS }, (_, k) => h(Text, { key: k }, rowWords(item * ITEM_ROWS + k, tick)))),
   )
   const pane = h(ScrollBox, { ref: handle, flexDirection: 'column', height: rows - 2, flexShrink: 0, paddingTop: variant.paddingTop, paddingBottom: variant.paddingBottom, ...(variant.ground ? { backgroundColor: variant.ground as never } : {}) }, ...items)
   return h(AlternateScreen, { mouseTracking: false }, h(Box, { flexDirection: 'column', width: COLS, height: rows }, h(Text, null, 'head'), pane, h(Text, null, 'foot')))
@@ -119,15 +123,18 @@ type World = {
   last: () => Shot
   arrive: (top: number) => Promise<boolean>
   setTick: (tick: number) => void
+  setGone: (gone: ReadonlySet<number>) => Promise<void>
+  content: () => Node | null
   resize: (rows: number) => Promise<void>
   end: () => Promise<void>
 }
 
-async function world(variant: Variant, at?: number, tick = 0): Promise<World> {
+async function world(variant: Variant, at?: number, tick = 0, gone: ReadonlySet<number> = NONE): Promise<World> {
   const handle: { current: Handle | null } = { current: null }
+  const tail: { current: Node | null } = { current: null }
   const screen = new Terminal(ROWS)
   const shots: Shot[] = []
-  const shown = { tick, rows: ROWS }
+  const shown = { tick, rows: ROWS, gone }
   const ink = new Ink({
     stdout: screen as never,
     stdin: new Keyboard() as never,
@@ -139,7 +146,7 @@ async function world(variant: Variant, at?: number, tick = 0): Promise<World> {
     },
   })
   instances.set(screen as never, ink)
-  const show = (): void => ink.render(h(Scene, { variant, tick: shown.tick, rows: shown.rows, handle }))
+  const show = (): void => ink.render(h(Scene, { variant, tick: shown.tick, rows: shown.rows, handle, gone: shown.gone, tail }))
   show()
   if (at !== undefined) handle.current!.scrollTo(at)
   await settle(260)
@@ -162,6 +169,12 @@ async function world(variant: Variant, at?: number, tick = 0): Promise<World> {
       shown.tick = next
       show()
     },
+    setGone: async next => {
+      shown.gone = next
+      show()
+      await settle(160)
+    },
+    content: () => tail.current?.parentNode ?? null,
     resize: async rows => {
       shown.rows = rows
       screen.resizeTo(rows)
@@ -179,11 +192,11 @@ async function world(variant: Variant, at?: number, tick = 0): Promise<World> {
 }
 
 const freshFrames = new Map<string, string>()
-async function freshMount(variant: Variant, top: number, tick: number): Promise<string> {
-  const key = `${variant.name}\u0000${top}\u0000${tick}`
+async function freshMount(variant: Variant, top: number, tick: number, gone: ReadonlySet<number> = NONE): Promise<string> {
+  const key = `${variant.name}\u0000${top}\u0000${tick}\u0000${[...gone].join(',')}`
   const known = freshFrames.get(key)
   if (known !== undefined) return known
-  const w = await world(variant, top, tick)
+  const w = await world(variant, top, tick, gone)
   const text = w.last().text
   await w.end()
   freshFrames.set(key, text)
@@ -290,7 +303,31 @@ for (const variant of [TRANSCRIPT, BARE]) {
   await w.end()
 }
 
-section('5. every scroll box under src and its vertical padding')
+section('5. an item removed while the pane rests at the tail, every item painted once before')
+for (const variant of [TRANSCRIPT, GROUNDED, BARE]) {
+  for (const [where, item] of [['above the viewport', 2], ['inside the viewport', ITEMS - 3]] as const) {
+    const w = await world(variant)
+    const viewport = w.handle.getViewportHeight()
+    const max = LAST_ROW + 1 - viewport
+    for (let top = viewport; top < max; top += viewport) {
+      w.handle.scrollTo(top)
+      await w.arrive(top)
+    }
+    w.handle.scrollTo(max)
+    await w.arrive(max)
+    const framesBefore = w.shots.length
+    const gone = new Set([item])
+    await w.setGone(gone)
+    const fresh = await freshMount(variant, max - ITEM_ROWS, 0, gone)
+    const painted = w.last().text
+    check(`${variant.name}: an item ${where} leaves and the pane is the frame of a fresh mount of that list, down to its last row`, w.shots.length > framesBefore && painted === fresh, `painted ${paneOf(painted)} · a fresh mount ${paneOf(fresh)}`)
+    const content = w.content()
+    if (where === 'inside the viewport') check(`${variant.name}: the rect of the item that left is taken when the pane is next composed, none is kept`, content !== null && pendingClears.get(content) === undefined, content === null ? 'no content box' : `${pendingClears.get(content)?.length} rects kept`)
+    await w.end()
+  }
+}
+
+section('6. every scroll box under src and its vertical padding')
 {
   const files: string[] = []
   const walk = (dir: string): void => {

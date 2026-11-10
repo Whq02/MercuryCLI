@@ -30,6 +30,16 @@ export function addPendingClear(
   }
 }
 
+const parentsThatLostAChild = new WeakSet<DOMElement>()
+
+export function noteChildRemoved(parent: DOMElement): void {
+  parentsThatLostAChild.add(parent)
+}
+
+export function consumeChildRemoved(parent: DOMElement): boolean {
+  return parentsThatLostAChild.delete(parent)
+}
+
 export function consumeAbsoluteRemovedFlag(root: DOMElement): boolean {
   if (!absoluteRemovedRoots.has(root)) return false
   absoluteRemovedRoots.delete(root)

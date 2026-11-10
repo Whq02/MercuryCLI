@@ -6,7 +6,7 @@ import type { DOMElement as FrameNode } from './dom.js'
 import getMaxWidth from './get-max-width.js'
 import type { Rectangle } from './layout/geometry.js'
 import { LayoutDisplay, LayoutEdge, type LayoutNode } from './layout/node.js'
-import { type CachedLayout, nodeCache, pendingClears } from './node-cache.js'
+import { type CachedLayout, consumeChildRemoved, nodeCache, pendingClears } from './node-cache.js'
 import type ComposeBuffer from './compose-buffer.js'
 import renderBorder from './render-border.js'
 import type { Screen } from './cell-grid.js'
@@ -587,6 +587,9 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
   const paintTop = clamped
 
   if (!content || !contentYoga) return
+  const contentVacated = vacatedRects(content)
+  if (contentVacated !== undefined) for (const rect of contentVacated) buffer.clear(floorRect(rect))
+  const childRemoved = consumeChildRemoved(content) || hasRemovedChild || contentVacated !== undefined
   const contentLeft = x + contentYoga.getComputedLeft()
   const contentTop = y + contentYoga.getComputedTop() - paintTop
   const bandTop = paintTop - paddingTop
@@ -619,7 +622,7 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
   const contentHeightWas = contentWas?.height ?? contentHeight
   const heightDelta = contentHeight - contentHeightWas
   const shiftPlan = regionHint ?? rectShift
-  const safeForFastPath = !shiftPlan || heightDelta === 0 || (shiftPlan.delta > 0 && heightDelta === shiftPlan.delta)
+  const safeForFastPath = !shiftPlan || (!childRemoved && (heightDelta === 0 || (shiftPlan.delta > 0 && heightDelta === shiftPlan.delta)))
   if (!safeForFastPath) {
     signals.scrollHint = null
     if (rectShift) {
@@ -640,7 +643,7 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
     if (boxBackgroundColor && incomingBottom >= incomingTop) buffer.write(Math.floor(x), incomingTop, groundRows(columns, incomingBottom - incomingTop + 1, boxBackgroundColor))
     buffer.clip({ x1: undefined, x2: undefined, y1: incomingTop, y2: incomingBottom + 1 })
     const dirtyChildren = content.dirty ? new Set(content.childNodes.filter(c => (c as FrameNode).dirty)) : null
-    composeScrolledChildren(content, walk, contentLeft, contentTop, hasRemovedChild, undefined, incomingTop - contentTop, incomingBottom + 1 - contentTop, boxBackgroundColor, true)
+    composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, undefined, incomingTop - contentTop, incomingBottom + 1 - contentTop, boxBackgroundColor, true)
     buffer.unclip()
     if (dirtyChildren !== null) {
       repairStableRows(content, walk, dirtyChildren, contentLeft, contentTop, delta, bandTop, bandBottom, incomingTop, incomingBottom, bottom + 1, Math.floor(x), columns, boxBackgroundColor)
@@ -652,7 +655,7 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
       if (shiftedTop >= shiftedBottom || (shiftedTop >= incomingTop && shiftedBottom <= incomingBottom + 1)) continue
       buffer.write(Math.floor(x), shiftedTop, groundRows(columns, shiftedBottom - shiftedTop, boxBackgroundColor))
       buffer.clip({ x1: undefined, x2: undefined, y1: shiftedTop, y2: shiftedBottom })
-      composeScrolledChildren(content, walk, contentLeft, contentTop, hasRemovedChild, undefined, shiftedTop - contentTop, shiftedBottom - contentTop, boxBackgroundColor, true)
+      composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, undefined, shiftedTop - contentTop, shiftedBottom - contentTop, boxBackgroundColor, true)
       buffer.unclip()
     }
   } else {
@@ -666,7 +669,7 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
       buffer.write(Math.floor(x), Math.floor(y1), groundRows(Math.floor(width), Math.floor(y2 - y1), boxBackgroundColor))
     }
     const boxMoved = boxCached !== undefined && (boxCached.x !== x || boxCached.y !== y || boxCached.width !== width || boxCached.height !== height)
-    composeScrolledChildren(content, walk, contentLeft, contentTop, hasRemovedChild, rowSampler !== undefined || scrolled || boxMoved ? undefined : prevScreen, bandTop, bandBottom, boxBackgroundColor, false, rowSampler)
+    composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, rowSampler !== undefined || scrolled || boxMoved ? undefined : prevScreen, bandTop, bandBottom, boxBackgroundColor, false, rowSampler)
   }
   nodeCache.set(content, { x: contentLeft, y: contentTop, width: contentYoga.getComputedWidth(), height: contentYoga.getComputedHeight() })
   settle(content)
@@ -763,8 +766,8 @@ type Band = { top: number; height: number; grewBy: number }
 
 const measured: Band = { top: 0, height: 0, grewBy: 0 }
 
-function measureScrolledChild(child: FrameNode, layout: LayoutNode, cached: CachedLayout | undefined, shiftAbove: number): Band {
-  if (cached?.top !== undefined && !child.dirty && shiftAbove === 0) {
+function measureScrolledChild(child: FrameNode, layout: LayoutNode, cached: CachedLayout | undefined, topsHeld: boolean): Band {
+  if (cached?.top !== undefined && !child.dirty && topsHeld) {
     measured.top = cached.top
     measured.height = cached.height
     measured.grewBy = 0
@@ -784,7 +787,7 @@ function composeScrolledChildren(node: FrameNode, walk: Walk, offsetX: number, o
   let growthAbove = 0
   for (const child of node.childNodes as FrameNode[]) {
     const layout = child.layoutNode
-    const band = layout ? measureScrolledChild(child, layout, nodeCache.get(child), growthAbove) : null
+    const band = layout ? measureScrolledChild(child, layout, nodeCache.get(child), !hasRemovedChild && growthAbove === 0) : null
     if (band) growthAbove += band.grewBy
     const culled = band !== null && outsideBand(band, scrollTopY, scrollBottomY)
     if (culled && !preserveCulledCache) forgetSubtree(child)
