@@ -302,6 +302,7 @@ class NativeDesktopDriver implements DesktopDriver {
   private grantsRequested = false
   private readonly webRequests = new Map<string, number>()
   private readonly pageWindows = new Set<string>()
+  private readonly pageApplications = new Set<string>()
 
   readonly captureRegion?: DesktopDriver['captureRegion']
 
@@ -753,13 +754,17 @@ class NativeDesktopDriver implements DesktopDriver {
       elements.push({ depth: e.depth, role: e.role, title: typeof e.title === 'string' && e.title !== '' ? e.title : null, value: typeof e.value === 'string' && e.value !== '' ? e.value : null, frame, ...(typeof e.focused === 'boolean' ? { focused: e.focused } : {}), ...(typeof e.offscreen === 'boolean' ? { offscreen: e.offscreen } : {}) })
     }
     const webContent = raw.webContent === 'absent' && Date.now() - (this.webRequests.get(requestKey) ?? 0) < 2000 ? 'pending' : raw.webContent
-    const windowKey = `${requestKey}:${app.windowId ?? ''}`
-    if (webContent === 'available') this.pageWindows.add(windowKey)
+    const windowKey = raw.scope === 'window' && typeof raw.windowId === 'string' && raw.windowId !== '' ? `${requestKey}:${raw.windowId}` : null
+    if (webContent === 'available' && (raw.scope === 'window' || raw.scope === 'app')) {
+      this.pageApplications.add(requestKey)
+      if (windowKey !== null) this.pageWindows.add(windowKey)
+    }
+    const shownPage = raw.scope === 'app' ? this.pageApplications.has(requestKey) : windowKey !== null && this.pageWindows.has(windowKey)
     return { ok: true, value: {
       elements, ...(raw.focused !== undefined ? { focused: raw.focused ? elements.pop()! : null } : {}), truncated: raw.truncated === true, reason: typeof raw.reason === 'string' && raw.reason !== '' ? raw.reason : null,
       ...(raw.scope === 'window' || raw.scope === 'app' ? { scope: raw.scope } : {}),
       ...(webContent === 'available' || webContent === 'absent' || webContent === 'pending' ? { webContent } : {}),
-      ...(raw.webSurface === true || this.pageWindows.has(windowKey) ? { webSurface: true } : {}),
+      ...(raw.webSurface === true || shownPage ? { webSurface: true } : {}),
     } }
   }
 

@@ -248,6 +248,7 @@ export interface DesktopAddonTree {
   webContent?: string | null
   webAccessibility?: boolean | null
   webSurface?: boolean | null
+  windowId?: string | null
 }
 
 export interface DesktopAddonScroll {

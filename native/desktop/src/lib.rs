@@ -159,11 +159,12 @@ pub struct TreeAnswer {
     pub web_content: Option<String>,
     pub web_accessibility: Option<bool>,
     pub web_surface: Option<bool>,
+    pub window_id: Option<String>,
 }
 
 impl TreeAnswer {
     pub fn refused(reason: &str) -> TreeAnswer {
-        TreeAnswer { elements: Vec::new(), focused: None, truncated: false, reason: Some(reason.to_string()), scope: None, web_content: None, web_accessibility: None, web_surface: None }
+        TreeAnswer { elements: Vec::new(), focused: None, truncated: false, reason: Some(reason.to_string()), scope: None, web_content: None, web_accessibility: None, web_surface: None, window_id: None }
     }
 }
 

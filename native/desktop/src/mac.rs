@@ -472,6 +472,14 @@ unsafe fn ax_attribute(element: CFTypeRef, name: &str) -> CFTypeRef {
     if status == 0 { value } else { ptr::null() }
 }
 
+unsafe fn ax_window_number(window: CFTypeRef) -> Option<u32> {
+    let symbol = libc::dlsym(libc::RTLD_DEFAULT, c"_AXUIElementGetWindow".as_ptr());
+    if symbol.is_null() { return None; }
+    let get_window: unsafe extern "C" fn(CFTypeRef, *mut u32) -> i32 = std::mem::transmute(symbol);
+    let mut number = 0u32;
+    if get_window(window, &mut number) == 0 && number != 0 { Some(number) } else { None }
+}
+
 unsafe fn focused_window_facts(pid: i32) -> (Option<String>, Option<BoundsRecord>, Option<String>) {
     if !AXIsProcessTrusted() { return (None, None, None); }
     let app = AXUIElementCreateApplication(pid);
@@ -482,12 +490,7 @@ unsafe fn focused_window_facts(pid: i32) -> (Option<String>, Option<BoundsRecord
     CFRelease(app);
     if focused.is_null() { return (None, None, None); }
     let title = ax_string(focused, "AXTitle");
-    let symbol = libc::dlsym(libc::RTLD_DEFAULT, c"_AXUIElementGetWindow".as_ptr());
-    let mut window_id = 0u32;
-    let private_id = if !symbol.is_null() {
-        let get_window: unsafe extern "C" fn(CFTypeRef, *mut u32) -> i32 = std::mem::transmute(symbol);
-        if get_window(focused, &mut window_id) == 0 && window_id != 0 { Some(window_id) } else { None }
-    } else { None };
+    let private_id = ax_window_number(focused);
     let position = ax_attribute(focused, "AXPosition");
     let size = ax_attribute(focused, "AXSize");
     let mut p = point(0.0, 0.0);
@@ -704,7 +707,7 @@ pub fn accessibility_observation(pid: i32) -> TreeAnswer {
         let focused_element = if inside && !focused.is_null() { Some(tree_element(focused, 0, focused)) } else { None };
         if !focused.is_null() { CFRelease(focused); }
         CFRelease(window);
-        TreeAnswer { elements, focused: focused_element, truncated, reason: None, scope: Some("window".to_string()), web_content: None, web_accessibility: None, web_surface: None }
+        TreeAnswer { elements, focused: focused_element, truncated, reason: None, scope: Some("window".to_string()), web_content: None, web_accessibility: None, web_surface: None, window_id: None }
     })
 }
 
@@ -779,10 +782,11 @@ pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str,
             CFRelease(element);
         }
         let focused_element = if focused.is_null() { None } else { Some(tree_element(focused, 0, focused)) };
+        let window_id = if scope == "window" && !window.is_null() { ax_window_number(window).map(|number| number.to_string()) } else { None };
         if !focused.is_null() { CFRelease(focused); }
         if !window.is_null() { CFRelease(window); }
         let web_content = if elements.iter().any(|element| element.role.starts_with("AXWebArea")) { Some("available") } else if requested { Some("pending") } else if truncated { None } else { Some("absent") };
-        TreeAnswer { elements, focused: focused_element, truncated, reason, scope: Some(scope.to_string()), web_content: web_content.map(str::to_string), web_accessibility: Some(requested), web_surface: None }
+        TreeAnswer { elements, focused: focused_element, truncated, reason, scope: Some(scope.to_string()), web_content: web_content.map(str::to_string), web_accessibility: Some(requested), web_surface: None, window_id }
     })
 }
 
