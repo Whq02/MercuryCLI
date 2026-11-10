@@ -59,7 +59,7 @@ export const HighlightedCode = memo(function HighlightedCode({
     <Box ref={boxRef} width={width} flexDirection="column">
       {lines.map((line, index) => (
         <Box key={index}>
-          <NoSelect fromLeftEdge>
+          <NoSelect fromLeftEdge flexShrink={0}>
             <Text dimColor>
               {String(index + 1).padStart(gutterWidth - 2)}
               {'  '}

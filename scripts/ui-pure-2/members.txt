@@ -79,5 +79,6 @@ prove-visual-baseline-timing.ts
 prove-frame-replacement.ts
 prove-popup-covers-status-band.ts
 prove-band-whole-or-absent.ts
+prove-code-gutter-holds.ts
 prove-popup-panel-fills-frame.ts
 prove-stale-dist-guard.ts
