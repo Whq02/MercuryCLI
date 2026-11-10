@@ -6,7 +6,7 @@ import type { Message } from '../../types/message.js'
 import type { AppState } from '../../state/AppState.js'
 import type { AppStateStore } from '../../state/AppStateStore.js'
 import type { Notification } from '../../context/notifications.js'
-import { crossProviderNote, providerFamilyOfSetting, settleModelSelection, type TransitionPlan } from '../../utils/model/modelTransition.js'
+import { crossProviderNote, providerFamilyOfSetting, seatWithFold, settleModelSelection, type SeatReceiptState, type TransitionPlan } from '../../utils/model/modelTransition.js'
 import {
   previewForSelection,
   reconfirmTransitionPlan,
@@ -151,7 +151,7 @@ export function useComposerModelDoors({
   useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)
   useSyncExternalStore(subscribeCapHandoff, getCapHandoffVersion, getCapHandoffVersion)
 
-  const applyModelSelection = (value: string | null, persist = false): void => {
+  const applyModelSelection = (value: string | null, persist = false, seated?: (state: SeatReceiptState) => void): void => {
     const focused = getFocusedSessionConnector()
     if (focused.carrier === 'daemon') {
       const label = value === null ? 'Default' : renderModelName(value)
@@ -168,6 +168,7 @@ export function useComposerModelDoors({
         const saved = choice?.sentence ?? ''
         if (receipt.state === 'no-op') {
           addNotification({ key: 'model-switched', text: saved === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}`, priority: 'high', timeoutMs: 3000 })
+          seated?.(receipt.state)
           return
         }
         const doorCross = providerFamilyOfSetting(effectiveBefore) !== providerFamilyOfSetting(value) ? crossProviderNote(value) : ''
@@ -189,6 +190,7 @@ export function useComposerModelDoors({
                 timeoutMs: 3000,
               },
         )
+        seated?.(receipt.state)
       })
       return
     }
@@ -479,12 +481,8 @@ export function useComposerModelDoors({
             }
             setTransitionConfirm(null)
             if (held.plan.window?.fits === false) {
-              const foldingSession = getFocusedSessionConnector()
-              if (foldingSession.carrier === 'daemon') {
-                void foldingSession.sendWords('/compact').then(() => applyModelSelection(held.value, held.persist))
-                return
-              }
-              requestCommandDispatch('/compact')
+              seatWithFold(getFocusedSessionConnector(), held.plan.targetRoute, seated => applyModelSelection(held.value, held.persist, seated), requestCommandDispatch)
+              return
             }
             applyModelSelection(held.value, held.persist)
           }}

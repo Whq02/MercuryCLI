@@ -164,6 +164,28 @@ export function settlePendingAtBoundary(
   }
 }
 
+export type SeatReceiptState = 'applied' | 'queued' | 'no-op' | 'refused'
+
+export function seatWithFold(
+  session: { carrier: 'in-process' | 'daemon'; sendWords: (text: string) => Promise<unknown> },
+  targetRoute: ProviderFamily,
+  seat: (settled?: (state: SeatReceiptState) => void) => void,
+  park: (command: string) => void,
+): void {
+  if (session.carrier !== 'daemon') {
+    park('/compact')
+    seat()
+    return
+  }
+  if (targetRoute !== 'local') {
+    void session.sendWords('/compact').then(() => seat())
+    return
+  }
+  seat(state => {
+    if (state !== 'refused') void session.sendWords('/compact')
+  })
+}
+
 export function crossProviderNote(next: string | null): string {
   const family = providerFamilyOfSetting(next)
   if (family === 'openai') {
