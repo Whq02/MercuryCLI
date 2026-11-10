@@ -2,6 +2,7 @@ import * as React from 'react'
 
 import { truncatePathMiddle } from '../../utils/truncate.js'
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js'
+import { isDenialResultText } from '../../utils/messages/rejectionText.js'
 import { FilePathLink } from '../../components/FilePathLink.js'
 import { MessageResponse } from '../../components/MessageResponse.js'
 import { ToolCardMeta, toolCardCountColor } from '../../components/mercury-ui/toolCardMeta.js'
@@ -145,7 +146,7 @@ export function renderToolUseErrorMessage(
   result: ToolResultBlockParam['content'],
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
-  if (!verbose && typeof result === 'string') {
+  if (!verbose && typeof result === 'string' && !isDenialResultText(result)) {
     if (result.includes(FILE_NOT_FOUND_CWD_NOTE)) {
       return <ShortErrorLine text="File not found" />
     }
