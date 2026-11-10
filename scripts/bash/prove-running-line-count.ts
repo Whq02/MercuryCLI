@@ -84,6 +84,15 @@ section('a command whose output is read from its file: the count is the lines pr
   onNewline.add('b\n')
   const after = (await onNewline.read()).lines
   check('the file grows exactly on a newline: 1, then 2', before === 1 && after === 2, { before, after })
+  const blankFirst: Array<[string, number]> = [['\n', 1], ['\n\n', 2], ['\na\n', 2], ['\n\na\nb\n', 4], ['\na', 2], ['a\n\nb\n', 3]]
+  const wrongFiled: string[] = []
+  for (const [content, want] of blankFirst) {
+    const one = filed()
+    one.put(content)
+    const got = (await one.read()).lines
+    if (got !== want) wrongFiled.push(`${JSON.stringify(content)} read ${got}, printed ${want}`)
+  }
+  check('output that begins with a blank line, or holds one: each blank line is a line', wrongFiled.length === 0, wrongFiled.join(' · '))
   const long = filed()
   long.put('xxxxxxxxx\n'.repeat(1000))
   const sampled = await long.read()
@@ -115,6 +124,14 @@ section('a command whose output arrives in chunks: the same count')
   onNewline.write('b\n')
   const after = onNewline.now()
   check('a chunk boundary exactly on a newline: 1, then 2', before === 1 && after === 2, { before, after })
+  const wrongPiped: string[] = []
+  for (const [content, want] of [['\n', 1], ['\n\n', 2], ['\na\n', 2], ['\n\na\nb\n', 4], ['\na', 2], ['a\n\nb\n', 3]] as Array<[string, number]>) {
+    const one = piped()
+    one.write(content)
+    const got = one.now()
+    if (got !== want) wrongPiped.push(`${JSON.stringify(content)} read ${got}, printed ${want}`)
+  }
+  check('output that begins with a blank line, or holds one: the same counts as from the file', wrongPiped.length === 0, wrongPiped.join(' · '))
   const twelve = piped()
   for (let index = 1; index <= 12; index++) twelve.write(`L1x line ${index} of 12\n`)
   check('twelve lines, one chunk each: 12 on the last report', twelve.counts.at(-1) === 12 && twelve.now() === 12, twelve.counts)

@@ -148,17 +148,19 @@ export class TaskOutput {
     const content = sample.content
     let cursor = content.length
     let count = 0
+    let newlines = 0
     let recentBoundary = 0
     let fullBoundary = 0
     while (cursor > 0) {
       const newline = content.lastIndexOf('\n', cursor - 1)
       count++
+      if (newline !== -1) newlines++
       if (count === RECENT_VIEW_LINES) recentBoundary = newline <= 0 ? 0 : newline + 1
       if (count === FULL_VIEW_LINES) fullBoundary = newline <= 0 ? 0 : newline + 1
       cursor = newline
     }
 
-    const lines = content.endsWith('\n') ? count - 1 : count
+    const lines = content.endsWith('\n') ? newlines : newlines + 1
     const sampledWholeFile = sample.bytesRead === sample.bytesTotal
     const totalLines = sampledWholeFile
       ? lines
