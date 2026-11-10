@@ -6,6 +6,7 @@ export type CachedLayout = {
   y: number
   width: number
   height: number
+  reach?: { x: number; y: number; width: number; height: number }
 }
 
 export const nodeCache = new WeakMap<DOMElement, CachedLayout>()
