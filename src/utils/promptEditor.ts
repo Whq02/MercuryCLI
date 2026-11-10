@@ -69,7 +69,7 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
   if (editorExe === '') {
     return { content: null }
   }
-  const commandLine = [`"${editorExe}"`, ...invocation.args.map(arg => `"${arg}"`), `"${filePath}"`].join(' ')
+  const commandLine = editorCommandLine(editorExe, invocation.args, filePath)
 
   try {
     await instance.awaitTerminalQueries()
@@ -105,6 +105,11 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
   } catch {
     return { content: null }
   }
+}
+
+export function editorCommandLine(editorExe: string, args: readonly string[], filePath: string, platform: NodeJS.Platform = process.platform): string {
+  const quotedPath = platform === 'win32' ? `"${filePath}"` : `'${filePath.replaceAll("'", `'\\''`)}'`
+  return [`"${editorExe}"`, ...args.map(arg => `"${arg}"`), quotedPath].join(' ')
 }
 
 function editorNamed(variable: EditorVariable, value: string, executable: string): string {
