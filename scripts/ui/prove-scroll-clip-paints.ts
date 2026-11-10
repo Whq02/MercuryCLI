@@ -55,9 +55,10 @@ class Terminal extends EventEmitter {
     this.emulator.feed(bytes.replace(UNMODELLED, ''))
     return true
   }
-  resizeTo(rows: number): void {
+  resizeTo(rows: number, columns = this.columns): void {
     this.rows = rows
-    this.emulator = new AnsiEmulator(COLS, rows, true)
+    this.columns = columns
+    this.emulator = new AnsiEmulator(columns, rows, true)
     this.emit('resize')
   }
   text(): string {
@@ -105,12 +106,12 @@ const rowWords = (row: number, tick: number): string => {
 
 const NONE: ReadonlySet<number> = new Set()
 
-function Scene({ variant, tick, rows, handle, gone, tail }: { variant: Variant; tick: number; rows: number; handle: { current: Handle | null }; gone: ReadonlySet<number>; tail: { current: Node | null } }): React.ReactNode {
+function Scene({ variant, tick, rows, cols, handle, gone, tail }: { variant: Variant; tick: number; rows: number; cols: number; handle: { current: Handle | null }; gone: ReadonlySet<number>; tail: { current: Node | null } }): React.ReactNode {
   const items = Array.from({ length: ITEMS }, (_, item) => item).filter(item => !gone.has(item)).map(item =>
     h(Box, { key: item, flexDirection: 'column', flexShrink: 0, ...(item === ITEMS - 1 ? { ref: tail } : {}) }, ...Array.from({ length: ITEM_ROWS }, (_, k) => h(Text, { key: k }, rowWords(item * ITEM_ROWS + k, tick)))),
   )
   const pane = h(ScrollBox, { ref: handle, flexDirection: 'column', height: rows - 2, flexShrink: 0, paddingTop: variant.paddingTop, paddingBottom: variant.paddingBottom, ...(variant.ground ? { backgroundColor: variant.ground as never } : {}) }, ...items)
-  return h(AlternateScreen, { mouseTracking: false }, h(Box, { flexDirection: 'column', width: COLS, height: rows }, h(Text, null, 'head'), pane, h(Text, null, 'foot')))
+  return h(AlternateScreen, { mouseTracking: false }, h(Box, { flexDirection: 'column', width: cols, height: rows }, h(Text, null, 'head'), pane, h(Text, null, 'foot')))
 }
 
 const settle = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
@@ -125,16 +126,17 @@ type World = {
   setTick: (tick: number) => void
   setGone: (gone: ReadonlySet<number>) => Promise<void>
   content: () => Node | null
-  resize: (rows: number) => Promise<void>
+  resize: (rows: number, cols?: number) => Promise<void>
   end: () => Promise<void>
 }
 
-async function world(variant: Variant, at?: number, tick = 0, gone: ReadonlySet<number> = NONE): Promise<World> {
+async function world(variant: Variant, at?: number, tick = 0, gone: ReadonlySet<number> = NONE, cols = COLS): Promise<World> {
   const handle: { current: Handle | null } = { current: null }
   const tail: { current: Node | null } = { current: null }
   const screen = new Terminal(ROWS)
+  screen.columns = cols
   const shots: Shot[] = []
-  const shown = { tick, rows: ROWS, gone }
+  const shown = { tick, rows: ROWS, cols, gone }
   const ink = new Ink({
     stdout: screen as never,
     stdin: new Keyboard() as never,
@@ -146,7 +148,7 @@ async function world(variant: Variant, at?: number, tick = 0, gone: ReadonlySet<
     },
   })
   instances.set(screen as never, ink)
-  const show = (): void => ink.render(h(Scene, { variant, tick: shown.tick, rows: shown.rows, handle, gone: shown.gone, tail }))
+  const show = (): void => ink.render(h(Scene, { variant, tick: shown.tick, rows: shown.rows, cols: shown.cols, handle, gone: shown.gone, tail }))
   show()
   if (at !== undefined) handle.current!.scrollTo(at)
   await settle(260)
@@ -175,9 +177,10 @@ async function world(variant: Variant, at?: number, tick = 0, gone: ReadonlySet<
       await settle(160)
     },
     content: () => tail.current?.parentNode ?? null,
-    resize: async rows => {
+    resize: async (rows, columns = shown.cols) => {
       shown.rows = rows
-      screen.resizeTo(rows)
+      shown.cols = columns
+      screen.resizeTo(rows, columns)
       await settle(320)
       show()
       await settle(120)
@@ -192,11 +195,11 @@ async function world(variant: Variant, at?: number, tick = 0, gone: ReadonlySet<
 }
 
 const freshFrames = new Map<string, string>()
-async function freshMount(variant: Variant, top: number, tick: number, gone: ReadonlySet<number> = NONE): Promise<string> {
-  const key = `${variant.name}\u0000${top}\u0000${tick}\u0000${[...gone].join(',')}`
+async function freshMount(variant: Variant, top: number, tick: number, gone: ReadonlySet<number> = NONE, cols = COLS): Promise<string> {
+  const key = `${variant.name}\u0000${top}\u0000${tick}\u0000${[...gone].join(',')}\u0000${cols}`
   const known = freshFrames.get(key)
   if (known !== undefined) return known
-  const w = await world(variant, top, tick, gone)
+  const w = await world(variant, top, tick, gone, cols)
   const text = w.last().text
   await w.end()
   freshFrames.set(key, text)
@@ -327,7 +330,29 @@ for (const variant of [TRANSCRIPT, GROUNDED, BARE]) {
   }
 }
 
-section('6. every scroll box under src and its vertical padding')
+section('6. the pane narrows and every row re-wraps, with every row painted once and none changed')
+for (const variant of [TRANSCRIPT, BARE]) {
+  const narrow = 12
+  const w = await world(variant)
+  const viewport = w.handle.getViewportHeight()
+  const max = LAST_ROW + 1 - viewport
+  for (let top = viewport; top < max; top += viewport) {
+    w.handle.scrollTo(top)
+    await w.arrive(top)
+  }
+  w.handle.scrollTo(max)
+  await w.arrive(max)
+  await w.resize(ROWS, narrow)
+  const top = w.handle.getScrollTop()
+  const painted = w.last().text
+  const fresh = await freshMount(variant, top, 0, NONE, narrow)
+  const paneRows = (text: string): string[] => text.split('\n').slice(1, -1).map(row => row.replace(/\u001b\[[0-9;]*m/g, '').replace(/\s+$/, ''))
+  const blank = paneRows(painted).filter(row => row === '').length
+  check(`${variant.name}: at ${narrow} columns the pane is the frame of a fresh mount there, no row of it blank`, painted === fresh && blank <= variant.paddingTop, `${blank} blank rows; painted ${JSON.stringify(paneRows(painted).slice(0, 4))} … · a fresh mount ${JSON.stringify(paneRows(fresh).slice(0, 4))} …`)
+  await w.end()
+}
+
+section('7. every scroll box under src and its vertical padding')
 {
   const files: string[] = []
   const walk = (dir: string): void => {

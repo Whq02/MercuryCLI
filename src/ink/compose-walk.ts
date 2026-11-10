@@ -302,9 +302,8 @@ function clearHidden(hidden: FrameNode, walk: Walk): void {
 
 function placeNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placement: Placement): void {
   const x = (placement.offsetX ?? 0) + layoutNode.getComputedLeft()
-  const yogaTop = layoutNode.getComputedTop()
   const floating = node.style.position === 'absolute'
-  const unclampedY = (placement.offsetY ?? 0) + yogaTop
+  const unclampedY = (placement.offsetY ?? 0) + layoutNode.getComputedTop()
   const y = unclampedY < 0 && floating ? 0 : unclampedY
   const width = layoutNode.getComputedWidth()
   const height = layoutNode.getComputedHeight()
@@ -312,7 +311,7 @@ function placeNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placemen
   const rectHeld = held !== undefined && held.x === x && held.y === y && held.width === width && held.height === height
   const reusable = !node.dirty && !placement.skipSelfBlit && node.scroll?.pendingScrollDelta === undefined && rectHeld && placement.prevScreen !== undefined
   if (reusable) reuseNode(node, held!, walk, placement.prevScreen!, floating, x, y, width, height)
-  else repaintNode(node, layoutNode, walk, placement, held, rectHeld, floating, x, y, yogaTop, width, height)
+  else repaintNode(node, layoutNode, walk, placement, held, rectHeld, floating, x, y, width, height)
 }
 
 function reuseNode(node: FrameNode, cached: CachedLayout, walk: Walk, prevScreen: Screen, floating: boolean, x: number, y: number, width: number, height: number): void {
@@ -341,7 +340,7 @@ function movedForensics(node: FrameNode, cached: CachedLayout, x: number, y: num
 const firstDivergentRow = (cached: CachedLayout, y: number, height: number): number =>
   cached.y !== y ? Math.floor(Math.min(cached.y, y)) : cached.height !== height ? Math.floor(y + Math.min(cached.height, height)) : Math.floor(y)
 
-function repaintNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placement: Placement, cached: CachedLayout | undefined, rectHeld: boolean, floating: boolean, x: number, y: number, yogaTop: number, width: number, height: number): void {
+function repaintNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placement: Placement, cached: CachedLayout | undefined, rectHeld: boolean, floating: boolean, x: number, y: number, width: number, height: number): void {
   const { buffer, signals } = walk
   const moved = cached !== undefined && !rectHeld
   if (moved) signals.markLayoutShift(() => movedForensics(node, cached, x, y, width, height), firstDivergentRow(cached, y, height))
@@ -352,7 +351,7 @@ function repaintNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placem
     signals.markLayoutShift(() => `removed-child:${node.nodeName}`, vacated.length > 0 ? Math.min(...vacated.map(rect => Math.floor(rect.y))) : undefined)
     for (const rect of vacated) buffer.clear(floorRect(rect))
   }
-  const placed: CachedLayout = { x, y, width, height, top: yogaTop }
+  const placed: CachedLayout = { x, y, width, height }
   if (height === 0 && siblingSharesY(node, layoutNode)) {
     nodeCache.set(node, placed)
     forgetSubtree(node)
@@ -762,34 +761,13 @@ function blitEscapingAbsoluteDescendants(node: FrameNode, walk: Walk, prevScreen
   }
 }
 
-type Band = { top: number; height: number; grewBy: number }
-
-const measured: Band = { top: 0, height: 0, grewBy: 0 }
-
-function measureScrolledChild(child: FrameNode, layout: LayoutNode, cached: CachedLayout | undefined, topsHeld: boolean): Band {
-  if (cached?.top !== undefined && !child.dirty && topsHeld) {
-    measured.top = cached.top
-    measured.height = cached.height
-    measured.grewBy = 0
-    return measured
-  }
-  measured.top = layout.getComputedTop()
-  measured.height = layout.getComputedHeight()
-  measured.grewBy = child.dirty ? measured.height - (cached?.height ?? 0) : 0
-  if (cached) cached.top = measured.top
-  return measured
-}
-
-const outsideBand = (band: Band, bandTop: number, bandBottom: number): boolean => band.top + band.height <= bandTop || band.top >= bandBottom
+const outsideBand = (layout: LayoutNode, bandTop: number, bandBottom: number): boolean => layout.getComputedTop() + layout.getComputedHeight() <= bandTop || layout.getComputedTop() >= bandBottom
 
 function composeScrolledChildren(node: FrameNode, walk: Walk, offsetX: number, offsetY: number, hasRemovedChild: boolean, prevScreen: Screen | undefined, scrollTopY: number, scrollBottomY: number, inheritedBackgroundColor: Color | undefined, preserveCulledCache = false, inheritedRowBg?: RowGround): void {
   let offerOpen = !hasRemovedChild
-  let growthAbove = 0
   for (const child of node.childNodes as FrameNode[]) {
     const layout = child.layoutNode
-    const band = layout ? measureScrolledChild(child, layout, nodeCache.get(child), !hasRemovedChild && growthAbove === 0) : null
-    if (band) growthAbove += band.grewBy
-    const culled = band !== null && outsideBand(band, scrollTopY, scrollBottomY)
+    const culled = layout !== undefined && outsideBand(layout, scrollTopY, scrollBottomY)
     if (culled && !preserveCulledCache) forgetSubtree(child)
     if (culled) continue
     const wasDirty = child.dirty
