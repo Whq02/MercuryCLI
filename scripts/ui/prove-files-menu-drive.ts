@@ -217,7 +217,7 @@ const browseRowOpens = (): Record<string, unknown>[] => [gated(CLICK, 'or click'
 const boot = (): Array<Record<string, unknown>> => [
   gated('\r', 'New Session', { minTick: 5, awaitStableTicks: 6, awaitSettleTicks: 4 }),
   gated('\x1b[I', 'shortcuts', { minTick: 2, awaitSettleTicks: 6 }),
-  gated('', '← back', { minTick: 2, awaitSettleTicks: 6, mark: 'land' }),
+  gated('', 'ready ·', { awaitPattern: '(?:^|\\n) ready ·', minTick: 2, awaitSettleTicks: 6, mark: 'land' }),
 ]
 const railRoad = (): Array<Record<string, unknown>> => [
   after('\t', 2),

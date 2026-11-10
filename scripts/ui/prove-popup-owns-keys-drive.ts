@@ -217,7 +217,7 @@ const awaitOr = (data: string, awaitText: string, deadlineTicks: number, extra: 
 const boot = (): Array<Record<string, unknown>> => [
   gated('\r', 'New Session', { minTick: 5, awaitStableTicks: 6, awaitSettleTicks: 4 }),
   gated('\x1b[I', 'shortcuts', { minTick: 2, awaitSettleTicks: 6 }),
-  gated('', '← back', { minTick: 2, awaitSettleTicks: 6, mark: 'land' }),
+  gated('', 'ready ·', { awaitPattern: '(?:^|\\n) ready ·', minTick: 2, awaitSettleTicks: 6, mark: 'land' }),
 ]
 const cfgFor = (cols: number, rows: number, cwd: string, sends: Array<Record<string, unknown>>): Record<string, unknown> => ({
   cols,
