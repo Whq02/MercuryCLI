@@ -1,6 +1,3 @@
-
-import { flagEnabled } from './flagRegistry.js'
-
 interface Entry<T> {
   apply: (current: T) => Promise<{ next: T; result: unknown }>
   resolve: (value: unknown) => void
@@ -18,10 +15,6 @@ interface GroupCommitOptions<T, C = void> {
   beforePublish?: () => void
 }
 
-function batchingEnabled(): boolean {
-  return flagEnabled('MERCURY_GROUP_COMMIT')
-}
-
 export function groupCommitLane<T, C = void>(opts: GroupCommitOptions<T, C>): GroupCommitLane<T> {
   let queue: Array<Entry<T>> = []
   let scheduled = false
@@ -30,16 +23,8 @@ export function groupCommitLane<T, C = void>(opts: GroupCommitOptions<T, C>): Gr
   const drain = async (): Promise<void> => {
     scheduled = false
     if (queue.length === 0) return
-    const batch = batchingEnabled() ? queue : queue.splice(0, 1)
-    if (batchingEnabled()) queue = []
-    else if (queue.length > 0) {
-      scheduled = true
-      const more = chain.then(drain, drain)
-      chain = more.then(
-        () => undefined,
-        () => undefined,
-      )
-    }
+    const batch = queue
+    queue = []
 
     let release: (() => Promise<void>) | undefined
     const applied: Array<{ entry: Entry<T>; ok: boolean; value?: unknown; err?: unknown }> = []
