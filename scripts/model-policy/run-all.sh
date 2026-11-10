@@ -19,6 +19,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-neutral-model-doors.ts" || { __rc=
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-model-pin-census.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-model-pin-census.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-utility-call-family.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-utility-call-family.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-model-retirements.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-model-retirements.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-roster-frontier-default.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-roster-frontier-default.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL MODEL-POLICY PROOFS PASS"; else echo "# ❌ SOME MODEL-POLICY PROOFS FAILED"; fi
 echo "############################################################"
