@@ -142,9 +142,9 @@ console.log('R4 what stands under a runner: its descendants at any depth, and it
   check('a runner that leads its group: its child, its grandchild in a group of its own, and a member of its group that init has adopted — never itself', j(under(10)) === j([11, 12, 13]), j(under(10)))
   check("a runner that does not lead its group takes its descendants only: the rest of that group is not its to end", j(under(20)) === j([21]), j(under(20)))
   check('a pid the table does not hold has nothing under it', under(99).length === 0, j(under(99)))
-  check('this process and pid 1 are never listed, whatever the table says of them', j(under(10, [{ pid: process.pid, ppid: 10, pgid: 10 }, { pid: 1, ppid: 0, pgid: 10 }])) === j([11, 12, 13]), j(under(10, [{ pid: process.pid, ppid: 10, pgid: 10 }])))
+  check('pid 1 is never listed, whatever the table says of it', j(under(10, [{ pid: 1, ppid: 0, pgid: 10 }])) === j([11, 12, 13]), j(under(10, [{ pid: 1, ppid: 0, pgid: 10 }])))
   const mine = [{ pid: process.pid, ppid: 11, pgid: 12 }, { pid: 40, ppid: process.pid, pgid: 40 }, { pid: 41, ppid: 40, pgid: 10 }]
-  check('nothing this process started is ever listed, and neither is the leader of the group it stands in: a runner above this process takes the rest of its own tree only', j(under(10, mine)) === j([11, 13]), j(under(10, mine)))
+  check('a runner above this process, or one whose group this process stands in, has no tree for this process to end: nothing of it is listed', under(10, mine).length === 0 && under(10, [{ pid: process.pid, ppid: 1, pgid: 10 }]).length === 0, j([under(10, mine), under(10, [{ pid: process.pid, ppid: 1, pgid: 10 }])]))
   check('this process and pid 1 have no tree to end, whatever stands under them', under(process.pid, mine).length === 0 && under(1).length === 0 && under(0).length === 0, j([under(process.pid, mine), under(1), under(0)]))
 }
 

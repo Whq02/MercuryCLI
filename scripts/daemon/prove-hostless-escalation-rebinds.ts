@@ -37,6 +37,7 @@ type Member =
   | 'born after the tree was listed'
   | 'the runner is replaced while its tree is read'
   | 'the runner cannot be read after its tree is read'
+  | 'this process stands in its tree'
 let afterTerm: AfterTerm = 'gone'
 let birth: string | null = BORN
 let alive = true
@@ -69,6 +70,7 @@ let treeListings: number[] = []
 mock.module('../../src/daemon/processTree.ts', () => ({
   readProcessTreeUnder: async (pid: number) => {
     treeListings.push(pid)
+    if (member === 'this process stands in its tree') return null
     return member !== 'none' ? [MEMBER_PID] : []
   },
 }))
@@ -181,6 +183,12 @@ console.log('E6 the runner is bound again after its tree has been read and befor
   check('its birth cannot be read before the ask: no signal at all, nothing claimed', unreadable.signals.length === 0 && unreadable.toMember.length === 0 && unreadable.probes === 2 && unreadable.memberAlive && unreadable.ended.length === 0, j(unreadable))
   const steady = await sweepWhen('gone', 15, 'outlives the ask')
   check('a runner that is still itself is read twice before the ask, and with nothing under it once', steady.probes === 2 && (await sweepWhen('gone', 16)).probes === 1, j(steady))
+}
+
+console.log("E7 a runner in whose tree or group this process stands is not this process's to end")
+{
+  const above = await sweepWhen('the same process, still alive', 17, 'this process stands in its tree').catch(error => ({ threw: String(error) }))
+  check('the listing says so, and then no birth is read, no signal goes to the runner or to what stands under it, and it is not claimed as ended', !('threw' in above) && above.probes === 0 && above.signals.length === 0 && above.toMember.length === 0 && above.memberAlive && above.ended.length === 0, j(above))
 }
 
 console.log('E5 a record that names this process or pid 1 is no runner to end: its tree is never listed and nothing is signalled')

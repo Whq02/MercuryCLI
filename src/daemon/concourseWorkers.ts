@@ -2718,6 +2718,10 @@ export async function endRunnersLeftWithoutHost(
     if (hosted(rec.runnerId) || !isProcessAlive(pid)) continue
     const listedAt = Date.now()
     const under = await readProcessTreeUnder(pid)
+    if (under === null) {
+      logForDebugging(`[daemon] ${rec.runnerId} (pid ${pid}) has no host and is passed over: this daemon stands in its tree or its group, or the process table does not say where this daemon stands`)
+      continue
+    }
     if (tokenBinding(rec.procStart, await getProcessStartTokenAsync(pid, rec.procStart)) !== 'bound') continue
     const tree: Array<{ pid: number; birth: string }> = []
     for (const member of under) {

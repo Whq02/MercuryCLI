@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { processStandsInTree } from '../utils/processGroup.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 
 type ProcessTreeRow = { pid: number; ppid: number; pgid: number }
@@ -12,40 +13,41 @@ export function parseProcessTreeRows(text: string): ProcessTreeRow[] {
   return rows
 }
 
-export function processTreeUnder(rows: readonly ProcessTreeRow[], rootPid: number): number[] {
-  const self = process.pid
-  if (rootPid <= 1 || rootPid === self) return []
+function descendantsIn(rows: readonly ProcessTreeRow[], root: number): Set<number> {
   const byParent = new Map<number, number[]>()
   for (const row of rows) byParent.set(row.ppid, [...(byParent.get(row.ppid) ?? []), row.pid])
-  const descendantsOf = (root: number): Set<number> => {
-    const found = new Set<number>()
-    const queue = [...(byParent.get(root) ?? [])]
-    while (queue.length > 0) {
-      const pid = queue.pop()!
-      if (pid === root || found.has(pid)) continue
-      found.add(pid)
-      queue.push(...(byParent.get(pid) ?? []))
-    }
-    return found
+  const found = new Set<number>()
+  const queue = [...(byParent.get(root) ?? [])]
+  while (queue.length > 0) {
+    const pid = queue.pop()!
+    if (pid === root || found.has(pid)) continue
+    found.add(pid)
+    queue.push(...(byParent.get(pid) ?? []))
   }
-  const members = descendantsOf(rootPid)
+  return found
+}
+
+export function processTreeUnder(rows: readonly ProcessTreeRow[], rootPid: number): number[] {
+  if (rootPid <= 1 || processStandsInTree(rows, rootPid)) return []
+  const members = descendantsIn(rows, rootPid)
   if (rows.some(row => row.pid === rootPid && row.pgid === rootPid)) {
     for (const row of rows) if (row.pgid === rootPid && row.pid !== rootPid) members.add(row.pid)
   }
-  const standsUnder = members.has(self)
-  const own = standsUnder ? descendantsOf(self) : new Set<number>()
-  const ownGroup = standsUnder ? rows.find(row => row.pid === self)?.pgid : undefined
-  return [...members].filter(pid => pid > 1 && pid !== self && pid !== ownGroup && !own.has(pid))
+  return [...members].filter(pid => pid > 1)
 }
 
-export function readProcessTreeUnder(rootPid: number): Promise<number[]> {
-  if (process.platform === 'win32' || rootPid <= 1 || rootPid === process.pid) return Promise.resolve([])
+export function readProcessTreeUnder(rootPid: number): Promise<number[] | null> {
+  if (rootPid <= 1 || rootPid === process.pid) return Promise.resolve(null)
+  if (process.platform === 'win32') return Promise.resolve(process.ppid === rootPid ? null : [])
   return new Promise(resolve => {
     execFile(
       'ps',
       ['-A', '-o', 'pid=,ppid=,pgid='],
       { env: { ...subprocessEnv(), LC_ALL: 'C' }, timeout: 3000, maxBuffer: 8 * 1024 * 1024, windowsHide: true, encoding: 'utf8' },
-      (error, stdout) => resolve(error || typeof stdout !== 'string' ? [] : processTreeUnder(parseProcessTreeRows(stdout), rootPid)),
+      (error, stdout) => {
+        const rows = error || typeof stdout !== 'string' ? [] : parseProcessTreeRows(stdout)
+        resolve(!rows.some(row => row.pid === process.pid) || processStandsInTree(rows, rootPid) ? null : processTreeUnder(rows, rootPid))
+      },
     )
   })
 }
