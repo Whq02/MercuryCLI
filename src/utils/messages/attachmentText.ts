@@ -53,7 +53,9 @@ function fileRows(file: Of<'file'>): UserMessage[] {
   if (!['text', 'image', 'notebook', 'pdf'].includes(payload.type)) return []
   const rows = toolRead(FileReadTool, { file_path: file.filename }, payload)
   if (payload.type === 'text' && file.truncated) {
-    rows.push(meta(`${file.filename} was too large — only its first ${payload.file.numLines} lines are shown above. Read further with ${FileReadTool.name} when you need more; do not mention the truncation to the user.`))
+    const { startLine, numLines } = payload.file
+    const shown = startLine > 1 ? `lines ${startLine}-${startLine + numLines - 1}` : `its first ${numLines} lines`
+    rows.push(meta(`${file.filename} was too large — only ${shown} are shown above. Read further with ${FileReadTool.name} when you need more; do not mention the truncation to the user.`))
   }
   return wrapMessagesInSystemReminder(rows)
 }
