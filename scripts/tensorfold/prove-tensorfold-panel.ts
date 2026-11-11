@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor } from '../lib/settingsPopupHarness.ts'
-import { FAKE_BIN, GIB, LIGHTNING_REPO, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, fakeExists, fakeWorld } from './fixtures/world.ts'
+import { FAKE_BIN, GIB, LIGHTNING_REPO, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, RTX_4090, fakeExists, fakeWorld } from './fixtures/world.ts'
 import { FAKE_REPLY_PREFIX } from './fixtures/fake-tensorfold.ts'
 
 const argAfter = (flag: string): string | undefined => {
@@ -187,6 +187,56 @@ section('the panel through the harness: the two groups, TENSORFOLD unfolded, the
   ;(road as unknown as { __setActForTest?: unknown }).__setActForTest
   m3.unmount()
   check('the GPU-limit refusal renders the sysctl line and its cost in the card data', limited.acts[QWEN_27B_REPO]?.kind === 'refused' && (limited.acts[QWEN_27B_REPO] as { command?: string }).command === 'sudo sysctl iogpu.wired_limit_mb=27174')
+}
+
+section('an installed engine older than the supported release: one line names the newer one and the command that moves to it, and nothing acts')
+{
+  const world = fakeWorld('tf-newer')
+  const servedFile = join(world.home, 'served.json')
+  const brewAt = '/opt/homebrew/bin/brew'
+  const withBrew = (path: string): boolean => fakeExists(path) || path === brewAt
+  const base = { cacheRoot: world.cache, machine: MAC_48, env: world.env, home: world.home, platform: 'darwin' as const, exists: withBrew, servedFile, localModels: () => [], hosts: () => [], app: async () => ({ running: false }), diskFreeBytes: () => 37_578_240_000, keyedAt: async () => false }
+  const found = await engine.findTensorFoldEngine({ ...base, exists: fakeExists })
+  const supported = (await import('../../src/services/tensorfold/starting.ts')).TENSORFOLD_RELEASE
+  const LINE = `TensorFold ${supported} is supported, 1.2.2 is installed · brew upgrade ashhart/tensorfold/tensorfold`
+  check('the fixture engine is 1.2.2 and the build supports a newer release', found !== null && found.version === '1.2.2' && supported === '1.2.5', `${found?.version} ${supported}`)
+  const older = await scene.readTensorFoldPanelFacts(base)
+  check('on a Mac with Homebrew the line names the supported release, the installed one and brew upgrade with the formula', older.newer === LINE, String(older.newer))
+  const at = async (version: string): Promise<string | undefined> => (await scene.readTensorFoldPanelFacts({ ...base, engine: { ...found!, version } })).newer
+  const none = [await at(supported), await at('1.3.0'), await at('2.0'), await at('unknown'), await at('1.2.5-rc1')]
+  check('an engine at the supported release, a newer one and a version that is no dotted number get no line', none.every(line => line === undefined), JSON.stringify(none))
+  const [patch, minor, short] = [await at('1.2.4'), await at('1.1.9'), await at('1.2')]
+  check('1.2.4, 1.1.9 and 1.2 are each older than 1.2.5', [patch, minor, short].every((line, i) => line === LINE.replace('1.2.2 is installed', `${['1.2.4', '1.1.9', '1.2'][i]} is installed`)), JSON.stringify([patch, minor, short]))
+  const absent = await scene.readTensorFoldPanelFacts({ ...base, engine: null })
+  check('with no engine installed there is no line: the install row stands as before', absent.newer === undefined && absent.engine === null, String(absent.newer))
+  const noBrew = await scene.readTensorFoldPanelFacts({ ...base, exists: fakeExists })
+  check('an engine on a Mac where Homebrew is not found gets no line: Mercury names no command it would not run', noBrew.newer === undefined, String(noBrew.newer))
+  const linux = await scene.readTensorFoldPanelFacts({ ...base, platform: 'linux' as const, machine: RTX_4090, arch: 'x64', engine: found })
+  check('on Linux the command is the release archive\'s own install, in the runtime folder', linux.newer !== undefined && linux.newer.startsWith(`TensorFold ${supported} is supported, 1.2.2 is installed · cd ~/`) && linux.newer.includes(`curl -fLO https://github.com/ashhart/TensorFold/releases/download/v${supported}/`) && linux.newer.includes(' && sha256sum -c ') && linux.newer.includes(' && tar -xzf '), String(linux.newer))
+  const adapter = await scene.readTensorFoldPanelFacts({ ...base, engine: { ...found!, servedBy: 'mercury-llamacpp' } })
+  check('the adapter\'s engine gets no line', adapter.newer === undefined, String(adapter.newer))
+  road.__resetTensorFoldRoadForTest()
+  const io = { facts: base, road: {}, current: () => 'claude-opus-5-5' }
+  const [columns, rows] = SIZES[0]!
+  const m = await mountOffscreen(shell(columns, rows, h(panel.TensorFoldPanel as never, { onDone: () => undefined, io } as never)), columns, rows)
+  await waitFor(() => m.lines().some(line => line.includes('TENSORFOLD')), 10_000)
+  await settle(300)
+  const lines = m.lines()
+  save('t18-newer-engine', columns, rows, lines)
+  check('the panel paints the line once, on one row, and the heading and the live footer stand as before', lines.filter(line => line.includes(LINE)).length === 1 && lines.filter(line => line.includes('brew upgrade')).length === 1 && lines.some(line => line.includes('TENSORFOLD · 1.2.2 · Apple M5 Pro · 36.0 GiB usable · nothing served')) && lines.some(line => line.includes('nothing served · Metal')), lines.filter(line => line.includes('supported') || line.includes('nothing served')).join(' | '))
+  check('nothing acts: no install, pull or serve is in flight and the road holds no notice of its own', Object.keys(road.tensorFoldRoadState().acts).length === 0 && road.tensorFoldRoadState().notice === undefined, JSON.stringify(road.tensorFoldRoadState()))
+  m.unmount()
+  await settle(100)
+  const narrow = SIZES[2]!
+  const m2 = await mountOffscreen(shell(narrow[0], narrow[1], h(panel.TensorFoldPanel as never, { onDone: () => undefined, io } as never)), narrow[0], narrow[1])
+  await waitFor(() => m2.lines().some(line => line.includes('TENSORFOLD')), 10_000)
+  await settle(300)
+  const narrowLines = m2.lines()
+  save('t18-newer-engine', narrow[0], narrow[1], narrowLines)
+  const narrowText = narrowLines.map(line => line.replace(/[│╭╮╰╯─]/g, ' ').trim()).join(' ').replace(/\s+/g, ' ')
+  check(`${narrow[0]}×${narrow[1]}: the command stays whole and no row is wider than the terminal`, narrowText.includes('brew upgrade ashhart/tensorfold/tensorfold') && narrowLines.every(line => [...line].length <= narrow[0]), narrowLines.filter(line => line.includes('brew') || line.includes('supported')).join(' | '))
+  m2.unmount()
+  road.__resetTensorFoldRoadForTest()
 }
 
 await releaseScratchHome(home)
