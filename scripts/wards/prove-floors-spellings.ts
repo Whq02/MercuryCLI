@@ -507,6 +507,10 @@ if (runs('UNVALUED')) {
   for (const item of reads) await expect('UNVALUED', item, ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
   const told = await reading(bash('cat "$(dirname <CONFIG>/x)/.credentials.json"'), 'sovereign')
   check('UNVALUED · the refusal names the word with its computed part marked', /^Reading \$\(…\)\/\.credentials\.json is refused: it holds Mercury's own credentials/.test(told.decision.message ?? ''), said(told.decision))
+  const whole = await reading(bash('cd <CONFIG> && cat $(ls -a)'), 'sovereign')
+  check('UNVALUED · a refused word that is wholly a substitution is named as one', /^Reading \$\(…\) is refused: it holds Mercury's own credentials/.test(whole.decision.message ?? '') && !(whole.decision.message ?? '').includes('\uFFFC'), said(whole.decision))
+  const inside = await reading(bash('cat <CONFIG>/.cred$(echo entials).json'), 'sovereign')
+  check('UNVALUED · and a substitution inside a longer word is named in its place', /\/\.cred\$\(…\)\.json is refused: it holds Mercury's own credentials/.test(inside.decision.message ?? '') && !(inside.decision.message ?? '').includes('\uFFFC'), said(inside.decision))
   const clear: Call[] = [
     bash('cat "$DIR/package.json"', 'an ordinary file behind a variable'),
     bash('cat "$(git rev-parse --show-toplevel)/README.md"', 'an ordinary file behind a substitution'),
