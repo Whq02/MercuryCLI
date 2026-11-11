@@ -1,4 +1,4 @@
-import { readdirSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
 import { posix } from 'node:path'
 import { getShellCwd } from '../Shell.js'
@@ -569,6 +569,63 @@ function readsWholeTree(layer: Layer): boolean {
   }
 }
 
+const TREE_COPIERS = new Set(['cp', 'scp', 'copy-item', 'cpi', 'rsync', 'ditto', 'rclone'])
+const TREE_SEARCHERS = new Set(['rg', 'ag', 'ack', 'grep', 'egrep', 'fgrep', 'zgrep'])
+const FIND_NON_READERS = new Set(['ls', 'stat', 'echo', 'printf', 'file', 'du', 'wc', 'basename', 'dirname', 'realpath', 'readlink', 'test', '[', 'true', 'touch', 'chmod', 'chown', 'rm', 'rmdir', 'unlink', 'mv'])
+
+function holdsMercuryHome(word: string, cwd: string, homes: readonly string[]): boolean {
+  if (word === '' || word.includes(UNREAD_PART)) return false
+  return protectedPathForms(word, cwd).some(form => CONVENTIONAL_HOME.test(`${form}/.mercury`) || homes.some(home => home.startsWith(`${form}/`)))
+}
+
+function treeReadRoots(layer: Layer, fed: boolean, cwd: string, cwdHolds: boolean): string[] {
+  const words = layer.argv.slice(1)
+  const plain = words.filter(word => word !== '' && !word.startsWith('-'))
+  const { program } = layer
+  if (TREE_COPIERS.has(program)) {
+    const flag = words.findIndex(word => /^(?:-t|--target-directory|-destination)$/i.test(word))
+    if (flag >= 0) return plain.filter(word => word !== words[flag + 1])
+    return words.some(word => word.startsWith('--target-directory=')) ? plain : plain.slice(0, -1)
+  }
+  if (program === 'tar' || program === 'bsdtar' || program === 'gtar') {
+    const roots: string[] = []
+    let base: string | undefined
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i]!
+      if (i === 0 && !word.startsWith('-')) {
+        if (word.includes('f')) i++
+      } else if (word === '-C' || word === '--directory') base = words[++i]
+      else if (word.startsWith('--directory=')) base = word.slice('--directory='.length)
+      else if (word === '--file' || /^-[A-Za-z]*f$/.test(word)) i++
+      else if (!word.startsWith('-')) roots.push(base === undefined || /^[/~]/.test(word) ? word : `${base}/${word}`)
+    }
+    return roots
+  }
+  if (program === 'zip') return plain.slice(1)
+  if (program === '7z' || program === '7za') return plain.slice(2)
+  if (TREE_SEARCHERS.has(program)) {
+    const patterned = words.some(word => /^(?:-[A-Za-z]*[ef]|--regexp|--file)$/.test(word) || /^--(?:regexp|file)=/.test(word))
+    const rest = patterned ? plain : plain.slice(1)
+    return fed || !cwdHolds || rest.some(word => existsSync(expandPath(spelling(word), cwd))) ? rest : [...rest, '.']
+  }
+  return plain
+}
+
+function findNamesASecret(argv: readonly string[], homes: readonly string[]): boolean {
+  if (argv.some(word => /^(?:-o|-or|-not|!|,)$/.test(word))) return true
+  const names = argv.flatMap((word, index) => (/^-i?name$/.test(word) ? [argv[index + 1] ?? ''] : []))
+  if (names.length === 0) return true
+  const secrets = [...SECRET_NAME_SAMPLES, ...homes.flatMap(secretsHeld)].map(name => name.toLowerCase())
+  return names.every(name => {
+    try {
+      const pattern = new RegExp(`^${wildcardSource(name.toLowerCase())}$`)
+      return secrets.some(secret => pattern.test(secret))
+    } catch {
+      return true
+    }
+  })
+}
+
 function keychainItemRead(layer: Layer): string | null {
   if (layer.program !== 'security') return null
   const argv = layer.argv
@@ -617,6 +674,16 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
         for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {
           if (mercurySecretPath(candidate, here) !== null || couldNameSecret(candidate, here, homes)) return word
           if ((tree || feeds) && namesMercuryHome(candidate, here, homes)) return word
+        }
+      }
+      const finder = layer.program === 'find' ? layer : layer.findRoots === undefined ? undefined : layers.find(outer => outer.program === 'find')
+      const whole = finder === undefined ? tree : findNamesASecret(finder.argv, homes) && (layer === finder ? feeds : !FIND_NON_READERS.has(layer.program))
+      if (!whole) continue
+      const handed = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
+      const held = finder === undefined ? treeReadRoots(layer, handed, here, holdsMercuryHome('.', here, homes)) : finder.findRoots === undefined || finder.findRoots.length === 0 ? ['.'] : finder.findRoots
+      for (const root of held) {
+        for (const candidate of [...spellingsOf(root), ...underOtherHomes(root, read.homes)]) {
+          if (holdsMercuryHome(candidate, here, homes)) return `the whole of ${root === '.' ? 'this folder' : root} (name a folder beneath it)`
         }
       }
     }
