@@ -50,6 +50,7 @@ export type ReadWorld = {
   ownNames: readonly string[]
   user?: string
   uid?: string
+  windows?: boolean
 }
 
 const POSIX_SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'ash', 'fish', 'mksh', 'yash', 'csh', 'tcsh'])
@@ -103,9 +104,16 @@ function expandTilde(word: string, world: ReadWorld): string {
   return `${own ? world.home : `${world.homesRoot}/${named[1]}`}${named[2] ?? ''}`
 }
 
+function windowsSpelling(word: string): string {
+  const slashed = word.replace(/\\/g, '/').replace(/^\/\/[?.]\/(?=[A-Za-z]:)/, '')
+  const drive = /^\/(?:(?:mnt|cygdrive)\/)?([A-Za-z])(?=\/|$)/.exec(slashed)
+  if (drive !== null) return `${drive[1]}:${slashed.slice(drive[0].length) || '/'}`
+  return /^[A-Za-z]:$/.test(slashed) ? `${slashed}/` : slashed
+}
+
 export function absolutePath(word: string, cwd: string | undefined, world: ReadWorld): string | undefined {
-  const expanded = expandTilde(word, world)
-  if (expanded.startsWith('/')) return collapseDots(expanded) || '/'
+  const expanded = world.windows === true ? windowsSpelling(expandTilde(word, world)) : expandTilde(word, world)
+  if (expanded.startsWith('/') || (world.windows === true && /^[A-Za-z]:\//.test(expanded))) return collapseDots(expanded) || '/'
   if (cwd === undefined) return undefined
   return collapseDots(`${cwd}/${expanded}`) || '/'
 }
@@ -415,7 +423,7 @@ class Reading {
     if (!moves && !pushes) return
     if (pushes) this.folders.push(this.cwd)
     const operands = layer.argv.slice(1).filter(word => !/^-[A-Za-z]+$/.test(word))
-    const target = operands[0]
+    const target = this.world.windows === true && operands.length > 1 && /^\/d$/i.test(operands[0]!) ? operands[1] : operands[0]
     if (target === undefined) this.cwd = pushes ? undefined : (this.scope.get('HOME')?.at(-1) ?? this.world.home)
     else if (target === '-' || !wordKnown(target)) this.cwd = undefined
     else this.cwd = absolutePath(command.dialect === 'powershell' ? target.replace(/\\/g, '/') : target, this.cwd, this.world)
