@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, join } from 'node:path'
 import { handoffTurn, isHandoffRequest, startFixtureApi, type FixtureApi } from '../lib/fixtureApi.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -216,6 +217,54 @@ try {
       check('C1 the same cut inside the first turn of a session: no line stands in the record, and it reads as the record of an older build does', turnEndLines(file) === 0 && isTheAskAgain(lastSpoken(rows)) && read.state === 'none' && read.sentence === 0, j({ lines: turnEndLines(file), last: lastSpoken(rows)?.type, read }))
     } finally {
       await fixture.close()
+    }
+  }
+
+  section("D — a hosted session at rest: what a screen command leaves in the record is followed by its turn's line, and the session resumes as finished")
+  {
+    const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
+    const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.ts')
+    const kindsOf = (file: string): string[] => readFileSync(file, 'utf8').split('\n').filter(line => line.trim() !== '').map(line => {
+      const payload = ((JSON.parse(line) as { payload?: { kind?: string; metaKind?: string } }).payload ?? {})
+      return payload.kind === 'session-meta' ? `meta:${payload.metaKind}` : String(payload.kind)
+    })
+    const endsOnALine = (file: string): boolean => {
+      const kinds = kindsOf(file)
+      return kinds.lastIndexOf('meta:turn-end') > kinds.findLastIndex(kind => kind === 'input' || kind === 'output')
+    }
+    const SCENES: Array<{ tag: string; says: string; content: string; extra?: Record<string, unknown>; hidden: boolean }> = [
+      { tag: 'context', says: 'the operator types /context', content: '/context', hidden: false },
+      { tag: 'unknown', says: 'the operator types a command the runner does not know', content: '/no-such-command', hidden: false },
+      { tag: 'screen', says: "a screen command sends its words as a hidden prompt (origin screen-command)", content: 'HOSTED words a screen command composed.', extra: { origin: { kind: 'screen-command', command: 'recap' } }, hidden: true },
+    ]
+    for (const scene of SCENES) {
+      const SID = sid()
+      const fixture = await startFixtureApi([handoffTurn(), handoffTurn(), { kind: 'text', text: 'HOSTED-FIRST-REPLY.' }, { kind: 'text', text: 'HOSTED-SECOND-REPLY.' }, { kind: 'text', text: 'HOSTED-RESUMED-REPLY.' }])
+      const arena = makeArena(`hosted-${scene.tag}`, fixture)
+      const spec = buildConcourseWorkerSpec({ runnerId: 'concourse-w1', workspaceId: arena.cwd, modelKey: MODEL, sessionId: SID, resume: false, runnerArgv: [] })
+      const invocation = buildRunnerInvocation(spec).argv
+      const host = hostRunner({ dist: DIST, node: nodeBin!, cwd: arena.cwd, home: arena.env.MERCURY_CONFIG_DIR, env: { ...arena.env, MERCURY_CONCOURSE_WORKER: '1' }, argv: ['--model', MODEL, invocation[invocation.indexOf(spec.appendSystemPrompt) - 1] ?? '', spec.appendSystemPrompt, ...(spec.extraArgv ?? [])] })
+      try {
+        await host.initialize({}, 90_000)
+        await host.prompt('HOSTED first prompt.')
+        await host.waitFor('the first outcome', row => row.type === 'outcome' && row.turn === 1, 90_000)
+        await host.prompt(scene.content, scene.extra ?? {})
+        const second = await host.waitFor('the outcome of the command', row => row.type === 'outcome' && row.turn === 2, 90_000).then(row => row as Record<string, unknown>, () => null)
+        const code = await host.stop(20_000)
+        const file = transcriptOf(arena, SID)
+        const rows = await recordOf(file)
+        const hiddenLast = rows.findLast(row => row.type === 'user')
+        check(`D ${scene.tag}: ${scene.says}: its turn ends with an outcome (${String(second?.status)}), and the runner ends when the window closes`, second !== null && typeof second.status === 'string' && code !== null, `outcome=${j(second).slice(0, 160)} exit=${code} ${host.stderr().slice(-200)}`)
+        check(`D ${scene.tag}: the record ends on a line: one for each of the two turns, the last behind every conversation row`, turnEndLines(file) === 2 && endsOnALine(file), j(kindsOf(file).slice(-6)))
+        if (scene.hidden) check(`D ${scene.tag}: the scene: the words stand in the record as a hidden user row that came from a screen command`, hiddenLast !== undefined && hiddenLast.isMeta === true && j(hiddenLast.origin).includes('screen-command'), j({ meta: hiddenLast?.isMeta, origin: hiddenLast?.origin }))
+        const read = await loaderOn(file, SID)
+        check(`D ${scene.tag}: the loader reads a finished turn, no sentence`, read.state === 'none' && read.sentence === 0, j(read))
+        const later = await run(arena, ['run', 'HOSTED later prompt.', '--model', MODEL, '--resume', SID, '--format', 'rows'])
+        check(`D ${scene.tag}: a later process resumes by id and does not tell the model the run was stopped`, later.exit === 0 && wireSays(lastRequest(fixture), CONTINUATION) === 0, `exit=${later.exit} said=${wireSays(lastRequest(fixture), CONTINUATION)} ${later.stderr.slice(-200)}`)
+      } finally {
+        await host.stop().catch(() => null)
+        await fixture.close()
+      }
     }
   }
 } finally {
