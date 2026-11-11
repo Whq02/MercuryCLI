@@ -573,9 +573,19 @@ const TREE_COPIERS = new Set(['cp', 'scp', 'copy-item', 'cpi', 'rsync', 'ditto',
 const TREE_SEARCHERS = new Set(['rg', 'ag', 'ack', 'grep', 'egrep', 'fgrep', 'zgrep'])
 const FIND_NON_READERS = new Set(['ls', 'stat', 'echo', 'printf', 'file', 'du', 'wc', 'basename', 'dirname', 'realpath', 'readlink', 'test', '[', 'true', 'touch', 'chmod', 'chown', 'rm', 'rmdir', 'unlink', 'mv'])
 
-function holdsMercuryHome(word: string, cwd: string, homes: readonly string[]): boolean {
+function holdsMercuryHome(word: string, cwd: string, homes: readonly string[], hidden = true): boolean {
   if (word === '' || word.includes(UNREAD_PART)) return false
-  return protectedPathForms(word, cwd).some(form => CONVENTIONAL_HOME.test(`${form}/.mercury`) || homes.some(home => home.startsWith(`${form}/`)))
+  return protectedPathForms(word, cwd).some(form => (hidden && CONVENTIONAL_HOME.test(`${form}/.mercury`)) || homes.some(home => home.startsWith(`${form}/`) && (hidden || !home.slice(form.length).includes('/.'))))
+}
+
+function ripgrepReachesHidden(layer: Layer, simple: ReadCommand, read: ShellRead): boolean {
+  const words = layer.argv.slice(1)
+  if (words.some(word => word === '--hidden' || /^-[A-Za-z]*\.[A-Za-z.]*$/.test(word))) return true
+  const unrestricted = words.reduce((count, word) => count + (word === '--unrestricted' ? 1 : /^-[A-Za-z.]+$/.test(word) ? (word.match(/u/g) ?? []).length : 0), 0)
+  if (unrestricted >= 2) return true
+  if (words.includes('--no-config')) return false
+  const named = (entries: ReadonlyArray<{ name: string; value: string }>): boolean => entries.some(entry => entry.name === 'RIPGREP_CONFIG_PATH' && entry.value !== '')
+  return named(simple.env) || named(layer.env) || (read.exported.get('RIPGREP_CONFIG_PATH') ?? []).some(value => value !== '') || !!process.env.RIPGREP_CONFIG_PATH
 }
 
 function treeReadRoots(layer: Layer, fed: boolean, cwd: string, cwdHolds: boolean): string[] {
@@ -680,10 +690,11 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const whole = finder === undefined ? tree : findNamesASecret(finder.argv, homes) && (layer === finder ? feeds : !FIND_NON_READERS.has(layer.program))
       if (!whole) continue
       const handed = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
-      const held = finder === undefined ? treeReadRoots(layer, handed, here, holdsMercuryHome('.', here, homes)) : finder.findRoots === undefined || finder.findRoots.length === 0 ? ['.'] : finder.findRoots
+      const hidden = layer.program !== 'rg' || ripgrepReachesHidden(layer, simple, read)
+      const held = finder === undefined ? treeReadRoots(layer, handed, here, holdsMercuryHome('.', here, homes, hidden)) : finder.findRoots === undefined || finder.findRoots.length === 0 ? ['.'] : finder.findRoots
       for (const root of held) {
         for (const candidate of [...spellingsOf(root), ...underOtherHomes(root, read.homes)]) {
-          if (holdsMercuryHome(candidate, here, homes)) return `the whole of ${root === '.' ? 'this folder' : root} (name a folder beneath it)`
+          if (holdsMercuryHome(candidate, here, homes, hidden)) return `the whole of ${root === '.' ? 'this folder' : root} (name a folder beneath it)`
         }
       }
     }

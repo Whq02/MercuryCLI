@@ -275,7 +275,13 @@ if (runs('TREE')) {
     bash('grep -r token ~', 'the home'),
     bash('grep -r token $HOME'),
     bash('grep -rn token <HOME>', 'the home by its path'),
-    bash('rg token ~'),
+    bash('rg --hidden token ~', 'ripgrep told to read hidden files'),
+    bash('rg -. token ~'),
+    bash('rg -uu token ~', 'unrestricted twice'),
+    bash('rg -u -u token ~'),
+    bash('RIPGREP_CONFIG_PATH=/tmp/rc rg token ~', 'a ripgrep config file named on the line'),
+    bash('export RIPGREP_CONFIG_PATH=/tmp/rc; rg token ~'),
+    bash('rg token <CONFIG>/..', 'a store no dot-led folder hides, read by plain ripgrep'),
     bash('tar -cf /tmp/h.tar ~'),
     bash('tar czf /tmp/h.tgz -C ~ .', 'the home as the folder tar changes to'),
     bash('cp -R ~ /tmp/h'),
@@ -288,7 +294,8 @@ if (runs('TREE')) {
     bash('grep -r token /', 'the root'),
     bash('grep -r token <CONFIG>/..', 'the folder above the config home'),
     bash('cd ~ && grep -r token .', 'the folder the command runs in'),
-    bash('cd ~ && rg token', 'no path, in the home'),
+    bash('cd ~ && grep -r token', 'no path, in the home'),
+    bash('cd ~ && rg --hidden token', 'no path, in the home, hidden files read'),
     bash("cd ~; find . -name '*.json' -exec cat {} +"),
     bash('cd ~ && tar -cf /tmp/h.tar .'),
     bash('grep -r token ..', 'the folder above the project, which holds the home'),
@@ -297,7 +304,7 @@ if (runs('TREE')) {
   for (const item of whole) await expect('TREE', item, ['sovereign', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
   const told = await reading(bash('grep -r token ~'), 'sovereign')
   check('TREE · the refusal names the tree and says to name a folder beneath it', /^Reading the whole of ~ \(name a folder beneath it\) is refused: it holds Mercury's own credentials/.test(told.decision.message ?? ''), said(told.decision))
-  const here = await reading(bash('cd ~ && rg token'), 'sovereign')
+  const here = await reading(bash('cd ~ && grep -r token'), 'sovereign')
   check('TREE · with no path it names the folder the command runs in', /^Reading the whole of this folder \(name a folder beneath it\) is refused/.test(here.decision.message ?? ''), said(here.decision))
   const clear: Call[] = [
     bash('find ~ -name notes.txt', 'a listing'),
@@ -306,6 +313,10 @@ if (runs('TREE')) {
     bash('grep -r token ~/Documents', 'a folder beside the config home'),
     bash('grep -r plain .', 'the project'),
     bash('rg plain', 'no path, in the project'),
+    bash('rg token ~', 'plain ripgrep skips dot-led folders, so it never reads the store under the home'),
+    bash('cd ~ && rg token', 'the same with no path, in the home'),
+    bash('rg -u token ~', 'unrestricted once reads ignored files, still no hidden ones'),
+    bash('RIPGREP_CONFIG_PATH=/tmp/rc rg --no-config token ~', 'a config file named and set aside on the same line'),
     bash('tar czf /tmp/p.tgz .', 'the project'),
     bash("find . -name '*.md' -exec cat {} +", 'the project'),
     bash('cp -R docs ~', 'the home as the destination'),
@@ -319,6 +330,10 @@ if (runs('TREE')) {
     bash("find ~ -name '*.json' -exec ls -l {} +", 'a listing of what find found'),
   ]
   for (const item of clear) await expect('TREE', item, ['sovereign'], notRefused, 'is not refused by the floor')
+  process.env.RIPGREP_CONFIG_PATH = '/tmp/rc'
+  await expect('TREE', bash('rg token ~', 'a ripgrep config file named in the environment'), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
+  await expect('TREE', bash('rg --no-config token ~', 'the same with the config file set aside'), ['sovereign'], notRefused, 'is not refused by the floor')
+  delete process.env.RIPGREP_CONFIG_PATH
 }
 
 if (runs('T-3.5')) {
