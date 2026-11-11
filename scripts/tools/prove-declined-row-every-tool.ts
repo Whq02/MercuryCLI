@@ -62,6 +62,10 @@ section('a call the operator declined: every tool\'s row says declined, none say
   check(`the ${tools.length} tools of the roster and a server's tool: one row each, the refusal`, wrong.length === 0, wrong.join(' · '))
   check('the question alone keeps a line of its own: Edit and Write read the refusal as every other tool does', own.length === 1 && own[0] === 'AskUserQuestion: User declined to answer', own.join(' · '))
   for (const name of ['WebFetch', 'Git', 'Skill', 'Computer', 'Edit', 'Write']) {
+    if (name === 'Computer' && named(name) === undefined && process.platform === 'linux') {
+      console.log('  [SKIP] Computer: the roster holds no Computer tool on Linux, skipped by name')
+      continue
+    }
     const rows = await rowOf(named(name), wrapped(REJECT_MESSAGE))
     check(`${name}: the row is the refusal's first sentence`, named(name) !== undefined && rows.length === 1 && rows[0] === `└ ✕ ${DECLINED}`, JSON.stringify(rows))
   }
