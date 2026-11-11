@@ -224,10 +224,16 @@ Five safety floors hold alongside the permission modes and wards:
 ## Non-interactive sessions
 
 Headless sessions have no trust dialog. In a folder without a recorded trust
-grant, `mercury run` proceeds without the project's instructions, hooks or MCP
-servers. Project-scope API-key helpers do not execute there either. A trust
-grant on the folder or an ancestor enables those project sources. The user's
-own configuration and managed policy still apply.
+grant, `mercury run` proceeds without the project's instructions, hooks, MCP
+servers, agent definitions or workflows, and the folder's two settings files
+(`.mercury/settings.json` and `.mercury/settings.local.json`) do not rule the
+run: their allow rules, environment values, memory directory and every other
+key wait for the grant. Their deny and ask rules still apply, because a deny
+or an ask can only tighten a run, and the words a `guardrails.reasons` entry
+gives such a rule are left unsaid. Project-scope API-key helpers do not
+execute there either. A trust grant on the folder or an ancestor enables
+those project sources, and `--config <file>` hands one launch a settings file
+without a grant. The user's own configuration and managed policy still apply.
 
 A project MCP server (one defined in `.mercury/mcp.json`) needs more than the
 trust grant: it starts in a headless run, and in `mercury mcp list` and

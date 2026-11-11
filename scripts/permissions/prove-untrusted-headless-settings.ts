@@ -28,8 +28,22 @@ const ROOT = join(import.meta.dir, '..', '..')
 const SRC = join(ROOT, 'src')
 
 const hookNamed = (name: string): Record<string, unknown> => ({ hooks: { 'session.start': [{ name, run: 'true' }] } })
-writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ media: { host: 'host-of-the-user' }, events: hookNamed('the hook of the user') }))
-writeFileSync(join(FOLDER, '.mercury', 'settings.json'), JSON.stringify({ extensions: { enabled: { 'probe@scene': true } }, events: hookNamed('the shared hook of the folder') }))
+writeFileSync(
+  join(HOME, 'settings.json'),
+  JSON.stringify({
+    media: { host: 'host-of-the-user' },
+    events: hookNamed('the hook of the user'),
+    guardrails: { deny: ['Read(own-secret/**)'], reasons: { 'Read(own-secret/**)': 'the words of the user' } },
+  }),
+)
+writeFileSync(
+  join(FOLDER, '.mercury', 'settings.json'),
+  JSON.stringify({
+    extensions: { enabled: { 'probe@scene': true } },
+    events: hookNamed('the shared hook of the folder'),
+    guardrails: { allow: ['Bash(*)'], deny: ['Read(secrets/**)'], ask: ['WebFetch'], reasons: { 'Read(secrets/**)': 'the words of the folder' } },
+  }),
+)
 writeFileSync(
   join(FOLDER, '.mercury', 'settings.local.json'),
   JSON.stringify({
@@ -80,7 +94,7 @@ function stand(posture: Posture): void {
 }
 
 console.log('============================================================')
-console.log(' a headless run in a folder nobody trusted reads none of that folder\'s settings')
+console.log(' a headless run in a folder nobody trusted is ruled by none of that folder\'s settings')
 console.log('============================================================')
 
 section('§0 the page: docs/TRUST.md says a headless run in an untrusted folder keeps the user\'s own configuration and managed policy')
@@ -88,6 +102,9 @@ section('§0 the page: docs/TRUST.md says a headless run in an untrusted folder 
   const page = readFileSync(join(ROOT, 'docs', 'TRUST.md'), 'utf8')
   check('the page says nothing a workspace config file asked for executes before trust', /Until you grant trust for\s+the directory, nothing a workspace config file asked for gets to execute/.test(page))
   check('the page says the user\'s own configuration and managed policy still apply there', /The user's\s+own configuration and managed policy still apply/.test(page))
+  check('the page says the folder\'s two settings files do not rule such a run, and names what waits for the grant', /the folder's two settings files\s+\(`\.mercury\/settings\.json` and `\.mercury\/settings\.local\.json`\) do not rule the\s+run: their allow rules, environment values, memory directory and every other\s+key wait for the grant/.test(page))
+  check('the page says their deny and ask rules still apply, without the words a reasons entry gives them', /Their deny and ask rules still apply, because a deny\s+or an ask can only tighten a run, and the words a `guardrails\.reasons` entry\s+gives such a rule are left unsaid/.test(page))
+  check('the page names the agent definitions and the workflows among what such a run goes without, and --config as the way to hand it a settings file', /proceeds without the project's instructions, hooks, MCP\s+servers, agent definitions or workflows/.test(page) && /`--config <file>` hands one launch a settings file\s+without a grant/.test(page))
 }
 
 section('§1 a window, where the trust card stands before anything runs, keeps every allowed layer')
@@ -186,6 +203,31 @@ section('§6 what the run still names of what it holds back, and what the folder
   const trustedAgents = ((await markdown.loadMarkdownFilesForSubdir('agents', FOLDER)) as Array<{ filePath: string }>).filter(file => file.filePath.startsWith(FOLDER)).length
   const trustedFlows = ((await workflows.listWorkflows(FOLDER)) as Array<{ name: string }>).filter(flow => flow.name === 'folder-flow').length
   check('trusted run: the folder\'s agent definition and its workflow are offered', trustedAgents === 1 && trustedFlows === 1, `${trustedAgents} agent file(s), ${trustedFlows} workflow(s)`)
+}
+
+section('§7 the folder\'s rules: its deny and its ask still tighten the run, its allow and its words wait for the grant')
+{
+  const loader = await import(join(SRC, 'utils/permissions/permissionsLoader.ts'))
+  type Rule = { source: string; ruleBehavior: string; ruleValue: { toolName: string; ruleContent?: string; reason?: string } }
+  const spell = (rule: Rule): string =>
+    `${rule.source}:${rule.ruleBehavior}:${rule.ruleValue.toolName}${rule.ruleValue.ruleContent === undefined ? '' : `(${rule.ruleValue.ruleContent})`}${rule.ruleValue.reason === undefined ? '' : ` "${rule.ruleValue.reason}"`}`
+  const rules = (): string[] => (loader.loadAllPermissionRulesFromDisk() as Rule[]).map(spell).sort()
+  const ofTheFolder = (rule: string): boolean => rule.startsWith('projectSettings:') || rule.startsWith('localSettings:')
+
+  stand('untrusted run')
+  const untrusted = rules()
+  check('untrusted run: the folder\'s deny rule and its ask rule are in force', untrusted.includes('projectSettings:deny:Read(secrets/**)') && untrusted.includes('projectSettings:ask:WebFetch'), untrusted.join(' | '))
+  check('untrusted run: the folder\'s allow rule is not', !untrusted.some(rule => ofTheFolder(rule) && rule.includes(':allow:')), untrusted.join(' | '))
+  check('untrusted run: the words the folder gives its rule are left unsaid, the user\'s own are kept', !untrusted.some(rule => rule.includes('the words of the folder')) && untrusted.includes('userSettings:deny:Read(own-secret/**) "the words of the user"'), untrusted.join(' | '))
+  const before = state.getAllowedSettingSources()
+  state.setAllowedSettingSources(['userSettings'])
+  const narrowed = rules()
+  state.setAllowedSettingSources(before)
+  check('untrusted run with --config-layers user: no rule of the folder is read at all', !narrowed.some(ofTheFolder) && narrowed.length === 1, narrowed.join(' | '))
+
+  stand('trusted run')
+  const trusted = rules()
+  check('trusted run: the folder\'s allow rule and the words of its deny rule are back', trusted.some(rule => rule.startsWith('projectSettings:allow:Bash')) && trusted.includes('projectSettings:deny:Read(secrets/**) "the words of the folder"') && trusted.includes('projectSettings:ask:WebFetch'), trusted.join(' | '))
 }
 
 stand('untrusted run')
