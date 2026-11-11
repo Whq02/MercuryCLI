@@ -32,6 +32,8 @@ async function stub(path: string, fixture: () => Record<string, unknown>): Promi
 await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined, useKeybindings: () => undefined }))
 
 const { enableConfigs } = await import('../../src/utils/config.js')
+const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+setSessionTrustAccepted(true)
 enableConfigs()
 const shell = await import('../../src/utils/permissions/shellRuleMatching.js')
 const { validatePermissionRule } = await import('../../src/utils/settings/permissionValidation.js')
