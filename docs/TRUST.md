@@ -234,31 +234,16 @@ Five safety floors hold alongside the permission modes and wards:
 - Writing project instruction files or reading `.env` files asks for approval first.
 
 The credential and runtime floors read a shell command as the commands a shell
-would run, so a wildcard, a folder read whole, a listing handed directly to a
-reader by a substitution, a nested shell's own script (`sh -c`, a heredoc, a
-pipe into a shell, `eval`), a kill by process group, by user or by a pattern
-that takes Mercury's own processes, a write through an archive or a download,
-and an install into Mercury's runtime by npm, pnpm or bun are refused like the
-plain spelling. Where the line stands in the folder that holds the
-credentials, a name it leaves to the shell is refused as well when the line
-itself hands it to a program that reads files.
+would run, so many other spellings of a command are refused like the plain
+one: for a read of the credentials, a wildcard, the folder read whole, a `cd`
+into the folder first, or a script handed to a nested shell.
 
-The floors read the command as it is written and are not a sandbox: what a
-line keeps from that reading is not stopped by them, and meets only the
-permission mode's ordinary check. What can pass them that way includes a
-target that another language computes at run time; a folder or a tree root
-built by a substitution, by a variable the line does not set or by a default,
-and a relative write, delete or wildcard read after a `cd` to such a folder,
-which is judged at the folder before it; a name or a listing that reaches a
-reader through a loop, a pipe, a positional parameter or another program; a
-delete whose target a substitution computes; lines a nested shell's script
-reads and evaluates; an install by another package manager, or into a
-credential store; a file reached through a link; a credential-store write by
-a nested shell that is handed its target at run time; and what another
-program is told to run or serve (an editor, a debugger, a database shell, a
-web server). A credential file's own name at the end of a path only the
-running shell can value is still refused where the line hands it to a program
-that reads files.
+The floors read the command as it is written and are not a sandbox. What a
+command works out only while it runs, or leaves to another program to do, is
+beyond that reading and meets only the permission mode's ordinary check, which
+asks in Default mode and can let it run where asks are off. The floors guard
+against mistakes and plain attempts; they do not isolate a session from the
+files and processes its user can reach.
 
 ## Non-interactive sessions
 
