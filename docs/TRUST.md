@@ -216,7 +216,9 @@ tool call and the match (shown in the session, recorded on a headless
 run's transcript, and kept for a hosted chat or a resume), while project and
 builtin rules still deny, even a call that matches both; `MERCURY_WARDS=0`
 turns every ward off; project rules in `.mercury/wards.json` add to the list
-and never remove from it.
+and never remove from it. On a headless run in a folder that holds no trust
+grant those project rules still deny, and the denial says a rule of the folder
+denied the call without showing the rule's own name or words.
 
 ## Safety floors
 

@@ -52,6 +52,7 @@ async function main(): Promise<void> {
       'node:fs',
       'node:path',
       '../substrate/flagRegistry.js',
+      '../utils/config/trust.js',
       '../utils/cwd.js',
       '../utils/debug.js',
       '../utils/messageQueueManager.js',
