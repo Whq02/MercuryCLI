@@ -474,7 +474,7 @@ export function replayUpdatesOf(
   const updates: Array<Record<string, unknown>> = []
   const announced = new Set<string>()
   for (const m of messages) {
-    if (m.isMeta === true || m.isSidechain === true) continue
+    if (m.isMeta === true || m.isSidechain === true || m.isCompactSummary === true) continue
     const message = m.message as { content?: unknown; model?: unknown } | undefined
     const content = message?.content
     if (m.type === 'system') {

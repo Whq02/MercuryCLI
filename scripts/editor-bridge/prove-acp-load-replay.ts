@@ -574,6 +574,25 @@ try {
     )
     check('L6 control: a prompt that only speaks of a command is replayed as written', j(talk(replayUpdatesOf([typed('what does /context print?')]) as Update[])) === j(['user: what does /context print?']), j(replayUpdatesOf([typed('what does /context print?')])))
   }
+
+  section('L7 — a session that was folded: the fold\'s summary is the harness\'s row and is never replayed as the user\'s words')
+  {
+    const SUMMARY = 'The context window turned over; this session carries on from an earlier stretch of the same conversation. The summary below holds the earlier portion.\n\nSummary:\nL7-SUMMARY-TEXT of the folded stretch.'
+    const folded = 'facef00d-0000-4000-8000-0000000acb07'
+    handRecord(folded, h => {
+      h.user('L7 prompt before the fold.')
+      h.reply('msg_l7_kept', [{ type: 'text', text: 'L7 KEPT REPLY.' }], 'end_turn')
+      h.user(SUMMARY, { isCompactSummary: true })
+      h.user('L7 prompt after the fold.')
+      h.reply('msg_l7_after', [{ type: 'text', text: 'L7 REPLY AFTER THE FOLD.' }], 'end_turn')
+    })
+    const replayed = await loadOverAcp(folded)
+    check('L7: no update carries the summary or its framing', !replayed.some(update => j(update).includes('L7-SUMMARY-TEXT') || j(update).includes('The context window turned over')), heads(talk(replayed)))
+    check('L7: the prompts and the replies the record holds beside it are replayed, in order', j(talk(replayed)) === j(['user: L7 prompt before the fold.', 'agent: L7 KEPT REPLY.', 'user: L7 prompt after the fold.', 'agent: L7 REPLY AFTER THE FOLD.']), heads(talk(replayed)))
+    const summaryRow = { type: 'user', isCompactSummary: true, message: { role: 'user', content: [{ type: 'text', text: SUMMARY }] } }
+    check('L7: a summary row sends nothing, whether its content is a string or blocks', replayUpdatesOf([summaryRow, { ...summaryRow, message: { role: 'user', content: SUMMARY } }]).length === 0, j(replayUpdatesOf([summaryRow])))
+    check('L7 control: the same words typed by the user are replayed as the user\'s', j(talk(replayUpdatesOf([{ type: 'user', message: { role: 'user', content: SUMMARY } }]) as Update[])) === j([`user: ${SUMMARY}`]), j(replayUpdatesOf([{ type: 'user', message: { role: 'user', content: SUMMARY } }])).slice(0, 200))
+  }
 } finally {
   for (const server of servers) endProcessGroup(server)
   for (const provider of providers) await provider.close()
