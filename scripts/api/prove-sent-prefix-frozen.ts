@@ -871,6 +871,28 @@ if (!existsSync(DIST)) {
       await fixture.close()
     }
     {
+      const SONNET = 'claude-sonnet-5-5'
+      const OPUS = 'claude-opus-5-5'
+      const turns: ScriptedTurn[] = [
+        { kind: 'tool_use', name: 'Read', input: {}, thinking: 'sonnet plans the read', model: SONNET },
+        { kind: 'text', text: 'S5F-SONNET-READ', thinking: 'sonnet after the read', model: SONNET },
+        { kind: 'text', text: 'S5F-OPUS-1', thinking: 'opus one', model: OPUS },
+      ]
+      const fixture = await startFixtureApi(turns)
+      const arena = makeArena(fixture)
+      const notePath = join(arena.cwd, 'carry-note.txt')
+      writeFileSync(notePath, 'a note read between two thinking blocks\n')
+      ;(turns[0] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: notePath }
+      const SID = 'c0ffee00-0000-4000-8000-00000000c0f3'
+      const r1 = await run(arena, ['run', 'read the note', ...switchArgs(SONNET), '--session-id', SID])
+      const r2 = await run(arena, ['run', 'now on opus', ...switchArgs(OPUS), '--resume', SID])
+      const reqs = mainRequests(fixture).map(r => r.body as Body)
+      const toOpus = reqs.find(q => q.model === OPUS)
+      const shapes = ((toOpus?.messages ?? []) as Array<{ role?: string; content?: unknown }>).filter(m => m.role === 'assistant').map(m => (Array.isArray(m.content) ? (m.content as Block[]).map(b => String(b.type)).join('+') : 'text'))
+      check('a tool turn between the blocks: the request to Opus 5.5 carries the thinking that stands before Sonnet 5.5\'s tool call and the thinking after its result, each in its own turn', r1.exit === 0 && r2.exit === 0 && toOpus !== undefined && thinkingBlocksOf(toOpus) === 2 && shapes.join(' | ') === 'thinking+tool_use | thinking+text' && j(toOpus.messages).includes('sonnet plans the read') && j(toOpus.messages).includes('sonnet after the read'), `exits ${r1.exit},${r2.exit} · ${shapes.join(' | ')}`)
+      await fixture.close()
+    }
+    {
       const legs: Array<{ label: string; spellings: string[]; wire: string }> = [
         { label: 'Claude Fable 5.1', spellings: ['claude-fable-5-1', 'fable51', 'claude-fable-5-1[1m]'], wire: 'claude-fable-5-1' },
         { label: 'Claude Opus 5', spellings: ['claude-opus-5', 'opus5', 'claude-opus-5[1m]'], wire: 'claude-opus-5' },
