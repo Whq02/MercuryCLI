@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { check, decide, fill, finish, note, pageText, said, section, shown, standInService, type Rules } from './floorsKit.ts'
+import { check, decide, fill, finish, note, pageText, said, section, shown, sourceText, standInService, type Rules } from './floorsKit.ts'
 
 type Mode = 'default' | 'implement' | 'apollo' | 'dontAsk' | 'flow' | 'sovereign'
 type Shape = { label: string; argv: string[]; bashModes: Mode[]; rules?: Rules }
@@ -145,7 +145,7 @@ for (const service of ['repl', 'server']) {
     const plain = await decide('Service', typed(service, 'print(1)'), mode)
     check(`service "${service}" · ${mode} · print(1) typed into it is ${behavior === 'ask' ? 'asked about on the tool\'s own card' : 'allowed'}`, plain.behavior === behavior, said(plain))
     const notShell = await decide('Service', typed(service, 'rm -rf build'), mode, { deny: ['Bash(rm *)'] })
-    check(`service "${service}" · ${mode} · a Bash deny rule is not read into text typed into a program that is no shell (${behavior})`, notShell.behavior === behavior, said(notShell))
+    check(`service "${service}" · ${mode} · text typed into a program that is not known for a shell is read as a command too: a Bash deny rule that matches it refuses`, notShell.behavior === 'deny' && /Bash\(rm \*\)/.test(notShell.message ?? ''), said(notShell))
   }
 }
 
@@ -197,5 +197,158 @@ section('§8 text the debuggee runs passes the floors\' readers')
     }
   }
 }
-note('nothing in this proof is executed: tool inputs handed to the decision function with the real tools; the daemon is a stand-in process of this proof, and the services are record files it wrote, with no process behind them')
+
+section('§9 a service\'s inputs are one script: text sent to it is read with the state the text sent before it left')
+{
+  const history = await import('../../src/utils/permissions/serviceInputHistory.ts').catch(() => null)
+  const { getOriginalCwd } = await import('../../src/bootstrap/state.ts')
+  const PUSH = ['git', 'push', 'origin', 'main'].join(' ')
+  check('the history of what a service was sent is there to be told', history !== null)
+  const sentTo = (name: string, text: string, submitted = true, run = ':'): void => history?.noteServiceInput(history.serviceInputKey(getOriginalCwd(), name), run, fill(text), submitted)
+  const everyMode = async (name: string, text: string, rules: Rules = {}): Promise<string[]> => {
+    const wrong: string[] = []
+    for (const mode of ALL_MODES) {
+      const decision = await decide('Service', typed(name, fill(text)), mode, rules)
+      if (decision.behavior !== 'deny') wrong.push(`${mode}: ${said(decision)}`)
+    }
+    return wrong
+  }
+  const body = sourceText('src/tools/ServiceTool/ServiceTool.ts')
+  check('the tool notes a text only once it was written to the service, by the run it was written to', /const sent = sendInput\(project, input\.name!, input\.text \?\? '', sessionId, mode\)\n\s+if \('error' in sent\) return [^\n]+\n\s+if \(mode !== 'eof'\) noteServiceInput\(serviceInputKey\(project, input\.name!\), runOf\(readRecord\(project, input\.name!\)\), input\.text \?\? '', mode !== 'write'\)/.test(body))
+  standInService('stateful', 'sh', [])
+  for (const [mode, behavior] of [['sovereign', 'allow'], ['flow', 'allow'], ['default', 'ask']] as const) {
+    const before = await decide('Service', typed('stateful', 'cat .credentials.json'), mode)
+    check(`control · ${mode} · with nothing sent before, cat .credentials.json typed into a shell service is read in the folder it started in (${behavior})`, before.behavior === behavior, said(before))
+  }
+  sentTo('stateful', 'cd <CONFIG>')
+  for (const text of ['cat .credentials.json', 'cat mcp-auth.json', 'cp .credentials.json <PROJECT>/copy.json']) {
+    const wrong = await everyMode('stateful', text)
+    check(`after cd <config> was sent to it, ${shown(fill(text))} is refused in all six modes: the folder the earlier text left is the folder this one is read in`, wrong.length === 0, wrong.join(' ‖ '))
+  }
+  for (const [mode, behavior] of [['sovereign', 'allow'], ['flow', 'allow'], ['default', 'ask']] as const) {
+    const plain = await decide('Service', typed('stateful', 'ls'), mode)
+    check(`control · ${mode} · ls typed after that cd is answered as before (${behavior})`, plain.behavior === behavior, said(plain))
+  }
+  sentTo('stateful', 'cd <PROJECT> && ls')
+  const back = await decide('Service', typed('stateful', 'cat .credentials.json'), 'sovereign')
+  check('control · sovereign · after a cd back to the project was sent, the same text is read in the project again', back.behavior === 'allow', said(back))
+  sentTo('stateful', 'export D=<CONFIG>')
+  const variable = await everyMode('stateful', 'cat $D/.credentials.json')
+  check('after export D=<config> was sent, cat $D/.credentials.json is refused in all six modes: a variable an earlier text set is read', variable.length === 0, variable.join(' ‖ '))
+  sentTo('stateful', 'unset D; cat <CONFIG>/.cred', false)
+  const halves = await everyMode('stateful', 'entials.json')
+  check('after half a line was written with no Enter, the text that completes it is read as the whole line and refused in all six modes', halves.length === 0, halves.join(' ‖ '))
+  sentTo('stateful', '')
+  sentTo('stateful', 'cat <CONFIG>/.cred', false)
+  sentTo('stateful', '\u0003', false)
+  const cleared = await decide('Service', typed('stateful', 'entials.json'), 'sovereign')
+  check('control · sovereign · a half line followed by an interrupt key is no longer in front of the next text', cleared.behavior === 'allow', said(cleared))
+  sentTo('stateful', 'cd <CONFIG>', true, 'an-earlier-run')
+  const restarted = await decide('Service', typed('stateful', 'cat .credentials.json'), 'sovereign')
+  check('control · sovereign · what was sent to an earlier run of the service is not read into this run', restarted.behavior === 'allow', said(restarted))
+  standInService('ruled', 'sh', [])
+  sentTo('ruled', 'cd build')
+  const ruled = await everyMode('ruled', 'rm -rf ../secrets', { deny: ['Edit(secrets/**)'] })
+  check('after cd build was sent, rm -rf ../secrets under a deny rule on secrets/** is refused in all six modes', ruled.length === 0, ruled.join(' ‖ '))
+  const alone = await decide('Service', typed('ruled', PUSH), 'flow')
+  check('flow · a push typed after a cd still asks first', alone.behavior === 'ask', said(alone))
+  const zero = await decide('Service', typed('ruled', PUSH), 'sovereign')
+  check('sovereign · the same text asks nothing', zero.behavior === 'allow', said(zero))
+}
+
+section('§10 a program that is not known for a shell but may run what it is sent: both readings, the stricter kept')
+{
+  const programs: Array<[string, string, string[]]> = [
+    ['a shell loop that evaluates each line', 'sh', ['-c', 'while read l; do eval "$l"; done']],
+    ['a shell behind arch', 'arch', ['-arm64', 'sh']],
+    ['a shell this reading has no name for', 'yash', []],
+    ['a shell on another host', 'ssh', ['localhost']],
+    ['sqlite3', 'sqlite3', [':memory:']],
+    ['a Python prompt', 'python3', ['-i']],
+  ]
+  let n = 0
+  for (const [label, command, args] of programs) {
+    const name = `evaluator-${n++}`
+    standInService(name, command, args)
+    for (const text of command === 'sqlite3' ? ['cat <CONFIG>/.credentials.json', '.shell cat <CONFIG>/.credentials.json'] : ['cat <CONFIG>/.credentials.json']) {
+      const wrong: string[] = []
+      for (const mode of ALL_MODES) {
+        const decision = await decide('Service', typed(name, fill(text)), mode)
+        if (decision.behavior !== 'deny' || !/holds Mercury's own credentials/.test(decision.message ?? '')) wrong.push(`${mode}: ${said(decision)}`)
+      }
+      check(`${label} (${[command, ...args].join(' ')}) · ${shown(fill(text))} typed into it is refused in all six modes: the text is read as a command too`, wrong.length === 0, wrong.join(' ‖ '))
+    }
+    const ruled: string[] = []
+    for (const mode of ALL_MODES) {
+      const decision = await decide('Service', typed(name, 'rm -rf build'), mode, { deny: ['Bash(rm *)'] })
+      if (decision.behavior !== 'deny') ruled.push(`${mode}: ${said(decision)}`)
+    }
+    check(`${label} · rm -rf build under a deny rule Bash(rm *) is refused in all six modes`, ruled.length === 0, ruled.join(' ‖ '))
+    for (const [mode, behavior] of [['default', 'ask'], ['flow', 'allow'], ['sovereign', 'allow']] as const) {
+      const plain = await decide('Service', typed(name, 'ls'), mode)
+      check(`control · ${label} · ${mode} · ls typed into it is answered as before (${behavior})`, plain.behavior === behavior, said(plain))
+    }
+  }
+  standInService('prompt', 'python3', ['-i'])
+  for (const text of ['print(1)', "import os; os.system('ls')", 'for i in range(3):\n    print(i)', 'x = {"a": [1, 2]}']) {
+    for (const mode of ['flow', 'sovereign'] as const) {
+      const decision = await decide('Service', typed('prompt', text), mode, { deny: ['Bash(rm *)', 'Read(secrets/**)'] })
+      check(`control · ${mode} · ${shown(text)} typed into a Python prompt with deny rules in force is not refused for being no command the Bash reading can follow`, decision.behavior === 'allow', said(decision))
+    }
+  }
+  const flowPush = await decide('Service', typed('evaluator-0', ['git', 'push', 'origin', 'main'].join(' ')), 'flow')
+  check('flow · a push typed into the shell loop asks first', flowPush.behavior === 'ask', said(flowPush))
+  const zeroPush = await decide('Service', typed('evaluator-0', ['git', 'push', 'origin', 'main'].join(' ')), 'sovereign')
+  check('sovereign · the same text asks nothing', zeroPush.behavior === 'allow', said(zeroPush))
+}
+
+section('§11 Debug: a custom request\'s body, a debugger\'s own shell command, an attach by a program\'s name')
+{
+  const PUSH = ['git', 'push', 'origin', 'main'].join(' ')
+  const reads = fill("open('<CONFIG>/.credentials.json').read()")
+  const shellRead = fill('cat <CONFIG>/.credentials.json')
+  const refusedEverywhere: Array<[string, Record<string, unknown>, Rules]> = [
+    ['a custom evaluate request whose body reads the stored credentials', { op: 'customRequest', method: 'evaluate', body: JSON.stringify({ expression: reads, context: 'repl' }) }, {}],
+    ['a custom request whose body is no JSON and reads them', { op: 'customRequest', method: 'evaluate', body: reads }, {}],
+    ['a custom setVariable request whose value reads them', { op: 'customRequest', method: 'setVariable', body: JSON.stringify({ variablesReference: 1, name: 'x', value: reads }) }, {}],
+    ['a custom evaluate request that hands the debugger a shell command', { op: 'customRequest', method: 'evaluate', body: JSON.stringify({ expression: `platform shell ${shellRead}` }) }, {}],
+    ['evaluate platform shell <a read of them>', { op: 'evaluate', expression: `platform shell ${shellRead}` }, {}],
+    ['evaluate with a backquote in front of it', { op: 'evaluate', expression: `\`platform shell ${shellRead}` }, {}],
+    ['evaluate -exec shell <a read of them>', { op: 'evaluate', expression: `-exec shell ${shellRead}` }, {}],
+    ['evaluate !<a read of them>', { op: 'evaluate', expression: `!${shellRead}` }, {}],
+    ['a breakpoint whose log message hands the debugger a shell command', { op: 'breakpoints', file: 'app.c', breakpoints: [{ line: 3, logMessage: `shell ${shellRead}` }] }, {}],
+    ['evaluate platform shell rm -rf build under a deny rule Bash(rm *)', { op: 'evaluate', expression: 'platform shell rm -rf build' }, { deny: ['Bash(rm *)'] }],
+    ['an attach by the name mercury', { op: 'attach', program: 'mercury' }, {}],
+    ['an attach by the path of the runtime\'s own program', { op: 'attach', program: fill('<CONFIG>/runtime/current/mercury') }, {}],
+  ]
+  for (const [label, input, rules] of refusedEverywhere) {
+    const wrong: string[] = []
+    for (const mode of ALL_MODES) {
+      const decision = await decide('Debug', input, mode, rules)
+      if (decision.behavior !== 'deny') wrong.push(`${mode}: ${said(decision)}`)
+    }
+    check(`Debug · ${label} is refused in all six modes`, wrong.length === 0, wrong.join(' ‖ '))
+  }
+  const answered: Array<[string, Record<string, unknown>, string, string]> = [
+    ['a push handed to the debugger\'s shell', { op: 'evaluate', expression: `platform shell ${PUSH}` }, 'flow', 'ask'],
+    ['a push handed to the debugger\'s shell', { op: 'evaluate', expression: `platform shell ${PUSH}` }, 'sovereign', 'allow'],
+    ['ls handed to the debugger\'s shell', { op: 'evaluate', expression: 'platform shell ls' }, 'default', 'ask'],
+    ['ls handed to the debugger\'s shell', { op: 'evaluate', expression: 'platform shell ls' }, 'flow', 'allow'],
+    ['ls handed to the debugger\'s shell', { op: 'evaluate', expression: 'platform shell ls' }, 'sovereign', 'allow'],
+    ['control: evaluate !done, an expression', { op: 'evaluate', expression: '!done' }, 'default', 'allow'],
+    ['control: evaluate !done, an expression', { op: 'evaluate', expression: '!done' }, 'sovereign', 'allow'],
+    ['control: evaluate shellcode + 1, a name that begins with the word', { op: 'evaluate', expression: 'shellcode + 1' }, 'default', 'allow'],
+    ['control: a custom threads request', { op: 'customRequest', method: 'threads' }, 'default', 'ask'],
+    ['control: a custom threads request', { op: 'customRequest', method: 'threads' }, 'sovereign', 'allow'],
+    ['control: a custom evaluate request of x + 1', { op: 'customRequest', method: 'evaluate', body: JSON.stringify({ expression: 'x + 1' }) }, 'default', 'ask'],
+    ['control: a custom evaluate request of x + 1', { op: 'customRequest', method: 'evaluate', body: JSON.stringify({ expression: 'x + 1' }) }, 'sovereign', 'allow'],
+    ['control: an attach by the name of another program', { op: 'attach', program: 'myapp' }, 'default', 'ask'],
+    ['control: an attach by the name of another program', { op: 'attach', program: 'myapp' }, 'sovereign', 'allow'],
+  ]
+  for (const [label, input, mode, behavior] of answered) {
+    const decision = await decide('Debug', input, mode)
+    check(`Debug · ${mode} · ${label}: ${behavior}`, decision.behavior === behavior, said(decision))
+  }
+}
+note('nothing in this proof is executed: tool inputs handed to the decision function with the real tools; the daemon is a stand-in process of this proof, and the services are record files it wrote, with no process behind them; what a service was sent is told to the history by this proof, as the tool tells it after a write')
 finish('prove-started-command-decision')

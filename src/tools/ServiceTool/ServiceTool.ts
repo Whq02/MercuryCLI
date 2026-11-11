@@ -5,6 +5,7 @@ import { startedCommandVerdict } from '../BashTool/bashPermissions.js'
 import { startedProgramIsShell } from '../BashTool/denyRuleReach.js'
 import { evalCodePermission } from '../../utils/permissions/shellProtectedPaths.js'
 import { shellCommandText } from '../../utils/permissions/decision/commandAnalysis.js'
+import { noteServiceInput, serviceInputAsSent, serviceInputKey } from '../../utils/permissions/serviceInputHistory.js'
 import {
   describeCondition,
   servicesEnabled,
@@ -230,6 +231,7 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
       const cursor = logEnd(project, input.name!)
       const sent = sendInput(project, input.name!, input.text ?? '', sessionId, mode)
       if ('error' in sent) return { op: 'input', result: sent.error, name: input.name }
+      if (mode !== 'eof') noteServiceInput(serviceInputKey(project, input.name!), runOf(readRecord(project, input.name!)), input.text ?? '', mode !== 'write')
       const where = sent.pty ? 'terminal' : 'stdin'
       const ack = mode === 'eof' ? `sent end of input to '${input.name}' ${where}` : `${mode === 'write' ? 'wrote' : 'submitted'} ${input.text!.length} chars to '${input.name}' ${where}${mode === 'submit' ? ' with Enter' : ''}`
       const wait = clampWait('timeoutMs', input.timeoutMs ?? INPUT_WAIT_DEFAULT_MS, INPUT_WAIT_MIN_MS, INPUT_WAIT_MAX_MS, 'ms')
@@ -286,6 +288,10 @@ function shellTextOf(input: unknown): string | undefined {
   if (typeof call.name !== 'string' || typeof call.text !== 'string' || call.mode === 'eof') return undefined
   const record = readRecord(getOriginalCwd(), call.name)
   return record === null ? undefined : scriptSentToProgram([record.spec.command, ...(Array.isArray(record.spec.args) ? record.spec.args : [])], call.text)
+}
+
+function runOf(record: { pid: number | null; startedAt: number | null } | null): string {
+  return `${record?.pid ?? ''}:${record?.startedAt ?? ''}`
 }
 
 function startedUnderEnvironment(started: string, env: Record<string, string> | undefined): string[] {
@@ -350,11 +356,12 @@ export const ServiceTool = buildTool({
       if (input.mode === 'eof' || input.text === undefined || input.text.trim() === '') return own
       const record = input.name === undefined ? null : readRecord(getOriginalCwd(), input.name)
       const folder = record?.spec.cwd
-      if (record === null || startedProgramIsShell(record.spec.command, record.spec.args)) {
-        const readings = [input.text, ...startedUnderEnvironment(input.text, record?.spec.env)]
-        return startedCommandVerdict(readings.map(command => (folder === undefined ? { command } : { command, cwd: folder })), context, own)
-      }
-      return (await evalCodePermission(input.text, folder ?? getCwd())) ?? own
+      const shell = record === null || startedProgramIsShell(record.spec.command, record.spec.args)
+      const code = shell ? null : await evalCodePermission(input.text, folder ?? getCwd())
+      if (code !== null) return code
+      const sent = input.name === undefined ? input.text : await serviceInputAsSent(serviceInputKey(getOriginalCwd(), input.name), input.text, runOf(record))
+      const readings = [...new Set([input.text, sent])].flatMap(text => [text, ...startedUnderEnvironment(text, record?.spec.env)])
+      return startedCommandVerdict(readings.map(command => (folder === undefined ? { command } : { command, cwd: folder })), context, own, shell)
     }
     return { behavior: 'allow' as const, updatedInput: input }
   },
