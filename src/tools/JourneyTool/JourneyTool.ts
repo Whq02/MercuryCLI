@@ -2,6 +2,7 @@
 import { z } from 'zod/v4'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { startedCommandText } from '../../utils/bash/ast.js'
 import { getCwd } from '../../utils/cwd.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { journeysEnabled, type JourneySpec } from '../../services/journeys/contracts.js'
@@ -157,8 +158,20 @@ function describeRecord(j: NonNullable<ReturnType<typeof getJourney>>): string {
   ].join('\n')
 }
 
+function startedCommandsOf(input: unknown): string | undefined {
+  const steps = (input as { steps?: unknown } | null)?.steps
+  if (!Array.isArray(steps)) return undefined
+  const lines = steps.flatMap(step => {
+    const { kind, command, args } = (step ?? {}) as { kind?: unknown; command?: unknown; args?: unknown }
+    const text = kind === 'command.run' || kind === 'service.start' ? startedCommandText(command, args) : undefined
+    return text === undefined ? [] : [text]
+  })
+  return lines.length === 0 ? undefined : lines.join('\n')
+}
+
 export const JourneyTool = buildTool({
   name: 'Journey',
+  shellCommandOf: startedCommandsOf,
   searchHint: 'verify local applications with ordered checks and per-step evidence',
   searchKeywords: ['run', 'application', 'end to end', 'start services', 'request', 'loopback HTTP', 'assert', 'status', 'body', 'logs', 'files', 'honest verdict'],
   capability: {

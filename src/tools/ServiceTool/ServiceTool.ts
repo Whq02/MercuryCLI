@@ -22,6 +22,7 @@ import {
   stopService,
   waitForReady,
 } from '../../services/projectServices/serviceManager.js'
+import { startedCommandText } from '../../utils/bash/ast.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
@@ -276,6 +277,7 @@ const MUTATING_OPS = new Set<Input['op']>(['start', 'stop', 'restart', 'input'])
 export const ServiceTool = buildTool({
   shouldDefer: true,
   name: SERVICE_TOOL_NAME,
+  shellCommandOf: (input: unknown) => startedCommandText((input as { command?: unknown } | null)?.command, (input as { args?: unknown } | null)?.args),
   searchHint: 'manage long-running project processes, their readiness, logs and input',
   searchKeywords: ['services', 'start', 'observe', 'wait', 'stop', 'long-lived', 'web servers', 'watch builds', 'local APIs'],
   maxResultSizeChars: 100_000,

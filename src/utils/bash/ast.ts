@@ -362,6 +362,11 @@ export function shellCommandText(argv: string[]): string {
   return argv.map(quoteArgv).join(' ')
 }
 
+export function startedCommandText(command: unknown, args: unknown): string | undefined {
+  if (typeof command !== 'string' || command === '') return undefined
+  return shellCommandText([command, ...(Array.isArray(args) ? args.filter((arg): arg is string => typeof arg === 'string') : [])])
+}
+
 function commandText(span: string, argv: string[]): string {
   if (DOLLAR_REFERENCE_RE.test(span) || span.includes('\n')) return argv.map(quoteArgv).join(' ')
   return span
