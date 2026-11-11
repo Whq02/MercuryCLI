@@ -272,7 +272,7 @@ if (!existsSync(DIST)) {
   const host = hostRunner({
     node: 'node',
     dist: DIST,
-    argv: ['--model', 'claude-opus-4-8', '--mode', 'sovereign'],
+    argv: ['--model', 'claude-opus-4-6', '--mode', 'sovereign'],
     cwd: CWD,
     env: env as Record<string, string | undefined>,
     home: RUN_HOME,

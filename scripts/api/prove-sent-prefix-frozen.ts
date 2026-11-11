@@ -740,7 +740,7 @@ if (!existsSync(DIST)) {
       const arena = makeArena(fixture, { MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '40' })
       const SID = 'c0ffee00-0000-4000-8000-00000000c0f4'
       const debugFile = join(arena.home, 's4.debug.log')
-      const r = await runStreaming(arena, [...common, '--session-id', SID, '--log-file', debugFile], [
+      const r = await runStreaming(arena, ['--model', 'claude-opus-4-6', '--allowed-tools', 'Read', '--session-id', SID, '--log-file', debugFile], [
         { prompt: 'hi big' },
         { prompt: 'hi after' },
       ])

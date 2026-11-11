@@ -708,13 +708,16 @@ function baseResolveContextWindow(
     })
   }
 
-  const firstPartyCanonical = getCanonicalName(familyDefaultsModel(model))
+  const firstParty = familyDefaultsModel(model).toLowerCase()
+  const firstPartyCanonical = getCanonicalName(firstParty)
   if (
     !isCarrierShapedId(model) &&
     (firstPartyCanonical === 'claude-haiku-5-5' ||
       firstPartyCanonical.includes('sonnet-5') ||
       firstPartyCanonical.includes('opus-5') ||
-      firstPartyCanonical.includes('fable-5'))
+      firstPartyCanonical.includes('fable-5') ||
+      firstParty.includes('opus-4-7') ||
+      firstParty.includes('opus-4-8'))
   ) {
     if (is1mContextDisabled()) {
       return finish({
