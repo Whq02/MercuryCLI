@@ -11,7 +11,7 @@ import { powershellEnvironment } from '../shared/powershell.mjs'
 const exec = promisify(execFile)
 const load = name => JSON.parse(readFileSync(new URL(name, import.meta.url), 'utf8'))
 const pins = [load('./filmcraft.lock.json'), load('./filmcraft-cli.lock.json')]
-const VERSION = '0.18.0'
+const VERSION = '0.20.0'
 const NO_TOKEN = 'FilmCraft answers only control requests that carry the FILMCRAFT_CONTROL_TOKEN it was started with. Launch it with craft_connect mode "launch", or attach with tokenFile naming a private file that holds the token of the open window.'
 export const tokenPath = dataDir => join(dataDir, 'filmcraft-control', 'control.token')
 

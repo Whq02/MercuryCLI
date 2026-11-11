@@ -20,7 +20,7 @@ import { removeScratch } from '../lib/removeScratch.ts'
 
 const BUNDLED_NAMES = Object.keys(bundledPayloads).sort()
 const CRAFT_NAMES = BUNDLED_NAMES.filter(name => name !== 'mercury-media')
-const CRAFT_PINS: Record<string, string> = { filmcraft: '0.18.0', lightcraft: '0.19.0', photocraft: '0.21.0' }
+const CRAFT_PINS: Record<string, string> = { filmcraft: '0.20.0', lightcraft: '0.19.0', photocraft: '0.21.0' }
 const INSTALLED = `installed (${8 + BUNDLED_NAMES.length})`
 const FRESH_INSTALLED = `installed (${BUNDLED_NAMES.length})`
 const ON_NAMES = ['deploy-kit', 'notes-sync', 'quiet-notes', 'review-tools', ...CRAFT_NAMES].sort()
