@@ -2110,6 +2110,7 @@ export function ConcourseScreen({
         onEnter={() => enterSession(sel.sessionId, { pointer: true })}
         state={sel.state}
         {...(sel.nowLabel !== undefined ? { nowLabel: sel.nowLabel } : {})}
+        {...(sel.nowLive === true ? { nowLive: true } : {})}
         {...(controlNotes?.['board:open'] !== undefined
           ? { note: controlNotes['board:open'] }
           : {})}
@@ -2357,6 +2358,7 @@ export function ConcourseScreen({
                 focused={false}
                 state={sel.state}
                 {...(sel.nowLabel !== undefined ? { nowLabel: sel.nowLabel } : {})}
+                {...(sel.nowLive === true ? { nowLive: true } : {})}
                 liveTailLine={peekLive.now.kind === 'streaming' ? peekLive.now.line : null}
               />
             </Box>
