@@ -250,7 +250,7 @@ const modelInputSchema = lazySchema(() => {
     until: f.until.describe('wait: text/title/URL substring, role/name, dialog: true or focus (a role); gone waits for removal. Put it after a click whose effect you assume.'),
     count: f.count.describe('click: number of clicks, 1–3.'),
     region: f.region.describe('Capture box in last-screenshot pixels.'),
-    scope: f.scope.describe('Tree scope: window by default; app includes menus and windows.'),
+    scope: f.scope.describe('Tree scope: window by default; app adds the other windows of the application, hidden menu entries left out.'),
     verify: f.verify.describe('Compare trees after acting; reports change, not task success.'),
     captcha: f.captcha.describe('Ask the operator before acting on a visible challenge.'),
     path: f.path.describe('file: absolute path of the file to upload through the native dialog.'),
