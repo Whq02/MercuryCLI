@@ -2,8 +2,8 @@ const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/
 
 export function idCellPattern(id: string, shortest = 12): string {
   const whole = `${escapeRegExp(id)}(?=\\s|$)`
-  const cuts = Array.from({ length: Math.max(0, id.length - shortest) }, (_, k) => escapeRegExp(id.slice(0, id.length - 1 - k)))
-  return cuts.length === 0 ? whole : `(?:${whole}|(?:${cuts.join('|')})…)`
+  const ends = Array.from({ length: Math.max(0, id.length - shortest) }, (_, k) => escapeRegExp(id.slice(1 + k)))
+  return ends.length === 0 ? whole : `(?:${whole}|…(?:${ends.join('|')})(?=\\s|$))`
 }
 
 export const showsId = (screen: string, id: string): boolean => new RegExp(idCellPattern(id)).test(screen)

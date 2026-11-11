@@ -20,7 +20,7 @@ VITALS                  │ │   Sonnet 4.6          claude-sonnet-4-6         
                         │ │   Opus 4.7            claude-opus-4-7                        1M ctx                      │ │
                         │ │   Opus 4.6            claude-opus-4-6                        1M ctx                      │ │
                         │ │   Haiku 5.5           claude-haiku-5-5                       1M ctx                      │ │
-                        │ │   Haiku 4.5           claude-haiku-4-5-202510…               200k ctx                    │ │
+                        │ │   Haiku 4.5           …aude-haiku-4-5-20251001               200k ctx                    │ │
                         │ │ ▾ OPENAI · connect OpenAI to browse its models — /logins connects                        │ │
                         │ │   ↓ 78 more                                                                              │ │
                         │ │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                               │ │

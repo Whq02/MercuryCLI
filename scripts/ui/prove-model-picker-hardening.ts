@@ -213,8 +213,8 @@ for (const [columns, height] of [[80, 24], [100, 30], [120, 40], [178, 51], [200
   if (columns >= 60) check(`${columns}x${height}: the tail column reads "new · no alias" whole or ends with the ellipsis, never wraps`, tails.length > 0 && tails.every(l => /new · no alias|new · no…|new · no …/.test(l)) && !lines.some(l => /^\s*│\s+alias\s*│/.test(l)), tails.map(inner).join(' | '))
   else check(`${columns}x${height}: at the floor every model row is one line cut with the ellipsis`, lines.filter(l => /│ (?:│ | {2})(?:❯ )?[A-Za-z—]/.test(l) && !/[▾▸❯] [A-Z]/.test(l) && !/ · |╭|╰|context|effort|filter by|↑↓/.test(l)).every(l => l.includes('…')), lines.slice(3, 8).map(inner).join(' | '))
   if (columns >= 100) check(`${columns}x${height}: the longest OpenRouter id stands whole with its ctx`, /nvidia\/nemotron-3-ultra:free\s{2,}1M ctx/.test(nemotron), inner(nemotron))
-  const sixty = lineWith(lines, 'vendor-with-a-lo')
-  check(`${columns}x${height}: the sixty-character id is cut with the ellipsis and its 1.31M ctx cell stands`, columns < 60 || (sixty.includes('…') && (columns < 100 || sixty.includes('1.31M ctx'))), inner(sixty))
+  const sixty = lineWith(lines, ID60.slice(-12))
+  check(`${columns}x${height}: the sixty-character id keeps its end behind the ellipsis and its 1.31M ctx cell stands`, columns < 60 || (/…\S*-identifier-x\s/.test(sixty) && !sixty.includes(ID60.slice(0, 12)) && (columns < 100 || sixty.includes('1.31M ctx'))), inner(sixty))
   const odd = lineWith(lines, 'x/y·z') || oddSeen
   check(`${columns}x${height}: an id holding · and │ paints in its cell without breaking the row (in the final frame or one the walk audited)`, columns < 60 || (odd !== '' && problems.length === 0 && auditBox('odd', [lines[0]!, ...lines.slice(1)], columns).length === 0), inner(odd))
   board.close()

@@ -162,7 +162,7 @@ type Props = {
 }
 
 const cell = (text: string, width: number): string => (width <= 2 ? '' : `${padTo(text, width - 2)}  `)
-const idCell = (id: string, width: number, narrow: boolean): string => cell(narrow ? truncateStartToWidth(id, Math.max(0, width - 2)) : id, width)
+const idCell = (id: string, width: number): string => cell(truncateStartToWidth(id, Math.max(0, width - 2)), width)
 
 function withTensorFoldRows(given: ModelChoice[], rows: ModelChoice[]): ModelChoice[] {
   const at = given.findIndex(row => row.group === LOCAL_MODEL_GROUP)
@@ -815,7 +815,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
               ) : (
                 <>
                   <Text bold color={IVORY}>{cell(m.name, cells.alias)}</Text>
-                  <Text color={FAINT}>{idCell(m.id, cells.id, narrowId)}</Text>
+                  <Text color={FAINT}>{idCell(m.id, cells.id)}</Text>
                   <Text color={ink(choice.state?.tone ?? 'faint')}>{cell(choice.state?.text ?? '', cells.state)}</Text>
                   <Text color={FAINT}>{cell(m.ctx, cells.ctx)}</Text>
                   <Text color={ink(choice.memory?.tone ?? 'faint')}>{truncateToWidth(choice.memory?.text ?? '', cells.tail)}</Text>
@@ -849,7 +849,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
             {model ? (
               <>
                 <Text bold color={m.gated ? SAND : hasAlias(m) ? IVORY : FAINT}>{cell(alias, columns.alias)}</Text>
-                <Text color={FAINT}>{idCell(m.id, columns.id, narrowId)}</Text>
+                <Text color={FAINT}>{idCell(m.id, columns.id)}</Text>
               </>
             ) : (
               <Text bold color={m.gated ? SAND : IVORY}>{m.name}</Text>
