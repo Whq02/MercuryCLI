@@ -32,9 +32,9 @@ import { runWithCwdOverride } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
   filterOrphanedThinkingOnlyMessages,
-  filterUnresolvedToolUses,
   filterWhitespaceOnlyAssistantMessages,
 } from '../../utils/messages.js'
+import { settleToolUsesOfEndedRun } from '../../utils/messages/apiFilters.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import { errorMessage } from '../../utils/errors.js'
@@ -171,7 +171,7 @@ export async function resumeAgentBackground(args: {
 
   const cleaned = filterWhitespaceOnlyAssistantMessages(
     filterOrphanedThinkingOnlyMessages(
-      filterUnresolvedToolUses(transcript.messages),
+      settleToolUsesOfEndedRun(transcript.messages),
     ),
   )
 
