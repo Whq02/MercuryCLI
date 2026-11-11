@@ -922,7 +922,8 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
 
 export async function shellMercurySecretPath(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
   const named = await namedMercurySecretPath(command, powershell, cwd)
-  return named ?? readSecretReach(command, powershell, cwd)
+  const reached = named ?? (await readSecretReach(command, powershell, cwd))
+  return reached === null ? null : reached.replaceAll(UNREAD_PART, '$(…)')
 }
 
 async function namedMercurySecretPath(command: string, powershell: boolean, cwd: string): Promise<string | null> {
