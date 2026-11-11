@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect } from 'react'
+import { useContext, useEffect } from 'react'
+import { InkInstanceContext } from '../../ink/components/InkInstanceContext.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import { armComposerSeed } from '../../utils/cockpit/composerSeed.js'
 import { armPermissionFocus } from '../../utils/permissions/permissionFocus.js'
@@ -109,6 +110,9 @@ export function PermissionRequest(props: PermissionRequestProps): React.ReactNod
   )
 
   useEffect(() => armPermissionFocus(), [])
+
+  const ink = useContext(InkInstanceContext)
+  useEffect(() => ink?.registerArrowKeyOwner(() => true), [ink])
 
   const isQuestionCard = toolUseConfirm.tool === AskUserQuestionTool
   useEffect(() => {
