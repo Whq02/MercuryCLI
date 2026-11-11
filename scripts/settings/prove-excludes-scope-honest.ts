@@ -13,6 +13,8 @@ mkdirSync(join(PROJ, '.mercury'), { recursive: true })
 writeFileSync(join(PROJ, '.mercury', 'settings.json'), JSON.stringify({ briefs: { exclude: ['**/MERCURY.md'] } }))
 process.chdir(PROJ)
 
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.ts')
+trustTheProofFolder(true)
 const adapter = await import('../../src/services/instructions/nativeSource.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 

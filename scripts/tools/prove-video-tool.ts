@@ -31,12 +31,13 @@ const { resetSettingsCache } = await import(`${source}/utils/settings/settingsCa
 const { SettingsSchema } = await import(`${source}/utils/settings/types.ts`)
 const { writeStoredMinimaxApiKey } = await import(`${source}/services/providers/providerSecrets.ts`)
 const { hasPermissionsToUseTool } = await import(`${source}/utils/permissions/permissions.ts`)
-const { setCwdState, setOriginalCwd } = await import(`${source}/bootstrap/state.ts`)
+const { setCwdState, setOriginalCwd, setSessionTrustAccepted: trustTheProofFolder } = await import(`${source}/bootstrap/state.ts`)
 const { prepareVideo } = await import(`${source}/services/video/generate.ts`)
 const { gateToolCall } = await import(`${source}/services/providers/toolCallGate.ts`)
 enableConfigs()
 setCwdState(project)
 setOriginalCwd(project)
+trustTheProofFolder(true)
 const fixture = await startVideoFixture()
 let checked = 0
 function check(name: string, condition: unknown): void {
