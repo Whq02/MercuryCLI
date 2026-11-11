@@ -49,6 +49,7 @@ export interface LocalModelRecord {
   geometry?: KvGeometry
   efforts?: readonly string[]
   servedBy?: string
+  factsUnread?: true
 }
 
 export interface TensorFoldEngineFacts {
@@ -273,6 +274,7 @@ export async function probeOllama(root: string, io: LocalDiscoveryIo): Promise<L
         ...(str(details?.family) ? { family: str(details?.family)! } : {}),
         ...(str(details?.parameter_size) ? { parameterSize: str(details?.parameter_size)! } : {}),
         ...(str(details?.quantization_level) ? { quantization: str(details?.quantization_level)! } : {}),
+        ...(show === undefined ? { factsUnread: true as const } : {}),
       }
     }),
   )
