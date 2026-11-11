@@ -216,7 +216,9 @@ tool call and the match (shown in the session, recorded on a headless
 run's transcript, and kept for a hosted chat or a resume), while project and
 builtin rules still deny, even a call that matches both; `MERCURY_WARDS=0`
 turns every ward off; project rules in `.mercury/wards.json` add to the list
-and never remove from it.
+and never remove from it. On a headless run in a folder that holds no trust
+grant those project rules still deny, and the denial says a rule of the folder
+denied the call without showing the rule's own name or words.
 
 ## Safety floors
 
@@ -227,6 +229,13 @@ Five safety floors hold alongside the permission modes and wards:
 - Cloud-metadata addresses are refused in `WebFetch` and `Browser`.
 - Mercury's running binary and daemon are protected against writes, deletes and kills.
 - Writing project instruction files or reading `.env` files asks for approval first.
+
+The credential and runtime floors read a shell command as the commands a shell
+would run, so a wildcard, a folder read whole, a listing handed to a reader, a
+nested script, a kill by process group, by user or by a pattern that takes
+Mercury's own processes, and a write through an archive, a download or a
+package manager are refused like the plain spelling. A target that another
+language computes at run time is outside what these floors can read.
 
 ## Non-interactive sessions
 

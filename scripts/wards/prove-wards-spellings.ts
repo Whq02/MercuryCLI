@@ -681,6 +681,33 @@ if (only.length === 0 || only.includes('UNREAD')) {
   }
 }
 
+if (only.length === 0 || only.includes('RUNTIME')) {
+  section('RUNTIME · a program named only at run time: the delete is read by its text as before, and by its arguments where the text names no program')
+  const session = armWards()
+  const named: Array<{ c: string; ward: string | null; l: string }> = [
+    { c: '$(which rm) -rf ~', ward: 'no-root-recursive-delete', l: 'the program found by a substitution' },
+    { c: '"$(which rm)" -rf ~', ward: 'no-root-recursive-delete', l: 'the same, quoted' },
+    { c: '$(command -v rm) -rf /', ward: 'no-root-recursive-delete', l: 'command -v' },
+    { c: '`which rm` -rf ~', ward: 'no-root-recursive-delete', l: 'backquotes' },
+    { c: '"$(echo rm)" -rf ~', ward: 'no-root-recursive-delete', l: 'an echo of the word' },
+    { c: '/bin/$(echo rm) -rf ~', ward: 'no-root-recursive-delete', l: 'the path fixed, the name substituted' },
+    { c: 'env $(which rm) -rf ~', ward: 'no-root-recursive-delete', l: 'a wrapper in front' },
+    { c: 'X=$(which rm); $X -rf ~', ward: 'no-root-recursive-delete', l: 'through a variable: read by its arguments' },
+    { c: 'r$(echo m) -rf ~', ward: 'no-root-recursive-delete', l: 'the word built in two parts: read by its arguments' },
+    { c: '"${RM:-rm}" -rf ~', ward: 'no-root-recursive-delete', l: 'a default in an expansion' },
+    { c: 'eval "$(echo rm -rf ~)"', ward: 'no-root-recursive-delete', l: 'an echoed script handed to eval' },
+    { c: '$(which rm) /Users/other/x', ward: 'no-other-user-delete', l: "a delete in another user's home" },
+    { c: '$(which ls) -la ~', ward: null, l: 'a listing' },
+    { c: '"$(command -v git)" status', ward: null, l: 'git by its found path' },
+    { c: '$(which rm) -rf build', ward: null, l: 'a delete inside the project' },
+    { c: '$TOOL -rf build', ward: null, l: 'an unknown program on a project folder' },
+  ]
+  for (const row of named) {
+    const reading = await wardReading(session, row.c)
+    check(`${shown(row.c)} (${row.l}) · ${row.ward === null ? 'not refused' : `refused by ${row.ward}`}`, reading.ward === row.ward, reading.refused ? `refused by ${reading.ward}: ${reading.reason.slice(0, 200)}` : 'allowed')
+  }
+}
+
 section('tally')
 for (const line of tally) note(line)
 note('every command is a string handed to the wards guard (registerWardsGuard + judgeToolCall, the tool objects only for their shellCommandOf); nothing is executed')

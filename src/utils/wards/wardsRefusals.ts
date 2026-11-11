@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs'
+import { posix } from 'node:path'
 import { REFUSAL_WARDS, countWardWork, evaluateWards, ownHomeNames, shellTextOutsideFileHeredocs, wardHomes, type PendingToolCall, type ResolvedPath, type WardVerdict, type WardWork } from './wards.js'
 import { UNREAD_PART, absolutePath, layersOf, programOf, readShellCommands, stdinProgram, wordKnown, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from './wardsShellRead.js'
 
@@ -181,7 +182,7 @@ function windowsPath(word: string, world: RefusalWorld): string | undefined {
   if (!unc && !/^[A-Za-z]:/.test(text)) return undefined
   const head = unc ? '/' : text.slice(0, 2)
   const out: string[] = []
-  for (const segment of (unc ? text : text.slice(2)).split('/')) {
+  for (const segment of (unc ? text : text.slice(2)).split(/[\\/]/)) {
     if (segment === '' || segment === '.') continue
     if (segment === '..') out.pop()
     else out.push(SHORT_NAMES[segment.toLowerCase()] ?? segment)
@@ -191,7 +192,7 @@ function windowsPath(word: string, world: RefusalWorld): string | undefined {
 
 function windowsSegments(path: string): { share: boolean; segments: string[]; content: boolean } {
   const share = path.startsWith('//')
-  const segments = (share ? path : path.slice(2)).split('/').filter(Boolean)
+  const segments = (share ? path : path.slice(2)).split(/[\\/]/).filter(Boolean)
   const content = segments.length > 0 && EVERYTHING.test(segments[segments.length - 1]!)
   if (content) segments.pop()
   return { share, segments, content }
@@ -610,7 +611,7 @@ function innerCommands(command: ReadCommand, commands: readonly ReadCommand[]): 
   return out
 }
 
-function judgeShellRead(read: ShellRead, world: RefusalWorld, work?: WardWork): Hit | undefined {
+function judgeShellRead(read: ShellRead, world: RefusalWorld, textReading: (text: string) => WardVerdict, work?: WardWork): Hit | undefined {
   const hits: Hit[] = []
   const layered = read.commands.map(command => layersOf(command.argv))
   const hit = (ward: string, at: number, unread?: string): void => {
@@ -624,10 +625,18 @@ function judgeShellRead(read: ShellRead, world: RefusalWorld, work?: WardWork): 
   for (const [at, command] of read.commands.entries()) {
     if (work) countWardWork(work, 'steps')
     const layers = layered[at]!
-    const head = command.argv[0]
-    if (head !== undefined && !wordKnown(head)) {
+    const unnamed = layers.find(layer => layer.argv[0] !== undefined && !wordKnown(layer.argv[0]))
+    if (unnamed !== undefined) {
+      const byText = textReading(command.text)
       const named = mention(command.text)
-      if (named !== undefined) hit(named.ward, at, `its program is set at run time, and it mentions "${named.word}"`)
+      const swept = unnamed.argv.slice(1).some(word => RECURSIVE_LONG.test(word) || RECURSE_PARAMETER.test(word) || (POSIX_RM_CLUSTER.test(word) && /[rR]/.test(word)))
+        ? unnamed.argv.slice(1).find(word => !word.startsWith('-') && rootNamed(word, command, world) !== null)
+        : undefined
+      const theirs = /(?<![\w.-])(?:rm|unlink|rmdir|rd|ri|del|erase|remove-item)(?![\w-])/i.test(command.text) ? unnamed.argv.slice(1).find(word => !word.startsWith('-') && otherUserNamed(word, command, world)) : undefined
+      if (!byText.allow) hits.push({ ward: byText.rule.name, at, excerpt: byText.excerpt, line: command.line })
+      else if (named !== undefined) hit(named.ward, at, `its program is set at run time, and it mentions "${named.word}"`)
+      else if (swept !== undefined) hit('no-root-recursive-delete', at, `its program is set at run time, and its arguments are those of a recursive delete of "${swept}"`)
+      else if (theirs !== undefined) hit('no-other-user-delete', at, `its program is set at run time, it mentions a delete, and "${theirs}" lies in another user's home`)
     }
     for (const redirect of command.redirects) {
       if (!WRITE_REDIRECTS.has(redirect.op) || /^\d+$/.test(redirect.target) || redirect.target === '-') continue
@@ -639,8 +648,10 @@ function judgeShellRead(read: ShellRead, world: RefusalWorld, work?: WardWork): 
       if (work) countWardWork(work, 'steps')
       const { program, argv } = layer
       if (layer.opaque !== undefined) {
+        const byText = textReading(command.text)
         const named = mention(command.text)
-        if (named !== undefined) hit(named.ward, at, `${layer.opaque}, and it mentions "${named.word}"`)
+        if (!byText.allow) hits.push({ ward: byText.rule.name, at, excerpt: byText.excerpt, line: command.line })
+        else if (named !== undefined) hit(named.ward, at, `${layer.opaque}, and it mentions "${named.word}"`)
       }
       if (program === 'sudo' || program === 'doas' || program === 'pkexec') hit('no-sudo', at)
       if (haltWard(layer)) hit('no-system-halt', at)
@@ -730,13 +741,13 @@ function worldOf(pending: PendingToolCall, cwd: string): RefusalWorld {
   const homes = wardHomes()
   const home = homes[0]
   const fold = platform === 'darwin' || platform === 'win32'
-  const parent = home === undefined ? [] : home.split('/').filter(Boolean).slice(0, -1)
-  const named = parent[parent.length - 1]
-  const holdsHomes = named !== undefined && (fold ? ['users', 'home'].includes(named.toLowerCase()) : named === 'Users' || named === 'home')
+  const parent = home === undefined ? '' : posix.dirname(home)
+  const named = posix.basename(parent)
+  const holdsHomes = fold ? ['users', 'home'].includes(named.toLowerCase()) : named === 'Users' || named === 'home'
   return {
     cwd: platform === 'win32' ? undefined : cwd,
     home,
-    homesRoot: holdsHomes ? `/${parent.join('/')}` : platform === 'darwin' ? '/Users' : '/home',
+    homesRoot: holdsHomes ? parent : platform === 'darwin' ? '/Users' : '/home',
     ownNames: ownHomeNames(),
     platform,
     homes,
@@ -762,12 +773,13 @@ export async function refusalOfShellCommand(pending: PendingToolCall, cwd: strin
   }
   try {
     const unread = read === undefined ? { why: 'the shell parser did not answer in time', text } : read.unread
-    if (read !== undefined && unread === undefined) return verdictOf(judgeShellRead(read, world, work), pending.toolName)
+    const textReading = (part: string): WardVerdict => evaluateWards(REFUSAL_WARDS, { ...pending, shellCommand: part }, work)
+    if (read !== undefined && unread === undefined) return verdictOf(judgeShellRead(read, world, textReading, work), pending.toolName)
     const byText = evaluateWards(REFUSAL_WARDS, pending, work)
     if (!byText.allow) return byText
     const outside = unread!.text === text && dialect === 'posix' ? shellTextOutsideFileHeredocs(text) : unread!.text
     const named = mention(outside)
-    if (named === undefined) return read === undefined ? { allow: true } : verdictOf(judgeShellRead(read, world, work), pending.toolName)
+    if (named === undefined) return read === undefined ? { allow: true } : verdictOf(judgeShellRead(read, world, textReading, work), pending.toolName)
     const at = outside.indexOf(named.word)
     const excerpt = outside.slice(Math.max(0, at - 30), at + 50).replace(/\s+/g, ' ').trim()
     return verdictOf({ ward: named.ward, at: 0, excerpt, line: outside.slice(0, Math.max(0, at)).split('\n').length, unread: `${unread!.why}, and it mentions "${named.word}"` }, pending.toolName)

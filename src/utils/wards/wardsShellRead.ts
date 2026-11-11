@@ -1,4 +1,5 @@
-import { peelWrappers } from '../bash/ast.js'
+import { posix } from 'node:path'
+import { peelWrappers, shellCommandText } from '../bash/ast.js'
 import { parseCommandRaw, type Node } from '../bash/parser.js'
 
 export const UNREAD_PART = '\uFFFC'
@@ -84,18 +85,9 @@ export function wordKnown(word: string): boolean {
 }
 
 function collapseDots(path: string): string {
-  const absolute = path.startsWith('/')
-  const out: string[] = []
-  for (const segment of path.split('/')) {
-    if (segment === '' || segment === '.') continue
-    if (segment === '..') {
-      if (out.length > 0 && out[out.length - 1] !== '..') out.pop()
-      else if (!absolute) out.push('..')
-      continue
-    }
-    out.push(segment)
-  }
-  return (absolute ? '/' : '') + out.join('/')
+  const collapsed = posix.normalize(path)
+  if (collapsed === '.') return ''
+  return collapsed.length > 1 && collapsed.endsWith('/') ? collapsed.slice(0, -1) : collapsed
 }
 
 function expandTilde(word: string, world: ReadWorld): string {
@@ -230,6 +222,15 @@ export function stdinProgram(layer: Layer): boolean {
   return false
 }
 
+export function scriptSentToProgram(argv: string[], text: string): string | undefined {
+  const layer = layersOf(argv).at(-1)
+  if (layer === undefined) return undefined
+  if (POSIX_SHELLS.has(layer.program)) return readsStdin(layer.argv) ? text : undefined
+  if (POWERSHELLS.has(layer.program)) return layer.argv.slice(1).some(word => /^-(?:c|f)/i.test(word)) ? undefined : shellCommandText([layer.program, '-Command', text])
+  if (layer.program === 'cmd') return layer.argv.slice(1).some(word => /^\/\/?c$/i.test(word)) ? undefined : shellCommandText(['cmd', '/c', text])
+  return undefined
+}
+
 type Pending = { text: string; dialect: ShellDialect; from: number }
 
 function printedBy(command: ReadCommand | undefined): string | undefined {
@@ -242,7 +243,7 @@ function nestedScripts(command: ReadCommand, from: number, commands: readonly Re
   const out: Pending[] = []
   for (const layer of layersOf(command.argv)) {
     const { program, argv } = layer
-    if (POSIX_SHELLS.has(program) || program === 'source' || program === '.') {
+    if (POSIX_SHELLS.has(program) || program === 'source' || program === '.' || program === 'eval') {
       for (const at of [...command.inputInner, ...command.inner.flat()]) {
         const printed = printedBy(commands[at])
         if (printed !== undefined) out.push({ text: printed, dialect: 'posix', from })

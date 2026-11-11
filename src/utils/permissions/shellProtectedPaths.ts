@@ -1,8 +1,13 @@
+import { readdirSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { posix } from 'node:path'
 import { getShellCwd } from '../Shell.js'
-import { getMercuryHome } from '../envUtils.js'
-import { credentialStorePath, mercurySecretPath, spelling } from './protectedPaths.js'
+import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../envUtils.js'
+import { CREDENTIALS_SERVICE_SUFFIX, getMacOsKeychainStorageServiceName, getRawSpellingKeychainStorageServiceName } from '../secureStorage/macOsKeychainHelpers.js'
+import { UNREAD_PART, layersOf, readShellCommands, type Layer, type ReadCommand, type ShellRead } from '../wards/wardsShellRead.js'
+import { credentialStorePath, mercurySecretPath, protectedPathForms, spelling } from './protectedPaths.js'
 import { pinnedCommandAnalysis, peelWrappers, PARSE_ABORTED, extractHeredocs, type Node } from './decision/commandAnalysis.js'
-import { runtimeWritePath, runtimeProcessRefusal } from './runtimeProtection.js'
+import { namesMercuryImage, runtimeWritePath, runtimeProcessRefusal } from './runtimeProtection.js'
 import { expandPath } from '../path.js'
 
 function words(text: string, powershell: boolean): Array<string | { op?: string }> {
@@ -240,7 +245,7 @@ function inlineScriptWrites(rawScript: string, spans?: Map<string, string>): str
       spans?.set(path, `code at ${location}: ${call[0]}`)
     }
   }
-  for (const call of script.matchAll(/(?:\b(?:write\w*|append\w*|rm\w*|unlink\w*|truncate\w*|rename\w*|remove\w*|rmtree|chmod\w*|chown\w*)|\.write_text|\.write_bytes)\s*\(\s*(['"])([^'"\r\n]+)\1/g)) {
+  for (const call of script.matchAll(/(?:\b(?:write\w*|append\w*|rm\w*|unlink\w*|delete\w*|truncate\w*|rename\w*|remove\w*|rmtree|chmod\w*|chown\w*)|\.write_text|\.write_bytes)\s*\(\s*(['"])([^'"\r\n]+)\1/g)) {
     add(call, call[2]!)
   }
   for (const call of script.matchAll(/\b(?:copy\w*|move|rename)\s*\(\s*(['"])([^'"\r\n]+)\1\s*,\s*(['"])([^'"\r\n]+)\3/g)) {
@@ -400,7 +405,207 @@ export async function shellCredentialWritePath(command: string, powershell = fal
   }, cwd)
 }
 
+const SECRET_NAME_SAMPLES = ['.credentials.json', '.provider-secrets.json', 'mcp-auth.json', 'x-auth.json', 'browser-secrets.json', '.credentials.json.corrupt.1', '.provider-secrets.json.corrupt.1']
+const CONVENTIONAL_HOME = /^(?:\/(?:users|home)\/[^/]+|\/root|[a-z]:\/users\/[^/]+)\/\.mercury$/
+const DYNAMIC_PART = /[*?[{$]/
+
+async function readForFloors(command: string, powershell: boolean, cwd: string): Promise<ShellRead | null> {
+  try {
+    const home = (process.env.HOME || process.env.USERPROFILE || homedir()).replace(/\\/g, '/')
+    const read = await readShellCommands(command, powershell ? 'powershell' : 'posix', { cwd: cwd.replace(/\\/g, '/'), home, homesRoot: posix.dirname(home), ownNames: [] })
+    return read
+  } catch {
+    return null
+  }
+}
+
+function mercuryHomes(): string[] {
+  return [...new Set([getMercuryHome(), getAuthScope(), defaultMercuryHome()].filter((path): path is string => !!path).flatMap(path => protectedPathForms(path)))]
+}
+
+function namesMercuryHome(word: string, cwd: string, homes: readonly string[]): boolean {
+  if (word === '' || word.includes(UNREAD_PART)) return false
+  return protectedPathForms(word, cwd).some(form => homes.includes(form) || CONVENTIONAL_HOME.test(form))
+}
+
+function wildcardSource(pattern: string): string {
+  let out = ''
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i]!
+    if (ch === UNREAD_PART) out += '.*'
+    else if (ch === '$') {
+      const named = /^\$(?:\{[^}]*\}|\([^)]*\)|[a-z_][a-z0-9_]*)/i.exec(pattern.slice(i))
+      out += '.*'
+      i += named === null ? 0 : named[0].length - 1
+    } else if (ch === '*') {
+      if (pattern[i + 1] === '*') {
+        out += '.*'
+        i++
+      } else out += '[^/]*'
+    } else if (ch === '?') out += '[^/]'
+    else if (ch === '[') {
+      const end = pattern.indexOf(']', i + 2)
+      if (end < 0) out += '\\['
+      else {
+        out += `[${pattern.slice(i + 1, end).replace(/^!/, '^').replace(/\\/g, '\\\\')}]`
+        i = end
+      }
+    } else if (ch === '{') {
+      const end = pattern.indexOf('}', i)
+      if (end > 0 && pattern.slice(i, end).includes(',')) {
+        out += `(?:${pattern.slice(i + 1, end).split(',').map(wildcardSource).join('|')})`
+        i = end
+      } else out += '\\{'
+    } else out += ch.replace(/[.+^$()|\\\]}]/g, '\\$&')
+  }
+  return out
+}
+
+function secretsHeld(home: string): string[] {
+  try {
+    return readdirSync(home).filter(name => mercurySecretPath(`${home}/${name}`, home) !== null).map(name => name.toLowerCase())
+  } catch {
+    return []
+  }
+}
+
+function couldNameSecret(word: string, cwd: string, homes: readonly string[]): boolean {
+  if (!DYNAMIC_PART.test(word) && !word.includes(UNREAD_PART)) return false
+  const expanded = spelling(word)
+  const segments = expanded.split(/[\\/]/)
+  const at = segments.findIndex(segment => DYNAMIC_PART.test(segment) || segment.includes(UNREAD_PART))
+  if (at < 0) return false
+  const fixed = segments.slice(0, at).join('/') || (expanded.startsWith('/') ? '/' : '.')
+  let pattern: RegExp
+  try {
+    pattern = new RegExp(`^${wildcardSource(segments.slice(at).join('/').toLowerCase())}$`)
+  } catch {
+    return false
+  }
+  for (const folder of protectedPathForms(fixed, cwd)) {
+    const conventional = CONVENTIONAL_HOME.test(folder) ? [folder] : []
+    for (const home of [...homes, ...conventional]) {
+      if (home !== folder && !home.startsWith(folder === '/' ? '/' : `${folder}/`)) continue
+      const below = home === folder ? '' : `${home.slice(folder === '/' ? 1 : folder.length + 1)}/`
+      for (const name of [...SECRET_NAME_SAMPLES, ...secretsHeld(home)]) if (pattern.test(below + name)) return true
+    }
+  }
+  return false
+}
+
+function spellingsOf(word: string): string[] {
+  const out = [word]
+  const equals = word.indexOf('=')
+  if (equals > 0) out.push(word.slice(equals + 1))
+  for (const candidate of [...out]) {
+    const plain = candidate.startsWith('@') ? candidate.slice(1).split(';')[0]! : candidate
+    if (plain !== candidate) out.push(plain)
+    const url = /^file:\/\/(?:localhost)?(\/[\s\S]*)$/i.exec(plain)
+    if (url !== null) {
+      try {
+        out.push(decodeURIComponent(url[1]!))
+      } catch {
+        out.push(url[1]!)
+      }
+    }
+  }
+  return out
+}
+
+function readsWholeTree(layer: Layer): boolean {
+  const { program, argv } = layer
+  const flagged = (letters: RegExp, ...long: string[]): boolean => argv.slice(1).some(word => (word.startsWith('--') ? long.includes(word.split('=')[0]!) : /^-[A-Za-z]+$/.test(word) && letters.test(word)))
+  switch (program) {
+    case 'rg':
+    case 'ag':
+    case 'ack':
+    case 'ditto':
+    case 'rclone':
+      return true
+    case 'grep':
+    case 'egrep':
+    case 'fgrep':
+    case 'zgrep':
+      return flagged(/[rR]/, '--recursive', '--dereference-recursive')
+    case 'cp':
+    case 'scp':
+    case 'copy-item':
+    case 'cpi':
+      return flagged(/[rRa]/, '--recursive', '--archive') || argv.slice(1).some(word => /^-r(?:e(?:c(?:u(?:r(?:s(?:e)?)?)?)?)?)?$/i.test(word))
+    case 'rsync':
+      return flagged(/[ra]/, '--recursive', '--archive')
+    case 'tar':
+    case 'bsdtar':
+    case 'gtar':
+      return /^-?[A-Za-z]*[cru]/.test(argv[1] ?? '') || flagged(/[cru]/, '--create', '--append', '--update')
+    case 'zip':
+      return flagged(/r/, '--recurse-paths')
+    case '7z':
+    case '7za':
+      return argv[1] === 'a'
+    case 'find':
+      return argv.some(word => /^-(?:exec|execdir|ok|okdir|print0|fprint|fls)$/.test(word))
+    default:
+      return false
+  }
+}
+
+function keychainItemRead(layer: Layer): string | null {
+  if (layer.program !== 'security') return null
+  const argv = layer.argv
+  const at = argv.findIndex((word, i) => i > 0 && !word.startsWith('-'))
+  const verb = at < 0 ? '' : argv[at]!.toLowerCase()
+  if (verb === 'dump-keychain') return argv.slice(at + 1).some(word => /^-[A-Za-z]*d/.test(word)) ? 'the keychain' : null
+  if (!['find-generic-password', 'find-internet-password', 'export'].includes(verb)) return null
+  const own = [getMacOsKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX), getMacOsKeychainStorageServiceName(), getRawSpellingKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX), getRawSpellingKeychainStorageServiceName()]
+  const named = argv.slice(at + 1).find(word => own.includes(word) || /^mercury(?:-[a-z]+)*-[0-9a-f]{8}$/i.test(word))
+  return named === undefined ? null : `the keychain item ${named}`
+}
+
+function sharesEarlierStage(earlier: ReadCommand, later: ReadCommand): boolean {
+  for (const a of earlier.stages) for (const b of later.stages) if (a.pipeline === b.pipeline && a.stage < b.stage) return true
+  return false
+}
+
+async function readSecretReach(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+  const read = await readForFloors(command, powershell, cwd)
+  if (read === null) return null
+  const homes = mercuryHomes()
+  const fed = new Set<number>()
+  for (const reader of read.commands) for (const at of [...reader.inner.flat(), ...reader.inputInner]) fed.add(at)
+  for (const [at, simple] of read.commands.entries()) {
+    const here = simple.cwd ?? cwd
+    const layers = layersOf(simple.argv)
+    for (const redirect of simple.redirects) {
+      if (redirect.op !== '<') continue
+      for (const candidate of spellingsOf(redirect.target)) {
+        if (mercurySecretPath(candidate, here) !== null || couldNameSecret(candidate, here, homes)) return redirect.target
+      }
+    }
+    for (const layer of layers) {
+      const item = keychainItemRead(layer)
+      if (item !== null) return item
+      const roots = layer.findRoots !== undefined && layer.argv !== simple.argv ? layer.findRoots : []
+      const tree = readsWholeTree(layer)
+      const lists = layer.program === 'find' || layer.program === 'ls' || layer.program === 'get-childitem' || layer.program === 'gci' || layer.program === 'dir'
+      const feeds = lists && (fed.has(at) || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')))
+      for (const word of [...layer.argv.slice(1), ...roots]) {
+        for (const candidate of spellingsOf(word)) {
+          if (mercurySecretPath(candidate, here) !== null || couldNameSecret(candidate, here, homes)) return word
+          if ((tree || feeds) && namesMercuryHome(candidate, here, homes)) return word
+        }
+      }
+    }
+  }
+  return null
+}
+
 export async function shellMercurySecretPath(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
+  const named = await namedMercurySecretPath(command, powershell, cwd)
+  return named ?? readSecretReach(command, powershell, cwd)
+}
+
+async function namedMercurySecretPath(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   const expanded = expandShellConstants(command, powershell)
   const pending = [expanded]
   while (pending.length) {
@@ -435,7 +640,188 @@ export async function shellMercurySecretPath(command: string, powershell = false
   }, cwd)
 }
 
+const GIT_OPTION_VALUED = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--super-prefix', '--config-env', '--exec-path'])
+const GIT_WRITES = new Set(['checkout', 'clean', 'reset', 'restore', 'switch', 'pull', 'merge', 'rebase', 'stash', 'apply', 'am', 'cherry-pick', 'revert', 'rm', 'mv', 'init', 'clone', 'worktree', 'submodule', 'read-tree', 'checkout-index'])
+const PACKAGE_WRITES = new Set(['install', 'i', 'ci', 'add', 'uninstall', 'remove', 'rm', 'update', 'up', 'upgrade', 'dedupe', 'prune', 'rebuild', 'link'])
+const ATTRIBUTE_WRITERS = new Set(['chown', 'chgrp', 'chflags', 'xattr', 'touch', 'setfacl', 'lchown'])
+const TREE_REMOVERS = new Set(['rm', 'unlink', 'rmdir', 'rd', 'ri', 'del', 'erase', 'remove-item', 'shred'])
+const SCRIPT_LANGUAGES = /^(?:node|nodejs|bun|deno|python[\d.]*|ruby|perl|php|lua)$/
+const PATTERN_READERS = new Set(['grep', 'egrep', 'fgrep', 'rg', 'awk', 'gawk', 'sed', 'pgrep', 'pidof'])
+
+function valuesOf(argv: string[], ...names: string[]): string[] {
+  const out: string[] = []
+  for (let i = 1; i < argv.length; i++) {
+    const word = argv[i]!
+    const named = names.find(name => word === name || word.startsWith(`${name}=`) || (name.length === 2 && word.startsWith(name) && word.length > 2 && !word.startsWith('--')))
+    if (named === undefined) continue
+    if (word === named) {
+      if (argv[i + 1] !== undefined) out.push(argv[++i]!)
+    } else out.push(word.slice(word.startsWith(`${named}=`) ? named.length + 1 : named.length))
+  }
+  return out
+}
+
+function plainOperands(argv: string[]): string[] {
+  return argv.slice(1).filter(word => !word.startsWith('-'))
+}
+
+function runtimeTargetsOf(layer: Layer): Array<{ path: string; removesTree: boolean }> {
+  const { program, argv } = layer
+  const at = (paths: string[], removesTree = false): Array<{ path: string; removesTree: boolean }> => paths.map(path => ({ path, removesTree }))
+  switch (program) {
+    case 'tar':
+    case 'bsdtar':
+    case 'gtar': {
+      const extracts = /^-?[A-Za-z]*x/.test(argv[1] ?? '') || argv.slice(1).some(word => word === '--extract' || word === '--get' || (/^-[A-Za-z]+$/.test(word) && word.includes('x')))
+      if (!extracts) return []
+      const into = valuesOf(argv, '-C', '--directory', '--cd')
+      return at(into.length > 0 ? into : ['.'])
+    }
+    case 'unzip': {
+      const into = valuesOf(argv, '-d')
+      return at(into.length > 0 ? into : ['.'])
+    }
+    case 'curl': {
+      const named = [...valuesOf(argv, '-o', '--output'), ...valuesOf(argv, '--output-dir')]
+      return at(named.length > 0 ? named : argv.some(word => word === '--remote-name' || /^-[A-Za-z]*O/.test(word)) ? ['.'] : [])
+    }
+    case 'wget': {
+      const named = [...valuesOf(argv, '-O', '--output-document'), ...valuesOf(argv, '-P', '--directory-prefix')]
+      return at(named.length > 0 ? named : ['.'])
+    }
+    case 'patch': {
+      const into = valuesOf(argv, '-d', '--directory')
+      return at(into.length > 0 ? into : ['.'])
+    }
+    case 'git': {
+      let i = 1
+      const folders: string[] = []
+      while (i < argv.length && argv[i]!.startsWith('-')) {
+        const word = argv[i]!
+        if (word === '-C' || word === '--work-tree' || word === '--git-dir') folders.push(argv[i + 1] ?? '')
+        else if (word.startsWith('--work-tree=') || word.startsWith('--git-dir=')) folders.push(word.slice(word.indexOf('=') + 1))
+        i += GIT_OPTION_VALUED.has(word) ? 2 : 1
+      }
+      return GIT_WRITES.has(argv[i] ?? '') ? at(folders.length > 0 ? folders : ['.'], argv[i] === 'clean') : []
+    }
+    case 'npm':
+    case 'pnpm':
+    case 'yarn':
+    case 'bun': {
+      const folders = valuesOf(argv, '--prefix', '--dir', '--cwd', '-C')
+      const verb = plainOperands(argv).find(word => !folders.includes(word)) ?? ''
+      return PACKAGE_WRITES.has(verb) ? at(folders.length > 0 ? folders : ['.']) : []
+    }
+    case 'ditto': {
+      const operands = plainOperands(argv)
+      return operands.length >= 2 ? at([operands[operands.length - 1]!]) : []
+    }
+    default:
+      return ATTRIBUTE_WRITERS.has(program) ? at(plainOperands(argv)) : []
+  }
+}
+
+function inlineScriptOf(layer: Layer): string | null {
+  if (!SCRIPT_LANGUAGES.test(layer.program)) return null
+  const flag = layer.argv.findIndex((word, i) => i > 0 && /^-(?:e|c|p|E|r)$/.test(word))
+  return flag >= 0 ? layer.argv.slice(flag + 1).join(' ') : null
+}
+
+async function killOfNamedPid(text: string): Promise<string | null> {
+  if (!/kill|terminate/i.test(text)) return null
+  for (const number of [...new Set([...text.matchAll(/\b\d{2,}\b/g)].map(match => match[0]))].slice(0, 32)) {
+    const reason = await runtimeProcessRefusal([['kill', number]])
+    if (reason) return reason
+  }
+  return null
+}
+
+function withinMercuryRecords(word: string, cwd: string, homes: readonly string[]): boolean {
+  if (word === '' || word.startsWith('-') || word.includes(UNREAD_PART)) return false
+  return protectedPathForms(word, cwd).some(form => homes.some(home => form === home || form.startsWith(`${home}/`)))
+}
+
+async function readSelfProtection(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+  const read = await readForFloors(command, powershell, cwd)
+  if (read === null) return null
+  const homes = [...mercuryHomes(), ...protectedPathForms(process.env.MERCURY_DAEMON_DIR || getMercuryHome())]
+  const changing = (path: string, hit: string): string => 'Changing ' + path + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
+  for (const simple of read.commands) {
+    const here = simple.cwd ?? cwd
+    const feeders = (piped: boolean): ReadCommand[] => {
+      const out: ReadCommand[] = []
+      const seen = new Set<number>()
+      const visit = (indexes: readonly number[]): void => {
+        for (const index of indexes) {
+          const inner = read.commands[index]
+          if (inner === undefined || seen.has(index)) continue
+          seen.add(index)
+          out.push(inner)
+          visit(inner.inner.flat())
+          visit(inner.inputInner)
+        }
+      }
+      visit(simple.inner.flat())
+      visit(simple.inputInner)
+      if (piped) for (const earlier of read.commands) if (sharesEarlierStage(earlier, simple)) out.push(earlier)
+      return out
+    }
+    for (const redirect of simple.redirects) {
+      if (!['>', '>>', '>|', '&>', '&>>'].includes(redirect.op)) continue
+      const hit = runtimeWritePath(redirect.target, here, false)
+      if (hit !== null) return changing(redirect.target, hit)
+    }
+    for (const layer of layersOf(simple.argv)) {
+      const reason = await runtimeProcessRefusal([layer.argv])
+      if (reason) return reason
+      const script = inlineScriptOf(layer)
+      if (script !== null) {
+        const killed = await killOfNamedPid(script)
+        if (killed) return killed
+      }
+      const piped = layer.wrappers.includes('xargs')
+      if (layer.program === 'kill' && (piped || layer.argv.some(word => word.includes(UNREAD_PART)))) {
+        if (simple.input !== undefined) {
+          const killed = await killOfNamedPid(`kill ${simple.input}`)
+          if (killed) return killed
+        }
+        for (const feeder of feeders(piped)) {
+          const there = feeder.cwd ?? cwd
+          for (const fed of layersOf(feeder.argv)) {
+            const record = fed.argv.slice(1).find(word => withinMercuryRecords(word, there, homes))
+            if (record !== undefined) return 'Killing a process named by ' + record + ' is refused: that file is Mercury’s own record of its running process or daemon.'
+            const pattern = PATTERN_READERS.has(fed.program) ? fed.argv.slice(1).find(word => !word.startsWith('-') && namesMercuryImage(word)) : undefined
+            if (pattern !== undefined) return 'Killing the processes that match ' + pattern + ' is refused: it can terminate Mercury’s running process or daemon. Use the pid of the unrelated process instead.'
+          }
+        }
+      }
+      for (const target of [...runtimeTargetsOf(layer), ...runtimeOperands(layer.argv)]) {
+        const hit = runtimeWritePath(target.path, here, target.removesTree)
+        if (hit !== null) return changing(target.path, hit)
+      }
+      if (TREE_REMOVERS.has(layer.program) && (piped || layer.argv.some(word => word.includes(UNREAD_PART)))) {
+        for (const feeder of feeders(piped)) {
+          const there = feeder.cwd ?? cwd
+          for (const fed of layersOf(feeder.argv)) {
+            for (const word of [...fed.argv.slice(1), ...(fed.findRoots ?? [])]) {
+              if (word.startsWith('-') || word.includes(UNREAD_PART)) continue
+              const hit = runtimeWritePath(word, there, false)
+              if (hit !== null) return changing(word, hit)
+            }
+          }
+        }
+      }
+    }
+  }
+  return null
+}
+
 export async function shellSelfProtectionReason(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
+  const named = await namedSelfProtectionReason(command, powershell, cwd)
+  return named ?? readSelfProtection(command, powershell, cwd)
+}
+
+async function namedSelfProtectionReason(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   return walkShellCommands(command, powershell, async ({ argv, commands, cwd, text, powershell: ps }) => {
     if (ps) {
       for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
@@ -478,10 +864,20 @@ export async function evalCodePermission(code: string, cwd = getShellCwd()): Pro
     const reason = await runtimeProcessRefusal([['kill', killCall[1]!]])
     if (reason) return denyVerdict(reason)
   }
+  const killed = await killOfNamedPid(code)
+  if (killed) return denyVerdict(killed)
   const normalized = normalizeInlineScript(code)
   for (const target of [...inlineScriptReads(code), ...[...normalized.matchAll(/(['"])([^'"\r\n]+)\1/g)].map(m => m[2]!)]) {
     const secret = mercurySecretPath(target, cwd)
     if (secret !== null) return denyVerdict('Reading ' + target + ' is refused: ' + secret + " holds Mercury's own credentials; use the product's sign-in and account surfaces instead.")
+  }
+  const homes = mercuryHomes()
+  for (const literal of normalized.matchAll(/(['"])([^'"\r\n]+)\1/g)) {
+    for (const word of literal[2]!.split(/\s+/)) {
+      for (const candidate of spellingsOf(word)) {
+        if (mercurySecretPath(candidate, cwd) !== null || couldNameSecret(candidate, cwd, homes)) return denyVerdict('Reading ' + word + ' is refused: it can name a file that holds Mercury\'s own credentials; use the product\'s sign-in and account surfaces instead.')
+      }
+    }
   }
   for (const target of inlineScriptWrites(code)) {
     const credential = credentialStorePath(target, cwd)

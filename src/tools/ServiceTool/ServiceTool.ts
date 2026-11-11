@@ -15,6 +15,7 @@ import {
   evaluateReadiness,
   logEnd,
   readLogs,
+  readRecord,
   reconcileAll,
   reconcileRecord,
   restartService,
@@ -24,6 +25,7 @@ import {
   waitForReady,
 } from '../../services/projectServices/serviceManager.js'
 import { startedCommandText } from '../../utils/bash/ast.js'
+import { scriptSentToProgram } from '../../utils/wards/wardsShellRead.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
@@ -275,10 +277,18 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
 
 const MUTATING_OPS = new Set<Input['op']>(['start', 'stop', 'restart', 'input'])
 
+function shellTextOf(input: unknown): string | undefined {
+  const call = (input ?? {}) as { op?: unknown; name?: unknown; command?: unknown; args?: unknown; text?: unknown; mode?: unknown }
+  if (call.op !== 'input') return startedCommandText(call.command, call.args)
+  if (typeof call.name !== 'string' || typeof call.text !== 'string' || call.mode === 'eof') return undefined
+  const record = readRecord(getOriginalCwd(), call.name)
+  return record === null ? undefined : scriptSentToProgram([record.spec.command, ...(Array.isArray(record.spec.args) ? record.spec.args : [])], call.text)
+}
+
 export const ServiceTool = buildTool({
   shouldDefer: true,
   name: SERVICE_TOOL_NAME,
-  shellCommandOf: (input: unknown) => startedCommandText((input as { command?: unknown } | null)?.command, (input as { args?: unknown } | null)?.args),
+  shellCommandOf: shellTextOf,
   searchHint: 'manage long-running project processes, their readiness, logs and input',
   searchKeywords: ['services', 'start', 'observe', 'wait', 'stop', 'long-lived', 'web servers', 'watch builds', 'local APIs'],
   maxResultSizeChars: 100_000,

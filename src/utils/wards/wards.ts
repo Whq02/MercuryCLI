@@ -1445,4 +1445,11 @@ export function buildWardDenial(
   )
 }
 
+export function buildUntrustedFolderDenial(toolName: string): string {
+  return (
+    `A rule of this folder's .mercury/wards.json blocked this ${toolName} call. ${WARD_BEFORE_ASK_SENTENCE} ` +
+    "The folder is not trusted, so the rule's own name and words are not shown; the rule still denies, and the same call will be denied again."
+  )
+}
+
 const WARD_BEFORE_ASK_SENTENCE = 'A ward refuses before any permission ask, so no ask arose — not in this mode, not in any.'
