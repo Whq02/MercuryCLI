@@ -263,8 +263,8 @@ A project MCP server (one defined in `.mercury/mcp.json`) needs more than the
 trust grant: it starts in a headless run, and in `mercury mcp list` and
 `mercury mcp get`, only after you approved it on the card an interactive start
 in that folder shows, or with `kit.trustProjectServers` set in your user or
-local settings. The local settings file lives in the folder, so a trusted
-folder that ships one has approved its own servers. The approval is keyed to
+local settings. Trusting a folder accepts the settings files it carries; read
+them before you trust a folder you did not write. The approval is keyed to
 the server's definition as written
 (its command, arguments, URL, headers helper and environment variable names,
 and the values of the variables a runtime loads its code by, such as `PATH`
