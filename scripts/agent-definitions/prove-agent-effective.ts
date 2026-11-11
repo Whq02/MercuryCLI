@@ -16,6 +16,8 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_EFFORT_LEVEL
 process.env.NODE_ENV = 'test'
 
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.js')
+trustTheProofFolder(true)
 await import('../../src/tools/AgentTool/AgentTool.js')
 const { resolveAgentEstate, resolveEffectiveAgentRuntime } = await import(
   '../../src/services/agents/resolver.js'
