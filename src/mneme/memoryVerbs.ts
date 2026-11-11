@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
-import { appendObservation, observationOverflow, pendingRows } from './mnemeBuffer.js'
+import { appendObservation, observationOverflow, observationText, pendingRows } from './mnemeBuffer.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { grepAll, readDocLines, catalogDocs, pageFileForSlug, PENDING_SLUG } from './mnemeRetrieval.js'
 import { correctFact, pointFact, replacePendingRow, retireFact, strikePendingRow, userAskedRuleMessage, type MnemeCorrectResult, type PendingCorrectResult } from './mnemeCorrect.js'
@@ -140,7 +140,7 @@ export function retainItems(
     }
     const duplicateKey = text
     const existing = sessionRetained.get(duplicateKey)
-    if (existing && pendingRows(dir).some(row => `pending:${row.ts}` === existing && row.text === text)) {
+    if (existing && pendingRows(dir).some(row => `pending:${row.ts}` === existing && row.text === observationText(text))) {
       outcomes.push({ index, status: 'already-staged', id: existing })
       return
     }
