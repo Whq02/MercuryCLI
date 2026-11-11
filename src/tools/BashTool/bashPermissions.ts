@@ -590,8 +590,11 @@ export function bashToolHasPermission(
   input: BashInput,
   context: ToolPermissionContext,
   prefixFn: PrefixFn = pinnedCommandAnalysis.getCommandSubcommandPrefix,
-  knownForCommand = true,
 ): Promise<PermissionResult> {
+  return shellTextVerdict(input, context, prefixFn, true)
+}
+
+function shellTextVerdict(input: BashInput, context: ToolPermissionContext, prefixFn: PrefixFn, knownForCommand: boolean): Promise<PermissionResult> {
   return withBashParseScope(async () => {
     const resolvedInput = input.cwd === undefined ? input : { ...input, cwd: resolveShellCwd(input.cwd) }
     const { result, hidden } = await decideWithDenyRuleReach(resolvedInput, context, prefixFn, 0)
@@ -707,7 +710,7 @@ export async function startedCommandVerdict(
   const context = (toolUseContext?.getAppState?.().toolPermissionContext ?? getEmptyToolPermissionContext()) as ToolPermissionContext
   let held: PermissionResult | null = null
   for (const one of started) {
-    const verdict = await bashToolHasPermission(one.cwd === undefined ? { command: one.command } : { command: one.command, cwd: one.cwd }, context, undefined, knownForCommand)
+    const verdict = await shellTextVerdict(one.cwd === undefined ? { command: one.command } : { command: one.command, cwd: one.cwd }, context, pinnedCommandAnalysis.getCommandSubcommandPrefix, knownForCommand)
     if (verdict.behavior === 'deny') return verdict
     if (verdict.behavior !== 'ask' || held !== null) continue
     const reason = verdict.decisionReason
