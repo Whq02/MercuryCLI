@@ -742,11 +742,11 @@ if (runs('LISTED')) {
   check('LISTED · PowerShell, standing in the config home · its own files listed and handed to a reader are refused', (await asked('Get-ChildItem | Select-String canary', CONFIG_HOME)) !== null)
   check('LISTED · PowerShell, standing in the config home · the same listing counted is not refused', (await asked('Get-ChildItem | Measure-Object', CONFIG_HOME)) === null)
   for (const line of ['ls -R | grep canary', 'find . -type f | grep canary']) check(`LISTED · the Bash tool, standing in the home · ${shown(line)} · a pipe there carries the names as text: answered as before`, (await asked(line, OWN_HOME, false)) === null)
-  for (const line of ['findstr /s /m canary *', 'findstr /s canary *', 'findstr /S /I canary *.json', 'findstr /spin canary *.*', 'findstr /s /c:canary *', 'cmd /c findstr /s /m canary *', 'cmd /c "findstr /s canary *"', 'findstr /s canary <HOME>/*', 'findstr /s /d:<HOME> canary *']) {
+  for (const line of ['findstr /s /m canary *', 'findstr /s canary *', 'findstr /S /I canary *.json', 'findstr /spin canary *.*', 'findstr /s /c:canary *', 'cmd /c findstr /s /m canary *', 'cmd /c "findstr /s canary *"', 'findstr /s canary <HOME>/*', 'findstr /s /d:<HOME> canary *', 'findstr /d:<CONFIG> canary *', 'findstr /s canary $PWD/*', 'grep -r canary $PWD', 'rg --hidden canary $PWD', 'Copy-Item -Recurse $PWD ../out']) {
     const answer = await asked(line, OWN_HOME)
-    check(`LISTED · PowerShell, standing in the home · ${shown(line)} · findstr told to search the folders beneath is a search of the whole tree and is refused`, answer !== null, String(answer))
+    check(`LISTED · PowerShell, standing in the home · ${shown(line)} · a search of the whole tree, by findstr's subfolder flag, by a folder flag that names the store, or by a root spelled with a variable, is refused`, answer !== null, String(answer))
   }
-  for (const line of ['findstr canary notes.txt', 'findstr /s canary Documents/*', 'Get-ChildItem -Recurse -Name | findstr x', 'findstr /i canary *.txt']) {
+  for (const line of ['findstr canary notes.txt', 'findstr /s canary Documents/*', 'Get-ChildItem -Recurse -Name | findstr x', 'findstr /i canary *.txt', 'findstr /d:Documents canary *']) {
     const answer = await asked(line, OWN_HOME)
     check(`LISTED · PowerShell, standing in the home · ${shown(line)} · a named file, a folder beneath that holds no store, the names as text or the files of this folder alone: not refused by the floor`, answer === null, String(answer))
   }

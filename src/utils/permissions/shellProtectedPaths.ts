@@ -621,6 +621,15 @@ const LISTER_VALUED_ALIASES = new Set(['pspath', 'lp', 'ea', 'ev', 'wa', 'wv', '
 const LISTER_SWITCHES = ['recurse', 'force', 'name', 'directory', 'file', 'hidden', 'readonly', 'system', 'followsymlink', 'verbose', 'debug']
 const LISTER_SWITCH_ALIASES = new Set(['s', 'ad', 'af', 'ah', 'h', 'ar', 'as', 'vb', 'db'])
 
+function findstrFolderFiles(words: readonly string[]): string[] {
+  const flagOf = (word: string): string => (FINDSTR_FLAG.test(word) ? word.replace(/^[-/]+/, '').split(':')[0]!.toLowerCase() : '')
+  const folders = words.flatMap(word => (flagOf(word) === 'd' ? word.slice(word.indexOf(':') + 1).split(';').filter(part => part !== '') : []))
+  if (folders.length === 0) return []
+  const loose = words.filter(word => word !== '' && !FINDSTR_FLAG.test(word))
+  const files = words.some(word => flagOf(word) === 'c' || flagOf(word) === 'g') ? loose : loose.slice(1)
+  return folders.flatMap(folder => (files.length === 0 ? [folder] : files.map(file => `${folder}/${file}`)))
+}
+
 const OPERAND_SEARCHERS = new Set(['findstr', 'grep', 'egrep', 'fgrep', 'rg'])
 const RUNTIME_FILE_READ = /ReadAllText|ReadAllBytes|ReadAllLines|ReadLines|OpenText|OpenRead|ReadToEnd|StreamReader/i
 
@@ -1015,7 +1024,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const listing = powershell && POWERSHELL_LISTERS.has(layer.program) ? powershellListing(layer.argv) : null
       const listed = listing !== null && read.commands.some((later, index) => index > at && layersOf(later.argv).some(found => readsHandedFiles(found) && !(listing.names && searchesNamesAsText(simple, later, found)))) ? listing : null
       const feeds = lists && (fed.has(at) || listed !== null || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')))
-      for (const word of [...layer.argv.slice(1), ...roots, ...(listed === null ? [] : listed.roots)]) {
+      for (const word of [...layer.argv.slice(1), ...roots, ...(listed === null ? [] : listed.roots), ...(layer.program === 'findstr' ? findstrFolderFiles(layer.argv.slice(1)) : [])]) {
         for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {
           if (mercurySecretPath(candidate, here) !== null || ((FILE_READERS.has(layer.program) || sent.has(word) || handedToReader(at, simple)) && couldNameSecret(candidate, here, homes, !wordKnown(candidate)))) return word
           if ((FILE_READERS.has(layer.program) || UPLOADERS.has(layer.program) || sent.has(word)) && secretNameBehindUnread(candidate, homes)) return candidate.replaceAll(UNREAD_PART, '$(…)')
@@ -1031,7 +1040,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const handed = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
       const hidden = layer.program !== 'rg' || ripgrepReachesHidden(layer, simple, read)
       const held = finder !== undefined ? (finder.findRoots === undefined || finder.findRoots.length === 0 ? ['.'] : finder.findRoots) : listed !== null ? listed.roots : treeReadRoots(layer, handed, here, holdsMercuryHome('.', here, homes, hidden))
-      for (const root of held) {
+      for (const root of held.flatMap(one => (powershell && !wordKnown(one) ? [one, '.'] : [one]))) {
         for (const candidate of [...spellingsOf(root), ...underOtherHomes(root, read.homes)]) {
           if (holdsMercuryHome(candidate, here, homes, hidden) || globNamesStore(candidate, here, homes, hidden)) return stayed && root === '.' ? whereItStays(here) : `the whole of ${root === '.' ? 'this folder' : root} (name a folder beneath it)`
         }
