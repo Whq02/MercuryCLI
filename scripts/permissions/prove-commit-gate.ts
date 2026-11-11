@@ -8,14 +8,18 @@
   VERSION_TAG: 'x',
 }
 
-import { execSync } from 'node:child_process'
+import { execFileSync, execSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+const TREE = join(import.meta.dir, '..', '..')
 const ISOLATED_HOME = mkdtempSync(join(tmpdir(), 'commit-gate-home-'))
 process.env.MERCURY_CONFIG_DIR = ISOLATED_HOME
 process.env.MERCURY_HOME = ISOLATED_HOME
+const REPOSITORY = realpathSync(mkdtempSync(join(tmpdir(), 'commit-gate-repository-')))
+execFileSync('git', ['init', '-q', REPOSITORY], { stdio: 'pipe' })
+process.chdir(REPOSITORY)
 const { getMercuryHome } = await import('../../src/utils/envUtils.js')
 const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.js')
 const { getCwd } = await import('../../src/utils/cwd.js')
@@ -52,7 +56,7 @@ const judge = async (tool: string, command: string): Promise<boolean> => {
 
 section('explicit MERCURY_COMMIT_GATE=0 short-circuits first (advertised opt-out is true)')
 {
-  const src = readFileSync('src/guards/commitGate.ts', 'utf8')
+  const src = readFileSync(join(TREE, 'src', 'guards', 'commitGate.ts'), 'utf8')
   const hardOff = src.indexOf("if (flagEnv('MERCURY_COMMIT_GATE') === '0') return { allow: true }")
   const gate = src.indexOf('if (!commitGateEnabled()) return { allow: true }')
   check('explicit =0 short-circuit present', hardOff !== -1)
@@ -94,6 +98,15 @@ section('the installed gate DENIES a non-green commit and ALLOWS a green-gated o
     check('PowerShell-tool bare `git commit` is DENIED (HB-0130)', (await allowedPS('git commit -m "wip"')) === false)
     check('PowerShell-tool green-gated commit is ALLOWED', (await allowedPS('bun run build.ts && git commit -m "ok"')) === true)
   }
+}
+
+section("the gate judges in a repository this proof made, whatever is staged in the tree it was started from")
+{
+  const read = cg.commitRepositoryRoot('git commit -m "x"', getCwd())
+  check("the session's folder is this proof's own repository, and it is the one a commit there is read in", getCwd() === REPOSITORY && read === REPOSITORY, `folder ${getCwd()} · read ${read}`)
+  writeFileSync(join(REPOSITORY, 'staged.ts'), 'export const staged = 1\n')
+  execFileSync('git', ['add', 'staged.ts'], { cwd: REPOSITORY, stdio: 'pipe' })
+  check('with a file staged there a green-gated commit is still ALLOWED and a bare one still DENIED', (await judge('Bash', 'bun run build.ts && git commit -m "done"')) === true && (await judge('Bash', 'git commit -m "wip"')) === false)
 }
 
 section('disengage removes the gate (no leak)')
@@ -148,6 +161,8 @@ section('dist: the wired standalone gate ships in dist/mercury.mjs')
   }
 }
 
+process.chdir(tmpdir())
+rmSync(REPOSITORY, { recursive: true, force: true })
 rmSync(ISOLATED_HOME, { recursive: true, force: true })
 
 console.log('\n' + '═'.repeat(76))
