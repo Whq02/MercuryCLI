@@ -1,6 +1,79 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.10
+- Added Gemini 4 Carbon pricing.
+- Added a model picker row for each Mythos model your account offers.
+- Added the mythos[1m] model word.
+- Added --default-brief, which returns a continued session to the default brief.
+- Added a /tensorfold line that says when the installed engine is older than the release this build supports, with the command that moves to it.
+- Changed the commands every session refuses: they are recognised in more of the forms a shell accepts, on every tool that can start a command, and the list stays in force for the whole session.
+- Changed Monitor, Service, Journey and Debug: a command they start passes the same permission decision, rules and safety floors as a Bash command, and their cards show the command.
+- Changed deny rules to apply in every permission mode and to more ways of reading a file, git's own readers included.
+- Changed the safety floors around Mercury's stored credentials and its own runtime to recognise more forms of a command on macOS, Linux and Windows. The trust page says what they read and that they are not a sandbox.
+- Changed a headless run in a folder without a trust grant: the folder's settings files, agent definitions and workflows are left out, its deny and ask rules still apply, and the run names on stderr what it left out. --config <file> hands such a run a settings file.
+- Changed what a folder decides before you trust it: its keybindings file waits for the grant, and the Sovereign consent is read from your user settings, a launch flag and managed policy.
+- Changed Flow: an allow rule answers one of its five asks only if it stood when the session started or you granted it in the session, and broad allow rules stay set aside while Flow is on.
+- Changed project MCP server approval: a server is asked about again when more of its definition changes.
+- Changed update verification to refuse more malformed payloads.
+- Changed Sovereign mode: an ask rule on the application in front and a read of the clipboard ask nothing, whatever Access type saves.
+- Changed a write of a file your instruction files import to ask as a write of the instruction file itself does.
+- Changed a roster entry that names one model generation to refuse every other generation, and the roster word mythos to cover every Mythos id.
+- Changed a model switch: the earlier model's thinking is carried into the requests of a model that reads it.
+- Changed Claude Opus 4.8 and Opus 4.7 to use their 1M window by their plain id.
+- Changed [1m] on Sonnet 4.5 and Sonnet 4 to resolve as the base model.
+- Changed the model word mythos to mean Mythos 5.2: a saved mythos moves from Mythos 5 to Mythos 5.2 at the next start.
+- Changed Mythos 5.1 and Mythos 5 to launch at the effort of their Fable counterparts.
+- Changed /cost to name a Mythos model by its own id.
+- Changed /effort to say what a TensorFold request will carry.
+- Changed the model picker to keep the end of a long model id at every width.
+- Changed the status row, the line under the composer and the compact line: they no longer say Escape interrupts while a card, a pop-up, the help, the history search or the message cursor holds the key.
+- Changed the transcript: a click on empty space toggles no row, and the sticky prompt header is removed.
+- Changed a file named with @: the turn waits up to ten seconds for its read, and a file left out says so.
+- Changed a declined tool call to read as declined on every tool's row and in the detailed view.
+- Changed the Vast.ai GPU names: an H100 NVL and an RTX PRO 6000 Max-Q are offered.
+- Changed undici to 8.12.4, follow-redirects to 1.16.3 and the vendored Python runtime to python-build-standalone 20261110 (expat 2.10.0 on macOS and Linux, zlib 1.4 on Linux).
+- Fixed built-in command refusals and the commit gate not applying in every kind of session.
+- Fixed managed-only policy not covering one settings command.
+- Fixed a key typed just before a permission card appeared answering the card.
+- Fixed the mark of a permission card, a server approval, the Sovereign consent and the trust card moving with the mouse wheel.
+- Fixed a tool call that was running when a hook or a host stopped the turn being answered as a cut to retry.
+- Fixed a pasted command argument reaching the tool as its placeholder.
+- Fixed lines sent while a session was landing arriving out of order or in the wrong mode.
+- Fixed the sweep of runners left without a host ending the daemon's own processes.
+- Fixed a git offer's answer settling another offer for the same folder.
+- Fixed a session that was working when its window quit losing its turn.
+- Fixed the jump pill misreporting where the view stands, and a scroll up from the tail landing on the wrong line.
+- Fixed a terminal that stopped reading for a while being taken for a sleep.
+- Fixed a kept session brief recording the switchboard's own note.
+- Fixed a resume by id reading a stale end of the session record.
+- Fixed a large mentioned file being left out without a word.
+- Fixed a run whose session record could not be written ending without its outcome.
+- Fixed the crew board's wake painting as your own message.
+- Fixed a headless run not reporting hidden characters in its instruction files.
+- Fixed an editor that loads a session being replayed a command, a resume or a compaction's summary as someone's words.
+- Fixed a withdrawn reply leaving the tool calls it had announced unanswered.
+- Fixed Recall cutting a fact still in the buffer, and a fact retained twice in one session being staged twice.
+- Fixed a /config value being cut with no ellipsis and a settings hint row running into its border.
+- Fixed a Grep result cut at its limit reading as the whole result.
+- Fixed the card of a server's tool reading differently in a daemon-hosted window.
+- Fixed a crewmate resumed after its run was cut losing the call it had made.
+- Fixed a crewmate's own transcript showing its shell calls with no output.
+- Fixed a retired crewmate's stop notice being dropped, and the crew board's preview header leaving empty cells beside a session at rest.
+- Fixed a voice take shorter than thirteen milliseconds reaching the speech engine.
+- Fixed an Ollama tag being held above its Modelfile's window, the context figures of a daemon-hosted session waiting for the next reply after a compaction, and a llama.cpp server's own effort levels being ignored.
+- Fixed a local model's 32,768-token window reading as 33k on the gauges, in the picker, in /health and in the models reference.
+- Fixed the notice for a mentioned file that was left out being cut at one row: its path and reason wrap.
+- Fixed an MCP authorisation warning being printed again at every headless start.
+- Fixed the prompt editor on Windows refusing an EDITOR path that holds spaces and no quotes, and a %NAME% in a draft's path being expanded before the editor opened it.
+- Fixed a run stopped while a hook's answer was being put to the model resuming as if the turn had ended.
+- Fixed a window opened on a session whose run ended inside a tool call painting that call as waiting.
+- Fixed a daemon-hosted window saying nothing when the session's record could not be written.
+- Fixed the detailed transcript (ctrl+o) losing the place it was opened from.
+- Fixed a resumed session saying ready, or naming another model than the saved one, before its runner had answered.
+- Fixed a crewmate's name staying taken after its launch was stopped before it began.
+- Fixed a section of the cockpit rails being painted cut through when it did not fit under a tall card.
+
 ## 1.0.9
 - Added Claude Fable 5.2 and its Mythos 5.2 mirror as declared models.
 - Added a Session scratchpads row to mercury health, with a fix that clears them.
