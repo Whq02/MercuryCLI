@@ -590,7 +590,7 @@ function modelNeeds1MHeader(model: string): boolean {
 }
 
 export function context1mNeedsUnsentHeader(model: string): boolean {
-  return modelNeeds1MHeader(model.replace(/\[1m\]/i, '')) && isClaudeAISubscriber()
+  return modelNeeds1MHeader(model.replace(/\[1m\]/i, ''))
 }
 
 export function modelSupports1M(model: string): boolean {
@@ -1098,7 +1098,7 @@ export const getAllModelBetas = memoize((model: string): string[] => {
   if (isClaudeAISubscriber()) {
     betaHeaders.push(OAUTH_BETA_HEADER)
   }
-  if (has1mContext(model) && modelSupports1M(model) && !modelIsNatively1M(model) && !isClaudeAISubscriber()) {
+  if (has1mContext(model) && modelSupports1M(model) && !modelIsNatively1M(model) && !context1mNeedsUnsentHeader(model) && !isClaudeAISubscriber()) {
     betaHeaders.push(CONTEXT_1M_BETA_HEADER)
   }
 
