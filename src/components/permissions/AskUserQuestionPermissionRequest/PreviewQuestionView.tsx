@@ -129,17 +129,15 @@ export function PreviewQuestionView({
     [allOptions, questionText, onUpdateQuestionState, onAnswer],
   )
 
-  useKeybinding(
-    'chat:externalEditor',
-    async () => {
-      const currentValue = questionState?.textInputValue || ''
-      const result = await editPromptInEditor(currentValue)
-      if (result.content !== null && result.content !== currentValue) {
-        onUpdateQuestionState(questionText, { textInputValue: result.content }, false)
-      }
-    },
-    { context: 'Chat', isActive: isInNotesInput && !!editor },
-  )
+  const editNotesInEditor = async (): Promise<void> => {
+    const currentValue = questionState?.textInputValue || ''
+    const result = await editPromptInEditor(currentValue)
+    if (result.content !== null && result.content !== currentValue) {
+      onUpdateQuestionState(questionText, { textInputValue: result.content }, false)
+    }
+  }
+  useKeybinding('chat:externalEditor', editNotesInEditor, { context: 'Chat', isActive: isInNotesInput && !!editor })
+  useKeybinding('chat:externalEditor', editNotesInEditor, { context: 'Confirmation', isActive: isInNotesInput && !!editor })
 
   useKeybindings(
     { 'tabs:previous': () => onTabPrev?.(), 'tabs:next': () => onTabNext?.() },

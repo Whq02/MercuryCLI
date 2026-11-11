@@ -95,13 +95,11 @@ export function SelectInputOption<T>({
   )
   const hasImages = images.length > 0
 
-  useKeybinding(
-    'chat:externalEditor',
-    () => {
-      onOpenEditor?.(value, onChange)
-    },
-    { context: 'Chat', isActive: isFocused && Boolean(onOpenEditor) },
-  )
+  const openEditor = (): void => {
+    onOpenEditor?.(value, onChange)
+  }
+  useKeybinding('chat:externalEditor', openEditor, { context: 'Chat', isActive: isFocused && Boolean(onOpenEditor) })
+  useKeybinding('chat:externalEditor', openEditor, { context: 'Confirmation', isActive: isFocused && Boolean(onOpenEditor) })
 
   useKeybinding(
     'chat:imagePaste',
