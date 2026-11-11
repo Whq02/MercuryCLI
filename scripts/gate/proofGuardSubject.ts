@@ -10,6 +10,7 @@ import { pathToFileURL } from 'node:url'
 const [receipt, mode, world, token] = process.argv.slice(2) as [string, string, string, string]
 const root = join(world, 'account', 'root')
 const missing = join(world, 'account', 'missing')
+const unheld = join(world, 'account', 'deep')
 const foreign = join(world, 'swap-foreign')
 const spare = join(world, 'spare')
 const whole = { recursive: true, force: true }
@@ -32,7 +33,7 @@ if (!madeByThisRun() || !inside(root) || !inside(foreign) || !inside(spare)) pro
 const born = lstatSync(root, { bigint: true }).ino
 const stands = (): boolean => {
   const now = lstatSync(root, { bigint: true, throwIfNoEntry: false })
-  return now !== undefined && now.isDirectory() && now.ino === born && lstatSync(missing, { throwIfNoEntry: false }) === undefined
+  return now !== undefined && now.isDirectory() && now.ino === born && lstatSync(missing, { throwIfNoEntry: false }) === undefined && lstatSync(unheld, { throwIfNoEntry: false }) === undefined
 }
 type Tried = { shape: string; outcome: string; stands: boolean; error?: { code: unknown; syscall: unknown; path: unknown } }
 const attempt = async (into: Tried[], shape: string, call: () => unknown, intact: () => boolean): Promise<void> => {
@@ -88,7 +89,61 @@ if (mode === 'shapes') {
   await refuse('symlinkSync where a root would stand, spelled through a link to the root and ..', () => symlinkSync(foreign, throughLink))
   await refuse('linkSync there, spelled the same way', () => linkSync(join(foreign, 'file'), throughLink))
   await refuse('renameSync, a folder moved there, spelled the same way', () => renameSync(spare, throughLink))
+  const asBytes = (path: string): Uint8Array => new Uint8Array(Buffer.from(path))
+  await refuse('rmSync, a Uint8Array that is no Buffer', () => rmSync(asBytes(root) as never, whole))
+  await refuse('promises.rm, a Uint8Array', () => promises.rm(asBytes(root) as never, whole))
+  await refuse('renameSync, the root as a Uint8Array, moved away', () => renameSync(asBytes(root) as never, join(world, 'moved')))
+  await refuse('symlinkSync where a root would stand, the place a Uint8Array', () => symlinkSync(foreign, asBytes(missing) as never))
+  await refuse('rmSync, a DataView', () => rmSync(new DataView(asBytes(root).buffer) as never, whole))
+  await refuse('rmSync, an ArrayBuffer', () => rmSync(asBytes(root).buffer as never, whole))
+  await refuse('rmSync, a String object', () => rmSync(new String(root) as never, whole))
+  await refuse('rmSync, a value that is no path', () => rmSync({ at: root } as never, whole))
+  await refuse('rmSync, a name longer than the system reads, which no check can look at', () => rmSync(join(root, 'x'.repeat(300)), whole))
+  await refuse('renameSync, a folder moved onto a link to the place a root would stand, spelled with a trailing separator', () => renameSync(spare, join(world, 'to-missing') + sep))
+  await refuse('renameSync there through a second link to that link', () => renameSync(spare, join(world, 'to-to-missing') + sep))
+  await refuse('renameSync there, the separator written twice', () => renameSync(spare, join(world, 'to-missing') + sep + sep))
+  facts.folds = existsSync(join(dirname(root), '\u017fibling'))
+  if (facts.folds) {
+    await refuse('symlinkSync where a root would stand, under a name the volume folds to its name: the long s', () => symlinkSync(foreign, join(dirname(missing), 'mi\u017f\u017fing')))
+    await refuse('symlinkSync there, the long s among capitals', () => symlinkSync(foreign, join(dirname(missing), 'MI\u017fSING')))
+  }
+  await refuse('symlinkSync where a folder that would hold a root would stand', () => symlinkSync(foreign, unheld))
+  await refuse('renameSync, a folder moved where that folder would stand', () => renameSync(spare, unheld))
+  await refuse('symlinkSync there, reached through a linked folder', () => symlinkSync(foreign, join(world, 'alias', 'deep')))
+  const second = join(world, 'to-to-root')
+  await refuse('symlinkSync where a root would stand, spelled through a second link to the link and ..', () => symlinkSync(foreign, `${second}${sep}..${sep}missing`))
+  await refuse('linkSync there through the second link', () => linkSync(join(foreign, 'file'), `${second}${sep}..${sep}missing`))
+  await refuse('renameSync, a folder moved there through the second link', () => renameSync(spare, `${second}${sep}..${sep}missing`))
+  await refuse('symlinkSync there, a . written before the ..', () => symlinkSync(foreign, `${join(world, 'to-root')}${sep}.${sep}..${sep}missing`))
+  await refuse('symlinkSync there, the separator written twice after the ..', () => symlinkSync(foreign, `${join(world, 'to-root')}${sep}..${sep}${sep}missing`))
+  await refuse('rmSync, the root spelled with a trailing /.', () => rmSync(`${root}${sep}.`, whole))
+  await refuse('rmSync, a link to the root spelled with a trailing /.', () => rmSync(`${join(world, 'to-root')}${sep}.`, whole))
+  await refuse('rmSync, the second link spelled with a trailing separator', () => rmSync(second + sep, whole))
+  await refuse('rmSync, the second link spelled with a trailing /.', () => rmSync(`${second}${sep}.`, whole))
+  await refuse('rmdirSync, the root spelled with a trailing /.', () => rmdirSync(`${root}${sep}.`))
+  await refuse('renameSync, the root spelled with a trailing /., moved away', () => renameSync(`${root}${sep}.`, join(world, 'moved')))
+  await refuse('renameSync, the second link spelled with a trailing separator, moved away', () => renameSync(second + sep, join(world, 'moved')))
   facts.refused = refused
+
+  const shaped = join(tmpdir(), 'shaped.cjs')
+  writeFileSync(shaped, `const { existsSync, realpathSync, rmSync } = require('node:fs')
+const { dirname, join, sep } = require('node:path')
+const [root, world] = process.argv.slice(2)
+if (!realpathSync(dirname(root)).startsWith(realpathSync(world) + sep)) process.exit(64)
+const tried = []
+for (const [shape, value] of [['a Uint8Array that is no Buffer', new Uint8Array(Buffer.from(root))], ['a plain object shaped like a file URL', { href: 'file://' + root, protocol: 'file:', hostname: '', pathname: root, search: '', hash: '' }]]) {
+  let outcome = 'went through'
+  try { rmSync(value, { recursive: true, force: true }) } catch (error) { outcome = error.code === 'EPROOFGUARD' ? 'refused' : 'failed ' + error.code }
+  tried.push({ shape, outcome, stands: existsSync(join(root, 'kept')) })
+}
+console.log(JSON.stringify(tried))
+`)
+  const underNode = spawnSync(Bun.which('node') ?? 'node', [shaped, root, world], { cwd: tmpdir(), encoding: 'utf8' })
+  try {
+    facts.underNode = JSON.parse(underNode.stdout)
+  } catch {
+    facts.underNode = [{ shape: 'the node child', outcome: `rc=${underNode.status} ${underNode.stderr.slice(-300)}`, stands: kept() }]
+  }
 
   const allowed: Tried[] = []
   const allow = (shape: string, call: () => unknown): Promise<void> => attempt(allowed, shape, call, stands)

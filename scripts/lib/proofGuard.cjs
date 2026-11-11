@@ -2,6 +2,7 @@ const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 const { fileURLToPath } = require('node:url')
+const { types } = require('node:util')
 const { syncBuiltinESMExports } = require('node:module')
 
 const INSTALLED = Symbol.for('mercury.proof.guard')
@@ -16,11 +17,13 @@ const GUARDED_OPERATIONS = [
 ]
 const ACCOUNT_RECORD_HOME_AT = { darwin: 48, linux: 32 }
 const NAMES_FOLD = process.platform === 'darwin'
+const NO_ENTRY = ['ENOENT', 'ENOTDIR']
+const LINKS_FOLLOWED = 40
 const lstat = fs.lstatSync
 const stat = fs.statSync
 const realpath = fs.realpathSync
+const readlink = fs.readlinkSync
 let roots = []
-let checkFailed = false
 
 function proofEntry() {
   const scripts = path.dirname(__dirname)
@@ -94,30 +97,62 @@ function settled(root) {
   return { label: root.label, path: path.join(folder, name), folder, name, held: above(folder) }
 }
 function seen(target, follow) {
+  let found
   try {
-    const found = (follow ? stat : lstat)(target, { bigint: true, throwIfNoEntry: false })
-    return found ? { key: found.ino ? `${found.dev}:${found.ino}` : '', folder: found.isDirectory(), link: found.isSymbolicLink() } : null
-  } catch {
-    return null
+    found = (follow ? stat : lstat)(target, { bigint: true, throwIfNoEntry: false })
+  } catch (error) {
+    if (NO_ENTRY.includes(error.code)) return null
+    throw error
   }
+  return found ? { key: found.ino ? `${found.dev}:${found.ino}` : '', folder: found.isDirectory(), link: found.isSymbolicLink() } : null
+}
+function onDisk(spelled) {
+  return Buffer.from(spelled, 'latin1')
+}
+function said(spelled) {
+  return onDisk(spelled).toString()
 }
 function folded(name) {
-  return NAMES_FOLD ? name.normalize('NFC').toLowerCase() : name
+  if (!NAMES_FOLD) return name
+  let word = name.normalize('NFD')
+  for (let round = 0; round < 2; round++) word = word.toUpperCase().toLowerCase()
+  return word.normalize('NFD')
+}
+function bare(place) {
+  let end = place.length
+  while (end > 1 && place[end - 1] === path.sep) end--
+  return place.slice(0, end)
+}
+function behindLinks(place) {
+  for (let followed = 0; followed < LINKS_FOLLOWED; followed++) {
+    let to
+    try {
+      to = readlink(onDisk(place), { encoding: 'buffer' }).toString('latin1')
+    } catch (error) {
+      if (error.code === 'EINVAL' || NO_ENTRY.includes(error.code)) return place
+      throw error
+    }
+    place = bare(path.isAbsolute(to) ? to : `${path.dirname(place)}${path.sep}${to}`)
+  }
+  return place
 }
 function landing(target) {
-  const last = path.basename(target)
+  const place = target.endsWith(path.sep) ? behindLinks(bare(target)) : target
+  const last = path.basename(place)
   if (last === '' || last === '.' || last === '..') return null
-  const folder = seen(path.dirname(target), true)
+  const folder = seen(onDisk(path.dirname(place)), true)
   if (folder === null || folder.key === '') return null
-  const name = folded(last)
+  const name = folded(said(last))
   for (const root of roots) {
-    if (folded(root.name) !== name) continue
-    if (seen(root.folder, true)?.key === folder.key) return { how: 'is', root }
+    if (folded(root.name) === name && seen(root.folder, true)?.key === folder.key) return { how: 'is', root }
+    for (const holder of root.held) {
+      if (folded(path.basename(holder)) === name && seen(path.dirname(holder), true)?.key === folder.key) return { how: 'would hold', root }
+    }
   }
   return null
 }
 function standing(target, lands) {
-  const here = seen(target, false)
+  const here = seen(onDisk(target), false)
   if (here === null) return lands ? landing(target) : null
   if (here.key === '') return null
   for (const root of roots) {
@@ -135,33 +170,43 @@ function standing(target, lands) {
   }
   return null
 }
-function spelling(target) {
-  if (typeof target === 'string') return target
-  if (Buffer.isBuffer(target)) return target.toString()
-  try {
-    return target instanceof URL ? fileURLToPath(target) : ''
-  } catch {
-    return ''
-  }
+function bytes(raw) {
+  if (typeof raw === 'string') return Buffer.from(raw)
+  if (ArrayBuffer.isView(raw)) return Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength)
+  if (types.isAnyArrayBuffer(raw)) return Buffer.from(raw)
+  if (types.isStringObject(raw)) return Buffer.from(String(raw))
+  if (typeof raw === 'object' && raw !== null) return Buffer.from(fileURLToPath(raw))
+  return null
 }
-function refusal(operation, raw, lands) {
-  const target = spelling(raw)
-  if (target === '') return null
-  let found
-  try {
-    found = standing(target, lands)
-  } catch (error) {
-    if (!checkFailed) process.stderr.write(`proof guard: a check failed (${error.message}); ${operation} and any later call whose check fails go through unchecked\n`)
-    checkFailed = true
-    return null
-  }
-  if (found === null) return null
-  const error = new Error(`proof guard: ${operation} refused: ${target} ${found.how} ${found.root.label} (${found.root.path}); a proof removes, renames and links over only what its own run made`)
+function kind(raw) {
+  if (raw === null) return 'null'
+  return typeof raw === 'object' ? Object.prototype.toString.call(raw).slice(8, -1) : typeof raw
+}
+function denied(operation, target, why, rule) {
+  const error = new Error(`proof guard: ${operation} refused: ${why}; ${rule}`)
   error.code = REFUSED
   error.syscall = operation
   error.path = target
   process.stderr.write(`${error.message}\n`)
   return error
+}
+function refusal(operation, raw, lands) {
+  const unjudged = 'a call whose path the guard cannot judge does not go through'
+  let read = null
+  try {
+    read = bytes(raw)
+  } catch {}
+  if (read === null) return denied(operation, undefined, `its path is a value the guard does not read (${kind(raw)})`, unjudged)
+  if (read.length === 0) return null
+  const target = read.toString()
+  let found
+  try {
+    found = standing(read.toString('latin1'), lands)
+  } catch (error) {
+    return denied(operation, target, `${target} could not be checked (${error.message})`, unjudged)
+  }
+  if (found === null) return null
+  return denied(operation, target, `${target} ${found.how} ${found.root.label} (${found.root.path})`, 'a proof removes, renames and links over only what its own run made')
 }
 function refused(operation, shape, words) {
   for (const [indexes, lands] of [[shape.acts, false], [shape.lands, true]]) {
