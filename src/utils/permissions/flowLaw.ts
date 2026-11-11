@@ -5,6 +5,7 @@ import { getOriginalCwd } from '../../bootstrap/state.js'
 import { readBashRuleVerdict } from '../../tools/BashTool/bashPermissions.js'
 import { shellCommandSegments } from '../../tools/BashTool/destructiveCommandWarning.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
+import { MONITOR_TOOL_NAME } from '../../tools/MonitorTool/constants.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
 import { getStartingCwd } from '../cwd.js'
 import { getPathsForPermissionCheck } from '../fsOperations.js'
@@ -691,7 +692,7 @@ function flowPathAsk(path: string, rules?: ToolPermissionContext, verb = 'writin
 }
 
 export async function flowAskFor(tool: Pick<Tool, 'name'> & { getPath?: (input: never) => string | undefined; isReadOnly?: (input: never) => boolean }, input: Record<string, unknown>, rules?: ToolPermissionContext): Promise<FlowAsk | null> {
-  if ((tool.name === BASH_TOOL_NAME || tool.name === POWERSHELL_TOOL_NAME) && typeof input.command === 'string') {
+  if ((tool.name === BASH_TOOL_NAME || tool.name === POWERSHELL_TOOL_NAME || tool.name === MONITOR_TOOL_NAME) && typeof input.command === 'string') {
     const cwd = resolveShellCwd(typeof input.cwd === 'string' ? input.cwd : undefined)
     return flowShellAsk(input.command, cwd, tool.name === POWERSHELL_TOOL_NAME ? 'powershell' : 'bash', rules)
   }
