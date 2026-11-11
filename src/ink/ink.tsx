@@ -109,7 +109,7 @@ import {
   stopSignalsSupported,
 } from './root/stop-continue.js'
 import { noteModeAcquired, noteModeReleased, shutdownReleaseObligations } from './root/terminalModeLedger.js'
-import { extendedKeysSupportedNow, regionScrollTrustedNow, shouldHoldFirstPaintForSyncProbe, syncOutputSupportedNow } from './session/capabilities.js'
+import { extendedKeysSupportedNow, regionScrollTrustedNow, shouldHoldFirstPaintForSyncProbe, syncOutputCapabilityNow, syncOutputSupportedNow } from './session/capabilities.js'
 import { terminalQuerierFor, terminalQuerySettleMs } from './session/querier.js'
 import { streamTakesWrites, writeAllSync, writeDiffToTerminal } from './session/delivery.js'
 import { cursorPosition, ERASE_SCREEN, CURSOR_HOME } from './termio/csi.js'
@@ -298,6 +298,7 @@ export default class Ink {
   private storedReadableListeners: Array<(...args: unknown[]) => void> | null = null
   private wasRawMode = false
   private consoleReadHeld = false
+  private fittingConsoleBuffer = false
   private stdinRecoveryArmed = false
   private rawModeOffForStop = false
   private stopListenersAttached = false
@@ -484,7 +485,11 @@ export default class Ink {
   }
 
   private handleResize = (): void => {
-    if (this.isRendering) return
+    if (this.isRendering || this.fittingConsoleBuffer) return
+    this.settleResize()
+  }
+
+  private settleResize(): void {
     const { columns, rows } = this.liveSize()
     if (this.resizeSettleTimer === null) {
       if (columns === this.cachedColumns && rows === this.cachedRows) return
@@ -515,8 +520,24 @@ export default class Ink {
     this.displayCursor = null
   }
 
+  private consoleBufferOutlivesWindow(): boolean {
+    return process.platform === 'win32' && !syncOutputCapabilityNow() && this.altScreenActive && !this.isPaused && this.isTTY
+  }
+
+  private fitConsoleBufferToWindow(): void {
+    if (!this.consoleBufferOutlivesWindow()) return
+    termWrite(this.options.stdout, ENTER_ALT_SCREEN)
+    this.fittingConsoleBuffer = true
+    try {
+      refreshConsoleSize(this.options.stdout)
+    } finally {
+      this.fittingConsoleBuffer = false
+    }
+  }
+
   private applySettledResize = (): void => {
     this.resizeSettleTimer = null
+    this.fitConsoleBufferToWindow()
     const { columns, rows } = this.liveSize()
     this.applySize(columns, rows)
     this.scheduler.releaseSettleHold(false)
@@ -669,6 +690,10 @@ export default class Ink {
       if (columns !== this.cachedColumns || rows !== this.cachedRows) {
         if (reconciler.isAlreadyRendering()) {
           queueMicrotask(this.onRender)
+          return
+        }
+        if (this.consoleBufferOutlivesWindow()) {
+          this.settleResize()
           return
         }
         this.applySize(columns, rows)
