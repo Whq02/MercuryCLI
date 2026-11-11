@@ -234,20 +234,31 @@ Five safety floors hold alongside the permission modes and wards:
 - Writing project instruction files or reading `.env` files asks for approval first.
 
 The credential and runtime floors read a shell command as the commands a shell
-would run, so a wildcard, a folder read whole, a listing handed to a reader, a
-nested script, a kill by process group, by user or by a pattern that takes
-Mercury's own processes, and a write through an archive, a download or a
-package manager are refused like the plain spelling. A target that another
-language computes at run time is outside what these floors can read.
-So is what only the running shell can value: a folder or a tree root built
-by a substitution, by a variable the line does not set or by a default, and
-a relative write, delete or wildcard read after a `cd` to such a folder,
-which is judged at the folder before it. A credential file's own name at the
-end of such a path is refused all the same. A file reached through a link, a
-listing that passes through another program on its way to a reader, a
-credential-store write by a nested shell that is handed its target at run
-time, and what another program is told to run or serve (an editor, a
-debugger, a database shell, a web server) are outside them too.
+would run, so a wildcard, a folder read whole, a listing handed directly to a
+reader by a substitution, a nested shell's own script (`sh -c`, a heredoc, a
+pipe into a shell, `eval`), a kill by process group, by user or by a pattern
+that takes Mercury's own processes, a write through an archive or a download,
+and an install into Mercury's runtime by npm, pnpm or bun are refused like the
+plain spelling. Where the line stands in the folder that holds the
+credentials, a name it leaves to the shell is refused as well when the line
+itself hands it to a program that reads files.
+
+The floors read the command as it is written and are not a sandbox: what a
+line keeps from that reading is not stopped by them, and meets only the
+permission mode's ordinary check. What can pass them that way includes a
+target that another language computes at run time; a folder or a tree root
+built by a substitution, by a variable the line does not set or by a default,
+and a relative write, delete or wildcard read after a `cd` to such a folder,
+which is judged at the folder before it; a name or a listing that reaches a
+reader through a loop, a pipe, a positional parameter or another program; a
+delete whose target a substitution computes; lines a nested shell's script
+reads and evaluates; an install by another package manager, or into a
+credential store; a file reached through a link; a credential-store write by
+a nested shell that is handed its target at run time; and what another
+program is told to run or serve (an editor, a debugger, a database shell, a
+web server). A credential file's own name at the end of a path only the
+running shell can value is still refused where the line hands it to a program
+that reads files.
 
 ## Non-interactive sessions
 
