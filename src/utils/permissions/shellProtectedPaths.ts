@@ -650,7 +650,7 @@ function powershellListing(argv: readonly string[]): { roots: string[]; deep: bo
     const at = segments.findIndex(segment => GLOB_PART.test(segment))
     return at < 0 ? root : segments.slice(0, at).join('/') || (/^[\\/]/.test(root) ? '/' : '.')
   })
-  if (roots.length === 0 || unsure) roots.push('.')
+  if (roots.length === 0 || unsure || roots.some(root => /[$(@]/.test(root) || root.includes(UNREAD_PART))) roots.push('.')
   return { roots, deep }
 }
 

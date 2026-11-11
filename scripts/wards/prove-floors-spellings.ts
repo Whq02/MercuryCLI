@@ -686,6 +686,14 @@ if (runs('LISTED')) {
     'Get-ChildItem <CONFIG> -Recurse | Select-String canary',
     'Get-ChildItem <CONFIG> | Get-Content',
     'Get-ChildItem -LiteralPath:<CONFIG> | Get-Content',
+    'Get-ChildItem $PWD -Recurse | Select-String canary',
+    'Get-ChildItem "$PWD" -Recurse | Select-String canary',
+    'Get-ChildItem $pwd.Path -Recurse | Select-String canary',
+    'Get-ChildItem (Get-Location) -Recurse | Select-String canary',
+    'Get-ChildItem (pwd) -Recurse | Select-String canary',
+    'Get-ChildItem (Resolve-Path .) -Recurse | Select-String canary',
+    '$d = "."; Get-ChildItem $d -Recurse | Select-String canary',
+    'Get-ChildItem -Path $PWD -Recurse | Get-Content',
   ]
   for (const line of readers) {
     const answer = await asked(line, OWN_HOME)
