@@ -101,7 +101,6 @@ section('§2 everything else the prefix rule admitted stays admitted')
     ['claude-fable-5', 'claude-fable-5-20260301', 'a dated snapshot of Fable 5 itself'],
     ['claude-fable-5-1', 'claude-fable-5-1-fast', 'a suffix sibling of the generation named'],
     ['claude-fable-5-1', 'claude-fable-5-1[1m]', 'the window rider'],
-    ['claude-fable-5', 'claude-fable-5-3', 'a generation nothing declares'],
     ['gpt-5', 'gpt-5-mini', "another vendor's id"],
     ['deepseek-v4', 'deepseek-v4-pro', "another vendor's id"],
     ['claude-fable', 'claude-fable-5-2', 'a prefix shorter than a generation'],
@@ -142,6 +141,32 @@ section('§4 a roster that names a retired generation names that generation: the
     const refusals = later.map(id => allow.rosterRefusal(id))
     check(`…each later id is refused before any request with the roster's sentence, and ${dated} is not refused at the door`, refusals.every(words => words !== null && words.includes("is outside this organization's engine.roster")) && allow.rosterRefusal(dated) === null, JSON.stringify(refusals).slice(0, 300))
   }
+}
+
+section('§5 a generation this build does not declare is another generation: an entry that names one refuses it, and an entry that names it admits it alone')
+{
+  const refused: Array<[string, string, string]> = [
+    ['claude-fable-5', 'claude-fable-5-3', 'a later generation nothing declares'],
+    ['claude-fable-5', 'claude-fable-5-3-20270101', 'a dated snapshot of that later generation'],
+    ['claude-fable-5-2', 'claude-fable-5-3', 'the generation after the newest declared'],
+    ['claude-opus-4', 'claude-opus-4-9', 'a later generation nothing declares'],
+    ['fable-5', 'claude-fable-5-3', 'the entry spelled without the vendor mark'],
+    ['claude-mythos-5', 'claude-mythos-5-7', 'a later mirror nothing declares'],
+    ['claude-fable-5-3', 'claude-fable-5-4', 'an undeclared entry against the generation after it'],
+    ['claude-fable-5-3', 'claude-fable-5-3-1', 'an undeclared entry against a generation under it'],
+    ['claude-fable-5-3', 'claude-fable-5-2', 'an undeclared entry against a declared generation'],
+  ]
+  for (const [entry, candidate, why] of refused) {
+    check(`["${entry}"] refuses ${candidate} (${why})`, !admits(entry, candidate) && (allow.rosterRefusal(candidate) ?? '').includes("is outside this organization's engine.roster"))
+  }
+  const admitted: Array<[string, string, string]> = [
+    ['claude-fable-5-3', 'claude-fable-5-3', 'the undeclared generation it names'],
+    ['claude-fable-5-3', 'claude-fable-5-3-20270101', 'a dated snapshot of the generation it names'],
+    ['claude-fable-5-3', 'claude-fable-5-3[1m]', 'the window rider'],
+    ['fable', 'claude-fable-5-3', 'the family word, which covers every generation'],
+    ['claude-fable', 'claude-fable-5-3', 'a prefix shorter than a generation'],
+  ]
+  for (const [entry, candidate, why] of admitted) check(`["${entry}"] admits ${candidate} (${why})`, admits(entry, candidate))
 }
 
 roster(null)

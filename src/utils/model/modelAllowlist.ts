@@ -18,9 +18,10 @@ function resolvedOf(value: string): string {
   return isModelAlias(value) ? normalize(parseUserSpecifiedModel(value)) : value
 }
 
-function declaredGenerationOf(id: string): string | undefined {
-  const stem = parseFirstPartyGeneration(id)?.stem
-  return stem !== undefined && DECLARED_GENERATION_STEMS.has(stem) ? stem : undefined
+function generationNamedBy(entry: string): string | undefined {
+  const stem = parseFirstPartyGeneration(entry)?.stem
+  if (stem === undefined) return undefined
+  return DECLARED_GENERATION_STEMS.has(entry) || stem === entry ? stem : undefined
 }
 
 function inFamily(word: string, resolved: string): boolean {
@@ -71,10 +72,10 @@ export function isModelAllowed(model: string): boolean {
     }
   }
 
-  const asked = declaredGenerationOf(candidateResolved)
+  const asked = parseFirstPartyGeneration(candidateResolved)?.stem
   const prefixMatches = (prefix: string): boolean => {
     if (candidateResolved !== prefix && !candidateResolved.startsWith(`${prefix}-`)) return false
-    const named = DECLARED_GENERATION_STEMS.has(prefix) ? declaredGenerationOf(prefix) : undefined
+    const named = generationNamedBy(prefix)
     return named === undefined || asked === undefined || named === asked
   }
   for (const entry of entries) {
