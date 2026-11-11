@@ -239,10 +239,15 @@ nested script, a kill by process group, by user or by a pattern that takes
 Mercury's own processes, and a write through an archive, a download or a
 package manager are refused like the plain spelling. A target that another
 language computes at run time is outside what these floors can read.
-So is a relative write, delete or wildcard read after a `cd` whose target
-only the running shell knows, which is judged at the folder before it, and a
-credential-store write through a link or a nested shell that is handed its
-target at run time.
+So is what only the running shell can value: a folder or a tree root built
+by a substitution, by a variable the line does not set or by a default, and
+a relative write, delete or wildcard read after a `cd` to such a folder,
+which is judged at the folder before it. A credential file's own name at the
+end of such a path is refused all the same. A file reached through a link, a
+listing that passes through another program on its way to a reader, a
+credential-store write by a nested shell that is handed its target at run
+time, and what another program is told to run or serve (an editor, a
+debugger, a database shell, a web server) are outside them too.
 
 ## Non-interactive sessions
 
