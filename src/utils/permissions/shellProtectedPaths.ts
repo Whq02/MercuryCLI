@@ -4,7 +4,7 @@ import { posix } from 'node:path'
 import { getShellCwd } from '../Shell.js'
 import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../envUtils.js'
 import { CREDENTIALS_SERVICE_SUFFIX, getMacOsKeychainStorageServiceName, getRawSpellingKeychainStorageServiceName } from '../secureStorage/macOsKeychainHelpers.js'
-import { UNREAD_PART, layersOf, printedBy, readShellCommands, type Layer, type ReadCommand, type ShellRead } from '../wards/wardsShellRead.js'
+import { UNREAD_PART, layersOf, printedBy, readShellCommands, wordKnown, type Layer, type ReadCommand, type ShellRead } from '../wards/wardsShellRead.js'
 import { credentialStorePath, mercurySecretPath, protectedPathForms, spelling } from './protectedPaths.js'
 import { pinnedCommandAnalysis, peelWrappers, PARSE_ABORTED, extractHeredocs, type Node } from './decision/commandAnalysis.js'
 import { namesMercuryProcess, runtimeWritePath, runtimeProcessRefusal } from './runtimeProtection.js'
@@ -597,6 +597,11 @@ function readsWholeTree(layer: Layer): boolean {
 }
 
 const TREE_COPIERS = new Set(['cp', 'scp', 'copy-item', 'cpi', 'rsync', 'ditto', 'rclone'])
+const FILE_READERS = new Set([
+  ...TREE_COPIERS, 'mv', 'move-item', 'mi', 'install', 'ln', 'dd', 'tar', 'bsdtar', 'gtar', 'zip', '7z', '7za', 'gzip', 'gunzip', 'zcat', 'bzip2', 'bzcat', 'xz', 'xzcat', 'zstd', 'zstdcat',
+  'cat', 'tac', 'nl', 'head', 'tail', 'less', 'more', 'most', 'bat', 'view', 'strings', 'xxd', 'od', 'hexdump', 'base64', 'base32', 'openssl', 'jq', 'yq', 'awk', 'gawk', 'sed', 'cut', 'sort', 'uniq', 'paste', 'column', 'fold', 'rev', 'diff', 'cmp', 'comm',
+  'grep', 'egrep', 'fgrep', 'zgrep', 'rg', 'ag', 'ack', 'source', '.', 'get-content', 'gc', 'type', 'select-string', 'sls',
+])
 const TREE_SEARCHERS = new Set(['rg', 'ag', 'ack', 'grep', 'egrep', 'fgrep', 'zgrep'])
 const FIND_NON_READERS = new Set(['ls', 'stat', 'echo', 'printf', 'file', 'du', 'wc', 'basename', 'dirname', 'realpath', 'readlink', 'test', '[', 'true', 'touch', 'chmod', 'chown', 'rm', 'rmdir', 'unlink', 'mv'])
 
@@ -814,15 +819,17 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
   for (const reader of read.commands) for (const at of [...reader.inner.flat(), ...reader.inputInner]) fed.add(at)
   for (const { at, simple, here } of read.commands.flatMap((simple, at) => foldersAfter(read, at, cwd).folders.map(here => ({ at, simple, here })))) {
     const layers = layersOf(simple.argv)
+    const reads = layers.some(layer => FILE_READERS.has(layer.program))
+    const fedNames = layers.some(layer => FILE_READERS.has(layer.program) && layer.wrappers.includes('xargs'))
     for (const redirect of simple.redirects) {
       if (redirect.op !== '<') continue
       for (const candidate of spellingsOf(redirect.target)) {
-        if (mercurySecretPath(candidate, here) !== null || couldNameSecret(candidate, here, homes)) return redirect.target
+        if (mercurySecretPath(candidate, here) !== null || ((reads || wordKnown(candidate)) && couldNameSecret(candidate, here, homes))) return redirect.target
       }
     }
     for (const word of simple.input === undefined ? [] : simple.input.split(/\s+/)) {
       for (const candidate of spellingsOf(word)) {
-        if (mercurySecretPath(candidate, here) !== null || couldNameSecret(candidate, here, homes)) return word
+        if (mercurySecretPath(candidate, here) !== null || ((fedNames || wordKnown(candidate)) && couldNameSecret(candidate, here, homes))) return word
       }
     }
     for (const layer of layers) {
@@ -834,7 +841,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const feeds = lists && (fed.has(at) || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')))
       for (const word of [...layer.argv.slice(1), ...roots]) {
         for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {
-          if (mercurySecretPath(candidate, here) !== null || couldNameSecret(candidate, here, homes)) return word
+          if (mercurySecretPath(candidate, here) !== null || ((FILE_READERS.has(layer.program) || wordKnown(candidate)) && couldNameSecret(candidate, here, homes))) return word
           if ((tree || feeds) && namesMercuryHome(candidate, here, homes)) return word
         }
       }

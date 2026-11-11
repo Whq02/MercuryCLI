@@ -407,6 +407,40 @@ if (runs('CAP')) {
   for (const item of clear) await expect('CAP', item, ['sovereign'], notRefused, 'is not refused by the floor')
 }
 
+if (runs('STANDING')) {
+  section('STANDING · with the session standing in a folder that holds the store, a word the reading cannot value is a possible read only as the operand of a program that reads files')
+  for (const [folder, where] of [[CONFIG_HOME, 'the config home'], [RUN_ROOT, 'the folder above it']] as const) {
+    bootstrap.setCwdState(folder)
+    const clear: Call[] = [
+      bash('echo $$'),
+      bash("sh -c 'echo $$'"),
+      bash('echo $$ > tool.pid'),
+      bash('echo "$RANDOM"'),
+      bash("sh -c 'echo $$ > \"<CONFIG>/tool.pid\"; sleep 120'", 'the line scripts/headless/prove-hangup-ends-the-tool-tree.ts starts'),
+      bash('export N=$RANDOM', "an assignment's value"),
+      bash('sleep "$N"'),
+      bash('test -f "$F"'),
+      bash('mkdir -p "$DIR"'),
+      bash('git commit -m "$MSG"'),
+      bash('printf %s "$(date)"'),
+      bash('echo hi > note.txt'),
+      bash('ls'),
+    ]
+    for (const item of clear) await expect(`STANDING · in ${where}`, item, ['sovereign'], notRefused, 'is not refused by the floor')
+    const held: Call[] = [
+      bash('cat "$FILE"', 'a reader, its file no reading can value'),
+      bash('base64 "$(some-tool)"'),
+      bash('cp "$SRC" /tmp/x', 'a copy'),
+      bash('cat .cred$(echo entials).json', 'the name built at run time'),
+      bash('cat .cred*', 'a wildcard'),
+    ]
+    for (const item of held) await expect(`STANDING · in ${where}`, item, ['sovereign'], folder === CONFIG_HOME || item.command === 'cat "$FILE"' || item.command === 'base64 "$(some-tool)"' || item.command === 'cp "$SRC" /tmp/x' ? refusedAsSecret : notRefused, folder === CONFIG_HOME || /\$FILE|some-tool|\$SRC/.test(item.command ?? '') ? 'is refused as a read of the credentials' : 'is not refused by the floor')
+  }
+  bootstrap.setCwdState(PROJECT)
+  await expect('STANDING · in the project', bash('cat "$FILE"', 'the same reader where no store stands beneath'), ['sovereign'], notRefused, 'is not refused by the floor')
+  await expect('STANDING · in the project', bash('echo $$'), ['sovereign'], notRefused, 'is not refused by the floor')
+}
+
 if (runs('T-3.5')) {
   const state = daemonStatePath()
   section('T-3.5 floor 4: kills of the daemon and of the session, and writes into the runtime, under Sovereign and Flow')
