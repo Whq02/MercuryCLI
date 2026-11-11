@@ -1,5 +1,5 @@
 {
-  "base": "3c1a2aba224b9c8bdccf5304b3561da8b5e1fb6e",
+  "base": "c59a0f129740bdce3caa13787ea16143f25b572e",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -3373,7 +3373,7 @@
             "additionalProperties": false
           },
           "scope": {
-            "description": "Tree scope: window by default; app includes menus and windows.",
+            "description": "Tree scope: window by default; app adds the other windows of the application, hidden menu entries left out.",
             "type": "string",
             "enum": [
               "window",
