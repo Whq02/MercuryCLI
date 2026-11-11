@@ -174,6 +174,18 @@ section('§3 the working tree and the index are read as they stand')
     const followed = advice === '' ? null : await bash(advice, 'default')
     check(`…and its refusal names a diff that leaves the file out, which runs: ${shown(advice).slice(0, 90)}`, advice.startsWith('git diff HEAD -- ') && followed !== null && followed.behavior === 'allow', followed === null ? words : said(followed))
   }
+  git('reset', '-q', '--', 'README')
+  for (const command of ['git status -vv', 'cd sub && git status -vv', 'git -C sub status -vv', 'git -C sub status -v -v -- .']) {
+    const wrong = await judged(command, true)
+    check(`with nothing staged, ${shown(command)} is refused by the rule from the folder it runs in (sovereign and default)`, wrong.length === 0, wrong.join(' ‖ '))
+  }
+  {
+    const below = await decide('Bash', { command: 'git status -vv', cwd: 'sub' }, 'sovereign', READ)
+    check('with nothing staged, a call that names the folder below to run git status -vv in is refused by the rule', below.behavior === 'deny' && (below.message ?? '').includes(SECRET), said(below))
+    const anchored = await bash('cd sub && git status -vv', 'sovereign', { deny: [`Read(/${PROJECT}/secrets/**)`] })
+    check('with nothing staged, under a rule that spells the folder by its full path, cd sub && git status -vv is refused under sovereign', anchored.behavior === 'deny' && (anchored.message ?? '').includes(SECRET), said(anchored))
+  }
+  git('add', 'README')
   const cached = await bash('git diff --cached', 'sovereign')
   check('…and git diff --cached, which would not print it, still runs', cached.behavior === 'allow', said(cached))
   git('add', 'secrets/k.txt')

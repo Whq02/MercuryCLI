@@ -131,8 +131,8 @@ export async function gitNamesPrinted(question: GitPatchQuestion, cwd: string): 
   const first = await namesAnswered(question, question.probe, cwd)
   if (question.second === undefined || first === 'unanswered') return first
   const second = await namesAnswered(question, question.second, cwd)
-  if (second === 'unanswered' || first === 'failed') return second
-  return second === 'failed' ? first : { base: first.base, names: [...first.names, ...second.names] }
+  if (second === 'unanswered' || first === 'failed' || (second !== 'failed' && first.names.length === 0)) return second
+  return second === 'failed' || second.names.length === 0 ? first : { base: first.base, names: [...first.names, ...second.names] }
 }
 
 async function namesAnswered(question: GitPatchQuestion, probe: string[], cwd: string): Promise<{ base: string; names: string[] } | 'unanswered' | 'failed'> {
