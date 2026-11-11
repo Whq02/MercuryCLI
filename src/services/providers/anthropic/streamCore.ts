@@ -76,7 +76,7 @@ import { conversationRosterKey, planToolPayload, renderAdmissionRecordsAsText } 
 import { declareLawfulPrefixChange } from '../lawfulPrefixChange.js'
 import { applyInducedPrefixEdit, inducedEditApplies, judgeAndRecordPrefix, noteRequestOnWire, resolveInducedPrefixEdit, type PrefixMismatch, type WirePrefixParts } from './prefixLedger.js'
 import { cacheDiagnosticsParam, noteCacheDiagnostics } from './cacheDiagnostics.js'
-import { deadThinkingMarks, stripDeadThinking } from './thinkingBinding.js'
+import { carriesThinking, deadThinkingMarks, droppedThinkingMarks, stripDeadThinking, thinkingCarryRides, thinkingPrefixDigest } from './thinkingBinding.js'
 import type {
   ConnectorTextBlock,
   ConnectorTextDelta,
@@ -553,12 +553,6 @@ async function* queryModel(
 
   messagesForAPI = stripUnsignedThinkingBlocks(messagesForAPI)
 
-  messagesForAPI = stripThinkingFromOtherModels(
-    messagesForAPI,
-    options.model,
-    (a, b) => getCanonicalName(a) === getCanonicalName(b),
-  )
-
   const retiredScreenshots = retireOlderScreenshots(messagesForAPI, undefined, undefined, rosterOwnerKey)
   messagesForAPI =
     retiredScreenshots.firstEdited === -1
@@ -602,6 +596,15 @@ async function* queryModel(
     })
   }
   const allTools = [...toolSchemas, ...extraToolSchemas] as unknown as BetaToolUnion[]
+
+  const carryPrefix = thinkingCarryRides() ? thinkingPrefixDigest(system, allTools) : undefined
+  const droppedThinking = droppedThinkingMarks(messages)
+  messagesForAPI = stripThinkingFromOtherModels(
+    messagesForAPI,
+    options.model,
+    (_writer, target, row) => carriesThinking(row, target, carryPrefix, droppedThinking),
+  )
+  let sentThinkingPrefix: string | undefined
 
 
   const cacheEditingHeaderLatched = getCacheEditingHeaderLatched() === true
@@ -766,6 +769,7 @@ async function* queryModel(
         output_config: outputConfig,
       }),
     }, { ...ANTHROPIC_IMAGE_LIMITS, maxImagesPerRequest: getContextWindowForModel(options.model) <= 200_000 ? 100 : ANTHROPIC_IMAGE_LIMITS.maxImagesPerRequest }).request
+    sentThinkingPrefix = thinkingPrefixDigest(params.system, params.tools)
     const verdict = judgeAndRecordPrefix(rosterOwnerKey, prefixKey, {
       system: params.system,
       tools: params.tools,
@@ -818,6 +822,7 @@ async function* queryModel(
     uuid: randomUUID(),
     timestamp: new Date().toISOString(),
     effort: effortOnWire,
+    ...(sentThinkingPrefix !== undefined ? { thinkingPrefix: sentThinkingPrefix } : {}),
   })
 
   function* yieldAbortedPartialText(): Generator<AssistantMessage> {

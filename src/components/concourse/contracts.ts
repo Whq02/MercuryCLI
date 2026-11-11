@@ -37,6 +37,7 @@ export interface ConcourseRowV1 {
   effortLabel?: string
   seats: { held: number; ceiling: number } | 'waits' | null
   nowLabel?: string | null
+  nowLive?: true
   finishedUnseen?: true
   workflowsAllowed?: boolean
   kind?: 'oculus' | 'headless'

@@ -1,9 +1,10 @@
+import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { THINKING_BINDING_CONTROLS_BETA_HEADER } from '../../../constants/betas.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getSessionId } from '../../../bootstrap/state.js'
-import type { AttachmentMessage, DeadThinkingMark, Message } from '../../../types/message.js'
+import type { AssistantMessage, AttachmentMessage, DeadThinkingMark, Message } from '../../../types/message.js'
 import { isToolResultMessage } from '../../../utils/messages/merge.js'
 import { createAttachmentMessage } from '../../../utils/attachments/orchestrator.js'
 import type { InputTransformation } from '../../../types/wire.js'
@@ -12,6 +13,7 @@ import { getGlobalConfig } from '../../../utils/config/globalConfig.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { runningBuildTree } from '../../../utils/artifactIdentity.js'
 import { thinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
+import { getModelKnowledgeCutoff } from '../../../utils/model/capabilities.js'
 import { getCanonicalName, getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../../utils/model/providers.js'
 import { servedModelOfAssistantRow } from '../../../utils/model/retainedModel.js'
@@ -19,7 +21,7 @@ import { SPAWN_SWITCH_LABEL } from '../../switchboard/spawnSwitches.js'
 import { consumeLawfulPrefixChange } from '../lawfulPrefixChange.js'
 import { PUBLIC_HOME_SLUG } from '../../privateChannel/channelCore.js'
 import { DEAD_THINKING_PLACEHOLDER } from './deadThinkingPlaceholder.js'
-import { forgetPersistedDropState, persistedDropState, rememberDropState } from './prefixLedger.js'
+import { forgetPersistedDropState, persistedDropState, rememberDropState, withoutCacheControl } from './prefixLedger.js'
 import type { RequestContextPlan } from '../../run/requestContextPlan.js'
 
 type PrefixMismatchBehavior = 'drop_block' | 'error'
@@ -589,6 +591,46 @@ export function isSameModel(a: string, b: string): boolean {
   return getCanonicalName(a) === getCanonicalName(b)
 }
 
+const THINKING_READ_BY: Readonly<Record<string, readonly string[]>> = {
+  'claude-fable-5-2': ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5', 'claude-opus-5-5', 'claude-fable-5', 'claude-fable-5-1'],
+  'claude-fable-5-1': ['claude-opus-5', 'claude-opus-5-5', 'claude-fable-5'],
+  'claude-opus-5-5': ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5'],
+  'claude-sonnet-5-5': ['claude-haiku-5-5'],
+}
+
+export function readsThinkingOf(target: string, writer: string): boolean {
+  const [to, from] = [getCanonicalName(target), getCanonicalName(writer)]
+  return to === from || (THINKING_READ_BY[to]?.includes(from) ?? false)
+}
+
+export function thinkingPrefixDigest(system: unknown, tools: unknown): string {
+  return createHash('sha256').update(JSON.stringify({ system: withoutCacheControl(system), tools: withoutCacheControl(tools) })).digest('hex').slice(0, 32)
+}
+
+export function thinkingCarryRides(reads?: ThinkingBindingReads): boolean {
+  const raw = reads !== undefined && 'env' in reads ? reads.env : flagEnv('MERCURY_THINKING_BINDING')
+  const setting = resolveThinkingBindingSetting(raw)
+  if (setting.behavior !== 'drop_block') return false
+  return setting.explicit || (reads?.firstParty ?? isFirstPartyAnthropicBaseUrl)()
+}
+
+export function carriesThinking(
+  row: AssistantMessage,
+  target: string,
+  prefix: string | undefined,
+  dropped: ReadonlyMap<string, ReadonlySet<number>> = new Map(),
+): boolean {
+  if (isSameModel(row.message.model, target)) return true
+  if (prefix === undefined || row.thinkingPrefix !== prefix || !readsThinkingOf(target, row.message.model)) return false
+  return (dropped.get(row.message.id)?.size ?? 0) === 0
+}
+
+function expectedToCarry(row: AssistantMessage, target: string, standing: string | undefined, dropped: ReadonlyMap<string, ReadonlySet<number>>): boolean {
+  if (isSameModel(row.message.model, target)) return true
+  if (!thinkingCarryRides() || getModelKnowledgeCutoff(row.message.model) !== getModelKnowledgeCutoff(target)) return false
+  return carriesThinking(row, target, standing, dropped)
+}
+
 export function lastServedRow(messages: readonly Message[]): { uuid: string; model: string } | null {
   for (let index = messages.length - 1; index >= 0; index--) {
     const row = messages[index]!
@@ -599,6 +641,14 @@ export function lastServedRow(messages: readonly Message[]): { uuid: string; mod
   return null
 }
 
+function standingThinkingPrefix(messages: readonly Message[]): string | undefined {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const row = messages[index]!
+    if (row.type === 'assistant' && servedModelOfAssistantRow(row) !== undefined) return row.thinkingPrefix
+  }
+  return undefined
+}
+
 export function modelSwitchReceipt(
   owner: string,
   messages: readonly Message[],
@@ -606,7 +656,9 @@ export function modelSwitchReceipt(
 ): { key: string; text: string } | null {
   const previous = lastServedRow(messages)
   if (previous === null || isSameModel(previous.model, currentModel)) return null
-  const foreign = thinkingFromOtherModels(messages, currentModel, isSameModel)
+  const standing = standingThinkingPrefix(messages)
+  const dropped = droppedThinkingMarks(messages)
+  const foreign = thinkingFromOtherModels(messages, currentModel, (_writer, target, row) => expectedToCarry(row, target, standing, dropped))
   if (foreign.count === 0) return null
   const display = (model: string): string => getPublicModelDisplayName(model) ?? model
   const writers = foreign.models.map(display).join(', ')

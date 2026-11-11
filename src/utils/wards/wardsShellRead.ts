@@ -23,6 +23,7 @@ export type ReadCommand = {
   inputInner: number[]
   body: string | undefined
   dialect: ShellDialect
+  around: string | undefined
 }
 
 export type Layer = {
@@ -38,6 +39,7 @@ export type ShellRead = {
   commands: ReadCommand[]
   pipelineSizes: number[]
   exported: Map<string, string[]>
+  homes: readonly string[]
   unread: { why: string; text: string } | undefined
 }
 
@@ -46,6 +48,8 @@ export type ReadWorld = {
   home: string | undefined
   homesRoot: string
   ownNames: readonly string[]
+  user?: string
+  uid?: string
 }
 
 const POSIX_SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'ash', 'fish', 'mksh', 'yash', 'csh', 'tcsh'])
@@ -231,9 +235,20 @@ export function scriptSentToProgram(argv: string[], text: string): string | unde
   return undefined
 }
 
-type Pending = { text: string; dialect: ShellDialect; from: number }
+type Pending = { text: string; dialect: ShellDialect; from: number; body?: string }
 
-function printedBy(command: ReadCommand | undefined): string | undefined {
+const EXPANSION_CAP = 4
+const ALIAS_DEFINITION = /^([^=\s]+)=([\s\S]*)$/
+
+function withPositionals(body: string, args: string[]): string {
+  const plain = (value: string): string => value.replace(/["\\$`]/g, '\\$&')
+  return body.replace(/\$(?:\{([1-9@*])\}|([1-9@*]))/g, (_all, braced: string | undefined, bare: string | undefined) => {
+    const key = braced ?? bare ?? ''
+    return key === '@' || key === '*' ? args.map(plain).join(' ') : plain(args[Number(key) - 1] ?? '')
+  })
+}
+
+export function printedBy(command: ReadCommand | undefined): string | undefined {
   const layer = command === undefined ? undefined : layersOf(command.argv).at(-1)
   if (layer === undefined) return undefined
   return layer.program === 'echo' ? echoText(layer.argv) : layer.program === 'printf' ? printfText(layer.argv) : undefined
@@ -328,6 +343,9 @@ class Reading {
   readonly stageHeads = new Map<string, number>()
   readonly pending: Pending[] = []
   readonly folders: Array<string | undefined> = []
+  readonly functions = new Map<string, string>()
+  readonly aliases = new Map<string, string>()
+  readonly expansions = new Map<string, number>()
   unread: { why: string; text: string } | undefined
   scripts = 0
   cwd: string | undefined
@@ -335,6 +353,8 @@ class Reading {
   constructor(readonly world: ReadWorld) {
     this.cwd = world.cwd
     if (world.home !== undefined) this.scope.set('HOME', [world.home])
+    if (world.user !== undefined) for (const name of ['USER', 'LOGNAME', 'USERNAME']) this.scope.set(name, [world.user])
+    if (world.uid !== undefined) for (const name of ['UID', 'EUID']) this.scope.set(name, [world.uid])
   }
 
   markUnread(why: string, text: string): void {
@@ -355,9 +375,31 @@ class Reading {
       const key = `${stage.pipeline}:${stage.stage}`
       if (!this.stageHeads.has(key)) this.stageHeads.set(key, index)
     }
+    for (const entry of command.env) this.assign(entry.name, [entry.value])
+    for (const layer of layersOf(command.argv)) for (const entry of layer.env) this.assign(entry.name, [entry.value])
     this.follow(command)
     this.pending.push(...nestedScripts(command, index, this.commands))
+    this.expand(command, index)
     return index
+  }
+
+  expand(command: ReadCommand, index: number): void {
+    const head = command.argv[0]
+    if (head === undefined || command.dialect !== 'posix') return
+    const once = (name: string): boolean => {
+      const made = this.expansions.get(name) ?? 0
+      this.expansions.set(name, made + 1)
+      return made < EXPANSION_CAP
+    }
+    const alias = this.aliases.get(head)
+    if (alias !== undefined && once(`alias ${head}`)) this.pending.push({ text: `${alias} ${shellCommandText(command.argv.slice(1))}`.trim(), dialect: 'posix', from: index })
+    const body = this.functions.get(head)
+    if (body !== undefined && command.body === undefined && command.argv.length > 1 && once(`function ${head}`)) this.pending.push({ text: withPositionals(body, command.argv.slice(1)), dialect: 'posix', from: index, body: head })
+    if (programOf(head) !== 'alias') return
+    for (const word of command.argv.slice(1)) {
+      const defined = ALIAS_DEFINITION.exec(word)
+      if (defined !== null) this.aliases.set(defined[1]!, defined[2]!)
+    }
   }
 
   follow(command: ReadCommand): void {
@@ -374,13 +416,13 @@ class Reading {
     if (pushes) this.folders.push(this.cwd)
     const operands = layer.argv.slice(1).filter(word => !/^-[A-Za-z]+$/.test(word))
     const target = operands[0]
-    if (target === undefined) this.cwd = pushes ? undefined : this.world.home
+    if (target === undefined) this.cwd = pushes ? undefined : (this.scope.get('HOME')?.at(-1) ?? this.world.home)
     else if (target === '-' || !wordKnown(target)) this.cwd = undefined
     else this.cwd = absolutePath(command.dialect === 'powershell' ? target.replace(/\\/g, '/') : target, this.cwd, this.world)
   }
 }
 
-type Frame = { background: boolean; stages: readonly Stage[]; body: string | undefined; line: number; dialect: ShellDialect }
+type Frame = { background: boolean; stages: readonly Stage[]; body: string | undefined; line: number; dialect: ShellDialect; around: string | undefined }
 
 const WORD_KINDS = new Set(['word', 'number', 'raw_string', 'string', 'concatenation', 'ansi_c_string', 'translated_string', 'simple_expansion', 'expansion', 'command_substitution', 'process_substitution', 'arithmetic_expansion', 'brace_expression'])
 const WRITE_KEEPERS = new Set(['file_redirect', 'heredoc_redirect', 'herestring_redirect'])
@@ -440,6 +482,8 @@ class PosixWalk {
         return
       case 'function_definition': {
         const name = node.children.find(child => child.type === 'word')?.text
+        const body = node.children.find(child => child.type === 'compound_statement' || child.type === 'subshell')?.text
+        if (name !== undefined && body !== undefined) this.reading.functions.set(name, body)
         this.isolated(() => this.children(node, { ...frame, body: name ?? frame.body, background: false, stages: [] }))
         return
       }
@@ -489,6 +533,18 @@ class PosixWalk {
     }
   }
 
+  userPrintedBy(inner: number[]): string | undefined {
+    if (inner.length !== 1) return undefined
+    const argv = this.reading.commands[inner[0]!]?.argv ?? []
+    const program = programOf(argv[0] ?? '')
+    const { user, uid } = this.reading.world
+    if ((program === 'whoami' || program === 'logname') && argv.length === 1) return user
+    if (program !== 'id') return undefined
+    const flags = argv.slice(1).join('')
+    if (flags === '-un' || flags === '-nu' || flags === '-u-n' || flags === '-n-u') return user
+    return flags === '-u' || flags === '-ru' || flags === '-ur' ? uid : undefined
+  }
+
   variable(node: Node, frame: Frame): Words {
     const name = (node.children.find(child => child.type === 'variable_name') ?? node.children.find(child => child.type === 'special_variable_name'))?.text
     const inner: number[] = []
@@ -520,7 +576,8 @@ class PosixWalk {
         this.node(node, frame)
         const inner: number[] = []
         for (let i = before; i < this.reading.commands.length; i++) inner.push(i)
-        return { values: [UNREAD_PART], inner }
+        const named = node.type === 'command_substitution' ? this.userPrintedBy(inner) : undefined
+        return { values: [named ?? UNREAD_PART], inner }
       }
       case 'arithmetic_expansion':
         this.children(node, frame)
@@ -624,13 +681,15 @@ class PosixWalk {
         inputInner: ownInner,
         body: frame.body,
         dialect: frame.dialect,
+        around: frame.around,
       })
       if (first < 0) first = index
     }
     return first
   }
 
-  redirected(node: Node, frame: Frame): void {
+  redirected(node: Node, outer: Frame): void {
+    const frame = outer.around === undefined ? { ...outer, around: node.text } : outer
     const redirects: ReadRedirect[] = []
     const inputInner: number[] = []
     let input: string | undefined
@@ -656,7 +715,7 @@ class PosixWalk {
     const pipeline = piped === undefined ? undefined : this.reading.pipelineSizes.push(1 + piped.children.filter(part => part.type !== '|' && part.type !== '|&').length) - 1
     const inside = pipeline === undefined ? frame : { ...frame, stages: [...frame.stages, { pipeline, stage: 0 }] }
     const before = this.reading.commands.length
-    if (body === undefined) this.reading.push({ argv: [], env: [], redirects, text: node.text, line: this.lineOf(node, frame), cwd: this.reading.cwd, background: frame.background, stages: inside.stages, input, inner: [], inputInner, body: frame.body, dialect: frame.dialect })
+    if (body === undefined) this.reading.push({ argv: [], env: [], redirects, text: node.text, line: this.lineOf(node, frame), cwd: this.reading.cwd, background: frame.background, stages: inside.stages, input, inner: [], inputInner, body: frame.body, dialect: frame.dialect, around: frame.around })
     else if (body.type === 'command') this.command(body, inside, redirects, input, inputInner)
     else {
       this.node(body, inside)
@@ -666,7 +725,7 @@ class PosixWalk {
         last.input ??= input
         last.inputInner = [...last.inputInner, ...inputInner]
         this.reading.pending.push(...nestedScripts(last, this.reading.commands.length - 1, this.reading.commands).filter(script => script.text === input))
-      } else this.reading.push({ argv: [], env: [], redirects, text: node.text, line: this.lineOf(node, frame), cwd: this.reading.cwd, background: frame.background, stages: inside.stages, input, inner: [], inputInner, body: frame.body, dialect: frame.dialect })
+      } else this.reading.push({ argv: [], env: [], redirects, text: node.text, line: this.lineOf(node, frame), cwd: this.reading.cwd, background: frame.background, stages: inside.stages, input, inner: [], inputInner, body: frame.body, dialect: frame.dialect, around: frame.around })
     }
     for (const part of continuations) {
       if (part !== piped || pipeline === undefined) {
@@ -683,7 +742,8 @@ class PosixWalk {
     }
   }
 
-  pipeline(node: Node, frame: Frame): void {
+  pipeline(node: Node, outer: Frame): void {
+    const frame = outer.around === undefined ? { ...outer, around: node.text } : outer
     const members = node.children.filter(child => child.type !== '|' && child.type !== '|&')
     const pipeline = this.reading.pipelineSizes.push(members.length) - 1
     for (const [stage, member] of members.entries()) this.isolated(() => this.node(member, { ...frame, stages: [...frame.stages, { pipeline, stage }] }))
@@ -773,6 +833,7 @@ class PowerShellWalk {
     const text = this.source
     const made: number[] = []
     const pipeline = this.reading.pipelineSizes.push(1) - 1
+    const begun = this.at
     let stage = 0
     for (;;) {
       const stages = [...outer, { pipeline, stage }]
@@ -827,6 +888,7 @@ class PowerShellWalk {
             inputInner: [],
             body: this.frame.body,
             dialect: 'powershell',
+            around: this.frame.around,
           }),
         )
       if (text[this.at] === '|' && text[this.at + 1] !== '|') {
@@ -838,6 +900,11 @@ class PowerShellWalk {
       break
     }
     this.reading.pipelineSizes[pipeline] = stage + 1
+    const whole = text.slice(begun, this.at).trim()
+    for (const index of made) {
+      const command = this.reading.commands[index]
+      if (command !== undefined && command.around === undefined && stage > 0) command.around = whole
+    }
     return made
   }
 
@@ -964,13 +1031,13 @@ async function readInto(reading: Reading, text: string, frame: Frame, depth: num
     if (parent === undefined) continue
     const cwd = reading.cwd
     reading.cwd = parent.cwd
-    await readInto(reading, script.text, { background: parent.background, stages: parent.stages, body: parent.body, line: parent.line, dialect: script.dialect }, depth + 1)
+    await readInto(reading, script.text, { background: parent.background, stages: parent.stages, body: script.body ?? parent.body, line: parent.line, dialect: script.dialect, around: undefined }, depth + 1)
     reading.cwd = cwd
   }
 }
 
 export async function readShellCommands(text: string, dialect: ShellDialect, world: ReadWorld): Promise<ShellRead> {
   const reading = new Reading(world)
-  await readInto(reading, text, { background: false, stages: [], body: undefined, line: 1, dialect }, 0)
-  return { commands: reading.commands, pipelineSizes: reading.pipelineSizes, exported: reading.exported, unread: reading.unread }
+  await readInto(reading, text, { background: false, stages: [], body: undefined, line: 1, dialect, around: undefined }, 0)
+  return { commands: reading.commands, pipelineSizes: reading.pipelineSizes, exported: reading.exported, homes: reading.scope.get('HOME') ?? [], unread: reading.unread }
 }

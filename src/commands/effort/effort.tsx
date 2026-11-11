@@ -2,6 +2,7 @@ import * as React from 'react'
 import { paintStatusRowReceipt } from '../../components/SwitchboardTagBar.js'
 import { LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
+import { tensorFoldEffortApplied } from '../../services/providers/local/localCallModel.js'
 import type { AppState } from '../../state/AppState.js'
 import type { Message } from '../../types/message.js'
 import type {
@@ -75,6 +76,12 @@ function appliedTruth(
   if (truth.label !== level) {
     return {
       trailing: ` (${model} runs ${truth.label}, the nearest tier in its effort vocabulary)`,
+    }
+  }
+  const applied = tensorFoldEffortApplied(model, level)
+  if (applied !== undefined && applied !== level) {
+    return {
+      trailing: ` (${model}: asked ${level} · applied ${applied})`,
     }
   }
   return {}

@@ -963,6 +963,47 @@ function patternsFor(rule: WardRule): RegExp[] {
   return home.length === 0 && windows.length === 0 && other.length === 0 ? compiled : [...compiled, ...home, ...windows, ...other]
 }
 
+type VerbLed = { verb: RegExp; sticky: RegExp }
+
+const verbLedPatterns = new WeakMap<RegExp, VerbLed | null>()
+const VERB_LED_SOURCE = /^\\b(rm|\(\?:[^()]*\))\\b\(\?=/
+const SEGMENT_ENDS = new Set(['\n', ';', '|', '&'])
+
+function verbLedOf(re: RegExp): VerbLed | null {
+  let cached = verbLedPatterns.get(re)
+  if (cached === undefined) {
+    const lead = VERB_LED_SOURCE.exec(re.source)
+    const flags = re.flags.replace(/[gy]/g, '')
+    try {
+      cached = lead === null ? null : { verb: new RegExp(`\\b${lead[1]}\\b`, `${flags}g`), sticky: new RegExp(re.source, `${flags}y`) }
+    } catch {
+      cached = null
+    }
+    verbLedPatterns.set(re, cached)
+  }
+  return cached
+}
+
+function firstVerbMatch(view: string, lead: VerbLed, work?: WardWork): RegExpExecArray | null {
+  lead.verb.lastIndex = 0
+  let tested = -1
+  for (let found = lead.verb.exec(view); found !== null; found = lead.verb.exec(view)) {
+    if (work) countWardWork(work, 'steps')
+    if (found.index < tested) continue
+    let end = found.index
+    while (end < view.length && !SEGMENT_ENDS.has(view[end]!)) end++
+    tested = end
+    if (work) {
+      countWardWork(work, 'regexEvaluations')
+      countWardWork(work, 'characters', end - found.index)
+    }
+    lead.sticky.lastIndex = found.index
+    const matched = lead.sticky.exec(view)
+    if (matched !== null) return matched
+  }
+  return null
+}
+
 function isCommentLine(line: string): boolean {
   const t = line.trimStart()
   return t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')
@@ -1276,8 +1317,9 @@ function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, ta
       if (work && fold) regexWork(work, line)
       const view = fold ? line.trim().replace(BLANK_RUN, ' ') : line
       for (const re of regexes) {
-        if (work) regexWork(work, view)
-        const m = view.match(re)
+        const lead = target.scope === 'bash' ? verbLedOf(re) : null
+        if (work && lead === null) regexWork(work, view)
+        const m = lead === null ? view.match(re) : firstVerbMatch(view, lead, work)
         if (!m || m[0] === undefined) continue
         if (rule.newContentOnly && target.oldText !== undefined) {
           const previous = fold ? (oldFolded ??= target.oldText.replace(BLANK_RUN, ' ')) : target.oldText

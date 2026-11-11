@@ -9,7 +9,7 @@ FILES · orchard     │ │                                                    
   ↵ or click…       │ │ › Auto-compact                      on                                   │ │
                     │ │   Auto-compact window               auto                                 │ │
 VITALS              │ │   Session concourse                 on                                   │ │
-  · spend —         │ │   Concourse coordinator             off · `mercury --coordinator-on`     │ │
+  · spend —         │ │   Concourse coordinator             off · `mercury --coordinator-on` t…  │ │
   · ctx — · —       │ │   Seats                             17 · this machine's reading          │ │
   · health — run…   │ │   Tips                              on                                   │ │
                     │ │   Reduced motion                    off                                  │ │

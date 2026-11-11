@@ -264,6 +264,10 @@ function paginate<T>(
   }
 }
 
+function pageWord(appliedOffset?: number): string {
+  return appliedOffset !== undefined && appliedOffset > 0 ? 'This page' : 'First page'
+}
+
 function paginationNote(appliedLimit?: number, appliedOffset?: number): string {
   const parts: string[] = []
   if (appliedLimit !== undefined) parts.push(`first ${appliedLimit} results`)
@@ -718,14 +722,15 @@ export const GrepTool = buildTool({
       case 'count': {
         const body = data.content ? data.content : 'No matches found'
         const matches = data.numMatches ?? 0
-        text = `${body}\n${matches} ${plural(matches, 'match', 'matches')} across ${data.numFiles} ${plural(data.numFiles, 'file')}${note}`
+        const counted = `${matches} ${plural(matches, 'match', 'matches')} across ${data.numFiles} ${plural(data.numFiles, 'file')}`
+        text = `${body}\n${data.appliedLimit === undefined ? counted : `${pageWord(data.appliedOffset)}: ${counted}; more exist`}${note}`
         break
       }
       default:
         text =
           data.numFiles === 0
             ? 'No files found'
-            : `Found ${data.numFiles} ${plural(data.numFiles, 'file')}${note}\n${data.filenames.join('\n')}`
+            : `${data.appliedLimit === undefined ? `Found ${data.numFiles} ${plural(data.numFiles, 'file')}` : `${pageWord(data.appliedOffset)}: ${data.numFiles} ${plural(data.numFiles, 'file')}; more exist`}${note}\n${data.filenames.join('\n')}`
     }
     return { tool_use_id: toolUseID, type: 'tool_result' as const, content: text + engineNote + incompleteNote }
   },

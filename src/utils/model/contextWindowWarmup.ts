@@ -66,13 +66,13 @@ export async function contextWindowSourceReady(model: string): Promise<boolean> 
 
 async function localWindowKnown(model: string): Promise<boolean> {
   const { localRecordFor } = await import('../../services/providers/local/localCatalogue.js')
-  const { heldLocalWindow, localPlannedWindow, localWindowApplication, localWindowSettingOf } = await import('../../services/providers/local/localWindow.js')
+  const { heldLocalWindow, localPlannedWindow, localWindowApplication, localWindowHeldUnread, localWindowSettingOf } = await import('../../services/providers/local/localWindow.js')
   const record = localRecordFor(model)
   if (record === undefined) return false
   const application = localWindowApplication(record)
   if (application === 'request' || application === 'load') {
     const hold = heldLocalWindow(record)
-    if (hold === undefined || hold.setting !== localWindowSettingOf(record)) return false
+    if (hold === undefined || hold.setting !== localWindowSettingOf(record) || localWindowHeldUnread(hold, record)) return false
   }
   return localPlannedWindow(record) !== undefined
 }
@@ -80,7 +80,7 @@ async function localWindowKnown(model: string): Promise<boolean> {
 async function awaitLocalWindow(model: string, estTokens: number, timeoutMs: number): Promise<boolean> {
   const { localRecordFor } = await import('../../services/providers/local/localCatalogue.js')
   const { refreshLocalDiscovery } = await import('../../services/providers/local/localDiscovery.js')
-  const { decideLocalWindow, ensureLocalWindowTruth, heldLocalWindow, localPlannedWindow, localWindowApplication, localWindowSettingOf } = await import('../../services/providers/local/localWindow.js')
+  const { decideLocalWindow, ensureLocalWindowTruth, heldLocalWindow, localPlannedWindow, localWindowApplication, localWindowHeldUnread, localWindowSettingOf } = await import('../../services/providers/local/localWindow.js')
   let record = localRecordFor(model)
   if (record === undefined) {
     await withTimeout(refreshLocalDiscovery(), timeoutMs)
@@ -91,11 +91,15 @@ async function awaitLocalWindow(model: string, estTokens: number, timeoutMs: num
     record = localRecordFor(model)
   }
   if (record === undefined) return false
+  if (record.factsUnread === true && heldLocalWindow(record) === undefined) {
+    await withTimeout(refreshLocalDiscovery({ force: true, timeoutMs }), timeoutMs)
+    record = localRecordFor(model) ?? record
+  }
   const application = localWindowApplication(record)
   if (application === 'request' || application === 'load') {
     const setting = localWindowSettingOf(record)
     const hold = heldLocalWindow(record)
-    if (hold === undefined || hold.setting !== setting) {
+    if (hold === undefined || hold.setting !== setting || localWindowHeldUnread(hold, record)) {
       const truth = await withTimeout(ensureLocalWindowTruth(record, setting), timeoutMs)
       if (truth === undefined) return false
       decideLocalWindow(record, estTokens, setting, truth)

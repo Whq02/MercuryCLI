@@ -42,6 +42,7 @@ export function concourseNowLabel(
   rec: Parameters<typeof concourseRecordState>[0] & Pick<ConcourseWorkerRecordV1, 'sessionId' | 'workspaceId' | 'spawnedAt' | 'parkReason' | 'parkIntent' | 'parkRefused' | 'retired'>,
   liveness: { needsYou: boolean; alive: boolean },
   nowMs: number,
+  activity?: TailActivity | null,
 ): string | null {
   const state = concourseRecordState(rec, liveness)
   const alive = liveness.alive
@@ -59,7 +60,9 @@ export function concourseNowLabel(
           : (state === 'working' || state === 'ready-to-review') && rec.parkRefused !== undefined
             ? `${PARK_REFUSED_NOW_LEAD}${sanitizeLabel(rec.parkRefused.reason)}`
             : state === 'working' || state === 'ready-to-review' || state === 'needs-you'
-              ? tailActivityLabel(rec)
+              ? activity !== undefined
+                ? activityNowLabel(activity)
+                : tailActivityLabel(rec)
               : state === 'attached'
                 ? 'with you'
                 : state === 'stopped' && rec.retired !== undefined
@@ -166,6 +169,10 @@ export function tailActivity(rec: { sessionId: string; workspaceId: string }): T
 export function activityNowLabel(activity: TailActivity | null): string | null {
   if (activity === null) return null
   return activity.kind === 'tool' && activity.settled === true ? MODEL_TURN_NOW_WORD : activity.label
+}
+
+export function nowWordsAreLive(activity: TailActivity | null | undefined, nowLabel: string | null): boolean {
+  return activity !== null && activity !== undefined && activity.kind === 'tool' && nowLabel !== null && nowLabel === activityNowLabel(activity)
 }
 
 export function tailActivityLabel(rec: { sessionId: string; workspaceId: string }): string | null {
@@ -999,7 +1006,8 @@ export async function buildConcourseSnapshot(
     const state = concourseRecordState(rec, { needsYou: needsYouSessions.has(rec.sessionId), alive })
     const projectName = basename(rec.workspaceId) || rec.workspaceId
     workspaceOfRow.set(rec.sessionId, rec.workspaceId)
-    const nowLabel = concourseNowLabel(rec, { alive, needsYou: needsYouSessions.has(rec.sessionId) }, nowMs)
+    const activity = state === 'working' ? tailActivity(rec) : undefined
+    const nowLabel = concourseNowLabel(rec, { alive, needsYou: needsYouSessions.has(rec.sessionId) }, nowMs, activity)
     return {
       sessionId: rec.sessionId,
       title: sanitizeLabel(sessionTitleOf(rec, () => headBriefLabel(rec, 48))),
@@ -1009,6 +1017,7 @@ export async function buildConcourseSnapshot(
       ageLabel: ageLabelOf(nowMs, rec.spawnedAt),
       seats: null,
       nowLabel,
+      ...(nowWordsAreLive(activity, nowLabel) ? { nowLive: true as const } : {}),
       ...(rec.bornBlankAt !== undefined && rec.lastDeliveryAt === undefined ? { newborn: true as const } : {}),
       ...(state === 'ready-to-review' && rec.lastTurnSettledAt !== undefined && rec.lastTurnSettledAt > (seenAt[rec.sessionId] ?? 0) ? { finishedUnseen: true as const } : {}),
       ...(rec.workflowsAllowed === true ? { workflowsAllowed: true } : {}),

@@ -1,5 +1,5 @@
 import { readdirSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { homedir, userInfo } from 'node:os'
 import { posix } from 'node:path'
 import { getShellCwd } from '../Shell.js'
 import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../envUtils.js'
@@ -7,7 +7,7 @@ import { CREDENTIALS_SERVICE_SUFFIX, getMacOsKeychainStorageServiceName, getRawS
 import { UNREAD_PART, layersOf, readShellCommands, type Layer, type ReadCommand, type ShellRead } from '../wards/wardsShellRead.js'
 import { credentialStorePath, mercurySecretPath, protectedPathForms, spelling } from './protectedPaths.js'
 import { pinnedCommandAnalysis, peelWrappers, PARSE_ABORTED, extractHeredocs, type Node } from './decision/commandAnalysis.js'
-import { namesMercuryImage, runtimeWritePath, runtimeProcessRefusal } from './runtimeProtection.js'
+import { namesMercuryProcess, runtimeWritePath, runtimeProcessRefusal } from './runtimeProtection.js'
 import { expandPath } from '../path.js'
 
 function words(text: string, powershell: boolean): Array<string | { op?: string }> {
@@ -409,10 +409,20 @@ const SECRET_NAME_SAMPLES = ['.credentials.json', '.provider-secrets.json', 'mcp
 const CONVENTIONAL_HOME = /^(?:\/(?:users|home)\/[^/]+|\/root|[a-z]:\/users\/[^/]+)\/\.mercury$/
 const DYNAMIC_PART = /[*?[{$]/
 
+function currentUser(): { user?: string; uid?: string } {
+  const named = process.env.USER || process.env.LOGNAME || process.env.USERNAME
+  try {
+    const info = userInfo()
+    return { user: named || info.username, uid: String(info.uid) }
+  } catch {
+    return named ? { user: named } : {}
+  }
+}
+
 async function readForFloors(command: string, powershell: boolean, cwd: string): Promise<ShellRead | null> {
   try {
     const home = (process.env.HOME || process.env.USERPROFILE || homedir()).replace(/\\/g, '/')
-    const read = await readShellCommands(command, powershell ? 'powershell' : 'posix', { cwd: cwd.replace(/\\/g, '/'), home, homesRoot: posix.dirname(home), ownNames: [] })
+    const read = await readShellCommands(command, powershell ? 'powershell' : 'posix', { cwd: cwd.replace(/\\/g, '/'), home, homesRoot: posix.dirname(home), ownNames: [], ...currentUser() })
     return read
   } catch {
     return null
@@ -512,6 +522,11 @@ function spellingsOf(word: string): string[] {
   return out
 }
 
+function underOtherHomes(word: string, homes: readonly string[]): string[] {
+  if (word !== '~' && !word.startsWith('~/')) return []
+  return homes.map(home => home + word.slice(1))
+}
+
 function readsWholeTree(layer: Layer): boolean {
   const { program, argv } = layer
   const flagged = (letters: RegExp, ...long: string[]): boolean => argv.slice(1).some(word => (word.startsWith('--') ? long.includes(word.split('=')[0]!) : /^-[A-Za-z]+$/.test(word) && letters.test(word)))
@@ -582,6 +597,11 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
         if (mercurySecretPath(candidate, here) !== null || couldNameSecret(candidate, here, homes)) return redirect.target
       }
     }
+    for (const word of simple.input === undefined ? [] : simple.input.split(/\s+/)) {
+      for (const candidate of spellingsOf(word)) {
+        if (mercurySecretPath(candidate, here) !== null || couldNameSecret(candidate, here, homes)) return word
+      }
+    }
     for (const layer of layers) {
       const item = keychainItemRead(layer)
       if (item !== null) return item
@@ -590,7 +610,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const lists = layer.program === 'find' || layer.program === 'ls' || layer.program === 'get-childitem' || layer.program === 'gci' || layer.program === 'dir'
       const feeds = lists && (fed.has(at) || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')))
       for (const word of [...layer.argv.slice(1), ...roots]) {
-        for (const candidate of spellingsOf(word)) {
+        for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {
           if (mercurySecretPath(candidate, here) !== null || couldNameSecret(candidate, here, homes)) return word
           if ((tree || feeds) && namesMercuryHome(candidate, here, homes)) return word
         }
@@ -790,7 +810,13 @@ async function readSelfProtection(command: string, powershell: boolean, cwd: str
           for (const fed of layersOf(feeder.argv)) {
             const record = fed.argv.slice(1).find(word => withinMercuryRecords(word, there, homes))
             if (record !== undefined) return 'Killing a process named by ' + record + ' is refused: that file is Mercury’s own record of its running process or daemon.'
-            const pattern = PATTERN_READERS.has(fed.program) ? fed.argv.slice(1).find(word => !word.startsWith('-') && namesMercuryImage(word)) : undefined
+            let pattern: string | undefined
+            for (const word of PATTERN_READERS.has(fed.program) ? fed.argv.slice(1) : []) {
+              if (!word.startsWith('-') && (await namesMercuryProcess(word))) {
+                pattern = word
+                break
+              }
+            }
             if (pattern !== undefined) return 'Killing the processes that match ' + pattern + ' is refused: it can terminate Mercury’s running process or daemon. Use the pid of the unrelated process instead.'
           }
         }

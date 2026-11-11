@@ -3,6 +3,8 @@ import { useMemo } from 'react'
 import { Box, Text } from '../../ink.js'
 import { resolveThemeName } from './resolveThemeName.js'
 import { DEBUG_TOOL_NAME } from '../../tools/DebugTool/prompt.js'
+import { EVAL_TOOL_NAME } from '../../tools/EvalTool/constants.js'
+import type { Tool } from '../../Tool.js'
 import { truncateToLines } from '../../utils/stringUtils.js'
 import { shouldShowAlwaysAllowOptions } from '../../utils/permissions/permissionsLoader.js'
 import { ConsentBodyText } from './ConsentBodyText.js'
@@ -16,6 +18,20 @@ import { usePermissionRequestLogging } from './hooks.js'
 import type { PermissionRequestProps } from './PermissionRequest.js'
 
 const MCP_SUFFIX = ' (MCP)'
+const RUNS_PROJECT_PROGRAMS: ReadonlySet<string> = new Set([DEBUG_TOOL_NAME, EVAL_TOOL_NAME, 'Launch', 'Test'])
+
+function sentOrStarted(tool: Tool, input: Record<string, unknown>, shown: string): string[] {
+  const lines = (tool.shellCommandOf?.(input) ?? '').split('\n')
+  if (tool.name === 'Service' && input.op === 'input' && typeof input.text === 'string') lines.push(...input.text.split('\n'))
+  if (tool.name === 'Service' && input.op === 'start') {
+    for (const [name, value] of Object.entries((input.env ?? {}) as Record<string, unknown>)) lines.push(`${name}=${String(value)}`)
+    if (typeof input.cwd === 'string') lines.push(`in ${input.cwd}`)
+  }
+  if (tool.name === 'Journey' && Array.isArray(input.steps)) {
+    for (const step of input.steps as Array<{ kind?: unknown; cwd?: unknown }>) if (step?.kind === 'command.run' && typeof step.cwd === 'string') lines.push(`in ${step.cwd}`)
+  }
+  return [...new Set(lines)].filter(line => line.trim() !== '' && !shown.includes(line))
+}
 
 type FallbackOptionValue = 'yes' | 'yes-dont-ask-again' | 'no'
 
@@ -34,13 +50,13 @@ export function FallbackPermissionRequest({
   const rawName = tool.userFacingName(toolUseConfirm.input as never) ?? ''
   const isMcpNamed = rawName.endsWith(MCP_SUFFIX)
   const displayName = isMcpNamed ? rawName.slice(0, -MCP_SUFFIX.length) : rawName
-  const startsPrograms = tool.shellCommandOf !== undefined || tool.name === DEBUG_TOOL_NAME
+  const runsCode = tool.shellCommandOf !== undefined || RUNS_PROJECT_PROGRAMS.has(tool.name)
 
   const options = useMemo<PermissionPromptOption<FallbackOptionValue>[]>(() => {
     const result: PermissionPromptOption<FallbackOptionValue>[] = [
       { label: 'Yes', value: 'yes', feedbackConfig: { type: 'accept' } },
     ]
-    if (shouldShowAlwaysAllowOptions() && !startsPrograms) {
+    if (shouldShowAlwaysAllowOptions() && !runsCode) {
       result.push({
         label: (
           <Text>
@@ -56,7 +72,7 @@ export function FallbackPermissionRequest({
       feedbackConfig: { type: 'reject' },
     })
     return result
-  }, [displayName, startsPrograms])
+  }, [displayName, runsCode])
 
   function handleSelect(value: FallbackOptionValue, feedback?: string): void {
     switch (value) {
@@ -89,7 +105,7 @@ export function FallbackPermissionRequest({
   })
   const suffix = isMcpNamed ? <Text dimColor>{MCP_SUFFIX}</Text> : null
   const shown = typeof useMessage === 'string' ? useMessage : ''
-  const startedCommands = (tool.shellCommandOf?.(toolUseConfirm.input) ?? '').split('\n').filter(line => line !== '' && !shown.includes(line))
+  const startedCommands = sentOrStarted(tool, toolUseConfirm.input, shown)
 
   return (
     <PermissionDialog title={title} workerBadge={workerBadge}>

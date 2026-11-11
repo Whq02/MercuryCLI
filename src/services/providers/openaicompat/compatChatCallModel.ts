@@ -457,6 +457,27 @@ type AttemptOutcome =
   | { kind: 'cancelled' }
   | { kind: 'fault'; fault: CompatFault; retryEligible: boolean; invisibleOnly?: boolean }
 
+export function laneExtrasWithOperatorEffort(
+  profile: Pick<CompatLaneProfile, 'lane' | 'buildExtras' | 'refusesEffort'>,
+  effortView: ReturnType<typeof effortVocabularyFor>,
+  args: Parameters<CompatLaneProfile['buildExtras']>[0],
+): Record<string, unknown> {
+  const operatorEffort =
+    effortView.kind === 'provider' && effortView.source === 'operator' && effortView.vocabulary.length > 0
+      ? !args.thinkingEnabled && effortView.thinkingGated
+        ? thinkingOffWireEffort(effortView.vocabulary)
+        : args.effortValue !== undefined
+          ? effortView.vocabulary.includes(args.effortValue)
+            ? args.effortValue
+            : nearestSupportedWireEffort(args.effortValue, effortView.vocabulary)
+          : undefined
+      : undefined
+  const builtExtras = profile.buildExtras(args)
+  return profile.lane !== 'openai-compat' && operatorEffort !== undefined && profile.refusesEffort?.(operatorEffort) !== true && builtExtras.reasoning_effort === undefined && builtExtras.reasoning === undefined
+    ? { ...builtExtras, reasoning_effort: operatorEffort }
+    : builtExtras
+}
+
 export async function* compatChatCallModel(
   profile: CompatLaneProfile,
   params: CompatCallModelParams,
@@ -584,31 +605,18 @@ export async function* compatChatCallModel(
     }).messages
   }
   const mappedMessages = mapForRequest(preparedMessages)
-  const operatorEffort =
-    effortView.kind === 'provider' && effortView.source === 'operator' && effortView.vocabulary.length > 0
-      ? !thinkingEnabled && effortView.thinkingGated
-        ? thinkingOffWireEffort(effortView.vocabulary)
-        : effortValue !== undefined
-          ? effortView.vocabulary.includes(effortValue)
-            ? effortValue
-            : nearestSupportedWireEffort(effortValue, effortView.vocabulary)
-          : undefined
-      : undefined
   const slotKey = plan.conversationKey ?? cacheDomainKey
   const makeRequestExtra = (): Record<string, unknown> => {
-    const builtExtras = profile.buildExtras({
-      wireModel,
-      effortValue,
-      thinkingEnabled,
-      maxOutputTokensOverride: fittedOutputOverride,
-      conversationKey: slotKey,
-      cacheDomainKey,
-      crewmate: options.agentId !== undefined,
-    })
     const extra = {
-      ...(profile.lane !== 'openai-compat' && operatorEffort !== undefined && profile.refusesEffort?.(operatorEffort) !== true && builtExtras.reasoning_effort === undefined && builtExtras.reasoning === undefined
-        ? { ...builtExtras, reasoning_effort: operatorEffort }
-        : builtExtras),
+      ...laneExtrasWithOperatorEffort(profile, effortView, {
+        wireModel,
+        effortValue,
+        thinkingEnabled,
+        maxOutputTokensOverride: fittedOutputOverride,
+        conversationKey: slotKey,
+        cacheDomainKey,
+        crewmate: options.agentId !== undefined,
+      }),
       ...(profile.lane === 'openai-compat' || profile.lane === 'openrouter' ? { prompt_cache_key: cacheDomainKey } : {}),
     }
     return extra
