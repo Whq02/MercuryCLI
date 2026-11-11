@@ -145,6 +145,7 @@ import {
   getMercuryMcpConfigs,
   filterMcpServersByPolicy,
   mcpServersSkippedForApprovalLines,
+  mcpServersSkippedForTrustLine,
 } from '../services/mcp/config.js'
 import { performMCPOAuthFlow } from '../services/mcp/auth.js'
 import type {
@@ -435,6 +436,8 @@ export async function runHeadless(
   }
   const skippedHooks = hooksSkippedForTrustLine()
   if (skippedHooks !== null && options.door !== 'wire') process.stderr.write(`${GLYPH.warn} ${skippedHooks}\n`)
+  const skippedServers = mcpServersSkippedForTrustLine()
+  if (skippedServers !== null && options.door !== 'wire') process.stderr.write(`${GLYPH.warn} ${skippedServers}\n`)
   if (options.door !== 'wire') {
     for (const withheld of toolsWithheldByDeny(getAllBaseTools(), getAppState().toolPermissionContext)) {
       process.stderr.write(`${GLYPH.warn} ${withheldByRuleWords(withheld.tool, withheld.rule)}\n`)

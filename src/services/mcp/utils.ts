@@ -339,6 +339,7 @@ type McpDefinitionRecord = {
   args?: string[]
   url?: string
   env?: Record<string, string>
+  headersHelper?: string
   unexpanded?: McpUnexpandedStrings
 }
 
@@ -355,9 +356,11 @@ export function mcpConfigAsWritten(config: McpServerConfig | ScopedMcpServerConf
 }
 
 export function projectMcpServerDefinitionDigest(config: McpServerConfig | ScopedMcpServerConfig): string {
+  const record = config as McpDefinitionRecord
   const definition = {
     ...mcpConfigAsWritten(config),
-    env: Object.keys((config as McpDefinitionRecord).env ?? {}).sort(),
+    env: Object.keys(record.env ?? {}).sort(),
+    ...(typeof record.headersHelper === 'string' ? { headersHelper: record.headersHelper } : {}),
     ...('command' in config ? { cwd: process.cwd() } : {}),
   }
   return createHash('sha256').update(JSON.stringify(sortKeysDeep(definition))).digest('hex').slice(0, 16)
