@@ -185,8 +185,10 @@ export function modelThinkingAlwaysOn(model: string): boolean {
 
 export function modelNarratesInThinkingBlocks(model: string): boolean {
   if (isCarrierShapedId(model)) return false
-  const canonical = getCanonicalName(familyDefaultsModel(model))
-  return canonical === 'claude-opus-5-5' || canonical === 'claude-fable-5-2'
+  const firstParty = familyDefaultsModel(model).toLowerCase()
+  const canonical = getCanonicalName(firstParty)
+  if (canonical === 'claude-fable-5') return !firstParty.includes('mythos')
+  return canonical === 'claude-opus-5-5' || canonical === 'claude-sonnet-5-5' || canonical === 'claude-fable-5-2' || canonical === 'claude-fable-5-1'
 }
 
 export function modelSupportsForcedToolChoice(model: string): boolean {
@@ -568,6 +570,29 @@ export function has1mContext(model: string): boolean {
   return /\[1m\]/i.test(model)
 }
 
+function modelIsNatively1M(model: string): boolean {
+  if (isCarrierShapedId(model)) return false
+  const firstParty = familyDefaultsModel(model).toLowerCase()
+  const canonical = getCanonicalName(firstParty)
+  return (
+    canonical === 'claude-haiku-5-5' ||
+    canonical.includes('sonnet-5') ||
+    canonical.includes('opus-5') ||
+    canonical.includes('fable-5') ||
+    firstParty.includes('opus-4-7') ||
+    firstParty.includes('opus-4-8')
+  )
+}
+
+function modelNeeds1MHeader(model: string): boolean {
+  const canonical = getCanonicalName(familyDefaultsModel(model))
+  return canonical === 'claude-sonnet-4-5' || canonical === 'claude-sonnet-4'
+}
+
+export function context1mNeedsUnsentHeader(model: string): boolean {
+  return modelNeeds1MHeader(model.replace(/\[1m\]/i, '')) && isClaudeAISubscriber()
+}
+
 export function modelSupports1M(model: string): boolean {
   if (is1mContextDisabled()) {
     return false
@@ -660,17 +685,17 @@ function baseResolveContextWindow(
         fallbackReason: 'unverified [1m] suffix ignored; resolved as the base id',
       }
     }
-    const gptBase = model.replace(/\[1m\]/i, '')
-    if (!parseGptModelId(gptBase)) {
+    const unsuffixed = model.replace(/\[1m\]/i, '')
+    if (modelSupports1M(unsuffixed) && !context1mNeedsUnsentHeader(unsuffixed)) {
       return finish({ effectiveWindow: 1_000_000, source: 'suffix-1m' })
     }
-    const base = resolveContextWindow(gptBase, betas, requestedMode)
+    const base = resolveContextWindow(unsuffixed, betas, requestedMode)
     return {
       ...base,
       model,
       activation: {
         kind: 'unavailable',
-        reason: '[1m] is not a provider-verified activation path for GPT engine ids (CX-14)',
+        reason: parseGptModelId(unsuffixed) ? '[1m] is not a provider-verified activation path for GPT engine ids (CX-14)' : '[1m] is not a provider-verified activation path for this model',
       },
       fallbackReason: 'unverified [1m] suffix ignored; resolved as the base id',
     }
@@ -708,17 +733,7 @@ function baseResolveContextWindow(
     })
   }
 
-  const firstParty = familyDefaultsModel(model).toLowerCase()
-  const firstPartyCanonical = getCanonicalName(firstParty)
-  if (
-    !isCarrierShapedId(model) &&
-    (firstPartyCanonical === 'claude-haiku-5-5' ||
-      firstPartyCanonical.includes('sonnet-5') ||
-      firstPartyCanonical.includes('opus-5') ||
-      firstPartyCanonical.includes('fable-5') ||
-      firstParty.includes('opus-4-7') ||
-      firstParty.includes('opus-4-8'))
-  ) {
+  if (modelIsNatively1M(model)) {
     if (is1mContextDisabled()) {
       return finish({
         effectiveWindow: MODEL_CONTEXT_WINDOW_DEFAULT,
@@ -1083,7 +1098,7 @@ export const getAllModelBetas = memoize((model: string): string[] => {
   if (isClaudeAISubscriber()) {
     betaHeaders.push(OAUTH_BETA_HEADER)
   }
-  if (has1mContext(model)) {
+  if (has1mContext(model) && modelSupports1M(model) && !modelIsNatively1M(model) && !isClaudeAISubscriber()) {
     betaHeaders.push(CONTEXT_1M_BETA_HEADER)
   }
 

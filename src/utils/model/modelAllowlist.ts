@@ -2,6 +2,7 @@ import { getInitialSettings } from '../settings/settings.js'
 import { isModelFromDisabledProvider, isProviderDisabled } from '../../services/providers/disabledProviders.js'
 import { classifyModelRoute } from '../../services/providers/idSpaces.js'
 import { isModelAlias } from './aliases.js'
+import { DECLARED_GENERATION_STEMS, parseFirstPartyGeneration } from './configs.js'
 import { FIRST_PARTY_FAMILY_WORDS, isModelFamilyWord, routeOfFamilyWord } from './modelFamilies.js'
 import { parseUserSpecifiedModel } from './model.js'
 import { resolveOverriddenModel } from './modelStrings.js'
@@ -15,6 +16,11 @@ function normalize(value: string): string {
 
 function resolvedOf(value: string): string {
   return isModelAlias(value) ? normalize(parseUserSpecifiedModel(value)) : value
+}
+
+function declaredGenerationOf(id: string): string | undefined {
+  const stem = parseFirstPartyGeneration(id)?.stem
+  return stem !== undefined && DECLARED_GENERATION_STEMS.has(stem) ? stem : undefined
 }
 
 function inFamily(word: string, resolved: string): boolean {
@@ -65,8 +71,12 @@ export function isModelAllowed(model: string): boolean {
     }
   }
 
-  const prefixMatches = (prefix: string): boolean =>
-    candidateResolved === prefix || candidateResolved.startsWith(`${prefix}-`)
+  const asked = declaredGenerationOf(candidateResolved)
+  const prefixMatches = (prefix: string): boolean => {
+    if (candidateResolved !== prefix && !candidateResolved.startsWith(`${prefix}-`)) return false
+    const named = DECLARED_GENERATION_STEMS.has(prefix) ? declaredGenerationOf(prefix) : undefined
+    return named === undefined || asked === undefined || named === asked
+  }
   for (const entry of entries) {
     if (isModelFamilyWord(entry) || isModelAlias(entry)) continue
     if (prefixMatches(entry)) return true

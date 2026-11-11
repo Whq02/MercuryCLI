@@ -11,7 +11,7 @@ import {
   describeComputedDefaultRow,
   isChooseAModel,
 } from './computedDefault.js'
-import { getContextWindowForModel, has1mContext } from './capabilities.js'
+import { context1mNeedsUnsentHeader, getContextWindowForModel, has1mContext } from './capabilities.js'
 import { gptDisplayName } from '../../services/providers/openai/gptPins.js'
 import { isMistralModelId } from '../../services/providers/mistral/mistralPins.js'
 import { resolveInternalModel } from './internalModels.js'
@@ -295,7 +295,7 @@ export function getPublicModelDisplayName(model: string): string | null {
   if (key !== undefined) {
     const base = DISPLAY_NAMES[key]
     if (base !== undefined) {
-      return hasSuffix && ONE_M_TWIN_KEYS.has(key) ? `${base} (1M context)` : base
+      return hasSuffix && ONE_M_TWIN_KEYS.has(key) && !context1mNeedsUnsentHeader(model) ? `${base} (1M context)` : base
     }
   }
   if (/^grok-/i.test(bare)) {
@@ -411,7 +411,7 @@ export function getMarketingNameForModel(id: string): string | null {
   if (key !== undefined) {
     const base = MARKETING_NAMES[key]
     if (base !== undefined) {
-      return hasSuffix && ONE_M_TWIN_KEYS.has(key) ? `${base} (with 1M context)` : base
+      return hasSuffix && ONE_M_TWIN_KEYS.has(key) && !context1mNeedsUnsentHeader(id) ? `${base} (with 1M context)` : base
     }
   }
   const gptName = gptDisplayName(bare)
