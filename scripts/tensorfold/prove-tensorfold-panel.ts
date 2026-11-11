@@ -200,6 +200,8 @@ section('an installed engine older than the supported release: one line names th
   const supported = (await import('../../src/services/tensorfold/starting.ts')).TENSORFOLD_RELEASE
   const LINE = `TensorFold ${supported} is supported, 1.2.2 is installed · brew upgrade ashhart/tensorfold/tensorfold`
   check('the fixture engine is 1.2.2 and the build supports a newer release', found !== null && found.version === '1.2.2' && supported === '1.2.5', `${found?.version} ${supported}`)
+  const page = (await import('node:fs')).readFileSync(join(import.meta.dir, '..', '..', 'docs', 'TENSORFOLD.md'), 'utf8')
+  check('the page shows the line with the release this build supports and says Mercury upgrades nothing itself', page.includes(`\`${LINE}\``) && /serves\s+the\s+installed\s+engine\s+as\s+it\s+stands\s+and\s+upgrades\s+nothing\s+itself/.test(page), 'docs/TENSORFOLD.md')
   const older = await scene.readTensorFoldPanelFacts(base)
   check('on a Mac with Homebrew the line names the supported release, the installed one and brew upgrade with the formula', older.newer === LINE, String(older.newer))
   const at = async (version: string): Promise<string | undefined> => (await scene.readTensorFoldPanelFacts({ ...base, engine: { ...found!, version } })).newer

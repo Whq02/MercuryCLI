@@ -37,7 +37,7 @@ const withThousands = (n: number): string => String(n).replace(/\B(?=(\d{3})+(?!
 const oneLine = (s: string): string => s.replace(/[\r\n]+/g, ' ')
 const sigSafe = (s: string): string => s.replace(/[,<>\r\n]+/g, '-')
 
-function observationText(text: string): string {
+export function observationText(text: string): string {
   return oneLine(String(text ?? '')).trim()
 }
 

@@ -34,6 +34,9 @@ const ports: Record<string, unknown> = {
     applyPermissionUpdate: (...args: unknown[]) => { effect('one', ...args); return updated },
     applyPermissionUpdates: (...args: unknown[]) => { effect('batch', ...args); return updated },
   },
+  './lateAllowRules.js': {
+    noteAllowRulesOfSettingsChange: (...args: unknown[]) => effect('arrived', ...args),
+  },
 }
 const api = {} as typeof import('../../src/utils/permissions/permissions.js')
 const compiled = ts.transpileModule(readFileSync(resolve(import.meta.dir, '../../src/utils/permissions/permissions.ts'), 'utf8'), {
@@ -65,7 +68,7 @@ for (const managed of [false, true]) {
     ? ['userSettings', 'projectSettings', 'localSettings', 'cliArg', 'session', 'userSettings', 'projectSettings', 'localSettings']
     : ['userSettings', 'projectSettings', 'localSettings']
   const clears = sources.flatMap(destination => ['allow', 'deny', 'ask'].map(behavior => ({ type: 'replaceRules', rules: [], behavior, destination })))
-  deepStrictEqual(events, [['managed'], ['batch', context, [...clears, ...expectedGroups('replaceRules')]]])
+  deepStrictEqual(events, [['managed'], ['batch', context, [...clears, ...expectedGroups('replaceRules')]], ['arrived', context, updated]])
   const changes = (events[1] as unknown[])[2] as Extract<PermissionUpdate, { rules: unknown }>[]
   strictEqual(changes.at(-2)!.rules[0], rules[0]!.ruleValue)
   strictEqual(changes.at(-2)!.rules[2], rules[0]!.ruleValue)

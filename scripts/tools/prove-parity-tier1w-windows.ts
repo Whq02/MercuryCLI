@@ -62,6 +62,7 @@ const { processAtMentionedFiles } = await import('../../src/utils/attachments/me
 const mentionContext = {
   getAppState: () => ({ toolPermissionContext: ctx }),
   options: {},
+  abortController: new AbortController(),
 } as never
 const uncAttachments = await processAtMentionedFiles('look at @//tmp please', mentionContext)
 t('a UNC-shaped mention produces no attachment (zero fs calls)', uncAttachments.length === 0)

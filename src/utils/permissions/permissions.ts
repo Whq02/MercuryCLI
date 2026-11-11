@@ -49,12 +49,19 @@ export function applyPermissionRulesToPermissionContext(context: ToolPermissionC
   return applyPermissionUpdates(context, changes)
 }
 
+function withoutRulesSetAsideFrom(context: ToolPermissionContext, sources: readonly PermissionRuleSource[]): ToolPermissionContext {
+  const aside = (context as unknown as { strippedDangerousRules?: Record<string, string[]> }).strippedDangerousRules
+  if (aside === undefined || !sources.some(source => aside[source] !== undefined)) return context
+  const kept = Object.fromEntries(Object.entries(aside).filter(([source]) => !(sources as readonly string[]).includes(source)))
+  return { ...context, strippedDangerousRules: kept } as unknown as ToolPermissionContext
+}
+
 export function syncPermissionRulesFromDisk(context: ToolPermissionContext, rules: PermissionRule[]): ToolPermissionContext {
   const resets = shouldAllowManagedPermissionRulesOnly()
     ? [...diskRuleSources, 'cliArg', 'session', ...diskRuleSources] as const
     : diskRuleSources
   const changes = [...emptyRuleSources(resets), ...collectRuleChanges(rules, 'replaceRules')]
-  const synced = applyPermissionUpdates(context, changes)
+  const synced = applyPermissionUpdates(withoutRulesSetAsideFrom(context, resets), changes)
   noteAllowRulesOfSettingsChange(context, synced)
   return synced
 }

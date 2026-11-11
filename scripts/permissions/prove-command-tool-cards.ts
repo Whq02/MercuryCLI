@@ -160,6 +160,9 @@ section('what is sent to a running service is on the card, whatever its program 
   check('text for a name with no record is on the card', ghost.rows.includes('rm -rf build') && ghost.answers.length === 2, said(ghost))
   const shell = await cardOf(ServiceTool as never, { op: 'input', name: 'shell', text: 'rm -rf build' })
   check('text for a shell on record is on the card, once', shell.rows.filter(row => row === 'rm -rf build').length === 1, said(shell))
+  const carriesEarlier = { ...ServiceTool, shellCommandOf: (input: unknown): string => `cd src\nexport GREETING=hello\n${String((input as { text?: unknown }).text ?? '')}` }
+  const later = await cardOf(carriesEarlier as never, { op: 'input', name: 'shell', text: 'echo "$GREETING"' })
+  check('a member that carries the statements earlier inputs left puts none of them on the card: it shows the text this answer sends', later.rows.includes('echo "$GREETING"') && !later.rows.includes('cd src') && !later.rows.includes('export GREETING=hello') && later.answers.length === 2, said(later))
   const dressed = await cardOf(ServiceTool as never, { op: 'start', name: 'dev', command: 'node', args: ['server.js'], env: { NODE_OPTIONS: '--require ./evil.js' }, cwd: '/tmp' })
   check('a start names the environment it adds, with its value, and the folder it starts in', dressed.rows.includes('NODE_OPTIONS=--require ./evil.js') && dressed.rows.includes('in /tmp') && shows(dressed, 'node server.js'), said(dressed))
 }

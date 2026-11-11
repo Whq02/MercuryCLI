@@ -112,7 +112,11 @@ const foldRows = {
   'agent-name': (state, row) => { if (row.sessionId) state.agentNames.set(row.sessionId, row.agentName) },
   'agent-color': (state, row) => { if (row.sessionId) state.agentColors.set(row.sessionId, row.agentColor) },
   'agent-setting': (state, row) => { if (row.sessionId) state.agentSettings.set(row.sessionId, row.agentSetting) },
-  'session-brief': (state, row) => { if (row.sessionId && typeof row.brief === 'string') state.sessionBriefs.set(row.sessionId, row.brief) },
+  'session-brief': (state, row) => {
+    if (!row.sessionId) return
+    if (typeof row.brief === 'string') state.sessionBriefs.set(row.sessionId, row.brief)
+    else state.sessionBriefs.delete(row.sessionId)
+  },
   'session-brief-add': (state, row) => { if (row.sessionId && typeof row.briefAdd === 'string') state.sessionBriefAdds.set(row.sessionId, row.briefAdd) },
   mode: (state, row) => { if (row.sessionId) state.modes.set(row.sessionId, row.mode) },
   'advisor-switch': (state, row) => { if (row.sessionId) state.advisorSwitches.set(row.sessionId, row.on === true) },

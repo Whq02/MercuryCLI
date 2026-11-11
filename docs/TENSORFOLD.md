@@ -103,6 +103,12 @@ removes the archive files. If no NVIDIA GPU is found or the driver is older
 than R580, the footer reports `no NVIDIA GPU found` or
 `driver <version> · TensorFold needs R580 or newer`.
 
+When the installed TensorFold is older than the release this build installs
+and is tested with, the panel shows one line with both versions and the
+command that moves to it: `TensorFold 1.2.5 is supported, 1.2.2 is installed · brew upgrade ashhart/tensorfold/tensorfold`
+on a Mac with Homebrew, the release archive's install commands on Linux.
+Mercury serves the installed engine as it stands and upgrades nothing itself.
+
 ### Pull, serve and switch
 
 The framed row's card previews the exact commands before anything runs:

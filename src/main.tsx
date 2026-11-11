@@ -453,8 +453,10 @@ async function run(): Promise<void> {
     .option('--only-mcp', 'Only use MCP servers from --mcp')
     .option('--brief <prompt>', 'Set the standing instructions the model reads before the conversation (the session system brief)')
     .addOption(new Option('--brief-file <file>', 'Read the session system brief from a file').hideHelp())
+    .option('--default-brief', 'Return a continued session to the default brief, forgetting the brief it was given')
     .option('--brief-add <prompt>', 'Append to the session system brief')
     .addOption(new Option('--brief-add-file <file>', 'Append to the session system brief from a file').hideHelp())
+    .addOption(new Option('--host-brief-add <prompt>', 'The note of the host that runs this session: it rides behind the session system brief and is never recorded with the session').hideHelp())
     .addOption(new Option('--mode <mode>', `Permission mode: ${PERMISSION_MODES.map(mode => `${mode}: ${MODE_GLOSS[mode]}`).join('; ')} (apollo requires the cockpit or a host serving the session over mercury runner; mercury run alone refuses it)`).choices(PERMISSION_MODES))
     .option('-c, --continue', 'Continue the most recent conversation')
     .option('-r, --resume [value]', 'Resume a conversation (session id, title, or picker)')
@@ -1282,6 +1284,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     failCli('--backup-model cannot equal --model')
   }
   if (opts.brief && opts.briefFile) failCli('Use either --brief or --brief-file, not both')
+  if (opts.defaultBrief === true && (opts.brief !== undefined || opts.briefFile !== undefined)) failCli('Use either --brief or --default-brief, not both')
   if (opts.briefAdd && opts.briefAddFile) {
     failCli('Use either --brief-add or --brief-add-file, not both')
   }
@@ -2323,7 +2326,9 @@ async function runLaunch(args: {
         maxBudgetUsd: opts.budget as number | undefined,
         maxTimeMs: opts.maxTime as number | undefined,
         systemPrompt: args.customSystemPrompt,
+        ...(opts.defaultBrief === true ? { defaultBrief: true } : {}),
         appendSystemPrompt: args.appendSystemPrompt,
+        ...(typeof opts.hostBriefAdd === 'string' ? { hostAppendSystemPrompt: opts.hostBriefAdd } : {}),
         userSpecifiedModel: args.userSpecifiedModel ?? args.mainThreadAgentDefinition?.model ?? undefined,
         fallbackModel: args.fallbackModel,
         includePartialMessages: args.includePartialMessages,

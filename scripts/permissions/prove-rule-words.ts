@@ -32,6 +32,8 @@ async function stub(path: string, fixture: () => Record<string, unknown>): Promi
 await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined, useKeybindings: () => undefined }))
 
 const { enableConfigs } = await import('../../src/utils/config.js')
+const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+setSessionTrustAccepted(true)
 enableConfigs()
 const shell = await import('../../src/utils/permissions/shellRuleMatching.js')
 const { validatePermissionRule } = await import('../../src/utils/settings/permissionValidation.js')
@@ -109,8 +111,22 @@ section('§3 THE VALIDATOR — the star forms are legal; no sentence of its own 
   check('`Bash(npm run *)` validates', validatePermissionRule('Bash(npm run *)').valid)
   check('`Bash(npm *build)` validates', validatePermissionRule('Bash(npm *build)').valid)
   check('`Bash(npm run)` validates', validatePermissionRule('Bash(npm run)').valid)
-  check('`Bash(npm run:*)` is plain content and validates like `Bash(npm run:%)`', validatePermissionRule('Bash(npm run:*)').valid === validatePermissionRule('Bash(npm run:%)').valid)
-  for (const rule of ['Bash(:*)', 'Bash(npm:* run)', 'Read(src:*)', 'Edit(:*)']) {
+  check('`Bash(npm run:%)` is plain content and validates', validatePermissionRule('Bash(npm run:%)').valid)
+  for (const [rule, spaced] of [['Bash(npm run:*)', 'Bash(npm run *)'], ['Bash(rm:*)', 'Bash(rm *)'], ['Bash(:*)', 'Bash(npm run *)']] as const) {
+    const result = validatePermissionRule(rule)
+    check(`${j(rule)} is named as a fault: a command rule that ends in a colon before the star is a spelling Mercury does not read`, result.valid === false && /ends in a colon before the star is a spelling Mercury does not read/.test(result.error ?? ''), j(result))
+    check(`…and the fault says how to write it: ${spaced}`, (result.suggestion ?? '').includes(spaced), j(result))
+  }
+  {
+    const { filterInvalidPermissionRules } = await import('../../src/utils/settings/validation.js')
+    const settings = { guardrails: { deny: ['Bash(rm:*)', 'Bash(rm -rf *)'], allow: ['Bash(npm run:*)'] } }
+    const faults = filterInvalidPermissionRules(settings, 'settings.json')
+    check('a settings file that carries such rules gets one fault for each and keeps the rules it can read', faults.length === 2 && faults.every(fault => fault.severity === 'warning' && /Skipped invalid permission rule/.test(fault.message) && /Write a space before the star/.test(fault.message)) && j(settings.guardrails.deny) === j(['Bash(rm -rf *)']) && j(settings.guardrails.allow) === j([]), j({ faults, settings }))
+  }
+  for (const rule of ['Bash(npm:* run)', 'Read(src:*)', 'Edit(:*)', 'PowerShell(Get-Content -Path:*)']) {
+    check(`${j(rule)} is plain content as before: the colon is no ending of a command rule there`, validatePermissionRule(rule).valid === validatePermissionRule(rule.replace('*', '%')).valid, j(validatePermissionRule(rule)))
+  }
+  for (const rule of ['Bash(:*)', 'Bash(npm run:*)', 'Bash(npm:* run)', 'Read(src:*)', 'Edit(:*)']) {
     const result = validatePermissionRule(rule)
     const words = [result.error, result.suggestion, ...(result.examples ?? [])].filter((w): w is string => typeof w === 'string')
     check(`no validator sentence for ${j(rule)} spells a colon-star form`, words.every(w => !w.includes(':*')), j(result))

@@ -157,6 +157,8 @@ tally.section("§4 a re-entered call (an Eval cell's tool.X) rides an app state 
 {
   const { enableConfigs } = await import('../../src/utils/config.ts')
   enableConfigs()
+  const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+  setSessionTrustAccepted(true)
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
   const { createAssistantMessage } = await import('../../src/utils/messages.ts')

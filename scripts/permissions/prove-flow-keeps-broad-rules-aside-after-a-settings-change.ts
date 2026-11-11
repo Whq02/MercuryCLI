@@ -95,6 +95,24 @@ section('§4 another mode is not touched')
   check('in Default mode a settings change leaves the broad rule in force', broadIn(allowed(other.toolPermissionContext)), `in force ${allowed(other.toolPermissionContext)}`)
 }
 
+section('§5 a rule taken out of the file while Flow is on stays out when Flow is left')
+{
+  const asideFrom = (context: Context, source: string): string => (context.strippedDangerousRules?.[source] ?? []).join(',') || '(none)'
+  const inSession = (context: Context): string => (context.alwaysAllowRules.session ?? []).join(',') || '(none)'
+  const granted = setup.stripDangerousPermissionsForFlow({ ...app.toolPermissionContext, alwaysAllowRules: { ...app.toolPermissionContext.alwaysAllowRules, session: [BROAD] } }) as Context
+  app = { ...app, toolPermissionContext: granted }
+  check('control: a broad rule granted in the session is set aside beside the one from the file', broadIn(asideFrom(granted, 'session')) && broadIn(aside(granted)) && !broadIn(inSession(granted)), `aside from the session ${asideFrom(granted, 'session')} · from the file ${aside(granted)}`)
+  writeFileSync(USER_SETTINGS, JSON.stringify({ guardrails: { allow: [NARROW] } }))
+  resetSettingsCache()
+  applySettingsChange('userSettings', setAppState as never)
+  const removed = app.toolPermissionContext
+  check('nothing is kept aside for a file that no longer holds the rule', !broadIn(aside(removed)), `aside ${aside(removed)}`)
+  check('the rule granted in the session, which no file holds, is still kept aside', broadIn(asideFrom(removed, 'session')) && !broadIn(inSession(removed)), `aside from the session ${asideFrom(removed, 'session')} · in force ${inSession(removed)}`)
+  const left = setup.transitionPermissionMode('flow', 'default', removed) as Context
+  check('outside Flow the rule taken out of the file is not in force', !broadIn(allowed(left)) && allowed(left).split(',').includes(NARROW), `in force ${allowed(left)}`)
+  check('outside Flow the rule granted in the session is in force again, once', inSession(left).split(',').filter(rule => broadIn(rule)).length === 1, `in force ${inSession(left)}`)
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log('\n' + '='.repeat(60))
 console.log(failures === 0 ? ` ✅ flow keeps broad rules aside: ${checks} checks, 0 failures` : ` ❌ flow keeps broad rules aside: ${failures} of ${checks} checks failed`)

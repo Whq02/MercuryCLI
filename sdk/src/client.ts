@@ -45,6 +45,7 @@ export interface RunOptions<T = unknown> {
   mcp?: readonly string[]
   onlyMcp?: boolean
   brief?: string
+  defaultBrief?: boolean
   briefAdd?: string
   schema?: OutputSchema<T>
   maxTurns?: number
@@ -108,6 +109,7 @@ export function argvOf(options: RunOptions, door: 'run' | 'runner' = 'run'): Run
   flag('--only-mcp', options.onlyMcp)
   value('--brief', options.brief)
   value('--brief-file', options.briefFile)
+  flag('--default-brief', options.defaultBrief)
   value('--brief-add-file', options.briefAddFile)
   value('--reasoning-mode', options.reasoningMode)
   for (const [name, setting] of [['--worktree', options.worktree], ['--debug', options.debug]] as const) {

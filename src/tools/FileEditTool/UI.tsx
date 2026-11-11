@@ -2,6 +2,7 @@ import * as React from 'react'
 
 import { truncatePathMiddle } from '../../utils/truncate.js'
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js'
+import { isDenialResultText } from '../../utils/messages/rejectionText.js'
 import { FallbackToolUseRejectedMessage } from '../../components/FallbackToolUseRejectedMessage.js'
 import { FileEditToolDiff } from '../../components/FileEditToolDiff.js'
 import { consentContentWidth } from '../../components/permissions/consentBodyBudget.js'
@@ -117,7 +118,7 @@ export function renderToolUseErrorMessage(
   result: ToolResultBlockParam['content'],
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
-  if (!verbose && typeof result === 'string') {
+  if (!verbose && typeof result === 'string' && !isDenialResultText(result)) {
     return <ShortErrorLine text={toolErrorReason(result, 'Error editing file')} />
   }
   return <FallbackToolUseErrorMessage result={result} verbose={verbose} />

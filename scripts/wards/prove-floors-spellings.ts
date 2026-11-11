@@ -169,6 +169,7 @@ check('floor 1: writes to credential stores are refused unless an exact path rul
 check("floor 2: agent reads of Mercury's own stored credentials are refused", pageSays(/Agent reads of Mercury's own stored credentials are refused/))
 check('floor 4: Mercury\'s running binary and daemon are protected', pageSays(/Mercury's running binary and daemon are protected against writes, deletes and kills/))
 check('floor 5: writing project instruction files or reading .env files asks for approval first', pageSays(/Writing project instruction files or reading `\.env` files asks for approval first/))
+check('the page names what stays outside the floors: a relative write, delete or wildcard read after a cd only the running shell can value, and a credential-store write handed its target at run time', pageSays(/So is a relative write, delete or wildcard read after a `cd` whose target only the running shell knows, which is judged at the folder before it, and a credential-store write through a link or a nested shell that is handed its target at run time\./))
 
 const FOUR: Mode[] = ['sovereign', 'flow', 'implement', 'default']
 section('controls: each floor, asked plainly, holds')

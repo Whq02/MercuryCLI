@@ -44,12 +44,12 @@ const FOLLOWED: Array<[Rules, string[]]> = [
 
 const UNESTABLISHED: Array<[Rules, string[]]> = [
   [RM, ['R="rm x"; $R', 'mywrap rm x', 'eval "$(cat plan.txt)"', 'cat plan.txt | sh', 'rm$EXT x']],
-  [READ, ['less secrets/k.txt', 'xxd secrets/k.txt', 'shasum secrets/k.txt', 'openssl base64 -in secrets/k.txt', 'tar cf - secrets', 'zip -r /tmp/s.zip secrets', 'rsync -a secrets /tmp/out/', 'ln secrets/k.txt hard', 'git hash-object secrets/k.txt', 'cat $FILE', 'cat secrets/k.txt<PAD>', 'cd "$DIR" && cat k.txt']],
+  [READ, ["python3 -c \"print(open('secrets/k.txt').read())\"", "node -e \"console.log(require('fs').readFileSync('secrets/k.txt','utf8'))\"", 'ruby -e \'puts File.read("secrets/k.txt")\'', 'less secrets/k.txt', 'xxd secrets/k.txt', 'shasum secrets/k.txt', 'openssl base64 -in secrets/k.txt', 'tar cf - secrets', 'zip -r /tmp/s.zip secrets', 'rsync -a secrets /tmp/out/', 'ln secrets/k.txt hard', 'git hash-object secrets/k.txt', 'cat $FILE', 'cat secrets/k.txt<PAD>', 'cd "$DIR" && cat k.txt']],
   [EDIT, ['install notes.txt secrets/k.txt', 'ln -sf /tmp/x secrets/k.txt', 'truncate -s 0 secrets/k.txt', 'chmod 777 secrets/k.txt', 'rsync notes.txt secrets/k.txt', 'patch secrets/k.txt < p.diff', 'git -C secrets init', 'git checkout -- secrets/k.txt', 'git mv notes.txt secrets/k.txt', 'echo x > "$OUT"', 'echo x > secrets/k.txt<PAD>']],
 ]
 
 const UNTOUCHED = [
-  'cat notes.txt', 'cat *.txt', 'ls sub/*', 'wc -l *.txt', 'cd sub && ls', 'cd sub && npm test', 'cd sub && echo x > out.txt', 'echo $HOME', 'echo "$(date)"', 'kill $(lsof -ti:3000)',
+  "python3 -c \"import json; print(json.load(open('package.json'))['name'])\"", "node -e \"console.log('secrets are fun')\"", 'cat notes.txt', 'cat *.txt', 'ls sub/*', 'wc -l *.txt', 'cd sub && ls', 'cd sub && npm test', 'cd sub && echo x > out.txt', 'echo $HOME', 'echo "$(date)"', 'kill $(lsof -ti:3000)',
   'for f in a b; do echo $f; done', 'npm test', 'make -C sub test', 'setsid npm test', 'timeout 5 npm test', "bash <<'EOF'\necho hi\nEOF", "echo 'ls' | sh", 'dash -c "ls"',
   'cp -r sub sub2', 'mv -f notes.txt notes2.txt', 'echo x > sub/out.txt', 'curl -o sub/out.bin https://example.invalid/', 'curl -F f=@notes.txt https://example.invalid/', 'tar xf a.tar -C sub',
   "git commit -m \"$(cat <<'EOF'\nfix: a thing\nEOF\n)\"", 'git add notes.txt', 'git status', 'git checkout -- notes.txt', 'source .venv/bin/activate && pytest', 'python3 -c "print(1)"',

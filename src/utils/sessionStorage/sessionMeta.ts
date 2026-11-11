@@ -78,8 +78,11 @@ export class SessionMeta {
     this.owedBriefs.clear()
   }
 
-  setBrief(field: BriefField, text: string): void {
-    if (this.fields[field] !== text) {
+  setBrief(field: BriefField, text: string | null): void {
+    if (text === null) {
+      delete this.fields[field]
+      this.owedBriefs.add(field)
+    } else if (this.fields[field] !== text) {
       this.fields[field] = text
       this.owedBriefs.add(field)
     }
@@ -96,7 +99,7 @@ export class SessionMeta {
     const path = this.io.currentFile()
     const sessionId = this.io.currentId()
     if (!path || !sessionId) return
-    for (const field of this.owedBriefs) this.io.append(path, { type: briefRows[field], [field]: this.fields[field] ?? '', sessionId })
+    for (const field of this.owedBriefs) this.io.append(path, { type: briefRows[field], [field]: this.fields[field] ?? null, sessionId })
     this.owedBriefs.clear()
   }
 

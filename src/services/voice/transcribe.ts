@@ -164,6 +164,8 @@ export function warmLocalTranscriber(): void {
   } catch {}
 }
 
+const SHORTEST_TAKE_THE_ENGINE_READS_SAMPLES = 201
+
 export async function transcribeWav(wav: Buffer, opts: TranscribeOptions): Promise<Transcript> {
   opts.signal?.throwIfAborted()
   const read = readWav(wav)
@@ -175,6 +177,7 @@ export async function transcribeWav(wav: Buffer, opts: TranscribeOptions): Promi
   if (load.state === 'unavailable') throw new TranscribeError('local', load.note)
   const model = checkWhisperModel()
   if (model.state !== 'present') throw new TranscribeError('local', model.note)
+  if (read.pcm.byteLength < SHORTEST_TAKE_THE_ENGINE_READS_SAMPLES * 2) return { text: '', kind: 'local', family: null, model: model.name, ms: 0, segments: [] }
   let handle: number
   try {
     handle = modelHandle(load.addon, model.path, opts.useGpu)

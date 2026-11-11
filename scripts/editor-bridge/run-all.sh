@@ -23,6 +23,7 @@
 # gate-watch: scripts/lib/toolShellTree.ts
 # gate-watch: scripts/lib/ptyRecorder.ts src/components/ConsoleOAuthFlow.tsx src/components/loginFamilyRows.ts src/ink.ts src/ink/instances.ts
 # gate-watch: src/Tool.ts src/utils/sessionStorage/vnext.ts
+# gate-watch: src/services/engine-connector/midTurnText.ts src/utils/sessionStorage/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 

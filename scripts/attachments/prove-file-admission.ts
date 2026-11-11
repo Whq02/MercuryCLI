@@ -12,7 +12,7 @@ const fsops = await import(join(root, 'utils/fsOperations.ts'))
 const read = await import(join(root, 'tools/FileReadTool/FileReadTool.ts'))
 const { PDF_AT_MENTION_INLINE_THRESHOLD: threshold } = await import(join(root, 'constants/apiLimits.ts'))
 const { MAX_LINES_TO_READ } = await import(join(root, 'tools/FileReadTool/prompt.ts'))
-const context = { readFileState: new Map(), getAppState: () => ({ toolPermissionContext: {} }) }
+const context = { readFileState: new Map(), getAppState: () => ({ toolPermissionContext: {} }), abortController: new AbortController() }
 const path = join(process.env.MERCURY_CONFIG_DIR!, 'tracked.txt')
 let denied = false
 let stamp = 10
@@ -24,7 +24,7 @@ const spies = [
   spyOn(helpers, 'isFileWithinReadSizeLimit').mockReturnValue(true),
   spyOn(helpers, 'getFileModificationTimeAsync').mockImplementation(async () => { if (ioFailure) throw Object.assign(new Error(ioFailure), { code: ioFailure }); return stamp }),
   spyOn(pdf, 'getPDFPageCount').mockImplementation(async () => count),
-  spyOn(fsops.getFsImplementation(), 'stat').mockImplementation(async () => ({ size }) as never),
+  spyOn(fsops.getFsImplementation(), 'stat').mockImplementation(async () => ({ size, isFile: () => true }) as never),
   spyOn(read.FileReadTool, 'validateInput').mockResolvedValue({ result: true } as never),
 ]
 const result = { type: 'text', file: { filePath: path, content: 'new\n', numLines: 2, totalLines: 2, startLine: 1 } }
@@ -71,8 +71,12 @@ try {
   assert.deepEqual(calls.slice(asked), [{ file_path: path, offset: 3, limit: undefined }, { file_path: path, offset: 3, limit: 700 }, { file_path: path, offset: 3, limit: 300 }])
   fitting = { undefined: { offset: 3, limit: 700 }, 700: { offset: 3, limit: 700 } }
   const stuck = calls.length
-  assert.equal(await files.generateFileAttachment(path, context as never, 'at-mention', { offset: 3 }), null)
+  const unread = await files.generateFileAttachment(path, context as never, 'at-mention', { offset: 3 })
   assert.equal(calls.length - stuck, 2)
+  assert.equal(unread?.type, 'dropped_image_file')
+  assert.equal((unread as any).unread, 'refused')
+  assert.equal((unread as any).reason, 'Reading it failed: File content (2 tokens) exceeds maximum allowed tokens (1): fixture overflow.')
+  assert.equal((await files.generateFileAttachment(path, context as never, 'compact', { offset: 3 }))?.type, 'compact_file_reference')
   fitting = null
   context.readFileState.set(path, { content: 'old\n', timestamp: 1, offset: 2, limit: 3, isPartialView: true })
   const before = calls.length
@@ -94,5 +98,5 @@ try {
   ioFailure = 'ENOENT'
   assert.deepEqual(await files.getChangedFiles(context as never), [])
   assert(!context.readFileState.has(path))
-  console.log('PASS PDF threshold/fallback, denied and cached reads, exact mtime, overflow policy, the window an overflow names, the windowed refresh and ENOENT-only eviction')
+  console.log('PASS PDF threshold/fallback, denied and cached reads, exact mtime, overflow policy, the window an overflow names, the row of a mention no window fits, the windowed refresh and ENOENT-only eviction')
 } finally { for (const spy of spies) spy.mockRestore() }

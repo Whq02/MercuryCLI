@@ -95,6 +95,12 @@ for (const [command, content] of [['npm install left-pad', 'npm install *'], ['n
   check(`default · Monitor ${shown(command)} asks and hands the card ${content === undefined ? 'no rule it could not name exactly' : `the rule Bash(${content})`}`, asked.behavior === 'ask' && asked.suggestions !== undefined && rules.every(rule => rule.ruleContent !== undefined && rule.ruleContent !== '') && (content === undefined || rules.some(rule => rule.toolName === 'Bash' && rule.ruleContent === content)), `${said(asked)} · offered: ${offered || '(none)'}`)
 }
 
+for (const command of ['$CMD', 'eval "$CMD"', 'rm -rf "$TARGET"', 'cat `ls`']) {
+  const asked = await monitor(command, 'default')
+  const rules = (asked.suggestions ?? []).flatMap(suggestion => suggestion.rules ?? [])
+  check(`default · Monitor ${shown(command)} asks and offers no rule to remember: a rule spelled with a value only known at run time stops no later ask`, asked.behavior === 'ask' && asked.suggestions !== undefined && rules.length === 0, `${said(asked)} · offered: ${rules.map(rule => `${rule.toolName}(${rule.ruleContent ?? ''})`).join(', ') || '(none)'}`)
+}
+
 section('§7 a rule written for Monitor is honoured as a rule written for Bash is')
 {
   const denied = await monitor('rm -rf build', 'default', { deny: ['Monitor(rm *)'] })

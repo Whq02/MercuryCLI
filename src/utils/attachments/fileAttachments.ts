@@ -20,6 +20,8 @@ import { isPDFExtension } from '../pdfUtils.js'
 import { ImageResizeError } from '../imageResizer.js'
 import { FileTooLargeError } from '../readFileInRange.js'
 import { countCharInString } from '../stringUtils.js'
+import { ruleSentence } from '../permissions/ruleReason.js'
+import { matchingRuleForInput } from '../permissions/filesystem.js'
 import { isFileReadDenied } from './shared.js'
 import type { AlreadyReadFileAttachment, Attachment, CompactFileReferenceAttachment, DroppedImageAttachment, FileAttachment, PDFReferenceAttachment } from './types.js'
 
@@ -61,22 +63,43 @@ async function validatedRead(input: ReadRequest, context: ToolUseContext, mode: 
       return await fileRow(input, context)
     } catch (failure) {
       if (failure instanceof ImageResizeError) return droppedImage(input.file_path, failure.message)
-      if (!(failure instanceof MaxFileReadTokenExceededError || failure instanceof FileTooLargeError)) return null
+      if (!(failure instanceof MaxFileReadTokenExceededError || failure instanceof FileTooLargeError)) throw failure
       return await oversizedFallback(input, context, mode, failure instanceof MaxFileReadTokenExceededError ? failure.next : undefined)
     }
-  } catch {
-    return null
+  } catch (failure) {
+    return unreadMention(input.file_path, context, mode, failure)
   }
 }
 
 const droppedImage = (filename: string, reason: string): DroppedImageAttachment => ({ type: 'dropped_image_file', filename, displayPath: displayOf(filename), reason })
+const droppedUnread = (filename: string, reason: string, unread: 'retry' | 'refused'): DroppedImageAttachment => ({ ...droppedImage(filename, reason), unread })
+
+export function mentionPastCeiling(filename: string, seconds: number): DroppedImageAttachment {
+  const reason = `Reading it took longer than ${seconds} seconds.`
+  return isImageFilePath(filename) ? droppedImage(filename, reason) : droppedUnread(filename, reason, 'retry')
+}
+
+export function mentionDeniedByRule(filename: string, permissions: Parameters<typeof matchingRuleForInput>[1]): DroppedImageAttachment | null {
+  const rule = matchingRuleForInput(filename, permissions, 'read', 'deny')
+  return rule === null ? null : droppedUnread(filename, ruleSentence(`Reading ${filename}`, 'deny', rule), 'refused')
+}
+
+async function unreadMention(filename: string, context: ToolUseContext, mode: ReadMode, failure: unknown): Promise<FileRow | null> {
+  if (mode !== 'at-mention' || context.abortController.signal.aborted) return null
+  const standing = await getFsImplementation().stat(filename).then(info => info.isFile()).catch(() => false)
+  if (!standing) return null
+  const line = (failure instanceof Error ? failure.message : String(failure)).split('\n')[0]!.trim().replace(/\.+$/, '')
+  return droppedUnread(filename, `Reading it failed: ${line}.`, 'refused')
+}
 
 async function tooLargeToMention(filename: string): Promise<FileRow | null | false> {
   const limit = getDefaultFileReadingLimits().maxSizeBytes
   if (isFileWithinReadSizeLimit(filename, limit) || pdfPath(filename)) return false
   try {
     const { size } = await getFsImplementation().stat(filename)
-    return isImageFilePath(filename) ? droppedImage(filename, `The image is ${formatFileSize(size)}, over the ${formatFileSize(limit)} limit for a mentioned file.`) : null
+    return isImageFilePath(filename)
+      ? droppedImage(filename, `The image is ${formatFileSize(size)}, over the ${formatFileSize(limit)} limit for a mentioned file.`)
+      : droppedUnread(filename, `The file is ${formatFileSize(size)}, over the ${formatFileSize(limit)} limit for a mentioned file.`, 'retry')
   } catch {
     return false
   }

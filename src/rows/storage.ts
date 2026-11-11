@@ -34,7 +34,7 @@ type StoragePayloads = {
   'agent-name': SessionField<'agentName', string>
   'agent-color': SessionField<'agentColor', string>
   'agent-setting': SessionField<'agentSetting', string>
-  'session-brief': SessionField<'brief', string>
+  'session-brief': SessionField<'brief', string | null>
   'session-brief-add': SessionField<'briefAdd', string>
   'pr-link': {
     sessionId: UUID

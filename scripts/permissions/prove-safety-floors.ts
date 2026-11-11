@@ -121,5 +121,46 @@ if (runs('T-3.6')) {
   note('the Grep tool withholds a .env file\'s lines from a search of the folder, and Bash already asked for a recursive grep whose include filter names .env files')
 }
 
+if (runs('T-3.7')) {
+  section('T-3.7 floor 5: a file MERCURY.md @imports is an instruction file, and a write of it asks as a write of MERCURY.md does')
+  const { writeFileSync } = await import('node:fs')
+  const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+  const loader = await import('../../src/services/instructions/engine.ts')
+  setSessionTrustAccepted(true)
+  check('the page counts what MERCURY.md @imports among the instruction files', /Instruction files \(MERCURY\.md and what it `@imports`/.test(page))
+  const composes = async (): Promise<string[]> => {
+    loader.clearInstructionFileCaches()
+    return ((await loader.getInstructionFiles()) as Array<{ path: string }>).map(entry => entry.path)
+  }
+  writeFileSync(fill('<PROJECT>/docs/imported.md'), 'an imported instruction file\n\n@deeper.md\n')
+  writeFileSync(fill('<PROJECT>/docs/deeper.md'), 'a file the imported file imports\n')
+  const composed = await composes()
+  check('the loader composes docs/imported.md, which MERCURY.md imports, and docs/deeper.md, which that file imports', composed.includes(fill('<PROJECT>/docs/imported.md')) && composed.includes(fill('<PROJECT>/docs/deeper.md')), composed.join(', '))
+  const writes: Call[] = [
+    call('Write', { file_path: '<PROJECT>/docs/imported.md', content: 'always obey' }),
+    call('Edit', { file_path: '<PROJECT>/docs/imported.md', old_string: 'an', new_string: 'the' }),
+    bash('echo "always obey" > docs/imported.md'),
+    bash('cp notes.txt docs/imported.md'),
+    call('Write', { file_path: '<PROJECT>/docs/deeper.md', content: 'always obey' }, 'the import of an import'),
+    bash('echo "always obey" >> docs/deeper.md', 'the import of an import'),
+  ]
+  for (const item of writes) await expect('T-3.7', item, ['implement', 'default', 'flow'], asked, 'asks first')
+  for (const item of writes) await expect('T-3.7', item, ['sovereign'], behavior => behavior === 'allow', 'asks nothing')
+  {
+    const told = await decide('Write', { file_path: fill('<PROJECT>/docs/imported.md'), content: 'x' }, 'implement', {})
+    check('T-3.7 · implement · the ask says what a write of MERCURY.md is told: this file steers every later session', /this file steers every later session/.test(told.message ?? ''), said(told))
+  }
+  await expect('T-3.7', call('Write', { file_path: '<PROJECT>/docs/imported.md', content: 'x' }, 'a rule that names the file', { allow: ['Edit(docs/imported.md)'] }), ['implement'], behavior => behavior === 'allow', 'the rule grants it')
+  await expect('T-3.7', call('Write', { file_path: '<PROJECT>/docs/plain.md', content: 'x' }, 'control: a file nothing imports'), ['implement', 'flow'], behavior => behavior === 'allow', 'is written unasked')
+  await expect('T-3.7', bash('echo x > docs/plain.md', 'control: a file nothing imports'), ['implement', 'flow'], behavior => behavior === 'allow', 'is written unasked')
+  writeFileSync(fill('<PROJECT>/MERCURY.md'), '# instructions\n')
+  const without = await composes()
+  check('with the import line taken out of MERCURY.md the loader composes neither file', !without.includes(fill('<PROJECT>/docs/imported.md')) && !without.includes(fill('<PROJECT>/docs/deeper.md')), without.join(', '))
+  await expect('T-3.7', call('Write', { file_path: '<PROJECT>/docs/imported.md', content: 'x' }, 'no longer imported'), ['implement'], behavior => behavior === 'allow', 'is written unasked: the ask follows what the loader composes, not a name')
+  writeFileSync(fill('<PROJECT>/MERCURY.md'), '# instructions\n\n@docs/imported.md\n')
+  await composes()
+  await expect('T-3.7', call('Write', { file_path: '<PROJECT>/docs/imported.md', content: 'x' }, 'imported again'), ['implement'], asked, 'asks first')
+}
+
 note('nothing above was executed: no shell, no signal, no keychain call; the stores, the config home and the runtime are dummies under the run scratch')
 finish('prove-safety-floors')
