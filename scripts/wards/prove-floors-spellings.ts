@@ -300,6 +300,14 @@ if (runs('TREE')) {
     bash('cd ~ && tar -cf /tmp/h.tar .'),
     bash('grep -r token ..', 'the folder above the project, which holds the home'),
     bash("sh -c 'grep -r token ~'", 'an inline shell'),
+    bash('grep -r token ~/.m*', 'a wildcard that names the folder of the store'),
+    bash('grep -r token ~/.*', 'every dot-led folder of the home'),
+    bash('grep -r token ~/.[!.]*'),
+    bash('tar -cf /tmp/h.tar ~/.*'),
+    bash('cp -R ~/.* /tmp/h/'),
+    bash('grep -r token <CONFIG>/../c*', 'the config home by a wildcard'),
+    bash('grep -r token <CONFIG>/../*', 'every folder beside the config home, itself among them'),
+    bash("find ~/.m* -name '*.json' -exec cat {} +", 'a find rooted at the wildcard'),
   ]
   for (const item of whole) await expect('TREE', item, ['sovereign', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
   const told = await reading(bash('grep -r token ~'), 'sovereign')
@@ -313,6 +321,10 @@ if (runs('TREE')) {
     bash('grep -r token ~/Documents', 'a folder beside the config home'),
     bash('grep -r plain .', 'the project'),
     bash('rg plain', 'no path, in the project'),
+    bash('grep -r token ~/Dev*', 'a wildcard that cannot name the store'),
+    bash('grep -r token ~/*', 'the folders of the home a star names: none is dot-led'),
+    bash('grep -r plain src/*', 'a wildcard in the project'),
+    bash('tar -cf /tmp/d.tar ~/Doc*'),
     bash('rg token ~', 'plain ripgrep skips dot-led folders, so it never reads the store under the home'),
     bash('cd ~ && rg token', 'the same with no path, in the home'),
     bash('rg -u token ~', 'unrestricted once reads ignored files, still no hidden ones'),
