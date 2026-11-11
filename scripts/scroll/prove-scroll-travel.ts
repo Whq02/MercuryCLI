@@ -193,7 +193,7 @@ function runCell(cell: Cell): void {
   const sends: Record<string, unknown>[] = []
   const WHEEL = '\x1b[<64;60;20M'.repeat(cell.flick ?? 0)
   if (cell.flick) {
-    sends.push({ atTick: 999, awaitText: '❯', minTick: 10, awaitSettleTicks: 4, awaitStableTicks: 3, data: WHEEL, mark: 'a-tail' })
+    sends.push({ atTick: 999, requireAwait: true, awaitText: '❯', minTick: 10, awaitSettleTicks: 4, awaitStableTicks: 3, data: WHEEL, mark: 'a-tail' })
     sends.push({ atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 4, awaitStableTicks: 6, data: '\x1b[1;5F', mark: 'b-first-flick' })
     sends.push({ atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 4, awaitStableTicks: 6, data: WHEEL, mark: 'c-tail-again' })
     sends.push({ atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 4, awaitStableTicks: 6, data: '', mark: 'd-second-flick' })
