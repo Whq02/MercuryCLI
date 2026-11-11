@@ -690,7 +690,7 @@ function runPathChecker(
       if (flowRead && check.decisionReason === undefined) continue
       const refusal = operandRefusal(command, check, context, operationType)
       if (refusal.behavior === 'deny') return refusal
-      held ??= refusal
+      if (held === null || (operatorSafetyAsk(refusal) && !operatorSafetyAsk(held))) held = refusal
       continue
     }
     const envAsk = readsEnvContent ? envFileReadAsk(check.resolvedPath, context) : null
@@ -715,6 +715,10 @@ function runPathChecker(
     }
   }
   return { behavior: 'passthrough', message: `All ${command} operands are within the allowed directories.` }
+}
+
+function operatorSafetyAsk(result: PermissionResult): boolean {
+  return result.behavior === 'ask' && result.decisionReason?.type === 'safetyCheck' && result.decisionReason.operatorOnly
 }
 
 function operandRefusal(command: PathCommand, check: ReturnType<typeof validatePath>, context: ToolPermissionContext, operationType: FileOperationType, spelled = check.resolvedPath): PermissionResult {

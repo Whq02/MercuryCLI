@@ -62,11 +62,11 @@ export function isPathAllowed(
     const rule = matchingRuleForInput(resolved, context, permType, 'deny')
     if (rule) return { allowed: false, decisionReason: { type: 'rule', rule } }
   }
-  const steering = operationType !== 'read' && (context.mode === 'default' || context.mode === 'implement') && isInstructionEstatePath(resolvedPath)
+  const steering = operationType !== 'read' && (context.mode === 'default' || context.mode === 'implement' || context.mode === 'flow') && isInstructionEstatePath(resolvedPath)
   if (operationType !== 'read') {
     const internal = checkEditableInternalPath(resolvedPath, undefined)
     if (!steering && (internal as { behavior: string }).behavior === 'allow') return { allowed: true }
-    const safety = checkPathSafetyForAutoEdit(resolvedPath, resolutionSet)
+    const safety = checkPathSafetyForAutoEdit(resolvedPath, resolutionSet, context)
     if (!safety.safe) {
       return {
         allowed: false,
@@ -89,7 +89,9 @@ export function isPathAllowed(
   }
   if (steering) {
     const grant = instructionEstateGrant(resolutionSet, context)
-    return grant ? { allowed: true, decisionReason: { type: 'rule', rule: grant } } : { allowed: false }
+    if (grant) return { allowed: true, decisionReason: { type: 'rule', rule: grant } }
+    if (context.mode !== 'flow') return { allowed: false }
+    return { allowed: false, decisionReason: { type: 'safetyCheck', reason: `Permission to write ${resolvedPath} is required: this file steers every later session.`, operatorOnly: true } }
   }
   for (const resolved of resolutionSet) {
     const rule = matchingRuleForInput(resolved, context, permType, 'allow')
