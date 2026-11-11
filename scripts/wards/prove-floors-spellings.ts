@@ -694,6 +694,17 @@ if (runs('LISTED')) {
     'Get-ChildItem (Resolve-Path .) -Recurse | Select-String canary',
     '$d = "."; Get-ChildItem $d -Recurse | Select-String canary',
     'Get-ChildItem -Path $PWD -Recurse | Get-Content',
+    'Get-ChildItem -Path Documents,. -Recurse | Select-String canary',
+    'gci -r -Filter *.json | % { ConvertFrom-Json (Get-Content $_ -Raw) }',
+    'Get-ChildItem * | Select-String canary',
+    'Get-ChildItem * | Get-Content',
+    'gci .mer* | gc',
+    'Select-String -Path (Get-ChildItem -Recurse) -Pattern canary',
+    '(Get-ChildItem -Recurse) | Select-String canary',
+    '$f = Get-ChildItem -Recurse; $f | Select-String canary',
+    'gci -r | % { [IO.File]::ReadAllText($_.FullName) }',
+    'gci -r | % { findstr canary $_.FullName }',
+    'gci -r -Name | % { Get-Content $_ }',
   ]
   for (const line of readers) {
     const answer = await asked(line, OWN_HOME)
@@ -707,6 +718,11 @@ if (runs('LISTED')) {
     'Get-ChildItem Documents -Recurse | Select-String canary',
     'Get-ChildItem -Path Documents -Recurse | Get-Content',
     'Get-ChildItem | Select-String canary',
+    'gci -r -Name | sls foo',
+    'Get-ChildItem -Recurse -Name | Select-String -Pattern foo',
+    'Get-ChildItem -Recurse -Name | findstr foo',
+    'Get-Content notes.txt; Get-ChildItem -Recurse',
+    '(Get-ChildItem -Recurse).Count',
   ]
   for (const line of listings) {
     const answer = await asked(line, OWN_HOME)

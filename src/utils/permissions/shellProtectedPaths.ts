@@ -621,11 +621,22 @@ const LISTER_VALUED_ALIASES = new Set(['pspath', 'lp', 'ea', 'ev', 'wa', 'wv', '
 const LISTER_SWITCHES = ['recurse', 'force', 'name', 'directory', 'file', 'hidden', 'readonly', 'system', 'followsymlink', 'verbose', 'debug']
 const LISTER_SWITCH_ALIASES = new Set(['s', 'ad', 'af', 'ah', 'h', 'ar', 'as', 'vb', 'db'])
 
-function powershellListing(argv: readonly string[]): { roots: string[]; deep: boolean } {
+const OPERAND_SEARCHERS = new Set(['findstr', 'grep', 'egrep', 'fgrep', 'rg'])
+const RUNTIME_FILE_READ = /ReadAllText|ReadAllBytes|ReadAllLines|ReadLines|OpenText|OpenRead|ReadToEnd|StreamReader/i
+
+function readsHandedFiles(found: Layer, names: boolean): boolean {
+  if (found.argv.some(word => RUNTIME_FILE_READ.test(word))) return true
+  if (OPERAND_SEARCHERS.has(found.program)) return found.argv.slice(1).some(word => word.includes('$'))
+  if (!PIPED_FILE_READERS.has(found.program)) return false
+  return !names || (found.program !== 'select-string' && found.program !== 'sls') || found.argv.slice(1).some(word => word.includes('$') || /^-(?:path|pspath|lp|li[a-z]*)(?::|$)/i.test(word))
+}
+
+function powershellListing(argv: readonly string[]): { roots: string[]; deep: boolean; names: boolean } {
   const named: string[] = []
   const loose: string[] = []
   let deep = false
   let unsure = false
+  let names = false
   const listOf = (value: string): string[] => value.split(',').map(part => part.trim().replace(/^(['"])(.*)\1$/, '$2')).filter(part => part !== '')
   for (let i = 1; i < argv.length; i++) {
     const word = argv[i]!
@@ -638,6 +649,7 @@ function powershellListing(argv: readonly string[]): { roots: string[]; deep: bo
     const valued = LISTER_VALUED_ALIASES.has(name) ? name : name === '' ? undefined : LISTER_VALUED.find(full => full.startsWith(name))
     const plain = LISTER_SWITCH_ALIASES.has(name) || (name !== '' && LISTER_SWITCHES.some(full => full.startsWith(name)))
     if (name === 's' || (name !== '' && 'recurse'.startsWith(name)) || valued === 'depth') deep = true
+    if (name !== '' && 'name'.startsWith(name)) names = true
     if (valued === undefined || plain) {
       if (valued !== undefined || !plain) unsure = true
       continue
@@ -645,13 +657,15 @@ function powershellListing(argv: readonly string[]): { roots: string[]; deep: bo
     const value = colon < 0 ? argv[++i] : word.slice(colon + 1)
     if (value !== undefined && (valued === 'path' || valued === 'literalpath' || valued === 'pspath' || valued === 'lp')) named.push(...listOf(value))
   }
-  const roots = (named.length > 0 ? named : loose).map(root => {
+  const roots = [...named, ...loose].map(root => {
     const segments = root.split(/[\\/]/)
     const at = segments.findIndex(segment => GLOB_PART.test(segment))
-    return at < 0 ? root : segments.slice(0, at).join('/') || (/^[\\/]/.test(root) ? '/' : '.')
+    if (at < 0) return root
+    deep = true
+    return segments.slice(0, at).join('/') || (/^[\\/]/.test(root) ? '/' : '.')
   })
   if (roots.length === 0 || unsure || roots.some(root => /[$(@]/.test(root) || root.includes(UNREAD_PART))) roots.push('.')
-  return { roots, deep }
+  return { roots, deep, names }
 }
 
 const FIND_NON_READERS = new Set(['ls', 'stat', 'echo', 'printf', 'file', 'du', 'wc', 'basename', 'dirname', 'realpath', 'readlink', 'test', '[', 'true', 'touch', 'chmod', 'chown', 'rm', 'rmdir', 'unlink', 'mv'])
@@ -991,7 +1005,8 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const tree = readsWholeTree(layer)
       const sent = filesSentOrPrinted(layer)
       const lists = layer.program === 'find' || layer.program === 'ls' || layer.program === 'get-childitem' || layer.program === 'gci' || layer.program === 'dir'
-      const listed = powershell && POWERSHELL_LISTERS.has(layer.program) && read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => PIPED_FILE_READERS.has(found.program))) ? powershellListing(layer.argv) : null
+      const listing = powershell && POWERSHELL_LISTERS.has(layer.program) ? powershellListing(layer.argv) : null
+      const listed = listing !== null && read.commands.some((later, index) => index > at && layersOf(later.argv).some(found => readsHandedFiles(found, listing.names))) ? listing : null
       const feeds = lists && (fed.has(at) || listed !== null || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')))
       for (const word of [...layer.argv.slice(1), ...roots, ...(listed === null ? [] : listed.roots)]) {
         for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {
