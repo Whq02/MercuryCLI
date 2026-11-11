@@ -409,8 +409,8 @@ if (runs('CAP')) {
 }
 
 if (runs('STANDING')) {
-  section('STANDING · with the session standing in a folder that holds the store, a word the reading cannot value is a possible read only as the operand of a program that reads files')
-  for (const [folder, where] of [[CONFIG_HOME, 'the config home'], [RUN_ROOT, 'the folder above it']] as const) {
+  section('STANDING · with the session standing in the home, in the config home or in the folder above it: a word the reading cannot value is no possible read, a wildcard is one only where a program that reads files is handed it, and what the reading can read is refused as anywhere')
+  for (const [folder, where] of [[OWN_HOME, 'the home'], [CONFIG_HOME, 'the config home'], [RUN_ROOT, 'the folder above the config home']] as const) {
     bootstrap.setCwdState(folder)
     const clear: Call[] = [
       bash('echo $$'),
@@ -426,20 +426,39 @@ if (runs('STANDING')) {
       bash('printf %s "$(date)"'),
       bash('echo hi > note.txt'),
       bash('ls'),
+      bash('cat "$FILE"', 'a reader, its file no reading can value'),
+      bash('cp "$SRC" "$DST"', 'a copy between two such words'),
+      bash('for f in *.md; do head -3 "$f"; done', 'a loop over files no credential file is among'),
+      bash('grep -r x "$(git rev-parse --show-toplevel)"', 'a tree root only the running shell can value'),
+      bash('base64 "$(some-tool)"'),
+      bash('echo *', 'a wildcard handed to a program that reads no file'),
+      bash('ls *'),
+      bash('echo *.json'),
     ]
     for (const item of clear) await expect(`STANDING · in ${where}`, item, ['sovereign'], notRefused, 'is not refused by the floor')
-    const held: Call[] = [
-      bash('cat "$FILE"', 'a reader, its file no reading can value'),
-      bash('base64 "$(some-tool)"'),
-      bash('cp "$SRC" /tmp/x', 'a copy'),
-      bash('cat .cred$(echo entials).json', 'the name built at run time'),
-      bash('cat .cred*', 'a wildcard'),
-    ]
-    for (const item of held) await expect(`STANDING · in ${where}`, item, ['sovereign'], folder === CONFIG_HOME || item.command === 'cat "$FILE"' || item.command === 'base64 "$(some-tool)"' || item.command === 'cp "$SRC" /tmp/x' ? refusedAsSecret : notRefused, folder === CONFIG_HOME || /\$FILE|some-tool|\$SRC/.test(item.command ?? '') ? 'is refused as a read of the credentials' : 'is not refused by the floor')
+    await expect(`STANDING · in ${where}`, bash('cat "$DIR/.credentials.json"', "a credential file's own name behind a folder no reading can value"), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
+    await expect(`STANDING · in ${where}`, bash('cat <CONFIG>/.cred$(echo entials).json', 'a name built at run time in the folder of the store, spelled'), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
   }
+  bootstrap.setCwdState(CONFIG_HOME)
+  const inStore: Call[] = [
+    bash('cat *.json', 'a wildcard that names credential files, handed to a reader'),
+    bash('cp *.json /tmp/x'),
+    bash('base64 mcp-*'),
+    bash('cat .cred*'),
+    bash('cat .credentials.json', 'the file by its name'),
+    bash('echo *.json | xargs cat', 'the wildcard handed on to a reader by xargs'),
+    bash('cat $(ls *)', 'the wildcard handed on to a reader by a substitution'),
+  ]
+  for (const item of inStore) await expect('STANDING · in the config home', item, ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
+  bootstrap.setCwdState(OWN_HOME)
+  await expect('STANDING · in the home', bash('grep -r token .', 'a tree reader over the folder that holds the store'), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
+  await expect('STANDING · in the home', bash('cat .mercury/.cred*', "a wildcard under the store's own folder, handed to a reader"), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
   bootstrap.setCwdState(PROJECT)
   await expect('STANDING · in the project', bash('cat "$FILE"', 'the same reader where no store stands beneath'), ['sovereign'], notRefused, 'is not refused by the floor')
   await expect('STANDING · in the project', bash('echo $$'), ['sovereign'], notRefused, 'is not refused by the floor')
+  await expect('STANDING · in the project', bash('cat ~/$f', 'a folder above the store spelled, the file no reading can value'), ['sovereign'], notRefused, 'is not refused by the floor')
+  await expect('STANDING · in the project', bash('cat "$HOME/$f"'), ['sovereign'], notRefused, 'is not refused by the floor')
+  await expect('STANDING · in the project', bash('cat ~/.mercury/$f', "the store's own folder spelled, the name no reading can value"), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
 }
 
 if (runs('UNVALUED')) {
