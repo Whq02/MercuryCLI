@@ -1314,6 +1314,7 @@ SessionFactsResult = TypedDict("SessionFactsResult", {
     "swarm": "NotRequired[SessionFactsResultSwarm]",
     "edit_outcomes": "NotRequired[list[SessionFactsResultEdit_outcomesItem]]",
     "build_tree": "NotRequired[None | str]",
+    "transcript_store_failing": "NotRequired[str]",
 })
 
 SessionSetModelParams = TypedDict("SessionSetModelParams", {

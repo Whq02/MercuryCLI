@@ -1478,12 +1478,14 @@ export function Chat({
   }, [isLoading, textActive, toolUseConfirmQueue.length, messages]);
 
   useEffect(() => {
+    const hosted = hasSeatLive(focusedConnector) && focusedConnector.transcriptStoreFailing !== undefined ? focusedConnector : null;
     const paint = (): void => {
       const health = transcriptStoreHealth();
-      if (health.failing) {
+      const sentence = health.failing ? health.sentence : (hosted?.transcriptStoreFailing?.() ?? undefined);
+      if (sentence !== undefined) {
         addNotification({
           key: 'transcript-store',
-          text: health.sentence ?? 'the session transcript store is failing to write',
+          text: sentence || 'the session transcript store is failing to write',
           priority: 'high',
           timeoutMs: 3_600_000,
         });
@@ -1492,9 +1494,14 @@ export function Chat({
       }
     };
     paint();
-    return subscribeTranscriptStoreHealth(paint);
+    const offStore = subscribeTranscriptStoreHealth(paint);
+    const offFacts = hosted?.subscribeModel(paint);
+    return () => {
+      offStore();
+      offFacts?.();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [focusedConnector]);
 
   useEffect(() => {
     const paintDegradation = (): void => {

@@ -35,7 +35,7 @@ import { hasConversationTurn, loadConversationForResume } from '../utils/convers
 import { caretEscape } from '../utils/caretEscape.js'
 import { reconstructContentReplacementState } from '../utils/toolResultStorage.js'
 import { resetSessionFilePointer, restoreSessionMetadata } from '../utils/sessionStorage.js'
-import { adoptResumedSessionFile, flushSessionStorage, getSessionMessages, peekProject, recordTranscript } from '../utils/sessionStorage/writer.js'
+import { adoptResumedSessionFile, flushSessionStorage, getSessionMessages, peekProject, recordTranscript, transcriptStoreHealth } from '../utils/sessionStorage/writer.js'
 import { RunnerQuiescence } from '../daemon/runnerQuiescence.js'
 import { capabilityHoldWords, runnerCapabilityHolds } from '../daemon/runnerCapabilityCensus.js'
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
@@ -2439,6 +2439,7 @@ export async function runHeadless(
         })(),
         streamIdleTimeoutMs: streamIdleTimeoutMsForRoute(providerFamilyOfSetting(activeModel ?? getEngineModel())),
         buildTree: runningBuildTree(),
+        ...(transcriptStoreHealth().failing ? { transcriptStoreFailing: transcriptStoreHealth().sentence ?? '' } : {}),
         fileCheckpoints: {
           ...fileCheckpointsFact(),
           restorable: state.fileHistory.snapshots.map(snapshot => String(snapshot.messageId)),
