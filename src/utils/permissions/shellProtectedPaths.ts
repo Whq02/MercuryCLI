@@ -515,7 +515,7 @@ function couldNameSecret(word: string, cwd: string, homes: readonly string[], sp
   const expanded = spelling(word)
   const segments = expanded.split(/[\\/]/)
   const at = segments.findIndex(segment => DYNAMIC_PART.test(segment) || segment.includes(UNREAD_PART))
-  if (at < 0 || (spelledHome && at === 0)) return false
+  if (at < 0) return false
   const fixed = segments.slice(0, at).join('/') || (expanded.startsWith('/') ? '/' : '.')
   let pattern: RegExp
   try {
