@@ -38,6 +38,7 @@ import { adoptOpenaiCatalogueFact } from '../providers/openai/openaiCatalogue.js
 import { adoptAnthropicObservedUsage, adoptAnthropicWindowFact } from '../anthropicLimits.js'
 import { mergeRecordsContentKeyed } from './recordIdentity.js'
 import { placeLocalCommandRows } from './localCommandRows.js'
+import { endedRunResults } from './endedRunCalls.js'
 import {
   readSessionAsks,
   readSessionFacts,
@@ -1425,12 +1426,14 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.rowsAfterTail = afterTail.length
     const kept = withoutRetractedReplies(projectOperatorRewinds(this.rawRecords))
     const dropped = kept.length === this.rawRecords.length ? null : new Set<Message>(kept)
-    if (echoes.length === 0 && this.displayRows.length === 0 && dropped === null) {
+    const answered = endedRunResults(kept, this.facts, this.carrierGoneAtFactsMs !== null)
+    if (echoes.length === 0 && this.displayRows.length === 0 && dropped === null && answered.length === 0) {
       this.painted = this.rawRecords
     } else {
       const rows: Message[] = []
       let d = 0
       for (let i = 0; i <= this.rawRecords.length; i++) {
+        if (i === this.rawRecords.length) rows.push(...answered)
         while (d < this.displayRows.length && this.displayRows[d]!.anchor <= i) rows.push(this.displayRows[d++]!.row)
         if (i < this.rawRecords.length) {
           const record = this.rawRecords[i]!
