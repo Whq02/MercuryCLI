@@ -4,7 +4,7 @@ import { posix } from 'node:path'
 import { getShellCwd } from '../Shell.js'
 import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../envUtils.js'
 import { CREDENTIALS_SERVICE_SUFFIX, getMacOsKeychainStorageServiceName, getRawSpellingKeychainStorageServiceName } from '../secureStorage/macOsKeychainHelpers.js'
-import { UNREAD_PART, layersOf, printedBy, readShellCommands, wordKnown, type Layer, type ReadCommand, type ShellRead } from '../wards/wardsShellRead.js'
+import { UNREAD_PART, absolutePath, layersOf, printedBy, readShellCommands, wordKnown, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from '../wards/wardsShellRead.js'
 import { credentialStorePath as storePathOf, mercurySecretPath as secretPathOf, protectedPathForms as pathFormsOf, spelling } from './protectedPaths.js'
 import { pinnedCommandAnalysis, peelWrappers, PARSE_ABORTED, extractHeredocs, type Node } from './decision/commandAnalysis.js'
 import { namesMercuryProcess, placedUnder, runtimeWritePath, runtimeProcessRefusal } from './runtimeProtection.js'
@@ -396,9 +396,9 @@ async function credentialWriteAfterMove(command: string, powershell: boolean, cw
   const read = await readForFloors(command, powershell, cwd)
   if (read === null) return null
   for (const [at, simple] of read.commands.entries()) {
-    if (simple.cwd !== undefined && !GLOB_PART.test(simple.cwd) && !/^[A-Za-z]:\//.test(simple.cwd)) continue
     const after = foldersAfter(read, at, cwd)
     if (after.lost) continue
+    if (simple.cwd !== undefined && !GLOB_PART.test(simple.cwd) && !/^[A-Za-z]:\//.test(simple.cwd) && after.folders.length === 1) continue
     const written = simple.redirects.flatMap(redirect => (['>', '>>', '>|', '&>', '&>>'].includes(redirect.op) ? ['>', '', redirect.target] : []))
     for (const layer of layersOf(simple.argv)) {
       for (const path of writeOperands([...layer.argv, ...written])) {
@@ -454,10 +454,14 @@ function currentUser(): { user?: string; uid?: string } {
   }
 }
 
+function floorsWorld(cwd: string): ReadWorld {
+  const home = (process.env.HOME || process.env.USERPROFILE || homedir()).replace(/\\/g, '/')
+  return { cwd: cwd.replace(/\\/g, '/'), home, homesRoot: posix.dirname(home), ownNames: [], ...currentUser(), windows: process.platform === 'win32' }
+}
+
 async function readForFloors(command: string, powershell: boolean, cwd: string): Promise<ShellRead | null> {
   try {
-    const home = (process.env.HOME || process.env.USERPROFILE || homedir()).replace(/\\/g, '/')
-    const read = await readShellCommands(command, powershell ? 'powershell' : 'posix', { cwd: cwd.replace(/\\/g, '/'), home, homesRoot: posix.dirname(home), ownNames: [], ...currentUser(), windows: process.platform === 'win32' })
+    const read = await readShellCommands(command, powershell ? 'powershell' : 'posix', floorsWorld(cwd))
     return read
   } catch {
     return null
@@ -723,7 +727,36 @@ function foldersOnDisk(pattern: string): string[] {
   })
 }
 
+function standsAsFolder(path: string): boolean {
+  try {
+    return statSync(path).isDirectory()
+  } catch {
+    return false
+  }
+}
+
 function foldersAfter(read: ShellRead, at: number, cwd: string): { folders: string[]; lost: boolean } {
+  const reached = foldersRead(read, at, cwd)
+  const simple = read.commands[at]
+  const stands = simple?.cwd
+  if (simple === undefined || stands === undefined) return reached
+  const stayed: string[] = []
+  for (let index = at - 1; index >= 0; index--) {
+    const turn = read.commands[index]!
+    const layer = layersOf(turn.argv)[0]
+    if (layer === undefined || !CD_PROGRAMS.has(layer.program) || turn.cwd === undefined) continue
+    if ((simple.gates ?? []).some(([from, to]) => index >= from && index < to)) continue
+    const target = layer.argv.slice(1).find(word => !/^-[A-Za-z]+$/.test(word))
+    if (target === undefined || !wordKnown(target)) continue
+    const named = absolutePath(turn.dialect === 'powershell' ? target.replace(/\\/g, '/') : target, turn.cwd, floorsWorld(turn.cwd))
+    if (named === undefined || (stands !== named && !stands.startsWith(`${named}/`))) continue
+    if (GLOB_PART.test(named) ? foldersNamedBy(named).length > 0 : standsAsFolder(named)) continue
+    stayed.push(posix.join(turn.cwd, stands.slice(named.length)))
+  }
+  return stayed.length === 0 ? reached : { folders: [...new Set([...reached.folders, ...stayed])], lost: reached.lost }
+}
+
+function foldersRead(read: ShellRead, at: number, cwd: string): { folders: string[]; lost: boolean } {
   const simple = read.commands[at]
   if (simple === undefined) return { folders: [cwd], lost: false }
   if (simple.cwd !== undefined) {

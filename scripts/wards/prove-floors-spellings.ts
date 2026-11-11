@@ -607,6 +607,43 @@ if (runs('SENT')) {
   for (const item of clear) await expect('SENT', item, ['sovereign'], notRefused, 'is not refused by the floor')
 }
 
+if (runs('STAYED')) {
+  section('STAYED · a cd that is not joined by && to what follows, to a folder that does not stand, leaves the shell where it stood: what follows is judged under both folders')
+  const reads: Call[] = [
+    bash('cd <CONFIG>; cd nope; cat mcp-auth.json', 'the line that printed the file: the second cd fails and the shell stays in the store'),
+    bash('cd <CONFIG>; cd nope || true; cat mcp-auth.json'),
+    bash('cd <CONFIG>; cd nope 2>/dev/null; cat mcp-auth.json'),
+    bash('cd <CONFIG>; pushd nope; cat mcp-auth.json', 'pushd'),
+    bash('cd <CONFIG>; cd /nonexistent/x; cat mcp-auth.json', 'a rooted folder that does not stand'),
+    bash('cd <CONFIG>; cd nope; grep -r token .', 'a tree reader after it'),
+    bash('cd <CONFIG>\ncd nope\ncat .credentials.json', 'on three lines'),
+    bash('cd <CONFIG> && cd nope; cat mcp-auth.json', 'the failed cd joined to nothing after it'),
+    bash('cd <CONFIG>; cd nope && ls; cat mcp-auth.json', 'joined to the listing, not to the read'),
+    bash('cd <CONFIG>/..; cd nope; cd config; cat mcp-auth.json', 'a failed cd, then a relative one into the store'),
+    bash('(cd <CONFIG>; cd nope; cat mcp-auth.json)', 'in a subshell'),
+  ]
+  for (const item of reads) await expect('STAYED', item, ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
+  await expect('STAYED', bash('cd <CONFIG>; cd nope; rm -rf runtime', 'floor 4 where the shell stayed'), ['sovereign', 'flow'], refused, 'is refused')
+  await expect('STAYED', bash('cd ~/.ssh; cd nope; echo x >> authorized_keys', 'floor 1 where the shell stayed'), ['sovereign', 'flow'], refused, 'is refused')
+  bootstrap.setCwdState(CONFIG_HOME)
+  await expect('STAYED · the session standing in the config home', bash('cd nope; cat mcp-auth.json'), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
+  for (const item of [bash('cd runtime; ls', 'a folder of the store that stands'), bash('cd /tmp; cat "$FILE"', 'out of the store by a folder that stands'), bash('cd /tmp\ncat "$FILE"', 'the same on two lines'), bash('cd nope && cat "$FILE"', 'joined by &&: nothing runs where the cd fails')]) await expect('STAYED · the session standing in the config home', item, ['sovereign'], notRefused, 'is not refused by the floor')
+  bootstrap.setCwdState(OWN_HOME)
+  for (const item of [bash('cd Documents\ngrep -r foo .', 'a folder of the home that stands, a search on the next line'), bash('cd Documents; grep -r foo .'), bash('cd Documents; cat "$FILE"'), bash('cd Documents\ntar -cf /tmp/d.tar .'), bash('cd nope && grep -r foo .', 'joined by &&')]) await expect('STAYED · the session standing in the home', item, ['sovereign'], notRefused, 'is not refused by the floor')
+  await expect('STAYED · the session standing in the home', bash('cd nope; grep -r foo .', 'the same search after a cd to a folder that does not stand: it would read the home'), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
+  bootstrap.setCwdState(PROJECT)
+  const clear: Call[] = [
+    bash('cd nope; cat notes.txt', 'in the project, a failed cd and a plain file'),
+    bash('cd nope; grep -r plain .', 'in the project, a failed cd and a search of the project'),
+    bash('cd nope && cat mcp-auth.json', 'joined by &&: nothing runs where the cd fails'),
+    bash('cd <CONFIG>; cd runtime; ls', 'a folder of the store that stands'),
+    bash('cd <CONFIG>; cd /tmp; cat "$FILE"', 'out of the store by a folder that stands'),
+    bash('cd docs; cat plain.md', 'a folder of the project that stands'),
+    bash('x=$(cd nope && pwd); cat notes.txt', 'a cd inside a substitution'),
+  ]
+  for (const item of clear) await expect('STAYED', item, ['sovereign'], notRefused, 'is not refused by the floor')
+}
+
 if (runs('T-3.5')) {
   const state = daemonStatePath()
   section('T-3.5 floor 4: kills of the daemon and of the session, and writes into the runtime, under Sovereign and Flow')
