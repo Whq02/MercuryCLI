@@ -153,6 +153,7 @@ async function focusResumedSessionLanding(
   const seat = await import('../engine-connector/daemonConnector.js')
   const { headBriefLabel } = await import('../concourse/concourseSnapshot.js')
   const title = opts?.title ?? standing?.title ?? headBriefLabel({ sessionId, workspaceId: workspaceDir }, 48) ?? sessionId.slice(0, 8)
+  const retainedModel = standing === undefined ? workers.resumeModelKeyOf(sessionId, workspaceDir) : standing.modelKey
   const connector = seat.daemonSessionConnectorFor({
     sessionId,
     runnerId: standing?.runnerId ?? '',
@@ -167,7 +168,7 @@ async function focusResumedSessionLanding(
           : paths.getProjectDir(workspaceDir),
     ...(standing?.isolation !== undefined ? { isolation: standing.isolation } : {}),
     ...(standing?.branchName !== undefined ? { branchLabel: standing.branchName } : {}),
-    ...(standing?.modelKey !== undefined ? { modelKey: standing.modelKey } : {}),
+    ...(retainedModel !== undefined ? { modelKey: retainedModel } : {}),
     ...(standing?.effort !== undefined ? { effort: standing.effort } : {}),
     ...(standing?.worktreePath !== undefined ? { worktreePath: standing.worktreePath } : {}),
   })

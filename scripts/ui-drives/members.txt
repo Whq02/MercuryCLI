@@ -34,3 +34,4 @@ prove-zen-agent-view-drive.ts
 prove-crew-look-drive.ts
 prove-crew-screens-unchanged.ts
 prove-collapse-off-tail-drive.ts
+prove-resume-first-status.ts

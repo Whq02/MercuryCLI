@@ -546,6 +546,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readonly liveListeners: Listeners = new Set()
 
   private facts: SessionFactsV1 | null
+  private readonly openedAtMs = Date.now()
+  private readonly seedFactsAtMs: number | null
+  private awaitingRunnerFacts: boolean
   private readonly factsFeed: ProjectionFeed
   private readonly modelListeners: Listeners = new Set()
   private readonly permissionListeners: Listeners = new Set()
@@ -602,6 +605,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   constructor(readonly record: DaemonSessionRecordV1) {
     this.transcriptPath = join(record.home, `${record.sessionId}.jsonl`)
     this.facts = readSessionFacts(record.sessionId)
+    this.seedFactsAtMs = this.facts?.atMs ?? null
+    this.awaitingRunnerFacts = record.runnerId === ''
     this.refreshWork()
     const idleFloor = (): number => (this.turnInFlight ? HEARTBEAT_MS : IDLE_PROJECTION_FLOOR_MS)
     this.factsFeed = new ProjectionFeed(sessionFactsDir(), sessionFactsPath(record.sessionId), () => this.readFacts(), idleFloor)
@@ -1536,6 +1541,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       }
       return
     }
+    if (this.awaitingRunnerFacts) {
+      if (this.seedFactsAtMs !== null && next.atMs <= this.seedFactsAtMs) return
+      this.awaitingRunnerFacts = false
+    }
     const prev = this.facts
     this.facts = this.factsFromCarrier(next)
     this.refreshCheckpoints()
@@ -2235,15 +2244,16 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   modelFacts(): ModelFactsV1 {
-    const effective = this.facts?.model.effective ?? this.record.modelKey ?? getEngineModel()
+    const retained = this.awaitingRunnerFacts ? this.record.modelKey : undefined
+    const effective = retained ?? this.facts?.model.effective ?? this.record.modelKey ?? getEngineModel()
     const effectiveSource: 'live' | 'record' | 'ambient' =
-      this.facts !== null ? 'live' : this.record.modelKey !== undefined ? 'record' : 'ambient'
+      this.facts !== null && !this.awaitingRunnerFacts ? 'live' : this.facts !== null || this.record.modelKey !== undefined ? 'record' : 'ambient'
     return {
       effective,
       effectiveSource,
       main: effective,
-      setting: this.facts?.model.setting ?? this.record.modelKey ?? null,
-      sessionPin: this.facts?.model.setting ?? this.record.modelKey ?? null,
+      setting: retained ?? this.facts?.model.setting ?? this.record.modelKey ?? null,
+      sessionPin: retained ?? this.facts?.model.setting ?? this.record.modelKey ?? null,
       effort: this.facts?.effort ?? this.record.effort ?? null,
       ...(this.facts?.effortSent !== undefined ? { effortSent: this.facts.effortSent } : {}),
       pendingSwitch: this.facts?.pendingModel !== undefined && this.facts.pendingModel !== null ? { setting: this.facts.pendingModel } : null,
@@ -2571,7 +2581,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       stuck,
       ...(this.record.isolation !== undefined ? { isolation: this.record.isolation } : {}),
       ...(this.record.branchLabel !== undefined ? { branchLabel: this.record.branchLabel } : {}),
-      runner: this.facts?.runner ?? null,
+      runner: this.awaitingRunnerFacts ? { state: 'starting', sinceMs: this.openedAtMs, respawns: 0, maxRespawns: 0 } : this.facts?.runner ?? null,
     }
   }
 }
