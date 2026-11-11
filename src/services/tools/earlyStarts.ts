@@ -45,6 +45,8 @@ export class EarlyStarts {
   private queue: Promise<void> = Promise.resolve()
   private generation = 0
   private declined = false
+  private stopCause: unknown = undefined
+  private passed = new Set<AbortController>()
   private roundOpen = false
   private callKeys = new Map<string, string>()
   private asked = new Map<string, Ask>()
@@ -67,7 +69,8 @@ export class EarlyStarts {
       this.adopted.delete(toolUseID)
       if (earlier.state === 'answered') {
         this.asked.set(key, earlier)
-        if (earlier.stops) this.decline(toolUseID)
+        if (decision.behavior === 'allow') this.passed.add(context.abortController)
+        if (earlier.stops) this.decline(toolUseID, earlier.controller.signal.reason)
         return decision
       }
     }
@@ -76,25 +79,32 @@ export class EarlyStarts {
     ask.decision = this.canUseTool(tool, input, context, assistantMessage, toolUseID).then(decision => {
       if (ask.state === 'open') ask.state = this.context.abortController.signal.aborted ? 'withdrawn' : 'answered'
       ask.stops = ask.state === 'answered' && decision.behavior !== 'allow' && ask.controller.signal.aborted
+      if (ask.state === 'answered' && decision.behavior === 'allow') this.passed.add(ask.controller)
       if (ask.superseded) ask.controller.abort('retry')
-      if (ask.stops) this.decline(ask.superseded ? ask.heir : toolUseID)
+      if (ask.stops) this.decline(ask.superseded ? ask.heir : toolUseID, ask.controller.signal.reason)
       return decision
     })
     this.asked.set(key, ask)
     return ask.decision
   }
 
-  private decline(toolUseID: string | undefined): void {
+  private decline(toolUseID: string | undefined, cause: unknown): void {
     this.declined = true
+    this.stopCause ??= cause
+    if (this.roundOpen) this.context.abortController.abort(this.stopCause)
     const kept = toolUseID === undefined ? undefined : this.controllers.get(toolUseID)
     for (const ask of this.asked.values()) if (ask.controller !== kept) this.withdraw(ask)
     for (const [id, controller] of this.controllers) {
-      if (id === toolUseID || this.started.get(id)?.finished) continue
-      controller.abort('retry')
+      if (id === toolUseID) continue
+      controller.abort(this.cutCause())
+      if (this.started.get(id)?.finished || this.passed.has(controller)) continue
       this.controllers.delete(id)
       this.started.delete(id)
     }
-    if (this.roundOpen) this.context.abortController.abort()
+  }
+
+  private cutCause(): unknown {
+    return this.context.abortController.signal.reason ?? this.stopCause ?? 'retry'
   }
 
   offer(block: ToolUseBlock, parent: AssistantMessage, ordinal: number): void {
@@ -146,11 +156,14 @@ export class EarlyStarts {
     await this.queue
     this.roundOpen = true
     for (const ask of [...this.kept.values()].flat()) {
-      if (ask.stops) this.declined = true
+      if (ask.stops) {
+        this.declined = true
+        this.stopCause ??= ask.controller.signal.reason
+      }
       this.withdraw(ask)
     }
     this.kept = new Map()
-    if (this.declined) this.context.abortController.abort()
+    if (this.declined) this.context.abortController.abort(this.stopCause)
   }
 
   take(toolUseID: string): EarlyCall | undefined {
@@ -174,7 +187,9 @@ export class EarlyStarts {
     for (const [key, ask] of this.asked) keep(key, ask)
     for (const [toolUseID, ask] of this.adopted) keep(this.callKeys.get(toolUseID), ask)
     this.clear(controller => !waiting.has(controller))
-    this.declined = [...this.kept.values()].flat().some(ask => ask.stops)
+    const stop = [...this.kept.values()].flat().find(ask => ask.stops)
+    this.declined = stop !== undefined
+    this.stopCause = stop?.controller.signal.reason
   }
 
   reset(): void {
@@ -185,7 +200,7 @@ export class EarlyStarts {
 
   private withdraw(ask: Ask): void {
     if (ask.state === 'open') ask.state = 'withdrawn'
-    ask.controller.abort(this.context.abortController.signal.reason ?? 'retry')
+    ask.controller.abort(this.cutCause())
   }
 
   private clear(aborts: (controller: AbortController) => boolean): void {
@@ -198,6 +213,8 @@ export class EarlyStarts {
     this.asked = new Map()
     this.adopted = new Map()
     this.declined = false
+    this.stopCause = undefined
+    this.passed = new Set()
     this.roundOpen = false
     this.roundID = `round:${randomUUID()}`
   }

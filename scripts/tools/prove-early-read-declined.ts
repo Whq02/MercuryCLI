@@ -48,6 +48,7 @@ type AnyMessage = Record<string, unknown> & { type?: string }
 const MODEL = 'claude-opus-4-8'
 
 const ran: string[] = []
+let callMs = 0
 function makeTool(name: string, readOnly: boolean): never {
   return {
     name,
@@ -64,6 +65,7 @@ function makeTool(name: string, readOnly: boolean): never {
     needsPermissions: () => true,
     async validateInput() { return { result: true } },
     async call(_input: Record<string, unknown>, context: { toolUseId?: string }) {
+      if (callMs > 0) await new Promise(resolve => setTimeout(resolve, callMs))
       ran.push(context.toolUseId ?? '?')
       return { data: `${name} ran` }
     },
@@ -74,7 +76,8 @@ const TOOLS = [makeTool('Read', true), makeTool('Edit', false)]
 
 type Answer = 'allow' | 'decline' | 'decline with words' | 'declined in the window' | 'stopped by the host'
 interface Scene {
-  calls: Array<{ name: string; input: Record<string, unknown>; answer: Answer; afterMs?: number }>
+  calls: Array<{ name: string; input: Record<string, unknown>; answer: Answer; afterMs?: number; lateMs?: number }>
+  callMs?: number
   answersAfterReply?: boolean
   interruptAfterAnswer?: boolean
   replyWaitsForEveryAnswer?: boolean
@@ -91,6 +94,7 @@ interface Run {
 
 async function run(scene: Scene, label: string): Promise<Run> {
   ran.length = 0
+  callMs = scene.callMs ?? 0
   const asked: string[] = []
   let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }
   const abortController = new AbortController()
@@ -121,6 +125,8 @@ async function run(scene: Scene, label: string): Promise<Run> {
       while (!replyEnded && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10))
       await new Promise(resolve => setTimeout(resolve, 120))
     }
+    const lateMs = scene.calls[ids.indexOf(toolUseID)]?.lateMs
+    if (lateMs !== undefined) await new Promise(resolve => setTimeout(resolve, lateMs))
     const permission = createPermissionContext(tool, input, toolUseContext, assistantMessage, toolUseID, () => {})
     const decision = answer === 'declined in the window' || answer === 'stopped by the host'
       ? decisionOfAnswer({ outcome: 'deny', message: answer === 'stopped by the host' ? HOST_STOP_WORDS : REJECT_MESSAGE, ...(answer === 'stopped by the host' ? { stop: true } : {}) } as never, tool, input, toolUseContext)
@@ -255,6 +261,26 @@ section('a read that has already run keeps its result when the read beside it is
   check('the same when the stop is a wordless No on the in-process road', hook.ran.length === 1 && (hook.results.get(hook.ids[0]!) ?? '').includes('Read ran') && (hook.results.get(hook.ids[1]!) ?? '').includes(REJECT_MESSAGE) && hook.turnAborted, brief(hook))
   const pending = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'stopped by the host' }, { name: 'Read', input: { file_path: '/tmp/declined/b.txt' }, answer: 'allow', afterMs: 400 }], replyWaitsForEveryAnswer: true }, 'stop-then-pending')
   check('a read still waiting for its answer when the stop comes does not run and gets the stopped line', pending.ran.length === 0 && (pending.results.get(pending.ids[1]!) ?? '').includes(CANCEL_MESSAGE) && pending.turnAborted, brief(pending))
+}
+
+section('a read still running when the stop lands on the read beside it is cut by that stop, in the words every call in flight gets')
+{
+  const A = { name: 'Read', input: { file_path: '/tmp/declined/a.txt' } }
+  const B = { name: 'Read', input: { file_path: '/tmp/declined/b.txt' } }
+  const once = (r: Run): boolean => r.asked.filter(id => id === r.ids[0]).length === 1
+  const answerOf = (r: Run, at: number): string => r.results.get(r.ids[at]!) ?? ''
+  const host = await run({ calls: [{ ...A, answer: 'allow' }, { ...B, answer: 'stopped by the host', lateMs: 150 }], answersAfterReply: true, callMs: 1200 }, 'running-then-stop')
+  check("a host's stop after the reply has ended: one request, the turn stopped, the stopped read answered by the stop", host.requests === 1 && host.turnAborted && answerOf(host, 1).includes(HOST_STOP_WORDS), brief(host))
+  check('the running read is told it was interrupted, not "Cut off: retry"', isInterruptedResultText(answerOf(host, 0)) && !answerOf(host, 0).startsWith('Cut off'), brief(host))
+  const hook = await run({ calls: [{ ...A, answer: 'allow' }, { ...B, answer: 'decline', lateMs: 150 }], answersAfterReply: true, callMs: 1200 }, 'running-then-no')
+  check('the same when the stop is a wordless No on the in-process road', hook.requests === 1 && hook.turnAborted && isInterruptedResultText(answerOf(hook, 0)) && answerOf(hook, 1).includes(REJECT_MESSAGE), brief(hook))
+  const arriving = await run({ calls: [{ ...A, answer: 'allow' }, { ...B, answer: 'stopped by the host', afterMs: 60 }], replyWaitsForEveryAnswer: true, callMs: 1200 }, 'running-while-arriving')
+  check('the reply still arriving: the running read is asked once and told it was interrupted, not that it never ran', arriving.requests === 1 && arriving.turnAborted && once(arriving) && isInterruptedResultText(answerOf(arriving, 0)) && !answerOf(arriving, 0).includes(CANCEL_MESSAGE), brief(arriving))
+  const settledRoad = await run({ calls: [{ name: 'Edit', input: A.input, answer: 'allow' }, { ...A, answer: 'allow' }, { name: 'Read', input: { ...A.input, offset: 1 }, answer: 'stopped by the host', afterMs: 60 }], callMs: 1200 }, 'running-settled')
+  check('the settled road, where a write to the same file keeps both reads from starting early: the write runs, the read in flight is told it was interrupted', settledRoad.ran.includes(settledRoad.ids[0]!) && settledRoad.asked.indexOf(settledRoad.ids[0]!) === 0 && isInterruptedResultText(answerOf(settledRoad, 1)), brief(settledRoad))
+  check('the early read\'s words are those words, to the letter', answerOf(settledRoad, 1) === answerOf(host, 0) && answerOf(settledRoad, 1) === answerOf(arriving, 0), `${answerOf(settledRoad, 1).slice(0, 90)} · ${answerOf(host, 0).slice(0, 90)} · ${answerOf(arriving, 0).slice(0, 90)}`)
+  const ending = await run({ calls: [{ ...A, answer: 'allow' }, { ...B, answer: 'stopped by the host', afterMs: 60 }], replyWaitsForEveryAnswer: true, callMs: 300 }, 'ending-while-arriving')
+  check('a running read that ends inside the interrupt\'s grace is asked once and keeps its result', ending.turnAborted && once(ending) && answerOf(ending, 0).includes('Read ran'), brief(ending))
 }
 
 console.log(`\nprove-early-read-declined: ${checks} checks, ${failures} failed`)
