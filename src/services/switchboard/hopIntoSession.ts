@@ -74,7 +74,7 @@ async function hopIntoBoardSessionLanding(sessionId: string, opts?: { firstPaint
     ...(rec.modelKey !== undefined ? { modelKey: rec.modelKey } : {}),
     ...(rec.effort !== undefined ? { effort: rec.effort } : {}),
     ...(rec.worktreePath !== undefined ? { worktreePath: rec.worktreePath } : {}),
-  })
+  }, workers.sessionOwnedByLiveWorker(sessionId) !== null)
   void hop.catch(() => settleLandingWords())
   await Promise.race([hop, new Promise<void>(r => setTimeout(r, opts?.firstPaintMs ?? 250))])
   void withLanding(hop.then(() => undefined)).catch(() => {})
@@ -156,7 +156,7 @@ async function focusResumedSessionLanding(
   const retainedModel = standing === undefined ? workers.resumeModelKeyOf(sessionId, workspaceDir) : standing.modelKey
   const connector = seat.daemonSessionConnectorFor({
     sessionId,
-    runnerId: standing?.runnerId ?? '',
+    runnerId: '',
     title,
     projectLabel: basename(workspaceDir) || workspaceDir,
     workspaceId: workspaceDir,
@@ -218,7 +218,7 @@ async function focusResumedSessionLanding(
         ...(settled.modelKey !== undefined ? { modelKey: settled.modelKey } : {}),
         ...(settled.effort !== undefined ? { effort: settled.effort } : {}),
         ...(settled.worktreePath !== undefined ? { worktreePath: settled.worktreePath } : {}),
-      })
+      }, reply.liveHop === true)
       connector.assertSeat()
       return null
     } catch (error) {

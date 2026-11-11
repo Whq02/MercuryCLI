@@ -546,8 +546,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readonly liveListeners: Listeners = new Set()
 
   private facts: SessionFactsV1 | null
-  private readonly openedAtMs = Date.now()
-  private readonly seedFactsAtMs: number | null
+  private openedAtMs = Date.now()
+  private seedFactsAtMs: number | null
   private awaitingRunnerFacts: boolean
   private readonly factsFeed: ProjectionFeed
   private readonly modelListeners: Listeners = new Set()
@@ -1038,9 +1038,17 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return this.transcriptPath
   }
 
-  adoptRecord(next: DaemonSessionRecordV1): void {
+  adoptRecord(next: DaemonSessionRecordV1, runnerLive = false): void {
     if (next.sessionId !== this.record.sessionId) return
+    if (next.runnerId === '' && !this.awaitingRunnerFacts) {
+      this.facts = readSessionFacts(next.sessionId) ?? this.facts
+      this.seedFactsAtMs = this.facts?.atMs ?? null
+      this.openedAtMs = Date.now()
+      this.awaitingRunnerFacts = true
+    }
     Object.assign(this.record, next)
+    if (runnerLive) this.awaitingRunnerFacts = false
+    emitAll(this.modelListeners, 'model')
     emitAll(this.liveListeners, 'live')
   }
 
@@ -2589,13 +2597,13 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
 const connectors = new Map<string, DaemonSessionConnector>()
 
-export function daemonSessionConnectorFor(record: DaemonSessionRecordV1): DaemonSessionConnector {
+export function daemonSessionConnectorFor(record: DaemonSessionRecordV1, runnerLive = false): DaemonSessionConnector {
   let c = connectors.get(record.sessionId)
   if (c === undefined) {
     c = new DaemonSessionConnector(record)
     connectors.set(record.sessionId, c)
   } else {
-    c.adoptRecord(record)
+    c.adoptRecord(record, runnerLive)
   }
   return c
 }
@@ -2612,8 +2620,8 @@ export function registerLiveTitleDeriver(deriver: LiveTitleDeriver): void {
 
 let latestHop: { epoch: number; connector: DaemonSessionConnector } | null = null
 
-export async function focusDaemonSession(record: DaemonSessionRecordV1): Promise<DaemonSessionConnector> {
-  const connector = daemonSessionConnectorFor(record)
+export async function focusDaemonSession(record: DaemonSessionRecordV1, runnerLive = false): Promise<DaemonSessionConnector> {
+  const connector = daemonSessionConnectorFor(record, runnerLive)
   const epoch = claimHopEpoch()
   latestHop = { epoch, connector }
   await connector.attach()
