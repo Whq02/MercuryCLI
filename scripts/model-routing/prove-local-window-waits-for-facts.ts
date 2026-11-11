@@ -60,7 +60,7 @@ await new Promise<void>(done => ollama.listen(0, '127.0.0.1', () => done()))
 const address = ollama.address()
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=http://127.0.0.1:${typeof address === 'object' && address !== null ? address.port : 0}`
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
