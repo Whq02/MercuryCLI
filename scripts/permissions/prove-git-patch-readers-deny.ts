@@ -38,6 +38,11 @@ put('src/a.txt', 'a3\n', true)
 commit('fourth: plain again', 'src/a.txt')
 git('tag', '-a', 'v-touch', '-m', 'the release that touched it', 'HEAD~1')
 git('tag', '-a', 'v-plain', '-m', 'a plain release', 'HEAD')
+git('checkout', '-q', '-b', 'renames')
+git('mv', 'secrets/k.txt', 'secrets/moved.txt')
+put('secrets/moved.txt', 'K3\n', true)
+commit('a rename inside the folder, with an edit', 'secrets/moved.txt')
+git('checkout', '-q', 'main')
 put('secrets/k.txt', 'held\n', true)
 git('stash', 'push', '-q', '-m', 'holds the secret')
 put('sub/s.txt', 'held\n', true)
@@ -95,6 +100,9 @@ const PRINTS: Array<[string, string]> = [
   ['an annotated tag of the commit that touches it, whose header git prints before the names', 'git show v-touch'],
   ['two annotated tags, the second of the commit that touches it', 'git show v-plain v-touch'],
   ['an annotated tag beside the notes', 'git show --notes v-touch'],
+  ['a rename of it inside the rule, with an edit, asked for by the rename filter', 'git show --diff-filter=R renames'],
+  ['the same by a filter that leaves adds and deletes out', 'git show --diff-filter=ad renames'],
+  ['the same in a range', 'git diff --diff-filter=R main renames'],
 ]
 for (const [label, command] of PRINTS) {
   const wrong: string[] = []
@@ -122,7 +130,7 @@ const PRINTS_NONE = [
   'git show nosuchref', 'git diff nosuchref', 'git log --oneline -3', 'git status',
   'git show --relative-date HEAD', 'git show --notes HEAD', 'git show --show-notes=commits HEAD', 'git show --no-standard-notes HEAD', 'git diff -OREADME HEAD~1', 'git diff -O README HEAD~1', 'git -c diff.noprefix=true diff', 'git -c diff.algorithm=histogram show HEAD', 'git diff -l50 HEAD~1', 'cd sub && git diff --relative HEAD~2',
   'git stash show --no-color', "git stash show --stat --no-color 'stash@{1}'", "git stash show -u 'stash@{1}'", 'git diff-tree --cc --name-only HEAD~1', 'git diff-tree --no-commit-id --name-only -r HEAD~1', 'git diff-tree --cc HEAD', 'git diff-index --quiet HEAD', 'git diff --stat-width=5 HEAD~2', 'git diff --stat --no-color HEAD~2', 'cd sub && git diff --no-relative --relative HEAD~2',
-  'git diff --name-only --relative=src HEAD~2', 'git diff --stat --relative=secrets HEAD~2', 'git show v-plain', 'git show --stat v-touch',
+  'git diff --name-only --relative=src HEAD~2', 'git diff --stat --relative=secrets HEAD~2', 'git show v-plain', 'git show --stat v-touch', 'git show --diff-filter=AM HEAD', 'git diff --name-only --diff-filter=ACMR HEAD~2', 'git show --diff-filter=R HEAD',
 ]
 for (const command of PRINTS_NONE) {
   const wrong: string[] = []
@@ -269,6 +277,7 @@ const UNREAD: Array<[string, string, RegExp]> = [
   ['a file of a commit beside a word that names more commits', 'git show HEAD:README --reflog', /git show is given --reflog, an option Mercury does not read for what it prints/],
   ['the stash named after a double dash', "git stash show -- 'stash@{1}'", /git stash show is given --, an option Mercury does not read for what it prints/],
   ['the names made relative to a named folder, which this reading does not follow', 'git diff --relative=src HEAD~2', /git diff is given --relative=src, an option Mercury does not read for what it prints/],
+  ['the filter given as two words, which this reading does not follow', 'git show --diff-filter R renames', /git show is given --diff-filter, an option Mercury does not read for what it prints/],
 ]
 for (const [label, command, why] of UNREAD) {
   for (const mode of ['sovereign', 'flow'] as const) {
