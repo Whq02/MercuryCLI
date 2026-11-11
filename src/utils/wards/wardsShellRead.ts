@@ -25,6 +25,7 @@ export type ReadCommand = {
   dialect: ShellDialect
   around: string | undefined
   gates?: ReadonlyArray<readonly [number, number]> | undefined
+  maybes?: readonly number[] | undefined
 }
 
 export type Layer = {
@@ -357,7 +358,9 @@ class Reading {
   readonly expansions = new Map<string, number>()
   unread: { why: string; text: string } | undefined
   scripts = 0
+  contexts = 0
   cwd: string | undefined
+  oldpwd: string | undefined
 
   constructor(readonly world: ReadWorld) {
     this.cwd = world.cwd
@@ -425,13 +428,16 @@ class Reading {
     if (pushes) this.folders.push(this.cwd)
     const operands = layer.argv.slice(1).filter(word => !/^-[A-Za-z]+$/.test(word))
     const target = this.world.windows === true && operands.length > 1 && /^\/d$/i.test(operands[0]!) ? operands[1] : operands[0]
+    const left = this.cwd
     if (target === undefined) this.cwd = pushes ? undefined : (this.scope.get('HOME')?.at(-1) ?? this.world.home)
-    else if (target === '-' || !wordKnown(target)) this.cwd = undefined
+    else if (target === '-') this.cwd = this.oldpwd
+    else if (!wordKnown(target)) this.cwd = undefined
     else this.cwd = absolutePath(command.dialect === 'powershell' ? target.replace(/\\/g, '/') : target, this.cwd, this.world)
+    this.oldpwd = left
   }
 }
 
-type Frame = { background: boolean; stages: readonly Stage[]; body: string | undefined; line: number; dialect: ShellDialect; around: string | undefined; gates?: ReadonlyArray<readonly [number, number]> | undefined }
+type Frame = { background: boolean; stages: readonly Stage[]; body: string | undefined; line: number; dialect: ShellDialect; around: string | undefined; gates?: ReadonlyArray<readonly [number, number]> | undefined; maybes?: readonly number[] | undefined }
 
 const WORD_KINDS = new Set(['word', 'number', 'raw_string', 'string', 'concatenation', 'ansi_c_string', 'translated_string', 'simple_expansion', 'expansion', 'command_substitution', 'process_substitution', 'arithmetic_expansion', 'brace_expression'])
 const WRITE_KEEPERS = new Set(['file_redirect', 'heredoc_redirect', 'herestring_redirect'])
@@ -464,10 +470,16 @@ class PosixWalk {
 
   isolated(run: () => void): void {
     const cwd = this.reading.cwd
+    const oldpwd = this.reading.oldpwd
     const depth = this.reading.folders.length
     run()
     this.reading.cwd = cwd
+    this.reading.oldpwd = oldpwd
     this.reading.folders.length = depth
+  }
+
+  maybe(frame: Frame): Frame {
+    return { ...frame, maybes: [...(frame.maybes ?? []), ++this.reading.contexts] }
   }
 
   node(node: Node, frame: Frame): void {
@@ -486,8 +498,31 @@ class PosixWalk {
       case 'process_substitution':
         this.isolated(() => this.children(node, frame))
         return
+      case 'if_statement': {
+        let body: Frame | undefined
+        node.children.forEach((child, at) => {
+          if (child.type === 'then') {
+            body = this.maybe(frame)
+            return
+          }
+          const base = child.type === 'elif_clause' || child.type === 'else_clause' ? this.maybe(frame) : (body ?? frame)
+          this.node(child, node.children[at + 1]?.type === '&' && !base.background ? { ...base, background: true } : base)
+        })
+        return
+      }
+      case 'do_group':
+      case 'case_item':
+        this.children(node, this.maybe(frame))
+        return
       case 'list': {
         const joined = node.children.findIndex(child => child.type === '&&')
+        const either = node.children.findIndex(child => child.type === '||')
+        if (joined <= 0 && either > 0) {
+          for (const child of node.children.slice(0, either)) this.node(child, frame)
+          const right = this.maybe(frame)
+          for (const child of node.children.slice(either + 1)) this.node(child, right)
+          return
+        }
         if (joined <= 0) {
           this.children(node, frame)
           return
@@ -549,7 +584,7 @@ class PosixWalk {
     for (const child of node.children) {
       if (child.type === 'do_group') {
         if (name !== undefined) this.reading.scope.set(name, items.length > 0 ? items.slice(0, READING_CAP) : [`$${name}`])
-        this.children(child, frame)
+        this.children(child, this.maybe(frame))
       } else if (WORD_KINDS.has(child.type)) items.push(...this.word(child, frame).values)
     }
   }
@@ -579,6 +614,7 @@ class PosixWalk {
     const known = name === undefined ? undefined : this.reading.scope.get(name)
     if (known !== undefined && known.length > 0) return { values: [...known].reverse(), inner }
     if (name === 'PWD' && this.reading.cwd !== undefined && (node.type === 'simple_expansion' || node.text === '${PWD}')) return { values: [this.reading.cwd], inner }
+    if (name === 'OLDPWD' && this.reading.oldpwd !== undefined && (node.type === 'simple_expansion' || node.text === '${OLDPWD}')) return { values: [this.reading.oldpwd], inner }
     return { values: [node.text], inner }
   }
 
@@ -710,6 +746,7 @@ class PosixWalk {
         dialect: frame.dialect,
         around: frame.around,
         gates: frame.gates,
+        maybes: frame.maybes,
       })
       if (first < 0) first = index
     }

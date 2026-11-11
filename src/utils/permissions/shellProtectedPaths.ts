@@ -745,13 +745,20 @@ function foldersAfter(read: ShellRead, at: number, cwd: string): { folders: stri
     const turn = read.commands[index]!
     const layer = layersOf(turn.argv)[0]
     if (layer === undefined || !CD_PROGRAMS.has(layer.program) || turn.cwd === undefined) continue
-    if ((simple.gates ?? []).some(([from, to]) => index >= from && index < to)) continue
-    const target = layer.argv.slice(1).find(word => !/^-[A-Za-z]+$/.test(word))
-    if (target === undefined || !wordKnown(target)) continue
+    const operands = layer.argv.slice(1).filter(word => !/^-[A-Za-z]+$/.test(word))
+    const switched = process.platform === 'win32' && operands.length === 2 && /^\/d$/i.test(operands[0]!)
+    const target = switched ? operands[1] : operands[0]
+    if (target === undefined || target === '-' || !wordKnown(target)) continue
     const named = absolutePath(turn.dialect === 'powershell' ? target.replace(/\\/g, '/') : target, turn.cwd, floorsWorld(turn.cwd))
     if (named === undefined || (stands !== named && !stands.startsWith(`${named}/`))) continue
-    if (GLOB_PART.test(named) ? foldersNamedBy(named).length > 0 : standsAsFolder(named)) continue
-    stayed.push(posix.join(turn.cwd, stands.slice(named.length)))
+    const gated = (simple.gates ?? []).some(([from, to]) => index >= from && index < to)
+    const ran =
+      !turn.background &&
+      (turn.maybes ?? []).every(context => (simple.maybes ?? []).includes(context)) &&
+      (turn.gates ?? []).every(([from, to]) => (simple.gates ?? []).some(([start, end]) => (start === from && end === to) || (index >= start && index < end)))
+    const moved = gated || ((operands.length === 1 || switched) && (GLOB_PART.test(named) ? foldersNamedBy(named).length > 0 : standsAsFolder(named)))
+    if (ran && moved) continue
+    stayed.push(posix.join(turn.cwd, stands.slice(named.length)), turn.cwd)
   }
   return stayed.length === 0 ? reached : { folders: [...new Set([...reached.folders, ...stayed])], lost: reached.lost }
 }
@@ -776,7 +783,9 @@ function foldersRead(read: ShellRead, at: number, cwd: string): { folders: strin
     }
     if (target === undefined || target === '-' || target.includes(UNREAD_PART) || /[$`\s]/.test(spelling(target))) return { folders: [before], lost: true }
     const pattern = /^[A-Za-z]:\//.test(spelling(target)) ? spelling(target) : placedUnder(target, before) !== target ? placedUnder(target, before) : expandPath(spelling(target), before)
-    return { folders: GLOB_PART.test(pattern) ? [...foldersNamedBy(pattern), pattern] : [pattern], lost: false }
+    const named = GLOB_PART.test(pattern) ? foldersNamedBy(pattern) : standsAsFolder(pattern) ? [pattern] : []
+    const gated = (simple.gates ?? []).some(([from, to]) => index >= from && index < to)
+    return { folders: [...named, ...(named.includes(pattern) ? [] : [pattern]), ...(named.length > 0 || gated ? [] : [before])], lost: false }
   }
   return { folders: [cwd], lost: true }
 }
@@ -864,6 +873,13 @@ function filesSentOrPrinted(layer: Layer): Set<string> {
   return out
 }
 
+function searcherOf(layer: Layer): Layer | undefined {
+  if (TREE_SEARCHERS.has(layer.program)) return readsWholeTree(layer) ? layer : undefined
+  if (layer.program !== 'git') return undefined
+  const at = layer.argv.findIndex((word, index) => index > 0 && !word.startsWith('-') && !/^(?:-C|-c|--git-dir|--work-tree|--namespace)$/.test(layer.argv[index - 1]!))
+  return at > 0 && layer.argv[at] === 'grep' ? { ...layer, program: 'grep', argv: ['grep', ...layer.argv.slice(at + 1)] } : undefined
+}
+
 function keychainItemRead(layer: Layer): string | null {
   if (layer.program !== 'security') return null
   const argv = layer.argv
@@ -930,6 +946,9 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
           if ((tree || feeds) && namesMercuryHome(candidate, here, homes)) return word
         }
       }
+      const searcher = searcherOf(layer)
+      const piped = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
+      if (searcher !== undefined && !piped && namesMercuryHome('.', here, homes) && treeReadRoots(searcher, false, here, true).includes('.')) return '.'
       const finder = layer.program === 'find' ? layer : layer.findRoots === undefined ? undefined : layers.find(outer => outer.program === 'find')
       const whole = finder === undefined ? tree : findNamesASecret(finder.argv, homes) && (layer === finder ? feeds : !FIND_NON_READERS.has(layer.program))
       if (!whole) continue

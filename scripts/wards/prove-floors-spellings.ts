@@ -644,6 +644,68 @@ if (runs('STAYED')) {
   for (const item of clear) await expect('STAYED', item, ['sovereign'], notRefused, 'is not refused by the floor')
 }
 
+if (runs('MAYNOT')) {
+  section('MAYNOT · a cd that may not move the shell: behind a condition, in a loop, in the background, with two operands, to an echoed folder that does not stand; and the folder a cd - goes back to')
+  const reads: Call[] = [
+    bash('cd <CONFIG>; false && cd tmp; cat mcp-auth.json', 'the right side of an and that is not taken'),
+    bash('cd <CONFIG>; true || cd tmp; cat .credentials.json', 'the right side of an or'),
+    bash('cd <CONFIG>; [ -e nope ] && cd tmp; cat .credentials.json', 'behind a test'),
+    bash('cd <CONFIG>; if false; then cd tmp; fi; cat .credentials.json', 'inside an if'),
+    bash('cd <CONFIG>; for d in; do cd tmp; done; cat .credentials.json', 'inside a loop over nothing'),
+    bash('cd <CONFIG>; while false; do cd tmp; done; cat .credentials.json', 'inside a while'),
+    bash('cd <CONFIG>; case x in y) cd tmp;; esac; cat .credentials.json', 'inside a case'),
+    bash('cd <CONFIG>; cd tmp & cat .credentials.json', 'sent to the background'),
+    bash('cd <CONFIG>; cd tmp tmp; cat .credentials.json', 'two operands'),
+    bash(`cd <CONFIG>; cd "$(echo nope)"; cat "$(printf 'mcp-au%s' th.json)"`, 'an echoed folder that does not stand'),
+    bash('cd <CONFIG>; cd /tmp; cd -; cat *.json', 'away and back by cd -'),
+    bash(`cd <CONFIG>; cd /tmp; cd -; cat "$(printf 'mcp-au%s' th.json)"`),
+    bash('cd <CONFIG>; cd /tmp; cd "$OLDPWD"; cat *.json', 'away and back by $OLDPWD'),
+  ]
+  for (const item of reads) await expect('MAYNOT', item, ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
+  const clear: Call[] = [
+    bash('cd <CONFIG>; cd tmp && cat "$FILE"', 'joined by &&, the folder standing: only that folder'),
+    bash('cd <CONFIG>; if true; then cd tmp; cat "$FILE"; fi', 'the cd and the read in one body'),
+    bash('[ -d docs ] && cd docs; cat plain.md', 'in the project, a cd behind a test'),
+    bash('cd /tmp; cd -; cat notes.txt', 'in the project, away and back'),
+    bash('cd docs; cd -; cat "$FILE"', 'in the project, back from a folder of it'),
+    bash('for d in docs build; do cd $d; ls; cd ..; done; cat notes.txt', 'in the project, a loop that goes in and out'),
+  ]
+  for (const item of clear) await expect('MAYNOT', item, ['sovereign'], notRefused, 'is not refused by the floor')
+  bootstrap.setCwdState(OWN_HOME)
+  for (const item of [bash('cd Documents && grep -r foo .', 'joined by &&'), bash('if [ -d Documents ]; then cd Documents; grep -r foo .; fi', 'the cd and the search in one body'), bash('cd Documents\ngrep -r foo .', 'a folder that stands, a search on the next line')]) await expect('MAYNOT · the session standing in the home', item, ['sovereign'], notRefused, 'is not refused by the floor')
+  await expect('MAYNOT · the session standing in the home', bash('[ -d nope ] && cd Documents; grep -r foo .', 'the cd behind a test that may fail: the search may read the home'), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
+  bootstrap.setCwdState(PROJECT)
+}
+
+if (runs('NOROOT')) {
+  section("NOROOT · a searcher that names no root searches the folder the line stands in: standing in the store's own folder it is asked what a dot is asked")
+  const reads: Call[] = [
+    bash('cd <CONFIG> && git grep --no-index secret', "git's own search of the folder"),
+    bash('cd <CONFIG> && rg token', 'ripgrep: it skips dot-led names and reads the others'),
+    bash('cd <CONFIG> && rg --hidden token'),
+    bash('cd <CONFIG> && rg -l token'),
+    bash('cd <CONFIG> && rg -e token', 'the pattern behind its option'),
+    bash('cd <CONFIG> && grep -r token', 'a recursive grep given no folder'),
+    bash('cd <CONFIG> && ag token'),
+    bash('cd <CONFIG> && ack token'),
+    bash('cd <CONFIG>; cd nope; rg token', 'after a cd that leaves the shell in the store'),
+  ]
+  for (const item of reads) await expect('NOROOT', item, ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
+  const dotted = await reading(bash('cd <CONFIG> && rg token .'), 'sovereign')
+  const bare = await reading(bash('cd <CONFIG> && rg token'), 'sovereign')
+  check('NOROOT · the searcher with no root is answered what the same searcher with a dot is answered', bare.decision.behavior === 'deny' && bare.decision.message === dotted.decision.message, `${said(bare.decision)} ‖ ${said(dotted.decision)}`)
+  bootstrap.setCwdState(CONFIG_HOME)
+  for (const item of [bash('rg token', "the session's own folder"), bash('git grep token')]) await expect('NOROOT · the session standing in the config home', item, ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
+  for (const item of [bash('rg token notes.md', 'a file of the folder, named'), bash('rg token runtime', 'a folder beneath it, named'), bash('git status'), bash('git log --grep token', 'git handed no search of the folder')]) await expect('NOROOT · the session standing in the config home', item, ['sovereign'], notRefused, 'is not refused by the floor')
+  bootstrap.setCwdState(OWN_HOME)
+  for (const item of [bash('rg token', 'ripgrep skips the dot-led folder the store is'), bash('git grep token')]) await expect('NOROOT · the session standing in the home', item, ['sovereign'], notRefused, 'is not refused by the floor')
+  const homeBare = await reading(bash('grep -rn token'), 'sovereign')
+  const homeDot = await reading(bash('grep -rn token .'), 'sovereign')
+  check('NOROOT · standing in the home, a recursive grep given no folder is answered what it is answered with a dot, no stricter', homeBare.decision.behavior === homeDot.decision.behavior, `${said(homeBare.decision)} ‖ ${said(homeDot.decision)}`)
+  bootstrap.setCwdState(PROJECT)
+  for (const item of [bash('rg token'), bash('git grep token'), bash('grep -rn token')]) await expect('NOROOT · in the project', item, ['sovereign'], notRefused, 'is not refused by the floor')
+}
+
 if (runs('T-3.5')) {
   const state = daemonStatePath()
   section('T-3.5 floor 4: kills of the daemon and of the session, and writes into the runtime, under Sovereign and Flow')
