@@ -64,7 +64,9 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
   const isTerminalEditor = guiEditorName === undefined
 
   const editorCommand = WAIT_FLAG_OVERRIDES[editor.trim()] ?? editor
-  const invocation = parseLegacyCommandString(editorCommand)
+  const invocation = process.platform === 'win32' && editorCommand === editor
+    ? { executablePath: resolved.executable, args: resolved.args }
+    : parseLegacyCommandString(editorCommand)
   const editorExe = invocation.executablePath
   if (editorExe === '') {
     return { content: null }
