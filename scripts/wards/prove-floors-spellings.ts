@@ -631,6 +631,17 @@ if (runs('STAYED')) {
   bootstrap.setCwdState(OWN_HOME)
   for (const item of [bash('cd Documents\ngrep -r foo .', 'a folder of the home that stands, a search on the next line'), bash('cd Documents; grep -r foo .'), bash('cd Documents; cat "$FILE"'), bash('cd Documents\ntar -cf /tmp/d.tar .'), bash('cd nope && grep -r foo .', 'joined by &&')]) await expect('STAYED · the session standing in the home', item, ['sovereign'], notRefused, 'is not refused by the floor')
   await expect('STAYED · the session standing in the home', bash('cd nope; grep -r foo .', 'the same search after a cd to a folder that does not stand: it would read the home'), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
+  const WAY_THROUGH = /^Reading the whole of \S.*, where this line stays if the cd before it fails \(join them with && so the read runs only after the cd\) is refused: it holds Mercury's own credentials/
+  const stayedSearch = await reading(bash('cd nope; grep -r foo .'), 'sovereign')
+  check('STAYED · the refusal says the line would stay in the home and names && as the way through', WAY_THROUGH.test(stayedSearch.decision.message ?? '') && (stayedSearch.decision.message ?? '').includes(OWN_HOME), said(stayedSearch.decision))
+  for (const line of ['git clone https://example.invalid/r.git repo; cd repo; grep -rn TODO .', 'mkdir fresh; cd fresh; grep -r x .', 'tar -xf pkg.tgz; cd package; grep -rn main .']) {
+    const made = await reading(bash(line), 'sovereign')
+    check(`STAYED · a folder the line makes and then enters gets that sentence: ${line}`, WAY_THROUGH.test(made.decision.message ?? ''), said(made.decision))
+    const joined = await reading(bash(line.replace(/; cd (\w+); /, ' && cd $1 && ')), 'sovereign')
+    check(`STAYED · …and joined by && it is not refused by the floor: ${line.replace(/; cd (\w+); /, ' && cd $1 && ')}`, joined.decision.behavior !== 'deny', said(joined.decision))
+  }
+  const plainSearch = await reading(bash('grep -r foo .'), 'sovereign')
+  check('STAYED · a search of the home itself keeps its own sentence', /^Reading the whole of this folder \(name a folder beneath it\) is refused/.test(plainSearch.decision.message ?? ''), said(plainSearch.decision))
   bootstrap.setCwdState(PROJECT)
   const clear: Call[] = [
     bash('cd nope; cat notes.txt', 'in the project, a failed cd and a plain file'),

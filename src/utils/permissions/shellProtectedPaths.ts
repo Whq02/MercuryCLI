@@ -915,7 +915,12 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
     handed.set(at, answer)
     return answer
   }
-  for (const { at, simple, here } of read.commands.flatMap((simple, at) => foldersAfter(read, at, cwd).folders.map(here => ({ at, simple, here })))) {
+  const whereItStays = (here: string): string =>
+    `the whole of ${here}, where this line stays if the cd before it fails (${powershell ? 'run the read only where the cd succeeded' : 'join them with && so the read runs only after the cd'})`
+  for (const { at, simple, here, stayed } of read.commands.flatMap((simple, at) => {
+    const stands = foldersRead(read, at, cwd).folders
+    return foldersAfter(read, at, cwd).folders.map(here => ({ at, simple, here, stayed: !stands.includes(here) }))
+  })) {
     const layers = layersOf(simple.argv)
     const fedNames = layers.some(layer => FILE_READERS.has(layer.program) && layer.wrappers.includes('xargs'))
     for (const redirect of simple.redirects) {
@@ -948,7 +953,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       }
       const searcher = searcherOf(layer)
       const piped = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
-      if (searcher !== undefined && !piped && namesMercuryHome('.', here, homes) && treeReadRoots(searcher, false, here, true).includes('.')) return '.'
+      if (searcher !== undefined && !piped && namesMercuryHome('.', here, homes) && treeReadRoots(searcher, false, here, true).includes('.')) return stayed ? whereItStays(here) : '.'
       const finder = layer.program === 'find' ? layer : layer.findRoots === undefined ? undefined : layers.find(outer => outer.program === 'find')
       const whole = finder === undefined ? tree : findNamesASecret(finder.argv, homes) && (layer === finder ? feeds : !FIND_NON_READERS.has(layer.program))
       if (!whole) continue
@@ -957,7 +962,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const held = finder === undefined ? treeReadRoots(layer, handed, here, holdsMercuryHome('.', here, homes, hidden)) : finder.findRoots === undefined || finder.findRoots.length === 0 ? ['.'] : finder.findRoots
       for (const root of held) {
         for (const candidate of [...spellingsOf(root), ...underOtherHomes(root, read.homes)]) {
-          if (holdsMercuryHome(candidate, here, homes, hidden) || globNamesStore(candidate, here, homes, hidden)) return `the whole of ${root === '.' ? 'this folder' : root} (name a folder beneath it)`
+          if (holdsMercuryHome(candidate, here, homes, hidden) || globNamesStore(candidate, here, homes, hidden)) return stayed && root === '.' ? whereItStays(here) : `the whole of ${root === '.' ? 'this folder' : root} (name a folder beneath it)`
         }
       }
     }
