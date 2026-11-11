@@ -283,5 +283,21 @@ section('§6 the arming of sovereign is untouched: the launch flag or the Boot M
   check('a session not launched with the flag cannot enter sovereign by hand', entry.ok === false && /--sovereign/.test(entry.ok ? '' : entry.error), JSON.stringify(entry))
 }
 
+section('§7 a command a tool starts gets the Bash decision: under sovereign that is an allowance or a refusal, never a card')
+{
+  const { MonitorTool } = await import('../../src/tools/MonitorTool/MonitorTool.ts')
+  const watch = (command: string) => ({ command, description: 'watch' })
+  for (const command of ['echo x > notes.txt', 'rm -rf build', 'npm install left-pad', 'git push origin main', 'cat $FILE', 'ls *.txt']) {
+    const outside = await decide(MonitorTool, watch(command), contextOf('default'))
+    check(`Monitor ${command}: asks in default mode, as the Bash call does`, outside.decision.behavior === 'ask', JSON.stringify(outside.decision))
+    const under = await decide(MonitorTool, watch(command), contextOf('sovereign'))
+    check(`Monitor ${command}: allowed under sovereign, no card`, under.decision.behavior === 'allow', JSON.stringify({ decidedBy: under.trace.decidedBy, decision: under.decision }))
+    const wrapped = await decideToolPermissionWithModes(MonitorTool as never, watch(command), contextOf('sovereign'), assistant, 'toolu_monitor')
+    check(`Monitor ${command}: the mode wrapper adds no ask under sovereign`, wrapped.decision.behavior === 'allow', JSON.stringify(wrapped.decision))
+  }
+  const refused = await decide(MonitorTool, watch('rm -rf build'), contextOf('sovereign', { deny: ['Bash(rm *)'] }))
+  check('Monitor rm -rf build: a deny rule written for Bash refuses it under sovereign (a refusal is not a card)', refused.decision.behavior === 'deny', JSON.stringify(refused.decision))
+}
+
 console.log(`\nsovereign zero cards: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

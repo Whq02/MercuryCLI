@@ -13,6 +13,7 @@ import { uncPathRisk, uncPathMessage } from '../../utils/permissions/uncPath.js'
 import { windowsPathToPosixPath } from '../../utils/windowsPaths.js'
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/decision/rules.js'
+import { permissionRuleValueFromString, permissionRuleValueToString } from '../../utils/permissions/permissionRuleParser.js'
 import {
   knownShellCommandPrefix,
   parsePermissionRule,
@@ -597,6 +598,71 @@ export function bashToolHasPermission(
     const merged = { ...resolvedInput, ...carried }
     return { ...result, updatedInput: { ...merged, command: rewriteReadOnlyGitCommand(merged.command, resolveShellCwd(merged.cwd)) } }
   })
+}
+
+type RulesBySource = ToolPermissionContext['alwaysAllowRules']
+
+function contentRulesReadAsBash(context: ToolPermissionContext, toolName: string): { context: ToolPermissionContext; own: Set<string> } {
+  const own = new Set<string>()
+  const carried = (spelling: string): string | null => {
+    const value = permissionRuleValueFromString(spelling)
+    return value.toolName === toolName && value.ruleContent !== undefined ? value.ruleContent : null
+  }
+  const translate = (bySource: RulesBySource): RulesBySource => {
+    const out: Record<string, readonly string[]> = {}
+    for (const [source, spellings] of Object.entries(bySource ?? {})) {
+      const added: string[] = []
+      for (const spelling of spellings ?? []) {
+        const content = carried(spelling)
+        if (content === null) continue
+        own.add(content)
+        added.push(permissionRuleValueToString({ toolName: TOOL_NAME, ruleContent: content }))
+      }
+      out[source] = added.length === 0 ? spellings ?? [] : [...(spellings ?? []), ...added]
+    }
+    return out as RulesBySource
+  }
+  const allow = translate(context.alwaysAllowRules)
+  const deny = translate(context.alwaysDenyRules)
+  const ask = translate(context.alwaysAskRules)
+  if (own.size === 0) return { context, own }
+  const reasons: Record<string, Record<string, string>> = {}
+  for (const [source, bySpelling] of Object.entries(context.ruleReasons ?? {})) {
+    reasons[source] = { ...bySpelling }
+    for (const [spelling, words] of Object.entries(bySpelling ?? {})) {
+      const content = carried(spelling)
+      if (content !== null) reasons[source]![permissionRuleValueToString({ toolName: TOOL_NAME, ruleContent: content })] ??= words
+    }
+  }
+  return {
+    context: { ...context, alwaysAllowRules: allow, alwaysDenyRules: deny, alwaysAskRules: ask, ...(context.ruleReasons !== undefined ? { ruleReasons: reasons as ToolPermissionContext['ruleReasons'] } : {}) },
+    own,
+  }
+}
+
+function spelledForTool(result: PermissionResult, context: ToolPermissionContext, toolName: string, own: ReadonlySet<string>): PermissionResult {
+  const reason = 'decisionReason' in result ? result.decisionReason : undefined
+  if (reason?.type !== 'rule' || reason.rule.ruleValue.toolName !== TOOL_NAME) return result
+  const content = reason.rule.ruleValue.ruleContent
+  if (content === undefined || !own.has(content)) return result
+  if (getRuleByContentsForToolName(context, TOOL_NAME, reason.rule.ruleBehavior).has(content)) return result
+  const bashSpelling = permissionRuleValueToString(reason.rule.ruleValue)
+  const ownSpelling = permissionRuleValueToString({ toolName, ruleContent: content })
+  return {
+    ...result,
+    ...('message' in result && typeof result.message === 'string' ? { message: result.message.replaceAll(bashSpelling, ownSpelling) } : {}),
+    decisionReason: { ...reason, rule: { ...reason.rule, ruleValue: { ...reason.rule.ruleValue, toolName } } },
+  } as PermissionResult
+}
+
+export async function shellCommandHasPermission(
+  toolName: string,
+  input: BashInput,
+  context: ToolPermissionContext,
+): Promise<PermissionResult> {
+  const read = contentRulesReadAsBash(context, toolName)
+  const result = await bashToolHasPermission(input, read.context)
+  return read.own.size === 0 ? result : spelledForTool(result, context, toolName, read.own)
 }
 
 async function decideBashPermission(
