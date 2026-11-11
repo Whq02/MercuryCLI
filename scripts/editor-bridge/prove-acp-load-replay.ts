@@ -569,8 +569,8 @@ try {
     )
     check(
       'L6: a command the terminal recorded as its own echo, and an answer recorded as a user row, replay the same way; an answer with nothing in it sends nothing',
-      j(talk(replayUpdatesOf([echoed('<command-name>/cost</command-name>\n<command-message>cost</command-message>\n<command-args></command-args>'), typed('<local-command-stdout>COST-ANSWER</local-command-stdout>'), typed('<local-command-stdout></local-command-stdout>')]) as Update[])) === j(['user: /cost', 'agent: COST-ANSWER']),
-      j(replayUpdatesOf([echoed('<command-name>/cost</command-name>\n<command-message>cost</command-message>\n<command-args></command-args>'), typed('<local-command-stdout>COST-ANSWER</local-command-stdout>'), typed('<local-command-stdout></local-command-stdout>')])),
+      j(talk(replayUpdatesOf([echoed('<command-name>/context</command-name>\n<command-message>context</command-message>\n<command-args></command-args>'), typed('<local-command-stdout>ECHO-ANSWER</local-command-stdout>'), typed('<local-command-stdout></local-command-stdout>')]) as Update[])) === j(['user: /context', 'agent: ECHO-ANSWER']),
+      j(replayUpdatesOf([echoed('<command-name>/context</command-name>\n<command-message>context</command-message>\n<command-args></command-args>'), typed('<local-command-stdout>ECHO-ANSWER</local-command-stdout>'), typed('<local-command-stdout></local-command-stdout>')])),
     )
     check('L6 control: a prompt that only speaks of a command is replayed as written', j(talk(replayUpdatesOf([typed('what does /context print?')]) as Update[])) === j(['user: what does /context print?']), j(replayUpdatesOf([typed('what does /context print?')])))
   }
