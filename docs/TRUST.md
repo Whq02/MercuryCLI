@@ -266,8 +266,9 @@ in that folder shows, or with `kit.trustProjectServers` set in your user or
 local settings. The local settings file lives in the folder, so a trusted
 folder that ships one has approved its own servers. The approval is keyed to
 the server's definition as written
-(its command, arguments, URL, headers helper and environment variable names),
-so a changed definition is asked about again. Until a server is approved, a
+(its command, arguments, URL, headers helper and environment variable names,
+and the values of the variables a runtime loads its code by, such as `PATH`
+and `NODE_OPTIONS`), so a changed definition is asked about again. Until a server is approved, a
 run skips it, says so on stderr and in a `notice` row, and continues. In a
 folder without a trust grant a run names on stderr how many project servers
 and hooks it left out.

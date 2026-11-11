@@ -34,7 +34,7 @@ import {
   type McpUnexpandedStrings,
   type ScopedMcpServerConfig,
 } from './types.js'
-import { getProjectMcpServerStatus } from './utils.js'
+import { getProjectMcpServerStatus, mcpVariableCarriesCode } from './utils.js'
 
 
 type McpConfigError = {
@@ -112,9 +112,11 @@ function expandServerConfig(
         : Object.fromEntries(Object.entries(stdio.env).map(([key, value]) => [key, expand(value)]))
     const command = expand(stdio.command)
     const args = (stdio.args ?? []).map(expand)
+    const writtenCode = Object.fromEntries(Object.entries(stdio.env ?? {}).filter(([key, value]) => mcpVariableCarriesCode(key) && expandedEnv?.[key] !== value))
     const unexpanded: McpUnexpandedStrings = {
       ...(command === stdio.command ? {} : { command: stdio.command }),
       ...(args.every((value, index) => value === stdio.args?.[index]) ? {} : { args: [...(stdio.args ?? [])] }),
+      ...(Object.keys(writtenCode).length === 0 ? {} : { env: writtenCode }),
     }
     return {
       config: {
