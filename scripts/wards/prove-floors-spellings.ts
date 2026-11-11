@@ -710,6 +710,10 @@ if (runs('LISTED')) {
     'Get-ChildItem -Recurse -Name:$false | Select-String canary',
     'Select-String canary (Get-ChildItem -Recurse -Name)',
     'sls canary @(gci -r -Name)',
+    '& { Get-ChildItem -Recurse -Name | Get-Item } | Select-String canary',
+    '1 | % { gci -r -Name | gi } | sls canary',
+    'Invoke-Command { gci -r -Name | gi } | sls canary',
+    '& { gci -r -Name | % { Get-Item $_ } } | sls canary',
   ]
   for (const line of readers) {
     const answer = await asked(line, OWN_HOME)

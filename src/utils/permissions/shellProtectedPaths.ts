@@ -634,7 +634,8 @@ function searchesNamesAsText(lister: ReadCommand, later: ReadCommand, found: Lay
   if (found.program !== 'select-string' && found.program !== 'sls') return false
   if (found.argv.slice(1).some(word => word.includes('$') || word.includes(UNREAD_PART) || /^-(?:path|pspath|lp|lit[a-z]*)(?::|$)/i.test(word))) return false
   const next = later.stages.length === 1 ? later.stages[0] : undefined
-  return next !== undefined && lister.stages.some(stage => stage.pipeline === next.pipeline && stage.stage + 1 === next.stage)
+  const from = lister.stages.length === 1 ? lister.stages[0] : undefined
+  return next !== undefined && from !== undefined && from.pipeline === next.pipeline && from.stage + 1 === next.stage
 }
 
 function powershellListing(argv: readonly string[]): { roots: string[]; deep: boolean; names: boolean } {
