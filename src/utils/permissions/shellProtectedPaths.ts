@@ -512,6 +512,11 @@ function spellingsOf(word: string): string[] {
   return out
 }
 
+function underOtherHomes(word: string, homes: readonly string[]): string[] {
+  if (word !== '~' && !word.startsWith('~/')) return []
+  return homes.map(home => home + word.slice(1))
+}
+
 function readsWholeTree(layer: Layer): boolean {
   const { program, argv } = layer
   const flagged = (letters: RegExp, ...long: string[]): boolean => argv.slice(1).some(word => (word.startsWith('--') ? long.includes(word.split('=')[0]!) : /^-[A-Za-z]+$/.test(word) && letters.test(word)))
@@ -582,6 +587,11 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
         if (mercurySecretPath(candidate, here) !== null || couldNameSecret(candidate, here, homes)) return redirect.target
       }
     }
+    for (const word of simple.input === undefined ? [] : simple.input.split(/\s+/)) {
+      for (const candidate of spellingsOf(word)) {
+        if (mercurySecretPath(candidate, here) !== null || couldNameSecret(candidate, here, homes)) return word
+      }
+    }
     for (const layer of layers) {
       const item = keychainItemRead(layer)
       if (item !== null) return item
@@ -590,7 +600,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const lists = layer.program === 'find' || layer.program === 'ls' || layer.program === 'get-childitem' || layer.program === 'gci' || layer.program === 'dir'
       const feeds = lists && (fed.has(at) || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')))
       for (const word of [...layer.argv.slice(1), ...roots]) {
-        for (const candidate of spellingsOf(word)) {
+        for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {
           if (mercurySecretPath(candidate, here) !== null || couldNameSecret(candidate, here, homes)) return word
           if ((tree || feeds) && namesMercuryHome(candidate, here, homes)) return word
         }
