@@ -243,7 +243,7 @@ function nestedScripts(command: ReadCommand, from: number, commands: readonly Re
   const out: Pending[] = []
   for (const layer of layersOf(command.argv)) {
     const { program, argv } = layer
-    if (POSIX_SHELLS.has(program) || program === 'source' || program === '.') {
+    if (POSIX_SHELLS.has(program) || program === 'source' || program === '.' || program === 'eval') {
       for (const at of [...command.inputInner, ...command.inner.flat()]) {
         const printed = printedBy(commands[at])
         if (printed !== undefined) out.push({ text: printed, dialect: 'posix', from })
