@@ -74,6 +74,8 @@ import {
 } from '../services/lsp/manager.js'
 import { listCapabilityKills } from './permissions/capabilityGate.js'
 import { getEngineModel, getUserSpecifiedModelSetting, parseUserSpecifiedModel, renderModelChip } from './model/model.js'
+import { contextWindowLabel } from './contextFill.js'
+import { isLocalModelId } from '../services/providers/local/localCatalogue.js'
 import {
   describeFrontierDecision,
   frontierOperatorDecision,
@@ -2484,7 +2486,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             const compactAt = usage.compactAtPct
-            const evidence = `context ${usage.usedPct.toFixed(0)}% of ${Math.round(usage.window / 1000)}k${compactAt !== null ? ` · autocompact at ${compactAt}%` : ''} · ${arms}`
+            const window = isLocalModelId(getEngineModel()) && usage.window > 0 ? contextWindowLabel(usage.window, null, false, true) : `${Math.round(usage.window / 1000)}k`
+            const evidence = `context ${usage.usedPct.toFixed(0)}% of ${window}${compactAt !== null ? ` · autocompact at ${compactAt}%` : ''} · ${arms}`
             if (compactAt !== null && usage.usedPct >= compactAt - 5) {
               return {
                 status: 'warn',

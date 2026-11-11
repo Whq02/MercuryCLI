@@ -7,6 +7,8 @@ import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
 import { liveCount } from '../../../utils/model/modelPickerGroups.js'
 import { selectableEffortLevels } from '../../../utils/effort.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
+import { contextWindowLabel } from '../../../utils/contextFill.js'
+import { isLocalModelId } from '../../providers/local/localCatalogue.js'
 import { declaredRouteOf, providerDisplayName } from '../../providers/routeLaw.js'
 import { readCataloguesForOtherFamilies } from '../../providers/catalogueOnDemand.js'
 import { isProviderDisabled } from '../../providers/disabledProviders.js'
@@ -64,7 +66,8 @@ export interface KnownModelsReference {
 
 const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'gemini', 'openrouter', 'huggingface', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'orcarouter', 'melious', 'cerebras', 'fireworks', 'qwen'] as const
 
-function windowWords(tokens: number): string {
+function windowWords(tokens: number, local = false): string {
+  if (local && tokens > 0 && tokens % 1024 === 0) return `${contextWindowLabel(tokens, null, false, true)} window`
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toString().replace(/\.0$/, '')}M window`
   return `${Math.round(tokens / 1000)}k window`
 }
@@ -281,7 +284,7 @@ export function liveModelsReferenceText(reference: LiveModelsReference): string 
         row.displayName !== row.id ? row.displayName : undefined,
         row.current === true ? 'this turn runs on it' : undefined,
         row.familyWord !== undefined ? `the family word '${row.familyWord}' runs this` : undefined,
-        row.contextWindow !== undefined ? windowWords(row.contextWindow) : undefined,
+        row.contextWindow !== undefined ? windowWords(row.contextWindow, isLocalModelId(row.id)) : undefined,
         row.efforts !== undefined ? `efforts ${row.efforts.join(' · ')}` : undefined,
         row.liveUnknown === true ? 'listed live, unknown to this build' : undefined,
         row.unavailable !== undefined ? `not selectable: ${row.unavailable}` : undefined,
