@@ -2,7 +2,7 @@ import { clearRegisteredHooks } from '../../bootstrap/state.js'
 import { isPathTrusted, untrustedWorkspaceHeadless } from '../config.js'
 import { logForDebugging } from '../debug.js'
 import { resolveProjectConfigPath } from '../projectConfig.js'
-import { getEnabledSettingSources, type SettingSource } from '../settings/constants.js'
+import { getLaunchSettingSources, isCheckoutSourceHeldForTrust, type SettingSource } from '../settings/constants.js'
 import { getSettingsForSource, parseSettingsFile } from '../settings/settings.js'
 import { resetSettingsCache } from '../settings/settingsCache.js'
 import { isRestrictedToExtensionsOnly } from '../settings/extensionOnlyPolicy.js'
@@ -40,13 +40,14 @@ function entriesOf(map: HooksSettings | undefined, layer: HookLayer): LayeredHoo
 }
 
 function readLayers(): Array<{ layer: HookLayer; map: HooksSettings | undefined; disabled: boolean; managedOnly: boolean }> {
-  return getEnabledSettingSources().map(source => {
+  return getLaunchSettingSources().map(source => {
     const events = getSettingsForSource(source)?.events
+    const held = isCheckoutSourceHeldForTrust(source)
     return {
       layer: LAYER_OF_SOURCE[source],
       map: events?.hooks,
-      disabled: events?.disabled === true,
-      managedOnly: events?.managedOnly === true,
+      disabled: events?.disabled === true && !held,
+      managedOnly: events?.managedOnly === true && !held,
     }
   })
 }

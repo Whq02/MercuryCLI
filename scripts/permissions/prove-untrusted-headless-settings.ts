@@ -27,8 +27,9 @@ function section(t: string): void {
 const ROOT = join(import.meta.dir, '..', '..')
 const SRC = join(ROOT, 'src')
 
-writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ media: { host: 'host-of-the-user' } }))
-writeFileSync(join(FOLDER, '.mercury', 'settings.json'), JSON.stringify({ extensions: { enabled: { 'probe@scene': true } } }))
+const hookNamed = (name: string): Record<string, unknown> => ({ hooks: { 'session.start': [{ name, run: 'true' }] } })
+writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ media: { host: 'host-of-the-user' }, events: hookNamed('the hook of the user') }))
+writeFileSync(join(FOLDER, '.mercury', 'settings.json'), JSON.stringify({ extensions: { enabled: { 'probe@scene': true } }, events: hookNamed('the shared hook of the folder') }))
 writeFileSync(
   join(FOLDER, '.mercury', 'settings.local.json'),
   JSON.stringify({
@@ -36,8 +37,14 @@ writeFileSync(
     media: { enabled: true, host: 'host-of-the-folder' },
     extensions: { enabled: { 'mercury-media@mercury': true, 'probe@scene': true } },
     kit: { trustProjectServers: true },
+    events: { disabled: true, ...hookNamed('the local hook of the folder') },
   }),
 )
+writeFileSync(join(FOLDER, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { fixsrv: { command: 'node', args: ['-e', 'setTimeout(()=>{},100)'] } } }))
+mkdirSync(join(FOLDER, '.mercury', 'agents'), { recursive: true })
+mkdirSync(join(FOLDER, '.mercury', 'workflows'), { recursive: true })
+writeFileSync(join(FOLDER, '.mercury', 'agents', 'folder-agent.md'), '---\nname: folder-agent\ndescription: an agent the folder ships\n---\nDo what the folder says.\n')
+writeFileSync(join(FOLDER, '.mercury', 'workflows', 'folder-flow.js'), "export const meta = { name: 'folder-flow', description: 'a workflow the folder ships', phases: [{ title: 'Hold' }] }\n")
 
 const state = await import(join(SRC, 'bootstrap/state.ts'))
 const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
@@ -55,6 +62,10 @@ const mneme = await import(join(SRC, 'mneme/paths.ts'))
 const media = await import(join(SRC, 'services/media/settings.ts'))
 const install = await import(join(SRC, 'extensions/install.ts'))
 const mcpUtils = await import(join(SRC, 'services/mcp/utils.ts'))
+const mcpConfig = await import(join(SRC, 'services/mcp/config.ts'))
+const hooks = await import(join(SRC, 'utils/hooks/hooksConfigSnapshot.ts'))
+const markdown = await import(join(SRC, 'utils/markdownConfigLoader.ts'))
+const workflows = await import(join(SRC, 'tools/WorkflowTool/registry.ts'))
 enableConfigs()
 
 type Posture = 'window' | 'untrusted run' | 'trusted run'
@@ -64,6 +75,8 @@ function stand(posture: Posture): void {
   state.setIsInteractive(posture === 'window')
   resetSettingsCache()
   mneme.getMnemeHome.cache?.clear?.()
+  markdown.clearMarkdownFileCache()
+  hooks.resetHooksSnapshot()
 }
 
 console.log('============================================================')
@@ -143,6 +156,36 @@ section('§5 the four readers that take a layer by name: the folder\'s memory di
   stand('window')
   const window = read()
   check('a window reads the four as before', window.memory.startsWith(PLANTED) && window.media.enabled === true && window.probeSwitch.on === true && window.server === 'approved', JSON.stringify(window))
+}
+
+section('§6 what the run still names of what it holds back, and what the folder cannot switch off')
+{
+  const hookNames = (): string => {
+    hooks.captureHooksSnapshot()
+    return (hooks.settingsHooksFor('session.start') as Array<{ entry: { name?: string } }>).map(hook => hook.entry.name).join(' · ') || '(none)'
+  }
+  stand('trusted run')
+  await mcpConfig.addMcpConfig('own-server', { command: '/usr/bin/true', args: [] }, 'local')
+
+  stand('untrusted run')
+  const named = Object.keys(mcpConfig.getProjectMcpConfigsFromCwd().servers).join(',')
+  const serversLine = String(mcpConfig.mcpServersSkippedForTrustLine())
+  check('untrusted run: the folder\'s server is still read by name, so the run can say it was held back', named === 'fixsrv' && /its 1 project MCP server was not loaded from \.mercury\/mcp\.json/.test(serversLine), `${named || '(none)'} / ${serversLine}`)
+  check('untrusted run: a server the user added for this folder to his own store still loads', Object.keys(mcpConfig.getMcpConfigsByScope('local').servers).join(',') === 'own-server', Object.keys(mcpConfig.getMcpConfigsByScope('local').servers).join(',') || '(none)')
+  const untrustedHooks = hookNames()
+  const hooksLine = String(hooks.hooksSkippedForTrustLine())
+  check('untrusted run: the folder\'s two hooks are counted and said, never loaded', hooks.hooksSnapshot().skippedForTrust === 2 && /its 2 project and local hooks were not loaded/.test(hooksLine), `${hooks.hooksSnapshot().skippedForTrust} / ${hooksLine}`)
+  check('untrusted run: the folder\'s events.disabled does not switch the user\'s own hook off', untrustedHooks === 'the hook of the user' && hooks.hooksDisabled() === false && hooks.managedHooksOnly() === false, untrustedHooks)
+  const untrustedAgents = ((await markdown.loadMarkdownFilesForSubdir('agents', FOLDER)) as Array<{ filePath: string }>).filter(file => file.filePath.startsWith(FOLDER)).length
+  const untrustedFlows = ((await workflows.listWorkflows(FOLDER)) as Array<{ name: string }>).filter(flow => flow.name === 'folder-flow').length
+  check('untrusted run: the folder\'s agent definition and its workflow are not offered', untrustedAgents === 0 && untrustedFlows === 0, `${untrustedAgents} agent file(s), ${untrustedFlows} workflow(s)`)
+
+  stand('trusted run')
+  const trustedHooks = hookNames()
+  check('trusted run: nothing is said to be held back, and the folder\'s events.disabled is honoured', mcpConfig.mcpServersSkippedForTrustLine() === null && hooks.hooksSkippedForTrustLine() === null && trustedHooks === '(none)' && hooks.managedHooksOnly() === true, `${String(mcpConfig.mcpServersSkippedForTrustLine())} / ${String(hooks.hooksSkippedForTrustLine())} / ${trustedHooks}`)
+  const trustedAgents = ((await markdown.loadMarkdownFilesForSubdir('agents', FOLDER)) as Array<{ filePath: string }>).filter(file => file.filePath.startsWith(FOLDER)).length
+  const trustedFlows = ((await workflows.listWorkflows(FOLDER)) as Array<{ name: string }>).filter(flow => flow.name === 'folder-flow').length
+  check('trusted run: the folder\'s agent definition and its workflow are offered', trustedAgents === 1 && trustedFlows === 1, `${trustedAgents} agent file(s), ${trustedFlows} workflow(s)`)
 }
 
 stand('untrusted run')
