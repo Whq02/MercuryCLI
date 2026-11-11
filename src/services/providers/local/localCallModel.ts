@@ -14,12 +14,14 @@ import {
   compatChatCallModel,
   compatDispatchModelId,
   compatLaneLiveProofState,
+  laneExtrasWithOperatorEffort,
   type CompatCallModelParams,
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
 import { buildLocalExtras, LOCAL_SERVER_EFFORTS, localThinkingOff, tensorFoldRefusesEffort } from '../openaicompat/compatWire.js'
 import { getMaxOutputTokensForModel } from '../anthropic/streamCore.js'
-import { EFFORT_STAMP_THINKING_OFF, EFFORT_STAMP_THINKING_ON, type EffortWireFact } from '../../../utils/effortStamp.js'
+import { effortVocabularyFor } from '../../../utils/model/capabilities.js'
+import { EFFORT_STAMP_NONE, EFFORT_STAMP_THINKING_OFF, EFFORT_STAMP_THINKING_ON, type EffortWireFact } from '../../../utils/effortStamp.js'
 import { planToolPayload, toolsOnTheWire } from '../toolEconomy.js'
 import { mapToolsToZai, toolDeclarationRowInResult, type ApiShapedTool } from '../zai/zaiCodec.js'
 import { QWEN_TEMPLATE_EFFORTS, QWEN_TEMPLATE_EFFORT_STEPS, qwenTemplateEffort, qwenTemplateReadsEffort } from '../qwen/qwenTemplate.js'
@@ -187,6 +189,13 @@ export function ollamaThinkingValue(record: LocalModelRecord, effortValue: strin
   if (!thinkingEnabled && thinking.values.includes(false)) return false
   if (thinking.values.some(value => typeof value === 'string')) return effortValue ?? thinking.default
   return thinking.values.includes(thinkingEnabled) ? thinkingEnabled : thinking.default
+}
+
+export function tensorFoldEffortApplied(model: string, level: string): string | undefined {
+  const record = localRecordFor(model)
+  if (record === undefined || record.server !== 'tensorfold') return undefined
+  const extras = laneExtrasWithOperatorEffort(localLaneProfileFor(record), effortVocabularyFor(model), { wireModel: record.id, effortValue: level, thinkingEnabled: true, maxOutputTokensOverride: undefined })
+  return typeof extras.reasoning_effort === 'string' ? extras.reasoning_effort : EFFORT_STAMP_NONE
 }
 
 export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile {
