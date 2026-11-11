@@ -21,8 +21,8 @@ const MCP_SUFFIX = ' (MCP)'
 const RUNS_PROJECT_PROGRAMS: ReadonlySet<string> = new Set([DEBUG_TOOL_NAME, EVAL_TOOL_NAME, 'Launch', 'Test'])
 
 function sentOrStarted(tool: Tool, input: Record<string, unknown>, shown: string): string[] {
-  const lines = (tool.shellCommandOf?.(input) ?? '').split('\n')
-  if (tool.name === 'Service' && input.op === 'input' && typeof input.text === 'string') lines.push(...input.text.split('\n'))
+  const sent = tool.name === 'Service' && input.op === 'input' && typeof input.text === 'string' ? input.text : undefined
+  const lines = (sent ?? tool.shellCommandOf?.(input) ?? '').split('\n')
   if (tool.name === 'Service' && input.op === 'start') {
     for (const [name, value] of Object.entries((input.env ?? {}) as Record<string, unknown>)) lines.push(`${name}=${String(value)}`)
     if (typeof input.cwd === 'string') lines.push(`in ${input.cwd}`)

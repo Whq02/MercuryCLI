@@ -65,8 +65,9 @@ try {
   tally.check('resume: the recent tail remains available', wire.includes('RECENT_SENTINEL_11'))
   const work = async (from: string, label: string): Promise<string> => {
     let id = from
-    for (let step = 1; step <= 12; step++) {
-      fixture.script(() => ({ text: `${label} step ${step}: ${Array.from({ length: 160 }, (_, n) => `fact ${step}-${n} of the verification log reads ${(n * 7919 + step * 104729).toString(36)}.`).join(' ')}` }))
+    let step = 0
+    fixture.script(() => ({ text: `${label} step ${step}: ${Array.from({ length: 160 }, (_, n) => `fact ${step}-${n} of the verification log reads ${(n * 7919 + step * 104729).toString(36)}.`).join(' ')}` }))
+    for (step = 1; step <= 12; step++) {
       const turn = await run(`${label}: carry step ${step}`, id)
       const turnOutcome = turn.frames.find(isOutcome)
       if (turn.code !== 0 || typeof turnOutcome?.session_id !== 'string') throw new Error(`${label} step ${step} did not settle: ${JSON.stringify({ code: turn.code, stderr: turn.stderr.slice(-300) })}`)

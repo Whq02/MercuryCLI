@@ -45,7 +45,6 @@ import { resolveSavedPermissionMode } from '../utils/permissions/permissionSetup
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
 import { getProjectDir } from '../utils/sessionStorage/paths.js'
 import { scanTranscriptLinesBackward } from '../utils/sessionStorage/transcriptReader.js'
-import { splitAppendSystemPrompt } from '../services/switchboard/runnerArgv.js'
 import { backgroundWorkerDelegationSentence } from '../services/switchboard/backgroundLaunch.js'
 import { carryClearModel, inheritBuildNotices, writeSessionCloseReceipts } from '../services/switchboard/sessionReceipts.js'
 import { readSessionFacts } from '../services/engine-connector/seatProjections.js'
@@ -746,7 +745,7 @@ export function buildConcourseWorkerSpec(args: {
   restartReason?: string
   kind?: SessionKind
 }): RunnerChildSpec {
-  const runnerArgv = splitAppendSystemPrompt(args.runnerArgv ?? [])
+  const runnerArgv = args.runnerArgv ?? []
   return {
     model: foldLegacyWorkerModelKey(args.modelKey),
     ...(args.keyless ? { keyless: true } : {}),
@@ -755,7 +754,6 @@ export function buildConcourseWorkerSpec(args: {
       "This session lives on the operator's switchboard: the operator opens it to work in it and leaves it running otherwise, and either way their messages reach you through the harness.",
       backgroundWorkerDelegationSentence(),
       "'Idle', 'wait', or 'stand by' means end your turn — the harness wakes you on the next delivery. Never hold a turn open with sleeps or timers to stay available.",
-      ...(runnerArgv.append !== null ? ['', runnerArgv.append] : []),
     ].join('\n'),
     role: 'MERCURY_CONCOURSE_WORKER',
     agentName: args.runnerId,
@@ -775,14 +773,14 @@ export function buildConcourseWorkerSpec(args: {
     extraArgv: args.warm
       ? []
       : args.resume
-        ? ['--resume', args.sessionId!, ...runnerArgv.rest]
+        ? ['--resume', args.sessionId!, ...runnerArgv]
         : [
             '--session-id',
             args.sessionId!,
             ...(args.title !== undefined ? ['--title', args.title] : []),
-            ...runnerArgv.rest,
+            ...runnerArgv,
           ],
-    respawnExtraArgv: args.warm ? [] : ['--resume', args.sessionId!, ...runnerArgv.rest],
+    respawnExtraArgv: args.warm ? [] : ['--resume', args.sessionId!, ...runnerArgv],
   }
 }
 

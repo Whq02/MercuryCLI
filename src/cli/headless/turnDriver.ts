@@ -18,6 +18,21 @@ export function foldNotificationValues(values: PromptValue[]): ContentBlockParam
   return values.flatMap(toBlocks)
 }
 
+export function spokenNotifications(batch: readonly QueuedCommand[]): QueuedCommand[] {
+  const shown = batch.filter(member => member.isMeta !== true)
+  return shown.length > 0 ? shown : [...batch]
+}
+
+export function foldNotifications(batch: readonly QueuedCommand[]): QueuedCommand {
+  const spoken = spokenNotifications(batch)
+  const head = spoken[0]!
+  return {
+    ...head,
+    value: spoken.length > 1 ? foldNotificationValues(spoken.map(member => member.value as PromptValue)) : head.value,
+    uuid: batch.findLast(member => member.uuid !== undefined)?.uuid ?? head.uuid,
+  }
+}
+
 const isTaskNotification = (command: QueuedCommand | undefined): command is QueuedCommand =>
   command !== undefined && command.mode === 'task-notification'
 
@@ -291,13 +306,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       while (isTaskNotification(ports.peek()) && ports.peek()?.origin?.kind !== 'outside-report') {
         batch.push(takeQueued()!)
       }
-      if (batch.length > 1) {
-        command = {
-          ...command,
-          value: foldNotificationValues(batch.map(c => c.value as PromptValue)),
-          uuid: batch.findLast((c: QueuedCommand) => c.uuid)?.uuid ?? command.uuid,
-        }
-      }
+      if (batch.length > 1) command = foldNotifications(batch)
     }
     const batchUuids = [...initialNotices, ...batch]
       .map(c => c.uuid)

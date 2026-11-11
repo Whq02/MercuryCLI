@@ -36,7 +36,7 @@ try {
   mkdirSync(directory)
   for (let index = 0; index < 1002; index++) writeFileSync(join(directory, `entry-${String(index).padStart(4, '0')}`), '')
   let stateReads = 0
-  const fileContext = { getAppState() { stateReads++; return { toolPermissionContext: { mode: 'default', alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {}, additionalWorkingDirectories: new Map() } } }, options: {} }
+  const fileContext = { getAppState() { stateReads++; return { toolPermissionContext: { mode: 'default', alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {}, additionalWorkingDirectories: new Map() } } }, options: {}, abortController: new AbortController() }
   assert.deepEqual(await processAtMentionedFiles('@//not-a-local-path', fileContext as never), [])
   const rows = await processAtMentionedFiles(`@${directory}`, fileContext as never)
   const { getCwd } = await import(`${root}/src/utils/cwd.ts`)

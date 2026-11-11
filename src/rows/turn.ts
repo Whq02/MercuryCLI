@@ -906,6 +906,10 @@ export class Conversation {
       if (event.kind === 'assistant_retracted') {
         const withdrawn = (event.message as AssistantMessage).message.id
         if (config.partialRows && typeof withdrawn === 'string') yield retractedRow(scope, withdrawn)
+        for (const block of (event.message as AssistantMessage).message.content) {
+          if (block.type !== 'tool_use' || !openCalls.delete(block.id) || config.partialRows) continue
+          yield* toolResultRowsOf(scope, [{ type: 'tool_result', tool_use_id: block.id, content: '', is_error: true }], () => 'aborted')
+        }
         if (!persistenceDisabled) await settleTranscriptMessage({ ...(event.message as AssistantMessage), retracted: true })
         const withdrawnUuid = (event.message as AssistantMessage).uuid
         const held = this.mutableMessages.findIndex(row => row.uuid === withdrawnUuid)

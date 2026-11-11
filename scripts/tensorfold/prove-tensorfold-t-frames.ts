@@ -284,7 +284,7 @@ const EXPECT: Record<string, Expect> = {
   't16b-pod-tunnel': run => [
     ['heading 33.2 of 36.0 GiB usable left · 1 serving: the hand-started 8087 server is the one outside row', has(run, '▾ TENSORFOLD · 1.2.2 · Apple M5 Pro · 33.2 of 36.0 GiB usable left · 1 serving'), flat(run).filter(l => l.includes('TENSORFOLD')).join(' | ')],
     ["the pod's tunnel is never an outside row under TENSORFOLD: one qwen3.8-27b row, under TENSORFOLD HOST", flat(run).filter(l => /qwen3\.8-27b|Qwen3\.8 27B/.test(l) && !l.includes('↓ 20 GB')).length === 1, flat(run).filter(l => /qwen3\.8-27b|Qwen3\.8 27B/.test(l)).join(' | ')],
-    ['▾ TENSORFOLD HOST · pod-rtx-5090 · 1 serving with the pod row serving · 128k ctx', has(run, '▾ TENSORFOLD HOST · pod-rtx-5090 · 1 serving') && flat(run).some(line => /Qwen3\.8 27B\s{2,}compat\/pod-rtx-5090\/\S*\s{2,}serving\s{2,}128k ctx\s{2,}pod-rtx-5090/.test(line)), flat(run).filter(l => l.includes('pod-rtx-5090')).join(' | ')],
+    ['▾ TENSORFOLD HOST · pod-rtx-5090 · 1 serving with the pod row serving · 128k ctx', has(run, '▾ TENSORFOLD HOST · pod-rtx-5090 · 1 serving') && flat(run).some(line => /Qwen3\.8 27B\s{2,}(?:compat\/pod-rtx-5090\/\S*|…\S*5090\/qwen3\.8-27b)\s{2,}serving\s{2,}128k ctx\s{2,}pod-rtx-5090/.test(line)), flat(run).filter(l => l.includes('pod-rtx-5090')).join(' | ')],
   ],
   't17-refused-memory': run => [
     ['the 27B: refused · 64k ctx · 24.5 GiB', cells(run, 'Qwen3.8 27B', 'local/qwen3.8-27b', 'refused', '64k ctx', '24.5 GiB'), framedRow(run)],

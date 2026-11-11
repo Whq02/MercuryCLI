@@ -2,6 +2,7 @@
 const RUNNER_OPTIONS: Readonly<Record<string, 0 | 1 | 'many'>> = {
   '--brief': 1,
   '--brief-file': 1,
+  '--default-brief': 0,
   '--brief-add': 1,
   '--brief-add-file': 1,
   '--reasoning-mode': 1,
@@ -72,23 +73,4 @@ export function refuseRunnerArgv(argv: unknown): string | null {
     while (i + 1 < tokens.length && !tokens[i + 1]!.startsWith('-')) i += 1
   }
   return null
-}
-
-export function splitAppendSystemPrompt(argv: readonly string[]): { rest: string[]; append: string | null } {
-  const rest: string[] = []
-  let append: string | null = null
-  for (let i = 0; i < argv.length; i++) {
-    const token = argv[i]!
-    if (token === '--brief-add' && argv[i + 1] !== undefined) {
-      append = argv[i + 1]!
-      i += 1
-      continue
-    }
-    if (token.startsWith('--brief-add=')) {
-      append = token.slice('--brief-add='.length)
-      continue
-    }
-    rest.push(token)
-  }
-  return { rest, append }
 }

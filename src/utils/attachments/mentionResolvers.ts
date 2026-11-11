@@ -3,9 +3,10 @@ import { relative } from 'path'
 import { getCwd } from 'src/utils/cwd.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
+import { createChildAbortController } from '../abortController.js'
 import { logError } from '../log.js'
 import { expandPath } from '../path.js'
-import { generateFileAttachment } from './fileAttachments.js'
+import { generateFileAttachment, mentionDeniedByRule, mentionPastCeiling } from './fileAttachments.js'
 import { extractAgentMentions, extractAtMentionedFiles, extractMcpResourceMentions, parseAtMentionedFileLines } from './mentions.js'
 import { isFileReadDenied } from './shared.js'
 import type { Attachment } from './types.js'
@@ -61,21 +62,42 @@ async function directoryMention(path: string): Promise<Attachment[]> {
   }
 }
 
+const MENTION_READ_CEILING_MS = 10_000
+
+async function readMention(path: string, range: ReturnType<typeof parseAtMentionedFileLines>, context: ToolUseContext, state: ReturnType<ToolUseContext['getAppState']>): Promise<Attachment[]> {
+  const standing = await stat(path).catch(() => null)
+  if (isFileReadDenied(path, state.toolPermissionContext)) {
+    const denied = standing === null ? null : mentionDeniedByRule(path, state.toolPermissionContext)
+    return denied ? [denied] : []
+  }
+  if (standing?.isDirectory()) return directoryMention(path)
+  const row = await generateFileAttachment(path, context, 'at-mention', {
+    offset: range.lineStart,
+    limit: range.lineStart && range.lineEnd ? range.lineEnd - range.lineStart + 1 : undefined,
+  })
+  return row ? [row] : []
+}
+
 async function fileMention(word: string, context: ToolUseContext, state: ReturnType<ToolUseContext['getAppState']>): Promise<Attachment[]> {
+  const reading = createChildAbortController(context.abortController)
+  let ceiling: ReturnType<typeof setTimeout> | undefined
   try {
     const range = parseAtMentionedFileLines(word)
     const path = expandPath(range.filename)
-    if ([range.filename, path].some(networkPath) || isFileReadDenied(path, state.toolPermissionContext)) return []
-    const isDirectory = await stat(path).then(info => info.isDirectory()).catch(() => false)
-    if (isDirectory) return directoryMention(path)
-    const row = await generateFileAttachment(path, context, 'at-mention', {
-      offset: range.lineStart,
-      limit: range.lineStart && range.lineEnd ? range.lineEnd - range.lineStart + 1 : undefined,
-    })
-    return row ? [row] : []
+    if ([range.filename, path].some(networkPath) || reading.signal.aborted) return []
+    return await Promise.race([
+      readMention(path, range, { ...context, abortController: reading }, state),
+      new Promise<Attachment[]>(resolve => {
+        ceiling = setTimeout(() => resolve([mentionPastCeiling(path, MENTION_READ_CEILING_MS / 1000)]), MENTION_READ_CEILING_MS)
+        reading.signal.addEventListener('abort', () => resolve([]), { once: true })
+      }),
+    ])
   } catch (error) {
     logError(error)
     return []
+  } finally {
+    clearTimeout(ceiling)
+    reading.abort()
   }
 }
 

@@ -85,6 +85,7 @@ try {
     const rangedShown = ranged[0]?.content?.file?.numLines ?? 0
     const rangedTold = ranged[0] ? modelReads(ranged[0]) : ''
     check('A: a mention of lines 1000–2400 of it is clipped from line 1000, not from the file\'s head', ranged.length === 1 && ranged[0]!.truncated === true && from === 1000 && rangedShown >= 1 && rangedShown < 1_401 && rangedTold.includes('const line1000 ') && !rangedTold.includes('const line0999 '), shape(ranged))
+    check('A: …and the model is told the lines that are shown, not that they are the file\'s first', rangedShown >= 1 && rangedTold.includes(`dense.ts was too large — only lines 1000-${999 + rangedShown} are shown above.`) && !NOTE.test(rangedTold), /[^"\n]*too large[^"\n]*/.exec(rangedTold)?.[0]?.slice(-140) ?? '(no note)')
 
     const longPath = file('long.txt', Array.from({ length: 3_000 }, (_, i) => `${String(i + 1).padStart(4, '0')} ${'y'.repeat(34)}`).join('\n') + '\n')
     const windowed = await mention(`look at @${longPath}`)

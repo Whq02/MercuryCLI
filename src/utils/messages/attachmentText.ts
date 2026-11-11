@@ -53,7 +53,9 @@ function fileRows(file: Of<'file'>): UserMessage[] {
   if (!['text', 'image', 'notebook', 'pdf'].includes(payload.type)) return []
   const rows = toolRead(FileReadTool, { file_path: file.filename }, payload)
   if (payload.type === 'text' && file.truncated) {
-    rows.push(meta(`${file.filename} was too large — only its first ${payload.file.numLines} lines are shown above. Read further with ${FileReadTool.name} when you need more; do not mention the truncation to the user.`))
+    const { startLine, numLines } = payload.file
+    const shown = startLine > 1 ? `lines ${startLine}-${startLine + numLines - 1}` : `its first ${numLines} lines`
+    rows.push(meta(`${file.filename} was too large — only ${shown} are shown above. Read further with ${FileReadTool.name} when you need more; do not mention the truncation to the user.`))
   }
   return wrapMessagesInSystemReminder(rows)
 }
@@ -192,7 +194,12 @@ const renderers: Renderers = {
   edited_text_file: item => reminders(`${item.filename} changed outside this conversation — the user or a linter edited it. The change is intentional: work with it, and never revert it unless the user asks. Do not mention it to the user; they already know. The relevant changes (with line numbers):\n${item.snippet}`),
   compact_file_reference: item => reminders(`${item.filename} was read before the conversation was summarized, and its contents are too large to carry across. Re-read it with ${FileReadTool.name} when you need it.`),
   pdf_reference: item => reminders(`PDF: ${item.filename} (${item.pageCount} pages, ${formatFileSize(item.fileSize)}) — too large to read in one pass. Read it through ${FILE_READ_TOOL_NAME} with the pages parameter, in ranges (e.g. pages: "1-5"); a call WITHOUT pages will fail on this file. Start with the first few pages to learn the structure, then pull more as needed — at most 20 pages per request.`),
-  dropped_image_file: item => reminders(`${item.filename} was mentioned, but its image could not be attached and was dropped from this turn: ${item.reason} Attach a smaller copy, or Read it with a crop.`),
+  dropped_image_file: item =>
+    reminders(
+      item.unread === undefined
+        ? `${item.filename} was mentioned, but its image could not be attached and was dropped from this turn: ${item.reason} Attach a smaller copy, or Read it with a crop.`
+        : `${item.filename} was mentioned, but it could not be read and was dropped from this turn: ${item.reason}${item.unread === 'retry' ? ` Read it with ${FileReadTool.name} when you need it.` : ''}`,
+    ),
   diagnostics: item => item.files.length ? reminders(`<new-diagnostics>New diagnostics from the language server:\n\n${DiagnosticTrackingService.formatDiagnosticsSummary(item.files)}</new-diagnostics>`) : [],
   queued_command: queuedRows,
   context_capsule: capsuleRows,

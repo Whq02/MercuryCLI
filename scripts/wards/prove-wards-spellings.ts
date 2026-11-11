@@ -106,7 +106,7 @@ function pageSays(pattern: RegExp): { found: boolean; text: string } {
 
 const r = String.raw
 type ToolName = 'Bash' | 'PowerShell' | 'Monitor'
-type Row = { c: string; t?: ToolName; l?: string }
+type Row = { c: string; t?: ToolName; l?: string; mac?: true }
 type Group = { id: string; title: string; expect: 'refused' | 'clear'; platform?: 'win32' | 'darwin-only'; named: Row[]; rows: Row[]; notes?: Row[] }
 
 const only = process.argv.slice(2).filter(word => !word.startsWith('-'))
@@ -298,7 +298,7 @@ const GROUPS: Group[] = [
       { c: 'rm //Users/other/x', l: 'a doubled slash' },
       { c: 'rm /Users//other/x' },
       { c: 'rm /./Users/other/x' },
-      { c: 'rm /System/Volumes/Data/Users/other/x', l: 'the firmlink path: /System/Volumes/Data/Users is /Users (one inode here)' },
+      { c: 'rm /System/Volumes/Data/Users/other/x', l: 'the firmlink path of macOS: /System/Volumes/Data/Users is /Users there', mac: true },
       { c: 'cd /Users/other && rm notes.txt', l: 'cd first' },
       { c: 'cd /Users/other; rm -rf Documents' },
       { c: '(cd /Users/other && rm -rf *)' },
@@ -571,6 +571,7 @@ check("the page says a delete inside another user's home is refused in any spell
 check('the page says reads, in-project deletes and quoted or heredoc mentions stay clear', clear.found)
 
 const tally: string[] = []
+let skippedByName = 0
 for (const group of GROUPS) {
   if (only.length > 0 && !only.includes(group.id)) continue
   if (group.platform === 'darwin-only' && process.platform !== 'darwin') {
@@ -593,9 +594,16 @@ for (const group of GROUPS) {
     else checks += 1
   }
   let wrong = 0
+  let macOnly = 0
   for (const row of group.rows) {
     const command = fill(row.c)
     const tool = row.t ?? 'Bash'
+    if (row.mac === true && process.platform !== 'darwin') {
+      macOnly += 1
+      skippedByName += 1
+      note(`skipped by name off macOS, counted: ${shown(command)} (${row.l})`)
+      continue
+    }
     const reading = await wardReading(session, command, tool)
     const ok = group.expect === 'refused' ? reading.refused && !reading.reason.includes('could not be read') : !reading.refused
     if (!ok) wrong += 1
@@ -609,7 +617,7 @@ for (const group of GROUPS) {
     const reading = await wardReading(session, command, row.t ?? 'Bash')
     note(`not counted (built at run time, another language, or a neighbour of the named command): ${shown(command)} → ${reading.refused ? `refused by ${reading.ward}` : 'allowed'}`)
   }
-  tally.push(`${group.id}: ${group.named.length} ${group.expect === 'refused' ? 'named spellings' : 'clear forms'} (${namedOk} as the page says) · ${group.rows.length} other spellings, ${wrong} ${group.expect === 'refused' ? 'allowed' : 'refused'}`)
+  tally.push(`${group.id}: ${group.named.length} ${group.expect === 'refused' ? 'named spellings' : 'clear forms'} (${namedOk} as the page says) · ${group.rows.length} other spellings, ${wrong} ${group.expect === 'refused' ? 'allowed' : 'refused'}${macOnly > 0 ? `, ${macOnly} of macOS alone skipped by name` : ''}`)
   if (group.platform === 'win32') {
     restorePlatform()
     process.env.USERPROFILE = OWN_HOME
@@ -741,5 +749,5 @@ for (const line of tally) note(line)
 note('every command is a string handed to the wards guard (registerWardsGuard + judgeToolCall, the tool objects only for their shellCommandOf); nothing is executed')
 resetGuardsForTesting()
 resetWardsEngagedSessionsForTest()
-console.log(`\nprove-wards-spellings: ${checks} checks, ${failures} failed`)
+console.log(`\nprove-wards-spellings: ${checks} checks, ${failures} failed${skippedByName > 0 ? `, ${skippedByName} skipped by name` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,13 +1,24 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { type ChildProcess, spawn } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { PassThrough, Readable, Writable } from 'node:stream'
 import { client, ndJsonStream, PROTOCOL_VERSION } from '@agentclientprotocol/sdk'
 import { z } from 'zod/v4'
+import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
+import { endProcessGroup, spawnInOwnGroup } from '../lib/processGroup.ts'
+
+const DIST = join(process.cwd(), 'dist', 'mercury.mjs')
+const nodeBin = Bun.which('node')
+if (!existsSync(DIST) || nodeBin === null) {
+  console.error('✗ dist/mercury.mjs or node is missing — run `bun run build.ts` first')
+  process.exit(1)
+}
 
 const scratch = mkdtempSync(join(tmpdir(), 'acp-load-replay-'))
 const project = join(scratch, 'project')
@@ -32,7 +43,7 @@ const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await 
 const { flushSessionStorage, getTranscriptPath, loadTranscriptFile, resetSessionFilePointer } = await import('../../src/utils/sessionStorage.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
 const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { runAcpServer } = await import('../../src/services/acp/acpServer.ts')
+const { replayUpdatesOf, runAcpServer } = await import('../../src/services/acp/acpServer.ts')
 import type { Message } from '../../src/types/message.ts'
 
 const storage = getProjectDir(project)
@@ -50,36 +61,54 @@ function section(title: string): void {
 }
 const j = (value: unknown): string => JSON.stringify(value) ?? ''
 
+const servers: ChildProcess[] = []
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the ACP load replay proof exceeded 180s')
+  console.log('\n❌ TIMEOUT — the ACP load replay proof exceeded 420s')
+  for (const server of servers) endProcessGroup(server)
   process.exit(1)
-}, 180_000)
+}, 420_000)
 guard.unref?.()
 
 const MODEL = 'claude-opus-5-5'
 const sse = (event: string, data: unknown): string => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
-const messageStart = (id: string): string =>
-  sse('message_start', { type: 'message_start', message: { id, type: 'message', role: 'assistant', model: MODEL, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 25, output_tokens: 1 } } })
+const messageStart = (id: string, inputTokens = 25): string =>
+  sse('message_start', { type: 'message_start', message: { id, type: 'message', role: 'assistant', model: MODEL, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: inputTokens, output_tokens: 1 } } })
 const blockStart = (index: number, block: Record<string, unknown>): string => sse('content_block_start', { type: 'content_block_start', index, content_block: block })
 const blockDelta = (index: number, delta: Record<string, unknown>): string => sse('content_block_delta', { type: 'content_block_delta', index, delta })
 const blockStop = (index: number): string => sse('content_block_stop', { type: 'content_block_stop', index })
 const textWhole = (index: number, text: string): string => blockStart(index, { type: 'text', text: '' }) + blockDelta(index, { type: 'text_delta', text }) + blockStop(index)
 const toolWhole = (index: number, id: string, name: string, json: string): string =>
   blockStart(index, { type: 'tool_use', id, name, input: {} }) + blockDelta(index, { type: 'input_json_delta', partial_json: json }) + blockStop(index)
-const messageEnd = (stop: string): string =>
-  sse('message_delta', { type: 'message_delta', delta: { stop_reason: stop, stop_sequence: null }, usage: { output_tokens: 12 } }) + sse('message_stop', { type: 'message_stop' })
+const messageEnd = (stop: string, outputTokens = 12): string =>
+  sse('message_delta', { type: 'message_delta', delta: { stop_reason: stop, stop_sequence: null }, usage: { output_tokens: outputTokens } }) + sse('message_stop', { type: 'message_stop' })
 
-type Reply = (n: number, res: ServerResponse, body: { stream?: unknown }) => void
-async function startProvider(reply: Reply): Promise<{ url: string; requests: () => number; close: () => Promise<void> }> {
-  let count = 0
+type Ask = { n: number; stream: boolean; raw: string; last: string; tokens: number; res: ServerResponse }
+type Reply = (ask: Ask) => void
+type Provider = { url: string; asks: Ask[]; said: string[]; close: () => Promise<void> }
+const providers: Provider[] = []
+function say(provider: Pick<Provider, 'said'>, ask: Ask, text: string): void {
+  provider.said.push(text)
+  const outputTokens = Math.ceil(text.length / 4)
+  if (!ask.stream) {
+    ask.res.writeHead(200, { 'content-type': 'application/json' })
+    ask.res.end(JSON.stringify({ id: `msg_said_${ask.n}`, type: 'message', role: 'assistant', model: MODEL, content: [{ type: 'text', text }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: ask.tokens, output_tokens: outputTokens } }))
+    return
+  }
+  ask.res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store' })
+  ask.res.end(messageStart(`msg_said_${ask.n}`, ask.tokens) + textWhole(0, text) + messageEnd('end_turn', outputTokens))
+}
+async function startProvider(reply: (provider: Provider, ask: Ask) => void): Promise<Provider> {
+  const provider: Provider = { url: '', asks: [], said: [], close: async () => {} }
   const server = createServer((req, res) => {
     const chunks: Buffer[] = []
     req.on('data', chunk => chunks.push(chunk as Buffer))
     req.on('end', () => {
       const url = req.url ?? ''
+      const raw = Buffer.concat(chunks).toString('utf8')
+      const tokens = Math.ceil(raw.length / 4)
       if (url.includes('/v1/messages/count_tokens')) {
         res.writeHead(200, { 'content-type': 'application/json' })
-        res.end(JSON.stringify({ input_tokens: 100 }))
+        res.end(JSON.stringify({ input_tokens: tokens }))
         return
       }
       if (!url.includes('/v1/messages')) {
@@ -87,35 +116,31 @@ async function startProvider(reply: Reply): Promise<{ url: string; requests: () 
         res.end('{}')
         return
       }
-      let body: { stream?: unknown } = {}
+      let body: { stream?: unknown; messages?: unknown[] } = {}
       try {
-        body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as typeof body
+        body = JSON.parse(raw) as typeof body
       } catch {
         body = {}
       }
-      reply(++count, res, body)
+      const last = j(body.messages?.at(-1) ?? null)
+      if (last.includes(HANDOFF_ASK_MARK)) {
+        say({ said: [] }, { n: 0, stream: body.stream === true, raw, last, tokens, res }, 'The note for the next session.')
+        return
+      }
+      const asked: Ask = { n: provider.asks.length + 1, stream: body.stream === true, raw, last, tokens, res }
+      provider.asks.push(asked)
+      reply(provider, asked)
     })
   })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
-  const port = (server.address() as { port: number }).port
-  return {
-    url: `http://127.0.0.1:${port}`,
-    requests: () => count,
-    close: () =>
-      new Promise<void>(resolve => {
-        server.closeAllConnections?.()
-        server.close(() => resolve())
-      }),
-  }
-}
-function wholeReply(n: number, res: ServerResponse, body: { stream?: unknown }, text: string): void {
-  if (body.stream !== true) {
-    res.writeHead(200, { 'content-type': 'application/json' })
-    res.end(JSON.stringify({ id: `msg_whole_${n}`, type: 'message', role: 'assistant', model: MODEL, content: [{ type: 'text', text }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 25, output_tokens: 12 } }))
-    return
-  }
-  res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store' })
-  res.end(messageStart(`msg_whole_${n}`) + textWhole(0, text) + messageEnd('end_turn'))
+  provider.url = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+  provider.close = () =>
+    new Promise<void>(resolve => {
+      server.closeAllConnections?.()
+      server.close(() => resolve())
+    })
+  providers.push(provider)
+  return provider
 }
 
 const WRITER = 'LoadReplayWriter'
@@ -194,7 +219,7 @@ for await (const line of createInterface({ input: process.stdin })) {
 }
 `)
 
-type Update = Record<string, unknown> & { sessionUpdate?: string; toolCallId?: string; content?: { text?: string } }
+type Update = Record<string, unknown> & { sessionUpdate?: string; toolCallId?: string; status?: string; content?: { text?: string } }
 async function deadline<T>(label: string, work: Promise<T>): Promise<T> {
   let alarm: ReturnType<typeof setTimeout> | undefined
   try {
@@ -231,10 +256,127 @@ async function loadOverAcp(sessionId: string): Promise<Update[]> {
 const textOf = (updates: Update[], kind: string): string[] => updates.filter(update => update.sessionUpdate === kind).map(update => String(update.content?.text ?? ''))
 const callIdsOf = (updates: Update[]): string[] => updates.filter(update => update.sessionUpdate === 'tool_call').map(update => String(update.toolCallId))
 const times = (haystack: string[], needle: string): number => haystack.filter(text => text.includes(needle)).length
+const talk = (updates: Update[]): string[] =>
+  updates.flatMap(update => {
+    if (update.sessionUpdate === 'user_message_chunk') return [`user: ${String(update.content?.text ?? '')}`]
+    if (update.sessionUpdate === 'agent_message_chunk') return [`agent: ${String(update.content?.text ?? '')}`]
+    if (update.sessionUpdate === 'tool_call') return [`call: ${String(update.toolCallId)}`]
+    if (update.sessionUpdate === 'tool_call_update') return [`result: ${String(update.toolCallId)} ${String(update.status)}`]
+    return []
+  })
+const heads = (lines: string[]): string => j(lines.map(line => (line.length > 90 ? `${line.slice(0, 90)}… (${line.length})` : line)))
 
 async function storedReplyRows(sessionId: string, messageId: string): Promise<Array<{ retracted?: boolean }>> {
   const loaded = await loadTranscriptFile(join(storage, `${sessionId}.jsonl`), { keepAllLeaves: true })
   return [...loaded.messages.values()].filter(row => row.type === 'assistant' && (row as { message?: { id?: unknown } }).message?.id === messageId) as Array<{ retracted?: boolean }>
+}
+
+function handRecord(sessionId: string, build: (h: { user: (content: unknown, extra?: Record<string, unknown>) => void; reply: (id: string, content: unknown[], stop: string | null, extra?: Record<string, unknown>) => void }) => void): void {
+  const file = join(storage, `${sessionId}.jsonl`)
+  let clock = Date.parse('2026-11-08T10:00:00.000Z')
+  let parent: string | null = null
+  let n = 0
+  const rows: Record<string, unknown>[] = []
+  const chained = (row: Record<string, unknown>): void => {
+    const uuid = `00000000-0000-4000-8000-${String(100000000000 + ++n).slice(1)}`
+    rows.push({ parentUuid: parent, isSidechain: false, cwd: project, sessionId, version: '1.0.8', gitBranch: 'main', timestamp: new Date((clock += 1000)).toISOString(), ...row, uuid })
+    parent = uuid
+  }
+  build({
+    user: (content, extra = {}) => chained({ type: 'user', message: { role: 'user', content }, ...extra }),
+    reply: (id, content, stop, extra = {}) => chained({ type: 'assistant', requestId: `req_${id}`, message: { id, type: 'message', role: 'assistant', model: MODEL, stop_reason: stop, stop_sequence: null, content }, ...extra }),
+  })
+  writeFileSync(file, rows.map(row => encodeTranscriptLine(file, row).line).join(''))
+}
+
+type Arena = { home: string; cwd: string; env: Record<string, string> }
+function makeArena(name: string, apiUrl: string): Arena {
+  const root = join(scratch, name)
+  const home = join(root, 'home')
+  const cwd = join(root, 'cwd')
+  for (const dir of [home, cwd, join(root, 'tmp'), join(root, 'daemon')]) mkdirSync(dir, { recursive: true })
+  seedFirstRun(home, [cwd])
+  return {
+    home,
+    cwd,
+    env: {
+      HOME: home,
+      PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
+      TERM: 'dumb',
+      TMPDIR: join(root, 'tmp'),
+      MERCURY_CONFIG_DIR: home,
+      MERCURY_TMPDIR: join(root, 'tmp'),
+      MERCURY_CREDENTIAL_STORE: 'file',
+      ANTHROPIC_BASE_URL: apiUrl,
+      ANTHROPIC_API_KEY: 'fixture-key-000',
+      MERCURY_DAEMON_DIR: join(root, 'daemon'),
+      MERCURY_LOCAL_PROBE_TARGETS: 'none',
+      MERCURY_VERIFY_EVIDENCE: '0',
+      MERCURY_CACHE_CLOCK: '0',
+    },
+  }
+}
+function run(arena: Arena, args: string[]): Promise<{ exit: number | null; stdout: string; stderr: string }> {
+  return new Promise(resolve => {
+    const child = spawn(nodeBin!, [DIST, ...args], { cwd: arena.cwd, env: arena.env })
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', chunk => (stdout += String(chunk)))
+    child.stderr.on('data', chunk => (stderr += String(chunk)))
+    const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
+    child.on('close', exit => {
+      clearTimeout(killer)
+      resolve({ exit, stdout, stderr })
+    })
+  })
+}
+function transcriptOf(arena: Arena, sessionId: string): string {
+  const stack = [join(arena.home, 'projects')]
+  while (stack.length > 0) {
+    const dir = stack.pop()!
+    if (!existsSync(dir)) continue
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) stack.push(path)
+      else if (entry.name === `${sessionId}.jsonl`) return path
+    }
+  }
+  return ''
+}
+type Editor = { request: (method: string, params: unknown) => Promise<Record<string, unknown>>; updates: Array<{ sessionId: string; update: Update }>; end: () => Promise<void> }
+async function openEditor(arena: Arena, capabilities: Record<string, unknown> = {}): Promise<Editor> {
+  const server = spawnInOwnGroup(nodeBin!, [DIST, 'acp'], { cwd: arena.cwd, stdio: ['pipe', 'pipe', 'pipe'], env: arena.env })
+  servers.push(server)
+  server.stderr!.on('data', () => {})
+  const updates: Editor['updates'] = []
+  const connection = client({ name: 'load-replay-proof' })
+    .onNotification('session/update', ctx => {
+      updates.push({ sessionId: String(ctx.params.sessionId), update: ctx.params.update as unknown as Update })
+    })
+    .onRequest('session/request_permission', () => ({ outcome: { outcome: 'selected' as const, optionId: 'allow' } }))
+    .connect(ndJsonStream(Writable.toWeb(server.stdin!) as WritableStream<Uint8Array>, Readable.toWeb(server.stdout!) as ReadableStream<Uint8Array>))
+  const request: Editor['request'] = (method, params) => deadline(method, (connection.agent.request as (method: string, params: unknown) => Promise<unknown>)(method, params)) as Promise<Record<string, unknown>>
+  await request('initialize', { protocolVersion: PROTOCOL_VERSION, clientCapabilities: capabilities })
+  return {
+    request,
+    updates,
+    end: async () => {
+      connection.close()
+      server.kill('SIGTERM')
+      const until = Date.now() + 30_000
+      while (server.exitCode === null && server.signalCode === null && Date.now() < until) await new Promise(resolve => setTimeout(resolve, 25))
+      endProcessGroup(server)
+    },
+  }
+}
+async function loadIn(arena: Arena, sessionId: string, capabilities: Record<string, unknown> = {}): Promise<Update[]> {
+  const editor = await openEditor(arena, capabilities)
+  try {
+    await editor.request('session/load', { sessionId, cwd: arena.cwd, mcpServers: [] })
+    return editor.updates.filter(entry => entry.sessionId === sessionId).map(entry => entry.update)
+  } finally {
+    await editor.end()
+  }
 }
 
 console.log('============================================================')
@@ -245,20 +387,20 @@ try {
   section('L1 — the rows road withdrew a reply (its stream was cut after settled text and a whole call; one non-streamed completion answered): the record keeps it marked, the replay does not carry it')
   {
     const sessionId = await freshSession()
-    const api = await startProvider((n, res, body) => {
-      if (n === 1) {
-        res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store' })
-        res.write(messageStart('msg_cut') + textWhole(0, 'CUT-REPLY-TEXT before the call.') + toolWhole(1, 'toolu_cut', WRITER, '{}') + blockStart(2, { type: 'text', text: '' }))
-        setTimeout(() => res.destroy(), 150)
+    const api = await startProvider((provider, asked) => {
+      if (asked.n === 1) {
+        asked.res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store' })
+        asked.res.write(messageStart('msg_cut') + textWhole(0, 'CUT-REPLY-TEXT before the call.') + toolWhole(1, 'toolu_cut', WRITER, '{}') + blockStart(2, { type: 'text', text: '' }))
+        setTimeout(() => asked.res.destroy(), 150)
         return
       }
-      wholeReply(n, res, body, 'ONE-SHOT WHOLE REPLY.')
+      say(provider, asked, 'ONE-SHOT WHOLE REPLY.')
     })
     process.env.ANTHROPIC_BASE_URL = api.url
     try {
       const rows = await turn(world(), 'First prompt.')
       const outcome = rows.at(-1) as Row & { status?: string; answer?: string }
-      check('L1: the turn withdrew the cut reply and reached its whole answer', outcome?.status === 'completed' && outcome?.answer === 'ONE-SHOT WHOLE REPLY.' && api.requests() === 2, j({ status: outcome?.status, answer: outcome?.answer, requests: api.requests() }))
+      check('L1: the turn withdrew the cut reply and reached its whole answer', outcome?.status === 'completed' && outcome?.answer === 'ONE-SHOT WHOLE REPLY.' && api.asks.length === 2, j({ status: outcome?.status, answer: outcome?.answer, requests: api.asks.length }))
       await flushSessionStorage()
       check('L1: the transcript is where a load of this session looks for it', getTranscriptPath() === join(storage, `${sessionId}.jsonl`), getTranscriptPath())
       const stored = await storedReplyRows(sessionId, 'msg_cut')
@@ -278,30 +420,182 @@ try {
   section('L2 — a record an earlier build wrote: two rows of a withdrawn reply on the chain, marked retracted')
   {
     const sessionId = 'facef00d-0000-4000-8000-0000000acb02'
-    const file = join(storage, `${sessionId}.jsonl`)
-    let clock = Date.parse('2026-11-08T10:00:00.000Z')
-    let parent: string | null = null
-    const uid = (n: number): string => `00000000-0000-4000-8000-${String(100000000000 + n).slice(1)}`
-    const chained = (row: Record<string, unknown>): Record<string, unknown> => {
-      const out = { parentUuid: parent, isSidechain: false, cwd: project, sessionId, version: '1.0.8', gitBranch: 'main', timestamp: new Date((clock += 1000)).toISOString(), ...row }
-      parent = row.uuid as string
-      return out
-    }
-    const reply = (uuid: string, id: string, content: unknown[], stop: string | null, extra: Record<string, unknown> = {}): Record<string, unknown> =>
-      chained({ uuid, type: 'assistant', requestId: `req_${id}`, message: { id, type: 'message', role: 'assistant', model: MODEL, stop_reason: stop, stop_sequence: null, content }, ...extra })
-    const rows = [
-      chained({ uuid: uid(1), type: 'user', message: { role: 'user', content: 'Earlier prompt.' } }),
-      reply(uid(2), 'msg_old_cut', [{ type: 'text', text: 'OLD-CUT-TEXT before the call.' }], null, { retracted: true }),
-      reply(uid(3), 'msg_old_cut', [{ type: 'tool_use', id: 'toolu_old_cut', name: 'Bash', input: { command: 'echo never-ran' } }], null, { retracted: true }),
-      reply(uid(4), 'msg_old_whole', [{ type: 'text', text: 'OLD WHOLE REPLY.' }], 'end_turn'),
-    ]
-    writeFileSync(file, rows.map(row => encodeTranscriptLine(file, row).line).join(''))
+    handRecord(sessionId, h => {
+      h.user('Earlier prompt.')
+      h.reply('msg_old_cut', [{ type: 'text', text: 'OLD-CUT-TEXT before the call.' }], null, { retracted: true })
+      h.reply('msg_old_cut', [{ type: 'tool_use', id: 'toolu_old_cut', name: 'Bash', input: { command: 'echo never-ran' } }], null, { retracted: true })
+      h.reply('msg_old_whole', [{ type: 'text', text: 'OLD WHOLE REPLY.' }], 'end_turn')
+    })
     const updates = await loadOverAcp(sessionId)
     const agent = textOf(updates, 'agent_message_chunk')
     check('L2: the replay carries neither withdrawn row', times(agent, 'OLD-CUT-TEXT') === 0 && !updates.some(update => update.toolCallId === 'toolu_old_cut'), j(updates))
-    check('L2: the prompt and the reply that stood are replayed, once each, in order', j(updates.map(update => [update.sessionUpdate, update.content?.text])) === j([['user_message_chunk', 'Earlier prompt.'], ['agent_message_chunk', 'OLD WHOLE REPLY.']]), j(updates))
+    check('L2: the prompt and the reply that stood are replayed, once each, in order', j(talk(updates)) === j(['user: Earlier prompt.', 'agent: OLD WHOLE REPLY.']), j(updates))
+  }
+
+  section('L3 — a session branched inside its record (run, run --resume, run --resume --replay-to the first reply): the load replays the line the session resumes with')
+  {
+    const api = await startProvider((provider, asked) => say(provider, asked, `BRANCH-REPLY-${asked.n}.`))
+    const arena = makeArena('l3', api.url)
+    const sessionId = 'facef00d-0000-4000-8000-0000000acb03'
+    try {
+      const first = await run(arena, ['run', 'PROMPT-A.', '--session-id', sessionId, '--format', 'rows'])
+      const second = await run(arena, ['run', 'PROMPT-B abandoned.', '--resume', sessionId, '--format', 'rows'])
+      const file = transcriptOf(arena, sessionId)
+      const written = file === '' ? [] : [...(await loadTranscriptFile(file, { keepAllLeaves: true })).messages.values()]
+      const firstReply = written.find(row => row.type === 'assistant')
+      const third = await run(arena, ['run', 'PROMPT-C kept.', '--resume', sessionId, '--replay-to', String(firstReply?.uuid), '--format', 'rows'])
+      const sent = api.asks.at(-1)?.raw ?? ''
+      check(
+        'L3: the three runs completed, one request each, and the third was sent the line it resumed: PROMPT-A, the first reply, PROMPT-C — not the abandoned prompt or its reply',
+        first.exit === 0 && second.exit === 0 && third.exit === 0 && api.asks.length === 3 && sent.includes('PROMPT-A.') && sent.includes(api.said[0]!) && sent.includes('PROMPT-C kept.') && !sent.includes('PROMPT-B abandoned.') && !sent.includes(api.said[1]!),
+        `exits ${first.exit} ${second.exit} ${third.exit}; requests ${api.asks.length}; ${third.stderr.slice(-300)}`,
+      )
+      const onDisk = file === '' ? '' : readFileSync(file, 'utf8')
+      check('L3: the record still holds the abandoned prompt and its reply', onDisk.includes('PROMPT-B abandoned.') && onDisk.includes(api.said[1] ?? 'no second reply'), `${onDisk.length} bytes`)
+      const replayed = await loadIn(arena, sessionId)
+      check(
+        'L3: the load replays that line and nothing else — the first prompt and its reply, the kept prompt and its reply',
+        j(talk(replayed)) === j(['user: PROMPT-A.', `agent: ${api.said[0]}`, 'user: PROMPT-C kept.', `agent: ${api.said[2]}`]),
+        heads(talk(replayed)),
+      )
+    } finally {
+      await api.close()
+    }
+  }
+
+  section('L4 — a result whose call the replay does not announce (a withdrawn call followed by a result row, a record written by hand) sends nothing; a call the replay announces is settled by its result')
+  {
+    const orphan = 'facef00d-0000-4000-8000-0000000acb04'
+    handRecord(orphan, h => {
+      h.user('Prompt with an early read.')
+      h.reply('msg_er_cut', [{ type: 'text', text: 'EARLY-CUT-TEXT.' }], null, { retracted: true })
+      h.reply('msg_er_cut', [{ type: 'tool_use', id: 'toolu_er_cut', name: 'Read', input: { file_path: '/tmp/x.txt' } }], null, { retracted: true })
+      h.user([{ type: 'tool_result', tool_use_id: 'toolu_er_cut', content: 'early read body' }])
+      h.reply('msg_er_whole', [{ type: 'text', text: 'EARLY WHOLE REPLY.' }], 'end_turn')
+    })
+    const orphaned = await loadOverAcp(orphan)
+    check('L4: no update names the withdrawn call — neither its announcement nor a result for it', !orphaned.some(update => update.toolCallId === 'toolu_er_cut'), j(orphaned.filter(update => update.toolCallId !== undefined)))
+    check('L4: the prompt and the reply that stood are replayed', j(talk(orphaned)) === j(['user: Prompt with an early read.', 'agent: EARLY WHOLE REPLY.']), heads(talk(orphaned)))
+    const plain = 'facef00d-0000-4000-8000-0000000acb05'
+    handRecord(plain, h => {
+      h.user('Plain prompt.')
+      h.reply('msg_p1', [{ type: 'text', text: 'Working on it.' }], null)
+      h.reply('msg_p1', [{ type: 'tool_use', id: 'toolu_p1', name: 'Bash', input: { command: 'echo ran' } }], 'tool_use')
+      h.user([{ type: 'tool_result', tool_use_id: 'toolu_p1', content: 'ran' }])
+      h.reply('msg_p2', [{ type: 'text', text: 'PLAIN FINAL.' }], 'end_turn')
+    })
+    const settled = await loadOverAcp(plain)
+    check('L4 control: a call the replay announces is followed by its result', j(talk(settled)) === j(['user: Plain prompt.', 'agent: Working on it.', 'call: toolu_p1', 'result: toolu_p1 completed', 'agent: PLAIN FINAL.']), heads(talk(settled)))
+  }
+
+  section('L5 — a run stopped hard while its first request was out, then resumed: the stand-in reply the resume writes behind the unanswered prompt is in the record and in the next request, and is not replayed as the agent\'s words')
+  {
+    let reached: () => void = () => {}
+    const firstRequestOut = new Promise<void>(resolve => {
+      reached = resolve
+    })
+    let held: ServerResponse | null = null
+    const api = await startProvider((provider, asked) => {
+      if (asked.n === 1) {
+        held = asked.res
+        reached()
+        return
+      }
+      say(provider, asked, 'L5-REPLY after the resume.')
+    })
+    const arena = makeArena('l5', api.url)
+    const sessionId = 'facef00d-0000-4000-8000-0000000acb06'
+    try {
+      const stopped = spawn(nodeBin!, [DIST, 'run', 'L5 prompt left unanswered.', '--session-id', sessionId, '--format', 'rows'], { cwd: arena.cwd, env: arena.env })
+      const gone = new Promise<string>(resolve => stopped.on('close', (code, signal) => resolve(`${code} ${signal}`)))
+      await deadline('the first request', firstRequestOut)
+      stopped.kill('SIGKILL')
+      const ending = await deadline('the stopped run', gone)
+      ;(held as ServerResponse | null)?.destroy()
+      const resumed = await run(arena, ['run', 'L5 next prompt.', '--resume', sessionId, '--format', 'rows'])
+      const sent = api.asks.at(-1)?.raw ?? ''
+      const file = transcriptOf(arena, sessionId)
+      const onDisk = file === '' ? '' : readFileSync(file, 'utf8')
+      check(
+        'L5: the first run was stopped by the signal with its request out, the second completed, and its request carried the stand-in reply',
+        ending === 'null SIGKILL' && resumed.exit === 0 && api.asks.length === 2 && sent.includes('L5 prompt left unanswered.') && sent.includes('No response requested.') && sent.includes('L5 next prompt.'),
+        `ending ${ending}; exit ${resumed.exit}; requests ${api.asks.length}; ${resumed.stderr.slice(-300)}`,
+      )
+      check('L5: the record holds the stand-in reply', onDisk.includes('No response requested.'), `${onDisk.length} bytes`)
+      const replayed = await loadIn(arena, sessionId)
+      check(
+        'L5: the load replays the two prompts and the one reply a model gave — no stand-in',
+        j(talk(replayed)) === j(['user: L5 prompt left unanswered.', 'user: L5 next prompt.', `agent: ${api.said[0]}`]),
+        heads(talk(replayed)),
+      )
+    } finally {
+      await api.close()
+    }
+    const standInRow = (model: string): Record<string, unknown> => ({ type: 'assistant', message: { role: 'assistant', model, content: [{ type: 'text', text: 'No response requested.' }] } })
+    check('L5: a row the product minted with the stand-in\'s words sends nothing', replayUpdatesOf([standInRow('<synthetic>')]).length === 0, j(replayUpdatesOf([standInRow('<synthetic>')])))
+    check('L5 control: a reply a model gave in the same words is replayed (a live turn streamed it)', j(talk(replayUpdatesOf([standInRow(MODEL)]) as Update[])) === j(['agent: No response requested.']), j(replayUpdatesOf([standInRow(MODEL)])))
+  }
+
+  section('L6 — a command typed in an editor: the load replays the line the editor sent and the answer it was shown, never the record\'s storage tags')
+  {
+    const api = await startProvider((provider, asked) => say(provider, asked, `L6-REPLY-${provider.said.length + 1}.`))
+    const arena = makeArena('l6', api.url)
+    const live = await openEditor(arena)
+    let sessionId = ''
+    let shown: string[] = []
+    try {
+      sessionId = String((await live.request('session/new', { cwd: arena.cwd, mcpServers: [] })).sessionId)
+      for (const line of ['L6 first prompt.', '/context', 'L6 second prompt.']) await live.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: line }] })
+      await new Promise(resolve => setTimeout(resolve, 400))
+      shown = live.updates.filter(entry => entry.sessionId === sessionId && entry.update.sessionUpdate === 'agent_message_chunk').map(entry => String(entry.update.content?.text ?? ''))
+    } finally {
+      await live.end()
+      await api.close()
+    }
+    check('L6: live, the editor was shown the two replies and the command\'s answer between them, and the command asked no model', shown.length === 3 && shown[0] === 'L6-REPLY-1.' && shown[1]!.includes('Context') && shown[2] === 'L6-REPLY-2.' && api.asks.length === 2, `${heads(shown)}; requests ${api.asks.length}`)
+    const replayed = await loadIn(arena, sessionId)
+    check(
+      'L6: the load replays what the editor sent and was shown, in that order — the command as the line typed, its answer as the agent\'s message',
+      j(talk(replayed)) === j(['user: L6 first prompt.', `agent: ${shown[0]}`, 'user: /context', `agent: ${shown[1]}`, 'user: L6 second prompt.', `agent: ${shown[2]}`]),
+      heads(talk(replayed)),
+    )
+    check('L6: …and no update carries a storage tag', !replayed.some(update => /<\/?(command-(name|message|args)|local-command-(stdout|stderr|caveat))>/.test(j(update))), heads(talk(replayed)))
+    const typed = (text: string): Record<string, unknown> => ({ type: 'user', message: { role: 'user', content: text } })
+    const echoed = (text: string): Record<string, unknown> => ({ type: 'system', subtype: 'local_command', content: text })
+    check(
+      'L6: a command with arguments replays as the line with them, and an answer on the error stream as the agent\'s message',
+      j(talk(replayUpdatesOf([typed('<command-message>compact</command-message>\n<command-name>/compact</command-name>\n<command-args>keep the file names</command-args>'), echoed('<local-command-stderr>Error: Nothing to compact.</local-command-stderr>')]) as Update[])) === j(['user: /compact keep the file names', 'agent: Error: Nothing to compact.']),
+      j(replayUpdatesOf([typed('<command-message>compact</command-message>\n<command-name>/compact</command-name>\n<command-args>keep the file names</command-args>'), echoed('<local-command-stderr>Error: Nothing to compact.</local-command-stderr>')])),
+    )
+    check(
+      'L6: a command the terminal recorded as its own echo, and an answer recorded as a user row, replay the same way; an answer with nothing in it sends nothing',
+      j(talk(replayUpdatesOf([echoed('<command-name>/context</command-name>\n<command-message>context</command-message>\n<command-args></command-args>'), typed('<local-command-stdout>ECHO-ANSWER</local-command-stdout>'), typed('<local-command-stdout></local-command-stdout>')]) as Update[])) === j(['user: /context', 'agent: ECHO-ANSWER']),
+      j(replayUpdatesOf([echoed('<command-name>/context</command-name>\n<command-message>context</command-message>\n<command-args></command-args>'), typed('<local-command-stdout>ECHO-ANSWER</local-command-stdout>'), typed('<local-command-stdout></local-command-stdout>')])),
+    )
+    check('L6 control: a prompt that only speaks of a command is replayed as written', j(talk(replayUpdatesOf([typed('what does /context print?')]) as Update[])) === j(['user: what does /context print?']), j(replayUpdatesOf([typed('what does /context print?')])))
+  }
+
+  section('L7 — a session that was folded: the fold\'s summary is the harness\'s row and is never replayed as the user\'s words')
+  {
+    const SUMMARY = 'The context window turned over; this session carries on from an earlier stretch of the same conversation. The summary below holds the earlier portion.\n\nSummary:\nL7-SUMMARY-TEXT of the folded stretch.'
+    const folded = 'facef00d-0000-4000-8000-0000000acb07'
+    handRecord(folded, h => {
+      h.user('L7 prompt before the fold.')
+      h.reply('msg_l7_kept', [{ type: 'text', text: 'L7 KEPT REPLY.' }], 'end_turn')
+      h.user(SUMMARY, { isCompactSummary: true })
+      h.user('L7 prompt after the fold.')
+      h.reply('msg_l7_after', [{ type: 'text', text: 'L7 REPLY AFTER THE FOLD.' }], 'end_turn')
+    })
+    const replayed = await loadOverAcp(folded)
+    check('L7: no update carries the summary or its framing', !replayed.some(update => j(update).includes('L7-SUMMARY-TEXT') || j(update).includes('The context window turned over')), heads(talk(replayed)))
+    check('L7: the prompts and the replies the record holds beside it are replayed, in order', j(talk(replayed)) === j(['user: L7 prompt before the fold.', 'agent: L7 KEPT REPLY.', 'user: L7 prompt after the fold.', 'agent: L7 REPLY AFTER THE FOLD.']), heads(talk(replayed)))
+    const summaryRow = { type: 'user', isCompactSummary: true, message: { role: 'user', content: [{ type: 'text', text: SUMMARY }] } }
+    check('L7: a summary row sends nothing, whether its content is a string or blocks', replayUpdatesOf([summaryRow, { ...summaryRow, message: { role: 'user', content: SUMMARY } }]).length === 0, j(replayUpdatesOf([summaryRow])))
+    check('L7 control: the same words typed by the user are replayed as the user\'s', j(talk(replayUpdatesOf([{ type: 'user', message: { role: 'user', content: SUMMARY } }]) as Update[])) === j([`user: ${SUMMARY}`]), j(replayUpdatesOf([{ type: 'user', message: { role: 'user', content: SUMMARY } }])).slice(0, 200))
   }
 } finally {
+  for (const server of servers) endProcessGroup(server)
+  for (const provider of providers) await provider.close()
   rmSync(scratch, { recursive: true, force: true })
 }
 

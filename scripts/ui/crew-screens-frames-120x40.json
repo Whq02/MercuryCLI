@@ -290,7 +290,7 @@
   "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
   "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
   "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
-  "esc interrupt",
+  "? for shortcuts · ctrl+x p for commands + files",
   "shift + ↵ for a new line · shift + ← concourse"
  ],
  "crew-settled": [
@@ -332,7 +332,7 @@
   "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
   "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
   "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
-  "esc interrupt",
+  "? for shortcuts · ctrl+x p for commands + files",
   "shift + ↵ for a new line · shift + ← concourse"
  ],
  "view-panel": [

@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
-import { appendObservation, observationOverflow, pendingRows } from './mnemeBuffer.js'
+import { appendObservation, observationOverflow, observationText, pendingRows } from './mnemeBuffer.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { grepAll, readDocLines, catalogDocs, pageFileForSlug, PENDING_SLUG } from './mnemeRetrieval.js'
 import { correctFact, pointFact, replacePendingRow, retireFact, strikePendingRow, userAskedRuleMessage, type MnemeCorrectResult, type PendingCorrectResult } from './mnemeCorrect.js'
@@ -140,7 +140,7 @@ export function retainItems(
     }
     const duplicateKey = text
     const existing = sessionRetained.get(duplicateKey)
-    if (existing && pendingRows(dir).some(row => `pending:${row.ts}` === existing && row.text === text)) {
+    if (existing && pendingRows(dir).some(row => `pending:${row.ts}` === existing && row.text === observationText(text))) {
       outcomes.push({ index, status: 'already-staged', id: existing })
       return
     }
@@ -279,14 +279,13 @@ export function recallQuery(
       continue
     }
     if (hit.slug === PENDING_SLUG) {
-      const signatureMatch = /\[unconsolidated, ([^,]+), ([^\]]+)\]$/.exec(hit.text)
-      const ts = signatureMatch?.[1] ?? ''
+      const row = /^(.*) \[unconsolidated, ([^,]+), ([^\]]+)\]$/s.exec(hit.text)
       hits.push({
-        id: `pending:${ts}`,
+        id: `pending:${row?.[2] ?? ''}`,
         label: 'pending',
         slug: PENDING_SLUG,
-        preview: clip(hit.text.replace(/ \[unconsolidated.*$/, '')),
-        signature: signatureMatch ? `time=${signatureMatch[1]}, source=${signatureMatch[2]}` : 'unconsolidated',
+        preview: clip(row?.[1] ?? hit.text.replace(/ \[unconsolidated.*$/, '')),
+        signature: row ? `time=${row[2]}, source=${row[3]}` : 'unconsolidated',
       })
       continue
     }

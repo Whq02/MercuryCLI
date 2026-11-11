@@ -3,7 +3,7 @@ import { Box, Text } from '../ink.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { enterConcourse } from '../context/surfaceRoute.js'
-import { useIsOverlayActive } from '../context/overlayContext.js'
+import { useEscapeOwned } from '../hooks/useEscapeOwned.js'
 import {
   getFocusedSessionConnector,
   subscribeThroughFocused,
@@ -310,7 +310,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const samples = useFocusedSamples()
   const shellRunning = useFocusedShellRunning()
   const sendNow = useFocusedSendNowLive()
-  const escapeOwned = useIsOverlayActive()
+  const escapeOwned = useEscapeOwned()
   useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
   const crewActive = crewActiveIn(workRows)
   const c = getFocusedSessionConnector()
