@@ -14,7 +14,7 @@ import {
   getSettingsForSource,
 } from '../settings/settings.js'
 import { getEnabledSettingSources } from '../settings/constants.js'
-import { DANGEROUS_BASH_PATTERNS, CROSS_PLATFORM_CODE_EXEC } from './dangerousPatterns.js'
+import { DANGEROUS_BASH_PATTERNS, CROSS_PLATFORM_CODE_EXEC, PROGRAM_WRAPPERS } from './dangerousPatterns.js'
 import { modeBypassesPermissions, permissionModeTitle, permissionModeFromString } from './PermissionMode.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 import type {
@@ -43,7 +43,20 @@ function contentMatchesDangerousPattern(content: string | undefined, patterns: s
 
 export function isDangerousBashPermission(toolName: string, ruleContent?: string): boolean {
   if (toolName !== BASH_TOOL_NAME) return false
-  return contentMatchesDangerousPattern(ruleContent, DANGEROUS_BASH_PATTERNS)
+  return contentMatchesDangerousPattern(ruleContent, DANGEROUS_BASH_PATTERNS) || runsAnotherProgram(ruleContent)
+}
+
+const PROGRAM_STARTING_TOOLS: ReadonlySet<string> = new Set(['Monitor', 'Service', 'Journey', 'Debug', 'Eval', 'Launch', 'Test'])
+
+function runsAnotherProgram(ruleContent: string | undefined): boolean {
+  const content = (ruleContent ?? '').trim().toLowerCase()
+  return PROGRAM_WRAPPERS.some(wrapper => content === wrapper || content === `${wrapper}*` || (content.startsWith(`${wrapper} `) && content.endsWith('*')))
+}
+
+function startsProgramsUnread(toolName: string, ruleContent?: string): boolean {
+  if (!PROGRAM_STARTING_TOOLS.has(toolName)) return false
+  if (ruleContent === undefined || ruleContent.trim() === '' || ruleContent.trim() === '*') return true
+  return toolName === 'Monitor' && isDangerousBashPermission(BASH_TOOL_NAME, ruleContent)
 }
 
 const POWERSHELL_DANGEROUS_NAMES: string[] = [
@@ -116,7 +129,8 @@ export function findDangerousPermissions(
     if (
       isDangerousBashPermission(toolName, ruleContent) ||
       isDangerousPowerShellPermission(toolName, ruleContent) ||
-      isDangerousTaskPermission(toolName, ruleContent)
+      isDangerousTaskPermission(toolName, ruleContent) ||
+      startsProgramsUnread(toolName, ruleContent)
     ) {
       found.push({
         ruleValue: rule.ruleValue,
@@ -134,7 +148,8 @@ export function findDangerousPermissions(
     if (
       isDangerousBashPermission(toolName, ruleContent) ||
       isDangerousPowerShellPermission(toolName, ruleContent) ||
-      isDangerousTaskPermission(toolName, ruleContent)
+      isDangerousTaskPermission(toolName, ruleContent) ||
+      startsProgramsUnread(toolName, ruleContent)
     ) {
       found.push({
         ruleValue: { toolName, ruleContent: ruleContent || undefined },
