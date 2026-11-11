@@ -7,7 +7,7 @@ import { jsonParse, jsonStringify } from '../slowOperations.js'
 import { emptyFoldState, type TranscriptFoldState } from './fold.js'
 import { createTranscriptRows, transcriptRowOrder } from './rowGraph.js'
 
-export const SNAPSHOT_SCHEMA = 5
+export const SNAPSHOT_SCHEMA = 6
 const DIGEST_TAIL_BYTES = 4096
 export const SNAPSHOT_MIN_BYTES = 256 * 1024
 

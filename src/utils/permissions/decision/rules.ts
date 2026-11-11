@@ -16,6 +16,8 @@ import type {
 } from '../PermissionRule.js'
 import { permissionRuleValueFromString } from '../permissionRuleParser.js'
 import { RULE_INHERITS } from '../../../constants/tools.js'
+import { BASH_TOOL_NAME } from '../../../tools/BashTool/toolName.js'
+import { MONITOR_TOOL_NAME } from '../../../tools/MonitorTool/constants.js'
 
 const PERMISSION_RULE_SOURCES = [
   ...SETTING_SOURCES,
@@ -134,9 +136,14 @@ export function namesWholeServerOfTool(
   return ruleToolName === prefix.slice(0, -2) || ruleToolName === `${prefix}*`
 }
 
+export function runsItsCommandAsBash(toolName: string): boolean {
+  return toolName === MONITOR_TOOL_NAME
+}
+
 const WHOLE_TOOL_MATCHERS: ReadonlyArray<(ruleToolName: string, toolName: string) => boolean> = [
   (ruleToolName, toolName) => ruleToolName === toolName,
   (ruleToolName, toolName) => RULE_INHERITS[toolName]?.includes(ruleToolName) === true,
+  (ruleToolName, toolName) => ruleToolName === BASH_TOOL_NAME && runsItsCommandAsBash(toolName),
   lspFamilyMatches,
 ]
 

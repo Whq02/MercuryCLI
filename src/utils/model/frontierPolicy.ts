@@ -5,7 +5,7 @@ import {
   isMaxSubscriber,
 } from '../auth.js'
 import { getContextWindowForModel, is1mContextDisabled } from './capabilities.js'
-import { previousGenerationKeys } from './configs.js'
+import { declaredMirrorsNewestFirst, previousGenerationKeys } from './configs.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import { getModelStrings } from './modelStrings.js'
 import { getInitialSettings } from '../settings/settings.js'
@@ -148,6 +148,10 @@ export function newestPermittedGeneration(family: Parameters<typeof previousGene
     if (allowedUnderAllowlist(strings[key])) return strings[key]
   }
   return null
+}
+
+export function newestPermittedMirror(): string | null {
+  return declaredMirrorsNewestFirst().find(allowedUnderAllowlist) ?? null
 }
 
 export function gatherFrontierFacts(): FrontierFacts {

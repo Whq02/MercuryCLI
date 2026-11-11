@@ -269,6 +269,10 @@ export async function recordQueueOperation(queueOp: QueueOperationMessage) {
   await getProject().insertQueueOperation(queueOp)
 }
 
+export async function recordTurnEnd(turnId: string, status: string): Promise<void> {
+  await recordSessionRow(sessionId => ({ type: 'turn-end', sessionId, turnId, status }))
+}
+
 export async function removeTranscriptMessage(targetUuid: UUID): Promise<void> {
   await getProject().removeMessageByUuid(targetUuid)
 }

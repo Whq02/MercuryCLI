@@ -16,6 +16,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.ts')
+trustTheProofFolder(true)
 const { renderAgentLine } = await import('../../src/cli/handlers/agents.ts')
 
 section('§1 THE STAMP DRIVES THE LINE')

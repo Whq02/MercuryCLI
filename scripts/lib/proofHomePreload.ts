@@ -35,7 +35,7 @@ function startAgainOnThisEnvironment(): void {
 }
 
 if (entryTakesProofHome) {
-  installProofScratch()
+  installProofScratch({ ownHome: configHomeIsReal() })
   process.env.MERCURY_LOCAL_PROBE_TARGETS ??= 'none'
   delete process.env.NO_COLOR
   delete process.env.FORCE_COLOR

@@ -30,8 +30,11 @@ const spies = [
 const result = { type: 'text', file: { filePath: path, content: 'new\n', numLines: 2, totalLines: 2, startLine: 1 } }
 const calls: any[] = []
 let overflow = false
+let fitting: Record<string, { offset: number; limit: number }> | null = null
 spies.push(spyOn(read.FileReadTool, 'call').mockImplementation(async input => {
   calls.push(input)
+  const window = fitting?.[String(input.limit)]
+  if (window) throw new read.MaxFileReadTokenExceededError(2, 1, 'fixture overflow', window)
   if (overflow && input.limit !== MAX_LINES_TO_READ) throw new read.MaxFileReadTokenExceededError(2, 1, 'fixture overflow')
   return { data: result } as never
 }))
@@ -60,6 +63,17 @@ try {
   assert.equal((clipped as any).truncated, true)
   assert.deepEqual(calls.at(-1), { file_path: path, offset: 3, limit: MAX_LINES_TO_READ })
   overflow = false
+  fitting = { undefined: { offset: 3, limit: 700 }, 700: { offset: 3, limit: 300 } }
+  const asked = calls.length
+  const fitted = await files.generateFileAttachment(path, context as never, 'at-mention', { offset: 3 })
+  assert.equal(fitted?.type, 'file')
+  assert.equal((fitted as any).truncated, true)
+  assert.deepEqual(calls.slice(asked), [{ file_path: path, offset: 3, limit: undefined }, { file_path: path, offset: 3, limit: 700 }, { file_path: path, offset: 3, limit: 300 }])
+  fitting = { undefined: { offset: 3, limit: 700 }, 700: { offset: 3, limit: 700 } }
+  const stuck = calls.length
+  assert.equal(await files.generateFileAttachment(path, context as never, 'at-mention', { offset: 3 }), null)
+  assert.equal(calls.length - stuck, 2)
+  fitting = null
   context.readFileState.set(path, { content: 'old\n', timestamp: 1, offset: 2, limit: 3, isPartialView: true })
   const before = calls.length
   assert.deepEqual(await files.getChangedFiles(context as never), [])
@@ -80,5 +94,5 @@ try {
   ioFailure = 'ENOENT'
   assert.deepEqual(await files.getChangedFiles(context as never), [])
   assert(!context.readFileState.has(path))
-  console.log('PASS PDF threshold/fallback, denied and cached reads, exact mtime, overflow policy, the windowed refresh and ENOENT-only eviction')
+  console.log('PASS PDF threshold/fallback, denied and cached reads, exact mtime, overflow policy, the window an overflow names, the windowed refresh and ENOENT-only eviction')
 } finally { for (const spy of spies) spy.mockRestore() }

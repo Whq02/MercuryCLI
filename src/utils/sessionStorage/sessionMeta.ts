@@ -7,6 +7,8 @@ export type SessionMetaFields = {
   agentName?: string
   agentColor?: string
   agentSetting?: string
+  brief?: string
+  briefAdd?: string
   lastPrompt?: string
   mode?: 'coordinator' | 'normal'
   advisor?: boolean
@@ -32,8 +34,12 @@ const scalarFields = [
   ['worktree-state', 'worktreeSession', 'worktreeSession'],
 ] as const
 
+const briefRows = { brief: 'session-brief', briefAdd: 'session-brief-add' } as const
+type BriefField = keyof typeof briefRows
+
 export class SessionMeta {
   fields: SessionMetaFields = {}
+  private owedBriefs = new Set<BriefField>()
 
   constructor(private readonly io: {
     currentId: () => UUID
@@ -62,13 +68,36 @@ export class SessionMeta {
     for (const key of ['agentName', 'agentColor', 'agentSetting', 'mode', 'model', 'prUrl', 'prRepository'] as const) {
       if (meta[key]) (current as Record<string, unknown>)[key] = meta[key]
     }
-    for (const key of ['advisor', 'swarm', 'worktreeSession', 'prNumber'] as const) {
+    for (const key of ['advisor', 'swarm', 'worktreeSession', 'prNumber', 'brief', 'briefAdd'] as const) {
       if (meta[key] !== undefined) (current as Record<string, unknown>)[key] = meta[key]
     }
   }
 
   clear(): void {
     this.fields = {}
+    this.owedBriefs.clear()
+  }
+
+  setBrief(field: BriefField, text: string): void {
+    if (this.fields[field] !== text) {
+      this.fields[field] = text
+      this.owedBriefs.add(field)
+    }
+    this.writeOwedBriefs()
+  }
+
+  oweBriefs(): void {
+    for (const field of Object.keys(briefRows) as BriefField[]) {
+      if (this.fields[field] !== undefined) this.owedBriefs.add(field)
+    }
+  }
+
+  private writeOwedBriefs(): void {
+    const path = this.io.currentFile()
+    const sessionId = this.io.currentId()
+    if (!path || !sessionId) return
+    for (const field of this.owedBriefs) this.io.append(path, { type: briefRows[field], [field]: this.fields[field] ?? '', sessionId })
+    this.owedBriefs.clear()
   }
 
   cache<K extends keyof SessionMetaFields>(key: K, value: SessionMetaFields[K]): void {
@@ -108,6 +137,7 @@ export class SessionMeta {
     if (prNumber !== undefined && prUrl && prRepository) {
       this.io.append(path, { type: 'pr-link', sessionId, prNumber, prUrl, prRepository, timestamp: new Date().toISOString() })
     }
+    this.writeOwedBriefs()
   }
 }
 

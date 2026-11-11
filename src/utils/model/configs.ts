@@ -158,10 +158,15 @@ export function mirrorTwinOf(id: string): string | undefined {
   return word !== undefined && MIRROR_FAMILY_WORDS[word] !== undefined ? config.canonical : undefined
 }
 
+export function declaredMirrorsNewestFirst(): string[] {
+  const twins: string[] = Object.values(FAMILY_GENERATIONS).flatMap(keys => keys.map(key => ALL_MODEL_CONFIGS[key].firstParty))
+  return twins.flatMap(twin => CANONICAL_MODEL_IDS.filter(id => mirrorTwinOf(id) === twin))
+}
+
 const FIRST_PARTY_FAMILY_WORDS = [...Object.keys(FAMILY_GENERATIONS), ...Object.keys(MIRROR_FAMILY_WORDS)]
 
 const FIRST_PARTY_GENERATION_RE = new RegExp(
-  `(?:^|[^a-z0-9])(?:claude-)?(${FIRST_PARTY_FAMILY_WORDS.join('|')})-(\\d{1,2}(?:[.-]\\d{1,2})*)(?=-\\d{8}(?!\\d)|$|[^\\d-]|-(?!\\d))`,
+  `(?:^|[^a-z0-9])(?:claude-)?(${FIRST_PARTY_FAMILY_WORDS.join('|')})-(\\d{1,2}(?:[.-]\\d{1,2})*)(?=-\\d{8}(?!\\d)|$|[^\\d-]|-(?=[a-z]))`,
   'i',
 )
 
@@ -179,6 +184,7 @@ interface FirstPartyGeneration {
   family: ModelFamily
   generation: string
   stem: string
+  spelled: string
 }
 
 export function parseFirstPartyGeneration(id: string): FirstPartyGeneration | null {
@@ -189,7 +195,7 @@ export function parseFirstPartyGeneration(id: string): FirstPartyGeneration | nu
   const word = match[1]!
   const family = (MIRROR_FAMILY_WORDS[word] ?? word) as ModelFamily
   const generation = match[2]!.replaceAll('.', '-')
-  return { family, generation, stem: `claude-${family}-${generation}` }
+  return { family, generation, stem: `claude-${family}-${generation}`, spelled: `claude-${word}-${generation}` }
 }
 
 export function familyHeadOf(id: string): ModelKey | null {

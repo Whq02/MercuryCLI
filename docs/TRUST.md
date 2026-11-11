@@ -201,7 +201,14 @@ after a delete verb is still the delete, an inline shell string (`bash -c "…"`
 `eval`, `Invoke-Expression`) or a heredoc fed to a shell (`bash <<'EOF'`,
 `cat <<EOF | sh`) is read as the commands it runs, and a command split over
 several lines with a trailing backslash, pipe or `&&` is read as the one line
-the shell runs (a comment never continues a line). The same
+the shell runs (a comment never continues a line). The rules read the commands
+a shell would run instead of the text: the program by its name behind any path,
+quoting, assignment or wrapper (`env`, `timeout`, `nohup`, `exec`, `xargs`,
+`find -exec`), the folder a `cd` left, and paths with `..`, `//`, `~` and
+`$HOME` resolved. A command that cannot be read that way (an open quote, a
+script longer than the parser reads, a program named only at run time) is
+judged by its text, and a mention in it of a refused program or target refuses
+it with a sentence that says it could not be read. The same
 list rides interactive, headless `run`, crew and runner sessions alike, and it never
 stands down within a session. `MERCURY_WARDS=warn` lets a refuse-list hit
 proceed and leaves one warning row on the transcript naming the ward, the
@@ -224,19 +231,29 @@ Five safety floors hold alongside the permission modes and wards:
 ## Non-interactive sessions
 
 Headless sessions have no trust dialog. In a folder without a recorded trust
-grant, `mercury run` proceeds without the project's instructions, hooks or MCP
-servers. Project-scope API-key helpers do not execute there either. A trust
-grant on the folder or an ancestor enables those project sources. The user's
-own configuration and managed policy still apply.
+grant, `mercury run` proceeds without the project's instructions, hooks, MCP
+servers, agent definitions or workflows, and the folder's two settings files
+(`.mercury/settings.json` and `.mercury/settings.local.json`) do not rule the
+run: their allow rules, environment values, memory directory and every other
+key wait for the grant. Their deny and ask rules still apply, because a deny
+or an ask can only tighten a run, and the words a `guardrails.reasons` entry
+gives such a rule are left unsaid. Project-scope API-key helpers do not
+execute there either. A trust grant on the folder or an ancestor enables
+those project sources, and `--config <file>` hands one launch a settings file
+without a grant. The user's own configuration and managed policy still apply.
 
 A project MCP server (one defined in `.mercury/mcp.json`) needs more than the
 trust grant: it starts in a headless run, and in `mercury mcp list` and
 `mercury mcp get`, only after you approved it on the card an interactive start
 in that folder shows, or with `kit.trustProjectServers` set in your user or
-local settings. The approval is keyed to the server's definition as written
-(its command, arguments, URL and environment variable names), so a changed
-definition is asked about again. Until a server is approved, a run skips it,
-says so on stderr and in a `notice` row, and continues.
+local settings. The local settings file lives in the folder, so a trusted
+folder that ships one has approved its own servers. The approval is keyed to
+the server's definition as written
+(its command, arguments, URL, headers helper and environment variable names),
+so a changed definition is asked about again. Until a server is approved, a
+run skips it, says so on stderr and in a `notice` row, and continues. In a
+folder without a trust grant a run names on stderr how many project servers
+and hooks it left out.
 
 A hosted session (a daemon-hosted session, an editor session or another
 `mercury runner`) puts a call that needs approval to its host as
@@ -275,9 +292,10 @@ Managed policy settings tighten the hook surface beyond the trust gate:
   likewise runs only from policy settings.
 
 Adjacent to workspace trust sits the Sovereign-mode consent:
-`guardrails.sovereignConsentSeen` is honoured from the user, local, flag, and
-policy settings sources (the project source is deliberately excluded, so a
-hostile repository cannot pre-accept the Sovereign-mode consent dialog).
+`guardrails.sovereignConsentSeen` is honoured from the user, flag, and policy
+settings sources. The two files that live in the folder, the project settings
+and the local settings, are deliberately excluded, so a hostile repository
+cannot pre-accept the Sovereign-mode consent dialog.
 
 ## The permission-posture record
 

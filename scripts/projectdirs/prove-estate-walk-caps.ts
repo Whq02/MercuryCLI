@@ -12,6 +12,8 @@ process.env.NODE_ENV = 'test'
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.js')
+trustTheProofFolder(true)
 const { walkMarkdownEstate, loadMarkdownFilesForSubdir, ESTATE_WALK_MAX_ENTRIES, ESTATE_WALK_MAX_DEPTH } = await import('../../src/utils/markdownConfigLoader.js')
 const { bootNotes, _resetBootNotesForTesting } = await import('../../src/substrate/bootNotes.js')
 

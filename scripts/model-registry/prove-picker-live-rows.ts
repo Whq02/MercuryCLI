@@ -189,6 +189,25 @@ section('§7 a mirror id the door lists gets its own row under its twin, and onl
   check('the sub-model registry lists each mirror row once', ids.filter(id => id === 'claude-mythos-5-2').length === 1 && ids.filter(id => id === 'claude-mythos-5-1').length === 1, ids.join(','))
 }
 
+section('§8 a dated snapshot of a mirror listed without its bare id gets the mirror\'s row')
+{
+  const alone = compose(live([{ id: 'claude-mythos-5-2-20261109', displayName: 'Claude Mythos 5.2', doors: ['Claude subscription'] }]))
+  const v = values(alone)
+  const row = anthropicRows(alone).find(o => o.value.includes('mythos'))
+  check('one Mythos row, under Fable 5.2, and every static row as it was', v.filter(id => id.includes('mythos')).length === 1 && v.indexOf('claude-mythos-5-2-20261109') === v.indexOf('claude-fable-5-2') + 1 && JSON.stringify(anthropicRows(alone).filter(o => !o.value.includes('mythos'))) === JSON.stringify(anthropicRows(baseline)), v.join(','))
+  check('it selects the id the door lists, under the mirror\'s name, selectable', row?.value === 'claude-mythos-5-2-20261109' && parseUserSpecifiedModel(row.value) === 'claude-mythos-5-2-20261109' && row.label === 'Mythos 5.2' && row.description === '' && row.unavailable === undefined, JSON.stringify(row))
+  check('the model-facing description names the listed id, the door and the counterpart', row?.descriptionForModel === 'claude-mythos-5-2-20261109 — listed live by the Claude subscription (the vendor names it "Claude Mythos 5.2"); the built-in table declares it as the counterpart of claude-fable-5-2, with that model\'s window, effort levels and prices.', row?.descriptionForModel)
+  const before = values(compose(live(['claude-mythos-5-2-20261109', 'claude-mythos-5-2']))).filter(id => id.includes('mythos'))
+  const after = values(compose(live(['claude-mythos-5-2', 'claude-mythos-5-2-20261109']))).filter(id => id.includes('mythos'))
+  check('beside its bare id, listed before it or after, the bare id has the one row', before.join(',') === 'claude-mythos-5-2' && after.join(',') === 'claude-mythos-5-2', `${before.join(',')} · ${after.join(',')}`)
+  const two = values(compose(live(['claude-mythos-5-2-20261109', 'claude-mythos-5-2-20270115']))).filter(id => id.includes('mythos'))
+  check('two dated snapshots of one mirror are one row, the first the door lists', two.join(',') === 'claude-mythos-5-2-20261109', two.join(','))
+  const each = values(compose(live(['claude-mythos-5-1-20261025', 'claude-mythos-5-20260401', 'claude-mythos-5-2-20261109']))).filter(id => id.includes('mythos'))
+  check('a dated snapshot of each declared mirror lands under its own counterpart', each.join(',') === 'claude-mythos-5-2-20261109,claude-mythos-5-1-20261025,claude-mythos-5-20260401', each.join(','))
+  const sibling = values(compose(live(['claude-mythos-5-2-fast', 'claude-fable-5-2-20261109'])))
+  check('a lettered sibling of a mirror and a dated snapshot of a rowed generation add no row, as before', JSON.stringify(sibling) === JSON.stringify(values(baseline)), sibling.join(','))
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(`\nprove-picker-live-rows: ${failures === 0 ? 'green' : `${failures} failed`}`)
 process.exit(failures === 0 ? 0 : 1)

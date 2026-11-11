@@ -66,7 +66,7 @@ try {
     'rm -rf /usr/local/lib/mercury-made-this-run', 'rm -rf /usr/local/lib/mercury-made-this-run/inner', 'echo x > /usr/local/lib/mercury-made-this-run/a.txt',
     'cat /etc/hosts', 'ls ~/Desktop', 'grep -r TODO ~/Developer/other-project', 'head -n 5 ~/.zshrc', 'find /usr/local -name "*.pc" | wc -l', 'stat /etc/passwd', 'tail -f /var/log/system.log', 'diff /etc/hosts hosts.bak',
     'cd /etc && ls', 'cd ~/Developer/other-project && git status', 'cd /usr/local/lib && ls node_modules', 'pushd /etc && cat hosts && popd', 'cd .. && ls',
-    'chmod +x scripts/run.sh', 'chmod 600 ~/.ssh/config', 'chown -R me:staff /usr/local/lib/x',
+    'chmod +x scripts/run.sh', 'chown -R me:staff /usr/local/lib/x',
     'mkdir -p ~/Developer/new-project', 'touch /etc/nothing', 'mkdir -p /opt/tools',
     'echo "rm -rf ~/other" >> README.md', 'grep -rn "rm -rf /" docs/', 'rm -rf "$DIR"', 'rm -rf $OUT/x', 'rm -rf $(mktemp -d)', 'for f in sites/*.md; do rm -rf "$f"; done',
     'scp src/x.ts host.invalid:/tmp/x', 'cp src/x.ts user@host.invalid:/tmp/x', 'rsync -a dist/ host.invalid:/srv/site/',
@@ -76,6 +76,10 @@ try {
       const outcome = await kit.decide(command, { road })
       check(`${road}: ${command.replace(/\n/g, '\\n')} runs`, allowedByFlow(outcome), j(outcome.decision))
     }
+  }
+  for (const road of ROADS) {
+    const outcome = await kit.decide('chmod 600 ~/.ssh/config', { road })
+    check(`${road}: chmod 600 ~/.ssh/config is refused in Flow as in every mode: the file stands in a credential store`, outcome.decision.behavior === 'deny' && /is refused: .+ is a protected system or credential path\.$/.test(outcome.decision.message ?? ''), j(outcome.decision))
   }
 
   section('§3 the file tools: a write outside asks in one sentence; inside, the scratch, the temp roots and reads anywhere run')

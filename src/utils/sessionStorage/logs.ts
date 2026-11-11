@@ -224,6 +224,7 @@ export function clearSessionMetadata(): void {
 }
 
 export function reAppendSessionMetadata(): void {
+  getProject().metadata.oweBriefs()
   getProject().reAppendSessionMetadata()
 }
 
@@ -249,6 +250,14 @@ export async function saveAgentColor(
 
 export function saveAgentSetting(agentSetting: string): void {
   getProject().currentSessionAgentSetting = agentSetting
+}
+
+export function saveSessionBrief(field: 'brief' | 'briefAdd', text: string): void {
+  getProject().metadata.setBrief(field, text)
+}
+
+export function carrySessionBriefs(): void {
+  getProject().metadata.oweBriefs()
 }
 
 export function cacheSessionTitle(customTitle: string): void {
@@ -385,6 +394,8 @@ export type ResumeFacts = Pick<
   | 'agentName'
   | 'agentColor'
   | 'agentSetting'
+  | 'brief'
+  | 'briefAdd'
   | 'customTitle'
   | 'tag'
   | 'mode'
@@ -395,6 +406,7 @@ export type ResumeFacts = Pick<
   | 'prNumber'
   | 'prUrl'
   | 'prRepository'
+  | 'turnEnd'
 >
 
 export function resumeFactsOf(
@@ -412,6 +424,8 @@ export function resumeFactsOf(
     agentName: fold.agentNames.get(sessionId),
     agentColor: fold.agentColors.get(sessionId),
     agentSetting: fold.agentSettings.get(sessionId),
+    brief: fold.sessionBriefs.get(sessionId),
+    briefAdd: fold.sessionBriefAdds.get(sessionId),
     customTitle: fold.customTitles.get(sessionId),
     tag: fold.tags.get(sessionId),
     mode: fold.modes.get(sessionId) as SessionListing['mode'],
@@ -422,6 +436,7 @@ export function resumeFactsOf(
     prNumber: fold.prNumbers.get(sessionId),
     prUrl: fold.prUrls.get(sessionId),
     prRepository: fold.prRepositories.get(sessionId),
+    turnEnd: fold.turnEnds.get(sessionId),
   }
 }
 
@@ -431,7 +446,9 @@ export async function lastSession(
   const fold = await loadSessionFile(sessionId)
   const { messages, summaries } = fold
   if (messages.size === 0) return null
-  const leaf = findLatestMessage(messages.values(), m => !m.isSidechain)
+  const parents = new Set<UUID>()
+  for (const row of messages.values()) if (!row.isSidechain && row.parentUuid) parents.add(row.parentUuid)
+  const leaf = findLatestMessage(messages.values(), m => !m.isSidechain && !parents.has(m.uuid)) ?? findLatestMessage(messages.values(), m => !m.isSidechain)
   if (!leaf) return null
   const chain = buildConversationChain(messages, leaf)
   return {

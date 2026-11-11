@@ -1,7 +1,8 @@
 import { z } from 'zod/v4'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
-import { buildTool, stringInputField, type ToolDef } from '../../Tool.js'
+import { buildTool, stringInputField, type ToolDef, type ToolPermissionContext } from '../../Tool.js'
+import { shellCommandHasPermission } from '../BashTool/bashPermissions.js'
 import { spawnShellTask } from '../../tasks/LocalShellTask/LocalShellTask.js'
 import { stopTask } from '../../tasks/stopTask.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
@@ -108,6 +109,12 @@ export const MonitorTool = buildTool({
   },
   async prompt() {
     return DESCRIPTION
+  },
+  async checkPermissions(input, context) {
+    const verdict = await shellCommandHasPermission(MONITOR_TOOL_NAME, { command: input.command }, context.getAppState().toolPermissionContext as ToolPermissionContext)
+    if (verdict.behavior !== 'allow') return verdict
+    const decided = (verdict.updatedInput as { command?: unknown } | undefined)?.command
+    return { ...verdict, updatedInput: { ...input, command: typeof decided === 'string' ? decided : input.command } }
   },
   mapToolResultToToolResultBlockParam(output, toolUseID) {
     return {

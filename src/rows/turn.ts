@@ -66,7 +66,7 @@ import { fetchSystemPromptParts } from '../utils/queryContext.js'
 import { assertSingleRole } from '../utils/workerRole.js'
 import { flushSessionStorage, recordTranscript } from '../utils/sessionStorage.js'
 import { isEphemeralToolProgress } from '../utils/sessionStorage/paths.js'
-import { settleTranscriptMessage } from '../utils/sessionStorage/writer.js'
+import { recordTurnEnd, settleTranscriptMessage } from '../utils/sessionStorage/writer.js'
 import { setCwd } from '../utils/Shell.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import type { ThinkingConfig } from '../utils/thinking.js'
@@ -757,6 +757,15 @@ export class Conversation {
         }
       } catch (error) {
         logError(error)
+      }
+      if (!persistenceDisabled && (inputResult.messages.length > 0 || turnMessages.some(message => !seedMessages.has(message)))) {
+        try {
+          await this.recordDelta(turnMessages)
+          await recordTurnEnd(turnId, status)
+          if (!isBareMode()) await flushSessionStorage()
+        } catch (error) {
+          logError(error)
+        }
       }
       yield row
     }.bind(this)

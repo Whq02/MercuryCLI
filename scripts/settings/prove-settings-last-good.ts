@@ -15,6 +15,7 @@ process.env.NODE_ENV = 'test'
 
 const state = await import('../../src/bootstrap/state.ts')
 state.setOriginalCwd(PROJECT)
+state.setSessionTrustAccepted(true)
 state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSettings'])
 const { parseSettingsFile, getSettingsWithErrors } = await import('../../src/utils/settings/settings.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')

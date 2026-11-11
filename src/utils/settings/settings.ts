@@ -415,6 +415,10 @@ export function getSettingsForSource(source: SettingSource): SettingsJson | null
   return value
 }
 
+export function getEnabledSettingsForSource(source: SettingSource): SettingsJson | null {
+  return getEnabledSettingSources().includes(source) ? getSettingsForSource(source) : null
+}
+
 
 let mergedLoadInProgress = false
 
@@ -564,7 +568,7 @@ export function getApiKeyHelperFromOutsideCheckoutSources(): string | undefined 
 }
 
 export function hasSkipSovereignConsentPrompt(): boolean {
-  const trustedSources: SettingSource[] = ['userSettings', 'localSettings', 'flagSettings', 'policySettings']
+  const trustedSources: SettingSource[] = ['userSettings', 'flagSettings', 'policySettings']
   for (const source of trustedSources) {
     const settings = getSettingsForSource(source)
     if (settings?.guardrails?.sovereignConsentSeen === true) return true

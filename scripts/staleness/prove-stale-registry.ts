@@ -123,7 +123,7 @@ src/ink/line-width-cache.ts :: cache :: keyed-by-truth
 src/ink/node-cache.ts :: nodeCache :: keyed-by-truth
 src/ink/session/windowsHostSetup.ts :: presenceCache :: invalidator=evictHostPresence
 src/keybindings/loadUserBindings.ts :: cached :: keyed-by-truth
-src/keybindings/loadUserBindings.ts :: cachedCwd :: keyed-by-truth
+src/keybindings/loadUserBindings.ts :: cachedFor :: keyed-by-truth
 src/mneme/mnemeIndex.ts :: fileCache :: keyed-by-truth
 src/mneme/paths.ts :: getMnemeHome :: static-for-process
 src/mneme/paths.ts :: mnemeProjectKeyMemo :: keyed-by-truth

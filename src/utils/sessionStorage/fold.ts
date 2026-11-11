@@ -8,6 +8,7 @@ import type {
   FileHistorySnapshotEntry,
   PersistedWorktreeSession,
   TranscriptMessage,
+  TurnEnded,
 } from '../../types/logs.js'
 import type { StorageRowKind, StorageRowOf } from '../../rows/storage.js'
 import { isCompactBoundaryMessage } from '../messages.js'
@@ -23,6 +24,8 @@ export type TranscriptFoldState = {
   agentNames: Map<UUID, string>
   agentColors: Map<UUID, string>
   agentSettings: Map<UUID, string>
+  sessionBriefs: Map<UUID, string>
+  sessionBriefAdds: Map<UUID, string>
   prNumbers: Map<UUID, number>
   prUrls: Map<UUID, string>
   prRepositories: Map<UUID, string>
@@ -37,6 +40,7 @@ export type TranscriptFoldState = {
   agentContentReplacements: Map<AgentId, ContentReplacementRecord[]>
   contextCollapseCommits: ContextCollapseCommitEntry[]
   contextCollapseSnapshot: ContextCollapseSnapshotEntry | undefined
+  turnEnds: Map<UUID, TurnEnded>
   progressBridge: Map<UUID, UUID | null>
 }
 
@@ -49,6 +53,8 @@ export function emptyFoldState(): TranscriptFoldState {
     agentNames: new Map(),
     agentColors: new Map(),
     agentSettings: new Map(),
+    sessionBriefs: new Map(),
+    sessionBriefAdds: new Map(),
     prNumbers: new Map(),
     prUrls: new Map(),
     prRepositories: new Map(),
@@ -63,12 +69,21 @@ export function emptyFoldState(): TranscriptFoldState {
     agentContentReplacements: new Map(),
     contextCollapseCommits: [],
     contextCollapseSnapshot: undefined,
+    turnEnds: new Map(),
     progressBridge: new Map(),
   }
 }
 
+function noteRowBehindTurnEnd(state: TranscriptFoldState, row: TranscriptMessage): void {
+  const ended = state.turnEnds.get(row.sessionId)
+  if (ended === undefined || row.isSidechain || state.messages.has(row.uuid)) return
+  if (row.type === 'attachment') ended.trailing.push(row.uuid)
+  else if (row.type === 'user' || (row.type === 'assistant' && row.isApiErrorMessage !== true)) state.turnEnds.delete(row.sessionId)
+}
+
 function messageRow(state: TranscriptFoldState, row: TranscriptMessage): void {
   if (row.parentUuid && state.progressBridge.has(row.parentUuid)) row.parentUuid = state.progressBridge.get(row.parentUuid) ?? null
+  noteRowBehindTurnEnd(state, row)
   transcriptRows(state.messages).set(row.uuid, row)
   if (isCompactBoundaryMessage(row)) {
     state.contextCollapseCommits.length = 0
@@ -97,6 +112,8 @@ const foldRows = {
   'agent-name': (state, row) => { if (row.sessionId) state.agentNames.set(row.sessionId, row.agentName) },
   'agent-color': (state, row) => { if (row.sessionId) state.agentColors.set(row.sessionId, row.agentColor) },
   'agent-setting': (state, row) => { if (row.sessionId) state.agentSettings.set(row.sessionId, row.agentSetting) },
+  'session-brief': (state, row) => { if (row.sessionId && typeof row.brief === 'string') state.sessionBriefs.set(row.sessionId, row.brief) },
+  'session-brief-add': (state, row) => { if (row.sessionId && typeof row.briefAdd === 'string') state.sessionBriefAdds.set(row.sessionId, row.briefAdd) },
   mode: (state, row) => { if (row.sessionId) state.modes.set(row.sessionId, row.mode) },
   'advisor-switch': (state, row) => { if (row.sessionId) state.advisorSwitches.set(row.sessionId, row.on === true) },
   'swarm-switch': (state, row) => { if (row.sessionId) state.swarmSwitches.set(row.sessionId, row.on === true) },
@@ -118,6 +135,7 @@ const foldRows = {
   'context-collapse-snapshot': (state, row) => { state.contextCollapseSnapshot = row },
   'speculation-accept': () => {},
   'queue-operation': () => {},
+  'turn-end': (state, row) => { if (row.sessionId) state.turnEnds.set(row.sessionId, { turnId: row.turnId, status: row.status, trailing: [] }) },
 } satisfies { [K in StorageRowKind]: (state: TranscriptFoldState, row: StorageRowOf<K>) => void }
 
 export function applyTranscriptEntry(st: TranscriptFoldState, entry: Entry): void {

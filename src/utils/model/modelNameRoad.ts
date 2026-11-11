@@ -1,4 +1,5 @@
 import { isModelAlias } from './aliases.js'
+import { DECLARED_GENERATION_STEMS } from './configs.js'
 import { isModelFamilyWord } from './modelFamilies.js'
 import { matchModelName, type ModelNameEntry, type ModelNameMatch } from './modelNameMatcher.js'
 import { getModelOptions, isProviderActionRow } from './modelOptions.js'
@@ -25,7 +26,7 @@ export function matchReachableModelName(typed: string, unlistedIds: 'ask' | 'pas
   if (/^(compat|huggingface|local|openrouter|nous|zen)\//.test(lowered)) return null
   const window = WINDOW_SUFFIX.exec(typed.trim())?.[0] ?? ''
   const bare = typed.trim().replace(WINDOW_SUFFIX, '')
-  const matched = matchModelName(bare, reachableModelEntries())
+  const matched = matchModelName(bare, reachableModelEntries(), id => DECLARED_GENERATION_STEMS.has(id))
   if (matched.kind === 'exact') return window === '' ? matched : { ...matched, id: `${matched.id}${window}` }
   if (matched.kind === 'match') return window === '' ? matched : { ...matched, id: `${matched.id}${window}`, said: `${typed.trim()} → ${matched.id}${window}` }
   if (matched.kind === 'none' && unlistedIds === 'pass' && isIdShapedModelWord(typed)) return null

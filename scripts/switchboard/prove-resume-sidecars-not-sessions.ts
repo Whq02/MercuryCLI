@@ -17,7 +17,7 @@ const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${t
 
 const loading = await import('../../src/utils/sessionStorage/loading.ts')
 const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
-const { snapshotPathFor, SNAPSHOT_SCHEMA } = await import('../../src/utils/sessionStorage/resumeSnapshot.ts')
+const { snapshotPathFor, SNAPSHOT_SCHEMA, tryLoadResumeSnapshot } = await import('../../src/utils/sessionStorage/resumeSnapshot.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
 const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
 const { TRANSCRIPT_FORMAT_REFUSAL } = await import('../../src/fabric/transcriptDecode.ts')
@@ -137,14 +137,14 @@ section('§4 the refusal the owner saw is the receipts file read as a transcript
   off()
 }
 
-section('§5 a transcript with a valid schema-5 resume snapshot resumes without refusal and the snapshot file is never decoded as a transcript')
+section('§5 a transcript with a valid resume snapshot resumes without refusal and the snapshot file is never decoded as a transcript')
 {
   loading._resetTranscriptLoadDegradationForTesting()
   reader._resetTranscriptReaderForTesting()
   const snapshotBytes = readFileSync(SNAPSHOT)
   const snapshotMtime = statSync(SNAPSHOT).mtimeMs
   const written = JSON.parse(snapshotBytes.toString('utf8')) as { schemaVersion?: number; byteCursor?: number }
-  check('the sidecar is a schema-5 resume snapshot with a byte cursor', written.schemaVersion === SNAPSHOT_SCHEMA && SNAPSHOT_SCHEMA === 5 && typeof written.byteCursor === 'number' && written.byteCursor > 0, JSON.stringify({ schema: written.schemaVersion, cursor: written.byteCursor }))
+  check('the sidecar is a resume snapshot under the current schema with a byte cursor', written.schemaVersion === SNAPSHOT_SCHEMA && typeof written.byteCursor === 'number' && written.byteCursor > 0, JSON.stringify({ schema: written.schemaVersion, cursor: written.byteCursor }))
   const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')
   check('the snapshot decoded as a transcript WOULD be refused (so any decode of it would be seen below)', decodeTranscriptBuffer(snapshotBytes).refusal === TRANSCRIPT_FORMAT_REFUSAL)
   appendFileSync(TRANSCRIPT, entryLine(TRANSCRIPT, 1201, 1200, SESSION) + entryLine(TRANSCRIPT, 1202, 1201, SESSION))
@@ -161,6 +161,9 @@ section('§5 a transcript with a valid schema-5 resume snapshot resumes without 
   check('the snapshot file is untouched by the reads (a hit under the refresh floor rewrites nothing)', readFileSync(SNAPSHOT).equals(snapshotBytes) && statSync(SNAPSHOT).mtimeMs === snapshotMtime, String(statSync(SNAPSHOT).mtimeMs))
   check('the snapshot is not a session: no listing names it', boot.parkedSessionsOf(PROJ).every(p => !p.transcriptPath.endsWith('.resume-snapshot.json')))
   off()
+  check('the sidecar as it stands is trusted', (await tryLoadResumeSnapshot(TRANSCRIPT)) !== null)
+  writeFileSync(SNAPSHOT, JSON.stringify({ ...JSON.parse(snapshotBytes.toString('utf8')), schemaVersion: SNAPSHOT_SCHEMA - 1 }))
+  check('the same sidecar under the number an older build writes is not trusted: the fold it holds lacks what the record has gained since', (await tryLoadResumeSnapshot(TRANSCRIPT)) === null)
 }
 
 removeScratch(SCRATCH)

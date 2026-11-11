@@ -8,6 +8,8 @@ mkdirSync(home, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
 
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.js')
+trustTheProofFolder(true)
 const { getAgentDefinitionsWithOverrides, clearAgentDefinitionsCache } =
   await import('../../src/tools/AgentTool/loadAgentsDir.js')
 const { revisionDigest } = await import('../../src/services/agents/contracts.js')

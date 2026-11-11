@@ -47,6 +47,7 @@ import {
   loadKeybindingsSyncWithWarnings,
 } from '../../src/keybindings/loadUserBindings.js'
 import { runWithCwdOverride } from '../../src/utils/cwd.js'
+import { setSessionTrustAccepted as trustTheProjects } from '../../src/bootstrap/state.js'
 import type { Key } from '../../src/ink/events/input-event.js'
 
 let failures = 0
@@ -297,6 +298,7 @@ check(
     )
 
     writeFileSync(userFile, '{"bindings":[]}')
+    trustTheProjects(true)
     const inA = runWithCwdOverride(projectA, () => loadKeybindingsSyncWithWarnings())
     const inB = runWithCwdOverride(projectB, () => loadKeybindingsSyncWithWarnings())
     const actionsA = inA.bindings.map(b => b.action)

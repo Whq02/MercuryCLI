@@ -188,6 +188,42 @@ section('§6 the word mythos in a roster covers every Mythos id, as fable covers
   check('["fable", "mythos"] admits both families whole', ['claude-fable-5', 'claude-fable-5-2', 'claude-mythos-5', 'claude-mythos-5-2'].every(id => allow.isModelAllowed(id)) && !allow.isModelAllowed('claude-opus-5-5'))
 }
 
+section('§7 an entry that names one generation admits nothing whose generation cannot be read, and a mirror generation named as an entry follows the law of its counterpart')
+{
+  const unreadable: Array<[string, string, string]> = [
+    ['claude-fable-5', 'claude-fable-5-2-1234567', 'seven digits after a generation are no date'],
+    ['claude-fable-5', 'claude-fable-5-2026', 'four digits are no generation and no date'],
+    ['claude-fable-5', 'claude-fable-5--3', 'a doubled mark'],
+    ['claude-fable-5', 'claude-fable-5-123', 'three digits'],
+    ['claude-fable-5', 'claude-fable-5-202603011', 'nine digits are no date'],
+    ['claude-fable-5-2', 'claude-fable-5-2-1234567', 'the same id under the generation it starts with'],
+    ['fable-5', 'claude-fable-5-2026', 'the entry spelled without the vendor mark'],
+    ['claude-opus-5', 'claude-opus-5-', 'a trailing mark'],
+  ]
+  for (const [entry, candidate, why] of unreadable) {
+    check(`["${entry}"] refuses ${candidate} (${why})`, !admits(entry, candidate) && (allow.rosterRefusal(candidate) ?? '').includes("is outside this organization's engine.roster"))
+  }
+  check('none of those ids has a generation the parser reads', unreadable.every(([, candidate]) => parseFirstPartyGeneration(candidate) === null), unreadable.filter(([, candidate]) => parseFirstPartyGeneration(candidate) !== null).map(([, candidate]) => candidate).join(' '))
+  const kept: Array<[string, string, string]> = [
+    ['claude-fable-5', 'claude-fable-5', 'the id itself'],
+    ['claude-fable-5', 'claude-fable-5-20260301', 'its dated snapshot'],
+    ['claude-fable-5', 'claude-fable-5[1m]', 'its [1m] spelling'],
+    ['claude-fable-5', 'claude-fable-5-20260301[1m]', 'the dated snapshot under the rider'],
+    ['claude-fable', 'claude-fable-5-2026', 'an entry that names no generation is a prefix still'],
+    ['gpt-5', 'gpt-5-2026', "another vendor's id is a prefix still"],
+  ]
+  for (const [entry, candidate, why] of kept) check(`["${entry}"] admits ${candidate} (${why})`, admits(entry, candidate))
+  const mirrorRefused = ['claude-mythos-6-1', 'claude-mythos-6-1-20270101', 'claude-mythos-6-2026', 'claude-fable-6']
+  const counterpartRefused = ['claude-opus-6-1', 'claude-opus-6-1-20270101', 'claude-opus-6-2026', 'claude-fable-6']
+  check(`["claude-mythos-6"] refuses ${mirrorRefused.join(', ')}`, mirrorRefused.every(id => !admits('claude-mythos-6', id)), mirrorRefused.filter(id => admits('claude-mythos-6', id)).join(' '))
+  check(`…as ["claude-opus-6"] refuses ${counterpartRefused.join(', ')}`, counterpartRefused.every(id => !admits('claude-opus-6', id)), counterpartRefused.filter(id => admits('claude-opus-6', id)).join(' '))
+  const mirrorKept = ['claude-mythos-6', 'claude-mythos-6-20270101', 'claude-mythos-6[1m]']
+  check(`["claude-mythos-6"] admits ${mirrorKept.join(', ')}`, mirrorKept.every(id => admits('claude-mythos-6', id)), mirrorKept.filter(id => !admits('claude-mythos-6', id)).join(' '))
+  check('["mythos-6"], the same entry without the vendor mark, admits claude-mythos-6 and refuses claude-mythos-6-1', admits('mythos-6', 'claude-mythos-6') && !admits('mythos-6', 'claude-mythos-6-1'), `${admits('mythos-6', 'claude-mythos-6')} ${admits('mythos-6', 'claude-mythos-6-1')}`)
+  check('["claude-mythos-5-3"] admits its dated snapshot and refuses claude-mythos-5-3-1 and claude-mythos-5-2', admits('claude-mythos-5-3', 'claude-mythos-5-3-20270101') && !admits('claude-mythos-5-3', 'claude-mythos-5-3-1') && !admits('claude-mythos-5-3', 'claude-mythos-5-2'))
+  check('["claude-mythos"], a prefix shorter than a generation, admits every Mythos generation still', admits('claude-mythos', 'claude-mythos-6-1') && admits('claude-mythos', 'claude-mythos-5-2'))
+}
+
 roster(null)
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -64,7 +64,6 @@ async function main(): Promise<void> {
   if (args.length === 0 && process.stdout.isTTY && !hasProjectRoot) {
     if (
       process.platform === 'win32' &&
-      process.env.MERCURY_WIN32_UTF8 !== '0' &&
       process.env.MERCURY_WIN32_UTF8_PRESET !== '1'
     ) {
       const { ensureWin32ConsoleUtf8 } = await import('../utils/runtime/win32Console.js')
@@ -122,7 +121,6 @@ async function main(): Promise<void> {
   if (
     process.platform === 'win32' &&
     process.stdout.isTTY &&
-    process.env.MERCURY_WIN32_UTF8 !== '0' &&
     process.env.MERCURY_WIN32_UTF8_PRESET !== '1'
   ) {
     const { ensureWin32ConsoleUtf8 } = await import('../utils/runtime/win32Console.js')

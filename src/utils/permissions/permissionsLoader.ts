@@ -14,8 +14,8 @@ import {
   getSettingsFilePathForSource,
   updateSettingsForSource,
 } from '../settings/settings.js'
-import { getEnabledSettingSources, SETTING_SOURCES } from '../settings/constants.js'
-import type { EditableSettingSource } from '../settings/constants.js'
+import { getLaunchSettingSources, isCheckoutSourceHeldForTrust, SETTING_SOURCES } from '../settings/constants.js'
+import type { EditableSettingSource, SettingSource } from '../settings/constants.js'
 import type { SettingsJson } from '../settings/types.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 import { normaliseRuleReasons, ruleSpelling } from './ruleReason.js'
@@ -44,9 +44,11 @@ function getPermissionRulesForSource(source: PermissionRuleSource): PermissionRu
     | undefined
   const guardrails = settings?.guardrails
   if (!guardrails) return []
-  const reasons = normaliseRuleReasons(guardrails.reasons)
+  const held = isCheckoutSourceHeldForTrust(source as SettingSource)
+  const reasons = held ? {} : normaliseRuleReasons(guardrails.reasons)
   const rules: PermissionRule[] = []
   for (const behavior of BEHAVIORS) {
+    if (held && behavior === 'allow') continue
     for (const entry of guardrails[behavior] ?? []) {
       const ruleValue = permissionRuleValueFromString(entry)
       const reason = reasons[ruleSpelling(ruleValue)]
@@ -60,7 +62,7 @@ export function loadAllPermissionRulesFromDisk(): PermissionRule[] {
   const managedOnly = shouldAllowManagedPermissionRulesOnly()
   const sources = managedOnly
     ? (['policySettings'] as PermissionRuleSource[])
-    : getEnabledSettingSources()
+    : getLaunchSettingSources()
   return sources.flatMap((source: PermissionRuleSource) => getPermissionRulesForSource(source))
 }
 

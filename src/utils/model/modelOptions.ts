@@ -114,19 +114,31 @@ function mirrorRowDescription(row: AnthropicLiveRow, twin: string): string {
   return `${row.id} — listed live by the ${doors}${name}; the built-in table declares it as the counterpart of ${twin}, with that model's window, effort levels and prices.`
 }
 
+const DATED_SNAPSHOT_RE = /-\d{8}$/
+
+function listedMirrorOf(key: string): string | undefined {
+  if (mirrorTwinOf(key) !== undefined) return key
+  const bare = key.replace(DATED_SNAPSHOT_RE, '')
+  return bare !== key && mirrorTwinOf(bare) !== undefined ? bare : undefined
+}
+
 function mergeAnthropicLiveRows(options: ModelOption[], live: readonly AnthropicLiveRow[]): ModelOption[] {
   if (live.length === 0) return options
   const merged = [...options]
   const isAnthropicModelRow = (option: ModelOption): boolean => option.group === undefined && !isSentinelValue(option.value)
   const resolvedOf = (option: ModelOption): string => resolveWithSuffix(stripContext1m(option.value)).toLowerCase()
   const listed = new Set(merged.filter(isAnthropicModelRow).map(resolvedOf))
+  const bareMirrors = new Set(live.map(row => row.id.trim().toLowerCase()).filter(key => mirrorTwinOf(key) !== undefined))
   for (const row of live) {
     const id = row.id.trim()
     const key = id.toLowerCase()
     if (recognizeModelId(id).kind !== 'first-party' || listed.has(key)) continue
-    const twin = mirrorTwinOf(key)
+    const mirror = listedMirrorOf(key)
+    if (mirror !== undefined && mirror !== key && (bareMirrors.has(mirror) || listed.has(mirror))) continue
+    const twin = mirror === undefined ? undefined : mirrorTwinOf(mirror)
     if (twin === undefined && tableKnows(key)) continue
     listed.add(key)
+    if (mirror !== undefined) listed.add(mirror)
     const family = parseFirstPartyGeneration(key)?.family
     let at = twin === undefined ? -1 : merged.findIndex(option => isAnthropicModelRow(option) && resolvedOf(option) === twin)
     if (at < 0) {
@@ -139,7 +151,7 @@ function mergeAnthropicLiveRows(options: ModelOption[], live: readonly Anthropic
     const raw: ModelOption =
       twin === undefined
         ? { value: id, label: id, description: '', descriptionForModel: liveRowDescription(row, family) }
-        : { value: key, label: renderModelName(key), description: '', descriptionForModel: mirrorRowDescription(row, twin) }
+        : { value: key, label: renderModelName(mirror ?? key), description: '', descriptionForModel: mirrorRowDescription(row, twin) }
     merged.splice(at + 1, 0, raw)
   }
   return merged

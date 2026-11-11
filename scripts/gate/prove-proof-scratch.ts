@@ -14,7 +14,11 @@ const paths = (file: string): string[] => existsSync(file) ? readFileSync(file, 
 const legacyRoot = ['/private/tmp/mw', '/tmp/mw'].find(candidate => existsSync(candidate))
 const runEnv = { ...process.env, ...(legacyRoot ? { TMPDIR: legacyRoot } : {}) }
 try {
-  for (const mode of ['normal', 'wall', 'term', 'direct'] as const) {
+  const bash = Bun.which('bash')
+  if (bash === null) check('the suite road is driven through bash, and none is on PATH: nothing of it was read (on Windows start this proof from Git Bash)', false)
+  if (process.platform === 'win32') console.log('     the TERM leg is POSIX only: Windows ends a process without running its traps')
+  const suiteLegs = (['normal', 'wall', 'term', 'direct'] as const).filter(mode => bash !== null && (mode !== 'term' || process.platform !== 'win32'))
+  for (const mode of suiteLegs) {
     const dir = join(world, mode)
     mkdirSync(dir)
     const receipt = join(dir, 'paths')
@@ -38,11 +42,14 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
 `)
     const runner = join(dir, 'run-all.sh')
     writeFileSync(runner, `#!/usr/bin/env bash\n# gate-class: pure\nset -eu\n. ${JSON.stringify(join(root, 'scripts/lib/suite-env.sh'))}\nsuite_env_guard "$0"\nnode ${JSON.stringify(fixture)}\n"${process.execPath}" ${JSON.stringify(fixture)}\nmissing=0\nwhile IFS= read -r path; do [ -d "$path" ] || missing=1; done < ${JSON.stringify(receipt)}\n[ "$missing" = 1 ] || touch ${JSON.stringify(join(dir, 'handoff'))}\nmktemp -d "\${TMPDIR%/}/shell.XXXXXX" >> ${JSON.stringify(receipt)}\nmkdir -p "\${TMPDIR%/}/nest"\ninner=$(mktemp -d "\${TMPDIR%/}/nest/shell-inner.XXXXXX")\nprintf '%s\\n' "$inner" >> ${JSON.stringify(receipt)}\nprintf '%s\\n' "$inner" >> ${JSON.stringify(nested)}\nif [ -d /private/tmp/mw ]; then mktemp -d /private/tmp/mw/legacy-shell.XXXXXX >> ${JSON.stringify(receipt)}; fi\n${mode === 'wall' || mode === 'term' ? `touch ${JSON.stringify(join(dir, 'ready'))}\nsleep 600 &\nwait` : 'exit 0'}\n`)
-    const child = spawn('bash', mode === 'direct' ? [runner] : [join(root, 'scripts/gate/run-suite.sh'), runner, mode === 'wall' ? '4' : '30', dir], { cwd: root, env: runEnv, stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(bash!, mode === 'direct' ? [runner] : [join(root, 'scripts/gate/run-suite.sh'), runner, mode === 'wall' ? '4' : '30', dir], { cwd: root, env: runEnv, stdio: ['ignore', 'pipe', 'pipe'] })
     let output = ''
     child.stdout.on('data', b => { output += b })
     child.stderr.on('data', b => { output += b })
-    const exited = new Promise<number | null>(r => child.on('exit', r))
+    const exited = new Promise<number | null>(r => {
+      child.on('exit', r)
+      child.on('error', () => r(null))
+    })
     if (mode === 'term') {
       const until = Date.now() + 20_000
       while (!existsSync(join(dir, 'ready')) && child.exitCode === null && Date.now() < until) await new Promise(r => setTimeout(r, 25))
@@ -65,9 +72,9 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
   mkdirSync(emptyBin, { recursive: true })
   const ledger = join(boots, 'ledger')
   const { NODE_OPTIONS: _options, BUN_OPTIONS: _bunOptions, MERCURY_SUITE_TMPDIR: _root, MERCURY_PROCESS_LEDGER_DIR: _ledger, MERCURY_SUITE_RUNNER_PID: _runner, MERCURY_SUITE_SCRIPT: _script, ...bareEnv } = process.env as Record<string, string>
-  const preloadEnv = { ...bareEnv, MERCURY_SUITE_TMPDIR: boots, MERCURY_PROCESS_LEDGER_DIR: ledger, MERCURY_SUITE_RUNNER_PID: String(process.pid), NODE_OPTIONS: `--require=${JSON.stringify(join(root, 'scripts/lib/proofScratch.cjs'))}`, BUN_OPTIONS: `"--preload=${join(root, 'scripts/lib/proofScratch.cjs')}"` }
+  const preloadEnv = { ...bareEnv, MERCURY_SUITE_TMPDIR: boots, MERCURY_PROCESS_LEDGER_DIR: ledger, MERCURY_SUITE_RUNNER_PID: String(process.pid), NODE_OPTIONS: `--require=${JSON.stringify(join(root, 'scripts/lib/proofScratch.cjs'))}`, BUN_OPTIONS: `"--preload=${join(root, 'scripts/lib/proofScratch.cjs').replaceAll('\\', '/')}"` }
   const summary = (r: ReturnType<typeof spawnSync>) => JSON.stringify({ status: r.status, signal: r.signal, stdout: String(r.stdout), stderr: String(r.stderr) })
-  const entryOf = (pid: number | undefined) => (pid && existsSync(join(ledger, `${pid}.entry`)) ? readFileSync(join(ledger, `${pid}.entry`), 'utf8').trimEnd().split('\t') : [])
+  const entries = (): string[] => (existsSync(ledger) ? readdirSync(ledger).filter(name => name.endsWith('.entry')) : [])
   const shapes = {
     'a fresh process whose PATH carries no ps': (runtime: string, env: Record<string, string>) => spawnSync(runtime, ['-e', 'console.log("alive")'], { cwd: root, env: { ...env, PATH: emptyBin }, encoding: 'utf8' }),
     'a process whose folder was deleted': (runtime: string, env: Record<string, string>) => {
@@ -77,17 +84,52 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
     },
   }
   for (const runtime of [Bun.which('node') ?? 'node', process.execPath]) {
-    for (const [shape, boot] of Object.entries(shapes)) {
+    for (const [shape, boot] of Object.entries(shapes).filter(([shape]) => bash !== null || !shape.includes('folder was deleted'))) {
       const bare = boot(runtime, bareEnv)
+      const stood = new Set(entries())
       const loaded = boot(runtime, preloadEnv)
+      const written = entries().filter(name => !stood.has(name))
       const label = `${basename(runtime)}: ${shape}`
       check(`${label} boots unchanged under the preload`, summary(loaded) === summary(bare), `preload ${summary(loaded)} vs bare ${summary(bare)}`)
-      const entry = entryOf(loaded.pid)
-      check(`${label} still registers in the process ledger`, loaded.status !== 0 || (entry.length === 5 && entry[0] === String(loaded.pid) && entry.every(field => field !== '')), `entry ${JSON.stringify(entry)}`)
+      const entry = written.length === 1 ? readFileSync(join(ledger, written[0]!), 'utf8').trimEnd().split('\t') : []
+      const named = written.length === 1 && entry[0] === basename(written[0]!, '.entry') && (process.platform === 'win32' || entry[0] === String(loaded.pid))
+      check(`${label} still registers in the process ledger`, loaded.status !== 0 || (named && entry.length === 5 && entry.every(field => field !== '')), `entry ${JSON.stringify(entry)} in ${JSON.stringify(written)}`)
+    }
+  }
+  {
+    const dir = realpathSync(mkdtempSync(join(world, 'as-win32-')))
+    const standIn = join(dir, 'stand-in.cjs')
+    writeFileSync(standIn, `const fs = require('node:fs'); const os = require('node:os'); const path = require('node:path');
+Object.defineProperty(process, 'platform', { value: 'win32' });
+require(${JSON.stringify(join(root, 'scripts/lib/proofScratch.cjs'))}).installProofScratch();
+const made = process.env.MERCURY_TMPDIR || '';
+if (process.argv[3] !== 'empty' && made !== '') fs.mkdirSync(path.join(made, 'mercury', 'session'), { recursive: true });
+fs.writeFileSync(process.argv[2], JSON.stringify({ productTmp: made, tmp: os.tmpdir(), stood: made !== '' && fs.existsSync(made) }));
+process.exit(process.argv[3] === 'red' ? 1 : 0);
+`)
+    const { MERCURY_TMPDIR: _productTmp, MERCURY_SUITE_OF_ONE: _owner, ...plain } = bareEnv
+    type Stood = { productTmp: string; tmp: string; stood: boolean }
+    const asWin32 = (runtime: string, name: string, mode: string, extra: Record<string, string> = {}): { code: number | null; facts: Stood | undefined; said: string } => {
+      const receipt = join(dir, `${basename(runtime)}-${name}.json`)
+      const run = spawnSync(runtime, [standIn, receipt, mode], { cwd: dir, env: { ...plain, TMPDIR: dir, TEMP: dir, TMP: dir, ...extra }, encoding: 'utf8' })
+      return { code: run.status, facts: existsSync(receipt) ? (JSON.parse(readFileSync(receipt, 'utf8')) as Stood) : undefined, said: `${run.stdout}${run.stderr}` }
+    }
+    const inTempDir = (path: string): boolean => dirname(path) === dir && basename(path).startsWith('mercury-proof-run.')
+    for (const runtime of [Bun.which('node') ?? 'node', process.execPath]) {
+      const label = `${basename(runtime)} as win32`
+      const green = asWin32(runtime, 'green', 'green')
+      check(`${label}: a proof process given no product temp root gets one of its own, a run root under the temp dir, and the temp dir itself is left where it was`, green.code === 0 && green.facts !== undefined && inTempDir(green.facts.productTmp) && green.facts.stood && realpathSync(green.facts.tmp) === dir, `rc=${green.code} ${JSON.stringify(green.facts)} ${green.said}`)
+      check(`${label}: that root goes with what the product wrote into it when the proof ends green`, green.facts !== undefined && green.facts.productTmp !== '' && !existsSync(green.facts.productTmp), `${green.facts?.productTmp}`)
+      const red = asWin32(runtime, 'red', 'red')
+      check(`${label}: it stays for reading when the proof ends red`, red.code === 1 && red.facts !== undefined && inTempDir(red.facts.productTmp) && existsSync(join(red.facts.productTmp, 'mercury', 'session')), `rc=${red.code} ${JSON.stringify(red.facts)}`)
+      for (const name of readdirSync(dir).filter(name => name.startsWith('mercury-proof-run.'))) rmSync(join(dir, name), { recursive: true, force: true })
+      const given = join(dir, `given-${basename(runtime)}`)
+      const kept = asWin32(runtime, 'given', 'empty', { MERCURY_TMPDIR: given })
+      check(`${label}: a process that was given a product temp root keeps it and makes none`, kept.code === 0 && kept.facts?.productTmp === given && !readdirSync(dir).some(name => name.startsWith('mercury-proof-run.')), `rc=${kept.code} ${JSON.stringify(kept.facts)} ${JSON.stringify(readdirSync(dir))}`)
     }
   }
   if (process.platform === 'win32') {
-    console.log('single proof runs: the run root is POSIX only, nothing driven here')
+    console.log('single proof runs: the run root that moves the temp dir is POSIX only, nothing more driven here')
   } else {
     const short = mkdtempSync(join(realpathSync('/tmp'), 'psp-'))
     try {
@@ -142,6 +184,23 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
         check("single bare: nothing was made under the account's own home, and the scratch home left with the run root", !existsSync(join(account, '.mercury')) && readdirSync(account).length === 0 && readdirSync(temp).length === 0, `account=${JSON.stringify(readdirSync(account))} temp=${JSON.stringify(readdirSync(temp))}`)
       }
       {
+        const bound = Number(/^suite_socket_bound=(\d+)$/m.exec(readFileSync(join(root, 'scripts/lib/suite-env.sh'), 'utf8'))?.[1])
+        const temp = join(short, 'b'.repeat(40 - short.length - 1))
+        const account = join(short, 'account-b')
+        mkdirSync(account)
+        const bare = await drive('bound-bare', 'natural', temp, undefined, [], env => {
+          const { MERCURY_CONFIG_DIR: _home, MERCURY_HOME: _other, ...rest } = env
+          return { ...rest, HOME: account }
+        })
+        const home = bare.facts?.own.home ?? ''
+        const socket = `${home}/daemon/control.sock`
+        check(`single bare, a temp dir of ${Buffer.byteLength(temp)} bytes: the scratch home's daemon socket path is within the ${bound}-byte bound, the run root having moved under /tmp to keep it there`, bare.code === 0 && home !== '' && Buffer.byteLength(socket) <= bound && isRunRoot(dirname(home), realpathSync('/tmp')), `rc=${bare.code} ${socket} (${Buffer.byteLength(socket)} bytes)`)
+        const moved = bare.made[0]
+        if (moved && isRunRoot(moved, realpathSync('/tmp'))) rmSync(moved, { recursive: true, force: true })
+        const given = await drive('bound-given', 'natural', temp)
+        check('single with a home of its own, the same temp dir: the run root stays where the caller asked', given.code === 0 && given.made[0] !== undefined && isRunRoot(given.made[0], temp), `rc=${given.code} ${given.made[0]}`)
+      }
+      {
         const temp = join(short, 'nest')
         const run = await drive('nest', 'nest', temp)
         const runRoot = run.made[0]
@@ -173,6 +232,19 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
         const run = await drive(name, mode, temp, undefined, [...words])
         const [runRoot, ...made] = run.made
         check(`single ${name}: ${ending === 0 ? 'a proof run with --keep' : 'a proof that ends red'} keeps its whole run root for reading`, run.code === ending && runRoot !== undefined && made.length === 3 && made.every(p => existsSync(p)), `rc=${run.code} ${JSON.stringify(made.map(p => existsSync(p)))} ${run.output}`)
+      }
+      {
+        const temp = join(short, 'failclean')
+        const run = await drive('failclean', 'failclean', temp)
+        check('single red, nothing left to read: a proof that ends red after removing what it made leaves no empty run root behind', run.code === 1 && run.made.length === 4 && readdirSync(temp).length === 0, `rc=${run.code} left=${JSON.stringify(readdirSync(temp))} ${run.output}`)
+        const bareTemp = join(short, 'fb')
+        const account = join(short, 'account-c')
+        mkdirSync(account)
+        const bare = await drive('failclean-bare', 'failclean', bareTemp, undefined, [], env => {
+          const { MERCURY_CONFIG_DIR: _home, MERCURY_HOME: _other, ...rest } = env
+          return { ...rest, HOME: account }
+        })
+        check('single red, nothing left to read, its own scratch home inside the root: the root goes, the home with it', bare.code === 1 && bare.made[0] !== undefined && isRunRoot(bare.made[0], bareTemp) && readdirSync(bareTemp).length === 0 && readdirSync(account).length === 0, `rc=${bare.code} root=${bare.made[0]} left=${JSON.stringify(readdirSync(bareTemp))} ${bare.output}`)
       }
       {
         const temp = join(short, 'term')
