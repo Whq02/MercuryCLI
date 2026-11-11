@@ -32,6 +32,8 @@ import { RunningShellBackgroundHint } from './AssistantToolUseMessage.js'
 import { ToolRowLead, toolRowStateOf } from './ToolRowLead.js'
 import { TranscriptNameplate } from './TranscriptNameplate.js'
 import { useSelectedMessageBg } from '../messageActions.js'
+import { OutputLine } from '../shell/OutputLine.js'
+import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 
 const HINT_MIN_DISPLAY_MS = 700
 
@@ -342,7 +344,10 @@ export function CollapsedReadSearchContent({
             | { toolUseResult?: unknown }
             | undefined
         )?.toolUseResult
-        if (raw !== undefined) {
+        if ((raw === undefined || raw === null) && tool.name === BASH_TOOL_NAME) {
+          const text = memberResultText(lookups, entry.id)
+          resultNode = text.trim() ? <OutputLine content={text} verbose={verbose} /> : null
+        } else if (raw !== undefined) {
           const validated = tool.outputSchema
             ? tool.outputSchema.safeParse(raw)
             : { success: true as const, data: raw }

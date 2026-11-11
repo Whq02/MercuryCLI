@@ -124,7 +124,7 @@ export function resolveExternalEditor(
 ): EditorResolution {
   const value = editor?.trim() ?? ''
   if (value === '') return { ok: false, reason: 'none' }
-  const { executable, args } = parseEditorCommand(value)
+  const { executable, args } = parseEditorCommand(value, world)
   if (NON_EDITOR_NAMES.has(editorBaseName(executable))) {
     return { ok: false, reason: 'no-op', variable, value, executable }
   }
@@ -152,7 +152,16 @@ export function classifyGuiEditor(editor: string): string | undefined {
   return undefined
 }
 
-function parseEditorCommand(editor: string): { executable: string; args: string[] } {
+function parseEditorCommand(editor: string, world: LookupWorld): { executable: string; args: string[] } {
+  if (world.platform === 'win32' && !/^["']/.test(editor)) {
+    const boundaries = [editor.length, ...Array.from(editor.matchAll(/\s+/g), match => match.index).reverse()]
+    for (const end of boundaries) {
+      const executable = editor.slice(0, end)
+      if (resolveExecutable(executable, world) !== null) {
+        return { executable, args: parseLegacyCommandString(`editor ${editor.slice(end).trim()}`).args }
+      }
+    }
+  }
   const invocation = parseLegacyCommandString(editor)
   if (invocation.executablePath.length > 0) {
     return { executable: invocation.executablePath, args: invocation.args }
