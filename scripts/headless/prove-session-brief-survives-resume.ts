@@ -268,7 +268,75 @@ try {
     }
   }
 
-  console.log('\n§11 a record read from its last fold boundary still yields a brief written before it')
+  console.log("\n§11 the addition the switchboard composes for the runners it starts is the host's: it rides while the session is hosted, is never recorded, and never displaces the session's own")
+  {
+    const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
+    const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.ts')
+    const node = Bun.which('node') ?? 'node'
+    const WINDOW_ADD = 'WINDOW_BRIEF_ADD_MARKER: the window was launched with this.'
+    const specOf = (session: string | undefined, resume: boolean, windowArgv: string[]): ReturnType<typeof buildConcourseWorkerSpec> => buildConcourseWorkerSpec({ runnerId: 'concourse-w1', workspaceId: cwd, modelKey: 'claude-opus-4-8', ...(session === undefined ? { warm: true } : { sessionId: session, resume }), runnerArgv: windowArgv })
+    const NOTE = specOf(undefined, false, []).appendSystemPrompt
+    const addRows = (session: string): string[] => briefRows(recordOf(home, session), 'session-brief-add', 'briefAdd')
+    const hosted = async (session: string, how: 'born' | 'resumed' | 'claimed' | 'claimed back', windowArgv: string[] = []): Promise<string> => {
+      const warm = how === 'claimed' || how === 'claimed back'
+      const spec = specOf(warm ? undefined : session, how === 'resumed', windowArgv)
+      const api = await startFixtureApi([{ kind: 'text', text: 'HOSTED' }, handoffTurn(), handoffTurn()])
+      const host = hostRunner({ dist, node, cwd, home, env: { HOME: home, PATH: process.env.PATH ?? '', TERM: 'dumb', TMPDIR: join(home, 'tmp'), MERCURY_TMPDIR: join(home, 'tmp'), MERCURY_CONFIG_DIR: home, MERCURY_HOME: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CONCOURSE_WORKER: '1', ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: FIXTURE_API_KEY }, argv: ['--model', 'claude-opus-4-8', '--brief-add', spec.appendSystemPrompt, ...(spec.extraArgv ?? [])] })
+      try {
+        await host.initialize({}, 90_000)
+        if (warm) await host.request('session/claim', { session_id: session, model: 'claude-opus-4-8', ...(how === 'claimed back' ? { resume: true } : {}) }, 90_000)
+        await host.prompt('HOSTED_PROMPT')
+        await host.waitFor('the hosted turn outcome', row => row.type === 'outcome', 90_000)
+        await host.stop()
+        const asked = api.requests.filter(request => request.path.includes('/v1/messages') && !request.path.includes('count_tokens') && !isHandoffRequest(request))
+        return ((asked.at(-1)?.body ?? {}) as { system?: Array<{ text?: string }> }).system?.map(block => block.text ?? '').at(-1) ?? ''
+      } finally {
+        await host.stop().catch(() => null)
+        await api.close()
+      }
+    }
+    const wired = buildRunnerInvocation(specOf(randomUUID(), false, [])).argv
+    check("the scene: the daemon hands a runner its note as the runner's --brief-add, and joins a window's own addition behind it", wired[wired.indexOf('--brief-add') + 1] === NOTE && NOTE.includes('switchboard') && specOf(randomUUID(), false, ['--brief-add', WINDOW_ADD]).appendSystemPrompt === `${NOTE}\n\n${WINDOW_ADD}`, head(NOTE))
+
+    const born = randomUUID()
+    const bornSystem = await hosted(born, 'born')
+    check('a session born on the switchboard rides the note', bornSystem.endsWith(NOTE), head(bornSystem.slice(-200)))
+    check('…and its record holds no addition', addRows(born).length === 0, JSON.stringify(addRows(born).map(text => text.slice(0, 40))))
+    const later = await run(['--resume', born, 'LATER_PROMPT'])
+    check('a run that continues that session rides what the session rode less the note: nothing of the host is carried', completed(later) && !later.system.includes(NOTE) && later.system === bornSystem.slice(0, -(NOTE.length + 2)), `rc ${later.code} ${later.status} · ${apart(later.system, bornSystem.slice(0, -(NOTE.length + 2)))}`)
+
+    const claimed = randomUUID()
+    const claimedSystem = await hosted(claimed, 'claimed')
+    check('a warm runner that claims a new session: the note rides and the record holds no addition', claimedSystem.endsWith(NOTE) && addRows(claimed).length === 0, `${head(claimedSystem.slice(-120))} · ${addRows(claimed).length} row(s)`)
+
+    const own = randomUUID()
+    const launchedWithAdd = await run(['--brief-add', ADDED, '--session-id', own, 'OWN_PROMPT'])
+    const hostedOwn = await hosted(own, 'resumed')
+    check('a session that was given an addition and is hosted later rides the note and then its own addition', completed(launchedWithAdd) && hostedOwn.endsWith(`${NOTE}\n\n${ADDED}`), head(hostedOwn.slice(-260)))
+    check('…its record still holds its own addition in one row', addRows(own).join('|') === ADDED, JSON.stringify(addRows(own).map(text => text.slice(0, 40))))
+    const claimedBack = await hosted(own, 'claimed back')
+    check('a warm runner that claims that session back rides the same and writes no row', claimedBack === hostedOwn && addRows(own).join('|') === ADDED, `${apart(claimedBack, hostedOwn)} · ${addRows(own).length} row(s)`)
+    const afterHosting = await run(['--resume', own, 'AFTER_PROMPT'])
+    check('…and a run that continues it afterwards rides its own addition and not the note', completed(afterHosting) && afterHosting.system.endsWith(ADDED) && !afterHosting.system.includes(NOTE), head(afterHosting.system.slice(-200)))
+
+    const windowed = randomUUID()
+    const windowedSystem = await hosted(windowed, 'born', ['--brief-add', WINDOW_ADD])
+    check('a window launched with an addition of its own: its session rides the note and that addition', windowedSystem.endsWith(`${NOTE}\n\n${WINDOW_ADD}`), head(windowedSystem.slice(-260)))
+    check("…and the record holds none: the addition is the window's", addRows(windowed).length === 0, String(addRows(windowed).length))
+    const windowedLater = await run(['--resume', windowed, 'WINDOWED_LATER'])
+    check("…so a run that continues that session afterwards rides neither the note nor the window's addition", completed(windowedLater) && !windowedLater.system.includes(NOTE) && !windowedLater.system.includes(WINDOW_ADD), `rc ${windowedLater.code} ${windowedLater.status} · ${head(windowedLater.system.slice(-200))}`)
+    const rehosted = await hosted(windowed, 'resumed')
+    check('…and a window that hosts it again without the flag rides the note alone', rehosted.endsWith(NOTE) && !rehosted.includes(WINDOW_ADD), head(rehosted.slice(-260)))
+    const both = await hosted(own, 'resumed', ['--brief-add', ADDED])
+    check("the session's own addition given to the window as well is said once", both.endsWith(`${NOTE}\n\n${ADDED}`) && both.split(ADDED).length === 2 && addRows(own).join('|') === ADDED, head(both.slice(-260)))
+
+    const briefed = randomUUID()
+    const briefedSystem = await hosted(briefed, 'born', ['--brief', BRIEF])
+    const briefedLater = await run(['--resume', briefed, 'BRIEFED_LATER'])
+    check('a window launched with a brief: its session records the brief and no addition, and a run that continues it rides the brief without the note', briefedSystem.includes(BRIEF) && briefedSystem.endsWith(NOTE) && briefRows(recordOf(home, briefed)).join('|') === BRIEF && addRows(briefed).length === 0 && completed(briefedLater) && briefedLater.system.includes(BRIEF) && !briefedLater.system.includes(NOTE), `${briefRows(recordOf(home, briefed)).length} brief row(s) · ${addRows(briefed).length} addition row(s) · ${head(briefedLater.system.slice(-160))}`)
+  }
+
+  console.log('\n§12 a record read from its last fold boundary still yields a brief written before it')
   {
     const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
     const { loadTranscriptFile: load } = await import('../../src/utils/sessionStorage/loading.ts')
@@ -302,7 +370,7 @@ try {
     check('an empty brief written before the boundary is read as empty, not as absent', (await load(emptyFile)).sessionBriefs.get(large as never) === '')
   }
 
-  console.log('\n§12 a resume snapshot an older build left beside the record does not hide the brief')
+  console.log('\n§13 a resume snapshot an older build left beside the record does not hide the brief')
   {
     const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
     const snapshots = await import('../../src/utils/sessionStorage/resumeSnapshot.ts')
@@ -329,7 +397,7 @@ try {
     reader._resetTranscriptReaderForTesting()
   }
 
-  console.log('\n§13 a reader that does not know the two rows skips them and reads the rest')
+  console.log('\n§14 a reader that does not know the two rows skips them and reads the rest')
   const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
   const sourceFile = ((): string => { const found: string[] = []; const visit = (folder: string): void => { for (const entry of readdirSync(folder, { withFileTypes: true })) { const path = join(folder, entry.name); if (entry.isDirectory()) visit(path); else if (entry.name === `${origin}.jsonl`) found.push(path) } }; visit(home); return found[0] ?? '' })()
   const known = await loadTranscriptFile(sourceFile)

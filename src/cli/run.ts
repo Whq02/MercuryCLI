@@ -891,12 +891,15 @@ export async function runHeadless(
     if (restored.agentType && restored.agentDefinition) saveAgentSetting(restored.agentType)
   }
   const givenBrief = options.systemPrompt
-  const givenBriefAdd = options.appendSystemPrompt
+  const givenBriefAdd = isConcourseWorker ? undefined : options.appendSystemPrompt
+  const hostBriefAdd = isConcourseWorker ? options.appendSystemPrompt : undefined
   const settleSessionBriefs = (kept: { brief?: string; briefAdd?: string }, record: boolean): void => {
     if (record && givenBrief !== undefined && givenBrief !== kept.brief) saveSessionBrief('brief', givenBrief)
     if (record && givenBriefAdd !== undefined && givenBriefAdd !== kept.briefAdd) saveSessionBrief('briefAdd', givenBriefAdd)
     options.systemPrompt = givenBrief ?? kept.brief
-    options.appendSystemPrompt = (givenBriefAdd ?? kept.briefAdd) || undefined
+    const ownBriefAdd = givenBriefAdd ?? kept.briefAdd
+    const saidByHost = ownBriefAdd !== undefined && (hostBriefAdd ?? '').endsWith(`\n\n${ownBriefAdd}`)
+    options.appendSystemPrompt = [hostBriefAdd, saidByHost ? undefined : ownBriefAdd].filter(Boolean).join('\n\n') || undefined
     const mainAgent = agents.find(agent => agent.agentType === getMainThreadAgentType())
     if (mainAgent !== undefined && !isBuiltInAgent(mainAgent) && options.systemPrompt === undefined) {
       const agentPrompt = mainAgent.getSystemPrompt()
