@@ -138,6 +138,38 @@ for (const [command, rules] of [
   check(`sovereign: ${command} → ${verdict.behavior} (not ask)`, verdict.behavior !== 'ask', shown(verdict))
 }
 
+section('§7 git prints a file too: a reader of a denied path is refused by the rule in every mode, and a form with no path is read as a recursive grep over the folder is')
+{
+  const patch = `-${'p'}`
+  const key = join(root, 'secrets', 'k.txt')
+  const named: Array<[string, string]> = [
+    ['git show HEAD:secrets/k.txt', key], ['git show :secrets/k.txt', key], ['git show :0:secrets/k.txt', key], [`git cat-file ${patch} HEAD:secrets/k.txt`, key], ['git cat-file blob HEAD:secrets/k.txt', key],
+    ['git blame secrets/k.txt', key], ['git blame HEAD -- secrets/k.txt', key], ['git diff HEAD -- secrets/k.txt', key], ['git diff HEAD secrets/k.txt', key], ['git diff -- secrets', join(root, 'secrets')],
+    [`git log ${patch} -- secrets/k.txt`, key], ['git log --patch --follow secrets/k.txt', key], ['git grep K -- secrets', join(root, 'secrets')], ['git grep -n K secrets/k.txt', key], ['git -C . show HEAD:secrets/k.txt', key],
+    ['git grep K', join(root, 'secrets')], ['git grep -e K', join(root, 'secrets')], [`git log ${patch}`, join(root, 'secrets')], [`git log ${patch} -3`, join(root, 'secrets')],
+  ]
+  for (const [command, path] of named) {
+    for (const mode of MODES) {
+      const verdict = await decide(command, mode, dirRule)
+      check(`${mode}: ${command} → deny by Read(secrets/**) naming ${path.slice(root.length + 1)}`, deniedBy(verdict, 'Read(secrets/**)', path), shown(verdict))
+    }
+  }
+  for (const [command, label] of [
+    ['git show HEAD:plain/notes.txt', 'another file is shown'], ['git blame README', 'another file is blamed'], ['git diff HEAD -- plain', 'another folder is compared'],
+    [`git log ${patch} -- plain/notes.txt`, 'another file\'s history is printed'], ['git grep K -- plain sub', 'a search of folders without the path runs'],
+    ['git log --oneline', 'a log with no patch prints no file'], ['git status', 'the status prints no file'], ['git show HEAD', 'a commit with no path named is left as it was'], ['git diff', 'a diff with no path named is left as it was'],
+  ] as Array<[string, string]>) {
+    for (const mode of MODES) {
+      const verdict = await decide(command, mode, dirRule)
+      check(`${mode}: ${command} — ${label}`, verdict.behavior !== 'deny', shown(verdict))
+    }
+  }
+  for (const command of ['git grep K', `git log ${patch}`, 'git show HEAD:secrets/k.txt']) {
+    const bare = await decide(command, 'sovereign')
+    check(`sovereign: ${command} with no Read deny rule is allowed as before`, bare.behavior === 'allow', shown(bare))
+  }
+}
+
 process.chdir(previousCwd)
 removeScratch(scratch)
 console.log(`\n${checks - failures}/${checks} checks passed`)

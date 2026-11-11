@@ -341,12 +341,17 @@ section('§5 the Bash road: a command that cats, pipes, sources or copies the pr
   }
   const never = [
     'cat .env.example', 'cat .env.sample', 'cat .env.template', 'cat .env.production.example', 'cat .envrc', 'cat environment.ts', 'cat env/config.ts', 'cat notes.txt',
-    'ls -la .env', 'stat .env', 'wc -l .env', 'file .env', 'sha256sum .env', 'find . -name .env', 'rg API', 'grep -r API .', "rg -g '!.env' API", 'grep -r --include=*.ts API .',
+    'ls -la .env', 'stat .env', 'wc -l .env', 'file .env', 'sha256sum .env', 'find . -name .env', 'rg API', "rg -g '!.env' API", 'grep -r --include=*.ts API .', "grep -r --exclude='.env*' API .", 'grep API notes.txt', 'git log --oneline', 'git show HEAD', 'git diff HEAD',
     'source setup.sh', '. setup.sh', 'cat < notes.txt', 'head notes.txt',
   ]
   for (const command of never) {
     const verdict = await bashPath(command)
     check(`refusal: ${command} does not ask for this row (passthrough as today)`, verdict.behavior === 'passthrough', j(verdict))
+  }
+  const patchFlag = `-${'p'}`
+  for (const command of ['grep -r API .', 'grep -rn API', 'grep -R "" .', 'grep -r --include=.env* API .', 'rg --hidden API', 'rg -uu API', 'git grep API', 'git grep -n API -- .env', 'git show HEAD:.env', 'git show :.env', `git cat-file ${patchFlag} HEAD:.env`, 'git blame .env', 'git diff HEAD -- .env', `git log ${patchFlag} -- .env`, `git log ${patchFlag}`]) {
+    const verdict = await bashPath(command)
+    check(`${command} prints the lines of a .env file, so it asks with the .env reason`, isEnvAsk(verdict), j(verdict))
   }
   for (const command of ['cp notes.txt copy.txt', 'mv notes.txt renamed.txt']) {
     const verdict = await bashPath(command, 'implement')
