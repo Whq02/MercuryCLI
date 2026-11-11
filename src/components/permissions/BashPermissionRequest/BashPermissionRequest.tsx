@@ -238,6 +238,7 @@ function BashCommandPermissionRequest(
               />
               <Text bold>Do you want to proceed?</Text>
               <Select
+                scrollMovesFocus={false}
                 options={options}
                 onChange={handleChange}
                 onCancel={() => feedback.handleReject(undefined)}

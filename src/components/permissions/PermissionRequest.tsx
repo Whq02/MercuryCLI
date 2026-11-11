@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect } from 'react'
+import { useContext, useEffect } from 'react'
+import { InkInstanceContext } from '../../ink/components/InkInstanceContext.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import { armComposerSeed } from '../../utils/cockpit/composerSeed.js'
 import { armPermissionFocus } from '../../utils/permissions/permissionFocus.js'
@@ -33,6 +34,7 @@ import { ChangeSetPermissionRequest } from './ChangeSetPermissionRequest/ChangeS
 import { BashPermissionRequest } from './BashPermissionRequest/BashPermissionRequest.js'
 import { PowerShellPermissionRequest } from './PowerShellPermissionRequest/PowerShellPermissionRequest.js'
 import { FallbackPermissionRequest } from './FallbackPermissionRequest.js'
+import { useKeysHeldUntilFirstPaint } from './hooks.js'
 import { MediaPermissionRequest } from './MediaPermissionRequest.js'
 import { mediaGenerationKind } from '../../services/media/generation.js'
 import { FileEditPermissionRequest } from './FileEditPermissionRequest/FileEditPermissionRequest.js'
@@ -109,6 +111,11 @@ export function PermissionRequest(props: PermissionRequestProps): React.ReactNod
   )
 
   useEffect(() => armPermissionFocus(), [])
+
+  const ink = useContext(InkInstanceContext)
+  useEffect(() => ink?.registerArrowKeyOwner(() => true), [ink])
+
+  useKeysHeldUntilFirstPaint()
 
   const isQuestionCard = toolUseConfirm.tool === AskUserQuestionTool
   useEffect(() => {

@@ -281,6 +281,7 @@ export function QuestionView(props: Props): React.ReactNode {
           <Box marginTop={1}>
             {question.multiSelect ? (
               <SelectMulti
+                scrollMovesFocus={false}
                 key={question.question}
                 options={options}
                 defaultValue={selectedValue as string[] | undefined}
@@ -305,6 +306,7 @@ export function QuestionView(props: Props): React.ReactNode {
               />
             ) : (
               <Select
+                scrollMovesFocus={false}
                 key={question.question}
                 options={options}
                 defaultValue={selectedValue as string | undefined}
