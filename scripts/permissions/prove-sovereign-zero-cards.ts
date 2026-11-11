@@ -408,6 +408,10 @@ section('§7 a command a tool starts gets the Bash decision: under sovereign tha
 
 section('§8 a command the Bash layer cannot follow: with no deny rule in force it is allowed as before, with one in force it is allowed or refused, never asked about')
 {
+  for (const command of ['truncate -s 0 .mercury/settings.local.json', 'cd .mercury && echo x > settings.local.json', "python3 -c \"open('.mercury/settings.local.json','w').write('x')\"", 'prettier --write MERCURY.md']) {
+    const under = await decide(BashTool, { command }, contextOf('sovereign'))
+    check(`${command}: a command that names Mercury's configuration asks nothing under sovereign (the ask on it is Flow's)`, under.decision.behavior === 'allow', JSON.stringify(under.decision).slice(0, 300))
+  }
   const unfollowed = ['cat $FILE', 'ls *.txt', 'eval "$(cat plan.txt)"', 'cat plan.txt | sh', 'less notes.txt', 'mywrap ls', 'cd "$DIR" && cat k.txt', 'while read l; do echo $l; done < notes.txt', `ls #${'x'.repeat(10_050)}`]
   for (const command of unfollowed) {
     const label = command.length > 60 ? `${command.slice(0, 20)}… (${command.length} characters)` : command

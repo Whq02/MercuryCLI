@@ -305,7 +305,7 @@ function isMercuryWorkingFile(expandedPath: string): boolean {
   return MERCURY_WORKING_FOLDERS.some(folder => forms.some(form => expandedPath === `${form}/${folder}` || expandedPath.startsWith(`${form}/${folder}/`)))
 }
 
-function isProductConfigPath(expandedPath: string, instructionEstate = false): boolean {
+function isProductConfigPath(expandedPath: string, instructionEstate = false, worktreesApart = false): boolean {
   const normalized = expandedPath.replace(/\\/g, '/')
   if (instructionEstate && INSTRUCTION_FILES.has(posixPath.basename(normalized).toLowerCase())) return true
   if (isSettingsFilePath(expandedPath)) return true
@@ -314,7 +314,7 @@ function isProductConfigPath(expandedPath: string, instructionEstate = false): b
   const cwd = getOriginalCwd()
   const folded = normalizeCaseForComparison(expandedPath)
   for (const home of PROJECT_CONFIG_DIR_NAMES) {
-    if (instructionEstate && [joinWithSep(cwd, home), getMercuryHome()].flatMap(dir => protectedPathForms(dir)).some(base => expandedPath === base || expandedPath.startsWith(base + '/'))) return true
+    if (instructionEstate && [joinWithSep(cwd, home), getMercuryHome()].flatMap(dir => protectedPathForms(dir)).some(base => expandedPath === base || (expandedPath.startsWith(base + '/') && !(worktreesApart && expandedPath.startsWith(base + '/worktrees/'))))) return true
     for (const sub of ['agents', 'skills']) {
       const base = normalizeCaseForComparison(joinWithSep(joinWithSep(cwd, home), sub))
       if (pathHasSegmentContainment(folded, base)) return true
@@ -323,8 +323,8 @@ function isProductConfigPath(expandedPath: string, instructionEstate = false): b
   return false
 }
 
-export function isInstructionEstatePath(path: string): boolean {
-  return protectedPathForms(path).some(form => isProductConfigPath(form, true))
+export function isInstructionEstatePath(path: string, worktreesApart = false): boolean {
+  return protectedPathForms(path).some(form => isProductConfigPath(form, true, worktreesApart))
 }
 
 export function instructionEstateGrant(resolutionSet: readonly string[], context: ToolPermissionContext): PermissionRule | undefined {
@@ -385,7 +385,7 @@ export function checkPathSafetyForAutoEdit(
     if (isDangerousFileOrDirectory(expandPath(resolved))) {
       return {
         safe: false,
-        operatorOnly: context?.mode === 'flow' && isInstructionEstatePath(resolved),
+        operatorOnly: context?.mode === 'flow' && isInstructionEstatePath(resolved, true),
         message: `Mercury requested permission to edit ${path}, which is a sensitive file.`,
       }
     }
@@ -936,7 +936,7 @@ export function checkWritePermissionForTool(
     return deny(message, { type: 'other', reason: message })
   }
   if (tool.name !== 'RecordConvention' && (context.mode === 'default' || context.mode === 'implement' || context.mode === 'flow') &&
-      [path, runtimeInput].some(target => isInstructionEstatePath(target))) {
+      [path, runtimeInput].some(target => isInstructionEstatePath(target, context.mode === 'flow'))) {
     for (const resolved of resolutionSet) {
       const rule = matchingRuleForInput(resolved, context, 'edit', 'ask')
       if (rule) return ruleDecision('ask', `Editing ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'edit', 'ask'))

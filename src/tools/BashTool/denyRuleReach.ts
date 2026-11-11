@@ -30,7 +30,10 @@ type DenyRuleReachPorts = {
   judge(command: string, cwd: string, budget: ReachBudget): Promise<DenyRuleReach>
   bashDenyRule(candidate: string): PermissionRule | null
   optionNamedWrites(argv: string[]): string[]
+  estate?(path: string): boolean
 }
+
+const ESTATE_RULE: PermissionRule = { source: 'session', ruleBehavior: 'deny', ruleValue: { toolName: 'Edit', ruleContent: 'Mercury configuration' } }
 
 type FileKind = 'read' | 'edit'
 type Word = string | null
@@ -471,8 +474,15 @@ function operandPaths(args: readonly string[]): string[] {
     const plain = path.replace(/^[@<]/, '')
     if (plain.startsWith('file://')) return [fileUrlPath(plain)]
     const named = plain.match(/^[A-Za-z_][A-Za-z0-9_]*=[@<](.+)$/)
-    return named ? [plain, named[1] as string] : [plain]
+    return named ? [plain, named[1] as string] : [plain, ...quotedInCode(plain)]
   })
+}
+
+function quotedInCode(text: string): string[] {
+  if (!/['"`]/.test(text)) return []
+  const quoted: string[] = []
+  for (const [, , inner = ''] of text.matchAll(/(['"`])((?:(?!\1)[^\\\n]){1,400})\1/g)) if (/[\w.~]/.test(inner) && !/\s/.test(inner)) quoted.push(inner)
+  return quoted.slice(0, 64)
 }
 
 function curlReads(args: readonly string[]): string[] {
@@ -496,11 +506,12 @@ export async function denyRuleReach(
   const rules = getDenyRules(context).filter(rule => rule.ruleValue.ruleContent !== undefined)
   const bashRules = rules.filter(rule => rule.ruleValue.toolName === BASH_TOOL_NAME)
   const fileRules = rules.filter(rule => FILE_RULE_TOOLS.has(rule.ruleValue.toolName))
-  if (bashRules.length === 0 && fileRules.length === 0) return NOTHING
+  if (bashRules.length === 0 && fileRules.length === 0 && ports.estate === undefined) return NOTHING
   try {
     return await reachOf(command, cwd, context, ports, depth, budget, bashRules, fileRules)
   } catch {
-    return { denied: null, hidden: { rule: (bashRules[0] ?? fileRules[0]) as PermissionRule, why: 'the reading of it failed' } }
+    const rule = bashRules[0] ?? fileRules[0]
+    return rule === undefined ? NOTHING : { denied: null, hidden: { rule, why: 'the reading of it failed' } }
   }
 }
 
@@ -514,18 +525,19 @@ async function reachOf(
   bashRules: PermissionRule[],
   fileRules: PermissionRule[],
 ): Promise<DenyRuleReach> {
-  const kinds: FileKind[] = [...(fileRules.some(rule => READ_RULE_TOOLS.has(rule.ruleValue.toolName)) ? ['read' as const] : []), ...(fileRules.some(rule => !READ_RULE_TOOLS.has(rule.ruleValue.toolName)) ? ['edit' as const] : [])]
-  const anyRule = (bashRules[0] ?? fileRules[0]) as PermissionRule
+  const estate = ports.estate
+  const kinds: FileKind[] = [...(fileRules.some(rule => READ_RULE_TOOLS.has(rule.ruleValue.toolName)) ? ['read' as const] : []), ...(estate !== undefined || fileRules.some(rule => !READ_RULE_TOOLS.has(rule.ruleValue.toolName)) ? ['edit' as const] : [])]
+  const anyRule: PermissionRule | undefined = bashRules[0] ?? fileRules[0]
   const fileRule = fileRules[0]
   let hidden: HiddenDenyRule | null = null
   const hide = (rule: PermissionRule | undefined, why: string): void => {
     if (rule !== undefined) hidden ??= { rule, why }
   }
-  if (depth > MAX_DEPTH) return { denied: null, hidden: { rule: anyRule, why: 'it nests commands deeper than Mercury follows' } }
+  if (depth > MAX_DEPTH) return anyRule === undefined ? NOTHING : { denied: null, hidden: { rule: anyRule, why: 'it nests commands deeper than Mercury follows' } }
 
   const root = await pinnedCommandAnalysis.parseCommandRaw(command)
   if (root === null || root === PARSE_ABORTED) {
-    return { denied: null, hidden: { rule: anyRule, why: command.length > 10_000 ? 'it is longer than the shell parser reads' : 'the shell parser gave no reading of it' } }
+    return anyRule === undefined ? NOTHING : { denied: null, hidden: { rule: anyRule, why: command.length > 10_000 ? 'it is longer than the shell parser reads' : 'the shell parser gave no reading of it' } }
   }
   const parsed = await parseForSecurity(command)
   const followed = parsed.kind === 'simple' && checkSemantics(parsed.commands).ok
@@ -540,7 +552,7 @@ async function reachOf(
       const check = validatePath(path, folder, context, kind === 'read' ? 'read' : 'create')
       if (!check.allowed && check.decisionReason?.type === 'rule' && check.decisionReason.rule.ruleBehavior === 'deny') return check.decisionReason.rule
     }
-    return null
+    return estate !== undefined && wanted.includes('edit') && estate(resolve(folder, expandTilde(path))) ? ESTATE_RULE : null
   }
   const pathDenial = (path: string, folders: readonly string[], wanted: readonly FileKind[]): { rule: PermissionRule; path: string } | 'unread' | null => {
     for (const folder of folders) {
@@ -555,6 +567,8 @@ async function reachOf(
         const rule = fileDenial(match, folder, wanted)
         if (rule !== null) return { rule, path: match }
       }
+      const above = path.slice(0, path.search(/[*?[]/)).replace(/[^\\/]*$/, '')
+      if (estate !== undefined && above !== '' && wanted.includes('edit') && estate(resolve(folder, expandTilde(above)))) return { rule: ESTATE_RULE, path: resolve(folder, expandTilde(above)) }
     }
     return null
   }
@@ -562,8 +576,11 @@ async function reachOf(
     const budget = scanCeiling()
     let visited = 0
     const queue = folders.flatMap(folder => roots.map(root => resolve(folder, expandTilde(root))))
+    const named = estate !== undefined && wanted.includes('edit') ? queue.find(root => estate(root)) : undefined
+    if (named !== undefined) return { rule: ESTATE_RULE, path: named }
     const seen = new Set<string>()
-    const denies = (path: string): PermissionRule | undefined => wanted.flatMap(kind => (kinds.includes(kind) ? matchingRulesForInput(path, context, kind, 'deny') : []))[0]
+    const denies = (path: string): PermissionRule | undefined =>
+      wanted.flatMap(kind => (kinds.includes(kind) ? matchingRulesForInput(path, context, kind, 'deny') : []))[0] ?? (estate !== undefined && wanted.includes('edit') && estate(path) ? ESTATE_RULE : undefined)
     while (queue.length > 0) {
       const folder = queue.pop() as string
       if (seen.has(folder)) continue
@@ -590,6 +607,10 @@ async function reachOf(
     return null
   }
   const refusal = (subject: string, path: string, rule: PermissionRule, kind: FileKind): PermissionResult => {
+    if (rule === ESTATE_RULE) {
+      const message = `${subject} would change Mercury's configuration`
+      return { behavior: 'deny', message, decisionReason: { type: 'other', reason: message } }
+    }
     const said = withRuleReason(context, rule, () => matchingRulesForInput(path, context, kind, 'deny'))
     return { behavior: 'deny', message: refusalWithReason(ruleSentence(subject, 'deny', said), said.ruleValue.reason), decisionReason: { type: 'rule', rule: said } }
   }
