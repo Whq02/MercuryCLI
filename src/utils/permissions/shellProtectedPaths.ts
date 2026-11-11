@@ -599,6 +599,8 @@ function readsWholeTree(layer: Layer): boolean {
       return argv[1] === 'a'
     case 'find':
       return argv.some(word => /^-(?:exec|execdir|ok|okdir|print0|fprint|fls)$/.test(word))
+    case 'findstr':
+      return argv.slice(1).some(word => FINDSTR_FLAG.test(word) && /s/i.test(word.split(':')[0]!))
     default:
       return false
   }
@@ -608,9 +610,10 @@ const TREE_COPIERS = new Set(['cp', 'scp', 'copy-item', 'cpi', 'rsync', 'ditto',
 const FILE_READERS = new Set([
   ...TREE_COPIERS, 'mv', 'move-item', 'mi', 'install', 'ln', 'dd', 'tar', 'bsdtar', 'gtar', 'zip', '7z', '7za', 'gzip', 'gunzip', 'zcat', 'bzip2', 'bzcat', 'xz', 'xzcat', 'zstd', 'zstdcat',
   'cat', 'tac', 'nl', 'head', 'tail', 'less', 'more', 'most', 'bat', 'view', 'strings', 'xxd', 'od', 'hexdump', 'base64', 'base32', 'openssl', 'jq', 'yq', 'awk', 'gawk', 'sed', 'cut', 'sort', 'uniq', 'paste', 'column', 'fold', 'rev', 'diff', 'cmp', 'comm',
-  'grep', 'egrep', 'fgrep', 'zgrep', 'rg', 'ag', 'ack', 'source', '.', 'get-content', 'gc', 'type', 'select-string', 'sls',
+  'grep', 'egrep', 'fgrep', 'zgrep', 'rg', 'ag', 'ack', 'source', '.', 'get-content', 'gc', 'type', 'select-string', 'sls', 'findstr',
 ])
-const TREE_SEARCHERS = new Set(['rg', 'ag', 'ack', 'grep', 'egrep', 'fgrep', 'zgrep'])
+const TREE_SEARCHERS = new Set(['rg', 'ag', 'ack', 'grep', 'egrep', 'fgrep', 'zgrep', 'findstr'])
+const FINDSTR_FLAG = /^(?:\/\/?|-)[A-Za-z]+(?::.*)?$/
 const POWERSHELL_LISTERS = new Set(['get-childitem', 'gci', 'dir', 'ls'])
 const PIPED_FILE_READERS = new Set(['get-content', 'gc', 'cat', 'type', 'select-string', 'sls', 'copy-item', 'cpi', 'cp', 'copy', 'move-item', 'mi', 'mv', 'move', 'format-hex', 'fhx', 'compress-archive', 'import-csv', 'ipcsv', 'import-clixml'])
 const LISTER_VALUED = ['path', 'literalpath', 'filter', 'include', 'exclude', 'depth', 'attributes', 'erroraction', 'errorvariable', 'warningaction', 'warningvariable', 'informationaction', 'informationvariable', 'outvariable', 'outbuffer', 'pipelinevariable']
@@ -865,6 +868,12 @@ function treeReadRoots(layer: Layer, fed: boolean, cwd: string, cwdHolds: boolea
   }
   if (program === 'zip') return plain.slice(1)
   if (program === '7z' || program === '7za') return plain.slice(2)
+  if (program === 'findstr') {
+    const loose = words.filter(word => word !== '' && !FINDSTR_FLAG.test(word))
+    const files = words.some(word => FINDSTR_FLAG.test(word) && /^[cg]$/i.test(word.replace(/^[-/]+/, '').split(':')[0]!)) ? loose : loose.slice(1)
+    const named = words.flatMap(word => (FINDSTR_FLAG.test(word) && /^d$/i.test(word.replace(/^[-/]+/, '').split(':')[0]!) ? word.slice(word.indexOf(':') + 1).split(';').filter(part => part !== '') : []))
+    return [...named, ...files.map(file => file.replace(/[\\/]?[^\\/]*$/, '') || (/^[\\/]/.test(file) ? '/' : '.'))]
+  }
   if (TREE_SEARCHERS.has(program)) {
     const patterned = words.some(word => /^(?:-[A-Za-z]*[ef]|--regexp|--file)$/.test(word) || /^--(?:regexp|file)=/.test(word))
     const rest = patterned ? plain : plain.slice(1)
