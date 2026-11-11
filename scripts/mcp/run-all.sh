@@ -20,6 +20,7 @@
 # gate-watch: src/Tool.ts src/types/message.ts src/utils/attachments/types.ts src/utils/attachments/orchestrator.ts
 # gate-watch: src/state/AppStateStore.ts src/utils/fileStateCache.ts src/utils/messages/factories.ts src/utils/messages/attachmentText.ts
 # gate-watch: src/tools/ToolSearchTool/ToolSearchTool.ts
+# gate-watch: src/utils/config.ts src/utils/secureStorage/index.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

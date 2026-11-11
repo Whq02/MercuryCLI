@@ -148,9 +148,11 @@ export function AttachmentMessage({
 
     case 'dropped_image_file':
       return (
-        <AttachmentLine>
-          Dropped <Text bold>{attachment.displayPath}</Text> — {attachment.reason}
-        </AttachmentLine>
+        <MessageResponse>
+          <Text dimColor wrap="wrap">
+            Dropped <Text bold>{attachment.displayPath}</Text> — {attachment.reason}
+          </Text>
+        </MessageResponse>
       )
 
     case 'nested_memory':
