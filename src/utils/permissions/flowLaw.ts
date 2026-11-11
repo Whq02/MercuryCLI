@@ -6,6 +6,8 @@ import { readBashRuleVerdict } from '../../tools/BashTool/bashPermissions.js'
 import { shellCommandSegments } from '../../tools/BashTool/destructiveCommandWarning.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { MONITOR_TOOL_NAME } from '../../tools/MonitorTool/constants.js'
+import { DEBUG_TOOL_NAME } from '../../tools/DebugTool/prompt.js'
+import { startedCommandText } from '../bash/ast.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
 import { getStartingCwd } from '../cwd.js'
 import { getPathsForPermissionCheck } from '../fsOperations.js'
@@ -691,11 +693,18 @@ function flowPathAsk(path: string, rules?: ToolPermissionContext, verb = 'writin
   return { item: 4, subject: `${verb} ${tildePath(path)}`, why: 'it is outside the project' }
 }
 
-export async function flowAskFor(tool: Pick<Tool, 'name'> & { getPath?: (input: never) => string | undefined; isReadOnly?: (input: never) => boolean }, input: Record<string, unknown>, rules?: ToolPermissionContext): Promise<FlowAsk | null> {
+function startedCommandOf(tool: Pick<Tool, 'name' | 'shellCommandOf'>, input: Record<string, unknown>): string | undefined {
+  if (tool.name === DEBUG_TOOL_NAME) return input.op === 'launch' ? startedCommandText(input.program, input.args) : undefined
+  return tool.shellCommandOf?.(input)
+}
+
+export async function flowAskFor(tool: Pick<Tool, 'name' | 'shellCommandOf'> & { getPath?: (input: never) => string | undefined; isReadOnly?: (input: never) => boolean }, input: Record<string, unknown>, rules?: ToolPermissionContext): Promise<FlowAsk | null> {
   if ((tool.name === BASH_TOOL_NAME || tool.name === POWERSHELL_TOOL_NAME || tool.name === MONITOR_TOOL_NAME) && typeof input.command === 'string') {
     const cwd = resolveShellCwd(typeof input.cwd === 'string' ? input.cwd : undefined)
     return flowShellAsk(input.command, cwd, tool.name === POWERSHELL_TOOL_NAME ? 'powershell' : 'bash', rules)
   }
+  const started = startedCommandOf(tool, input)
+  if (started !== undefined) return flowShellAsk(started, resolveShellCwd(typeof input.cwd === 'string' ? input.cwd : undefined), 'bash', rules)
   if (typeof tool.getPath !== 'function') return null
   try {
     if (tool.isReadOnly?.(input as never) === true) return null

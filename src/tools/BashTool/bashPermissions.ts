@@ -1,4 +1,4 @@
-import type { ToolPermissionContext } from '../../Tool.js'
+import { getEmptyToolPermissionContext, type ToolPermissionContext, type ToolUseContext } from '../../Tool.js'
 import type {
   PermissionResult,
   PermissionDecisionReason,
@@ -665,6 +665,23 @@ export async function shellCommandHasPermission(
   const read = contentRulesReadAsBash(context, toolName)
   const result = await bashToolHasPermission(input, read.context)
   return read.own.size === 0 ? result : spelledForTool(result, context, toolName, read.own)
+}
+
+export async function startedCommandVerdict(
+  started: ReadonlyArray<{ command: string; cwd?: string }>,
+  toolUseContext: Pick<ToolUseContext, 'getAppState'> | undefined,
+  own: PermissionResult & { message: string },
+): Promise<PermissionResult> {
+  const context = (toolUseContext?.getAppState?.().toolPermissionContext ?? getEmptyToolPermissionContext()) as ToolPermissionContext
+  let held: PermissionResult | null = null
+  for (const one of started) {
+    const verdict = await bashToolHasPermission(one.cwd === undefined ? { command: one.command } : { command: one.command, cwd: one.cwd }, context)
+    if (verdict.behavior === 'deny') return verdict
+    if (verdict.behavior !== 'ask' || held !== null) continue
+    const reason = verdict.decisionReason
+    if (reason?.type === 'rule' || reason?.type === 'safetyCheck') held = { behavior: 'ask', message: `${own.message}\n${verdict.message}`, decisionReason: reason }
+  }
+  return held ?? own
 }
 
 async function decideBashPermission(

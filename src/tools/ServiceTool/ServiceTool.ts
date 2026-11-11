@@ -1,6 +1,7 @@
 
 import { z } from 'zod/v4'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
+import { startedCommandVerdict } from '../BashTool/bashPermissions.js'
 import {
   describeCondition,
   servicesEnabled,
@@ -305,12 +306,15 @@ export const ServiceTool = buildTool({
   isConcurrencySafe(input: Input) {
     return !MUTATING_OPS.has(input.op)
   },
-  async checkPermissions(input: Input) {
+  async checkPermissions(input: Input, context: ToolUseContext) {
     if (input.op === 'start' || input.op === 'restart') {
-      return {
+      const own = {
         behavior: 'ask' as const,
         message: `Service ${input.op}: ${input.name ?? '?'}${input.command ? ` — ${input.command} ${(input.args ?? []).join(' ')}` : ''}`,
       }
+      const started = input.op === 'start' ? startedCommandText(input.command, input.args) : undefined
+      if (started === undefined) return own
+      return startedCommandVerdict([input.cwd === undefined ? { command: started } : { command: started, cwd: input.cwd }], context, own)
     }
     if (input.op === 'input') {
       return {
