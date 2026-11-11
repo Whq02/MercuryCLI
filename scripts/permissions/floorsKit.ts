@@ -80,6 +80,7 @@ const { decideToolPermissionWithModes } = await import('../../src/utils/permissi
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
 const { enableConfigs } = await import('../../src/utils/config.ts')
 const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
+const { servicesDir } = await import('../../src/services/projectServices/serviceManager.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
@@ -95,8 +96,16 @@ setCwdState(PROJECT)
 setProjectRoot(PROJECT)
 writeFileSync(daemonStatePath(), JSON.stringify({ pid: DAEMON_PID, startedAt: Date.now(), script: join(CONFIG_HOME, 'runtime', 'current', 'mercury.mjs') }))
 
-type Decision = { behavior: string; message?: string; updatedInput?: Record<string, unknown>; decisionReason?: { type?: string; rule?: { ruleValue?: { toolName?: string; ruleContent?: string } } } }
+type Decision = { behavior: string; message?: string; updatedInput?: Record<string, unknown>; suggestions?: Array<{ type?: string; behavior?: string; rules?: Array<{ toolName?: string; ruleContent?: string }> }>; decisionReason?: { type?: string; rule?: { ruleValue?: { toolName?: string; ruleContent?: string } } } }
 export type Rules = { deny?: string[]; allow?: string[]; ask?: string[] }
+
+export function standInService(name: string, command: string, args: string[], env?: Record<string, string>): void {
+  const folder = servicesDir(PROJECT)
+  mkdirSync(folder, { recursive: true })
+  const spec = { name, command, args, cwd: PROJECT, project: PROJECT, ...(env ? { env } : {}), readiness: [], readinessMode: 'all', restart: 'never', lifecycle: 'session' }
+  writeFileSync(join(folder, `${name}.json`), JSON.stringify({ schema: 1, spec, state: 'ready', pid: null, startToken: null, startedAt: null, stoppedAt: null, lastExitCode: null, explicitStop: false, restartCount: 0, readiness: [], logFile: join(folder, `${name}.log`), ownerSessionId: null, updatedAt: 0 }))
+}
+
 const bash = {
   name: 'Bash',
   inputSchema: z.object({ command: z.string() }),

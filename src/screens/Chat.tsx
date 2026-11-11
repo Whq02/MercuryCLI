@@ -2433,7 +2433,6 @@ export function Chat({
       streamingTail={focusedTail}
       streamingTextSuppressed={streamingSuppressed}
       scrollRef={scrollRef}
-      trackStickyPrompt={fullscreen}
       jumpRef={jumpRef}
       onSearchMatchesChange={onSearchMatchesChange}
       scanElement={scanElement}
@@ -2459,7 +2458,6 @@ export function Chat({
       hidePastReasoning
       streamingTail={focusedTail}
       streamingTextSuppressed={streamingSuppressed}
-      trackStickyPrompt={fullscreen}
       disableRenderCap={dumpMode}
     />
   ) : (
@@ -2483,7 +2481,6 @@ export function Chat({
       tailAnchor={inVirtualTranscript || paintedMessages !== messages ? undefined : tailAnchor}
       unseenDivider={unseenDivider}
       scrollRef={scrollRef}
-      trackStickyPrompt={fullscreen}
       jumpRef={jumpRef}
       onSearchMatchesChange={onSearchMatchesChange}
       scanElement={scanElement}
@@ -2581,7 +2578,6 @@ export function Chat({
           modalScrollRef={modalScrollRef}
           dividerYRef={unseen.dividerYRef}
           hidePill={inVirtualTranscript ? undefined : false}
-          hideSticky={inVirtualTranscript ? undefined : false}
           newMessageCount={inVirtualTranscript ? 0 : newMessageCount}
           onPillClick={inVirtualTranscript ? onTranscriptPillClick : onPillClick}
           scrollable={
@@ -2594,7 +2590,6 @@ export function Chat({
                 agentDefinitions={agentDefinitions}
                 scrollRef={scrollRef}
                 showAllInTranscript={showAllInTranscript}
-                trackStickyPrompt={fullscreen}
               />
             )
           }

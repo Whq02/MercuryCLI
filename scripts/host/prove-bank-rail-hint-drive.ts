@@ -47,8 +47,7 @@ process.env.MERCURY_HOST_WEIGHTS_FILE = weightsFile
 
 const RAIL = 24
 const KEYS = ['b bank', 'v verify', 'm mirror', 'd drop', 'k keep safe']
-const railLine = (paging: string): string => '↑↓ choose · ' + paging + '↵ continue · ' + KEYS.join(' · ') + ' · esc closes'
-const RAIL_LINE = railLine('pgup/pgdn page · ')
+const RAIL_LINE = '↑↓ choose · pgup/pgdn page · ↵ continue · ' + KEYS.join(' · ') + ' · esc closes'
 let mounted: Mounted | undefined
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
 let checks = 0
@@ -156,7 +155,7 @@ try {
   await capture('80x24-bank')
   const smallRows = railRows()
   console.log('      rail: ' + JSON.stringify(smallRows))
-  check('at 80×24 the rail is whole labels joined by the separator and carries every key (a short popup scrolls its details: the paging clause is appended)', wholeLabels(smallRows) && smallRows.join(' · ') === railLine('') + ' · pgup/pgdn details', JSON.stringify(smallRows))
+  check('at 80×24 the rail carries every key and pages the model list while the Bank totals stay visible', wholeLabels(smallRows) && smallRows.join(' · ') === RAIL_LINE && screen().includes('Banked:'), JSON.stringify(smallRows))
   await close(); mounted!.unmount()
 
   console.log('§4 the Bank screen at 120×40 with no rail: the one-line form holds when it fits')

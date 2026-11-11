@@ -1,4 +1,6 @@
 import React, {
+  cloneElement,
+  isValidElement,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -120,6 +122,9 @@ import { setAdvisorEnabled, setAdvisorMinutes } from '../../services/advisor/adv
 import { isRecord as configObject } from '../../utils/isRecord.js'
 
 const LABEL_CELLS = 36
+function valueOnOneLine(value: React.ReactNode): React.ReactNode {
+  return isValidElement<{ wrap?: string }>(value) && value.type === Text && value.props.wrap === undefined ? cloneElement(value, { wrap: 'truncate-end' }) : value
+}
 
 export const CONFIG_POPUP_WIDTH = 110
 export const CONFIG_POPUP_ROWS = 44
@@ -1811,7 +1816,7 @@ export function Config({
                   </Text>
                 </Box>
                 <Box flexGrow={1} flexShrink={1} minWidth={0} height={1} overflow="hidden">
-                  {item.value}
+                  {valueOnOneLine(item.value)}
                 </Box>
                 <Box width={1} flexShrink={0} />
               </InteractiveRow>

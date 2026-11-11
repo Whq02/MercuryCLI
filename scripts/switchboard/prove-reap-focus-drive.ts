@@ -134,8 +134,7 @@ const REAP_CHORDS: Send[] = [
   { afterPrevTicks: 2, data: CTRL_X },
 ]
 const enterSelected = (title: string): Send[] => [
-  { atTick: 999, awaitText: title, minTick: 5, awaitSettleTicks: 3, data: '\t' },
-  { afterPrevTicks: 3, data: '\r' },
+  { atTick: 999, awaitText: title, minTick: 5, awaitSettleTicks: 3, data: '\r' },
   { afterPrevTicks: 3, data: '\r' },
 ]
 

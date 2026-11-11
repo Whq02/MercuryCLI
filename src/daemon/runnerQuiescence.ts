@@ -125,15 +125,18 @@ export class RetirementFence {
   }
 
   private async cancel(token: string, reason: string): Promise<RetirementResult> {
+    const commitSent = this.phase === 'committing'
+    let confirmed = false
     try {
       const answer = await this.effects.request({ subtype: 'quiesce', action: 'cancel', token })
-      if (answer.ok && answer.token === token && answer.phase === 'cancelled') {
-        this.effects.clearIntent(token)
-        this.effects.expectExit(false)
-        this.phase = 'open'
-        this.token = null
-      }
+      confirmed = answer.ok && answer.token === token && answer.phase === 'cancelled'
     } catch {}
+    if (confirmed || !commitSent) {
+      this.effects.clearIntent(token)
+      this.effects.expectExit(false)
+      this.phase = 'open'
+      this.token = null
+    }
     return { outcome: 'refused', reason, fenced: this.fenced }
   }
 

@@ -103,7 +103,8 @@ const BG_END = '\x1b[49m'
 const INVERSE_END = '\x1b[27m'
 const BOLD_END = '\x1b[22m'
 const UNDERLINE_END = '\x1b[24m'
-const VISIBLE_ON_SPACE: ReadonlySet<string> = new Set([BG_END, INVERSE_END, UNDERLINE_END, '\x1b[29m', '\x1b[55m'])
+const MARKS_A_SPACE: ReadonlySet<string> = new Set([INVERSE_END, UNDERLINE_END, '\x1b[29m', '\x1b[55m'])
+const VISIBLE_ON_SPACE: ReadonlySet<string> = new Set([BG_END, ...MARKS_A_SPACE])
 const INVERSE_CODE: AnsiCode = { type: 'ansi', code: '\x1b[7m', endCode: INVERSE_END }
 const BOLD_CODE: AnsiCode = { type: 'ansi', code: '\x1b[1m', endCode: BOLD_END }
 const UNDERLINE_CODE: AnsiCode = { type: 'ansi', code: '\x1b[4m', endCode: UNDERLINE_END }
@@ -159,6 +160,10 @@ export class StylePool implements Interning<AnsiCode[]> {
   get(styleId: number): AnsiCode[] {
     const codes = this.styles[styleId >>> 1]
     return codes === undefined ? [] : codes
+  }
+
+  marksSpace(styleId: number): boolean {
+    return (styleId & 1) === 1 && this.get(styleId).some(code => MARKS_A_SPACE.has(code.endCode))
   }
 
   private readonly serialiseTransition = (fromId: number, toId: number): string => ansiCodesToString(diffAnsiCodes(this.get(fromId), this.get(toId)))
@@ -433,16 +438,25 @@ export function isEmptyCellAt(grid: Screen, column: number, row: number): boolea
   return outside(grid, column, row) || emptyAt(grid, row * grid.width + column)
 }
 
-export function inkFlanksCellAt(grid: Screen, column: number, row: number, left: number, right: number): boolean {
+function inklessAt(grid: Screen, index: number, styles: StylePool): boolean {
+  const word = grid.cells[(index << 1) + 1]!
+  return grid.cells[index << 1] === BLANK_GLYPH && (word & WIDTH_BITS) === CellWidth.Narrow && linkOf(word) === 0 && !styles.marksSpace(word >>> STYLE_OFFSET)
+}
+
+export function isInklessCellAt(grid: Screen, column: number, row: number, styles: StylePool): boolean {
+  return outside(grid, column, row) || inklessAt(grid, row * grid.width + column, styles)
+}
+
+export function inkFlanksCellAt(grid: Screen, column: number, row: number, left: number, right: number, styles: StylePool): boolean {
   if (outside(grid, column, row)) return false
   const rowStart = row * grid.width
   const from = Math.max(0, left)
   const to = Math.min(grid.width, right)
   let before = column - 1
-  while (before >= from && emptyAt(grid, rowStart + before)) before--
+  while (before >= from && inklessAt(grid, rowStart + before, styles)) before--
   if (before < from) return false
   let after = column + 1
-  while (after < to && emptyAt(grid, rowStart + after)) after++
+  while (after < to && inklessAt(grid, rowStart + after, styles)) after++
   return after < to
 }
 

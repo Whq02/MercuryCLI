@@ -19,10 +19,20 @@ function reasonCarriesAskRule(reason: PermissionDecisionReason | undefined): boo
   return false
 }
 
+function reasonCarriesOperatorSafety(reason: PermissionDecisionReason | undefined): boolean {
+  if (reason === undefined) return false
+  if (reason.type === 'safetyCheck') return reason.operatorOnly
+  if (reason.type !== 'subcommandResults') return false
+  for (const sub of reason.reasons.values()) {
+    if (sub.behavior === 'ask' && reasonCarriesOperatorSafety(sub.decisionReason)) return true
+  }
+  return false
+}
+
 function flowFloorOf(tool: Pick<Tool, 'requiresUserInteraction' | 'mcpInfo'>, engineDecision: PermissionAskDecision): FlowFloor | null {
   const reason = engineDecision.decisionReason
   if (reasonCarriesAskRule(reason)) return 'ask-rule'
-  if (reason?.type === 'safetyCheck' && reason.operatorOnly) return 'safety'
+  if (reasonCarriesOperatorSafety(reason)) return 'safety'
   if (reason?.type === 'hook') return 'hook'
   if (tool.requiresUserInteraction?.()) return 'interaction'
   if (tool.mcpInfo?.effectiveMaxPermission === 'ask') return 'ask-ceiling'

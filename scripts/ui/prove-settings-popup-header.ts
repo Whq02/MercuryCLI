@@ -139,8 +139,14 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
     check(`${label}: all four corners and the bottom gutter fit the measured centre`, popupLeft > plan.lanesW && popupRight > popupLeft && popupBottom > popupTop && popupBottom + 1 < centreBottom, `centre bottom ${centreBottom + 1}, popup ${popupTop + 1}..${popupBottom + 1}`)
     check(`${label}: the top gutter is an opaque blank row`, popupLeft >= 0 && Array.from({ length: popupRight - popupLeft + 3 }, (_, i) => cell(after, popupLeft - 1 + i, gutter)).every(c => c === ' '))
     check(`${label}: the footer stays visible`, after.some(line => line.includes('click outside closes') || line.includes('esc closes')))
+    const flush = Array.from({ length: Math.max(0, popupBottom - popupTop - 1) }, (_, at) => popupTop + 1 + at).filter(y => cell(after, popupRight - 1, y) !== ' ')
+    check(`${label}: every row, the hint row with them, keeps a blank cell before the right border`, popupRight > popupLeft && flush.length === 0, flush.map(y => (after[y] ?? '').trim().slice(-48)).join(' | '))
     if (surface.view === 'config') {
       check(`${label}: a full-height popup starts its gutter on the pane's first interior row, immediately below the top border`, gutter === headerRow + 1)
+      const whole = 'off · `mercury --coordinator-on` turns it on'
+      const row = after.find(line => line.includes('Concourse coordinator')) ?? ''
+      const painted = row.slice(row.indexOf('Concourse coordinator') + 'Concourse coordinator'.length).split('│')[0]!.trim()
+      check(`${label}: a value its cell cannot hold is cut with an ellipsis, as its neighbours are`, painted === whole || (painted.endsWith('…') && whole.startsWith(painted.slice(0, -1))), JSON.stringify(painted))
     }
     const frame = after.join('\n') + '\n'
     const name = `${surface.view}-${columns}x${rows}.txt`

@@ -2,6 +2,9 @@
 import { z } from 'zod/v4'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { startedCommandVerdict } from '../BashTool/bashPermissions.js'
+import { startedProgramIsShell } from '../BashTool/denyRuleReach.js'
+import { evalCodePermission } from '../../utils/permissions/shellProtectedPaths.js'
+import { shellCommandText } from '../../utils/permissions/decision/commandAnalysis.js'
 import {
   describeCondition,
   servicesEnabled,
@@ -15,6 +18,7 @@ import {
   evaluateReadiness,
   logEnd,
   readLogs,
+  readRecord,
   reconcileAll,
   reconcileRecord,
   restartService,
@@ -24,6 +28,7 @@ import {
   waitForReady,
 } from '../../services/projectServices/serviceManager.js'
 import { startedCommandText } from '../../utils/bash/ast.js'
+import { scriptSentToProgram } from '../../utils/wards/wardsShellRead.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
@@ -275,10 +280,30 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
 
 const MUTATING_OPS = new Set<Input['op']>(['start', 'stop', 'restart', 'input'])
 
+function shellTextOf(input: unknown): string | undefined {
+  const call = (input ?? {}) as { op?: unknown; name?: unknown; command?: unknown; args?: unknown; text?: unknown; mode?: unknown }
+  if (call.op !== 'input') return startedCommandText(call.command, call.args)
+  if (typeof call.name !== 'string' || typeof call.text !== 'string' || call.mode === 'eof') return undefined
+  const record = readRecord(getOriginalCwd(), call.name)
+  return record === null ? undefined : scriptSentToProgram([record.spec.command, ...(Array.isArray(record.spec.args) ? record.spec.args : [])], call.text)
+}
+
+function startedUnderEnvironment(started: string, env: Record<string, string> | undefined): string[] {
+  const entries = Object.entries(env ?? {})
+  if (entries.length === 0) return []
+  const readings = [`${entries.map(([name, value]) => `${name}=${shellCommandText([value])}`).join(' ')} ${started}`]
+  const home = env?.HOME
+  if (home !== undefined && home !== '') {
+    const moved = started.replace(/(^|[\s'"=:(])~(?=$|[/\s'"])/g, (_, before: string) => `${before}${home}`).replace(/\$\{HOME\}|\$HOME\b/g, home)
+    if (moved !== started) readings.push(moved)
+  }
+  return readings
+}
+
 export const ServiceTool = buildTool({
   shouldDefer: true,
   name: SERVICE_TOOL_NAME,
-  shellCommandOf: (input: unknown) => startedCommandText((input as { command?: unknown } | null)?.command, (input as { args?: unknown } | null)?.args),
+  shellCommandOf: shellTextOf,
   searchHint: 'manage long-running project processes, their readiness, logs and input',
   searchKeywords: ['services', 'start', 'observe', 'wait', 'stop', 'long-lived', 'web servers', 'watch builds', 'local APIs'],
   maxResultSizeChars: 100_000,
@@ -314,13 +339,22 @@ export const ServiceTool = buildTool({
       }
       const started = input.op === 'start' ? startedCommandText(input.command, input.args) : undefined
       if (started === undefined) return own
-      return startedCommandVerdict([input.cwd === undefined ? { command: started } : { command: started, cwd: input.cwd }], context, own)
+      const readings = [started, ...startedUnderEnvironment(started, input.env)]
+      return startedCommandVerdict(readings.map(command => (input.cwd === undefined ? { command } : { command, cwd: input.cwd })), context, own)
     }
     if (input.op === 'input') {
-      return {
+      const own = {
         behavior: 'ask' as const,
         message: `Service input → ${input.name ?? '?'}: ${input.mode === 'eof' ? '(end of input)' : (input.text?.slice(0, 80) ?? '')}`,
       }
+      if (input.mode === 'eof' || input.text === undefined || input.text.trim() === '') return own
+      const record = input.name === undefined ? null : readRecord(getOriginalCwd(), input.name)
+      const folder = record?.spec.cwd
+      if (record === null || startedProgramIsShell(record.spec.command, record.spec.args)) {
+        const readings = [input.text, ...startedUnderEnvironment(input.text, record?.spec.env)]
+        return startedCommandVerdict(readings.map(command => (folder === undefined ? { command } : { command, cwd: folder })), context, own)
+      }
+      return (await evalCodePermission(input.text, folder ?? getCwd())) ?? own
     }
     return { behavior: 'allow' as const, updatedInput: input }
   },

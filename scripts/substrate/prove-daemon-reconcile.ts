@@ -296,7 +296,7 @@ check(
 )
 check(
   'the reconcile judges the record pid through the ONE identity owner (the D-convergence union), never a second liveness test',
-  src('src/daemon/reconcileRecords.ts').includes('daemonRecordIdentity(sup, await getProcessStartTokenAsync(sup.pid))'),
+  src('src/daemon/reconcileRecords.ts').includes('daemonRecordIdentity(sup, await (sup.startToken ? getProcessStartTokenAsync(sup.pid, sup.startToken) : getProcessStartInstantAsync(sup.pid)))'),
 )
 check(
   'spawn ledger documents the exit/reap vocabulary',

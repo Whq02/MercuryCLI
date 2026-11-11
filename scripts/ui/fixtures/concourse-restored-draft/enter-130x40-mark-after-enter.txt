@@ -4,7 +4,8 @@
   │ no chat yet — ready for your first words · ↵ enters it                       │ │   n starts a blank session in this proje… │  
   │                                                                              │ │ ⊞ READY TO REVIEW · 1                     │  
   │                                                                              │ │ ▸ ● Audit billing rec… Moodle         12m │  
-  │                                                                              │ │   ⇄ armed — ↵ again enters · tab to mess… │  
+  │                                                                              │ │   ⇄ armed — ↵ again enters ·              │  
+  │                                                                              │ │     tab to message · esc disarms          │  
   │                                                                              │ │ ⊞ WORKING · 3                             │  
   │                                                                              │ │   ◐ Fix OAuth callback Moodle         07m │  
   │                                                                              │ │   ◐ Refactor parser    orchard…       18m │  
@@ -12,7 +13,6 @@
   │                                                                              │ │ ⊞ QUEUED · 2                              │  
   │                                                                              │ │   □ Trace reconnect r… orchard…     waits │  
   │                                                                              │ │   □ Document launch g… Moodle       waits │  
-  │                                                                              │ │                                           │  
   │                                                                              │ │                                           │  
   │                                                                              │ │                                           │  
   │                                                                              │ │                                           │  

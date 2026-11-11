@@ -53,10 +53,11 @@ try {
   delete process.env.MERCURY_POINTER_SHAPE
 
   const ink = readFileSync(join(import.meta.dir, '../../src/ink/ink.tsx'), 'utf8')
+  const hover = ink.slice(ink.indexOf('dispatchHover(col: number, row: number): void'), ink.indexOf('dispatchKeyboardEvent(parsedKey'))
   check('hover chokepoint applies the shape from the noSelect bitmap',
-    ink.includes('screen.noSelect[row * screen.width + col] !== 1') &&
-    ink.includes('applyPointerShape(selectable'))
-  check('empty cells read as NOT selectable', ink.includes('!isEmptyCellAt(screen, col, row)'))
+    hover.includes('screen.noSelect[row * screen.width + col] !== 1') &&
+    hover.includes('applyPointerShape(selectable'))
+  check('empty cells read as NOT selectable', hover.includes('!isEmptyCellAt(screen, col, row)'))
   check('/mouse off resets the shape', /if \(!on\) resetPointerShape/.test(ink))
   const altScreen = ink.slice(ink.indexOf('setAltScreenActive(active: boolean'), ink.indexOf('isMouseTrackingEnabled(): boolean'))
   check('alt-screen exit resets the shape', /\} else \{[\s\S]*?resetPointerShape\(s => termWrite\(this\.options\.stdout, s\)\)[\s\S]*?this\.repaintMainScreen\(\)/.test(altScreen))

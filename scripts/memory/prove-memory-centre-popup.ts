@@ -176,6 +176,8 @@ function frameOf(lines: string[]): Rect | null {
 }
 const inside = (lines: string[], frame: Rect): string[] => lines.slice(frame.top + 1, frame.bottom).map(line => Array.from(line).slice(frame.left + 1, frame.right).join('').replace(/\s+$/, ''))
 const rowOf = (m: Mounted, needle: string): string => m.lines().find(l => l.includes(needle)) ?? ''
+const CLOSES = /esc(?: or click outside)? closes/
+const footerOf = (m: Mounted): string => m.lines().findLast(l => CLOSES.test(l)) ?? ''
 async function moveTo(m: Mounted, needle: string): Promise<string> {
   for (let step = 0; step < 10 && !rowOf(m, needle).includes('❯'); step++) m.push(KEY.up)
   await settle(60)
@@ -242,8 +244,8 @@ function judgeOverview(label: string, scene: Scene): void {
   check(`${label}: the newest column is a human date (or a dash) under its header`, rows.every(r => stampAt(r) === columns.newest), rows.map(r => `${stampAt(r)}`).join(','))
   check(`${label}: the state column reads one word under its header`, expected.every(([, , state], i) => (rows[i] ?? '').slice(columns.state).trim() === state), rows.map(r => r.slice(columns.state)).join(' | '))
   check(`${label}: the row words are the table's, not run-on lines`, rows.every(r => !r.includes('↵') && !r.includes(': ')), rows.join(' | '))
-  const footer = body.findLastIndex(l => l.includes(layout.MEMORY_CLOSE_HINT))
-  check(`${label}: the footer carries the keys once, with the close hint`, footer > header && body[footer]!.includes('↑↓ move'), body[footer] ?? '')
+  const footer = body.findLastIndex(l => CLOSES.test(l))
+  check(`${label}: the footer carries the keys once and ends on the close hint, whole, with a blank cell before the border`, footer > header && body[footer]!.includes('↑↓ move') && body[footer]!.endsWith('closes') && Array.from(body[footer]!).length < frame.right - frame.left - 1, `${Array.from(body[footer] ?? '').length} of ${frame.right - frame.left - 1} cells: ${body[footer] ?? ''}`)
   const detail = body.slice(header + 1, footer).find(l => l.includes('facts live in topic pages'))
   check(`${label}: the selected row's detail reads under the table`, detail !== undefined, body.slice(header + 1, footer).join(' | '))
 }
@@ -254,7 +256,7 @@ for (const [columns, rows] of [[80, 24], [100, 30], [120, 40]] as const) {
   save(`memory-overview-${columns}x${rows}`, scene.m.lines())
   judgeOverview(`${columns}x${rows}`, scene)
   const pinned = await moveTo(scene.m, 'pinned rules')
-  check(`${columns}x${rows}: the pinned row takes the cursor and the footer names its action`, pinned.includes('❯') && rowOf(scene.m, layout.MEMORY_CLOSE_HINT).includes('↵ list the rules'), rowOf(scene.m, layout.MEMORY_CLOSE_HINT))
+  check(`${columns}x${rows}: the pinned row takes the cursor and the footer names its action`, pinned.includes('❯') && footerOf(scene.m).includes('↵ list the rules'), footerOf(scene.m))
   scene.m.push(KEY.enter)
   const listed = await waitFor(() => scene.m.screen().includes('memory › pinned rules'), 6000)
   check(`${columns}x${rows}: ↵ opens the pinned list under a breadcrumb, the overview collapsed`, listed && !scene.m.screen().includes('facts and decisions'), rowOf(scene.m, 'memory ›'))
@@ -371,7 +373,7 @@ section('§5 the instruction files picker rides the same popup; /memory files op
 {
   const scene = await openMemory(120, 40)
   await moveTo(scene.m, 'instruction files')
-  check('the files row\'s footer offers the picker', rowOf(scene.m, layout.MEMORY_CLOSE_HINT).includes('↵ open the picker'))
+  check('the files row\'s footer offers the picker', footerOf(scene.m).includes('↵ open the picker'))
   scene.m.push(KEY.enter)
   const picker = await waitFor(() => scene.m.screen().includes('Memory: on') && scene.m.screen().includes('profile auto:'), 8000)
   check('↵ opens the picker inside the popup, the title kept', picker && scene.m.screen().includes(TITLE) && rowOf(scene.m, 'open in editor').includes('esc back'))
@@ -380,7 +382,7 @@ section('§5 the instruction files picker rides the same popup; /memory files op
   check('esc from the picker returns to the centre', back && scene.done.length === 0)
   await closeScene(scene)
   const direct = await openMemory(120, 40, 'files')
-  check('/memory files opens the picker directly, its footer closing rather than backing', rowOf(direct.m, 'open in editor').includes(layout.MEMORY_CLOSE_HINT))
+  check('/memory files opens the picker directly, its footer closing rather than backing', CLOSES.test(rowOf(direct.m, 'open in editor')))
   direct.m.push(KEY.esc)
   const closed = await waitFor(() => !direct.m.screen().includes(TITLE), 6000)
   check('esc closes it outright with the closed line', closed && JSON.stringify(direct.done[0]) === JSON.stringify([memoryCommand.MEMORY_FILES_CLOSED, { display: 'system' }]), JSON.stringify(direct.done))

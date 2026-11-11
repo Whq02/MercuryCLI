@@ -39,6 +39,7 @@ const NEVER_HAD = 'frobnicate'
 const NOT_A_COMMAND: Record<string, string> = {
   'src/constants/changelog.ts': 'the release history: each release names what it shipped',
   'src/tools/GitTool/GitTool.ts /branch': 'the mercury://repo/branch resource address',
+  'src/utils/wards/wardsRefusals.ts /home': 'the folder that holds every home on Linux, a path the refusal list compares',
 }
 const roadPattern = new RegExp('(?<![\\w./\\\\<:-])/(' + NAMES.map(name => name.replace(/-/g, '\\-')).join('|') + ')(?![\\w/\\\\-])', 'g')
 const productFiles = (dir: string): string[] => readdirSync(dir).flatMap(entry => {

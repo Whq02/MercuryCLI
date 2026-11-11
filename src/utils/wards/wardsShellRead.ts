@@ -1,4 +1,5 @@
-import { peelWrappers } from '../bash/ast.js'
+import { posix } from 'node:path'
+import { peelWrappers, shellCommandText } from '../bash/ast.js'
 import { parseCommandRaw, type Node } from '../bash/parser.js'
 
 export const UNREAD_PART = '\uFFFC'
@@ -22,6 +23,7 @@ export type ReadCommand = {
   inputInner: number[]
   body: string | undefined
   dialect: ShellDialect
+  around: string | undefined
 }
 
 export type Layer = {
@@ -84,18 +86,9 @@ export function wordKnown(word: string): boolean {
 }
 
 function collapseDots(path: string): string {
-  const absolute = path.startsWith('/')
-  const out: string[] = []
-  for (const segment of path.split('/')) {
-    if (segment === '' || segment === '.') continue
-    if (segment === '..') {
-      if (out.length > 0 && out[out.length - 1] !== '..') out.pop()
-      else if (!absolute) out.push('..')
-      continue
-    }
-    out.push(segment)
-  }
-  return (absolute ? '/' : '') + out.join('/')
+  const collapsed = posix.normalize(path)
+  if (collapsed === '.') return ''
+  return collapsed.length > 1 && collapsed.endsWith('/') ? collapsed.slice(0, -1) : collapsed
 }
 
 function expandTilde(word: string, world: ReadWorld): string {
@@ -230,9 +223,29 @@ export function stdinProgram(layer: Layer): boolean {
   return false
 }
 
-type Pending = { text: string; dialect: ShellDialect; from: number }
+export function scriptSentToProgram(argv: string[], text: string): string | undefined {
+  const layer = layersOf(argv).at(-1)
+  if (layer === undefined) return undefined
+  if (POSIX_SHELLS.has(layer.program)) return readsStdin(layer.argv) ? text : undefined
+  if (POWERSHELLS.has(layer.program)) return layer.argv.slice(1).some(word => /^-(?:c|f)/i.test(word)) ? undefined : shellCommandText([layer.program, '-Command', text])
+  if (layer.program === 'cmd') return layer.argv.slice(1).some(word => /^\/\/?c$/i.test(word)) ? undefined : shellCommandText(['cmd', '/c', text])
+  return undefined
+}
 
-function printedBy(command: ReadCommand | undefined): string | undefined {
+type Pending = { text: string; dialect: ShellDialect; from: number; body?: string }
+
+const EXPANSION_CAP = 4
+const ALIAS_DEFINITION = /^([^=\s]+)=([\s\S]*)$/
+
+function withPositionals(body: string, args: string[]): string {
+  const plain = (value: string): string => value.replace(/["\\$`]/g, '\\$&')
+  return body.replace(/\$(?:\{([1-9@*])\}|([1-9@*]))/g, (_all, braced: string | undefined, bare: string | undefined) => {
+    const key = braced ?? bare ?? ''
+    return key === '@' || key === '*' ? args.map(plain).join(' ') : plain(args[Number(key) - 1] ?? '')
+  })
+}
+
+export function printedBy(command: ReadCommand | undefined): string | undefined {
   const layer = command === undefined ? undefined : layersOf(command.argv).at(-1)
   if (layer === undefined) return undefined
   return layer.program === 'echo' ? echoText(layer.argv) : layer.program === 'printf' ? printfText(layer.argv) : undefined
@@ -242,7 +255,7 @@ function nestedScripts(command: ReadCommand, from: number, commands: readonly Re
   const out: Pending[] = []
   for (const layer of layersOf(command.argv)) {
     const { program, argv } = layer
-    if (POSIX_SHELLS.has(program) || program === 'source' || program === '.') {
+    if (POSIX_SHELLS.has(program) || program === 'source' || program === '.' || program === 'eval') {
       for (const at of [...command.inputInner, ...command.inner.flat()]) {
         const printed = printedBy(commands[at])
         if (printed !== undefined) out.push({ text: printed, dialect: 'posix', from })
@@ -327,6 +340,9 @@ class Reading {
   readonly stageHeads = new Map<string, number>()
   readonly pending: Pending[] = []
   readonly folders: Array<string | undefined> = []
+  readonly functions = new Map<string, string>()
+  readonly aliases = new Map<string, string>()
+  readonly expansions = new Map<string, number>()
   unread: { why: string; text: string } | undefined
   scripts = 0
   cwd: string | undefined
@@ -356,7 +372,27 @@ class Reading {
     }
     this.follow(command)
     this.pending.push(...nestedScripts(command, index, this.commands))
+    this.expand(command, index)
     return index
+  }
+
+  expand(command: ReadCommand, index: number): void {
+    const head = command.argv[0]
+    if (head === undefined || command.dialect !== 'posix') return
+    const once = (name: string): boolean => {
+      const made = this.expansions.get(name) ?? 0
+      this.expansions.set(name, made + 1)
+      return made < EXPANSION_CAP
+    }
+    const alias = this.aliases.get(head)
+    if (alias !== undefined && once(`alias ${head}`)) this.pending.push({ text: `${alias} ${shellCommandText(command.argv.slice(1))}`.trim(), dialect: 'posix', from: index })
+    const body = this.functions.get(head)
+    if (body !== undefined && command.body === undefined && command.argv.length > 1 && once(`function ${head}`)) this.pending.push({ text: withPositionals(body, command.argv.slice(1)), dialect: 'posix', from: index, body: head })
+    if (programOf(head) !== 'alias') return
+    for (const word of command.argv.slice(1)) {
+      const defined = ALIAS_DEFINITION.exec(word)
+      if (defined !== null) this.aliases.set(defined[1]!, defined[2]!)
+    }
   }
 
   follow(command: ReadCommand): void {
@@ -379,7 +415,7 @@ class Reading {
   }
 }
 
-type Frame = { background: boolean; stages: readonly Stage[]; body: string | undefined; line: number; dialect: ShellDialect }
+type Frame = { background: boolean; stages: readonly Stage[]; body: string | undefined; line: number; dialect: ShellDialect; around: string | undefined }
 
 const WORD_KINDS = new Set(['word', 'number', 'raw_string', 'string', 'concatenation', 'ansi_c_string', 'translated_string', 'simple_expansion', 'expansion', 'command_substitution', 'process_substitution', 'arithmetic_expansion', 'brace_expression'])
 const WRITE_KEEPERS = new Set(['file_redirect', 'heredoc_redirect', 'herestring_redirect'])
@@ -439,6 +475,8 @@ class PosixWalk {
         return
       case 'function_definition': {
         const name = node.children.find(child => child.type === 'word')?.text
+        const body = node.children.find(child => child.type === 'compound_statement' || child.type === 'subshell')?.text
+        if (name !== undefined && body !== undefined) this.reading.functions.set(name, body)
         this.isolated(() => this.children(node, { ...frame, body: name ?? frame.body, background: false, stages: [] }))
         return
       }
@@ -623,13 +661,15 @@ class PosixWalk {
         inputInner: ownInner,
         body: frame.body,
         dialect: frame.dialect,
+        around: frame.around,
       })
       if (first < 0) first = index
     }
     return first
   }
 
-  redirected(node: Node, frame: Frame): void {
+  redirected(node: Node, outer: Frame): void {
+    const frame = outer.around === undefined ? { ...outer, around: node.text } : outer
     const redirects: ReadRedirect[] = []
     const inputInner: number[] = []
     let input: string | undefined
@@ -655,7 +695,7 @@ class PosixWalk {
     const pipeline = piped === undefined ? undefined : this.reading.pipelineSizes.push(1 + piped.children.filter(part => part.type !== '|' && part.type !== '|&').length) - 1
     const inside = pipeline === undefined ? frame : { ...frame, stages: [...frame.stages, { pipeline, stage: 0 }] }
     const before = this.reading.commands.length
-    if (body === undefined) this.reading.push({ argv: [], env: [], redirects, text: node.text, line: this.lineOf(node, frame), cwd: this.reading.cwd, background: frame.background, stages: inside.stages, input, inner: [], inputInner, body: frame.body, dialect: frame.dialect })
+    if (body === undefined) this.reading.push({ argv: [], env: [], redirects, text: node.text, line: this.lineOf(node, frame), cwd: this.reading.cwd, background: frame.background, stages: inside.stages, input, inner: [], inputInner, body: frame.body, dialect: frame.dialect, around: frame.around })
     else if (body.type === 'command') this.command(body, inside, redirects, input, inputInner)
     else {
       this.node(body, inside)
@@ -665,7 +705,7 @@ class PosixWalk {
         last.input ??= input
         last.inputInner = [...last.inputInner, ...inputInner]
         this.reading.pending.push(...nestedScripts(last, this.reading.commands.length - 1, this.reading.commands).filter(script => script.text === input))
-      } else this.reading.push({ argv: [], env: [], redirects, text: node.text, line: this.lineOf(node, frame), cwd: this.reading.cwd, background: frame.background, stages: inside.stages, input, inner: [], inputInner, body: frame.body, dialect: frame.dialect })
+      } else this.reading.push({ argv: [], env: [], redirects, text: node.text, line: this.lineOf(node, frame), cwd: this.reading.cwd, background: frame.background, stages: inside.stages, input, inner: [], inputInner, body: frame.body, dialect: frame.dialect, around: frame.around })
     }
     for (const part of continuations) {
       if (part !== piped || pipeline === undefined) {
@@ -682,7 +722,8 @@ class PosixWalk {
     }
   }
 
-  pipeline(node: Node, frame: Frame): void {
+  pipeline(node: Node, outer: Frame): void {
+    const frame = outer.around === undefined ? { ...outer, around: node.text } : outer
     const members = node.children.filter(child => child.type !== '|' && child.type !== '|&')
     const pipeline = this.reading.pipelineSizes.push(members.length) - 1
     for (const [stage, member] of members.entries()) this.isolated(() => this.node(member, { ...frame, stages: [...frame.stages, { pipeline, stage }] }))
@@ -772,6 +813,7 @@ class PowerShellWalk {
     const text = this.source
     const made: number[] = []
     const pipeline = this.reading.pipelineSizes.push(1) - 1
+    const begun = this.at
     let stage = 0
     for (;;) {
       const stages = [...outer, { pipeline, stage }]
@@ -826,6 +868,7 @@ class PowerShellWalk {
             inputInner: [],
             body: this.frame.body,
             dialect: 'powershell',
+            around: this.frame.around,
           }),
         )
       if (text[this.at] === '|' && text[this.at + 1] !== '|') {
@@ -837,6 +880,11 @@ class PowerShellWalk {
       break
     }
     this.reading.pipelineSizes[pipeline] = stage + 1
+    const whole = text.slice(begun, this.at).trim()
+    for (const index of made) {
+      const command = this.reading.commands[index]
+      if (command !== undefined && command.around === undefined && stage > 0) command.around = whole
+    }
     return made
   }
 
@@ -963,13 +1011,13 @@ async function readInto(reading: Reading, text: string, frame: Frame, depth: num
     if (parent === undefined) continue
     const cwd = reading.cwd
     reading.cwd = parent.cwd
-    await readInto(reading, script.text, { background: parent.background, stages: parent.stages, body: parent.body, line: parent.line, dialect: script.dialect }, depth + 1)
+    await readInto(reading, script.text, { background: parent.background, stages: parent.stages, body: script.body ?? parent.body, line: parent.line, dialect: script.dialect, around: undefined }, depth + 1)
     reading.cwd = cwd
   }
 }
 
 export async function readShellCommands(text: string, dialect: ShellDialect, world: ReadWorld): Promise<ShellRead> {
   const reading = new Reading(world)
-  await readInto(reading, text, { background: false, stages: [], body: undefined, line: 1, dialect }, 0)
+  await readInto(reading, text, { background: false, stages: [], body: undefined, line: 1, dialect, around: undefined }, 0)
   return { commands: reading.commands, pipelineSizes: reading.pipelineSizes, exported: reading.exported, unread: reading.unread }
 }

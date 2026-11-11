@@ -3,6 +3,7 @@ import { Box, Text } from '../ink.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { enterConcourse } from '../context/surfaceRoute.js'
+import { useIsOverlayActive } from '../context/overlayContext.js'
 import {
   getFocusedSessionConnector,
   subscribeThroughFocused,
@@ -241,9 +242,9 @@ export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClock
   return live.inFlight ? '' : 'ready'
 }
 
-export function escBackHint(live: SessionLiveV1, s: Pick<SeatStatusV1, 'interrupting' | 'hardStopping'>, shellRunning = false, sendNow = false): string {
+export function escBackHint(live: SessionLiveV1, s: Pick<SeatStatusV1, 'interrupting' | 'hardStopping'>, shellRunning = false, sendNow = false, escapeOwned = false): string {
   const rung = escRungOf({ inFlight: live.inFlight, interrupting: s.interrupting, hardStopping: s.hardStopping })
-  const hint = escRungHint(rung)
+  const hint = escapeOwned ? '' : escRungHint(rung)
   const background = shellRunning && rung === 'in-flight' ? keyHintLabel('⇧b backgrounds') : ''
   const sends = sendNow && rung === 'in-flight' ? SEND_NOW_HINT : ''
   return `${hint !== '' ? `${hint} · ` : ''}${background !== '' ? `${background} · ` : ''}${sends !== '' ? `${sends} · ` : ''}${keyHintLabel('⇧← back')}`
@@ -309,6 +310,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const samples = useFocusedSamples()
   const shellRunning = useFocusedShellRunning()
   const sendNow = useFocusedSendNowLive()
+  const escapeOwned = useIsOverlayActive()
   useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
   const crewActive = crewActiveIn(workRows)
   const c = getFocusedSessionConnector()
@@ -341,8 +343,8 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const line = composerCrewmate !== null ? crewmateStatusWords(crewmate, composerCrewmate, composerCrewmate.running) : statusLine(live, status, crew)
   const backHint =
     crewmate !== null && !crewmate.pinned
-      ? `${crewmateStatusRightHint(false, crewmateLive(crewmate))} · ${keyHintLabel('⇧← back')}`
-      : escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false, sendNow)
+      ? `${crewmateStatusRightHint(false, crewmateLive(crewmate), escapeOwned)} · ${keyHintLabel('⇧← back')}`
+      : escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false, sendNow, escapeOwned)
   const effortLabel = modelSupportsEffort(effectiveModel) ? focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false) : null
   const chipCrewmate = crewmate ?? composerCrewmate
   const shownModel = chipCrewmate !== null && crewmateModel !== null ? (crewmateModel.model === null ? 'model unreported' : renderModelChip(crewmateModel.model)) : modelName

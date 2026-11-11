@@ -88,6 +88,7 @@ export interface DaemonState {
   ownerPid?: number | null
   foreground?: boolean
   startToken?: string | null
+  startInstant?: string
   persist?: boolean
   state?: 'stopping'
   stoppingAt?: number

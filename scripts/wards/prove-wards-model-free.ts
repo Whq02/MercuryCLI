@@ -52,6 +52,7 @@ async function main(): Promise<void> {
       'node:fs',
       'node:path',
       '../substrate/flagRegistry.js',
+      '../utils/config/trust.js',
       '../utils/cwd.js',
       '../utils/debug.js',
       '../utils/messageQueueManager.js',
@@ -73,8 +74,8 @@ async function main(): Promise<void> {
     check('zero require calls in the hook', !/\brequire\s*\(/.test(hookSrc))
     const refusalImports = importSpecifiers(refusalsSrc)
     const readingImports = importSpecifiers(readingSrc)
-    check('the parsed judge imports the file system, the engine and the shell reading alone', refusalImports.join(' ') === 'node:fs ./wards.js ./wardsShellRead.js', refusalImports.join(' '))
-    check("the shell reading imports the product's shell parser alone", readingImports.join(' ') === '../bash/ast.js ../bash/parser.js', readingImports.join(' '))
+    check('the parsed judge imports the file system, the path module, the engine and the shell reading alone', refusalImports.join(' ') === 'node:fs node:path ./wards.js ./wardsShellRead.js', refusalImports.join(' '))
+    check("the shell reading imports the path module and the product's shell parser alone", readingImports.join(' ') === 'node:path ../bash/ast.js ../bash/parser.js', readingImports.join(' '))
     check('zero require calls and no dynamic import in the parsed judge and the shell reading', !/\brequire\s*\(|\bimport\s*\(/.test(refusalsSrc + readingSrc))
   }
 

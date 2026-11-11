@@ -791,6 +791,7 @@ async function routeControlRequest(
         ...(Array.isArray(raw.runnerArgv) && raw.runnerArgv.length > 0 ? { runnerArgv: raw.runnerArgv as string[] } : {}),
         ...(raw.bypassConsent === true ? { bypassConsent: true } : {}),
         ...(raw.bornBlank === true ? { bornBlank: true } : {}),
+        ...(typeof raw.resumeSessionId === 'string' && raw.resumeSessionId && raw.bornBlank !== true ? { resumedAtRest: true as const } : {}),
         ...(typeof raw.by === 'string' && raw.by ? { by: raw.by } : {}),
         ...(kit !== undefined ? { kit } : {}),
         ...(typeof raw.kitPreset === 'string' && raw.kitPreset !== '' ? { kitPreset: raw.kitPreset } : {}),

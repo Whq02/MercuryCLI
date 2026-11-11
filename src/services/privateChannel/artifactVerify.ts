@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
-import { payloadDigestOf } from './payloadDigest.js'
+import { PayloadNameError, payloadDigestOf } from './payloadDigest.js'
 import {
   describeSignatureVerdict,
   verifySignatureBlock,
@@ -101,6 +101,9 @@ export function verifyPayloadDir(
     try {
       payloadDigest = payloadDigestOf(dir)
     } catch (e) {
+      if (e instanceof PayloadNameError) {
+        return { verdict: { state: 'tampered', note: e.message }, depth, unevaluated, manifestVersion }
+      }
       return {
         verdict: { state: 'malformed', note: `payload tree unreadable for the digest walk: ${e instanceof Error ? e.message.slice(0, 120) : String(e)}` },
         depth,

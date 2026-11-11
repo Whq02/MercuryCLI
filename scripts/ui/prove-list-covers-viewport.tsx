@@ -30,7 +30,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
 }
 
-type World = { rows: number; tallAt: number; open: number; shut: number; wide?: boolean; mountMs?: number; ownState?: boolean; cursorOnTall?: boolean }
+type World = { rows: number; tallAt: number; open: number; shut: number; wide?: boolean; mountMs?: number; ownState?: boolean; cursorOnTall?: boolean; plain?: (at: number) => number; spare?: number }
 type Shown = { lines: number; rows: Row[]; columns: number; cursorAt?: number }
 type Stage = {
   view: Mounted
@@ -44,6 +44,7 @@ type Stage = {
   set: (open: boolean) => void
   resize: (lines: number) => void
   drop: (count: number) => void
+  add: (count: number) => void
   wrap: (columns: number) => void
   moveCursor: (index: number) => void
 }
@@ -56,6 +57,16 @@ const Line = React.memo(function Line({ words, mountMs }: { words: string; mount
   while (performance.now() < until) {
   }
   return <Text>{words}</Text>
+})
+
+const Lines = React.memo(function Lines({ at, count }: { at: number; count: number }): React.ReactNode {
+  return (
+    <Box flexDirection="column">
+      {Array.from({ length: count }, (_, k) => (
+        <Text key={k}>{k === 0 ? label(at) : `${label(at)} +${k}`}</Text>
+      ))}
+    </Box>
+  )
 })
 
 function Group({ lines, world }: { lines: number; world: World }): React.ReactNode {
@@ -78,7 +89,7 @@ function SelfSizedGroup({ startLines, world, hand, committed }: { startLines: nu
 
 async function stage(world: World, start: { lines: number; rows?: number; columns: number }): Promise<Stage> {
   const scroll = React.createRef<Scroll>()
-  const all: Row[] = Array.from({ length: world.rows }, (_, i) => createUserMessage({ content: `row ${i}` }))
+  const all: Row[] = Array.from({ length: world.rows + (world.spare ?? 0) }, (_, i) => createUserMessage({ content: `row ${i}` }))
   const indexOf = new Map(all.map((row, i) => [row.uuid, i]))
   const listeners = new Set<() => void>()
   let state: Shown = { lines: start.lines, rows: all.slice(0, start.rows ?? world.rows), columns: start.columns }
@@ -112,6 +123,7 @@ async function stage(world: World, start: { lines: number; rows?: number; column
     const renderItem = React.useCallback(
       (row: Row): React.ReactNode => {
         const at = indexOf.get(row.uuid)!
+        if (at !== world.tallAt && world.plain) return <Lines at={at} count={world.plain(at)} />
         if (at !== world.tallAt) return <Line words={world.wide ? `${label(at)}${FILL}` : label(at)} mountMs={world.mountMs ?? 0} />
         listRenders++
         return world.ownState ? <SelfSizedGroup startLines={listedLines} world={world} hand={hand} committed={committed} /> : <Group lines={listedLines} world={world} />
@@ -162,6 +174,7 @@ async function stage(world: World, start: { lines: number; rows?: number; column
     set: open => resize(open ? world.open : world.shut),
     resize,
     drop: count => publish({ ...state, rows: state.rows.slice(0, state.rows.length - count) }),
+    add: count => publish({ ...state, rows: all.slice(0, state.rows.length + count) }),
     moveCursor: index => publish({ ...state, cursorAt: index }),
     wrap: columns => {
       publish({ ...state, columns })
@@ -186,8 +199,8 @@ const pane = (view: Mounted): string[] => view.lines().slice(0, VIEWPORT)
 type Spot = { row: number; inner: number }
 
 function spotOf(line: string, world: World): Spot | null {
-  const plain = /^ROW (\d+)/.exec(line)
-  if (plain) return { row: Number(plain[1]), inner: 0 }
+  const plain = /^ROW (\d+)(?: \+(\d+))?/.exec(line)
+  if (plain) return { row: Number(plain[1]), inner: Number(plain[2] ?? 0) }
   const inside = /^GROUP (?:open|shut) (\d+)$/.exec(line)
   return inside ? { row: world.tallAt, inner: Number(inside[1]) } : null
 }
@@ -211,9 +224,33 @@ async function rest(view: Mounted): Promise<string[]> {
   return pane(view)
 }
 
-function rowsBetween(from: Spot, to: Spot, world: World, lines: number): number {
-  const depth = (spot: Spot): number => spot.row + (spot.row > world.tallAt ? lines - 1 : 0) + spot.inner
-  return depth(to) - depth(from)
+type Laid = { lines: number; columns: number }
+
+function heightOf(at: number, world: World, laid: Laid): number {
+  if (at === world.tallAt) return laid.lines
+  if (world.plain) return world.plain(at)
+  return world.wide ? Math.ceil((label(at).length + FILL.length) / laid.columns) : 1
+}
+
+function depthOf(spot: Spot, world: World, laid: Laid): number {
+  let depth = spot.inner
+  for (let at = 0; at < spot.row; at++) depth += heightOf(at, world, laid)
+  return depth
+}
+
+function spotAt(depth: number, world: World, laid: Laid): Spot {
+  let row = 0
+  let left = Math.max(0, depth)
+  for (;;) {
+    const height = heightOf(row, world, laid)
+    if (left < height) return { row, inner: left }
+    left -= height
+    row++
+  }
+}
+
+function rowsBetween(from: Spot, to: Spot, world: World, laid: Laid): number {
+  return depthOf(to, world, laid) - depthOf(from, world, laid)
 }
 
 async function seat(live: Stage, world: World, want: Spot): Promise<boolean> {
@@ -221,7 +258,7 @@ async function seat(live: Stage, world: World, want: Spot): Promise<boolean> {
     const seen = spotOf(pane(live.view)[0] ?? '', world)
     if (seen && seen.row === want.row && seen.inner === want.inner) return true
     const scroll = live.scroll.current!
-    const step = seen ? rowsBetween(seen, want, world, live.shown().lines) : -VIEWPORT
+    const step = seen ? rowsBetween(seen, want, world, live.shown()) : (pane(live.view)[0] ?? '').trim() === '' ? -VIEWPORT : -1
     scroll.scrollTo(Math.max(0, scroll.getScrollTop() + (step === 0 ? -1 : step)))
     await rest(live.view)
   }
@@ -236,6 +273,7 @@ type Case = {
   act: (live: Stage) => void | Promise<void>
   busyMs?: number
   lands?: Spot
+  travels?: number
   headAt?: number
   listRenders?: number
   outOfSight?: true
@@ -265,6 +303,7 @@ async function run(scene: Case): Promise<void> {
     const placed = await rest(live.view)
     check(`${scene.name}: the pane is whole before the change`, seated && holes(placed, scene.world, lastRow()).length === 0, `seated ${seated}, blank rows ${holes(placed, scene.world, lastRow()).join(',')}`)
     show(`${scene.name} before`, placed)
+    const stoodOn = spotOf(placed[0] ?? '', scene.world)
     const mark = live.writes.length
     const columnsBefore = live.shown().columns
     const rendersBefore = live.armOwnCommit()
@@ -289,6 +328,20 @@ async function run(scene: Case): Promise<void> {
     if (scene.lands !== undefined) {
       const landed = spotOf(settled[0] ?? '', scene.world)
       check(`${scene.name}: the pane's first line is the row's line ${scene.lands.inner}`, landed !== null && landed.row === scene.lands.row && landed.inner === scene.lands.inner, `the pane opens on ${settled[0] === '' ? '(blank)' : settled[0]}`)
+    }
+    if (scene.travels !== undefined) {
+      const lines = live.shown()
+      const wanted = stoodOn === null ? null : spotAt(depthOf(stoodOn, scene.world, lines) - scene.travels, scene.world, lines)
+      const landed = spotOf(settled[0] ?? '', scene.world)
+      check(
+        `${scene.name}: the pane's first line stands ${scene.travels} lines above the line it stood on`,
+        wanted !== null && landed !== null && landed.row === wanted.row && landed.inner === wanted.inner,
+        `it stood on ${placed[0]}, ${scene.travels} lines up is ${wanted === null ? '?' : `${label(wanted.row)}${wanted.inner > 0 ? ` +${wanted.inner}` : ''}`}, the pane opens on ${settled[0] === '' ? '(blank)' : settled[0]}${landed !== null && wanted !== null ? ` (${depthOf(landed, scene.world, lines) - depthOf(wanted, scene.world, lines)} lines off)` : ''}`,
+      )
+      check(`${scene.name}: the view stays where the scroll left it, off the tail`, live.scroll.current!.isSticky() === false, 'the view follows the tail again')
+      const tops = framesFrom(live.writes, mark, live.shown().columns).map(frame => spotOf(frame[0] ?? '', scene.world)).filter((spot): spot is Spot => spot !== null).map(spot => depthOf(spot, scene.world, lines))
+      const backward = tops.findIndex((depth, at) => at > 0 && depth > tops[at - 1]!)
+      check(`${scene.name}: no painted frame stands lower than the frame before it`, backward === -1, `frame ${backward + 1} of ${tops.length} opens ${backward === -1 ? 0 : tops[backward]! - tops[backward - 1]!} lines under the frame before it`)
     }
     if (scene.headAt !== undefined) {
       const head = settled.findIndex(line => /^GROUP (?:open|shut) 000$/.test(line))
@@ -345,6 +398,37 @@ const grownTenTimes = async (live: Stage): Promise<void> => {
     await settle(30)
   }
 }
+const SHORT: World = { rows: 150, tallAt: -1, open: 1, shut: 1, plain: at => 1 + (at % 3), spare: 2 }
+const TALLER: World = { rows: 150, tallAt: -1, open: 1, shut: 1, plain: at => 6 + (at % 5), spare: 2 }
+const wheeledUp = (notches: number, rows: number, gapMs: number) => async (live: Stage): Promise<void> => {
+  for (let notch = 0; notch < notches; notch++) {
+    live.scroll.current!.scrollBy(-rows)
+    if (gapMs > 0) await settle(gapMs)
+  }
+}
+const flickedUpThenTwoRowsArrive = async (live: Stage): Promise<void> => {
+  await wheeledUp(5, 3, 0)(live)
+  await rest(live.view)
+  live.add(1)
+  await settle(40)
+  live.add(1)
+}
+const collapsedAboveDuringScroll = (live: Stage): void => {
+  live.scroll.current!.scrollBy(-60)
+  live.set(false)
+}
+const grownUnderTheTopThenScrolledPast = async (live: Stage): Promise<void> => {
+  live.set(true)
+  await rest(live.view)
+  live.scroll.current!.scrollBy(18)
+  await rest(live.view)
+  live.poke()
+}
+const scrolledFiveUpThenRewrapped = async (live: Stage): Promise<void> => {
+  live.scroll.current!.scrollBy(-5)
+  await rest(live.view)
+  live.wrap(40)
+}
 const cases: Case[] = [
   { name: 'a tall row collapsed off the tail, its head in view', world: TALL, startOpen: true, top: { row: 37, inner: 0 }, act: live => live.set(false) },
   { name: 'a tall row collapsed off the tail from inside it', world: TALL, startOpen: true, top: { row: 40, inner: 150 }, act: live => live.set(false) },
@@ -381,6 +465,14 @@ const cases: Case[] = [
   { name: 'a jump to the head from a page above the tail', world: TALL, startOpen: false, top: { row: 85, inner: 0 }, act: live => live.scroll.current!.scrollTo(0), lands: { row: 0, inner: 0 } },
   { name: 'the last row grows ten times through the list under the pane\'s top', world: { ...TALL, tallAt: 119 }, startOpen: true, top: { row: 119, inner: 150 }, act: grownTenTimes, lands: { row: 119, inner: 150 }, listRenders: 10, outOfSight: true },
   { name: 'the last row grows ten times by its own state under the pane\'s top', world: { ...OWN, tallAt: 119 }, startOpen: true, top: { row: 119, inner: 150 }, act: grownTenTimes, lands: { row: 119, inner: 150 }, listRenders: 0, outOfSight: true },
+  { name: 'five wheel notches at once up from the tail through rows never measured and shorter than their estimate, then two rows arrive', world: SHORT, startOpen: false, top: 'tail', act: flickedUpThenTwoRowsArrive, travels: 15 },
+  { name: 'a wheel flick of two hundred rows up from the tail through rows never measured and shorter than their estimate', world: SHORT, startOpen: false, top: 'tail', act: wheeledUp(40, 5, 8), travels: 200 },
+  { name: 'a wheel flick of two hundred rows up from the tail through rows never measured and taller than their estimate', world: TALLER, startOpen: false, top: 'tail', act: wheeledUp(40, 5, 8), travels: 200 },
+  { name: 'a wheel flick of three hundred rows up from the tail through rows never measured and taller than their estimate', world: TALLER, startOpen: false, top: 'tail', act: wheeledUp(60, 5, 16), travels: 300 },
+  { name: 'a steady wheel of ninety rows up from the tail through rows never measured and taller than their estimate', world: TALLER, startOpen: false, top: 'tail', act: wheeledUp(30, 3, 30), travels: 90 },
+  { name: 'a tall row above the pane collapsed while a scroll up is still in flight', world: TALL, startOpen: true, top: { row: 80, inner: 0 }, act: collapsedAboveDuringScroll, lands: { row: 20, inner: 0 } },
+  { name: 'a row under the pane\'s top grown by its own state, the view scrolled down past it, then the list rendered', world: { ...OWN, tallAt: 15, open: 6 }, startOpen: false, top: { row: 5, inner: 0 }, act: grownUnderTheTopThenScrolledPast, lands: { row: 18, inner: 0 } },
+  { name: 'a re-wrap right after a five-row scroll off the tail', world: { ...TALL, wide: true }, startOpen: false, top: { row: 37, inner: 0 }, act: scrolledFiveUpThenRewrapped, lands: { row: 32, inner: 0 } },
   { name: 'a re-wrap off the tail', world: { ...TALL, wide: true }, startOpen: false, top: { row: 37, inner: 0 }, act: live => live.wrap(40) },
   { name: 'a re-wrap at the tail', world: { ...TALL, wide: true }, startOpen: false, top: 'tail', act: live => live.wrap(40) },
 ]
