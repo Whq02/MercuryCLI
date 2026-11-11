@@ -43,6 +43,7 @@ section('S the doors a sub-agent could nest or fork through are shut at their ow
   check("a workflow's agent queries under its own source label and its own agent id", hooks.includes('querySource: getQuerySourceForAgent(') && hooks.includes('agentId: args.agentId,'))
 }
 
+const FOLD_WINDOW_MODEL = 'claude-opus-4-6'
 const U0 = '00000000-0000-4000-8000-000000000000'
 const BATCH_ITEM_SHA = '1f925c0d1a5dcee2'
 const UT = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
@@ -223,7 +224,7 @@ if (!existsSync(DIST)) {
 
   if (runs('A4')) {
   section("A4 fold 46ao: a line sent during a sub-agent's content-sized compaction fold reaches the session's own model once, at the handover boundary; the fold lands and the sub-agent goes on in the background")
-    const w = await openWorld('fold', 3, 800)
+    const w = await openWorld('fold', 3, 800, { argv: ['--model', FOLD_WINDOW_MODEL] })
     const before = w.runner.frames.length
     void w.runner.prompt(FOLD_TURN_ASK, UT)
     const fold = await waitWire(w.fx.wire, "the sub-agent's fold request", x => x.kind === 'fold' && x.arm === 'subfold', bound(60_000))
