@@ -98,6 +98,7 @@ export async function proveWakeJourney(missingWorktree: boolean, check: (label: 
     const firstPwd = toolResultOf(world, 'wake-first-pwd'), secondPwd = toolResultOf(world, 'wake-second-pwd')
     check('the same recorded worktree and callable output schema survive the wake', !firstPwd?.isError && !secondPwd?.isError && firstPwd?.text.includes(metadata.worktreePath) && secondPwd?.text.includes(metadata.worktreePath) && toolResultOf(world, 'wake-second-schema')?.isError === false)
     check('the one-shot wait is consumed and the worker retains its identity', live.seats().filter(seat => seat.name === 'wake-target').length === 1 && live.seats().find(seat => seat.agent === target.agent)?.wait === undefined)
+    await session.waitFor('the resumed run posts its Done', () => live!.screenEvents(0).some(event => event.author.agentId === target.agent && event.lifecycle?.kind === 'done'))
     const node = live.screenEvents(0).filter(event => event.author.agentId === target.agent && event.lifecycle)
     check('a real completed run contributes one parked row and its resumed run one Done', node.filter(event => event.lifecycle?.kind === 'parked').length === 1 && node.filter(event => event.lifecycle?.kind === 'done').length === 1)
     assert.equal(await session.end(), 0, session.stderr())
