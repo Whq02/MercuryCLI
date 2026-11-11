@@ -316,6 +316,7 @@ type HeadlessOptions = {
   maxBudgetUsd?: number
   maxTimeMs?: number
   systemPrompt?: string
+  defaultBrief?: true
   appendSystemPrompt?: string
   userSpecifiedModel?: string
   fallbackModel?: string
@@ -895,8 +896,9 @@ export async function runHeadless(
   const hostBriefAdd = isConcourseWorker ? options.appendSystemPrompt : undefined
   const settleSessionBriefs = (kept: { brief?: string; briefAdd?: string }, record: boolean): void => {
     if (record && givenBrief !== undefined && givenBrief !== kept.brief) saveSessionBrief('brief', givenBrief)
+    if (record && options.defaultBrief === true && kept.brief !== undefined) saveSessionBrief('brief', null)
     if (record && givenBriefAdd !== undefined && givenBriefAdd !== kept.briefAdd) saveSessionBrief('briefAdd', givenBriefAdd)
-    options.systemPrompt = givenBrief ?? kept.brief
+    options.systemPrompt = givenBrief ?? (options.defaultBrief === true ? undefined : kept.brief)
     const ownBriefAdd = givenBriefAdd ?? kept.briefAdd
     const saidByHost = ownBriefAdd !== undefined && (hostBriefAdd ?? '').endsWith(`\n\n${ownBriefAdd}`)
     options.appendSystemPrompt = [hostBriefAdd, saidByHost ? undefined : ownBriefAdd].filter(Boolean).join('\n\n') || undefined

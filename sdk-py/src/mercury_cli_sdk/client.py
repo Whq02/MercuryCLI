@@ -54,6 +54,7 @@ class RunOptions:
     mcp: list[str] = field(default_factory=list)
     only_mcp: bool = False
     brief: str | None = None
+    default_brief: bool = False
     brief_add: str | None = None
     schema: str | dict[str, Any] | StructuredSchema[Any] | None = None
     max_turns: int | None = None
@@ -108,6 +109,7 @@ class ConnectKwargs(TypedDict, total=False):
     mcp: list[str]
     only_mcp: bool
     brief: str | None
+    default_brief: bool
     brief_add: str | None
     max_turns: int | None
     max_rows: int | None
@@ -150,7 +152,7 @@ def argv_of(options: RunOptions, door: Literal['run', 'runner'] = 'run') -> list
         value = getattr(options, name)
         if value is not None: args += ['--' + name.replace('_', '-'), str(value)]
     if options.budget_usd is not None: args += ['--budget', str(options.budget_usd)]
-    for name in ['sovereign', 'allow_sovereign', 'only_mcp', 'partial', 'continue_', 'fork', 'ephemeral', 'lean', 'advise', 'no_commands']:
+    for name in ['sovereign', 'allow_sovereign', 'only_mcp', 'default_brief', 'partial', 'continue_', 'fork', 'ephemeral', 'lean', 'advise', 'no_commands']:
         if getattr(options, name): args.append('--' + name.rstrip('_').replace('_', '-'))
     for name in ['allowed_tools', 'block_tools', 'toolset', 'mcp', 'provider_preview']:
         flag = '--' + name.replace('_', '-')

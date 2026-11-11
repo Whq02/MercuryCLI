@@ -62,6 +62,8 @@ recorded with the session: a run that continues it without the flag keeps
 them, and the flag given again replaces them. An empty `--brief` is a brief
 with no text, kept like any other: the model reads the built-in constitution
 and no default brief. An empty `--brief-add` removes the addition.
+`--default-brief` returns a continued session to the default brief: the brief
+it was given is forgotten, and an addition stays until it is removed.
 
 The output row types, by their `type` field:
 

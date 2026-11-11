@@ -2,6 +2,7 @@
 const RUNNER_OPTIONS: Readonly<Record<string, 0 | 1 | 'many'>> = {
   '--brief': 1,
   '--brief-file': 1,
+  '--default-brief': 0,
   '--brief-add': 1,
   '--brief-add-file': 1,
   '--reasoning-mode': 1,

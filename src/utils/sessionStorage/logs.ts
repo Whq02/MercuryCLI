@@ -252,7 +252,7 @@ export function saveAgentSetting(agentSetting: string): void {
   getProject().currentSessionAgentSetting = agentSetting
 }
 
-export function saveSessionBrief(field: 'brief' | 'briefAdd', text: string): void {
+export function saveSessionBrief(field: 'brief' | 'briefAdd', text: string | null): void {
   getProject().metadata.setBrief(field, text)
 }
 

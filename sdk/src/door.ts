@@ -31,6 +31,7 @@ export const RUN_OPTIONS = [
   { flag: '--only-mcp', value: 'none', hidden: false },
   { flag: '--brief', value: 'required', hidden: false },
   { flag: '--brief-file', value: 'required', hidden: true },
+  { flag: '--default-brief', value: 'none', hidden: false },
   { flag: '--brief-add', value: 'required', hidden: false },
   { flag: '--brief-add-file', value: 'required', hidden: true },
   { flag: '--mode', value: 'required', choices: ['default', 'dontAsk', 'implement', 'sovereign', 'flow', 'apollo'], hidden: false },
