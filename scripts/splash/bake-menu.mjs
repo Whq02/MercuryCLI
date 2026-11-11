@@ -8,7 +8,7 @@ const ROW = {
   assets: 'assets/splash/splash-core.mjs',
   generator: 'bun scripts/splash/bake-menu.mjs',
   check: 'bun scripts/splash/bake-menu.mjs --check',
-  sources: 'src/substrate/startupMenu.ts src/services/providers/xai/xaiPins.ts src/services/providers/meta/metaPins.ts src/services/providers/mistral/mistralPins.ts src/services/providers/minimax/minimaxPins.ts src/services/providers/cohere/coherePins.ts src/services/providers/groq/groqPins.ts src/services/providers/cerebras/cerebrasPins.ts src/services/providers/fireworks/fireworksPins.ts src/services/providers/qwen/qwenPins.ts src/services/providers/deepseek/deepseekPins.ts src/services/providers/moonshot/kimiPins.ts src/services/providers/zai/zaiAdapter.ts',
+  sources: 'src/substrate/startupMenu.ts src/utils/model/configs.ts src/utils/model/aliases.ts src/utils/model/model.ts src/services/providers/xai/xaiPins.ts src/services/providers/meta/metaPins.ts src/services/providers/mistral/mistralPins.ts src/services/providers/minimax/minimaxPins.ts src/services/providers/cohere/coherePins.ts src/services/providers/groq/groqPins.ts src/services/providers/cerebras/cerebrasPins.ts src/services/providers/fireworks/fireworksPins.ts src/services/providers/qwen/qwenPins.ts src/services/providers/deepseek/deepseekPins.ts src/services/providers/moonshot/kimiPins.ts src/services/providers/zai/zaiAdapter.ts',
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 
