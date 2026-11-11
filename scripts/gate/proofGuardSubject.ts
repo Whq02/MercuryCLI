@@ -10,6 +10,7 @@ import { pathToFileURL } from 'node:url'
 const [receipt, mode, world, token] = process.argv.slice(2) as [string, string, string, string]
 const root = join(world, 'account', 'root')
 const missing = join(world, 'account', 'missing')
+const unheld = join(world, 'account', 'deep')
 const foreign = join(world, 'swap-foreign')
 const spare = join(world, 'spare')
 const whole = { recursive: true, force: true }
@@ -32,7 +33,7 @@ if (!madeByThisRun() || !inside(root) || !inside(foreign) || !inside(spare)) pro
 const born = lstatSync(root, { bigint: true }).ino
 const stands = (): boolean => {
   const now = lstatSync(root, { bigint: true, throwIfNoEntry: false })
-  return now !== undefined && now.isDirectory() && now.ino === born && lstatSync(missing, { throwIfNoEntry: false }) === undefined
+  return now !== undefined && now.isDirectory() && now.ino === born && lstatSync(missing, { throwIfNoEntry: false }) === undefined && lstatSync(unheld, { throwIfNoEntry: false }) === undefined
 }
 type Tried = { shape: string; outcome: string; stands: boolean; error?: { code: unknown; syscall: unknown; path: unknown } }
 const attempt = async (into: Tried[], shape: string, call: () => unknown, intact: () => boolean): Promise<void> => {
@@ -106,6 +107,9 @@ if (mode === 'shapes') {
     await refuse('symlinkSync where a root would stand, under a name the volume folds to its name: the long s', () => symlinkSync(foreign, join(dirname(missing), 'mi\u017f\u017fing')))
     await refuse('symlinkSync there, the long s among capitals', () => symlinkSync(foreign, join(dirname(missing), 'MI\u017fSING')))
   }
+  await refuse('symlinkSync where a folder that would hold a root would stand', () => symlinkSync(foreign, unheld))
+  await refuse('renameSync, a folder moved where that folder would stand', () => renameSync(spare, unheld))
+  await refuse('symlinkSync there, reached through a linked folder', () => symlinkSync(foreign, join(world, 'alias', 'deep')))
   facts.refused = refused
 
   const shaped = join(tmpdir(), 'shaped.cjs')

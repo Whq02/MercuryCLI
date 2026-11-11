@@ -144,8 +144,10 @@ function landing(target) {
   if (folder === null || folder.key === '') return null
   const name = folded(said(last))
   for (const root of roots) {
-    if (folded(root.name) !== name) continue
-    if (seen(root.folder, true)?.key === folder.key) return { how: 'is', root }
+    if (folded(root.name) === name && seen(root.folder, true)?.key === folder.key) return { how: 'is', root }
+    for (const holder of root.held) {
+      if (folded(path.basename(holder)) === name && seen(path.dirname(holder), true)?.key === folder.key) return { how: 'would hold', root }
+    }
   }
   return null
 }

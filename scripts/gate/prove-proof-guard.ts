@@ -36,14 +36,14 @@ const world = (name: string): string => {
   symlinkSync(join(at, 'to-missing'), join(at, 'to-to-missing'))
   return at
 }
-const named = (at: string): string => [join(at, 'account', 'root'), join(at, 'account', 'missing')].join(delimiter)
+const named = (at: string): string => [join(at, 'account', 'root'), join(at, 'account', 'missing'), join(at, 'account', 'deep', 'held')].join(delimiter)
 const drive = (name: string, alter: (env: Record<string, string>, at: string) => Record<string, string> = env => env): { at: string; code: number | null; said: string; facts: Facts | undefined } => {
   const at = world(name)
   const receipt = join(at, 'facts.json')
   const run = spawnSync(process.execPath, [subject, receipt, name, at, token], { cwd: root, env: alter({ ...clean, TMPDIR: join(at, 'tmp'), MERCURY_SUITE_GUARDED: named(at) }, at), encoding: 'utf8', timeout: 180_000 })
   return { at, code: run.status, said: `${run.stdout}${run.stderr}`, facts: existsSync(receipt) ? (JSON.parse(readFileSync(receipt, 'utf8')) as Facts) : undefined }
 }
-const stillStands = (at: string): boolean => existsSync(join(at, 'account', 'root', 'kept')) && !existsSync(join(at, 'account', 'missing'))
+const stillStands = (at: string): boolean => existsSync(join(at, 'account', 'root', 'kept')) && !existsSync(join(at, 'account', 'missing')) && !existsSync(join(at, 'account', 'deep'))
 const refusalLines = (said: string): string[] => said.split('\n').filter(line => line.startsWith('proof guard:') && line.includes(' refused: '))
 
 try {
@@ -76,6 +76,7 @@ try {
     check('a value the guard does not read and a path it cannot check are refused, each with its sentence, and neither goes through', refusedAs('rmSync, a value that is no path') && refusedAs('rmSync, a name longer than the system reads, which no check can look at') && run.said.includes('proof guard: rmSync refused: its path is a value the guard does not read (Object); a call whose path the guard cannot judge does not go through') && /proof guard: rmSync refused: \S+ could not be checked \([^)]*\); a call whose path the guard cannot judge does not go through/.test(run.said), JSON.stringify(refused.filter(tried => /no path|no check/.test(tried.shape)).map(tried => `${tried.shape}: ${tried.outcome}`)))
     check('a link under a trailing separator is followed to where the call lands: a folder renamed onto a link to the place a root would stand, onto a second link to that link, and with the separator written twice is refused each time', ['renameSync, a folder moved onto a link to the place a root would stand, spelled with a trailing separator', 'renameSync there through a second link to that link', 'renameSync there, the separator written twice'].every(refusedAs), JSON.stringify(refused.filter(tried => tried.shape.includes('link to')).map(tried => `${tried.shape}: ${tried.outcome}`)))
     check('a name is folded as the volume folds it: where the volume reads the long s as s, a link at the place a root would stand under such a name is refused, alone and among capitals', run.facts?.folds === false || (run.facts?.folds === true && ['symlinkSync where a root would stand, under a name the volume folds to its name: the long s', 'symlinkSync there, the long s among capitals'].every(refusedAs)), run.facts?.folds === false ? 'this volume keeps the two names apart, nothing to refuse' : JSON.stringify(refused.filter(tried => tried.shape.includes('long s')).map(tried => `${tried.shape}: ${tried.outcome}`)))
+    check('the place of a folder that does not stand yet and would hold a root is guarded as the root is: a link there, a folder renamed there and a link there through a linked folder are refused, each with the root it would hold', ['symlinkSync where a folder that would hold a root would stand', 'renameSync, a folder moved where that folder would stand', 'symlinkSync there, reached through a linked folder'].every(refusedAs) && run.said.includes(`proof guard: symlinkSync refused: ${join(run.at, 'account', 'deep')} would hold a guarded root (${join(run.at, 'account', 'deep', 'held')}); a proof removes, renames and links over only what its own run made`), JSON.stringify(refused.filter(tried => tried.shape.includes('would hold') || tried.shape.includes('that folder') || tried.shape.includes('linked folder')).map(tried => `${tried.shape}: ${tried.outcome}`)))
     check('named, default, namespace, required and dynamic imports, the callback and both promise forms, a Buffer and a file URL are among them', ['a named import', 'the default import', 'the namespace import', 'require', 'a dynamic import', 'a Buffer path', 'a file URL', 'rm with a callback', 'promises.rm', 'rm from node:fs/promises'].every(word => refused.some(tried => tried.shape.includes(word))), refused.map(tried => tried.shape).join(' · '))
     const first = refused[0]?.error
     check('the refusal is an error a caller can read: its code, the call and the path', first?.code === 'EPROOFGUARD' && first.syscall === 'rmSync' && first.path === standIn, JSON.stringify(first))
@@ -104,7 +105,7 @@ try {
     }
     check("the guard's list opens with the account's temp root, config home, cache home and the session folders inside it, read from the account record and the uid", record.status === 0 && home !== '' && guarded.slice(0, 4).join('\n') === expected.map(realParent).join('\n'), `${JSON.stringify(guarded.slice(0, 4))} against ${JSON.stringify(expected.map(realParent))}`)
     check('the run was started with HOME and XDG_CACHE_HOME pointed at stand-ins, and the list did not follow them', run.facts?.environment?.home === true && run.facts.environment.cache === true && !guarded.some(path => path.startsWith(join(run.at, 'stand-in'))), JSON.stringify(run.facts?.environment))
-    check('the two paths the proof named follow the four', guarded.slice(4).join(delimiter) === named(run.at), JSON.stringify(guarded.slice(4)))
+    check('the three paths the proof named follow the four', guarded.slice(4).join(delimiter) === named(run.at), JSON.stringify(guarded.slice(4)))
     const stopped = (run.facts?.allowed ?? []).filter(tried => tried.outcome !== 'went through')
     check("a stand-in home's config folder, a stand-in cache home, the stand-in home itself and a link under the temp root's name in another folder are the proof's own: every call goes through", run.code === 0 && (run.facts?.allowed ?? []).length === 5 && stopped.length === 0 && refusalLines(run.said).length === 0, `rc=${run.code} ${JSON.stringify(stopped)} ${refusalLines(run.said).join(' | ')}`)
   }
