@@ -760,6 +760,28 @@ export async function runHeadless(
   if (bootModelRefusal !== null) bootRefusalFact = bootModelRefusal
   if (bootModelRefusal !== null && !awaitingSessionClaim) await persistBootModelRefusal(bootModelRefusal)
 
+  const relaunchContext = async (): Promise<ToolUseContext> => {
+    const { toolUseContext } = await buildSideQuestionFallbackParams({
+      tools,
+      commands,
+      mcpClients: [...getAppState().mcp.clients],
+      messages,
+      readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
+      getAppState,
+      setAppState,
+      customSystemPrompt: options.systemPrompt,
+      appendSystemPrompt: options.appendSystemPrompt,
+      agents,
+    })
+    return {
+      ...toolUseContext,
+      options: {
+        ...toolUseContext.options,
+        ...(peer !== null ? { hostHoldsAsks: true } : {}),
+      },
+    }
+  }
+
   const hydrateResumedRun = async (): Promise<void> => {
     if (messages.length === 0) return
     try {
@@ -779,27 +801,6 @@ export async function runHeadless(
       }
     } catch (error) {
       logError(error)
-    }
-    const relaunchContext = async (): Promise<ToolUseContext> => {
-      const { toolUseContext } = await buildSideQuestionFallbackParams({
-        tools,
-        commands,
-        mcpClients: [...getAppState().mcp.clients],
-        messages,
-        readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
-        getAppState,
-        setAppState,
-        customSystemPrompt: options.systemPrompt,
-        appendSystemPrompt: options.appendSystemPrompt,
-        agents,
-      })
-      return {
-        ...toolUseContext,
-        options: {
-          ...toolUseContext.options,
-          ...(peer !== null ? { hostHoldsAsks: true } : {}),
-        },
-      }
     }
     try {
       const { coerceRestartReason: carriedReasonOf } = await import('../tasks/LocalAgentTask/launchReceipts.js')
@@ -2693,8 +2694,6 @@ export async function runHeadless(
       }
     },
     'agent/resume': async params => {
-      const lastParams = getLastCacheSafeParams()
-      if (lastParams === null) throw refused('nothing to resume from yet — the session has not run a turn', 'nothing-to-resume')
       const target = getAppState().tasks[params.agent_id]
       if (target !== undefined && target.status === 'running') {
         const note = params.note !== undefined ? params.note.trim() : ''
@@ -2702,14 +2701,20 @@ export async function runHeadless(
         queueOperatorMessage(params.agent_id, note, setAppState)
         return { queued: true, agent_id: params.agent_id }
       }
+      if (awaitingSessionClaim) throw refused('nothing to resume from yet — the session is still starting', 'nothing-to-resume')
       const { resumeAgentBackground, operatorResumeWords } = await import('../tools/AgentTool/resumeAgent.js')
-      const { toolUseId: _staleToolUseId, ...lastContext } = lastParams.toolUseContext
+      let standing = getLastCacheSafeParams()?.toolUseContext as ToolUseContext | undefined
+      if (standing === undefined) {
+        await options.initializeMcp?.()
+        standing = await relaunchContext()
+      }
+      const { toolUseId: _staleToolUseId, ...lastContext } = standing
       void _staleToolUseId
       const resumed = await resumeAgentBackground({
         agentId: params.agent_id,
         prompt: params.note !== undefined && params.note.trim() !== '' ? params.note : AGENT_RESUME_NOTE,
         replyTarget: params.note?.trim() ? 'operator' : 'parent',
-        toolUseContext: { ...lastContext, abortController: new AbortController() } as typeof lastParams.toolUseContext,
+        toolUseContext: { ...lastContext, abortController: new AbortController() } as ToolUseContext,
         canUseTool,
       })
       if (!params.note?.trim()) enqueueAgentReceiptRow({ taskId: resumed.agentId, description: resumed.description, summary: operatorResumeWords(resumed.description) + (resumed.note ?? '') })
