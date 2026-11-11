@@ -34,6 +34,7 @@ export const RUN_OPTIONS = [
   { flag: '--default-brief', value: 'none', hidden: false },
   { flag: '--brief-add', value: 'required', hidden: false },
   { flag: '--brief-add-file', value: 'required', hidden: true },
+  { flag: '--host-brief-add', value: 'required', hidden: true },
   { flag: '--mode', value: 'required', choices: ['default', 'dontAsk', 'implement', 'sovereign', 'flow', 'apollo'], hidden: false },
   { flag: '--continue', short: '-c', value: 'none', hidden: false },
   { flag: '--resume', short: '-r', value: 'required', hidden: false },

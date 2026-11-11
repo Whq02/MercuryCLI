@@ -163,7 +163,7 @@ const MODEL = registryDefault.entry.modelId
 
 type Claimed = { name: string; warmConsent: boolean; claim: 'sovereign' | 'default' | 'implement' | 'flow'; words: string[] }
 const bootWordsOf = (consent: boolean): string[] => (consent ? ['--allow-sovereign'] : [])
-const respawnArgvOf = (respawn: Spawn, words: string[], tail: string[]): string[] => ['runner', ...words, '--model', respawn.spec.model, '--brief-add', respawn.spec.appendSystemPrompt, ...tail]
+const respawnArgvOf = (respawn: Spawn, words: string[], tail: string[]): string[] => ['runner', ...words, '--model', respawn.spec.model, '--host-brief-add', respawn.spec.appendSystemPrompt, ...tail]
 
 async function claimedSeat(c: Claimed): Promise<void> {
   const ws = workspace('claimed')
@@ -173,7 +173,7 @@ async function claimedSeat(c: Claimed): Promise<void> {
   const boot = spawnsOf(short)[0]
   check(
     `${c.name}: the warm boot argv is the pool's own (${bootWordsOf(c.warmConsent).join(' ') || 'no posture word'}, no identity)`,
-    boot !== undefined && !boot.respawn && j(boot.argv) === j(['runner', ...bootWordsOf(c.warmConsent), '--model', boot.spec.model, '--brief-add', boot.spec.appendSystemPrompt]),
+    boot !== undefined && !boot.respawn && j(boot.argv) === j(['runner', ...bootWordsOf(c.warmConsent), '--model', boot.spec.model, '--host-brief-add', boot.spec.appendSystemPrompt]),
     j(boot?.argv),
   )
   const admitted = await admit({ workspaceDir: ws, permissionMode: c.claim, ...(c.warmConsent ? { bypassConsent: true as const } : {}) })
@@ -321,7 +321,7 @@ section("§4 controls: a claim that names the pool's own posture, an unclaimed w
   const respawn = await until(() => spawnsOf(short).find(s => s.respawn))
   check(
     'an unclaimed warm seat respawns with its boot argv, byte for byte (still identityless)',
-    boot !== undefined && respawn !== undefined && j(respawn.argv) === j(boot.argv) && j(respawn.argv) === j(['runner', '--allow-sovereign', '--model', boot.spec.model, '--brief-add', boot.spec.appendSystemPrompt]),
+    boot !== undefined && respawn !== undefined && j(respawn.argv) === j(boot.argv) && j(respawn.argv) === j(['runner', '--allow-sovereign', '--model', boot.spec.model, '--host-brief-add', boot.spec.appendSystemPrompt]),
     j({ boot: boot?.argv, respawn: respawn?.argv }),
   )
   check('an unclaimed warm seat has no claim and no record', claims.every(x => x.short !== short) && recordOf(short) === undefined)
@@ -339,7 +339,7 @@ for (const c of [
   const boot = spawnsOf(short)[0]
   check(
     `${label}: boots with its posture and pins its identity (${c.words.join(' ') || 'no posture word'} --session-id)`,
-    admitted.ok && boot !== undefined && !boot.respawn && claims.every(x => x.short !== short) && j(boot.argv) === j(['runner', ...c.words, '--model', boot.spec.model, '--brief-add', boot.spec.appendSystemPrompt, '--session-id', sessionId]),
+    admitted.ok && boot !== undefined && !boot.respawn && claims.every(x => x.short !== short) && j(boot.argv) === j(['runner', ...c.words, '--model', boot.spec.model, '--host-brief-add', boot.spec.appendSystemPrompt, '--session-id', sessionId]),
     j(boot?.argv),
   )
   seedTurn(short)

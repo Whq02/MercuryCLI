@@ -268,7 +268,7 @@ try {
     }
   }
 
-  console.log("\n§11 the addition the switchboard composes for the runners it starts is the host's: it rides while the session is hosted, is never recorded, and never displaces the session's own")
+  console.log("\n§11 a session the switchboard hosts: the daemon's note is the host's, handed by a flag of its own and never recorded; what the window was given is the session's")
   {
     const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
     const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.ts')
@@ -277,11 +277,12 @@ try {
     const specOf = (session: string | undefined, resume: boolean, windowArgv: string[]): ReturnType<typeof buildConcourseWorkerSpec> => buildConcourseWorkerSpec({ runnerId: 'concourse-w1', workspaceId: cwd, modelKey: 'claude-opus-4-8', ...(session === undefined ? { warm: true } : { sessionId: session, resume }), runnerArgv: windowArgv })
     const NOTE = specOf(undefined, false, []).appendSystemPrompt
     const addRows = (session: string): string[] => briefRows(recordOf(home, session), 'session-brief-add', 'briefAdd')
+    const noteFlagOf = (spec: ReturnType<typeof specOf>): string => { const argv = buildRunnerInvocation(spec).argv; return argv[argv.indexOf(spec.appendSystemPrompt) - 1] ?? '' }
     const hosted = async (session: string, how: 'born' | 'resumed' | 'claimed' | 'claimed back', windowArgv: string[] = []): Promise<string> => {
       const warm = how === 'claimed' || how === 'claimed back'
       const spec = specOf(warm ? undefined : session, how === 'resumed', windowArgv)
       const api = await startFixtureApi([{ kind: 'text', text: 'HOSTED' }, handoffTurn(), handoffTurn()])
-      const host = hostRunner({ dist, node, cwd, home, env: { HOME: home, PATH: process.env.PATH ?? '', TERM: 'dumb', TMPDIR: join(home, 'tmp'), MERCURY_TMPDIR: join(home, 'tmp'), MERCURY_CONFIG_DIR: home, MERCURY_HOME: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CONCOURSE_WORKER: '1', ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: FIXTURE_API_KEY }, argv: ['--model', 'claude-opus-4-8', '--brief-add', spec.appendSystemPrompt, ...(spec.extraArgv ?? [])] })
+      const host = hostRunner({ dist, node, cwd, home, env: { HOME: home, PATH: process.env.PATH ?? '', TERM: 'dumb', TMPDIR: join(home, 'tmp'), MERCURY_TMPDIR: join(home, 'tmp'), MERCURY_CONFIG_DIR: home, MERCURY_HOME: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CONCOURSE_WORKER: '1', ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: FIXTURE_API_KEY }, argv: ['--model', 'claude-opus-4-8', noteFlagOf(spec), spec.appendSystemPrompt, ...(spec.extraArgv ?? [])] })
       try {
         await host.initialize({}, 90_000)
         if (warm) await host.request('session/claim', { session_id: session, model: 'claude-opus-4-8', ...(how === 'claimed back' ? { resume: true } : {}) }, 90_000)
@@ -295,8 +296,12 @@ try {
         await api.close()
       }
     }
-    const wired = buildRunnerInvocation(specOf(randomUUID(), false, [])).argv
-    check("the scene: the daemon hands a runner its note as the runner's --brief-add, and joins a window's own addition behind it", wired[wired.indexOf('--brief-add') + 1] === NOTE && NOTE.includes('switchboard') && specOf(randomUUID(), false, ['--brief-add', WINDOW_ADD]).appendSystemPrompt === `${NOTE}\n\n${WINDOW_ADD}`, head(NOTE))
+    const windowSpec = specOf(randomUUID(), false, ['--brief-add', WINDOW_ADD])
+    const wired = buildRunnerInvocation(windowSpec)
+    const rewired = buildRunnerInvocation(windowSpec, { respawn: true })
+    const ownAddOf = (argv: string[]): string | undefined => (argv.includes('--brief-add') ? argv[argv.indexOf('--brief-add') + 1] : undefined)
+    check("the scene: the daemon hands a runner its note by a flag of its own, and a window's addition as the runner's own --brief-add, on a boot and on a respawn", NOTE.includes('switchboard') && windowSpec.appendSystemPrompt === NOTE && [wired.argv, rewired.argv].every(argv => argv[argv.indexOf(NOTE) - 1] === '--host-brief-add' && ownAddOf(argv) === WINDOW_ADD), `${JSON.stringify(wired.argv.filter(word => word.startsWith('--')))} · ${head(windowSpec.appendSystemPrompt.slice(-80))}`)
+    check('a daemon starts only its own bundle: the invocation names the script of the process that builds it, on a boot and on a respawn', wired.script === realpathSync(process.argv[1]!) && rewired.script === wired.script, `${wired.script} · ${rewired.script}`)
 
     const born = randomUUID()
     const bornSystem = await hosted(born, 'born')
@@ -322,11 +327,13 @@ try {
     const windowed = randomUUID()
     const windowedSystem = await hosted(windowed, 'born', ['--brief-add', WINDOW_ADD])
     check('a window launched with an addition of its own: its session rides the note and that addition', windowedSystem.endsWith(`${NOTE}\n\n${WINDOW_ADD}`), head(windowedSystem.slice(-260)))
-    check("…and the record holds none: the addition is the window's", addRows(windowed).length === 0, String(addRows(windowed).length))
+    check("…and the record holds it in one row: the addition is the session's, as a brief given to a window is", addRows(windowed).join('|') === WINDOW_ADD, JSON.stringify(addRows(windowed).map(text => text.slice(0, 40))))
     const windowedLater = await run(['--resume', windowed, 'WINDOWED_LATER'])
-    check("…so a run that continues that session afterwards rides neither the note nor the window's addition", completed(windowedLater) && !windowedLater.system.includes(NOTE) && !windowedLater.system.includes(WINDOW_ADD), `rc ${windowedLater.code} ${windowedLater.status} · ${head(windowedLater.system.slice(-200))}`)
+    check('…so a run that continues that session afterwards rides the addition and not the note', completed(windowedLater) && windowedLater.system.endsWith(WINDOW_ADD) && !windowedLater.system.includes(NOTE), `rc ${windowedLater.code} ${windowedLater.status} · ${head(windowedLater.system.slice(-200))}`)
     const rehosted = await hosted(windowed, 'resumed')
-    check('…and a window that hosts it again without the flag rides the note alone', rehosted.endsWith(NOTE) && !rehosted.includes(WINDOW_ADD), head(rehosted.slice(-260)))
+    check('…and a window that hosts it again without the flag rides the note and the addition, and writes no second row', rehosted.endsWith(`${NOTE}\n\n${WINDOW_ADD}`) && addRows(windowed).join('|') === WINDOW_ADD, `${head(rehosted.slice(-260))} · ${addRows(windowed).length} row(s)`)
+    const replaced = await hosted(windowed, 'resumed', ['--brief-add', ADDED])
+    check('a window launched with another addition replaces it, as the flag given again does on a run', replaced.endsWith(`${NOTE}\n\n${ADDED}`) && !replaced.includes(WINDOW_ADD) && addRows(windowed).join('|') === [WINDOW_ADD, ADDED].join('|'), `${head(replaced.slice(-260))} · ${JSON.stringify(addRows(windowed).map(text => text.slice(0, 24)))}`)
     const both = await hosted(own, 'resumed', ['--brief-add', ADDED])
     check("the session's own addition given to the window as well is said once", both.endsWith(`${NOTE}\n\n${ADDED}`) && both.split(ADDED).length === 2 && addRows(own).join('|') === ADDED, head(both.slice(-260)))
 

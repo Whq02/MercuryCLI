@@ -456,6 +456,7 @@ async function run(): Promise<void> {
     .option('--default-brief', 'Return a continued session to the default brief, forgetting the brief it was given')
     .option('--brief-add <prompt>', 'Append to the session system brief')
     .addOption(new Option('--brief-add-file <file>', 'Append to the session system brief from a file').hideHelp())
+    .addOption(new Option('--host-brief-add <prompt>', 'The note of the host that runs this session: it rides behind the session system brief and is never recorded with the session').hideHelp())
     .addOption(new Option('--mode <mode>', `Permission mode: ${PERMISSION_MODES.map(mode => `${mode}: ${MODE_GLOSS[mode]}`).join('; ')} (apollo requires the cockpit or a host serving the session over mercury runner; mercury run alone refuses it)`).choices(PERMISSION_MODES))
     .option('-c, --continue', 'Continue the most recent conversation')
     .option('-r, --resume [value]', 'Resume a conversation (session id, title, or picker)')
@@ -2327,6 +2328,7 @@ async function runLaunch(args: {
         systemPrompt: args.customSystemPrompt,
         ...(opts.defaultBrief === true ? { defaultBrief: true } : {}),
         appendSystemPrompt: args.appendSystemPrompt,
+        ...(typeof opts.hostBriefAdd === 'string' ? { hostAppendSystemPrompt: opts.hostBriefAdd } : {}),
         userSpecifiedModel: args.userSpecifiedModel ?? args.mainThreadAgentDefinition?.model ?? undefined,
         fallbackModel: args.fallbackModel,
         includePartialMessages: args.includePartialMessages,
