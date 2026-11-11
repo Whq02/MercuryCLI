@@ -151,6 +151,25 @@ section('§7 the 1M kill-switch leaves the chosen generation without a rider')
   }
 }
 
+section('§8 a roster of Mythos ids alone and nothing saved starts on the newest Mythos model it permits, as a roster of another family alone does')
+{
+  for (const [roster, seated] of [[['mythos'], 'claude-mythos-5-2'], [['claude-mythos-5-2'], 'claude-mythos-5-2'], [['claude-mythos-5'], 'claude-mythos-5'], [['claude-mythos-5', 'claude-mythos-5-1'], 'claude-mythos-5-1']] as Array<[string[], string]>) {
+    const r = underRoster(roster)
+    check(`${JSON.stringify(roster)} → ${seated}, permitted, the bare id as the setting`, r.sent === seated && r.setting === seated && r.allowed && r.provider === 'anthropic', show(r))
+  }
+  const mythos = underRoster(['mythos'])
+  check('the decision stays the fallback: the first-party candidate is the Fable head, which such a roster excludes', mythos.source === 'fallback' && mythos.code === 'allowlist-excluded' && mythos.candidates.join(',') === HEAD, show(mythos))
+  check('the default row names Mythos 5.2', mythos.row === 'Mythos 5.2', show(mythos))
+  for (const [roster, seated] of [[['claude-sonnet-5'], 'claude-sonnet-5'], [['claude-opus-5'], 'claude-opus-5'], [['haiku'], 'claude-haiku-5-5']] as Array<[string[], string]>) {
+    const r = underRoster(roster)
+    check(`${JSON.stringify(roster)}, a roster of another family alone → ${seated}, permitted`, r.sent === seated && r.allowed, show(r))
+  }
+  for (const [roster, seated] of [[['mythos', 'opus'], 'claude-opus-5-5'], [['mythos', 'haiku'], 'claude-haiku-5-5'], [['mythos', 'fable'], HEAD]] as Array<[string[], string]>) {
+    const r = underRoster(roster)
+    check(`${JSON.stringify(roster)} → ${seated}: beside another family the default is that family's, as before`, r.sent === seated && r.allowed, show(r))
+  }
+}
+
 underRoster(null)
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`}`)
 process.exit(failures === 0 ? 0 : 1)

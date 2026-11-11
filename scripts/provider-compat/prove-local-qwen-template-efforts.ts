@@ -27,6 +27,9 @@ const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
 const QWEN_REPO = 'Qwen/Qwen3.8-27B'
 const QWEN_GGUF = 'Qwen3.8-27B-Q4_K_M.gguf'
+const QWEN_SERVED_NAME = 'qwen-3.8-27b'
+const QWEN_RENAMED_GGUF = 'qwen3_8-27b-q4_k_m.gguf'
+const QWEN3_8B_GGUF = 'Qwen3-8B-Q4_K_M.gguf'
 const OLDER_QWEN = 'Qwen/Qwen3.6-27B'
 const OTHER = 'google/gemma-4-26b-a4b'
 const TEMPLATE_WORDS = ['xhigh', 'medium', 'low']
@@ -40,7 +43,7 @@ function json(res: ServerResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body))
 }
 function templateRaise(body: Record<string, unknown>): string | undefined {
-  if (!/qwen3\.8/i.test(String(body.model))) return undefined
+  if (!/qwen3\.8/i.test(String(body.model)) && body.model !== QWEN_SERVED_NAME && body.model !== QWEN_RENAMED_GGUF) return undefined
   const kwargs = (body.chat_template_kwargs ?? {}) as Record<string, unknown>
   if (kwargs.enable_thinking === false) return undefined
   const word = body.reasoning_effort ?? kwargs.reasoning_effort
@@ -56,8 +59,8 @@ function serve(kind: 'vllm' | 'llamacpp'): Promise<{ server: Server; root: strin
       req.on('end', () => {
         const url = req.url ?? ''
         const body = raw ? (JSON.parse(raw) as Record<string, unknown>) : {}
-        if (kind === 'vllm' && url === '/v1/models') return json(res, 200, { object: 'list', data: [QWEN_REPO, OLDER_QWEN, OTHER].map(id => ({ id, object: 'model', owned_by: 'vllm', max_model_len: 262144 })) })
-        if (kind === 'llamacpp' && url === '/v1/models') return json(res, 200, { object: 'list', data: [{ id: QWEN_GGUF, object: 'model', owned_by: 'llamacpp', meta: { n_ctx_train: 262144, n_params: 27320697856, size: 17741872134 } }] })
+        if (kind === 'vllm' && url === '/v1/models') return json(res, 200, { object: 'list', data: [QWEN_REPO, QWEN_SERVED_NAME, OLDER_QWEN, OTHER].map(id => ({ id, object: 'model', owned_by: 'vllm', max_model_len: 262144 })) })
+        if (kind === 'llamacpp' && url === '/v1/models') return json(res, 200, { object: 'list', data: [QWEN_GGUF, QWEN_RENAMED_GGUF, QWEN3_8B_GGUF].map(id => ({ id, object: 'model', owned_by: 'llamacpp', meta: { n_ctx_train: 262144, n_params: 27320697856, size: 17741872134 } })) })
         if (kind === 'llamacpp' && url === '/props') return json(res, 200, { default_generation_settings: { n_ctx: 65536 }, build_info: 'b7000', total_slots: 1 })
         if (url === '/v1/chat/completions' && req.method === 'POST') {
           hits.push({ server: kind, body })
@@ -120,8 +123,12 @@ async function ask(id: string, effortValue: string | undefined): Promise<{ sent:
 section("1 · the rule: which ids name a model whose template reads reasoning_effort and refuses every word but xhigh, medium and low (Qwen 3.8 onward; read from the vendor's chat_template.jinja)")
 {
   const reads = ['Qwen/Qwen3.8-27B', 'Qwen3.8-27B-Q4_K_M.gguf', 'qwen3.8:27b', 'Qwen/Qwen3.8-Flash-Next', 'Qwen/Qwen3.8-2.4T-A95B-FP8', '/models/Qwen3.8-27B', 'qwen4-27b', 'Qwen/Qwen4-27B', 'qwen4.gguf']
+  const spelled = ['qwen-3.8-27b', 'Qwen-3.8-27B', 'qwen_3.8_27b', 'qwen 3.8 27b.gguf', 'qwen3_8-27b-q4_k_m.gguf', 'Qwen_Qwen3.8-27B-Q4_K_M.gguf', 'qwen-4-27b']
+  const sized = ['Qwen3-8B-Q4_K_M.gguf', 'qwen3_8b.gguf', 'qwen-3-8b.gguf', 'qwen3-8-27b.gguf', 'qwen-2.5-coder-7b.gguf', 'qwen3_6-27b.gguf', 'qwen-72b-chat', 'qwen-max', 'qwen-vl-max-2025-08-13']
   const others = ['qwen40', 'qwen45-turbo', 'Qwen/Qwen3.6-27B', 'Qwen/Qwen3.5-9B', 'qwen2.5-coder:3b', 'Qwen/Qwen3-Coder-Next', 'Qwen/Qwen-AgentWorld-35B-A3B', OTHER, 'kimi-k3']
   check('Qwen 3.8 and Qwen 4 ids read it, by repo id, GGUF name, tag or path', reads.every(id => template.qwenTemplateReadsEffort(id)), j(reads.filter(id => !template.qwenTemplateReadsEffort(id))))
+  check('the same generation spelled with a mark after the family word or an underscore for the point (qwen-3.8-27b, qwen_3.8_27b, qwen3_8-27b…) reads it too', spelled.every(id => template.qwenTemplateReadsEffort(id)), j(spelled.filter(id => !template.qwenTemplateReadsEffort(id))))
+  check('a parameter count is not a generation (Qwen3-8B, qwen3_8b, qwen-3-8b), nor an older generation in either spelling, nor a hosted name with no generation', sized.every(id => !template.qwenTemplateReadsEffort(id)), j(sized.filter(id => template.qwenTemplateReadsEffort(id))))
   check('a generation glued to more digits (qwen40, qwen45-turbo), the older open weights (3.5, 3.6: no reasoning_effort in their template) and other families do not', others.every(id => !template.qwenTemplateReadsEffort(id)), j(others.filter(id => template.qwenTemplateReadsEffort(id))))
   check("the words and the map: low · medium · xhigh; none and minimal step to low, high and max to xhigh; a word outside Mercury's ladder maps to nothing", j(template.QWEN_TEMPLATE_EFFORTS) === j(['low', 'medium', 'xhigh']) && j(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'].map(word => template.qwenTemplateEffort(word))) === j(['low', 'low', 'low', 'medium', 'xhigh', 'xhigh', 'xhigh', undefined]), j(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'].map(word => template.qwenTemplateEffort(word))))
   const qwenRecipes = HOST_RECIPES.filter(row => row.model.startsWith('Qwen/Qwen3.8') && row.efforts !== undefined)
@@ -145,8 +152,8 @@ section('2 · the view: a vLLM or llama.cpp row serving Qwen 3.8 offers low · m
 
 section("3 · the wire: whatever word is asked, the request carries one the template accepts and the turn settles (red on the base: minimal, high and max ride as they stand and the template's refusal ends the turn)")
 {
-  for (const id of [QWEN_REPO, QWEN_GGUF]) {
-    const server = localRecordFor(`local/${id}`)!.server
+  for (const id of [QWEN_REPO, QWEN_GGUF, QWEN_SERVED_NAME, QWEN_RENAMED_GGUF]) {
+    const server = `${localRecordFor(`local/${id}`)!.server} ${id}`
     const outcomes: Array<{ word: string; sent: unknown; chats: number; error: string | undefined; text: string }> = []
     for (const word of ASKED) outcomes.push({ word, ...(await ask(id, word)) })
     check(`${server}: every one of the six asked words settles in one request with no refusal`, outcomes.every(row => row.error === undefined && row.text === 'pong' && row.chats === 1), j(outcomes.filter(row => row.error !== undefined || row.chats !== 1).map(row => [row.word, row.sent, row.chats, row.error?.slice(0, 160)])))
@@ -156,6 +163,8 @@ section("3 · the wire: whatever word is asked, the request carries one the temp
   }
   const other = await ask(OTHER, 'high')
   check('another family on the same vLLM still carries the asked word unchanged (high)', other.sent === 'high' && other.error === undefined, j(other))
+  const eightB = await ask(QWEN3_8B_GGUF, 'high')
+  check('a Qwen3 of eight billion parameters on the same llama.cpp carries the asked word unchanged (high)', eightB.sent === 'high' && eightB.error === undefined, j(eightB))
   const older = await ask(OLDER_QWEN, 'max')
   check('an older Qwen whose template does not read the word still carries it unchanged (max)', older.sent === 'max' && older.error === undefined, j(older))
 }
