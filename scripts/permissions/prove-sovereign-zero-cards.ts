@@ -420,7 +420,7 @@ section('§8 a command the Bash layer cannot follow: with no deny rule in force 
     const under = await decide(BashTool, { command }, contextOf('sovereign'))
     check(`${command}: a command that names Mercury's configuration asks nothing under sovereign (the ask on it is Flow's)`, under.decision.behavior === 'allow', JSON.stringify(under.decision).slice(0, 300))
   }
-  for (const command of ['git diff', 'git diff --cached', 'git show HEAD', 'git diff HEAD~1', 'npm test && git diff', 'git --git-dir=.git show HEAD']) {
+  for (const command of ['git diff', 'git diff --cached', 'git show HEAD', 'git diff HEAD~1', 'npm test && git diff', 'git --git-dir=.git show HEAD', 'git status -v', 'git status -vv', 'npm test && git status -v']) {
     const ruled = await decide(BashTool, { command }, contextOf('sovereign', { deny: ['Read(secrets/**)'] }))
     check(`${command}: a Read deny rule in force, a git reader of patches is allowed or refused under sovereign (${ruled.decision.behavior}), no card`, ruled.decision.behavior === 'allow' || ruled.decision.behavior === 'deny', JSON.stringify(ruled.decision).slice(0, 300))
     const bare = await decide(BashTool, { command }, contextOf('sovereign'))

@@ -20,7 +20,7 @@ const PATHSPEC_GLOBAL = /^--(?:literal|glob|noglob|icase)-pathspecs$/
 const GIT_VARIABLE = /(?:^|[\s;&|({])(?:export\s+|env\s+)?(GIT_[A-Z_]+)=/g
 const HARMLESS_VARIABLE: ReadonlySet<string> = new Set(['GIT_PAGER', 'GIT_TERMINAL_PROMPT', 'GIT_OPTIONAL_LOCKS', 'GIT_EDITOR'])
 
-type GitPatchQuestion = { label: string; steps: string[]; probe: string[]; relative: boolean; typed: string[]; stash: string | null }
+type GitPatchQuestion = { label: string; steps: string[]; probe: string[]; second?: string[]; relative: boolean; typed: string[]; stash: string | null; instead?: string[] }
 type GitPatchUnread = { label: string; unread: string }
 
 const namesObjectPath = (operand: string): boolean => {
@@ -38,6 +38,7 @@ export function gitPatchQuestion(words: readonly string[]): GitPatchQuestion | G
   const subcommand = words[at]
   if (subcommand === undefined) return null
   let rest = words.slice(at + 1)
+  if (subcommand === 'status') return statusQuestion(words, at)
   const stash = subcommand === 'stash'
   if (stash) {
     if (rest[0] !== 'show') return null
@@ -75,8 +76,18 @@ export function gitPatchQuestion(words: readonly string[]): GitPatchQuestion | G
   const commits = subcommand === 'show' ? operands.filter(operand => !namesObjectPath(operand)) : operands
   if (subcommand === 'show' && operands.length > 0 && commits.length === 0 && after.length === 0) return null
   if (unknown !== null) return { label, unread: `git ${label} is given ${unknown}, an option Mercury does not read for what it prints` }
+  const front = globalsOf(words, at, label)
+  if ('unread' in front) return front
+  const own = [...NAMES_ONLY, ...(subcommand === 'show' ? ['--format='] : []), ...(subcommand === 'diff-tree' ? ['-r', '--no-commit-id'] : [])]
+  const probe = [...front.globals, ...(stash ? ['stash', 'show'] : [subcommand]), ...kept, ...own, ...commits, ...(cut === -1 ? [] : ['--', ...after])]
+  return { label, steps: front.steps, probe, relative, typed: [...words], stash: stash ? (operands[0] ?? '0').replace(/^(\d+)$/, 'stash@{$1}') : null }
+}
+
+const NAMES_ONLY = ['--no-ext-diff', '--no-textconv', '--name-only', '--no-renames', '-z']
+
+function globalsOf(words: readonly string[], at: number, label: string): { steps: string[]; globals: string[] } | GitPatchUnread {
   const steps: string[] = []
-  const globals: string[] = []
+  const globals: string[] = ['-c', 'diff.relative=false']
   for (let i = 0; i < at; i++) {
     const word = words[i] as string
     if (word === '-C') steps.push(words[++i] ?? '')
@@ -85,16 +96,50 @@ export function gitPatchQuestion(words: readonly string[]): GitPatchQuestion | G
     } else if (PATHSPEC_GLOBAL.test(word)) globals.push(word)
     else if (!HARMLESS_GLOBAL.test(word)) return { label, unread: `git is given ${word} on its command line` }
   }
-  const own = ['--no-ext-diff', '--no-textconv', '--name-only', '--no-renames', '-z', ...(subcommand === 'show' ? ['--format='] : []), ...(subcommand === 'diff-tree' ? ['-r', '--no-commit-id'] : [])]
-  const probe = ['-c', 'diff.relative=false', ...globals, ...(stash ? ['stash', 'show'] : [subcommand]), ...kept, ...own, ...commits, ...(cut === -1 ? [] : ['--', ...after])]
-  return { label, steps, probe, relative, typed: [...words], stash: stash ? (operands[0] ?? '0').replace(/^(\d+)$/, 'stash@{$1}') : null }
+  return { steps, globals }
+}
+
+function statusQuestion(words: readonly string[], at: number): GitPatchQuestion | GitPatchUnread | null {
+  const rest = words.slice(at + 1)
+  const cut = rest.indexOf('--')
+  let verbose = 0
+  let long = true
+  let terse = false
+  for (const word of cut === -1 ? rest : rest.slice(0, cut)) {
+    if (word === '--no-verbose') verbose = 0
+    else if (word.length > 2 && '--verbose'.startsWith(word)) verbose++
+    else if (word === '--long') long = true
+    else if (word === '--short' || /^--porcelain(?:=.*)?$/.test(word)) long = false
+    else if (/^-[A-Za-z]/.test(word)) {
+      for (const letter of word.slice(1)) {
+        if (letter === 'u' || letter === 'M') break
+        if (letter === 'v') verbose++
+        else if (letter === 's') long = false
+        else if (letter === 'z') terse = true
+      }
+    }
+  }
+  if (verbose === 0 || !long || terse) return null
+  const front = globalsOf(words, at, 'status')
+  if ('unread' in front) return front
+  const asked = (range: string[]): string[] => [...front.globals, 'diff', ...NAMES_ONLY, ...range]
+  const instead = [...words.slice(0, at), 'diff', verbose > 1 ? 'HEAD' : '--cached']
+  return { label: 'status', steps: front.steps, probe: asked(['--cached']), ...(verbose > 1 ? { second: asked([]) } : {}), relative: false, typed: [...words], stash: null, instead }
 }
 
 export async function gitNamesPrinted(question: GitPatchQuestion, cwd: string): Promise<{ base: string; names: string[] } | 'unanswered' | 'failed'> {
+  const first = await namesAnswered(question, question.probe, cwd)
+  if (question.second === undefined || first === 'unanswered') return first
+  const second = await namesAnswered(question, question.second, cwd)
+  if (second === 'unanswered' || first === 'failed') return second
+  return second === 'failed' ? first : { base: first.base, names: [...first.names, ...second.names] }
+}
+
+async function namesAnswered(question: GitPatchQuestion, probe: string[], cwd: string): Promise<{ base: string; names: string[] } | 'unanswered' | 'failed'> {
   const folder = question.steps.reduce((at, step) => resolve(at, step), cwd)
   let args: string[]
   try {
-    args = await gitArgsAsync(question.probe, folder)
+    args = await gitArgsAsync(probe, folder)
   } catch {
     return 'unanswered'
   }
@@ -123,6 +168,7 @@ export async function gitNamesPrinted(question: GitPatchQuestion, cwd: string): 
 export function gitLeavingOut(question: GitPatchQuestion, names: readonly string[]): string {
   const excludes = names.map(name => `:(exclude,top)${name}`)
   if (question.stash !== null) return shellCommandText(['git', 'diff', `${question.stash}^1`, question.stash, '--', ':/', ...excludes])
+  if (question.instead !== undefined) return shellCommandText(['git', ...question.instead, '--', ':/', ...excludes])
   const cut = question.typed.indexOf('--')
   return shellCommandText(['git', ...(cut === -1 ? [...question.typed, '--', ':/'] : question.typed), ...excludes])
 }

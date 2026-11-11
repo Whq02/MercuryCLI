@@ -109,8 +109,8 @@ export function standInService(name: string, command: string, args: string[], en
 
 const bash = {
   name: 'Bash',
-  inputSchema: z.object({ command: z.string() }),
-  checkPermissions: (input: { command: string }, context: { getAppState: () => { toolPermissionContext: unknown } }) => bashToolHasPermission(input, context.getAppState().toolPermissionContext as never),
+  inputSchema: z.object({ command: z.string(), cwd: z.string().optional() }),
+  checkPermissions: (input: { command: string; cwd?: string }, context: { getAppState: () => { toolPermissionContext: unknown } }) => bashToolHasPermission(input, context.getAppState().toolPermissionContext as never),
 } as never
 const TOOLS: Record<string, unknown> = { Bash: bash, Read: FileReadTool, Write: FileWriteTool, Edit: FileEditTool, Eval: EvalTool, Monitor: MonitorTool, Service: ServiceTool, Journey: JourneyTool, Debug: DebugTool }
 

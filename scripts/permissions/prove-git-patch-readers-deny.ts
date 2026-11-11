@@ -122,8 +122,31 @@ for (const command of PRINTS_NONE) {
   check('default · git diff and git show HEAD run with no card, as before', plain.behavior === 'allow' && shownHead.behavior === 'allow', `${said(plain)} ‖ ${said(shownHead)}`)
 }
 
+{
+  const wrong: string[] = []
+  for (const mode of EVERY_MODE) {
+    const below = await decide('Bash', { command: 'git show HEAD~1', cwd: 'sub' }, mode, READ)
+    if (below.behavior !== 'deny' || !(below.message ?? '').includes(SECRET)) wrong.push(`${mode}: ${said(below)}`)
+    const plain = await decide('Bash', { command: 'git diff', cwd: 'sub' }, mode, READ)
+    const bare = await decide('Bash', { command: 'git diff', cwd: 'sub' }, mode, {})
+    if (plain.behavior !== bare.behavior) wrong.push(`${mode}: git diff with the rule ${said(plain)} · without ${said(bare)}`)
+  }
+  check('a call that names the folder to run in is judged in that folder: git show HEAD~1 there is refused in all six modes, git diff there is answered as with no rule', wrong.length === 0, wrong.join(' ‖ '))
+  const named = await decide('Bash', { command: 'cat k.txt', cwd: 'secrets' }, 'default', READ)
+  check('control · the kit hands the folder a call names to the decision: cat k.txt run in secrets is refused by the rule', named.behavior === 'deny' && (named.message ?? '').includes(SECRET), said(named))
+}
+
 section('§3 the working tree and the index are read as they stand')
 {
+  for (const command of ['git status', 'git status -v', 'git status -vv', 'git status --verbose --verbose', 'git status -sb']) {
+    const wrong: string[] = []
+    for (const mode of EVERY_MODE) {
+      const ruled = await bash(command, mode)
+      const bare = await bash(command, mode, {})
+      if (ruled.behavior !== bare.behavior) wrong.push(`${mode}: with the rule ${said(ruled)} · without ${said(bare)}`)
+    }
+    check(`with the denied file untouched, ${shown(command)} is answered in all six modes as with no rule in force`, wrong.length === 0, wrong.join(' ‖ '))
+  }
   put('secrets/k.txt', 'changed\n', true)
   const wrong: string[] = []
   for (const mode of EVERY_MODE) {
@@ -131,9 +154,40 @@ section('§3 the working tree and the index are read as they stand')
     if (decision.behavior !== 'deny' || !(decision.message ?? '').includes(SECRET)) wrong.push(`${mode}: ${said(decision)}`)
   }
   check('with the denied file changed in the working tree, a bare git diff is refused in all six modes', wrong.length === 0, wrong.join(' ‖ '))
+  const judged = async (command: string, printed: boolean): Promise<string[]> => {
+    const wrong: string[] = []
+    for (const mode of ['sovereign', 'default'] as const) {
+      const ruled = await bash(command, mode)
+      const bare = await bash(command, mode, {})
+      if (printed ? ruled.behavior !== 'deny' || !(ruled.message ?? '').includes(SECRET) : ruled.behavior !== bare.behavior) wrong.push(`${mode}: with the rule ${said(ruled)} · without ${said(bare)}`)
+    }
+    return wrong
+  }
+  for (const [command, printed] of [['git status -vv', true], ['git status --verbose --verbose', true], ['git status -v -v', true], ['git status --verb --v', true], ['git status -vv -- src', true], ['git status -v', false], ['git status', false], ['git status -svv', false], ['git status --porcelain -vv', false], ['git status -vv --no-verbose', false]] as const) {
+    const wrong = await judged(command, printed)
+    check(`…and ${shown(command)}, which ${printed ? 'prints the unstaged change whatever paths it names, is refused by the rule' : 'does not print it, is answered as with no rule in force'} (sovereign and default)`, wrong.length === 0, wrong.join(' ‖ '))
+  }
+  {
+    const refused = await bash('git status -vv', 'default')
+    const words = refused.message ?? ''
+    const advice = words.includes('name what to print: ') ? words.slice(words.indexOf('name what to print: ') + 'name what to print: '.length).trim() : ''
+    const followed = advice === '' ? null : await bash(advice, 'default')
+    check(`…and its refusal names a diff that leaves the file out, which runs: ${shown(advice).slice(0, 90)}`, advice.startsWith('git diff HEAD -- ') && followed !== null && followed.behavior === 'allow', followed === null ? words : said(followed))
+  }
   const cached = await bash('git diff --cached', 'sovereign')
   check('…and git diff --cached, which would not print it, still runs', cached.behavior === 'allow', said(cached))
   git('add', 'secrets/k.txt')
+  for (const [command, printed] of [['git status -v', true], ['git status --verbose', true], ['git status --v -- src', true], ['git -C sub status -v', true], ['git status -sv', false], ['git status -v -z', false]] as const) {
+    const wrong = await judged(command, printed)
+    check(`with the change staged, ${shown(command)}, which ${printed ? 'prints the staged change, is refused by the rule' : 'prints no diff, is answered as with no rule in force'} (sovereign and default)`, wrong.length === 0, wrong.join(' ‖ '))
+  }
+  {
+    const refused = await bash('git status -v', 'sovereign')
+    const words = refused.message ?? ''
+    const advice = words.includes('name what to print: ') ? words.slice(words.indexOf('name what to print: ') + 'name what to print: '.length).trim() : ''
+    const followed = advice === '' ? null : await bash(advice, 'sovereign')
+    check(`…and its refusal names the staged diff with the file left out, which runs: ${shown(advice).slice(0, 90)}`, advice.startsWith('git diff --cached -- ') && followed !== null && followed.behavior === 'allow', followed === null ? words : said(followed))
+  }
   const staged: string[] = []
   for (const mode of EVERY_MODE) {
     const decision = await bash('git diff --cached', mode)
