@@ -279,14 +279,13 @@ export function recallQuery(
       continue
     }
     if (hit.slug === PENDING_SLUG) {
-      const signatureMatch = /\[unconsolidated, ([^,]+), ([^\]]+)\]$/.exec(hit.text)
-      const ts = signatureMatch?.[1] ?? ''
+      const row = /^(.*) \[unconsolidated, ([^,]+), ([^\]]+)\]$/s.exec(hit.text)
       hits.push({
-        id: `pending:${ts}`,
+        id: `pending:${row?.[2] ?? ''}`,
         label: 'pending',
         slug: PENDING_SLUG,
-        preview: clip(hit.text.replace(/ \[unconsolidated.*$/, '')),
-        signature: signatureMatch ? `time=${signatureMatch[1]}, source=${signatureMatch[2]}` : 'unconsolidated',
+        preview: clip(row?.[1] ?? hit.text.replace(/ \[unconsolidated.*$/, '')),
+        signature: row ? `time=${row[2]}, source=${row[3]}` : 'unconsolidated',
       })
       continue
     }
