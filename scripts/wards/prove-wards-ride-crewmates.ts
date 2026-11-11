@@ -212,6 +212,29 @@ section('§8 no count of refusals stands a rule down: thirty refused calls of a 
   check('…as is a command of the refusal list', still.warded && !still.reached, still.text.slice(0, 160))
 }
 
+section('§9 a command embedded in the text of a skill or a custom command is judged before it is asked about')
+{
+  const { executeShellCommandsInPrompt } = await import(join(SRC, 'utils/promptShellExecution.ts'))
+  const askingState = { ...appState, toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default', shouldAvoidPermissionPrompts: true } }
+  const asking = { ...sessionContext, getAppState: () => askingState }
+  const theirs = createSubagentContext(asking as never, {})
+  const embedded = [
+    ['sudo, inline', 'Run this first: !`sudo true`'],
+    ['a write of the global git config, in a block', '```!\ngit config --global core.editor vi\n```'],
+  ] as const
+  for (const [label, text] of embedded) {
+    for (const [who, context] of [['the session', asking], ['a crewmate', theirs]] as const) {
+      let words = ''
+      try {
+        await executeShellCommandsInPrompt(text, context as never, 'ride-probe')
+      } catch (error) {
+        words = error instanceof Error ? error.message : String(error)
+      }
+      check(`${who} · ${label} · refused by a ward before any permission question`, /Ward '[a-z-]+' blocked this Bash call/.test(words), words.slice(0, 200))
+    }
+  }
+}
+
 console.log('\n' + '='.repeat(60))
 console.log(failures === 0 ? ` ✅ wards ride crewmates: ${checks} checks, 0 failures` : ` ❌ wards ride crewmates: ${failures} of ${checks} checks failed`)
 process.exit(failures === 0 ? 0 : 1)

@@ -133,6 +133,10 @@ function guardWatches(guard: ToolGuard, tool: string): boolean {
   return guard.tools === undefined || guard.tools.includes(tool)
 }
 
+export function guardKeysOf(sessionId: string, contextId: string | undefined): string | readonly string[] {
+  return contextId === undefined ? sessionId : [sessionId, contextId]
+}
+
 export async function judgeToolCall(keys: string | readonly string[], call: ToolCallUnderGuard, signal?: AbortSignal): Promise<ToolCallJudgement> {
   const notes: SystemInformationalMessage[] = []
   for (const key of new Set(typeof keys === 'string' ? [keys] : keys)) {

@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
+import { canAnswerAsks, getSessionId } from '../bootstrap/state.js'
+import { guardKeysOf, judgeToolCall } from '../guards/guards.js'
 import type { ToolUseContext } from '../Tool.js'
 import { BashTool } from '../tools/BashTool/BashTool.js'
 import { logForDebugging } from './debug.js'
@@ -52,6 +54,22 @@ async function runEmbeddedCommand(
   shell: FrontmatterShell | undefined,
 ): Promise<string> {
   const tool = resolveShellTool(shell)
+  const judgement = await judgeToolCall(
+    guardKeysOf(getSessionId(), context.agentId),
+    {
+      tool: tool.name,
+      input: { command },
+      callId: randomUUID(),
+      messages: context.messages,
+      toolRef: tool as never,
+      asksAnswerable: canAnswerAsks() && context.getAppState().toolPermissionContext.shouldAvoidPermissionPrompts !== true,
+    },
+    context.abortController.signal,
+  )
+  if (judgement.refused) {
+    logForDebugging(`promptShellExecution: a guard refused ${slashCommandName}: ${command} (${judgement.guard})`)
+    throw new MalformedCommandError(`Permission check failed for the matched pattern "${command}": ${judgement.reason}`)
+  }
   const syntheticAssistant = createAssistantMessage({ content: [] })
   const permission = await hasPermissionsToUseTool(
     tool as never,

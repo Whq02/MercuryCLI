@@ -10,7 +10,7 @@ import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { completionIdentity } from '../agentResults/summaryRoom.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { addToToolDuration, canAnswerAsks, getSessionId, getSessionKind, getStatsStore } from '../../bootstrap/state.js'
-import { judgeToolCall } from '../../guards/guards.js'
+import { guardKeysOf, judgeToolCall } from '../../guards/guards.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import type { PermissionDecisionReason } from '../../types/permissions.js'
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
@@ -613,7 +613,7 @@ async function runTransactionBody(args: {
   const asksAnswerable =
     canAnswerAsks() && toolUseContext.getAppState().toolPermissionContext.shouldAvoidPermissionPrompts !== true
   const judgement = await judgeToolCall(
-    toolUseContext.agentId === undefined ? getSessionId() : [getSessionId(), toolUseContext.agentId],
+    guardKeysOf(getSessionId(), toolUseContext.agentId),
     { tool: tool.name, input: observableInput, callId: toolUseID, messages: toolUseContext.messages, toolRef: tool, asksAnswerable },
     signal,
   )
