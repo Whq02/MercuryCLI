@@ -1,6 +1,6 @@
 import { readFile } from 'fs/promises'
 import { dirname, join } from 'path'
-import { getProcessStartTokenAsync, isProcessAlive } from '../daemon/ownerWatch.js'
+import { getProcessStartInstantAsync, getProcessStartTokenAsync, isProcessAlive } from '../daemon/ownerWatch.js'
 import { tokenBinding } from '../daemon/processSweep.js'
 import { publishAtomic } from '../substrate/fileStore.js'
 import { endProcessTree } from '../utils/processGroup.js'
@@ -71,7 +71,7 @@ async function publish(sessionId: string, launches: TaskLaunchRecord[]): Promise
 export function recordTaskLaunch(sessionId: string, launch: Omit<TaskLaunchRecord, 'v' | 'startToken'>): Promise<void> {
   return chained(sessionId, async () => {
     try {
-      const startToken = launch.pid === null ? null : await getProcessStartTokenAsync(launch.pid)
+      const startToken = launch.pid === null ? null : await getProcessStartInstantAsync(launch.pid)
       const launches = (await loadFile(sessionId)).filter(row => row.taskId !== launch.taskId)
       launches.push({ ...launch, v: TASK_LAUNCH_LEDGER_VERSION, command: launch.command.slice(0, MAX_COMMAND_CHARS), startToken })
       if (launches.length > MAX_LAUNCHES) launches.splice(0, launches.length - MAX_LAUNCHES)
@@ -129,7 +129,7 @@ export async function reconcileTaskLaunchesOnResume(sessionId: string, liveTaskI
     let fate: OrphanProcessFate = 'gone'
     if (record.pid !== null && record.pid > 1 && record.pid !== process.pid && isProcessAlive(record.pid)) {
       fate = 'unconfirmed'
-      const observed = await getProcessStartTokenAsync(record.pid)
+      const observed = await getProcessStartTokenAsync(record.pid, record.startToken)
       if (tokenBinding(record.startToken, observed) === 'bound') {
         const receipt = await endProcessTree(record.pid, 'SIGKILL')
         if (receipt.ended > 0 || !isProcessAlive(record.pid)) {

@@ -8,7 +8,7 @@ import { getMercuryHome } from '../utils/envUtils.js'
 import { readSessionWorkersSnapshot, stampedTerminalPid, type ConcourseWorkerRecordV1 } from './concourseWorkers.js'
 import { daemonControlRpc, daemonDir } from './controlSocket.js'
 import { sessionParkDrainMs } from './idleRetirement.js'
-import { getProcessStartTokenAsync } from './ownerWatch.js'
+import { getProcessStartInstantAsync } from './ownerWatch.js'
 import type { DaemonReply, DaemonRequest } from './protocol.js'
 import {
   PROCESS_SWEEP_WORDS,
@@ -89,7 +89,7 @@ export async function registerCockpit(options: { terminal: string | null; home?:
     schema: REGISTRATION_SCHEMA,
     id,
     pid: process.pid,
-    startToken: await getProcessStartTokenAsync(process.pid),
+    startToken: await getProcessStartInstantAsync(process.pid),
     exe: process.execPath,
     bundle: process.argv[1] ?? '',
     configHome: home,
@@ -179,6 +179,7 @@ async function readPlane(dir: string, own: boolean, rpc: (request: DaemonRequest
       daemon = {
         pid: raw.pid,
         startToken: typeof raw.startToken === 'string' ? raw.startToken : raw.startToken === null ? null : undefined,
+        ...(typeof raw.startInstant === 'string' && raw.startInstant !== '' ? { startInstant: raw.startInstant } : {}),
         ownerPid: typeof raw.ownerPid === 'number' ? raw.ownerPid : raw.ownerPid === null ? null : undefined,
         persist: typeof raw.persist === 'boolean' ? raw.persist : undefined,
         startedAt: raw.startedAt,

@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } fro
 import { Box, Text, useInput } from '../../ink.js';
 import { chatPresent, concourseWayBack, plainWorldWhy, stripKeyMapHint, subscribeSurfaceRoute, surfaceRouteVersion } from '../../context/surfaceRoute.js';
 import { useRegisterOverlay } from '../../context/overlayContext.js';
+import { ROW_LINE_GLYPH_CELLS, ROW_LINE_INSET, rowLineLines, rowLineRows, rowNowCellWidth } from './rowLine.js'
+import { stringWidth } from '../../ink/stringWidth.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 import { boardSelectionClassOf, browseKeysFor, closeChordHintOf, closeChordReceiptOf, closeChordRungOf, CONCOURSE_HELP_KEY, helpKeyFiresFor, managerPaneKeysFor, regionKeysFor, withoutManagerPaneKeys } from './controlManifest.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
@@ -36,6 +38,7 @@ import {
   ageLabelOf,
   OLDER_CHATS_ROW_PREFIX,
   olderChatsCensus,
+  PARK_REFUSED_NOW_LEAD,
   readCoordinatorComposerDraft,
   subscribeCoordinatorDraftChanges,
   writeCoordinatorComposerDraft,
@@ -1327,14 +1330,44 @@ export function ConcourseScreen({
     const hint = closeChordHintOf(closeChordRungOf(boardSelectionClassOf(peekSelRow), closeChordStaged), peekSelRow?.newborn === true)
     return hint === null ? null : keyHintLabel(hint)
   })()
-  const chipRows =
-    !rowPeekOpen && (chipLine !== null || rowControlNote !== undefined || boardArmed === peekSelRow?.sessionId || closeChordHint !== null) ? 1 : 0
+  const selectedRowLineOf = (nowCellWidth: number): { glyph: string; words: string; tone: 'info' | 'success' | 'instruction' | 'warning' | 'failure' } | null => {
+    const sel = peekSelRow
+    if (sel === undefined) return null
+    if (closeChordHint !== null) return { glyph: GLYPH.handoff, words: closeChordHint, tone: 'info' }
+    if (rowControlNote !== undefined) {
+      const n = controlNoteOf(rowControlNote)
+      return {
+        glyph: n.state === 'applied' ? GLYPH.ok : n.state === 'pending' || n.state === 'held' ? GLYPH.pending : GLYPH.fail,
+        words: `${n.reason ?? n.state}${n.next !== undefined ? ` · ${n.next}` : ''}`,
+        tone: n.state === 'applied' ? 'success' : n.state === 'pending' ? 'instruction' : n.state === 'held' ? 'warning' : 'failure',
+      }
+    }
+    if (boardArmed === sel.sessionId) {
+      return {
+        glyph: GLYPH.handoff,
+        words: `${liveDraft.text.trim().length > 0 ? 'armed — ↵ sends the draft · → enters' : 'armed — ↵ again enters'}${liveDraft.text.trim().length === 0 && liveComposerGate(sel).ok && broadcastFaceOf(markedRows.length) === null ? ' · tab to message' : ''} · esc disarms`,
+        tone: 'info',
+      }
+    }
+    const refusal = sel.nowLabel ?? ''
+    if (refusal.startsWith(PARK_REFUSED_NOW_LEAD) && stringWidth(refusal) > nowCellWidth) return { glyph: GLYPH.fail, words: refusal, tone: 'failure' }
+    if (chipLine !== null) return { glyph: GLYPH.ok, words: chipLine, tone: 'warning' }
+    return null
+  }
   const olderRows = olderList !== null ? Math.max(2, Math.min(ROW_PEEK_DESIRED_ROWS, olderList.entries.length + 1)) : 0
   const focusTall: 'mirror' | 'coordinator' = region === 'coordinator' ? 'coordinator' : 'mirror'
   const thirdPaneRows = reducedStage ? REDUCED_NOTICE_ROWS : coordinatorOn ? COORDINATOR_REST_ROWS : 0
   const coordBandDesired = draftWindow(draft, 5).bandRows
   const liveDraftDesired = reducedStage ? 0 : draftWindow(liveDraft, 3).bandRows
   const boardGroupCount = useMemo(() => boardGroups.filter(g => g.rows.length > 0).length, [boardGroups])
+  const listPane = useMemo(() => {
+    const bare = switchboardGeometry(cols, termRows, snapshot.needsYou.length, sessionRows.length + (newSessionLine ? 1 : 0), boardGroupCount, liveDraftDesired, focusTall, 0, region, thirdPaneRows)
+    const pane = bare.profile === 'wide' ? bare.rightCols[1] - bare.rightCols[0] + 1 : bare.interior
+    return { lineWidth: Math.max(16, pane - ROW_LINE_INSET), nowCellWidth: rowNowCellWidth(bare.constrained ? bare.interior : pane - 4) }
+  }, [cols, termRows, snapshot.needsYou.length, sessionRows.length, newSessionLine, boardGroupCount, liveDraftDesired, focusTall, region, thirdPaneRows])
+  const rowLineWidth = listPane.lineWidth
+  const selectedRowLine = selectedRowLineOf(listPane.nowCellWidth)
+  const chipRows = !rowPeekOpen && selectedRowLine !== null ? rowLineRows(selectedRowLine.words, rowLineWidth) : 0
   const geo = useMemo(
     () =>
       switchboardGeometry(
@@ -2205,55 +2238,31 @@ export function ConcourseScreen({
         rowPeekNode={(rows, width) => {
           const sel = peekSelRow
           if (sel === undefined) return null
-          const chipNode =
-            chipLine !== null ? (
-              <Box height={1} flexShrink={0} overflow="hidden">
-                <Text color={t.warning} wrap="truncate-end">
-                  {GLYPH.ok} {chipLine}
-                </Text>
-              </Box>
-            ) : null
-          const receiptNode = (() => {
-            if (rowControlNote === undefined) return null
-            const n = controlNoteOf(rowControlNote)
-            const ink =
-              n.state === 'applied' ? t.success
-              : n.state === 'pending' ? t.textInstruction
-              : n.state === 'held' ? t.warning
-              : t.failureText
-            const glyph =
-              n.state === 'applied' ? GLYPH.ok
-              : n.state === 'pending' ? GLYPH.pending
-              : n.state === 'held' ? GLYPH.pending
-              : GLYPH.fail
-            return (
-              <Box height={1} flexShrink={0} overflow="hidden">
-                <Text color={ink} wrap="truncate-end">
-                  {glyph} {n.reason ?? n.state}
-                  {n.next !== undefined ? ` · ${n.next}` : ''}
-                </Text>
-              </Box>
-            )
-          })()
-          const armedNode =
-            boardArmed === sel.sessionId ? (
-              <Box height={1} flexShrink={0} overflow="hidden">
-                <Text color={t.info} wrap="truncate-end">
-                  {GLYPH.handoff} {liveDraft.text.trim().length > 0 ? 'armed — ↵ sends the draft · → enters' : 'armed — ↵ again enters'}
-                  {}
-                  {liveDraft.text.trim().length === 0 && liveComposerGate(sel).ok && broadcastFaceOf(markedRows.length) === null ? ' · tab to message' : ''} · esc disarms
-                </Text>
-              </Box>
-            ) : null
-          const closeHintNode =
-            closeChordHint !== null ? (
-              <Box height={1} flexShrink={0} overflow="hidden">
-                <Text color={t.info} wrap="truncate-end">
-                  {GLYPH.handoff} {closeChordHint}
-                </Text>
-              </Box>
-            ) : null
-          const rowLine = closeHintNode ?? receiptNode ?? armedNode ?? chipNode
+          const rowLine =
+            selectedRowLine === null ? null : (() => {
+              const ink =
+                selectedRowLine.tone === 'success' ? t.success
+                : selectedRowLine.tone === 'instruction' ? t.textInstruction
+                : selectedRowLine.tone === 'warning' ? t.warning
+                : selectedRowLine.tone === 'failure' ? t.failureText
+                : t.info
+              const lines = rowLineLines(selectedRowLine.words, rowLineWidth)
+              const whole = rows >= lines.length
+              return (
+                <Box height={whole ? rows : 1} flexShrink={0} overflow="hidden" flexDirection="row">
+                  <Box width={ROW_LINE_GLYPH_CELLS} flexShrink={0}>
+                    <Text color={ink}>{selectedRowLine.glyph} </Text>
+                  </Box>
+                  <Box flexGrow={1} flexShrink={1} overflow="hidden" flexDirection="column">
+                    {(whole ? lines : [selectedRowLine.words]).map((line, at) => (
+                      <Text key={at} color={ink} wrap="truncate-end">
+                        {line}
+                      </Text>
+                    ))}
+                  </Box>
+                </Box>
+              )
+            })()
           if (sel.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX) && olderList !== null) {
             const span = Math.max(1, rows - 1)
             const win = paneWindow(olderList.entries.length, olderList.at, span)

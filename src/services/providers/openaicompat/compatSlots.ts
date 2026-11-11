@@ -37,7 +37,7 @@ export async function assignLlamacppSlot(
     const held = holders.find(row => row.owner === owner && row.slot < totalSlots)
     holders = holders.filter(row => {
       if (row.owner === owner || row.slot >= totalSlots || !isProcessAlive(row.pid)) return false
-      const token = row.start ? getProcessStartTokenCachedOrRefresh(row.pid) : null
+      const token = row.start ? getProcessStartTokenCachedOrRefresh(row.pid, undefined, row.start) : null
       return token === null || token === row.start
     })
     const counts = new Map<number, number>()

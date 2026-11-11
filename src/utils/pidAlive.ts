@@ -7,6 +7,6 @@ export function pidAlive(pid: number, startToken?: string): boolean {
     return false
   }
   if (!startToken) return true
-  const live = getProcessStartTokenCachedOrRefresh(pid)
+  const live = getProcessStartTokenCachedOrRefresh(pid, undefined, startToken)
   return live === null || live === startToken
 }

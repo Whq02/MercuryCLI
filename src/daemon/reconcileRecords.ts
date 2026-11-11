@@ -10,7 +10,7 @@ import {
   readDaemonState,
   daemonStatePath,
 } from './controlSocket.js'
-import { getProcessStartTokenAsync, isProcessAlive } from './ownerWatch.js'
+import { getProcessStartInstantAsync, getProcessStartTokenAsync, isProcessAlive } from './ownerWatch.js'
 import { daemonRecordIdentity } from './verbs.js'
 
 interface DaemonRecordsReconcile {
@@ -31,7 +31,7 @@ export async function reconcileDaemonRecords(opts?: {
   const sup = await readDaemonState()
   let recordPidRecycled = false
   if (sup && isProcessAlive(sup.pid)) {
-    const verdict = daemonRecordIdentity(sup, await getProcessStartTokenAsync(sup.pid))
+    const verdict = daemonRecordIdentity(sup, await (sup.startToken ? getProcessStartTokenAsync(sup.pid, sup.startToken) : getProcessStartInstantAsync(sup.pid)))
     if (verdict !== 'not-recorded-process') {
       return { state: 'live', cleaned: [], reason: `daemon pid ${sup.pid} alive` }
     }

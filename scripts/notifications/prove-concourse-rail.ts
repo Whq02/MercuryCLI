@@ -162,6 +162,7 @@ try {
 
 const BURST = 'concourse rail echo!'
 const COORDINATOR_REST = 'talk to the coordinator'
+const EMPTY_LIST_FOCUSED = 'new session · n'
 const fixtureDir2 = mkdtempSync(join(tmpdir(), 'concourse-echo-'))
 
 let sidecarState = 'never-fired'
@@ -204,7 +205,7 @@ const erun: ArenaRun = await runArtifactArena({
     }, S(18_000))
     ;(fallback as { unref?: () => void }).unref?.()
   },
-  sends: BURST.split('').map((ch, i) => `after:${COORDINATOR_REST}:${1000 + i * 30}:${ch}`),
+  sends: [`after:${EMPTY_LIST_FOCUSED}:900:\r`, ...BURST.split('').map((ch, i) => `after:${COORDINATOR_REST}:${1000 + i * 30}:${ch}`)],
   seconds: 23,
   cols: 200,
   rows: 38,
@@ -226,7 +227,7 @@ try {
     g => !g.rows.some(r => r.includes(BURST)) && g.rows.some(r => r.includes('COORDINATOR')),
   )
 
-  t.section('§5 — the 30ms burst echoes COMPLETELY (rendered == typed) in the coordinator composer: the switch on, the arena\'s face ↵ landing on the empty list hands the keys to the coordinator pane')
+  t.section('§5 — the 30ms burst echoes COMPLETELY (rendered == typed) in the coordinator composer: the switch on, the drive\'s own ↵ on the empty list hands the keys to the coordinator pane')
   t.check('the full 20-char burst painted in the coordinator composer', withBurst.length > 0, withBurst[0] ? `@${withBurst[0].atMs}` : `never seen · ${grabs.map(g => `@${g.atMs} ${g.rows.find(r => r.includes('COORDINATOR'))?.trim().slice(0, 50) ?? '(no COORDINATOR row)'}`).slice(0, 6).join(' | ')}`)
 
   t.section('§6 — an external store clear beats the local echo (D2 §4b)')

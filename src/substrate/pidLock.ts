@@ -32,7 +32,7 @@ async function liveTokenFor(holder: PidLockHolder | null): Promise<string | null
     const probed = await getProcessStartTokenAsync(holder.pid)
     return probed === '' ? '' : null
   }
-  return getProcessStartTokenAsync(holder.pid)
+  return getProcessStartTokenAsync(holder.pid, holder.procStart)
 }
 
 export interface PidLockHolder {
@@ -98,7 +98,7 @@ export function holderAlive(
   }
   if (holder.procStart) {
     const current =
-      liveToken !== undefined ? liveToken : (procStartToken(holder.pid) ?? getProcessStartTokenCachedOrRefresh(holder.pid))
+      liveToken !== undefined ? liveToken : (procStartToken(holder.pid) ?? getProcessStartTokenCachedOrRefresh(holder.pid, undefined, holder.procStart))
     if (current === '') return false
     if (current !== null && current !== undefined && current !== holder.procStart) return false
   }

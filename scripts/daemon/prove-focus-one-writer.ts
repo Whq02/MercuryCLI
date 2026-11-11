@@ -27,6 +27,7 @@ function grepSrc(pattern: string): string[] {
 }
 
 const sup = await import('../../src/daemon/concourseWorkers.ts')
+const { retiringRunners } = await import('./retiring-runners.ts')
 const dir = process.env.MERCURY_DAEMON_DIR!
 const DEAD_PID = 2_147_000_000
 const T = 10 * 60_000
@@ -91,7 +92,13 @@ console.log('W2 the state table: the fact moves with every slot-in and leaves wi
   check('reactivate A (the door says focus again) ⇒ A is the seat', reactivate.outcome === 'applied' && focusedBy(seat).join(',') === 'concourse-w1')
   const hopBusy = sup.focusConcourseSession(sid('c'), seat, dir)
   const requested = sup.parkConcourseSession(sid('c'), seat, roster, dir)
-  check('a park REQUESTED mid-turn keeps the stamp while the chat finishes on screen; the completed park clears it', hopBusy.outcome === 'applied' && requested.outcome === 'draining' && rec('concourse-w3')?.focusedAt !== undefined && (sup.updateConcourseWorkers(ws => { ws['concourse-w3']!.lastTurnSettledAt = now }, dir), sup.completeRequestedPark('concourse-w3', roster, dir)) && rec('concourse-w3')?.focusedAt === undefined)
+  const stampHeld = rec('concourse-w3')?.focusedAt !== undefined && rec('concourse-w3')?.parkRequestedAt !== undefined
+  sup.updateConcourseWorkers(ws => { ws['concourse-w3']!.lastTurnSettledAt = now }, dir)
+  const retiring = retiringRunners(sup, dir, DEAD_PID)
+  retiring.seat('concourse-w3')
+  const retired = await sup.retireRequestedPark('concourse-w3', retiring.roster, dir, { exitWaitMs: 2_000 })
+  retiring.close()
+  check('a park REQUESTED mid-turn keeps the stamp while the chat finishes on screen; the completed park clears it', hopBusy.outcome === 'applied' && requested.outcome === 'draining' && stampHeld && retired && rec('concourse-w3')?.parkedAt !== undefined && rec('concourse-w3')?.focusedAt === undefined)
   sup.focusConcourseSession(sid('a'), seat, dir)
   const blur = sup.blurConcourseSession(sid('a'), seat, dir)
   check('blur (the close-all detach) ⇒ cleared', blur.outcome === 'applied' && focusedBy(seat).length === 0)

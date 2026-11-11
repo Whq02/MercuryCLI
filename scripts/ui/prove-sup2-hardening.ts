@@ -490,7 +490,7 @@ console.log('§31 pidlock + daemon stop — the reuse guard reaches every platfo
   check('acquire records a token on every platform', lock.includes('...(await currentProcStartAnyPlatform()).procStartField'))
   check('holderAlive takes the pre-fetched live token', lock.includes('liveToken?: string | null'))
   check("a gone answer ('') is dead; unknown stays alive", lock.includes("if (current === '') return false") && lock.includes('current !== null && current !== undefined && current !== holder.procStart'))
-  check('the sync fallback never spawns on the loop (cached-or-refresh)', lock.includes('getProcessStartTokenCachedOrRefresh(holder.pid)'))
+  check('the sync fallback never spawns on the loop (cached-or-refresh)', lock.includes('getProcessStartTokenCachedOrRefresh(holder.pid, undefined, holder.procStart)'))
   check('all three async callers pre-fetch', (lock.match(/await liveTokenFor\(/g) ?? []).length === 3)
   const main = read('src/daemon/main.ts')
   const stopArm = main.slice(main.indexOf('async function daemonStopCmd'), main.indexOf('async function daemonRestartCmd'))

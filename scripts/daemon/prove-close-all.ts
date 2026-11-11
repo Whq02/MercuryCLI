@@ -22,6 +22,7 @@ const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'ut
 const sup = await import('../../src/daemon/concourseWorkers.ts')
 const idle = await import('../../src/daemon/idleRetirement.ts')
 const handover = await import('../../src/substrate/splashHandover.ts')
+const { retiringRunners } = await import('./retiring-runners.ts')
 const dir = process.env.MERCURY_DAEMON_DIR!
 const DEAD_PID = 2_147_000_000
 const T = 10 * 60_000
@@ -65,7 +66,10 @@ console.log('Q1 the quit story: the screen dies, the estate parks, the next boot
   check("stopped ⇒ untouched (the operator's own state)", receipt.skipped.join(',') === 'concourse-w4' && rec('concourse-w4')?.stoppedAt !== undefined && rec('concourse-w4')?.parkedAt === undefined)
   check('the drain set names the mid-turn runners', sup.pendingParkRequests(dir).sort().join(',') === 'concourse-w2,concourse-w5')
   sup.updateConcourseWorkers(ws => { ws['concourse-w2']!.lastTurnSettledAt = now }, dir)
-  check("the runner's own turn-settled edge completes the park (killed, parked, the request cleared)", sup.completeRequestedPark('concourse-w2', roster, dir) && killed.includes('concourse-w2') && rec('concourse-w2')?.parkedAt !== undefined && rec('concourse-w2')?.parkRequestedAt === undefined)
+  const retiring = retiringRunners(sup, dir, DEAD_PID)
+  retiring.seat('concourse-w2')
+  check("the runner's own turn-settled edge completes the park: the runner retires by its own leave (asked, never killed), parked, the request cleared", !sup.completeRequestedPark('concourse-w2', roster, dir) && (await sup.retireRequestedPark('concourse-w2', retiring.roster, dir, { exitWaitMs: 2_000 })) && retiring.askedOf('concourse-w2') === 'prepare,commit' && !killed.includes('concourse-w2') && retiring.killed.length === 0 && rec('concourse-w2')?.parkedAt !== undefined && rec('concourse-w2')?.parkRequestedAt === undefined)
+  retiring.close()
   check('the drain set shrinks to the one still working', sup.pendingParkRequests(dir).join(',') === 'concourse-w5')
   const cut = sup.parkConcourseSession(sid('5'), 'daemon:owner-orphaned', roster, dir, { afterTurn: false, reason: sup.PARK_DRAIN_CUT_REASON })
   check('a request still standing at the ceiling is cut: parked now, the row says so', cut.outcome === 'applied' && killed.includes('concourse-w5') && rec('concourse-w5')?.parkReason === 'parked — turn cut at the drain ceiling' && sup.pendingParkRequests(dir).length === 0)
@@ -120,7 +124,7 @@ console.log('Q4 the quit parks all — the screen and the daemon')
   check("the owned daemon's orphan reap parks-all first", parkAllAt !== -1 && parkAllBody.includes('parkAllConcourseSessions(`daemon:${signal}`, roster ?? undefined)') && daemon.includes("void parkAllThenShutdown('owner-orphaned')") && !daemon.includes("shutdown('owner-orphaned')\n"))
   check('it drains the mid-turn parks under the registered ceiling, cuts with the ruled reason, then shuts down — latched', parkAllBody.includes('pendingParkRequests().length > 0 && Date.now() - startedDrain < ceilingMs') && parkAllBody.includes('sessionParkDrainMs()') && parkAllBody.includes('reason: PARK_DRAIN_CUT_REASON') && parkAllBody.indexOf('shutdown(signal)') > parkAllBody.indexOf('reason: PARK_DRAIN_CUT_REASON') && parkAllBody.includes('if (orphanParking || shuttingDown) return'))
   check("the daemon's park-all from a screen keeps a chat another LIVE terminal holds; the reap keeps nothing back", daemon.includes('exceptFocusedByLiveTerminal: true') && !parkAllBody.includes('exceptFocusedByLiveTerminal'))
-  check("the roster's idle edge completes a requested park while the drain runs", daemon.includes('completeRequestedPark(short, roster)'))
+  check("the roster's idle edge completes a requested park while the drain runs: the record's own completion, then the runner's retirement", daemon.includes('if (completeRequestedPark(short, roster)) {') && daemon.includes('void retireRequestedPark(short, roster)'))
 }
 
 console.log("Q5 the only session's release: the board stays, the reason shows")
