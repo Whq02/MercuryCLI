@@ -640,6 +640,15 @@ function globNamesStore(word: string, cwd: string, homes: readonly string[], hid
   return false
 }
 
+const UPLOADERS = new Set(['curl', 'wget'])
+
+function secretNameBehindUnread(word: string, homes: readonly string[]): boolean {
+  if (wordKnown(word)) return false
+  const name = posix.basename(word.replace(/\\/g, '/'))
+  if (name === '' || !wordKnown(name) || GLOB_PART.test(name)) return false
+  return homes.some(home => mercurySecretPath(name, home) !== null)
+}
+
 const CD_PROGRAMS = new Set(['cd', 'chdir', 'pushd', 'set-location', 'sl', 'push-location'])
 const FOLDER_CAP = 16
 const ON_CONVENTIONAL_WAY = new RegExp(`^(?:\\/(?:users|home)|[a-z]:\\/users|${CONVENTIONAL_USER_HOME}(?:\\/\\.mercury(?:\\/.*)?)?)$`)
@@ -825,11 +834,13 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       if (redirect.op !== '<') continue
       for (const candidate of spellingsOf(redirect.target)) {
         if (mercurySecretPath(candidate, here) !== null || ((reads || wordKnown(candidate)) && couldNameSecret(candidate, here, homes))) return redirect.target
+        if (secretNameBehindUnread(candidate, homes)) return candidate.replaceAll(UNREAD_PART, '$(…)')
       }
     }
     for (const word of simple.input === undefined ? [] : simple.input.split(/\s+/)) {
       for (const candidate of spellingsOf(word)) {
         if (mercurySecretPath(candidate, here) !== null || ((fedNames || wordKnown(candidate)) && couldNameSecret(candidate, here, homes))) return word
+        if (fedNames && secretNameBehindUnread(candidate, homes)) return candidate.replaceAll(UNREAD_PART, '$(…)')
       }
     }
     for (const layer of layers) {
@@ -842,6 +853,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       for (const word of [...layer.argv.slice(1), ...roots]) {
         for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {
           if (mercurySecretPath(candidate, here) !== null || ((FILE_READERS.has(layer.program) || wordKnown(candidate)) && couldNameSecret(candidate, here, homes))) return word
+          if ((FILE_READERS.has(layer.program) || UPLOADERS.has(layer.program)) && secretNameBehindUnread(candidate, homes)) return candidate.replaceAll(UNREAD_PART, '$(…)')
           if ((tree || feeds) && namesMercuryHome(candidate, here, homes)) return word
         }
       }
