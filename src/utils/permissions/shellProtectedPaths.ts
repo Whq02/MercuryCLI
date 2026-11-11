@@ -1,10 +1,10 @@
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
 import { posix } from 'node:path'
 import { getShellCwd } from '../Shell.js'
 import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../envUtils.js'
 import { CREDENTIALS_SERVICE_SUFFIX, getMacOsKeychainStorageServiceName, getRawSpellingKeychainStorageServiceName } from '../secureStorage/macOsKeychainHelpers.js'
-import { UNREAD_PART, layersOf, readShellCommands, type Layer, type ReadCommand, type ShellRead } from '../wards/wardsShellRead.js'
+import { UNREAD_PART, layersOf, printedBy, readShellCommands, type Layer, type ReadCommand, type ShellRead } from '../wards/wardsShellRead.js'
 import { credentialStorePath, mercurySecretPath, protectedPathForms, spelling } from './protectedPaths.js'
 import { pinnedCommandAnalysis, peelWrappers, PARSE_ABORTED, extractHeredocs, type Node } from './decision/commandAnalysis.js'
 import { namesMercuryProcess, runtimeWritePath, runtimeProcessRefusal } from './runtimeProtection.js'
@@ -301,7 +301,7 @@ function updateTrackedCwd(argv: string[], cwd: string): string {
   const name = verb(argv[0] ?? '')
   if (['cd', 'chdir', 'set-location', 'sl', 'pushd', 'push-location'].includes(name)) {
     const target = argv.slice(1).find(word => !word.startsWith('-'))
-    if (target) return expandPath(spelling(target), cwd)
+    if (target) return GLOB_PART.test(target) ? (foldersNamedBy(expandPath(spelling(target), cwd))[0] ?? cwd) : expandPath(spelling(target), cwd)
     if (['cd', 'chdir', 'set-location', 'sl'].includes(name) && !argv.includes('-')) return expandPath(spelling('~'), cwd)
   }
   return cwd
@@ -610,6 +610,73 @@ function globNamesStore(word: string, cwd: string, homes: readonly string[], hid
   return false
 }
 
+const CD_PROGRAMS = new Set(['cd', 'chdir', 'pushd', 'set-location', 'sl', 'push-location'])
+const FOLDER_CAP = 16
+
+function foldersNamedBy(pattern: string): string[] {
+  const parts = spelling(pattern).split(/[\\/]/).filter(part => part !== '')
+  let found = [/^[a-z]:$/i.test(parts[0] ?? '') ? `${parts.shift()}/` : '/']
+  for (const part of parts) {
+    const next: string[] = []
+    for (const folder of found) {
+      if (!GLOB_PART.test(part)) {
+        next.push(posix.join(folder, part))
+        continue
+      }
+      let test: RegExp
+      try {
+        test = new RegExp(`^${wildcardSource(part)}$`)
+      } catch {
+        continue
+      }
+      if (test.test('')) next.push(folder)
+      let names: string[] = []
+      try {
+        names = readdirSync(folder)
+      } catch {
+      }
+      const dotLed = part.startsWith('.') || /^\{(?:[^}]*,)?\./.test(part)
+      const named = names.filter(name => test.test(name) && (dotLed || !name.startsWith('.')))
+      next.push(...(named.length > 0 ? named : [part]).map(name => posix.join(folder, name)))
+    }
+    found = next.slice(0, FOLDER_CAP)
+    if (found.length === 0) return []
+  }
+  return found.filter(folder => {
+    try {
+      return statSync(folder).isDirectory()
+    } catch {
+      return false
+    }
+  })
+}
+
+function foldersAfter(read: ShellRead, at: number, cwd: string): { folders: string[]; lost: boolean } {
+  const simple = read.commands[at]
+  if (simple === undefined) return { folders: [cwd], lost: false }
+  if (simple.cwd !== undefined) {
+    if (!GLOB_PART.test(simple.cwd)) return { folders: [simple.cwd], lost: false }
+    const named = foldersNamedBy(simple.cwd)
+    return { folders: named.length > 0 ? named : [cwd], lost: false }
+  }
+  for (let index = at - 1; index >= 0; index--) {
+    const turn = read.commands[index]!
+    const layer = layersOf(turn.argv)[0]
+    if (layer === undefined || !CD_PROGRAMS.has(layer.program)) continue
+    const before = turn.cwd ?? cwd
+    let target = layer.argv.slice(1).find(word => !/^-[A-Za-z]+$/.test(word))
+    if (target === UNREAD_PART) {
+      const fed = turn.inner.flat()
+      const printed = fed.length === 1 && read.commands[fed[0]!] !== undefined ? printedBy(read.commands[fed[0]!]!) : undefined
+      if (printed !== undefined && printed.trim() !== '') target = printed.trim()
+    }
+    if (target === undefined || target === '-' || target.includes(UNREAD_PART) || /[$`\s]/.test(target)) return { folders: [before], lost: true }
+    const named = foldersNamedBy(/^(?:[/~]|[A-Za-z]:)/.test(target) ? target : `${before}/${target}`)
+    return { folders: named.length > 0 ? named : [before], lost: false }
+  }
+  return { folders: [cwd], lost: true }
+}
+
 function ripgrepReachesHidden(layer: Layer, simple: ReadCommand, read: ShellRead): boolean {
   const words = layer.argv.slice(1)
   if (words.some(word => word === '--hidden' || /^-[A-Za-z]*\.[A-Za-z.]*$/.test(word))) return true
@@ -691,8 +758,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
   const homes = mercuryHomes()
   const fed = new Set<number>()
   for (const reader of read.commands) for (const at of [...reader.inner.flat(), ...reader.inputInner]) fed.add(at)
-  for (const [at, simple] of read.commands.entries()) {
-    const here = simple.cwd ?? cwd
+  for (const { at, simple, here } of read.commands.flatMap((simple, at) => foldersAfter(read, at, cwd).folders.map(here => ({ at, simple, here })))) {
     const layers = layersOf(simple.argv)
     for (const redirect of simple.redirects) {
       if (redirect.op !== '<') continue
@@ -729,6 +795,13 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
           if (holdsMercuryHome(candidate, here, homes, hidden) || globNamesStore(candidate, here, homes, hidden)) return `the whole of ${root === '.' ? 'this folder' : root} (name a folder beneath it)`
         }
       }
+    }
+  }
+  for (const [at, simple] of read.commands.entries()) {
+    if (!foldersAfter(read, at, cwd).lost) continue
+    for (const word of [...simple.redirects.filter(redirect => redirect.op === '<').map(redirect => redirect.target), ...layersOf(simple.argv).flatMap(layer => layer.argv.slice(1))]) {
+      if (word === '' || /^(?:[/~-]|[A-Za-z]:)/.test(word) || word.includes(UNREAD_PART)) continue
+      for (const home of homes) if (mercurySecretPath(word, home) !== null) return word
     }
   }
   return null
@@ -880,8 +953,7 @@ async function readSelfProtection(command: string, powershell: boolean, cwd: str
   if (read === null) return null
   const homes = [...mercuryHomes(), ...protectedPathForms(process.env.MERCURY_DAEMON_DIR || getMercuryHome())]
   const changing = (path: string, hit: string): string => 'Changing ' + path + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
-  for (const simple of read.commands) {
-    const here = simple.cwd ?? cwd
+  for (const { simple, here } of read.commands.flatMap((simple, at) => foldersAfter(read, at, cwd).folders.map(here => ({ simple, here })))) {
     const feeders = (piped: boolean): ReadCommand[] => {
       const out: ReadCommand[] = []
       const seen = new Set<number>()
@@ -920,7 +992,7 @@ async function readSelfProtection(command: string, powershell: boolean, cwd: str
           if (killed) return killed
         }
         for (const feeder of feeders(piped)) {
-          const there = feeder.cwd ?? cwd
+          const there = foldersAfter(read, read.commands.indexOf(feeder), cwd).folders[0] ?? cwd
           for (const fed of layersOf(feeder.argv)) {
             const record = fed.argv.slice(1).find(word => withinMercuryRecords(word, there, homes))
             if (record !== undefined) return 'Killing a process named by ' + record + ' is refused: that file is Mercury’s own record of its running process or daemon.'
@@ -941,7 +1013,7 @@ async function readSelfProtection(command: string, powershell: boolean, cwd: str
       }
       if (TREE_REMOVERS.has(layer.program) && (piped || layer.argv.some(word => word.includes(UNREAD_PART)))) {
         for (const feeder of feeders(piped)) {
-          const there = feeder.cwd ?? cwd
+          const there = foldersAfter(read, read.commands.indexOf(feeder), cwd).folders[0] ?? cwd
           for (const fed of layersOf(feeder.argv)) {
             for (const word of [...fed.argv.slice(1), ...(fed.findRoots ?? [])]) {
               if (word.startsWith('-') || word.includes(UNREAD_PART)) continue
