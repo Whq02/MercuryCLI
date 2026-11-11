@@ -62,7 +62,7 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 const { ANTHROPIC_MODEL_GROUP, ANTHROPIC_CONNECT_OPTION_VALUE, getModelOptions, isProviderActionRow } = await import('../../src/utils/model/modelOptions.ts')
 type ModelOption = import('../../src/utils/model/modelOptions.ts').ModelOption
 type LiveRow = import('../../src/services/providers/anthropic/anthropicCatalogue.ts').AnthropicLiveRow
-const { CANONICAL_MODEL_IDS } = await import('../../src/utils/model/configs.ts')
+const { CANONICAL_MODEL_IDS, mirrorTwinOf } = await import('../../src/utils/model/configs.ts')
 const { parseUserSpecifiedModel, renderModelName } = await import('../../src/utils/model/model.ts')
 const { composeSubModelRegistry } = await import('../../src/utils/model/subModelSlots.ts')
 
@@ -89,8 +89,10 @@ section('§1 the static list stands: an empty union, and a union of exactly the 
 const baseline = compose([])
 const baselineJson = JSON.stringify(baseline)
 check('the empty union composes the static rows (a non-empty Anthropic section)', values(baseline).length >= 9, show(baseline))
-check('a union equal to the table\'s own ids changes nothing (byte-identical options)', JSON.stringify(compose(live([...CANONICAL_MODEL_IDS]))) === baselineJson, show(compose(live([...CANONICAL_MODEL_IDS]))))
-check('a live id the table knows changes nothing: a dated snapshot of a declared generation, the mirror id, a retired dated row', JSON.stringify(compose(live(['claude-opus-5-20260401', 'claude-mythos-5', 'claude-opus-4-1-20250805', 'claude-sonnet-5', 'Claude-Opus-5-5']))) === baselineJson, show(compose(live(['claude-opus-5-20260401', 'claude-mythos-5']))))
+const TABLE_ROWED_IDS = CANONICAL_MODEL_IDS.filter(id => mirrorTwinOf(id) === undefined)
+check('the table declares three mirror ids, each with a twin of another family word', CANONICAL_MODEL_IDS.filter(id => mirrorTwinOf(id) !== undefined).join(',') === 'claude-mythos-5,claude-mythos-5-1,claude-mythos-5-2' && mirrorTwinOf('claude-mythos-5-2') === 'claude-fable-5-2' && mirrorTwinOf('claude-haiku-4-5-20251001') === undefined && mirrorTwinOf('claude-mythos-5-7') === undefined, CANONICAL_MODEL_IDS.filter(id => mirrorTwinOf(id) !== undefined).join(','))
+check('a union equal to the table\'s own ids, the mirrors aside, changes nothing (byte-identical options)', JSON.stringify(compose(live([...TABLE_ROWED_IDS]))) === baselineJson, show(compose(live([...TABLE_ROWED_IDS]))))
+check('a live id the table knows changes nothing: a dated snapshot of a declared generation, a retired dated row, a declared id under another case', JSON.stringify(compose(live(['claude-opus-5-20260401', 'claude-opus-4-1-20250805', 'claude-sonnet-5', 'Claude-Opus-5-5']))) === baselineJson, show(compose(live(['claude-opus-5-20260401', 'claude-opus-4-1-20250805']))))
 check('the injected reads bundle with no live read composes the same rows as the empty union', JSON.stringify(getModelOptions({ anthropicCredentialed: () => true })) === baselineJson)
 check('the opus block leads with Opus 5.5, Opus 5 right after it; the section ends on the haiku row', values(baseline).indexOf('claude-opus-5') === values(baseline).indexOf('claude-opus-5-5') + 1 && values(baseline).at(-1) === 'claude-haiku-4-5-20251001', values(baseline).join(','))
 
@@ -150,6 +152,41 @@ section('§6 the sub-model registry lists the raw row as an Anthropic model')
   const registry = composeSubModelRegistry({ options: () => options, presences: () => presences })
   const ids = registry.entries.filter(e => e.kind === 'model' && e.source === 'anthropic').map(e => e.modelId)
   check('the raw id is an entry once', ids.filter(id => id === 'claude-opus-5-7').length === 1, ids.join(','))
+}
+
+section('§7 a mirror id the door lists gets its own row under its twin, and only then (seen in use: a sign-in whose list carried claude-mythos-5-2 had no row to pick)')
+{
+  check('with no mirror id in the union the section holds no mirror row', !values(baseline).some(id => id.includes('mythos')), values(baseline).join(','))
+  const options = compose(live([{ id: 'claude-mythos-5-2', displayName: 'Claude Mythos 5.2', doors: ['Claude subscription'] }, 'claude-fable-5-2', 'claude-mythos-5-1', 'Claude-Mythos-5-2']))
+  const rows = anthropicRows(options)
+  const v = values(options)
+  const at = (id: string): number => v.indexOf(id)
+  check('one row for each mirror id the door lists, none for the one it does not', v.filter(id => id === 'claude-mythos-5-2').length === 1 && v.filter(id => id === 'claude-mythos-5-1').length === 1 && !v.includes('claude-mythos-5') && rows.length === anthropicRows(baseline).length + 2, v.join(','))
+  check('each sits right under its twin: Mythos 5.2 under Fable 5.2, Mythos 5.1 under Fable 5.1', at('claude-fable-5-2') >= 0 && at('claude-mythos-5-2') === at('claude-fable-5-2') + 1 && at('claude-mythos-5-1') === at('claude-fable-5-1') + 1, v.join(','))
+  const row = rows.find(o => o.value === 'claude-mythos-5-2')
+  check('it carries its own name, no description, and is selectable', row?.label === 'Mythos 5.2' && rows.find(o => o.value === 'claude-mythos-5-1')?.label === 'Mythos 5.1' && row.description === '' && row.unavailable === undefined && row.group === undefined, JSON.stringify(row))
+  check('the model-facing description names the door, the vendor name and the twin whose facts serve it', row?.descriptionForModel === 'claude-mythos-5-2 — listed live by the Claude subscription (the vendor names it "Claude Mythos 5.2"); the built-in table declares it as the counterpart of claude-fable-5-2, with that model\'s window, effort levels and prices.', row?.descriptionForModel)
+  check('the row selects the mirror id itself, never its twin', row?.value === 'claude-mythos-5-2' && parseUserSpecifiedModel(row.value) === 'claude-mythos-5-2' && renderModelName(row.value) === 'Mythos 5.2' && renderModelName('claude-mythos-5-1') === 'Mythos 5.1', JSON.stringify(row))
+  const cased = compose(live(['Claude-Mythos-5-2']))
+  check('a door that lists the id under another case alone gets the row under the declared spelling', values(cased).filter(id => id.toLowerCase() === 'claude-mythos-5-2').join(',') === 'claude-mythos-5-2' && anthropicRows(cased).find(o => o.value === 'claude-mythos-5-2')?.label === 'Mythos 5.2', values(cased).join(','))
+  const twoDoors = anthropicRows(compose(live([{ id: 'claude-mythos-5-2', doors: ['Claude subscription', 'Anthropic API key'] }]))).find(o => o.value === 'claude-mythos-5-2')
+  check('a mirror row two doors list names both', twoDoors?.descriptionForModel?.includes('listed live by the Claude subscription and Anthropic API key;') === true, twoDoors?.descriptionForModel)
+  const dated = values(compose(live(['claude-mythos-5-2-20261109', 'claude-mythos-5-2'])))
+  check('a dated snapshot of a mirror beside its bare id adds no second row', dated.filter(id => id.includes('mythos')).join(',') === 'claude-mythos-5-2', dated.join(','))
+  check('every static row keeps its place and words', JSON.stringify(rows.filter(o => !o.value.includes('mythos'))) === JSON.stringify(anthropicRows(baseline)))
+  check('no display name repeats', new Set(rows.map(o => o.label)).size === rows.length, rows.map(o => o.label).join(','))
+  check('the other groups are untouched', JSON.stringify(options.filter(o => o.group !== undefined)) === JSON.stringify(baseline.filter(o => o.group !== undefined)))
+  const oldest = values(compose(live(['claude-mythos-5'])))
+  check('Mythos 5 lands under Fable 5', oldest.indexOf('claude-fable-5') >= 0 && oldest.indexOf('claude-mythos-5') === oldest.indexOf('claude-fable-5') + 1, oldest.join(','))
+  const whole = compose(live([...CANONICAL_MODEL_IDS]))
+  check('a union of every id the table declares adds the three mirror rows and nothing else', JSON.stringify(anthropicRows(whole).filter(o => !o.value.includes('mythos'))) === JSON.stringify(anthropicRows(baseline)) && values(whole).filter(id => id.includes('mythos')).join(',') === 'claude-mythos-5-2,claude-mythos-5-1,claude-mythos-5', values(whole).join(','))
+  const signedOut = anthropicRows(compose(live(['claude-mythos-5-2']), false))
+  const reason = signedOut.find(o => o.value === 'claude-opus-5-5')?.unavailable
+  check('not signed in, the mirror row carries the same reason as the static rows', reason !== undefined && signedOut.find(o => o.value === 'claude-mythos-5-2')?.unavailable === reason, JSON.stringify(signedOut.find(o => o.value === 'claude-mythos-5-2')))
+  const presences = [{ id: 'anthropic', available: true, credentialed: true, credentialLabel: DOOR }] as never
+  const registry = composeSubModelRegistry({ options: () => options, presences: () => presences })
+  const ids = registry.entries.filter(e => e.kind === 'model' && e.source === 'anthropic').map(e => e.modelId)
+  check('the sub-model registry lists each mirror row once', ids.filter(id => id === 'claude-mythos-5-2').length === 1 && ids.filter(id => id === 'claude-mythos-5-1').length === 1, ids.join(','))
 }
 
 rmSync(scratch, { recursive: true, force: true })

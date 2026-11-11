@@ -146,6 +146,14 @@ const MIRROR_FAMILY_WORDS: Record<string, ModelFamily> = Object.fromEntries(
   }),
 )
 
+export function mirrorTwinOf(id: string): string | undefined {
+  const key = CANONICAL_ID_TO_KEY[id.trim().toLowerCase()]
+  const config: ModelConfig | undefined = key === undefined ? undefined : ALL_MODEL_CONFIGS[key]
+  if (config?.canonical === undefined) return undefined
+  const word = familyWordOf(config.firstParty)
+  return word !== undefined && MIRROR_FAMILY_WORDS[word] !== undefined ? config.canonical : undefined
+}
+
 const FIRST_PARTY_FAMILY_WORDS = [...Object.keys(FAMILY_GENERATIONS), ...Object.keys(MIRROR_FAMILY_WORDS)]
 
 const FIRST_PARTY_GENERATION_RE = new RegExp(
