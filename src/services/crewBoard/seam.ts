@@ -25,7 +25,7 @@ let boardTool: Tool | undefined
 const sessions = new Map<string, { store: BoardStore; execution: string }>()
 const roads = new Map<string, { on: boolean; execution: string; name: string; active: boolean; brief?: string; signal?: AbortSignal }>()
 const leadChecks = new Set<() => void>()
-const pendingLaunches = new Set<string>()
+const pendingLaunches = new Map<string, AbortSignal | undefined>()
 const key = (agent: string): string => `${getSessionId()}:${agent}`
 const EMPTY: BoardViewSnapshot = { on: false, events: [], snapshot: 0, omitted: 0, peerTurns: 0 }
 
@@ -87,8 +87,10 @@ export function swarmStore(create = true): BoardStore | null {
   const module = create ? loadSwarm() : implementationModule()
   if (module === null) return null
   const store = module.open(path, sessionId, undefined, false, agent => {
-    const road = roads.get(`${sessionId}:${agent}`)
-    return road?.active === true && road.signal?.aborted !== true
+    const id = `${sessionId}:${agent}`
+    const road = roads.get(id)
+    if (road === undefined) return pendingLaunches.has(id) && pendingLaunches.get(id)?.aborted !== true
+    return road.active === true && road.signal?.aborted !== true
   })
   const execution = randomUUID()
   sessions.set(sessionId, { store, execution })
@@ -200,7 +202,7 @@ export function swarmRoad(agentId = 'main'): boolean {
   return agentId === 'main' ? swarmSwitchOfSession() : roads.get(key(agentId))?.on === true
 }
 
-export function reserveSwarmLaunch(agentId: string, input: { name?: string; description: string; team?: string; captain?: boolean }, sender = 'main'): () => void {
+export function reserveSwarmLaunch(agentId: string, input: { name?: string; description: string; team?: string; captain?: boolean }, sender = 'main', signal?: AbortSignal): () => void {
   if (input.captain && (!input.name?.trim() || !input.team)) throw new Error('A captain launch needs name and team.')
   if (input.captain && sender !== 'main') throw new Error('Only the lead appoints a captain.')
   if (!swarmSessionEnabled()) {
@@ -212,12 +214,16 @@ export function reserveSwarmLaunch(agentId: string, input: { name?: string; desc
   if (!principal) throw new Error('This seat is not on the live crew board.')
   store.reserveEnrollment(principal, { agent: agentId, name: input.name ?? input.description, team: input.team, captain: input.captain, named: input.name !== undefined })
   const id = key(agentId)
-  pendingLaunches.add(id)
+  pendingLaunches.set(id, signal)
   return () => {
     if (!pendingLaunches.delete(id)) return
     store.cancelEnrollment(principal, agentId)
     closeIdleSwarm()
   }
+}
+
+export function watchSwarmLaunch(agentId: string, signal: AbortSignal): void {
+  if (pendingLaunches.has(key(agentId))) pendingLaunches.set(key(agentId), signal)
 }
 
 export function swarmOwnerPost(input: OwnerPostInput): OwnerPostReceipt {
@@ -235,7 +241,12 @@ export async function latchSwarmAgent(agentId: string, name: string, workflow = 
   if (!road.active) road.execution = randomUUID()
   road.active = true
   road.signal = signal
-  if (road.on && swarmMasterEnabled()) swarmStore()?.enroll({ author: { sessionId: String(getSessionId()), agentId, executionId: road.execution }, name, team })
+  if (road.on && swarmMasterEnabled()) {
+    const seat = { author: { sessionId: String(getSessionId()), agentId, executionId: road.execution }, name, team }
+    if (pendingLaunches.has(key(agentId)) && signal?.aborted === true) {
+      try { swarmStore()?.enroll(seat) } catch { road.on = false }
+    } else swarmStore()?.enroll(seat)
+  }
   return road.on
 }
 
@@ -378,7 +389,7 @@ export function mirrorSwarmNotice(agentId: string, text: string, summary: string
 export function closeIdleSwarm(): void {
   if (isReadOnlyDiagnostic()) return
   const sessionId = String(getSessionId())
-  if (swarmSessionEnabled() || [...pendingLaunches].some(id => id.startsWith(`${sessionId}:`)) || [...roads].some(([id, road]) => id.startsWith(`${sessionId}:`) && road.on && road.active)) return
+  if (swarmSessionEnabled() || [...pendingLaunches.keys()].some(id => id.startsWith(`${sessionId}:`)) || [...roads].some(([id, road]) => id.startsWith(`${sessionId}:`) && road.on && road.active)) return
   sessions.get(sessionId)?.store.close()
   sessions.delete(sessionId)
 }
