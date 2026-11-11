@@ -123,3 +123,4 @@ prove-vitals-live-refresh.ts
 prove-paste-sent-whole.ts
 prove-command-argument-pasted.ts
 prove-landing-lines-sent-in-order.ts
+prove-crewmate-shell-output.ts
