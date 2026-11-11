@@ -98,7 +98,7 @@ import type { AgentDefinition } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
 import { agentRosterOf, getPrompt, withoutAgentRoster } from './prompt.js'
 import { runAgent, type RunAgentParams } from './runAgent.js'
-import { reserveSwarmLaunch } from '../../services/crewBoard/seam.js'
+import { reserveSwarmLaunch, watchSwarmLaunch } from '../../services/crewBoard/seam.js'
 import { setAgentColor } from './agentColorManager.js'
 import * as UI from './UI.js'
 import { isResultTruncated } from './UI.js'
@@ -561,7 +561,7 @@ export const AgentTool = buildTool({
     }
 
     const earlyAgentId = generateTaskId('local_agent') as AgentId
-    const releaseEnrollment = reserveSwarmLaunch(earlyAgentId, input, context.agentId ?? 'main')
+    const releaseEnrollment = reserveSwarmLaunch(earlyAgentId, input, context.agentId ?? 'main', context.abortController.signal)
     let backgroundOwnsEnrollment = false
     try {
     const willOverrideCwd = plan.isolation === 'worktree' || cwdParam !== undefined
@@ -736,6 +736,7 @@ export const AgentTool = buildTool({
         model: plan.model,
         toolUseId: context.toolUseId,
       })
+      watchSwarmLaunch(earlyAgentId, task.abortController!.signal)
 
       if (input.name) registerAgentName(input.name, earlyAgentId, rootSetAppState)
 

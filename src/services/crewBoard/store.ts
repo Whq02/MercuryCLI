@@ -169,9 +169,16 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
   }
   const takeName = (name: string, agent: string): boolean => {
     const carries = (other: unknown): boolean => String(other).toLowerCase() === name.toLowerCase()
+    const running = (): Error => new Error(`A seat named ${name} is running on this board; stop it, or launch this one under another name.`)
+    const launching = db.prepare('SELECT agent, name FROM enrollments').all().filter(row => row.agent !== agent && carries(row.name)).map(row => String(row.agent))
+    if (launching.some(live)) throw running()
+    for (const stopped of launching) {
+      reinstate('?', stopped)
+      db.prepare('DELETE FROM enrollments WHERE agent = ?').run(stopped)
+      db.prepare('INSERT INTO retirements VALUES (?, ?) ON CONFLICT(agent) DO UPDATE SET successor = excluded.successor').run(stopped, agent)
+    }
     const holders = roster().filter(row => row.agent !== 'main' && row.agent !== agent && carries(row.name)).map(row => String(row.agent))
-    const launching = db.prepare('SELECT agent, name FROM enrollments').all().some(row => row.agent !== agent && carries(row.name))
-    if (launching || holders.some(holder => wakes.state(holder) === 'running' && live(holder))) throw new Error(`A seat named ${name} is running on this board; stop it, or launch this one under another name.`)
+    if (holders.some(holder => wakes.state(holder) === 'running' && live(holder))) throw running()
     for (const holder of holders) {
       db.prepare('UPDATE seat_state SET active = 0 WHERE agent = ?').run(holder)
       wakes.settle(holder, String(db.prepare('SELECT execution FROM members WHERE agent = ?').get(holder)!.execution), latest())
