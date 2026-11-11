@@ -39,6 +39,7 @@ export type ShellRead = {
   commands: ReadCommand[]
   pipelineSizes: number[]
   exported: Map<string, string[]>
+  homes: readonly string[]
   unread: { why: string; text: string } | undefined
 }
 
@@ -370,6 +371,8 @@ class Reading {
       const key = `${stage.pipeline}:${stage.stage}`
       if (!this.stageHeads.has(key)) this.stageHeads.set(key, index)
     }
+    for (const entry of command.env) this.assign(entry.name, [entry.value])
+    for (const layer of layersOf(command.argv)) for (const entry of layer.env) this.assign(entry.name, [entry.value])
     this.follow(command)
     this.pending.push(...nestedScripts(command, index, this.commands))
     this.expand(command, index)
@@ -409,7 +412,7 @@ class Reading {
     if (pushes) this.folders.push(this.cwd)
     const operands = layer.argv.slice(1).filter(word => !/^-[A-Za-z]+$/.test(word))
     const target = operands[0]
-    if (target === undefined) this.cwd = pushes ? undefined : this.world.home
+    if (target === undefined) this.cwd = pushes ? undefined : (this.scope.get('HOME')?.at(-1) ?? this.world.home)
     else if (target === '-' || !wordKnown(target)) this.cwd = undefined
     else this.cwd = absolutePath(command.dialect === 'powershell' ? target.replace(/\\/g, '/') : target, this.cwd, this.world)
   }
@@ -1019,5 +1022,5 @@ async function readInto(reading: Reading, text: string, frame: Frame, depth: num
 export async function readShellCommands(text: string, dialect: ShellDialect, world: ReadWorld): Promise<ShellRead> {
   const reading = new Reading(world)
   await readInto(reading, text, { background: false, stages: [], body: undefined, line: 1, dialect, around: undefined }, 0)
-  return { commands: reading.commands, pipelineSizes: reading.pipelineSizes, exported: reading.exported, unread: reading.unread }
+  return { commands: reading.commands, pipelineSizes: reading.pipelineSizes, exported: reading.exported, homes: reading.scope.get('HOME') ?? [], unread: reading.unread }
 }
