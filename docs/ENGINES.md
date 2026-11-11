@@ -62,7 +62,8 @@ boot and never from a passive reader, and never without a credential or
 while catalogue traffic is switched off. A listed id the table knows changes
 nothing, with one exception: a listed Mythos id gets its own row under its
 Fable counterpart, named, selectable and served with that counterpart's
-facts. An id the table does not know paints as one row under its raw id at
+window, effort levels and prices. An id the table does not know paints as
+one row under its raw id at
 the end of its family's block, selectable, served with its family's newest
 defaults (the cost as an estimate at that row's rates, its effort ladder,
 its window, its launch effort, its wire laws) and with no invented display
