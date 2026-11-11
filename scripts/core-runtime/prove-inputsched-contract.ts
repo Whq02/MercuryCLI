@@ -507,7 +507,7 @@ console.log('native-core T13/T14 — input-scheduling contract')
 
   const onSubmitStart = repl.indexOf('const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers')
   check('lock: onSubmit exists at the expected shape', onSubmitStart !== -1)
-  const captureIdx = repl.indexOf('const seatMode = pendingInput.mode();', onSubmitStart)
+  const captureIdx = repl.indexOf('const seatMode = options?.armedMode ?? pendingInput.mode();', onSubmitStart)
   const capturePasteIdx = repl.indexOf('const seatPastes = options?.pastedContents ?? pendingInput.pastedContents();', onSubmitStart)
   const resetIdx = repl.indexOf("setInputMode('prompt');", onSubmitStart)
   check('lock: onSubmit captures mode + pastedContents at entry, before the submitsNow reset',

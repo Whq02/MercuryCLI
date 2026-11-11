@@ -1098,6 +1098,7 @@ export function Chat({
     addNotification({ key: `command-${commandName}`, text, priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
   }, [addNotification]);
   const dialogInFlightRef = useRef<{ name: string; mounted: boolean } | null>(null);
+  const armedHandedBackRef = useRef<{ text: string; pastedContents: Record<number, PastedContent> } | null>(null);
   const queuedDialogCommandsRef = useRef<Array<{ input: string; name: string; submittedAt: string; pastedContents: Record<number, PastedContent> }>>([]);
   const dialogSlotRef = useRef<DOMElement | null>(null);
   const [dialogPaints, setDialogPaints] = useState(false);
@@ -1117,17 +1118,18 @@ export function Chat({
     if (next === undefined) return;
     void onSubmitRef.current(next.input, INERT_PROMPT_HELPERS, undefined, { rearmed: true, submittedAt: next.submittedAt, pastedContents: next.pastedContents });
   }, []);
-  const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: { fromKeybinding?: boolean; rearmed?: boolean; submittedAt?: string; pastedContents?: Record<number, PastedContent> }): Promise<void> => {
+  const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: { fromKeybinding?: boolean; rearmed?: boolean; submittedAt?: string; pastedContents?: Record<number, PastedContent>; armedMode?: PromptInputMode }): Promise<void> => {
     const submittedAt = options?.submittedAt ?? new Date().toISOString();
     const text = input.trim();
     if (text === '') return;
     submitTrace('repl-onSubmit', input, { fromKeybinding: options?.fromKeybinding === true, speculation: false, guardActive: isLoadingRef.current });
     const focusedNow = getFocusedSessionConnector();
-    const seatMode = pendingInput.mode();
+    const seatMode = options?.armedMode ?? pendingInput.mode();
     const seatPastes = options?.pastedContents ?? pendingInput.pastedContents();
     const seatCommand = text.startsWith('/') && seatMode !== 'bash' ? resolveSlashCommand(text, commandsRef.current) : undefined;
     const seat = seatCommand === undefined ? 'session' : commandSeat(seatCommand);
     const takeComposer = (): void => {
+      if (options?.armedMode !== undefined) return;
       const composerLine = pendingInput.text().replace(/\s+$/, '');
       if (composerLine === input) pendingInput.clearForSubmit(input);
       if (composerLine === '' || composerLine === input) {
@@ -1139,6 +1141,14 @@ export function Chat({
         setInputMode('prompt');
       }
       if (!options?.fromKeybinding && !options?.rearmed) addToHistory({ display: seatMode === 'bash' ? `!${input}` : input, pastedContents: seatPastes });
+    };
+    const armForLanding = (): void => {
+      takeComposer();
+      const line = { message: createUserMessage({ content: text }), ...(seatMode === 'bash' ? { bashMode: true } : {}), pastedContents: seatPastes };
+      setAppState(prev => ({
+        ...prev,
+        initialMessage: prev.initialMessage === null ? { ...line, armedAtLanding: true } : { ...prev.initialMessage, armedBehind: [...(prev.initialMessage.armedBehind ?? []), line] },
+      }));
     };
     const words = expandPastedTextRefs(text, seatPastes).trim();
     if (seatCommand === undefined && words.startsWith('/') && seatMode !== 'bash') {
@@ -1157,16 +1167,7 @@ export function Chat({
     }
     if (seat === 'session') {
       if (landingInFlight() && !hasFocusedSession()) {
-        takeComposer();
-        setAppState(prev => ({
-          ...prev,
-          initialMessage: {
-            message: createUserMessage({ content: text }),
-            ...(seatMode === 'bash' ? { bashMode: true } : {}),
-            pastedContents: seatPastes,
-            armedAtLanding: true,
-          },
-        }));
+        armForLanding();
         addNotification({ key: 'landing-hold', text: 'the session is landing — your line sends when it lands', priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
         return;
       }
@@ -1189,7 +1190,7 @@ export function Chat({
           timeoutMs: RECEIPT_TIMEOUT_MS,
         });
       }
-      void focusedNow
+      const sent = focusedNow
         .sendWords(text, {
           mode: seatMode,
           pastedContents: seatPastes,
@@ -1197,9 +1198,19 @@ export function Chat({
         })
         .then(receipt => {
           if (receipt.state !== 'refused') return;
+          const handedBack = armedHandedBackRef.current;
           if (pendingInput.text() === '') {
             if (pendingInput.restoreStaged(input) === null) setInputValue(input);
             setPastedContents(seatPastes);
+            if (handedBack !== null) {
+              setInputMode('prompt');
+              armedHandedBackRef.current = { text: pendingInput.text(), pastedContents: seatPastes };
+            }
+          } else if (handedBack !== null && handedBack.text !== '' && pendingInput.text() === handedBack.text) {
+            const pastedContents = { ...handedBack.pastedContents, ...seatPastes };
+            setInputValue(`${handedBack.text}\n${input}`);
+            setPastedContents(pastedContents);
+            armedHandedBackRef.current = { text: pendingInput.text(), pastedContents };
           }
           addNotification({
             key: 'focused-session-send',
@@ -1209,6 +1220,7 @@ export function Chat({
             timeoutMs: RECEIPT_TIMEOUT_MS,
           });
         });
+      if (options?.armedMode !== undefined) await sent;
       return;
     }
     const spaceAt = text.indexOf(' ');
@@ -1242,11 +1254,7 @@ export function Chat({
       return;
     }
     if (seatCommand !== undefined && seatCommand.type === 'local-jsx' && seatCommand.name === 'mission' && args !== '' && landingInFlight() && !hasFocusedSession()) {
-      takeComposer();
-      setAppState(prev => ({
-        ...prev,
-        initialMessage: { message: createUserMessage({ content: text }), pastedContents: seatPastes, armedAtLanding: true },
-      }));
+      armForLanding();
       addNotification({ key: 'landing-hold', text: 'the session is landing — /mission sends when it lands', priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
       return;
     }
@@ -1363,11 +1371,19 @@ export function Chat({
     if (armedMessage === null) return;
     if (landing) return;
     setAppState(prev => (prev.initialMessage === null ? prev : { ...prev, initialMessage: null }));
-    const text = (getUserMessageText(armedMessage.message) ?? '').trim();
-    if (text === '') return;
     void (async () => {
-      if (armedMessage.bashMode) pendingInput.setMode('bash');
-      await onSubmitRef.current(text, INERT_PROMPT_HELPERS, undefined, armedMessage.armedAtLanding ? { rearmed: true, pastedContents: armedMessage.pastedContents ?? {} } : undefined);
+      armedHandedBackRef.current = { text: '', pastedContents: {} };
+      for (const line of [armedMessage, ...(armedMessage.armedBehind ?? [])]) {
+        const text = (getUserMessageText(line.message) ?? '').trim();
+        if (text === '') continue;
+        const armed = line !== armedMessage || armedMessage.armedAtLanding === true;
+        try {
+          await onSubmitRef.current(text, INERT_PROMPT_HELPERS, undefined, armed ? { rearmed: true, pastedContents: line.pastedContents ?? {}, armedMode: line.bashMode ? 'bash' : 'prompt' } : undefined);
+        } catch (error) {
+          logForDebugging(`a line armed for the landing was not submitted: ${String(error)}`);
+        }
+      }
+      armedHandedBackRef.current = null;
     })();
   }, [armedMessage, landing, setAppState]);
 
