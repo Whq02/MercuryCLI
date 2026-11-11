@@ -158,6 +158,11 @@ export function mirrorTwinOf(id: string): string | undefined {
   return word !== undefined && MIRROR_FAMILY_WORDS[word] !== undefined ? config.canonical : undefined
 }
 
+export function declaredMirrorsNewestFirst(): string[] {
+  const twins: string[] = Object.values(FAMILY_GENERATIONS).flatMap(keys => keys.map(key => ALL_MODEL_CONFIGS[key].firstParty))
+  return twins.flatMap(twin => CANONICAL_MODEL_IDS.filter(id => mirrorTwinOf(id) === twin))
+}
+
 const FIRST_PARTY_FAMILY_WORDS = [...Object.keys(FAMILY_GENERATIONS), ...Object.keys(MIRROR_FAMILY_WORDS)]
 
 const FIRST_PARTY_GENERATION_RE = new RegExp(
