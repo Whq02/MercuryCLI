@@ -409,33 +409,39 @@ if (runs('CAP')) {
 }
 
 if (runs('STANDING')) {
-  section('STANDING · with the session standing in the home, in the config home or in the folder above it: a word the reading cannot value is no possible read, a wildcard is one only where a program that reads files is handed it, and what the reading can read is refused as anywhere')
-  for (const [folder, where] of [[OWN_HOME, 'the home'], [CONFIG_HOME, 'the config home'], [RUN_ROOT, 'the folder above the config home']] as const) {
+  section("STANDING · where the line stands: in the store's own folder an operand a reader is handed that the reading cannot value is a possible read; in the home and every other folder above the store it is none; a program that reads no file is never a read; a wildcard is one only where a program that reads files is handed it")
+  mkdirSync(join(OWN_HOME, '.mercury'), { recursive: true })
+  const everywhere: Call[] = [
+    bash('echo $$'),
+    bash("sh -c 'echo $$'"),
+    bash('echo $$ > tool.pid'),
+    bash('echo "$RANDOM"'),
+    bash('echo "$RANDOM" > note.txt'),
+    bash("sh -c 'echo $$ > \"<CONFIG>/tool.pid\"; sleep 120'", 'the line scripts/headless/prove-hangup-ends-the-tool-tree.ts starts'),
+    bash('export N=$RANDOM', "an assignment's value"),
+    bash('sleep "$N"'),
+    bash('test -f "$F"'),
+    bash('mkdir -p "$DIR"'),
+    bash('git commit -m "$MSG"'),
+    bash('printf %s "$(date)"'),
+    bash('echo hi > note.txt'),
+    bash('ls'),
+    bash('for f in *.md; do head -3 "$f"; done', 'a loop over files no credential file is among'),
+    bash('echo *', 'a wildcard handed to a program that reads no file'),
+    bash('ls *'),
+    bash('echo *.json'),
+  ]
+  const handedUnvalued: Call[] = [
+    bash('cat "$FILE"', 'a reader, its file no reading can value'),
+    bash('cp "$SRC" "$DST"', 'a copy between two such words'),
+    bash('grep -r x "$(git rev-parse --show-toplevel)"', 'a tree root only the running shell can value'),
+    bash('base64 "$(some-tool)"'),
+  ]
+  const STORE = join(OWN_HOME, '.mercury')
+  for (const [folder, where, isStore] of [[OWN_HOME, 'the home', false], [RUN_ROOT, 'the folder above the config home', false], [CONFIG_HOME, 'the config home', true], [STORE, "the home's own Mercury folder", true]] as const) {
     bootstrap.setCwdState(folder)
-    const clear: Call[] = [
-      bash('echo $$'),
-      bash("sh -c 'echo $$'"),
-      bash('echo $$ > tool.pid'),
-      bash('echo "$RANDOM"'),
-      bash("sh -c 'echo $$ > \"<CONFIG>/tool.pid\"; sleep 120'", 'the line scripts/headless/prove-hangup-ends-the-tool-tree.ts starts'),
-      bash('export N=$RANDOM', "an assignment's value"),
-      bash('sleep "$N"'),
-      bash('test -f "$F"'),
-      bash('mkdir -p "$DIR"'),
-      bash('git commit -m "$MSG"'),
-      bash('printf %s "$(date)"'),
-      bash('echo hi > note.txt'),
-      bash('ls'),
-      bash('cat "$FILE"', 'a reader, its file no reading can value'),
-      bash('cp "$SRC" "$DST"', 'a copy between two such words'),
-      bash('for f in *.md; do head -3 "$f"; done', 'a loop over files no credential file is among'),
-      bash('grep -r x "$(git rev-parse --show-toplevel)"', 'a tree root only the running shell can value'),
-      bash('base64 "$(some-tool)"'),
-      bash('echo *', 'a wildcard handed to a program that reads no file'),
-      bash('ls *'),
-      bash('echo *.json'),
-    ]
-    for (const item of clear) await expect(`STANDING · in ${where}`, item, ['sovereign'], notRefused, 'is not refused by the floor')
+    for (const item of everywhere) await expect(`STANDING · in ${where}`, item, ['sovereign'], notRefused, 'is not refused by the floor')
+    for (const item of handedUnvalued) await expect(`STANDING · in ${where}`, item, ['sovereign'], isStore ? refusedAsSecret : notRefused, isStore ? 'is refused as a read of the credentials' : 'is not refused by the floor')
     await expect(`STANDING · in ${where}`, bash('cat "$DIR/.credentials.json"', "a credential file's own name behind a folder no reading can value"), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
     await expect(`STANDING · in ${where}`, bash('cat <CONFIG>/.cred$(echo entials).json', 'a name built at run time in the folder of the store, spelled'), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
   }
@@ -448,16 +454,36 @@ if (runs('STANDING')) {
     bash('cat .credentials.json', 'the file by its name'),
     bash('echo *.json | xargs cat', 'the wildcard handed on to a reader by xargs'),
     bash('cat $(ls *)', 'the wildcard handed on to a reader by a substitution'),
+    bash('cat $(ls -a)', 'a listing of the folder handed to a reader'),
   ]
   for (const item of inStore) await expect('STANDING · in the config home', item, ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
   bootstrap.setCwdState(OWN_HOME)
   await expect('STANDING · in the home', bash('grep -r token .', 'a tree reader over the folder that holds the store'), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
   await expect('STANDING · in the home', bash('cat .mercury/.cred*', "a wildcard under the store's own folder, handed to a reader"), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
   bootstrap.setCwdState(PROJECT)
-  await expect('STANDING · in the project', bash('cat "$FILE"', 'the same reader where no store stands beneath'), ['sovereign'], notRefused, 'is not refused by the floor')
-  await expect('STANDING · in the project', bash('echo $$'), ['sovereign'], notRefused, 'is not refused by the floor')
-  await expect('STANDING · in the project', bash('cat ~/$f', 'a folder above the store spelled, the file no reading can value'), ['sovereign'], notRefused, 'is not refused by the floor')
-  await expect('STANDING · in the project', bash('cat "$HOME/$f"'), ['sovereign'], notRefused, 'is not refused by the floor')
+  const moved: Call[] = [
+    bash('cd <CONFIG> && cat $(ls -a)', 'a listing handed to a reader, after a cd into the store'),
+    bash('cd <CONFIG> && cat $(ls)'),
+    bash(`cd <CONFIG> && cat "$(printf '.creden%s' tials.json)"`, 'a name the shell computes'),
+    bash('cd <CONFIG> && cat "$(echo .creden)tials.json"'),
+    bash('cd <CONFIG> && cat .creden"$(echo tials.json)"'),
+    bash('cd <CONFIG> && cat "$FILE"'),
+    bash('cd ~/.mercury && cat "$FILE"', "the home's own Mercury folder"),
+  ]
+  for (const item of moved) await expect('STANDING · in the project, the line moving into the store', item, ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
+  const plain: Call[] = [
+    bash('cat "$FILE"', 'the same reader where no store stands'),
+    bash('echo $$'),
+    bash('cd <CONFIG> && echo $$', 'a program that reads no file, after a cd into the store'),
+    bash('cd <CONFIG> && ls'),
+    bash('cd ~ && cat "$FILE"', 'a cd into the home, above the store'),
+    bash('cd ~ && cp "$SRC" "$DST"'),
+    bash('cd ~ && for f in *; do cat "$f"; done'),
+    bash('cd <CONFIG>/.. && cat "$FILE"', 'a cd into the folder above the config home'),
+    bash('cat ~/$f', 'a folder above the store spelled, the file no reading can value'),
+    bash('cat "$HOME/$f"'),
+  ]
+  for (const item of plain) await expect('STANDING · in the project', item, ['sovereign'], notRefused, 'is not refused by the floor')
   await expect('STANDING · in the project', bash('cat ~/.mercury/$f', "the store's own folder spelled, the name no reading can value"), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
 }
 
