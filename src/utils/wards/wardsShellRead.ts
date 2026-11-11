@@ -1,4 +1,4 @@
-import { peelWrappers } from '../bash/ast.js'
+import { peelWrappers, shellCommandText } from '../bash/ast.js'
 import { parseCommandRaw, type Node } from '../bash/parser.js'
 
 export const UNREAD_PART = '\uFFFC'
@@ -228,6 +228,15 @@ export function stdinProgram(layer: Layer): boolean {
   if (POSIX_SHELLS.has(layer.program)) return readsStdin(layer.argv)
   if (/^(?:python[\d.]*|node|nodejs|perl|ruby|php|lua|deno|bun)$/.test(layer.program)) return layer.argv.length === 1 || layer.argv.slice(1).every(word => word === '-')
   return false
+}
+
+export function scriptSentToProgram(argv: string[], text: string): string | undefined {
+  const layer = layersOf(argv).at(-1)
+  if (layer === undefined) return undefined
+  if (POSIX_SHELLS.has(layer.program)) return readsStdin(layer.argv) ? text : undefined
+  if (POWERSHELLS.has(layer.program)) return layer.argv.slice(1).some(word => /^-(?:c|f)/i.test(word)) ? undefined : shellCommandText([layer.program, '-Command', text])
+  if (layer.program === 'cmd') return layer.argv.slice(1).some(word => /^\/\/?c$/i.test(word)) ? undefined : shellCommandText(['cmd', '/c', text])
+  return undefined
 }
 
 type Pending = { text: string; dialect: ShellDialect; from: number }
