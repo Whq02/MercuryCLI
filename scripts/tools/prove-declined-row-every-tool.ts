@@ -21,7 +21,8 @@ enableConfigs()
 const { AppStateProvider } = await import('../../src/state/AppState.tsx')
 const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
 const { Box } = await import('../../src/ink.ts')
-const { CANCEL_MESSAGE, DENIAL_WORKAROUND_GUIDANCE, REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX, SUBAGENT_REJECT_MESSAGE } = await import('../../src/utils/messages/rejectionText.ts')
+const { CANCEL_MESSAGE, DENIAL_WORKAROUND_GUIDANCE, REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX, SUBAGENT_REJECT_MESSAGE, isDenialResultText } = await import('../../src/utils/messages/rejectionText.ts')
+const { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/utils/messages/turnCut.ts')
 const { UserToolErrorMessage } = await import('../../src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx')
 const { getAllBaseTools } = await import('../../src/tools.ts')
 
@@ -91,6 +92,17 @@ section('a real failure still reads as an error, with its words')
   check('Read: its own short error line', read.length === 1 && read[0]!.endsWith('Error reading file'), JSON.stringify(read))
   const notebook = await rowOf(named('NotebookEdit'), wrapped('The cell does not exist.'))
   check('NotebookEdit: its own short error line', notebook.length === 1 && notebook[0]!.endsWith('Error editing notebook'), JSON.stringify(notebook))
+}
+
+section('a real failure whose text only quotes the interrupt\'s words is an error, not a refusal')
+{
+  const QUOTING = `ENOENT: no such file or directory, open '/tmp/notes on ${INTERRUPT_MESSAGE} rows.md'. The fetch wrote nothing.`
+  const fetch = await rowOf(named('WebFetch'), wrapped(QUOTING))
+  check('WebFetch: the error row, with "Error:" and the whole of what failed', fetch.join(' ').includes('Error: ENOENT: no such file or directory') && fetch.join(' ').includes('The fetch wrote nothing.'), JSON.stringify(fetch))
+  const remoteRows = await rowOf(remote, wrapped(`the server answered 500 while handling "${INTERRUPT_MESSAGE}"`))
+  check("a server's tool whose failure quotes the marker: the error row", remoteRows.join(' ').includes('Error:'), JSON.stringify(remoteRows))
+  check('the marker as the whole text, at the text\'s start and on a line of its own is still the interrupt', isDenialResultText(INTERRUPT_MESSAGE_FOR_TOOL_USE) && isDenialResultText(wrapped(INTERRUPT_MESSAGE)) && isDenialResultText(`${INTERRUPT_MESSAGE} while the build ran`) && isDenialResultText(`Command was stopped\n${INTERRUPT_MESSAGE}\nmake: *** [all] Interrupt`), 'one of the four forms is no longer read as the interrupt')
+  check('quoted inside a line it is not', !isDenialResultText(QUOTING) && !isDenialResultText(`cat: '${INTERRUPT_MESSAGE_FOR_TOOL_USE}.txt': No such file or directory`))
 }
 
 await releaseScratchHome(home)

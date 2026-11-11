@@ -90,6 +90,7 @@ section('C the census: every reader that recognised an interrupt result still do
   check('isDenialResultText: the tool-use interruption constant is still a stop', isDenialResultText(INTERRUPT_MESSAGE_FOR_TOOL_USE))
   check('isDenialResultText: CANCEL_MESSAGE and REJECT_MESSAGE are still stops', isDenialResultText(CANCEL_MESSAGE) && isDenialResultText(REJECT_MESSAGE))
   check('isDenialResultText: an ordinary failure is still not a stop', !isDenialResultText('Command failed with exit code 1\nInterrupted by user request handler') && !isDenialResultText('Exit code 1'))
+  check('isDenialResultText: a failure that only quotes the interruption inside a line is not a stop', !isDenialResultText(`open '/tmp/notes on ${INTERRUPT_MESSAGE} rows.md': no such file`) && !isDenialResultText(`cat: '${INTERRUPT_MESSAGE_FOR_TOOL_USE}.txt': No such file or directory`))
   check('unwrapToolUseError leaves the result itself alone', unwrapToolUseError(result) === result)
 
   check('turnCutOfText: the two interruption rows still read as the operator\'s', turnCutOfText(INTERRUPT_MESSAGE)?.kind === 'operator' && turnCutOfText(INTERRUPT_MESSAGE_FOR_TOOL_USE)?.kind === 'operator')
@@ -165,7 +166,7 @@ section('E the source census over every recogniser of the interrupt text')
     ['src/components/FallbackToolUseErrorMessage.tsx', 'isDenialResultText(rawText)'],
     ['src/utils/messages/text.ts', 'new Set([NO_CONTENT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE])'],
     ['src/utils/messages/lookups.ts', 'isDenialResultText(toolResultText(block.content))'],
-    ['src/utils/messages/rejectionText.ts', 'text.includes(INTERRUPT_MESSAGE_FOR_TOOL_USE)'],
+    ['src/utils/messages/rejectionText.ts', '[INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE].some(marker => text.startsWith(marker) || lines.includes(marker))'],
     ['src/utils/messages/rejectionText.ts', 'isInterruptedResultText(text)'],
     ['src/utils/transcriptSearch.ts', 'return isTurnCutText(text)'],
     ['src/tools/WorkflowTool/agentTranscriptReader.ts', 'turnCutOfText(text)'],

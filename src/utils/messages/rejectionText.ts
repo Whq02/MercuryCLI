@@ -50,11 +50,15 @@ export function UNANSWERED_ASK_REJECT_MESSAGE(toolName: string, cause: string): 
   )
 }
 
+function standsAsInterrupt(text: string): boolean {
+  const lines = text.split('\n').map(line => line.trim())
+  return [INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE].some(marker => text.startsWith(marker) || lines.includes(marker))
+}
+
 export function isDenialResultText(raw: string): boolean {
   const text = unwrapToolUseError(raw)
   return (
-    text.includes(INTERRUPT_MESSAGE) ||
-    text.includes(INTERRUPT_MESSAGE_FOR_TOOL_USE) ||
+    standsAsInterrupt(text) ||
     isInterruptedResultText(text) ||
     /^Cut off(?: by|:) /.test(text) ||
     text === CANCEL_MESSAGE ||
