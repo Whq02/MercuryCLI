@@ -325,6 +325,16 @@ if (runs('OWN')) {
     bash('P=<DAEMON_PID>; kill $P', 'a variable holds the pid'),
     bash("P=<DAEMON_PID> sh -c 'kill $P'", 'an assignment in front holds the pid, the kill inside an inline shell'),
     bash("env P=<DAEMON_PID> sh -c 'kill -9 $P'", 'the same through env'),
+    bash('pkill -u $USER', 'the user named by a variable'),
+    bash('pkill -u "$(whoami)"', 'the user named by whoami'),
+    bash('pkill -U $(id -u)', 'the user named by id'),
+    bash('killall -u $USER'),
+    bash('killall -u ${LOGNAME}'),
+    bash('pkill -f mercury.mjs', "the bundle the daemon's record names"),
+    bash('pkill -f "/bin/sleep 600"', "the command line the stand-in daemon really has"),
+    bash('pgrep -f "sleep 600" | xargs kill -9', 'the same found by pgrep and piped to kill'),
+    bash('kill $(pgrep -f "bin/sleep 6")', 'the same by a substitution'),
+    bash('pkill -P <DAEMON_PID>', "the daemon's children"),
   ]
   for (const item of own) await expect('OWN', item, ['sovereign', 'default'], refused, 'is refused')
   const others: Call[] = [
@@ -332,6 +342,9 @@ if (runs('OWN')) {
     bash('kill -- -999999'),
     bash('pkill -f an-unrelated-server'),
     bash('killall -u nobody'),
+    bash('pkill -u nobody'),
+    bash('pkill -f "sleep 601"', 'a command line none of Mercury\'s processes has'),
+    bash('pkill -P 999999', 'the children of another pid'),
     bash("ps aux | grep an-unrelated-server | awk '{print $2}' | xargs kill -9"),
     bash('lldb -p 999999'),
     bash('launchctl remove com.example.agent'),

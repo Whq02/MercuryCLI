@@ -48,6 +48,8 @@ export type ReadWorld = {
   home: string | undefined
   homesRoot: string
   ownNames: readonly string[]
+  user?: string
+  uid?: string
 }
 
 const POSIX_SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'ash', 'fish', 'mksh', 'yash', 'csh', 'tcsh'])
@@ -351,6 +353,8 @@ class Reading {
   constructor(readonly world: ReadWorld) {
     this.cwd = world.cwd
     if (world.home !== undefined) this.scope.set('HOME', [world.home])
+    if (world.user !== undefined) for (const name of ['USER', 'LOGNAME', 'USERNAME']) this.scope.set(name, [world.user])
+    if (world.uid !== undefined) for (const name of ['UID', 'EUID']) this.scope.set(name, [world.uid])
   }
 
   markUnread(why: string, text: string): void {
@@ -529,6 +533,18 @@ class PosixWalk {
     }
   }
 
+  userPrintedBy(inner: number[]): string | undefined {
+    if (inner.length !== 1) return undefined
+    const argv = this.reading.commands[inner[0]!]?.argv ?? []
+    const program = programOf(argv[0] ?? '')
+    const { user, uid } = this.reading.world
+    if ((program === 'whoami' || program === 'logname') && argv.length === 1) return user
+    if (program !== 'id') return undefined
+    const flags = argv.slice(1).join('')
+    if (flags === '-un' || flags === '-nu' || flags === '-u-n' || flags === '-n-u') return user
+    return flags === '-u' || flags === '-ru' || flags === '-ur' ? uid : undefined
+  }
+
   variable(node: Node, frame: Frame): Words {
     const name = (node.children.find(child => child.type === 'variable_name') ?? node.children.find(child => child.type === 'special_variable_name'))?.text
     const inner: number[] = []
@@ -560,7 +576,8 @@ class PosixWalk {
         this.node(node, frame)
         const inner: number[] = []
         for (let i = before; i < this.reading.commands.length; i++) inner.push(i)
-        return { values: [UNREAD_PART], inner }
+        const named = node.type === 'command_substitution' ? this.userPrintedBy(inner) : undefined
+        return { values: [named ?? UNREAD_PART], inner }
       }
       case 'arithmetic_expansion':
         this.children(node, frame)

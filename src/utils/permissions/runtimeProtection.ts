@@ -57,14 +57,14 @@ function optionValues(args: string[], option: RegExp): string[] {
   return result.flatMap(value => value.split(','))
 }
 
-function positionals(args: string[], valued: RegExp): string[] {
+function positionals(args: string[], valued: RegExp, slashOptions = true): string[] {
   const result: string[] = []
   let ended = false
   for (let i = 0; i < args.length; i++) {
     const word = args[i]!
     if (word === '--') { ended = true; continue }
     if (!ended && valued.test(word)) { i++; continue }
-    if (ended || !/^[-/]/.test(word)) result.push(word)
+    if (ended || !(slashOptions ? /^[-/]/ : /^-/).test(word)) result.push(word)
   }
   return result
 }
@@ -79,9 +79,41 @@ async function protectedPids(): Promise<number[]> {
   return pids
 }
 
-function imageMatches(pattern: string, regex: boolean, full: boolean, insensitive: boolean): boolean {
-  const images = [name(process.execPath), name(process.execPath) + '.exe', 'mercury', 'mercury.exe']
-  const candidates = full ? [...images, [process.execPath, ...process.argv.slice(1)].join(' ')] : images
+type OwnProcesses = { lines: string[]; names: string[] }
+
+let ownProcessesRead: { at: number; key: string; found: OwnProcesses } | undefined
+
+async function ownProcesses(pids: number[]): Promise<OwnProcesses> {
+  const state = await readDaemonState()
+  const recorded = state?.script ? [state.script] : []
+  if (process.platform === 'win32') return { lines: recorded, names: [] }
+  const key = pids.join(',')
+  if (ownProcessesRead !== undefined && ownProcessesRead.key === key && Date.now() - ownProcessesRead.at < 2000) return ownProcessesRead.found
+  const listed = await execFileNoThrow('ps', ['-axo', 'pid=,ppid=,command='])
+  const rows = new Map<number, { parent: number; line: string }>()
+  for (const row of listed.code === 0 ? listed.stdout.split('\n') : []) {
+    const read = /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(row)
+    if (read !== null) rows.set(Number(read[1]), { parent: Number(read[2]), line: read[3]! })
+  }
+  const own = new Set(pids)
+  for (let grew = true; grew; ) {
+    grew = false
+    for (const [pid, row] of rows) {
+      if (own.has(pid) || !own.has(row.parent) || pid === process.pid) continue
+      if (row.parent === process.pid) continue
+      own.add(pid)
+      grew = true
+    }
+  }
+  const lines = [...recorded, ...[...own].flatMap(pid => (rows.has(pid) ? [rows.get(pid)!.line] : []))]
+  const found = { lines, names: lines.map(line => name(line.split(/\s+/)[0] ?? '')).filter(word => word !== '') }
+  ownProcessesRead = { at: Date.now(), key, found }
+  return found
+}
+
+function imageMatches(pattern: string, regex: boolean, full: boolean, insensitive: boolean, own: OwnProcesses = { lines: [], names: [] }): boolean {
+  const images = [name(process.execPath), name(process.execPath) + '.exe', 'mercury', 'mercury.exe', ...own.names]
+  const candidates = full ? [...images, [process.execPath, ...process.argv.slice(1)].join(' '), ...own.lines] : images
   if (!regex) return candidates.some(image => matchWildcardPattern(pattern, image, insensitive))
   try {
     const re = new RegExp(pattern, insensitive ? 'i' : '')
@@ -99,18 +131,19 @@ function selectedImages(argv: string[]): string[] {
     if (args.some(arg => /^-(?:id|inputobject)(?:[:=]|$)/i.test(arg))) return []
     return positionals(args, /^-(?:erroraction|ea|warningaction|wa)$/i).filter(arg => !/^\d+$/.test(arg))
   }
-  if (command === 'killall') return positionals(args, /^-(?:u|user|s|signal|t)$/i)
+  if (command === 'killall') return positionals(args, /^-(?:u|user|s|signal|t)$/i, false)
   if (command === 'pkill' || command === 'pgrep') {
-    return positionals(args, /^-(?:[ugGPUsFt]|-(?:euid|uid|group|pgroup|parent|session|terminal|pidfile|signal))$/).slice(-1)
+    return positionals(args, /^-(?:[ugGPUsFt]|-(?:euid|uid|group|pgroup|parent|session|terminal|pidfile|signal))$/, false).slice(-1)
   }
   return []
 }
 
-export function namesMercuryImage(pattern: string): boolean {
-  return imageMatches(pattern, true, true, true)
+export async function namesMercuryProcess(pattern: string): Promise<boolean> {
+  return imageMatches(pattern, true, true, true, await ownProcesses(await protectedPids()))
 }
 
 function ownUser(named: string): boolean {
+  if (/^\$\{?(?:USER|LOGNAME|USERNAME|UID|EUID)\}?$/.test(named)) return true
   const names = [process.env.USER, process.env.LOGNAME, process.env.USERNAME]
   try {
     const info = userInfo()
@@ -193,6 +226,8 @@ export async function runtimeProcessRefusal(commands: string[][]): Promise<strin
     if (!kills.has(command) && !(hasPipedKill && ['pgrep', 'get-process', 'gps'].includes(command))) continue
     if (filterPids.length && !filterPids.some(pid => pids.includes(Number(pid)))) continue
     const parents = ['pkill', 'pgrep'].includes(command) ? optionValues(args, /^-(?:P|-parent)$/) : []
+    const ownParent = parents.find(parent => /^\d+$/.test(parent) && pids.includes(Number(parent)))
+    if (ownParent !== undefined && (command === 'pkill' || hasPipedKill)) return 'Killing the children of pid ' + ownParent + ' is refused: they are the processes Mercury’s own process or daemon runs.'
     if (parents.length) {
       const ownParents = await Promise.all(pids.map(parentPid))
       if (ownParents.every(parent => parent !== undefined && !parents.includes(String(parent)))) continue
@@ -203,7 +238,7 @@ export async function runtimeProcessRefusal(commands: string[][]): Promise<strin
     const images = [...selectedImages(argv), ...filters.flatMap(value => /^imagename\s+eq\s+(.+)$/i.exec(value)?.slice(1) ?? [])]
     for (const image of images) {
       const exact = regex && args.some(arg => /^-(?:[a-z]*x[a-z]*|-exact)$/.test(arg))
-      if (imageMatches(exact ? '^(?:' + image + ')$' : image, regex, full, insensitive)) return 'Killing by image ' + image + ' is refused: it can terminate Mercury’s running process or daemon. Use the pid of the unrelated process instead.'
+      if (imageMatches(exact ? '^(?:' + image + ')$' : image, regex, full, insensitive, await ownProcesses(pids))) return 'Killing by image ' + image + ' is refused: it can terminate Mercury’s running process or daemon. Use the pid of the unrelated process instead.'
     }
   }
   return null
