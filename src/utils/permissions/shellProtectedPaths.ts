@@ -1,6 +1,11 @@
+import { readdirSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { posix } from 'node:path'
 import { getShellCwd } from '../Shell.js'
-import { getMercuryHome } from '../envUtils.js'
-import { credentialStorePath, mercurySecretPath, spelling } from './protectedPaths.js'
+import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../envUtils.js'
+import { CREDENTIALS_SERVICE_SUFFIX, getMacOsKeychainStorageServiceName, getRawSpellingKeychainStorageServiceName } from '../secureStorage/macOsKeychainHelpers.js'
+import { UNREAD_PART, layersOf, readShellCommands, type Layer, type ReadCommand, type ShellRead } from '../wards/wardsShellRead.js'
+import { credentialStorePath, mercurySecretPath, protectedPathForms, spelling } from './protectedPaths.js'
 import { pinnedCommandAnalysis, peelWrappers, PARSE_ABORTED, extractHeredocs, type Node } from './decision/commandAnalysis.js'
 import { runtimeWritePath, runtimeProcessRefusal } from './runtimeProtection.js'
 import { expandPath } from '../path.js'
@@ -400,7 +405,207 @@ export async function shellCredentialWritePath(command: string, powershell = fal
   }, cwd)
 }
 
+const SECRET_NAME_SAMPLES = ['.credentials.json', '.provider-secrets.json', 'mcp-auth.json', 'x-auth.json', 'browser-secrets.json', '.credentials.json.corrupt.1', '.provider-secrets.json.corrupt.1']
+const CONVENTIONAL_HOME = /^(?:\/(?:users|home)\/[^/]+|\/root|[a-z]:\/users\/[^/]+)\/\.mercury$/
+const DYNAMIC_PART = /[*?[{$]/
+
+async function readForFloors(command: string, powershell: boolean, cwd: string): Promise<ShellRead | null> {
+  try {
+    const home = (process.env.HOME || process.env.USERPROFILE || homedir()).replace(/\\/g, '/')
+    const read = await readShellCommands(command, powershell ? 'powershell' : 'posix', { cwd: cwd.replace(/\\/g, '/'), home, homesRoot: posix.dirname(home), ownNames: [] })
+    return read
+  } catch {
+    return null
+  }
+}
+
+function mercuryHomes(): string[] {
+  return [...new Set([getMercuryHome(), getAuthScope(), defaultMercuryHome()].filter((path): path is string => !!path).flatMap(path => protectedPathForms(path)))]
+}
+
+function namesMercuryHome(word: string, cwd: string, homes: readonly string[]): boolean {
+  if (word === '' || word.includes(UNREAD_PART)) return false
+  return protectedPathForms(word, cwd).some(form => homes.includes(form) || CONVENTIONAL_HOME.test(form))
+}
+
+function wildcardSource(pattern: string): string {
+  let out = ''
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i]!
+    if (ch === UNREAD_PART) out += '.*'
+    else if (ch === '$') {
+      const named = /^\$(?:\{[^}]*\}|\([^)]*\)|[a-z_][a-z0-9_]*)/i.exec(pattern.slice(i))
+      out += '.*'
+      i += named === null ? 0 : named[0].length - 1
+    } else if (ch === '*') {
+      if (pattern[i + 1] === '*') {
+        out += '.*'
+        i++
+      } else out += '[^/]*'
+    } else if (ch === '?') out += '[^/]'
+    else if (ch === '[') {
+      const end = pattern.indexOf(']', i + 2)
+      if (end < 0) out += '\\['
+      else {
+        out += `[${pattern.slice(i + 1, end).replace(/^!/, '^').replace(/\\/g, '\\\\')}]`
+        i = end
+      }
+    } else if (ch === '{') {
+      const end = pattern.indexOf('}', i)
+      if (end > 0 && pattern.slice(i, end).includes(',')) {
+        out += `(?:${pattern.slice(i + 1, end).split(',').map(wildcardSource).join('|')})`
+        i = end
+      } else out += '\\{'
+    } else out += ch.replace(/[.+^$()|\\\]}]/g, '\\$&')
+  }
+  return out
+}
+
+function secretsHeld(home: string): string[] {
+  try {
+    return readdirSync(home).filter(name => mercurySecretPath(`${home}/${name}`, home) !== null).map(name => name.toLowerCase())
+  } catch {
+    return []
+  }
+}
+
+function couldNameSecret(word: string, cwd: string, homes: readonly string[]): boolean {
+  if (!DYNAMIC_PART.test(word) && !word.includes(UNREAD_PART)) return false
+  const expanded = spelling(word)
+  const segments = expanded.split('/')
+  const at = segments.findIndex(segment => DYNAMIC_PART.test(segment) || segment.includes(UNREAD_PART))
+  if (at < 0) return false
+  const fixed = segments.slice(0, at).join('/') || (expanded.startsWith('/') ? '/' : '.')
+  let pattern: RegExp
+  try {
+    pattern = new RegExp(`^${wildcardSource(segments.slice(at).join('/').toLowerCase())}$`)
+  } catch {
+    return false
+  }
+  for (const folder of protectedPathForms(fixed, cwd)) {
+    const conventional = CONVENTIONAL_HOME.test(folder) ? [folder] : []
+    for (const home of [...homes, ...conventional]) {
+      if (home !== folder && !home.startsWith(folder === '/' ? '/' : `${folder}/`)) continue
+      const below = home === folder ? '' : `${home.slice(folder === '/' ? 1 : folder.length + 1)}/`
+      for (const name of [...SECRET_NAME_SAMPLES, ...secretsHeld(home)]) if (pattern.test(below + name)) return true
+    }
+  }
+  return false
+}
+
+function spellingsOf(word: string): string[] {
+  const out = [word]
+  const equals = word.indexOf('=')
+  if (equals > 0) out.push(word.slice(equals + 1))
+  for (const candidate of [...out]) {
+    const plain = candidate.startsWith('@') ? candidate.slice(1).split(';')[0]! : candidate
+    if (plain !== candidate) out.push(plain)
+    const url = /^file:\/\/(?:localhost)?(\/[\s\S]*)$/i.exec(plain)
+    if (url !== null) {
+      try {
+        out.push(decodeURIComponent(url[1]!))
+      } catch {
+        out.push(url[1]!)
+      }
+    }
+  }
+  return out
+}
+
+function readsWholeTree(layer: Layer): boolean {
+  const { program, argv } = layer
+  const flagged = (letters: RegExp, ...long: string[]): boolean => argv.slice(1).some(word => (word.startsWith('--') ? long.includes(word.split('=')[0]!) : /^-[A-Za-z]+$/.test(word) && letters.test(word)))
+  switch (program) {
+    case 'rg':
+    case 'ag':
+    case 'ack':
+    case 'ditto':
+    case 'rclone':
+      return true
+    case 'grep':
+    case 'egrep':
+    case 'fgrep':
+    case 'zgrep':
+      return flagged(/[rR]/, '--recursive', '--dereference-recursive')
+    case 'cp':
+    case 'scp':
+    case 'copy-item':
+    case 'cpi':
+      return flagged(/[rRa]/, '--recursive', '--archive') || argv.slice(1).some(word => /^-r(?:e(?:c(?:u(?:r(?:s(?:e)?)?)?)?)?)?$/i.test(word))
+    case 'rsync':
+      return flagged(/[ra]/, '--recursive', '--archive')
+    case 'tar':
+    case 'bsdtar':
+    case 'gtar':
+      return /^-?[A-Za-z]*[cru]/.test(argv[1] ?? '') || flagged(/[cru]/, '--create', '--append', '--update')
+    case 'zip':
+      return flagged(/r/, '--recurse-paths')
+    case '7z':
+    case '7za':
+      return argv[1] === 'a'
+    case 'find':
+      return argv.some(word => /^-(?:exec|execdir|ok|okdir|print0|fprint|fls)$/.test(word))
+    default:
+      return false
+  }
+}
+
+function keychainItemRead(layer: Layer): string | null {
+  if (layer.program !== 'security') return null
+  const argv = layer.argv
+  const at = argv.findIndex((word, i) => i > 0 && !word.startsWith('-'))
+  const verb = at < 0 ? '' : argv[at]!.toLowerCase()
+  if (verb === 'dump-keychain') return argv.slice(at + 1).some(word => /^-[A-Za-z]*d/.test(word)) ? 'the keychain' : null
+  if (!['find-generic-password', 'find-internet-password', 'export'].includes(verb)) return null
+  const own = [getMacOsKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX), getMacOsKeychainStorageServiceName(), getRawSpellingKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX), getRawSpellingKeychainStorageServiceName()]
+  const named = argv.slice(at + 1).find(word => own.includes(word) || /^mercury(?:-[a-z]+)*-[0-9a-f]{8}$/i.test(word))
+  return named === undefined ? null : `the keychain item ${named}`
+}
+
+function sharesEarlierStage(earlier: ReadCommand, later: ReadCommand): boolean {
+  for (const a of earlier.stages) for (const b of later.stages) if (a.pipeline === b.pipeline && a.stage < b.stage) return true
+  return false
+}
+
+async function readSecretReach(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+  const read = await readForFloors(command, powershell, cwd)
+  if (read === null) return null
+  const homes = mercuryHomes()
+  const fed = new Set<number>()
+  for (const reader of read.commands) for (const at of [...reader.inner.flat(), ...reader.inputInner]) fed.add(at)
+  for (const [at, simple] of read.commands.entries()) {
+    const here = simple.cwd ?? cwd
+    const layers = layersOf(simple.argv)
+    for (const redirect of simple.redirects) {
+      if (redirect.op !== '<') continue
+      for (const candidate of spellingsOf(redirect.target)) {
+        if (mercurySecretPath(candidate, here) !== null || couldNameSecret(candidate, here, homes)) return redirect.target
+      }
+    }
+    for (const layer of layers) {
+      const item = keychainItemRead(layer)
+      if (item !== null) return item
+      const roots = layer.findRoots !== undefined && layer.argv !== simple.argv ? layer.findRoots : []
+      const tree = readsWholeTree(layer)
+      const lists = layer.program === 'find' || layer.program === 'ls' || layer.program === 'get-childitem' || layer.program === 'gci' || layer.program === 'dir'
+      const feeds = lists && (fed.has(at) || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')))
+      for (const word of [...layer.argv.slice(1), ...roots]) {
+        for (const candidate of spellingsOf(word)) {
+          if (mercurySecretPath(candidate, here) !== null || couldNameSecret(candidate, here, homes)) return word
+          if ((tree || feeds) && namesMercuryHome(candidate, here, homes)) return word
+        }
+      }
+    }
+  }
+  return null
+}
+
 export async function shellMercurySecretPath(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
+  const named = await namedMercurySecretPath(command, powershell, cwd)
+  return named ?? readSecretReach(command, powershell, cwd)
+}
+
+async function namedMercurySecretPath(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   const expanded = expandShellConstants(command, powershell)
   const pending = [expanded]
   while (pending.length) {
@@ -482,6 +687,14 @@ export async function evalCodePermission(code: string, cwd = getShellCwd()): Pro
   for (const target of [...inlineScriptReads(code), ...[...normalized.matchAll(/(['"])([^'"\r\n]+)\1/g)].map(m => m[2]!)]) {
     const secret = mercurySecretPath(target, cwd)
     if (secret !== null) return denyVerdict('Reading ' + target + ' is refused: ' + secret + " holds Mercury's own credentials; use the product's sign-in and account surfaces instead.")
+  }
+  const homes = mercuryHomes()
+  for (const literal of normalized.matchAll(/(['"])([^'"\r\n]+)\1/g)) {
+    for (const word of literal[2]!.split(/\s+/)) {
+      for (const candidate of spellingsOf(word)) {
+        if (mercurySecretPath(candidate, cwd) !== null || couldNameSecret(candidate, cwd, homes)) return denyVerdict('Reading ' + word + ' is refused: it can name a file that holds Mercury\'s own credentials; use the product\'s sign-in and account surfaces instead.')
+      }
+    }
   }
   for (const target of inlineScriptWrites(code)) {
     const credential = credentialStorePath(target, cwd)
