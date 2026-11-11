@@ -38,14 +38,14 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
   const wheel = '\x1b[<64;70;10M'
   const sends = [
     { atTick: 150, requireAwait: true, awaitText: 'TAIL-END', awaitSettleTicks: 6, mark: 'tail', data: wheel },
-    { afterPrevTicks: 2, mark: 'half', data: wheel },
+    { afterPrevTicks: 2, requireAwait: true, awaitText: 'back to the bottom', mark: 'half', data: wheel },
     { afterPrevTicks: 6, requireAwait: true, awaitText: 'back to the bottom', mark: 'off', data: CTRL_O },
     { afterPrevTicks: 6, requireAwait: true, awaitText: 'detailed transcript', mark: 'detail', data: CTRL_O },
     { afterPrevTicks: 6, requireAwait: true, awaitText: 'Type a prompt', mark: 'back', data: BOTTOM },
     { afterPrevTicks: 6, requireAwait: true, awaitText: 'TAIL-END', mark: 'bottom', data: CTRL_O },
     { afterPrevTicks: 6, requireAwait: true, awaitText: 'detailed transcript', mark: 'tail-detail', data: PAGE_UP },
-    { afterPrevTicks: 6, mark: 'page-up', data: PAGE_DOWN },
-    { afterPrevTicks: 6, mark: 'page-down', data: CTRL_O },
+    { afterPrevTicks: 6, requireAwait: true, awaitText: 'detailed transcript', mark: 'page-up', data: PAGE_DOWN },
+    { afterPrevTicks: 6, requireAwait: true, awaitText: 'detailed transcript', mark: 'page-down', data: CTRL_O },
     { afterPrevTicks: 6, requireAwait: true, awaitText: 'Type a prompt', mark: 'tail-back', data: '' },
   ].map(send => send.requireAwait ? { ...send, awaitSettleTicks: 6 } : send)
   const cfg = join(scratch, `${tag}.json`)
