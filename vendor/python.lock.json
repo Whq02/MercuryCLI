@@ -1,7 +1,7 @@
 {
   "name": "python",
   "version": "3.14.10",
-  "release": "20261026",
+  "release": "20261110",
   "repository": "https://github.com/astral-sh/python-build-standalone",
   "license": "Python-2.0",
   "licenseFiles": [
@@ -37,50 +37,50 @@
     "LICENSE.zlib-ng.txt": "6c9f0d975b41afaa34d22f55bb8986ce69e5cb7ad327cb2b28820cd425edf5ee",
     "LICENSE.zstd.txt": "7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8"
   },
-  "checksums": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/SHA256SUMS",
+  "checksums": "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/SHA256SUMS",
   "platforms": {
     "darwin-arm64": {
       "target": "aarch64-apple-darwin",
-      "archive": "cpython-3.14.10+20261026-aarch64-apple-darwin-install_only_stripped.tar.gz",
-      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.14.10%2B20261026-aarch64-apple-darwin-install_only_stripped.tar.gz",
-      "sha256": "95eb8c87d16af37c54e9765e31d8c56c0d8ffa9968ea0f704f73a9b83f84e9f9",
-      "sizeBytes": 26753457
+      "archive": "cpython-3.14.10+20261110-aarch64-apple-darwin-install_only_stripped.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.14.10%2B20261110-aarch64-apple-darwin-install_only_stripped.tar.gz",
+      "sha256": "f15ec3d15460dd66c2eb88639b152cd9040e7d1ece11e38bf89e8f53f0171e02",
+      "sizeBytes": 26970375
     },
     "darwin-x64": {
       "target": "x86_64-apple-darwin",
-      "archive": "cpython-3.14.10+20261026-x86_64-apple-darwin-install_only_stripped.tar.gz",
-      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.14.10%2B20261026-x86_64-apple-darwin-install_only_stripped.tar.gz",
-      "sha256": "2fd8becd48cf0ff5f0a15df3c0db7cae7aa708dcaacf901bd30d6cdd6229370b",
-      "sizeBytes": 26943401
+      "archive": "cpython-3.14.10+20261110-x86_64-apple-darwin-install_only_stripped.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.14.10%2B20261110-x86_64-apple-darwin-install_only_stripped.tar.gz",
+      "sha256": "85f8e54798e8e6aa58d2253f013d815c5616343cc0d15cbea882fca78bdfeae2",
+      "sizeBytes": 27139058
     },
     "linux-x64": {
       "target": "x86_64-unknown-linux-gnu",
-      "archive": "cpython-3.14.10+20261026-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
-      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.14.10%2B20261026-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
-      "sha256": "4d3c16c59ed0802a3d1d34d8bce504b15ceeaff39d62dadecc6a9fa803412aed",
-      "sizeBytes": 36776589
+      "archive": "cpython-3.14.10+20261110-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.14.10%2B20261110-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "sha256": "c2ff2e97422f5d3896a16e0317fd212ba977bbf2688d93a6f7a03d817506bd30",
+      "sizeBytes": 36875876
     },
     "linux-arm64": {
       "target": "aarch64-unknown-linux-gnu",
-      "archive": "cpython-3.14.10+20261026-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz",
-      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.14.10%2B20261026-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz",
-      "sha256": "90f48337bc3dd4ae6eda81e001e4c981236d403b6b5a07778bbdf94ee423dc00",
-      "sizeBytes": 30635900
+      "archive": "cpython-3.14.10+20261110-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.14.10%2B20261110-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "sha256": "38fd50f07170adc29d481913d1c30b17ecb538fbe290315fe1f83d84fdd5b694",
+      "sizeBytes": 30856932
     },
     "win-x64": {
       "target": "x86_64-pc-windows-msvc",
-      "archive": "cpython-3.14.10+20261026-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
-      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.14.10%2B20261026-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
-      "sha256": "c1876a9795d3a94ee49a1499a69cd91e26ca3e2829593f93fa6e4db90d05402b",
-      "sizeBytes": 23294761
+      "archive": "cpython-3.14.10+20261110-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.14.10%2B20261110-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+      "sha256": "32b6cf90a03e2bc15fda8d2ab7ff78c4870f138887d612932650ce764efaab8f",
+      "sizeBytes": 23680756
     },
     "win-arm64": {
       "target": "aarch64-pc-windows-msvc",
-      "archive": "cpython-3.14.10+20261026-aarch64-pc-windows-msvc-install_only_stripped.tar.gz",
-      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.14.10%2B20261026-aarch64-pc-windows-msvc-install_only_stripped.tar.gz",
-      "sha256": "2b6cf82a67cb99ef0db0932dd69ee24080077add6f98435cea5de850c144327d",
-      "sizeBytes": 22285335
+      "archive": "cpython-3.14.10+20261110-aarch64-pc-windows-msvc-install_only_stripped.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.14.10%2B20261110-aarch64-pc-windows-msvc-install_only_stripped.tar.gz",
+      "sha256": "0fc229d477a86e9797d4732b03a5bbc02c503cb81515c986b723038a12c520df",
+      "sizeBytes": 22685773
     }
   },
-  "notes": "The vendored Python runtime: the interpreter the Debug tool's Python road runs the bundled debugpy adapter on, so a release install debugs Python without a Python on the machine (Apple's stock /usr/bin/python3 is 3.9 and debugpy 1.8.22 needs 3.10). Pinned 2026-10-30 to the python-build-standalone release 20261026 (one stable CPython minor, 3.14; debugpy 1.8.22 classifies 3.10 through 3.15): one upstream install_only_stripped archive per platform, every sha256 copied from that release's SHA256SUMS asset (the checksums url above), never computed locally; the six platform keys are the Node pack's spelling. The fetch (bun run scripts/vendor/fetch-python.ts) verifies the archive digest BEFORE extraction and installs only the pack law's members (src/services/privateChannel/vendoredPython.ts): the interpreter as bin/python3 (python.exe and its DLLs on Windows), the standard library without ensurepip, idlelib, site-packages (pip), test, tkinter, turtledemo and bytecode caches, the extension modules without the tk and test ones, CPython's LICENSE.txt at the pack root and the licence texts of the components the upstream build links statically (vendor/python-licences, tracked, each verified against licenceTexts) under licenses/; headers, man pages, pkgconfig, the embedding library and the tcl/tk libraries stay out. The build vendors the shipped platform's cache at the fixed path dist/vendor/python; the release archive carries it beside the Node runtime, the manifest records version · release · platform · archive digest · shipped-binary digest, and install/update refuse a payload that declares the pack and does not carry it. Update procedure: pick the release tag and version, rewrite every platform's archive name, url and sizeBytes, take each sha256 from the new SHA256SUMS, run `bun run scripts/vendor/fetch-python.ts --all`, rebuild, re-run `bun run scripts/updater/prove-python-pack.ts` and `bun run scripts/ide/prove-debugpy-journey.ts`."
+  "notes": "The vendored Python runtime: the interpreter the Debug tool's Python road runs the bundled debugpy adapter on, so a release install debugs Python without a Python on the machine (Apple's stock /usr/bin/python3 is 3.9 and debugpy 1.8.22 needs 3.10). Pinned 2026-11-11 to the python-build-standalone release 20261110 (one stable CPython minor, 3.14; debugpy 1.8.22 classifies 3.10 through 3.15): one upstream install_only_stripped archive per platform, every sha256 copied from that release's SHA256SUMS asset (the checksums url above), never computed locally; the six platform keys are the Node pack's spelling. The fetch (bun run scripts/vendor/fetch-python.ts) verifies the archive digest BEFORE extraction and installs only the pack law's members (src/services/privateChannel/vendoredPython.ts): the interpreter as bin/python3 (python.exe and its DLLs on Windows), the standard library without ensurepip, idlelib, site-packages (pip), test, tkinter, turtledemo and bytecode caches, the extension modules without the tk and test ones, CPython's LICENSE.txt at the pack root and the licence texts of the components the upstream build links statically (vendor/python-licences, tracked, each verified against licenceTexts) under licenses/; headers, man pages, pkgconfig, the embedding library and the tcl/tk libraries stay out. The build vendors the shipped platform's cache at the fixed path dist/vendor/python; the release archive carries it beside the Node runtime, the manifest records version · release · platform · archive digest · shipped-binary digest, and install/update refuse a payload that declares the pack and does not carry it. Update procedure: pick the release tag and version, rewrite every platform's archive name, url and sizeBytes, take each sha256 from the new SHA256SUMS, run `bun run scripts/vendor/fetch-python.ts --all`, rebuild, re-run `bun run scripts/updater/prove-python-pack.ts` and `bun run scripts/ide/prove-debugpy-journey.ts`."
 }
