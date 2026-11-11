@@ -731,7 +731,8 @@ export async function shellCommandHasPermission(
   const decided = await bashToolHasPermission(input, read.context)
   const result = read.own.size === 0 ? decided : spelledForTool(decided, context, toolName, read.own)
   if ((result.behavior !== 'ask' && result.behavior !== 'passthrough') || ('suggestions' in result && result.suggestions !== undefined)) return result
-  return { ...result, suggestions: suggestionForCommand(input.command) } as PermissionResult
+  const namedAtRunTime = /[$`]/.test(input.command.replace(/'[^']*'/g, ''))
+  return { ...result, suggestions: namedAtRunTime ? [] : suggestionForCommand(input.command) } as PermissionResult
 }
 
 export async function startedCommandVerdict(

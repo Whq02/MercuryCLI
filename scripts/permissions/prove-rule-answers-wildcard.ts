@@ -14,6 +14,8 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import('../../src/utils/config.js')
+const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+setSessionTrustAccepted(true)
 enableConfigs()
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.js')

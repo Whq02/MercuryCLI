@@ -10,6 +10,8 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
+const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+setSessionTrustAccepted(true)
 const { buildAgentLaunchPlan } = await import('../../src/utils/crew/agentLaunchPlan.ts')
 const { MERCURY_CREW_AGENT_TYPE } = await import('../../src/tools/AgentTool/constants.ts')
 type AgentDefinition = import('../../src/tools/AgentTool/loadAgentsDir.ts').AgentDefinition

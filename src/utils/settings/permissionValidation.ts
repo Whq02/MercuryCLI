@@ -133,6 +133,13 @@ export function validatePermissionRule(rule: string): PermissionRuleValidation {
     }
 
     if (isBashPrefixTool(toolName)) {
+      if (/:\*$/.test(content)) {
+        return {
+          valid: false,
+          error: 'A command rule that ends in a colon before the star is a spelling Mercury does not read',
+          suggestion: `Write a space before the star: ${toolName}(${content.slice(0, -2).trim() || 'npm run'} *)`,
+        }
+      }
       return { valid: true }
     }
 

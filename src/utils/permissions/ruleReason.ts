@@ -5,6 +5,7 @@ import { getDenyRules, namesWholeServerOfTool, runsItsCommandAsBash } from './de
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { RULE_INHERITS } from '../../constants/tools.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
+import { isCheckoutSourceHeldForTrust } from '../settings/constants.js'
 
 export type RuleReasonCarrier = {
   readonly ruleReasons?: { readonly [K in PermissionRuleSource]?: { readonly [spelling: string]: string } }
@@ -31,11 +32,17 @@ export function ruleSourceWords(source: PermissionRuleSource): string {
   return RULE_SOURCE_WORDS[source]
 }
 
+function writtenByUntrustedFolder(source: PermissionRuleSource): boolean {
+  return (source === 'projectSettings' || source === 'localSettings') && isCheckoutSourceHeldForTrust(source)
+}
+
 export function ruleWords(rule: Pick<PermissionRule, 'source' | 'ruleValue'>): string {
+  if (writtenByUntrustedFolder(rule.source)) return `a rule ${ruleSourceWords(rule.source)} of this folder, which is not trusted`
   return `the rule ${ruleSpelling(rule.ruleValue)} ${ruleSourceWords(rule.source)}`
 }
 
 export function withheldByRuleWords(toolName: string, rule: Pick<PermissionRule, 'source' | 'ruleValue'>): string {
+  if (writtenByUntrustedFolder(rule.source)) return `${toolName} withheld by a deny rule ${ruleSourceWords(rule.source)} of this folder, which is not trusted`
   return `${toolName} withheld by the deny rule \`${ruleSpelling(rule.ruleValue)}\` ${ruleSourceWords(rule.source)}`
 }
 
