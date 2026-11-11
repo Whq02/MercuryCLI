@@ -95,7 +95,7 @@ const boardFixture = (mode: 'off' | 'agent-assisted'): Record<string, unknown> =
   for (const g of fixture.groups as Array<{ rows: Array<Record<string, unknown>> }>) {
     for (const r of g.rows) {
       r.workspaceDir = boardHome
-      if (r.sessionId === 's-oauth') Object.assign(r, { modelLabel: 'GPT-5.6 Sol', effortLabel: 'xhigh' })
+      if (r.sessionId === 's-oauth') Object.assign(r, { modelLabel: 'GPT-5.6 Sol', effortLabel: 'xhigh', nowLive: true })
     }
   }
   return fixture
@@ -245,6 +245,11 @@ console.log('R — choosing another row switches the live view (160×48: ↓ on 
       left.some(l => l.includes('Tracing the callback owner in src/auth.')) &&
       !left.some(l => l.includes('Reading the receipts and the ledger.')),
     left.slice(0, 8).map(l => l.trimEnd()).join(' | '),
+  )
+  check(
+    "R2 that row is at work on a live tool: its words stand whole before the way in, where they stood, and the effort before them is the part that is cut",
+    /Fix OAuth callback · Moodle · GPT-5\.6 Sol · xh… {2}[◐◓◑◒] editing src\/auth\/callback\.ts ↵ enter session/.test(left[1] ?? ''),
+    (left[1] ?? '').trim(),
   )
 }
 

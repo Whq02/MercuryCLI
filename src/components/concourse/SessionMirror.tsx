@@ -108,6 +108,7 @@ export function SessionMirror({
   note,
   state,
   nowLabel,
+  nowLive = false,
   bare = false,
   liveTailLine,
   idScope = 'mirror',
@@ -118,6 +119,7 @@ export function SessionMirror({
   workspaceId: string
   state?: string
   nowLabel?: string | null
+  nowLive?: boolean
   title: string
   titleFacts?: readonly string[]
   accent?: string
@@ -276,6 +278,7 @@ export function SessionMirror({
     noteReserve: noteText !== null ? clusterReserve : null,
     nowWords: state === 'working' ? (nowLabel !== undefined && nowLabel !== null && nowLabel.length > 0 ? nowLabel : 'working…') : null,
     nowText,
+    nowLive,
   })
   const paneSize = useMemo(() => ({ columns: paneWidth, rows: paneRows }), [paneWidth, paneRows])
   return (
