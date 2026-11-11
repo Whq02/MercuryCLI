@@ -74,7 +74,7 @@ try {
   const sid = basename(sessionDir)
   transcript = join(dirname(sessionDir), `${sid}.jsonl`)
   board = open(path, sid)
-  const sender = { author: { sessionId: sid, agentId: 'poster', executionId: 'run' }, name: 'poster', team: 'lists' }
+  const sender = { author: { sessionId: sid, agentId: 'poster', executionId: 'run' }, name: 'poster' }
   board.enroll(sender)
   const ask = (clientOpId: string, text: string): void => {
     const receipt = board!.post(sender, { clientOpId, kind: 'ask', text })
