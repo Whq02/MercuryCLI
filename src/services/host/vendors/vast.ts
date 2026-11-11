@@ -28,12 +28,12 @@ export async function createVastRental(api: VastClient, offer: HostOffer, public
 export const VAST_STORAGE_NOTICE = 'Stop keeps the disk and storage bill; restart waits for free GPUs. Terminate deletes the disk and its data.'
 export const VAST_KEY_NOTICE = 'Adds an SSH key to your Vast.ai account and instances. Remove it at https://cloud.vast.ai/manage-keys/ when finished.'
 export const VAST_GPU_NAMES: Readonly<Record<string, string>> = {
-  H100: 'NVIDIA H100', 'H100 SXM': 'NVIDIA H100', 'H100 PCIE': 'NVIDIA H100',
+  H100: 'NVIDIA H100', 'H100 SXM': 'NVIDIA H100', 'H100 PCIE': 'NVIDIA H100', 'H100 NVL': 'NVIDIA H100',
   H200: 'NVIDIA H200', 'H200 NVL': 'NVIDIA H200', B200: 'NVIDIA B200', B300: 'NVIDIA B300', 'B300 PC': 'NVIDIA B300', GB300: 'NVIDIA GB300',
   A100: 'NVIDIA A100', 'A100 SXM4': 'NVIDIA A100',
   'RTX PRO 6000': 'NVIDIA RTX PRO 6000 Blackwell', 'RTX PRO 6000 WS': 'NVIDIA RTX PRO 6000 Blackwell',
   'RTX PRO 6000 S': 'NVIDIA RTX PRO 6000 Blackwell', 'RTX PRO 6000 BLACKWELL': 'NVIDIA RTX PRO 6000 Blackwell',
-  'RTX PRO 6000 BLACKWELL SERVER EDITION': 'NVIDIA RTX PRO 6000 Blackwell',
+  'RTX PRO 6000 BLACKWELL SERVER EDITION': 'NVIDIA RTX PRO 6000 Blackwell', 'RTX PRO 6000 MAX-Q': 'NVIDIA RTX PRO 6000 Blackwell',
   'RTX 5090': 'NVIDIA GeForce RTX 5090', 'RTX 4090': 'NVIDIA GeForce RTX 4090', 'RTX 3090': 'NVIDIA GeForce RTX 3090', 'RTX A6000': 'NVIDIA RTX A6000', A6000: 'NVIDIA RTX A6000', L40S: 'NVIDIA L40S', L4: 'NVIDIA L4',
 }
 const ONSTART = 'mkdir -p /workspace && touch /root/.no_auto_tmux'
