@@ -98,6 +98,9 @@ if (mode === 'shapes') {
   await refuse('rmSync, a String object', () => rmSync(new String(root) as never, whole))
   await refuse('rmSync, a value that is no path', () => rmSync({ at: root } as never, whole))
   await refuse('rmSync, a name longer than the system reads, which no check can look at', () => rmSync(join(root, 'x'.repeat(300)), whole))
+  await refuse('renameSync, a folder moved onto a link to the place a root would stand, spelled with a trailing separator', () => renameSync(spare, join(world, 'to-missing') + sep))
+  await refuse('renameSync there through a second link to that link', () => renameSync(spare, join(world, 'to-to-missing') + sep))
+  await refuse('renameSync there, the separator written twice', () => renameSync(spare, join(world, 'to-missing') + sep + sep))
   facts.refused = refused
 
   const shaped = join(tmpdir(), 'shaped.cjs')

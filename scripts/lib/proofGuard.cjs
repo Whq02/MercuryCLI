@@ -18,9 +18,11 @@ const GUARDED_OPERATIONS = [
 const ACCOUNT_RECORD_HOME_AT = { darwin: 48, linux: 32 }
 const NAMES_FOLD = process.platform === 'darwin'
 const NO_ENTRY = ['ENOENT', 'ENOTDIR']
+const LINKS_FOLLOWED = 40
 const lstat = fs.lstatSync
 const stat = fs.statSync
 const realpath = fs.realpathSync
+const readlink = fs.readlinkSync
 let roots = []
 
 function proofEntry() {
@@ -113,10 +115,29 @@ function said(spelled) {
 function folded(name) {
   return NAMES_FOLD ? name.normalize('NFC').toLowerCase() : name
 }
+function bare(place) {
+  let end = place.length
+  while (end > 1 && place[end - 1] === path.sep) end--
+  return place.slice(0, end)
+}
+function behindLinks(place) {
+  for (let followed = 0; followed < LINKS_FOLLOWED; followed++) {
+    let to
+    try {
+      to = readlink(onDisk(place), { encoding: 'buffer' }).toString('latin1')
+    } catch (error) {
+      if (error.code === 'EINVAL' || NO_ENTRY.includes(error.code)) return place
+      throw error
+    }
+    place = bare(path.isAbsolute(to) ? to : `${path.dirname(place)}${path.sep}${to}`)
+  }
+  return place
+}
 function landing(target) {
-  const last = path.basename(target)
+  const place = target.endsWith(path.sep) ? behindLinks(bare(target)) : target
+  const last = path.basename(place)
   if (last === '' || last === '.' || last === '..') return null
-  const folder = seen(onDisk(path.dirname(target)), true)
+  const folder = seen(onDisk(path.dirname(place)), true)
   if (folder === null || folder.key === '') return null
   const name = folded(said(last))
   for (const root of roots) {
