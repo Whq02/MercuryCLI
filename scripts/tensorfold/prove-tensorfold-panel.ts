@@ -237,6 +237,14 @@ section('an installed engine older than the supported release: one line names th
   check(`${narrow[0]}×${narrow[1]}: the command stays whole and no row is wider than the terminal`, narrowText.includes('brew upgrade ashhart/tensorfold/tensorfold') && narrowLines.every(line => [...line].length <= narrow[0]), narrowLines.filter(line => line.includes('brew') || line.includes('supported')).join(' | '))
   m2.unmount()
   road.__resetTensorFoldRoadForTest()
+  road.setTensorFoldNotice('serving qwen3.5-2b on 127.0.0.1:8080 · switched')
+  const m3 = await mountOffscreen(shell(columns, rows, h(panel.TensorFoldPanel as never, { onDone: () => undefined, io } as never)), columns, rows)
+  await waitFor(() => m3.lines().some(line => line.includes('TENSORFOLD')), 10_000)
+  await settle(300)
+  const noticed = m3.lines()
+  check("a notice of the panel's own action takes the line's place while it stands", noticed.some(line => line.includes('serving qwen3.5-2b on 127.0.0.1:8080 · switched')) && !noticed.some(line => line.includes('brew upgrade')), noticed.filter(line => line.includes('switched') || line.includes('brew')).join(' | '))
+  m3.unmount()
+  road.__resetTensorFoldRoadForTest()
 }
 
 await releaseScratchHome(home)
