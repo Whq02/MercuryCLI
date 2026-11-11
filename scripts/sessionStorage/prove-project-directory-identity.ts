@@ -9,6 +9,8 @@ import { basename, dirname, join, relative } from 'node:path'
 
 const ROOT = realpathSync.native(mkdtempSync(join(tmpdir(), 'project-identity-')))
 const CASE_MOUNT = join(ROOT, 'case-sensitive')
+const ON_IMAGE_WORD = '--on-the-case-sensitive-image'
+const ON_IMAGE = process.argv.includes(ON_IMAGE_WORD)
 const HOME = join(ROOT, 'home')
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_BARE = '1'
@@ -307,7 +309,10 @@ try {
   check('I3 a card naming another directory vetoes a live case variant and its transcript', cardAnswers[3] === join(PROJECTS, projectSlug(vetoProject)), cardAnswers[3])
   check('I4 card ownership reads wrote nothing', treeHash(HOME) === cardsBefore)
 
-  if (process.platform === 'darwin' && existsSync(join(ROOT, 'mixedcaseproject'))) {
+  if (ON_IMAGE) {
+    section('J — this run is the one J3 started on the image: it stands there and mounts nothing')
+    check('J0 this run stands on a case-sensitive volume', !existsSync(join(ROOT, 'mixedcaseproject')), ROOT)
+  } else if (process.platform === 'darwin' && existsSync(join(ROOT, 'mixedcaseproject'))) {
     section('J — the same laws on case-sensitive APFS')
     const image = join(ROOT, 'case-sensitive.dmg')
     const diskOptions = { encoding: 'utf8' as const, stdio: ['ignore', 'pipe', 'pipe'] as ['ignore', 'pipe', 'pipe'], timeout: 60_000 }
@@ -318,11 +323,13 @@ try {
       const attached = spawnSync('hdiutil', ['attach', '-nobrowse', '-mountpoint', CASE_MOUNT, image], diskOptions)
       check('J2 the image mounts unattended', attached.status === 0, attached.stderr || String(attached.error ?? attached.status))
       if (attached.status === 0) {
-        const temp = join(CASE_MOUNT, 'tmp')
+        const temp = join(CASE_MOUNT, 'mercury-proof-run.on-image')
         mkdirSync(temp)
-        const run = spawnSync(process.execPath, [import.meta.path], { ...diskOptions, timeout: 120_000, env: { ...process.env, TMPDIR: temp, MERCURY_CONFIG_DIR: join(CASE_MOUNT, 'home') } })
+        const run = spawnSync(process.execPath, [import.meta.path, ON_IMAGE_WORD], { ...diskOptions, timeout: 120_000, env: { ...process.env, TMPDIR: temp, MERCURY_CONFIG_DIR: join(CASE_MOUNT, 'home') } })
         console.log(run.stdout)
         check('J3 the full identity proof passes on case-sensitive APFS', run.status === 0, run.stderr || String(run.error ?? run.status))
+        const said = String(run.stdout ?? '')
+        check('J3 the run it started stood on the image and made no image of its own', said.includes('[PASS] J0 this run stands on a case-sensitive volume') && !said.includes('J1 the case-sensitive image'), said.split('\n').filter(line => /\bJ\d\b/.test(line)).join(' | ') || 'no J line in its output')
       }
     }
   }
