@@ -1,4 +1,5 @@
 import { getAllowedSettingSources } from '../../bootstrap/state.js'
+import { untrustedWorkspaceHeadless } from '../config/trust.js'
 
 export const SETTING_SOURCES = ['userSettings', 'projectSettings', 'localSettings', 'flagSettings', 'policySettings'] as const
 export type SettingSource = (typeof SETTING_SOURCES)[number]
@@ -32,9 +33,14 @@ export function parseSettingSourcesFlag(flag: string): SettingSource[] {
   })
 }
 
+const CHECKOUT_SOURCES: ReadonlySet<SettingSource> = new Set(['projectSettings', 'localSettings'])
+
 export function getEnabledSettingSources(): SettingSource[] {
   const allowed = getAllowedSettingSources()
-  return SETTING_SOURCES.filter(source => source === 'flagSettings' || source === 'policySettings' || allowed.includes(source))
+  const checkoutUntrusted = untrustedWorkspaceHeadless()
+  return SETTING_SOURCES.filter(
+    source => source === 'flagSettings' || source === 'policySettings' || (allowed.includes(source) && !(checkoutUntrusted && CHECKOUT_SOURCES.has(source))),
+  )
 }
 
 export function isSettingSourceEnabled(source: SettingSource): boolean {
