@@ -338,6 +338,7 @@ try {
   }
   for (const spec of FAMILIES) pages[spec.name] = spec.page(spec.oldRows)
   const pageOf = (road: string): unknown => pages[road.startsWith('anthropic:') ? 'anthropic' : road]
+  const ROADS_HOST = new URL(process.env.MERCURY_OPENAI_API_BASE!).host
   const roadOf = (url: string, init?: RequestInit): string | undefined => {
     const path = url.replace(/^https?:\/\/[^/]+/, '').split('?')[0]!
     if (path === '/v1/models') return 'gpt'
@@ -358,6 +359,7 @@ try {
     if (path === '/ollama/api/version') return json({ version: '0.11.4' })
     if (path === '/ollama/api/ps') return json({ models: [] })
     if (path === '/ollama/api/show') return json(showBody)
+    if (new URL(url).host !== ROADS_HOST) throw new TypeError(`fixture: nothing listens at ${new URL(url).host}`)
     const road = roadOf(url, init)
     if (road === undefined) throw new Error(`Unexpected request: ${url}`)
     ledger.push(road)
