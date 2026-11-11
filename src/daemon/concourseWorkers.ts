@@ -13,7 +13,7 @@ import { lockSync } from '../utils/lockfile.js'
 import { daemonHomeStands, publishInDaemonHome, publishTransientInDaemonHome } from './daemonHome.js'
 import { flagSpellings } from '../substrate/flagRegistry.js'
 import { resolveEffectiveSettingsSnapshot } from '../substrate/startupMenu.js'
-import { getProcessStartToken, getProcessStartTokenAsync, getProcessStartTokenCachedOrRefresh, isProcessAlive } from './ownerWatch.js'
+import { getProcessStartInstant, getProcessStartInstantAsync, getProcessStartInstantCachedOrRefresh, getProcessStartTokenAsync, isProcessAlive } from './ownerWatch.js'
 import { observeSessionStates } from './sessionStateHooks.js'
 import { daemonDir } from './controlSocket.js'
 import { decideTransition, type ConcourseSessionState } from './concourseLifecycle.js'
@@ -174,6 +174,7 @@ export interface ConcourseWorkerRecordV1 {
     lastTurnAt: number | null
   }
   bornBlankAt?: number
+  resumedAtRestAt?: number
   birthKey?: string
   settingsSnapshot?: import('../substrate/startupMenu.js').SessionEffectiveSettingsSnapshotV1
   branchName?: string
@@ -429,9 +430,9 @@ export function markConcourseWorkerCrash(
   }
 }
 
-function pidFieldsOf(pid: number | undefined, startToken = pid === undefined ? null : getProcessStartToken(pid)): { pid?: number; procStart?: string } {
+function pidFieldsOf(pid: number | undefined, startToken = pid === undefined ? null : getProcessStartInstant(pid)): { pid?: number; procStart?: string } {
   if (pid === undefined) return {}
-  const token = startToken ?? getProcessStartTokenCachedOrRefresh(pid)
+  const token = startToken ?? getProcessStartInstantCachedOrRefresh(pid)
   return { pid, ...(token !== null && token !== '' ? { procStart: token } : {}) }
 }
 
@@ -441,6 +442,9 @@ function buildTreeFields(): { buildTree?: string } {
 }
 
 import { workerPidAlive } from './workerIdentity.js'
+import { parseProcessStartToken, tokenBinding } from './processSweep.js'
+import { readProcessTreeUnder } from './processTree.js'
+import { endProcessTree } from '../utils/processGroup.js'
 export { workerPidAlive } from './workerIdentity.js'
 
 export function markConcourseWorkerRespawn(runnerId: string, pid: number, dir?: string): void {
@@ -897,6 +901,7 @@ export interface ConcourseAdmitRequest {
   permissionMode?: PermissionMode
   runnerArgv?: string[]
   bornBlank?: boolean
+  resumedAtRest?: true
   vacatingSessionId?: string
   birthKey?: string
   kit?: SessionKitV1
@@ -1104,6 +1109,7 @@ export function makeConcourseAdmitHandler(
             by: 'operator',
             kind,
             ...(req.restartReason === 'update' ? { restartReason: 'update' as const } : {}),
+            ...(req.resumedAtRest === true ? { atRest: true as const } : {}),
           },
           others,
           deps,
@@ -1171,7 +1177,7 @@ export function makeConcourseAdmitHandler(
         console.error(`[daemon] warm claim acked in ${Date.now() - claimStartedAt}ms: ${claimed.short} takes session ${claimSessionId}`)
         const runnerId = claimed.short
         const snapshot = resolveEffectiveSettingsSnapshot({ sessionId: claimSessionId })
-        const pidFields = pidFieldsOf(claimed.pid, claimed.pid === undefined ? null : await getProcessStartTokenAsync(claimed.pid))
+        const pidFields = pidFieldsOf(claimed.pid, claimed.pid === undefined ? null : await getProcessStartInstantAsync(claimed.pid))
         updateConcourseWorkers(workers => {
           workers[runnerId] = {
             schema: 1,
@@ -1193,6 +1199,7 @@ export function makeConcourseAdmitHandler(
             workspaceKind: workspaceKindOf(workspaceId),
             ...(req.title !== undefined ? { title: partiallySanitizeUnicode(req.title) } : {}),
             ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
+            ...(req.resumedAtRest === true ? { resumedAtRestAt: Date.now() } : {}),
             ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
             ...kitStampOf(kit),
             permissionMode: claimPosture,
@@ -1338,7 +1345,7 @@ export function makeConcourseAdmitHandler(
     carryBuildNotices(sessionId)
     const reg = roster.registerLongLived(runnerId, spec)
     if (!reg.ok) return { ok: false, code: 'spawn-failed', error: reg.error ?? 'registerLongLived refused' }
-    const pidFields = pidFieldsOf(reg.pid, reg.pid === undefined ? null : await getProcessStartTokenAsync(reg.pid))
+    const pidFields = pidFieldsOf(reg.pid, reg.pid === undefined ? null : await getProcessStartInstantAsync(reg.pid))
     updateConcourseWorkers(workers => {
       workers[runnerId!] = {
         schema: 1,
@@ -1364,6 +1371,7 @@ export function makeConcourseAdmitHandler(
         ...(req.title !== undefined ? { title: partiallySanitizeUnicode(req.title) } : {}),
         ...(runnerArgv !== undefined && runnerArgv.length > 0 ? { runnerArgv: [...runnerArgv] } : {}),
         ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
+        ...(req.resumedAtRest === true ? { resumedAtRestAt: Date.now() } : {}),
         ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
         ...spawnPostureOf(spec),
         ...kitStampOf(kit),
@@ -2065,6 +2073,13 @@ export function reviveConcourseWorker(
 }
 
 
+function stampTakenBackAtRest(rec: ConcourseWorkerRecordV1): void {
+  rec.resumedAtRestAt = Date.now()
+  if (!turnInFlightOf(rec)) return
+  rec.lastTurnSettledAt = rec.lastDeliveryAt
+  rec.activity = sessionActivityOf(false, [], 0, rec.lastTurnSettledAt ?? null)
+}
+
 function clearReactivatedFields(rec: ConcourseWorkerRecordV1): void {
   clearParkedFields(rec)
   delete rec.stoppedAt
@@ -2110,6 +2125,7 @@ export async function reactivateConcourseSession(
     by: string
     kind?: SessionKind
     restartReason?: 'update'
+    atRest?: true
   },
   live: ReadonlyArray<{ workspaceId: string; isolation?: WorkspaceIsolation }>,
   deps: ConcourseAdmitDeps,
@@ -2177,7 +2193,7 @@ export async function reactivateConcourseSession(
       // eslint-disable-next-line no-console
       console.error(`[daemon] warm claim acked in ${Date.now() - claimStartedAt}ms: ${claimed.short} takes back session ${rec.sessionId} (${rec.runnerId} reactivated in place)`)
       const short = claimed.short
-      const fields = pidFieldsOf(claimed.pid, claimed.pid === undefined ? null : await getProcessStartTokenAsync(claimed.pid))
+      const fields = pidFieldsOf(claimed.pid, claimed.pid === undefined ? null : await getProcessStartInstantAsync(claimed.pid))
       updateConcourseWorkers(workers => {
         const current = workers[rec.runnerId]
         if (!current || current.endedAt !== undefined) return
@@ -2195,6 +2211,7 @@ export async function reactivateConcourseSession(
         }
         if (isolationDrift) next.isolation = claimIsolation
         clearReactivatedFields(next)
+        if (args.atRest === true) stampTakenBackAtRest(next)
         Object.assign(next, buildTreeFields())
         restampSessionKit(next, kit, kitSource, args.by)
         stampSpawnPosture(next, { permissionMode: claimPosture, ...(args.bypassConsent === true ? { bypassConsent: true as const } : {}), kind })
@@ -2266,6 +2283,7 @@ export async function reactivateConcourseSession(
       const w = workers[rec.runnerId]
       if (!w || w.endedAt !== undefined) return
       restampSessionKit(w, kit, kitSource, args.by)
+      if (args.atRest === true) stampTakenBackAtRest(w)
     }, deps.dir)
   }
   const pid = revived.outcome === 'applied' ? revived.pid : rec.pid
@@ -2319,6 +2337,9 @@ function stampStopped(rec: ConcourseWorkerRecordV1, by: string, retired?: Concou
   delete rec.stopRequestedAt
   delete rec.stopRequestedBy
   delete rec.stopRequestedRetired
+  delete rec.parkRequestedAt
+  delete rec.parkRequestedBy
+  delete rec.parkRequestedReason
   delete rec.crash
 }
 
@@ -2503,8 +2524,14 @@ export async function retireConcourseSession(
   by: string,
   roster: { kill(short: string): boolean; door(short: string): RunnerDoor | undefined; has(short: string): { alive: boolean; present: boolean }; expectExit?(short: string, expected: boolean): boolean },
   dir?: string,
-  opts?: { reason?: string; exitWaitMs?: number },
+  opts?: { reason?: string; exitWaitMs?: number; requestStands?: true },
 ): Promise<ConcourseRetireOutcome> {
+  const { quiesceSessionRunner } = await import('./sessionSeat.js')
+  if (opts?.requestStands !== true) {
+    const asked = Object.values(readSessionWorkers(dir)).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+    const requested = asked === undefined ? undefined : requestedRetirements.get(asked.runnerId)
+    if (asked !== undefined && requested !== undefined && (await requested)) return { outcome: 'parked', runnerId: asked.runnerId }
+  }
   const rec = Object.values(readSessionWorkers(dir)).find(r => r.sessionId === sessionId && r.endedAt === undefined)
   if (!rec) return { outcome: 'refused', reason: 'unknown-session', fenced: false }
   const runnerId = rec.runnerId
@@ -2513,13 +2540,18 @@ export async function retireConcourseSession(
     const result = await standing.demand()
     return result.outcome === 'parked' ? { outcome: 'parked', runnerId } : { outcome: 'refused', runnerId, reason: result.reason, fenced: result.fenced }
   }
-  const { quiesceSessionRunner } = await import('./sessionSeat.js')
   const current = (): ConcourseWorkerRecordV1 | undefined => readSessionWorkers(dir)[runnerId]
+  const requestedAt = rec.parkRequestedAt
   const fence = new RetirementFence({
     request: request => quiesceSessionRunner(runnerId, request, roster),
     refusal: () => {
       const now = current()
-      return now === undefined ? 'the record vanished' : retirementRefusal(now)
+      if (now === undefined) return 'the record vanished'
+      if (opts?.requestStands === true) {
+        if (now.parkRequestedAt === undefined || now.parkRequestedAt !== requestedAt) return 'the park request was withdrawn'
+        if (stopOutranksPark(now)) return 'a stop is in progress'
+      }
+      return retirementRefusal(now)
     },
     persistIntent: token => {
       const now = current()
@@ -2562,10 +2594,12 @@ export async function retireConcourseSession(
   try {
     const result = await fence.retire(randomUUID().replace(/-/g, ''))
     if (result.outcome === 'parked') return { outcome: 'parked', runnerId }
-    updateConcourseWorkers(workers => {
-      const w = workers[runnerId]
-      if (w && w.parkedAt === undefined) w.parkRefused = { reason: result.reason, at: Date.now(), by }
-    }, dir)
+    if (opts?.requestStands !== true) {
+      updateConcourseWorkers(workers => {
+        const w = workers[runnerId]
+        if (w && w.parkedAt === undefined) w.parkRefused = { reason: result.reason, at: Date.now(), by }
+      }, dir)
+    }
     return { outcome: 'refused', runnerId, reason: result.reason, fenced: result.fenced }
   } finally {
     if (retirementFences.get(runnerId) === fence && !fence.fenced) retirementFences.delete(runnerId)
@@ -2604,13 +2638,113 @@ export function completeRequestedPark(
   updateConcourseWorkers(workers => {
     const rec = workers[runnerId]
     if (!rec || rec.endedAt !== undefined || rec.parkedAt !== undefined || rec.parkRequestedAt === undefined) return
-    const alive = workerPidAlive(rec)
-    if (alive && turnInFlightOf(rec)) return
-    if (alive && !(roster !== undefined && roster.kill(rec.runnerId))) return
+    if (stopOutranksPark(rec) || workerPidAlive(rec)) return
+    roster?.kill(rec.runnerId)
     stampParked(rec, rec.parkRequestedBy ?? 'daemon', rec.parkRequestedReason)
     completed = true
   }, dir)
   return completed
+}
+
+function stopOutranksPark(rec: Pick<ConcourseWorkerRecordV1, 'stopRequestedAt' | 'stoppedAt'>): boolean {
+  return rec.stopRequestedAt !== undefined || rec.stoppedAt !== undefined
+}
+
+const requestedRetirements = new Map<string, Promise<boolean>>()
+
+export function retireRequestedPark(
+  runnerId: string,
+  roster: Parameters<typeof retireConcourseSession>[2],
+  dir?: string,
+  opts?: { exitWaitMs?: number },
+): Promise<boolean> {
+  const standing = requestedRetirements.get(runnerId)
+  if (standing !== undefined) return standing
+  const retirement: Promise<boolean> = retireForRequest(runnerId, roster, dir, opts).finally(() => {
+    if (requestedRetirements.get(runnerId) === retirement) requestedRetirements.delete(runnerId)
+  })
+  requestedRetirements.set(runnerId, retirement)
+  return retirement
+}
+
+async function retireForRequest(
+  runnerId: string,
+  roster: Parameters<typeof retireConcourseSession>[2],
+  dir?: string,
+  opts?: { exitWaitMs?: number },
+): Promise<boolean> {
+  const rec = readSessionWorkers(dir)[runnerId]
+  if (!rec || rec.endedAt !== undefined || rec.parkedAt !== undefined || rec.parkRequestedAt === undefined) return false
+  if (stopOutranksPark(rec) || retirementFences.has(runnerId) || turnInFlightOf(rec) || !workerPidAlive(rec)) return false
+  const retired = await retireConcourseSession(rec.sessionId, rec.parkRequestedBy ?? 'daemon', roster, dir, {
+    ...(rec.parkRequestedReason !== undefined ? { reason: rec.parkRequestedReason } : {}),
+    ...(opts?.exitWaitMs !== undefined ? { exitWaitMs: opts.exitWaitMs } : {}),
+    requestStands: true,
+  })
+  return retired.outcome === 'parked'
+}
+
+function withdrawTerminalParkRequest(rec: ConcourseWorkerRecordV1): boolean {
+  if (rec.parkRequestedAt === undefined || stampedTerminalPid(rec.parkRequestedBy) === undefined) return false
+  delete rec.parkRequestedAt
+  delete rec.parkRequestedBy
+  delete rec.parkRequestedReason
+  return true
+}
+
+export function operatorTookSessionBack(sessionId: string, dir?: string): boolean {
+  const standing = Object.values(readSessionWorkers(dir)).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+  if (!standing || standing.parkRequestedAt === undefined) return false
+  let withdrawn = false
+  updateConcourseWorkers(workers => {
+    const rec = Object.values(workers).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+    if (rec) withdrawn = withdrawTerminalParkRequest(rec)
+  }, dir)
+  return withdrawn
+}
+
+export const HOSTLESS_RUNNER_GRACE_MS = 3_000
+
+export async function endRunnersLeftWithoutHost(
+  hosted: (runnerId: string) => boolean,
+  dir?: string,
+  opts?: { graceMs?: number },
+): Promise<Array<{ runnerId: string; pid: number }>> {
+  const ended: Array<{ runnerId: string; pid: number }> = []
+  for (const rec of Object.values(readSessionWorkers(dir))) {
+    const pid = rec.pid
+    if (rec.endedAt !== undefined || rec.attachedAt !== undefined || pid === undefined || rec.procStart === undefined) continue
+    if (pid <= 1 || pid === process.pid) continue
+    if (hosted(rec.runnerId) || !isProcessAlive(pid)) continue
+    const listedAt = Date.now()
+    const under = await readProcessTreeUnder(pid)
+    if (tokenBinding(rec.procStart, await getProcessStartTokenAsync(pid, rec.procStart)) !== 'bound') continue
+    const tree: Array<{ pid: number; birth: string }> = []
+    for (const member of under) {
+      const birth = await getProcessStartInstantAsync(member)
+      if (typeof birth === 'string' && parseProcessStartToken(birth) <= listedAt) tree.push({ pid: member, birth })
+    }
+    if (under.length > 0 && tokenBinding(rec.procStart, await getProcessStartTokenAsync(pid, rec.procStart)) !== 'bound') continue
+    await endProcessTree(pid, 'SIGTERM')
+    const deadline = Date.now() + (opts?.graceMs ?? HOSTLESS_RUNNER_GRACE_MS)
+    while ((isProcessAlive(pid) || tree.some(member => isProcessAlive(member.pid))) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50))
+    let gone = !isProcessAlive(pid)
+    if (!gone) {
+      const still = tokenBinding(rec.procStart, await getProcessStartTokenAsync(pid, rec.procStart))
+      if (still === 'bound') {
+        await endProcessTree(pid, 'SIGKILL')
+        gone = !isProcessAlive(pid)
+      } else {
+        gone = still === 'stranger'
+      }
+    }
+    for (const member of tree) {
+      if (!isProcessAlive(member.pid)) continue
+      if (tokenBinding(member.birth, await getProcessStartInstantAsync(member.pid)) === 'bound') await endProcessTree(member.pid, 'SIGKILL')
+    }
+    if (gone) ended.push({ runnerId: rec.runnerId, pid })
+  }
+  return ended
 }
 
 export function pendingParkRequests(dir?: string): string[] {
@@ -2770,6 +2904,7 @@ export function focusConcourseSession(sessionId: string, by: string, dir?: strin
     if (rec.focusedBy !== by || terminalApplication !== undefined) rec.terminalApplication = terminalApplication ?? null
     rec.focusedAt = Date.now()
     rec.focusedBy = by
+    withdrawTerminalParkRequest(rec)
     out = { outcome: 'applied', runnerId: rec.runnerId, cleared }
   }, dir)
   return out
@@ -2854,13 +2989,13 @@ export function countLiveConcourseWorkers(dir?: string): number {
 }
 
 export function concourseRecordState(
-  rec: Pick<ConcourseWorkerRecordV1, 'pausedAt' | 'lastDeliveryAt' | 'lastTurnSettledAt' | 'attachedAt' | 'stoppedAt' | 'crash' | 'parkedAt' | 'bornBlankAt' | 'pid'>,
+  rec: Pick<ConcourseWorkerRecordV1, 'pausedAt' | 'lastDeliveryAt' | 'lastTurnSettledAt' | 'attachedAt' | 'stoppedAt' | 'crash' | 'parkedAt' | 'bornBlankAt' | 'resumedAtRestAt' | 'pid'>,
   liveness: { needsYou: boolean; alive: boolean },
 ): ConcourseRowV1['state'] {
   const turnSettled =
     rec.lastTurnSettledAt !== undefined &&
     (rec.lastDeliveryAt === undefined || rec.lastTurnSettledAt >= rec.lastDeliveryAt)
-  const wordlessNewborn = rec.bornBlankAt !== undefined && rec.lastDeliveryAt === undefined
+  const admittedAtRest = (rec.bornBlankAt !== undefined || rec.resumedAtRestAt !== undefined) && rec.lastDeliveryAt === undefined
   return rec.attachedAt !== undefined
     ? 'attached'
     : rec.parkedAt !== undefined
@@ -2874,7 +3009,7 @@ export function concourseRecordState(
             : liveness.needsYou
               ? 'needs-you'
               : liveness.alive
-                ? turnSettled || wordlessNewborn
+                ? turnSettled || admittedAtRest
                   ? 'ready-to-review'
                   : 'working'
                 : rec.pid !== undefined

@@ -309,11 +309,11 @@ export function readChildPidFile(port: number): { pid: number; token: string } |
   }
 }
 
-export async function reapStaleChild(port: number, platform: NodeJS.Platform, say: (line: string) => void, io: { startToken?: (pid: number) => Promise<string | null>; isLlamaServer?: (pid: number) => Promise<boolean> } = {}): Promise<boolean> {
+export async function reapStaleChild(port: number, platform: NodeJS.Platform, say: (line: string) => void, io: { startToken?: (pid: number, like?: string | null) => Promise<string | null>; isLlamaServer?: (pid: number) => Promise<boolean> } = {}): Promise<boolean> {
   const stale = readChildPidFile(port)
   rmSync(adapterChildPidFile(port), { force: true })
   if (stale === undefined || stale.pid === process.pid || stale.token === '') return false
-  const live = await (io.startToken ?? getProcessStartTokenAsync)(stale.pid)
+  const live = await (io.startToken ?? getProcessStartTokenAsync)(stale.pid, stale.token)
   if (live === null || live === '' || live !== stale.token) return false
   if (!(await (io.isLlamaServer ?? (pid => isLlamaServer(pid, platform)))(stale.pid))) return false
   try {

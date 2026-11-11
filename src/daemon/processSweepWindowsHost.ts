@@ -64,7 +64,7 @@ function Row($process, $full = $true) {
   $token = $null
   if ($null -ne $process.CreationDate) {
     $started = ([DateTimeOffset]$process.CreationDate.ToUniversalTime()).ToUnixTimeMilliseconds()
-    $token = "$($process.CreationDate)"
+    $token = $process.CreationDate.ToUniversalTime().ToString('o')
   }
   $session = $null
   $connected = $null

@@ -50,7 +50,8 @@ const BLOCK_REASON = 'park-probe: the fixture safety check blocks the probe comm
 const REPORT_LEAD = 'park-probe: sha='
 const MODEL = 'claude-opus-5'
 const FIXTURE_API_KEY = 'fixture-key-000'
-const WAIT_WORDS = 'headless · waiting'
+const WAIT_WORDS = 'headless · wait'
+const ARMED_WORDS = '↵ again enters'
 const BOARD_WORDS = 'STATUS & TITLE'
 const CARD_WORDS = 'Do you want to proceed?'
 const CARD_BLOCK_WORDS = "Flow's safety check blocked this"
@@ -310,9 +311,8 @@ try {
       cwd: work,
       argv: ['node', DIST],
       sends: [
-        { data: '\t', atTick: 999, awaitText: WAIT_WORDS, requireAwait: true, minTick: 5, awaitSettleTicks: 3, mark: 'board' },
-        { data: '\r', afterPrevTicks: 3, mark: 'armed' },
-        { data: '\r', afterPrevTicks: 4, mark: 'entered' },
+        { data: '\r', atTick: 999, awaitText: WAIT_WORDS, requireAwait: true, minTick: 5, awaitSettleTicks: 3, mark: 'board' },
+        { data: '\r', atTick: 999, awaitText: ARMED_WORDS, requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'armed' },
         { data: '\r', atTick: 999, awaitText: CARD_WORDS, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'card' },
         { data: '\x1b[1;2D', atTick: 999, awaitText: REPORT_LEAD, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'answered' },
         { data: '', atTick: 999, awaitText: BOARD_WORDS, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'board-after' },

@@ -30,6 +30,8 @@ import {
   attachYieldConcourseSession,
   blurConcourseSession,
   completeRequestedPark,
+  endRunnersLeftWithoutHost,
+  retireRequestedPark,
   detachRespawnConcourseSession,
   focusConcourseSession,
   grantConcourseWorkflows,
@@ -97,6 +99,8 @@ import {
   parseOwnerPid,
   parseOwnerFd,
   isProcessAlive,
+  getProcessStartInstant,
+  getProcessStartInstantAsync,
   getProcessStartToken,
   getProcessStartTokenAsync,
   armOwnerPipe,
@@ -218,7 +222,7 @@ async function daemonStopCmd(): Promise<void> {
       // eslint-disable-next-line no-console
       console.error(`[daemon] no running daemon to stop — swept the stale record of pid ${stale.pid} (control socket unreachable, process gone)`)
     } else if (stale) {
-      const verdict = daemonRecordIdentity(stale, getProcessStartToken(stale.pid))
+      const verdict = daemonRecordIdentity(stale, stale.startToken ? getProcessStartToken(stale.pid, stale.startToken) : getProcessStartInstant(stale.pid))
       if (verdict === 'not-recorded-process') {
         await clearDeadDaemonRecords()
         // eslint-disable-next-line no-console
@@ -455,9 +459,17 @@ async function daemonRun(args: string[]): Promise<void> {
         },
         onIdle: short => {
           if (short.startsWith('concourse-w') && roster !== null) {
+            const parkedWords = `[daemon] ${short} finished its turn and parked (a park was requested while it worked)`
             if (completeRequestedPark(short, roster)) {
               // eslint-disable-next-line no-console
-              console.error(`[daemon] ${short} finished its turn and parked (a park was requested while it worked)`)
+              console.error(parkedWords)
+            } else {
+              void retireRequestedPark(short, roster)
+                .then(parked => {
+                  // eslint-disable-next-line no-console
+                  if (parked) console.error(parkedWords)
+                })
+                .catch(e => logForDebugging(`[daemon] ${short}: the requested park's retirement threw (ignored): ${e}`))
             }
             onSeatIdle(short, roster)
           }
@@ -531,6 +543,7 @@ async function daemonRun(args: string[]): Promise<void> {
         return asked
       }
       const bootStartToken = await getProcessStartTokenAsync(process.pid)
+      const bootStartInstant = process.platform === 'win32' ? await getProcessStartInstantAsync(process.pid) : bootStartToken
       const persistDaemonRecord = (owner: number | null): Promise<void> =>
         writeDaemonState({
           pid: process.pid,
@@ -545,6 +558,7 @@ async function daemonRun(args: string[]): Promise<void> {
           ownerPid: owner,
           foreground,
           startToken: bootStartToken,
+          ...(bootStartInstant && bootStartInstant !== bootStartToken ? { startInstant: bootStartInstant } : {}),
           persist,
         })
       if (handoverPredecessor !== null) {
@@ -563,6 +577,19 @@ async function daemonRun(args: string[]): Promise<void> {
         console.error(`[daemon] handover from pid ${handoverPredecessor}: took the plane (v${currentVersion()} proto ${MERCURY_DAEMON_PROTO}); its socket ${moved ? `serves on at ${handover.sockPath}` : 'was not on the path'}; ${held > 0 ? `it keeps ${held} live session(s) until they finish` : 'it holds no live session — it leaves on its own, or is asked to once it reads idle'}`)
       }
       const handoverRef = handover
+      {
+        const rosterRef = roster
+        const left = await endRunnersLeftWithoutHost(short => (rosterRef?.has(short).present ?? false) || (handoverRef?.holds(short) ?? false))
+        if (left.length > 0) {
+          // eslint-disable-next-line no-console
+          console.error(`[daemon] ${left.length} runner${left.length === 1 ? '' : 's'} left by a daemon that died ${left.length === 1 ? 'was' : 'were'} ended: ${left.map(r => `${r.runnerId} (pid ${r.pid})`).join(', ')}; each session answers its next message on a fresh runner`)
+          try {
+            reconcileWorkingDispatches()
+          } catch (e) {
+            logForDebugging(`[daemon] working-dispatch reconcile after the left runners failed (non-fatal): ${e}`)
+          }
+        }
+      }
       const countBirth = async <T>(door: () => Promise<T>): Promise<T> => {
         birthsInFlight++
         try {
@@ -1053,7 +1080,7 @@ async function daemonRun(args: string[]): Promise<void> {
           const expected = request.expected
           if (expected === undefined) return refuse('no reviewed identity was given', 'none')
           if (expected.kind === 'daemon') {
-            if (expected.process.pid !== process.pid || tokenBinding(bootStartToken, expected.startToken) !== 'bound') return refuse('the reviewed identity is not this daemon', 'none')
+            if (expected.process.pid !== process.pid || tokenBinding(bootStartInstant, expected.startToken) !== 'bound') return refuse('the reviewed identity is not this daemon', 'none')
             if (persist || currentOwnerPid === null) return refuse('this daemon persists by its own posture')
             if (isProcessAlive(currentOwnerPid)) return refuse(`the owner pid ${currentOwnerPid} is alive`)
             const { live: liveNow, liveSessions } = liveWorkers()

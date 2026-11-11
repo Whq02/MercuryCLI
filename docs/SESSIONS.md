@@ -249,7 +249,9 @@ and it outlives whichever window started it. Close that window and the daemon pa
 another that is still open, so the sessions your other windows hold keep
 their runners and lose nothing; it shuts down only when the last window
 closes, and parks every session on its way out so the next boot brings them
-back. A window opened while that daemon is still on its way out waits the
+back. A session that is still working when its window closes parks when its
+turn ends, unless you enter it, message it or stop it first. A window opened
+while that daemon is still on its way out waits the
 beat it takes to leave, then starts its own, and a daemon that leaves in the
 beat after answering a new session's window is checked for and started
 again by that same ↵, so the session lands without a second one. Each ↵

@@ -72,7 +72,7 @@ async function protectedPids(): Promise<number[]> {
   const pids = [process.pid]
   const state = await readDaemonState()
   if (state && Number.isSafeInteger(state.pid) && state.pid > 0 && isProcessAlive(state.pid)) {
-    const token = state.startToken ? await getProcessStartTokenAsync(state.pid) : null
+    const token = state.startToken ? await getProcessStartTokenAsync(state.pid, state.startToken) : null
     if (!state.startToken || token === null || token === state.startToken) pids.push(state.pid)
   }
   return pids

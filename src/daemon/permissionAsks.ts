@@ -7,7 +7,7 @@ import { noteSessionAsking } from './sessionStateHooks.js'
 import { armInactivityDeadline, formatLimit, type InactivityDeadline } from '../utils/deadline.js'
 import { askExpiredCause, askLimitMs, isAskExpiredCause, unansweredAskRefusal } from '../utils/permissions/askClock.js'
 import { askBoardQuestion } from '../utils/permissions/askWords.js'
-import { recordSettledObligation, upsertObligation } from '../services/crew/obligations.js'
+import { recordSettledObligation, resolveObligationByRef, upsertObligation } from '../services/crew/obligations.js'
 import {
   publishSessionAsks,
   type SessionAskProjectionV1,
@@ -116,6 +116,17 @@ interface PendingAsk {
 
 const pending = new Map<string, PendingAsk>()
 const retired = new Map<string, string>()
+const gitOfferGeneration = new Map<string, number>()
+const gitOfferSettlements = new Map<string, Promise<void>>()
+
+function generationOfGitOffer(requestId: string): number {
+  return gitOfferGeneration.get(requestId) ?? 0
+}
+
+function holdGitOffer(requestId: string, ask: PendingAsk): void {
+  gitOfferGeneration.set(requestId, generationOfGitOffer(requestId) + 1)
+  pending.set(requestId, ask)
+}
 const MAX_RETIRED = 200
 
 export const RUNNER_RESTARTED_ASK_CAUSE = "the session's runner restarted before this ask was answered — nothing was run"
@@ -143,19 +154,19 @@ export function retireWorkerAsks(short: string, cause: string, dir?: string): st
     sessions.add(ask.sessionId)
     // eslint-disable-next-line no-console
     console.error(`[daemon] permission ask ${requestId} (${ask.toolName} for ${short}) withdrawn — ${cause}`)
-    settleAskObligation(ask, { kind: 'withdrawn', by: `daemon: ${cause}` })
+    void settleAskObligation(ask, { kind: 'withdrawn', by: `daemon: ${cause}` })
   }
   for (const sessionId of sessions) publishAsksFor(sessionId, dir)
   return retiredIds
 }
 
-function settleAskObligation(ask: PendingAsk, outcome: { kind: 'withdrawn' | 'answered'; by: string }): void {
+function settleAskObligation(ask: PendingAsk, outcome: { kind: 'withdrawn' | 'answered'; by: string }, stillDue?: () => boolean): Promise<void> {
   const landed = ask.obligationLanded ?? Promise.resolve(ask.obligationId)
-  void landed
+  return landed
     .then(async obligationId => {
       if (obligationId === undefined) return
       const o = await import('../services/crew/obligations.js')
-      await o.resolveObligation(obligationId, { ...outcome, scope: 'switchboard' } as Parameters<typeof o.resolveObligation>[1])
+      await o.resolveObligation(obligationId, { ...outcome, scope: 'switchboard', ...(stillDue !== undefined ? { stillDue } : {}) } as Parameters<typeof o.resolveObligation>[1])
     })
     .catch(err => logForDebugging(`[daemon] permission-ask obligation settle failed: ${err}`))
 }
@@ -210,7 +221,7 @@ function settleUnanswered(
   const waited = ask.askedAt !== undefined ? formatLimit(Date.now() - ask.askedAt) : 'an unknown time'
   // eslint-disable-next-line no-console
   console.error(`[daemon] permission ask ${requestId} (${ask.toolName} for ${ask.workerId}) ${cause} after ${waited} — the runner was told`)
-  settleAskObligation(ask, {
+  void settleAskObligation(ask, {
     kind: 'withdrawn',
     by: cause === 'expired' ? `daemon: ${askExpiredCause(limitMs)}` : 'daemon: dropped unanswered (parked-ask table full)',
   })
@@ -349,7 +360,7 @@ export function mintGitInitAsk(folder: string): { requestId: string } | { refuse
     input: {},
     local: 'git-init',
   }
-  pending.set(requestId, ask)
+  holdGitOffer(requestId, ask)
   const entries = entryCountWords(countEntriesBounded(folder))
   ask.obligationLanded = upsertObligation({
     ref: `permission:${requestId}`,
@@ -379,6 +390,23 @@ export function mintGitRefusedReceipt(clientMessageId: string, folder: string, r
   }).catch(err => logForDebugging(`[daemon] git-refused receipt write failed: ${err}`))
 }
 
+function settleGitOffer(requestId: string, outcome: { kind: 'withdrawn' | 'answered'; by: string }, ask?: PendingAsk): void {
+  const generation = generationOfGitOffer(requestId)
+  const stillDue = (): boolean => generationOfGitOffer(requestId) === generation
+  const settle = (): Promise<unknown> =>
+    ask?.obligationLanded !== undefined
+      ? settleAskObligation(ask, outcome, stillDue)
+      : resolveObligationByRef(`permission:${requestId}`, { ...outcome, scope: 'switchboard', stillDue })
+  const settled = (gitOfferSettlements.get(requestId) ?? Promise.resolve()).then(settle).then(
+    () => undefined,
+    err => logForDebugging(`[daemon] git offer ${requestId} obligation settle failed: ${err}`),
+  )
+  gitOfferSettlements.set(requestId, settled)
+  void settled.then(() => {
+    if (gitOfferSettlements.get(requestId) === settled) gitOfferSettlements.delete(requestId)
+  })
+}
+
 export function onWorkerAskWithdrawn(requestId: string, dir?: string, cause?: string): void {
   const ask = pending.get(requestId)
   if (!ask || ask.local !== undefined) return
@@ -391,7 +419,7 @@ export function onWorkerAskWithdrawn(requestId: string, dir?: string, cause?: st
     // eslint-disable-next-line no-console
     console.error(`[daemon] permission ask ${requestId} (${ask.toolName} for ${ask.workerId}) ${cause} (after ${waited}) — the runner refused it`)
   }
-  settleAskObligation(ask, { kind: 'withdrawn', by: expired ? `the session: ${cause}` : 'daemon: the session moved on (its ask was cancelled)' })
+  void settleAskObligation(ask, { kind: 'withdrawn', by: expired ? `the session: ${cause}` : 'daemon: the session moved on (its ask was cancelled)' })
 }
 
 export function answerPermissionAsk(
@@ -416,12 +444,15 @@ export function answerPermissionAsk(
         input: {},
         local: 'git-init',
       }
-      pending.set(requestId, ask)
+      holdGitOffer(requestId, ask)
     }
   }
-  if (!ask) return { outcome: 'refused', detail: retired.get(requestId) ?? 'unknown or already-answered permission request' }
+  if (!ask) {
+    if (requestId.startsWith('git-init:')) settleGitOffer(requestId, { kind: 'withdrawn', by: 'daemon: no git offer is held under this reference' })
+    return { outcome: 'refused', detail: retired.get(requestId) ?? 'unknown or already-answered permission request' }
+  }
   if (ask.local === 'git-init') {
-    const settleObligation = (): void => settleAskObligation(ask, { kind: 'answered', by })
+    const settleObligation = (): void => settleGitOffer(requestId, { kind: 'answered', by }, ask)
     const dropSidecar = (): void => {
       const map = readGitInitAsks()
       if (map[requestId] !== undefined) {
@@ -477,7 +508,7 @@ export function answerPermissionAsk(
       : { outcome: 'deny', message: denial, ...(answer?.interrupt === true ? { stop: true } : {}) },
   )
   publishAsksFor(ask.sessionId)
-  settleAskObligation(ask, { kind: 'answered', by })
+  void settleAskObligation(ask, { kind: 'answered', by })
   return {
     outcome: 'applied',
     detail: `${allow ? 'allowed' : 'denied'} ${ask.toolName} for ${ask.workerId}`,
