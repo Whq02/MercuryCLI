@@ -172,6 +172,27 @@ section('§7 the environment a start hands its program joins the reading')
   const typedHomed = await decide('Service', typed('homed', 'cat ~/.credentials.json'), 'sovereign')
   check('sovereign · text typed into a shell service started with HOME set to the config home reads the tilde as that home', typedHomed.behavior === 'deny', said(typedHomed))
 }
+{
+  const started = (script: string, env: Record<string, string>) => ({ op: 'start', name: 'probe', command: 'sh', args: ['-c', script], env })
+  const variables: Array<[string, string, Record<string, string>]> = [
+    ['cat $D/mcp-auth.json with D set to the config home', 'cat $D/mcp-auth.json', { D: fill('<CONFIG>') }],
+    ['cat $D/$F with the folder and the name each in a variable', 'cat $D/$F', { D: fill('<CONFIG>'), F: '.credentials.json' }],
+    ['cd; cat mcp-auth.json with HOME set to the config home', 'cd; cat mcp-auth.json', { HOME: fill('<CONFIG>') }],
+    ['kill $P with P set to the daemon\'s pid', 'kill $P', { P: fill('<DAEMON_PID>') }],
+  ]
+  for (const [label, script, env] of variables) {
+    const wrong: string[] = []
+    for (const mode of ALL_MODES) {
+      const decision = await decide('Service', started(script, env), mode)
+      if (decision.behavior !== 'deny') wrong.push(`${mode}: ${said(decision)}`)
+    }
+    check(`Service start of sh -c "${label}" is refused in all six modes: a variable the start hands its program is read inside the script it runs`, wrong.length === 0, wrong.join(' ‖ '))
+  }
+  for (const [mode, behavior] of [['default', 'ask'], ['flow', 'allow'], ['sovereign', 'allow']] as const) {
+    const plain = await decide('Service', started('echo $FOO', { FOO: 'bar' }), mode)
+    check(`control · ${mode} · a start whose script reads an ordinary variable is answered as before (${behavior})`, plain.behavior === behavior, said(plain))
+  }
+}
 
 section('§8 text the debuggee runs passes the floors\' readers')
 {
