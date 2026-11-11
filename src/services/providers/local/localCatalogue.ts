@@ -58,7 +58,7 @@ export function localContextSourceWords(source: LocalContextSource): string {
 export const LOCAL_WINDOW_SETTING_ROAD = '/config → Local model window, or /model → the model\'s row → context window'
 export const LOCAL_WINDOW_REMEDY = `Raise the served window (${LOCAL_WINDOW_SETTING_ROAD}; at the server OLLAMA_CONTEXT_LENGTH or num_ctx)`
 
-const fmtTokens = (n: number): string => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n))
+const fmtTokens = (n: number): string => (n >= 1000 ? `${Math.round(n / (n % 1024 === 0 ? 1024 : 1000))}k` : String(n))
 
 export function localUnloadedWindowWords(record: LocalModelRecord): string {
   const chooser =

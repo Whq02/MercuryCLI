@@ -234,7 +234,8 @@ try {
     check(`${spec.word}: the cache is primed with the old list`, primed !== null && spec.ids(primed).length === 2, JSON.stringify(spec.ids(primed)))
     const base = requests[spec.name]
 
-    const first = await mount(spec.model)
+    let selected: string | undefined
+    const first = await mount(spec.model, React.createElement(MercuryModelChoicePicker, { current: spec.model, onSelect: id => { selected = id }, onClose: () => {} }))
     await settle(first.seen, frame => live(frame, spec.oldName) && live(frame, spec.keepName))
     check(`${spec.word}: the open paints the cached rows without waiting for the request (the request stays held while they paint)`, live(first.seen(), spec.oldName) && live(first.seen(), spec.keepName) && held?.family === spec.name, first.seen().split('\n').filter(l => l.includes('refresh') || l.includes('Refresh')).join(' | ') || `held ${held?.family ?? 'nothing'}; frame ${first.seen().length} chars`)
     check(`${spec.word}: the open starts one background refresh despite the primed cache`, requests[spec.name] === base + 1, `requests ${requests[spec.name] - base}`)
@@ -251,8 +252,11 @@ try {
     await action
     await settle(first.seen, frame => live(frame, spec.newName))
     check(`${spec.word}: the changed rows replace the cached list`, live(first.seen(), spec.newName) && !live(first.seen(), spec.oldName), first.seen().split('\n').filter(l => l.includes('refresh') || l.includes('Refresh')).join(' | '))
-    check(`${spec.word}: the highlight follows the same id when the row moves`, new RegExp(`│ │ (?:—|\\S[^│]*?)\\s{2,}${spec.model.slice(0, 20).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(first.seen()), first.seen().split('\n').filter(l => l.includes('│ │ ')).join(' | '))
+    check(`${spec.word}: the highlight follows the same id when the row moves`, new RegExp(`│ │ (?:—|\\S[^│]*?)\\s{2,}(?:…\\S*)?${spec.model.slice(-20).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(first.seen()), first.seen().split('\n').filter(l => l.includes('│ │ ')).join(' | '))
     check(`${spec.word}: the changed list paints the family's notice`, first.seen().includes(notice), first.seen().split('\n').filter(l => l.includes('catalogue')).join(' | '))
+    first.send('\r')
+    await flush()
+    check(`${spec.word}: Enter selects the same complete id after its row moves`, selected === spec.model, String(selected))
     first.unmount()
 
     const second = await mount(spec.model)

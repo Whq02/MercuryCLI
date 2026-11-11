@@ -126,7 +126,7 @@ import { cerebrasApiBase, resolveCerebrasApiKey } from '../../services/providers
 import { getCachedFireworksCatalogue, refreshFireworksCatalogue, type FireworksCatalogueSnapshot } from '../../services/providers/fireworks/fireworksCatalogue.js'
 import { fireworksApiBase, resolveFireworksApiKey } from '../../services/providers/fireworks/fireworksAccounts.js'
 import { getCachedQwenCatalogue, qwenCatalogueIdentity, refreshQwenCatalogue, type QwenCatalogueSnapshot } from '../../services/providers/qwen/qwenCatalogue.js'
-import { LOCAL_MODEL_GROUP, localDiscoverySummary, localRecordFor } from '../../services/providers/local/localCatalogue.js'
+import { isLocalModelId, LOCAL_MODEL_GROUP, localDiscoverySummary, localRecordFor } from '../../services/providers/local/localCatalogue.js'
 import { getCachedLocalDiscovery, localProbeTargets, refreshLocalDiscovery, type LocalDiscoverySnapshot } from '../../services/providers/local/localDiscovery.js'
 import { onTensorFoldAct } from '../tensorfold/tensorfold.js'
 import { TENSORFOLD_HOST_GROUP, TENSORFOLD_MODEL_GROUP, type TensorFoldAct } from '../../components/tensorfold/tensorfoldRows.js'
@@ -177,9 +177,9 @@ const CATALOGUE_DOORS: Record<string, () => ModelOption[]> = {
   [NOUS_MODEL_GROUP]: () => getNousFullModelOptions(),
 }
 
-function fmtCtx(windowSize: number): string {
+function fmtCtx(windowSize: number, local = false): string {
   if (!windowSize) return ''
-  return `${fmtCtxWindow(windowSize)} ctx`
+  return `${fmtCtxWindow(windowSize, local)} ctx`
 }
 
 
@@ -566,7 +566,7 @@ function modelChoiceOf(opt: ModelOption, betas: string[] | undefined): ModelChoi
       id: opt.value,
       name: opt.label,
       tag: opt.description,
-      ctx: opt.statedContextWindow !== undefined ? fmtCtx(opt.statedContextWindow) : '',
+      ctx: opt.statedContextWindow !== undefined ? fmtCtx(opt.statedContextWindow, isLocalModelId(opt.value)) : '',
       group: opt.group ?? ANTHROPIC_MODEL_GROUP,
       ...(opt.unavailable ? { gated: true, gatedReason: opt.unavailable } : {}),
     }

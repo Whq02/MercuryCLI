@@ -14,6 +14,7 @@ import type { ActiveSourceUsage } from '../../services/providers/providerUsage.j
 import { usageAgeTail } from '../../services/providers/usageFreshness.js'
 import { formatSessionCost } from '../../cost-tracker.js'
 import { contextPercentLabel, contextWindowLabel } from '../contextFill.js'
+import { isLocalModelId } from '../../services/providers/local/localCatalogue.js'
 import type { LiveContextUsage } from './contextUsageLive.js'
 import type { ComposedCertChip } from '../healthCertCore.js'
 import { formatCountdown, formatCountdownCoarse } from './quota.js'
@@ -233,6 +234,7 @@ function workDigestOf(
 }
 
 type GlanceReads = {
+  sessionModel: string
   usage: ActiveSourceUsage
   focusedSpendUSD: number
   focusedUnpriced: number
@@ -258,7 +260,7 @@ function glanceLabelsOf(reads: GlanceReads, tok: MercuryThemeTokens): {
       : usage.shape === 'api-spend'
         ? `spend ${focusedUnpriced > 0 ? formatSessionCost(focusedSpendUSD, focusedUnpriced) : focusedSpendUSD > 0 ? `$${focusedSpendUSD.toFixed(2)}` : '—'}`
         : 'usage — after first reply'
-  const ctxLabel = `ctx ${contextPercentLabel(ctx.usedPct, ctx.fillSource)} · ${contextWindowLabel(ctx.window, ctx.windowSource, ctx.windowPinned)}`
+  const ctxLabel = `ctx ${contextPercentLabel(ctx.usedPct, ctx.fillSource)} · ${contextWindowLabel(ctx.window, ctx.windowSource, ctx.windowPinned, isLocalModelId(reads.sessionModel))}`
   const verdictUp = chip.verdict != null ? String(chip.verdict).toUpperCase() : null
   const healthLabel =
     chip.verdict != null

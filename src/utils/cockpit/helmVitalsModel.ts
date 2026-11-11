@@ -9,6 +9,7 @@ import {
   type UsageWindowView,
 } from '../../services/providers/providerUsage.js'
 import { providerIdentityLine } from '../../services/providers/providerIdentityLine.js'
+import { isLocalModelId } from '../../services/providers/local/localCatalogue.js'
 import { localWindowReasonTag } from '../../services/providers/local/localWindow.js'
 import { openrouterSlots } from '../../services/providers/accountSlots.js'
 import { NO_USAGE_READ_WORDS, usageAgeTail, usageAgeWords } from '../../services/providers/usageFreshness.js'
@@ -208,7 +209,7 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
       color: ctxColor,
       tail:
         turns == null
-          ? ` · ${contextWindowLabel(ctx.window, ctx.windowSource, ctx.windowPinned)}${ctxReason !== undefined ? ` ${ctxReason}` : ''}`
+          ? ` · ${contextWindowLabel(ctx.window, ctx.windowSource, ctx.windowPinned, isLocalModelId(input.sessionModel))}${ctxReason !== undefined ? ` ${ctxReason}` : ''}`
           : ` · ≈${turns} turns`,
       tailColor: turns != null && turns <= 2 ? ctxColor : tok.textMuted,
       row: { kind: 'command', command: '/context', label: 'ctx' },

@@ -435,6 +435,7 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
       ? (() => {
           const focusedUsage = getFocusedSessionConnector().usage()
           return {
+            sessionModel: getFocusedSessionConnector().modelFacts().effective,
             usage: activeSourceUsage({ model: getFocusedSessionConnector().modelFacts().effective }),
             focusedSpendUSD: focusedUsage.totalCostUSD,
             focusedUnpriced: focusedUsage.unpricedTurns ?? 0,

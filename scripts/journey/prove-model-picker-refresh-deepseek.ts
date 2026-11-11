@@ -163,7 +163,7 @@ const React = (await import('react')).default
 const { render } = await import('../../src/ink.ts')
 const { AppStoreContext, getDefaultAppState } = await import('../../src/state/AppState.tsx')
 const { createStore } = await import('../../src/state/store.ts')
-const { call } = await import('../../src/commands/model/mercuryModel.tsx')
+const { call, MercuryModelChoicePicker } = await import('../../src/commands/model/mercuryModel.tsx')
 const accounts = await import('../../src/services/providers/deepseek/deepseekAccounts.ts')
 const catalogue = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts')
 
@@ -216,13 +216,13 @@ type Band = { columns: number; rows: number }
 const BANDS: Band[] = [{ columns: 178, rows: 51 }, { columns: 80, rows: 21 }]
 const tag = (band: Band): string => `${band.columns}x${band.rows}`
 
-async function mount(model: string, band: Band) {
+async function mount(model: string, band: Band, onSelect?: (id: string) => void) {
   const stdout = Object.assign(new PassThrough(), { columns: band.columns, rows: band.rows })
   stdout.resume()
   const input: string[] = []
   const stdin = Object.assign(new EventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return input.shift() ?? null }, readableLength: 0, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } })
   const store = createStore({ ...getDefaultAppState(), engineModel: model }, () => {})
-  const picker = await call(() => {}, { messages: [] } as never, '')
+  const picker = onSelect === undefined ? await call(() => {}, { messages: [] } as never, '') : React.createElement(MercuryModelChoicePicker, { current: model, onSelect, onClose: () => {} })
   const instance = await render(React.createElement(AppStoreContext.Provider, { value: store }, picker), { stdout: stdout as never, stdin: stdin as never, patchConsole: false })
   const frame = (): string => stripAnsi(instance.lastFrame()).replace(/\n$/, '')
   await until(() => /^\s*╰/.test(linesOf(frame()).at(-1) ?? '') && frame().includes('Mercury · model'), 5000)
@@ -350,13 +350,17 @@ try {
       await owner.refresh({ force: true })
       lane.ids = [lane.next, lane.id]
       const before = lane.requests
-      const picker = await mount(lane.id, band)
+      let selected: string | undefined
+      const picker = await mount(lane.id, band, id => { selected = id })
       await until(() => headingOf(picker.frame(), title).endsWith('2 live'), 3000)
       const frame = picker.frame()
       check(`${family} ${tag(band)}: opening the cached catalogue reads its own wire once and paints the changed live count`, lane.requests === before + 1 && headingOf(frame, title).endsWith('2 live'), `${lane.requests - before} requests; ${headingOf(frame, title)}`)
-      check(`${family} ${tag(band)}: the fetched new row is selectable and its changed-list notice names its own family`, linesOf(frame).some(line => line.includes(lane.next) || (line.includes('…') && line.includes(lane.next.slice(0, 16)))) && frame.toLowerCase().includes(`${family} — the live list changed; rows updated`), frame)
+      check(`${family} ${tag(band)}: the fetched new row is selectable and its changed-list notice names its own family`, linesOf(frame).some(line => line.includes(lane.next) || (line.includes('…') && line.includes(lane.next.slice(-16)))) && frame.toLowerCase().includes(`${family} — the live list changed; rows updated`), frame)
       check(`${family} ${tag(band)}: the new family block fits the terminal`, fits(frame, band.columns, band.rows))
       file(`${family}-${tag(band)}-refreshed`, frame)
+      await picker.press('\x1b[B')
+      await picker.press('\r', false)
+      check(`${family} ${tag(band)}: Enter selects the fetched row's complete id`, selected === lane.next, String(selected))
       picker.unmount()
     }
     delete process.env[lane.key]

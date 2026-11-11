@@ -98,10 +98,12 @@ import {
   withGptServedWindowSuffix,
 } from '../services/providers/openai/openaiCatalogue.js'
 
-export const fmtCtx = (n: number): string =>
-  n >= 1_000_000
-    ? `${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M`
-    : `${Math.round(n / 1000)}k`
+export const fmtCtx = (n: number, local = false): string =>
+  local && n > 0 && n % 1024 === 0
+    ? `${n / 1024}k`
+    : n >= 1_000_000
+      ? `${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M`
+      : `${Math.round(n / 1000)}k`
 
 export function modelPickerCentred(): boolean {
   try {
