@@ -55,7 +55,7 @@ function nearestOf(key: string, entries: readonly ModelNameEntry[]): string[] {
     .map(entry => entry.id)
 }
 
-export function matchModelName(typed: string, entries: readonly ModelNameEntry[]): ModelNameMatch {
+export function matchModelName(typed: string, entries: readonly ModelNameEntry[], declared: (id: string) => boolean = () => false): ModelNameMatch {
   const word = typed.trim()
   const seen = new Set<string>()
   const unique = entries.filter(entry => (seen.has(entry.id) ? false : (seen.add(entry.id), true)))
@@ -66,6 +66,7 @@ export function matchModelName(typed: string, entries: readonly ModelNameEntry[]
   const whole = unique.filter(entry => keysOf(entry).includes(key))
   if (whole.length === 1) return { kind: 'match', typed: word, id: whole[0]!.id, said: `${word} → ${whole[0]!.id}` }
   if (whole.length > 1) return { kind: 'ambiguous', typed: word, candidates: whole.map(entry => entry.id) }
+  if (declared(word.toLowerCase())) return { kind: 'exact', typed: word, id: word.toLowerCase() }
   const leading = unique.filter(entry => keysOf(entry).some(k => k.startsWith(key)))
   if (leading.length === 1) return { kind: 'match', typed: word, id: leading[0]!.id, said: `${word} → ${leading[0]!.id}` }
   if (leading.length > 1) return { kind: 'ambiguous', typed: word, candidates: leading.map(entry => entry.id) }
