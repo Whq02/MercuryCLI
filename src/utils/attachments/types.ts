@@ -38,7 +38,7 @@ type FileBodies = {
   already_read_file: ReadFileBody
   compact_file_reference: FileLocation
   pdf_reference: FileLocation & { pageCount: number; fileSize: number }
-  dropped_image_file: FileLocation & { reason: string }
+  dropped_image_file: FileLocation & { reason: string; unread?: 'retry' | 'refused' }
   directory: PathLocation & { content: string }
   edited_text_file: { filename: string; snippet: string }
   edited_image_file: { filename: string; content: FileReadToolOutput }

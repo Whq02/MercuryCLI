@@ -16,6 +16,7 @@ import { BOARD_PACKET_RULE, boardSeatName, type BoardEvent, type BoardModule, ty
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
+import { wrapInSystemReminder } from '../../utils/messages/text.js'
 import type { BoardSettlement } from './wakeState.js'
 
 const requireOptional = createRequire(import.meta.url)
@@ -131,6 +132,11 @@ export function watchSwarmLead(idle: () => boolean, wake: () => void, paint: (ev
   return { check: () => look(true), stop: () => { leadChecks.delete(check); resume() } }
 }
 
+export function enqueueBoardWake(advice?: string): void {
+  const words = advice === undefined ? BOARD_PACKET_RULE : `${BOARD_PACKET_RULE} ${advice}`
+  enqueuePendingNotification({ value: wrapInSystemReminder(words), mode: 'task-notification', priority: 'next', isMeta: true })
+}
+
 export function watchSwarmBoard(check: () => void): () => void {
   leadChecks.add(check)
   return () => { leadChecks.delete(check) }
@@ -172,7 +178,7 @@ export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTo
           } catch (error) {
             const reason = error instanceof Error ? error.message : String(error)
             const held = store.holdWake(principal, claim, reason, error instanceof BoardResumeDirectoryError && error.kind === 'worktree' ? { kind: 'worktree-missing', path: error.directory } : undefined)
-            if (held) enqueuePendingNotification({ value: BOARD_PACKET_RULE, mode: 'task-notification', priority: 'next', isMeta: true })
+            if (held) enqueueBoardWake()
             logForDebugging(`crew board: ${wake.agent} could not resume: ${reason}`)
           }
         }

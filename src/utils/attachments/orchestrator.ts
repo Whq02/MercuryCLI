@@ -77,6 +77,8 @@ export async function getAttachments(
     ]
   }
 
+  const mentionedFiles = input ? await processAtMentionedFiles(input, { ...toolUseContext, messages }).catch((error: unknown) => (logError(error), [] as Attachment[])) : []
+
   const abortController = createAbortController()
   const timeoutId = setTimeout(
     ac => ac.abort(),
@@ -92,11 +94,6 @@ export async function getAttachments(
 
   const userInputAttachments = input
     ? [
-        maybe(
-          'at_mentioned_files',
-          () => processAtMentionedFiles(input, context),
-          { inputScoped: true },
-        ),
         maybe(
           'mcp_resources',
           () => processMcpResourceAttachments(input, context),
@@ -239,6 +236,7 @@ export async function getAttachments(
 
   clearTimeout(timeoutId)
   const collected = [
+    ...mentionedFiles,
     ...userAttachmentResults.flat(),
     ...continuationResults.flat(),
   ].filter(a => a !== undefined && a !== null) as Attachment[]

@@ -16,6 +16,7 @@
 # gate-watch: src/utils/messages.ts src/utils/messages/attachmentText.ts src/utils/config/globalConfig.ts src/utils/model/model.ts src/tools/SkillTool/constants.ts src/state/AppStateStore.ts src/utils/file.ts src/utils/fileStateCache.ts
 # gate-watch: scripts/lib/removeScratch.ts src/services/providers/toolEconomy.ts src/services/run/resolveOwner.ts
 # gate-watch: scripts/lib/fixtureApi.ts
+# gate-watch: scripts/lib/firstRunSeed.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -37,6 +38,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-read-cache-b
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-file-change-observation.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-file-change-observation.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-file-admission.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-file-admission.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-dense-mention-carried-clipped.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-dense-mention-carried-clipped.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-mentioned-file-waits-for-its-read.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-mentioned-file-waits-for-its-read.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-capsule-receipts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-capsule-receipts.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-capsule-facts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-capsule-facts.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-capsule-request.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-capsule-request.ts" "$__t" "$__rc"

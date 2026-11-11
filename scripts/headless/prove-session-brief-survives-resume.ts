@@ -268,7 +268,7 @@ try {
     }
   }
 
-  console.log("\n§11 the addition the switchboard composes for the runners it starts is the host's: it rides while the session is hosted, is never recorded, and never displaces the session's own")
+  console.log("\n§11 a session the switchboard hosts: the daemon's note is the host's, handed by a flag of its own and never recorded; what the window was given is the session's")
   {
     const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
     const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.ts')
@@ -277,11 +277,12 @@ try {
     const specOf = (session: string | undefined, resume: boolean, windowArgv: string[]): ReturnType<typeof buildConcourseWorkerSpec> => buildConcourseWorkerSpec({ runnerId: 'concourse-w1', workspaceId: cwd, modelKey: 'claude-opus-4-8', ...(session === undefined ? { warm: true } : { sessionId: session, resume }), runnerArgv: windowArgv })
     const NOTE = specOf(undefined, false, []).appendSystemPrompt
     const addRows = (session: string): string[] => briefRows(recordOf(home, session), 'session-brief-add', 'briefAdd')
+    const noteFlagOf = (spec: ReturnType<typeof specOf>): string => { const argv = buildRunnerInvocation(spec).argv; return argv[argv.indexOf(spec.appendSystemPrompt) - 1] ?? '' }
     const hosted = async (session: string, how: 'born' | 'resumed' | 'claimed' | 'claimed back', windowArgv: string[] = []): Promise<string> => {
       const warm = how === 'claimed' || how === 'claimed back'
       const spec = specOf(warm ? undefined : session, how === 'resumed', windowArgv)
       const api = await startFixtureApi([{ kind: 'text', text: 'HOSTED' }, handoffTurn(), handoffTurn()])
-      const host = hostRunner({ dist, node, cwd, home, env: { HOME: home, PATH: process.env.PATH ?? '', TERM: 'dumb', TMPDIR: join(home, 'tmp'), MERCURY_TMPDIR: join(home, 'tmp'), MERCURY_CONFIG_DIR: home, MERCURY_HOME: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CONCOURSE_WORKER: '1', ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: FIXTURE_API_KEY }, argv: ['--model', 'claude-opus-4-8', '--brief-add', spec.appendSystemPrompt, ...(spec.extraArgv ?? [])] })
+      const host = hostRunner({ dist, node, cwd, home, env: { HOME: home, PATH: process.env.PATH ?? '', TERM: 'dumb', TMPDIR: join(home, 'tmp'), MERCURY_TMPDIR: join(home, 'tmp'), MERCURY_CONFIG_DIR: home, MERCURY_HOME: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CONCOURSE_WORKER: '1', ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: FIXTURE_API_KEY }, argv: ['--model', 'claude-opus-4-8', noteFlagOf(spec), spec.appendSystemPrompt, ...(spec.extraArgv ?? [])] })
       try {
         await host.initialize({}, 90_000)
         if (warm) await host.request('session/claim', { session_id: session, model: 'claude-opus-4-8', ...(how === 'claimed back' ? { resume: true } : {}) }, 90_000)
@@ -295,8 +296,12 @@ try {
         await api.close()
       }
     }
-    const wired = buildRunnerInvocation(specOf(randomUUID(), false, [])).argv
-    check("the scene: the daemon hands a runner its note as the runner's --brief-add, and joins a window's own addition behind it", wired[wired.indexOf('--brief-add') + 1] === NOTE && NOTE.includes('switchboard') && specOf(randomUUID(), false, ['--brief-add', WINDOW_ADD]).appendSystemPrompt === `${NOTE}\n\n${WINDOW_ADD}`, head(NOTE))
+    const windowSpec = specOf(randomUUID(), false, ['--brief-add', WINDOW_ADD])
+    const wired = buildRunnerInvocation(windowSpec)
+    const rewired = buildRunnerInvocation(windowSpec, { respawn: true })
+    const ownAddOf = (argv: string[]): string | undefined => (argv.includes('--brief-add') ? argv[argv.indexOf('--brief-add') + 1] : undefined)
+    check("the scene: the daemon hands a runner its note by a flag of its own, and a window's addition as the runner's own --brief-add, on a boot and on a respawn", NOTE.includes('switchboard') && windowSpec.appendSystemPrompt === NOTE && [wired.argv, rewired.argv].every(argv => argv[argv.indexOf(NOTE) - 1] === '--host-brief-add' && ownAddOf(argv) === WINDOW_ADD), `${JSON.stringify(wired.argv.filter(word => word.startsWith('--')))} · ${head(windowSpec.appendSystemPrompt.slice(-80))}`)
+    check('a daemon starts only its own bundle: the invocation names the script of the process that builds it, on a boot and on a respawn', wired.script === realpathSync(process.argv[1]!) && rewired.script === wired.script, `${wired.script} · ${rewired.script}`)
 
     const born = randomUUID()
     const bornSystem = await hosted(born, 'born')
@@ -322,11 +327,13 @@ try {
     const windowed = randomUUID()
     const windowedSystem = await hosted(windowed, 'born', ['--brief-add', WINDOW_ADD])
     check('a window launched with an addition of its own: its session rides the note and that addition', windowedSystem.endsWith(`${NOTE}\n\n${WINDOW_ADD}`), head(windowedSystem.slice(-260)))
-    check("…and the record holds none: the addition is the window's", addRows(windowed).length === 0, String(addRows(windowed).length))
+    check("…and the record holds it in one row: the addition is the session's, as a brief given to a window is", addRows(windowed).join('|') === WINDOW_ADD, JSON.stringify(addRows(windowed).map(text => text.slice(0, 40))))
     const windowedLater = await run(['--resume', windowed, 'WINDOWED_LATER'])
-    check("…so a run that continues that session afterwards rides neither the note nor the window's addition", completed(windowedLater) && !windowedLater.system.includes(NOTE) && !windowedLater.system.includes(WINDOW_ADD), `rc ${windowedLater.code} ${windowedLater.status} · ${head(windowedLater.system.slice(-200))}`)
+    check('…so a run that continues that session afterwards rides the addition and not the note', completed(windowedLater) && windowedLater.system.endsWith(WINDOW_ADD) && !windowedLater.system.includes(NOTE), `rc ${windowedLater.code} ${windowedLater.status} · ${head(windowedLater.system.slice(-200))}`)
     const rehosted = await hosted(windowed, 'resumed')
-    check('…and a window that hosts it again without the flag rides the note alone', rehosted.endsWith(NOTE) && !rehosted.includes(WINDOW_ADD), head(rehosted.slice(-260)))
+    check('…and a window that hosts it again without the flag rides the note and the addition, and writes no second row', rehosted.endsWith(`${NOTE}\n\n${WINDOW_ADD}`) && addRows(windowed).join('|') === WINDOW_ADD, `${head(rehosted.slice(-260))} · ${addRows(windowed).length} row(s)`)
+    const replaced = await hosted(windowed, 'resumed', ['--brief-add', ADDED])
+    check('a window launched with another addition replaces it, as the flag given again does on a run', replaced.endsWith(`${NOTE}\n\n${ADDED}`) && !replaced.includes(WINDOW_ADD) && addRows(windowed).join('|') === [WINDOW_ADD, ADDED].join('|'), `${head(replaced.slice(-260))} · ${JSON.stringify(addRows(windowed).map(text => text.slice(0, 24)))}`)
     const both = await hosted(own, 'resumed', ['--brief-add', ADDED])
     check("the session's own addition given to the window as well is said once", both.endsWith(`${NOTE}\n\n${ADDED}`) && both.split(ADDED).length === 2 && addRows(own).join('|') === ADDED, head(both.slice(-260)))
 
@@ -334,6 +341,13 @@ try {
     const briefedSystem = await hosted(briefed, 'born', ['--brief', BRIEF])
     const briefedLater = await run(['--resume', briefed, 'BRIEFED_LATER'])
     check('a window launched with a brief: its session records the brief and no addition, and a run that continues it rides the brief without the note', briefedSystem.includes(BRIEF) && briefedSystem.endsWith(NOTE) && briefRows(recordOf(home, briefed)).join('|') === BRIEF && addRows(briefed).length === 0 && completed(briefedLater) && briefedLater.system.includes(BRIEF) && !briefedLater.system.includes(NOTE), `${briefRows(recordOf(home, briefed)).length} brief row(s) · ${addRows(briefed).length} addition row(s) · ${head(briefedLater.system.slice(-160))}`)
+
+    const { runnerArgvFromBoot, refuseRunnerArgv } = await import('../../src/services/switchboard/runnerArgv.ts')
+    const bootArgv = runnerArgvFromBoot(['--resume', briefed, '--default-brief', '--model', 'claude-opus-4-8'])
+    check('a window launched with --default-brief hands the flag to its runner', bootArgv.join(' ') === '--default-brief' && refuseRunnerArgv(bootArgv) === null && (specOf(briefed, true, bootArgv).extraArgv ?? []).includes('--default-brief'), JSON.stringify(bootArgv))
+    const unbriefed = await hosted(briefed, 'resumed', bootArgv).catch((error: unknown) => `THE WINDOW'S RUNNER DID NOT SERVE: ${error instanceof Error ? error.message : String(error)}`)
+    const unbriefedLater = await run(['--resume', briefed, 'UNBRIEFED_LATER'])
+    check('…and the session it hosts goes back to the default brief, in that window and in the run that continues it', !unbriefed.includes(BRIEF) && unbriefed.endsWith(NOTE) && completed(unbriefedLater) && !unbriefedLater.system.includes(BRIEF) && !unbriefedLater.system.includes(NOTE) && briefRows(recordOf(home, briefed)).join('|') === [BRIEF, 'null'].join('|'), `${head(unbriefed.slice(-200))} · ${JSON.stringify(briefRows(recordOf(home, briefed)).map(text => text.slice(0, 24)))}`)
   }
 
   console.log('\n§12 a record read from its last fold boundary still yields a brief written before it')
@@ -406,6 +420,34 @@ try {
   const unknown = await loadTranscriptFile(unknownFile)
   check('the scene: the record read as written yields the brief', known.sessionBriefs.get(origin as never) === BRIEF && known.messages.size > 0, `${known.messages.size} messages`)
   check('the same record with the row under a kind the reader has never heard of: every message is read, the row is skipped', unknown.messages.size === known.messages.size && unknown.sessionBriefs.size === 0 && unknown.leafUuids.size === known.leafUuids.size, `${unknown.messages.size} of ${known.messages.size} messages`)
+
+  console.log('\n§15 --default-brief returns a continued session to the default brief')
+  {
+    const given = randomUUID()
+    const start = await run(['--brief', BRIEF, '--brief-add', ADDED, '--session-id', given, 'DEFAULT_FIRST'])
+    const back = await run(['--resume', given, '--default-brief', 'DEFAULT_SECOND'])
+    const after = await run(['--resume', given, 'DEFAULT_THIRD'])
+    const defaultHead = plain.shape.slice(0, 1_000)
+    check('the scene: the session was given a brief and an addition', completed(start) && start.system.includes(BRIEF) && start.system.endsWith(ADDED), head(start.system.slice(-200)))
+    check('the run that carries the flag rides the default brief, with the addition the session keeps', completed(back) && !back.system.includes(BRIEF) && back.system.endsWith(ADDED) && back.shape.startsWith(defaultHead), `rc ${back.code} ${back.status} · ${back.err.slice(0, 200)} · ${apart(back.shape.slice(0, 1_000), defaultHead)}`)
+    check('…and so does the next run without the flag: the brief is forgotten, not set aside for one run', completed(after) && after.system === back.system, apart(after.system, back.system))
+    check('the record says so in one row behind the brief\'s own', briefRows(recordOf(home, given)).join('|') === [BRIEF, 'null'].join('|'), JSON.stringify(briefRows(recordOf(home, given)).map(text => text.slice(0, 24))))
+    const read = await loadTranscriptFile(((): string => { const found: string[] = []; const visit = (folder: string): void => { for (const entry of readdirSync(folder, { withFileTypes: true })) { const path = join(folder, entry.name); if (entry.isDirectory()) visit(path); else if (entry.name === `${given}.jsonl`) found.push(path) } }; visit(home); return found[0] ?? '' })())
+    check('the loader reads that record as a session with no brief and its addition', !read.sessionBriefs.has(given as never) && read.sessionBriefAdds.get(given as never) === ADDED, `${read.sessionBriefs.size} brief(s) · ${read.sessionBriefAdds.size} addition(s)`)
+    const fresh = randomUUID()
+    const never = await run(['--default-brief', '--session-id', fresh, 'DEFAULT_FRESH'])
+    check('given to a session that was never given a brief: the default brief, and no row', ridesDefault(never) && briefRows(recordOf(home, fresh)).length === 0, `rc ${never.code} ${never.status} · ${briefRows(recordOf(home, fresh)).length} row(s)`)
+    const refused = await run(['--resume', given, '--default-brief', '--brief', OTHER, 'DEFAULT_BOTH'])
+    check('with --brief beside it the run is refused as a usage error and nothing is asked', refused.code === 2 && `${refused.err}${refused.error}`.includes('Use either --brief or --default-brief, not both') && refused.requests === 0, `rc ${refused.code} · ${refused.requests} request(s) · ${refused.err.slice(0, 200)} · ${refused.error.slice(0, 200)}`)
+    const regiven = await run(['--resume', given, '--brief', OTHER, 'DEFAULT_REGIVEN'])
+    check('a brief given afterwards is kept again', completed(regiven) && regiven.system.includes(OTHER) && briefRows(recordOf(home, given)).join('|') === [BRIEF, 'null', OTHER].join('|'), JSON.stringify(briefRows(recordOf(home, given)).map(text => text.slice(0, 24))))
+    const agentGiven = randomUUID()
+    const agentStart = await run(['--agent-defs', agentDefinitions, '--agent', 'fixture', '--brief', BRIEF, '--session-id', agentGiven, 'DEFAULT_AGENT'])
+    const agentBack = await run(['--agent-defs', agentDefinitions, '--resume', agentGiven, '--default-brief', 'DEFAULT_AGENT_BACK'])
+    check("a session whose agent has a prompt of its own goes back to that prompt", completed(agentStart) && completed(agentBack) && agentBack.system.includes(AGENT_BRIEF) && !agentBack.system.includes(BRIEF), head(agentBack.system))
+    const forkBack = await run(['--resume', given, '--fork', '--default-brief', 'DEFAULT_FORK'])
+    check('a fork made with the flag is a session of its own on the default brief, and the session it left keeps its brief', completed(forkBack) && forkBack.session !== undefined && forkBack.session !== given && !forkBack.system.includes(OTHER) && forkBack.shape.startsWith(defaultHead) && briefRows(recordOf(home, given)).at(-1) === OTHER, `fork ${forkBack.session} · ${head(forkBack.system.slice(-160))}`)
+  }
 } finally {
   rmSync(home, { recursive: true, force: true })
 }

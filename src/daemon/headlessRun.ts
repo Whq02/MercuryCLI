@@ -210,7 +210,7 @@ export function buildRunnerInvocation(
       ? ['--allowed-tools', ...spec.allowedTools]
       : []),
     ...(spec.keyless ? [] : ['--model', model]),
-    '--brief-add',
+    '--host-brief-add',
     spec.appendSystemPrompt,
     ...(opts?.respawn ? respawnArgvOf(spec) : identityArgvOf(spec, spec.extraArgv ?? [])),
     ...sessionPinArgv(spec.sessionPin),

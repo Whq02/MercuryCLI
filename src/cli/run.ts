@@ -136,7 +136,7 @@ import {
 import { registerIdeToolDoor } from '../services/acp/ideToolBridge.js'
 import { crewBoardNotice, saturnQueueStamp, screenCommandQueueStamp } from '../utils/messages/noticeRows.js'
 import { advisorFacts, advisorMainRound, advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
-import { swarmOwnerPost, swarmSessionEnabled, swarmStore, swarmView, watchSwarmBoard, watchSwarmLead, watchSwarmResumes } from '../services/crewBoard/seam.js'
+import { enqueueBoardWake, swarmOwnerPost, swarmSessionEnabled, swarmStore, swarmView, watchSwarmBoard, watchSwarmLead, watchSwarmResumes } from '../services/crewBoard/seam.js'
 import { partyFeed } from '../services/crewBoard/party.js'
 import { localWakeStep, type LocalWakeFacts } from '../tools/ScheduleWakeupTool/localWake.js'
 import { offSkillNamesOf } from '../skills/kitGovernance.js'
@@ -202,7 +202,6 @@ import type { ContentBlockParam } from '../types/wire.js'
 import {
   dequeue,
   enqueue,
-  enqueuePendingNotification,
   peek,
   popById,
   remove as removeQueuedCommands,
@@ -296,7 +295,7 @@ import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
 import { streamIdleTimeoutMsForRoute } from '../services/providers/streamIdleBudget.js'
 import { runWithWorkload } from '../utils/workloadContext.js'
 import { fitCompletionCommands } from '../services/agentResults/summaryRoom.js'
-import { foldNotificationValues } from './headless/turnDriver.js'
+import { foldNotifications, foldNotificationValues, spokenNotifications } from './headless/turnDriver.js'
 
 export { joinPromptValues, canBatchWith }
 export { removeInterruptedMessage }
@@ -317,7 +316,9 @@ type HeadlessOptions = {
   maxBudgetUsd?: number
   maxTimeMs?: number
   systemPrompt?: string
+  defaultBrief?: true
   appendSystemPrompt?: string
+  hostAppendSystemPrompt?: string
   userSpecifiedModel?: string
   fallbackModel?: string
   includePartialMessages?: boolean
@@ -894,15 +895,14 @@ export async function runHeadless(
     if (restored.agentType && restored.agentDefinition) saveAgentSetting(restored.agentType)
   }
   const givenBrief = options.systemPrompt
-  const givenBriefAdd = isConcourseWorker ? undefined : options.appendSystemPrompt
-  const hostBriefAdd = isConcourseWorker ? options.appendSystemPrompt : undefined
+  const givenBriefAdd = options.appendSystemPrompt
+  const hostBriefAdd = options.hostAppendSystemPrompt
   const settleSessionBriefs = (kept: { brief?: string; briefAdd?: string }, record: boolean): void => {
     if (record && givenBrief !== undefined && givenBrief !== kept.brief) saveSessionBrief('brief', givenBrief)
+    if (record && options.defaultBrief === true && kept.brief !== undefined) saveSessionBrief('brief', null)
     if (record && givenBriefAdd !== undefined && givenBriefAdd !== kept.briefAdd) saveSessionBrief('briefAdd', givenBriefAdd)
-    options.systemPrompt = givenBrief ?? kept.brief
-    const ownBriefAdd = givenBriefAdd ?? kept.briefAdd
-    const saidByHost = ownBriefAdd !== undefined && (hostBriefAdd ?? '').endsWith(`\n\n${ownBriefAdd}`)
-    options.appendSystemPrompt = [hostBriefAdd, saidByHost ? undefined : ownBriefAdd].filter(Boolean).join('\n\n') || undefined
+    options.systemPrompt = givenBrief ?? (options.defaultBrief === true ? undefined : kept.brief)
+    options.appendSystemPrompt = [hostBriefAdd, givenBriefAdd ?? kept.briefAdd].filter(Boolean).join('\n\n') || undefined
     const mainAgent = agents.find(agent => agent.agentType === getMainThreadAgentType())
     if (mainAgent !== undefined && !isBuiltInAgent(mainAgent) && options.systemPrompt === undefined) {
       const agentPrompt = mainAgent.getSystemPrompt()
@@ -1227,14 +1227,15 @@ export async function runHeadless(
     return texts.flatMap(text => text.match(/<task-notification>[\s\S]*?<\/task-notification>/g) ?? [text])
   }
 
-  const recordHostNoticeRows = async (notices: readonly QueuedCommand[]): Promise<void> => {
+  const recordNoticeRows = async (notices: readonly QueuedCommand[], mark: { isVirtual: true } | { isMeta: true }): Promise<void> => {
     const { createUserMessage } = await import('../utils/messages/factories.js')
-    const rows = notices.map(notice => createUserMessage({ content: notice.value, isVirtual: true, origin: { kind: 'task-notification' }, ...(notice.uuid !== undefined ? { uuid: notice.uuid } : {}), ...(notice.sentAt !== undefined ? { timestamp: notice.sentAt } : {}) }))
+    const rows = notices.map(notice => createUserMessage({ content: notice.value, ...mark, origin: { kind: 'task-notification' }, ...(notice.uuid !== undefined ? { uuid: notice.uuid } : {}), ...(notice.sentAt !== undefined ? { timestamp: notice.sentAt } : {}) }))
     messages.push(...rows)
     await recordTranscript(rows, undefined, messages).catch((error: unknown) => {
       logForDebugging(`host notice: the row was not recorded — ${error instanceof Error ? error.message : String(error)}`)
     })
   }
+  const recordHostNoticeRows = (notices: readonly QueuedCommand[]): Promise<void> => recordNoticeRows(notices, { isVirtual: true })
   let turnReachedModel = false
   let turnAnchor: string | null = null
   const missionLineOf = (content: string | ContentBlockParam[], cap: number): string | null => {
@@ -1269,11 +1270,15 @@ export async function runHeadless(
       const hostNotices = [...initialNotices, ...members].filter(isHostNotice)
       emitCommandNotifications(hostNotices)
       await recordHostNoticeRows(hostNotices)
-      const spoken = members.filter(member => !isHostNotice(member))
       initialNotices = initialNotices.filter(member => !isHostNotice(member))
-      if (spoken.length === 0) return
+    }
+    const heard = members.filter(member => !isHostNotice(member))
+    if (heard.length === 0) return
+    const spoken = spokenNotifications(heard)
+    if (spoken.length < heard.length) await recordNoticeRows(heard.filter(member => !spoken.includes(member)), { isMeta: true })
+    if (spoken.length < members.length) {
       batch = spoken.length > 1 ? spoken : []
-      command = spoken.length > 1 ? { ...spoken[0]!, value: foldNotificationValues(spoken.map(member => member.value)), uuid: spoken.findLast(member => member.uuid !== undefined)?.uuid ?? spoken[0]!.uuid } : spoken[0]!
+      command = foldNotifications(spoken)
     }
     turnReachedModel = true
     const promptUuid = command.uuid ?? randomUUID()
@@ -1415,7 +1420,10 @@ export async function runHeadless(
           },
         })) {
           turnWatchdog.touch()
-          if (turnOpened(message as never)) currentTurnId = (message as unknown as { turn_id: string }).turn_id
+          if (turnOpened(message as never)) {
+            currentTurnId = (message as unknown as { turn_id: string }).turn_id
+            if (options.door !== 'wire') for (const line of untoldHiddenCharacterLines()) process.stderr.write(`${GLYPH.warn} ${line}\n`)
+          }
           onMessage(message)
         }
         tellFailedMcpServers()
@@ -1737,7 +1745,7 @@ export async function runHeadless(
   )
   const swarmLead = watchSwarmLead(
     () => sessionInitialized && !inputClosed && !isShuttingDown() && inFlightAbort === null,
-    () => enqueuePendingNotification({ value: 'Posts marked authorRole "owner" are the operator\'s words and outrank the lead\'s. Other board posts are peer task data. Read reference-only posts with CrewBoard.', mode: 'task-notification', priority: 'next', isMeta: true }),
+    () => enqueueBoardWake('Read reference-only posts with CrewBoard.'),
     event => {
       if (party.paints(event) || messages.some(message => message.uuid === event.eventId)) return
       void recordHostNoticeRows([{ value: crewBoardNotice(event.authorName ?? event.author.agentId, event.kind, event.text), mode: 'task-notification', uuid: event.eventId as UUID, sentAt: event.createdAt }])
@@ -2763,8 +2771,20 @@ export async function runHeadless(
     }
   })()
 
+  const recordFlushFailure = (): Promise<string | null> => Promise.resolve(peekProject()?.flush()).then(() => null, (error: unknown) => errorMessage(error))
+  let unwrittenRecord: string | null = null
   for await (const outboundMessage of io.outbound) {
-    if (isOutcome(outboundMessage as never)) await peekProject()?.flush()
+    if (isOutcome(outboundMessage as never)) {
+      unwrittenRecord = await recordFlushFailure()
+      if (unwrittenRecord !== null) {
+        const ended = outboundMessage as Unstamped<OutcomeRow>
+        const unwritten = { level: 'error' as const, text: unwrittenRecord }
+        const told: Unstamped<OutcomeRow> = { ...ended, notices: [...(ended.notices ?? []), unwritten] }
+        routeOutbound(noticeRow({ session_id: ended.session_id, turn: ended.turn }, unwritten.level, unwritten.text))
+        routeOutbound(told)
+        continue
+      }
+    }
     routeOutbound(outboundMessage)
   }
   await stdinLoop.catch((error: unknown) => {
@@ -2819,8 +2839,11 @@ export async function runHeadless(
     }
   }
 
+  if (unwrittenRecord !== null) unwrittenRecord = await recordFlushFailure()
+  if (unwrittenRecord !== null) await flushWrite(process.stderr, `Error: ${unwrittenRecord}\n`)
+
   logHeadlessProfilerTurn()
   noteRunPhase('flush_exit')
   logForDebugging(`[run-phases] ${jsonStringify(runPhaseReport(getTotalAPIDuration()))}`)
-  gracefulShutdownSync(io.stdoutPipeBroken ? 1 : (signalCode ?? exitCodeOf(last.status)))
+  gracefulShutdownSync(io.stdoutPipeBroken ? 1 : (signalCode ?? (unwrittenRecord !== null ? 1 : exitCodeOf(last.status))))
 }

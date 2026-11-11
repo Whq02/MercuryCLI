@@ -62,6 +62,8 @@ recorded with the session: a run that continues it without the flag keeps
 them, and the flag given again replaces them. An empty `--brief` is a brief
 with no text, kept like any other: the model reads the built-in constitution
 and no default brief. An empty `--brief-add` removes the addition.
+`--default-brief` returns a continued session to the default brief: the brief
+it was given is forgotten, and an addition stays until it is removed.
 
 The output row types, by their `type` field:
 
@@ -91,6 +93,9 @@ The output row types, by their `type` field:
   A call a limit leaves unanswered (the turn limit, `--budget`, or `--max-time`
   met between steps) gets a `tool_result` row with status `aborted` whose
   `output` begins `Cut off: ` and names the limit.
+  A call of a reply the turn withdrew (its stream was cut and the reply was
+  asked again) gets a `tool_result` row with status `aborted` and an empty
+  `output`; with `--partial` the `retracted` row withdraws it instead.
   A call that cannot be paired at all (no call id, a reused id, no tool name,
   or a function call the provider itself could not parse) gets a `tool_result`
   row with status `refused` whose `output` is the reason, and the correction
@@ -165,7 +170,8 @@ The status is `completed`, `blocked`, `refused`, `failed`, `interrupted`,
 A run under `--max-time` (seconds, or `10m`, `1h`) ends `time_limit` when the
 time is up: a reply still streaming or a tool still running is cut at the
 deadline, and the outcome names the limit. A completed run (`status: "completed"`) exits `0`, other outcomes exit `1`,
-and a command-line usage error exits `2`. A command line the parser cannot read
+and a command-line usage error exits `2`. A run whose session record could not
+be written still prints its outcome and exits `1`. A command line the parser cannot read
 (an unknown option) exits `2` with the parser's line on stderr and no row,
 whatever the format; a refusal Mercury composes prints one `refused` outcome
 row first. SIGINT, SIGTERM and SIGHUP exit 130,
