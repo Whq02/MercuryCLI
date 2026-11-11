@@ -2693,7 +2693,7 @@ export async function runHeadless(
         if (leaveAbort === controller) leaveAbort = null
       }
     },
-    'agent/resume': async params => {
+    'agent/resume': async (params, _ref, signal) => {
       const target = getAppState().tasks[params.agent_id]
       if (target !== undefined && target.status === 'running') {
         const note = params.note !== undefined ? params.note.trim() : ''
@@ -2707,6 +2707,7 @@ export async function runHeadless(
       if (standing === undefined) {
         await options.initializeMcp?.()
         standing = await relaunchContext()
+        if (signal.aborted) throw refused('nothing to resume from yet — the session is still starting', 'nothing-to-resume')
       }
       const { toolUseId: _staleToolUseId, ...lastContext } = standing
       void _staleToolUseId

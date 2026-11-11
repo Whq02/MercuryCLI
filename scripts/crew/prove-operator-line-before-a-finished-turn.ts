@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { bootRunner, bound, childEnv, DIST, exportWorld, isOutcome, isSession, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome, sleep, type Runner } from '../daemon/dupline-world.ts'
 import { PeerDeadline } from '../../src/runner/wire/peer.ts'
@@ -16,6 +16,10 @@ const SID = 'c0ffee00-0000-4000-8000-0000000b4f17'
 const OLD_REFUSAL = 'the session has not run a turn'
 const RUNNING_LINE = 'crew-seat: take the short road'
 const STOPPED_LINE = 'crew-seat: carry on from where the stop left you'
+const SLOW_LINE = 'crew-seat: this line arrives while the servers start'
+const HOST_WAIT_MS = 2_000
+const SERVER_WAIT_MS = 6_000
+const SERVER_SLEEP_SECONDS = 6113
 
 type Row = { id: string; kind: string; name: string; status: string }
 type Answer = { subtype: 'success'; response: Record<string, unknown> } | { subtype: 'error'; error: string }
@@ -154,6 +158,62 @@ if (!existsSync(DIST)) {
     })
     if (failed() === first.failedAtOpen) await removeWorld(first.home)
     else console.log(`  [forensics] reopened world kept: ${first.home}\n${second.stderr().split('\n').slice(-12).join('\n')}`)
+  }
+
+  if (runs('starting')) {
+    section('C a line the host has stopped waiting for is not handed to the crewmate behind its back (the session\'s servers are still starting)')
+    const first = await openWorld('starting', ['--session-id', SID])
+    const stale = sleepPids()
+    void first.runner.prompt(LEAD_ASK_SLEEPER, U2)
+    const row = await waitRow(first.runner, 'the crewmate\'s row', r => r.kind === 'agent' && r.name === SEAT_NAME && r.status === 'running', bound(90_000))
+    check('C the first process launched the crewmate', row !== null, j(first.fx.hits.map(h => h.route)))
+    await waitSleepChildren(true, stale, bound(30_000))
+    const stopped = row === null ? null : await ask(first.runner, 'agent/stop', { agent_id: row.id }, bound(15_000))
+    check('C the crewmate is stopped in the first process', stopped?.subtype === 'success', j(stopped))
+    await waitSleepChildren(false, stale, bound(10_000))
+    await first.runner.waitFor('the first process\'s turn', isOutcome, bound(60_000))
+    await first.runner.stop(bound(8_000))
+    const settings = join(first.home, '.mercury.json')
+    const config = existsSync(settings) ? (JSON.parse(readFileSync(settings, 'utf8')) as Record<string, unknown>) : {}
+    config.mcpServers = { 'never-answers': { command: '/bin/sleep', args: [String(SERVER_SLEEP_SECONDS)] } }
+    writeFileSync(settings, JSON.stringify(config))
+    const second = bootRunner({ cwd: first.cwd, env: { ...first.env, MERCURY_CONCOURSE_WORKER: '1', MERCURY_MCP_TIMEOUT_MS: String(SERVER_WAIT_MS) }, extraArgv: [] })
+    const claimed = await second.request('session/claim', { session_id: SID, resume: true } as never, bound(60_000)).then(() => true, () => false)
+    check('C a runner that waits for its session is handed it with resume, one of its servers never answering', claimed, second.stderr().split('\n').slice(-5).join(' | '))
+    if (row !== null && claimed) {
+      const before = seatAsks(first.fx, SLOW_LINE)
+      const sentAt = Date.now()
+      let reply = await ask(second, 'agent/resume', { agent_id: row.id, note: SLOW_LINE }, HOST_WAIT_MS)
+      while (reply?.subtype === 'error' && reply.error.includes('still starting') && Date.now() - sentAt < 20_000) {
+        await sleep(250)
+        reply = await ask(second, 'agent/resume', { agent_id: row.id, note: SLOW_LINE }, HOST_WAIT_MS)
+      }
+      check('C the host stops waiting for the line before the session\'s servers have settled', reply === null, j(reply))
+      const gaveUpAt = Date.now()
+      while (Date.now() - gaveUpAt < SERVER_WAIT_MS + 5_000 && seatAsks(first.fx, SLOW_LINE) === before) await sleep(300)
+      check('C the crewmate\'s model is never asked with the line the host gave up on', seatAsks(first.fx, SLOW_LINE) === before, j(first.fx.hits.map(h => `${h.route}:${h.ask.trim().slice(0, 70)}`)))
+      const rows = await rowsOf(second)
+      check('C …and no crewmate was started for it', !rows.some(r => r.kind === 'agent' && r.status === 'running'), j(rows.map(r => `${r.kind}:${r.name}:${r.status}`)))
+      const again = await ask(second, 'agent/resume', { agent_id: row.id, note: SLOW_LINE }, bound(30_000))
+      check('C the same line sent again once the servers have settled is taken', again?.subtype === 'success' && typeof again.response.agent_id === 'string', j(again))
+      const until = Date.now() + bound(60_000)
+      while (seatAsks(first.fx, SLOW_LINE) === before && Date.now() < until) await sleep(300)
+      const resumedId = again?.subtype === 'success' && typeof again.response.agent_id === 'string' ? again.response.agent_id : row.id
+      const settled = await waitRow(second, 'the resumed crewmate\'s settled row', r => r.id === resumedId && r.status !== 'running', bound(60_000))
+      check('C …and the crewmate asks its model with it once and its turn ends as its model answered', seatAsks(first.fx, SLOW_LINE) === before + 1 && settled !== null && settled.status === 'completed', j({ asks: seatAsks(first.fx, SLOW_LINE) - before, settled }))
+    }
+    await second.stop(bound(8_000))
+    await sleep(500)
+    const servers = (spawnSync('pgrep', ['-f', `sleep ${SERVER_SLEEP_SECONDS}`], { encoding: 'utf8' }).stdout ?? '').split('\n').map(s => s.trim()).filter(s => s !== '')
+    check('C no server process and no shell child of the scene is left', servers.length === 0 && (await waitSleepChildren(false, stale, bound(10_000))).length === 0, j(servers))
+    await first.fx.close()
+    exportWorld('starting', first.home, {
+      'frames-second.jsonl': second.frames.map(l => JSON.stringify(l)).join('\n') + '\n',
+      'stderr-second.txt': second.stderr(),
+      'hits.json': JSON.stringify(first.fx.hits, null, 2),
+    })
+    if (failed() === first.failedAtOpen) await removeWorld(first.home)
+    else console.log(`  [forensics] starting world kept: ${first.home}\n${second.stderr().split('\n').slice(-12).join('\n')}`)
   }
 }
 
