@@ -95,7 +95,7 @@ setCwdState(PROJECT)
 setProjectRoot(PROJECT)
 writeFileSync(daemonStatePath(), JSON.stringify({ pid: DAEMON_PID, startedAt: Date.now(), script: join(CONFIG_HOME, 'runtime', 'current', 'mercury.mjs') }))
 
-type Decision = { behavior: string; message?: string; updatedInput?: Record<string, unknown>; decisionReason?: { type?: string; rule?: { ruleValue?: { toolName?: string; ruleContent?: string } } } }
+type Decision = { behavior: string; message?: string; updatedInput?: Record<string, unknown>; suggestions?: Array<{ type?: string; behavior?: string; rules?: Array<{ toolName?: string; ruleContent?: string }> }>; decisionReason?: { type?: string; rule?: { ruleValue?: { toolName?: string; ruleContent?: string } } } }
 export type Rules = { deny?: string[]; allow?: string[]; ask?: string[] }
 const bash = {
   name: 'Bash',

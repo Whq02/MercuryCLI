@@ -691,8 +691,10 @@ export async function shellCommandHasPermission(
   context: ToolPermissionContext,
 ): Promise<PermissionResult> {
   const read = contentRulesReadAsBash(context, toolName)
-  const result = await bashToolHasPermission(input, read.context)
-  return read.own.size === 0 ? result : spelledForTool(result, context, toolName, read.own)
+  const decided = await bashToolHasPermission(input, read.context)
+  const result = read.own.size === 0 ? decided : spelledForTool(decided, context, toolName, read.own)
+  if ((result.behavior !== 'ask' && result.behavior !== 'passthrough') || ('suggestions' in result && result.suggestions !== undefined)) return result
+  return { ...result, suggestions: suggestionForCommand(input.command) } as PermissionResult
 }
 
 export async function startedCommandVerdict(
