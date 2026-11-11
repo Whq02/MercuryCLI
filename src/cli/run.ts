@@ -2760,8 +2760,20 @@ export async function runHeadless(
     }
   })()
 
+  const recordFlushFailure = (): Promise<string | null> => Promise.resolve(peekProject()?.flush()).then(() => null, (error: unknown) => errorMessage(error))
+  let unwrittenRecord: string | null = null
   for await (const outboundMessage of io.outbound) {
-    if (isOutcome(outboundMessage as never)) await peekProject()?.flush()
+    if (isOutcome(outboundMessage as never)) {
+      unwrittenRecord = await recordFlushFailure()
+      if (unwrittenRecord !== null) {
+        const ended = outboundMessage as Unstamped<OutcomeRow>
+        const unwritten = { level: 'error' as const, text: unwrittenRecord }
+        const told: Unstamped<OutcomeRow> = { ...ended, notices: [...(ended.notices ?? []), unwritten] }
+        routeOutbound(noticeRow({ session_id: ended.session_id, turn: ended.turn }, unwritten.level, unwritten.text))
+        routeOutbound(told)
+        continue
+      }
+    }
     routeOutbound(outboundMessage)
   }
   await stdinLoop.catch((error: unknown) => {
@@ -2816,8 +2828,11 @@ export async function runHeadless(
     }
   }
 
+  if (unwrittenRecord !== null) unwrittenRecord = await recordFlushFailure()
+  if (unwrittenRecord !== null) await flushWrite(process.stderr, `Error: ${unwrittenRecord}\n`)
+
   logHeadlessProfilerTurn()
   noteRunPhase('flush_exit')
   logForDebugging(`[run-phases] ${jsonStringify(runPhaseReport(getTotalAPIDuration()))}`)
-  gracefulShutdownSync(io.stdoutPipeBroken ? 1 : (signalCode ?? exitCodeOf(last.status)))
+  gracefulShutdownSync(io.stdoutPipeBroken ? 1 : (signalCode ?? (unwrittenRecord !== null ? 1 : exitCodeOf(last.status))))
 }

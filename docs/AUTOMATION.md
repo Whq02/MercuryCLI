@@ -168,7 +168,8 @@ The status is `completed`, `blocked`, `refused`, `failed`, `interrupted`,
 A run under `--max-time` (seconds, or `10m`, `1h`) ends `time_limit` when the
 time is up: a reply still streaming or a tool still running is cut at the
 deadline, and the outcome names the limit. A completed run (`status: "completed"`) exits `0`, other outcomes exit `1`,
-and a command-line usage error exits `2`. A command line the parser cannot read
+and a command-line usage error exits `2`. A run whose session record could not
+be written still prints its outcome and exits `1`. A command line the parser cannot read
 (an unknown option) exits `2` with the parser's line on stderr and no row,
 whatever the format; a refusal Mercury composes prints one `refused` outcome
 row first. SIGINT, SIGTERM and SIGHUP exit 130,
