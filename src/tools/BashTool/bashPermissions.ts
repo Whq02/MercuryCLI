@@ -7,7 +7,7 @@ import type { PermissionRule } from '../../types/permissions.js'
 import { resolveShellCwd } from '../../utils/Shell.js'
 import { hiddenCommandCharacterReason } from '../../utils/sanitization.js'
 import { credentialUploadReason } from '../../utils/permissions/commandContent.js'
-import { refusalWithReason, ruleSentence, withRuleReason } from '../../utils/permissions/ruleReason.js'
+import { refusalWithReason, ruleSentence, ruleWords, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import { getPlatform } from '../../utils/platform.js'
 import { uncPathRisk, uncPathMessage } from '../../utils/permissions/uncPath.js'
 import { windowsPathToPosixPath } from '../../utils/windowsPaths.js'
@@ -51,7 +51,7 @@ import { checkPermissionMode } from './modeValidation.js'
 import { denyRuleReach, hiddenDenyRuleRefusal, type HiddenDenyRule, type ReachBudget } from './denyRuleReach.js'
 import { modeBypassesPermissions, permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
 import { checkPathConstraints, checkShellCwd } from './pathValidation.js'
-import { checkPreparedReadOnlyConstraints, cutPart, notReadOnlyClause, type NotReadOnly } from './readOnlyValidation.js'
+import { checkPreparedReadOnlyConstraints, checkReadOnlyConstraints, cutPart, notReadOnlyClause, type NotReadOnly } from './readOnlyValidation.js'
 import { checkSedConstraints } from './sedValidation.js'
 import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
 import { credentialStoreWriteRefusal, isInstructionEstatePath } from '../../utils/permissions/filesystem.js'
@@ -597,8 +597,11 @@ export function bashToolHasPermission(
 function shellTextVerdict(input: BashInput, context: ToolPermissionContext, prefixFn: PrefixFn, knownForCommand: boolean): Promise<PermissionResult> {
   return withBashParseScope(async () => {
     const resolvedInput = input.cwd === undefined ? input : { ...input, cwd: resolveShellCwd(input.cwd) }
-    const { result, hidden } = await decideWithDenyRuleReach(resolvedInput, context, prefixFn, 0)
-    if (result.behavior === 'deny') return result
+    const reached = await decideWithDenyRuleReach(resolvedInput, context, prefixFn, 0)
+    if (reached.result.behavior === 'deny') return reached.result
+    const unread = reached.unread
+    const result = unread !== null && reached.result.behavior === 'allow' ? unprovenAsk(`${unread.why}, and ${ruleWords(unread.rule)} denies what it may print; name the paths it should print, or approve`) : reached.result
+    const hidden = reached.hidden ?? unread
     if (knownForCommand && hidden !== null && result.behavior !== 'allow' && (modeBypassesPermissions(context.mode) || context.mode === 'flow')) {
       return hiddenDenyRuleRefusal(hidden, permissionModeTitle(context.mode))
     }
@@ -650,21 +653,28 @@ async function decideWithDenyRuleReach(
   prefixFn: PrefixFn,
   depth: number,
   budget?: ReachBudget,
-): Promise<{ result: PermissionResult; hidden: HiddenDenyRule | null }> {
+): Promise<{ result: PermissionResult; hidden: HiddenDenyRule | null; unread: HiddenDenyRule | null }> {
   const result = await decideBashPermission(input, context, prefixFn)
-  if (result.behavior === 'deny') return { result, hidden: null }
+  if (result.behavior === 'deny') return { result, hidden: null, unread: null }
   const reach = await denyRuleReach(input.command, resolveShellCwd(input.cwd), context, {
     judge: async (command, cwd, left) => {
       const inner = await decideWithDenyRuleReach({ ...input, command, cwd }, context, prefixFn, depth + 1, left)
-      return inner.result.behavior === 'deny' ? { denied: inner.result, hidden: null } : { denied: null, hidden: inner.hidden }
+      return inner.result.behavior === 'deny' ? { denied: inner.result, hidden: null } : { denied: null, hidden: inner.hidden, unread: inner.unread }
     },
     bashDenyRule: candidate => {
       const deny = matchRules(candidate, context, 'deny', 'exact', true) ?? matchRules(candidate, context, 'deny', 'prefix', true)
       return deny === null ? null : ruleFor(context, deny, 'deny')
     },
     optionNamedWrites,
+    readOnly: async (command, cwd) => {
+      try {
+        return (await checkReadOnlyConstraints({ command, cwd }, false)).behavior === 'allow'
+      } catch {
+        return false
+      }
+    },
   }, depth, budget)
-  return reach.denied !== null ? { result: reach.denied, hidden: null } : { result, hidden: reach.hidden }
+  return reach.denied !== null ? { result: reach.denied, hidden: null, unread: null } : { result, hidden: reach.hidden, unread: reach.unread ?? null }
 }
 
 type RulesBySource = ToolPermissionContext['alwaysAllowRules']

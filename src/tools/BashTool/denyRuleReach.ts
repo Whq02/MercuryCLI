@@ -19,18 +19,20 @@ import { gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
 import { LISTED_WORDS } from '../../utils/shell/readOnlyCommandValidation.js'
 import { scanCeiling } from '../../utils/verification/scanCeiling.js'
 import { BASH_TOOL_NAME } from './toolName.js'
+import { gitLeavingOut, gitNamesPrinted, gitPatchQuestion, gitVariableSet } from './gitPrintedNames.js'
 import { COMMAND_OPERATION_TYPE, PATH_EXTRACTORS, type PathCommand } from './pathValidation.js'
 
 export type HiddenDenyRule = { rule: PermissionRule; why: string }
-type DenyRuleReach = { denied: PermissionResult | null; hidden: HiddenDenyRule | null }
+type DenyRuleReach = { denied: PermissionResult | null; hidden: HiddenDenyRule | null; unread?: HiddenDenyRule | null }
 
-export type ReachBudget = { left: number }
+export type ReachBudget = { left: number; unsettled?: boolean }
 
 type DenyRuleReachPorts = {
   judge(command: string, cwd: string, budget: ReachBudget): Promise<DenyRuleReach>
   bashDenyRule(candidate: string): PermissionRule | null
   optionNamedWrites(argv: string[]): string[]
   estate?(path: string): boolean
+  readOnly?(command: string, cwd: string): Promise<boolean>
 }
 
 const ESTATE_RULE: PermissionRule = { source: 'session', ruleBehavior: 'deny', ruleValue: { toolName: 'Edit', ruleContent: 'Mercury configuration' } }
@@ -530,6 +532,7 @@ async function reachOf(
   const anyRule: PermissionRule | undefined = bashRules[0] ?? fileRules[0]
   const fileRule = fileRules[0]
   let hidden: HiddenDenyRule | null = null
+  let unread: HiddenDenyRule | null = null
   const hide = (rule: PermissionRule | undefined, why: string): void => {
     if (rule !== undefined) hidden ??= { rule, why }
   }
@@ -753,6 +756,7 @@ async function reachOf(
       const inner = await ports.judge(text, folder, budget)
       if (inner.denied !== null) return inner.denied
       if (inner.hidden !== null) hidden ??= inner.hidden
+      if (inner.unread) unread ??= inner.unread
     }
     return null
   }
@@ -774,7 +778,22 @@ async function reachOf(
     if (denied !== null) return { denied, hidden: null }
   }
 
+  const readRule = fileRules.find(rule => READ_RULE_TOOLS.has(rule.ruleValue.toolName))
+  const leavesAsItWas = async (view: View): Promise<boolean> => {
+    if (view.redirects.some(one => OUTPUT_OPERATORS.has(one.op) && one.target !== '/dev/null')) return false
+    const head = view.argv[0]
+    if (head === null || head === undefined) return false
+    return QUIET_COMMANDS.has(posixPath.basename(head)) || (await ports.readOnly?.(view.text, view.cwds[0] ?? cwd)) === true
+  }
+  if (readRule !== undefined && budget.unsettled !== true && /(?<![&>|<])&(?![&>])/.test(command)) {
+    for (const view of views) {
+      if (await leavesAsItWas(view)) continue
+      budget.unsettled = true
+      break
+    }
+  }
   for (const view of views) {
+   try {
     for (const one of view.redirects) {
       const denied = checkRedirect(one.op, one.target, view.cwds, view.cwdKnown)
       if (denied !== null) return { denied, hidden: null }
@@ -944,6 +963,37 @@ async function reachOf(
         const found = pathDenial(path, view.cwds, wanted)
         if (found !== null && found !== 'unread') hide(found.rule, `git ${subcommand} names ${found.path}`)
       }
+      const question = readRule === undefined ? null : gitPatchQuestion(words)
+      if (question === null || readRule === undefined) continue
+      if ('unread' in question) {
+        unread ??= { rule: readRule, why: question.unread }
+        continue
+      }
+      if (!view.cwdKnown) {
+        unread ??= { rule: readRule, why: `the folder git ${question.label} runs in could not be established` }
+        continue
+      }
+      for (const folder of view.cwds) {
+        const answer = await gitNamesPrinted(question, folder)
+        if (answer === 'failed') continue
+        if (answer === 'unanswered') {
+          unread ??= { rule: readRule, why: `git did not say in time which files git ${question.label} would print` }
+          continue
+        }
+        const refused = answer.names.flatMap(name => {
+          const rule = matchingRulesForInput(resolve(answer.base, name), context, 'read', 'deny')[0]
+          return rule === undefined ? [] : [{ name, rule }]
+        })
+        const first = refused[0]
+        if (first === undefined) continue
+        const path = resolve(answer.base, first.name)
+        const said = refusal(`Printing ${path} with git ${question.label}`, path, first.rule, 'read')
+        const message = `${'message' in said ? said.message : ''} To leave it out, name what to print: ${gitLeavingOut(question, refused.slice(0, 12).map(one => one.name))}`
+        return { denied: { ...said, message } as PermissionResult, hidden: null }
+      }
+      const variable = gitVariableSet(command)
+      if (variable !== null) unread ??= { rule: readRule, why: `${variable} is set on the line, which moves what git ${question.label} reads` }
+      else if (budget.unsettled === true) unread ??= { rule: readRule, why: `an earlier command on the line can change what git ${question.label} would print` }
       continue
     }
     if (LISTED_WORDS.has(base)) continue
@@ -965,8 +1015,11 @@ async function reachOf(
       if (found === 'unread') hide(fileRule, `the wildcard ${path} matches more files than Mercury reads`)
       else if (found !== null) hide(found.rule, `${base} is not a command Mercury can follow and it names ${found.path}`)
     }
+   } finally {
+    if (readRule !== undefined && budget.unsettled !== true && !(await leavesAsItWas(view))) budget.unsettled = true
+   }
   }
-  return { denied: null, hidden }
+  return { denied: null, hidden, unread }
 }
 
 export function hiddenDenyRuleRefusal(hidden: HiddenDenyRule, modeTitle: string): PermissionResult {

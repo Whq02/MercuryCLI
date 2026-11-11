@@ -420,6 +420,12 @@ section('§8 a command the Bash layer cannot follow: with no deny rule in force 
     const under = await decide(BashTool, { command }, contextOf('sovereign'))
     check(`${command}: a command that names Mercury's configuration asks nothing under sovereign (the ask on it is Flow's)`, under.decision.behavior === 'allow', JSON.stringify(under.decision).slice(0, 300))
   }
+  for (const command of ['git diff', 'git diff --cached', 'git show HEAD', 'git diff HEAD~1', 'npm test && git diff', 'git --git-dir=.git show HEAD']) {
+    const ruled = await decide(BashTool, { command }, contextOf('sovereign', { deny: ['Read(secrets/**)'] }))
+    check(`${command}: a Read deny rule in force, a git reader of patches is allowed or refused under sovereign (${ruled.decision.behavior}), no card`, ruled.decision.behavior === 'allow' || ruled.decision.behavior === 'deny', JSON.stringify(ruled.decision).slice(0, 300))
+    const bare = await decide(BashTool, { command }, contextOf('sovereign'))
+    check(`${command}: no deny rule in force, allowed under sovereign as before`, bare.decision.behavior === 'allow', JSON.stringify(bare.decision).slice(0, 300))
+  }
   const unfollowed = ['cat $FILE', 'ls *.txt', 'eval "$(cat plan.txt)"', 'cat plan.txt | sh', 'less notes.txt', 'mywrap ls', 'cd "$DIR" && cat k.txt', 'while read l; do echo $l; done < notes.txt', `ls #${'x'.repeat(10_050)}`]
   for (const command of unfollowed) {
     const label = command.length > 60 ? `${command.slice(0, 20)}… (${command.length} characters)` : command
