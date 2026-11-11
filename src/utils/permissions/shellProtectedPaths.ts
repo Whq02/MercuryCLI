@@ -806,6 +806,31 @@ function findNamesASecret(argv: readonly string[], homes: readonly string[]): bo
   })
 }
 
+function filesSentOrPrinted(layer: Layer): Set<string> {
+  const { program, argv } = layer
+  const out = new Set<string>()
+  if (program === 'curl') {
+    argv.forEach((word, at) => {
+      const before = at > 0 ? argv[at - 1]! : ''
+      if (before === '-T' || before === '--upload-file' || word.startsWith('--upload-file=')) out.add(word)
+      if ((/^(?:-F|--form|-d|--data|--data-binary)$/.test(before) || /^--(?:form|data|data-binary)=/.test(word)) && word.includes('@')) out.add(word)
+    })
+  } else if (program === 'wget') {
+    argv.forEach((word, at) => {
+      if ((at > 0 && argv[at - 1] === '--post-file') || word.startsWith('--post-file=')) out.add(word)
+    })
+  } else if (program === 'gh') {
+    const plain = argv.slice(1).filter(word => !word.startsWith('-'))
+    if (plain[0] === 'gist' && plain[1] === 'create') for (const word of plain.slice(2)) out.add(word)
+  } else if (program === 'git') {
+    const at = argv.findIndex((word, index) => index > 0 && !word.startsWith('-') && !/^(?:-C|-c|--git-dir|--work-tree|--namespace)$/.test(argv[index - 1]!))
+    const rest = at < 0 ? [] : argv.slice(at + 1)
+    const verb = at < 0 ? '' : argv[at]!
+    if (verb === 'hash-object' || verb === 'add' || (verb === 'diff' && rest.includes('--no-index'))) for (const word of rest) if (!word.startsWith('-')) out.add(word)
+  }
+  return out
+}
+
 function keychainItemRead(layer: Layer): string | null {
   if (layer.program !== 'security') return null
   const argv = layer.argv
@@ -862,11 +887,12 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       if (item !== null) return item
       const roots = layer.findRoots !== undefined && layer.argv !== simple.argv ? layer.findRoots : []
       const tree = readsWholeTree(layer)
+      const sent = filesSentOrPrinted(layer)
       const lists = layer.program === 'find' || layer.program === 'ls' || layer.program === 'get-childitem' || layer.program === 'gci' || layer.program === 'dir'
       const feeds = lists && (fed.has(at) || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')))
       for (const word of [...layer.argv.slice(1), ...roots]) {
         for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {
-          if (mercurySecretPath(candidate, here) !== null || ((FILE_READERS.has(layer.program) || handedToReader(at, simple)) && couldNameSecret(candidate, here, homes, !wordKnown(candidate)))) return word
+          if (mercurySecretPath(candidate, here) !== null || ((FILE_READERS.has(layer.program) || sent.has(word) || handedToReader(at, simple)) && couldNameSecret(candidate, here, homes, !wordKnown(candidate)))) return word
           if ((FILE_READERS.has(layer.program) || UPLOADERS.has(layer.program)) && secretNameBehindUnread(candidate, homes)) return candidate.replaceAll(UNREAD_PART, '$(…)')
           if ((tree || feeds) && namesMercuryHome(candidate, here, homes)) return word
         }
