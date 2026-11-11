@@ -221,8 +221,10 @@ section('§5 the hook road: the refusal rides the guard that runs before the per
   } finally {
     restorePlatform()
   }
-  const offWindows = await runWithCwdOverride(project, () => judge('Remove-Item -Recurse -Force C:\\Users\\Public\\m36-decoy', 'PowerShell'))
-  check('off win32 the Windows spelling is no Windows path: a name under the folder the call stands in, it passes inside the starting folder (the Mac road is unchanged, as the recursive-delete ward\'s Windows set)', offWindows === true, shown(offWindows))
+  const beside = join(scratch, 'beside')
+  mkdirSync(beside)
+  const offWindows = await runWithCwdOverride(beside, () => judge('Remove-Item -Recurse -Force C:\\Users\\Public\\m36-decoy', 'PowerShell'))
+  check('off win32 the Windows spelling is no Windows path: a name under the folder the call stands in, it passes from a folder of this proof\'s world that lies outside the starting folder, where a Windows reading of it would be refused (the Mac road is unchanged, as the recursive-delete ward\'s Windows set)', offWindows === true, shown(offWindows))
   const inside = await judge(`rm -rf ${join(project, 'build')}`)
   check('a delete inside the starting folder passes the guard (the card decides)', inside === true, shown(inside))
   const listing = await judge('ls -la /Users/m37-other/decoy')
