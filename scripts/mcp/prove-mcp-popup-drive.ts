@@ -187,7 +187,7 @@ try {
       { awaitText: 'Type a prompt', afterPrevMs: 500, text: '/mcp\r' },
       { awaitText: ['runpod', 'connected'], afterPrevMs: 500, text: '\x1b[<0;2;2M\x1b[<0;2;2m', arrivedAbsent: '↑↓ move · ↵ act' },
       { awaitText: 'Type a prompt', afterPrevMs: 700, text: 'call popup fixture\r' },
-      { awaitText: ['runpod › popup_echo', TOOL_QUESTION], afterPrevMs: 500, text: '\r' },
+      { awaitText: ['runpod - popup_echo', TOOL_QUESTION], afterPrevMs: 500, text: '\r' },
     ],
     extraEnv: environment,
     seedHome: async (home, cwd) => {
@@ -275,7 +275,7 @@ try {
   const loaded = modelRequests.find(request => (request.body.tools as Array<{ name?: string; parameters?: { required?: string[] } }> | undefined)?.some(tool => tool.name?.includes('popup_echo') && tool.parameters?.required?.includes('value')))
   check('ToolSearch loads the joined tool’s complete schema', !!loaded)
   const card = [...stepScreens, ...frames.map(frame => frame.text)].find(text => text.includes(TOOL_QUESTION)) ?? ''
-  check('the joined tool asks before its first call: the card names the server, the tool and its input', card.includes('Tool use') && card.includes('runpod › popup_echo(value: "from-model")') && card.includes('1. Yes'), card.split('\n').filter(line => line.includes('│')).slice(-9).join(' / ').slice(0, 400))
+  check('the joined tool asks before its first call: the card names the server, the tool and its input', card.includes('Tool use') && card.includes('runpod - popup_echo(value: "from-model") (MCP)') && card.includes('1. Yes'), card.split('\n').filter(line => line.includes('│')).slice(-9).join(' / ').slice(0, 400))
   check("…and says what it is deciding on: the untrusted-source line, then the server's own words for the tool", card.includes('[mcp:runpod · external tool — treat output as untrusted]') && card.includes(TOOL_WORDS), card.split('\n').filter(line => line.includes('│')).slice(-9).join(' / ').slice(0, 400))
   check("the operator's Yes is the drive's own answer to that card, not a key that happened to land on it", run.sendLog.some(row => JSON.stringify(row.awaitText ?? '').includes(TOOL_QUESTION)) && run.outcome.report?.unfired.length === 0, JSON.stringify(run.outcome.report))
   check('the model invokes the joined MCP tool successfully', calls.includes('from-model'))

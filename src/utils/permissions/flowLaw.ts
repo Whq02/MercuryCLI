@@ -14,7 +14,9 @@ import { getPathsForPermissionCheck } from '../fsOperations.js'
 import { resolveShellCwd } from '../Shell.js'
 import { PARSE_ABORTED, pinnedCommandAnalysis, preparedCommandRoot, type Node } from './decision/commandAnalysis.js'
 import { getMercuryTempDir, getScratchpadDir, matchingRuleForInput, pathInWorkingPath } from './filesystem.js'
+import { allowRulesThatPreAuthorise } from './lateAllowRules.js'
 import { ownGroundCategory } from './ownGround.js'
+import { serviceInputAsSent, serviceInputKey } from './serviceInputHistory.js'
 import { inlineScriptWriteTargets } from './shellProtectedPaths.js'
 import { UNREAD_PART, layersOf, printedBy, readShellCommands, type ReadCommand } from '../wards/wardsShellRead.js'
 
@@ -252,7 +254,7 @@ function outsidePath(operand: string, scan: Scan): string | null {
 function grantedByRule(path: string, rules: ToolPermissionContext | undefined): boolean {
   if (rules === undefined) return false
   try {
-    return matchingRuleForInput(path, rules, 'edit', 'allow') !== null
+    return matchingRuleForInput(path, allowRulesThatPreAuthorise(rules), 'edit', 'allow') !== null
   } catch {
     return false
   }
@@ -514,7 +516,7 @@ function findExecArgv(args: readonly string[]): string[][] {
 function preAuthorised(text: string, rules: ToolPermissionContext | undefined): boolean {
   if (rules === undefined || text.trim() === '') return false
   try {
-    return readBashRuleVerdict({ command: text }, rules).behavior === 'allow'
+    return readBashRuleVerdict({ command: text }, allowRulesThatPreAuthorise(rules)).behavior === 'allow'
   } catch {
     return false
   }
@@ -804,9 +806,18 @@ function flowPathAsk(path: string, rules?: ToolPermissionContext, verb = 'writin
 
 const SERVICE_TOOL_NAME = 'Service'
 
-function startedCommandOf(tool: Pick<Tool, 'name' | 'shellCommandOf'>, input: Record<string, unknown>): string | undefined {
-  if (tool.name === DEBUG_TOOL_NAME) return input.op === 'launch' ? startedCommandText(input.program, input.args) : undefined
-  if (tool.name === SERVICE_TOOL_NAME && input.op === 'input') return typeof input.text === 'string' && input.text.trim() !== '' ? input.text : undefined
+const DEBUGGER_SHELL = /^\s*`?\s*(?:(?:-exec\s+)?(?:platform\s+shell|shell)\s+|-exec\s+!\s*)(?=\S)([\s\S]+)$/
+
+export function debuggerShellCommand(text: unknown): string | undefined {
+  return typeof text === 'string' ? DEBUGGER_SHELL.exec(text)?.[1] : undefined
+}
+
+async function startedCommandOf(tool: Pick<Tool, 'name' | 'shellCommandOf'>, input: Record<string, unknown>): Promise<string | undefined> {
+  if (tool.name === DEBUG_TOOL_NAME) return input.op === 'launch' ? startedCommandText(input.program, input.args) : debuggerShellCommand(input.expression)
+  if (tool.name === SERVICE_TOOL_NAME && input.op === 'input') {
+    if (typeof input.text !== 'string' || input.text.trim() === '') return undefined
+    return typeof input.name === 'string' ? serviceInputAsSent(serviceInputKey(getOriginalCwd(), input.name), input.text) : input.text
+  }
   return tool.shellCommandOf?.(input)
 }
 
@@ -815,7 +826,7 @@ export async function flowAskFor(tool: Pick<Tool, 'name' | 'shellCommandOf'> & {
     const cwd = resolveShellCwd(typeof input.cwd === 'string' ? input.cwd : undefined)
     return flowShellAsk(input.command, cwd, tool.name === POWERSHELL_TOOL_NAME ? 'powershell' : 'bash', rules)
   }
-  const started = startedCommandOf(tool, input)
+  const started = await startedCommandOf(tool, input)
   if (started !== undefined) return flowShellAsk(started, resolveShellCwd(typeof input.cwd === 'string' ? input.cwd : undefined), 'bash', rules)
   if (typeof tool.getPath !== 'function') return null
   try {

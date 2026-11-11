@@ -12,6 +12,8 @@ import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../To
 import { startedCommandVerdict } from '../BashTool/bashPermissions.js'
 import { startedCommandText } from '../../utils/bash/ast.js'
 import { runtimeProcessRefusal } from '../../utils/permissions/runtimeProtection.js'
+import { debuggerShellCommand } from '../../utils/permissions/flowLaw.js'
+import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
 import { evalCodePermission } from '../../utils/permissions/shellProtectedPaths.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -1268,6 +1270,15 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
 
 const DEBUGGEE_TEXT_FIELDS: ReadonlySet<string> = new Set(['expression', 'value', 'condition', 'hitCondition', 'logMessage'])
 
+function customRequestArguments(body: string | undefined): unknown {
+  if (body === undefined) return {}
+  try {
+    return JSON.parse(body)
+  } catch {
+    return { expression: body }
+  }
+}
+
 function textsTheDebuggeeRuns(input: unknown): string[] {
   const texts: string[] = []
   const visit = (value: unknown, field: string | null): void => {
@@ -1330,8 +1341,10 @@ export const DebugTool = buildTool({
     }
     if (input.op === 'attach') {
       const ownProcess = input.pid === undefined ? null : await runtimeProcessRefusal([['kill', String(input.pid)]])
-      if (ownProcess !== null) {
-        const message = `Debug attach to pid ${input.pid} is refused: it is Mercury’s own process or daemon.`
+      const named = path.basename(input.program ?? '')
+      const ownImage = ownProcess !== null || named === '' ? null : await runtimeProcessRefusal([['killall', named]])
+      if (ownProcess !== null || ownImage !== null) {
+        const message = `Debug attach to ${ownProcess !== null ? `pid ${input.pid}` : input.program} is refused: it is Mercury’s own process or daemon.`
         return { behavior: 'deny' as const, message, decisionReason: { type: 'other' as const, reason: message } }
       }
       const target =
@@ -1346,14 +1359,23 @@ export const DebugTool = buildTool({
         (input.program ? inferAdapter(input.program) : input.port !== undefined ? 'python' : 'lldb')
       return approvalNeeded(`Debug attach: ${target} (adapter ${adapter})`)
     }
-    if (input.op === 'customRequest') {
-      return approvalNeeded(`Debug custom request: ${input.method ?? '?'}${input.body ? ` ${input.body.slice(0, 120)}` : ''}`)
-    }
-    for (const text of textsTheDebuggeeRuns(input)) {
+    const own = input.op === 'customRequest' ? approvalNeeded(`Debug custom request: ${input.method ?? '?'}${input.body ? ` ${input.body.slice(0, 120)}` : ''}`) : null
+    let held: PermissionResult | null = null
+    for (const text of textsTheDebuggeeRuns(input.op === 'customRequest' ? customRequestArguments(input.body) : input)) {
       const floor = await evalCodePermission(text, getCwd())
       if (floor !== null) return floor
+      const command = debuggerShellCommand(text)
+      if (command === undefined) {
+        const console = /^\s*`?\s*!\s*(?=\S)([\s\S]+)$/.exec(text)?.[1]
+        const refused = console === undefined ? null : await startedCommandVerdict([{ command: console }], context, approvalNeeded(text), false)
+        if (refused?.behavior === 'deny') return refused
+        continue
+      }
+      const verdict = await startedCommandVerdict([{ command }], context, approvalNeeded(`Debug ${input.op} runs a shell command: ${command.slice(0, 120)}`))
+      if (verdict.behavior === 'deny') return verdict
+      held ??= verdict
     }
-    return { behavior: 'allow' as const, updatedInput: input }
+    return held ?? own ?? { behavior: 'allow' as const, updatedInput: input }
   },
   async validateInput(input: Input) {
     if (input.op === 'launch' && !input.program) {

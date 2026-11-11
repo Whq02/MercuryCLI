@@ -30,6 +30,7 @@ import type { TranscriptChainCursor } from '../../utils/sessionStorage/transcrip
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '../../utils/fileStateCache.js'
 import { getAllBaseTools } from '../../tools.js'
 import { MCPTool } from '../../tools/MCPTool/MCPTool.js'
+import { mcpInfoFromString } from '../mcp/mcpStringUtils.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { createStreamingTailStore, type StreamingTailStore } from '../../utils/messages/streamingTailStore.js'
 import { adoptOpenaiObservedUsage, adoptOpenaiWindowFact } from '../providers/openai/openaiLimitState.js'
@@ -269,10 +270,11 @@ function textOfUserRow(m: Message): string {
 function toolFor(name: string): Tool {
   const known = getAllBaseTools().find(t => t.name === name)
   if (known) return known
+  const served = mcpInfoFromString(name)
   return {
     ...MCPTool,
     name,
-    userFacingName: () => name.replace(/^mcp__/, '').replace(/__/g, ' › '),
+    userFacingName: () => (served?.toolName === undefined ? name : `${served.serverName} - ${served.toolName} (MCP)`),
   } as unknown as Tool
 }
 

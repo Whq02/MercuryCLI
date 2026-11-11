@@ -183,15 +183,15 @@ async function runDecisionChain(
   }
   pass('toolVerdictDeny')
 
+  const latestContext = context.getAppState().toolPermissionContext
+  const shouldBypassPermissions = postureBypassesAsks(latestContext)
+
   if (entry === 'full') {
-    if (tool.requiresUserInteraction?.() && toolVerdict?.behavior === 'ask') {
+    if (tool.requiresUserInteraction?.() && toolVerdict?.behavior === 'ask' && !(shouldBypassPermissions && asksThePostureAnswers(toolVerdict))) {
       return decided('userInteractionAsk', toolVerdict)
     }
     pass('userInteractionAsk')
   }
-
-  const latestContext = context.getAppState().toolPermissionContext
-  const shouldBypassPermissions = postureBypassesAsks(latestContext)
 
   const roadUnderPosture = (
     stage: DecisionStageId,
@@ -319,6 +319,11 @@ async function runDecisionChain(
   }
 
   return decided('resolution', resolved, `verdict: ${toolVerdict.behavior}`)
+}
+
+function asksThePostureAnswers(verdict: PermissionAskDecision): boolean {
+  const reason = verdict.decisionReason
+  return reason?.type === 'safetyCheck' || (reason?.type === 'rule' && reason.rule.ruleBehavior === 'ask')
 }
 
 function getUpdatedInputOrFallback(

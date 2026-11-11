@@ -140,7 +140,7 @@ if (driver.kind !== 'posix-pty') {
     caret !== null && payload.cursor !== undefined && payload.cursor.y === caret.y && payload.cursor.x >= caret.x - 1,
     `cursor ${payload.cursor?.x},${payload.cursor?.y} · caret ${caret?.x},${caret?.y}`,
   )
-  const borders = inspect(finalRows, 100, /\? for shortcuts|shift\+tab to cycle|to cycle\)|esc/)
+  const borders = inspect(finalRows.map(row => row.replace(/\[ (?:back to the bottom|\d+ new messages?) · alt\+↓ \]/, pill => ' '.repeat(pill.length))), 100, /\? for shortcuts|shift\+tab to cycle|to cycle\)|esc/)
   check('every border closed at the new width (no broken edge, bleed or clip)', borders.length === 0, borders.map(b => `${b.kind}: ${b.detail}`).join(' · '))
   const frames: Array<[string, string]> = [...marks.entries(), ['final', final]]
   const doubled: string[] = []

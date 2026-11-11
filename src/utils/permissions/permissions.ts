@@ -6,6 +6,7 @@ import type {
 } from '../../types/permissions.js'
 import { logForDebugging } from '../debug.js'
 import { applyPermissionUpdate, applyPermissionUpdates } from './PermissionUpdate.js'
+import { noteAllowRulesOfSettingsChange } from './lateAllowRules.js'
 import { decideRuleBasedPermissions } from './decision/engine.js'
 import { decideToolPermissionWithModes } from './decision/wrapper.js'
 import {
@@ -53,7 +54,9 @@ export function syncPermissionRulesFromDisk(context: ToolPermissionContext, rule
     ? [...diskRuleSources, 'cliArg', 'session', ...diskRuleSources] as const
     : diskRuleSources
   const changes = [...emptyRuleSources(resets), ...collectRuleChanges(rules, 'replaceRules')]
-  return applyPermissionUpdates(context, changes)
+  const synced = applyPermissionUpdates(context, changes)
+  noteAllowRulesOfSettingsChange(context, synced)
+  return synced
 }
 
 export async function deletePermissionRule({ rule, initialContext, setToolPermissionContext }: {

@@ -22,6 +22,8 @@ type GrepRenderOutput = {
   content?: string
   numLines?: number
   numMatches?: number
+  appliedLimit?: number
+  appliedOffset?: number
 }
 
 type GrepRenderInput = { pattern?: string; path?: string }
@@ -122,6 +124,7 @@ export function renderToolResultMessage(
   { verbose, isTranscriptMode }: { verbose: boolean; isTranscriptMode?: boolean },
 ): React.ReactNode {
   const revealed = verbose || isTranscriptMode === true
+  const page = output.appliedLimit === undefined ? undefined : `${output.appliedOffset !== undefined && output.appliedOffset > 0 ? 'one page' : 'first page'}, more exist`
   switch (output.mode) {
     case 'content':
       return (
@@ -130,6 +133,7 @@ export function renderToolResultMessage(
           label="lines"
           body={output.content}
           verbose={revealed}
+          trailer={page}
         />
       )
     case 'count':
@@ -141,6 +145,7 @@ export function renderToolResultMessage(
           secondaryLabel="files"
           body={output.content}
           verbose={revealed}
+          trailer={page}
         />
       )
     default:
@@ -150,6 +155,7 @@ export function renderToolResultMessage(
           label="files"
           body={output.filenames.join('\n')}
           verbose={revealed}
+          trailer={page}
         />
       )
   }

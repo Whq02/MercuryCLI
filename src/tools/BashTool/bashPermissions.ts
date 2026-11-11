@@ -590,12 +590,13 @@ export function bashToolHasPermission(
   input: BashInput,
   context: ToolPermissionContext,
   prefixFn: PrefixFn = pinnedCommandAnalysis.getCommandSubcommandPrefix,
+  knownForCommand = true,
 ): Promise<PermissionResult> {
   return withBashParseScope(async () => {
     const resolvedInput = input.cwd === undefined ? input : { ...input, cwd: resolveShellCwd(input.cwd) }
     const { result, hidden } = await decideWithDenyRuleReach(resolvedInput, context, prefixFn, 0)
     if (result.behavior === 'deny') return result
-    if (hidden !== null && result.behavior !== 'allow' && (modeBypassesPermissions(context.mode) || context.mode === 'flow')) {
+    if (knownForCommand && hidden !== null && result.behavior !== 'allow' && (modeBypassesPermissions(context.mode) || context.mode === 'flow')) {
       return hiddenDenyRuleRefusal(hidden, permissionModeTitle(context.mode))
     }
     const cwd = checkShellCwd(resolvedInput, context)
@@ -701,11 +702,12 @@ export async function startedCommandVerdict(
   started: ReadonlyArray<{ command: string; cwd?: string }>,
   toolUseContext: Pick<ToolUseContext, 'getAppState'> | undefined,
   own: PermissionResult & { message: string },
+  knownForCommand = true,
 ): Promise<PermissionResult> {
   const context = (toolUseContext?.getAppState?.().toolPermissionContext ?? getEmptyToolPermissionContext()) as ToolPermissionContext
   let held: PermissionResult | null = null
   for (const one of started) {
-    const verdict = await bashToolHasPermission(one.cwd === undefined ? { command: one.command } : { command: one.command, cwd: one.cwd }, context)
+    const verdict = await bashToolHasPermission(one.cwd === undefined ? { command: one.command } : { command: one.command, cwd: one.cwd }, context, undefined, knownForCommand)
     if (verdict.behavior === 'deny') return verdict
     if (verdict.behavior !== 'ask' || held !== null) continue
     const reason = verdict.decisionReason

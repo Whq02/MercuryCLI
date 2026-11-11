@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinSourceRef, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { idCellPattern } from '../lib/pickerCells.ts'
 import { llmhostFixture } from './lib/llmhostFixture.ts'
 import { gridToPng } from '../ui/gridToPng.ts'
 
@@ -149,7 +150,7 @@ try {
       const orphan = await mountOffscreen(React.createElement(ThemeProvider, {}, React.createElement(MercuryModelChoicePicker, { current: '__mercury_connect__:compat/orphan', onSelect() {}, onSignIn() {}, onClose() {} })), cols, 40)
       try { assert.ok(await waitFor(() => orphan.screen().includes('pod terminated'), 5000), orphan.screen()); await saveFrame(orphan, cols, 'orphan') } finally { orphan.unmount() }
       const returned = await mountOffscreen(React.createElement(ThemeProvider, {}, React.createElement(MercuryModelChoicePicker, { current: 'compat/locked/' + f.model, onSelect() {}, onSignIn() {}, onClose() {} })), cols, 40)
-      try { assert.ok(await waitFor(() => returned.screen().includes('compat/locked'), 5000), returned.screen()); await saveFrame(returned, cols, 'returned-after-key') } finally { returned.unmount() }
+      try { assert.ok(await waitFor(() => new RegExp(idCellPattern('compat/locked/' + f.model) + '\\s+current').test(returned.screen()), 5000), returned.screen()); await saveFrame(returned, cols, 'returned-after-key') } finally { returned.unmount() }
       const free = await mountOffscreen(React.createElement(ThemeProvider, {}, React.createElement(MercuryModelChoicePicker, { current: 'compat/free/' + f.model, onSelect() {}, onSignIn() {}, onClose() {} })), cols, 40)
       try {
         assert.ok(await waitFor(() => free.screen().includes('no key (local/auth-free endpoint)'), 5000), free.screen())

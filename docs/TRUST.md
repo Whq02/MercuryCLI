@@ -118,7 +118,10 @@ starting folder.
   answered within the limit; work that does not depend on the action
   continues). With no host, a call one of the five names is refused with the
   same sentence; everything else runs. Broad dangerous allow rules are set
-  aside while Flow is on.
+  aside while Flow is on. An allow rule answers one of the five ahead of the
+  ask only if it stood when the session started or you granted it in this
+  session; a rule that arrives by a settings change while the session runs
+  answers none of the five until the next session.
 - **Apollo and dontAsk** keep their existing permission
   behaviour; a folder does not add a separate refusal.
 

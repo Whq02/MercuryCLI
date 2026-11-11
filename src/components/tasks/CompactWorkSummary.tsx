@@ -5,6 +5,7 @@ import { compactSummaryHint } from '../mercury-ui/compactModeChip.js'
 import { compactWorkSummaryText, useCompactWorkCounts } from './useFocusedWork.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { presentStripStops, stripKeyMapHintOf, subscribeSurfaceRoute } from '../../context/surfaceRoute.js'
+import { useEscapeOwned } from '../../hooks/useEscapeOwned.js'
 import { escRungHint, escRungOf, type EscRungV1 } from '../../input-core/interruptArity.js'
 import {
   getFocusedSessionConnector,
@@ -71,13 +72,14 @@ export function CompactWorkSummary({
   const counts = useCompactWorkCounts()
   const tokens = useMercuryTokens()
   const rung = useSyncExternalStore(subscribeFocusedSeat, getFocusedEscRung, getFocusedEscRung)
+  const escapeOwned = useEscapeOwned()
   const stripHint = useSyncExternalStore(subscribeSurfaceRoute, getStripHint, noHint)
   const currentNotice = useAppState((state: AppState) => state.notifications.current)
   const noticeText = noticeRowText(currentNotice)
   const noticeDetail = noticeText !== null ? noticeRowDetail(currentNotice) : null
   useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
   const wayBackStays = noticeText !== null && getSettingsSnapshot().settings.context?.wayBack !== false
-  const hint = noticeText !== null && !wayBackStays ? '' : compactSummaryHint({ focused, vimInsert, escHint: escRungHint(rung), stripHint })
+  const hint = noticeText !== null && !wayBackStays ? '' : compactSummaryHint({ focused, vimInsert, escHint: escapeOwned ? '' : escRungHint(rung), stripHint })
   const hintWidth = hint === '' ? 0 : stringWidth(hint) + 1
   const noticeColumns = wayBackStays && hint !== '' ? Math.max(0, columns - hintWidth - 1) : null
   const ink = { bold: focused, color: focused ? tokens.textPrimary : tokens.textMuted, backgroundColor: focused ? tokens.selectionBand : undefined }

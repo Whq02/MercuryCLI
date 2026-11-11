@@ -210,6 +210,7 @@ type AppStateMutableHalf = {
     bashMode?: boolean
     armedAtLanding?: boolean
     pastedContents?: Record<number, PastedContent>
+    armedBehind?: Array<{ message: UserMessage; bashMode?: boolean; pastedContents?: Record<number, PastedContent> }>
   } | null
   thinkingEnabled: boolean
   channelPermissionCallbacks?: Record<string, (result: unknown) => void>
