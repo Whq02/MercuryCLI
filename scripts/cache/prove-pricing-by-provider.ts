@@ -80,6 +80,11 @@ section('§1 one owner per route — each family prices at its own recorded rate
   check('GPT-5.5 is priced at $5/$30, not unpriced (developers.openai.com/api/docs/models/gpt-5.5.md, read 2026-10-25)', cost.resolveModelPricing('gpt-5.5').basis === 'recorded' && cost.resolveModelPricing('gpt-5.5').costs.inputTokens === 5 && cost.resolveModelPricing('gpt-5.5').costs.outputTokens === 30)
   const argon = geminiPricePin('gemini-4-argon')!
   check('Argon introductory $2/$10 becomes $4/$20 on December 1 (ai.google.dev pricing, read 2026-10-25)', geminiPriceTierFor(argon, undefined, '2026-11-30').costInPerMtok === 2 && geminiPriceTierFor(argon, undefined, '2026-12-01').costOutPerMtok === 20)
+  const carbon = geminiPricePin('gemini-4-carbon')
+  const carbonNow = carbon === undefined ? undefined : geminiPriceTierFor(carbon, undefined, '2026-11-30')
+  const carbonThen = carbon === undefined ? undefined : geminiPriceTierFor(carbon, undefined, '2026-12-01')
+  check('Carbon is priced as Argon: $2/$10 and $0.10 cached through November 30, $4/$20 and $0.20 from December 1 (ai.google.dev pricing, read 2026-11-11)', JSON.stringify(carbonNow) === JSON.stringify({ costInPerMtok: 2, costOutPerMtok: 10, cachedInPerMtok: 0.1 }) && JSON.stringify(carbonThen) === JSON.stringify({ costInPerMtok: 4, costOutPerMtok: 20, cachedInPerMtok: 0.2 }), `${JSON.stringify(carbonNow)} ${JSON.stringify(carbonThen)}`)
+  check('…a session on gemini-4-carbon is priced from the record, with no long-prompt tier, and the row names its page and day', cost.resolveModelPricing('gemini-4-carbon').basis === 'recorded' && carbon?.longPrompt === undefined && carbon?.observedAt === '2026-11-11' && carbon?.source.includes('ai.google.dev/gemini-api/docs/pricing') === true, `${cost.resolveModelPricing('gemini-4-carbon').basis} ${carbon?.observedAt}`)
   process.env.DASHSCOPE_BASE_URL = qwenBoundBaseFor('singapore')
   for (const [id, boundary, input, output] of [['qwen3.7-plus', 256_000, 1.2, 4.8], ['qwen3.7-flash', 32_000, 0.1, 0.4], ['qwen3.7-flash', 256_000, 0.2, 0.8], ['qwen3.6-flash', 256_000, 1, 4]] as const) {
     const below = cost.resolveModelPricing(id, { promptTokens: boundary })

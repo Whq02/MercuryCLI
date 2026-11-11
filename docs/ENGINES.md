@@ -996,9 +996,11 @@ Run `/accounts` to see every connected account and API key across all providers:
   [Google's plan table](https://antigravity.google/docs/models), read
   2026-10-25, lists Gemini 4 Argon on paid Google AI Pro plans (or trials
   with eligible premium devices), Google AI Ultra and Enterprise, but not
-  Free or Google AI Plus. Claude Sonnet 5.5 and Opus 5.5 require non-trial
-  Pro, Ultra or Enterprise; Sonnet 4.6, Opus 4.6 and GPT-OSS-120b leave the
-  roster on November 2, 2026. A disabled row is listed with its
+  Free or Google AI Plus; read again on 2026-11-11 it lists Gemini 4 Carbon
+  on Google AI Ultra and Enterprise alone. Claude Sonnet 5.5 and Opus 5.5
+  require non-trial Pro, Ultra or Enterprise; Sonnet 4.6, Opus 4.6 and
+  GPT-OSS-120b leave the roster on November 2, 2026. A disabled row is
+  listed with its
   state (`"withheld from Google AI Pro today — Google's roster names it …
   and answers 404 to the id; antigravity.google/docs/models says which plans
   include it; not offered as runnable"`) and is not selectable; a bare id
