@@ -6,6 +6,7 @@
 # gate-watch: src/components/permissions/** src/hooks/useCancelRequest.ts src/hooks/useDisplayedSessionModel.ts
 # gate-watch: scripts/lib/* scripts/streaming/artifactArena.ts scripts/streaming/turn-end-fixture-server.ts
 # gate-watch: scripts/ui/vshot.py src/components/mercury-ui/keyHintLabel.ts src/daemon/controlSocket.ts
+# gate-watch: src/cli/run.ts src/daemon/sessionSeat.ts src/utils/sessionStorage/writer.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78
