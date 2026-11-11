@@ -133,16 +133,18 @@ function guardWatches(guard: ToolGuard, tool: string): boolean {
   return guard.tools === undefined || guard.tools.includes(tool)
 }
 
-export async function judgeToolCall(key: string, call: ToolCallUnderGuard, signal?: AbortSignal): Promise<ToolCallJudgement> {
+export async function judgeToolCall(keys: string | readonly string[], call: ToolCallUnderGuard, signal?: AbortSignal): Promise<ToolCallJudgement> {
   const notes: SystemInformationalMessage[] = []
-  for (const guard of toolGuards.get(key) ?? []) {
-    if (!guardWatches(guard, call.tool)) continue
-    try {
-      const verdict = await judged(guard.timeoutMs ?? DEFAULT_GUARD_TIMEOUT_MS, signal, inner => guard.judge(call, inner))
-      if (!verdict.allow) return { refused: true, guard: guard.id, reason: verdict.reason, notes }
-      if (verdict.note) notes.push(verdict.note)
-    } catch (error) {
-      logForDebugging(`guard ${guard.id} did not judge ${call.tool} (${errorMessage(error)}); the call proceeds`, { level: 'error' })
+  for (const key of new Set(typeof keys === 'string' ? [keys] : keys)) {
+    for (const guard of toolGuards.get(key) ?? []) {
+      if (!guardWatches(guard, call.tool)) continue
+      try {
+        const verdict = await judged(guard.timeoutMs ?? DEFAULT_GUARD_TIMEOUT_MS, signal, inner => guard.judge(call, inner))
+        if (!verdict.allow) return { refused: true, guard: guard.id, reason: verdict.reason, notes }
+        if (verdict.note) notes.push(verdict.note)
+      } catch (error) {
+        logForDebugging(`guard ${guard.id} did not judge ${call.tool} (${errorMessage(error)}); the call proceeds`, { level: 'error' })
+      }
     }
   }
   return { refused: false, notes }

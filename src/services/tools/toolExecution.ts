@@ -613,7 +613,7 @@ async function runTransactionBody(args: {
   const asksAnswerable =
     canAnswerAsks() && toolUseContext.getAppState().toolPermissionContext.shouldAvoidPermissionPrompts !== true
   const judgement = await judgeToolCall(
-    toolUseContext.agentId ?? getSessionId(),
+    toolUseContext.agentId === undefined ? getSessionId() : [getSessionId(), toolUseContext.agentId],
     { tool: tool.name, input: observableInput, callId: toolUseID, messages: toolUseContext.messages, toolRef: tool, asksAnswerable },
     signal,
   )
