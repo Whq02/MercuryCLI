@@ -26,7 +26,7 @@ import { PrBadge } from '../PrBadge.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { BackgroundTaskStatus } from '../tasks/BackgroundTaskStatus.js'
 import { CompactFooterNoticeContext } from '../../context/layoutChromeContext.js'
-import { useIsOverlayActive } from '../../context/overlayContext.js'
+import { useEscapeOwned } from '../../hooks/useEscapeOwned.js'
 import { useFocusedShellRunning } from '../../services/engine-connector/shellRunning.js'
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js'
 import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
@@ -115,7 +115,7 @@ export function PromptInputFooterLeftSide({
   }, [isLoading])
   const driving = desktop.phase === 'driving' ? desktop : desktopFile.phase === 'driving' ? desktopFile : null
   const reportNotice = useContext(CompactFooterNoticeContext)
-  const escapeOwned = useIsOverlayActive()
+  const escapeOwned = useEscapeOwned()
   const criticalNotice = exitPending || isPasting || voice.phase === 'recording' || voice.phase === 'transcribing' || (driving !== null && isLoading) || (compact && searchField !== undefined)
   const requestedRows = criticalNotice ? 1 : compact ? blockRows : 0
   useEffect(() => {

@@ -38,6 +38,7 @@ import { isVimModeEnabled } from '../components/PromptInput/utils.js';
 import { ScrollKeybindingHandler } from '../components/ScrollKeybindingHandler.js';
 import { MessageActionsBar } from '../components/messageActions.js';
 import { setMessageCursor, useMessageCursorActive } from '../components/messageCursorStore.js';
+import { useHoldsEscape } from '../hooks/useEscapeOwned.js';
 import { FocusedSessionStatusRow, statusLine, statusRowWarns } from '../components/SwitchboardTagBar.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
 import { useCompactWorkControls } from '../components/tasks/CompactWorkSummary.js';
@@ -1896,6 +1897,7 @@ export function Chat({
 
   const messageActionsDisabled = false;
   const messageCursorActive = useMessageCursorActive();
+  useHoldsEscape(helpOpen || isSearchingHistory || messageCursorActive);
   const messageNavRef = useRef<MessageActionsNav | null>(null);
   const messageActions = useMessageActions(messageNavRef, {
     copy: (text: string) => {

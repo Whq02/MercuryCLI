@@ -5,7 +5,7 @@ import { compactSummaryHint } from '../mercury-ui/compactModeChip.js'
 import { compactWorkSummaryText, useCompactWorkCounts } from './useFocusedWork.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { presentStripStops, stripKeyMapHintOf, subscribeSurfaceRoute } from '../../context/surfaceRoute.js'
-import { useIsOverlayActive } from '../../context/overlayContext.js'
+import { useEscapeOwned } from '../../hooks/useEscapeOwned.js'
 import { escRungHint, escRungOf, type EscRungV1 } from '../../input-core/interruptArity.js'
 import {
   getFocusedSessionConnector,
@@ -72,7 +72,7 @@ export function CompactWorkSummary({
   const counts = useCompactWorkCounts()
   const tokens = useMercuryTokens()
   const rung = useSyncExternalStore(subscribeFocusedSeat, getFocusedEscRung, getFocusedEscRung)
-  const escapeOwned = useIsOverlayActive()
+  const escapeOwned = useEscapeOwned()
   const stripHint = useSyncExternalStore(subscribeSurfaceRoute, getStripHint, noHint)
   const currentNotice = useAppState((state: AppState) => state.notifications.current)
   const noticeText = noticeRowText(currentNotice)
