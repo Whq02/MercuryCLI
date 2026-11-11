@@ -223,7 +223,61 @@ section('§3 the Computer first-act card (A1): a saved access type never asks un
     delete process.env.MERCURY_COMPUTER_ACCESS
     desktop.forgetDesktopOwner(owner)
   }
+  const TEXTEDIT = 'com.example.TextEdit'
+  const opened = async (label: string, mode: Mode, saved: string | undefined, rules: { ask?: string[]; deny?: string[] }) => {
+    delete process.env.MERCURY_DESKTOP_FAKE_SCENE
+    resetDesktopDriverForTest()
+    const base = toolContext(rules)
+    const owner = ownerOf(base)
+    desktop.forgetDesktopOwner(owner)
+    const shot = await withScreenshot(ComputerTool as never, base, `toolu_zero_cards_${label}`)
+    const permission = shot.context.getAppState().toolPermissionContext as { mode: string; isBypassPermissionsModeAvailable?: boolean }
+    permission.mode = mode
+    permission.isBypassPermissionsModeAvailable = mode === 'sovereign'
+    if (saved === undefined) delete process.env.MERCURY_COMPUTER_ACCESS
+    else process.env.MERCURY_COMPUTER_ACCESS = saved
+    return { context: shot.context, owner }
+  }
+  for (const saved of [undefined, 'full', 'asks', 'permissive'] as const) {
+    const word = saved ?? 'unset'
+    const ruled = await opened(`rule_${word}`, 'sovereign', saved, { ask: [`Computer(app:${TEXTEDIT})`] })
+    const first = await decide(ComputerTool, { action: 'click', x: 812, y: 300 }, ruled.context)
+    check(`access ${word} · sovereign · an ask rule on the application in front: the first act asks nothing`, first.decision.behavior === 'allow' && first.decision.decisionReason?.type === 'bypassedAsk', JSON.stringify({ decidedBy: first.trace.decidedBy, decision: first.decision }))
+    const whole = (await hasPermissionsToUseTool(ComputerTool as never, { action: 'click', x: 812, y: 300 } as never, ruled.context as never, assistant, `toolu_zero_cards_whole_${word}`)) as Decision
+    check(`access ${word} · sovereign · the same call on the road a session takes asks nothing`, whole.behavior === 'allow', JSON.stringify(whole))
+    desktop.forgetDesktopOwner(ruled.owner)
+    const clipboard = await opened(`clipboard_${word}`, 'sovereign', saved, {})
+    const read = await decide(ComputerTool, { action: 'read', clipboard: true }, clipboard.context)
+    check(`access ${word} · sovereign · reading the clipboard asks nothing`, read.decision.behavior === 'allow' && read.trace.decidedBy === 'safetyCheckAsk', JSON.stringify({ decidedBy: read.trace.decidedBy, decision: read.decision }))
+    desktop.forgetDesktopOwner(clipboard.owner)
+    const outside = await opened(`rule_default_${word}`, 'default', saved, { ask: [`Computer(app:${TEXTEDIT})`] })
+    const asked = await decide(ComputerTool, { action: 'click', x: 812, y: 300 }, outside.context)
+    check(`access ${word} · default · the same ask rule asks (the rule is honoured where rules are)`, asked.decision.behavior === 'ask', JSON.stringify({ decidedBy: asked.trace.decidedBy, decision: asked.decision }))
+    const clipboardOutside = await decide(ComputerTool, { action: 'read', clipboard: true }, outside.context)
+    check(`access ${word} · default · reading the clipboard asks`, clipboardOutside.decision.behavior === 'ask', JSON.stringify(clipboardOutside.decision))
+    desktop.forgetDesktopOwner(outside.owner)
+    const refused = await opened(`deny_${word}`, 'sovereign', saved, { deny: [`Computer(app:${TEXTEDIT})`, 'Computer(clipboard)'] })
+    const denied = await decide(ComputerTool, { action: 'click', x: 812, y: 300 }, refused.context)
+    check(`access ${word} · sovereign · a deny rule on the application still refuses (a refusal is not a card)`, denied.decision.behavior === 'deny', JSON.stringify(denied.decision))
+    const deniedClipboard = await decide(ComputerTool, { action: 'read', clipboard: true }, refused.context)
+    check(`access ${word} · sovereign · a deny rule on the clipboard still refuses`, deniedClipboard.decision.behavior === 'deny', JSON.stringify(deniedClipboard.decision))
+    desktop.forgetDesktopOwner(refused.owner)
+    delete process.env.MERCURY_COMPUTER_ACCESS
+  }
   resetDesktopDriverForTest()
+  const question = stubTool('Question', { behavior: 'ask', message: 'Answer questions?' }, { requiresUserInteraction: () => true })
+  const stillAsked = await decide(question, {}, contextOf('sovereign'))
+  check('a tool whose ask is its question to the person keeps it under sovereign (the model\'s questions are no permission card)', stillAsked.decision.behavior === 'ask' && stillAsked.trace.decidedBy === 'userInteractionAsk', JSON.stringify(stillAsked))
+  for (const [label, reason, stage] of [
+    ['a safety check', { type: 'safetyCheck', reason: 'sensitive', operatorOnly: true }, 'safetyCheckAsk'],
+    ['an ask rule', { type: 'rule', rule: { source: 'localSettings', ruleBehavior: 'ask', ruleValue: { toolName: 'Question', ruleContent: 'x' } } }, 'contentAskRule'],
+  ] as const) {
+    const tool = stubTool('Question', { behavior: 'ask', message: 'guarded', decisionReason: reason }, { requiresUserInteraction: () => true })
+    const under = await decide(tool, {}, contextOf('sovereign'))
+    check(`${label} raised by an interaction tool is answered by the posture as it is for every tool (${stage})`, under.decision.behavior === 'allow' && under.trace.decidedBy === stage, JSON.stringify(under))
+    const outside = await decide(tool, {}, contextOf('default'))
+    check(`${label} raised by an interaction tool still asks in default mode at the interaction floor`, outside.decision.behavior === 'ask' && outside.trace.decidedBy === 'userInteractionAsk', JSON.stringify(outside))
+  }
 }
 
 section('§4 the hook ask (B): a tool.before hook answering ask forces a card in every posture today — under sovereign it must not')
