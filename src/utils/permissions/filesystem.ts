@@ -25,7 +25,7 @@ import { createEditRuleSuggestion, createReadRuleSuggestion } from './Permission
 import { refusalWithReason, ruleSentence, withRuleReason } from './ruleReason.js'
 import { uncPathRisk, uncPathMessage } from './uncPath.js'
 import { suspiciousWindowsPattern } from './windowsPath.js'
-import { credentialStorePath, mercurySecretPath, mercurySecretReadIgnores, protectedPathForms } from './protectedPaths.js'
+import { credentialStorePath, mercurySecretPath, mercurySecretReadIgnores, protectedPathForms, spelling } from './protectedPaths.js'
 import { runtimeWritePath } from './runtimeProtection.js'
 
 
@@ -881,6 +881,22 @@ export function checkReadPermissionForTool(
   } as unknown as PermissionDecision
 }
 
+function exactCredentialStoreGrant(path: string, credential: string, context: ToolPermissionContext): PermissionRule | undefined {
+  return matchingRulesForInput(path, context, 'edit', 'allow').find(rule => {
+    const content = rule.ruleValue.ruleContent ?? ''
+    if (content === '' || /[*?[\]{}]/.test(content) || rule.source === 'projectSettings') return false
+    const { root, relative } = rootForPattern(content, rule.source)
+    const target = content.startsWith('~/') ? content : (root ?? getCwd()) + '/' + relative.replace(/^\/+/, '')
+    return protectedPathForms(target).includes(credential)
+  })
+}
+
+export function credentialStoreWriteRefusal(written: string, cwd: string, context: ToolPermissionContext): string | null {
+  const credential = credentialStorePath(written, cwd)
+  if (credential !== null && context.mode !== 'apollo' && exactCredentialStoreGrant(expandPath(spelling(written), cwd), credential, context) !== undefined) return null
+  return 'Writing ' + written + ' is refused: ' + (credential ?? written) + ' is a protected system or credential path.'
+}
+
 export function checkWritePermissionForTool(
   tool: ToolLike,
   input: unknown,
@@ -914,15 +930,7 @@ export function checkWritePermissionForTool(
   const rawPath = typeof input === 'object' && input !== null && 'file_path' in input && typeof input.file_path === 'string' ? input.file_path : path
   const credential = credentialStorePath(path) ?? credentialStorePath(rawPath)
   if (credential !== null) {
-    const named = context.mode === 'default' || context.mode === 'implement'
-      ? matchingRulesForInput(path, context, 'edit', 'allow').find(rule => {
-          const content = rule.ruleValue.ruleContent ?? ''
-          if (content === '' || /[*?[\]{}]/.test(content) || rule.source === 'projectSettings') return false
-          const { root, relative } = rootForPattern(content, rule.source)
-          const target = content.startsWith('~/') ? content :             (root ?? getCwd()) + '/' + relative.replace(/^\/+/, '')
-          return protectedPathForms(target).includes(credential)
-        })
-      : undefined
+    const named = context.mode === 'apollo' ? undefined : exactCredentialStoreGrant(path, credential, context)
     if (named) return allow(input, { type: 'rule', rule: named })
     const message = 'Writing ' + path + ' is refused: ' + credential + ' is a protected system or credential path.'
     return deny(message, { type: 'other', reason: message })

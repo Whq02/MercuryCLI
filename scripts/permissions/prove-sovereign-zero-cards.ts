@@ -297,6 +297,10 @@ section('§7 a command a tool starts gets the Bash decision: under sovereign tha
   }
   const refused = await decide(MonitorTool, watch('rm -rf build'), contextOf('sovereign', { deny: ['Bash(rm *)'] }))
   check('Monitor rm -rf build: a deny rule written for Bash refuses it under sovereign (a refusal is not a card)', refused.decision.behavior === 'deny', JSON.stringify(refused.decision))
+  for (const [name, tool] of [['Bash', BashTool], ['Monitor', MonitorTool]] as const) {
+    const store = await decide(tool, name === 'Bash' ? { command: 'printf x > ~/.ssh/config' } : watch('printf x > ~/.ssh/config'), contextOf('sovereign'))
+    check(`${name} printf x > ~/.ssh/config: a write to a credential store is refused under sovereign, as the Write tool refuses it (no card)`, store.decision.behavior === 'deny' && (store.decision.message ?? '').includes('is a protected system or credential path'), JSON.stringify(store.decision))
+  }
 }
 
 console.log(`\nsovereign zero cards: ${checks} checks, ${failures} failed`)
