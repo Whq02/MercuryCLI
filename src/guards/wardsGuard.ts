@@ -23,6 +23,7 @@ import {
   type WardRule,
   type WardWork,
 } from '../utils/wards/wards.js'
+import { refusalOfShellCommand } from '../utils/wards/wardsRefusals.js'
 import { engageToolGuard } from './guards.js'
 
 export const WARDS_HOOK_ID = 'wards-content-rules'
@@ -231,7 +232,7 @@ export function registerWardsGuard(
   engageToolGuard(sessionId, {
     id: WARDS_HOOK_ID,
     timeoutMs: 5000,
-    judge: call => {
+    judge: async call => {
       const level = wardsLevel()
       if (level === 'off') return { allow: true }
       try {
@@ -249,7 +250,7 @@ export function registerWardsGuard(
             return false
           }
         }
-        const refusal = evaluateWards(REFUSAL_WARDS, pending, work)
+        const refusal = pending.shellCommand === undefined ? evaluateWards(REFUSAL_WARDS, pending, work) : await refusalOfShellCommand(pending, getCwd(), work)
         if (!refusal.allow && level !== 'warn') return { allow: false, reason: buildWardDenial(refusal, pending.toolName) }
         const verdict = evaluateWards(call.asksAnswerable === true ? attendedRules : unattendedRules, pending, work)
         if (!verdict.allow) return { allow: false, reason: buildWardDenial(verdict, pending.toolName) }

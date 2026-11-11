@@ -201,7 +201,14 @@ after a delete verb is still the delete, an inline shell string (`bash -c "…"`
 `eval`, `Invoke-Expression`) or a heredoc fed to a shell (`bash <<'EOF'`,
 `cat <<EOF | sh`) is read as the commands it runs, and a command split over
 several lines with a trailing backslash, pipe or `&&` is read as the one line
-the shell runs (a comment never continues a line). The same
+the shell runs (a comment never continues a line). The rules read the commands
+a shell would run instead of the text: the program by its name behind any path,
+quoting, assignment or wrapper (`env`, `timeout`, `nohup`, `exec`, `xargs`,
+`find -exec`), the folder a `cd` left, and paths with `..`, `//`, `~` and
+`$HOME` resolved. A command that cannot be read that way (an open quote, a
+script longer than the parser reads, a program named only at run time) is
+judged by its text, and a mention in it of a refused program or target refuses
+it with a sentence that says it could not be read. The same
 list rides interactive, headless `run`, crew and runner sessions alike, and it never
 stands down within a session. `MERCURY_WARDS=warn` lets a refuse-list hit
 proceed and leaves one warning row on the transcript naming the ward, the

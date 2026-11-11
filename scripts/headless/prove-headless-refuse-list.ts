@@ -33,12 +33,13 @@ const turns = (): ScriptedTurn[] => [
   { kind: 'tool_use', name: 'Bash', input: { command: CURL, description: 'fetch and run a remote script' } },
   { kind: 'tool_use', name: 'Bash', input: { command: RM, description: 'delete the filesystem root' } },
   { kind: 'tool_use', name: 'Monitor', input: { command: 'git config --global refusal.probe monitor-ran; echo probe-line', description: 'the refused shell shape', timeout_ms: 3000 } },
+  { kind: 'tool_use', name: 'Bash', input: { command: BENIGN, description: 'a write of core.hooksPath that names a folder git cannot enter' } },
   { kind: 'text', text: LANDED },
 ]
-const BENIGN = 'echo fork while fork'
+const BENIGN = 'git -C /nonexistent-refuse-list-probe config core.hooksPath x; echo fork while fork'
 const WARN_LANDED = 'The benign line ran; landing.'
 const warnTurns = (): ScriptedTurn[] => [
-  { kind: 'tool_use', name: 'Bash', input: { command: BENIGN, description: 'a harmless echo whose words trip a refuse-list pattern' } },
+  { kind: 'tool_use', name: 'Bash', input: { command: BENIGN, description: 'a line the refuse-list reads as a write of core.hooksPath and that writes nothing when it runs' } },
   { kind: 'text', text: WARN_LANDED },
 ]
 
@@ -176,12 +177,15 @@ function pinRefusals(seat: Seat, label: string): boolean {
   const secondOk = second !== undefined && second.is_error === true && second.text.includes("Ward 'no-root-recursive-delete' blocked this Bash call") && second.text.includes(CLOSING)
   check(`${label}: the pipe-to-shell call came back refused with the ward's sentence`, firstOk, JSON.stringify(first?.text.slice(0, 260)))
   check(`${label}: the root delete came back refused with the ward's sentence`, secondOk, JSON.stringify(second?.text.slice(0, 260)))
+  const benign = seat.results[3]
+  const benignOk = benign !== undefined && benign.is_error === true && benign.text.includes("Ward 'git-hooks-path' blocked this Bash call") && benign.text.includes(CLOSING) && !benign.text.includes('fork while fork\n')
+  check(`${label}: the line the warn seat runs is refused here, an option between git and config and a second command behind it notwithstanding`, benignOk, JSON.stringify(benign?.text.slice(0, 260)))
   check(`${label}: no permission road spoke (no auto-deny note, no prompt)`, [first, second].every(row => row !== undefined && !/auto-denied|requires approval|Permission to use/.test(row.text)), JSON.stringify(second?.text.slice(0, 200)))
   check(`${label}: the seat landed — exit 0, the model's closing words on stdout, no hang`, seat.code === 0 && seat.stdout.includes(LANDED) && seat.ms < 80_000, `${seat.code} · ${seat.ms}ms · ${seat.stdout.trim().slice(-80)}`)
   const onRecord = (needle: string): boolean => seat.transcript.some(line => line.includes(needle))
   check(`${label}: the refusals sit on the session record`, onRecord("Ward 'no-root-recursive-delete'") && onRecord("Ward 'curl-pipe-shell'"), `${seat.transcript.length} record lines; sample: ${seat.transcript.find(line => line.includes('no-root-recursive-delete') || line.includes('curl-pipe-shell'))?.slice(0, 160) ?? 'none names a refusal'}`)
   check(`${label}: Monitor did not write the scratch git config`, !seat.monitorWrote)
-  return firstOk && secondOk && monitorOk && !seat.monitorWrote
+  return firstOk && secondOk && monitorOk && benignOk && !seat.monitorWrote
 }
 
 section('§0 the shipped default: a print seat with no permission channel refuses both calls with the ward\'s sentence, before any ask, and lands')
@@ -201,14 +205,14 @@ const channel = await runSeat('channel', [], true)
 pinRefusals(channel, '§2')
 check('§2: zero permission/request asks reached the host for the two refused calls', channel.asks.filter(name => name === 'Bash').length === 0, channel.asks.join(','))
 
-section('§3 MERCURY_WARDS=warn on a print seat with debug off: a benign line that trips a refuse-list pattern runs, and the warn hit is one warning row on the session record')
+section('§3 MERCURY_WARDS=warn on a print seat with debug off: a line the refuse-list reads as a write of core.hooksPath runs (git stops at a folder that does not exist and writes nothing), and the warn hit is one warning row on the session record')
 const warned = await runSeat('warn', ['--allowed-tools', 'Bash'], false, warnTurns, { MERCURY_WARDS: 'warn' })
 const ran = warned.results[0]
-check('§3: the benign call ran under warn (a plain tool result carrying the echoed words, not a refusal)', ran !== undefined && ran.is_error !== true && ran.text.includes('fork while fork') && !ran.text.includes("Ward 'no-fork-bomb' blocked"), JSON.stringify(ran?.text.slice(0, 200)))
+check('§3: the benign call ran under warn (a plain tool result carrying the echoed words, not a refusal)', ran !== undefined && ran.is_error !== true && ran.text.includes('fork while fork') && !ran.text.includes("Ward 'git-hooks-path' blocked"), JSON.stringify(ran?.text.slice(0, 200)))
 check('§3: the seat landed — exit 0, the model\'s closing words on stdout, no hang', warned.code === 0 && warned.stdout.includes(WARN_LANDED) && warned.ms < 80_000, `${warned.code} · ${warned.ms}ms · ${warned.stdout.trim().slice(-80)}`)
 type Rec = { recordId?: string; parentId?: string; payload?: { kind?: string; noticeKind?: string; level?: string; content?: unknown; fields?: Record<string, unknown> } }
 const recs: Rec[] = warned.transcript.flatMap(line => { try { return line.trim() === '' ? [] : [JSON.parse(line) as Rec] } catch { return [] } })
-const warnRows = recs.filter(rec => rec.payload?.kind === 'notice' && rec.payload.noticeKind === 'informational' && typeof rec.payload.content === 'string' && rec.payload.content.startsWith("Ward 'no-fork-bomb' would have blocked this Bash call"))
+const warnRows = recs.filter(rec => rec.payload?.kind === 'notice' && rec.payload.noticeKind === 'informational' && typeof rec.payload.content === 'string' && rec.payload.content.startsWith("Ward 'git-hooks-path' would have blocked this Bash call"))
 const warnRow = warnRows[0]
 const warnContent = typeof warnRow?.payload?.content === 'string' ? warnRow.payload.content : ''
 check('§3: exactly one warning row names the warn hit on the session record (no debug mode, no toast, no model turn)', warnRows.length === 1 && warnRow?.payload?.level === 'warning' && warnContent.includes('MERCURY_WARDS=warn'), `${warnRows.length} row(s); ${recs.length} record lines`)
