@@ -107,7 +107,7 @@ try {
         const line = build(executable, args, path, platform)
         check(`${label} on ${platform}: everything before the path is the parent's bytes and the path is single-quoted`, line === `${parent.slice(0, parent.length - path.length - 2)}'${path}'`, `${line} · parent ${parent}`)
       }
-      check(`${label} on win32: the whole line is the parent's`, build(executable, args, path, 'win32') === parent, build(executable, args, path, 'win32'))
+      check(`${label} on win32: everything before the path is the parent's bytes and the path uses the child-only variable`, build(executable, args, path, 'win32') === `${parent.slice(0, parent.length - path.length - 2)}"%MERCURY_EDITOR_FILE%"`, build(executable, args, path, 'win32'))
     }
     check("a single quote in the path closes, escapes and reopens the quoting", build('vim', [], "/tmp/it's.md", 'linux') === `"vim" '/tmp/it'\\''s.md'`, build('vim', [], "/tmp/it's.md", 'linux'))
   }

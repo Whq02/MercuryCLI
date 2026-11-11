@@ -83,7 +83,7 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
     }
     try {
       const exitCode = await new Promise<number | null>((resolveExit, rejectExit) => {
-        const child = spawn(commandLine, { shell: true, windowsHide: false, stdio: 'inherit', env: { ...subprocessEnv() } })
+        const child = spawn(commandLine, { shell: true, windowsHide: false, stdio: 'inherit', env: { ...subprocessEnv(), ...(process.platform === 'win32' ? { MERCURY_EDITOR_FILE: filePath } : {}) } })
         child.once('error', rejectExit)
         child.once('exit', code => resolveExit(code))
       })
@@ -110,7 +110,7 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
 }
 
 export function editorCommandLine(editorExe: string, args: readonly string[], filePath: string, platform: NodeJS.Platform = process.platform): string {
-  const quotedPath = platform === 'win32' ? `"${filePath}"` : `'${filePath.replaceAll("'", `'\\''`)}'`
+  const quotedPath = platform === 'win32' ? '"%MERCURY_EDITOR_FILE%"' : `'${filePath.replaceAll("'", `'\\''`)}'`
   return [`"${editorExe}"`, ...args.map(arg => `"${arg}"`), quotedPath].join(' ')
 }
 
