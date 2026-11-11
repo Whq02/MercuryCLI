@@ -83,6 +83,11 @@ if (mode === 'shapes') {
   await refuse('symlinkSync there, spelled with a trailing separator', () => symlinkSync(foreign, missing + sep))
   await refuse('linkSync there', () => linkSync(join(foreign, 'file'), missing))
   await refuse('renameSync, a folder moved there', () => renameSync(spare, missing))
+  const throughLink = `${join(world, 'to-root')}${sep}..${sep}missing`
+  await refuse('rmSync, the root spelled through one of its own folders and .., as written', () => rmSync(`${root}${sep}session${sep}..`, whole))
+  await refuse('symlinkSync where a root would stand, spelled through a link to the root and ..', () => symlinkSync(foreign, throughLink))
+  await refuse('linkSync there, spelled the same way', () => linkSync(join(foreign, 'file'), throughLink))
+  await refuse('renameSync, a folder moved there, spelled the same way', () => renameSync(spare, throughLink))
   facts.refused = refused
 
   const allowed: Tried[] = []
@@ -134,10 +139,10 @@ symlinkSync(foreign, root)
 if (mode === 'roots') {
   const home = join(world, 'stand-in-home')
   const cache = join(world, 'stand-in-cache')
-  const tempRoot = join(tmpdir(), `mercury-${process.getuid!()}`)
+  const tempRoot = join(world, 'tmp', `mercury-${process.getuid!()}`)
   mkdirSync(join(home, '.mercury', 'sessions'), { recursive: true })
   mkdirSync(join(cache, 'mercury-nodejs', `mercury-${process.getuid!()}`), { recursive: true })
-  if (!inside(home) || !inside(cache) || !realpathSync(tmpdir()).startsWith(realpathSync(world) + sep)) process.exit(64)
+  if (!inside(home) || !inside(cache) || !inside(join(world, 'tmp'))) process.exit(64)
   const allowed: Tried[] = []
   const allow = (shape: string, call: () => unknown): Promise<void> => attempt(allowed, shape, call, stands)
   await allow("a stand-in home's config folder removed", () => rmSync(join(home, '.mercury'), whole))
