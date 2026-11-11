@@ -416,6 +416,34 @@ function shellScript(args: Word[]): { script: Word } | { file: string } | 'stdin
   return 'stdin'
 }
 
+const INTERACTIVE_SHELLS: ReadonlySet<string> = new Set([...SHELLS, 'fish', 'csh', 'tcsh'])
+const SHELL_IN_SCRIPT = /(?:^|[\s;&|(])(?:exec\s+)?(?:\S*\/)?(?:sh|bash|zsh|dash|ksh|mksh|ash|fish|csh|tcsh)(?=$|[\s;&|)])/
+
+export function startedProgramIsShell(command: string | undefined, args: readonly string[] = []): boolean {
+  if (command === undefined || command === '') return false
+  let argv: Word[] = [command, ...args]
+  for (let rounds = 0; rounds < 8; rounds++) {
+    const head = argv[0]
+    if (head === null || head === undefined) return false
+    const base = posixPath.basename(head)
+    const rest = argv.slice(1)
+    if (INTERACTIVE_SHELLS.has(base)) {
+      const run = shellScript(rest)
+      if (run === 'stdin') return true
+      return 'script' in run && (run.script === null || SHELL_IN_SCRIPT.test(run.script))
+    }
+    if (base === 'su') return true
+    if ((base === 'sudo' || base === 'doas') && rest.some(arg => arg === '-s' || arg === '-i' || arg === '--shell' || arg === '--login')) return true
+    const peeled = peelOnce(base, rest)
+    if (peeled === null) return false
+    if (peeled === 'stands') return base === 'script'
+    if ('scripts' in peeled) return peeled.scripts.some(script => script === null || SHELL_IN_SCRIPT.test(script))
+    if (peeled.rest.length === 0) return base === 'script' || base === 'sudo' || base === 'doas'
+    argv = peeled.rest
+  }
+  return false
+}
+
 function fileUrlPath(url: string): string {
   const path = url.slice('file://'.length)
   try {

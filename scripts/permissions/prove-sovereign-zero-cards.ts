@@ -320,6 +320,19 @@ section('§7 a command a tool starts gets the Bash decision: under sovereign tha
     const denied = await decide(tool, input(['rm', '-rf', 'build']), contextOf('sovereign', { deny: ['Bash(rm *)'] }))
     check(`${road} of rm -rf build: a deny rule written for Bash refuses it under sovereign (a refusal is not a card)`, denied.decision.behavior === 'deny', JSON.stringify(denied.decision))
   }
+  for (const text of ['ls', 'rm -rf build', 'git push origin main', 'cat $FILE']) {
+    const input = { op: 'input', name: 'zero-cards-service', text }
+    const outside = await decide(ServiceTool, input, contextOf('default'))
+    check(`Service input of ${text}: asks in default mode`, outside.decision.behavior === 'ask', JSON.stringify(outside.decision))
+    const under = await decide(ServiceTool, input, contextOf('sovereign', { ask: ['Bash(ls *)'] }))
+    check(`Service input of ${text}: allowed under sovereign, no card`, under.decision.behavior === 'allow', JSON.stringify({ decidedBy: under.trace.decidedBy, decision: under.decision }))
+    const ruled = await decide(ServiceTool, input, contextOf('sovereign', { deny: ['Bash(rm *)', 'Read(secrets/**)'] }))
+    check(`Service input of ${text}: with deny rules in force, allowed or refused under sovereign (${ruled.decision.behavior}), no card`, ruled.decision.behavior === 'allow' || ruled.decision.behavior === 'deny', JSON.stringify(ruled.decision).slice(0, 300))
+  }
+  for (const input of [{ op: 'evaluate', expression: 'x + 1' }, { op: 'setVariable', name: 'x', value: '4', variablesReference: 1 }, { op: 'breakpoints', file: 'app.py', breakpoints: [{ line: 3, condition: 'i > 3', logMessage: 'at {i}' }] }]) {
+    const under = await decide(DebugTool, input, contextOf('sovereign'))
+    check(`Debug ${input.op}: text the debuggee runs asks nothing under sovereign`, under.decision.behavior === 'allow', JSON.stringify(under.decision))
+  }
 }
 
 section('§8 a command the Bash layer cannot follow: with no deny rule in force it is allowed as before, with one in force it is allowed or refused, never asked about')

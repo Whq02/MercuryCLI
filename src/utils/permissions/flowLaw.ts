@@ -693,8 +693,11 @@ function flowPathAsk(path: string, rules?: ToolPermissionContext, verb = 'writin
   return { item: 4, subject: `${verb} ${tildePath(path)}`, why: 'it is outside the project' }
 }
 
+const SERVICE_TOOL_NAME = 'Service'
+
 function startedCommandOf(tool: Pick<Tool, 'name' | 'shellCommandOf'>, input: Record<string, unknown>): string | undefined {
   if (tool.name === DEBUG_TOOL_NAME) return input.op === 'launch' ? startedCommandText(input.program, input.args) : undefined
+  if (tool.name === SERVICE_TOOL_NAME && input.op === 'input') return typeof input.text === 'string' && input.text.trim() !== '' ? input.text : undefined
   return tool.shellCommandOf?.(input)
 }
 
