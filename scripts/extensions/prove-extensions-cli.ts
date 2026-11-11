@@ -49,7 +49,7 @@ console.log('[1] the verb walk: add → sources → list → install(--yes) → 
 {
   const empty = run(['extensions', 'list'])
   check('list on a fresh home exits 0 with the three bundled Craft rows and nothing else', empty.code === 0 && ['filmcraft', 'lightcraft', 'photocraft'].every(name => empty.stdout.includes(name)) && empty.stdout.split('\n').filter(line => line.includes('● on')).length === 3 && !empty.stdout.includes('no extensions yet'), empty.stdout.slice(0, 200))
-  const CRAFT_PINS: Record<string, string> = { filmcraft: '0.20.0', lightcraft: '0.19.0', photocraft: '0.21.0' }
+  const CRAFT_PINS: Record<string, string> = { filmcraft: '0.20.0', lightcraft: '0.19.0', photocraft: '0.22.0' }
   for (const [name, version] of Object.entries(CRAFT_PINS)) {
     const line = empty.stdout.split('\n').find(l => l.includes(` ${name} `)) ?? ''
     check(`the ${name} row reads the pinned app release ${version}, not the manifest's own number`, new RegExp(`\\b${name}\\s+${version.replaceAll('.', '\\.')}\\s`).test(line), line.trim() || '(no row)')
