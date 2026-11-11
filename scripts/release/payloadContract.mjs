@@ -64,6 +64,9 @@ export function walkPayloadFiles(dir, base = '') {
   for (const name of readdirSync(dir)) {
     const full = join(dir, name)
     const rel = base ? `${base}/${name}` : name
+    if (/[\u0000-\u001f\u007f]/.test(name)) {
+      throw new Error(`a name in the payload holds a control character, so the digest cannot tell its files apart: ${JSON.stringify(rel).slice(0, 120)}`)
+    }
     if (statSync(full).isDirectory()) out.push(...walkPayloadFiles(full, rel))
     else out.push({ path: rel, bytes: statSync(full).size })
   }
