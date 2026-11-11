@@ -57,13 +57,14 @@
       ]
     },
     "runtime-seams": {
-      "why": "deliberate cross-plane seams: live instance registries, the node cache, the flush-probe registry, and the instance/size contexts, the frame-trace ring (app land feeds keystroke resolutions + reads /trace), and the terminal notification ping writer (the switchboard's needs-you bell rings through the termio owner — a facade route would cycle)",
+      "why": "deliberate cross-plane seams: live instance registries, the node cache, the flush-probe registry, and the instance/size contexts, the frame-trace ring (app land feeds keystroke resolutions + reads /trace), the terminal notification ping writer (the switchboard's needs-you bell rings through the termio owner — a facade route would cycle), and the time terminal writes held the loop (terminalOut: the stall detector takes it out of a gap before it calls the gap a sleep)",
       "modules": [
         "components/TerminalSizeContext",
         "instances",
         "node-cache",
         "root/flush-registry",
         "root/frame-trace",
+        "terminalOut",
         "termio/notifyPing"
       ]
     },
