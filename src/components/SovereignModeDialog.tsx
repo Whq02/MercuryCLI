@@ -39,6 +39,7 @@ export function SovereignModeDialog({
         </Text>
       </Box>
       <Select
+        scrollMovesFocus={false}
         options={[
           { label: 'No, exit', value: 'decline' },
           { label: 'Yes, I accept', value: 'accept' },

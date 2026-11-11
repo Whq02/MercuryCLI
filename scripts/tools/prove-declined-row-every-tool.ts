@@ -21,7 +21,8 @@ enableConfigs()
 const { AppStateProvider } = await import('../../src/state/AppState.tsx')
 const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
 const { Box } = await import('../../src/ink.ts')
-const { CANCEL_MESSAGE, DENIAL_WORKAROUND_GUIDANCE, REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX, SUBAGENT_REJECT_MESSAGE } = await import('../../src/utils/messages/rejectionText.ts')
+const { CANCEL_MESSAGE, DENIAL_WORKAROUND_GUIDANCE, REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX, SUBAGENT_REJECT_MESSAGE, isDenialResultText } = await import('../../src/utils/messages/rejectionText.ts')
+const { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/utils/messages/turnCut.ts')
 const { UserToolErrorMessage } = await import('../../src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx')
 const { getAllBaseTools } = await import('../../src/tools.ts')
 
@@ -31,10 +32,10 @@ const wrapped = (text: string): string => `<tool_use_error>${text}</tool_use_err
 const DECLINED = 'The operator declined this tool call; it was not run and nothing was changed.'
 const FOR_THE_MODEL = /Do not try to reach|stop and say plainly|wait for the operator|Stop what you are doing/
 
-async function rowOf(tool: unknown, content: string): Promise<string[]> {
+async function rowOf(tool: unknown, content: string, verbose = false): Promise<string[]> {
   const view: Mounted = await mountOffscreen(
     h(AppStateProvider, null, h(ThemeProvider, null, h(Box, { width: 110, height: 10, flexDirection: 'column' },
-      h(UserToolErrorMessage, { progressMessagesForMessage: [], tool, tools, param: { type: 'tool_result', tool_use_id: 'tu_1', content, is_error: true }, verbose: false } as never)))),
+      h(UserToolErrorMessage, { progressMessagesForMessage: [], tool, tools, param: { type: 'tool_result', tool_use_id: 'tu_1', content, is_error: true }, verbose } as never)))),
     110, 10,
   )
   try {
@@ -91,6 +92,29 @@ section('a real failure still reads as an error, with its words')
   check('Read: its own short error line', read.length === 1 && read[0]!.endsWith('Error reading file'), JSON.stringify(read))
   const notebook = await rowOf(named('NotebookEdit'), wrapped('The cell does not exist.'))
   check('NotebookEdit: its own short error line', notebook.length === 1 && notebook[0]!.endsWith('Error editing notebook'), JSON.stringify(notebook))
+}
+
+section('the detailed view reads a refusal as a refusal too')
+{
+  const fetch = await rowOf(named('WebFetch'), wrapped(REJECT_MESSAGE), true)
+  check('WebFetch: the refusal, no "Error:", no guidance written for the model', fetch.join(' ') === `└ ✕ ${DECLINED}`, JSON.stringify(fetch))
+  const remoteRows = await rowOf(remote, wrapped(REJECT_MESSAGE), true)
+  check("a server's tool: the same", remoteRows.join(' ') === `└ ✕ ${DECLINED}`, JSON.stringify(remoteRows))
+  const worded = await rowOf(named('WebFetch'), wrapped(`${REJECT_MESSAGE_WITH_REASON_PREFIX}use the other page\nand say which one you took`), true)
+  check('a decline with words: every line the operator said is there', worded.join(' ').includes('The operator said:') && worded.join(' ').includes('use the other page') && worded.join(' ').includes('and say which one you took') && !worded.join(' ').includes('Error'), JSON.stringify(worded))
+  const failed = await rowOf(named('WebFetch'), wrapped('getaddrinfo ENOTFOUND example.invalid'), true)
+  check('a real failure keeps "Error:" there', failed.join(' ').includes('Error: getaddrinfo ENOTFOUND example.invalid'), JSON.stringify(failed))
+}
+
+section('a real failure whose text only quotes the interrupt\'s words is an error, not a refusal')
+{
+  const QUOTING = `ENOENT: no such file or directory, open '/tmp/notes on ${INTERRUPT_MESSAGE} rows.md'. The fetch wrote nothing.`
+  const fetch = await rowOf(named('WebFetch'), wrapped(QUOTING))
+  check('WebFetch: the error row, with "Error:" and the whole of what failed', fetch.join(' ').includes('Error: ENOENT: no such file or directory') && fetch.join(' ').includes('The fetch wrote nothing.'), JSON.stringify(fetch))
+  const remoteRows = await rowOf(remote, wrapped(`the server answered 500 while handling "${INTERRUPT_MESSAGE}"`))
+  check("a server's tool whose failure quotes the marker: the error row", remoteRows.join(' ').includes('Error:'), JSON.stringify(remoteRows))
+  check('the marker as the whole text, at the text\'s start and on a line of its own is still the interrupt', isDenialResultText(INTERRUPT_MESSAGE_FOR_TOOL_USE) && isDenialResultText(wrapped(INTERRUPT_MESSAGE)) && isDenialResultText(`${INTERRUPT_MESSAGE} while the build ran`) && isDenialResultText(`Command was stopped\n${INTERRUPT_MESSAGE}\nmake: *** [all] Interrupt`), 'one of the four forms is no longer read as the interrupt')
+  check('quoted inside a line it is not', !isDenialResultText(QUOTING) && !isDenialResultText(`cat: '${INTERRUPT_MESSAGE_FOR_TOOL_USE}.txt': No such file or directory`))
 }
 
 await releaseScratchHome(home)

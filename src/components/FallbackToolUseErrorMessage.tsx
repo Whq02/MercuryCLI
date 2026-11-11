@@ -5,7 +5,7 @@ import { extractTag } from 'src/utils/messages.js'
 import { OUTPUT_CONNECTOR } from '../constants/figures.js'
 import { Box, Text } from '../ink.js'
 import { classifyToolError } from '../utils/errors/classifyToolError.js'
-import { denialLineOf, isDenialResultText } from '../utils/messages/rejectionText.js'
+import { DENIAL_WORKAROUND_GUIDANCE, denialLineOf, isDenialResultText, unwrapToolUseError } from '../utils/messages/rejectionText.js'
 import { CtrlOToExpand } from './CtrlOToExpand.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
@@ -75,11 +75,11 @@ export function FallbackToolUseErrorMessage({
   const isDenied = rawText !== null && isDenialResultText(rawText)
   const headGlyph = isDenied ? GLYPH.fail : GLYPH.warn
 
-  if (!verbose && isDenied) {
+  if (isDenied) {
     return (
       <MessageResponse>
         <Text color={tokens.failure} bold>
-          {headGlyph} {denialLineOf(rawText)}
+          {headGlyph} {verbose ? unwrapToolUseError(rawText).replace(DENIAL_WORKAROUND_GUIDANCE, '').trim() : denialLineOf(rawText)}
         </Text>
       </MessageResponse>
     )

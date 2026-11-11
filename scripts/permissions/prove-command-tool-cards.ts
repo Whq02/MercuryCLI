@@ -47,10 +47,20 @@ const { MonitorTool } = await import('../../src/tools/MonitorTool/MonitorTool.ts
 const { ServiceTool } = await import('../../src/tools/ServiceTool/ServiceTool.ts')
 const { JourneyTool } = await import('../../src/tools/JourneyTool/JourneyTool.ts')
 const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
+const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
+const { LaunchTool } = await import('../../src/tools/LaunchTool/LaunchTool.ts')
+const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
+const { servicesDir } = await import('../../src/services/projectServices/serviceManager.ts')
 
 const h = React.createElement
 type AnyTool = { name: string; description: (input: never, options: never) => Promise<string> }
-const TOOLS = [BashTool, MonitorTool, ServiceTool, JourneyTool, DebugTool] as unknown as AnyTool[]
+const TOOLS = [BashTool, MonitorTool, ServiceTool, JourneyTool, DebugTool, EvalTool, LaunchTool, TestTool] as unknown as AnyTool[]
+function serviceOnRecord(name: string, command: string, args: string[]): void {
+  const folder = servicesDir(PROJECT)
+  mkdirSync(folder, { recursive: true })
+  const spec = { name, command, args, cwd: PROJECT, project: PROJECT, readiness: [], readinessMode: 'all', restart: 'never', lifecycle: 'session' }
+  writeFileSync(join(folder, `${name}.json`), JSON.stringify({ schema: 1, spec, state: 'ready', pid: null, startToken: null, startedAt: null, stoppedAt: null, lastExitCode: null, explicitStop: false, restartCount: 0, readiness: [], logFile: join(folder, `${name}.log`) }))
+}
 type Rules = { ask?: string[] }
 type Card = { decision: string; rows: string[]; answers: string[]; second: { allowed: unknown[] | null; rejected: boolean } }
 
@@ -140,6 +150,20 @@ section('a Service start')
   check('an ask rule that holds the started command is named on the card as the reason', shows(ruled, 'Bash(rm *)') && shows(ruled, 'asks first'), said(ruled))
 }
 
+section('what is sent to a running service is on the card, whatever its program is')
+{
+  serviceOnRecord('shell', 'sh', [])
+  serviceOnRecord('repl', 'python3', ['-i'])
+  const python = await cardOf(ServiceTool as never, { op: 'input', name: 'repl', text: "import shutil; shutil.rmtree('build')" })
+  check('text for a program that is no shell (python3 -i on record) is on the card, to the letter', python.rows.includes("import shutil; shutil.rmtree('build')") && python.answers.length === 2, said(python))
+  const ghost = await cardOf(ServiceTool as never, { op: 'input', name: 'ghost', text: 'rm -rf build' })
+  check('text for a name with no record is on the card', ghost.rows.includes('rm -rf build') && ghost.answers.length === 2, said(ghost))
+  const shell = await cardOf(ServiceTool as never, { op: 'input', name: 'shell', text: 'rm -rf build' })
+  check('text for a shell on record is on the card, once', shell.rows.filter(row => row === 'rm -rf build').length === 1, said(shell))
+  const dressed = await cardOf(ServiceTool as never, { op: 'start', name: 'dev', command: 'node', args: ['server.js'], env: { NODE_OPTIONS: '--require ./evil.js' }, cwd: '/tmp' })
+  check('a start names the environment it adds, with its value, and the folder it starts in', dressed.rows.includes('NODE_OPTIONS=--require ./evil.js') && dressed.rows.includes('in /tmp') && shows(dressed, 'node server.js'), said(dressed))
+}
+
 section('a Journey run that starts programs')
 {
   const card = await cardOf(JourneyTool as never, { op: 'run', objective: 'check the page loads', steps: [{ kind: 'command.run', command: 'rm', args: ['-rf', 'build'] }, { kind: 'service.start', name: 'dev', command: 'npm', args: ['run', 'dev'] }] })
@@ -148,11 +172,28 @@ section('a Journey run that starts programs')
   check('the whole tool is not offered: the answers are Yes and No', !wholeTool(card, 'Journey') && card.answers.length === 2 && card.second.rejected, said(card))
 }
 
+section('a Journey step in another folder, and the tools that run a project\'s own programs')
+{
+  const step = await cardOf(JourneyTool as never, { op: 'run', objective: 'tidy', steps: [{ kind: 'command.run', command: 'make', args: ['clean'], cwd: '/tmp' }] })
+  check('the step\'s command and its folder are on the card', step.rows.includes('make clean') && step.rows.includes('in /tmp'), said(step))
+  const launch = await cardOf(LaunchTool as never, { op: 'run', profile: 'dev' })
+  check('Launch: the whole tool is not offered', launch.decision === 'ask' && !wholeTool(launch, 'Launch') && launch.answers.length === 2 && launch.second.rejected, said(launch))
+  const test = await cardOf(TestTool as never, { op: 'run' })
+  check('Test: the whole tool is not offered', test.decision === 'ask' && !wholeTool(test, 'Test') && test.answers.length === 2 && test.second.rejected, said(test))
+}
+
 section('a Debug launch')
 {
   const card = await cardOf(DebugTool as never, { op: 'launch', program: 'rm', args: ['-rf', 'build'], adapter: 'node' })
   check('the launched program and the reason are on the card', shows(card, 'Debug(launch rm -rf build)') && shows(card, 'Debug launch: rm -rf build (adapter node)'), said(card))
   check('the whole tool is not offered: the answers are Yes and No', !wholeTool(card, 'Debug') && card.answers.length === 2 && card.second.rejected, said(card))
+}
+
+section('an Eval cell')
+{
+  const card = await cardOf(EvalTool as never, { language: 'py', code: 'import shutil\nshutil.rmtree("build")', title: 'clean the build folder' })
+  check('the code it will run is on the card', shows(card, 'import shutil') && shows(card, 'shutil.rmtree("build")'), said(card))
+  check('the whole tool is not offered: the answers are Yes and No', !wholeTool(card, 'Eval') && card.answers.length === 2 && card.second.rejected, said(card))
 }
 
 section('a tool that starts no program keeps the fallback card as it was')
@@ -189,6 +230,7 @@ section('under Sovereign mode none of these calls gets a card')
     [ServiceTool as never, { op: 'start', name: 'cleaner', command: 'rm', args: ['-rf', 'build'] }],
     [JourneyTool as never, { op: 'run', objective: 'check the page loads', steps: [{ kind: 'command.run', command: 'rm', args: ['-rf', 'build'] }] }],
     [DebugTool as never, { op: 'launch', program: 'rm', args: ['-rf', 'build'], adapter: 'node' }],
+    [EvalTool as never, { language: 'py', code: 'import shutil\nshutil.rmtree("build")', title: 'clean the build folder' }],
   ]
   for (const [tool, input] of CALLS) {
     const decision = await decided(tool, input, 'sovereign')

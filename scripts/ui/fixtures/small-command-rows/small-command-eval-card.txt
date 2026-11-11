@@ -6,9 +6,9 @@ NEXT                    ││  ▀▄▄▄▀▄▄▄▀                     
   · /workflows…         │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
                         │                                                                                                                  │
 FILES · project         │                                                                                                                  │
-  ↵ or click · browse   │ 13:02:27 [sam] ❯ start                                                                                           │
+  ↵ or click · browse   │ 06:37:35 [sam] ❯ start                                                                                           │
                         │                                                                                                                  │
-VITALS                  │ 13:02:27 [Mercury] Command rows ready.                                                                           │
+VITALS                  │ 06:37:35 [Mercury] Command rows ready.                                                                           │
   · spend $0.00         │                                                                                                                  │
   · ctx 0% · 1000k      │ ❯ /crewmates off                                                                                                 │
   · health — run /health│   └ crewmates off for this session                                                                               │
@@ -16,10 +16,11 @@ VITALS                  │ 13:02:27 [Mercury] Command rows ready.              
                         │     running finishes                                                                                             │
                         │ you turned crewmates off: the Crewmate tool has left the roster; reasoning restarts on the next turn             │
                         │                                                                                                                  │
-                        │ 13:02:44 [sam] ❯ run the cell                                                                                    │
+                        │ 06:37:53 [sam] ❯ run the cell                                                                                    │
                         │ │                                                                                                                │
-                        │ │ 13:02:44 [Mercury] ▰ Eval         js · Calculate the value                                                     │
+                        │ │ 06:37:53 [Mercury] ▰ Eval         js · Calculate the value                                                     │
                         │ │   └ Starting kernel…                                                                                           │
+                        │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
@@ -42,8 +43,7 @@ VITALS                  │ 13:02:27 [Mercury] Command rows ready.              
 │  Run a js cell — Calculate the value                                                                                                     │
 │  Do you want to proceed?                                                                                                                 │
 │  ❯ 1. Yes                                                                                                                                │
-│    2. Yes, and don't ask again for Eval in this project                                                                                  │
-│    3. No, and tell Mercury what to do differently (esc)                                                                                  │
+│    2. No, and tell Mercury what to do differently (esc)                                                                                  │
 │                                                                                                                                          │
 │  ↑↓ choose · ↵ confirm · esc cancel · tab amend                                                                                          │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
