@@ -117,7 +117,7 @@ section('§4 the wiring, structural')
     /confirmMessages[\s\S]{0,400}reconfirmTransitionPlan\(held\.plan, confirmMessages\)/.test(model),
   )
   const connector = readFileSync(join(import.meta.dir, '../../src/services/engine-connector/daemonConnector.ts'), 'utf8')
-  check('the connector stamps the source beside the fallback chain', connector.includes("this.facts !== null ? 'live' : this.record.modelKey !== undefined ? 'record' : 'ambient'"))
+  check('the connector stamps a cold seed as recorded and a runner answer as live beside the fallback chain', connector.includes("this.facts !== null && !this.awaitingRunnerFacts ? 'live' : this.facts !== null || this.record.modelKey !== undefined ? 'record' : 'ambient'"))
 }
 
 console.log('\n' + '='.repeat(60))
