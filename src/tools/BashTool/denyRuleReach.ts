@@ -119,7 +119,7 @@ function segmentPatternOf(segment: string): RegExp {
 function globMatches(pattern: string, cwd: string): string[] | null {
   const spelled = expandTilde(pattern)
   let folders = [isAbsolute(spelled) ? '/' : cwd]
-  for (const segment of spelled.split('/')) {
+  for (const segment of spelled.split(/[\\/]/)) {
     if (segment === '' || segment === '.') continue
     if (segment === '..') {
       folders = folders.map(folder => dirname(folder))
