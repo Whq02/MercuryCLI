@@ -275,8 +275,8 @@ section('7 · speedster 3.5.5 — the ONE typed ContextResolution (CX rows)')
   )
   check(
     'the [1m] suffix stays a live client-side opt-in for non-GPT ids (anthropic 1M unchanged)',
-    resolveContextWindow('claude-sonnet-4-5[1m]').effectiveWindow === 1_000_000 &&
-      resolveContextWindow('claude-sonnet-4-5[1m]').source === 'suffix-1m',
+    resolveContextWindow('claude-sonnet-4-6[1m]').effectiveWindow === 1_000_000 &&
+      resolveContextWindow('claude-sonnet-4-6[1m]').source === 'suffix-1m',
   )
 
   const luna = resolveContextWindow('gpt-5.6-luna')
