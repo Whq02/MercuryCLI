@@ -510,12 +510,12 @@ function secretsHeld(home: string): string[] {
   }
 }
 
-function couldNameSecret(word: string, cwd: string, homes: readonly string[]): boolean {
+function couldNameSecret(word: string, cwd: string, homes: readonly string[], spelledHome = false): boolean {
   if (!DYNAMIC_PART.test(word) && !word.includes(UNREAD_PART)) return false
   const expanded = spelling(word)
   const segments = expanded.split(/[\\/]/)
   const at = segments.findIndex(segment => DYNAMIC_PART.test(segment) || segment.includes(UNREAD_PART))
-  if (at < 0) return false
+  if (at < 0 || (spelledHome && at === 0)) return false
   const fixed = segments.slice(0, at).join('/') || (expanded.startsWith('/') ? '/' : '.')
   let pattern: RegExp
   try {
@@ -526,7 +526,7 @@ function couldNameSecret(word: string, cwd: string, homes: readonly string[]): b
   for (const folder of protectedPathForms(fixed, cwd)) {
     const conventional = CONVENTIONAL_HOME.test(folder) ? [folder] : []
     for (const home of [...homes, ...conventional]) {
-      if (home !== folder && !home.startsWith(folder === '/' ? '/' : `${folder}/`)) continue
+      if (home !== folder && (spelledHome || !home.startsWith(folder === '/' ? '/' : `${folder}/`))) continue
       const below = home === folder ? '' : `${home.slice(folder === '/' ? 1 : folder.length + 1)}/`
       for (const name of [...SECRET_NAME_SAMPLES, ...secretsHeld(home)]) if (pattern.test(below + name)) return true
     }
@@ -783,7 +783,7 @@ function treeReadRoots(layer: Layer, fed: boolean, cwd: string, cwdHolds: boolea
   if (TREE_SEARCHERS.has(program)) {
     const patterned = words.some(word => /^(?:-[A-Za-z]*[ef]|--regexp|--file)$/.test(word) || /^--(?:regexp|file)=/.test(word))
     const rest = patterned ? plain : plain.slice(1)
-    return fed || !cwdHolds || rest.some(word => existsSync(expandPath(spelling(word), cwd))) ? rest : [...rest, '.']
+    return fed || !cwdHolds || rest.some(word => !wordKnown(word) || existsSync(expandPath(spelling(word), cwd))) ? rest : [...rest, '.']
   }
   return plain
 }
@@ -826,20 +826,31 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
   const homes = mercuryHomes()
   const fed = new Set<number>()
   for (const reader of read.commands) for (const at of [...reader.inner.flat(), ...reader.inputInner]) fed.add(at)
+  const handed = new Map<number, boolean>()
+  const handedToReader = (at: number, simple: ReadCommand): boolean => {
+    const known = handed.get(at)
+    if (known !== undefined) return known
+    const answer = read.commands.some(other => {
+      const readers = layersOf(other.argv).filter(found => FILE_READERS.has(found.program))
+      if (readers.length === 0) return false
+      return [...other.inner.flat(), ...other.inputInner].includes(at) || (sharesEarlierStage(simple, other) && readers.some(found => found.wrappers.includes('xargs')))
+    })
+    handed.set(at, answer)
+    return answer
+  }
   for (const { at, simple, here } of read.commands.flatMap((simple, at) => foldersAfter(read, at, cwd).folders.map(here => ({ at, simple, here })))) {
     const layers = layersOf(simple.argv)
-    const reads = layers.some(layer => FILE_READERS.has(layer.program))
     const fedNames = layers.some(layer => FILE_READERS.has(layer.program) && layer.wrappers.includes('xargs'))
     for (const redirect of simple.redirects) {
       if (redirect.op !== '<') continue
       for (const candidate of spellingsOf(redirect.target)) {
-        if (mercurySecretPath(candidate, here) !== null || ((reads || wordKnown(candidate)) && couldNameSecret(candidate, here, homes))) return redirect.target
+        if (mercurySecretPath(candidate, here) !== null || couldNameSecret(candidate, here, homes, !wordKnown(candidate))) return redirect.target
         if (secretNameBehindUnread(candidate, homes)) return candidate.replaceAll(UNREAD_PART, '$(…)')
       }
     }
     for (const word of simple.input === undefined ? [] : simple.input.split(/\s+/)) {
       for (const candidate of spellingsOf(word)) {
-        if (mercurySecretPath(candidate, here) !== null || ((fedNames || wordKnown(candidate)) && couldNameSecret(candidate, here, homes))) return word
+        if (mercurySecretPath(candidate, here) !== null || (fedNames && couldNameSecret(candidate, here, homes, !wordKnown(candidate)))) return word
         if (fedNames && secretNameBehindUnread(candidate, homes)) return candidate.replaceAll(UNREAD_PART, '$(…)')
       }
     }
@@ -852,7 +863,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const feeds = lists && (fed.has(at) || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')))
       for (const word of [...layer.argv.slice(1), ...roots]) {
         for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {
-          if (mercurySecretPath(candidate, here) !== null || ((FILE_READERS.has(layer.program) || wordKnown(candidate)) && couldNameSecret(candidate, here, homes))) return word
+          if (mercurySecretPath(candidate, here) !== null || ((FILE_READERS.has(layer.program) || handedToReader(at, simple)) && couldNameSecret(candidate, here, homes, !wordKnown(candidate)))) return word
           if ((FILE_READERS.has(layer.program) || UPLOADERS.has(layer.program)) && secretNameBehindUnread(candidate, homes)) return candidate.replaceAll(UNREAD_PART, '$(…)')
           if ((tree || feeds) && namesMercuryHome(candidate, here, homes)) return word
         }
