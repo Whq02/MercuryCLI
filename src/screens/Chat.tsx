@@ -105,6 +105,7 @@ import { useSettingsErrors } from '../hooks/notifs/useSettingsErrors.js';
 import { Box, type DOMElement, measureElement, Text, useStdin, useTheme } from '../ink.js';
 import { AlternateScreen } from '../ink/components/AlternateScreen.js';
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
+import { InkInstanceContext } from '../ink/components/InkInstanceContext.js';
 import useInput from '../ink/hooks/use-input.js';
 import { useInterval } from '../ink/hooks/use-interval.js';
 import { useSearchHighlight } from '../ink/hooks/use-search-highlight.js';
@@ -1726,21 +1727,25 @@ export function Chat({
       return;
     }
     const gap = Math.max(0, handle.getFreshScrollHeight() - handle.getViewportHeight() - handle.getScrollTop());
-    scrollRestoreRef.current = { gap, sticky: gap === 0 };
+    scrollRestoreRef.current = { gap, sticky: handle.isSticky() || gap === 0 };
   }, []);
   const [flipGeneration, setFlipGeneration] = useState(0);
+  const flipInk = React.useContext(InkInstanceContext);
   useLayoutEffect(() => {
     const restore = scrollRestoreRef.current;
-    if (!restore) return;
-    scrollRestoreRef.current = null;
-    const handle = scrollRef.current;
-    if (!handle) return;
-    if (restore.sticky) {
-      handle.scrollToBottom();
-      return;
-    }
-    handle.scrollTo(Math.max(0, handle.getFreshScrollHeight() - handle.getViewportHeight() - restore.gap));
-  }, [flipGeneration]);
+    if (!restore || !flipInk) return;
+    const stop = flipInk.subscribeFrame(() => {
+      const handle = scrollRef.current;
+      if (!handle) return;
+      const target = Math.max(0, handle.getFreshScrollHeight() - handle.getViewportHeight() - restore.gap);
+      if (restore.sticky || handle.getScrollTop() === target) {
+        stop();
+        scrollRestoreRef.current = null;
+        if (restore.sticky) handle.scrollToBottom();
+      } else handle.scrollTo(target);
+    });
+    return stop;
+  }, [flipGeneration, flipInk]);
 
   const handleEnterTranscript = useCallback(() => {
     captureScrollForFlip();

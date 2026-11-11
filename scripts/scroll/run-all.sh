@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
+# gate-watch: scripts/computer/computerDriveKit.ts scripts/lib/* src/screens/Chat.tsx src/utils/sessionStorage/paths.ts
 # gate-env: MERCURY_SCROLL_REFLOW_STRICT
 # gate-watch: scripts/lib/seedTranscript.ts
 # gate-watch: src/hooks/useVirtualScroll* src/ink/components/ScrollBox*
