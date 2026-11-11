@@ -521,6 +521,37 @@ if (runs('UNVALUED')) {
   for (const item of clear) await expect('UNVALUED', item, ['sovereign'], notRefused, 'is not refused by the floor')
 }
 
+if (runs('PWD')) {
+  section('PWD · $PWD, $(pwd) and ~+ are the folder the line stands in wherever the reading knows that folder')
+  const reads: Call[] = [
+    bash(`cd <CONFIG> && cat "$PWD/$(printf 'mcp-au%s' th.json)"`, 'the store behind $PWD, the name left to the shell'),
+    bash('cd <CONFIG> && cat "$PWD/$NAME"'),
+    bash('cd <CONFIG> && cat "$PWD"/.cred*', 'a wildcard behind $PWD'),
+    bash('cd <CONFIG> && cat "$PWD"/*'),
+    bash('cd <CONFIG> && cat "${PWD}/$NAME"', 'braces'),
+    bash('cd <CONFIG> && cat "$(pwd)"/*', 'the same by pwd'),
+    bash('cd <CONFIG> && cat "$(pwd)/$NAME"'),
+    bash('cd <CONFIG> && cat ~+/"$NAME"', 'the same by the tilde form'),
+    bash('cd <CONFIG> && cat ~+/.cred*'),
+    bash('cd ~ && cat "$PWD"/.mercury/*', "from the home, the store's own folder behind $PWD"),
+  ]
+  for (const item of reads) await expect('PWD', item, ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
+  bootstrap.setCwdState(CONFIG_HOME)
+  await expect('PWD · the session standing in the config home', bash('cat "$PWD"/*', "the session's own folder"), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
+  await expect('PWD · the session standing in the config home', bash('echo "$PWD"', 'a program that reads no file'), ['sovereign'], notRefused, 'is not refused by the floor')
+  bootstrap.setCwdState(PROJECT)
+  const clear: Call[] = [
+    bash('cat "$PWD/README.md"', 'a file of the project behind $PWD'),
+    bash('ls "$PWD"', 'a listing of the project'),
+    bash('cd ~ && cat "$PWD/notes.txt"', 'a plain file of the home behind $PWD'),
+    bash('cat "$(pwd)/docs/plain.md"', 'a file of the project behind pwd'),
+    bash('cat ~+/notes.txt', 'a file of the project behind the tilde form'),
+    bash('cd "$DIR" && cat "$PWD/notes.md"', 'after a cd no reading can value, $PWD stays what only the shell knows'),
+    bash('cd "$DIR" && cat "$PWD"/*', 'and a wildcard behind it is no possible read'),
+  ]
+  for (const item of clear) await expect('PWD', item, ['sovereign'], notRefused, 'is not refused by the floor')
+}
+
 if (runs('T-3.5')) {
   const state = daemonStatePath()
   section('T-3.5 floor 4: kills of the daemon and of the session, and writes into the runtime, under Sovereign and Flow')

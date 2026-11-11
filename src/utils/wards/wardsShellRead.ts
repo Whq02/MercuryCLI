@@ -546,6 +546,7 @@ class PosixWalk {
     const argv = this.reading.commands[inner[0]!]?.argv ?? []
     const program = programOf(argv[0] ?? '')
     const { user, uid } = this.reading.world
+    if (program === 'pwd' && argv.slice(1).every(word => /^-[LP]+$/.test(word))) return this.reading.commands[inner[0]!]?.cwd
     if ((program === 'whoami' || program === 'logname') && argv.length === 1) return user
     if (program !== 'id') return undefined
     const flags = argv.slice(1).join('')
@@ -564,13 +565,18 @@ class PosixWalk {
     }
     const known = name === undefined ? undefined : this.reading.scope.get(name)
     if (known !== undefined && known.length > 0) return { values: [...known].reverse(), inner }
+    if (name === 'PWD' && this.reading.cwd !== undefined && (node.type === 'simple_expansion' || node.text === '${PWD}')) return { values: [this.reading.cwd], inner }
     return { values: [node.text], inner }
   }
 
   word(node: Node, frame: Frame): Words {
     switch (node.type) {
-      case 'word':
-        return { values: [unescapeBackslashes(node.text)], inner: [] }
+      case 'word': {
+        const text = unescapeBackslashes(node.text)
+        const stands = this.reading.cwd
+        const leads = node.startIndex === 0 || /[\s;&|(=:]/.test(this.source[node.startIndex - 1] ?? '')
+        return { values: [stands !== undefined && leads && /^~\+(?=\/|$)/.test(node.text) ? stands + text.slice(2) : text], inner: [] }
+      }
       case 'raw_string':
         return { values: [node.text.slice(1, -1)], inner: [] }
       case 'ansi_c_string':
