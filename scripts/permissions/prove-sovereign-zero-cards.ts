@@ -145,6 +145,14 @@ section('§1 the roads that already stand down: every plain ask verdict is ALLOW
   const arrived = await decideToolPermissionWithModes(stubTool('Stub', { behavior: 'ask', message: 'ask', decisionReason: { type: 'other', reason: 'x' } }), { op: 'x' }, contextOf('sovereign', { allow: ['Stub'] }), assistant, 'toolu_arrived')
   check('an allow rule that arrived by a settings change while the session runs raises no ask under sovereign (Flow alone reads the rules of the session\'s start)', arrived.decision.behavior === 'allow' && arrived.wrapper.decidedBy === 'engine', JSON.stringify(arrived.wrapper))
   lateRules?.forgetLateAllowRules()
+  const estate = (await import('../../src/utils/permissions/filesystem.ts')) as { noteComposedInstructionImports?: (paths: string[]) => void }
+  const imported = join(ROOT, 'docs', 'zero-cards-imported.md')
+  estate.noteComposedInstructionImports?.([imported])
+  const steering = await decide(FileWriteTool, { file_path: imported, content: 'x' }, contextOf('sovereign'))
+  check('a write of a file the instruction files import asks nothing under sovereign', steering.decision.behavior === 'allow', JSON.stringify(steering.decision).slice(0, 300))
+  const steeringShell = await decide(BashTool, { command: `echo x > ${imported}` }, contextOf('sovereign'))
+  check('the same write through a shell redirect asks nothing under sovereign', steeringShell.decision.behavior === 'allow', JSON.stringify(steeringShell.decision).slice(0, 300))
+  estate.noteComposedInstructionImports?.([])
 }
 
 section('§2 the Windows share road (A2): a UNC path asks on Windows and never on the Mac — under sovereign it must not ask on either')
