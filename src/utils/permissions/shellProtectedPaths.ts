@@ -285,6 +285,10 @@ function inlineScriptWrites(rawScript: string, spans?: Map<string, string>): str
   return out
 }
 
+export function inlineScriptWriteTargets(script: string): string[] {
+  return inlineScriptWrites(script)
+}
+
 function inlineScriptReads(rawScript: string): string[] {
   const script = normalizeInlineScript(rawScript)
   if (!/\b(?:read\w*|open|load\w*|Get-Content|ReadAll\w*|ReadLines|OpenRead|Path|cat|type)\b/i.test(script)) return []
