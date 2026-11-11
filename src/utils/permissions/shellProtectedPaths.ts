@@ -301,7 +301,7 @@ function updateTrackedCwd(argv: string[], cwd: string): string {
   const name = verb(argv[0] ?? '')
   if (['cd', 'chdir', 'set-location', 'sl', 'pushd', 'push-location'].includes(name)) {
     const target = argv.slice(1).find(word => !word.startsWith('-'))
-    if (target) return GLOB_PART.test(target) ? (foldersNamedBy(expandPath(spelling(target), cwd))[0] ?? cwd) : expandPath(spelling(target), cwd)
+    if (target) return expandPath(spelling(target), cwd)
     if (['cd', 'chdir', 'set-location', 'sl'].includes(name) && !argv.includes('-')) return expandPath(spelling('~'), cwd)
   }
   return cwd
@@ -385,6 +385,31 @@ async function walkShellCommands(
 }
 
 export async function shellCredentialWritePath(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
+  return (await credentialWriteWalked(command, powershell, cwd)) ?? credentialWriteAfterMove(command, powershell, cwd)
+}
+
+async function credentialWriteAfterMove(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+  const read = await readForFloors(command, powershell, cwd)
+  if (read === null) return null
+  for (const [at, simple] of read.commands.entries()) {
+    if (simple.cwd !== undefined && !GLOB_PART.test(simple.cwd)) continue
+    const after = foldersAfter(read, at, cwd)
+    if (after.lost) continue
+    const written = simple.redirects.flatMap(redirect => (['>', '>>', '>|', '&>', '&>>'].includes(redirect.op) ? ['>', '', redirect.target] : []))
+    for (const layer of layersOf(simple.argv)) {
+      for (const path of writeOperands([...layer.argv, ...written])) {
+        if (/^(?:[/~]|[A-Za-z]:)/.test(path)) continue
+        for (const here of after.folders) {
+          const full = posix.join(here, path)
+          if (credentialStorePath(full, here) !== null) return full
+        }
+      }
+    }
+  }
+  return null
+}
+
+function credentialWriteWalked(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   return walkShellCommands(command, powershell, ({ argv, cwd, text, powershell: ps }) => {
     if (ps) {
       for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Copy|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
@@ -612,8 +637,29 @@ function globNamesStore(word: string, cwd: string, homes: readonly string[], hid
 
 const CD_PROGRAMS = new Set(['cd', 'chdir', 'pushd', 'set-location', 'sl', 'push-location'])
 const FOLDER_CAP = 16
+const ON_CONVENTIONAL_WAY = new RegExp(`^(?:\\/(?:users|home)|[a-z]:\\/users|${CONVENTIONAL_USER_HOME}(?:\\/\\.mercury(?:\\/.*)?)?)$`)
+const namedFolders = new Map<string, { at: number; folders: string[] }>()
+
+function onGuardedWay(folder: string, mercury: readonly string[], home: readonly string[]): boolean {
+  const lower = folder.normalize('NFC').toLowerCase()
+  if (ON_CONVENTIONAL_WAY.test(lower)) return true
+  if (mercury.some(way => way === lower || way.startsWith(`${lower}/`) || lower.startsWith(`${way}/`))) return true
+  if (home.some(way => way === lower || way.startsWith(`${lower}/`))) return true
+  return (home.some(way => lower.startsWith(`${way}/`)) || /^\/(?:private\/)?(?:etc|library)(?:\/|$)/.test(lower)) && credentialStorePath(folder, '/') !== null
+}
 
 function foldersNamedBy(pattern: string): string[] {
+  const known = namedFolders.get(pattern)
+  if (known !== undefined && Date.now() - known.at < 2000) return known.folders
+  const folders = foldersOnDisk(pattern)
+  if (namedFolders.size >= 32) namedFolders.clear()
+  namedFolders.set(pattern, { at: Date.now(), folders })
+  return folders
+}
+
+function foldersOnDisk(pattern: string): string[] {
+  let mercury: string[] | undefined
+  let home: string[] = []
   const parts = spelling(pattern).split(/[\\/]/).filter(part => part !== '')
   let found = [/^[a-z]:$/i.test(parts[0] ?? '') ? `${parts.shift()}/` : '/']
   for (const part of parts) {
@@ -639,7 +685,15 @@ function foldersNamedBy(pattern: string): string[] {
       const named = names.filter(name => test.test(name) && (dotLed || !name.startsWith('.')))
       next.push(...(named.length > 0 ? named : [part]).map(name => posix.join(folder, name)))
     }
-    found = next.slice(0, FOLDER_CAP)
+    if (next.length > FOLDER_CAP) {
+      if (mercury === undefined) {
+        mercury = [...mercuryHomes(), ...protectedPathForms(process.env.MERCURY_DAEMON_DIR || getMercuryHome())]
+        home = [process.env.HOME, process.env.USERPROFILE, homedir()].filter((path): path is string => !!path).flatMap(path => protectedPathForms(path))
+      }
+      const ways = mercury
+      const guarded = next.filter(folder => onGuardedWay(folder, ways, home))
+      found = [...guarded, ...next.filter(folder => !guarded.includes(folder)).slice(0, FOLDER_CAP)]
+    } else found = next
     if (found.length === 0) return []
   }
   return found.filter(folder => {
@@ -656,8 +710,7 @@ function foldersAfter(read: ShellRead, at: number, cwd: string): { folders: stri
   if (simple === undefined) return { folders: [cwd], lost: false }
   if (simple.cwd !== undefined) {
     if (!GLOB_PART.test(simple.cwd)) return { folders: [simple.cwd], lost: false }
-    const named = foldersNamedBy(simple.cwd)
-    return { folders: named.length > 0 ? named : [cwd], lost: false }
+    return { folders: [...foldersNamedBy(simple.cwd), simple.cwd], lost: false }
   }
   for (let index = at - 1; index >= 0; index--) {
     const turn = read.commands[index]!
@@ -670,9 +723,10 @@ function foldersAfter(read: ShellRead, at: number, cwd: string): { folders: stri
       const printed = fed.length === 1 && read.commands[fed[0]!] !== undefined ? printedBy(read.commands[fed[0]!]!) : undefined
       if (printed !== undefined && printed.trim() !== '') target = printed.trim()
     }
-    if (target === undefined || target === '-' || target.includes(UNREAD_PART) || /[$`\s]/.test(target)) return { folders: [before], lost: true }
-    const named = foldersNamedBy(/^(?:[/~]|[A-Za-z]:)/.test(target) ? target : `${before}/${target}`)
-    return { folders: named.length > 0 ? named : [before], lost: false }
+    if (target === undefined || target === '-' || target.includes(UNREAD_PART) || /[$`\s]/.test(spelling(target))) return { folders: [before], lost: true }
+    const pattern = expandPath(spelling(target), before)
+    const folders = GLOB_PART.test(pattern) ? [...foldersNamedBy(pattern), pattern] : foldersNamedBy(pattern)
+    return { folders: folders.length > 0 ? folders : [before], lost: false }
   }
   return { folders: [cwd], lost: true }
 }

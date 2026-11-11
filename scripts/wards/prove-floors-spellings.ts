@@ -381,6 +381,32 @@ if (runs('CD')) {
   for (const item of clear) await expect('CD', item, ['sovereign'], notRefused, 'is not refused by the floor')
 }
 
+if (runs('CAP')) {
+  section('CAP · a wildcard cd over a crowded folder: a guarded folder is among the folders judged however many the wildcard names, the wildcard is judged as it stands as well, and an echoed target reaches the credential-store floor')
+  for (let i = 0; i < 400; i++) {
+    mkdirSync(join(RUN_ROOT, `a${String(i).padStart(3, '0')}`), { recursive: true })
+    mkdirSync(join(RUN_ROOT, 'work', 'fake-home', `b${String(i).padStart(3, '0')}`), { recursive: true })
+  }
+  mkdirSync(join(OWN_HOME, '.mercury'), { recursive: true })
+  const reads: Call[] = [
+    bash('cd <CONFIG>/../* && cat mcp-auth.json', 'a star over 402 folders, the config home one of them'),
+    bash('pushd <CONFIG>/../* && cat .credentials.json'),
+    bash('cd <CONFIG>/../../*/config && cat mcp-auth.json', 'a star over the folder above'),
+    bash('cd <HOME>/../../*/*/.mercury && cat .credentials.json', "two stars to the home's own Mercury folder, the first over 401 folders"),
+  ]
+  for (const item of reads) await expect('CAP', item, ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
+  await expect('CAP', bash('cd <CONFIG>/../*/runtime && rm -rf current', 'floor 4 behind a star over 402 folders'), ['sovereign', 'flow', 'default'], refused, 'is refused')
+  await expect('CAP', bash('cd <CONFIG>/../../*/config && rm -rf runtime', 'floor 4, a star over the folder above: refused while the wildcard was kept as it stands, and again'), ['sovereign', 'flow', 'default'], refused, 'is refused')
+  for (const target of ['~/.ssh', '$HOME/.ssh', '<HOME>/.ssh']) await expect('CAP', bash(`cd "$(echo ${target})" && echo x >> authorized_keys`, 'floor 1 after a cd by an echoed substitution'), ['sovereign', 'flow'], refused, 'is refused')
+  const clear: Call[] = [
+    bash('cd <CONFIG>/../a00? && ls', 'a wildcard over the crowd that names no guarded folder'),
+    bash('cd <CONFIG>/../a0* && cat notes.txt'),
+    bash('cd <CONFIG>/../* && ls', 'a listing after the star'),
+    bash('cd "$(echo docs)" && echo x >> notes.md', 'an echoed folder of the project, then an ordinary write'),
+  ]
+  for (const item of clear) await expect('CAP', item, ['sovereign'], notRefused, 'is not refused by the floor')
+}
+
 if (runs('T-3.5')) {
   const state = daemonStatePath()
   section('T-3.5 floor 4: kills of the daemon and of the session, and writes into the runtime, under Sovereign and Flow')
