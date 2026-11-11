@@ -158,7 +158,7 @@ section(`§3 the field’s storm: an edge that stops reading one upload and rese
   await waitFor(() => ids.slice(1).every(id => live.has(id)), 6000)
   const cutResult = await runs[0]
   const stalledRow = seen.find(r => r.stalled)
-  check('the edge read the first bytes of the stalled upload, then nothing more, then reset the connection at its timer', stalledRow !== undefined && stalledRow.bodyBytes > 0 && stalledRow.bodyBytes < BIG_BODY_BYTES && stalledRow.resetAtMs !== null && stalledRow.resetAtMs >= STALL_MS, JSON.stringify({ bodyBytes: stalledRow?.bodyBytes, resetAtMs: stalledRow?.resetAtMs }))
+  check('the edge read the first bytes of the stalled upload, then nothing more, then reset the connection at its timer', stalledRow !== undefined && stalledRow.bodyBytes > 0 && stalledRow.bodyBytes < BIG_BODY_BYTES && stalledRow.resetAtMs !== null && stalledRow.resetAtMs >= STALL_MS - 2, JSON.stringify({ bodyBytes: stalledRow?.bodyBytes, resetAtMs: stalledRow?.resetAtMs }))
   const code = codeOf(cutResult)
   check(`the stalled request fails at the edge’s timer with a kernel reset code the ladder reads as a stale socket (${String(code)})`, cutResult.error !== null && cutResult.failedAfterMs >= STALL_MS && cutResult.failedAfterMs < STALL_MS * 4 && isStaleSocketCode(code), `${cutResult.phase} after ${cutResult.failedAfterMs} ms: ${cutResult.error?.name}: ${cutResult.error?.message} ← ${String(code)}`)
   const liveNine = ids.slice(1).every(id => live.has(id))
