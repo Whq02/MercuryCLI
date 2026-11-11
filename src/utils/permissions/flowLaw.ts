@@ -15,6 +15,7 @@ import { resolveShellCwd } from '../Shell.js'
 import { PARSE_ABORTED, pinnedCommandAnalysis, preparedCommandRoot, type Node } from './decision/commandAnalysis.js'
 import { getMercuryTempDir, getScratchpadDir, matchingRuleForInput, pathInWorkingPath } from './filesystem.js'
 import { ownGroundCategory } from './ownGround.js'
+import { serviceInputAsSent, serviceInputKey } from './serviceInputHistory.js'
 
 type FlowItem = 1 | 2 | 3 | 4
 export type FlowAsk = { item: FlowItem; subject: string; why: string }
@@ -695,9 +696,12 @@ function flowPathAsk(path: string, rules?: ToolPermissionContext, verb = 'writin
 
 const SERVICE_TOOL_NAME = 'Service'
 
-function startedCommandOf(tool: Pick<Tool, 'name' | 'shellCommandOf'>, input: Record<string, unknown>): string | undefined {
+async function startedCommandOf(tool: Pick<Tool, 'name' | 'shellCommandOf'>, input: Record<string, unknown>): Promise<string | undefined> {
   if (tool.name === DEBUG_TOOL_NAME) return input.op === 'launch' ? startedCommandText(input.program, input.args) : undefined
-  if (tool.name === SERVICE_TOOL_NAME && input.op === 'input') return typeof input.text === 'string' && input.text.trim() !== '' ? input.text : undefined
+  if (tool.name === SERVICE_TOOL_NAME && input.op === 'input') {
+    if (typeof input.text !== 'string' || input.text.trim() === '') return undefined
+    return typeof input.name === 'string' ? serviceInputAsSent(serviceInputKey(getOriginalCwd(), input.name), input.text) : input.text
+  }
   return tool.shellCommandOf?.(input)
 }
 
@@ -706,7 +710,7 @@ export async function flowAskFor(tool: Pick<Tool, 'name' | 'shellCommandOf'> & {
     const cwd = resolveShellCwd(typeof input.cwd === 'string' ? input.cwd : undefined)
     return flowShellAsk(input.command, cwd, tool.name === POWERSHELL_TOOL_NAME ? 'powershell' : 'bash', rules)
   }
-  const started = startedCommandOf(tool, input)
+  const started = await startedCommandOf(tool, input)
   if (started !== undefined) return flowShellAsk(started, resolveShellCwd(typeof input.cwd === 'string' ? input.cwd : undefined), 'bash', rules)
   if (typeof tool.getPath !== 'function') return null
   try {

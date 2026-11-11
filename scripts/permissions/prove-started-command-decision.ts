@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { check, decide, fill, finish, note, pageText, said, section, shown, standInService, type Rules } from './floorsKit.ts'
+import { check, decide, fill, finish, note, pageText, said, section, shown, sourceText, standInService, type Rules } from './floorsKit.ts'
 
 type Mode = 'default' | 'implement' | 'apollo' | 'dontAsk' | 'flow' | 'sovereign'
 type Shape = { label: string; argv: string[]; bashModes: Mode[]; rules?: Rules }
@@ -197,5 +197,63 @@ section('§8 text the debuggee runs passes the floors\' readers')
     }
   }
 }
-note('nothing in this proof is executed: tool inputs handed to the decision function with the real tools; the daemon is a stand-in process of this proof, and the services are record files it wrote, with no process behind them')
+
+section('§9 a service\'s inputs are one script: text sent to it is read with the state the text sent before it left')
+{
+  const history = await import('../../src/utils/permissions/serviceInputHistory.ts').catch(() => null)
+  const { getOriginalCwd } = await import('../../src/bootstrap/state.ts')
+  const PUSH = ['git', 'push', 'origin', 'main'].join(' ')
+  check('the history of what a service was sent is there to be told', history !== null)
+  const sentTo = (name: string, text: string, submitted = true, run = ':'): void => history?.noteServiceInput(history.serviceInputKey(getOriginalCwd(), name), run, fill(text), submitted)
+  const everyMode = async (name: string, text: string, rules: Rules = {}): Promise<string[]> => {
+    const wrong: string[] = []
+    for (const mode of ALL_MODES) {
+      const decision = await decide('Service', typed(name, fill(text)), mode, rules)
+      if (decision.behavior !== 'deny') wrong.push(`${mode}: ${said(decision)}`)
+    }
+    return wrong
+  }
+  const body = sourceText('src/tools/ServiceTool/ServiceTool.ts')
+  check('the tool notes a text only once it was written to the service, by the run it was written to', /const sent = sendInput\(project, input\.name!, input\.text \?\? '', sessionId, mode\)\n\s+if \('error' in sent\) return [^\n]+\n\s+if \(mode !== 'eof'\) noteServiceInput\(serviceInputKey\(project, input\.name!\), runOf\(readRecord\(project, input\.name!\)\), input\.text \?\? '', mode !== 'write'\)/.test(body))
+  standInService('stateful', 'sh', [])
+  for (const [mode, behavior] of [['sovereign', 'allow'], ['flow', 'allow'], ['default', 'ask']] as const) {
+    const before = await decide('Service', typed('stateful', 'cat .credentials.json'), mode)
+    check(`control · ${mode} · with nothing sent before, cat .credentials.json typed into a shell service is read in the folder it started in (${behavior})`, before.behavior === behavior, said(before))
+  }
+  sentTo('stateful', 'cd <CONFIG>')
+  for (const text of ['cat .credentials.json', 'cat mcp-auth.json', 'cp .credentials.json <PROJECT>/copy.json']) {
+    const wrong = await everyMode('stateful', text)
+    check(`after cd <config> was sent to it, ${shown(fill(text))} is refused in all six modes: the folder the earlier text left is the folder this one is read in`, wrong.length === 0, wrong.join(' ‖ '))
+  }
+  for (const [mode, behavior] of [['sovereign', 'allow'], ['flow', 'allow'], ['default', 'ask']] as const) {
+    const plain = await decide('Service', typed('stateful', 'ls'), mode)
+    check(`control · ${mode} · ls typed after that cd is answered as before (${behavior})`, plain.behavior === behavior, said(plain))
+  }
+  sentTo('stateful', 'cd <PROJECT> && ls')
+  const back = await decide('Service', typed('stateful', 'cat .credentials.json'), 'sovereign')
+  check('control · sovereign · after a cd back to the project was sent, the same text is read in the project again', back.behavior === 'allow', said(back))
+  sentTo('stateful', 'export D=<CONFIG>')
+  const variable = await everyMode('stateful', 'cat $D/.credentials.json')
+  check('after export D=<config> was sent, cat $D/.credentials.json is refused in all six modes: a variable an earlier text set is read', variable.length === 0, variable.join(' ‖ '))
+  sentTo('stateful', 'unset D; cat <CONFIG>/.cred', false)
+  const halves = await everyMode('stateful', 'entials.json')
+  check('after half a line was written with no Enter, the text that completes it is read as the whole line and refused in all six modes', halves.length === 0, halves.join(' ‖ '))
+  sentTo('stateful', '')
+  sentTo('stateful', 'cat <CONFIG>/.cred', false)
+  sentTo('stateful', '\u0003', false)
+  const cleared = await decide('Service', typed('stateful', 'entials.json'), 'sovereign')
+  check('control · sovereign · a half line followed by an interrupt key is no longer in front of the next text', cleared.behavior === 'allow', said(cleared))
+  sentTo('stateful', 'cd <CONFIG>', true, 'an-earlier-run')
+  const restarted = await decide('Service', typed('stateful', 'cat .credentials.json'), 'sovereign')
+  check('control · sovereign · what was sent to an earlier run of the service is not read into this run', restarted.behavior === 'allow', said(restarted))
+  standInService('ruled', 'sh', [])
+  sentTo('ruled', 'cd build')
+  const ruled = await everyMode('ruled', 'rm -rf ../secrets', { deny: ['Edit(secrets/**)'] })
+  check('after cd build was sent, rm -rf ../secrets under a deny rule on secrets/** is refused in all six modes', ruled.length === 0, ruled.join(' ‖ '))
+  const alone = await decide('Service', typed('ruled', PUSH), 'flow')
+  check('flow · a push typed after a cd still asks first', alone.behavior === 'ask', said(alone))
+  const zero = await decide('Service', typed('ruled', PUSH), 'sovereign')
+  check('sovereign · the same text asks nothing', zero.behavior === 'allow', said(zero))
+}
+note('nothing in this proof is executed: tool inputs handed to the decision function with the real tools; the daemon is a stand-in process of this proof, and the services are record files it wrote, with no process behind them; what a service was sent is told to the history by this proof, as the tool tells it after a write')
 finish('prove-started-command-decision')

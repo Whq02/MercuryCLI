@@ -383,6 +383,18 @@ section('§7 a command a tool starts gets the Bash decision: under sovereign tha
     const ruled = await decide(ServiceTool, input, contextOf('sovereign', { deny: ['Bash(rm *)', 'Read(secrets/**)'] }))
     check(`Service input of ${text}: with deny rules in force, allowed or refused under sovereign (${ruled.decision.behavior}), no card`, ruled.decision.behavior === 'allow' || ruled.decision.behavior === 'deny', JSON.stringify(ruled.decision).slice(0, 300))
   }
+  {
+    const history = await import('../../src/utils/permissions/serviceInputHistory.ts').catch(() => null)
+    const { getOriginalCwd } = await import('../../src/bootstrap/state.ts')
+    history?.noteServiceInput(history.serviceInputKey(getOriginalCwd(), 'zero-cards-service'), ':', 'cd scripts && export N=1', true)
+    for (const text of ['ls', 'cat $N', 'rm -rf build']) {
+      const input = { op: 'input', name: 'zero-cards-service', text }
+      const under = await decide(ServiceTool, input, contextOf('sovereign'))
+      check(`Service input of ${text} after a cd and an export were sent to it: allowed under sovereign, no card`, under.decision.behavior === 'allow', JSON.stringify({ decidedBy: under.trace.decidedBy, decision: under.decision }))
+      const ruled = await decide(ServiceTool, input, contextOf('sovereign', { deny: ['Bash(rm *)', 'Read(secrets/**)'] }))
+      check(`Service input of ${text} after them: with deny rules in force, allowed or refused under sovereign (${ruled.decision.behavior}), no card`, ruled.decision.behavior === 'allow' || ruled.decision.behavior === 'deny', JSON.stringify(ruled.decision).slice(0, 300))
+    }
+  }
   for (const input of [{ op: 'evaluate', expression: 'x + 1' }, { op: 'setVariable', name: 'x', value: '4', variablesReference: 1 }, { op: 'breakpoints', file: 'app.py', breakpoints: [{ line: 3, condition: 'i > 3', logMessage: 'at {i}' }] }]) {
     const under = await decide(DebugTool, input, contextOf('sovereign'))
     check(`Debug ${input.op}: text the debuggee runs asks nothing under sovereign`, under.decision.behavior === 'allow', JSON.stringify(under.decision))
