@@ -193,7 +193,7 @@ function turnOfLastReply(reply: AssistantMessage, stops: ReadonlyMap<string, str
   return stop !== null && stopEndsTurn(stop, reply.message.model) ? { kind: 'none' } : { kind: 'interrupted_turn' }
 }
 
-function detectInterruption(messages: Message[], stops: ReadonlyMap<string, string>): InternalInterruptionState {
+function detectInterruption(messages: Message[], stops: ReadonlyMap<string, string>, turnOpen: boolean): InternalInterruptionState {
   if (messages.length === 0) return { kind: 'none' }
   let index = messages.length - 1
   let ended = false
@@ -211,7 +211,8 @@ function detectInterruption(messages: Message[], stops: ReadonlyMap<string, stri
     return turnOfLastReply(last, stops, ended, false)
   }
   if (last.type === 'user') {
-    if (last.isMeta || last.isCompactSummary) return { kind: 'none' }
+    if (last.isCompactSummary) return { kind: 'none' }
+    if (last.isMeta) return turnOpen ? { kind: 'interrupted_turn' } : { kind: 'none' }
     if (isToolUseResultMessage(last)) {
       return isTurnTerminatingToolResult(messages, index) || isRunsOwnCutResult(last) ? { kind: 'none' } : { kind: 'interrupted_turn' }
     }
@@ -238,7 +239,7 @@ function runEndedLastTurn(chain: Message[], turnEnd: TurnEnded | undefined): boo
   return !chain.some(row => trailing.has(row.uuid) && !asksNoReply(row))
 }
 
-function deserializeMessagesWithInterruptDetection(serialized: Message[], turnEnd?: TurnEnded): DeserializeResult {
+function deserializeMessagesWithInterruptDetection(serialized: Message[], turnEnd?: TurnEnded, turnOpen = false): DeserializeResult {
   try {
     let messages = withoutRetractedReplies(rehydrateScreenshots(serialized.map(migrateLegacyAttachment).map(scrubPermissionMode)))
     const ended = runEndedLastTurn(messages, turnEnd)
@@ -248,7 +249,7 @@ function deserializeMessagesWithInterruptDetection(serialized: Message[], turnEn
     messages = filterWhitespaceOnlyAssistantMessages(messages)
 
     let interruption: TurnInterruptionState = { kind: 'none' }
-    const detected: InternalInterruptionState = ended ? { kind: 'none' } : detectInterruption(messages, stops)
+    const detected: InternalInterruptionState = ended ? { kind: 'none' } : detectInterruption(messages, stops, turnOpen)
     if (detected.kind === 'interrupted_turn') {
       const continuation = normalizeMessages([
         createUserMessage({ content: getResumePrompt(), isMeta: true }),
@@ -568,6 +569,7 @@ export async function loadConversationForResume(
         prUrl: log.prUrl,
         prRepository: log.prRepository,
         turnEnd: log.turnEnd,
+        ...(log.turnOpen === true ? { turnOpen: true } : {}),
       }
     }
 
@@ -581,7 +583,7 @@ export async function loadConversationForResume(
     } catch (error) {
       logForDebugging(`read ledger: the transcript could not be read back for the seen lines (${error instanceof Error ? error.message : String(error)})`)
     }
-    const { messages: deserialized, turnInterruptionState } = deserializeMessagesWithInterruptDetection(asMessages, facts.turnEnd)
+    const { messages: deserialized, turnInterruptionState } = deserializeMessagesWithInterruptDetection(asMessages, facts.turnEnd, facts.turnOpen === true)
     const recordedModel = getEngineModelOverride() === undefined ? facts.model : undefined
     const hookMessages = await runSessionStartHooks('resumed', {
       sessionId,

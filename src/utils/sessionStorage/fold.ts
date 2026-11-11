@@ -41,6 +41,7 @@ export type TranscriptFoldState = {
   contextCollapseCommits: ContextCollapseCommitEntry[]
   contextCollapseSnapshot: ContextCollapseSnapshotEntry | undefined
   turnEnds: Map<UUID, TurnEnded>
+  turnsOpen: Map<UUID, true>
   progressBridge: Map<UUID, UUID | null>
 }
 
@@ -70,6 +71,7 @@ export function emptyFoldState(): TranscriptFoldState {
     contextCollapseCommits: [],
     contextCollapseSnapshot: undefined,
     turnEnds: new Map(),
+    turnsOpen: new Map(),
     progressBridge: new Map(),
   }
 }
@@ -78,7 +80,10 @@ function noteRowBehindTurnEnd(state: TranscriptFoldState, row: TranscriptMessage
   const ended = state.turnEnds.get(row.sessionId)
   if (ended === undefined || row.isSidechain || state.messages.has(row.uuid)) return
   if (row.type === 'attachment') ended.trailing.push(row.uuid)
-  else if (row.type === 'user' || (row.type === 'assistant' && row.isApiErrorMessage !== true)) state.turnEnds.delete(row.sessionId)
+  else if (row.type === 'user' || (row.type === 'assistant' && row.isApiErrorMessage !== true)) {
+    state.turnEnds.delete(row.sessionId)
+    state.turnsOpen.set(row.sessionId, true)
+  }
 }
 
 function messageRow(state: TranscriptFoldState, row: TranscriptMessage): void {
@@ -139,7 +144,11 @@ const foldRows = {
   'context-collapse-snapshot': (state, row) => { state.contextCollapseSnapshot = row },
   'speculation-accept': () => {},
   'queue-operation': () => {},
-  'turn-end': (state, row) => { if (row.sessionId) state.turnEnds.set(row.sessionId, { turnId: row.turnId, status: row.status, trailing: [] }) },
+  'turn-end': (state, row) => {
+    if (!row.sessionId) return
+    state.turnEnds.set(row.sessionId, { turnId: row.turnId, status: row.status, trailing: [] })
+    state.turnsOpen.delete(row.sessionId)
+  },
 } satisfies { [K in StorageRowKind]: (state: TranscriptFoldState, row: StorageRowOf<K>) => void }
 
 export function applyTranscriptEntry(st: TranscriptFoldState, entry: Entry): void {

@@ -73,6 +73,7 @@ function copyOfFold(fold: TranscriptFoldState): TranscriptFoldState {
     contextCollapseCommits: [...fold.contextCollapseCommits],
     contextCollapseSnapshot: fold.contextCollapseSnapshot,
     turnEnds: new Map([...fold.turnEnds].map(([k, v]) => [k, { ...v, trailing: [...v.trailing] }])),
+    turnsOpen: new Map(fold.turnsOpen),
     progressBridge: fold.progressBridge,
   }
 }
