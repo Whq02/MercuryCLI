@@ -873,6 +873,13 @@ function filesSentOrPrinted(layer: Layer): Set<string> {
   return out
 }
 
+function searcherOf(layer: Layer): Layer | undefined {
+  if (TREE_SEARCHERS.has(layer.program)) return readsWholeTree(layer) ? layer : undefined
+  if (layer.program !== 'git') return undefined
+  const at = layer.argv.findIndex((word, index) => index > 0 && !word.startsWith('-') && !/^(?:-C|-c|--git-dir|--work-tree|--namespace)$/.test(layer.argv[index - 1]!))
+  return at > 0 && layer.argv[at] === 'grep' ? { ...layer, program: 'grep', argv: ['grep', ...layer.argv.slice(at + 1)] } : undefined
+}
+
 function keychainItemRead(layer: Layer): string | null {
   if (layer.program !== 'security') return null
   const argv = layer.argv
@@ -939,6 +946,9 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
           if ((tree || feeds) && namesMercuryHome(candidate, here, homes)) return word
         }
       }
+      const searcher = searcherOf(layer)
+      const piped = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
+      if (searcher !== undefined && !piped && namesMercuryHome('.', here, homes) && treeReadRoots(searcher, false, here, true).includes('.')) return '.'
       const finder = layer.program === 'find' ? layer : layer.findRoots === undefined ? undefined : layers.find(outer => outer.program === 'find')
       const whole = finder === undefined ? tree : findNamesASecret(finder.argv, homes) && (layer === finder ? feeds : !FIND_NON_READERS.has(layer.program))
       if (!whole) continue
