@@ -6,4 +6,5 @@
 # loud red in this runner.
 prove-busy-stall-drive.ts
 prove-esc-latch-turn-drive.ts
+prove-hosted-window-says-the-store-fails-drive.ts
 prove-recall-send-drive.ts
