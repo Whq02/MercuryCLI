@@ -642,6 +642,13 @@ if (runs('STAYED')) {
   }
   const plainSearch = await reading(bash('grep -r foo .'), 'sovereign')
   check('STAYED · a search of the home itself keeps its own sentence', /^Reading the whole of this folder \(name a folder beneath it\) is refused/.test(plainSearch.decision.message ?? ''), said(plainSearch.decision))
+  const { shellMercurySecretPath } = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  for (const line of ['cd nope; grep -r foo .', 'cd nope && grep -r foo .', 'cd nope; if ($?) { grep -r foo . }']) {
+    const onPowerShell = await shellMercurySecretPath(line, true, OWN_HOME)
+    check(`STAYED · on the PowerShell tool, where no way of joining the two runs, the refusal keeps its own words and names no way through: ${line}`, onPowerShell !== null && !onPowerShell.includes('where this line stays') && !onPowerShell.includes('&&'), String(onPowerShell))
+  }
+  const onBash = await shellMercurySecretPath('cd nope; grep -r foo .', false, OWN_HOME)
+  check('STAYED · …and the Bash tool is the one that gets the sentence naming &&', onBash !== null && onBash.includes('where this line stays') && onBash.includes('join them with &&'), String(onBash))
   bootstrap.setCwdState(PROJECT)
   const clear: Call[] = [
     bash('cd nope; cat notes.txt', 'in the project, a failed cd and a plain file'),

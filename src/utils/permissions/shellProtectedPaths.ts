@@ -915,11 +915,10 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
     handed.set(at, answer)
     return answer
   }
-  const whereItStays = (here: string): string =>
-    `the whole of ${here}, where this line stays if the cd before it fails (${powershell ? 'run the read only where the cd succeeded' : 'join them with && so the read runs only after the cd'})`
+  const whereItStays = (here: string): string => `the whole of ${here}, where this line stays if the cd before it fails (join them with && so the read runs only after the cd)`
   for (const { at, simple, here, stayed } of read.commands.flatMap((simple, at) => {
     const stands = foldersRead(read, at, cwd).folders
-    return foldersAfter(read, at, cwd).folders.map(here => ({ at, simple, here, stayed: !stands.includes(here) }))
+    return foldersAfter(read, at, cwd).folders.map(here => ({ at, simple, here, stayed: !powershell && !stands.includes(here) }))
   })) {
     const layers = layersOf(simple.argv)
     const fedNames = layers.some(layer => FILE_READERS.has(layer.program) && layer.wrappers.includes('xargs'))
