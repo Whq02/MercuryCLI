@@ -132,6 +132,8 @@ const WATCHDOG_COMMIT_BUDGET = 12
 const STDIN_REARM_DELAY_MS = 50
 const OVERWRITE_MIN_GAP_MS = 250
 const STDIN_REARM_ATTEMPTS = 8
+const UNDELIVERED_RETRY_MS = 250
+const UNDELIVERED_RETRY_MAX_MS = 4000
 
 function rawModeOn(stdin: NodeJS.ReadStream): boolean {
   return (stdin as { isRaw?: boolean }).isRaw === true
@@ -280,6 +282,8 @@ export default class Ink {
   private wholeFrameAt = -Infinity
   private overwriteTimer: ReturnType<typeof setTimeout> | null = null
   private resizeSettleTimer: ReturnType<typeof setTimeout> | null = null
+  private undeliveredRetryTimer: ReturnType<typeof setTimeout> | null = null
+  private undeliveredRetryMs = UNDELIVERED_RETRY_MS
   private watchdogCommitsRemaining = 0
   private zeroByteRenderStreak = 0
 
@@ -553,6 +557,23 @@ export default class Ink {
       this.resetFramesForAltScreen()
       this.wholeFrameDue = true
     }
+  }
+
+  private retryUndeliveredFrame(): void {
+    if (this.undeliveredRetryTimer !== null) return
+    const wait = this.undeliveredRetryMs
+    this.undeliveredRetryMs = Math.min(wait * 2, UNDELIVERED_RETRY_MAX_MS)
+    this.undeliveredRetryTimer = setTimeout(() => {
+      this.undeliveredRetryTimer = null
+      this.onRender()
+    }, wait)
+  }
+
+  private clearUndeliveredRetry(): void {
+    this.undeliveredRetryMs = UNDELIVERED_RETRY_MS
+    if (this.undeliveredRetryTimer === null) return
+    clearTimeout(this.undeliveredRetryTimer)
+    this.undeliveredRetryTimer = null
   }
 
   private clearResizeSettle(): void {
@@ -916,6 +937,9 @@ export default class Ink {
         { level: 'warn' },
       )
       if (this.altScreenActive) this.wholeFrameDue = true
+      this.retryUndeliveredFrame()
+    } else {
+      this.clearUndeliveredRetry()
     }
 
     if (this.watchdogCommitsRemaining > 0) {
@@ -2012,6 +2036,7 @@ export default class Ink {
 
     this.isUnmounted = true
     this.clearResizeSettle()
+    this.clearUndeliveredRetry()
     this.scheduler.cancel()
     reconciler.updateContainerSync(null, this.container, null, null)
     reconciler.flushSyncWork()
@@ -2051,6 +2076,7 @@ export default class Ink {
   detachForShutdown(): void {
     this.isUnmounted = true
     this.clearResizeSettle()
+    this.clearUndeliveredRetry()
     this.scheduler.cancel()
     drainStdin(this.options.stdin)
     const { stdin } = this.options
