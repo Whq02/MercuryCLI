@@ -64,7 +64,9 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
   const isTerminalEditor = guiEditorName === undefined
 
   const editorCommand = WAIT_FLAG_OVERRIDES[editor.trim()] ?? editor
-  const invocation = parseLegacyCommandString(editorCommand)
+  const invocation = process.platform === 'win32' && editorCommand === editor
+    ? { executablePath: resolved.executable, args: resolved.args }
+    : parseLegacyCommandString(editorCommand)
   const editorExe = invocation.executablePath
   if (editorExe === '') {
     return { content: null }
@@ -81,7 +83,7 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
     }
     try {
       const exitCode = await new Promise<number | null>((resolveExit, rejectExit) => {
-        const child = spawn(commandLine, { shell: true, windowsHide: false, stdio: 'inherit', env: { ...subprocessEnv() } })
+        const child = spawn(commandLine, { shell: true, windowsHide: false, stdio: 'inherit', env: { ...subprocessEnv(), ...(process.platform === 'win32' ? { MERCURY_EDITOR_FILE: filePath } : {}) } })
         child.once('error', rejectExit)
         child.once('exit', code => resolveExit(code))
       })
@@ -108,7 +110,7 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
 }
 
 export function editorCommandLine(editorExe: string, args: readonly string[], filePath: string, platform: NodeJS.Platform = process.platform): string {
-  const quotedPath = platform === 'win32' ? `"${filePath}"` : `'${filePath.replaceAll("'", `'\\''`)}'`
+  const quotedPath = platform === 'win32' ? '"%MERCURY_EDITOR_FILE%"' : `'${filePath.replaceAll("'", `'\\''`)}'`
   return [`"${editorExe}"`, ...args.map(arg => `"${arg}"`), quotedPath].join(' ')
 }
 
