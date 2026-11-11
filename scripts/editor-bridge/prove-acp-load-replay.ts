@@ -535,6 +535,45 @@ try {
     check('L5: a row the product minted with the stand-in\'s words sends nothing', replayUpdatesOf([standInRow('<synthetic>')]).length === 0, j(replayUpdatesOf([standInRow('<synthetic>')])))
     check('L5 control: a reply a model gave in the same words is replayed (a live turn streamed it)', j(talk(replayUpdatesOf([standInRow(MODEL)]) as Update[])) === j(['agent: No response requested.']), j(replayUpdatesOf([standInRow(MODEL)])))
   }
+
+  section('L6 — a command typed in an editor: the load replays the line the editor sent and the answer it was shown, never the record\'s storage tags')
+  {
+    const api = await startProvider((provider, asked) => say(provider, asked, `L6-REPLY-${provider.said.length + 1}.`))
+    const arena = makeArena('l6', api.url)
+    const live = await openEditor(arena)
+    let sessionId = ''
+    let shown: string[] = []
+    try {
+      sessionId = String((await live.request('session/new', { cwd: arena.cwd, mcpServers: [] })).sessionId)
+      for (const line of ['L6 first prompt.', '/context', 'L6 second prompt.']) await live.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: line }] })
+      await new Promise(resolve => setTimeout(resolve, 400))
+      shown = live.updates.filter(entry => entry.sessionId === sessionId && entry.update.sessionUpdate === 'agent_message_chunk').map(entry => String(entry.update.content?.text ?? ''))
+    } finally {
+      await live.end()
+      await api.close()
+    }
+    check('L6: live, the editor was shown the two replies and the command\'s answer between them, and the command asked no model', shown.length === 3 && shown[0] === 'L6-REPLY-1.' && shown[1]!.includes('Context') && shown[2] === 'L6-REPLY-2.' && api.asks.length === 2, `${heads(shown)}; requests ${api.asks.length}`)
+    const replayed = await loadIn(arena, sessionId)
+    check(
+      'L6: the load replays what the editor sent and was shown, in that order — the command as the line typed, its answer as the agent\'s message',
+      j(talk(replayed)) === j(['user: L6 first prompt.', `agent: ${shown[0]}`, 'user: /context', `agent: ${shown[1]}`, 'user: L6 second prompt.', `agent: ${shown[2]}`]),
+      heads(talk(replayed)),
+    )
+    check('L6: …and no update carries a storage tag', !replayed.some(update => /<\/?(command-(name|message|args)|local-command-(stdout|stderr|caveat))>/.test(j(update))), heads(talk(replayed)))
+    const typed = (text: string): Record<string, unknown> => ({ type: 'user', message: { role: 'user', content: text } })
+    const echoed = (text: string): Record<string, unknown> => ({ type: 'system', subtype: 'local_command', content: text })
+    check(
+      'L6: a command with arguments replays as the line with them, and an answer on the error stream as the agent\'s message',
+      j(talk(replayUpdatesOf([typed('<command-message>compact</command-message>\n<command-name>/compact</command-name>\n<command-args>keep the file names</command-args>'), echoed('<local-command-stderr>Error: Nothing to compact.</local-command-stderr>')]) as Update[])) === j(['user: /compact keep the file names', 'agent: Error: Nothing to compact.']),
+      j(replayUpdatesOf([typed('<command-message>compact</command-message>\n<command-name>/compact</command-name>\n<command-args>keep the file names</command-args>'), echoed('<local-command-stderr>Error: Nothing to compact.</local-command-stderr>')])),
+    )
+    check(
+      'L6: a command the terminal recorded as its own echo, and an answer recorded as a user row, replay the same way; an answer with nothing in it sends nothing',
+      j(talk(replayUpdatesOf([echoed('<command-name>/cost</command-name>\n<command-message>cost</command-message>\n<command-args></command-args>'), typed('<local-command-stdout>COST-ANSWER</local-command-stdout>'), typed('<local-command-stdout></local-command-stdout>')]) as Update[])) === j(['user: /cost', 'agent: COST-ANSWER']),
+      j(replayUpdatesOf([echoed('<command-name>/cost</command-name>\n<command-message>cost</command-message>\n<command-args></command-args>'), typed('<local-command-stdout>COST-ANSWER</local-command-stdout>'), typed('<local-command-stdout></local-command-stdout>')])),
+    )
+    check('L6 control: a prompt that only speaks of a command is replayed as written', j(talk(replayUpdatesOf([typed('what does /context print?')]) as Update[])) === j(['user: what does /context print?']), j(replayUpdatesOf([typed('what does /context print?')])))
+  }
 } finally {
   for (const server of servers) endProcessGroup(server)
   for (const provider of providers) await provider.close()

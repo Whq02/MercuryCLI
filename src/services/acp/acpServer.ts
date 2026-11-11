@@ -30,6 +30,9 @@ import type { TranscriptMessage } from '../../types/logs.js'
 import { withoutRetractedReplies } from '../engine-connector/midTurnText.js'
 import { SYNTHETIC_MODEL } from '../../utils/messages/factories.js'
 import { NO_RESPONSE_REQUESTED } from '../../utils/messages/rejectionText.js'
+import { extractTag } from '../../utils/messages/text.js'
+import { COMMAND_ARGS_TAG, COMMAND_NAME_TAG, LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
+import { commandOutputTextOf } from '../../rows/project.js'
 import { defineStore } from '../../substrate/fileStore.js'
 import { join } from 'node:path'
 import { MERCURY_VERSION } from '../../constants/product.js'
@@ -446,6 +449,25 @@ function sessionLineOf(messages: Map<UUID, TranscriptMessage>): TranscriptMessag
   return leaf === undefined ? [] : buildConversationChain(messages, leaf)
 }
 
+function commandAnswerOf(text: string): string | null {
+  const head = text.trimStart()
+  return head.startsWith(`<${LOCAL_COMMAND_STDOUT_TAG}>`) || head.startsWith(`<${LOCAL_COMMAND_STDERR_TAG}>`) ? commandOutputTextOf(text) : null
+}
+
+function commandLineOf(text: string): string | null {
+  const name = extractTag(text, COMMAND_NAME_TAG)
+  if (name === null) return null
+  const args = (extractTag(text, COMMAND_ARGS_TAG) ?? '').trim()
+  return args === '' ? name : `${name} ${args}`
+}
+
+function textReplayOf(text: string, typed: boolean): Record<string, unknown> | null {
+  const answer = commandAnswerOf(text)
+  if (answer !== null) return answer === '' ? null : { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: answer } }
+  const line = commandLineOf(text) ?? (typed ? text : '')
+  return line === '' ? null : { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: line } }
+}
+
 export function replayUpdatesOf(
   messages: Iterable<Record<string, unknown>>,
 ): Array<Record<string, unknown>> {
@@ -455,15 +477,22 @@ export function replayUpdatesOf(
     if (m.isMeta === true || m.isSidechain === true) continue
     const message = m.message as { content?: unknown; model?: unknown } | undefined
     const content = message?.content
+    if (m.type === 'system') {
+      const echoed = m.subtype === 'local_command' && typeof m.content === 'string' ? textReplayOf(m.content, false) : null
+      if (echoed !== null) updates.push(echoed)
+      continue
+    }
     if (m.type === 'user') {
       if (typeof content === 'string') {
-        if (content !== '') updates.push({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text: content } })
+        const said = textReplayOf(content, true)
+        if (said !== null) updates.push(said)
         continue
       }
       if (!Array.isArray(content)) continue
       for (const block of content as Array<Record<string, unknown>>) {
-        if (block.type === 'text' && typeof block.text === 'string' && block.text !== '') {
-          updates.push({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text: block.text } })
+        if (block.type === 'text' && typeof block.text === 'string') {
+          const said = textReplayOf(block.text, true)
+          if (said !== null) updates.push(said)
         } else if (block.type === 'tool_result' && typeof block.tool_use_id === 'string' && announced.has(block.tool_use_id)) {
           const text = toolResultText(block.content)
           const output = toolOutputContentOf(text)
