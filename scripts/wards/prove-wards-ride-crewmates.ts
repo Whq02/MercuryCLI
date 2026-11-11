@@ -197,6 +197,21 @@ section('§7 a context whose id is the session\'s is judged once')
   disengageToolGuard(sessionId, 'ride-count')
 }
 
+section('§8 no count of refusals stands a rule down: thirty refused calls of a crewmate, then the session\'s own')
+{
+  const forced = 'git push --force origin main'
+  const theirs: boolean[] = []
+  for (let i = 0; i < 30; i++) {
+    const result = await run(crewmate, forced)
+    theirs.push(result.warded && !result.reached)
+  }
+  check('thirty force pushes of main from a crewmate are thirty refusals', theirs.every(Boolean), `${theirs.filter(Boolean).length} of 30 refused`)
+  const own = await run(sessionContext, forced)
+  check('…and the session\'s own force push of main is refused after them as before them', own.warded && !own.reached, `reached the tool: ${JSON.stringify(ran)} · ${own.text.slice(0, 160)}`)
+  const still = await run(crewmate, 'sudo true')
+  check('…as is a command of the refusal list', still.warded && !still.reached, still.text.slice(0, 160))
+}
+
 console.log('\n' + '='.repeat(60))
 console.log(failures === 0 ? ` ✅ wards ride crewmates: ${checks} checks, 0 failures` : ` ❌ wards ride crewmates: ${failures} of ${checks} checks failed`)
 process.exit(failures === 0 ? 0 : 1)

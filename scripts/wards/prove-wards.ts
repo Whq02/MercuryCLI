@@ -307,7 +307,7 @@ async function main(): Promise<void> {
     }
   }
 
-  section('4. armed hook — deny string, re-deny, cap, idempotent, live kill')
+  section('4. armed hook — deny string, re-deny, no stand-down, idempotent, live kill')
   {
     const store = makeStore()
     resetWardsEngagedSessionsForTest()
@@ -325,9 +325,9 @@ async function main(): Promise<void> {
     process.env.MERCURY_WARDS = '0'
     check('live =0 re-read ⇒ stands down mid-session', (await cb(...violating)) === true)
     delete process.env.MERCURY_WARDS
-    let last: unknown = 'x'
-    for (let i = 0; i < 30; i++) last = await cb(...violating)
-    check('session cap ⇒ stands down (never-wedge)', last === true)
+    const verdicts: unknown[] = []
+    for (let i = 0; i < 30; i++) verdicts.push(await cb(...violating))
+    check('thirty more identical violations ⇒ thirty denials (a rule never stands down within a session)', verdicts.every(verdict => typeof verdict === 'string' && verdict.includes('no-new-hex-outside-theme')), `${verdicts.filter(verdict => verdict === true).length} allowed`)
     registerWardsGuard(store.setAppState, 'w-live')
     check('re-register is a no-op (one guard)', guardsEngaged('w-live').tool.filter(entry => entry === WARDS_HOOK_ID).length === 1)
   }
@@ -550,9 +550,9 @@ async function main(): Promise<void> {
     const r1 = await cb(...curl)
     check('a refuse-list hit is denied on the hook road with the refusal text', typeof r1 === 'string' && r1.includes("Ward 'curl-pipe-shell'") && r1.endsWith(CLOSING), String(r1).slice(0, 120))
     for (let i = 0; i < 30; i++) await cb(...hexViolation)
-    check('the content rules stand down at the cap', (await cb(...hexViolation)) === true)
+    check('the content rules deny the thirty-first violation as the first (no rule stands down within a session)', typeof (await cb(...hexViolation)) === 'string')
     const r2 = await cb(...curl)
-    check('…and the refuse-list still refuses past the cap', typeof r2 === 'string' && r2.includes("Ward 'curl-pipe-shell'"), String(r2).slice(0, 80))
+    check('…and the refuse-list still refuses after them', typeof r2 === 'string' && r2.includes("Ward 'curl-pipe-shell'"), String(r2).slice(0, 80))
     const r3 = await cb(...ctx('Bash', { command: 'rm -rf /' }))
     check('rm -rf / is refused on the hook road', typeof r3 === 'string' && r3.includes("Ward 'no-root-recursive-delete'"), String(r3).slice(0, 80))
     check('a read-only recon command passes the hook', (await cb(...ctx('Bash', { command: 'git log --oneline -3' }))) === true)

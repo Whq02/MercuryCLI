@@ -27,8 +27,6 @@ import { engageToolGuard } from './guards.js'
 
 export const WARDS_HOOK_ID = 'wards-content-rules'
 
-const WARD_DENIAL_CAP = 25
-
 const TARGET_HEAD_BYTES = 2048
 
 export function readTargetHead(path: string, work?: WardWork, bytes = TARGET_HEAD_BYTES): string | undefined {
@@ -230,7 +228,6 @@ export function registerWardsGuard(
   const unattendedRules = rulesFor(true)
   const resolveTarget = makeTargetResolver(getCwd(), work)
   const startingFolder = realTargetPath(getCwd())
-  let denials = 0
   engageToolGuard(sessionId, {
     id: WARDS_HOOK_ID,
     timeoutMs: 5000,
@@ -254,19 +251,8 @@ export function registerWardsGuard(
         }
         const refusal = evaluateWards(REFUSAL_WARDS, pending, work)
         if (!refusal.allow && level !== 'warn') return { allow: false, reason: buildWardDenial(refusal, pending.toolName) }
-        if (denials < WARD_DENIAL_CAP) {
-          const verdict = evaluateWards(call.asksAnswerable === true ? attendedRules : unattendedRules, pending, work)
-          if (!verdict.allow) {
-            const denial = buildWardDenial(verdict, pending.toolName)
-            denials++
-            if (denials === WARD_DENIAL_CAP) {
-              logForDebugging(
-                `wards: denial cap (${WARD_DENIAL_CAP}) reached for session ${sessionId} — standing down`,
-              )
-            }
-            return { allow: false, reason: denial }
-          }
-        }
+        const verdict = evaluateWards(call.asksAnswerable === true ? attendedRules : unattendedRules, pending, work)
+        if (!verdict.allow) return { allow: false, reason: buildWardDenial(verdict, pending.toolName) }
         if (refusal.allow) return { allow: true }
         logForDebugging(`wards: warn — ${buildWardDenial(refusal, pending.toolName)}`)
         return {
