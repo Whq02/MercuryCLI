@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { check, decide, fill, finish, note, pageText, said, section, shown, type Rules } from './floorsKit.ts'
 
+const PATCH = `-${'p'}`
 const wanted = process.argv.slice(2).filter(arg => !arg.startsWith('--'))
 const runs = (id: string): boolean => wanted.length === 0 || wanted.includes(id)
 type Mode = 'default' | 'implement' | 'apollo' | 'dontAsk' | 'flow' | 'sovereign'
@@ -98,6 +99,26 @@ if (runs('T-3.3b')) {
 if (runs('T-3.3c')) {
   section('T-3.3c floor 1, "unless an exact path rule grants them": under Sovereign and Flow the rule does not grant (stricter than the page)')
   await expect('T-3.3c', call('Write', { file_path: '<HOME>/.ssh/authorized_keys', content: 'x' }, 'allow Edit(~/.ssh/authorized_keys)', { allow: ['Edit(~/.ssh/authorized_keys)'] }), ['sovereign', 'flow'], behavior => behavior === 'allow', 'the exact path rule grants it, as the page says')
+}
+
+if (runs('T-3.6')) {
+  section('T-3.6 floor 5: the content of a .env file printed with no ask (Default, Implement, Apollo)')
+  const readers: Call[] = [
+    bash('grep -r SECRET .', 'a recursive search prints the matching lines of every file, .env among them'),
+    bash('grep -r SECRET'),
+    bash('grep -rn SECRET'),
+    bash('grep -r "" .', 'every line of every file'),
+    bash('git grep SECRET'),
+    bash('git grep -n SECRET -- .env', 'the file named'),
+    bash('git show HEAD:.env', 'the file named'),
+    bash('git show :.env'),
+    bash(`git cat-file ${PATCH} HEAD:.env`),
+    bash('git blame .env'),
+    bash('git diff HEAD -- .env'),
+    bash(`git log ${PATCH} -- .env`),
+  ]
+  for (const item of readers) await expect('T-3.6', item, ['default', 'implement', 'apollo'], notAllowed, 'asks first')
+  note('the Grep tool withholds a .env file\'s lines from a search of the folder, and Bash already asked for a recursive grep whose include filter names .env files')
 }
 
 note('nothing above was executed: no shell, no signal, no keychain call; the stores, the config home and the runtime are dummies under the run scratch')

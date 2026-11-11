@@ -376,7 +376,7 @@ export function checkPathSafetyForAutoEdit(
     if (isProductConfigPath(expandPath(resolved))) {
       return {
         safe: false,
-        operatorOnly: false,
+        operatorOnly: context?.mode === 'flow',
         message: `Permission to write to ${path} was requested but not yet granted.`,
       }
     }
@@ -385,7 +385,7 @@ export function checkPathSafetyForAutoEdit(
     if (isDangerousFileOrDirectory(expandPath(resolved))) {
       return {
         safe: false,
-        operatorOnly: false,
+        operatorOnly: context?.mode === 'flow' && isInstructionEstatePath(resolved),
         message: `Mercury requested permission to edit ${path}, which is a sensitive file.`,
       }
     }
@@ -935,7 +935,7 @@ export function checkWritePermissionForTool(
     const message = 'Writing ' + path + ' is refused: ' + credential + ' is a protected system or credential path.'
     return deny(message, { type: 'other', reason: message })
   }
-  if (tool.name !== 'RecordConvention' && (context.mode === 'default' || context.mode === 'implement') &&
+  if (tool.name !== 'RecordConvention' && (context.mode === 'default' || context.mode === 'implement' || context.mode === 'flow') &&
       [path, runtimeInput].some(target => isInstructionEstatePath(target))) {
     for (const resolved of resolutionSet) {
       const rule = matchingRuleForInput(resolved, context, 'edit', 'ask')
@@ -947,7 +947,7 @@ export function checkWritePermissionForTool(
     if (estateGrant) return estateGrant
     if (!isApolloPlanningDocument([path, runtimeInput, ...resolutionSet])) {
       const message = `Permission to write ${path} is required: this file steers every later session.`
-      return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false }, suggestions: generateSuggestions(path, 'write', context, resolutionSet) } as PermissionDecision
+      return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: context.mode === 'flow' }, suggestions: generateSuggestions(path, 'write', context, resolutionSet) } as PermissionDecision
     }
   }
   const internal = checkEditableInternalPath(expandPath(path), input)

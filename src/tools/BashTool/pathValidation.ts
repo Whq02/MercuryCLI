@@ -1,5 +1,5 @@
 import { readdirSync, realpathSync, statSync, type Dirent } from 'node:fs'
-import { join, posix as posixPath, win32 as win32Path } from 'node:path'
+import { join, posix as posixPath, resolve as resolvePath, win32 as win32Path } from 'node:path'
 import type { ToolPermissionContext } from '../../Tool.js'
 import type {
   PermissionResult,
@@ -28,6 +28,7 @@ import { getDirectoryForPath } from '../../utils/path.js'
 import { stripSafeWrappers } from './bashPermissions.js'
 import { sedCommandIsAllowedByAllowlist } from './sedValidation.js'
 import { scanCeiling } from '../../utils/verification/scanCeiling.js'
+import { gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
 
 
 export type PathCommand =
@@ -423,11 +424,64 @@ function extractSedOperands(args: string[]): string[] {
   return operands
 }
 
+const GIT_PATCH_FLAGS: ReadonlySet<string> = new Set(['-p', '-u', '--patch', '--patch-with-stat', '--patch-with-raw', '--cc', '-c', '-m'])
+const GIT_DIFF_COMMANDS: ReadonlySet<string> = new Set(['diff', 'diff-tree', 'diff-index', 'diff-files'])
+const GIT_LOG_COMMANDS: ReadonlySet<string> = new Set(['log', 'whatchanged'])
+const GIT_GREP_VALUE_FLAGS: ReadonlySet<string> = new Set(['-A', '-B', '-C', '-m', '--max-count', '--max-depth', '--threads', '--open-files-in-pager', '-O', '--and', '--or', '--not'])
+const GIT_VALUE_FLAGS: ReadonlySet<string> = new Set(['-L', '-S', '-G', '-n', '--since', '--until', '--after', '--before', '--author', '--committer', '--grep', '--format', '--pretty', '--date', '--diff-filter', '--skip', '--max-count', '-O', '--contents', '--ignore-rev', '--ignore-revs-file'])
+
+function gitObjectPath(operand: string): string[] {
+  const colon = operand.indexOf(':')
+  if (colon === -1 || operand.startsWith(':/') || operand.startsWith(':(')) return []
+  const path = operand.slice(colon + 1).replace(/^[0-3]:/, '')
+  return path === '' ? [] : [path]
+}
+
+function gitPrintedPaths(args: string[]): { paths: string[]; whole: boolean; recursive: boolean } | null {
+  const at = gitSubcommandIndex(args)
+  const subcommand = args[at]
+  if (subcommand === undefined) return null
+  const rest = args.slice(at + 1)
+  const separator = rest.indexOf('--')
+  const before = separator === -1 ? rest : rest.slice(0, separator)
+  const after = separator === -1 ? [] : rest.slice(separator + 1)
+  const operands = (valued: ReadonlySet<string>): string[] => before.filter((word, index) => !word.startsWith('-') && !valued.has(before[index - 1] ?? ''))
+  const named = (words: string[]): string[] => words.flatMap(word => {
+    const inObject = gitObjectPath(word)
+    return inObject.length > 0 ? inObject : [word]
+  })
+  const narrowed = (words: string[]): boolean => after.length > 0 || words.some(word => {
+    try {
+      statSync(resolvePath(getShellCwd(), expandTilde(word)))
+      return true
+    } catch {
+      return false
+    }
+  })
+  if (subcommand === 'show' || subcommand === 'cat-file') return { paths: [...operands(GIT_VALUE_FLAGS).flatMap(gitObjectPath), ...after], whole: false, recursive: false }
+  if (subcommand === 'blame' || subcommand === 'annotate') return { paths: [...named(operands(GIT_VALUE_FLAGS)), ...after], whole: false, recursive: false }
+  if (GIT_DIFF_COMMANDS.has(subcommand)) {
+    if (rest.includes('--no-index')) return { paths: extractBaseline(rest.filter(word => word !== '--no-index')).slice(0, 2), whole: false, recursive: false }
+    return { paths: [...named(operands(GIT_VALUE_FLAGS)), ...after], whole: false, recursive: true }
+  }
+  if (GIT_LOG_COMMANDS.has(subcommand)) {
+    if (!before.some(word => GIT_PATCH_FLAGS.has(word))) return null
+    const words = operands(GIT_VALUE_FLAGS)
+    return { paths: [...named(words), ...after], whole: !narrowed(words), recursive: true }
+  }
+  if (subcommand === 'grep') {
+    const patterned = before.some(word => word === '-e' || word === '-f' || word.startsWith('--regexp') || word.startsWith('--file'))
+    const all = before.filter((word, index) => !word.startsWith('-') && !GIT_GREP_VALUE_FLAGS.has(before[index - 1] ?? '') && before[index - 1] !== '-e' && before[index - 1] !== '-f')
+    const words = patterned ? all : all.slice(1)
+    return { paths: [...named(words), ...after], whole: !narrowed(words), recursive: true }
+  }
+  return null
+}
+
 function extractGitOperands(args: string[]): string[] {
-  if (args[0] !== 'diff') return []
-  if (!args.includes('--no-index')) return []
-  const rest = args.slice(1).filter(a => a !== '--no-index')
-  return extractBaseline(rest).slice(0, 2)
+  const printed = gitPrintedPaths(args)
+  if (printed === null) return []
+  return printed.whole ? [...printed.paths, '.'] : printed.paths
 }
 
 
@@ -636,7 +690,7 @@ function runPathChecker(
       if (flowRead && check.decisionReason === undefined) continue
       const refusal = operandRefusal(command, check, context, operationType)
       if (refusal.behavior === 'deny') return refusal
-      held ??= refusal
+      if (held === null || (operatorSafetyAsk(refusal) && !operatorSafetyAsk(held))) held = refusal
       continue
     }
     const envAsk = readsEnvContent ? envFileReadAsk(check.resolvedPath, context) : null
@@ -655,8 +709,16 @@ function runPathChecker(
       const refusal = treeRefusal(command, roots, cwd, context, operationType, follows, denied)
       if (refusal !== null) return refusal
     }
+    if (HIDDEN_FILE_READERS[command]?.(args) === true) {
+      const env = envFileBeneath(command, args, roots, context)
+      if (env !== null) return env
+    }
   }
   return { behavior: 'passthrough', message: `All ${command} operands are within the allowed directories.` }
+}
+
+function operatorSafetyAsk(result: PermissionResult): boolean {
+  return result.behavior === 'ask' && result.decisionReason?.type === 'safetyCheck' && result.decisionReason.operatorOnly
 }
 
 function operandRefusal(command: PathCommand, check: ReturnType<typeof validatePath>, context: ToolPermissionContext, operationType: FileOperationType, spelled = check.resolvedPath): PermissionResult {
@@ -722,6 +784,66 @@ const RECURSIVE_READERS: Partial<Record<PathCommand, (args: string[]) => boolean
     const flags = flagNames(args, DIFF_GRAMMAR)
     return flags.has('-r') || flags.has('--recursive')
   },
+  git: args => gitPrintedPaths(args)?.recursive === true,
+}
+
+const HIDDEN_FILE_READERS: Partial<Record<PathCommand, (args: string[]) => boolean>> = {
+  grep: args => RECURSIVE_READERS.grep?.(args) === true,
+  rg: args => args.some(arg => arg === '--hidden' || arg === '-.' || /^-[a-zA-Z]*u[a-zA-Z]*u/.test(arg) || arg === '--no-ignore-dot'),
+  git: args => RECURSIVE_READERS.git?.(args) === true,
+}
+const ENV_WALK_SKIPPED: ReadonlySet<string> = new Set(['.git', 'node_modules'])
+
+function namedBy(glob: string, name: string): boolean {
+  try {
+    return new RegExp(`^${glob.replace(/[.+^${}()|\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`).test(name)
+  } catch {
+    return false
+  }
+}
+
+function grepNameFilters(args: string[]): { includes: string[]; excludes: string[] } {
+  const includes: string[] = []
+  const excludes: string[] = []
+  walkOptions(args, GREP_GRAMMAR, (name, values) => {
+    const value = values[0]
+    if (value === undefined) return
+    if (name === '--include') includes.push(value)
+    if (name === '--exclude') excludes.push(value)
+  }, () => {})
+  return { includes, excludes }
+}
+
+function envFileBeneath(command: PathCommand, args: string[], roots: string[], context: ToolPermissionContext): PermissionResult | null {
+  const { includes, excludes } = command === 'grep' ? grepNameFilters(args) : { includes: [], excludes: [] }
+  const budget = scanCeiling()
+  const queue = roots.filter(isDirectory)
+  const seen = new Set<string>()
+  let visited = 0
+  while (queue.length > 0) {
+    const dir = queue.pop() as string
+    if (seen.has(dir)) continue
+    seen.add(dir)
+    let entries: Dirent[]
+    try {
+      entries = readdirSync(dir, { withFileTypes: true })
+    } catch {
+      continue
+    }
+    for (const entry of entries) {
+      if (++visited > budget) return null
+      const full = join(dir, entry.name)
+      if (entry.isDirectory()) {
+        if (!ENV_WALK_SKIPPED.has(entry.name)) queue.push(full)
+        continue
+      }
+      if (!isProjectEnvFileName(entry.name)) continue
+      if ((includes.length > 0 && !includes.some(glob => namedBy(glob, entry.name))) || excludes.some(glob => namedBy(glob, entry.name))) continue
+      const ask = envFileReadAsk(full, context)
+      if (ask) return { behavior: 'ask', message: ask.message, decisionReason: ask.decisionReason }
+    }
+  }
+  return null
 }
 
 function isDirectory(path: string): boolean {

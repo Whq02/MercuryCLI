@@ -87,6 +87,14 @@ for (const command of ['git status', 'cat notes.txt', 'tail -n 5 notes.txt']) {
   check('default · that allow rule does not open the floor', wholeAllowFloor.behavior === 'deny', said(wholeAllowFloor))
 }
 
+section('§6b the rule a Monitor ask offers to remember is the command\'s own, never the whole tool')
+for (const [command, content] of [['npm install left-pad', 'npm install *'], ['npm test', 'npm test *'], ['cat $FILE', undefined], ['./deploy.sh staging', './deploy.sh *']] as const) {
+  const asked = await monitor(command, 'default')
+  const rules = (asked.suggestions ?? []).flatMap(suggestion => suggestion.rules ?? [])
+  const offered = rules.map(rule => `${rule.toolName}(${rule.ruleContent ?? ''})`).join(', ')
+  check(`default · Monitor ${shown(command)} asks and hands the card ${content === undefined ? 'no rule it could not name exactly' : `the rule Bash(${content})`}`, asked.behavior === 'ask' && asked.suggestions !== undefined && rules.every(rule => rule.ruleContent !== undefined && rule.ruleContent !== '') && (content === undefined || rules.some(rule => rule.toolName === 'Bash' && rule.ruleContent === content)), `${said(asked)} · offered: ${offered || '(none)'}`)
+}
+
 section('§7 a rule written for Monitor is honoured as a rule written for Bash is')
 {
   const denied = await monitor('rm -rf build', 'default', { deny: ['Monitor(rm *)'] })

@@ -48,6 +48,8 @@ import {
   type CommandIdentityCheckers,
 } from './bashCommandHelpers.js'
 import { checkPermissionMode } from './modeValidation.js'
+import { denyRuleReach, hiddenDenyRuleRefusal, type HiddenDenyRule, type ReachBudget } from './denyRuleReach.js'
+import { modeBypassesPermissions, permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
 import { checkPathConstraints, checkShellCwd } from './pathValidation.js'
 import { checkPreparedReadOnlyConstraints, cutPart, notReadOnlyClause, type NotReadOnly } from './readOnlyValidation.js'
 import { checkSedConstraints } from './sedValidation.js'
@@ -591,8 +593,11 @@ export function bashToolHasPermission(
 ): Promise<PermissionResult> {
   return withBashParseScope(async () => {
     const resolvedInput = input.cwd === undefined ? input : { ...input, cwd: resolveShellCwd(input.cwd) }
-    const result = await decideBashPermission(resolvedInput, context, prefixFn)
+    const { result, hidden } = await decideWithDenyRuleReach(resolvedInput, context, prefixFn, 0)
     if (result.behavior === 'deny') return result
+    if (hidden !== null && result.behavior !== 'allow' && (modeBypassesPermissions(context.mode) || context.mode === 'flow')) {
+      return hiddenDenyRuleRefusal(hidden, permissionModeTitle(context.mode))
+    }
     const cwd = checkShellCwd(resolvedInput, context)
     if (cwd !== null) return cwd
     if (result.behavior !== 'allow') return result
@@ -600,6 +605,29 @@ export function bashToolHasPermission(
     const merged = { ...resolvedInput, ...carried }
     return { ...result, updatedInput: { ...merged, command: rewriteReadOnlyGitCommand(merged.command, resolveShellCwd(merged.cwd)) } }
   })
+}
+
+async function decideWithDenyRuleReach(
+  input: BashInput,
+  context: ToolPermissionContext,
+  prefixFn: PrefixFn,
+  depth: number,
+  budget?: ReachBudget,
+): Promise<{ result: PermissionResult; hidden: HiddenDenyRule | null }> {
+  const result = await decideBashPermission(input, context, prefixFn)
+  if (result.behavior === 'deny') return { result, hidden: null }
+  const reach = await denyRuleReach(input.command, resolveShellCwd(input.cwd), context, {
+    judge: async (command, cwd, left) => {
+      const inner = await decideWithDenyRuleReach({ ...input, command, cwd }, context, prefixFn, depth + 1, left)
+      return inner.result.behavior === 'deny' ? { denied: inner.result, hidden: null } : { denied: null, hidden: inner.hidden }
+    },
+    bashDenyRule: candidate => {
+      const deny = matchRules(candidate, context, 'deny', 'exact', true) ?? matchRules(candidate, context, 'deny', 'prefix', true)
+      return deny === null ? null : ruleFor(context, deny, 'deny')
+    },
+    optionNamedWrites,
+  }, depth, budget)
+  return reach.denied !== null ? { result: reach.denied, hidden: null } : { result, hidden: reach.hidden }
 }
 
 type RulesBySource = ToolPermissionContext['alwaysAllowRules']
@@ -663,8 +691,10 @@ export async function shellCommandHasPermission(
   context: ToolPermissionContext,
 ): Promise<PermissionResult> {
   const read = contentRulesReadAsBash(context, toolName)
-  const result = await bashToolHasPermission(input, read.context)
-  return read.own.size === 0 ? result : spelledForTool(result, context, toolName, read.own)
+  const decided = await bashToolHasPermission(input, read.context)
+  const result = read.own.size === 0 ? decided : spelledForTool(decided, context, toolName, read.own)
+  if ((result.behavior !== 'ask' && result.behavior !== 'passthrough') || ('suggestions' in result && result.suggestions !== undefined)) return result
+  return { ...result, suggestions: suggestionForCommand(input.command) } as PermissionResult
 }
 
 export async function startedCommandVerdict(
@@ -737,7 +767,7 @@ async function decideBashPermission(
     if (parsed.kind === 'simple') {
       const early = semanticsDenyCheck(input, context, parsed.commands)
       if (early) return early
-      for (const written of shellCCommands(parsed.commands).flatMap(optionNamedWrites)) {
+      for (const written of shellCCommands(parsed.commands).flatMap(simple => optionNamedWrites(simple.argv))) {
         if (credentialStorePath(written, cwd) === null) continue
         const refusal = credentialStoreWriteRefusal(written, cwd, context)
         if (refusal !== null) return { behavior: 'deny', message: refusal, decisionReason: { type: 'other', reason: refusal } }
@@ -1123,9 +1153,9 @@ function optionValues(args: string[], short: string, longs: readonly string[]): 
   return values
 }
 
-function optionNamedWrites(command: SimpleCommand): string[] {
-  const peeled = peelWrappers(command.argv)
-  const argv = Array.isArray(peeled) ? peeled : command.argv
+function optionNamedWrites(words: string[]): string[] {
+  const peeled = peelWrappers(words)
+  const argv = Array.isArray(peeled) ? peeled : words
   const name = posixPath.basename(argv[0] ?? '')
   const args = argv.slice(1)
   if (name === 'curl') return optionValues(args, 'oDc', ['--output', '--output-dir', '--dump-header', '--cookie-jar', '--trace', '--trace-ascii', '--stderr'])

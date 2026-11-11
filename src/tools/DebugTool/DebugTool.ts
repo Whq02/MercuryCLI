@@ -12,6 +12,7 @@ import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../To
 import { startedCommandVerdict } from '../BashTool/bashPermissions.js'
 import { startedCommandText } from '../../utils/bash/ast.js'
 import { runtimeProcessRefusal } from '../../utils/permissions/runtimeProtection.js'
+import { evalCodePermission } from '../../utils/permissions/shellProtectedPaths.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { getCwd } from '../../utils/cwd.js'
 import { lazySchema } from '../../utils/lazySchema.js'
@@ -1265,6 +1266,23 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
   }
 }
 
+const DEBUGGEE_TEXT_FIELDS: ReadonlySet<string> = new Set(['expression', 'value', 'condition', 'hitCondition', 'logMessage'])
+
+function textsTheDebuggeeRuns(input: unknown): string[] {
+  const texts: string[] = []
+  const visit = (value: unknown, field: string | null): void => {
+    if (typeof value === 'string') {
+      if (field !== null && DEBUGGEE_TEXT_FIELDS.has(field)) texts.push(value)
+    } else if (Array.isArray(value)) {
+      for (const item of value) visit(item, field)
+    } else if (typeof value === 'object' && value !== null) {
+      for (const [key, item] of Object.entries(value)) visit(item, key)
+    }
+  }
+  visit(input, null)
+  return texts
+}
+
 export const DebugTool = buildTool({
   name: DEBUG_TOOL_NAME,
   keepEmptyInputs: ['lines', 'breakpoints', 'functions', 'dataBreakpoints', 'instructionBreakpoints'],
@@ -1326,6 +1344,10 @@ export const DebugTool = buildTool({
     }
     if (input.op === 'customRequest') {
       return approvalNeeded(`Debug custom request: ${input.method ?? '?'}${input.body ? ` ${input.body.slice(0, 120)}` : ''}`)
+    }
+    for (const text of textsTheDebuggeeRuns(input)) {
+      const floor = await evalCodePermission(text, getCwd())
+      if (floor !== null) return floor
     }
     return { behavior: 'allow' as const, updatedInput: input }
   },
