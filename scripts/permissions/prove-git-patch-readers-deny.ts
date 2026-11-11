@@ -142,6 +142,15 @@ for (const command of PRINTS_NONE) {
   check(`${shown(command)} · answered in all six modes as with no rule in force`, wrong.length === 0, wrong.join(' ‖ '))
 }
 {
+  const { gitArgs } = await import('../../src/utils/git/spawnArgs.ts')
+  const ran = (args: string[]): string => execFileSync(REAL_GIT, gitArgs(args, PROJECT), { cwd: PROJECT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+  const summary = ran(['stash', 'show', 'stash@{1}'])
+  check('a plain git stash show, which the rule lets run, is run so that it prints what git prints for it: the summary line of the stash, none of the denied file\'s lines', /secrets\/k\.txt \| 1 \+/.test(summary) && !summary.includes('diff --git') && !summary.includes('+held'), summary.slice(0, 200))
+  check('…the words the product adds to it name the summary, since any option that names no format makes git print the patch', gitArgs(['stash', 'show', 'stash@{1}'], PROJECT).join(' ').endsWith('stash show --stat --no-ext-diff --no-textconv stash@{1}') && gitArgs(['stash', 'show', '-u', '1'], PROJECT).join(' ').endsWith('stash show --stat --no-ext-diff --no-textconv -u 1'), gitArgs(['stash', 'show', 'stash@{1}'], PROJECT).join(' '))
+  const asked = gitArgs(['stash', 'show', PATCH, 'stash@{1}'], PROJECT).join(' ')
+  check('…and a stash reader that names its own format is run as it was', asked.endsWith(`stash show --no-ext-diff --no-textconv ${PATCH} stash@{1}`) && gitArgs(['stash', 'show', '--stat'], PROJECT).join(' ').endsWith('stash show --no-ext-diff --no-textconv --stat') && ran(['stash', 'show', PATCH, 'stash@{1}']).includes('+held'), asked)
+}
+{
   const plain = await bash('git diff', 'default')
   const shownHead = await bash('git show HEAD', 'default')
   check('default · git diff and git show HEAD run with no card, as before', plain.behavior === 'allow' && shownHead.behavior === 'allow', `${said(plain)} ‖ ${said(shownHead)}`)
