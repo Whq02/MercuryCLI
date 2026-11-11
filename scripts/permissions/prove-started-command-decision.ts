@@ -145,7 +145,7 @@ for (const service of ['repl', 'server']) {
     const plain = await decide('Service', typed(service, 'print(1)'), mode)
     check(`service "${service}" · ${mode} · print(1) typed into it is ${behavior === 'ask' ? 'asked about on the tool\'s own card' : 'allowed'}`, plain.behavior === behavior, said(plain))
     const notShell = await decide('Service', typed(service, 'rm -rf build'), mode, { deny: ['Bash(rm *)'] })
-    check(`service "${service}" · ${mode} · a Bash deny rule is not read into text typed into a program that is no shell (${behavior})`, notShell.behavior === behavior, said(notShell))
+    check(`service "${service}" · ${mode} · text typed into a program that is not known for a shell is read as a command too: a Bash deny rule that matches it refuses`, notShell.behavior === 'deny' && /Bash\(rm \*\)/.test(notShell.message ?? ''), said(notShell))
   }
 }
 
@@ -254,6 +254,52 @@ section('§9 a service\'s inputs are one script: text sent to it is read with th
   check('flow · a push typed after a cd still asks first', alone.behavior === 'ask', said(alone))
   const zero = await decide('Service', typed('ruled', PUSH), 'sovereign')
   check('sovereign · the same text asks nothing', zero.behavior === 'allow', said(zero))
+}
+
+section('§10 a program that is not known for a shell but may run what it is sent: both readings, the stricter kept')
+{
+  const programs: Array<[string, string, string[]]> = [
+    ['a shell loop that evaluates each line', 'sh', ['-c', 'while read l; do eval "$l"; done']],
+    ['a shell behind arch', 'arch', ['-arm64', 'sh']],
+    ['a shell this reading has no name for', 'yash', []],
+    ['a shell on another host', 'ssh', ['localhost']],
+    ['sqlite3', 'sqlite3', [':memory:']],
+    ['a Python prompt', 'python3', ['-i']],
+  ]
+  let n = 0
+  for (const [label, command, args] of programs) {
+    const name = `evaluator-${n++}`
+    standInService(name, command, args)
+    for (const text of command === 'sqlite3' ? ['cat <CONFIG>/.credentials.json', '.shell cat <CONFIG>/.credentials.json'] : ['cat <CONFIG>/.credentials.json']) {
+      const wrong: string[] = []
+      for (const mode of ALL_MODES) {
+        const decision = await decide('Service', typed(name, fill(text)), mode)
+        if (decision.behavior !== 'deny' || !/holds Mercury's own credentials/.test(decision.message ?? '')) wrong.push(`${mode}: ${said(decision)}`)
+      }
+      check(`${label} (${[command, ...args].join(' ')}) · ${shown(fill(text))} typed into it is refused in all six modes: the text is read as a command too`, wrong.length === 0, wrong.join(' ‖ '))
+    }
+    const ruled: string[] = []
+    for (const mode of ALL_MODES) {
+      const decision = await decide('Service', typed(name, 'rm -rf build'), mode, { deny: ['Bash(rm *)'] })
+      if (decision.behavior !== 'deny') ruled.push(`${mode}: ${said(decision)}`)
+    }
+    check(`${label} · rm -rf build under a deny rule Bash(rm *) is refused in all six modes`, ruled.length === 0, ruled.join(' ‖ '))
+    for (const [mode, behavior] of [['default', 'ask'], ['flow', 'allow'], ['sovereign', 'allow']] as const) {
+      const plain = await decide('Service', typed(name, 'ls'), mode)
+      check(`control · ${label} · ${mode} · ls typed into it is answered as before (${behavior})`, plain.behavior === behavior, said(plain))
+    }
+  }
+  standInService('prompt', 'python3', ['-i'])
+  for (const text of ['print(1)', "import os; os.system('ls')", 'for i in range(3):\n    print(i)', 'x = {"a": [1, 2]}']) {
+    for (const mode of ['flow', 'sovereign'] as const) {
+      const decision = await decide('Service', typed('prompt', text), mode, { deny: ['Bash(rm *)', 'Read(secrets/**)'] })
+      check(`control · ${mode} · ${shown(text)} typed into a Python prompt with deny rules in force is not refused for being no command the Bash reading can follow`, decision.behavior === 'allow', said(decision))
+    }
+  }
+  const flowPush = await decide('Service', typed('evaluator-0', ['git', 'push', 'origin', 'main'].join(' ')), 'flow')
+  check('flow · a push typed into the shell loop asks first', flowPush.behavior === 'ask', said(flowPush))
+  const zeroPush = await decide('Service', typed('evaluator-0', ['git', 'push', 'origin', 'main'].join(' ')), 'sovereign')
+  check('sovereign · the same text asks nothing', zeroPush.behavior === 'allow', said(zeroPush))
 }
 note('nothing in this proof is executed: tool inputs handed to the decision function with the real tools; the daemon is a stand-in process of this proof, and the services are record files it wrote, with no process behind them; what a service was sent is told to the history by this proof, as the tool tells it after a write')
 finish('prove-started-command-decision')
