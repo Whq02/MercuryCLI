@@ -113,7 +113,10 @@ function said(spelled) {
   return onDisk(spelled).toString()
 }
 function folded(name) {
-  return NAMES_FOLD ? name.normalize('NFC').toLowerCase() : name
+  if (!NAMES_FOLD) return name
+  let word = name.normalize('NFD')
+  for (let round = 0; round < 2; round++) word = word.toUpperCase().toLowerCase()
+  return word.normalize('NFD')
 }
 function bare(place) {
   let end = place.length
