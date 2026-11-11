@@ -59,10 +59,23 @@ export function BashPermissionRequest(props: PermissionRequestProps): React.Reac
   return <BashCommandPermissionRequest {...props} command={input.command} cwd={input.cwd} />
 }
 
+export function MonitorPermissionRequest(props: PermissionRequestProps): React.ReactNode {
+  const { command, description } = props.toolUseConfirm.input as { command?: unknown; description?: unknown }
+  return (
+    <BashCommandPermissionRequest
+      {...props}
+      command={typeof command === 'string' ? command : ''}
+      title="Monitor command"
+      summary={typeof description === 'string' ? description : ''}
+    />
+  )
+}
+
 function BashCommandPermissionRequest(
-  props: PermissionRequestProps & { command: string; cwd?: string },
+  props: PermissionRequestProps & { command: string; cwd?: string; title?: string; summary?: string },
 ): React.ReactNode {
   const { toolUseConfirm, toolUseContext, onDone, onReject, workerBadge, command } = props
+  const summary = props.summary ?? toolUseConfirm.description
   const [debugVisible, setDebugVisible] = useState(false)
   const workspaceFolder = useFocusedWorkspaceCwd()
   const startingFolder = useFocusedWorkspaceOriginalCwd()
@@ -199,7 +212,7 @@ function BashCommandPermissionRequest(
   return (
     <Box flexDirection="column">
       <PermissionDialog
-        title="Bash command"
+        title={props.title ?? 'Bash command'}
         workerBadge={workerBadge}
       >
         <Box flexDirection="column">
@@ -219,12 +232,12 @@ function BashCommandPermissionRequest(
                 })}
               </Text>
             )}
-            {explainer.visible ? null : (
-              <Text dimColor>{toolUseConfirm.description}</Text>
+            {explainer.visible || props.summary === '' ? null : (
+              <Text dimColor>{summary}</Text>
             )}
             <Text dimColor>in {toTildePath(runFolder)}</Text>
           </Box>
-          <PermissionExplainerContent visible={explainer.visible} promise={explainer.promise} fallback={<Text dimColor>{toolUseConfirm.description}</Text>} />
+          <PermissionExplainerContent visible={explainer.visible} promise={explainer.promise} fallback={<Text dimColor>{summary}</Text>} />
           {debugVisible ? (
             <PermissionDecisionDebugInfo
               permissionResult={toolUseConfirm.permissionResult}
