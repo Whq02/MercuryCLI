@@ -92,7 +92,7 @@ for (const request of requests) {
     }
   }
 }
-const short = (text: string | undefined): string => (text ?? '(no result)').replaceAll('\n', ' ⏎ ').replaceAll(world, '<world>').slice(0, 230)
+const short = (text: string | undefined): string => (text ?? '(no result)').replaceAll('\n', ' / ').replaceAll(world, '<world>').slice(0, 230)
 console.log(`  exit ${code}; ${requests.length} requests to the fixture model; tool results: ${results.map((text, index) => `[${index + 1}] ${short(text).slice(0, 150)}`).join(' ‖ ')}`)
 check('the run reached the model and the five tool calls were answered', results.length >= 5, `${results.length} tool results · stderr: ${stderr.slice(-300)}`)
 
