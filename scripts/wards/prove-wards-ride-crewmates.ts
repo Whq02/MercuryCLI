@@ -235,6 +235,34 @@ section('§9 a command embedded in the text of a skill or a custom command is ju
   }
 }
 
+section('§9b under MERCURY_WARDS=warn an embedded command carries the warning row a Bash call carries')
+{
+  const { executeShellCommandsInPrompt } = await import(join(SRC, 'utils/promptShellExecution.ts'))
+  const rows: Array<{ content?: unknown; level?: unknown }> = []
+  const denyingState = { ...appState, toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default', shouldAvoidPermissionPrompts: true, alwaysDenyRules: { localSettings: ['Bash'] } } }
+  const screened = { ...sessionContext, getAppState: () => denyingState, appendSystemMessage: (row: { content?: unknown; level?: unknown }) => void rows.push(row) }
+  const embedded = 'Run this first: !`git -C /nonexistent-refuse-list-probe config core.hooksPath x`'
+  const tried = async (context: unknown): Promise<string> => {
+    try {
+      await executeShellCommandsInPrompt(embedded, context as never, 'warn-probe')
+      return 'ran'
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error)
+    }
+  }
+  setFlagEnv('MERCURY_WARDS', 'warn')
+  const words = await tried(screened)
+  check('under warn the command goes on to the permission question, where a deny rule stands in the tool’s place: nothing ran', /Permission check failed/.test(words) && !/Ward '[a-z-]+' blocked/.test(words), words.slice(0, 200))
+  check('one warning row is handed to the screen', rows.length === 1, String(rows.length))
+  check('it says what a Bash call says under warn', /^Ward 'git-hooks-path' would have blocked this Bash call .* MERCURY_WARDS=warn let it run\.$/.test(String(rows[0]?.content ?? '')), String(rows[0]?.content ?? '').slice(0, 220))
+  check('at the warning level', rows[0]?.level === 'warning', String(rows[0]?.level))
+  const bare = await tried({ ...sessionContext, getAppState: () => denyingState })
+  check('a context with no screen takes no row and the command is judged the same', /Permission check failed/.test(bare) && rows.length === 1, bare.slice(0, 200))
+  deleteFlagEnv('MERCURY_WARDS')
+  const enforced = await tried(screened)
+  check('with the list enforcing, the same command is refused and no row is added', /Ward 'git-hooks-path' blocked this Bash call/.test(enforced) && rows.length === 1, enforced.slice(0, 200))
+}
+
 section('§10 a tool that starts a program by its argv is read as that command: Service and Journey')
 {
   const { judgeToolCall } = await import(join(SRC, 'guards/guards.ts'))

@@ -1,5 +1,9 @@
 import { ProtocolError, ProtocolErrorCode, Server, serveStdio, type Tool as McpTool } from '../services/mcp/sdk.js'
-import { getEmptyToolPermissionContext, type ToolUseContext } from '../Tool.js'
+import { getEmptyToolPermissionContext, type Tool, type ToolUseContext } from '../Tool.js'
+import { getSessionId } from '../bootstrap/state.js'
+import { engageCommitGate } from '../guards/commitGate.js'
+import { judgeToolCall } from '../guards/guards.js'
+import { registerWardsGuard } from '../guards/wardsGuard.js'
 import review from '../commands/review.js'
 import { getDefaultAppState } from '../state/AppStateStore.js'
 import { getTools } from '../tools.js'
@@ -26,6 +30,16 @@ export function describeToolError(error: unknown): string {
   return text === '' ? 'Error' : text
 }
 
+export function armServedSession(): void {
+  registerWardsGuard(() => {}, getSessionId())
+  engageCommitGate(getSessionId())
+}
+
+export async function servedCallRefusal(tool: Pick<Tool, 'name' | 'shellCommandOf'>, input: Record<string, unknown>, callId: string, signal?: AbortSignal): Promise<string | null> {
+  const judgement = await judgeToolCall(getSessionId(), { tool: tool.name, input, callId, messages: [], toolRef: tool as Tool, asksAnswerable: false }, signal)
+  return judgement.refused ? judgement.reason : null
+}
+
 export async function startMCPServer(
   cwd: string,
   debug: boolean,
@@ -33,6 +47,7 @@ export async function startMCPServer(
   const readFileStateCache = createFileStateCacheWithSizeLimit(100)
 
   setCwd(cwd)
+  armServedSession()
 
   const server = new Server(
     { name: 'mercury', version: MACRO.VERSION },
@@ -135,6 +150,10 @@ export async function startMCPServer(
         throw new Error(
           `Tool ${tool.name} input validation failed: ${(validation as { message?: string }).message ?? 'invalid input'}`,
         )
+      }
+      const refusal = await servedCallRefusal(tool, args, randomUUID(), abortController.signal)
+      if (refusal !== null) {
+        throw new Error(`PermissionRefused: ${tool.name} — ${refusal}`)
       }
       const assistantMessage = createAssistantMessage({ content: '' })
       const decision = await hasPermissionsToUseTool(

@@ -410,7 +410,9 @@ export async function shellCredentialWritePath(command: string, powershell = fal
 }
 
 const SECRET_NAME_SAMPLES = ['.credentials.json', '.provider-secrets.json', 'mcp-auth.json', 'x-auth.json', 'browser-secrets.json', '.credentials.json.corrupt.1', '.provider-secrets.json.corrupt.1']
-const CONVENTIONAL_HOME = /^(?:\/(?:users|home)\/[^/]+|\/root|[a-z]:\/users\/[^/]+)\/\.mercury$/
+const CONVENTIONAL_USER_HOME = '(?:\\/(?:users|home)\\/[^/]+|\\/root|[a-z]:\\/users\\/[^/]+)'
+const CONVENTIONAL_HOME = new RegExp(`^${CONVENTIONAL_USER_HOME}\\/\\.mercury$`)
+const HOLDS_CONVENTIONAL_HOME = new RegExp(`^${CONVENTIONAL_USER_HOME}$`)
 const DYNAMIC_PART = /[*?[{$]/
 
 function currentUser(): { user?: string; uid?: string } {
@@ -573,9 +575,49 @@ const TREE_COPIERS = new Set(['cp', 'scp', 'copy-item', 'cpi', 'rsync', 'ditto',
 const TREE_SEARCHERS = new Set(['rg', 'ag', 'ack', 'grep', 'egrep', 'fgrep', 'zgrep'])
 const FIND_NON_READERS = new Set(['ls', 'stat', 'echo', 'printf', 'file', 'du', 'wc', 'basename', 'dirname', 'realpath', 'readlink', 'test', '[', 'true', 'touch', 'chmod', 'chown', 'rm', 'rmdir', 'unlink', 'mv'])
 
-function holdsMercuryHome(word: string, cwd: string, homes: readonly string[]): boolean {
+function holdsMercuryHome(word: string, cwd: string, homes: readonly string[], hidden = true): boolean {
   if (word === '' || word.includes(UNREAD_PART)) return false
-  return protectedPathForms(word, cwd).some(form => CONVENTIONAL_HOME.test(`${form}/.mercury`) || homes.some(home => home.startsWith(`${form}/`)))
+  return protectedPathForms(word, cwd).some(form => (hidden && HOLDS_CONVENTIONAL_HOME.test(form)) || homes.some(home => home.startsWith(`${form}/`) && (hidden || !home.slice(form.length).includes('/.'))))
+}
+
+const GLOB_PART = /[*?[{]/
+
+function globNamesStore(word: string, cwd: string, homes: readonly string[], hidden: boolean): boolean {
+  if (!GLOB_PART.test(word) || word.includes(UNREAD_PART)) return false
+  const expanded = spelling(word)
+  const segments = expanded.split(/[\\/]/)
+  const at = segments.findIndex(segment => GLOB_PART.test(segment))
+  if (at < 0) return false
+  const fixed = segments.slice(0, at).join('/') || (expanded.startsWith('/') ? '/' : '.')
+  const patterns = segments.slice(at).filter(segment => segment !== '').map(segment => segment.toLowerCase())
+  let tests: RegExp[]
+  try {
+    tests = patterns.map(pattern => new RegExp(`^${wildcardSource(pattern)}$`))
+  } catch {
+    return false
+  }
+  const dotLed = (pattern: string): boolean => pattern.startsWith('.') || /^\{(?:[^}]*,)?\./.test(pattern)
+  for (const folder of protectedPathForms(fixed, cwd)) {
+    const under = `${folder}/`
+    for (const home of [...homes, ...(HOLDS_CONVENTIONAL_HOME.test(folder) ? [under + posix.basename(defaultMercuryHome().replace(/\\/g, '/')).toLowerCase()] : [])]) {
+      if (!home.startsWith(under)) continue
+      const below = home.slice(under.length).split(/[\\/]/)
+      if (patterns.length > below.length) continue
+      if (!patterns.every((pattern, index) => tests[index]!.test(below[index]!) && (dotLed(pattern) || !below[index]!.startsWith('.')))) continue
+      if (hidden || !below.slice(patterns.length).some(segment => segment.startsWith('.'))) return true
+    }
+  }
+  return false
+}
+
+function ripgrepReachesHidden(layer: Layer, simple: ReadCommand, read: ShellRead): boolean {
+  const words = layer.argv.slice(1)
+  if (words.some(word => word === '--hidden' || /^-[A-Za-z]*\.[A-Za-z.]*$/.test(word))) return true
+  const unrestricted = words.reduce((count, word) => count + (word === '--unrestricted' ? 1 : /^-[A-Za-z.]+$/.test(word) ? (word.match(/u/g) ?? []).length : 0), 0)
+  if (unrestricted >= 2) return true
+  if (words.includes('--no-config')) return false
+  const named = (entries: ReadonlyArray<{ name: string; value: string }>): boolean => entries.some(entry => entry.name === 'RIPGREP_CONFIG_PATH' && entry.value !== '')
+  return named(simple.env) || named(layer.env) || (read.exported.get('RIPGREP_CONFIG_PATH') ?? []).some(value => value !== '') || !!process.env.RIPGREP_CONFIG_PATH
 }
 
 function treeReadRoots(layer: Layer, fed: boolean, cwd: string, cwdHolds: boolean): string[] {
@@ -680,10 +722,11 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const whole = finder === undefined ? tree : findNamesASecret(finder.argv, homes) && (layer === finder ? feeds : !FIND_NON_READERS.has(layer.program))
       if (!whole) continue
       const handed = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
-      const held = finder === undefined ? treeReadRoots(layer, handed, here, holdsMercuryHome('.', here, homes)) : finder.findRoots === undefined || finder.findRoots.length === 0 ? ['.'] : finder.findRoots
+      const hidden = layer.program !== 'rg' || ripgrepReachesHidden(layer, simple, read)
+      const held = finder === undefined ? treeReadRoots(layer, handed, here, holdsMercuryHome('.', here, homes, hidden)) : finder.findRoots === undefined || finder.findRoots.length === 0 ? ['.'] : finder.findRoots
       for (const root of held) {
         for (const candidate of [...spellingsOf(root), ...underOtherHomes(root, read.homes)]) {
-          if (holdsMercuryHome(candidate, here, homes)) return `the whole of ${root === '.' ? 'this folder' : root} (name a folder beneath it)`
+          if (holdsMercuryHome(candidate, here, homes, hidden) || globNamesStore(candidate, here, homes, hidden)) return `the whole of ${root === '.' ? 'this folder' : root} (name a folder beneath it)`
         }
       }
     }
