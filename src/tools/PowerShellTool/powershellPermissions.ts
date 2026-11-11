@@ -40,6 +40,7 @@ import { hiddenCommandCharacterReason } from '../../utils/sanitization.js'
 import { credentialUploadReason } from '../../utils/permissions/commandContent.js'
 import { getDestructiveCommandWarning } from '../BashTool/destructiveCommandWarning.js'
 import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
+import { credentialStoreWriteRefusal } from '../../utils/permissions/filesystem.js'
 
 const TOOL_NAME = 'PowerShell'
 
@@ -177,8 +178,8 @@ async function decidePowerShellPermission(
   }
   const protectedWrite = await shellCredentialWritePath(command, true, cwd)
   if (protectedWrite !== null) {
-    const message = 'Writing ' + protectedWrite + ' affects a credential store and requires approval.'
-    deferredAsk = { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false } }
+    const refusal = credentialStoreWriteRefusal(protectedWrite, cwd, toolPermissionContext)
+    if (refusal !== null) return { behavior: 'deny', message: refusal, decisionReason: { type: 'other', reason: refusal } }
   }
   const prefixAsk = matchRules(command, toolPermissionContext, 'ask', 'prefix')
   if (prefixAsk) deferredAsk = ruledVerdict(toolPermissionContext, command, prefixAsk, 'ask')

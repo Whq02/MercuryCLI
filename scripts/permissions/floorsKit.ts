@@ -39,8 +39,10 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS'])
 
 mkdirSync(PROJECT, { recursive: true })
 mkdirSync(join(CONFIG_HOME, 'daemon'), { recursive: true })
-for (const dir of ['.ssh', '.aws', 'Documents']) mkdirSync(join(OWN_HOME, dir), { recursive: true })
-writeFileSync(join(OWN_HOME, '.ssh', 'authorized_keys'), 'ssh-ed25519 AAAA stand-in\n')
+for (const dir of ['.ssh', '.aws', '.gnupg', '.kube', '.docker', '.config/gh', '.config/gcloud', 'Library/Keychains', 'Documents']) mkdirSync(join(OWN_HOME, dir), { recursive: true })
+for (const [file, text] of [['.ssh/authorized_keys', 'ssh-ed25519 AAAA stand-in\n'], ['.ssh/id_ed25519', 'STAND-IN PRIVATE KEY\n'], ['.aws/credentials', '[default]\naws_secret_access_key = STAND-IN\n'], ['.netrc', 'machine example.invalid login x password STAND-IN\n'], ['.npmrc', '//registry.example.invalid/:_authToken=STAND-IN\n'], ['.git-credentials', 'https://x:STAND-IN@example.invalid\n']] as const) {
+  writeFileSync(join(OWN_HOME, file), text)
+}
 for (const file of ['.credentials.json', '.provider-secrets.json', 'mcp-auth.json', 'browser-secrets.json']) writeFileSync(join(CONFIG_HOME, file), '{"secret":"CANARY-MERCURY-SECRET-2207"}\n')
 mkdirSync(join(CONFIG_HOME, 'runtime', 'current'), { recursive: true })
 writeFileSync(join(CONFIG_HOME, 'runtime', 'current', 'mercury.mjs'), 'export {}\n')
@@ -50,7 +52,12 @@ mkdirSync(join(PROJECT, 'secrets'), { recursive: true })
 mkdirSync(join(PROJECT, 'build'), { recursive: true })
 writeFileSync(join(PROJECT, 'secrets', 'k.txt'), 'K\n')
 writeFileSync(join(PROJECT, '.env'), 'SECRET=CANARY-DOTENV-3318\n')
-writeFileSync(join(PROJECT, 'MERCURY.md'), '# instructions\n')
+writeFileSync(join(PROJECT, '.env.local'), 'SECRET=CANARY-DOTENV-LOCAL\n')
+writeFileSync(join(PROJECT, 'MERCURY.md'), '# instructions\n\n@docs/imported.md\n')
+mkdirSync(join(PROJECT, 'docs'), { recursive: true })
+writeFileSync(join(PROJECT, 'docs', 'imported.md'), 'an imported instruction file\n')
+writeFileSync(join(PROJECT, 'docs', 'plain.md'), 'a plain document\n')
+writeFileSync(join(PROJECT, 'AGENTS.md'), '# agents\n')
 writeFileSync(join(PROJECT, 'notes.txt'), 'notes\n')
 try {
   symlinkSync(join(CONFIG_HOME, '.credentials.json'), join(PROJECT, 'link-creds'))
@@ -73,6 +80,10 @@ const { decideToolPermissionWithModes } = await import('../../src/utils/permissi
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
 const { enableConfigs } = await import('../../src/utils/config.ts')
 const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
+const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
+const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
+const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
 const { MonitorTool } = await import('../../src/tools/MonitorTool/MonitorTool.ts')
 const { ServiceTool } = await import('../../src/tools/ServiceTool/ServiceTool.ts')
 const { JourneyTool } = await import('../../src/tools/JourneyTool/JourneyTool.ts')
@@ -91,7 +102,7 @@ const bash = {
   inputSchema: z.object({ command: z.string() }),
   checkPermissions: (input: { command: string }, context: { getAppState: () => { toolPermissionContext: unknown } }) => bashToolHasPermission(input, context.getAppState().toolPermissionContext as never),
 } as never
-const TOOLS: Record<string, unknown> = { Bash: bash, Monitor: MonitorTool, Service: ServiceTool, Journey: JourneyTool, Debug: DebugTool }
+const TOOLS: Record<string, unknown> = { Bash: bash, Read: FileReadTool, Write: FileWriteTool, Edit: FileEditTool, Eval: EvalTool, Monitor: MonitorTool, Service: ServiceTool, Journey: JourneyTool, Debug: DebugTool }
 
 export async function decide(tool: string, input: Record<string, unknown>, mode: string, rules: Rules = {}): Promise<Decision> {
   const state = {

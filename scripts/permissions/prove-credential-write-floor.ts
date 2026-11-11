@@ -105,7 +105,7 @@ try {
     }
     const rule = 'Edit(~/.ssh/config)'
     const explicit = await decide(FileEditTool, { file_path: '~/.ssh/config', append: 'x' }, mode, { allow: [rule] })
-    check(`${mode} named allow exception`, explicit.behavior === (mode === 'sovereign' ? 'deny' : 'allow'), `${explicit.behavior}: ${explicit.message ?? ''}`)
+    check(`${mode} named allow exception`, explicit.behavior === 'allow', `${explicit.behavior}: ${explicit.message ?? ''}`)
     const denied = await decide(FileEditTool, { file_path: '~/.ssh/config', append: 'x' }, mode, { allow: [rule], deny: [rule] })
     check(`${mode} deny wins named allow`, denied.behavior === 'deny', denied.message)
   }
@@ -143,9 +143,20 @@ try {
   ]
   for (const mode of modes) for (const [tool, command, named] of shellRows) {
     const verdict = await decide(tool, { command }, mode, { allow: [tool.name] })
-    check(`${mode} ${tool.name} credential write asks or runs`, verdict.behavior === (mode === 'sovereign' ? 'allow' : 'ask') && (mode === 'sovereign' || verdict.message?.includes(named)), `${command}: ${verdict.behavior}: ${verdict.message ?? ''}`)
+    check(`${mode} ${tool.name} credential write is refused as the Write tool refuses it`, verdict.behavior === 'deny' && / is refused: .+ is a protected system or credential path\.$/.test(verdict.message ?? '') && verdict.message?.includes(named) === true, `${command}: ${verdict.behavior}: ${verdict.message ?? ''}`)
     const denied = await decide(tool, { command }, mode, { deny: [tool.name] })
     check(`${mode} shell deny rule still wins`, denied.behavior === 'deny', denied.message)
+  }
+  for (const mode of modes) {
+    const rule = 'Edit(~/.ssh/config)'
+    for (const command of ['printf x > ~/.ssh/config', 'cp source ~/.ssh/config', "bash -c 'printf x > ~/.ssh/config'"]) {
+      const granted = await decide(BashTool, { command }, mode, { allow: [rule] })
+      check(`${mode} Bash named allow exception lifts the refusal`, granted.behavior !== 'deny', `${command}: ${granted.behavior}: ${granted.message ?? ''}`)
+      const broad = await decide(BashTool, { command }, mode, { allow: ['Edit(~/.ssh/**)'] })
+      check(`${mode} Bash broad grant cannot replace refusal`, broad.behavior === 'deny', `${command}: ${broad.behavior}: ${broad.message ?? ''}`)
+    }
+    const other = await decide(BashTool, { command: 'printf x > ~/.aws/config' }, mode, { allow: [rule] })
+    check(`${mode} Bash named allow exception reaches its own path alone`, other.behavior === 'deny', `${other.behavior}: ${other.message ?? ''}`)
   }
   for (const mode of modes) {
     for (const command of ['echo chmod 777 ~/.ssh/config', "printf '%s' 'cp source ~/.aws/config'", 'cat ~/.aws/config', "echo bash -c 'cp source ~/.aws/config'"]) {

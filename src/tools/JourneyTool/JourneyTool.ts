@@ -1,6 +1,7 @@
 
 import { z } from 'zod/v4'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
+import { startedCommandVerdict } from '../BashTool/bashPermissions.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { startedCommandText } from '../../utils/bash/ast.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -217,13 +218,20 @@ export const JourneyTool = buildTool({
   interruptBehavior() {
     return 'cancel' as const
   },
-  async checkPermissions(input: Input) {
+  async checkPermissions(input: Input, context: ToolUseContext) {
     if (input.op !== 'run') {
       return { behavior: 'allow' as const, updatedInput: input }
     }
     const kinds = [...new Set((input.steps ?? []).map(s => s.kind))].join(', ')
     const message = `Journey run: ${input.objective?.slice(0, 80) ?? ''} (${input.steps?.length ?? 0} step(s): ${kinds} — runs local services/commands, loopback only)`
-    return { behavior: 'passthrough' as const, message, decisionReason: { type: 'other' as const, reason: message } }
+    const own = { behavior: 'passthrough' as const, message, decisionReason: { type: 'other' as const, reason: message } }
+    const started = (input.steps ?? []).flatMap(step => {
+      if (step.kind !== 'command.run' && step.kind !== 'service.start') return []
+      const command = startedCommandText(step.command, step.args)
+      if (command === undefined) return []
+      return [step.kind === 'command.run' && step.cwd !== undefined ? { command, cwd: step.cwd } : { command }]
+    })
+    return started.length === 0 ? own : startedCommandVerdict(started, context, own)
   },
   async validateInput(input: Input) {
     if (!journeysEnabled()) {

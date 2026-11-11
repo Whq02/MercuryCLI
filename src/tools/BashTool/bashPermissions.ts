@@ -1,4 +1,4 @@
-import type { ToolPermissionContext } from '../../Tool.js'
+import { getEmptyToolPermissionContext, type ToolPermissionContext, type ToolUseContext } from '../../Tool.js'
 import type {
   PermissionResult,
   PermissionDecisionReason,
@@ -52,6 +52,8 @@ import { checkPathConstraints, checkShellCwd } from './pathValidation.js'
 import { checkPreparedReadOnlyConstraints, cutPart, notReadOnlyClause, type NotReadOnly } from './readOnlyValidation.js'
 import { checkSedConstraints } from './sedValidation.js'
 import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
+import { credentialStoreWriteRefusal } from '../../utils/permissions/filesystem.js'
+import { credentialStorePath } from '../../utils/permissions/protectedPaths.js'
 import { gitArgs, gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
 import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
 import { posix as posixPath } from 'node:path'
@@ -665,6 +667,23 @@ export async function shellCommandHasPermission(
   return read.own.size === 0 ? result : spelledForTool(result, context, toolName, read.own)
 }
 
+export async function startedCommandVerdict(
+  started: ReadonlyArray<{ command: string; cwd?: string }>,
+  toolUseContext: Pick<ToolUseContext, 'getAppState'> | undefined,
+  own: PermissionResult & { message: string },
+): Promise<PermissionResult> {
+  const context = (toolUseContext?.getAppState?.().toolPermissionContext ?? getEmptyToolPermissionContext()) as ToolPermissionContext
+  let held: PermissionResult | null = null
+  for (const one of started) {
+    const verdict = await bashToolHasPermission(one.cwd === undefined ? { command: one.command } : { command: one.command, cwd: one.cwd }, context)
+    if (verdict.behavior === 'deny') return verdict
+    if (verdict.behavior !== 'ask' || held !== null) continue
+    const reason = verdict.decisionReason
+    if (reason?.type === 'rule' || reason?.type === 'safetyCheck') held = { behavior: 'ask', message: `${own.message}\n${verdict.message}`, decisionReason: reason }
+  }
+  return held ?? own
+}
+
 async function decideBashPermission(
   input: BashInput,
   context: ToolPermissionContext,
@@ -690,8 +709,8 @@ async function decideBashPermission(
   if (protectedWrite !== null) {
     const denied = astRoot === undefined ? earlyExitDenyCheck(input, context) : astDenyCheck(input, context, astRoot)
     if (denied) return denied
-    const message = 'Writing ' + protectedWrite + ' affects a credential store and requires approval.'
-    return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false } }
+    const refusal = credentialStoreWriteRefusal(protectedWrite, cwd, context)
+    if (refusal !== null) return { behavior: 'deny', message: refusal, decisionReason: { type: 'other', reason: refusal } }
   }
   const remote = uncPathRisk(command, { command: true })
   if (remote.risky) {
@@ -718,6 +737,11 @@ async function decideBashPermission(
     if (parsed.kind === 'simple') {
       const early = semanticsDenyCheck(input, context, parsed.commands)
       if (early) return early
+      for (const written of shellCCommands(parsed.commands).flatMap(optionNamedWrites)) {
+        if (credentialStorePath(written, cwd) === null) continue
+        const refusal = credentialStoreWriteRefusal(written, cwd, context)
+        if (refusal !== null) return { behavior: 'deny', message: refusal, decisionReason: { type: 'other', reason: refusal } }
+      }
       if (uploadAsk !== null) return uploadAsk
       const semantic = pinnedCommandAnalysis.checkSemantics(parsed.commands)
       if (!semantic.ok) return unprovenAsk(semantic.reason)
@@ -1078,6 +1102,48 @@ function restrictedCommandCandidates(command: SimpleCommand, depth = 0): string[
     }
   }
   return [...candidates]
+}
+
+function optionValues(args: string[], short: string, longs: readonly string[]): string[] {
+  const values: string[] = []
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i] as string
+    const long = longs.find(name => arg === name || arg.startsWith(`${name}=`))
+    if (long !== undefined) {
+      const value = arg === long ? args[++i] : arg.slice(long.length + 1)
+      if (value !== undefined) values.push(value)
+      continue
+    }
+    if (!arg.startsWith('-') || arg.startsWith('--')) continue
+    const at = [...arg].findIndex((letter, index) => index > 0 && short.includes(letter))
+    if (at === -1) continue
+    const value = at === arg.length - 1 ? args[++i] : arg.slice(at + 1)
+    if (value !== undefined) values.push(value)
+  }
+  return values
+}
+
+function optionNamedWrites(command: SimpleCommand): string[] {
+  const peeled = peelWrappers(command.argv)
+  const argv = Array.isArray(peeled) ? peeled : command.argv
+  const name = posixPath.basename(argv[0] ?? '')
+  const args = argv.slice(1)
+  if (name === 'curl') return optionValues(args, 'oDc', ['--output', '--output-dir', '--dump-header', '--cookie-jar', '--trace', '--trace-ascii', '--stderr'])
+  if (name === 'wget') return optionValues(args, 'OPo', ['--output-document', '--directory-prefix', '--output-file'])
+  if (name === 'unzip') return optionValues(args, 'd', [])
+  if (name === 'tar' || name === 'bsdtar' || name === 'gtar') {
+    const extracts = args.some(arg => arg === '--extract' || arg === '--get' || (/^-?[A-Za-z]+$/.test(arg) && !arg.startsWith('--') && arg.includes('x')))
+    return extracts ? optionValues(args, 'C', ['--directory', '--cd']) : []
+  }
+  if (name === 'ssh-keygen') return args.some(arg => /^-[A-Za-z]*[lLyBFH]/.test(arg)) ? [] : optionValues(args, 'f', [])
+  if (name === 'git') {
+    const at = gitSubcommandIndex(args)
+    if (args[at] !== 'config') return []
+    const rest = args.slice(at + 1)
+    const reads = rest.some(arg => ['--get', '--get-all', '--get-regexp', '--get-urlmatch', '--list', '-l', '--show-origin', '--show-scope'].includes(arg))
+    return reads ? [] : optionValues(rest, 'f', ['--file'])
+  }
+  return []
 }
 
 function semanticsDenyCheck(input: BashInput, context: ToolPermissionContext, commands: SimpleCommand[]): PermissionResult | null {
