@@ -372,6 +372,9 @@ try {
     const wrapper = readFileSync(join(import.meta.dir, '../../src/commands/model/mercuryModel.tsx'), 'utf8')
     const opens = (road: string): number => (wrapper.match(new RegExp(`useCatalogueRefreshOnOpen\\(${road}, setNotice\\)`, 'g')) ?? []).length
     check('the DeepSeek road is opened wherever the OpenRouter road is', opens('DEEPSEEK_ROAD') === opens('OPENROUTER_ROAD') && opens('DEEPSEEK_ROAD') >= 1, `deepseek ${opens('DEEPSEEK_ROAD')} · openrouter ${opens('OPENROUTER_ROAD')}`)
+    for (const road of ['XAI_ROAD', 'META_ROAD']) {
+      check(`${road} opens through every wrapper beside OpenRouter`, opens(road) === opens('OPENROUTER_ROAD') && opens(road) >= 1, `${road} ${opens(road)} · openrouter ${opens('OPENROUTER_ROAD')}`)
+    }
     check('the road reads the key-keyed cache and forces its refresh', wrapper.includes('cached: () => getCachedDeepseekCatalogue()') && wrapper.includes('refresh: () => refreshDeepseekCatalogue({ force: true })') && wrapper.includes('${key.source}:${credentialFingerprint(key.key)}:${deepseekApiBase()}'))
     check('the heading counts the live rows through the one composer (the catalogue owner\'s rows, no second count)', !wrapper.includes('deepseekCatalogueSourceWords()') && wrapper.includes('orderPickerRows(anthropicDoorRows(models)'))
   }
