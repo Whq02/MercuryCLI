@@ -80,7 +80,7 @@ export function TrustDialog({ onDone }: Props): React.ReactNode {
             </Text>
           );
         })()}
-        <Select options={[{ label: "Yes, I trust this folder", value: "enable_all" }, { label: "No, exit", value: "exit" }]} onChange={(value: string) => onChange(value as 'enable_all' | 'exit')} onCancel={() => onChange("exit")} />
+        <Select options={[{ label: "Yes, I trust this folder", value: "enable_all" }, { label: "No, exit", value: "exit" }]} onChange={(value: string) => onChange(value as 'enable_all' | 'exit')} onCancel={() => onChange("exit")} scrollMovesFocus={false} />
         {exitState.pending ? <Text dimColor>{exitChordNoticeText(exitState.keyName)}</Text> : null}
       </Box>
     </PermissionDialog>
