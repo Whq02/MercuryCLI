@@ -144,6 +144,8 @@ function generatedAssetsVerdict(command: string): true | string {
 }
 
 function commandOfCall(call: ToolCallUnderGuard): string | null {
+  const declared = call.toolRef?.shellCommandOf?.(call.input)
+  if (typeof declared === 'string') return declared
   if (call.tool !== 'Bash' && call.tool !== POWERSHELL_TOOL_NAME) return null
   const command = call.input.command
   return typeof command === 'string' ? command : null
@@ -152,7 +154,6 @@ function commandOfCall(call: ToolCallUnderGuard): string | null {
 function registerCommitGate(sessionId: string): string {
   engageToolGuard(sessionId, {
     id: COMMIT_GATE_ID,
-    tools: ['Bash', POWERSHELL_TOOL_NAME],
     timeoutMs: 5000,
     judge: call => {
       if (flagEnv('MERCURY_COMMIT_GATE') === '0') return { allow: true }
