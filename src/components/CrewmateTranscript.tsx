@@ -25,7 +25,6 @@ export type TranscriptSwapProps = {
   agentDefinitions?: AgentDefinitionsResult
   scrollRef?: React.RefObject<ScrollBoxHandle | null>
   showAllInTranscript?: boolean
-  trackStickyPrompt?: boolean
 }
 
 export type ScrollMemory = { top: number; sticky: boolean }
@@ -43,22 +42,28 @@ export function restoreScroll(handle: ScrollBoxHandle | null, memory: ScrollMemo
 
 export const LEAD_VIEW_KEY = ''
 
-export function TranscriptSwap({ lead, tools, commands, screen, agentDefinitions, scrollRef, showAllInTranscript = false, trackStickyPrompt = false }: TranscriptSwapProps): React.ReactNode {
+export function TranscriptSwap({ lead, tools, commands, screen, agentDefinitions, scrollRef, showAllInTranscript = false }: TranscriptSwapProps): React.ReactNode {
   const crewmate = useViewedCrewmate()
   const roster = useFocusedWorkRoster()
   const transcript = useCrewmateTranscript(crewmate, roster)
   const tokens = useMercuryTokens()
   const memories = useRef(new Map<string, ScrollMemory>())
   const shown = useRef<string>(LEAD_VIEW_KEY)
+  const unplaced = useRef(false)
   const viewKey = crewmate?.taskId ?? LEAD_VIEW_KEY
+  const rowsStand = crewmate === null || transcript === null || transcript.state !== 'reading'
   useLayoutEffect(() => {
-    if (viewKey === shown.current) return
     const handle = scrollRef?.current ?? null
-    const left = rememberScroll(handle)
-    if (left !== null) memories.current.set(shown.current, left)
+    if (viewKey !== shown.current) {
+      const left = unplaced.current ? null : rememberScroll(handle)
+      if (left !== null) memories.current.set(shown.current, left)
+      shown.current = viewKey
+      unplaced.current = true
+    }
+    if (!unplaced.current || !rowsStand) return
     restoreScroll(handle, memories.current.get(viewKey) ?? null)
-    shown.current = viewKey
-  }, [viewKey, scrollRef])
+    unplaced.current = false
+  }, [viewKey, scrollRef, rowsStand])
   if (crewmate === null || transcript === null) return lead
   const plates = { agent: crewmate.name, user: operatorPlateName(crewmate.name) }
   return (
@@ -88,7 +93,6 @@ export function TranscriptSwap({ lead, tools, commands, screen, agentDefinitions
             hidePastReasoning
             streamingTail={null}
             scrollRef={scrollRef}
-            trackStickyPrompt={trackStickyPrompt}
             disableRenderCap
             suppressNotices
           />

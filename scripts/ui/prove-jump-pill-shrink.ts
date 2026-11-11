@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
+pinSourceRef()
 const HOME = pinScratchHome('jump-pill-shrink')
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_SEATS
@@ -77,6 +78,10 @@ function keepFrame(name: string, note: string, m: Mounted): string[] {
   return lines
 }
 const pillRow = (lines: string[]): number => lines.findIndex(line => line.includes(PILL))
+const newPill = (count: number): string => `[ ${count} new ${count === 1 ? 'message' : 'messages'} · alt+↓ ]`
+const eitherPillRow = (lines: string[]): number => lines.findIndex(line => /\[ (?:back to the bottom|\d+ new messages?) · alt\+↓ \]/.test(line))
+const rowsBelow = (handle: ScrollBoxHandle): number => (handle.isSticky() ? 0 : Math.max(0, handle.getFreshScrollHeight() - handle.getScrollTop() - handle.getViewportHeight()))
+const withLines = (id: string, from: number, count: number) => (rows: Row[]): Row[] => rows.map(row => (row.id === id ? { ...row, lines: Array.from({ length: count }, (_, line) => `msg ${from} line ${line + 1}`) } : row))
 const composerRow = (lines: string[]): number => lines.findIndex(line => /^│❯/.test(line))
 function foot(lines: string[], count = 7): string {
   const bottom = composerRow(lines) - 2
@@ -92,7 +97,7 @@ function Transcript({ rows }: { rows: Row[] }): React.ReactNode {
   return h(Box, { flexDirection: 'column' }, ...rows.map(row => h(Box, { key: row.id, flexDirection: 'column' }, h(Text, null, row.lines.join('\n')))))
 }
 
-async function mountCockpit(initial: Row[]): Promise<{ m: Mounted; api: Api }> {
+async function mountCockpit(initial: Row[], countsNewRows = false): Promise<{ m: Mounted; api: Api }> {
   initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   resetChromeModeLatchForTests()
   pending.edit('')
@@ -120,7 +125,7 @@ async function mountCockpit(initial: Row[]): Promise<{ m: Mounted; api: Api }> {
         scrollRef,
         dividerYRef: unseen.dividerYRef,
         hidePill: false,
-        newMessageCount: 0,
+        newMessageCount: countsNewRows && unseen.dividerIndex !== null ? Math.max(0, rows.length - unseen.dividerIndex) : 0,
         onPillClick: () => unseen.jumpToNew(scrollRef.current),
         scrollable: h(Transcript, { rows }),
         statusBand: h(Text, null, 'activity specimen'),
@@ -269,8 +274,80 @@ section('§3 a fold while the view is scrolled up past the new maximum: the offs
   await settle(80)
 }
 
+async function pageDownToTheFoot(m: Mounted, handle: ScrollBoxHandle, form: string, tag: string): Promise<void> {
+  const steps: Array<{ below: number; pill: boolean; right: boolean }> = []
+  let kept = false
+  for (let step = 0; step < 12; step++) {
+    await press(m, PAGE_DOWN)
+    const lines = m.lines()
+    const below = rowsBelow(handle)
+    const pill = lines.some(line => line.includes(form))
+    steps.push({ below, pill, right: pill === below > 0 })
+    if (!kept && below > 0 && !pill) {
+      kept = true
+      keepFrame(`${tag}-rows-below-no-pill`, `${below} rows below the view's foot and no pill`, m)
+    }
+    if (below === 0) break
+  }
+  const wrong = steps.filter(step => !step.right)
+  check(`paging down to the foot, the pill ${form} stands at every stop with rows below and at none without`, steps.length > 1 && steps[steps.length - 1]!.below === 0 && wrong.length === 0, steps.map(step => `${step.below} below: ${step.pill ? 'pill' : 'no pill'}`).join(' · '))
+  check('at the foot no pill of either form stands', eitherPillRow(m.lines()) === -1, foot(m.lines()))
+}
+
+section('§4 a row grows after the view left the tail: the pill stays until the view\'s foot is the transcript\'s foot')
+{
+  const { m, api } = await mountCockpit(tall(1, 24))
+  const handle = api.handle()!
+  await press(m, PAGE_UP)
+  check('PgUp paints the pill (the precondition)', pillRow(m.lines()) > 0 && api.armed())
+  api.setRows(withLines('t24', 24, 170))
+  await settle(400)
+  const grown = keepFrame('4-grown-under-the-view', 'the last row grows from 20 to 170 lines under the scrolled-up view', m)
+  check('the transcript grew by 150 rows below the view and the pill stands', rowsBelow(handle) > 150 && pillRow(grown) > 0, `${rowsBelow(handle)} rows below, pill row ${pillRow(grown) + 1}`)
+  await pageDownToTheFoot(m, handle, PILL, '4')
+  m.unmount()
+  await settle(80)
+}
+
+section('§5 new rows land under the scrolled-up view: the pill counts them and stays until the foot')
+{
+  const { m, api } = await mountCockpit(tall(1, 24), true)
+  const handle = api.handle()!
+  await press(m, PAGE_UP)
+  check('PgUp paints the pill (the precondition)', pillRow(m.lines()) > 0 && api.armed())
+  api.setRows(previous => [...previous, ...tall(25, 6)])
+  await settle(400)
+  const landed = keepFrame('5-six-new-rows', 'six rows land below the view: the pill counts them', m)
+  check('the pill reads six new messages', landed.some(line => line.includes(newPill(6))), foot(landed))
+  await pageDownToTheFoot(m, handle, newPill(6), '5')
+  m.unmount()
+  await settle(80)
+}
+
+section('§6 rows shrink with none leaving until the view rests at the foot: no pill of either form')
+{
+  for (const counted of [false, true]) {
+    const { m, api } = await mountCockpit(tall(1, 24), counted)
+    const handle = api.handle()!
+    await press(m, PAGE_UP)
+    check('PgUp paints the pill (the precondition)', pillRow(m.lines()) > 0 && api.armed())
+    if (counted) {
+      api.setRows(previous => [...previous, ...tall(25, 3)])
+      await settle(400)
+      check('three rows land below and the pill counts them', m.lines().some(line => line.includes(newPill(3))), foot(m.lines()))
+    }
+    api.setRows(previous => previous.map(row => (['t22', 't23', 't24', 't25', 't26', 't27'].includes(row.id) ? { ...row, lines: [row.lines[0]!] } : row)))
+    await settle(400)
+    const shrunk = keepFrame(`6-shrunk-${counted ? 'counted' : 'plain'}`, 'the rows under the view fold to one line each, none leaves: the view rests at the foot', m)
+    check(`${counted ? 'with new rows counted' : 'with nothing new'}: the view rests at the transcript's foot`, rowsBelow(handle) === 0, `${rowsBelow(handle)} rows below`)
+    check(`${counted ? 'with new rows counted' : 'with nothing new'}: no pill stands at the foot`, eitherPillRow(shrunk) === -1, foot(shrunk))
+    m.unmount()
+    await settle(80)
+  }
+}
+
 if (frameDir !== undefined) {
-  const index = ['The jump pill after a fold that shrinks the transcript: source renders of the real cockpit at 178x51. One file per state.', ...frames.map(frame => `${frame.name}.txt | ${frame.note}`)]
+  const index = ['The jump pill after the transcript shrinks or grows: source renders of the real cockpit at 178x51. One file per state.', ...frames.map(frame => `${frame.name}.txt | ${frame.note}`)]
   writeFileSync(join(frameDir, 'index.txt'), index.join('\n') + '\n')
   console.log(`\nframes: ${frames.length} written to ${frameDir}`)
 }

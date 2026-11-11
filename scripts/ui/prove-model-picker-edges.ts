@@ -142,7 +142,7 @@ const lineWith = (lines: string[], needle: string): string => lines.find(line =>
 const cursorLine = (lines: string[]): string => inner(lines.find(line => line.includes('│ │ ') || line.includes('❯ ')) ?? '').trim()
 const cells = (line: string): string[] => bare(line).split(/\s{2,}/)
 const tailCell = (line: string): string => cells(line).at(-1) ?? ''
-const PREVIEW_NEEDLE = 'claude-fable-5-7'
+const PREVIEW_NEEDLE = '5-7-preview'
 const boxLines = (lines: string[]): string[] => {
   const top = lines.findIndex(line => line.includes('╭'))
   const bottom = lines.findIndex((line, index) => index > top && /^\s*╰/.test(line))

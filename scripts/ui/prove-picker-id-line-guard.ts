@@ -53,7 +53,7 @@ console.log('\n§2 the row paints the raw id only for a model row (call-shaped)'
   const painter = src.slice(src.indexOf('const model = isModelRow(m)'), src.indexOf('{on && !compact && m.tag !== \'\''))
   check(
     'the id column paints m.id only on the model arm; the action arm paints the name across both columns and never the value',
-    painter.includes('{model ? (') && painter.includes('idCell(m.id, columns.id, narrowId)') && painter.includes('<Text bold color={m.gated ? SAND : IVORY}>{m.name}</Text>') && !/[cC]ell\(m\.id/.test(painter.slice(painter.indexOf('</>'))),
+    painter.includes('{model ? (') && painter.includes('idCell(m.id, columns.id)') && painter.includes('<Text bold color={m.gated ? SAND : IVORY}>{m.name}</Text>') && !/[cC]ell\(m\.id/.test(painter.slice(painter.indexOf('</>'))),
     painter.length > 0 ? '' : '(painter not found)',
   )
   check(

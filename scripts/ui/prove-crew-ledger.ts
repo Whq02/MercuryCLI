@@ -278,7 +278,7 @@ function Harness(): React.ReactNode {
     h(GlobalKeybindingHandlers, { screen, setScreen, showAllInTranscript: false, setShowAllInTranscript: () => {}, messageCount: 0, compactWork: controls } as never),
     h(FullscreenLayout, {
       scrollRef,
-      scrollable: h(TranscriptSwap, { lead: h(Transcript), tools: [], commands: [], screen: 'prompt', scrollRef, agentDefinitions: { activeAgents: [], allAgents: [] }, trackStickyPrompt: true }),
+      scrollable: h(TranscriptSwap, { lead: h(Transcript), tools: [], commands: [], screen: 'prompt', scrollRef, agentDefinitions: { activeAgents: [], allAgents: [] } }),
       statusBand: h(Text, null, 'waiting on 3 crewmates'),
       statusBandActive: true,
       modalScrollRef,

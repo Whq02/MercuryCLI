@@ -270,7 +270,7 @@ function Harness({ scrollRef }: { scrollRef: React.RefObject<ScrollBoxHandle | n
       hidePill: false,
       newMessageCount: 0,
       onPillClick: () => unseen.jumpToNew(scrollRef.current),
-      scrollable: h(TranscriptSwap, { lead: h(LeadTranscript), tools: [], commands: [], screen: 'prompt', scrollRef, agentDefinitions: { activeAgents: [], allAgents: [] }, trackStickyPrompt: true }),
+      scrollable: h(TranscriptSwap, { lead: h(LeadTranscript), tools: [], commands: [], screen: 'prompt', scrollRef, agentDefinitions: { activeAgents: [], allAgents: [] } }),
       statusBand: h(Text, null, 'waiting on 3 crewmates'),
       statusBandActive: true,
       modal: modal === null ? undefined : h(Box, { width: '100%', flexDirection: 'column' }, modal),

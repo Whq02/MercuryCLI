@@ -47,4 +47,4 @@ VITALS                  │ 13:02:27 [Mercury] Command rows ready.              
 │                                                                                                                                          │
 │  ↑↓ choose · ↵ confirm · esc cancel · tab amend                                                                                          │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
- Opus 5.5 · high                                                                                          project  esc interrupts · ⇧← back
+ Opus 5.5 · high                                                                                                           project  ⇧← back

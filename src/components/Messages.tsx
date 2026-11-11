@@ -223,7 +223,6 @@ type MessagesProps = {
   tailAnchor?: number
   unseenDivider?: UnseenDivider
   scrollRef?: React.RefObject<ScrollBoxHandle | null>
-  trackStickyPrompt?: boolean
   jumpRef?: React.Ref<JumpHandle | null>
   onSearchMatchesChange?: (total: number, current: number) => void
   scanElement?: (el: DOMElement) => MatchPosition[]
@@ -377,7 +376,6 @@ function MessagesInner({
   tailAnchor,
   unseenDivider,
   scrollRef,
-  trackStickyPrompt = false,
   jumpRef,
   onSearchMatchesChange,
   scanElement,
@@ -920,7 +918,6 @@ function MessagesInner({
             }
             extractSearchText={extractSearchText}
             extractFacets={extractFacets}
-            trackStickyPrompt={trackStickyPrompt}
             selectedIndex={
               cursor
                 ? visible.findIndex(message => message.uuid === cursor.uuid)
@@ -989,7 +986,6 @@ function areMessagesPropsEqual(
   if (prev.suppressNotices !== next.suppressNotices) return false
   if (prev.ownsCursor !== next.ownsCursor) return false
   if (prev.renderRange !== next.renderRange) return false
-  if (prev.trackStickyPrompt !== next.trackStickyPrompt) return false
   if (prev.streamingTail !== next.streamingTail) return false
   if (prev.streamingTextSuppressed !== next.streamingTextSuppressed) return false
   if (prev.tailAnchor !== next.tailAnchor) return false
