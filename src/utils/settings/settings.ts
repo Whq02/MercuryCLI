@@ -568,7 +568,7 @@ export function getApiKeyHelperFromOutsideCheckoutSources(): string | undefined 
 }
 
 export function hasSkipSovereignConsentPrompt(): boolean {
-  const trustedSources: SettingSource[] = ['userSettings', 'localSettings', 'flagSettings', 'policySettings']
+  const trustedSources: SettingSource[] = ['userSettings', 'flagSettings', 'policySettings']
   for (const source of trustedSources) {
     const settings = getSettingsForSource(source)
     if (settings?.guardrails?.sovereignConsentSeen === true) return true

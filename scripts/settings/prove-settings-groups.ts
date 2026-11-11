@@ -152,7 +152,7 @@ try {
     const sources: object[] = []
     sources[source] = { guardrails: { sovereignConsentSeen: true } }
     fixture(sources)
-    check(`consent source ${source} respects trust`, pipeline.hasSkipSovereignConsentPrompt() === (source !== 1))
+    check(`consent source ${source} respects trust: neither file in the folder grants it`, pipeline.hasSkipSovereignConsentPrompt() === (source !== 1 && source !== 2))
   }
   const { isMnemeEnabled, getMnemeHome } = await import('../../src/mneme/paths.js')
   const { getSettingsSnapshot, _resetSettingsSnapshotForTesting } = await import('../../src/utils/settings/snapshot.js')

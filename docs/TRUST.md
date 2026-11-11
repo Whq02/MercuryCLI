@@ -292,9 +292,10 @@ Managed policy settings tighten the hook surface beyond the trust gate:
   likewise runs only from policy settings.
 
 Adjacent to workspace trust sits the Sovereign-mode consent:
-`guardrails.sovereignConsentSeen` is honoured from the user, local, flag, and
-policy settings sources (the project source is deliberately excluded, so a
-hostile repository cannot pre-accept the Sovereign-mode consent dialog).
+`guardrails.sovereignConsentSeen` is honoured from the user, flag, and policy
+settings sources. The two files that live in the folder, the project settings
+and the local settings, are deliberately excluded, so a hostile repository
+cannot pre-accept the Sovereign-mode consent dialog.
 
 ## The permission-posture record
 

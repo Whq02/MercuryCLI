@@ -8,14 +8,14 @@ import { ripgrepCommand } from '../utils/ripgrep.js'
 import { findGitRoot } from '../utils/git.js'
 import { launchFolderBoundsProject } from '../utils/projectBoundary.js'
 import { getCwd } from '../utils/cwd.js'
-import { getInitialSettings } from '../utils/settings/settings.js'
+import { getInitialSettings, getSettingsForSource } from '../utils/settings/settings.js'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
 import type { FileSuggestionCommandInput } from '../types/fileSuggestion.js'
 import { startCommandHook } from '../utils/hooks/commandRunner.js'
 import { getSessionId } from '../bootstrap/state.js'
 import { getTranscriptPathForSession } from '../utils/sessionStorage/paths.js'
-import { hooksDisabled } from '../utils/hooks/hooksConfigSnapshot.js'
+import { hooksDisabled, managedHooksOnly } from '../utils/hooks/hooksConfigSnapshot.js'
 import type { SuggestionItem } from '../components/PromptInput/PromptInputFooterSuggestions.js'
 
 const RESULT_CAP = 15
@@ -430,7 +430,7 @@ export async function generateFileSuggestions(
   try {
     if (partialPath === '' && !showOnEmpty) return []
 
-    const custom = getInitialSettings().files?.suggester
+    const custom = (managedHooksOnly() ? getSettingsForSource('policySettings') : getInitialSettings())?.files?.suggester
     if (custom?.type === 'command') {
       const paths = await fileSuggestionsFromCommand(custom.command, partialPath)
       return paths
