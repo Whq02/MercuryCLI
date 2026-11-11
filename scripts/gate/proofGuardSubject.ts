@@ -88,7 +88,37 @@ if (mode === 'shapes') {
   await refuse('symlinkSync where a root would stand, spelled through a link to the root and ..', () => symlinkSync(foreign, throughLink))
   await refuse('linkSync there, spelled the same way', () => linkSync(join(foreign, 'file'), throughLink))
   await refuse('renameSync, a folder moved there, spelled the same way', () => renameSync(spare, throughLink))
+  const asBytes = (path: string): Uint8Array => new Uint8Array(Buffer.from(path))
+  await refuse('rmSync, a Uint8Array that is no Buffer', () => rmSync(asBytes(root) as never, whole))
+  await refuse('promises.rm, a Uint8Array', () => promises.rm(asBytes(root) as never, whole))
+  await refuse('renameSync, the root as a Uint8Array, moved away', () => renameSync(asBytes(root) as never, join(world, 'moved')))
+  await refuse('symlinkSync where a root would stand, the place a Uint8Array', () => symlinkSync(foreign, asBytes(missing) as never))
+  await refuse('rmSync, a DataView', () => rmSync(new DataView(asBytes(root).buffer) as never, whole))
+  await refuse('rmSync, an ArrayBuffer', () => rmSync(asBytes(root).buffer as never, whole))
+  await refuse('rmSync, a String object', () => rmSync(new String(root) as never, whole))
+  await refuse('rmSync, a value that is no path', () => rmSync({ at: root } as never, whole))
+  await refuse('rmSync, a name longer than the system reads, which no check can look at', () => rmSync(join(root, 'x'.repeat(300)), whole))
   facts.refused = refused
+
+  const shaped = join(tmpdir(), 'shaped.cjs')
+  writeFileSync(shaped, `const { existsSync, realpathSync, rmSync } = require('node:fs')
+const { dirname, join, sep } = require('node:path')
+const [root, world] = process.argv.slice(2)
+if (!realpathSync(dirname(root)).startsWith(realpathSync(world) + sep)) process.exit(64)
+const tried = []
+for (const [shape, value] of [['a Uint8Array that is no Buffer', new Uint8Array(Buffer.from(root))], ['a plain object shaped like a file URL', { href: 'file://' + root, protocol: 'file:', hostname: '', pathname: root, search: '', hash: '' }]]) {
+  let outcome = 'went through'
+  try { rmSync(value, { recursive: true, force: true }) } catch (error) { outcome = error.code === 'EPROOFGUARD' ? 'refused' : 'failed ' + error.code }
+  tried.push({ shape, outcome, stands: existsSync(join(root, 'kept')) })
+}
+console.log(JSON.stringify(tried))
+`)
+  const underNode = spawnSync(Bun.which('node') ?? 'node', [shaped, root, world], { cwd: tmpdir(), encoding: 'utf8' })
+  try {
+    facts.underNode = JSON.parse(underNode.stdout)
+  } catch {
+    facts.underNode = [{ shape: 'the node child', outcome: `rc=${underNode.status} ${underNode.stderr.slice(-300)}`, stands: kept() }]
+  }
 
   const allowed: Tried[] = []
   const allow = (shape: string, call: () => unknown): Promise<void> => attempt(allowed, shape, call, stands)
