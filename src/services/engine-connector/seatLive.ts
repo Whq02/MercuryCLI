@@ -62,6 +62,7 @@ export interface SeatLiveExtensionV1 {
   fold?(): FoldStatusV1 | null
   subscribeFold?(listener: () => void): () => void
   lostLine?(): LostLineV1 | null
+  transcriptStoreFailing?(): string | null
   editOutcomes?(): EditOutcomeRowV1[] | null
 }
 

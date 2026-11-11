@@ -68,6 +68,7 @@ export interface SessionFactsAnswerV1 {
   swarm?: import('../crewBoard/contracts.js').BoardViewSnapshot
   editOutcomes?: EditOutcomeRowV1[]
   buildTree?: string | null
+  transcriptStoreFailing?: string
 }
 
 export interface FileCheckpointFactsV1 {

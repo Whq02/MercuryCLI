@@ -569,6 +569,7 @@ export type SessionFactsResult = {
     count: number
   }>
   build_tree?: null | string
+  transcript_store_failing?: string
 }
 export type SessionRewindResult = {
   outcome: 'applied' | 'refused' | 'noop'

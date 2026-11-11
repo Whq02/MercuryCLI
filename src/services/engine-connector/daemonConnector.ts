@@ -1324,6 +1324,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return this.lostLineNotice
   }
 
+  transcriptStoreFailing(): string | null {
+    return this.facts?.transcriptStoreFailing ?? null
+  }
+
   private reconcileSends(): boolean {
     if (this.sends.length === 0) return false
     const now = Date.now()

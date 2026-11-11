@@ -229,6 +229,7 @@ const FACTS: KeyTable = {
   pauseGate: 'pause_gate',
   editOutcomes: 'edit_outcomes',
   buildTree: 'build_tree',
+  transcriptStoreFailing: 'transcript_store_failing',
 }
 const BOX: KeyTable = {
   atMs: 'at_ms',
