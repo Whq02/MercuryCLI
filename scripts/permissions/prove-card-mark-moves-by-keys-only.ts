@@ -245,7 +245,7 @@ section('where the terminal sends the wheel as arrows, an arrow is read as a whe
   }
 }
 
-section('two consent lists that are no permission card keep their mark under the wheel too')
+section('three consent lists that are no permission card keep their mark under the wheel too')
 {
   const { MCPServerApprovalDialog } = await import('../../src/components/MCPServerApprovalDialog.tsx')
   const { SovereignModeDialog } = await import('../../src/components/SovereignModeDialog.tsx')
@@ -279,6 +279,18 @@ section('two consent lists that are no permission card keep their mark under the
     check('↓ moves it, as before', arrow.includes('❯ 2. Yes, I accept'), arrow)
   } finally {
     sovereign.unmount()
+  }
+  const { TrustDialog } = await import('../../src/components/TrustDialog/TrustDialog.tsx')
+  const trust = await mount(h(TrustDialog, { onDone: () => {} } as never))
+  try {
+    await waitFor(() => markOf(trust).includes('❯ 1.'), 5_000)
+    const notch = await press(trust, WHEEL_DOWN)
+    const notchUp = await press(trust, WHEEL_UP)
+    check('the folder trust card opens on "Yes, I trust this folder" and a notch either way leaves the mark there, off "No, exit"', notch.includes('❯ 1. Yes, I trust this folder') && notchUp.includes('❯ 1. Yes, I trust this folder'), `${notch} · ${notchUp}`)
+    const arrow = await press(trust, KEY.down)
+    check('↓ moves it to "No, exit", as before', arrow.includes('❯ 2. No, exit'), arrow)
+  } finally {
+    trust.unmount()
   }
 }
 

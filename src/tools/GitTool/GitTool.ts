@@ -132,6 +132,10 @@ export type Output = {
   outcome: ToolEffectOutcome
 }
 
+function repoHostOffLine(): string {
+  return `repository-host reads are disabled (MERCURY_REPO_HOST=${flagEnv('MERCURY_REPO_HOST')?.trim() || '0'})`
+}
+
 async function runOp(
   input: Input,
   context: ToolUseContext,
@@ -368,7 +372,7 @@ async function runOp(
     }
     case 'hostSearch': {
       const { repoHostEnabled, searchHost } = await import('../../services/repoHost/repoHost.js')
-      if (!repoHostEnabled()) return { result: 'repository-host reads are disabled (MERCURY_REPO_HOST=0)', outcome: 'failed' }
+      if (!repoHostEnabled()) return { result: repoHostOffLine(), outcome: 'failed' }
       if (!input.searchKind || !input.query) return { result: 'hostSearch needs searchKind (code·commits·prs·issues) + query', outcome: 'failed' }
       const out = await searchHost(root, input.searchKind, input.query, input.limit)
       if (out.state !== 'ok') return { result: `${out.note}\nremedy: ${out.remedy}`, outcome: 'failed' }
@@ -384,7 +388,7 @@ async function runOp(
     }
     case 'prDiff': {
       const { repoHostEnabled, fetchPrDiffFiles, fetchPrDiffPage } = await import('../../services/repoHost/repoHost.js')
-      if (!repoHostEnabled()) return { result: 'repository-host reads are disabled (MERCURY_REPO_HOST=0)', outcome: 'failed' }
+      if (!repoHostEnabled()) return { result: repoHostOffLine(), outcome: 'failed' }
       if (input.file) {
         const out = await fetchPrDiffPage(root, input.file, input.page ?? 0, input.pr)
         if (out.state !== 'ok') return { result: `${out.note}\nremedy: ${out.remedy}`, outcome: 'failed' }
@@ -410,7 +414,7 @@ async function runOp(
     }
     case 'runs': {
       const { repoHostEnabled, fetchRun, fetchRuns } = await import('../../services/repoHost/repoHost.js')
-      if (!repoHostEnabled()) return { result: 'repository-host reads are disabled (MERCURY_REPO_HOST=0)', outcome: 'failed' }
+      if (!repoHostEnabled()) return { result: repoHostOffLine(), outcome: 'failed' }
       if (input.run) {
         const out = await fetchRun(root, input.run)
         if (out.state !== 'ok') return { result: `${out.note}\nremedy: ${out.remedy}`, outcome: 'failed' }
@@ -435,7 +439,7 @@ async function runOp(
     }
     case 'runWatch': {
       const { repoHostEnabled } = await import('../../services/repoHost/repoHost.js')
-      if (!repoHostEnabled()) return { result: 'repository-host reads are disabled (MERCURY_REPO_HOST=0)', outcome: 'failed' }
+      if (!repoHostEnabled()) return { result: repoHostOffLine(), outcome: 'failed' }
       if (!input.run) return { result: 'runWatch needs run (the workflow-run id)', outcome: 'failed' }
       const { cancelRunWatch, watchRun } = await import('../../services/repoHost/runWatch.js')
       if (input.cancel) {

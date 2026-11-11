@@ -3,6 +3,7 @@ import * as React from 'react'
 import { truncatePathMiddle } from '../../utils/truncate.js'
 import { CtrlOToExpand } from '../../components/CtrlOToExpand.js'
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js'
+import { isDenialResultText } from '../../utils/messages/rejectionText.js'
 import { FileEditToolUpdatedMessage } from '../../components/FileEditToolUpdatedMessage.js'
 import { FileEditToolUseRejectedMessage } from '../../components/FileEditToolUseRejectedMessage.js'
 import { FilePathLink } from '../../components/FilePathLink.js'
@@ -270,7 +271,7 @@ export function renderToolUseErrorMessage(
   result: ToolResultBlockParam['content'],
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
-  if (!verbose && typeof result === 'string') {
+  if (!verbose && typeof result === 'string' && !isDenialResultText(result)) {
     return <ShortErrorLine text={toolErrorReason(result, 'Error writing file')} />
   }
   return <FallbackToolUseErrorMessage result={result} verbose={verbose} />

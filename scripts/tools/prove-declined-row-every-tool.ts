@@ -60,8 +60,8 @@ section('a call the operator declined: every tool\'s row says declined, none say
     else if (rows[0] !== `└ ✕ ${DECLINED}`) own.push(`${tool.name}: ${rows[0]}`)
   }
   check(`the ${tools.length} tools of the roster and a server's tool: one row each, the refusal`, wrong.length === 0, wrong.join(' · '))
-  check('the three with a line of their own keep it (Edit, Write, the question)', own.length === 3 && own.some(row => row.startsWith('Edit: ')) && own.some(row => row.startsWith('Write: ')) && own.some(row => row === 'AskUserQuestion: User declined to answer'), own.join(' · '))
-  for (const name of ['WebFetch', 'Git', 'Skill', 'Computer']) {
+  check('the question alone keeps a line of its own: Edit and Write read the refusal as every other tool does', own.length === 1 && own[0] === 'AskUserQuestion: User declined to answer', own.join(' · '))
+  for (const name of ['WebFetch', 'Git', 'Skill', 'Computer', 'Edit', 'Write']) {
     const rows = await rowOf(named(name), wrapped(REJECT_MESSAGE))
     check(`${name}: the row is the refusal's first sentence`, named(name) !== undefined && rows.length === 1 && rows[0] === `└ ✕ ${DECLINED}`, JSON.stringify(rows))
   }
