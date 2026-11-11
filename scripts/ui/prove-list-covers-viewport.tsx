@@ -277,6 +277,7 @@ type Case = {
   headAt?: number
   listRenders?: number
   outOfSight?: true
+  coldStart?: true
 }
 
 const OWN: World = { rows: 120, tallAt: 40, open: 240, shut: 1, ownState: true }
@@ -299,7 +300,7 @@ async function run(scene: Case): Promise<void> {
     await rest(live.view)
     const seated = await place(live, scene.world, scene.top)
     await rest(live.view)
-    live.poke()
+    if (!scene.coldStart) live.poke()
     const placed = await rest(live.view)
     check(`${scene.name}: the pane is whole before the change`, seated && holes(placed, scene.world, lastRow()).length === 0, `seated ${seated}, blank rows ${holes(placed, scene.world, lastRow()).join(',')}`)
     show(`${scene.name} before`, placed)
@@ -475,6 +476,7 @@ const cases: Case[] = [
   { name: 'a re-wrap right after a five-row scroll off the tail', world: { ...TALL, wide: true }, startOpen: false, top: { row: 37, inner: 0 }, act: scrolledFiveUpThenRewrapped, lands: { row: 32, inner: 0 } },
   { name: 'a re-wrap off the tail', world: { ...TALL, wide: true }, startOpen: false, top: { row: 37, inner: 0 }, act: live => live.wrap(40) },
   { name: 'a re-wrap at the tail', world: { ...TALL, wide: true }, startOpen: false, top: 'tail', act: live => live.wrap(40) },
+  { name: 'a re-wrap at the tail with no render of the list since its mount', world: { ...TALL, wide: true }, startOpen: false, top: 'tail', act: live => live.wrap(40), coldStart: true },
 ]
 
 try {
