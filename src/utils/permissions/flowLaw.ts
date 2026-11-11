@@ -697,8 +697,14 @@ function flowPathAsk(path: string, rules?: ToolPermissionContext, verb = 'writin
 
 const SERVICE_TOOL_NAME = 'Service'
 
+const DEBUGGER_SHELL = /^\s*`?\s*(?:(?:-exec\s+)?(?:platform\s+shell|shell)\s+|-exec\s+!\s*)(?=\S)([\s\S]+)$/
+
+export function debuggerShellCommand(text: unknown): string | undefined {
+  return typeof text === 'string' ? DEBUGGER_SHELL.exec(text)?.[1] : undefined
+}
+
 async function startedCommandOf(tool: Pick<Tool, 'name' | 'shellCommandOf'>, input: Record<string, unknown>): Promise<string | undefined> {
-  if (tool.name === DEBUG_TOOL_NAME) return input.op === 'launch' ? startedCommandText(input.program, input.args) : undefined
+  if (tool.name === DEBUG_TOOL_NAME) return input.op === 'launch' ? startedCommandText(input.program, input.args) : debuggerShellCommand(input.expression)
   if (tool.name === SERVICE_TOOL_NAME && input.op === 'input') {
     if (typeof input.text !== 'string' || input.text.trim() === '') return undefined
     return typeof input.name === 'string' ? serviceInputAsSent(serviceInputKey(getOriginalCwd(), input.name), input.text) : input.text

@@ -400,7 +400,7 @@ section('§7 a command a tool starts gets the Bash decision: under sovereign tha
       check(`Service input of ${text} after them: with deny rules in force, allowed or refused under sovereign (${ruled.decision.behavior}), no card`, ruled.decision.behavior === 'allow' || ruled.decision.behavior === 'deny', JSON.stringify(ruled.decision).slice(0, 300))
     }
   }
-  for (const input of [{ op: 'evaluate', expression: 'x + 1' }, { op: 'setVariable', name: 'x', value: '4', variablesReference: 1 }, { op: 'breakpoints', file: 'app.py', breakpoints: [{ line: 3, condition: 'i > 3', logMessage: 'at {i}' }] }]) {
+  for (const input of [{ op: 'evaluate', expression: 'x + 1' }, { op: 'setVariable', name: 'x', value: '4', variablesReference: 1 }, { op: 'breakpoints', file: 'app.py', breakpoints: [{ line: 3, condition: 'i > 3', logMessage: 'at {i}' }] }, { op: 'evaluate', expression: 'platform shell ls' }, { op: 'customRequest', method: 'evaluate', body: '{"expression":"x + 1"}' }, { op: 'attach', program: 'myapp' }]) {
     const under = await decide(DebugTool, input, contextOf('sovereign'))
     check(`Debug ${input.op}: text the debuggee runs asks nothing under sovereign`, under.decision.behavior === 'allow', JSON.stringify(under.decision))
   }

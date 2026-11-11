@@ -301,5 +301,54 @@ section('§10 a program that is not known for a shell but may run what it is sen
   const zeroPush = await decide('Service', typed('evaluator-0', ['git', 'push', 'origin', 'main'].join(' ')), 'sovereign')
   check('sovereign · the same text asks nothing', zeroPush.behavior === 'allow', said(zeroPush))
 }
+
+section('§11 Debug: a custom request\'s body, a debugger\'s own shell command, an attach by a program\'s name')
+{
+  const PUSH = ['git', 'push', 'origin', 'main'].join(' ')
+  const reads = fill("open('<CONFIG>/.credentials.json').read()")
+  const shellRead = fill('cat <CONFIG>/.credentials.json')
+  const refusedEverywhere: Array<[string, Record<string, unknown>, Rules]> = [
+    ['a custom evaluate request whose body reads the stored credentials', { op: 'customRequest', method: 'evaluate', body: JSON.stringify({ expression: reads, context: 'repl' }) }, {}],
+    ['a custom request whose body is no JSON and reads them', { op: 'customRequest', method: 'evaluate', body: reads }, {}],
+    ['a custom setVariable request whose value reads them', { op: 'customRequest', method: 'setVariable', body: JSON.stringify({ variablesReference: 1, name: 'x', value: reads }) }, {}],
+    ['a custom evaluate request that hands the debugger a shell command', { op: 'customRequest', method: 'evaluate', body: JSON.stringify({ expression: `platform shell ${shellRead}` }) }, {}],
+    ['evaluate platform shell <a read of them>', { op: 'evaluate', expression: `platform shell ${shellRead}` }, {}],
+    ['evaluate with a backquote in front of it', { op: 'evaluate', expression: `\`platform shell ${shellRead}` }, {}],
+    ['evaluate -exec shell <a read of them>', { op: 'evaluate', expression: `-exec shell ${shellRead}` }, {}],
+    ['evaluate !<a read of them>', { op: 'evaluate', expression: `!${shellRead}` }, {}],
+    ['a breakpoint whose log message hands the debugger a shell command', { op: 'breakpoints', file: 'app.c', breakpoints: [{ line: 3, logMessage: `shell ${shellRead}` }] }, {}],
+    ['evaluate platform shell rm -rf build under a deny rule Bash(rm *)', { op: 'evaluate', expression: 'platform shell rm -rf build' }, { deny: ['Bash(rm *)'] }],
+    ['an attach by the name mercury', { op: 'attach', program: 'mercury' }, {}],
+    ['an attach by the path of the runtime\'s own program', { op: 'attach', program: fill('<CONFIG>/runtime/current/mercury') }, {}],
+  ]
+  for (const [label, input, rules] of refusedEverywhere) {
+    const wrong: string[] = []
+    for (const mode of ALL_MODES) {
+      const decision = await decide('Debug', input, mode, rules)
+      if (decision.behavior !== 'deny') wrong.push(`${mode}: ${said(decision)}`)
+    }
+    check(`Debug · ${label} is refused in all six modes`, wrong.length === 0, wrong.join(' ‖ '))
+  }
+  const answered: Array<[string, Record<string, unknown>, string, string]> = [
+    ['a push handed to the debugger\'s shell', { op: 'evaluate', expression: `platform shell ${PUSH}` }, 'flow', 'ask'],
+    ['a push handed to the debugger\'s shell', { op: 'evaluate', expression: `platform shell ${PUSH}` }, 'sovereign', 'allow'],
+    ['ls handed to the debugger\'s shell', { op: 'evaluate', expression: 'platform shell ls' }, 'default', 'ask'],
+    ['ls handed to the debugger\'s shell', { op: 'evaluate', expression: 'platform shell ls' }, 'flow', 'allow'],
+    ['ls handed to the debugger\'s shell', { op: 'evaluate', expression: 'platform shell ls' }, 'sovereign', 'allow'],
+    ['control: evaluate !done, an expression', { op: 'evaluate', expression: '!done' }, 'default', 'allow'],
+    ['control: evaluate !done, an expression', { op: 'evaluate', expression: '!done' }, 'sovereign', 'allow'],
+    ['control: evaluate shellcode + 1, a name that begins with the word', { op: 'evaluate', expression: 'shellcode + 1' }, 'default', 'allow'],
+    ['control: a custom threads request', { op: 'customRequest', method: 'threads' }, 'default', 'ask'],
+    ['control: a custom threads request', { op: 'customRequest', method: 'threads' }, 'sovereign', 'allow'],
+    ['control: a custom evaluate request of x + 1', { op: 'customRequest', method: 'evaluate', body: JSON.stringify({ expression: 'x + 1' }) }, 'default', 'ask'],
+    ['control: a custom evaluate request of x + 1', { op: 'customRequest', method: 'evaluate', body: JSON.stringify({ expression: 'x + 1' }) }, 'sovereign', 'allow'],
+    ['control: an attach by the name of another program', { op: 'attach', program: 'myapp' }, 'default', 'ask'],
+    ['control: an attach by the name of another program', { op: 'attach', program: 'myapp' }, 'sovereign', 'allow'],
+  ]
+  for (const [label, input, mode, behavior] of answered) {
+    const decision = await decide('Debug', input, mode)
+    check(`Debug · ${mode} · ${label}: ${behavior}`, decision.behavior === behavior, said(decision))
+  }
+}
 note('nothing in this proof is executed: tool inputs handed to the decision function with the real tools; the daemon is a stand-in process of this proof, and the services are record files it wrote, with no process behind them; what a service was sent is told to the history by this proof, as the tool tells it after a write')
 finish('prove-started-command-decision')
