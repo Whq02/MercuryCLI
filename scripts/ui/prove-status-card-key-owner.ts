@@ -25,6 +25,8 @@ const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProvid
 const { Select } = await import('../../src/components/CustomSelect/select.tsx')
 const { FocusedSessionStatusRow, escBackHint } = await import('../../src/components/SwitchboardTagBar.tsx')
 const { crewmateStatusRightHint } = await import('../../src/utils/cockpit/crewmateWords.ts')
+const { PromptInputFooterLeftSide } = await import('../../src/components/PromptInput/PromptInputFooterLeftSide.tsx')
+const { CompactWorkSummary } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
 const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
 const focused = await import('../../src/services/engine-connector/focusedConnector.ts')
@@ -76,17 +78,21 @@ for (const [columns, rows, view] of [[120, 40, 'lead'], [213, 60, 'lead'], [213,
   function Frame(): React.ReactNode {
     const [shown, setShown] = React.useState(false)
     open = () => setShown(true)
-    return h(Box, { width: columns, flexDirection: 'column' }, h(FocusedSessionStatusRow), shown ? h(Box, { flexDirection: 'column' }, h(Text, null, 'Confirmation'), h(Select, { options: [{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }], onCancel: () => { declined++; setShown(false) } }), h(Text, null, 'esc declines')) : h(Text, null, 'Conversation'))
+    return h(Box, { width: columns, flexDirection: 'column' }, h(FocusedSessionStatusRow), h(PromptInputFooterLeftSide, { exitPending: false, exitKeyName: null, isPasting: false, mode: 'prompt', isLoading: true }), h(CompactWorkSummary, { columns, focused: false, onFocus: () => {} }), shown ? h(Box, { flexDirection: 'column' }, h(Text, null, 'Confirmation'), h(Select, { options: [{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }], onCancel: () => { declined++; setShown(false) } }), h(Text, null, 'esc declines')) : h(Text, null, 'Conversation'))
   }
   const scene = await mountOffscreen(h(App, { initialState: { ...getDefaultAppState(), ...(view === 'lead' ? {} : { viewingAgentTaskId: 'helper' }) }, getFpsMetrics: () => undefined, children: h(KeybindingSetup, { children: h(Frame) }) }), columns, rows)
   try {
     await settledFrame(scene, frame => frame.includes('esc '))
     const before = scene.screen()
+    const footerWords = view === 'lead' ? 'esc interrupt' : view === 'running-crew' ? 'esc interrupt helper' : 'esc back to'
+    const escLines = (frame: string): string[] => frame.split('\n').filter(line => /\besc\b/.test(line) && !line.includes('esc declines'))
+    check(`${label}: with no card the line under the composer and the compact line each name Escape's action`, escLines(before).length === 3 && escLines(before)[1]!.includes(footerWords) && escLines(before)[2]!.includes('esc interrupts'), escLines(before).map(line => line.trim()).join(' | '))
     open()
     await settledFrame(scene, frame => frame.includes('Confirmation'))
     const during = scene.screen()
     check(`${label}: a mounted card removes the status Escape action`, !/\besc\b/.test(scene.lines()[0] ?? ''), scene.lines()[0])
     check(`${label}: the card keeps its own Escape words`, during.includes('esc declines'))
+    check(`${label}: under the card neither the line under the composer nor the compact line names Escape`, escLines(during).length === 0, escLines(during).map(line => line.trim()).join(' | '))
     scene.push('\x1b')
     check(`${label}: Escape reaches the card's decline`, await waitFor(() => declined === 1, 3000))
     await settledFrame(scene, frame => frame.includes('Conversation') && frame.includes('esc '))
