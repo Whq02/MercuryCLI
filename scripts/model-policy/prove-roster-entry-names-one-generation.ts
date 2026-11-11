@@ -169,6 +169,25 @@ section('§5 a generation this build does not declare is another generation: an 
   for (const [entry, candidate, why] of admitted) check(`["${entry}"] admits ${candidate} (${why})`, admits(entry, candidate))
 }
 
+section('§6 the word mythos in a roster covers every Mythos id, as fable covers the Fable ones')
+{
+  const mythosIds = ['claude-mythos-5', 'claude-mythos-5-1', 'claude-mythos-5-2', 'claude-mythos-5-2[1m]', 'claude-mythos-5-7', 'mythos']
+  check(`["mythos"] admits ${mythosIds.join(', ')}`, mythosIds.every(id => admits('mythos', id)), mythosIds.filter(id => !admits('mythos', id)).join(' '))
+  roster(['mythos'])
+  check('…and a session saved on claude-mythos-5 or claude-mythos-5-1 is not refused at its next boot', allow.rosterRefusal('claude-mythos-5') === null && allow.rosterRefusal('claude-mythos-5-1') === null)
+  const fableIds = ['claude-fable-5', 'claude-fable-5-1', 'claude-fable-5-2', 'fable']
+  check('["mythos"] admits no Fable id and no other family', fableIds.every(id => !admits('mythos', id)) && !admits('mythos', 'claude-opus-5-5'), fableIds.filter(id => admits('mythos', id)).join(' '))
+  check('["fable"] admits no Mythos id', ['claude-mythos-5', 'claude-mythos-5-1', 'claude-mythos-5-2', 'mythos'].every(id => !admits('fable', id)))
+  roster(['mythos', 'claude-mythos-5-1'])
+  const narrowedMythos = ['claude-mythos-5', 'claude-mythos-5-1', 'claude-mythos-5-2'].map(id => allow.isModelAllowed(id))
+  roster(['fable', 'claude-fable-5-1'])
+  const narrowedFable = ['claude-fable-5', 'claude-fable-5-1', 'claude-fable-5-2'].map(id => allow.isModelAllowed(id))
+  check('beside a more specific Mythos entry the word names that entry alone, as fable does beside a more specific Fable entry', narrowedMythos.join(',') === 'false,true,false' && narrowedFable.join(',') === 'false,true,false', `${narrowedMythos.join(',')} · ${narrowedFable.join(',')}`)
+  check('["claude-mythos-5-2"] still admits the word mythos, which names that id', admits('claude-mythos-5-2', 'mythos') && !admits('claude-mythos-5-1', 'mythos'))
+  roster(['fable', 'mythos'])
+  check('["fable", "mythos"] admits both families whole', ['claude-fable-5', 'claude-fable-5-2', 'claude-mythos-5', 'claude-mythos-5-2'].every(id => allow.isModelAllowed(id)) && !allow.isModelAllowed('claude-opus-5-5'))
+}
+
 roster(null)
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`}`)
 process.exit(failures === 0 ? 0 : 1)

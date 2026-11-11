@@ -2,7 +2,7 @@ import { getInitialSettings } from '../settings/settings.js'
 import { isModelFromDisabledProvider, isProviderDisabled } from '../../services/providers/disabledProviders.js'
 import { classifyModelRoute } from '../../services/providers/idSpaces.js'
 import { isModelAlias } from './aliases.js'
-import { DECLARED_GENERATION_STEMS, parseFirstPartyGeneration } from './configs.js'
+import { DECLARED_GENERATION_STEMS, isMirrorFamilyWord, parseFirstPartyGeneration } from './configs.js'
 import { FIRST_PARTY_FAMILY_WORDS, isModelFamilyWord, routeOfFamilyWord } from './modelFamilies.js'
 import { parseUserSpecifiedModel } from './model.js'
 import { resolveOverriddenModel } from './modelStrings.js'
@@ -24,19 +24,27 @@ function generationNamedBy(entry: string): string | undefined {
   return DECLARED_GENERATION_STEMS.has(entry) || stem === entry ? stem : undefined
 }
 
+function isFirstPartyFamilyWord(word: string): boolean {
+  return FIRST_PARTY_FAMILY_WORDS.has(word) || isMirrorFamilyWord(word)
+}
+
+function isRosterFamilyWord(word: string): boolean {
+  return isModelFamilyWord(word) || (!isProviderDisabled('anthropic') && isMirrorFamilyWord(word))
+}
+
 function inFamily(word: string, resolved: string): boolean {
   const route = routeOfFamilyWord(word)
   const verdict = classifyModelRoute(resolved)
   if (route !== null) return verdict.kind === 'route' && verdict.route === route
-  if (!FIRST_PARTY_FAMILY_WORDS.has(word)) return false
+  if (!isFirstPartyFamilyWord(word)) return false
   return verdict.kind === 'route' && verdict.route === 'anthropic' && resolved.includes(word)
 }
 
 function hasMoreSpecificEntry(word: string, entries: string[]): boolean {
   return entries.some(entry => {
-    if (isModelFamilyWord(entry)) return false
+    if (isRosterFamilyWord(entry)) return false
     if (inFamily(word, resolvedOf(entry))) return true
-    return FIRST_PARTY_FAMILY_WORDS.has(word) && (entry.includes(`${word}-`) || entry.endsWith(word))
+    return isFirstPartyFamilyWord(word) && (entry.includes(`${word}-`) || entry.endsWith(word))
   })
 }
 
@@ -55,19 +63,19 @@ export function isModelAllowed(model: string): boolean {
 
   for (const entry of entries) {
     if (entry !== candidate) continue
-    if (isModelFamilyWord(candidate) && hasMoreSpecificEntry(candidate, entries)) break
+    if (isRosterFamilyWord(candidate) && hasMoreSpecificEntry(candidate, entries)) break
     return true
   }
 
   for (const entry of entries) {
-    if (!isModelFamilyWord(entry)) continue
+    if (!isRosterFamilyWord(entry)) continue
     if (hasMoreSpecificEntry(entry, entries)) continue
     if (inFamily(entry, candidateResolved)) return true
   }
 
   for (const entry of entries) {
     if (isModelAlias(candidate) && candidateResolved === entry) return true
-    if (isModelAlias(entry) && !isModelFamilyWord(entry)) {
+    if (isModelAlias(entry) && !isRosterFamilyWord(entry)) {
       if (normalize(parseUserSpecifiedModel(entry)) === candidate) return true
     }
   }
@@ -79,7 +87,7 @@ export function isModelAllowed(model: string): boolean {
     return named === undefined || asked === undefined || named === asked
   }
   for (const entry of entries) {
-    if (isModelFamilyWord(entry) || isModelAlias(entry)) continue
+    if (isRosterFamilyWord(entry) || isModelAlias(entry)) continue
     if (prefixMatches(entry)) return true
     if (!entry.startsWith(VENDOR_PREFIX) && prefixMatches(`${VENDOR_PREFIX}${entry}`)) return true
   }

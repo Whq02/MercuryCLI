@@ -146,6 +146,10 @@ const MIRROR_FAMILY_WORDS: Record<string, ModelFamily> = Object.fromEntries(
   }),
 )
 
+export function isMirrorFamilyWord(word: string): boolean {
+  return Object.hasOwn(MIRROR_FAMILY_WORDS, word)
+}
+
 export function mirrorTwinOf(id: string): string | undefined {
   const key = CANONICAL_ID_TO_KEY[id.trim().toLowerCase()]
   const config: ModelConfig | undefined = key === undefined ? undefined : ALL_MODEL_CONFIGS[key]
