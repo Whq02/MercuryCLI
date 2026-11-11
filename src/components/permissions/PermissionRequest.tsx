@@ -34,6 +34,7 @@ import { ChangeSetPermissionRequest } from './ChangeSetPermissionRequest/ChangeS
 import { BashPermissionRequest } from './BashPermissionRequest/BashPermissionRequest.js'
 import { PowerShellPermissionRequest } from './PowerShellPermissionRequest/PowerShellPermissionRequest.js'
 import { FallbackPermissionRequest } from './FallbackPermissionRequest.js'
+import { useKeysHeldUntilFirstPaint } from './hooks.js'
 import { MediaPermissionRequest } from './MediaPermissionRequest.js'
 import { mediaGenerationKind } from '../../services/media/generation.js'
 import { FileEditPermissionRequest } from './FileEditPermissionRequest/FileEditPermissionRequest.js'
@@ -113,6 +114,8 @@ export function PermissionRequest(props: PermissionRequestProps): React.ReactNod
 
   const ink = useContext(InkInstanceContext)
   useEffect(() => ink?.registerArrowKeyOwner(() => true), [ink])
+
+  useKeysHeldUntilFirstPaint()
 
   const isQuestionCard = toolUseConfirm.tool === AskUserQuestionTool
   useEffect(() => {
