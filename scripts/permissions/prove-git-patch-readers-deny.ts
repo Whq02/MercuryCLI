@@ -36,6 +36,8 @@ put('secrets/k.txt', 'K2\n', true)
 commit('third: touches the secret', 'secrets/k.txt')
 put('src/a.txt', 'a3\n', true)
 commit('fourth: plain again', 'src/a.txt')
+git('tag', '-a', 'v-touch', '-m', 'the release that touched it', 'HEAD~1')
+git('tag', '-a', 'v-plain', '-m', 'a plain release', 'HEAD')
 put('secrets/k.txt', 'held\n', true)
 git('stash', 'push', '-q', '-m', 'holds the secret')
 put('sub/s.txt', 'held\n', true)
@@ -90,6 +92,9 @@ const PRINTS: Array<[string, string]> = [
   ['in the order a file gives', 'git diff -OREADME HEAD~2'],
   ['the same with the file as the next word', 'git diff -O README HEAD~2'],
   ['under a setting that only paints', 'git -c diff.noprefix=true show HEAD~1'],
+  ['an annotated tag of the commit that touches it, whose header git prints before the names', 'git show v-touch'],
+  ['two annotated tags, the second of the commit that touches it', 'git show v-plain v-touch'],
+  ['an annotated tag beside the notes', 'git show --notes v-touch'],
 ]
 for (const [label, command] of PRINTS) {
   const wrong: string[] = []
@@ -117,7 +122,7 @@ const PRINTS_NONE = [
   'git show nosuchref', 'git diff nosuchref', 'git log --oneline -3', 'git status',
   'git show --relative-date HEAD', 'git show --notes HEAD', 'git show --show-notes=commits HEAD', 'git show --no-standard-notes HEAD', 'git diff -OREADME HEAD~1', 'git diff -O README HEAD~1', 'git -c diff.noprefix=true diff', 'git -c diff.algorithm=histogram show HEAD', 'git diff -l50 HEAD~1', 'cd sub && git diff --relative HEAD~2',
   'git stash show --no-color', "git stash show --stat --no-color 'stash@{1}'", "git stash show -u 'stash@{1}'", 'git diff-tree --cc --name-only HEAD~1', 'git diff-tree --no-commit-id --name-only -r HEAD~1', 'git diff-tree --cc HEAD', 'git diff-index --quiet HEAD', 'git diff --stat-width=5 HEAD~2', 'git diff --stat --no-color HEAD~2', 'cd sub && git diff --no-relative --relative HEAD~2',
-  'git diff --name-only --relative=src HEAD~2', 'git diff --stat --relative=secrets HEAD~2',
+  'git diff --name-only --relative=src HEAD~2', 'git diff --stat --relative=secrets HEAD~2', 'git show v-plain', 'git show --stat v-touch',
 ]
 for (const command of PRINTS_NONE) {
   const wrong: string[] = []

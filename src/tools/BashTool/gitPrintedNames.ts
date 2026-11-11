@@ -174,7 +174,7 @@ async function namesAnswered(question: GitPatchQuestion, probe: string[], cwd: s
     }
   })
   if (answer === 'unanswered' || answer === 'failed') return answer
-  const names = answer.split('\0').filter(name => name !== '')
+  const names = answer.split('\0').flatMap(record => (record.includes('\n') ? [record, record.slice(record.lastIndexOf('\n') + 1)] : [record])).filter(name => name !== '')
   if (names.length === 0) return { base: folder, names }
   const base = question.relative ? folder : findGitRoot(folder)
   return base === null ? 'unanswered' : { base, names }
