@@ -54,7 +54,7 @@ import { checkPathConstraints, checkShellCwd } from './pathValidation.js'
 import { checkPreparedReadOnlyConstraints, cutPart, notReadOnlyClause, type NotReadOnly } from './readOnlyValidation.js'
 import { checkSedConstraints } from './sedValidation.js'
 import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
-import { credentialStoreWriteRefusal } from '../../utils/permissions/filesystem.js'
+import { credentialStoreWriteRefusal, isInstructionEstatePath } from '../../utils/permissions/filesystem.js'
 import { credentialStorePath } from '../../utils/permissions/protectedPaths.js'
 import { gitArgs, gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
 import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
@@ -604,11 +604,44 @@ function shellTextVerdict(input: BashInput, context: ToolPermissionContext, pref
     }
     const cwd = checkShellCwd(resolvedInput, context)
     if (cwd !== null) return cwd
+    if (context.mode === 'flow' && result.behavior !== 'allow' && !keptByFlow(result)) {
+      const named = await namesMercuryConfiguration(resolvedInput, context, prefixFn, 0)
+      if (named !== null) return { behavior: 'ask', message: named, decisionReason: { type: 'safetyCheck', reason: named, operatorOnly: true } } as PermissionResult
+    }
     if (result.behavior !== 'allow') return result
     const carried = ('updatedInput' in result && result.updatedInput ? result.updatedInput : resolvedInput) as BashInput
     const merged = { ...resolvedInput, ...carried }
     return { ...result, updatedInput: { ...merged, command: rewriteReadOnlyGitCommand(merged.command, resolveShellCwd(merged.cwd)) } }
   })
+}
+
+function keptByFlow(result: PermissionResult): boolean {
+  if (result.behavior !== 'ask') return false
+  const reason = result.decisionReason
+  if (reason?.type === 'safetyCheck') return reason.operatorOnly
+  if (reason?.type !== 'subcommandResults') return false
+  for (const sub of reason.reasons.values()) if (keptByFlow(sub)) return true
+  return false
+}
+
+async function namesMercuryConfiguration(input: BashInput, context: ToolPermissionContext, prefixFn: PrefixFn, depth: number, budget?: ReachBudget): Promise<string | null> {
+  const plain = { ...context, alwaysDenyRules: {} } as ToolPermissionContext
+  const reach = await denyRuleReach(input.command, resolveShellCwd(input.cwd), plain, {
+    judge: async (command, cwd, left) => {
+      const inner = await decideBashPermission({ ...input, command, cwd }, plain, prefixFn)
+      if (keptByFlow(inner)) return { denied: inner, hidden: null }
+      const named = inner.behavior === 'allow' ? null : await namesMercuryConfiguration({ ...input, command, cwd }, context, prefixFn, depth + 1, left)
+      return { denied: named === null ? null : ({ behavior: 'deny', message: named, decisionReason: { type: 'other', reason: named } } as PermissionResult), hidden: null }
+    },
+    bashDenyRule: () => null,
+    optionNamedWrites,
+    estate: path => isInstructionEstatePath(path, true),
+  }, depth, budget)
+  if (reach.denied !== null) {
+    const said = 'message' in reach.denied && typeof reach.denied.message === 'string' ? reach.denied.message : ''
+    return reach.denied.behavior === 'ask' || /^Permission /.test(said) ? said : `Permission to run this command is required: ${said}.`
+  }
+  return reach.hidden === null ? null : `Permission to run this command is required: ${reach.hidden.why}, which is Mercury's configuration.`
 }
 
 async function decideWithDenyRuleReach(

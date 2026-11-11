@@ -148,5 +148,66 @@ section('§4 a rule that arrives by a settings change while the session runs ans
   put(user, [])
   resetSettingsCache()
 }
+
+section('§5 the reach of the ask: under Flow a shell command that is not read-only and names the configuration anywhere in what it runs asks')
+{
+  const SETTINGS = '.mercury/settings.local.json'
+  const named: Array<[string, string]> = [
+    ['after a cd into the folder', `cd .mercury && echo '${RULE}' > settings.local.json`],
+    ['install', `install -m 644 notes.txt ${SETTINGS}`],
+    ['rsync', `rsync notes.txt ${SETTINGS}`],
+    ['truncate', `truncate -s 0 ${SETTINGS}`],
+    ['a link laid over it', `ln -sf ../notes.txt ${SETTINGS}`],
+    ['a line of Python', `python3 -c "open('${SETTINGS}','w').write('x')"`],
+    ['a line of JavaScript', `node -e "require('fs').writeFileSync('${SETTINGS}','x')"`],
+    ['a wildcard under the folder', 'tee .mercury/*.json < notes.txt'],
+    ['find over the folder with a copy', "find .mercury -name '*.json' -exec cp notes.txt {} \\;"],
+    ['xargs fed the name', `xargs -I{} cp notes.txt {} <<< ${SETTINGS}`],
+    ['a script piped into a shell', `echo "echo x > ${SETTINGS}" | sh`],
+    ['a script handed to a shell', `sh -c "echo x > ${SETTINGS}"`],
+    ['git writing the file back', ['git', 'checkout', 'HEAD', '--', SETTINGS].join(' ')],
+    ['git restore', ['git', 'restore', SETTINGS].join(' ')],
+    ['a program this reading has no grammar for', `sponge ${SETTINGS} < notes.txt`],
+    ['a formatter on an instruction file', 'prettier --write MERCURY.md'],
+    ['the folder removed whole', 'rm -rf .mercury'],
+    ['the folder moved away', 'mv .mercury .mercury.bak'],
+    ['the home\'s settings emptied', 'truncate -s 0 <CONFIG>/settings.json'],
+    ['the home\'s keybindings through a line of Python', "python3 -c \"open('<CONFIG>/keybindings.json','w').write('{}')\""],
+  ]
+  for (const [label, command] of named) {
+    const flow = await decide('Bash', { command: fill(command) }, 'flow')
+    check(`flow · ${label}: ${shown(fill(command)).slice(0, 96)} · asks`, flow.behavior === 'ask', said(flow))
+  }
+  const sovereign: string[] = []
+  const inDefault: string[] = []
+  for (const [, command] of named) {
+    const zero = await decide('Bash', { command: fill(command) }, 'sovereign')
+    if (zero.behavior !== 'allow') sovereign.push(`${shown(command)}: ${said(zero)}`)
+    const card = await decide('Bash', { command: fill(command) }, 'default')
+    if (card.behavior !== 'ask') inDefault.push(`${shown(command)}: ${said(card)}`)
+  }
+  check(`sovereign · the same ${named.length} commands ask nothing`, sovereign.length === 0, sovereign.join(' ‖ '))
+  check(`default · the same ${named.length} commands ask as before`, inDefault.length === 0, inDefault.join(' ‖ '))
+  const free: Array<[string, string]> = [
+    ['a read of it', `cat ${SETTINGS}`],
+    ['a listing of the folder', 'ls .mercury'],
+    ['a count in an instruction file', 'grep -c x MERCURY.md'],
+    ['git\'s diff of an instruction file', 'git diff -- MERCURY.md'],
+    ['a count written beside it', 'wc -l AGENTS.md > count.txt'],
+    ['a command that names no configuration', 'npm test'],
+    ['the same writers on other files', 'truncate -s 0 notes.txt && install -m 644 notes.txt sub/copy.txt'],
+    ['git staging it', ['git', 'add', 'MERCURY.md', '.mercury/settings.json'].join(' ')],
+    ['a commit whose message names it', ['git', 'commit', '-m', '"update MERCURY.md"'].join(' ')],
+    ['a worktree under the folder', 'mkdir -p .mercury/worktrees/x && touch .mercury/worktrees/x/notes.txt'],
+    ['outside this reading: a path only a variable holds', 'echo x > "$F"'],
+    ['outside this reading: an archive that names nothing', 'tar -xf config.tar'],
+  ]
+  for (const [label, command] of free) {
+    const flow = await decide('Bash', { command: fill(command) }, 'flow')
+    check(`flow · ${label}: ${shown(fill(command)).slice(0, 96)} · runs unasked`, flow.behavior === 'allow', said(flow))
+  }
+  const exact = await decide('Bash', { command: `truncate -s 0 ${SETTINGS}` }, 'flow', { allow: ['Bash(truncate *)'] })
+  check('flow · a standing allow rule for the command answers it', exact.behavior === 'allow', said(exact))
+}
 note('nothing in this proof is executed: tool inputs handed to the decision function with the real tools; the settings files are written into the proof\'s own scratch folder and home')
 finish('prove-flow-keeps-configuration-ask')
