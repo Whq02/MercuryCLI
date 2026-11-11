@@ -323,8 +323,14 @@ function isProductConfigPath(expandedPath: string, instructionEstate = false, wo
   return false
 }
 
+let composedInstructionImports: ReadonlySet<string> = new Set()
+
+export function noteComposedInstructionImports(paths: readonly string[]): void {
+  composedInstructionImports = new Set(paths.flatMap(path => protectedPathForms(path)))
+}
+
 export function isInstructionEstatePath(path: string, worktreesApart = false): boolean {
-  return protectedPathForms(path).some(form => isProductConfigPath(form, true, worktreesApart))
+  return protectedPathForms(path).some(form => composedInstructionImports.has(form) || isProductConfigPath(form, true, worktreesApart))
 }
 
 export function instructionEstateGrant(resolutionSet: readonly string[], context: ToolPermissionContext): PermissionRule | undefined {

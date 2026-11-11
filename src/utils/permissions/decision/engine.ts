@@ -4,7 +4,9 @@ import { AbortError } from '../../errors.js'
 import { logForDebugging } from '../../debug.js'
 import { logError } from '../../log.js'
 import { jsonStringify } from '../../slowOperations.js'
+import { getInstructionFiles } from '../../../services/instructions/engine.js'
 import { isToolKilled } from '../capabilityGate.js'
+import { noteComposedInstructionImports } from '../filesystem.js'
 import { modeBypassesPermissions } from '../PermissionMode.js'
 import type {
   PermissionAskDecision,
@@ -46,6 +48,27 @@ export const defaultDecisionPorts: DecisionPorts = {
 interface DecisionOutcome<D> {
   decision: D
   trace: DecisionTrace
+}
+
+type ComposedInstructions = Awaited<ReturnType<typeof getInstructionFiles>>
+
+let composedFrom: Promise<ComposedInstructions> | undefined
+let composing: Promise<void> | undefined
+
+function composedInstructionImportsRead(): Promise<void> | undefined {
+  const loaded = getInstructionFiles.cache.get(undefined) as Promise<ComposedInstructions> | undefined
+  if (loaded === undefined || loaded === composedFrom) return composing
+  composedFrom = loaded
+  const reading: Promise<void> = loaded
+    .then(
+      entries => noteComposedInstructionImports(entries.filter(entry => entry.parent !== undefined).map(entry => entry.path)),
+      () => undefined,
+    )
+    .finally(() => {
+      if (composing === reading) composing = undefined
+    })
+  composing = reading
+  return reading
 }
 
 export function postureBypassesAsks(permissionContext: {
@@ -162,6 +185,8 @@ async function runDecisionChain(
     message: createPermissionRequestMessage(tool.name),
   }
   let verdictFailed = false
+  const imports = composedInstructionImportsRead()
+  if (imports !== undefined) await imports
   try {
     toolVerdict = await ports.resolveToolVerdict(tool, input, context)
   } catch (e) {
