@@ -13,6 +13,7 @@ const TELLS: Array<[string, RegExp]> = [
 
 const SEAM_PINS: Array<{ file: string; carries: string; never: RegExp; law: string }> = [
   { file: 'src/utils/permissions/flowLaw.ts', carries: "const tail = spec.startsWith('@') ? spec.split('/').pop() ?? spec : spec", never: /spec\.split\(['"]\\\\['"]\)/, law: '502383f69c: a scoped registry package uses its slash grammar on every host, not a filesystem separator' },
+  { file: 'src/utils/wards/wardsRefusals.ts', carries: "return path.split('/').filter(Boolean)", never: /path\.split\(['"]\\\\['"]\)/, law: 'a path the refusal list compares comes from the shell reading of a POSIX command, where a backslash is a character of a name, so it uses its slash grammar on every host; a Windows path goes through windowsPath, which splits on either separator' },
   { file: 'src/services/host/vendors/vast.ts', carries: "url.pathname.split('/')", never: /url\.pathname\.split\(['"]\\\\['"]\)/, law: '587d1217d5: a WHATWG URL pathname uses its slash grammar on every host, not a filesystem separator' },
   { file: 'src/services/structure/query.ts', carries: 'posixRelative(root, full)', never: /path\.relative\(/, law: 'the Structure files filter compares POSIX-relative paths (F37W-7B-25: a win32 walk handed src\\util.ts to a src/util.ts glob and parsed 0 files)' },
   { file: 'src/services/structure/polyglotQuery.ts', carries: 'posixRelative(root, full)', never: /path\.relative\(/, law: 'the polyglot walk (Structure patterns, AstSearch globs, .gitignore anchors) compares POSIX-relative paths' },

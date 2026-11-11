@@ -122,7 +122,7 @@ function ownUser(named: string): boolean {
 async function launchAgentReason(args: string[], pids: number[]): Promise<string | null> {
   if (!['bootout', 'unload', 'remove', 'kill', 'stop', 'disable', 'kickstart'].includes(args[0] ?? '')) return null
   const targets = args.slice(1).filter(arg => !arg.startsWith('-'))
-  const named = targets.find(target => /mercury/i.test(target.split('/').pop() ?? ''))
+  const named = targets.find(target => /mercury[^/]*$/i.test(target))
   if (named !== undefined) return named
   for (const target of targets) {
     if (!target.endsWith('.plist') && !target.includes('/')) continue

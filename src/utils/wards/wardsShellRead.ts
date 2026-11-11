@@ -1,3 +1,4 @@
+import { posix } from 'node:path'
 import { peelWrappers, shellCommandText } from '../bash/ast.js'
 import { parseCommandRaw, type Node } from '../bash/parser.js'
 
@@ -84,18 +85,9 @@ export function wordKnown(word: string): boolean {
 }
 
 function collapseDots(path: string): string {
-  const absolute = path.startsWith('/')
-  const out: string[] = []
-  for (const segment of path.split('/')) {
-    if (segment === '' || segment === '.') continue
-    if (segment === '..') {
-      if (out.length > 0 && out[out.length - 1] !== '..') out.pop()
-      else if (!absolute) out.push('..')
-      continue
-    }
-    out.push(segment)
-  }
-  return (absolute ? '/' : '') + out.join('/')
+  const collapsed = posix.normalize(path)
+  if (collapsed === '.') return ''
+  return collapsed.length > 1 && collapsed.endsWith('/') ? collapsed.slice(0, -1) : collapsed
 }
 
 function expandTilde(word: string, world: ReadWorld): string {

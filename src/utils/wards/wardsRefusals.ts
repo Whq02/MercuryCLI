@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs'
+import { posix } from 'node:path'
 import { REFUSAL_WARDS, countWardWork, evaluateWards, ownHomeNames, shellTextOutsideFileHeredocs, wardHomes, type PendingToolCall, type ResolvedPath, type WardVerdict, type WardWork } from './wards.js'
 import { UNREAD_PART, absolutePath, layersOf, programOf, readShellCommands, stdinProgram, wordKnown, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from './wardsShellRead.js'
 
@@ -181,7 +182,7 @@ function windowsPath(word: string, world: RefusalWorld): string | undefined {
   if (!unc && !/^[A-Za-z]:/.test(text)) return undefined
   const head = unc ? '/' : text.slice(0, 2)
   const out: string[] = []
-  for (const segment of (unc ? text : text.slice(2)).split('/')) {
+  for (const segment of (unc ? text : text.slice(2)).split(/[\\/]/)) {
     if (segment === '' || segment === '.') continue
     if (segment === '..') out.pop()
     else out.push(SHORT_NAMES[segment.toLowerCase()] ?? segment)
@@ -191,7 +192,7 @@ function windowsPath(word: string, world: RefusalWorld): string | undefined {
 
 function windowsSegments(path: string): { share: boolean; segments: string[]; content: boolean } {
   const share = path.startsWith('//')
-  const segments = (share ? path : path.slice(2)).split('/').filter(Boolean)
+  const segments = (share ? path : path.slice(2)).split(/[\\/]/).filter(Boolean)
   const content = segments.length > 0 && EVERYTHING.test(segments[segments.length - 1]!)
   if (content) segments.pop()
   return { share, segments, content }
@@ -730,13 +731,13 @@ function worldOf(pending: PendingToolCall, cwd: string): RefusalWorld {
   const homes = wardHomes()
   const home = homes[0]
   const fold = platform === 'darwin' || platform === 'win32'
-  const parent = home === undefined ? [] : home.split('/').filter(Boolean).slice(0, -1)
-  const named = parent[parent.length - 1]
-  const holdsHomes = named !== undefined && (fold ? ['users', 'home'].includes(named.toLowerCase()) : named === 'Users' || named === 'home')
+  const parent = home === undefined ? '' : posix.dirname(home)
+  const named = posix.basename(parent)
+  const holdsHomes = fold ? ['users', 'home'].includes(named.toLowerCase()) : named === 'Users' || named === 'home'
   return {
     cwd: platform === 'win32' ? undefined : cwd,
     home,
-    homesRoot: holdsHomes ? `/${parent.join('/')}` : platform === 'darwin' ? '/Users' : '/home',
+    homesRoot: holdsHomes ? parent : platform === 'darwin' ? '/Users' : '/home',
     ownNames: ownHomeNames(),
     platform,
     homes,
