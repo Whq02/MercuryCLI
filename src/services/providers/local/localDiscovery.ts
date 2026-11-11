@@ -492,6 +492,7 @@ export async function probeLlamaCpp(root: string, io: LocalDiscoveryIo): Promise
   const servedCtx = num(rec(props?.default_generation_settings)?.n_ctx)
   const vision = typeof rec(props?.modalities)?.vision === 'boolean' ? (rec(props?.modalities)!.vision as boolean) : undefined
   const build = str(props?.build_info)
+  const stated = (strList(rec(props?.chat_template_caps)?.reasoning_effort_levels) ?? []).map(level => level.trim().toLowerCase()).filter(level => level !== '')
   const models: LocalModelRecord[] = []
   const routerRows = (openaiModelList(routerBody) ?? []).filter(m => rec(m.status) !== undefined)
   if (routerRows.length > 0) {
@@ -532,6 +533,7 @@ export async function probeLlamaCpp(root: string, io: LocalDiscoveryIo): Promise
         ...(params !== undefined ? { parameterSize: parameterSizeWords(params) } : {}),
         loaded: meta !== undefined,
         ...(vision !== undefined ? { visionDeclared: vision } : {}),
+        ...(stated.length > 0 ? { efforts: stated } : {}),
       })
     }
   }
