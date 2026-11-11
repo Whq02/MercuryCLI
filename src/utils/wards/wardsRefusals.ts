@@ -628,7 +628,7 @@ function judgeShellRead(read: ShellRead, world: RefusalWorld, textReading: (text
     const layers = layered[at]!
     const unnamed = layers.find(layer => layer.argv[0] !== undefined && !wordKnown(layer.argv[0]))
     if (unnamed !== undefined) {
-      const byText = textReading(command.text)
+      const byText = textReading(command.around ?? command.text)
       const named = mention(command.text)
       const swept = unnamed.argv.slice(1).some(word => RECURSIVE_LONG.test(word) || RECURSE_PARAMETER.test(word) || (POSIX_RM_CLUSTER.test(word) && /[rR]/.test(word)))
         ? unnamed.argv.slice(1).find(word => !word.startsWith('-') && rootNamed(word, command, world) !== null)
@@ -649,7 +649,7 @@ function judgeShellRead(read: ShellRead, world: RefusalWorld, textReading: (text
       if (work) countWardWork(work, 'steps')
       const { program, argv } = layer
       if (layer.opaque !== undefined) {
-        const byText = textReading(command.text)
+        const byText = textReading(command.around ?? command.text)
         const named = mention(command.text)
         if (!byText.allow) hits.push({ ward: byText.rule.name, at, excerpt: byText.excerpt, line: command.line })
         else if (named !== undefined) hit(named.ward, at, `${layer.opaque}, and it mentions "${named.word}"`)
