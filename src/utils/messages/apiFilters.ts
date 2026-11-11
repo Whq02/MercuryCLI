@@ -59,13 +59,15 @@ export function stripThinkingInPreservedTail<M extends Message>(messages: M[]): 
   return reviseRows(messages, (row, index) => index >= head && index <= tail ? withoutThinking(row) : row)
 }
 
-function isOtherModel(row: Message, target: string, same: (a: string, b: string) => boolean): row is AssistantMessage {
+type SameModel = (a: string, b: string, row: AssistantMessage) => boolean
+
+function isOtherModel(row: Message, target: string, same: SameModel): row is AssistantMessage {
   return row.type === 'assistant' && typeof row.message.model === 'string' &&
-    row.message.model.length > 0 && !same(row.message.model, target)
+    row.message.model.length > 0 && !same(row.message.model, target, row)
 }
 
 export function thinkingFromOtherModels(
-  messages: readonly Message[], requestModel: string, sameModel: (a: string, b: string) => boolean,
+  messages: readonly Message[], requestModel: string, sameModel: SameModel,
 ): { count: number; models: string[] } {
   const models = new Set<string>()
   const count = messages.reduce((total, row) => {
@@ -78,7 +80,7 @@ export function thinkingFromOtherModels(
 }
 
 export function stripThinkingFromOtherModels<M extends Message>(
-  messages: M[], requestModel: string, sameModel: (a: string, b: string) => boolean,
+  messages: M[], requestModel: string, sameModel: SameModel,
 ): M[] {
   return reviseRows(messages, row => isOtherModel(row, requestModel, sameModel)
     ? withoutThinking(row, '[reasoning written by another model — not carried across the switch]')
