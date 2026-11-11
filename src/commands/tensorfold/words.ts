@@ -8,6 +8,7 @@ export const TENSORFOLD_WORDS = {
   hostNone: 'no host · a server on your network or a rented GPU pod',
   notInstalled: 'not installed',
   nothingServed: 'nothing served',
+  newerEngine: (supported: string, installed: string, command: string) => `TensorFold ${supported} is supported, ${installed} is installed · ${command}`,
   installRow: 'install TensorFold',
   otherRow: 'other checkpoint',
   otherWords: 'a Hugging Face repository id',

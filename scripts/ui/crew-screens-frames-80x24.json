@@ -179,7 +179,7 @@
   "╭──────────────────────────────────────────────────────────────────────────────╮",
   "│❯ Type a prompt, or start a slash command                                     │",
   "╰──────────────────────────────────────────────────────────────────────────────╯",
-  "1 session on · 0 monitors here · 1 crewmate here   esc interrupts · ⇧← concourse"
+  "1 session on · 0 monitors here · 1 crewmate here                    ⇧← concourse"
  ],
  "crew-settled": [
   "  ▄▄▄▄▄▄▄▄▄   ✶ Mercury · Opus 5.5 · effort high · ctx 0%",
@@ -205,7 +205,7 @@
   "╭──────────────────────────────────────────────────────────────────────────────╮",
   "│❯ Type a prompt, or start a slash command                                     │",
   "╰──────────────────────────────────────────────────────────────────────────────╯",
-  "1 session on · 0 monitors here · 1 crewmate here   esc interrupts · ⇧← concourse"
+  "1 session on · 0 monitors here · 1 crewmate here                    ⇧← concourse"
  ],
  "view-panel": [
   "  ▄▄▄▄▄▄▄▄▄   ◉ fjord · claude-opus-5-5 · landed · 890 context · 4s · started 1…",

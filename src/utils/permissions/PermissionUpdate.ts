@@ -10,6 +10,7 @@ import { updateSettingsForSource } from '../settings/settings.js'
 import type { EditableSettingSource } from '../settings/constants.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from './modeTransitions.js'
+import { noteAllowRulesGranted } from './lateAllowRules.js'
 
 function ruleMapKey(behavior: PermissionBehavior): 'alwaysAllowRules' | 'alwaysDenyRules' | 'alwaysAskRules' {
   if (behavior === 'allow') return 'alwaysAllowRules'
@@ -137,6 +138,7 @@ function rawPermissionArray(base: Record<string, unknown>, key: string): string[
 export function persistPermissionUpdate(update: PermissionUpdate): PersistVerdict {
   if (!supportsPersistence(update.destination)) return LANDED
   const source = update.destination
+  if ((update.type === 'addRules' || update.type === 'replaceRules') && update.behavior === 'allow') noteAllowRulesGranted(source, update.rules.map(ruleString))
 
   switch (update.type) {
     case 'addRules': {

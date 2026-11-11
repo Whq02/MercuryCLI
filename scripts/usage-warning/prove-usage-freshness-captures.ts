@@ -144,6 +144,18 @@ function baseEnv(home: string, apiUrl: string): Record<string, string> {
   }
 }
 
+const SHAPE_LINE = /\[usage\] read #(\d+) payload shape · /
+const strayShapeLines: string[] = []
+function usageReadLines(file: string): string[] {
+  const lines = existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(l => l.includes('[usage] read #')) : []
+  const requests = lines.filter(l => !SHAPE_LINE.test(l))
+  const shapes = lines.filter(l => SHAPE_LINE.test(l)).map(l => SHAPE_LINE.exec(l)![1]!)
+  for (const n of new Set(shapes)) {
+    if (shapes.filter(one => one === n).length > 1 || !requests.some(l => l.includes(`read #${n} (`))) strayShapeLines.push(`${file.split('/').pop()} #${n}`)
+  }
+  return requests
+}
+
 function reapHome(home: string): void {
   try {
     for (const rec of Object.values(readSessionWorkers(join(home, 'daemon')))) {
@@ -272,7 +284,7 @@ if (LEGS.has('a')) {
   const f2 = fiveHourPct(c.marks.floor2 ?? '')
   const f3 = fiveHourPct(c.marks.floor3 ?? '')
   check(`A: three floors later the row has NOT moved (${shown} → ${f1} → ${f2} → ${f3}): nothing reads on a clock`, f1 === shown && f2 === shown && f3 === shown, usageBlock(c.marks.floor3 ?? ''))
-  const readLinesA = existsSync(debugFileA) ? readFileSync(debugFileA, 'utf8').split('\n').filter(l => l.includes('[usage] read #')) : []
+  const readLinesA = usageReadLines(debugFileA)
   const reasonsA = readLinesA.map(l => /read #\d+ \((open|operator|sign-in)\)/.exec(l)?.[1] ?? 'unnamed')
   const instantsA = api.usageRequests.map(r => r.at)
   const insideFloorA = reasonsA
@@ -325,7 +337,7 @@ if (LEGS.has('b')) {
   reapHome(home)
   console.log('\nB · the rail at 160 cols — the outage')
   console.log(`  [FIXTURE] usage requests: ${asks.map(r => `#${r.n}@${r.s.toFixed(1)}s:${r.mode}`).join(' ') || 'none'}`)
-  const readLinesB = existsSync(debugFileB) ? readFileSync(debugFileB, 'utf8').split('\n').filter(l => l.includes('[usage] read #')) : []
+  const readLinesB = usageReadLines(debugFileB)
   console.log(`  [DEBUG] ${readLinesB.length} read line(s):`)
   for (const line of readLinesB) console.log(`    ${line.replace(/^\S+ \[DEBUG\] /, '')}`)
   check('every send became due', c.sends > 0 && c.receipts === c.sends, c.tail.slice(-200))
@@ -432,7 +444,7 @@ if (LEGS.has('e')) {
   const asksE = api.usageRequests.map(r => `#${r.n}@${((r.at - t0) / 1000).toFixed(1)}s:${r.mode}`)
   await api.close()
   reapHome(home)
-  const readLinesE = existsSync(debugFileE) ? readFileSync(debugFileE, 'utf8').split('\n').filter(l => l.includes('[usage] read #')) : []
+  const readLinesE = usageReadLines(debugFileE)
   console.log('\nE · the band at 120 cols')
   console.log(`  [FIXTURE] usage requests: ${asksE.join(' ') || 'none'}`)
   console.log(`  [DEBUG] ${readLinesE.length} read line(s):`)
@@ -492,7 +504,7 @@ if (LEGS.has('f')) {
   const asks = api.usageRequests.map(r => ({ ...r, s: (r.at - t0) / 1000 }))
   await api.close()
   reapHome(home)
-  const readLines = existsSync(debugFile) ? readFileSync(debugFile, 'utf8').split('\n').filter(l => l.includes('[usage] read #')) : []
+  const readLines = usageReadLines(debugFile)
   console.log('\nF · the rail at 160 cols — the count, and a 429 with Retry-After is a WAIT on screen')
   console.log(`  [FIXTURE] usage requests: ${asks.map(r => `#${r.n}@${r.s.toFixed(1)}s:${r.status}`).join(' ') || 'none'}`)
   console.log(`  [DEBUG] ${readLines.length} read line(s):`)
@@ -522,6 +534,8 @@ if (LEGS.has('f')) {
   const fam = recorded.families?.anthropic
   check("/health's record names the 429 and the stated wait (Retry-After 240 s)", fam?.status === 429 && fam.retryAfterMs === RETRY_AFTER_S * 1000, existsSync(record) ? readFileSync(record, 'utf8').slice(0, 300) : 'no record')
 }
+
+check('a read that answered leaves at most one payload-shape line, beside its own request line', strayShapeLines.length === 0, strayShapeLines.join(' · '))
 
 console.log(failures === 0 ? '\n✅ prove-usage-freshness-captures — all checks pass' : `\n❌ prove-usage-freshness-captures — ${failures} check(s) failed`)
 process.exit(failures === 0 ? 0 : 1)

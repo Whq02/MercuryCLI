@@ -249,6 +249,10 @@ export function releaseOutgrownLocalWindow(record: Pick<LocalModelRecord, 'id' |
 
 export type LocalWindowDecisionRecord = Pick<LocalModelRecord, 'id' | 'server' | 'modelMaxContext' | 'modelfileContext' | 'weightsBytes' | 'geometry' | 'contextWindow' | 'servedBytes'>
 
+export function localWindowHeldUnread(hold: Pick<HeldLocalWindow, 'setting' | 'reason' | 'adopted'>, record: Pick<LocalModelRecord, 'modelfileContext'>): boolean {
+  return hold.setting === undefined && hold.reason !== 'set' && hold.adopted !== true && record.modelfileContext !== undefined
+}
+
 export function decideLocalWindow(record: LocalWindowDecisionRecord, estTokens: number, setting: LocalWindowSetting | undefined = localWindowSettingOf(record), truth: LocalServerTruth | null = localWindowTruth()): HeldLocalWindow {
   const application = localWindowApplication(record)
   if (application === 'server-start' || application === 'none') {
@@ -257,7 +261,7 @@ export function decideLocalWindow(record: LocalWindowDecisionRecord, estTokens: 
     return none
   }
   const before = held.get(holdKey(record))
-  if (before !== undefined && before.setting === setting) return before
+  if (before !== undefined && before.setting === setting && !localWindowHeldUnread(before, record)) return before
   const decided: HeldLocalWindow = { ...chooseLocalWindow(record, estTokens, setting, truth), setting, estTokens }
   setHeld(record, decided)
   return decided

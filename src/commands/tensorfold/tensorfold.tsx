@@ -94,7 +94,7 @@ export function TensorFoldPanel({ onDone, io = {}, repo }: { onDone: (words?: st
   const picker = React.useMemo(() => (facts === null ? null : { ...pickerFactsOf(facts), announced: tensorFoldAnnouncementsNow(facts.hosts) }), [facts, announcedStamp])
   if (facts === null || picker === null) return null
   const doors = { close: onDone, read: () => read(true) }
-  const notice = tensorFoldRoadState().notice
+  const notice = tensorFoldRoadState().notice ?? facts.newer
   return (
     <MercuryModelPicker
       view="tensorfold"

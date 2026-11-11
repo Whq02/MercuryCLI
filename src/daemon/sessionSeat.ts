@@ -858,6 +858,7 @@ export function onSeatRow(short: string, row: SeatRow, roster: SeatRosterPort, d
         publishTailNow(seat, dir)
         publishActivity(short, roster, dir)
       }
+      if (row.type === 'compaction' && row.state === 'ended') requestSessionFacts(short, roster, undefined, dir)
       return
     }
     case 'step': {

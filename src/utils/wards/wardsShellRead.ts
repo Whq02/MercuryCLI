@@ -39,6 +39,7 @@ export type ShellRead = {
   commands: ReadCommand[]
   pipelineSizes: number[]
   exported: Map<string, string[]>
+  homes: readonly string[]
   unread: { why: string; text: string } | undefined
 }
 
@@ -47,6 +48,8 @@ export type ReadWorld = {
   home: string | undefined
   homesRoot: string
   ownNames: readonly string[]
+  user?: string
+  uid?: string
 }
 
 const POSIX_SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'ash', 'fish', 'mksh', 'yash', 'csh', 'tcsh'])
@@ -350,6 +353,8 @@ class Reading {
   constructor(readonly world: ReadWorld) {
     this.cwd = world.cwd
     if (world.home !== undefined) this.scope.set('HOME', [world.home])
+    if (world.user !== undefined) for (const name of ['USER', 'LOGNAME', 'USERNAME']) this.scope.set(name, [world.user])
+    if (world.uid !== undefined) for (const name of ['UID', 'EUID']) this.scope.set(name, [world.uid])
   }
 
   markUnread(why: string, text: string): void {
@@ -370,6 +375,8 @@ class Reading {
       const key = `${stage.pipeline}:${stage.stage}`
       if (!this.stageHeads.has(key)) this.stageHeads.set(key, index)
     }
+    for (const entry of command.env) this.assign(entry.name, [entry.value])
+    for (const layer of layersOf(command.argv)) for (const entry of layer.env) this.assign(entry.name, [entry.value])
     this.follow(command)
     this.pending.push(...nestedScripts(command, index, this.commands))
     this.expand(command, index)
@@ -409,7 +416,7 @@ class Reading {
     if (pushes) this.folders.push(this.cwd)
     const operands = layer.argv.slice(1).filter(word => !/^-[A-Za-z]+$/.test(word))
     const target = operands[0]
-    if (target === undefined) this.cwd = pushes ? undefined : this.world.home
+    if (target === undefined) this.cwd = pushes ? undefined : (this.scope.get('HOME')?.at(-1) ?? this.world.home)
     else if (target === '-' || !wordKnown(target)) this.cwd = undefined
     else this.cwd = absolutePath(command.dialect === 'powershell' ? target.replace(/\\/g, '/') : target, this.cwd, this.world)
   }
@@ -526,6 +533,18 @@ class PosixWalk {
     }
   }
 
+  userPrintedBy(inner: number[]): string | undefined {
+    if (inner.length !== 1) return undefined
+    const argv = this.reading.commands[inner[0]!]?.argv ?? []
+    const program = programOf(argv[0] ?? '')
+    const { user, uid } = this.reading.world
+    if ((program === 'whoami' || program === 'logname') && argv.length === 1) return user
+    if (program !== 'id') return undefined
+    const flags = argv.slice(1).join('')
+    if (flags === '-un' || flags === '-nu' || flags === '-u-n' || flags === '-n-u') return user
+    return flags === '-u' || flags === '-ru' || flags === '-ur' ? uid : undefined
+  }
+
   variable(node: Node, frame: Frame): Words {
     const name = (node.children.find(child => child.type === 'variable_name') ?? node.children.find(child => child.type === 'special_variable_name'))?.text
     const inner: number[] = []
@@ -557,7 +576,8 @@ class PosixWalk {
         this.node(node, frame)
         const inner: number[] = []
         for (let i = before; i < this.reading.commands.length; i++) inner.push(i)
-        return { values: [UNREAD_PART], inner }
+        const named = node.type === 'command_substitution' ? this.userPrintedBy(inner) : undefined
+        return { values: [named ?? UNREAD_PART], inner }
       }
       case 'arithmetic_expansion':
         this.children(node, frame)
@@ -1019,5 +1039,5 @@ async function readInto(reading: Reading, text: string, frame: Frame, depth: num
 export async function readShellCommands(text: string, dialect: ShellDialect, world: ReadWorld): Promise<ShellRead> {
   const reading = new Reading(world)
   await readInto(reading, text, { background: false, stages: [], body: undefined, line: 1, dialect, around: undefined }, 0)
-  return { commands: reading.commands, pipelineSizes: reading.pipelineSizes, exported: reading.exported, unread: reading.unread }
+  return { commands: reading.commands, pipelineSizes: reading.pipelineSizes, exported: reading.exported, homes: reading.scope.get('HOME') ?? [], unread: reading.unread }
 }

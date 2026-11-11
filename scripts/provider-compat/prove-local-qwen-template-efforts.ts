@@ -30,6 +30,8 @@ const QWEN_GGUF = 'Qwen3.8-27B-Q4_K_M.gguf'
 const QWEN_SERVED_NAME = 'qwen-3.8-27b'
 const QWEN_RENAMED_GGUF = 'qwen3_8-27b-q4_k_m.gguf'
 const QWEN3_8B_GGUF = 'Qwen3-8B-Q4_K_M.gguf'
+const RENAMED_NO_GENERATION = 'my-coder.gguf'
+const QWEN_GGUF_STATED = 'Qwen3.8-27B-Q8_0.gguf'
 const OLDER_QWEN = 'Qwen/Qwen3.6-27B'
 const OTHER = 'google/gemma-4-26b-a4b'
 const TEMPLATE_WORDS = ['xhigh', 'medium', 'low']
@@ -43,13 +45,13 @@ function json(res: ServerResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body))
 }
 function templateRaise(body: Record<string, unknown>): string | undefined {
-  if (!/qwen3\.8/i.test(String(body.model)) && body.model !== QWEN_SERVED_NAME && body.model !== QWEN_RENAMED_GGUF) return undefined
+  if (!/qwen3\.8/i.test(String(body.model)) && body.model !== QWEN_SERVED_NAME && body.model !== QWEN_RENAMED_GGUF && body.model !== RENAMED_NO_GENERATION) return undefined
   const kwargs = (body.chat_template_kwargs ?? {}) as Record<string, unknown>
   if (kwargs.enable_thinking === false) return undefined
   const word = body.reasoning_effort ?? kwargs.reasoning_effort
   return word === undefined || TEMPLATE_WORDS.includes(String(word)) ? undefined : `Unexpected reasoning effort ${String(word)}. Supported types are xhigh (default), medium, and low.`
 }
-function serve(kind: 'vllm' | 'llamacpp'): Promise<{ server: Server; root: string }> {
+function serve(kind: 'vllm' | 'llamacpp', stated?: { ids: string[]; levels: unknown }): Promise<{ server: Server; root: string }> {
   return new Promise(resolve => {
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       let raw = ''
@@ -60,8 +62,8 @@ function serve(kind: 'vllm' | 'llamacpp'): Promise<{ server: Server; root: strin
         const url = req.url ?? ''
         const body = raw ? (JSON.parse(raw) as Record<string, unknown>) : {}
         if (kind === 'vllm' && url === '/v1/models') return json(res, 200, { object: 'list', data: [QWEN_REPO, QWEN_SERVED_NAME, OLDER_QWEN, OTHER].map(id => ({ id, object: 'model', owned_by: 'vllm', max_model_len: 262144 })) })
-        if (kind === 'llamacpp' && url === '/v1/models') return json(res, 200, { object: 'list', data: [QWEN_GGUF, QWEN_RENAMED_GGUF, QWEN3_8B_GGUF].map(id => ({ id, object: 'model', owned_by: 'llamacpp', meta: { n_ctx_train: 262144, n_params: 27320697856, size: 17741872134 } })) })
-        if (kind === 'llamacpp' && url === '/props') return json(res, 200, { default_generation_settings: { n_ctx: 65536 }, build_info: 'b7000', total_slots: 1 })
+        if (kind === 'llamacpp' && url === '/v1/models') return json(res, 200, { object: 'list', data: (stated?.ids ?? [QWEN_GGUF, QWEN_RENAMED_GGUF, QWEN3_8B_GGUF]).map(id => ({ id, object: 'model', owned_by: 'llamacpp', meta: { n_ctx_train: 262144, n_params: 27320697856, size: 17741872134 } })) })
+        if (kind === 'llamacpp' && url === '/props') return json(res, 200, { default_generation_settings: { n_ctx: 65536 }, build_info: 'b7000', total_slots: 1, ...(stated !== undefined ? { chat_template_caps: { reasoning_effort_levels: stated.levels } } : {}) })
         if (url === '/v1/chat/completions' && req.method === 'POST') {
           hits.push({ server: kind, body })
           const raised = templateRaise(body)
@@ -85,7 +87,8 @@ function serve(kind: 'vllm' | 'llamacpp'): Promise<{ server: Server; root: strin
 
 const vllm = await serve('vllm')
 const llamacpp = await serve('llamacpp')
-process.env.MERCURY_LOCAL_PROBE_TARGETS = `vllm=${vllm.root},llamacpp=${llamacpp.root}`
+const llamacppStated = await serve('llamacpp', { ids: [RENAMED_NO_GENERATION, QWEN_GGUF_STATED], levels: ['low', 'medium', 'xhigh'] })
+process.env.MERCURY_LOCAL_PROBE_TARGETS = `vllm=${vllm.root},llamacpp=${llamacpp.root},llamacpp=${llamacppStated.root}`
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
@@ -169,8 +172,27 @@ section("3 · the wire: whatever word is asked, the request carries one the temp
   check('an older Qwen whose template does not read the word still carries it unchanged (max)', older.sent === 'max' && older.error === undefined, j(older))
 }
 
+section("4 · a llama.cpp server that states its template's levels in /props (chat_template_caps.reasoning_effort_levels): a file whose name carries no generation gets the server's own levels on the dial, and every asked word settles")
+{
+  const record = localRecordFor(`local/${RENAMED_NO_GENERATION}`)
+  check('discovery reads the levels the server states for its template, lowest first', record?.server === 'llamacpp' && j(record.efforts) === j(['low', 'medium', 'xhigh']), j(record))
+  check('no name rule reads the file', !template.qwenTemplateReadsEffort(RENAMED_NO_GENERATION))
+  check("the view: the server's three levels and no word map", j(effortVocabularyFor(`local/${RENAMED_NO_GENERATION}`)) === j({ kind: 'provider', source: 'local', vocabulary: ['low', 'medium', 'xhigh'], thinkingGated: false }), j(effortVocabularyFor(`local/${RENAMED_NO_GENERATION}`)))
+  const outcomes: Array<{ word: string; sent: unknown; chats: number; error: string | undefined; text: string }> = []
+  for (const word of ASKED) outcomes.push({ word, ...(await ask(RENAMED_NO_GENERATION, word)) })
+  check('every one of the six asked words settles in one request with no refusal', outcomes.every(row => row.error === undefined && row.text === 'pong' && row.chats === 1), j(outcomes.filter(row => row.error !== undefined || row.chats !== 1).map(row => [row.word, row.sent, row.chats, row.error?.slice(0, 160)])))
+  check('minimal → low · low → low · medium → medium · high → medium · xhigh → xhigh · max → xhigh: a word the server does not state rides as the nearest it does, never above the word asked', j(outcomes.map(row => row.sent)) === j(['low', 'low', 'medium', 'medium', 'xhigh', 'xhigh']), j(outcomes.map(row => [row.word, row.sent])))
+  const high = resolveEffortTruth(`local/${RENAMED_NO_GENERATION}`, 'high', { thinkingEnabled: true })
+  check('the truth for a saved high names what rides: medium, adjusted from high', high.wire === 'medium' && high.label === 'medium' && high.adjustedFrom === 'high', j({ wire: high.wire, label: high.label, adjustedFrom: high.adjustedFrom }))
+  const bare = await ask(RENAMED_NO_GENERATION, undefined)
+  check("with no word asked no reasoning_effort rides", bare.sent === undefined && bare.error === undefined && bare.chats === 1, j(bare))
+  check('a file the Qwen 3.8 rule reads keeps the rule and its word map on the same server', j(effortVocabularyFor(`local/${QWEN_GGUF_STATED}`)) === j({ kind: 'provider', source: 'local', vocabulary: ['low', 'medium', 'xhigh'], thinkingGated: false, steps: template.QWEN_TEMPLATE_EFFORT_STEPS }) && (await ask(QWEN_GGUF_STATED, 'high')).sent === 'xhigh')
+  check('a llama.cpp server that states nothing keeps the six server words', localRecordFor(`local/${QWEN3_8B_GGUF}`)?.efforts === undefined && j(effortVocabularyFor(`local/${QWEN3_8B_GGUF}`)) === j({ kind: 'provider', source: 'local', vocabulary: SIX, thinkingGated: false }), `${j(localRecordFor(`local/${QWEN3_8B_GGUF}`)?.efforts)} ${j(effortVocabularyFor(`local/${QWEN3_8B_GGUF}`))}`)
+}
+
 vllm.server.close()
 llamacpp.server.close()
+llamacppStated.server.close()
 rmSync(HOME, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`} — ${checks} checks`)
 process.exit(failures === 0 ? 0 : 1)

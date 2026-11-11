@@ -367,7 +367,7 @@
   "╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
   "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                                                                               │",
   "╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
-  "esc interrupt",
+  "? for shortcuts · ctrl+x p for commands + files",
   "shift + ↵ for a new line · shift + ← concourse"
  ],
  "crew-settled": [
@@ -420,7 +420,7 @@
   "╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
   "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                                                                               │",
   "╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
-  "esc interrupt",
+  "? for shortcuts · ctrl+x p for commands + files",
   "shift + ↵ for a new line · shift + ← concourse"
  ],
  "view-panel": [
@@ -584,7 +584,7 @@
  ],
  "board": [
   "  ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────╮ ╭─────────────────────────────────────────────────────────────╮",
-  "  │ crew-screens: launch the crew · fixture-cwd · Opus 5.5 · h…  ◐ noted — the crewmate is in. ↵ enter session │ │ SESSIONS                                  + new session · n │",
+  "  │ crew-screens: launch the crew · fixture-cwd · Opus 5.5 · high  ◐ noted — the crewmate is … ↵ enter session │ │ SESSIONS                                  + new session · n │",
   "  │                                                                                                            │ │ STATUS & TITLE                           PROJECT  LAST USED │",
   "  │ 14. the view holds its keys                                                                                │ │   n starts a blank session in this project · Opus 5.5 · ● … │",
   "  │ 15. the composer holds its keys                                                                            │ │ ⊞ WORKING · 1                                               │",
@@ -622,9 +622,9 @@
   "  │ 47. the footer keys paints the same cells                                                                  │ │                                                             │",
   "  │ 48. the pop-up frame paints the same cells                                                                 │ │                                                             │",
   "  │                                                                                                            │ │                                                             │",
-  "  │ 17:08:45 ● [Crewmate] fjord · completed · 1 line ›                                                         │ │                                                             │",
+  "  │ 06:07:21 ● [Crewmate] fjord · completed · 1 line ›                                                         │ │                                                             │",
   "  │                                                                                                            │ │                                                             │",
-  "  │ 17:08:45 [Mercury] noted — the crewmate is in.                                                             │ │                                                             │",
+  "  │ 06:07:21 [Mercury] noted — the crewmate is in.                                                             │ │                                                             │",
   "  │ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────╮ │ │                                                             │",
   "  │ │ ❯ message crew-screens: launch the crew · queued for its next turn                                     │ │ │                                                             │",
   "  │ │ tab or click to type                                                                                   │ │ │ NEEDS YOU · 0                                               │",

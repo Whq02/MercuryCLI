@@ -26,6 +26,7 @@ import { PrBadge } from '../PrBadge.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { BackgroundTaskStatus } from '../tasks/BackgroundTaskStatus.js'
 import { CompactFooterNoticeContext } from '../../context/layoutChromeContext.js'
+import { useEscapeOwned } from '../../hooks/useEscapeOwned.js'
 import { useFocusedShellRunning } from '../../services/engine-connector/shellRunning.js'
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js'
 import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
@@ -114,6 +115,7 @@ export function PromptInputFooterLeftSide({
   }, [isLoading])
   const driving = desktop.phase === 'driving' ? desktop : desktopFile.phase === 'driving' ? desktopFile : null
   const reportNotice = useContext(CompactFooterNoticeContext)
+  const escapeOwned = useEscapeOwned()
   const criticalNotice = exitPending || isPasting || voice.phase === 'recording' || voice.phase === 'transcribing' || (driving !== null && isLoading) || (compact && searchField !== undefined)
   const requestedRows = criticalNotice ? 1 : compact ? blockRows : 0
   useEffect(() => {
@@ -205,18 +207,24 @@ export function PromptInputFooterLeftSide({
     task => isLocalAgentTask(task) && task.status === 'running',
   )
   if (viewingCrewmate && viewedCrewmateCompleted) {
-    parts.push(
-      <KeyboardShortcutHint key="return" shortcut="esc" action={`back to ${LEAD_ROW_NAME}`} />,
-    )
+    if (!escapeOwned) {
+      parts.push(
+        <KeyboardShortcutHint key="return" shortcut="esc" action={`back to ${LEAD_ROW_NAME}`} />,
+      )
+    }
   } else if (viewingCrewmate) {
-    parts.push(
-      <KeyboardShortcutHint key="interrupt" shortcut="esc" action={`interrupt ${viewedCrewmate?.name ?? 'the crewmate'}`} />,
-    )
+    if (!escapeOwned) {
+      parts.push(
+        <KeyboardShortcutHint key="interrupt" shortcut="esc" action={`interrupt ${viewedCrewmate?.name ?? 'the crewmate'}`} />,
+      )
+    }
   } else {
     if (isLoading) {
-      parts.push(
-        <KeyboardShortcutHint key="interrupt" shortcut={cancelChord} action="interrupt" />,
-      )
+      if (!escapeOwned) {
+        parts.push(
+          <KeyboardShortcutHint key="interrupt" shortcut={cancelChord} action="interrupt" />,
+        )
+      }
       if (shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false) {
         parts.push(
           <KeyboardShortcutHint key="background" shortcut={keyHintLabel('⇧b')} action="background the command" />,

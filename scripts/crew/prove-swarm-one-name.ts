@@ -326,6 +326,11 @@ await check('the-launch-and-resume-roads', async () => {
   await launch('seventh', { name: 'relay', description: 'after the stop' })
   assert.deepEqual(names().slice(-1), ['relay=seventh:running'], 'a seat whose run was told to stop gives up its name before that run has ended')
   assert.equal(board.member('sixth'), false)
+  const stopNotices = (): number => board.view().events.filter(event => event.kind === 'notice' && event.taskId === 'sixth' && event.text === 'relay · stopped').length
+  const stopped = seam.mirrorSwarmNotice('sixth', 'the stop of sixth', 'relay · stopped', 'stopped')
+  assert.deepEqual([stopped?.ok, stopNotices()], [true, 1], `the stop of a seat that lost its name while its run unwound is said on the board, as every other stop is: ${JSON.stringify(stopped)}`)
+  assert.equal(board.member('sixth'), false, 'the notice does not put the retired seat back on the board')
+  assert.deepEqual(names().slice(-1), ['relay=seventh:running'], 'nor does it touch the seat that holds the name')
   assert.doesNotThrow(() => seam.settleSwarmAgent('sixth'), 'the stopped run settles afterwards without a word from the board')
   for (const id of ['first', 'third', 'fifth', 'heir', 'seventh']) seam.settleSwarmAgent(id)
   runSwarmCommand('off')
