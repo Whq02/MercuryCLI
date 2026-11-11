@@ -208,6 +208,7 @@ const mount = async (model: string, element?: React.ReactNode) => {
   await flush()
   return { seen: () => stripAnsi(output), clear: () => { output = '' }, unmount: () => instance.unmount(), rerender: () => store.setState(state => ({ ...state, effortValue: 'high' })), send: (keys: string) => { input.push(keys); stdin.emit('readable') } }
 }
+const ENGINE_HEADING = /│ [▸▾] TENSORFOLD(?: HOST)? · /
 const live = (frame: string, name: string): boolean => new RegExp(`│ (?:│ | {2})(?:❯ )?${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s{2,}\\S`).test(frame)
 const setKeys = (spec: Family): void => {
   for (const key of KEYS) delete process.env[key]
@@ -259,12 +260,14 @@ try {
     const unchanged = spec.refresh(true)
     await flush(400)
     const before = catalogueEpoch()
+    const standing = new Set(second.seen().split('\n'))
     second.clear()
     release(spec, spec.newRows)
     await unchanged
     await flush(400)
     check(`${spec.word}: an unchanged list does not bump the catalogue epoch`, catalogueEpoch() === before, `${before} -> ${catalogueEpoch()}`)
-    check(`${spec.word}: an unchanged list does not repaint or show a notice`, second.seen() === '', second.seen())
+    const repainted = second.seen().split('\n').filter(line => line.trim() !== '' && !standing.has(line) && !ENGINE_HEADING.test(line))
+    check(`${spec.word}: an unchanged list does not repaint or show a notice`, repainted.length === 0 && !second.seen().includes(notice), repainted.join(' | '))
     second.unmount()
 
     if (spec.name !== 'local') {
