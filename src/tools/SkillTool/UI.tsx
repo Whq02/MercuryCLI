@@ -3,6 +3,7 @@ import * as React from 'react'
 import { SubAgentProvider } from '../../components/CtrlOToExpand.js'
 import { Byline } from '../../components/design-system/Byline.js'
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js'
+import { isDenialResultText } from '../../utils/messages/rejectionText.js'
 import { FallbackToolUseRejectedMessage } from '../../components/FallbackToolUseRejectedMessage.js'
 import { Message as MessageComponent } from '../../components/Message.js'
 import { MessageResponse } from '../../components/MessageResponse.js'
@@ -120,6 +121,9 @@ export function renderToolUseErrorMessage(
   result: ToolResultBlockParam['content'],
   { progressMessagesForMessage, tools, verbose }: { progressMessagesForMessage?: ProgressMessage<SkillToolProgress>[]; tools: Tools; verbose: boolean },
 ): React.ReactNode {
+  if (typeof result === 'string' && isDenialResultText(result) && (progressMessagesForMessage ?? []).length === 0) {
+    return <FallbackToolUseErrorMessage result={result} verbose={verbose} />
+  }
   return (
     <Box flexDirection="column">
       <ProgressRows progressMessages={progressMessagesForMessage ?? []} tools={tools} verbose={verbose} />

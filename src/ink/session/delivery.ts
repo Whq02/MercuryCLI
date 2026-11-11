@@ -5,6 +5,7 @@ import type { Diff } from '../frame.js'
 import { cursorMove, cursorTo, eraseLines } from '../termio/csi.js'
 import { BSU, ESU, HIDE_CURSOR, SHOW_CURSOR } from '../termio/dec.js'
 import { link } from '../termio/osc.js'
+import { noteTerminalWriteHeld } from '../terminalOut.js'
 
 
 export type Terminal = {
@@ -49,6 +50,15 @@ export function writeAllSync(
   data: Buffer,
   syscalls: DeliverySyscalls = defaultSyscalls,
 ): boolean {
+  const startedAt = performance.now()
+  try {
+    return writeWhole(fd, data, syscalls)
+  } finally {
+    noteTerminalWriteHeld(performance.now() - startedAt)
+  }
+}
+
+function writeWhole(fd: number, data: Buffer, syscalls: DeliverySyscalls): boolean {
   let offset = 0
   lastWriteSpins = 0
   while (offset < data.length) {

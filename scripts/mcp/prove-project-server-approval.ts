@@ -253,6 +253,18 @@ try {
     const changed = { ...probe, args: [...probe.args, '--changed'] }
     tally.check('a changed definition has another digest and reads pending', projectMcpServerDefinitionDigest(changed) !== projectMcpServerDefinitionDigest(probe) && getProjectMcpServerStatus('probe', changed) === 'pending', getProjectMcpServerStatus('probe', changed))
     tally.check('the digest reads the definition as written, not the expanded values', projectMcpServerDefinitionDigest({ ...probe, args: ['expanded'], unexpanded: { args: probe.args } }) === projectMcpServerDefinitionDigest(probe))
+    const remote = { type: 'http', url: 'https://probe.invalid/mcp', headersHelper: '/usr/bin/true first', scope: 'project' } as never
+    const remoteWithAnotherHelper = { type: 'http', url: 'https://probe.invalid/mcp', headersHelper: '/usr/bin/true second', scope: 'project' } as never
+    const remoteWithNone = { type: 'http', url: 'https://probe.invalid/mcp', scope: 'project' } as never
+    tally.check(
+      'the headers helper is a command the product runs, so it is part of what was approved: another helper is another digest, a helper added is another digest',
+      projectMcpServerDefinitionDigest(remote) !== projectMcpServerDefinitionDigest(remoteWithAnotherHelper) && projectMcpServerDefinitionDigest(remote) !== projectMcpServerDefinitionDigest(remoteWithNone),
+      `${projectMcpServerDefinitionDigest(remote)} ${projectMcpServerDefinitionDigest(remoteWithAnotherHelper)} ${projectMcpServerDefinitionDigest(remoteWithNone)}`,
+    )
+    tally.check(
+      'the page names the helper among what the approval is keyed to',
+      /keyed to\s+the server's definition as written\s+\(its command, arguments, URL, headers helper and environment variable names\)/.test(readFileSync(join(ROOT, 'docs', 'TRUST.md'), 'utf8')),
+    )
     recordProjectMcpServerChoices({ approved: [{ name: 'probe', config: changed }] })
     resetSettingsCache()
     tally.check('approving the changed definition replaces the old entry', JSON.stringify(localEntries(w)) === JSON.stringify([projectMcpApprovalEntry('probe', changed)]) && getProjectMcpServerStatus('probe', changed) === 'approved', JSON.stringify(localEntries(w)))

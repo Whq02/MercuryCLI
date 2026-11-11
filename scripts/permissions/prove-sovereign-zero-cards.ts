@@ -283,5 +283,73 @@ section('§6 the arming of sovereign is untouched: the launch flag or the Boot M
   check('a session not launched with the flag cannot enter sovereign by hand', entry.ok === false && /--sovereign/.test(entry.ok ? '' : entry.error), JSON.stringify(entry))
 }
 
+section('§7 a command a tool starts gets the Bash decision: under sovereign that is an allowance or a refusal, never a card')
+{
+  const { MonitorTool } = await import('../../src/tools/MonitorTool/MonitorTool.ts')
+  const watch = (command: string) => ({ command, description: 'watch' })
+  for (const command of ['echo x > notes.txt', 'rm -rf build', 'npm install left-pad', 'git push origin main', 'cat $FILE', 'ls *.txt']) {
+    const outside = await decide(MonitorTool, watch(command), contextOf('default'))
+    check(`Monitor ${command}: asks in default mode, as the Bash call does`, outside.decision.behavior === 'ask', JSON.stringify(outside.decision))
+    const under = await decide(MonitorTool, watch(command), contextOf('sovereign'))
+    check(`Monitor ${command}: allowed under sovereign, no card`, under.decision.behavior === 'allow', JSON.stringify({ decidedBy: under.trace.decidedBy, decision: under.decision }))
+    const wrapped = await decideToolPermissionWithModes(MonitorTool as never, watch(command), contextOf('sovereign'), assistant, 'toolu_monitor')
+    check(`Monitor ${command}: the mode wrapper adds no ask under sovereign`, wrapped.decision.behavior === 'allow', JSON.stringify(wrapped.decision))
+  }
+  const refused = await decide(MonitorTool, watch('rm -rf build'), contextOf('sovereign', { deny: ['Bash(rm *)'] }))
+  check('Monitor rm -rf build: a deny rule written for Bash refuses it under sovereign (a refusal is not a card)', refused.decision.behavior === 'deny', JSON.stringify(refused.decision))
+  for (const [name, tool] of [['Bash', BashTool], ['Monitor', MonitorTool]] as const) {
+    const store = await decide(tool, name === 'Bash' ? { command: 'printf x > ~/.ssh/config' } : watch('printf x > ~/.ssh/config'), contextOf('sovereign'))
+    check(`${name} printf x > ~/.ssh/config: a write to a credential store is refused under sovereign, as the Write tool refuses it (no card)`, store.decision.behavior === 'deny' && (store.decision.message ?? '').includes('is a protected system or credential path'), JSON.stringify(store.decision))
+  }
+  const { ServiceTool } = await import('../../src/tools/ServiceTool/ServiceTool.ts')
+  const { JourneyTool } = await import('../../src/tools/JourneyTool/JourneyTool.ts')
+  const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
+  const started: Array<[string, unknown, (argv: string[]) => Record<string, unknown>]> = [
+    ['Service start', ServiceTool, argv => ({ op: 'start', name: 'probe', command: argv[0], args: argv.slice(1) })],
+    ['Journey command.run', JourneyTool, argv => ({ op: 'run', objective: 'probe', steps: [{ kind: 'command.run', command: argv[0], args: argv.slice(1) }] })],
+    ['Journey service.start', JourneyTool, argv => ({ op: 'run', objective: 'probe', steps: [{ kind: 'service.start', name: 'probe', command: argv[0], args: argv.slice(1) }] })],
+    ['Debug launch', DebugTool, argv => ({ op: 'launch', program: argv[0], args: argv.slice(1) })],
+  ]
+  for (const [road, tool, input] of started) {
+    for (const argv of [['node', 'server.js'], ['rm', '-rf', 'build'], ['git', 'push', 'origin', 'main'], ['make', 'deploy']]) {
+      const outside = await decide(tool, input(argv), contextOf('default'))
+      check(`${road} of ${argv.join(' ')}: asks in default mode`, outside.decision.behavior === 'ask', JSON.stringify(outside.decision))
+      const under = await decide(tool, input(argv), contextOf('sovereign', { ask: ['Bash(make deploy *)'] }))
+      check(`${road} of ${argv.join(' ')}: allowed under sovereign, no card`, under.decision.behavior === 'allow', JSON.stringify({ decidedBy: under.trace.decidedBy, decision: under.decision }))
+    }
+    const denied = await decide(tool, input(['rm', '-rf', 'build']), contextOf('sovereign', { deny: ['Bash(rm *)'] }))
+    check(`${road} of rm -rf build: a deny rule written for Bash refuses it under sovereign (a refusal is not a card)`, denied.decision.behavior === 'deny', JSON.stringify(denied.decision))
+  }
+  for (const text of ['ls', 'rm -rf build', 'git push origin main', 'cat $FILE']) {
+    const input = { op: 'input', name: 'zero-cards-service', text }
+    const outside = await decide(ServiceTool, input, contextOf('default'))
+    check(`Service input of ${text}: asks in default mode`, outside.decision.behavior === 'ask', JSON.stringify(outside.decision))
+    const under = await decide(ServiceTool, input, contextOf('sovereign', { ask: ['Bash(ls *)'] }))
+    check(`Service input of ${text}: allowed under sovereign, no card`, under.decision.behavior === 'allow', JSON.stringify({ decidedBy: under.trace.decidedBy, decision: under.decision }))
+    const ruled = await decide(ServiceTool, input, contextOf('sovereign', { deny: ['Bash(rm *)', 'Read(secrets/**)'] }))
+    check(`Service input of ${text}: with deny rules in force, allowed or refused under sovereign (${ruled.decision.behavior}), no card`, ruled.decision.behavior === 'allow' || ruled.decision.behavior === 'deny', JSON.stringify(ruled.decision).slice(0, 300))
+  }
+  for (const input of [{ op: 'evaluate', expression: 'x + 1' }, { op: 'setVariable', name: 'x', value: '4', variablesReference: 1 }, { op: 'breakpoints', file: 'app.py', breakpoints: [{ line: 3, condition: 'i > 3', logMessage: 'at {i}' }] }]) {
+    const under = await decide(DebugTool, input, contextOf('sovereign'))
+    check(`Debug ${input.op}: text the debuggee runs asks nothing under sovereign`, under.decision.behavior === 'allow', JSON.stringify(under.decision))
+  }
+}
+
+section('§8 a command the Bash layer cannot follow: with no deny rule in force it is allowed as before, with one in force it is allowed or refused, never asked about')
+{
+  const unfollowed = ['cat $FILE', 'ls *.txt', 'eval "$(cat plan.txt)"', 'cat plan.txt | sh', 'less notes.txt', 'mywrap ls', 'cd "$DIR" && cat k.txt', 'while read l; do echo $l; done < notes.txt', `ls #${'x'.repeat(10_050)}`]
+  for (const command of unfollowed) {
+    const label = command.length > 60 ? `${command.slice(0, 20)}… (${command.length} characters)` : command
+    const bare = await decide(BashTool, { command }, contextOf('sovereign'))
+    check(`Bash ${label}: no deny rule in force, allowed under sovereign as before`, bare.decision.behavior === 'allow', JSON.stringify({ decidedBy: bare.trace.decidedBy, decision: bare.decision }).slice(0, 400))
+    const ruled = await decide(BashTool, { command }, contextOf('sovereign', { deny: ['Bash(rm *)', 'Read(secrets/**)'] }))
+    check(`Bash ${label}: deny rules in force, allowed or refused under sovereign (${ruled.decision.behavior}), no card`, ruled.decision.behavior === 'allow' || ruled.decision.behavior === 'deny', JSON.stringify(ruled.decision).slice(0, 400))
+    const wrapped = await decideToolPermissionWithModes(BashTool as never, { command }, contextOf('sovereign', { deny: ['Bash(rm *)', 'Read(secrets/**)'] }), assistant, 'toolu_unfollowed')
+    check(`Bash ${label}: the mode wrapper adds no ask under sovereign`, wrapped.decision.behavior !== 'ask', JSON.stringify(wrapped.decision).slice(0, 300))
+  }
+  const refused = await decide(BashTool, { command: 'cat $FILE' }, contextOf('sovereign', { deny: ['Read(secrets/**)'] }))
+  check('Bash cat $FILE: with a Read deny rule in force the refusal names the rule and says the effect could not be established', refused.decision.behavior === 'deny' && /its effect could not be established .*the rule Read\(secrets\/\*\*\)/.test(refused.decision.message ?? ''), JSON.stringify(refused.decision))
+}
+
 console.log(`\nsovereign zero cards: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

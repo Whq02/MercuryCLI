@@ -4,6 +4,7 @@ import { loadAllPermissionRulesFromDisk } from '../permissions/permissionsLoader
 import {
   createSovereignDisabledContext,
   isSovereignDisabled,
+  stripDangerousPermissionsForFlow,
 } from '../permissions/permissionSetup.js'
 import { syncPermissionRulesFromDisk } from '../permissions/permissions.js'
 import type { SettingSource } from './constants.js'
@@ -24,6 +25,9 @@ export function applySettingsChange(
       (toolPermissionContext as { mode?: string }).mode !== undefined
     ) {
       toolPermissionContext = createSovereignDisabledContext(toolPermissionContext as never) as never
+    }
+    if ((toolPermissionContext as { mode?: string }).mode === 'flow') {
+      toolPermissionContext = stripDangerousPermissionsForFlow(toolPermissionContext as never) as never
     }
 
     const previousEffort = prev.settings?.engine?.effort

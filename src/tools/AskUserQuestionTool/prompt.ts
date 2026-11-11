@@ -3,6 +3,8 @@ export const ASK_USER_QUESTION_TOOL_NAME = 'AskUserQuestion'
 
 export const ASK_USER_QUESTION_TOOL_CHIP_WIDTH = 12
 
+export const DISCUSS_OPTION_LABEL = 'Chat about this'
+
 export const DESCRIPTION =
   'Put a fixed set of choices in front of the user — to collect facts, resolve something ambiguous, learn a preference, settle a decision, or present alternatives.'
 

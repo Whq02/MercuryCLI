@@ -145,6 +145,7 @@ import {
   getMercuryMcpConfigs,
   filterMcpServersByPolicy,
   mcpServersSkippedForApprovalLines,
+  mcpServersSkippedForTrustLine,
 } from '../services/mcp/config.js'
 import { performMCPOAuthFlow } from '../services/mcp/auth.js'
 import type {
@@ -239,6 +240,7 @@ import {
   doesMessageExistInSession,
   saveAdvisorSwitch,
   saveAgentSetting,
+  saveSessionBrief,
   saveSessionModel,
 } from '../utils/sessionStorage.js'
 import { restoreAgentFromSession, restoreConversationModel, restoreSessionStateFromLog } from '../utils/sessionRestore.js'
@@ -434,6 +436,8 @@ export async function runHeadless(
   }
   const skippedHooks = hooksSkippedForTrustLine()
   if (skippedHooks !== null && options.door !== 'wire') process.stderr.write(`${GLYPH.warn} ${skippedHooks}\n`)
+  const skippedServers = mcpServersSkippedForTrustLine()
+  if (skippedServers !== null && options.door !== 'wire') process.stderr.write(`${GLYPH.warn} ${skippedServers}\n`)
   if (options.door !== 'wire') {
     for (const withheld of toolsWithheldByDeny(getAllBaseTools(), getAppState().toolPermissionContext)) {
       process.stderr.write(`${GLYPH.warn} ${withheldByRuleWords(withheld.tool, withheld.rule)}\n`)
@@ -889,11 +893,23 @@ export async function runHeadless(
     })
     if (restored.agentType && restored.agentDefinition) saveAgentSetting(restored.agentType)
   }
-  const mainAgent = agents.find(agent => agent.agentType === getMainThreadAgentType())
-  if (mainAgent !== undefined && !isBuiltInAgent(mainAgent) && options.systemPrompt === undefined) {
-    const agentPrompt = mainAgent.getSystemPrompt()
-    if (agentPrompt) options.systemPrompt = agentPrompt
+  const givenBrief = options.systemPrompt
+  const givenBriefAdd = isConcourseWorker ? undefined : options.appendSystemPrompt
+  const hostBriefAdd = isConcourseWorker ? options.appendSystemPrompt : undefined
+  const settleSessionBriefs = (kept: { brief?: string; briefAdd?: string }, record: boolean): void => {
+    if (record && givenBrief !== undefined && givenBrief !== kept.brief) saveSessionBrief('brief', givenBrief)
+    if (record && givenBriefAdd !== undefined && givenBriefAdd !== kept.briefAdd) saveSessionBrief('briefAdd', givenBriefAdd)
+    options.systemPrompt = givenBrief ?? kept.brief
+    const ownBriefAdd = givenBriefAdd ?? kept.briefAdd
+    const saidByHost = ownBriefAdd !== undefined && (hostBriefAdd ?? '').endsWith(`\n\n${ownBriefAdd}`)
+    options.appendSystemPrompt = [hostBriefAdd, saidByHost ? undefined : ownBriefAdd].filter(Boolean).join('\n\n') || undefined
+    const mainAgent = agents.find(agent => agent.agentType === getMainThreadAgentType())
+    if (mainAgent !== undefined && !isBuiltInAgent(mainAgent) && options.systemPrompt === undefined) {
+      const agentPrompt = mainAgent.getSystemPrompt()
+      if (agentPrompt) options.systemPrompt = agentPrompt
+    }
   }
+  settleSessionBriefs(loaded, !awaitingSessionClaim)
   if (options.advise === true) saveAdvisorSwitch(true)
 
   if (messages.length === 0 && process.exitCode !== undefined && process.exitCode !== 0) {
@@ -2228,11 +2244,13 @@ export async function runHeadless(
             if (!isSessionPersistenceDisabled()) await resetSessionFilePointer()
             await restoreSessionStateFromLog(resumed, setAppState)
             restoreSessionMetadata(resumed)
+            settleSessionBriefs(resumed, true)
             messages.splice(0, messages.length, ...resumed.messages)
             turnsRun = priorTurnCount(messages)
             contentReplacementState = reconstructContentReplacementState(messages, resumed.contentReplacements ?? [])
           } else {
             switchSession(sid as SessionId, claimedHome)
+            settleSessionBriefs({}, true)
           }
           if (claimedModel !== undefined) {
             activeModel = claimedModel

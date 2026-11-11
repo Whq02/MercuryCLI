@@ -14,12 +14,15 @@ import {
   compatChatCallModel,
   compatDispatchModelId,
   compatLaneLiveProofState,
+  laneExtrasWithOperatorEffort,
   type CompatCallModelParams,
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
 import { buildLocalExtras, LOCAL_SERVER_EFFORTS, localThinkingOff, tensorFoldRefusesEffort } from '../openaicompat/compatWire.js'
+import { nearestSupportedWireEffort } from '../openai/gptPins.js'
 import { getMaxOutputTokensForModel } from '../anthropic/streamCore.js'
-import { EFFORT_STAMP_THINKING_OFF, EFFORT_STAMP_THINKING_ON, type EffortWireFact } from '../../../utils/effortStamp.js'
+import { effortVocabularyFor } from '../../../utils/model/capabilities.js'
+import { EFFORT_STAMP_NONE, EFFORT_STAMP_THINKING_OFF, EFFORT_STAMP_THINKING_ON, type EffortWireFact } from '../../../utils/effortStamp.js'
 import { planToolPayload, toolsOnTheWire } from '../toolEconomy.js'
 import { mapToolsToZai, toolDeclarationRowInResult, type ApiShapedTool } from '../zai/zaiCodec.js'
 import { QWEN_TEMPLATE_EFFORTS, QWEN_TEMPLATE_EFFORT_STEPS, qwenTemplateEffort, qwenTemplateReadsEffort } from '../qwen/qwenTemplate.js'
@@ -44,8 +47,12 @@ function servesQwenTemplate(record: LocalModelRecord): boolean {
   return (record.server === 'vllm' || record.server === 'llamacpp') && qwenTemplateReadsEffort(record.id)
 }
 
+function statedTemplateEfforts(record: LocalModelRecord): readonly string[] | undefined {
+  return record.server === 'llamacpp' && record.efforts !== undefined && record.efforts.length > 0 && !servesQwenTemplate(record) ? record.efforts : undefined
+}
+
 export function localServedEfforts(record: LocalModelRecord): { vocabulary: readonly string[]; steps?: Readonly<Record<string, string>> } {
-  return servesQwenTemplate(record) ? { vocabulary: QWEN_TEMPLATE_EFFORTS, steps: QWEN_TEMPLATE_EFFORT_STEPS } : { vocabulary: LOCAL_SERVER_EFFORTS[record.server] }
+  return servesQwenTemplate(record) ? { vocabulary: QWEN_TEMPLATE_EFFORTS, steps: QWEN_TEMPLATE_EFFORT_STEPS } : { vocabulary: statedTemplateEfforts(record) ?? LOCAL_SERVER_EFFORTS[record.server] }
 }
 
 export const TENSORFOLD_OUTPUT_CEILING = 32768
@@ -189,6 +196,13 @@ export function ollamaThinkingValue(record: LocalModelRecord, effortValue: strin
   return thinking.values.includes(thinkingEnabled) ? thinkingEnabled : thinking.default
 }
 
+export function tensorFoldEffortApplied(model: string, level: string): string | undefined {
+  const record = localRecordFor(model)
+  if (record === undefined || record.server !== 'tensorfold') return undefined
+  const extras = laneExtrasWithOperatorEffort(localLaneProfileFor(record), effortVocabularyFor(model), { wireModel: record.id, effortValue: level, thinkingEnabled: true, maxOutputTokensOverride: undefined })
+  return typeof extras.reasoning_effort === 'string' ? extras.reasoning_effort : EFFORT_STAMP_NONE
+}
+
 export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile {
   let think: boolean | string | undefined
   const ollamaEffortOnWire = (): EffortWireFact => {
@@ -214,8 +228,16 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
     wireModelId: () => record.id,
     buildExtras: args => {
       think = ollamaThinkingValue(record, args.effortValue, args.thinkingEnabled)
-      const effortValue = args.effortValue !== undefined && servesQwenTemplate(record) ? qwenTemplateEffort(args.effortValue) : args.effortValue
-      return buildLocalExtras({ ...args, effortValue, server: record.server, acceptsEffort: localModelAcceptsEffort(record), ...(record.thinkingSwitch !== undefined ? { thinkingSwitch: record.thinkingSwitch } : {}) })
+      const stated = statedTemplateEfforts(record)
+      const effortValue =
+        args.effortValue === undefined
+          ? undefined
+          : servesQwenTemplate(record)
+            ? qwenTemplateEffort(args.effortValue)
+            : stated !== undefined && !stated.includes(args.effortValue)
+              ? nearestSupportedWireEffort(args.effortValue, stated)
+              : args.effortValue
+      return buildLocalExtras({ ...args, effortValue, server: record.server, acceptsEffort: localModelAcceptsEffort(record), ...(stated !== undefined ? { vocabulary: stated } : {}), ...(record.thinkingSwitch !== undefined ? { thinkingSwitch: record.thinkingSwitch } : {}) })
     },
     omitsToolChoice: record.server === 'ollama',
     keepsReasoningOnContinuations: () => true,

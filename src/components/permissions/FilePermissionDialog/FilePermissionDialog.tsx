@@ -92,6 +92,7 @@ export function FilePermissionDialog<T extends ToolInput>({
           />
           {typeof question === 'string' ? <Text bold>{question}</Text> : question}
           <Select
+            scrollMovesFocus={false}
             options={dialog.options}
             onChange={value => {
               const option = dialog.options.find(candidate => candidate.value === value)

@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useEffect } from 'react'
+import { useContext, useEffect } from 'react'
+import { InkInstanceContext } from '../../ink/components/InkInstanceContext.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import { armComposerSeed } from '../../utils/cockpit/composerSeed.js'
 import { armPermissionFocus } from '../../utils/permissions/permissionFocus.js'
@@ -25,14 +26,16 @@ import { AskUserQuestionTool } from '../../tools/AskUserQuestionTool/AskUserQues
 import { WorkflowTool } from '../../tools/WorkflowTool/WorkflowTool.js'
 import { RecordConventionTool } from '../../tools/RecordConventionTool/RecordConventionTool.js'
 import { GitTool } from '../../tools/GitTool/GitTool.js'
+import { MonitorTool } from '../../tools/MonitorTool/MonitorTool.js'
 import { CorrectTool, RetainTool } from '../../tools/MemoryTools/MemoryTools.js'
 import { ApolloReviewPermissionRequest } from './ApolloReviewPermissionRequest/ApolloReviewPermissionRequest.js'
 import { isMemoryRuleCard, MemoryRulePermissionRequest } from './MemoryRulePermissionRequest/MemoryRulePermissionRequest.js'
 import { AskUserQuestionPermissionRequest } from './AskUserQuestionPermissionRequest/AskUserQuestionPermissionRequest.js'
 import { ChangeSetPermissionRequest } from './ChangeSetPermissionRequest/ChangeSetPermissionRequest.js'
-import { BashPermissionRequest } from './BashPermissionRequest/BashPermissionRequest.js'
+import { BashPermissionRequest, MonitorPermissionRequest } from './BashPermissionRequest/BashPermissionRequest.js'
 import { PowerShellPermissionRequest } from './PowerShellPermissionRequest/PowerShellPermissionRequest.js'
 import { FallbackPermissionRequest } from './FallbackPermissionRequest.js'
+import { useKeysHeldUntilFirstPaint } from './hooks.js'
 import { MediaPermissionRequest } from './MediaPermissionRequest.js'
 import { mediaGenerationKind } from '../../services/media/generation.js'
 import { FileEditPermissionRequest } from './FileEditPermissionRequest/FileEditPermissionRequest.js'
@@ -110,6 +113,11 @@ export function PermissionRequest(props: PermissionRequestProps): React.ReactNod
 
   useEffect(() => armPermissionFocus(), [])
 
+  const ink = useContext(InkInstanceContext)
+  useEffect(() => ink?.registerArrowKeyOwner(() => true), [ink])
+
+  useKeysHeldUntilFirstPaint()
+
   const isQuestionCard = toolUseConfirm.tool === AskUserQuestionTool
   useEffect(() => {
     if (isQuestionCard) return undefined
@@ -125,6 +133,7 @@ export function PermissionRequest(props: PermissionRequestProps): React.ReactNod
   if (tool === ChangeSetTool) return <ChangeSetPermissionRequest key={key} {...props} />
   if (tool === FileWriteTool) return <FileWritePermissionRequest key={key} {...props} />
   if (tool === BashTool) return <BashPermissionRequest key={key} {...props} />
+  if (tool === MonitorTool) return <MonitorPermissionRequest key={key} {...props} />
   if (tool === PowerShellTool) return <PowerShellPermissionRequest key={key} {...props} />
   if (tool === WebFetchTool) return <WebFetchPermissionRequest key={key} {...props} />
   if (tool === BrowserTool) return <BrowserPermissionRequest key={key} {...props} />

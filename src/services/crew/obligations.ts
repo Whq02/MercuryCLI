@@ -278,6 +278,7 @@ export interface ResolveObligationOutcome {
   answerRef?: string
   resumptionRef?: string
   supersededBy?: string
+  stillDue?: () => boolean
   dir?: string
   scope?: ObligationStoreScope
 }
@@ -290,6 +291,7 @@ export async function resolveObligation(
   return store.update<{ settled: boolean; status: ObligationStatus | 'unknown' }>(current => {
     const row = current.obligations[obligationId]
     if (!row) return { next: current, result: { settled: false, status: 'unknown' } }
+    if (outcome.stillDue !== undefined && !outcome.stillDue()) return { next: current, result: { settled: false, status: row.status } }
     const now = Date.now()
     const attempt: ObligationSettlementAttemptV1 = {
       kind: outcome.kind,

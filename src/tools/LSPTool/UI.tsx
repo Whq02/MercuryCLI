@@ -1,6 +1,7 @@
 import * as React from 'react'
 
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js'
+import { isDenialResultText } from '../../utils/messages/rejectionText.js'
 import { InlineChangeView } from '../../components/InlineChangeView.js'
 import { MessageResponse } from '../../components/MessageResponse.js'
 import { CtrlOToExpand } from '../../components/CtrlOToExpand.js'
@@ -249,7 +250,7 @@ export function renderToolUseErrorMessage(
   { verbose }: { verbose: boolean },
   name = 'LspRead',
 ): React.ReactNode {
-  if (!verbose && typeof result === 'string') {
+  if (!verbose && typeof result === 'string' && !isDenialResultText(result)) {
     const tagged = extractTag(result, 'tool_use_error')
     if (tagged !== null) return <ShortErrorLine text={`${name}: ${collapseAndClip(tagged, 140)}`} />
   }

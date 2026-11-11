@@ -104,6 +104,47 @@ section('§2 the three roads read the one module')
   check('the --model flag passes unlisted id-shaped words to the provider road', read('src/main.tsx').includes("matchReachableModelName(userSpecifiedModel, 'pass')"))
 }
 
+section('§2b an exact declared id passes as itself: the prefix rule never reads it as a longer listed id')
+{
+  const road = await import('../../src/utils/model/modelNameRoad.ts')
+  const catalogue = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
+  const page = (ids: string[]): typeof fetch =>
+    (async () => new Response(JSON.stringify({ data: ids.map(id => ({ type: 'model', id, display_name: id })), has_more: false }), { status: 200, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch
+  const listed = async (ids: string[]): Promise<void> => {
+    delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
+    try {
+      await catalogue.refreshAnthropicCatalogue({ force: true, fetchImpl: page(ids) })
+    } finally {
+      process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
+    }
+  }
+  const both = (typed: string): string => JSON.stringify([road.matchReachableModelName(typed), road.matchReachableModelName(typed, 'pass')])
+  const exactly = (typed: string, id: string): boolean => [road.matchReachableModelName(typed), road.matchReachableModelName(typed, 'pass')].every(m => m?.kind === 'exact' && m.id === id)
+  check('claude-sonnet-4, a declared id with no row, is never read as Sonnet 4.6, and its dated id is not either', exactly('claude-sonnet-4', 'claude-sonnet-4') && exactly('claude-sonnet-4-20250514', 'claude-sonnet-4-20250514'), `${both('claude-sonnet-4')} ${both('claude-sonnet-4-20250514')}`)
+  check('claude-opus-4 is itself, not a question among Opus 4.8, 4.7 and 4.6', exactly('claude-opus-4', 'claude-opus-4'), both('claude-opus-4'))
+  check('a sign-in that lists no Mythos id: claude-mythos-5 typed at /model passes as itself where it asked', exactly('claude-mythos-5', 'claude-mythos-5'), both('claude-mythos-5'))
+  await listed(['claude-fable-5-2', 'claude-opus-5-5', 'claude-mythos-5-2'])
+  const rowed = road.reachableModelEntries().filter(entry => entry.id.includes('mythos')).map(entry => entry.id)
+  check('a sign-in that lists Mythos 5.2 alone has that one Mythos row', rowed.join(',') === 'claude-mythos-5-2', rowed.join(','))
+  check('…and claude-mythos-5 is Mythos 5 there, under either case and with its [1m] rider, never Mythos 5.2', exactly('claude-mythos-5', 'claude-mythos-5') && exactly('Claude-Mythos-5', 'claude-mythos-5') && exactly('claude-mythos-5[1m]', 'claude-mythos-5[1m]'), `${both('claude-mythos-5')} ${both('Claude-Mythos-5')} ${both('claude-mythos-5[1m]')}`)
+  check('…claude-mythos-5-1, declared and not listed, passes as itself', exactly('claude-mythos-5-1', 'claude-mythos-5-1'), both('claude-mythos-5-1'))
+  const loose = road.matchReachableModelName('mythos 5')
+  check('…a loose name still rides the prefix rule: mythos 5 → claude-mythos-5-2, said back', loose?.kind === 'match' && loose.id === 'claude-mythos-5-2' && loose.said === 'mythos 5 → claude-mythos-5-2', JSON.stringify(loose))
+  await listed(['claude-fable-5-2', 'claude-opus-5-5', 'claude-mythos-5-2', 'claude-mythos-5-1'])
+  check('a sign-in that lists Mythos 5.2 and 5.1: claude-mythos-5 is itself, not a question between the two', exactly('claude-mythos-5', 'claude-mythos-5'), both('claude-mythos-5'))
+  const question = road.matchReachableModelName('mythos 5')
+  check('…and the loose name mythos 5 still asks which of the two', question?.kind === 'ambiguous' && question.candidates.join(',') === 'claude-mythos-5-2,claude-mythos-5-1', JSON.stringify(question))
+  const stem = road.matchReachableModelName('claude-haiku-4-5')
+  check('a declared stem whose own model is a row still names that row: claude-haiku-4-5 → claude-haiku-4-5-20251001', stem?.kind === 'match' && stem.id === 'claude-haiku-4-5-20251001', JSON.stringify(stem))
+  const undeclared = [road.matchReachableModelName('claude-mythos-6'), road.matchReachableModelName('claude-mythos-6', 'pass')]
+  check('an id the table does not declare is as before: asked at /model, passed on by --model', undeclared[0]?.kind === 'none' && undeclared[1] === null, JSON.stringify(undeclared))
+  const rows = [{ id: 'claude-mythos-5-2', name: 'Mythos 5.2' }]
+  const bare = matcher.matchModelName('claude-mythos-5', rows)
+  const known = matcher.matchModelName('claude-mythos-5', rows, id => id === 'claude-mythos-5')
+  check('the matcher alone keeps its prefix rule; told the id is declared, it answers exact', bare.kind === 'match' && bare.id === 'claude-mythos-5-2' && known.kind === 'exact' && known.id === 'claude-mythos-5', JSON.stringify([bare, known]))
+  catalogue.__resetAnthropicCatalogueForTest()
+}
+
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))

@@ -138,6 +138,12 @@ try {
       check('Vast locally rejects unsafe or non-fitting row ' + Object.keys(patch)[0], !(await v.offers(signal())).length)
     }
     check('an unmapped GPU name is named in the offers note instead of vanishing', v.offersNote() === 'Skipped 1 Vast.ai offer whose GPU name Mercury does not map: RTX 6000 Ada ×1.')
+    vast.state.customOffers = [{ ...safe, id: 201, gpu_name: 'H100 NVL', gpu_ram: 94 * 1024 }, { ...safe, id: 202, gpu_name: 'RTX PRO 6000 Max-Q', gpu_ram: 96 * 1024 }, { ...safe, id: 203, gpu_name: 'GB10', gpu_ram: 128 * 1024 }]
+    const editions = await v.offers(signal())
+    check('an H100 NVL and an RTX PRO 6000 Max-Q, as Vast.ai names them, are offered as the H100 and the Blackwell card the recipes name', editions.some(row => row.gpuId === 'NVIDIA H100' && row.recipe.gpu === 'H100') && editions.some(row => row.gpuId === 'NVIDIA RTX PRO 6000 Blackwell' && row.recipe.gpu === 'RTX PRO 6000'))
+    check('a system no recipe serves stays named in the note, and it alone', v.offersNote() === 'Skipped 1 Vast.ai offer whose GPU name Mercury does not map: GB10 ×1.')
+    vast.state.customOffers = [{ ...safe, id: 204, gpu_name: 'H100 NVL', gpu_ram: 70 * 1024 }, { ...safe, id: 205, gpu_name: 'RTX PRO 6000 Max-Q', gpu_ram: 80 * 1024 }]
+    check('each is still held to the memory its recipe needs', (await v.offers(signal())).length === 0 && v.offersNote() === '')
     vast.state.customOffers = [safe]
     check('a mapped catalogue leaves the note empty', (await v.offers(signal())).length > 0 && v.offersNote() === '')
     vast.state.customOffers = null

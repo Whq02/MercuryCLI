@@ -185,7 +185,7 @@ export function ComputerPermissionRequest({
         {challenge && <Text>{computerChallengeAppLine(judged)}</Text>}
         {challenge && <Text dimColor>{COMPUTER_CHALLENGE_NOTE}</Text>}
         <Text bold>{clipboard ? 'Allow Mercury to read the clipboard text?' : challenge ? COMPUTER_CHALLENGE_QUESTION : COMPUTER_ASK_QUESTION}</Text>
-        <Select options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
+        <Select scrollMovesFocus={false} options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
       </Box>
     </PermissionDialog>
   )

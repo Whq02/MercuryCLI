@@ -39,10 +39,19 @@ async function fileRow(input: ReadRequest, context: ToolUseContext, clipped = fa
   return { type: 'file', filename: input.file_path, content: answer.data, displayPath: displayOf(input.file_path), ...(clipped ? { truncated: true } : {}) }
 }
 
-async function oversizedFallback(input: ReadRequest, context: ToolUseContext, mode: ReadMode): Promise<FileRow | null> {
+async function clippedRead(input: ReadRequest, context: ToolUseContext, window: Required<ReadWindow>): Promise<FileAttachment> {
+  try {
+    return await fileRow({ file_path: input.file_path, ...window }, context, true)
+  } catch (failure) {
+    if (!(failure instanceof MaxFileReadTokenExceededError) || failure.next === undefined || failure.next.limit >= window.limit) throw failure
+    return clippedRead(input, context, failure.next)
+  }
+}
+
+async function oversizedFallback(input: ReadRequest, context: ToolUseContext, mode: ReadMode, fits?: ReadWindow): Promise<FileRow | null> {
   if (modes[mode].oversizedReference) return { type: 'compact_file_reference', filename: input.file_path, displayPath: displayOf(input.file_path) }
   if (isFileReadDenied(input.file_path, context.getAppState().toolPermissionContext)) return null
-  return fileRow({ file_path: input.file_path, offset: input.offset ?? 1, limit: MAX_LINES_TO_READ }, context, true)
+  return clippedRead(input, context, { offset: fits?.offset ?? input.offset ?? 1, limit: fits?.limit ?? MAX_LINES_TO_READ })
 }
 
 async function validatedRead(input: ReadRequest, context: ToolUseContext, mode: ReadMode): Promise<FileRow | null> {
@@ -53,7 +62,7 @@ async function validatedRead(input: ReadRequest, context: ToolUseContext, mode: 
     } catch (failure) {
       if (failure instanceof ImageResizeError) return droppedImage(input.file_path, failure.message)
       if (!(failure instanceof MaxFileReadTokenExceededError || failure instanceof FileTooLargeError)) return null
-      return await oversizedFallback(input, context, mode)
+      return await oversizedFallback(input, context, mode, failure instanceof MaxFileReadTokenExceededError ? failure.next : undefined)
     }
   } catch {
     return null

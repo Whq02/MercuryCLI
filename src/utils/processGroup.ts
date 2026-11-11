@@ -143,8 +143,28 @@ function signalPid(pid: number, signal: NodeJS.Signals): void {
   }
 }
 
+let ownProcessGroup: number | undefined
+
+export function processStandsInTree(table: readonly { pid: number; ppid: number; pgid: number }[], rootPid: number): boolean {
+  const byPid = new Map(table.map(row => [row.pid, row] as const))
+  const seen = new Set<number>()
+  let at: number | undefined = process.pid
+  while (at !== undefined && at > 1 && !seen.has(at)) {
+    if (at === rootPid) return true
+    const row = byPid.get(at)
+    if (row === undefined) return false
+    if (row.pgid === rootPid) return true
+    seen.add(at)
+    at = row.ppid
+  }
+  return false
+}
+
 async function endPosixTree(pid: number, signal: NodeJS.Signals): Promise<ProcessTreeKillReceipt> {
   const table = await listPosixProcessTable()
+  const own = table.find(row => row.pid === process.pid)
+  if (own !== undefined) ownProcessGroup = own.pgid
+  if (ownProcessGroup === pid || processStandsInTree(table, pid)) return { ended: 0, survivors: isAlivePid(pid) ? [pid] : [] }
   const rootRow = table.find(row => row.pid === pid)
   const groupPgid = rootRow !== undefined && rootRow.pgid === pid ? pid : undefined
   const targets =

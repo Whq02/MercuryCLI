@@ -362,7 +362,7 @@ export function mirrorSwarmNotice(agentId: string, text: string, summary: string
     if (!principal) return null
     const hash = createHash('sha256').update(text).digest('hex')
     const store = swarmStore()
-    const lifecycle = outcome === undefined ? undefined : store?.complete(principal, outcome)
+    const lifecycle = outcome === undefined || store?.member(agentId) !== true ? undefined : store?.complete(principal, outcome)
     return store?.post(principal, { clientOpId: `notice:${hash}`, kind: 'notice', text: summary, taskId: agentId, refs: [{ uri: `mercury://agent/${agentId}`, digest: hash }], ...(lifecycle ? { lifecycle } : {}) }, 'mirror') ?? null
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : String(error) }

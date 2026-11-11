@@ -179,6 +179,26 @@ console.log('\nC8 the fold\'s record rides the word — the seat relays the stag
   check('a respawn retires the record with the word', word() === undefined && (tail() as { fold?: unknown } | null)?.fold === undefined)
 }
 
+console.log("\nC8 the fold's end asks the runner for the session's facts, so the context fill the screen reads is the folded one")
+{
+  const asked: string[] = []
+  const counting = { ...roster, door: () => ({ closed: false, request: (method: string) => { asked.push(method); return new Promise(() => undefined) } }) }
+  const settled = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 450))
+  onSeatRow(SHORT, foldRow(null), counting as never, dir)
+  await settled()
+  check('a started compaction row asks for nothing', asked.length === 0, asked.join(','))
+  onSeatRow(SHORT, clearedRow(), counting as never, dir)
+  await settled()
+  check('the ended row asks the runner for session/facts, once', asked.join(',') === 'session/facts', asked.join(',') || 'nothing asked')
+  onSeatRow(SHORT, foldRow({ schema: 1, trigger: 'manual', startedAtMs: 1_700_000_000_000, stages: ['summarising', 'restoring'], stage: 'restoring', fill: null, summaryTokens: 5000, summaryCapTokens: 20_000, attempt: 1 }), counting as never, dir)
+  await settled()
+  check('a fold in progress asks for nothing more', asked.length === 1, asked.join(','))
+  onSeatRow(SHORT, foldRow({ schema: 1, trigger: 'manual', startedAtMs: 1_700_000_000_000, stages: ['summarising', 'restoring'], stage: 'restoring', fill: null, summaryTokens: 5000, summaryCapTokens: 20_000, attempt: 1, exit: 'landed', endedAtMs: 1_700_000_009_000 }), counting as never, dir)
+  await settled()
+  check('a fold that landed asks again: a fold outside a turn has no idle edge to ask at', asked.join(',') === 'session/facts,session/facts', asked.join(','))
+  onSeatRow(SHORT, outcome(), counting as never, dir)
+}
+
 console.log(
   failures === 0
     ? '\n ✅ COMPACT STATE WORD — the fold speaks its own word, never the thinking dress'

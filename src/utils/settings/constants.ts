@@ -35,16 +35,26 @@ export function parseSettingSourcesFlag(flag: string): SettingSource[] {
 
 const CHECKOUT_SOURCES: ReadonlySet<SettingSource> = new Set(['projectSettings', 'localSettings'])
 
-export function getEnabledSettingSources(): SettingSource[] {
+export function getLaunchSettingSources(): SettingSource[] {
   const allowed = getAllowedSettingSources()
-  const checkoutUntrusted = untrustedWorkspaceHeadless()
-  return SETTING_SOURCES.filter(
-    source => source === 'flagSettings' || source === 'policySettings' || (allowed.includes(source) && !(checkoutUntrusted && CHECKOUT_SOURCES.has(source))),
-  )
+  return SETTING_SOURCES.filter(source => source === 'flagSettings' || source === 'policySettings' || allowed.includes(source))
+}
+
+export function isCheckoutSourceHeldForTrust(source: SettingSource): boolean {
+  return CHECKOUT_SOURCES.has(source) && untrustedWorkspaceHeadless()
+}
+
+export function getEnabledSettingSources(): SettingSource[] {
+  const sources = getLaunchSettingSources()
+  return untrustedWorkspaceHeadless() ? sources.filter(source => !CHECKOUT_SOURCES.has(source)) : sources
 }
 
 export function isSettingSourceEnabled(source: SettingSource): boolean {
   return getEnabledSettingSources().includes(source)
+}
+
+export function isSettingSourceAllowedAtLaunch(source: SettingSource): boolean {
+  return getLaunchSettingSources().includes(source)
 }
 
 export function getSettingSourceName(source: SettingSource): string {

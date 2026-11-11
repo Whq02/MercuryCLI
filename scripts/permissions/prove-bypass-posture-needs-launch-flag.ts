@@ -17,6 +17,8 @@ writeFileSync(
 )
 process.chdir(PROJ)
 
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.ts')
+trustTheProofFolder(true)
 const { initialPermissionModeFromCLI } = await import('../../src/utils/permissions/permissionSetup.ts')
 
 let failures = 0

@@ -121,3 +121,4 @@ prove-hardening-consent-chords.ts
 prove-hardening-input-ownership.ts
 prove-vitals-live-refresh.ts
 prove-paste-sent-whole.ts
+prove-command-argument-pasted.ts

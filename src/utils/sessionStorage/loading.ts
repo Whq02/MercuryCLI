@@ -56,6 +56,8 @@ function copyOfFold(fold: TranscriptFoldState): TranscriptFoldState {
     agentNames: new Map(fold.agentNames),
     agentColors: new Map(fold.agentColors),
     agentSettings: new Map(fold.agentSettings),
+    sessionBriefs: new Map(fold.sessionBriefs),
+    sessionBriefAdds: new Map(fold.sessionBriefAdds),
     prNumbers: new Map(fold.prNumbers),
     prUrls: new Map(fold.prUrls),
     prRepositories: new Map(fold.prRepositories),
@@ -70,6 +72,7 @@ function copyOfFold(fold: TranscriptFoldState): TranscriptFoldState {
     agentContentReplacements: new Map([...fold.agentContentReplacements].map(([k, v]) => [k, [...v]])),
     contextCollapseCommits: [...fold.contextCollapseCommits],
     contextCollapseSnapshot: fold.contextCollapseSnapshot,
+    turnEnds: new Map([...fold.turnEnds].map(([k, v]) => [k, { ...v, trailing: [...v.trailing] }])),
     progressBridge: fold.progressBridge,
   }
 }

@@ -160,6 +160,7 @@ export type AssistantMessage = {
   busyRefusal?: BusyRefusalV1
   effortAdjusted?: EffortAdjustedV1
   effort?: EffortStampV1
+  thinkingPrefix?: string
   outputLimit?: number
   inReplyTo?: ReplyMark[]
 }

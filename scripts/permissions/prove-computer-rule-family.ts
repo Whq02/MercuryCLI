@@ -14,6 +14,8 @@ process.env.NODE_ENV = 'test'
 mkdirSync(join(PROJ, '.mercury'), { recursive: true })
 process.chdir(PROJ)
 
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.ts')
+trustTheProofFolder(true)
 const { permissionRuleValueFromString, permissionRuleValueToString } = await import(
   '../../src/utils/permissions/permissionRuleParser.ts'
 )

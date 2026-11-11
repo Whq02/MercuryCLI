@@ -149,9 +149,9 @@ export function crewmateInterruptRefusedWords(name: string, detail: string): str
   return `${name} did not take the interrupt: ${detail}`
 }
 
-export function crewmateStatusRightHint(pinned: boolean, live = true): string {
-  const esc = live ? ESC_INTERRUPT_HINT : ESC_BACK_HINT
-  return pinned ? esc : `${esc} · ${CREW_MAIN_CHAT_KEY} in ${CREW_VIEW_DOOR} · ${BACK_HINT}`
+export function crewmateStatusRightHint(pinned: boolean, live = true, escapeOwned = false): string {
+  const esc = escapeOwned ? '' : live ? ESC_INTERRUPT_HINT : ESC_BACK_HINT
+  return pinned ? esc : [esc, `${CREW_MAIN_CHAT_KEY} in ${CREW_VIEW_DOOR}`, BACK_HINT].filter(Boolean).join(' · ')
 }
 
 export function crewmatePlaceholder(name: string): string {

@@ -16,7 +16,7 @@ VITALS                  │ │ ╭───────────────
   · ctx — · —           │ │ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │ │
   · health — run /health│ │   Opus 5              claude-opus-5                          1M ctx                      │ │
                         │ │   Haiku 5.5           claude-haiku-5-5                       1M ctx                      │ │
-                        │ │   Haiku 4.5           claude-haiku-4-5-202510…               200k ctx                    │ │
+                        │ │   Haiku 4.5           …aude-haiku-4-5-20251001               200k ctx                    │ │
                         │ │ ▾ Z.AI · no Z.AI API key — /logins zai (or ZAI_API_KEY) · 3 of 3                         │ │
                         │ │   GLM-5.3             glm-5.3                   unavailable  1M ctx                      │ │
                         │ │   GLM-5.3-Flash       glm-5.3-flash             unavailable  1M ctx                      │ │

@@ -113,7 +113,7 @@ export function Settings({
   const folded = tight || compact
   const hintText = settingsPopupHintText(hint ?? request.hint, inner)
   const compactHint = inner >= ('Mercury · ' + view + ' · ' + SETTINGS_POPUP_COMPACT_PAGE_HINT).length + 1 + String(marker ?? '').length + 1 ? SETTINGS_POPUP_COMPACT_PAGE_HINT : SETTINGS_POPUP_COMPACT_HINT
-  const hintLines = wrapSettingsPopupHint(hintText, Math.max(1, inner + 1))
+  const hintLines = wrapSettingsPopupHint(hintText, Math.max(1, inner))
   const hintRows = compact ? 0 : Math.min(Math.max(1, geometry.rowBudget), hintLines.length)
   const bodyBudget = Math.max(1, geometry.rowBudget - Math.max(0, hintRows - 1))
   if (request.bodyOwnsFrame === true) {
@@ -162,7 +162,7 @@ export function Settings({
         </SettingsPopupFrameContext.Provider>
       </Box>
       <Box height={folded ? 0 : 1} flexShrink={0} />
-      <Box height={hintRows} flexShrink={0} width={inner + 1} marginRight={-1} overflow="hidden" flexDirection="column">
+      <Box height={hintRows} flexShrink={0} width={inner} overflow="hidden" flexDirection="column">
         {hintLines.slice(0, Math.max(1, hintRows)).map((text, index) => (
           <Text key={index} color={tok.textMuted} wrap="truncate-end">{text}</Text>
         ))}

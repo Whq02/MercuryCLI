@@ -309,7 +309,7 @@ pin('grammar: digits full-list, change-only (17, 20)', 'components/CustomSelect/
 ])
 pin('grammar: escape one-layer top check (16)', 'components/CustomSelect/use-select-input.ts', [
   'isTopOverlayNow(token)',
-  "useRegisterOverlay('select', Boolean(onCancel), { ownsPageKeys: !isDisabled })",
+  "useRegisterOverlay('select', Boolean(onCancel), { ownsPageKeys: !isDisabled && scrollMovesFocus })",
 ])
 pin('grammar: input rows own typing; paging never consumes (21, 23)', 'components/CustomSelect/use-select-input.ts', [
   'if (state.isInInput) {',
@@ -324,7 +324,7 @@ pin('select: expanded-only click, disabled suppressed (24)', 'components/CustomS
   "layout === 'expanded' && disableSelection !== true && !option.disabled",
 ])
 pin('multi: overlay unconditional + full raw grammar (25–28)', 'components/CustomSelect/use-multi-select-state.ts', [
-  "useRegisterOverlay('multi-select', true, { ownsPageKeys: !isDisabled })",
+  "useRegisterOverlay('multi-select', true, { ownsPageKeys: !isDisabled && scrollMovesFocus })",
   "(input === 'j' && !key.ctrl && !key.shift)",
   'if (hideIndexes) return',
   'key.escape',
@@ -373,13 +373,10 @@ pin('transcript: incremental keys — the one key-law owner (42)', 'components/v
   'keys.push(key)',
   'if (keys === prior.keys) {',
 ])
-pin('transcript: sticky publication laws (53–57)', 'components/VirtualMessageList.tsx', [
-  'handle.isSticky()',
-  'getItemTop(i) + 1',
-  'STICKY_TEXT_CAP',
-  "suppressionRef.current = 'bypass'",
-  'lastPublishedIndexRef.current === promptIndex',
-])
+check(
+  'transcript: the sticky publication laws (53–57) left with the header, and no tracker stands in the list [structural: components/VirtualMessageList.tsx]',
+  ['getItemTop(i) + 1', 'STICKY_TEXT_CAP', "suppressionRef.current = 'bypass'", 'lastPublishedIndexRef.current === promptIndex'].every(needle => !sourceOf('components/VirtualMessageList.tsx').includes(needle)),
+)
 pin('transcript: search engine laws (44–52)', 'components/VirtualMessageList.tsx', [
   'PHANTOM_LIMIT = 20',
   'MOUNT_ATTEMPT_LIMIT = 3',

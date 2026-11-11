@@ -17,7 +17,7 @@ import { getFsImplementation } from '../../utils/fsOperations.js'
 import { getCwd } from '../../utils/cwd.js'
 import { MERCURY_PROJECT_DIR, projectConfigDirs } from '../../utils/projectConfig.js'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
-import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
+import { isSettingSourceAllowedAtLaunch } from '../../utils/settings/constants.js'
 import { getManagedFilePath } from '../../utils/settings/managedPath.js'
 import { isRestrictedToExtensionsOnly } from '../../utils/settings/extensionOnlyPolicy.js'
 import { getInitialSettings, getSettingsForSource } from '../../utils/settings/settings.js'
@@ -339,7 +339,7 @@ function lockedProjectMcpFile(): string {
 }
 
 export function getProjectMcpConfigs(): ScopeRead {
-  if (!isSettingSourceEnabled('projectSettings')) return { servers: {}, errors: [], notices: [] }
+  if (!isSettingSourceAllowedAtLaunch('projectSettings')) return { servers: {}, errors: [], notices: [] }
   const servers: Record<string, ScopedMcpServerConfig> = {}
   const errors: McpConfigError[] = []
   const notices: string[] = []
@@ -363,7 +363,7 @@ export function getProjectMcpConfigsFromCwd(): {
   errors: McpConfigError[]
   notices: string[]
 } {
-  if (!isSettingSourceEnabled('projectSettings')) return { servers: {}, errors: [], notices: [] }
+  if (!isSettingSourceAllowedAtLaunch('projectSettings')) return { servers: {}, errors: [], notices: [] }
   return flat(
     parseMcpConfigFromFilePath({
       filePath: projectMcpFilePath(getCwd()),
@@ -437,7 +437,7 @@ function getEnterpriseMcpConfigs(): ScopeRead {
 }
 
 function getUserMcpConfigs(): ScopeRead {
-  if (!isSettingSourceEnabled('userSettings')) return { servers: {}, errors: [], notices: [] }
+  if (!isSettingSourceAllowedAtLaunch('userSettings')) return { servers: {}, errors: [], notices: [] }
   const servers = getGlobalConfig().mcpServers
   if (!servers) return { servers: {}, errors: [], notices: [] }
   return flat(
@@ -446,7 +446,7 @@ function getUserMcpConfigs(): ScopeRead {
 }
 
 function getLocalMcpConfigs(): ScopeRead {
-  if (!isSettingSourceEnabled('localSettings')) return { servers: {}, errors: [], notices: [] }
+  if (!isSettingSourceAllowedAtLaunch('localSettings')) return { servers: {}, errors: [], notices: [] }
   const servers = getCurrentProjectConfig().mcpServers
   if (!servers) return { servers: {}, errors: [], notices: [] }
   return flat(

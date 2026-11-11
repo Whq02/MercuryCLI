@@ -43,6 +43,8 @@ t.section('§2 + §3 — user layer + project layer through the REAL loader')
     driver,
     `;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(home)}
+const { setSessionTrustAccepted: trustTheProject } = await import('${join(process.cwd(), 'src/bootstrap/state.ts')}')
+trustTheProject(true)
 const { loadKeybindingsSyncWithWarnings, isKeybindingCustomizationEnabled, getProjectKeybindingsPath } =
   await import('${join(process.cwd(), 'src/keybindings/loadUserBindings.ts')}')
 const { resolveKey } = await import('${join(process.cwd(), 'src/keybindings/resolver.ts')}')

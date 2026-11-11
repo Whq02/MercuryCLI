@@ -42,6 +42,8 @@ const group = 'Mercury — OpenRouter models'
 const models = [
   { id: 'vendor/long-family/model-alpha', name: 'Model A', ctx: '1.31M ctx', tag: '', group },
   { id: 'vendor/long-family/model-beta', name: 'Model B', ctx: '200k ctx', tag: '', group },
+  { id: 'vendor/long-family-of-models/second-series/model-gamma', name: 'Model C', ctx: '200k ctx', tag: '', group },
+  { id: 'vendor/long-family-of-models/second-series/model-delta', name: 'Model D', ctx: '200k ctx', tag: '', group },
 ]
 const columnsFor = (width: number): number => Object.values(pickerColumns(width)).reduce((sum, column) => sum + column, 0)
 for (const width of [49, 50, 55, 56, 64, 80, 92]) check(`the column plan fits ${width} cells`, columnsFor(width) <= width, String(columnsFor(width)))
@@ -62,6 +64,9 @@ for (const [columns, rows] of [[60, 20], [63, 20], [66, 20], [70, 20], [80, 24],
     const second = lines.find(line => line.includes('Model B')) ?? ''
     check(`${columns}x${rows}: the alias and current state stay whole`, first.includes('Model A') && first.includes('current') && second.includes('Model B'), first)
     check(`${columns}x${rows}: the context cells stay whole`, first.includes('1.31M ctx') && second.includes('200k ctx'), `${first}\n${second}`)
+    const third = lines.find(line => line.includes('gamma')) ?? lines.find(line => line.includes('vendor/long-family-of')) ?? ''
+    const fourth = lines.find(line => line.includes('delta')) ?? lines.findLast(line => line.includes('vendor/long-family-of')) ?? ''
+    check(`${columns}x${rows}: an id its cell cannot hold keeps its end behind a leading ellipsis, so two ids of one family read apart`, /…\S*gamma\s/.test(third) && /…\S*delta\s/.test(fourth) && !third.includes('vendor/') && !fourth.includes('vendor/'), `${third.trim()}\n${fourth.trim()}`)
     if (columns === 60) check('60x20: clipped ids keep distinct model tails', first.includes('…') && first.includes('alpha') && second.includes('…') && second.includes('beta'), `${first}\n${second}`)
     if (columns === 63) check('63x20: TensorFold keeps the original alias budget at its rounding boundary', first.includes('Model Alpha') && second.includes('Model Beta'), `${first}\n${second}`)
   } finally { scene.unmount() }

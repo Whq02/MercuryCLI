@@ -796,7 +796,7 @@
     {
       "file": "scripts/gate/prove-node-preload-path.ts",
       "mechanism": "shell-dash-c",
-      "excerpt": "const run = spawnSync('bash', ['-c', '. \"$1\"; suite_scratch_init \"$2\" >/dev/null 2>&1; printf \"%s\\\\n%s\\\\n%s\\\\n%s\" \"$NODE_OPTIONS\" \"$BUN_OPTI",
+      "excerpt": "const run = spawnSync('bash', ['-c', '. \"$1\"; suite_scratch_init \"$2\" >/dev/null 2>&1; printf \"%s\\\\n%s\\\\n%s\\\\n%s\\\\n%s\\\\n%s\" \"$NODE_OPTIONS\" ",
       "cls": "intentional-shell",
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
@@ -820,13 +820,6 @@
       "excerpt": "const base = mkdtempSync(join(realpathSync('/tmp'), 'ppg-'))",
       "cls": "platform-owner",
       "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
-    },
-    {
-      "file": "scripts/gate/prove-proof-machine-census.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "execSync(`git ls-files ${patterns.map(p => `'${p}'`).join(' ')}`, { cwd: ROOT, encoding: 'utf8' })",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
       "file": "scripts/gate/prove-proof-machine-census.ts",
@@ -2082,6 +2075,13 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
+      "file": "scripts/switchboard/prove-mirror-header-facts.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
       "file": "scripts/switchboard/prove-model-verb-turn-open.ts",
       "mechanism": "hardcoded-tmp",
       "excerpt": "process.env.MERCURY_CONFIG_DIR = join(process.env.TMPDIR ?? '/tmp', `model-verb-turn-open-${process.pid}`)",
@@ -2099,6 +2099,13 @@
       "file": "scripts/switchboard/prove-reap-focus-drive.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
+      "file": "scripts/switchboard/prove-row-line-wraps.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },

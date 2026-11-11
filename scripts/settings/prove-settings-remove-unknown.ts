@@ -29,6 +29,8 @@ const section = (title: string): void => console.log(`\n${title}`)
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.js')
+trustTheProofFolder(true)
 const { getSettingsWithErrors, getInitialSettings } = await import('../../src/utils/settings/settings.js')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
 const { settingsSchemaLocalPath } = await import('../../src/utils/settings/localSchema.js')

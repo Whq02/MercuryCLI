@@ -1,4 +1,4 @@
-import type { ToolPermissionContext } from '../../Tool.js'
+import { getEmptyToolPermissionContext, type ToolPermissionContext, type ToolUseContext } from '../../Tool.js'
 import type {
   PermissionResult,
   PermissionDecisionReason,
@@ -13,6 +13,7 @@ import { uncPathRisk, uncPathMessage } from '../../utils/permissions/uncPath.js'
 import { windowsPathToPosixPath } from '../../utils/windowsPaths.js'
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/decision/rules.js'
+import { permissionRuleValueFromString, permissionRuleValueToString } from '../../utils/permissions/permissionRuleParser.js'
 import {
   knownShellCommandPrefix,
   parsePermissionRule,
@@ -47,10 +48,14 @@ import {
   type CommandIdentityCheckers,
 } from './bashCommandHelpers.js'
 import { checkPermissionMode } from './modeValidation.js'
+import { denyRuleReach, hiddenDenyRuleRefusal, type HiddenDenyRule, type ReachBudget } from './denyRuleReach.js'
+import { modeBypassesPermissions, permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
 import { checkPathConstraints, checkShellCwd } from './pathValidation.js'
 import { checkPreparedReadOnlyConstraints, cutPart, notReadOnlyClause, type NotReadOnly } from './readOnlyValidation.js'
 import { checkSedConstraints } from './sedValidation.js'
 import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
+import { credentialStoreWriteRefusal } from '../../utils/permissions/filesystem.js'
+import { credentialStorePath } from '../../utils/permissions/protectedPaths.js'
 import { gitArgs, gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
 import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
 import { posix as posixPath } from 'node:path'
@@ -588,8 +593,11 @@ export function bashToolHasPermission(
 ): Promise<PermissionResult> {
   return withBashParseScope(async () => {
     const resolvedInput = input.cwd === undefined ? input : { ...input, cwd: resolveShellCwd(input.cwd) }
-    const result = await decideBashPermission(resolvedInput, context, prefixFn)
+    const { result, hidden } = await decideWithDenyRuleReach(resolvedInput, context, prefixFn, 0)
     if (result.behavior === 'deny') return result
+    if (hidden !== null && result.behavior !== 'allow' && (modeBypassesPermissions(context.mode) || context.mode === 'flow')) {
+      return hiddenDenyRuleRefusal(hidden, permissionModeTitle(context.mode))
+    }
     const cwd = checkShellCwd(resolvedInput, context)
     if (cwd !== null) return cwd
     if (result.behavior !== 'allow') return result
@@ -597,6 +605,113 @@ export function bashToolHasPermission(
     const merged = { ...resolvedInput, ...carried }
     return { ...result, updatedInput: { ...merged, command: rewriteReadOnlyGitCommand(merged.command, resolveShellCwd(merged.cwd)) } }
   })
+}
+
+async function decideWithDenyRuleReach(
+  input: BashInput,
+  context: ToolPermissionContext,
+  prefixFn: PrefixFn,
+  depth: number,
+  budget?: ReachBudget,
+): Promise<{ result: PermissionResult; hidden: HiddenDenyRule | null }> {
+  const result = await decideBashPermission(input, context, prefixFn)
+  if (result.behavior === 'deny') return { result, hidden: null }
+  const reach = await denyRuleReach(input.command, resolveShellCwd(input.cwd), context, {
+    judge: async (command, cwd, left) => {
+      const inner = await decideWithDenyRuleReach({ ...input, command, cwd }, context, prefixFn, depth + 1, left)
+      return inner.result.behavior === 'deny' ? { denied: inner.result, hidden: null } : { denied: null, hidden: inner.hidden }
+    },
+    bashDenyRule: candidate => {
+      const deny = matchRules(candidate, context, 'deny', 'exact', true) ?? matchRules(candidate, context, 'deny', 'prefix', true)
+      return deny === null ? null : ruleFor(context, deny, 'deny')
+    },
+    optionNamedWrites,
+  }, depth, budget)
+  return reach.denied !== null ? { result: reach.denied, hidden: null } : { result, hidden: reach.hidden }
+}
+
+type RulesBySource = ToolPermissionContext['alwaysAllowRules']
+
+function contentRulesReadAsBash(context: ToolPermissionContext, toolName: string): { context: ToolPermissionContext; own: Set<string> } {
+  const own = new Set<string>()
+  const carried = (spelling: string): string | null => {
+    const value = permissionRuleValueFromString(spelling)
+    return value.toolName === toolName && value.ruleContent !== undefined ? value.ruleContent : null
+  }
+  const translate = (bySource: RulesBySource): RulesBySource => {
+    const out: Record<string, readonly string[]> = {}
+    for (const [source, spellings] of Object.entries(bySource ?? {})) {
+      const added: string[] = []
+      for (const spelling of spellings ?? []) {
+        const content = carried(spelling)
+        if (content === null) continue
+        own.add(content)
+        added.push(permissionRuleValueToString({ toolName: TOOL_NAME, ruleContent: content }))
+      }
+      out[source] = added.length === 0 ? spellings ?? [] : [...(spellings ?? []), ...added]
+    }
+    return out as RulesBySource
+  }
+  const allow = translate(context.alwaysAllowRules)
+  const deny = translate(context.alwaysDenyRules)
+  const ask = translate(context.alwaysAskRules)
+  if (own.size === 0) return { context, own }
+  const reasons: Record<string, Record<string, string>> = {}
+  for (const [source, bySpelling] of Object.entries(context.ruleReasons ?? {})) {
+    reasons[source] = { ...bySpelling }
+    for (const [spelling, words] of Object.entries(bySpelling ?? {})) {
+      const content = carried(spelling)
+      if (content !== null) reasons[source]![permissionRuleValueToString({ toolName: TOOL_NAME, ruleContent: content })] ??= words
+    }
+  }
+  return {
+    context: { ...context, alwaysAllowRules: allow, alwaysDenyRules: deny, alwaysAskRules: ask, ...(context.ruleReasons !== undefined ? { ruleReasons: reasons as ToolPermissionContext['ruleReasons'] } : {}) },
+    own,
+  }
+}
+
+function spelledForTool(result: PermissionResult, context: ToolPermissionContext, toolName: string, own: ReadonlySet<string>): PermissionResult {
+  const reason = 'decisionReason' in result ? result.decisionReason : undefined
+  if (reason?.type !== 'rule' || reason.rule.ruleValue.toolName !== TOOL_NAME) return result
+  const content = reason.rule.ruleValue.ruleContent
+  if (content === undefined || !own.has(content)) return result
+  if (getRuleByContentsForToolName(context, TOOL_NAME, reason.rule.ruleBehavior).has(content)) return result
+  const bashSpelling = permissionRuleValueToString(reason.rule.ruleValue)
+  const ownSpelling = permissionRuleValueToString({ toolName, ruleContent: content })
+  return {
+    ...result,
+    ...('message' in result && typeof result.message === 'string' ? { message: result.message.replaceAll(bashSpelling, ownSpelling) } : {}),
+    decisionReason: { ...reason, rule: { ...reason.rule, ruleValue: { ...reason.rule.ruleValue, toolName } } },
+  } as PermissionResult
+}
+
+export async function shellCommandHasPermission(
+  toolName: string,
+  input: BashInput,
+  context: ToolPermissionContext,
+): Promise<PermissionResult> {
+  const read = contentRulesReadAsBash(context, toolName)
+  const decided = await bashToolHasPermission(input, read.context)
+  const result = read.own.size === 0 ? decided : spelledForTool(decided, context, toolName, read.own)
+  if ((result.behavior !== 'ask' && result.behavior !== 'passthrough') || ('suggestions' in result && result.suggestions !== undefined)) return result
+  return { ...result, suggestions: suggestionForCommand(input.command) } as PermissionResult
+}
+
+export async function startedCommandVerdict(
+  started: ReadonlyArray<{ command: string; cwd?: string }>,
+  toolUseContext: Pick<ToolUseContext, 'getAppState'> | undefined,
+  own: PermissionResult & { message: string },
+): Promise<PermissionResult> {
+  const context = (toolUseContext?.getAppState?.().toolPermissionContext ?? getEmptyToolPermissionContext()) as ToolPermissionContext
+  let held: PermissionResult | null = null
+  for (const one of started) {
+    const verdict = await bashToolHasPermission(one.cwd === undefined ? { command: one.command } : { command: one.command, cwd: one.cwd }, context)
+    if (verdict.behavior === 'deny') return verdict
+    if (verdict.behavior !== 'ask' || held !== null) continue
+    const reason = verdict.decisionReason
+    if (reason?.type === 'rule' || reason?.type === 'safetyCheck') held = { behavior: 'ask', message: `${own.message}\n${verdict.message}`, decisionReason: reason }
+  }
+  return held ?? own
 }
 
 async function decideBashPermission(
@@ -624,8 +739,8 @@ async function decideBashPermission(
   if (protectedWrite !== null) {
     const denied = astRoot === undefined ? earlyExitDenyCheck(input, context) : astDenyCheck(input, context, astRoot)
     if (denied) return denied
-    const message = 'Writing ' + protectedWrite + ' affects a credential store and requires approval.'
-    return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false } }
+    const refusal = credentialStoreWriteRefusal(protectedWrite, cwd, context)
+    if (refusal !== null) return { behavior: 'deny', message: refusal, decisionReason: { type: 'other', reason: refusal } }
   }
   const remote = uncPathRisk(command, { command: true })
   if (remote.risky) {
@@ -652,6 +767,11 @@ async function decideBashPermission(
     if (parsed.kind === 'simple') {
       const early = semanticsDenyCheck(input, context, parsed.commands)
       if (early) return early
+      for (const written of shellCCommands(parsed.commands).flatMap(simple => optionNamedWrites(simple.argv))) {
+        if (credentialStorePath(written, cwd) === null) continue
+        const refusal = credentialStoreWriteRefusal(written, cwd, context)
+        if (refusal !== null) return { behavior: 'deny', message: refusal, decisionReason: { type: 'other', reason: refusal } }
+      }
       if (uploadAsk !== null) return uploadAsk
       const semantic = pinnedCommandAnalysis.checkSemantics(parsed.commands)
       if (!semantic.ok) return unprovenAsk(semantic.reason)
@@ -1012,6 +1132,48 @@ function restrictedCommandCandidates(command: SimpleCommand, depth = 0): string[
     }
   }
   return [...candidates]
+}
+
+function optionValues(args: string[], short: string, longs: readonly string[]): string[] {
+  const values: string[] = []
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i] as string
+    const long = longs.find(name => arg === name || arg.startsWith(`${name}=`))
+    if (long !== undefined) {
+      const value = arg === long ? args[++i] : arg.slice(long.length + 1)
+      if (value !== undefined) values.push(value)
+      continue
+    }
+    if (!arg.startsWith('-') || arg.startsWith('--')) continue
+    const at = [...arg].findIndex((letter, index) => index > 0 && short.includes(letter))
+    if (at === -1) continue
+    const value = at === arg.length - 1 ? args[++i] : arg.slice(at + 1)
+    if (value !== undefined) values.push(value)
+  }
+  return values
+}
+
+function optionNamedWrites(words: string[]): string[] {
+  const peeled = peelWrappers(words)
+  const argv = Array.isArray(peeled) ? peeled : words
+  const name = posixPath.basename(argv[0] ?? '')
+  const args = argv.slice(1)
+  if (name === 'curl') return optionValues(args, 'oDc', ['--output', '--output-dir', '--dump-header', '--cookie-jar', '--trace', '--trace-ascii', '--stderr'])
+  if (name === 'wget') return optionValues(args, 'OPo', ['--output-document', '--directory-prefix', '--output-file'])
+  if (name === 'unzip') return optionValues(args, 'd', [])
+  if (name === 'tar' || name === 'bsdtar' || name === 'gtar') {
+    const extracts = args.some(arg => arg === '--extract' || arg === '--get' || (/^-?[A-Za-z]+$/.test(arg) && !arg.startsWith('--') && arg.includes('x')))
+    return extracts ? optionValues(args, 'C', ['--directory', '--cd']) : []
+  }
+  if (name === 'ssh-keygen') return args.some(arg => /^-[A-Za-z]*[lLyBFH]/.test(arg)) ? [] : optionValues(args, 'f', [])
+  if (name === 'git') {
+    const at = gitSubcommandIndex(args)
+    if (args[at] !== 'config') return []
+    const rest = args.slice(at + 1)
+    const reads = rest.some(arg => ['--get', '--get-all', '--get-regexp', '--get-urlmatch', '--list', '-l', '--show-origin', '--show-scope'].includes(arg))
+    return reads ? [] : optionValues(rest, 'f', ['--file'])
+  }
+  return []
 }
 
 function semanticsDenyCheck(input: BashInput, context: ToolPermissionContext, commands: SimpleCommand[]): PermissionResult | null {

@@ -57,6 +57,12 @@ mercury run "Summarise this repository." --format rows
   turns already in it, and its `session` row names the conversation it
   continues in `resume_of`.
 
+`--brief` and `--brief-add` set the session's standing instructions. They are
+recorded with the session: a run that continues it without the flag keeps
+them, and the flag given again replaces them. An empty `--brief` is a brief
+with no text, kept like any other: the model reads the built-in constitution
+and no default brief. An empty `--brief-add` removes the addition.
+
 The output row types, by their `type` field:
 
 - `session`: the opening row: `version`, `build` (the first twelve hex

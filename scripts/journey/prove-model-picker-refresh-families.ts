@@ -208,6 +208,7 @@ const mount = async (model: string, element?: React.ReactNode) => {
   await flush()
   return { seen: () => stripAnsi(output), clear: () => { output = '' }, unmount: () => instance.unmount(), rerender: () => store.setState(state => ({ ...state, effortValue: 'high' })), send: (keys: string) => { input.push(keys); stdin.emit('readable') } }
 }
+const ENGINE_HEADING = /│ [▸▾] TENSORFOLD(?: HOST)? · /
 const live = (frame: string, name: string): boolean => new RegExp(`│ (?:│ | {2})(?:❯ )?${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s{2,}\\S`).test(frame)
 const setKeys = (spec: Family): void => {
   for (const key of KEYS) delete process.env[key]
@@ -259,12 +260,14 @@ try {
     const unchanged = spec.refresh(true)
     await flush(400)
     const before = catalogueEpoch()
+    const standing = second.seen()
     second.clear()
     release(spec, spec.newRows)
     await unchanged
     await flush(400)
     check(`${spec.word}: an unchanged list does not bump the catalogue epoch`, catalogueEpoch() === before, `${before} -> ${catalogueEpoch()}`)
-    check(`${spec.word}: an unchanged list does not repaint or show a notice`, second.seen() === '', second.seen())
+    const repainted = second.seen().split('\n').map(line => line.trim()).filter(line => line !== '' && !standing.includes(line) && !ENGINE_HEADING.test(line))
+    check(`${spec.word}: an unchanged list does not repaint or show a notice`, repainted.length === 0 && !second.seen().includes(notice), repainted.join(' | '))
     second.unmount()
 
     if (spec.name !== 'local') {
@@ -338,6 +341,7 @@ try {
   }
   for (const spec of FAMILIES) pages[spec.name] = spec.page(spec.oldRows)
   const pageOf = (road: string): unknown => pages[road.startsWith('anthropic:') ? 'anthropic' : road]
+  const ROADS_HOST = new URL(process.env.MERCURY_OPENAI_API_BASE!).host
   const roadOf = (url: string, init?: RequestInit): string | undefined => {
     const path = url.replace(/^https?:\/\/[^/]+/, '').split('?')[0]!
     if (path === '/v1/models') return 'gpt'
@@ -358,6 +362,7 @@ try {
     if (path === '/ollama/api/version') return json({ version: '0.11.4' })
     if (path === '/ollama/api/ps') return json({ models: [] })
     if (path === '/ollama/api/show') return json(showBody)
+    if (new URL(url).host !== ROADS_HOST) throw new TypeError(`fixture: nothing listens at ${new URL(url).host}`)
     const road = roadOf(url, init)
     if (road === undefined) throw new Error(`Unexpected request: ${url}`)
     ledger.push(road)

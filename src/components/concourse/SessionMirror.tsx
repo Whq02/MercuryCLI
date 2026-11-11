@@ -28,6 +28,7 @@ import {
 } from '../ScrollKeybindingHandler.js'
 import { GLYPH, truncateToWidth } from '../mercury-ui/glyphs.js'
 import { stringWidth } from '../../ink/stringWidth.js'
+import { mirrorHeaderFit } from './mirrorHeader.js'
 import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
 import { pageStepRows, WHEEL_ROWS_PER_NOTCH } from '../mercury-ui/composerFloor.js'
@@ -107,6 +108,7 @@ export function SessionMirror({
   note,
   state,
   nowLabel,
+  nowLive = false,
   bare = false,
   liveTailLine,
   idScope = 'mirror',
@@ -117,6 +119,7 @@ export function SessionMirror({
   workspaceId: string
   state?: string
   nowLabel?: string | null
+  nowLive?: boolean
   title: string
   titleFacts?: readonly string[]
   accent?: string
@@ -266,9 +269,17 @@ export function SessionMirror({
         : 0
   const clusterReserve = Math.min(clusterDesired, Math.max(10, Math.floor(paneWidth / 2)))
   const titleBudget = Math.max(8, paneWidth - clusterReserve - 2)
-  const factsText = titleFacts.length > 0 ? ` · ${titleFacts.join(' · ')}` : ''
   const titleShown = truncateToWidth(title, titleBudget)
-  const factsShown = factsText.length > 0 ? truncateToWidth(factsText, Math.max(0, titleBudget - stringWidth(titleShown))) : ''
+  const { factsShown, nowText: nowShown } = mirrorHeaderFit({
+    titleShown,
+    facts: titleFacts,
+    paneWidth,
+    hintWidth: hintVisible ? stringWidth('↵ enter session') : 0,
+    noteReserve: noteText !== null ? clusterReserve : null,
+    nowWords: state === 'working' ? (nowLabel !== undefined && nowLabel !== null && nowLabel.length > 0 ? nowLabel : 'working…') : null,
+    nowText,
+    nowLive,
+  })
   const paneSize = useMemo(() => ({ columns: paneWidth, rows: paneRows }), [paneWidth, paneRows])
   return (
     <TerminalSizeContext.Provider value={paneSize}>
@@ -307,10 +318,12 @@ export function SessionMirror({
                   {state === 'working' ? (
                     <Box flexDirection="row" marginRight={1} overflow="hidden">
                       <WorkingGlyph color={t.info} active />
-                      <Text color={t.textInstruction} wrap="truncate-end">
-                        {' '}
-                        {nowText}
-                      </Text>
+                      {nowShown !== null ? (
+                        <Text color={t.textInstruction} wrap="truncate-end">
+                          {' '}
+                          {nowShown}
+                        </Text>
+                      ) : null}
                     </Box>
                   ) : null}
                   <Text color={hover || focused ? t.textPrimary : t.textMuted}>

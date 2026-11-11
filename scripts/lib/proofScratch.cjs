@@ -27,8 +27,9 @@ function keepProofScratch(folder) {
     if (Buffer.from(candidate).equals(Buffer.from(folder))) folders.delete(candidate)
   }
 }
-function runRootBase(inherited) {
+function runRootBase(inherited, ownHome) {
   if (process.platform === 'win32') return ''
+  const home = ownHome ? 'mercury-proof-home-XXXXXX' : 'config-home'
   let bound = NaN
   try {
     bound = Number(/^suite_socket_bound=(\d+)$/m.exec(fs.readFileSync(path.join(__dirname, 'suite-env.sh'), 'utf8'))?.[1])
@@ -37,7 +38,7 @@ function runRootBase(inherited) {
   for (const candidate of [inherited, '/tmp']) {
     try {
       const canon = fs.realpathSync(candidate)
-      if (Buffer.byteLength(`${canon}/${RUN_ROOT_PREFIX}XXXXXX/config-home/daemon/control.sock`) <= bound) return canon
+      if (Buffer.byteLength(`${canon}/${RUN_ROOT_PREFIX}XXXXXX/${home}/daemon/control.sock`) <= bound) return canon
     } catch {}
   }
   return ''
@@ -49,6 +50,13 @@ function sweepOwnRoot(outside) {
   for (const name of fs.readdirSync(ownRoot)) {
     const entry = path.join(ownRoot, name)
     if (!held.some(folder => folder === entry || folder.startsWith(entry + path.sep))) removeScratchFolder(entry)
+  }
+}
+function holdsNothingToRead() {
+  try {
+    return fs.readdirSync(ownRoot).every(name => name.startsWith('mercury-proof-home-') && !kept.has(path.join(ownRoot, name)))
+  } catch {
+    return false
   }
 }
 function insideRunRoot(value, root) {
@@ -95,7 +103,7 @@ function writeLedgerEntry(ledger) {
     fs.writeFileSync(path.join(ledger, `${process.pid}.entry`), [process.pid, process.env.MERCURY_SUITE_RUNNER_PID || process.ppid, processStartedAt(), processFolder(), process.execPath].join('\t') + '\n')
   } catch {}
 }
-function installProofScratch() {
+function installProofScratch(options = {}) {
   if (installed) return
   installed = true
   const runRoot = process.env.MERCURY_SUITE_TMPDIR
@@ -112,12 +120,19 @@ function installProofScratch() {
   if (adopted) {
     ownRoot = inherited
   } else if (!guest) {
-    const base = runRootBase(inherited)
+    const base = runRootBase(inherited, options.ownHome === true)
     if (base) {
       try {
         ownRoot = sync(path.join(base, RUN_ROOT_PREFIX))
         madeRoot = true
         process.env.TMPDIR = ownRoot
+        process.env.MERCURY_TMPDIR = ownRoot
+      } catch {
+        ownRoot = ''
+      }
+    } else if (process.platform === 'win32' && !process.env.MERCURY_TMPDIR) {
+      try {
+        ownRoot = sync(path.join(inherited, RUN_ROOT_PREFIX))
         process.env.MERCURY_TMPDIR = ownRoot
       } catch {
         ownRoot = ''
@@ -158,7 +173,12 @@ function installProofScratch() {
   }
   process.on('exit', code => {
     if (guest) return
-    if ((code !== 0 && !stopped) || keepAsked()) return
+    if ((code !== 0 && !stopped) || keepAsked()) {
+      if (ownRoot && !kept.has(ownRoot) && holdsNothingToRead()) {
+        try { removeScratchFolder(ownRoot) } catch {}
+      }
+      return
+    }
     for (const folder of [...folders].reverse()) {
       try { removeScratchFolder(folder) } catch (error) {
         process.stderr.write(`proof scratch cleanup failed: ${folder}: ${error.message}\n`)

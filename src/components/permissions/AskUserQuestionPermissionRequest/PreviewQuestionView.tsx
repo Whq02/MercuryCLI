@@ -8,6 +8,7 @@ import { useKeybinding, useKeybindings } from '../../../keybindings/useKeybindin
 import { useAppState } from '../../../state/AppState.js'
 import type { AppState } from '../../../state/AppState.js'
 import type { Question } from '../../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
+import { DISCUSS_OPTION_LABEL } from '../../../tools/AskUserQuestionTool/prompt.js'
 import { APOLLO_OPTION_LETTERS } from '../../../tools/AskUserQuestionTool/apolloLetters.js'
 import { normalizePastedInput } from '../../../input-core/composer-document.js'
 import { editorDisplayName, getExternalEditor } from '../../../utils/editor.js'
@@ -335,7 +336,7 @@ export function PreviewQuestionView({
                 <Text> </Text>
               )}
               <Text color={isFooterFocused ? 'suggestion' : undefined}>
-                Chat about this
+                {DISCUSS_OPTION_LABEL}
               </Text>
             </Box>
           </Box>

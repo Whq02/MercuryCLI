@@ -36,6 +36,7 @@ import { getTranscriptPathForSession } from './utils/sessionStorage/paths.js'
 import type { TranscriptUsageRollup } from './utils/sessionStorage/usageRollup.js'
 import type { FpsMetrics } from './utils/fpsTracker.js'
 import { modelPricingBasis } from './utils/modelCost.js'
+import { parseFirstPartyGeneration } from './utils/model/configs.js'
 import { getCanonicalName } from './utils/model/model.js'
 import {
   getContextWindowForModel,
@@ -264,6 +265,12 @@ function pluralizeLines(count: number): string {
   return `${count} ${count === 1 ? 'line' : 'lines'}`
 }
 
+function usageRowName(model: string): string {
+  const canonical = getCanonicalName(model)
+  const parsed = parseFirstPartyGeneration(model)
+  return parsed !== null && parsed.stem === canonical ? parsed.spelled : canonical
+}
+
 function formatModelUsageRows(): string[] {
   const byModel = getModelUsage()
   const models = Object.keys(byModel)
@@ -285,7 +292,7 @@ function formatModelUsageRows(): string[] {
   const unpriced = getUnpricedTurns()
   for (const model of models) {
     const usage = byModel[model]!
-    const shortName = getCanonicalName(model)
+    const shortName = usageRowName(model)
     const row = byShortName.get(shortName) ?? {
       inputTokens: 0,
       outputTokens: 0,

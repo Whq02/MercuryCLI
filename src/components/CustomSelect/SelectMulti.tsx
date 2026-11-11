@@ -42,6 +42,7 @@ type SelectMultiProps<T = string> = {
   onEmptyInputSubmit?: (value: T) => void
   onTabOut?: (direction: 'next' | 'previous') => void
   onSubmitFocusChange?: (focused: boolean) => void
+  scrollMovesFocus?: boolean
 }
 
 export function SelectMulti<T = string>({
@@ -66,6 +67,7 @@ export function SelectMulti<T = string>({
   onEmptyInputSubmit,
   onTabOut,
   onSubmitFocusChange,
+  scrollMovesFocus = true,
 }: SelectMultiProps<T>): React.ReactNode {
   const hasSubmitButton = Boolean(submitButtonText) && Boolean(onSubmit)
   const state = useMultiSelectState({
@@ -86,6 +88,7 @@ export function SelectMulti<T = string>({
     onEmptyInputSubmit,
     onTabOut,
     onSubmitFocusChange,
+    scrollMovesFocus,
   })
 
   const optionCount = options.length

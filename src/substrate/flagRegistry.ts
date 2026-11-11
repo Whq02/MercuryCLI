@@ -1,4 +1,4 @@
-
+import { flagReadsOff } from './flagOff.js'
 
 export type FlagKind = 'default-on' | 'opt-in' | 'value' | 'mixed'
 
@@ -552,14 +552,8 @@ export function flagEnabled(env: string): boolean {
   const spec = byEnv.get(env)
   if (!spec) throw new Error(`flagEnabled: unregistered flag ${env} — add it to FLAG_REGISTRY`)
   switch (spec.kind) {
-    case 'default-on': {
-      const raw = flagEnv(spec.env)
-      if (typeof raw === 'string') {
-        const folded = raw.replace(/^["']+|["']+$/g, '').trim().toLowerCase()
-        if (folded === '0' || folded === 'false' || folded === 'no' || folded === 'off') return false
-      }
-      return true
-    }
+    case 'default-on':
+      return !flagReadsOff(flagEnv(spec.env))
     case 'opt-in':
       return flagEnv(spec.env) === '1'
     default:

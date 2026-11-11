@@ -22,7 +22,7 @@ import { bestTensorFoldFit, hfCacheWords, readTensorFoldInventory, type Inventor
 import { pullPace, pullPercent, pullProgressWords, type PullPace } from '../../services/tensorfold/pull.js'
 import { refusalNextStep, refusedWords, wiredLimitCommand, wiredLimitCostWords, type TensorFoldRefusal } from '../../services/tensorfold/refusal.js'
 import { rememberedTensorFoldPort, servedTensorFold, TENSORFOLD_DEFAULT_PORT, TENSORFOLD_HOST, type ServeIo, type TensorFoldServedByEngine } from '../../services/tensorfold/serve.js'
-import { TENSORFOLD_RELEASE } from '../../services/tensorfold/starting.js'
+import { TENSORFOLD_BREW_FORMULA, TENSORFOLD_RELEASE } from '../../services/tensorfold/starting.js'
 import { TENSORFOLD_WORDS as W } from './words.js'
 
 export type TensorFoldAct =
@@ -60,6 +60,7 @@ export type TensorFoldPanelFacts = {
   pods: readonly TensorFoldPodRowFacts[]
   current?: string
   landing?: string
+  newer?: string
   acts: Readonly<Record<string, TensorFoldAct>>
   other?: { input: string; refused?: string; read?: TensorFoldInventoryRow }
   port: { next: number; busy?: { port: number; answersAs?: string } }
@@ -232,7 +233,24 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
     ...(freeBytes !== undefined ? { disk: { freeBytes, cacheWords: hfCacheWords(root, io.home ?? homedir()) } } : {}),
   }
   const landing = landingOf(facts)
-  return { ...facts, ...(landing !== undefined ? { landing } : {}), live: liveLineOf(facts), copySupportOffered: Object.values(state.acts).some(act => act.kind === 'refused' || act.kind === 'exited' || act.kind === 'tight') }
+  const newer = newerEngineLine(engine, tensorFoldInstallPlan(machine, { ...io, platform }))
+  return { ...facts, ...(landing !== undefined ? { landing } : {}), ...(newer !== undefined ? { newer } : {}), live: liveLineOf(facts), copySupportOffered: Object.values(state.acts).some(act => act.kind === 'refused' || act.kind === 'exited' || act.kind === 'tight') }
+}
+
+function releaseOlder(installed: string, supported: string): boolean {
+  const parts = (version: string): number[] | undefined => (/^\d+(?:\.\d+)*$/.test(version) ? version.split('.').map(Number) : undefined)
+  const [have, want] = [parts(installed), parts(supported)]
+  if (have === undefined || want === undefined) return false
+  for (let at = 0; at < Math.max(have.length, want.length); at++) {
+    if ((have[at] ?? 0) !== (want[at] ?? 0)) return (have[at] ?? 0) < (want[at] ?? 0)
+  }
+  return false
+}
+
+function newerEngineLine(engine: TensorFoldEngine | null, plan: TensorFoldInstallPlan): string | undefined {
+  if (engine === null || engineServedByAdapter(engine) || !releaseOlder(engine.version, TENSORFOLD_RELEASE)) return undefined
+  const command = plan.kind === 'brew' ? `brew upgrade ${TENSORFOLD_BREW_FORMULA}` : plan.kind === 'archive' ? plan.commands.join(' && ') : undefined
+  return command === undefined ? undefined : W.newerEngine(TENSORFOLD_RELEASE, engine.version, command)
 }
 
 function landingOf(facts: Pick<TensorFoldPanelFacts, 'rows' | 'served' | 'outside' | 'install' | 'platform' | 'acts'>): string | undefined {

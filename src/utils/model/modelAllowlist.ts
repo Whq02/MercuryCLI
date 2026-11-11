@@ -19,9 +19,9 @@ function resolvedOf(value: string): string {
 }
 
 function generationNamedBy(entry: string): string | undefined {
-  const stem = parseFirstPartyGeneration(entry)?.stem
-  if (stem === undefined) return undefined
-  return DECLARED_GENERATION_STEMS.has(entry) || stem === entry ? stem : undefined
+  const parsed = parseFirstPartyGeneration(entry)
+  if (parsed === null) return undefined
+  return DECLARED_GENERATION_STEMS.has(entry) || parsed.spelled === entry ? parsed.stem : undefined
 }
 
 function isFirstPartyFamilyWord(word: string): boolean {
@@ -84,7 +84,7 @@ export function isModelAllowed(model: string): boolean {
   const prefixMatches = (prefix: string): boolean => {
     if (candidateResolved !== prefix && !candidateResolved.startsWith(`${prefix}-`)) return false
     const named = generationNamedBy(prefix)
-    return named === undefined || asked === undefined || named === asked
+    return named === undefined || named === asked
   }
   for (const entry of entries) {
     if (isRosterFamilyWord(entry) || isModelAlias(entry)) continue

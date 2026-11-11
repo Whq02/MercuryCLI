@@ -335,6 +335,39 @@ section('§5 the shape')
   check('every price pin cites its page beside its date', (glm.match(/source: GLM_PRICING_PAGE/g) ?? []).length === datedRows(priceTable(glm, 'GLM_PRICE_PINS')) && (gemini.match(/source: GEMINI_PRICING_PAGE/g) ?? []).length === datedRows(priceTable(gemini, 'GEMINI_PRICE_PINS')))
 }
 
+section('§6 the cost summary names a mirror by its own id, at its counterpart\'s price')
+{
+  const { addToTotalSessionCost, resetCostState, formatTotalCost } = tracker
+  const plain = (): string => formatTotalCost().replace(new RegExp(String.fromCharCode(27) + '\\[[0-9;]*m', 'g'), '')
+  const turn = { ...usage(1_000, 500), cache_creation_input_tokens: 0 } as Parameters<typeof addToTotalSessionCost>[1]
+  const settle = (model: string): void => {
+    addToTotalSessionCost(cost.calculateUSDCost(model, turn), turn, model)
+  }
+  const rowOf = (text: string, name: string): string | undefined => text.split('\n').find(line => line.trimStart().startsWith(`${name}:`))
+  resetCostState()
+  settle('claude-mythos-5-2')
+  const alone = plain()
+  check('usage on claude-mythos-5-2 prints under claude-mythos-5-2', rowOf(alone, 'claude-mythos-5-2') !== undefined && rowOf(alone, 'claude-fable-5-2') === undefined, alone)
+  check('…at the price it shares with Fable 5.2 ($8 in, $40 out per million: 1,000 in and 500 out are $0.0280)', (rowOf(alone, 'claude-mythos-5-2') ?? '').includes('1.0k input, 500 output') && (rowOf(alone, 'claude-mythos-5-2') ?? '').includes('($0.0280)'), rowOf(alone, 'claude-mythos-5-2') ?? alone)
+  settle('claude-fable-5-2')
+  settle('claude-fable-5-2')
+  const both = plain()
+  check('usage on Fable 5.2 in the same session keeps its own line: one turn on the mirror, two on the counterpart', (rowOf(both, 'claude-mythos-5-2') ?? '').includes('1.0k input, 500 output') && (rowOf(both, 'claude-fable-5-2') ?? '').includes('2.0k input, 1.0k output'), both)
+  resetCostState()
+  for (const id of ['claude-mythos-5-2[1m]', 'claude-mythos-5-2-20261109', 'Claude-Mythos-5-2']) settle(id)
+  const spellings = plain()
+  check('the [1m] spelling, a dated snapshot and another case of the mirror share the mirror\'s line', (rowOf(spellings, 'claude-mythos-5-2') ?? '').includes('3.0k input, 1.5k output') && rowOf(spellings, 'claude-fable-5-2') === undefined, spellings)
+  resetCostState()
+  for (const id of ['claude-mythos-5', 'claude-mythos-5-1', 'claude-mythos-5-7']) settle(id)
+  const others = plain()
+  check('Mythos 5, Mythos 5.1 and a Mythos generation the table does not declare each print under their own id, and no Fable line appears', ['claude-mythos-5', 'claude-mythos-5-1', 'claude-mythos-5-7'].every(id => rowOf(others, id) !== undefined) && !others.includes('claude-fable'), others)
+  resetCostState()
+  for (const id of ['claude-fable-5-2', 'claude-fable-5-2[1m]', 'claude-haiku-4-5-20251001', 'claude-opus-5-5']) settle(id)
+  const rest = plain()
+  check('every other first-party id prints as before: Fable 5.2 and its [1m] spelling on one line, a dated id under its canonical name', (rowOf(rest, 'claude-fable-5-2') ?? '').includes('2.0k input') && rowOf(rest, 'claude-haiku-4-5') !== undefined && rowOf(rest, 'claude-opus-5-5') !== undefined && !rest.includes('mythos'), rest)
+  resetCostState()
+}
+
 ollama.stop(true)
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-pricing-by-provider${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

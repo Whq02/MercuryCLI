@@ -121,7 +121,7 @@ export function BrowserPermissionRequest({
           ))}
           <Text dimColor>Nothing is downloaded until you say yes; your installed browsers are never driven.</Text>
           <Text bold>Download this browser build?</Text>
-          <Select options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
+          <Select scrollMovesFocus={false} options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
         </Box>
       </PermissionDialog>
     )
@@ -142,7 +142,7 @@ export function BrowserPermissionRequest({
         )}
         <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
         <Text bold>Do you want to allow Mercury to drive this page?</Text>
-        <Select options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
+        <Select scrollMovesFocus={false} options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
       </Box>
     </PermissionDialog>
   )

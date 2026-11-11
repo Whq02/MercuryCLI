@@ -1,5 +1,6 @@
 
 import instances from '../ink/instances.js'
+import { takeTerminalWriteHeldMs } from '../ink/terminalOut.js'
 import { logForDebugging } from './debug.js'
 
 const DETECT_INTERVAL_MS = 200
@@ -48,11 +49,12 @@ export function startEventLoopStallDetector(): void {
     const tickAt = Date.now()
     const actual = tickAt - previousTickAt
     const stall = actual - DETECT_INTERVAL_MS
+    const heldByTerminal = takeTerminalWriteHeldMs()
 
     if (stall > STALL_THRESHOLD_MS) {
       stallsObserved++
       stalledMsTotal += stall
-      const suspectSleep = stall > LIKELY_SLEEP_MS
+      const suspectSleep = stall - heldByTerminal > LIKELY_SLEEP_MS
       const mem = sampleRss()
 
       let line =
@@ -60,6 +62,7 @@ export function startEventLoopStallDetector(): void {
         `(expected ${DETECT_INTERVAL_MS}ms, actual ${actual}ms). ` +
         `Total stalls: ${stallsObserved}, cumulative: ${stalledMsTotal}ms`
       if (suspectSleep) line += ' [likely sleep/wake]'
+      if (heldByTerminal > 0) line += ` [${Math.round(heldByTerminal)}ms inside a terminal write]`
       if (mem !== null) {
         line += ` rss=${mem.rss_mb}MB heap=${mem.heap_used_mb}MB ext=${mem.ext_mb}MB`
       }

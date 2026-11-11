@@ -76,6 +76,12 @@ section('§1 THE TRANSCRIPT TAIL — a tool whose result landed is settled; a to
   check('the coordinator board reads the same label through activityNowLabel', snapshot.activityNowLabel?.(settled) === 'thinking' && snapshot.activityNowLabel?.(running) === 'Glob · **/*' && snapshot.activityNowLabel?.({ label: 'done — 3 files', kind: 'text' }) === 'done — 3 files')
   const board = read('src/services/concourse/coordinatorBoard.ts')
   check('the coordinator board paints the activity through the one label road', board.includes('snap.activityNowLabel(activity)'))
+  const live = (snapshot as { nowWordsAreLive?: (activity: unknown, nowLabel: string | null) => boolean }).nowWordsAreLive
+  const reply = { label: 'done — 3 files', kind: 'text' as const }
+  check("a row's words are a live tool's while its tail is a tool, running or just landed, and the row shows that tool's own words", live?.(running, 'Glob · **/*') === true && live?.(settled, 'thinking') === true, j([live?.(running, 'Glob · **/*'), live?.(settled, 'thinking')]))
+  check("the text of a reply is not a live tool's words, and neither is a line the row says over the tool (a park on its way), nor a row with no tail", live?.(reply, 'done — 3 files') === false && live?.(running, 'parking for sam') === false && live?.(null, 'Glob · **/*') === false && live?.(undefined, null) === false, j([live?.(reply, 'done — 3 files'), live?.(running, 'parking for sam'), live?.(null, 'Glob · **/*'), live?.(undefined, null)]))
+  const builder = read('src/services/concourse/concourseSnapshot.ts')
+  check('the board\'s row carries that as nowLive, from the one read of the tail its label comes from', builder.includes("const activity = state === 'working' ? tailActivity(rec) : undefined") && builder.includes('nowMs, activity)') && builder.includes('...(nowWordsAreLive(activity, nowLabel) ? { nowLive: true as const } : {}),') && read('src/components/concourse/contracts.ts').includes('  nowLive?: true\n'))
 }
 
 section('§2 THE LIVE TILE — the NOW cell reads the seat\'s phase facts (the status line\'s), then the transcript')

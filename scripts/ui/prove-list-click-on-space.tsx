@@ -24,6 +24,8 @@ const SHUT = 'Ran 4 bash commands'
 const OPEN = 'Expanded group (4 calls)'
 const HINTED = 'Running 2 bash commands'
 const HINT = '   └ npm test'
+const BODY = '└ make all'
+const BODY_LINE = `  ${BODY}`
 const PLAIN = (at: number): string => `plain row ${at}`
 
 let failures = 0
@@ -62,7 +64,17 @@ async function stage(): Promise<Stage> {
     const renderItem = React.useCallback(
       (row: Row): React.ReactNode => {
         const at = indexOf.get(row.uuid)!
-        if (at === GROUP_AT) return <Text>{isOpen ? OPEN : SHUT}</Text>
+        if (at === GROUP_AT)
+          return isOpen ? (
+            <Box flexDirection="column">
+              <Text>{OPEN}</Text>
+              <Box paddingLeft={2}>
+                <Text>{BODY}</Text>
+              </Box>
+            </Box>
+          ) : (
+            <Text>{SHUT}</Text>
+          )
         if (at === HINTED_AT)
           return (
             <Box flexDirection="column">
@@ -87,6 +99,7 @@ async function stage(): Promise<Stage> {
               renderItem={renderItem as never}
               onItemClick={toggle as never}
               isItemClickable={clickable as never}
+              isItemExpanded={((row: Row) => indexOf.get(row.uuid) === GROUP_AT && isOpen) as never}
             />
           </Box>
         </ScrollBox>
@@ -132,6 +145,28 @@ try {
 
   const onLetter = await click(live, SHUT, 1)
   check('a click on a letter of a clickable row toggles it', onLetter.heard.join() === String(GROUP_AT) && live.open(), said(onLetter))
+  await waitFor(() => live.view.lines().some(line => line.startsWith(OPEN)), 2000)
+
+  await waitFor(() => live.view.lines().some(line => line === BODY_LINE), 2000)
+  const opened = live.view.lines()
+  const bodyRow = opened.indexOf(BODY_LINE)
+  check(
+    'the open group stands on a ground of its own: its head, its indented body line and the blank row under it',
+    bodyRow === opened.findIndex(line => line.startsWith(OPEN)) + 1 && opened[bodyRow + 1] === '' && live.view.styleAt(0, bodyRow)?.bg != null && live.view.styleAt(COLUMNS - 2, bodyRow)?.bg != null && live.view.styleAt(4, bodyRow + 1)?.bg != null,
+    opened.slice(0, ROWS + 3).join(' | '),
+  )
+  const bodyIndent = [await click(live, BODY_LINE, 0), await click(live, BODY_LINE, 1)]
+  check('a click in the indentation of the open group\'s body line toggles nothing', bodyIndent.every(hit => hit.heard.length === 0) && live.open(), bodyIndent.map(said).join('; '))
+  const bodyEnd = [await click(live, BODY_LINE, BODY_LINE.length + 2), await click(live, BODY_LINE, COLUMNS - 2)]
+  check('a click past the end of the body line, on the group\'s ground, toggles nothing', bodyEnd.every(hit => hit.heard.length === 0) && live.open(), bodyEnd.map(said).join('; '))
+  const before = live.heard().length
+  live.press(4, bodyRow + 1)
+  await settle(80)
+  check('a click on the blank row that closes the open group toggles nothing', live.heard().length === before && live.open(), `the list heard ${live.heard().slice(before).join(',') || 'nothing'}`)
+  const bodyLetter = await click(live, BODY_LINE, BODY_LINE.indexOf('make') + 1)
+  check('a click on a letter of the body line collapses the group', bodyLetter.heard.join() === String(GROUP_AT) && !live.open(), said(bodyLetter))
+  await waitFor(() => live.view.lines().some(line => line.startsWith(SHUT)), 2000)
+  await click(live, SHUT, 1)
   await waitFor(() => live.view.lines().some(line => line.startsWith(OPEN)), 2000)
 
   const betweenWords = await click(live, OPEN, spaceAfter(OPEN, 'Expanded'))

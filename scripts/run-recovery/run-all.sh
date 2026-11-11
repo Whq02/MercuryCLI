@@ -10,6 +10,7 @@
 # gate-watch: src/services/providers/anthropic/boundPrefixRecord.ts src/services/providers/toolEconomy.ts
 # gate-watch: src/state/AppStateStore.ts src/tools/RecordConventionTool/prompt.ts
 # gate-watch: src/tools/TaskCreateTool/constants.ts src/types/ids.ts
+# gate-watch: sdk/src/index.ts
 # gate-watch: src/utils/* src/utils/config/globalConfig.ts src/utils/messages/factories.ts
 # gate-watch: scripts/headless/mid-turn-reply-fixture-server.ts src/utils/sessionStorage/paths.ts
 set -u

@@ -103,6 +103,7 @@ export function SplitChatPane({
         onEnter={onEnterFull}
         state={row.state}
         {...(row.nowLabel !== undefined ? { nowLabel: row.nowLabel } : {})}
+        {...(row.nowLive === true ? { nowLive: true } : {})}
       />
     </Box>
   )

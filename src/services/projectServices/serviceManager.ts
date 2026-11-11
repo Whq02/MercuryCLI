@@ -144,7 +144,7 @@ function processAlive(pid: number | null, startToken: string | null): boolean {
     return false
   }
   if (startToken) {
-    const current = getProcessStartTokenCachedOrRefresh(pid)
+    const current = getProcessStartTokenCachedOrRefresh(pid, undefined, startToken)
     if (current !== null && current !== startToken) return false
   }
   return true
@@ -617,7 +617,7 @@ export async function stopService(
   if (!record.pid || !processAlive(record.pid, record.startToken)) return clear()
 
   const owned = ownedLiveChild(cwd, name, record.pid)
-  const live = owned ? null : await getProcessStartTokenAsync(record.pid)
+  const live = owned ? null : await getProcessStartTokenAsync(record.pid, record.startToken)
   const verdict = decideServiceStrike({ pid: record.pid, startToken: record.startToken, currentToken: live, ownedHandle: owned })
   if (verdict === 'no-process') return clear()
   if (verdict !== 'strike') {
@@ -644,7 +644,7 @@ export async function stopService(
     const stillOurs = decideServiceStrike({
       pid: record.pid,
       startToken: record.startToken,
-      currentToken: stillOwned ? null : await getProcessStartTokenAsync(record.pid),
+      currentToken: stillOwned ? null : await getProcessStartTokenAsync(record.pid, record.startToken),
       ownedHandle: stillOwned,
     })
     if (stillOurs === 'strike') await endProcessTree(record.pid, 'SIGKILL')

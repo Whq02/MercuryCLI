@@ -51,7 +51,7 @@ export const PermissionsSchema = lazySchema(() =>
     disableFlowMode: modeLockSchema().describe('True closes Flow for every session that reads this file'),
     reasons: z.record(z.string(), z.string()).optional().describe('The words a refusal or a consent card says for a rule, keyed by the rule spelling as written in allow, deny or ask'),
     managedOnly: z.boolean().optional(),
-    sovereignConsentSeen: z.boolean().optional().describe('True skips the consent card shown before entering Sovereign mode (honoured from the user, local, flag and policy sources)'),
+    sovereignConsentSeen: z.boolean().optional().describe('True skips the consent card shown before entering Sovereign mode (honoured from the user, flag and policy sources, never from a file in the folder)'),
   }).passthrough(),
 )
 

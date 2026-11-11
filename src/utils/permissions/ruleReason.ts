@@ -1,7 +1,8 @@
 import { getToolNameForPermissionCheck } from '../../services/mcp/mcpStringUtils.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { PermissionBehavior, PermissionRule, PermissionRuleSource, PermissionRuleValue } from '../../types/permissions.js'
-import { getDenyRules, namesWholeServerOfTool } from './decision/rules.js'
+import { getDenyRules, namesWholeServerOfTool, runsItsCommandAsBash } from './decision/rules.js'
+import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { RULE_INHERITS } from '../../constants/tools.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 
@@ -112,6 +113,7 @@ export function wholeToolDenyRulesCovering(
   return getDenyRules(context).filter(rule => {
     if (rule.ruleValue.ruleContent !== undefined) return false
     if (rule.ruleValue.toolName === name || RULE_INHERITS[name]?.includes(rule.ruleValue.toolName)) return true
+    if (rule.ruleValue.toolName === BASH_TOOL_NAME && runsItsCommandAsBash(name)) return true
     return namesWholeServerOfTool(rule.ruleValue.toolName, tool)
   })
 }

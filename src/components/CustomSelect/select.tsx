@@ -39,6 +39,7 @@ type SelectProps<T = string> = {
   inlineDescriptions?: boolean
   onUpFromFirstItem?: () => void
   onDownFromLastItem?: () => void
+  scrollMovesFocus?: boolean
   onInputModeToggle?: (value: T) => void
   onOpenEditor?: (value: string, setValue: (value: string) => void) => void
   onImagePaste?: (
@@ -144,6 +145,7 @@ export function Select<T = string>({
   inlineDescriptions = false,
   onUpFromFirstItem,
   onDownFromLastItem,
+  scrollMovesFocus = true,
   onInputModeToggle,
   onOpenEditor,
   onImagePaste,
@@ -250,6 +252,7 @@ export function Select<T = string>({
     submitInputOption,
     tryEnterImageSelectionMode,
     isImageSelectionModeActive: isImageSelectionMode,
+    scrollMovesFocus,
   })
 
   const optionCount = options.length

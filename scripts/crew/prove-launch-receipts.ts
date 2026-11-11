@@ -921,7 +921,7 @@ section('R14 · nothing load-bearing on the partial shapes: an old notice paints
 section("R15 · a project-defined agent resumed under another directory's override keeps its kind and its tool restriction — the definitions are the session's, never the resumer's")
 {
   const { clearAgentDefinitionsCache } = await import('../../src/tools/AgentTool/loadAgentsDir.ts')
-  const { getCwdState, setCwdState, getSessionId } = await import('../../src/bootstrap/state.ts')
+  const { getCwdState, setCwdState, getSessionId, setSessionTrustAccepted: trustTheProject } = await import('../../src/bootstrap/state.ts')
   const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
   const { resumeAgentBackground } = await import('../../src/tools/AgentTool/resumeAgent.ts')
   const { killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
@@ -938,6 +938,7 @@ section("R15 · a project-defined agent resumed under another directory's overri
   writeFileSync(join(project, '.mercury', 'agents', 'probe-kind.md'), '---\nname: probe-kind\ndescription: "a read-only probe of the harbour"\ntools: Read, Grep\n---\n\nYou are the probe: read, never write.\n')
   const sessionDirectory = getCwdState()
   setCwdState(project)
+  trustTheProject(true)
   clearAgentDefinitionsCache()
   const id = generateTaskId('local_agent')
   const sessionId = String(getSessionId())

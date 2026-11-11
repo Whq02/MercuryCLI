@@ -1,5 +1,6 @@
 
 import { useEffect, useRef } from 'react'
+import type { InputEvent, Key } from '../../ink/events/input-event.js'
 import useInput from '../../ink/hooks/use-input.js'
 import {
   isTopOverlayNow,
@@ -29,6 +30,10 @@ export function letterOrdinalOf(option: {
   return /^[A-Z]$/.test(core) ? core : undefined
 }
 
+export function isWheelReport(key: Key, event: InputEvent): boolean {
+  return (key.wheelUp || key.wheelDown) && event.keypress.x !== undefined && event.keypress.y !== undefined
+}
+
 type UseSelectProps<T> = {
   state: SelectState<T>
   isDisabled?: boolean
@@ -42,6 +47,7 @@ type UseSelectProps<T> = {
   submitInputOption?: (option: OptionWithDescription<T>) => void
   tryEnterImageSelectionMode?: () => boolean
   isImageSelectionModeActive?: boolean
+  scrollMovesFocus?: boolean
 }
 
 export function useSelectInput<T>({
@@ -57,9 +63,10 @@ export function useSelectInput<T>({
   submitInputOption,
   tryEnterImageSelectionMode,
   isImageSelectionModeActive = false,
+  scrollMovesFocus = true,
 }: UseSelectProps<T>): void {
-  usePopupPageOwner(!isDisabled)
-  const overlayToken = useRegisterOverlay('select', Boolean(onCancel), { ownsPageKeys: !isDisabled })
+  usePopupPageOwner(!isDisabled && scrollMovesFocus)
+  const overlayToken = useRegisterOverlay('select', Boolean(onCancel), { ownsPageKeys: !isDisabled && scrollMovesFocus })
   const tokenRef = useRef(overlayToken)
   tokenRef.current = overlayToken
 
@@ -85,9 +92,18 @@ export function useSelectInput<T>({
     [isDisabled, declineRow],
   )
 
+  const wheelReport = useRef(false)
+  useInput(
+    (_input, key, event) => {
+      wheelReport.current = isWheelReport(key, event)
+    },
+    { isActive: !isDisabled && !scrollMovesFocus },
+  )
+
   useKeybindings(
     {
       'select:next': () => {
+        if (wheelReport.current) return false
         if (onDownFromLastItem && isOnLastOption) {
           onDownFromLastItem()
           return
@@ -95,6 +111,7 @@ export function useSelectInput<T>({
         state.focusNextOption()
       },
       'select:previous': () => {
+        if (wheelReport.current) return false
         if (onUpFromFirstItem && isWindowAtTop && isOnFirstOption) {
           onUpFromFirstItem()
           return
@@ -134,6 +151,7 @@ export function useSelectInput<T>({
       const focusedOption =
         state.focusedIndex > 0 ? state.options[state.focusedIndex - 1] : undefined
 
+      if (!scrollMovesFocus && (isWheelReport(key, event) || key.pageDown || key.pageUp)) return
       if (key.pageDown || key.pageUp) {
         if (!pagesHostBody(key.pageDown)) {
           if (key.pageDown) state.focusNextPage()
