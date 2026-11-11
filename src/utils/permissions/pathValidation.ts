@@ -62,7 +62,7 @@ export function isPathAllowed(
     const rule = matchingRuleForInput(resolved, context, permType, 'deny')
     if (rule) return { allowed: false, decisionReason: { type: 'rule', rule } }
   }
-  const steering = operationType !== 'read' && (context.mode === 'default' || context.mode === 'implement' || context.mode === 'flow') && isInstructionEstatePath(resolvedPath)
+  const steering = operationType !== 'read' && (context.mode === 'default' || context.mode === 'implement' || context.mode === 'flow') && isInstructionEstatePath(resolvedPath, context.mode === 'flow')
   if (operationType !== 'read') {
     const internal = checkEditableInternalPath(resolvedPath, undefined)
     if (!steering && (internal as { behavior: string }).behavior === 'allow') return { allowed: true }

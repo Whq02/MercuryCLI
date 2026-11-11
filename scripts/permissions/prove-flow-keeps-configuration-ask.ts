@@ -39,9 +39,23 @@ for (const path of CONFIGURATION) {
 }
 
 section('§3 the ask reaches no further than the configuration')
-for (const [tool, input] of [...written('<PROJECT>/notes.txt'), ...written('<PROJECT>/sub/settings.json'), ...written('<PROJECT>/docs/plain.md')]) {
+for (const [tool, input] of [...written('<PROJECT>/notes.txt'), ...written('<PROJECT>/sub/settings.json'), ...written('<PROJECT>/docs/plain.md'), ...written('<PROJECT>/.mercury/worktrees/lane/src/a.ts'), ...written('<PROJECT>/.mercury/worktrees/lane/notes.txt')]) {
   const flow = await decide(tool, input, 'flow')
   check(`flow · ${told(tool, input)} · runs unasked`, flow.behavior === 'allow', said(flow))
+}
+for (const [tool, input] of [...written('<PROJECT>/.mercury/worktrees/lane/MERCURY.md'), ...written('<PROJECT>/.mercury/worktrees/lane/.mercury/settings.local.json')]) {
+  const flow = await decide(tool, input, 'flow')
+  check(`flow · the configuration of a worktree is configuration: ${told(tool, input)} · asks`, flow.behavior === 'ask', said(flow))
+}
+{
+  const kept: string[] = []
+  for (const [tool, input] of written('<PROJECT>/.mercury/worktrees/lane/src/a.ts')) {
+    for (const mode of ['default', 'implement'] as const) {
+      const decision = await decide(tool, input, mode)
+      if (decision.behavior !== 'ask') kept.push(`${mode} ${told(tool, input)}: ${said(decision)}`)
+    }
+  }
+  check('default and implement · a write into a worktree under the folder asks as it did', kept.length === 0, kept.join(' ‖ '))
 }
 {
   const exact: Rules = { allow: ['Edit(.mercury/wards.json)'] }
