@@ -141,6 +141,10 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
     check(`${label}: the footer stays visible`, after.some(line => line.includes('click outside closes') || line.includes('esc closes')))
     if (surface.view === 'config') {
       check(`${label}: a full-height popup starts its gutter on the pane's first interior row, immediately below the top border`, gutter === headerRow + 1)
+      const whole = 'off · `mercury --coordinator-on` turns it on'
+      const row = after.find(line => line.includes('Concourse coordinator')) ?? ''
+      const painted = row.slice(row.indexOf('Concourse coordinator') + 'Concourse coordinator'.length).split('│')[0]!.trim()
+      check(`${label}: a value its cell cannot hold is cut with an ellipsis, as its neighbours are`, painted === whole || (painted.endsWith('…') && whole.startsWith(painted.slice(0, -1))), JSON.stringify(painted))
     }
     const frame = after.join('\n') + '\n'
     const name = `${surface.view}-${columns}x${rows}.txt`

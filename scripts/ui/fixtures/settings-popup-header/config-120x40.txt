@@ -21,8 +21,8 @@ VITALS                  │ │   Tips                              on          
                         │ │   JEV                               off · official                                       │ │
                         │ │   Instruction profile               auto                                                 │ │
                         │ │   Shell engine                      system                                               │ │
-                        │ │   Patience with a quiet model       normal · idle 6m (quiet 15m) · fallback 15m · retry  │ │
-                        │ │   OpenRouter routing policy         n/a — applies to OpenRouter models (Anthropic is     │ │
+                        │ │   Patience with a quiet model       normal · idle 6m (quiet 15m) · fallback 15m · retr…  │ │
+                        │ │   OpenRouter routing policy         n/a — applies to OpenRouter models (Anthropic is a…  │ │
                         │ │   Shell engine sessions             8 · the conversation + 7 crewmates                   │ │
                         │ │   Thinking                          n/a — Opus 5.5 keeps thinking on                     │ │
                         │ │   Usage notice to the model         off                                                  │ │
