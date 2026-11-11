@@ -70,6 +70,7 @@ async function runEmbeddedCommand(
     logForDebugging(`promptShellExecution: a guard refused ${slashCommandName}: ${command} (${judgement.guard})`)
     throw new MalformedCommandError(`Permission check failed for the matched pattern "${command}": ${judgement.reason}`)
   }
+  for (const note of judgement.notes) context.appendSystemMessage?.(note)
   const syntheticAssistant = createAssistantMessage({ content: [] })
   const permission = await hasPermissionsToUseTool(
     tool as never,
