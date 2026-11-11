@@ -248,6 +248,12 @@ section('§9 a service\'s inputs are one script: text sent to it is read with th
   check('control · sovereign · what was sent to an earlier run of the service is not read into this run', restarted.behavior === 'allow', said(restarted))
   standInService('ruled', 'sh', [])
   sentTo('ruled', 'cd build')
+  {
+    const key = history?.serviceInputKey(getOriginalCwd(), 'ruled') ?? ''
+    const waited = (await history?.serviceInputAsSent(key, 'ls')) ?? ''
+    const soFar = typeof history?.serviceInputSoFar === 'function' ? history.serviceInputSoFar(key, 'ls') : null
+    check('the history has a reader that needs no wait, for the callers that cannot wait: once the earlier text is read it answers as the waiting one does', soFar !== null && soFar === waited && soFar === 'cd build\nls', JSON.stringify({ soFar, waited }))
+  }
   const ruled = await everyMode('ruled', 'rm -rf ../secrets', { deny: ['Edit(secrets/**)'] })
   check('after cd build was sent, rm -rf ../secrets under a deny rule on secrets/** is refused in all six modes', ruled.length === 0, ruled.join(' ‖ '))
   const alone = await decide('Service', typed('ruled', PUSH), 'flow')

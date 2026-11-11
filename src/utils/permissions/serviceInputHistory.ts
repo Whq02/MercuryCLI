@@ -63,10 +63,14 @@ export function noteServiceInput(service: string, run: string, text: string, sub
     .catch(() => undefined)
 }
 
-export async function serviceInputAsSent(service: string, text: string, run?: string): Promise<string> {
+export function serviceInputSoFar(service: string, text: string, run?: string): string {
   const known = runs.get(service)
   if (known === undefined || (run !== undefined && known.id !== run)) return text
-  await known.reading
   const line = known.pending + text
   return known.state.length === 0 ? line : `${known.state.join('\n')}\n${line}`
+}
+
+export async function serviceInputAsSent(service: string, text: string, run?: string): Promise<string> {
+  await runs.get(service)?.reading
+  return serviceInputSoFar(service, text, run)
 }
