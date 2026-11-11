@@ -3,6 +3,7 @@ import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { buildTool, stringInputField, type ToolDef, type ToolPermissionContext } from '../../Tool.js'
 import { shellCommandHasPermission } from '../BashTool/bashPermissions.js'
+import { oneLineCommandDisplay } from '../commandDisplay.js'
 import { spawnShellTask } from '../../tasks/LocalShellTask/LocalShellTask.js'
 import { stopTask } from '../../tasks/stopTask.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
@@ -127,8 +128,10 @@ export const MonitorTool = buildTool({
       }). You will receive batched events, at most once every 30 seconds during ongoing output. Keep working — do not poll or sleep. Events may arrive while you are waiting for the user — an event is not their reply.`,
     }
   },
-  renderToolUseMessage(input) {
-    return `Monitor: ${input.description ?? input.command ?? ''}`
+  renderToolUseMessage(input, { verbose }) {
+    const command = input.command ?? ''
+    const shown = verbose ? command : oneLineCommandDisplay(command)
+    return input.description ? `${shown} — ${input.description}` : shown
   },
   async call({ command, description, timeout_ms, persistent }, context) {
     const { abortController, toolUseId, agentId } = context
