@@ -5,10 +5,14 @@ import { getShellCwd } from '../Shell.js'
 import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../envUtils.js'
 import { CREDENTIALS_SERVICE_SUFFIX, getMacOsKeychainStorageServiceName, getRawSpellingKeychainStorageServiceName } from '../secureStorage/macOsKeychainHelpers.js'
 import { UNREAD_PART, layersOf, printedBy, readShellCommands, wordKnown, type Layer, type ReadCommand, type ShellRead } from '../wards/wardsShellRead.js'
-import { credentialStorePath, mercurySecretPath, protectedPathForms, spelling } from './protectedPaths.js'
+import { credentialStorePath as storePathOf, mercurySecretPath as secretPathOf, protectedPathForms as pathFormsOf, spelling } from './protectedPaths.js'
 import { pinnedCommandAnalysis, peelWrappers, PARSE_ABORTED, extractHeredocs, type Node } from './decision/commandAnalysis.js'
-import { namesMercuryProcess, runtimeWritePath, runtimeProcessRefusal } from './runtimeProtection.js'
+import { namesMercuryProcess, placedUnder, runtimeWritePath, runtimeProcessRefusal } from './runtimeProtection.js'
 import { expandPath } from '../path.js'
+
+const mercurySecretPath = (path: string, cwd?: string): string | null => secretPathOf(placedUnder(path, cwd), cwd)
+const credentialStorePath = (path: string, cwd?: string): string | null => storePathOf(placedUnder(path, cwd), cwd)
+const protectedPathForms = (path: string, cwd?: string): string[] => pathFormsOf(placedUnder(path, cwd), cwd)
 
 function words(text: string, powershell: boolean): Array<string | { op?: string }> {
   const prepared = powershell ? text.replace(/`\r?\n/g, '').replace(/`([^\r\n])/g, '$1').replace(/\\/g, '\\\\') : text
@@ -392,7 +396,7 @@ async function credentialWriteAfterMove(command: string, powershell: boolean, cw
   const read = await readForFloors(command, powershell, cwd)
   if (read === null) return null
   for (const [at, simple] of read.commands.entries()) {
-    if (simple.cwd !== undefined && !GLOB_PART.test(simple.cwd)) continue
+    if (simple.cwd !== undefined && !GLOB_PART.test(simple.cwd) && !/^[A-Za-z]:\//.test(simple.cwd)) continue
     const after = foldersAfter(read, at, cwd)
     if (after.lost) continue
     const written = simple.redirects.flatMap(redirect => (['>', '>>', '>|', '&>', '&>>'].includes(redirect.op) ? ['>', '', redirect.target] : []))
@@ -453,7 +457,7 @@ function currentUser(): { user?: string; uid?: string } {
 async function readForFloors(command: string, powershell: boolean, cwd: string): Promise<ShellRead | null> {
   try {
     const home = (process.env.HOME || process.env.USERPROFILE || homedir()).replace(/\\/g, '/')
-    const read = await readShellCommands(command, powershell ? 'powershell' : 'posix', { cwd: cwd.replace(/\\/g, '/'), home, homesRoot: posix.dirname(home), ownNames: [], ...currentUser() })
+    const read = await readShellCommands(command, powershell ? 'powershell' : 'posix', { cwd: cwd.replace(/\\/g, '/'), home, homesRoot: posix.dirname(home), ownNames: [], ...currentUser(), windows: process.platform === 'win32' })
     return read
   } catch {
     return null
@@ -738,9 +742,8 @@ function foldersAfter(read: ShellRead, at: number, cwd: string): { folders: stri
       if (printed !== undefined && printed.trim() !== '') target = printed.trim()
     }
     if (target === undefined || target === '-' || target.includes(UNREAD_PART) || /[$`\s]/.test(spelling(target))) return { folders: [before], lost: true }
-    const pattern = expandPath(spelling(target), before)
-    const folders = GLOB_PART.test(pattern) ? [...foldersNamedBy(pattern), pattern] : foldersNamedBy(pattern)
-    return { folders: folders.length > 0 ? folders : [before], lost: false }
+    const pattern = /^[A-Za-z]:\//.test(spelling(target)) ? spelling(target) : placedUnder(target, before) !== target ? placedUnder(target, before) : expandPath(spelling(target), before)
+    return { folders: GLOB_PART.test(pattern) ? [...foldersNamedBy(pattern), pattern] : [pattern], lost: false }
   }
   return { folders: [cwd], lost: true }
 }

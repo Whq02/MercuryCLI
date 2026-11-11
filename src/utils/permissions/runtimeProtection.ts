@@ -22,9 +22,16 @@ function runtimeRoots(): string[] {
   return roots.flatMap(root => protectedPathForms(root))
 }
 
+export function placedUnder(path: string, cwd: string | undefined): string {
+  if (cwd === undefined || !/^[A-Za-z]:[\\/]/.test(cwd)) return path
+  const word = path.trim().replace(/\\/g, '/')
+  if (word === '' || /^(?:[/~$%]|[A-Za-z]:)/.test(word) || word.includes('://')) return path
+  return posix.join(cwd.replace(/\\/g, '/'), word)
+}
+
 export function runtimeWritePath(path: string, cwd = getShellCwd(), removesTree = true): string | null {
   const roots = runtimeRoots()
-  for (const candidate of protectedPathForms(path, cwd)) {
+  for (const candidate of protectedPathForms(placedUnder(path, cwd), cwd)) {
     const conventional = candidate.match(/^(?:\/(?:users|home)\/[^/]+|\/root|[a-z]:\/users\/[^/]+)\/\.mercury\/runtime(?=\/|$)/)?.[0]
     if (conventional) return conventional
     for (const root of roots) {
