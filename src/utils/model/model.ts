@@ -2,7 +2,7 @@ import {
   getEngineModelOverride,
 } from '../../bootstrap/state.js'
 import { getInitialSettings } from '../settings/settings.js'
-import { frontierOperatorDecision, newestPermittedGeneration } from './frontierPolicy.js'
+import { frontierOperatorDecision, newestPermittedGeneration, newestPermittedMirror } from './frontierPolicy.js'
 import {
   CHOOSE_A_MODEL_ID,
   CHOOSE_A_MODEL_WORDS,
@@ -81,7 +81,8 @@ export function newestPermittedFallback(): string | null {
   return (
     newestPermittedGeneration('opus', getDefaultOpusModel()) ??
     newestPermittedGeneration('sonnet', getDefaultSonnetModel()) ??
-    newestPermittedGeneration('haiku', getDefaultHaikuModel())
+    newestPermittedGeneration('haiku', getDefaultHaikuModel()) ??
+    newestPermittedMirror()
   )
 }
 

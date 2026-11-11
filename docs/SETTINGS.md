@@ -52,6 +52,10 @@ Settings that execute project commands still require workspace trust
 ([TRUST.md](TRUST.md)). Keep secrets in `/logins` or a credential helper,
 not in a shared project file.
 
+A headless run in a folder without a trust grant takes only the deny and ask
+rules of the two project files. Hand such a run a settings file with
+`--config <file>`.
+
 For example:
 
 ```json

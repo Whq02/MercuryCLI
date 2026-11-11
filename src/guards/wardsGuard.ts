@@ -4,6 +4,7 @@ import { closeSync, constants, existsSync, fstatSync, openSync, readFileSync, re
 import { dirname, isAbsolute, join, sep } from 'node:path'
 import { enqueueNotification } from '../context/notifications.js'
 import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
+import { untrustedWorkspaceHeadless } from '../utils/config/trust.js'
 import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
 import type { SetAppState } from '../utils/messageQueueManager.js'
@@ -13,6 +14,7 @@ import {
   AUTONOMOUS_WARDS,
   BUILTIN_WARDS,
   REFUSAL_WARDS,
+  buildUntrustedFolderDenial,
   buildWardDenial,
   countWardWork,
   evaluateWards,
@@ -23,6 +25,7 @@ import {
   type WardRule,
   type WardWork,
 } from '../utils/wards/wards.js'
+import { refusalOfShellCommand } from '../utils/wards/wardsRefusals.js'
 import { engageToolGuard } from './guards.js'
 
 export const WARDS_HOOK_ID = 'wards-content-rules'
@@ -231,7 +234,7 @@ export function registerWardsGuard(
   engageToolGuard(sessionId, {
     id: WARDS_HOOK_ID,
     timeoutMs: 5000,
-    judge: call => {
+    judge: async call => {
       const level = wardsLevel()
       if (level === 'off') return { allow: true }
       try {
@@ -249,10 +252,10 @@ export function registerWardsGuard(
             return false
           }
         }
-        const refusal = evaluateWards(REFUSAL_WARDS, pending, work)
+        const refusal = pending.shellCommand === undefined ? evaluateWards(REFUSAL_WARDS, pending, work) : await refusalOfShellCommand(pending, getCwd(), work)
         if (!refusal.allow && level !== 'warn') return { allow: false, reason: buildWardDenial(refusal, pending.toolName) }
         const verdict = evaluateWards(call.asksAnswerable === true ? attendedRules : unattendedRules, pending, work)
-        if (!verdict.allow) return { allow: false, reason: buildWardDenial(verdict, pending.toolName) }
+        if (!verdict.allow) return { allow: false, reason: projectReport.rules.includes(verdict.rule) && untrustedWorkspaceHeadless() ? buildUntrustedFolderDenial(pending.toolName) : buildWardDenial(verdict, pending.toolName) }
         if (refusal.allow) return { allow: true }
         logForDebugging(`wards: warn — ${buildWardDenial(refusal, pending.toolName)}`)
         return {

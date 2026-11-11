@@ -1,6 +1,7 @@
 import * as React from 'react'
 
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js'
+import { isDenialResultText } from '../../utils/messages/rejectionText.js'
 import { FilePathLink } from '../../components/FilePathLink.js'
 import { MessageResponse } from '../../components/MessageResponse.js'
 import { HighlightedCode } from '../../components/HighlightedCode.js'
@@ -79,7 +80,7 @@ export function renderToolUseErrorMessage(
   result: ToolResultBlockParam['content'],
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
-  if (!verbose && typeof result === 'string' && extractTag(result, 'tool_use_error') !== null) {
+  if (!verbose && typeof result === 'string' && !isDenialResultText(result) && extractTag(result, 'tool_use_error') !== null) {
     return <ShortErrorLine text="Error editing notebook" />
   }
   return <FallbackToolUseErrorMessage result={result} verbose={verbose} />

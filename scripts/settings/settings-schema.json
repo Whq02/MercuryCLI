@@ -580,7 +580,7 @@
           "type": "boolean"
         },
         "sovereignConsentSeen": {
-          "description": "True skips the consent card shown before entering Sovereign mode (honoured from the user, local, flag and policy sources)",
+          "description": "True skips the consent card shown before entering Sovereign mode (honoured from the user, flag and policy sources, never from a file in the folder)",
           "type": "boolean"
         }
       },

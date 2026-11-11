@@ -61,6 +61,18 @@ function clampNumber(value: number, min: number, max: number): number {
 }
 
 type ContentPin = { key: string; inner: number }
+type PaintedGeometry = { offsets: Float64Array; keys: readonly string[] | null; version: number; origin: number }
+
+function offsetsOf(keys: readonly string[], heights: ReadonlyMap<string, number>, into: Float64Array): Float64Array {
+  const buffer = into.length < keys.length + 1 ? new Float64Array(keys.length + 1) : into
+  let accumulated = 0
+  for (let i = 0; i < keys.length; i++) {
+    buffer[i] = accumulated
+    accumulated += heights.get(keys[i]!) ?? UNMEASURED_ESTIMATE_ROWS
+  }
+  buffer[keys.length] = accumulated
+  return buffer
+}
 
 export function useVirtualScroll(
   scrollRef: { current: ScrollBoxHandle | null },
@@ -101,6 +113,7 @@ export function useVirtualScroll(
   const outOfLayoutRef = useRef(false)
   const laidOutRef = useRef(false)
   const listCommittingRef = useRef(false)
+  const paintedRef = useRef<PaintedGeometry>({ offsets: new Float64Array(0), keys: null, version: -1, origin: 0 })
   const afterLayoutRef = useRef<() => void>(() => {})
   const [, forceResolve] = useReducer((n: number) => n + 1, 0)
 
@@ -117,6 +130,41 @@ export function useVirtualScroll(
     }
     return ki.map.get(key)
   }
+
+  function pinWhereTheViewStands(): void {
+    const handle = scrollRef.current
+    const { offsets: offs, keys, origin } = paintedRef.current
+    if (!handle || !keys || keys.length === 0) return
+    if (handle.isSticky() || reflowHoldRef.current || handle.getViewportHeight() <= 0) return
+    const committedTop = handle.getScrollTop()
+    if (lastWrittenTopRef.current === committedTop) return
+    const count = keys.length
+    const pos = Math.max(0, committedTop - origin)
+    if (pos > offs[count]!) return
+    let lo = 0
+    let hi = count
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (offs[mid + 1]! > pos) hi = mid
+      else lo = mid + 1
+    }
+    const idx = Math.min(lo, count - 1)
+    const height = offs[idx + 1]! - offs[idx]!
+    contentPinRef.current = { key: keys[idx]!, inner: Math.min(Math.max(0, pos - offs[idx]!), Math.max(0, height - 1)) }
+    lastWrittenTopRef.current = committedTop
+    pinTrace({ act: 'follow', committed: committedTop, origin, idx, off: offs[idx], h: height, pin: contentPinRef.current })
+  }
+
+  function keepPaintedGeometry(): void {
+    const painted = paintedRef.current
+    painted.origin = listOriginRef.current
+    if (painted.version === offsetsVersionRef.current && painted.keys === itemKeys) return
+    painted.offsets = offsetsOf(itemKeys, heightCacheRef.current, painted.offsets)
+    painted.keys = itemKeys
+    painted.version = offsetsVersionRef.current
+  }
+
+  pinWhereTheViewStands()
 
   if (columns !== prevColumnsRef.current) {
     const ratio = prevColumnsRef.current / columns
@@ -156,18 +204,8 @@ export function useVirtualScroll(
     ) {
       return offsetsBufferRef.current
     }
-    let buffer = offsetsBufferRef.current
-    if (buffer.length < count + 1) {
-      buffer = new Float64Array(count + 1)
-      offsetsBufferRef.current = buffer
-    }
-    const cache = heightCacheRef.current
-    let accumulated = 0
-    for (let i = 0; i < count; i++) {
-      buffer[i] = accumulated
-      accumulated += cache.get(keys[i]!) ?? UNMEASURED_ESTIMATE_ROWS
-    }
-    buffer[count] = accumulated
+    const buffer = offsetsOf(keys, heightCacheRef.current, offsetsBufferRef.current)
+    offsetsBufferRef.current = buffer
     offsetsBuiltVersionRef.current = offsetsVersionRef.current
     offsetsBuiltCountRef.current = count
     offsetsBuiltKeysRef.current = keys
@@ -205,6 +243,7 @@ export function useVirtualScroll(
   }
 
   function recordMountedHeights(): void {
+    pinWhereTheViewStands()
     const cache = heightCacheRef.current
     for (const [key, element] of elementsRef.current) {
       const layout = element.layoutNode
@@ -227,6 +266,7 @@ export function useVirtualScroll(
         }
       }
     }
+    keepPaintedGeometry()
   }
 
   function renderIfHeightsMovedThePane(first: number, last: number): boolean {
@@ -323,7 +363,7 @@ export function useVirtualScroll(
             const inner = Math.min(pin.inner, Math.max(0, h - 1))
             if (inner !== pin.inner && !reflowHoldRef.current) contentPinRef.current = { key: pin.key, inner }
             const target = Math.max(0, Math.floor(origin + offs[idx]! + inner))
-            if (target !== committedTop && pendingDelta === 0) {
+            if (target !== committedTop) {
               pinTrace({ act: 'write', committed: committedTop, target, origin, idx, off: offs[idx], inner, h, vp: viewportHeight, hold: reflowHoldRef.current, out: outOfLayoutRef.current })
               box.pinScrollTop(target)
               lastWrittenTopRef.current = target

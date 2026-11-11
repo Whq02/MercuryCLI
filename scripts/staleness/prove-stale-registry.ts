@@ -90,7 +90,6 @@ src/components/HighlightedCode/Fallback.tsx :: highlightCache :: keyed-by-truth
 src/components/Markdown.tsx :: tokenCache :: keyed-by-truth
 src/components/Spinner/utils.ts :: parseCache :: keyed-by-truth
 src/components/StructuredDiff.tsx :: hunkCache :: keyed-by-truth
-src/components/VirtualMessageList.tsx :: realPromptCache :: keyed-by-truth
 src/components/concourse/ConcourseRoute.tsx :: lastCoherentSnapshot :: subscription-fed
 src/components/mercury-ui/sessionAccent.ts :: snapshotMemo :: keyed-by-truth
 src/components/messages/TranscriptNameplate.tsx :: cachedHandle :: static-for-process
@@ -123,7 +122,7 @@ src/ink/line-width-cache.ts :: cache :: keyed-by-truth
 src/ink/node-cache.ts :: nodeCache :: keyed-by-truth
 src/ink/session/windowsHostSetup.ts :: presenceCache :: invalidator=evictHostPresence
 src/keybindings/loadUserBindings.ts :: cached :: keyed-by-truth
-src/keybindings/loadUserBindings.ts :: cachedCwd :: keyed-by-truth
+src/keybindings/loadUserBindings.ts :: cachedFor :: keyed-by-truth
 src/mneme/mnemeIndex.ts :: fileCache :: keyed-by-truth
 src/mneme/paths.ts :: getMnemeHome :: static-for-process
 src/mneme/paths.ts :: mnemeProjectKeyMemo :: keyed-by-truth

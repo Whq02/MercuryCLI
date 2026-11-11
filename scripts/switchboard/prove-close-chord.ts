@@ -254,7 +254,6 @@ send(undefined, 8400, '\r')
 send(undefined, 10600, 'stream slowly')
 send(undefined, 11400, '\r')
 send(undefined, 13400, `${ESC}[1;2D`)
-send(undefined, 14200, '\t')
 send(undefined, 15000, `${ESC}[B`)
 send(undefined, 15600, '\t')
 const SCALE = vshotBudgetScale()
@@ -370,14 +369,43 @@ if (sendRecs.length === sends.length) {
   const f = (name: keyof typeof grabs): { atMs: number; rows: string[] } => frameAt(grabs[name])
   const receiptFrames = receiptAt.map(frameAt)
   const t = (g: { rows: string[] }): string => g.rows.join('\n')
+  const rowLineOf = (g: { rows: string[] }): string => {
+    const at = g.rows.findIndex(r => r.includes('▸ '))
+    if (at === -1) return ''
+    const marker = g.rows[at]!.indexOf('▸ ')
+    const edge = Math.max(g.rows[at]!.lastIndexOf('│'), g.rows[at]!.lastIndexOf('┃'))
+    const parts: string[] = []
+    for (let i = at + 1; i < g.rows.length; i++) {
+      const row = g.rows[i]!
+      const body = row.slice(marker + 2, edge).trimEnd()
+      if (row.slice(marker, marker + 2).trim() !== '' || body === '') break
+      if (parts.length === 0 ? body[0] === ' ' || body[1] !== ' ' : body.slice(0, 2).trim() !== '') break
+      parts.push(body.slice(2).trim())
+    }
+    return parts.join(' ')
+  }
+  const said = (g: { rows: string[] }, words: string): boolean => t(g).includes(words) || rowLineOf(g) === words
+  const groupOf = (g: { rows: string[] }, title: string): string => {
+    const edges = g.rows.map(r => r.indexOf('⊞')).filter(i => i >= 0)
+    if (edges.length === 0) return ''
+    const edge = Math.max(0, Math.min(...edges) - 2)
+    let group = ''
+    for (const row of g.rows) {
+      const cell = row.slice(edge)
+      const head = /⊞ ([A-Z][A-Z ]*?) · \d+/.exec(cell)
+      if (head) group = head[1]!
+      else if (cell.includes(title)) return group
+    }
+    return ''
+  }
   const hintSeen = (name: keyof typeof leaderSeries, needle: string): { frame: { atMs: number; rows: string[] }; detail: string } => {
     const frames = leaderSeries[name].map(frameAt)
-    const hit = frames.find(g => t(g).includes(needle))
+    const hit = frames.find(g => said(g, needle))
     const frame = hit ?? frames[frames.length - 1]!
     const lead = frame.atMs - leaderSeries[name][0]! + LEADER_OFFSETS[0]!
     return { frame, detail: hit !== undefined ? `painted by +${lead}ms` : `never in ${LEADER_OFFSETS.map(o => `+${o}`).join('/')}ms` }
   }
-  const stopFrame = receiptFrames.find(g => /\bstopped\s+stream slowly/.test(t(g))) ?? receiptFrames[receiptFrames.length - 1]!
+  const stopFrame = receiptFrames.find(g => groupOf(g, 'stream slowly') === 'STOPPED') ?? receiptFrames[receiptFrames.length - 1]!
   if (process.env.MERCURY_CLOSE_CHORD_KEEP === '1') {
     const dir = join(home, 'frames')
     mkdirSync(dir, { recursive: true })
@@ -395,29 +423,30 @@ if (sendRecs.length === sends.length) {
     const armSeen = hintSeen('arm', keyHintLabel('⌃x again stops — esc keeps it'))
     check('ARM: the first ⌃x paints the stage-true confirm on the row', t(armSeen.frame).includes(keyHintLabel('⌃x again stops — esc keeps it')), `${armSeen.detail} · ${t(armSeen.frame).match(/⌃x[^\n]*/)?.[0]?.slice(0, 90) ?? '(no hint row)'}`)
     check('DISARM: other input clears the hint, closes nothing, and the draft survives whole', !t(f('disarm')).includes(keyHintLabel('⌃x again stops')) && !/STOPPED/i.test(t(f('disarm'))) && f('disarm').rows.some(r => /❯\s+keep me(\s|▌|$)/.test(r)), f('disarm').rows.find(r => /❯/.test(r))?.trim().slice(0, 90) ?? '(no composer row)')
-    check('STOP RUNG: the completed chord stopped the highlighted row — it STAYS, wearing stopped (inside 6 s)', /\bstopped\s+stream slowly/.test(t(stopFrame)), `+${stopFrame.atMs - stopAt}ms: ${stopWords(stopFrame)}`)
+    check('STOP RUNG: the completed chord stopped the highlighted row — it STAYS, under STOPPED (inside 6 s)', groupOf(stopFrame, 'stream slowly') === 'STOPPED', `+${stopFrame.atMs - stopAt}ms: under "${groupOf(stopFrame, 'stream slowly')}" · ${stopWords(stopFrame)}`)
     const receiptWords = (g: { rows: string[] }): boolean => t(g).includes('applied — stop sent — ') || t(g).includes(keyHintLabel('stopped — ⌃x ⌃x archives it'))
     const receiptRows = receiptFrames.map(g => `+${g.atMs - stopAt}ms: ${g.rows.find(r => /applied|refused|failed/.test(r))?.trim().slice(0, 110) ?? '(no receipt row)'}`).join(' | ')
     check("…and the composer's receipt spoke the stop verb's detail inside its beat", receiptFrames.some(receiptWords), receiptRows)
-    check('…and once the row reads stopped the receipt advances to the archive hint', receiptFrames.some(g => t(g).includes(keyHintLabel('stopped — ⌃x ⌃x archives it')) && /\bstopped\s+stream slowly/.test(t(g))), receiptRows)
+    check('…and once the row reads stopped the receipt advances to the archive hint', receiptFrames.some(g => t(g).includes(keyHintLabel('stopped — ⌃x ⌃x archives it')) && groupOf(g, 'stream slowly') === 'STOPPED'), receiptRows)
     check('…and the draft still stands', stopFrame.rows.some(r => /❯\s+keep me(\s|▌|$)/.test(r)), draftRows(stopFrame))
-    check('C4 STANDS: 10 s after the stop the row still reads stopped, never parked (no timer or sweep archived it)', /\bstopped\s+stream slowly/.test(t(f('stand'))) && !/\bparked\s+stream slowly/.test(t(f('stand'))), stopWords(f('stand')))
+    check('C4 STANDS: 10 s after the stop the row still stands under STOPPED, never PARKED (no timer or sweep archived it)', groupOf(f('stand'), 'stream slowly') === 'STOPPED', `under "${groupOf(f('stand'), 'stream slowly')}" · ${stopWords(f('stand'))}`)
     const archiveSeen = hintSeen('archiveArm', keyHintLabel('⌃x again archives it (the chat stands parked)'))
-    check('ARCHIVE ARM: the hint speaks the archive rung before the completion lands', t(archiveSeen.frame).includes(keyHintLabel('⌃x again archives it (the chat stands parked)')), `${archiveSeen.detail} · ${stopWords(archiveSeen.frame)}`)
-    check('ARCHIVE: the row STAYS on the board, parked — the record stands', /stream slowly/.test(t(f('parked'))) && /\bparked\s+stream slowly/.test(t(f('parked'))), stopWords(f('parked')))
+    check('ARCHIVE ARM: the hint speaks the archive rung whole before the completion lands', said(archiveSeen.frame, keyHintLabel('⌃x again archives it (the chat stands parked)')), `${archiveSeen.detail} · "${rowLineOf(archiveSeen.frame)}" · ${stopWords(archiveSeen.frame)}`)
+    check('ARCHIVE: the row STAYS on the board, under PARKED — the record stands', groupOf(f('parked'), 'stream slowly') === 'PARKED', `under "${groupOf(f('parked'), 'stream slowly')}" · ${stopWords(f('parked'))}`)
     const flipSeen = hintSeen('flipIn', keyHintLabel('⌃x again deletes it (the record ends)'))
-    check('C2 INSIDE: 4 s after the archive the pending leader reads the DELETE rung', t(flipSeen.frame).includes(keyHintLabel('⌃x again deletes it (the record ends)')), `${flipSeen.detail} · ${stopWords(flipSeen.frame)}`)
+    check('C2 INSIDE: 4 s after the archive the pending leader reads the DELETE rung whole', said(flipSeen.frame, keyHintLabel('⌃x again deletes it (the record ends)')), `${flipSeen.detail} · "${rowLineOf(flipSeen.frame)}" · ${stopWords(flipSeen.frame)}`)
     check('C2 THE WINDOW ENDS: at 5.5 s, the leader still pending, the hint flipped by itself to the fresh-start words (a press now arms; no stale "deletes")', t(f('flipOut')).includes(keyHintLabel('⌃x again arms the delete')) && !t(f('flipOut')).includes('again deletes it'), stopWords(f('flipOut')))
-    const lateSeen = hintSeen('lateLeader', keyHintLabel('⌃x again arms the delete'))
-    check('C2 OUTSIDE: a fresh leader 9 s after the archive says the press ARMS the delete and names the window', t(lateSeen.frame).includes(keyHintLabel('⌃x again arms the delete')) && /in 5 s ends it/.test(t(lateSeen.frame)), `${lateSeen.detail} · ${stopWords(lateSeen.frame)}`)
-    check('C2 THE ARM: the completed chord outside the window ARMED (the row stays parked) and its note names the window', /\bparked\s+stream slowly/.test(t(f('lateArm'))) && t(f('lateArm')).includes(keyHintLabel('armed — ⌃x ⌃x again deletes (5 s)')), stopWords(f('lateArm')))
+    const ARMS_WHOLE = keyHintLabel('⌃x again arms the delete · ⌃x ⌃x in 5 s ends it')
+    const lateSeen = hintSeen('lateLeader', ARMS_WHOLE)
+    check('C2 OUTSIDE: a fresh leader 9 s after the archive says the press ARMS the delete and names the window, whole', said(lateSeen.frame, ARMS_WHOLE), `${lateSeen.detail} · "${rowLineOf(lateSeen.frame)}" · ${stopWords(lateSeen.frame)}`)
+    check('C2 THE ARM: the completed chord outside the window ARMED (the row stays under PARKED) and its note names the window', groupOf(f('lateArm'), 'stream slowly') === 'PARKED' && t(f('lateArm')).includes(keyHintLabel('armed — ⌃x ⌃x again deletes (5 s)')), `under "${groupOf(f('lateArm'), 'stream slowly')}" · ${stopWords(f('lateArm'))}`)
     const deleteSeen = hintSeen('deleteArm', keyHintLabel('⌃x again deletes it (the record ends)'))
-    check('DELETE ARM: inside the arm\'s window the hint speaks the delete rung', t(deleteSeen.frame).includes(keyHintLabel('⌃x again deletes it (the record ends)')), `${deleteSeen.detail} · ${stopWords(deleteSeen.frame)}`)
+    check('DELETE ARM: inside the arm\'s window the hint speaks the delete rung whole', said(deleteSeen.frame, keyHintLabel('⌃x again deletes it (the record ends)')), `${deleteSeen.detail} · "${rowLineOf(deleteSeen.frame)}" · ${stopWords(deleteSeen.frame)}`)
     check('DELETE: exactly the highlighted session left the board', !/stream slowly/.test(t(f('gone'))))
     check('…the NEIGHBOUR survives untouched (its row still stands)', /neighbour rea/.test(t(f('gone'))) && !/no sessions running/.test(t(f('gone'))))
     check('…and the draft survives the whole ladder un-mangled', f('gone').rows.some(r => /❯\s+keep me(\s|▌|$)/.test(r)), draftRows(f('gone')))
     check('C3 NO STALE NOTE: after the delete no line still carries the arm\'s note (it left with its row)', !/archived — |again deletes \(5 s\)/.test(t(f('gone'))), f('gone').rows.filter(r => /deletes|archived/.test(r)).map(r => r.trim().slice(0, 120)).join(' | ') || '(no chord note)')
-    check('C1 the neighbour parked on its own two rungs (stop, archive) — the board still the frame', /\bparked\s+neighbour rea/.test(t(f('nParked'))) && /SESSIONS/.test(t(f('nParked'))), stopWords(f('nParked')))
+    check('C1 the neighbour parked on its own two rungs (stop, archive) — the board still the frame', groupOf(f('nParked'), 'neighbour rea') === 'PARKED' && /SESSIONS/.test(t(f('nParked'))), `under "${groupOf(f('nParked'), 'neighbour rea')}" · ${stopWords(f('nParked'))}`)
     const enteredFrames = enteredSeries.map(frameAt)
     const entered = enteredFrames.find(g => t(g).includes(keyHintLabel('⇧← back'))) ?? enteredFrames[enteredFrames.length - 1]!
     const enteredWords = `+${entered.atMs - at('enter')}ms: ${entered.rows.filter(r => /⇧← back|shift\+← back|SESSIONS|armed|neighbour rea|bringing/.test(r)).map(r => r.trim().slice(0, 120)).join(' | ')}`

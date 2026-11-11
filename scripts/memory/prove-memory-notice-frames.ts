@@ -141,7 +141,6 @@ section("§4 the line paints in the person's chat and never in a crewmate's chat
       streamingThinking: null,
       hidePastReasoning: true,
       streamingTail: null,
-      trackStickyPrompt: false,
       disableRenderCap: true,
       ...(suppressNotices ? { suppressNotices: true } : {}),
     }

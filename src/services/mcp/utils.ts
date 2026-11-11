@@ -4,7 +4,7 @@ import { getProjectPathForConfig } from '../../utils/config.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getGlobalMercuryFile } from '../../utils/env.js'
 import { errorMessage, errorMessageWithCause, getErrnoCode } from '../../utils/errors.js'
-import { getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
+import { getEnabledSettingsForSource, getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
 import { getEnterpriseMcpFilePath, projectMcpFilePath } from './config.js'
 import { getMcpPrefix } from './mcpStringUtils.js'
 import { normalizeNameForMCP } from './normalization.js'
@@ -339,6 +339,7 @@ type McpDefinitionRecord = {
   args?: string[]
   url?: string
   env?: Record<string, string>
+  headersHelper?: string
   unexpanded?: McpUnexpandedStrings
 }
 
@@ -355,9 +356,11 @@ export function mcpConfigAsWritten(config: McpServerConfig | ScopedMcpServerConf
 }
 
 export function projectMcpServerDefinitionDigest(config: McpServerConfig | ScopedMcpServerConfig): string {
+  const record = config as McpDefinitionRecord
   const definition = {
     ...mcpConfigAsWritten(config),
-    env: Object.keys((config as McpDefinitionRecord).env ?? {}).sort(),
+    env: Object.keys(record.env ?? {}).sort(),
+    ...(typeof record.headersHelper === 'string' ? { headersHelper: record.headersHelper } : {}),
     ...('command' in config ? { cwd: process.cwd() } : {}),
   }
   return createHash('sha256').update(JSON.stringify(sortKeysDeep(definition))).digest('hex').slice(0, 16)
@@ -414,7 +417,7 @@ export function recordProjectMcpServerChoices(
 function upgradeProjectMcpApproval(serverName: string, config: McpServerConfig | ScopedMcpServerConfig): void {
   const normalized = normalizeNameForMCP(serverName)
   for (const source of ['userSettings', 'localSettings'] as const) {
-    const entries = getSettingsForSource(source)?.kit?.projectOn ?? []
+    const entries = getEnabledSettingsForSource(source)?.kit?.projectOn ?? []
     const plain = entries.some(entry => {
       const parts = approvalEntryParts(entry)
       return parts.digest === undefined && normalizeNameForMCP(parts.name) === normalized
@@ -431,7 +434,7 @@ export function getProjectMcpServerStatus(
   const digest = projectMcpServerDefinitionDigest(config)
   let match: 'definition' | 'name' | null = null
   for (const source of ['userSettings', 'localSettings'] as const) {
-    const kit = getSettingsForSource(source)?.kit
+    const kit = getEnabledSettingsForSource(source)?.kit
     if ((kit?.projectOff ?? []).some(name => normalizeNameForMCP(name) === normalized)) return 'rejected'
     if (kit?.trustProjectServers === true) return 'approved'
     const found = approvalMatch(kit?.projectOn, serverName, digest)

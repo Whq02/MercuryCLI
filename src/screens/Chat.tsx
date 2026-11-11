@@ -175,7 +175,7 @@ import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE, type Fil
 import { isFullscreenEnvEnabled, isMouseTrackingEnabled, maybeGetTmuxMouseHint } from '../utils/fullscreen.js';
 import type { PromptInputHelpers } from '../types/promptInputHelpers.js';
 import { formatCommandLoadingMetadata, resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } from '../utils/processUserInput/processSlashCommand.js';
-import { addToHistory, expandPastedTextRefs } from '../history.js';
+import { addToHistory, expandPastedTextRefs, resolvePastedContents } from '../history.js';
 import { mercuryBootPreflightEnabled, runAndRecordPreflight } from '../utils/healthPreflight.js';
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js';
 import { createCommandInputMessage, createUserMessage, extractTag, getUserMessageText, textForResubmit } from '../utils/messages.js';
@@ -1098,7 +1098,7 @@ export function Chat({
     addNotification({ key: `command-${commandName}`, text, priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
   }, [addNotification]);
   const dialogInFlightRef = useRef<{ name: string; mounted: boolean } | null>(null);
-  const queuedDialogCommandsRef = useRef<Array<{ input: string; name: string; submittedAt: string }>>([]);
+  const queuedDialogCommandsRef = useRef<Array<{ input: string; name: string; submittedAt: string; pastedContents: Record<number, PastedContent> }>>([]);
   const dialogSlotRef = useRef<DOMElement | null>(null);
   const [dialogPaints, setDialogPaints] = useState(false);
   useEffect(() => {
@@ -1115,7 +1115,7 @@ export function Chat({
   const drainQueuedDialogCommand = useCallback((): void => {
     const next = queuedDialogCommandsRef.current.shift();
     if (next === undefined) return;
-    void onSubmitRef.current(next.input, INERT_PROMPT_HELPERS, undefined, { rearmed: true, submittedAt: next.submittedAt });
+    void onSubmitRef.current(next.input, INERT_PROMPT_HELPERS, undefined, { rearmed: true, submittedAt: next.submittedAt, pastedContents: next.pastedContents });
   }, []);
   const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: { fromKeybinding?: boolean; rearmed?: boolean; submittedAt?: string; pastedContents?: Record<number, PastedContent> }): Promise<void> => {
     const submittedAt = options?.submittedAt ?? new Date().toISOString();
@@ -1213,6 +1213,7 @@ export function Chat({
     }
     const spaceAt = text.indexOf(' ');
     const args = spaceAt === -1 ? '' : text.slice(spaceAt + 1).trim();
+    const argsWithPastes = async (): Promise<string> => expandPastedTextRefs(args, (await resolvePastedContents(args, seatPastes)).pastedContents).trim();
     if (seatCommand !== undefined && seatCommand.type === 'local' && seatCommand.uiRouteAlias === undefined) {
       takeComposer();
       void (async () => {
@@ -1222,7 +1223,7 @@ export function Chat({
           }
           const context = getToolUseContext([...focusedNow.records()], [], createAbortController(), focusedNow.modelFacts().effective);
           const module = await seatCommand.load();
-          const result = await module.call(args, context);
+          const result = await module.call(await argsWithPastes(), context);
           if (result.type === 'text' && result.value.trim() !== '') paintScreenCommandReceipt(getCommandName(seatCommand), args, result.value, submittedAt);
         } catch (error) {
           logForDebugging(`screen command /${seatCommand.name} failed: ${String(error)}`);
@@ -1244,7 +1245,7 @@ export function Chat({
       takeComposer();
       setAppState(prev => ({
         ...prev,
-        initialMessage: { message: createUserMessage({ content: text }), armedAtLanding: true },
+        initialMessage: { message: createUserMessage({ content: text }), pastedContents: seatPastes, armedAtLanding: true },
       }));
       addNotification({ key: 'landing-hold', text: 'the session is landing — /mission sends when it lands', priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
       return;
@@ -1254,7 +1255,7 @@ export function Chat({
       const inFlight = dialogInFlightRef.current;
       if (inFlight !== null) {
         takeComposer();
-        queuedDialogCommandsRef.current.push({ input, name: dialogName, submittedAt });
+        queuedDialogCommandsRef.current.push({ input, name: dialogName, submittedAt, pastedContents: seatPastes });
         submitTrace('repl-dialog-queued', input, { name: dialogName, behind: inFlight.name });
         addNotification({
           key: 'dialog-command-queued',
@@ -1317,7 +1318,7 @@ export function Chat({
       };
       try {
         const module = await seatCommand.load();
-        const element = await module.call(onDone, context, args, text.slice(1, spaceAt === -1 ? undefined : spaceAt));
+        const element = await module.call(onDone, context, await argsWithPastes(), text.slice(1, spaceAt === -1 ? undefined : spaceAt));
         if (element && !completed) {
           slot.mounted = true;
           setToolJSX({ jsx: element, shouldHidePromptInput: false, isLocalJSXCommand: true, isImmediate: true });
@@ -2416,7 +2417,6 @@ export function Chat({
       streamingTail={focusedTail}
       streamingTextSuppressed={streamingSuppressed}
       scrollRef={scrollRef}
-      trackStickyPrompt={fullscreen}
       jumpRef={jumpRef}
       onSearchMatchesChange={onSearchMatchesChange}
       scanElement={scanElement}
@@ -2442,7 +2442,6 @@ export function Chat({
       hidePastReasoning
       streamingTail={focusedTail}
       streamingTextSuppressed={streamingSuppressed}
-      trackStickyPrompt={fullscreen}
       disableRenderCap={dumpMode}
     />
   ) : (
@@ -2466,7 +2465,6 @@ export function Chat({
       tailAnchor={inVirtualTranscript || paintedMessages !== messages ? undefined : tailAnchor}
       unseenDivider={unseenDivider}
       scrollRef={scrollRef}
-      trackStickyPrompt={fullscreen}
       jumpRef={jumpRef}
       onSearchMatchesChange={onSearchMatchesChange}
       scanElement={scanElement}
@@ -2564,7 +2562,6 @@ export function Chat({
           modalScrollRef={modalScrollRef}
           dividerYRef={unseen.dividerYRef}
           hidePill={inVirtualTranscript ? undefined : false}
-          hideSticky={inVirtualTranscript ? undefined : false}
           newMessageCount={inVirtualTranscript ? 0 : newMessageCount}
           onPillClick={inVirtualTranscript ? onTranscriptPillClick : onPillClick}
           scrollable={
@@ -2577,7 +2574,6 @@ export function Chat({
                 agentDefinitions={agentDefinitions}
                 scrollRef={scrollRef}
                 showAllInTranscript={showAllInTranscript}
-                trackStickyPrompt={fullscreen}
               />
             )
           }

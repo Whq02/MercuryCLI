@@ -11,6 +11,7 @@ import {
   _resetWin32ConsoleForTest,
   type Win32ConsoleSyscalls,
 } from '../../src/utils/runtime/win32Console.js'
+import { flagEnabled } from '../../src/substrate/flagRegistry.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
@@ -33,7 +34,28 @@ section('(1) decide matrix — win32-gated · TTY-gated · opt-out')
   const d5 = decideWin32ConsoleUtf8('win32', true, {})
   check('win32 TTY ⇒ engage', d5.engage)
   const d6 = decideWin32ConsoleUtf8('win32', true, { MERCURY_WIN32_UTF8: '1' })
-  check('win32 TTY =1 ⇒ engage (only =0 opts out)', d6.engage)
+  check('win32 TTY =1 ⇒ engage', d6.engage)
+  const OFF = ['0', 'false', 'no', 'off', 'FALSE', 'No', 'OFF', 'Off', ' off ', '"off"', "'0'", '"False"']
+  const ON = ['1', 'true', 'yes', 'on', '', ' ', '2', '00', 'disabled', 'none', 'offf', 'n', 'o ff']
+  const registry = (value: string | undefined): boolean => {
+    const kept = process.env.MERCURY_WIN32_UTF8
+    if (value === undefined) delete process.env.MERCURY_WIN32_UTF8
+    else process.env.MERCURY_WIN32_UTF8 = value
+    try {
+      return flagEnabled('MERCURY_WIN32_UTF8')
+    } finally {
+      if (kept === undefined) delete process.env.MERCURY_WIN32_UTF8
+      else process.env.MERCURY_WIN32_UTF8 = kept
+    }
+  }
+  const stillOn = OFF.filter(word => decideWin32ConsoleUtf8('win32', true, { MERCURY_WIN32_UTF8: word }).engage)
+  check(`the four off words, in any case, quoted or padded, opt out (${OFF.length} spellings)`, stillOn.length === 0, `still engaged: ${JSON.stringify(stillOn)}`)
+  const reasons = new Set(OFF.map(word => { const d = decideWin32ConsoleUtf8('win32', true, { MERCURY_WIN32_UTF8: word }); return d.engage ? 'engaged' : d.reason }))
+  check('each of them is stated as opted-out', reasons.size === 1 && reasons.has('opted-out'), [...reasons].join(','))
+  const wronglyOff = ON.filter(word => !decideWin32ConsoleUtf8('win32', true, { MERCURY_WIN32_UTF8: word }).engage)
+  check(`unset and every other value stay on (${ON.length} values)`, wronglyOff.length === 0 && decideWin32ConsoleUtf8('win32', true, {}).engage, `opted out: ${JSON.stringify(wronglyOff)}`)
+  const apart = [undefined, ...OFF, ...ON].filter(value => registry(value) !== decideWin32ConsoleUtf8('win32', true, value === undefined ? {} : { MERCURY_WIN32_UTF8: value }).engage)
+  check('the seam and the flag registry read the switch by one rule', apart.length === 0, `they differ on: ${JSON.stringify(apart)}`)
   const d7 = decideWin32ConsoleUtf8('win32', true, { MERCURY_WIN32_UTF8_PRESET: '1' })
   check('win32 TTY launcher-preset ⇒ no engage (launcher-preset)', !d7.engage && d7.reason === 'launcher-preset')
   const d8 = decideWin32ConsoleUtf8('win32', true, { MERCURY_WIN32_UTF8_PRESET: '1', MERCURY_WIN32_UTF8: '0' })
@@ -121,6 +143,12 @@ const WIN_TTY = { platform: 'win32', stdoutIsTTY: true, env: {} as Record<string
   const o = ensureWin32ConsoleUtf8(sys, { ...WIN_TTY, env: { MERCURY_WIN32_UTF8: '0' } })
   check('=0 opt-out ⇒ ZERO syscalls', !o.engaged && calls.length === 0)
 }
+for (const word of ['false', 'no', 'off', 'OFF']) {
+  _resetWin32ConsoleForTest()
+  const { calls, sys } = seam('Active code page: 437', 'Active code page: 65001')
+  const o = ensureWin32ConsoleUtf8(sys, { ...WIN_TTY, env: { MERCURY_WIN32_UTF8: word } })
+  check(`=${word} opt-out ⇒ ZERO syscalls`, !o.engaged && calls.length === 0, `engaged=${o.engaged} calls=${calls.length}`)
+}
 {
   _resetWin32ConsoleForTest()
   const { calls, sys } = seam('Active code page: 65001', 'Active code page: 65001')
@@ -150,6 +178,8 @@ section('(4) cli.tsx placement — after --version, before route dispatch')
   check('seam sits AFTER the zero-import --version fast-path', versionFastPath !== -1 && guard > versionFastPath)
   check('seam sits BEFORE the first route checkpoint (pre-paint)', firstRoute !== -1 && guard < firstRoute)
   check('ensureWin32ConsoleUtf8 is invoked at the seam', /ensureWin32ConsoleUtf8\(\)\n/.test(cli))
+  check('the boot entry reads the switch nowhere itself: the seam decides, by the one rule', !/MERCURY_WIN32_UTF8(?!_PRESET)/.test(cli), cli.split('\n').filter(line => /MERCURY_WIN32_UTF8(?!_PRESET)/.test(line)).join(' | '))
+  check('both places the entry reaches the seam keep the launcher marker in front of the import', cli.split("process.env.MERCURY_WIN32_UTF8_PRESET !== '1'").length === 3 && cli.split("await import('../utils/runtime/win32Console.js')").length === 3)
 }
 
 section('(5) the built bundle carries the seam')

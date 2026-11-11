@@ -17,6 +17,8 @@ function section(t: string): void {
 const ROOT = join(import.meta.dir, '..', '..')
 const ENGINE_PATH = join(ROOT, 'src', 'utils', 'wards', 'wards.ts')
 const HOOK_PATH = join(ROOT, 'src', 'guards', 'wardsGuard.ts')
+const REFUSALS_PATH = join(ROOT, 'src', 'utils', 'wards', 'wardsRefusals.ts')
+const READING_PATH = join(ROOT, 'src', 'utils', 'wards', 'wardsShellRead.ts')
 
 function importSpecifiers(source: string): string[] {
   const out: string[] = []
@@ -33,6 +35,8 @@ async function main(): Promise<void> {
 
   const engineSrc = readFileSync(ENGINE_PATH, 'utf-8')
   const hookSrc = readFileSync(HOOK_PATH, 'utf-8')
+  const refusalsSrc = readFileSync(REFUSALS_PATH, 'utf-8')
+  const readingSrc = readFileSync(READING_PATH, 'utf-8')
 
   section('§1 engine purity — wards.ts is a pure module (no imports at all)')
   {
@@ -48,10 +52,12 @@ async function main(): Promise<void> {
       'node:fs',
       'node:path',
       '../substrate/flagRegistry.js',
+      '../utils/config/trust.js',
       '../utils/cwd.js',
       '../utils/debug.js',
       '../utils/messageQueueManager.js',
       '../utils/wards/wards.js',
+      '../utils/wards/wardsRefusals.js',
       './guards.js',
       '../context/notifications.js',
       '../utils/messages/systemMessages.js',
@@ -66,6 +72,11 @@ async function main(): Promise<void> {
       strays.join(', '),
     )
     check('zero require calls in the hook', !/\brequire\s*\(/.test(hookSrc))
+    const refusalImports = importSpecifiers(refusalsSrc)
+    const readingImports = importSpecifiers(readingSrc)
+    check('the parsed judge imports the file system, the path module, the engine and the shell reading alone', refusalImports.join(' ') === 'node:fs node:path ./wards.js ./wardsShellRead.js', refusalImports.join(' '))
+    check("the shell reading imports the path module and the product's shell parser alone", readingImports.join(' ') === 'node:path ../bash/ast.js ../bash/parser.js', readingImports.join(' '))
+    check('zero require calls and no dynamic import in the parsed judge and the shell reading', !/\brequire\s*\(|\bimport\s*\(/.test(refusalsSrc + readingSrc))
   }
 
   section('§3 model-seam deny sweep — no model call, no model-identity read')
@@ -88,6 +99,8 @@ async function main(): Promise<void> {
     for (const [name, source] of [
       ['wards.ts', engineSrc],
       ['wardsHook.ts', hookSrc],
+      ['wardsRefusals.ts', refusalsSrc],
+      ['wardsShellRead.ts', readingSrc],
     ] as const) {
       const hits = FORBIDDEN.filter(f => source.includes(f))
       check(`${name} references none of the model seams`, hits.length === 0, hits.join(', '))
@@ -142,6 +155,8 @@ async function main(): Promise<void> {
       check('armed-hook denial round-trips offline (teaching string)', denial.refused && typeof denial.reason === 'string')
       const allow = await judgeToolCall('w-model-free', { tool: 'Bash', input: { command: 'git status' }, callId: 'model-free-bash', messages: [] })
       check('armed-hook allow round-trips offline', allow.refused === false)
+      const spelled = await judgeToolCall('w-model-free', { tool: 'Bash', input: { command: 'env -u X "sudo" true' }, callId: 'model-free-spelled', messages: [], toolRef: { name: 'Bash', shellCommandOf: (value: Record<string, unknown>) => (typeof value.command === 'string' ? value.command : undefined) } as never })
+      check('a refusal the parsed judge alone reads round-trips offline', spelled.refused && spelled.reason.includes("Ward 'no-sudo'"), spelled.refused ? spelled.reason.slice(0, 120) : 'allowed')
       check('the stubbed fetch was never called', dialed === 0, `${dialed} dial(s)`)
       resetWardsEngagedSessionsForTest()
     } finally {

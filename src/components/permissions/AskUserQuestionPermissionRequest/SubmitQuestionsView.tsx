@@ -77,6 +77,7 @@ export function SubmitQuestionsView({
           <Text color="inactive">Select a decision to revise it, or submit:</Text>
           <Box marginTop={1}>
             <Select
+              scrollMovesFocus={false}
               options={[...decisionRows, ...actionRows]}
               defaultFocusValue={initialFocusValue}
               onChange={(value: string) => {

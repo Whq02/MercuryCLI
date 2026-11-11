@@ -29,6 +29,7 @@ saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allow
 
 const sup = await import('../../src/daemon/concourseWorkers.ts')
 const { standInRunner } = await import('../lib/seatDoor.ts')
+const { retiringRunners } = await import('./retiring-runners.ts')
 type StandInRunner = ReturnType<typeof standInRunner>
 type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
 const idle = await import('../../src/daemon/idleRetirement.ts')
@@ -133,8 +134,11 @@ console.log('L2 the park verb')
   check('the pending set names it', sup.pendingParkRequests(dir).join(',') === 'concourse-w3')
   check('the idle edge before the turn settles completes nothing', sup.completeRequestedPark('concourse-w3', roster, dir) === false && rec('concourse-w3')?.parkedAt === undefined)
   sup.updateConcourseWorkers(ws => { ws['concourse-w3']!.lastTurnSettledAt = now }, dir)
-  check('the turn-settled edge completes the park: killed, parked, the request cleared', sup.completeRequestedPark('concourse-w3', roster, dir) === true && killed.includes('concourse-w3') && rec('concourse-w3')?.parkedAt !== undefined && rec('concourse-w3')?.parkRequestedAt === undefined && rec('concourse-w3')?.parkedBy === 'operator:test')
-  check('a second edge is quiet', sup.completeRequestedPark('concourse-w3', roster, dir) === false && sup.pendingParkRequests(dir).length === 0)
+  const retiring = retiringRunners(sup, dir, DEAD_PID)
+  retiring.seat('concourse-w3')
+  check('the turn-settled edge completes the park: the record alone parks nothing while its runner lives, the runner retires by its own leave (asked, never killed), parked, the request cleared', sup.completeRequestedPark('concourse-w3', roster, dir) === false && (await sup.retireRequestedPark('concourse-w3', retiring.roster, dir, { exitWaitMs: 2_000 })) === true && retiring.askedOf('concourse-w3') === 'prepare,commit' && !killed.includes('concourse-w3') && retiring.killed.length === 0 && rec('concourse-w3')?.parkedAt !== undefined && rec('concourse-w3')?.parkRequestedAt === undefined && rec('concourse-w3')?.parkedBy === 'operator:test')
+  check('a second edge is quiet', sup.completeRequestedPark('concourse-w3', roster, dir) === false && (await sup.retireRequestedPark('concourse-w3', retiring.roster, dir, { exitWaitMs: 200 })) === false && retiring.askedOf('concourse-w3') === 'prepare,commit' && sup.pendingParkRequests(dir).length === 0)
+  retiring.close()
   killed.length = 0
   const nowOut = sup.parkConcourseSession(sid('5'), 'operator:test', roster, dir, { afterTurn: false })
   check('afterTurn: false parks a mid-turn runner now (the drain ceiling road)', nowOut.outcome === 'applied' && killed.includes('concourse-w5') && rec('concourse-w5')?.parkedAt !== undefined)

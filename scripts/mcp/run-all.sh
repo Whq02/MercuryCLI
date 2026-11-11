@@ -8,6 +8,7 @@
 # gate-watch: src/components/MCPServerApprovalDialog.tsx src/components/MCPServerMultiselectDialog.tsx src/services/mcpServerApproval.tsx src/utils/projectConfig.ts src/commands/mcp/route.ts
 # gate-watch: src/utils/env.ts src/utils/staticRender.tsx src/ink/components/TerminalSizeContext.tsx
 # gate-watch: assets/splash/splash-core.mjs package.json scripts/daemon/dupline-world.ts
+# gate-watch: docs/TRUST.md
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/scriptedTurn.ts scripts/lib/rows.ts src/utils/readiness.ts src/utils/cockpit/mcpGauge.ts
 # gate-watch: src/rows/* src/runner/wire/* sdk/src/** src/cli/mcpServer.ts src/cli/headless/projectQuery.ts src/main.tsx scripts/sdk/compatRoadFixture.ts scripts/sdk/runtime.ts scripts/provider-compat/fixtures/engineRules.mjs
 # gate-watch: scripts/lib/seatDoor.ts scripts/lib/mcpInProcess.ts scripts/lib/settingsPopupHarness.ts

@@ -6,6 +6,7 @@ import { Box, Text, useInput } from '../../../ink.js'
 import { useAppState } from '../../../state/AppState.js'
 import type { AppState } from '../../../state/AppState.js'
 import type { Question } from '../../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
+import { DISCUSS_OPTION_LABEL } from '../../../tools/AskUserQuestionTool/prompt.js'
 import {
   apolloCustomIndexLabel,
   apolloIndexLabel,
@@ -242,7 +243,7 @@ export function QuestionView(props: Props): React.ReactNode {
           <Text> </Text>
         )}
         <Text color={isFooterFocused ? 'suggestion' : undefined}>
-          {options.length + 1}. Chat about this
+          {options.length + 1}. {DISCUSS_OPTION_LABEL}
         </Text>
       </Box>
     </Box>
@@ -281,6 +282,7 @@ export function QuestionView(props: Props): React.ReactNode {
           <Box marginTop={1}>
             {question.multiSelect ? (
               <SelectMulti
+                scrollMovesFocus={false}
                 key={question.question}
                 options={options}
                 defaultValue={selectedValue as string[] | undefined}
@@ -305,6 +307,7 @@ export function QuestionView(props: Props): React.ReactNode {
               />
             ) : (
               <Select
+                scrollMovesFocus={false}
                 key={question.question}
                 options={options}
                 defaultValue={selectedValue as string | undefined}

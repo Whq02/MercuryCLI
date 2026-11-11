@@ -25,6 +25,7 @@ import {
   HyperlinkPool,
   inkFlanksCellAt,
   isEmptyCellAt,
+  isInklessCellAt,
   migrateScreenPools,
   StylePool,
   type Screen,
@@ -109,7 +110,7 @@ import {
   stopSignalsSupported,
 } from './root/stop-continue.js'
 import { noteModeAcquired, noteModeReleased, shutdownReleaseObligations } from './root/terminalModeLedger.js'
-import { extendedKeysSupportedNow, regionScrollTrustedNow, shouldHoldFirstPaintForSyncProbe, syncOutputSupportedNow } from './session/capabilities.js'
+import { extendedKeysSupportedNow, regionScrollTrustedNow, shouldHoldFirstPaintForSyncProbe, syncOutputCapabilityNow, syncOutputSupportedNow } from './session/capabilities.js'
 import { terminalQuerierFor, terminalQuerySettleMs } from './session/querier.js'
 import { streamTakesWrites, writeAllSync, writeDiffToTerminal } from './session/delivery.js'
 import { cursorPosition, ERASE_SCREEN, CURSOR_HOME } from './termio/csi.js'
@@ -132,6 +133,8 @@ const WATCHDOG_COMMIT_BUDGET = 12
 const STDIN_REARM_DELAY_MS = 50
 const OVERWRITE_MIN_GAP_MS = 250
 const STDIN_REARM_ATTEMPTS = 8
+const UNDELIVERED_RETRY_MS = 250
+const UNDELIVERED_RETRY_MAX_MS = 4000
 
 function rawModeOn(stdin: NodeJS.ReadStream): boolean {
   return (stdin as { isRaw?: boolean }).isRaw === true
@@ -280,6 +283,8 @@ export default class Ink {
   private wholeFrameAt = -Infinity
   private overwriteTimer: ReturnType<typeof setTimeout> | null = null
   private resizeSettleTimer: ReturnType<typeof setTimeout> | null = null
+  private undeliveredRetryTimer: ReturnType<typeof setTimeout> | null = null
+  private undeliveredRetryMs = UNDELIVERED_RETRY_MS
   private watchdogCommitsRemaining = 0
   private zeroByteRenderStreak = 0
 
@@ -298,6 +303,7 @@ export default class Ink {
   private storedReadableListeners: Array<(...args: unknown[]) => void> | null = null
   private wasRawMode = false
   private consoleReadHeld = false
+  private fittingConsoleBuffer = false
   private stdinRecoveryArmed = false
   private rawModeOffForStop = false
   private stopListenersAttached = false
@@ -484,7 +490,11 @@ export default class Ink {
   }
 
   private handleResize = (): void => {
-    if (this.isRendering) return
+    if (this.isRendering || this.fittingConsoleBuffer) return
+    this.settleResize()
+  }
+
+  private settleResize(): void {
     const { columns, rows } = this.liveSize()
     if (this.resizeSettleTimer === null) {
       if (columns === this.cachedColumns && rows === this.cachedRows) return
@@ -515,8 +525,24 @@ export default class Ink {
     this.displayCursor = null
   }
 
+  private consoleBufferOutlivesWindow(): boolean {
+    return process.platform === 'win32' && !syncOutputCapabilityNow() && this.altScreenActive && !this.isPaused && this.isTTY
+  }
+
+  private fitConsoleBufferToWindow(): void {
+    if (!this.consoleBufferOutlivesWindow()) return
+    termWrite(this.options.stdout, ENTER_ALT_SCREEN)
+    this.fittingConsoleBuffer = true
+    try {
+      refreshConsoleSize(this.options.stdout)
+    } finally {
+      this.fittingConsoleBuffer = false
+    }
+  }
+
   private applySettledResize = (): void => {
     this.resizeSettleTimer = null
+    this.fitConsoleBufferToWindow()
     const { columns, rows } = this.liveSize()
     this.applySize(columns, rows)
     this.scheduler.releaseSettleHold(false)
@@ -532,6 +558,23 @@ export default class Ink {
       this.resetFramesForAltScreen()
       this.wholeFrameDue = true
     }
+  }
+
+  private retryUndeliveredFrame(): void {
+    if (this.undeliveredRetryTimer !== null) return
+    const wait = this.undeliveredRetryMs
+    this.undeliveredRetryMs = Math.min(wait * 2, UNDELIVERED_RETRY_MAX_MS)
+    this.undeliveredRetryTimer = setTimeout(() => {
+      this.undeliveredRetryTimer = null
+      this.onRender()
+    }, wait)
+  }
+
+  private clearUndeliveredRetry(): void {
+    this.undeliveredRetryMs = UNDELIVERED_RETRY_MS
+    if (this.undeliveredRetryTimer === null) return
+    clearTimeout(this.undeliveredRetryTimer)
+    this.undeliveredRetryTimer = null
   }
 
   private clearResizeSettle(): void {
@@ -669,6 +712,10 @@ export default class Ink {
       if (columns !== this.cachedColumns || rows !== this.cachedRows) {
         if (reconciler.isAlreadyRendering()) {
           queueMicrotask(this.onRender)
+          return
+        }
+        if (this.consoleBufferOutlivesWindow()) {
+          this.settleResize()
           return
         }
         this.applySize(columns, rows)
@@ -891,6 +938,9 @@ export default class Ink {
         { level: 'warn' },
       )
       if (this.altScreenActive) this.wholeFrameDue = true
+      this.retryUndeliveredFrame()
+    } else {
+      this.clearUndeliveredRetry()
     }
 
     if (this.watchdogCommitsRemaining > 0) {
@@ -1690,10 +1740,10 @@ export default class Ink {
 
   private pointerOnBlank(col: number, row: number): boolean {
     const screen = this.frontFrame.screen
-    if (!isEmptyCellAt(screen, col, row)) return false
+    if (!isInklessCellAt(screen, col, row, this.stylePool)) return false
     const hit = hitTest(this.rootNode, col, row)
     const box = hit === null ? undefined : nodeCache.get(hit)
-    return box === undefined || !inkFlanksCellAt(screen, col, row, Math.floor(box.x), Math.floor(box.x + box.width))
+    return box === undefined || !inkFlanksCellAt(screen, col, row, Math.floor(box.x), Math.floor(box.x + box.width), this.stylePool)
   }
 
   dispatchHover(col: number, row: number): void {
@@ -1987,6 +2037,7 @@ export default class Ink {
 
     this.isUnmounted = true
     this.clearResizeSettle()
+    this.clearUndeliveredRetry()
     this.scheduler.cancel()
     reconciler.updateContainerSync(null, this.container, null, null)
     reconciler.flushSyncWork()
@@ -2026,6 +2077,7 @@ export default class Ink {
   detachForShutdown(): void {
     this.isUnmounted = true
     this.clearResizeSettle()
+    this.clearUndeliveredRetry()
     this.scheduler.cancel()
     drainStdin(this.options.stdin)
     const { stdin } = this.options

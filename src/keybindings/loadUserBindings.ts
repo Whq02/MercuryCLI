@@ -5,6 +5,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
+import { checkHasTrustDialogAccepted } from '../utils/config/trust.js'
 import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getMercuryHome } from '../utils/envUtils.js'
@@ -34,8 +35,16 @@ export function getKeybindingsPath(): string {
   return join(getMercuryHome(), FILE_NAME)
 }
 
+function folderTrusted(): boolean {
+  try {
+    return checkHasTrustDialogAccepted()
+  } catch {
+    return false
+  }
+}
+
 export function getProjectKeybindingsPath(): string | null {
-  return resolveProjectConfigPath(getCwd(), FILE_NAME)
+  return folderTrusted() ? resolveProjectConfigPath(getCwd(), FILE_NAME) : null
 }
 
 
@@ -119,7 +128,7 @@ export function setExtensionKeybindingLayer(provider: () => KeybindingBlock[]): 
 
 export function invalidateKeybindingsCache(): void {
   cached = null
-  cachedCwd = null
+  cachedFor = null
 }
 
 function assemble(user: ParsedLayer | null, project: ParsedLayer | null): KeybindingsLoadResult {
@@ -145,7 +154,11 @@ function assemble(user: ParsedLayer | null, project: ParsedLayer | null): Keybin
 
 
 let cached: KeybindingsLoadResult | null = null
-let cachedCwd: string | null = null
+let cachedFor: string | null = null
+
+function layersKey(): string {
+  return `${getCwd()}\n${folderTrusted() ? 'trusted' : 'untrusted'}`
+}
 
 function readLayerSync(path: string | null, layer: Layer): ParsedLayer | null {
   if (!path) return null
@@ -157,14 +170,14 @@ function readLayerSync(path: string | null, layer: Layer): ParsedLayer | null {
 }
 
 export function loadKeybindingsSyncWithWarnings(): KeybindingsLoadResult {
-  const cwd = getCwd()
-  if (cached && cachedCwd === cwd) return cached
+  const key = layersKey()
+  if (cached && cachedFor === key) return cached
   const result = assemble(
     readLayerSync(getKeybindingsPath(), 'user'),
     readLayerSync(getProjectKeybindingsPath(), 'project'),
   )
   cached = result
-  cachedCwd = cwd
+  cachedFor = key
   return result
 }
 
@@ -241,7 +254,7 @@ export async function initializeKeybindingWatcher(): Promise<void> {
     void loadKeybindings()
       .then(result => {
         cached = result
-        cachedCwd = getCwd()
+        cachedFor = layersKey()
         changes.emit(result)
       })
       .catch(error => {

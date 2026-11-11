@@ -165,7 +165,7 @@ const SKIPPED: Record<string, string> = Object.fromEntries(
     'saveAiGeneratedTitle', 'saveTaskSummary', 'saveTag', 'linkSessionToPR', 'getCurrentSessionTag',
     'getCurrentSessionTitle', 'getCurrentSessionAgentColor', 'restoreSessionMetadata',
     'clearSessionMetadata', 'reAppendSessionMetadata', 'saveAgentName', 'saveAgentColor',
-    'saveAgentSetting', 'cacheSessionTitle', 'saveMode', 'saveWorktreeState', 'fillSessionListing',
+    'saveAgentSetting', 'saveSessionBrief', 'carrySessionBriefs', 'cacheSessionTitle', 'saveMode', 'saveWorktreeState', 'fillSessionListing',
     'saveAdvisorSwitch', 'advisorSwitchOfSession', 'saveSessionModel',
     'searchSessionsByCustomTitle', 'loadTranscriptFile', 'clearSessionMessagesCache',
     'doesMessageExistInSession', 'lastSession', 'listProjectSessions', 'listSessionsAcrossProjects',

@@ -1,4 +1,5 @@
 import { inspectSessionArgs as inspectRunArgs } from '../cli/sessionArgs.js'
+import { isProcessStartInstant } from './ownerWatch.js'
 
 export type ProcessSweepClass = 'running' | 'stale' | 'cannot-end' | 'not-ours'
 export type ProcessSweepRead = boolean | null
@@ -159,6 +160,7 @@ export const PROCESS_SWEEP_WORDS = {
 export interface ProcessSweepDaemonRecord {
   pid: number
   startToken: string | null | undefined
+  startInstant?: string
   ownerPid: number | null | undefined
   persist: boolean | undefined
   startedAt: number
@@ -284,6 +286,7 @@ function processSweepIdentityKey(entry: Pick<ProcessSweepEntry, 'kind' | 'proces
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 
 export function parseProcessStartToken(token: string): number {
+  if (isProcessStartInstant(token)) return Date.parse(token.trim())
   const parts = token.trim().split(/\s+/)
   const year = parts.find(part => /^\d{4}$/.test(part))
   const time = parts.find(part => /^\d{1,2}:\d{2}:\d{2}$/.test(part))
@@ -372,7 +375,7 @@ export function composeProcessSweepFacts(table: ProcessSweepTable, records: Proc
     for (const plane of records.planes) {
       const daemon = plane.daemon
       if (daemon !== null && daemon.pid === row.pid) {
-        const binding = tokenBinding(daemon.startToken, observation.startToken)
+        const binding = tokenBinding(daemon.startInstant ?? daemon.startToken, observation.startToken)
         if (binding === 'stranger') continue
         bound = true
         const answer = plane.answer !== null && plane.answer.pid === row.pid ? plane.answer : null

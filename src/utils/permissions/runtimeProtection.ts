@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { userInfo } from 'node:os'
 import { dirname, join, posix } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { describeArtifactIdentity } from '../artifactIdentity.js'
@@ -72,7 +73,7 @@ async function protectedPids(): Promise<number[]> {
   const pids = [process.pid]
   const state = await readDaemonState()
   if (state && Number.isSafeInteger(state.pid) && state.pid > 0 && isProcessAlive(state.pid)) {
-    const token = state.startToken ? await getProcessStartTokenAsync(state.pid) : null
+    const token = state.startToken ? await getProcessStartTokenAsync(state.pid, state.startToken) : null
     if (!state.startToken || token === null || token === state.startToken) pids.push(state.pid)
   }
   return pids
@@ -105,9 +106,26 @@ function selectedImages(argv: string[]): string[] {
   return []
 }
 
+export function namesMercuryImage(pattern: string): boolean {
+  return imageMatches(pattern, true, true, true)
+}
+
+function ownUser(named: string): boolean {
+  const names = [process.env.USER, process.env.LOGNAME, process.env.USERNAME]
+  try {
+    const info = userInfo()
+    names.push(info.username, String(info.uid))
+  } catch {}
+  return names.some(candidate => candidate !== undefined && candidate !== '' && candidate === named)
+}
+
 async function launchAgentReason(args: string[], pids: number[]): Promise<string | null> {
-  if (!['bootout', 'unload'].includes(args[0] ?? '')) return null
-  for (const target of args.slice(1).filter(arg => !arg.startsWith('-'))) {
+  if (!['bootout', 'unload', 'remove', 'kill', 'stop', 'disable', 'kickstart'].includes(args[0] ?? '')) return null
+  const targets = args.slice(1).filter(arg => !arg.startsWith('-'))
+  const named = targets.find(target => /mercury[^/]*$/i.test(target))
+  if (named !== undefined) return named
+  for (const target of targets) {
+    if (!target.endsWith('.plist') && !target.includes('/')) continue
     if (target.endsWith('.plist')) {
       try {
         const text = readFileSync(target, 'utf8')
@@ -136,7 +154,7 @@ async function parentPid(pid: number): Promise<number | undefined> {
 }
 
 export async function runtimeProcessRefusal(commands: string[][]): Promise<string | null> {
-  const kills = new Set(['kill', 'pkill', 'killall', 'taskkill', 'stop-process', 'spps', 'launchctl'])
+  const kills = new Set(['kill', 'pkill', 'killall', 'taskkill', 'stop-process', 'spps', 'launchctl', 'lldb', 'gdb'])
   if (!commands.some(argv => kills.has(name(argv[0] ?? '')) || argv.some(word => kills.has(name(word))))) return null
   const pids = await protectedPids()
   const hasPipedKill = commands.some(argv => ['kill', 'stop-process', 'spps'].includes(name(argv[0] ?? '')) || (name(argv[0] ?? '') === 'xargs' && argv.some(word => name(word) === 'kill')))
@@ -148,16 +166,29 @@ export async function runtimeProcessRefusal(commands: string[][]): Promise<strin
       const target = await launchAgentReason(args, pids)
       if (target) return 'Stopping ' + target + ' is refused: it owns Mercury’s running process or daemon.'
     }
+    if (command === 'lldb' || command === 'gdb') {
+      const attached = [...optionValues(args, /^(?:-p|--pid|--attach-pid)$/), ...(command === 'gdb' ? positionals(args, /^-(?:ex|x|-command|-eval-command|-args|-pid|p)$/) : [])].find(value => /^\d+$/.test(value) && pids.includes(Number(value)))
+      if (attached) return 'Attaching a debugger to pid ' + attached + ' is refused: it is Mercury’s own process or daemon.'
+      continue
+    }
+    if (command === 'kill' && args.some(arg => /^\$\{?PPID\}?$/.test(arg))) return 'Killing the shell’s parent is refused: it is Mercury’s own process.'
+    if (command === 'pkill' || command === 'killall') {
+      const group = optionValues(args, /^-(?:g|s|-pgroup|-session)$/).find(value => /^\d+$/.test(value) && pids.includes(Number(value)))
+      if (command === 'pkill' && group) return 'Killing process group ' + group + ' is refused: it holds Mercury’s own process or daemon.'
+      const users = optionValues(args, command === 'pkill' ? /^-(?:u|U|-euid|-uid)$/ : /^-(?:u|user)$/i)
+      const user = users.find(ownUser)
+      if (user !== undefined && selectedImages(argv).length === 0) return 'Killing every process of user ' + user + ' is refused: Mercury’s own process and daemon run as that user.'
+    }
     const filters = command === 'taskkill' ? optionValues(args, /^\/fi$/i) : []
     const filterPids = filters.flatMap(value => /^pid\s+eq\s+(\d+)$/i.exec(value)?.slice(1) ?? [])
     if (command === 'kill' || command === 'taskkill' || command === 'stop-process' || command === 'spps' || (hasPipedKill && ['get-process', 'gps'].includes(command))) {
       if (command === 'kill' && (args.some(arg => /^-(?:l|L|0)$/.test(arg)) || optionValues(args, /^-(?:s|-signal)$/).some(value => /^(?:0|SIG0)$/i.test(value)))) continue
       if (command === 'kill' && (args.at(-1) === '-1' && args.length > 1 || args.includes('0'))) return 'Killing all processes or the shell process group is refused: it can terminate Mercury’s running process or daemon.'
       const targets = command === 'taskkill' ? [...optionValues(args, /^\/pid$/i), ...filterPids]
-        : command === 'kill' ? positionals(args, /^-(?:s|n|-signal)$/)
+        : command === 'kill' ? [...positionals(args, /^-(?:s|n|-signal)$/), ...args.filter(arg => /^-\d+$/.test(arg))]
         : [...optionValues(args, /^-id$/i), ...positionals(args, /^-(?:name|n|inputobject|erroraction|ea)$/i)]
-      const pid = targets.find(target => /^\d+$/.test(target) && pids.includes(Number(target)))
-      if (pid) return 'Killing pid ' + pid + ' is refused: it is Mercury’s own process or daemon.'
+      const pid = targets.find(target => /^-?\d+$/.test(target) && pids.includes(Math.abs(Number(target))))
+      if (pid) return (pid.startsWith('-') ? 'Killing process group ' + pid.slice(1) : 'Killing pid ' + pid) + ' is refused: it is Mercury’s own process or daemon.'
     }
     if (!kills.has(command) && !(hasPipedKill && ['pgrep', 'get-process', 'gps'].includes(command))) continue
     if (filterPids.length && !filterPids.some(pid => pids.includes(Number(pid)))) continue

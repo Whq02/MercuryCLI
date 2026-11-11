@@ -11,7 +11,8 @@ archive. Follow it top to bottom. Every step has a check; do not move to the
 next step until the check passes. Nothing here needs admin rights unless the
 installer you pick asks for them.
 
-Time: about 15 minutes, most of it downloads.
+Time: about 15 minutes, most of it downloads. The packs built with Rust in
+step 7 add about 15 more, most of it the shell engine.
 
 ---
 
@@ -216,7 +217,7 @@ one command, run:
 bun run setup
 ```
 
-`bun run setup` runs `bun install`, downloads the PDF library and the five
+`bun run setup` runs `bun install`, downloads the PDF library and the six
 fetched packs in step 7, and builds the native addons (`native/voice`, `native/whisper`,
 `native/desktop` and `native/embed`) plus the default embedding model whenever
 Rust (`cargo`, and `cmake` for `native/whisper`) is installed, skipping any
@@ -258,12 +259,14 @@ bun run scripts/vendor/fetch-pdfjs.ts
 
 If you already ran `bun run setup` in step 6, only `bun run scripts/vendor/build-brush.ts`
 remains here (upstream publishes no Windows binary for `brush`, so it is compiled
-from its crate). Otherwise, these five commands download pinned, hash-verified
+from its crate). Otherwise, these six commands download pinned, hash-verified
 helpers: the Python language server, the Python debugger, the Node/TypeScript
-debug adapter, extra tree-sitter grammars for the structural code tools, and
+debug adapter, extra tree-sitter grammars for the structural code tools,
 the Windows Node runtime (the official `win-x64` build, vendored beside
 the bundle so a release archive made from this build needs no Node
-install). Mercury builds and runs **without** them (the build prints a
+install), and the Python runtime the Python debugger runs on (without it
+the debugger uses a `python3` on PATH and the build records
+`degraded: python-runtime`). Mercury builds and runs **without** them (the build prints a
 warning naming what was skipped, and the affected tools say so honestly
 at runtime), but a full install has them.
 
@@ -273,6 +276,7 @@ bun run scripts/vendor/fetch-debugpy.ts
 bun run scripts/vendor/fetch-js-debug.ts
 bun run scripts/vendor/fetch-grammars.ts
 bun run scripts/vendor/fetch-node.ts
+bun run scripts/vendor/fetch-python.ts
 ```
 
 Four more packs are built from source, each with a Rust toolchain

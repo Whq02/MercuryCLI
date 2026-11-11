@@ -331,9 +331,9 @@ export class VastClient implements HostVendor {
       let url: URL
       try { url = new URL(result.result_url) } catch { throw new Error('unexpected log URL · invalid URL') }
       const fixture = new URL(this.api.base)
-      const allowed = !url.username && !url.password && !url.hash && (url.protocol === 'https:' && url.hostname === 's3.amazonaws.com' && url.pathname.startsWith('/vast.ai/instance_logs/') || fixture.protocol === 'http:' && url.origin === fixture.origin && url.pathname.startsWith('/fixture-logs/'))
+      const allowed = !url.username && !url.password && !url.hash && (url.protocol === 'https:' && url.hostname === 's3.amazonaws.com' && (url.pathname.startsWith('/vast.ai/instance_logs/') || url.pathname.startsWith('/public.vast.ai/instance_logs/')) || fixture.protocol === 'http:' && url.origin === fixture.origin && url.pathname.startsWith('/fixture-logs/'))
       if (!allowed) {
-        const path = url.pathname.split('/').map(part => !part || part === 'vast.ai' || part === 'instance_logs' ? part : /\.(log|txt|gz|json)$/i.test(part) ? ':file.' + part.split('.').at(-1)!.toLowerCase() : ':segment').join('/')
+        const path = url.pathname.split('/').map(part => !part || part === 'vast.ai' || part === 'public.vast.ai' || part === 'instance_logs' ? part : /\.(log|txt|gz|json)$/i.test(part) ? ':file.' + part.split('.').at(-1)!.toLowerCase() : ':segment').join('/')
         throw new Error('unexpected log URL · ' + this.api.redact(url.origin + path))
       }
       for (;;) {

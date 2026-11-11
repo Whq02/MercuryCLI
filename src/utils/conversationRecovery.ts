@@ -10,7 +10,7 @@ import { withoutRetractedReplies } from '../services/engine-connector/midTurnTex
 import { restoreBoundPrefixFromMessages } from '../services/providers/anthropic/boundPrefixRecord.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import type { AssistantMessage, AttachmentMessage, Message, NormalizedUserMessage, UserMessage } from '../types/message.js'
-import type { SessionListing, SerializedMessage, TranscriptMessage } from '../types/logs.js'
+import type { SessionListing, SerializedMessage, TranscriptMessage, TurnEnded } from '../types/logs.js'
 import { PERMISSION_MODES } from '../types/permissions.js'
 import { suppressNextSkillListing } from './attachments/skillListing.js'
 import { getCwd } from './cwd.js'
@@ -232,16 +232,23 @@ function detectInterruption(messages: Message[], stops: ReadonlyMap<string, stri
 }
 
 
-function deserializeMessagesWithInterruptDetection(serialized: Message[]): DeserializeResult {
+function runEndedLastTurn(chain: Message[], turnEnd: TurnEnded | undefined): boolean {
+  if (turnEnd === undefined || turnEnd.status === 'interrupted') return false
+  const trailing = new Set<string>(turnEnd.trailing)
+  return !chain.some(row => trailing.has(row.uuid) && !asksNoReply(row))
+}
+
+function deserializeMessagesWithInterruptDetection(serialized: Message[], turnEnd?: TurnEnded): DeserializeResult {
   try {
     let messages = withoutRetractedReplies(rehydrateScreenshots(serialized.map(migrateLegacyAttachment).map(scrubPermissionMode)))
+    const ended = runEndedLastTurn(messages, turnEnd)
     const stops = replyStops(messages)
     messages = settleToolUsesOfEndedRun(messages)
     messages = filterOrphanedThinkingOnlyMessages(messages)
     messages = filterWhitespaceOnlyAssistantMessages(messages)
 
     let interruption: TurnInterruptionState = { kind: 'none' }
-    const detected = detectInterruption(messages, stops)
+    const detected: InternalInterruptionState = ended ? { kind: 'none' } : detectInterruption(messages, stops)
     if (detected.kind === 'interrupted_turn') {
       const continuation = normalizeMessages([
         createUserMessage({ content: getResumePrompt(), isMeta: true }),
@@ -468,7 +475,7 @@ async function walkTranscriptFile(path: string): Promise<WalkedTranscript> {
   const messages = loaded.messages
   const referencedParents = new Set<string>()
   for (const message of messages.values()) {
-    if (message.parentUuid) referencedParents.add(message.parentUuid)
+    if (message.parentUuid && !message.isSidechain) referencedParents.add(message.parentUuid)
   }
   let best: TranscriptMessage | null = null
   let bestTime = 0
@@ -548,6 +555,8 @@ export async function loadConversationForResume(
         agentName: log.agentName,
         agentColor: log.agentColor,
         agentSetting: log.agentSetting,
+        brief: log.brief,
+        briefAdd: log.briefAdd,
         customTitle: log.customTitle,
         tag: log.tag,
         mode: log.mode,
@@ -558,6 +567,7 @@ export async function loadConversationForResume(
         prNumber: log.prNumber,
         prUrl: log.prUrl,
         prRepository: log.prRepository,
+        turnEnd: log.turnEnd,
       }
     }
 
@@ -571,7 +581,7 @@ export async function loadConversationForResume(
     } catch (error) {
       logForDebugging(`read ledger: the transcript could not be read back for the seen lines (${error instanceof Error ? error.message : String(error)})`)
     }
-    const { messages: deserialized, turnInterruptionState } = deserializeMessagesWithInterruptDetection(asMessages)
+    const { messages: deserialized, turnInterruptionState } = deserializeMessagesWithInterruptDetection(asMessages, facts.turnEnd)
     const recordedModel = getEngineModelOverride() === undefined ? facts.model : undefined
     const hookMessages = await runSessionStartHooks('resumed', {
       sessionId,

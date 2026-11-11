@@ -64,7 +64,10 @@ section("§5 the daemon's park reasons carry no memory reason")
 const memoryParks = offenders(daemonDir, /daemon: memory|memory limit|memoryParkReason|over the memory/)
 check('no park reason or park requester under src/daemon names memory', memoryParks.length === 0, memoryParks.join(' · '))
 const main = readFileSync(join(ROOT, 'src/daemon/main.ts'), 'utf8')
-check('the idle edge completes a requested park through the one door, with no memory branch before it', main.includes('if (completeRequestedPark(short, roster)) {') && !main.includes('retireRequestedPark'))
+const idleEdge = main.slice(main.indexOf('onIdle: short => {'), main.indexOf('onSeatIdle(short', main.indexOf('onIdle: short => {')))
+const PARK_WORDS = "const parkedWords = `[daemon] ${short} finished its turn and parked (a park was requested while it worked)`"
+const PARK_DOOR = 'if (completeRequestedPark(short, roster)) {'
+check('the idle edge completes a requested park through the one door, with no memory branch before it', idleEdge.indexOf(PARK_WORDS) !== -1 && idleEdge.indexOf(PARK_DOOR) !== -1 && idleEdge.indexOf(PARK_DOOR) > idleEdge.indexOf(PARK_WORDS) && idleEdge.slice(0, idleEdge.indexOf(PARK_DOOR)).split('\n').filter(line => line.trim() !== '').length === 3 && !/memory|\brss\b/i.test(idleEdge))
 check('the daemon arms no sweep at boot', !/arm\w*Rss|Watchdog\(/.test(main))
 
 section('§6 the durability page says so')

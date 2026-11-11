@@ -728,8 +728,13 @@ export class TaskRoster {
         void import('./concourseWorkers.js')
           .then(sup => sup.markConcourseWorkerTurnSettled(short))
           .catch(() => {})
+          .then(() => {
+            if (!ll.turnActive) this.noteWorkerIdle(short)
+          })
+          .catch(e => logForDebugging(`[daemon] ${short}: the idle edge after its settled turn threw (ignored): ${e}`))
+      } else {
+        this.noteWorkerIdle(short)
       }
-      this.noteWorkerIdle(short)
     }
   }
 

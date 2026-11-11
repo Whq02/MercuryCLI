@@ -9,6 +9,8 @@ process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
 process.env.NODE_ENV = 'test'
 
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.js')
+trustTheProofFolder(true)
 await import('../../src/tools/AgentTool/AgentTool.js')
 const { buildStudioRows } = await import(
   '../../src/components/agents/studio/studioData.js'

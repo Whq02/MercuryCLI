@@ -47,6 +47,7 @@ import {
   loadKeybindingsSyncWithWarnings,
 } from '../../src/keybindings/loadUserBindings.js'
 import { runWithCwdOverride } from '../../src/utils/cwd.js'
+import { setSessionTrustAccepted as trustTheProjects } from '../../src/bootstrap/state.js'
 import type { Key } from '../../src/ink/events/input-event.js'
 
 let failures = 0
@@ -297,6 +298,7 @@ check(
     )
 
     writeFileSync(userFile, '{"bindings":[]}')
+    trustTheProjects(true)
     const inA = runWithCwdOverride(projectA, () => loadKeybindingsSyncWithWarnings())
     const inB = runWithCwdOverride(projectB, () => loadKeybindingsSyncWithWarnings())
     const actionsA = inA.bindings.map(b => b.action)
@@ -454,7 +456,7 @@ check(
   )
   check(
     '24b. a dialog typed while one runs queues behind it — the composer taken once, never a session send',
-    dialogMountAt !== -1 && dialogQueue.includes('takeComposer()') && dialogQueue.includes('queuedDialogCommandsRef.current.push({ input, name: dialogName, submittedAt });') && !dialogQueue.includes('.sendWords('),
+    dialogMountAt !== -1 && dialogQueue.includes('takeComposer()') && dialogQueue.includes('queuedDialogCommandsRef.current.push({ input, name: dialogName, submittedAt, pastedContents: seatPastes });') && !dialogQueue.includes('.sendWords('),
   )
 
   check(

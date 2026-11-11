@@ -105,6 +105,7 @@
    "src/utils/settings/settings.ts": [
     "getApiKeyHelperFromOutsideCheckoutSources",
     "getApolloPreflightQuestions",
+    "getEnabledSettingsForSource",
     "getHooksFromOutsideCheckoutSources",
     "getInitialSettings",
     "getManagedFileSettingsPresence",

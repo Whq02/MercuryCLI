@@ -17,6 +17,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const ROOT = join(import.meta.dir, '..', '..')
 
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.js')
+trustTheProofFolder(true)
 const agentsDir = join(PROJ, '.mercury', 'agents')
 mkdirSync(agentsDir, { recursive: true })
 const agentBody = (name: string): string =>

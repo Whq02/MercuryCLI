@@ -178,7 +178,7 @@ export function stripDangerousPermissionsForFlow(
     maps.alwaysAllowRules[perm.source] = arr.filter(
       entry => permissionRuleValueToString(permissionRuleValueFromString(entry)) !== serialized,
     )
-    stash[perm.source] = [...(stash[perm.source] ?? []), serialized]
+    stash[perm.source] = [...new Set([...(stash[perm.source] ?? []), serialized])]
   }
   maps.strippedDangerousRules = stash
   return next

@@ -27,6 +27,7 @@ async function run(trusted: boolean): Promise<{ code: number | null; stderr: str
   writeFileSync(join(cwd, '.mercury', 'settings.json'), JSON.stringify({ events: { hooks: { 'turn.start': [{ name: 'project-start', run: `echo project >> ${quote(marks)}` }], 'tool.before': [{ name: 'project-guard', match: 'Read', run: `echo guard >> ${quote(marks)}` }] } } }))
   writeFileSync(join(cwd, '.mercury', 'settings.local.json'), JSON.stringify({ events: { hooks: { 'turn.start': [{ name: 'local-start', run: `echo local >> ${quote(marks)}` }] } } }))
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ events: { hooks: { 'turn.start': [{ name: 'user-start', run: `echo user >> ${quote(marks)}` }] } } }))
+  writeFileSync(join(cwd, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { held: { command: 'node', args: ['-e', 'setTimeout(()=>{},100)'] } } }))
   if (trusted) {
     writeFileSync(join(home, '.mercury.json'), JSON.stringify({ theme: 'dark', hasCompletedOnboarding: true, projects: { [cwd]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } } }))
   }
@@ -54,7 +55,9 @@ check('the untrusted run completes', untrusted.code === 0, `${untrusted.code} ${
 check('only the user hook fired: the three checkout hooks stayed unloaded', untrusted.marks === 1, `${untrusted.marks} mark(s)`)
 const line = untrusted.stderr.split('\n').find(l => /hooks: this folder is not trusted/.test(l)) ?? ''
 check('stderr says the folder is not trusted and counts the three hooks left unloaded', /hooks: this folder is not trusted, so its 3 project and local hooks were not loaded — start Mercury here once and accept the trust card, and they run$/.test(line), untrusted.stderr.trim().slice(0, 400) || '(stderr empty)')
-check('the line is said once', untrusted.stderr.split('\n').filter(l => /this folder is not trusted/.test(l)).length === 1)
+check('the line is said once', untrusted.stderr.split('\n').filter(l => /hooks: this folder is not trusted/.test(l)).length === 1)
+const serversLine = untrusted.stderr.split('\n').filter(l => /mcp: this folder is not trusted/.test(l))
+check('stderr also counts the project server left unloaded, once', serversLine.length === 1 && /mcp: this folder is not trusted, so its 1 project MCP server was not loaded from \.mercury\/mcp\.json/.test(serversLine[0] ?? ''), JSON.stringify(serversLine))
 check('nothing about trust reaches stdout', !/not trusted/.test(untrusted.stdout))
 
 const trusted = await run(true)

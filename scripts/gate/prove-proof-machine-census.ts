@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { execSync, spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve, sep } from 'node:path'
@@ -19,7 +19,7 @@ function section(title: string): void {
 }
 
 const tracked = (patterns: string[]): string[] =>
-  execSync(`git ls-files ${patterns.map(p => `'${p}'`).join(' ')}`, { cwd: ROOT, encoding: 'utf8' })
+  execFileSync('git', ['ls-files', '--', ...patterns], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
     .split('\n')
     .filter(Boolean)
 
@@ -214,7 +214,7 @@ section('every proof child boots with the local-server probe off')
 }
 
 section("the roads at run time: the launcher's own pin, the operator's settings line, a suite")
-const scratch = mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'proof-machine-census-'))
+const scratch = mkdtempSync(join(tmpdir(), 'proof-machine-census-'))
 const realPath = (path: string): string => {
   try {
     return realpathSync(path)
@@ -230,6 +230,7 @@ function scratchHome(candidate: string, tempRoot: string): boolean {
   return process.platform !== 'win32' && stands(realPath('/tmp'), HOME_IN_RUN_ROOT)
 }
 try {
+  check(realPath(scratch).startsWith(realPath(tmpdir()) + sep), "this proof's own scratch stands in the temp dir it was given, whatever folders the machine has", `${scratch} against ${tmpdir()}`)
   const home = join(scratch, 'home')
   mkdirSync(join(home, '.mercury'), { recursive: true })
   writeFileSync(join(home, '.mercury', 'settings.json'), JSON.stringify({ engine: { model: OWNER_MODEL } }))
@@ -237,6 +238,7 @@ try {
   const clean = (extra: Record<string, string>): NodeJS.ProcessEnv => ({
     PATH: process.env.PATH ?? '',
     HOME: home,
+    USERPROFILE: home,
     TMPDIR: scratch,
     ...extra,
   })

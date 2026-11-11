@@ -87,7 +87,7 @@ check('the seat asks session/send_now through the runner door and awaits its wor
 check('a runner older than the verb is refused in one sentence naming the key and the way out', seat.includes(`"this session's runner predates ctrl+s s · /daemon restart, then reopen the session"`))
 check('the wire declares session/send_now as a host request with no params and the four counts', METHODS['session/send_now'].from === 'host' && METHODS['session/send_now'].kind === 'request' && METHODS['session/send_now'].params().safeParse({}).success && METHODS['session/send_now'].result().safeParse({ queued: 1, released: 0, crewmates: 2, shells: 1 }).success && !METHODS['session/send_now'].result().safeParse({ queued: 1 }).success)
 const tag = read('src/components/SwitchboardTagBar.tsx')
-check('the status row reads the chord fact beside the shell fact', tag.includes('const sendNow = useFocusedSendNowLive()') && tag.includes('escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false, sendNow)'))
+check('the status row reads the chord fact beside the shell fact', tag.includes('const sendNow = useFocusedSendNowLive()') && tag.includes('escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false, sendNow, escapeOwned)'))
 
 console.log(`\n${failures === 0 ? 'ALL LAWS HOLD' : `${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

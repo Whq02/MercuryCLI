@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-import { generateKeyPairSync } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createHash, generateKeyPairSync } from 'node:crypto'
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -48,11 +48,12 @@ const rosterOf = (p: typeof pair, label: string): TrustedSigningKey => {
 }
 const roster = [rosterOf(pair, 'ephemeral prover key')]
 
-function buildFixturePayload(name: string, opts: { sign?: boolean; licenseId?: string | null } = {}): string {
+function buildFixturePayload(name: string, opts: { sign?: boolean; licenseId?: string | null; members?: Record<string, string> } = {}): string {
   const dir = join(SCRATCH, name)
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'mercury.mjs'), `// fixture bundle ${name}\nconsole.log('mercury fixture')\n`)
   writeFileSync(join(dir, 'mercury'), '#!/bin/sh\nexit 0\n')
+  for (const [member, body] of Object.entries(opts.members ?? {})) writeFileSync(join(dir, member), body)
   const manifest: Record<string, unknown> = {
     schema: 2,
     name: 'mercury',
@@ -156,6 +157,34 @@ try {
   writeFileSync(join(tamperedMember, 'mercury'), '#!/bin/sh\nrm -rf /somewhere-else\n')
   check('a tampered non-primary member passes fast (the stated depth limit)', verifyPayloadDir(tamperedMember, { depth: 'fast', roster }).verdict.state === 'signed')
   check('a tampered non-primary member is TAMPERED at deep depth', verifyPayloadDir(tamperedMember, { depth: 'deep', roster }).verdict.state === 'tampered')
+
+  const twoMembers = { 'a.txt': 'the first member\n', 'b.txt': 'the second member\n' }
+  const whole = buildFixturePayload('members-whole', { members: twoMembers })
+  check('control: a payload with two more members verifies signed at deep depth', verifyPayloadDir(whole, { depth: 'deep', roster }).verdict.state === 'signed')
+  const leftOut = buildFixturePayload('member-left-out', { members: twoMembers })
+  {
+    const digestOfFirst = createHash('sha256').update(twoMembers['a.txt']).digest('hex')
+    rmSync(join(leftOut, 'a.txt'))
+    let renamed = true
+    try {
+      renameSync(join(leftOut, 'b.txt'), join(leftOut, `a.txt\n${digestOfFirst}\nb.txt`))
+    } catch {
+      renamed = false
+    }
+    const verdict = verifyPayloadDir(leftOut, { depth: 'deep', roster }).verdict
+    check(
+      'a payload that leaves a member out and hides it in the next file\'s name is TAMPERED at deep depth, with a note that names the control character',
+      !renamed || (verdict.state === 'tampered' && /control character/.test((verdict as { note?: string }).note ?? '')),
+      renamed ? JSON.stringify(verdict) : 'this file system refuses a line break in a name',
+    )
+    let packagerRefused = false
+    try {
+      releaseLayoutSection(leftOut, 'macos-arm64', readCompatFloor())
+    } catch (error) {
+      packagerRefused = /control character/.test(String(error))
+    }
+    check('the packager refuses to describe such a payload at all', !renamed || packagerRefused)
+  }
 
   const editedLicense = buildFixturePayload('edited-license', { licenseId: 'LIC-A' })
   {

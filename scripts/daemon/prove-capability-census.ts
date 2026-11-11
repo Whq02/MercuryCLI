@@ -75,6 +75,37 @@ try {
   await services.stopService(work, 'census-sleeper')
   check('stopping the service clears the hold', await until(() => !census.runnerCapabilityHolds({ pendingControlRequestCount: () => 0 }).some(h => h.kind === 'service'), 10_000), JSON.stringify(census.runnerCapabilityHolds({ pendingControlRequestCount: () => 0 })))
 
+  console.log('C4b a crewmate waiting to retry by itself holds the park, in a sentence of its own')
+  {
+    const lane = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
+    const utils = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+    const { RunnerQuiescence } = await import('../../src/daemon/runnerQuiescence.ts')
+    const store = { state: { tasks: {} as Record<string, Record<string, unknown>>, speculation: { status: 'idle' }, agentNameRegistry: new Map() } }
+    const set = ((update: (state: typeof store.state) => typeof store.state) => { store.state = update(store.state) }) as never
+    const pausedAtAWall = (id: string): void => {
+      const registered = lane.registerAsyncAgent({ agentId: id, description: id, prompt: 'work', setAppState: set })
+      lane.failAgentTask(id, 'API Error: 429 the window is spent', set, registered.abortController)
+      utils.armBudgetCutResume({ taskId: id, description: id, registration: registered.abortController!, toolUseContext: { options: { tools: [] } } as never, rootSetAppState: set, delayMs: 600_000, pause: { why: 'usage limit', words: 'the window is spent', resumesAtMs: Date.now() + 600_000 } })
+    }
+    const words = (pending = 0): string | null => census.capabilityHoldWords(census.runnerCapabilityHolds({ pendingControlRequestCount: () => pending }))
+    check('nothing armed: no hold', words() === null, String(words()))
+    pausedAtAWall('census-wall-1')
+    const one = census.runnerCapabilityHolds({ pendingControlRequestCount: () => 0 })
+    check('one crewmate paused at a usage wall with its retry armed is one hold, and its task row is not a running task', one.length === 1 && one[0]!.count === 1 && (store.state.tasks['census-wall-1'] as { status?: string }).status !== 'running', JSON.stringify({ one, status: (store.state.tasks['census-wall-1'] as { status?: string }).status }))
+    check("its words stand alone: what a park would lose is the retry, not the crewmate", words() === '1 crewmate is waiting to retry by itself', String(words()))
+    check('beside another hold the two are two sentences', words(1) === '1 pending control request would not survive a park; 1 crewmate is waiting to retry by itself', String(words(1)))
+    const quiescence = new RunnerQuiescence({ refusal: () => words(), flush: async () => {} })
+    const refused = await quiescence.request({ subtype: 'quiesce', action: 'prepare', token: 'census-wall-token-0001' })
+    check("the runner's fence refuses a park with that sentence", refused.ok === false && refused.reason === '1 crewmate is waiting to retry by itself', JSON.stringify(refused))
+    pausedAtAWall('census-wall-2')
+    check('two read in the plural', words() === '2 crewmates are waiting to retry by themselves', String(words()))
+    utils.cancelAutomaticResume('census-wall-1')
+    utils.cancelAutomaticResume('census-wall-2')
+    const freed = await new RunnerQuiescence({ refusal: () => words(), flush: async () => {} }).request({ subtype: 'quiesce', action: 'prepare', token: 'census-wall-token-0002' })
+    check('once nothing waits the hold is gone and the fence prepares', words() === null && freed.ok === true, JSON.stringify({ words: words(), freed }))
+    check('the count is the one the crew keeps of its own armed and starting retries', src('src/daemon/runnerCapabilityCensus.ts').includes('return armedAutomaticResumeCount()'))
+  }
+
   console.log('C5 the runner refuses a park on the census, after its own turn and task checks')
   const runner = src('src/cli/run.ts')
   const at = runner.indexOf('const quiescence = new RunnerQuiescence({')
