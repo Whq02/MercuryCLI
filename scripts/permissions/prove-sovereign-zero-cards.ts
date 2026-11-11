@@ -140,6 +140,11 @@ section('§1 the roads that already stand down: every plain ask verdict is ALLOW
   check('a deny rule still refuses under sovereign (a refusal is not a card)', denied.decision.behavior === 'deny' && denied.trace.decidedBy === 'toolDenyRule')
   const wrapped = await decideToolPermissionWithModes(stubTool('Stub', { behavior: 'ask', message: 'ask', decisionReason: { type: 'other', reason: 'x' } }), { op: 'x' }, contextOf('sovereign'), assistant, 'toolu_wrapped')
   check('the mode wrapper adds no ask of its own under sovereign (its floors are Flow\'s)', wrapped.decision.behavior === 'allow' && wrapped.wrapper.decidedBy === 'engine', JSON.stringify(wrapped.wrapper))
+  const lateRules = await import('../../src/utils/permissions/lateAllowRules.ts').catch(() => null)
+  lateRules?.noteAllowRulesOfSettingsChange({ ...getEmptyToolPermissionContext() } as never, { ...getEmptyToolPermissionContext(), alwaysAllowRules: { localSettings: ['Stub'] } } as never)
+  const arrived = await decideToolPermissionWithModes(stubTool('Stub', { behavior: 'ask', message: 'ask', decisionReason: { type: 'other', reason: 'x' } }), { op: 'x' }, contextOf('sovereign', { allow: ['Stub'] }), assistant, 'toolu_arrived')
+  check('an allow rule that arrived by a settings change while the session runs raises no ask under sovereign (Flow alone reads the rules of the session\'s start)', arrived.decision.behavior === 'allow' && arrived.wrapper.decidedBy === 'engine', JSON.stringify(arrived.wrapper))
+  lateRules?.forgetLateAllowRules()
 }
 
 section('§2 the Windows share road (A2): a UNC path asks on Windows and never on the Mac — under sovereign it must not ask on either')

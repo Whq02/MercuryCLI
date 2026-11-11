@@ -18,6 +18,7 @@ import {
 import type { PermissionUpdate } from '../PermissionUpdateSchema.js'
 import { decideRuleBasedPermissions, decideToolPermission } from './engine.js'
 import { decideUnderFlow } from '../flowPolicy.js'
+import { allowRulesThatPreAuthorise } from '../lateAllowRules.js'
 import type {
   DecisionTrace,
   WrapperStageId,
@@ -103,6 +104,18 @@ async function consultHeadlessPermissionHooks(
 
 
 
+function underStandingAllowRules(context: ToolUseContext): ToolUseContext {
+  const read = context.getAppState().toolPermissionContext
+  if (read.mode !== 'flow' || allowRulesThatPreAuthorise(read) === read) return context
+  return {
+    ...context,
+    getAppState: () => {
+      const state = context.getAppState()
+      return state.toolPermissionContext.mode === 'flow' ? { ...state, toolPermissionContext: allowRulesThatPreAuthorise(state.toolPermissionContext) } : state
+    },
+  }
+}
+
 interface WrapperPorts {
   runHeadlessHooks(
     tool: Tool,
@@ -134,7 +147,7 @@ export async function decideToolPermissionWithModes(
   ports: WrapperPorts = defaultWrapperPorts,
 ): Promise<FullDecisionOutcome> {
   void assistantMessage
-  const engineOutcome = await decideToolPermission(tool, input, context)
+  const engineOutcome = await decideToolPermission(tool, input, underStandingAllowRules(context))
   const engineDecision = engineOutcome.decision
   const engineTrace = engineOutcome.trace
 

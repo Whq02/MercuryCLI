@@ -14,6 +14,7 @@ import { getPathsForPermissionCheck } from '../fsOperations.js'
 import { resolveShellCwd } from '../Shell.js'
 import { PARSE_ABORTED, pinnedCommandAnalysis, preparedCommandRoot, type Node } from './decision/commandAnalysis.js'
 import { getMercuryTempDir, getScratchpadDir, matchingRuleForInput, pathInWorkingPath } from './filesystem.js'
+import { allowRulesThatPreAuthorise } from './lateAllowRules.js'
 import { ownGroundCategory } from './ownGround.js'
 import { serviceInputAsSent, serviceInputKey } from './serviceInputHistory.js'
 
@@ -249,7 +250,7 @@ function outsidePath(operand: string, scan: Scan): string | null {
 function grantedByRule(path: string, rules: ToolPermissionContext | undefined): boolean {
   if (rules === undefined) return false
   try {
-    return matchingRuleForInput(path, rules, 'edit', 'allow') !== null
+    return matchingRuleForInput(path, allowRulesThatPreAuthorise(rules), 'edit', 'allow') !== null
   } catch {
     return false
   }
@@ -476,7 +477,7 @@ function findExecArgv(args: readonly string[]): string[][] {
 function preAuthorised(text: string, rules: ToolPermissionContext | undefined): boolean {
   if (rules === undefined || text.trim() === '') return false
   try {
-    return readBashRuleVerdict({ command: text }, rules).behavior === 'allow'
+    return readBashRuleVerdict({ command: text }, allowRulesThatPreAuthorise(rules)).behavior === 'allow'
   } catch {
     return false
   }

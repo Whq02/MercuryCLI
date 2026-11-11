@@ -7,6 +7,7 @@ import { setSessionPermissionModeResolution } from '../../bootstrap/state.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { holdModeTransition, recordModeTransition, type ModeTransitionRoad } from './modeTransitions.js'
+import { forgetLateAllowRules } from './lateAllowRules.js'
 import {
   getInitialSettings,
   getSettingsWithErrors,
@@ -524,6 +525,7 @@ export async function initializeToolPermissionContext(args: {
   } as unknown as ToolPermissionContext
 
   context = applyPermissionRulesToPermissionContext(context, diskRules)
+  forgetLateAllowRules()
   recordModeTransition({ from: null, to: context.mode, road: 'boot' })
 
   return {
