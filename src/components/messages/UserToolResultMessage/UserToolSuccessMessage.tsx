@@ -19,6 +19,7 @@ import { useTheme } from '../../design-system/ThemeProvider.js'
 import { RowErrorBoundary } from '../../RowErrorBoundary.js'
 import { HookProgressMessage } from '../HookProgressMessage.js'
 import { OutputLine } from '../../shell/OutputLine.js'
+import { BASH_TOOL_NAME } from '../../../tools/BashTool/toolName.js'
 
 export function UserToolSuccessMessage({
   message,
@@ -47,6 +48,7 @@ export function UserToolSuccessMessage({
 
   const result = message.toolUseResult
   if (result === undefined || result === null) {
+    if (tool.name !== BASH_TOOL_NAME) return null
     const block = message.message.content.find(part => part.type === 'tool_result' && part.tool_use_id === toolUseID)
     const content = block?.type === 'tool_result' ? block.content : undefined
     const text = typeof content === 'string' ? content : content?.flatMap(part => part.type === 'text' ? [part.text] : []).join('\n')

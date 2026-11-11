@@ -102,6 +102,16 @@ try {
   view.resize(wrap(h(Results, { messages: blank })), 100, 24)
   await settle(100)
   check('an empty stored result invents no output', view.screen().trim() === '')
+  const otherTool = loaded.map(message => message.type === 'assistant' ? { ...message, message: { ...message.message, content: [{ type: 'tool_use', id: 'shell-call', name: 'Sleep', input: { seconds: 4 } }] } } as Message : message)
+  const { SleepTool } = await import('../../src/tools/SleepTool/SleepTool.js')
+  const normalized = normalizeMessages(otherTool)
+  const lookups = buildMessageLookups(normalized, otherTool)
+  const otherResult = normalized.find(message => message.type === 'user') as NormalizedUserMessage
+  const param = otherResult.message.content[0]!
+  if (param.type !== 'tool_result') throw new Error('the fixture result is absent')
+  view.resize(wrap(h(UserToolResultMessage, { message: otherResult, param, lookups, tools: [SleepTool], progressMessagesForMessage: [], verbose: true, width: 98, isTranscriptMode: true })), 100, 24)
+  await settle(100)
+  check('a non-shell result without metadata keeps its existing empty row', view.screen().trim() === '')
 } finally {
   view.unmount()
   releaseFocusedSessionConnector()
