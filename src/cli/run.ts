@@ -247,7 +247,6 @@ import { getSettingsWithSources } from '../utils/settings/settings.js'
 import { currentSettingsFaults, untoldSettingsFaults } from '../utils/settings/faultNotices.js'
 import { currentHiddenCharacterLines, untoldHiddenCharacterLines } from '../utils/text/hiddenCharacterFindings.js'
 import { hooksSkippedForTrustLine } from '../utils/hooks/hooksConfigSnapshot.js'
-import { getUserContext } from '../context.js'
 import { settingsFaultLine } from '../utils/settings/validation.js'
 import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
 import { applySettingsChange } from '../utils/settings/applySettingsChange.js'
@@ -1358,10 +1357,6 @@ export async function runHeadless(
         }
         tellSkippedProjectMcpServers()
         tellFailedMcpServers()
-        if (options.door !== 'wire') {
-          await getUserContext()
-          for (const line of untoldHiddenCharacterLines()) process.stderr.write(`${GLYPH.warn} ${line}\n`)
-        }
         for await (const message of ask({
           commands: dedupedCommands,
           prompt: promptValue,
@@ -1423,7 +1418,10 @@ export async function runHeadless(
           },
         })) {
           turnWatchdog.touch()
-          if (turnOpened(message as never)) currentTurnId = (message as unknown as { turn_id: string }).turn_id
+          if (turnOpened(message as never)) {
+            currentTurnId = (message as unknown as { turn_id: string }).turn_id
+            if (options.door !== 'wire') for (const line of untoldHiddenCharacterLines()) process.stderr.write(`${GLYPH.warn} ${line}\n`)
+          }
           onMessage(message)
         }
         tellFailedMcpServers()
