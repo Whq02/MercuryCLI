@@ -127,6 +127,8 @@ for (const [command, why] of [
   ['cd C:/src/fl110/holder/.mercury && echo $$', 'in the store, a program that reads no file'],
   ['cd C:/src/fl110/holder/.mercury && ls', 'in the store, a listing'],
   ['cd D:/work && rm -rf build', 'another drive'],
+  ['cd C:/src/fl110/project/docs; cat notes.md', 'a cd joined by no &&, its folder not standing on the machine that judges'],
+  ['cd D:/work; rm -rf build', 'the same on another drive'],
   ['cd C:/Users/operator/Documents && echo x >> notes.txt', 'a folder of the home that is no store'],
 ] as const) {
   const refusals = [await readRefusal(command), await runtimeRefusal(command), await storeRefusal(command)]

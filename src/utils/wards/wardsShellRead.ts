@@ -24,6 +24,7 @@ export type ReadCommand = {
   body: string | undefined
   dialect: ShellDialect
   around: string | undefined
+  gates?: ReadonlyArray<readonly [number, number]> | undefined
 }
 
 export type Layer = {
@@ -430,7 +431,7 @@ class Reading {
   }
 }
 
-type Frame = { background: boolean; stages: readonly Stage[]; body: string | undefined; line: number; dialect: ShellDialect; around: string | undefined }
+type Frame = { background: boolean; stages: readonly Stage[]; body: string | undefined; line: number; dialect: ShellDialect; around: string | undefined; gates?: ReadonlyArray<readonly [number, number]> | undefined }
 
 const WORD_KINDS = new Set(['word', 'number', 'raw_string', 'string', 'concatenation', 'ansi_c_string', 'translated_string', 'simple_expansion', 'expansion', 'command_substitution', 'process_substitution', 'arithmetic_expansion', 'brace_expression'])
 const WRITE_KEEPERS = new Set(['file_redirect', 'heredoc_redirect', 'herestring_redirect'])
@@ -485,6 +486,18 @@ class PosixWalk {
       case 'process_substitution':
         this.isolated(() => this.children(node, frame))
         return
+      case 'list': {
+        const joined = node.children.findIndex(child => child.type === '&&')
+        if (joined <= 0) {
+          this.children(node, frame)
+          return
+        }
+        const from = this.reading.commands.length
+        for (const child of node.children.slice(0, joined)) this.node(child, frame)
+        const gate: readonly [number, number] = [from, this.reading.commands.length]
+        for (const child of node.children.slice(joined + 1)) this.node(child, { ...frame, gates: [...(frame.gates ?? []), gate] })
+        return
+      }
       case 'for_statement':
         this.loop(node, frame)
         return
@@ -696,6 +709,7 @@ class PosixWalk {
         body: frame.body,
         dialect: frame.dialect,
         around: frame.around,
+        gates: frame.gates,
       })
       if (first < 0) first = index
     }
