@@ -223,17 +223,23 @@ section('§5 the docs say what the family word means and which facts the row car
   check('ENGINES.md: the row\'s window, output, thinking, effort default and tool-choice law, in words', engines.includes('has a native 1M context window, 128K output and adaptive thinking that is\nalways on') && engines.includes('effort choice it uses the documented `high` default. A forced tool choice\nbecomes `auto`'))
   check('ENGINES.md: the prices as read, with the day', engines.includes('$8\ninput and $40 output, $10 for a five-minute cache write, $16 for a one-hour\ncache write and $0.20 for a cache read') && engines.includes('read on 2026-11-09.'))
   check('ENGINES.md: who reads its thinking, the account it stays with, and the Mythos counterpart', engines.includes('Its thinking blocks are read by Fable\n5.2 and Mythos 5.2 alone: after a switch to another model they stay out of\nthat model\'s requests') && engines.includes('They stay with the account\nthat wrote them too') && engines.includes('`claude-mythos-5-2`\nresolves as Fable 5.2\'s counterpart'))
-  check("ENGINES.md: what the word 'mythos' means, and the row a listed Mythos id gets with the three facts it shares", engines.includes('facts and prices, and `mythos` means Mythos 5.2. These are the') && engines.includes("a listed Mythos id gets its own row under its\nFable counterpart, named, selectable and served with that counterpart's\nwindow, effort levels and prices."))
+  check("ENGINES.md: what the word 'mythos' means, and the row a listed Mythos id gets with the four facts it shares", engines.includes('facts and prices, and `mythos` means Mythos 5.2. These are the') && engines.includes("a listed Mythos id gets its own row under its\nFable counterpart, named, selectable and served with that counterpart's\nwindow, effort levels, launch effort and prices."))
   const { resolveModelPricing } = await import('../../src/utils/modelCost.ts')
   const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
-  const { selectableEffortLevelsForLadder } = await import('../../src/utils/effort.ts')
+  const { getLaunchDefaultEffort, isLaunchEffortPinned, selectableEffortLevelsForLadder } = await import('../../src/utils/effort.ts')
   const { CANONICAL_MODEL_IDS, mirrorTwinOf } = await import('../../src/utils/model/configs.ts')
   const mirrors = CANONICAL_MODEL_IDS.filter(id => mirrorTwinOf(id) !== undefined)
-  const sharesTheThree = (id: string): boolean => {
+  const sharesTheFour = (id: string): boolean => {
     const twin = mirrorTwinOf(id) ?? ''
-    return getContextWindowForModel(id) === getContextWindowForModel(twin) && selectableEffortLevelsForLadder(id).join(',') === selectableEffortLevelsForLadder(twin).join(',') && JSON.stringify(resolveModelPricing(id).costs) === JSON.stringify(resolveModelPricing(twin).costs)
+    return (
+      getContextWindowForModel(id) === getContextWindowForModel(twin) &&
+      selectableEffortLevelsForLadder(id).join(',') === selectableEffortLevelsForLadder(twin).join(',') &&
+      isLaunchEffortPinned(id) === isLaunchEffortPinned(twin) &&
+      getLaunchDefaultEffort(id) === getLaunchDefaultEffort(twin) &&
+      JSON.stringify(resolveModelPricing(id).costs) === JSON.stringify(resolveModelPricing(twin).costs)
+    )
   }
-  check("what that sentence says is true of every declared mirror: its counterpart's window, effort levels and prices", mirrors.length === 3 && mirrors.every(sharesTheThree), mirrors.map(id => `${id} ${sharesTheThree(id)}`).join(' · '))
+  check("what that sentence says is true of every declared mirror: its counterpart's window, effort levels, launch effort and prices", mirrors.length === 3 && mirrors.every(sharesTheFour), mirrors.map(id => `${id} ${sharesTheFour(id)}`).join(' · '))
   check('SESSIONS.md: the saved fable word follows the newest row and a saved full id stays', sessions.includes('`fable` follows the same law: it runs Fable 5.2, and a saved\n`claude-fable-5-1` stays on Fable 5.1.'))
 }
 
