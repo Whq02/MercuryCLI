@@ -129,7 +129,7 @@ export const MonitorTool = buildTool({
     }
   },
   renderToolUseMessage(input, { verbose }) {
-    const command = input.command ?? ''
+    const command = typeof input.command === 'string' ? input.command : ''
     const shown = verbose ? command : oneLineCommandDisplay(command)
     return input.description ? `${shown} — ${input.description}` : shown
   },
