@@ -263,7 +263,7 @@ try {
     )
     tally.check(
       'the page names the helper among what the approval is keyed to',
-      /keyed to\s+the server's definition as written\s+\(its command, arguments, URL, headers helper and environment variable names\)/.test(readFileSync(join(ROOT, 'docs', 'TRUST.md'), 'utf8')),
+      /keyed to\s+the server's definition as written\s+\(its command, arguments, URL, headers helper and environment variable names,\s+and the values of the variables a runtime loads its code by, such as `PATH`\s+and `NODE_OPTIONS`\)/.test(readFileSync(join(ROOT, 'docs', 'TRUST.md'), 'utf8')),
     )
     recordProjectMcpServerChoices({ approved: [{ name: 'probe', config: changed }] })
     resetSettingsCache()

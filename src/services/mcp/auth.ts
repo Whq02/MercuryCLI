@@ -64,9 +64,11 @@ type StoredOAuthEntry = {
   accessToken: string
   refreshToken?: string
   expiresAt: number
+  tokenIssuer?: string
   scope?: string
   clientId?: string
   clientSecret?: string
+  clientIssuer?: string
   stepUpScope?: string
   discoveryState?: StoredDiscoveryState
 }
@@ -353,7 +355,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     const entry = readEntry(this.serverKey)
     if (entry?.clientId) {
       logForDebugging(`mcp auth [${this.serverName}]: using stored client id`)
-      return { client_id: entry.clientId, ...(entry.clientSecret ? { client_secret: entry.clientSecret } : {}) }
+      return { client_id: entry.clientId, ...(entry.clientSecret ? { client_secret: entry.clientSecret } : {}), ...(entry.clientIssuer !== undefined ? { issuer: entry.clientIssuer } : {}) }
     }
     const configuredClientId = this.config.oauth?.clientId
     if (configuredClientId && !UNFILLED_PLACEHOLDER.test(configuredClientId)) {
@@ -369,6 +371,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     const entry = readEntry(this.serverKey) ?? newEntry(this.serverName, this.serverUrl())
     entry.clientId = info.client_id
     if ('client_secret' in info && info.client_secret) entry.clientSecret = info.client_secret
+    entry.clientIssuer = info.issuer
     writeEntry(this.serverKey, entry)
   }
 
@@ -379,6 +382,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     entry.refreshToken = tokens.refresh_token
     entry.expiresAt = Date.now() + (tokens.expires_in ?? DEFAULT_TOKEN_LIFETIME_S) * 1000
     entry.scope = tokens.scope
+    entry.tokenIssuer = tokens.issuer
     writeEntry(this.serverKey, entry)
   }
 
@@ -410,6 +414,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
       expires_in: remainingS,
       scope: entry.scope,
       token_type: 'bearer',
+      ...(entry.tokenIssuer !== undefined ? { issuer: entry.tokenIssuer } : {}),
     }
   }
 
@@ -478,9 +483,11 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
       if (scope === 'client') {
         delete entry.clientId
         delete entry.clientSecret
+        delete entry.clientIssuer
       } else if (scope === 'tokens') {
         entry.accessToken = ''
         delete entry.refreshToken
+        delete entry.tokenIssuer
         entry.expiresAt = 0
       } else {
         delete entry.discoveryState
@@ -584,6 +591,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
         expires_in: Math.floor((entry.expiresAt - Date.now()) / 1000),
         scope: entry.scope,
         token_type: 'bearer',
+        ...(entry.tokenIssuer !== undefined ? { issuer: entry.tokenIssuer } : {}),
       }
     }
     return undefined
@@ -621,9 +629,10 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
             emitRefreshEvent('no_tokens_returned')
             return undefined
           }
-          this.saveTokens(tokens)
+          const refreshed = { ...tokens, ...(stored?.tokenIssuer !== undefined ? { issuer: stored.tokenIssuer } : {}) }
+          this.saveTokens(refreshed)
           emitRefreshEvent('success')
-          return tokens
+          return refreshed
         } catch (err) {
           const oauthCode = err instanceof OAuthError ? err.code : undefined
           if (oauthCode === OAuthErrorCode.InvalidGrant) {

@@ -355,11 +355,37 @@ export function mcpConfigAsWritten(config: McpServerConfig | ScopedMcpServerConf
   }
 }
 
+const CODE_PATH_VARIABLES: ReadonlySet<string> = new Set([
+  'PATH', 'PATHEXT', 'PSMODULEPATH',
+  'BASH_ENV', 'ENV', 'SHELLOPTS', 'BASHOPTS', 'PS4', 'PROMPT_COMMAND', 'ZDOTDIR', 'FPATH',
+  'NODE_OPTIONS', 'NODE_PATH', 'NODE_REPL_EXTERNAL_MODULE', 'NODE_COMPILE_CACHE',
+  'BUN_OPTIONS', 'BUN_RUNTIME_TRANSPILER_CACHE_PATH', 'DENO_DIR', 'DENO_V8_FLAGS',
+  'PYTHONPATH', 'PYTHONHOME', 'PYTHONSTARTUP', 'PYTHONUSERBASE', 'PYTHONPYCACHEPREFIX', 'PYTHONBREAKPOINT', 'PYTHONWARNINGS', 'PYTHONPLATLIBDIR', 'PYTHONEXECUTABLE',
+  'VIRTUAL_ENV', 'CONDA_PREFIX',
+  'PERL5OPT', 'PERL5LIB', 'PERLLIB', 'PERL5DB',
+  'RUBYOPT', 'RUBYLIB', 'RUBYPATH', 'RUBYSHELL',
+  'JDK_JAVA_OPTIONS', 'JAVA_TOOL_OPTIONS', 'CLASSPATH',
+  'DOTNET_STARTUP_HOOKS', 'DOTNET_ADDITIONAL_DEPS', 'DOTNET_SHARED_STORE', 'DOTNET_ROOT', 'DOTNET_ROOT_X86', 'DOTNET_ROOT_X64', 'DOTNET_ROOT(X86)',
+  'GOFLAGS', 'GOPATH', 'GOROOT', 'GOPROXY', 'GOTOOLCHAIN', 'GOMODCACHE', 'GOWORK', 'GOENV',
+  'DOCKER_HOST', 'DOCKER_CONTEXT', 'DOCKER_CONFIG',
+])
+const CODE_PATH_FAMILIES = /^(?:LD_|DYLD_|BASH_FUNC_)/
+const SETTING_FAMILIES = /^(?:NPM_CONFIG_|PIP_|UV_)/
+const NAMES_A_CREDENTIAL = /TOKEN|PASSWORD|PASSWD|SECRET|CREDENTIAL|USERNAME|AUTH|API_?KEY/
+
+export function mcpVariableCarriesCode(name: string): boolean {
+  const upper = name.toUpperCase()
+  return CODE_PATH_VARIABLES.has(upper) || CODE_PATH_FAMILIES.test(upper) || (SETTING_FAMILIES.test(upper) && !NAMES_A_CREDENTIAL.test(upper))
+}
+
 export function projectMcpServerDefinitionDigest(config: McpServerConfig | ScopedMcpServerConfig): string {
   const record = config as McpDefinitionRecord
+  const writtenEnv = record.unexpanded?.env ?? {}
+  const code = Object.fromEntries(Object.entries(record.env ?? {}).filter(([name]) => mcpVariableCarriesCode(name)).map(([name, value]) => [name, writtenEnv[name] ?? value]))
   const definition = {
     ...mcpConfigAsWritten(config),
     env: Object.keys(record.env ?? {}).sort(),
+    ...(Object.keys(code).length === 0 ? {} : { code }),
     ...(typeof record.headersHelper === 'string' ? { headersHelper: record.headersHelper } : {}),
     ...('command' in config ? { cwd: process.cwd() } : {}),
   }

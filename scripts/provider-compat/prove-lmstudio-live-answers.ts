@@ -115,7 +115,7 @@ section('1 · discovery on a single-model LM Studio: /api/v1/models states the l
   check('the model reads as loaded (one loaded instance)', record?.loaded === true, String(record?.loaded))
   check('tools ride from capabilities.trained_for_tool_use, vision from capabilities.vision, thinking from capabilities.reasoning (allowed on/off, default on)', record?.toolsDeclared === true && record.visionDeclared === false && record.thinkingDeclared === true, JSON.stringify({ tools: record?.toolsDeclared, vision: record?.visionDeclared, thinking: record?.thinkingDeclared }))
   check('the weights, the family, the parameter count and the quantisation ride from the listing (size_bytes · architecture · params_string · quantization.name)', record?.weightsBytes === 5680522464 && record.family === 'qwen35' && record.parameterSize === '9B' && record.quantization === 'Q4_K_M', `${String(record?.weightsBytes)} · ${String(record?.family)} · ${String(record?.parameterSize)} · ${String(record?.quantization)}`)
-  check('the record\'s window words read the served figure (the catalogue\'s /1000 spelling)', record !== undefined && localWindowWords(record) === '147k ctx · served', record ? localWindowWords(record) : 'no record')
+  check('the record\'s window words read the served 147456 tokens as 144k', record !== undefined && localWindowWords(record) === '144k ctx · served', record ? localWindowWords(record) : 'no record')
   const row = getLocalModelOptions().find(r => r.value === `local/${MODEL}`)
   check('the picker row states the window', row?.statedContextWindow === SERVED, JSON.stringify(row))
 }

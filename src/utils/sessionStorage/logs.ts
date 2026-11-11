@@ -407,6 +407,7 @@ export type ResumeFacts = Pick<
   | 'prUrl'
   | 'prRepository'
   | 'turnEnd'
+  | 'turnOpen'
 >
 
 export function resumeFactsOf(
@@ -437,6 +438,7 @@ export function resumeFactsOf(
     prUrl: fold.prUrls.get(sessionId),
     prRepository: fold.prRepositories.get(sessionId),
     turnEnd: fold.turnEnds.get(sessionId),
+    ...(fold.turnsOpen.has(sessionId) ? { turnOpen: true } : {}),
   }
 }
 

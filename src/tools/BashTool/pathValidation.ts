@@ -437,7 +437,9 @@ function gitObjectPath(operand: string): string[] {
   return path === '' ? [] : [path]
 }
 
-function gitPrintedPaths(args: string[]): { paths: string[]; whole: boolean; recursive: boolean } | null {
+const GIT_EXCLUDING_PATHSPEC = /^:(?:[!^]|\((?:[^)]*,)?exclude(?:,[^)]*)?\))/
+
+function gitPrintedPaths(args: string[]): { paths: string[]; whole: boolean; recursive: boolean; excludes?: boolean } | null {
   const at = gitSubcommandIndex(args)
   const subcommand = args[at]
   if (subcommand === undefined) return null
@@ -445,6 +447,8 @@ function gitPrintedPaths(args: string[]): { paths: string[]; whole: boolean; rec
   const separator = rest.indexOf('--')
   const before = separator === -1 ? rest : rest.slice(0, separator)
   const after = separator === -1 ? [] : rest.slice(separator + 1)
+  const namedAfter = after.filter(word => !GIT_EXCLUDING_PATHSPEC.test(word))
+  const excludes = namedAfter.length !== after.length
   const operands = (valued: ReadonlySet<string>): string[] => before.filter((word, index) => !word.startsWith('-') && !valued.has(before[index - 1] ?? ''))
   const named = (words: string[]): string[] => words.flatMap(word => {
     const inObject = gitObjectPath(word)
@@ -458,11 +462,11 @@ function gitPrintedPaths(args: string[]): { paths: string[]; whole: boolean; rec
       return false
     }
   })
-  if (subcommand === 'show' || subcommand === 'cat-file') return { paths: [...operands(GIT_VALUE_FLAGS).flatMap(gitObjectPath), ...after], whole: false, recursive: false }
+  if (subcommand === 'show' || subcommand === 'cat-file') return { paths: [...operands(GIT_VALUE_FLAGS).flatMap(gitObjectPath), ...namedAfter], whole: false, recursive: false }
   if (subcommand === 'blame' || subcommand === 'annotate') return { paths: [...named(operands(GIT_VALUE_FLAGS)), ...after], whole: false, recursive: false }
   if (GIT_DIFF_COMMANDS.has(subcommand)) {
     if (rest.includes('--no-index')) return { paths: extractBaseline(rest.filter(word => word !== '--no-index')).slice(0, 2), whole: false, recursive: false }
-    return { paths: [...named(operands(GIT_VALUE_FLAGS)), ...after], whole: false, recursive: true }
+    return { paths: [...named(operands(GIT_VALUE_FLAGS)), ...namedAfter], whole: false, recursive: true, excludes }
   }
   if (GIT_LOG_COMMANDS.has(subcommand)) {
     if (!before.some(word => GIT_PATCH_FLAGS.has(word))) return null
@@ -784,13 +788,16 @@ const RECURSIVE_READERS: Partial<Record<PathCommand, (args: string[]) => boolean
     const flags = flagNames(args, DIFF_GRAMMAR)
     return flags.has('-r') || flags.has('--recursive')
   },
-  git: args => gitPrintedPaths(args)?.recursive === true,
+  git: args => {
+    const printed = gitPrintedPaths(args)
+    return printed?.recursive === true && printed.excludes !== true
+  },
 }
 
 const HIDDEN_FILE_READERS: Partial<Record<PathCommand, (args: string[]) => boolean>> = {
   grep: args => RECURSIVE_READERS.grep?.(args) === true,
   rg: args => args.some(arg => arg === '--hidden' || arg === '-.' || /^-[a-zA-Z]*u[a-zA-Z]*u/.test(arg) || arg === '--no-ignore-dot'),
-  git: args => RECURSIVE_READERS.git?.(args) === true,
+  git: args => gitPrintedPaths(args)?.recursive === true,
 }
 const ENV_WALK_SKIPPED: ReadonlySet<string> = new Set(['.git', 'node_modules'])
 

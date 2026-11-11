@@ -24,6 +24,7 @@ import {
 } from '../utils/cockpit/index.js'
 import { conversationIdHere, getFocusedSessionConnector } from '../services/engine-connector/focusedConnector.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
+import { isLocalModelId } from '../services/providers/local/localCatalogue.js'
 import { localWindowRuleWords } from '../services/providers/local/localWindow.js'
 import { activeSourceUsage, usageViewIsStale } from '../services/providers/providerUsage.js'
 import { usageAgeTail } from '../services/providers/usageFreshness.js'
@@ -103,7 +104,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
       : ctx.usedPct != null
         ? Math.round((ctx.window * ctx.usedPct) / 100 / 1000)
         : 0
-  const ctxWinLabel = contextWindowLabel(ctx.window, ctx.windowSource, ctx.windowPinned)
+  const ctxWinLabel = contextWindowLabel(ctx.window, ctx.windowSource, ctx.windowPinned, isLocalModelId(rawModel))
   const ctxRule = localWindowRuleWords(rawModel, ctx.window)
   const agent = agentStateSnapshot()
 

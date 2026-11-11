@@ -86,6 +86,7 @@ function lineOf(source: SourceUsage): string {
     missionCondition: null,
     wakeGlance: null,
     glance: {
+      sessionModel: 'claude-fable-5-1',
       usage: source,
       focusedSpendUSD: 0,
       focusedUnpriced: 0,
