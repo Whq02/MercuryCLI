@@ -86,6 +86,7 @@ export function CommandCenter({
   onClose,
   captureInput = true,
   bodyOwnsPageKeys = false,
+  bodyRestsAtTop = false,
   closeKeys = 'esc-arrow',
   embedded: embeddedProp = false,
   specimen = false,
@@ -98,6 +99,7 @@ export function CommandCenter({
   onClose: () => void
   captureInput?: boolean
   bodyOwnsPageKeys?: boolean
+  bodyRestsAtTop?: boolean
   closeKeys?: FooterCloseKeys
   embedded?: boolean
   specimen?: boolean
@@ -197,7 +199,7 @@ export function CommandCenter({
     <Box ref={elevated ? elevatedRef : undefined} flexDirection="column" maxHeight={slotRows} overflow="hidden">
       {compactHeaderRows > 0 ? <ProductLockup view={view} subtitle={subtitle} /> : null}
       <CursorDeclarationContext.Provider value={followCursor}>
-        <PopupScrollViewport scrollRef={bodyRef}><ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap} minHeight={0}>{children}</ScrollBox></PopupScrollViewport>
+        <PopupScrollViewport scrollRef={bodyRef}><ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap} minHeight={0} restsAtTop={bodyRestsAtTop}>{children}</ScrollBox></PopupScrollViewport>
       </CursorDeclarationContext.Provider>
       {compactFooterRows > 0 ? <Box height={compactFooterRows} flexShrink={0} onClick={closable ? onClose : undefined}><Text dimColor wrap={fullKeyGuide ? 'wrap' : 'truncate-end'}>{bodyFooterText}</Text></Box> : null}
     </Box>
@@ -216,7 +218,7 @@ export function CommandCenter({
       {insideModal ? (
         <CursorDeclarationContext.Provider value={followCursor}>
           <PopupScrollViewport scrollRef={bodyRef}>
-            <ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap}>{children}</ScrollBox>
+            <ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap} restsAtTop={bodyRestsAtTop}>{children}</ScrollBox>
           </PopupScrollViewport>
         </CursorDeclarationContext.Provider>
       ) : (

@@ -29,6 +29,7 @@ export type ScrollBoxProps = PropsWithChildren<
   Omit<Styles, 'textWrap' | 'overflow' | 'overflowX' | 'overflowY'> & {
     readonly ref?: React.Ref<ScrollBoxHandle>
     readonly stickyScroll?: boolean
+    readonly restsAtTop?: boolean
   }
 >
 
@@ -52,7 +53,7 @@ export type ScrollBoxHandle = {
 }
 
 const ScrollBox = forwardRef<ScrollBoxHandle, ScrollBoxProps>(function ScrollBox(
-  { children, stickyScroll, ...style },
+  { children, stickyScroll, restsAtTop, ...style },
   ref,
 ) {
   const nodeRef = useRef<DOMElement | null>(null)
@@ -198,8 +199,9 @@ const ScrollBox = forwardRef<ScrollBoxHandle, ScrollBoxProps>(function ScrollBox
     if (node) {
       const scroll = (node.scroll ??= {})
       if (scroll.scrollTop === undefined) scroll.scrollTop = 0
+      if (restsAtTop && scroll.lastStableAtBottom === undefined) scroll.lastStableAtBottom = false
     }
-  }, [])
+  }, [restsAtTop])
 
   const attachContent = useCallback((node: DOMElement | null) => {
     contentRef.current = node

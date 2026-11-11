@@ -80,6 +80,7 @@ export function HelpV2({
       view="help"
       onClose={dismiss}
       captureInput={false}
+      bodyRestsAtTop
       bodyOwnsPageKeys={tab === 'commands' || tab === 'custom-commands'}
       closeKeys="esc"
       footer={

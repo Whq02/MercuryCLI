@@ -94,6 +94,7 @@ function normalize(text: string): string {
     .replace(/"pid":\s*\d+/g, '"pid":<P>')
     .replace(/"(atMs|resolvedAt|spawnedAt|lastLiveAt|lastDeliveryAt|lastTurnSettledAt|lastTurnAt|lastUsedAtMs|last_used_at_ms|startedAt|askedAt|totalDurationMs|totalAPIDurationMs|durationMs|duration_ms|snapshotId|procStart)":\s*("[^"]*"|\d+(?:\.\d+)?)/g, '"$1":<VAR>')
     .replace(/"(costUSD|totalCostUSD|total_cost_usd)":\s*\d+(?:\.\d+)?(e-?\d+)?/g, '"$1":<COST>')
+    .replace(/"thinkingPrefix":\s*"[0-9a-f]{32}"/g, '"thinkingPrefix":"<PREFIX>"')
 }
 
 function firstDiff(a: string, b: string): string {
