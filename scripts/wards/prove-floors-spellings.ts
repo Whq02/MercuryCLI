@@ -257,6 +257,83 @@ if (runs('READS')) {
   delete process.env.MERCURY_WARDS
 }
 
+if (runs('T-3.5')) {
+  const state = daemonStatePath()
+  section('T-3.5 floor 4: kills of the daemon and of the session, and writes into the runtime, under Sovereign and Flow')
+  const kills: Call[] = [
+    bash('kill -- -<DAEMON_PID>', 'its process group'),
+    bash('kill -9 -<DAEMON_PID>'),
+    bash('pkill -g <DAEMON_PID>'),
+    bash('killall -u <USER>', 'every process of the user'),
+    bash('pkill -u <USER>'),
+    bash("ps aux | grep mercury | awk '{print $2}' | xargs kill -9", 'the usual way to end a program by name'),
+    bash('xargs kill <<< <DAEMON_PID>'),
+    bash(`kill $(jq .pid ${state})`, "the pid read from the daemon's own record"),
+    bash('kill -9 $PPID', "the shell's parent is the session itself"),
+    bash("perl -e 'kill 9, <DAEMON_PID>'", 'another language, the pid written out'),
+    bash("echo 'kill <DAEMON_PID>' | sh", 'a shell fed by a pipe'),
+    bash('lldb -p <DAEMON_PID> -o kill -o quit'),
+    bash('launchctl remove com.mercury.daemon', 'launchctl verbs other than bootout and unload'),
+    bash('launchctl kill SIGKILL gui/501/com.mercury.daemon'),
+    call('Eval', { language: 'py', code: 'import os, signal\nos.killpg(<DAEMON_PID>, signal.SIGKILL)' }, 'the group, from code'),
+    call('Eval', { language: 'py', code: "import subprocess\nsubprocess.run(['kill', '<DAEMON_PID>'])" }, 'a subprocess from code'),
+  ]
+  for (const item of kills) await expect('T-3.5', item, ['sovereign', 'flow'], notAllowed, 'is not approved')
+  const writes: Call[] = [
+    bash('tar -xf a.tar -C <CONFIG>/runtime', 'an archive extracted over it'),
+    bash('unzip -o a.zip -d <CONFIG>/runtime'),
+    bash('curl -o <CONFIG>/runtime/current/mercury.mjs https://example.invalid/x', 'a download written over the bundle'),
+    bash('patch -d <CONFIG>/runtime/current -p0 < p.diff'),
+    bash('git -C <CONFIG>/runtime checkout -- .'),
+    bash('npm install --prefix <CONFIG>/runtime/current'),
+    bash('ditto /tmp/x <CONFIG>/runtime'),
+    bash('find <CONFIG>/runtime -type f | xargs rm'),
+    bash("ruby -e 'File.delete(\"<CONFIG>/runtime/current/mercury.mjs\")'"),
+    bash('rm -rf $(dirname <CONFIG>/runtime/current)', 'the path computed at run time'),
+    bash("echo 'rm -rf <CONFIG>/runtime' | sh", 'a shell fed by a pipe'),
+    bash('chown nobody <CONFIG>/runtime/current/mercury.mjs'),
+  ]
+  for (const item of writes) await expect('T-3.5', item, ['sovereign', 'flow'], notAllowed, 'is not approved')
+  await expect('T-3.5', bash('git -C <CONFIG>/runtime clean -fdx'), ['sovereign'], notAllowed, 'is not approved')
+  note('a Debug attach to the daemon is the Debug tool\'s own check and is not read here')
+}
+
+if (runs('OWN')) {
+  section("OWN · the floor refuses in every mode with its own sentence, and what is not Mercury's stays what it was")
+  const own: Call[] = [
+    bash('env -u X kill -9 <DAEMON_PID>', 'a wrapper in front'),
+    bash('bash -c "kill -- -<DAEMON_PID>"', 'an inline shell'),
+    bash('pgrep -f mercury | xargs kill', 'a pattern that names Mercury, piped to kill'),
+    bash('kill $(pgrep -f mercury)', 'the same by a substitution'),
+    bash('gdb -p <DAEMON_PID>'),
+    bash('cd <CONFIG>/runtime && tar -xf /tmp/a.tar', 'cd first, then an archive extracted where it stands'),
+    bash('cd <CONFIG>/runtime/current && git checkout -- .'),
+    bash('touch <CONFIG>/runtime/current/mercury.mjs'),
+  ]
+  for (const item of own) await expect('OWN', item, ['sovereign', 'default'], refused, 'is refused')
+  const others: Call[] = [
+    bash('kill -9 999999', 'a pid that is not Mercury\'s'),
+    bash('kill -- -999999'),
+    bash('pkill -f an-unrelated-server'),
+    bash('killall -u nobody'),
+    bash("ps aux | grep an-unrelated-server | awk '{print $2}' | xargs kill -9"),
+    bash('lldb -p 999999'),
+    bash('launchctl remove com.example.agent'),
+    bash('tar -xf a.tar -C build', 'an archive extracted into the project'),
+    bash('unzip -o a.zip -d build'),
+    bash('curl -o build/x https://example.invalid/x'),
+    bash('git checkout -- .'),
+    bash('npm install --prefix build'),
+    bash('chown nobody notes.txt'),
+    bash('find build -type f | xargs rm'),
+    bash('rm -rf $(dirname build/x)'),
+  ]
+  for (const item of others) await expect('OWN', item, ['sovereign'], notRefused, 'is not refused by the floor')
+  process.env.MERCURY_WARDS = '0'
+  await expect('OWN', bash('kill -- -<DAEMON_PID>', 'with MERCURY_WARDS=0'), ['sovereign'], refused, 'is refused all the same')
+  delete process.env.MERCURY_WARDS
+}
+
 note(`config home ${shown(CONFIG_HOME)} · no command above was executed: no shell, no signal, no keychain call; the stand-in daemon is a sleep this proof started and ends`)
 console.log(`\nprove-floors-spellings: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

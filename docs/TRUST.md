@@ -230,6 +230,13 @@ Five safety floors hold alongside the permission modes and wards:
 - Mercury's running binary and daemon are protected against writes, deletes and kills.
 - Writing project instruction files or reading `.env` files asks for approval first.
 
+The credential and runtime floors read a shell command as the commands a shell
+would run, so a wildcard, a folder read whole, a listing handed to a reader, a
+nested script, a kill by process group, by user or by a pattern that takes
+Mercury's own processes, and a write through an archive, a download or a
+package manager are refused like the plain spelling. A target that another
+language computes at run time is outside what these floors can read.
+
 ## Non-interactive sessions
 
 Headless sessions have no trust dialog. In a folder without a recorded trust
