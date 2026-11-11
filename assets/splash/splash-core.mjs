@@ -234,7 +234,7 @@ const MODEL_NAMES = {
   "fable": "Fable 5.2",
   "fable51": "Fable 5.1",
   "fable52": "Fable 5.2",
-  "mythos": "Mythos 5",
+  "mythos": "Mythos 5.2",
   "best": "Opus 5.5",
   "grok": "Grok 4.7",
   "deepseek": "DeepSeek V4 Pro",

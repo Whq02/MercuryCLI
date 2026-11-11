@@ -60,7 +60,9 @@ reads the models endpoint once through each credential it holds (a claude.ai
 sign-in with its bearer, an API key, an environment bearer token), never at
 boot and never from a passive reader, and never without a credential or
 while catalogue traffic is switched off. A listed id the table knows changes
-nothing; an id the table does not know paints as one row under its raw id at
+nothing, with one exception: a listed Mythos id gets its own row under its
+Fable counterpart, named, selectable and served with that counterpart's
+facts. An id the table does not know paints as one row under its raw id at
 the end of its family's block, selectable, served with its family's newest
 defaults (the cost as an estimate at that row's rates, its effort ladder,
 its window, its launch effort, its wire laws) and with no invented display
@@ -95,7 +97,7 @@ thinking stays out of the requests to Fable 5.2. They stay with the account
 that wrote them too: after a switch to another account the provider drops
 them and the transcript says so once. `claude-mythos-5-2`
 resolves as Fable 5.2's counterpart for verified organisations, with the same
-facts and prices. These are the
+facts and prices, and `mythos` means Mythos 5.2. These are the
 [model facts](https://platform.claude.com/docs/en/models/fable-5-2/overview),
 [changes from Fable 5.1](https://platform.claude.com/docs/en/models/fable-5-2/whats-new-fable-5-2)
 and [prices](https://platform.claude.com/docs/en/about-claude/pricing)
