@@ -9,9 +9,10 @@ const ANSWER_WITHIN_MS = 5_000
 const MOST_ANSWER_BYTES = 16 * 1024 * 1024
 
 const PRINTS_TEXT = /^(?:-[p]|--patch|--patch-with-stat|--patch-with-raw|-U\d*|--unified(?:=\d+)?|--binary|--check)$/
-const PRINTS_NO_TEXT = /^(?:-s|--no-patch|--quiet|--name-only|--name-status|--stat(?:[=-].*)?|--numstat|--shortstat|--dirstat(?:[=-].*)?|-X.*|--cumulative|--summary|--compact-summary|--raw)$/
+const PRINTS_NO_TEXT = /^(?:-s|--no-patch|--quiet|--name-only|--name-status|--stat(?:=.*)?|--stat-[\w-]+=.*|--numstat|--shortstat|--dirstat(?:[=-].*)?|-X.*|--cumulative|--summary|--compact-summary|--raw)$/
 const PAINTS = /^(?:--exit-code|--no-color|--color(?:=.*)?|--color-moved(?:=.*)?|--no-color-moved|--color-moved-ws=.*|--no-color-moved-ws|--word-diff(?:=.*)?|--word-diff-regex=.*|--color-words(?:=.*)?|--ws-error-highlight=.*|--minimal|--patience|--histogram|--diff-algorithm=.*|--anchored=.*|--indent-heuristic|--no-indent-heuristic|-W|--function-context|--inter-hunk-context=.*|--src-prefix=.*|--dst-prefix=.*|--no-prefix|--default-prefix|--line-prefix=.*|--abbrev(?:=.*)?|--no-abbrev|--full-index|--format=.*|--pretty(?:=.*)?|--oneline|--abbrev-commit|--no-abbrev-commit|--date=.*|--decorate(?:=.*)?|--no-decorate|--no-notes|--encoding=.*|--expand-tabs(?:=.*)?|--no-expand-tabs|--no-ext-diff|--no-textconv|-z|--output-indicator-(?:new|old|context)=.*)$/
-const SELECTS = /^(?:--cached|--staged|--merge-base|-R|-a|--text|-w|--ignore-all-space|-b|--ignore-space-change|--ignore-space-at-eol|--ignore-cr-at-eol|--ignore-blank-lines|-I.+|--ignore-matching-lines=.*|--diff-filter=.*|-S.+|-G.+|--pickaxe-all|--pickaxe-regex|--find-object=.*|--no-relative|-M.*|--find-renames(?:=.*)?|-C.*|--find-copies(?:=.*)?|--find-copies-harder|-B.*|--break-rewrites(?:=.*)?|-D|--irreversible-delete|--no-renames|--rename-empty|--no-rename-empty|-l\d+|--ignore-submodules(?:=.*)?|-m|-c|--cc|--first-parent|--diff-merges=.*|--no-diff-merges|--remerge-diff|--combined-all-paths|-[0123]|--base|--ours|--theirs|-q|-r|-t|--root|--no-commit-id|--always)$/
+const SELECTS = /^(?:--cached|--staged|--merge-base|-R|-a|--text|-w|--ignore-all-space|-b|--ignore-space-change|--ignore-space-at-eol|--ignore-cr-at-eol|--ignore-blank-lines|-I.+|--ignore-matching-lines=.*|--diff-filter=.*|-S.+|-G.+|--pickaxe-all|--pickaxe-regex|--find-object=.*|-M.*|--find-renames(?:=.*)?|-C.*|--find-copies(?:=.*)?|--find-copies-harder|-B.*|--break-rewrites(?:=.*)?|-D|--irreversible-delete|--no-renames|--rename-empty|--no-rename-empty|-l\d+|--ignore-submodules(?:=.*)?|-m|-c|--cc|--first-parent|--diff-merges=.*|--no-diff-merges|--remerge-diff|--combined-all-paths|-[0123]|--base|--ours|--theirs|-q|-r|-t|--root|--no-commit-id|--always)$/
+const MERGE_FORMAT = /^(?:-c|--cc|--remerge-diff|--diff-merges=.*)$/
 const VALUED: ReadonlySet<string> = new Set(['-S', '-G', '-I', '--diff-filter', '--find-object', '--ignore-matching-lines'])
 const STASH_SELECTS: ReadonlySet<string> = new Set(['-u', '--include-untracked', '--only-untracked', '--no-include-untracked'])
 const HARMLESS_SETTING = /^(?:core\.pager|core\.quotepath|pager\.[\w-]+|color\.[\w.-]+|advice\.[\w-]+)=/i
@@ -52,8 +53,10 @@ export function gitPatchQuestion(words: readonly string[]): GitPatchQuestion | G
   const operands: string[] = []
   let text = false
   let silent = false
+  let merged = false
   let relative = false
-  let unknown: string | null = null
+  let unknown: string | null = stash && cut !== -1 ? '--' : null
+  let unfollowed: string | null = null
   for (let i = 0; i < before.length; i++) {
     const word = before[i] as string
     if (!word.startsWith('-') || word === '-') operands.push(word)
@@ -62,20 +65,25 @@ export function gitPatchQuestion(words: readonly string[]): GitPatchQuestion | G
     else if (PRINTS_NO_TEXT.test(word)) silent = true
     else if (PAINTS.test(word)) continue
     else if (word === '--no-index') return null
-    else if (word === '--relative') {
-      relative = true
+    else if (word === '--relative' || word === '--no-relative') {
+      relative = word === '--relative'
       kept.push(word)
-    } else if (VALUED.has(word)) {
+    } else if (word.startsWith('--relative=')) unfollowed ??= word
+    else if (VALUED.has(word)) {
       const value = before[++i]
       if (value === undefined) unknown ??= word
       else kept.push(word, value)
-    } else if (SELECTS.test(word)) kept.push(word)
-    else unknown ??= word
+    } else if (SELECTS.test(word)) {
+      kept.push(word)
+      if (MERGE_FORMAT.test(word)) merged = true
+    } else unknown ??= word
   }
-  if (!(text || ((subcommand === 'diff' || subcommand === 'show') && !silent))) return null
+  if (unknown !== null) return { label, unread: `git ${label} is given ${unknown}, an option Mercury does not read for what it prints` }
+  const optioned = stash && before.some(word => word.startsWith('-') && word !== '-' && !STASH_SELECTS.has(word))
+  if (!(text || ((subcommand === 'diff' || subcommand === 'show' || optioned || merged) && !silent))) return null
   const commits = subcommand === 'show' ? operands.filter(operand => !namesObjectPath(operand)) : operands
   if (subcommand === 'show' && operands.length > 0 && commits.length === 0 && after.length === 0) return null
-  if (unknown !== null) return { label, unread: `git ${label} is given ${unknown}, an option Mercury does not read for what it prints` }
+  if (unfollowed !== null) return { label, unread: `git ${label} is given ${unfollowed}, an option Mercury does not read for what it prints` }
   const front = globalsOf(words, at, label)
   if ('unread' in front) return front
   const own = [...NAMES_ONLY, ...(subcommand === 'show' ? ['--format='] : []), ...(subcommand === 'diff-tree' ? ['-r', '--no-commit-id'] : [])]
@@ -99,6 +107,8 @@ function globalsOf(words: readonly string[], at: number, label: string): { steps
   return { steps, globals }
 }
 
+const STATUS_PAINTS = /^--(?:no-)?(?:branch|show-stash|ahead-behind|renames|column|untracked-files|ignored|ignore-submodules)$|^--(?:find-renames|column|untracked-files|ignored|ignore-submodules)(?:=.*)?$/
+
 function statusQuestion(words: readonly string[], at: number): GitPatchQuestion | GitPatchUnread | null {
   const rest = words.slice(at + 1)
   const cut = rest.indexOf('--')
@@ -108,9 +118,13 @@ function statusQuestion(words: readonly string[], at: number): GitPatchQuestion 
   for (const word of cut === -1 ? rest : rest.slice(0, cut)) {
     if (word === '--no-verbose') verbose = 0
     else if (word.length > 2 && '--verbose'.startsWith(word)) verbose++
-    else if (word === '--long') long = true
     else if (word === '--short' || /^--porcelain(?:=.*)?$/.test(word)) long = false
-    else if (/^-[A-Za-z]/.test(word)) {
+    else if (word === '--null' || word === '--no-null') terse = word === '--null'
+    else if (STATUS_PAINTS.test(word)) continue
+    else if (word.startsWith('--')) {
+      long = true
+      if (!/^--(?:long|no-long|no-short|no-porcelain)$/.test(word)) terse = false
+    } else if (/^-[A-Za-z]/.test(word)) {
       for (const letter of word.slice(1)) {
         if (letter === 'u' || letter === 'M') break
         if (letter === 'v') verbose++

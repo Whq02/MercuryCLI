@@ -81,6 +81,10 @@ const PRINTS: Array<[string, string]> = [
   ['after a read-only command', 'git status && git show HEAD~1'],
   ['handed to a shell', "sh -c 'git show HEAD~1'"],
   ['with a unified context', 'git show -U5 HEAD~1'],
+  ['the stash that holds it, given a word that only paints, which makes git print the patch', "git stash show --no-color 'stash@{1}'"],
+  ['the same given a word that selects', "git stash show -w 'stash@{1}'"],
+  ['the plumbing reader given the dense format for merges, which brings the patch', 'git diff-tree --cc HEAD~1'],
+  ['the index reader given the combined format', 'git diff-index -c HEAD~2'],
 ]
 for (const [label, command] of PRINTS) {
   const wrong: string[] = []
@@ -106,6 +110,9 @@ const PRINTS_NONE = [
   'git diff HEAD~2 -- src', 'git show HEAD~1 -- src', "git diff HEAD~2 -- :/ ':(exclude,top)secrets/k.txt'", "git show HEAD~1 -- . ':(exclude)secrets'", "git diff HEAD~2 -- . ':!secrets'",
   'git status && git diff', 'cd sub && git diff', 'git diff | head -5', 'git --no-pager diff', 'GIT_PAGER=cat git diff', 'git -c core.pager=cat show HEAD', 'git -c color.ui=never diff --color=never',
   'git show nosuchref', 'git diff nosuchref', 'git log --oneline -3', 'git status',
+  'git diff -l50 HEAD~1', 'cd sub && git diff --relative HEAD~2',
+  'git stash show --no-color', "git stash show --stat --no-color 'stash@{1}'", "git stash show -u 'stash@{1}'", 'git diff-tree --cc --name-only HEAD~1', 'git diff-tree --no-commit-id --name-only -r HEAD~1', 'git diff-tree --cc HEAD', 'git diff-index --quiet HEAD', 'git diff --stat-width=5 HEAD~2', 'git diff --stat --no-color HEAD~2', 'cd sub && git diff --no-relative --relative HEAD~2',
+  'git diff --name-only --relative=src HEAD~2', 'git diff --stat --relative=secrets HEAD~2',
 ]
 for (const command of PRINTS_NONE) {
   const wrong: string[] = []
@@ -120,6 +127,20 @@ for (const command of PRINTS_NONE) {
   const plain = await bash('git diff', 'default')
   const shownHead = await bash('git show HEAD', 'default')
   check('default · git diff and git show HEAD run with no card, as before', plain.behavior === 'allow' && shownHead.behavior === 'allow', `${said(plain)} ‖ ${said(shownHead)}`)
+}
+
+{
+  const anchored: Rules = { deny: [`Read(/${PROJECT}/secrets/**)`] }
+  const wrong: string[] = []
+  for (const command of ['cd sub && git diff --relative --no-relative HEAD~2', 'git -C sub diff --relative --no-relative HEAD~2']) {
+    for (const mode of ['sovereign', 'flow', 'default'] as const) {
+      const decision = await bash(command, mode, anchored)
+      if (decision.behavior !== 'deny' || !(decision.message ?? '').includes(SECRET)) wrong.push(`${mode} · ${command}: ${said(decision)}`)
+    }
+  }
+  check('the relative flag taken back, from a folder below, under a rule that spells the folder by its full path: the names are read from the top, as git prints them, and both forms are refused naming the file (sovereign, flow and default)', wrong.length === 0, wrong.join(' ‖ '))
+  const again = await bash('cd sub && git diff --relative --no-relative --relative HEAD~2', 'sovereign', anchored)
+  check('…and with the flag given once more after it, which prints the files of that folder alone, the command runs', again.behavior === 'allow', said(again))
 }
 
 {
@@ -167,6 +188,10 @@ section('§3 the working tree and the index are read as they stand')
     const wrong = await judged(command, printed)
     check(`…and ${shown(command)}, which ${printed ? 'prints the unstaged change whatever paths it names, is refused by the rule' : 'does not print it, is answered as with no rule in force'} (sovereign and default)`, wrong.length === 0, wrong.join(' ‖ '))
   }
+  for (const [command, printed] of [['git status -s --no-short -vv', true], ['git status --short --no-shor -vv', true], ['git status --porcelain --no-porcelain -vv', true], ['git status --porcelain=v2 --no-porc -vv', true], ['git status -z --no-null -vv', true], ['git status -vvz --no-nul', true], ['git status -s --no-long -vv', true], ['git status -s --lo -vv', true], ['git status --short --long -vv', true], ['git status -s -z --no-null -vv', false], ['git status --short --branch -vv', false], ['git status --porcelain --untracked-files=no -vv', false], ['git status --long --short -vv', false], ['git status --null -vv', false]] as const) {
+    const wrong = await judged(command, printed)
+    check(`…and ${shown(command)}, where ${printed ? 'a short form is taken back, so git prints the long form and its diff, is refused by the rule' : 'git prints a short form and no diff, is answered as with no rule in force'} (sovereign and default)`, wrong.length === 0, wrong.join(' ‖ '))
+  }
   {
     const refused = await bash('git status -vv', 'default')
     const words = refused.message ?? ''
@@ -192,6 +217,10 @@ section('§3 the working tree and the index are read as they stand')
   for (const [command, printed] of [['git status -v', true], ['git status --verbose', true], ['git status --v -- src', true], ['git -C sub status -v', true], ['git status -sv', false], ['git status -v -z', false]] as const) {
     const wrong = await judged(command, printed)
     check(`with the change staged, ${shown(command)}, which ${printed ? 'prints the staged change, is refused by the rule' : 'prints no diff, is answered as with no rule in force'} (sovereign and default)`, wrong.length === 0, wrong.join(' ‖ '))
+  }
+  for (const [command, printed] of [['git status --short --no-short -v', true], ['git status -sv --no-short', true], ['git status -sv --no-short --short', false]] as const) {
+    const wrong = await judged(command, printed)
+    check(`with the change staged, ${shown(command)}, where the short form is ${printed ? 'taken back, is refused by the rule' : 'given again, is answered as with no rule in force'} (sovereign and default)`, wrong.length === 0, wrong.join(' ‖ '))
   }
   {
     const refused = await bash('git status -v', 'sovereign')
@@ -223,6 +252,13 @@ const UNREAD: Array<[string, string, RegExp]> = [
   ['a setting moves the working tree', 'git -c core.worktree=/tmp diff', /git is given the setting core\.worktree=\/tmp on its command line/],
   ['a variable moves the repository', 'GIT_DIR=.git git show HEAD', /GIT_DIR is set on the line/],
   ['an option this reading has no name for', 'git diff --output=patch.txt HEAD~2', /an option Mercury does not read for what it prints/],
+  ['a stat number given as the next word, which git takes as the number', `git diff --stat-width 5 ${PATCH} HEAD~2`, /git diff is given --stat-width, an option Mercury does not read for what it prints/],
+  ['a silent word taken back', 'git diff --quiet --no-quiet HEAD~2', /git diff is given --no-quiet, an option Mercury does not read for what it prints/],
+  ['the same on a commit', 'git show -s --no-no-patch HEAD~1', /git show is given --no-no-patch, an option Mercury does not read for what it prints/],
+  ['two short options in one word on the plumbing reader', `git diff-tree -s${'p'} HEAD~1`, /git diff-tree is given -sp, an option Mercury does not read for what it prints/],
+  ['a file of a commit beside a word that names more commits', 'git show HEAD:README --reflog', /git show is given --reflog, an option Mercury does not read for what it prints/],
+  ['the stash named after a double dash', "git stash show -- 'stash@{1}'", /git stash show is given --, an option Mercury does not read for what it prints/],
+  ['the names made relative to a named folder, which this reading does not follow', 'git diff --relative=src HEAD~2', /git diff is given --relative=src, an option Mercury does not read for what it prints/],
 ]
 for (const [label, command, why] of UNREAD) {
   for (const mode of ['sovereign', 'flow'] as const) {
