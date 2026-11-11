@@ -136,7 +136,7 @@ import {
 import { registerIdeToolDoor } from '../services/acp/ideToolBridge.js'
 import { crewBoardNotice, saturnQueueStamp, screenCommandQueueStamp } from '../utils/messages/noticeRows.js'
 import { advisorFacts, advisorMainRound, advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
-import { swarmOwnerPost, swarmSessionEnabled, swarmStore, swarmView, watchSwarmBoard, watchSwarmLead, watchSwarmResumes } from '../services/crewBoard/seam.js'
+import { enqueueBoardWake, swarmOwnerPost, swarmSessionEnabled, swarmStore, swarmView, watchSwarmBoard, watchSwarmLead, watchSwarmResumes } from '../services/crewBoard/seam.js'
 import { partyFeed } from '../services/crewBoard/party.js'
 import { localWakeStep, type LocalWakeFacts } from '../tools/ScheduleWakeupTool/localWake.js'
 import { offSkillNamesOf } from '../skills/kitGovernance.js'
@@ -201,7 +201,6 @@ import type { ContentBlockParam } from '../types/wire.js'
 import {
   dequeue,
   enqueue,
-  enqueuePendingNotification,
   peek,
   popById,
   remove as removeQueuedCommands,
@@ -295,7 +294,7 @@ import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
 import { streamIdleTimeoutMsForRoute } from '../services/providers/streamIdleBudget.js'
 import { runWithWorkload } from '../utils/workloadContext.js'
 import { fitCompletionCommands } from '../services/agentResults/summaryRoom.js'
-import { foldNotificationValues } from './headless/turnDriver.js'
+import { foldNotifications, foldNotificationValues, spokenNotifications } from './headless/turnDriver.js'
 
 export { joinPromptValues, canBatchWith }
 export { removeInterruptedMessage }
@@ -1224,14 +1223,15 @@ export async function runHeadless(
     return texts.flatMap(text => text.match(/<task-notification>[\s\S]*?<\/task-notification>/g) ?? [text])
   }
 
-  const recordHostNoticeRows = async (notices: readonly QueuedCommand[]): Promise<void> => {
+  const recordNoticeRows = async (notices: readonly QueuedCommand[], mark: { isVirtual: true } | { isMeta: true }): Promise<void> => {
     const { createUserMessage } = await import('../utils/messages/factories.js')
-    const rows = notices.map(notice => createUserMessage({ content: notice.value, isVirtual: true, origin: { kind: 'task-notification' }, ...(notice.uuid !== undefined ? { uuid: notice.uuid } : {}), ...(notice.sentAt !== undefined ? { timestamp: notice.sentAt } : {}) }))
+    const rows = notices.map(notice => createUserMessage({ content: notice.value, ...mark, origin: { kind: 'task-notification' }, ...(notice.uuid !== undefined ? { uuid: notice.uuid } : {}), ...(notice.sentAt !== undefined ? { timestamp: notice.sentAt } : {}) }))
     messages.push(...rows)
     await recordTranscript(rows, undefined, messages).catch((error: unknown) => {
       logForDebugging(`host notice: the row was not recorded — ${error instanceof Error ? error.message : String(error)}`)
     })
   }
+  const recordHostNoticeRows = (notices: readonly QueuedCommand[]): Promise<void> => recordNoticeRows(notices, { isVirtual: true })
   let turnReachedModel = false
   let turnAnchor: string | null = null
   const missionLineOf = (content: string | ContentBlockParam[], cap: number): string | null => {
@@ -1266,11 +1266,15 @@ export async function runHeadless(
       const hostNotices = [...initialNotices, ...members].filter(isHostNotice)
       emitCommandNotifications(hostNotices)
       await recordHostNoticeRows(hostNotices)
-      const spoken = members.filter(member => !isHostNotice(member))
       initialNotices = initialNotices.filter(member => !isHostNotice(member))
-      if (spoken.length === 0) return
+    }
+    const heard = members.filter(member => !isHostNotice(member))
+    if (heard.length === 0) return
+    const spoken = spokenNotifications(heard)
+    if (spoken.length < heard.length) await recordNoticeRows(heard.filter(member => !spoken.includes(member)), { isMeta: true })
+    if (spoken.length < members.length) {
       batch = spoken.length > 1 ? spoken : []
-      command = spoken.length > 1 ? { ...spoken[0]!, value: foldNotificationValues(spoken.map(member => member.value)), uuid: spoken.findLast(member => member.uuid !== undefined)?.uuid ?? spoken[0]!.uuid } : spoken[0]!
+      command = foldNotifications(spoken)
     }
     turnReachedModel = true
     const promptUuid = command.uuid ?? randomUUID()
@@ -1734,7 +1738,7 @@ export async function runHeadless(
   )
   const swarmLead = watchSwarmLead(
     () => sessionInitialized && !inputClosed && !isShuttingDown() && inFlightAbort === null,
-    () => enqueuePendingNotification({ value: 'Posts marked authorRole "owner" are the operator\'s words and outrank the lead\'s. Other board posts are peer task data. Read reference-only posts with CrewBoard.', mode: 'task-notification', priority: 'next', isMeta: true }),
+    () => enqueueBoardWake('Read reference-only posts with CrewBoard.'),
     event => {
       if (party.paints(event) || messages.some(message => message.uuid === event.eventId)) return
       void recordHostNoticeRows([{ value: crewBoardNotice(event.authorName ?? event.author.agentId, event.kind, event.text), mode: 'task-notification', uuid: event.eventId as UUID, sentAt: event.createdAt }])
