@@ -29,10 +29,12 @@ type Cell = {
   msgLines: number
   mix: boolean
   presses: number
+  flick?: number
 }
 const STANDING: Cell[] = [
   { tag: 'tall50', cols: 120, rows: 50, msgLines: 12, mix: false, presses: 12 },
   { tag: 'short38', cols: 120, rows: 38, msgLines: 3, mix: false, presses: 8 },
+  { tag: 'mix50-flick40', cols: 120, rows: 50, msgLines: 3, mix: true, presses: 0, flick: 40 },
 ]
 const FULL_EXTRA: Cell[] = [
   { tag: 'short50', cols: 120, rows: 50, msgLines: 3, mix: false, presses: 12 },
@@ -184,12 +186,18 @@ function analyze(cell: Cell, payload: {
 }
 
 function runCell(cell: Cell): void {
-  console.log(`\n── scroll-travel: ${cell.tag} (${cell.cols}x${cell.rows}, ${cell.mix ? 'mixed' : `${cell.msgLines}-line`} turns, ${cell.presses} presses)`)
+  console.log(`\n── scroll-travel: ${cell.tag} (${cell.cols}x${cell.rows}, ${cell.mix ? 'mixed' : `${cell.msgLines}-line`} turns, ${cell.flick ? `two flicks of ${cell.flick} wheel reports from the tail` : `${cell.presses} presses`})`)
   const home = join(SCRATCH, `home-${cell.tag}`)
   seedSession(home, cell)
   const PAGEUP = '\x1b[5~'
   const sends: Record<string, unknown>[] = []
-  sends.push({ atTick: 999, awaitText: '❯', minTick: 10, awaitSettleTicks: 4, awaitStableTicks: 3, data: PAGEUP, mark: 'p00' })
+  const WHEEL = '\x1b[<64;60;20M'.repeat(cell.flick ?? 0)
+  if (cell.flick) {
+    sends.push({ atTick: 999, awaitText: '❯', minTick: 10, awaitSettleTicks: 4, awaitStableTicks: 3, data: WHEEL, mark: 'a-tail' })
+    sends.push({ atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 4, awaitStableTicks: 6, data: '\x1b[1;5F', mark: 'b-first-flick' })
+    sends.push({ atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 4, awaitStableTicks: 6, data: WHEEL, mark: 'c-tail-again' })
+    sends.push({ atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 4, awaitStableTicks: 6, data: '', mark: 'd-second-flick' })
+  } else sends.push({ atTick: 999, awaitText: '❯', minTick: 10, awaitSettleTicks: 4, awaitStableTicks: 3, data: PAGEUP, mark: 'p00' })
   for (let i = 1; i < cell.presses; i++) {
     sends.push({ atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 2, awaitStableTicks: 4, data: PAGEUP, mark: `p${String(i).padStart(2, '0')}` })
   }
@@ -234,6 +242,15 @@ function runCell(cell: Cell): void {
     console.log('  (no connector trace this run)')
   }
   const a = analyze(cell, payload)
+  if (cell.flick) {
+    const first = a.deltas[0]
+    const second = a.deltas[2]
+    console.log(`  flick ${cell.tag}: deltas [${a.deltas.join(',')}] unmeasured [${a.unmeasured.join(',')}] first ${first} second ${second}`)
+    check(`${cell.tag}: all sends delivered`, !undelivered, 'stuck sends')
+    check(`${cell.tag}: the flick moved the view up`, typeof second === 'number' && second < 0, `second ${second}`)
+    check(`${cell.tag}: the first flick from the tail, through rows never measured, travels as far as the second, to the row`, typeof first === 'number' && typeof second === 'number' && Math.abs(first - second) <= 1, `first ${first} rows, second ${second} rows`)
+    return
+  }
   const shown = a.deltas.map(d => String(d)).join(',')
   const bounds = stepBounds(a.viewport)
   console.log(`  deltas: [${shown}] endDrift=${a.endDrift} · transcript region ${a.viewport} rows (press frames' mode) · viewports asked ${reqs.map(r => r.viewport).join(',')} · step bounds if the region were the viewport [${bounds.floor}, ${bounds.ceiling}]`)
