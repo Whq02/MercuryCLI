@@ -98,8 +98,8 @@ section('1 · discovery on a single-model llama.cpp whose /models answers the sa
   check('vision rides from /props modalities', record?.visionDeclared === true, String(record?.visionDeclared))
   check('the weights and the parameter count ride from meta (size · n_params)', record?.weightsBytes === 5669554176 && record.parameterSize === '9.0B', `${String(record?.weightsBytes)} · ${String(record?.parameterSize)}`)
   check('the ingest-pace default keys on the stated size (≤ 10B ⇒ the small-model pace)', localPaceDefaultFor(record?.parameterSize) === LOCAL_PACE_SMALL_TOKENS_PER_S, String(localPaceDefaultFor(record?.parameterSize)))
-  check('the record\'s window words read the served figure', record !== undefined && localWindowWords(record) === '262k ctx · served', record ? localWindowWords(record) : 'no record')
-  check('the picker notice reads the served figure, not a toggle', localPickerWindowNotice(`local/${MODEL}`) === '262k ctx · served · not a toggle', localPickerWindowNotice(`local/${MODEL}`))
+  check('the record\'s window words read the served figure', record !== undefined && localWindowWords(record) === '256k ctx · served', record ? localWindowWords(record) : 'no record')
+  check('the picker notice reads the served figure, not a toggle', localPickerWindowNotice(`local/${MODEL}`) === '256k ctx · served · not a toggle', localPickerWindowNotice(`local/${MODEL}`))
   const row = getLocalModelOptions().find(r => r.value === `local/${MODEL}`)
   check('the picker row states the window', row?.statedContextWindow === SERVED, JSON.stringify(row))
 }

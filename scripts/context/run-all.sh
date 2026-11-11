@@ -30,3 +30,4 @@ for proof in "$here"/prove-*.ts; do
   __t=$SECONDS; __rc=0; "$bun" run "$proof" || { __rc=$?; fail=1; }; prover_mark "$proof" "$__t" "$__rc"
 done
 exit $fail
+# gate-watch: src/services/providers/local/localCatalogue.ts src/services/providers/local/localDiscovery.ts

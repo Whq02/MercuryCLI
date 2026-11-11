@@ -58,9 +58,10 @@ export function contextFillView(messages: readonly Message[], model: string): Co
   }
 }
 
-export function contextWindowLabel(window: number, windowSource: ContextResolution['source'] | null, windowPinned = false): string {
+export function contextWindowLabel(window: number, windowSource: ContextResolution['source'] | null, windowPinned = false, local = false): string {
   if (!(window > 0)) return '—'
-  return `${windowSource === 'fallback' ? '~' : ''}${Math.round(window / 1000)}k${windowPinned ? ' pin' : ''}`
+  const unit = local && window % 1024 === 0 ? 1024 : 1000
+  return `${windowSource === 'fallback' ? '~' : ''}${Math.round(window / unit)}k${windowPinned ? ' pin' : ''}`
 }
 
 export function contextPercentLabel(usedPct: number | null, fillSource: 'usage' | 'estimate' | null): string {
