@@ -624,11 +624,17 @@ const LISTER_SWITCH_ALIASES = new Set(['s', 'ad', 'af', 'ah', 'h', 'ar', 'as', '
 const OPERAND_SEARCHERS = new Set(['findstr', 'grep', 'egrep', 'fgrep', 'rg'])
 const RUNTIME_FILE_READ = /ReadAllText|ReadAllBytes|ReadAllLines|ReadLines|OpenText|OpenRead|ReadToEnd|StreamReader/i
 
-function readsHandedFiles(found: Layer, names: boolean): boolean {
+function readsHandedFiles(found: Layer): boolean {
   if (found.argv.some(word => RUNTIME_FILE_READ.test(word))) return true
   if (OPERAND_SEARCHERS.has(found.program)) return found.argv.slice(1).some(word => word.includes('$'))
-  if (!PIPED_FILE_READERS.has(found.program)) return false
-  return !names || (found.program !== 'select-string' && found.program !== 'sls') || found.argv.slice(1).some(word => word.includes('$') || /^-(?:path|pspath|lp|li[a-z]*)(?::|$)/i.test(word))
+  return PIPED_FILE_READERS.has(found.program)
+}
+
+function searchesNamesAsText(lister: ReadCommand, later: ReadCommand, found: Layer): boolean {
+  if (found.program !== 'select-string' && found.program !== 'sls') return false
+  if (found.argv.slice(1).some(word => word.includes('$') || word.includes(UNREAD_PART) || /^-(?:path|pspath|lp|lit[a-z]*)(?::|$)/i.test(word))) return false
+  const next = later.stages.length === 1 ? later.stages[0] : undefined
+  return next !== undefined && lister.stages.some(stage => stage.pipeline === next.pipeline && stage.stage + 1 === next.stage)
 }
 
 function powershellListing(argv: readonly string[]): { roots: string[]; deep: boolean; names: boolean } {
@@ -649,7 +655,7 @@ function powershellListing(argv: readonly string[]): { roots: string[]; deep: bo
     const valued = LISTER_VALUED_ALIASES.has(name) ? name : name === '' ? undefined : LISTER_VALUED.find(full => full.startsWith(name))
     const plain = LISTER_SWITCH_ALIASES.has(name) || (name !== '' && LISTER_SWITCHES.some(full => full.startsWith(name)))
     if (name === 's' || (name !== '' && 'recurse'.startsWith(name)) || valued === 'depth') deep = true
-    if (name !== '' && 'name'.startsWith(name)) names = true
+    if (colon < 0 && name !== '' && 'name'.startsWith(name)) names = true
     if (valued === undefined || plain) {
       if (valued !== undefined || !plain) unsure = true
       continue
@@ -1006,7 +1012,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const sent = filesSentOrPrinted(layer)
       const lists = layer.program === 'find' || layer.program === 'ls' || layer.program === 'get-childitem' || layer.program === 'gci' || layer.program === 'dir'
       const listing = powershell && POWERSHELL_LISTERS.has(layer.program) ? powershellListing(layer.argv) : null
-      const listed = listing !== null && read.commands.some((later, index) => index > at && layersOf(later.argv).some(found => readsHandedFiles(found, listing.names))) ? listing : null
+      const listed = listing !== null && read.commands.some((later, index) => index > at && layersOf(later.argv).some(found => readsHandedFiles(found) && !(listing.names && searchesNamesAsText(simple, later, found)))) ? listing : null
       const feeds = lists && (fed.has(at) || listed !== null || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')))
       for (const word of [...layer.argv.slice(1), ...roots, ...(listed === null ? [] : listed.roots)]) {
         for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {
