@@ -32,10 +32,10 @@ const wrapped = (text: string): string => `<tool_use_error>${text}</tool_use_err
 const DECLINED = 'The operator declined this tool call; it was not run and nothing was changed.'
 const FOR_THE_MODEL = /Do not try to reach|stop and say plainly|wait for the operator|Stop what you are doing/
 
-async function rowOf(tool: unknown, content: string): Promise<string[]> {
+async function rowOf(tool: unknown, content: string, verbose = false): Promise<string[]> {
   const view: Mounted = await mountOffscreen(
     h(AppStateProvider, null, h(ThemeProvider, null, h(Box, { width: 110, height: 10, flexDirection: 'column' },
-      h(UserToolErrorMessage, { progressMessagesForMessage: [], tool, tools, param: { type: 'tool_result', tool_use_id: 'tu_1', content, is_error: true }, verbose: false } as never)))),
+      h(UserToolErrorMessage, { progressMessagesForMessage: [], tool, tools, param: { type: 'tool_result', tool_use_id: 'tu_1', content, is_error: true }, verbose } as never)))),
     110, 10,
   )
   try {
@@ -92,6 +92,18 @@ section('a real failure still reads as an error, with its words')
   check('Read: its own short error line', read.length === 1 && read[0]!.endsWith('Error reading file'), JSON.stringify(read))
   const notebook = await rowOf(named('NotebookEdit'), wrapped('The cell does not exist.'))
   check('NotebookEdit: its own short error line', notebook.length === 1 && notebook[0]!.endsWith('Error editing notebook'), JSON.stringify(notebook))
+}
+
+section('the detailed view reads a refusal as a refusal too')
+{
+  const fetch = await rowOf(named('WebFetch'), wrapped(REJECT_MESSAGE), true)
+  check('WebFetch: the refusal, no "Error:", no guidance written for the model', fetch.join(' ') === `└ ✕ ${DECLINED}`, JSON.stringify(fetch))
+  const remoteRows = await rowOf(remote, wrapped(REJECT_MESSAGE), true)
+  check("a server's tool: the same", remoteRows.join(' ') === `└ ✕ ${DECLINED}`, JSON.stringify(remoteRows))
+  const worded = await rowOf(named('WebFetch'), wrapped(`${REJECT_MESSAGE_WITH_REASON_PREFIX}use the other page\nand say which one you took`), true)
+  check('a decline with words: every line the operator said is there', worded.join(' ').includes('The operator said:') && worded.join(' ').includes('use the other page') && worded.join(' ').includes('and say which one you took') && !worded.join(' ').includes('Error'), JSON.stringify(worded))
+  const failed = await rowOf(named('WebFetch'), wrapped('getaddrinfo ENOTFOUND example.invalid'), true)
+  check('a real failure keeps "Error:" there', failed.join(' ').includes('Error: getaddrinfo ENOTFOUND example.invalid'), JSON.stringify(failed))
 }
 
 section('a real failure whose text only quotes the interrupt\'s words is an error, not a refusal')
