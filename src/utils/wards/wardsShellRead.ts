@@ -6,7 +6,7 @@ export const UNREAD_PART = '\uFFFC'
 type ShellDialect = 'posix' | 'powershell'
 type Stage = { pipeline: number; stage: number }
 
-export type ReadRedirect = { op: string; target: string }
+type ReadRedirect = { op: string; target: string }
 
 export type ReadCommand = {
   argv: string[]
@@ -98,7 +98,7 @@ function collapseDots(path: string): string {
   return (absolute ? '/' : '') + out.join('/')
 }
 
-export function expandTilde(word: string, world: ReadWorld): string {
+function expandTilde(word: string, world: ReadWorld): string {
   if (!word.startsWith('~')) return word
   if (word === '~' || word.startsWith('~/')) return world.home === undefined ? word : world.home + word.slice(1)
   const named = /^~([A-Za-z0-9._-]+)(\/[\s\S]*)?$/.exec(word)
