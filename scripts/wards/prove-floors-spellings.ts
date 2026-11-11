@@ -169,8 +169,8 @@ check('floor 1: writes to credential stores are refused unless an exact path rul
 check("floor 2: agent reads of Mercury's own stored credentials are refused", pageSays(/Agent reads of Mercury's own stored credentials are refused/))
 check('floor 4: Mercury\'s running binary and daemon are protected', pageSays(/Mercury's running binary and daemon are protected against writes, deletes and kills/))
 check('floor 5: writing project instruction files or reading .env files asks for approval first', pageSays(/Writing project instruction files or reading `\.env` files asks for approval first/))
-check('the page says the floors read the command as it is written and are not a sandbox', pageSays(/The floors read the command as it is written and are not a sandbox\. What a command works out only while it runs, or leaves to another program to do, is beyond that reading and meets only the permission mode's ordinary check, which asks in Default mode and can let it run where asks are off\./))
-check('the page says what the floors guard against and that they do not isolate a session', pageSays(/The floors guard against mistakes and plain attempts; they do not isolate a session from the files and processes its user can reach\./))
+check('the page says the floors read the command as it is written and are not a sandbox, what they guard against and that they do not isolate a session', pageSays(/The floors read the command as it is written and are not a sandbox: they guard against mistakes and plain attempts and do not isolate a session from the files and processes its user can reach\./))
+check('the page says that limit in general words and does not describe what the reading cannot follow', !pageSays(/works out only while it runs/) && !pageSays(/leaves to another program/) && !pageSays(/where asks are off\. The floors guard/))
 
 const FOUR: Mode[] = ['sovereign', 'flow', 'implement', 'default']
 section('controls: each floor, asked plainly, holds')

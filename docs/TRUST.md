@@ -238,11 +238,8 @@ would run, so many other spellings of a command are refused like the plain
 one: for a read of the credentials, a wildcard, the folder read whole, a `cd`
 into the folder first, or a script handed to a nested shell.
 
-The floors read the command as it is written and are not a sandbox. What a
-command works out only while it runs, or leaves to another program to do, is
-beyond that reading and meets only the permission mode's ordinary check, which
-asks in Default mode and can let it run where asks are off. The floors guard
-against mistakes and plain attempts; they do not isolate a session from the
+The floors read the command as it is written and are not a sandbox: they guard
+against mistakes and plain attempts and do not isolate a session from the
 files and processes its user can reach.
 
 ## Non-interactive sessions
