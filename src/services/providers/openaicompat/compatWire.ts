@@ -211,7 +211,7 @@ export function tensorFoldEffortWire(args: { effortValue: string | undefined; th
 }
 
 export function buildLocalExtras(
-  args: LaneExtrasArgs & { server: LocalServerKind | 'sglang'; acceptsEffort: boolean; idSlot?: number; thinkingSwitch?: boolean },
+  args: LaneExtrasArgs & { server: LocalServerKind | 'sglang'; acceptsEffort: boolean; idSlot?: number; thinkingSwitch?: boolean; vocabulary?: readonly string[] },
 ): Record<string, unknown> {
   if (args.server === 'tensorfold') {
     const effort = args.acceptsEffort ? tensorFoldEffortWire(args) : undefined
@@ -221,7 +221,7 @@ export function buildLocalExtras(
       ...(args.maxOutputTokensOverride !== undefined ? { max_tokens: args.maxOutputTokensOverride } : {}),
     }
   }
-  const vocabulary = LOCAL_SERVER_EFFORTS[args.server]
+  const vocabulary = args.vocabulary ?? LOCAL_SERVER_EFFORTS[args.server]
   const wireEffort =
     !args.acceptsEffort || vocabulary.length === 0
       ? undefined

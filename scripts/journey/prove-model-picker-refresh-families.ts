@@ -260,13 +260,13 @@ try {
     const unchanged = spec.refresh(true)
     await flush(400)
     const before = catalogueEpoch()
-    const standing = new Set(second.seen().split('\n'))
+    const standing = second.seen()
     second.clear()
     release(spec, spec.newRows)
     await unchanged
     await flush(400)
     check(`${spec.word}: an unchanged list does not bump the catalogue epoch`, catalogueEpoch() === before, `${before} -> ${catalogueEpoch()}`)
-    const repainted = second.seen().split('\n').filter(line => line.trim() !== '' && !standing.has(line) && !ENGINE_HEADING.test(line))
+    const repainted = second.seen().split('\n').map(line => line.trim()).filter(line => line !== '' && !standing.includes(line) && !ENGINE_HEADING.test(line))
     check(`${spec.word}: an unchanged list does not repaint or show a notice`, repainted.length === 0 && !second.seen().includes(notice), repainted.join(' | '))
     second.unmount()
 

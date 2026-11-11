@@ -93,10 +93,16 @@ becomes `auto`, the prompt naming the tool. Prices per million tokens are $8
 input and $40 output, $10 for a five-minute cache write, $16 for a one-hour
 cache write and $0.20 for a cache read. Its thinking blocks are read by Fable
 5.2 and Mythos 5.2 alone: after a switch to another model they stay out of
-that model's requests and it re-plans without them, as another model's
-thinking stays out of the requests to Fable 5.2. They stay with the account
-that wrote them too: after a switch to another account the provider drops
-them and the transcript says so once. `claude-mythos-5-2`
+that model's requests and it re-plans without them. Across a switch Mercury
+carries a model's thinking into the next model's requests where Anthropic's
+table says that model reads it (into Fable 5.2: Haiku 5.5, Sonnet 5.5, Opus
+5, Opus 5.5, Fable 5 and Fable 5.1; into Fable 5.1: Opus 5, Opus 5.5 and
+Fable 5; into Opus 5.5: Haiku 5.5, Sonnet 5.5 and Opus 5; into Sonnet 5.5:
+Haiku 5.5; a Mythos model as its Fable counterpart) and the system prompt
+and tools are the ones the thinking was written under. Any other thinking
+stays out and the transcript says so once. Fable 5.2's blocks stay with the
+account that wrote them too: after a switch to another account the provider
+drops them and the transcript says so once. `claude-mythos-5-2`
 resolves as Fable 5.2's counterpart for verified organisations, with the same
 facts and prices, and `mythos` means Mythos 5.2. These are the
 [model facts](https://platform.claude.com/docs/en/models/fable-5-2/overview),

@@ -67,14 +67,15 @@ const refuses = await engine('no-switch', false)
 const honours = await engine('with-switch', true)
 const unstated = await engine('unstated', 'unstated')
 const plain = await engine('undeclared', false)
-const engines = [refuses, honours, unstated, plain]
+const lacksLow = await engine('no-low', true)
+const engines = [refuses, honours, unstated, plain, lacksLow]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = engines.map(one => `tensorfold=${one.root}`).join(',')
 
 const DECLARED = ['none', 'low', 'high']
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
-const declared = updateSettingsForSource('userSettings', { models: Object.fromEntries([refuses, honours, unstated].map(one => [`local/${one.name}`, { efforts: DECLARED, reasoning: true }])) } as never)
+const declared = updateSettingsForSource('userSettings', { models: { ...Object.fromEntries([refuses, honours, unstated].map(one => [`local/${one.name}`, { efforts: DECLARED, reasoning: true }])), [`local/${lacksLow.name}`]: { efforts: ['none', 'high'], reasoning: true } } } as never)
 if (declared.error) throw new Error(String(declared.error))
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
 const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
@@ -154,6 +155,37 @@ section('§4 the rule is the engine\'s statement and one word')
   const profileOf = (one: Engine): { refusesEffort?: (word: string) => boolean } => localLaneProfileFor(localRecordFor(`local/${one.name}`)!) as { refusesEffort?: (word: string) => boolean }
   const table = [refuses, honours, unstated].map(one => [one.name, ...['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].filter(word => profileOf(one).refusesEffort?.(word) === true)])
   check('only the engine that states no switch refuses a word, and the word is none', JSON.stringify(table) === JSON.stringify([['no-switch', 'none'], ['with-switch'], ['unstated']]), JSON.stringify(table))
+}
+
+section('§5 /effort says what the next request carries: where the dial sends none for low, the receipt says so in the words of the reply\'s own stamp')
+{
+  const { executeEffort } = await import('../../src/commands/effort/effort.tsx')
+  type Row = { said: string; sent: unknown; stamp: string }
+  const rows = new Map<string, Row>()
+  for (const one of [plain, refuses, honours, unstated, lacksLow]) {
+    for (const level of ['low', 'medium', 'high']) {
+      const said = executeEffort(level, `local/${one.name}`).message
+      const t = await turn(one, true, level)
+      rows.set(`${one.name} ${level}`, { said, sent: t.body?.reasoning_effort ?? null, stamp: t.stamp })
+    }
+  }
+  const at = (name: string, level: string): Row => rows.get(`${name} ${level}`)!
+  const saved = (level: string): string => `Effort set to ${level} — saved as your default for future sessions.`
+  const showRow = (name: string, level: string): string => JSON.stringify(at(name, level))
+  check('no declaration, an engine with no thinking switch: low rides as no word at all, and the receipt says applied none', at('undeclared', 'low').said === `${saved('low')} (local/undeclared: asked low · applied none)` && at('undeclared', 'low').sent === null && at('undeclared', 'low').stamp === 'effort asked low · applied none · wire none', showRow('undeclared', 'low'))
+  for (const name of ['with-switch', 'unstated']) {
+    check(`${name}, low declared: low rides as none, and the receipt says applied none`, at(name, 'low').said === `${saved('low')} (local/${name}: asked low · applied none)` && at(name, 'low').sent === 'none' && at(name, 'low').stamp === 'effort asked low · applied none · wire reasoning_effort=none', showRow(name, 'low'))
+  }
+  check('no-switch, low declared: the engine cannot switch thinking off, low rides as low, and the receipt is plain', at('no-switch', 'low').said === saved('low') && at('no-switch', 'low').sent === 'low' && at('no-switch', 'low').stamp === 'effort asked low · applied low · wire reasoning_effort=low', showRow('no-switch', 'low'))
+  check('a declaration with no low: the receipt names the nearest tier of that vocabulary, as before, and the request carries it', at('no-low', 'low').said === `${saved('low')} (local/no-low runs none, the nearest tier in its effort vocabulary)` && at('no-low', 'low').sent === 'none', showRow('no-low', 'low'))
+  const upper = [...rows.entries()].filter(([key]) => !key.endsWith(' low'))
+  const expected = (key: string): string => {
+    const [name, level] = key.split(' ') as [string, string]
+    return level === 'medium' && name !== 'undeclared' ? `${saved('medium')} (local/${name} runs ${name === 'no-low' ? 'none' : 'low'}, the nearest tier in its effort vocabulary)` : saved(level)
+  }
+  check('medium and high read as they did on every engine, and their requests carry the word asked', upper.every(([key, row]) => row.said === expected(key) && row.sent === key.split(' ')[1]), JSON.stringify(upper.filter(([key, row]) => row.said !== expected(key) || row.sent !== key.split(' ')[1])))
+  const named = [...rows.values()].filter(row => / · applied (\S+)\)$/.test(row.said))
+  check('wherever the receipt names an applied word, the reply\'s stamp names the same one', named.length === 3 && named.every(row => row.stamp.includes(` · applied ${/ · applied (\S+)\)$/.exec(row.said)![1]} · `)), JSON.stringify(named))
 }
 
 for (const one of engines) one.close()

@@ -802,6 +802,97 @@ if (!existsSync(DIST)) {
       await fixture.close()
     }
     {
+      const SONNET = 'claude-sonnet-5-5'
+      const OPUS = 'claude-opus-5-5'
+      const turns: ScriptedTurn[] = [
+        { kind: 'text', text: 'S5C-SONNET-1', thinking: 'sonnet one', model: SONNET },
+        { kind: 'text', text: 'S5C-OPUS-1', thinking: 'opus one', model: OPUS },
+        { kind: 'text', text: 'S5C-SONNET-2', thinking: 'sonnet two', model: SONNET },
+        { kind: 'text', text: 'S5C-OPUS-2', thinking: 'opus two', model: OPUS },
+      ]
+      const fixture = await startFixtureApi(turns)
+      const arena = makeArena(fixture)
+      const SID = 'c0ffee00-0000-4000-8000-00000000c0f8'
+      const debugs = [1, 2, 3, 4].map(n => join(arena.home, `s5c-carry-${n}.debug.log`))
+      const runs: RunResult[] = []
+      const order = [SONNET, OPUS, SONNET, OPUS]
+      for (let i = 0; i < order.length; i++) {
+        runs.push(await run(arena, ['run', `turn ${i + 1}`, ...switchArgs(order[i]!), ...(i === 0 ? ['--session-id', SID] : ['--resume', SID]), '--log-file', debugs[i]!]))
+      }
+      check('the carry, Sonnet 5.5 → Opus 5.5 → Sonnet 5.5 → Opus 5.5: four turns exit 0', runs.every(r => r.exit === 0), runs.map(r => `${r.exit}:${r.stderr.slice(0, 120)}`).join(' | '))
+      const reqs = mainRequests(fixture)
+      const [q1, q2, q3, q4] = reqs.map(r => r.body as Body)
+      check('four message requests, each to the model asked', reqs.length === 4 && [q1, q2, q3, q4].map(q => q?.model).join(',') === order.join(','), reqs.map(r => String((r.body as Body).model)).join(','))
+      check('the switch moves neither the system prompt nor the tools: both are byte-identical on the two models', q1 !== undefined && q2 !== undefined && systemTextOf(q1) === systemTextOf(q2) && j(withoutCacheControl(q1.tools)) === j(withoutCacheControl(q2.tools)))
+      check('the first request to Opus 5.5 carries the thinking Sonnet 5.5 wrote (the vendor: Opus 5.5 reads Sonnet 5.5\'s blocks)', q2 !== undefined && thinkingBlocksOf(q2) === 1 && j(q2.messages).includes('sonnet one'), String(q2 && thinkingBlocksOf(q2)))
+      check('back on Sonnet 5.5 the request carries its own block and not Opus 5.5\'s (Sonnet 5.5 does not read them)', q3 !== undefined && thinkingBlocksOf(q3) === 1 && j(q3.messages).includes('sonnet one') && !j(q3.messages).includes('opus one'), String(q3 && thinkingBlocksOf(q3)))
+      check('the second visit to Opus 5.5 carries all three: Sonnet 5.5\'s two and its own, put back between them', q4 !== undefined && thinkingBlocksOf(q4) === 3 && ['sonnet one', 'opus one', 'sonnet two'].every(words => j(q4.messages).includes(words)), String(q4 && thinkingBlocksOf(q4)))
+      check('what Opus 5.5 was sent on its first visit stands byte-identical at the head of its second', q2 !== undefined && q4 !== undefined && j(withoutCacheControl((q4.messages ?? []).slice(0, (q2.messages ?? []).length - 1))) === j(withoutCacheControl((q2.messages ?? []).slice(0, (q2.messages ?? []).length - 1))))
+      const receiptsOf = (file: string): string[] => { try { return readFileSync(file, 'utf8').split('\n').filter(l => l.includes('preserved thinking: Preserved thinking')) } catch { return [] } }
+      const receipts = debugs.map(receiptsOf)
+      check('a switch that carries everything paints no receipt; the return to Sonnet 5.5 paints one, naming the one block that stays out', receipts[1]!.length === 0 && receipts[3]!.length === 0 && receipts[2]!.length === 1 && receipts[2]![0]!.includes('1 thinking block written by Opus 5.5 stays out of the requests to Sonnet 5.5'), j(receipts))
+      check('no drop notice on any turn', !transcriptNotices(arena, SID).some(t => t.includes('dropped')), j(transcriptNotices(arena, SID)))
+      await fixture.close()
+    }
+    {
+      const turns: ScriptedTurn[] = [
+        { kind: 'text', text: 'S5D-OPUS5-1', thinking: 'opus five one', model: 'claude-opus-5' },
+        { kind: 'text', text: 'S5D-FABLE51-1', thinking: 'fable one', model: 'claude-fable-5-1' },
+      ]
+      const fixture = await startFixtureApi(turns)
+      const arena = makeArena(fixture)
+      const SID = 'c0ffee00-0000-4000-8000-00000000c0f9'
+      const r1 = await run(arena, ['run', 'first on opus 5', ...switchArgs('claude-opus-5'), '--session-id', SID])
+      const r2 = await run(arena, ['run', 'now on fable 5.1', ...switchArgs('claude-fable-5-1'), '--resume', SID])
+      const [q1, q2] = mainRequests(fixture).map(r => r.body as Body)
+      check('a direction the vendor ticks whose system prompt differs between the two models (Opus 5 → Fable 5.1, another knowledge cutoff) carries nothing: the block would fail the prefix check', r1.exit === 0 && r2.exit === 0 && q1 !== undefined && q2 !== undefined && systemTextOf(q1) !== systemTextOf(q2) && thinkingBlocksOf(q2) === 0, `${r1.exit} ${r2.exit} blocks=${q2 && thinkingBlocksOf(q2)}`)
+      const stays = transcriptNotices(arena, SID).filter(t => t.includes('out of the requests to'))
+      check('…and the receipt says so, as before', stays.length === 1 && stays[0]!.includes('written by Opus 5 stays out of the requests to Fable 5.1'), j(stays))
+      await fixture.close()
+    }
+    {
+      const SONNET = 'claude-sonnet-5-5'
+      const OPUS = 'claude-opus-5-5'
+      const turns: ScriptedTurn[] = [
+        { kind: 'text', text: 'S5E-SONNET-1', thinking: 'sonnet one', model: SONNET },
+        { kind: 'text', text: 'S5E-OPUS-1', thinking: 'opus one', model: OPUS, inputTransformations: [{ type: 'thinking_dropped', path: 'messages.1.content.0', reason: 'prefix_binding_mismatch' }] },
+        { kind: 'text', text: 'S5E-OPUS-2', thinking: 'opus two', model: OPUS },
+      ]
+      const fixture = await startFixtureApi(turns)
+      const arena = makeArena(fixture)
+      const SID = 'c0ffee00-0000-4000-8000-00000000c0fa'
+      const r1 = await run(arena, ['run', 'first on sonnet', ...switchArgs(SONNET), '--session-id', SID])
+      const r2 = await run(arena, ['run', 'now on opus', ...switchArgs(OPUS), '--resume', SID])
+      const r3 = await run(arena, ['run', 'still on opus', ...switchArgs(OPUS), '--resume', SID])
+      const [, q2, q3] = mainRequests(fixture).map(r => r.body as Body)
+      const carriedAt = ((q2?.messages ?? []) as Array<{ role?: string; content?: unknown }>).findIndex(m => m.role === 'assistant' && Array.isArray(m.content) && (m.content as Block[]).some(b => b.type === 'thinking'))
+      check('a carried block the API reports dropped: the request carried it at the path the fixture names', r1.exit === 0 && r2.exit === 0 && r3.exit === 0 && q2 !== undefined && thinkingBlocksOf(q2) === 1 && carriedAt === 1, `exits ${r1.exit},${r2.exit},${r3.exit} carried at messages.${carriedAt}`)
+      check('…and it is not carried again: the next request holds Opus 5.5\'s own block alone, so one refused carry never costs the model its own reasoning', q3 !== undefined && thinkingBlocksOf(q3) === 1 && j(q3.messages).includes('opus one') && !j(q3.messages).includes('sonnet one'), String(q3 && thinkingBlocksOf(q3)))
+      await fixture.close()
+    }
+    {
+      const SONNET = 'claude-sonnet-5-5'
+      const OPUS = 'claude-opus-5-5'
+      const turns: ScriptedTurn[] = [
+        { kind: 'tool_use', name: 'Read', input: {}, thinking: 'sonnet plans the read', model: SONNET },
+        { kind: 'text', text: 'S5F-SONNET-READ', thinking: 'sonnet after the read', model: SONNET },
+        { kind: 'text', text: 'S5F-OPUS-1', thinking: 'opus one', model: OPUS },
+      ]
+      const fixture = await startFixtureApi(turns)
+      const arena = makeArena(fixture)
+      const notePath = join(arena.cwd, 'carry-note.txt')
+      writeFileSync(notePath, 'a note read between two thinking blocks\n')
+      ;(turns[0] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: notePath }
+      const SID = 'c0ffee00-0000-4000-8000-00000000c0f3'
+      const r1 = await run(arena, ['run', 'read the note', ...switchArgs(SONNET), '--session-id', SID])
+      const r2 = await run(arena, ['run', 'now on opus', ...switchArgs(OPUS), '--resume', SID])
+      const reqs = mainRequests(fixture).map(r => r.body as Body)
+      const toOpus = reqs.find(q => q.model === OPUS)
+      const shapes = ((toOpus?.messages ?? []) as Array<{ role?: string; content?: unknown }>).filter(m => m.role === 'assistant').map(m => (Array.isArray(m.content) ? (m.content as Block[]).map(b => String(b.type)).join('+') : 'text'))
+      check('a tool turn between the blocks: the request to Opus 5.5 carries the thinking that stands before Sonnet 5.5\'s tool call and the thinking after its result, each in its own turn', r1.exit === 0 && r2.exit === 0 && toOpus !== undefined && thinkingBlocksOf(toOpus) === 2 && shapes.join(' | ') === 'thinking+tool_use | thinking+text' && j(toOpus.messages).includes('sonnet plans the read') && j(toOpus.messages).includes('sonnet after the read'), `exits ${r1.exit},${r2.exit} · ${shapes.join(' | ')}`)
+      await fixture.close()
+    }
+    {
       const legs: Array<{ label: string; spellings: string[]; wire: string }> = [
         { label: 'Claude Fable 5.1', spellings: ['claude-fable-5-1', 'fable51', 'claude-fable-5-1[1m]'], wire: 'claude-fable-5-1' },
         { label: 'Claude Opus 5', spellings: ['claude-opus-5', 'opus5', 'claude-opus-5[1m]'], wire: 'claude-opus-5' },
