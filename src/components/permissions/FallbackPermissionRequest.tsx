@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { Box, Text } from '../../ink.js'
 import { resolveThemeName } from './resolveThemeName.js'
 import { DEBUG_TOOL_NAME } from '../../tools/DebugTool/prompt.js'
+import { EVAL_TOOL_NAME } from '../../tools/EvalTool/constants.js'
 import { truncateToLines } from '../../utils/stringUtils.js'
 import { shouldShowAlwaysAllowOptions } from '../../utils/permissions/permissionsLoader.js'
 import { ConsentBodyText } from './ConsentBodyText.js'
@@ -34,13 +35,13 @@ export function FallbackPermissionRequest({
   const rawName = tool.userFacingName(toolUseConfirm.input as never) ?? ''
   const isMcpNamed = rawName.endsWith(MCP_SUFFIX)
   const displayName = isMcpNamed ? rawName.slice(0, -MCP_SUFFIX.length) : rawName
-  const startsPrograms = tool.shellCommandOf !== undefined || tool.name === DEBUG_TOOL_NAME
+  const runsCode = tool.shellCommandOf !== undefined || tool.name === DEBUG_TOOL_NAME || tool.name === EVAL_TOOL_NAME
 
   const options = useMemo<PermissionPromptOption<FallbackOptionValue>[]>(() => {
     const result: PermissionPromptOption<FallbackOptionValue>[] = [
       { label: 'Yes', value: 'yes', feedbackConfig: { type: 'accept' } },
     ]
-    if (shouldShowAlwaysAllowOptions() && !startsPrograms) {
+    if (shouldShowAlwaysAllowOptions() && !runsCode) {
       result.push({
         label: (
           <Text>
@@ -56,7 +57,7 @@ export function FallbackPermissionRequest({
       feedbackConfig: { type: 'reject' },
     })
     return result
-  }, [displayName, startsPrograms])
+  }, [displayName, runsCode])
 
   function handleSelect(value: FallbackOptionValue, feedback?: string): void {
     switch (value) {

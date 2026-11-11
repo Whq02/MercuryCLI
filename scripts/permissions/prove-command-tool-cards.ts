@@ -47,10 +47,11 @@ const { MonitorTool } = await import('../../src/tools/MonitorTool/MonitorTool.ts
 const { ServiceTool } = await import('../../src/tools/ServiceTool/ServiceTool.ts')
 const { JourneyTool } = await import('../../src/tools/JourneyTool/JourneyTool.ts')
 const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
+const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
 
 const h = React.createElement
 type AnyTool = { name: string; description: (input: never, options: never) => Promise<string> }
-const TOOLS = [BashTool, MonitorTool, ServiceTool, JourneyTool, DebugTool] as unknown as AnyTool[]
+const TOOLS = [BashTool, MonitorTool, ServiceTool, JourneyTool, DebugTool, EvalTool] as unknown as AnyTool[]
 type Rules = { ask?: string[] }
 type Card = { decision: string; rows: string[]; answers: string[]; second: { allowed: unknown[] | null; rejected: boolean } }
 
@@ -155,6 +156,13 @@ section('a Debug launch')
   check('the whole tool is not offered: the answers are Yes and No', !wholeTool(card, 'Debug') && card.answers.length === 2 && card.second.rejected, said(card))
 }
 
+section('an Eval cell')
+{
+  const card = await cardOf(EvalTool as never, { language: 'py', code: 'import shutil\nshutil.rmtree("build")', title: 'clean the build folder' })
+  check('the code it will run is on the card', shows(card, 'import shutil') && shows(card, 'shutil.rmtree("build")'), said(card))
+  check('the whole tool is not offered: the answers are Yes and No', !wholeTool(card, 'Eval') && card.answers.length === 2 && card.second.rejected, said(card))
+}
+
 section('a tool that starts no program keeps the fallback card as it was')
 {
   const plain = { name: 'mcp__fixture__echo', userFacingName: () => 'fixture - echo (MCP)', renderToolUseMessage: () => 'say: "hello"', description: async () => 'Echoes its input.' }
@@ -189,6 +197,7 @@ section('under Sovereign mode none of these calls gets a card')
     [ServiceTool as never, { op: 'start', name: 'cleaner', command: 'rm', args: ['-rf', 'build'] }],
     [JourneyTool as never, { op: 'run', objective: 'check the page loads', steps: [{ kind: 'command.run', command: 'rm', args: ['-rf', 'build'] }] }],
     [DebugTool as never, { op: 'launch', program: 'rm', args: ['-rf', 'build'], adapter: 'node' }],
+    [EvalTool as never, { language: 'py', code: 'import shutil\nshutil.rmtree("build")', title: 'clean the build folder' }],
   ]
   for (const [tool, input] of CALLS) {
     const decision = await decided(tool, input, 'sovereign')
