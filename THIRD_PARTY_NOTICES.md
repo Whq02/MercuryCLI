@@ -78,7 +78,7 @@ The built artifact (`dist/mercury.mjs`) is a self-contained bundle that inlines 
 - **strip-ansi** 7.2.0 — chalk/strip-ansi
 - **supports-hyperlinks** 4.5.0 — chalk/supports-hyperlinks
 - **turndown** 7.2.4 — https://github.com/mixmark-io/turndown.git
-- **undici** 8.12.3 — https://undici.nodejs.org
+- **undici** 8.12.4 — https://undici.nodejs.org
 - **usehooks-ts** 3.1.1 — https://usehooks-ts.com
 - **vscode-css-languageservice** 6.3.10 — https://github.com/Microsoft/vscode-css-languageservice
 - **vscode-html-languageservice** 5.6.2 — https://github.com/Microsoft/vscode-html-languageservice
