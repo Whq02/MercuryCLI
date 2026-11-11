@@ -5,7 +5,7 @@ import { startedCommandVerdict } from '../BashTool/bashPermissions.js'
 import { startedProgramIsShell } from '../BashTool/denyRuleReach.js'
 import { evalCodePermission } from '../../utils/permissions/shellProtectedPaths.js'
 import { shellCommandText } from '../../utils/permissions/decision/commandAnalysis.js'
-import { noteServiceInput, serviceInputAsSent, serviceInputKey } from '../../utils/permissions/serviceInputHistory.js'
+import { noteServiceInput, serviceInputAsSent, serviceInputKey, serviceInputSoFar } from '../../utils/permissions/serviceInputHistory.js'
 import {
   describeCondition,
   servicesEnabled,
@@ -287,7 +287,7 @@ function shellTextOf(input: unknown): string | undefined {
   if (call.op !== 'input') return startedCommandText(call.command, call.args)
   if (typeof call.name !== 'string' || typeof call.text !== 'string' || call.mode === 'eof') return undefined
   const record = readRecord(getOriginalCwd(), call.name)
-  return record === null ? undefined : scriptSentToProgram([record.spec.command, ...(Array.isArray(record.spec.args) ? record.spec.args : [])], call.text)
+  return record === null ? undefined : scriptSentToProgram([record.spec.command, ...(Array.isArray(record.spec.args) ? record.spec.args : [])], serviceInputSoFar(serviceInputKey(getOriginalCwd(), call.name), call.text, runOf(record)))
 }
 
 function runOf(record: { pid: number | null; startedAt: number | null } | null): string {

@@ -268,6 +268,59 @@ if (runs('READS')) {
   delete process.env.MERCURY_WARDS
 }
 
+if (runs('TREE')) {
+  section('TREE · a tree reader whose root holds the credential store is refused like one rooted at the config home; a listing, a folder beside the store and a project stay clear')
+  check('the page: a folder read whole is refused like the plain spelling', pageSays(/so a wildcard, a folder read whole, a listing handed to a reader/))
+  const whole: Call[] = [
+    bash('grep -r token ~', 'the home'),
+    bash('grep -r token $HOME'),
+    bash('grep -rn token <HOME>', 'the home by its path'),
+    bash('rg token ~'),
+    bash('tar -cf /tmp/h.tar ~'),
+    bash('tar czf /tmp/h.tgz -C ~ .', 'the home as the folder tar changes to'),
+    bash('cp -R ~ /tmp/h'),
+    bash('rsync -a ~/ /tmp/h/'),
+    bash('zip -r /tmp/h.zip ~'),
+    bash("find ~ -name '*.json' -exec cat {} +"),
+    bash("find ~ -name '*.json' | xargs cat", 'a listing of the home piped to a reader'),
+    bash("cat $(find ~ -name '*.json')", 'a listing of the home substituted into a reader'),
+    bash('grep -r token <HOME>/..', 'the folder of every home'),
+    bash('grep -r token /', 'the root'),
+    bash('grep -r token <CONFIG>/..', 'the folder above the config home'),
+    bash('cd ~ && grep -r token .', 'the folder the command runs in'),
+    bash('cd ~ && rg token', 'no path, in the home'),
+    bash("cd ~; find . -name '*.json' -exec cat {} +"),
+    bash('cd ~ && tar -cf /tmp/h.tar .'),
+    bash('grep -r token ..', 'the folder above the project, which holds the home'),
+    bash("sh -c 'grep -r token ~'", 'an inline shell'),
+  ]
+  for (const item of whole) await expect('TREE', item, ['sovereign', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
+  const told = await reading(bash('grep -r token ~'), 'sovereign')
+  check('TREE · the refusal names the tree and says to name a folder beneath it', /^Reading the whole of ~ \(name a folder beneath it\) is refused: it holds Mercury's own credentials/.test(told.decision.message ?? ''), said(told.decision))
+  const here = await reading(bash('cd ~ && rg token'), 'sovereign')
+  check('TREE · with no path it names the folder the command runs in', /^Reading the whole of this folder \(name a folder beneath it\) is refused/.test(here.decision.message ?? ''), said(here.decision))
+  const clear: Call[] = [
+    bash('find ~ -name notes.txt', 'a listing'),
+    bash('ls -R ~', 'a listing'),
+    bash('du -sh ~', 'a size'),
+    bash('grep -r token ~/Documents', 'a folder beside the config home'),
+    bash('grep -r plain .', 'the project'),
+    bash('rg plain', 'no path, in the project'),
+    bash('tar czf /tmp/p.tgz .', 'the project'),
+    bash("find . -name '*.md' -exec cat {} +", 'the project'),
+    bash('cp -R docs ~', 'the home as the destination'),
+    bash('rsync -a docs/ ~/', 'the home as the destination'),
+    bash('tar -xzf /tmp/a.tgz -C ~', 'an archive extracted into the home'),
+    bash('tar czf ~/backup.tgz docs', 'an archive written into the home'),
+    bash('grep token ~/notes.txt', 'one file, no tree'),
+    bash('cd ~ && ls | rg Doc', 'a search of what a pipe hands it'),
+    bash('cd ~ && rg token Documents', 'a folder beneath the home, named'),
+    bash("find ~ -name '*.ts' -exec cat {} +", 'a name no credential file has'),
+    bash("find ~ -name '*.json' -exec ls -l {} +", 'a listing of what find found'),
+  ]
+  for (const item of clear) await expect('TREE', item, ['sovereign'], notRefused, 'is not refused by the floor')
+}
+
 if (runs('T-3.5')) {
   const state = daemonStatePath()
   section('T-3.5 floor 4: kills of the daemon and of the session, and writes into the runtime, under Sovereign and Flow')

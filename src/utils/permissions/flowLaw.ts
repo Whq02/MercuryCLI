@@ -17,17 +17,19 @@ import { getMercuryTempDir, getScratchpadDir, matchingRuleForInput, pathInWorkin
 import { allowRulesThatPreAuthorise } from './lateAllowRules.js'
 import { ownGroundCategory } from './ownGround.js'
 import { serviceInputAsSent, serviceInputKey } from './serviceInputHistory.js'
+import { inlineScriptWriteTargets } from './shellProtectedPaths.js'
+import { UNREAD_PART, layersOf, printedBy, readShellCommands, type ReadCommand } from '../wards/wardsShellRead.js'
 
 type FlowItem = 1 | 2 | 3 | 4
 export type FlowAsk = { item: FlowItem; subject: string; why: string }
 
 type PublishEntry = { commands: readonly string[]; forms: readonly string[]; why: string; when?: (args: readonly string[]) => boolean }
 
-const PRIVILEGE_COMMANDS = ['sudo', 'sudoedit', 'doas', 'pkexec', 'su', 'runas', 'gsudo', 'pfexec', 'dzdo', 'pbrun'] as const
+const PRIVILEGE_COMMANDS = ['sudo', 'sudoedit', 'sudo-rs', 'doas', 'pkexec', 'su', 'run0', 'please', 'runas', 'gsudo', 'pfexec', 'dzdo', 'pbrun'] as const
 
 const GIT_FORMS: ReadonlyArray<{ form: string; why: string; test: (sub: string, args: readonly string[]) => boolean }> = [
-  { form: 'push', why: 'it publishes history', test: sub => sub === 'push' },
-  { form: 'reset --hard', why: 'it rewrites history', test: (sub, args) => sub === 'reset' && args.includes('--hard') },
+  { form: 'push', why: 'it publishes history', test: (sub, args) => sub === 'push' || sub === 'send-pack' || ((sub === 'subtree' || sub === 'lfs') && args.filter(arg => !arg.startsWith('-'))[0] === 'push') },
+  { form: 'reset --hard', why: 'it rewrites history', test: (sub, args) => sub === 'reset' && args.some(arg => /^--ha(?:r(?:d)?)?$/.test(arg)) },
   { form: 'clean -f', why: 'it deletes untracked files for good', test: (sub, args) => sub === 'clean' && args.some(arg => arg === '--force' || /^-[a-zA-Z]*f/.test(arg)) && !args.some(arg => arg === '--dry-run' || /^-[a-zA-Z]*n/.test(arg)) },
   { form: 'branch -D', why: 'it deletes a branch for good', test: (sub, args) => sub === 'branch' && (args.some(arg => /^-[a-zA-Z]*D/.test(arg)) || (args.some(arg => arg === '--delete' || /^-[a-zA-Z]*d/.test(arg)) && args.some(arg => arg === '--force' || /^-[a-zA-Z]*f/.test(arg)))) },
   { form: 'filter-branch', why: 'it rewrites history', test: sub => sub === 'filter-branch' },
@@ -56,8 +58,10 @@ const CLUSTER = 'it changes a live cluster'
 function formMatches(form: string, words: readonly string[]): boolean {
   const parts = form.split(' ')
   const plain = words.filter(word => !word.startsWith('-'))
+  const behindOptions = words.filter((word, index) => !word.startsWith('-') && !(index > 0 && words[index - 1]!.startsWith('-') && !words[index - 1]!.includes('=')))
   const positional = parts.filter(part => !part.startsWith('-'))
-  return positional.every((part, index) => plain[index] === part) && parts.filter(part => part.startsWith('-')).every(flag => words.includes(flag))
+  const reads = (read: readonly string[]): boolean => positional.every((part, index) => read[index] === part)
+  return (reads(plain) || (positional.length > 0 && reads(behindOptions))) && parts.filter(part => part.startsWith('-')).every(flag => words.includes(flag))
 }
 
 const anyForm = (forms: readonly string[]) => (args: readonly string[]): boolean => forms.some(form => formMatches(form, args))
@@ -206,7 +210,7 @@ export function isOwnGround(path: string, cwd: string = getStartingCwd()): boole
   return candidates.every(groundOf)
 }
 
-type Scan = { cwd: string | null; asks: FlowAsk[]; depth: number; rules?: ToolPermissionContext }
+type Scan = { cwd: string | null; asks: FlowAsk[]; depth: number; rules?: ToolPermissionContext; aliases?: Map<string, string[]> }
 
 function expandKnown(text: string, cwd: string | null): string | null {
   let out = text
@@ -376,11 +380,36 @@ function subcommandOf(args: readonly string[], valued: RegExp): { sub: string; r
   return sub === undefined ? null : { sub, rest: args.slice(i + 1) }
 }
 
-function gitAsk(args: readonly string[]): FlowAsk | null {
-  const parsed = subcommandOf(args, /^(?:-C|-c|--git-dir|--work-tree|--namespace|--config-env|--exec-path|--super-prefix)$/)
+const GIT_VALUED_OPTIONS = /^(?:-C|-c|--git-dir|--work-tree|--namespace|--config-env|--exec-path|--super-prefix)$/
+const GIT_TREE_WRITES = new Set(['checkout', 'restore', 'switch', 'reset', 'clean', 'stash', 'apply', 'am', 'pull', 'merge', 'rebase', 'cherry-pick', 'revert', 'rm', 'mv'])
+
+function gitAliases(args: readonly string[], scan: Scan): Map<string, string[]> {
+  const aliases = new Map(scan.aliases ?? [])
+  for (let i = 0; i + 1 < args.length && args[i]!.startsWith('-'); i++) {
+    const named = args[i] === '-c' ? /^alias\.([^=]+)=([\s\S]*)$/i.exec(args[i + 1]!) : null
+    if (named !== null) aliases.set(named[1]!, named[2]!.replace(/^!/, '').split(/\s+/).filter(Boolean))
+    if (GIT_VALUED_OPTIONS.test(args[i]!)) i++
+  }
+  return aliases
+}
+
+function gitAsk(args: readonly string[], scan: Scan, shown: readonly string[]): FlowAsk | null {
+  const parsed = subcommandOf(args, GIT_VALUED_OPTIONS)
   if (parsed === null) return null
-  const hit = GIT_FORMS.find(entry => entry.test(parsed.sub, parsed.rest))
-  return hit === null || hit === undefined ? null : { item: 2, subject: `git ${hit.form}`, why: hit.why }
+  if (parsed.sub === 'config') {
+    const words = parsed.rest.filter(arg => !arg.startsWith('-'))
+    const named = /^alias\.(.+)$/i.exec(words[0] ?? '')
+    if (named !== null && words.length > 1) (scan.aliases ??= new Map()).set(named[1]!, words.slice(1).join(' ').replace(/^!/, '').split(/\s+/).filter(Boolean))
+  }
+  const alias = gitAliases(args, scan).get(parsed.sub)
+  const sub = alias === undefined ? parsed.sub : (alias[0] ?? parsed.sub)
+  const rest = alias === undefined ? parsed.rest : [...alias.slice(1), ...parsed.rest]
+  if (sub.includes(UNREAD_PART) || /[$`]/.test(sub)) return { item: 2, subject: 'git with a verb set at run time', why: 'it may publish or rewrite history' }
+  const hit = GIT_FORMS.find(entry => entry.test(sub, rest))
+  if (hit !== undefined) return { item: 2, subject: `git ${hit.form}`, why: hit.why }
+  if (!GIT_TREE_WRITES.has(sub)) return null
+  const folders = args.flatMap((arg, index) => (arg === '-C' || arg === '--work-tree' ? [args[index + 1] ?? ''] : arg.startsWith('--work-tree=') ? [arg.slice('--work-tree='.length)] : [])).filter(folder => folder !== '')
+  return outsideAsk('it overwrites files under', folders, scan, shown)
 }
 
 function forgeAsk(name: string, args: readonly string[]): FlowAsk | null {
@@ -452,6 +481,16 @@ function writeTargetsAsk(name: string, args: readonly string[], scan: Scan, show
     const deletes = args.includes('-delete') || args.some((arg, index) => /^-(?:exec|execdir|ok|okdir)$/.test(arg) && DELETE_VERBS.has(basename(args[index + 1] ?? '')))
     return deletes ? outsideAsk('it deletes under', paths.length === 0 ? ['.'] : paths, scan, shown) : null
   }
+  if (name === 'tar' || name === 'bsdtar' || name === 'gtar') {
+    const extracts = /^-?[A-Za-z]*x/.test(args[0] ?? '') || args.some(arg => arg === '--extract' || arg === '--get' || (/^-[A-Za-z]+$/.test(arg) && arg.includes('x')))
+    const into = args.flatMap((arg, index) => (arg === '-C' || arg === '--directory' ? [args[index + 1] ?? ''] : arg.startsWith('--directory=') ? [arg.slice('--directory='.length)] : /^-C./.test(arg) ? [arg.slice(2)] : []))
+    return extracts ? outsideAsk('it extracts over', into, scan, shown) : null
+  }
+  if (name === 'unzip') return outsideAsk('it extracts over', args.flatMap((arg, index) => (arg === '-d' ? [args[index + 1] ?? ''] : [])), scan, shown)
+  if (name === 'patch') {
+    const into = args.flatMap((arg, index) => (arg === '-d' || arg === '--directory' ? [args[index + 1] ?? ''] : arg.startsWith('--directory=') ? [arg.slice('--directory='.length)] : []))
+    return outsideAsk('it edits', [...into, ...operandsOf(args, new Set(['-d', '--directory', '-i', '--input', '-o', '--output', '-p', '-r', '--reject-file', '-D', '-F', '-V', '-B', '-b', '-Y', '-z'])).slice(0, 1)], scan, shown)
+  }
   if (/^mkfs(?:\.|$)/.test(name) || name === 'wipefs') return { item: 4, subject: cut(shown.join(' '), 60), why: 'it erases a disk' }
   if (DISK_VERBS.has(name)) {
     const device = args.some(arg => arg.startsWith('/dev/'))
@@ -495,6 +534,10 @@ async function checkCommand(argv: readonly string[], scan: Scan, text = argv.joi
     found({ item: 1, subject: name, why: 'it runs with elevated rights' })
     return
   }
+  if (name === 'machinectl' && args.filter(arg => !arg.startsWith('-'))[0] === 'shell') {
+    found({ item: 1, subject: 'machinectl shell', why: 'it runs with elevated rights' })
+    return
+  }
   if (name === 'osascript' && /administrator privileges/i.test(args.join(' '))) {
     found({ item: 1, subject: 'osascript with administrator privileges', why: 'it runs with elevated rights' })
     return
@@ -527,8 +570,8 @@ async function checkCommand(argv: readonly string[], scan: Scan, text = argv.joi
     if (script !== '' && scan.depth < 4) await scanScript(script, { ...scan, depth: scan.depth + 1 }, scan)
     return
   }
-  if (name === 'git') {
-    const ask = gitAsk(args)
+  if (name === 'git' || /^git-[a-z]/.test(name)) {
+    const ask = gitAsk(name === 'git' ? args : [name.slice(4), ...args], scan, argv)
     if (ask !== null) found(ask)
     return
   }
@@ -683,10 +726,76 @@ async function scanScript(text: string, scan: Scan, parent?: Scan): Promise<void
   }
 }
 
+const FLOW_DELETERS = new Set([...DELETE_VERBS, ...MOVE_VERBS])
+const FLOW_SCRIPT_LANGUAGES = /^(?:node|nodejs|bun|deno|python[\d.]*|ruby|perl|php)$/
+
+function sharesEarlierStage(earlier: ReadCommand, later: ReadCommand): boolean {
+  for (const a of earlier.stages) for (const b of later.stages) if (a.pipeline === b.pipeline && a.stage < b.stage) return true
+  return false
+}
+
+async function scanReading(command: string, cwd: string, scan: Scan): Promise<void> {
+  const home = homedir().replace(/\\/g, '/')
+  const read = await readShellCommands(command, 'posix', { cwd: cwd.replace(/\\/g, '/'), home, homesRoot: home.slice(0, Math.max(0, home.lastIndexOf('/'))) || '/', ownNames: [] })
+  for (const simple of read.commands) {
+    if (scan.asks.length > 0) return
+    const here: Scan = { ...scan, cwd: simple.cwd ?? scan.cwd }
+    const text = simple.around ?? simple.text
+    const found = (ask: FlowAsk): void => {
+      if (!preAuthorised(text, scan.rules)) scan.asks.push(ask)
+    }
+    await checkCommand(simple.argv, here, text)
+    scan.asks.push(...here.asks.filter(ask => !scan.asks.includes(ask)))
+    scan.aliases = here.aliases ?? scan.aliases
+    if (scan.asks.length > 0) return
+    for (const redirect of simple.redirects) checkRedirect(redirect.op, redirect.target, here, cut(text, 60))
+    scan.asks.push(...here.asks.filter(ask => !scan.asks.includes(ask)))
+    for (const layer of layersOf(simple.argv)) {
+      if (scan.asks.length > 0) return
+      const fed = layer.wrappers.includes('xargs')
+      const computed = layer.argv.some(word => word.includes(UNREAD_PART))
+      if (FLOW_DELETERS.has(layer.program) && (fed || computed)) {
+        const sources: ReadCommand[] = []
+        const seen = new Set<number>()
+        const inner = (indexes: readonly number[]): void => {
+          for (const index of indexes) {
+            const one = read.commands[index]
+            if (one === undefined || seen.has(index)) continue
+            seen.add(index)
+            sources.push(one)
+            inner(one.inner.flat())
+          }
+        }
+        inner(simple.inner.flat())
+        if (fed) for (const earlier of read.commands) if (sharesEarlierStage(earlier, simple)) sources.push(earlier)
+        const words = [...(fed && simple.input !== undefined ? simple.input.split(/\s+/) : []), ...sources.flatMap(source => [...source.argv.slice(1), ...(printedBy(source)?.split(/\s+/) ?? [])])].filter(word => word !== '' && !word.startsWith('-') && !word.includes(UNREAD_PART))
+        for (const source of sources.length > 0 ? sources : [simple]) {
+          const ask = outsideAsk('it deletes', words, { ...here, cwd: source.cwd ?? here.cwd }, [cut(text, 60)])
+          if (ask !== null) {
+            found(ask)
+            break
+          }
+        }
+      }
+      const flag = FLOW_SCRIPT_LANGUAGES.test(layer.program) ? layer.argv.findIndex((word, index) => index > 0 && /^-(?:e|c|p|E|r)$/.test(word)) : -1
+      if (flag >= 0 && scan.asks.length === 0) {
+        const ask = outsideAsk('it deletes or overwrites', inlineScriptWriteTargets(layer.argv.slice(flag + 1).join(' ')), here, [cut(text, 60)])
+        if (ask !== null) found(ask)
+      }
+    }
+  }
+}
+
 export async function flowShellAsk(command: string, cwd: string, shell: 'bash' | 'powershell' = 'bash', rules?: ToolPermissionContext): Promise<FlowAsk | null> {
   const scan: Scan = { cwd, asks: [], depth: 0, ...(rules === undefined ? {} : { rules }) }
   if (shell === 'powershell') await scanTokens(command, scan)
   else await scanScript(command, scan)
+  if (shell !== 'powershell' && scan.asks.length === 0) {
+    try {
+      await scanReading(command, cwd, { ...scan, cwd, asks: scan.asks })
+    } catch {
+    }
+  }
   return scan.asks[0] ?? null
 }
 

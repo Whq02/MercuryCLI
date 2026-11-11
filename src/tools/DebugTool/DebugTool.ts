@@ -1319,6 +1319,10 @@ export const DebugTool = buildTool({
   },
   userFacingName,
   shouldDefer: true,
+  shellCommandOf: (input: unknown) => {
+    const call = input as Partial<Input> | null
+    return call?.op === 'launch' ? startedCommandText(call.program, call.args) : undefined
+  },
   get inputSchema(): SchemaType {
     return inputSchema()
   },
