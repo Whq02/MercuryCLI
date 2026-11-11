@@ -25,6 +25,7 @@ import {
   HyperlinkPool,
   inkFlanksCellAt,
   isEmptyCellAt,
+  isInklessCellAt,
   migrateScreenPools,
   StylePool,
   type Screen,
@@ -1739,10 +1740,10 @@ export default class Ink {
 
   private pointerOnBlank(col: number, row: number): boolean {
     const screen = this.frontFrame.screen
-    if (!isEmptyCellAt(screen, col, row)) return false
+    if (!isInklessCellAt(screen, col, row, this.stylePool)) return false
     const hit = hitTest(this.rootNode, col, row)
     const box = hit === null ? undefined : nodeCache.get(hit)
-    return box === undefined || !inkFlanksCellAt(screen, col, row, Math.floor(box.x), Math.floor(box.x + box.width))
+    return box === undefined || !inkFlanksCellAt(screen, col, row, Math.floor(box.x), Math.floor(box.x + box.width), this.stylePool)
   }
 
   dispatchHover(col: number, row: number): void {
