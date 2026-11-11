@@ -28,6 +28,8 @@ import { buildConversationChain } from '../../utils/sessionStorage/chain.js'
 import { resumeLeafOf } from '../../utils/sessionStorage/logs.js'
 import type { TranscriptMessage } from '../../types/logs.js'
 import { withoutRetractedReplies } from '../engine-connector/midTurnText.js'
+import { SYNTHETIC_MODEL } from '../../utils/messages/factories.js'
+import { NO_RESPONSE_REQUESTED } from '../../utils/messages/rejectionText.js'
 import { defineStore } from '../../substrate/fileStore.js'
 import { join } from 'node:path'
 import { MERCURY_VERSION } from '../../constants/product.js'
@@ -451,7 +453,7 @@ export function replayUpdatesOf(
   const announced = new Set<string>()
   for (const m of messages) {
     if (m.isMeta === true || m.isSidechain === true) continue
-    const message = m.message as { content?: unknown } | undefined
+    const message = m.message as { content?: unknown; model?: unknown } | undefined
     const content = message?.content
     if (m.type === 'user') {
       if (typeof content === 'string') {
@@ -477,8 +479,9 @@ export function replayUpdatesOf(
     }
     if (m.type === 'assistant') {
       if (!Array.isArray(content)) continue
+      const minted = message?.model === SYNTHETIC_MODEL
       for (const block of content as Array<Record<string, unknown>>) {
-        if (block.type === 'text' && typeof block.text === 'string' && block.text !== '') {
+        if (block.type === 'text' && typeof block.text === 'string' && block.text !== '' && !(minted && block.text === NO_RESPONSE_REQUESTED)) {
           updates.push({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: block.text } })
         } else if (block.type === 'thinking' && typeof block.thinking === 'string' && block.thinking !== '') {
           updates.push({ sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: block.thinking } })

@@ -43,7 +43,7 @@ const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await 
 const { flushSessionStorage, getTranscriptPath, loadTranscriptFile, resetSessionFilePointer } = await import('../../src/utils/sessionStorage.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
 const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { runAcpServer } = await import('../../src/services/acp/acpServer.ts')
+const { replayUpdatesOf, runAcpServer } = await import('../../src/services/acp/acpServer.ts')
 import type { Message } from '../../src/types/message.ts'
 
 const storage = getProjectDir(project)
@@ -486,6 +486,54 @@ try {
     })
     const settled = await loadOverAcp(plain)
     check('L4 control: a call the replay announces is followed by its result', j(talk(settled)) === j(['user: Plain prompt.', 'agent: Working on it.', 'call: toolu_p1', 'result: toolu_p1 completed', 'agent: PLAIN FINAL.']), heads(talk(settled)))
+  }
+
+  section('L5 — a run stopped hard while its first request was out, then resumed: the stand-in reply the resume writes behind the unanswered prompt is in the record and in the next request, and is not replayed as the agent\'s words')
+  {
+    let reached: () => void = () => {}
+    const firstRequestOut = new Promise<void>(resolve => {
+      reached = resolve
+    })
+    let held: ServerResponse | null = null
+    const api = await startProvider((provider, asked) => {
+      if (asked.n === 1) {
+        held = asked.res
+        reached()
+        return
+      }
+      say(provider, asked, 'L5-REPLY after the resume.')
+    })
+    const arena = makeArena('l5', api.url)
+    const sessionId = 'facef00d-0000-4000-8000-0000000acb06'
+    try {
+      const stopped = spawn(nodeBin!, [DIST, 'run', 'L5 prompt left unanswered.', '--session-id', sessionId, '--format', 'rows'], { cwd: arena.cwd, env: arena.env })
+      const gone = new Promise<string>(resolve => stopped.on('close', (code, signal) => resolve(`${code} ${signal}`)))
+      await deadline('the first request', firstRequestOut)
+      stopped.kill('SIGKILL')
+      const ending = await deadline('the stopped run', gone)
+      ;(held as ServerResponse | null)?.destroy()
+      const resumed = await run(arena, ['run', 'L5 next prompt.', '--resume', sessionId, '--format', 'rows'])
+      const sent = api.asks.at(-1)?.raw ?? ''
+      const file = transcriptOf(arena, sessionId)
+      const onDisk = file === '' ? '' : readFileSync(file, 'utf8')
+      check(
+        'L5: the first run was stopped by the signal with its request out, the second completed, and its request carried the stand-in reply',
+        ending === 'null SIGKILL' && resumed.exit === 0 && api.asks.length === 2 && sent.includes('L5 prompt left unanswered.') && sent.includes('No response requested.') && sent.includes('L5 next prompt.'),
+        `ending ${ending}; exit ${resumed.exit}; requests ${api.asks.length}; ${resumed.stderr.slice(-300)}`,
+      )
+      check('L5: the record holds the stand-in reply', onDisk.includes('No response requested.'), `${onDisk.length} bytes`)
+      const replayed = await loadIn(arena, sessionId)
+      check(
+        'L5: the load replays the two prompts and the one reply a model gave — no stand-in',
+        j(talk(replayed)) === j(['user: L5 prompt left unanswered.', 'user: L5 next prompt.', `agent: ${api.said[0]}`]),
+        heads(talk(replayed)),
+      )
+    } finally {
+      await api.close()
+    }
+    const standInRow = (model: string): Record<string, unknown> => ({ type: 'assistant', message: { role: 'assistant', model, content: [{ type: 'text', text: 'No response requested.' }] } })
+    check('L5: a row the product minted with the stand-in\'s words sends nothing', replayUpdatesOf([standInRow('<synthetic>')]).length === 0, j(replayUpdatesOf([standInRow('<synthetic>')])))
+    check('L5 control: a reply a model gave in the same words is replayed (a live turn streamed it)', j(talk(replayUpdatesOf([standInRow(MODEL)]) as Update[])) === j(['agent: No response requested.']), j(replayUpdatesOf([standInRow(MODEL)])))
   }
 } finally {
   for (const server of servers) endProcessGroup(server)
