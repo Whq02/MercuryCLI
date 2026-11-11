@@ -52,7 +52,11 @@ export function UserToolSuccessMessage({
     const block = message.message.content.find(part => part.type === 'tool_result' && part.tool_use_id === toolUseID)
     const content = block?.type === 'tool_result' ? block.content : undefined
     const text = typeof content === 'string' ? content : content?.flatMap(part => part.type === 'text' ? [part.text] : []).join('\n')
-    return text?.trim() ? <OutputLine content={text} verbose={verbose || Boolean(isTranscriptMode)} /> : null
+    return text?.trim() ? (
+      <Box flexDirection="column" width={safeUserFacingName(tool, lookups.toolUseByToolUseID.get(toolUseID)?.input) === '' ? undefined : width}>
+        <RowErrorBoundary><OutputLine content={text} verbose={verbose || Boolean(isTranscriptMode)} /></RowErrorBoundary>
+      </Box>
+    ) : null
   }
 
   let validated: unknown = result
