@@ -369,12 +369,13 @@ const CODE_PATH_VARIABLES: ReadonlySet<string> = new Set([
   'GOFLAGS', 'GOPATH', 'GOROOT', 'GOPROXY', 'GOTOOLCHAIN', 'GOMODCACHE', 'GOWORK', 'GOENV',
   'DOCKER_HOST', 'DOCKER_CONTEXT', 'DOCKER_CONFIG',
 ])
-const CODE_PATH_FAMILIES = /^(?:LD_|DYLD_|BASH_FUNC_|NPM_CONFIG_|PIP_|UV_)/
+const CODE_PATH_FAMILIES = /^(?:LD_|DYLD_|BASH_FUNC_)/
+const SETTING_FAMILIES = /^(?:NPM_CONFIG_|PIP_|UV_)/
 const NAMES_A_CREDENTIAL = /TOKEN|PASSWORD|PASSWD|SECRET|CREDENTIAL|USERNAME|AUTH|API_?KEY/
 
 export function mcpVariableCarriesCode(name: string): boolean {
   const upper = name.toUpperCase()
-  return CODE_PATH_VARIABLES.has(upper) || (CODE_PATH_FAMILIES.test(upper) && !NAMES_A_CREDENTIAL.test(upper))
+  return CODE_PATH_VARIABLES.has(upper) || CODE_PATH_FAMILIES.test(upper) || (SETTING_FAMILIES.test(upper) && !NAMES_A_CREDENTIAL.test(upper))
 }
 
 export function projectMcpServerDefinitionDigest(config: McpServerConfig | ScopedMcpServerConfig): string {

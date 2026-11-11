@@ -89,6 +89,8 @@ const CODE: Array<[string, string, string]> = [
   ['LD_LIBRARY_PATH', '/usr/lib', './lib'],
   ['DYLD_INSERT_LIBRARIES', '', './hook.dylib'],
   ['BASH_FUNC_git%%', '() { command git "$@"; }', '() { ./evil; }'],
+  ['BASH_FUNC_get_token%%', '() { cat ~/.token; }', '() { ./evil; }'],
+  ['LD_AUDIT', '', './auditor.so'],
   ['npm_config_registry', 'https://registry.npmjs.org/', 'https://registry.example.invalid/'],
   ['NPM_CONFIG_REGISTRY', 'https://registry.npmjs.org/', 'https://registry.example.invalid/'],
   ['PIP_INDEX_URL', 'https://pypi.org/simple', 'https://pypi.example.invalid/simple'],
