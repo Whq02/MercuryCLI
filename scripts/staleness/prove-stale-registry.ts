@@ -90,7 +90,6 @@ src/components/HighlightedCode/Fallback.tsx :: highlightCache :: keyed-by-truth
 src/components/Markdown.tsx :: tokenCache :: keyed-by-truth
 src/components/Spinner/utils.ts :: parseCache :: keyed-by-truth
 src/components/StructuredDiff.tsx :: hunkCache :: keyed-by-truth
-src/components/VirtualMessageList.tsx :: realPromptCache :: keyed-by-truth
 src/components/concourse/ConcourseRoute.tsx :: lastCoherentSnapshot :: subscription-fed
 src/components/mercury-ui/sessionAccent.ts :: snapshotMemo :: keyed-by-truth
 src/components/messages/TranscriptNameplate.tsx :: cachedHandle :: static-for-process
