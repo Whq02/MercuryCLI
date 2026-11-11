@@ -231,9 +231,20 @@ export function scriptSentToProgram(argv: string[], text: string): string | unde
   return undefined
 }
 
-type Pending = { text: string; dialect: ShellDialect; from: number }
+type Pending = { text: string; dialect: ShellDialect; from: number; body?: string }
 
-function printedBy(command: ReadCommand | undefined): string | undefined {
+const EXPANSION_CAP = 4
+const ALIAS_DEFINITION = /^([^=\s]+)=([\s\S]*)$/
+
+function withPositionals(body: string, args: string[]): string {
+  const plain = (value: string): string => value.replace(/["\\$`]/g, '\\$&')
+  return body.replace(/\$(?:\{([1-9@*])\}|([1-9@*]))/g, (_all, braced: string | undefined, bare: string | undefined) => {
+    const key = braced ?? bare ?? ''
+    return key === '@' || key === '*' ? args.map(plain).join(' ') : plain(args[Number(key) - 1] ?? '')
+  })
+}
+
+export function printedBy(command: ReadCommand | undefined): string | undefined {
   const layer = command === undefined ? undefined : layersOf(command.argv).at(-1)
   if (layer === undefined) return undefined
   return layer.program === 'echo' ? echoText(layer.argv) : layer.program === 'printf' ? printfText(layer.argv) : undefined
@@ -328,6 +339,9 @@ class Reading {
   readonly stageHeads = new Map<string, number>()
   readonly pending: Pending[] = []
   readonly folders: Array<string | undefined> = []
+  readonly functions = new Map<string, string>()
+  readonly aliases = new Map<string, string>()
+  readonly expansions = new Map<string, number>()
   unread: { why: string; text: string } | undefined
   scripts = 0
   cwd: string | undefined
@@ -357,7 +371,27 @@ class Reading {
     }
     this.follow(command)
     this.pending.push(...nestedScripts(command, index, this.commands))
+    this.expand(command, index)
     return index
+  }
+
+  expand(command: ReadCommand, index: number): void {
+    const head = command.argv[0]
+    if (head === undefined || command.dialect !== 'posix') return
+    const once = (name: string): boolean => {
+      const made = this.expansions.get(name) ?? 0
+      this.expansions.set(name, made + 1)
+      return made < EXPANSION_CAP
+    }
+    const alias = this.aliases.get(head)
+    if (alias !== undefined && once(`alias ${head}`)) this.pending.push({ text: `${alias} ${shellCommandText(command.argv.slice(1))}`.trim(), dialect: 'posix', from: index })
+    const body = this.functions.get(head)
+    if (body !== undefined && command.body === undefined && command.argv.length > 1 && once(`function ${head}`)) this.pending.push({ text: withPositionals(body, command.argv.slice(1)), dialect: 'posix', from: index, body: head })
+    if (programOf(head) !== 'alias') return
+    for (const word of command.argv.slice(1)) {
+      const defined = ALIAS_DEFINITION.exec(word)
+      if (defined !== null) this.aliases.set(defined[1]!, defined[2]!)
+    }
   }
 
   follow(command: ReadCommand): void {
@@ -440,6 +474,8 @@ class PosixWalk {
         return
       case 'function_definition': {
         const name = node.children.find(child => child.type === 'word')?.text
+        const body = node.children.find(child => child.type === 'compound_statement' || child.type === 'subshell')?.text
+        if (name !== undefined && body !== undefined) this.reading.functions.set(name, body)
         this.isolated(() => this.children(node, { ...frame, body: name ?? frame.body, background: false, stages: [] }))
         return
       }
@@ -964,7 +1000,7 @@ async function readInto(reading: Reading, text: string, frame: Frame, depth: num
     if (parent === undefined) continue
     const cwd = reading.cwd
     reading.cwd = parent.cwd
-    await readInto(reading, script.text, { background: parent.background, stages: parent.stages, body: parent.body, line: parent.line, dialect: script.dialect }, depth + 1)
+    await readInto(reading, script.text, { background: parent.background, stages: parent.stages, body: script.body ?? parent.body, line: parent.line, dialect: script.dialect }, depth + 1)
     reading.cwd = cwd
   }
 }

@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { posix } from 'node:path'
 import { REFUSAL_WARDS, countWardWork, evaluateWards, ownHomeNames, shellTextOutsideFileHeredocs, wardHomes, type PendingToolCall, type ResolvedPath, type WardVerdict, type WardWork } from './wards.js'
-import { UNREAD_PART, absolutePath, layersOf, programOf, readShellCommands, stdinProgram, wordKnown, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from './wardsShellRead.js'
+import { UNREAD_PART, absolutePath, layersOf, printedBy, programOf, readShellCommands, stdinProgram, wordKnown, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from './wardsShellRead.js'
 
 type RefusalWorld = ReadWorld & {
   platform: NodeJS.Platform
@@ -42,14 +42,14 @@ const CONFIG_VERBS_READ = new Set(['get', 'list'])
 const CONFIG_VERBS_WRITE = new Set(['set', 'unset', 'edit', 'remove-section', 'rename-section'])
 const NPX_VALUED = new Set(['-p', '--package', '-c', '--call', '--registry', '-w', '--workspace', '--prefix', '--cache', '--userconfig', '--node-options'])
 const MENTIONS: ReadonlyArray<readonly [RegExp, string]> = [
-  [/(?<![\w.-])(sudo|doas|pkexec)(?![\w-])/i, 'no-sudo'],
-  [/(?<![\w.-])(shutdown|reboot|halt|poweroff|telinit|stop-computer|restart-computer)(?![\w-])/i, 'no-system-halt'],
-  [/(?<![\w.-])(mkfs|mke2fs|mkswap|wipefs|fdisk|sfdisk|gdisk|cfdisk|sgdisk|parted|newfs\w*|diskutil|diskpart|format-volume|clear-disk|initialize-disk|remove-partition)(?![\w-])/i, 'no-disk-format'],
-  [/(?<![\w.-])(crontab)(?![\w-])/i, 'cron-persist'],
-  [/(?<![\w.-])(systemctl)(?![\w-])|(systemd\/(?:system|user))|(\/etc\/init\.d)/i, 'systemd-persist'],
-  [/(?<![\w.-])(launchctl)(?![\w-])|(Library\/Launch(?:Agents|Daemons))|(\.config\/autostart)/i, 'autostart-persist'],
-  [/(?<![\w.-])(nohup|setsid|disown)(?![\w-])/i, 'self-daemonize'],
-  [/(?<![\w.-])(npx|bunx|dlx)(?![\w-])/i, 'npm-exec-yes'],
+  [/(?<![\w.-])(sudo|doas|pkexec)(?:\.exe)?(?![\w.-])/i, 'no-sudo'],
+  [/(?<![\w.-])(shutdown|reboot|halt|poweroff|telinit|stop-computer|restart-computer)(?:\.exe)?(?![\w.-])/i, 'no-system-halt'],
+  [/(?<![\w.-])(mkfs(?:\.\w+)?|mke2fs|mkswap|wipefs|fdisk|sfdisk|gdisk|cfdisk|sgdisk|parted|newfs\w*|diskutil|diskpart|format-volume|clear-disk|initialize-disk|remove-partition)(?:\.exe)?(?![\w.-])/i, 'no-disk-format'],
+  [/(?<![\w.-])(crontab)(?![\w.-])/i, 'cron-persist'],
+  [/(?<![\w.-])(systemctl)(?![\w.-])|(systemd\/(?:system|user))|(\/etc\/init\.d)/i, 'systemd-persist'],
+  [/(?<![\w.-])(launchctl)(?![\w.-])|(Library\/Launch(?:Agents|Daemons))|(\.config\/autostart)/i, 'autostart-persist'],
+  [/(?<![\w.-])(nohup|setsid|disown)(?![\w.-])/i, 'self-daemonize'],
+  [/(?<![\w.-])(npx|bunx|dlx)(?![\w.-])/i, 'npm-exec-yes'],
   [/(\.git\/(?:hooks|config))/i, 'git-internals-write'],
   [/(core\.hookspath)/i, 'git-hooks-path'],
   [/(\.gitconfig)/i, 'git-config-global'],
@@ -556,6 +556,7 @@ function haltWard(layer: Layer): boolean {
   const { program, argv } = layer
   if (['shutdown', 'reboot', 'halt', 'poweroff', 'stop-computer', 'restart-computer'].includes(program)) return true
   if (program === 'init' || program === 'telinit') return argv[1] === '0' || argv[1] === '6'
+  if (program === 'launchctl') return argv[1]?.toLowerCase() === 'reboot'
   return program === 'systemctl' && ['poweroff', 'reboot', 'halt', 'kexec'].includes(firstVerb(argv, SYSTEMCTL_VALUED))
 }
 
@@ -693,6 +694,10 @@ function judgeShellRead(read: ShellRead, world: RefusalWorld, textReading: (text
         if (operands.length >= 2 && target !== undefined && rootNamed(target, command, world) !== null) hit('no-root-recursive-delete', at)
       }
       const removal = deleteOf(layer, command, read.commands)
+      if (removal !== null && layer.wrappers.includes('xargs')) {
+        const fed = [command.input, ...read.commands.filter(earlier => sharesEarlier(earlier, command)).map(earlier => printedBy(earlier))]
+        for (const text of fed) if (text !== undefined) removal.operands.push(...text.split(/\s+/).filter(word => word !== '' && !word.startsWith('-')))
+      }
       if (removal !== null && !removal.preview) {
         const found = layer.findRoots !== undefined && layer.argv !== command.argv
         if (removal.recursive && !(found && narrowed) && removal.operands.some(word => rootNamed(word, command, world) !== null)) hit('no-root-recursive-delete', at)

@@ -701,6 +701,20 @@ if (only.length === 0 || only.includes('RUNTIME')) {
     { c: '"$(command -v git)" status', ward: null, l: 'git by its found path' },
     { c: '$(which rm) -rf build', ward: null, l: 'a delete inside the project' },
     { c: '$TOOL -rf build', ward: null, l: 'an unknown program on a project folder' },
+    { c: '$PAGER docs/sudo.md', ward: null, l: "a file's name is no mention of the program" },
+    { c: 'echo ~ | xargs rm -rf', ward: 'no-root-recursive-delete', l: 'the target arrives on stdin' },
+    { c: "printf '%s\\n' / | xargs rm -rf", ward: 'no-root-recursive-delete', l: 'the same from printf' },
+    { c: 'xargs rm -rf <<< "~"', ward: 'no-root-recursive-delete', l: 'the same on a here-string' },
+    { c: 'echo /Users/other/x | xargs rm', ward: 'no-other-user-delete', l: "another user's file on stdin" },
+    { c: 'f() { rm -rf "$1"; }; f ~', ward: 'no-root-recursive-delete', l: 'a function takes the target' },
+    { c: 'clean() { rm -rf $@; }; clean build ~', ward: 'no-root-recursive-delete', l: 'a function takes every target' },
+    { c: "alias x='rm -rf'; x ~", ward: 'no-root-recursive-delete', l: 'an alias holds the verb' },
+    { c: 'launchctl reboot', ward: 'no-system-halt', l: "launchctl's own reboot" },
+    { c: 'echo build | xargs rm -rf', ward: null, l: 'a project folder on stdin' },
+    { c: 'f() { rm -rf "$1"; }; f build', ward: null, l: 'a function handed a project folder' },
+    { c: "alias ll='ls -la'; ll ~", ward: null, l: 'an alias of a listing' },
+    { c: 'retry() { "$@" || "$@"; }; retry make test', ward: null, l: 'a function that runs its arguments' },
+    { c: 'launchctl list', ward: null, l: 'a read' },
   ]
   for (const row of named) {
     const reading = await wardReading(session, row.c)
