@@ -373,13 +373,10 @@ pin('transcript: incremental keys — the one key-law owner (42)', 'components/v
   'keys.push(key)',
   'if (keys === prior.keys) {',
 ])
-pin('transcript: sticky publication laws (53–57)', 'components/VirtualMessageList.tsx', [
-  'handle.isSticky()',
-  'getItemTop(i) + 1',
-  'STICKY_TEXT_CAP',
-  "suppressionRef.current = 'bypass'",
-  'lastPublishedIndexRef.current === promptIndex',
-])
+check(
+  'transcript: the sticky publication laws (53–57) left with the header, and no tracker stands in the list [structural: components/VirtualMessageList.tsx]',
+  ['getItemTop(i) + 1', 'STICKY_TEXT_CAP', "suppressionRef.current = 'bypass'", 'lastPublishedIndexRef.current === promptIndex'].every(needle => !sourceOf('components/VirtualMessageList.tsx').includes(needle)),
+)
 pin('transcript: search engine laws (44–52)', 'components/VirtualMessageList.tsx', [
   'PHANTOM_LIMIT = 20',
   'MOUNT_ATTEMPT_LIMIT = 3',

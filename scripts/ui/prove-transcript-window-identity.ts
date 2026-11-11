@@ -129,7 +129,7 @@ if (driver.kind !== 'posix-pty') {
   const HEAD_ROW = '] ❯ load the compass baseline fixture'
   check('ctrl+home reached the head (the first prompt’s row on screen)', (marks.get('home') ?? '').includes(HEAD_ROW))
   check('the pages down from the head paint content, not the spacer', paneRows('paged') >= 12, `${paneRows('paged')} painted rows`)
-  check('the pages down left the head behind (the first prompt’s row is off screen; its words may ride the sticky header)', marks.has('paged') && !(marks.get('paged') ?? '').includes(HEAD_ROW))
+  check('the pages down left the head behind (the first prompt’s row is off screen)', marks.has('paged') && !(marks.get('paged') ?? '').includes(HEAD_ROW))
   check('cursor mode opened (the action bar names the walk)', (marks.get('cursor') ?? '').includes('navigate') && (marks.get('cursor') ?? '').includes('esc'))
   check('the resize landed (the final grid is 100 columns wide)', Array.isArray(payload.grid) && payload.grid[0]?.length === 100, `${payload.grid?.[0]?.length}`)
   const finalRows = rowsOf(payload.grid)
