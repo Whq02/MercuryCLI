@@ -85,6 +85,11 @@ const PRINTS: Array<[string, string]> = [
   ['the same given a word that selects', "git stash show -w 'stash@{1}'"],
   ['the plumbing reader given the dense format for merges, which brings the patch', 'git diff-tree --cc HEAD~1'],
   ['the index reader given the combined format', 'git diff-index -c HEAD~2'],
+  ['beside a relative date', 'git show --relative-date HEAD~1'],
+  ['beside the notes', 'git show --notes HEAD~1'],
+  ['in the order a file gives', 'git diff -OREADME HEAD~2'],
+  ['the same with the file as the next word', 'git diff -O README HEAD~2'],
+  ['under a setting that only paints', 'git -c diff.noprefix=true show HEAD~1'],
 ]
 for (const [label, command] of PRINTS) {
   const wrong: string[] = []
@@ -110,7 +115,7 @@ const PRINTS_NONE = [
   'git diff HEAD~2 -- src', 'git show HEAD~1 -- src', "git diff HEAD~2 -- :/ ':(exclude,top)secrets/k.txt'", "git show HEAD~1 -- . ':(exclude)secrets'", "git diff HEAD~2 -- . ':!secrets'",
   'git status && git diff', 'cd sub && git diff', 'git diff | head -5', 'git --no-pager diff', 'GIT_PAGER=cat git diff', 'git -c core.pager=cat show HEAD', 'git -c color.ui=never diff --color=never',
   'git show nosuchref', 'git diff nosuchref', 'git log --oneline -3', 'git status',
-  'git diff -l50 HEAD~1', 'cd sub && git diff --relative HEAD~2',
+  'git show --relative-date HEAD', 'git show --notes HEAD', 'git show --show-notes=commits HEAD', 'git show --no-standard-notes HEAD', 'git diff -OREADME HEAD~1', 'git diff -O README HEAD~1', 'git -c diff.noprefix=true diff', 'git -c diff.algorithm=histogram show HEAD', 'git diff -l50 HEAD~1', 'cd sub && git diff --relative HEAD~2',
   'git stash show --no-color', "git stash show --stat --no-color 'stash@{1}'", "git stash show -u 'stash@{1}'", 'git diff-tree --cc --name-only HEAD~1', 'git diff-tree --no-commit-id --name-only -r HEAD~1', 'git diff-tree --cc HEAD', 'git diff-index --quiet HEAD', 'git diff --stat-width=5 HEAD~2', 'git diff --stat --no-color HEAD~2', 'cd sub && git diff --no-relative --relative HEAD~2',
   'git diff --name-only --relative=src HEAD~2', 'git diff --stat --relative=secrets HEAD~2',
 ]

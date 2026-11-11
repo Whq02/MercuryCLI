@@ -10,12 +10,12 @@ const MOST_ANSWER_BYTES = 16 * 1024 * 1024
 
 const PRINTS_TEXT = /^(?:-[p]|--patch|--patch-with-stat|--patch-with-raw|-U\d*|--unified(?:=\d+)?|--binary|--check)$/
 const PRINTS_NO_TEXT = /^(?:-s|--no-patch|--quiet|--name-only|--name-status|--stat(?:=.*)?|--stat-[\w-]+=.*|--numstat|--shortstat|--dirstat(?:[=-].*)?|-X.*|--cumulative|--summary|--compact-summary|--raw)$/
-const PAINTS = /^(?:--exit-code|--no-color|--color(?:=.*)?|--color-moved(?:=.*)?|--no-color-moved|--color-moved-ws=.*|--no-color-moved-ws|--word-diff(?:=.*)?|--word-diff-regex=.*|--color-words(?:=.*)?|--ws-error-highlight=.*|--minimal|--patience|--histogram|--diff-algorithm=.*|--anchored=.*|--indent-heuristic|--no-indent-heuristic|-W|--function-context|--inter-hunk-context=.*|--src-prefix=.*|--dst-prefix=.*|--no-prefix|--default-prefix|--line-prefix=.*|--abbrev(?:=.*)?|--no-abbrev|--full-index|--format=.*|--pretty(?:=.*)?|--oneline|--abbrev-commit|--no-abbrev-commit|--date=.*|--decorate(?:=.*)?|--no-decorate|--no-notes|--encoding=.*|--expand-tabs(?:=.*)?|--no-expand-tabs|--no-ext-diff|--no-textconv|-z|--output-indicator-(?:new|old|context)=.*)$/
+const PAINTS = /^(?:--exit-code|--no-color|--color(?:=.*)?|--color-moved(?:=.*)?|--no-color-moved|--color-moved-ws=.*|--no-color-moved-ws|--word-diff(?:=.*)?|--word-diff-regex=.*|--color-words(?:=.*)?|--ws-error-highlight=.*|--minimal|--patience|--histogram|--diff-algorithm=.*|--anchored=.*|--indent-heuristic|--no-indent-heuristic|-W|--function-context|--inter-hunk-context=.*|--src-prefix=.*|--dst-prefix=.*|--no-prefix|--default-prefix|--line-prefix=.*|--abbrev(?:=.*)?|--no-abbrev|--full-index|--format=.*|--pretty(?:=.*)?|--oneline|--abbrev-commit|--no-abbrev-commit|--date=.*|--relative-date|--decorate(?:=.*)?|--no-decorate|--notes(?:=.*)?|--show-notes(?:=.*)?|--no-notes|--standard-notes|--no-standard-notes|-O.+|--encoding=.*|--expand-tabs(?:=.*)?|--no-expand-tabs|--no-ext-diff|--no-textconv|-z|--output-indicator-(?:new|old|context)=.*)$/
 const SELECTS = /^(?:--cached|--staged|--merge-base|-R|-a|--text|-w|--ignore-all-space|-b|--ignore-space-change|--ignore-space-at-eol|--ignore-cr-at-eol|--ignore-blank-lines|-I.+|--ignore-matching-lines=.*|--diff-filter=.*|-S.+|-G.+|--pickaxe-all|--pickaxe-regex|--find-object=.*|-M.*|--find-renames(?:=.*)?|-C.*|--find-copies(?:=.*)?|--find-copies-harder|-B.*|--break-rewrites(?:=.*)?|-D|--irreversible-delete|--no-renames|--rename-empty|--no-rename-empty|-l\d+|--ignore-submodules(?:=.*)?|-m|-c|--cc|--first-parent|--diff-merges=.*|--no-diff-merges|--remerge-diff|--combined-all-paths|-[0123]|--base|--ours|--theirs|-q|-r|-t|--root|--no-commit-id|--always)$/
 const MERGE_FORMAT = /^(?:-c|--cc|--remerge-diff|--diff-merges=.*)$/
 const VALUED: ReadonlySet<string> = new Set(['-S', '-G', '-I', '--diff-filter', '--find-object', '--ignore-matching-lines'])
 const STASH_SELECTS: ReadonlySet<string> = new Set(['-u', '--include-untracked', '--only-untracked', '--no-include-untracked'])
-const HARMLESS_SETTING = /^(?:core\.pager|core\.quotepath|pager\.[\w-]+|color\.[\w.-]+|advice\.[\w-]+)=/i
+const HARMLESS_SETTING = /^(?:core\.pager|core\.quotepath|pager\.[\w-]+|color\.[\w.-]+|advice\.[\w-]+|diff\.(?:noprefix|mnemonicprefix|srcprefix|dstprefix|colormoved|colormovedws|wserrorhighlight|algorithm|context|interhunkcontext|indentheuristic|statgraphwidth|statnamewidth|wordregex))=/i
 const HARMLESS_GLOBAL = /^(?:--no-pager|--paginate|-[pP]|--no-optional-locks|--no-advice)$/
 const PATHSPEC_GLOBAL = /^--(?:literal|glob|noglob|icase)-pathspecs$/
 const GIT_VARIABLE = /(?:^|[\s;&|({])(?:export\s+|env\s+)?(GIT_[A-Z_]+)=/g
@@ -69,6 +69,7 @@ export function gitPatchQuestion(words: readonly string[]): GitPatchQuestion | G
       relative = word === '--relative'
       kept.push(word)
     } else if (word.startsWith('--relative=')) unfollowed ??= word
+    else if (word === '-O') i++
     else if (VALUED.has(word)) {
       const value = before[++i]
       if (value === undefined) unknown ??= word
