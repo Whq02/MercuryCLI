@@ -662,6 +662,54 @@ if (runs('STAYED')) {
   for (const item of clear) await expect('STAYED', item, ['sovereign'], notRefused, 'is not refused by the floor')
 }
 
+if (runs('LISTED')) {
+  section('LISTED · on the PowerShell tool a listing handed down the pipe to a reader is a read of the files it lists')
+  const { shellMercurySecretPath } = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const asked = async (line: string, from: string, powershell = true): Promise<string | null> => shellMercurySecretPath(line.replaceAll('<HOME>', OWN_HOME).replaceAll('<CONFIG>', CONFIG_HOME), powershell, from)
+  const readers = [
+    'Get-ChildItem -Recurse | Select-String canary',
+    'gci -r | sls canary',
+    'dir -s | sls canary',
+    'cd nowhere-such; Get-ChildItem -Recurse | Select-String canary',
+    'Get-ChildItem -Recurse | Get-Content',
+    'gci -r | % { gc $_ }',
+    'Get-ChildItem -Recurse | ForEach-Object { Get-Content $_.FullName }',
+    'Get-ChildItem -Recurse | Where-Object { Select-String -Path $_.FullName -Pattern x -Quiet }',
+    'Get-ChildItem -Recurse -Filter *.json | Get-Content',
+    'Get-ChildItem -Depth 3 | Select-String x',
+    'Get-ChildItem * -Recurse | Select-String x',
+    'Get-ChildItem -Recurse -ErrorAction SilentlyContinue | Select-String canary',
+    'Get-ChildItem -r -Force -File | sls -Pattern canary -List',
+    'Get-ChildItem -Recurse | Copy-Item -Destination out',
+    'Get-ChildItem <HOME> -Recurse | Select-String canary',
+    'Get-ChildItem -Path <HOME> -Recurse | Select-String canary',
+    'Get-ChildItem <CONFIG> -Recurse | Select-String canary',
+    'Get-ChildItem <CONFIG> | Get-Content',
+    'Get-ChildItem -LiteralPath:<CONFIG> | Get-Content',
+  ]
+  for (const line of readers) {
+    const answer = await asked(line, OWN_HOME)
+    check(`LISTED · PowerShell, standing in the home · ${shown(line)} · is refused as a read of the credentials`, answer !== null, String(answer))
+  }
+  const listings = [
+    'Get-ChildItem -Recurse',
+    'Get-ChildItem -Recurse | Measure-Object',
+    'Get-ChildItem -Recurse | Select-Object FullName',
+    'gci -r | ? { $_.Length -gt 1mb } | sort Length',
+    'Get-ChildItem Documents -Recurse | Select-String canary',
+    'Get-ChildItem -Path Documents -Recurse | Get-Content',
+    'Get-ChildItem | Select-String canary',
+  ]
+  for (const line of listings) {
+    const answer = await asked(line, OWN_HOME)
+    check(`LISTED · PowerShell, standing in the home · ${shown(line)} · names only, a folder beneath that holds no store, or the files of this folder alone: not refused by the floor`, answer === null, String(answer))
+  }
+  check('LISTED · PowerShell, standing in a project · a listing piped to a search is not refused by the floor', (await asked('Get-ChildItem -Recurse | Select-String canary', PROJECT)) === null)
+  check('LISTED · PowerShell, standing in the config home · its own files listed and handed to a reader are refused', (await asked('Get-ChildItem | Select-String canary', CONFIG_HOME)) !== null)
+  check('LISTED · PowerShell, standing in the config home · the same listing counted is not refused', (await asked('Get-ChildItem | Measure-Object', CONFIG_HOME)) === null)
+  for (const line of ['ls -R | grep canary', 'find . -type f | grep canary']) check(`LISTED · the Bash tool, standing in the home · ${shown(line)} · a pipe there carries the names as text: answered as before`, (await asked(line, OWN_HOME, false)) === null)
+}
+
 if (runs('MAYNOT')) {
   section('MAYNOT · a cd that may not move the shell: behind a condition, in a loop, in the background, with two operands, to an echoed folder that does not stand; and the folder a cd - goes back to')
   const reads: Call[] = [

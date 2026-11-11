@@ -611,6 +611,46 @@ const FILE_READERS = new Set([
   'grep', 'egrep', 'fgrep', 'zgrep', 'rg', 'ag', 'ack', 'source', '.', 'get-content', 'gc', 'type', 'select-string', 'sls',
 ])
 const TREE_SEARCHERS = new Set(['rg', 'ag', 'ack', 'grep', 'egrep', 'fgrep', 'zgrep'])
+const POWERSHELL_LISTERS = new Set(['get-childitem', 'gci', 'dir', 'ls'])
+const PIPED_FILE_READERS = new Set(['get-content', 'gc', 'cat', 'type', 'select-string', 'sls', 'copy-item', 'cpi', 'cp', 'copy', 'move-item', 'mi', 'mv', 'move', 'format-hex', 'fhx', 'compress-archive', 'import-csv', 'ipcsv', 'import-clixml'])
+const LISTER_VALUED = ['path', 'literalpath', 'filter', 'include', 'exclude', 'depth', 'attributes', 'erroraction', 'errorvariable', 'warningaction', 'warningvariable', 'informationaction', 'informationvariable', 'outvariable', 'outbuffer', 'pipelinevariable']
+const LISTER_VALUED_ALIASES = new Set(['pspath', 'lp', 'ea', 'ev', 'wa', 'wv', 'infa', 'iv', 'ov', 'ob', 'pv'])
+const LISTER_SWITCHES = ['recurse', 'force', 'name', 'directory', 'file', 'hidden', 'readonly', 'system', 'followsymlink', 'verbose', 'debug']
+const LISTER_SWITCH_ALIASES = new Set(['s', 'ad', 'af', 'ah', 'h', 'ar', 'as', 'vb', 'db'])
+
+function powershellListing(argv: readonly string[]): { roots: string[]; deep: boolean } {
+  const named: string[] = []
+  const loose: string[] = []
+  let deep = false
+  let unsure = false
+  const listOf = (value: string): string[] => value.split(',').map(part => part.trim().replace(/^(['"])(.*)\1$/, '$2')).filter(part => part !== '')
+  for (let i = 1; i < argv.length; i++) {
+    const word = argv[i]!
+    if (!word.startsWith('-') || word === '-') {
+      loose.push(...listOf(word))
+      continue
+    }
+    const colon = word.indexOf(':')
+    const name = (colon < 0 ? word.slice(1) : word.slice(1, colon)).toLowerCase()
+    const valued = LISTER_VALUED_ALIASES.has(name) ? name : name === '' ? undefined : LISTER_VALUED.find(full => full.startsWith(name))
+    const plain = LISTER_SWITCH_ALIASES.has(name) || (name !== '' && LISTER_SWITCHES.some(full => full.startsWith(name)))
+    if (name === 's' || (name !== '' && 'recurse'.startsWith(name)) || valued === 'depth') deep = true
+    if (valued === undefined || plain) {
+      if (valued !== undefined || !plain) unsure = true
+      continue
+    }
+    const value = colon < 0 ? argv[++i] : word.slice(colon + 1)
+    if (value !== undefined && (valued === 'path' || valued === 'literalpath' || valued === 'pspath' || valued === 'lp')) named.push(...listOf(value))
+  }
+  const roots = (named.length > 0 ? named : loose).map(root => {
+    const segments = root.split(/[\\/]/)
+    const at = segments.findIndex(segment => GLOB_PART.test(segment))
+    return at < 0 ? root : segments.slice(0, at).join('/') || (/^[\\/]/.test(root) ? '/' : '.')
+  })
+  if (roots.length === 0 || unsure) roots.push('.')
+  return { roots, deep }
+}
+
 const FIND_NON_READERS = new Set(['ls', 'stat', 'echo', 'printf', 'file', 'du', 'wc', 'basename', 'dirname', 'realpath', 'readlink', 'test', '[', 'true', 'touch', 'chmod', 'chown', 'rm', 'rmdir', 'unlink', 'mv'])
 
 function holdsMercuryHome(word: string, cwd: string, homes: readonly string[], hidden = true): boolean {
@@ -942,8 +982,9 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const tree = readsWholeTree(layer)
       const sent = filesSentOrPrinted(layer)
       const lists = layer.program === 'find' || layer.program === 'ls' || layer.program === 'get-childitem' || layer.program === 'gci' || layer.program === 'dir'
-      const feeds = lists && (fed.has(at) || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')))
-      for (const word of [...layer.argv.slice(1), ...roots]) {
+      const listed = powershell && POWERSHELL_LISTERS.has(layer.program) && read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => PIPED_FILE_READERS.has(found.program))) ? powershellListing(layer.argv) : null
+      const feeds = lists && (fed.has(at) || listed !== null || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')))
+      for (const word of [...layer.argv.slice(1), ...roots, ...(listed === null ? [] : listed.roots)]) {
         for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {
           if (mercurySecretPath(candidate, here) !== null || ((FILE_READERS.has(layer.program) || sent.has(word) || handedToReader(at, simple)) && couldNameSecret(candidate, here, homes, !wordKnown(candidate)))) return word
           if ((FILE_READERS.has(layer.program) || UPLOADERS.has(layer.program) || sent.has(word)) && secretNameBehindUnread(candidate, homes)) return candidate.replaceAll(UNREAD_PART, '$(…)')
@@ -954,11 +995,11 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const piped = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
       if (searcher !== undefined && !piped && namesMercuryHome('.', here, homes) && treeReadRoots(searcher, false, here, true).includes('.')) return stayed ? whereItStays(here) : '.'
       const finder = layer.program === 'find' ? layer : layer.findRoots === undefined ? undefined : layers.find(outer => outer.program === 'find')
-      const whole = finder === undefined ? tree : findNamesASecret(finder.argv, homes) && (layer === finder ? feeds : !FIND_NON_READERS.has(layer.program))
+      const whole = finder === undefined ? tree || (listed !== null && listed.deep) : findNamesASecret(finder.argv, homes) && (layer === finder ? feeds : !FIND_NON_READERS.has(layer.program))
       if (!whole) continue
       const handed = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
       const hidden = layer.program !== 'rg' || ripgrepReachesHidden(layer, simple, read)
-      const held = finder === undefined ? treeReadRoots(layer, handed, here, holdsMercuryHome('.', here, homes, hidden)) : finder.findRoots === undefined || finder.findRoots.length === 0 ? ['.'] : finder.findRoots
+      const held = finder !== undefined ? (finder.findRoots === undefined || finder.findRoots.length === 0 ? ['.'] : finder.findRoots) : listed !== null ? listed.roots : treeReadRoots(layer, handed, here, holdsMercuryHome('.', here, homes, hidden))
       for (const root of held) {
         for (const candidate of [...spellingsOf(root), ...underOtherHomes(root, read.homes)]) {
           if (holdsMercuryHome(candidate, here, homes, hidden) || globNamesStore(candidate, here, homes, hidden)) return stayed && root === '.' ? whereItStays(here) : `the whole of ${root === '.' ? 'this folder' : root} (name a folder beneath it)`
