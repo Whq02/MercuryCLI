@@ -3,7 +3,7 @@ import { homedir } from 'node:os'
 import { basename, isAbsolute, join, normalize, sep } from 'node:path'
 import { memoize } from 'lodash-es'
 import { getMercuryHome, isEnvTruthy } from '../utils/envUtils.js'
-import { getInitialSettings, getSettingsForSource } from '../utils/settings/settings.js'
+import { getEnabledSettingsForSource, getInitialSettings } from '../utils/settings/settings.js'
 import { findCanonicalGitRoot } from '../utils/git.js'
 import { getProjectRoot } from '../bootstrap/state.js'
 import { sanitizePathComponent } from '../utils/tasks.js'
@@ -23,7 +23,7 @@ export function getMemoryBaseDir(): string {
 
 function readMnemeDirectoryOverride(): string | undefined {
   for (const source of ['policySettings', 'flagSettings', 'localSettings', 'userSettings'] as const) {
-    const value = getSettingsForSource(source)?.memory?.directory
+    const value = getEnabledSettingsForSource(source)?.memory?.directory
     if (value !== undefined) return value
   }
   return undefined

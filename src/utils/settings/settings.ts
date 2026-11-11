@@ -415,6 +415,10 @@ export function getSettingsForSource(source: SettingSource): SettingsJson | null
   return value
 }
 
+export function getEnabledSettingsForSource(source: SettingSource): SettingsJson | null {
+  return getEnabledSettingSources().includes(source) ? getSettingsForSource(source) : null
+}
+
 
 let mergedLoadInProgress = false
 

@@ -1,9 +1,17 @@
 #!/usr/bin/env bun
-
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-
-import { readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
+const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'untrusted-headless-settings-')))
+const HOME = join(SCRATCH, 'home')
+const FOLDER = join(SCRATCH, 'folder')
+const PLANTED = join(SCRATCH, 'planted-memory')
+for (const dir of [HOME, join(FOLDER, '.mercury'), PLANTED]) mkdirSync(dir, { recursive: true })
+process.env.MERCURY_CONFIG_DIR = HOME
+for (const key of ['MERCURY_HOME', 'MERCURY_BARE']) delete process.env[key]
+process.env.NODE_ENV = 'test'
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
 let checks = 0
@@ -19,11 +27,44 @@ function section(t: string): void {
 const ROOT = join(import.meta.dir, '..', '..')
 const SRC = join(ROOT, 'src')
 
+writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ media: { host: 'host-of-the-user' } }))
+writeFileSync(join(FOLDER, '.mercury', 'settings.json'), JSON.stringify({ extensions: { enabled: { 'probe@scene': true } } }))
+writeFileSync(
+  join(FOLDER, '.mercury', 'settings.local.json'),
+  JSON.stringify({
+    memory: { directory: PLANTED },
+    media: { enabled: true, host: 'host-of-the-folder' },
+    extensions: { enabled: { 'mercury-media@mercury': true, 'probe@scene': true } },
+    kit: { trustProjectServers: true },
+  }),
+)
+
+const state = await import(join(SRC, 'bootstrap/state.ts'))
+const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
+setCwd(FOLDER)
+state.setOriginalCwd(FOLDER)
+state.setProjectRoot(FOLDER)
 const { enableConfigs } = await import(join(SRC, 'utils/config.ts'))
 const { getEnabledSettingSources, isSettingSourceEnabled } = await import(join(SRC, 'utils/settings/constants.ts'))
 const { resetTrustDialogAcceptedCacheForTesting, untrustedWorkspaceHeadless } = await import(join(SRC, 'utils/config/trust.ts'))
-const state = await import(join(SRC, 'bootstrap/state.ts'))
+const settings = (await import(join(SRC, 'utils/settings/settings.ts'))) as Record<string, unknown> & {
+  getSettingsForSource: (source: string) => Record<string, any> | null
+}
+const { resetSettingsCache } = await import(join(SRC, 'utils/settings/settingsCache.ts'))
+const mneme = await import(join(SRC, 'mneme/paths.ts'))
+const media = await import(join(SRC, 'services/media/settings.ts'))
+const install = await import(join(SRC, 'extensions/install.ts'))
+const mcpUtils = await import(join(SRC, 'services/mcp/utils.ts'))
 enableConfigs()
+
+type Posture = 'window' | 'untrusted run' | 'trusted run'
+function stand(posture: Posture): void {
+  state.setSessionTrustAccepted(posture === 'trusted run')
+  resetTrustDialogAcceptedCacheForTesting()
+  state.setIsInteractive(posture === 'window')
+  resetSettingsCache()
+  mneme.getMnemeHome.cache?.clear?.()
+}
 
 console.log('============================================================')
 console.log(' a headless run in a folder nobody trusted reads none of that folder\'s settings')
@@ -37,9 +78,7 @@ section('§0 the page: docs/TRUST.md says a headless run in an untrusted folder 
 }
 
 section('§1 a window, where the trust card stands before anything runs, keeps every allowed layer')
-state.setSessionTrustAccepted(false)
-resetTrustDialogAcceptedCacheForTesting()
-state.setIsInteractive(true)
+stand('window')
 {
   const sources = getEnabledSettingSources()
   check('the window is not the untrusted headless case', untrustedWorkspaceHeadless() === false)
@@ -47,10 +86,10 @@ state.setIsInteractive(true)
 }
 
 section('§2 a headless run in a folder with no trust grant')
-state.setIsInteractive(false)
+stand('untrusted run')
 {
   const sources = getEnabledSettingSources()
-  check('the run is the untrusted headless case (this scratch home holds no grant)', untrustedWorkspaceHeadless() === true)
+  check('the run is the untrusted headless case (the scratch home holds no grant for the scratch folder)', untrustedWorkspaceHeadless() === true)
   check('its enabled layers are the user, flag and policy layers alone', sources.join(',') === 'userSettings,flagSettings,policySettings', sources.join(','))
   check('the project layer and the local layer each read as not enabled', !isSettingSourceEnabled('projectSettings') && !isSettingSourceEnabled('localSettings') && isSettingSourceEnabled('userSettings'))
 }
@@ -65,13 +104,49 @@ section('§3 --config-layers still narrows what is left')
 }
 
 section('§4 the same run once the folder is trusted')
-state.setSessionTrustAccepted(true)
+stand('trusted run')
 {
   const sources = getEnabledSettingSources()
   check('the run is no longer the untrusted headless case', untrustedWorkspaceHeadless() === false)
   check('its enabled layers hold the project and local layers again', sources.includes('projectSettings') && sources.includes('localSettings') && sources.includes('userSettings'), sources.join(','))
 }
 
+section('§5 the four readers that take a layer by name: the folder\'s memory directory, media switch, extension switch and server approval')
+{
+  const enabledLayer = settings.getEnabledSettingsForSource as ((source: string) => Record<string, any> | null) | undefined
+  const SERVER = { command: '/usr/bin/true', args: [] as string[] }
+  const read = (): { memory: string; media: { enabled?: boolean; host?: string }; mediaSwitch: { on: boolean; scope: string }; probeSwitch: { on: boolean; scope: string; committedProposal: boolean | null }; server: string } => ({
+    memory: String(mneme.getMnemeHome()),
+    media: media.readMediaSettings(),
+    mediaSwitch: install.readSwitch('mercury-media@mercury'),
+    probeSwitch: install.readSwitch('probe@scene'),
+    server: String(mcpUtils.getProjectMcpServerStatus('probe', SERVER)),
+  })
+
+  stand('untrusted run')
+  const untrusted = read()
+  check('untrusted run: the memory directory is the user\'s own store, never the directory the folder names', !untrusted.memory.startsWith(PLANTED) && untrusted.memory.startsWith(HOME), untrusted.memory)
+  check('untrusted run: media is off and its host is the user\'s', untrusted.media.enabled === false && untrusted.media.host === 'host-of-the-user', JSON.stringify(untrusted.media))
+  check('untrusted run: the media extension reads off', untrusted.mediaSwitch.on === false && untrusted.mediaSwitch.scope === 'everywhere', JSON.stringify(untrusted.mediaSwitch))
+  check('untrusted run: an extension the folder switches on reads off, and the folder\'s checked-in proposal is not read', untrusted.probeSwitch.on === false && untrusted.probeSwitch.scope === 'off' && untrusted.probeSwitch.committedProposal === null, JSON.stringify(untrusted.probeSwitch))
+  check('untrusted run: the folder\'s kit.trustProjectServers approves no project server', untrusted.server === 'pending', untrusted.server)
+  check('the reader of an enabled layer answers nothing for the folder\'s layers and still answers for the user\'s', typeof enabledLayer === 'function' && enabledLayer('localSettings') === null && enabledLayer('projectSettings') === null && enabledLayer('userSettings')?.media?.host === 'host-of-the-user', typeof enabledLayer)
+  check('the reader a writer goes through still reads the folder\'s file as it is (a write keeps what the file holds)', settings.getSettingsForSource('localSettings')?.memory?.directory === PLANTED, JSON.stringify(settings.getSettingsForSource('localSettings')?.memory ?? null))
+
+  stand('trusted run')
+  const trusted = read()
+  check('trusted run: the memory directory is the one the folder\'s local settings name', trusted.memory.startsWith(PLANTED), trusted.memory)
+  check('trusted run: media is on with the folder\'s host', trusted.media.enabled === true && trusted.media.host === 'host-of-the-folder', JSON.stringify(trusted.media))
+  check('trusted run: both switches read on for the project, with the checked-in proposal', trusted.mediaSwitch.on === true && trusted.mediaSwitch.scope === 'project' && trusted.probeSwitch.on === true && trusted.probeSwitch.scope === 'project' && trusted.probeSwitch.committedProposal === true, `${JSON.stringify(trusted.mediaSwitch)} ${JSON.stringify(trusted.probeSwitch)}`)
+  check('trusted run: kit.trustProjectServers in the local settings approves the server', trusted.server === 'approved', trusted.server)
+
+  stand('window')
+  const window = read()
+  check('a window reads the four as before', window.memory.startsWith(PLANTED) && window.media.enabled === true && window.probeSwitch.on === true && window.server === 'approved', JSON.stringify(window))
+}
+
+stand('untrusted run')
+rmSync(SCRATCH, { recursive: true, force: true })
 console.log('\n' + '='.repeat(60))
 console.log(failures === 0 ? ` ✅ untrusted headless settings: ${checks} checks, 0 failures` : ` ❌ untrusted headless settings: ${failures} of ${checks} checks failed`)
 process.exit(failures === 0 ? 0 : 1)

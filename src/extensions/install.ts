@@ -3,7 +3,7 @@ import { dirname, join, resolve } from 'node:path'
 import { getOriginalCwd } from '../bootstrap/state.js'
 import { getGlobalConfig } from '../utils/config/globalConfig.js'
 import { MERCURY_PROJECT_DIR } from '../utils/projectConfig.js'
-import { getSettingsForSource, removeSettingsFileIfEmpty, updateSettingsForSource } from '../utils/settings/settings.js'
+import { getEnabledSettingsForSource, getSettingsForSource, removeSettingsFileIfEmpty, updateSettingsForSource } from '../utils/settings/settings.js'
 import { blockReason, matchBlock, type BlockSurface } from './blocklist.js'
 import { bundledRoster } from './bundled/index.js'
 import { entryDirectory } from './catalogue.js'
@@ -196,13 +196,13 @@ function sameNameEnabledElsewhere(id: string, name: string): string | null {
 
 export function readSwitch(id: string): { on: boolean; scope: 'everywhere' | 'project' | 'off'; committedProposal: boolean | null } {
   if (id === 'mercury-media@mercury') {
-    const local = getSettingsForSource('localSettings')?.media?.enabled
-    const user = getSettingsForSource('userSettings')?.media?.enabled
+    const local = getEnabledSettingsForSource('localSettings')?.media?.enabled
+    const user = getEnabledSettingsForSource('userSettings')?.media?.enabled
     return { on: local ?? user ?? false, scope: local !== undefined ? 'project' : 'everywhere', committedProposal: null }
   }
-  const local = getSettingsForSource('localSettings')?.extensions?.enabled?.[id]
-  const committed = getSettingsForSource('projectSettings')?.extensions?.enabled?.[id]
-  const user = getSettingsForSource('userSettings')?.extensions?.enabled?.[id]
+  const local = getEnabledSettingsForSource('localSettings')?.extensions?.enabled?.[id]
+  const committed = getEnabledSettingsForSource('projectSettings')?.extensions?.enabled?.[id]
+  const user = getEnabledSettingsForSource('userSettings')?.extensions?.enabled?.[id]
   if (typeof local === 'boolean') return { on: local, scope: 'project', committedProposal: typeof committed === 'boolean' ? committed : null }
   if (typeof user === 'boolean') return { on: user, scope: 'everywhere', committedProposal: typeof committed === 'boolean' ? committed : null }
   return { on: false, scope: 'off', committedProposal: typeof committed === 'boolean' ? committed : null }

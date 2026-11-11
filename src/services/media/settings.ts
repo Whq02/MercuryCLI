@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { getInitialSettings, getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
+import { getEnabledSettingsForSource, getInitialSettings, getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { readHostRecord } from '../host/store.js'
 import { LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
@@ -20,8 +20,8 @@ export const MEDIA_SERVER_NAME = 'ext:mercury-media:engine'
 
 export function readMediaSettings(): MediaSettings {
   const settings = getInitialSettings().media ?? {}
-  const trusted = getSettingsForSource('userSettings')?.media
-  return { ...settings, enabled: getSettingsForSource('localSettings')?.media?.enabled ?? trusted?.enabled ?? false, host: getSettingsForSource('localSettings')?.media?.host ?? trusted?.host, serverPath: trusted?.serverPath }
+  const trusted = getEnabledSettingsForSource('userSettings')?.media
+  return { ...settings, enabled: getEnabledSettingsForSource('localSettings')?.media?.enabled ?? trusted?.enabled ?? false, host: getEnabledSettingsForSource('localSettings')?.media?.host ?? trusted?.host, serverPath: trusted?.serverPath }
 }
 
 export function mediaRoot(settings: MediaSettings = readMediaSettings()): string {
