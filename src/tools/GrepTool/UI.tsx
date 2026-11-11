@@ -2,6 +2,7 @@ import * as React from 'react'
 
 import { CtrlOToExpand } from '../../components/CtrlOToExpand.js'
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js'
+import { isDenialResultText } from '../../utils/messages/rejectionText.js'
 import { MessageResponse } from '../../components/MessageResponse.js'
 import { ToolCardMarker, ToolCardMeta, toolCardCountColor } from '../../components/mercury-ui/toolCardMeta.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
@@ -181,7 +182,7 @@ export function renderToolUseErrorMessage(
   result: ToolResultBlockParam['content'],
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
-  if (!verbose && typeof result === 'string') {
+  if (!verbose && typeof result === 'string' && !isDenialResultText(result)) {
     const extracted = extractTag(result, 'tool_use_error')
     if (extracted !== null) {
       if (extracted.includes(FILE_NOT_FOUND_CWD_NOTE)) {

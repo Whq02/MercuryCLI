@@ -19,6 +19,7 @@ import {
   ASK_USER_QUESTION_TOOL_NAME,
   ASK_USER_QUESTION_TOOL_PROMPT,
   DESCRIPTION,
+  DISCUSS_OPTION_LABEL,
   PREVIEW_FEATURE_PROMPT,
 } from './prompt.js'
 
@@ -310,11 +311,13 @@ export const AskUserQuestionTool = buildTool({
   },
   renderToolResultMessage(output: Output): React.ReactNode {
     const answers = output.answers ?? {}
+    const discussed = output.outcome?.kind === 'discussion-requested' ? output.outcome.questionId : undefined
     const byQuestion = new Map<string, string>()
     for (const q of output.questions) {
-      const answer = lookupFor(answers, q)
+      const answer = discussed !== undefined && (q.id === discussed || q.question === discussed) ? DISCUSS_OPTION_LABEL : lookupFor(answers, q)
       if (answer !== undefined) byQuestion.set(q.question, answer)
     }
+    if (discussed !== undefined && ![...byQuestion.values()].includes(DISCUSS_OPTION_LABEL)) byQuestion.set(discussed, DISCUSS_OPTION_LABEL)
     const matched = new Set(
       output.questions.flatMap(q => [q.id, q.question]).filter((k): k is string => !!k),
     )

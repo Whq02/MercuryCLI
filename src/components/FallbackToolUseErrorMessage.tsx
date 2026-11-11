@@ -5,7 +5,7 @@ import { extractTag } from 'src/utils/messages.js'
 import { OUTPUT_CONNECTOR } from '../constants/figures.js'
 import { Box, Text } from '../ink.js'
 import { classifyToolError } from '../utils/errors/classifyToolError.js'
-import { isDenialResultText } from '../utils/messages/rejectionText.js'
+import { denialLineOf, isDenialResultText } from '../utils/messages/rejectionText.js'
 import { CtrlOToExpand } from './CtrlOToExpand.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
@@ -74,6 +74,16 @@ export function FallbackToolUseErrorMessage({
   const rawText = contentText(result)
   const isDenied = rawText !== null && isDenialResultText(rawText)
   const headGlyph = isDenied ? GLYPH.fail : GLYPH.warn
+
+  if (!verbose && isDenied) {
+    return (
+      <MessageResponse>
+        <Text color={tokens.failure} bold>
+          {headGlyph} {denialLineOf(rawText)}
+        </Text>
+      </MessageResponse>
+    )
+  }
 
   if (!verbose) {
     const classified = classifyToolError(error)
