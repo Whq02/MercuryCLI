@@ -348,6 +348,38 @@ if (runs('TREE')) {
   delete process.env.RIPGREP_CONFIG_PATH
 }
 
+if (runs('CD')) {
+  section('CD · a cd the reading cannot give one value moves the floors with the shell: a wildcard is expanded as the shell expands it, and after a folder no reading can value a credential file\'s own name is refused')
+  const reads: Call[] = [
+    bash('cd <CONFIG>/../confi? && cat mcp-auth.json', 'a cd by a wildcard'),
+    bash('cd <CONFIG>/../c*g; cat .credentials.json'),
+    bash('pushd <CONFIG>/../confi? && cat mcp-auth.json', 'pushd'),
+    bash('cd <CONFIG>/../{config,} && cat .credentials.json', 'braces'),
+    bash('cd <CONFIG>/../[c]onfig && cat mcp-auth.json', 'a class'),
+    bash('cd <CONFIG>/../confi? && grep -r secret .', 'a tree reader after the wildcard cd'),
+    bash('cd "$(echo <CONFIG>)" && cat mcp-auth.json', 'a cd by an echoed substitution'),
+    bash('cd "$DIR" && cat .credentials.json', 'a folder no reading can value, then a credential file by its own name'),
+    bash('cd "$(dirname "$X")" && cat mcp-auth.json'),
+  ]
+  for (const item of reads) await expect('CD', item, ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
+  await expect('CD', bash('cd <CONFIG>/../confi? && rm -rf runtime', 'floor 4 after a wildcard cd'), ['sovereign', 'flow'], refused, 'is refused')
+  await expect('CD', bash('cd <CONFIG>/../confi?/runtime && rm -rf current', 'floor 4, the wildcard a folder higher'), ['sovereign', 'flow'], refused, 'is refused')
+  await expect('CD', bash('cd ~/.ss? && echo x >> authorized_keys', 'floor 1 after a wildcard cd'), ['sovereign', 'flow'], refused, 'is refused')
+  const clear: Call[] = [
+    bash('cd "$(git rev-parse --show-toplevel)" && cat package.json', 'the project root by a substitution'),
+    bash('cd "$(git rev-parse --show-toplevel)" && grep -r x .'),
+    bash('cd "$DIR" && rm -rf node_modules', 'a folder no reading can value, then an ordinary delete'),
+    bash('cd src/* && ls', 'a wildcard in the project'),
+    bash('cd ~/Dev* && cat README.md', 'a wildcard that names no guarded folder'),
+    bash('cd ~/Doc* && cat notes.txt', 'a wildcard that names a folder beside the store'),
+    bash('cd d*s && cat plain.md', 'a wildcard that names a folder of the project'),
+    bash('cd "$DIR" && cat notes.md', 'a folder no reading can value, then an ordinary file'),
+    bash('cd "$DIR" && cat *.json', 'after such a cd a wildcard is no file\'s own name: it stays as it was'),
+    bash('cd "$DIR" && ls *'),
+  ]
+  for (const item of clear) await expect('CD', item, ['sovereign'], notRefused, 'is not refused by the floor')
+}
+
 if (runs('T-3.5')) {
   const state = daemonStatePath()
   section('T-3.5 floor 4: kills of the daemon and of the session, and writes into the runtime, under Sovereign and Flow')
