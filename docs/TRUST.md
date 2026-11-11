@@ -239,6 +239,10 @@ nested script, a kill by process group, by user or by a pattern that takes
 Mercury's own processes, and a write through an archive, a download or a
 package manager are refused like the plain spelling. A target that another
 language computes at run time is outside what these floors can read.
+So is a relative write, delete or wildcard read after a `cd` whose target
+only the running shell knows, which is judged at the folder before it, and a
+credential-store write through a link or a nested shell that is handed its
+target at run time.
 
 ## Non-interactive sessions
 
