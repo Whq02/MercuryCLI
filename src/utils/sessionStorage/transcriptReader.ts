@@ -1126,6 +1126,8 @@ const METADATA_TYPE_MARKERS = [
   '"metaKind":"agent-name"',
   '"metaKind":"agent-color"',
   '"metaKind":"agent-setting"',
+  '"metaKind":"session-brief"',
+  '"metaKind":"session-brief-add"',
   '"metaKind":"mode"',
   '"metaKind":"advisor-switch"',
   '"metaKind":"swarm-switch"',

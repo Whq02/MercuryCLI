@@ -34,6 +34,8 @@ type StoragePayloads = {
   'agent-name': SessionField<'agentName', string>
   'agent-color': SessionField<'agentColor', string>
   'agent-setting': SessionField<'agentSetting', string>
+  'session-brief': SessionField<'brief', string>
+  'session-brief-add': SessionField<'briefAdd', string>
   'pr-link': {
     sessionId: UUID
     prNumber: number
@@ -76,6 +78,7 @@ type StoragePayloads = {
     lastSpawnTokens: number
   }
   'queue-operation': Omit<QueueOperationMessage, 'type'>
+  'turn-end': SessionField<'turnId', string> & { status: string }
 }
 
 export type StorageRows = {
@@ -106,6 +109,8 @@ export const STORAGE_ROWS = {
   'agent-name': { write: 'append', fold: 'metadata' },
   'agent-color': { write: 'append', fold: 'metadata' },
   'agent-setting': { write: 'append', fold: 'metadata' },
+  'session-brief': { write: 'append', fold: 'metadata' },
+  'session-brief-add': { write: 'append', fold: 'metadata' },
   'pr-link': { write: 'append', fold: 'metadata' },
   mode: { write: 'append', fold: 'metadata' },
   'advisor-switch': { write: 'append', fold: 'metadata' },
@@ -119,6 +124,7 @@ export const STORAGE_ROWS = {
   'context-collapse-commit': { write: 'append', fold: 'collapse' },
   'context-collapse-snapshot': { write: 'append', fold: 'collapse' },
   'queue-operation': { write: 'append', fold: 'none' },
+  'turn-end': { write: 'append', fold: 'metadata' },
 } as const satisfies Record<StorageRowKind, StorageRowPolicy>
 
 export function storageRowPolicy(kind: string): StorageRowPolicy | undefined {

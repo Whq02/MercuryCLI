@@ -42,6 +42,8 @@ type ListingLabels = Partial<{
   agentName: string
   agentColor: string
   agentSetting: string
+  brief: string
+  briefAdd: string
 }>
 type ListingPlace = Partial<{
   gitBranch: string
@@ -51,7 +53,8 @@ type ListingPlace = Partial<{
   prRepository: string
   worktreeSession: PersistedWorktreeSession | null
 }>
-type ListingRun = { endedOnError?: boolean; mode?: 'coordinator' | 'normal'; advisor?: boolean; swarm?: boolean; model?: string }
+export type TurnEnded = { turnId: string; status: string; trailing: UUID[] }
+type ListingRun = { endedOnError?: boolean; mode?: 'coordinator' | 'normal'; advisor?: boolean; swarm?: boolean; model?: string; turnEnd?: TurnEnded }
 type ListingRecords = Partial<{
   fileHistorySnapshots: FileHistorySnapshot[]
   attributionSnapshots: AttributionSnapshotEntry[]
