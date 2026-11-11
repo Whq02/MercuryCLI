@@ -322,5 +322,21 @@ section('§7 a command a tool starts gets the Bash decision: under sovereign tha
   }
 }
 
+section('§8 a command the Bash layer cannot follow: with no deny rule in force it is allowed as before, with one in force it is allowed or refused, never asked about')
+{
+  const unfollowed = ['cat $FILE', 'ls *.txt', 'eval "$(cat plan.txt)"', 'cat plan.txt | sh', 'less notes.txt', 'mywrap ls', 'cd "$DIR" && cat k.txt', 'while read l; do echo $l; done < notes.txt', `ls #${'x'.repeat(10_050)}`]
+  for (const command of unfollowed) {
+    const label = command.length > 60 ? `${command.slice(0, 20)}… (${command.length} characters)` : command
+    const bare = await decide(BashTool, { command }, contextOf('sovereign'))
+    check(`Bash ${label}: no deny rule in force, allowed under sovereign as before`, bare.decision.behavior === 'allow', JSON.stringify({ decidedBy: bare.trace.decidedBy, decision: bare.decision }).slice(0, 400))
+    const ruled = await decide(BashTool, { command }, contextOf('sovereign', { deny: ['Bash(rm *)', 'Read(secrets/**)'] }))
+    check(`Bash ${label}: deny rules in force, allowed or refused under sovereign (${ruled.decision.behavior}), no card`, ruled.decision.behavior === 'allow' || ruled.decision.behavior === 'deny', JSON.stringify(ruled.decision).slice(0, 400))
+    const wrapped = await decideToolPermissionWithModes(BashTool as never, { command }, contextOf('sovereign', { deny: ['Bash(rm *)', 'Read(secrets/**)'] }), assistant, 'toolu_unfollowed')
+    check(`Bash ${label}: the mode wrapper adds no ask under sovereign`, wrapped.decision.behavior !== 'ask', JSON.stringify(wrapped.decision).slice(0, 300))
+  }
+  const refused = await decide(BashTool, { command: 'cat $FILE' }, contextOf('sovereign', { deny: ['Read(secrets/**)'] }))
+  check('Bash cat $FILE: with a Read deny rule in force the refusal names the rule and says the effect could not be established', refused.decision.behavior === 'deny' && /its effect could not be established .*the rule Read\(secrets\/\*\*\)/.test(refused.decision.message ?? ''), JSON.stringify(refused.decision))
+}
+
 console.log(`\nsovereign zero cards: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)
