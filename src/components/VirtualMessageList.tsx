@@ -1,12 +1,10 @@
 
 import React, {
   useCallback,
-  useEffect,
   useImperativeHandle,
   useLayoutEffect,
   useRef,
   useState,
-  useSyncExternalStore,
 } from 'react'
 import { Box, elementScreenLeft } from '../ink.js'
 import type { DOMElement } from '../ink/dom.js'
@@ -15,7 +13,6 @@ import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import type { MatchPosition } from '../ink/render-to-screen.js'
 import type { SearchPositionsState } from '../ink/hooks/use-search-highlight.js'
 import { useVirtualScroll } from '../hooks/useVirtualScroll.js'
-import { ScrollChromeContext } from './FullscreenLayout.js'
 import { InteractiveDisclosure } from './mercury-ui/InteractiveDisclosure.js'
 import { useHoverOwned } from './mercury-ui/useHoverOwned.js'
 import { claimHover, releaseHover } from '../utils/cockpit/hoverOwner.js'
@@ -34,7 +31,6 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { reconcileItemKeys, type ItemKeyState } from './virtualListKeys.js'
 import {
   isNavigableMessage,
-  stripSystemReminders,
   toolCallOf,
   type MessageActionsNav,
   type MessageActionsState,
@@ -44,7 +40,6 @@ const JUMP_HEADROOM_ROWS = 3
 const PHANTOM_LIMIT = 20
 const MOUNT_ATTEMPT_LIMIT = 3
 const WARM_CHUNK = 500
-const STICKY_TEXT_CAP = 500
 
 export type JumpHandle = {
   jumpToIndex: (index: number) => void
@@ -67,7 +62,6 @@ type VirtualMessageListProps = {
   isItemExpanded?: (msg: RenderableMessage) => boolean
   extractSearchText?: (msg: RenderableMessage) => string
   extractFacets?: (msg: RenderableMessage) => TranscriptFacets
-  trackStickyPrompt?: boolean
   selectedIndex: number | undefined
   selectedExpanded?: boolean
   cursorNavRef?: React.Ref<MessageActionsNav | null>
@@ -180,7 +174,6 @@ export function VirtualMessageList({
   isItemExpanded,
   extractSearchText,
   extractFacets,
-  trackStickyPrompt = false,
   selectedIndex,
   selectedExpanded = false,
   cursorNavRef,
@@ -715,203 +708,8 @@ export function VirtualMessageList({
       {vs.bottomSpacer > 0 ? (
         <Box flexShrink={0} height={vs.bottomSpacer} />
       ) : null}
-      {trackStickyPrompt ? (
-        <StickyPromptTracker
-          messages={messages}
-          scrollRef={scrollRef}
-          getItemTop={vs.getItemTop}
-          getItemElement={vs.getItemElement}
-          scrollToIndex={vs.scrollToIndex}
-          range={vs.range}
-        />
-      ) : null}
     </>
   )
-}
-
-
-const realPromptCache = new WeakMap<object, string | null>()
-
-function realPromptText(msg: RenderableMessage): string | null {
-  const cached = realPromptCache.get(msg)
-  if (cached !== undefined) return cached
-  let text: string | null = null
-  if (
-    msg.type === 'user' &&
-    !msg.isMeta &&
-    !msg.isVisibleInTranscriptOnly
-  ) {
-    const first = msg.message.content[0]
-    if (first && first.type === 'text') {
-      const stripped = stripSystemReminders(first.text)
-      if (stripped !== '' && !stripped.startsWith('<')) text = stripped
-    }
-  } else if (msg.type === 'attachment') {
-    const attachment = msg.attachment
-    if (
-      attachment.type === 'queued_command' &&
-      attachment.commandMode !== 'task-notification' &&
-      !attachment.isMeta
-    ) {
-      const prompt = attachment.prompt
-      const raw =
-        typeof prompt === 'string'
-          ? prompt
-          : prompt
-              .filter(block => block.type === 'text')
-              .map(block => (block as { text: string }).text)
-              .join('\n')
-      const stripped = stripSystemReminders(raw)
-      if (stripped !== '' && !stripped.startsWith('<')) text = stripped
-    }
-  }
-  realPromptCache.set(msg, text)
-  return text
-}
-
-function stickyHeaderText(prompt: string): string {
-  const trimmed = prompt.replace(/^\s+/, '')
-  const paragraphEnd = trimmed.search(/\n\s*\n/)
-  const paragraph =
-    paragraphEnd === -1 ? trimmed : trimmed.slice(0, paragraphEnd)
-  return paragraph.slice(0, STICKY_TEXT_CAP).replace(/\s+/g, ' ').trim()
-}
-
-function StickyPromptTracker({
-  messages,
-  scrollRef,
-  getItemTop,
-  getItemElement,
-  scrollToIndex,
-  range,
-}: {
-  messages: readonly RenderableMessage[]
-  scrollRef: React.RefObject<ScrollBoxHandle | null>
-  getItemTop: (index: number) => number
-  getItemElement: (index: number) => DOMElement | null
-  scrollToIndex: (index: number) => void
-  range: readonly [number, number]
-}): React.ReactNode {
-  const { setStickyPrompt } = React.useContext(ScrollChromeContext)
-
-  useSyncExternalStore(
-    useCallback(
-      (notify: () => void) => scrollRef.current?.subscribe(notify) ?? (() => {}),
-      [scrollRef],
-    ),
-    useCallback((): number => {
-      const handle = scrollRef.current
-      if (!handle) return 0
-      const top = handle.getScrollTop()
-      return handle.isSticky() ? -top : top
-    }, [scrollRef]),
-  )
-
-  const lastPublishedIndexRef = useRef<number | null>(null)
-  const suppressionRef = useRef<'idle' | 'armed' | 'bypass'>('idle')
-  const pendingTargetRef = useRef<{ index: number; attempts: number } | null>(
-    null,
-  )
-  const messagesRef = useRef(messages)
-  messagesRef.current = messages
-
-  useEffect(() => {
-    const handle = scrollRef.current
-    if (!handle) return
-    if (handle.isSticky()) {
-      if (lastPublishedIndexRef.current !== null) {
-        lastPublishedIndexRef.current = null
-        setStickyPrompt(null)
-      }
-      return
-    }
-    const target = handle.getScrollTop() + handle.getPendingDelta()
-    const [rangeStart, rangeEnd] = range
-    let firstVisible = rangeStart
-    for (let i = rangeEnd - 1; i >= rangeStart; i--) {
-      const el = getItemElement(i)
-      const hasLayout = el !== null && el.layoutNode !== undefined
-      const top = getItemTop(i)
-      if (hasLayout && top < target) {
-        firstVisible = i + 1
-        break
-      }
-      firstVisible = i
-    }
-    if (firstVisible <= 0) {
-      if (lastPublishedIndexRef.current !== null) {
-        lastPublishedIndexRef.current = null
-        setStickyPrompt(null)
-      }
-      return
-    }
-    let promptIndex = -1
-    let promptText: string | null = null
-    for (let i = firstVisible - 1; i >= 0; i--) {
-      const text = realPromptText(messagesRef.current[i]!)
-      if (text === null) continue
-      const markerTop = getItemTop(i) + 1
-      if (markerTop >= target) continue
-      promptIndex = i
-      promptText = text
-      break
-    }
-
-    const suppression = suppressionRef.current
-    if (suppression === 'armed') {
-      suppressionRef.current = 'bypass'
-      return
-    }
-    const bypassDedup = suppression === 'bypass'
-    if (bypassDedup) suppressionRef.current = 'idle'
-
-    if (promptIndex === -1 || promptText === null) {
-      if (lastPublishedIndexRef.current !== null || bypassDedup) {
-        lastPublishedIndexRef.current = null
-        setStickyPrompt(null)
-      }
-      return
-    }
-    if (!bypassDedup && lastPublishedIndexRef.current === promptIndex) return
-    lastPublishedIndexRef.current = promptIndex
-    const text = stickyHeaderText(promptText)
-    if (text === '') {
-      setStickyPrompt(null)
-      return
-    }
-    const index = promptIndex
-    setStickyPrompt({
-      text,
-      scrollTo: (): void => {
-        suppressionRef.current = 'armed'
-        setStickyPrompt('clicked')
-        const el = getItemElement(index)
-        if (el) {
-          setTimeout(() => {
-            scrollRef.current?.scrollToElement(el, 1)
-          }, 0)
-        } else {
-          scrollToIndex(index)
-          pendingTargetRef.current = { index, attempts: 0 }
-        }
-      },
-    })
-  })
-
-  useEffect(() => {
-    const pending = pendingTargetRef.current
-    if (!pending) return
-    const el = getItemElement(pending.index)
-    if (el) {
-      pendingTargetRef.current = null
-      scrollRef.current?.scrollToElement(el, 1)
-      return
-    }
-    pending.attempts += 1
-    if (pending.attempts >= 5) pendingTargetRef.current = null
-  })
-
-  return null
 }
 
 export default VirtualMessageList

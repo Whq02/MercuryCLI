@@ -1,6 +1,5 @@
 
 import React, {
-  createContext,
   useCallback,
   useContext,
   useEffect,
@@ -249,13 +248,6 @@ export function useUnseenDivider(
 }
 
 
-type StickyPrompt = { text: string; scrollTo: () => void }
-
-export const ScrollChromeContext = createContext<{
-  setStickyPrompt: (prompt: StickyPrompt | 'clicked' | null) => void
-}>({ setStickyPrompt: () => {} })
-
-
 function PromptOverlayStrip(): React.ReactNode {
   const data = usePromptOverlay()
   const dialog = usePromptOverlayDialog()
@@ -369,7 +361,6 @@ export function FullscreenLayout({
   scrollRef,
   dividerYRef,
   hidePill = false,
-  hideSticky = false,
   newMessageCount,
   onPillClick,
 }: {
@@ -385,17 +376,12 @@ export function FullscreenLayout({
   scrollRef?: React.RefObject<ScrollBoxHandle | null>
   dividerYRef?: React.MutableRefObject<number | null>
   hidePill?: boolean
-  hideSticky?: boolean
   newMessageCount?: number
   onPillClick?: () => void
 }): React.ReactNode {
   const { columns, rows } = useTerminalSize()
   const tokens = useMercuryTokens()
   const fullscreen = isFullscreenEnvEnabled()
-  const [stickyPrompt, setStickyPrompt] = useState<
-    StickyPrompt | 'clicked' | null
-  >(null)
-  const chromeContextValue = useMemo(() => ({ setStickyPrompt }), [])
 
   useEffect(() => {
     if (!fullscreen) return
@@ -546,11 +532,6 @@ export function FullscreenLayout({
   const recessOn = modalUp && recessTargetFor(t) !== null;
   const blankClaims = modalUp && modalClaims && !recessOn;
 
-  const stickyDescriptor =
-    stickyPrompt !== null && stickyPrompt !== 'clicked' ? stickyPrompt : null
-  const stickyVisible = !hideSticky && stickyDescriptor !== null && (!isCompact || (compactBudget?.transcriptMinRows ?? 0) > 0)
-  const stickyTracked = stickyPrompt !== null
-
   const transcriptArea = (
     <Box
       flexDirection="column"
@@ -558,21 +539,13 @@ export function FullscreenLayout({
       minHeight={0}
       paddingX={transcriptGutter}
     >
-      {}
-      {stickyVisible && stickyDescriptor ? (
-        <Box height={1} onClick={() => stickyDescriptor.scrollTo()}>
-          <Text dimColor wrap="truncate-end">
-            ❯ {stickyDescriptor.text}
-          </Text>
-        </Box>
-      ) : null}
       <ScrollBox
         ref={scrollRef}
         stickyScroll
         flexDirection="column"
         flexGrow={1}
         minHeight={0}
-        paddingTop={isCompact || stickyTracked ? 0 : 1}
+        paddingTop={isCompact ? 0 : 1}
       >
         {scrollable}
       </ScrollBox>
@@ -727,9 +700,7 @@ export function FullscreenLayout({
                   ) : null}
                 </Box>
               </Box>
-              <ScrollChromeContext.Provider value={chromeContextValue}>
-                {bottomBlock}
-              </ScrollChromeContext.Provider>
+              {bottomBlock}
               {modalPane}
               <SettingsPopupSlot overlay={true} hostRef={centreBoxRef} framed={centerFrame} />
             </Box>

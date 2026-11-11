@@ -25,7 +25,6 @@ export type TranscriptSwapProps = {
   agentDefinitions?: AgentDefinitionsResult
   scrollRef?: React.RefObject<ScrollBoxHandle | null>
   showAllInTranscript?: boolean
-  trackStickyPrompt?: boolean
 }
 
 export type ScrollMemory = { top: number; sticky: boolean }
@@ -43,7 +42,7 @@ export function restoreScroll(handle: ScrollBoxHandle | null, memory: ScrollMemo
 
 export const LEAD_VIEW_KEY = ''
 
-export function TranscriptSwap({ lead, tools, commands, screen, agentDefinitions, scrollRef, showAllInTranscript = false, trackStickyPrompt = false }: TranscriptSwapProps): React.ReactNode {
+export function TranscriptSwap({ lead, tools, commands, screen, agentDefinitions, scrollRef, showAllInTranscript = false }: TranscriptSwapProps): React.ReactNode {
   const crewmate = useViewedCrewmate()
   const roster = useFocusedWorkRoster()
   const transcript = useCrewmateTranscript(crewmate, roster)
@@ -94,7 +93,6 @@ export function TranscriptSwap({ lead, tools, commands, screen, agentDefinitions
             hidePastReasoning
             streamingTail={null}
             scrollRef={scrollRef}
-            trackStickyPrompt={trackStickyPrompt}
             disableRenderCap
             suppressNotices
           />

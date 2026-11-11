@@ -89,3 +89,4 @@ prove-scroll-clip-paints.ts
 prove-list-click-on-space.tsx
 prove-host-list-pages.ts
 prove-status-card-key-owner.ts
+prove-sticky-prompt-header-gone.ts
