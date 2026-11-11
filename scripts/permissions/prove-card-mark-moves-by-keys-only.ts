@@ -245,6 +245,43 @@ section('where the terminal sends the wheel as arrows, an arrow is read as a whe
   }
 }
 
+section('two consent lists that are no permission card keep their mark under the wheel too')
+{
+  const { MCPServerApprovalDialog } = await import('../../src/components/MCPServerApprovalDialog.tsx')
+  const { SovereignModeDialog } = await import('../../src/components/SovereignModeDialog.tsx')
+  const approvalOf = (): React.ReactNode => h(MCPServerApprovalDialog, { serverName: 'notes', config: { command: 'true' }, onDone: () => {} } as never)
+  const approval = await mount(approvalOf())
+  try {
+    await waitFor(() => markOf(approval).includes('❯ 2.'), 5_000)
+    const opened = markOf(approval)
+    const notch = await press(approval, WHEEL_UP)
+    check("a project server's approval opens on this server alone, and a notch up leaves the mark off the wider grant", opened.includes('❯ 2. Use this MCP server') && notch.includes('❯ 2. Use this MCP server'), `${opened} · ${notch}`)
+    const arrow = await press(approval, KEY.up)
+    check('↑ moves it there, as before', arrow.includes('❯ 1. Use this and all future MCP servers'), arrow)
+  } finally {
+    approval.unmount()
+  }
+  const approvalWithoutMouse = await mountWithoutMouse(approvalOf())
+  try {
+    await waitFor(() => markOf(approvalWithoutMouse).includes('❯ 2.'), 5_000)
+    const down = await press(approvalWithoutMouse, KEY.down)
+    check('mouse tracking off, where ↓ arrives as a wheel step: it still moves the mark', down.includes('❯ 3. Continue without this MCP server'), down)
+  } finally {
+    approvalWithoutMouse.unmount()
+  }
+  const sovereign = await mount(h(SovereignModeDialog, { onAccept: () => {} } as never))
+  try {
+    await waitFor(() => markOf(sovereign).includes('❯ 1.'), 5_000)
+    const notch = await press(sovereign, WHEEL_DOWN)
+    const notchUp = await press(sovereign, WHEEL_UP)
+    check('the Sovereign consent opens on "No, exit" and a notch either way leaves the mark there, off "Yes, I accept"', notch.includes('❯ 1. No, exit') && notchUp.includes('❯ 1. No, exit'), `${notch} · ${notchUp}`)
+    const arrow = await press(sovereign, KEY.down)
+    check('↓ moves it, as before', arrow.includes('❯ 2. Yes, I accept'), arrow)
+  } finally {
+    sovereign.unmount()
+  }
+}
+
 section('every card whose ↵ answers passes it: no list of a card takes the wheel')
 {
   const root = join(import.meta.dir, '..', '..', 'src', 'components', 'permissions')
