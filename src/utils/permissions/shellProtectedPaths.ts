@@ -893,7 +893,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       for (const word of [...layer.argv.slice(1), ...roots]) {
         for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {
           if (mercurySecretPath(candidate, here) !== null || ((FILE_READERS.has(layer.program) || sent.has(word) || handedToReader(at, simple)) && couldNameSecret(candidate, here, homes, !wordKnown(candidate)))) return word
-          if ((FILE_READERS.has(layer.program) || UPLOADERS.has(layer.program)) && secretNameBehindUnread(candidate, homes)) return candidate.replaceAll(UNREAD_PART, '$(…)')
+          if ((FILE_READERS.has(layer.program) || UPLOADERS.has(layer.program) || sent.has(word)) && secretNameBehindUnread(candidate, homes)) return candidate.replaceAll(UNREAD_PART, '$(…)')
           if ((tree || feeds) && namesMercuryHome(candidate, here, homes)) return word
         }
       }
