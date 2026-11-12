@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
@@ -37,6 +37,7 @@ const { killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAge
 const { getCommandQueue } = await import('../../src/input-core/command-queue.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { readAgentMetadata } = await import('../../src/utils/sessionStorage/paths.ts')
+const { enableDebugLogging, getDebugLogPath } = await import('../../src/utils/debug.ts')
 type AppState = ReturnType<typeof getDefaultAppState>
 
 let checks = 0
@@ -207,6 +208,48 @@ for (const [name, moment, hooks] of [['relay', 'before its task is registered', 
   check('the interrupt comes between the launch\'s reservation and its enrollment, and the launch goes on in the background', first.status === 'async_launched' && enrolledWhenInterrupted === false, { first, enrolledWhenInterrupted })
   check('a second launch under the name is refused in the board\'s words: the first is on its way', second?.refused === RUNNING(name), second)
   check('the first launch takes its seat and runs to its end', statusOf(first.agentId) === 'completed' && seats().filter(seat => seat.startsWith(`${name}=`)).join() === `${name}=${first.agentId}:parked`, { status: statusOf(first.agentId), notice: notices(first.agentId)[0]?.slice(0, 300), seats: seats() })
+}
+
+console.log('── a launch that has ended meets a board that cannot be written when its reservation is released ──')
+{
+  const unhandled: string[] = []
+  const heard = (reason: unknown): void => { unhandled.push(reason instanceof Error ? reason.message : String(reason)) }
+  process.on('unhandledRejection', heard)
+  enableDebugLogging()
+  const release = board.cancelEnrollment
+  const refusals: string[] = []
+  const theNextReleaseFails = (): void => {
+    board.cancelEnrollment = (lead, agent) => {
+      board.cancelEnrollment = release
+      const holder = new (createRequire(import.meta.url)('bun:sqlite').Database)(board.view().record!.path) as { exec(sql: string): void; close(): void }
+      holder.exec('BEGIN IMMEDIATE')
+      try { release(lead, agent) } catch (error) { refusals.push((error as Error).message); throw error } finally { holder.exec('ROLLBACK'); holder.close() }
+    }
+  }
+  const said = (): number => existsSync(getDebugLogPath()) ? readFileSync(getDebugLogPath(), 'utf8').split('\n').filter(line => line.includes('crew board: the reservation of ') && line.includes(' could not be released: ')).length : 0
+
+  theNextReleaseFails()
+  const background = await launch({ name: 'tug', run_in_background: true })
+  await until(() => told(background.agentId) && refusals.length === 1)
+  await settle(100)
+  check('a background launch runs to its end, the lead is told, and the store refuses the release of its reservation', statusOf(background.agentId) === 'completed' && refusals.length === 1 && refusals[0] !== RUNNING('tug'), { status: statusOf(background.agentId), refusals })
+  check('…and no rejection is left unhandled', unhandled.length === 0, unhandled)
+
+  theNextReleaseFails()
+  const foreground = await launch({ name: 'skiff' })
+  check("a foreground launch that ran to its end returns its crewmate's report: the release's failure does not stand in its place", foreground.status === 'completed' && refusals.length === 2, { foreground, refusals })
+
+  theNextReleaseFails()
+  const turn = new AbortController()
+  named.push(() => turn.abort())
+  const handed = await launch({ name: 'yawl' }, turn)
+  await until(() => told(handed.agentId) && refusals.length === 3)
+  await settle(100)
+  check('a foreground launch an interrupt handed to the background runs to its end, and no rejection is left unhandled by its release either', handed.status === 'async_launched' && statusOf(handed.agentId) === 'completed' && refusals.length === 3 && unhandled.length === 0, { handed, status: statusOf(handed.agentId), refusals, unhandled })
+  await until(() => said() === 3, 5_000)
+  check("each of the three refusals is said once in the debug log, beside the board's other failures", said() === 3, { said: said(), log: getDebugLogPath() })
+  check('the three seats stand on the roster as seats that ran: a release that failed took nothing from them', ['tug', 'skiff', 'yawl'].every(name => seats().filter(seat => seat.startsWith(`${name}=`)).length === 1 && seats().some(seat => seat.startsWith(`${name}=`) && seat.endsWith(':parked'))), seats())
+  process.off('unhandledRejection', heard)
 }
 
 runSwarmCommand('off')

@@ -217,7 +217,9 @@ export function reserveSwarmLaunch(agentId: string, input: { name?: string; desc
   pendingLaunches.set(id, undefined)
   return () => {
     if (!pendingLaunches.delete(id)) return
-    store.cancelEnrollment(principal, agentId)
+    try { store.cancelEnrollment(principal, agentId) } catch (error) {
+      logForDebugging(`crew board: the reservation of ${agentId} could not be released: ${error instanceof Error ? error.message : String(error)}`)
+    }
     closeIdleSwarm()
   }
 }
