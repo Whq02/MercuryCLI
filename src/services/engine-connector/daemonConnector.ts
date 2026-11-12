@@ -532,6 +532,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private interruptPressedAtMs: number | null = null
   private lastSize = -1
   private lastLen = -1
+  private transcriptUnreadableFp: string | null = null
   private chainCursor: TranscriptChainCursor | null = null
   private readonly liveFold: LiveTurnFold = createLiveTurnFold()
   private releaseTranscript: (() => void) | null = null
@@ -1110,10 +1111,13 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   private async tickOnce(): Promise<void> {
     if (!this.attached) return
+    let fpNow: string | null = null
     try {
       let sizeNow = -1
       try {
-        sizeNow = statSync(this.transcriptPath).size
+        const st = statSync(this.transcriptPath, { bigint: true })
+        sizeNow = Number(st.size)
+        fpNow = `${st.dev}:${st.ino}:${st.size}:${st.mtimeNs}:${st.ctimeNs}`
       } catch {
         sizeNow = -1
       }
@@ -1127,6 +1131,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (this.releaseTranscript === null) this.releaseTranscript = reader.retainTranscript(this.transcriptPath)
       const chain = await reader.readTranscriptChainSince(this.transcriptPath, this.chainCursor)
       if (!this.attached) return
+      this.transcriptUnreadableFp = null
       this.chainCursor = chain.cursor
       const raw = chain.rows as unknown as Message[]
       this.lastSize = sizeNow
@@ -1160,7 +1165,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (this.awaitingRunnerFacts || this.facts?.runner?.state === 'starting') this.readFacts()
       this.recomputeLive()
     } catch (error) {
+      if (fpNow !== null) this.transcriptUnreadableFp = fpNow
       connectorTrace({ ev: 'tick-error', sid: this.record.sessionId, message: error instanceof Error ? error.message : String(error) })
+      if (this.attached) this.recomputeLive()
     }
   }
 
@@ -1269,8 +1276,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private hasUnreadTranscript(): boolean {
     if (!this.attached) return false
     try {
-      const sizeNow = statSync(this.transcriptPath).size
-      return sizeNow > 0 && sizeNow !== this.lastSize
+      const st = statSync(this.transcriptPath, { bigint: true })
+      const sizeNow = Number(st.size)
+      if (sizeNow <= 0 || sizeNow === this.lastSize) return false
+      const fp = `${st.dev}:${st.ino}:${st.size}:${st.mtimeNs}:${st.ctimeNs}`
+      return fp !== this.transcriptUnreadableFp
     } catch {
       return false
     }

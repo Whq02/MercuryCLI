@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { PassThrough } from 'node:stream'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -646,6 +646,150 @@ try {
       completionEdges - comp2Start === 1,
       `completions=${completionEdges - comp2Start}`,
     )
+  }
+
+  {
+    let seq = 20
+    const writeSeed = (filePath: string, sid: string, pairs: number): void => {
+      const rows: Array<Record<string, unknown>> = []
+      let parent: string | null = null
+      for (let i = 0; i < pairs; i++) {
+        const uId = `00000000-0000-4000-8000-0000000c${String(i).padStart(3, '0')}1`
+        const aId = `00000000-0000-4000-8000-0000000c${String(i).padStart(3, '0')}2`
+        rows.push({
+          isSidechain: false,
+          entrypoint: 'cli',
+          cwd: work,
+          sessionId: sid,
+          version: '1.0.10',
+          gitBranch: 'main',
+          parentUuid: parent,
+          type: 'user',
+          uuid: uId,
+          timestamp: '2026-11-12T20:00:00.000Z',
+          message: { role: 'user', content: `prompt ${i}` },
+        })
+        rows.push({
+          isSidechain: false,
+          entrypoint: 'cli',
+          cwd: work,
+          sessionId: sid,
+          version: '1.0.10',
+          gitBranch: 'main',
+          parentUuid: uId,
+          type: 'assistant',
+          uuid: aId,
+          timestamp: '2026-11-12T20:00:01.000Z',
+          message: {
+            id: `msg_seed_${i}`,
+            type: 'message',
+            role: 'assistant',
+            model: 'claude-opus-5-5',
+            content: [{ type: 'text', text: `Reply ${i}.` }],
+            stop_reason: 'end_turn',
+            stop_sequence: null,
+            usage: { input_tokens: 1, output_tokens: 2 },
+          },
+        })
+        parent = aId
+      }
+      writeFileSync(filePath, encodeSeedTranscript(rows, sid))
+    }
+
+    const runTranscriptWaitCase = async (
+      setup: (c: InstanceType<typeof DaemonSessionConnector>, sid: string) => void | (() => void),
+    ): Promise<{ elapsedMs: number; painted: number; completions: number; connector: InstanceType<typeof DaemonSessionConnector>; sid: string }> => {
+      const sid = `00000000-0000-4000-8000-0000000000${++seq}`
+      writeWorkers({ 'concourse-w1': { sessionId: sid, lastDeliveryAt: 50000 } })
+      writeFacts(sid, { busy: false })
+      const c = makeConnector(sid)
+      ;(c as unknown as { attached: boolean }).attached = true
+      setFocusedSessionConnector(c)
+      await wait(20)
+      const cleanup = setup(c, sid)
+      const compBefore = completionEdges
+      writeWorkers({ 'concourse-w1': { sessionId: sid, lastDeliveryAt: 50000, lastTurnSettledAt: 50500 } })
+      writeFacts(sid, { busy: false })
+      const t0 = Date.now()
+      feedFacts(c)
+      let elapsedMs = -1
+      for (let i = 0; i < 300; i++) {
+        if (c.lastTurnCompletedAtMs() !== null) {
+          elapsedMs = Date.now() - t0
+          break
+        }
+        await wait(10)
+        if (i % 20 === 19) {
+          writeFacts(sid, { busy: false })
+          feedFacts(c)
+        }
+      }
+      await wait(25)
+      const painted = c.records().length
+      const completions = completionEdges - compBefore
+      if (typeof cleanup === 'function') cleanup()
+      return { elapsedMs, painted, completions, connector: c, sid }
+    }
+
+    const n1 = await runTranscriptWaitCase((c, sid) => writeSeed(c.transcriptFile(), sid, 1))
+    n1.connector.detach()
+    check('12a (N1). unread reply on disk paints first and completes promptly', n1.elapsedMs >= 0 && n1.elapsedMs < 250 && n1.painted === 2 && n1.completions === 1, JSON.stringify({ ms: n1.elapsedMs, painted: n1.painted, completions: n1.completions }))
+
+    const n2 = await runTranscriptWaitCase(() => {})
+    n2.connector.detach()
+    check('12b (N2). absent transcript file completes at once', n2.elapsedMs >= 0 && n2.elapsedMs < 80 && n2.painted === 0 && n2.completions === 1, JSON.stringify({ ms: n2.elapsedMs, painted: n2.painted, completions: n2.completions }))
+
+    const n3 = await runTranscriptWaitCase(c => writeFileSync(c.transcriptFile(), ''))
+    n3.connector.detach()
+    check('12c (N3). empty transcript file completes at once', n3.elapsedMs >= 0 && n3.elapsedMs < 80 && n3.painted === 0 && n3.completions === 1, JSON.stringify({ ms: n3.elapsedMs, painted: n3.painted, completions: n3.completions }))
+
+    const n4 = await runTranscriptWaitCase((c, sid) => {
+      writeSeed(c.transcriptFile(), sid, 1)
+      let count = 2
+      const iv = setInterval(() => {
+        writeSeed(c.transcriptFile(), sid, count++)
+        if (count > 80) clearInterval(iv)
+      }, 10)
+      return () => clearInterval(iv)
+    })
+    n4.connector.detach()
+    check('12d (N4). continuously growing transcript still completes promptly without starving', n4.elapsedMs >= 0 && n4.elapsedMs < 300 && n4.painted >= 2 && n4.completions === 1, JSON.stringify({ ms: n4.elapsedMs, painted: n4.painted, completions: n4.completions }))
+
+    const n5 = await runTranscriptWaitCase(c => writeFileSync(c.transcriptFile(), 'not-json-at-all\n'))
+    n5.connector.detach()
+    check('12e (N5). non-JSON garbage line ends the wait and completes once', n5.elapsedMs >= 0 && n5.elapsedMs < 250 && n5.painted === 0 && n5.completions === 1, JSON.stringify({ ms: n5.elapsedMs, painted: n5.painted, completions: n5.completions }))
+
+    const n6 = await runTranscriptWaitCase((c, sid) => {
+      writeSeed(c.transcriptFile(), sid, 1)
+      const p = c.transcriptFile()
+      writeFileSync(p, `${readFileSync(p, 'utf8')}{"type":"assistant","uuid":"torn-row`)
+    })
+    n6.connector.detach()
+    check('12f (N6). transcript ending in a torn row paints the whole rows and completes once', n6.elapsedMs >= 0 && n6.elapsedMs < 250 && n6.painted === 2 && n6.completions === 1, JSON.stringify({ ms: n6.elapsedMs, painted: n6.painted, completions: n6.completions }))
+
+    const n7 = await runTranscriptWaitCase((c, sid) => {
+      writeSeed(c.transcriptFile(), sid, 1)
+      chmodSync(c.transcriptFile(), 0o000)
+    })
+    try {
+      chmodSync(n7.connector.transcriptFile(), 0o600)
+      await (n7.connector as unknown as { tick: () => Promise<void> }).tick()
+      const recoveredRows = n7.connector.records().length
+      check(
+        '12g (N7). unreadable transcript (mode 000) ends the wait as fast as an unread reply instead of holding completion forever, and still loads once permissions recover',
+        n7.elapsedMs >= 0 &&
+          n7.elapsedMs < 250 &&
+          n7.completions === 1 &&
+          (process.getuid?.() === 0 ? n7.painted >= 0 : n7.painted === 0) &&
+          recoveredRows === 2,
+        JSON.stringify({ ms: n7.elapsedMs, paintedWhile000: n7.painted, completions: n7.completions, recoveredRows }),
+      )
+    } finally {
+      try {
+        chmodSync(n7.connector.transcriptFile(), 0o600)
+      } catch {}
+      n7.connector.detach()
+    }
   }
 } finally {
   mounted.unmount()
