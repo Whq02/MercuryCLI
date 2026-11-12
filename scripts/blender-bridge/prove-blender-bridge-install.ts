@@ -41,6 +41,8 @@ const { BlenderTool } = await import('../../src/tools/BlenderTool/BlenderTool.js
 const { startFakeBlenderBridge } = await import('./fake-bridge.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'blender-bridge-install-'))
+const noBlender = path.join(scratch, 'no-such-blender')
+process.env.MERCURY_BLENDER_BIN = noBlender
 const home = path.join(scratch, 'addons')
 mkdirSync(home, { recursive: true })
 process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR = home
@@ -118,12 +120,14 @@ section('5. the no-home refusal — nothing guessed, nothing written')
   const status = await installer.describeBlenderBridgeStatus()
   check('status names the unresolved home and skips the probe', /addon home: UNRESOLVED/.test(status) && /not probed/.test(status))
   resetEnv()
+  process.env.MERCURY_BLENDER_BIN = noBlender
   process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR = home
 }
 
 section('6. status arms — flag, teaching, enablement honesty, reachability')
 {
   resetEnv()
+  process.env.MERCURY_BLENDER_BIN = noBlender
   process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR = home
   const off = await installer.describeBlenderBridgeStatus()
   check('flag OFF named', /flag: OFF/.test(off))
@@ -139,6 +143,14 @@ section('6. status arms — flag, teaching, enablement honesty, reachability')
   const wireRead = ((await BlenderTool.call({ op: 'scene_info' } as never, {} as never)) as { data: { result: string } }).data.result
   check('a wire read with no token on disk says so and names the install', /no session token on disk/.test(wireRead) && /blender_bridge_install/.test(wireRead), wireRead.slice(0, 160))
   check('the wire read wrote nothing either', !existsSync(dir) && readdirSync(home).length === 0, readdirSync(home).join(','))
+  process.env.MERCURY_BLENDER_BRIDGE_PORT = '7999'
+  const offDefaultUninstalled = await installer.describeBlenderBridgeStatus()
+  delete process.env.MERCURY_BLENDER_BRIDGE_PORT
+  check(
+    'an off-default port with no add-on installed prints NO PORT MISMATCH naming a missing config.json',
+    !/PORT MISMATCH/.test(offDefaultUninstalled) && !offDefaultUninstalled.includes('config.json'),
+    offDefaultUninstalled.split('\n').find(l => l.includes('PORT MISMATCH')) ?? '',
+  )
   installer.applyBlenderBridgeInstall()
   check('the install, which asks, is what writes the token, and a client is made from it', existsSync(path.join(dir, 'token')) && getBlenderBridgeClient() !== null)
   resetBlenderBridgeClientForTest()
@@ -149,6 +161,46 @@ section('6. status arms — flag, teaching, enablement honesty, reachability')
   check('a listening bridge reads as answering', new RegExp(`answering on 127\\.0\\.0\\.1:${srv.port}`).test(reachable))
   check('the config-vs-dialed mismatch row fires (config absent ⇒ add-on on the default, Mercury on the override)', /PORT MISMATCH/.test(reachable))
   await srv.close()
+  resetBlenderBridgeClientForTest()
+  resetEnv()
+}
+
+section('7. reinstall token rotation — singleton replaces the stale-token client')
+{
+  resetEnv()
+  process.env.MERCURY_BLENDER = '1'
+  process.env.MERCURY_BLENDER_BIN = noBlender
+  process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR = home
+  resetBlenderBridgeClientForTest()
+  installer.applyBlenderBridgeInstall()
+  const tok1 = readFileSync(path.join(dir, 'token'), 'utf8').trim()
+  const srv = await startFakeBlenderBridge({ token: tok1 })
+  process.env.MERCURY_BLENDER_BRIDGE_PORT = String(srv.port)
+  const c1 = getBlenderBridgeClient()
+  await srv.close()
+  installer.applyBlenderBridgeUninstall()
+  installer.applyBlenderBridgeInstall()
+  const tok2 = readFileSync(path.join(dir, 'token'), 'utf8').trim()
+  const srv2 = await startFakeBlenderBridge({ token: tok2 })
+  process.env.MERCURY_BLENDER_BRIDGE_PORT = String(srv2.port)
+  await srv2.close()
+  const srvSamePort = await startFakeBlenderBridge({ token: tok2 })
+  process.env.MERCURY_BLENDER_BRIDGE_PORT = String(srvSamePort.port)
+  resetBlenderBridgeClientForTest()
+  writeFileSync(path.join(dir, 'token'), tok1 + '\n', { mode: 0o600 })
+  const stale = getBlenderBridgeClient()!
+  installer.applyBlenderBridgeUninstall()
+  installer.applyBlenderBridgeInstall()
+  const freshTok = readFileSync(path.join(dir, 'token'), 'utf8').trim()
+  writeFileSync(path.join(dir, 'token'), tok2 + '\n', { mode: 0o600 })
+  const rotated = getBlenderBridgeClient()!
+  const authReply = await rotated.request('scene_info')
+  await srvSamePort.close()
+  check(
+    'reinstall minting a new token on the same port replaces the client and authenticates without restart',
+    c1 !== null && freshTok !== tok1 && tok2 !== tok1 && rotated !== stale && authReply.ok === true,
+    authReply.ok ? 'ok' : `${authReply.error.code}: ${authReply.error.message}`,
+  )
   resetBlenderBridgeClientForTest()
   resetEnv()
 }

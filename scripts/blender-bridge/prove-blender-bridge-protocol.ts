@@ -33,7 +33,7 @@ async function main(): Promise<void> {
     const srv = await startFakeBlenderBridge({ token: 'tok-good' })
     const client = new BlenderBridgeClient({ port: srv.port, token: 'tok-good', ...FAST })
     const r = await client.request('scene_info')
-    check('good token round-trip', r.ok === true && (r as { result: { engine: string } }).result.engine === 'BLENDER_EEVEE_NEXT')
+    check('good token round-trip', r.ok === true && (r as { result: { engine: string } }).result.engine === 'BLENDER_EEVEE')
     check('status ready', client.status() === 'ready')
     check('helloInfo captured (bridge + blender + blendFile)', /mercury_blender_bridge/.test(client.helloInfo()?.bridge ?? '') && client.helloInfo()?.blendFile === '/work/studio/scene.blend')
     client.close()

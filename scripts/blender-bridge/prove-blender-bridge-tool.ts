@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -83,7 +83,7 @@ section('§2 · ARMED — catalog + teaching surfaces + the danger sentences (th
   process.env.MERCURY_BLENDER_BIN = pinnedBlender
   _resetBlenderBridgeContextCacheForTesting()
   check('Blender tool present in a blend-less dir once a Blender is located', await runWithCwdOverride(bare, async () => hasBlender()))
-  delete process.env.MERCURY_BLENDER_BIN
+  process.env.MERCURY_BLENDER_BIN = noBlender
   _resetBlenderBridgeContextCacheForTesting()
   const desc = getBlenderToolDescription()
   check('description carries the verb catalog', desc.includes('python_run') && desc.includes('objects_list') && desc.includes('blender_bridge_install'))
@@ -92,6 +92,13 @@ section('§2 · ARMED — catalog + teaching surfaces + the danger sentences (th
   check('description carries the NO-PREEMPTION danger sentence VERBATIM, once', desc.split(BLENDER_PYTHON_RUN_NO_PREEMPTION_SENTENCE).length === 2)
   check('description names the enable act as the operator’s', /enabling it in Blender is the operator's act/.test(desc))
   check('description names no other tool and pre-empts no refusal', !/\b(Debug|Launch|Unity) tool\b/.test(desc) && !desc.includes('RENDER_ACTIVE') && !desc.includes('BLEND_DIRTY') && !desc.includes('teaching error'))
+  check(
+    'description teaches the stateless one-process-per-call headless road and naming blend on the next call',
+    desc.includes('no state is kept') &&
+      desc.includes('name blend on the next call') &&
+      desc.includes('closed with the process'),
+    desc.slice(0, 260),
+  )
   check('description is under 2,400 bytes with the catalog', Buffer.byteLength(desc, 'utf8') <= 2400, `${Buffer.byteLength(desc, 'utf8')} bytes`)
   const unknown = await runWithCwdOverride(work, () => callTool('tests_run'))
   check('unknown op teaches the verb list without reaching any wire', unknown.includes('unknown op') && unknown.includes('python_run'))
@@ -99,6 +106,56 @@ section('§2 · ARMED — catalog + teaching surfaces + the danger sentences (th
   check('blender_status answers locally: flag + home + install + reachability rows', /flag: armed/.test(status) && /addon home/.test(status) && /NOT installed/.test(status))
   const harness = computeHarnessMapLines().find(l => l.includes('Blender lanes are armed'))
   check('the widened harness line names the Blender tool + install op + the enable act', /`Blender` tool/.test(harness ?? '') && /blender_bridge_install/.test(harness ?? '') && /your act/.test(harness ?? ''))
+  const locatorSentence =
+    'The tool joins the catalog beside .blend files or wherever Blender is located (PATH, the Blender.app in /Applications or ~/Applications, Program Files); a Blender installed anywhere else is named with MERCURY_BLENDER_BIN=<its binary>.'
+  check('harness line carries the locator sentence while nothing is located', (harness ?? '').includes(locatorSentence), harness ?? '')
+  process.env.MERCURY_BLENDER_BIN = pinnedBlender
+  const harnessLocated = computeHarnessMapLines().find(l => l.includes('Blender lanes are armed'))
+  check('harness line omits the locator sentence once a Blender is located', !(harnessLocated ?? '').includes(locatorSentence))
+  const policySentence =
+    'Mercury never installs or enables Blender, and starts it only with no window, when the Blender tool is called.'
+  check(
+    'harness line carries the policy sentence both when nothing is located and when located',
+    (harness ?? '').includes(policySentence) &&
+      (harnessLocated ?? '').includes(policySentence) &&
+      !(harness ?? '').includes('Nothing is installed or launched for you.'),
+    harness ?? '',
+  )
+  const docText = readFileSync(
+    path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..', 'docs', 'BLENDER-BRIDGE.md'),
+    'utf8',
+  )
+  check('docs/BLENDER-BRIDGE.md carries the policy sentence', docText.includes(policySentence))
+  const { validateToolCapability } = await import('../../src/utils/capability/contract.js')
+  const { blenderBridgeVerbNames } = await import('../../src/services/blender/bridgeProtocol.js')
+  const cap = BlenderTool.capability
+  const expectedOps = [
+    ...blenderBridgeVerbNames(),
+    'blender_status',
+    'blender_bridge_install',
+    'blender_bridge_uninstall',
+  ]
+  check(
+    'capability contract is valid and lists every wire and local operation',
+    cap != null &&
+      validateToolCapability(cap).ok &&
+      JSON.stringify(cap.operations) === JSON.stringify(expectedOps),
+    JSON.stringify(cap?.operations ?? null),
+  )
+  check(
+    'capability conditions state both roads (running Blender with add-on OR located Blender for headless -b)',
+    (cap?.conditions ?? []).some(
+      c => c.includes('mercury_blender_bridge') && c.includes('headless -b'),
+    ),
+    JSON.stringify(cap?.conditions ?? []),
+  )
+  check(
+    'capability intents cover both the bridge and headless -b roads without claiming a running Blender is the only road',
+    (cap?.intents ?? []).some(i => i.includes('headless -b')) &&
+      !(cap?.intents ?? []).some(i => i.includes('running blender')),
+    JSON.stringify(cap?.intents ?? []),
+  )
+  process.env.MERCURY_BLENDER_BIN = noBlender
 }
 
 section('§3 · the permission ladder rides the contract classes')
@@ -158,7 +215,7 @@ section('§5 · the wire path through the real tool, against the fake')
   const fake = await startFakeBlenderBridge({ renderDurationMs: 60 })
   process.env.MERCURY_BLENDER_BRIDGE_PORT = String(fake.port)
   const info = await runWithCwdOverride(work, () => callTool('scene_info'))
-  check('scene_info answers through the tool', info.includes('"engine": "BLENDER_EEVEE_NEXT"'))
+  check('scene_info answers through the tool', info.includes('"engine": "BLENDER_EEVEE"'))
   const outputPath = path.join(realpathSync(work), 'renders', 'frame.png')
   const still = await runWithCwdOverride(work, () => callTool('render_still', { outputPath: path.join('renders', 'frame.png'), frame: 1 }))
   check('render_still acks started with the RESOLVED (real) outputPath', still.includes('"started": true') && still.includes(outputPath))

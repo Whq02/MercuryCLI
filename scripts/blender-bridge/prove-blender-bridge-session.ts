@@ -46,6 +46,8 @@ const { readBlenderBridgeToken } = await import('../../src/services/blender/brid
 const { startFakeBlenderBridge } = await import('./fake-bridge.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'blender-bridge-session-'))
+const noBlender = path.join(scratch, 'no-such-blender')
+process.env.MERCURY_BLENDER_BIN = noBlender
 const home = path.join(scratch, 'addons')
 mkdirSync(home, { recursive: true })
 const work = path.join(scratch, 'studio')
@@ -84,7 +86,7 @@ section('2. armed, no home — the every-road reason; readiness names it')
   check('editor truth unavailable (no addon home)', session.editor.state === 'unavailable' && /no addon home/.test((session.editor as { detail: string }).detail))
   const rows = blenderBridgeReadinessRecords()
   check('readiness: unavailable naming the reason + the pin roads', rows.length === 1 && rows[0]!.state === 'unavailable' && /MERCURY_BLENDER_BRIDGE_ADDON_DIR/.test(rows[0]!.remedy ?? ''))
-  delete process.env.MERCURY_BLENDER_BIN
+  process.env.MERCURY_BLENDER_BIN = noBlender
 }
 
 section('3. armed, home, nothing listening — unreachable with teaching; readiness names the install remedy')
@@ -129,8 +131,8 @@ section('5. reachable — editor truth through the client; the NO-scope-guard la
   process.env.MERCURY_BLENDER_BRIDGE_PORT = String(fake.port)
   const session = await runWithCwdOverride(work, () => buildBlenderBridgeIdeSession(work))
   check('bridge reachable', session.bridge.state === 'reachable', session.bridge.state)
-  check('editor truth ok: scene info string', session.editor.state === 'ok' && /BLENDER_EEVEE_NEXT/.test((session.editor as { sceneInfo: string }).sceneInfo))
-  check('editor truth ok: render state string', session.editor.state === 'ok' && /"render":false/.test((session.editor as { renderState: string }).renderState))
+  check('editor truth ok: scene info string', session.editor.state === 'ok' && /"engine":"BLENDER_EEVEE"/.test((session.editor as { sceneInfo: string }).sceneInfo))
+  check('editor truth ok: render state string', session.editor.state === 'ok' && /"render":false/.test((session.editor as { renderState: string }).renderState) && /"engine":"BLENDER_EEVEE"/.test((session.editor as { renderState: string }).renderState))
   check('editor truth ok: report head string', session.editor.state === 'ok' && /entries/.test((session.editor as { reportHead: string }).reportHead))
   const elsewhere = path.join(scratch, 'elsewhere')
   mkdirSync(elsewhere, { recursive: true })

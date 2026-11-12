@@ -7,13 +7,20 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { getCwd } from '../../utils/cwd.js'
 import {
   getBlenderBridgeClient,
+  probeBlenderBridgeReachable,
   blenderBridgeHint,
 } from '../../services/blender/bridgeClient.js'
+import {
+  formatHeadlessWindowRefusal,
+  isHeadlessRenderJobRequest,
+  runBlenderHeadlessOp,
+} from '../../services/blender/headlessRunner.js'
 import {
   blenderBridgeVerb,
   blenderBridgeVerbNames,
 } from '../../services/blender/bridgeProtocol.js'
-import { blenderBridgePort } from '../../utils/blender/bridgeGates.js'
+import { locateBlender } from '../../services/ide/blenderProject.js'
+import { blenderBridgeEnabled, blenderBridgePort } from '../../utils/blender/bridgeGates.js'
 import { BLENDER_TOOL_NAME, getBlenderToolDescription } from './prompt.js'
 import {
   renderToolResultMessage,
@@ -61,14 +68,13 @@ function realpathNearest(target: string): string {
   }
 }
 
-function fencePathArgs(
+function resolveInsideTree(
   op: string,
-  args: Record<string, unknown> | undefined,
-): { args?: Record<string, unknown>; refusal?: string } {
-  const key = PATH_ARGS[op]
-  if (!key || !args || typeof args[key] !== 'string') return { args }
+  key: string,
+  rawPath: string,
+): { resolved?: string; refusal?: string } {
   const cwd = realpathNearest(path.resolve(getCwd()))
-  const resolved = realpathNearest(path.resolve(path.resolve(getCwd()), args[key] as string))
+  const resolved = realpathNearest(path.resolve(path.resolve(getCwd()), rawPath))
   if (resolved !== cwd && !resolved.startsWith(cwd + path.sep)) {
     return {
       refusal:
@@ -76,7 +82,31 @@ function fencePathArgs(
         `Nothing was sent to Blender; move the target inside the tree (python_run can act elsewhere, behind its own ask).`,
     }
   }
-  return { args: { ...args, [key]: resolved } }
+  return { resolved }
+}
+
+function fencePathArgs(
+  op: string,
+  args: Record<string, unknown> | undefined,
+): { args?: Record<string, unknown>; refusal?: string } {
+  if (!args) return { args }
+  const next: Record<string, unknown> = { ...args }
+  const primaryKey = PATH_ARGS[op]
+  if (primaryKey && typeof next[primaryKey] === 'string') {
+    const check = resolveInsideTree(op, primaryKey, next[primaryKey] as string)
+    if (check.refusal) return { refusal: check.refusal }
+    next[primaryKey] = check.resolved
+  }
+  if (typeof next.blend === 'string') {
+    const check = resolveInsideTree(op, 'blend', next.blend)
+    if (check.refusal) return { refusal: check.refusal }
+    next.blend = check.resolved
+  } else if (op !== 'blend_open' && typeof next.path === 'string') {
+    const check = resolveInsideTree(op, 'path', next.path)
+    if (check.refusal) return { refusal: check.refusal }
+    next.path = check.resolved
+  }
+  return { args: next }
 }
 
 function firstSourceLine(args: Record<string, unknown> | undefined): string {
@@ -116,7 +146,7 @@ async function runLocalOp(op: string): Promise<string> {
   }
 }
 
-async function runOp(input: Input): Promise<string> {
+async function runOp(input: Input, abortSignal?: AbortSignal): Promise<string> {
   if (LOCAL_OPS.has(input.op)) return runLocalOp(input.op)
   const spec = blenderBridgeVerb(input.op)
   if (!spec) {
@@ -124,9 +154,37 @@ async function runOp(input: Input): Promise<string> {
   }
   const fenced = fencePathArgs(input.op, input.args)
   if (fenced.refusal) return fenced.refusal
-  const client = getBlenderBridgeClient()
-  if (!client) {
+  if (!blenderBridgeEnabled()) {
     return `the Blender bridge is not available here (flag off, no addon home resolves, or no session token on disk: op:"blender_bridge_install" writes it) — op:"blender_status" explains`
+  }
+  const port = blenderBridgePort()
+  const client = getBlenderBridgeClient()
+  const bridgeReachable =
+    client !== null &&
+    (client.status() === 'ready' || (await probeBlenderBridgeReachable(port)))
+  if (!bridgeReachable) {
+    const census = locateBlender()
+    if (census.blender) {
+      if (isHeadlessRenderJobRequest(input.op, fenced.args)) {
+        return formatHeadlessWindowRefusal(port)
+      }
+      const blend =
+        typeof fenced.args?.blend === 'string'
+          ? fenced.args.blend
+          : input.op !== 'blend_open' && typeof fenced.args?.path === 'string'
+            ? fenced.args.path
+            : undefined
+      return runBlenderHeadlessOp({
+        bin: census.blender.path,
+        op: input.op,
+        args: fenced.args,
+        blend,
+        abortSignal,
+      })
+    }
+    if (!client) {
+      return `the Blender bridge is not available here (flag off, no addon home resolves, or no session token on disk: op:"blender_bridge_install" writes it) — op:"blender_status" explains`
+    }
   }
   const r = await client.request(input.op, fenced.args, 30_000)
   let text: string
@@ -142,7 +200,7 @@ async function runOp(input: Input): Promise<string> {
       `\n\nevents (${events.length}):\n` +
       shown.map(e => `· ${e.event}: ${formatResult(e.data).slice(0, 200)}`).join('\n')
   }
-  return text
+  return `road: bridge (127.0.0.1:${port})\n${text}`
 }
 
 export const BlenderTool = buildTool({
@@ -162,20 +220,21 @@ export const BlenderTool = buildTool({
   capability: {
     intents: [
       'inspect a blender scene: objects, render settings, reports',
-      'open a blend file in the running blender',
-      'render a still from the running blender',
-      'run python inside the running blender',
-      'check whether blender and its mercury add-on are reachable',
+      'open or verify a blend file in blender (bridge or headless -b)',
+      'render a still frame from blender (bridge job or headless -b)',
+      'run python with bpy inside blender (bridge or headless -b)',
+      'check located blender, embedded python, and mercury bridge status',
     ],
     units: ['3d-scene'],
     class: 'mutation',
+    operations: [...blenderBridgeVerbNames(), ...LOCAL_OPS],
     evidence: ['artifact'],
     cancellation: 'cooperative',
     latency: 'interactive',
     gate: 'MERCURY_BLENDER',
     conditions: [
       'a .blend file under the project, or a located Blender (MERCURY_BLENDER_BIN, a blender on PATH, the app bundle, Program Files)',
-      'a running Blender with the mercury_blender_bridge add-on installed and enabled',
+      'either a running Blender with the mercury_blender_bridge add-on installed and enabled, or a located Blender binary for the headless -b road (one process per call)',
     ],
     proof: 'scripts/blender-bridge/run-all.sh',
   },
@@ -228,10 +287,10 @@ export const BlenderTool = buildTool({
     }
     return { result: true as const }
   },
-  async call(input: Input) {
+  async call(input: Input, context) {
     let result: string
     try {
-      result = await runOp(input)
+      result = await runOp(input, context?.abortController?.signal)
     } catch (err) {
       result = `${input.op} failed: ${(err as Error).message}\nhint: ${blenderBridgeHint(blenderBridgePort())}`
     }

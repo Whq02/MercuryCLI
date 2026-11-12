@@ -10,7 +10,8 @@ import {
   blenderBridgeHint,
 } from './bridgeClient.js'
 import { ensureBlenderBridgeToken, readBlenderBridgeToken } from './bridgeToken.js'
-import { BLENDER_ADDON_MODULE, resolveBlenderAddonHome } from './addonHome.js'
+import { BLENDER_ADDON_MODULE, blenderVersionDir, resolveBlenderAddonHome } from './addonHome.js'
+import { probeBlenderHeadlessRuntime } from './headlessRunner.js'
 import { locateBlender } from '../ide/blenderProject.js'
 
 export interface BlenderBridgeInstallStatus {
@@ -109,10 +110,58 @@ export function applyBlenderBridgeUninstall(): string {
 
 export async function describeBlenderBridgeStatus(): Promise<string> {
   const port = blenderBridgePort()
-  const census = resolveBlenderAddonHome()
+  const armed = blenderBridgeEnabled()
   const lines: string[] = [
-    `flag: ${blenderBridgeEnabled() ? 'armed (MERCURY_BLENDER)' : 'OFF'}`,
+    `flag: ${armed ? 'armed (MERCURY_BLENDER)' : 'OFF'}`,
   ]
+  const located = armed ? locateBlender() : undefined
+  let probedVersion: string | undefined
+  if (armed && located) {
+    if (located.pinError) {
+      lines.push(`blender: NOT located — ${located.pinError}`)
+      lines.push('headless road: unavailable (fix or unset MERCURY_BLENDER_BIN)')
+    } else if (!located.blender) {
+      lines.push(
+        'blender: NOT located (probed MERCURY_BLENDER_BIN, PATH, /Applications/Blender.app, ~/Applications/Blender.app, Program Files — set MERCURY_BLENDER_BIN=<binary>)',
+      )
+      lines.push('headless road: unavailable (no Blender binary located)')
+    } else {
+      lines.push(`blender: ${located.blender.path} (found via ${located.blender.source})`)
+      const runtime = await probeBlenderHeadlessRuntime(located.blender.path)
+      probedVersion = runtime.blenderVersion
+      if (runtime.blenderVersion) {
+        lines.push(`blender version: ${runtime.blenderVersion}`)
+        if (runtime.pythonVersion) {
+          lines.push(
+            `blender python: ${runtime.pythonVersion}${
+              runtime.pythonExecutable ? ` (${runtime.pythonExecutable})` : ''
+            }`,
+          )
+        }
+        if (runtime.bundled && runtime.absent) {
+          lines.push(
+            `python modules: bundled [${runtime.bundled.join(', ')}] · not bundled [${runtime.absent.join(', ')}]`,
+          )
+        }
+        const verDir = blenderVersionDir(runtime.blenderVersion)
+        if (verDir) {
+          const major = Number.parseInt(verDir.split('.')[0] ?? '', 10)
+          const notesUrl = `https://developer.blender.org/docs/release_notes/${verDir}/python_api/`
+          const fiveClause =
+            major >= 5 ? ' — the legacy Action API is gone: F-curves live on channelbags' : ''
+          lines.push(`python api notes: ${notesUrl}${fiveClause}`)
+        }
+      } else if (runtime.reason) {
+        lines.push(`blender version: unprobed (${runtime.reason})`)
+      }
+      lines.push(
+        `headless road: ready (${located.blender.path} -b, one process per call when no bridge client answers)`,
+      )
+    }
+  }
+  const census = resolveBlenderAddonHome(
+    probedVersion !== undefined ? { version: probedVersion } : undefined,
+  )
   if (!census.home) {
     lines.push(`addon home: UNRESOLVED — ${census.reason ?? 'unresolvable'}`)
     lines.push(`bridge: not probed (no install address)`)
@@ -144,11 +193,18 @@ export async function describeBlenderBridgeStatus(): Promise<string> {
     `bridge: ${reachable ? `answering on 127.0.0.1:${port}` : `not answering on 127.0.0.1:${port} — ${blenderBridgeHint(port)}`}`,
   )
   lines.push(`client: ${client ? client.status() : 'unavailable'}`)
-  const addonPort = readAddonBridgePort(home) ?? BLENDER_BRIDGE_DEFAULT_PORT
-  if (addonPort !== port) {
-    lines.push(
-      `PORT MISMATCH: Mercury dials ${port} but the add-on listens on ${addonPort} (${path.join(BLENDER_ADDON_MODULE, 'config.json')}) — op:"blender_bridge_install" aligns them (Blender re-reads it on add-on re-enable or restart)`,
-    )
+  if (s.installed) {
+    const configuredPort = readAddonBridgePort(home)
+    const addonPort = configuredPort ?? BLENDER_BRIDGE_DEFAULT_PORT
+    if (addonPort !== port) {
+      const sourceNote =
+        configuredPort !== undefined
+          ? path.join(BLENDER_ADDON_MODULE, 'config.json')
+          : `default port; no ${path.join(BLENDER_ADDON_MODULE, 'config.json')}`
+      lines.push(
+        `PORT MISMATCH: Mercury dials ${port} but the add-on listens on ${addonPort} (${sourceNote}) — op:"blender_bridge_install" aligns them (Blender re-reads it on add-on re-enable or restart)`,
+      )
+    }
   }
   return lines.join('\n')
 }
