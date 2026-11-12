@@ -9,11 +9,18 @@ HERMETIC=0
 [ "$SUITES_DIR" != "scripts" ] && HERMETIC=1
 
 CLASS=release
+WITHOUT_CLASS=
+ONLY_CLASS=
 PLAN_ONLY=0
 KEEP_GOING=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --class) CLASS=${2:?--class wants release|drives|all}; shift 2 ;;
+    --class=*) CLASS=${1#--class=}; shift ;;
+    --without-class) WITHOUT_CLASS=${2:?--without-class wants pure|cpu|pty|exclusive}; shift 2 ;;
+    --without-class=*) WITHOUT_CLASS=${1#--without-class=}; shift ;;
+    --only-class) ONLY_CLASS=${2:?--only-class wants pure|cpu|pty|exclusive}; shift 2 ;;
+    --only-class=*) ONLY_CLASS=${1#--only-class=}; shift ;;
     --plan-only) PLAN_ONLY=1; shift ;;
     --keep-going) KEEP_GOING=1; shift ;;
     --*) printf 'unknown pool option: %s\n' "$1" >&2; exit 2 ;;
@@ -21,7 +28,22 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 case "$CLASS" in release|drives|all) ;; *) printf 'unknown pool class: %s\n' "$CLASS" >&2; exit 2 ;; esac
+for _filter in "$WITHOUT_CLASS" "$ONLY_CLASS"; do
+  case "$_filter" in ''|pure|cpu|pty|exclusive) ;; *) printf 'unknown suite class: %s\n' "$_filter" >&2; exit 2 ;; esac
+done
+if [ -n "$WITHOUT_CLASS" ] && [ -n "$ONLY_CLASS" ]; then
+  printf '%s\n' '--without-class and --only-class split one plan into two halves; give one of them' >&2
+  exit 2
+fi
 is_drive_suite() { case "$1" in host|*-drives) return 0 ;; *) return 1 ;; esac; }
+suite_class() {
+  local c
+  c=$(sed -n 's/^# gate-class:[[:space:]]*//p' "$SUITES_DIR/$1/run-all.sh" 2>/dev/null | head -1 | tr -d '[:space:]')
+  case "$c" in (pure | cpu | pty | exclusive) printf '%s' "$c" ;; (*) printf 'undeclared' ;; esac
+}
+pty_lane() {
+  [ "$1" = "pty" ] || [ "$1" = "undeclared" ]
+}
 want=("$@")
 in_want() {
   [ "${#want[@]}" -eq 0 ] && return 0
@@ -97,6 +119,11 @@ for runner in "$SUITES_DIR"/*/run-all.sh; do
       deferred+=("$dom")
       continue
     fi
+    _cls=$(suite_class "$dom")
+    if { [ -n "$WITHOUT_CLASS" ] && [ "$_cls" = "$WITHOUT_CLASS" ]; } || { [ -n "$ONLY_CLASS" ] && [ "$_cls" != "$ONLY_CLASS" ]; }; then
+      deferred+=("$dom")
+      continue
+    fi
   fi
   suites+=("$dom")
 done
@@ -107,15 +134,6 @@ fi
 [ "$CLASS" = drives ] && RETRY_MODE=none
 total=${#suites[@]}
 if [ "$total" -eq 0 ]; then echo "no suites matched: ${want[*]:-}"; asked_line; exit 1; fi
-
-suite_class() { # $1=dom → pure|cpu|pty|exclusive|undeclared
-  local c
-  c=$(sed -n 's/^# gate-class:[[:space:]]*//p' "$SUITES_DIR/$1/run-all.sh" 2>/dev/null | head -1 | tr -d '[:space:]')
-  case "$c" in (pure | cpu | pty | exclusive) printf '%s' "$c" ;; (*) printf 'undeclared' ;; esac
-}
-pty_lane() { # $1=class → 0 when the class rides the pty lane (declared or undeclared-conservative)
-  [ "$1" = "pty" ] || [ "$1" = "undeclared" ]
-}
 
 VERDICT_FILE="$(project_store_dir "$PWD" gate)/verdict.json"
 [ "$CLASS" = drives ] && VERDICT_FILE="${VERDICT_FILE%/*}/drives-verdict.json"
@@ -519,7 +537,7 @@ for dom in ${solo_doms[@]+"${solo_doms[@]}"}; do
 done
 T_SOLO_END=$SECONDS
 
-if [ "${#want[@]}" -eq 0 ] && [ "$HERMETIC" -eq 0 ]; then
+if [ "${#want[@]}" -eq 0 ] && [ -z "$ONLY_CLASS" ] && [ -z "$WITHOUT_CLASS" ] && [ "$HERMETIC" -eq 0 ]; then
   RED_KEEP="${VERDICT_FILE%/*}/red-suites-${CLASS}"
   rm -rf "$RED_KEEP"
   for dom in ${FLK_DOM[@]+"${FLK_DOM[@]}"} ${FAIL[@]+"${FAIL[@]}"}; do
@@ -572,7 +590,7 @@ if [ "${#want[@]}" -eq 0 ]; then
 fi
 
 write_verdict=0
-if [ "${#want[@]}" -eq 0 ]; then
+if [ "${#want[@]}" -eq 0 ] && [ -z "$ONLY_CLASS" ] && [ -z "$WITHOUT_CLASS" ]; then
   if [ "$HERMETIC" -eq 0 ]; then
     write_verdict=1
   elif [ -n "${MERCURY_GATE_VERDICT_FILE:-}" ]; then

@@ -127,4 +127,32 @@ else
   bad "a misspelt word is not refused (rc=$rc)" "$out"
 fi
 
+mk_suite pty-red pty ": >'$work/ran/pty-red'; echo pty-red-err >&2; exit 3"
+mk_suite pty-green pty ": >'$work/ran/pty-green'; exit 0"
+mk_suite z-drives pty ": >'$work/ran/z-drives'; exit 0"
+printf 'pty-red\t9\npty-green\t1\nzz-red\t9\naa-green\t1\nz-drives\t1\n' >"$work/seed.tsv"
+
+fresh
+plan_pty=$(runner MERCURY_GATE_JOBS=1 --only-class pty --plan-only); prc=$?
+plan_rel=$(runner MERCURY_GATE_JOBS=1 --without-class pty --plan-only); rrc=$?
+out_pty=$(gate MERCURY_GATE_JOBS=1 MERCURY_GATE_VERDICT_FILE="$work/verdict.json" bash scripts/run-all-suites.sh --only-class pty --keep-going); orc=$?
+bad_cls=$(runner MERCURY_GATE_JOBS=1 --only-class bogus --plan-only); brc1=$?
+both_cls=$(runner MERCURY_GATE_JOBS=1 --only-class pty --without-class cpu --plan-only); brc2=$?
+if [ "$prc" = "0" ] && [ "$rrc" = "0" ] && [ "$orc" = "1" ] && [ "$brc1" = "2" ] && [ "$brc2" = "2" ] \
+   && [ "$plan_pty" = "$(printf 'pty-green\npty-red')" ] \
+   && [ "$plan_rel" = "$(printf 'aa-green\nzz-red')" ] \
+   && [ -e "$work/ran/pty-red" ] && [ -e "$work/ran/pty-green" ] \
+   && [ ! -e "$work/ran/aa-green" ] && [ ! -e "$work/ran/zz-red" ] && [ ! -e "$work/ran/z-drives" ] \
+   && [ ! -e "$work/verdict.json" ] \
+   && [ "$(last "$out_pty" 2)" = "suites asked 2 · ran 2 · not launched 0" ] \
+   && has "$(last "$out_pty" 1)" '^❌ 1/2 RED: pty-red  ·  [0-9]+s total$'; then
+  ok "--only-class pty plans and runs the non-drive pty suites alone, keeps going with the count line, leaves verdict.json untouched, and refuses bad filters"
+else
+  bad "--only-class pty reading broke (prc=$prc rrc=$rrc orc=$orc brc=$brc1/$brc2)" "$plan_pty
+---
+$plan_rel
+---
+$out_pty"
+fi
+
 exit "$fail"
