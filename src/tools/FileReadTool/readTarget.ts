@@ -1,7 +1,8 @@
 
-import { readdirSync, statSync } from 'node:fs'
+import { readdirSync, statSync, type Dirent } from 'node:fs'
 import { basename, join } from 'node:path'
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
+import { getPathsForPermissionCheck } from '../../utils/fsOperations.js'
 import { mercurySecretPath } from '../../utils/permissions/protectedPaths.js'
 import { resolveResource } from '../../services/resources/registry.js'
 import type { ResourceContext } from '../../services/resources/contracts.js'
@@ -40,11 +41,16 @@ interface RenderedTarget {
 
 export const DIRECTORY_ENTRY_CAP = 200
 
-export function renderDirectoryTarget(fullPath: string): RenderedTarget {
+export function renderDirectoryTarget(fullPath: string, denied?: (file: string) => boolean): RenderedTarget {
+  const refused = (e: Dirent): boolean => {
+    const entry = join(fullPath, e.name)
+    if (mercurySecretPath(entry) !== null) return true
+    if (denied === undefined) return false
+    return e.isSymbolicLink() ? getPathsForPermissionCheck(entry).some(form => denied(form)) : denied(entry)
+  }
   let names: string[]
   try {
-    const entries = readdirSync(fullPath, { withFileTypes: true })
-      .filter(e => mercurySecretPath(join(fullPath, e.name)) === null)
+    const entries = readdirSync(fullPath, { withFileTypes: true }).filter(e => !refused(e))
     names = entries
       .map(e => (e.isDirectory() ? `${e.name}/` : e.name))
       .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))

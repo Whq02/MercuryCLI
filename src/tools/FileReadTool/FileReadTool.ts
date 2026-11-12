@@ -56,7 +56,7 @@ import { isMnemeFile } from '../../utils/memoryFileDetection.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
 import { mapNotebookCellsToToolResult, readNotebook } from '../../utils/notebook.js'
 import { controlCharacterPathRefusal, expandPath, hasControlCharacter } from '../../utils/path.js'
-import { checkReadPermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
+import { checkReadPermissionForTool, matchingRuleForInput, readDenialFilter } from '../../utils/permissions/filesystem.js'
 import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import { matchWildcardPattern } from '../../utils/permissions/shellRuleMatching.js'
@@ -1884,7 +1884,7 @@ export const FileReadTool = buildTool({
         })
       }
       if (isDirectoryTarget(fullFilePath)) {
-        const rendered = renderDirectoryTarget(fullFilePath)
+        const rendered = renderDirectoryTarget(fullFilePath, readDenialFilter(context.getAppState().toolPermissionContext, fullFilePath))
         return settle({
           data: {
             type: 'text',
