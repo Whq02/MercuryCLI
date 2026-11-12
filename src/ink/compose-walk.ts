@@ -35,6 +35,7 @@ export class ComposeSignals {
   scrollTranslation: ScrollTranslation | null = null
   readonly absoluteRectsCur: Rectangle[] = []
   readonly absoluteEntriesCur: AbsoluteEntry[] = []
+  readonly reachRectsCur: Rectangle[] = []
 
   markLayoutShift(reason: () => string, divergentRow?: number): void {
     if (shiftForensicsOn && this.shiftLog.length < SHIFT_LOG_CAP) {
@@ -411,7 +412,10 @@ function repaintNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placem
   } else {
     paintNode(node, layoutNode, walk, placement, x, y, width, height, hasRemovedChild)
     const reach = reachBeyond(node, x, y, width, height)
-    if (reach !== undefined) placed.reach = reach
+    if (reach !== undefined) {
+      placed.reach = reach
+      if (!floating) signals.reachRectsCur.push(reach)
+    }
     nodeCache.set(node, placed)
     if (floating) {
       signals.absoluteRectsCur.push(placed)
@@ -713,7 +717,13 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
     fluxMark('scroll:xlate', regionTop * 1000 + delta + 500)
     if (rowSampler === undefined) {
       const spansFullWidth = Math.floor(x) <= 0 && Math.ceil(x + width) >= buffer.width
-      const stableForShift = boxCached?.y === y && boxCached.height === height && innerHeight > 0 && Math.abs(delta) < innerHeight
+      const stableForShift =
+        boxCached?.x === x &&
+        boxCached.y === y &&
+        boxCached.width === width &&
+        boxCached.height === height &&
+        innerHeight > 0 &&
+        Math.abs(delta) < innerHeight
       if (stableForShift && spansFullWidth && walk.regionScrollUsable) {
         regionHint = { top: regionTop, bottom: regionBottom, delta }
         signals.scrollHint = regionHint
@@ -728,7 +738,11 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
   const contentHeightWas = contentWas?.height ?? contentHeight
   const heightDelta = contentHeight - contentHeightWas
   const shiftPlan = regionHint ?? rectShift
-  const safeForFastPath = !shiftPlan || (!childRemoved && (heightDelta === 0 || (shiftPlan.delta > 0 && heightDelta === shiftPlan.delta)))
+  const firstCached = shiftPlan ? (content.childNodes as FrameNode[]).find(ch => ch.layoutNode !== undefined && nodeCache.has(ch)) : undefined
+  const anchorShifted =
+    firstCached === undefined ||
+    Math.floor(nodeCache.get(firstCached)!.y) - shiftPlan!.delta === Math.floor(contentTop + firstCached.layoutNode!.getComputedTop())
+  const safeForFastPath = !shiftPlan || (!childRemoved && anchorShifted && (heightDelta === 0 || (shiftPlan.delta > 0 && heightDelta === shiftPlan.delta)))
   if (!safeForFastPath) {
     signals.scrollHint = null
     if (rectShift) {
@@ -743,17 +757,18 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
     buffer.blit(prevScreen, Math.floor(x), top, columns, bottom - top + 1)
     if (regionHint) buffer.shift(top, bottom, delta)
     else buffer.shiftRect(top, bottom, rectShift!.x0, rectShift!.x1, delta)
+    shiftScrolledChildrenCache(content, top, bottom + 1, delta)
     const incomingTop = delta > 0 ? bottom - delta + 1 : top
     const incomingBottom = delta > 0 ? bottom : top - delta - 1
+    const dirtyChildren = content.dirty ? new Set(content.childNodes.filter(c => (c as FrameNode).dirty)) : null
+    if (dirtyChildren !== null) {
+      repairStableRows(content, walk, dirtyChildren, contentLeft, contentTop, bandTop, bandBottom, incomingTop, incomingBottom, top, bottom + 1, Math.floor(x), columns, boxBackgroundColor)
+    }
     buffer.clear({ x: Math.floor(x), y: incomingTop, width: columns, height: incomingBottom - incomingTop + 1 })
     if (boxBackgroundColor && incomingBottom >= incomingTop) buffer.write(Math.floor(x), incomingTop, groundRows(columns, incomingBottom - incomingTop + 1, boxBackgroundColor))
     buffer.clip({ x1: undefined, x2: undefined, y1: incomingTop, y2: incomingBottom + 1 })
-    const dirtyChildren = content.dirty ? new Set(content.childNodes.filter(c => (c as FrameNode).dirty)) : null
     composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, undefined, incomingTop - contentTop, incomingBottom + 1 - contentTop, boxBackgroundColor, true)
     buffer.unclip()
-    if (dirtyChildren !== null) {
-      repairStableRows(content, walk, dirtyChildren, contentLeft, contentTop, delta, bandTop, bandBottom, incomingTop, incomingBottom, bottom + 1, Math.floor(x), columns, boxBackgroundColor)
-    }
     for (const rect of walk.prevAbsoluteRects) {
       if (rect.y >= bottom + 1 || rect.y + rect.height <= top) continue
       const shiftedTop = Math.max(top, Math.floor(rect.y) - delta)
@@ -781,28 +796,62 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
   settle(content)
 }
 
-function repairStableRows(content: FrameNode, walk: Walk, dirtyChildren: Set<FrameNode['childNodes'][number]>, contentLeft: number, contentTop: number, delta: number, bandTop: number, bandBottom: number, incomingTop: number, incomingBottom: number, regionFloor: number, left: number, columns: number, boxBackgroundColor: Color | undefined): void {
+function shiftSubtreeCache(root: FrameNode, delta: number): void {
+  const pending: FrameNode[] = [root]
+  while (pending.length > 0) {
+    const elem = pending.pop()!
+    const cached = nodeCache.get(elem)
+    if (cached !== undefined) {
+      nodeCache.set(elem, {
+        x: cached.x,
+        y: cached.y - delta,
+        width: cached.width,
+        height: cached.height,
+        ...(cached.reach !== undefined ? { reach: { ...cached.reach, y: cached.reach.y - delta } } : {}),
+      })
+    }
+    for (const child of elem.childNodes) {
+      if (child.nodeName !== '#text') pending.push(child as FrameNode)
+    }
+  }
+}
+
+function shiftScrolledChildrenCache(content: FrameNode, viewTop: number, viewBottom: number, delta: number): void {
+  for (const entry of content.childNodes) {
+    if (entry.nodeName === '#text') continue
+    const child = entry as FrameNode
+    const cached = nodeCache.get(child)
+    if (cached === undefined) continue
+    const shiftedY = cached.y - delta
+    if (shiftedY + cached.height <= viewTop || shiftedY >= viewBottom) {
+      forgetSubtree(child)
+    } else {
+      shiftSubtreeCache(child, delta)
+    }
+  }
+}
+
+function repairStableRows(content: FrameNode, walk: Walk, dirtyChildren: Set<FrameNode['childNodes'][number]>, contentLeft: number, contentTop: number, bandTop: number, bandBottom: number, incomingTop: number, incomingBottom: number, regionTop: number, regionFloor: number, left: number, columns: number, boxBackgroundColor: Color | undefined): void {
   const { buffer } = walk
-  let cumulativeGrowth = 0
   for (const entry of content.childNodes) {
     const child = entry as FrameNode
-    const isDirty = dirtyChildren.has(entry)
     const layout = child.layoutNode
-    if ((!isDirty && cumulativeGrowth === 0 && nodeCache.has(child)) || !layout) continue
+    if (!layout) continue
     const childTop = layout.getComputedTop()
     const childHeight = layout.getComputedHeight()
     const childBottom = childTop + childHeight
-    if (isDirty) cumulativeGrowth += childHeight - (nodeCache.get(child)?.height ?? 0)
     const offscreen = childBottom <= bandTop || childTop >= bandBottom
     const insideIncoming = childTop >= incomingTop - contentTop && childBottom <= incomingBottom + 1 - contentTop
     if (offscreen || insideIncoming) continue
+    const isDirty = dirtyChildren.has(entry)
     const screenTop = Math.floor(contentTop + childTop)
     const childWas = isDirty ? undefined : nodeCache.get(child)
-    if (childWas && Math.floor(childWas.y) - delta === screenTop) continue
+    if (childWas !== undefined && Math.floor(childWas.y) === screenTop && childWas.height === childHeight) continue
+    const clipStart = Math.max(regionTop, screenTop)
     const screenBottom = Math.min(Math.floor(contentTop + childBottom), regionFloor)
-    if (screenTop < screenBottom) {
-      buffer.write(left, screenTop, groundRows(columns, screenBottom - screenTop, boxBackgroundColor))
-      buffer.clip({ x1: undefined, x2: undefined, y1: screenTop, y2: screenBottom })
+    if (clipStart < screenBottom) {
+      buffer.write(left, clipStart, groundRows(columns, screenBottom - clipStart, boxBackgroundColor))
+      buffer.clip({ x1: undefined, x2: undefined, y1: clipStart, y2: screenBottom })
       composeNode(child, walk, { offsetX: contentLeft, offsetY: contentTop, prevScreen: undefined, inheritedBackgroundColor: boxBackgroundColor })
       buffer.unclip()
     }
@@ -860,11 +909,13 @@ function blitEscapingAbsoluteDescendants(node: FrameNode, walk: Walk, prevScreen
   pushElementChildren(pending, node)
   while (pending.length > 0) {
     const elem = pending.pop()!
-    const floatingRect = elem.style.position === 'absolute' ? nodeCache.get(elem) : undefined
-    if (floatingRect !== undefined) {
-      walk.signals.absoluteRectsCur.push(floatingRect)
-      walk.signals.absoluteEntriesCur.push({ node: elem, rect: floatingRect })
-      restoreIfEscaping(walk, prevScreen, floatingRect, left, top, right, bottom)
+    const cachedElem = nodeCache.get(elem)
+    if (elem.style.position === 'absolute' && cachedElem !== undefined) {
+      walk.signals.absoluteRectsCur.push(cachedElem)
+      walk.signals.absoluteEntriesCur.push({ node: elem, rect: cachedElem })
+      restoreIfEscaping(walk, prevScreen, cachedElem, left, top, right, bottom)
+    } else if (cachedElem?.reach !== undefined) {
+      walk.signals.reachRectsCur.push(cachedElem.reach)
     }
     pushElementChildren(pending, elem)
   }

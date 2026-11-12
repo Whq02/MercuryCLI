@@ -77,6 +77,7 @@ export default function createRenderer(
   let buffer: ComposeBuffer | null = null
   let prevAbsoluteRects: readonly Rectangle[] = []
   let prevAbsoluteEntries: readonly AbsoluteEntry[] = []
+  let prevOverpaintRects: readonly Rectangle[] = []
 
   return function render(options: RenderOptions): RenderResult {
     const {
@@ -183,7 +184,7 @@ export default function createRenderer(
     composeTree(rootNode, buffer, {
       prevScreen,
       signals,
-      prevAbsoluteRects,
+      prevAbsoluteRects: prevOverpaintRects,
       regionScrollUsable: options.regionScrollUsable === true,
     })
     const renderedScreen = buffer.get()
@@ -194,6 +195,10 @@ export default function createRenderer(
     }
     prevAbsoluteRects = signals.absoluteRectsCur
     prevAbsoluteEntries = signals.absoluteEntriesCur
+    prevOverpaintRects =
+      signals.reachRectsCur.length === 0
+        ? signals.absoluteRectsCur
+        : [...signals.absoluteRectsCur, ...signals.reachRectsCur]
 
     if (signals.scrollDrainNode) markDirty(signals.scrollDrainNode)
 
