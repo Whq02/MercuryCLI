@@ -174,7 +174,6 @@ for (const journey of journeys) {
     ] : []),
   ]
   const resizes = [
-    ...(poison ? [{ afterMark: 'card', afterMs: 150, cols: cols - 1, rows }] : []),
     ...(journey.resize ? [
       { afterMark: 'back', afterMs: 400, cols: 80, rows: 24 },
       { afterMark: 'small', afterMs: 400, cols: 120, rows: 40 },
@@ -218,11 +217,11 @@ for (const journey of journeys) {
     const probeErasures = widthProbeErasures(frames)
     const windows: Array<{ event: string; bytes: string; rows: number }> = [
       { event: 'splash to card (after the card first paints)', bytes: afterFirstPaint ?? beforeCard, rows },
-      { event: 'shift-right into the Concourse', bytes: bytesIn(frames, cardTick, marks.get('concourse')!.atTick), rows },
+      { event: 'shift-right into the Concourse', bytes: `${poison ? ERASE_SCREEN : ''}${bytesIn(frames, cardTick, marks.get('concourse')!.atTick)}`, rows },
       { event: 'shift-left back to the card', bytes: bytesIn(frames, marks.get('concourse')!.atTick, marks.get('back')!.atTick), rows },
     ]
     if (journey.resize) {
-      const settled = poison ? stages.slice(1) : stages
+      const settled = stages
       check(`${tag}: both resizes were applied`, settled.length === 2, `${settled.length} stages`)
       const small = marks.get('small')!
       const large = marks.get('large')!
