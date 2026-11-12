@@ -599,9 +599,10 @@ async function runTransactionBody(args: {
     prepared.names.forEach((name, index) => push({ message: hookProgressMessage(event, name, 'running', toolUseID, prepared.names.length, { timeoutS: prepared.timeoutsS[index] }) }))
     const tick = (): void => {
       const now = Date.now()
-      push({ message: hookProgressMessage(event, prepared.names[0] ?? '', 'waiting', toolUseID, prepared.names.length, { timeoutS, elapsedS: Math.floor((now - sinceMs) / 1000), line: hookWaitWords(wait, now) }) })
+      const elapsedS = Math.floor((now - sinceMs) / 1000)
+      if (elapsedS < 1) return
+      push({ message: hookProgressMessage(event, prepared.names[0] ?? '', 'waiting', toolUseID, prepared.names.length, { timeoutS, elapsedS, line: hookWaitWords(wait, now) }) })
     }
-    tick()
     hookWaitTicker = setInterval(tick, 1000)
     hookWaitTicker.unref?.()
   }
