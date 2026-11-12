@@ -1,13 +1,23 @@
 
 import { appendFileSync } from 'node:fs'
-import { charInCellAt, type Screen, type StylePool } from './cell-grid.js'
+import {
+  blitRegion,
+  CellWidth,
+  cellAt,
+  charInCellAt,
+  clearRegion,
+  createScreen,
+  migrateScreenPools,
+  type Screen,
+  type StylePool,
+} from './cell-grid.js'
 import ComposeBuffer, { lastComposeCounts } from './compose-buffer.js'
 import composeTree, {
   ComposeSignals,
   expandDamageForAbsoluteRects,
 } from './compose-walk.js'
 import { markDirty, type DOMElement } from './dom.js'
-import { emptyFrame, type Frame } from './frame.js'
+import type { Frame } from './frame.js'
 import type { Rectangle } from './layout/geometry.js'
 import { consumeAbsoluteRemovedFlag } from './node-cache.js'
 import { applyRecessPass } from './recessLayer.js'
@@ -80,10 +90,47 @@ export default function createRenderer(
     const hyperlinkPool = backFrame.screen.hyperlinkPool
 
     const layout = rootNode.layoutNode
-    const invalidFrame = (): RenderResult => ({
-      frame: emptyFrame(terminalRows, terminalWidth, stylePool, charPool, hyperlinkPool),
-      signals: new ComposeSignals(),
-    })
+    const invalidFrame = (): RenderResult => {
+      const height = altScreen ? terminalRows : frontFrame.screen.height
+      const screen = createScreen(
+        terminalWidth,
+        height,
+        stylePool,
+        frontFrame.screen.charPool,
+        frontFrame.screen.hyperlinkPool,
+      )
+      const copyWidth = Math.min(screen.width, frontFrame.screen.width)
+      const copyHeight = Math.min(screen.height, frontFrame.screen.height)
+      if (copyWidth > 0 && copyHeight > 0) {
+        blitRegion(screen, frontFrame.screen, 0, 0, copyWidth, copyHeight)
+        if (screen.width < frontFrame.screen.width) {
+          for (let y = 0; y < copyHeight; y++) {
+            if (cellAt(screen, screen.width - 1, y)?.width === CellWidth.Wide) {
+              clearRegion(screen, screen.width - 1, y, 1, 1)
+            }
+          }
+        }
+        screen.damage = undefined
+      }
+      migrateScreenPools(screen, charPool, hyperlinkPool)
+      const cursorRow = altScreen
+        ? Math.max(0, Math.min(screen.height, terminalRows) - 1)
+        : screen.height
+      return {
+        frame: {
+          screen,
+          viewport: { width: terminalWidth, height: terminalRows },
+          cursor: {
+            x: 0,
+            y: cursorRow,
+            visible: !isTTY || screen.height === 0,
+          },
+          scrollHint: null,
+          scrollDrainPending: false,
+        },
+        signals: new ComposeSignals(),
+      }
+    }
     if (!layout) return invalidFrame()
     const computedWidth = layout.getComputedWidth()
     const computedHeight = layout.getComputedHeight()
