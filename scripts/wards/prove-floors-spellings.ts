@@ -3,7 +3,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { accessSync, chmodSync, constants, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -625,6 +625,26 @@ if (runs('STAYED')) {
   for (const item of reads) await expect('STAYED', item, ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
   await expect('STAYED', bash('cd <CONFIG>; cd nope; rm -rf runtime', 'floor 4 where the shell stayed'), ['sovereign', 'flow'], refused, 'is refused')
   await expect('STAYED', bash('cd ~/.ssh; cd nope; echo x >> authorized_keys', 'floor 1 where the shell stayed'), ['sovereign', 'flow'], refused, 'is refused')
+  const LOCKED = join(RUN_ROOT, 'locked')
+  mkdirSync(LOCKED, { recursive: true })
+  chmodSync(LOCKED, 0o000)
+  let entered = true
+  try {
+    accessSync(LOCKED, constants.X_OK)
+  } catch {
+    entered = false
+  }
+  note(`a folder that stands with every permission taken away: this process ${entered ? 'can enter it all the same (a superuser, or a system that keeps no such permission), so a cd to it is made and the rows that name it read as not refused' : 'cannot enter it, so a cd to it fails and the shell stays where it stood'}`)
+  const locked: Call[] = [
+    bash('cd <CONFIG>; cd <CONFIG>/../locked; cat mcp-auth.json', 'a folder that stands and cannot be entered'),
+    bash('cd <CONFIG>; cd <CONFIG>/../locked 2>/dev/null; cat .credentials.json', 'its complaint dropped'),
+    bash('cd <CONFIG>; pushd <CONFIG>/../locked; cat mcp-auth.json', 'pushd'),
+    bash('cd <CONFIG>; cd <CONFIG>/../lock*; cat mcp-auth.json', 'the same folder by a wildcard'),
+    bash('cd <CONFIG>; cd <CONFIG>/../locked; grep -r token .', 'a tree reader after it'),
+  ]
+  for (const item of locked) await expect('STAYED', item, ['sovereign', 'flow', 'default'], entered ? notRefused : refusedAsSecret, entered ? 'is not refused by the floor' : 'is refused as a read of the credentials')
+  await expect('STAYED', bash('cd <CONFIG>; cd <CONFIG>/../locked; rm -rf runtime', 'floor 4 after a cd to a folder that cannot be entered'), ['sovereign', 'flow'], entered ? notRefused : refused, entered ? 'is not refused by the floor' : 'is refused')
+  await expect('STAYED', bash('cd ~/.ssh; cd <CONFIG>/../locked; echo x >> authorized_keys', 'floor 1 after a cd to a folder that cannot be entered'), ['sovereign', 'flow'], entered ? notRefused : refused, entered ? 'is not refused by the floor' : 'is refused')
   bootstrap.setCwdState(CONFIG_HOME)
   await expect('STAYED · the session standing in the config home', bash('cd nope; cat mcp-auth.json'), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
   for (const item of [bash('cd runtime; ls', 'a folder of the store that stands'), bash('cd /tmp; cat "$FILE"', 'out of the store by a folder that stands'), bash('cd /tmp\ncat "$FILE"', 'the same on two lines'), bash('cd nope && cat "$FILE"', 'joined by &&: nothing runs where the cd fails')]) await expect('STAYED · the session standing in the config home', item, ['sovereign'], notRefused, 'is not refused by the floor')
@@ -634,6 +654,8 @@ if (runs('STAYED')) {
   const WAY_THROUGH = /^Reading the whole of \S.*, where this line stays if the cd before it fails \(join them with && so the read runs only after the cd\) is refused: it holds Mercury's own credentials/
   const stayedSearch = await reading(bash('cd nope; grep -r foo .'), 'sovereign')
   check('STAYED · the refusal says the line would stay in the home and names && as the way through', WAY_THROUGH.test(stayedSearch.decision.message ?? '') && (stayedSearch.decision.message ?? '').includes(OWN_HOME), said(stayedSearch.decision))
+  const lockedSearch = await reading(bash('cd <CONFIG>/../locked; grep -r foo .', 'a search after a cd to a folder that cannot be entered: it would read the home'), 'sovereign')
+  check(`STAYED · the session standing in the home · ${lockedSearch.what} · ${entered ? 'is not refused by the floor' : 'gets the same sentence'}`, entered ? notRefused(lockedSearch.decision) : WAY_THROUGH.test(lockedSearch.decision.message ?? '') && (lockedSearch.decision.message ?? '').includes(OWN_HOME), said(lockedSearch.decision))
   for (const line of ['git clone https://example.invalid/r.git repo; cd repo; grep -rn TODO .', 'mkdir fresh; cd fresh; grep -r x .', 'tar -xf pkg.tgz; cd package; grep -rn main .']) {
     const made = await reading(bash(line), 'sovereign')
     check(`STAYED · a folder the line makes and then enters gets that sentence: ${line}`, WAY_THROUGH.test(made.decision.message ?? ''), said(made.decision))
@@ -658,8 +680,11 @@ if (runs('STAYED')) {
     bash('cd <CONFIG>; cd /tmp; cat "$FILE"', 'out of the store by a folder that stands'),
     bash('cd docs; cat plain.md', 'a folder of the project that stands'),
     bash('x=$(cd nope && pwd); cat notes.txt', 'a cd inside a substitution'),
+    bash('cd <CONFIG>/../locked; cat notes.txt', 'in the project, a cd to a folder that cannot be entered and a plain file'),
+    bash('cd <CONFIG>; cd <CONFIG>/../locked && cat "$FILE"', 'joined by &&: nothing runs where the cd fails'),
   ]
   for (const item of clear) await expect('STAYED', item, ['sovereign'], notRefused, 'is not refused by the floor')
+  chmodSync(LOCKED, 0o755)
 }
 
 if (runs('LISTED')) {

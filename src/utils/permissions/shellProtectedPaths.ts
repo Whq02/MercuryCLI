@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, statSync } from 'node:fs'
+import { accessSync, constants, existsSync, readdirSync, statSync } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
 import { posix } from 'node:path'
 import { getShellCwd } from '../Shell.js'
@@ -791,17 +791,12 @@ function foldersOnDisk(pattern: string): string[] {
     } else found = next
     if (found.length === 0) return []
   }
-  return found.filter(folder => {
-    try {
-      return statSync(folder).isDirectory()
-    } catch {
-      return false
-    }
-  })
+  return found.filter(canBeEntered)
 }
 
-function standsAsFolder(path: string): boolean {
+function canBeEntered(path: string): boolean {
   try {
+    accessSync(path, constants.X_OK)
     return statSync(path).isDirectory()
   } catch {
     return false
@@ -829,7 +824,7 @@ function foldersAfter(read: ShellRead, at: number, cwd: string): { folders: stri
       !turn.background &&
       (turn.maybes ?? []).every(context => (simple.maybes ?? []).includes(context)) &&
       (turn.gates ?? []).every(([from, to]) => (simple.gates ?? []).some(([start, end]) => (start === from && end === to) || (index >= start && index < end)))
-    const moved = gated || ((operands.length === 1 || switched) && (GLOB_PART.test(named) ? foldersNamedBy(named).length > 0 : standsAsFolder(named)))
+    const moved = gated || ((operands.length === 1 || switched) && (GLOB_PART.test(named) ? foldersNamedBy(named).length > 0 : canBeEntered(named)))
     if (ran && moved) continue
     stayed.push(posix.join(turn.cwd, stands.slice(named.length)), turn.cwd)
   }
@@ -856,7 +851,7 @@ function foldersRead(read: ShellRead, at: number, cwd: string): { folders: strin
     }
     if (target === undefined || target === '-' || target.includes(UNREAD_PART) || /[$`\s]/.test(spelling(target))) return { folders: [before], lost: true }
     const pattern = /^[A-Za-z]:\//.test(spelling(target)) ? spelling(target) : placedUnder(target, before) !== target ? placedUnder(target, before) : expandPath(spelling(target), before)
-    const named = GLOB_PART.test(pattern) ? foldersNamedBy(pattern) : standsAsFolder(pattern) ? [pattern] : []
+    const named = GLOB_PART.test(pattern) ? foldersNamedBy(pattern) : canBeEntered(pattern) ? [pattern] : []
     const gated = (simple.gates ?? []).some(([from, to]) => index >= from && index < to)
     return { folders: [...named, ...(named.includes(pattern) ? [] : [pattern]), ...(named.length > 0 || gated ? [] : [before])], lost: false }
   }
