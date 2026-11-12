@@ -130,3 +130,4 @@ prove-refused-admission-status.ts
 prove-rail-fit-dropped-pointers.ts
 prove-lanes-cursor-across-four-rows.ts
 prove-question-card-footer-key.ts
+prove-untrusted-project-extension-words.ts

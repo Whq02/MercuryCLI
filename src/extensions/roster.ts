@@ -2,6 +2,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import { getOriginalCwd, getSessionExtensions } from '../bootstrap/state.js'
 import { MERCURY_VERSION } from '../constants/product.js'
+import { isCheckoutSourceHeldForTrust } from '../utils/settings/constants.js'
 import { getSettingsForSource } from '../utils/settings/settings.js'
 import { matchBlock } from './blocklist.js'
 import { bundledRoster } from './bundled/index.js'
@@ -50,6 +51,7 @@ function blank(partial: Partial<RosterEntry> & Pick<RosterEntry, 'id' | 'name' |
     changedSinceApproval: false,
     switchedOn: false,
     switchScope: 'off',
+    untrustedFolder: false,
     blockedBy: null,
     shadowedBy: null,
     pending: null,
@@ -89,22 +91,40 @@ function applyApproval(entry: RosterEntry, record: InstalledRecord | null): void
   else entry.changedSinceApproval = true
 }
 
+function heldByUntrustedFolder(entry: RosterEntry): boolean {
+  if (!entry.approved || entry.switchedOn || entry.id === 'mercury-media@mercury') return false
+  if (isCheckoutSourceHeldForTrust('localSettings') && getSettingsForSource('localSettings')?.extensions?.enabled?.[entry.id] === true) {
+    return true
+  }
+  if (
+    entry.switchScope === 'off' &&
+    isCheckoutSourceHeldForTrust('projectSettings') &&
+    getSettingsForSource('projectSettings')?.extensions?.enabled?.[entry.id] === true
+  ) {
+    return true
+  }
+  return false
+}
+
 function applySwitch(entry: RosterEntry, defaultOn: boolean | null): void {
   const sw = readSwitch(entry.id)
   if (sw.scope !== 'off') {
     entry.switchedOn = sw.on
     entry.switchScope = sw.scope
+    entry.untrustedFolder = heldByUntrustedFolder(entry)
     return
   }
   if (sw.committedProposal !== null && entry.approved) {
     entry.switchedOn = sw.committedProposal
     entry.switchScope = 'project'
+    entry.untrustedFolder = false
     return
   }
   if (defaultOn !== null) {
     entry.switchedOn = defaultOn
     entry.switchScope = defaultOn ? 'everywhere' : 'off'
   }
+  entry.untrustedFolder = heldByUntrustedFolder(entry)
 }
 
 function applyBlock(entry: RosterEntry, source: SourceRecord | null): void {

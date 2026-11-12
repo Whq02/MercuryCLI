@@ -58,7 +58,7 @@ function stateCell(entry: RosterEntry, health: ReturnType<typeof healthLine> | n
     case 'pending':
       return `◐ reload · ${entry.pending === 'update' ? `${entry.record?.previous?.version ?? '?'} → ${entry.version}` : entry.pending === 'on' ? 'turned on' : 'turned off'} · r reloads`
     case 'off':
-      return `○ off${entry.shadowedBy ? ' · shadowed by project' : entry.changedSinceApproval ? ' · changed — re-approve' : !entry.approved ? ' · not approved · i approves' : ''}`
+      return `○ off${entry.shadowedBy ? ' · shadowed by project' : entry.changedSinceApproval ? ' · changed — re-approve' : !entry.approved ? ' · not approved · i approves' : entry.untrustedFolder ? ' · folder not trusted' : ''}`
     case 'found':
       return `◇ found · ${entry.home === 'proposal' ? 'proposed · i fetches' : `${MERCURY_PROJECT_DIR}/${PROJECT_EXTENSIONS_DIR} · i installs`}`
     case 'blocked':
@@ -70,6 +70,9 @@ function stateCell(entry: RosterEntry, health: ReturnType<typeof healthLine> | n
 
 function noteFor(entry: RosterEntry): string {
   const notes: string[] = []
+  if (trustStateOf(entry) === 'off' && !entry.shadowedBy && !entry.changedSinceApproval && entry.approved && entry.untrustedFolder) {
+    notes.push('start Mercury here once to trust it')
+  }
   if (entry.availableVersion) notes.push(`↑ ${entry.availableVersion} available`)
   if (entry.noLongerOffered) notes.push(`no longer offered by ${entry.label}`)
   if (entry.sourceRemoved) notes.push(`from ${entry.label} (removed)`)
