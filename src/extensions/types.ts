@@ -33,6 +33,7 @@ export type RosterEntry = {
   changedSinceApproval: boolean
   switchedOn: boolean
   switchScope: 'everywhere' | 'project' | 'off'
+  untrustedFolder?: boolean
   blockedBy: BlockedBy
   shadowedBy: string | null
   pending: 'on' | 'off' | 'update' | null

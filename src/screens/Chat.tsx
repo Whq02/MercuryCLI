@@ -726,10 +726,12 @@ export function Chat({
   const insertTextRef = useRef<{ insert: (text: string) => void; setInputWithCursor: (value: string, cursor: number) => void; cursorOffset: number } | null>(null);
 
   const scrollRef = useRef<ScrollBoxHandle | null>(null);
+  const scrollRestoreRef = useRef<ScrollRestore | null>(null);
   const modalScrollRef = useRef<ScrollBoxHandle | null>(null);
   const jumpRef = useRef<{ jumpToIndex: (i: number) => void; setSearchQuery: (q: string) => void; nextMatch: () => void; prevMatch: () => void; setAnchor: () => void; warmSearchIndex: () => Promise<number>; disarmSearch: () => void } | null>(null);
   const lastUserScrollAtRef = useRef(0);
   const repinToBottom = useCallback(() => {
+    scrollRestoreRef.current = null;
     scrollRef.current?.scrollToBottom();
   }, []);
   const noteUserScroll = useCallback(() => {
@@ -1719,7 +1721,6 @@ export function Chat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const scrollRestoreRef = useRef<ScrollRestore | null>(null);
   const captureScrollForFlip = useCallback(() => {
     const handle = scrollRef.current;
     if (!handle) {
@@ -1735,6 +1736,10 @@ export function Chat({
     const restore = scrollRestoreRef.current;
     if (!restore || !flipInk) return;
     const stop = flipInk.subscribeFrame(() => {
+      if (scrollRestoreRef.current !== restore) {
+        stop();
+        return;
+      }
       const handle = scrollRef.current;
       if (!handle) return;
       const target = Math.max(0, handle.getFreshScrollHeight() - handle.getViewportHeight() - restore.gap);
@@ -1868,10 +1873,12 @@ export function Chat({
         return;
       }
       if (input === 'g' && !searchBarOpen) {
+        scrollRestoreRef.current = null;
         scrollRef.current?.scrollTo(0);
         return;
       }
       if (input === 'G' && !searchBarOpen) {
+        scrollRestoreRef.current = null;
         scrollRef.current?.scrollToBottom();
         return;
       }
@@ -2068,6 +2075,7 @@ export function Chat({
   const newMessageCount = unseen.dividerIndex === null ? 0 : countUnseenAssistantTurns(messages, unseen.dividerIndex);
   const onScroll = useCallback(
     (sticky: boolean, handle: ScrollBoxHandle) => {
+      scrollRestoreRef.current = null;
       noteUserScroll();
       if (sticky) unseen.onRepin();
       else unseen.onScrollAway(handle);
@@ -2075,6 +2083,7 @@ export function Chat({
     [noteUserScroll, unseen],
   );
   const onPillClick = useCallback(() => {
+    scrollRestoreRef.current = null;
     setMessageCursor(null);
     unseen.jumpToNew(scrollRef.current);
   }, [unseen]);

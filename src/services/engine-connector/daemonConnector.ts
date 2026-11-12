@@ -1041,14 +1041,16 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   adoptRecord(next: DaemonSessionRecordV1, runnerLive = false): void {
     if (next.sessionId !== this.record.sessionId) return
-    if (next.runnerId === '' && !this.awaitingRunnerFacts) {
+    if (next.runnerId === '' && (!this.awaitingRunnerFacts || this.refusedAdmission !== null)) {
       this.facts = readSessionFacts(next.sessionId) ?? this.facts
       this.seedFactsAtMs = this.facts?.atMs ?? null
       this.openedAtMs = Date.now()
       this.startShownSinceMs = null
+      this.refusedAdmission = null
       this.awaitingRunnerFacts = true
     }
     Object.assign(this.record, next)
+    if (runnerLive) this.refusedAdmission = null
     if (runnerLive && this.awaitingRunnerFacts) {
       this.awaitingRunnerFacts = false
       this.startShownSinceMs = this.openedAtMs
@@ -1059,7 +1061,12 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   awaitAdmission(admission: Promise<string | null>): void {
     this.admission = admission
+    if (this.refusedAdmission !== null) {
+      this.refusedAdmission = null
+      emitAll(this.liveListeners, 'live')
+    }
     void admission.then(refusal => {
+      if (this.admission !== admission) return
       if (refusal !== null) {
         this.refusedAdmission = refusal
         emitAll(this.liveListeners, 'live')
@@ -1557,7 +1564,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (this.awaitingRunnerFacts) {
       if (this.seedFactsAtMs !== null && next.atMs <= this.seedFactsAtMs) return
       this.awaitingRunnerFacts = false
-      this.startShownSinceMs = this.openedAtMs
+      this.startShownSinceMs = this.refusedAdmission === null ? this.openedAtMs : null
+      this.refusedAdmission = null
     }
     const prev = this.facts
     this.facts = this.factsFromCarrier(next)
@@ -1848,9 +1856,12 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         connectorTrace({ ev: 'send', sid: this.record.sessionId, state: queuedNow ? 'queued' : 'delivered' })
       }
       this.retainedSend = state === 'held' || state === 'failed' ? { text: expanded, id: clientMessageId } : null
+      if (state === 'delivered' && this.refusedAdmission !== null) {
+        this.refusedAdmission = null
+        if (this.awaitingRunnerFacts) this.openedAtMs = Date.now()
+      }
       emitAll(this.liveListeners, 'live')
       if (state === 'delivered') {
-        this.refusedAdmission = null
         return { state: 'accepted' }
       }
       return { state: 'refused', detail: detail ?? (state === 'held' ? 'held — ↵ again replays it' : 'the session did not take it') }
@@ -2596,7 +2607,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       stuck,
       ...(this.record.isolation !== undefined ? { isolation: this.record.isolation } : {}),
       ...(this.record.branchLabel !== undefined ? { branchLabel: this.record.branchLabel } : {}),
-      runner: this.awaitingRunnerFacts ? { state: 'starting', sinceMs: this.openedAtMs, respawns: 0, maxRespawns: 0 } : this.runnerOnTheShownClock(),
+      runner: this.awaitingRunnerFacts
+        ? this.refusedAdmission !== null
+          ? null
+          : { state: 'starting', sinceMs: this.openedAtMs, respawns: 0, maxRespawns: 0 }
+        : this.runnerOnTheShownClock(),
     }
   }
 

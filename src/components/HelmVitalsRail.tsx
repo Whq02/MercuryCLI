@@ -33,6 +33,7 @@ import { requestCommandDispatch, requestHelmRowActivationByLabel, setHelmCursor 
 import { usageActivityBins } from '../utils/cockpit/usageActivity.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { RailPanel } from './mercury-ui/RailPanel.js'
+import { fitPointerRows } from '../utils/cockpit/helmLanesModel.js'
 import { Sparkline, UsageMeter, useNowTick } from './mercury-ui/components.js'
 import { CURSOR_NUDGE_MS, AttentionPulse, ValueGlow, WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
 import { partitionDiskRuns } from '../tools/WorkflowTool/runManifest.js'
@@ -320,11 +321,13 @@ function HelmVitalsRailImpl({ width, availRows }: { width: number; availRows?: n
         </Text>
       </Box>
       {model.sections.map(paintSection)}
-      {model.pointer !== null ? (
-        <Box width={width}>
-          <Text wrap="truncate-end" color={tok.textMuted}>{model.pointer}</Text>
-        </Box>
-      ) : null}
+      {model.pointer !== null
+        ? fitPointerRows(model.pointer, width, availRows !== undefined ? availRows - model.paintedRows : Infinity).map((line, idx) => (
+            <Box key={idx} width={width} height={1} flexShrink={0}>
+              <Text wrap="truncate-end" color={tok.textMuted}>{line}</Text>
+            </Box>
+          ))
+        : null}
     </Box>
   )
 }

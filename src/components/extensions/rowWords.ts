@@ -55,6 +55,7 @@ export function noteWords(entry: RosterEntry, health: Health | null): string {
       if (entry.shadowedBy) parts.push('shadowed by project')
       else if (entry.changedSinceApproval) parts.push('changed — re-approve')
       else if (!entry.approved) parts.push('not approved · i approves')
+      else if (entry.untrustedFolder) parts.push('folder not trusted · start Mercury here once')
       break
     case 'found':
       parts.push(entry.home === 'proposal' ? 'proposed · i fetches' : `${MERCURY_PROJECT_DIR}/${PROJECT_EXTENSIONS_DIR} · i installs`)

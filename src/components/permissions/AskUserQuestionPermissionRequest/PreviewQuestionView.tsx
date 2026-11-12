@@ -4,7 +4,9 @@ import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import type { KeyboardEvent } from '../../../ink/events/keyboard-event.js'
 import { Box, Text } from '../../../ink.js'
+import { useOptionalKeybindingContext } from '../../../keybindings/KeybindingContext.js'
 import { useKeybinding, useKeybindings } from '../../../keybindings/useKeybinding.js'
+import { useActionAffordance } from '../../../keybindings/useShortcutDisplay.js'
 import { useAppState } from '../../../state/AppState.js'
 import type { AppState } from '../../../state/AppState.js'
 import type { Question } from '../../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
@@ -77,6 +79,16 @@ export function PreviewQuestionView({
   const [cursorOffset, setCursorOffset] = useState(0)
   const editor = getExternalEditor()
   const editorName = editor ? editorDisplayName(editor) : null
+  const keybindings = useOptionalKeybindingContext()
+  const confirmEditorAffordance = useActionAffordance('chat:externalEditor', 'Confirmation')
+  const chatEditorAffordance = useActionAffordance('chat:externalEditor', 'Chat')
+  const editorKey = !keybindings
+    ? 'ctrl+g'
+    : confirmEditorAffordance.kind === 'bound'
+      ? confirmEditorAffordance.chord
+      : chatEditorAffordance.kind === 'bound'
+        ? chatEditorAffordance.chord
+        : null
   const questionText = question.question
   const questionState = questionStates[questionText]
 
@@ -342,7 +354,7 @@ export function PreviewQuestionView({
             <Text color="inactive" dimColor>
               Enter to select · {figures.arrowUp}/{figures.arrowDown} to navigate · n to add notes
               {questions.length > 1 && <> · Tab to switch questions</>}
-              {isInNotesInput && editorName && <> · ctrl+g to edit in {editorName}</>}{' '}
+              {isInNotesInput && editorName && editorKey && <> · {editorKey} to edit in {editorName}</>}{' '}
               · Esc to cancel
             </Text>
           </Box>

@@ -125,3 +125,9 @@ prove-command-argument-pasted.ts
 prove-landing-lines-sent-in-order.ts
 prove-crewmate-shell-output.ts
 prove-crewmate-transcript-shell.ts
+prove-flip-restore-yields.ts
+prove-refused-admission-status.ts
+prove-rail-fit-dropped-pointers.ts
+prove-lanes-cursor-across-four-rows.ts
+prove-question-card-footer-key.ts
+prove-untrusted-project-extension-words.ts

@@ -19,7 +19,7 @@ import type { LiveContextUsage } from './contextUsageLive.js'
 import type { ComposedCertChip } from '../healthCertCore.js'
 import { formatCountdown, formatCountdownCoarse } from './quota.js'
 import { saturnWakeGlanceWords, type SaturnWakeGlanceV1 } from '../../daemon/saturn.js'
-import { helmRowSig, type HelmRow } from './helmFocus.js'
+import { getHelmCursorSig, getHelmRows, helmRowSig, type HelmRow } from './helmFocus.js'
 import { densityPlan, hintBudget, HELM_DENSITY_FLOOR, type DensityPlan } from '../helmDensity.js'
 import type { ActivityState } from './cockpitActivity.js'
 import { GLYPH, displayWidth, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
@@ -80,6 +80,40 @@ export function wrapRailRows(text: string, width: number, maxRows: number): stri
   return rows.slice(0, maxRows)
 }
 
+
+const POINTER_SEP_WORD = /^[—–·-]$/
+
+function truncatePointerLine(line: string, budget: number): string {
+  if (displayWidth(line) <= budget) return line
+  const words = line.split(' ')
+  for (let keep = words.length - 1; keep >= 1; keep--) {
+    if (POINTER_SEP_WORD.test(words[keep - 1]!)) continue
+    const kept = words.slice(0, keep).join(' ')
+    if (displayWidth(kept) < budget) return `${kept}…`
+  }
+  return truncateToWidth(line, budget)
+}
+
+export function fitPointerRows(text: string, width: number, maxRows: number): string[] {
+  const cap = Math.max(1, maxRows)
+  if (displayWidth(text) <= width || cap === 1) return [truncatePointerLine(text, width)]
+  const parts = text.split(' · ')
+  if (parts.length <= 1) return [truncatePointerLine(text, width)]
+  const lines: string[] = [parts[0]!]
+  for (let i = 1; i < parts.length; i++) {
+    const cur = lines[lines.length - 1]!
+    const joined = `${cur} · ${parts[i]!}`
+    if (displayWidth(joined) <= width) {
+      lines[lines.length - 1] = joined
+    } else if (lines.length < cap) {
+      lines.push(`    · ${parts[i]!}`)
+    } else {
+      lines[lines.length - 1] = truncatePointerLine(joined, width)
+      return lines.map(line => truncatePointerLine(line, width))
+    }
+  }
+  return lines.map(line => truncatePointerLine(line, width))
+}
 type RunKind = 'shell' | 'monitor' | 'workflow' | 'cloud' | 'run'
 type RunRow = { id: string; title: string; status: TaskStatus; kind: RunKind; startedAtMs: number }
 
@@ -335,6 +369,7 @@ type LanesModel = {
   density: DensityPlan
   sections: LanesSectionSpec[]
   shed: string[]
+  paintedRows: number
   pointer: string | null
   rows: HelmRow[]
   runsLive: number
@@ -346,8 +381,8 @@ export function soloOf(input: Pick<LanesInput, 'sessionCrew' | 'viewingAgentTask
 }
 
 function cursorSectionOf(sections: readonly LanesSectionSpec[], cursorRow: HelmRow | undefined): string | null {
-  if (cursorRow === undefined) return null
-  const sig = helmRowSig(cursorRow)
+  const sig = cursorRow !== undefined ? helmRowSig(cursorRow) : getHelmRows('lanes').length === 0 ? getHelmCursorSig('lanes') : ''
+  if (!sig) return null
   for (const s of sections) {
     for (const r of s.rows) {
       if (r.kind !== 'text' && r.row !== undefined && helmRowSig(r.row) === sig) return s.key
@@ -356,8 +391,16 @@ function cursorSectionOf(sections: readonly LanesSectionSpec[], cursorRow: HelmR
   return null
 }
 
+function shedCommandOf(key: string): string {
+  if (key === 'next') return '/help'
+  if (key === 'recent') return '/sessions'
+  if (key === 'work') return '/workbench'
+  if (key === 'files') return '/browse'
+  return `/${key}`
+}
+
 function shedPointerOf(shed: readonly string[]): string {
-  return '  more: ' + shed.map(k => (k === 'next' ? '/help' : k === 'recent' ? '/sessions' : `/${k}`)).join(' · ')
+  return '  more: ' + [...new Set(shed.map(shedCommandOf))].join(' · ')
 }
 
 export function buildLanesModel(input: LanesInput): LanesModel {
@@ -652,7 +695,9 @@ export function buildLanesModel(input: LanesInput): LanesModel {
       paintedRows += cost
       return false
     })
-    if (firstClipped >= 0) sections.splice(firstClipped)
+    if (firstClipped >= 0) {
+      for (const dropped of sections.splice(firstClipped)) shedSet.add(dropped.key)
+    }
   }
   const rows: HelmRow[] = []
   for (const s of sections) for (const r of s.rows) if (r.kind !== 'text' && r.row !== undefined) rows.push(r.row)
@@ -664,6 +709,7 @@ export function buildLanesModel(input: LanesInput): LanesModel {
     density,
     sections,
     shed,
+    paintedRows,
     pointer: shed.length > 0 && (!boxed || paintedRows < shedCeiling) ? shedPointerOf(shed) : null,
     rows,
     runsLive,
