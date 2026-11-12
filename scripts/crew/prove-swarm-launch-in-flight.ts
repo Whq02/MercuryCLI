@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { FIXTURE_API_KEY } from '../lib/firstRunSeed.ts'
@@ -92,7 +93,8 @@ function launch(input: { name: string; run_in_background?: boolean; team?: strin
   )
 }
 const statusOf = (agent: string | undefined): string | undefined => agent === undefined ? undefined : (state.tasks[agent] as { status?: string } | undefined)?.status
-const told = (agent: string | undefined): boolean => agent !== undefined && getCommandQueue().some(command => command.mode === 'task-notification' && String(command.value).includes(`<task-id>${agent}</task-id>`))
+const notices = (agent: string | undefined): string[] => agent === undefined ? [] : getCommandQueue().filter(command => command.mode === 'task-notification').map(command => String(command.value)).filter(text => text.includes(`<task-id>${agent}</task-id>`))
+const told = (agent: string | undefined): boolean => notices(agent).length > 0
 
 console.log('── a background launch in flight holds its name ──')
 {
@@ -126,6 +128,27 @@ console.log('── a background launch stopped before it enrolled gives its nam
   await until(() => told(first.agentId) && told(second?.agentId))
   check('the second launch holds the name and runs to its end', statusOf(second?.agentId) === 'completed' && seats().includes(`carrier=${second?.agentId}:parked`), { status: statusOf(second?.agentId), seats: seats() })
   check('the stopped launch, unwinding late, stays off the board', board.member(first.agentId ?? '') === false && seam.swarmRoad(first.agentId) === false && (await readAgentMetadata(first.agentId as never))?.swarm === false, { member: board.member(first.agentId ?? ''), road: seam.swarmRoad(first.agentId) })
+}
+
+console.log('── a launch stopped before it enrolled meets a board that cannot be written ──')
+{
+  const holder = new (createRequire(import.meta.url)('bun:sqlite').Database)(board.view().record!.path) as { exec(sql: string): void; close(): void }
+  const enroll = board.enroll
+  let thrown: Error | undefined
+  named.push(agent => {
+    killAsyncAgent(agent, set)
+    holder.exec('BEGIN IMMEDIATE')
+    board.enroll = seat => {
+      board.enroll = enroll
+      try { enroll(seat) } catch (error) { thrown = error as Error; throw error } finally { holder.exec('ROLLBACK'); holder.close() }
+    }
+  })
+  const first = await launch({ name: 'ferry', run_in_background: true })
+  await until(() => told(first.agentId))
+  const notice = notices(first.agentId)[0] ?? ''
+  check('another writer holds the board\'s file for as long as the stopped launch\'s enrollment waits, and the store says so', statusOf(first.agentId) === 'killed' && thrown !== undefined && thrown.message !== RUNNING('ferry'), { status: statusOf(first.agentId), thrown: thrown?.message })
+  check('the store\'s failure is not read as the name\'s refusal: no record takes the seat off the board', seam.swarmRoad(first.agentId) === true && (await readAgentMetadata(first.agentId as never))?.swarm !== false, { road: seam.swarmRoad(first.agentId), sidecar: await readAgentMetadata(first.agentId as never) })
+  check('the lead is told the launch failed, in the store\'s words', thrown !== undefined && notice.includes('<status>failed</status>') && notice.includes(thrown.message), notice.slice(0, 400))
 }
 
 runSwarmCommand('off')

@@ -12,7 +12,7 @@ import { getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage
 import { operatorPauseGate } from '../../run-core/pauseGate.js'
 import type { AgentId } from '../../types/ids.js'
 import type { Message } from '../../types/message.js'
-import { BOARD_PACKET_RULE, boardSeatName, type BoardEvent, type BoardModule, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot, type OwnerPostInput, type OwnerPostReceipt } from './contracts.js'
+import { BOARD_PACKET_RULE, boardSeatName, isSeatNameRefusal, type BoardEvent, type BoardModule, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot, type OwnerPostInput, type OwnerPostReceipt } from './contracts.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
@@ -244,7 +244,10 @@ export async function latchSwarmAgent(agentId: string, name: string, workflow = 
   if (road.on && swarmMasterEnabled()) {
     const seat = { author: { sessionId: String(getSessionId()), agentId, executionId: road.execution }, name, team }
     if (pendingLaunches.has(key(agentId)) && signal?.aborted === true) {
-      try { swarmStore()?.enroll(seat) } catch { road.on = false }
+      try { swarmStore()?.enroll(seat) } catch (error) {
+        if (!isSeatNameRefusal(error)) throw error
+        road.on = false
+      }
     } else swarmStore()?.enroll(seat)
   }
   return road.on
