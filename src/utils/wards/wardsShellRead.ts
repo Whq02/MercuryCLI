@@ -344,6 +344,7 @@ function nestedScripts(command: ReadCommand, from: number, commands: readonly Re
     } else if (command.dialect === 'powershell' && (program === 'invoke-expression' || program === 'iex')) {
       const script = argv.slice(1).filter(word => !/^-[A-Za-z]+$/.test(word))
       if (script.length > 0) out.push({ text: script.join(' '), dialect: 'powershell', from })
+      else if (command.handed !== undefined) out.push({ text: command.handed, dialect: 'powershell', from })
     } else if (command.dialect === 'powershell' && (program === 'start-process' || program === 'saps' || program === 'start')) {
       const started = startedBy(argv.slice(1))
       if (started !== undefined) out.push({ text: started, dialect: 'powershell', from })
@@ -978,6 +979,7 @@ class PowerShellWalk {
   at = 0
   typed = false
   said: string | undefined
+  parts: readonly PsToken[] = []
   gates: ReadonlyArray<readonly [number, number]> = []
   maybes: readonly number[] = []
   previous: readonly [number, number] | undefined
@@ -1080,6 +1082,7 @@ class PowerShellWalk {
   handed(stages: readonly Stage[]): number[] {
     const text = this.source
     const made: number[] = []
+    const parts: PsToken[] = []
     const typed = this.typed
     this.typed = this.frame.cmd !== true
     while (this.at < text.length) {
@@ -1087,10 +1090,14 @@ class PowerShellWalk {
       if (this.at >= text.length || text[this.at] === ')') break
       const part = this.token(stages)
       if (part === undefined) this.at++
-      else made.push(...part.inner)
+      else {
+        made.push(...part.inner)
+        parts.push(part)
+      }
     }
     if (text[this.at] === ')') this.at++
     this.typed = typed
+    this.parts = parts
     return made
   }
 
@@ -1292,6 +1299,12 @@ class PowerShellWalk {
           if (!PS_VALUE_START.test(text[start]!)) break
           const open = this.at++
           inner.push(...(value.endsWith(']') ? this.group(')', [], this.frame.cmd !== true) : this.handed(stages)))
+          const made = /^\[scriptblock\]::create$/i.test(value) && this.parts.length === 1 && !this.parts[0]!.bare && !this.parts[0]!.value.includes(UNREAD_PART) ? this.parts[0]!.value : undefined
+          if (made !== undefined && this.frame.cmd !== true) {
+            const from = this.reading.push({ argv: [], env: [], redirects: [], text: text.slice(start, this.at), line: this.line(start), cwd: this.reading.cwd, background: this.frame.background, stages, input: undefined, inner: [], inputInner: [], body: this.frame.body, dialect: 'powershell', around: this.frame.around })
+            this.reading.pending.push({ text: made, dialect: 'powershell', from })
+            inner.push(from)
+          }
           value += text.slice(open, this.at)
           continue
         }

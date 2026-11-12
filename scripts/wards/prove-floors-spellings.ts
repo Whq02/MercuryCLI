@@ -1986,6 +1986,42 @@ if (runs('REACH')) {
     'Invoke-WebRequest -Uri "https://example.invalid/?out=~\\.ssh\\authorized_keys"',
     'Write-Host "Invoke-WebRequest $u -OutFile ~\\.ssh\\authorized_keys"',
   ])
+  await refusedRows('a literal script handed down the pipe to Invoke-Expression, to the maker of a script block, or to a PowerShell that is started', [
+    "'Set-Content ~\\.ssh\\authorized_keys x' | iex",
+    '"Set-Content ~\\.ssh\\authorized_keys x" | Invoke-Expression',
+    "@'\nSet-Content ~\\.ssh\\authorized_keys x\n'@ | Invoke-Expression",
+    '@"\nSet-Content ~\\.ssh\\authorized_keys x\n"@ | iex',
+    "('Set-Content ~\\.ssh\\authorized_keys x') | iex",
+    "if ($true) { 'Set-Content ~\\.ssh\\authorized_keys x' | iex }",
+    "& ([scriptblock]::Create('Set-Content ~\\.ssh\\authorized_keys x'))",
+    "$sb = [scriptblock]::Create('Set-Content ~\\.ssh\\authorized_keys x'); & $sb",
+    '[scriptblock]::Create("Set-Content ~\\.ssh\\authorized_keys x").Invoke()',
+    "Invoke-Command ([scriptblock]::Create('Set-Content ~\\.ssh\\authorized_keys x'))",
+    "[ScriptBlock]::Create('Add-Content ~\\.aws\\credentials x') | % { & $_ }",
+    "Start-Process powershell -ArgumentList '-Command', 'Set-Content ~\\.ssh\\authorized_keys x'",
+    'Start-Process pwsh -ArgumentList "-NoProfile", "-Command", "Set-Content ~\\.ssh\\authorized_keys x"',
+    'Start-Process -FilePath powershell -ArgumentList "-Command Set-Content ~\\.ssh\\authorized_keys x"',
+    "saps powershell '-Command', 'Remove-Item ~\\.ssh\\authorized_keys'",
+  ])
+  await runningRows('the same roads carrying a harmless script, and the script only printed, saved or kept', [
+    "'Get-Date' | iex",
+    "'Set-Content .\\notes.txt x' | Invoke-Expression",
+    "& ([scriptblock]::Create('Get-ChildItem .\\docs'))",
+    "[scriptblock]::Create('Write-Output 1').Invoke()",
+    "Start-Process powershell -ArgumentList '-Command', 'Get-Date'",
+    'Start-Process notepad .\\notes.txt',
+    "Write-Host 'Set-Content ~\\.ssh\\authorized_keys x | iex'",
+    "Write-Host \"[scriptblock]::Create('Set-Content ~\\.ssh\\authorized_keys x')\"",
+    "'Set-Content ~\\.ssh\\authorized_keys x' | Out-File .\\plan.txt",
+    "'Set-Content ~\\.ssh\\authorized_keys x' | Write-Output",
+    "$text = 'Set-Content ~\\.ssh\\authorized_keys x'",
+    "Start-Process powershell -ArgumentList '-Command', 'Set-Content ~\\.ssh\\authorized_keys x' -WhatIf",
+  ])
+  const { refusalOfShellCommand: wardOf } = await import('../../src/utils/wards/wardsRefusals.ts')
+  for (const line of ["'Remove-Item -Recurse -Force ~' | iex", "& ([scriptblock]::Create('Remove-Item -Recurse -Force ~'))", "Start-Process powershell -ArgumentList '-Command', 'Remove-Item -Recurse -Force ~'"]) {
+    const verdict = await wardOf({ toolName: 'PowerShell', input: { command: line }, shellCommand: line, startingFolder: PROJECT }, PROJECT)
+    check(`REACH · the delete ward · ${shown(line)} · the script handed on is read as the commands it holds: refused as a recursive delete of the home`, !verdict.allow && verdict.rule.name === 'no-root-recursive-delete', verdict.allow ? 'allow' : verdict.rule.name)
+  }
   await expect('REACH', call('PowerShell', { command: '[IO.File]::Copy(".\\other", "$HOME\\.ssh\\authorized_keys", $true)' }, 'the whole decision of the PowerShell tool'), ['sovereign', 'flow', 'default'], refused, 'is refused')
 }
 
