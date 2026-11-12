@@ -518,6 +518,8 @@ export function blitRegion(into: Screen, from: Screen, regionX: number, regionY:
   const columns = maxX - left
   const fromStride = from.width << 1
   const intoStride = into.width << 1
+  let touchedLeft = left
+  let touchedRight = maxX
   into.softWrap.set(from.softWrap.subarray(top, maxY), top)
   if (left === 0 && maxX === from.width && from.width === into.width) {
     const firstWord = top * fromStride
@@ -531,15 +533,39 @@ export function blitRegion(into: Screen, from: Screen, regionX: number, regionY:
     let intoCell = top * into.width + left
     const rowWords = columns << 1
     for (let row = top; row < maxY; row++) {
+      const sameLeftPair =
+        left > 0 &&
+        from.width === into.width &&
+        (from.cells[fromWord + 1]! & WIDTH_BITS) === CellWidth.SpacerTail &&
+        into.cells[intoWord - 2] === from.cells[fromWord - 2] &&
+        into.cells[intoWord - 1] === from.cells[fromWord - 1]
+      if (!sameLeftPair && left > 0 && (into.cells[intoWord + 1]! & WIDTH_BITS) === CellWidth.SpacerTail && (into.cells[intoWord - 1]! & WIDTH_BITS) === CellWidth.Wide) {
+        blankCell(into, intoWord - 2)
+        touchedLeft = left - 1
+      }
+      const intoEndWord = intoWord + rowWords
+      const fromEndWord = fromWord + rowWords
+      const sameRightPair =
+        maxX < into.width &&
+        from.width === into.width &&
+        (from.cells[fromEndWord - 1]! & WIDTH_BITS) === CellWidth.Wide &&
+        into.cells[intoEndWord] === from.cells[fromEndWord] &&
+        into.cells[intoEndWord + 1] === from.cells[fromEndWord + 1]
+      if (!sameRightPair && maxX < into.width && (into.cells[intoEndWord - 1]! & WIDTH_BITS) === CellWidth.Wide && (into.cells[intoEndWord + 1]! & WIDTH_BITS) === CellWidth.SpacerTail) {
+        blankCell(into, intoEndWord)
+        touchedRight = maxX + 1
+      }
       into.cells.set(from.cells.subarray(fromWord, fromWord + rowWords), intoWord)
       into.noSelect.set(from.noSelect.subarray(fromCell, fromCell + columns), intoCell)
+      if (!sameLeftPair && (into.cells[intoWord + 1]! & WIDTH_BITS) === CellWidth.SpacerTail) {
+        blankCell(into, intoWord)
+      }
       fromWord += fromStride
       intoWord += intoStride
       fromCell += from.width
       intoCell += into.width
     }
   }
-  let touchedRight = maxX
   if (maxX < into.width) {
     let headWord = (top * from.width + (maxX - 1)) << 1
     let tailWord = (top * into.width + maxX) << 1
@@ -553,7 +579,7 @@ export function blitRegion(into: Screen, from: Screen, regionX: number, regionY:
       tailWord += intoStride
     }
   }
-  touch(into, left, top, touchedRight, maxY)
+  touch(into, touchedLeft, top, touchedRight, maxY)
 }
 
 export function clearRegion(grid: Screen, regionX: number, regionY: number, regionWidth: number, regionHeight: number): void {

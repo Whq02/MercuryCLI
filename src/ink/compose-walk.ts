@@ -19,6 +19,7 @@ import wrapText, { truncateParts } from './wrap-text.js'
 
 export type ScrollHint = { delta: number; top: number; bottom: number }
 export type ScrollTranslation = { delta: number; viewportTop: number; viewportBottom: number }
+export type AbsoluteEntry = { node: FrameNode; rect: CachedLayout }
 
 const SHIFT_LOG_CAP = 48
 const shiftForensicsOn = !!process.env.INK_COMPOSED_TEE
@@ -33,6 +34,7 @@ export class ComposeSignals {
   scrollDrainNode: FrameNode | null = null
   scrollTranslation: ScrollTranslation | null = null
   readonly absoluteRectsCur: Rectangle[] = []
+  readonly absoluteEntriesCur: AbsoluteEntry[] = []
 
   markLayoutShift(reason: () => string, divergentRow?: number): void {
     if (shiftForensicsOn && this.shiftLog.length < SHIFT_LOG_CAP) {
@@ -55,6 +57,52 @@ export class ComposeSignals {
     this.scrollTranslation = null
     return translation
   }
+}
+
+export function overlayInvalidatesPrevScreen(root: FrameNode, entries: readonly AbsoluteEntry[]): boolean {
+  if (entries.length === 0) return false
+  const rootLayout = root.layoutNode
+  if (!rootLayout || rootLayout.getDisplay() === LayoutDisplay.None) return true
+  for (const { node, rect } of entries) {
+    const chain: FrameNode[] = []
+    let cur: FrameNode | undefined = node
+    while (cur && cur !== root) {
+      chain.push(cur)
+      cur = cur.parentNode
+    }
+    if (cur !== root) return true
+    let x = rootLayout.getComputedLeft()
+    let y = rootLayout.getComputedTop()
+    let hiddenOrScrolled = false
+    for (let i = chain.length - 1; i >= 0; i--) {
+      const el = chain[i]!
+      const layout = el.layoutNode
+      if (!layout || layout.getDisplay() === LayoutDisplay.None) {
+        hiddenOrScrolled = true
+        break
+      }
+      const parentStyle = el.parentNode?.style
+      if (parentStyle?.overflowY === 'scroll' || parentStyle?.overflow === 'scroll') {
+        hiddenOrScrolled = true
+        break
+      }
+      x += layout.getComputedLeft()
+      const rawY = y + layout.getComputedTop()
+      y = rawY < 0 && el.style.position === 'absolute' ? 0 : rawY
+    }
+    if (hiddenOrScrolled) return true
+    const width = node.layoutNode!.getComputedWidth()
+    const height = node.layoutNode!.getComputedHeight()
+    if (x !== rect.x || y !== rect.y || width !== rect.width || height !== rect.height) return true
+    if (
+      node.dirty &&
+      ((!node.style.opaque && node.style.backgroundColor === undefined && node.style.fillRowBg === undefined) ||
+        rect.reach !== undefined)
+    ) {
+      return true
+    }
+  }
+  return false
 }
 
 export function expandDamageForAbsoluteRects(screen: { width: number; height: number; damage: Rectangle | undefined }, prevRects: readonly Rectangle[], curRects: readonly Rectangle[]): void {
@@ -322,7 +370,10 @@ function reuseNode(node: FrameNode, cached: CachedLayout, walk: Walk, prevScreen
   const columns = Math.floor(width)
   const rows = Math.floor(height)
   walk.buffer.blit(prevScreen, left, top, columns, rows)
-  if (floating) walk.signals.absoluteRectsCur.push(cached)
+  if (floating) {
+    walk.signals.absoluteRectsCur.push(cached)
+    walk.signals.absoluteEntriesCur.push({ node, rect: cached })
+  }
   blitEscapingAbsoluteDescendants(node, walk, prevScreen, left, top, columns, rows)
 }
 
@@ -362,7 +413,10 @@ function repaintNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placem
     const reach = reachBeyond(node, x, y, width, height)
     if (reach !== undefined) placed.reach = reach
     nodeCache.set(node, placed)
-    if (floating) signals.absoluteRectsCur.push(placed)
+    if (floating) {
+      signals.absoluteRectsCur.push(placed)
+      signals.absoluteEntriesCur.push({ node, rect: placed })
+    }
   }
   settle(node)
 }
@@ -809,6 +863,7 @@ function blitEscapingAbsoluteDescendants(node: FrameNode, walk: Walk, prevScreen
     const floatingRect = elem.style.position === 'absolute' ? nodeCache.get(elem) : undefined
     if (floatingRect !== undefined) {
       walk.signals.absoluteRectsCur.push(floatingRect)
+      walk.signals.absoluteEntriesCur.push({ node: elem, rect: floatingRect })
       restoreIfEscaping(walk, prevScreen, floatingRect, left, top, right, bottom)
     }
     pushElementChildren(pending, elem)

@@ -13,8 +13,10 @@ import {
 } from './cell-grid.js'
 import ComposeBuffer, { lastComposeCounts } from './compose-buffer.js'
 import composeTree, {
+  type AbsoluteEntry,
   ComposeSignals,
   expandDamageForAbsoluteRects,
+  overlayInvalidatesPrevScreen,
 } from './compose-walk.js'
 import { markDirty, type DOMElement } from './dom.js'
 import type { Frame } from './frame.js'
@@ -74,6 +76,7 @@ export default function createRenderer(
 ): Renderer {
   let buffer: ComposeBuffer | null = null
   let prevAbsoluteRects: readonly Rectangle[] = []
+  let prevAbsoluteEntries: readonly AbsoluteEntry[] = []
 
   return function render(options: RenderOptions): RenderResult {
     const {
@@ -172,8 +175,9 @@ export default function createRenderer(
     }
 
     const absoluteRemoved = consumeAbsoluteRemovedFlag(rootNode)
+    const overlayMoved = overlayInvalidatesPrevScreen(rootNode, prevAbsoluteEntries)
     const prevScreen =
-      prevFrameContaminated || absoluteRemoved ? undefined : frontFrame.screen
+      prevFrameContaminated || absoluteRemoved || overlayMoved ? undefined : frontFrame.screen
 
     const signals = new ComposeSignals()
     composeTree(rootNode, buffer, {
@@ -189,6 +193,7 @@ export default function createRenderer(
       applyRecessPass(renderedScreen, stylePool)
     }
     prevAbsoluteRects = signals.absoluteRectsCur
+    prevAbsoluteEntries = signals.absoluteEntriesCur
 
     if (signals.scrollDrainNode) markDirty(signals.scrollDrainNode)
 
