@@ -1,6 +1,7 @@
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import { classifyModelRoute } from '../services/providers/idSpaces.js'
 import { MERCURY_CONSTITUTION } from '../prompt/mercuryContract.js'
+import { forcedShortForm } from '../tools/FileEditTool/editForm.js'
 import { MERCURY_PROJECT_DIR } from '../utils/projectConfig.js'
 
 const tensorFoldPodVerdicts = new Map<string, boolean>()
@@ -205,6 +206,6 @@ function shortenSchema<S>(schema: S, form: LocalToolForm): S {
 
 export function localToolForm<S>(name: string, model: string, description: string, input_schema: S): { description: string; input_schema: S } {
   const form = LOCAL_TOOL_FORMS[name]
-  if (form === undefined || !localPromptProfileApplies(model)) return { description, input_schema }
+  if (form === undefined || !(forcedShortForm(name) ?? localPromptProfileApplies(model))) return { description, input_schema }
   return { description: form.description, input_schema: shortenSchema(input_schema, form) }
 }
