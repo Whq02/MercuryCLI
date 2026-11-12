@@ -228,9 +228,9 @@ const bootSends = (ask: string): Array<Record<string, unknown>> => [
 const warmedBootSends = (ask: string): Array<Record<string, unknown>> => [
   { data: '\r', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
   { data: WARM, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
-  { data: '\r', afterPrevTicks: 4 },
+  { data: '\r', atTick: 999, awaitText: WARM, requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
   { data: ask, atTick: 999, awaitText: WARMED, requireAwait: true, minTick: 2, awaitSettleTicks: 8 },
-  { data: '\r', afterPrevTicks: 4 },
+  { data: '\r', atTick: 999, awaitText: ask, requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
   { data: '\r', atTick: 999, awaitText: 'Yes, run this workflow', requireAwait: true, minTick: 2, awaitSettleTicks: 6 },
 ]
 
