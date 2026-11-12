@@ -502,7 +502,9 @@ async function credentialWriteInBlocks(command: string, powershell: boolean, cwd
     if (simple.dialect !== 'powershell') continue
     const after = foldersAfter(read, at, cwd)
     const written = simple.redirects.flatMap(redirect => (['>', '>>'].includes(redirect.op) ? ['>', '', redirect.target] : []))
-    for (const path of [...layersOf(simple.argv).flatMap(layer => writeOperands([...layer.argv, ...written], true)), ...netWrites(simple.text)]) {
+    const removes = layersOf(simple.argv).some(layer => TREE_REMOVERS.has(layer.program) && !layer.argv.some(word => /^-whatif$/i.test(word)))
+    const listed = removes ? read.commands.filter(earlier => sharesEarlierStage(earlier, simple)).flatMap(earlier => layersOf(earlier.argv).flatMap(layer => (POWERSHELL_LISTERS.has(layer.program) ? powershellListing(layer.argv).roots : []))) : []
+    for (const path of [...layersOf(simple.argv).flatMap(layer => writeOperands([...layer.argv, ...written], true)), ...netWrites(simple.text), ...listed]) {
       if (/^(?:[/~$%]|[A-Za-z]:)/.test(path)) {
         if (credentialStorePath(path, cwd) !== null) return path
       } else if (!after.lost) {

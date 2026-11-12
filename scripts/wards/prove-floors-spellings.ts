@@ -2022,6 +2022,32 @@ if (runs('REACH')) {
     const verdict = await wardOf({ toolName: 'PowerShell', input: { command: line }, shellCommand: line, startingFolder: PROJECT }, PROJECT)
     check(`REACH · the delete ward · ${shown(line)} · the script handed on is read as the commands it holds: refused as a recursive delete of the home`, !verdict.allow && verdict.rule.name === 'no-root-recursive-delete', verdict.allow ? 'allow' : verdict.rule.name)
   }
+  await refusedRows('a listing of a guarded folder handed down the pipe to a remover', [
+    'Get-ChildItem ~\\.ssh | Remove-Item',
+    'gci ~\\.ssh | ri',
+    'Get-ChildItem ~\\.ssh -Recurse | Remove-Item -Force',
+    'dir $HOME\\.ssh | del',
+    'ls ~\\.aws | rm',
+    'Get-ChildItem -Path ~\\.ssh -Filter auth* | Remove-Item',
+    "gci ~\\.ssh | ? Name -like 'auth*' | Remove-Item",
+    'cd ~\\.ssh; Get-ChildItem | Remove-Item',
+    'if ($true) { gci ~\\.ssh | Remove-Item }',
+    'Get-ChildItem ~\\.ssh\\* | Remove-Item',
+    'Get-ChildItem "$HOME\\.ssh" | Remove-Item -Recurse -Force',
+    'gci ~\\.ssh | Sort-Object Length | Remove-Item',
+  ])
+  await runningRows('a guarded folder only listed or counted, a remover told only to say what it would do, and a listing of the project removed', [
+    'Get-ChildItem ~\\.ssh',
+    'Get-ChildItem ~\\.ssh | Measure-Object',
+    'Get-ChildItem ~\\.ssh | Select-Object Name',
+    'Get-ChildItem ~\\.ssh | Remove-Item -WhatIf',
+    'Get-ChildItem .\\build | Remove-Item',
+    'gci *.tmp | ri',
+    'gci ~\\.ssh | Out-File .\\list.txt; Remove-Item .\\old.txt',
+    'Get-ChildItem ~\\Documents -Filter *.tmp | Remove-Item',
+    'Get-ChildItem | Remove-Item',
+    'Get-ChildItem .\\docs -Recurse | Remove-Item -Force',
+  ])
   await expect('REACH', call('PowerShell', { command: '[IO.File]::Copy(".\\other", "$HOME\\.ssh\\authorized_keys", $true)' }, 'the whole decision of the PowerShell tool'), ['sovereign', 'flow', 'default'], refused, 'is refused')
 }
 
