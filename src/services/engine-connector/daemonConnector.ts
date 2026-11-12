@@ -1877,8 +1877,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       }
       if (this.isAttached()) seatVerb('focus', this.record.sessionId)
       if (answering !== null) {
-        const kernel = await import('../concourse/coordinatorKernel.js')
-        const receipt = await kernel.executeKernelDecision({
+        const control = await import('../concourse/boardControl.js')
+        const receipt = await control.executeBoardControl({
           verb: 'obligation.answer',
           obligationId: answering,
           sessionId: this.record.sessionId,

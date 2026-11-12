@@ -511,8 +511,8 @@ function LiveConcourse(): React.ReactNode {
               refresh()
               return
             }
-            const kernel = await import('../../services/concourse/coordinatorKernel.js')
-            const receipt = await kernel.executeKernelDecision({
+            const control = await import('../../services/concourse/boardControl.js')
+            const receipt = await control.executeBoardControl({
               verb: 'obligation.answer',
               obligationId,
               sessionId: row.sessionId,
@@ -834,9 +834,9 @@ function LiveConcourse(): React.ReactNode {
         void (async () => {
           try {
             const { randomUUID } = await import('../../utils/crypto.js')
-            const kernel = await import('../../services/concourse/coordinatorKernel.js')
+            const control = await import('../../services/concourse/boardControl.js')
             const clientOpId = mintControlOpId(`pause:${sessionId}`, `concourse-op-${randomUUID()}`)
-            const receipt = await kernel.executeKernelDecision({
+            const receipt = await control.executeBoardControl({
               verb: 'session.pause',
               sessionId,
               by: 'operator',
@@ -870,9 +870,9 @@ function LiveConcourse(): React.ReactNode {
         void (async () => {
           try {
             const { randomUUID } = await import('../../utils/crypto.js')
-            const kernel = await import('../../services/concourse/coordinatorKernel.js')
+            const control = await import('../../services/concourse/boardControl.js')
             const clientOpId = mintControlOpId(`resume:${sessionId}`, `concourse-op-${randomUUID()}`)
-            const receipt = await kernel.executeKernelDecision({ verb: 'session.resume', sessionId, by: 'operator', clientOpId })
+            const receipt = await control.executeBoardControl({ verb: 'session.resume', sessionId, by: 'operator', clientOpId })
             if (receipt.outcome !== 'failed') {
               controlOpIdRef.current.delete(`pause:${sessionId}`)
               controlOpIdRef.current.delete(`resume:${sessionId}`)
@@ -971,12 +971,12 @@ function LiveConcourse(): React.ReactNode {
         void (async () => {
           try {
             const { randomUUID } = await import('../../utils/crypto.js')
-            const kernel = await import('../../services/concourse/coordinatorKernel.js')
+            const control = await import('../../services/concourse/boardControl.js')
             const minted = redirectIdRef.current.get(sessionId)
             const clientMessageId =
               minted !== undefined && minted.instruction === instruction ? minted.id : `concourse-redirect-${randomUUID()}`
             redirectIdRef.current.set(sessionId, { instruction, id: clientMessageId })
-            const receipt = await kernel.executeKernelDecision({
+            const receipt = await control.executeBoardControl({
               verb: 'session.redirect',
               sessionId,
               clientMessageId,

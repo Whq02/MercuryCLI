@@ -185,13 +185,13 @@ console.log('§2 — the fan (item 2): the counted placeholder; ↵ arms naming 
       !fan.includes('submitSessionDraft') &&
       !fan.includes('answerObligation') &&
       !fan.includes('answerPermission') &&
-      !fan.includes('executeKernelDecision') &&
-      !screen.includes('executeKernelDecision'),
+      !fan.includes('executeBoardControl') &&
+      !screen.includes('executeBoardControl'),
   )
-  const kernel = read('src/services/concourse/coordinatorKernel.ts')
+  const control = read('src/services/concourse/boardControl.ts')
   check(
-    "POISON (item 2's handshake law): NO new daemon verb — the kernel union carries no broadcast spelling",
-    !/verb: '[a-z.]*broadcast[a-z.]*'/.test(kernel) && kernel.includes("verb: 'session.redirect'"),
+    "POISON (item 2's handshake law): NO new daemon verb — the board's control union carries no broadcast spelling",
+    !/verb: '[a-z.]*broadcast[a-z.]*'/.test(control) && control.includes("verb: 'session.redirect'"),
   )
   check(
     'delivered rows paint their receipt on the ROW slot; skips paint the typed reason there too (receipts on every row)',
