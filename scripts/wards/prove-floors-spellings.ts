@@ -720,6 +720,11 @@ if (runs('LISTED')) {
     'ForEach ([IO.FileInfo]$f In Get-ChildItem -Recurse -File) { [IO.File]::ReadAllText($f.FullName) }',
     'foreach ($f in Get-ChildItem -Recurse | Where-Object { -not $_.PSIsContainer }) { Select-String canary $f.FullName }',
     'foreach ($f in Get-ChildItem <CONFIG>) { Get-Content $f.FullName }',
+    'foreach (${f} in Get-ChildItem -Recurse) { Get-Content ${f}.FullName }',
+    'foreach (${file-item} in Get-ChildItem -Recurse) { Get-Content ${file-item}.FullName }',
+    'foreach ($é in Get-ChildItem -Recurse) { Get-Content $é.FullName }',
+    'foreach ($script:f in Get-ChildItem -Recurse) { Get-Content $script:f.FullName }',
+    'foreach ([System.Collections.Generic.List[string]]$f in Get-ChildItem -Recurse) { Get-Content $f }',
   ]
   for (const line of readers) {
     const answer = await asked(line, OWN_HOME)
