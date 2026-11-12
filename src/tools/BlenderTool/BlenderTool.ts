@@ -5,6 +5,7 @@ import { z } from 'zod/v4'
 import { buildTool } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getCwd } from '../../utils/cwd.js'
+import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
 import {
   getBlenderBridgeClient,
   probeBlenderBridgeReachable,
@@ -107,6 +108,16 @@ function fencePathArgs(
     next.path = check.resolved
   }
   return { args: next }
+}
+
+function readTargets(input: Input): string[] {
+  if (!blenderBridgeVerb(input.op)) return []
+  const args = input.args
+  const blend = typeof args?.blend === 'string' ? args.blend : undefined
+  const named = typeof args?.path === 'string' && (input.op === 'blend_open' || blend === undefined) ? args.path : undefined
+  return [blend, named]
+    .filter((target): target is string => target !== undefined && target.length > 0)
+    .map(target => path.resolve(getCwd(), target))
 }
 
 function firstSourceLine(args: Record<string, unknown> | undefined): string {
@@ -247,7 +258,14 @@ export const BlenderTool = buildTool({
   isReadOnly(input: Input) {
     return blenderBridgeVerb(input.op)?.cls === 'read' || input.op === 'blender_status'
   },
-  async checkPermissions(input: Input) {
+  async checkPermissions(input: Input, context) {
+    const permission = context?.getAppState?.().toolPermissionContext
+    if (permission !== undefined) {
+      for (const target of readTargets(input)) {
+        const read = checkReadPermissionForTool({ name: BLENDER_TOOL_NAME, getPath: () => target }, input, permission)
+        if (read.behavior === 'deny') return read
+      }
+    }
     if (LOCAL_MUTATES.has(input.op)) {
       return {
         behavior: 'ask' as const,

@@ -6,6 +6,7 @@ import { z } from 'zod/v4'
 import { buildTool } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getCwd } from '../../utils/cwd.js'
+import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
 import {
   ASEPRITE_INSTALL_REMEDY,
   discoverSpriteFiles,
@@ -127,6 +128,16 @@ function fencePath(label: string, p: string): { resolved?: string; refusal?: str
     }
   }
   return { resolved }
+}
+
+function readTargets(input: Input): string[] {
+  const named = [
+    input.op === 'status' || input.op === 'create' ? undefined : input.file,
+    input.op === 'palette-check' && typeof input.palette === 'string' ? input.palette : undefined,
+  ]
+  return named
+    .filter((target): target is string => typeof target === 'string' && target.length > 0)
+    .map(target => path.resolve(getCwd(), target))
 }
 
 function asList(v: string | string[] | undefined): string[] {
@@ -422,10 +433,17 @@ export const AsepriteTool = buildTool({
   isReadOnly(input: Input) {
     return input.op === 'status' || input.op === 'info' || isArtRead(input.op)
   },
-  async checkPermissions(input: Input) {
+  async checkPermissions(input: Input, context) {
     if (isArtOp(input.op)) {
       const error = artInputError(input)
       if (error) return { behavior: 'deny' as const, message: error, decisionReason: { type: 'other' as const, reason: error } }
+    }
+    const permission = context?.getAppState?.().toolPermissionContext
+    if (permission !== undefined) {
+      for (const target of readTargets(input)) {
+        const read = checkReadPermissionForTool({ name: ASEPRITE_TOOL_NAME, getPath: () => target }, input, permission)
+        if (read.behavior === 'deny') return read
+      }
     }
     if (isArtRead(input.op)) return { behavior: 'allow' as const, updatedInput: input }
     if (isArtOp(input.op)) return { behavior: 'ask' as const, message: artAsk(input) }
