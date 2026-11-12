@@ -431,7 +431,7 @@ function repaintNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placem
   const { buffer, signals } = walk
   const moved = cached !== undefined && !rectHeld
   if (moved) signals.markLayoutShift(() => movedForensics(node, cached, x, y, width, height), firstDivergentRow(cached, y, height))
-  if (cached && (node.dirty || moved)) buffer.clear(floorRect(cached), floating)
+  if (cached && (node.dirty || moved)) buffer.clear(floorRect(cached.reach ?? cached), floating)
   const vacated = vacatedRects(node)
   const hasRemovedChild = vacated !== undefined
   if (vacated !== undefined) {
@@ -443,10 +443,11 @@ function repaintNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placem
     nodeCache.set(node, placed)
     forgetSubtree(node)
   } else {
-    paintNode(node, layoutNode, walk, placement, x, y, width, height, hasRemovedChild)
-    const reach = reachBeyond(node, x, y, width, height)
+    const painted = paintNode(node, layoutNode, walk, placement, x, y, width, height, hasRemovedChild)
+    const reach = reachBeyond(node, x, y, width, height, painted)
     if (reach !== undefined) {
       placed.reach = reach
+      if (node.parentNode) (node.parentNode as { __hasChildReach?: boolean }).__hasChildReach = true
       if (!floating) signals.reachRectsCur.push(reach)
     }
     nodeCache.set(node, placed)
@@ -476,8 +477,15 @@ function ownWithin(own: Own | undefined, clipsAcross: boolean, clipsDown: boolea
   }
 }
 
-function reachBeyond(node: FrameNode, x: number, y: number, width: number, height: number): Rectangle | undefined {
-  if (node.nodeName !== 'ink-box') return undefined
+type PaintedExtent = { width: number; height: number }
+
+function reachBeyond(node: FrameNode, x: number, y: number, width: number, height: number, leafPainted?: PaintedExtent): Rectangle | undefined {
+  if (node.nodeName !== 'ink-box') {
+    if (leafPainted === undefined) return undefined
+    const right = Math.max(x + width, x + leafPainted.width)
+    const bottom = Math.max(y + height, y + leafPainted.height)
+    return right > x + width || bottom > y + height ? { x, y, width: right - x, height: bottom - y } : undefined
+  }
   const clipsAcross = clipping(node.style.overflowX ?? node.style.overflow)
   const clipsDown = clipping(node.style.overflowY ?? node.style.overflow)
   if (clipsAcross && clipsDown) return undefined
@@ -514,18 +522,26 @@ const settle = (painted: FrameNode): void => {
   painted.dirty = false
 }
 
-function paintNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placement: Placement, x: number, y: number, width: number, height: number, hasRemovedChild: boolean): void {
+function paintNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placement: Placement, x: number, y: number, width: number, height: number, hasRemovedChild: boolean): PaintedExtent | undefined {
   const kind = node.nodeName
   if (kind === 'ink-raw-ansi') {
     const rawText = node.attributes['rawText'] as string
-    if (rawText) walk.buffer.write(x, y, rawText)
+    if (!rawText) return undefined
+    walk.buffer.write(x, y, rawText)
+    let rows = 1
+    for (let i = 0; i < rawText.length; i++) {
+      if (rawText.charCodeAt(i) === 10) rows++
+    }
+    const rawW = Number(node.attributes['rawWidth'] ?? 0)
+    return { width: rawW > width ? rawW : widestLine(rawText), height: rows }
   } else if (kind === 'ink-text') {
-    composeText(node, walk, x, y, layoutNode, placement.inheritedBackgroundColor, placement.inheritedRowBg)
+    return composeText(node, walk, x, y, layoutNode, placement.inheritedBackgroundColor, placement.inheritedRowBg)
   } else if (kind === 'ink-box') {
     composeBox(node, walk, placement, x, y, width, height, layoutNode, hasRemovedChild)
   } else if (kind === 'ink-root') {
     composeChildren(node, walk, x, y, hasRemovedChild, placement.prevScreen, placement.inheritedBackgroundColor, placement.inheritedRowBg, undefined)
   }
+  return undefined
 }
 
 const rowGrounded = (line: string, bg: Color | undefined): string => (bg !== undefined && line.length > 0 ? applyTextStyles(line, { backgroundColor: bg }) : line)
@@ -553,7 +569,7 @@ function styledTextFor(segments: StyledSegment[], plainText: string, maxWidth: n
   return { text: segments.map((segment, index) => styleRun(segments, index, segment.text)).join(''), softWrap: undefined }
 }
 
-function composeText(node: FrameNode, walk: Walk, x: number, y: number, layoutNode: LayoutNode, inheritedBackgroundColor: Color | undefined, inheritedRowBg?: RowGround): void {
+function composeText(node: FrameNode, walk: Walk, x: number, y: number, layoutNode: LayoutNode, inheritedBackgroundColor: Color | undefined, inheritedRowBg?: RowGround): PaintedExtent | undefined {
   let segments = squashTextNodesToSegments(node, inheritedBackgroundColor ? { backgroundColor: inheritedBackgroundColor } : undefined)
   if (segments.some(s => s.text.includes('\t'))) {
     let column: number = 0
@@ -564,7 +580,7 @@ function composeText(node: FrameNode, walk: Walk, x: number, y: number, layoutNo
     })
   }
   const plainText = segments.map(run => run.text).join('')
-  if (plainText.length === 0) return
+  if (plainText.length === 0) return undefined
   const maxWidth = Math.min(getMaxWidth(layoutNode), walk.buffer.width - x)
   const { textWrap = 'wrap' } = node.style
   const widest = widestLine(plainText)
@@ -573,6 +589,14 @@ function composeText(node: FrameNode, walk: Walk, x: number, y: number, layoutNo
   const sampled = inheritedRowBg !== undefined && inheritedBackgroundColor === undefined
   const grounded = sampled ? padded.split('\n').map((line, k) => rowGrounded(line, inheritedRowBg(y + k))).join('\n') : padded
   walk.buffer.write(x, y, grounded, softWrap)
+  let paintedHeight = 1
+  for (let i = 0; i < padded.length; i++) {
+    if (padded.charCodeAt(i) === 10) paintedHeight++
+  }
+  const offsetLeft = firstChildOffset(node)?.left ?? 0
+  const layoutWidth = layoutNode.getComputedWidth()
+  const paintedWidth = offsetLeft + widest > layoutWidth ? widestLine(padded) : layoutWidth
+  return { width: paintedWidth, height: paintedHeight }
 }
 
 function fillGround(buffer: ComposeBuffer, x: number, y: number, columns: number, rows: number, bg: Color | undefined): void {
@@ -788,7 +812,8 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
     firstCached === undefined ||
     Math.floor(nodeCache.get(firstCached)!.y) - shiftPlan!.delta === Math.floor(contentTop + firstCached.layoutNode!.getComputedTop())
   const viewportOverlapsInvalid = shiftPlan !== null && rectsOverlap(x, shiftPlan.top, width, shiftPlan.bottom - shiftPlan.top + 1, walk.invalidRects)
-  const safeForFastPath = !shiftPlan || (!childRemoved && !viewportOverlapsInvalid && anchorShifted && (heightDelta === 0 || (shiftPlan.delta > 0 && heightDelta === shiftPlan.delta)))
+  const contentHasReach = Boolean((content as { __hasChildReach?: boolean }).__hasChildReach)
+  const safeForFastPath = !shiftPlan || (!childRemoved && !viewportOverlapsInvalid && !contentHasReach && anchorShifted && (heightDelta === 0 || (shiftPlan.delta > 0 && heightDelta === shiftPlan.delta)))
   if (!safeForFastPath) {
     signals.scrollHint = null
     if (rectShift) {
@@ -816,7 +841,7 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
     composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, undefined, incomingTop - contentTop, incomingBottom + 1 - contentTop, boxBackgroundColor, true)
     buffer.unclip()
     for (const rect of walk.prevAbsoluteRects) {
-      if (rect.y >= bottom + 1 || rect.y + rect.height <= top) continue
+      if (rect.y >= bottom + 1 || rect.y + rect.height <= top || rect.x >= Math.floor(x) + columns || rect.x + rect.width <= Math.floor(x)) continue
       const shiftedTop = Math.max(top, Math.floor(rect.y) - delta)
       const shiftedBottom = Math.min(bottom + 1, Math.floor(rect.y + rect.height) - delta)
       if (shiftedTop >= shiftedBottom || (shiftedTop >= incomingTop && shiftedBottom <= incomingBottom + 1)) continue
@@ -970,15 +995,16 @@ function blitEscapingAbsoluteDescendants(node: FrameNode, walk: Walk, prevScreen
 const outsideBand = (layout: LayoutNode, bandTop: number, bandBottom: number): boolean => layout.getComputedTop() + layout.getComputedHeight() <= bandTop || layout.getComputedTop() >= bandBottom
 
 function composeScrolledChildren(node: FrameNode, walk: Walk, offsetX: number, offsetY: number, hasRemovedChild: boolean, prevScreen: Screen | undefined, scrollTopY: number, scrollBottomY: number, inheritedBackgroundColor: Color | undefined, preserveCulledCache = false, inheritedRowBg?: RowGround, own?: Own): void {
-  let offerOpen = !hasRemovedChild
-  for (const child of node.childNodes as FrameNode[]) {
+  const children = node.childNodes as FrameNode[]
+  let offerOpen = !hasRemovedChild && !children.some(reachMoves)
+  for (const child of children) {
     const layout = child.layoutNode
     const culled = layout !== undefined && outsideBand(layout, scrollTopY, scrollBottomY)
     if (culled && !preserveCulledCache) forgetSubtree(child)
     if (culled) continue
     const wasDirty = child.dirty
-    composeNode(child, walk, { offsetX, offsetY, prevScreen: offerOpen ? prevScreen : undefined, inheritedBackgroundColor, inheritedRowBg, own })
-    if (wasDirty) offerOpen = false
+    const repainted = composeNode(child, walk, { offsetX, offsetY, prevScreen: offerOpen ? prevScreen : undefined, inheritedBackgroundColor, inheritedRowBg, own })
+    if (wasDirty || (repainted && !clipsBothAxes(child))) offerOpen = false
   }
 }
 

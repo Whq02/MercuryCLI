@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/ink/cell-grid.ts src/ink/compose-buffer.ts src/ink/compose-walk.ts src/ink/renderer.ts
+// gate-watch: src/ink/cell-grid.ts src/ink/compose-buffer.ts src/ink/compose-walk.ts src/ink/dom.ts src/ink/renderer.ts
 export {}
 process.env.FORCE_COLOR = '3'
 delete process.env.NO_COLOR
@@ -448,6 +448,294 @@ console.log('\n§3 Seeded differential walks UNDER THE ESTATE GROUND (CHROME + C
       }
     }
     check(`${shape.name} under ground: all 24 walks × 120 steps equal fresh paint and engage blits (${blittedFrames} blitted frames)`, wrong.length === 0 && blittedFrames > 1000, wrong[0] ?? `blitted=${blittedFrames}`)
+  }
+}
+
+console.log('\n§4 Text painting beyond its layout rect (reach): grounded, ungrounded, opaque, row-sampled, nested, scrolled, dirty/clean, and over a sibling')
+{
+  const styledText = (words: string, style: Styles = {}): DOMElement => {
+    const el = createNode('ink-text')
+    applySceneStyle(el, { flexGrow: 0, flexShrink: 1, flexDirection: 'row', textWrap: 'wrap', ...style })
+    appendChildNode(el, createTextNode(words) as never)
+    return el
+  }
+
+  const runPair = (
+    cols: number,
+    rows: number,
+    make: (ctx: ComposeContext) => World & { steps: Array<() => void> },
+  ): string | null => {
+    const ctx = makeContext()
+    const live = make(ctx)
+    const fresh = make(ctx)
+    paint(live, cols, rows, false)
+    paint(fresh, cols, rows, true)
+    for (let i = 0; i < live.steps.length; i++) {
+      live.steps[i]!()
+      fresh.steps[i]!()
+      const a = paint(live, cols, rows, false)
+      const b = paint(fresh, cols, rows, true)
+      const diff = difference(a, b)
+      if (diff !== null) return `step ${i + 1}: ${diff}`
+    }
+    return null
+  }
+
+  {
+    const err = runPair(20, 5, ctx => {
+      const root = createNode('ink-root')
+      applySceneStyle(root, { width: 20, height: 5, flexDirection: 'column' })
+      const counter = styledText('tick 0')
+      const ground = box(
+        { width: 20, height: 5, flexDirection: 'column', backgroundColor: '#102030' as never },
+        [
+          box({ flexDirection: 'row', height: 1 }, [styledText('status words that wrap past the width')]),
+          box({ marginTop: 2 }, [counter]),
+        ],
+      )
+      appendChildNode(root, ground)
+      return {
+        root,
+        render: createRenderer(root, ctx.stylePool),
+        frames: [emptyFrame(5, 20, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool), emptyFrame(5, 20, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)],
+        steps: [() => retext(counter, 'tick 1'), () => retext(counter, 'tick 2')],
+      }
+    })
+    check('grounded root + 1-row box holding 2-line wrapped text keeps line 2 when a sibling ticks', err === null, err ?? '')
+  }
+
+  {
+    const err = runPair(30, 8, ctx => {
+      const root = createNode('ink-root')
+      applySceneStyle(root, { width: 30, height: 8, flexDirection: 'column' })
+      const counter = styledText('tick 0')
+      const host = box(
+        { width: 30, height: 8, flexDirection: 'column' },
+        [
+          box({ flexDirection: 'column', height: 2 }, [styledText('one\ntwo\nthree\nfour')]),
+          box({ marginTop: 4 }, [counter]),
+        ],
+      )
+      appendChildNode(root, host)
+      return {
+        root,
+        render: createRenderer(root, ctx.stylePool),
+        frames: [emptyFrame(8, 30, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool), emptyFrame(8, 30, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)],
+        steps: [() => retext(counter, 'tick 1'), () => retext(counter, 'tick 2')],
+      }
+    })
+    check('ungrounded root + 2-row box holding shrinking 4-line text keeps lines 3 and 4 when a sibling ticks', err === null, err ?? '')
+  }
+
+  {
+    const err = runPair(30, 8, ctx => {
+      const root = createNode('ink-root')
+      applySceneStyle(root, { width: 30, height: 8, flexDirection: 'column' })
+      const counter = styledText('tick 0')
+      const host = box(
+        { width: 30, height: 8, flexDirection: 'column' },
+        [
+          box(
+            { flexDirection: 'column', opaque: true, height: 7 },
+            [
+              box({ flexDirection: 'column', height: 2 }, [styledText('one\ntwo\nthree\nfour')]),
+              box({ marginTop: 3 }, [counter]),
+            ],
+          ),
+        ],
+      )
+      appendChildNode(root, host)
+      return {
+        root,
+        render: createRenderer(root, ctx.stylePool),
+        frames: [emptyFrame(8, 30, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool), emptyFrame(8, 30, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)],
+        steps: [() => retext(counter, 'tick 1')],
+      }
+    })
+    check('opaque parent (no colour) + 2-row box holding shrinking 4-line text keeps lines 3 and 4', err === null, err ?? '')
+  }
+
+  {
+    const err = runPair(22, 6, ctx => {
+      const root = createNode('ink-root')
+      applySceneStyle(root, { width: 22, height: 6, flexDirection: 'column' })
+      const counter = styledText('tick 0')
+      const sampler = (r: number) => (r % 2 === 0 ? '#102030' : '#201810') as never
+      const host = box(
+        { width: 22, height: 6, flexDirection: 'column', fillRowBg: sampler },
+        [
+          box({ flexDirection: 'row', height: 1 }, [styledText('row sampled words wrapping below')]),
+          box({ marginTop: 2 }, [counter]),
+        ],
+      )
+      appendChildNode(root, host)
+      return {
+        root,
+        render: createRenderer(root, ctx.stylePool),
+        frames: [emptyFrame(6, 22, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool), emptyFrame(6, 22, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)],
+        steps: [() => retext(counter, 'tick 1')],
+      }
+    })
+    check('row-sampler parent (fillRowBg) + 1-row box holding wrapping text keeps all lines grounded', err === null, err ?? '')
+  }
+
+  {
+    const err = runPair(20, 7, ctx => {
+      const root = createNode('ink-root')
+      applySceneStyle(root, { width: 20, height: 7, flexDirection: 'column' })
+      const innerTick = styledText('in 0')
+      const outerTick = styledText('out 0')
+      const ground = box(
+        { width: 20, height: 7, flexDirection: 'column', backgroundColor: '#102030' as never },
+        [
+          box(
+            { flexDirection: 'column', height: 4 },
+            [
+              box({ flexDirection: 'column', height: 2 }, [
+                box({ flexDirection: 'row', height: 1 }, [styledText('deep words wrapping across three short rows here')]),
+              ]),
+              box({ marginTop: 1 }, [innerTick]),
+            ],
+          ),
+          box({ marginTop: 1 }, [outerTick]),
+        ],
+      )
+      appendChildNode(root, ground)
+      return {
+        root,
+        render: createRenderer(root, ctx.stylePool),
+        frames: [emptyFrame(7, 20, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool), emptyFrame(7, 20, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)],
+        steps: [() => retext(outerTick, 'out 1'), () => retext(innerTick, 'in 1')],
+      }
+    })
+    check('two boxes deep under ground: overflowing text survives both outer and inner sibling ticks', err === null, err ?? '')
+  }
+
+  {
+    const err = runPair(24, 6, ctx => {
+      const root = createNode('ink-root')
+      applySceneStyle(root, { width: 24, height: 6, flexDirection: 'column' })
+      const itemTick = styledText('tail 0')
+      const content = box(
+        { flexDirection: 'column', flexGrow: 1, flexShrink: 0, width: 24 },
+        [
+          box({ flexDirection: 'row', height: 1 }, [styledText('scroll item words wrapping onto next row')]),
+          box({ height: 1 }, [styledText('')]),
+          box({ height: 1 }, [styledText('item two')]),
+          box({ height: 1 }, [styledText('item three')]),
+          box({ height: 1 }, [styledText('item four')]),
+          box({ height: 1 }, [styledText('item five')]),
+          box({ height: 1 }, [itemTick]),
+        ],
+      )
+      const scroller = box(
+        { flexDirection: 'column', width: 24, height: 5, overflowX: 'scroll', overflowY: 'scroll' },
+        [content],
+      )
+      const outsideTick = styledText('bar 0')
+      const ground = box({ width: 24, height: 6, flexDirection: 'column', backgroundColor: '#102030' as never }, [scroller, outsideTick])
+      appendChildNode(root, ground)
+      return {
+        root,
+        render: createRenderer(root, ctx.stylePool),
+        frames: [emptyFrame(6, 24, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool), emptyFrame(6, 24, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)],
+        steps: [
+          () => retext(outsideTick, 'bar 1'),
+          () => retext(itemTick, 'tail 1'),
+          () => {
+            ;(scroller.scroll ??= {}).pendingScrollDelta = 1
+            markDirty(scroller)
+          },
+          () => {
+            ;(scroller.scroll ??= {}).pendingScrollDelta = -1
+            markDirty(scroller)
+          },
+        ],
+      }
+    })
+    check('inside a scroll box: overflowing text equals fresh paint across outside ticks, inner ticks, and scrolls', err === null, err ?? '')
+  }
+
+  {
+    const err = runPair(20, 5, ctx => {
+      const root = createNode('ink-root')
+      applySceneStyle(root, { width: 20, height: 5, flexDirection: 'column' })
+      const over = styledText('first line here\noverflow tail words')
+      const overHolder = box({ flexDirection: 'row', height: 1 }, [over])
+      const sib = styledText('sib1')
+      const sibHolder = box({ flexDirection: 'row', height: 1 }, [sib])
+      const tick = styledText('t0')
+      const ground = box({ width: 20, height: 5, flexDirection: 'column', backgroundColor: '#102030' as never }, [overHolder, sibHolder, tick])
+      appendChildNode(root, ground)
+      return {
+        root,
+        render: createRenderer(root, ctx.stylePool),
+        frames: [emptyFrame(5, 20, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool), emptyFrame(5, 20, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)],
+        steps: [
+          () => retext(tick, 't1'),
+          () => retext(sib, 's'),
+          () => retext(over, 'short'),
+          () => retext(over, 'first line here\noverflow tail back'),
+          () => removeChildNode(ground, overHolder),
+        ],
+      }
+    })
+    check('overflow landing on a sibling row holds when clean, when sibling shrinks, when overflow shrinks/grows, and on removal', err === null, err ?? '')
+  }
+
+  {
+    const err = runPair(36, 8, ctx => {
+      const root = createNode('ink-root')
+      applySceneStyle(root, { width: 36, height: 8, flexDirection: 'column' })
+      const railMeter = styledText('▸ 5h 12% · 4h')
+      const outsidePrompt = styledText('❯')
+      const vitalsRail = box(
+        { width: 16, height: 6, flexDirection: 'column', overflow: 'hidden' },
+        [
+          box({ flexDirection: 'row', width: 14, height: 1 }, [styledText('fixed vitals row wrapping onto two lines')]),
+          box({ marginTop: 2, width: 14 }, [railMeter]),
+        ],
+      )
+      const ground = box(
+        { width: 36, height: 8, flexDirection: 'column', backgroundColor: '#0d181b' as never },
+        [vitalsRail, box({ flexDirection: 'row' }, [outsidePrompt, styledText(' Type a prompt')])],
+      )
+      appendChildNode(root, ground)
+      return {
+        root,
+        render: createRenderer(root, ctx.stylePool),
+        frames: [emptyFrame(8, 36, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool), emptyFrame(8, 36, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)],
+        steps: [() => retext(outsidePrompt, '›'), () => retext(railMeter, '▸ 5h 13% · 4h')],
+      }
+    })
+    check('product shape (HelmVitalsRail fixed height=1 row): wrapping text inside a clipped rail holds across outside and rail ticks', err === null, err ?? '')
+  }
+
+  {
+    const err = runPair(28, 6, ctx => {
+      const root = createNode('ink-root')
+      applySceneStyle(root, { width: 28, height: 6, flexDirection: 'column' })
+      const tailTick = styledText('turn 0')
+      const messageResponse = box(
+        { flexDirection: 'row', height: 1, overflowY: 'hidden', width: 28 },
+        [
+          box({ flexShrink: 0, flexDirection: 'row' }, [styledText('  ⎿  ')]),
+          styledText('Running in the background (↓ to manage)'),
+        ],
+      )
+      const content = box({ flexDirection: 'column', flexGrow: 1, flexShrink: 0, width: 28 }, [messageResponse, tailTick])
+      const scroller = box({ flexDirection: 'column', width: 28, height: 5, overflowX: 'scroll', overflowY: 'scroll' }, [content])
+      const barTick = styledText('ready 0')
+      const ground = box({ width: 28, height: 6, flexDirection: 'column', backgroundColor: '#0d181b' as never }, [scroller, barTick])
+      appendChildNode(root, ground)
+      return {
+        root,
+        render: createRenderer(root, ctx.stylePool),
+        frames: [emptyFrame(6, 28, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool), emptyFrame(6, 28, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)],
+        steps: [() => retext(barTick, 'ready 1'), () => retext(tailTick, 'turn 1')],
+      }
+    })
+    check('product shape (MessageResponse height=1 overflowY=hidden in BashTool): clipped wrapping text equals fresh paint', err === null, err ?? '')
   }
 }
 

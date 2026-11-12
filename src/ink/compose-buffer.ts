@@ -105,7 +105,7 @@ function minDefined(a: number | undefined, b: number | undefined): number | unde
   return a < b ? a : b
 }
 
-export const lastComposeCounts = { blit: 0, write: 0, clearArea: 0, ops: 0 }
+export const lastComposeCounts = { blit: 0, write: 0, fill: 0, clearArea: 0, ops: 0 }
 
 type Options = {
   width: number
@@ -197,6 +197,7 @@ export default class ComposeBuffer {
     const H = this.height
     let blitCells = 0
     let writeCells = 0
+    let fillCells = 0
     let clearArea = 0
 
     for (const op of this.operations) {
@@ -260,6 +261,7 @@ export default class ComposeBuffer {
           const y1 = Math.min(op.y + op.height, H, clip?.y2 ?? Infinity)
           if (x0 < x1 && y0 < y1) {
             fillRegion(screen, x0, y0, x1 - x0, y1 - y0, op.styleId)
+            fillCells += (y1 - y0) * (x1 - x0)
           }
           continue
         }
@@ -282,6 +284,7 @@ export default class ComposeBuffer {
     }
     lastComposeCounts.blit = blitCells
     lastComposeCounts.write = writeCells
+    lastComposeCounts.fill = fillCells
     lastComposeCounts.clearArea = clearArea
     lastComposeCounts.ops = this.operations.length
     return screen

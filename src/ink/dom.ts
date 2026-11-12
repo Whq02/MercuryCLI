@@ -189,7 +189,7 @@ function collectRemovalRects(
   const absolute = inheritedAbsolute || node.style.position === 'absolute'
   const rect = nodeCache.get(node)
   if (rect) {
-    addPendingClear(parent, rect, absolute)
+    addPendingClear(parent, rect.reach ?? rect, absolute)
     nodeCache.delete(node)
   } else if (absolute) {
     addPendingClear(parent, { x: 0, y: 0, width: 0, height: 0 }, true)
