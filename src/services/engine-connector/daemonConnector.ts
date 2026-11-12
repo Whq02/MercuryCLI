@@ -549,10 +549,12 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private facts: SessionFactsV1 | null
   private workerTurnSettledAtMs: number | null = null
   private workerTurnDeliveryAtMs: number | null = null
+  private workerRecordPresent = false
   private completedTurnAtMs: number | null = null
   private completionWasInFlight = false
   private completionSawFactsBusy = false
   private sendDemotedToQueued = false
+  private sendDeliveredTaken = false
   private completionHighWaterMs = 0
   private completionUnmatchedEdgeAtMs: number | null = null
   private completionUnmatchedStampAtMs: number | null = null
@@ -1258,8 +1260,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     let bestRank = -1
     let settled: number | null = null
     let delivery: number | null = null
+    let present = false
     for (const rec of Object.values(snap.workers)) {
       if (rec.sessionId !== this.record.sessionId || rec.endedAt !== undefined) continue
+      present = true
       const s = typeof rec.lastTurnSettledAt === 'number' && Number.isFinite(rec.lastTurnSettledAt) ? rec.lastTurnSettledAt : null
       const d = typeof rec.lastDeliveryAt === 'number' && Number.isFinite(rec.lastDeliveryAt) ? rec.lastDeliveryAt : null
       const rank = Math.max(s ?? 0, d ?? 0)
@@ -1269,6 +1273,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         delivery = d
       }
     }
+    this.workerRecordPresent = present
     this.workerTurnSettledAtMs = settled
     this.workerTurnDeliveryAtMs = delivery
   }
@@ -1290,8 +1295,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const rawEdge = this.completionWasInFlight && !inFlight
     const wasFactsBusy = this.completionSawFactsBusy
     const demotedToQueued = this.sendDemotedToQueued
+    const deliveredTaken = this.sendDeliveredTaken
     this.sendDemotedToQueued = false
-    const edge = rawEdge && !(demotedToQueued && !wasFactsBusy)
+    this.sendDeliveredTaken = false
+    const canSettleLater = this.workerRecordPresent
+    const edge = rawEdge && !(demotedToQueued && !deliveredTaken && !wasFactsBusy && canSettleLater)
     this.completionWasInFlight = inFlight
     this.completionSawFactsBusy = inFlight ? (wasFactsBusy || this.factsBusy) : false
     const settled = this.workerTurnSettledAtMs
@@ -1404,6 +1412,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     if (current?.state === 'delivered' && state === 'queued') {
       this.sendDemotedToQueued = true
+    } else if (current?.state === 'delivered' && state === 'taken') {
+      this.sendDeliveredTaken = true
     }
     const enqueuedUnderTheFold = current !== undefined && (current.state !== 'queued' || current.heldFor === 'compaction')
     const heldFor = state === 'queued' && this.liveStateWord === 'compacting' && enqueuedUnderTheFold ? ('compaction' as const) : undefined

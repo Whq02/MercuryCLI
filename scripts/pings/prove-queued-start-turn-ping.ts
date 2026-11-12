@@ -992,6 +992,111 @@ try {
       reactivateThrew || JSON.stringify({ reactivateOutcome, claimedReason, diskAfterReactivate }),
     )
   }
+
+  {
+    try {
+      unlinkSync(join(daemonHome, 'concourse-workers.json'))
+    } catch {}
+    type SendItem = { clientMessageId: string; text: string; sentAtMs: number; state: string; mode: string }
+    type PrivConn = {
+      sends: SendItem[]
+      dressSend: (id: string, state: string) => void
+      recomputeLive: () => void
+    }
+    const sendDeliveredSeen = (conn: InstanceType<typeof DaemonSessionConnector>, id: string): void => {
+      const p = conn as unknown as PrivConn
+      p.sends = [...p.sends, { clientMessageId: id, text: 'apricot', sentAtMs: Date.now(), state: 'pending', mode: 'prompt' }]
+      p.dressSend(id, 'delivered')
+      p.recomputeLive()
+    }
+
+    const sidNoRec1 = '00000000-0000-4000-8000-000000000051'
+    writeFacts(sidNoRec1, { busy: false })
+    const cNoRec1 = makeConnector(sidNoRec1)
+    setFocusedSessionConnector(cNoRec1)
+    await wait(20)
+    const compNoRec1 = completionEdges
+    const firstId = '00000000-0000-4000-8000-0000000000f1'
+    const secondId = '00000000-0000-4000-8000-0000000000f2'
+    sendDeliveredSeen(cNoRec1, firstId)
+    await wait(15)
+    ;(cNoRec1 as unknown as PrivConn).sends = (cNoRec1 as unknown as PrivConn).sends.map(s =>
+      s.clientMessageId === firstId ? { ...s, sentAtMs: 0 } : s,
+    )
+    sendDeliveredSeen(cNoRec1, secondId)
+    await wait(15)
+    writeFacts(sidNoRec1, { busy: false, queue: [{ uuid: secondId, value: 'apricot', mode: 'prompt' }] })
+    feedFacts(cNoRec1)
+    await wait(25)
+    check(
+      '15a. session with no worker record: unseen first turn taken while second send moves to queued still completes once',
+      completionEdges - compNoRec1 === 1,
+      `completions=${completionEdges - compNoRec1}`,
+    )
+
+    const sidNoRec2 = '00000000-0000-4000-8000-000000000052'
+    writeFacts(sidNoRec2, {
+      busy: false,
+      runner: { state: 'starting', sinceMs: Date.now() - 100, respawns: 0, maxRespawns: 3 },
+    })
+    const cNoRec2 = makeConnector(sidNoRec2)
+    setFocusedSessionConnector(cNoRec2)
+    await wait(20)
+    const compNoRec2 = completionEdges
+    const coldNoRecId = '00000000-0000-4000-8000-0000000000f3'
+    sendDeliveredSeen(cNoRec2, coldNoRecId)
+    await wait(15)
+    writeFacts(sidNoRec2, {
+      busy: false,
+      runner: { state: 'starting', sinceMs: Date.now() - 200, respawns: 0, maxRespawns: 3 },
+      queue: [{ uuid: coldNoRecId, value: 'apricot', mode: 'prompt' }],
+    })
+    feedFacts(cNoRec2)
+    await wait(THRESHOLD_MS + 60)
+    writeFacts(sidNoRec2, { busy: false, queue: [] })
+    feedFacts(cNoRec2)
+    await wait(25)
+    check(
+      '15b. session with no worker record: prompt queued at cold start and run unseen still yields 1 completion (never 0)',
+      completionEdges - compNoRec2 === 1,
+      `completions=${completionEdges - compNoRec2}`,
+    )
+
+    const sidRec = '00000000-0000-4000-8000-000000000053'
+    writeWorkers({ 'concourse-w1': { sessionId: sidRec } })
+    writeFacts(sidRec, {
+      busy: false,
+      runner: { state: 'starting', sinceMs: Date.now() - 100, respawns: 0, maxRespawns: 3 },
+    })
+    const cRec = makeConnector(sidRec)
+    setFocusedSessionConnector(cRec)
+    await wait(20)
+    const compRec = completionEdges
+    const coldRecId = '00000000-0000-4000-8000-0000000000f4'
+    sendDeliveredSeen(cRec, coldRecId)
+    await wait(15)
+    writeFacts(sidRec, {
+      busy: false,
+      runner: { state: 'starting', sinceMs: Date.now() - 200, respawns: 0, maxRespawns: 3 },
+      queue: [{ uuid: coldRecId, value: 'apricot', mode: 'prompt' }],
+    })
+    feedFacts(cRec)
+    await wait(20)
+    const dAt = Date.now()
+    writeWorkers({ 'concourse-w1': { sessionId: sidRec, lastDeliveryAt: dAt } })
+    writeFacts(sidRec, { busy: true, queue: [] })
+    feedFacts(cRec)
+    await wait(20)
+    writeWorkers({ 'concourse-w1': { sessionId: sidRec, lastDeliveryAt: dAt, lastTurnSettledAt: dAt + 30 } })
+    writeFacts(sidRec, { busy: false, queue: [] })
+    feedFacts(cRec)
+    await wait(25)
+    check(
+      '15c. session with a worker record: prompt queued at cold start then seen busy and settled completes once',
+      completionEdges - compRec === 1,
+      `completions=${completionEdges - compRec}`,
+    )
+  }
 } finally {
   mounted.unmount()
   rmSync(scratch, { recursive: true, force: true })
