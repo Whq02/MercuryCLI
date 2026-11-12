@@ -2012,7 +2012,11 @@ export function concourseTranscriptPath(rec: Pick<ConcourseWorkerRecordV1, 'sess
   return join(getProjectDir(rec.workspaceId), `${rec.sessionId}.jsonl`)
 }
 
-export function runnerRestartReasonOf(rec: Pick<ConcourseWorkerRecordV1, 'crash' | 'turnCutAt' | 'restartReason'>): 'crash' | 'stop' | 'relaunch' | 'ended' | 'update' {
+export function runnerRestartReasonOf(
+  rec: Pick<ConcourseWorkerRecordV1, 'crash' | 'turnCutAt' | 'restartReason'>,
+  override?: ConcourseWorkerRecordV1['restartReason'],
+): 'crash' | 'stop' | 'relaunch' | 'ended' | 'update' {
+  if (override !== undefined) return override
   if (rec.restartReason !== undefined) return rec.restartReason
   if (rec.crash !== undefined) return 'crash'
   return turnCutStanding(rec) ? 'stop' : 'relaunch'
@@ -2074,7 +2078,7 @@ export function reviveConcourseWorker(
   const revivePosture = opts?.permissionMode ?? rec.permissionMode
   const reviveConsent = opts?.bypassConsent ?? rec.bypassConsent === true
   const reviveKind = opts?.kind ?? rec.kind ?? sessionKindOfAsker(by)
-  if (opts?.restartReason !== undefined) rec.restartReason = opts.restartReason
+  const restartReason = runnerRestartReasonOf(rec, opts?.restartReason)
   const spec = buildConcourseWorkerSpec({
     runnerId: rec.runnerId,
     sessionId: rec.sessionId,
@@ -2086,7 +2090,7 @@ export function reviveConcourseWorker(
     ...(reviveKit !== undefined ? { kit: reviveKit } : {}),
     ...(revivePosture !== undefined ? { permissionMode: revivePosture } : {}),
     ...(reviveConsent ? { bypassConsent: true as const } : {}),
-    restartReason: runnerRestartReasonOf(rec),
+    restartReason,
     resume: true,
     cwd: rec.worktreePath ?? rec.workspaceId,
     kind: reviveKind,
@@ -2221,7 +2225,7 @@ export async function reactivateConcourseSession(
   const effort = args.effort ?? rec.effort ?? 'high'
   const kit = args.kit ?? args.preset?.kit ?? deriveSessionKitForWorkspace(rec.workspaceId)
   const kitSource: KitStampSource = args.kit !== undefined ? 'carried' : args.preset !== undefined ? 'preset' : 'derived'
-  if (args.restartReason !== undefined) rec.restartReason = args.restartReason
+  const restartReason = runnerRestartReasonOf(rec, args.restartReason)
   if (
     deps.claimWarm !== undefined &&
     kind === 'oculus' &&
@@ -2239,7 +2243,7 @@ export async function reactivateConcourseSession(
       permissionMode: claimPosture,
       bypassConsent: args.bypassConsent === true,
       kit,
-      restartReason: runnerRestartReasonOf(rec),
+      restartReason,
       resume: true,
     })
     if (claimed.claimed) {

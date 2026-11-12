@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { PassThrough } from 'node:stream'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 const scratch = mkdtempSync(join(tmpdir(), 'queued-start-ping-'))
 const home = join(scratch, 'home')
@@ -31,7 +31,14 @@ const { Box, Text, render } = await import('../../src/ink.ts')
 const { TerminalWriteProvider } = await import('../../src/ink/terminalWrite.ts')
 const { useTurnEndPing, PING_MESSAGE } = await import('../../src/hooks/useTurnEndPing.ts')
 const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const { readSessionWorkersSnapshot, markConcourseWorkerTurnSettled } = await import('../../src/daemon/concourseWorkers.ts')
+const {
+  readSessionWorkersSnapshot,
+  readSessionWorkers,
+  markConcourseWorkerTurnSettled,
+  concourseTranscriptPath,
+  reviveConcourseWorker,
+  reactivateConcourseSession,
+} = await import('../../src/daemon/concourseWorkers.ts')
 const { hasSeatLive, IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
 const {
   getFocusedSessionConnector,
@@ -869,6 +876,120 @@ try {
       '13. switching focus from an idle completed session to a busy session resets tipPickedThisTurnRef so the busy session picks its turn tip on settle, while busy-to-idle switch fires zero false completions',
       falseCompletionsOnBusyToIdleSwitch === 0 && tipsPicked - tipsStart === 2,
       JSON.stringify({ falseCompletionsOnBusyToIdleSwitch, tipsDelta: tipsPicked - tipsStart }),
+    )
+  }
+
+  {
+    const sid1 = '00000000-0000-4000-8000-000000000041'
+    const sid2 = '00000000-0000-4000-8000-000000000042'
+    const workersPath = join(daemonHome, 'concourse-workers.json')
+    for (const s of [sid1, sid2]) {
+      const tr = concourseTranscriptPath({ sessionId: s, workspaceId: work })
+      mkdirSync(dirname(tr), { recursive: true })
+      writeFileSync(tr, '')
+    }
+    writeFileSync(
+      workersPath,
+      JSON.stringify({
+        version: 1,
+        workers: {
+          'concourse-w1': {
+            schema: 1,
+            runnerId: 'concourse-w1',
+            sessionId: sid1,
+            workspaceId: work,
+            isolation: 'shared',
+            modelKey: 'claude-opus-5-5',
+            spawnedAt: 1000,
+            lastLiveAt: 1000,
+            parkedAt: 2000,
+            parkedBy: 'operator',
+          },
+          'concourse-w2': {
+            schema: 1,
+            runnerId: 'concourse-w2',
+            sessionId: sid2,
+            workspaceId: work,
+            isolation: 'shared',
+            modelKey: 'claude-opus-5-5',
+            spawnedAt: 1000,
+            lastLiveAt: 1000,
+            parkedAt: 2000,
+            parkedBy: 'operator',
+          },
+        },
+      }),
+    )
+
+    const registeredSpecs: Array<{ short: string; reason: string | undefined }> = []
+    const roster = {
+      kill: () => false,
+      has: () => ({ present: false }),
+      list: () => [],
+      registerLongLived: (short: string, spec: { extraEnv?: Record<string, string> }) => {
+        registeredSpecs.push({ short, reason: spec.extraEnv?.MERCURY_RUNNER_RESTART_REASON })
+        return { ok: true, pid: 999991 }
+      },
+    }
+
+    let reviveThrew = ''
+    let reviveOutcome: ReturnType<typeof reviveConcourseWorker> | null = null
+    try {
+      reviveOutcome = reviveConcourseWorker(sid1, 'operator', roster, { restartReason: 'update' }, daemonHome)
+    } catch (e) {
+      reviveThrew = `${(e as Error).name}: ${(e as Error).message}`
+    }
+    const diskAfterRevive = readSessionWorkers(daemonHome)['concourse-w1']
+    check(
+      '14a. reviveConcourseWorker on a parked record with restartReason: update answers applied without mutating the frozen memo, passes update to the runner spec, and updates the record on disk',
+      reviveThrew === '' &&
+        reviveOutcome?.outcome === 'applied' &&
+        registeredSpecs[0]?.reason === 'update' &&
+        diskAfterRevive?.parkedAt === undefined &&
+        diskAfterRevive?.pid === 999991,
+      reviveThrew || JSON.stringify({ reviveOutcome, spec: registeredSpecs[0], diskAfterRevive }),
+    )
+
+    let reactivateThrew = ''
+    let claimedReason: string | undefined
+    let reactivateOutcome: Awaited<ReturnType<typeof reactivateConcourseSession>> | null = null
+    try {
+      const frozenRec = readSessionWorkers(daemonHome)['concourse-w2']!
+      reactivateOutcome = await reactivateConcourseSession(
+        frozenRec,
+        {
+          modelKey: 'claude-opus-5-5',
+          by: 'operator',
+          kind: 'oculus',
+          restartReason: 'update',
+        },
+        [],
+        {
+          dir: daemonHome,
+          roster: () => roster,
+          claimWarm: async (args: { modelKey: string; restartReason?: string }) => {
+            claimedReason = args.restartReason
+            return {
+              claimed: true,
+              short: 'concourse-w2',
+              pid: 999992,
+              spec: { model: args.modelKey, agentId: 'concourse-w2@concourse', cwd: work, extraArgv: [], respawnExtraArgv: [] } as never,
+            }
+          },
+        },
+      )
+    } catch (e) {
+      reactivateThrew = `${(e as Error).name}: ${(e as Error).message}`
+    }
+    const diskAfterReactivate = readSessionWorkers(daemonHome)['concourse-w2']
+    check(
+      '14b. reactivateConcourseSession with restartReason: update succeeds without mutating the frozen memo, passes update to warm claim, and updates the record on disk',
+      reactivateThrew === '' &&
+        reactivateOutcome?.ok === true &&
+        claimedReason === 'update' &&
+        diskAfterReactivate?.parkedAt === undefined &&
+        diskAfterReactivate?.pid === 999992,
+      reactivateThrew || JSON.stringify({ reactivateOutcome, claimedReason, diskAfterReactivate }),
     )
   }
 } finally {
