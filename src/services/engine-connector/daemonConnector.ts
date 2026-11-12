@@ -1140,7 +1140,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       )
       this.recordSigs = merge.sigs
       connectorTrace({ ev: 'load', sid: this.record.sessionId, rawLen: raw.length, reusedAll: merge.reusedAll, prevLen: this.rawRecords.length, since: chain.since, rewound: chain.rewound })
-      if (merge.reusedAll) return
+      if (merge.reusedAll) {
+        this.recomputeLive()
+        return
+      }
       this.rawRecords = merge.records
       if (chain.rewound) {
         this.releaseDisplayRowsPast(chain.since)
@@ -1260,6 +1263,16 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.workerTurnDeliveryAtMs = delivery
   }
 
+  private hasUnreadTranscript(): boolean {
+    if (!this.attached) return false
+    try {
+      const sizeNow = statSync(this.transcriptPath).size
+      return sizeNow > 0 && sizeNow !== this.lastSize
+    } catch {
+      return false
+    }
+  }
+
   private stepTurnCompletion(inFlight: boolean): boolean {
     const edge = this.completionWasInFlight && !inFlight
     this.completionWasInFlight = inFlight
@@ -1272,6 +1285,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       return false
     }
     const stampAdvanced = settled !== null && settled > this.completionHighWaterMs
+    if ((edge || stampAdvanced) && this.hasUnreadTranscript()) {
+      if (edge) this.completionWasInFlight = true
+      void this.tick()
+      return false
+    }
     if (edge && stampAdvanced) {
       this.completionHighWaterMs = settled
       this.completionUnmatchedEdgeAtMs = null

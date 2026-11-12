@@ -371,6 +371,36 @@ try {
     check('8c. once runner is no longer starting, ordinary fast transcript ticks do not re-read facts or workers', c.status().runner === null && c.lastTurnCompletedAtMs() === completedAfterFirstTick)
     c.detach()
   }
+
+  {
+    const sid = '00000000-0000-4000-8000-000000000009'
+    writeWorkers({ 'concourse-w1': { sessionId: sid, lastDeliveryAt: 10000 } })
+    writeFacts(sid, { busy: false })
+    const c = makeConnector(sid)
+    ;(c as unknown as { attached: boolean }).attached = true
+    setFocusedSessionConnector(c)
+    await wait(20)
+    const before = osc9Count()
+    writeFileSync(
+      c.transcriptFile(),
+      encodeSeedTranscript(
+        [
+          { isSidechain: false, entrypoint: 'cli', cwd: work, sessionId: sid, version: '1.0.10', gitBranch: 'main', parentUuid: null, type: 'user', uuid: '00000000-0000-4000-8000-0000000000c1', timestamp: '2026-11-12T18:56:09.000Z', message: { role: 'user', content: 'apricot' } },
+          { isSidechain: false, entrypoint: 'cli', cwd: work, sessionId: sid, version: '1.0.10', gitBranch: 'main', parentUuid: '00000000-0000-4000-8000-0000000000c1', type: 'assistant', uuid: '00000000-0000-4000-8000-0000000000c2', timestamp: '2026-11-12T18:56:12.000Z', message: { id: 'msg_c2', type: 'message', role: 'assistant', model: 'claude-opus-5-5', content: [{ type: 'text', text: 'Apricot, as asked.' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 4 } } },
+        ],
+        sid,
+      ),
+    )
+    writeWorkers({ 'concourse-w1': { sessionId: sid, lastDeliveryAt: 10000, lastTurnSettledAt: 10500 } })
+    writeFacts(sid, { busy: false, queue: [] })
+    feedFacts(c)
+    check('9a. when facts/settled stamp arrive while transcript bytes sit unread on disk, completion waits for tick to paint the reply', c.records().length === 0 ? c.lastTurnCompletedAtMs() === null : true)
+    await wait(40)
+    check('9b. readFacts immediately triggers tick so the settled reply paints without waiting 2s for IDLE_TRANSCRIPT_FLOOR_MS', c.records().length >= 2 && c.lastTurnCompletedAtMs() !== null, `records=${c.records().length}`)
+    await wait(THRESHOLD_MS + 60)
+    check('9c. ping fires once after the reply painted', osc9Count() - before === 1, `delta=${osc9Count() - before}`)
+    c.detach()
+  }
 } finally {
   mounted.unmount()
   rmSync(scratch, { recursive: true, force: true })
