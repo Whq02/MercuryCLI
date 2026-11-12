@@ -232,10 +232,44 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
     const offMark = await leaveTail()
     check(`${tag}: wheel leaves the tail with the jump pill shown`, offMark !== undefined && m.screen().includes(PILL) && !m.screen().includes('TAIL-END'), `${offMark}`)
 
+    let firstEnterFrame = ''
+    const stopEnterWatch = inkTap!.subscribeFrame(() => {
+      stopEnterWatch()
+      firstEnterFrame = m.screen()
+    })
     m.push(CTRL_O)
-    await waitScreenSettled(`${tag} roundtrip enter detail`, frame => frame.includes('detailed transcript'))
+    const settledEnter = await waitScreenSettled(`${tag} roundtrip enter detail`, frame => frame.includes('detailed transcript'))
+    stopEnterWatch()
+    const firstEnterMark = topMarkFrom(firstEnterFrame)
+    const settledEnterMark = topMarkFrom(settledEnter)
+    check(
+      `${tag}: first painted frame entering detailed transcript stays within two rows of settled without flashing top or tail`,
+      firstEnterMark !== undefined &&
+        settledEnterMark !== undefined &&
+        !firstEnterFrame.includes('TAIL-END') &&
+        markRank(firstEnterMark) > 120 &&
+        Math.abs(markRank(firstEnterMark) - markRank(settledEnterMark)) <= 2,
+      `first=${firstEnterMark} settled=${settledEnterMark} tail=${firstEnterFrame.includes('TAIL-END')}`,
+    )
+
+    let firstExitFrame = ''
+    const stopExitWatch = inkTap!.subscribeFrame(() => {
+      stopExitWatch()
+      firstExitFrame = m.screen()
+    })
     m.push(CTRL_O)
     await waitScreenSettled(`${tag} roundtrip exit detail`, frame => frame.includes('Type a prompt'))
+    stopExitWatch()
+    const firstExitMark = topMarkFrom(firstExitFrame)
+    check(
+      `${tag}: first painted frame exiting detailed transcript stays within two rows of settled without flashing top or tail`,
+      firstExitMark !== undefined &&
+        offMark !== undefined &&
+        !firstExitFrame.includes('TAIL-END') &&
+        markRank(firstExitMark) > 120 &&
+        Math.abs(markRank(firstExitMark) - markRank(topMark(m))) <= 2,
+      `first=${firstExitMark} settled=${topMark(m)} tail=${firstExitFrame.includes('TAIL-END')}`,
+    )
     check(`${tag}: an uninterrupted flip round-trip still preserves the row`, topMark(m) === offMark && m.screen().includes(PILL), `${offMark} -> ${topMark(m)}`)
 
     m.push(CTRL_O)
