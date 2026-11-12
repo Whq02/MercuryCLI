@@ -157,5 +157,45 @@ section('6. status arms — flag, teaching, enablement honesty, reachability')
   resetEnv()
 }
 
+section('7. reinstall token rotation — singleton replaces the stale-token client')
+{
+  resetEnv()
+  process.env.MERCURY_BLENDER = '1'
+  process.env.MERCURY_BLENDER_BIN = noBlender
+  process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR = home
+  resetBlenderBridgeClientForTest()
+  installer.applyBlenderBridgeInstall()
+  const tok1 = readFileSync(path.join(dir, 'token'), 'utf8').trim()
+  const srv = await startFakeBlenderBridge({ token: tok1 })
+  process.env.MERCURY_BLENDER_BRIDGE_PORT = String(srv.port)
+  const c1 = getBlenderBridgeClient()
+  await srv.close()
+  installer.applyBlenderBridgeUninstall()
+  installer.applyBlenderBridgeInstall()
+  const tok2 = readFileSync(path.join(dir, 'token'), 'utf8').trim()
+  const srv2 = await startFakeBlenderBridge({ token: tok2 })
+  process.env.MERCURY_BLENDER_BRIDGE_PORT = String(srv2.port)
+  await srv2.close()
+  const srvSamePort = await startFakeBlenderBridge({ token: tok2 })
+  process.env.MERCURY_BLENDER_BRIDGE_PORT = String(srvSamePort.port)
+  resetBlenderBridgeClientForTest()
+  writeFileSync(path.join(dir, 'token'), tok1 + '\n', { mode: 0o600 })
+  const stale = getBlenderBridgeClient()!
+  installer.applyBlenderBridgeUninstall()
+  installer.applyBlenderBridgeInstall()
+  const freshTok = readFileSync(path.join(dir, 'token'), 'utf8').trim()
+  writeFileSync(path.join(dir, 'token'), tok2 + '\n', { mode: 0o600 })
+  const rotated = getBlenderBridgeClient()!
+  const authReply = await rotated.request('scene_info')
+  await srvSamePort.close()
+  check(
+    'reinstall minting a new token on the same port replaces the client and authenticates without restart',
+    c1 !== null && freshTok !== tok1 && tok2 !== tok1 && rotated !== stale && authReply.ok === true,
+    authReply.ok ? 'ok' : `${authReply.error.code}: ${authReply.error.message}`,
+  )
+  resetBlenderBridgeClientForTest()
+  resetEnv()
+}
+
 console.log('\n' + (failures === 0 ? '✅ blender-bridge install proof PASS' : `❌ ${failures} FAILURES`))
 process.exit(failures === 0 ? 0 : 1)

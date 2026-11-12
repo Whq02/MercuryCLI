@@ -392,7 +392,11 @@ export class BlenderBridgeClient {
 let singleton: { client: BlenderBridgeClient; key: string } | null = null
 
 export function getBlenderBridgeClient(): BlenderBridgeClient | null {
-  if (!blenderBridgeEnabled()) return null
+  if (!blenderBridgeEnabled()) {
+    singleton?.client.close()
+    singleton = null
+    return null
+  }
   const port = blenderBridgePort()
   const override = blenderBridgeTokenOverride()
   let token: string
@@ -400,12 +404,20 @@ export function getBlenderBridgeClient(): BlenderBridgeClient | null {
     token = override
   } else {
     const census = resolveBlenderAddonHome()
-    if (!census.home) return null
+    if (!census.home) {
+      singleton?.client.close()
+      singleton = null
+      return null
+    }
     const onDisk = readBlenderBridgeToken(census.home.path)
-    if (onDisk === undefined) return null
+    if (onDisk === undefined) {
+      singleton?.client.close()
+      singleton = null
+      return null
+    }
     token = onDisk
   }
-  const key = `#${port}`
+  const key = `${port}:${token}`
   if (singleton && singleton.key === key) return singleton.client
   singleton?.client.close()
   const client = new BlenderBridgeClient({ port, token })
