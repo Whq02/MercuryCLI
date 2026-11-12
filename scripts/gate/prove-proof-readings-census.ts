@@ -120,7 +120,8 @@ console.log('PASS planted runner and historical-build defects are detected; comm
 const failures: string[] = []
 const runners = tracked.filter(path => /^scripts\/[^/]+\/run-all\.sh$/.test(path))
 for (const path of runners) for (const line of unreachableProofs(read(path))) failures.push(`${path}:${line}: a proof invocation after top-level exec is unreachable; keep the invocation before exec or remove the duplicate`)
-for (const path of ['scripts/lib/crossfamilyConcourseFixture.ts', 'scripts/agent-experience/lib/fixture.ts', 'scripts/agent-experience/benchmark.ts'] as const) {
+for (const sub of ['lib/crossfamilyConcourseFixture.ts', 'agent-experience/lib/fixture.ts', 'agent-experience/benchmark.ts'] as const) {
+  const path = `scripts/${sub}`
   const source = read(path)
   for (const line of fixedFixturePorts(source)) failures.push(`${path}:${line}: fixtures must bind an ephemeral port by default and publish the bound endpoint`)
   for (const line of unguardedLoopbackListens(source)) failures.push(`${path}:${line}: loopback listen promises must attach an error handler so a held port rejects at once`)
@@ -128,7 +129,7 @@ for (const path of ['scripts/lib/crossfamilyConcourseFixture.ts', 'scripts/agent
 let historical = 0
 for (const path of tracked.filter(path => /\/prove-[^/]+\.tsx?$/.test(path) && !path.endsWith('/prove-proof-readings-census.ts'))) {
   const source = read(path)
-  const portWatched = /^scripts\/(workflows|compact|agent-dispatch|provider-compat|search|extensions|switchboard|usage-warning|daemon|agent-experience)\//.test(path) || path === 'scripts/ui/prove-workflow-controls-drive.ts' || path === 'scripts/ui/prove-gpt6-astra-crew-drive.ts'
+  const portWatched = /^scripts\/(workflows|compact|agent-dispatch|provider-compat|search|extensions|switchboard|usage-warning|daemon|agent-experience)\//.test(path) || /^scripts\/ui\/prove-(?:workflow-controls|gpt6-astra-crew)-drive\.ts$/.test(path)
   if (portWatched) {
     for (const line of fixedFixturePorts(source)) failures.push(`${path}:${line}: fixtures must bind an ephemeral port by default and publish the bound endpoint`)
     for (const line of unguardedLoopbackListens(source)) failures.push(`${path}:${line}: loopback listen promises must attach an error handler so a held port rejects at once`)
