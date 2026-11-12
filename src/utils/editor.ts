@@ -152,15 +152,67 @@ export function classifyGuiEditor(editor: string): string | undefined {
   return undefined
 }
 
+function parseWindowsCommandArgs(raw: string): string[] {
+  const tokens: string[] = []
+  let cur = ''
+  let started = false
+  let inQuotes = false
+  for (let i = 0; i < raw.length; i++) {
+    let slashes = 0
+    while (i < raw.length && raw[i] === '\\') {
+      slashes++
+      i++
+    }
+    if (i < raw.length && raw[i] === '"') {
+      cur += '\\'.repeat(Math.floor(slashes / 2))
+      started = true
+      if (slashes % 2 === 1) {
+        cur += '"'
+      } else if (inQuotes && raw[i + 1] === '"') {
+        cur += '"'
+        i++
+      } else {
+        inQuotes = !inQuotes
+      }
+      continue
+    }
+    if (slashes > 0) {
+      cur += '\\'.repeat(slashes)
+      started = true
+    }
+    if (i >= raw.length) break
+    const c = raw[i]!
+    if (!inQuotes && (c === ' ' || c === '\t')) {
+      if (started || cur.length > 0) {
+        tokens.push(cur)
+        cur = ''
+        started = false
+      }
+      continue
+    }
+    cur += c
+    started = true
+  }
+  if (started || cur.length > 0) tokens.push(cur)
+  return tokens
+}
+
 function parseEditorCommand(editor: string, world: LookupWorld): { executable: string; args: string[] } {
-  if (world.platform === 'win32' && !/^["']/.test(editor)) {
-    const boundaries = [editor.length, ...Array.from(editor.matchAll(/\s+/g), match => match.index).reverse()]
-    for (const end of boundaries) {
-      const executable = editor.slice(0, end)
-      if (resolveExecutable(executable, world) !== null) {
-        return { executable, args: parseLegacyCommandString(`editor ${editor.slice(end).trim()}`).args }
+  if (world.platform === 'win32') {
+    if (!/^["']/.test(editor)) {
+      const boundaries = [editor.length, ...Array.from(editor.matchAll(/\s+/g), match => match.index).reverse()]
+      for (const end of boundaries) {
+        const executable = editor.slice(0, end)
+        if (resolveExecutable(executable, world) !== null) {
+          return { executable, args: parseWindowsCommandArgs(editor.slice(end).trim()) }
+        }
       }
     }
+    const tokens = parseWindowsCommandArgs(editor)
+    if (tokens.length > 0 && tokens[0]!.length > 0) {
+      return { executable: tokens[0]!, args: tokens.slice(1) }
+    }
+    return { executable: editor, args: [] }
   }
   const invocation = parseLegacyCommandString(editor)
   if (invocation.executablePath.length > 0) {

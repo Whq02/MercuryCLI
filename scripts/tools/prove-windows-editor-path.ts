@@ -23,11 +23,22 @@ try {
   mkdirSync(dirname(executable), { recursive: true })
   writeFileSync(executable, '')
   const world = { platform: 'win32', path: scratch }
-  for (const [setting, args] of [[executable, []], [`${executable} --wait`, ['--wait']], [`"${executable}" --wait`, ['--wait']]] as const) {
+  for (const [setting, args] of [
+    [executable, []],
+    [`${executable} --wait`, ['--wait']],
+    [`"${executable}" --wait`, ['--wait']],
+    [`${executable} --config ${String.raw`C:\Users\me\ed.ini`} --wait`, ['--config', String.raw`C:\Users\me\ed.ini`, '--wait']],
+    [`"${executable}" --config ${String.raw`C:\Users\me\ed.ini`}`, ['--config', String.raw`C:\Users\me\ed.ini`]],
+    [
+      `${executable} --config "${String.raw`C:\Users\Alice Smith\ed.ini`}" ${String.raw`\\fileserver\configs\shared.ini`} --cmd "set title=\\"my draft\\""`,
+      ['--config', String.raw`C:\Users\Alice Smith\ed.ini`, String.raw`\\fileserver\configs\shared.ini`, '--cmd', 'set title="my draft"'],
+    ],
+  ] as const) {
     const selected = resolveExternalEditor(setting, 'EDITOR', world)
     check(`${setting}: resolves the whole executable and arguments`, selected.ok && selected.executable === executable && JSON.stringify(selected.args) === JSON.stringify(args), JSON.stringify(selected))
+    const expectedPrefix = [`"${executable}"`, ...args.map(a => `"${a}"`)].join(' ') + ' '
     const line = selected.ok ? editorCommandLine(selected.executable, selected.args, String.raw`C:\work\draft.md`, 'win32') : ''
-    check(`${setting}: the launch starts with the intact quoted path`, line.startsWith(`"${executable}"${args.length ? ' "--wait"' : ''} `), line)
+    check(`${setting}: the launch starts with the intact quoted path and arguments`, line.startsWith(expectedPrefix), line)
   }
   const bin = join(scratch, 'bin')
   mkdirSync(bin)
@@ -35,7 +46,15 @@ try {
     writeFileSync(join(bin, name), '')
     chmodSync(join(bin, name), 0o755)
   }
-  const values = [['standin-editor --wait --profile work', 'standin-editor', ['--wait', '--profile', 'work']], ['standin-editor --note $STANDIN_NOTE', 'standin-editor', ['--note', '$STANDIN_NOTE']], ['wrapper-editor', 'wrapper-editor', []], ['code', 'code', []], ['subl', 'subl', []], ['"standin-editor" --wait', 'standin-editor', ['--wait']]] as const
+  const values = [
+    ['standin-editor --wait --profile work', 'standin-editor', ['--wait', '--profile', 'work']],
+    ['standin-editor --note $STANDIN_NOTE', 'standin-editor', ['--note', '$STANDIN_NOTE']],
+    ['standin-editor --title=hello\\ world', 'standin-editor', ['--title=hello world']],
+    ['wrapper-editor', 'wrapper-editor', []],
+    ['code', 'code', []],
+    ['subl', 'subl', []],
+    ['"standin-editor" --wait', 'standin-editor', ['--wait']],
+  ] as const
   for (const platform of ['darwin', 'linux']) {
     const unchanged = values.every(([value, expected, args]) => {
       const selected = resolveExternalEditor(value, 'EDITOR', { platform, path: bin })
