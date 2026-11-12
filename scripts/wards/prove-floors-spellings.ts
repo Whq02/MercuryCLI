@@ -86,6 +86,7 @@ const { FileReadTool } = await import(join(SRC, 'tools/FileReadTool/FileReadTool
 const { FileWriteTool } = await import(join(SRC, 'tools/FileWriteTool/FileWriteTool.ts'))
 const { FileEditTool } = await import(join(SRC, 'tools/FileEditTool/FileEditTool.ts'))
 const { EvalTool } = await import(join(SRC, 'tools/EvalTool/EvalTool.ts'))
+const { powershellToolHasPermission } = await import(join(SRC, 'tools/PowerShellTool/powershellPermissions.ts'))
 const keychain = await import(join(SRC, 'utils/secureStorage/macOsKeychainHelpers.ts'))
 const { flagEnv } = await import(join(SRC, 'substrate/flagRegistry.ts'))
 enableConfigs()
@@ -104,7 +105,12 @@ const bashTool = {
   inputSchema: z.object({ command: z.string() }),
   checkPermissions: (input: { command: string }, context: { getAppState: () => { toolPermissionContext: unknown } }) => bashToolHasPermission(input, context.getAppState().toolPermissionContext as never),
 } as never
-const TOOLS: Record<string, unknown> = { Bash: bashTool, Read: FileReadTool, Write: FileWriteTool, Edit: FileEditTool, Eval: EvalTool }
+const powershellTool = {
+  name: 'PowerShell',
+  inputSchema: z.object({ command: z.string() }),
+  checkPermissions: (input: { command: string }, context: unknown) => powershellToolHasPermission(input, context as never),
+} as never
+const TOOLS: Record<string, unknown> = { Bash: bashTool, PowerShell: powershellTool, Read: FileReadTool, Write: FileWriteTool, Edit: FileEditTool, Eval: EvalTool }
 
 async function decide(tool: string, input: Record<string, unknown>, mode: string, rules: Rules = {}): Promise<Decision> {
   const state = {
@@ -993,6 +999,145 @@ if (runs('NOROOT')) {
   check('NOROOT · standing in the home, a recursive grep given no folder is answered what it is answered with a dot, no stricter', homeBare.decision.behavior === homeDot.decision.behavior, `${said(homeBare.decision)} ‖ ${said(homeDot.decision)}`)
   bootstrap.setCwdState(PROJECT)
   for (const item of [bash('rg token'), bash('git grep token'), bash('grep -rn token'), bash('find -type f -exec cat {} +', 'a find given no root')]) await expect('NOROOT · in the project', item, ['sovereign'], notRefused, 'is not refused by the floor')
+}
+
+if (runs('BLOCKS')) {
+  section('BLOCKS · on the PowerShell tool a write that stands inside a script block is the write it is: the credential-store floor asks every command the reading finds, in whatever block it stands')
+  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const filled = (line: string): string => line.replaceAll('<HOME>', OWN_HOME).replaceAll('<CONFIG>', CONFIG_HOME)
+  const written = async (line: string, from = PROJECT, powershell = true): Promise<string | null> => floors.shellCredentialWritePath(filled(line), powershell, from)
+  const KEYS = '~\\.ssh\\authorized_keys'
+  const WRITE = `Set-Content ${KEYS} x`
+  const forms: Array<[string, string]> = [
+    ['if', 'if ($true) { <W> }'],
+    ['elseif', 'if ($false) { 1 } elseif ($true) { <W> }'],
+    ['else', 'if ($false) { 1 } else { <W> }'],
+    ['the call operator', '& { <W> }'],
+    ['dot-sourced', '. { <W> }'],
+    ['the percent alias', '1 | % { <W> }'],
+    ['ForEach-Object', '1 | ForEach-Object { <W> }'],
+    ['ForEach-Object -Process', '1 | ForEach-Object -Process { <W> }'],
+    ['the question-mark alias', '1 | ? { <W> }'],
+    ['Where-Object', '1 | Where-Object { <W> }'],
+    ['foreach', 'foreach ($x in 1) { <W> }'],
+    ['for', 'for ($i = 0; $i -lt 1; $i++) { <W> }'],
+    ['while', 'while ($true) { <W>; break }'],
+    ['do while', 'do { <W> } while ($false)'],
+    ['do until', 'do { <W> } until ($true)'],
+    ['switch', 'switch (1) { 1 { <W> } }'],
+    ['switch default', 'switch (1) { default { <W> } }'],
+    ['try', 'try { <W> } catch { }'],
+    ['catch', 'try { throw 1 } catch { <W> }'],
+    ['finally', 'try { 1 } finally { <W> }'],
+    ['Invoke-Command -ScriptBlock', 'Invoke-Command -ScriptBlock { <W> }'],
+    ['icm', 'icm { <W> }'],
+    ['a block in a block', 'if ($true) { if ($true) { <W> } }'],
+    ['three blocks deep', '& { 1 | % { try { <W> } catch { } } }'],
+    ['a function body, called', 'function f { <W> }; f'],
+    ['a block in a variable, called', '$sb = { <W> }; & $sb'],
+    ['Start-Job', 'Start-Job { <W> }'],
+    ['no spaces', 'if($true){<W>}'],
+    ['on three lines', 'if ($true) {\n  <W>\n}'],
+    ['a subexpression in a block', 'if ($true) { $(<W>) }'],
+  ]
+  for (const [name, form] of forms) {
+    const line = form.replace('<W>', WRITE)
+    check(`BLOCKS · PowerShell · ${name} · ${shown(line)} · is refused as a write to a credential store`, (await written(line)) !== null)
+  }
+  const verbs = [
+    `Set-Content -Path ${KEYS} -Value x`,
+    `Add-Content ${KEYS} x`,
+    `Remove-Item ${KEYS}`,
+    `Move-Item ${KEYS} .\\taken`,
+    `Move-Item .\\other ${KEYS}`,
+    `Copy-Item .\\other ${KEYS}`,
+    `Copy-Item .\\other -Destination ${KEYS}`,
+    `'x' | Out-File ${KEYS}`,
+    `'x' | Out-File -FilePath ${KEYS} -Append`,
+    `New-Item ${KEYS} -Force`,
+    `Clear-Content ${KEYS}`,
+    `Rename-Item ${KEYS} old`,
+    `'x' | Tee-Object -FilePath ${KEYS}`,
+    `'x' > ${KEYS}`,
+    `'x' >> ${KEYS}`,
+    `sc ${KEYS} x`,
+    `ac ${KEYS} x`,
+    `rm ${KEYS}`,
+    `del ${KEYS}`,
+    `cp .\\other ${KEYS}`,
+    `mv .\\other ${KEYS}`,
+    `ni ${KEYS}`,
+    `[IO.File]::WriteAllText("$HOME\\.ssh\\authorized_keys", 'x')`,
+    `[System.IO.File]::AppendAllText("$HOME\\.ssh\\authorized_keys", 'x')`,
+    `[IO.File]::Delete("$HOME\\.ssh\\authorized_keys")`,
+  ]
+  for (const [index, verb] of verbs.entries()) {
+    const line = index % 2 === 0 ? `if ($true) { ${verb} }` : `1 | % { ${verb} }`
+    check(`BLOCKS · PowerShell · ${shown(line)} · a write, an append, a remove, a move, a copy over, a new file or a redirect inside a block is refused`, (await written(line)) !== null)
+  }
+  const spelled = [
+    'try { Set-Content $HOME\\.ssh\\authorized_keys x } catch { }',
+    'try { Set-Content "$HOME\\.ssh\\authorized_keys" x } catch { }',
+    'try { Set-Content $env:USERPROFILE\\.ssh\\authorized_keys x } catch { }',
+    'try { Set-Content <HOME>\\.ssh\\authorized_keys x } catch { }',
+    'try { Set-Content ~/.ssh/authorized_keys x } catch { }',
+    'try { Set-Content ~\\.aws\\credentials x } catch { }',
+    'try { Set-Content ~\\.gnupg\\trustdb.gpg x } catch { }',
+    'try { Set-Content <CONFIG>\\.credentials.json x } catch { }',
+    'try { Set-Content -LiteralPath:~\\.ssh\\authorized_keys -Value x } catch { }',
+    '$p = "~\\.ssh\\authorized_keys"; if ($true) { Set-Content $p x }',
+  ]
+  for (const line of spelled) check(`BLOCKS · PowerShell · ${shown(line)} · the guarded path spelled another way inside the block is refused`, (await written(line)) !== null)
+  const moved = [
+    'cd ~\\.ssh; if ($true) { Set-Content authorized_keys x }',
+    'cd ~\\.ssh; 1 | % { Add-Content authorized_keys x }',
+    'Set-Location ~\\.aws; try { Set-Content credentials x } catch { }',
+    'cd ~; if ($true) { Set-Content .ssh\\authorized_keys x }',
+    'if ($true) { cd ~\\.ssh; Set-Content authorized_keys x }',
+    'cd ~\\.ssh && & { Remove-Item authorized_keys }',
+  ]
+  for (const line of moved) check(`BLOCKS · PowerShell · ${shown(line)} · a bare name written inside a block after a cd into a guarded folder is refused`, (await written(line)) !== null)
+  check('BLOCKS · PowerShell, the session standing in a guarded folder · a bare name written inside a block is refused', (await written('if ($true) { Set-Content authorized_keys x }', join(OWN_HOME, '.ssh'))) !== null)
+  check('BLOCKS · PowerShell, the session standing in the home · a path beneath it written inside a block is refused', (await written('1 | % { Add-Content .ssh\\authorized_keys x }', OWN_HOME)) !== null)
+  check('BLOCKS · the Bash tool starting PowerShell with a block is refused', (await written("pwsh -c 'if ($true) { Set-Content ~/.ssh/authorized_keys x }'", PROJECT, false)) !== null)
+  check('BLOCKS · PowerShell · a PowerShell started inside a block is refused', (await written('if ($true) { powershell -Command "Set-Content ~\\.ssh\\authorized_keys x" }')) !== null)
+  check('BLOCKS · PowerShell · Invoke-Expression inside a block is refused', (await written("if ($true) { iex 'Set-Content ~\\.ssh\\authorized_keys x' }")) !== null)
+  const still: Array<[string, string]> = [
+    ['a block writing a project file', 'if ($true) { Set-Content notes.txt x }'],
+    ['a pipe block appending to a project file', '1 | % { Add-Content .\\out.log $_ }'],
+    ['a try copying project files', 'try { Copy-Item .\\a.txt .\\b.txt } catch { }'],
+    ['a block that only lists a guarded folder', 'if ($true) { Get-ChildItem ~\\.ssh }'],
+    ['a block that reads a file of a guarded folder', 'if ($true) { Get-Content ~\\.ssh\\config }'],
+    ['a block that copies out of a guarded folder', 'if ($true) { Copy-Item ~\\.ssh\\config .\\backup }'],
+    ['a string that merely contains the text', 'Write-Output "Set-Content ~\\.ssh\\authorized_keys x"'],
+    ['the same string inside a block', "if ($true) { Write-Output 'Set-Content ~\\.ssh\\authorized_keys x' }"],
+    ['the text kept in a variable', "$s = 'Set-Content ~\\.ssh\\authorized_keys x'"],
+    ['the text in a here-string', "$t = @'\nSet-Content ~\\.ssh\\authorized_keys x\n'@"],
+    ['a comment', '# Set-Content ~\\.ssh\\authorized_keys x'],
+    ['a remove told only to say what it would do', 'if ($true) { Remove-Item ~\\.ssh\\authorized_keys -WhatIf }'],
+    ['a longer value that mentions the path', "if ($true) { Set-Content .\\ssh-notes.txt 'see ~\\.ssh\\authorized_keys for the keys' }"],
+    ['a test of the path', 'if ($true) { Test-Path ~\\.ssh\\authorized_keys }'],
+    ['a loop writing files of the project', 'foreach ($f in Get-ChildItem .\\docs) { Set-Content $f.FullName x }'],
+    ['cd into a project folder, then a block', 'cd docs; if ($true) { Set-Content plain.md x }'],
+    ['a block writing a plain file of the home', 'if ($true) { Set-Content ~\\notes.txt x }'],
+    ['a folder beside the guarded one', 'if ($true) { Set-Content ~\\.sshx\\authorized_keys x }'],
+    ['a block writing a file whose folder is in a variable', 'if ($true) { Set-Content $dir\\notes.txt x }'],
+    ['a hashtable that names the path', "$h = @{ Path = '~\\.ssh\\authorized_keys' }"],
+  ]
+  for (const [name, line] of still) {
+    const answer = await written(line)
+    check(`BLOCKS · PowerShell · ${name} · ${shown(line)} · is not refused by the floor`, answer === null, String(answer))
+  }
+  for (const [name, form] of forms) {
+    const read = filled(form.replace('<W>', 'Get-Content <CONFIG>\\.credentials.json'))
+    check(`BLOCKS · PowerShell · ${name} · the read floor refuses a credential file read inside the same block`, (await floors.shellMercurySecretPath(read, true, PROJECT)) !== null)
+    const removed = filled(form.replace('<W>', 'Remove-Item -Recurse <CONFIG>\\runtime'))
+    check(`BLOCKS · PowerShell · ${name} · the runtime floor refuses a delete of the runtime inside the same block`, (await floors.shellSelfProtectionReason(removed, true, PROJECT)) !== null)
+  }
+  await expect('BLOCKS', call('PowerShell', { command: 'if ($true) { Set-Content ~\\.ssh\\authorized_keys x }' }, 'the whole decision of the PowerShell tool'), ['sovereign', 'flow', 'default'], refused, 'is refused')
+  await expect('BLOCKS', call('PowerShell', { command: 'Set-Content ~\\.ssh\\authorized_keys x' }, 'control: the plain line'), ['sovereign', 'flow', 'default'], refused, 'is refused')
+  const told = await reading(call('PowerShell', { command: 'if ($true) { Set-Content ~\\.ssh\\authorized_keys x }' }), 'sovereign')
+  check('BLOCKS · the refusal is the credential-store floor\'s own sentence', /^Writing ~\\\.ssh\\authorized_keys is refused: .+ is a protected system or credential path\.$/.test(told.decision.message ?? ''), said(told.decision))
 }
 
 if (runs('T-3.5')) {

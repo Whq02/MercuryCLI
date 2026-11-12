@@ -389,7 +389,32 @@ async function walkShellCommands(
 }
 
 export async function shellCredentialWritePath(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
-  return (await credentialWriteWalked(command, powershell, cwd)) ?? credentialWriteAfterMove(command, powershell, cwd)
+  return (await credentialWriteWalked(command, powershell, cwd)) ?? (await credentialWriteAfterMove(command, powershell, cwd)) ?? credentialWriteInBlocks(command, powershell, cwd)
+}
+
+const NET_FILE_WRITE = /^\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Copy|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/i
+
+async function credentialWriteInBlocks(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+  if (!powershell && !/\b(?:pwsh|powershell)\b/i.test(command)) return null
+  const read = await readForFloors(expandShellConstants(command, powershell), powershell, cwd)
+  if (read === null) return null
+  for (const [at, simple] of read.commands.entries()) {
+    if (simple.dialect !== 'powershell') continue
+    const after = foldersAfter(read, at, cwd)
+    const written = simple.redirects.flatMap(redirect => (['>', '>>'].includes(redirect.op) ? ['>', '', redirect.target] : []))
+    const called = NET_FILE_WRITE.exec(simple.text)?.[2]
+    for (const path of [...layersOf(simple.argv).flatMap(layer => writeOperands([...layer.argv, ...written])), ...(called === undefined ? [] : [called])]) {
+      if (/^(?:[/~$%]|[A-Za-z]:)/.test(path)) {
+        if (credentialStorePath(path, cwd) !== null) return path
+      } else if (!after.lost) {
+        for (const here of after.folders) {
+          const full = posix.join(here, path)
+          if (credentialStorePath(full, here) !== null) return full
+        }
+      }
+    }
+  }
+  return null
 }
 
 async function credentialWriteAfterMove(command: string, powershell: boolean, cwd: string): Promise<string | null> {
