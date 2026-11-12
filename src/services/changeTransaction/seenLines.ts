@@ -1,5 +1,5 @@
 
-import { readFileSync, statSync } from 'node:fs'
+import { closeSync, constants, fstatSync, openSync, readSync, statSync } from 'node:fs'
 import { ideFileGeneration } from '../acp/ideToolBridge.js'
 import { runtimeKernel } from '../primitives/runtimeKernel.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
@@ -10,6 +10,7 @@ import type { HunkSpan } from './hunks.js'
 export const SEEN_LINES_BOUNDS = {
   rangeCap: 256,
   fileCap: 512,
+  fileBytes: 1024 * 1024 * 1024,
 } as const
 
 type SeenRange = { start: number; end: number }
@@ -41,14 +42,57 @@ function contentDigestOf(bytes: Uint8Array): string {
   return runtimeKernel().hash.sha256Hex(bytes).slice(0, 12)
 }
 
-export function fileGeneration(path: string): string | null {
-  const ideGen = ideFileGeneration(path)
-  if (ideGen !== null) return ideGen
+const UNSIZED_READ_CHUNK = 64 * 1024
+
+function readOpenFile(fd: number, size: number): Buffer | null {
+  if (size > 0) {
+    const bytes = Buffer.allocUnsafe(size)
+    let filled = 0
+    while (filled < size) {
+      const got = readSync(fd, bytes, filled, size - filled, null)
+      if (got === 0) break
+      filled += got
+    }
+    return bytes.subarray(0, filled)
+  }
+  const chunks: Buffer[] = []
+  let total = 0
+  for (;;) {
+    const chunk = Buffer.allocUnsafe(UNSIZED_READ_CHUNK)
+    const got = readSync(fd, chunk, 0, chunk.length, null)
+    if (got === 0) return Buffer.concat(chunks, total)
+    total += got
+    if (total > SEEN_LINES_BOUNDS.fileBytes) return null
+    chunks.push(chunk.subarray(0, got))
+  }
+}
+
+function isRegularFileWithinBound(st: { isFile(): boolean; size: number }): boolean {
+  return st.isFile() && st.size <= SEEN_LINES_BOUNDS.fileBytes
+}
+
+function readRegularFile(path: string, onlyOfSize?: number): { generation: string; bytes: Buffer } | null {
   try {
-    return `${generationOf(statSync(path))}:${contentDigestOf(readFileSync(path))}`
+    if (!isRegularFileWithinBound(statSync(path))) return null
+    const fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK)
+    try {
+      const st = fstatSync(fd)
+      if (!isRegularFileWithinBound(st)) return null
+      if (onlyOfSize !== undefined && st.size !== onlyOfSize) return null
+      const bytes = readOpenFile(fd, st.size)
+      return bytes === null ? null : { generation: `${generationOf(st)}:${contentDigestOf(bytes)}`, bytes }
+    } finally {
+      closeSync(fd)
+    }
   } catch {
     return null
   }
+}
+
+export function fileGeneration(path: string): string | null {
+  const ideGen = ideFileGeneration(path)
+  if (ideGen !== null) return ideGen
+  return readRegularFile(path)?.generation ?? null
 }
 
 function coalesce(ranges: SeenRange[]): SeenRange[] {
@@ -234,13 +278,8 @@ export function lineCountOfText(text: string): number {
 }
 
 export function generationOfWrittenBytes(path: string, bytes: Uint8Array): string | null {
-  try {
-    const st = statSync(path)
-    if (st.size !== bytes.byteLength || !readFileSync(path).equals(bytes)) return null
-    return `${generationOf(st)}:${contentDigestOf(bytes)}`
-  } catch {
-    return null
-  }
+  const file = readRegularFile(path, bytes.byteLength)
+  return file !== null && file.bytes.equals(bytes) ? file.generation : null
 }
 
 export function recordWholeFileSeen(owner: OwnerKey, path: string, generation: string, content: string): void {
@@ -435,8 +474,8 @@ export function rebuildSeenLinesFromTranscript(owner: OwnerKey, messages: Readon
     if (currentLines.has(path)) return currentLines.get(path)!
     let state: { generation: string; lines: string[] } | null = null
     try {
-      const generation = fileGeneration(path)
-      if (generation !== null) state = { generation, lines: readFileSync(path, 'utf8').split('\n') }
+      const file = readRegularFile(path)
+      if (file !== null) state = { generation: ideFileGeneration(path) ?? file.generation, lines: file.bytes.toString('utf8').split('\n') }
     } catch {
       state = null
     }
