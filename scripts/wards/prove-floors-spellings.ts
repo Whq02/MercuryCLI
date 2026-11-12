@@ -785,6 +785,10 @@ if (runs('LISTED')) {
     'Get-ChildItem (Join-Path $PWD .mercury) | Get-Content',
     'Get-ChildItem $PWD\\.. -Recurse | Select-String canary',
     'Get-ChildItem (Join-Path $PWD $name) -Recurse | sls canary',
+    'gci -r -Include *.txt,*.json | gc',
+    'gci -r -Filter *.jso | gc',
+    'Get-ChildItem -Recurse -Exclude .mercury | Get-Content',
+    'gci -r -Include $patterns | gc',
   ]
   for (const line of readers) {
     const answer = await asked(line, OWN_HOME)
@@ -821,10 +825,14 @@ if (runs('LISTED')) {
     'Get-ChildItem (Join-Path $PWD Documents) -Recurse | Select-String canary',
     'grep -r canary $PWD\\Documents',
     'Copy-Item -Recurse $PWD\\Documents ..\\out',
+    'Get-ChildItem -Recurse -Filter *.md | Get-Content',
+    'gci -r -Include *.txt,*.md | sls TODO',
+    'foreach ($f in Get-ChildItem -Recurse -Filter *.txt) { Get-Content $f.FullName }',
+    'Get-ChildItem * -Include *.txt | Get-Content',
   ]
   for (const line of listings) {
     const answer = await asked(line, OWN_HOME)
-    check(`LISTED · PowerShell, standing in the home · ${shown(line)} · names only, a folder beneath that holds no store, or the files of this folder alone: not refused by the floor`, answer === null, String(answer))
+    check(`LISTED · PowerShell, standing in the home · ${shown(line)} · names only, a folder beneath that holds no store, the files of this folder alone, or files sifted to names no credential file has: not refused by the floor`, answer === null, String(answer))
   }
   const byPattern = [
     'Get-ChildItem *.txt | Get-Content',

@@ -726,9 +726,10 @@ function joinedUnderStanding(word: string, inner: readonly number[] | undefined,
   return parts.length === 2 && /^(?:\.|\$\{?pwd\}?)$/i.test(parts[0]!) && wordKnown(parts[1]!) && !GLOB_PART.test(parts[1]!) ? `./${parts[1]}` : word
 }
 
-function powershellListing(argv: readonly string[]): { roots: string[]; deep: boolean; names: boolean; patterned: string[] } {
+function powershellListing(argv: readonly string[]): { roots: string[]; deep: boolean; names: boolean; patterned: string[]; sifts: string[][] } {
   const named: string[] = []
   const loose: string[] = []
+  const sifts: string[][] = []
   let deep = false
   let unsure = false
   let names = false
@@ -751,6 +752,11 @@ function powershellListing(argv: readonly string[]): { roots: string[]; deep: bo
     }
     const value = colon < 0 ? argv[++i] : word.slice(colon + 1)
     if (value !== undefined && (valued === 'path' || valued === 'literalpath' || valued === 'pspath' || valued === 'lp')) named.push(...listOf(value))
+    if (value !== undefined && (valued === 'filter' || valued === 'include')) {
+      const patterns = listOf(value)
+      for (let next = i + 1; next < argv.length && !argv[next]!.startsWith('-'); next++) patterns.push(...listOf(argv[next]!))
+      sifts.push(valued === 'filter' ? patterns.flatMap(pattern => [pattern, `${pattern}*`]) : patterns)
+    }
   }
   const patterned: string[] = []
   const roots = [...named, ...loose].map(root => {
@@ -763,7 +769,7 @@ function powershellListing(argv: readonly string[]): { roots: string[]; deep: bo
     return fixed || (/^[\\/]/.test(root) ? '/' : '.')
   })
   if (roots.length === 0 || unsure || roots.some(root => /[$(@]/.test(standingSpelled(root)) || root.includes(UNREAD_PART))) roots.push('.')
-  return { roots, deep, names, patterned }
+  return { roots, deep, names, patterned, sifts }
 }
 
 const FIND_NON_READERS = new Set(['ls', 'stat', 'echo', 'printf', 'file', 'du', 'wc', 'basename', 'dirname', 'realpath', 'readlink', 'test', '[', 'true', 'touch', 'chmod', 'chown', 'rm', 'rmdir', 'unlink', 'mv'])
@@ -991,6 +997,19 @@ function treeReadRoots(layer: Layer, fed: boolean, cwd: string, cwdHolds: boolea
   return plain
 }
 
+function namesNoSecret(patterns: readonly string[], homes: readonly string[]): boolean {
+  const secrets = [...SECRET_NAME_SAMPLES, ...homes.flatMap(secretsHeld)].map(name => name.toLowerCase())
+  return patterns.length > 0 && patterns.every(pattern => {
+    if (!wordKnown(pattern)) return false
+    try {
+      const test = new RegExp(`^${wildcardSource(pattern.toLowerCase())}$`)
+      return !secrets.some(secret => test.test(secret))
+    } catch {
+      return false
+    }
+  })
+}
+
 function findNamesASecret(argv: readonly string[], homes: readonly string[]): boolean {
   if (argv.some(word => /^(?:-o|-or|-not|!|,)$/.test(word))) return true
   const names = argv.flatMap((word, index) => (/^-i?name$/.test(word) ? [argv[index + 1] ?? ''] : []))
@@ -1118,7 +1137,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const piped = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
       if (searcher !== undefined && !piped && namesMercuryHome('.', here, homes) && treeReadRoots(searcher, false, here, true).includes('.')) return stayed ? whereItStays(here) : '.'
       const finder = layer.program === 'find' ? layer : layer.findRoots === undefined ? undefined : layers.find(outer => outer.program === 'find')
-      const whole = finder === undefined ? tree || (listed !== null && (listed.deep || listed.patterned.some(word => globNamesStore(word, here, homes, true, true)))) : findNamesASecret(finder.argv, homes) && (layer === finder ? feeds : !FIND_NON_READERS.has(layer.program))
+      const whole = finder === undefined ? tree || (listed !== null && !listed.sifts.some(patterns => namesNoSecret(patterns, homes)) && (listed.deep || listed.patterned.some(word => globNamesStore(word, here, homes, true, true)))) : findNamesASecret(finder.argv, homes) && (layer === finder ? feeds : !FIND_NON_READERS.has(layer.program))
       if (!whole) continue
       const handed = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
       const hidden = layer.program !== 'rg' || ripgrepReachesHidden(layer, simple, read)
