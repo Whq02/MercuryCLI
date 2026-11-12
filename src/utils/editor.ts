@@ -198,8 +198,8 @@ function parseWindowsCommandArgs(raw: string): string[] {
 }
 
 function parseEditorCommand(editor: string, world: LookupWorld): { executable: string; args: string[] } {
-  if (world.platform === 'win32') {
-    if (!/^["']/.test(editor)) {
+  if (world.platform === 'win32' && !editor.startsWith("'")) {
+    if (!editor.startsWith('"')) {
       const boundaries = [editor.length, ...Array.from(editor.matchAll(/\s+/g), match => match.index).reverse()]
       for (const end of boundaries) {
         const executable = editor.slice(0, end)

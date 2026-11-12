@@ -20,23 +20,37 @@ const check = (label: string, pass: boolean, detail = ''): void => {
 }
 try {
   const executable = process.platform === 'win32' ? join(scratch, 'Program Files', 'Editor', 'editor.exe') : String.raw`C:\Program Files\Editor\editor.exe`
-  mkdirSync(dirname(executable), { recursive: true })
-  writeFileSync(executable, '')
+  const nppForward =
+    process.platform === 'win32'
+      ? join(scratch, 'Program Files', 'Notepad++', 'notepad++.exe').replaceAll('\\', '/')
+      : 'C:/Program Files/Notepad++/notepad++.exe'
+  const nppBackslash =
+    process.platform === 'win32'
+      ? join(scratch, 'Program Files', 'Notepad++', 'notepad++.exe')
+      : String.raw`C:\Program Files\Notepad++\notepad++.exe`
+  for (const target of [executable, nppForward, nppBackslash]) {
+    mkdirSync(dirname(target), { recursive: true })
+    writeFileSync(target, '')
+  }
+  const nppFlags = ['-multiInst', '-notabbar', '-nosession', '-noPlugin']
   const world = { platform: 'win32', path: scratch }
-  for (const [setting, args] of [
-    [executable, []],
-    [`${executable} --wait`, ['--wait']],
-    [`"${executable}" --wait`, ['--wait']],
-    [`${executable} --config ${String.raw`C:\Users\me\ed.ini`} --wait`, ['--config', String.raw`C:\Users\me\ed.ini`, '--wait']],
-    [`"${executable}" --config ${String.raw`C:\Users\me\ed.ini`}`, ['--config', String.raw`C:\Users\me\ed.ini`]],
+  for (const [setting, expectedExe, args] of [
+    [executable, executable, []],
+    [`${executable} --wait`, executable, ['--wait']],
+    [`"${executable}" --wait`, executable, ['--wait']],
+    [`${executable} --config ${String.raw`C:\Users\me\ed.ini`} --wait`, executable, ['--config', String.raw`C:\Users\me\ed.ini`, '--wait']],
+    [`"${executable}" --config ${String.raw`C:\Users\me\ed.ini`}`, executable, ['--config', String.raw`C:\Users\me\ed.ini`]],
     [
       `${executable} --config "${String.raw`C:\Users\Alice Smith\ed.ini`}" ${String.raw`\\fileserver\configs\shared.ini`} --cmd "set title=\\"my draft\\""`,
+      executable,
       ['--config', String.raw`C:\Users\Alice Smith\ed.ini`, String.raw`\\fileserver\configs\shared.ini`, '--cmd', 'set title="my draft"'],
     ],
+    [`'${nppForward}' -multiInst -notabbar -nosession -noPlugin`, nppForward, nppFlags],
+    [`"${nppBackslash}" -multiInst -notabbar -nosession -noPlugin`, nppBackslash, nppFlags],
   ] as const) {
     const selected = resolveExternalEditor(setting, 'EDITOR', world)
-    check(`${setting}: resolves the whole executable and arguments`, selected.ok && selected.executable === executable && JSON.stringify(selected.args) === JSON.stringify(args), JSON.stringify(selected))
-    const expectedPrefix = [`"${executable}"`, ...args.map(a => `"${a}"`)].join(' ') + ' '
+    check(`${setting}: resolves the whole executable and arguments`, selected.ok && selected.executable === expectedExe && JSON.stringify(selected.args) === JSON.stringify(args), JSON.stringify(selected))
+    const expectedPrefix = [`"${expectedExe}"`, ...args.map(a => `"${a}"`)].join(' ') + ' '
     const line = selected.ok ? editorCommandLine(selected.executable, selected.args, String.raw`C:\work\draft.md`, 'win32') : ''
     check(`${setting}: the launch starts with the intact quoted path and arguments`, line.startsWith(expectedPrefix), line)
   }
