@@ -217,11 +217,15 @@ export async function startBenchmarkFixture(opts: { port: number }): Promise<Ben
       res.end(encode(dialect, turn))
     })
   })
-  await new Promise<void>(resolve => server.listen(opts.port, '127.0.0.1', resolve))
-  const base = `http://127.0.0.1:${opts.port}`
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(opts.port, '127.0.0.1', () => resolve())
+  })
+  const bound = (server.address() as { port: number }).port
+  const base = `http://127.0.0.1:${bound}`
   return {
     base,
-    port: opts.port,
+    port: bound,
     pageUrl: `${base}/fixture.html`,
     hits,
     setScript: (family, taskId, turns) => {

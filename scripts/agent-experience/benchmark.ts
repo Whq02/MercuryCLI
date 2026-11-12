@@ -15,7 +15,7 @@ import { systemPromptText, toolRoster } from './lib/wire.ts'
 
 export const HERE = resolve(import.meta.dir)
 export const ROOT = resolve(HERE, '..', '..')
-const DEFAULT_PORT = 34200
+const DEFAULT_PORT = 0
 
 interface BenchmarkOptions {
   families: FamilyId[]

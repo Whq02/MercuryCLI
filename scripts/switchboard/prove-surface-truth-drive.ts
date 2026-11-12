@@ -42,7 +42,7 @@ const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 
 const fixture = await startCrossfamilyFixture({
-  port: Number(process.env.SURFACE_TRUTH_PORT ?? '25161'),
+  port: Number(process.env.SURFACE_TRUTH_PORT ?? '0'),
   gptId: SEAT_MODEL,
   gptDisplayName: SEAT_MODEL_WIRE_NAME,
   gptReasoningLevels: ['low', 'medium', 'high', 'xhigh'],

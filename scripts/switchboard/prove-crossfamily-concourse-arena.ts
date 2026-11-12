@@ -35,7 +35,7 @@ const { startCrossfamilyFixture, CMA_STEER_TEXT } = await import('../lib/crossfa
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 
 const fixture = await startCrossfamilyFixture({
-  port: Number(process.env.ARENA_PORT ?? '25141'),
+  port: Number(process.env.ARENA_PORT ?? '0'),
   seatStyle: 'paced',
   seatSleepSeconds: 14,
 })

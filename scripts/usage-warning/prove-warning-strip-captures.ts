@@ -239,7 +239,7 @@ for (const cols of [178, 120]) {
   check(`the hints return once the notice clears (${cols})`, text.includes('? for shortcuts') && !text.includes('limit used'), text.slice(-200))
 }
 
-const PORT = 38031
+const requestedPort = Number(process.env.WARNING_STRIP_PORT ?? 0)
 const server = createServer((req, res) => {
   if ((req.url ?? '').endsWith('/key')) {
     res.writeHead(200, { 'content-type': 'application/json' })
@@ -280,7 +280,11 @@ const server = createServer((req, res) => {
   res.writeHead(404, { 'content-type': 'application/json' })
   res.end(JSON.stringify({ error: 'not found' }))
 })
-await new Promise<void>(resolvePort => server.listen(PORT, '127.0.0.1', resolvePort))
+await new Promise<void>((resolvePort, reject) => {
+  server.once('error', reject)
+  server.listen(requestedPort, '127.0.0.1', () => resolvePort())
+})
+const PORT = (server.address() as { port: number }).port
 
 for (const cols of [178, 120]) {
   const { home, workspace } = seedHome('openrouter/nvidia/nemotron-nano-9b-v2:free')

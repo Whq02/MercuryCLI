@@ -153,8 +153,12 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
       res.end(answer(model, blocks, { input: 60, output: 8 }))
     })
   })
-  await new Promise<void>(resolve => server.listen(port, '127.0.0.1', resolve))
-  return { base: `http://127.0.0.1:${port}`, hits, close: () => new Promise<void>(resolve => server.close(() => resolve())) }
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(port, '127.0.0.1', () => resolve())
+  })
+  const bound = (server.address() as { port: number }).port
+  return { base: `http://127.0.0.1:${bound}`, hits, close: () => new Promise<void>(resolve => server.close(() => resolve())) }
 }
 
 type Grid = Array<Array<{ c?: string } | string>>
@@ -293,7 +297,8 @@ const flat = (s: string): string => s.replace(/\s+/g, ' ')
 
 const LEG = process.env.WF_CONTROLS_LEG ?? 'all'
 const runs = (leg: string): boolean => LEG === 'all' || LEG === leg
-const PORT_BASE = Number(process.env.WF_CONTROLS_PORT ?? 25191)
+const PORT_BASE = Number(process.env.WF_CONTROLS_PORT ?? 0)
+const legPort = (offset: number): number => (PORT_BASE > 0 ? PORT_BASE + offset : 0)
 
 async function viewLeg(cols: number, rows: number, port: number): Promise<void> {
   const tag = `views@${cols}`
@@ -568,10 +573,10 @@ async function persistenceLeg(port: number): Promise<void> {
   rmSync(cwd, { recursive: true, force: true })
 }
 
-if (runs('views80')) await viewLeg(80, 36, PORT_BASE)
-if (runs('views120')) await viewLeg(120, 40, PORT_BASE + 1)
-if (runs('second')) await secondProcessLeg(PORT_BASE + 2)
-if (runs('persistence')) await persistenceLeg(PORT_BASE + 3)
+if (runs('views80')) await viewLeg(80, 36, legPort(0))
+if (runs('views120')) await viewLeg(120, 40, legPort(1))
+if (runs('second')) await secondProcessLeg(legPort(2))
+if (runs('persistence')) await persistenceLeg(legPort(3))
 
 console.log(failures === 0 ? '\nprove-workflow-controls-drive: ALL LAWS HOLD' : `\nprove-workflow-controls-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
