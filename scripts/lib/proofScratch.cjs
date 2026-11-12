@@ -201,10 +201,18 @@ function pidAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 1) return false
   try {
     process.kill(pid, 0)
-    return true
   } catch {
     return false
   }
+  if (process.platform === 'win32') return true
+  const { execFileSync } = require('node:child_process')
+  for (const ps of ['ps', '/bin/ps', '/usr/bin/ps']) {
+    try {
+      const state = execFileSync(ps, ['-o', 'state=', '-p', String(pid)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000, windowsHide: true }).trim()
+      if (state) return !state.startsWith('Z')
+    } catch {}
+  }
+  return true
 }
 function pidCommand(pid) {
   if (process.platform === 'win32') return ''
@@ -235,29 +243,49 @@ function ownedByScratch(pid, roots) {
   return roots.some(root => root && cmd.includes(root)) || cmd.includes(repoRoot)
 }
 function daemonPidsInFolder(dir) {
-  const out = []
+  const daemonPids = []
+  const workerPids = []
+  for (const jsonName of ['daemon.json', 'daemon.lock']) {
+    try {
+      const jf = path.join(dir, jsonName)
+      if (fs.existsSync(jf)) {
+        const parsed = JSON.parse(fs.readFileSync(jf, 'utf8'))
+        if (parsed && typeof parsed === 'object' && Number.isInteger(parsed.pid) && parsed.pid > 1) daemonPids.push(parsed.pid)
+      }
+    } catch {}
+  }
+  try {
+    const pidFile = path.join(dir, 'daemon.pid')
+    if (fs.existsSync(pidFile)) {
+      const pid = Number(fs.readFileSync(pidFile, 'utf8').trim())
+      if (Number.isInteger(pid) && pid > 1) daemonPids.push(pid)
+    }
+  } catch {}
+  try {
+    for (const name of fs.readdirSync(dir)) {
+      const m = /^hermes-daemon-[^.]+\.sock\.(\d+)$/.exec(name)
+      if (m) {
+        const pid = Number(m[1])
+        if (Number.isInteger(pid) && pid > 1) daemonPids.push(pid)
+      }
+    }
+  } catch {}
   try {
     const workersFile = path.join(dir, 'concourse-workers.json')
     if (fs.existsSync(workersFile)) {
       const parsed = JSON.parse(fs.readFileSync(workersFile, 'utf8'))
       if (parsed && typeof parsed === 'object') {
         for (const rec of Object.values(parsed)) {
-          if (rec && typeof rec === 'object' && rec.endedAt === undefined && Number.isInteger(rec.pid) && rec.pid > 1) out.push(rec.pid)
+          if (rec && typeof rec === 'object' && rec.endedAt === undefined && Number.isInteger(rec.pid) && rec.pid > 1) workerPids.push(rec.pid)
         }
       }
     }
   } catch {}
-  try {
-    const pidFile = path.join(dir, 'daemon.pid')
-    if (fs.existsSync(pidFile)) {
-      const pid = Number(fs.readFileSync(pidFile, 'utf8').trim())
-      if (Number.isInteger(pid) && pid > 1) out.push(pid)
-    }
-  } catch {}
-  return out
+  return [...daemonPids, ...workerPids]
 }
 function findDaemonFolders(start, maxDepth = 3) {
   const found = []
+  const MARKERS = new Set(['daemon.json', 'daemon.lock', 'daemon.pid', 'concourse-workers.json'])
   const walk = (cur, depth) => {
     let entries
     try {
@@ -265,7 +293,7 @@ function findDaemonFolders(start, maxDepth = 3) {
     } catch {
       return
     }
-    if (entries.some(e => e.name === 'daemon.pid' || e.name === 'concourse-workers.json')) found.push(cur)
+    if (entries.some(e => MARKERS.has(e.name) || /^hermes-daemon-[^.]+\.sock\.\d+$/.test(e.name))) found.push(cur)
     if (depth >= maxDepth) return
     for (const entry of entries) {
       if (!entry.isDirectory() || entry.isSymbolicLink() || SKIP_SCAN_DIRS.has(entry.name)) continue

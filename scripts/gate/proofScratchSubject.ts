@@ -62,7 +62,7 @@ if (mode === 'dying-daemon') {
   const w = spawn(process.execPath, ['-e', writerCode, daemonDir, 'worker-late.txt'], { detached: true, stdio: 'ignore' })
   d.unref()
   w.unref()
-  writeFileSync(join(daemonDir, 'daemon.pid'), `${d.pid}\n`)
+  writeFileSync(join(daemonDir, 'daemon.json'), JSON.stringify({ pid: d.pid }))
   writeFileSync(join(daemonDir, 'concourse-workers.json'), JSON.stringify({ 'concourse-w1': { pid: w.pid } }))
   facts.dyingPids = [d.pid, w.pid]
   writeFileSync(`${receipt}.facts`, JSON.stringify(facts))
