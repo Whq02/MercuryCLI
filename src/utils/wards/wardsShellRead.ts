@@ -145,7 +145,12 @@ function peelOnce(program: string, argv: string[]): string[] | string | null {
   const valued = PLAIN_WRAPPERS.get(program)
   if (valued !== undefined) return skipOptions(argv, valued)
   if (program === 'command') return argv.slice(1).some(word => /^-[a-zA-Z]*[vV]/.test(word)) ? null : skipOptions(argv, new Set())
-  if (program === 'coproc' || program === 'busybox') return argv.length > 1 ? argv.slice(1) : null
+  if (program === 'coproc') {
+    const body = argv[1] === '{' ? argv.slice(2) : argv[2] === '{' ? argv.slice(3) : argv.slice(1)
+    return body.length > 0 ? body : null
+  }
+  if (program === 'busybox') return argv.length > 1 ? argv.slice(1) : null
+  if (program === 'do' || program === 'then' || program === 'else') return argv.length > 1 && wordKnown(argv[1]!) ? argv.slice(1) : null
   if (program === 'chrt' || program === 'taskset') {
     const rest = skipOptions(argv, new Set(['-c', '--cpu-list', '-p', '--pid']))
     if (rest === null) return null

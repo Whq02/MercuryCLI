@@ -1597,6 +1597,23 @@ if (runs('BURIED')) {
     const runtime = await floors.shellSelfProtectionReason(line, false, PROJECT)
     check(`BURIED · ${shown(line)} · text the shell does not run, or a harmless command where it runs one: the wards and the three floors do not refuse it`, ward === null && read === null && write === null && runtime === null, `ward ${ward} · read ${read} · write ${write} · runtime ${runtime}`)
   }
+  for (const line of ['coproc { rm -rf ~; }', 'coproc NAME { rm -rf ~; }', 'coproc while true; do rm -rf ~; done', 'coproc if true; then rm -rf ~; fi', 'coproc if false; then :; else rm -rf ~; fi', 'coproc for i in 1; do rm -rf ~; done', 'coproc ( rm -rf ~ )', 'coproc rm -rf ~']) {
+    const answer = await warded(line)
+    check(`BURIED · the delete ward · ${shown(line)} · a coprocess's command is the command it is: refused as a recursive delete of the home`, answer === 'no-root-recursive-delete', String(answer))
+  }
+  for (const line of ['coproc { grep -r canary .; }', 'coproc NAME { grep -r canary .; }', 'coproc while true; do grep -r canary .; done']) {
+    const answer = await floors.shellMercurySecretPath(line, false, CONFIG_HOME)
+    check(`BURIED · the read floor, standing in the config home · ${shown(line)} · is refused as a read of the credentials`, answer !== null, String(answer))
+  }
+  for (const line of ['coproc tail -f build.log', 'coproc NAME { sleep 1; }', 'coproc { grep -r TODO docs; }', 'coproc while true; do date; sleep 5; done']) {
+    const ward = await warded(line)
+    const read = await floors.shellMercurySecretPath(line, false, PROJECT)
+    check(`BURIED · ${shown(line)} · an ordinary coprocess: the wards and the read floor do not refuse it`, ward === null && read === null, `ward ${ward} · read ${read}`)
+  }
+  for (const line of ['do { "sudo make" } while ($false)', 'do { Write-Host "shutdown later" } until ($true)', 'do { $n++ } until ($n -gt 3)']) {
+    const verdict = await refusalOfShellCommand({ toolName: 'PowerShell', input: { command: line }, shellCommand: line, startingFolder: PROJECT }, PROJECT)
+    check(`BURIED · PowerShell · ${shown(line)} · a loop that opens with do is that shell's own statement: the wards do not refuse it`, verdict.allow, verdict.allow ? '' : verdict.rule.name)
+  }
   bootstrap.setCwdState(CONFIG_HOME)
   for (const item of [bash('echo ${arr[$(grep -r token .)]}', 'a subscript'), bash('echo ${x#$(grep -r token .)}', 'a pattern'), bash('cat <<EOF\n`grep -r token .`\nEOF', 'a here-document')]) await expect('BURIED · the session standing in the config home', item, ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
   bootstrap.setCwdState(PROJECT)
