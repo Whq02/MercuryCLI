@@ -197,6 +197,9 @@ export function getHelmCursor(pane: RailPane): number {
   return cursor[pane]
 }
 
+export function getHelmCursorSig(pane: RailPane): string {
+  return cursorSig[pane]
+}
 function stampCursorSig(pane: RailPane): void {
   const row = rows[pane][cursor[pane]]
   cursorSig[pane] = row ? helmRowSig(row) : ''
@@ -238,9 +241,10 @@ export function publishHelmRows(pane: RailPane, next: HelmRow[]): void {
   if (anchor) {
     const anchored = next.findIndex(r => helmRowSig(r) === anchor)
     cursor[pane] = anchored >= 0 ? anchored : clamp(pane, cursor[pane])
-    stampCursorSig(pane)
+    if (anchored >= 0) stampCursorSig(pane)
   } else {
     cursor[pane] = clamp(pane, cursor[pane])
+    if (next.length > 0) stampCursorSig(pane)
   }
   notifyPane(pane)
 }

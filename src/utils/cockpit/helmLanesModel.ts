@@ -19,7 +19,7 @@ import type { LiveContextUsage } from './contextUsageLive.js'
 import type { ComposedCertChip } from '../healthCertCore.js'
 import { formatCountdown, formatCountdownCoarse } from './quota.js'
 import { saturnWakeGlanceWords, type SaturnWakeGlanceV1 } from '../../daemon/saturn.js'
-import { helmRowSig, type HelmRow } from './helmFocus.js'
+import { getHelmCursorSig, getHelmRows, helmRowSig, type HelmRow } from './helmFocus.js'
 import { densityPlan, hintBudget, HELM_DENSITY_FLOOR, type DensityPlan } from '../helmDensity.js'
 import type { ActivityState } from './cockpitActivity.js'
 import { GLYPH, displayWidth, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
@@ -381,8 +381,8 @@ export function soloOf(input: Pick<LanesInput, 'sessionCrew' | 'viewingAgentTask
 }
 
 function cursorSectionOf(sections: readonly LanesSectionSpec[], cursorRow: HelmRow | undefined): string | null {
-  if (cursorRow === undefined) return null
-  const sig = helmRowSig(cursorRow)
+  const sig = cursorRow !== undefined ? helmRowSig(cursorRow) : getHelmRows('lanes').length === 0 ? getHelmCursorSig('lanes') : ''
+  if (!sig) return null
   for (const s of sections) {
     for (const r of s.rows) {
       if (r.kind !== 'text' && r.row !== undefined && helmRowSig(r.row) === sig) return s.key

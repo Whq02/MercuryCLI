@@ -128,3 +128,4 @@ prove-crewmate-transcript-shell.ts
 prove-flip-restore-yields.ts
 prove-refused-admission-status.ts
 prove-rail-fit-dropped-pointers.ts
+prove-lanes-cursor-across-four-rows.ts
