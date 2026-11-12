@@ -36,7 +36,7 @@ import { getRunSnapshot, subscribeRuns } from '../services/run/runCoordinator.js
 import { processMainOwner } from '../services/run/resolveOwner.js'
 import { isEnvDefinedFalsy } from '../utils/envUtils.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
-import { buildLanesModel, soloOf, wrapRailRows, type LanesInput, type LanesRowSpec, type LanesSectionSpec } from '../utils/cockpit/helmLanesModel.js'
+import { buildLanesModel, fitPointerRows, soloOf, wrapRailRows, type LanesInput, type LanesRowSpec, type LanesSectionSpec } from '../utils/cockpit/helmLanesModel.js'
 
 export { wrapRailRows }
 
@@ -546,11 +546,21 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
       </Box>
       {model.sections.map(paintSection)}
       {model.pointer !== null ? (
-        <Box width={width} height={1} flexShrink={0}>
-          <Text wrap="truncate-end">
-            <Text color={tok.textMuted}>{model.pointer}</Text>
-          </Text>
-        </Box>
+        model.boxed ? (
+          fitPointerRows(model.pointer, width, availRows !== undefined ? availRows - model.paintedRows : Infinity).map((line, idx) => (
+            <Box key={idx} width={width} height={1} flexShrink={0}>
+              <Text wrap="truncate-end">
+                <Text color={tok.textMuted}>{line}</Text>
+              </Text>
+            </Box>
+          ))
+        ) : (
+          <Box width={width} height={1} flexShrink={0}>
+            <Text wrap="truncate-end">
+              <Text color={tok.textMuted}>{model.pointer}</Text>
+            </Text>
+          </Box>
+        )
       ) : null}
     </Box>
   )

@@ -79,6 +79,7 @@ type VitalsModel = {
   rowW: number
   sections: VitalsSectionSpec[]
   shed: Array<'health'>
+  paintedRows: number
   pointer: string | null
   rows: HelmRow[]
 }
@@ -301,7 +302,11 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
     paintedRows += cost
     return false
   })
-  if (firstClipped >= 0) sections.splice(firstClipped)
+  if (firstClipped >= 0) {
+    for (const dropped of sections.splice(firstClipped)) {
+      if (!shedPointers.includes(dropped.open)) shedPointers.push(dropped.open)
+    }
+  }
   const shedPointerFits = paintedRows < shedCeiling
   const rows: HelmRow[] = []
   for (const s of sections) for (const r of s.rows) if ('row' in r && r.row !== undefined) rows.push(r.row)
@@ -309,6 +314,7 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
     rowW,
     sections,
     shed,
+    paintedRows,
     pointer: shedPointers.length > 0 && shedPointerFits ? `  ${GLYPH.cursor} short height — ${shedPointers.join(' · ')}` : null,
     rows,
   }
