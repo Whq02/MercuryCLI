@@ -834,6 +834,11 @@ if (runs('LISTED')) {
     'gci -r | % { & $reader -Path:($_.FullName) }',
     'foreach ($f in gci -r) { $a = @{ Path = $f.FullName }; & $reader @a }',
     '& { Get-Content $args[0] } (Get-ChildItem -Recurse)',
+    "gci -r | & ('Get-' + 'Content')",
+    'gci -r | % { $_.FullName | & $reader }',
+    'foreach ($f in gci -r) { $f | . $reader }',
+    'gci -r | ? { $_.Length -gt 0 } | & $reader',
+    'gci -r | & { $input | & $reader }',
   ]
   for (const line of readers) {
     const answer = await asked(line, OWN_HOME)
@@ -886,6 +891,10 @@ if (runs('LISTED')) {
     'foreach ($f in Get-ChildItem -Recurse) { & $reader 5 }',
     'foreach ($f in Get-ChildItem -Recurse) { & .\\build.ps1 (Get-Date) }',
     'foreach ($f in Get-ChildItem Documents -Recurse) { & $reader ([string]$f.FullName) }',
+    'gci -r | & { process { $_.Name } }',
+    'gci -r | & .\\show.ps1',
+    'gci Documents -r | & $reader',
+    'gci -r | % { & $reader }',
   ]
   for (const line of listings) {
     const answer = await asked(line, OWN_HOME)
