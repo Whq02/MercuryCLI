@@ -54,6 +54,7 @@ const submit = (prompt: string, focus: string | null): Send[] => [
   past(prompt, 2, '\r'),
   ...(focus === null ? [] : [past(BUSY, 1, focus)]),
 ]
+const submitBlurred = (prompt: string): Send[] => [past(IDLE, 1, prompt), past(prompt, 2, `\r${FOCUS_OUT}`)]
 const turn = (prompt: string, focus: string | null, finalText: string, mark: string, settleTicks: number): Send[] => [
   ...submit(prompt, focus),
   awaits(finalText, '', { awaitSettleTicks: 1, mark: `end-${mark}`, minTick: 5 }),
@@ -376,14 +377,14 @@ if (wants('E')) {
     cardTurns,
     [
       ...opening(),
-      ...submit(PC, FOCUS_OUT),
+      ...submitBlurred(PC),
       awaits(CARD_1, '', { awaitSettleTicks: 2, mark: 'card-1', minTick: 5 }),
       pause(CARD_1, 35, 'card-1-held'),
       past(CARD_1, 2, '\r'),
       past(BUSY, 1, FOCUS_OUT),
       awaits(FC, '', { awaitSettleTicks: 1, mark: 'end-1', minTick: 5 }),
       pause(FC, 15, 'after-1'),
-      ...submit(PQ, FOCUS_OUT),
+      ...submitBlurred(PQ),
       awaits(CARD_2, '', { awaitSettleTicks: 2, mark: 'card-2', minTick: 5 }),
       pause(CARD_2, 35, 'card-2-held'),
       past(CARD_2, 2, ESC),

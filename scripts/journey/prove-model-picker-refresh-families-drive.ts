@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { focusedRowPattern } from '../lib/pickerCells.ts'
 
 const arg = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
@@ -244,7 +245,7 @@ for (const legName of LEGS) {
       }
       if (leg.changed) {
         if (!tight) check(`${tag}: the new rows replace the old live rows in place`, live(refreshed, spec.newName) && !live(refreshed, spec.oldName), refreshed.split('\n').filter(l => l.includes('efresh')).join(' | '))
-        if (!walk) check(`${tag}: the highlight stays on ${spec.model} after its row moves`, current(refreshed, spec.keepName) && (new RegExp(`│ │ ${escapeRe(spec.keepName)} {2,}${escapeRe(spec.model.slice(0, 20))}`).test(refreshed) || !full), refreshed.split('\n').filter(l => l.includes('│ │ ')).join(' | '))
+        if (!walk) check(`${tag}: the highlight stays on ${spec.model} after its row moves`, current(refreshed, spec.keepName) && (focusedRowPattern(spec.keepName, spec.model).test(refreshed) || !full), refreshed.split('\n').filter(l => l.includes('│ │ ')).join(' | '))
         else check(`${tag}: the kept row is still live after the refresh`, live(refreshed, spec.keepName), refreshed.split('\n').filter(l => l.includes('refresh-')).join(' | '))
         if (full) check(`${tag}: the notice names the family and the changed list`, refreshed.includes(noticeWords), refreshed.split('\n').filter(l => l.includes('changed')).join(' | '))
       } else {

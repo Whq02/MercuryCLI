@@ -10,10 +10,12 @@ HERMETIC=0
 
 CLASS=release
 PLAN_ONLY=0
+KEEP_GOING=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --class) CLASS=${2:?--class wants release|drives|all}; shift 2 ;;
     --plan-only) PLAN_ONLY=1; shift ;;
+    --keep-going) KEEP_GOING=1; shift ;;
     --*) printf 'unknown pool option: %s\n' "$1" >&2; exit 2 ;;
     *) break ;;
   esac
@@ -26,6 +28,24 @@ in_want() {
   local w
   for w in "${want[@]}"; do [ "$w" = "$1" ] && return 0; done
   return 1
+}
+asked_line() {
+  [ "$KEEP_GOING" -eq 1 ] || return 0
+  local names=() left="" n=0 d p hit
+  for d in ${want[@]+"${want[@]}"}; do
+    hit=0
+    for p in ${names[@]+"${names[@]}"}; do [ "$p" = "$d" ] && hit=1; done
+    [ "$hit" -eq 1 ] || names+=("$d")
+  done
+  [ "${#want[@]}" -eq 0 ] && names=(${suites[@]+"${suites[@]}"})
+  for d in ${names[@]+"${names[@]}"}; do
+    hit=0
+    for p in ${PRINTED[@]+"${PRINTED[@]}"}; do [ "$p" = "$d" ] && hit=1; done
+    [ "$hit" -eq 1 ] && continue
+    n=$(( n + 1 ))
+    if [ -e "$SUITES_DIR/$d/run-all.sh" ]; then left="$left $d"; else left="$left $d (no runner)"; fi
+  done
+  printf 'suites asked %d · ran %d · not launched %d%s\n' "${#names[@]}" "$(( ${#names[@]} - n ))" "$n" "${left:+:$left}"
 }
 
 T_START=$SECONDS
@@ -71,7 +91,7 @@ if [ "$PLAN_ONLY" -eq 1 ]; then
 fi
 [ "$CLASS" = drives ] && RETRY_MODE=none
 total=${#suites[@]}
-if [ "$total" -eq 0 ]; then echo "no suites matched: ${want[*]:-}"; exit 1; fi
+if [ "$total" -eq 0 ]; then echo "no suites matched: ${want[*]:-}"; asked_line; exit 1; fi
 
 suite_class() { # $1=dom → pure|cpu|pty|exclusive|undeclared
   local c
@@ -353,7 +373,7 @@ done
 
 FAILFAST=0
 failfast_armed=0
-[ "${#want[@]}" -gt 0 ] && failfast_armed=1
+[ "${#want[@]}" -gt 0 ] && [ "$KEEP_GOING" -eq 0 ] && failfast_armed=1
 
 if [ "$SEQUENTIAL" -eq 1 ]; then
   for dom in ${q_pty[@]+"${q_pty[@]}"} ${q_cpu[@]+"${q_cpu[@]}"} ${q_pure[@]+"${q_pure[@]}"} ${q_excl[@]+"${q_excl[@]}"}; do
@@ -613,7 +633,9 @@ if [ "${#FAIL[@]}" -gt 0 ]; then
     printf '  ┆ %s — %s\n' "$dom" "$(case "$decided" in (*/retry2/*) echo 'the solo re-run' ;; (*/retry1/*) echo 'the in-pool re-run' ;; (*) echo 'the pooled attempt' ;; esac)"
     red_proof_lines "$decided"
   done
+  asked_line
   printf '❌ %d/%d RED: %s  ·  %ds total\n' "${#FAIL[@]}" "$total" "${FAIL[*]}" "$(( SECONDS - T_START ))"
   exit 1
 fi
+asked_line
 printf '✅ ALL %d SUITES GREEN  ·  %ds total\n' "$total" "$(( SECONDS - T_START ))"

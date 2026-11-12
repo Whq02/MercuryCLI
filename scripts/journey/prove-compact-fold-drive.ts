@@ -133,7 +133,7 @@ function startFixture(port: number, fixtureCwd: string): Promise<{ base: string;
         res.end(url.endsWith('/models') ? JSON.stringify({ object: 'list', data: [], models: [] }) : '{}')
         return
       }
-      let body: { model?: string; messages?: Array<{ role?: string; content?: unknown }> } = {}
+      let body: { model?: string; messages?: Array<{ role?: string; content?: unknown }>; tools?: unknown[] } = {}
       try {
         body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as typeof body
       } catch {
@@ -147,7 +147,7 @@ function startFixture(port: number, fixtureCwd: string): Promise<{ base: string;
       const ask = asks.length > 0 ? asks[asks.length - 1]! : ''
       const route: Hit['route'] = lastText.includes(FOLD_NEEDLE)
         ? 'fold'
-        : model.includes('haiku')
+        : !Array.isArray(body.tools) || body.tools.length === 0
           ? 'side'
           : lastBlocks.some(b => b.type === 'tool_result')
             ? ask === READ_ASK

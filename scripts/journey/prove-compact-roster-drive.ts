@@ -29,6 +29,10 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const FIXTURE_API_KEY = 'fixture-key-000'
+const WARM = 'roster-drive: warm'
+const WARMED = 'ROSTER-WARMED'
+const WARM_WORDS = 'ledger harbour lantern quarry meadow copper thistle ferry orchard granite willow anchor barley cinder dune ember fjord gable heron inlet juniper kiln larch moor nettle osprey pier quay reed sluice tarn umber vale wharf yarrow zinc alder birch cove delta'.split(' ')
+const WARM_TEXT = `${Array.from({ length: 1500 }, (_, i) => `entry ${i + 1}: ${Array.from({ length: 9 }, (_, j) => WARM_WORDS[(i * 7 + j * (11 + (i % 5)) + ((i * i) % 13)) % WARM_WORDS.length]).join(' ')}`).join('\n')}\n${WARMED}`
 const ASK = 'roster-drive: launch'
 const AFTER = 'roster-drive: after'
 const SEAT_MARK = 'roster-seat:'
@@ -54,7 +58,7 @@ const WF_SCRIPT = [
   'return { reports }',
 ].join('\n')
 
-type Route = 'launch' | 'launched' | 'summary' | 'post' | 'note' | 'seat' | 'side'
+type Route = 'warm' | 'launch' | 'launched' | 'summary' | 'post' | 'note' | 'seat' | 'side'
 type Seat = (typeof WF_SEATS)[number] | typeof PLAIN_SEAT
 type Block = { type?: string; id?: string; name?: string; text?: string; tool_use_id?: string; content?: unknown; input?: Record<string, unknown> }
 type Item = { role?: string; content?: unknown }
@@ -181,6 +185,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
       else if (firstUserText.includes('The context window turned over')) route = 'post'
       else if (answered.includes('Workflow') || answered.includes('Crewmate')) route = 'launched'
       else if (lastUserText.includes(ASK) && offersTool(body, 'Workflow')) route = 'launch'
+      else if (lastUserText.includes(WARM) && offersTool(body, 'Workflow')) route = 'warm'
       else route = 'side'
       const priorReads = readsOf(items)
       const hit: Hit = { seq: hits.length + 1, route, seat, atMs: Date.now(), answeredAtMs: 0, model, body, lastUserText }
@@ -199,6 +204,9 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
               input: { description: PLAIN_DESCRIPTION, prompt: `${SEAT_MARK}${PLAIN_SEAT} read the notes file six times, one read per turn, then report in one line`, crewmate_type: 'mercury-crew', run_in_background: true },
             },
           ]
+          break
+        case 'warm':
+          blocks = [{ type: 'text', text: WARM_TEXT }]
           break
         case 'launched':
           blocks = [{ type: 'text', text: LAUNCHED }]
@@ -351,7 +359,8 @@ try {
       rows: ROWS,
       sends: [
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
-        { data: `${ASK}\r`, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
+        { data: `${WARM}\r`, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
+        { data: `${ASK}\r`, awaitText: WARMED, requireAwait: true, minTick: 2, awaitSettleTicks: 8, mark: 'warmed' },
         { data: '\r', awaitText: 'Yes, run this workflow', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'confirm' },
         { data: '\x1b', awaitText: 'waiting on', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'waiting' },
         { data: '/compact\r', afterPrevTicks: 8, mark: 'after-esc' },
@@ -380,6 +389,7 @@ if (cap !== null) {
   for (const label of ['waiting', 'after-esc', 'folded', 'after', 'end']) dump(label, m[label])
 
   console.log('\n— H0 the journey —')
+  check('a first turn stands before the launch (a first fold needs a head worth folding)', hits.some(h => h.route === 'warm'))
   check('the launch turn went out', hits.some(h => h.route === 'launch'))
   check('the turn was waiting on the crew when esc landed', rowsWith(m['waiting'], /waiting on/).length > 0, rowsWith(m['waiting'], /waiting/).map(flat).join(' | ').slice(0, 200))
   const summary = hits.find(h => h.route === 'summary')

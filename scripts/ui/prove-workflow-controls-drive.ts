@@ -33,6 +33,10 @@ async function until(cond: () => boolean, ms: number): Promise<boolean> {
 }
 
 const ASK = 'controls-drive: launch the pair'
+const WARM = 'controls-warm: fill the chat'
+const WARMED = 'CONTROLS-WARMED'
+const WARM_WORDS = 'ledger harbour lantern quarry meadow copper thistle ferry orchard granite willow anchor barley cinder dune ember fjord gable heron inlet juniper kiln larch moor nettle osprey pier quay reed sluice tarn umber vale wharf yarrow zinc alder birch cove delta'.split(' ')
+const WARM_TEXT = `${Array.from({ length: 1500 }, (_, i) => `entry ${i + 1}: ${Array.from({ length: 9 }, (_, j) => WARM_WORDS[(i * 7 + j * (11 + (i % 5)) + ((i * i) % 13)) % WARM_WORDS.length]).join(' ')}`).join('\n')}\n${WARMED}`
 const FIXTURE_API_KEY = 'fixture-key-000'
 const WF_NAME = 'controls-pair'
 const WF_SCRIPT = [
@@ -87,6 +91,12 @@ function lastUserText(body: unknown): string {
   }
   return last
 }
+function newestUserText(body: unknown): string {
+  const users = itemsOf(body).filter(m => (m as { role?: string }).role === 'user') as Array<{ content?: unknown }>
+  const content = users.at(-1)?.content
+  if (typeof content === 'string') return content
+  return Array.isArray(content) ? (content as Array<{ type?: string; text?: string }>).filter(b => b.type === 'text' && typeof b.text === 'string').map(b => b.text).join('\n') : ''
+}
 function carriesToolResult(body: unknown): boolean {
   for (const m of itemsOf(body)) {
     const item = m as { role?: string; content?: unknown }
@@ -128,6 +138,9 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
         who = text.includes('alpha') ? 'alpha' : 'beta'
         route = 'agent'
         blocks = [{ type: 'tool_use', name: 'Sleep', input: { seconds: 1 } }]
+      } else if (newestUserText(body).includes(WARM) && offersTool(body, 'Workflow')) {
+        route = 'warm'
+        blocks = [{ type: 'text', text: WARM_TEXT }]
       } else if (text.includes('controls-drive:') && offersTool(body, 'Workflow')) {
         route = ack ? 'parent-ack' : 'parent'
         blocks = ack ? [{ type: 'text', text: 'controls-drive: the pair landed.' }] : [{ type: 'text', text: 'launching the pair' }, { type: 'tool_use', name: 'Workflow', input: { script: WF_SCRIPT } }]
@@ -210,6 +223,14 @@ const bootSends = (ask: string): Array<Record<string, unknown>> => [
   { data: '\r', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
   { data: ask, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
   { data: '\r', afterPrevTicks: 4 },
+  { data: '\r', atTick: 999, awaitText: 'Yes, run this workflow', requireAwait: true, minTick: 2, awaitSettleTicks: 6 },
+]
+const warmedBootSends = (ask: string): Array<Record<string, unknown>> => [
+  { data: '\r', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+  { data: WARM, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
+  { data: '\r', atTick: 999, awaitText: WARM, requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
+  { data: ask, atTick: 999, awaitText: WARMED, requireAwait: true, minTick: 2, awaitSettleTicks: 8 },
+  { data: '\r', atTick: 999, awaitText: ask, requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
   { data: '\r', atTick: 999, awaitText: 'Yes, run this workflow', requireAwait: true, minTick: 2, awaitSettleTicks: 6 },
 ]
 
@@ -490,7 +511,7 @@ async function persistenceLeg(port: number): Promise<void> {
         cwd,
         argv: [NODE, DIST],
         sends: [
-          ...bootSends(ASK),
+          ...warmedBootSends(ASK),
           { data: '/workflows', atTick: 999, awaitText: '2 running', requireAwait: true, minTick: 2, awaitSettleTicks: 6 },
           { data: '\r', afterPrevTicks: 3 },
           { data: '', atTick: 999, awaitText: 'Mercury — workflows', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'board-before-compact' },

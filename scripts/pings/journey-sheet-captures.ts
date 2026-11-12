@@ -211,7 +211,7 @@ for (const [cols, rows] of SIZES) {
       w,
       14_000,
       `const o = await import('${ROOT}/src/services/crew/obligations.ts')
-await o.upsertObligation({ ref: 'tap-live-1', sessionId: '${SID}', question: 'May I run the migration?', owner: 'operator', dir: '${join(w.home, 'crew')}', scope: 'switchboard' })`,
+await o.upsertObligation({ ref: 'tap-live-1', sessionId: '${SID}', question: 'Migrate now?', owner: 'operator', dir: '${join(w.home, 'crew')}', scope: 'switchboard' })`,
     )
     const c = capture(
       w,
@@ -237,8 +237,8 @@ await o.upsertObligation({ ref: 'tap-live-1', sessionId: '${SID}', question: 'Ma
       `lone-bell frames=${loneBellFrames(c.teePath, settleTick + 10)}`,
     )
     const board = flat(c.marks['board'] ?? '').replace(/ /g, '')
-    check('the advertised key jumps to the board', board.includes('SESSIONCONCOURSE'), board.slice(0, 160))
-    check("the board's NEEDS-YOU group lists the question", board.includes('NEEDSYOU') && board.includes('MayIrunthemigration'), board.slice(0, 240))
+    check('the advertised key jumps to the board', board.includes('SESSIONS') && board.includes('LASTUSED'), board.slice(0, 160))
+    check("the board's NEEDS-YOU group lists the question", board.includes('NEEDSYOU') && board.includes('Migratenow?'), board.slice(0, 240))
   }
 
   section(`Leg B ${cols}x${rows} — the model-switched grey note paints in THAT chat`)
@@ -268,6 +268,15 @@ await new Promise(r => setTimeout(r, 400))`,
         continue
       }
     }
+    sidecar(
+      w,
+      8_000,
+      `const s = await import('${ROOT}/src/services/engine-connector/seatProjections.ts')
+for (let i = 0; i < 10; i++) {
+  s.publishSessionFacts(${factsBase.replace('BUSY', 'true').replace('PENDING', "'claude-fable-5'").replace(/EFFECTIVE/g, "'claude-opus-5'")})
+  await new Promise(r => setTimeout(r, 1000))
+}`,
+    )
     sidecar(
       w,
       22_000,

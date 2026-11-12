@@ -292,7 +292,7 @@ const everywhere = [...(payload?.marks ?? []).flatMap(m => rowsOf(m.grid)), ...f
 const composer = (rows: string[]): string => rows.filter(r => r.includes('│❯')).join(' | ')
 
 check('the first paste lands as [Image #1]', composer(markRows('chip1')).includes('[Image #1]'), composer(markRows('chip1')))
-check('the composer says what was attached and what it was shrunk to', /\[Image #1\] attached — 9000x3000 shrunk to 8000x\d+ · [\d.]+(MB|KB)/.test(everywhere), [...everywhere.matchAll(/\[Image #1\] attached[^\n]*/g)].map(m => m[0]).join(' | '))
+check('the composer says what was attached and what it was shrunk to', /\[Image #1\] attached — 9000x3000 shrunk to 3000x\d+ · [\d.]+(MB|KB)/.test(everywhere), [...everywhere.matchAll(/\[Image #1\] attached[^\n]*/g)].map(m => m[0]).join(' | '))
 check('the second paste keeps both chips', /\[Image #1\].*\[Image #2\]/.test(composer(markRows('chip2'))), composer(markRows('chip2')))
 check('a focus regain with an image on the clipboard tells the chord', /clipboard holds an image — \S+ attaches it/.test(markRows('hint').join('\n')), markRows('hint').filter(r => /clipboard/.test(r)).join(' | '))
 check('Enter never meets the 1MB frame wall', !/request exceeds \d+MB/.test(everywhere))
@@ -307,7 +307,7 @@ for (const f of files) {
   try {
     const bytes = readFileSync(join(store, f))
     const meta = await sharp(bytes).metadata()
-    check(`${f} is the shrunk image (8000 px side, under the ceiling)`, Math.ceil(bytes.length / 3) * 4 <= 10 * 1024 * 1024 && (meta.width ?? 0) === 8000, `${meta.width}x${meta.height} · ${bytes.length} bytes`)
+    check(`${f} is the shrunk image (3000 px side, under the ceiling)`, Math.ceil(bytes.length / 3) * 4 <= 10 * 1024 * 1024 && (meta.width ?? 0) === 3000, `${meta.width}x${meta.height} · ${bytes.length} bytes`)
   } catch (e) {
     check(`${f} decodes`, false, String(e))
   }

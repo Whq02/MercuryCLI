@@ -33,6 +33,7 @@ run_proof "$here/prove-ci-shard-ceiling.sh" bash "$here/prove-ci-shard-ceiling.s
 run_proof "$here/prove-suite-grants.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-suite-grants.ts" || fail=1
 run_proof "$here/prove-drive-ceilings-measured.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-drive-ceilings-measured.ts" || fail=1
 run_proof "$here/prove-gate-scheduler.sh" bash "$here/prove-gate-scheduler.sh" || fail=1
+run_proof "$here/prove-keep-going.sh" bash "$here/prove-keep-going.sh" || fail=1
 run_proof "$here/prove-dead-letter-orphan.sh" bash "$here/prove-dead-letter-orphan.sh" || fail=1
 run_proof "$here/prove-shard-stop-ends-suite.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shard-stop-ends-suite.ts" || fail=1
 run_proof "$here/prove-dist-cache.sh" bash "$here/prove-dist-cache.sh" || fail=1

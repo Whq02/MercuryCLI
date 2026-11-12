@@ -29,6 +29,7 @@ const FIXTURE_API_KEY = 'fixture-key-000'
 const FABLE = 'claude-fable-5-1'
 const OPUS = 'claude-opus-5'
 const INSPECT_BOUND_MS = 5_000
+const ENDED_RUN = 'The previous run ended before this call returned a result; whether the call started or finished is not known.'
 
 type Route = 'launch' | 'launch-ack' | 'continue' | 'inspect-ack' | 'seat' | 'seat-ack' | 'side'
 interface Hit {
@@ -92,7 +93,7 @@ function routeOf(body: unknown): { route: Route; seat: string | null; resultText
     if (answered.name === 'Inspect') return { route: 'inspect-ack', seat: null, resultText: answered.resultText, notices }
     if (answered.name === 'Bash') {
       const text = items.map(i => (i.role === 'user' ? textOf(i.content) : '')).join('\n')
-      return { route: 'seat-ack', seat: text.includes(SEAT_ONE) ? SEAT_ONE : SEAT_TWO, resultText: answered.resultText, notices }
+      return { route: answered.resultText.includes(ENDED_RUN) ? 'seat' : 'seat-ack', seat: text.includes(SEAT_ONE) ? SEAT_ONE : SEAT_TWO, resultText: answered.resultText, notices }
     }
   }
   const last = [...items].reverse().find(i => i.role === 'user')

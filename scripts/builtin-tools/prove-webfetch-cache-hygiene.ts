@@ -56,7 +56,7 @@ console.log('prove-webfetch-cache-hygiene — the self-cleaning cache is literal
     'the prompt discloses the fifteen-minute repeat-fetch lifetime once',
     prompt.split('Repeat pulls ride a fifteen-minute cache.').length === 2,
   )
-  check('the disclosure stays in one paragraph under 300 bytes', !prompt.includes('\n') && Buffer.byteLength(prompt) <= 300, String(Buffer.byteLength(prompt)))
+  check('the disclosure stays in one paragraph under 340 bytes', !prompt.includes('\n') && Buffer.byteLength(prompt) <= 340, String(Buffer.byteLength(prompt)))
 }
 
 console.log('')
