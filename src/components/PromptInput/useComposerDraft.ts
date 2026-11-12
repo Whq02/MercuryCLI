@@ -34,6 +34,7 @@ type ComposerDraft = {
   pastedContents: Record<number, PastedContent>
   stash: ReturnType<typeof pendingInput.stashedPrompt>
   cursorOffset: number
+  liveCursorRef: React.MutableRefObject<number>
   setCursorOffset: (offset: number) => void
   lastSelfWriteRef: React.MutableRefObject<string>
   writeDraft: (text: string) => void
@@ -80,7 +81,10 @@ export function useComposerDraft({
     }
     return input.length
   })
+  const liveCursorRef = useRef(cursorOffset)
+  liveCursorRef.current = cursorOffset
   const setCursorOffset = useCallback((offset: number): void => {
+    liveCursorRef.current = offset
     setCursorOffsetState(offset)
     pendingInput.reportCursor(offset)
   }, [])
@@ -92,6 +96,7 @@ export function useComposerDraft({
   }, [])
   if (lastSelfWriteRef.current !== input) {
     lastSelfWriteRef.current = input
+    liveCursorRef.current = input.length
     setCursorOffsetState(input.length)
     pendingInput.reportCursor(input.length)
   }
@@ -247,6 +252,7 @@ export function useComposerDraft({
     pastedContents,
     stash,
     cursorOffset,
+    liveCursorRef,
     setCursorOffset,
     lastSelfWriteRef,
     writeDraft,

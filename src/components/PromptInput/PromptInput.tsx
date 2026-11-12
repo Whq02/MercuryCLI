@@ -398,6 +398,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const attachments = useComposerAttachments({
     input,
     cursorOffset,
+    liveCursorRef: draft.liveCursorRef,
     pastedContents,
     buffer,
     messages,
