@@ -829,6 +829,11 @@ if (runs('LISTED')) {
     "foreach ($f in Get-ChildItem -Recurse) { & ('Get-' + 'Content') $f.FullName }",
     'foreach ($f in Get-ChildItem -Recurse) { & $reader $f.FullName }',
     'gci -r | % { & $tool $_.FullName }',
+    "foreach ($f in gci -r) { & ('Get-' + 'Content') ([string]$f.FullName) }",
+    "foreach ($f in gci -r) { & ('Get-' + 'Content') \"$($f.FullName)\" }",
+    'gci -r | % { & $reader -Path:($_.FullName) }',
+    'foreach ($f in gci -r) { $a = @{ Path = $f.FullName }; & $reader @a }',
+    '& { Get-Content $args[0] } (Get-ChildItem -Recurse)',
   ]
   for (const line of readers) {
     const answer = await asked(line, OWN_HOME)
@@ -878,6 +883,9 @@ if (runs('LISTED')) {
     'foreach ($f in Get-ChildItem -Recurse) { & $reader }',
     'foreach ($f in Get-ChildItem -Recurse) { $total += $f.Length }',
     'foreach ($f in Get-ChildItem Documents -Recurse) { & $reader $f.FullName }',
+    'foreach ($f in Get-ChildItem -Recurse) { & $reader 5 }',
+    'foreach ($f in Get-ChildItem -Recurse) { & .\\build.ps1 (Get-Date) }',
+    'foreach ($f in Get-ChildItem Documents -Recurse) { & $reader ([string]$f.FullName) }',
   ]
   for (const line of listings) {
     const answer = await asked(line, OWN_HOME)
