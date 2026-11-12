@@ -180,6 +180,14 @@ section('5. registry census — the rows + the ruling’s premise')
     master?.kind === 'opt-in' && master.tier === 'additive',
     `kind=${master?.kind} tier=${master?.tier}`,
   )
+  const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.js')
+  const menuRow = STARTUP_MENU.find(r => r.env === 'MERCURY_BLENDER')
+  check(
+    'the boot menu row states both doors of the catalog gate (beside .blend files, or anywhere Blender is located)',
+    (menuRow?.detail?.on ?? []).some(l =>
+      l.startsWith('the `Blender` tool joins the catalog beside .blend files, or anywhere Blender is located — '),
+    ),
+  )
 }
 
 console.log('\n' + (failures === 0 ? '✅ blender-bridge gates proof PASS' : `❌ ${failures} FAILURES`))
