@@ -80,7 +80,7 @@ check(
   !/['"`](claude-|gpt-|glm-|sonnet|opus|haiku|fable|mythos)/i.test(foldCode),
 )
 
-console.log('\n§3 the coordinator door')
+console.log('\n§3 the launch door')
 const { canonicalWorkerModelId, validateWorkerModelChoice } = await import(
   '../../src/services/concourse/workerModels.ts'
 )
@@ -89,6 +89,11 @@ const doorId = await canonicalWorkerModelId('sonnet 5')
 check("canonicalWorkerModelId('sonnet 5') lands on the canonical row id", doorId === (await canonicalWorkerModelId('sonnet5')), doorId)
 check('…and the route law declares it (never unrecognised at the arms)', declaredRouteOf(doorId) === 'anthropic', String(declaredRouteOf(doorId)))
 check("'Sonnet-5' lands identically at the door", (await canonicalWorkerModelId('Sonnet-5')) === doorId)
+check('the [1m] context tag strips at the door (a call-time flavour, not an identity)', (await canonicalWorkerModelId(`${doorId}[1m]`)) === doorId, await canonicalWorkerModelId(`${doorId}[1m]`))
+{
+  const registry = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'concourse', 'workerModels.ts'), 'utf8')
+  check('the door canonicalises with the worker registry\'s own function: the registry imports no other concourse module', registry.includes("return parseUserSpecifiedModel(value).replace(/\\[1m]$/, '')") && registry.includes('return canonicalModelId(foldLegacyWorkerModelKey(idOrKey))') && !/from '\.\/[A-Za-z]+\.js'/.test(registry), (registry.match(/from '\.\/[A-Za-z]+\.js'/g) ?? []).join(' '))
+}
 const refusal = await validateWorkerModelChoice('flurble-9000', 'session')
 check('a genuinely unknown launch still refuses, typed', refusal.ok === false && refusal.reason === 'not-runnable:unrecognised')
 const liveExamples = catalogueSpellingExamples(3)

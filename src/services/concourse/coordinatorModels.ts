@@ -1,4 +1,6 @@
 
+import { canonicalModelId as canonicalCoordinatorModelId } from './workerModels.js'
+
 export type CoordinatorModelAvailability =
   | 'ready'
   | 'not-signed-in'
@@ -51,10 +53,7 @@ export function coordinatorModelStatusWord(entry: Pick<CoordinatorModelEntryV1, 
   }
 }
 
-export async function canonicalCoordinatorModelId(value: string): Promise<string> {
-  const { parseUserSpecifiedModel } = await import('../../utils/model/model.js')
-  return parseUserSpecifiedModel(value).replace(/\[1m]$/, '')
-}
+export { canonicalCoordinatorModelId }
 
 export async function composeCoordinatorModelRegistry(
   reads: CoordinatorRegistryReads = {},

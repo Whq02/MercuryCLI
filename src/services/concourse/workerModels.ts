@@ -2,7 +2,6 @@
 import { logForDebugging } from '../../utils/debug.js'
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { CHOOSE_A_MODEL_WORDS, NO_SIGN_IN_ROW, NO_USABLE_ROW, isChooseAModel, keylessReason, resetComputedDefaultMemo, type LaneRowVerdict } from '../../utils/model/computedDefault.js'
-import { canonicalCoordinatorModelId } from './coordinatorModels.js'
 
 export type WorkerModelRefusal =
   | `no-credential:${string}`
@@ -234,8 +233,12 @@ export function foldLegacyWorkerModelKey(idOrKey: string): string {
   return idOrKey
 }
 
+export async function canonicalModelId(value: string): Promise<string> {
+  return parseUserSpecifiedModel(value).replace(/\[1m]$/, '')
+}
+
 export async function canonicalWorkerModelId(idOrKey: string): Promise<string> {
-  return canonicalCoordinatorModelId(foldLegacyWorkerModelKey(idOrKey))
+  return canonicalModelId(foldLegacyWorkerModelKey(idOrKey))
 }
 
 export async function composeWorkerModelRegistry(reads: WorkerRegistryReads = {}): Promise<WorkerModelRegistryV1> {
