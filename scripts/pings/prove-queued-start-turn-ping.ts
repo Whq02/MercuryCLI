@@ -42,6 +42,8 @@ const {
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 import type { SessionFactsV1 } from '../../src/services/engine-connector/seatProjections.ts'
 
+const { vshotBudgetMs } = await import('../lib/captureDriver.ts')
+
 let failures = 0
 let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -50,7 +52,20 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-const wait = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
+async function wait(ms: number, stopWhen?: () => boolean): Promise<void> {
+  let expired = false
+  const timer = setTimeout(() => {
+    expired = true
+  }, vshotBudgetMs(ms))
+  timer.unref?.()
+  try {
+    while (!expired && !(stopWhen?.() ?? false)) {
+      await new Promise<void>(next => setImmediate(next))
+    }
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 let factsSeq = 100
 function writeFacts(sessionId: string, patch: Partial<SessionFactsV1>): void {
