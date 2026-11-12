@@ -781,6 +781,10 @@ if (runs('LISTED')) {
     'gci -r | % FullName | Get-Item | sls canary',
     'gci -r | % FullName | sls canary -Path { $_ }',
     'gci -r | Out-String -Stream | % { gc $_.Trim() }',
+    'Get-ChildItem $PWD\\.mercury | Get-Content',
+    'Get-ChildItem (Join-Path $PWD .mercury) | Get-Content',
+    'Get-ChildItem $PWD\\.. -Recurse | Select-String canary',
+    'Get-ChildItem (Join-Path $PWD $name) -Recurse | sls canary',
   ]
   for (const line of readers) {
     const answer = await asked(line, OWN_HOME)
@@ -812,6 +816,11 @@ if (runs('LISTED')) {
     'gci -r | % FullName | sls foo',
     'gci -r | Out-String -Stream | sls foo',
     'gci -r | ForEach-Object Name | Select-String foo',
+    'Get-ChildItem $PWD\\Documents -Recurse | Select-String canary',
+    'Get-ChildItem "$PWD\\Documents" -Recurse | Get-Content',
+    'Get-ChildItem (Join-Path $PWD Documents) -Recurse | Select-String canary',
+    'grep -r canary $PWD\\Documents',
+    'Copy-Item -Recurse $PWD\\Documents ..\\out',
   ]
   for (const line of listings) {
     const answer = await asked(line, OWN_HOME)

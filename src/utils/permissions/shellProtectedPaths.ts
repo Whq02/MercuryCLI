@@ -714,6 +714,18 @@ function searchesNamesAsText(lister: ReadCommand, later: ReadCommand, found: Lay
   return next.slice(0, -1).every((stage, index) => stage.pipeline === from[index]!.pipeline && stage.stage === from[index]!.stage) && block.pipeline === reader.pipeline && block.stage + 1 === reader.stage
 }
 
+function standingSpelled(root: string): string {
+  return root.replace(/^\$\{?pwd\}?(?=[\\/]|$)/i, '.')
+}
+
+function joinedUnderStanding(word: string, inner: readonly number[] | undefined, read: ShellRead): string {
+  const joiner = word === UNREAD_PART && inner?.length === 1 ? read.commands[inner[0]!] : undefined
+  const layer = joiner === undefined ? undefined : layersOf(joiner.argv)[0]
+  if (layer === undefined || layer.program !== 'join-path') return word
+  const parts = layer.argv.slice(1).filter(part => !/^-(?:path|childpath)$/i.test(part))
+  return parts.length === 2 && /^(?:\.|\$\{?pwd\}?)$/i.test(parts[0]!) && wordKnown(parts[1]!) && !GLOB_PART.test(parts[1]!) ? `./${parts[1]}` : word
+}
+
 function powershellListing(argv: readonly string[]): { roots: string[]; deep: boolean; names: boolean; patterned: string[] } {
   const named: string[] = []
   const loose: string[] = []
@@ -742,15 +754,15 @@ function powershellListing(argv: readonly string[]): { roots: string[]; deep: bo
   }
   const patterned: string[] = []
   const roots = [...named, ...loose].map(root => {
-    const segments = root.split(/[\\/]/)
+    const segments = standingSpelled(root).split(/[\\/]/)
     const at = segments.findIndex(segment => GLOB_PART.test(segment))
     if (at < 0) return root
     const fixed = segments.slice(0, at).join('/')
-    patterned.push(root)
+    patterned.push(segments.join('/'))
     if (/[$(@]/.test(fixed) || fixed.includes(UNREAD_PART)) patterned.push(segments.slice(at).join('/'))
     return fixed || (/^[\\/]/.test(root) ? '/' : '.')
   })
-  if (roots.length === 0 || unsure || roots.some(root => /[$(@]/.test(root) || root.includes(UNREAD_PART))) roots.push('.')
+  if (roots.length === 0 || unsure || roots.some(root => /[$(@]/.test(standingSpelled(root)) || root.includes(UNREAD_PART))) roots.push('.')
   return { roots, deep, names, patterned }
 }
 
@@ -1069,7 +1081,8 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
     const stands = foldersRead(read, at, cwd).folders
     return foldersAfter(read, at, cwd).folders.map(here => ({ at, simple, here, stayed: !powershell && !stands.includes(here) }))
   })) {
-    const layers = layersOf(simple.argv)
+    const words = powershell ? simple.argv.map((word, index) => joinedUnderStanding(word, simple.inner[index], read)) : simple.argv
+    const layers = layersOf(words)
     const fedNames = layers.some(layer => FILE_READERS.has(layer.program) && layer.wrappers.includes('xargs'))
     for (const redirect of simple.redirects) {
       if (redirect.op !== '<') continue
@@ -1087,7 +1100,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
     for (const layer of layers) {
       const item = keychainItemRead(layer)
       if (item !== null) return item
-      const roots = layer.findRoots !== undefined && layer.argv !== simple.argv ? layer.findRoots : []
+      const roots = layer.findRoots !== undefined && layer.argv !== words ? layer.findRoots : []
       const tree = readsWholeTree(layer)
       const sent = filesSentOrPrinted(layer)
       const lists = layer.program === 'find' || layer.program === 'ls' || layer.program === 'get-childitem' || layer.program === 'gci' || layer.program === 'dir'
@@ -1095,7 +1108,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const listed = listing !== null && read.commands.some((later, index) => index > at && layersOf(later.argv).some(found => readsHandedFiles(found) && !(listing.names && searchesNamesAsText(simple, later, found, read.pipelineSizes)) && !searchesTextOfListing(simple, later, found, read.commands))) ? listing : null
       const feeds = lists && (fed.has(at) || listed !== null || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')) || (!powershell && layer.program === 'find' && loopedToReader(at, simple)))
       for (const word of [...layer.argv.slice(1), ...roots, ...(listed === null ? [] : listed.roots), ...(layer.program === 'findstr' ? findstrFolderFiles(layer.argv.slice(1)) : []), ...(gitGrepRoots(layer, here) ?? []), ...(layer.program === 'find' && layer.findRoots?.length === 0 ? ['.'] : [])]) {
-        for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {
+        for (const candidate of [...spellingsOf(powershell ? standingSpelled(word) : word), ...underOtherHomes(word, read.homes)]) {
           if (mercurySecretPath(candidate, here) !== null || ((FILE_READERS.has(layer.program) || sent.has(word) || handedToReader(at, simple)) && couldNameSecret(candidate, here, homes, !wordKnown(candidate)))) return word
           if ((FILE_READERS.has(layer.program) || UPLOADERS.has(layer.program) || sent.has(word)) && secretNameBehindUnread(candidate, homes)) return candidate.replaceAll(UNREAD_PART, '$(…)')
           if ((tree || feeds) && namesMercuryHome(candidate, here, homes)) return word
@@ -1110,9 +1123,9 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const handed = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
       const hidden = layer.program !== 'rg' || ripgrepReachesHidden(layer, simple, read)
       const held = finder !== undefined ? (finder.findRoots === undefined || finder.findRoots.length === 0 ? ['.'] : finder.findRoots) : listed !== null ? listed.roots : treeReadRoots(layer, handed, here, holdsMercuryHome('.', here, homes, hidden))
-      for (const root of held.flatMap(one => (powershell && !wordKnown(one) ? [one, '.'] : [one]))) {
-        for (const candidate of [...spellingsOf(root), ...underOtherHomes(root, read.homes)]) {
-          if (holdsMercuryHome(candidate, here, homes, hidden) || globNamesStore(candidate, here, homes, hidden)) return stayed && root === '.' ? whereItStays(here) : `the whole of ${root === '.' ? 'this folder' : root} (name a folder beneath it)`
+      for (const root of held.flatMap(one => (powershell && !wordKnown(standingSpelled(one)) ? [one, '.'] : [one]))) {
+        for (const candidate of [...spellingsOf(powershell ? standingSpelled(root) : root), ...underOtherHomes(root, read.homes)]) {
+          if (holdsMercuryHome(candidate, here, homes, hidden) || globNamesStore(candidate, here, homes, hidden)) return stayed && root === '.' ? whereItStays(here) : `the whole of ${root === '.' || (powershell && standingSpelled(root) === '.') ? 'this folder' : root} (name a folder beneath it)`
         }
       }
     }
