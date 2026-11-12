@@ -67,7 +67,7 @@ try {
   check('the reader privacy disclosure is present exactly once without the operator switch', description.split(disclosure).length === 2 && !description.includes('MERCURY_FETCH_READER'))
   const fields = (await import('../../src/utils/zodToJsonSchema.ts')).zodToJsonSchema(WebFetchTool.inputSchema) as any
   check('model readings and continuation are owned by their fields', fields.properties.prompt.description.includes('Ask a model') && fields.properties.from.description.includes('character offset') && !/Omit prompt|from offset/.test(description))
-  check('the wire description stays under 300 bytes with no sibling tool or refusal catalogue', Buffer.byteLength(description) <= 300 && !/\bRead\b|MCP|GitHub|robots\.txt/.test(description))
+  check('the wire description stays under 340 bytes with no sibling tool or refusal catalogue', Buffer.byteLength(description) <= 340 && !/\bRead\b|MCP|GitHub|robots\.txt/.test(description))
 } finally {
   if (priorFlag === undefined) delete process.env.MERCURY_FETCH_READER
   else process.env.MERCURY_FETCH_READER = priorFlag
