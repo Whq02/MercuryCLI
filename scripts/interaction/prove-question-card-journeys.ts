@@ -542,7 +542,7 @@ if (wants('D')) {
   check('D: the drive completed', d.status === 0, `status=${d.status} end=${d.endReason}`)
   const card = markOr(d, 'd-card')
   check('D: the card was up with its Esc affordance stated', card.some(r => r.includes('Esc to cancel')))
-  const denied = d.final.some(r => r.includes('declined this tool call'))
+  const denied = d.final.some(r => r.includes('User declined to answer'))
   check('D: after Esc the card is gone and the denial is on the transcript', !d.final.some(r => r.includes('Esc to cancel')) && denied)
   if (!denied) dumpFrame('d-final', d.final)
   check('D: the session continued (the model replied to the denial)', d.final.some(r => r.includes('stopping here as asked')))
