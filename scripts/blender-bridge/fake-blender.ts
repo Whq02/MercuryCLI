@@ -57,6 +57,7 @@ if not background:
 
 quiet = ("-q" in argv) or ("--quiet" in argv)
 offline = "--offline-mode" in argv
+disable_autoexec = ("--disable-autoexec" in argv) or ("-Y" in argv)
 
 python_exit_code = 0
 if "--python-exit-code" in argv:
@@ -226,6 +227,9 @@ def install_fake_modules():
                 new_scene.render.engine = meta["engine"]
             if isinstance(meta.get("frameEnd"), int):
                 new_scene.frame_end = meta["frameEnd"]
+            if not disable_autoexec and isinstance(meta.get("autoexec_marker_path"), str):
+                with open(meta["autoexec_marker_path"], "w", encoding="utf-8") as afh:
+                    afh.write("autoexec\\n")
         data_ns.filepath = filepath
         data_ns.is_saved = True
         data_ns.is_dirty = bool(isinstance(meta, dict) and meta.get("dirty"))

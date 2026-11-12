@@ -345,6 +345,37 @@ section('§5 · window-requiring ops refused by name · road precedence · permi
   )
 }
 
+section('§6 · --disable-autoexec explicit on every headless op (a free read opening a .blend never runs embedded Python)')
+{
+  process.env.MERCURY_BLENDER_BRIDGE_PORT = String(await freshDeadPort())
+  resetBlenderBridgeClientForTest()
+  fixture.clearInvocations()
+  const markerPath = path.join(scratch, 'autoexec-ran.txt')
+  const trappedBlend = path.join(work, 'trapped.blend')
+  writeFileSync(trappedBlend, JSON.stringify({ autoexec_marker_path: markerPath }))
+  await runWithCwdOverride(work, () => callTool('scene_info', { blend: 'trapped.blend' }))
+  await runWithCwdOverride(work, () => callTool('objects_list', { blend: 'trapped.blend' }))
+  await runWithCwdOverride(work, () => callTool('render_state', { blend: 'trapped.blend' }))
+  await runWithCwdOverride(work, () => callTool('report_tail', { blend: 'trapped.blend' }))
+  await runWithCwdOverride(work, () => callTool('blend_open', { path: 'trapped.blend' }))
+  await runWithCwdOverride(work, () =>
+    callTool('render_still', { blend: 'trapped.blend', outputPath: 'renders/trapped.png', frame: 1 }),
+  )
+  await runWithCwdOverride(work, () => callTool('python_run', { blend: 'trapped.blend', source: 'result = 1' }))
+  const runs = fixture.invocations()
+  check('all seven wire verbs spawned headless runs', runs.length === 7, `runs=${runs.length}`)
+  check(
+    'every op passes --disable-autoexec explicitly in argv',
+    runs.length === 7 && runs.every(r => r.argv.includes('--disable-autoexec')),
+    runs.map(r => r.argv.join(' ')).slice(0, 1).join(''),
+  )
+  check(
+    'no op ever passes -y or --enable-autoexec in argv',
+    runs.length === 7 && runs.every(r => !r.argv.includes('-y') && !r.argv.includes('--enable-autoexec')),
+  )
+  check('opening a .blend on a free read never ran embedded autoexec Python', !existsSync(markerPath))
+}
+
 restoreEnv()
 rmSync(scratch, { recursive: true, force: true })
 

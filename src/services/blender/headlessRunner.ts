@@ -116,6 +116,7 @@ export async function runBlenderHeadlessOp(opts: {
         '-b',
         '-q',
         '--factory-startup',
+        '--disable-autoexec',
         '--python-exit-code',
         HEADLESS_PYTHON_EXIT_CODE,
         '--offline-mode',
