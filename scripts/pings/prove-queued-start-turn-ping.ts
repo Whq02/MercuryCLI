@@ -60,18 +60,23 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 
 async function wait(ms: number, stopWhen?: () => boolean): Promise<void> {
-  let expired = false
-  const timer = setTimeout(() => {
-    expired = true
-  }, vshotBudgetMs(ms))
-  timer.unref?.()
-  try {
-    while (!expired && !(stopWhen?.() ?? false)) {
-      await new Promise<void>(next => setImmediate(next))
+  if (stopWhen?.() ?? false) return
+  await new Promise<void>(finish => {
+    let settled = false
+    const settleWait = (): void => {
+      if (settled) return
+      settled = true
+      clearInterval(poller)
+      clearTimeout(ceiling)
+      finish()
     }
-  } finally {
-    clearTimeout(timer)
-  }
+    const poller = setInterval(() => {
+      if (stopWhen?.() ?? false) settleWait()
+    }, 8)
+    poller.unref?.()
+    const ceiling = setTimeout(settleWait, vshotBudgetMs(ms))
+    ceiling.unref?.()
+  })
 }
 
 let factsSeq = 100
