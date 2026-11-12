@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 pinSourceRef()
 const HOME = pinScratchHome('flip-restore-yields')
@@ -58,6 +58,10 @@ const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddow
 const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
 type Message = import('../../src/types/message.ts').Message
 type InkInstance = NonNullable<React.ContextType<typeof InkInstanceContext>>
+type InkInternal = {
+  scheduler?: { state: () => string }
+  frameListeners?: ReadonlySet<unknown>
+}
 
 markDaemonHaltStanddown()
 const commands = await getCommands(PROJECT)
@@ -67,6 +71,8 @@ const PAGE_UP = '\x1b[5~'
 const ALT_DOWN = '\x1b[1;3B'
 const WHEEL_UP = '\x1b[<64;70;10M'
 const PILL = 'back to the bottom'
+const SETTLE_CEILING_MS = 15_000
+const QUIET_STEP_MS = 45
 
 function makeHistory(): Message[] {
   return Array.from({ length: 40 }, (_, n) =>
@@ -79,7 +85,8 @@ function makeHistory(): Message[] {
   )
 }
 
-const topMark = (m: Mounted): string | undefined => m.screen().match(/MARK-\d+-\d+/)?.[0]
+const topMarkFrom = (screen: string): string | undefined => screen.match(/MARK-\d+-\d+/)?.[0]
+const topMark = (m: Mounted): string | undefined => topMarkFrom(m.screen())
 const markRank = (mark: string | undefined): number => {
   if (!mark) return -1
   const parts = /^MARK-(\d+)-(\d+)$/.exec(mark)
@@ -114,17 +121,21 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
   pending.setPastedContents({})
 
   let inkTap: InkInstance | undefined
+  let frameSeq = 0
+  let baseListeners = 0
   function InkTap(): null {
-    inkTap = React.useContext(InkInstanceContext)
+    const ink = React.useContext(InkInstanceContext)
+    inkTap = ink
+    React.useLayoutEffect(() => {
+      if (!ink) return
+      const unsub = ink.subscribeFrame(() => {
+        frameSeq++
+      })
+      const internal = ink as unknown as InkInternal
+      baseListeners = internal.frameListeners ? internal.frameListeners.size : 0
+      return unsub
+    }, [ink])
     return null
-  }
-  const onFirstPaintedFrameAfter = (trigger: () => void, followUp: () => void): void => {
-    if (!inkTap) throw new Error('missing InkInstanceContext')
-    const stop = inkTap.subscribeFrame(() => {
-      stop()
-      queueMicrotask(followUp)
-    })
-    trigger()
   }
 
   const m = await mountOffscreen(
@@ -133,57 +144,121 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
     rows,
     { mouseTracking: true },
   )
+
+  const schedulerQuiet = (): boolean => {
+    const internal = inkTap as unknown as InkInternal | undefined
+    if (!internal) return false
+    const state = internal.scheduler?.state()
+    if (state !== undefined && state !== 'idle' && state !== 'window-open') return false
+    if (internal.frameListeners !== undefined && internal.frameListeners.size > baseListeners) return false
+    return true
+  }
+
+  const waitScreenSettled = async (label: string, ready: (frame: string) => boolean, ceilingMs = SETTLE_CEILING_MS): Promise<string> => {
+    const deadline = Date.now() + ceilingMs
+    let stableCount = 0
+    let prevFrame = ''
+    let prevSeq = -1
+    let lastFrame = ''
+    while (Date.now() < deadline) {
+      await settle(QUIET_STEP_MS)
+      const frame = m.screen()
+      const seq = frameSeq
+      lastFrame = frame
+      if (ready(frame) && schedulerQuiet()) {
+        if (frame === prevFrame && seq === prevSeq) {
+          stableCount++
+          if (stableCount >= 2) return frame
+        } else {
+          prevFrame = frame
+          prevSeq = seq
+          stableCount = 1
+        }
+      } else {
+        prevFrame = ''
+        prevSeq = -1
+        stableCount = 0
+      }
+    }
+    const internal = inkTap as unknown as InkInternal | undefined
+    throw new Error(
+      `screen never settled for ${label} within ${ceilingMs}ms (top=${topMarkFrom(lastFrame) ?? 'none'}, seq=${frameSeq}, scheduler=${internal?.scheduler?.state() ?? 'unknown'}, listeners=${internal?.frameListeners?.size ?? -1}/${baseListeners})\n${lastFrame}`,
+    )
+  }
+
+  const runOnFirstRestoreFrame = async (
+    label: string,
+    trigger: () => void,
+    followUp: () => void,
+    ready: (frame: string) => boolean,
+  ): Promise<void> => {
+    if (!inkTap) throw new Error('missing InkInstanceContext')
+    let followedUp = false
+    const stop = inkTap.subscribeFrame(() => {
+      stop()
+      queueMicrotask(() => {
+        followUp()
+        followedUp = true
+      })
+    })
+    trigger()
+    await waitScreenSettled(label, frame => followedUp && ready(frame))
+  }
+
   try {
-    const ready = await waitFor(() => m.screen().includes('TAIL-END') && m.screen().includes('Type a prompt'), 8000)
-    await settle(150)
-    check(`${tag}: chat mounted at the tail`, ready, topMark(m) ?? 'none')
+    await waitScreenSettled(`${tag} initial mount`, frame => frame.includes('TAIL-END') && frame.includes('Type a prompt'))
+    check(`${tag}: chat mounted at the tail`, m.screen().includes('TAIL-END') && m.screen().includes('Type a prompt'), topMark(m) ?? 'none')
 
     const leaveTail = async (): Promise<string | undefined> => {
       if (m.screen().includes('detailed transcript')) {
         m.push(CTRL_O)
-        await waitFor(() => m.screen().includes('Type a prompt'), 4000)
-        await settle(120)
+        await waitScreenSettled(`${tag} leaveTail exit detail`, frame => frame.includes('Type a prompt'))
       }
       if (!m.screen().includes('TAIL-END') || m.screen().includes(PILL)) {
         m.push(ALT_DOWN)
-        await waitFor(() => m.screen().includes('TAIL-END') && !m.screen().includes(PILL), 4000)
-        await settle(120)
+        await waitScreenSettled(`${tag} leaveTail repin`, frame => frame.includes('TAIL-END') && !frame.includes(PILL))
       }
       m.push(WHEEL_UP)
-      await waitFor(() => m.screen().includes(PILL), 4000)
-      await settle(80)
+      const afterFirstWheel = await waitScreenSettled(`${tag} wheel 1`, frame => frame.includes(PILL) && !frame.includes('TAIL-END'))
+      const firstWheelMark = topMarkFrom(afterFirstWheel)
       m.push(WHEEL_UP)
-      await settle(150)
-      return topMark(m)
+      const afterSecondWheel = await waitScreenSettled(
+        `${tag} wheel 2`,
+        frame => frame.includes(PILL) && topMarkFrom(frame) !== undefined && topMarkFrom(frame) !== firstWheelMark,
+      )
+      return topMarkFrom(afterSecondWheel)
     }
 
     const offMark = await leaveTail()
     check(`${tag}: wheel leaves the tail with the jump pill shown`, offMark !== undefined && m.screen().includes(PILL) && !m.screen().includes('TAIL-END'), `${offMark}`)
 
     m.push(CTRL_O)
-    await waitFor(() => m.screen().includes('detailed transcript'), 4000)
-    await settle(150)
+    await waitScreenSettled(`${tag} roundtrip enter detail`, frame => frame.includes('detailed transcript'))
     m.push(CTRL_O)
-    await waitFor(() => m.screen().includes('Type a prompt'), 4000)
-    await settle(150)
+    await waitScreenSettled(`${tag} roundtrip exit detail`, frame => frame.includes('Type a prompt'))
     check(`${tag}: an uninterrupted flip round-trip still preserves the row`, topMark(m) === offMark && m.screen().includes(PILL), `${offMark} -> ${topMark(m)}`)
 
     m.push(CTRL_O)
-    await waitFor(() => m.screen().includes('detailed transcript'), 4000)
-    await settle(150)
+    const refDetail = await waitScreenSettled(`${tag} reference enter detail`, frame => frame.includes('detailed transcript'))
+    const refDetailMark = topMarkFrom(refDetail)
     m.push(PAGE_UP)
-    await settle(150)
-    const settledPageUpMark = topMark(m)
+    const afterRefPageUp = await waitScreenSettled(
+      `${tag} reference PageUp`,
+      frame => topMarkFrom(frame) !== undefined && markRank(topMarkFrom(frame)) < markRank(refDetailMark) - 10,
+    )
+    const settledPageUpMark = topMarkFrom(afterRefPageUp)
     m.push('g')
-    await settle(150)
-    const settledTopMark = topMark(m)
+    const afterRefTop = await waitScreenSettled(
+      `${tag} reference top g`,
+      frame => topMarkFrom(frame) !== undefined && markRank(topMarkFrom(frame)) < markRank(settledPageUpMark),
+    )
+    const settledTopMark = topMarkFrom(afterRefTop)
     m.push(CTRL_O)
-    await waitFor(() => m.screen().includes('Type a prompt'), 4000)
-    await settle(150)
+    await waitScreenSettled(`${tag} reference exit detail`, frame => frame.includes('Type a prompt'))
+
     const beforeChunk = await leaveTail()
     m.push(CTRL_O + PAGE_UP)
-    await waitFor(() => m.screen().includes('detailed transcript'), 4000)
-    await settle(200)
+    await waitScreenSettled(`${tag} buffered ctrl+o + PageUp`, frame => frame.includes('detailed transcript'))
     const afterChunkPageUp = topMark(m)
     check(
       `${tag}: a buffered ctrl+o + PageUp chunk is not overwritten back to the pre-flip gap`,
@@ -192,12 +267,12 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
     )
 
     const beforeBurst = await leaveTail()
-    onFirstPaintedFrameAfter(
+    await runOnFirstRestoreFrame(
+      `${tag} mid-restore PageUp`,
       () => m.push(CTRL_O),
       () => m.push(PAGE_UP),
+      frame => frame.includes('detailed transcript'),
     )
-    await waitFor(() => m.screen().includes('detailed transcript'), 4000)
-    await settle(200)
     const afterFramePageUp = topMark(m)
     check(
       `${tag}: PageUp inside the restore frames is not overwritten back to the pre-flip gap`,
@@ -205,12 +280,12 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
       `expected ${settledPageUpMark} (< ${beforeBurst}), got ${afterFramePageUp}`,
     )
 
-    onFirstPaintedFrameAfter(
+    await runOnFirstRestoreFrame(
+      `${tag} mid-restore Alt+Down`,
       () => m.push(CTRL_O),
       () => m.push(ALT_DOWN),
+      frame => frame.includes('Type a prompt'),
     )
-    await waitFor(() => m.screen().includes('Type a prompt'), 4000)
-    await settle(200)
     check(
       `${tag}: Alt+Down inside the restore frames pins to the tail instead of being pulled back off it`,
       m.screen().includes('TAIL-END') && !m.screen().includes(PILL),
@@ -218,12 +293,12 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
     )
 
     await leaveTail()
-    onFirstPaintedFrameAfter(
+    await runOnFirstRestoreFrame(
+      `${tag} mid-restore g`,
       () => m.push(CTRL_O),
       () => m.push('g'),
+      frame => frame.includes('detailed transcript'),
     )
-    await waitFor(() => m.screen().includes('detailed transcript'), 4000)
-    await settle(200)
     check(
       `${tag}: detailed transcript g inside the restore frames stays at the top of the slice`,
       settledTopMark !== undefined && topMark(m) === settledTopMark && markRank(topMark(m)) < markRank(settledPageUpMark),
@@ -231,19 +306,17 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
     )
 
     m.push(CTRL_O)
-    await waitFor(() => m.screen().includes('Type a prompt'), 4000)
-    await settle(150)
+    await waitScreenSettled(`${tag} pre-repin exit detail`, frame => frame.includes('Type a prompt'))
     await leaveTail()
     m.push(CTRL_O)
-    await waitFor(() => m.screen().includes('detailed transcript'), 4000)
-    await settle(150)
+    await waitScreenSettled(`${tag} pre-repin enter detail`, frame => frame.includes('detailed transcript'))
     const humanTail = `HUMAN-TAIL-${tag}`
-    onFirstPaintedFrameAfter(
+    await runOnFirstRestoreFrame(
+      `${tag} mid-restore repinToBottom`,
       () => m.push(CTRL_O),
       () => appendRow(createUserMessage({ content: humanTail })),
+      frame => frame.includes('Type a prompt'),
     )
-    await waitFor(() => m.screen().includes('Type a prompt'), 4000)
-    await settle(200)
     check(
       `${tag}: repinToBottom inside the restore frames keeps the view pinned on the new tail`,
       m.screen().includes(humanTail) && !m.screen().includes(PILL),
