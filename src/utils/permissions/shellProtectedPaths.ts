@@ -677,12 +677,30 @@ function readsHandedFiles(found: Layer): boolean {
   return PIPED_FILE_READERS.has(found.program)
 }
 
-function searchesNamesAsText(lister: ReadCommand, later: ReadCommand, found: Layer): boolean {
+function searchesText(found: Layer): boolean {
   if (found.program !== 'select-string' && found.program !== 'sls') return false
-  if (found.argv.slice(1).some(word => word.includes('$') || word.includes(UNREAD_PART) || /^-(?:path|pspath|lp|lit[a-z]*)(?::|$)/i.test(word))) return false
-  const next = later.stages.length === 1 ? later.stages[0] : undefined
-  const from = lister.stages.length === 1 ? lister.stages[0] : undefined
-  return next !== undefined && from !== undefined && from.pipeline === next.pipeline && from.stage + 1 === next.stage
+  return !found.argv.slice(1).some(word => word.includes('$') || word.includes(UNREAD_PART) || /^-(?:path|pspath|lp|lit[a-z]*)(?::|$)/i.test(word))
+}
+
+function stagesApart(lister: ReadCommand, later: ReadCommand): number | undefined {
+  const from = lister.stages
+  const next = later.stages
+  const last = from[from.length - 1]
+  const reader = next[next.length - 1]
+  if (last === undefined || reader === undefined || from.length !== next.length || last.pipeline !== reader.pipeline) return undefined
+  return next.slice(0, -1).every((stage, index) => stage.pipeline === from[index]!.pipeline && stage.stage === from[index]!.stage) ? reader.stage - last.stage : undefined
+}
+
+function searchesNamesAsText(lister: ReadCommand, later: ReadCommand, found: Layer, sizes: readonly number[]): boolean {
+  if (!searchesText(found)) return false
+  if (stagesApart(lister, later) === 1) return true
+  const from = lister.stages
+  const next = later.stages
+  const last = from[from.length - 1]
+  const block = from[from.length - 2]
+  const reader = next[next.length - 1]
+  if (last === undefined || block === undefined || reader === undefined || from.length !== next.length + 1 || sizes[last.pipeline] !== last.stage + 1) return false
+  return next.slice(0, -1).every((stage, index) => stage.pipeline === from[index]!.pipeline && stage.stage === from[index]!.stage) && block.pipeline === reader.pipeline && block.stage + 1 === reader.stage
 }
 
 function powershellListing(argv: readonly string[]): { roots: string[]; deep: boolean; names: boolean; patterned: string[] } {
@@ -1063,7 +1081,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const sent = filesSentOrPrinted(layer)
       const lists = layer.program === 'find' || layer.program === 'ls' || layer.program === 'get-childitem' || layer.program === 'gci' || layer.program === 'dir'
       const listing = powershell && POWERSHELL_LISTERS.has(layer.program) ? powershellListing(layer.argv) : null
-      const listed = listing !== null && read.commands.some((later, index) => index > at && layersOf(later.argv).some(found => readsHandedFiles(found) && !(listing.names && searchesNamesAsText(simple, later, found)))) ? listing : null
+      const listed = listing !== null && read.commands.some((later, index) => index > at && layersOf(later.argv).some(found => readsHandedFiles(found) && !(listing.names && searchesNamesAsText(simple, later, found, read.pipelineSizes)))) ? listing : null
       const feeds = lists && (fed.has(at) || listed !== null || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')) || (!powershell && layer.program === 'find' && loopedToReader(at, simple)))
       for (const word of [...layer.argv.slice(1), ...roots, ...(listed === null ? [] : listed.roots), ...(layer.program === 'findstr' ? findstrFolderFiles(layer.argv.slice(1)) : []), ...(gitGrepRoots(layer, here) ?? []), ...(layer.program === 'find' && layer.findRoots?.length === 0 ? ['.'] : [])]) {
         for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {

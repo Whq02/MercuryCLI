@@ -772,6 +772,11 @@ if (runs('LISTED')) {
     'foreach ($é in Get-ChildItem -Recurse) { Get-Content $é.FullName }',
     'foreach ($script:f in Get-ChildItem -Recurse) { Get-Content $script:f.FullName }',
     'foreach ([System.Collections.Generic.List[string]]$f in Get-ChildItem -Recurse) { Get-Content $f }',
+    '& { gci -r -Name } | Get-Item | sls canary',
+    '& { gci -r -Name } | sls canary -Path { $_ }',
+    '& { gci -r -Name; gci -r } | sls canary',
+    'if ($true) { gci -r -Name | Get-Item | sls canary }',
+    'if ($true) { gci -r -Name | % { Get-Content $_ } }',
   ]
   for (const line of readers) {
     const answer = await asked(line, OWN_HOME)
@@ -795,6 +800,11 @@ if (runs('LISTED')) {
     'foreach ($f in Get-ChildItem) { Get-Content $f.FullName }',
     'foreach ($f in Get-ChildItem Documents -Recurse) { Get-Content $f.FullName }',
     'foreach ($n in 1..3) { Write-Output $n }',
+    'if ($true) { gci -r -Name | sls foo }',
+    '& { gci -r -Name } | sls foo',
+    'try { Get-ChildItem -Recurse -Name | Select-String foo } catch {}',
+    '1 | % { gci -r -Name } | sls foo',
+    'function f { gci -r -Name | sls foo }; f',
   ]
   for (const line of listings) {
     const answer = await asked(line, OWN_HOME)
