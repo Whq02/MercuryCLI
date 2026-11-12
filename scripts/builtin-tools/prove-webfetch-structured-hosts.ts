@@ -461,8 +461,8 @@ try {
     )
 
     check(
-      'control: WebFetchTool has one public-page contract with the reader disclosure',
-      DESCRIPTION.startsWith('Fetch public HTTP(S) pages without credentials.') &&
+      'control: WebFetchTool has one page contract with the reader disclosure',
+      DESCRIPTION.startsWith('Fetch HTTP(S) pages without credentials.') &&
         getPrompt() === DESCRIPTION && DESCRIPTION.includes('full URL to r.jina.ai'),
     )
   }
