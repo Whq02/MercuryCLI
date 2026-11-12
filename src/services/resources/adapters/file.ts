@@ -2,6 +2,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import { getOriginalCwd } from '../../../bootstrap/state.js'
+import { notAFileKind, notAFileRefusal } from '../../../tools/FileReadTool/notAFile.js'
 import { mercurySecretPath } from '../../../utils/permissions/protectedPaths.js'
 import { mintFileAnchor } from '../../changeTransaction/snapshotAnchor.js'
 import {
@@ -49,6 +50,8 @@ export const fileAdapter: ResourceAdapter = {
         note: `no such file or directory: ${candidates.join(' · ')}`,
       }
     }
+    const notAFile = notAFileKind(info)
+    if (notAFile !== null) return { state: 'unavailable', note: notAFileRefusal(abs, notAFile) }
     const version = `m${Math.floor(info.mtimeMs)}-s${info.size}`
     if (info.isDirectory()) {
       let entries
