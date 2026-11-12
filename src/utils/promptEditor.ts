@@ -136,11 +136,11 @@ function windowsEditorSpawn(
 ): { file: string; args: string[]; windowsVerbatimArguments: boolean } {
   const interpreter = comSpec.trim().replace(/^"+|"+$/g, '') || 'cmd.exe'
   if (/(?:^|[\\/])(?:pwsh|powershell)(?:\.exe)?$/i.test(interpreter)) {
-    const psExe = `'${editorExe.replaceAll("'", "''")}'`
-    const psArgs = args.map(arg => ` "${arg.replaceAll('`', '``').replaceAll('"', '`"')}"`).join('')
+    const psQuote = (s: string): string => `'${s.replaceAll("'", "''")}'`
+    const psArgs = args.map(arg => ` ${psQuote(arg)}`).join('')
     return {
       file: interpreter,
-      args: ['-NoLogo', '-NoProfile', '-Command', `& ${psExe}${psArgs} $env:MERCURY_EDITOR_FILE`],
+      args: ['-NoLogo', '-NoProfile', '-Command', `& ${psQuote(editorExe)}${psArgs} $env:MERCURY_EDITOR_FILE`],
       windowsVerbatimArguments: false,
     }
   }

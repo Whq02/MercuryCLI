@@ -165,7 +165,8 @@ function simulateWindowsInterpreter(
         let val = ''
         while (i < rest.length) {
           if (rest[i] === '`' && i + 1 < rest.length) {
-            val += rest[i + 1]!
+            const nxt = rest[i + 1]!
+            val += nxt === 'n' ? '\n' : nxt === 't' ? '\t' : nxt === 'r' ? '\r' : nxt
             i += 2
           } else if (rest[i] === '"') {
             i++
@@ -175,7 +176,10 @@ function simulateWindowsInterpreter(
             i++
           }
         }
-        val = val.replace(/\$env:([A-Za-z_][A-Za-z0-9_]*)/g, (_w, k: string) => rec.env[k] ?? '')
+        val = val
+          .replace(/\$\(1\+1\)/g, '2')
+          .replace(/\$env:([A-Za-z_][A-Za-z0-9_]*)/g, (_w, k: string) => rec.env[k] ?? '')
+          .replace(/\$([A-Za-z_][A-Za-z0-9_]*)/g, (_w, k: string) => rec.env[k] ?? `/expanded-${k}`)
         tokens.push(val)
       } else {
         let rawTok = ''
@@ -231,6 +235,7 @@ const scratch = mkdtempSync(join(tmpdir(), 'editor-percent-'))
 const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')!
 const savedComSpec = process.env.ComSpec
 const savedCOMSPEC = process.env.COMSPEC
+const savedHome = process.env.HOME
 const instances = (await import(`${root}/src/ink/instances.ts`)).default
 const handback = await import(`${root}/src/utils/terminalHandback.ts`)
 const { getExternalEditor } = await import(`${root}/src/utils/editor.ts`)
@@ -300,9 +305,27 @@ try {
     )
   }
 
+  {
+    const literalArg = "echo $HOME $(1+1) `n it's"
+    process.env.ComSpec = String.raw`C:\Program Files\PowerShell\7\pwsh.exe`
+    process.env.HOME = String.raw`C:\Users\wrong-home`
+    process.env.EDITOR = `"${executable}" --cmd "${literalArg}"`
+    getExternalEditor.cache.clear?.()
+    Object.defineProperty(process, 'platform', { value: 'win32' })
+    const psArgResult = await editFileInEditor(draftPs)
+    Object.defineProperty(process, 'platform', descriptor)
+    const simPsArgs = spawned ? simulateWindowsInterpreter(spawned, { registryDelayedExpansion: true }) : { ok: false, argv: [], detail: 'no spawn' }
+    check(
+      'ComSpec=pwsh.exe single-quotes editor arguments so $HOME, $(1+1), backticks and apostrophes arrive byte for byte',
+      psArgResult.content === 'ps body\n' &&
+        simPsArgs.ok &&
+        JSON.stringify(simPsArgs.argv) === JSON.stringify([executable, '--cmd', literalArg, draftPs]),
+      simPsArgs.detail,
+    )
+  }
+
   delete process.env.ComSpec
   process.env.EDITOR = `"${executable}" --wait`
-  getExternalEditor.cache.clear?.()
   Object.defineProperty(process, 'platform', { value: 'linux' })
   const linuxResult = await editFileInEditor(draftPercent)
   Object.defineProperty(process, 'platform', descriptor)
@@ -317,6 +340,8 @@ try {
   else process.env.ComSpec = savedComSpec
   if (savedCOMSPEC === undefined) delete process.env.COMSPEC
   else process.env.COMSPEC = savedCOMSPEC
+  if (savedHome === undefined) delete process.env.HOME
+  else process.env.HOME = savedHome
   instances.delete(process.stdout)
   rmSync(scratch, { recursive: true, force: true })
 }
