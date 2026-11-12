@@ -126,6 +126,35 @@ section('§2 · ARMED — catalog + teaching surfaces + the danger sentences (th
     'utf8',
   )
   check('docs/BLENDER-BRIDGE.md carries the policy sentence', docText.includes(policySentence))
+  const { validateToolCapability } = await import('../../src/utils/capability/contract.js')
+  const { blenderBridgeVerbNames } = await import('../../src/services/blender/bridgeProtocol.js')
+  const cap = BlenderTool.capability
+  const expectedOps = [
+    ...blenderBridgeVerbNames(),
+    'blender_status',
+    'blender_bridge_install',
+    'blender_bridge_uninstall',
+  ]
+  check(
+    'capability contract is valid and lists every wire and local operation',
+    cap != null &&
+      validateToolCapability(cap).ok &&
+      JSON.stringify(cap.operations) === JSON.stringify(expectedOps),
+    JSON.stringify(cap?.operations ?? null),
+  )
+  check(
+    'capability conditions state both roads (running Blender with add-on OR located Blender for headless -b)',
+    (cap?.conditions ?? []).some(
+      c => c.includes('mercury_blender_bridge') && c.includes('headless -b'),
+    ),
+    JSON.stringify(cap?.conditions ?? []),
+  )
+  check(
+    'capability intents cover both the bridge and headless -b roads without claiming a running Blender is the only road',
+    (cap?.intents ?? []).some(i => i.includes('headless -b')) &&
+      !(cap?.intents ?? []).some(i => i.includes('running blender')),
+    JSON.stringify(cap?.intents ?? []),
+  )
   process.env.MERCURY_BLENDER_BIN = noBlender
 }
 
