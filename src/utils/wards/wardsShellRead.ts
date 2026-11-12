@@ -445,6 +445,38 @@ type Frame = { background: boolean; stages: readonly Stage[]; body: string | und
 const WORD_KINDS = new Set(['word', 'number', 'raw_string', 'string', 'concatenation', 'ansi_c_string', 'translated_string', 'simple_expansion', 'expansion', 'command_substitution', 'process_substitution', 'arithmetic_expansion', 'brace_expression'])
 const WRITE_KEEPERS = new Set(['file_redirect', 'heredoc_redirect', 'herestring_redirect'])
 
+function buriedScripts(text: string, quoted: boolean): string[] {
+  const out: string[] = []
+  const closes = (from: number, quote: string): number => {
+    let end = from
+    while (end < text.length && text[end] !== quote) end += text[end] === '\\' && quote !== "'" ? 2 : 1
+    return end
+  }
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (ch === '\\') i++
+    else if (quoted && ch === "'") i = closes(i + 1, "'")
+    else if (ch === '`') {
+      const end = closes(i + 1, '`')
+      out.push(text.slice(i + 1, end))
+      i = end
+    } else if (ch === '$' && text[i + 1] === '(' && text[i + 2] !== '(') {
+      let depth = 0
+      let end = i + 1
+      for (; end < text.length; end++) {
+        const inside = text[end]
+        if (inside === '\\') end++
+        else if (inside === "'" || inside === '"') end = closes(end + 1, inside)
+        else if (inside === '(') depth++
+        else if (inside === ')' && --depth === 0) break
+      }
+      out.push(text.slice(i + 2, end))
+      i = end
+    }
+  }
+  return out.filter(script => script.trim() !== '')
+}
+
 function cross(left: string[], right: string[]): string[] {
   const out: string[] = []
   for (const a of left) for (const b of right) if (out.length < READING_CAP) out.push(a + b)
@@ -483,6 +515,14 @@ class PosixWalk {
 
   maybe(frame: Frame): Frame {
     return { ...frame, maybes: [...(frame.maybes ?? []), ++this.reading.contexts] }
+  }
+
+  buried(node: Node, frame: Frame, quoted: boolean): number[] {
+    const scripts = buriedScripts(node.text, quoted)
+    if (scripts.length === 0) return []
+    const at = this.reading.push({ argv: [], env: [], redirects: [], text: node.text, line: this.lineOf(node, frame), cwd: this.reading.cwd, background: frame.background, stages: frame.stages, input: undefined, inner: [], inputInner: [], body: frame.body, dialect: frame.dialect, around: frame.around, gates: frame.gates, maybes: frame.maybes, substituted: true })
+    for (const text of scripts) this.reading.pending.push({ text, dialect: 'posix', from: at })
+    return [at]
   }
 
   node(node: Node, frame: Frame): void {
@@ -551,6 +591,9 @@ class PosixWalk {
       case 'variable_assignment':
         this.assignment(node, frame)
         return
+      case 'regex':
+        this.buried(node, frame, true)
+        return
       case 'declaration_command':
         for (const child of node.children) {
           if (child.type !== 'variable_assignment') {
@@ -610,12 +653,14 @@ class PosixWalk {
   variable(node: Node, frame: Frame): Words {
     const name = (node.children.find(child => child.type === 'variable_name') ?? node.children.find(child => child.type === 'special_variable_name'))?.text
     const inner: number[] = []
-    for (const child of node.children) {
-      if (child.type !== 'command_substitution' && child.type !== 'process_substitution') continue
-      const before = this.reading.commands.length
-      this.node(child, frame)
-      for (let i = before; i < this.reading.commands.length; i++) inner.push(i)
+    const within = (part: Node): void => {
+      for (const child of part.children) {
+        if (child.type === 'regex') inner.push(...this.buried(child, frame, true))
+        else if (WORD_KINDS.has(child.type)) inner.push(...this.word(child, frame).inner)
+        else within(child)
+      }
     }
+    within(node)
     const known = name === undefined ? undefined : this.reading.scope.get(name)
     if (known !== undefined && known.length > 0) return { values: [...known].reverse(), inner }
     if (name === 'PWD' && this.reading.cwd !== undefined && (node.type === 'simple_expansion' || node.text === '${PWD}')) return { values: [this.reading.cwd], inner }
@@ -772,10 +817,12 @@ class PosixWalk {
         const content = child.children.find(part => part.type !== '<<<' && part.type !== 'file_descriptor')
         if (content !== undefined) input = this.word(content, frame).values[0]
       } else if (child.type === 'heredoc_redirect') {
+        const expands = !/['"\\]/.test(child.children.find(part => part.type === 'heredoc_start')?.text ?? '')
         for (const part of child.children) {
           if (part.type === 'heredoc_body') {
             input = part.text
             this.children(part, frame)
+            if (expands) for (const leaf of part.children.length === 0 ? [part] : part.children.filter(piece => piece.type === 'heredoc_content')) this.buried(leaf, frame, false)
           } else if (part.type === 'file_redirect') this.redirect(part, frame, redirects, inputInner)
           else if (part.type !== '<<' && part.type !== '<<-' && part.type !== 'heredoc_start' && part.type !== 'heredoc_end' && part.type !== 'file_descriptor') continuations.push(part)
         }

@@ -1513,6 +1513,95 @@ if (runs('CALLS')) {
   bootstrap.setCwdState(PROJECT)
 }
 
+if (runs('BURIED')) {
+  section('BURIED · on the Bash tool a command substitution is read wherever the shell runs one: in an array subscript, in the pattern of a trimming or case operator, anywhere in a default or a replacement, and in the body of a here-document whose word is not quoted; where the shell runs none, none is read')
+  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const { refusalOfShellCommand } = await import('../../src/utils/wards/wardsRefusals.ts')
+  const warded = async (line: string, from = PROJECT): Promise<string | null> => {
+    const verdict = await refusalOfShellCommand({ toolName: 'Bash', input: { command: line }, shellCommand: line, startingFolder: from }, from)
+    return verdict.allow ? null : verdict.rule.name
+  }
+  const places = [
+    'echo ${arr[<S>]}',
+    'echo "${arr[<S>]}"',
+    'echo ${#arr[<S>]}',
+    'echo ${!arr[<S>]}',
+    'echo ${arr[1+<S>]}',
+    'local x=${arr[<S>]}',
+    'echo ${x#<S>}',
+    'echo ${x##<S>}',
+    'echo ${x%<S>}',
+    'echo ${x%%<S>}',
+    'echo ${x^<S>}',
+    'echo ${x^^<S>}',
+    'echo ${x,<S>}',
+    'echo ${x,,<S>}',
+    'echo ${x#a<S>b}',
+    'echo "${x%<S>}"',
+    'x=${y#<S>}',
+    'export x="${y%<S>}"',
+    '[[ -n ${x#<S>} ]]',
+    'echo $((${x#<S>}))',
+    'echo ${x:-"<S>"}',
+    'echo ${x:+"a <S>"}',
+    'echo ${x:-a<S>}',
+    'echo ${x/"<S>"/z}',
+    'echo ${x:-${y:-<S>}}',
+    'echo ${x:=${y#<S>}}',
+    'echo ${x:$((1+<S>))}',
+    'echo ${arr[${y#<S>}]}',
+    'cat <<-EOF\n\t<S>\n\tEOF',
+  ]
+  const ticked = ['echo ${arr[<S>]}', 'echo ${x#<S>}', 'echo "${x#<S>}"', 'cat <<EOF\n<S>\nEOF', 'cat <<-EOF\n\t<S>\n\tEOF', 'cat <<EOF\nplain $(echo a) and <S> text\nEOF']
+  const spelled = [...places.map(place => place.replace('<S>', '$(<C>)')), ...ticked.map(place => place.replace('<S>', '`<C>`'))]
+  for (const place of spelled) {
+    const line = place.replace('<C>', 'rm -rf ~')
+    const answer = await warded(line)
+    check(`BURIED · the delete ward · ${shown(line)} · is refused as a recursive delete of the home`, answer === 'no-root-recursive-delete', String(answer))
+  }
+  for (const place of spelled) {
+    const line = place.replace('<C>', 'grep -r canary .')
+    const answer = await floors.shellMercurySecretPath(line, false, CONFIG_HOME)
+    check(`BURIED · the read floor, standing in the config home · ${shown(line)} · is refused as a read of the credentials`, answer !== null, String(answer))
+  }
+  for (const place of ['echo ${arr[$(<C>)]}', 'echo ${x#$(<C>)}', 'cat <<EOF\n`<C>`\nEOF']) {
+    const line = place.replace('<C>', fill('rm -rf <CONFIG>/runtime'))
+    const answer = await floors.shellSelfProtectionReason(line, false, PROJECT)
+    check(`BURIED · the runtime floor · ${shown(line)} · is refused as a delete of the running runtime`, answer !== null, String(answer))
+    const searched = place.replace('<C>', 'grep -r canary .')
+    check(`BURIED · the read floor, standing in a project · ${shown(searched)} · a search of the project is not refused by the floor`, (await floors.shellMercurySecretPath(searched, false, PROJECT)) === null)
+  }
+  const literal = [
+    "echo '${x#$(rm -rf ~)}'",
+    'echo "\\$(rm -rf ~)"',
+    "x='$(rm -rf ~)'",
+    "echo ${x%'$(rm -rf ~)'}",
+    "echo ${x#a'$(rm -rf ~)'b}",
+    'echo ${x#\\$(rm -rf ~)}',
+    "cat <<'EOF'\n$(rm -rf ~)\nEOF",
+    'cat <<\\EOF\n`rm -rf ~`\nEOF',
+    'cat <<"EOF"\n`rm -rf ~`\nEOF',
+    'cat <<EOF\nprice is \\$(rm -rf ~) and \\`rm -rf ~\\`\nEOF',
+    "cat <<< '$(rm -rf ~)'",
+    'echo ${x#rm -rf ~}',
+    'echo ${x#*/} ${x%.txt} ${x##*/} ${x^^}',
+    'echo ${arr[0]} ${arr[$i]} ${arr[$((i+1))]} ${#arr[@]}',
+    'echo ${x#prefix-$y}',
+    'cat <<EOF\nthe cost is $5 and `date`\nEOF',
+    'echo ${x:-"$(date)"} ${arr[$(wc -l < notes.txt)]}',
+  ]
+  for (const line of literal) {
+    const ward = await warded(line)
+    const read = await floors.shellMercurySecretPath(line, false, CONFIG_HOME)
+    const write = await floors.shellCredentialWritePath(line, false, PROJECT)
+    const runtime = await floors.shellSelfProtectionReason(line, false, PROJECT)
+    check(`BURIED · ${shown(line)} · text the shell does not run, or a harmless command where it runs one: the wards and the three floors do not refuse it`, ward === null && read === null && write === null && runtime === null, `ward ${ward} · read ${read} · write ${write} · runtime ${runtime}`)
+  }
+  bootstrap.setCwdState(CONFIG_HOME)
+  for (const item of [bash('echo ${arr[$(grep -r token .)]}', 'a subscript'), bash('echo ${x#$(grep -r token .)}', 'a pattern'), bash('cat <<EOF\n`grep -r token .`\nEOF', 'a here-document')]) await expect('BURIED · the session standing in the config home', item, ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
+  bootstrap.setCwdState(PROJECT)
+}
+
 if (runs('T-3.5')) {
   const state = daemonStatePath()
   section('T-3.5 floor 4: kills of the daemon and of the session, and writes into the runtime, under Sovereign and Flow')
