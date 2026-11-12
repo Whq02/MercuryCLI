@@ -13,6 +13,7 @@ const sizeList = (argOf('--sizes') ?? '80x21,111x35,120x40').split(',').map(s =>
 const stage = argOf('--stage') === 'chat' ? 'chat' : 'card'
 const poison = process.argv.includes('--poison')
 const HOME_READY = stage === 'chat' ? ADMITTED : FACE_READY
+const HOME_ONLY = stage === 'chat' ? ADMITTED : '⇧→ concourse'
 const extraEnv: Record<string, string | undefined> = {
   MERCURY_DESKTOP_DRIVER: 'none',
   TERM: 'xterm-256color',
@@ -29,7 +30,7 @@ const SHIFT_RIGHT = '\x1b[1;2C'
 const SHIFT_LEFT = '\x1b[1;2D'
 const TO_CONCOURSE = stage === 'chat' ? SHIFT_LEFT : SHIFT_RIGHT
 const FROM_CONCOURSE = stage === 'chat' ? SHIFT_RIGHT : SHIFT_LEFT
-const concourseReadyAt = (cols: number, rows: number): string => cols < 100 || rows < 26 ? 'live view' : 'coordinator'
+const concourseReadyAt = (cols: number, rows: number): string => cols < 100 || rows < 26 ? 'live view' : 'SESSIONS'
 const ERASE_SCREEN = '\x1b[2J'
 const WHOLE_FRAME_HEAD = '\x1b[H\x1b[0m'
 const ERASE_SCROLLBACK = '\x1b[3J'
@@ -166,7 +167,7 @@ for (const journey of journeys) {
       { ...gate, awaitText: FACE_READY, data: TO_CONCOURSE, mark: 'card' },
     ]),
     { ...gate, awaitText: CONCOURSE_READY, awaitStableTicks: 0, awaitSettleTicks: 6, data: FROM_CONCOURSE, mark: 'concourse' },
-    { ...gate, awaitText: HOME_READY, data: '', mark: 'back' },
+    { ...gate, awaitText: HOME_ONLY, data: '', mark: 'back' },
     ...(journey.resize ? [
       { ...gate, awaitText: HOME_READY, awaitStableTicks: 6, data: '', mark: 'small' },
       { ...gate, awaitText: HOME_READY, awaitStableTicks: 6, data: '', mark: 'large' },
@@ -204,8 +205,8 @@ for (const journey of journeys) {
     const rowsAt = (label: string): string[] => (marks.get(label)?.grid ?? []).map(row => row.map(c => c.c).join('').trimEnd())
     for (const label of labels) printFrame(`${tag} ${label} (${marks.get(label)!.cols}x${marks.get(label)!.rows})`, rowsAt(label))
     check(`${tag}: the ${stage} is up at the card mark`, joined(rowsAt('card')).includes(HOME_READY))
-    check(`${tag}: the Concourse is up at the concourse mark`, joined(rowsAt('concourse')).includes(CONCOURSE_READY) && !joined(rowsAt('concourse')).includes(HOME_READY))
-    check(`${tag}: the ${stage} is back at the back mark`, joined(rowsAt('back')).includes(HOME_READY) && !joined(rowsAt('back')).includes(CONCOURSE_READY))
+    check(`${tag}: the Concourse is up at the concourse mark`, joined(rowsAt('concourse')).includes(CONCOURSE_READY) && !joined(rowsAt('concourse')).includes(HOME_ONLY))
+    check(`${tag}: the ${stage} is back at the back mark`, joined(rowsAt('back')).includes(HOME_ONLY) && !joined(rowsAt('back')).includes(CONCOURSE_READY))
     const frames = readTee(tee)
     check(`${tag}: the tee recorded the pty bytes`, frames.length > 0, tee)
     const cardTick = marks.get('card')!.atTick
