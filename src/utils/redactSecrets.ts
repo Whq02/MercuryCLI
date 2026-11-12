@@ -35,9 +35,31 @@ function stringsIn(value: unknown, all: boolean, into: Set<string>): void {
   }
 }
 
+const STORED_WORDS_NOT_SECRET: readonly (readonly string[])[] = [
+  ['claudeAiOauth', 'scopes'],
+  ['claudeAiOauth', 'subscriptionType'],
+  ['claudeAiOauth', 'rateLimitTier'],
+  ['claudeAiOauth', 'profile', 'organization', 'organization_type'],
+  ['claudeAiOauth', 'profile', 'organization', 'rate_limit_tier'],
+  ['claudeAiOauth', 'profile', 'organization', 'billing_type'],
+  ['mcpOAuth', '*', 'scope'],
+  ['mcpOAuth', '*', 'stepUpScope'],
+]
+
+function credentialStringsIn(value: unknown, into: Set<string>, path: readonly string[] = []): void {
+  if (STORED_WORDS_NOT_SECRET.some(known => known.length === path.length && known.every((part, at) => part === '*' || part === path[at]))) return
+  if (typeof value === 'string') {
+    if (value) into.add(value)
+  } else if (Array.isArray(value)) {
+    for (const item of value) credentialStringsIn(item, into, path)
+  } else if (value && typeof value === 'object') {
+    for (const [key, item] of Object.entries(value)) credentialStringsIn(item, into, [...path, key])
+  }
+}
+
 export async function sessionSecretValues(): Promise<string[]> {
   const values = new Set<string>()
-  stringsIn(await getSecureStorage().readAsync(), true, values)
+  credentialStringsIn(await getSecureStorage().readAsync(), values)
   stringsIn(getApiKeyFromConfigOrMacOSKeychain(), true, values)
   for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) stringsIn(process.env[name], true, values)
   const home = getAuthConfigHomeDir()
@@ -53,7 +75,9 @@ export async function sessionSecretValues(): Promise<string[]> {
       throw new Error('The credential store could not be read; nothing was exported.')
     }
     try {
-      stringsIn(JSON.parse(text), file === '.credentials.json', values)
+      const stored: unknown = JSON.parse(text)
+      if (file === '.credentials.json') credentialStringsIn(stored, values)
+      else stringsIn(stored, false, values)
     } catch {
       throw new Error('The credential store could not be read; nothing was exported.')
     }
