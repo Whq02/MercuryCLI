@@ -177,6 +177,33 @@ section('§6 the controls: what does not move')
     reply('msg_i2', [words('Noon.')], 'end_turn'),
   ])
   check('an unanswered call in the middle of a conversation that went on is dropped as before (no sent history moves)', older.loaded.turnInterruptionState.kind === 'none' && j(shapeOf(older.loaded.messages as Message[])) === j(['user:text(run the build)', 'assistant:text(Building.)', 'user:text(never mind, what time is it?)', 'assistant:text(Noon.)']), j(shapeOf(older.loaded.messages as Message[])))
+  const shapeA = await resume([
+    prompt('run the build'),
+    reply('msg_ia', [words('Building.')]),
+    reply('msg_ia', [call('toolu_ia', 'Bash', { command: 'npm run build' })]),
+    prompt('never mind, what time is it?'),
+  ])
+  check(
+    'shape A (the user-prompt guard alone): an unanswered call before a new unanswered prompt is dropped as old damage while the new prompt is re-asked',
+    stateWords(shapeA.loaded) === 'never mind, what time is it?' &&
+      j(shapeOf(shapeA.loaded.messages as Message[])) === j(['user:text(run the build)', 'assistant:text(Building.)', 'user:text(never mind, what time is it?)', 'assistant:text(No response requested.)']) &&
+      !j(shapeOf(shapeA.loaded.messages as Message[])).includes(SENTENCE),
+    j({ state: stateWords(shapeA.loaded), shape: shapeOf(shapeA.loaded.messages as Message[]) }),
+  )
+  const shapeB = await resume([
+    prompt('run both'),
+    reply('msg_ib1', [call('toolu_ib1', 'Read', { file_path: '/repo/a' })]),
+    reply('msg_ib1', [call('toolu_ib2', 'Bash', { command: 'npm run build' })]),
+    result('toolu_ib1', 'ok'),
+    reply('msg_ib2', [words('Done.')], 'end_turn'),
+  ])
+  check(
+    'shape B (the reply-id guard alone): an unanswered sibling call in an earlier assistant reply separated only by a tool result is dropped as old damage',
+    shapeB.loaded.turnInterruptionState.kind === 'none' &&
+      j(shapeOf(shapeB.loaded.messages as Message[])) === j(['user:text(run both)', 'assistant:call(toolu_ib1)', 'user:result(toolu_ib1:ok)', 'assistant:text(Done.)']) &&
+      !j(shapeOf(shapeB.loaded.messages as Message[])).includes(SENTENCE),
+    j({ state: shapeB.loaded.turnInterruptionState.kind, shape: shapeOf(shapeB.loaded.messages as Message[]) }),
+  )
   const once = await resume([prompt('run the build'), reply('msg_j', [call('toolu_j', 'Bash', { command: 'npm run build' })])])
   const bytes = readFileSync(once.file, 'utf8')
   const again = await loadConversationForResume(once.file.split('/').at(-1)!.replace('.jsonl', ''), once.file)
