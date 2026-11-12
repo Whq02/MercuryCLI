@@ -58,6 +58,7 @@
 # gate-watch: src/components/messages/nullRenderingAttachments.ts src/utils/attachments/toolManuals.ts
 # gate-watch: src/extensions/bundled/filmcraft/server/filmcraft.lock.json src/extensions/bundled/shared/install.mjs
 # gate-watch: scripts/tool-economy/fixtures/definition-corpus.json
+# gate-watch: scripts/tool-economy/prove-definition-corpus-parity.ts
 # gate-watch: src/ink/instances.ts
 # gate-watch: src/services/tools/earlyStarts.ts src/hooks/toolPermission/PermissionContext.ts
 # gate-watch: scripts/lib/settingsPopupHarness.ts src/components/design-system/ThemeProvider.tsx src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx
