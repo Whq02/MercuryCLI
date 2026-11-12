@@ -685,7 +685,7 @@ function searchesNamesAsText(lister: ReadCommand, later: ReadCommand, found: Lay
   return next !== undefined && from !== undefined && from.pipeline === next.pipeline && from.stage + 1 === next.stage
 }
 
-function powershellListing(argv: readonly string[]): { roots: string[]; deep: boolean; names: boolean } {
+function powershellListing(argv: readonly string[]): { roots: string[]; deep: boolean; names: boolean; patterned: string[] } {
   const named: string[] = []
   const loose: string[] = []
   let deep = false
@@ -711,15 +711,18 @@ function powershellListing(argv: readonly string[]): { roots: string[]; deep: bo
     const value = colon < 0 ? argv[++i] : word.slice(colon + 1)
     if (value !== undefined && (valued === 'path' || valued === 'literalpath' || valued === 'pspath' || valued === 'lp')) named.push(...listOf(value))
   }
+  const patterned: string[] = []
   const roots = [...named, ...loose].map(root => {
     const segments = root.split(/[\\/]/)
     const at = segments.findIndex(segment => GLOB_PART.test(segment))
     if (at < 0) return root
-    deep = true
-    return segments.slice(0, at).join('/') || (/^[\\/]/.test(root) ? '/' : '.')
+    const fixed = segments.slice(0, at).join('/')
+    patterned.push(root)
+    if (/[$(@]/.test(fixed) || fixed.includes(UNREAD_PART)) patterned.push(segments.slice(at).join('/'))
+    return fixed || (/^[\\/]/.test(root) ? '/' : '.')
   })
   if (roots.length === 0 || unsure || roots.some(root => /[$(@]/.test(root) || root.includes(UNREAD_PART))) roots.push('.')
-  return { roots, deep, names }
+  return { roots, deep, names, patterned }
 }
 
 const FIND_NON_READERS = new Set(['ls', 'stat', 'echo', 'printf', 'file', 'du', 'wc', 'basename', 'dirname', 'realpath', 'readlink', 'test', '[', 'true', 'touch', 'chmod', 'chown', 'rm', 'rmdir', 'unlink', 'mv'])
@@ -731,7 +734,7 @@ function holdsMercuryHome(word: string, cwd: string, homes: readonly string[], h
 
 const GLOB_PART = /[*?[{]/
 
-function globNamesStore(word: string, cwd: string, homes: readonly string[], hidden: boolean): boolean {
+function globNamesStore(word: string, cwd: string, homes: readonly string[], hidden: boolean, dotted = false): boolean {
   if (!GLOB_PART.test(word) || word.includes(UNREAD_PART)) return false
   const expanded = spelling(word)
   const segments = expanded.split(/[\\/]/)
@@ -751,8 +754,8 @@ function globNamesStore(word: string, cwd: string, homes: readonly string[], hid
     for (const home of [...homes, ...(HOLDS_CONVENTIONAL_HOME.test(folder) ? [under + posix.basename(defaultMercuryHome().replace(/\\/g, '/')).toLowerCase()] : [])]) {
       if (!home.startsWith(under)) continue
       const below = home.slice(under.length).split(/[\\/]/)
-      if (patterns.length > below.length) continue
-      if (!patterns.every((pattern, index) => tests[index]!.test(below[index]!) && (dotLed(pattern) || !below[index]!.startsWith('.')))) continue
+      if (patterns.length > below.length && !dotted) continue
+      if (!below.every((segment, index) => index >= patterns.length || (tests[index]!.test(segment) && (dotted || dotLed(patterns[index]!) || !segment.startsWith('.'))))) continue
       if (hidden || !below.slice(patterns.length).some(segment => segment.startsWith('.'))) return true
     }
   }
@@ -1073,7 +1076,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const piped = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
       if (searcher !== undefined && !piped && namesMercuryHome('.', here, homes) && treeReadRoots(searcher, false, here, true).includes('.')) return stayed ? whereItStays(here) : '.'
       const finder = layer.program === 'find' ? layer : layer.findRoots === undefined ? undefined : layers.find(outer => outer.program === 'find')
-      const whole = finder === undefined ? tree || (listed !== null && listed.deep) : findNamesASecret(finder.argv, homes) && (layer === finder ? feeds : !FIND_NON_READERS.has(layer.program))
+      const whole = finder === undefined ? tree || (listed !== null && (listed.deep || listed.patterned.some(word => globNamesStore(word, here, homes, true, true)))) : findNamesASecret(finder.argv, homes) && (layer === finder ? feeds : !FIND_NON_READERS.has(layer.program))
       if (!whole) continue
       const handed = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
       const hidden = layer.program !== 'rg' || ripgrepReachesHidden(layer, simple, read)

@@ -800,6 +800,25 @@ if (runs('LISTED')) {
     const answer = await asked(line, OWN_HOME)
     check(`LISTED · PowerShell, standing in the home · ${shown(line)} · names only, a folder beneath that holds no store, or the files of this folder alone: not refused by the floor`, answer === null, String(answer))
   }
+  const byPattern = [
+    'Get-ChildItem *.txt | Get-Content',
+    'gci *.md | sls TODO',
+    'Get-ChildItem -Path *.txt | Get-Content',
+    'gci $PWD\\*.txt | gc',
+    'Get-ChildItem Doc* | Get-Content',
+    'foreach ($f in Get-ChildItem *.txt) { Get-Content $f.FullName }',
+  ]
+  for (const line of byPattern) {
+    const answer = await asked(line, OWN_HOME)
+    check(`LISTED · PowerShell, standing in the home · ${shown(line)} · the files of this folder chosen by a pattern that cannot match the folder of the store: not refused by the floor`, answer === null, String(answer))
+  }
+  check('LISTED · PowerShell, standing in the folder above the config home · the files of that folder chosen by such a pattern are not refused', (await asked('gci *.txt | gc', RUN_ROOT)) === null)
+  for (const line of ['gci .* | gc', 'gci *\\* | gc', 'gci ?mercury | gc', 'gci .MER* | gc', 'gci $PWD\\* | gc', 'gci *.txt,* | gc', 'gci *\\*.txt | gc', 'Get-ChildItem *.txt -Recurse | Get-Content']) {
+    const answer = await asked(line, OWN_HOME)
+    check(`LISTED · PowerShell, standing in the home · ${shown(line)} · a pattern that can match the folder of the store or reach into it, or a listing told to go down, is refused`, answer !== null, String(answer))
+  }
+  check('LISTED · PowerShell, standing in the folder above the config home · a pattern that matches the config home is refused', (await asked('gci con* | gc', RUN_ROOT)) !== null)
+  check('LISTED · PowerShell, standing in the config home · its own files chosen by a pattern and handed to a reader are refused', (await asked('gci *.json | gc', CONFIG_HOME)) !== null)
   check('LISTED · PowerShell, standing in a project · a listing piped to a search is not refused by the floor', (await asked('Get-ChildItem -Recurse | Select-String canary', PROJECT)) === null)
   check('LISTED · PowerShell, standing in the config home · its own files listed and handed to a reader are refused', (await asked('Get-ChildItem | Select-String canary', CONFIG_HOME)) !== null)
   check('LISTED · PowerShell, standing in the config home · the same listing counted is not refused', (await asked('Get-ChildItem | Measure-Object', CONFIG_HOME)) === null)
