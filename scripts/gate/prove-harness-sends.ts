@@ -64,7 +64,7 @@ console.log('\n§1 the words the helper waits for')
     ['a setup card', '↑↓ choose · ↵ pick · esc keeps your model', false],
   ] as const) check(`${label}: ${expected ? 'fires' : 'does not fire'}`, fires(line) === expected, line)
   const kitText = readFileSync(join(ROOT, 'scripts', 'computer', 'computerDriveKit.ts'), 'utf8')
-  const kitFaceReady = /export const FACE_READY = '([^']+)'/.exec(kitText)?.[1] ?? ''
+  const kitFaceReady = kitText.match(/export const FACE_READY = '([^']+)'/)?.[1] ?? ''
   check(
     'computerDriveKit FACE_READY matches the Boot card (both full and compact) and never matches the pre-card splash, the Concourse, or consent/contract/setup cards',
     kitFaceReady !== '' &&
