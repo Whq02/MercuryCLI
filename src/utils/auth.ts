@@ -769,8 +769,10 @@ export async function checkAndRefreshOAuthTokenIfNeeded(
 
 const MAX_LOCK_RETRIES = 5
 
-export function oauthRefreshLockSite(): { dir: string; options: { realpath: false } } {
-  return { dir: getAuthConfigHomeDir(), options: { realpath: false } }
+const OAUTH_REFRESH_LOCK_STALE_MS = 10_000
+
+export function oauthRefreshLockSite(): { dir: string; options: { realpath: false; stale: number } } {
+  return { dir: getAuthConfigHomeDir(), options: { realpath: false, stale: OAUTH_REFRESH_LOCK_STALE_MS } }
 }
 
 async function doRefresh(retryCount: number, force: boolean): Promise<boolean> {

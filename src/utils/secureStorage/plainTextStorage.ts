@@ -1,13 +1,19 @@
-import { chmodSync, copyFileSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs'
+import { chmodSync, closeSync, copyFileSync, fsyncSync, mkdirSync, openSync, readFileSync, unlinkSync, writeSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { DurablePublishError, durableAtomicPublishSync } from '../../substrate/durablePublish.js'
+import {
+  DurablePublishError,
+  durableAtomicPublishSync,
+  durableTempName,
+  fsyncEnabled,
+  renameWithWin32RetrySync,
+} from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../debug.js'
 import { getAuthConfigHomeDir } from '../envUtils.js'
 import { getErrnoCode } from '../errors.js'
 import { safeParseJSON } from '../json.js'
-import type { SecureStorage, SecureStorageData } from './types.js'
+import type { PreparedWrite, SecureStorage, SecureStorageData } from './types.js'
 
 
 const CREDENTIALS_FILENAME = '.credentials.json'
@@ -142,6 +148,59 @@ export const plainTextStorage: SecureStorage = {
       return true
     } catch (error) {
       return (error as { code?: string }).code === 'ENOENT'
+    }
+  },
+
+  prepare(data: SecureStorageData): PreparedWrite {
+    const path = credentialsPath()
+    const temporary = durableTempName(path)
+    const discard = (): void => {
+      try {
+        unlinkSync(temporary)
+      } catch {
+      }
+    }
+    const refused = (error: unknown): { code?: string } => {
+      const code = getErrnoCode(error)
+      return code ? { code } : {}
+    }
+    let descriptor: number | null = null
+    try {
+      if (process.platform === 'win32') {
+        try {
+          chmodSync(path, 0o600)
+        } catch {
+        }
+      }
+      descriptor = openSync(temporary, 'wx', 0o600)
+      const bytes = Buffer.from(JSON.stringify(data), 'utf8')
+      let written = 0
+      while (written < bytes.length) written += writeSync(descriptor, bytes, written, bytes.length - written)
+      if (fsyncEnabled()) fsyncSync(descriptor)
+      closeSync(descriptor)
+      descriptor = null
+    } catch (error) {
+      if (descriptor !== null) {
+        try {
+          closeSync(descriptor)
+        } catch {
+        }
+      }
+      discard()
+      return { ok: false, ...refused(error) }
+    }
+    return {
+      ok: true,
+      commit(): { success: boolean; code?: string } {
+        try {
+          renameWithWin32RetrySync(temporary, path)
+          return { success: true }
+        } catch (error) {
+          discard()
+          return { success: false, ...refused(error) }
+        }
+      },
+      discard,
     }
   },
 }

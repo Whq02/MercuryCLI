@@ -1,3 +1,5 @@
+import { statSync } from 'node:fs'
+
 import { logForDebugging } from '../debug.js'
 import { getMercuryHome, withAuthScope } from '../envUtils.js'
 import { lockSync } from '../lockfile.js'
@@ -7,21 +9,44 @@ import type { SecureStorage, SecureStorageData } from './types.js'
 
 type Stored = Record<string, unknown>
 
+type Clocks = { wall: number; mono: number }
+
 export interface SealedStoreStart {
   file: SecureStorage
   custody: KeyCustody
   otherBuildAlive: () => Promise<string | null>
   seals?: boolean
+  clocks?: () => Clocks
 }
 
 const QUIET_OUTCOMES: ReadonlySet<string> = new Set(['sealed', 'sealed already', 'no store to seal', 'nothing in the store to seal'])
 
-function lockAt(site: { dir: string; options: { realpath: false } }): { release: () => void } | { why: string } {
+function clocksNow(): Clocks {
+  return { wall: Date.now(), mono: performance.now() }
+}
+
+function lockAt(site: { dir: string; options: { realpath: false; stale: number } }): { release: () => void } | { why: string } {
+  let release: () => void
   try {
-    return { release: lockSync(site.dir, site.options) }
+    release = lockSync(site.dir, { ...site.options, onCompromised: () => {} })
   } catch (error) {
     const code = (error as { code?: string }).code
     return { why: code === 'ELOCKED' ? 'the refresh lock on the home is held' : `the refresh lock on the home could not be taken (${code ?? 'unknown'})` }
+  }
+  const folder = `${site.dir}.lock`
+  const stamp = (): number | null => {
+    try {
+      return statSync(folder).mtimeMs
+    } catch {
+      return null
+    }
+  }
+  const taken = stamp()
+  return {
+    release: () => {
+      if (taken !== null && stamp() !== taken) return
+      release()
+    },
   }
 }
 
@@ -54,18 +79,35 @@ async function sealAtStart(start: SealedStoreStart, home: string, stored: Stored
     done = 'sealed'
   }
   const { oauthRefreshLockSite } = await import('../auth.js')
+  const clocks = start.clocks ?? clocksNow
   return withAuthScope(home, () => {
-    const lock = lockAt(oauthRefreshLockSite())
-    if ('why' in lock) return `left as it is until the next start: ${lock.why}`
+    const prepared = start.file.prepare?.(next as SecureStorageData)
+    if (prepared === undefined) return 'left as it is: this store cannot write in two steps'
+    if (!prepared.ok) return `left as it is: the temporary file could not be written${prepared.code === undefined ? '' : ` (${prepared.code})`}`
     try {
-      if (JSON.stringify(start.file.read()) !== JSON.stringify(stored)) return `left as it is until the next start: the file changed while ${seals ? 'the key was made' : 'it was opened'}`
-      const result = start.file.update(next as SecureStorageData)
-      return result.success ? done : `left as it is: the write was refused${result.code === undefined ? '' : ` (${result.code})`}`
-    } finally {
+      const site = oauthRefreshLockSite()
+      const asked = clocks()
+      const lock = lockAt(site)
+      if ('why' in lock) return `left as it is until the next start: ${lock.why}`
       try {
-        lock.release()
-      } catch {
+        if (JSON.stringify(start.file.read()) !== JSON.stringify(stored)) {
+          return `left as it is until the next start: the file changed while ${seals ? 'the key was made' : 'it was opened'}`
+        }
+        const now = clocks()
+        const held = Math.max(now.wall - asked.wall, now.mono - asked.mono)
+        if (held > site.options.stale / 2) {
+          return `left as it is until the next start: the refresh lock had been held for ${Math.round(held)} ms before the write, past half its lease of ${site.options.stale} ms`
+        }
+        const result = prepared.commit()
+        return result.success ? done : `left as it is: the write was refused${result.code === undefined ? '' : ` (${result.code})`}`
+      } finally {
+        try {
+          lock.release()
+        } catch {
+        }
       }
+    } finally {
+      prepared.discard()
     }
   })
 }

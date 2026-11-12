@@ -125,6 +125,7 @@ function start1011(account: string, reader: () => Promise<string | null>): Start
   return { store, protector, ...begun }
 }
 const nobody = async (): Promise<string | null> => null
+const sealedBy = (account: string): Store => sealedFile.createSealedFileStorage(plainTextStorage, sealedRecord.createKeyCustody(fakeProtector(account))) as Store
 
 let homes = 0
 function freshHome(): { home: string; file: string } {
@@ -346,7 +347,7 @@ section('§3 the write happens under the refresh lock, and only if the file stil
 section('§4 what the step leaves alone')
 {
   const { file } = freshHome()
-  start1011('alice', nobody).store.update(FULL)
+  sealedBy('alice').update(FULL)
   plain.update({ ...(plain.read() ?? {}), claudeAiOauth: NEWER })
   const sealedBefore = onDisk(file).mercurySealed
   const back = start1011('alice', async () => 'another Mercury build is running (process 1, /older)')
@@ -369,7 +370,7 @@ section('§4 what the step leaves alone')
   check('where the protector gives no key the plain file stays as it is', mute === 'left as it is: the protector did not answer' && raw(plainFile) === plainBefore, mute)
 
   const { file: withMarkers } = freshHome()
-  start1011('alice', nobody).store.update(FULL)
+  sealedBy('alice').update(FULL)
   writeFileSync(withMarkers, JSON.stringify({ ...onDisk(withMarkers), mercurySealedRemoved: [['claudeAiOauth'], ['mcpOAuth', 'x|1']] }))
   const applying = start1011('alice', nobody)
   const applied = await applying.settled
