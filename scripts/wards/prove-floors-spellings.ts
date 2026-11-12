@@ -1023,6 +1023,11 @@ if (runs('NOROOT')) {
     bash('cd <CONFIG> && find -type f -exec cat {} +', 'a find given no root, as GNU find takes the folder it stands in'),
     bash('cd <CONFIG> && find -type f | xargs cat', 'the same find piped to a reader'),
     bash('cd <CONFIG>; cd nope; find -type f -exec cat {} +', 'after a cd that leaves the shell in the store'),
+    bash('cd <CONFIG> && ls | xargs cat', 'a listing given no folder, handed to a reader'),
+    bash('cd <CONFIG> && ls -A | xargs cat'),
+    bash('cd <CONFIG>; ls -1 | xargs -I{} cat {}'),
+    bash('cd <CONFIG> && ls | xargs head -n 1'),
+    bash('cd <CONFIG> && dir | xargs cat'),
   ]
   for (const item of reads) await expect('NOROOT', item, ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
   const dotted = await reading(bash('cd <CONFIG> && rg token .'), 'sovereign')
@@ -1031,8 +1036,12 @@ if (runs('NOROOT')) {
   const dottedFind = await reading(bash('cd <CONFIG> && find . -type f -exec cat {} +'), 'sovereign')
   const bareFind = await reading(bash('cd <CONFIG> && find -type f -exec cat {} +'), 'sovereign')
   check('NOROOT · the find with no root is answered what the same find with a dot is answered', bareFind.decision.behavior === 'deny' && bareFind.decision.message === dottedFind.decision.message, `${said(bareFind.decision)} ‖ ${said(dottedFind.decision)}`)
+  const dottedList = await reading(bash('cd <CONFIG> && ls . | xargs cat'), 'sovereign')
+  const bareList = await reading(bash('cd <CONFIG> && ls | xargs cat'), 'sovereign')
+  check('NOROOT · the listing with no folder is answered what the same listing with a dot is answered', bareList.decision.behavior === 'deny' && bareList.decision.message === dottedList.decision.message, `${said(bareList.decision)} ‖ ${said(dottedList.decision)}`)
   bootstrap.setCwdState(CONFIG_HOME)
-  for (const item of [bash('rg token', "the session's own folder"), bash('git grep token'), bash('find -type f -exec cat {} +', 'a find given no root')]) await expect('NOROOT · the session standing in the config home', item, ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
+  for (const item of [bash('rg token', "the session's own folder"), bash('git grep token'), bash('find -type f -exec cat {} +', 'a find given no root'), bash('ls | xargs cat', 'a listing given no folder, handed to a reader'), bash('ls -a | xargs cat')]) await expect('NOROOT · the session standing in the config home', item, ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
+  for (const item of [bash('ls', 'a listing that is only looked at'), bash('ls -la'), bash('ls | wc -l'), bash('ls | grep json'), bash('ls | sort'), bash('ls | head')]) await expect('NOROOT · the session standing in the config home', item, ['sovereign'], notRefused, 'is not refused by the floor')
   for (const item of [bash('rg token notes.md', 'a file of the folder, named'), bash('rg token runtime', 'a folder beneath it, named'), bash('git status'), bash('git log --grep token', 'git handed no search of the folder'), bash('find -type f', 'a find given no root that only lists')]) await expect('NOROOT · the session standing in the config home', item, ['sovereign'], notRefused, 'is not refused by the floor')
   bootstrap.setCwdState(OWN_HOME)
   for (const item of [bash('rg token', 'ripgrep skips the dot-led folder the store is'), bash('git grep token')]) await expect('NOROOT · the session standing in the home', item, ['sovereign'], notRefused, 'is not refused by the floor')
@@ -1040,7 +1049,7 @@ if (runs('NOROOT')) {
   const homeDot = await reading(bash('grep -rn token .'), 'sovereign')
   check('NOROOT · standing in the home, a recursive grep given no folder is answered what it is answered with a dot, no stricter', homeBare.decision.behavior === homeDot.decision.behavior, `${said(homeBare.decision)} ‖ ${said(homeDot.decision)}`)
   bootstrap.setCwdState(PROJECT)
-  for (const item of [bash('rg token'), bash('git grep token'), bash('grep -rn token'), bash('find -type f -exec cat {} +', 'a find given no root')]) await expect('NOROOT · in the project', item, ['sovereign'], notRefused, 'is not refused by the floor')
+  for (const item of [bash('rg token'), bash('git grep token'), bash('grep -rn token'), bash('find -type f -exec cat {} +', 'a find given no root'), bash('ls | xargs cat', 'a listing given no folder, handed to a reader'), bash('ls'), bash('ls -la'), bash('ls | wc -l'), bash('ls | grep json'), bash('ls | sort'), bash('ls | head')]) await expect('NOROOT · in the project', item, ['sovereign'], notRefused, 'is not refused by the floor')
 }
 
 if (runs('BLOCKS')) {
