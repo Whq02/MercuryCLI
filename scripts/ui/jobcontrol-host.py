@@ -24,6 +24,7 @@ bundle_title = cfg.get("bundleTitle", "mercury")
 steps = cfg["steps"]
 tee_path = cfg.get("tee")
 budget_s = float(cfg.get("budgetSeconds", 120))
+teardown_s = max(0.1, float(cfg.get("teardownSeconds", 5.0)))
 
 t0 = time.monotonic()
 
@@ -168,9 +169,12 @@ def wait_for(needles, timeout):
     return None
 
 
-def ps_table():
-    out = subprocess.run(["ps", "-A", "-ww", "-o", "pid=,ppid=,pgid=,tpgid=,stat=,command="],
-                         capture_output=True, text=True).stdout
+def ps_table(timeout=None):
+    try:
+        out = subprocess.run(["ps", "-A", "-ww", "-o", "pid=,ppid=,pgid=,tpgid=,stat=,command="],
+                             capture_output=True, text=True, timeout=timeout).stdout
+    except subprocess.TimeoutExpired:
+        return []
     rows_ = []
     for line in out.splitlines():
         parts = line.split(None, 5)
@@ -348,6 +352,8 @@ try:
             break
 finally:
     signal.alarm(0)
+    signal.signal(signal.SIGALRM, lambda _s, _f: os._exit(142))
+    signal.alarm(max(2, int(teardown_s) + 3))
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
     final_text = text()
     shell_lines = [l.strip() for l in final_text.split("\n")
@@ -370,23 +376,40 @@ finally:
         json.dump(report, f)
     if tee:
         tee.close()
-    table = ps_table()
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
+    try:
+        os.close(fd)
+    except OSError:
+        pass
+    table = ps_table(timeout=teardown_s)
+    targets = list(descendants(table, shell_pid))
     me = find_bundle(table)
     if me is not None:
         for r in descendants(table, me["pid"]):
+            if all(x["pid"] != r["pid"] for x in targets):
+                targets.append(r)
+    for r in targets:
+        for sig in (signal.SIGKILL, signal.SIGCONT):
             try:
-                os.kill(r["pid"], signal.SIGKILL)
-            except ProcessLookupError:
+                os.kill(r["pid"], sig)
+            except (ProcessLookupError, PermissionError):
                 pass
-    try:
-        os.kill(shell_pid, signal.SIGKILL)
-    except ProcessLookupError:
-        pass
-    try:
-        os.waitpid(shell_pid, 0)
-    except ChildProcessError:
-        pass
+    for sig in (signal.SIGKILL, signal.SIGCONT):
+        try:
+            os.kill(shell_pid, sig)
+        except (ProcessLookupError, PermissionError):
+            pass
+    reap_deadline = time.monotonic() + teardown_s
+    while time.monotonic() < reap_deadline:
+        try:
+            done_pid, _ = os.waitpid(shell_pid, os.WNOHANG)
+            if done_pid == shell_pid:
+                break
+        except ChildProcessError:
+            break
+        time.sleep(0.02)
     try:
         os.remove(inputrc_path)
     except OSError:
         pass
+    signal.alarm(0)
