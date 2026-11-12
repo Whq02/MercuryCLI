@@ -516,11 +516,14 @@ function composeBox(node: FrameNode, walk: Walk, placement: Placement, x: number
     const clipRight = clipsAcross ? x + layoutNode.getComputedWidth() - layoutNode.getComputedBorder(LayoutEdge.Right) : undefined
     buffer.clip({ x1: clipLeft, x2: clipRight, y1: clipTop, y2: clipBottom })
   }
+  const memo = node as unknown as FillMemo
+  const prevOwnBg = memo.__prevOwnBg
   if (down === 'scroll') {
-    composeScrollBox(node, walk, placement, x, y, width, height, layoutNode, clipTop, clipBottom, hasRemovedChild, boxBackgroundColor, ownWithin(placement.own, clipsAcross, clipsDown, x, y, width, height), rowSampler)
+    memo.__prevOwnBg = ownGround
+    const scrollPlacement = prevOwnBg !== ownGround ? { ...placement, prevScreen: undefined } : placement
+    composeScrollBox(node, walk, scrollPlacement, x, y, width, height, layoutNode, clipTop, clipBottom, hasRemovedChild, boxBackgroundColor, ownWithin(placement.own, clipsAcross, clipsDown, x, y, width, height), rowSampler)
   } else {
-    const memo = node as unknown as FillMemo
-    const fillRemoved = (memo.__prevOwnBg !== undefined && ownGround === undefined) || (memo.__prevOpaque === true && node.style.opaque !== true) || (memo.__prevOwnRowBg === true && ownRowBg === undefined)
+    const fillRemoved = (prevOwnBg !== undefined && ownGround === undefined) || (memo.__prevOpaque === true && node.style.opaque !== true) || (memo.__prevOwnRowBg === true && ownRowBg === undefined)
     memo.__prevOwnBg = ownGround
     memo.__prevOpaque = node.style.opaque === true
     memo.__prevOwnRowBg = ownRowBg !== undefined
@@ -714,7 +717,7 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
       const viewTop = Math.floor(y1)
       const viewBottom = Math.floor(y2)
       for (let row = viewTop; row < viewBottom; row++) buffer.write(Math.floor(x), row, groundRows(Math.floor(width), 1, rowSampler(row)))
-    } else if (boxBackgroundColor && y1 !== undefined && y2 !== undefined && (scrolled || !contentWas) && Math.floor(width) >= 1 && Math.floor(y2 - y1) >= 1) {
+    } else if (boxBackgroundColor && y1 !== undefined && y2 !== undefined && (scrolled || !contentWas || node.style.backgroundColor !== undefined) && Math.floor(width) >= 1 && Math.floor(y2 - y1) >= 1) {
       buffer.write(Math.floor(x), Math.floor(y1), groundRows(Math.floor(width), Math.floor(y2 - y1), boxBackgroundColor))
     }
     const boxMoved = boxCached !== undefined && (boxCached.x !== x || boxCached.y !== y || boxCached.width !== width || boxCached.height !== height)
