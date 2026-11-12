@@ -851,8 +851,13 @@ type PsToken = { value: string; text: string; inner: number[]; bare: boolean }
 const PS_STATEMENT_HEAD = new RegExp(`(?:^|${UNREAD_PART})(?:foreach|for|if|elseif|while|switch|until)$`, 'i')
 const PS_LOOP_VARIABLE = new RegExp(`^(?:\\[.*\\])?\\$(?:${UNREAD_PART}|[\\p{L}\\p{N}_?^$])`, 'u')
 
+const PS_MOVES = new Set(['cd', 'chdir', 'sl', 'set-location', 'pushd', 'push-location'])
+
 class PowerShellWalk {
   at = 0
+  gates: ReadonlyArray<readonly [number, number]> = []
+  maybes: readonly number[] = []
+  previous: readonly [number, number] | undefined
 
   constructor(
     readonly reading: Reading,
@@ -869,6 +874,9 @@ class PowerShellWalk {
   statements(closer: string | undefined, stages: readonly Stage[]): number[] {
     const made: number[] = []
     const text = this.source
+    const outer = { gates: this.gates, maybes: this.maybes, previous: this.previous }
+    let held = outer.gates
+    let last: readonly [number, number] | undefined
     while (this.at < text.length) {
       this.blank(true)
       const ch = text[this.at]
@@ -878,13 +886,46 @@ class PowerShellWalk {
         this.at++
         continue
       }
-      made.push(...this.pipeline(closer, stages))
+      const from = this.reading.commands.length
+      this.previous = last
+      const own = this.pipeline(closer, stages)
+      made.push(...own)
+      const moved = own.length === 1 && this.reading.commands.length === from + 1 ? this.plainMove(from) : undefined
+      last = moved === undefined ? undefined : [from, from + 1]
       const next = text[this.at]
+      if (next === '&' && text[this.at + 1] === '&') {
+        this.at += 2
+        if (last === undefined) this.maybes = [...this.maybes, ++this.reading.contexts]
+        else this.gates = [...this.gates, last]
+        continue
+      }
+      if (moved === 'stops' && last !== undefined) held = [...held, last]
+      this.gates = held
+      this.maybes = outer.maybes
       if (next === ';' || next === '\n') this.at++
-      else if ((next === '&' && text[this.at + 1] === '&') || (next === '|' && text[this.at + 1] === '|')) this.at += 2
+      else if (next === '|' && text[this.at + 1] === '|') this.at += 2
       else if (next === '&') this.at++
     }
+    this.gates = outer.gates
+    this.maybes = outer.maybes
+    this.previous = outer.previous
     return made
+  }
+
+  plainMove(at: number): 'joined' | 'stops' | undefined {
+    const command = this.reading.commands[at]
+    const argv = command === undefined || command.background ? [] : command.argv
+    const target = argv[1]
+    if (target === undefined || !PS_MOVES.has(programOf(argv[0]!)) || target.startsWith('-') || !wordKnown(target)) return undefined
+    if (argv.length === 2) return 'joined'
+    const stops = argv.length === 4 ? /^-(?:erroraction|ea)$/i.test(argv[2]!) && /^stop$/i.test(argv[3]!) : argv.length === 3 && /^-(?:erroraction|ea):stop$/i.test(argv[2]!)
+    return stops && !/\btrap\b/i.test(this.source) ? 'stops' : undefined
+  }
+
+  asksSuccess(tokens: readonly PsToken[]): boolean {
+    const head = tokens[1]
+    const asked = tokens.length === 2 && head !== undefined && head.value === UNREAD_PART && head.inner.length === 1 ? this.reading.commands[head.inner[0]!] : undefined
+    return asked !== undefined && tokens[0]!.bare && tokens[0]!.value.toLowerCase() === 'if' && asked.argv.length === 1 && asked.argv[0] === '$?'
   }
 
   blank(lines: boolean): void {
@@ -927,7 +968,10 @@ class PowerShellWalk {
           if (target !== undefined) redirects.push({ op: redirect[0].replace(/^[0-9*]/, ''), target: target.value })
           continue
         }
+        const kept = this.gates
+        if (this.previous !== undefined && this.asksSuccess(tokens)) this.gates = [...kept, this.previous]
         const token = this.token(stages)
+        this.gates = kept
         if (token === undefined) break
         tokens.push(token)
       }
@@ -963,6 +1007,8 @@ class PowerShellWalk {
             body: this.frame.body,
             dialect: 'powershell',
             around: this.frame.around,
+            gates: this.gates.length > 0 ? this.gates : undefined,
+            maybes: this.maybes.length > 0 ? this.maybes : undefined,
           }),
         )
       if (text[this.at] === '|' && text[this.at + 1] !== '|') {

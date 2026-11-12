@@ -687,9 +687,15 @@ if (runs('STAYED')) {
   const plainSearch = await reading(bash('grep -r foo .'), 'sovereign')
   check('STAYED · a search of the home itself keeps its own sentence', /^Reading the whole of this folder \(name a folder beneath it\) is refused/.test(plainSearch.decision.message ?? ''), said(plainSearch.decision))
   const { shellMercurySecretPath } = await import('../../src/utils/permissions/shellProtectedPaths.ts')
-  for (const line of ['cd nope; grep -r foo .', 'cd nope && grep -r foo .', 'cd nope; if ($?) { grep -r foo . }']) {
-    const onPowerShell = await shellMercurySecretPath(line, true, OWN_HOME)
-    check(`STAYED · on the PowerShell tool, where no way of joining the two runs, the refusal keeps its own words and names no way through: ${line}`, onPowerShell !== null && !onPowerShell.includes('where this line stays') && !onPowerShell.includes('&&'), String(onPowerShell))
+  const onPowerShell = await shellMercurySecretPath('cd nope; grep -r foo .', true, OWN_HOME)
+  check('STAYED · on the PowerShell tool the line as written keeps the refusal\'s own words and names no way through: cd nope; grep -r foo .', onPowerShell !== null && !onPowerShell.includes('where this line stays') && !onPowerShell.includes('&&'), String(onPowerShell))
+  for (const line of ['cd nope && grep -r foo .', 'cd nope; if ($?) { grep -r foo . }', 'cd nope -ErrorAction Stop; grep -r foo .', 'try { cd nope -ErrorAction Stop; grep -r foo . } catch { }', 'mkdir fresh; cd fresh && grep -r x .']) {
+    const joined = await shellMercurySecretPath(line, true, OWN_HOME)
+    check(`STAYED · on the PowerShell tool a read that runs only where the cd was made is not refused by the floor: ${line}`, joined === null, String(joined))
+  }
+  for (const line of ['(cd nope) && grep -r foo .', '& { cd nope } && grep -r foo .', 'cd nope | Out-Null && grep -r foo .', 'cd -ea 0 .mercury && grep -r foo .', 'cd nope; echo hi; if ($?) { grep -r foo . }', 'cd nope; if ($?) { echo ok } else { grep -r foo . }', 'try { cd nope -ErrorAction Stop } catch { grep -r foo . }', 'cd nope -ErrorAction SilentlyContinue; grep -r foo .', 'cd nope -ErrorAction Stop -Bogus; grep -r foo .', 'cd $x -ErrorAction Stop; grep -r foo .', 'trap { continue }; cd nope -ErrorAction Stop; grep -r foo .', 'cd nope || grep -r foo .', '$false && cd Documents; grep -r foo .', 'cd .mercury && grep -r secret .']) {
+    const loose = await shellMercurySecretPath(line, true, OWN_HOME)
+    check(`STAYED · on the PowerShell tool a read that can run where the cd failed, or that reads the store the cd reached, is refused: ${line}`, loose !== null, String(loose))
   }
   const onBash = await shellMercurySecretPath('cd nope; grep -r foo .', false, OWN_HOME)
   check('STAYED · …and the Bash tool is the one that gets the sentence naming &&', onBash !== null && onBash.includes('where this line stays') && onBash.includes('join them with &&'), String(onBash))
