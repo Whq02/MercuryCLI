@@ -838,7 +838,6 @@ if (runs('LISTED')) {
     "gci -r | & ('Get-' + 'Content')",
     'gci -r | % { $_.FullName | & $reader }',
     'foreach ($f in gci -r) { $f | . $reader }',
-    'gci -r | ? { $_.Length -gt 0 } | & $reader',
     'gci -r | & { $input | & $reader }',
   ]
   for (const line of readers) {
@@ -2225,6 +2224,79 @@ if (runs('UNREAD')) {
     const decision = told?.[at]?.decision
     check(`UNREAD · the whole decision · the ${['read floor refuses in its own sentence with the one clause added', 'credential-store floor refuses in its own sentence, which its caller words from the path alone', 'runtime floor refuses in its own sentence with the one clause added'][at]}`, decision !== undefined && decision.behavior === 'deny' && pattern.test(decision.message ?? ''), decision === undefined ? 'no seam in this tree' : said(decision))
     if (decision !== undefined) note(`the ${['read', 'credential-store', 'runtime'][at]} floor says: ${(decision.message ?? '').replaceAll(CONFIG_HOME, '<config>').replaceAll(OWN_HOME, '<home>')}`)
+  }
+}
+
+if (runs('EVERYDAY')) {
+  section('EVERYDAY · ordinary lines of a second reading that the released build ran: a copy out of a guarded folder with a list of sources, a call through a variable that is handed nothing of a listing, a count taken in a substitution, and a find told how deep to go')
+  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const read = (line: string, powershell: boolean, from: string): Promise<string | null> => floors.shellMercurySecretPath(line, powershell, from)
+  const written = (line: string, from = PROJECT): Promise<string | null> => floors.shellCredentialWritePath(line, true, from)
+  for (const from of [PROJECT, OWN_HOME]) {
+    for (const line of ['Copy-Item .\\notes.txt,~\\.ssh\\config .\\backup', 'Copy-Item .\\notes.txt, ~\\.ssh\\config .\\backup', 'Copy-Item ~\\.ssh\\config,.\\notes.txt -Destination .\\backup', 'cpi ~\\.ssh\\config,~\\.ssh\\known_hosts .\\backup -Force']) {
+      const answer = await written(line, from)
+      check(`EVERYDAY · PowerShell, standing in ${from === PROJECT ? 'a project' : 'the home'} · ${shown(line)} · a copy out of a guarded folder: the members of a list of sources are no destination, and the floor does not refuse it`, answer === null, String(answer))
+    }
+    for (const line of ['Copy-Item .\\a,.\\b ~\\.ssh\\', 'Copy-Item .\\a,.\\b -Destination ~\\.ssh\\authorized_keys', 'Copy-Item .\\a, .\\b ~\\.ssh\\authorized_keys -Force', 'Copy-Item -Path .\\a,.\\b ~\\.ssh\\']) {
+      const answer = await written(line, from)
+      check(`EVERYDAY · PowerShell, standing in ${from === PROJECT ? 'a project' : 'the home'} · ${shown(line)} · a list of sources copied into a guarded folder is refused`, answer !== null, String(answer))
+    }
+  }
+  const handedNothing = [
+    'Get-ChildItem -Recurse; & $formatter (Get-Date)',
+    'gci -r | Measure-Object | & $formatter',
+    'Get-ChildItem -Recurse; & $script $arg',
+    'gci -r | Measure-Object; & $tool $x',
+    'gci -r | sort Length | select -First 5 | & $show',
+    'gci -r | ? { $_.Length -gt 0 } | & $reader',
+  ]
+  for (const line of handedNothing) {
+    const answer = await read(line, true, OWN_HOME)
+    check(`EVERYDAY · PowerShell, standing in the home · ${shown(line)} · a call through a variable that stands in a statement of its own, or behind another stage, is handed nothing of the listing by the line: not refused by the floor`, answer === null, String(answer))
+  }
+  const handedListing = [
+    'gci -r -Name | & $show',
+    'gci -r | & $reader',
+    'gci -r | % { & $tool $_.FullName }',
+    'gci -r | % { $p = $_.FullName; & $reader $p }',
+    'foreach ($f in gci -r) { & $reader $f.FullName }',
+    'foreach ($f in gci -r) { & $reader ([string]$f.FullName) }',
+    '& $reader (gci -r)',
+    '& { Get-Content $args[0] } (Get-ChildItem -Recurse)',
+  ]
+  for (const line of handedListing) {
+    const answer = await read(line, true, OWN_HOME)
+    check(`EVERYDAY · PowerShell, standing in the home · ${shown(line)} · a call through a variable that receives the listing straight from the pipe, in the block the pipe feeds, in the body of the loop over it, or as its argument, is refused`, answer !== null, String(answer))
+  }
+  const counted = [
+    'n=$(find . -type f | wc -l); cat "$LOG"',
+    'count=$(find . -type f | wc -l); echo "$count"; cat "$LOG"',
+    'find . -type f | wc -l; cat "$LOG"',
+    'find . -maxdepth 1 -type f | while read f; do cat "$f"; done',
+    'find . -maxdepth 1 -type f -print0 | xargs -0 wc -l',
+    'find . -maxdepth 1 -type f -exec cat {} +',
+    'find . -type f -maxdepth 1 | xargs cat',
+    'find ~ -maxdepth 1 -type f | xargs cat',
+  ]
+  for (const line of counted) {
+    const answer = await read(line, false, OWN_HOME)
+    check(`EVERYDAY · the Bash tool, standing in the home · ${shown(line)} · a count taken inside a substitution is read as the same count standing in the line, and a find that goes no deeper than the folder that holds the store lists none of its files: not refused by the floor`, answer === null, String(answer))
+  }
+  const stillRefused: Array<[string, string]> = [
+    ['for f in $(find . -type f | sort); do cat "$f"; done', OWN_HOME],
+    ['files=$(find . -type f | head -5); cat $files', OWN_HOME],
+    ['for f in $(find . -type f); do cat "$f"; done', OWN_HOME],
+    ['find . -maxdepth 2 -type f | while read f; do cat "$f"; done', OWN_HOME],
+    ['find . -maxdepth $n -type f | xargs cat', OWN_HOME],
+    ['find . -mindepth 1 -maxdepth 3 -type f | xargs cat', OWN_HOME],
+    ['find . -maxdepth 1 -type f | while read f; do cat "$f"; done', CONFIG_HOME],
+    ['find . -maxdepth 1 -type f -exec cat {} +', CONFIG_HOME],
+    ['git -C . grep --no-index TODO -- "*.md"', OWN_HOME],
+    ['find . -path ./.mercury -prune -o -type f -print | while read f; do cat "$f"; done', OWN_HOME],
+  ]
+  for (const [line, from] of stillRefused) {
+    const answer = await read(line, false, from)
+    check(`EVERYDAY · the Bash tool, standing in ${from === OWN_HOME ? 'the home' : 'the config home'} · ${shown(line)} · names that leave a substitution for a reader, a find that reaches the depth of the store, a search of the whole home and a prune the reading cannot value are refused as before`, answer !== null, String(answer))
   }
 }
 

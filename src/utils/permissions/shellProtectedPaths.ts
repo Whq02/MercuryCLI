@@ -74,6 +74,7 @@ function powershellCopyTargets(args: readonly string[]): string[] {
   const loose: string[] = []
   const valued: string[] = []
   let sourced = false
+  let destined = false
   let sure = true
   for (let i = 0; i < args.length; i++) {
     const word = args[i]!
@@ -99,12 +100,13 @@ function powershellCopyTargets(args: readonly string[]): string[] {
     } else if (takesValue && !switched) {
       const value = fused ?? args[++i]
       if (value !== undefined) valued.push(value)
+      if (named('destination')) destined = true
     } else if (takesValue || !(switched || /^[adfhinprsuvx]{1,4}$/.test(name))) {
       sure = false
       if (fused !== undefined) valued.push(fused)
     }
   }
-  return [...valued, ...(sourced || !sure ? loose : loose.slice(1))]
+  return [...valued, ...(sourced || !sure ? loose : destined || loose.length < 2 ? [] : loose.slice(-1))]
 }
 
 const WRITERS = new Set([
@@ -837,6 +839,24 @@ function callsUnreadName(later: ReadCommand): boolean {
   return later.dialect === 'powershell' && later.called !== undefined && !wordKnown(later.argv[0] ?? '') && (((later.stages.at(-1)?.stage ?? 0) > 0 && later.called === 'name') || later.argv.slice(1).some(word => !wordKnown(word) || /^@[\w:?]+$/.test(word)))
 }
 
+function receivesListing(at: number, lister: ReadCommand, later: ReadCommand, index: number, read: ShellRead): boolean {
+  if (later.inner.flat().includes(at)) return true
+  const last = lister.stages.at(-1)
+  const next = later.stages[lister.stages.length - 1]
+  const beside = lister.stages.slice(0, -1).every((stage, depth) => later.stages[depth]?.pipeline === stage.pipeline && later.stages[depth]?.stage === stage.stage)
+  if (last !== undefined && next !== undefined && beside && next.pipeline === last.pipeline && next.stage === last.stage + 1) return true
+  return read.commands.some(loop => loop.dialect === 'powershell' && /^foreach$/i.test(loop.argv[0] ?? '') && (loop.inner[1] ?? []).includes(at) && (loop.inner[2] ?? []).includes(index))
+}
+
+function findMaxDepth(argv: readonly string[]): number | undefined {
+  const depth = argv[argv.indexOf('-maxdepth') + 1] ?? ''
+  return argv.includes('-maxdepth') && /^\d+$/.test(depth) ? Number(depth) : undefined
+}
+
+function storeBelowDepth(word: string, cwd: string, homes: readonly string[], depth: number): boolean {
+  return protectedPathForms(word, cwd).every(form => (!HOLDS_CONVENTIONAL_HOME.test(form) || depth <= 1) && homes.every(home => !home.startsWith(`${form}/`) || home.slice(form.length + 1).split(/[\\/]/).length >= depth))
+}
+
 function searchesText(found: Layer): boolean {
   if (found.program !== 'select-string' && found.program !== 'sls') return false
   return !found.argv.slice(1).some(word => word.includes('$') || word.includes(UNREAD_PART) || /^-(?:path|pspath|lp|lit[a-z]*)(?::|$)/i.test(word))
@@ -1255,8 +1275,12 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
     handed.set(at, answer)
     return answer
   }
+  const endsInside = (simple: ReadCommand): boolean => {
+    const last = read.commands.find(other => other !== simple && stagesApart(simple, other) !== undefined && other.stages.at(-1)!.stage === read.pipelineSizes[other.stages.at(-1)!.pipeline]! - 1)
+    return last !== undefined && FIND_NON_READERS.has(layersOf(last.argv)[0]?.program ?? '')
+  }
   const loopedToReader = (at: number, simple: ReadCommand): boolean =>
-    ((simple.substituted === true && !fed.has(at)) || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.program === 'read'))) &&
+    ((simple.substituted === true && !fed.has(at) && !endsInside(simple)) || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.program === 'read'))) &&
     read.commands.some((later, index) => index > at && layersOf(later.argv).some(found => FILE_READERS.has(found.program) && found.argv.slice(1).some(word => !wordKnown(word))))
   const whereItStays = (here: string): string => `the whole of ${here}, where this line stays if the cd before it fails (join them with && so the read runs only after the cd)`
   for (const { at, simple, here, stayed } of read.commands.flatMap((simple, at) => {
@@ -1287,7 +1311,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const sent = filesSentOrPrinted(layer)
       const lists = layer.program === 'find' || layer.program === 'ls' || layer.program === 'get-childitem' || layer.program === 'gci' || layer.program === 'dir'
       const listing = powershell && POWERSHELL_LISTERS.has(layer.program) ? powershellListing(layer.argv) : null
-      const listed = listing !== null && read.commands.some((later, index) => index > at && (callsUnreadName(later) || layersOf(later.argv).some(found => readsHandedFiles(found) && !(listing.names && searchesNamesAsText(simple, later, found, read)) && !searchesTextOfListing(simple, later, found, read.commands)))) ? listing : null
+      const listed = listing !== null && read.commands.some((later, index) => index > at && ((callsUnreadName(later) && receivesListing(at, simple, later, index, read)) || layersOf(later.argv).some(found => readsHandedFiles(found) && !(listing.names && searchesNamesAsText(simple, later, found, read)) && !searchesTextOfListing(simple, later, found, read.commands)))) ? listing : null
       const feeds = lists && (fed.has(at) || listed !== null || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')) || (!powershell && layer.program === 'find' && loopedToReader(at, simple)))
       for (const word of [...layer.argv.slice(1), ...roots, ...(listed === null ? [] : listed.roots), ...(layer.program === 'findstr' ? findstrFolderFiles(layer.argv.slice(1)) : []), ...(gitGrepRoots(layer, here) ?? []), ...(layer.program === 'find' && layer.findRoots?.length === 0 ? ['.'] : []), ...(!powershell && !fed.has(at) && (layer.program === 'ls' || layer.program === 'dir') && layer.argv.slice(1).every(word => word.startsWith('-')) ? ['.'] : [])]) {
         for (const candidate of [...spellingsOf(powershell ? standingSpelled(word) : word), ...underOtherHomes(word, read.homes)]) {
@@ -1305,8 +1329,10 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const handed = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
       const hidden = layer.program !== 'rg' || ripgrepReachesHidden(layer, simple, read)
       const held = finder !== undefined ? (finder.findRoots === undefined || finder.findRoots.length === 0 ? ['.'] : finder.findRoots) : listed !== null ? listed.roots : treeReadRoots(layer, handed, here, holdsMercuryHome('.', here, homes, hidden))
+      const depth = finder === undefined ? undefined : findMaxDepth(finder.argv)
       for (const root of held.flatMap(one => (powershell && !wordKnown(standingSpelled(one)) ? [one, '.'] : [one]))) {
         for (const candidate of [...spellingsOf(powershell ? standingSpelled(root) : root), ...underOtherHomes(root, read.homes)]) {
+          if (depth !== undefined && wordKnown(candidate) && !GLOB_PART.test(candidate) && storeBelowDepth(candidate, here, homes, depth)) continue
           if (holdsMercuryHome(candidate, here, homes, hidden) || globNamesStore(candidate, here, homes, hidden)) return stayed && root === '.' ? whereItStays(here) : `the whole of ${root === '.' || (powershell && standingSpelled(root) === '.') ? 'this folder' : root} (name a folder beneath it)`
         }
       }
