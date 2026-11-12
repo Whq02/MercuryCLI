@@ -1140,6 +1140,186 @@ if (runs('BLOCKS')) {
   check('BLOCKS · the refusal is the credential-store floor\'s own sentence', /^Writing ~\\\.ssh\\authorized_keys is refused: .+ is a protected system or credential path\.$/.test(told.decision.message ?? ''), said(told.decision))
 }
 
+if (runs('PARAMS')) {
+  section('PARAMS · on the PowerShell tool a parameter and its value are no part of where a writer writes: a copy is asked every word that can be its destination, and a path fused to its parameter by a colon is asked under any spelling of the name')
+  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const filled = (line: string): string => line.replaceAll('<HOME>', OWN_HOME).replaceAll('<CONFIG>', CONFIG_HOME)
+  const written = async (line: string, powershell = true): Promise<string | null> => floors.shellCredentialWritePath(filled(line), powershell, PROJECT)
+  const afterIt = [
+    'Copy-Item .\\other ~\\.ssh\\authorized_keys -ErrorAction Stop',
+    'Copy-Item .\\other ~\\.ssh\\authorized_keys -ea 0',
+    'Copy-Item .\\other ~\\.ssh\\authorized_keys -WarningAction SilentlyContinue',
+    'Copy-Item .\\other ~\\.ssh\\authorized_keys -ErrorVariable e',
+    'Copy-Item .\\other ~\\.ssh\\authorized_keys -OutVariable o',
+    'Copy-Item .\\other ~\\.ssh\\authorized_keys -PipelineVariable p',
+    'Copy-Item .\\other ~\\.ssh\\authorized_keys -Filter *.txt',
+    'Copy-Item .\\other ~\\.ssh\\authorized_keys -Include *.txt',
+    'Copy-Item .\\other ~\\.ssh\\authorized_keys -Exclude *.bak',
+    'Copy-Item .\\other ~\\.ssh\\authorized_keys -Credential $c',
+  ]
+  for (const line of afterIt) check(`PARAMS · PowerShell · ${shown(line)} · a copy over a guarded file with a valued parameter after the destination is refused`, (await written(line)) !== null)
+  const aroundIt = [
+    'Copy-Item .\\other -ErrorAction Stop ~\\.ssh\\authorized_keys',
+    'Copy-Item .\\other -ea 0 ~\\.ssh\\authorized_keys',
+    'Copy-Item .\\other -WarningAction SilentlyContinue ~\\.ssh\\authorized_keys',
+    'Copy-Item .\\other -ErrorVariable e ~\\.ssh\\authorized_keys',
+    'Copy-Item .\\other -OutVariable o ~\\.ssh\\authorized_keys',
+    'Copy-Item .\\other -PipelineVariable p ~\\.ssh\\authorized_keys',
+    'Copy-Item .\\other -Filter *.txt ~\\.ssh\\authorized_keys',
+    'Copy-Item .\\other -Include *.txt ~\\.ssh\\authorized_keys',
+    'Copy-Item .\\other -Exclude *.bak ~\\.ssh\\authorized_keys',
+    'Copy-Item .\\other -Credential $c ~\\.ssh\\authorized_keys',
+    'Copy-Item -ErrorAction Stop .\\other ~\\.ssh\\authorized_keys',
+    'Copy-Item -ea 0 .\\other ~\\.ssh\\authorized_keys',
+    'Copy-Item -WarningAction SilentlyContinue .\\other ~\\.ssh\\authorized_keys',
+    'Copy-Item -ErrorVariable e .\\other ~\\.ssh\\authorized_keys',
+    'Copy-Item -OutVariable o .\\other ~\\.ssh\\authorized_keys',
+    'Copy-Item -PipelineVariable p .\\other ~\\.ssh\\authorized_keys',
+    'Copy-Item -Filter *.txt .\\other ~\\.ssh\\authorized_keys',
+    'Copy-Item -Include *.txt .\\other ~\\.ssh\\authorized_keys',
+    'Copy-Item -Exclude *.bak .\\other ~\\.ssh\\authorized_keys',
+    'Copy-Item -Credential $c .\\other ~\\.ssh\\authorized_keys',
+  ]
+  for (const line of aroundIt) check(`PARAMS · PowerShell · ${shown(line)} · the same parameter between the two paths or before them is refused`, (await written(line)) !== null)
+  const namedIt = [
+    'Copy-Item .\\other -Destination ~\\.ssh\\authorized_keys',
+    'Copy-Item .\\other -Destination:~\\.ssh\\authorized_keys',
+    'Copy-Item .\\other -Dest ~\\.ssh\\authorized_keys',
+    'Copy-Item .\\other -Dest:~\\.ssh\\authorized_keys',
+    'Copy-Item .\\other -Des ~\\.ssh\\authorized_keys',
+    'Copy-Item .\\other -Des:~\\.ssh\\authorized_keys',
+    'Copy-Item .\\other -Desti ~\\.ssh\\authorized_keys',
+    'Copy-Item -Destination ~\\.ssh\\authorized_keys .\\other',
+    'Copy-Item -Des ~\\.ssh\\authorized_keys .\\other',
+    'Copy-Item -Des:~\\.ssh\\authorized_keys .\\other',
+    'Copy-Item -Path .\\other -Destination ~\\.ssh\\authorized_keys',
+    'Copy-Item -Path:.\\other -Des:~\\.ssh\\authorized_keys',
+    'Copy-Item -LiteralPath .\\other ~\\.ssh\\authorized_keys',
+    'Copy-Item ~\\.ssh\\authorized_keys -Path .\\other',
+    'Copy-Item -Pa .\\other ~\\.ssh\\authorized_keys',
+    'Copy-Item -Li .\\other -Des ~\\.ssh\\authorized_keys',
+    'Copy-Item -PSPath .\\other ~\\.ssh\\authorized_keys',
+    'Copy-Item -LP .\\other ~\\.ssh\\authorized_keys',
+    'Copy-Item .\\other -Destination ~\\.ssh\\authorized_keys -ErrorAction Stop',
+    'Copy-Item -Force .\\other ~\\.ssh\\authorized_keys -ea 0',
+    'cp .\\other ~\\.ssh\\authorized_keys -ErrorAction Stop',
+    'cp .\\other -Des:~\\.ssh\\authorized_keys',
+    'copy .\\other ~\\.ssh\\authorized_keys -ErrorAction Stop',
+    'copy .\\other -Des:~\\.ssh\\authorized_keys',
+    'cpi .\\other ~\\.ssh\\authorized_keys -ErrorAction Stop',
+    'cpi .\\other -Des:~\\.ssh\\authorized_keys',
+    'ci .\\other ~\\.ssh\\authorized_keys -ErrorAction Stop',
+    'ci .\\other -Des:~\\.ssh\\authorized_keys',
+  ]
+  for (const line of namedIt) check(`PARAMS · PowerShell · ${shown(line)} · the destination named, by any spelling of its parameter, in either order, or through an alias of the copy, is refused`, (await written(line)) !== null)
+  const otherWriters = [
+    'Move-Item .\\other ~\\.ssh\\authorized_keys -ErrorAction Stop',
+    'Move-Item ~\\.ssh\\authorized_keys .\\taken -ea 0',
+    'Rename-Item ~\\.ssh\\authorized_keys old -ErrorAction Stop',
+    'New-Item ~\\.ssh\\authorized_keys -Force -ErrorAction Stop',
+    "'x' | Out-File ~\\.ssh\\authorized_keys -ErrorAction Stop",
+    'Set-Content ~\\.ssh\\authorized_keys x -ErrorAction Stop',
+    'Add-Content ~\\.ssh\\authorized_keys x -ea 0',
+    'Clear-Content ~\\.ssh\\authorized_keys -ErrorAction Stop',
+    'Remove-Item ~\\.ssh\\authorized_keys -ErrorAction Stop',
+    'mv .\\other ~\\.ssh\\authorized_keys -ErrorAction Stop',
+    'move .\\other ~\\.ssh\\authorized_keys -ErrorAction Stop',
+    'mi .\\other ~\\.ssh\\authorized_keys -ErrorAction Stop',
+    'ren ~\\.ssh\\authorized_keys old -ErrorAction Stop',
+    'ni ~\\.ssh\\authorized_keys -ErrorAction Stop',
+    'sc ~\\.ssh\\authorized_keys x -ErrorAction Stop',
+    'ac ~\\.ssh\\authorized_keys x -ErrorAction Stop',
+    'del ~\\.ssh\\authorized_keys -ErrorAction Stop',
+    'rm ~\\.ssh\\authorized_keys -ErrorAction Stop',
+    'ri ~\\.ssh\\authorized_keys -ErrorAction Stop',
+    'erase ~\\.ssh\\authorized_keys -ErrorAction Stop',
+  ]
+  for (const line of otherWriters) check(`PARAMS · PowerShell · ${shown(line)} · a move, a rename, a new file, a write, an append, a clear or a remove with a valued parameter after it is refused`, (await written(line)) !== null)
+  const pathNamed = [
+    'Set-Content -Path ~\\.ssh\\authorized_keys -Value x',
+    'Set-Content -Path:~\\.ssh\\authorized_keys -Value x',
+    'Set-Content -Pa ~\\.ssh\\authorized_keys -Value x',
+    'Set-Content -Pa:~\\.ssh\\authorized_keys -Value x',
+    'Set-Content -LiteralPath:~\\.ssh\\authorized_keys -Value x',
+    'Set-Content -Lit ~\\.ssh\\authorized_keys -Value x',
+    'Set-Content -Lit:~\\.ssh\\authorized_keys -Value x',
+    'Set-Content -PSPath:~\\.ssh\\authorized_keys -Value x',
+    'Set-Content -LP:~\\.ssh\\authorized_keys -Value x',
+    'Add-Content -Pa:~\\.ssh\\authorized_keys -Value x',
+    "'x' | Out-File -FilePath ~\\.ssh\\authorized_keys",
+    "'x' | Out-File -FilePath:~\\.ssh\\authorized_keys",
+    "'x' | Out-File -File ~\\.ssh\\authorized_keys",
+    "'x' | Out-File -File:~\\.ssh\\authorized_keys",
+    "'x' | Out-File -Fi:~\\.ssh\\authorized_keys",
+    "'x' | Tee-Object -File:~\\.ssh\\authorized_keys",
+    'Remove-Item -Path:~\\.ssh\\authorized_keys',
+    'Remove-Item -Pa:~\\.ssh\\authorized_keys',
+    'Remove-Item -Lit:~\\.ssh\\authorized_keys',
+    'Clear-Content -Pa:~\\.ssh\\authorized_keys',
+    'New-Item -Path:~\\.ssh -Name authorized_keys',
+    'New-Item -Pa:~\\.ssh\\authorized_keys',
+    'Move-Item .\\other -Des:~\\.ssh\\authorized_keys',
+    'Move-Item -Pa:.\\other -Dest:~\\.ssh\\authorized_keys',
+    'Rename-Item -Pa:~\\.ssh\\authorized_keys -NewName old',
+    'Rename-Item -LiteralPath:~\\.ssh\\authorized_keys -N:old',
+  ]
+  for (const line of pathNamed) check(`PARAMS · PowerShell · ${shown(line)} · a writer's path given by name, fused or apart, under any prefix of the name, is refused`, (await written(line)) !== null)
+  const inBlocks = [
+    'if ($true) { Copy-Item .\\other ~\\.ssh\\authorized_keys -ErrorAction Stop }',
+    '1 | ForEach-Object { Copy-Item .\\other -Des:~\\.ssh\\authorized_keys }',
+    'try { Set-Content -Pa:~\\.ssh\\authorized_keys x } catch { }',
+  ]
+  for (const line of inBlocks) check(`PARAMS · PowerShell · ${shown(line)} · the same inside a block is refused`, (await written(line)) !== null)
+  const overRuntime = [
+    'Copy-Item .\\x <CONFIG>\\runtime\\current\\mercury.mjs -ErrorAction Stop',
+    'Copy-Item .\\x -Des:<CONFIG>\\runtime\\current\\mercury.mjs',
+    'Set-Content -Pa:<CONFIG>\\runtime\\current\\mercury.mjs x',
+    'Copy-Item .\\x <CONFIG>\\runtime\\current\\mercury.mjs',
+  ]
+  for (const line of overRuntime) check(`PARAMS · PowerShell · ${shown(line)} · the runtime floor refuses the same spellings over the bundle`, (await floors.shellSelfProtectionReason(filled(line), true, PROJECT)) !== null)
+  const stillRuns = [
+    'Copy-Item ~\\.ssh\\config .\\backup',
+    'Copy-Item ~\\.ssh\\config .\\backup -ErrorAction Stop',
+    'Copy-Item -Path ~\\.ssh\\config -Destination .\\backup',
+    'Copy-Item -Path ~\\.ssh\\config -Destination .\\backup -ErrorAction Stop',
+    'Copy-Item ~\\.ssh\\config -Destination:.\\backup',
+    'Copy-Item -LiteralPath ~\\.ssh\\config .\\backup',
+    'cp -r ~\\.ssh .\\backup',
+    'Copy-Item -Recurse ~\\.ssh .\\backup',
+    'Copy-Item -Recurse -Force ~\\.ssh .\\backup',
+    'Copy-Item ~\\.ssh\\* .\\backup -Recurse',
+    'Copy-Item -ErrorAction Stop ~\\.ssh\\config .\\backup',
+    'Copy-Item -Filter *.pub ~\\.ssh .\\backup',
+    'Copy-Item .\\a.txt .\\b.txt -ErrorAction Stop',
+    'Copy-Item .\\a.txt -Destination .\\b.txt -Force',
+    'Get-Content ~\\.ssh\\config | Set-Content .\\config.copy',
+    'Set-Content .\\notes.txt x -ErrorAction Stop',
+    'Remove-Item .\\tmp -Recurse -ErrorAction SilentlyContinue',
+    'Move-Item .\\a .\\b -ErrorAction Stop',
+    'Out-File -FilePath:.\\x.txt -InputObject hi',
+    'New-Item -Path:.\\out -ItemType:Directory',
+    'Copy-Item .\\other ~\\.ssh\\authorized_keys -WhatIf',
+    'Copy-Item .\\a.txt .\\b.txt -Confirm:$false',
+  ]
+  for (const line of stillRuns) {
+    const answer = await written(line)
+    check(`PARAMS · PowerShell · ${shown(line)} · a copy out of a guarded folder, a write in the project and a copy told only to say what it would do are not refused by the floor`, answer === null, String(answer))
+  }
+  const bashStill = [
+    'cp -r ~/.ssh ./backup',
+    'cp ~/.ssh/config ./backup',
+    'cp a.txt ~/.ssh/config ./backup',
+    'cp -t ./backup ~/.ssh/config',
+  ]
+  for (const line of bashStill) check(`PARAMS · the Bash tool · ${shown(line)} · a copy there keeps its last word as the destination: not refused`, (await written(line, false)) === null)
+  const bashRefused = [
+    'cp other ~/.ssh/authorized_keys',
+    'cp -t ~/.ssh other',
+  ]
+  for (const line of bashRefused) check(`PARAMS · the Bash tool · ${shown(line)} · is refused as before`, (await written(line, false)) !== null)
+  await expect('PARAMS', call('PowerShell', { command: 'Copy-Item .\\other ~\\.ssh\\authorized_keys -ErrorAction Stop' }, 'the whole decision of the PowerShell tool'), ['sovereign', 'flow', 'default'], refused, 'is refused')
+}
+
 if (runs('T-3.5')) {
   const state = daemonStatePath()
   section('T-3.5 floor 4: kills of the daemon and of the session, and writes into the runtime, under Sovereign and Flow')

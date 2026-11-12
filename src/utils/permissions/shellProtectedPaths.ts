@@ -65,7 +65,42 @@ function unwrapCommand(argv: string[]): string[] {
   return unwrapped
 }
 
-function writeOperands(argv: string[]): string[] {
+const COPY_SWITCHES = ['force', 'recurse', 'container', 'passthru', 'verbose', 'debug', 'whatif', 'confirm']
+const COPY_VALUED = ['destination', 'erroraction', 'warningaction', 'informationaction', 'progressaction', 'errorvariable', 'warningvariable', 'informationvariable', 'outvariable', 'outbuffer', 'pipelinevariable', 'filter', 'include', 'exclude', 'credential', 'fromsession', 'tosession']
+const COPY_VALUED_ALIASES = new Set(['ea', 'wa', 'infa', 'proga', 'ev', 'wv', 'iv', 'ov', 'ob', 'pv'])
+
+function powershellCopyTargets(args: readonly string[]): string[] {
+  const loose: string[] = []
+  const valued: string[] = []
+  let sourced = false
+  let sure = true
+  for (let i = 0; i < args.length; i++) {
+    const word = args[i]!
+    if (!word.startsWith('-') || word === '-') {
+      loose.push(word)
+      continue
+    }
+    const colon = word.indexOf(':')
+    const name = (colon < 0 ? word.slice(1) : word.slice(1, colon)).toLowerCase()
+    const fused = colon < 0 ? undefined : word.slice(colon + 1)
+    const named = (full: string): boolean => name !== '' && full.startsWith(name)
+    const switched = COPY_SWITCHES.some(named)
+    const takesValue = COPY_VALUED_ALIASES.has(name) || COPY_VALUED.some(named)
+    if (name === 'pspath' || name === 'lp' || named('literalpath') || (name.length > 1 && named('path'))) {
+      sourced = true
+      if (fused === undefined) i++
+    } else if (takesValue && !switched) {
+      const value = fused ?? args[++i]
+      if (value !== undefined) valued.push(value)
+    } else if (takesValue || !(switched || /^[adfhinprsuvx]{1,4}$/.test(name))) {
+      sure = false
+      if (fused !== undefined) valued.push(fused)
+    }
+  }
+  return [...valued, ...(sourced || !sure ? loose : loose.slice(1))]
+}
+
+function writeOperands(argv: string[], powershell = false): string[] {
   const out: string[] = []
   const command: string[] = []
   for (let i = 0; i < argv.length; i++) {
@@ -86,6 +121,7 @@ function writeOperands(argv: string[]): string[] {
   ])
   if (!writers.has(name)) return out
   const operands = args.filter(arg => !arg.startsWith('-') && !/^\/[sq]$/i.test(arg))
+  if (powershell) operands.push(...args.flatMap(arg => /^-[A-Za-z]+:(.+)$/.exec(arg)?.[1] ?? []))
   if (name === 'sed') {
     if (args.some(arg => /^-(?:[a-z]*i|-[iI]n-place)/.test(arg))) out.push(...operands.slice(1))
   } else if (name === 'dd') {
@@ -94,6 +130,8 @@ function writeOperands(argv: string[]): string[] {
     if (operands[0]) out.push(operands[0])
   } else if (name === 'find') {
     if (args.includes('-delete')) out.push(...operands)
+  } else if (powershell && ['cp', 'copy', 'copy-item', 'ci', 'cpi'].includes(name)) {
+    out.push(...powershellCopyTargets(args))
   } else if (['cp', 'copy', 'copy-item', 'ci', 'cpi', 'rsync', 'install', 'ln'].includes(name)) {
     const target = args.findIndex(arg => arg === '-t' || arg === '--target-directory' || /^-dest(?:ination)?$/i.test(arg))
     const fused = args.find(arg => arg.startsWith('--target-directory='))?.slice('--target-directory='.length)
@@ -141,12 +179,12 @@ function readOperands(argv: string[]): string[] {
 
 const READ_FILE_LETTERS: Record<string, string> = { xargs: 'a', grep: 'f', rg: 'f', diff: 'X', du: 'X', jq: 'fL', info: 'fd', man: 'lMC', date: 'rf', pyright: 'p', awk: 'f', sed: 'f' }
 
-function runtimeOperands(argv: string[]): Array<{ path: string; removesTree: boolean }> {
+function runtimeOperands(argv: string[], powershell = false): Array<{ path: string; removesTree: boolean }> {
   const unwrapped = unwrapCommand(argv)
   const name = verb(unwrapped[0] ?? '')
   const args = unwrapped.slice(1)
   if (args.some(arg => /^-whatif$/i.test(arg))) return []
-  const targets = writeOperands(argv).map(path => ({ path, removesTree: false }))
+  const targets = writeOperands(argv, powershell).map(path => ({ path, removesTree: false }))
   const removers = ['rm', 'unlink', 'rmdir', 'rd', 'ri', 'del', 'erase', 'remove-item', 'mv', 'move', 'move-item', 'mi', 'ren', 'rename', 'rename-item']
   if (removers.includes(name) || (name === 'find' && args.includes('-delete'))) {
     targets.push(...args.filter(arg => !arg.startsWith('-') && !/^\/[sq]$/i.test(arg)).map(path => ({ path, removesTree: true })))
@@ -403,7 +441,7 @@ async function credentialWriteInBlocks(command: string, powershell: boolean, cwd
     const after = foldersAfter(read, at, cwd)
     const written = simple.redirects.flatMap(redirect => (['>', '>>'].includes(redirect.op) ? ['>', '', redirect.target] : []))
     const called = NET_FILE_WRITE.exec(simple.text)?.[2]
-    for (const path of [...layersOf(simple.argv).flatMap(layer => writeOperands([...layer.argv, ...written])), ...(called === undefined ? [] : [called])]) {
+    for (const path of [...layersOf(simple.argv).flatMap(layer => writeOperands([...layer.argv, ...written], true)), ...(called === undefined ? [] : [called])]) {
       if (/^(?:[/~$%]|[A-Za-z]:)/.test(path)) {
         if (credentialStorePath(path, cwd) !== null) return path
       } else if (!after.lost) {
@@ -426,7 +464,7 @@ async function credentialWriteAfterMove(command: string, powershell: boolean, cw
     if (simple.cwd !== undefined && !GLOB_PART.test(simple.cwd) && !/^[A-Za-z]:\//.test(simple.cwd) && after.folders.length === 1) continue
     const written = simple.redirects.flatMap(redirect => (['>', '>>', '>|', '&>', '&>>'].includes(redirect.op) ? ['>', '', redirect.target] : []))
     for (const layer of layersOf(simple.argv)) {
-      for (const path of writeOperands([...layer.argv, ...written])) {
+      for (const path of writeOperands([...layer.argv, ...written], simple.dialect === 'powershell')) {
         if (/^(?:[/~]|[A-Za-z]:)/.test(path)) continue
         for (const here of after.folders) {
           const full = posix.join(here, path)
@@ -446,7 +484,7 @@ function credentialWriteWalked(command: string, powershell: boolean, cwd: string
         if (hit !== null) return call[2]!
       }
     }
-    for (const path of writeOperands(argv)) {
+    for (const path of writeOperands(argv, ps)) {
       const hit = credentialStorePath(path, cwd)
       if (hit !== null) return path.includes('/') || path.includes('\\') ? path : hit
     }
@@ -1389,7 +1427,7 @@ async function readSelfProtection(command: string, powershell: boolean, cwd: str
           }
         }
       }
-      for (const target of [...runtimeTargetsOf(layer), ...runtimeOperands(layer.argv)]) {
+      for (const target of [...runtimeTargetsOf(layer), ...runtimeOperands(layer.argv, simple.dialect === 'powershell')]) {
         const hit = runtimeWritePath(target.path, here, target.removesTree)
         if (hit !== null) return changing(target.path, hit)
       }
@@ -1425,7 +1463,7 @@ async function namedSelfProtectionReason(command: string, powershell: boolean, c
     }
     const processReason = await runtimeProcessRefusal(commands)
     if (processReason) return processReason
-    for (const target of runtimeOperands(argv)) {
+    for (const target of runtimeOperands(argv, ps)) {
       const hit = runtimeWritePath(target.path, cwd, target.removesTree)
       if (hit !== null) return 'Changing ' + target.path + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
     }
