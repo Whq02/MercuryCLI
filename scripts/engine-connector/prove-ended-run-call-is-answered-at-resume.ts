@@ -44,7 +44,7 @@ const watchdog = setTimeout(() => {
 }, 90_000)
 watchdog.unref?.()
 
-type Facts = { schema: 1; sessionId: string; atMs: number; busy: boolean; runnerGeneration: number; queue: unknown[]; pendingModel: null; turnStartedAt?: number }
+type Facts = { schema: 1; sessionId: string; atMs: number; busy: boolean; runnerGeneration: number; queue: unknown[]; pendingModel: null; turnStartedAt?: number; transcriptStoreFailing?: string }
 type Guts = { attached: boolean; tick: () => Promise<void>; paint: () => void; facts: Facts | null; factsBusy: boolean; carrierGoneAtFactsMs: number | null }
 
 const sid = bootstrap.getSessionId()
@@ -75,22 +75,22 @@ const answersTo = (rows: readonly Message[], id: string): Array<{ row: Message; 
 const callAt = (rows: readonly Message[], id: string): number => rows.findIndex(row => row.type === 'assistant' && blocksOf(row).some(block => block.type === 'tool_use' && block.id === id))
 const tail = (rows: readonly Message[]): string => rows.slice(-3).map(row => `${row.type}[${blocksOf(row).map(block => block.type).join(',') || 'text'}]`).join(' ')
 
-async function rowFrame(rows: readonly Message[]): Promise<string> {
-  const answered = answersTo(rows, BUILD)
+async function rowFrame(rows: readonly Message[], id = BUILD, command = 'sleep 20', description = 'Run the build'): Promise<string> {
+  const answered = answersTo(rows, id)
   const lookups = {
     siblingToolUseIDs: new Map(),
     progressMessagesByToolUseID: new Map(),
     inProgressHookCounts: new Map(),
     resolvedHookCounts: new Map(),
-    toolResultByToolUseID: new Map(answered.map(({ row }) => [BUILD, row] as const)),
+    toolResultByToolUseID: new Map(answered.map(({ row }) => [id, row] as const)),
     toolUseByToolUseID: new Map(),
     normalizedMessageCount: rows.length,
-    resolvedToolUseIDs: new Set(answered.length > 0 ? [BUILD] : []),
-    erroredToolUseIDs: new Set(answered.some(({ block }) => block.is_error === true) ? [BUILD] : []),
+    resolvedToolUseIDs: new Set(answered.length > 0 ? [id] : []),
+    erroredToolUseIDs: new Set(answered.some(({ block }) => block.is_error === true) ? [id] : []),
     deniedToolUseIDs: new Set(),
   }
   const node = React.createElement(AppStateProvider as never, {}, React.createElement(AssistantToolUseMessage as never, {
-    param: { type: 'tool_use', id: BUILD, name: 'Bash', input: { command: 'sleep 20', description: 'Run the build' } },
+    param: { type: 'tool_use', id, name: 'Bash', input: { command, description } },
     tools: [BashTool],
     verbose: false,
     inProgressToolUseIDs: new Set(),
@@ -171,6 +171,48 @@ section('D — older damage: a call left open in the middle of a conversation th
   await write([createUserMessage({ content: 'what happened to the build?' }), createAssistantMessage({ content: 'The build call has no recorded result.' })])
   const later = told(facts(false, Date.now() + 60_000))
   check('D1 the call stands in the transcript with no result painted for it', callAt(later, BUILD) >= 0 && answersTo(later, BUILD).length === 0, tail(later))
+}
+
+section("E — the same run goes on and its record cannot be written: a call whose result did not reach the record is not an ended run's")
+{
+  const DEPLOY = 'toolu_run_deploy'
+  const UNWRITABLE = 'the session transcript store is unwritable (/tmp/p): EACCES: permission denied'
+  await write([
+    createUserMessage({ content: 'now deploy it' }),
+    createAssistantMessage({ content: [{ type: 'tool_use', id: DEPLOY, name: 'Bash', input: { command: 'sleep 30', description: 'Deploy' } }] as never }),
+  ])
+  const open = told(null)
+  const deployAt = Date.parse(String((open[callAt(open, DEPLOY)] as { timestamp?: string } | undefined)?.timestamp))
+  const deployFrame = (rows: readonly Message[]): Promise<string> => rowFrame(rows, DEPLOY, 'sleep 30', 'Deploy')
+  const liveFrame = await deployFrame(told(facts(true, deployAt + 500, deployAt - 2_000)))
+  const ended = told(facts(false, deployAt + 1_000))
+  const endedFrame = await deployFrame(ended)
+  const endedCard = await cardFrame(ended)
+  check('E1 the scene: the record ends on the deploy call with no result, and an idle runner that says nothing of its store reads as an ended run, as in B', answersTo(open, DEPLOY).length === 0 && Number.isFinite(deployAt) && answersTo(ended, DEPLOY).length === 1 && answersTo(ended, DEPLOY)[0]?.block.content === ENDED_RUN_TOOL_RESULT && !endedFrame.includes('waiting…') && endedCard.includes('1 tool call failed'), tail(ended))
+  const failing = told({ ...facts(false, deployAt + 1_000), transcriptStoreFailing: UNWRITABLE })
+  check('E2 the same idle answer from a runner that says its record cannot be written: the run is alive, and nothing is painted for the call', answersTo(failing, DEPLOY).length === 0, JSON.stringify(answersTo(failing, DEPLOY).map(({ block }) => block.content)))
+  const failingFrame = await deployFrame(failing)
+  const failingCard = await cardFrame(failing)
+  show('the deploy call when its run ended', endedFrame)
+  show("the deploy call while its own run's record cannot be written", failingFrame)
+  check('E3 …its frame is the frame of a live call', failingFrame === liveFrame && failingFrame.includes('waiting…'), JSON.stringify({ failingFrame, liveFrame }))
+  show('the card when its run ended', endedCard)
+  show("the card while its own run's record cannot be written", failingCard)
+  check('E4 …and the card does not say a call failed', failingCard.includes('resumed clean') && !failingCard.includes('tool call failed'), failingCard)
+  const nextTurn = told({ ...facts(true, deployAt + 20_000, deployAt + 15_000), transcriptStoreFailing: UNWRITABLE })
+  check('E5 a turn that began after the call, the record still unwritable: nothing is painted', answersTo(nextTurn, DEPLOY).length === 0, tail(nextTurn))
+  const gone = told({ ...facts(false, deployAt + 1_000), transcriptStoreFailing: UNWRITABLE }, true)
+  check('E6 the daemon that carried the session is gone, its last word the same: the run did end, and the call is answered as in C', answersTo(gone, DEPLOY).length === 1 && answersTo(gone, DEPLOY)[0]?.block.content === ENDED_RUN_TOOL_RESULT, tail(gone))
+  await write([
+    createUserMessage({ content: [{ type: 'tool_result', tool_use_id: DEPLOY, content: 'deployed' }] as never, toolUseResult: 'deployed' as never }),
+    createAssistantMessage({ content: 'Deployed.' }),
+  ])
+  const written = told(facts(false, Date.now() + 60_000))
+  const answers = answersTo(written, DEPLOY)
+  check('E7 the store writes again and the rows it held back land: the call is answered once, by its own result', answers.length === 1 && answers[0]?.block.content === 'deployed' && answers[0]?.block.is_error !== true, JSON.stringify(answers.map(({ block }) => block)))
+  const writtenFrame = await deployFrame(written)
+  show('the deploy call once its result is in the record', writtenFrame)
+  check('E8 …and its frame no longer waits', !writtenFrame.includes('waiting…') && writtenFrame.includes('sleep 30'), writtenFrame)
 }
 
 console.log(`\n${checks} checks, ${failures} failures`)
