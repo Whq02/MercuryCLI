@@ -6,7 +6,7 @@ import type { DOMElement as FrameNode } from './dom.js'
 import getMaxWidth from './get-max-width.js'
 import type { Rectangle } from './layout/geometry.js'
 import { LayoutDisplay, LayoutEdge, type LayoutNode } from './layout/node.js'
-import { type CachedLayout, consumeChildRemoved, nodeCache, pendingClears } from './node-cache.js'
+import { type CachedLayout, consumeChildRemoved, hasReachingChild, nodeCache, pendingClears, setChildReach } from './node-cache.js'
 import type ComposeBuffer from './compose-buffer.js'
 import renderBorder from './render-border.js'
 import type { Screen } from './cell-grid.js'
@@ -365,6 +365,7 @@ function composeNode(node: FrameNode, walk: Walk, placement: Placement): boolean
   const { layoutNode } = node
   if (!layoutNode) return false
   if (layoutNode.getDisplay() === LayoutDisplay.None) {
+    if (node.parentNode) setChildReach(node.parentNode, node, false)
     clearHidden(node, walk)
     return false
   }
@@ -374,7 +375,7 @@ function composeNode(node: FrameNode, walk: Walk, placement: Placement): boolean
 function clearHidden(hidden: FrameNode, walk: Walk): void {
   const cached = hidden.dirty ? nodeCache.get(hidden) : undefined
   if (cached === undefined) return
-  walk.buffer.clear(floorRect(cached))
+  walk.buffer.clear(floorRect(cached.reach ?? cached))
   forgetSubtree(hidden)
   walk.signals.markLayoutShift(() => `display-none-clear:${hidden.nodeName}`, Math.floor(cached.y))
 }
@@ -440,14 +441,15 @@ function repaintNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placem
   }
   const placed: CachedLayout = { x, y, width, height }
   if (height === 0 && siblingSharesY(node, layoutNode)) {
+    if (node.parentNode) setChildReach(node.parentNode, node, false)
     nodeCache.set(node, placed)
     forgetSubtree(node)
   } else {
     const painted = paintNode(node, layoutNode, walk, placement, x, y, width, height, hasRemovedChild)
     const reach = reachBeyond(node, x, y, width, height, painted)
+    if (node.parentNode) setChildReach(node.parentNode, node, reach !== undefined)
     if (reach !== undefined) {
       placed.reach = reach
-      if (node.parentNode) (node.parentNode as { __hasChildReach?: boolean }).__hasChildReach = true
       if (!floating) signals.reachRectsCur.push(reach)
     }
     nodeCache.set(node, placed)
@@ -812,7 +814,17 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
     firstCached === undefined ||
     Math.floor(nodeCache.get(firstCached)!.y) - shiftPlan!.delta === Math.floor(contentTop + firstCached.layoutNode!.getComputedTop())
   const viewportOverlapsInvalid = shiftPlan !== null && rectsOverlap(x, shiftPlan.top, width, shiftPlan.bottom - shiftPlan.top + 1, walk.invalidRects)
-  const contentHasReach = Boolean((content as { __hasChildReach?: boolean }).__hasChildReach)
+  const wasReaching = hasReachingChild(content)
+  if (shiftPlan !== null && content.dirty) {
+    for (const entry of content.childNodes) {
+      if (entry.nodeName === '#text') continue
+      const ch = entry as FrameNode
+      if (ch.dirty && ch.layoutNode) {
+        setChildReach(content, ch, childStillReaches(ch, contentLeft + ch.layoutNode.getComputedLeft(), contentTop + ch.layoutNode.getComputedTop(), buffer.width))
+      }
+    }
+  }
+  const contentHasReach = wasReaching || hasReachingChild(content)
   const safeForFastPath = !shiftPlan || (!childRemoved && !viewportOverlapsInvalid && !contentHasReach && anchorShifted && (heightDelta === 0 || (shiftPlan.delta > 0 && heightDelta === shiftPlan.delta)))
   if (!safeForFastPath) {
     signals.scrollHint = null
@@ -994,13 +1006,101 @@ function blitEscapingAbsoluteDescendants(node: FrameNode, walk: Walk, prevScreen
 
 const outsideBand = (layout: LayoutNode, bandTop: number, bandBottom: number): boolean => layout.getComputedTop() + layout.getComputedHeight() <= bandTop || layout.getComputedTop() >= bandBottom
 
+function measureLeafExtent(node: FrameNode, layoutNode: LayoutNode, maxBufWidth: number, x: number): PaintedExtent | undefined {
+  if (node.nodeName === 'ink-raw-ansi') {
+    const rawText = node.attributes['rawText'] as string
+    if (!rawText) return undefined
+    let rows = 1
+    for (let i = 0; i < rawText.length; i++) if (rawText.charCodeAt(i) === 10) rows++
+    const width = layoutNode.getComputedWidth()
+    const rawW = Number(node.attributes['rawWidth'] ?? 0)
+    return { width: rawW > width ? rawW : widestLine(rawText), height: rows }
+  }
+  if (node.nodeName === 'ink-text') {
+    let segments = squashTextNodesToSegments(node)
+    if (segments.some(s => s.text.includes('\t'))) {
+      let column = 0
+      segments = segments.map(s => {
+        const expanded = expandTabsWithColumn(s.text, column)
+        column = expanded.column
+        return expanded.text === s.text ? s : { ...s, text: expanded.text }
+      })
+    }
+    const plainText = segments.map(run => run.text).join('')
+    if (plainText.length === 0) return undefined
+    const maxWidth = Math.min(getMaxWidth(layoutNode), maxBufWidth - x)
+    const { textWrap = 'wrap' } = node.style
+    const widest = widestLine(plainText)
+    const { text, softWrap } = styledTextFor(segments, plainText, maxWidth, textWrap, widest > maxWidth)
+    const padded = applyPaddingToText(node, text, softWrap)
+    let paintedHeight = 1
+    for (let i = 0; i < padded.length; i++) if (padded.charCodeAt(i) === 10) paintedHeight++
+    const offsetLeft = firstChildOffset(node)?.left ?? 0
+    const layoutWidth = layoutNode.getComputedWidth()
+    return { width: offsetLeft + widest > layoutWidth ? widestLine(padded) : layoutWidth, height: paintedHeight }
+  }
+  return undefined
+}
+
+function nodePaintedBounds(node: FrameNode, x: number, y: number, maxBufWidth: number): Rectangle | undefined {
+  const { layoutNode } = node
+  if (!layoutNode || layoutNode.getDisplay() === LayoutDisplay.None) return undefined
+  const width = layoutNode.getComputedWidth()
+  const height = layoutNode.getComputedHeight()
+  if (height === 0 && siblingSharesY(node, layoutNode)) return { x, y, width, height }
+  if (node.nodeName !== 'ink-box') {
+    const leaf = measureLeafExtent(node, layoutNode, maxBufWidth, x)
+    if (leaf === undefined) return { x, y, width, height }
+    return { x, y, width: Math.max(width, leaf.width), height: Math.max(height, leaf.height) }
+  }
+  const clipsAcross = clipping(node.style.overflowX ?? node.style.overflow)
+  const clipsDown = clipping(node.style.overflowY ?? node.style.overflow)
+  if (clipsAcross && clipsDown) return { x, y, width, height }
+  let left = x
+  let top = y
+  let right = x + width
+  let bottom = y + height
+  for (const entry of node.childNodes) {
+    if (entry.nodeName === '#text') continue
+    const child = entry as FrameNode
+    if (child.style.position === 'absolute' || !child.layoutNode) continue
+    const cx = x + child.layoutNode.getComputedLeft()
+    const cy = y + child.layoutNode.getComputedTop()
+    const painted = nodePaintedBounds(child, cx, cy, maxBufWidth)
+    if (painted === undefined) continue
+    if (!clipsAcross) {
+      left = Math.min(left, painted.x)
+      right = Math.max(right, painted.x + painted.width)
+    }
+    if (!clipsDown) {
+      top = Math.min(top, painted.y)
+      bottom = Math.max(bottom, painted.y + painted.height)
+    }
+  }
+  return { x: left, y: top, width: right - left, height: bottom - top }
+}
+
+function childStillReaches(child: FrameNode, cx: number, cy: number, maxBufWidth: number): boolean {
+  const { layoutNode } = child
+  if (!layoutNode || layoutNode.getDisplay() === LayoutDisplay.None) return false
+  const cw = layoutNode.getComputedWidth()
+  const ch = layoutNode.getComputedHeight()
+  const bounds = nodePaintedBounds(child, cx, cy, maxBufWidth)
+  return bounds !== undefined && (bounds.x < cx || bounds.y < cy || bounds.x + bounds.width > cx + cw || bounds.y + bounds.height > cy + ch)
+}
+
 function composeScrolledChildren(node: FrameNode, walk: Walk, offsetX: number, offsetY: number, hasRemovedChild: boolean, prevScreen: Screen | undefined, scrollTopY: number, scrollBottomY: number, inheritedBackgroundColor: Color | undefined, preserveCulledCache = false, inheritedRowBg?: RowGround, own?: Own): void {
   const children = node.childNodes as FrameNode[]
   let offerOpen = !hasRemovedChild && !children.some(reachMoves)
   for (const child of children) {
     const layout = child.layoutNode
     const culled = layout !== undefined && outsideBand(layout, scrollTopY, scrollBottomY)
-    if (culled && !preserveCulledCache) forgetSubtree(child)
+    if (culled && !preserveCulledCache) {
+      if (child.dirty && layout !== undefined) {
+        setChildReach(node, child, childStillReaches(child, offsetX + layout.getComputedLeft(), offsetY + layout.getComputedTop(), walk.buffer.width))
+      }
+      forgetSubtree(child)
+    }
     if (culled) continue
     const wasDirty = child.dirty
     const repainted = composeNode(child, walk, { offsetX, offsetY, prevScreen: offerOpen ? prevScreen : undefined, inheritedBackgroundColor, inheritedRowBg, own })

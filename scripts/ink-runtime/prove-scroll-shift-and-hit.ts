@@ -308,5 +308,284 @@ console.log('\n§3 Seeded differential walks (CHROME + CARD + PANE, ground off: 
   }
 }
 
+console.log('\n§4 Scroll region-hint recovery after a reaching child is removed, shrinks, or hides (E-S3)')
+{
+  function makeReachScrollPair(cols: number, rows: number) {
+    const buildOne = (ctx: ComposeContext) => {
+      const root = createNode('ink-root')
+      applySceneStyle(root, { width: cols, height: rows, flexDirection: 'column' })
+      const reachText = createTextNode('scroll item words wrapping onto next row inside one-row box')
+      const reachLeaf = createNode('ink-text')
+      appendChildNode(reachLeaf, reachText)
+      const reachRow = createNode('ink-box')
+      applySceneStyle(reachRow, { flexDirection: 'row', height: 1, flexShrink: 0, width: cols })
+      appendChildNode(reachRow, reachLeaf)
+      const content = createNode('ink-box')
+      applySceneStyle(content, { flexDirection: 'column', flexGrow: 1, flexShrink: 0, width: cols })
+      appendChildNode(content, reachRow)
+      for (let i = 1; i < 20; i++) {
+        const line = createNode('ink-text')
+        appendChildNode(line, createTextNode(`row ${String(i).padStart(2, '0')} plain`))
+        const item = createNode('ink-box')
+        applySceneStyle(item, { flexDirection: 'row', height: 1, flexShrink: 0, width: cols })
+        appendChildNode(item, line)
+        appendChildNode(content, item)
+      }
+      const scroller = createNode('ink-box')
+      applySceneStyle(scroller, { flexDirection: 'column', width: cols, height: rows, overflowX: 'scroll', overflowY: 'scroll' })
+      appendChildNode(scroller, content)
+      const ground = createNode('ink-box')
+      applySceneStyle(ground, { width: cols, height: rows, flexDirection: 'column', backgroundColor: '#102030' as never })
+      appendChildNode(ground, scroller)
+      appendChildNode(root, ground)
+      const render = createRenderer(root, ctx.stylePool)
+      let front = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
+      let back = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
+      return {
+        root,
+        scroller,
+        content,
+        reachRow,
+        reachText,
+        paint(scratch: boolean) {
+          root.layoutNode!.calculateLayout(cols, rows)
+          const res = render({
+            frontFrame: front,
+            backFrame: back,
+            isTTY: true,
+            terminalWidth: cols,
+            terminalRows: rows,
+            altScreen: true,
+            prevFrameContaminated: scratch,
+            regionScrollUsable: true,
+          })
+          back = front
+          front = res.frame
+          return res
+        },
+      }
+    }
+    const live = buildOne(makeContext())
+    const fresh = buildOne(makeContext())
+    live.paint(false)
+    fresh.paint(true)
+    const wheel = (deltas: readonly number[]) => {
+      let hints = 0
+      let firstDiff: string | null = null
+      for (let i = 0; i < deltas.length; i++) {
+        const d = deltas[i]!
+        for (const w of [live, fresh]) {
+          ;(w.scroller.scroll ??= {}).pendingScrollDelta = d
+          w.scroller.scroll.stickyScroll = false
+          markDirty(w.scroller)
+        }
+        const rLive = live.paint(false)
+        const rFresh = fresh.paint(true)
+        if (rLive.signals.scrollHint !== null) hints++
+        if (firstDiff === null) {
+          const diff = difference(rLive.frame.screen, rFresh.frame.screen)
+          if (diff !== null) firstDiff = `step ${i} (delta=${d}): ${diff}`
+        }
+      }
+      return { hints, firstDiff }
+    }
+    return { live, fresh, wheel }
+  }
+
+  const DOWN8_UP4 = [1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1]
+  const UP4_DOWN8 = [-1, -1, -1, -1, 1, 1, 1, 1, 1, 1, 1, 1]
+
+  {
+    const pair = makeReachScrollPair(24, 6)
+    const whileReaching = pair.wheel(DOWN8_UP4)
+    check(
+      'scroll box that still holds a reaching row withholds the region hint (0 of 12) and matches fresh paint',
+      whileReaching.hints === 0 && whileReaching.firstDiff === null,
+      JSON.stringify(whileReaching),
+    )
+    for (const w of [pair.live, pair.fresh]) {
+      const plainLine = createNode('ink-text')
+      appendChildNode(plainLine, createTextNode('row 00 plain replacement'))
+      const plainItem = createNode('ink-box')
+      applySceneStyle(plainItem, { flexDirection: 'row', height: 1, flexShrink: 0, width: 24 })
+      appendChildNode(plainItem, plainLine)
+      insertBeforeNode(w.content, plainItem, w.reachRow)
+      removeChildNode(w.content, w.reachRow)
+    }
+    const rLive = pair.live.paint(false)
+    const rFresh = pair.fresh.paint(true)
+    const replaceDiff = difference(rLive.frame.screen, rFresh.frame.screen)
+    const afterRemoval = pair.wheel(UP4_DOWN8)
+    check(
+      'scroll box that held a reaching row and removed it takes the region hint again (12 of 12) and matches fresh paint',
+      replaceDiff === null && afterRemoval.hints === 12 && afterRemoval.firstDiff === null,
+      JSON.stringify({ replaceDiff, afterRemoval }),
+    )
+  }
+
+  {
+    const pair = makeReachScrollPair(24, 6)
+    for (const w of [pair.live, pair.fresh]) {
+      setTextNodeValue(w.reachText, 'row 00 short')
+    }
+    const rLive = pair.live.paint(false)
+    const rFresh = pair.fresh.paint(true)
+    const shrinkDiff = difference(rLive.frame.screen, rFresh.frame.screen)
+    const afterShrink = pair.wheel(DOWN8_UP4)
+    check(
+      'scroll box whose onscreen reaching row stops reaching takes the region hint again (12 of 12) and matches fresh paint',
+      shrinkDiff === null && afterShrink.hints === 12 && afterShrink.firstDiff === null,
+      JSON.stringify({ shrinkDiff, afterShrink }),
+    )
+  }
+
+  {
+    const pair = makeReachScrollPair(24, 6)
+    const before = pair.wheel(DOWN8_UP4)
+    for (const w of [pair.live, pair.fresh]) {
+      setTextNodeValue(w.reachText, 'row 00 short offscreen')
+    }
+    const rLive = pair.live.paint(false)
+    const rFresh = pair.fresh.paint(true)
+    const shrinkDiff = difference(rLive.frame.screen, rFresh.frame.screen)
+    const afterOffscreenShrink = pair.wheel(UP4_DOWN8)
+    check(
+      'scroll box whose culled offscreen reaching row stops reaching at scrollTop=4 takes the region hint again (12 of 12)',
+      before.hints === 0 && before.firstDiff === null && shrinkDiff === null && afterOffscreenShrink.hints === 12 && afterOffscreenShrink.firstDiff === null,
+      JSON.stringify({ before, shrinkDiff, afterOffscreenShrink }),
+    )
+  }
+
+  {
+    const pair = makeReachScrollPair(24, 6)
+    for (const w of [pair.live, pair.fresh]) {
+      applySceneStyle(w.reachRow, { flexDirection: 'row', height: 1, flexShrink: 0, width: 24, display: 'none' })
+    }
+    const rLive = pair.live.paint(false)
+    const rFresh = pair.fresh.paint(true)
+    const hideDiff = difference(rLive.frame.screen, rFresh.frame.screen)
+    const afterHide = pair.wheel(DOWN8_UP4)
+    check(
+      'scroll box whose reaching row hides with display none takes the region hint again (12 of 12) and matches fresh paint',
+      hideDiff === null && afterHide.hints === 12 && afterHide.firstDiff === null,
+      JSON.stringify({ hideDiff, afterHide }),
+    )
+  }
+
+  {
+    const cols = 40
+    const rows = 8
+    const wrong: string[] = []
+    let postClearHints = 0
+    for (let seed = 1; seed <= 24; seed++) {
+      let a = (seed * 104729) >>> 0
+      const rand = () => {
+        a = (a + 0x6d2b79f5) >>> 0
+        let t = a
+        t = Math.imul(t ^ (t >>> 15), t | 1)
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+      }
+      type RowEntry = { box: DOMElement; txt: TextNode; reaching: boolean }
+      const buildFuzz = (ctx: ComposeContext) => {
+        const root = createNode('ink-root')
+        applySceneStyle(root, { width: cols, height: rows, flexDirection: 'column' })
+        const content = createNode('ink-box')
+        applySceneStyle(content, { flexDirection: 'column', flexGrow: 1, flexShrink: 0, width: cols })
+        const entries: RowEntry[] = []
+        for (let i = 0; i < 18; i++) {
+          const txt = createTextNode(`item ${i} steady`)
+          const leaf = createNode('ink-text')
+          appendChildNode(leaf, txt)
+          const b = createNode('ink-box')
+          applySceneStyle(b, { flexDirection: 'row', height: 1, flexShrink: 0, width: cols })
+          appendChildNode(b, leaf)
+          appendChildNode(content, b)
+          entries.push({ box: b, txt, reaching: false })
+        }
+        const scroller = createNode('ink-box')
+        applySceneStyle(scroller, { flexDirection: 'column', width: cols, height: rows, overflowX: 'scroll', overflowY: 'scroll' })
+        appendChildNode(scroller, content)
+        appendChildNode(root, scroller)
+        const render = createRenderer(root, ctx.stylePool)
+        let front = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
+        let back = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
+        return {
+          root,
+          content,
+          scroller,
+          entries,
+          paint(scratch: boolean) {
+            root.layoutNode!.calculateLayout(cols, rows)
+            const res = render({ frontFrame: front, backFrame: back, isTTY: true, terminalWidth: cols, terminalRows: rows, altScreen: true, prevFrameContaminated: scratch, regionScrollUsable: true })
+            back = front
+            front = res.frame
+            return res
+          },
+        }
+      }
+      const live = buildFuzz(makeContext())
+      const fresh = buildFuzz(makeContext())
+      live.paint(false)
+      fresh.paint(true)
+      let hadReach = false
+      for (let step = 0; step < 80; step++) {
+        const r = rand()
+        const anyReaching = live.entries.some(e => e.reaching)
+        if (anyReaching) hadReach = true
+        if (r < 0.22) {
+          const idx = Math.floor(rand() * live.entries.length)
+          const makeTall = rand() < 0.45
+          const words = makeTall
+            ? `long overflowing line ${step} that wraps past forty columns onto row two`
+            : `short ${step}`
+          for (const w of [live, fresh]) {
+            setTextNodeValue(w.entries[idx]!.txt, words)
+            w.entries[idx]!.reaching = makeTall
+          }
+        } else if (r < 0.34 && anyReaching) {
+          for (const w of [live, fresh]) {
+            for (const e of w.entries) {
+              if (e.reaching) {
+                setTextNodeValue(e.txt, `cleared ${step}`)
+                e.reaching = false
+              }
+            }
+          }
+        } else if (r < 0.44 && live.entries.length > 12) {
+          const idx = Math.floor(rand() * live.entries.length)
+          for (const w of [live, fresh]) {
+            const [gone] = w.entries.splice(idx, 1)
+            removeChildNode(w.content, gone!.box)
+          }
+        } else {
+          const deltas = [-2, -1, -1, 1, 1, 2]
+          const d = deltas[Math.floor(rand() * deltas.length)]!
+          for (const w of [live, fresh]) {
+            ;(w.scroller.scroll ??= {}).pendingScrollDelta = d
+            w.scroller.scroll.stickyScroll = false
+            markDirty(w.scroller)
+          }
+        }
+        const rLive = live.paint(false)
+        const rFresh = fresh.paint(true)
+        if (hadReach && !live.entries.some(e => e.reaching) && rLive.signals.scrollHint !== null) {
+          postClearHints++
+        }
+        const diff = difference(rLive.frame.screen, rFresh.frame.screen)
+        if (diff !== null) {
+          wrong.push(`seed=${seed} step=${step}: ${diff}`)
+          break
+        }
+      }
+    }
+    check(
+      `seeded scroll-reach walks (24 seeds × 80 steps) equal fresh paint and recover region hints (${postClearHints} post-clear hints)`,
+      wrong.length === 0 && postClearHints >= 100,
+      wrong[0] ?? `postClearHints=${postClearHints}`,
+    )
+  }
+}
+
 console.log(`\nprove-scroll-shift-and-hit: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

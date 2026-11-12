@@ -45,3 +45,28 @@ export function consumeAbsoluteRemovedFlag(root: DOMElement): boolean {
   absoluteRemovedRoots.delete(root)
   return true
 }
+
+const reachingChildren = new WeakMap<DOMElement, Set<DOMElement>>()
+
+export function setChildReach(
+  parent: DOMElement,
+  child: DOMElement,
+  reaches: boolean,
+): void {
+  let set = reachingChildren.get(parent)
+  if (reaches) {
+    if (!set) {
+      set = new Set()
+      reachingChildren.set(parent, set)
+    }
+    set.add(child)
+  } else if (set) {
+    set.delete(child)
+    if (set.size === 0) reachingChildren.delete(parent)
+  }
+}
+
+export function hasReachingChild(parent: DOMElement): boolean {
+  const set = reachingChildren.get(parent)
+  return set !== undefined && set.size > 0
+}
