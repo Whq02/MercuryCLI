@@ -5,7 +5,7 @@ import { resolveRelativePatternPrefix } from './globPrefix.js'
 import type { ToolPermissionContext } from '../Tool.js'
 import { isEnvTruthy } from './envUtils.js'
 import { globSearchDepth, normalizeGlobPattern, resolveSearchGlob } from './globPattern.js'
-import { getFileReadIgnorePatterns, normalizePatternsToPath } from './permissions/filesystem.js'
+import { getFileReadIgnorePatterns, normalizePatternsToPath, readDenialFilter } from './permissions/filesystem.js'
 import { getPlatform } from './platform.js'
 import { getFsImplementation, safeResolvePath } from './fsOperations.js'
 import { ripGrepAnswer } from './ripgrep.js'
@@ -133,16 +133,18 @@ export async function glob(
   const anchor = { cwd: walkRoot }
   const matches = await ripGrepAnswer(args, searchDir, abortSignal, anchor)
   const universe = await ripGrepAnswer(universeArgs, searchDir, abortSignal, anchor)
+  const located = (entry: string): string => (isAbsolute(entry) ? entry : resolve(join(searchDir, entry)))
+  const denied = readDenialFilter(toolPermissionContext, searchDir)
+  const readable = matches.lines.filter(entry => !denied(located(entry)))
   const listed = new Set(universe.lines)
-  const kept = matches.lines.filter(entry => listed.has(entry))
+  const kept = readable.filter(entry => listed.has(entry))
   const complete = matches.complete && universe.complete
-  const files = kept.map(entry => (isAbsolute(entry) ? entry : resolve(join(searchDir, entry))))
-    .map(file => resolve(givenSearchDir, relative(searchDir, file)))
+  const files = kept.map(located).map(file => resolve(givenSearchDir, relative(searchDir, file)))
   const truncated = files.length > offset + limit
   return {
     files: files.length > limit ? sampleAcrossTopLevel(files, givenSearchDir, limit, offset) : files.slice(offset, offset + limit),
     truncated,
-    ignored: complete ? matches.lines.length - kept.length : 0,
+    ignored: complete ? readable.length - kept.length : 0,
     ...(complete ? {} : { incomplete: (matches.complete ? universe.reason : matches.reason) ?? 'the search did not finish' }),
   }
 }

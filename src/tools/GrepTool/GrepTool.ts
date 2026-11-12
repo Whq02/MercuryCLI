@@ -32,6 +32,7 @@ import {
   getFileReadIgnorePatterns,
   isProjectEnvFileName,
   normalizePatternsToPath,
+  readDenialFilter,
 } from '../../utils/permissions/filesystem.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
 import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.js'
@@ -253,6 +254,27 @@ function withholdEnvFileLines(
     lines: kept,
     withheld: `Withheld: ${named.join(', ')} — Mercury asks before reading a .env file; search it by name (path or glob) to be asked.`,
   }
+}
+
+function withoutDeniedFiles(lines: string[], mode: OutputMode, denied: (file: string) => boolean): string[] {
+  const verdicts = new Map<string, boolean>()
+  const kept: string[] = []
+  for (const line of lines) {
+    if (mode === 'content' && line === '--') {
+      if (kept.length > 0 && kept[kept.length - 1] !== '--') kept.push(line)
+      continue
+    }
+    const nul = line.indexOf('\0')
+    const file = mode === 'files_with_matches' ? line : nul !== -1 ? line.slice(0, nul) : mode === 'count' && /:\d+$/.test(line) ? line.slice(0, line.lastIndexOf(':')) : null
+    if (file !== null) {
+      let verdict = verdicts.get(file)
+      if (verdict === undefined) verdicts.set(file, (verdict = denied(file)))
+      if (verdict) continue
+    }
+    kept.push(line)
+  }
+  if (mode === 'content' && kept[kept.length - 1] === '--') kept.pop()
+  return kept
 }
 
 function effectiveLimit(headLimit: number | undefined): number | undefined {
@@ -540,12 +562,15 @@ async function rankedCall(input: Input, context: ToolUseContext, searchRoot: str
     }
   }
   let withheld: string | undefined
+  const denied = readDenialFilter(permission, searchRoot)
   const withhold = (files: string[]): string[] => {
-    const kept = withholdEnvFileLines(files, 'files_with_matches', true, permission, envFileCoverage(input.glob, searchRoot))
+    const readable = files.filter(file => !denied(file))
+    if (!withholding) return readable
+    const kept = withholdEnvFileLines(readable, 'files_with_matches', true, permission, envFileCoverage(input.glob, searchRoot))
     withheld = kept.withheld
     return kept.lines
   }
-  const answer = await rankedSearch({ pattern: input.pattern, root: searchRoot, scope, run, ...(withholding ? { withhold } : {}) })
+  const answer = await rankedSearch({ pattern: input.pattern, root: searchRoot, scope, run, withhold })
   const shown = renderRanked(answer, file => toRelativePath(searchRoot === givenRoot ? file : respellRoot(file, searchRoot, givenRoot)))
   return {
     numFiles: shown.rows.length,
@@ -648,6 +673,7 @@ export const GrepTool = buildTool({
     const { answer, engine } = isSearchableDocument(searchRoot) ? { answer: { lines: [], complete: true } as RipgrepAnswer, engine: undefined } : await answerWithPcre2Fallback(input.pattern, nativeArgs, searchRoot, context.abortController.signal)
     const documents = await searchDocuments({ root: searchRoot, args, pattern: input.literal ? input.pattern : quoteTolerantPattern(input.pattern), mode, permission, signal: context.abortController.signal, search: (args, path) => answerWithPcre2Fallback(input.pattern, args, path, context.abortController.signal) })
     answer.lines.push(...documents.lines)
+    answer.lines = withoutDeniedFiles(answer.lines, mode, readDenialFilter(permission, searchRoot))
     const kept = withholding ? withholdEnvFileLines(answer.lines, mode, input['-n'] ?? true, permission, envFileCoverage(input.glob, searchRoot), mode === 'content') : { lines: answer.lines, withheld: undefined }
     const withheld = [kept.withheld, documents.note].filter(Boolean).join(' ') || undefined
     let lines = searchRoot === givenRoot ? kept.lines : kept.lines.map(line => respellRoot(line, searchRoot, givenRoot))
