@@ -49,7 +49,7 @@ everything inside one directory, `mercury_blender_bridge/`:
 No Blender located and no pin? Install **refuses** with the reason naming
 every road, and writes nothing.
 
-**Enabling is never automated.** Blender keeps add-on enablement in the
+**Enabling is never automated.** Mercury never installs or enables Blender, and starts it only with no window, when the Blender tool is called. Blender keeps add-on enablement in the
 binary `userpref.blend`, so the install
 receipt prints both ways to enable it: Edit > Preferences > Add-ons, search
 "Mercury"; or run the printed
@@ -113,11 +113,18 @@ or **not enabled**, or the port wrong; `blender_status` explains which).
 
 ## Routing
 
+When no bridge client answers and a Blender binary is located, the `Blender`
+tool runs one background Blender process per call (factory defaults, offline
+mode, script auto-execution disabled, and non-zero Python exit codes). That
+process ends when the call returns and keeps no state across calls, so each
+headless call names its `.blend` file with `blend`, `blend_open` verifies the
+file and closes with the process, and `render_still` executes synchronously
+and returns once the image is on disk.
+
 Python **breakpoint** debugging inside Blender stays with the Debug tool's
 debugpy recipe (the Launch tool's blender-debug row prints the listener
-line). **Headless** batch renders/scripts stay with the Launch tool's
-user-run profiles (the exact command is printed, arguments in
-documented order). In-Blender scene/object/render truth, file opens, still
+line). The Launch tool also prints operator-run headless profiles with
+arguments in documented order. In-Blender scene/object/render truth, file opens, still
 renders, reports, and `python_run` live here. There is no test-run road:
 Blender has no test framework, and a rendered image is not a test run.
 

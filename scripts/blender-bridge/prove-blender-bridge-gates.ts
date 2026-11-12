@@ -175,10 +175,18 @@ section('5. registry census — the rows + the ruling’s premise')
       /BLENDER_USER_RESOURCES/.test(addonDir.off ?? ''),
   )
   const master = getFlagSpec('MERCURY_BLENDER')
+  const policySentence =
+    'Mercury never installs or enables Blender, and starts it only with no window, when the Blender tool is called.'
   check(
     "the ruling's premise pinned: MERCURY_BLENDER stays opt-in ADDITIVE (a tier flip must re-argue the one-switch ruling)",
     master?.kind === 'opt-in' && master.tier === 'additive',
     `kind=${master?.kind} tier=${master?.tier}`,
+  )
+  check(
+    'MERCURY_BLENDER flag summary carries the windowless policy sentence',
+    (master?.summary ?? '').includes(policySentence) &&
+      !(master?.summary ?? '').includes('never installs, launches, or enables'),
+    master?.summary ?? '',
   )
   const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.js')
   const menuRow = STARTUP_MENU.find(r => r.env === 'MERCURY_BLENDER')

@@ -167,9 +167,13 @@ section('§5 · readiness honesty (armed states)')
       (rows[0].remedy ?? '') === BLENDER_INSTALL_REMEDY,
   )
   check(
-    'the remedy teaches the app-bundle install and never-installs',
+    'the remedy teaches the app-bundle install and the windowless policy sentence',
     BLENDER_INSTALL_REMEDY.includes('/Applications/Blender.app') &&
-      BLENDER_INSTALL_REMEDY.includes('never installs'),
+      BLENDER_INSTALL_REMEDY.includes(
+        'Mercury never installs or enables Blender, and starts it only with no window, when the Blender tool is called.',
+      ) &&
+      !BLENDER_INSTALL_REMEDY.includes('never installs or launches'),
+    BLENDER_INSTALL_REMEDY,
   )
 }
 

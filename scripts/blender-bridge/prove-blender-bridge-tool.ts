@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -92,6 +92,13 @@ section('§2 · ARMED — catalog + teaching surfaces + the danger sentences (th
   check('description carries the NO-PREEMPTION danger sentence VERBATIM, once', desc.split(BLENDER_PYTHON_RUN_NO_PREEMPTION_SENTENCE).length === 2)
   check('description names the enable act as the operator’s', /enabling it in Blender is the operator's act/.test(desc))
   check('description names no other tool and pre-empts no refusal', !/\b(Debug|Launch|Unity) tool\b/.test(desc) && !desc.includes('RENDER_ACTIVE') && !desc.includes('BLEND_DIRTY') && !desc.includes('teaching error'))
+  check(
+    'description teaches the stateless one-process-per-call headless road and naming blend on the next call',
+    desc.includes('no state is kept') &&
+      desc.includes('name blend on the next call') &&
+      desc.includes('closed with the process'),
+    desc.slice(0, 260),
+  )
   check('description is under 2,400 bytes with the catalog', Buffer.byteLength(desc, 'utf8') <= 2400, `${Buffer.byteLength(desc, 'utf8')} bytes`)
   const unknown = await runWithCwdOverride(work, () => callTool('tests_run'))
   check('unknown op teaches the verb list without reaching any wire', unknown.includes('unknown op') && unknown.includes('python_run'))
@@ -105,6 +112,20 @@ section('§2 · ARMED — catalog + teaching surfaces + the danger sentences (th
   process.env.MERCURY_BLENDER_BIN = pinnedBlender
   const harnessLocated = computeHarnessMapLines().find(l => l.includes('Blender lanes are armed'))
   check('harness line omits the locator sentence once a Blender is located', !(harnessLocated ?? '').includes(locatorSentence))
+  const policySentence =
+    'Mercury never installs or enables Blender, and starts it only with no window, when the Blender tool is called.'
+  check(
+    'harness line carries the policy sentence both when nothing is located and when located',
+    (harness ?? '').includes(policySentence) &&
+      (harnessLocated ?? '').includes(policySentence) &&
+      !(harness ?? '').includes('Nothing is installed or launched for you.'),
+    harness ?? '',
+  )
+  const docText = readFileSync(
+    path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..', 'docs', 'BLENDER-BRIDGE.md'),
+    'utf8',
+  )
+  check('docs/BLENDER-BRIDGE.md carries the policy sentence', docText.includes(policySentence))
   process.env.MERCURY_BLENDER_BIN = noBlender
 }
 

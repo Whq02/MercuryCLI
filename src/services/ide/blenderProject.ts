@@ -179,7 +179,7 @@ export function probeBlenderVersion(bin: string): BlenderVersionProbe {
 }
 
 export const BLENDER_INSTALL_REMEDY =
-  'install Blender (blender.org/download — /Applications/Blender.app is the normal Mac install, nothing lands on PATH) or pin a binary with MERCURY_BLENDER_BIN; Mercury never installs or launches it for you'
+  'install Blender (blender.org/download — /Applications/Blender.app is the normal Mac install, nothing lands on PATH) or pin a binary with MERCURY_BLENDER_BIN. Mercury never installs or enables Blender, and starts it only with no window, when the Blender tool is called.'
 
 export interface BlenderContextProfile {
   state: 'ok'
