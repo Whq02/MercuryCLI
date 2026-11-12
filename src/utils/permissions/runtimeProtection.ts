@@ -31,7 +31,7 @@ export function placedUnder(path: string, cwd: string | undefined): string {
 
 function spelledOnDisk(path: string): string {
   if (!/^(?:\/(?!\/)|[a-z]:\/)/i.test(path)) return path
-  const parts = path.split('/').filter(part => part !== '')
+  const parts = path.split(/[\\/]/).filter(part => part !== '')
   const drive = /^[a-z]:$/i.test(parts[0] ?? '') ? parts.shift()!.toUpperCase() : ''
   const found: string[] = []
   for (const [index, part] of parts.entries()) {
