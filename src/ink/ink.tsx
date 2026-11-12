@@ -440,7 +440,6 @@ export default class Ink {
     this.backFrame = make()
     this.glassOverlay = null
     this.ledger.syncAfterDeliberateReset()
-    this.writer.reset()
     this.displayCursor = null
     this.ledger.contaminate('blank-reset')
   }
@@ -458,7 +457,6 @@ export default class Ink {
     this.backFrame = rebuild(this.backFrame)
     this.glassOverlay = null
     this.ledger.syncAfterDeliberateReset()
-    this.writer.reset()
     this.displayCursor = null
   }
 
@@ -472,7 +470,6 @@ export default class Ink {
       this.charPool,
       this.hyperlinkPool,
     )
-    this.writer.reset()
     this.displayCursor = null
   }
 
@@ -1327,7 +1324,6 @@ export default class Ink {
       this.hyperlinkPool,
     )
     this.ledger.syncAfterDeliberateReset()
-    this.writer.reset()
     this.displayCursor = null
     this.ledger.contaminate('blank-reset')
     this.scheduleRender()

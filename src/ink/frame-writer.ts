@@ -342,8 +342,6 @@ export class FrameWriter {
 
   constructor(private readonly options: Options) {}
 
-  reset(): void {}
-
   finish(prev: Frame): Diff {
     if (!this.options.isTTY) return [NEWLINE]
     if (!prev.cursor.visible) return [{ type: 'cursorShow' }]
