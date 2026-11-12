@@ -334,18 +334,22 @@ export function useVirtualScroll(
     } else {
       {
         const pin = contentPinRef.current
-        if (!pin && committedTop - origin > offs[itemCount]!) {
+        let pinCount = itemCount
+        if (laidOutRef.current) {
+          while (pinCount > 0 && !cache.has(itemKeys[pinCount - 1]!)) pinCount--
+        }
+        if (!pin && (pinCount === 0 || committedTop - origin > offs[pinCount]!)) {
           lastWrittenTopRef.current = committedTop
         } else if (!pin) {
-          const pos = Math.max(0, Math.min(committedTop - origin, offs[itemCount]!))
+          const pos = Math.max(0, Math.min(committedTop - origin, offs[pinCount]!))
           let lo = 0
-          let hi = itemCount
+          let hi = pinCount
           while (lo < hi) {
             const mid = (lo + hi) >> 1
             if (offs[mid + 1]! > pos) hi = mid
             else lo = mid + 1
           }
-          const idx = Math.min(lo, itemCount - 1)
+          const idx = Math.min(lo, pinCount - 1)
           const h = cache.get(itemKeys[idx]!) ?? UNMEASURED_ESTIMATE_ROWS
           contentPinRef.current = {
             key: itemKeys[idx]!,
