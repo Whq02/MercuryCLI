@@ -98,7 +98,7 @@ writeFileSync(daemonStatePath(), JSON.stringify({ pid: DAEMON_PID, startedAt: Da
 
 type Decision = { behavior: string; message?: string }
 type Rules = { deny?: string[]; allow?: string[]; ask?: string[] }
-type Mode = 'default' | 'implement' | 'apollo' | 'flow' | 'sovereign'
+type Mode = 'default' | 'implement' | 'apollo' | 'dontAsk' | 'flow' | 'sovereign'
 type Call = { tool?: string; command?: string; input?: Record<string, unknown>; why?: string; rules?: Rules }
 const bashTool = {
   name: 'Bash',
@@ -175,9 +175,14 @@ check('floor 1: writes to credential stores are refused unless an exact path rul
 check("floor 2: agent reads of Mercury's own stored credentials are refused", pageSays(/Agent reads of Mercury's own stored credentials are refused/))
 check('floor 4: Mercury\'s running binary and daemon are protected', pageSays(/Mercury's running binary and daemon are protected against writes, deletes and kills/))
 check('floor 5: writing project instruction files or reading .env files asks for approval first', pageSays(/Writing project instruction files or reading `\.env` files asks for approval first/))
-check('the page says the floors read the command as it is written and are not a sandbox, what they guard against and that they do not isolate a session', pageSays(/The floors read the command as it is written and are not a sandbox: they guard against mistakes and plain attempts and do not isolate a session from the files and processes its user can reach\./))
-check('the page says where a floor sees a path, and that a path put together as the command runs is not in the text for a reading to find', pageSays(/A floor sees a path where the command writes it out; a path the command puts together as it runs, from a file or from what one command hands the next, is not in the text for any reading to find\./))
-check('the page says that limit in that one sentence and keeps the three earlier phrasings of it out', !pageSays(/works out only while it runs/) && !pageSays(/leaves to another program/) && !pageSays(/where asks are off\. The floors guard/))
+check('the page says before its five lines that each floor acts where it recognises its subject', pageSays(/Five safety floors hold alongside the permission modes and wards\. Each acts where it recognises its subject:/))
+check("the page says the credential and runtime floors read a shell command's text before it runs, in every permission mode, as the commands a shell would run", pageSays(/For a shell command the credential and runtime floors read the command's text before it runs, in every permission mode, as the commands a shell would run, so many other spellings of a command are refused like the plain one:/))
+check('the page says a line that cannot be read that way is judged by the words of its text', pageSays(/A line that cannot be read that way is judged by the words of its text\./))
+check('the page says a command can be written that no reading of its text will recognise, and so for a shell command a floor holds in the forms that reading knows and in no others', pageSays(/A command can be written that no reading of its text will recognise, so for a shell command a floor holds in the forms that reading knows and in no others\./))
+check('the page says the floors lower the chance of an accident and are not a sandbox', pageSays(/The floors lower the chance of an accident or of a careless instruction and are not a sandbox: they do not isolate a session from the files and processes its user can reach\./))
+check('the page says what stands between a session and a secret: the permission question in the modes that ask it, and the seal at rest of the system store where the secret is kept in one', pageSays(/What stands between a session and a secret is the permission question, in the modes that ask it, and, where Mercury keeps the secret in the system's credential store, that store's seal at rest\./))
+check('the page says of the wards that they read a command in the forms their reading knows, and that no reading of text follows every form', pageSays(/The rules read a command's text as the commands a shell would run, in the forms that reading knows: the program by its name behind a path, quoting, an assignment or a wrapper/) && pageSays(/That reading follows many forms of a command and no reading of text follows them all\./))
+check('the page promises no reading of every form, and keeps the earlier phrasings of the limit out', !pageSays(/behind any path, quoting, assignment or wrapper/) && !pageSays(/instead of the text/) && !pageSays(/A floor sees a path where the command writes it out/) && !pageSays(/works out only while it runs/) && !pageSays(/leaves to another program/) && !pageSays(/where asks are off\. The floors guard/))
 
 const FOUR: Mode[] = ['sovereign', 'flow', 'implement', 'default']
 section('controls: each floor, asked plainly, holds')
@@ -193,6 +198,15 @@ await expect('floor 4', bash('rm -rf <CONFIG>/runtime'), FOUR, refused, 'Bash re
 await expect('floor 4', bash('kill -9 <DAEMON_PID>'), FOUR, refused, 'Bash refuses')
 await expect('floor 4', bash('pkill -f mercury'), FOUR, refused, 'Bash refuses')
 await expect('floor 4', call('Write', { file_path: '<CONFIG>/runtime/current/mercury.mjs', content: 'x' }), FOUR, refused, 'the Write tool refuses')
+
+const EVERY: Mode[] = ['default', 'implement', 'apollo', 'dontAsk', 'flow', 'sovereign']
+section('the page says "in every permission mode" of the credential and runtime floors for a shell command: each asked plainly on both shell tools in all six')
+await expect('every mode · floor 2', bash('cat <CONFIG>/.credentials.json'), EVERY, refused, 'Bash refuses')
+await expect('every mode · floor 1', bash('echo x >> ~/.ssh/authorized_keys'), EVERY, refused, 'Bash refuses')
+await expect('every mode · floor 4', bash('rm -rf <CONFIG>/runtime'), EVERY, refused, 'Bash refuses')
+await expect('every mode · floor 2', call('PowerShell', { command: 'Get-Content <CONFIG>\\.credentials.json' }), EVERY, refused, 'PowerShell refuses')
+await expect('every mode · floor 1', call('PowerShell', { command: 'Set-Content ~\\.ssh\\authorized_keys x' }), EVERY, refused, 'PowerShell refuses')
+await expect('every mode · floor 4', call('PowerShell', { command: 'Remove-Item -Recurse <CONFIG>\\runtime' }), EVERY, refused, 'PowerShell refuses')
 await expect('floor 5', call('Read', { file_path: '<PROJECT>/.env' }), ['implement', 'default', 'apollo'], asked, 'the Read tool asks')
 await expect('floor 5', bash('cat .env'), ['implement', 'default', 'apollo'], asked, 'Bash asks')
 await expect('floor 5', call('Write', { file_path: '<PROJECT>/notes.txt', content: 'x' }, 'an ordinary file'), ['implement'], allowed, 'Implement writes it unasked')

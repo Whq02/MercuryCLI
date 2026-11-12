@@ -204,11 +204,13 @@ after a delete verb is still the delete, an inline shell string (`bash -c "…"`
 `eval`, `Invoke-Expression`) or a heredoc fed to a shell (`bash <<'EOF'`,
 `cat <<EOF | sh`) is read as the commands it runs, and a command split over
 several lines with a trailing backslash, pipe or `&&` is read as the one line
-the shell runs (a comment never continues a line). The rules read the commands
-a shell would run instead of the text: the program by its name behind any path,
-quoting, assignment or wrapper (`env`, `timeout`, `nohup`, `exec`, `xargs`,
-`find -exec`), the folder a `cd` left, and paths with `..`, `//`, `~` and
-`$HOME` resolved. A command that cannot be read that way (an open quote, a
+the shell runs (a comment never continues a line). The rules read a command's
+text as the commands a shell would run, in the forms that reading knows: the
+program by its name behind a path, quoting, an assignment or a wrapper (`env`,
+`timeout`, `nohup`, `exec`, `xargs`, `find -exec`), the folder a `cd` left,
+and paths with `..`, `//`, `~` and `$HOME` resolved. That reading follows many
+forms of a command and no reading of text follows them all. A command that
+cannot be read that way (an open quote, a
 script longer than the parser reads, a program named only at run time) is
 judged by its text, and a mention in it of a refused program or target refuses
 it with a sentence that says it could not be read. The same
@@ -225,7 +227,8 @@ denied the call without showing the rule's own name or words.
 
 ## Safety floors
 
-Five safety floors hold alongside the permission modes and wards:
+Five safety floors hold alongside the permission modes and wards. Each acts
+where it recognises its subject:
 
 - Writes to credential stores are refused unless an exact path rule grants them.
 - Agent reads of Mercury's own stored credentials are refused.
@@ -233,17 +236,20 @@ Five safety floors hold alongside the permission modes and wards:
 - Mercury's running binary and daemon are protected against writes, deletes and kills.
 - Writing project instruction files or reading `.env` files asks for approval first.
 
-The credential and runtime floors read a shell command as the commands a shell
-would run, so many other spellings of a command are refused like the plain
-one: for a read of the credentials, a wildcard, the folder read whole, a `cd`
-into the folder first, or a script handed to a nested shell.
+For a shell command the credential and runtime floors read the command's text
+before it runs, in every permission mode, as the commands a shell would run,
+so many other spellings of a command are refused like the plain one: for a
+read of the credentials, a wildcard, the folder read whole, a `cd` into the
+folder first, or a script handed to a nested shell. A line that cannot be read
+that way is judged by the words of its text.
 
-The floors read the command as it is written and are not a sandbox: they guard
-against mistakes and plain attempts and do not isolate a session from the
-files and processes its user can reach. A floor sees a path where the command
-writes it out; a path the command puts together as it runs, from a file or
-from what one command hands the next, is not in the text for any reading to
-find.
+A command can be written that no reading of its text will recognise, so for a
+shell command a floor holds in the forms that reading knows and in no others.
+The floors lower the chance of an accident or of a careless instruction and
+are not a sandbox: they do not isolate a session from the files and processes
+its user can reach. What stands between a session and a secret is the
+permission question, in the modes that ask it, and, where Mercury keeps the
+secret in the system's credential store, that store's seal at rest.
 
 ## Non-interactive sessions
 
