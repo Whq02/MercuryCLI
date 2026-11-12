@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'warm-runner-home-'))
 delete process.env.MERCURY_HOME
@@ -19,9 +19,17 @@ function pinSeatCeiling(recommendedSeats: number): void {
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats } }))
 }
 pinSeatCeiling(8)
-const { makeConcourseAdmitHandler, readSessionWorkers, buildConcourseWorkerSpec, canonicalWorkspaceId, runnerRestartReasonOf } = await import(
-  '../../src/daemon/concourseWorkers.ts'
-)
+const {
+  makeConcourseAdmitHandler,
+  readSessionWorkers,
+  updateConcourseWorkers,
+  concourseTranscriptPath,
+  reviveConcourseWorker,
+  reactivateConcourseSession,
+  buildConcourseWorkerSpec,
+  canonicalWorkspaceId,
+  runnerRestartReasonOf,
+} = await import('../../src/daemon/concourseWorkers.ts')
 const warm = await import('../../src/daemon/warmRunner.ts')
 const { LEAVE_PENDING, standInRunner } = await import('../lib/seatDoor.ts')
 const { RpcError, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
@@ -489,9 +497,128 @@ console.log('\n── WR: the restart reason travels to the resumed runner (item
   const rosterSrc = read('src/daemon/roster.ts')
   check('WR the roster stamps "crash" on the crash-respawn (MERCURY_RUNNER_RESTART_REASON on the respawn spec)', /crash-respawn'\)[\s\S]{0,220}flagPair\('MERCURY_RUNNER_RESTART_REASON', 'crash'\)/.test(rosterSrc))
   check('WR the roster stamps "settings" on the reconfigure-respawn', /reconfiguring[\s\S]{0,220}flagPair\('MERCURY_RUNNER_RESTART_REASON', 'settings'\)/.test(rosterSrc))
-  const supSrc = read('src/daemon/concourseWorkers.ts')
-  check('WR the cold revive passes the record-derived reason', /restartReason: runnerRestartReasonOf\(rec\)/.test(supSrc))
-  check('WR the reactivate warm road passes the reason to the claim', (supSrc.match(/restartReason: runnerRestartReasonOf\(rec\)/g) ?? []).length >= 2)
+
+  const seedParkedForRestart = (runnerId: string, sessionId: string, workspaceId: string): void => {
+    const tr = concourseTranscriptPath({ sessionId, workspaceId })
+    mkdirSync(dirname(tr), { recursive: true })
+    writeFileSync(tr, '')
+    roster.present.delete(runnerId)
+    updateConcourseWorkers(workers => {
+      workers[runnerId] = {
+        schema: 1,
+        runnerId,
+        sessionId,
+        workspaceId,
+        isolation: 'shared',
+        modelKey: 'claude-opus-5',
+        effort: 'high',
+        spawnedAt: 1000,
+        lastLiveAt: 1000,
+        parkedAt: 2000,
+        parkedBy: 'operator',
+        restartReason: 'ended',
+      }
+    }, recordsDir)
+  }
+
+  const sidColdRec = '33333333-3333-4333-8333-333333333331'
+  const sidColdOpt = '33333333-3333-4333-8333-333333333332'
+  seedParkedForRestart('concourse-wr-cold-rec', sidColdRec, wsR)
+  seedParkedForRestart('concourse-wr-cold-opt', sidColdOpt, wsR)
+  const regBeforeCold = roster.registered.length
+  let coldErr = ''
+  let coldRecOut: ReturnType<typeof reviveConcourseWorker> | null = null
+  let coldOptOut: ReturnType<typeof reviveConcourseWorker> | null = null
+  try {
+    coldRecOut = reviveConcourseWorker(sidColdRec, 'operator', roster, undefined, recordsDir)
+    coldOptOut = reviveConcourseWorker(sidColdOpt, 'operator', roster, { restartReason: 'update' }, recordsDir)
+  } catch (e) {
+    coldErr = `${(e as Error).name}: ${(e as Error).message}`
+  }
+  const coldRecSpec = roster.registered[regBeforeCold]?.spec
+  const coldOptSpec = roster.registered[regBeforeCold + 1]?.spec
+  const afterColdWorkers = readSessionWorkers(recordsDir)
+  check(
+    'WR the cold revive passes the record-derived reason and an explicit update override on the runner spec, and clears restartReason on disk',
+    coldErr === '' &&
+      coldRecOut?.outcome === 'applied' &&
+      coldOptOut?.outcome === 'applied' &&
+      (coldRecSpec?.extraEnv as Record<string, string> | undefined)?.MERCURY_RUNNER_RESTART_REASON === 'ended' &&
+      (coldOptSpec?.extraEnv as Record<string, string> | undefined)?.MERCURY_RUNNER_RESTART_REASON === 'update' &&
+      afterColdWorkers['concourse-wr-cold-rec']?.restartReason === undefined &&
+      afterColdWorkers['concourse-wr-cold-opt']?.restartReason === undefined,
+    coldErr ||
+      JSON.stringify({
+        recReason: (coldRecSpec?.extraEnv as Record<string, string> | undefined)?.MERCURY_RUNNER_RESTART_REASON,
+        optReason: (coldOptSpec?.extraEnv as Record<string, string> | undefined)?.MERCURY_RUNNER_RESTART_REASON,
+        diskRec: afterColdWorkers['concourse-wr-cold-rec']?.restartReason,
+        diskOpt: afterColdWorkers['concourse-wr-cold-opt']?.restartReason,
+      }),
+  )
+
+  const sidWarmRec = '33333333-3333-4333-8333-333333333333'
+  const sidWarmOpt = '33333333-3333-4333-8333-333333333334'
+  const wsRWarm1 = canonicalWorkspaceId(mkdtempSync(join(tmpdir(), 'warm-ws-reactivate-1-')))
+  const wsRWarm2 = canonicalWorkspaceId(mkdtempSync(join(tmpdir(), 'warm-ws-reactivate-2-')))
+  seedParkedForRestart('concourse-wr-warm-rec', sidWarmRec, wsRWarm1)
+  seedParkedForRestart('concourse-wr-warm-opt', sidWarmOpt, wsRWarm2)
+  warm.resetWarmRunnersForTesting()
+  await warm.ensureWarmRunner({ workspaceDir: wsRWarm1 }, warmDeps)
+  const claimsBeforeWarm = roster.claims.length
+  let warmErr = ''
+  let warmRecOut: Awaited<ReturnType<typeof reactivateConcourseSession>> | null = null
+  let warmOptOut: Awaited<ReturnType<typeof reactivateConcourseSession>> | null = null
+  try {
+    warmRecOut = await reactivateConcourseSession(
+      readSessionWorkers(recordsDir)['concourse-wr-warm-rec']!,
+      { modelKey: 'claude-opus-5', by: 'operator', kind: 'oculus' },
+      [],
+      {
+        roster: () => roster,
+        dir: recordsDir,
+        claimWarm: args => warm.claimWarmRunner({ ...args, answerDeadlineMs: 1_500 }, warmDeps),
+      },
+    )
+    await warm.ensureWarmRunner({ workspaceDir: wsRWarm2 }, warmDeps)
+    warmOptOut = await reactivateConcourseSession(
+      readSessionWorkers(recordsDir)['concourse-wr-warm-opt']!,
+      { modelKey: 'claude-opus-5', by: 'operator', kind: 'oculus', restartReason: 'update' },
+      [],
+      {
+        roster: () => roster,
+        dir: recordsDir,
+        claimWarm: args => warm.claimWarmRunner({ ...args, answerDeadlineMs: 1_500 }, warmDeps),
+      },
+    )
+  } catch (e) {
+    warmErr = `${(e as Error).name}: ${(e as Error).message}`
+  }
+  const warmRecClaim = roster.claims[claimsBeforeWarm]?.params
+  const warmOptClaim = roster.claims[claimsBeforeWarm + 1]?.params
+  const afterWarmWorkers = readSessionWorkers(recordsDir)
+  const warmRecSaved = warmRecOut && warmRecOut.ok ? afterWarmWorkers[warmRecOut.runnerId] : undefined
+  const warmOptSaved = warmOptOut && warmOptOut.ok ? afterWarmWorkers[warmOptOut.runnerId] : undefined
+  check(
+    'WR the reactivate warm road passes the record-derived reason and an explicit update override to the claim, and clears restartReason on disk',
+    warmErr === '' &&
+      warmRecOut?.ok === true &&
+      warmOptOut?.ok === true &&
+      warmRecClaim?.restart_reason === 'ended' &&
+      warmOptClaim?.restart_reason === 'update' &&
+      warmRecSaved !== undefined &&
+      warmRecSaved.restartReason === undefined &&
+      warmOptSaved !== undefined &&
+      warmOptSaved.restartReason === undefined,
+    warmErr ||
+      JSON.stringify({
+        recClaim: warmRecClaim?.restart_reason,
+        optClaim: warmOptClaim?.restart_reason,
+        diskRec: warmRecSaved?.restartReason,
+        diskOpt: warmOptSaved?.restartReason,
+      }),
+  )
+  warm.resetWarmRunnersForTesting()
+
   const printSrc = read('src/cli/run.ts')
   check('WR run.ts reads the reason at boot and from the claim frame, coerces it, and passes it to the reconciliation', printSrc.includes("flagEnv('MERCURY_RUNNER_RESTART_REASON')") && printSrc.includes('runnerRestartReason = params.restart_reason') && /reconcileBackgroundLaunchesOnResume\(messages, getAppState, setAppState, Date\.now\(\), coerceRestartReason\(runnerRestartReason\)\)/.test(printSrc))
   const registry = read('src/substrate/flagRegistry.ts')
