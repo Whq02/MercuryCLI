@@ -45,5 +45,6 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-cut.ts"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-payload-facts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-payload-facts.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-crewmate-start-road.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crewmate-start-road.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-start-notices.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-turn-start-notices.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-wait-after-a-second.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-wait-after-a-second.ts" "$__t" "$__rc"
 if [[ "$fail" == "0" ]]; then echo "✅ HOOKS SUITE GREEN"; exit 0; else
   echo "❌ HOOKS SUITE RED"; exit 1; fi
