@@ -767,8 +767,11 @@ export function saveBootDefaultsProfile(
     const nextVal = paired[row.env] ?? null
     return prevVal !== nextVal
   })
-  const liveChanged = changedRows.some(r => r.applicationClass === 'live')
-  const newSessionChanged = changedRows.length === 0 || changedRows.some(r => r.applicationClass !== 'live')
+  const liveRows = changedRows.filter(isLiveEnvRow)
+  const liveChanged = liveRows.length > 0
+  const newSessionChanged = changedRows.length === 0 || changedRows.some(r => !isLiveEnvRow(r))
+  const liveNames = liveRows.length <= 2 ? liveRows.map(r => r.label).join(', ') : `${liveRows.length} rows`
+  const liveVerb = liveRows.length === 1 ? 'reaches' : 'reach'
   const unchanged =
     opts?.existingSessionsUnchanged !== undefined && opts.existingSessionsUnchanged >= 0
       ? `${opts.existingSessionsUnchanged} existing session${opts.existingSessionsUnchanged === 1 ? '' : 's'} unchanged`
@@ -781,7 +784,7 @@ export function saveBootDefaultsProfile(
     ? `Saved as future defaults · applies to sessions created after revision ${revision} · ${unchanged}`
     : !newSessionChanged
       ? `Saved defaults · reaches running sessions at their next turn${runningCount}`
-      : `Saved defaults · live rows reach running sessions at their next turn · the rest applies to sessions created after revision ${revision} (${unchanged})`
+      : `Saved defaults · ${liveNames} ${liveVerb} running sessions at their next turn · the rest applies to sessions created after revision ${revision} (${unchanged})`
   const profile: BootDefaultsProfileV1 = {
     version: BOOT_ENV_VERSION,
     savedAt: new Date().toISOString(),

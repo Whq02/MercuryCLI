@@ -271,11 +271,52 @@ section('§3 receipts, evaluateExplicitApply & admitted snapshot revision')
   )
   const sMixed = menu.saveBootDefaultsProfile({ MERCURY_BLENDER: '1', MERCURY_ASEPRITE: '1' }, rPath, { existingSessionsUnchanged: 1 })
   check(
-    'saving a mixed delta (live MERCURY_ASEPRITE added + new-session MERCURY_WARDS cleared) states both rules',
+    'saving a mixed delta (live MERCURY_ASEPRITE added + new-session MERCURY_WARDS cleared) states both rules and names the row that reaches running sessions',
     sMixed.ok === true &&
-      sMixed.receipt.includes('live rows reach running sessions at their next turn') &&
-      sMixed.receipt.includes(`applies to sessions created after revision ${sMixed.revision}`),
+      sMixed.receipt.includes('Aseprite dev lanes reaches running sessions at their next turn') &&
+      sMixed.receipt.includes(`the rest applies to sessions created after revision ${sMixed.revision}`) &&
+      !sMixed.receipt.includes('live rows'),
     sMixed.ok ? sMixed.receipt : sMixed.reason,
+  )
+  const switchRow = menu.STARTUP_MENU.find(r => r.env === 'MERCURY_SESSION_SUBAGENTS')
+  const switchValue = switchRow ? menu.menuRowChoices(switchRow).find(c => c.value !== null)?.value : undefined
+  const sPath = join(SCRATCH, 'receipts-switch-boot-env.json')
+  const sSwitch =
+    typeof switchValue === 'string'
+      ? menu.saveBootDefaultsProfile({ MERCURY_SESSION_SUBAGENTS: switchValue }, sPath, { existingSessionsUnchanged: 2 })
+      : null
+  check(
+    "saving only a session's own switch (Crewmates) keeps the new-session receipt: the turn-opening read skips it, so it does not claim to reach running sessions",
+    sSwitch !== null &&
+      sSwitch.ok === true &&
+      sSwitch.receipt.includes(`applies to sessions created after revision ${sSwitch.revision}`) &&
+      sSwitch.receipt.includes('2 existing sessions unchanged') &&
+      !sSwitch.receipt.includes('reach'),
+    sSwitch === null ? 'no choice found for MERCURY_SESSION_SUBAGENTS' : sSwitch.ok ? sSwitch.receipt : sSwitch.reason,
+  )
+  const switchEnv: Record<string, string> = {}
+  if (typeof switchValue === 'string') switchEnv.MERCURY_SESSION_SUBAGENTS = switchValue
+  const rSwitch = menu.saveBootDefaultsProfile(switchEnv, sPath)
+  if (typeof applyLive === 'function') {
+    const reached = applyLive(sPath, {})
+    check(
+      'the turn-opening read leaves that switch to new sessions (skippedNewSession), which is what its receipt says',
+      rSwitch.ok === true && reached !== null && reached.skippedNewSession.includes('MERCURY_SESSION_SUBAGENTS') && reached.applied.length === 0,
+      j(reached),
+    )
+  }
+  menu.saveBootDefaultsProfile({}, sPath)
+  const sSwitchAndLane =
+    typeof switchValue === 'string'
+      ? menu.saveBootDefaultsProfile({ MERCURY_SESSION_SUBAGENTS: switchValue, MERCURY_BLENDER: '1', MERCURY_UNITY: '1' }, sPath, { existingSessionsUnchanged: 1 })
+      : null
+  check(
+    'a switch saved beside two lane rows: the two rows are named as reaching running sessions, the switch is "the rest"',
+    sSwitchAndLane !== null &&
+      sSwitchAndLane.ok === true &&
+      sSwitchAndLane.receipt.includes('Unity dev lanes, Blender dev lanes reach running sessions at their next turn') &&
+      sSwitchAndLane.receipt.includes(`the rest applies to sessions created after revision ${sSwitchAndLane.revision}`),
+    sSwitchAndLane === null ? 'no choice found' : sSwitchAndLane.ok ? sSwitchAndLane.receipt : sSwitchAndLane.reason,
   )
 
   const snapPath = join(SCRATCH, 'snap-boot-env.json')
