@@ -1,7 +1,6 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import * as path from 'node:path'
-import { getOriginalCwd } from '../../../bootstrap/state.js'
 import { mercurySecretPath } from '../../../utils/permissions/protectedPaths.js'
 import { mintFileAnchor } from '../../changeTransaction/snapshotAnchor.js'
 import {
@@ -12,6 +11,7 @@ import {
   type ResourceContext,
   type ResourceResult,
 } from '../contracts.js'
+import { fileReferenceCandidates } from '../referencePaths.js'
 
 const DIR_ENTRY_CAP = 200
 const MAX_TEXT_BYTES = 2_000_000
@@ -21,9 +21,7 @@ export const fileAdapter: ResourceAdapter = {
   describe: 'files and directories (mercury://file/<path>?lines=A-B&q=…)',
   async resolve(ref: ParsedRef, ctx: ResourceContext): Promise<ResourceResult> {
     if (!ref.id) return { state: 'absent', note: 'file refs need a path: mercury://file/<path>' }
-    const candidates = path.isAbsolute(ref.id)
-      ? [ref.id]
-      : [...new Set([path.resolve(ctx.cwd, ref.id), path.resolve(getOriginalCwd(), ref.id)])]
+    const candidates = fileReferenceCandidates(ref.id, ctx.cwd)
     for (const candidate of candidates) {
       const secret = mercurySecretPath(candidate, ctx.cwd)
       if (secret !== null) {

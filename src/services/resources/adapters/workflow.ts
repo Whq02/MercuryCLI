@@ -30,6 +30,7 @@ import {
   type ResourceContext,
   type ResourceResult,
 } from '../contracts.js'
+import { recordIdNamesNoPath } from '../referencePaths.js'
 
 export function runsCwd(): string {
   return getOriginalCwd()
@@ -59,6 +60,7 @@ export const workflowAdapter: ResourceAdapter = {
         },
       }
     }
+    if (!recordIdNamesNoPath(ref.id)) return { state: 'absent', note: `no workflow run '${ref.id}'` }
     const runDir = path.join(workflowRunsRoot(runsCwd()), ref.id)
     const manifest = await readRunManifest(runDir)
     if (!manifest) {

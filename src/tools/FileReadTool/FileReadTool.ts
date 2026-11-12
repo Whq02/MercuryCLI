@@ -50,6 +50,7 @@ import {
   type ImageDimensions,
 } from '../../utils/imageResizer.js'
 import { getCwd } from '../../utils/cwd.js'
+import { referenceReadDecision, referenceReadPaths } from '../../services/resources/referencePaths.js'
 import { logError } from '../../utils/log.js'
 import { getCanonicalName } from '../../utils/model/model.js'
 import { isMnemeFile } from '../../utils/memoryFileDetection.js'
@@ -1686,7 +1687,12 @@ export const FileReadTool = buildTool({
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   async checkPermissions(input, context): Promise<ReturnType<typeof checkReadPermissionForTool>> {
-    return checkReadPermissionForTool(FileReadTool, input, context.getAppState().toolPermissionContext)
+    const permissionContext = context.getAppState().toolPermissionContext
+    if (readTargetsEnabled() && classifyReadTarget(input.file_path).kind === 'resource') {
+      const judged = await referenceReadDecision(FileReadTool.name, input.file_path.trim(), input, permissionContext, getCwd())
+      return judged ?? ({ behavior: 'allow', updatedInput: input } as ReturnType<typeof checkReadPermissionForTool>)
+    }
+    return checkReadPermissionForTool(FileReadTool, input, permissionContext)
   },
   isSearchOrReadCommand: () => ({ isSearch: false, isRead: true }),
   userFacingName,
@@ -1775,6 +1781,13 @@ export const FileReadTool = buildTool({
 
     if (readTargetsEnabled()) {
       const target = classifyReadTarget(input.file_path)
+      if (target.kind === 'resource') {
+        const rules = context.getAppState().toolPermissionContext
+        for (const named of await referenceReadPaths(input.file_path.trim(), getCwd())) {
+          const denied = matchingRuleForInput(named, rules, 'read', 'deny')
+          if (denied) return { result: false as const, message: ruleSentence(`Reading ${named}`, 'deny', denied), errorCode: 1 }
+        }
+      }
       if (target.kind === 'resource' || target.kind === 'url') return { result: true as const }
     }
 
