@@ -238,8 +238,26 @@ section('§4 · headless scene/objects/render_state/report_tail/blend_open + fen
   check('report_tail carries lifecycle load entry', tail.includes('unit.blend') && tail.includes('"entries"'))
   const opened = await runWithCwdOverride(work, () => callTool('blend_open', { path: 'unit.blend' }))
   check('blend_open validates and opens the fenced .blend', opened.includes('"opened"') && opened.includes(realpathSync(blendPath)))
+  check(
+    'blend_open headless says the file opened cleanly and was closed with the process',
+    opened.includes('opened cleanly and was closed with the process') &&
+      opened.includes('"closedWithProcess": true'),
+    opened.slice(0, 220),
+  )
   const missingBlend = await runWithCwdOverride(work, () => callTool('scene_info', { blend: 'nope.blend' }))
   check('missing .blend answers BLEND_NOT_FOUND with non-zero exit status', missingBlend.includes('[BLEND_NOT_FOUND]') && /exit status:\s*[1-9]/.test(missingBlend))
+  const stillPath = path.join(realpathSync(work), 'renders', 'frame07.png')
+  const still = await runWithCwdOverride(work, () =>
+    callTool('render_still', { blend: 'unit.blend', outputPath: 'renders/frame07.png', frame: 7 }),
+  )
+  const pyClean = await runWithCwdOverride(work, () => callTool('python_run', { source: 'result = 2' }))
+  check(
+    'every headless answer carries one short line that the process has ended and no state is kept (naming blend for the next call)',
+    [info, objs, rstate, tail, opened, missingBlend, still, pyClean].every(ans =>
+      /^state: process ended, no state kept \(name blend on the next call\)$/m.test(ans),
+    ),
+    info.slice(0, 180),
+  )
 
   fixture.clearInvocations()
   const escapedBlend = await runWithCwdOverride(work, () => callTool('scene_info', { blend: '../outside.blend' }))
@@ -251,11 +269,6 @@ section('§4 · headless scene/objects/render_state/report_tail/blend_open + fen
     /must stay inside the working tree/.test(escapedBlend) &&
       /must stay inside the working tree/.test(escapedOut) &&
       fixture.invocations().length === 0,
-  )
-
-  const stillPath = path.join(realpathSync(work), 'renders', 'frame07.png')
-  const still = await runWithCwdOverride(work, () =>
-    callTool('render_still', { blend: 'unit.blend', outputPath: 'renders/frame07.png', frame: 7 }),
   )
   check(
     'render_still runs execute form and returns once the frame is on disk with duration',

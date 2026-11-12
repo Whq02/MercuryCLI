@@ -144,6 +144,7 @@ export async function runBlenderHeadlessOp(opts: {
     const lines: string[] = [
       `road: headless (${opts.bin} -b)`,
       `exit status: ${outcome.code}`,
+      `state: process ended, no state kept (name blend on the next call)`,
     ]
     if (existsSync(responsePath)) {
       let envelope: HeadlessDriverEnvelope | null = null

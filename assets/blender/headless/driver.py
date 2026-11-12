@@ -246,6 +246,22 @@ def main():
         payload, exit_code = _run_python(args, state)
         finish(payload, exit_code)
 
+    if op == "blend_open":
+        ok, body = ops.dispatch(op, args)
+        if ok and isinstance(body, dict):
+            finish(
+                {
+                    "ok": True,
+                    "result": {
+                        "opened": body.get("opened"),
+                        "closedWithProcess": True,
+                        "note": "file opened cleanly and was closed with the process; name blend on the next call",
+                    },
+                },
+                0,
+            )
+        finish({"ok": False, "error": body}, 1)
+
     ok, body = ops.dispatch(op, args)
     if ok:
         finish({"ok": True, "result": body}, 0)
