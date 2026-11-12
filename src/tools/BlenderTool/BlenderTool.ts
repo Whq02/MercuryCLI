@@ -229,7 +229,7 @@ export const BlenderTool = buildTool({
     class: 'mutation',
     operations: [...blenderBridgeVerbNames(), ...LOCAL_OPS],
     evidence: ['artifact'],
-    cancellation: 'cooperative',
+    cancellation: 'not-applicable',
     latency: 'interactive',
     gate: 'MERCURY_BLENDER',
     conditions: [

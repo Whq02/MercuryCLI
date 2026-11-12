@@ -234,5 +234,46 @@ section('§5 · the wire path through the real tool, against the fake')
   delete process.env.MERCURY_BLENDER
 }
 
+section('§6 · the contract promises no cancellation: an abort does not end a request the bridge is holding')
+{
+  process.env.MERCURY_BLENDER = '1'
+  process.env.MERCURY_BLENDER_BIN = noBlender
+  process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR = addonHome
+  resetBlenderBridgeClientForTest()
+  _resetBlenderBridgeContextCacheForTesting()
+  const held = await startFakeBlenderBridge({ token: 'tok', mode: 'silent-after-hello' })
+  process.env.MERCURY_BLENDER_BRIDGE_PORT = String(held.port)
+  const controller = new AbortController()
+  let settled = false
+  const pending = runWithCwdOverride(work, () =>
+    BlenderTool.call({ op: 'scene_info' } as never, { abortController: controller } as never),
+  ).then(r => {
+    settled = true
+    return r as { data: { result: string } }
+  })
+  const until = Date.now() + 2_000
+  while (!held.seenOps.includes('scene_info') && Date.now() < until) await sleep(5)
+  controller.abort()
+  await sleep(150)
+  const pendingAfterAbort = !settled
+  await held.close()
+  const answer = await pending
+  check('the bridge had received the operation when the abort came', held.seenOps.includes('scene_info'))
+  check(
+    'the aborted call is still waiting 150 ms later and settles only when the connection ends',
+    pendingAfterAbort && answer.data.result.includes('[CONNECTION_LOST]'),
+    `pending after abort=${pendingAfterAbort} · ${answer.data.result.split('\n').slice(0, 2).join(' | ').slice(0, 160)}`,
+  )
+  check(
+    'so the capability contract says not-applicable, and neither cooperative nor kill',
+    BlenderTool.capability?.cancellation === 'not-applicable',
+    String(BlenderTool.capability?.cancellation),
+  )
+  delete process.env.MERCURY_BLENDER_BRIDGE_PORT
+  delete process.env.MERCURY_BLENDER_BIN
+  resetBlenderBridgeClientForTest()
+  delete process.env.MERCURY_BLENDER
+}
+
 console.log('\n' + (failures === 0 ? '✅ blender-bridge tool proof PASS' : `❌ ${failures} FAILURES`))
 process.exit(failures === 0 ? 0 : 1)
