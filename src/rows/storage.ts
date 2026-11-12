@@ -78,6 +78,7 @@ type StoragePayloads = {
     lastSpawnTokens: number
   }
   'queue-operation': Omit<QueueOperationMessage, 'type'>
+  'turn-start': SessionField<'turnId', string>
   'turn-end': SessionField<'turnId', string> & { status: string }
 }
 
@@ -124,6 +125,7 @@ export const STORAGE_ROWS = {
   'context-collapse-commit': { write: 'append', fold: 'collapse' },
   'context-collapse-snapshot': { write: 'append', fold: 'collapse' },
   'queue-operation': { write: 'append', fold: 'none' },
+  'turn-start': { write: 'append', fold: 'metadata' },
   'turn-end': { write: 'append', fold: 'metadata' },
 } as const satisfies Record<StorageRowKind, StorageRowPolicy>
 

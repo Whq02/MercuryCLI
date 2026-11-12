@@ -132,6 +132,10 @@ async function recordOf(file: string): Promise<StoredRow[]> {
   return [...loaded.messages.values()] as unknown as StoredRow[]
 }
 const turnEndLines = (file: string): number => file === '' ? 0 : readFileSync(file, 'utf8').split('\n').filter(line => line.includes('"metaKind":"turn-end"')).length
+const metaKindsOf = (file: string): string[] => file === '' ? [] : readFileSync(file, 'utf8').split('\n').filter(line => line.trim() !== '').map(line => {
+  const payload = ((JSON.parse(line) as { payload?: { kind?: string; metaKind?: string } }).payload ?? {})
+  return payload.kind === 'session-meta' ? `meta:${payload.metaKind}` : String(payload.kind)
+})
 type Verdict = { state: string; sentence: number }
 async function loaderOn(file: string, sessionId: string): Promise<Verdict> {
   const loaded = file === '' ? null : await loadConversationForResume(sessionId, file)
@@ -203,18 +207,26 @@ try {
     }
   }
 
-  section("C — the rule's limit: a session's first turn has no line before it")
+  section("C — a session's first turn: no turn ended before it, and the turn says that it began")
   {
     const SID = sid()
-    const fixture = await startFixtureApi([handoffTurn(), { kind: 'text', text: 'FIRST-TURN-REPLY, which the hook blocks.' }, { kind: 'hang', deltas: [] }])
+    const fixture = await startFixtureApi([handoffTurn(), { kind: 'text', text: 'FIRST-TURN-REPLY, which the hook blocks.' }, { kind: 'hang', deltas: [] }, { kind: 'text', text: 'FIRST-TURN-RESUMED-REPLY.' }])
     const arena = makeArena('first', fixture)
     try {
       gateTheNextAnswerOnce(arena)
       await runUntilAskedAgainThenKill(arena, fixture, ['run', 'FIRST-TURN prompt.', '--model', MODEL, '--session-id', SID, '--format', 'rows'], () => transcriptOf(arena, SID))
       const file = transcriptOf(arena, SID)
       const rows = await recordOf(file)
+      const kinds = metaKindsOf(file)
+      check('C1 the scene: the same cut inside the first turn of a session: no turn ended in this record, and it ends on the row the run asked the model again with', turnEndLines(file) === 0 && isTheAskAgain(lastSpoken(rows)), j({ lines: turnEndLines(file), last: lastSpoken(rows)?.type, meta: lastSpoken(rows)?.isMeta }))
+      check('C2 the turn left one line that says it began, ahead of its first conversation row', kinds.filter(kind => kind === 'meta:turn-start').length === 1 && kinds.indexOf('meta:turn-start') < kinds.findIndex(kind => kind === 'input' || kind === 'output'), j(kinds))
       const read = await loaderOn(file, SID)
-      check('C1 the same cut inside the first turn of a session: no line stands in the record, and it reads as the record of an older build does', turnEndLines(file) === 0 && isTheAskAgain(lastSpoken(rows)) && read.state === 'none' && read.sentence === 0, j({ lines: turnEndLines(file), last: lastSpoken(rows)?.type, read }))
+      check('C3 the loader reads the turn as cut, and says so once', read.state === 'interrupted_prompt' && read.sentence === 1, j(read))
+      const older = await asAnOlderBuildLeftIt(file, SID)
+      check('C4 control: the same conversation with no line anywhere (the record an older build leaves) is read as before, as a finished turn', older.state === 'none' && older.sentence === 0, j(older))
+      const second = await run(arena, ['run', 'FIRST-TURN second prompt.', '--model', MODEL, '--resume', SID, '--format', 'rows'])
+      check('C5 a second process answers, and its request tells the model once that the previous run ended before its turn finished', second.exit === 0 && second.stdout.includes('FIRST-TURN-RESUMED-REPLY.') && wireSays(lastRequest(fixture), CONTINUATION) === 1, `exit=${second.exit} said=${wireSays(lastRequest(fixture), CONTINUATION)} ${second.stderr.slice(-200)}`)
+      check('C6 …and that turn leaves its own two lines: the record reads as finished again', turnEndLines(file) === 1 && metaKindsOf(file).filter(kind => kind === 'meta:turn-start').length === 2 && (await loaderOn(file, SID)).state === 'none', j({ kinds: metaKindsOf(file).filter(kind => kind.startsWith('meta:turn-')), read: await loaderOn(file, SID) }))
     } finally {
       await fixture.close()
     }
@@ -224,10 +236,7 @@ try {
   {
     const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
     const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.ts')
-    const kindsOf = (file: string): string[] => readFileSync(file, 'utf8').split('\n').filter(line => line.trim() !== '').map(line => {
-      const payload = ((JSON.parse(line) as { payload?: { kind?: string; metaKind?: string } }).payload ?? {})
-      return payload.kind === 'session-meta' ? `meta:${payload.metaKind}` : String(payload.kind)
-    })
+    const kindsOf = metaKindsOf
     const endsOnALine = (file: string): boolean => {
       const kinds = kindsOf(file)
       return kinds.lastIndexOf('meta:turn-end') > kinds.findLastIndex(kind => kind === 'input' || kind === 'output')

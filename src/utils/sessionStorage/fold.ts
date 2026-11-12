@@ -144,6 +144,7 @@ const foldRows = {
   'context-collapse-snapshot': (state, row) => { state.contextCollapseSnapshot = row },
   'speculation-accept': () => {},
   'queue-operation': () => {},
+  'turn-start': (state, row) => { if (row.sessionId) state.turnsOpen.set(row.sessionId, true) },
   'turn-end': (state, row) => {
     if (!row.sessionId) return
     state.turnEnds.set(row.sessionId, { turnId: row.turnId, status: row.status, trailing: [] })
