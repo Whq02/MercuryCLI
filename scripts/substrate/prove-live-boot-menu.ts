@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0', PACKAGE_URL: 'https://github.com/example/mercury' }
 
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { runTurns } from '../lib/rows.ts'
@@ -247,6 +247,23 @@ section('§2 applyLiveBootMenuEnv — live-only filter, anti-smuggling parity, r
     pinnedEnv.MERCURY_BLENDER === '0' && pinnedEnv.MERCURY_DAP === '1',
     j(pinnedEnv),
   )
+
+  const menuSrc = readFileSync(join(ROOT, 'src', 'substrate', 'startupMenu.ts'), 'utf8')
+  for (const name of ['applyBootMenuEnv', 'applyLiveBootMenuEnv']) {
+    const at = menuSrc.indexOf(`export function ${name}(`)
+    const nextExport = menuSrc.indexOf('\nexport function ', at + 1)
+    const nextHelper = menuSrc.indexOf('\nfunction ', at + 1)
+    const end = Math.min(nextExport < 0 ? menuSrc.length : nextExport, nextHelper < 0 ? menuSrc.length : nextHelper)
+    const body = at < 0 ? '' : menuSrc.slice(at, end)
+    const read = body.indexOf('readFileSync(')
+    const firstStat = body.indexOf('statFingerprint(')
+    const lastStat = body.lastIndexOf('statFingerprint(')
+    check(
+      `${name} remembers the stat it took BEFORE it read the file, so a save that lands during the read is read at the next turn`,
+      read > 0 && firstStat > 0 && firstStat < read && lastStat < read,
+      `first stat at ${firstStat}, last stat at ${lastStat}, the read at ${read}`,
+    )
+  }
 }
 
 section('§3 receipts, evaluateExplicitApply & admitted snapshot revision')

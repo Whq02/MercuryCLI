@@ -484,16 +484,14 @@ export function applyBootMenuEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): BootEnvApplyResult | null {
   if (!flagEnabled('MERCURY_ENTER_MENU')) return null
+  const fp = statFingerprint(path)
+  if (fp !== null) rememberStat(env, path, fp)
   let raw: string
   try {
     raw = readFileSync(path, 'utf8')
   } catch {
-    const fp = statFingerprint(path)
-    if (fp !== null) rememberStat(env, path, fp)
     return null
   }
-  const fp = statFingerprint(path)
-  if (fp !== null) rememberStat(env, path, fp)
   const result: BootEnvApplyResult = { applied: [], envWins: [], refused: [], retired: [] }
   let parsed: unknown
   try {
@@ -578,8 +576,7 @@ export function applyLiveBootMenuEnv(
     }
     return null
   }
-  const fpAfter = statFingerprint(path) ?? fp
-  if (fpAfter !== null) rememberStat(env, path, fpAfter)
+  if (fp !== null) rememberStat(env, path, fp)
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
