@@ -677,6 +677,10 @@ function readsHandedFiles(found: Layer): boolean {
   return PIPED_FILE_READERS.has(found.program)
 }
 
+function callsUnreadName(later: ReadCommand): boolean {
+  return later.dialect === 'powershell' && /^(?:&|\.\s)/.test(later.text) && !wordKnown(later.argv[0] ?? '') && later.argv.slice(1).some(word => word.includes('$'))
+}
+
 function searchesText(found: Layer): boolean {
   if (found.program !== 'select-string' && found.program !== 'sls') return false
   return !found.argv.slice(1).some(word => word.includes('$') || word.includes(UNREAD_PART) || /^-(?:path|pspath|lp|lit[a-z]*)(?::|$)/i.test(word))
@@ -1124,7 +1128,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const sent = filesSentOrPrinted(layer)
       const lists = layer.program === 'find' || layer.program === 'ls' || layer.program === 'get-childitem' || layer.program === 'gci' || layer.program === 'dir'
       const listing = powershell && POWERSHELL_LISTERS.has(layer.program) ? powershellListing(layer.argv) : null
-      const listed = listing !== null && read.commands.some((later, index) => index > at && layersOf(later.argv).some(found => readsHandedFiles(found) && !(listing.names && searchesNamesAsText(simple, later, found, read.pipelineSizes)) && !searchesTextOfListing(simple, later, found, read.commands))) ? listing : null
+      const listed = listing !== null && read.commands.some((later, index) => index > at && (callsUnreadName(later) || layersOf(later.argv).some(found => readsHandedFiles(found) && !(listing.names && searchesNamesAsText(simple, later, found, read.pipelineSizes)) && !searchesTextOfListing(simple, later, found, read.commands)))) ? listing : null
       const feeds = lists && (fed.has(at) || listed !== null || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')) || (!powershell && layer.program === 'find' && loopedToReader(at, simple)))
       for (const word of [...layer.argv.slice(1), ...roots, ...(listed === null ? [] : listed.roots), ...(layer.program === 'findstr' ? findstrFolderFiles(layer.argv.slice(1)) : []), ...(gitGrepRoots(layer, here) ?? []), ...(layer.program === 'find' && layer.findRoots?.length === 0 ? ['.'] : [])]) {
         for (const candidate of [...spellingsOf(powershell ? standingSpelled(word) : word), ...underOtherHomes(word, read.homes)]) {
