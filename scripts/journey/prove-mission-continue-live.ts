@@ -451,8 +451,18 @@ function stageB(world: World, label: string, argvTail: string[]): void {
     walk4(path.join(world4.home, 'projects'))
     check('WORLD 4 the card is keyed by the CONVERSATION (a transcript on disk carries the same id)', card4 !== undefined && transcripts4.includes(card4.sessionId), `card ${card4?.sessionId ?? '(none)'} · transcripts ${transcripts4.join(',')}`)
     check("WORLD 4 the mission's Stop hook fired in the seat (the card counts a check)", (card4?.iterations ?? 0) >= 1, JSON.stringify(cards4))
-    const seatLines = debugText(world4).split('\n').filter(l => l.includes('[mission]'))
-    check('WORLD 4 the seat armed from the card and logged the check', seatLines.some(l => l.includes('re-armed from card')) && seatLines.some(l => /Mission not yet met|installed standing mission/.test(l)), seatLines.map(l => l.slice(-110)).join(' | ').slice(-400))
+    const debugDir4 = path.join(world4.home, 'debug')
+    const seatLog = (existsSync(debugDir4) ? readdirSync(debugDir4) : [])
+      .map(name => {
+        try {
+          return readFileSync(path.join(debugDir4, name), 'utf8')
+        } catch {
+          return ''
+        }
+      })
+      .find(text => text.includes(`[session-runner] claimed: session ${card4?.sessionId ?? '(no card)'}`)) ?? ''
+    const seatLines = seatLog.split('\n').filter(l => l.includes('[mission]'))
+    check('WORLD 4 the seat armed the mission in its own process and logged its checks', seatLines.some(l => /installed standing mission|re-armed from card/.test(l)) && seatLines.some(l => /Mission not yet met|pauses: \d+ turns without a tool call/.test(l)), seatLines.map(l => l.slice(-110)).join(' | ').slice(-400) || 'no [mission] line in the runner\'s own debug file')
   } finally {
     try {
       fast.kill('SIGTERM')
