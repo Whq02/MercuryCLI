@@ -288,7 +288,7 @@ export function scriptSentToProgram(argv: string[], text: string): string | unde
   return undefined
 }
 
-type Pending = { text: string; dialect: ShellDialect; from: number; body?: string }
+type Pending = { text: string; dialect: ShellDialect; from: number; body?: string; cmd?: boolean }
 
 const EXPANSION_CAP = 4
 const ALIAS_DEFINITION = /^([^=\s]+)=([\s\S]*)$/
@@ -339,13 +339,42 @@ function nestedScripts(command: ReadCommand, from: number, commands: readonly Re
       }
     } else if (program === 'cmd') {
       const at = argv.findIndex(word => /^\/\/?[ck]$/i.test(word))
-      if (at >= 0 && at + 1 < argv.length) out.push({ text: argv.slice(at + 1).join(' '), dialect: 'powershell', from })
+      if (at >= 0 && at + 1 < argv.length) out.push({ text: argv.slice(at + 1).join(' '), dialect: 'powershell', from, cmd: true })
     } else if (command.dialect === 'powershell' && (program === 'invoke-expression' || program === 'iex')) {
       const script = argv.slice(1).filter(word => !/^-[A-Za-z]+$/.test(word))
       if (script.length > 0) out.push({ text: script.join(' '), dialect: 'powershell', from })
+    } else if (command.dialect === 'powershell' && (program === 'start-process' || program === 'saps' || program === 'start')) {
+      const started = startedBy(argv.slice(1))
+      if (started !== undefined) out.push({ text: started, dialect: 'powershell', from })
     }
   }
   return out
+}
+
+const START_VALUED = ['workingdirectory', 'verb', 'windowstyle', 'credential', 'redirectstandardinput', 'redirectstandardoutput', 'redirectstandarderror', 'environment']
+
+function startedBy(words: readonly string[]): string | undefined {
+  let file: string | undefined
+  const handed: string[] = []
+  let taking = false
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i]!
+    const named = /^-([A-Za-z]+)(?::(.*))?$/.exec(word)
+    if (named === null) {
+      if (file === undefined && !taking) file = word
+      else handed.push(word.replace(/,$/, ''))
+      continue
+    }
+    const name = named[1]!.toLowerCase()
+    taking = false
+    if (name === 'whatif') return undefined
+    if ('filepath'.startsWith(name)) file = named[2] ?? words[++i]
+    else if ('argumentlist'.startsWith(name) || name === 'args') {
+      taking = true
+      if (named[2] !== undefined) handed.push(named[2])
+    } else if (named[2] === undefined && START_VALUED.some(full => full.startsWith(name))) i++
+  }
+  return file === undefined || !wordKnown(file) ? undefined : `& '${file.replaceAll("'", "''")}' ${handed.join(' ')}`.trim()
 }
 
 function unescapeBackslashes(text: string): string {
@@ -478,7 +507,7 @@ class Reading {
   }
 }
 
-type Frame = { background: boolean; stages: readonly Stage[]; body: string | undefined; line: number; dialect: ShellDialect; around: string | undefined; gates?: ReadonlyArray<readonly [number, number]> | undefined; maybes?: readonly number[] | undefined; substituted?: boolean | undefined }
+type Frame = { background: boolean; stages: readonly Stage[]; body: string | undefined; line: number; dialect: ShellDialect; around: string | undefined; gates?: ReadonlyArray<readonly [number, number]> | undefined; maybes?: readonly number[] | undefined; substituted?: boolean | undefined; cmd?: boolean | undefined }
 
 const WORD_KINDS = new Set(['word', 'number', 'raw_string', 'string', 'concatenation', 'ansi_c_string', 'translated_string', 'simple_expansion', 'expansion', 'command_substitution', 'process_substitution', 'arithmetic_expansion', 'brace_expression'])
 const WRITE_KEEPERS = new Set(['file_redirect', 'heredoc_redirect', 'herestring_redirect'])
@@ -939,13 +968,15 @@ const PS_LOOP_VARIABLE = new RegExp(`^(?:\\[.*\\])?\\$(?:${UNREAD_PART}|[\\p{L}\
 
 const PS_ASSIGNS = /^([^=]*?)(?:[-+*/%]|\?\?)?=([\s\S]*)$/
 const PS_VALUE_START = /^[$[('"@{]/
+const PS_OPERATOR = /^(?:[-+*/%,]|\.\.|-(?:[ci]?(?:eq|ne|gt|ge|lt|le|like|notlike|match|notmatch|contains|notcontains|in|notin|replace|split)|f|join|is|isnot|as|and|or|xor|band|bor|bxor|shl|shr))$/i
+const PS_HOME_CONSTANT = /^\$(?:home|env:(?:userprofile|home))$/i
 
 const PS_MOVES = new Set(['cd', 'chdir', 'sl', 'set-location', 'pushd', 'push-location'])
 
 class PowerShellWalk {
   at = 0
   typed = false
-  glued = false
+  said: string | undefined
   gates: ReadonlyArray<readonly [number, number]> = []
   maybes: readonly number[] = []
   previous: readonly [number, number] | undefined
@@ -968,6 +999,8 @@ class PowerShellWalk {
     const outer = { gates: this.gates, maybes: this.maybes, previous: this.previous }
     let held = outer.gates
     let last: readonly [number, number] | undefined
+    let said: string | undefined
+    let read = 0
     while (this.at < text.length) {
       this.blank(true)
       const ch = text[this.at]
@@ -980,6 +1013,7 @@ class PowerShellWalk {
       const from = this.reading.commands.length
       this.previous = last
       const own = this.pipeline(closer, stages)
+      said = read++ === 0 ? this.said : undefined
       made.push(...own)
       const moved = own.length === 1 && this.reading.commands.length === from + 1 ? this.plainMove(from) : undefined
       last = moved === undefined ? undefined : [from, from + 1]
@@ -1000,7 +1034,20 @@ class PowerShellWalk {
     this.gates = outer.gates
     this.maybes = outer.maybes
     this.previous = outer.previous
+    this.said = said
     return made
+  }
+
+  literal(words: readonly PsToken[]): string | undefined {
+    if (words.length % 2 === 0) return undefined
+    let value = ''
+    for (const [at, word] of words.entries()) {
+      if (at % 2 === 1) {
+        if (!word.bare || word.value !== '+') return undefined
+      } else if (word.value.includes(UNREAD_PART) || (word.bare && !PS_HOME_CONSTANT.test(word.value))) return undefined
+      else value += word.value
+    }
+    return value
   }
 
   plainMove(at: number): 'joined' | 'stops' | undefined {
@@ -1033,7 +1080,7 @@ class PowerShellWalk {
     const text = this.source
     const made: number[] = []
     const typed = this.typed
-    this.typed = true
+    this.typed = this.frame.cmd !== true
     while (this.at < text.length) {
       this.blank(true)
       if (this.at >= text.length || text[this.at] === ')') break
@@ -1073,6 +1120,7 @@ class PowerShellWalk {
     const pipeline = this.reading.pipelineSizes.push(1) - 1
     const begun = this.at
     let stage = 0
+    let lone: string | undefined
     for (;;) {
       const stages = [...outer, { pipeline, stage }]
       const start = this.at
@@ -1101,12 +1149,17 @@ class PowerShellWalk {
       }
       const background = text[this.at] === '&' && text[this.at + 1] !== '&'
       let words = this.valueOf(tokens)
+      const assigned = words !== tokens
       if (words === tokens && words.length > 2 && words[0]!.bare && PS_LOOP_VARIABLE.test(words[0]!.value) && words[1]!.bare && words[1]!.value.toLowerCase() === 'in') words = words.slice(2)
       const called = words[0] !== undefined && words[0].bare && (words[0].value === '&' || words[0].value === '.')
       if (called) words = words.slice(1)
+      if (stage === 0) lone = called || redirects.length > 0 || background || this.frame.cmd === true ? undefined : this.literal(words)
+      const first = words[0]
+      const worded = (this.typed || assigned) && first?.bare === false && (words.length === 1 || first.text.endsWith(',') || (words[1]!.bare && PS_OPERATOR.test(words[1]!.value)))
+      const value = this.frame.cmd !== true && !called && (worded || (words.length === 1 && first?.value === UNREAD_PART && first.inner.length === 0))
       const argv: string[] = []
       const inner: number[][] = []
-      for (const word of this.typed && !called && words[0]?.bare === false ? [] : words) {
+      for (const word of value ? [] : words) {
         const parts = word.bare && word.value.includes(',') && !word.value.includes(UNREAD_PART) ? word.value.split(',').filter(part => part !== '') : [word.value]
         for (const part of parts) {
           argv.push(part)
@@ -1144,6 +1197,7 @@ class PowerShellWalk {
       break
     }
     this.reading.pipelineSizes[pipeline] = stage + 1
+    this.said = stage === 0 ? lone : undefined
     const whole = text.slice(begun, this.at).trim()
     for (const index of made) {
       const command = this.reading.commands[index]
@@ -1169,8 +1223,6 @@ class PowerShellWalk {
   token(stages: readonly Stage[]): PsToken | undefined {
     const text = this.source
     const start = this.at
-    const glued = this.glued
-    this.glued = false
     let value = ''
     let bare = true
     const inner: number[] = []
@@ -1233,19 +1285,19 @@ class PowerShellWalk {
       if (ch === '(' && bare && PS_STATEMENT_HEAD.test(value)) break
       if (ch === '(' || ((ch === '$' || ch === '@') && text[this.at + 1] === '(')) {
         if (ch === '(' && value !== '' && /[\w\]]$/.test(value)) {
-          if (!PS_VALUE_START.test(text[start]!)) {
-            this.glued = true
-            break
-          }
+          if (!PS_VALUE_START.test(text[start]!)) break
           const open = this.at++
-          inner.push(...(value.endsWith(']') ? this.group(')', [], true) : this.handed(stages)))
+          inner.push(...(value.endsWith(']') ? this.group(')', [], this.frame.cmd !== true) : this.handed(stages)))
           value += text.slice(open, this.at)
           continue
         }
-        const own = glued && this.at === start
         this.at += ch === '(' ? 1 : 2
-        inner.push(...this.group(')', [], own || this.typed))
-        value += UNREAD_PART
+        inner.push(...this.group(')', [], this.frame.cmd !== true))
+        if (this.said === undefined) value += UNREAD_PART
+        else {
+          value += this.said
+          bare = false
+        }
         continue
       }
       if (ch === '{' || (ch === '@' && text[this.at + 1] === '{')) {
@@ -1284,7 +1336,7 @@ async function readInto(reading: Reading, text: string, frame: Frame, depth: num
     if (parent === undefined) continue
     const cwd = reading.cwd
     reading.cwd = parent.cwd
-    await readInto(reading, script.text, { background: parent.background, stages: parent.stages, body: script.body ?? parent.body, line: parent.line, dialect: script.dialect, around: undefined }, depth + 1)
+    await readInto(reading, script.text, { background: parent.background, stages: parent.stages, body: script.body ?? parent.body, line: parent.line, dialect: script.dialect, around: undefined, cmd: script.cmd }, depth + 1)
     reading.cwd = cwd
   }
 }

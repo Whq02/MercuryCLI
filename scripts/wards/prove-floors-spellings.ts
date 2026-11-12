@@ -1741,6 +1741,120 @@ if (runs('MOVES')) {
   bootstrap.setCwdState(PROJECT)
 }
 
+if (runs('VALUES')) {
+  section('VALUES · on the PowerShell tool a group that holds only literals and the constants of the home is the value it holds: as an operand it is that path, called it is that command, and standing by itself or as what a variable is given it is text and no command')
+  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const { refusalOfShellCommand } = await import('../../src/utils/wards/wardsRefusals.ts')
+  const warded = async (line: string, powershell = true, from = PROJECT): Promise<string | null> => {
+    const verdict = await refusalOfShellCommand({ toolName: powershell ? 'PowerShell' : 'Bash', input: { command: line }, shellCommand: line, startingFolder: from }, from)
+    return verdict.allow ? null : verdict.rule.name
+  }
+  const roots = [
+    'Remove-Item ($HOME) -Recurse -Force',
+    'Remove-Item ("~") -Recurse -Force',
+    'Remove-Item -Recurse -Force ("~")',
+    'Remove-Item("~") -Recurse -Force',
+    'Remove-Item($HOME) -Recurse -Force',
+    'rm("~") -r -fo',
+    'Remove-Item ("$HOME") -Recurse -Force',
+    'Remove-Item ($HOME + "\\") -Recurse -Force',
+    'Remove-Item (("~")) -Recurse -Force',
+    'Remove-Item @("~") -Recurse -Force',
+    'Remove-Item $("~") -Recurse -Force',
+    "Remove-Item ('~') -Recurse -Force -ErrorAction SilentlyContinue",
+    'rm -r -fo ("$env:USERPROFILE")',
+    '& ("Remove-Item") -Recurse -Force ~',
+    '. ("Remove-Item") -Recurse -Force ~',
+    "& ('Remove-' + 'Item') -Recurse -Force ~",
+    'iex ("Remove-Item -Recurse -Force ~")',
+    'Invoke-Expression ("Remove-Item -Recurse -Force ~")',
+    'Invoke-Expression -Command ("rm -r -fo ~")',
+    "iex ('Remove-Item -Recurse ' + '-Force ~')",
+  ]
+  for (const line of roots) {
+    const answer = await warded(line)
+    check(`VALUES · the delete ward · ${shown(line)} · is refused as a recursive delete of the home`, answer === 'no-root-recursive-delete', String(answer))
+  }
+  for (const line of ['& ("sudo") whoami', "& ('su' + 'do') whoami", 'iex ("sudo whoami")', 'Start-Process sudo', 'Start-Process "sudo"', 'Start-Process ("sudo")', 'Start-Process -FilePath ("sudo") -ArgumentList whoami']) {
+    const answer = await warded(line)
+    check(`VALUES · the wards · ${shown(line)} · a value that is called, handed to Invoke-Expression or started is the command it names: refused`, answer === 'no-sudo', String(answer))
+  }
+  for (const line of ['cmd /c "shutdown /s /t 0"', 'cmd /c "if exist x (""shutdown"" /s)"', 'cmd /c "(""shutdown"" /s /t 0)"']) {
+    const answer = await warded(line)
+    check(`VALUES · the wards · ${shown(line)} · in cmd text a quoted name at the head of a command is that command: refused as before`, answer === 'no-system-halt', String(answer))
+  }
+  check('VALUES · the runtime floor · in cmd text a quoted name at the head of a group is that command: the delete of the runtime is refused as before', (await floors.shellSelfProtectionReason(fill('cmd /c "(""del"" /s /q <CONFIG>\\runtime)"'), true, PROJECT)) !== null)
+  const texts = [
+    'Write-Host ("sudo")',
+    "Write-Host ('reboot')",
+    '$x = ("shutdown")',
+    '$y = "shutdown"',
+    '$cmd = "sudo"',
+    "$mode = 'reboot'",
+    '[string]$z = "halt"',
+    '$a = $b = "sudo"',
+    'Write-Host (("sudo"))',
+    'if (("shutdown").Length -gt 0) { 1 }',
+    '$list = @("sudo", "reboot")',
+    '$h = @{ cmd = ("shutdown") }',
+    'return ("reboot")',
+    'Write-Host ("$env:USERNAME ran reboot")',
+    'Write-Output ("mkfs", "x")',
+    'Write-Host ("sudo " + $x)',
+    '$msg = ("format " + "C:")',
+    'Write-Host ("a" + "b")',
+    'Write-Output ($HOME)',
+    'Write-Output ("$HOME\\Documents")',
+    '$dir = ("$HOME" + "\\Documents")',
+    'Test-Path ("~")',
+    'Get-Item ($HOME)',
+    'throw ("shutdown failed")',
+    'Write-Error ("sudo is not available")',
+    'Start-Sleep (5)',
+    'Set-Content .\\notes.txt ("sudo make install")',
+    'Add-Content .\\log.txt ("rm -rf ~ was typed")',
+    '$banner = ("=" * 40)',
+    'Write-Output ("{0} files" -f 3)',
+    'Write-Host ("Remove-Item -Recurse -Force ~")',
+    'Copy-Item ("notes.txt") (".\\backup\\notes.txt")',
+    'Set-Location ("docs"); Get-ChildItem',
+    'Start-Process notepad',
+    'Start-Process ("code") -ArgumentList "."',
+  ]
+  for (const line of texts) {
+    const ward = await warded(line)
+    const read = await floors.shellMercurySecretPath(line, true, PROJECT)
+    const write = await floors.shellCredentialWritePath(line, true, PROJECT)
+    const runtime = await floors.shellSelfProtectionReason(line, true, PROJECT)
+    check(`VALUES · ${shown(line)} · a value that is printed, kept, tested or handed to a command that only takes it: the wards and the three floors do not refuse it`, ward === null && read === null && write === null && runtime === null, `ward ${ward} · read ${read} · write ${write} · runtime ${runtime}`)
+  }
+  check('VALUES · the read floor, standing in the home · "Get-ChildItem ("Documents") -Recurse | Select-String TODO" · a folder beneath named in a group is that folder: not refused', (await floors.shellMercurySecretPath('Get-ChildItem ("Documents") -Recurse | Select-String TODO', true, OWN_HOME)) === null)
+  const writes = [
+    'Set-Content ("$HOME\\.ssh\\authorized_keys") x',
+    'Set-Content ($HOME + "\\.ssh\\authorized_keys") x',
+    'Set-Content("$HOME\\.ssh\\authorized_keys") x',
+    "Set-Content (\"$HOME\\.ssh\\autho\" + 'rized_keys') x",
+    "Set-Content ('~\\.ssh\\authorized_keys') x",
+    'Add-Content -Path ("~\\.ssh\\authorized_keys") -Value x',
+    "& ('Set-' + 'Content') \"$HOME\\.ssh\\authorized_keys\" x",
+    '& ("Set-Content") ("~\\.ssh\\authorized_keys") x',
+    'Copy-Item .\\other ("$HOME\\.ssh\\authorized_keys")',
+  ]
+  for (const line of writes) {
+    const answer = await floors.shellCredentialWritePath(line, true, PROJECT)
+    check(`VALUES · the credential-store floor · ${shown(line)} · is refused as a write to the credential store`, answer !== null, String(answer))
+  }
+  for (const line of ['Set-Content (".\\notes.txt") x', "& ('Set-' + 'Content') .\\notes.txt x", 'Write-Output ("$HOME\\.ssh\\authorized_keys")']) check(`VALUES · the credential-store floor · ${shown(line)} · a write in the project, or the path only printed: not refused`, (await floors.shellCredentialWritePath(line, true, PROJECT)) === null)
+  const reads = ['Get-Content ("<CONFIG>\\.cred" + "entials.json")', 'Get-Content ("<CONFIG>" + "\\mcp-auth.json")', 'gci ("<CONFIG>") | gc', 'cd ("<CONFIG>"); gci | gc', 'Set-Location ("<CONFIG>"); Get-ChildItem | Get-Content', "& ('Get-' + 'Content') <CONFIG>\\mcp-auth.json"]
+  for (const line of reads) {
+    const answer = await floors.shellMercurySecretPath(fill(line), true, PROJECT)
+    check(`VALUES · the read floor, standing in a project · ${shown(fill(line))} · is refused as a read of the credentials`, answer !== null, String(answer))
+  }
+  for (const line of ['Remove-Item -Recurse ("<CONFIG>\\runtime")', 'Remove-Item -Recurse ("<CONFIG>" + "\\runtime")', '& ("Remove-Item") -Recurse <CONFIG>\\runtime']) check(`VALUES · the runtime floor · ${shown(fill(line))} · is refused as a delete of the running runtime`, (await floors.shellSelfProtectionReason(fill(line), true, PROJECT)) !== null)
+  await expect('VALUES', call('PowerShell', { command: 'Set-Content ($HOME + "\\.ssh\\authorized_keys") x' }, 'the whole decision of the PowerShell tool'), ['sovereign', 'flow', 'default'], refused, 'is refused')
+  await expect('VALUES', call('PowerShell', { command: 'Write-Host ("sudo")' }, 'a value that is printed'), ['sovereign'], notRefused, 'is not refused by a floor')
+}
+
 if (runs('T-3.5')) {
   const state = daemonStatePath()
   section('T-3.5 floor 4: kills of the daemon and of the session, and writes into the runtime, under Sovereign and Flow')
