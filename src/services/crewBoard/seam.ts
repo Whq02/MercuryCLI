@@ -202,7 +202,7 @@ export function swarmRoad(agentId = 'main'): boolean {
   return agentId === 'main' ? swarmSwitchOfSession() : roads.get(key(agentId))?.on === true
 }
 
-export function reserveSwarmLaunch(agentId: string, input: { name?: string; description: string; team?: string; captain?: boolean }, sender = 'main', signal?: AbortSignal): () => void {
+export function reserveSwarmLaunch(agentId: string, input: { name?: string; description: string; team?: string; captain?: boolean }, sender = 'main'): () => void {
   if (input.captain && (!input.name?.trim() || !input.team)) throw new Error('A captain launch needs name and team.')
   if (input.captain && sender !== 'main') throw new Error('Only the lead appoints a captain.')
   if (!swarmSessionEnabled()) {
@@ -214,7 +214,7 @@ export function reserveSwarmLaunch(agentId: string, input: { name?: string; desc
   if (!principal) throw new Error('This seat is not on the live crew board.')
   store.reserveEnrollment(principal, { agent: agentId, name: input.name ?? input.description, team: input.team, captain: input.captain, named: input.name !== undefined })
   const id = key(agentId)
-  pendingLaunches.set(id, signal)
+  pendingLaunches.set(id, undefined)
   return () => {
     if (!pendingLaunches.delete(id)) return
     store.cancelEnrollment(principal, agentId)

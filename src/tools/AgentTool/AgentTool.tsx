@@ -561,7 +561,7 @@ export const AgentTool = buildTool({
     }
 
     const earlyAgentId = generateTaskId('local_agent') as AgentId
-    const releaseEnrollment = reserveSwarmLaunch(earlyAgentId, input, context.agentId ?? 'main', context.abortController.signal)
+    const releaseEnrollment = reserveSwarmLaunch(earlyAgentId, input, context.agentId ?? 'main')
     let backgroundOwnsEnrollment = false
     try {
     const willOverrideCwd = plan.isolation === 'worktree' || cwdParam !== undefined

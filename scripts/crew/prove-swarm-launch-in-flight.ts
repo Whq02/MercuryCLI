@@ -68,7 +68,8 @@ const set = (update: (before: AppState) => AppState): void => {
   state = update(state)
   for (const [name, agent] of state.agentNameRegistry) if (before.agentNameRegistry.get(name) !== agent) named.shift()?.(String(agent))
 }
-const seatType = { agentType: 'in-flight', source: 'userSettings', whenToUse: 'a seat of the launch scenes', getSystemPrompt: () => 'Answer in one line.' }
+const reserved: Array<() => void> = []
+const seatType = { agentType: 'in-flight', source: 'userSettings', whenToUse: 'a seat of the launch scenes', getSystemPrompt: () => { reserved.shift()?.(); return 'Answer in one line.' } }
 let launches = 0
 type Launched = { agentId?: string; status?: string; refused?: string }
 function launch(input: { name: string; run_in_background?: boolean; team?: string; captain?: boolean }, turn = new AbortController()): Promise<Launched> {
@@ -168,6 +169,44 @@ console.log('── a foreground launch an interrupt hands to the background kee
   check('when it enrolls, the parked seat whose name it took stays retired: one seat carries the name', atEnrollment.join() === `watch=${first.agentId}:running`, atEnrollment)
   check('and it is the captain its launch asked for', captain !== undefined && captain === first.agentId, { captain })
   check('it runs to its end in the background', statusOf(first.agentId) === 'completed' && seats().filter(seat => seat.startsWith('watch=')).join() === `watch=${first.agentId}:parked`, { status: statusOf(first.agentId), seats: seats() })
+}
+
+console.log('── a foreground launch whose task is stopped before it enrolled gives its name up at once ──')
+{
+  let stopped = ''
+  let enrolledWhenStopped: boolean | undefined
+  let rival: Promise<Launched> | undefined
+  named.push(agent => {
+    stopped = agent
+    enrolledWhenStopped = board.member(agent)
+    killAsyncAgent(agent, set)
+    rival = launch({ name: 'scout', run_in_background: true })
+  })
+  const first = await launch({ name: 'scout' })
+  const second = await rival
+  await until(() => second?.agentId === undefined || told(second.agentId))
+  check('the launch is stopped between its reservation and its enrollment, and its call ends as a stopped call', first.refused !== undefined && first.refused !== RUNNING('scout') && enrolledWhenStopped === false && statusOf(stopped) === 'killed', { first, enrolledWhenStopped, status: statusOf(stopped) })
+  check('a second launch under the name is not refused: the stopped launch holds no name', second?.status === 'async_launched', second)
+  check('the second launch holds the name and runs to its end', statusOf(second?.agentId) === 'completed' && seats().filter(seat => seat.startsWith('scout=')).join() === `scout=${second?.agentId}:parked`, { status: statusOf(second?.agentId), seats: seats() })
+  check('the stopped launch stays off the board', board.member(stopped) === false && seam.swarmRoad(stopped) === false, { member: board.member(stopped), road: seam.swarmRoad(stopped) })
+}
+
+for (const [name, moment, hooks] of [['relay', 'before its task is registered', reserved], ['tender', 'after its task is registered', named]] as const) {
+  console.log(`── a foreground launch whose turn is interrupted ${moment} holds its name ──`)
+  const turn = new AbortController()
+  let enrolledWhenInterrupted: boolean | undefined
+  let rival: Promise<Launched> | undefined
+  hooks.push(() => {
+    enrolledWhenInterrupted = seats().some(seat => seat.startsWith(`${name}=`))
+    turn.abort()
+    rival = launch({ name, run_in_background: true })
+  })
+  const first = await launch({ name }, turn)
+  const second = await rival
+  await until(() => told(first.agentId) && (second?.agentId === undefined || told(second.agentId)))
+  check('the interrupt comes between the launch\'s reservation and its enrollment, and the launch goes on in the background', first.status === 'async_launched' && enrolledWhenInterrupted === false, { first, enrolledWhenInterrupted })
+  check('a second launch under the name is refused in the board\'s words: the first is on its way', second?.refused === RUNNING(name), second)
+  check('the first launch takes its seat and runs to its end', statusOf(first.agentId) === 'completed' && seats().filter(seat => seat.startsWith(`${name}=`)).join() === `${name}=${first.agentId}:parked`, { status: statusOf(first.agentId), notice: notices(first.agentId)[0]?.slice(0, 300), seats: seats() })
 }
 
 runSwarmCommand('off')

@@ -40,7 +40,7 @@ import type { AgentToolProgress, ShellProgress } from '../../types/tools.js'
 import type { SetAppState } from '../../Task.js'
 import { runWithAgentContext, type AgentContext } from '../../utils/agentContext.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { mirrorSwarmNotice } from '../../services/crewBoard/seam.js'
+import { mirrorSwarmNotice, watchSwarmLaunch } from '../../services/crewBoard/seam.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
@@ -209,6 +209,7 @@ export async function runForegroundAgentExecution(
       model: metadata.resolvedAgentModel,
       toolUseId: toolUseContext.toolUseId,
     })
+    watchSwarmLaunch(syncAgentId, foregroundTask.abortController.signal)
     backgroundRace = foregroundTask.backgroundSignal.then(() => BACKGROUNDED)
     if (name !== undefined) registerAgentName(name, syncAgentId, rootSetAppState)
   }
