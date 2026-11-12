@@ -277,7 +277,7 @@ const nextTurn = (conversation: Message[]): Message[] => [
   createUserMessage({ content: 'Say ok again.' }) as Message,
 ]
 
-async function drive(road: Road, messages: Message[]): Promise<{ body: Body | undefined; error: string }> {
+async function drive(road: Road, messages: Message[], tools: unknown = POOL): Promise<{ body: Body | undefined; error: string }> {
   for (const [k, v] of Object.entries(road.env)) {
     if (v === undefined) delete process.env[k]
     else process.env[k] = v
@@ -291,7 +291,7 @@ async function drive(road: Road, messages: Message[]): Promise<{ body: Body | un
       messages: messages as never,
       systemPrompt: ['You are a fixture assistant. Reply with one word.'] as never,
       thinkingConfig: { type: 'disabled' } as never,
-      tools: POOL,
+      tools: tools as never,
       signal: new AbortController().signal,
       options: {
         getToolPermissionContext: async () => permissionContext,
@@ -537,6 +537,39 @@ setArm(undefined)
 section('§11 the flag is a registered value')
 const row = FLAG_REGISTRY.find(flag => flag.env === FLAG)
 check('MERCURY_EDIT_FORM has a registry row, a value flag whose evidence is this proof', row?.kind === 'value' && row.evidence === 'scripts/edit-tools/prove-edit-form.ts', j(row ?? null))
+
+section('§12 with the whole default tool list, deferred definitions and all: every road still carries Edit once, in full, in the form in force')
+const { assembleToolPool } = await import('../../src/tools.ts')
+const WHOLE = assembleToolPool(permissionContext, [])
+const formCarried = (entry: Json | undefined): string => {
+  const inner = (entry?.function as Json | undefined) ?? entry
+  const schema = inner?.parameters ?? inner?.input_schema ?? inner?.parametersJsonSchema
+  for (const form of ['full', 'plain'] as Form[]) {
+    if (inner?.description === FORMS[form].description && (j(schema) === j(FORMS[form].schema) || j(schema) === j(FORMS[form].strict))) return form
+  }
+  return `neither: ${j(entry ?? null).slice(0, 120)}`
+}
+const wholeByArm = new Map<string, Body | undefined>()
+const listSizes: number[] = []
+for (const [arm, label] of [[undefined, 'unset'], ['plain', 'plain'], ['full', 'full']] as Array<[Arm, string]>) {
+  setArm(arm)
+  const wrong: string[] = []
+  for (const road of ROADS) {
+    const { body, error } = await drive(road, [opening()], WHOLE)
+    wholeByArm.set(`${label}/${road.road}`, body)
+    const edits = toolEntries(road, body).filter(entry => nameOfEntry(entry) === 'Edit')
+    const carried = edits.length === 1 && edits[0]!.defer_loading !== true ? formCarried(edits[0]) : `${edits.length} Edit entries`
+    if (arm === undefined) listSizes.push(toolEntries(road, body).length)
+    if (error !== '' || carried !== formSent(road, arm)) wrong.push(`${road.road}: ${error} ${carried}`)
+  }
+  check(`${label}: on all eleven roads Edit goes out once, loaded in full, in the ${arm ?? 'form each road sent before'}${arm === undefined ? ' (plain on the local road, full on the ten others)' : ' form'}`, wrong.length === 0, wrong.join(' · '))
+}
+setArm(undefined)
+check('the lists driven are whole ones: every road sends more than the two tools of the sections above', listSizes.length === ROADS.length && listSizes.every(size => size > 2), j(listSizes))
+for (const arm of ['plain', 'full'] as Form[]) {
+  const moved = ROADS.filter(road => aroundEdit(road, wholeByArm.get(`${arm}/${road.road}`)) !== aroundEdit(road, wholeByArm.get(`unset/${road.road}`))).map(road => road.road)
+  check(`${arm}: around the Edit definition each of the eleven whole requests is the unset one`, moved.length === 0, moved.join(' · '))
+}
 
 server.close()
 console.log('')
