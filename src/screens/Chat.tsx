@@ -1008,6 +1008,7 @@ export function Chat({
   useEffect(() => {
     if (connectorCompletedRef.current.connector !== focusedConnector) {
       connectorCompletedRef.current = { connector: focusedConnector, at: connectorCompletedAt };
+      if (isLoading) tipPickedThisTurnRef.current = false;
       wasLoadingRef.current = isLoading;
       return;
     }

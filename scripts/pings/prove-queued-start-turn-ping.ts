@@ -122,11 +122,20 @@ const recordWrite = (s: string): void => {
 }
 const osc9Count = (): number => writes.filter(w => w.includes(']9;') && w.includes(PING_MESSAGE)).length
 
+const chatSrc = readFileSync(join(import.meta.dir, '../../src/screens/Chat.tsx'), 'utf8')
+const chatSwitchBlock = chatSrc.slice(
+  chatSrc.indexOf('if (connectorCompletedRef.current.connector !== focusedConnector)'),
+  chatSrc.indexOf('const completed = hasConnectorCompleted'),
+)
+const switchResetsTipWhenLoading = chatSwitchBlock.includes('if (isLoading) tipPickedThisTurnRef.current = false')
+let tipsPicked = 0
+
 function PingHarness(): React.ReactNode {
   const focusedConnector = useSyncExternalStore(subscribeFocusedSessionConnector, getFocusedSessionConnector, getFocusedSessionConnector)
   const seatLive = useSyncExternalStore(subscribeFocusedSeatLive, getFocusedSeatLive, getFocusedSeatLive)
   const isLoading = seatLive.inFlight
   const [lastCompletedAt, setLastCompletedAt] = useState<number | null>(null)
+  const tipPickedThisTurnRef = useRef(false)
   const wasLoadingRef = useRef(false)
   const connectorCompletedRef = useRef<{ connector: unknown; at: number | null }>({ connector: null, at: null })
   const hasConnectorCompleted = typeof (focusedConnector as { lastTurnCompletedAtMs?: unknown }).lastTurnCompletedAtMs === 'function'
@@ -134,6 +143,7 @@ function PingHarness(): React.ReactNode {
   useEffect(() => {
     if (connectorCompletedRef.current.connector !== focusedConnector) {
       connectorCompletedRef.current = { connector: focusedConnector, at: connectorCompletedAt }
+      if (switchResetsTipWhenLoading && isLoading) tipPickedThisTurnRef.current = false
       wasLoadingRef.current = isLoading
       return
     }
@@ -144,7 +154,12 @@ function PingHarness(): React.ReactNode {
     if (completed) {
       completionEdges++
       setLastCompletedAt(Date.now())
+      if (!tipPickedThisTurnRef.current) {
+        tipPickedThisTurnRef.current = true
+        tipsPicked++
+      }
     }
+    if (isLoading) tipPickedThisTurnRef.current = false
     wasLoadingRef.current = isLoading
   }, [focusedConnector, hasConnectorCompleted, connectorCompletedAt, isLoading])
   useTurnEndPing({ lastCompletedAt, busy: isLoading }, THRESHOLD_MS)
@@ -790,6 +805,56 @@ try {
       } catch {}
       n7.connector.detach()
     }
+  }
+
+  {
+    const sidA = '00000000-0000-4000-8000-000000000031'
+    const sidB = '00000000-0000-4000-8000-000000000032'
+    writeWorkers({
+      'concourse-w1': { sessionId: sidA, lastDeliveryAt: 60000 },
+      'concourse-w2': { sessionId: sidB, lastDeliveryAt: 60100 },
+    })
+    writeFacts(sidA, { busy: true })
+    writeFacts(sidB, { busy: true })
+    const cA = makeConnector(sidA)
+    const cB = makeConnector(sidB)
+    setFocusedSessionConnector(cA)
+    feedFacts(cA)
+    feedFacts(cB)
+    await wait(25)
+
+    const tipsStart = tipsPicked
+    writeWorkers({
+      'concourse-w1': { sessionId: sidA, lastDeliveryAt: 60000, lastTurnSettledAt: 60500 },
+      'concourse-w2': { sessionId: sidB, lastDeliveryAt: 60100 },
+    })
+    writeFacts(sidA, { busy: false })
+    feedFacts(cA)
+    await wait(25)
+
+    const compBeforeSwitchToBusy = completionEdges
+    setFocusedSessionConnector(cB)
+    await wait(25)
+
+    setFocusedSessionConnector(cA)
+    await wait(25)
+    const falseCompletionsOnBusyToIdleSwitch = completionEdges - compBeforeSwitchToBusy
+
+    setFocusedSessionConnector(cB)
+    await wait(25)
+    writeWorkers({
+      'concourse-w1': { sessionId: sidA, lastDeliveryAt: 60000, lastTurnSettledAt: 60500 },
+      'concourse-w2': { sessionId: sidB, lastDeliveryAt: 60100, lastTurnSettledAt: 60900 },
+    })
+    writeFacts(sidB, { busy: false })
+    feedFacts(cB)
+    await wait(25)
+
+    check(
+      '13. switching focus from an idle completed session to a busy session resets tipPickedThisTurnRef so the busy session picks its turn tip on settle, while busy-to-idle switch fires zero false completions',
+      falseCompletionsOnBusyToIdleSwitch === 0 && tipsPicked - tipsStart === 2,
+      JSON.stringify({ falseCompletionsOnBusyToIdleSwitch, tipsDelta: tipsPicked - tipsStart }),
+    )
   }
 } finally {
   mounted.unmount()
