@@ -251,13 +251,13 @@ export function useTextInput({
   }
 
   function handleEnter(cursor: Cursor, key: Key): Cursor | null {
-    if (multiline && isBackslashContinuation(value, cursor.offset)) {
+    if (multiline && isBackslashContinuation(cursor.text, cursor.offset)) {
       markBackslashReturnUsed()
       return cursor.backspace().insert('\n')
     }
     if (key.meta || key.shift) return cursor.insert('\n')
     if (suppressEnterSubmit) return null
-    onSubmit?.(value)
+    onSubmit?.(cursor.text)
     return null
   }
 

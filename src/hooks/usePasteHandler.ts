@@ -53,6 +53,7 @@ export function usePasteHandler({
 } {
   const chunksRef = useRef<string[]>([])
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const sameTurnRef = useRef(false)
   const [isPasting, setIsPastingState] = useState(false)
   const pastingRef = useRef(false)
   const setIsPasting = (value: boolean): void => {
@@ -116,6 +117,7 @@ export function usePasteHandler({
     )
 
     if (imagePaths.length > 0 && onImagePasteRef.current) {
+      setIsPasting(true)
       void (async () => {
         let anyRead = false
         const nonImageLines: string[] = []
@@ -165,6 +167,7 @@ export function usePasteHandler({
     }
 
     if (joined === '' && onImagePasteRef.current) {
+      setIsPasting(true)
       checkClipboardImage()
       return
     }
@@ -182,6 +185,13 @@ export function usePasteHandler({
         return
       }
 
+      if (timerRef.current !== null && key.return && !flagged && !sameTurnRef.current) {
+        clearTimeout(timerRef.current)
+        flush()
+        onInput(input, key)
+        return
+      }
+
       const looksLikeImagePath = splitPasteCandidates(input).some(candidate =>
         isImageFilePath(candidate.trim()),
       )
@@ -193,13 +203,19 @@ export function usePasteHandler({
           flagged)
 
       if (treatAsPaste) {
-        if (flagged) setIsPasting(true)
         chunksRef.current.push(input)
         if (timerRef.current !== null) clearTimeout(timerRef.current)
+        if (flagged) {
+          flush()
+          return
+        }
+        sameTurnRef.current = true
+        queueMicrotask(() => {
+          sameTurnRef.current = false
+        })
         timerRef.current = setTimeout(flush, QUIET_FLUSH_MS)
         return
       }
-
       if (flagged || input.length > 10) setIsPasting(false)
       onInput(input, key)
     },

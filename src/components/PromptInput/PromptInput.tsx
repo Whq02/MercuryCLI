@@ -982,7 +982,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     },
     inputFilter: voiceInputFilter,
     onSubmit: (value: string) => {
-      void submit(value, {})
+      void submit(pendingInput.text() || value, {})
     },
     onClearInput: () => {
       setMode('prompt')

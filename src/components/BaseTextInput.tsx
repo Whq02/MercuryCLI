@@ -93,7 +93,7 @@ export function BaseTextInput({
     onImagePaste: props.onImagePaste,
     onImageError: props.onImageError,
     onInput: (input, key) => {
-      if (isPasting && key.return) return
+      if ((isPasting || pendingNow()) && key.return) return
       onInput(input, key)
     },
   })
