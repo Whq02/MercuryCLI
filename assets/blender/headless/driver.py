@@ -46,13 +46,14 @@ def _classify_exception(exc):
             op_name = m.group(1)
             return (
                 "WINDOW_REQUIRED",
-                "operator %s requires a Blender window (headless -b runs with no window): %s"
+                "operator %s requires a Blender window (headless -b runs with no window; open Blender with mercury_blender_bridge installed and enabled to run window operators): %s"
                 % (op_name, msg),
             )
-        if "background mode" in msg.lower() or "opengl" in msg.lower() and "window" in msg.lower():
+        if "background mode" in msg.lower() or ("opengl" in msg.lower() and "window" in msg.lower()):
             return (
                 "WINDOW_REQUIRED",
-                "operator requires a Blender window (headless -b runs with no window): %s" % msg,
+                "operator requires a Blender window (headless -b runs with no window; open Blender with mercury_blender_bridge installed and enabled to run window operators): %s"
+                % msg,
             )
     return ("PYTHON_EXCEPTION", "%s: %s" % (type(exc).__name__, msg))
 

@@ -287,23 +287,43 @@ section('§4 · headless scene/objects/render_state/report_tail/blend_open + fen
   )
 }
 
-section('§5 · window-requiring ops refused by name · road precedence · permission parity')
+section('§5 · window-requiring ops refused honestly · road precedence · permission parity')
 {
   const opengl = await runWithCwdOverride(work, () =>
     callTool('python_run', { source: 'import bpy\nbpy.ops.render.opengl(write_still=True)' }),
   )
   check(
-    'a window-requiring bpy operator (bpy.ops.render.opengl) is refused by name with non-zero exit',
+    'a window-requiring bpy operator in python_run answers as the script error naming the operator and the open-Blender add-on road',
     opengl.includes('bpy.ops.render.opengl') &&
       /window/i.test(opengl) &&
+      opengl.includes('mercury_blender_bridge') &&
       /exit status:\s*[1-9]/.test(opengl),
-    opengl.slice(0, 200),
+    opengl.slice(0, 220),
   )
-  const toolWinOp = await runWithCwdOverride(work, () => callTool('render_opengl'))
+
+  fixture.clearInvocations()
+  const jobRefusal = await runWithCwdOverride(work, () =>
+    callTool('render_still', { blend: 'unit.blend', outputPath: 'renders/job.png', invoke: true }),
+  )
   check(
-    'a window-only op name at the tool door is refused by name when headless',
-    toolWinOp.includes('render_opengl') && /window/i.test(toolWinOp),
-    toolWinOp.slice(0, 160),
+    'render_still job/invoke form refuses without starting a process, without inventing an exit status, naming the window requirement and bridge road',
+    fixture.invocations().length === 0 &&
+      !/exit status:/i.test(jobRefusal) &&
+      /no Blender process was started/i.test(jobRefusal) &&
+      /render_still/.test(jobRefusal) &&
+      /window/i.test(jobRefusal) &&
+      jobRefusal.includes('mercury_blender_bridge'),
+    jobRefusal.slice(0, 220),
+  )
+
+  fixture.clearInvocations()
+  const unknownWinName = await runWithCwdOverride(work, () => callTool('render_opengl'))
+  check(
+    'an uncatalogued op name takes the unknown-op teaching path with no invented exit status',
+    unknownWinName.includes('unknown op "render_opengl"') &&
+      !/exit status:/i.test(unknownWinName) &&
+      fixture.invocations().length === 0,
+    unknownWinName.slice(0, 180),
   )
 
   installer.applyBlenderBridgeInstall()

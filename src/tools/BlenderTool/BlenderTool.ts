@@ -11,7 +11,8 @@ import {
   blenderBridgeHint,
 } from '../../services/blender/bridgeClient.js'
 import {
-  isBlenderWindowOnlyOp,
+  formatHeadlessWindowRefusal,
+  isHeadlessRenderJobRequest,
   runBlenderHeadlessOp,
 } from '../../services/blender/headlessRunner.js'
 import {
@@ -147,23 +148,6 @@ async function runLocalOp(op: string): Promise<string> {
 
 async function runOp(input: Input, abortSignal?: AbortSignal): Promise<string> {
   if (LOCAL_OPS.has(input.op)) return runLocalOp(input.op)
-  if (isBlenderWindowOnlyOp(input.op) && blenderBridgeEnabled()) {
-    const port = blenderBridgePort()
-    const client = getBlenderBridgeClient()
-    const bridgeReachable =
-      client !== null &&
-      (client.status() === 'ready' || (await probeBlenderBridgeReachable(port)))
-    if (!bridgeReachable) {
-      const census = locateBlender()
-      if (census.blender) {
-        return (
-          `road: headless (${census.blender.path} -b)\n` +
-          `exit status: 1\n` +
-          `${input.op} failed: [WINDOW_REQUIRED] ${input.op} requires a Blender window and is refused on the headless road (-b runs with no window)`
-        )
-      }
-    }
-  }
   const spec = blenderBridgeVerb(input.op)
   if (!spec) {
     return `unknown op "${input.op}" — the wire verbs: ${blenderBridgeVerbNames().join(', ')}; local: blender_status, blender_bridge_install, blender_bridge_uninstall (the tool description carries the full catalog)`
@@ -181,6 +165,9 @@ async function runOp(input: Input, abortSignal?: AbortSignal): Promise<string> {
   if (!bridgeReachable) {
     const census = locateBlender()
     if (census.blender) {
+      if (isHeadlessRenderJobRequest(input.op, fenced.args)) {
+        return formatHeadlessWindowRefusal(port)
+      }
       const blend =
         typeof fenced.args?.blend === 'string'
           ? fenced.args.blend

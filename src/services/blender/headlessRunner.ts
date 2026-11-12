@@ -18,15 +18,21 @@ const HEADLESS_DEFAULT_TIMEOUT_MS = 30_000
 const HEADLESS_PYTHON_RUN_TIMEOUT_MS = 120_000
 const HEADLESS_TIMEOUT_CAP_MS = 600_000
 
-const WINDOW_ONLY_TOOL_OPS = new Set([
-  'render_opengl',
-  'render_viewport',
-  'viewport_render',
-  'window_new',
-])
+export function isHeadlessRenderJobRequest(
+  op: string,
+  args: Record<string, unknown> | undefined,
+): boolean {
+  if (op !== 'render_still' || !args) return false
+  if (args.invoke === true || args.mode === 'job' || args.mode === 'invoke') return true
+  return typeof args.executionContext === 'string' && args.executionContext.startsWith('INVOKE')
+}
 
-export function isBlenderWindowOnlyOp(op: string): boolean {
-  return WINDOW_ONLY_TOOL_OPS.has(op)
+export function formatHeadlessWindowRefusal(port: number): string {
+  return (
+    `road: headless (no Blender process was started)\n` +
+    `render_still failed: [WINDOW_REQUIRED] render_still's editor job/INVOKE_DEFAULT form needs a Blender window — no Blender process was started.\n` +
+    `hint: omit invoke/mode to run render_still synchronously on the headless road, or open Blender with mercury_blender_bridge installed and enabled on 127.0.0.1:${port}`
+  )
 }
 
 interface HeadlessDriverEnvelope {
