@@ -83,7 +83,22 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
     }
     try {
       const exitCode = await new Promise<number | null>((resolveExit, rejectExit) => {
-        const child = spawn(commandLine, { shell: true, windowsHide: false, stdio: 'inherit', env: { ...subprocessEnv(), ...(process.platform === 'win32' ? { MERCURY_EDITOR_FILE: filePath } : {}) } })
+        const child =
+          process.platform === 'win32'
+            ? (() => {
+                const spec = windowsEditorSpawn(
+                  editorExe,
+                  invocation.args,
+                  process.env.ComSpec || process.env.COMSPEC || 'cmd.exe',
+                )
+                return spawn(spec.file, spec.args, {
+                  windowsHide: false,
+                  windowsVerbatimArguments: spec.windowsVerbatimArguments,
+                  stdio: 'inherit',
+                  env: { ...subprocessEnv(), MERCURY_EDITOR_FILE: filePath },
+                })
+              })()
+            : spawn(commandLine, { shell: true, windowsHide: false, stdio: 'inherit', env: subprocessEnv() })
         child.once('error', rejectExit)
         child.once('exit', code => resolveExit(code))
       })
@@ -112,6 +127,29 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
 export function editorCommandLine(editorExe: string, args: readonly string[], filePath: string, platform: NodeJS.Platform = process.platform): string {
   const quotedPath = platform === 'win32' ? '"%MERCURY_EDITOR_FILE%"' : `'${filePath.replaceAll("'", `'\\''`)}'`
   return [`"${editorExe}"`, ...args.map(arg => `"${arg}"`), quotedPath].join(' ')
+}
+
+function windowsEditorSpawn(
+  editorExe: string,
+  args: readonly string[],
+  comSpec: string,
+): { file: string; args: string[]; windowsVerbatimArguments: boolean } {
+  const interpreter = comSpec.trim().replace(/^"+|"+$/g, '') || 'cmd.exe'
+  if (/(?:^|[\\/])(?:pwsh|powershell)(?:\.exe)?$/i.test(interpreter)) {
+    const psExe = `'${editorExe.replaceAll("'", "''")}'`
+    const psArgs = args.map(arg => ` "${arg.replaceAll('`', '``').replaceAll('"', '`"')}"`).join('')
+    return {
+      file: interpreter,
+      args: ['-NoLogo', '-NoProfile', '-Command', `& ${psExe}${psArgs} $env:MERCURY_EDITOR_FILE`],
+      windowsVerbatimArguments: false,
+    }
+  }
+  const cmdLine = editorCommandLine(editorExe, args, '', 'win32')
+  return {
+    file: interpreter,
+    args: ['/d', '/v:off', '/s', '/c', `"${cmdLine}"`],
+    windowsVerbatimArguments: true,
+  }
 }
 
 function editorNamed(variable: EditorVariable, value: string, executable: string): string {
