@@ -16,7 +16,7 @@ import composeTree, {
   type AbsoluteEntry,
   ComposeSignals,
   expandDamageForAbsoluteRects,
-  overlayInvalidatesPrevScreen,
+  invalidOverlayRects,
 } from './compose-walk.js'
 import { markDirty, type DOMElement } from './dom.js'
 import type { Frame } from './frame.js'
@@ -176,15 +176,16 @@ export default function createRenderer(
     }
 
     const absoluteRemoved = consumeAbsoluteRemovedFlag(rootNode)
-    const overlayMoved = overlayInvalidatesPrevScreen(rootNode, prevAbsoluteEntries)
+    const invalidRects = prevFrameContaminated ? [] : invalidOverlayRects(rootNode, prevAbsoluteEntries)
     const prevScreen =
-      prevFrameContaminated || absoluteRemoved || overlayMoved ? undefined : frontFrame.screen
+      prevFrameContaminated || (absoluteRemoved && invalidRects.length === 0) ? undefined : frontFrame.screen
 
     const signals = new ComposeSignals()
     composeTree(rootNode, buffer, {
       prevScreen,
       signals,
       prevAbsoluteRects: prevOverpaintRects,
+      invalidRects,
       regionScrollUsable: options.regionScrollUsable === true,
     })
     const renderedScreen = buffer.get()

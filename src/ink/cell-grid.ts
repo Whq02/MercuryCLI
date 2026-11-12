@@ -582,18 +582,30 @@ export function blitRegion(into: Screen, from: Screen, regionX: number, regionY:
   touch(into, touchedLeft, top, touchedRight, maxY)
 }
 
-export function clearRegion(grid: Screen, regionX: number, regionY: number, regionWidth: number, regionHeight: number): void {
+const packedBlankBuffer = new ArrayBuffer(8)
+const packedBlankWords = new Int32Array(packedBlankBuffer)
+const packedBlankCell64 = new BigInt64Array(packedBlankBuffer)
+
+function blankCell64ForStyle(styleId: number): bigint {
+  if (styleId === 0) return EMPTY_CELL
+  packedBlankWords[0] = BLANK_GLYPH
+  packedBlankWords[1] = packWord(styleId, 0, CellWidth.Narrow)
+  return packedBlankCell64[0]!
+}
+
+export function fillRegion(grid: Screen, regionX: number, regionY: number, regionWidth: number, regionHeight: number, styleId: number): void {
   const left = Math.max(0, regionX)
   const top = Math.max(0, regionY)
   const right = Math.min(regionX + regionWidth, grid.width)
   const bottom = Math.min(regionY + regionHeight, grid.height)
   if (left >= right || top >= bottom) return
+  const cell64 = blankCell64ForStyle(styleId)
   const words = grid.cells
   const columns = grid.width
   let touchedLeft = left
   let touchedRight = right
   if (left === 0 && right === columns) {
-    grid.cells64.fill(EMPTY_CELL, top * columns, bottom * columns)
+    grid.cells64.fill(cell64, top * columns, bottom * columns)
   } else {
     for (let row = top; row < bottom; row++) {
       const rowStart = row * columns
@@ -607,10 +619,14 @@ export function clearRegion(grid: Screen, regionX: number, regionY: number, regi
         blankCell(grid, lastWord + 2)
         touchedRight = right + 1
       }
-      grid.cells64.fill(EMPTY_CELL, rowStart + left, rowStart + right)
+      grid.cells64.fill(cell64, rowStart + left, rowStart + right)
     }
   }
   touch(grid, touchedLeft, top, touchedRight, bottom)
+}
+
+export function clearRegion(grid: Screen, regionX: number, regionY: number, regionWidth: number, regionHeight: number): void {
+  fillRegion(grid, regionX, regionY, regionWidth, regionHeight, 0)
 }
 
 export function shiftRows(grid: Screen, top: number, bottom: number, n: number): void {

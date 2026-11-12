@@ -60,10 +60,14 @@ export class ComposeSignals {
   }
 }
 
-export function overlayInvalidatesPrevScreen(root: FrameNode, entries: readonly AbsoluteEntry[]): boolean {
-  if (entries.length === 0) return false
+export function invalidOverlayRects(root: FrameNode, entries: readonly AbsoluteEntry[]): Rectangle[] {
+  if (entries.length === 0) return []
+  const out: Rectangle[] = []
   const rootLayout = root.layoutNode
-  if (!rootLayout || rootLayout.getDisplay() === LayoutDisplay.None) return true
+  if (!rootLayout || rootLayout.getDisplay() === LayoutDisplay.None) {
+    for (const { rect } of entries) out.push(floorRect(rect.reach ?? rect))
+    return out
+  }
   for (const { node, rect } of entries) {
     const chain: FrameNode[] = []
     let cur: FrameNode | undefined = node
@@ -71,7 +75,10 @@ export function overlayInvalidatesPrevScreen(root: FrameNode, entries: readonly 
       chain.push(cur)
       cur = cur.parentNode
     }
-    if (cur !== root) return true
+    if (cur !== root) {
+      out.push(floorRect(rect.reach ?? rect))
+      continue
+    }
     let x = rootLayout.getComputedLeft()
     let y = rootLayout.getComputedTop()
     let hiddenOrScrolled = false
@@ -91,17 +98,35 @@ export function overlayInvalidatesPrevScreen(root: FrameNode, entries: readonly 
       const rawY = y + layout.getComputedTop()
       y = rawY < 0 && el.style.position === 'absolute' ? 0 : rawY
     }
-    if (hiddenOrScrolled) return true
+    if (hiddenOrScrolled) {
+      out.push(floorRect(rect.reach ?? rect))
+      continue
+    }
     const width = node.layoutNode!.getComputedWidth()
     const height = node.layoutNode!.getComputedHeight()
-    if (x !== rect.x || y !== rect.y || width !== rect.width || height !== rect.height) return true
+    if (x !== rect.x || y !== rect.y || width !== rect.width || height !== rect.height) {
+      out.push(floorRect(rect.reach ?? rect))
+      continue
+    }
     if (
       node.dirty &&
       ((!node.style.opaque && node.style.backgroundColor === undefined && node.style.fillRowBg === undefined) ||
         rect.reach !== undefined)
     ) {
-      return true
+      out.push(floorRect(rect.reach ?? rect))
     }
+  }
+  return out
+}
+
+function rectsOverlap(x: number, y: number, width: number, height: number, rects: readonly Rectangle[]): boolean {
+  if (rects.length === 0) return false
+  const left = Math.floor(x)
+  const top = Math.floor(y)
+  const right = Math.ceil(x + width)
+  const bottom = Math.ceil(y + height)
+  for (const r of rects) {
+    if (left < r.x + r.width && right > r.x && top < r.y + r.height && bottom > r.y) return true
   }
   return false
 }
@@ -318,29 +343,32 @@ function applyPaddingToText(node: FrameNode, text: string, softWrap?: boolean[])
 
 type RowGround = (row: number) => Color | undefined
 
-type Walk = { buffer: ComposeBuffer; signals: ComposeSignals; prevAbsoluteRects: readonly Rectangle[]; regionScrollUsable: boolean }
+type Walk = { buffer: ComposeBuffer; signals: ComposeSignals; prevAbsoluteRects: readonly Rectangle[]; invalidRects: readonly Rectangle[]; regionScrollUsable: boolean }
 
 type Own = { left: number; top: number; right: number; bottom: number }
 
 type Placement = { offsetX?: number; offsetY?: number; prevScreen: Screen | undefined; skipSelfBlit?: boolean; inheritedBackgroundColor?: Color; inheritedRowBg?: RowGround; own?: Own }
 
-type ComposeOptions = { offsetX?: number; offsetY?: number; prevScreen: Screen | undefined; signals?: ComposeSignals; prevAbsoluteRects?: readonly Rectangle[]; regionScrollUsable?: boolean }
+type ComposeOptions = { offsetX?: number; offsetY?: number; prevScreen: Screen | undefined; signals?: ComposeSignals; prevAbsoluteRects?: readonly Rectangle[]; invalidRects?: readonly Rectangle[]; regionScrollUsable?: boolean }
 
 const floorRect = (rect: Rectangle): Rectangle => ({ x: Math.floor(rect.x), y: Math.floor(rect.y), width: Math.floor(rect.width), height: Math.floor(rect.height) })
 
 const clipping = (mode: string | undefined): boolean => mode === 'hidden' || mode === 'scroll'
 
 export default function composeTree(root: FrameNode, buffer: ComposeBuffer, opts: ComposeOptions): ComposeSignals {
-  const walk: Walk = { buffer, signals: opts.signals ?? new ComposeSignals(), prevAbsoluteRects: opts.prevAbsoluteRects ?? [], regionScrollUsable: opts.regionScrollUsable === true }
+  const walk: Walk = { buffer, signals: opts.signals ?? new ComposeSignals(), prevAbsoluteRects: opts.prevAbsoluteRects ?? [], invalidRects: opts.invalidRects ?? [], regionScrollUsable: opts.regionScrollUsable === true }
   composeNode(root, walk, { offsetX: opts.offsetX, offsetY: opts.offsetY, prevScreen: opts.prevScreen })
   return walk.signals
 }
 
-function composeNode(node: FrameNode, walk: Walk, placement: Placement): void {
+function composeNode(node: FrameNode, walk: Walk, placement: Placement): boolean {
   const { layoutNode } = node
-  if (!layoutNode) return
-  if (layoutNode.getDisplay() === LayoutDisplay.None) clearHidden(node, walk)
-  else placeNode(node, layoutNode, walk, placement)
+  if (!layoutNode) return false
+  if (layoutNode.getDisplay() === LayoutDisplay.None) {
+    clearHidden(node, walk)
+    return false
+  }
+  return placeNode(node, layoutNode, walk, placement)
 }
 
 function clearHidden(hidden: FrameNode, walk: Walk): void {
@@ -351,7 +379,7 @@ function clearHidden(hidden: FrameNode, walk: Walk): void {
   walk.signals.markLayoutShift(() => `display-none-clear:${hidden.nodeName}`, Math.floor(cached.y))
 }
 
-function placeNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placement: Placement): void {
+function placeNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placement: Placement): boolean {
   const x = (placement.offsetX ?? 0) + layoutNode.getComputedLeft()
   const floating = node.style.position === 'absolute'
   const unclampedY = (placement.offsetY ?? 0) + layoutNode.getComputedTop()
@@ -360,9 +388,14 @@ function placeNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placemen
   const height = layoutNode.getComputedHeight()
   const held = nodeCache.get(node)
   const rectHeld = held !== undefined && held.x === x && held.y === y && held.width === width && held.height === height
-  const reusable = !node.dirty && !placement.skipSelfBlit && node.scroll?.pendingScrollDelta === undefined && rectHeld && placement.prevScreen !== undefined && held!.reach === undefined && (floating || insideOwn(placement.own, x, y, width, height))
-  if (reusable) reuseNode(node, held!, walk, placement.prevScreen!, floating, x, y, width, height)
-  else repaintNode(node, layoutNode, walk, placement, held, rectHeld, floating, x, y, width, height)
+  const overlapsInvalid = rectsOverlap(x, y, width, height, walk.invalidRects)
+  const reusable = !node.dirty && !overlapsInvalid && !placement.skipSelfBlit && node.scroll?.pendingScrollDelta === undefined && rectHeld && placement.prevScreen !== undefined && held!.reach === undefined && (floating || insideOwn(placement.own, x, y, width, height))
+  if (reusable) {
+    reuseNode(node, held!, walk, placement.prevScreen!, floating, x, y, width, height)
+    return false
+  }
+  repaintNode(node, layoutNode, walk, placement, held, rectHeld, floating, x, y, width, height)
+  return true
 }
 
 function reuseNode(node: FrameNode, cached: CachedLayout, walk: Walk, prevScreen: Screen, floating: boolean, x: number, y: number, width: number, height: number): void {
@@ -542,13 +575,18 @@ function composeText(node: FrameNode, walk: Walk, x: number, y: number, layoutNo
   walk.buffer.write(x, y, grounded, softWrap)
 }
 
-function groundRows(columns: number, rows: number, bg: Color | undefined): string {
-  const blank = ' '.repeat(columns)
-  const row = bg ? applyTextStyles(blank, { backgroundColor: bg }) : blank
-  return Array(rows).fill(row).join('\n')
+function fillGround(buffer: ComposeBuffer, x: number, y: number, columns: number, rows: number, bg: Color | undefined): void {
+  if (columns <= 0 || rows <= 0) return
+  buffer.fill(x, y, columns, rows, bg ? applyTextStyles(' ', { backgroundColor: bg }) : undefined)
 }
 
-type FillMemo = { __prevOwnBg?: unknown; __prevOpaque?: boolean; __prevOwnRowBg?: boolean }
+type FillMemo = {
+  __prevOwnBg?: unknown
+  __prevUniformBg?: unknown
+  __prevOpaque?: boolean
+  __prevOwnRowBg?: boolean
+  __prevRowSampler?: boolean
+}
 
 function composeBox(node: FrameNode, walk: Walk, placement: Placement, x: number, y: number, width: number, height: number, layoutNode: LayoutNode, hasRemovedChild: boolean): void {
   const { buffer } = walk
@@ -576,18 +614,25 @@ function composeBox(node: FrameNode, walk: Walk, placement: Placement, x: number
   }
   const memo = node as unknown as FillMemo
   const prevOwnBg = memo.__prevOwnBg
+  const prevUniformBg = memo.__prevUniformBg
+  const prevOpaque = memo.__prevOpaque
+  const prevOwnRowBg = memo.__prevOwnRowBg
+  const prevRowSampler = memo.__prevRowSampler
+  const isOpaque = node.style.opaque === true
+  const fillRemoved = (prevOwnBg !== undefined && ownGround === undefined) || (prevOpaque === true && !isOpaque) || (prevOwnRowBg === true && ownRowBg === undefined)
+  memo.__prevOwnBg = ownGround
+  memo.__prevUniformBg = boxBackgroundColor
+  memo.__prevOpaque = isOpaque
+  memo.__prevOwnRowBg = ownRowBg !== undefined
+  memo.__prevRowSampler = rowSampler !== undefined
   if (down === 'scroll') {
-    memo.__prevOwnBg = ownGround
     const scrollPlacement = prevOwnBg !== ownGround ? { ...placement, prevScreen: undefined } : placement
     composeScrollBox(node, walk, scrollPlacement, x, y, width, height, layoutNode, clipTop, clipBottom, hasRemovedChild, boxBackgroundColor, ownWithin(placement.own, clipsAcross, clipsDown, x, y, width, height), rowSampler)
   } else {
-    const fillRemoved = (prevOwnBg !== undefined && ownGround === undefined) || (memo.__prevOpaque === true && node.style.opaque !== true) || (memo.__prevOwnRowBg === true && ownRowBg === undefined)
-    memo.__prevOwnBg = ownGround
-    memo.__prevOpaque = node.style.opaque === true
-    memo.__prevOwnRowBg = ownRowBg !== undefined
-    const fills = Boolean(ownGround || node.style.opaque || ownRowBg !== undefined || fillRemoved)
+    const fills = Boolean(ownGround || isOpaque || ownRowBg !== undefined || fillRemoved)
     if (fills) fillInterior(walk, layoutNode, x, y, width, height, ownGround, rowSampler, placement.inheritedBackgroundColor)
-    composeChildren(node, walk, x, y, hasRemovedChild, fills ? undefined : placement.prevScreen, boxBackgroundColor, rowSampler, ownWithin(placement.own, clipsAcross, clipsDown, x, y, width, height))
+    const fillHeld = nodeCache.has(node) && !fillRemoved && prevUniformBg === boxBackgroundColor && prevOpaque === isOpaque && rowSampler === undefined && prevRowSampler === false
+    composeChildren(node, walk, x, y, hasRemovedChild, !fills || fillHeld ? placement.prevScreen : undefined, boxBackgroundColor, rowSampler, ownWithin(placement.own, clipsAcross, clipsDown, x, y, width, height))
   }
   if (clips) buffer.unclip()
   renderBorder(x, y, node, buffer as never, boxBackgroundColor)
@@ -604,9 +649,9 @@ function fillInterior(walk: Walk, layoutNode: LayoutNode, x: number, y: number, 
   const uniformFillBg = ownBackgroundColor ?? (rowSampler !== undefined ? undefined : inheritedBackgroundColor)
   if (uniformFillBg === undefined && rowSampler !== undefined) {
     const rowTop = y + borderTop
-    for (let r = 0; r < rows; r++) walk.buffer.write(x + borderLeft, rowTop + r, groundRows(columns, 1, rowSampler(rowTop + r)))
+    for (let r = 0; r < rows; r++) fillGround(walk.buffer, x + borderLeft, rowTop + r, columns, 1, rowSampler(rowTop + r))
   } else {
-    walk.buffer.write(x + borderLeft, y + borderTop, groundRows(columns, rows, uniformFillBg))
+    fillGround(walk.buffer, x + borderLeft, y + borderTop, columns, rows, uniformFillBg)
   }
 }
 
@@ -742,7 +787,8 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
   const anchorShifted =
     firstCached === undefined ||
     Math.floor(nodeCache.get(firstCached)!.y) - shiftPlan!.delta === Math.floor(contentTop + firstCached.layoutNode!.getComputedTop())
-  const safeForFastPath = !shiftPlan || (!childRemoved && anchorShifted && (heightDelta === 0 || (shiftPlan.delta > 0 && heightDelta === shiftPlan.delta)))
+  const viewportOverlapsInvalid = shiftPlan !== null && rectsOverlap(x, shiftPlan.top, width, shiftPlan.bottom - shiftPlan.top + 1, walk.invalidRects)
+  const safeForFastPath = !shiftPlan || (!childRemoved && !viewportOverlapsInvalid && anchorShifted && (heightDelta === 0 || (shiftPlan.delta > 0 && heightDelta === shiftPlan.delta)))
   if (!safeForFastPath) {
     signals.scrollHint = null
     if (rectShift) {
@@ -765,7 +811,7 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
       repairStableRows(content, walk, dirtyChildren, contentLeft, contentTop, bandTop, bandBottom, incomingTop, incomingBottom, top, bottom + 1, Math.floor(x), columns, boxBackgroundColor)
     }
     buffer.clear({ x: Math.floor(x), y: incomingTop, width: columns, height: incomingBottom - incomingTop + 1 })
-    if (boxBackgroundColor && incomingBottom >= incomingTop) buffer.write(Math.floor(x), incomingTop, groundRows(columns, incomingBottom - incomingTop + 1, boxBackgroundColor))
+    if (boxBackgroundColor && incomingBottom >= incomingTop) fillGround(buffer, Math.floor(x), incomingTop, columns, incomingBottom - incomingTop + 1, boxBackgroundColor)
     buffer.clip({ x1: undefined, x2: undefined, y1: incomingTop, y2: incomingBottom + 1 })
     composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, undefined, incomingTop - contentTop, incomingBottom + 1 - contentTop, boxBackgroundColor, true)
     buffer.unclip()
@@ -774,7 +820,7 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
       const shiftedTop = Math.max(top, Math.floor(rect.y) - delta)
       const shiftedBottom = Math.min(bottom + 1, Math.floor(rect.y + rect.height) - delta)
       if (shiftedTop >= shiftedBottom || (shiftedTop >= incomingTop && shiftedBottom <= incomingBottom + 1)) continue
-      buffer.write(Math.floor(x), shiftedTop, groundRows(columns, shiftedBottom - shiftedTop, boxBackgroundColor))
+      fillGround(buffer, Math.floor(x), shiftedTop, columns, shiftedBottom - shiftedTop, boxBackgroundColor)
       buffer.clip({ x1: undefined, x2: undefined, y1: shiftedTop, y2: shiftedBottom })
       composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, undefined, shiftedTop - contentTop, shiftedBottom - contentTop, boxBackgroundColor, true)
       buffer.unclip()
@@ -785,9 +831,9 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
     if (rowSampler !== undefined && y1 !== undefined && y2 !== undefined && Math.floor(width) >= 1) {
       const viewTop = Math.floor(y1)
       const viewBottom = Math.floor(y2)
-      for (let row = viewTop; row < viewBottom; row++) buffer.write(Math.floor(x), row, groundRows(Math.floor(width), 1, rowSampler(row)))
+      for (let row = viewTop; row < viewBottom; row++) fillGround(buffer, Math.floor(x), row, Math.floor(width), 1, rowSampler(row))
     } else if (boxBackgroundColor && y1 !== undefined && y2 !== undefined && (scrolled || !contentWas || node.style.backgroundColor !== undefined) && Math.floor(width) >= 1 && Math.floor(y2 - y1) >= 1) {
-      buffer.write(Math.floor(x), Math.floor(y1), groundRows(Math.floor(width), Math.floor(y2 - y1), boxBackgroundColor))
+      fillGround(buffer, Math.floor(x), Math.floor(y1), Math.floor(width), Math.floor(y2 - y1), boxBackgroundColor)
     }
     const boxMoved = boxCached !== undefined && (boxCached.x !== x || boxCached.y !== y || boxCached.width !== width || boxCached.height !== height)
     composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, rowSampler !== undefined || scrolled || boxMoved ? undefined : prevScreen, bandTop, bandBottom, boxBackgroundColor, false, rowSampler, own)
@@ -850,7 +896,7 @@ function repairStableRows(content: FrameNode, walk: Walk, dirtyChildren: Set<Fra
     const clipStart = Math.max(regionTop, screenTop)
     const screenBottom = Math.min(Math.floor(contentTop + childBottom), regionFloor)
     if (clipStart < screenBottom) {
-      buffer.write(left, clipStart, groundRows(columns, screenBottom - clipStart, boxBackgroundColor))
+      fillGround(buffer, left, clipStart, columns, screenBottom - clipStart, boxBackgroundColor)
       buffer.clip({ x1: undefined, x2: undefined, y1: clipStart, y2: screenBottom })
       composeNode(child, walk, { offsetX: contentLeft, offsetY: contentTop, prevScreen: undefined, inheritedBackgroundColor: boxBackgroundColor })
       buffer.unclip()
@@ -867,8 +913,8 @@ function composeChildren(node: FrameNode, walk: Walk, offsetX: number, offsetY: 
     const wasDirty = child.dirty
     const floating = child.style.position === 'absolute'
     const seeThrough = floating && !child.style.opaque && child.style.backgroundColor === undefined
-    composeNode(child, walk, { offsetX, offsetY, prevScreen: offer === 'closed' ? undefined : prevScreen, skipSelfBlit: offer === 'clipped' && seeThrough, inheritedBackgroundColor, inheritedRowBg, own: floating ? undefined : own })
-    if (wasDirty && offer !== 'closed') offer = !floating && clipsBothAxes(child) ? 'clipped' : 'closed'
+    const repainted = composeNode(child, walk, { offsetX, offsetY, prevScreen: offer === 'closed' ? undefined : prevScreen, skipSelfBlit: offer === 'clipped' && seeThrough, inheritedBackgroundColor, inheritedRowBg, own: floating ? undefined : own })
+    if ((wasDirty || repainted) && offer !== 'closed') offer = !floating && clipsBothAxes(child) ? 'clipped' : 'closed'
   }
 }
 
