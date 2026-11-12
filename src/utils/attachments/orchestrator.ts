@@ -161,7 +161,7 @@ export async function getAttachments(
     maybe('harness_map_delta', () =>
       Promise.resolve(
         (() => {
-          if (!isMainThread || !opening) return []
+          if (!isMainThread) return []
           const d = getHarnessMapDelta(messages)
           return d ? [{ type: 'harness_map_delta' as const, ...d }] : []
         })(),
