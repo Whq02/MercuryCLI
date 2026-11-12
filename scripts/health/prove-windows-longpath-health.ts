@@ -19,8 +19,9 @@ const extractedDir = join(scratch, 'winget', 'mercury')
 const nodeExe = join(extractedDir, 'vendor', 'node', 'node.exe')
 const bundleMjs = join(extractedDir, 'mercury.mjs')
 const work = join(scratch, 'work')
+const callerDir = join(scratch, 'caller')
 
-for (const dir of [home, configDir, daemonDir, managedBin, managedVer, dirname(nodeExe), work]) {
+for (const dir of [home, configDir, daemonDir, managedBin, managedVer, dirname(nodeExe), work, callerDir]) {
   mkdirSync(dir, { recursive: true })
 }
 writeFileSync(join(managedVer, 'mercury.mjs'), 'export {}\n')
@@ -46,6 +47,7 @@ const check = (label: string, pass: boolean, detail = ''): void => {
   console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
 }
 
+process.chdir(callerDir)
 try {
   process.chdir(work)
   Object.assign(process.env, {
@@ -239,7 +241,7 @@ try {
   )
   check(
     'the caller working directory gains no backslash-named folder while simulating win32 on POSIX',
-    readdirSync(priorCwd).every(entry => !entry.startsWith('\\')),
+    readdirSync(callerDir).every(entry => !entry.startsWith('\\')),
   )
 } finally {
   process.chdir(priorCwd)
