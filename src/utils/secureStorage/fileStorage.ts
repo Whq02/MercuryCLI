@@ -1,16 +1,22 @@
 import { plainTextStorage } from './plainTextStorage.js'
 import { createSealedFileStorage } from './sealedFileStorage.js'
-import { createKeyCustody } from './sealedRecord.js'
+import { createKeyCustody, type KeyCustody } from './sealedRecord.js'
 import type { SecureStorage, SystemProtector } from './types.js'
 
-const sealedStorages = new WeakMap<SystemProtector, SecureStorage>()
+type SealedFileStore = { custody: KeyCustody; storage: SecureStorage }
+
+const sealedStores = new WeakMap<SystemProtector, SealedFileStore>()
+
+export function sealedFileStoreFor(protector: SystemProtector): SealedFileStore {
+  let store = sealedStores.get(protector)
+  if (store === undefined) {
+    const custody = createKeyCustody(protector)
+    store = { custody, storage: createSealedFileStorage(plainTextStorage, custody) }
+    sealedStores.set(protector, store)
+  }
+  return store
+}
 
 export function fileStorageFor(protector: SystemProtector | null): SecureStorage {
-  if (protector === null) return plainTextStorage
-  let storage = sealedStorages.get(protector)
-  if (storage === undefined) {
-    storage = createSealedFileStorage(plainTextStorage, createKeyCustody(protector))
-    sealedStorages.set(protector, storage)
-  }
-  return storage
+  return protector === null ? plainTextStorage : sealedFileStoreFor(protector).storage
 }

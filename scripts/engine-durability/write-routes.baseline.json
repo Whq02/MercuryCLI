@@ -73,9 +73,11 @@
     "src/tools/WorkflowTool/runManifest.ts",
     "src/utils/auth.ts",
     "src/utils/config/globalConfig.ts",
+    "src/utils/secureStorage/sealedStoreStart.ts",
     "src/utils/settings/settings.ts"
   ],
   "reasons": {
-    "src/daemon/concourseWorkers.ts": "synchronous cross-process lock (proper-lockfile lockSync via src/utils/lockfile.ts) serialising updateConcourseWorkers and the sibling daemon stores across helper daemons and the daemon-down settle"
+    "src/daemon/concourseWorkers.ts": "synchronous cross-process lock (proper-lockfile lockSync via src/utils/lockfile.ts) serialising updateConcourseWorkers and the sibling daemon stores across helper daemons and the daemon-down settle",
+    "src/utils/secureStorage/sealedStoreStart.ts": "synchronous cross-process lock (proper-lockfile lockSync via src/utils/lockfile.ts) on the site src/utils/auth.ts names for the OAuth refresh (oauthRefreshLockSite), held from the last read of the credential file to its publish, so that the first sealing of a plain credential store at start cannot land inside another process's token refresh"
   }
 }

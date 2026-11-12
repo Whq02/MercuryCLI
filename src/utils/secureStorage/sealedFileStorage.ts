@@ -10,13 +10,13 @@ function isRecord(value: unknown): value is Stored {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function clearOf(stored: Stored): Stored {
+export function clearOf(stored: Stored): Stored {
   const clear: Stored = { ...stored }
   delete clear[SEALED_FIELD]
   return clear
 }
 
-function foldClearOverSealed(sealed: Stored, clear: Stored): Stored {
+export function foldClearOverSealed(sealed: Stored, clear: Stored): Stored {
   const folded: Stored = { ...sealed }
   for (const [name, value] of Object.entries(clear)) {
     const under = folded[name]
