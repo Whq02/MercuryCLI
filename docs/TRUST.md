@@ -240,7 +240,10 @@ into the folder first, or a script handed to a nested shell.
 
 The floors read the command as it is written and are not a sandbox: they guard
 against mistakes and plain attempts and do not isolate a session from the
-files and processes its user can reach.
+files and processes its user can reach. A floor sees a path where the command
+writes it out; a path the command puts together as it runs, from a file or
+from what one command hands the next, is not in the text for any reading to
+find.
 
 ## Non-interactive sessions
 

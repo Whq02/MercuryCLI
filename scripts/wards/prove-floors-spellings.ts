@@ -176,7 +176,8 @@ check("floor 2: agent reads of Mercury's own stored credentials are refused", pa
 check('floor 4: Mercury\'s running binary and daemon are protected', pageSays(/Mercury's running binary and daemon are protected against writes, deletes and kills/))
 check('floor 5: writing project instruction files or reading .env files asks for approval first', pageSays(/Writing project instruction files or reading `\.env` files asks for approval first/))
 check('the page says the floors read the command as it is written and are not a sandbox, what they guard against and that they do not isolate a session', pageSays(/The floors read the command as it is written and are not a sandbox: they guard against mistakes and plain attempts and do not isolate a session from the files and processes its user can reach\./))
-check('the page says that limit in general words and does not describe what the reading cannot follow', !pageSays(/works out only while it runs/) && !pageSays(/leaves to another program/) && !pageSays(/where asks are off\. The floors guard/))
+check('the page says where a floor sees a path, and that a path put together as the command runs is not in the text for a reading to find', pageSays(/A floor sees a path where the command writes it out; a path the command puts together as it runs, from a file or from what one command hands the next, is not in the text for any reading to find\./))
+check('the page says that limit in that one sentence and keeps the three earlier phrasings of it out', !pageSays(/works out only while it runs/) && !pageSays(/leaves to another program/) && !pageSays(/where asks are off\. The floors guard/))
 
 const FOUR: Mode[] = ['sovereign', 'flow', 'implement', 'default']
 section('controls: each floor, asked plainly, holds')
