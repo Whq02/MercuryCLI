@@ -12,6 +12,7 @@ import {
   STARTUP_MENU,
   bootEnvPath,
   evaluateExplicitApply,
+  isLiveEnvRow,
   menuRowChoices,
   menuRowValueLabel,
   menuRowWarning,
@@ -250,11 +251,23 @@ export function BootSettingsScreen({
       .then(sup => {
         if (cancelled) return;
         const currentProfile = readBootDefaultsProfile(path);
+        const savedAtMs = currentProfile?.savedAt ? Date.parse(currentProfile.savedAt) : NaN;
         const workers = sup
           .listConcourseWorkers(null)
           .map((rec): WorkerApplySummary => {
+            const turnRanSinceSave =
+              Number.isFinite(savedAtMs) && rec.lastDeliveryAt !== undefined && rec.lastDeliveryAt >= savedAtMs;
+            const liveEnvValues = turnRanSinceSave
+              ? Object.fromEntries(
+                  STARTUP_MENU.filter(isLiveEnvRow).map(r => {
+                    const sp = currentProfile ? flagSpellings(r.env).find(s => currentProfile.env[s] !== undefined) : undefined;
+                    return [r.env, sp !== undefined ? (currentProfile!.env[sp] ?? null) : null];
+                  }),
+                )
+              : {};
             const live = spawnSwitchFactsOfRecord(rec);
             const liveValues = {
+              ...liveEnvValues,
               [SPAWN_SWITCH_ENV.subagents]: live.subagents.on ? null : '0',
               [SPAWN_SWITCH_ENV.workflows]: live.workflows.on ? null : '0',
             };
@@ -507,9 +520,10 @@ export function BootSettingsScreen({
       consoleEnabled() ? 'console' : null,
     ].filter(Boolean) as string[];
     const critterKey = getSessionCritterKey();
-    const statusRight =
-      (list.note ?? lastReceipt ?? (changed > 0 ? `${changed} choice${changed === 1 ? '' : 's'} saved — applies to new sessions` : 'changes reach new sessions')) +
+    const idleStatus =
+      (changed > 0 ? `${changed} choice${changed === 1 ? '' : 's'} saved — applies to new sessions` : 'changes reach new sessions') +
       (liveCount !== null ? `  ·  ${liveCount} established session${liveCount === 1 ? '' : 's'} unchanged` : '');
+    const statusRight = list.note ?? lastReceipt ?? idleStatus;
     return {
       entries,
       selIdx: list.selectedIndex,
