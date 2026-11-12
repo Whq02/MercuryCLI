@@ -1947,6 +1947,45 @@ if (runs('REACH')) {
     "Write-Output \"use [IO.File]::Copy('a', '~\\.ssh\\authorized_keys') to install the key\"",
     "$doc = '[IO.StreamWriter]::new(\"$HOME\\.ssh\\authorized_keys\")'",
   ])
+  await refusedRows('a download, an export, a transcript or an archive written to the path', [
+    'Invoke-WebRequest $u -OutFile ~\\.ssh\\authorized_keys',
+    `iwr https://example.invalid/k -OutFile ${KEYS}`,
+    'Invoke-WebRequest -Uri $u -OutFile:~\\.ssh\\authorized_keys',
+    'Invoke-RestMethod $u -OutFile ~\\.aws\\credentials',
+    'irm $u -OutF ~\\.ssh\\authorized_keys',
+    '$d | Export-Csv ~\\.ssh\\authorized_keys',
+    'Export-Csv -Path ~\\.ssh\\authorized_keys -InputObject $d',
+    `$d | Export-Csv -LiteralPath ${KEYS} -NoTypeInformation`,
+    '$d | epcsv ~\\.ssh\\authorized_keys',
+    '$d | Export-Clixml ~\\.ssh\\authorized_keys',
+    'Export-Clixml -Path "$HOME\\.aws\\credentials" -InputObject $d',
+    'Start-Transcript -Path ~\\.ssh\\authorized_keys',
+    'Start-Transcript ~\\.ssh\\authorized_keys -Append',
+    `Start-Transcript -LiteralPath ${KEYS}`,
+    'Expand-Archive a.zip -DestinationPath ~\\.ssh',
+    'Expand-Archive -Path a.zip -DestinationPath "$HOME\\.ssh" -Force',
+    'Expand-Archive a.zip ~\\.ssh',
+    'if ($true) { Invoke-WebRequest $u -OutFile ~\\.ssh\\authorized_keys }',
+    '$r = Invoke-WebRequest $u -OutFile ~\\.ssh\\authorized_keys -PassThru',
+    '1 | % { $d | Export-Csv ~\\.ssh\\authorized_keys }',
+  ])
+  await runningRows('the same commands writing in the project, reading, or naming the path only in an address or in text', [
+    'Invoke-WebRequest $u -OutFile .\\download.bin',
+    'Invoke-WebRequest https://example.invalid/.ssh/authorized_keys',
+    'iwr $u -OutVariable r',
+    'Invoke-RestMethod $u',
+    '$d | Export-Csv .\\out.csv -NoTypeInformation',
+    'Export-Clixml -Path .\\state.xml -InputObject $d',
+    'Start-Transcript -Path .\\session.log',
+    'Start-Transcript',
+    'Expand-Archive a.zip -DestinationPath .\\out',
+    'Expand-Archive ~\\.ssh\\backup.zip -DestinationPath .\\out',
+    'Expand-Archive -Path "$HOME\\.ssh\\backup.zip" .\\out',
+    'Import-Csv ~\\.ssh\\known.csv',
+    'Import-Clixml "$HOME\\.ssh\\state.xml"',
+    'Invoke-WebRequest -Uri "https://example.invalid/?out=~\\.ssh\\authorized_keys"',
+    'Write-Host "Invoke-WebRequest $u -OutFile ~\\.ssh\\authorized_keys"',
+  ])
   await expect('REACH', call('PowerShell', { command: '[IO.File]::Copy(".\\other", "$HOME\\.ssh\\authorized_keys", $true)' }, 'the whole decision of the PowerShell tool'), ['sovereign', 'flow', 'default'], refused, 'is refused')
 }
 

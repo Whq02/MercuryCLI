@@ -124,7 +124,18 @@ function writeOperands(argv: string[], powershell = false): string[] {
     'sed', 'set-content', 'add-content', 'out-file', 'tee-object', 'ac', 'sc',
     'install', 'dd', 'rsync', 'ln', 'truncate', 'rm', 'unlink', 'rmdir', 'rd', 'ri', 'del', 'erase',
     'remove-item', 'clear-content', 'clc', 'new-item', 'ni', 'ren', 'rename', 'rename-item', 'sqlite3', 'find',
+    'export-csv', 'epcsv', 'export-clixml', 'start-transcript',
   ])
+  const valued = (full: string, least: number): string[] =>
+    args.flatMap((arg, at) => {
+      const named = /^-([A-Za-z]+)(?::(.*))?$/.exec(arg)
+      return named !== null && named[1]!.length >= least && full.startsWith(named[1]!.toLowerCase()) ? [named[2] ?? args[at + 1] ?? ''] : []
+    })
+  if (powershell && ['invoke-webrequest', 'iwr', 'invoke-restmethod', 'irm'].includes(name)) return [...out, ...valued('outfile', 4)]
+  if (powershell && name === 'expand-archive') {
+    const named = valued('destinationpath', 1)
+    return [...out, ...(named.length > 0 ? named : args.filter(arg => !arg.startsWith('-')).slice(1, 2))]
+  }
   if (powershell && name === 'new-object') {
     const made = args.filter(arg => !arg.startsWith('-')).map(arg => arg.replace(/,$/, ''))
     if (/^(?:System\.)?IO\.(?:StreamWriter|FileStream)$/i.test(made[0] ?? '') && made[1] !== undefined && !made.slice(2).some(word => /^read$/i.test(word))) out.push(made[1])
