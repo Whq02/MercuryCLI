@@ -54,7 +54,12 @@ section('§1 the rows — live-class toggles over registered flags, through the 
   check('both rows read "Crewmates" and "Workflows"', rows[0]?.label === 'Crewmates' && rows[1]?.label === 'Workflows')
   check("both are toggles whose one choice is '0' (off) with the default on", rows.every(r => r.kind === 'toggle' && r.options.length === 1 && r.options[0] === '0' && r.defaultLabel === 'on'))
   check('both are the live class', rows.every(r => r.applicationClass === 'live'))
-  check('every other row keeps the new-session class (absent = new-session)', menu.STARTUP_MENU.filter(r => r.group !== 'agents').every(r => r.applicationClass === undefined || r.applicationClass === 'new-session'))
+  const LIVE_DEV_LANES = new Set(['MERCURY_DAP', 'MERCURY_GODOT_TOOLS', 'MERCURY_UNITY', 'MERCURY_BLENDER', 'MERCURY_ASEPRITE'])
+  check(
+    'every row outside Agents and the five deferred-tool dev lanes keeps the new-session class (absent = new-session)',
+    menu.STARTUP_MENU.filter(r => r.group !== 'agents' && !LIVE_DEV_LANES.has(r.env)).every(r => r.applicationClass === undefined || r.applicationClass === 'new-session') &&
+      menu.STARTUP_MENU.filter(r => LIVE_DEV_LANES.has(r.env)).every(r => r.applicationClass === 'live'),
+  )
   check('the choices paint default (on) first, then off', rows.every(r => menu.menuRowChoices(r).map(c => c.label).join('|') === 'default (on)|off'))
   for (const env of [SUB, WF]) {
     const spec = getFlagSpec(env)

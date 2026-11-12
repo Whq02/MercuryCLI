@@ -1,6 +1,6 @@
 
 import { getMercuryHome } from '../utils/envUtils.js'
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { flagEnabled, flagSpellings, stampFlagOnEnv } from './flagRegistry.js'
@@ -71,6 +71,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     kind: 'toggle',
     options: ['0'],
     defaultLabel: 'on',
+    applicationClass: 'live',
     summary: 'a real debugger the agent can drive (breakpoints, stepping, variables, evaluate) instead of print statements',
     detail: {
       controls: 'The Debug tool speaks the Debug Adapter Protocol to real debuggers (Python via debugpy, native code via lldb-dap). Launching a program under the debugger always asks permission first.',
@@ -215,6 +216,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     kind: 'toggle',
     options: ['1'],
     defaultLabel: 'off',
+    applicationClass: 'live',
     summary: 'full editor control for Godot projects — scenes, nodes, resources, play-testing, runtime inspection, input simulation (163 ops)',
     detail: {
       controls: "The agent drives your running Godot editor directly: scene and node editing (every change is one Ctrl+Z undo step), scripts, resources, animation, physics, audio, tilemaps, shaders — plus play-testing with live game inspection and input simulation. Arming it also shifts agent behavior: sessions and spawned crewmates learn to prefer editor state over hand-editing scene files. Needs the bundled mercury_vulcan addon installed in the project (the tool installs it on ask) and the editor open. Local and sandboxed: a token-authed loopback connection only; running code or simulating input always asks permission first. Pairs with the Godot language lanes above (symbols + breakpoints stay with LspRead and Debug).",
@@ -229,6 +231,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     kind: 'toggle',
     options: ['1'],
     defaultLabel: 'off',
+    applicationClass: 'live',
     summary: 'C# IDE + attach-to-editor debugging + editor bridge (play/scenes/tests) + headless test/build profiles for Unity projects — nothing is ever installed or run for you without asking',
     detail: {
       controls: "Arms the Unity lanes in a project with Assets/ + ProjectSettings/: the C# language server lane (your own csharp-ls or OmniSharp from PATH — never auto-installed; /health teaches the install line when absent), the Debug tool's `unity` adapter (attaches to your RUNNING editor via the official Unity VS Code extension's adapter — the editor hosts the debuggee, so every gesture is an attach), the `Unity` tool driving your running editor over a token-authed loopback bridge (play mode, scenes, hierarchy, console, Test Runner — needs the bundled bridge package installed in the project, which the tool does on ask; play/test gestures always ask permission), and headless -batchmode test/build launch profiles the tool hands you to run yourself. Unity's own licensing applies to headless editor runs; if a run fails with Unity's licensing error, activating a license is yours to do (Unity Hub or -serial) — Mercury never checks or manages licenses, and never launches or installs the editor.",
@@ -243,9 +246,10 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     kind: 'toggle',
     options: ['1'],
     defaultLabel: 'off',
-    summary: '.blend awareness + Blender bridge (scene/render/python) + headless render/python profiles + the debugpy attach recipe — Blender located (app bundle counts), never installed, launched, or enabled for you',
+    applicationClass: 'live',
+    summary: '.blend awareness + Blender bridge (scene/render/python) + headless render/python profiles + the debugpy attach recipe — Blender located (app bundle counts); never installed or enabled for you, started only with no window by the Blender tool',
     detail: {
-      controls: 'Arms the Blender lanes: .blend discovery (bounded), the app located your way — a PATH blender, /Applications/Blender.app (the normal Mac install), Program Files, or a MERCURY_BLENDER_BIN pin — with its version probed, headless --background render/python launch profiles the tool hands you to run yourself (arguments in documented order — output before frame), the debugpy attach recipe: one line starts a listener inside Blender, then the Debug tool attaches over the landed debugpy road (the bundled debugpy serves when this build carries it), and the `Blender` tool driving your running Blender over a token-authed loopback bridge (scene/objects truth, blend opens, still renders, report tail, python_run — needs the bundled add-on installed to the user addon home, which the tool does on ask, and ENABLED in Blender\'s Preferences, which stays your act; python_run and renders always ask permission). Mercury never installs, launches, or enables Blender or its add-ons.',
+      controls: 'Arms the Blender lanes: .blend discovery (bounded), the app located your way — a PATH blender, /Applications/Blender.app (the normal Mac install), Program Files, or a MERCURY_BLENDER_BIN pin — with its version probed, headless --background render/python launch profiles the tool hands you to run yourself (arguments in documented order — output before frame), the debugpy attach recipe: one line starts a listener inside Blender, then the Debug tool attaches over the landed debugpy road (the bundled debugpy serves when this build carries it), and the `Blender` tool driving your running Blender over a token-authed loopback bridge (scene/objects truth, blend opens, still renders, report tail, python_run — needs the bundled add-on installed to the user addon home, which the tool does on ask, and ENABLED in Blender\'s Preferences, which stays your act; python_run and renders always ask permission). Mercury never installs or enables Blender, and starts it only with no window, when the Blender tool is called.',
       on: ['/health gains the Blender lane row (path + version, or the honest install line)', 'headless render/python profiles appear; running them stays your act (the exact command is printed)', 'the debug recipe row teaches listen-then-attach (breakpoints in your addon/script files)', 'the `Blender` tool joins the catalog beside .blend files, or anywhere Blender is located — scene/objects/render truth, blend opens, still renders, report tail, python_run through your running Blender (add-on installed on ask, enabled by you; reads are free, everything else asks)'],
       off: ['no Blender surface exists — identical to a build without it'],
     },
@@ -257,6 +261,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     kind: 'toggle',
     options: ['1'],
     defaultLabel: 'off',
+    applicationClass: 'live',
     summary: 'sprite awareness + the Aseprite batch door (sprite census, PNG/GIF/sprite-sheet exports, new sprites, Lua scripts) — Aseprite located (Steam and itch installs count), never installed or launched as a GUI for you',
     detail: {
       controls: 'Arms the Aseprite lanes: .aseprite/.ase discovery (bounded), the app located your way — a PATH aseprite, /Applications/Aseprite.app (the direct download), the Steam library, the win32 installer/itch homes, or a MERCURY_ASEPRITE_BIN pin (the road for source builds) — with its version probed, and the `Aseprite` tool driving the app\'s own batch mode: sprite census (layers, tags, frames, size), exports with the real CLI options (scaling, layer/tag selection, split files, sprite-sheet layouts with JSON metadata), new sprites, and Lua scripts. Every operation is a bounded background run of `aseprite -b` — the GUI is never started. Exports and new sprites ask permission naming the destination; running a script always asks (it is code). Mercury never installs or launches Aseprite for you.',
@@ -406,6 +411,74 @@ export function realEnvPin(
   return null
 }
 
+export interface LiveBootEnvApplyResult extends BootEnvApplyResult {
+  skippedNewSession: string[]
+}
+
+const SPAWN_SWITCH_MENU_ENV: ReadonlySet<string> = new Set([
+  'MERCURY_SESSION_SUBAGENTS',
+  'MERCURY_SESSION_WORKFLOWS',
+])
+
+export function isLiveEnvRow(row: Pick<MenuRow, 'env' | 'applicationClass'>): boolean {
+  return row.applicationClass === 'live' && !SPAWN_SWITCH_MENU_ENV.has(row.env)
+}
+
+const liveStatCache = new WeakMap<object, Map<string, string>>()
+let liveFileReads = 0
+
+export function __liveBootEnvFileReadsForTests(): number {
+  return liveFileReads
+}
+
+function statFingerprint(path: string): string | null {
+  try {
+    const st = statSync(path, { bigint: true })
+    return `${st.dev}:${st.ino}:${st.size}:${st.mtimeNs}:${st.ctimeNs}`
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return 'absent'
+    return null
+  }
+}
+
+function rememberedStat(env: NodeJS.ProcessEnv, path: string): string | undefined {
+  return liveStatCache.get(env)?.get(path)
+}
+
+function rememberStat(env: NodeJS.ProcessEnv, path: string, fp: string): void {
+  let perPath = liveStatCache.get(env)
+  if (!perPath) {
+    perPath = new Map<string, string>()
+    liveStatCache.set(env, perPath)
+  }
+  perPath.set(path, fp)
+}
+
+function clearSelfAppliedLiveRows(
+  env: NodeJS.ProcessEnv,
+  prevSelf: ReadonlyMap<string, string>,
+  nextSelf: Map<string, string>,
+): void {
+  for (const r of STARTUP_MENU) {
+    if (!isLiveEnvRow(r)) continue
+    for (const sp of flagSpellings(r.env)) {
+      const stamped = prevSelf.get(sp)
+      if (stamped !== undefined) {
+        if (env[sp] === stamped) delete env[sp]
+        nextSelf.delete(sp)
+      }
+    }
+  }
+}
+
+function syncSelfAppliedMarker(env: NodeJS.ProcessEnv, nextSelf: ReadonlyMap<string, string>): void {
+  if (nextSelf.size > 0) {
+    stampFlagOnEnv(env, BOOT_ENV_APPLIED_MARKER, JSON.stringify(Object.fromEntries(nextSelf)))
+  } else {
+    for (const spelling of flagSpellings(BOOT_ENV_APPLIED_MARKER)) delete env[spelling]
+  }
+}
+
 export function applyBootMenuEnv(
   path: string = bootEnvPath(),
   env: NodeJS.ProcessEnv = process.env,
@@ -415,8 +488,12 @@ export function applyBootMenuEnv(
   try {
     raw = readFileSync(path, 'utf8')
   } catch {
+    const fp = statFingerprint(path)
+    if (fp !== null) rememberStat(env, path, fp)
     return null
   }
+  const fp = statFingerprint(path)
+  if (fp !== null) rememberStat(env, path, fp)
   const result: BootEnvApplyResult = { applied: [], envWins: [], refused: [], retired: [] }
   let parsed: unknown
   try {
@@ -470,6 +547,90 @@ export function applyBootMenuEnv(
     stampFlagOnEnv(env, BOOT_ENV_APPLIED_MARKER, JSON.stringify(receipt))
   }
   return surfaced(result, path)
+}
+
+export function applyLiveBootMenuEnv(
+  path: string = bootEnvPath(),
+  env: NodeJS.ProcessEnv = process.env,
+): LiveBootEnvApplyResult | null {
+  if (!flagEnabled('MERCURY_ENTER_MENU')) return null
+  const fp = statFingerprint(path)
+  if (fp !== null && rememberedStat(env, path) === fp) return null
+  const prevSelf = bootEnvSelfApplied(env)
+  const nextSelf = new Map<string, string>(prevSelf)
+  const result: LiveBootEnvApplyResult = { applied: [], envWins: [], refused: [], retired: [], skippedNewSession: [] }
+  if (fp === 'absent') {
+    rememberStat(env, path, 'absent')
+    clearSelfAppliedLiveRows(env, prevSelf, nextSelf)
+    syncSelfAppliedMarker(env, nextSelf)
+    return result
+  }
+  let raw: string
+  try {
+    liveFileReads += 1
+    raw = readFileSync(path, 'utf8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
+      rememberStat(env, path, 'absent')
+      clearSelfAppliedLiveRows(env, prevSelf, nextSelf)
+      syncSelfAppliedMarker(env, nextSelf)
+      return result
+    }
+    return null
+  }
+  const fpAfter = statFingerprint(path) ?? fp
+  if (fpAfter !== null) rememberStat(env, path, fpAfter)
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    result.refused.push({ key: '(file)', reason: 'not valid JSON' })
+    surfaced(result, path)
+    return result
+  }
+  const o = parsed as { version?: unknown; env?: unknown }
+  if (!o || typeof o !== 'object' || o.version !== BOOT_ENV_VERSION || o.env === null || typeof o.env !== 'object' || Array.isArray(o.env)) {
+    result.refused.push({ key: '(file)', reason: `expected {version:${BOOT_ENV_VERSION}, env:{…}}` })
+    surfaced(result, path)
+    return result
+  }
+  const byEnv = new Map<string, MenuRow>()
+  for (const r of allSettingRows()) {
+    for (const spelling of flagSpellings(r.env)) byEnv.set(spelling, r)
+  }
+  clearSelfAppliedLiveRows(env, prevSelf, nextSelf)
+  const appliedRows = new Set<string>()
+  for (const [key, value] of Object.entries(o.env as Record<string, unknown>)) {
+    const row = byEnv.get(key)
+    if (!row) {
+      if (RETIRED_MENU_ENV.has(key)) {
+        result.retired.push(key)
+        continue
+      }
+      result.refused.push({ key, reason: 'not a startup-menu row (anti-smuggling: unregistered keys are never applied)' })
+      continue
+    }
+    if (appliedRows.has(row.env)) continue
+    appliedRows.add(row.env)
+    if (typeof value !== 'string' || !menuRowChoices(row).some(c => c.value === value)) {
+      result.refused.push({ key, reason: `value ${JSON.stringify(value)} not among the row's declared choices` })
+      continue
+    }
+    if (!isLiveEnvRow(row)) {
+      result.skippedNewSession.push(row.env)
+      continue
+    }
+    if (flagSpellings(row.env).some(sp => env[sp] !== undefined)) {
+      result.envWins.push(row.env)
+      continue
+    }
+    stampFlagOnEnv(env, row.env, value)
+    result.applied.push({ env: row.env, value })
+    for (const spelling of flagSpellings(row.env)) nextSelf.set(spelling, value)
+  }
+  syncSelfAppliedMarker(env, nextSelf)
+  surfaced(result, path)
+  return result
 }
 
 function surfaced(result: BootEnvApplyResult, path: string): BootEnvApplyResult {
@@ -596,11 +757,31 @@ export function saveBootDefaultsProfile(
   const previous = readBootDefaultsProfile(path)
   const revision = (previous?.revision ?? 0) + 1
   const digest = profileDigestOf(paired)
+  const previousChoices = previous?.env ?? {}
+  const changedRows = allSettingRows().filter(row => {
+    const prevSp = flagSpellings(row.env).find(sp => previousChoices[sp] !== undefined)
+    const prevVal =
+      prevSp !== undefined && menuRowChoices(row).some(c => c.value === previousChoices[prevSp])
+        ? previousChoices[prevSp]!
+        : null
+    const nextVal = paired[row.env] ?? null
+    return prevVal !== nextVal
+  })
+  const liveChanged = changedRows.some(r => r.applicationClass === 'live')
+  const newSessionChanged = changedRows.length === 0 || changedRows.some(r => r.applicationClass !== 'live')
   const unchanged =
     opts?.existingSessionsUnchanged !== undefined && opts.existingSessionsUnchanged >= 0
       ? `${opts.existingSessionsUnchanged} existing session${opts.existingSessionsUnchanged === 1 ? '' : 's'} unchanged`
       : 'existing sessions unchanged'
-  const receipt = `Saved as future defaults · applies to sessions created after revision ${revision} · ${unchanged}`
+  const runningCount =
+    opts?.existingSessionsUnchanged !== undefined && opts.existingSessionsUnchanged >= 0
+      ? ` · ${opts.existingSessionsUnchanged} running session${opts.existingSessionsUnchanged === 1 ? '' : 's'}`
+      : ''
+  const receipt = !liveChanged
+    ? `Saved as future defaults · applies to sessions created after revision ${revision} · ${unchanged}`
+    : !newSessionChanged
+      ? `Saved defaults · reaches running sessions at their next turn${runningCount}`
+      : `Saved defaults · live rows reach running sessions at their next turn · the rest applies to sessions created after revision ${revision} (${unchanged})`
   const profile: BootDefaultsProfileV1 = {
     version: BOOT_ENV_VERSION,
     savedAt: new Date().toISOString(),
@@ -753,7 +934,9 @@ export function evaluateExplicitApply(
         env: row.env,
         outcome: 'queued',
         target,
-        reason: "a session's own switch (application class: live) — lands at the session's next turn boundary through its switch; the tool leaves or rejoins the roster, reasoning restarts on the next turn, a spawn already running finishes",
+        reason: SPAWN_SWITCH_MENU_ENV.has(row.env)
+          ? "a session's own switch (application class: live) — lands at the session's next turn boundary through its switch; the tool leaves or rejoins the roster, reasoning restarts on the next turn, a spawn already running finishes"
+          : `reaches running sessions at their next turn (application class: live) — read from boot-env.json at the next turn boundary while the session keeps its captured snapshot r${snapshot.profileRevision} for new-session rows`,
       } satisfies ExplicitApplyReceipt
     }
     return {

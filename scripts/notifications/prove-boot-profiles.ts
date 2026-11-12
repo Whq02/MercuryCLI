@@ -144,7 +144,7 @@ t.section('§5 — riders: receipt count · monotonic single-row writes · expli
 
   const env: NodeJS.ProcessEnv = { MERCURY_CONCOURSE: '0' }
   const snap = menu.resolveEffectiveSettingsSnapshot({ sessionId: 'sess-apply', path: profilePath, env })
-  menu.saveBootDefaultsProfile({ MERCURY_GODOT: '1', MERCURY_DAP: '0' }, profilePath)
+  menu.saveBootDefaultsProfile({ MERCURY_GODOT: '1', MERCURY_WARDS: '0', MERCURY_DAP: '0' }, profilePath)
   const receipts = menu.evaluateExplicitApply(snap, menu.readBootDefaultsProfile(profilePath))
   const byEnv = new Map(receipts.map(r => [r.env, r]))
   t.check('every menu row answers a target-specific receipt', receipts.length === snap.rows.length, String(receipts.length))
@@ -159,11 +159,17 @@ t.section('§5 — riders: receipt count · monotonic single-row writes · expli
     pinned?.outcome === 'refused' && /env always wins/.test(pinned.reason),
     JSON.stringify(pinned),
   )
-  const moved = byEnv.get('MERCURY_DAP')
+  const moved = byEnv.get('MERCURY_WARDS')
   t.check(
-    'a row the profile moved refuses with the application class named (new-session truth)',
+    'a new-session row the profile moved refuses with the application class named (new-session truth)',
     moved?.outcome === 'refused' && moved.target === '0' && /application class: new-session/.test(moved.reason),
     JSON.stringify(moved),
+  )
+  const liveMoved = byEnv.get('MERCURY_DAP')
+  t.check(
+    'a live dev-lane row the profile moved queues for the next turn boundary (live truth)',
+    liveMoved?.outcome === 'queued' && liveMoved.target === '0' && /application class: live/.test(liveMoved.reason),
+    JSON.stringify(liveMoved),
   )
   const same = byEnv.get('MERCURY_GODOT')
   t.check(

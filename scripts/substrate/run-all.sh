@@ -34,6 +34,7 @@
 # gate-watch: src/utils/timeouts.ts src/utils/shell/outputLimits.ts src/utils/managedEnvConstants.ts
 # gate-watch: src/utils/subprocessEnv.ts src/tools/AgentTool/reviewerPolicy.ts
 # gate-watch: src/services/tools/toolExecution.ts
+# gate-watch: src/services/dap/dapClient.ts src/tools/AsepriteTool/AsepriteTool.ts src/tools/BlenderTool/BlenderTool.ts src/tools/DebugTool/DebugTool.ts src/tools/GodotTool/GodotTool.ts src/tools/UnityTool/UnityTool.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -99,6 +100,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-telemetry-absence.ts" || { __rc=$?
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-identity-constants.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-identity-constants.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-kill-target.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-kill-target.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-startup-menu.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-startup-menu.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-live-boot-menu.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-live-boot-menu.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-boot-order.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-boot-order.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-spawn-ledger.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-spawn-ledger.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-live-e2e-hermetic.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-live-e2e-hermetic.ts" "$__t" "$__rc"

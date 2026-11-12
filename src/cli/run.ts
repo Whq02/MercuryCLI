@@ -1265,6 +1265,8 @@ export async function runHeadless(
     onMessage: (message: RowDraft) => void,
     initialNotices: QueuedCommand[] = [],
   ): Promise<void> => {
+    const { applyLiveBootMenuEnv } = await import('../substrate/startupMenu.js')
+    applyLiveBootMenuEnv()
     const members = batch.length > 0 ? batch : [command]
     turnReachedModel = false
     if (members.some(isHostNotice) || initialNotices.some(isHostNotice)) {
