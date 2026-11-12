@@ -432,6 +432,7 @@ class Reading {
     const left = this.cwd
     if (target === undefined) this.cwd = pushes ? undefined : (this.scope.get('HOME')?.at(-1) ?? this.world.home)
     else if (target === '-') this.cwd = this.oldpwd
+    else if (command.dialect === 'posix' && this.oldpwd !== undefined && /^~-(?=\/|$)/.test(target)) this.cwd = absolutePath(this.oldpwd + target.slice(2), undefined, this.world)
     else if (!wordKnown(target)) this.cwd = undefined
     else this.cwd = absolutePath(command.dialect === 'powershell' ? target.replace(/\\/g, '/') : target, this.cwd, this.world)
     this.oldpwd = left

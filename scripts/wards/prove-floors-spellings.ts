@@ -828,7 +828,7 @@ if (runs('LISTED')) {
 }
 
 if (runs('MAYNOT')) {
-  section('MAYNOT · a cd that may not move the shell: behind a condition, in a loop, in the background, with two operands, to an echoed folder that does not stand; and the folder a cd - goes back to')
+  section('MAYNOT · a cd that may not move the shell: behind a condition, in a loop, in the background, with two operands, to an echoed folder that does not stand; and the folder a cd - or a cd ~- goes back to')
   const reads: Call[] = [
     bash('cd <CONFIG>; false && cd tmp; cat mcp-auth.json', 'the right side of an and that is not taken'),
     bash('cd <CONFIG>; true || cd tmp; cat .credentials.json', 'the right side of an or'),
@@ -843,20 +843,27 @@ if (runs('MAYNOT')) {
     bash('cd <CONFIG>; cd /tmp; cd -; cat *.json', 'away and back by cd -'),
     bash(`cd <CONFIG>; cd /tmp; cd -; cat "$(printf 'mcp-au%s' th.json)"`),
     bash('cd <CONFIG>; cd /tmp; cd "$OLDPWD"; cat *.json', 'away and back by $OLDPWD'),
+    bash('cd <CONFIG>; cd /usr; cd ~-; cat mcp-auth.json', 'away and back by the tilde form'),
+    bash('cd <CONFIG>; cd /usr; cd ~-; cat *.json'),
+    bash('cd <CONFIG>/runtime; cd /usr; cd ~-/..; cat mcp-auth.json', 'the tilde form with a path after it'),
   ]
   for (const item of reads) await expect('MAYNOT', item, ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
+  await expect('MAYNOT', bash('cd <CONFIG>; cd /usr; cd ~-; rm -rf runtime', 'floor 4 after away and back by the tilde form'), ['sovereign', 'flow'], refused, 'is refused')
   const clear: Call[] = [
     bash('cd <CONFIG>; cd tmp && cat "$FILE"', 'joined by &&, the folder standing: only that folder'),
     bash('cd <CONFIG>; if true; then cd tmp; cat "$FILE"; fi', 'the cd and the read in one body'),
     bash('[ -d docs ] && cd docs; cat plain.md', 'in the project, a cd behind a test'),
     bash('cd /tmp; cd -; cat notes.txt', 'in the project, away and back'),
     bash('cd docs; cd -; cat "$FILE"', 'in the project, back from a folder of it'),
+    bash('cd /usr; cd ~-; cat notes.txt', 'in the project, away and back by the tilde form'),
+    bash('cd docs; cd ~-; cat "$FILE"'),
     bash('for d in docs build; do cd $d; ls; cd ..; done; cat notes.txt', 'in the project, a loop that goes in and out'),
   ]
   for (const item of clear) await expect('MAYNOT', item, ['sovereign'], notRefused, 'is not refused by the floor')
   bootstrap.setCwdState(OWN_HOME)
   for (const item of [bash('cd Documents && grep -r foo .', 'joined by &&'), bash('if [ -d Documents ]; then cd Documents; grep -r foo .; fi', 'the cd and the search in one body'), bash('cd Documents\ngrep -r foo .', 'a folder that stands, a search on the next line')]) await expect('MAYNOT · the session standing in the home', item, ['sovereign'], notRefused, 'is not refused by the floor')
   await expect('MAYNOT · the session standing in the home', bash('[ -d nope ] && cd Documents; grep -r foo .', 'the cd behind a test that may fail: the search may read the home'), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
+  await expect('MAYNOT · the session standing in the home', bash('cd /usr; cd ~-; grep -r foo .', 'away and back by the tilde form: the search reads the home'), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
   bootstrap.setCwdState(PROJECT)
 }
 
