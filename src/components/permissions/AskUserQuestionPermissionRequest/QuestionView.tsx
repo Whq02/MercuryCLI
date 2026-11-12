@@ -3,6 +3,8 @@ import React, { useCallback, useContext, useRef, useState } from 'react'
 import { CockpitActiveContext } from '../../../context/cockpitActiveContext.js'
 import type { KeyboardEvent } from '../../../ink/events/keyboard-event.js'
 import { Box, Text, useInput } from '../../../ink.js'
+import { useOptionalKeybindingContext } from '../../../keybindings/KeybindingContext.js'
+import { useActionAffordance } from '../../../keybindings/useShortcutDisplay.js'
 import { useAppState } from '../../../state/AppState.js'
 import type { AppState } from '../../../state/AppState.js'
 import type { Question } from '../../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
@@ -93,6 +95,16 @@ export function QuestionView(props: Props): React.ReactNode {
   const [isNextFocused, setIsNextFocused] = useState(false)
   const editor = getExternalEditor()
   const editorName = editor ? editorDisplayName(editor) : null
+  const keybindings = useOptionalKeybindingContext()
+  const confirmEditorAffordance = useActionAffordance('chat:externalEditor', 'Confirmation')
+  const chatEditorAffordance = useActionAffordance('chat:externalEditor', 'Chat')
+  const editorKey = !keybindings
+    ? 'ctrl+g'
+    : confirmEditorAffordance.kind === 'bound'
+      ? confirmEditorAffordance.chord
+      : chatEditorAffordance.kind === 'bound'
+        ? chatEditorAffordance.chord
+        : null
 
   const questionText = question.question
   const questionState = questionStates[questionText]
@@ -260,7 +272,7 @@ export function QuestionView(props: Props): React.ReactNode {
         ) : (
           'Tab/Arrow keys to navigate'
         )}
-        {isOtherFocused && editorName && <> · ctrl+g to edit in {editorName}</>} · Esc to cancel
+        {isOtherFocused && editorName && editorKey && <> · {editorKey} to edit in {editorName}</>} · Esc to cancel
       </Text>
     </Box>
   )
