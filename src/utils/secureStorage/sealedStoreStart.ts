@@ -1,4 +1,4 @@
-import { statSync } from 'node:fs'
+import { mkdirSync, realpathSync, rmdirSync, statSync, utimesSync } from 'node:fs'
 
 import { logForDebugging } from '../debug.js'
 import { getMercuryHome, withAuthScope } from '../envUtils.js'
@@ -26,13 +26,6 @@ function clocksNow(): Clocks {
 }
 
 function lockAt(site: { dir: string; options: { realpath: false; stale: number } }): { release: () => void } | { why: string } {
-  let release: () => void
-  try {
-    release = lockSync(site.dir, { ...site.options, onCompromised: () => {} })
-  } catch (error) {
-    const code = (error as { code?: string }).code
-    return { why: code === 'ELOCKED' ? 'the refresh lock on the home is held' : `the refresh lock on the home could not be taken (${code ?? 'unknown'})` }
-  }
   const folder = `${site.dir}.lock`
   const stamp = (): number | null => {
     try {
@@ -41,12 +34,26 @@ function lockAt(site: { dir: string; options: { realpath: false; stale: number }
       return null
     }
   }
-  const taken = stamp()
-  return {
-    release: () => {
-      if (taken !== null && stamp() !== taken) return
-      release()
+  let held = false
+  let taken: number | null = null
+  const fs = {
+    mkdirSync,
+    realpathSync,
+    statSync,
+    utimesSync,
+    rmdirSync: (path: string): void => {
+      if (held && (taken === null || stamp() !== taken)) return
+      rmdirSync(path)
     },
+  }
+  try {
+    const release: () => void = lockSync(site.dir, { ...site.options, fs, onCompromised: () => {} })
+    taken = stamp()
+    held = true
+    return { release }
+  } catch (error) {
+    const code = (error as { code?: string }).code
+    return { why: code === 'ELOCKED' ? 'the refresh lock on the home is held' : `the refresh lock on the home could not be taken (${code ?? 'unknown'})` }
   }
 }
 

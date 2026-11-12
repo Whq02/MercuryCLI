@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { once } from 'node:events'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, rmdirSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -21,10 +21,14 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
+type TokenLeg = { reached: () => void; answered: Promise<void> }
+let tokenLeg: TokenLeg | null = null
 const axios = ((await import(realpathSync(join(SRC, '..', 'node_modules', 'axios', 'index.js')))) as { default: { defaults: { adapter: unknown } } }).default
 axios.defaults.adapter = async (config: { url?: string }) => {
   const url = String(config.url ?? '')
   if (url.endsWith('/oauth/token')) {
+    tokenLeg?.reached()
+    await tokenLeg?.answered
     return {
       data: { access_token: 'fixture-access-REFRESHED', refresh_token: 'fixture-refresh-REFRESHED', expires_in: 3600, scope: 'user:inference', token_type: 'Bearer' },
       status: 200,
@@ -239,6 +243,57 @@ section('§3b a lock that passed to another holder while the step was held is no
   check('when that holder has let go, the next start seals', next === 'sealed' && sealedOnly(file) && lockIsFree(), next)
 }
 
+section('§3c the lock library removes a lock folder only while it is still the step\'s: a dead lock is taken over, the step\'s own goes at its release and at its exit')
+{
+  const dead = freshHome()
+  plain.update(STORE)
+  const deadFolder = `${dead.home}.lock`
+  mkdirSync(deadFolder)
+  const longAgo = new Date(Date.now() - 30_000)
+  utimesSync(deadFolder, longAgo, longAgo)
+  const over = await step()
+  check('a lock left thirty seconds ago by a process that died is taken over: the step seals and leaves no lock', over === 'sealed' && sealedOnly(dead.file) && !existsSync(deadFolder), `${over} ${String(existsSync(deadFolder))}`)
+
+  const own = freshHome()
+  plain.update(STORE)
+  const released = await step()
+  check('the step\'s own lock, untouched, is removed at its release', released === 'sealed' && !existsSync(`${own.home}.lock`), released)
+
+  const ending = freshHome()
+  plain.update(STORE)
+  const endsHolding = join(SCRATCH, 'ends-holding.ts')
+  writeFileSync(
+    endsHolding,
+    `
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+const SRC = ${JSON.stringify(SRC)}
+const { existsSync } = await import('node:fs')
+const { plainTextStorage } = await import(SRC + '/utils/secureStorage/plainTextStorage.ts')
+const { createKeyCustody } = await import(SRC + '/utils/secureStorage/sealedRecord.ts')
+const { startSealedStore } = await import(SRC + '/utils/secureStorage/sealedStoreStart.ts')
+const protector = {
+  scheme: 'fake-protector',
+  protect: (secret: Buffer) => ({ ok: true, bytes: Buffer.concat([Buffer.from('held:'), secret]) }),
+  unprotect: (token: Buffer) => ({ ok: true, bytes: token.subarray(5) }),
+  async protectAsync(secret: Buffer) { return this.protect(secret) },
+  async unprotectAsync(token: Buffer) { return this.unprotect(token) },
+}
+const file = {
+  ...plainTextStorage,
+  read() {
+    console.log('HOLDING ' + String(existsSync(process.env.MERCURY_CONFIG_DIR + '.lock')))
+    process.exit(0)
+  },
+}
+await startSealedStore({ file, custody: createKeyCustody(protector), otherBuildAlive: async () => null }).settled
+console.log('the step returned')
+process.exit(1)
+`,
+  )
+  const ended = spawnSync(process.execPath, [endsHolding], { env: { ...process.env, MERCURY_CONFIG_DIR: ending.home }, encoding: 'utf8', timeout: 60_000 })
+  check('a step whose process ends while it holds the lock leaves no lock behind', ended.status === 0 && ended.stdout.includes('HOLDING true') && !existsSync(`${ending.home}.lock`), `${String(ended.status)} ${ended.stdout.trim()} ${ended.stderr.slice(-200)} ${String(existsSync(`${ending.home}.lock`))}`)
+}
+
 section('§4 a write that cannot be made leaves the file as it was and no temporary file')
 {
   if (process.platform === 'win32' || (typeof process.getuid === 'function' && process.getuid() === 0)) {
@@ -261,7 +316,7 @@ section('§4 a write that cannot be made leaves the file as it was and no tempor
   check('a rename the system refuses: the step says so, the file is as it was, the temporary file is removed', outcome === 'left as it is: the write was refused (EIO)' && raw(file) === before && temporaries(home).length === 0 && lockIsFree(), `${outcome} ${temporaries(home).join(',')}`)
 }
 
-section('§5 two processes: the step is held past the lease after its last read, a real refresh lands, and the step ends without writing')
+section('§5 two processes: the step is held past the lease after its last read, a real refresh takes the lease, the step ends without writing and its process ends without touching the refresh\'s lock')
 {
   const { home, file } = freshHome()
   plain.update({ claudeAiOauth: { ...TOKENS, expiresAt: Date.now() - 60_000, subscriptionType: null, rateLimitTier: null } })
@@ -318,13 +373,41 @@ process.exit(0)
   await new Promise(resolve => setTimeout(resolve, 11_500))
   auth.clearOAuthTokenCache()
   auth.__resetKnownDeadRefreshTokensForTest()
-  const refreshed = (await auth.checkAndRefreshOAuthTokenIfNeeded()) as boolean
-  const landed = onDisk(file).claudeAiOauth as { refreshToken?: string } | undefined
-  check('eleven and a half seconds on, a real refresh takes the expired lease and saves its new pair', refreshed === true && landed?.refreshToken === 'fixture-refresh-REFRESHED', `${String(refreshed)} ${String(landed?.refreshToken)}`)
+  let letGo = (): void => {}
+  const asked = new Promise<boolean>(resolve => {
+    tokenLeg = { reached: () => resolve(true), answered: new Promise<void>(release => (letGo = release)) }
+    setTimeout(() => resolve(false), 10_000)
+  })
+  const refreshing = auth.checkAndRefreshOAuthTokenIfNeeded() as Promise<boolean>
+  const lockFolder = `${home}.lock`
+  check('eleven and a half seconds on, a real refresh takes the expired lease and asks for its new pair', (await asked) && existsSync(lockFolder), String(existsSync(lockFolder)))
   await ended
   const outcome = (out.split('\n').find(line => line.startsWith('OUTCOME ')) ?? '').slice(8)
   const held = Number(PAST.exec(outcome)?.[1] ?? 0)
   check('the step, when it runs again, does not write, and says how long the lock had been held', held >= 14_000 && held < 60_000, `${outcome} ${err.slice(-300)}`)
+  check('the step\'s process has ended at once, and the lock the refresh holds still stands', existsSync(lockFolder), String(existsSync(lockFolder)))
+  const taker = join(SCRATCH, 'taker.ts')
+  writeFileSync(
+    taker,
+    `
+const SRC = ${JSON.stringify(SRC)}
+const { lockSync } = await import(SRC + '/utils/lockfile.ts')
+const site = JSON.parse(process.argv[2] ?? '{}')
+try {
+  lockSync(site.dir, site.options)()
+  console.log('TAKEN')
+} catch (error) {
+  console.log('REFUSED ' + String((error as { code?: string }).code))
+}
+`,
+  )
+  const third = spawnSync(process.execPath, [taker, JSON.stringify(auth.oauthRefreshLockSite())], { env: { ...process.env, MERCURY_CONFIG_DIR: home }, encoding: 'utf8', timeout: 60_000 })
+  check('a third process that asks for the lock while the refresh is in flight is refused', third.stdout.trim() === 'REFUSED ELOCKED', `${third.stdout.trim()} ${third.stderr.slice(-200)}`)
+  letGo()
+  const refreshed = await refreshing
+  tokenLeg = null
+  const landed = onDisk(file).claudeAiOauth as { refreshToken?: string } | undefined
+  check('let go, the refresh saves its new pair and frees the lock', refreshed === true && landed?.refreshToken === 'fixture-refresh-REFRESHED' && lockIsFree(), `${String(refreshed)} ${String(landed?.refreshToken)}`)
   const still = onDisk(file).claudeAiOauth as { refreshToken?: string } | undefined
   check('the pair on disk is still the refresh\'s', still?.refreshToken === 'fixture-refresh-REFRESHED' && onDisk(file).mercurySealed === undefined, raw(file).slice(0, 120))
   check('the step left no temporary file', temporaries(home).length === 0, temporaries(home).join(','))
