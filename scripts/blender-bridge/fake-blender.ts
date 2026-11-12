@@ -1,13 +1,13 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 
-export interface FakeBlenderInvocation {
+interface FakeBlenderInvocation {
   argv: string[]
   pid: number
   cwd: string
 }
 
-export interface FakeBlenderFixture {
+interface FakeBlenderFixture {
   bin: string
   logPath: string
   invocations: () => FakeBlenderInvocation[]
