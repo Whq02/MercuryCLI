@@ -799,6 +799,8 @@ if (runs('LISTED')) {
     '& { gci -r -Name; gci -r } | sls canary',
     'if ($true) { gci -r -Name | Get-Item | sls canary }',
     'if ($true) { gci -r -Name | % { Get-Content $_ } }',
+    '& { $n = gci -r -Name; $n | Get-Item } | sls canary',
+    '1 | % { $n = gci -r -Name; Get-Item $n } | sls canary',
     'gci -r | % FullName | Get-Content',
     'gci -r | % FullName | Get-Item | sls canary',
     'gci -r | % FullName | sls canary -Path { $_ }',
