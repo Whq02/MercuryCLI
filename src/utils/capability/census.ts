@@ -34,6 +34,7 @@ export const CAPABILITY_UNITS = [
   'game-engine',
   'browser-drive',
   'pixel-art',
+  '3d-scene',
   'desktop-drive',
   'video-generation',
 ] as const

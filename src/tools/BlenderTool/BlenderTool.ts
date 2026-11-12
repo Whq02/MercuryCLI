@@ -159,6 +159,26 @@ export const BlenderTool = buildTool({
   },
   userFacingName,
   shouldDefer: true,
+  capability: {
+    intents: [
+      'inspect a blender scene: objects, render settings, reports',
+      'open a blend file in the running blender',
+      'render a still from the running blender',
+      'run python inside the running blender',
+      'check whether blender and its mercury add-on are reachable',
+    ],
+    units: ['3d-scene'],
+    class: 'mutation',
+    evidence: ['artifact'],
+    cancellation: 'cooperative',
+    latency: 'interactive',
+    gate: 'MERCURY_BLENDER',
+    conditions: [
+      'a .blend file under the project, or a located Blender (MERCURY_BLENDER_BIN, a blender on PATH, the app bundle, Program Files)',
+      'a running Blender with the mercury_blender_bridge add-on installed and enabled',
+    ],
+    proof: 'scripts/blender-bridge/run-all.sh',
+  },
   get inputSchema(): SchemaType {
     return inputSchema()
   },
