@@ -46,6 +46,8 @@ const { readBlenderBridgeToken } = await import('../../src/services/blender/brid
 const { startFakeBlenderBridge } = await import('./fake-bridge.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'blender-bridge-session-'))
+const noBlender = path.join(scratch, 'no-such-blender')
+process.env.MERCURY_BLENDER_BIN = noBlender
 const home = path.join(scratch, 'addons')
 mkdirSync(home, { recursive: true })
 const work = path.join(scratch, 'studio')
@@ -84,7 +86,7 @@ section('2. armed, no home — the every-road reason; readiness names it')
   check('editor truth unavailable (no addon home)', session.editor.state === 'unavailable' && /no addon home/.test((session.editor as { detail: string }).detail))
   const rows = blenderBridgeReadinessRecords()
   check('readiness: unavailable naming the reason + the pin roads', rows.length === 1 && rows[0]!.state === 'unavailable' && /MERCURY_BLENDER_BRIDGE_ADDON_DIR/.test(rows[0]!.remedy ?? ''))
-  delete process.env.MERCURY_BLENDER_BIN
+  process.env.MERCURY_BLENDER_BIN = noBlender
 }
 
 section('3. armed, home, nothing listening — unreachable with teaching; readiness names the install remedy')

@@ -10,6 +10,7 @@ export const BLENDER_BRIDGE_REPORT_RING_CAP = 1_000
 
 export const BLENDER_BRIDGE_PYTHON_SOURCE_CAP_BYTES = 64 * 1024
 export const BLENDER_BRIDGE_PYTHON_OUTPUT_CAP_BYTES = 32 * 1024
+export const BLENDER_HEADLESS_RENDER_TIMEOUT_MS = 300_000
 
 export const BLENDER_PYTHON_RUN_NO_SANDBOX_SENTENCE =
   'python_run claims NO sandbox: the code runs inside Blender with full bpy authority — it can modify or delete scene data and write files as you; the permission ask is the fence.'

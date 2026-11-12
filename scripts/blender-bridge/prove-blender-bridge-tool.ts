@@ -83,7 +83,7 @@ section('§2 · ARMED — catalog + teaching surfaces + the danger sentences (th
   process.env.MERCURY_BLENDER_BIN = pinnedBlender
   _resetBlenderBridgeContextCacheForTesting()
   check('Blender tool present in a blend-less dir once a Blender is located', await runWithCwdOverride(bare, async () => hasBlender()))
-  delete process.env.MERCURY_BLENDER_BIN
+  process.env.MERCURY_BLENDER_BIN = noBlender
   _resetBlenderBridgeContextCacheForTesting()
   const desc = getBlenderToolDescription()
   check('description carries the verb catalog', desc.includes('python_run') && desc.includes('objects_list') && desc.includes('blender_bridge_install'))

@@ -41,6 +41,8 @@ const { BlenderTool } = await import('../../src/tools/BlenderTool/BlenderTool.js
 const { startFakeBlenderBridge } = await import('./fake-bridge.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'blender-bridge-install-'))
+const noBlender = path.join(scratch, 'no-such-blender')
+process.env.MERCURY_BLENDER_BIN = noBlender
 const home = path.join(scratch, 'addons')
 mkdirSync(home, { recursive: true })
 process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR = home
@@ -118,12 +120,14 @@ section('5. the no-home refusal — nothing guessed, nothing written')
   const status = await installer.describeBlenderBridgeStatus()
   check('status names the unresolved home and skips the probe', /addon home: UNRESOLVED/.test(status) && /not probed/.test(status))
   resetEnv()
+  process.env.MERCURY_BLENDER_BIN = noBlender
   process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR = home
 }
 
 section('6. status arms — flag, teaching, enablement honesty, reachability')
 {
   resetEnv()
+  process.env.MERCURY_BLENDER_BIN = noBlender
   process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR = home
   const off = await installer.describeBlenderBridgeStatus()
   check('flag OFF named', /flag: OFF/.test(off))

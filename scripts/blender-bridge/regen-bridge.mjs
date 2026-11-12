@@ -7,12 +7,13 @@ import { fileURLToPath } from 'node:url'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const bridgeRoot = join(repo, 'assets', 'blender', 'bridge')
+const driverPath = join(repo, 'assets', 'blender', 'headless', 'driver.py')
 const outPath = join(repo, 'src', 'services', 'blender', 'bridgeFiles.generated.ts')
 const ROW = {
   assets: relative(repo, outPath),
   generator: 'node scripts/blender-bridge/regen-bridge.mjs',
   check: 'node scripts/blender-bridge/regen-bridge.mjs --check',
-  sources: 'assets/blender/bridge/**',
+  sources: 'assets/blender/bridge/** assets/blender/headless/**',
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 
@@ -45,6 +46,14 @@ const h = createHash('sha256')
 for (const f of files) h.update(f.path).update('\0').update(f.content).update('\0')
 const digest = h.digest('hex')
 
+let driverSource
+try {
+  driverSource = readFileSync(driverPath, 'utf8')
+} catch {
+  console.error(`regen-bridge: missing headless driver at ${driverPath}`)
+  process.exit(1)
+}
+
 const generated = `
 export interface BlenderBridgeFile {
   path: string
@@ -52,6 +61,8 @@ export interface BlenderBridgeFile {
 }
 
 export const BLENDER_BRIDGE_DIGEST = '${digest}'
+
+export const BLENDER_HEADLESS_DRIVER_SOURCE = ${JSON.stringify(driverSource)}
 
 export const BLENDER_BRIDGE_FILES: readonly BlenderBridgeFile[] = ${JSON.stringify(files, null, 2)}
 `
@@ -122,9 +133,29 @@ function embeddedFilesOf(moduleText) {
   }
 }
 
+function embeddedDriverOf(moduleText) {
+  const marker = 'export const BLENDER_HEADLESS_DRIVER_SOURCE = '
+  const at = moduleText.indexOf(marker)
+  if (at === -1) return null
+  const end = moduleText.indexOf('\n', at + marker.length)
+  const raw = end === -1 ? moduleText.slice(at + marker.length) : moduleText.slice(at + marker.length, end)
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
 function embeddedMatchesPublishedProjection(moduleText) {
   const embedded = embeddedFilesOf(moduleText)
-  if (!Array.isArray(embedded) || embedded.length !== files.length) return false
+  const embeddedDriver = embeddedDriverOf(moduleText)
+  if (!Array.isArray(embedded) || embedded.length !== files.length || typeof embeddedDriver !== 'string') return false
+  if (
+    commentFreeProjection(driverSource) !== driverSource ||
+    commentFreeProjection(embeddedDriver) !== driverSource
+  ) {
+    return false
+  }
   return files.every((onDisk, i) => {
     const e = embedded[i]
     if (!e || e.path !== onDisk.path) return false
