@@ -125,6 +125,11 @@ function writeOperands(argv: string[], powershell = false): string[] {
     'install', 'dd', 'rsync', 'ln', 'truncate', 'rm', 'unlink', 'rmdir', 'rd', 'ri', 'del', 'erase',
     'remove-item', 'clear-content', 'clc', 'new-item', 'ni', 'ren', 'rename', 'rename-item', 'sqlite3', 'find',
   ])
+  if (powershell && name === 'new-object') {
+    const made = args.filter(arg => !arg.startsWith('-')).map(arg => arg.replace(/,$/, ''))
+    if (/^(?:System\.)?IO\.(?:StreamWriter|FileStream)$/i.test(made[0] ?? '') && made[1] !== undefined && !made.slice(2).some(word => /^read$/i.test(word))) out.push(made[1])
+    return out
+  }
   if (!writers.has(name)) return out
   const operands = args.filter(arg => !arg.startsWith('-') && !/^\/[sq]$/i.test(arg))
   if (powershell) operands.push(...args.flatMap(arg => /^-[A-Za-z]+:(.+)$/.exec(arg)?.[1] ?? []))
@@ -436,7 +441,47 @@ export async function shellCredentialWritePath(command: string, powershell = fal
   return (await credentialWriteWalked(command, powershell, cwd)) ?? (await credentialWriteAfterMove(command, powershell, cwd)) ?? credentialWriteInBlocks(command, powershell, cwd)
 }
 
-const NET_FILE_WRITE = /^\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Copy|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/i
+const NET_WRITER = /\[(?:System\.)?IO\.(File|Directory|StreamWriter|FileStream)\]::(\w+)\s*\(/gi
+const NET_WRITTEN: Record<string, readonly number[]> = { writealltext: [0], writeallbytes: [0], writealllines: [0], appendalltext: [0], appendalllines: [0], appendtext: [0], createtext: [0], create: [0], openwrite: [0], delete: [0], copy: [1], move: [0, 1], replace: [0, 1, 2] }
+
+function callArguments(text: string, from: number): string[] {
+  const out: string[] = []
+  let depth = 0
+  let part = ''
+  for (let i = from; i < text.length; i++) {
+    const ch = text[i]!
+    if (ch === "'" || ch === '"') {
+      const end = text.indexOf(ch, i + 1)
+      const stop = end < 0 ? text.length : end
+      part += text.slice(i, stop + 1)
+      i = stop
+    } else if (ch === ')' && depth-- === 0) break
+    else if (ch === ',' && depth === 0) {
+      out.push(part.trim())
+      part = ''
+    } else {
+      if (ch === '(') depth++
+      part += ch
+    }
+  }
+  return [...out, part.trim()]
+}
+
+function netWrites(text: string): string[] {
+  const out: string[] = []
+  const bare = text.replace(/'[^']*'|"[^"]*"/g, quoted => quoted[0] + ' '.repeat(Math.max(0, quoted.length - 2)) + quoted[0])
+  for (const call of bare.matchAll(NET_WRITER)) {
+    const stream = call[1]!.toLowerCase() === 'streamwriter' || call[1]!.toLowerCase() === 'filestream'
+    const args = callArguments(text, call.index + call[0].length)
+    const reads = /^(?:['"]read['"]|\[(?:System\.)?IO\.FileAccess\]::Read)$/i.test(args[2] ?? '')
+    const written = stream ? (call[2]!.toLowerCase() === 'new' && !reads ? [0] : []) : (NET_WRITTEN[call[2]!.toLowerCase()] ?? [])
+    for (const at of written) {
+      const path = /^(['"])([^'"\r\n]+)\1$/.exec(args[at] ?? '')?.[2]
+      if (path !== undefined) out.push(path)
+    }
+  }
+  return out
+}
 
 async function credentialWriteInBlocks(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   if (!powershell && !/\b(?:pwsh|powershell)\b/i.test(command)) return null
@@ -446,8 +491,7 @@ async function credentialWriteInBlocks(command: string, powershell: boolean, cwd
     if (simple.dialect !== 'powershell') continue
     const after = foldersAfter(read, at, cwd)
     const written = simple.redirects.flatMap(redirect => (['>', '>>'].includes(redirect.op) ? ['>', '', redirect.target] : []))
-    const called = NET_FILE_WRITE.exec(simple.text)?.[2]
-    for (const path of [...layersOf(simple.argv).flatMap(layer => writeOperands([...layer.argv, ...written], true)), ...(called === undefined ? [] : [called])]) {
+    for (const path of [...layersOf(simple.argv).flatMap(layer => writeOperands([...layer.argv, ...written], true)), ...netWrites(simple.text)]) {
       if (/^(?:[/~$%]|[A-Za-z]:)/.test(path)) {
         if (credentialStorePath(path, cwd) !== null) return path
       } else if (!after.lost) {

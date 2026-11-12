@@ -1878,6 +1878,78 @@ if (runs('VALUES')) {
   await expect('VALUES', call('PowerShell', { command: 'Write-Host ("sudo")' }, 'a value that is printed'), ['sovereign'], notRefused, 'is not refused by a floor')
 }
 
+if (runs('REACH')) {
+  section('REACH · on the PowerShell tool the credential-store floor sees a write whose writer and path both stand written in the text, whichever writer it is and however the line hands it the path')
+  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const written = async (line: string, from = PROJECT): Promise<string | null> => floors.shellCredentialWritePath(fill(line), true, from)
+  const refusedRows = async (title: string, lines: string[]): Promise<void> => {
+    for (const line of lines) {
+      const answer = await written(line)
+      check(`REACH · ${title} · ${shown(fill(line))} · is refused as a write to the credential store`, answer !== null, String(answer))
+    }
+  }
+  const runningRows = async (title: string, lines: string[]): Promise<void> => {
+    for (const line of lines) {
+      const answer = await written(line)
+      check(`REACH · ${title} · ${shown(fill(line))} · is not refused by the floor`, answer === null, String(answer))
+    }
+  }
+  const KEYS = '"$HOME\\.ssh\\authorized_keys"'
+  await refusedRows('a .NET writer', [
+    `[IO.File]::WriteAllLines(${KEYS}, $l)`,
+    `[IO.File]::CreateText(${KEYS})`,
+    `[IO.File]::AppendText(${KEYS})`,
+    `[IO.File]::OpenWrite(${KEYS})`,
+    `[System.IO.File]::WriteAllLines(${KEYS}, $l)`,
+    `[IO.File]::Copy("$PWD\\other", ${KEYS}, $true)`,
+    "[IO.File]::Copy('.\\other', '~\\.ssh\\authorized_keys')",
+    `[IO.File]::Move("$PWD\\other", ${KEYS})`,
+    `[IO.File]::Move(${KEYS}, "$PWD\\taken")`,
+    `[IO.File]::Replace("$PWD\\other", ${KEYS}, $null)`,
+    `[IO.File]::Replace("$PWD\\other", "$PWD\\x", ${KEYS})`,
+    '[IO.Directory]::Move("$PWD\\dir", "$HOME\\.ssh")',
+    `[IO.StreamWriter]::new(${KEYS})`,
+    `[IO.StreamWriter]::new(${KEYS}, $true)`,
+    "[System.IO.StreamWriter]::new('~\\.ssh\\authorized_keys')",
+    `New-Object IO.StreamWriter ${KEYS}`,
+    `New-Object System.IO.StreamWriter(${KEYS})`,
+    `New-Object -TypeName IO.StreamWriter -ArgumentList ${KEYS}`,
+    `[IO.FileStream]::new(${KEYS}, 'Create')`,
+    `[IO.FileStream]::new(${KEYS}, [IO.FileMode]::Append)`,
+    `New-Object IO.FileStream ${KEYS}, 'Create'`,
+  ])
+  await refusedRows('a .NET writer behind an assignment, a cast, or inside a block or a call', [
+    `$s = [IO.File]::WriteAllText(${KEYS}, 'x')`,
+    `[void][IO.File]::WriteAllText(${KEYS}, 'x')`,
+    `$null = [IO.File]::CreateText(${KEYS})`,
+    `$w = [IO.StreamWriter]::new(${KEYS}); $w.Write('x'); $w.Close()`,
+    `if ($true) { [IO.File]::Copy('.\\other', ${KEYS}) }`,
+    '1 | % { [IO.File]::WriteAllLines("$HOME\\.aws\\credentials", $_) }',
+    `$list.Add([IO.File]::CreateText(${KEYS}))`,
+  ])
+  await runningRows('a .NET call that reads, tests, or writes in the project, and text that only holds a call', [
+    '[IO.File]::ReadAllText("$HOME\\.ssh\\config")',
+    `[IO.File]::Exists(${KEYS})`,
+    `[IO.File]::GetLastWriteTime(${KEYS})`,
+    `[IO.Path]::GetFileName(${KEYS})`,
+    '[IO.File]::WriteAllLines("$PWD\\notes.txt", $l)',
+    "[IO.File]::Copy('.\\a.txt', '.\\b.txt', $true)",
+    "[IO.File]::Move('.\\a.txt', '.\\b.txt')",
+    '[IO.StreamWriter]::new("$PWD\\out.log")',
+    "[IO.FileStream]::new(\"$HOME\\.ssh\\config\", 'Open', 'Read')",
+    '[IO.StreamReader]::new("$HOME\\.ssh\\config")',
+    'New-Object IO.StreamReader "$HOME\\.ssh\\config"',
+    'New-Object IO.StreamWriter ".\\out.txt"',
+    "New-Object IO.FileStream \"$HOME\\.ssh\\config\", 'Open', 'Read'",
+    `New-Object PSObject -Property @{ Path = ${KEYS} }`,
+    '$text = [IO.File]::ReadAllText(".\\notes.txt"); [IO.File]::WriteAllText(".\\copy.txt", $text)',
+    "Write-Host '[IO.File]::WriteAllLines(\"$HOME\\.ssh\\authorized_keys\", $l)'",
+    "Write-Output \"use [IO.File]::Copy('a', '~\\.ssh\\authorized_keys') to install the key\"",
+    "$doc = '[IO.StreamWriter]::new(\"$HOME\\.ssh\\authorized_keys\")'",
+  ])
+  await expect('REACH', call('PowerShell', { command: '[IO.File]::Copy(".\\other", "$HOME\\.ssh\\authorized_keys", $true)' }, 'the whole decision of the PowerShell tool'), ['sovereign', 'flow', 'default'], refused, 'is refused')
+}
+
 if (runs('T-3.5')) {
   const state = daemonStatePath()
   section('T-3.5 floor 4: kills of the daemon and of the session, and writes into the runtime, under Sovereign and Flow')
