@@ -5,7 +5,7 @@
 # gate-watch: src/services/journeys/runner* src/services/primitives/**
 # gate-watch: src/services/resources/adapters/** src/services/resources/registry* src/services/resources/contracts.ts
 # gate-watch: src/services/run/resolveOwner* src/services/structure/** src/substrate/flagRegistry*
-# gate-watch: src/tools/** src/utils/capability/**
+# gate-watch: src/tools/** src/utils/capability/** src/utils/blender/bridgeGates.ts
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* src/bootstrap/state.ts src/ink.ts
 # gate-watch: src/services/api/** src/services/providers/** src/tools.ts src/utils/*
 # gate-watch: src/utils/config/globalConfig.ts src/utils/messages/** src/utils/model/model.ts
