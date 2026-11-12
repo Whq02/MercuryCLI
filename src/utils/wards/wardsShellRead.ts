@@ -28,6 +28,7 @@ export type ReadCommand = {
   maybes?: readonly number[] | undefined
   substituted?: boolean | undefined
   called?: 'name' | 'block' | undefined
+  handed?: string | undefined
 }
 
 export type Layer = {
@@ -1121,6 +1122,7 @@ class PowerShellWalk {
     const begun = this.at
     let stage = 0
     let lone: string | undefined
+    let before: string | undefined
     for (;;) {
       const stages = [...outer, { pipeline, stage }]
       const start = this.at
@@ -1186,8 +1188,10 @@ class PowerShellWalk {
             gates: this.gates.length > 0 ? this.gates : undefined,
             maybes: this.maybes.length > 0 ? this.maybes : undefined,
             called: called ? (words[0]?.text.startsWith('{') ? 'block' : 'name') : undefined,
+            handed: before,
           }),
         )
+      before = this.frame.cmd !== true && !called && redirects.length === 0 && words.length === 1 && first?.bare === false && !first.value.includes(UNREAD_PART) ? first.value : undefined
       if (text[this.at] === '|' && text[this.at + 1] !== '|') {
         this.at++
         stage++

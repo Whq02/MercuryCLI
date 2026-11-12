@@ -1775,6 +1775,29 @@ if (runs('VALUES')) {
     const answer = await warded(line)
     check(`VALUES · the delete ward · ${shown(line)} · is refused as a recursive delete of the home`, answer === 'no-root-recursive-delete', String(answer))
   }
+  const piped = [
+    '"~" | Remove-Item -Recurse -Force',
+    "'~' | Remove-Item -Recurse -Force",
+    '"$HOME" | Remove-Item -Recurse -Force',
+    '("~") | Remove-Item -Recurse -Force',
+    '($HOME) | Remove-Item -Recurse -Force',
+    '("$HOME" + "\\") | Remove-Item -Recurse -Force',
+    '"~" | rm -r -fo',
+    "'~' | ri -Recurse -Force",
+    '"~" | del -Recurse -Force',
+    '"$env:USERPROFILE" | Remove-Item -Recurse -Force',
+    'if ($true) { "~" | Remove-Item -Recurse -Force }',
+    '$r = "~" | Remove-Item -Recurse -Force -PassThru',
+    '"~" | Remove-Item -Recurse -Force | Out-Null',
+  ]
+  for (const line of piped) {
+    const answer = await warded(line)
+    check(`VALUES · the delete ward · ${shown(line)} · a literal root handed down the pipe to a remover is that remover's target: refused as a recursive delete of the home`, answer === 'no-root-recursive-delete', String(answer))
+  }
+  for (const line of ['"~" | Remove-Item -Recurse -Force -WhatIf', '".\\build" | Remove-Item -Recurse -Force', "'node_modules' | Remove-Item -Recurse -Force", '"notes.txt" | Remove-Item', '"~" | Write-Output', '"~" | Get-ChildItem', '"~" | Set-Location']) {
+    const answer = await warded(line)
+    check(`VALUES · the delete ward · ${shown(line)} · a delete that only says what it would do, one inside the project, or a root handed to a command that removes nothing: not refused`, answer === null, String(answer))
+  }
   for (const line of ['& ("sudo") whoami', "& ('su' + 'do') whoami", 'iex ("sudo whoami")', 'Start-Process sudo', 'Start-Process "sudo"', 'Start-Process ("sudo")', 'Start-Process -FilePath ("sudo") -ArgumentList whoami']) {
     const answer = await warded(line)
     check(`VALUES · the wards · ${shown(line)} · a value that is called, handed to Invoke-Expression or started is the command it names: refused`, answer === 'no-sudo', String(answer))
