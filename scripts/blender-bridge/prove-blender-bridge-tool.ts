@@ -99,6 +99,13 @@ section('§2 · ARMED — catalog + teaching surfaces + the danger sentences (th
   check('blender_status answers locally: flag + home + install + reachability rows', /flag: armed/.test(status) && /addon home/.test(status) && /NOT installed/.test(status))
   const harness = computeHarnessMapLines().find(l => l.includes('Blender lanes are armed'))
   check('the widened harness line names the Blender tool + install op + the enable act', /`Blender` tool/.test(harness ?? '') && /blender_bridge_install/.test(harness ?? '') && /your act/.test(harness ?? ''))
+  const locatorSentence =
+    'The tool joins the catalog beside .blend files or wherever Blender is located (PATH, the Blender.app in /Applications or ~/Applications, Program Files); a Blender installed anywhere else is named with MERCURY_BLENDER_BIN=<its binary>.'
+  check('harness line carries the locator sentence while nothing is located', (harness ?? '').includes(locatorSentence), harness ?? '')
+  process.env.MERCURY_BLENDER_BIN = pinnedBlender
+  const harnessLocated = computeHarnessMapLines().find(l => l.includes('Blender lanes are armed'))
+  check('harness line omits the locator sentence once a Blender is located', !(harnessLocated ?? '').includes(locatorSentence))
+  process.env.MERCURY_BLENDER_BIN = noBlender
 }
 
 section('§3 · the permission ladder rides the contract classes')
