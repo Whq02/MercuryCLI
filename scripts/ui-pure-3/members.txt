@@ -125,3 +125,4 @@ prove-command-argument-pasted.ts
 prove-landing-lines-sent-in-order.ts
 prove-crewmate-shell-output.ts
 prove-crewmate-transcript-shell.ts
+prove-flip-restore-yields.ts
