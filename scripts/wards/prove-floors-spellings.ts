@@ -2098,6 +2098,31 @@ if (runs('REACH')) {
     const verdict = await wardBuilt({ toolName: 'PowerShell', input: { command: line }, shellCommand: line, startingFolder: PROJECT }, PROJECT)
     check(`REACH · the wards · ${shown(line)} · a kept value that is shown, or that names a folder of the project, is not refused`, verdict.allow, verdict.allow ? '' : verdict.rule.name)
   }
+  await refusedRows('a literal table splatted to a writer', [
+    "$a = @{ Path = '~\\.ssh\\authorized_keys'; Value = 'x' }; Set-Content @a",
+    `$p = @{ Path = ${KEYS}; Value = 'x' }; Set-Content @p`,
+    `if ($true) { $p = @{ Path = ${KEYS}; Value = 'x' }; Set-Content @p }`,
+    `$p = @{ Path = '.\\notes.txt'; Destination = ${KEYS}; Force = $true }; Copy-Item @p`,
+    `if ($true) { $p = @{ Path = '.\\notes.txt'; Destination = ${KEYS}; Force = $true }; Copy-Item @p }`,
+    "$a = @{ LiteralPath = \"$HOME\\.aws\\credentials\"; Value = 'x' }; Add-Content @a",
+    "$a = @{\n  Path = '~\\.ssh\\authorized_keys'\n  Value = 'x'\n}\nSet-Content @a",
+    "$o = @{ FilePath = '~\\.ssh\\authorized_keys' }; 'x' | Out-File @o",
+    "$r = @{ Path = '~\\.ssh\\authorized_keys' }; Remove-Item @r",
+    `$d = @{ Uri = $u; OutFile = ${KEYS} }; Invoke-WebRequest @d`,
+    "$a = @{ Path = (Join-Path $HOME '.ssh\\authorized_keys'); Value = 'x' }; Set-Content @a",
+    "$a = @{ 'Path' = '~\\.ssh\\authorized_keys'; 'Value' = 'x' }; Set-Content @a",
+  ])
+  await runningRows('a table that names a file of the project, one handed to a command that writes nothing, one only kept, and one whose path waits on a variable', [
+    "$a = @{ Path = '.\\notes.txt'; Value = 'x' }; Set-Content @a",
+    "$a = @{ Path = '~\\.ssh\\authorized_keys' }; Get-Content @a",
+    "$a = @{ Path = '~\\.ssh\\authorized_keys'; Value = 'x' }; Write-Host @a",
+    "$a = @{ Path = '~\\.ssh\\authorized_keys'; Value = 'x' }",
+    'Set-Content @params',
+    "$a = @{ Path = $target; Value = 'x' }; Set-Content @a",
+    "$a = @{ Path = '~\\.ssh\\authorized_keys'; Value = 'x' }; $a = @{ Path = '.\\notes.txt'; Value = 'x' }; Set-Content @a",
+    "$c = @{ Path = '.\\a.txt'; Destination = '.\\b.txt' }; Copy-Item @c",
+    "$w = @{ Object = 'sudo reboot'; ForegroundColor = 'Red' }; Write-Host @w",
+  ])
   await expect('REACH', call('PowerShell', { command: '[IO.File]::Copy(".\\other", "$HOME\\.ssh\\authorized_keys", $true)' }, 'the whole decision of the PowerShell tool'), ['sovereign', 'flow', 'default'], refused, 'is refused')
 }
 

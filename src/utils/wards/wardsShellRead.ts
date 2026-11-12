@@ -963,7 +963,8 @@ class PosixWalk {
   }
 }
 
-type PsToken = { value: string; text: string; inner: number[]; bare: boolean; other?: string | undefined }
+type PsTable = ReadonlyArray<readonly [string, string]>
+type PsToken = { value: string; text: string; inner: number[]; bare: boolean; other?: string | undefined; table?: PsTable | undefined }
 type PsValue = { value: string; sure: boolean }
 
 const PS_STATEMENT_HEAD = new RegExp(`(?:^|${UNREAD_PART})(?:foreach|for|if|elseif|while|switch|until)$`, 'i')
@@ -985,6 +986,8 @@ class PowerShellWalk {
   said: string | undefined
   maybe: string | undefined
   values = new Map<string, string>()
+  tables = new Map<string, PsTable>()
+  entries: Array<readonly [string, string]> = []
   parts: readonly PsToken[] = []
   gates: ReadonlyArray<readonly [number, number]> = []
   maybes: readonly number[] = []
@@ -1231,6 +1234,7 @@ class PowerShellWalk {
       if (stage === 0) {
         lone = called || redirects.length > 0 || background || this.frame.cmd === true ? undefined : this.literal(words)
         given = assigned && this.frame.cmd !== true ? PS_GIVEN.exec(text.slice(start, this.at).trimStart()) : null
+        if (assigned && given === null && lone !== undefined && tokens[1]?.bare === true && tokens[1].value === '=') this.entries.push([tokens[0]!.value, lone.value])
       }
       const first = words[0]
       const worded = (this.typed || assigned) && first?.bare === false && (words.length === 1 || first.text.endsWith(',') || (words[1]!.bare && PS_OPERATOR.test(words[1]!.value)))
@@ -1238,15 +1242,20 @@ class PowerShellWalk {
       const argv: string[] = []
       const inner: number[][] = []
       const second: string[] = []
+      const secondInner: number[][] = []
       let varied = false
       for (const [at, word] of (value ? [] : words).entries()) {
         const parts = word.bare && word.value.includes(',') && !word.value.includes(UNREAD_PART) ? word.value.split(',').filter(part => part !== '') : [word.value]
         const swapped = this.frame.cmd !== true && (at > 0 || called) ? (word.other ?? this.kept(word)) : undefined
-        if (swapped !== undefined) varied = true
+        const splatted = this.frame.cmd !== true && at > 0 && word.bare ? this.tables.get(/^@([a-z_]\w*)$/i.exec(word.value)?.[1]?.toLowerCase() ?? '') : undefined
+        if (swapped !== undefined || splatted !== undefined) varied = true
         for (const part of parts) {
           argv.push(part)
           inner.push(word.inner)
-          second.push(swapped ?? part)
+        }
+        for (const part of splatted !== undefined ? splatted.flatMap(([key, held]) => [`-${key}`, held]) : swapped !== undefined ? [swapped] : parts) {
+          second.push(part)
+          secondInner.push(word.inner)
         }
       }
       const readings = varied && moveOf({ argv: second, dialect: 'powershell' }) === undefined ? [argv, second] : [argv]
@@ -1263,7 +1272,7 @@ class PowerShellWalk {
               background: background || this.frame.background,
               stages,
               input: undefined,
-              inner,
+              inner: reading === argv ? inner : secondInner,
               inputInner: [],
               body: this.frame.body,
               dialect: 'powershell',
@@ -1274,6 +1283,11 @@ class PowerShellWalk {
               handed: before,
             }),
           )
+      if (stage === 0 && given !== null) {
+        const table = given[2] === '=' && words.length === 1 ? words[0]!.table : undefined
+        if (table === undefined) this.tables.delete(given[1]!.toLowerCase())
+        else this.tables.set(given[1]!.toLowerCase(), table)
+      }
       before = this.frame.cmd !== true && !called && redirects.length === 0 && words.length === 1 && first?.bare === false && !first.value.includes(UNREAD_PART) ? first.value : undefined
       if (text[this.at] === '|' && text[this.at + 1] !== '|') {
         this.at++
@@ -1319,6 +1333,7 @@ class PowerShellWalk {
     let bare = true
     const inner: number[] = []
     const swaps: Array<readonly [number, string]> = []
+    let table: PsTable | undefined
     while (this.at < text.length) {
       const ch = text[this.at]!
       if (ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n' || ch === ';' || ch === '|' || ch === ')' || ch === '}') break
@@ -1402,8 +1417,12 @@ class PowerShellWalk {
         continue
       }
       if (ch === '{' || (ch === '@' && text[this.at + 1] === '{')) {
+        const outer = this.entries
+        this.entries = []
         this.at += ch === '{' ? 1 : 2
         inner.push(...this.group('}', stages))
+        if (ch === '@' && value === '') table = this.entries
+        this.entries = outer
         value += UNREAD_PART
         continue
       }
@@ -1412,7 +1431,7 @@ class PowerShellWalk {
     }
     if (this.at === start) return undefined
     const other = swaps.length === 0 ? undefined : swaps.reduceRight((whole, [at, literal]) => whole.slice(0, at) + literal + whole.slice(at + 1), value)
-    return { value, text: text.slice(start, this.at), inner, bare, other }
+    return { value, text: text.slice(start, this.at), inner, bare, other, table: value === UNREAD_PART ? table : undefined }
   }
 }
 
