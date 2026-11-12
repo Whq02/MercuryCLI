@@ -53,7 +53,6 @@ export function usePasteHandler({
 } {
   const chunksRef = useRef<string[]>([])
   const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const sameTurnRef = useRef(false)
   const [isPasting, setIsPastingState] = useState(false)
   const pastingRef = useRef(false)
   const setIsPasting = (value: boolean): void => {
@@ -185,13 +184,6 @@ export function usePasteHandler({
         return
       }
 
-      if (timerRef.current !== null && key.return && !flagged && !sameTurnRef.current) {
-        clearTimeout(timerRef.current)
-        flush()
-        onInput(input, key)
-        return
-      }
-
       const looksLikeImagePath = splitPasteCandidates(input).some(candidate =>
         isImageFilePath(candidate.trim()),
       )
@@ -209,10 +201,6 @@ export function usePasteHandler({
           flush()
           return
         }
-        sameTurnRef.current = true
-        queueMicrotask(() => {
-          sameTurnRef.current = false
-        })
         timerRef.current = setTimeout(flush, QUIET_FLUSH_MS)
         return
       }
