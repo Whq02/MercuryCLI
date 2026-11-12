@@ -459,7 +459,7 @@ section('§4 what the step leaves alone')
 
   const { file: withMarkers } = freshHome()
   sealedBy('alice').update(FULL)
-  writeFileSync(withMarkers, JSON.stringify({ ...onDisk(withMarkers), mercurySealedRemoved: [['claudeAiOauth'], ['mcpOAuth', 'x|1']] }))
+  writeFileSync(withMarkers, JSON.stringify({ ...onDisk(withMarkers), mercurySealedRemoved: JSON.stringify([['claudeAiOauth'], ['mcpOAuth', 'x|1']]) }))
   const applying = start1011('alice', nobody)
   const applied = await applying.settled
   check('markers of what a closed session removed are applied by the step: it seals once and they go', applied === 'sealed' && sealedOnly(withMarkers) && applying.store.read()?.claudeAiOauth === undefined && same(applying.store.read()?.mcpOAuth, { 'y|2': { accessToken: 'fixture-mcp-y' } }) && applying.store.read()?.trustedDeviceToken === 'fixture-device-1', `${applied} ${JSON.stringify(applying.store.read())}`)

@@ -21,7 +21,14 @@ export function clearOf(stored: Stored): Stored {
 }
 
 export function removedOf(stored: Stored): string[][] {
-  const marks = stored[REMOVED_FIELD]
+  const text = stored[REMOVED_FIELD]
+  if (typeof text !== 'string') return []
+  let marks: unknown
+  try {
+    marks = JSON.parse(text)
+  } catch {
+    return []
+  }
   if (!Array.isArray(marks)) return []
   return marks.filter(
     (mark): mark is string[] => Array.isArray(mark) && mark.length >= 1 && mark.length <= 3 && mark.every(part => typeof part === 'string'),
@@ -166,7 +173,7 @@ export function createSealedFileStorage(file: SecureStorage, custody: KeyCustody
         const removed = marked(removedOf(stored), removalsBetween(clearOf(stored), clean))
         if (!opened.ok) {
           unopened(opened.why)
-          return put({ ...clean, [SEALED_FIELD]: part, ...(removed.length > 0 ? { [REMOVED_FIELD]: removed } : {}) })
+          return put({ ...clean, [SEALED_FIELD]: part, ...(removed.length > 0 ? { [REMOVED_FIELD]: JSON.stringify(removed) } : {}) })
         }
         if (Object.hasOwn(data, SEALED_FIELD)) body = foldClearOverSealed(opened.data, clean, removed)
         beside = part as string

@@ -217,7 +217,7 @@ section('§3 the unsealing takes the care the sealing takes')
 
   const { file: withMarkers } = freshHome()
   process1011('alice', undefined).store.update(FULL)
-  writeFileSync(withMarkers, JSON.stringify({ ...onDisk(withMarkers), mercurySealedRemoved: [['claudeAiOauth']] }))
+  writeFileSync(withMarkers, JSON.stringify({ ...onDisk(withMarkers), mercurySealedRemoved: JSON.stringify([['claudeAiOauth']]) }))
   const unmarked = await process1011('alice', 'unseal').start()
   check('what a closed session removed stays removed when the store is written back in the clear, and the markers go', unmarked === UNSEALED && onDisk(withMarkers).claudeAiOauth === undefined && onDisk(withMarkers).mercurySealedRemoved === undefined && same(onDisk(withMarkers).mcpOAuth, FULL.mcpOAuth), `${unmarked} ${raw(withMarkers).slice(0, 120)}`)
 

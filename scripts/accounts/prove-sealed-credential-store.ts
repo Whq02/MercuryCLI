@@ -8,6 +8,7 @@ const SCRATCH = mkdtempSync(join(tmpdir(), 'sealed-credential-store-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 delete process.env.MERCURY_HOME
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -405,6 +406,15 @@ section('§9 a removal made while the sealed part was closed holds when the part
     process1011(fakeProtector('alice')).update(store)
     return file
   }
+  const marksOn = (at: string): unknown => {
+    const held = onDisk(at)[REMOVED]
+    if (typeof held !== 'string') return held
+    try {
+      return JSON.parse(held)
+    } catch {
+      return held
+    }
+  }
 
   const file = sealedHome()
   const session = closedProcess()
@@ -415,14 +425,22 @@ section('§9 a removal made while the sealed part was closed holds when the part
   const fewer = entries(signedIn.mcpOAuth)
   delete fewer['x|1']
   session.store.update({ ...signedIn, mcpOAuth: fewer })
-  check('the removal leaves a marker beside the sealed part: the field and the key, and no value', same(onDisk(file)[REMOVED], [['mcpOAuth', 'x|1']]) && !raw(file).includes('fixture-'), JSON.stringify(onDisk(file)[REMOVED]))
+  check('the removal leaves a marker beside the sealed part: the field and the key, and no value', same(marksOn(file), [['mcpOAuth', 'x|1']]) && !raw(file).includes('fixture-'), JSON.stringify(onDisk(file)[REMOVED]))
+  check('on disk the marker is one text: no name stands in the file as a string of its own', typeof onDisk(file)[REMOVED] === 'string', JSON.stringify(onDisk(file)[REMOVED]))
+  const redaction = await import(join(SRC, 'utils/redactSecrets.ts'))
+  const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
+  enableConfigs()
+  const listed = (await redaction.sessionSecretValues()) as string[]
+  const SENTENCE = 'the mcpOAuth map has a key x|1'
+  const exported = (redaction.createSecretRedactor(listed) as (text: string) => string)(SENTENCE)
+  check('an export made while the marker rides masks none of its names: the set of secrets holds no name alone', listed.length === 2 && !listed.includes('mcpOAuth') && !listed.includes('x|1') && exported === SENTENCE, `${listed.length} listed; ${exported}`)
   const still = session.store.read() ?? {}
   check('the closed session reads the entry as gone, and its view does not show the marker', entries(still.mcpOAuth)['x|1'] === undefined && !Object.hasOwn(still, REMOVED), Object.keys(still).join(','))
   session.open()
   const opened = session.store.read() ?? {}
   check('the protector answers again: the removed entry stays gone', entries(opened.mcpOAuth)['x|1'] === undefined, JSON.stringify(opened.mcpOAuth))
   check('what the session never saw is still there', same(opened.mcpOAuth, Y_ALONE) && same(opened.claudeAiOauth, TOKENS) && same(opened.extensionSecrets, FULL.extensionSecrets) && opened.trustedDeviceToken === 'fixture-device-1', JSON.stringify(opened))
-  check('the read wrote nothing: the marker stands until the next write', same(onDisk(file)[REMOVED], [['mcpOAuth', 'x|1']]))
+  check('the read wrote nothing: the marker stands until the next write', same(marksOn(file), [['mcpOAuth', 'x|1']]))
   const sealedOnce = session.store.update({ ...opened, trustedDeviceToken: 'fixture-device-after' })
   check('the next write seals once, and the marker goes with the clear fields', sealedOnce.success === true && sealedOnce.warning === undefined && same(Object.keys(onDisk(file)), ['mercurySealed']), Object.keys(onDisk(file)).join(','))
   const fresh = process1011(fakeProtector('alice')).read() ?? {}
@@ -434,7 +452,7 @@ section('§9 a removal made while the sealed part was closed holds when the part
   const signedOut = { ...(second.store.read() ?? {}) }
   delete signedOut.claudeAiOauth
   second.store.update(signedOut)
-  check('a whole field removed while the part was closed is marked by its name', same(onDisk(fieldFile)[REMOVED], [['claudeAiOauth']]) && !raw(fieldFile).includes('fixture-'), JSON.stringify(onDisk(fieldFile)[REMOVED]))
+  check('a whole field removed while the part was closed is marked by its name', same(marksOn(fieldFile), [['claudeAiOauth']]) && !raw(fieldFile).includes('fixture-'), JSON.stringify(onDisk(fieldFile)[REMOVED]))
   second.open()
   const after = second.store.read() ?? {}
   check('when the part opens, the sign-in that was sealed does not come back', after.claudeAiOauth === undefined && same(after.mcpOAuth, FULL.mcpOAuth) && after.trustedDeviceToken === 'fixture-device-1', Object.keys(after).join(','))
@@ -443,7 +461,7 @@ section('§9 a removal made while the sealed part was closed holds when the part
   const third = closedProcess()
   third.store.update({ ...(third.store.read() ?? {}), extensionSecrets: { 'ext-1': { third: 'fixture-ext-third' }, 'ext-2': { key: 'fixture-ext2-key', other: 'fixture-ext2-other' } } })
   third.store.update({ ...(third.store.read() ?? {}), extensionSecrets: { 'ext-2': { other: 'fixture-ext2-other' } } })
-  check('an extension removed whole is marked whole, a single option by its name', same(onDisk(extensionFile)[REMOVED], [['extensionSecrets', 'ext-1'], ['extensionSecrets', 'ext-2', 'key']]), JSON.stringify(onDisk(extensionFile)[REMOVED]))
+  check('an extension removed whole is marked whole, a single option by its name', same(marksOn(extensionFile), [['extensionSecrets', 'ext-1'], ['extensionSecrets', 'ext-2', 'key']]), JSON.stringify(onDisk(extensionFile)[REMOVED]))
   third.open()
   check('when the part opens, the removed extension has none of its sealed secrets either', same(third.store.read()?.extensionSecrets, { 'ext-2': { other: 'fixture-ext2-other' } }), JSON.stringify(third.store.read()?.extensionSecrets))
 
@@ -453,7 +471,7 @@ section('§9 a removal made while the sealed part was closed holds when the part
   const unpinned = { ...(fourth.store.read() ?? {}) }
   delete unpinned.gatewayTrust
   fourth.store.update(unpinned)
-  check('a map removed whole is marked entry by entry, for the entries the session saw', same(onDisk(pinsFile)[REMOVED], [['gatewayTrust', 'a.example']]), JSON.stringify(onDisk(pinsFile)[REMOVED]))
+  check('a map removed whole is marked entry by entry, for the entries the session saw', same(marksOn(pinsFile), [['gatewayTrust', 'a.example']]), JSON.stringify(onDisk(pinsFile)[REMOVED]))
   fourth.open()
   check('so the entry it never saw survives, and the one it removed does not', same(fourth.store.read()?.gatewayTrust, { 'b.example': 'fixture-pin-b' }), JSON.stringify(fourth.store.read()?.gatewayTrust))
 
@@ -466,9 +484,9 @@ section('§9 a removal made while the sealed part was closed holds when the part
   const then = { ...(fifth.store.read() ?? {}) }
   delete then.trustedDeviceToken
   fifth.store.update({ ...then, [REMOVED]: [['mcpOAuth', 'y|2']] })
-  check('markers add up over the writes of a closed session, and a caller cannot hand one in', same(onDisk(twiceFile)[REMOVED], [['claudeAiOauth'], ['trustedDeviceToken']]), JSON.stringify(onDisk(twiceFile)[REMOVED]))
+  check('markers add up over the writes of a closed session, and a caller cannot hand one in', same(marksOn(twiceFile), [['claudeAiOauth'], ['trustedDeviceToken']]), JSON.stringify(onDisk(twiceFile)[REMOVED]))
   fifth.store.update({ ...(fifth.store.read() ?? {}), claudeAiOauth: TOKENS })
-  check('a write that removes nothing carries them on', same(onDisk(twiceFile)[REMOVED], [['claudeAiOauth'], ['trustedDeviceToken']]) && same(onDisk(twiceFile).claudeAiOauth, TOKENS))
+  check('a write that removes nothing carries them on', same(marksOn(twiceFile), [['claudeAiOauth'], ['trustedDeviceToken']]) && same(onDisk(twiceFile).claudeAiOauth, TOKENS))
   fifth.open()
   const both = fifth.store.read() ?? {}
   check('when the part opens, a field marked and then written again holds the new value, and the other stays gone', same(both.claudeAiOauth, TOKENS) && both.trustedDeviceToken === undefined && same(both.mcpOAuth, FULL.mcpOAuth), JSON.stringify(Object.keys(both)))
@@ -489,6 +507,23 @@ section('§9 a removal made while the sealed part was closed holds when the part
   delete late['x|1']
   const lateWrite = seventh.store.update({ ...stale, mcpOAuth: late })
   check('a removal handed in from a closed view after the part has opened holds as well, sealed at once', lateWrite.warning === undefined && same(Object.keys(onDisk(lateFile)), ['mercurySealed']) && same(seventh.store.read()?.mcpOAuth, Y_ALONE), JSON.stringify(seventh.store.read()?.mcpOAuth))
+
+  const readWith = (marker: unknown): Record<string, unknown> => {
+    const at = sealedHome()
+    writeFileSync(at, JSON.stringify({ ...onDisk(at), [REMOVED]: marker }))
+    try {
+      return process1011(fakeProtector('alice')).read() ?? {}
+    } catch (error) {
+      return { threw: error instanceof Error ? error.message : String(error) }
+    }
+  }
+  const whole = (read: Record<string, unknown>): boolean => same(read.mcpOAuth, FULL.mcpOAuth) && same(read.claudeAiOauth, TOKENS)
+  const torn = readWith('[["mcpOAuth"')
+  check('a marker text that does not parse is no marker: the store reads whole', whole(torn), JSON.stringify(torn).slice(0, 200))
+  const shapeless = readWith('{"mcpOAuth":true}')
+  check('nor is a text that parses to something other than a list of paths', whole(shapeless), JSON.stringify(shapeless).slice(0, 200))
+  const listRead = readWith([['mcpOAuth', 'x|1']])
+  check('names laid out as a list are not markers: one form is read, the one that is written', whole(listRead), JSON.stringify(listRead.mcpOAuth))
 
   const olderFile = sealedHome()
   plain.update({ ...(plain.read() ?? {}), mcpOAuth: { 'x|1': { accessToken: 'fixture-mcp-x-on-older' } } })
