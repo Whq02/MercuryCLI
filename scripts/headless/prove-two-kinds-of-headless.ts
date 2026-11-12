@@ -298,7 +298,7 @@ const isPostureLine = (line: string): boolean => line.startsWith('- Session:')
 let oculusRun: Captured | null = null
 let headlessRun: Captured | null = null
 
-section('§1 THE DIFFERENTIAL — one scripted conversation under a host, once headless and once oculus, each in a fresh world: only the posture line differs')
+section('§1 THE DIFFERENTIAL — one scripted conversation under a host, once headless and once oculus, each in a fresh world: only the posture line and the harness map differ')
 await guarded(async () => {
   const conversation = (): ScriptedTurn[] => [
     { kind: 'text', text: 'Hello from the fixture.' },
@@ -332,9 +332,16 @@ await guarded(async () => {
     let promptsEqual = true
     let postureDiffers = false
     let firstLineDiff = ''
+    const { computeHarnessMapLines } = await import('../../src/utils/cockpit/harnessMap.ts')
+    const mapBlock = ['', '# Mercury harness map', ...computeHarnessMapLines()]
+    let mapOnTheScreenAlone = a.requests.length > 0
     for (let i = 0; i < Math.min(a.requests.length, b.requests.length); i++) {
       const left = systemTextOf(a.requests[i]!.body).split('\n')
-      const right = systemTextOf(b.requests[i]!.body).split('\n')
+      const whole = systemTextOf(b.requests[i]!.body).split('\n')
+      const mapAt = whole.indexOf('# Mercury harness map') - 1
+      const mapStands = mapAt >= 0 && j(whole.slice(mapAt, mapAt + mapBlock.length)) === j(mapBlock)
+      if (!mapStands || left.some(line => line === '# Mercury harness map' || mapBlock.slice(2).includes(line))) mapOnTheScreenAlone = false
+      const right = mapStands ? [...whole.slice(0, mapAt), ...whole.slice(mapAt + mapBlock.length)] : whole
       if (left.length !== right.length) {
         promptsEqual = false
         firstLineDiff = `request ${i + 1}: ${left.length} vs ${right.length} system prompt lines`
@@ -354,7 +361,8 @@ await guarded(async () => {
       }
       if (!promptsEqual) break
     }
-    check('every other line of every system prompt is equal byte for byte (the constitution, the environment, the memory page, the harness map, the rule facts)', promptsEqual, firstLineDiff)
+    check("the oculus session's every system prompt holds the harness map, the heading and the lines a window is given and nothing more, and the headless session's holds none of it", mapOnTheScreenAlone, j(mapBlock.map(line => line.slice(0, 40))))
+    check('with the map taken out, every other line of every system prompt is equal byte for byte (the constitution, the environment, the memory page, the rule facts)', promptsEqual, firstLineDiff)
     check('RED ON THE BASE: the posture line is what differs', postureDiffers)
     let rowsEqual = true
     let firstRowDiff = ''
