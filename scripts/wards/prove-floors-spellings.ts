@@ -692,6 +692,16 @@ if (runs('STAYED')) {
   }
   const plainSearch = await reading(bash('grep -r foo .'), 'sovereign')
   check('STAYED · a search of the home itself keeps its own sentence', /^Reading the whole of this folder \(name a folder beneath it\) is refused/.test(plainSearch.decision.message ?? ''), said(plainSearch.decision))
+  bootstrap.setCwdState(CONFIG_HOME)
+  for (const line of ['cd nope; grep -r foo .', 'mkdir fresh; cd fresh; grep -r x .', 'cd nope; tar -cf /tmp/t.tar .', "cd nope; find . -name '*.json' -exec cat {} +"]) {
+    const inStore = await reading(bash(line), 'sovereign')
+    check(`STAYED · the session standing in the config home · ${shown(line)} · a read of the dot that would stay in the store itself gets that sentence and names the store`, WAY_THROUGH.test(inStore.decision.message ?? '') && (inStore.decision.message ?? '').includes(CONFIG_HOME), said(inStore.decision))
+  }
+  const dotInStore = await reading(bash('grep -r foo .'), 'sovereign')
+  check('STAYED · the session standing in the config home · a search of the store itself keeps its own sentence', /^Reading \. is refused: it holds Mercury's own credentials/.test(dotInStore.decision.message ?? ''), said(dotInStore.decision))
+  const joinedInStore = await reading(bash('cd nope && grep -r foo .'), 'sovereign')
+  check('STAYED · the session standing in the config home · …and joined by && it is not refused by the floor', joinedInStore.decision.behavior !== 'deny', said(joinedInStore.decision))
+  bootstrap.setCwdState(OWN_HOME)
   const { shellMercurySecretPath } = await import('../../src/utils/permissions/shellProtectedPaths.ts')
   const onPowerShell = await shellMercurySecretPath('cd nope; grep -r foo .', true, OWN_HOME)
   check('STAYED · on the PowerShell tool the line as written keeps the refusal\'s own words and names no way through: cd nope; grep -r foo .', onPowerShell !== null && !onPowerShell.includes('where this line stays') && !onPowerShell.includes('&&'), String(onPowerShell))
