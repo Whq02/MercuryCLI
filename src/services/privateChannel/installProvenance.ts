@@ -1,6 +1,7 @@
 
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
-import { basename, dirname, join, resolve, sep } from 'node:path'
+import { basename, dirname, join, resolve, sep, win32 as pathWin32 } from 'node:path'
+import { stripExtendedLengthPrefix } from '../../utils/windowsPaths.js'
 import { resolveLayoutRoots } from './installLayout.js'
 
 export type InstallProvenanceKind =
@@ -48,6 +49,7 @@ export interface InstallProbeFacts {
 }
 
 export function classifyInstallProvenance(f: InstallProbeFacts): InstallProvenanceV1 {
+  const dirOf = f.isWindows ? pathWin32.dirname : dirname
   const base = {
     v: 1 as const,
     version: f.version,
@@ -102,7 +104,7 @@ export function classifyInstallProvenance(f: InstallProbeFacts): InstallProvenan
     return {
       ...base,
       kind: 'homebrew',
-      activeRoot: dirname(f.invokedPath),
+      activeRoot: dirOf(f.invokedPath),
       updateOwner: 'homebrew',
       evidence: [`entry runs inside the Homebrew keg ${f.homebrewKeg} — Homebrew owns this install`],
       disagreements: [],
@@ -113,7 +115,7 @@ export function classifyInstallProvenance(f: InstallProbeFacts): InstallProvenan
     return {
       ...base,
       kind: 'npm',
-      activeRoot: dirname(f.invokedPath),
+      activeRoot: dirOf(f.invokedPath),
       updateOwner: 'npm',
       evidence: [`entry runs inside the npm package ${f.npmPackageDir} — npm owns this install`],
       disagreements: [],
@@ -125,7 +127,7 @@ export function classifyInstallProvenance(f: InstallProbeFacts): InstallProvenan
     return {
       ...base,
       kind: 'development',
-      activeRoot: dirname(f.invokedPath),
+      activeRoot: dirOf(f.invokedPath),
       updateOwner: 'source-build',
       evidence: [f.devMarkersPresent ? 'build.ts + src/ + .git above the entry — a confirmed source checkout (IP-04)' : DEPLOYED_SOURCE_EVIDENCE],
       disagreements: [],
@@ -136,7 +138,7 @@ export function classifyInstallProvenance(f: InstallProbeFacts): InstallProvenan
     return {
       ...base,
       kind: 'extracted-release',
-      activeRoot: dirname(f.invokedPath),
+      activeRoot: dirOf(f.invokedPath),
       updateOwner: 'release-archive',
       evidence: ['complete release payload run in place (bundle + manifest + launchers, IP-03)'],
       disagreements: [],
@@ -147,7 +149,7 @@ export function classifyInstallProvenance(f: InstallProbeFacts): InstallProvenan
   return {
     ...base,
     kind: 'unknown',
-    activeRoot: f.invokedPath ? dirname(f.invokedPath) : '',
+    activeRoot: f.invokedPath ? dirOf(f.invokedPath) : '',
     updateOwner: 'none-known',
     evidence: [
       f.invokedPath
@@ -159,14 +161,18 @@ export function classifyInstallProvenance(f: InstallProbeFacts): InstallProvenan
   }
 }
 
+const winDriveOrUnc = (p: string): boolean => /^[A-Za-z]:[/\\]|^\\\\/.test(p)
+
 function containedIn(root: string, p: string, isWindows: boolean): boolean {
+  const win = isWindows && (winDriveOrUnc(root) || winDriveOrUnc(p))
   const norm = (x: string): string => {
-    const r = resolve(x)
+    const r = (win ? pathWin32.resolve : resolve)(x)
     return isWindows ? r.toLowerCase() : r
   }
   const r = norm(root)
   const t = norm(p)
-  return t === r || t.startsWith(r.endsWith(sep) ? r : r + sep)
+  const s = win ? '\\' : sep
+  return t === r || t.startsWith(r.endsWith(s) ? r : r + s)
 }
 
 function realpathSafe(p: string): string {
@@ -177,30 +183,39 @@ function realpathSafe(p: string): string {
   }
 }
 
-const pathSegments = (p: string): string[] => resolve(p).split(/[/\\]/)
+const pathSegments = (p: string, isWindows = false): string[] =>
+  (isWindows && winDriveOrUnc(p) ? pathWin32.resolve(p) : resolve(p)).split(/[/\\]/)
 
 export function homebrewKegOf(invokedPath: string, env: NodeJS.ProcessEnv = process.env, isWindows = false): string | null {
   if (!invokedPath) return null
-  const parts = pathSegments(invokedPath)
+  const clean = isWindows ? stripExtendedLengthPrefix(invokedPath) : invokedPath
+  const parts = pathSegments(clean, isWindows)
+  const s = isWindows && winDriveOrUnc(clean) ? '\\' : sep
   for (let i = 0; i + 3 < parts.length; i++) {
-    if (parts[i] === 'Cellar' && parts[i + 1] === 'mercury' && parts[i + 2]) return parts.slice(0, i + 3).join(sep)
+    if (parts[i] === 'Cellar' && parts[i + 1] === 'mercury' && parts[i + 2]) return parts.slice(0, i + 3).join(s)
   }
   const cellars = [env.HOMEBREW_CELLAR, env.HOMEBREW_PREFIX ? join(env.HOMEBREW_PREFIX, 'Cellar') : undefined]
   for (const cellar of cellars) {
     if (!cellar) continue
-    const formulaRoot = join(cellar, 'mercury')
-    if (!containedIn(formulaRoot, invokedPath, isWindows)) continue
-    const below = resolve(invokedPath).slice(resolve(formulaRoot).length).split(/[/\\]/).filter(Boolean)
-    if (below.length >= 2 && below[0]) return join(formulaRoot, below[0])
+    const cleanCellar = isWindows ? stripExtendedLengthPrefix(cellar) : cellar
+    const win = isWindows && (winDriveOrUnc(cleanCellar) || winDriveOrUnc(clean))
+    const jn = win ? pathWin32.join : join
+    const res = win ? pathWin32.resolve : resolve
+    const formulaRoot = jn(cleanCellar, 'mercury')
+    if (!containedIn(formulaRoot, clean, isWindows)) continue
+    const below = res(clean).slice(res(formulaRoot).length).split(/[/\\]/).filter(Boolean)
+    if (below.length >= 2 && below[0]) return jn(formulaRoot, below[0])
   }
   return null
 }
 
-export function npmPackageDirOf(invokedPath: string): string | null {
+export function npmPackageDirOf(invokedPath: string, isWindows = false): string | null {
   if (!invokedPath) return null
-  const parts = pathSegments(invokedPath)
+  const clean = isWindows ? stripExtendedLengthPrefix(invokedPath) : invokedPath
+  const parts = pathSegments(clean, isWindows)
+  const s = isWindows && winDriveOrUnc(clean) ? '\\' : sep
   for (let i = parts.length - 2; i >= 1; i--) {
-    if (parts[i - 1] === 'node_modules' && parts[i] === 'mercury-tech-cli') return parts.slice(0, i + 1).join(sep)
+    if (parts[i - 1] === 'node_modules' && parts[i] === 'mercury-tech-cli') return parts.slice(0, i + 1).join(s)
   }
   return null
 }
@@ -223,12 +238,14 @@ export function gatherInstallProbeFacts(overrides?: {
 }): InstallProbeFacts {
   const platform = overrides?.platform ?? process.platform
   const isWindows = platform === 'win32'
+  const strip = (p: string): string => (isWindows ? stripExtendedLengthPrefix(p) : p)
+  const dirOf = isWindows ? pathWin32.dirname : dirname
   const env = overrides?.env ?? process.env
-  const rawInvoked = overrides?.invokedPath ?? process.argv[1] ?? ''
-  const invokedPath = rawInvoked ? realpathSafe(rawInvoked) : ''
-  const entryDir = invokedPath ? dirname(invokedPath) : ''
+  const rawInvoked = strip(overrides?.invokedPath ?? process.argv[1] ?? '')
+  const invokedPath = rawInvoked ? strip(realpathSafe(rawInvoked)) : ''
+  const entryDir = invokedPath ? dirOf(invokedPath) : ''
   const homebrewKeg = invokedPath ? homebrewKegOf(invokedPath, env, isWindows) : null
-  const npmPackageDir = invokedPath ? npmPackageDirOf(invokedPath) : null
+  const npmPackageDir = invokedPath ? npmPackageDirOf(invokedPath, isWindows) : null
 
   const version =
     typeof MACRO !== 'undefined' && typeof MACRO.VERSION === 'string' ? MACRO.VERSION : 'dev'
@@ -237,18 +254,20 @@ export function gatherInstallProbeFacts(overrides?: {
       ? (MACRO as { BUILD_SHA?: string }).BUILD_SHA
       : undefined
 
-  const versionsDir = realpathSafe(
-    overrides?.versionsDir ?? resolveLayoutRoots(platform).versionsDir,
-  )
+  const rawVersionsDir = strip(overrides?.versionsDir ?? resolveLayoutRoots(platform).versionsDir)
+  const versionsDir = strip(realpathSafe(rawVersionsDir))
 
   let entryVersionDir: string | null = null
   let entryVersion: string | null = null
   if (invokedPath && containedIn(versionsDir, invokedPath, isWindows)) {
-    const rel = resolve(invokedPath).slice(resolve(versionsDir).length).replace(/^[/\\]+/, '')
+    const win = isWindows && (winDriveOrUnc(versionsDir) || winDriveOrUnc(invokedPath))
+    const res = win ? pathWin32.resolve : resolve
+    const jn = win ? pathWin32.join : join
+    const rel = res(invokedPath).slice(res(versionsDir).length).replace(/^[/\\]+/, '')
     const seg = rel.split(/[/\\]/)[0]
     if (seg && seg !== 'current.txt' && seg !== 'previous.txt') {
       entryVersion = seg
-      entryVersionDir = join(versionsDir, seg)
+      entryVersionDir = jn(versionsDir, seg)
     }
   }
 
@@ -266,7 +285,7 @@ export function gatherInstallProbeFacts(overrides?: {
 
   let devMarkersPresent = false
   if (entryDir) {
-    for (const root of [dirname(entryDir), dirname(dirname(entryDir))]) {
+    for (const root of [dirOf(entryDir), dirOf(dirOf(entryDir))]) {
       if (
         existsSync(join(root, 'build.ts')) &&
         existsSync(join(root, 'src')) &&
@@ -318,7 +337,7 @@ export function resolveInstallProvenance(): InstallProvenanceV1 {
       kind: 'unknown',
       version: typeof MACRO !== 'undefined' && typeof MACRO.VERSION === 'string' ? MACRO.VERSION : 'dev',
       activeRoot: '',
-      invokedPath: process.argv[1] ?? '',
+      invokedPath: process.platform === 'win32' ? stripExtendedLengthPrefix(process.argv[1] ?? '') : (process.argv[1] ?? ''),
       updateOwner: 'none-known',
       evidence: ['provenance probe threw — no evidence either way'],
       disagreements: [],
@@ -351,8 +370,9 @@ export interface ForeignInstaller {
   updateCommand: string
 }
 
-export function isNpmWrapperCommand(commandPath: string): boolean {
-  return npmPackageDirOf(realpathSafe(commandPath)) !== null
+export function isNpmWrapperCommand(commandPath: string, isWindows = process.platform === 'win32'): boolean {
+  const strip = (p: string): string => (isWindows ? stripExtendedLengthPrefix(p) : p)
+  return npmPackageDirOf(strip(realpathSafe(strip(commandPath))), isWindows) !== null
 }
 
 export function foreignInstallerOf(p: Pick<InstallProvenanceV1, 'kind'>): ForeignInstaller | null {
@@ -367,8 +387,11 @@ export function foreignInstallerOf(p: Pick<InstallProvenanceV1, 'kind'>): Foreig
 }
 
 export function provenanceLine(p: InstallProvenanceV1): string {
+  const coRootName = p.managedCoResident
+    ? (/\\/.test(p.managedCoResident.root) ? pathWin32.basename : basename)(p.managedCoResident.root)
+    : ''
   const co = p.managedCoResident
-    ? ` · co-resident managed install: ${p.managedCoResident.current} at ${basename(p.managedCoResident.root)}`
+    ? ` · co-resident managed install: ${p.managedCoResident.current} at ${coRootName}`
     : ''
   const dis = p.disagreements.length > 0 ? ` · ${p.disagreements.join(' · ')}` : ''
   return `${p.kind} ${p.version}${p.buildSha ? ` (${p.buildSha.slice(0, 9)})` : ''} at ${p.activeRoot}${co}${dis}`

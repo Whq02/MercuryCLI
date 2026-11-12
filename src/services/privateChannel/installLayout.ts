@@ -19,8 +19,9 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, win32 as pathWin32 } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { stripExtendedLengthPrefix } from '../../utils/windowsPaths.js'
 import { NODE_SUPPORT } from '../../utils/runtime/nodePolicy.js'
 import { TEARDOWN_SUITE } from '../../ink/root/teardown.js'
 import {
@@ -84,10 +85,13 @@ type ShimWriteOptions = {
 
 export function resolveLayoutRoots(platform: string = process.platform): LayoutRoots {
   const isWindows = platform === 'win32'
-  const versionsDir = flagEnv('MERCURY_VERSIONS_DIR') || join(getMercuryHome(), 'versions')
-  const binDir = isWindows
-    ? join(process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local'), 'Mercury', 'bin')
-    : join(homedir(), '.local', 'bin')
+  const strip = (p: string): string => (isWindows ? stripExtendedLengthPrefix(p) : p)
+  const versionsDir = strip(flagEnv('MERCURY_VERSIONS_DIR') || join(getMercuryHome(), 'versions'))
+  const binDir = strip(
+    isWindows
+      ? join(process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local'), 'Mercury', 'bin')
+      : join(homedir(), '.local', 'bin'),
+  )
   const shimPath = join(binDir, isWindows ? 'mercury.cmd' : 'mercury')
   const shimSetPaths = isWindows ? [shimPath, join(binDir, 'mercury'), join(binDir, WIN32_POWERSHELL_ENTRY)] : [shimPath]
   return { versionsDir, binDir, shimPath, shimSetPaths, isWindows }
@@ -1026,5 +1030,6 @@ export function formatUninstallReport(roots: LayoutRoots, report: UninstallRepor
 }
 
 export function runningPayloadDir(): string {
-  return dirname(process.argv[1] ?? '')
+  const raw = process.argv[1] ?? ''
+  return process.platform === 'win32' ? pathWin32.dirname(stripExtendedLengthPrefix(raw)) : dirname(raw)
 }
