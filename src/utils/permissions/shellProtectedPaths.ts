@@ -80,6 +80,12 @@ function powershellCopyTargets(args: readonly string[]): string[] {
       loose.push(word)
       continue
     }
+    if (word.startsWith('--')) {
+      const equals = word.indexOf('=')
+      const value = equals >= 0 ? word.slice(equals + 1) : word === '--target-directory' ? args[++i] : undefined
+      if (value !== undefined) valued.push(value)
+      continue
+    }
     const colon = word.indexOf(':')
     const name = (colon < 0 ? word.slice(1) : word.slice(1, colon)).toLowerCase()
     const fused = colon < 0 ? undefined : word.slice(colon + 1)

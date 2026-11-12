@@ -1225,6 +1225,9 @@ if (runs('PARAMS')) {
     'copy .\\other -Des:~\\.ssh\\authorized_keys',
     'cpi .\\other ~\\.ssh\\authorized_keys -ErrorAction Stop',
     'cpi .\\other -Des:~\\.ssh\\authorized_keys',
+    'cp --target-directory=~/.ssh other',
+    'cp --target-directory ~/.ssh other',
+    'cp -t ~/.ssh other',
     'ci .\\other ~\\.ssh\\authorized_keys -ErrorAction Stop',
     'ci .\\other -Des:~\\.ssh\\authorized_keys',
   ]
@@ -1317,6 +1320,8 @@ if (runs('PARAMS')) {
     'New-Item -Path:.\\out -ItemType:Directory',
     'Copy-Item .\\other ~\\.ssh\\authorized_keys -WhatIf',
     'Copy-Item .\\a.txt .\\b.txt -Confirm:$false',
+    'cp --target-directory=./backup ~/.ssh/config',
+    'cp -r --no-clobber ~/.ssh ./backup',
   ]
   for (const line of stillRuns) {
     const answer = await written(line)
