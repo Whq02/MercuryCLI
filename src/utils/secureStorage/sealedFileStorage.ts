@@ -1,5 +1,4 @@
 import { logForDebugging } from '../debug.js'
-import { getAuthConfigHomeDir } from '../envUtils.js'
 import { SEALED_FIELD, type KeyCustody, type SealedOpen } from './sealedRecord.js'
 import type { SecureStorage, SecureStorageData } from './types.js'
 
@@ -50,7 +49,7 @@ export function createSealedFileStorage(file: SecureStorage, custody: KeyCustody
 
   function unopened(why: string): void {
     say(
-      `credential store: the sealed part in ${getAuthConfigHomeDir()} was not opened (${why}); it is kept as it is and this session reads and writes beside it`,
+      `credential store: the sealed part was not opened (${why}); it is kept as it is and this session reads and writes beside it`,
     )
   }
 
@@ -101,7 +100,7 @@ export function createSealedFileStorage(file: SecureStorage, custody: KeyCustody
       }
       const sealed = custody.seal(body, beside)
       if (!sealed.ok) {
-        say(`credential store: nothing was sealed in ${getAuthConfigHomeDir()} (${sealed.why}); the credentials are written in the clear`)
+        say(`credential store: nothing was sealed (${sealed.why}); the credentials are written in the clear`)
         return put(body)
       }
       const result = put({ [SEALED_FIELD]: sealed.text })
