@@ -382,6 +382,122 @@ section('§8 what is held against the protector: a refusal for the process, a si
   check('a new key refused by silence is asked for again after thirty seconds, on a home with no store', inTheClear.warning === PLAINTEXT_WARNING && sealedPart(empty) === undefined && sealedLater.warning === undefined && SEALED_TEXT.test(String(sealedPart(another))), `${JSON.stringify(late.asked)} ${JSON.stringify(sealedLater)}`)
 }
 
+section('§9 a removal made while the sealed part was closed holds when the part opens')
+{
+  const REMOVED = 'mercurySealedRemoved'
+  const Y_ALONE = { 'y|2': { accessToken: 'fixture-mcp-y' } }
+  const entries = (value: unknown): Record<string, unknown> => ({ ...((value ?? {}) as Record<string, unknown>) })
+  const closedProcess = (): { store: Store; open: () => void } => {
+    let at = 5_000_000
+    const protector = fakeProtector('alice')
+    protector.answers = false
+    const store = process1011(protector, () => at)
+    return {
+      store,
+      open: () => {
+        protector.answers = true
+        at += 31_000
+      },
+    }
+  }
+  const sealedHome = (store: Record<string, unknown> = FULL): string => {
+    const file = freshHome()
+    process1011(fakeProtector('alice')).update(store)
+    return file
+  }
+
+  const file = sealedHome()
+  const session = closedProcess()
+  const closed = session.store.read() ?? {}
+  check('the part is closed: the session sees none of the sealed MCP sign-ins', closed.mcpOAuth === undefined && typeof closed.mercurySealed === 'string', Object.keys(closed).join(','))
+  session.store.update({ ...closed, mcpOAuth: { 'x|1': { accessToken: 'fixture-mcp-x-while-closed' } } })
+  const signedIn = session.store.read() ?? {}
+  const fewer = entries(signedIn.mcpOAuth)
+  delete fewer['x|1']
+  session.store.update({ ...signedIn, mcpOAuth: fewer })
+  check('the removal leaves a marker beside the sealed part: the field and the key, and no value', same(onDisk(file)[REMOVED], [['mcpOAuth', 'x|1']]) && !raw(file).includes('fixture-'), JSON.stringify(onDisk(file)[REMOVED]))
+  const still = session.store.read() ?? {}
+  check('the closed session reads the entry as gone, and its view does not show the marker', entries(still.mcpOAuth)['x|1'] === undefined && !Object.hasOwn(still, REMOVED), Object.keys(still).join(','))
+  session.open()
+  const opened = session.store.read() ?? {}
+  check('the protector answers again: the removed entry stays gone', entries(opened.mcpOAuth)['x|1'] === undefined, JSON.stringify(opened.mcpOAuth))
+  check('what the session never saw is still there', same(opened.mcpOAuth, Y_ALONE) && same(opened.claudeAiOauth, TOKENS) && same(opened.extensionSecrets, FULL.extensionSecrets) && opened.trustedDeviceToken === 'fixture-device-1', JSON.stringify(opened))
+  check('the read wrote nothing: the marker stands until the next write', same(onDisk(file)[REMOVED], [['mcpOAuth', 'x|1']]))
+  const sealedOnce = session.store.update({ ...opened, trustedDeviceToken: 'fixture-device-after' })
+  check('the next write seals once, and the marker goes with the clear fields', sealedOnce.success === true && sealedOnce.warning === undefined && same(Object.keys(onDisk(file)), ['mercurySealed']), Object.keys(onDisk(file)).join(','))
+  const fresh = process1011(fakeProtector('alice')).read() ?? {}
+  check('another process reads the store without the removed entry', same(fresh.mcpOAuth, Y_ALONE) && fresh.trustedDeviceToken === 'fixture-device-after', JSON.stringify(fresh.mcpOAuth))
+
+  const fieldFile = sealedHome()
+  const second = closedProcess()
+  second.store.update({ ...(second.store.read() ?? {}), claudeAiOauth: NEWER })
+  const signedOut = { ...(second.store.read() ?? {}) }
+  delete signedOut.claudeAiOauth
+  second.store.update(signedOut)
+  check('a whole field removed while the part was closed is marked by its name', same(onDisk(fieldFile)[REMOVED], [['claudeAiOauth']]) && !raw(fieldFile).includes('fixture-'), JSON.stringify(onDisk(fieldFile)[REMOVED]))
+  second.open()
+  const after = second.store.read() ?? {}
+  check('when the part opens, the sign-in that was sealed does not come back', after.claudeAiOauth === undefined && same(after.mcpOAuth, FULL.mcpOAuth) && after.trustedDeviceToken === 'fixture-device-1', Object.keys(after).join(','))
+
+  const extensionFile = sealedHome()
+  const third = closedProcess()
+  third.store.update({ ...(third.store.read() ?? {}), extensionSecrets: { 'ext-1': { third: 'fixture-ext-third' }, 'ext-2': { key: 'fixture-ext2-key', other: 'fixture-ext2-other' } } })
+  third.store.update({ ...(third.store.read() ?? {}), extensionSecrets: { 'ext-2': { other: 'fixture-ext2-other' } } })
+  check('an extension removed whole is marked whole, a single option by its name', same(onDisk(extensionFile)[REMOVED], [['extensionSecrets', 'ext-1'], ['extensionSecrets', 'ext-2', 'key']]), JSON.stringify(onDisk(extensionFile)[REMOVED]))
+  third.open()
+  check('when the part opens, the removed extension has none of its sealed secrets either', same(third.store.read()?.extensionSecrets, { 'ext-2': { other: 'fixture-ext2-other' } }), JSON.stringify(third.store.read()?.extensionSecrets))
+
+  const pinsFile = sealedHome({ ...FULL, gatewayTrust: { 'a.example': 'fixture-pin-a', 'b.example': 'fixture-pin-b' } })
+  const fourth = closedProcess()
+  fourth.store.update({ ...(fourth.store.read() ?? {}), gatewayTrust: { 'a.example': 'fixture-pin-a-new' } })
+  const unpinned = { ...(fourth.store.read() ?? {}) }
+  delete unpinned.gatewayTrust
+  fourth.store.update(unpinned)
+  check('a map removed whole is marked entry by entry, for the entries the session saw', same(onDisk(pinsFile)[REMOVED], [['gatewayTrust', 'a.example']]), JSON.stringify(onDisk(pinsFile)[REMOVED]))
+  fourth.open()
+  check('so the entry it never saw survives, and the one it removed does not', same(fourth.store.read()?.gatewayTrust, { 'b.example': 'fixture-pin-b' }), JSON.stringify(fourth.store.read()?.gatewayTrust))
+
+  const twiceFile = sealedHome()
+  const fifth = closedProcess()
+  fifth.store.update({ ...(fifth.store.read() ?? {}), claudeAiOauth: NEWER, trustedDeviceToken: 'fixture-device-closed' })
+  const first = { ...(fifth.store.read() ?? {}) }
+  delete first.claudeAiOauth
+  fifth.store.update(first)
+  const then = { ...(fifth.store.read() ?? {}) }
+  delete then.trustedDeviceToken
+  fifth.store.update({ ...then, [REMOVED]: [['mcpOAuth', 'y|2']] })
+  check('markers add up over the writes of a closed session, and a caller cannot hand one in', same(onDisk(twiceFile)[REMOVED], [['claudeAiOauth'], ['trustedDeviceToken']]), JSON.stringify(onDisk(twiceFile)[REMOVED]))
+  fifth.store.update({ ...(fifth.store.read() ?? {}), claudeAiOauth: TOKENS })
+  check('a write that removes nothing carries them on', same(onDisk(twiceFile)[REMOVED], [['claudeAiOauth'], ['trustedDeviceToken']]) && same(onDisk(twiceFile).claudeAiOauth, TOKENS))
+  fifth.open()
+  const both = fifth.store.read() ?? {}
+  check('when the part opens, a field marked and then written again holds the new value, and the other stays gone', same(both.claudeAiOauth, TOKENS) && both.trustedDeviceToken === undefined && same(both.mcpOAuth, FULL.mcpOAuth), JSON.stringify(Object.keys(both)))
+
+  const sixth = closedProcess()
+  const addedFile = sealedHome()
+  sixth.store.update({ ...(sixth.store.read() ?? {}), mcpOAuth: { 'x|1': { accessToken: 'fixture-mcp-x-added' } }, [REMOVED]: [['mcpOAuth', 'y|2']] })
+  check('a write that removes nothing leaves no marker, whatever the caller hands in under that name', onDisk(addedFile)[REMOVED] === undefined && typeof onDisk(addedFile).mercurySealed === 'string', JSON.stringify(onDisk(addedFile)[REMOVED]))
+  sixth.open()
+  check('the other direction: an entry added in the clear while the part was closed wins over the older sealed entry of its key', same(sixth.store.read()?.mcpOAuth, { 'x|1': { accessToken: 'fixture-mcp-x-added' }, ...Y_ALONE }), JSON.stringify(sixth.store.read()?.mcpOAuth))
+
+  const lateFile = sealedHome()
+  const seventh = closedProcess()
+  seventh.store.update({ ...(seventh.store.read() ?? {}), mcpOAuth: { 'x|1': { accessToken: 'fixture-mcp-x-while-closed' } } })
+  const stale = seventh.store.read() ?? {}
+  seventh.open()
+  const late = entries(stale.mcpOAuth)
+  delete late['x|1']
+  const lateWrite = seventh.store.update({ ...stale, mcpOAuth: late })
+  check('a removal handed in from a closed view after the part has opened holds as well, sealed at once', lateWrite.warning === undefined && same(Object.keys(onDisk(lateFile)), ['mercurySealed']) && same(seventh.store.read()?.mcpOAuth, Y_ALONE), JSON.stringify(seventh.store.read()?.mcpOAuth))
+
+  const olderFile = sealedHome()
+  plain.update({ ...(plain.read() ?? {}), mcpOAuth: { 'x|1': { accessToken: 'fixture-mcp-x-on-older' } } })
+  const emptied = { ...(plain.read() ?? {}), mcpOAuth: {} }
+  plain.update(emptied)
+  const returned = process1011(fakeProtector('alice')).read() ?? {}
+  check('the limit that stays: a removal made by a build that writes no marker comes back from the sealed part', onDisk(olderFile)[REMOVED] === undefined && same(returned.mcpOAuth, FULL.mcpOAuth), JSON.stringify(returned.mcpOAuth))
+}
+
 rmSync(SCRATCH, { recursive: true, force: true, maxRetries: 3 })
 console.log(failures === 0 ? `\nALL ${total} CHECKS PASS` : `\n${failures} OF ${total} CHECKS FAILED`)
 process.exit(failures === 0 ? 0 : 1)

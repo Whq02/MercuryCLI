@@ -215,6 +215,12 @@ section('§3 the unsealing takes the care the sealing takes')
   const folded = await process1011('alice', 'unseal').start()
   check('clear fields an older build left beside the sealed part are folded in: its sign-in wins, the MCP sign-ins per entry', folded === UNSEALED && same(onDisk(file), { ...FULL, claudeAiOauth: NEWER, mcpOAuth: { 'x|1': { accessToken: 'fixture-mcp-x-new' }, 'y|2': { accessToken: 'fixture-mcp-y' } } }), `${folded} ${raw(file).slice(0, 160)}`)
 
+  const { file: withMarkers } = freshHome()
+  process1011('alice', undefined).store.update(FULL)
+  writeFileSync(withMarkers, JSON.stringify({ ...onDisk(withMarkers), mercurySealedRemoved: [['claudeAiOauth']] }))
+  const unmarked = await process1011('alice', 'unseal').start()
+  check('what a closed session removed stays removed when the store is written back in the clear, and the markers go', unmarked === UNSEALED && onDisk(withMarkers).claudeAiOauth === undefined && onDisk(withMarkers).mercurySealedRemoved === undefined && same(onDisk(withMarkers).mcpOAuth, FULL.mcpOAuth), `${unmarked} ${raw(withMarkers).slice(0, 120)}`)
+
   const { file: foreign } = freshHome()
   process1011('alice', undefined).store.update(FULL)
   const untouched = raw(foreign)

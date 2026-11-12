@@ -1,7 +1,7 @@
 import { logForDebugging } from '../debug.js'
 import { getMercuryHome, withAuthScope } from '../envUtils.js'
 import { lockSync } from '../lockfile.js'
-import { clearOf, foldClearOverSealed } from './sealedFileStorage.js'
+import { clearOf, foldClearOverSealed, removedOf } from './sealedFileStorage.js'
 import { SEALED_FIELD, type KeyCustody, type SealedOpen } from './sealedRecord.js'
 import type { SecureStorage, SecureStorageData } from './types.js'
 
@@ -32,7 +32,8 @@ async function sealAtStart(start: SealedStoreStart, home: string, stored: Stored
     return `the sealed part was not opened (${opened === null ? 'it is not text' : opened.why}); the file is left as it is`
   }
   const clear = clearOf(stored)
-  const body = opened !== null && opened.ok ? foldClearOverSealed(opened.data, clear) : clear
+  const removed = sealedNow ? removedOf(stored) : []
+  const body = opened !== null && opened.ok ? foldClearOverSealed(opened.data, clear, removed) : clear
   const seals = start.seals ?? true
   let next: Stored
   let done: string
@@ -41,7 +42,7 @@ async function sealAtStart(start: SealedStoreStart, home: string, stored: Stored
     next = body
     done = 'written back in the clear, as the credential store flag asks'
   } else {
-    if (Object.keys(clear).length === 0) return sealedNow ? 'sealed already' : 'nothing in the store to seal'
+    if (Object.keys(clear).length === 0 && removed.length === 0) return sealedNow ? 'sealed already' : 'nothing in the store to seal'
     if (!sealedNow) {
       const other = await start.otherBuildAlive()
       if (other !== null) return `left plain until the next start: ${other}`

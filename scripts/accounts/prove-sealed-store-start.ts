@@ -368,6 +368,13 @@ section('§4 what the step leaves alone')
   const mute = starts === null ? 'no start-up step on this tree' : ((await (starts.startSealedStore({ file: plainTextStorage, custody, otherBuildAlive: nobody }) as { settled: Promise<string> }).settled) as string)
   check('where the protector gives no key the plain file stays as it is', mute === 'left as it is: the protector did not answer' && raw(plainFile) === plainBefore, mute)
 
+  const { file: withMarkers } = freshHome()
+  start1011('alice', nobody).store.update(FULL)
+  writeFileSync(withMarkers, JSON.stringify({ ...onDisk(withMarkers), mercurySealedRemoved: [['claudeAiOauth'], ['mcpOAuth', 'x|1']] }))
+  const applying = start1011('alice', nobody)
+  const applied = await applying.settled
+  check('markers of what a closed session removed are applied by the step: it seals once and they go', applied === 'sealed' && sealedOnly(withMarkers) && applying.store.read()?.claudeAiOauth === undefined && same(applying.store.read()?.mcpOAuth, { 'y|2': { accessToken: 'fixture-mcp-y' } }) && applying.store.read()?.trustedDeviceToken === 'fixture-device-1', `${applied} ${JSON.stringify(applying.store.read())}`)
+
   const { file: bare } = freshHome()
   writeFileSync(bare, '{}')
   const nothing = start1011('alice', nobody)
