@@ -8,6 +8,12 @@ import { join } from 'node:path'
 import { RANKED_FIXTURE_DESCRIPTION, writeRankedFixture } from './rankedFixture.ts'
 
 const world = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'grep-ranked-mode-')))
+process.on('exit', () => {
+  try {
+    rmSync(world, { recursive: true, force: true })
+  } catch {
+  }
+})
 const HOME = join(world, 'home')
 const project = join(world, 'project')
 mkdirSync(join(HOME, 'tmp'), { recursive: true })

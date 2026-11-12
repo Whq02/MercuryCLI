@@ -50,6 +50,12 @@ if (emit) {
 }
 
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'grep-ranked-unset-home-')))
+process.on('exit', () => {
+  try {
+    rmSync(HOME, { recursive: true, force: true })
+  } catch {
+  }
+})
 const childHome = (name: string): string => {
   const home = join(HOME, name)
   mkdirSync(join(home, 'tmp'), { recursive: true })

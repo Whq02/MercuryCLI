@@ -7,6 +7,13 @@ import { dirname, join } from 'node:path'
 
 const launch = process.cwd()
 const world = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'denied-read-')))
+process.on('exit', () => {
+  try {
+    process.chdir(launch)
+    rmSync(world, { recursive: true, force: true })
+  } catch {
+  }
+})
 const HOME = join(world, 'home')
 const project = join(world, 'project')
 mkdirSync(join(HOME, 'tmp'), { recursive: true })

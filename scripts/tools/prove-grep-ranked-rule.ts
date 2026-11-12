@@ -28,6 +28,13 @@ type Pass = { lines: string[]; complete: boolean; reason?: string }
 const names = (pattern: string): string[] => rankedWords(pattern).map(word => word.word)
 
 const base = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'grep-ranked-rule-')))
+process.on('exit', () => {
+  try {
+    rmSync(base, { recursive: true, force: true })
+    rmSync(HOME, { recursive: true, force: true })
+  } catch {
+  }
+})
 const root = join(base, 'project')
 const fixture = writeRankedFixture(root)
 const scope = ['--hidden', '--glob', '!.git']
