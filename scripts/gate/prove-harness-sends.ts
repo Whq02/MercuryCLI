@@ -63,6 +63,25 @@ console.log('\n§1 the words the helper waits for')
     ['the contract card', '↑↓ choose · ↵ confirm · esc starts it plain', false],
     ['a setup card', '↑↓ choose · ↵ pick · esc keeps your model', false],
   ] as const) check(`${label}: ${expected ? 'fires' : 'does not fire'}`, fires(line) === expected, line)
+  const kitText = readFileSync(join(ROOT, 'scripts', 'computer', 'computerDriveKit.ts'), 'utf8')
+  const kitFaceReady = /export const FACE_READY = '([^']+)'/.exec(kitText)?.[1] ?? ''
+  check(
+    'computerDriveKit FACE_READY matches the Boot card (both full and compact) and never matches the pre-card splash, the Concourse, or consent/contract/setup cards',
+    kitFaceReady !== '' &&
+      [
+        '│▎❯ ✶ New Session in project                      start fresh here → │',
+        "│ ❯ New Session in City St George's · start fresh here         │",
+      ].every(line => line.includes(kitFaceReady)) &&
+      [
+        '>_ ready  ·  ↵ start',
+        '│ SESSIONS              + new session · n │',
+        '↑↓ choose · ↵ enter · n new · p pause',
+        '↑↓ choose · ↵ confirm · esc cancel · tab amend',
+        '↑↓ choose · ↵ confirm · esc starts it plain',
+        '↑↓ choose · ↵ pick · esc keeps your model',
+      ].every(line => !line.includes(kitFaceReady)),
+    `FACE_READY=${JSON.stringify(kitFaceReady)}`,
+  )
 }
 
 console.log('\n§2 every stored frame and every legend in the tree')
