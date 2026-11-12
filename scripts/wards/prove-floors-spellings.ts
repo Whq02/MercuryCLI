@@ -714,6 +714,12 @@ if (runs('LISTED')) {
     '1 | % { gci -r -Name | gi } | sls canary',
     'Invoke-Command { gci -r -Name | gi } | sls canary',
     '& { gci -r -Name | % { Get-Item $_ } } | sls canary',
+    'foreach ($f in Get-ChildItem -Recurse) { Get-Content $f.FullName }',
+    'foreach ($f in gci -r) { gc $f }',
+    'foreach($f in Get-ChildItem -Recurse){Get-Content $f.FullName}',
+    'ForEach ([IO.FileInfo]$f In Get-ChildItem -Recurse -File) { [IO.File]::ReadAllText($f.FullName) }',
+    'foreach ($f in Get-ChildItem -Recurse | Where-Object { -not $_.PSIsContainer }) { Select-String canary $f.FullName }',
+    'foreach ($f in Get-ChildItem <CONFIG>) { Get-Content $f.FullName }',
   ]
   for (const line of readers) {
     const answer = await asked(line, OWN_HOME)
@@ -733,6 +739,10 @@ if (runs('LISTED')) {
     'Get-ChildItem -Recurse -Name | findstr foo',
     'Get-Content notes.txt; Get-ChildItem -Recurse',
     '(Get-ChildItem -Recurse).Count',
+    'foreach ($f in Get-ChildItem -Recurse) { $f.Name }',
+    'foreach ($f in Get-ChildItem) { Get-Content $f.FullName }',
+    'foreach ($f in Get-ChildItem Documents -Recurse) { Get-Content $f.FullName }',
+    'foreach ($n in 1..3) { Write-Output $n }',
   ]
   for (const line of listings) {
     const answer = await asked(line, OWN_HOME)

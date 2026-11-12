@@ -843,6 +843,9 @@ class PosixWalk {
 
 type PsToken = { value: string; text: string; inner: number[]; bare: boolean }
 
+const PS_STATEMENT_HEAD = new RegExp(`(?:^|${UNREAD_PART})(?:foreach|for|if|elseif|while|switch|until)$`, 'i')
+const PS_LOOP_VARIABLE = /^(?:\[[^\]]+\])*\$\{?[\w:?]+\}?$/
+
 class PowerShellWalk {
   at = 0
 
@@ -928,6 +931,7 @@ class PowerShellWalk {
       if (words[0] !== undefined && words[0].bare && (words[0].value === '&' || words[0].value === '.')) words = words.slice(1)
       const assigned = words.findIndex(word => word.bare && /^[-+*/]?=$/.test(word.value))
       if (assigned === 1) words = words.slice(2)
+      else if (words === tokens && words.length > 2 && words[0]!.bare && PS_LOOP_VARIABLE.test(words[0]!.value) && words[1]!.bare && words[1]!.value.toLowerCase() === 'in') words = words.slice(2)
       const argv: string[] = []
       const inner: number[][] = []
       for (const word of words) {
@@ -1043,6 +1047,7 @@ class PowerShellWalk {
         this.at += 2
         continue
       }
+      if (ch === '(' && bare && PS_STATEMENT_HEAD.test(value)) break
       if (ch === '(' || ((ch === '$' || ch === '@') && text[this.at + 1] === '(')) {
         if (ch === '(' && value !== '' && /[\w\]]$/.test(value)) {
           const open = this.at
