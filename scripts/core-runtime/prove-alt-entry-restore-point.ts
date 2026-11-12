@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -405,6 +405,7 @@ async function prove(scenario: Scenario, title: string, dir: string, home: strin
 
 console.log('prove-alt-entry-restore-point')
 const dir = mkdtempSync(join(tmpdir(), 'alt-entry-restore-'))
+symlinkSync(join(REPO, 'node_modules'), join(dir, 'node_modules'))
 const home = join(dir, 'home')
 mkdirSync(home, { recursive: true })
 try {

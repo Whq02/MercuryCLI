@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { EventEmitter } from 'node:events'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import * as React from 'react'
@@ -216,6 +216,7 @@ console.log('native-core T6 — renderer-root lifecycle contract')
 {
   const repoRoot = resolve(import.meta.dir, '../..')
   const dir = mkdtempSync(join(tmpdir(), 'native-core-root-'))
+  symlinkSync(join(repoRoot, 'node_modules'), join(dir, 'node_modules'))
   const childPath = join(dir, 'teardown-child.ts')
   writeFileSync(childPath, `
 import { EventEmitter } from 'node:events'
