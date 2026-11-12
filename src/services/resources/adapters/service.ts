@@ -2,6 +2,7 @@
 import { getOriginalCwd } from '../../../bootstrap/state.js'
 import {
   describeCondition,
+  SERVICE_NAME_RE,
   servicesEnabled,
 } from '../../projectServices/contracts.js'
 import {
@@ -43,7 +44,7 @@ const serviceAdapter: ResourceAdapter = {
         },
       }
     }
-    const record = reconcileRecord(getOriginalCwd(), ref.id)
+    const record = SERVICE_NAME_RE.test(ref.id) ? reconcileRecord(getOriginalCwd(), ref.id) : null
     if (!record) {
       return { state: 'absent', note: `no service '${ref.id}' in this project` }
     }

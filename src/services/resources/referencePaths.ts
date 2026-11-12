@@ -1,7 +1,7 @@
 import * as path from 'node:path'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import type { ToolPermissionContext } from '../../Tool.js'
-import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
+import { checkReadPermissionForTool, readDenialFilter } from '../../utils/permissions/filesystem.js'
 import { parseMercuryRef } from './contracts.js'
 
 const GIT_PATH_FORMS = new Set(['at', 'tree', 'file', 'conflict'])
@@ -22,20 +22,38 @@ function decoded(id: string): string {
   }
 }
 
+async function repositoryTop(cwd: string): Promise<string> {
+  const { git } = await import('../gitGraph/observe.js')
+  try {
+    return git(cwd, ['rev-parse', '--show-toplevel']).trim() || cwd
+  } catch {
+    return cwd
+  }
+}
+
+async function repositoryPaths(named: string, cwd: string): Promise<string[]> {
+  return [...new Set([path.resolve(await repositoryTop(cwd), named), path.resolve(cwd, named)])]
+}
+
+export async function repositoryDenied(permission: ToolPermissionContext | undefined, cwd: string): Promise<(named: string) => boolean> {
+  if (permission === undefined) return () => false
+  const top = await repositoryTop(cwd)
+  const denied = readDenialFilter(permission, top)
+  return named => denied(path.resolve(top, named))
+}
+
+export function withheldLine(count: number, one = 'file', many = 'files'): string[] {
+  return count === 0 ? [] : [`  ${count} ${count === 1 ? one : many} withheld: a permission rule denies reading ${count === 1 ? 'it' : 'them'}`]
+}
+
 async function gitReferencePaths(id: string, cwd: string): Promise<string[]> {
   const slash = id.indexOf('/')
   const form = slash === -1 ? id : id.slice(0, slash)
   const rest = slash === -1 ? '' : id.slice(slash + 1)
   if (rest === '' || !GIT_PATH_FORMS.has(form)) return []
-  const { git, splitRefPath } = await import('../gitGraph/observe.js')
+  const { splitRefPath } = await import('../gitGraph/observe.js')
   const named = form === 'at' || form === 'tree' ? splitRefPath(cwd, rest, { allowEmptyPath: form === 'tree' })?.path : rest
-  if (named === undefined || named === '') return []
-  let top = cwd
-  try {
-    top = git(cwd, ['rev-parse', '--show-toplevel']).trim() || cwd
-  } catch {
-  }
-  return [...new Set([path.resolve(top, named), path.resolve(cwd, named)])]
+  return named === undefined || named === '' ? [] : repositoryPaths(named, cwd)
 }
 
 export async function referenceReadPaths(raw: string, cwd: string): Promise<string[]> {
@@ -54,6 +72,11 @@ export async function referenceReadPaths(raw: string, cwd: string): Promise<stri
   return [...paths]
 }
 
+function strictest(toolName: string, paths: readonly string[], input: unknown, permission: ToolPermissionContext): ReturnType<typeof checkReadPermissionForTool> | null {
+  const verdicts = paths.map(named => checkReadPermissionForTool({ name: toolName, getPath: () => named }, input, permission))
+  return verdicts.find(verdict => verdict.behavior === 'deny') ?? verdicts.find(verdict => verdict.behavior === 'ask') ?? verdicts[0] ?? null
+}
+
 export async function referenceReadDecision(
   toolName: string,
   raw: string,
@@ -61,6 +84,15 @@ export async function referenceReadDecision(
   permission: ToolPermissionContext,
   cwd: string,
 ): Promise<ReturnType<typeof checkReadPermissionForTool> | null> {
-  const verdicts = (await referenceReadPaths(raw, cwd)).map(named => checkReadPermissionForTool({ name: toolName, getPath: () => named }, input, permission))
-  return verdicts.find(verdict => verdict.behavior === 'deny') ?? verdicts.find(verdict => verdict.behavior === 'ask') ?? verdicts[0] ?? null
+  return strictest(toolName, await referenceReadPaths(raw, cwd), input, permission)
+}
+
+export async function repositoryReadDecision(
+  toolName: string,
+  named: string,
+  input: unknown,
+  permission: ToolPermissionContext,
+  cwd: string,
+): Promise<ReturnType<typeof checkReadPermissionForTool> | null> {
+  return strictest(toolName, await repositoryPaths(named, cwd), input, permission)
 }

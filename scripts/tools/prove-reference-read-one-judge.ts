@@ -2,7 +2,7 @@
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -46,6 +46,11 @@ const git = (...args: string[]): string => execFileSync('git', ['-c', 'user.name
 git('init', '-q')
 git('add', '-A', '-f', '.')
 git('commit', '-q', '-m', 'fixture')
+for (const path of ['src/secret/keys.ts', 'src/open.ts']) appendFileSync(join(project, path), 'export const second = 2\n')
+git('commit', '-q', '-a', '-m', 'second')
+for (const path of ['src/secret/keys.ts', 'src/open.ts']) appendFileSync(join(project, path), 'export const third = 3\n')
+writeFileSync(join(HOME, 'victim.json'), JSON.stringify({ schema: 1, spec: { name: 'victim', command: 'true' }, state: 'stopped', note: 'CONTENTS-OF-SERVICERECORD' }))
+writeFileSync(join(HOME, 'victim.log'), 'CONTENTS-OF-SERVICELOG\n')
 process.chdir(project)
 const { setOriginalCwd } = await import(`${SRC}/bootstrap/state.ts`)
 setOriginalCwd(project)
@@ -60,6 +65,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 const { FileReadTool } = await import(`${SRC}/tools/FileReadTool/FileReadTool.ts`)
 const { InspectTool } = await import(`${SRC}/tools/InspectTool/InspectTool.ts`)
+const { GitTool } = await import(`${SRC}/tools/GitTool/GitTool.ts`)
 const { getEmptyToolPermissionContext } = await import(`${SRC}/Tool.ts`)
 const { decideToolPermission } = await import(`${SRC}/utils/permissions/decision/engine.ts`)
 const permissions = await import(`${SRC}/utils/permissions/filesystem.ts`)
@@ -97,6 +103,7 @@ const DOORS: Door[] = [
   ['Inspect, the encoded reference', path => inspect(`mercury://file/${encodeURIComponent(path)}`)],
   ['Inspect, git at HEAD', path => (inside(path) === null ? null : inspect(`mercury://git/at/HEAD/${inside(path)}`))],
   ['Inspect, git file', path => (inside(path) === null ? null : inspect(`mercury://git/file/${inside(path)}`))],
+  ['the Git tool, fileAtRef', path => (inside(path) === null ? null : { tool: GitTool, input: { op: 'fileAtRef', ref: 'HEAD', path: inside(path) } })],
 ]
 const KEYS = join(project, 'src/secret/keys.ts')
 const TARGETS: Array<[string, string, (mode: string) => Permission]> = [
@@ -154,6 +161,40 @@ console.log('the refusal names the rule, and the doors still open what may be re
   check('a reference that names no path, Mercury\'s own records, is allowed as before', records.every(one => one.behavior === 'allow'), records.map(one => one.behavior).join(' '))
 }
 
+console.log('the Git tool: a path it prints, lists or resolves is judged as that path, and its other answers are what they were')
+{
+  const denied = withRules('alwaysDenyRules', ['Read(src/secret/**)'], 'default')
+  const gitAnswer = (input: Record<string, unknown>, permission: Permission): Promise<Answer> => answer(GitTool, input, permission)
+  const file = await gitAnswer({ op: 'fileAtRef', ref: 'HEAD', path: 'src/secret/keys.ts' }, denied)
+  check('fileAtRef of a denied file is refused in the rule\'s sentence and prints nothing', file.behavior === 'deny' && file.message === `Reading ${KEYS} is denied by the rule Read(src/secret/**) from this session.`, `${file.behavior} ${file.message} ${file.text.slice(0, 80)}`)
+  const trees = [await gitAnswer({ op: 'tree', ref: 'HEAD', path: 'src/secret' }, denied), await gitAnswer({ op: 'tree', ref: 'HEAD', path: 'src' }, denied), await gitAnswer({ op: 'tree', ref: 'HEAD' }, denied)]
+  check('tree of the denied folder is refused; of the folder above it and of the top it lists as before', trees[0]!.behavior === 'deny' && trees[1]!.behavior === 'allow' && trees[1]!.text.includes('open.ts') && trees[2]!.behavior === 'allow', trees.map(one => one.behavior).join(' '))
+  const sovereign = withRules('alwaysDenyRules', ['Read(src/secret/**)'], 'sovereign')
+  const resolved = [await gitAnswer({ op: 'resolve', path: 'src/secret/keys.ts', take: 'ours' }, denied), await gitAnswer({ op: 'resolve', path: 'src/secret/keys.ts', take: 'ours' }, sovereign), await gitAnswer({ op: 'resolve', path: 'src/open.ts', take: 'ours' }, denied)]
+  check('resolve of a denied path is refused, under the posture that answers every question too; of an open path it asks in its own words as before', resolved[0]!.behavior === 'deny' && resolved[1]!.behavior === 'deny' && resolved[2]!.behavior === 'ask' && resolved[2]!.message === 'Git resolve conflict src/open.ts', resolved.map(one => `${one.behavior} ${one.message.slice(0, 60)}`).join(' | '))
+  const asked = withRules('alwaysAskRules', ['Read(src/secret/**)'], 'default')
+  const [askedFile, askedResolve, env] = [await gitAnswer({ op: 'fileAtRef', ref: 'HEAD', path: 'src/secret/keys.ts' }, asked), await gitAnswer({ op: 'resolve', path: 'src/secret/keys.ts', take: 'ours' }, asked), await gitAnswer({ op: 'fileAtRef', ref: 'HEAD', path: 'src/.env' }, withRules('alwaysDenyRules', [], 'default'))]
+  check('a path a Read would ask about: fileAtRef asks as the Read does (an ask rule, a .env); resolve keeps its own question', askedFile.behavior === 'ask' && env.behavior === 'ask' && env.message.includes('.env') && askedResolve.behavior === 'ask' && askedResolve.message === 'Git resolve conflict src/secret/keys.ts', `${askedFile.behavior} · ${env.behavior} ${env.message.slice(0, 50)} · ${askedResolve.message}`)
+  const open = [await gitAnswer({ op: 'fileAtRef', ref: 'HEAD', path: 'src/open.ts' }, denied), await gitAnswer({ op: 'status' }, denied), await gitAnswer({ op: 'diff' }, denied), await gitAnswer({ op: 'worktree' }, denied)]
+  check('an open file is printed, and status, diff and worktree answer as before', open.every(one => one.behavior === 'allow') && open[0]!.text.includes('CONTENTS-OF-OPEN'), open.map(one => one.behavior).join(' '))
+  const naming: Array<[string, Record<string, unknown>]> = [
+    ['status', { op: 'status' }],
+    ['diff', { op: 'diff' }],
+    ['show', { op: 'show', sha: 'HEAD' }],
+    ['compare', { op: 'compare', refA: 'HEAD~1', refB: 'HEAD' }],
+    ['tree of the folder above', { op: 'tree', ref: 'HEAD', path: 'src' }],
+  ]
+  const wrong: string[] = []
+  for (const [label, input] of naming) {
+    const [bare, ruled] = [await gitAnswer(input, withRules('alwaysDenyRules', [], 'default')), await gitAnswer(input, denied)]
+    const line = label.startsWith('tree') ? '1 entry withheld: a permission rule denies reading it' : '1 file withheld: a permission rule denies reading it'
+    if (!(bare.text.includes('secret') && !bare.text.includes('withheld') && ruled.behavior === 'allow' && !ruled.text.includes('secret') && ruled.text.includes('open.ts') && ruled.text.includes(line))) wrong.push(`${label}: ${ruled.text.slice(0, 200)}`)
+  }
+  check('status, diff, show, compare and the tree of the folder above name the open file, leave the denied one out, and say in one line that one is withheld', wrong.length === 0, wrong.join(' | '))
+  const treeRef = [await answer(InspectTool, { ref: 'mercury://git/tree/HEAD/src' }, denied), await answer(FileReadTool, { file_path: 'mercury://git/tree/HEAD/src' }, denied)]
+  check('the tree reference of the folder above, through Inspect and through Read: the same', treeRef.every(one => one.behavior === 'allow' && !one.text.includes('secret') && one.text.includes('open.ts') && one.text.includes('1 entry withheld')), treeRef.map(one => one.text.slice(0, 160)).join(' | '))
+}
+
 console.log('one judge: Read and Inspect answer alike on every reference')
 {
   const refs = (path: string): string[] => [`mercury://file/${path}`, `mercury://file/${encodeURIComponent(path)}`, `mercury://file/${path}?lines=1-2`, ...(inside(path) === null ? [] : [`mercury://file/${inside(path)}`, `mercury://git/at/HEAD/${inside(path)}`, `mercury://git/file/${inside(path)}`, `mercury://git/tree/HEAD/${dirname(inside(path)!)}`])]
@@ -180,6 +221,8 @@ console.log('an id is a name, never a path')
   const got: Answer[] = []
   for (const ref of reaching) for (const call of [inspect(ref), read(ref)]) got.push(await answer(call.tool, call.input, open))
   check('an agent id and a workflow id that hold .. or a separator answer "no such record" through both tools, and nothing from elsewhere is read', got.every(one => !CONTENTS.test(one.text) && (one.behavior !== 'allow' || /absent|ABSENT/.test(one.text))), got.map(one => `${one.behavior} ${CONTENTS.exec(one.text)?.[0] ?? ''}`).join(' | '))
+  const service = [await answer(InspectTool, { ref: 'mercury://service/../../victim?child=logs' }, open), await answer(InspectTool, { ref: 'mercury://service/../../victim' }, open), await answer(InspectTool, { ref: 'mercury://service/no-such-service' }, open)]
+  check('a service name that holds .. answers "no service" as an unknown name does, and reads no record or log elsewhere', service.every(one => !CONTENTS.test(one.text) && /no service|disabled/.test(one.text)), service.map(one => one.text.slice(0, 140)).join(' | '))
   const plainIds = await Promise.all([inspect('mercury://agent/a0123456789abcdef'), inspect('mercury://workflow/wf_0123456789ab')].map(call => answer(call.tool, call.input, open)))
   check('an id of the shape the product mints is looked up as before', plainIds.every(one => one.behavior === 'allow' && /no crewmate|no workflow run|needs a live session/.test(one.text)), plainIds.map(one => one.text.slice(0, 120)).join(' | '))
 }

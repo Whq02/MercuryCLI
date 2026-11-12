@@ -12,6 +12,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { stat } from 'node:fs/promises'
 import { expandPath } from '../../utils/path.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
+import { repositoryDenied, repositoryReadDecision, withheldLine } from '../../services/resources/referencePaths.js'
 import { resolveRepoFolder } from '../../services/gitGraph/repoFolder.js'
 import { gitFilterSkipMessages } from '../../utils/git/spawnArgs.js'
 
@@ -142,11 +143,13 @@ async function runOp(
   root: string,
 ): Promise<{ result: string; outcome: ToolEffectOutcome; changedPaths?: string[] }> {
   const owner = ownerFromToolUseContext(context)
+  const denied = await repositoryDenied(context?.getAppState?.()?.toolPermissionContext, root)
 
   switch (input.op) {
     case 'status': {
-      const s = gitStatus(root)
-      if ('state' in s) return { result: s.note, outcome: 'failed' }
+      const all = gitStatus(root)
+      if ('state' in all) return { result: all.note, outcome: 'failed' }
+      const s = { ...all, files: all.files.filter(f => !denied(f.path)) }
       const rows = s.files
         .slice(0, 40)
         .map(f => `  ${(f.staged || '.') + (f.unstaged || '.')} ${f.kind === 'untracked' ? '?' : f.kind === 'unmerged' ? 'U' : ' '} ${f.path}${f.origPath ? ` (from ${f.origPath})` : ''}`)
@@ -156,6 +159,7 @@ async function runOp(
           s.clean ? 'clean' : `${s.files.length} changed file(s):`,
           ...rows,
           ...(s.files.length > 40 ? [`  … +${s.files.length - 40} more (mercury://git/status)`] : []),
+          ...withheldLine(all.files.length - s.files.length),
           'record: mercury://git/status',
         ].join('\n'),
         outcome: 'no-change',
@@ -168,15 +172,18 @@ async function runOp(
         ...(input.paths !== undefined && { paths: input.paths }),
       })
       if ('state' in d) return { result: d.note, outcome: 'failed' }
-      const fileRows = d.files.slice(0, 30).map(f => `  ${f.path} +${f.additions} -${f.deletions}${f.binary ? ' (binary)' : ''}`)
-      const hunkRows = d.hunks.slice(0, 20).map(h => `  ${h.id} ${h.file} ${h.header} (+${h.additions} -${h.deletions})`)
+      const files = d.files.filter(f => !denied(f.path))
+      const hunks = d.hunks.filter(h => !denied(h.file))
+      const fileRows = files.slice(0, 30).map(f => `  ${f.path} +${f.additions} -${f.deletions}${f.binary ? ' (binary)' : ''}`)
+      const hunkRows = hunks.slice(0, 20).map(h => `  ${h.id} ${h.file} ${h.header} (+${h.additions} -${h.deletions})`)
       return {
         result: [
-          `${d.scope}${d.ref ? ` ${d.ref}` : ''}: ${d.files.length} file(s), ${d.hunks.length} hunk(s)${d.truncated ? ' · TRUNCATED' : ''}`,
+          `${d.scope}${d.ref ? ` ${d.ref}` : ''}: ${files.length} file(s), ${hunks.length} hunk(s)${d.truncated ? ' · TRUNCATED' : ''}`,
           ...fileRows,
+          ...withheldLine(d.files.length - files.length),
           'hunks (stable ids for plan/stage):',
           ...hunkRows,
-          ...(d.hunks.length > 20 ? [`  … +${d.hunks.length - 20} more (mercury://git/diff)`] : []),
+          ...(hunks.length > 20 ? [`  … +${hunks.length - 20} more (mercury://git/diff)`] : []),
         ].join('\n'),
         outcome: 'no-change',
       }
@@ -189,7 +196,8 @@ async function runOp(
         result: [
           `${c.sha.slice(0, 12)} ${c.subject}`,
           `${c.author} <${c.authorEmail}> · ${c.date} · parents: ${c.parents.map(p => p.slice(0, 8)).join(', ') || '(root)'}`,
-          ...c.files.slice(0, 30).map(f => `  ${f.status} ${f.path}`),
+          ...c.files.filter(f => !denied(f.path)).slice(0, 30).map(f => `  ${f.status} ${f.path}`),
+          ...withheldLine(c.files.filter(f => denied(f.path)).length),
           `record: mercury://git/commit/${c.sha}`,
         ].join('\n'),
         outcome: 'no-change',
@@ -344,12 +352,14 @@ async function runOp(
     case 'tree': {
       if (!input.ref) return { result: 'tree needs ref (and optionally path)', outcome: 'failed' }
       const { gitTreeAtRef } = await import('../../services/gitGraph/observe.js')
-      const t = gitTreeAtRef(root, input.ref, input.path)
-      if ('state' in t) return { result: t.note, outcome: 'failed' }
+      const whole = gitTreeAtRef(root, input.ref, input.path)
+      if ('state' in whole) return { result: whole.note, outcome: 'failed' }
+      const t = { ...whole, entries: whole.entries.filter(e => !denied(whole.path ? `${whole.path}/${e.name}` : e.name)) }
       return {
         result: [
           `${input.ref}${t.path ? `:${t.path}` : ''} — ${t.entries.length} entr${t.entries.length === 1 ? 'y' : 'ies'}${t.truncated ? ' (TRUNCATED at 500)' : ''}`,
           ...t.entries.map(e => `  ${e.type === 'tree' ? 'd' : e.type === 'blob' ? '-' : e.type[0]} ${e.name}${e.size !== null ? ` (${e.size}B)` : ''}`),
+          ...withheldLine(whole.entries.length - t.entries.length, 'entry', 'entries'),
         ].join('\n'),
         outcome: 'no-change',
       }
@@ -364,8 +374,9 @@ async function runOp(
           `${c.base}...${c.head}: head is ${c.ahead} ahead, ${c.behind} behind · merge-base ${c.mergeBase.slice(0, 12)}`,
           ...(c.commitsAhead.length ? ['ahead:', ...c.commitsAhead.map(x => `  ${x.sha.slice(0, 8)} ${x.subject}`)] : []),
           ...(c.commitsBehind.length ? ['behind:', ...c.commitsBehind.map(x => `  ${x.sha.slice(0, 8)} ${x.subject}`)] : []),
-          `files (three-dot): ${c.files.length}${c.filesTruncated ? '+ (truncated)' : ''}`,
-          ...c.files.slice(0, 30).map(f => `  ${f.path} +${f.additions} -${f.deletions}`),
+          `files (three-dot): ${c.files.filter(f => !denied(f.path)).length}${c.filesTruncated ? '+ (truncated)' : ''}`,
+          ...c.files.filter(f => !denied(f.path)).slice(0, 30).map(f => `  ${f.path} +${f.additions} -${f.deletions}`),
+          ...withheldLine(c.files.filter(f => denied(f.path)).length),
         ].join('\n'),
         outcome: 'no-change',
       }
@@ -587,6 +598,12 @@ export const GitTool = buildTool({
     }
   },
   async checkPermissions(input: Input, context: ToolUseContext): Promise<ReturnType<typeof checkReadPermissionForTool>> {
+    if (typeof input.path === 'string' && input.path !== '' && (input.op === 'fileAtRef' || input.op === 'tree' || input.op === 'resolve')) {
+      const placed = needsRepository(input) ? resolveRepoFolder(folderOf(input)) : null
+      const root = placed !== null && placed.state !== 'refused' ? placed.root : folderOf(input)
+      const judged = await repositoryReadDecision(GitTool.name, input.path, input, context.getAppState().toolPermissionContext, root)
+      if (judged !== null && (judged.behavior === 'deny' || (judged.behavior === 'ask' && input.op !== 'resolve'))) return judged
+    }
     if (!MUTATING_OPS.has(input.op)) {
       if (namedFolder(input) !== undefined) {
         return checkReadPermissionForTool(GitTool, input, context.getAppState().toolPermissionContext)
