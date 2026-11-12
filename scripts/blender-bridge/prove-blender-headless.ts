@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import * as net from 'node:net'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -482,6 +482,25 @@ section('§7 · blender_status with no window (B-2, B-3): binary + source, versi
   const sMissing = await runWithCwdOverride(work, () => callTool('blender_status'))
   check('when unlocated, names MERCURY_BLENDER_BIN', sMissing.includes('MERCURY_BLENDER_BIN'))
   check('the tool prompt gains nothing from B-3', getBlenderToolDescription() === descBefore && !descBefore.includes('channelbags'))
+
+  const { probeBlenderVersion } = await import('../../src/services/ide/blenderProject.js')
+  const keptVersion = probeBlenderVersion(fixture5.bin).version
+  const startsBeforeUpgrade = fixture5.invocations().length
+  const upgraded = createFakeBlenderFixture(path.join(scratch, 'bin54'), { version: '5.4.0', name: 'blender54' })
+  writeFileSync(fixture5.bin, readFileSync(upgraded.bin))
+  const later = new Date(Date.now() + 5_000)
+  utimesSync(fixture5.bin, later, later)
+  const afterUpgrade = probeBlenderVersion(fixture5.bin).version
+  check(
+    'the version kept from the status probe serves later reads with no start while the binary stands unchanged',
+    keptVersion === '5.3.0' && startsBeforeUpgrade === 1,
+    `kept=${String(keptVersion)} starts=${startsBeforeUpgrade}`,
+  )
+  check(
+    'a Blender upgraded in place at the same path is probed again: the kept version does not outlive its binary',
+    afterUpgrade === '5.4.0',
+    `after=${String(afterUpgrade)}`,
+  )
 }
 
 restoreEnv()

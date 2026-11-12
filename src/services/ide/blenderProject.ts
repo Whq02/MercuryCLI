@@ -143,20 +143,29 @@ interface BlenderVersionProbe {
   reason?: string
 }
 
-const versionCache = new Map<string, { at: number; seeded?: boolean; result: BlenderVersionProbe }>()
+const versionCache = new Map<string, { at: number; stamp?: string; result: BlenderVersionProbe }>()
 const VERSION_CACHE_TTL_MS = 30_000
 
 export function _resetBlenderVersionProbeForTesting(): void {
   versionCache.clear()
 }
 
+function binaryStamp(bin: string): string {
+  try {
+    const st = statSync(bin)
+    return `${st.mtimeMs}:${st.size}`
+  } catch {
+    return ''
+  }
+}
+
 export function seedBlenderVersionProbe(bin: string, version: string): void {
-  versionCache.set(bin, { at: Date.now(), seeded: true, result: { version } })
+  versionCache.set(bin, { at: Date.now(), stamp: binaryStamp(bin), result: { version } })
 }
 
 export function probeBlenderVersion(bin: string): BlenderVersionProbe {
   const hit = versionCache.get(bin)
-  if (hit && (hit.seeded || Date.now() - hit.at < VERSION_CACHE_TTL_MS)) {
+  if (hit && (hit.stamp !== undefined ? hit.stamp !== '' && hit.stamp === binaryStamp(bin) : Date.now() - hit.at < VERSION_CACHE_TTL_MS)) {
     return hit.result
   }
   let result: BlenderVersionProbe
