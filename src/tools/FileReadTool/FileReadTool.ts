@@ -31,6 +31,7 @@ import {
 } from '../../skills/loadSkillsDir.js'
 import { hasBinaryExtension } from '../../constants/files.js'
 import { PDF_TARGET_RAW_SIZE } from '../../constants/apiLimits.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isENOENT } from '../../utils/errors.js'
 import {
@@ -501,6 +502,22 @@ const BLOCKED_PROC_FD_PATTERN = /^\/proc\/.+\/fd\/[012]$/
 
 function isBlockingDevicePath(path: string): boolean {
   return BLOCKED_DEVICE_PATHS.has(path) || BLOCKED_PROC_FD_PATTERN.test(path)
+}
+
+type NotAFile = 'a named pipe' | 'a socket' | 'a device'
+
+async function notAFileOrFolder(path: string): Promise<NotAFile | null> {
+  try {
+    const st = await stat(path)
+    if (st.isFile() || st.isDirectory()) return null
+    return st.isFIFO() ? 'a named pipe' : st.isSocket() ? 'a socket' : 'a device'
+  } catch {
+    return null
+  }
+}
+
+function notAFileRefusal(displayPath: string, kind: NotAFile): string {
+  return `Reading ${displayPath} is not allowed: it is ${kind}, not a file or a folder, and reading it could hang or never end; use a shell command with a timeout or a byte limit instead.`
 }
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp'])
@@ -1804,6 +1821,12 @@ export const FileReadTool = buildTool({
       }
     }
 
+    const notAFile = await notAFileOrFolder(expanded)
+    if (notAFile !== null) {
+      logForDebugging(`read: ${expanded} is ${notAFile}, not a file or a folder; it is not opened`)
+      return { result: false as const, message: notAFileRefusal(targetRawPath, notAFile), errorCode: 9 }
+    }
+
     return { result: true as const }
   },
   async call(input: Input, context: ToolUseContext, _canUseTool?: unknown, parentMessage?: unknown) {
@@ -1899,6 +1922,9 @@ export const FileReadTool = buildTool({
         })
       }
     }
+
+    const notAFile = await notAFileOrFolder(fullFilePath)
+    if (notAFile !== null) throw new Error(notAFileRefusal(effectiveRawPath, notAFile))
 
     const entry = context.readFileState.get(fullFilePath)
     if (
