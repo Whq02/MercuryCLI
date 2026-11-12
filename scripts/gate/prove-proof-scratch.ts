@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 
@@ -333,6 +333,146 @@ process.exit(process.argv[3] === 'red' ? 1 : 0);
           typeof mod.reapThenRemove === 'function' && childPid > 1 && !stillAlive && !existsSync(directDir),
           `fn=${typeof mod.reapThenRemove} pid=${childPid} alive=${stillAlive} stood=${existsSync(directDir)}`,
         )
+
+        const nodeBin = Bun.which('node') ?? process.execPath
+        const nonZombieAlive = (pid: number): boolean => {
+          if (pid <= 1) return false
+          try {
+            process.kill(pid, 0)
+          } catch {
+            return false
+          }
+          const st = spawnSync('/bin/ps', ['-o', 'state=', '-p', String(pid)], { encoding: 'utf8' }).stdout.trim()
+          return st !== '' && !st.startsWith('Z')
+        }
+        const decoyPids: number[] = []
+        try {
+          const spawnDecoy = async (arg: string): Promise<number> => {
+            const d = spawn(nodeBin, ['-e', 'setInterval(() => {}, 1000)', arg], { detached: true, stdio: 'ignore' })
+            d.unref()
+            const pid = d.pid ?? 0
+            if (pid > 1) decoyPids.push(pid)
+            await new Promise(r => setTimeout(r, 120))
+            return pid
+          }
+          const scratchMod = createRequire(import.meta.url)(join(root, 'scripts/lib/proofScratch.cjs')) as {
+            reapDaemonFoldersSync: (folders: string[], graceMs?: number) => void
+            reapThenRemove: (pids: number[], folders: string[], opts?: { graceMs?: number; notAfterMs?: number }) => void
+          }
+
+          const staleDir = join(short, 'stale-marker')
+          mkdirSync(join(staleDir, 'daemon'), { recursive: true })
+          const decoyAfterMarker = await spawnDecoy(join(root, 'dist', 'x'))
+          const staleMarker = join(staleDir, 'daemon', 'daemon.json')
+          writeFileSync(staleMarker, JSON.stringify({ pid: decoyAfterMarker }))
+          const pastSec = (Date.now() - 10_000) / 1000
+          utimesSync(staleMarker, pastSec, pastSec)
+          scratchMod.reapDaemonFoldersSync([staleDir], 400)
+          check(
+            'decoy born after marker mtime (command holding <repoRoot>/dist/x, marker mtime 10s earlier): left alive',
+            nonZombieAlive(decoyAfterMarker),
+            `pid=${decoyAfterMarker}`,
+          )
+
+          const neighDir = join(short, 'neighbour-marker')
+          mkdirSync(join(neighDir, 'daemon'), { recursive: true })
+          const decoyNeighbour = await spawnDecoy(`${root}-neighbour/x`)
+          writeFileSync(join(neighDir, 'daemon', 'daemon.json'), JSON.stringify({ pid: decoyNeighbour }))
+          scratchMod.reapDaemonFoldersSync([neighDir], 400)
+          check(
+            'decoy in a neighbour folder (<repoRoot>-neighbour/x, fresh marker, no scratch root): left alive',
+            nonZombieAlive(decoyNeighbour),
+            `pid=${decoyNeighbour}`,
+          )
+
+          const explicitStaleDir = join(short, 'explicit-stale')
+          const explicitNeighDir = join(short, 'explicit-neigh')
+          mkdirSync(explicitStaleDir, { recursive: true })
+          mkdirSync(explicitNeighDir, { recursive: true })
+          scratchMod.reapThenRemove([decoyAfterMarker], [explicitStaleDir], { graceMs: 400, notAfterMs: Date.now() - 10_000 })
+          scratchMod.reapThenRemove([decoyNeighbour], [explicitNeighDir], { graceMs: 400 })
+          check(
+            'explicit pids handed to reapThenRemove obey both the birth test and the repoRoot + path.sep boundary while still removing the folders',
+            nonZombieAlive(decoyAfterMarker) && nonZombieAlive(decoyNeighbour) && !existsSync(explicitStaleDir) && !existsSync(explicitNeighDir),
+            `staleAlive=${nonZombieAlive(decoyAfterMarker)} neighAlive=${nonZombieAlive(decoyNeighbour)}`,
+          )
+
+          const goneDir = join(short, 'gone-pid')
+          mkdirSync(join(goneDir, 'daemon'), { recursive: true })
+          const ephemeral = spawn(nodeBin, ['-e', 'process.exit(0)'], { stdio: 'ignore' })
+          await new Promise(r => ephemeral.on('close', r))
+          const deadPid = ephemeral.pid ?? 999999
+          writeFileSync(join(goneDir, 'daemon', 'daemon.json'), JSON.stringify({ pid: deadPid }))
+          const errProbe = spawnSync(
+            nodeBin,
+            [
+              '-e',
+              `const m = require(${JSON.stringify(join(root, 'scripts/lib/proofScratch.cjs'))}); m.reapDaemonFoldersSync([${JSON.stringify(goneDir)}], 300);`,
+            ],
+            { encoding: 'utf8' },
+          )
+          check(
+            'marker naming a pid with no process: nothing sent, nothing thrown, nothing written to stderr',
+            errProbe.status === 0 && (errProbe.stderr ?? '').trim() === '',
+            `rc=${errProbe.status} stderr=${JSON.stringify(errProbe.stderr)}`,
+          )
+
+          const winBin = join(short, 'win-bin')
+          mkdirSync(winBin, { recursive: true })
+          const fakePwsh = join(winBin, 'pwsh.exe')
+          const decoyUnreadable = await spawnDecoy(join(root, 'dist', 'x'))
+          const decoyWinAfter = await spawnDecoy(join(root, 'dist', 'x'))
+          const decoyWinNeigh = await spawnDecoy(`${root}-neighbour/x`)
+          const winOwned = await spawnDecoy(join(root, 'dist', 'x'))
+          writeFileSync(
+            fakePwsh,
+            [
+              '#!/bin/sh',
+              'case "$*" in',
+              `  *"ProcessId=${decoyUnreadable}"*) printf "not-a-date\\t${root}\\\\dist\\\\x\\n" ;;`,
+              `  *"ProcessId=${decoyWinAfter}"*) printf "${new Date(Date.now() + 20_000).toISOString()}\\t${root}\\\\dist\\\\x\\n" ;;`,
+              `  *"ProcessId=${decoyWinNeigh}"*) printf "${new Date(Date.now() - 5_000).toISOString()}\\t${root}-neighbour\\\\x\\n" ;;`,
+              `  *"ProcessId=${winOwned}"*) printf "${new Date(Date.now() - 5_000).toISOString()}\\t${root}\\\\dist\\\\x\\n" ;;`,
+              '  *) exit 0 ;;',
+              'esac',
+              '',
+            ].join('\n'),
+          )
+          chmodSync(fakePwsh, 0o755)
+          const winRun = spawnSync(
+            nodeBin,
+            [
+              '-e',
+              [
+                "Object.defineProperty(process, 'platform', { value: 'win32' });",
+                `const m = require(${JSON.stringify(join(root, 'scripts/lib/proofScratch.cjs'))});`,
+                'const t0 = performance.now();',
+                `m.reapThenRemove([${decoyUnreadable}, ${decoyWinAfter}, ${decoyWinNeigh}, ${winOwned}], [${JSON.stringify(join(short, 'win-rm'))}], { graceMs: 400, notAfterMs: ${Date.now()} });`,
+                'console.log(JSON.stringify({ ms: Number(((performance.now() - t0) / 4).toFixed(2)) }));',
+              ].join(' '),
+            ],
+            { encoding: 'utf8', env: { ...process.env, PATH: `${winBin}:${process.env.PATH ?? ''}` } },
+          )
+          check(
+            'unreadable birth time leaves the process untouched and writes one line on stderr naming its pid',
+            winRun.status === 0 &&
+              nonZombieAlive(decoyUnreadable) &&
+              (winRun.stderr ?? '').trim().split('\n').length === 1 &&
+              (winRun.stderr ?? '').includes(String(decoyUnreadable)),
+            `rc=${winRun.status} alive=${nonZombieAlive(decoyUnreadable)} stderr=${JSON.stringify(winRun.stderr)}`,
+          )
+          check(
+            'win32 CIM stand-in enforces both creation-time and repoRoot + sep command-line boundary',
+            nonZombieAlive(decoyWinAfter) && nonZombieAlive(decoyWinNeigh) && !nonZombieAlive(winOwned),
+            `afterAlive=${nonZombieAlive(decoyWinAfter)} neighAlive=${nonZombieAlive(decoyWinNeigh)} ownedAlive=${nonZombieAlive(winOwned)} out=${winRun.stdout?.trim()}`,
+          )
+        } finally {
+          for (const pid of decoyPids) {
+            try {
+              process.kill(pid, 'SIGKILL')
+            } catch {}
+          }
+        }
       }
     } finally {
       rmSync(short, { recursive: true, force: true })
