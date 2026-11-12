@@ -1587,6 +1587,83 @@ if (runs('BURIED')) {
     const answer = await floors.shellMercurySecretPath(line, false, CONFIG_HOME)
     check(`BURIED · the read floor, standing in the config home · ${shown(line)} · is refused as a read of the credentials`, answer !== null, String(answer))
   }
+  for (const place of spelled) {
+    const line = place.replace('<C>', 'echo k >> ~/.ssh/authorized_keys')
+    const answer = await floors.shellCredentialWritePath(line, false, PROJECT)
+    check(`BURIED · the credential-store floor · ${shown(line)} · is refused as a write to a credential store`, answer !== null, String(answer))
+  }
+  for (const line of ['x=abc; printf %s "${x#$(printf \'%s\' k > ~/.ssh/config)}"', 'x=abc; printf %s "${x#$(cd ~/.ssh && echo k >> authorized_keys)}"', 'echo "${x#$(chmod 777 ~/.ssh/id_ed25519)}"', 'echo "${x%$(cp key.pub ~/.ssh/authorized_keys)}"', 'echo ${x##$(tee -a ~/.ssh/authorized_keys < key.pub)}']) {
+    const answer = await floors.shellCredentialWritePath(line, false, PROJECT)
+    check(`BURIED · the credential-store floor · ${shown(line)} · a writer in the pattern of a trimming operator is the writer it is: refused`, answer !== null, String(answer))
+  }
+  const elsewhere = [
+    'printf %s "${x#$(cat ~/.ssh/config)}" > out.txt',
+    'echo "${x#$(basename "$PWD")}" > out.txt',
+    'echo ${x%$(ls ~/.ssh | wc -l)} >> counts.txt',
+    'cat ~/.ssh/config > /tmp/x',
+    'cp ~/.ssh/config ./backup/',
+    'x=$(ls ~/.ssh); echo "$x" > list.txt',
+    'for f in ~/.ssh/*.pub; do cat "$f" >> all.pub; done',
+    "echo 'echo x > ~/.ssh/config' > script.sh",
+    'git commit -m "write > ~/.ssh/config"',
+    "ssh -i ~/.ssh/id_ed25519 host 'echo x > /tmp/y'",
+    "find ~/.ssh -name '*.pub' -exec cat {} + > pubs.txt",
+    'tee out.txt < ~/.ssh/config',
+    'cd /tmp && echo x > config',
+    'coproc { cat ~/.ssh/config; }',
+    'arr[$(wc -l < ~/.ssh/known_hosts)]=1',
+    "cat > notes.txt <<'EOF'\necho x > ~/.ssh/config\nEOF",
+    'cat <<EOF > notes.txt\nkeys live in ~/.ssh/authorized_keys > see the docs\nEOF',
+    'make 2>&1 | tee build.log',
+  ]
+  for (const line of elsewhere) {
+    const answer = await floors.shellCredentialWritePath(line, false, PROJECT)
+    check(`BURIED · the credential-store floor · ${shown(line)} · a read out of a guarded folder, a write somewhere else, or text the shell does not run: not refused`, answer === null, String(answer))
+  }
+  const handed = [
+    'f() { printf \'%s\' k > "$1"; }; f ~/.ssh/config',
+    'f() { rm -rf "$1"; }; f ~/.ssh',
+    'w() { cat > "$1"; }; echo k | w ~/.ssh/authorized_keys',
+    "shopt -s expand_aliases\nalias ax='echo k >> ~/.ssh/authorized_keys'\nax",
+    'eval "$(printf %s \'echo k >> ~/.ssh/authorized_keys\')"',
+    "bash <(printf '%s\\n' 'echo k >> ~/.ssh/authorized_keys')",
+    "bash <<< 'echo k >> ~/.ssh/authorized_keys'",
+    "echo 'echo k >> ~/.ssh/authorized_keys' | sh",
+    'cd ~/.ssh; cd /usr; cd -; echo k >> authorized_keys',
+    'cd ~/.ssh; cd /usr; cd ~-; echo k >> authorized_keys',
+  ]
+  for (const line of handed) {
+    for (const from of [PROJECT, OWN_HOME]) {
+      const answer = await floors.shellCredentialWritePath(line, false, from)
+      check(`BURIED · the credential-store floor, standing in ${from === PROJECT ? 'a project' : 'the home'} · ${shown(line)} · a write the reading follows through a function's argument, an alias, a script handed to a shell or a cd back is the write it is: refused`, answer !== null, String(answer))
+    }
+  }
+  const twins = [
+    'f() { cat "$1" > out.txt; }; f ~/.ssh/config',
+    'f() { cp "$1" ./backup/; }; f ~/.ssh/config',
+    'log() { echo "$1" >> build.log; }; log ~/.ssh/config',
+    'w() { cat > "$1"; }; echo k | w notes.txt',
+    "shopt -s expand_aliases\nalias ll='ls -la ~/.ssh'\nll > listing.txt",
+    'eval "$(printf %s \'echo hello > out.txt\')"',
+    "bash <(printf '%s\\n' 'cat ~/.ssh/config > out.txt')",
+    "bash <<< 'cat ~/.ssh/config > out.txt'",
+    "echo 'cat ~/.ssh/config > out.txt' | sh",
+    'cd ~/.ssh; cd /usr; cd -; cat config > /tmp/copy.txt',
+    "cat ~/.ssh/id_ed25519.pub | ssh user@host 'cat >> ~/.ssh/authorized_keys'",
+    "docker exec c sh -c 'echo k >> ~/.ssh/authorized_keys'",
+    "kubectl exec pod -- sh -c 'echo k >> /root/.ssh/authorized_keys'",
+    'git commit -m "$(cat <<\'EOF\'\nwrite the key to ~/.ssh/authorized_keys > done\nEOF\n)"',
+    "cat > install.sh <<'EOF'\necho k >> ~/.ssh/authorized_keys\nEOF",
+  ]
+  for (const line of twins) {
+    for (const from of [PROJECT, OWN_HOME]) {
+      const answer = await floors.shellCredentialWritePath(line, false, from)
+      check(`BURIED · the credential-store floor, standing in ${from === PROJECT ? 'a project' : 'the home'} · ${shown(line)} · the same shapes reading a guarded file, writing somewhere else, writing on another machine, or holding the words as text: not refused`, answer === null, String(answer))
+    }
+  }
+  await expect('BURIED · the whole decision of the Bash tool', bash('x=abc; printf %s "${x#$(printf \'%s\' k > ~/.ssh/config)}"', 'a redirect in the pattern of a trimming operator'), ['sovereign', 'flow', 'default'], refused, 'is refused')
+  await expect('BURIED · the whole decision of the Bash tool', bash('f() { printf \'%s\' k > "$1"; }; f ~/.ssh/config', "a function's argument"), ['sovereign', 'flow', 'default'], refused, 'is refused')
+  await expect('BURIED · the whole decision of the Bash tool', bash('printf %s "${x#$(cat notes.txt)}" > out.txt', 'a write somewhere else'), ['sovereign'], notRefused, 'is not refused by the floor')
   for (const place of ['echo ${arr[$(<C>)]}', 'echo ${x#$(<C>)}', 'cat <<EOF\n`<C>`\nEOF']) {
     const line = place.replace('<C>', fill('rm -rf <CONFIG>/runtime'))
     const answer = await floors.shellSelfProtectionReason(line, false, PROJECT)
