@@ -2,6 +2,7 @@
 import type { AssistantMessage, Message } from '../../types/message.js'
 import type { Tools } from '../../Tool.js'
 import { overflowSignalOf } from '../api/overflowSignal.js'
+import { deadlineExpired as coordinatorDeadlineExpired, deadlineWords as coordinatorDeadlineWords } from '../advisor/advisorSummarizer.js'
 import { CoordinatorOverflowError } from './coordinatorOverflow.js'
 import type { CoordinatorTurnInput, CoordinatorTurnProposal } from './coordinatorLane.js'
 import { resolveCoordinatorEffort } from './coordinatorModels.js'
@@ -18,14 +19,7 @@ export const COORDINATOR_TURN_MAX_TOOL_CALLS = 8
 export const COORDINATOR_TURN_MAX_OUTPUT_TOKENS = 8192
 export const COORDINATOR_TURN_WALL_MS = 120_000
 
-export function coordinatorDeadlineExpired(signal: AbortSignal): boolean {
-  return signal.aborted && (signal.reason as { name?: string } | undefined)?.name === 'TimeoutError'
-}
-
-export function coordinatorDeadlineWords(signal: AbortSignal, budgetMs: number, what: string, err: unknown): string {
-  if (coordinatorDeadlineExpired(signal)) return `${what} hit its ${Math.round(budgetMs / 1000)} s budget before the provider finished`
-  return err instanceof Error ? err.message : String(err)
-}
+export { coordinatorDeadlineExpired, coordinatorDeadlineWords }
 
 const MIN_ROUND_OUTPUT_TOKENS = 256
 

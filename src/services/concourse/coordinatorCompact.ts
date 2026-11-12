@@ -1,11 +1,11 @@
 
-import { coordinatorDeadlineExpired, coordinatorDeadlineWords } from './coordinatorCall.js'
+import { ADVISOR_SUMMARY_WALL_MS, liveAdvisorSummarizer } from '../advisor/advisorSummarizer.js'
 import type { CoordinatorConversationEntryV1 } from './coordinatorConversation.js'
 import type { OverflowSignal } from '../api/overflowSignal.js'
 import { overflowWhoClause } from '../compact/overflowRecovery.js'
 
 const COORDINATOR_COMPACT_KEEP = 8
-export const COORDINATOR_COMPACT_WALL_MS = 60_000
+export const COORDINATOR_COMPACT_WALL_MS = ADVISOR_SUMMARY_WALL_MS
 const COORDINATOR_SUMMARY_MAX_CHARS = 4000
 const FOLD_TRANSCRIPT_MAX_CHARS = 60_000
 const FOLD_ENTRY_CLIP = 600
@@ -79,67 +79,6 @@ function coordinatorCompactTriggerClause(
   }
 }
 
-export async function liveCoordinatorSummarizer(args: {
-  systemPrompt: string
-  transcript: string
-  modelId: string
-}): Promise<string> {
-  const [{ routedCallModel }, { asSystemPrompt }, { createUserMessage }, { getEmptyToolPermissionContext }] =
-    await Promise.all([
-      import('../providers/callModelRouter.js'),
-      import('../../utils/systemPromptType.js'),
-      import('../../utils/messages.js'),
-      import('../../Tool.js'),
-    ])
-  const signal = AbortSignal.timeout(COORDINATOR_COMPACT_WALL_MS)
-  const stream = routedCallModel({
-    messages: [createUserMessage({ content: `<conversation_to_fold>\n${args.transcript}\n</conversation_to_fold>` })],
-    systemPrompt: asSystemPrompt([args.systemPrompt]),
-    thinkingConfig: { type: 'disabled' },
-    tools: [] as never,
-    signal,
-    options: {
-      model: args.modelId,
-      querySource: 'concourse_coordinator_compact',
-      agents: [],
-      isNonInteractiveSession: true,
-      hasAppendSystemPrompt: false,
-      mcpTools: [],
-      maxOutputTokensOverride: 1500,
-      enablePromptCaching: false,
-      async getToolPermissionContext() {
-        return getEmptyToolPermissionContext()
-      },
-    } as never,
-  })
-  const texts: string[] = []
-  const failures: string[] = []
-  try {
-    for await (const ev of stream) {
-      const e = ev as { type?: string; isApiErrorMessage?: boolean; message?: { content?: unknown } }
-      if (e.type !== 'assistant' || e.message === undefined) continue
-      const sink = e.isApiErrorMessage === true ? failures : texts
-      const content = e.message.content
-      if (typeof content === 'string') {
-        sink.push(content)
-      } else if (Array.isArray(content)) {
-        for (const b of content) {
-          if (b && (b as { type?: string }).type === 'text' && typeof (b as { text?: unknown }).text === 'string') {
-            sink.push((b as { text: string }).text)
-          }
-        }
-      }
-    }
-  } catch (err) {
-    throw new Error(coordinatorDeadlineWords(signal, COORDINATOR_COMPACT_WALL_MS, 'the summary call', err))
-  }
-  const failure = failures.join('\n').trim()
-  if (failure.length > 0) throw new Error(coordinatorDeadlineWords(signal, COORDINATOR_COMPACT_WALL_MS, 'the summary call', new Error(failure)))
-  const summary = texts.join('\n').trim()
-  if (summary.length === 0) throw new Error(coordinatorDeadlineExpired(signal) ? coordinatorDeadlineWords(signal, COORDINATOR_COMPACT_WALL_MS, 'the summary call', undefined) : 'the summarizer returned no text')
-  return summary
-}
-
 async function resolveCompactModel(): Promise<{ ok: true; modelId: string } | { ok: false; line: string }> {
   try {
     const { getGlobalConfig } = await import('../../utils/config.js')
@@ -180,7 +119,7 @@ export async function summarizeCoordinatorConversation(opts: {
     if (!resolved.ok) return { compacted: 0, refused: resolved.line }
     modelId = resolved.modelId
   }
-  const summarize = opts.summarize ?? liveCoordinatorSummarizer
+  const summarize = opts.summarize ?? liveAdvisorSummarizer
   let summary: string
   try {
     summary = (
