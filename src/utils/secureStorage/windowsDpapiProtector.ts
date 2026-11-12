@@ -35,7 +35,7 @@ try {
 
 const POWERSHELL_ARGS = ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(DPAPI_SCRIPT, 'utf16le').toString('base64')]
 
-type Run = { stdout: string; stderr: string; silent: boolean; error: string | null }
+type Run = { stdout: string; stderr: string; silent: boolean; ended: number | null; error: string | null }
 
 function powershell(): string {
   return join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
@@ -47,16 +47,16 @@ function request(way: 'protect' | 'unprotect', bytes: Buffer): string {
 
 export function createDpapiProtector(timeoutMs: number = 10_000): SystemProtector {
   function answerOf(run: Run): ProtectorAnswer {
-    const lines = run.stdout.replace(/^\uFEFF/, '').split(/\r?\n/)
-    const ok = lines.find(line => /^ok [A-Za-z0-9+/]+={0,2}$/.test(line))
-    if (ok !== undefined) return { ok: true, bytes: Buffer.from(ok.slice(3), 'base64') }
-    const no = lines.find(line => line.startsWith('no '))
-    const why = run.silent
-      ? `PowerShell did not answer within ${timeoutMs} ms`
-      : no !== undefined
-        ? no.slice(3).trim()
-        : run.stderr.trim().slice(-300) || run.error || 'PowerShell gave no answer'
-    return { ok: false, why: `DPAPI through PowerShell: ${why}`, final: !run.silent }
+    const refusal = (why: string, final: boolean): ProtectorAnswer => ({ ok: false, why: `DPAPI through PowerShell: ${why}`, final })
+    if (run.silent) return refusal(`PowerShell did not answer within ${timeoutMs} ms`, false)
+    const lines = run.stdout.replace(/^\uFEFF/, '').replace(/\r?\n$/, '').split(/\r?\n/)
+    const said = lines.find(line => line.startsWith('no '))?.slice(3).trim()
+    if (run.ended !== 0) return refusal(said ?? (run.stderr.trim().slice(-300) || run.error || 'PowerShell did not end cleanly'), true)
+    if (lines.length !== 1) return refusal(said ?? 'PowerShell wrote something that is not one answer', true)
+    if (said !== undefined) return refusal(said, true)
+    const only = lines[0] ?? ''
+    if (!/^ok [A-Za-z0-9+/]+={0,2}$/.test(only)) return refusal('PowerShell gave no answer', true)
+    return { ok: true, bytes: Buffer.from(only.slice(3), 'base64') }
   }
 
   function run(input: string): Run {
@@ -72,7 +72,8 @@ export function createDpapiProtector(timeoutMs: number = 10_000): SystemProtecto
       stdout: result.stdout ?? '',
       stderr: result.stderr ?? '',
       silent: code === 'ETIMEDOUT',
-      error: result.error === undefined ? null : `${code ?? 'the start failed'} at ${powershell()}`,
+      ended: result.error === undefined ? result.status : null,
+      error: result.error !== undefined ? `${code ?? 'the start failed'} at ${powershell()}` : result.status === 0 ? null : `PowerShell ended with ${result.status === null ? String(result.signal) : `exit ${result.status}`}`,
     }
   }
 
@@ -83,12 +84,13 @@ export function createDpapiProtector(timeoutMs: number = 10_000): SystemProtecto
         POWERSHELL_ARGS,
         { encoding: 'utf8', timeout: timeoutMs, windowsHide: true, env: { ...subprocessEnv({ stripProviderCredentials: true }) } },
         (error, stdout, stderr) => {
-          const failed = error as (Error & { code?: string | number; killed?: boolean }) | null
+          const failed = error as (Error & { code?: string | number; killed?: boolean; signal?: string }) | null
           resolve({
             stdout,
             stderr,
             silent: failed?.killed === true,
-            error: failed === null ? null : `${typeof failed.code === 'string' ? failed.code : `exit ${String(failed.code ?? 'unknown')}`} at ${powershell()}`,
+            ended: failed === null ? 0 : typeof failed.code === 'number' ? failed.code : null,
+            error: failed === null ? null : typeof failed.code === 'string' ? `${failed.code} at ${powershell()}` : `PowerShell ended with ${typeof failed.code === 'number' ? `exit ${failed.code}` : String(failed.signal ?? 'no exit status')}`,
           })
         },
       )

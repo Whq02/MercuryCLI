@@ -105,7 +105,11 @@ if (mode === 'silent') {
 } else {
   const bytes = Buffer.from(text ?? '', 'base64')
   if (way === 'protect') {
-    process.stdout.write((mode === 'noisy' ? '\\uFEFF#< CLIXML\\r\\n' : mode === 'marked' ? '\\uFEFF' : '') + 'ok ' + Buffer.concat([MARK, turn(bytes)]).toString('base64') + (mode === 'noisy' ? '\\r\\n' : '\\n'))
+    const answer = 'ok ' + Buffer.concat([MARK, turn(bytes)]).toString('base64')
+    if (mode === 'no-then-ok') console.log('no System.Security.Cryptography.CryptographicException 0x8009000B: Key not valid for use in specified state.')
+    process.stdout.write((mode === 'noisy' ? '#< CLIXML\\r\\n' : mode === 'marked' ? '\\uFEFF' : '') + answer + (mode === 'noisy' || mode === 'crlf' || mode === 'marked' ? '\\r\\n' : '\\n'))
+    if (mode === 'ok-then-exit') process.exit(7)
+    if (mode === 'ok-then-silent') await new Promise(resolve => setTimeout(resolve, 60000))
   } else if (way === 'unprotect' && bytes.subarray(0, MARK.length).equals(MARK)) {
     process.stdout.write('ok ' + turn(bytes.subarray(MARK.length)).toString('base64') + '\\n')
   } else {
@@ -152,12 +156,24 @@ if (process.platform === 'win32') {
   {
     const quick = protectorOf(1500)
     const key = randomBytes(32)
-    setMode('noisy')
-    const noisy = quick?.protect(key)
-    check('an answer behind a line of noise, ended CR LF, is read', noisy?.ok === true, why(noisy))
+    setMode('crlf')
+    const crlf = quick?.protect(key)
+    check('one answer ended CR LF is read', crlf?.ok === true, why(crlf))
     setMode('marked')
     const marked = quick?.protect(key)
-    check('an answer behind a byte-order mark is read', marked?.ok === true, why(marked))
+    check('one answer behind a byte-order mark is read', marked?.ok === true, why(marked))
+    for (const [mode, label, wanted, final] of [
+      ['ok-then-exit', 'an answer from a PowerShell that then ended with exit 7 is no key', /PowerShell ended with exit 7/, true],
+      ['no-then-ok', 'an answer that follows a refusal is no key, and the refusal is what is said', /CryptographicException 0x8009000B: Key not valid for use in specified state\./, true],
+      ['noisy', 'an answer behind a line that is no answer is no key', /PowerShell wrote something that is not one answer/, true],
+      ['ok-then-silent', 'an answer from a PowerShell that then ran out of its time is no key, and it may be asked again', /did not answer within 1500 ms/, false],
+    ] as Array<[string, string, RegExp, boolean]>) {
+      setMode(mode)
+      const answer = quick?.protect(key)
+      const answerAsync = await quick?.protectAsync(key)
+      check(label, answer?.ok === false && wanted.test(answer.why) && answer.final === final, why(answer))
+      check(`${label}, on the asynchronous road too`, answerAsync?.ok === false && wanted.test(answerAsync.why) && answerAsync.final === final, why(answerAsync))
+    }
     for (const [mode, label, wanted] of [
       ['refuses', 'a refusal of the system is given in the system\'s words', /CryptographicException 0x8009000B: Key not valid for use in specified state\./],
       ['garbage', 'output that is no answer is no key', /PowerShell gave no answer/],
