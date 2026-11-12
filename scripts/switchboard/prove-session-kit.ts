@@ -281,8 +281,8 @@ console.log('R — the re-stamp: a reactivation takes the CURRENT menu, the old 
   check("R2 the displaced kit lands on the session receipt as 'kit-restamp' history — was/now/source — never reloaded", rows.length === 1 && rows[0]!.kind === 'kit-restamp' && deepEq(rows[0]!.details?.was, K1) && deepEq(rows[0]!.details?.now, K2) && rows[0]!.details?.source === 'carried' && rows[0]!.by === 'operator')
   check('R3 the model and effort beside it are NOT touched by the re-stamp seam (the retention laws survive the divergence)', before.modelKey === MODEL && before.effort === 'low')
   seedRecord('concourse-w5', 'sess-prekit-0005', { parkedAt: NOW - 30_000 })
+  updateConcourseWorkers(workers => sessionKit.restampSessionKit(workers['concourse-w5']!, K2, 'carried', 'operator'), DAEMON)
   const prekit = recOf('concourse-w5')!
-  sessionKit.restampSessionKit(prekit, K2, 'carried', 'operator')
   check('R4 a pre-kit record re-stamps WITHOUT a receipt row (nothing was displaced)', deepEq(prekit.kit, K2) && readSessionReceipts(home, 'sess-prekit-0005').length === 0)
 
   const roster = new StubRoster()
