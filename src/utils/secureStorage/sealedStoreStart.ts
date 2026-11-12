@@ -11,6 +11,7 @@ export interface SealedStoreStart {
   file: SecureStorage
   custody: KeyCustody
   otherBuildAlive: () => Promise<string | null>
+  seals?: boolean
 }
 
 const QUIET_OUTCOMES: ReadonlySet<string> = new Set(['sealed', 'sealed already', 'no store to seal', 'nothing in the store to seal'])
@@ -31,24 +32,34 @@ async function sealAtStart(start: SealedStoreStart, home: string, stored: Stored
     return `the sealed part was not opened (${opened === null ? 'it is not text' : opened.why}); the file is left as it is`
   }
   const clear = clearOf(stored)
-  if (Object.keys(clear).length === 0) return sealedNow ? 'sealed already' : 'nothing in the store to seal'
-  if (!sealedNow) {
-    const other = await start.otherBuildAlive()
-    if (other !== null) return `left plain until the next start: ${other}`
-  }
-  const part = stored[SEALED_FIELD]
   const body = opened !== null && opened.ok ? foldClearOverSealed(opened.data, clear) : clear
-  const sealed = await start.custody.sealAsync(body, typeof part === 'string' ? part : undefined)
-  if (!sealed.ok) return `left as it is: ${sealed.why}`
+  const seals = start.seals ?? true
+  let next: Stored
+  let done: string
+  if (!seals) {
+    if (!sealedNow) return 'in the clear already, as the credential store flag asks'
+    next = body
+    done = 'written back in the clear, as the credential store flag asks'
+  } else {
+    if (Object.keys(clear).length === 0) return sealedNow ? 'sealed already' : 'nothing in the store to seal'
+    if (!sealedNow) {
+      const other = await start.otherBuildAlive()
+      if (other !== null) return `left plain until the next start: ${other}`
+    }
+    const part = stored[SEALED_FIELD]
+    const sealed = await start.custody.sealAsync(body, typeof part === 'string' ? part : undefined)
+    if (!sealed.ok) return `left as it is: ${sealed.why}`
+    next = { [SEALED_FIELD]: sealed.text }
+    done = 'sealed'
+  }
   const { oauthRefreshLockSite } = await import('../auth.js')
   return withAuthScope(home, () => {
     const lock = lockAt(oauthRefreshLockSite())
     if ('why' in lock) return `left as it is until the next start: ${lock.why}`
     try {
-      if (JSON.stringify(start.file.read()) !== JSON.stringify(stored)) return 'left as it is until the next start: the file changed while the key was made'
-      const next: Stored = { [SEALED_FIELD]: sealed.text }
+      if (JSON.stringify(start.file.read()) !== JSON.stringify(stored)) return `left as it is until the next start: the file changed while ${seals ? 'the key was made' : 'it was opened'}`
       const result = start.file.update(next as SecureStorageData)
-      return result.success ? 'sealed' : `left as it is: the write was refused${result.code === undefined ? '' : ` (${result.code})`}`
+      return result.success ? done : `left as it is: the write was refused${result.code === undefined ? '' : ` (${result.code})`}`
     } finally {
       try {
         lock.release()

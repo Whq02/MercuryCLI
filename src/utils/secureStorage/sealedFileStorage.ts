@@ -38,7 +38,7 @@ export function foldClearOverSealed(sealed: Stored, clear: Stored): Stored {
   return folded
 }
 
-export function createSealedFileStorage(file: SecureStorage, custody: KeyCustody): SecureStorage {
+export function createSealedFileStorage(file: SecureStorage, custody: KeyCustody, seals: boolean = true): SecureStorage {
   const said = new Set<string>()
 
   function say(line: string): void {
@@ -66,7 +66,7 @@ export function createSealedFileStorage(file: SecureStorage, custody: KeyCustody
   }
 
   return {
-    name: 'encrypted-with-plaintext-fallback',
+    name: seals ? 'encrypted-with-plaintext-fallback' : file.name,
 
     read(): SecureStorageData | null {
       const stored = file.read() as Stored | null
@@ -98,6 +98,7 @@ export function createSealedFileStorage(file: SecureStorage, custody: KeyCustody
         if (Object.hasOwn(data, SEALED_FIELD)) body = foldClearOverSealed(opened.data, clean)
         beside = part as string
       }
+      if (!seals) return put(body)
       const sealed = custody.seal(body, beside)
       if (!sealed.ok) {
         say(`credential store: nothing was sealed (${sealed.why}); the credentials are written in the clear`)

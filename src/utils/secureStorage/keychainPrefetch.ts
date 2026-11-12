@@ -15,7 +15,7 @@ import {
 import { otherBuildAlive } from './otherBuilds.js'
 import { plainTextStorage } from './plainTextStorage.js'
 import { startSealedStore } from './sealedStoreStart.js'
-import { systemProtectorFor } from './systemProtector.js'
+import { sealsUnder, systemProtectorFor } from './systemProtector.js'
 
 
 type PrefetchLookupResult = { stdout: string | null; timedOut: boolean }
@@ -47,7 +47,7 @@ export function sealedStoreStartFor(
 ): { warmed: Promise<void>; settled: Promise<string> } | null {
   const protector = systemProtectorFor(platform, storeFlag)
   if (protector === null) return null
-  return startSealedStore({ file: plainTextStorage, custody: sealedFileStoreFor(protector).custody, otherBuildAlive })
+  return startSealedStore({ file: plainTextStorage, custody: sealedFileStoreFor(protector).custody, otherBuildAlive, seals: sealsUnder(storeFlag) })
 }
 
 export function startKeychainPrefetch(): void {
