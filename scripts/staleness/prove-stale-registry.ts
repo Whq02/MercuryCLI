@@ -224,6 +224,7 @@ src/services/workbench/projection.ts :: snapshot :: subscription-fed
 src/skills/loadSkillsDir.ts :: loadAllSkillsMemo :: invalidator=clearSkillCaches
 src/state/vitalsBus.ts :: snapshots :: subscription-fed
 src/substrate/startupMenu.ts :: admissionSnapshot :: static-for-process
+src/substrate/startupMenu.ts :: liveStatCache :: keyed-by-truth
 src/tasks/taskOutcomeEnvelope.ts :: cacheBySession :: invalidator=recordTaskOutcome
 src/tools/AgentTool/loadAgentsDir.ts :: definitionsCache :: invalidator=clearAgentDefinitionsCache
 src/tools/FileReadTool/limits.ts :: getDefaultFileReadingLimits :: static-for-process
