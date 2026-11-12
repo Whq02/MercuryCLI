@@ -963,7 +963,8 @@ class PosixWalk {
   }
 }
 
-type PsToken = { value: string; text: string; inner: number[]; bare: boolean }
+type PsToken = { value: string; text: string; inner: number[]; bare: boolean; other?: string | undefined }
+type PsValue = { value: string; sure: boolean }
 
 const PS_STATEMENT_HEAD = new RegExp(`(?:^|${UNREAD_PART})(?:foreach|for|if|elseif|while|switch|until)$`, 'i')
 const PS_LOOP_VARIABLE = new RegExp(`^(?:\\[.*\\])?\\$(?:${UNREAD_PART}|[\\p{L}\\p{N}_?^$])`, 'u')
@@ -972,6 +973,9 @@ const PS_ASSIGNS = /^([^=]*?)(?:[-+*/%]|\?\?)?=([\s\S]*)$/
 const PS_VALUE_START = /^[$[('"@{]/
 const PS_OPERATOR = /^(?:[-+*/%,]|\.\.|-(?:[ci]?(?:eq|ne|gt|ge|lt|le|like|notlike|match|notmatch|contains|notcontains|in|notin|replace|split)|f|join|is|isnot|as|and|or|xor|band|bor|bxor|shl|shr))$/i
 const PS_HOME_CONSTANT = /^\$(?:home|env:(?:userprofile|home))$/i
+const PS_VARIABLE = /^\$(?:(?:script|global|local|private):)?([a-z_]\w*)$/i
+const PS_GIVEN = /^\$(?:(?:script|global|local|private):)?([a-z_]\w*)\s*((?:[-+*/%]|\?\?)?=)(?!=)/i
+const PS_COMBINE = /^\[(?:System\.)?IO\.Path\]::Combine\(([\s\S]*)\)$/i
 
 const PS_MOVES = new Set(['cd', 'chdir', 'sl', 'set-location', 'pushd', 'push-location'])
 
@@ -979,6 +983,8 @@ class PowerShellWalk {
   at = 0
   typed = false
   said: string | undefined
+  maybe: string | undefined
+  values = new Map<string, string>()
   parts: readonly PsToken[] = []
   gates: ReadonlyArray<readonly [number, number]> = []
   maybes: readonly number[] = []
@@ -1003,6 +1009,7 @@ class PowerShellWalk {
     let held = outer.gates
     let last: readonly [number, number] | undefined
     let said: string | undefined
+    let maybe: string | undefined
     let read = 0
     while (this.at < text.length) {
       this.blank(true)
@@ -1016,7 +1023,8 @@ class PowerShellWalk {
       const from = this.reading.commands.length
       this.previous = last
       const own = this.pipeline(closer, stages)
-      said = read++ === 0 ? this.said : undefined
+      said = read === 0 ? this.said : undefined
+      maybe = read++ === 0 ? this.maybe : undefined
       made.push(...own)
       const moved = own.length === 1 && this.reading.commands.length === from + 1 ? this.plainMove(from) : undefined
       last = moved === undefined ? undefined : [from, from + 1]
@@ -1038,19 +1046,76 @@ class PowerShellWalk {
     this.maybes = outer.maybes
     this.previous = outer.previous
     this.said = said
+    this.maybe = maybe
     return made
   }
 
-  literal(words: readonly PsToken[]): string | undefined {
+  kept(word: PsToken): string | undefined {
+    const name = word.bare ? PS_VARIABLE.exec(word.value)?.[1] : undefined
+    return name === undefined ? undefined : this.values.get(name.toLowerCase())
+  }
+
+  part(word: PsToken, loose = false): PsValue | undefined {
+    if (word.value.includes(UNREAD_PART)) return word.other === undefined ? undefined : { value: word.other, sure: false }
+    if (!word.bare || PS_HOME_CONSTANT.test(word.value)) return { value: word.value, sure: true }
+    const kept = this.kept(word)
+    if (kept !== undefined) return { value: kept, sure: false }
+    return loose && wordKnown(word.value) && !word.value.startsWith('-') ? { value: word.value, sure: true } : undefined
+  }
+
+  literal(words: readonly PsToken[]): PsValue | undefined {
+    const head = words[0]
+    if (head === undefined) return undefined
+    const parts: PsValue[] = []
+    const whole = (joint: string): PsValue => ({ value: parts.map((one, at) => (joint === '' ? one.value : at === 0 ? one.value.replace(/[\\/]+$/, '') : one.value.replace(/^[\\/]+/, ''))).join(joint), sure: parts.every(one => one.sure) })
+    if (head.bare && /^join-path$/i.test(head.value)) {
+      for (const word of words.slice(1)) {
+        if (word.bare && /^-(?:path|childpath|additionalchildpath)$/i.test(word.value)) continue
+        const one = word.bare && word.value.startsWith('-') ? undefined : this.part(word.text.endsWith(',') ? { ...word, value: word.value.replace(/,$/, '') } : word, true)
+        if (one === undefined) return undefined
+        parts.push(one)
+      }
+      return parts.length < 2 ? undefined : whole('\\')
+    }
+    const combined = words.length === 1 && head.bare ? PS_COMBINE.exec(head.value)?.[1] : undefined
+    if (combined !== undefined) {
+      for (const piece of combined.match(/'[^']*'|"[^"]*"|[^,]+/g) ?? []) {
+        const text = piece.trim()
+        if (text === '') continue
+        const quoted = /^(['"])([\s\S]*)\1$/.exec(text)
+        const one = quoted !== null ? (quoted[2]!.includes('$(') ? undefined : { value: quoted[2]!, sure: true }) : this.part({ value: text, text, inner: [], bare: true })
+        if (one === undefined) return undefined
+        parts.push(one)
+      }
+      return parts.length < 2 ? undefined : whole('\\')
+    }
+    if (words.length >= 3 && !head.bare && words[1]!.bare && /^-f$/i.test(words[1]!.value) && !/\{\d+[,:]/.test(head.value) && !head.value.includes(UNREAD_PART)) {
+      for (const word of words.slice(2)) {
+        if (word.bare && word.value === ',') continue
+        const one = this.part(word.text.endsWith(',') ? { ...word, value: word.value.replace(/,$/, '') } : word)
+        if (one === undefined) return undefined
+        parts.push(one)
+      }
+      const sure = parts.every(one => one.sure)
+      let missing = false
+      const value = head.value.replace(/\{(\d+)\}/g, (_all, at: string) => {
+        const one = parts[Number(at)]
+        if (one === undefined) missing = true
+        return one?.value ?? ''
+      })
+      return missing ? undefined : { value, sure }
+    }
     if (words.length % 2 === 0) return undefined
-    let value = ''
     for (const [at, word] of words.entries()) {
       if (at % 2 === 1) {
         if (!word.bare || word.value !== '+') return undefined
-      } else if (word.value.includes(UNREAD_PART) || (word.bare && !PS_HOME_CONSTANT.test(word.value))) return undefined
-      else value += word.value
+        continue
+      }
+      const one = this.part(word)
+      if (one === undefined) return undefined
+      parts.push(one)
     }
-    return value
+    return whole('')
   }
 
   plainMove(at: number): 'joined' | 'stops' | undefined {
@@ -1128,7 +1193,8 @@ class PowerShellWalk {
     const pipeline = this.reading.pipelineSizes.push(1) - 1
     const begun = this.at
     let stage = 0
-    let lone: string | undefined
+    let lone: PsValue | undefined
+    let given: RegExpExecArray | null = null
     let before: string | undefined
     for (;;) {
       const stages = [...outer, { pipeline, stage }]
@@ -1162,42 +1228,52 @@ class PowerShellWalk {
       if (words === tokens && words.length > 2 && words[0]!.bare && PS_LOOP_VARIABLE.test(words[0]!.value) && words[1]!.bare && words[1]!.value.toLowerCase() === 'in') words = words.slice(2)
       const called = words[0] !== undefined && words[0].bare && (words[0].value === '&' || words[0].value === '.')
       if (called) words = words.slice(1)
-      if (stage === 0) lone = called || redirects.length > 0 || background || this.frame.cmd === true ? undefined : this.literal(words)
+      if (stage === 0) {
+        lone = called || redirects.length > 0 || background || this.frame.cmd === true ? undefined : this.literal(words)
+        given = assigned && this.frame.cmd !== true ? PS_GIVEN.exec(text.slice(start, this.at).trimStart()) : null
+      }
       const first = words[0]
       const worded = (this.typed || assigned) && first?.bare === false && (words.length === 1 || first.text.endsWith(',') || (words[1]!.bare && PS_OPERATOR.test(words[1]!.value)))
       const value = this.frame.cmd !== true && !called && (worded || (words.length === 1 && first?.value === UNREAD_PART && first.inner.length === 0))
       const argv: string[] = []
       const inner: number[][] = []
-      for (const word of value ? [] : words) {
+      const second: string[] = []
+      let varied = false
+      for (const [at, word] of (value ? [] : words).entries()) {
         const parts = word.bare && word.value.includes(',') && !word.value.includes(UNREAD_PART) ? word.value.split(',').filter(part => part !== '') : [word.value]
+        const swapped = this.frame.cmd !== true && (at > 0 || called) ? (word.other ?? this.kept(word)) : undefined
+        if (swapped !== undefined) varied = true
         for (const part of parts) {
           argv.push(part)
           inner.push(word.inner)
+          second.push(swapped ?? part)
         }
       }
+      const readings = varied && moveOf({ argv: second, dialect: 'powershell' }) === undefined ? [argv, second] : [argv]
       if (argv.length > 0 || redirects.length > 0)
-        made.push(
-          this.reading.push({
-            argv,
-            env: [],
-            redirects,
-            text: text.slice(start, this.at).trim(),
-            line: this.line(start),
-            cwd: this.reading.cwd,
-            background: background || this.frame.background,
-            stages,
-            input: undefined,
-            inner,
-            inputInner: [],
-            body: this.frame.body,
-            dialect: 'powershell',
-            around: this.frame.around,
-            gates: this.gates.length > 0 ? this.gates : undefined,
-            maybes: this.maybes.length > 0 ? this.maybes : undefined,
-            called: called ? (words[0]?.text.startsWith('{') ? 'block' : 'name') : undefined,
-            handed: before,
-          }),
-        )
+        for (const reading of readings)
+          made.push(
+            this.reading.push({
+              argv: reading,
+              env: [],
+              redirects,
+              text: text.slice(start, this.at).trim(),
+              line: this.line(start),
+              cwd: this.reading.cwd,
+              background: background || this.frame.background,
+              stages,
+              input: undefined,
+              inner,
+              inputInner: [],
+              body: this.frame.body,
+              dialect: 'powershell',
+              around: this.frame.around,
+              gates: this.gates.length > 0 ? this.gates : undefined,
+              maybes: this.maybes.length > 0 ? this.maybes : undefined,
+              called: called ? (words[0]?.text.startsWith('{') ? 'block' : 'name') : undefined,
+              handed: before,
+            }),
+          )
       before = this.frame.cmd !== true && !called && redirects.length === 0 && words.length === 1 && first?.bare === false && !first.value.includes(UNREAD_PART) ? first.value : undefined
       if (text[this.at] === '|' && text[this.at + 1] !== '|') {
         this.at++
@@ -1208,7 +1284,12 @@ class PowerShellWalk {
       break
     }
     this.reading.pipelineSizes[pipeline] = stage + 1
-    this.said = stage === 0 ? lone : undefined
+    this.said = stage === 0 && lone?.sure === true ? lone.value : undefined
+    this.maybe = stage === 0 && lone?.sure === false ? lone.value : undefined
+    if (given !== null) {
+      if (stage === 0 && given[2] === '=' && lone !== undefined) this.values.set(given[1]!.toLowerCase(), lone.value)
+      else this.values.delete(given[1]!.toLowerCase())
+    }
     const whole = text.slice(begun, this.at).trim()
     for (const index of made) {
       const command = this.reading.commands[index]
@@ -1237,6 +1318,7 @@ class PowerShellWalk {
     let value = ''
     let bare = true
     const inner: number[] = []
+    const swaps: Array<readonly [number, string]> = []
     while (this.at < text.length) {
       const ch = text[this.at]!
       if (ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n' || ch === ';' || ch === '|' || ch === ')' || ch === '}') break
@@ -1310,8 +1392,10 @@ class PowerShellWalk {
         }
         this.at += ch === '(' ? 1 : 2
         inner.push(...this.group(')', [], this.frame.cmd !== true))
-        if (this.said === undefined) value += UNREAD_PART
-        else {
+        if (this.said === undefined) {
+          if (this.maybe !== undefined) swaps.push([value.length, this.maybe])
+          value += UNREAD_PART
+        } else {
           value += this.said
           bare = false
         }
@@ -1326,7 +1410,9 @@ class PowerShellWalk {
       value += ch
       this.at++
     }
-    return this.at === start ? undefined : { value, text: text.slice(start, this.at), inner, bare }
+    if (this.at === start) return undefined
+    const other = swaps.length === 0 ? undefined : swaps.reduceRight((whole, [at, literal]) => whole.slice(0, at) + literal + whole.slice(at + 1), value)
+    return { value, text: text.slice(start, this.at), inner, bare, other }
   }
 }
 

@@ -496,7 +496,15 @@ function netWrites(text: string): string[] {
 
 async function credentialWriteInBlocks(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   if (!powershell && !/\b(?:pwsh|powershell)\b/i.test(command)) return null
-  const read = await readForFloors(expandShellConstants(command, powershell), powershell, cwd)
+  for (const text of new Set([expandShellConstants(command, powershell), command])) {
+    const found = await credentialWriteRead(text, powershell, cwd)
+    if (found !== null) return found
+  }
+  return null
+}
+
+async function credentialWriteRead(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+  const read = await readForFloors(command, powershell, cwd)
   if (read === null) return null
   for (const [at, simple] of read.commands.entries()) {
     if (simple.dialect !== 'powershell') continue

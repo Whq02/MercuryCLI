@@ -2048,6 +2048,56 @@ if (runs('REACH')) {
     'Get-ChildItem | Remove-Item',
     'Get-ChildItem .\\docs -Recurse | Remove-Item -Force',
   ])
+  await refusedRows('a path or a command name put together from literals and the constants of the home', [
+    "Set-Content (Join-Path $HOME '.ssh\\authorized_keys') x",
+    'Set-Content (Join-Path $HOME .ssh\\authorized_keys) x',
+    "Set-Content (Join-Path -Path $HOME -ChildPath '.ssh\\authorized_keys') x",
+    "Set-Content (Join-Path (Join-Path $HOME '.ssh') 'authorized_keys') x",
+    'Set-Content (Join-Path "$HOME\\.ssh" authorized_keys) x',
+    "Set-Content (Join-Path ~ '.ssh\\authorized_keys') x",
+    "Set-Content (Join-Path $env:USERPROFILE '.aws\\credentials') x",
+    "Set-Content ([IO.Path]::Combine($HOME, '.ssh', 'authorized_keys')) x",
+    "Set-Content ([IO.Path]::Combine($HOME,'.ssh','authorized_keys')) x",
+    'Set-Content ([System.IO.Path]::Combine("$HOME", ".ssh\\authorized_keys")) x',
+    "Set-Content ('{0}\\.ssh\\authorized_keys' -f $HOME) x",
+    "Set-Content (\"{0}\\{1}\\authorized_keys\" -f $HOME, '.ssh') x",
+    "Copy-Item .\\other (Join-Path $HOME '.ssh\\authorized_keys')",
+    "Remove-Item (Join-Path $HOME '.ssh\\authorized_keys')",
+  ])
+  await refusedRows('the same value kept in a variable on the line and used after', [
+    "$p = Join-Path $HOME '.ssh\\authorized_keys'; Set-Content $p x",
+    "$p = Join-Path $HOME '.ssh'; Set-Content (Join-Path $p 'authorized_keys') x",
+    "$d = Join-Path $HOME '.ssh'; $p = Join-Path $d 'authorized_keys'; Set-Content $p x",
+    "if ($true) { $p = Join-Path $HOME '.ssh'; Set-Content (Join-Path $p 'authorized_keys') x }",
+    "$p = [IO.Path]::Combine($HOME, '.ssh', 'authorized_keys'); Add-Content $p x",
+    "$p = '{0}\\.ssh\\authorized_keys' -f $HOME; Set-Content $p x",
+    "$p = $HOME + '\\.ssh\\authorized_keys'; Set-Content $p x",
+    "$n = 'Set-' + 'Content'; & $n \"$HOME\\.ssh\\authorized_keys\" x",
+  ])
+  await runningRows('a path built the same way that leads into the project or to a plain file, the built path only printed or tested, and a path that waits on what the line reads or computes', [
+    "Set-Content (Join-Path $PWD 'notes.txt') x",
+    "Set-Content (Join-Path .\\docs 'plain.md') x",
+    "$p = Join-Path $PWD 'out.txt'; Set-Content $p x",
+    "Set-Content ([IO.Path]::Combine($PWD, 'out', 'x.txt')) x",
+    "Set-Content ('{0}\\notes.txt' -f $PWD) x",
+    "$p = Join-Path $HOME 'Documents\\notes.txt'; Set-Content $p x",
+    "Write-Output (Join-Path $HOME '.ssh\\authorized_keys')",
+    "$p = Join-Path $HOME '.ssh\\authorized_keys'; Test-Path $p",
+    "$p = Join-Path $HOME '.ssh\\authorized_keys'; Write-Host $p",
+    "Get-Content (Join-Path $HOME '.ssh\\config')",
+    "Set-Content (Join-Path $dir 'authorized_keys') x",
+    "Set-Content (Join-Path (Get-Location) 'authorized_keys') x",
+    "$p = Join-Path $HOME '.ssh'; $p = '.\\out'; Set-Content (Join-Path $p 'authorized_keys') x",
+  ])
+  const { refusalOfShellCommand: wardBuilt } = await import('../../src/utils/wards/wardsRefusals.ts')
+  for (const line of ["$r = '~'; Remove-Item $r -Recurse -Force", "Remove-Item (Join-Path $HOME '') -Recurse -Force", "$c = 'Remove-Item'; & $c -Recurse -Force ~"]) {
+    const verdict = await wardBuilt({ toolName: 'PowerShell', input: { command: line }, shellCommand: line, startingFolder: PROJECT }, PROJECT)
+    check(`REACH · the delete ward · ${shown(line)} · a root or a remover kept in a variable or joined from literals is read as what it is: refused as a recursive delete of the home`, !verdict.allow && verdict.rule.name === 'no-root-recursive-delete', verdict.allow ? 'allow' : verdict.rule.name)
+  }
+  for (const line of ["$mode = 'reboot'; $mode", "$cmd = 'shutdown'; Write-Host $cmd", "$d = 'build'; Remove-Item $d -Recurse -Force"]) {
+    const verdict = await wardBuilt({ toolName: 'PowerShell', input: { command: line }, shellCommand: line, startingFolder: PROJECT }, PROJECT)
+    check(`REACH · the wards · ${shown(line)} · a kept value that is shown, or that names a folder of the project, is not refused`, verdict.allow, verdict.allow ? '' : verdict.rule.name)
+  }
   await expect('REACH', call('PowerShell', { command: '[IO.File]::Copy(".\\other", "$HOME\\.ssh\\authorized_keys", $true)' }, 'the whole decision of the PowerShell tool'), ['sovereign', 'flow', 'default'], refused, 'is refused')
 }
 
