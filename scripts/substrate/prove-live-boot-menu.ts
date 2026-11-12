@@ -290,9 +290,10 @@ section('§3 receipts, evaluateExplicitApply & admitted snapshot revision')
   check(
     'saving a mixed delta (live MERCURY_ASEPRITE added + new-session MERCURY_WARDS cleared) states both rules and names the row that reaches running sessions',
     sMixed.ok === true &&
-      sMixed.receipt.includes('Aseprite dev lanes reaches running sessions at their next turn') &&
-      sMixed.receipt.includes(`the rest applies to sessions created after revision ${sMixed.revision}`) &&
-      !sMixed.receipt.includes('live rows'),
+      sMixed.receipt.includes('Saved defaults · Aseprite dev lanes: running sessions at their next turn · ') &&
+      sMixed.receipt.includes(`the rest: sessions created after revision ${sMixed.revision}`) &&
+      !sMixed.receipt.includes('live rows') &&
+      !/lanes reach(es)? /.test(sMixed.receipt),
     sMixed.ok ? sMixed.receipt : sMixed.reason,
   )
   const switchRow = menu.STARTUP_MENU.find(r => r.env === 'MERCURY_SESSION_SUBAGENTS')
@@ -308,7 +309,7 @@ section('§3 receipts, evaluateExplicitApply & admitted snapshot revision')
       sSwitch.ok === true &&
       sSwitch.receipt.includes(`applies to sessions created after revision ${sSwitch.revision}`) &&
       sSwitch.receipt.includes('2 existing sessions unchanged') &&
-      !sSwitch.receipt.includes('reach'),
+      !sSwitch.receipt.includes('running sessions'),
     sSwitch === null ? 'no choice found for MERCURY_SESSION_SUBAGENTS' : sSwitch.ok ? sSwitch.receipt : sSwitch.reason,
   )
   const switchEnv: Record<string, string> = {}
@@ -331,8 +332,8 @@ section('§3 receipts, evaluateExplicitApply & admitted snapshot revision')
     'a switch saved beside two lane rows: the two rows are named as reaching running sessions, the switch is "the rest"',
     sSwitchAndLane !== null &&
       sSwitchAndLane.ok === true &&
-      sSwitchAndLane.receipt.includes('Unity dev lanes, Blender dev lanes reach running sessions at their next turn') &&
-      sSwitchAndLane.receipt.includes(`the rest applies to sessions created after revision ${sSwitchAndLane.revision}`),
+      sSwitchAndLane.receipt.includes('Saved defaults · Unity dev lanes, Blender dev lanes: running sessions at their next turn · ') &&
+      sSwitchAndLane.receipt.includes(`the rest: sessions created after revision ${sSwitchAndLane.revision}`),
     sSwitchAndLane === null ? 'no choice found' : sSwitchAndLane.ok ? sSwitchAndLane.receipt : sSwitchAndLane.reason,
   )
 
