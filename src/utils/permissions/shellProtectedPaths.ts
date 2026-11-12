@@ -4,7 +4,7 @@ import { posix } from 'node:path'
 import { getShellCwd } from '../Shell.js'
 import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../envUtils.js'
 import { CREDENTIALS_SERVICE_SUFFIX, getMacOsKeychainStorageServiceName, getRawSpellingKeychainStorageServiceName } from '../secureStorage/macOsKeychainHelpers.js'
-import { UNREAD_PART, absolutePath, layersOf, printedBy, readShellCommands, wordKnown, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from '../wards/wardsShellRead.js'
+import { UNREAD_PART, absolutePath, layersOf, moveOf, printedBy, readShellCommands, wordKnown, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from '../wards/wardsShellRead.js'
 import { credentialStorePath as storePathOf, mercurySecretPath as secretPathOf, protectedPathForms as pathFormsOf, spelling } from './protectedPaths.js'
 import { pinnedCommandAnalysis, peelWrappers, PARSE_ABORTED, extractHeredocs, type Node } from './decision/commandAnalysis.js'
 import { namesMercuryProcess, placedUnder, runtimeWritePath, runtimeProcessRefusal } from './runtimeProtection.js'
@@ -974,20 +974,21 @@ function foldersAfter(read: ShellRead, at: number, cwd: string): { folders: stri
   const stayed: string[] = []
   for (let index = at - 1; index >= 0; index--) {
     const turn = read.commands[index]!
-    const layer = layersOf(turn.argv)[0]
-    if (layer === undefined || !CD_PROGRAMS.has(layer.program) || turn.cwd === undefined) continue
-    const operands = layer.argv.slice(1).filter(word => !/^-[A-Za-z]+$/.test(word))
+    const move = moveOf(turn)
+    if (move === undefined || !CD_PROGRAMS.has(move.program) || turn.cwd === undefined) continue
+    const operands = move.operands
     const switched = process.platform === 'win32' && operands.length === 2 && /^\/d$/i.test(operands[0]!)
     const target = switched ? operands[1] : operands[0]
-    if (target === undefined || target === '-' || !wordKnown(target)) continue
-    const named = absolutePath(turn.dialect === 'powershell' ? target.replace(/\\/g, '/') : target, turn.cwd, floorsWorld(turn.cwd))
+    const bare = target === undefined && turn.dialect === 'powershell' && move.program !== 'pushd' && move.program !== 'push-location' ? (read.homes.at(-1) ?? floorsWorld(turn.cwd).home) : undefined
+    if (bare === undefined && (target === undefined || target === '-' || !wordKnown(target))) continue
+    const named = bare ?? absolutePath(turn.dialect === 'powershell' ? target!.replace(/\\/g, '/') : target!, turn.cwd, floorsWorld(turn.cwd))
     if (named === undefined || (stands !== named && !stands.startsWith(`${named}/`))) continue
     const gated = (simple.gates ?? []).some(([from, to]) => index >= from && index < to)
     const ran =
       !turn.background &&
       (turn.maybes ?? []).every(context => (simple.maybes ?? []).includes(context)) &&
       (turn.gates ?? []).every(([from, to]) => (simple.gates ?? []).some(([start, end]) => (start === from && end === to) || (index >= start && index < end)))
-    const moved = gated || ((operands.length === 1 || switched) && (GLOB_PART.test(named) ? foldersNamedBy(named).length > 0 : canBeEntered(named)))
+    const moved = bare === undefined && (gated || ((operands.length === 1 || switched) && (GLOB_PART.test(named) ? foldersNamedBy(named).length > 0 : canBeEntered(named))))
     if (ran && moved) continue
     stayed.push(posix.join(turn.cwd, stands.slice(named.length)), turn.cwd)
   }
@@ -1003,10 +1004,10 @@ function foldersRead(read: ShellRead, at: number, cwd: string): { folders: strin
   }
   for (let index = at - 1; index >= 0; index--) {
     const turn = read.commands[index]!
-    const layer = layersOf(turn.argv)[0]
-    if (layer === undefined || !CD_PROGRAMS.has(layer.program)) continue
+    const move = moveOf(turn)
+    if (move === undefined || !CD_PROGRAMS.has(move.program)) continue
     const before = turn.cwd ?? cwd
-    let target = layer.argv.slice(1).find(word => !/^-[A-Za-z]+$/.test(word))
+    let target = move.operands[0]
     if (target === UNREAD_PART) {
       const fed = turn.inner.flat()
       const printed = fed.length === 1 && read.commands[fed[0]!] !== undefined ? printedBy(read.commands[fed[0]!]!) : undefined

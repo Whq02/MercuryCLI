@@ -210,6 +210,42 @@ export function layersOf(argv: string[], findRoots?: string[]): Layer[] {
   return out
 }
 
+const MOVES = new Set(['cd', 'chdir', 'set-location', 'sl', 'pushd', 'push-location', 'popd', 'pop-location'])
+const SAME_SHELL = new Set(['builtin', 'command', 'time', 'noglob', 'nocorrect'])
+const MOVE_VALUED = ['path', 'literalpath', 'stackname', 'erroraction', 'warningaction', 'informationaction', 'progressaction', 'errorvariable', 'warningvariable', 'informationvariable', 'outvariable', 'outbuffer', 'pipelinevariable']
+const MOVE_SWITCHES = ['passthru', 'verbose', 'debug', 'usetransaction']
+const MOVE_ALIASES = new Map([['pspath', 'literalpath'], ['lp', 'literalpath'], ['ea', 'erroraction'], ['wa', 'warningaction'], ['infa', 'informationaction'], ['proga', 'progressaction'], ['ev', 'errorvariable'], ['wv', 'warningvariable'], ['iv', 'informationvariable'], ['ov', 'outvariable'], ['ob', 'outbuffer'], ['pv', 'pipelinevariable'], ['vb', 'verbose'], ['db', 'debug'], ['usetx', 'usetransaction']])
+
+export function moveOf(command: Pick<ReadCommand, 'argv' | 'dialect'>): { program: string; operands: string[] } | undefined {
+  const layer = layersOf(command.argv).find(found => MOVES.has(found.program))
+  if (layer === undefined || layer.wrappers.some(name => !SAME_SHELL.has(name))) return undefined
+  const words = layer.argv.slice(1)
+  if (command.dialect === 'posix') {
+    const ends = words.indexOf('--')
+    return { program: layer.program, operands: words.filter((word, at) => (ends >= 0 && at > ends) || (at !== ends && !/^-[A-Za-z]+$/.test(word))) }
+  }
+  const named: string[] = []
+  const loose: string[] = []
+  const unknown: string[] = []
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i]!
+    if (!/^-[A-Za-z]/.test(word)) {
+      loose.push(word)
+      continue
+    }
+    const colon = word.indexOf(':')
+    const name = (colon < 0 ? word.slice(1) : word.slice(1, colon)).toLowerCase()
+    const meant = [...MOVE_VALUED, ...MOVE_SWITCHES].filter(full => full.startsWith(name))
+    const full = MOVE_ALIASES.get(name) ?? (meant.includes(name) ? name : meant.length === 1 ? meant[0] : undefined)
+    if (full === undefined) unknown.push(word)
+    else if (MOVE_VALUED.includes(full)) {
+      const value = colon < 0 ? words[++i] : word.slice(colon + 1)
+      if (value !== undefined && (full === 'path' || full === 'literalpath')) named.push(value)
+    }
+  }
+  return { program: layer.program, operands: named.length + loose.length === 0 && unknown.length > 0 ? ['.', ...unknown] : [...named, ...loose, ...unknown] }
+}
+
 function scriptWordAfter(argv: string[], option: RegExp, valued: ReadonlySet<string>): string | undefined {
   for (let i = 1; i < argv.length; i++) {
     const word = argv[i]!
@@ -422,18 +458,15 @@ class Reading {
   }
 
   follow(command: ReadCommand): void {
-    const layer = layersOf(command.argv)[0]
-    if (layer === undefined) return
-    const program = layer.program
-    const moves = program === 'cd' || program === 'chdir' || program === 'set-location' || program === 'sl'
-    const pushes = program === 'pushd' || program === 'push-location'
-    if (program === 'popd' || program === 'pop-location') {
+    const move = moveOf(command)
+    if (move === undefined) return
+    const pushes = move.program === 'pushd' || move.program === 'push-location'
+    if (move.program === 'popd' || move.program === 'pop-location') {
       this.cwd = this.folders.pop()
       return
     }
-    if (!moves && !pushes) return
     if (pushes) this.folders.push(this.cwd)
-    const operands = layer.argv.slice(1).filter(word => !/^-[A-Za-z]+$/.test(word))
+    const operands = move.operands
     const target = this.world.windows === true && operands.length > 1 && /^\/d$/i.test(operands[0]!) ? operands[1] : operands[0]
     const left = this.cwd
     if (target === undefined) this.cwd = pushes ? undefined : (this.scope.get('HOME')?.at(-1) ?? this.world.home)

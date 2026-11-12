@@ -1619,6 +1619,119 @@ if (runs('BURIED')) {
   bootstrap.setCwdState(PROJECT)
 }
 
+if (runs('MOVES')) {
+  section("MOVES · a cd's folder is the word the shell takes for it: not a parameter's value that stands before it, not the word that ends the options, and a cd behind builtin, command or time is the cd it is; a PowerShell cd given no folder may stay where it stood")
+  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const { refusalOfShellCommand } = await import('../../src/utils/wards/wardsRefusals.ts')
+  const warded = async (line: string, powershell: boolean, from = PROJECT): Promise<string | null> => {
+    const verdict = await refusalOfShellCommand({ toolName: powershell ? 'PowerShell' : 'Bash', input: { command: line }, shellCommand: line, startingFolder: from }, from)
+    return verdict.allow ? null : verdict.rule.name
+  }
+  const read = async (line: string, powershell: boolean, from: string): Promise<string | null> => floors.shellMercurySecretPath(fill(line), powershell, from)
+  const intoStore = [
+    'cd -ErrorAction SilentlyContinue config; Get-ChildItem | Get-Content',
+    'cd -ea 0 config; Get-ChildItem | Get-Content',
+    'Set-Location -ErrorAction Stop config; gci | gc',
+    'Set-Location -ErrorAction:Stop config; gci | gc',
+    'cd -ErrorAction SilentlyContinue config; Get-Content .credentials.json',
+    'cd -ErrorVariable e config; gci | gc',
+    'cd -ev e config; gci | gc',
+    'cd -WarningAction Ignore config; gci | gc',
+    'cd -wa 0 config; gci | gc',
+    'cd -InformationAction Ignore config; gci | gc',
+    'cd -OutVariable o config; gci | gc',
+    'cd -PipelineVariable p config; gci | gc',
+    'cd -OutBuffer 1 config; gci | gc',
+    'cd -StackName s config; gci | gc',
+    'pushd -StackName s config; gci | gc',
+    'Push-Location -ea 0 config; gci | gc',
+    'sl -ea 0 config; gci | gc',
+    'chdir -ea 0 config; gci | gc',
+    'cd -Path:config; gci | gc',
+    'cd -LiteralPath:config; gci | gc',
+    'cd -ea 0 -Path config; gci | gc',
+    'cd -ea 0 -PassThru config; gci | gc',
+    'cd -ErrorAction SilentlyContinue <CONFIG>; gci *.json | gc',
+  ]
+  for (const line of intoStore) {
+    const answer = await read(line, true, RUN_ROOT)
+    check(`MOVES · PowerShell, standing in the folder above the config home · ${shown(fill(line))} · is refused as a read of the credentials`, answer !== null, String(answer))
+  }
+  for (const line of ['cd config; gci | gc', 'cd -Path config; gci | gc', 'cd -LiteralPath config; gci | gc', 'cd -PassThru config; gci | gc', 'cd config -ErrorAction SilentlyContinue; gci | gc']) {
+    const answer = await read(line, true, RUN_ROOT)
+    check(`MOVES · PowerShell, standing in the folder above the config home · ${shown(line)} · control: refused as before`, answer !== null, String(answer))
+  }
+  const unsure = ['cd -Bogus Documents; gci -r | sls canary', 'cd Documents -Bogus; gci -r | sls canary', 'cd -pa Documents; gci -r | sls canary', 'cd -ea 0 nope; gci -r | sls canary', 'cd -ErrorAction SilentlyContinue ..\\nope; gci -r | sls canary']
+  for (const line of unsure) {
+    const answer = await read(line, true, OWN_HOME)
+    check(`MOVES · PowerShell, standing in the home · ${shown(line)} · a cd PowerShell cannot bind, or to a folder that does not stand, leaves the line in the home: refused`, answer !== null, String(answer))
+  }
+  const beneath = [
+    'cd -ErrorAction SilentlyContinue Documents; gci -r | sls canary',
+    'cd -ea 0 Documents; gci -r | gc',
+    'cd -Path Documents -ea 0; gci -r | gc',
+    'cd -ErrorAction Stop Documents; gci -r | gc',
+    'cd -ea 0 Documents && gci -r | sls canary',
+    'cd -ea 0 Documents; if ($?) { gci -r | sls canary }',
+    'cd Documents -ErrorAction Stop; gci -r | gc',
+  ]
+  for (const line of beneath) {
+    const answer = await read(line, true, OWN_HOME)
+    check(`MOVES · PowerShell, standing in the home · ${shown(line)} · a cd into a folder beneath that stands and holds no store: not refused by the floor`, answer === null, String(answer))
+  }
+  for (const line of ['cd; gci | gc', 'Set-Location; gci | gc', 'sl; gci *.json | gc', 'cd -PassThru; gci | gc', 'cd -ErrorAction SilentlyContinue; gci | gc', 'cd <CONFIG>; cd; gci | gc']) {
+    const answer = await read(line, true, line.includes('<CONFIG>') ? PROJECT : CONFIG_HOME)
+    check(`MOVES · PowerShell, standing in the config home · ${shown(fill(line))} · a cd given no folder may stay where it stood: refused`, answer !== null, String(answer))
+  }
+  for (const line of ['cd; gci | gc', 'cd; gci', 'cd; Get-Content notes.txt']) check(`MOVES · PowerShell, standing in a project · ${shown(line)} · not refused by the floor`, (await read(line, true, PROJECT)) === null)
+  check('MOVES · the Bash tool, standing in the config home · "cd; ls . | xargs cat" · a cd given no folder goes home there: answered as before', (await read('cd; ls . | xargs cat', false, CONFIG_HOME)) === null)
+  const ended = [
+    'cd -- config; cat *.json',
+    'cd -- config; cat *',
+    'cd -- config && cat mcp-auth.json',
+    'cd -P -- config; cat *.json',
+    'pushd -- config; cat *.json',
+    'builtin cd config && cat *.json',
+    'command cd config; cat *.json',
+    'command -p cd config; cat *.json',
+    'time cd config; cat *.json',
+    'builtin cd -- config && cat *.json',
+    'builtin pushd config; cat *.json',
+    'cd -- "$dir"; cat .credentials.json',
+  ]
+  for (const line of ended) {
+    const answer = await read(line, false, RUN_ROOT)
+    check(`MOVES · the Bash tool, standing in the folder above the config home · ${shown(line)} · is refused as a read of the credentials`, answer !== null, String(answer))
+  }
+  check('MOVES · the Bash tool, standing in a project · "cd --; grep -r canary ." · a cd that names no folder goes home: the search of the home is refused', (await read('cd --; grep -r canary .', false, PROJECT)) !== null)
+  for (const line of ['cd -- Documents; grep -r canary .', 'cd -- Documents && cat notes.txt', 'builtin cd Documents && grep -r TODO .', 'command cd Documents; cat notes.txt', 'time cd Documents; grep -r TODO .', 'cd -- "$dir"; cat notes.txt', 'cd -- -weird; cat notes.txt']) {
+    const answer = await read(line, false, OWN_HOME)
+    check(`MOVES · the Bash tool, standing in the home · ${shown(line)} · a folder beneath that holds no store, or a plain name after a folder no reading can value: not refused by the floor`, answer === null, String(answer))
+  }
+  for (const line of ['env cd config; cat *.json', 'nohup cd config; cat *.json', 'echo x | xargs cd config; cat *.json']) {
+    const answer = await read(line, false, RUN_ROOT)
+    check(`MOVES · the Bash tool, standing in the folder above the config home · ${shown(line)} · a cd run by another program moves no shell: answered where the line stands`, answer === null, String(answer))
+  }
+  for (const [line, powershell] of [['builtin cd ~ && rm -rf *', false], ['command cd ~; rm -rf *', false], ['cd -- ~ && rm -rf *', false], ['cd -ErrorAction SilentlyContinue ~; Remove-Item -Recurse -Force *', true], ['cd -ea 0 ~; rm -r -fo *', true]] as Array<[string, boolean]>) {
+    const answer = await warded(line, powershell)
+    check(`MOVES · the delete ward · ${shown(line)} · is refused as a recursive delete of the home`, answer === 'no-root-recursive-delete', String(answer))
+  }
+  for (const [line, powershell] of [['builtin cd build && rm -rf *', false], ['cd -- build && rm -rf *', false], ['cd -ea 0 build; Remove-Item -Recurse -Force *', true]] as Array<[string, boolean]>) {
+    const answer = await warded(line, powershell)
+    check(`MOVES · the delete ward · ${shown(line)} · a delete inside a folder of the project is not refused`, answer === null, String(answer))
+  }
+  for (const line of ['cd -ea 0 ~\\.ssh; Set-Content authorized_keys x', 'cd -ErrorAction SilentlyContinue ~\\.ssh; Set-Content authorized_keys x']) {
+    const answer = await floors.shellCredentialWritePath(line, true, PROJECT)
+    check(`MOVES · the credential-store floor · ${shown(line)} · is refused as a write to the credential store`, answer !== null, String(answer))
+  }
+  check('MOVES · the credential-store floor · "cd -ea 0 docs; Set-Content plain.md x" · a write in the project is not refused', (await floors.shellCredentialWritePath('cd -ea 0 docs; Set-Content plain.md x', true, PROJECT)) === null)
+  check('MOVES · the runtime floor · a delete of the runtime after a cd with a parameter before its folder is refused', (await floors.shellSelfProtectionReason(fill('cd -ErrorAction SilentlyContinue <CONFIG>; Remove-Item -Recurse runtime'), true, PROJECT)) !== null)
+  bootstrap.setCwdState(RUN_ROOT)
+  await expect('MOVES · the session standing in the folder above the config home', call('PowerShell', { command: 'cd -ErrorAction SilentlyContinue config; Get-ChildItem | Get-Content' }, 'the whole decision of the PowerShell tool'), ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
+  await expect('MOVES · the session standing in the folder above the config home', bash('cd -- config; cat *.json', 'the whole decision of the Bash tool'), ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
+  bootstrap.setCwdState(PROJECT)
+}
+
 if (runs('T-3.5')) {
   const state = daemonStatePath()
   section('T-3.5 floor 4: kills of the daemon and of the session, and writes into the runtime, under Sovereign and Flow')
