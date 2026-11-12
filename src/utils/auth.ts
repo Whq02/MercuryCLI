@@ -769,6 +769,12 @@ export async function checkAndRefreshOAuthTokenIfNeeded(
 
 const MAX_LOCK_RETRIES = 5
 
+const OAUTH_REFRESH_LOCK_STALE_MS = 10_000
+
+export function oauthRefreshLockSite(): { dir: string; options: { realpath: false; stale: number } } {
+  return { dir: getAuthConfigHomeDir(), options: { realpath: false, stale: OAUTH_REFRESH_LOCK_STALE_MS } }
+}
+
 async function doRefresh(retryCount: number, force: boolean): Promise<boolean> {
   invalidateOnDiskChange()
   let tokens = getClaudeAIOAuthTokens()
@@ -785,11 +791,11 @@ async function doRefresh(retryCount: number, force: boolean): Promise<boolean> {
   if (!force && !isOAuthTokenExpired(tokens.expiresAt)) return false
   if (isOAuthRefreshKnownDead()) return false
 
-  const lockDir = getAuthConfigHomeDir()
+  const { dir: lockDir, options: lockOptions } = oauthRefreshLockSite()
   let release: () => Promise<void>
   try {
     mkdirSync(lockDir, { recursive: true })
-    release = await lock(lockDir, { realpath: false })
+    release = await lock(lockDir, lockOptions)
   } catch (error) {
     if ((error as { code?: string }).code === 'ELOCKED') {
       if (retryCount < MAX_LOCK_RETRIES) {

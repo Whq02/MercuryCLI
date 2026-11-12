@@ -1,7 +1,9 @@
 import { execFile } from 'node:child_process'
 import { subprocessEnv } from '../subprocessEnv.js'
 
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isBareMode } from '../envUtils.js'
+import { sealedFileStoreFor } from './fileStorage.js'
 import {
   CREDENTIALS_SERVICE_SUFFIX,
   getMacOsKeychainStorageServiceName,
@@ -10,6 +12,10 @@ import {
   keychainReachable,
   primeKeychainCacheFromPrefetch,
 } from './macOsKeychainHelpers.js'
+import { otherBuildAlive } from './otherBuilds.js'
+import { plainTextStorage } from './plainTextStorage.js'
+import { startSealedStore } from './sealedStoreStart.js'
+import { sealsUnder, systemProtectorFor } from './systemProtector.js'
 
 
 type PrefetchLookupResult = { stdout: string | null; timedOut: boolean }
@@ -35,10 +41,22 @@ function lookup(serviceName: string): Promise<PrefetchLookupResult> {
   })
 }
 
+export function sealedStoreStartFor(
+  platform: NodeJS.Platform,
+  storeFlag: string | undefined,
+): { warmed: Promise<void>; settled: Promise<string> } | null {
+  const protector = systemProtectorFor(platform, storeFlag)
+  if (protector === null) return null
+  return startSealedStore({ file: plainTextStorage, custody: sealedFileStoreFor(protector).custody, otherBuildAlive, seals: sealsUnder(storeFlag) })
+}
+
 export function startKeychainPrefetch(): void {
-  if (!keychainReachable()) return
   if (prefetchInFlight !== null) return
   if (isBareMode()) return
+  if (!keychainReachable()) {
+    prefetchInFlight = sealedStoreStartFor(process.platform, flagEnv('MERCURY_CREDENTIAL_STORE'))?.warmed ?? null
+    return
+  }
   prefetchInFlight = (async () => {
     const rawService = getRawSpellingKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX)
     const [primary, raw, apiKey] = await Promise.all([
@@ -63,6 +81,10 @@ export function startKeychainPrefetch(): void {
 
 export async function ensureKeychainPrefetchCompleted(): Promise<void> {
   if (prefetchInFlight !== null) await prefetchInFlight
+}
+
+export function startWaitNote(platform: NodeJS.Platform): string {
+  return platform === 'win32' ? 'checking the credential store and managed settings…' : 'checking the system keychain and managed settings…'
 }
 
 export function getLegacyApiKeyPrefetchResult(): { stdout: string | null } | null {
