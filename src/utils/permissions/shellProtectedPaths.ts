@@ -565,7 +565,7 @@ async function credentialWriteAfterMove(command: string, powershell: boolean, cw
   }
   const words = unreadWords(read, command, powershell)
   if (words.some(word => WRITERS.has(verb(word)) || OTHER_WRITERS.has(verb(word))) || (words.length > 0 && (WRITE_REDIRECT.test(command) || netWrites(command).length > 0))) {
-    for (const word of words) if (pathLike(word) && credentialStorePath(word, cwd) !== null) return word
+    for (const word of words) if (pathLike(word) && credentialStorePath(word, cwd) !== null) return `${word} (${UNREAD_ADVICE})`
   }
   return null
 }

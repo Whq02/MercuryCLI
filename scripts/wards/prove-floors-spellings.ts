@@ -2309,12 +2309,26 @@ if (runs('UNREAD')) {
   const told = await failing(async () => [await reading(bash('cd <CONFIG> && cat *.json'), 'sovereign'), await reading(call('PowerShell', { command: 'if ($true) { Set-Content ~\\.ssh\\authorized_keys x }' }), 'sovereign'), await reading(bash('cd <CONFIG>/runtime && tar -xf /tmp/a.tar'), 'default')])
   for (const [at, pattern] of [
     /^Reading .+ \(Mercury could not read this command, so it was not checked: write it as separate, simpler commands\) is refused: it holds Mercury's own credentials; use the product's sign-in and account surfaces instead\.$/,
-    /^Writing ~\\\.ssh\\authorized_keys is refused: \S+ is a protected system or credential path\.$/,
+    /^Writing ~\\\.ssh\\authorized_keys \(Mercury could not read this command, so it was not checked: write it as separate, simpler commands\) is refused: \S+ is a protected system or credential path\.$/,
     /^Changing .+ is refused: .+ is part of Mercury’s running runtime\. Mercury could not read this command, so it was not checked: write it as separate, simpler commands\.$/,
   ].entries()) {
     const decision = told?.[at]?.decision
-    check(`UNREAD · the whole decision · the ${['read floor refuses in its own sentence with the one clause added', 'credential-store floor refuses in its own sentence, which its caller words from the path alone', 'runtime floor refuses in its own sentence with the one clause added'][at]}`, decision !== undefined && decision.behavior === 'deny' && pattern.test(decision.message ?? ''), decision === undefined ? 'no seam in this tree' : said(decision))
+    check(`UNREAD · the whole decision · the ${['read floor refuses in its own sentence with the one clause added', 'credential-store floor refuses in its own sentence with the one clause added, and names the stored path without it', 'runtime floor refuses in its own sentence with the one clause added'][at]}`, decision !== undefined && decision.behavior === 'deny' && pattern.test(decision.message ?? ''), decision === undefined ? 'no seam in this tree' : said(decision))
     if (decision !== undefined) note(`the ${['read', 'credential-store', 'runtime'][at]} floor says: ${(decision.message ?? '').replaceAll(CONFIG_HOME, '<config>').replaceAll(OWN_HOME, '<home>')}`)
+  }
+  const nested = '((echo k >> ~/.ssh/authorized_keys); true)'
+  const plain = 'echo k >> ~/.ssh/authorized_keys'
+  const noted = /^Writing ~\/\.ssh\/authorized_keys \(Mercury could not read this command, so it was not checked: write it as separate, simpler commands\) is refused: \S+ is a protected system or credential path\.$/
+  for (const mode of ['sovereign', 'default'] as Mode[]) {
+    const unread = (await reading(bash(nested), mode)).decision
+    check(`UNREAD · the whole decision of the Bash tool · ${mode} · ${shown(nested)} · a write the parser rejects and the shell makes is refused in the credential-store floor's sentence with the clause`, unread.behavior === 'deny' && noted.test(unread.message ?? ''), said(unread))
+    const read = (await reading(bash(plain), mode)).decision
+    check(`UNREAD · the whole decision of the Bash tool · ${mode} · ${shown(plain)} · the plain line, which is read, keeps the sentence without the clause`, read.behavior === 'deny' && /^Writing ~\/\.ssh\/authorized_keys is refused: \S+ is a protected system or credential path\.$/.test(read.message ?? ''), said(read))
+    const granted = { allow: ['Edit(~/.ssh/authorized_keys)'] }
+    const ruled = (await reading(bash(plain, 'an exact path rule', granted), mode)).decision
+    check(`UNREAD · the whole decision of the Bash tool · ${mode} · ${shown(plain)} · with an exact path rule the plain line is not refused by the floor`, notRefused(ruled), said(ruled))
+    const unreadRuled = (await reading(bash(nested, 'an exact path rule', granted), mode)).decision
+    check(`UNREAD · the whole decision of the Bash tool · ${mode} · ${shown(nested)} · with the same rule a line that could not be read is refused with the clause: the rule grants the write Mercury can read`, unreadRuled.behavior === 'deny' && noted.test(unreadRuled.message ?? ''), said(unreadRuled))
   }
 }
 
