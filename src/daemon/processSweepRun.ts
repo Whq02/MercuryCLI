@@ -4,6 +4,7 @@ import { mkdir, readdir, readFile, rm, stat, utimes, writeFile } from 'node:fs/p
 import { join } from 'node:path'
 import { renameWithWin32Retry } from '../substrate/durablePublish.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
+import { runningBuildTree } from '../utils/artifactIdentity.js'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { readSessionWorkersSnapshot, stampedTerminalPid, type ConcourseWorkerRecordV1 } from './concourseWorkers.js'
 import { daemonControlRpc, daemonDir } from './controlSocket.js'
@@ -85,13 +86,14 @@ export async function registerCockpit(options: { terminal: string | null; home?:
   const now = options.nowMs ?? Date.now
   const id = randomUUID()
   const path = registrationPath(home, process.pid, id)
-  const record: ProcessSweepRegistration & { schema: number; exe: string; bundle: string } = {
+  const record: ProcessSweepRegistration & { schema: number; exe: string; bundle: string; buildTree: string | null } = {
     schema: REGISTRATION_SCHEMA,
     id,
     pid: process.pid,
     startToken: await getProcessStartInstantAsync(process.pid),
     exe: process.execPath,
     bundle: process.argv[1] ?? '',
+    buildTree: runningBuildTree(),
     configHome: home,
     daemonDir: options.daemonDirPath ?? daemonDir(),
     terminal: options.terminal,

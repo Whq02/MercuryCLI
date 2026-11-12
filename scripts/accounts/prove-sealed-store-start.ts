@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const SCRATCH = mkdtempSync(join(tmpdir(), 'sealed-store-start-'))
+const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'sealed-store-start-')))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 delete process.env.MERCURY_HOME
@@ -181,7 +181,7 @@ section('§1 a plain file found at start is sealed there, off the read path')
   check('a home with no store is left without one', (await empty.settled) === 'no store to seal' && !existsSync(none), await empty.settled)
 }
 
-section('§2 never while a Mercury process of another build is alive: the tree\'s own census is asked')
+section('§2 never while a Mercury process of another build is alive: a process\'s own record first, then its path as it is written')
 {
   const VERSIONS = join(SCRATCH, 'versions')
   const OWN = join(VERSIONS, '1.0.11', 'mercury.mjs')
@@ -190,99 +190,187 @@ section('§2 never while a Mercury process of another build is alive: the tree\'
     mkdirSync(join(bundle, '..'), { recursive: true })
     writeFileSync(bundle, '')
   }
+  symlinkSync(join(VERSIONS, '1.0.11'), join(VERSIONS, 'current'), 'dir')
+  const THROUGH_LINK = join(VERSIONS, 'current', 'mercury.mjs')
   const anHourAgo = new Date(Date.now() - 3_600_000)
   utimesSync(OWN, anHourAgo, anHourAgo)
   const placed = statSync(OWN)
-  const WRITTEN = Math.max(placed.mtimeMs, placed.ctimeMs)
-  const row = (pid: number, args: string[], over: Partial<Row> = {}): Table['observations'][number] => ({
-    process: { pid, ppid: 1, exe: process.execPath, args, startedAtMs: WRITTEN + 60_000, user: 'operator', terminal: null, ...over },
-    startToken: null,
+  const PLACED = Math.max(placed.mtimeMs, placed.ctimeMs, statSync(join(OWN, '..')).ctimeMs)
+  const MARK = '1f0e0d0c0b0a'
+  const OLD_MARK = '0a0b0c0d0e0f'
+  const BORN = '2026-11-12T18:00:00.000Z'
+  const BORN_EARLIER = '2026-11-11T08:00:00.000Z'
+  const row = (pid: number, args: string[], over: Partial<Row> = {}, token: string | null = BORN): Table['observations'][number] => ({
+    process: { pid, ppid: 1, exe: process.execPath, args, startedAtMs: PLACED + 60_000, user: 'operator', terminal: null, ...over },
+    startToken: token,
     state: 'S',
     terminalAlive: null,
   })
   const self = row(process.pid, [process.execPath, OWN])
-  const ask = async (home: string, rows: Table['observations'], table: Partial<Table> = {}, bundle: string = OWN): Promise<string | null> => {
+  const ask = async (home: string, rows: Table['observations'], over: { table?: Partial<Table>; bundle?: string; mark?: string | null } = {}): Promise<string | null> => {
     if (others === null) return 'no reader on this tree'
     return (await others.otherBuildAlive({
       home,
       ownDaemonDir: join(home, 'daemon'),
-      bundle,
-      collect: async (): Promise<Table> => ({ observations: rows, complete: true, ...table }),
+      bundle: over.bundle ?? OWN,
+      ownBuildTree: over.mark === undefined ? MARK : over.mark,
+      collect: async (): Promise<Table> => ({ observations: rows, complete: true, ...over.table }),
     })) as string | null
   }
-  const daemonRecord = (home: string, pid: number, script: string, version: string): void => {
+  const daemonRecord = (home: string, pid: number, record: Record<string, unknown>): void => {
     mkdirSync(join(home, 'daemon'), { recursive: true })
-    writeFileSync(join(home, 'daemon', 'daemon.json'), JSON.stringify({ pid, version, origin: 'transient', startedAt: Date.now() - 600_000, dir: join(home, 'daemon'), controlSock: join(home, 'daemon', 'control.sock'), script, persist: true }))
+    writeFileSync(join(home, 'daemon', 'daemon.json'), JSON.stringify({ pid, version: '1.0.0', origin: 'transient', startedAt: Date.now() - 600_000, dir: join(home, 'daemon'), controlSock: join(home, 'daemon', 'control.sock'), persist: true, ...record }))
+  }
+  const windowRecord = (home: string, pid: number, record: Record<string, unknown> | string): void => {
+    mkdirSync(join(home, 'processes'), { recursive: true })
+    const id = `11111111-2222-3333-4444-${String(pid).padStart(12, '0')}`
+    const body = typeof record === 'string' ? record : JSON.stringify({ schema: 1, id, pid, exe: process.execPath, bundle: OWN, configHome: home, daemonDir: join(home, 'daemon'), terminal: null, bornAt: Date.now(), heartbeatAt: Date.now(), ...record })
+    writeFileSync(join(home, 'processes', `cockpit-${pid}-${id}.json`), body)
   }
 
   const { home, file } = freshHome()
   plain.update(FULL)
   const before = raw(file)
-  daemonRecord(home, 424242, OLD, '1.0.10')
-  const oldDaemon = [self, row(424242, [process.execPath, OLD, 'daemon'], { startedAtMs: WRITTEN - 86_400_000 })]
+  daemonRecord(home, 424242, { script: OLD, startInstant: BORN, buildTree: OLD_MARK })
+  const oldDaemon = [self, row(424242, [process.execPath, OLD, 'daemon'], { startedAtMs: PLACED - 86_400_000 })]
   const deferred = start1011('alice', () => ask(home, oldDaemon))
   const why = await deferred.settled
-  check('the daemon of an older build, still alive after an update, defers the sealing', /^left plain until the next start: another Mercury build is running \(process 424242, .*1\.0\.10\)$/.test(why), why)
+  check('the daemon of an older build, still alive after an update, defers the sealing: its own record carries another build\'s mark', why === `left plain until the next start: another Mercury build is running (process 424242, build ${OLD_MARK})`, why)
   check('the file is byte for byte what it was', raw(file) === before && before.includes('fixture-access-AAAA'))
   check('no key was made for it', deferred.protector.asked.protect === 0, JSON.stringify(deferred.protector.asked))
   const stillPlain = deferred.store.update({ ...(deferred.store.read() ?? {}), trustedDeviceToken: 'fixture-device-2' })
   check('a write in that session leaves the file plain and says so', stillPlain.warning === 'Credentials are stored in plaintext on disk' && onDisk(file).mercurySealed === undefined && onDisk(file).trustedDeviceToken === 'fixture-device-2', JSON.stringify(stillPlain))
-  daemonRecord(home, 434343, OWN, '1.0.11')
+  daemonRecord(home, 434343, { script: OWN, startInstant: BORN, buildTree: MARK })
   const handedOver = [self, row(434343, [process.execPath, OWN, 'daemon'])]
   const next = start1011('alice', () => ask(home, handedOver))
   const sealedNow = await next.settled
-  check('the start after the daemon has been handed over to this build seals', sealedNow === 'sealed' && sealedOnly(file), sealedNow)
+  check('the start after the daemon has been handed over to this build, its record carrying this build\'s mark, seals', sealedNow === 'sealed' && sealedOnly(file), sealedNow)
   check('and nothing written meanwhile was lost', same(next.store.read(), { ...FULL, trustedDeviceToken: 'fixture-device-2' }), JSON.stringify(next.store.read()))
 
-  const blocked = async (label: string, rows: Table['observations'], wanted: RegExp, table: Partial<Table> = {}, bundle: string = OWN): Promise<void> => {
-    const answer = await ask(home, rows, table, bundle)
+  const world = (): string => freshHome().home
+  const blocked = async (label: string, home: string, rows: Table['observations'], wanted: RegExp, over: { table?: Partial<Table>; bundle?: string; mark?: string | null } = {}): Promise<void> => {
+    const answer = await ask(home, rows, over)
     check(label, answer !== null && wanted.test(answer), String(answer))
   }
-  await blocked('a headless run of an older build, which writes no record, counts', [self, row(555, [process.execPath, OLD, '-p', 'work'])], /another Mercury build is running \(process 555, /)
-  mkdirSync(join(home, 'processes'), { recursive: true })
-  writeFileSync(join(home, 'processes', 'cockpit-666-11111111-2222-3333-4444-555555555555.json'), JSON.stringify({ schema: 1, id: '11111111-2222-3333-4444-555555555555', pid: 666, startToken: null, exe: process.execPath, bundle: OLD, configHome: home, daemonDir: join(home, 'daemon'), terminal: null, bornAt: Date.now(), heartbeatAt: Date.now() }))
-  await blocked('a window of an older build counts', [self, row(666, [process.execPath, OLD])], /another Mercury build is running \(process 666, /)
-  rmSync(join(home, 'processes'), { recursive: true, force: true })
-  await blocked('a process born before this build was written counts: a tree rebuilt in place', [self, row(777, [process.execPath, OWN], { startedAtMs: WRITTEN - 1 })], /process 777 started before this build was written/)
-  await blocked('a process whose start time could not be read counts', [self, row(778, [process.execPath, OWN], { startedAtMs: 0 })], /the start time of process 778 could not be read/)
-  await blocked('a bundle named by a relative path counts', [self, row(779, [process.execPath, 'dist/mercury.mjs'])], /process 779 names its bundle by a relative path/)
-  await blocked('a process table that says it is incomplete defers', [self], /the process table could not be read \(the reader timed out\)/, { complete: false, error: 'the reader timed out' })
-  await blocked('a process table without this process defers', [row(780, [process.execPath, OWN])], /this process was not found in the process table/)
-  await blocked('this process born before its own bundle was written defers', [row(process.pid, [process.execPath, OWN], { startedAtMs: WRITTEN - 1 })], /this process started before its bundle was last written/)
-  await blocked('a process that does not run from a mercury.mjs defers', [self], /does not run from a mercury\.mjs/, {}, join(SCRATCH, 'cli.tsx'))
-  await blocked('a bundle put in place under an older date counts from when it was put there', [self, row(785, [process.execPath, OWN], { startedAtMs: placed.mtimeMs + 60_000 })], /process 785 started before this build was written/)
-  daemonRecord(home, 791, OWN, '1.0.11')
-  await blocked('a recorded process whose command line could not be read counts', [self, row(791, [], { exe: '' })], /the command line of process 791 could not be read/)
-  const clear = async (label: string, rows: Table['observations']): Promise<void> => {
+  const clear = async (label: string, home: string, rows: Table['observations']): Promise<void> => {
     const answer = await ask(home, rows)
     check(label, others !== null && answer === null, String(answer))
   }
-  await clear('this build alone is no other build', [self])
-  await clear('another process of this build, born after it was written, is no other build', [self, row(781, [process.execPath, OWN, '-p', 'work'])])
-  await clear('another account\'s Mercury is not this account\'s', [self, row(782, [process.execPath, OLD], { user: 'somebody-else' })])
-  await clear('a launcher that names no bundle does not read the store', [self, row(783, [join(VERSIONS, 'mercury.exe')], { exe: join(VERSIONS, 'mercury.exe') })])
-  await clear('a process that is gone but not yet reaped is not alive', [self, { ...row(784, [process.execPath, OLD]), state: 'Z' }])
+
+  let at = world()
+  daemonRecord(at, 500, { startInstant: BORN })
+  await blocked('a daemon whose record carries no build mark is an older build, whatever path it runs from', at, [self, row(500, [process.execPath, OWN, 'daemon'])], /^an older Mercury build is running \(process 500: its record carries no build mark\)$/)
+  at = world()
+  windowRecord(at, 666, { startToken: BORN })
+  await blocked('a window whose registration carries no build mark is an older build', at, [self, row(666, [process.execPath, OWN])], /^an older Mercury build is running \(process 666: its record carries no build mark\)$/)
+  at = world()
+  windowRecord(at, 667, { startToken: BORN, buildTree: OLD_MARK })
+  await blocked('a window whose registration carries another mark is another build, though its argument is this build\'s path', at, [self, row(667, [process.execPath, OWN])], /^another Mercury build is running \(process 667, build 0a0b0c0d0e0f\)$/)
+  at = world()
+  windowRecord(at, 668, { startToken: BORN, buildTree: MARK })
+  await clear('a window whose registration carries this build\'s mark is this build, though it was started through a link', at, [self, row(668, [process.execPath, THROUGH_LINK])])
+  at = world()
+  windowRecord(at, 669, { startToken: BORN_EARLIER, buildTree: MARK })
+  await blocked('a record whose start is not the process\'s start is some earlier process\'s: the process is judged as one with no record', at, [self, row(669, [process.execPath, OLD])], /^another Mercury build is running \(process 669, .*1\.0\.10\)$/)
+  at = world()
+  windowRecord(at, 670, { buildTree: MARK })
+  await blocked('a record whose start cannot be held against the process leaves the file plain', at, [self, row(670, [process.execPath, OWN])], /^a record names process 670, and whether it is that process's own could not be told$/)
+  at = world()
+  windowRecord(at, 671, '{ torn')
+  await blocked('a registration that cannot be read leaves the file plain while its process lives', at, [self, row(671, [process.execPath, OWN])], /^a record names process 671, and whether it is that process's own could not be told$/)
+  await clear('and stops counting once that process is gone', at, [self])
+  at = world()
+  daemonRecord(at, 672, { startInstant: BORN, buildTree: MARK })
+  await blocked('with no build mark of its own this process cannot judge a process that wrote a record', at, [self, row(672, [process.execPath, OWN, 'daemon'])], /^process 672 wrote a record of itself, and this process has no build mark to hold against it$/, { mark: null })
+  at = world()
+  daemonRecord(at, 791, { startInstant: BORN, buildTree: MARK })
+  await clear('a recorded process of this build needs no readable command line: its record says which build it is', at, [self, row(791, [], { exe: '' })])
+  at = world()
+  daemonRecord(at, 792, { startInstant: BORN_EARLIER, buildTree: MARK })
+  await blocked('a process with no record of its own and no readable command line leaves the file plain', at, [self, row(792, [], { exe: '' })], /^the command line of process 792 could not be read$/)
+  at = world()
+  writeFileSync(join(at, 'processes'), '')
+  await blocked('a home whose records cannot be listed leaves the file plain', at, [self], /^the records of this home's windows could not be read$/)
+
+  at = world()
+  await blocked('a headless run of an older build, which writes no record, counts by its path', at, [self, row(555, [process.execPath, OLD, '-p', 'work'])], /^another Mercury build is running \(process 555, .*1\.0\.10\)$/)
+  await blocked('a process with no record that names this build\'s bundle through a link is unknown', at, [self, row(556, [process.execPath, THROUGH_LINK, '-p', 'work'])], /^process 556 names its bundle by a path that is not its real path \(.*current.mercury\.mjs\)$/)
+  await blocked('a process with no record whose bundle is gone from the disk is unknown', at, [self, row(557, [process.execPath, join(VERSIONS, '1.0.9', 'mercury.mjs')])], /^the bundle of process 557 could not be resolved /)
+  await blocked('a process born before this build was put in place counts: a tree rebuilt in place', at, [self, row(777, [process.execPath, OWN], { startedAtMs: PLACED - 1 })], /^process 777 started before this build was put in place$/)
+  await blocked('a bundle put in place under an older date counts from when it was put there', at, [self, row(785, [process.execPath, OWN], { startedAtMs: placed.mtimeMs + 60_000 })], /^process 785 started before this build was put in place$/)
+  await blocked('a process whose start time could not be read counts', at, [self, row(778, [process.execPath, OWN], { startedAtMs: 0 })], /^the start time of process 778 could not be read$/)
+  await blocked('a bundle named by a relative path counts', at, [self, row(779, [process.execPath, 'dist/mercury.mjs'])], /^process 779 names its bundle by a relative path/)
+  await blocked('a process table that says it is incomplete defers', at, [self], /^the process table could not be read \(the reader timed out\)$/, { table: { complete: false, error: 'the reader timed out' } })
+  await blocked('a process table without this process defers', at, [row(780, [process.execPath, OWN])], /^this process was not found in the process table/)
+  await blocked('this process born before its own bundle was put in place defers', at, [row(process.pid, [process.execPath, OWN], { startedAtMs: PLACED - 1 })], /^this process started before its bundle was last put in place$/)
+  await blocked('a process that does not run from a mercury.mjs defers', at, [self], /does not run from a mercury\.mjs/, { bundle: join(SCRATCH, 'cli.tsx') })
+  await clear('this build alone is no other build', at, [self])
+  await clear('a process of this build with no record, by its real path, born after the build was put in place, is this build', at, [self, row(781, [process.execPath, OWN, '-p', 'work'])])
+  await clear('another account\'s Mercury is not this account\'s', at, [self, row(782, [process.execPath, OLD], { user: 'somebody-else' })])
+  await clear('a launcher that names no bundle does not read the store', at, [self, row(783, [join(VERSIONS, 'mercury.exe')], { exe: join(VERSIONS, 'mercury.exe') })])
+  await clear('a process that is gone but not yet reaped is not alive', at, [self, { ...row(784, [process.execPath, OLD]), state: 'Z' }])
+
+  const STAGED = join(VERSIONS, '.staging-1.0.12')
+  const SWAPPED = join(VERSIONS, '1.0.12', 'mercury.mjs')
+  mkdirSync(STAGED)
+  writeFileSync(join(STAGED, 'mercury.mjs'), '')
+  await new Promise(resolve => setTimeout(resolve, 30))
+  const betweenWritingAndPlacing = Date.now()
+  await new Promise(resolve => setTimeout(resolve, 30))
+  renameSync(STAGED, join(VERSIONS, '1.0.12'))
+  const renamedAt = statSync(join(VERSIONS, '1.0.12')).ctimeMs
+  const swappedSelf = row(process.pid, [process.execPath, SWAPPED], { startedAtMs: renamedAt + 60_000 })
+  const underSwap = await ask(at, [swappedSelf, row(786, [process.execPath, SWAPPED], { startedAtMs: betweenWritingAndPlacing })], { bundle: SWAPPED })
+  check('a folder renamed into place counts from the rename: a process born after the payload was written and before it was put there is not this build', underSwap === 'process 786 started before this build was put in place' && statSync(SWAPPED).ctimeMs < betweenWritingAndPlacing && renamedAt > betweenWritingAndPlacing, `${String(underSwap)} file ${statSync(SWAPPED).ctimeMs} between ${betweenWritingAndPlacing} folder ${renamedAt}`)
 
   const NODE = 'C:\\Program Files\\nodejs\\node.exe'
-  const INSTALL = 'C:\\Users\\Op\\AppData\\Local\\Mercury\\versions'
+  const INSTALL = 'C:\\Users\\Op\\.mercury\\versions'
   const WINDOWS_OWN = `${INSTALL}\\1.0.11\\mercury.mjs`
-  const onWindows = (pid: number, args: string[], startedAtMs = 2_000): Record<string, unknown> => ({
+  const onDrive: Record<string, string | null> = {
+    'c:/users/op/.mercury/versions/1.0.11/mercury.mjs': WINDOWS_OWN,
+    'c:/users/op/.mercury/versions/1.0.10/mercury.mjs': `${INSTALL}\\1.0.10\\mercury.mjs`,
+    'c:/users/op/.mercury/current/mercury.mjs': WINDOWS_OWN,
+    'c:/users/op~1/.mercury/versions/1.0.11/mercury.mjs': WINDOWS_OWN,
+    'c:/users/op/.mercury/versions/1.0.9/mercury.mjs': null,
+  }
+  const asWindowsResolves = (path: string): string | null => onDrive[path.replace(/\\/g, '/').toLowerCase()] ?? null
+  const onWindows = (pid: number, args: string[], startedAtMs = 2_000, token: string | null = BORN): Record<string, unknown> => ({
     process: { pid, ppid: 1, exe: NODE, args, startedAtMs, user: 'S-1-5-21-1000', terminal: null },
     platform: 'win32',
     kind: 'window',
-    startToken: null,
+    startToken: token,
     registrationId: null,
     classification: 'running',
     reason: '',
     state: 'running',
   })
-  const windows = (entries: Array<Record<string, unknown>>): string | null | undefined =>
-    others?.otherBuildIn?.({ readAt: 0, platform: 'win32', complete: true, entries: [onWindows(10, [NODE, WINDOWS_OWN]), ...entries], memory: {}, endings: [] }, 10, WINDOWS_OWN, 1_000) as string | null | undefined
-  check('on Windows the same bundle in another case and with other slashes is this build', windows([onWindows(11, [NODE, 'c:/users/op/appdata/local/mercury/versions/1.0.11/MERCURY.MJS', 'daemon'])]) === null, String(windows([onWindows(11, [NODE, 'c:/users/op/appdata/local/mercury/versions/1.0.11/MERCURY.MJS', 'daemon'])])))
-  check('on Windows another versions folder is another build', /^another Mercury build is running \(process 12, C:\\Users\\Op\\AppData\\Local\\Mercury\\versions\\1\.0\.10\)$/.test(String(windows([onWindows(12, [NODE, `${INSTALL}\\1.0.10\\mercury.mjs`])]))), String(windows([onWindows(12, [NODE, `${INSTALL}\\1.0.10\\mercury.mjs`])])))
-  check('on Windows a bundle named from the drive\'s current folder is a relative path', /process 13 names its bundle by a relative path/.test(String(windows([onWindows(13, [NODE, 'dist\\mercury.mjs'])]))), String(windows([onWindows(13, [NODE, 'dist\\mercury.mjs'])])))
-  check('on Windows the launcher beside the bundle names no bundle and is passed over', windows([onWindows(14, [`${INSTALL}\\1.0.11\\mercury\\mercury.exe`, '--resume'])]) === null, String(windows([onWindows(14, [`${INSTALL}\\1.0.11\\mercury\\mercury.exe`, '--resume'])])))
-  check('on Windows a process born before the bundle was written counts', /process 15 started before this build was written/.test(String(windows([onWindows(15, [NODE, WINDOWS_OWN], 999)]))), String(windows([onWindows(15, [NODE, WINDOWS_OWN], 999)])))
+  const windows = (entries: Array<Record<string, unknown>>, records: Array<{ pid: number; startToken: string | null; buildTree: string | null }> = []): string | null | undefined => {
+    try {
+      return others?.otherBuildIn?.({ readAt: 0, platform: 'win32', complete: true, entries: [onWindows(10, [NODE, WINDOWS_OWN]), ...entries], memory: {}, endings: [] }, 10, { bundle: WINDOWS_OWN, putInPlaceMs: 1_000, buildTree: MARK }, records, asWindowsResolves) as string | null | undefined
+    } catch (error) {
+      return `the reader threw: ${error instanceof Error ? error.message : String(error)}`
+    }
+  }
+  const junction = windows([onWindows(11, [NODE, 'C:\\Users\\Op\\.mercury\\current\\mercury.mjs', 'daemon'])])
+  check('on Windows a bundle named through a junction is unknown, though the junction leads to this build today', junction === 'process 11 names its bundle by a path that is not its real path (C:\\Users\\Op\\.mercury\\current\\mercury.mjs)', String(junction))
+  const byRecord = windows([onWindows(12, [NODE, 'C:\\Users\\Op\\.mercury\\current\\mercury.mjs'])], [{ pid: 12, startToken: BORN, buildTree: MARK }])
+  check('on Windows a window that wrote this build\'s mark is this build, junction or not', byRecord === null, String(byRecord))
+  const prefixed = windows([onWindows(13, [NODE, `\\\\?\\${WINDOWS_OWN}`, '-p', 'work'])])
+  check('on Windows the long-path prefix is a spelling, not a link', prefixed === null, String(prefixed))
+  const folded = windows([onWindows(14, [NODE, 'c:/users/op/.mercury/versions/1.0.11/MERCURY.MJS'])])
+  check('on Windows the same bundle in another case and with other slashes is this build', folded === null, String(folded))
+  const shortName = windows([onWindows(15, [NODE, 'C:\\Users\\OP~1\\.mercury\\versions\\1.0.11\\mercury.mjs'])])
+  check('on Windows a short name is not the real path as written, and is unknown', /^process 15 names its bundle by a path that is not its real path/.test(String(shortName)), String(shortName))
+  const otherFolder = windows([onWindows(16, [NODE, `${INSTALL}\\1.0.10\\mercury.mjs`])])
+  check('on Windows another versions folder is another build', otherFolder === 'another Mercury build is running (process 16, C:\\Users\\Op\\.mercury\\versions\\1.0.10)', String(otherFolder))
+  const relative = windows([onWindows(17, [NODE, 'dist\\mercury.mjs'])])
+  check('on Windows a bundle named from the drive\'s current folder is a relative path', /^process 17 names its bundle by a relative path/.test(String(relative)), String(relative))
+  const pruned = windows([onWindows(18, [NODE, `${INSTALL}\\1.0.9\\mercury.mjs`])])
+  check('on Windows a bundle that is gone from the disk is unknown', /^the bundle of process 18 could not be resolved/.test(String(pruned)), String(pruned))
+  const launcher = windows([onWindows(19, [`${INSTALL}\\1.0.11\\mercury\\mercury.exe`, '--resume'])])
+  check('on Windows the launcher beside the bundle names no bundle and is passed over', launcher === null, String(launcher))
+  const early = windows([onWindows(20, [NODE, WINDOWS_OWN], 999)])
+  check('on Windows a process born before the build was put in place counts', early === 'process 20 started before this build was put in place', String(early))
 }
 
 section('§3 the write happens under the refresh lock, and only if the file still reads as it did')
