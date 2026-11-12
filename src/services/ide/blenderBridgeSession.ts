@@ -121,7 +121,7 @@ async function collectEditorTruth(bridge: BlenderBridgeState): Promise<BlenderEd
   }
   const client = getBlenderBridgeClient()
   if (!client) {
-    return { state: 'unavailable', detail: 'unavailable (no client — token address unresolved)' }
+    return { state: 'unavailable', detail: 'unavailable (no client — no session token on disk; op:"blender_bridge_install" writes it)' }
   }
   const fmt = (op: string, r: BlenderBridgeResult): string =>
     r.ok
