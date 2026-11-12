@@ -93,9 +93,20 @@ const SPELLINGS: Array<[string, string]> = [
   ['home', 'Read(~/project/src/secret/**)'],
 ]
 const insensitive = existsSync(join(project, 'SRC', 'OPEN.TS'))
+const DOOR = join(world, 'door')
+symlinkSync(project, DOOR)
+const EIGHT: Array<[string, string]> = [
+  ['src', 'src'],
+  ['src/', 'src/'],
+  ['src//', 'src//'],
+  ['<real>/src/', `${project}/src/`],
+  ['<link>/src', `${DOOR}/src`],
+  ['<link>/src/', `${DOOR}/src/`],
+  ['<link>/src//', `${DOOR}/src//`],
+  ['<link>/src/.', `${DOOR}/src/.`],
+]
 const FOLDERS: Array<[string, string]> = [
-  ['by a relative path', 'src'],
-  ['by an absolute path', join(project, 'src')],
+  ...EIGHT,
   ['with .. in the path', 'src/secret/../../src'],
   ...(insensitive ? [['in another letter case', 'SRC'] as [string, string]] : []),
 ]
@@ -122,6 +133,21 @@ for (const [spelling, rule] of SPELLINGS) {
   check(`${spelling} ${shown}: a direct Read of the folder is denied, and Read of the folder above (${cells.join(' · ')}) names four entries and counts four`, cells.every(cell => cell.endsWith(' ok')) && directRead(join(project, 'src/secret'), permission) === 'deny' && (await refusedByRead('src/secret', permission)), cells.filter(cell => !cell.endsWith(' ok')).join(' · '))
 }
 console.log(`  (${red.length} of ${SPELLINGS.length * FOLDERS.length} cells red)`)
+
+console.log('the same folder spelled eight ways: Grep and Glob, which a search root reaches the one decision through, leave the denied files out too')
+{
+  const { GrepTool } = await import(`${SRC}/tools/GrepTool/GrepTool.ts`)
+  const { GlobTool } = await import(`${SRC}/tools/GlobTool/GlobTool.ts`)
+  const wrong: string[] = []
+  for (const [, rule] of SPELLINGS) {
+    for (const [how, folder] of EIGHT) {
+      const grep = String(GrepTool.mapToolResultToToolResultBlockParam((await GrepTool.call({ pattern: 'token', output_mode: 'files_with_matches', path: folder } as never, context(deny(rule)))).data as never, 'id').content)
+      const glob = String(GlobTool.mapToolResultToToolResultBlockParam((await GlobTool.call({ pattern: '**/*.ts', path: folder } as never, context(deny(rule)))).data as never, 'id').content)
+      for (const [tool, said] of [['Grep', grep], ['Glob', glob]] as Array<[string, string]>) if (said.includes('secret/keys.ts') || !said.includes('open.ts')) wrong.push(`${rule.replace(project.replace(/^\/+/, ''), '<project>')} · ${how} · ${tool}`)
+    }
+  }
+  check(`${SPELLINGS.length * EIGHT.length * 2} searches: none names a file of the denied folder, each names the open one`, wrong.length === 0, wrong.join(' | '))
+}
 
 console.log('a rule on one file, on a name, on a wildcard folder, on a folder only')
 {
@@ -162,7 +188,6 @@ console.log('links: an entry that leads into a denied folder is not named either
   symlinkSync(join(project, 'src/secret/via'), join(project, 'src/hop'))
   symlinkSync(join(project, 'src/open.ts'), join(project, 'src/fine.ts'))
   symlinkSync(join(project, 'src/nowhere'), join(project, 'src/gone'))
-  symlinkSync(project, join(world, 'door'))
   settle()
   const permission = deny('Read(src/secret/**)')
   const linked = await read('src', permission)
@@ -202,7 +227,6 @@ console.log('one decision: an entry is named exactly when its direct Read is not
   }
   check(`${contexts.length} sets of rules, ${folders.length} folders, links among their entries (${entries} entries read): the listing agrees with the direct Read every time`, apart.length === 0, apart.join(' | '))
   for (const name of ['alias.ts', 'link', 'hop', 'fine.ts', 'gone', 'secret/via']) rmSync(join(project, 'src', name))
-  rmSync(join(world, 'door'))
   settle()
 }
 

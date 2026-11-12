@@ -836,11 +836,13 @@ export function readDenialFilter(context: ToolPermissionContext, root: string): 
   const narrowing = readNarrowing(context, 'read')
   const allows = narrowing === null ? null : ruleMatcherFor(narrowing.narrowed, 'read', 'allow', working)
   const rootForms = denies === null && narrowing === null ? [] : getPathsForPermissionCheck(root)
+  const base = root.replace(/[\\/]+$/, '')
+  const joinForms = rootForms.map(form => form.replace(/[\\/]+$/, ''))
   const formsOf = (file: string): string[] => {
-    if (file === root) return rootForms
-    const next = file.charAt(root.length)
-    if (!file.startsWith(root) || (next !== '/' && next !== '\\' && !root.endsWith('/') && !root.endsWith('\\'))) return getPathsForPermissionCheck(file)
-    return rootForms.map(form => `${form}${file.slice(root.length)}`)
+    if (file === root || file === base) return rootForms
+    const next = file.charAt(base.length)
+    if (!file.startsWith(base) || (next !== '/' && next !== '\\')) return getPathsForPermissionCheck(file)
+    return joinForms.map(form => `${form}${file.slice(base.length)}`)
   }
   return file => {
     const name = file.slice(Math.max(file.lastIndexOf('/'), file.lastIndexOf('\\')) + 1)
