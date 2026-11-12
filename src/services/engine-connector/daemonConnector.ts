@@ -550,6 +550,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private workerTurnDeliveryAtMs: number | null = null
   private completedTurnAtMs: number | null = null
   private completionWasInFlight = false
+  private completionSawFactsBusy = false
+  private sendDemotedToQueued = false
   private completionHighWaterMs = 0
   private completionUnmatchedEdgeAtMs: number | null = null
   private completionUnmatchedStampAtMs: number | null = null
@@ -617,6 +619,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.refreshWorkerTurnMarks()
     this.completionHighWaterMs = this.workerTurnSettledAtMs ?? 0
     this.completionWasInFlight = this.factsBusy
+    this.completionSawFactsBusy = this.factsBusy
     this.seedFactsAtMs = this.facts?.atMs ?? null
     this.awaitingRunnerFacts = record.runnerId === ''
     this.refreshWork()
@@ -1274,8 +1277,13 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private stepTurnCompletion(inFlight: boolean): boolean {
-    const edge = this.completionWasInFlight && !inFlight
+    const rawEdge = this.completionWasInFlight && !inFlight
+    const wasFactsBusy = this.completionSawFactsBusy
+    const demotedToQueued = this.sendDemotedToQueued
+    this.sendDemotedToQueued = false
+    const edge = rawEdge && !(demotedToQueued && !wasFactsBusy)
     this.completionWasInFlight = inFlight
+    this.completionSawFactsBusy = inFlight ? (wasFactsBusy || this.factsBusy) : false
     const settled = this.workerTurnSettledAtMs
     const delivery = this.workerTurnDeliveryAtMs
     if (inFlight) {
@@ -1286,7 +1294,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     const stampAdvanced = settled !== null && settled > this.completionHighWaterMs
     if ((edge || stampAdvanced) && this.hasUnreadTranscript()) {
-      if (edge) this.completionWasInFlight = true
+      if (edge) {
+        this.completionWasInFlight = true
+        this.completionSawFactsBusy = wasFactsBusy
+      }
       void this.tick()
       return false
     }
@@ -1380,6 +1391,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.sendSeq.delete(clientMessageId)
       this.paint()
       return
+    }
+    if (current?.state === 'delivered' && state === 'queued') {
+      this.sendDemotedToQueued = true
     }
     const enqueuedUnderTheFold = current !== undefined && (current.state !== 'queued' || current.heldFor === 'compaction')
     const heldFor = state === 'queued' && this.liveStateWord === 'compacting' && enqueuedUnderTheFold ? ('compaction' as const) : undefined

@@ -114,6 +114,7 @@ const getFocusedSeatLive = () => {
   return hasSeatLive(c) ? c.live() : IDLE_LIVE
 }
 
+let completionEdges = 0
 const THRESHOLD_MS = 80
 const writes: string[] = []
 const recordWrite = (s: string): void => {
@@ -141,6 +142,7 @@ function PingHarness(): React.ReactNode {
       : wasLoadingRef.current && !isLoading
     if (!isLoading) connectorCompletedRef.current.at = connectorCompletedAt
     if (completed) {
+      completionEdges++
       setLastCompletedAt(Date.now())
     }
     wasLoadingRef.current = isLoading
@@ -563,6 +565,87 @@ try {
     } finally {
       JSON.parse = origParse
     }
+  }
+
+  {
+    const sid = '00000000-0000-4000-8000-000000000011'
+    writeWorkers({ 'concourse-w1': { sessionId: sid } })
+    writeFacts(sid, {
+      busy: false,
+      runner: { state: 'starting', sinceMs: Date.now() - 100, respawns: 0, maxRespawns: 3 },
+    })
+    const c = makeConnector(sid)
+    setFocusedSessionConnector(c)
+    await wait(25)
+
+    const compStart = completionEdges
+    const pingStart = osc9Count()
+    const sendId = '00000000-0000-4000-8000-0000000000e1'
+    type InternalSend = { clientMessageId: string; text: string; sentAtMs: number; state: string; mode: string }
+    const priv = c as unknown as {
+      sends: InternalSend[]
+      dressSend: (id: string, state: string) => void
+      recomputeLive: () => void
+    }
+    priv.sends = [...priv.sends, { clientMessageId: sendId, text: 'apricot', sentAtMs: Date.now(), state: 'pending', mode: 'prompt' }]
+    priv.dressSend(sendId, 'delivered')
+    priv.recomputeLive()
+    await wait(20)
+    const seenDeliveredInFlight = c.live().inFlight
+
+    writeFacts(sid, {
+      busy: false,
+      runner: { state: 'starting', sinceMs: Date.now() - 200, respawns: 0, maxRespawns: 3 },
+      queue: [{ uuid: sendId, value: 'apricot', mode: 'prompt' }],
+    })
+    feedFacts(c)
+    await wait(THRESHOLD_MS + 80)
+    const earlyCompletions = completionEdges - compStart
+    const earlyPings = osc9Count() - pingStart
+    check(
+      '11a. send observed in flight while starting, then demoted to queued: zero early completion and zero ping while queued',
+      seenDeliveredInFlight && !c.live().inFlight && earlyCompletions === 0 && earlyPings === 0,
+      `seenInFlight=${seenDeliveredInFlight} earlyCompletions=${earlyCompletions} earlyPings=${earlyPings}`,
+    )
+
+    const settledAt = Date.now()
+    writeWorkers({ 'concourse-w1': { sessionId: sid, lastDeliveryAt: settledAt - 40, lastTurnSettledAt: settledAt } })
+    writeFacts(sid, { busy: false, queue: [] })
+    feedFacts(c)
+    await wait(THRESHOLD_MS + 80)
+    const totalCompletions = completionEdges - compStart
+    const totalPings = osc9Count() - pingStart
+    check(
+      '11b. once that queued turn actually runs and settles, exactly 1 completion and 1 ping fire at the end',
+      totalCompletions === 1 && totalPings === 1,
+      `totalCompletions=${totalCompletions} totalPings=${totalPings}`,
+    )
+
+    const sid2 = '00000000-0000-4000-8000-000000000012'
+    try {
+      unlinkSync(join(daemonHome, 'concourse-workers.json'))
+    } catch {}
+    writeFacts(sid2, { busy: true })
+    const c2 = makeConnector(sid2)
+    setFocusedSessionConnector(c2)
+    feedFacts(c2)
+    await wait(20)
+    const comp2Start = completionEdges
+    const followId = '00000000-0000-4000-8000-0000000000e2'
+    const priv2 = c2 as unknown as typeof priv
+    priv2.sends = [...priv2.sends, { clientMessageId: followId, text: 'second', sentAtMs: Date.now(), state: 'pending', mode: 'prompt' }]
+    priv2.dressSend(followId, 'delivered')
+    writeFacts(sid2, {
+      busy: false,
+      queue: [{ uuid: followId, value: 'second', mode: 'prompt' }],
+    })
+    feedFacts(c2)
+    await wait(25)
+    check(
+      '11c. a real busy turn ending in the same facts read that demotes a follow-up send to queued still completes once',
+      completionEdges - comp2Start === 1,
+      `completions=${completionEdges - comp2Start}`,
+    )
   }
 } finally {
   mounted.unmount()
