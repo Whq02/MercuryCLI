@@ -270,7 +270,8 @@ console.log('§3a 80×21 — two stacked frames (the live view on top), the key 
   const back = markOf('split', 'back')
   check('80×21: ⇧→ brings the board back', listTopOf(back) > 0)
   const fresh = markOf('split', 'new')
-  check('80×21: n opens the new-session door (the contract offer) in the live frame', has(liveOf(fresh), 'Start with a contract?') && listTopOf(fresh) > 0, liveOf(fresh).slice(1, 4).join(' | '))
+  const cardKeysAt = rowOf(fresh, '↑↓ choose · ↵ confirm · esc starts it plain')
+  check('80×21: n opens the new-session door (the contract offer) in the live frame', fresh[0]?.startsWith('╭─Fix OAuth callback') === true && has(fresh, 'Start with a contract?') && cardKeysAt > 0 && (fresh[cardKeysAt + 1] ?? '').includes('╰─'), fresh.slice(3, 5).join(' | '))
 }
 
 console.log('§3d 80×21 — a door row selected: the composer takes words, ↵ answers with the note above it')
