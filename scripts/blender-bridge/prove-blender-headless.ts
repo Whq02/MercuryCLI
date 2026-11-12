@@ -409,6 +409,81 @@ section('§6 · --disable-autoexec explicit on every headless op (a free read op
   check('opening a .blend on a free read never ran embedded autoexec Python', !existsSync(markerPath))
 }
 
+section('§7 · blender_status with no window (B-2, B-3): binary + source, versions, modules, API notes, one start per binary kept')
+{
+  const { getBlenderToolDescription } = await import('../../src/tools/BlenderTool/prompt.js')
+  const fixture5 = createFakeBlenderFixture(path.join(scratch, 'bin5'), { version: '5.3.0', name: 'blender5' })
+  const fixture4 = createFakeBlenderFixture(path.join(scratch, 'bin4'), { version: '4.5.13', name: 'blender4' })
+  const userScripts = path.join(scratch, 'user-scripts')
+  mkdirSync(userScripts, { recursive: true })
+  delete process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR
+  process.env.BLENDER_USER_SCRIPTS = userScripts
+  process.env.MERCURY_BLENDER_BRIDGE_PORT = String(await freshDeadPort())
+  const descBefore = getBlenderToolDescription()
+  process.env.MERCURY_BLENDER_BIN = fixture5.bin
+  resetBlenderBridgeClientForTest()
+
+  const s1 = await runWithCwdOverride(work, () => callTool('blender_status'))
+  check(
+    'names the located binary and how it was found',
+    s1.includes(fixture5.bin) && /\bpin\b/.test(s1),
+    s1.slice(0, 160),
+  )
+  check('reports Blender version', /\b5\.3\.0\b/.test(s1), s1.slice(0, 180))
+  check('reports Blender embedded Python version', /python:\s*3\.\d+\.\d+/i.test(s1), s1.slice(0, 220))
+  check(
+    'reports fixed list of bundled and non-bundled Python modules',
+    s1.includes('numpy 2.3.4') &&
+      s1.includes('mathutils') &&
+      s1.includes('bmesh') &&
+      s1.includes('PIL') &&
+      s1.includes('scipy'),
+    s1.slice(0, 260),
+  )
+  check(
+    'reports 5.x Python API notes URL with the channelbags Action clause',
+    s1.includes('https://developer.blender.org/docs/release_notes/5.3/python_api/') &&
+      s1.includes('the legacy Action API is gone: F-curves live on channelbags'),
+    s1.slice(0, 280),
+  )
+  delete process.env.BLENDER_USER_SCRIPTS
+  process.env.HOME = path.join(scratch, 'fake-home')
+  mkdirSync(process.env.HOME, { recursive: true })
+  const s2 = await runWithCwdOverride(work, () => callTool('blender_status'))
+  const s3 = await runWithCwdOverride(work, () => callTool('blender_status'))
+  check(
+    'starts Blender at most once per binary with --disable-autoexec and keeps the result across calls',
+    fixture5.invocations().length === 1 &&
+      fixture5.invocations()[0]!.argv.includes('--disable-autoexec') &&
+      s2.includes('5.3.0') &&
+      s3.includes('5.3.0'),
+    `starts=${fixture5.invocations().length}`,
+  )
+
+  process.env.MERCURY_BLENDER_BIN = fixture4.bin
+  const s4 = await runWithCwdOverride(work, () => callTool('blender_status'))
+  check(
+    '4.x binary reports 4.5 Python API notes URL WITHOUT the 5+ channelbags clause',
+    s4.includes('https://developer.blender.org/docs/release_notes/4.5/python_api/') &&
+      !s4.includes('channelbags') &&
+      fixture4.invocations().length === 1,
+    `starts4=${fixture4.invocations().length}`,
+  )
+
+  process.env.MERCURY_BLENDER_BIN = fixture5.bin
+  await runWithCwdOverride(work, () => callTool('blender_status'))
+  check(
+    'returning to an earlier binary reuses its kept probe with zero extra starts',
+    fixture5.invocations().length === 1 && fixture4.invocations().length === 1,
+    `starts5=${fixture5.invocations().length} starts4=${fixture4.invocations().length}`,
+  )
+
+  process.env.MERCURY_BLENDER_BIN = path.join(scratch, 'no-such-blender')
+  const sMissing = await runWithCwdOverride(work, () => callTool('blender_status'))
+  check('when unlocated, names MERCURY_BLENDER_BIN', sMissing.includes('MERCURY_BLENDER_BIN'))
+  check('the tool prompt gains nothing from B-3', getBlenderToolDescription() === descBefore && !descBefore.includes('channelbags'))
+}
+
 restoreEnv()
 rmSync(scratch, { recursive: true, force: true })
 

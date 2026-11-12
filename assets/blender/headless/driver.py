@@ -1,4 +1,5 @@
 import contextlib
+import importlib.util
 import io
 import json
 import os
@@ -8,6 +9,18 @@ import time
 import traceback
 
 import bpy
+
+PROBE_MODULES = (
+    "numpy",
+    "mathutils",
+    "bmesh",
+    "bpy_extras",
+    "imbuf",
+    "PIL",
+    "scipy",
+    "cv2",
+    "matplotlib",
+)
 
 
 def _parse_paths(argv):
@@ -187,8 +200,50 @@ def _run_python(args, state_mod):
     )
 
 
+def _probe_runtime():
+    bundled = []
+    absent = []
+    for mod_name in PROBE_MODULES:
+        try:
+            found = importlib.util.find_spec(mod_name) is not None
+        except Exception:
+            found = False
+        if not found:
+            absent.append(mod_name)
+            continue
+        label = mod_name
+        if mod_name in ("numpy", "PIL"):
+            try:
+                mod = __import__(mod_name)
+                ver = getattr(mod, "__version__", None)
+                if isinstance(ver, str) and ver:
+                    label = "%s %s" % (mod_name, ver)
+            except Exception:
+                pass
+        bundled.append(label)
+    ver_str = getattr(bpy.app, "version_string", "")
+    m = re.search(r"(\d+\.\d+(?:\.\d+)?)", str(ver_str))
+    clean_ver = m.group(1) if m is not None else str(ver_str).strip()
+    return {
+        "blenderVersion": clean_ver,
+        "pythonVersion": "%d.%d.%d" % sys.version_info[:3],
+        "pythonExecutable": sys.executable or "",
+        "bundled": bundled,
+        "absent": absent,
+    }
+
+
 def main():
     req_path, resp_path = _parse_paths(sys.argv)
+    with open(req_path, "r", encoding="utf-8") as fh:
+        req = json.load(fh)
+
+    op = req.get("op")
+    if op == "__probe_runtime__":
+        with open(resp_path, "w", encoding="utf-8") as fh:
+            json.dump({"ok": True, "result": _probe_runtime()}, fh)
+        sys.exit(0)
+
     here = os.path.dirname(os.path.abspath(__file__))
     if here not in sys.path:
         sys.path.insert(0, here)
@@ -208,10 +263,6 @@ def main():
             json.dump(payload, fh)
         sys.exit(exit_code)
 
-    with open(req_path, "r", encoding="utf-8") as fh:
-        req = json.load(fh)
-
-    op = req.get("op")
     args = req.get("args") if isinstance(req.get("args"), dict) else {}
     blend = req.get("blend")
 

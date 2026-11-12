@@ -1,8 +1,9 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
 import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { getMercuryTempDir } from '../../utils/permissions/filesystem.js'
+import { probeBlenderVersion, seedBlenderVersionProbe } from '../ide/blenderProject.js'
 import {
   BLENDER_BRIDGE_FILES,
   BLENDER_HEADLESS_DRIVER_SOURCE,
@@ -17,6 +18,92 @@ const HEADLESS_PYTHON_EXIT_CODE = '1'
 const HEADLESS_DEFAULT_TIMEOUT_MS = 30_000
 const HEADLESS_PYTHON_RUN_TIMEOUT_MS = 120_000
 const HEADLESS_TIMEOUT_CAP_MS = 600_000
+const HEADLESS_PROBE_TIMEOUT_MS = 15_000
+
+interface HeadlessRuntimeInfo {
+  blenderVersion?: string
+  pythonVersion?: string
+  pythonExecutable?: string
+  bundled?: string[]
+  absent?: string[]
+  reason?: string
+}
+
+const runtimeProbeByBinary = new Map<string, HeadlessRuntimeInfo>()
+
+function binaryStampKey(bin: string): string {
+  try {
+    const st = statSync(bin)
+    return `${bin}\0${st.mtimeMs}\0${st.size}`
+  } catch {
+    return bin
+  }
+}
+
+export async function probeBlenderHeadlessRuntime(bin: string): Promise<HeadlessRuntimeInfo> {
+  const key = binaryStampKey(bin)
+  const existing = runtimeProbeByBinary.get(key)
+  if (existing) return existing
+
+  const baseTmp = getMercuryTempDir()
+  mkdirSync(baseTmp, { recursive: true })
+  const callDir = mkdtempSync(path.join(baseTmp, 'blender-probe-'))
+  let info: HeadlessRuntimeInfo
+  try {
+    const driverPath = path.join(callDir, 'driver.py')
+    const requestPath = path.join(callDir, 'request.json')
+    const responsePath = path.join(callDir, 'response.json')
+    writeFileSync(driverPath, BLENDER_HEADLESS_DRIVER_SOURCE, 'utf8')
+    writeFileSync(requestPath, JSON.stringify({ op: '__probe_runtime__' }), 'utf8')
+    const outcome = await execFileNoThrowWithCwd(
+      bin,
+      [
+        '-b',
+        '-q',
+        '--factory-startup',
+        '--disable-autoexec',
+        '--python-exit-code',
+        HEADLESS_PYTHON_EXIT_CODE,
+        '--offline-mode',
+        '--python',
+        driverPath,
+        '--',
+        requestPath,
+        responsePath,
+      ],
+      {
+        cwd: getCwd(),
+        timeout: HEADLESS_PROBE_TIMEOUT_MS,
+        stdin: 'ignore',
+        maxBuffer: 1024 * 1024,
+      },
+    )
+    let parsed: { ok?: boolean; result?: HeadlessRuntimeInfo } | null = null
+    if (existsSync(responsePath)) {
+      try {
+        parsed = JSON.parse(readFileSync(responsePath, 'utf8')) as {
+          ok?: boolean
+          result?: HeadlessRuntimeInfo
+        }
+      } catch {
+        parsed = null
+      }
+    }
+    if (parsed?.ok && parsed.result && parsed.result.blenderVersion) {
+      info = parsed.result
+      seedBlenderVersionProbe(bin, parsed.result.blenderVersion)
+    } else {
+      const ver = probeBlenderVersion(bin)
+      info = ver.version
+        ? { blenderVersion: ver.version }
+        : { reason: ver.reason ?? `exit ${outcome.code}` }
+    }
+  } finally {
+    rmSync(callDir, { recursive: true, force: true })
+  }
+  runtimeProbeByBinary.set(key, info)
+  return info
+}
 
 export function isHeadlessRenderJobRequest(
   op: string,

@@ -143,16 +143,21 @@ interface BlenderVersionProbe {
   reason?: string
 }
 
-let versionCache: { at: number; bin: string; result: BlenderVersionProbe } | null = null
+const versionCache = new Map<string, { at: number; seeded?: boolean; result: BlenderVersionProbe }>()
 const VERSION_CACHE_TTL_MS = 30_000
 
 export function _resetBlenderVersionProbeForTesting(): void {
-  versionCache = null
+  versionCache.clear()
+}
+
+export function seedBlenderVersionProbe(bin: string, version: string): void {
+  versionCache.set(bin, { at: Date.now(), seeded: true, result: { version } })
 }
 
 export function probeBlenderVersion(bin: string): BlenderVersionProbe {
-  if (versionCache && versionCache.bin === bin && Date.now() - versionCache.at < VERSION_CACHE_TTL_MS) {
-    return versionCache.result
+  const hit = versionCache.get(bin)
+  if (hit && (hit.seeded || Date.now() - hit.at < VERSION_CACHE_TTL_MS)) {
+    return hit.result
   }
   let result: BlenderVersionProbe
   try {
@@ -169,7 +174,7 @@ export function probeBlenderVersion(bin: string): BlenderVersionProbe {
   } catch (e) {
     result = { reason: `blender probe failed: ${e instanceof Error ? e.message : String(e)}` }
   }
-  versionCache = { at: Date.now(), bin, result }
+  versionCache.set(bin, { at: Date.now(), result })
   return result
 }
 
