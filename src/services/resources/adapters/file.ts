@@ -1,6 +1,9 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import * as path from 'node:path'
+import type { ToolPermissionContext } from '../../../Tool.js'
+import { getPathsForPermissionCheck } from '../../../utils/fsOperations.js'
+import { readDenialFilter } from '../../../utils/permissions/filesystem.js'
 import { mercurySecretPath } from '../../../utils/permissions/protectedPaths.js'
 import { mintFileAnchor } from '../../changeTransaction/snapshotAnchor.js'
 import {
@@ -51,7 +54,11 @@ export const fileAdapter: ResourceAdapter = {
     if (info.isDirectory()) {
       let entries
       try {
-        entries = readdirSync(abs, { withFileTypes: true }).filter(e => mercurySecretPath(path.join(abs, e.name), ctx.cwd) === null)
+        const rules = (ctx.getAppState?.() as { toolPermissionContext?: ToolPermissionContext } | undefined)?.toolPermissionContext
+        const denied = rules === undefined ? undefined : readDenialFilter(rules, abs)
+        entries = readdirSync(abs, { withFileTypes: true })
+          .filter(e => mercurySecretPath(path.join(abs, e.name), ctx.cwd) === null)
+          .filter(e => denied === undefined || !(e.isSymbolicLink() ? getPathsForPermissionCheck(path.join(abs, e.name)).some(form => denied(form)) : denied(path.join(abs, e.name))))
       } catch (e) {
         return { state: 'busy', note: `cannot list ${abs}: ${e instanceof Error ? e.message : String(e)}` }
       }

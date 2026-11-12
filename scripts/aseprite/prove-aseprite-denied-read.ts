@@ -226,6 +226,25 @@ console.log('one decision: the tool refuses a file exactly when a direct Read of
   settle()
 }
 
+console.log('status: a sprite file whose direct Read is denied is not named or counted')
+{
+  plant()
+  const said = async (permission: Permission | null): Promise<string> => ((await (AsepriteTool as { call: Function }).call({ op: 'status' }, permission === null ? {} : context(permission))) as { data: { result: string } }).data.result.split('\n').at(-1)!
+  const open = await said(getEmptyToolPermissionContext())
+  check('the control: with no rule status counts four sprite files and names the denied folder\'s among them', open.startsWith('4 sprite file(s) in the working tree: ') && open.includes('secret/hero.aseprite'), open)
+  const wrong: string[] = []
+  for (const [spelling, rule] of SPELLINGS) {
+    const line = await said(deny(rule))
+    if (line !== '3 sprite file(s) in the working tree: open/hero.aseprite, secret-public/hero.aseprite, secret.aseprite') wrong.push(`${spelling}: ${line}`)
+  }
+  check('under each of the four spellings: three counted, the three neighbours named, the denied one not', wrong.length === 0, wrong.join(' | '))
+  const asked = await said(withRules('alwaysAskRules', 'session', ['Read(secret/**)']))
+  check('a file a Read would only ask about is named as before', asked === open, asked)
+  const narrowed = await said(withRules('alwaysAllowRules', 'toolsNarrowing', ['Read(open/**)']))
+  check('tools narrowed to one folder: only that folder\'s sprite is named, as a direct Read of the others is denied', narrowed === '1 sprite file(s) in the working tree: open/hero.aseprite', narrowed)
+  check('a caller that hands the tool no session gets the listing it got', (await said(null)) === open, await said(null))
+}
+
 console.log('every other answer is the one the tool gave before')
 {
   const inputs: Call[] = [

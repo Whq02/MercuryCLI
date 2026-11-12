@@ -230,6 +230,53 @@ console.log('one decision: an entry is named exactly when its direct Read is not
   settle()
 }
 
+console.log('the same folders by reference: Inspect of mercury://file/<folder>, and Read of it, name what the direct Read does not refuse')
+{
+  const { InspectTool } = await import(`${SRC}/tools/InspectTool/InspectTool.ts`)
+  const children = (text: string): string[] => text.split('\n').filter(line => line.includes(' — ') && line.trimStart().startsWith('mercury://file/')).map(line => line.slice(line.indexOf(' — ') + 3).replace(/\/? \((?:file|directory)\)$/, ''))
+  const byInspect = async (folder: string, permission: Permission): Promise<{ names: string[]; text: string }> => {
+    const text = String(((await (InspectTool as { call: Function }).call({ ref: `mercury://file/${folder}` }, context(permission))) as { data: { result: string } }).data.result)
+    return { names: children(text), text }
+  }
+  const byRead = async (folder: string, permission: Permission): Promise<string[]> => {
+    serial++
+    const result = await (FileReadTool as { call: Function }).call({ file_path: `mercury://file/${folder}` }, context(permission), null, { uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`, message: { id: `msg_listing_${serial}` } })
+    return children(String(result.data.file.content))
+  }
+  const src = join(project, 'src')
+  const bare = await byInspect(src, getEmptyToolPermissionContext())
+  check('the control: with no rule Inspect names the five entries', JSON.stringify([...bare.names].sort()) === JSON.stringify(['.env', 'open.ts', 'secret', 'secret.ts', 'secrets-public']) && bare.text.includes('directory · 5 entries'), bare.text)
+  const contexts: Array<[string, Permission]> = [
+    ['no rule', getEmptyToolPermissionContext()],
+    ...SPELLINGS.map(([spelling, rule]) => [spelling, deny(rule)] as [string, Permission]),
+    ['one file', deny('Read(src/secret/keys.ts)')],
+    ['a name at any depth', deny('Read(keys.ts)')],
+    ['a rule in the user settings', deny(SPELLINGS[2]![1], 'userSettings')],
+    ['an ask rule', withRules('alwaysAskRules', 'session', ['Read(src/secret/**)'])],
+    ['an allow rule beside a deny rule', withRules('alwaysAllowRules', 'session', ['Read(src/**)'], deny('Read(src/secret/**)'))],
+    ['tools narrowed to the source folder, with a deny rule inside', withRules('alwaysAllowRules', 'toolsNarrowing', ['Read(src/**)'], deny('Read(src/secret/**)'))],
+  ]
+  symlinkSync(join(project, 'src/secret/keys.ts'), join(project, 'src/alias.ts'))
+  settle()
+  const apart: string[] = []
+  let entries = 0
+  for (const [label, permission] of contexts) {
+    for (const folder of [src, join(project, 'src/secret'), join(project, 'src/secrets-public'), `${DOOR}/src/`]) {
+      const [inspected, read] = [await byInspect(folder, permission), await byRead(folder, permission)]
+      for (const name of readdirSync(folder)) {
+        entries++
+        const readable = directRead(join(folder, name), permission) !== 'deny'
+        if (inspected.names.includes(name) !== readable || read.includes(name) !== readable) apart.push(`${label} · ${folder.slice(world.length + 1)}${name}`)
+      }
+    }
+  }
+  check(`${contexts.length} sets of rules, four folders, a link among their entries (${entries} entries read): both doors name an entry exactly when its direct Read is not denied`, apart.length === 0, apart.join(' | '))
+  const counted = await byInspect(src, deny('Read(src/secret/**)'))
+  check('the count is of what is named', counted.text.includes('directory · 4 entries') && !counted.names.includes('secret') && !counted.names.includes('alias.ts'), counted.text)
+  rmSync(join(project, 'src/alias.ts'))
+  settle()
+}
+
 console.log('the numbers: a denied entry is counted nowhere, the cap included')
 {
   mkdirSync(join(project, 'big'))
