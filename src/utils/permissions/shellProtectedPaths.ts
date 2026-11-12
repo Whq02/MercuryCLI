@@ -755,7 +755,7 @@ function powershellListing(argv: readonly string[]): { roots: string[]; deep: bo
     if (value !== undefined && (valued === 'filter' || valued === 'include')) {
       const patterns = listOf(value)
       for (let next = i + 1; next < argv.length && !argv[next]!.startsWith('-'); next++) patterns.push(...listOf(argv[next]!))
-      sifts.push(valued === 'filter' ? patterns.flatMap(pattern => [pattern, `${pattern}*`]) : patterns)
+      sifts.push(valued === 'filter' ? patterns.map(pattern => `*${/\.[^.*?[\]]+$/.exec(pattern)?.[0] ?? ''}*`) : patterns)
     }
   }
   const patterned: string[] = []

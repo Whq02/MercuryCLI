@@ -789,6 +789,9 @@ if (runs('LISTED')) {
     'gci -r -Filter *.jso | gc',
     'Get-ChildItem -Recurse -Exclude .mercury | Get-Content',
     'gci -r -Include $patterns | gc',
+    'gci -r -Filter cre* | gc',
+    'gci -r -Filter CREDEN~1.JSO | gc',
+    'gci -r -Filter notes.json | gc',
   ]
   for (const line of readers) {
     const answer = await asked(line, OWN_HOME)
@@ -829,6 +832,7 @@ if (runs('LISTED')) {
     'gci -r -Include *.txt,*.md | sls TODO',
     'foreach ($f in Get-ChildItem -Recurse -Filter *.txt) { Get-Content $f.FullName }',
     'Get-ChildItem * -Include *.txt | Get-Content',
+    'gci -r -Filter notes*.txt | gc',
   ]
   for (const line of listings) {
     const answer = await asked(line, OWN_HOME)
