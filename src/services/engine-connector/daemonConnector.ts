@@ -547,6 +547,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   private facts: SessionFactsV1 | null
   private openedAtMs = Date.now()
+  private startShownSinceMs: number | null = null
   private seedFactsAtMs: number | null
   private awaitingRunnerFacts: boolean
   private readonly factsFeed: ProjectionFeed
@@ -1044,10 +1045,14 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.facts = readSessionFacts(next.sessionId) ?? this.facts
       this.seedFactsAtMs = this.facts?.atMs ?? null
       this.openedAtMs = Date.now()
+      this.startShownSinceMs = null
       this.awaitingRunnerFacts = true
     }
     Object.assign(this.record, next)
-    if (runnerLive) this.awaitingRunnerFacts = false
+    if (runnerLive && this.awaitingRunnerFacts) {
+      this.awaitingRunnerFacts = false
+      this.startShownSinceMs = this.openedAtMs
+    }
     emitAll(this.modelListeners, 'model')
     emitAll(this.liveListeners, 'live')
   }
@@ -1552,9 +1557,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (this.awaitingRunnerFacts) {
       if (this.seedFactsAtMs !== null && next.atMs <= this.seedFactsAtMs) return
       this.awaitingRunnerFacts = false
+      this.startShownSinceMs = this.openedAtMs
     }
     const prev = this.facts
     this.facts = this.factsFromCarrier(next)
+    if (this.facts.runner?.state !== 'starting' || this.facts.runner.respawns !== 0) this.startShownSinceMs = null
     this.refreshCheckpoints()
     adoptOpenaiObservedUsage(next.usage?.openaiObserved)
     adoptOpenaiWindowFact(next.usage?.openaiWindow)
@@ -2589,8 +2596,14 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       stuck,
       ...(this.record.isolation !== undefined ? { isolation: this.record.isolation } : {}),
       ...(this.record.branchLabel !== undefined ? { branchLabel: this.record.branchLabel } : {}),
-      runner: this.awaitingRunnerFacts ? { state: 'starting', sinceMs: this.openedAtMs, respawns: 0, maxRespawns: 0 } : this.facts?.runner ?? null,
+      runner: this.awaitingRunnerFacts ? { state: 'starting', sinceMs: this.openedAtMs, respawns: 0, maxRespawns: 0 } : this.runnerOnTheShownClock(),
     }
+  }
+
+  private runnerOnTheShownClock(): NonNullable<SessionFactsV1['runner']> | null {
+    const runner = this.facts?.runner ?? null
+    if (runner === null || this.startShownSinceMs === null || runner.sinceMs <= this.startShownSinceMs) return runner
+    return { ...runner, sinceMs: this.startShownSinceMs }
   }
 }
 
