@@ -83,6 +83,10 @@ export async function ensureKeychainPrefetchCompleted(): Promise<void> {
   if (prefetchInFlight !== null) await prefetchInFlight
 }
 
+export function startWaitNote(platform: NodeJS.Platform): string {
+  return platform === 'win32' ? 'checking the credential store and managed settings…' : 'checking the system keychain and managed settings…'
+}
+
 export function getLegacyApiKeyPrefetchResult(): { stdout: string | null } | null {
   return legacyApiKeyResult
 }

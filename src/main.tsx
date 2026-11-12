@@ -99,7 +99,7 @@ import { parseSettingSourcesFlag } from './utils/settings/constants.js'
 import { resetSettingsCache } from './utils/settings/settingsCache.js'
 import { setFlagSettingsInline, setFlagSettingsPath, setAllowedSettingSources, getSessionProjectDir } from './bootstrap/state.js'
 import { startMdmRawRead } from './utils/settings/mdm/rawRead.js'
-import { ensureKeychainPrefetchCompleted, startKeychainPrefetch } from './utils/secureStorage/keychainPrefetch.js'
+import { ensureKeychainPrefetchCompleted, startKeychainPrefetch, startWaitNote } from './utils/secureStorage/keychainPrefetch.js'
 import { lastSession, sessionAtIndex, searchSessionsByCustomTitle, sessionIdExists } from './utils/sessionStorage.js'
 import { sessionIdOfListing } from './utils/sessionStorage/logs.js'
 import { armProvisionalSessionReconcile } from './utils/provisionalSessionReconcile.js'
@@ -512,7 +512,7 @@ async function run(): Promise<void> {
     if (PRINT_ONLY_VERBS.has(actionCommand.name())) return
     profileCheckpoint('preAction_start')
     const slowBootNote = setTimeout(() => {
-      if (process.stderr.isTTY) process.stderr.write('checking the system keychain and managed settings…\n')
+      if (process.stderr.isTTY) process.stderr.write(`${startWaitNote(process.platform)}\n`)
     }, 1_500)
     slowBootNote.unref?.()
     const { ensureMdmSettingsLoaded, mdmBootAwaitsRawRead, getMdmSettings, getHkcuSettings } = await import('./utils/settings/mdm/settings.js')
