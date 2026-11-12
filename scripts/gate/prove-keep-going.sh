@@ -56,21 +56,36 @@ for pin in MERCURY_GATE_JOBS=1 MERCURY_GATE_CORES=2; do
 done
 
 fresh
-out=$(runner MERCURY_GATE_JOBS=1 --keep-going zz-red aa-green no-such-suite); rc=$?
-if [ "$rc" = "1" ] && [ "$(last "$out" 2)" = "suites asked 3 · ran 2 · not launched 1: no-such-suite (no runner)" ] && [ -e "$work/ran/aa-green" ]; then
-  ok "with --keep-going: a name that has no runner is counted as asked and named as not launched"
+out0=$(runner MERCURY_GATE_JOBS=1 aa-green no-such-suite); rc0=$?
+out=$(runner MERCURY_GATE_JOBS=1 --keep-going aa-green no-such-suite); rc=$?
+out2=$(runner MERCURY_GATE_JOBS=1 --keep-going zz-red aa-green no-such-suite); rc2=$?
+if [ "$rc0" = "1" ] && [ "$rc" = "1" ] && [ "$rc2" = "1" ] && [ ! -e "$work/ran/aa-green" ] && [ ! -e "$work/ran/zz-red" ] \
+   && [ "$out0" = "no suite runner: no-such-suite" ] \
+   && [ "$out" = "$(printf 'no suite runner: no-such-suite\nsuites asked 2 · ran 0 · not launched 2: aa-green no-such-suite (no runner)')" ] \
+   && [ "$out2" = "$(printf 'no suite runner: no-such-suite\nsuites asked 3 · ran 0 · not launched 3: zz-red aa-green no-such-suite (no runner)')" ]; then
+  ok "a named suite with no runner is an error before anything is launched, without or with --keep-going"
 else
-  bad "with --keep-going: a name with no runner is not named at the end (rc=$rc)" "$out"
+  bad "a named suite with no runner still launched a suite or exited 0 (rc0=$rc0 rc=$rc rc2=$rc2)" "$out0
+---
+$out
+---
+$out2"
 fi
 
 out=$(runner MERCURY_GATE_JOBS=1 --keep-going no-such-suite); rc=$?
 out0=$(runner MERCURY_GATE_JOBS=1 no-such-suite); rc0=$?
-if [ "$rc" = "1" ] && [ "$rc0" = "1" ] && [ "$out0" = "no suites matched: no-such-suite" ] \
-   && [ "$out" = "$(printf 'no suites matched: no-such-suite\nsuites asked 1 · ran 0 · not launched 1: no-such-suite (no runner)')" ]; then
-  ok "a run that matches no suite: one line as before without the word, and the count line after it with the word, exit 1 both ways"
+pout0=$(runner MERCURY_GATE_JOBS=1 --plan-only aa-green no-such-suite); prc0=$?
+pout=$(runner MERCURY_GATE_JOBS=1 --keep-going --plan-only aa-green no-such-suite); prc=$?
+if [ "$rc" = "1" ] && [ "$rc0" = "1" ] && [ "$prc0" = "1" ] && [ "$prc" = "1" ] \
+   && [ "$out0" = "no suite runner: no-such-suite" ] && [ "$pout0" = "no suite runner: no-such-suite" ] && [ "$pout" = "no suite runner: no-such-suite" ] \
+   && [ "$out" = "$(printf 'no suite runner: no-such-suite\nsuites asked 1 · ran 0 · not launched 1: no-such-suite (no runner)')" ]; then
+  ok "a lone missing name and --plan-only with a missing name refuse before planning or launching, exit 1"
 else
-  bad "a run that matches no suite reads differently (rc=$rc, without the word rc=$rc0)" "$out
-$out0"
+  bad "a lone missing name or --plan-only with a missing name reads differently (rc=$rc/$rc0 plan=$prc0/$prc)" "$out
+---
+$out0
+---
+$pout0"
 fi
 
 fresh

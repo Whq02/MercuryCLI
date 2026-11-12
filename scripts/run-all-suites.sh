@@ -47,6 +47,21 @@ asked_line() {
   done
   printf 'suites asked %d · ran %d · not launched %d%s\n' "${#names[@]}" "$(( ${#names[@]} - n ))" "$n" "${left:+:$left}"
 }
+declare -a PRINTED=()
+if [ "${#want[@]}" -gt 0 ]; then
+  missing=()
+  for _w in "${want[@]}"; do
+    [ -e "$SUITES_DIR/$_w/run-all.sh" ] && continue
+    _seen=0
+    for _m in ${missing[@]+"${missing[@]}"}; do [ "$_m" = "$_w" ] && _seen=1; done
+    [ "$_seen" -eq 1 ] || missing+=("$_w")
+  done
+  if [ "${#missing[@]}" -gt 0 ]; then
+    echo "no suite runner: ${missing[*]}"
+    [ "$PLAN_ONLY" -eq 0 ] && asked_line
+    exit 1
+  fi
+fi
 
 T_START=$SECONDS
 
