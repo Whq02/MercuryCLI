@@ -849,7 +849,7 @@ class PosixWalk {
 type PsToken = { value: string; text: string; inner: number[]; bare: boolean }
 
 const PS_STATEMENT_HEAD = new RegExp(`(?:^|${UNREAD_PART})(?:foreach|for|if|elseif|while|switch|until)$`, 'i')
-const PS_LOOP_VARIABLE = /^(?:\$|\[.*\]\$)/
+const PS_LOOP_VARIABLE = new RegExp(`^(?:\\[.*\\])?\\$(?:${UNREAD_PART}|[\\p{L}\\p{N}_?^$])`, 'u')
 
 class PowerShellWalk {
   at = 0
