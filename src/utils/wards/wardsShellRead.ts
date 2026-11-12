@@ -1463,8 +1463,19 @@ async function readInto(reading: Reading, text: string, frame: Frame, depth: num
   }
 }
 
+let failing = false
+
+export function failShellReadingForTesting(fail: boolean): void {
+  failing = fail
+}
+
 export async function readShellCommands(text: string, dialect: ShellDialect, world: ReadWorld): Promise<ShellRead> {
   const reading = new Reading(world)
-  await readInto(reading, text, { background: false, stages: [], body: undefined, line: 1, dialect, around: undefined }, 0)
+  try {
+    if (failing) throw new Error('the reading was made to fail')
+    await readInto(reading, text, { background: false, stages: [], body: undefined, line: 1, dialect, around: undefined }, 0)
+  } catch {
+    reading.markUnread('it could not be read', text)
+  }
   return { commands: reading.commands, pipelineSizes: reading.pipelineSizes, exported: reading.exported, homes: reading.scope.get('HOME') ?? [], unread: reading.unread }
 }

@@ -4,6 +4,7 @@ import { posix } from 'node:path'
 import { getShellCwd } from '../Shell.js'
 import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../envUtils.js'
 import { CREDENTIALS_SERVICE_SUFFIX, getMacOsKeychainStorageServiceName, getRawSpellingKeychainStorageServiceName } from '../secureStorage/macOsKeychainHelpers.js'
+import { shellTextOutsideFileHeredocs } from '../wards/wards.js'
 import { UNREAD_PART, absolutePath, layersOf, moveOf, printedBy, readShellCommands, wordKnown, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from '../wards/wardsShellRead.js'
 import { credentialStorePath as storePathOf, mercurySecretPath as secretPathOf, protectedPathForms as pathFormsOf, spelling } from './protectedPaths.js'
 import { pinnedCommandAnalysis, peelWrappers, PARSE_ABORTED, extractHeredocs, type Node } from './decision/commandAnalysis.js'
@@ -106,6 +107,30 @@ function powershellCopyTargets(args: readonly string[]): string[] {
   return [...valued, ...(sourced || !sure ? loose : loose.slice(1))]
 }
 
+const WRITERS = new Set([
+  'tee', 'chmod', 'icacls', 'cp', 'mv', 'copy', 'move', 'copy-item', 'move-item', 'ci', 'cpi', 'mi',
+  'sed', 'set-content', 'add-content', 'out-file', 'tee-object', 'ac', 'sc',
+  'install', 'dd', 'rsync', 'ln', 'truncate', 'rm', 'unlink', 'rmdir', 'rd', 'ri', 'del', 'erase',
+  'remove-item', 'clear-content', 'clc', 'new-item', 'ni', 'ren', 'rename', 'rename-item', 'sqlite3', 'find',
+  'export-csv', 'epcsv', 'export-clixml', 'start-transcript',
+])
+const OTHER_WRITERS = new Set(['invoke-webrequest', 'iwr', 'invoke-restmethod', 'irm', 'expand-archive', 'new-object'])
+const TREE_MOVERS = ['rm', 'unlink', 'rmdir', 'rd', 'ri', 'del', 'erase', 'remove-item', 'mv', 'move', 'move-item', 'mi', 'ren', 'rename', 'rename-item']
+const RUNTIME_WRITERS = new Set(['tar', 'bsdtar', 'gtar', 'unzip', 'curl', 'wget', 'patch', 'git', 'npm', 'pnpm', 'yarn', 'bun', 'ditto', 'chown', 'chgrp', 'chflags', 'xattr', 'touch', 'setfacl', 'lchown', 'shred'])
+const UNREAD_ADVICE = 'Mercury could not read this command, so it was not checked: write it as separate, simpler commands'
+const WRITE_REDIRECT = /(?:^|[^-=0-9&>])[0-9]?>>?(?![&=>])/
+
+function unreadWords(read: ShellRead, command: string, powershell: boolean): string[] {
+  if (read.unread === undefined) return []
+  const outside = powershell ? command : shellTextOutsideFileHeredocs(command)
+  const nested = read.unread.text === command ? '' : read.unread.text
+  return [...new Set(`${outside} ${nested}`.split(/[\s;|&<>(){}"'`=,]+/).filter(word => word !== '' && word.length < 4096))]
+}
+
+function pathLike(word: string): boolean {
+  return /[\\/]/.test(word) || /^[~$%.]/.test(word)
+}
+
 function writeOperands(argv: string[], powershell = false): string[] {
   const out: string[] = []
   const command: string[] = []
@@ -119,13 +144,7 @@ function writeOperands(argv: string[], powershell = false): string[] {
   const name = verb(unwrapped[0] ?? '')
   const args = unwrapped.slice(1)
   if (args.some(arg => /^-whatif$/i.test(arg))) return []
-  const writers = new Set([
-    'tee', 'chmod', 'icacls', 'cp', 'mv', 'copy', 'move', 'copy-item', 'move-item', 'ci', 'cpi', 'mi',
-    'sed', 'set-content', 'add-content', 'out-file', 'tee-object', 'ac', 'sc',
-    'install', 'dd', 'rsync', 'ln', 'truncate', 'rm', 'unlink', 'rmdir', 'rd', 'ri', 'del', 'erase',
-    'remove-item', 'clear-content', 'clc', 'new-item', 'ni', 'ren', 'rename', 'rename-item', 'sqlite3', 'find',
-    'export-csv', 'epcsv', 'export-clixml', 'start-transcript',
-  ])
+  const writers = WRITERS
   const valued = (full: string, least: number): string[] =>
     args.flatMap((arg, at) => {
       const named = /^-([A-Za-z]+)(?::(.*))?$/.exec(arg)
@@ -207,8 +226,7 @@ function runtimeOperands(argv: string[], powershell = false): Array<{ path: stri
   const args = unwrapped.slice(1)
   if (args.some(arg => /^-whatif$/i.test(arg))) return []
   const targets = writeOperands(argv, powershell).map(path => ({ path, removesTree: false }))
-  const removers = ['rm', 'unlink', 'rmdir', 'rd', 'ri', 'del', 'erase', 'remove-item', 'mv', 'move', 'move-item', 'mi', 'ren', 'rename', 'rename-item']
-  if (removers.includes(name) || (name === 'find' && args.includes('-delete'))) {
+  if (TREE_MOVERS.includes(name) || (name === 'find' && args.includes('-delete'))) {
     targets.push(...args.filter(arg => !arg.startsWith('-') && !/^\/[sq]$/i.test(arg)).map(path => ({ path, removesTree: true })))
   }
   return targets
@@ -543,6 +561,10 @@ async function credentialWriteAfterMove(command: string, powershell: boolean, cw
         }
       }
     }
+  }
+  const words = unreadWords(read, command, powershell)
+  if (words.some(word => WRITERS.has(verb(word)) || OTHER_WRITERS.has(verb(word))) || (words.length > 0 && (WRITE_REDIRECT.test(command) || netWrites(command).length > 0))) {
+    for (const word of words) if (pathLike(word) && credentialStorePath(word, cwd) !== null) return word
   }
   return null
 }
@@ -1297,6 +1319,19 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       for (const home of homes) if (mercurySecretPath(word, home) !== null) return word
     }
   }
+  const words = unreadWords(read, command, powershell)
+  if (words.length > 0) {
+    const stands = namesMercuryHome('.', cwd, homes)
+    const needles = [...SECRET_NAME_SAMPLES, ...homes.flatMap(secretsHeld), ...homes.map(home => posix.basename(home))].map(name => name.toLowerCase())
+    for (const word of words) {
+      const lower = word.toLowerCase()
+      if (!needles.some(needle => lower.includes(needle)) && !/^[~$%]/.test(word) && !(stands && (word === '.' || word.startsWith('./') || GLOB_PART.test(word)))) continue
+      for (const candidate of spellingsOf(powershell ? standingSpelled(word) : word)) {
+        const names = mercurySecretPath(candidate, cwd) !== null || namesMercuryHome(candidate, cwd, homes) || (wordKnown(candidate) && couldNameSecret(candidate, cwd, homes)) || (!/^(?:[/~-]|[A-Za-z]:)/.test(candidate) && homes.some(home => mercurySecretPath(candidate, home) !== null))
+        if (names) return `${word} (${UNREAD_ADVICE})`
+      }
+    }
+  }
   return null
 }
 
@@ -1517,6 +1552,14 @@ async function readSelfProtection(command: string, powershell: boolean, cwd: str
           }
         }
       }
+    }
+  }
+  const words = unreadWords(read, command, powershell)
+  const removes = words.some(word => TREE_MOVERS.includes(verb(word)))
+  if (removes || words.some(word => WRITERS.has(verb(word)) || OTHER_WRITERS.has(verb(word)) || RUNTIME_WRITERS.has(verb(word))) || (words.length > 0 && WRITE_REDIRECT.test(command))) {
+    for (const word of words) {
+      const hit = pathLike(word) ? runtimeWritePath(word, cwd, removes) : null
+      if (hit !== null) return `${changing(word, hit)} ${UNREAD_ADVICE}.`
     }
   }
   return null

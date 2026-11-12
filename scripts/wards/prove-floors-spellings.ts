@@ -2127,6 +2127,107 @@ if (runs('REACH')) {
   await expect('REACH', call('PowerShell', { command: '[IO.File]::Copy(".\\other", "$HOME\\.ssh\\authorized_keys", $true)' }, 'the whole decision of the PowerShell tool'), ['sovereign', 'flow', 'default'], refused, 'is refused')
 }
 
+if (runs('UNREAD')) {
+  section("UNREAD · a line the reading cannot read is judged by its text: where the text names a floor's subject the floor refuses and says the line could not be read, and where it does not the answer is what it was")
+  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const shellRead = (await import('../../src/utils/wards/wardsShellRead.ts')) as Record<string, unknown>
+  const { refusalOfShellCommand } = await import('../../src/utils/wards/wardsRefusals.ts')
+  const seam = typeof shellRead.failShellReadingForTesting === 'function' ? (shellRead.failShellReadingForTesting as (fail: boolean) => void) : undefined
+  const PAD = 'x'.repeat(10100)
+  const ADVICE = 'Mercury could not read this command, so it was not checked: write it as separate, simpler commands'
+  type Harm = 'read' | 'write' | 'runtime'
+  const floorOf = (harm: Harm, line: string, powershell: boolean, from = PROJECT): Promise<string | null> =>
+    harm === 'read' ? floors.shellMercurySecretPath(line, powershell, from) : harm === 'write' ? floors.shellCredentialWritePath(line, powershell, from) : floors.shellSelfProtectionReason(line, powershell, from)
+  const failing = async <T>(run: () => Promise<T>): Promise<T | undefined> => {
+    if (seam === undefined) return undefined
+    seam(true)
+    try {
+      return await run()
+    } finally {
+      seam(false)
+    }
+  }
+  if (seam === undefined) check('UNREAD · the reading has a seam through which a proof makes it throw', false, 'failShellReadingForTesting is not exported by this tree')
+  else {
+    const thrown = await failing(() => (shellRead.readShellCommands as (text: string, dialect: string, world: unknown) => Promise<{ commands: unknown[]; unread?: { why: string } }>)('ls -la', 'posix', { cwd: PROJECT, home: OWN_HOME, homesRoot: '/Users', ownNames: [] }))
+    check('UNREAD · a reading that throws answers at its own boundary: it reads nothing and says the line could not be read', thrown !== undefined && thrown.commands.length === 0 && thrown.unread?.why === 'it could not be read', JSON.stringify(thrown))
+  }
+  const harms: Array<[Harm, boolean, string, boolean]> = [
+    ['read', false, 'cd <CONFIG> && cat *.json', true],
+    ['read', false, 'grep -r canary <CONFIG>', true],
+    ['write', false, 'echo x >> ~/.ssh/authorized_keys', false],
+    ['write', false, 'cd ~/.ssh && echo x >> authorized_keys', false],
+    ['runtime', false, 'rm -rf <CONFIG>/runtime', false],
+    ['runtime', false, 'cd <CONFIG>/runtime && tar -xf /tmp/a.tar', true],
+    ['read', true, 'cd <CONFIG>; gci | gc', true],
+    ['write', true, 'if ($true) { Set-Content ~\\.ssh\\authorized_keys x }', false],
+    ['runtime', true, 'if ($true) { Remove-Item -Recurse <CONFIG>\\runtime }', true],
+  ]
+  for (const [harm, powershell, plain, textOnly] of harms) {
+    const line = fill(plain)
+    const tool = powershell ? 'PowerShell' : 'the Bash tool'
+    check(`UNREAD · ${tool} · ${harm} · ${shown(line)} · control: the plain line is refused`, (await floorOf(harm, line, powershell)) !== null)
+    const shapes: Array<[string, string]> = powershell
+      ? [['nested past the count of scripts the reading reads', `${"iex 'x'; ".repeat(256)}iex '${line}'`]]
+      : [
+          ['padded past the 10,000 characters the shell parser reads', `${line}; : ${PAD}`],
+          ['nested past the count of scripts the reading reads', `${'bash -c true; '.repeat(256)}bash -c '${line}'`],
+          ['written as nested subshells with no space between the parentheses, which the shells accept and the parser rejects', `((${line}); true)`],
+          ['written in a backtick substitution inside a pattern of =~, which the shells accept and the parser rejects', `[[ x =~ a\`${line}\`b ]]`],
+        ]
+    for (const [shape, text] of shapes) {
+      const answer = await floorOf(harm, text, powershell)
+      check(`UNREAD · ${tool} · ${harm} · ${shown(line)} · ${shape} · is refused`, answer !== null, String(answer))
+      if (textOnly) check(`UNREAD · ${tool} · ${harm} · ${shown(line)} · ${shape} · the refusal says the line could not be read`, String(answer).includes(ADVICE), String(answer).slice(0, 200))
+    }
+    if (powershell) check(`UNREAD · PowerShell · ${harm} · ${shown(line)} · padded past 10,000 characters · control: that reading has no limit of length and the line is refused as before`, (await floorOf(harm, `${line}; Write-Output ${PAD}`, true)) !== null)
+    const thrown = await failing(() => floorOf(harm, line, powershell))
+    check(`UNREAD · ${tool} · ${harm} · ${shown(line)} · with the reading made to throw · is refused`, thrown !== undefined && thrown !== null, seam === undefined ? 'no seam in this tree' : String(thrown))
+    if (textOnly) check(`UNREAD · ${tool} · ${harm} · ${shown(line)} · with the reading made to throw · the refusal says the line could not be read`, String(thrown).includes(ADVICE), String(thrown).slice(0, 200))
+  }
+  for (const line of ['rm -rf ~', 'sudo ls']) {
+    const verdict = await failing(() => refusalOfShellCommand({ toolName: 'Bash', input: { command: line }, shellCommand: line, startingFolder: PROJECT }, PROJECT))
+    check(`UNREAD · the wards · ${shown(line)} · with the reading made to throw · is refused by the ward that reads the text`, verdict !== undefined && !verdict.allow, seam === undefined ? 'no seam in this tree' : 'allow')
+  }
+  const home = await failing(() => floors.shellSelfProtectionReason('Remove-Item -Recurse -Force ~', true, PROJECT))
+  check('UNREAD · PowerShell · "Remove-Item -Recurse -Force ~" · with the reading made to throw · the runtime floor refuses the delete of the home that holds the runtime', home !== undefined && home !== null, seam === undefined ? 'no seam in this tree' : String(home))
+  const ordinary: Array<[string, boolean]> = [
+    [`cat > notes.md <<'EOF'\n${PAD}\nEOF`, false],
+    [`echo ${PAD}`, false],
+    ['echo "an open quote and nothing else', false],
+    ['((echo first); echo second)', false],
+    ['[[ $x =~ a`date`b ]] && echo matched', false],
+    [`git log --oneline | head -5; : ${PAD}`, false],
+    [`ls ~/.ssh; : ${PAD}`, false],
+    [`cat ~/.ssh/config; : ${PAD}`, false],
+    [`grep -r TODO .; : ${PAD}`, false],
+    [`rm -rf ./build; : ${PAD}`, false],
+    [`tar -xf a.tar -C build; : ${PAD}`, false],
+    [`${'bash -c true; '.repeat(256)}bash -c 'ls -la docs'`, false],
+    [`${"iex 'x'; ".repeat(256)}iex 'Get-ChildItem .\\docs'`, true],
+    [`${"iex 'x'; ".repeat(256)}iex 'Set-Content .\\notes.txt x'`, true],
+  ]
+  for (const [line, powershell] of ordinary) {
+    const answers = [await floorOf('read', line, powershell), await floorOf('write', line, powershell), await floorOf('runtime', line, powershell)]
+    check(`UNREAD · ${powershell ? 'PowerShell' : 'the Bash tool'} · ${shown(line.replace(/x{100,}/, 'x…').replace(/(?:bash -c true; |iex 'x'; ){3,}/, '… '))} · an ordinary line the reading cannot read, whose text names no floor's subject: the three floors answer as before`, answers.every(answer => answer === null), answers.map(String).join(' · ').slice(0, 240))
+  }
+  for (const [line, powershell] of [['ls -la', false], ['git status', false], ['cat notes.txt', false], ['rm -rf ./build', false], ['echo x > notes.txt', false], ['Get-ChildItem .\\docs', true], ['Set-Content .\\notes.txt x', true], ['Remove-Item -Recurse .\\build', true]] as Array<[string, boolean]>) {
+    const answers = await failing(async () => [await floorOf('read', line, powershell), await floorOf('write', line, powershell), await floorOf('runtime', line, powershell)])
+    const ward = await failing(() => refusalOfShellCommand({ toolName: powershell ? 'PowerShell' : 'Bash', input: { command: line }, shellCommand: line, startingFolder: PROJECT }, PROJECT))
+    check(`UNREAD · ${powershell ? 'PowerShell' : 'the Bash tool'} · ${shown(line)} · with the reading made to throw · an ordinary line: the three floors and the wards do not refuse it`, answers !== undefined && answers.every(answer => answer === null) && ward !== undefined && ward.allow, seam === undefined ? 'no seam in this tree' : `${(answers ?? []).map(String).join(' · ')} · ward ${ward?.allow}`)
+  }
+  const told = await failing(async () => [await reading(bash('cd <CONFIG> && cat *.json'), 'sovereign'), await reading(call('PowerShell', { command: 'if ($true) { Set-Content ~\\.ssh\\authorized_keys x }' }), 'sovereign'), await reading(bash('cd <CONFIG>/runtime && tar -xf /tmp/a.tar'), 'default')])
+  for (const [at, pattern] of [
+    /^Reading .+ \(Mercury could not read this command, so it was not checked: write it as separate, simpler commands\) is refused: it holds Mercury's own credentials; use the product's sign-in and account surfaces instead\.$/,
+    /^Writing ~\\\.ssh\\authorized_keys is refused: \S+ is a protected system or credential path\.$/,
+    /^Changing .+ is refused: .+ is part of Mercury’s running runtime\. Mercury could not read this command, so it was not checked: write it as separate, simpler commands\.$/,
+  ].entries()) {
+    const decision = told?.[at]?.decision
+    check(`UNREAD · the whole decision · the ${['read floor refuses in its own sentence with the one clause added', 'credential-store floor refuses in its own sentence, which its caller words from the path alone', 'runtime floor refuses in its own sentence with the one clause added'][at]}`, decision !== undefined && decision.behavior === 'deny' && pattern.test(decision.message ?? ''), decision === undefined ? 'no seam in this tree' : said(decision))
+    if (decision !== undefined) note(`the ${['read', 'credential-store', 'runtime'][at]} floor says: ${(decision.message ?? '').replaceAll(CONFIG_HOME, '<config>').replaceAll(OWN_HOME, '<home>')}`)
+  }
+}
+
 if (runs('T-3.5')) {
   const state = daemonStatePath()
   section('T-3.5 floor 4: kills of the daemon and of the session, and writes into the runtime, under Sovereign and Flow')
