@@ -3,7 +3,7 @@
 import { spawnSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { markEpochs, runArtifactArena, type ArenaRun } from './artifactArena.ts'
+import { firstPtyVisibility, markEpochs, runArtifactArena, type ArenaRun } from './artifactArena.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -53,34 +53,46 @@ console.log('── FLUX S6 viewport anchoring + scroll continuity (shipped arti
 }
 
 {
-  const WHEEL = '\\x1b[<64;60;20M'
+  const WHEEL = '\x1b[<64;60;20M'
   const run = await runArtifactArena({
     turns: [{ kind: 'paced', deltas, gapMs: vshotBudgetMs(40), settleDelayMs: vshotBudgetMs(1500), whenModel: 'opus' }],
     sends: [
       '4500:hello',
       '5300:\\r',
-      `9600:${WHEEL}`,
-      `9800:${WHEEL}`,
-      `10000:${WHEEL}`,
-      `10200:${WHEEL}`,
+      { awaitText: 'vp-line-48', settleMs: 0, text: WHEEL },
+      { awaitText: '[ back to the bottom', settleMs: 0, afterPrevMs: 160, text: WHEEL },
+      { awaitText: '[ back to the bottom', settleMs: 0, afterPrevMs: 160, text: WHEEL },
+      { awaitText: '[ back to the bottom', settleMs: 0, afterPrevMs: 160, text: WHEEL },
     ],
-    seconds: 16,
+    seconds: 20,
     probe: true,
     keep: true,
   })
-  const boot = run.teeLines[0]?.ts ?? 0
+  const boot = run.ptyReads[0]?.ts ?? NaN
   const wheelAtDrive = run.sendLog.filter(s =>
     Buffer.from(s.b64, 'base64').toString('utf8').includes('[<64'),
   )
   const lastWheelTs = Math.max(...wheelAtDrive.map(s => s.sent))
   const streamEnd = (run.fixture.pacedEmits.at(-1)?.at ?? 0) - boot
-  const SETTLE_AT = streamEnd + 1500
+  const SETTLE_AT = streamEnd + vshotBudgetMs(1500)
+  const readyRead = Number.isFinite(boot) ? firstPtyVisibility(run.ptyReads, 'ready·', boot + SETTLE_AT) : undefined
+  const afterSettleAt = readyRead ? Math.max(SETTLE_AT + 250, readyRead.ts - boot + 150) : SETTLE_AT + vshotBudgetMs(750)
   const [beforeSettle, afterSettle, fin] = screens(run, [
     SETTLE_AT - 200,
-    SETTLE_AT + 250,
+    afterSettleAt,
     -1,
   ])
   check('SCROLL scene: wheels delivered', wheelAtDrive.length === 4, `${wheelAtDrive.length}`)
+  const beforeFlat = flat(beforeSettle!.rows)
+  const afterFlat = flat(afterSettle!.rows)
+  check(
+    'SCROLL scene: before-settle precedes the settle swap and after-settle follows it',
+    Number.isFinite(boot) &&
+      beforeFlat.includes('[ back to the bottom · alt+↓ ]') &&
+      !beforeFlat.includes('ready · ') &&
+      afterFlat.includes('ready · '),
+    `boot=${boot} settleAt=${SETTLE_AT} afterSettleAt=${afterSettleAt}`,
+  )
 
   const unsticks = run.probe
     ? markEpochs(run.probe, 'scroll:unstick').filter(t => t >= lastWheelTs - 1500).length
