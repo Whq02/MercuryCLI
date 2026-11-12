@@ -73,7 +73,8 @@ section('§2 · render shapes (THE ORDER LAW by index)')
     check(
       `note teaches the order law + runs-are-yours (${p.label})`,
       (p.blenderHeadless?.note ?? '').includes('IN ORDER') &&
-        (p.blenderHeadless?.note ?? '').includes('never launches Blender'),
+        (p.blenderHeadless?.note ?? '').includes('these profiles are printed, never run for you') &&
+        !(p.blenderHeadless?.note ?? '').includes('never launches Blender'),
     )
   }
   check(

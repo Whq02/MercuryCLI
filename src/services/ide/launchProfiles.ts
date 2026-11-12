@@ -584,7 +584,7 @@ export async function discoverLaunchProfiles(from: string = getCwd()): Promise<L
         }
       }
       const ORDER_NOTE =
-        'blender arguments execute IN ORDER (output is set before the frame renders — reversed, the render lands in the wrong place); runs are yours to start: Mercury locates but never launches Blender.'
+        'blender arguments execute IN ORDER (output is set before the frame renders — reversed, the render lands in the wrong place); runs are yours to start: these profiles are printed, never run for you (the Blender tool starts Blender itself, with no window).'
       const BLEND_PROFILE_FILE_CAP = 10
       for (const rel of ctx.blendFiles.files.slice(0, BLEND_PROFILE_FILE_CAP)) {
         const abs = path.join(ctx.from, rel)
