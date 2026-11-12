@@ -88,6 +88,11 @@ section('registry floor — rows ⊆ FLAG_REGISTRY, sane choices')
   check('the samples row is a toggle, off by default, 1 its one value, in its own group directly after the access-type row',
     samplesAt === accessAt + 1 && STARTUP_MENU[samplesAt]!.kind === 'toggle' && STARTUP_MENU[samplesAt]!.defaultLabel === 'off' && STARTUP_MENU[samplesAt]!.options.join(',') === '1' && STARTUP_MENU[samplesAt]!.group === 'samples' && STARTUP_MENU[samplesAt]!.label === 'Samples' && STARTUP_MENU[samplesAt]!.applicationClass === undefined)
   check('the samples row\'s foot line says what a sample is', /a page the model draws when you ask to see something/.test(STARTUP_MENU[samplesAt]?.summary ?? '') && /your marks/.test(STARTUP_MENU[samplesAt]?.summary ?? ''))
+  const blender = STARTUP_MENU.find(r => r.env === 'MERCURY_BLENDER')
+  const blenderPolicy = 'Mercury never installs or enables Blender, and starts it only with no window, when the Blender tool is called'
+  check('the Blender row states the windowless tool launch policy in its foot line and detail',
+    (blender?.summary ?? '').endsWith(blenderPolicy) && (blender?.detail?.controls ?? '').endsWith(`${blenderPolicy}.`),
+    blender?.summary)
   const enterMenu = getFlagSpec('MERCURY_ENTER_MENU')
   check('MERCURY_ENTER_MENU registered default-on / infra, consumed by the applier',
     enterMenu?.kind === 'default-on' && enterMenu?.tier === 'infra' && enterMenu?.consumer === 'src/substrate/startupMenu.ts')
