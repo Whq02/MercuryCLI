@@ -466,6 +466,57 @@ process.exit(process.argv[3] === 'red' ? 1 : 0);
             nonZombieAlive(decoyWinAfter) && nonZombieAlive(decoyWinNeigh) && !nonZombieAlive(winOwned),
             `afterAlive=${nonZombieAlive(decoyWinAfter)} neighAlive=${nonZombieAlive(decoyWinNeigh)} ownedAlive=${nonZombieAlive(winOwned)} out=${winRun.stdout?.trim()}`,
           )
+
+          const scratchBoundaryDir = join(short, 'scratch-bound')
+          mkdirSync(join(scratchBoundaryDir, 'daemon'), { recursive: true })
+          const decoyScratchNeigh = await spawnDecoy(`${scratchBoundaryDir}-x/home/y`)
+          writeFileSync(join(scratchBoundaryDir, 'daemon', 'daemon.json'), JSON.stringify({ pid: decoyScratchNeigh }))
+          scratchMod.reapDaemonFoldersSync([scratchBoundaryDir], 300)
+          check(
+            'scratch root neighbour (<scratch>-x/home/y) is left alive when reaping markers in <scratch>',
+            nonZombieAlive(decoyScratchNeigh),
+            `pid=${decoyScratchNeigh}`,
+          )
+
+          const scratchBoundaryRm = join(short, 'scratch-bound-rm')
+          mkdirSync(scratchBoundaryRm, { recursive: true })
+          const decoyScratchRmNeigh = await spawnDecoy(`${scratchBoundaryRm}-x/home/y`)
+          const childInScratch = await spawnDecoy(`${scratchBoundaryRm}/home/own`)
+          scratchMod.reapThenRemove([decoyScratchRmNeigh, childInScratch], [scratchBoundaryRm], { graceMs: 300, notAfterMs: Date.now() })
+          check(
+            'reapThenRemove enforces the scratch-root boundary (<scratch>-x left alive, <scratch>/home/own reaped)',
+            nonZombieAlive(decoyScratchRmNeigh) && !nonZombieAlive(childInScratch),
+            `neighAlive=${nonZombieAlive(decoyScratchRmNeigh)} ownAlive=${nonZombieAlive(childInScratch)}`,
+          )
+
+          const agedScratch = join(short, 'aged-explicit')
+          mkdirSync(agedScratch, { recursive: true })
+          await new Promise(r => setTimeout(r, 2500))
+          const decoyBornAfterScratch = await spawnDecoy(join(root, 'dist', 'x'))
+          scratchMod.reapThenRemove([decoyBornAfterScratch], [agedScratch], { graceMs: 300 })
+          check(
+            'reapThenRemove with default options bounds explicit pids by the scratch creation time (a process born 2.5 s after scratch creation is left alive)',
+            nonZombieAlive(decoyBornAfterScratch) && !existsSync(agedScratch),
+            `alive=${nonZombieAlive(decoyBornAfterScratch)} stood=${existsSync(agedScratch)}`,
+          )
+
+          const unstampedDecoy = await spawnDecoy(join(root, 'dist', 'x'))
+          const noBoundRun = spawnSync(
+            nodeBin,
+            [
+              '-e',
+              `const m = require(${JSON.stringify(join(root, 'scripts/lib/proofScratch.cjs'))}); m.reapThenRemove([${unstampedDecoy}], [${JSON.stringify(join(short, 'never-existed-dir'))}], { graceMs: 300 });`,
+            ],
+            { encoding: 'utf8' },
+          )
+          check(
+            'reapThenRemove with no scratch creation stamp and no notAfterMs leaves explicit pids untouched and writes one line on stderr naming the pid',
+            noBoundRun.status === 0 &&
+              nonZombieAlive(unstampedDecoy) &&
+              (noBoundRun.stderr ?? '').trim().split('\n').length === 1 &&
+              (noBoundRun.stderr ?? '').includes(String(unstampedDecoy)),
+            `rc=${noBoundRun.status} alive=${nonZombieAlive(unstampedDecoy)} stderr=${JSON.stringify(noBoundRun.stderr)}`,
+          )
         } finally {
           for (const pid of decoyPids) {
             try {

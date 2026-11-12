@@ -9,16 +9,28 @@ const SINGLE_RUN_OWNER = 'MERCURY_SUITE_OF_ONE'
 const SIGNAL_EXITS = [['SIGTERM', 143], ['SIGINT', 130], ['SIGHUP', 129]]
 const folders = new Set()
 const kept = new Set()
+const folderBornAtMs = new Map()
 let installed = false
 let ownRoot = ''
 let madeRoot = false
 let stopped = false
+function noteScratchBirth(folder) {
+  if (!folder) return
+  const key = String(folder)
+  const now = Date.now()
+  if (!folderBornAtMs.has(key)) folderBornAtMs.set(key, now)
+  try {
+    const canon = fs.realpathSync(key)
+    if (!folderBornAtMs.has(canon)) folderBornAtMs.set(canon, now)
+  } catch {}
+}
 function keepAsked() {
   if (process.argv.some(word => word === '--keep' || word.startsWith('--keep-') || word.startsWith('--keep='))) return true
   return Object.entries(process.env).some(([name, value]) => /(?:^|_)KEEP(?:_FIXTURE|_SCRATCH)?$/.test(name) && value !== undefined && value !== '' && value !== '0' && value !== 'false')
 }
 function registerProofScratch(folder) {
   folders.add(folder)
+  noteScratchBirth(folder)
   return folder
 }
 function keepProofScratch(folder) {
@@ -119,11 +131,13 @@ function installProofScratch(options = {}) {
   const outside = adopted ? path.dirname(inherited) : inherited
   if (adopted) {
     ownRoot = inherited
+    noteScratchBirth(ownRoot)
   } else if (!guest) {
     const base = runRootBase(inherited, options.ownHome === true)
     if (base) {
       try {
         ownRoot = sync(path.join(base, RUN_ROOT_PREFIX))
+        noteScratchBirth(ownRoot)
         madeRoot = true
         process.env.TMPDIR = ownRoot
         process.env.MERCURY_TMPDIR = ownRoot
@@ -133,6 +147,7 @@ function installProofScratch(options = {}) {
     } else if (process.platform === 'win32' && !process.env.MERCURY_TMPDIR) {
       try {
         ownRoot = sync(path.join(inherited, RUN_ROOT_PREFIX))
+        noteScratchBirth(ownRoot)
         process.env.MERCURY_TMPDIR = ownRoot
       } catch {
         ownRoot = ''
@@ -270,24 +285,67 @@ function inspectProcess(pid) {
   }
   return pidAlive(pid) ? { state: 'unreadable' } : { state: 'gone' }
 }
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+function hasBoundedScratchRoot(command, root, win32) {
+  const clean = String(root || '').replace(/[\\/]+$/, '')
+  if (!clean) return false
+  if (win32) {
+    const pattern = new RegExp(escapeRegex(clean.replace(/\//g, '\\')) + '(?:\\\\|$|[\\s"\'])', 'i')
+    return pattern.test(String(command).replace(/\//g, '\\'))
+  }
+  const pattern = new RegExp(escapeRegex(clean) + '(?:/|$|[\\s"\'])')
+  return pattern.test(command)
+}
 function commandMatchesScratchOrRepo(command, roots) {
   if (!command) return false
   const repoRoot = path.resolve(__dirname, '..', '..')
   if (process.platform === 'win32') {
     const norm = s => String(s).replace(/\//g, '\\').toLowerCase().replace(/\\+$/, '')
     const cmdNorm = String(command).replace(/\//g, '\\').toLowerCase()
-    if (roots.some(root => root && cmdNorm.includes(norm(root)))) return true
+    if (roots.some(root => hasBoundedScratchRoot(command, root, true))) return true
     return cmdNorm.includes(norm(repoRoot) + '\\')
   }
-  if (roots.some(root => root && command.includes(root))) return true
+  if (roots.some(root => hasBoundedScratchRoot(command, root, false))) return true
   return command.includes(repoRoot + path.sep)
 }
-function ownedByScratch(pid, roots, notAfterMs = Date.now()) {
+function folderBirthBoundMs(list) {
+  let latest = -Infinity
+  for (const raw of list) {
+    if (!raw) continue
+    const folder = String(raw)
+    const registered = folderBornAtMs.get(folder)
+    if (typeof registered === 'number' && Number.isFinite(registered)) {
+      if (registered > latest) latest = registered
+      continue
+    }
+    try {
+      const canon = fs.realpathSync(folder)
+      const regCanon = folderBornAtMs.get(canon)
+      if (typeof regCanon === 'number' && Number.isFinite(regCanon)) {
+        if (regCanon > latest) latest = regCanon
+        continue
+      }
+    } catch {}
+    try {
+      const st = fs.statSync(folder)
+      if (typeof st.birthtimeMs === 'number' && Number.isFinite(st.birthtimeMs) && st.birthtimeMs > 0) {
+        if (st.birthtimeMs > latest) latest = st.birthtimeMs
+      }
+    } catch {}
+  }
+  return Number.isFinite(latest) ? latest : NaN
+}
+function ownedByScratch(pid, roots, notAfterMs) {
   if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid || pid === process.ppid) return false
   if (process.env.MERCURY_SUITE_RUNNER_PID && String(pid) === process.env.MERCURY_SUITE_RUNNER_PID) return false
-  if (!Number.isFinite(notAfterMs)) return false
   const info = inspectProcess(pid)
   if (info.state === 'gone') return false
+  if (!Number.isFinite(notAfterMs)) {
+    process.stderr.write(`proof scratch: birth bound unavailable for pid ${pid}; leaving it untouched\n`)
+    return false
+  }
   if (info.state === 'unreadable') {
     process.stderr.write(`proof scratch: birth time unreadable for pid ${pid}; leaving it untouched\n`)
     return false
@@ -405,8 +463,8 @@ function reapDaemonFoldersSync(targetFolders, graceMs = 1500) {
 }
 function reapThenRemove(pids, targetFolders, opts = {}) {
   const graceMs = opts && typeof opts.graceMs === 'number' ? opts.graceMs : 1500
-  const notAfterMs = opts && typeof opts.notAfterMs === 'number' ? opts.notAfterMs : Date.now()
   const list = Array.isArray(targetFolders) ? targetFolders : [targetFolders]
+  const notAfterMs = opts && typeof opts.notAfterMs === 'number' ? opts.notAfterMs : folderBirthBoundMs(list)
   const roots = []
   for (const raw of list) {
     if (!raw) continue
