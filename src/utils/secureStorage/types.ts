@@ -18,3 +18,13 @@ export interface SecureStorage {
   update(data: SecureStorageData): { success: boolean; warning?: string; code?: string }
   delete(): boolean
 }
+
+export type ProtectorAnswer = { ok: true; bytes: Buffer } | { ok: false; why: string; final: boolean }
+
+export interface SystemProtector {
+  readonly scheme: string
+  protect(secret: Buffer): ProtectorAnswer
+  unprotect(token: Buffer): ProtectorAnswer
+  protectAsync(secret: Buffer): Promise<ProtectorAnswer>
+  unprotectAsync(token: Buffer): Promise<ProtectorAnswer>
+}

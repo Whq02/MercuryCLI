@@ -1,7 +1,10 @@
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { createFallbackStorage } from './fallbackStorage.js'
+import { fileStorageFor } from './fileStorage.js'
 import { keychainReachable } from './macOsKeychainHelpers.js'
 import { macOsKeychainStorage } from './macOsKeychainStorage.js'
 import { plainTextStorage } from './plainTextStorage.js'
+import { systemProtectorFor } from './systemProtector.js'
 import type { SecureStorage, SecureStorageData } from './types.js'
 
 
@@ -30,7 +33,7 @@ export function getSecureStorage(): SecureStorage {
   if (keychainReachable()) {
     return createFallbackStorage(macOsKeychainStorage, plainTextStorage)
   }
-  return plainTextStorage
+  return fileStorageFor(systemProtectorFor(process.platform, flagEnv('MERCURY_CREDENTIAL_STORE')))
 }
 
 export function removeSecureStorageField<K extends keyof SecureStorageData>(
