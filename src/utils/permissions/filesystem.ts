@@ -719,9 +719,27 @@ export function pathMatchesRulePattern(path: string, pattern: string, source: Pe
   return ignore().add(stripped).test(relative).ignored
 }
 
+function ripgrepSpelling(text: string): string | null {
+  if (text.startsWith('!') || text.startsWith('#') || text.includes('\\')) return null
+  let spelled = ''
+  for (let at = 0; at < text.length; at++) {
+    const char = text[at]!
+    if (char === '{' || char === '}') spelled += `[${char}]`
+    else if (char !== '[') spelled += char
+    else {
+      const close = text.indexOf(']', at + 1)
+      const body = close === -1 ? '' : text.slice(at + 1, close).replace(/^[!^]/, '')
+      if (body === '' || body.includes('/') || [...body.matchAll(/(.)-(.)/g)].some(range => range[1]! > range[2]!)) return null
+      spelled += text.slice(at, close + 1)
+      at = close
+    }
+  }
+  return spelled
+}
+
 function ruleSegments(pattern: string): string[] | null {
   const segments = pattern.split('/').filter(segment => segment !== '' && segment !== '.')
-  if (segments.length === 0 || segments.some(segment => segment === '..' || segment.startsWith('!') || segment.startsWith('#') || segment.includes('\\'))) return null
+  if (segments.length === 0 || segments.some(segment => segment === '..' || ripgrepSpelling(segment) === null)) return null
   return segments
 }
 
@@ -755,8 +773,8 @@ function escapeGlobSegment(name: string): string {
   return name.replace(/[*?[\]{}!\\]/g, '\\$&')
 }
 
-function globsUnderRoot(segments: readonly string[], folderOnly: boolean): string[] {
-  const named = segments[segments.length - 1] === '**' ? segments.slice(0, -1) : segments
+function globsUnderRoot(prefix: readonly string[], segments: readonly string[], folderOnly: boolean): string[] {
+  const named = [...prefix, ...(segments[segments.length - 1] === '**' ? segments.slice(0, -1) : segments).map(segment => ripgrepSpelling(segment) ?? segment)]
   if (named.length === 0) return ['/**']
   return folderOnly ? [`/${named.join('/')}/**`] : [`/${named.join('/')}`, `/${named.join('/')}/**`]
 }
@@ -773,12 +791,12 @@ export function normalizePatternsToPath(
     const below = relativePath(root, patternRoot)
     if (!relativePathEscapes(below)) {
       const prefix = below === '' ? [] : below.split('/').map(escapeGlobSegment)
-      for (const glob of globsUnderRoot([...prefix, ...segments], folderOnly)) results.add(glob)
+      for (const glob of globsUnderRoot(prefix, segments, folderOnly)) results.add(glob)
       return
     }
     const above = relativePath(patternRoot, root)
     if (relativePathEscapes(above) || !pattern.includes('/')) return
-    for (const rest of segmentsBelow(segments, above.split('/'))) for (const glob of globsUnderRoot(rest, folderOnly)) results.add(glob)
+    for (const rest of segmentsBelow(segments, above.split('/'))) for (const glob of globsUnderRoot([], rest, folderOnly)) results.add(glob)
   }
   for (const [patternRoot, patterns] of patternsByRoot) {
     for (const pattern of patterns) {
@@ -786,7 +804,8 @@ export function normalizePatternsToPath(
         rooted(patternRoot, pattern)
         continue
       }
-      results.add(pattern)
+      const written = ripgrepSpelling(pattern)
+      if (written !== null) results.add(written)
       if (pattern.replace(/\/+$/, '').includes('/')) for (const base of cwdForms()) rooted(base, pattern)
     }
   }

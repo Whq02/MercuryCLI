@@ -187,6 +187,51 @@ console.log('letter case, a link into the denied folder, and .. in the path: the
   check('.. in the path searched: the same answer as the plain path', dotted.every(answer => DENIED.every(file => !shows(answer, file)) && NEIGHBOURS.every(file => shows(answer, file))), dotted.join('\n---\n'))
 }
 
+console.log('the other half: a rule hides no more than a direct Read refuses, where ripgrep reads a rule\'s text otherwise than the rule\'s matcher does')
+const strangeRed: string[] = []
+const STRANGE: Array<[string, string, string | null]> = [
+  ['braces, from the root', 'Read(/src/{secret,open}/**)', '{secret,open}/keys.ts'],
+  ['braces, relative', 'Read(src/{secret,open}/**)', '{secret,open}/keys.ts'],
+  ['braces, absolute', `Read(//${project.replace(/^\/+/, '')}/src/{secret,open}/**)`, '{secret,open}/keys.ts'],
+  ['braces, home', 'Read(~/project/src/{secret,open}/**)', '{secret,open}/keys.ts'],
+  ['a brace never closed', 'Read(/src/{vault/**)', '{vault/keys.ts'],
+  ['a brace never closed, relative', 'Read(src/{vault/**)', '{vault/keys.ts'],
+  ['a class never closed', 'Read(/src/[vault/**)', '[vault/keys.ts'],
+  ['a class never closed, relative', 'Read(src/[vault/**)', '[vault/keys.ts'],
+  ['a range written backwards', 'Read(/src/[z-a]ault/**)', null],
+  ['a backslash before a question mark, relative', 'Read(src/vaul\\?/**)', 'vaul?/keys.ts'],
+  ['a rule that begins with a bang, relative', 'Read(!vault/**)', '!vault/keys.ts'],
+  ['a class, which both read alike', 'Read(/src/secre[t]/**)', null],
+  ['a negated class, which both read alike', 'Read(/src/secre[!x]/**)', null],
+]
+for (const [label, rule, strange] of STRANGE) {
+  let planted = strange
+  if (strange !== null) {
+    try {
+      mkdirSync(dirname(join(project, 'src', strange)), { recursive: true })
+      writeFileSync(join(project, 'src', strange), 'export const token = "needle in a folder with a strange name"\n')
+    } catch {
+      planted = null
+    }
+  }
+  permissions.getResolvedWorkingDirPaths.clearCache()
+  const permission = deny(rule)
+  const files = [...DENIED, ...NEIGHBOURS, ...(planted !== null ? [planted] : [])]
+  const cells: string[] = []
+  for (const [start, path] of STARTS) {
+    for (const [tool, run] of TOOLS) {
+      const answer = await run(path, permission).catch((error: unknown) => `the search failed: ${String(error)}`)
+      const apart = files.filter(file => shows(answer, file) !== (directRead(join(project, 'src', file), permission) !== 'deny'))
+      if (apart.length === 0) continue
+      strangeRed.push(`${label} · ${start} · ${tool}`)
+      cells.push(`${tool} from ${start} ${answer.startsWith('the search failed') ? 'FAILS' : apart.map(file => `${shows(answer, file) ? 'SHOWS' : 'LOSES'} ${file}`).join(', ')}`)
+    }
+  }
+  check(`${label} ${rule.replace(project.replace(/^\/+/, ''), '<project>')}: in the fifteen answers a file is there exactly when its direct Read is not denied`, cells.length === 0, cells.join(' | '))
+  if (planted !== null) rmSync(join(project, 'src', planted.slice(0, planted.indexOf('/'))), { recursive: true, force: true })
+}
+console.log(`  (${strangeRed.length} of ${STRANGE.length * STARTS.length * TOOLS.length} cells red)`)
+
 console.log('one decision: what hides a file from a search is what denies its direct Read')
 {
   const filter = (permissions as { readDenialFilter?: (permission: Permission, root: string) => (file: string) => boolean }).readDenialFilter
@@ -248,11 +293,22 @@ console.log('the globs: ripgrep is kept out of a denied folder wherever the sear
     ['a bare name under its root stays that root\'s own child', HOME, '.credentials.json', world, ['/home/.credentials.json', '/home/.credentials.json/**']],
     ['a bare name is not carried into a folder below its root', HOME, '*-auth.json', join(HOME, 'tmp'), []],
     ['a folder whose name holds a glob character is escaped', join(project, 'a[1]'), '/x/**', project, ['/a\\[1\\]/x', '/a\\[1\\]/x/**']],
+    ['braces are written as the letters the direct Read takes them for', project, '/src/{secret,a}/**', project, ['/src/[{]secret,a[}]', '/src/[{]secret,a[}]/**']],
+    ['a brace never closed is a letter too', project, '/src/{x/**', join(project, 'src'), ['/[{]x', '/[{]x/**']],
+    ['a class goes as written, its braces untouched', project, '/src/secre[!x{]/**', project, ['/src/secre[!x{]', '/src/secre[!x{]/**']],
+    ['a class never closed gives no glob: the rule matches nothing', project, '/src/[x/**', project, []],
+    ['an empty class gives no glob', project, '/src/[]a]/**', project, []],
+    ['a class that is only a negation gives no glob', project, '/src/[!]/**', project, []],
+    ['a range written backwards gives no glob', project, '/src/[z-a]/**', project, []],
+    ['a backslash gives no glob', project, '/src/q\\?/**', project, []],
   ]
   const wrong = cases.filter(([, root, pattern, start, expected]) => globs(root, pattern, start) !== JSON.stringify([...expected].sort())).map(([label, root, pattern, start]) => `${label}: ${globs(root, pattern, start)}`)
   check(`${cases.length} rules and starts: each gives exactly the globs that name the denied paths below the start, and none where the rule cannot reach`, wrong.length === 0, wrong.join(' | '))
   check('a rule with no leading slash is still given as written, and is also anchored at the working folder', globs(null, 'src/secret/**', join(project, 'src')) === JSON.stringify(['/secret', '/secret/**', 'src/secret/**']), globs(null, 'src/secret/**', join(project, 'src')))
   check('a bare name with no root is given as written: any depth, as before', globs(null, 'more.ts', join(project, 'src')) === JSON.stringify(['more.ts']), globs(null, 'more.ts', join(project, 'src')))
+  check('a rule with no leading slash has its braces written as letters too', globs(null, 'src/{secret,a}/**', project) === JSON.stringify(['/src/[{]secret,a[}]', '/src/[{]secret,a[}]/**', 'src/[{]secret,a[}]/**']), globs(null, 'src/{secret,a}/**', project))
+  const none = ['src/q\\?/**', '!secret/**', '#secret/**', 'src/[x/**', 'src/[a/b]/**'].filter(pattern => globs(null, pattern, project) !== '[]')
+  check('a rule with no leading slash that holds a backslash, begins with a bang or a hash, or leaves a class open gives no glob', none.length === 0, none.map(pattern => `${pattern}: ${globs(null, pattern, project)}`).join(' | '))
   const platform = await import(`${SRC}/utils/platform.ts`)
   const cache = (platform.getPlatform as unknown as { cache: Map<unknown, unknown> }).cache
   const had = cache.has(undefined)
