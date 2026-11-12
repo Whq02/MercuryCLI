@@ -344,6 +344,28 @@ if (runs('TREE')) {
     bash("find ~ -name '*.json' -exec ls -l {} +", 'a listing of what find found'),
   ]
   for (const item of clear) await expect('TREE', item, ['sovereign'], notRefused, 'is not refused by the floor')
+  const gitGrep: Call[] = [
+    bash('git -C <CONFIG> grep --no-index secret', "git's search of files it does not track, its folder given by -C"),
+    bash('cd <CONFIG>/.. && git grep --no-index secret -- config', 'from the folder above the store, the store named after the two dashes'),
+    bash('cd <CONFIG>/.. && git grep --no-index secret', 'with no path it reads every folder beneath, the dot-led ones too'),
+    bash('cd ~ && git grep --no-index secret', 'the home'),
+    bash('git -C ~ grep --no-index secret'),
+    bash('git grep --no-index secret ~'),
+    bash('cd ~ && git grep --no-ind secret', 'the flag cut short'),
+    bash('cd ~ && git grep --no-index -e secret -e token', 'patterns behind their option, no path among them'),
+    bash("cd ~ && git grep --no-index secret -- '*.json'", 'a pattern git itself matches at any depth'),
+  ]
+  for (const item of gitGrep) await expect('TREE', item, ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
+  const gitHere = await reading(bash('cd ~ && git grep --no-index secret'), 'sovereign')
+  check("TREE · git's search with no path names the folder the command runs in", /^Reading the whole of this folder \(name a folder beneath it\) is refused: it holds Mercury's own credentials/.test(gitHere.decision.message ?? ''), said(gitHere.decision))
+  const gitClear: Call[] = [
+    bash('cd ~ && git grep --no-index secret Documents', 'a folder beneath the home, named'),
+    bash('cd ~ && git grep --no-index -e secret -- Documents notes.txt', 'a folder and a file beneath it, after the two dashes'),
+    bash('cd ~ && git grep secret', "git's search of the files it tracks"),
+    bash('git grep --no-index plain', 'the project'),
+    bash('git -C docs grep --no-index plain', 'a folder of the project by -C'),
+  ]
+  for (const item of gitClear) await expect('TREE', item, ['sovereign'], notRefused, 'is not refused by the floor')
   process.env.RIPGREP_CONFIG_PATH = '/tmp/rc'
   await expect('TREE', bash('rg token ~', 'a ripgrep config file named in the environment'), ['sovereign'], refusedAsSecret, 'is refused as a read of the credentials')
   await expect('TREE', bash('rg --no-config token ~', 'the same with the config file set aside'), ['sovereign'], notRefused, 'is not refused by the floor')

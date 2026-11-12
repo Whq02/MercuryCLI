@@ -566,6 +566,42 @@ function underOtherHomes(word: string, homes: readonly string[]): string[] {
   return homes.map(home => home + word.slice(1))
 }
 
+function gitUnindexedGrep(layer: Layer): { folder: string | undefined; rest: string[] } | undefined {
+  if (layer.program !== 'git') return undefined
+  const words = layer.argv
+  let folder: string | undefined
+  let at = 1
+  for (; at < words.length && words[at]!.startsWith('-'); at += GIT_OPTION_VALUED.has(words[at]!) ? 2 : 1) {
+    const named = words[at] === '-C' ? words[at + 1] : undefined
+    if (named !== undefined) folder = folder === undefined || /^(?:[/~]|[A-Za-z]:)/.test(named) ? named : `${folder}/${named}`
+  }
+  const rest = words.slice(at + 1)
+  return words[at] === 'grep' && rest.some(word => /^--no-ind(?:e(?:x)?)?$/.test(word)) ? { folder, rest } : undefined
+}
+
+const GIT_GREP_VALUED = /^(?:-[A-Za-z]*[efABCm]|--(?:max-depth|max-count|threads|context|after-context|before-context|parent-basename))$/
+
+function gitGrepRoots(layer: Layer, cwd: string): string[] | undefined {
+  const grep = gitUnindexedGrep(layer)
+  if (grep === undefined) return undefined
+  const { folder, rest } = grep
+  const under = (root: string): string => (folder === undefined || /^(?:[/~]|[A-Za-z]:)/.test(root) ? root : root === '.' ? folder : `${folder}/${root}`)
+  const split = rest.indexOf('--')
+  const before = split < 0 ? rest : rest.slice(0, split)
+  const loose: string[] = []
+  let patterned = false
+  for (let i = 0; i < before.length; i++) {
+    const word = before[i]!
+    if (/^-[A-Za-z]*[ef]$/.test(word)) patterned = true
+    if (GIT_GREP_VALUED.test(word)) i++
+    else if (word !== '' && !word.startsWith('-')) loose.push(word)
+  }
+  const paths = [...(patterned ? loose : loose.slice(1)), ...(split < 0 ? [] : rest.slice(split + 1).filter(word => word !== ''))]
+  const specs = paths.map(spec => under(GLOB_PART.test(spec) || spec.startsWith(':') ? '.' : spec))
+  const named = split >= 0 ? specs.length > 0 : specs.some(spec => !wordKnown(spec) || existsSync(expandPath(spelling(spec), cwd)))
+  return named ? specs : [...specs, under('.')]
+}
+
 function readsWholeTree(layer: Layer): boolean {
   const { program, argv } = layer
   const flagged = (letters: RegExp, ...long: string[]): boolean => argv.slice(1).some(word => (word.startsWith('--') ? long.includes(word.split('=')[0]!) : /^-[A-Za-z]+$/.test(word) && letters.test(word)))
@@ -601,6 +637,8 @@ function readsWholeTree(layer: Layer): boolean {
       return argv.some(word => /^-(?:exec|execdir|ok|okdir|print0|fprint|fls)$/.test(word))
     case 'findstr':
       return argv.slice(1).some(word => FINDSTR_FLAG.test(word) && /s/i.test(word.split(':')[0]!))
+    case 'git':
+      return gitUnindexedGrep(layer) !== undefined
     default:
       return false
   }
@@ -869,6 +907,8 @@ function ripgrepReachesHidden(layer: Layer, simple: ReadCommand, read: ShellRead
 }
 
 function treeReadRoots(layer: Layer, fed: boolean, cwd: string, cwdHolds: boolean): string[] {
+  const searched = gitGrepRoots(layer, cwd)
+  if (searched !== undefined) return searched
   const words = layer.argv.slice(1)
   const plain = words.filter(word => word !== '' && !word.startsWith('-'))
   const { program } = layer
@@ -1022,7 +1062,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const listing = powershell && POWERSHELL_LISTERS.has(layer.program) ? powershellListing(layer.argv) : null
       const listed = listing !== null && read.commands.some((later, index) => index > at && layersOf(later.argv).some(found => readsHandedFiles(found) && !(listing.names && searchesNamesAsText(simple, later, found)))) ? listing : null
       const feeds = lists && (fed.has(at) || listed !== null || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')) || (!powershell && layer.program === 'find' && loopedToReader(at, simple)))
-      for (const word of [...layer.argv.slice(1), ...roots, ...(listed === null ? [] : listed.roots), ...(layer.program === 'findstr' ? findstrFolderFiles(layer.argv.slice(1)) : [])]) {
+      for (const word of [...layer.argv.slice(1), ...roots, ...(listed === null ? [] : listed.roots), ...(layer.program === 'findstr' ? findstrFolderFiles(layer.argv.slice(1)) : []), ...(gitGrepRoots(layer, here) ?? [])]) {
         for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {
           if (mercurySecretPath(candidate, here) !== null || ((FILE_READERS.has(layer.program) || sent.has(word) || handedToReader(at, simple)) && couldNameSecret(candidate, here, homes, !wordKnown(candidate)))) return word
           if ((FILE_READERS.has(layer.program) || UPLOADERS.has(layer.program) || sent.has(word)) && secretNameBehindUnread(candidate, homes)) return candidate.replaceAll(UNREAD_PART, '$(…)')
