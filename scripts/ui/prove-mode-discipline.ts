@@ -18,7 +18,8 @@ function section(t: string): void {
 section('A. boot byte-stream — every viewport-lock mode ends ARMED')
 const tee = join(tmpdir(), `mode-discipline-${process.pid}.bin`)
 rmSync(tee, { force: true })
-const cfg = { ...scenario('resume-2turn', 120, 44), out: join(tmpdir(), `mode-grid-${process.pid}.json`) }
+const bootGridPath = join(tmpdir(), `mode-grid-${process.pid}.json`)
+const cfg = { ...scenario('resume-2turn', 120, 44), out: bootGridPath }
 const cfgPath = join(tmpdir(), `mode-cfg-${process.pid}.json`)
 writeFileSync(cfgPath, JSON.stringify(cfg))
 const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {
@@ -29,8 +30,10 @@ const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cf
 })
 cleanupScenario('resume-2turn')
 check('pty boot captured', res.status === 0 && existsSync(tee), res.stderr?.slice(0, 200) ?? '')
+let bootRaw = ''
 if (res.status === 0 && existsSync(tee)) {
   const raw = readFileSync(tee, 'latin1')
+  bootRaw = raw
   const modes: Array<[number, string]> = [
     [1049, 'alt screen'],
     [1000, 'mouse normal'],
@@ -47,35 +50,51 @@ if (res.status === 0 && existsSync(tee)) {
 }
 rmSync(tee, { force: true })
 rmSync(cfgPath, { force: true })
+rmSync(bootGridPath, { force: true })
 
 section('A2. pane open→close — the alt screen + lock survive (reentrancy)')
 const tee2 = join(tmpdir(), `mode-pane-${process.pid}.bin`)
+const paneGridPath = join(tmpdir(), `mode-pane-grid-${process.pid}.json`)
 rmSync(tee2, { force: true })
 const cfg2 = {
   ...scenario('resume-2turn', 120, 44),
-  out: join(tmpdir(), `mode-pane-grid-${process.pid}.json`),
+  out: paneGridPath,
 }
-;(cfg2 as { sends: Array<{ atTick: number; data: string }> }).sends = [
-  { atTick: 30, data: '/extensions' },
-  { atTick: 36, data: '\r' },
-  { atTick: 46, data: String.fromCharCode(27) },
+;(cfg2 as { sends: Array<Record<string, unknown>> }).sends = [
+  { requireAwait: true, awaitText: 'Type a prompt', minTick: 10, awaitSettleTicks: 3, data: '/extensions\r' },
+  { requireAwait: true, awaitText: 'Mercury — extensions', awaitSettleTicks: 2, data: String.fromCharCode(27), mark: 'pane-open' },
+  { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 2, data: '', mark: 'pane-closed' },
 ]
-;(cfg2 as { total: number }).total = 60
+;(cfg2 as { total: number }).total = 150
 const cfg2Path = join(tmpdir(), `mode-pane-cfg-${process.pid}.json`)
 writeFileSync(cfg2Path, JSON.stringify(cfg2))
 const res2 = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfg2Path], {
   encoding: 'utf-8',
-  timeout: vshotBudgetMs(60000),
+  timeout: vshotBudgetMs(90000),
   env: { ...process.env,
     MERCURY_CONFIG_DIR: CONFIG_HOME, VSHOT_TEE: tee2 },
 })
 cleanupScenario('resume-2turn')
 check('pane-cycle pty captured', res2.status === 0 && existsSync(tee2), res2.stderr?.slice(0, 200) ?? '')
+type GridCell = { c?: string }
+const gridToText = (grid: GridCell[][] | undefined): string =>
+  (grid ?? []).map(row => row.map(cell => cell.c || ' ').join('')).join('\n')
+const paneCycled = (bytes: string, openFrame: string, closedFrame: string): boolean => {
+  const clears = bytes.split('[2J').length - 1
+  const wholeFrames = bytes.split('\x1b[H\x1b[0m').length - 1
+  return clears >= 1 && wholeFrames >= 3 && openFrame.includes('Mercury — extensions') && !closedFrame.includes('Mercury — extensions')
+}
 if (res2.status === 0 && existsSync(tee2)) {
   const raw2 = readFileSync(tee2, 'latin1')
+  const payload = existsSync(paneGridPath)
+    ? (JSON.parse(readFileSync(paneGridPath, 'utf8')) as { grid?: GridCell[][]; marks?: Array<{ label: string; grid: GridCell[][] }> })
+    : {}
+  const openText = gridToText(payload.marks?.find(m => m.label === 'pane-open')?.grid)
+  const closedText = gridToText(payload.grid)
   const clears = raw2.split('[2J').length - 1
   const wholeFrames = raw2.split('\x1b[H\x1b[0m').length - 1
-  check('pane really cycled (≥3 repaint bursts: the boot clear, then a whole-frame overwrite for the pane open and for the pane close)', clears >= 1 && clears + wholeFrames >= 3, `clears=${clears} whole frames=${wholeFrames}`)
+  check('pane really cycled (≥3 whole-frame repaints, and Mercury — extensions opened then closed)', paneCycled(raw2, openText, closedText), `clears=${clears} whole frames=${wholeFrames}`)
+  check('pane-cycled check refuses a plain boot with no pane opened and an unclosed pane', bootRaw !== '' && !paneCycled(bootRaw, '', closedText) && !paneCycled(raw2, openText, openText))
   const panes: Array<[number, string]> = [
     [1049, 'alt screen'],
     [1000, 'mouse normal'],
@@ -90,6 +109,7 @@ if (res2.status === 0 && existsSync(tee2)) {
 }
 rmSync(tee2, { force: true })
 rmSync(cfg2Path, { force: true })
+rmSync(paneGridPath, { force: true })
 
 section('B. re-assert wiring (engage paths + resume/wake/editor seams)')
 const srcOf = (...p: string[]) => readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
