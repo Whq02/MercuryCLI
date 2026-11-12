@@ -175,10 +175,12 @@ function installProofScratch(options = {}) {
     if (guest) return
     if ((code !== 0 && !stopped) || keepAsked()) {
       if (ownRoot && !kept.has(ownRoot) && holdsNothingToRead()) {
+        try { reapDaemonFoldersSync([ownRoot]) } catch {}
         try { removeScratchFolder(ownRoot) } catch {}
       }
       return
     }
+    try { reapDaemonFoldersSync([...folders, ...(ownRoot ? [ownRoot] : [])]) } catch {}
     for (const folder of [...folders].reverse()) {
       try { removeScratchFolder(folder) } catch (error) {
         process.stderr.write(`proof scratch cleanup failed: ${folder}: ${error.message}\n`)
@@ -190,6 +192,138 @@ function installProofScratch(options = {}) {
       process.stderr.write(`proof scratch left behind: ${ownRoot}: ${error.message}\n`)
     }
   })
+}
+const SKIP_SCAN_DIRS = new Set(['node_modules', '.git', 'vendor'])
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+}
+function pidAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 1) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+function pidCommand(pid) {
+  if (process.platform === 'win32') return ''
+  const { execFileSync } = require('node:child_process')
+  for (const ps of ['ps', '/bin/ps', '/usr/bin/ps']) {
+    try {
+      const cmd = execFileSync(ps, ['-o', 'command=', '-p', String(pid)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000, windowsHide: true }).trim()
+      if (cmd) return cmd
+    } catch {}
+  }
+  return ''
+}
+function ownedByScratch(pid, roots) {
+  if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid || pid === process.ppid) return false
+  if (process.env.MERCURY_SUITE_RUNNER_PID && String(pid) === process.env.MERCURY_SUITE_RUNNER_PID) return false
+  if (process.platform === 'win32') {
+    try {
+      const { execFileSync } = require('node:child_process')
+      const out = execFileSync('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000, windowsHide: true }).toLowerCase()
+      return out.includes('"node.exe"') || out.includes('"bun.exe"') || out.includes('"mercury.exe"')
+    } catch {
+      return false
+    }
+  }
+  const cmd = pidCommand(pid)
+  if (!cmd) return false
+  const repoRoot = path.resolve(__dirname, '..', '..')
+  return roots.some(root => root && cmd.includes(root)) || cmd.includes(repoRoot)
+}
+function daemonPidsInFolder(dir) {
+  const out = []
+  try {
+    const workersFile = path.join(dir, 'concourse-workers.json')
+    if (fs.existsSync(workersFile)) {
+      const parsed = JSON.parse(fs.readFileSync(workersFile, 'utf8'))
+      if (parsed && typeof parsed === 'object') {
+        for (const rec of Object.values(parsed)) {
+          if (rec && typeof rec === 'object' && rec.endedAt === undefined && Number.isInteger(rec.pid) && rec.pid > 1) out.push(rec.pid)
+        }
+      }
+    }
+  } catch {}
+  try {
+    const pidFile = path.join(dir, 'daemon.pid')
+    if (fs.existsSync(pidFile)) {
+      const pid = Number(fs.readFileSync(pidFile, 'utf8').trim())
+      if (Number.isInteger(pid) && pid > 1) out.push(pid)
+    }
+  } catch {}
+  return out
+}
+function findDaemonFolders(start, maxDepth = 3) {
+  const found = []
+  const walk = (cur, depth) => {
+    let entries
+    try {
+      entries = fs.readdirSync(cur, { withFileTypes: true })
+    } catch {
+      return
+    }
+    if (entries.some(e => e.name === 'daemon.pid' || e.name === 'concourse-workers.json')) found.push(cur)
+    if (depth >= maxDepth) return
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.isSymbolicLink() || SKIP_SCAN_DIRS.has(entry.name)) continue
+      walk(path.join(cur, entry.name), depth + 1)
+    }
+  }
+  walk(start, 0)
+  return found
+}
+function reapPidsSync(pids, graceMs = 1500) {
+  const unique = [...new Set(pids.filter(pidAlive))]
+  if (unique.length === 0) return
+  for (const pid of unique) {
+    try { process.kill(pid, 'SIGTERM') } catch {}
+  }
+  const deadline = Date.now() + Math.max(0, graceMs)
+  while (Date.now() < deadline && unique.some(pidAlive)) sleepSync(25)
+  const survivors = unique.filter(pidAlive)
+  if (survivors.length === 0) return
+  for (const pid of survivors) {
+    try { process.kill(pid, 'SIGKILL') } catch {}
+  }
+  const killDeadline = Date.now() + 250
+  while (Date.now() < killDeadline && survivors.some(pidAlive)) sleepSync(25)
+}
+function reapDaemonFoldersSync(targetFolders, graceMs = 1500) {
+  const roots = []
+  const daemonDirs = new Set()
+  for (const raw of targetFolders) {
+    if (!raw) continue
+    const folder = String(raw)
+    roots.push(folder)
+    try { roots.push(fs.realpathSync(folder)) } catch {}
+    for (const dir of findDaemonFolders(folder)) daemonDirs.add(dir)
+  }
+  const pids = []
+  for (const dir of daemonDirs) {
+    for (const pid of daemonPidsInFolder(dir)) {
+      if (ownedByScratch(pid, roots)) pids.push(pid)
+    }
+  }
+  reapPidsSync(pids, graceMs)
+}
+function reapThenRemove(pids, targetFolders, opts = {}) {
+  const graceMs = opts && typeof opts.graceMs === 'number' ? opts.graceMs : 1500
+  const list = Array.isArray(targetFolders) ? targetFolders : [targetFolders]
+  const roots = []
+  for (const raw of list) {
+    if (!raw) continue
+    roots.push(String(raw))
+    try { roots.push(fs.realpathSync(String(raw))) } catch {}
+  }
+  const owned = (Array.isArray(pids) ? pids : []).filter(pid => ownedByScratch(pid, roots))
+  reapPidsSync(owned, graceMs)
+  reapDaemonFoldersSync(list, graceMs)
+  for (const folder of list) {
+    if (folder) removeScratchFolder(String(folder))
+  }
 }
 const RETRY_CODES = new Set(['EBUSY', 'EPERM', 'ENOTEMPTY', 'EMFILE', 'ENFILE'])
 function removeScratchFolder(folder, maxRetries = 10, retryDelayMs = 100) {
@@ -214,7 +348,7 @@ function removeScratchFolder(folder, maxRetries = 10, retryDelayMs = 100) {
 function singleRunRootMadeHere() {
   return madeRoot ? ownRoot : ''
 }
-module.exports = { installProofScratch, registerProofScratch, keepProofScratch, removeScratchFolder, singleRunRootMadeHere, SINGLE_RUN_OWNER }
+module.exports = { installProofScratch, registerProofScratch, keepProofScratch, removeScratchFolder, reapDaemonFoldersSync, reapThenRemove, singleRunRootMadeHere, SINGLE_RUN_OWNER }
 if (process.env.MERCURY_SUITE_TMPDIR) {
   try {
     installProofScratch()

@@ -272,6 +272,68 @@ process.exit(process.argv[3] === 'red' ? 1 : 0);
         check('single guest: a temp dir that is already a run root is used as it stands', seen === temp, `${seen}`)
         check("single guest: its folders are the owner's to remove", run.code === 0 && named !== undefined && existsSync(named), `rc=${run.code} ${run.output}`)
       }
+      {
+        const temp = join(short, 'dying-daemon')
+        const run = await drive('dying-daemon', 'dying-daemon', temp)
+        await new Promise(r => setTimeout(r, 250))
+        const pids = ((run.facts as { dyingPids?: number[] } | undefined)?.dyingPids ?? []).filter((p): p is number => typeof p === 'number')
+        const alive = pids.filter(p => {
+          try {
+            process.kill(p, 0)
+            return true
+          } catch {
+            return false
+          }
+        })
+        const left = existsSync(temp) ? readdirSync(temp) : []
+        for (const p of alive) {
+          try {
+            process.kill(p, 'SIGKILL')
+          } catch {}
+        }
+        check(
+          'single dying-daemon: a daemon and worker recorded under the scratch root are reaped before the sweep, so their shutdown writes cannot recreate the run root',
+          run.code === 0 && pids.length === 2 && alive.length === 0 && left.length === 0,
+          `rc=${run.code} pids=${JSON.stringify(pids)} alive=${JSON.stringify(alive)} left=${JSON.stringify(left)} ${run.output}`,
+        )
+      }
+      {
+        const { createRequire } = await import('node:module')
+        const mod = createRequire(import.meta.url)(join(root, 'scripts/lib/proofScratch.cjs')) as {
+          reapThenRemove?: (pids: number[], folders: string[], opts?: { graceMs?: number }) => void
+        }
+        const directDir = join(short, 'reap-then-remove')
+        mkdirSync(directDir, { recursive: true })
+        let childPid = 0
+        if (typeof mod.reapThenRemove === 'function') {
+          const code = [
+            "const fs = require('node:fs'), path = require('node:path');",
+            'const dir = process.argv[1];',
+            'const writeLate = () => { try { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, "late.txt"), "1"); } catch {} };',
+            "process.on('SIGTERM', () => { setTimeout(() => { writeLate(); process.exit(0); }, 80); });",
+            'const iv = setInterval(writeLate, 60);',
+            'setTimeout(() => { clearInterval(iv); process.exit(0); }, 4000);',
+          ].join(' ')
+          const c = spawn(process.execPath, ['-e', code, directDir], { detached: true, stdio: 'ignore' })
+          c.unref()
+          childPid = c.pid ?? 0
+          mod.reapThenRemove([childPid, process.pid], [directDir], { graceMs: 1500 })
+          await new Promise(r => setTimeout(r, 200))
+        }
+        let stillAlive = false
+        if (childPid > 1) {
+          try {
+            process.kill(childPid, 0)
+            stillAlive = true
+            process.kill(childPid, 'SIGKILL')
+          } catch {}
+        }
+        check(
+          'reapThenRemove reaps an owned child through its SIGTERM shutdown writes, ignores process.pid, and leaves the removed folder absent',
+          typeof mod.reapThenRemove === 'function' && childPid > 1 && !stillAlive && !existsSync(directDir),
+          `fn=${typeof mod.reapThenRemove} pid=${childPid} alive=${stillAlive} stood=${existsSync(directDir)}`,
+        )
+      }
     } finally {
       rmSync(short, { recursive: true, force: true })
     }
