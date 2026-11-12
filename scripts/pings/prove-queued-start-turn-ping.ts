@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { PassThrough } from 'node:stream'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -31,6 +31,7 @@ const { Box, Text, render } = await import('../../src/ink.ts')
 const { TerminalWriteProvider } = await import('../../src/ink/terminalWrite.ts')
 const { useTurnEndPing, PING_MESSAGE } = await import('../../src/hooks/useTurnEndPing.ts')
 const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+const { readSessionWorkersSnapshot, markConcourseWorkerTurnSettled } = await import('../../src/daemon/concourseWorkers.ts')
 const { hasSeatLive, IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
 const {
   getFocusedSessionConnector,
@@ -400,6 +401,168 @@ try {
     await wait(THRESHOLD_MS + 60)
     check('9c. ping fires once after the reply painted', osc9Count() - before === 1, `delta=${osc9Count() - before}`)
     c.detach()
+  }
+
+  {
+    const sid = '00000000-0000-4000-8000-000000000010'
+    const workersPath = join(daemonHome, 'concourse-workers.json')
+    const buildBigBody = (deliveryAt: number, settledAt?: number): string => {
+      const workers: Record<string, unknown> = {}
+      const pad = 'p'.repeat(900)
+      for (let i = 0; i < 1000; i++) {
+        workers[`concourse-bulk-${i}`] = {
+          schema: 1,
+          runnerId: `concourse-bulk-${i}`,
+          sessionId: `00000000-0000-4000-9100-${String(i).padStart(12, '0')}`,
+          workspaceId: work,
+          isolation: 'shared',
+          modelKey: 'claude-opus-5-5',
+          spawnedAt: 1000,
+          lastLiveAt: 1000,
+          endedAt: i < 990 ? 2000 : undefined,
+          lastDeliveryAt: 1000,
+          lastTurnSettledAt: 1500,
+          settingsSnapshot: { pad },
+        }
+      }
+      workers['concourse-w1'] = {
+        schema: 1,
+        runnerId: 'concourse-w1',
+        sessionId: sid,
+        workspaceId: work,
+        isolation: 'shared',
+        modelKey: 'claude-opus-5-5',
+        spawnedAt: 1000,
+        lastLiveAt: 1000,
+        lastDeliveryAt: deliveryAt,
+        ...(settledAt !== undefined ? { lastTurnSettledAt: settledAt } : {}),
+        settingsSnapshot: { pad },
+      }
+      return JSON.stringify({ version: 1, workers })
+    }
+
+    writeFacts(sid, { busy: false })
+    writeWorkers({ 'concourse-w1': { sessionId: sid, lastDeliveryAt: 1000 } })
+    const c = makeConnector(sid)
+    setFocusedSessionConnector(c)
+    await wait(20)
+
+    const origParse = JSON.parse
+    let bigParses = 0
+    let midReadSwap: (() => void) | null = null
+    JSON.parse = ((text: string, reviver?: Parameters<typeof JSON.parse>[1]) => {
+      if (typeof text === 'string' && text.includes('"concourse-bulk-999"')) {
+        bigParses++
+        if (midReadSwap !== null) {
+          const fn = midReadSwap
+          midReadSwap = null
+          fn()
+        }
+      }
+      return origParse(text, reviver)
+    }) as typeof JSON.parse
+
+    try {
+      const bodyA = buildBigBody(1000, 1500)
+      writeFileSync(workersPath, bodyA)
+      bigParses = 0
+      for (let i = 0; i < 50; i++) {
+        writeFacts(sid, { busy: false })
+        feedFacts(c)
+      }
+      check(
+        '10a. 50 facts reads over an unchanged 1,001-record workers file read and parse it once (not 50 times)',
+        bigParses === 1,
+        `parses=${bigParses}`,
+      )
+
+      const bodyB = buildBigBody(10000, 105000)
+      writeFileSync(workersPath, bodyB)
+      writeFacts(sid, { busy: false })
+      const prevCompleted = c.lastTurnCompletedAtMs()
+      feedFacts(c)
+      check(
+        '10b. a changed workers file is read at the very next facts read',
+        bigParses === 2 && c.lastTurnCompletedAtMs() !== prevCompleted,
+        `parses=${bigParses} completed=${c.lastTurnCompletedAtMs()} prev=${prevCompleted}`,
+      )
+
+      const sameLenA = buildBigBody(20000, 205000)
+      const sameLenB = buildBigBody(30000, 305000)
+      const tmpSame = `${workersPath}.samelen.tmp`
+      writeFileSync(tmpSame, sameLenA)
+      renameSync(tmpSame, workersPath)
+      writeFacts(sid, { busy: false })
+      feedFacts(c)
+      const parsesBeforeSameSize = bigParses
+      const completedBeforeSameSize = c.lastTurnCompletedAtMs()
+      writeFileSync(tmpSame, sameLenB)
+      renameSync(tmpSame, workersPath)
+      writeFacts(sid, { busy: false })
+      feedFacts(c)
+      check(
+        '10c. replacing the workers file with another of identical byte size is read at the very next call',
+        Buffer.byteLength(sameLenA) === Buffer.byteLength(sameLenB) &&
+          bigParses === parsesBeforeSameSize + 1 &&
+          c.lastTurnCompletedAtMs() !== completedBeforeSameSize,
+        `lenA=${Buffer.byteLength(sameLenA)} lenB=${Buffer.byteLength(sameLenB)} parses=${bigParses - parsesBeforeSameSize}`,
+      )
+
+      const raceInitial = buildBigBody(40000, 401000)
+      const raceConcurrent = buildBigBody(40000, 409000)
+      writeFileSync(tmpSame, raceInitial)
+      renameSync(tmpSame, workersPath)
+      midReadSwap = () => {
+        const swapTmp = `${workersPath}.swap.tmp`
+        writeFileSync(swapTmp, raceConcurrent)
+        renameSync(swapTmp, workersPath)
+      }
+      const duringSave = readSessionWorkersSnapshot(daemonHome)
+      const nextRead = readSessionWorkersSnapshot(daemonHome)
+      check(
+        '10d. stat is captured before readFileSync: a save landing mid-read is seen on the very next call',
+        duringSave.state === 'known' &&
+          duringSave.workers['concourse-w1']?.lastTurnSettledAt === 401000 &&
+          nextRead.state === 'known' &&
+          nextRead.workers['concourse-w1']?.lastTurnSettledAt === 409000,
+        `first=${duringSave.state === 'known' ? duringSave.workers['concourse-w1']?.lastTurnSettledAt : 'unavail'} next=${nextRead.state === 'known' ? nextRead.workers['concourse-w1']?.lastTurnSettledAt : 'unavail'}`,
+      )
+
+      const frozenSnap = readSessionWorkersSnapshot(daemonHome)
+      let threwOnMutate = false
+      if (frozenSnap.state === 'known') {
+        try {
+          ;(frozenSnap.workers['concourse-w1'] as { lastTurnSettledAt?: number }).lastTurnSettledAt = 1
+        } catch {
+          threwOnMutate = true
+        }
+      }
+      markConcourseWorkerTurnSettled('concourse-w1', daemonHome)
+      const afterUpdate = readSessionWorkersSnapshot(daemonHome)
+      check(
+        '10e. memoized snapshot and its records are frozen against caller mutation while updateConcourseWorkers still writes cleanly',
+        frozenSnap.state === 'known' &&
+          Object.isFrozen(frozenSnap) &&
+          Object.isFrozen(frozenSnap.workers) &&
+          Object.isFrozen(frozenSnap.workers['concourse-w1']) &&
+          threwOnMutate &&
+          afterUpdate.state === 'known' &&
+          (afterUpdate.workers['concourse-w1']?.lastTurnSettledAt ?? 0) > 409000,
+        `threw=${threwOnMutate}`,
+      )
+
+      writeFileSync(workersPath, '{"version":1,"workers":{"broken')
+      const tornSnap = readSessionWorkersSnapshot(daemonHome)
+      unlinkSync(workersPath)
+      const absentSnap = readSessionWorkersSnapshot(daemonHome)
+      check(
+        '10f. torn and missing workers files return unavailable and empty known as before without poisoning the memo',
+        tornSnap.state === 'unavailable' && absentSnap.state === 'known' && Object.keys(absentSnap.workers).length === 0,
+        `torn=${tornSnap.state} absent=${absentSnap.state}`,
+      )
+    } finally {
+      JSON.parse = origParse
+    }
   }
 } finally {
   mounted.unmount()

@@ -101,6 +101,7 @@ src/context.ts :: getGitStatus :: invalidator=applyHarnessGround
 src/context.ts :: getSystemContext :: invalidator=applyHarnessGround
 src/context.ts :: getUserContext :: invalidator=applyHarnessGround
 src/daemon/concourseDispatch.ts :: ledgerMemo :: keyed-by-truth
+src/daemon/concourseWorkers.ts :: workersSnapshotMemo :: keyed-by-truth
 src/daemon/concourseWorktrees.ts :: worktreeDirtCache :: ttl-bounded
 src/daemon/controlSocket.ts :: controlKeyMemo :: invalidator=clearControlKeyMemo
 src/daemon/daemonBuild.ts :: selfScriptMemo :: static-for-process
