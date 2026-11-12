@@ -28,12 +28,13 @@ t.section('§1 — the prompts panel survives the full geometry sweep')
   const wide = grabScreens(run, 140, 40, [-1])
   void wide
   const at120 = grabScreens(run, 120, 40, [-1])[0]!
-  const at80 = grabScreens(run, 80, 30, [-1])[0]!
+  const framed80 = grabScreens(run, 80, 30, Array.from({ length: 36 }, (_, i) => 10000 + i * 100)).filter(s => s.rows.some(r => r.startsWith('╭') && r.endsWith('╮') && r.length === 80))
+  const at80 = framed80.at(-1)
   const text120 = flat(at120.rows)
-  const text80 = flat(at80.rows)
+  const text80 = flat(at80?.rows ?? [])
   t.check('the panel is open at 120 after the sweep (the PROMPTS tab strip)', /PROMPTS/.test(text120), text120.slice(0, 80))
   t.check('the tab strip survives at 120 (SAVED PROMPTS)', /SAVED PROMPTS/.test(text120))
-  t.check('the tab strip survives at 80 (narrow sheds columns, never tabs)', /PROMPTS/.test(text80))
+  t.check('the tab strip survives at 80 (narrow sheds columns, never tabs)', /PROMPTS/.test(text80), `${framed80.length} screen(s) framed at 80 columns; the last: ${at80?.rows.find(r => r.includes('PROMPTS')) ?? '(no tab strip)'}`)
 }
 
 t.section('§2 — selection identity holds (the row key, not the index)')
