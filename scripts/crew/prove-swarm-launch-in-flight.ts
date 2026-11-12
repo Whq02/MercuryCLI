@@ -71,10 +71,10 @@ const set = (update: (before: AppState) => AppState): void => {
 const seatType = { agentType: 'in-flight', source: 'userSettings', whenToUse: 'a seat of the launch scenes', getSystemPrompt: () => 'Answer in one line.' }
 let launches = 0
 type Launched = { agentId?: string; status?: string; refused?: string }
-function launch(input: { name: string; run_in_background?: boolean; team?: string; captain?: boolean }): Promise<Launched> {
+function launch(input: { name: string; run_in_background?: boolean; team?: string; captain?: boolean }, turn = new AbortController()): Promise<Launched> {
   const serial = ++launches
   const context = {
-    abortController: new AbortController(),
+    abortController: turn,
     getAppState: () => state,
     setAppState: set,
     setAppStateForTasks: set,
@@ -149,6 +149,25 @@ console.log('── a launch stopped before it enrolled meets a board that canno
   check('another writer holds the board\'s file for as long as the stopped launch\'s enrollment waits, and the store says so', statusOf(first.agentId) === 'killed' && thrown !== undefined && thrown.message !== RUNNING('ferry'), { status: statusOf(first.agentId), thrown: thrown?.message })
   check('the store\'s failure is not read as the name\'s refusal: no record takes the seat off the board', seam.swarmRoad(first.agentId) === true && (await readAgentMetadata(first.agentId as never))?.swarm !== false, { road: seam.swarmRoad(first.agentId), sidecar: await readAgentMetadata(first.agentId as never) })
   check('the lead is told the launch failed, in the store\'s words', thrown !== undefined && notice.includes('<status>failed</status>') && notice.includes(thrown.message), notice.slice(0, 400))
+}
+
+console.log('── a foreground launch an interrupt hands to the background keeps what it reserved until it has enrolled ──')
+{
+  const old = await launch({ name: 'watch', team: 'deck', run_in_background: true })
+  await until(() => told(old.agentId))
+  const before = seats().filter(seat => seat.startsWith('watch='))
+  const turn = new AbortController()
+  named.push(() => turn.abort())
+  const first = await launch({ name: 'watch', team: 'deck', captain: true }, turn)
+  const enrolledAtReturn = board.member(first.agentId ?? '')
+  await until(() => board.member(first.agentId ?? ''))
+  const atEnrollment = seats().filter(seat => seat.startsWith('watch='))
+  const captain = board.captain('deck')?.agent
+  await until(() => told(first.agentId))
+  check('the turn is interrupted before the launch has enrolled, and the launch is handed to the background', before.join() === `watch=${old.agentId}:parked` && first.status === 'async_launched' && enrolledAtReturn === false, { before, first, enrolledAtReturn })
+  check('when it enrolls, the parked seat whose name it took stays retired: one seat carries the name', atEnrollment.join() === `watch=${first.agentId}:running`, atEnrollment)
+  check('and it is the captain its launch asked for', captain !== undefined && captain === first.agentId, { captain })
+  check('it runs to its end in the background', statusOf(first.agentId) === 'completed' && seats().filter(seat => seat.startsWith('watch=')).join() === `watch=${first.agentId}:parked`, { status: statusOf(first.agentId), seats: seats() })
 }
 
 runSwarmCommand('off')

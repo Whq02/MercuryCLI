@@ -824,6 +824,10 @@ export const AgentTool = buildTool({
         : runWithOwnShellCwd(execute)
     })
 
+    if (result.detached !== undefined) {
+      backgroundOwnsEnrollment = true
+      void result.detached.finally(releaseEnrollment)
+    }
     return { data: result.data }
     } finally {
       if (!backgroundOwnsEnrollment) releaseEnrollment()

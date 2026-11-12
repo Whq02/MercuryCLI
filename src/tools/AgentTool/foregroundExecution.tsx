@@ -120,6 +120,7 @@ type ForegroundAgentResult = {
         agentName?: string
         backgroundReason: BackgroundHandoverReason
       }
+  detached?: Promise<void>
 }
 
 type ForegroundAgentExecutionInput = {
@@ -513,7 +514,7 @@ export async function runForegroundAgentExecution(
             backgrounded = true
             const backgroundedTaskId = foregroundTask.taskId
             const sibling = takeSiblingEnd(backgroundedTaskId)
-            void runWithAgentContext(syncAgentContext, () =>
+            const detached = runWithAgentContext(syncAgentContext, () =>
               continueDetached(backgroundedTaskId, nextPromise),
             )
             const canReadOutputFile = toolUseContext.options.tools.some(
@@ -535,6 +536,7 @@ export async function runForegroundAgentExecution(
                 backgroundReason: handedByTurnAbort ? 'turn-interrupted' : sibling !== null ? 'sibling-ended' : task.handoverReason ?? 'backgrounded',
                 ...(sibling !== null && !handedByTurnAbort ? { siblingEnd: sibling } : {}),
               },
+              detached,
             }
           }
           step = await nextPromise
